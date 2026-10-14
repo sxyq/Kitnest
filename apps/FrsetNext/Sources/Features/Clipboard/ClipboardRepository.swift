@@ -9,6 +9,10 @@ public struct ClipboardQuery {
     public var noteOnly: Bool = false
     /// 仅工具回流条目（is_generated_by_tool=1，05 号规格 B10）
     public var toolGeneratedOnly: Bool = false
+    /// 工具回流来源关键词（过滤项 .color → "colorpicker"；specs/14 §6，证据不足取来源映射）
+    public var generatedSourceKeyword: String? = nil
+    /// 代码特征启发式（过滤项 .code；原作为内容特征分类，specs/14 §7 规则未探明，此为 SQL 级近似）
+    public var codeLikeOnly: Bool = false
     public var tagID: String? = nil
     public var limit: Int = ClipboardRepository.defaultPageSize
     public var offset: Int = 0
@@ -17,6 +21,8 @@ public struct ClipboardQuery {
                 type: ClipboardItemType? = nil,
                 noteOnly: Bool = false,
                 toolGeneratedOnly: Bool = false,
+                generatedSourceKeyword: String? = nil,
+                codeLikeOnly: Bool = false,
                 tagID: String? = nil,
                 limit: Int = ClipboardRepository.defaultPageSize,
                 offset: Int = 0) {
@@ -24,6 +30,8 @@ public struct ClipboardQuery {
         self.type = type
         self.noteOnly = noteOnly
         self.toolGeneratedOnly = toolGeneratedOnly
+        self.generatedSourceKeyword = generatedSourceKeyword
+        self.codeLikeOnly = codeLikeOnly
         self.tagID = tagID
         self.limit = limit
         self.offset = offset
@@ -49,19 +57,32 @@ public final class ClipboardRepository: @unchecked Sendable {
         image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title
         """
 
-    // MARK: 读
-
-    public func fetch(_ query: ClipboardQuery) -> [ClipboardItem] {
-        var sql = "SELECT \(Self.columns) FROM clipboard_items"
-        var values: [SQLiteValue] = []
-        var clauses: [String] = []
-
+    private static func appendClauses(_ query: ClipboardQuery, clauses: inout [String], values: inout [SQLiteValue]) {
         if let type = query.type {
             clauses.append("type = ?")
             values.append(.text(type.rawValue))
         }
         if query.noteOnly { clauses.append("is_note = 1") }
         if query.toolGeneratedOnly { clauses.append("is_generated_by_tool = 1") }
+        if let keyword = query.generatedSourceKeyword {
+            clauses.append("source_tool_keyword = ?")
+            values.append(.text(keyword))
+        }
+        if query.codeLikeOnly {
+            // 代码过滤启发式（specs/14 §7：原作内容特征分类规则未探明）：
+            // 多行 + 常见代码符号/关键字，作为 SQL 级近似
+            clauses.append("""
+                (content LIKE '%{%'
+                 OR content LIKE '%;%'
+                 OR content LIKE '%func %'
+                 OR content LIKE '%def %'
+                 OR content LIKE '%class %'
+                 OR content LIKE '%import %'
+                 OR content LIKE '%const %'
+                 OR content LIKE '%<?php%'
+                 OR content LIKE '%<!DOCTYPE%')
+                """)
+        }
         if let tagID = query.tagID {
             clauses.append(#"dedupe_key IN (SELECT item_dedupe_key FROM clipboard_item_tags WHERE tag_id = ?)"#)
             values.append(.text(tagID))
@@ -79,6 +100,15 @@ public final class ClipboardRepository: @unchecked Sendable {
             }
             clauses.append("(" + conditions.joined(separator: " OR ") + ")")
         }
+    }
+
+    // MARK: 读
+
+    public func fetch(_ query: ClipboardQuery) -> [ClipboardItem] {
+        var sql = "SELECT \(Self.columns) FROM clipboard_items"
+        var values: [SQLiteValue] = []
+        var clauses: [String] = []
+        Self.appendClauses(query, clauses: &clauses, values: &values)
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
         sql += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
         values.append(contentsOf: [.int(Int64(query.limit)), .int(Int64(query.offset))])
@@ -98,26 +128,7 @@ public final class ClipboardRepository: @unchecked Sendable {
         var sql = "SELECT COUNT(*) AS n FROM clipboard_items"
         var values: [SQLiteValue] = []
         var clauses: [String] = []
-        if let type = query.type { clauses.append("type = ?"); values.append(.text(type.rawValue)) }
-        if query.noteOnly { clauses.append("is_note = 1") }
-        if query.toolGeneratedOnly { clauses.append("is_generated_by_tool = 1") }
-        if let tagID = query.tagID {
-            clauses.append(#"dedupe_key IN (SELECT item_dedupe_key FROM clipboard_item_tags WHERE tag_id = ?)"#)
-            values.append(.text(tagID))
-        }
-        if !query.search.isEmpty {
-            let pattern = SQLiteValue.text("%" + Self.escapeLike(query.search) + "%")
-            var conditions = [#"content LIKE ? ESCAPE '\'"#, #"title LIKE ? ESCAPE '\'"#, #"alias_title LIKE ? ESCAPE '\'"#]
-            values.append(contentsOf: [pattern, pattern, pattern])
-            // B11：搜索同样覆盖图片条目的 OCR 文本（OCR 结果以文件落盘，见 ClipboardOCRTextStorage）
-            let ocrKeys = ClipboardOCRTextStorage.matchingDedupeKeys(query: query.search)
-            if !ocrKeys.isEmpty {
-                let placeholders = Array(repeating: "?", count: ocrKeys.count).joined(separator: ",")
-                conditions.append("dedupe_key IN (\(placeholders))")
-                values.append(contentsOf: ocrKeys.map { SQLiteValue.text($0) })
-            }
-            clauses.append("(" + conditions.joined(separator: " OR ") + ")")
-        }
+        Self.appendClauses(query, clauses: &clauses, values: &values)
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
         return Int((try? db.scalarInt(sql, values)) ?? 0)
     }

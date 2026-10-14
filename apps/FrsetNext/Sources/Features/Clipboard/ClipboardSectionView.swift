@@ -10,10 +10,9 @@ public struct ClipboardSectionView: View {
     @ObservedObject private var manager = ClipboardManager.shared
     @ObservedObject private var tagStore = TagStore.shared
 
-    @Stored private var previewItem: ClipboardItem?
-    @Stored private var newTagName: String = ""
     @Stored private var summaryState = SummaryState()
-    @Stored private var isHoveringList = false
+    // 注意：裸 swiftc 自检无 SwiftUIMacros 插件，@State 不可用（CONTRACT §7.4）→ 用 @Stored
+    @Stored private var scrollProxy = ClipboardTableScrollProxy()
 
     public init() {}
 
@@ -24,16 +23,17 @@ public struct ClipboardSectionView: View {
                                                    set: { manager.searchText = $0 }),
                                      resultCount: manager.items.count)
             ClipboardFilterBarView(selection: Binding(get: { manager.filter },
-                                                      set: { manager.filter = $0 }))
+                                                      set: { manager.filter = $0 }),
+                                   showsScrollToTop: !manager.isMainListAtTop,
+                                   onScrollToTop: { scrollProxy.scrollToTop() })
             list
         }
         .onAppear {
+            // 面板复用：清理预览协调器的抑制/未决 WorkItem（specs/12 prepareForPanelAppear）
+            // 经 ServiceLocator.panelPreview 协议调用，不引用 Panel 具体类型（CONTRACT §1.3）
+            ServiceLocator.panelPreview?.prepareForPanelAppear()
             manager.reload(reset: true)
             tagStore.refresh()
-        }
-        .sheet(item: $previewItem) { item in
-            LargeTextPreviewContainerView(item: item)
-                .frame(minWidth: 560, minHeight: 420)
         }
         .alert(summaryState.title, isPresented: $summaryState.isPresented) {
             Button("好") { summaryState.reset() }
@@ -67,7 +67,7 @@ public struct ClipboardSectionView: View {
         }
     }
 
-    // MARK: 列表
+    // MARK: 列表（specs/14 §4：NSTableView 宿主，行交互族在 ClipboardTableHostView）
 
     private var list: some View {
         Group {
@@ -82,21 +82,18 @@ public struct ClipboardSectionView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 96)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(manager.items) { item in
-                            ClipboardRow(item: item,
-                                         onCopy: { manager.copy(item) },
-                                         onEdit: { ClipboardItemEditWindowRecord.open(for: item) },
-                                         onPreview: { previewItem = item },
-                                         onSummarize: { Task { await runSummary(for: item) } })
-                                .contextMenu { ClipboardRowMenuContent(item: item, newTagName: $newTagName) }
-                                .onAppear { manager.loadMoreIfNeeded(currentItem: item) }
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-                .frame(maxHeight: 420)
+                ClipboardTableHostView(manager: manager,
+                                       scrollProxy: scrollProxy,
+                                       onCopy: { manager.copy($0) },
+                                       onEdit: { ClipboardItemEditWindowRecord.open(for: $0) },
+                                       onSummarize: { item in
+                                           Task { await runSummary(for: item) }
+                                       },
+                                       onDelete: { item in
+                                           ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
+                                           manager.delete(item)
+                                       })
+                    .frame(maxHeight: 420)
             }
         }
     }
@@ -165,39 +162,63 @@ public struct ClipboardSearchTextField: View {
     }
 }
 
-// MARK: - 过滤栏（05 号规格 1.3：ClipboardFilterBarView）
+// MARK: - 过滤栏（05 号规格 1.3 + specs/14 §3.6：九类型项 + 回顶按钮）
 
 public struct ClipboardFilterBarView: View {
 
     @Binding public var selection: ClipboardFilterKind
+    /// 首条目滚出顶部 → 显示回顶按钮（FilterBar_ScrollToTop，specs/14 §3.4/C6）
+    public var showsScrollToTop: Bool
+    public var onScrollToTop: (() -> Void)?
 
-    public init(selection: Binding<ClipboardFilterKind>) { self._selection = selection }
+    public init(selection: Binding<ClipboardFilterKind>,
+                showsScrollToTop: Bool = false,
+                onScrollToTop: (() -> Void)? = nil) {
+        self._selection = selection
+        self.showsScrollToTop = showsScrollToTop
+        self.onScrollToTop = onScrollToTop
+    }
 
     public var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(ClipboardFilterKind.allCases) { kind in
-                    Button {
-                        selection = kind
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: kind.systemImage)
-                                .font(.system(size: 10))
-                            Text(kind.label)
-                                .font(.system(size: 11))
+        HStack(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(ClipboardFilterKind.allCases) { kind in
+                        Button {
+                            selection = kind
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: kind.systemImage)
+                                    .font(.system(size: 10))
+                                Text(kind.label)
+                                    .font(.system(size: 11))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(selection == kind ? Color.accentColor.opacity(0.18) : Color.clear)
+                            )
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(selection == kind ? Color.accentColor.opacity(0.18) : Color.clear)
-                        )
+                        .buttonStyle(.borderless)
                     }
-                    .buttonStyle(.borderless)
                 }
             }
+            .frame(height: 24)
+            if showsScrollToTop {
+                // 回顶按钮（icon/标识实证：FilterBar_ScrollToTop + arrow.up.to.line）
+                Button {
+                    onScrollToTop?()
+                } label: {
+                    Image(systemName: "arrow.up.to.line")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("FilterBar_ScrollToTop")
+                .help("回到顶部")
+                .transition(.opacity)
+            }
         }
-        .frame(height: 24)
     }
 }
 
@@ -319,24 +340,32 @@ public struct ClipboardRowMenuContent: View {
 
 // MARK: - 行视图
 
+/// 主列表行（NSTableView 宿主渲染）。点击分派不在这里：
+/// 单击/双击/右键由 RowHostingView 处理（specs/14 §3.2/§3.7）；
+/// hover 高亮由 ClipboardTableView 的跟踪回调驱动（抑制语义见 ClipboardRowHoverSuppressionController）。
 public struct ClipboardRow: View {
 
     public let item: ClipboardItem
+    /// 是否处于 hover 高亮态（由表格宿主设置）
+    public let isHighlighted: Bool
     public let onCopy: () -> Void
     public let onEdit: () -> Void
-    public let onPreview: () -> Void
+    /// 打开大文本预览独立窗口（hover 图标）
+    public let onPreviewWindow: () -> Void
     public let onSummarize: () -> Void
 
-    @Stored private var isHovering = false
     @ObservedObject private var tagStore = TagStore.shared
 
     public init(item: ClipboardItem,
+                isHighlighted: Bool,
                 onCopy: @escaping () -> Void,
                 onEdit: @escaping () -> Void,
-                onPreview: @escaping () -> Void,
+                onPreviewWindow: @escaping () -> Void,
                 onSummarize: @escaping () -> Void) {
-        self.item = item; self.onCopy = onCopy; self.onEdit = onEdit
-        self.onPreview = onPreview; self.onSummarize = onSummarize
+        self.item = item
+        self.isHighlighted = isHighlighted
+        self.onCopy = onCopy; self.onEdit = onEdit
+        self.onPreviewWindow = onPreviewWindow; self.onSummarize = onSummarize
     }
 
     public var body: some View {
@@ -368,24 +397,21 @@ public struct ClipboardRow: View {
                 }
             }
             Spacer(minLength: 0)
-            if isHovering { hoverActions }
+            if isHighlighted { hoverActions }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .frame(minHeight: Theme.rowHeight)
+        .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                .fill(isHovering ? Color.accentColor.opacity(0.10) : Color.clear)
+                .fill(isHighlighted ? Color.accentColor.opacity(0.10) : Color.clear)
         )
-        .contentShape(Rectangle())
-        .onHover { hovering in isHovering = hovering }
-        .onTapGesture(perform: onCopy)
     }
 
     private var hoverActions: some View {
         HStack(spacing: 2) {
             iconButton("sparkles", help: "AI 摘要", enabled: ClipboardSummaryExecutionCoordinator.shared.isAvailable, action: onSummarize)
-            iconButton("doc.text.magnifyingglass", help: "预览", enabled: true, action: onPreview)
+            iconButton("doc.text.magnifyingglass", help: "预览", enabled: true, action: onPreviewWindow)
             iconButton("pencil", help: "编辑", enabled: true, action: onEdit)
             iconButton("trash", help: "删除", enabled: true, action: { ClipboardManager.shared.delete(item) })
         }

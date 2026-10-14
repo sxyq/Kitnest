@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import CoreGraphics
 import Foundation
 
@@ -7,29 +8,33 @@ import Foundation
 public extension Preferences.Keys {
     /// 复制后自动粘贴（需辅助功能权限，**默认关闭**）
     static let clipboardAutoPaste = "clipboard.autoPaste"
-    /// 是否启用 CGEventTap 复制动作感知（权限不足自动退化为轮询）
-    static let clipboardEventTapEnabled = "clipboard.eventTapEnabled"
     /// 浮动窗是否显示
     static let floatingVisible = "floatingClipboard.visible"
     /// 浮动窗是否钉住（始终置顶）
     static let floatingPinned = "floatingClipboard.pinned"
 }
 
-// MARK: - 列表过滤
+// MARK: - 列表过滤（specs/14 §3.6：ClipboardFilterType 九项）
 
+/// 过滤枚举 case 序 = 原作反射串序（0xaed3c0）：all, text, image, link, file, code, color, generated, note。
+/// 与重建差异：删 .richtext（并入 text 检索）；.url 更名 .link；新增 .code / .color / .generated。
 public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
-    case all, text, richtext, image, file, url, note
+    case all, text, image, link, file, code, color, generated, note
 
     public var id: String { rawValue }
 
+    /// UI 文案（TODO(specs/18 L10n)：原作标签在 Localizable 资源、不在二进制切片内；
+    /// 本轮直接用中文字面量，随 L10n 基建收口为键面英文句）
     public var label: String {
         switch self {
         case .all: return "全部"
         case .text: return "文本"
-        case .richtext: return "富文本"
         case .image: return "图片"
+        case .link: return "链接"
         case .file: return "文件"
-        case .url: return "链接"
+        case .code: return "代码"
+        case .color: return "颜色"
+        case .generated: return "工具生成"
         case .note: return "笔记"
         }
     }
@@ -38,23 +43,36 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .all: return "tray.full"
         case .text: return "doc.plaintext"
-        case .richtext: return "doc.richtext"
         case .image: return "photo"
+        case .link: return "link"
         case .file: return "doc"
-        case .url: return "link"
+        case .code: return "chevron.left.forwardslash.chevron.right"
+        case .color: return "paintpalette"
+        case .generated: return "wand.and.stars"
         case .note: return "note.text"
         }
     }
 
-    /// 映射为 SQL 条件：type 过滤 or 笔记位
-    public var itemType: ClipboardItemType? {
+    /// 过滤项 → 查询条件映射（specs/14 §6）：
+    /// - generated → is_generated_by_tool=1（工具回流）
+    /// - color → 工具回流中 sourceToolKeyword=="colorpicker"（取色工具产物；原作按内容特征分类，
+    ///   spec 14 §7 未探明分类规则，证据不足取来源映射，注释说明）
+    /// - code → 文本子类的内容特征启发式（原作为内容特征分类，规则数值未探明）
+    public var queryMapping: (type: ClipboardItemType?,
+                              noteOnly: Bool,
+                              toolGeneratedOnly: Bool,
+                              generatedSourceKeyword: String?,
+                              codeLikeOnly: Bool) {
         switch self {
-        case .all, .note: return nil
-        case .text: return .text
-        case .richtext: return .richtext
-        case .image: return .image
-        case .file: return .file
-        case .url: return .url
+        case .all:       return (nil, false, false, nil, false)
+        case .text:      return (.text, false, false, nil, false)
+        case .image:     return (.image, false, false, nil, false)
+        case .link:      return (.url, false, false, nil, false)   // 原作 .link ↔ SQL type='url'
+        case .file:      return (.file, false, false, nil, false)
+        case .code:      return (.text, false, false, nil, true)
+        case .color:     return (nil, false, true, "colorpicker", false)
+        case .generated: return (nil, false, true, nil, false)
+        case .note:      return (nil, true, false, nil, false)
         }
     }
 }
@@ -74,8 +92,15 @@ public final class ClipboardManager: ObservableObject {
 
     // MARK: 常量
 
-    /// 轮询间隔（changeCount 兜底方案）
-    public static let pollInterval: TimeInterval = 0.5
+    /// 捕获轮询常量（原作汇编立即数，specs/14 §3.1）
+    public static let idlePollingInterval: TimeInterval = 1.0     // fmov 1.0 @0x1000f115c（闲置）
+    public static let burstPollingInterval: TimeInterval = 0.5    // fmov 0.5 @0x1000f0f98（突发）
+    public static let burstDuration: TimeInterval = 2.0           // addingTimeInterval(2.0) @0x1000f0f0c（突发窗口）
+    public static let retryIntervalFloor: TimeInterval = 0.5      // fmaxnm 0.5 @0x1000ec8b8（重试下限钳制）
+    /// 自写回声标记类型（__cstring `com.frset.selfwrite-token`，specs/14 F3）
+    public static let selfWriteMarkerPasteboardType = NSPasteboard.PasteboardType("com.frset.selfwrite-token")
+    /// 自写 token TTL（⬜ 原作数值未探明，spec 14 §7；取 5s 合理默认：过期后自写内容按新内容入库）
+    public static let selfWriteTokenTTL: TimeInterval = 5.0
     /// 主列表分页大小
     public static let pageSize: Int = ClipboardRepository.defaultPageSize
     /// 长文本落盘阈值：超过 64KB 写 texts/，避免大字符串常驻数据库与内存
@@ -91,6 +116,12 @@ public final class ClipboardManager: ObservableObject {
     /// 按标签过滤（05 号规格 B6）；nil = 不过滤
     @Published public var tagFilterID: String? = nil { didSet { reload(reset: true) } }
     @Published public private(set) var isLoadingMore: Bool = false
+    /// 主列表是否位于顶部（首条目未滚出；specs/14 Q④ ClipboardListTopScrollTracker 回写）
+    @Published public private(set) var isMainListAtTop: Bool = true
+
+    /// 首条目滚出状态变化广播（mainClipboardFirstItemScrolledOutChanged，specs/14 §3.4）
+    public static let mainClipboardFirstItemScrolledOutChanged =
+        Notification.Name("FrsetNext.Clipboard.mainClipboardFirstItemScrolledOutChanged")
 
     private let reader = ClipboardPasteboardReader()
     private let repository = ClipboardRepository.shared
@@ -98,9 +129,15 @@ public final class ClipboardManager: ObservableObject {
     private let preferences = Preferences.shared
     private let queue = DispatchQueue(label: "com.frsetnext.clipboard.persist", qos: .utility)
 
+    // 捕获管线状态（ivar 面对齐原作 ClipboardManager 81 ivar 中的捕获族，specs/14 §3.1）
     private var pollTimer: Timer?
-    private var eventMonitor: EventMonitor?
-    private var lastChangeCount: Int = -1
+    private var retryTimer: Timer?
+    private var currentPollingInterval: TimeInterval = idlePollingInterval   // 槽 0x988
+    private var burstUntil: Date?                                            // 槽 0x990
+    private var lastChangeCount: Int = -1                                    // 槽 0x930
+    private var lastSelfWriteChangeCount: Int = -1
+    private var lastSelfWriteToken: String?
+    private var lastSelfWriteExpiresAt: Date = .distantPast
     private var currentPage: Int = 0
     private var isIngesting = false
 
@@ -110,65 +147,94 @@ public final class ClipboardManager: ObservableObject {
 
     public func start() {
         lastChangeCount = reader.currentChangeCount
-        if pollTimer == nil {
-            let timer = Timer.scheduledTimer(withTimeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
-                self?.poll()
-            }
-            RunLoop.main.add(timer, forMode: .common)
-            pollTimer = timer
-        }
-        // 事件监听是增强项：开启失败（无辅助功能权限）不影响主流程
-        let monitor = EventMonitor(enabled: { Preferences.shared.value(Preferences.Keys.clipboardEventTapEnabled, default: false) },
-                                   onCopyDetected: { [weak self] in
-            // 复制快捷键触发时粘贴板尚未落写，稍作延迟读取
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self?.ingest() }
-        })
-        eventMonitor = monitor
-        if !monitor.start() {
-            Log.info("clipboard", "使用轮询捕获（\(Self.pollInterval)s changeCount）")
-        }
+        schedulePoll(interval: Self.idlePollingInterval)
         tagStore.refresh()
         reload(reset: true)
         ClipboardHistoryRetentionPruneScheduler.shared.start()
         ClipboardStoragePruneScheduler.shared.start()
-        Log.info("clipboard", "ClipboardManager 已启动")
-    }
-
-    /// 设置里改动"是否启用按键监听"后重建监听
-    public func reloadEventMonitor() {
-        eventMonitor?.stop()
-        eventMonitor = nil
-        if preferences.value(Preferences.Keys.clipboardEventTapEnabled, default: false) {
-            let monitor = EventMonitor(enabled: { true }, onCopyDetected: { [weak self] in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self?.ingest() }
-            })
-            eventMonitor = monitor
-            _ = monitor.start()
-        }
+        Log.info("clipboard", "ClipboardManager 已启动（自适应轮询 \(Self.idlePollingInterval)s / 突发 \(Self.burstPollingInterval)s）")
     }
 
     public func stop() {
         pollTimer?.invalidate(); pollTimer = nil
-        eventMonitor?.stop(); eventMonitor = nil
+        retryTimer?.invalidate(); retryTimer = nil
         ClipboardHistoryRetentionPruneScheduler.shared.stop()
         ClipboardStoragePruneScheduler.shared.stop()
     }
 
+    // MARK: 双速率轮询（specs/14 Q①：无事件驱动捕获，纯自适应 Timer）
+
+    private func schedulePoll(interval: TimeInterval) {
+        pollTimer?.invalidate()
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            self?.pollTick()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pollTimer = timer
+    }
+
+    private func pollTick() {
+        // 速率切换：突发窗口内 0.5s，窗口过期回 1.0s（仅在切换瞬间重建 Timer）
+        let effective = (burstUntil ?? .distantPast) > Date()
+            ? Self.burstPollingInterval : Self.idlePollingInterval
+        if effective != currentPollingInterval {
+            currentPollingInterval = effective
+            schedulePoll(interval: effective)
+        }
+        poll()
+    }
+
     private func poll() {
-        let changeCount = reader.currentChangeCount
-        guard changeCount != lastChangeCount else { return }
-        lastChangeCount = changeCount
+        let pasteboard = NSPasteboard.general
+        // changeCount 双读比对（原作 0x10016cc40 防撕裂模式）：读取期间变化 → 重试下一拍
+        let first = pasteboard.changeCount
+        guard first == pasteboard.changeCount else {
+            scheduleRetry()
+            return
+        }
+        guard first != lastChangeCount else { return }
+        // 自写回声抑制：粘贴板仍带本会话 selfwrite-token 标记且未过 TTL → 跳过；
+        // TTL 过期后按新内容入库（spec 14 验收对照）；标记被外部覆盖（无 token/异 token）→ 正常捕获
+        if first == lastSelfWriteChangeCount,
+           let token = lastSelfWriteToken, Date() < lastSelfWriteExpiresAt,
+           let marker = pasteboard.data(forType: Self.selfWriteMarkerPasteboardType),
+           String(data: marker, encoding: .utf8) == token {
+            lastChangeCount = first
+            Log.debug("clipboard", "跳过自写回放（selfwrite-token 未过期）")
+            return
+        }
+        lastChangeCount = first
         ingest()
+    }
+
+    /// 读取失败重试：一次性 Timer（repeats=false），间隔 ≥0.5s，.common 模式（specs/14 F2 @0x1000ec8b8）
+    private func scheduleRetry() {
+        guard retryTimer == nil else { return }
+        let interval = max(Self.retryIntervalFloor, currentPollingInterval)
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+            self?.retryTimer = nil
+            self?.poll()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        retryTimer = timer
+        Log.debug("clipboard", "粘贴板读取失败，\(interval)s 后一次性重试")
     }
 
     // MARK: 捕获管线
 
-    /// 读取一次粘贴板并入库（含去重）。isIngesting 串行保护避免重入
+    /// 读取一次粘贴板并入库（含去重）。isIngesting 串行保护避免重入；
+    /// 捕获成功进入 0.5s 突发（持续 2.0s 窗口，specs/14 F1）
     public func ingest() {
         guard !isIngesting else { return }
         isIngesting = true
         defer { isIngesting = false }
-        guard let result = reader.read(), !result.isEmpty else { return }
+        guard let result = reader.read() else {
+            scheduleRetry()
+            return
+        }
+        guard !result.isEmpty else { return }
+        burstUntil = Date().addingTimeInterval(Self.burstDuration)
+        currentPollingInterval = Self.burstPollingInterval
         persist(result)
     }
 
@@ -272,19 +338,36 @@ public final class ClipboardManager: ObservableObject {
         DispatchQueue.main.async { self.reload(reset: true) }
     }
 
+    /// 首条目滚出状态回写（ClipboardListTopScrollTracker.onFirstItemScrolledOutChange 桥接）
+    public func updateFirstItemScrolledOut(_ scrolledOut: Bool) {
+        let atTop = !scrolledOut
+        guard isMainListAtTop != atTop else { return }
+        isMainListAtTop = atTop
+        NotificationCenter.default.post(name: Self.mainClipboardFirstItemScrolledOutChanged, object: nil)
+    }
+
+    /// 当前过滤态下的标准查询条件
+    private func makeQuery(limit: Int) -> ClipboardQuery {
+        let mapping = filter.queryMapping
+        return ClipboardQuery(search: searchText,
+                              type: mapping.type,
+                              noteOnly: mapping.noteOnly,
+                              toolGeneratedOnly: mapping.toolGeneratedOnly,
+                              generatedSourceKeyword: mapping.generatedSourceKeyword,
+                              codeLikeOnly: mapping.codeLikeOnly,
+                              tagID: tagFilterID,
+                              limit: limit,
+                              offset: 0)
+    }
+
     // MARK: 列表供给
 
     /// 重新加载当前页（search / filter / 新条目都会触发）
     /// - Parameter reset: true 回到第一页；false 仅刷新已加载区间（加载更多用）
     public func reload(reset: Bool = true) {
         let page = reset ? 0 : currentPage
-        let target = ClipboardQuery(search: searchText,
-                                    type: filter.itemType,
-                                    noteOnly: (filter == .note),
-                                    toolGeneratedOnly: false,
-                                    tagID: tagFilterID,
-                                    limit: Self.pageSize * max(1, page + 1),
-                                    offset: 0)
+        var target = makeQuery(limit: Self.pageSize * max(1, page + 1))
+        target.offset = 0
 
         queue.async { [weak self] in
             guard let self else { return }
@@ -303,13 +386,7 @@ public final class ClipboardManager: ObservableObject {
         guard !isLoadingMore else { return }
         isLoadingMore = true
         currentPage += 1
-        let target = ClipboardQuery(search: searchText,
-                                    type: filter.itemType,
-                                    noteOnly: (filter == .note),
-                                    toolGeneratedOnly: false,
-                                    tagID: tagFilterID,
-                                    limit: Self.pageSize * (currentPage + 1),
-                                    offset: 0)
+        let target = makeQuery(limit: Self.pageSize * (currentPage + 1))
         queue.async { [weak self] in
             guard let self else { return }
             let fetched = self.repository.fetch(target)
@@ -367,8 +444,16 @@ public final class ClipboardManager: ObservableObject {
             pasteboard.setString(fullText(for: item), forType: .string)
         }
 
+        // 自写回声抑制（specs/14 F3）：写回粘贴板时打 selfwrite-token 标记 + 记录 token/TTL，
+        // 捕获循环据此跳过自写内容（TTL 过期前）
+        let token = UUID().uuidString
+        pasteboard.setData(token.data(using: .utf8) ?? Data(), forType: Self.selfWriteMarkerPasteboardType)
+        lastSelfWriteToken = token
+        lastSelfWriteExpiresAt = Date().addingTimeInterval(Self.selfWriteTokenTTL)
+        lastSelfWriteChangeCount = pasteboard.changeCount
         // 自己写回的粘贴板不应被再次捕获 → 同步 changeCount
         lastChangeCount = pasteboard.changeCount
+        Toast.show("已复制", icon: "checkmark.circle.fill")   // spec 13 §4：复制成功场景
 
         let shouldPaste = autoPaste ?? preferences.value(Preferences.Keys.clipboardAutoPaste, default: false)
         if shouldPaste { pasteToFrontmostApplication() }
@@ -526,6 +611,7 @@ public final class ClipboardManager: ObservableObject {
                 DatabaseManager.shared.bumpStat("ocr_count")
                 Log.info("clipboard", "OCR 完成：\(text.count) 字符")
             } catch {
+                Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
                 Log.warn("clipboard", "OCR 失败: \(error)")
             }
         }
@@ -533,6 +619,11 @@ public final class ClipboardManager: ObservableObject {
 
     /// 自动粘贴：合成 Cmd+V 到前台应用（**需要辅助功能权限**，默认关闭）
     private func pasteToFrontmostApplication() {
+        // spec 13 §4：权限缺失场景（原作 Auto Paste Requires Accessibility）
+        guard AXIsProcessTrusted() else {
+            Toast.show("自动粘贴需要辅助功能权限", icon: "exclamationmark.circle.fill")
+            return
+        }
         let source = CGEventSource(stateID: .combinedSessionState)
         guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
               let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return }

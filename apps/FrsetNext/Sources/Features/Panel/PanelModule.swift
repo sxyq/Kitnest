@@ -9,5 +9,8 @@ public enum PanelModule: AppModule {
         // ServiceLocator.panel?.toggle()/show()/hide() 开合面板
         PanelController.shared.prepare()
         ServiceLocator.panel = PanelController.shared
+        // 预览呈现能力注入（specs/12 契约面）：Clipboard 经
+        // ServiceLocator.panelPreview 协议调用，不引用 Panel 具体类型（CONTRACT §1.3）
+        ServiceLocator.panelPreview = PanelPreviewPresenterAdapter()
     }
 }

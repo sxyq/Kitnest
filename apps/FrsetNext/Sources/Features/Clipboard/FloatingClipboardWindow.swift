@@ -209,7 +209,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
 // MARK: - 浮动窗内容（SwiftUI）
 
-/// 浮动窗内容：标题栏 + 最近条目列表；单击即写回系统粘贴板
+/// 浮动窗内容：标题栏 + 最近条目列表；行交互 = 单击预览、双击粘贴（specs/14 F9）
 public struct FloatingClipboardContentView: View {
 
     @EnvironmentObject private var store: FloatingClipboardStore
@@ -235,7 +235,6 @@ public struct FloatingClipboardContentView: View {
                     LazyVStack(spacing: 2) {
                         ForEach(store.recentItems) { item in
                             FloatingRow(item: item)
-                                .onTapGesture { ClipboardManager.shared.copy(item) }
                                 .contextMenu { ClipboardRowMenuContent(item: item) }
                         }
                     }
@@ -279,11 +278,44 @@ public struct FloatingClipboardContentView: View {
 }
 
 /// 浮动窗行：紧凑单行（缩略图 28pt + 一行摘要）
+/// 行交互（specs/14 F9/C9，whatsNew 实证 `0xb57d56`）：**单击=预览、双击=粘贴**；
+/// 悬停预览走协调器 `.floatingPreview` 源（总开关 hoverPreviewInFloatingClipboardEnabled）。
 private struct FloatingRow: View {
     let item: ClipboardItem
     @Stored private var isHovering = false
+    // @State 宏在本自检工具链不可用（CONTRACT §7.4）→ @Stored
+    @Stored private var rowFrameInWindow: CGRect = .zero
 
     var body: some View {
+        rowContent
+            // 锚点：行在 window 坐标系的框（macOS SwiftUI .global 即 window 坐标）
+            .background(GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowFrameInWindow = geo.frame(in: .global) }
+                    .onChange(of: geo.frame(in: .global)) { rowFrameInWindow = $0 }
+            })
+            .onHover { hovering in
+                isHovering = hovering
+                ServiceLocator.panelPreview?.rowHover(
+                    hovering, item: item,
+                    anchorRectProvider: { rowFrameInWindow },
+                    isFloatingSource: true)
+            }
+            // 双击 = 粘贴（先注册 count:2，避免被 count:1 吞掉）
+            .onTapGesture(count: 2) {
+                ClipboardManager.shared.copy(item)
+            }
+            // 单击 = 预览（不复制）
+            .onTapGesture(count: 1) {
+                ServiceLocator.panelPreview?.presentPreview(
+                    for: item,
+                    anchorRectInWindow: rowFrameInWindow,
+                    anchorView: nil,
+                    isFloatingSource: true)
+            }
+    }
+
+    private var rowContent: some View {
         HStack(spacing: 8) {
             ClipboardThumbnailView(item: item, size: 28, corner: 5)
             VStack(alignment: .leading, spacing: 1) {
@@ -303,6 +335,5 @@ private struct FloatingRow: View {
                 .fill(isHovering ? Color.accentColor.opacity(0.12) : Color.clear)
         )
         .contentShape(Rectangle())
-        .onHover { hovering in isHovering = hovering }
     }
 }

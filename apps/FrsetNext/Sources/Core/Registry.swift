@@ -125,3 +125,42 @@ public extension ServiceLocator {
         set { lock.lock(); defer { lock.unlock() }; _settings = newValue }
     }
 }
+
+// MARK: 预览呈现（Panel 实现，Clipboard 消费；specs/12 契约面）
+// Clipboard 模块不得直接引用 Panel 模块的 MainPanelPreviewPopoverCoordinator（CONTRACT §1.3），
+// 一律经 ServiceLocator.panelPreview 协议调用；Panel 侧由适配器转调协调器。
+
+public protocol PanelPreviewPresenting: AnyObject {
+    /// 呈现预览（单击接线用）
+    @discardableResult
+    func presentPreview(for item: ClipboardItem,
+                        anchorRectInWindow: CGRect?,
+                        anchorView: NSView?,
+                        isFloatingSource: Bool) -> Bool
+    /// 程序化关闭预览
+    func dismissPreview()
+    /// 行悬停调度（anchorRectProvider 延迟取行 window 坐标框，可为 nil）
+    func rowHover(_ hovering: Bool,
+                  item: ClipboardItem,
+                  anchorRectProvider: (() -> CGRect?)?,
+                  isFloatingSource: Bool)
+    /// 空格键键盘预览（带延时 WorkItem）
+    func requestKeyboardPreview(item: ClipboardItem,
+                                anchorRectProvider: (() -> CGRect?)?)
+    /// 取消未决的键盘预览
+    func cancelKeyboardPreview()
+    /// 面板即将出现：清抑制与未决 WorkItem
+    func prepareForPanelAppear()
+    /// 刷新预览导航顺序表
+    func setPreviewOrder(_ ids: [String])
+    /// 锚条目被删除 → 同步关闭预览
+    func notifyItemRemoved(itemID: String)
+}
+
+public extension ServiceLocator {
+    private static var _panelPreview: PanelPreviewPresenting?
+    static var panelPreview: PanelPreviewPresenting? {
+        get { lock.lock(); defer { lock.unlock() }; return _panelPreview }
+        set { lock.lock(); defer { lock.unlock() }; _panelPreview = newValue }
+    }
+}

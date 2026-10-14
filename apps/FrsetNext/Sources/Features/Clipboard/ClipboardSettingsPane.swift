@@ -5,11 +5,9 @@ import SwiftUI
 
 public struct ClipboardSettingsPane: View {
 
-    @ObservedObject private var manager = ClipboardManager.shared
     @Stored private var retentionDays: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardRetentionDays, default: 30))
     @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
     @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
-    @Stored private var eventTapEnabled: Bool = Preferences.shared.value(Preferences.Keys.clipboardEventTapEnabled, default: false)
     @Stored private var floatingVisible: Bool = Preferences.shared.value(Preferences.Keys.floatingVisible, default: false)
 
     private let preferences = Preferences.shared
@@ -54,12 +52,7 @@ public struct ClipboardSettingsPane: View {
             }
 
             Section("捕获") {
-                Toggle("启用全局按键监听（Cmd+C 触发捕获）", isOn: $eventTapEnabled)
-                    .onChange(of: eventTapEnabled) { newValue in
-                        preferences.set(Preferences.Keys.clipboardEventTapEnabled, newValue)
-                        manager.reloadEventMonitor()
-                    }
-                Text("需要「辅助功能」权限；未授权时自动回退到 0.5 秒轮询，不影响正常使用。")
+                Text("捕获为自适应轮询：闲置 1 秒，检测到新内容后 0.5 秒突发（持续 2 秒）。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Toggle("复制后自动粘贴到前台应用", isOn: $autoPaste)
