@@ -14,7 +14,7 @@
 | ② | 右键判定 | `ClipboardRowContextMenuActivationTrackerNSView.rightMouseDown:` —— **右键按下即触发**（非抬起），调用 `onRightMouseDown` 闭包并吞掉事件不透传 super |
 | ③ | hover 抑制 | 控制器持有 `isSuppressedUntilMouseMove + hoveredRowItemID + hoveredIconItemID`；对外 API `onSuppressHoverUntilMouseMove` / `isHoverSuppressed` / `onRowHoverChanged`；抑制后鼠标再次移动即恢复高亮 |
 | ④ | 顶部滚动 | `ClipboardListTopScrollTracker`（band/isOut/lastMinY）以**迟滞双阈值**（`firstItemScrollOutEnterThreshold`/`firstItemScrollOutExitThreshold`）监测首条目是否滚出，发布 `mainClipboardFirstItemScrolledOutChanged`；过滤栏出现 `FilterBar_ScrollToTop`（arrow.up.to.line）按钮，经 `scrollToTopNotification`/`__scrollToTopRequestSequence` 回滚到顶 |
-| ⑤ | 双击激活 | 双击**可配置修饰键**（`DoubleTapModifier`）触发 `ShortcutAction`（默认打开悬浮剪贴板，"在鼠标附近打开"）；`AppKitDoubleTapMonitor`（4 个 NSEvent 监视器）+ ShortcutRuntimeCoordinator 的 CGEventTap（session tap / listen-only / 掩码 0x1c00=keyDown+keyUp+flagsChanged）双通道；默认间隔常量 **1000**（ms）；`hasSeenDoubleTapShortcutTip_v1` 一次性提示 |
+| ⑤ | 双击激活 | 双击**可配置修饰键**（`DoubleTapModifier`）触发 `ShortcutAction`（默认打开悬浮剪贴板，"在鼠标附近打开"/"支持双击快捷键唤起" `0x100b57910`）；`AppKitDoubleTapMonitor`（4 个 NSEvent 监视器）+ ShortcutRuntimeCoordinator 的 CGEventTap（session tap / listen-only / 掩码 0x1c00=keyDown+keyUp+flagsChanged）双通道；默认间隔常量 **1000**（ms）；`hasSeenDoubleTapShortcutTip_v1` 一次性提示（读取+写入 @`0x100654288`/`0x1006542fc`，withAnimation(easeOut) 动画呈现，位于快捷键设置区）。**另注意主面板行交互：单击/空格=预览，双击/↩=复制**（§3.7） |
 | ⑥ | 过滤栏 | `ClipboardFilterType` 9 项：**all, text, image, link, file, code, color, generated, note**（反射串序即此序）；另有搜索框（`FilterBar_Search`，square.and.pencil）与回顶按钮（`FilterBar_ScrollToTop`，arrow.up.to.line）；漏斗图标 `line.3.horizontal.decrease.circle`；标签菜单 `__clipboard_tag_filter_all_tagged__` 哨兵 |
 
 ---
@@ -136,8 +136,8 @@ activeClipboardCaptureTransaction / monitoringStartRequestedDuringCaptureTransac
   1. `AppKitDoubleTapMonitor`：4 个 NSEvent 监视器（global/local × flags/key）——**flagsChanged 双击检测**（修饰键双按）；init 默认间隔常量 **1000**（`mov w8, #0x3e8` @`0x1005c0858`，写 ivar 0x28；推断单位 ms，即 1.0s，⬜ 精确语义）
   2. `ShortcutRuntimeCoordinator` CGEventTap：session tap、listen-only、掩码 0x1c00（keyDown/keyUp/flagsChanged）——权限/运行时兜底通道（`DoubleTapRuntimeAvailability`）
 - 触发对象：`ShortcutAction` 分发表字符串 `translateSelection` / `screenshotTranslate` / `floatingClipboard`（0x1005c10f8 区）；历史更新日志实证交互意图：**"悬浮剪贴板在鼠标附近打开（需开启辅助功能权限）"**（cstring `0xb57ae6`）→ 双击修饰键 = 打开悬浮剪贴板（⬜ 默认 action 与 DoubleTapModifier 枚举 case 名未解出）
-- tip：`hasSeenDoubleTapShortcutTip_v1`（defaults 实测）对应一次性引导；`DoubleTapUnavailableReason` 驱动设置页可用性文案
-- 另注意：悬浮列表内部交互为 **单击=预览、双击=粘贴**（cstring `0xb57d56`"悬浮剪贴板交互调整为单击预览、双击粘贴。"），与"双击修饰键"是两件事
+- tip：`hasSeenDoubleTapShortcutTip_v1`（defaults 实测）对应一次性引导；读取点 `0x100654288`（UserDefaults bool）→ 未读时置位并 `withAnimation(easeOut(duration:))`（`0x100654324`）呈现动画提示，位于快捷键设置视图区（ShortcutsSettingsView/ShortcutKeyView 邻域）；`DoubleTapUnavailableReason` 驱动设置页可用性文案
+- ⚠️ **与主面板行点击语义区分**：悬浮列表是 **单击=预览、双击=粘贴**（cstring `0xb57d56`"悬浮剪贴板交互调整为单击预览、双击粘贴。"）；主面板是 **单击/空格=预览、双击/↩=复制**（§3.7）。两者都不是"单击=复制"
 
 ### 3.6 Q⑥ 过滤栏 ——★★★
 
@@ -148,6 +148,24 @@ activeClipboardCaptureTransaction / monitoringStartRequestedDuringCaptureTransac
 - 状态字段：`_searchQuery` / `_isSearchActive` / `_selectedFilter` / `filterSession*`（ClipboardManager 侧 7 个 filterSession ivar，会话式过滤搜索）
 - 过滤栏 hover：`__isHoveringFilterBar` + `__hoverTimer`
 - 其他实证交互字段：`isDoubleClickSearchInsertionEnabled`（双击插入搜索）、`showsSearchDefaultHighlight`、`showsKeyboardPreviewHint`、`clipboardItemTitleLineMode`
+- 文案来源注记：过滤项中文标签（全部/文本/图片/链接/笔记…）**不在 Mach-O 切片内**（已用 allstrings-addr.txt 全文验证，仅 whatsNew 句子命中）；标签在 Localizable 资源，开发时按 §4 枚举自拟中文，随 specs/18 L10n 基建收口
+
+### 3.7 主面板行点击语义（planning 补证）——★★★
+
+提示文案 cstring（planning 提供 VA，本轮复核存在）：
+- `0x100b43d30` **"单击或按空格预览"** —— 主面板**单击=预览**（非复制！）
+- `0x100b43d10` **"双击或按 ↩ 复制"** —— 双击或回车=复制
+- `0x100b43d70` "Frset 提示：双击条目可复制" —— 一次性引导
+- 悬浮窗特性串（WhatsNew）：`0x100b57910` "支持双击快捷键唤起"（与 §3.5 双击修饰键唤起互证）、`0x100b57030` 搜索与类型筛选、`0x100b577e0` 取消置顶、`0x100b57840` 键盘 ↑/↓ Enter Space、`0x100b57ae0` 鼠标附近打开需辅助功能
+
+**重建关键差异（必须修）**：重建版现行为"单击=复制"；原作主面板为 **单击/空格=预览（Popover，接 specs/12）+ 双击/↩=复制**。NSTableView 骨架的行点击分派应为：
+```swift
+// 行点击分派（对齐原作）
+单击 / Space   -> previewCoordinator.present(item)      // specs/12 Popover
+双击 / ↩       -> manager.copy(item)                    // 并按偏好可选自动粘贴
+右键按下       -> contextMenu(for: item)                // §3.2
+```
+（此分派与双击修饰键唤起悬浮窗无关，后者在 ShortcutRuntimeCoordinator 层）
 
 ---
 
@@ -281,6 +299,8 @@ enum ClipboardFilterKind: String, CaseIterable {          // 反射序 0xaed3c0
 | 交互字段面 | reflstr `0xaef100-0xaf2400`（hover/scroll/filter/preview 全集） |
 | 自写标记 | cstring `com.frset.selfwrite-token` |
 | 行为意图 | 历史更新日志 cstring：`0xb57d56` 单击预览/双击粘贴、`0xb57ae6` 鼠标附近打开、`0xb57036` 悬浮搜索与类型筛选、`0xb57846` 键盘操作 |
+| 主面板点击语义 | 提示 cstring：`0xb43d30` 单击/空格预览、`0xb43d10` 双击/↩ 复制、`0xb43d70` "Frset 提示：双击条目可复制"；双击唤起 `0xb57910` |
+| tip 机制 | `hasSeenDoubleTapShortcutTip_v1` 读/写 @`0x100654288`/`0x1006542fc`，withAnimation(easeOut) @`0x100654324`（快捷键设置区） |
 | 实机偏好 | defaults：`hasSeenDoubleTapShortcutTip_v1`、`clipboard_keyboard_preview_hint_consumed`、`auto_paste_prompt_count_v1` |
 | 埋点标识 | `item_row_interaction` / `item_context_menu_unlock` / `item_copy_shortcut` / `preview_navigation` / `FilterBar_*` |
 
@@ -300,6 +320,8 @@ enum ClipboardFilterKind: String, CaseIterable {          // 反射序 0xaed3c0
 | C8 | 过滤栏类型项 | 全部/文本/图片/链接/文件/代码/颜色/工具生成/笔记 九项；无独立"富文本"项 |
 | C9 | 悬浮列表行 | 单击=预览、双击=粘贴；首次点击可激活（acceptsFirstMouse） |
 | C10 | 搜索框 | 单击即获焦（needsPanelToBecomeKey）；支持按键选择条目并粘贴；DeleteKey 监听清空 |
+| C11 | 主面板行点击 | **单击/空格=预览（Popover）**、**双击/↩=复制**；一次性提示"双击条目可复制"（⇒ 重建须把"单击=复制"改为预览） |
+| C12 | 双击快捷键唤起提示 | "支持双击快捷键唤起"随 whatsNew 记录；tip 仅首次（withAnimation easeOut 呈现于快捷键设置区） |
 
 ---
 
@@ -315,7 +337,7 @@ enum ClipboardFilterKind: String, CaseIterable {          // 反射序 0xaed3c0
 | `DoubleTapModifier` 枚举 case 名 | ⬜ | 猜测 capsLock/fn/command 等均未命中（case 名可能经本地化表） |
 | `doubleTapInterval` 单位与可配置性 | ⬜ | 默认常量 1000 实证（@0x1005c0858）；单位推断 ms；设置页 `DoubleTapModifierInputView` 存在，绑定细节未读 |
 | 双击默认 `ShortcutAction` | ⬜ | action 串 floatingClipboard/translateSelection/screenshotTranslate 实证；默认项未解码 |
-| 过滤项 UI 顺序与文案 | ⬜（文案在 Localizable 资源，不在切片内；二进制中文仅 whatsNew/日志 9 条） | reflstr 序即声明序（推断） |
+| 过滤项 UI 顺序与文案 | ⬜（文案在 Localizable 资源，不在切片内——已用 allstrings-addr.txt/xref-index.txt 复核：独立标签"全部/文本/…"无 VA、无 adrp+add 引用；二进制中文仅 whatsNew/日志 9 条） | reflstr 序即声明序（推断） |
 
 ---
 

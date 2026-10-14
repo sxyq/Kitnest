@@ -55,6 +55,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     public func show() {
         prepare()
         guard let p = panel else { return }
+        MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
         p.setFrameOrigin(rightEdgeOrigin(for: p.frame.size))
         presentation.visible = true                // 触发 SwiftUI 缩放淡入
         p.alphaValue = 0
@@ -70,6 +71,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         guard let p = panel, p.isVisible else { return }
         persistSize(p)
         presentation.visible = false
+        // 原作行为（12 号 P8 waitsForPreviewClose）：面板收起前先等预览 popover 关闭
+        MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse) { [weak self] in
+            self?.performHide(p)
+        }
+    }
+
+    /// hide() 第二段：预览已关闭，执行面板淡出
+    private func performHide(_ p: NSWindow) {
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.12
             p.animator().alphaValue = 0

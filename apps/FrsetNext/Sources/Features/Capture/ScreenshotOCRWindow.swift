@@ -236,6 +236,7 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
                 self.window?.setResultText(text)
                 if !text.isEmpty { CaptureEventBus.onTextRecognized?(text) }
             } catch {
+                Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
                 Log.error("Capture", "重新识别失败: \(error.localizedDescription)")
             }
         }

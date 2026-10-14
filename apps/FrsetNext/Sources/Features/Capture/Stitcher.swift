@@ -2,20 +2,20 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-// MARK: - 长截图拼接
+// MARK: - 长截图拼接（多图模式）
 
 /// 把多张「滚动连续截图」拼成一张长图。
 ///
-/// 算法（贪心、按行匹配）：
+/// 算法（灰度签名对齐，对齐原作 LongScreenshotStitcher 的评分家族）：
 /// 1. 统一宽度：以第一张的宽度为基准，其余等比缩放；
-/// 2. 逐对相邻图做重叠检测：把上一张底部的 o 行与下一张顶部的 o 行做成"行平均色"签名，
-///    枚举 o（从大到小）取差异最小的那个作为重叠高度；
-/// 3. 差异过大（超过阈值）判定为无重叠，按 0 处理；
-/// 4. 按重叠量累加偏移，画到一张大画布上。
+/// 2. 逐对相邻图做重叠检测：把上一张底部 o 行与下一张顶部 o 行各自生成
+///    128 宽 DeviceGray 8bpp 灰度签名，按「行、列均步长 2 抽稀」的平均绝对差评分；
+/// 3. 重叠搜索带：min(2%~60%) 全枚举贪心（多图模式没有滚动量可依，
+///    保留全范围搜索；最小重叠 2 行、评分相同时保留更大重叠）；
+/// 4. 差异过大（超过阈值）判定为无重叠，按 0 处理；
+/// 5. 按重叠量累加偏移，规范化重绘到 RGBA8888 画布（bytesPerRow = w*4）。
 ///
-/// 与原作差异：原作的长截图走滚动捕获（逐屏自动滚动 + 拼接），重建版采用
-/// "用户手动提供多张截图再拼接"的简化路径；匹配上这里只用行平均色的贪心搜索
-/// （O(n·maxOverlap)），未做原作可能使用的特征点/模板匹配，速度够用、实现可控。
+/// 流式采捕（被动滚轮驱动 + 恒等帧剔除 + 动态搜索带）见 LongScreenshotStitcher。
 public enum Stitcher {
 
     public struct Result {
@@ -24,11 +24,15 @@ public enum Stitcher {
         public let overlaps: [Int]
     }
 
-    /// 行平均色差异阈值（0~255 单通道均值差，超过则认为两张图不连续）
-    private static let diffThreshold: Float = 22.0
+    /// 灰度签名宽（原作对齐签名宽 = min(imgW, 128)，spec 15 §3②）
+    private static let signatureWidth = 128
+    /// 差异阈值（平均绝对差，0~255 灰度；超过则认为两张图不连续）
+    private static let diffThreshold: Double = 22.0
     /// 最小 / 最大重叠比例（相对两张图中较矮那张的高度）
     private static let minOverlapRatio: CGFloat = 0.02
     private static let maxOverlapRatio: CGFloat = 0.6
+    /// 最小重叠行数（原作常量，spec 15 @0x100437044）
+    private static let minOverlapRows = 2
 
     /// 拼接 CGImage 序列（至少两张）
     public static func stitch(_ images: [CGImage]) -> Result? {
@@ -58,7 +62,7 @@ public enum Stitcher {
         // ② 逐对检测重叠
         var overlaps: [Int] = []
         for i in 0..<(buffers.count - 1) {
-            overlaps.append(detectOverlap(top: buffers[i], bottom: buffers[i + 1]))
+            overlaps.append(detectOverlap(top: normalized[i], bottom: normalized[i + 1]))
         }
 
         // ③ 计算画布高度（用缓冲高度，保证与缩放后的图一致）
@@ -68,15 +72,15 @@ public enum Stitcher {
         }
         guard totalHeight > 0, width > 0 else { return nil }
 
-        // ④ 合成（CG 坐标左上原点，从上往下排）
+        // ④ 合成（规范化 RGBA8888 画布，CG 坐标左上原点、从上往下排）
         guard let ctx = CGContext(data: nil,
                                   width: width, height: totalHeight,
-                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  bitsPerComponent: 8, bytesPerRow: width * 4,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: width, height: totalHeight))
-        ctx.interpolationQuality = .high
+        ctx.interpolationQuality = .low
 
         var penY = totalHeight          // 当前绘制行的"顶部"位置（CG 坐标）
         for i in 0..<normalized.count {
@@ -96,25 +100,36 @@ public enum Stitcher {
         return stitch(images)
     }
 
-    // MARK: 重叠检测
+    // MARK: 重叠检测（灰度签名对齐）
 
     /// 在上一张底部与下一张顶部之间寻找最佳重叠行数
-    private static func detectOverlap(top: RGBABuffer, bottom: RGBABuffer) -> Int {
+    private static func detectOverlap(top: CGImage, bottom: CGImage) -> Int {
         let shorter = min(top.height, bottom.height)
         let maxOverlap = min(Int(CGFloat(shorter) * maxOverlapRatio), shorter - 1)
-        let minOverlap = max(2, Int(CGFloat(shorter) * minOverlapRatio))
+        let minOverlap = max(minOverlapRows, Int(CGFloat(shorter) * minOverlapRatio))
         guard maxOverlap >= minOverlap else { return 0 }
 
-        var bestOverlap = 0
-        var bestScore = Float.greatestFiniteMagnitude
+        // 顶部图底部 o 行、底部图顶部 o 行的灰度签名（宽 128，按需生成）
+        func sig(_ image: CGImage, rows: Int, fromTop: Bool) -> GraySignature? {
+            let rect = fromTop
+                ? CGRect(x: 0, y: 0, width: image.width, height: rows)
+                : CGRect(x: 0, y: image.height - rows, width: image.width, height: rows)
+            guard let piece = image.cropping(to: rect.integral) else { return nil }
+            return LongScreenshotStitcher.graySignature(piece, width: signatureWidth)
+        }
 
-        // 从大到小枚举：分数相同时保留更大的重叠（滚屏步长通常偏大）
+        var bestOverlap = 0
+        var bestScore = Double.greatestFiniteMagnitude
         var overlap = maxOverlap
         while overlap >= minOverlap {
-            let score = rowDiff(top: top, bottom: bottom, overlap: overlap)
-            if score < bestScore {
-                bestScore = score
-                bestOverlap = overlap
+            // 分数相同时保留更大的重叠（滚屏步长通常偏大），故用严格小于
+            if let a = sig(top, rows: overlap, fromTop: false),
+               let b = sig(bottom, rows: overlap, fromTop: true) {
+                let score = meanAbsDiff(a, b)
+                if score < bestScore {
+                    bestScore = score
+                    bestOverlap = overlap
+                }
             }
             overlap -= 1
         }
@@ -123,16 +138,8 @@ public enum Stitcher {
         return bestScore <= diffThreshold ? bestOverlap : 0
     }
 
-    /// 上一张底部 overlap 行 与 下一张顶部 overlap 行 的平均单通道色差
-    private static func rowDiff(top: RGBABuffer, bottom: RGBABuffer, overlap: Int) -> Float {
-        let topStart = top.height - overlap
-        var sum: Float = 0
-        var count: Float = 0
-        for r in 0..<overlap {
-            guard let a = top.rowMean(topStart + r), let b = bottom.rowMean(r) else { continue }
-            sum += abs(a.r - b.r) + abs(a.g - b.g) + abs(a.b - b.b)
-            count += 1
-        }
-        return count > 0 ? sum / count : Float.greatestFiniteMagnitude
+    /// 两份灰度签名的平均绝对差（行、列均步长 2 抽稀，对齐原作 0x100456650）
+    static func meanAbsDiff(_ a: GraySignature, _ b: GraySignature) -> Double {
+        LongScreenshotStitcher.meanAbsDiff(a, b)
     }
 }

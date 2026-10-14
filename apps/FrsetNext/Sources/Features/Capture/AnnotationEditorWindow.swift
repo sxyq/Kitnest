@@ -262,6 +262,11 @@ final class AnnotationEditorWindow: NSWindow {
         clearButton.bezelStyle = .rounded
         clearButton.frame = NSRect(x: 560, y: 8, width: 60, height: 28)
 
+        let longButton = NSButton(title: "长截图", target: self, action: #selector(longScreenshotTapped))
+        longButton.bezelStyle = .rounded
+        longButton.frame = NSRect(x: width - 266, y: 8, width: 60, height: 28)
+        longButton.autoresizingMask = [.minXMargin]
+
         let copyButton = NSButton(title: "复制", target: self, action: #selector(copyTapped))
         copyButton.bezelStyle = .rounded
         copyButton.frame = NSRect(x: width - 200, y: 8, width: 60, height: 28)
@@ -278,7 +283,7 @@ final class AnnotationEditorWindow: NSWindow {
         closeButton.frame = NSRect(x: width - 68, y: 8, width: 60, height: 28)
         closeButton.autoresizingMask = [.minXMargin]
 
-        for view in [tools, colorWell, widths, undoButton, clearButton, copyButton, saveButton, closeButton] {
+        for view in [tools, colorWell, widths, undoButton, clearButton, longButton, copyButton, saveButton, closeButton] {
             bar.addSubview(view)
         }
         return bar
@@ -301,6 +306,14 @@ final class AnnotationEditorWindow: NSWindow {
 
     @objc private func undoTapped() { canvas.undo() }
     @objc private func clearTapped() { canvas.clear() }
+
+    /// 长截图入口（spec 15 F1）：有标注先弹确认框（清除标注），随后进入选区→滚动采捕会话
+    @objc private func longScreenshotTapped() {
+        guard LongScreenshotCoordinator.confirmClearAnnotations(hasAnnotations: !canvas.annotations.isEmpty) else { return }
+        canvas.clear()
+        closeTapped()
+        LongScreenshotCoordinator.shared.beginSelection()
+    }
 
     @objc private func copyTapped() {
         guard let image = canvas.composite() else { return }

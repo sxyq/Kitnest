@@ -14,9 +14,44 @@ struct GeneralSettingsPane: View {
     @AppStorage(Preferences.Keys.panelWidth) private var panelWidth: Double = 400
     @AppStorage(Preferences.Keys.panelHeight) private var panelHeight: Double = 700
     @Stored private var confirmClearData = false
+    // 外观四选一 / 语言切换（specs/18 §5/§6）
+    @ObservedObject private var appearance = AppearanceManager.shared
+    @ObservedObject private var language = LanguageManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // 外观（四选一 radio：系统/浅色/深色/Midnight；键 appearance）
+            SettingsSection(title: "外观") {
+                SettingsGroupBox {
+                    HStack(spacing: 10) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            appearanceRadio(mode)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+
+            // 语言（跟随系统 + 22 语言；键 language，切换即时生效）
+            SettingsSection(title: "语言") {
+                SettingsGroupBox {
+                    SettingsRow(icon: "globe",
+                                title: "显示语言",
+                                subtitle: "切换后立即生效，无需重启应用") {
+                        Picker("", selection: languageBinding) {
+                            Text("跟随系统").tag("auto")
+                            ForEach(LanguageManager.availableLanguages, id: \.self) { code in
+                                Text(LanguageManager.displayNames[code] ?? code).tag(code)
+                            }
+                        }
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .frame(width: 180)
+                    }
+                }
+            }
+
             // 启动
             SettingsSection(title: "启动") {
                 SettingsGroupBox {
@@ -85,6 +120,43 @@ struct GeneralSettingsPane: View {
                 }
             }
         }
+    }
+
+    // MARK: 外观四选一 radio（specs/18 §5：系统/浅色/深色/Midnight，键 appearance）
+
+    private func appearanceRadio(_ mode: AppearanceMode) -> some View {
+        let isSelected = appearance.mode == mode
+        return Button {
+            appearance.apply(mode)
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 14))
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                Image(systemName: mode.systemImage)
+                    .font(.system(size: 16))
+                Text(mode.title)
+                    .font(.system(size: 11))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.smallRadius)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(mode.title)
+    }
+
+    // MARK: 语言切换绑定（LanguageManager.apply 写 defaults "language" 并广播 languageDidChange）
+
+    private var languageBinding: Binding<String> {
+        Binding(
+            get: { language.overrideDisplayLanguage },
+            set: { LanguageManager.shared.apply($0) }
+        )
     }
 
     // MARK: 开机启动（SMAppService，macOS 13+；注册失败时回滚开关状态）

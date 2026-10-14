@@ -86,6 +86,7 @@ public final class StatusBarController: NSObject {
         item.button?.action = #selector(mainItemClicked(_:))
         // 左键开面板，右键弹菜单
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        ToastAnchor.button = item.button       // 通知条定位锚点（spec 13 §3，主状态项图标）
         mainItem = item
     }
 
@@ -212,6 +213,8 @@ public final class StatusBarController: NSObject {
 
     @objc private func mainItemClicked(_ sender: Any?) {
         guard let button = sender as? NSStatusBarButton else { return }
+        // 彩蛋：连续单击主图标 10 次触发 Symbol Mode 解锁（spec 13 §6，重建版触发器改造）
+        MenuBarIconEasterEggManager.shared.registerMainIconClick()
         let isRightClick = NSApp.currentEvent?.type == .rightMouseUp
         if isRightClick {
             let menu = StatusBarMenuBuilder.mainMenu(target: self)
@@ -266,6 +269,11 @@ public final class StatusBarController: NSObject {
     @objc func openPanelAction(_ sender: Any?) { ServiceLocator.panel?.show() }
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
+
+    /// 打开统计窗（spec 17 S1/S2：打开即埋点 statistics_open，埋点在 StatisticsWindowController.openStatistics 内）
+    @objc func showStatisticsAction(_ sender: Any?) {
+        StatisticsWindowController.shared.openStatistics()
+    }
 
     @objc func toggleIconsAction(_ sender: NSMenuItem) {
         let next = !Preferences.shared.menuBarIconsVisible

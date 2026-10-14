@@ -150,6 +150,9 @@ public final class ScreenshotManager: ObservableObject {
     /// 截图后直接钉图
     public func captureAndPin() { startRegionCapture(action: .pin) }
 
+    /// 截图后直接复制到剪贴板（specs/19 默认热键 screenshotCopy 用；与 captureAndOCR/captureAndPin 同型）
+    public func captureAndCopy() { startRegionCapture(action: .clipboard) }
+
     private func startRegionCapture(action: CaptureDefaultAction) {
         guard ensureScreenRecordingPermission() else { return }
         closeOverlays()
@@ -263,11 +266,12 @@ public final class ScreenshotManager: ObservableObject {
             statusMessage = "已保存到 \(url.lastPathComponent)"
         case .clipboard:
             copyToPasteboard(image)
+            Toast.show("截图已复制", icon: "checkmark.circle.fill")   // spec 13 §4：截图复制场景
             statusMessage = "已复制到剪贴板"
         case .ocr:
             recognize(image)
         case .pin:
-            PinWindowController.shared.show(image: image)
+            PinnedScreenshotManager.shared.show(image: image)
             statusMessage = "已钉在屏幕上"
         }
     }
@@ -370,6 +374,7 @@ public final class ScreenshotManager: ObservableObject {
                     }
                 }
             } catch {
+                Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
                 self.statusMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 Log.error("Capture", "OCR 失败: \(error.localizedDescription)")
             }
@@ -424,7 +429,14 @@ public final class ScreenshotManager: ObservableObject {
     /// 把一张图钉到屏幕上
     public func pin(url: URL) {
         guard let image = ImageProcessor.cgImage(from: url) else { return }
-        PinWindowController.shared.show(image: image)
+        PinnedScreenshotManager.shared.show(image: image)
+    }
+
+    // MARK: 长截图（被动式滚轮采捕，spec 15）
+
+    /// 长截图入口：选区确认后进入滚动采捕会话（面板 / CaptureMode.long 调用）
+    public func captureLongScreenshot() {
+        LongScreenshotCoordinator.shared.beginSelection()
     }
 
     // MARK: 标注编辑

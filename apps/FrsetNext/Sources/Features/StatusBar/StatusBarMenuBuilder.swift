@@ -23,6 +23,16 @@ public enum StatusBarMenuBuilder {
                           action: #selector(StatusBarController.openSettingsAction(_:)),
                           target: target))
 
+        // 统计入口（spec 17 S1：SF Symbol chart.line.uptrend.xyaxis，与记录控制区同菜单）
+        let statsItem = item("使用统计",
+                             key: "",
+                             modifiers: [],
+                             action: #selector(StatusBarController.showStatisticsAction(_:)),
+                             target: target)
+        statsItem.image = NSImage(systemSymbolName: "chart.line.uptrend.xyaxis",
+                                  accessibilityDescription: "使用统计")
+        menu.addItem(statsItem)
+
         menu.addItem(NSMenuItem.separator())
 
         // 监测项（动态状态项）显示开关

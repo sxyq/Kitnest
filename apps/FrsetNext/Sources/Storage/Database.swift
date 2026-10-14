@@ -241,26 +241,353 @@ public final class DatabaseManager {
         );
         """)
 
+        // spec 17 §0/§1b D7：原作为事件名驱动的窄表（重建早期臆测的 daily_stats 宽表必改）
         try statistics.exec("""
-        CREATE TABLE IF NOT EXISTS daily_stats (
-            day TEXT PRIMARY KEY,
-            capture_count INTEGER DEFAULT 0,
-            screenshot_count INTEGER DEFAULT 0,
-            ocr_count INTEGER DEFAULT 0,
-            tool_count INTEGER DEFAULT 0,
-            ai_request_count INTEGER DEFAULT 0
+        CREATE TABLE IF NOT EXISTS usage_daily_metrics (
+            day TEXT NOT NULL,
+            event_name TEXT NOT NULL,
+            count INTEGER NOT NULL,
+            PRIMARY KEY (day, event_name)
+        );
+        CREATE INDEX IF NOT EXISTS idx_usage_daily_metrics_day ON usage_daily_metrics(day);
+        CREATE TABLE IF NOT EXISTS app_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
         );
         """)
+
+        migrateLegacyDailyStats()
+    }
+
+    /// 旧臆测宽表 daily_stats(day, capture_count, …) → 原作窄表 usage_daily_metrics 的一次性迁移：
+    /// ① 列名映射为 spec 17 §4 事件名；② day 由 yyyyMMdd 规范为 yyyy-MM-dd（D7 实证格式）；
+    /// ③ 迁移完 DROP 旧表。幂等：daily_stats 不存在时直接返回。
+    private func migrateLegacyDailyStats() {
+        let legacyRows = (try? statistics.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_stats'")) ?? []
+        guard !legacyRows.isEmpty else { return }
+        let legacyMap: [(column: String, event: String)] = [
+            ("capture_count", "clipboard_capture"),
+            ("screenshot_count", "screenshot_capture"),
+            ("ocr_count", "ocr_use"),
+            ("tool_count", "tool_execute_success"),
+            // 原作 59 键中无 AI 请求事件；保留为重建扩展事件名（不影响窄表结构）
+            ("ai_request_count", "ai_request_count"),
+        ]
+        if let rows = try? statistics.query("SELECT * FROM daily_stats") {
+            for r in rows {
+                guard let rawDay = r.string("day") else { continue }
+                let day = Self.normalizedDay(rawDay)
+                for m in legacyMap where r.int(m.column) > 0 {
+                    try? statistics.run(
+                        "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
+                        "ON CONFLICT(day, event_name) DO UPDATE SET count = usage_daily_metrics.count + excluded.count",
+                        [.text(day), .text(m.event), .int(r.int(m.column))])
+                }
+            }
+        }
+        try? statistics.exec("DROP TABLE IF EXISTS daily_stats;")
+        Log.info("Database", "migrated legacy daily_stats → usage_daily_metrics")
+    }
+
+    /// day 串规范化：8 位 yyyyMMdd → yyyy-MM-dd；已是标准格式则原样返回
+    static func normalizedDay(_ s: String) -> String {
+        if s.count == 8, let d = Int(s) {
+            return String(format: "%04d-%02d-%02d", d / 10000, (d / 100) % 100, d % 100)
+        }
+        return s
     }
 
     // MARK: - 统计埋点
 
+    /// 旧列名 → spec 17 §4 事件名（bumpStat 公开签名保持不变，全工程调用点零改动）
+    private static let legacyColumnEventMap: [String: String] = [
+        "capture_count": "clipboard_capture",
+        "screenshot_count": "screenshot_capture",
+        "ocr_count": "ocr_use",
+        "tool_count": "tool_execute_success",
+        "ai_request_count": "ai_request_count",
+    ]
+
+    /// 兼容入口：签名保持不变，内部改走 StatisticsManager 窄表累加（spec 17 D7）
     public func bumpStat(_ column: String, day: String? = nil) {
-        let fmt = DateFormatter(); fmt.dateFormat = "yyyyMMdd"
-        let d = day ?? fmt.string(from: Date())
-        let allowed = Set(["capture_count", "screenshot_count", "ocr_count", "tool_count", "ai_request_count"])
-        guard allowed.contains(column) else { return }
-        try? statistics.exec("INSERT INTO daily_stats(day,\(column)) VALUES('\(d)',1) " +
-            "ON CONFLICT(day) DO UPDATE SET \(column)=\(column)+1;")
+        guard let event = Self.legacyColumnEventMap[column] else { return }
+        let d = day.map(Self.normalizedDay) ?? StatisticsManager.dayString()
+        StatisticsManager.shared.record(event, day: d)
+    }
+}
+
+// MARK: - 埋点事件枚举（spec 17 §8：54 个枚举事件；另 5 个裸串事件直接字符串 record）
+
+public enum AnalyticsEvent: String, CaseIterable {
+    case panelOpen, historyCopy, autoPastePrompt, historyBatchCopy, historyEditSave
+    case noteEditorOpen, noteCreateSuccess, noteSave, historyMultiSelect
+    case historyBatchDelete, historyBatchTagAdd, historyBatchTagRemove
+    case clipboardCapture, clipboardRecordingStateChange
+    case searchExecute, toolExecuteSuccess, ocrUse, translationUse
+    case webSearchOpen, browserOpen, screenshotCapture, colorPickSuccess
+    case alwaysOnTopEnable, floatingClipboardActivate
+    case networkInfoClick, activityMonitorClick
+    case calendarExpand, calendarDayOpen, calendarDateSelect
+    case calendarEventDetailOpen, calendarPermissionAction, calendarExternalOpen
+    case settingsOpen, changelogClick, rateAppClick, rateAppRequest, helpFeedbackClick
+    case settingsExportSuccess, settingsImportSuccess
+    case proPageView, proPurchaseClick, proPurchaseSuccess, proPurchaseFailed
+    case proRestoreSuccess, proRestoreFailed
+    case whatsNewView, paywallView, paywallUpgradeClick, paywallUnlockOnceClick
+    case paywallMaybeLaterClick, paywallIncludedClick, paywallTrialStart
+    case statisticsOpen
+
+    /// DB 事件名：camelCase → snake_case（historyCopy → history_copy）
+    public var eventName: String {
+        var out = ""
+        out.reserveCapacity(rawValue.count + 4)
+        for ch in rawValue {
+            if ch.isUppercase {
+                if !out.isEmpty { out.append("_") }
+                out.append(Character(ch.lowercased()))
+            } else {
+                out.append(ch)
+            }
+        }
+        return out
+    }
+}
+
+// MARK: - 统计管理器（原作 StatisticsManager：statistics.sqlite 窄表 + 串行队列 + 去重）
+
+public final class StatisticsManager {
+    public static let shared = StatisticsManager()
+
+    /// 专用串行队列（spec 17 D2：com.frset.statistics.queue）
+    private let queue = DispatchQueue(label: "com.frset.statistics.queue")
+    /// statistics.sqlite（DatabaseManager 已打开并启用 WAL，D1）
+    public let db: SQLiteDatabase
+    /// 事件去重状态（D3：lastEventTime + dedupeWindows）
+    private var lastEventTime: [String: Date] = [:]
+    private var dedupeWindows: [String: TimeInterval] = [:]
+    /// 操作组事件（screenshot/selection/tool/ocr 四组；spec 成员 ⬜，推断为高频操作事件）
+    private static let operationEventNames: Set<String> = [
+        AnalyticsEvent.clipboardCapture.eventName,
+        AnalyticsEvent.screenshotCapture.eventName,
+        AnalyticsEvent.colorPickSuccess.eventName,
+        AnalyticsEvent.ocrUse.eventName,
+        AnalyticsEvent.translationUse.eventName,
+        AnalyticsEvent.toolExecuteSuccess.eventName,
+        AnalyticsEvent.searchExecute.eventName,
+    ]
+    /// 去重窗口默认时长（spec ⬜，推断 1 秒：连续复制/连点只计 1 次）
+    private static let defaultDedupeWindow: TimeInterval = 1.0
+
+    /// 开关门控（D5：UserDefaults 键 analyticsEnabled，默认开）
+    public var analyticsEnabled: Bool {
+        get {
+            let d = UserDefaults.standard
+            return d.object(forKey: "analyticsEnabled") == nil ? true : d.bool(forKey: "analyticsEnabled")
+        }
+        set { UserDefaults.standard.set(newValue, forKey: "analyticsEnabled") }
+    }
+
+    /// 全部已跟踪事件名（54 枚举 + 5 裸串 = 59，spec 17 §4）
+    public var trackedEventNames: Set<String> {
+        var names = Set(AnalyticsEvent.allCases.map { $0.eventName })
+        names.formUnion(Self.bareStringEvents)
+        return names
+    }
+    /// 裸串事件（主面板 4 个 + 权限 1 个）
+    public static let bareStringEvents: Set<String> = [
+        "main_panel_item", "main_panel_preview", "main_panel_search_result",
+        "main_panel_keyboard", "permission_granted",
+    ]
+
+    private init() {
+        db = DatabaseManager.shared.statistics
+        ensureInstallDate()
+    }
+
+    // MARK: 写入
+
+    /// 埋点 +1（D7：TimeZone.current + "yyyy-MM-dd"，ON CONFLICT 累加；去重窗口内跳过）
+    public func record(_ event: String, day: String? = nil) {
+        guard analyticsEnabled else { return }
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            let d = day ?? Self.dayString()
+            if Self.operationEventNames.contains(event) {
+                let window = self.dedupeWindows[event] ?? Self.defaultDedupeWindow
+                if let last = self.lastEventTime[event], Date().timeIntervalSince(last) < window { return }
+                self.lastEventTime[event] = Date()
+            }
+            try? self.db.run(
+                "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,1) " +
+                "ON CONFLICT(day, event_name) DO UPDATE SET count = MAX(0, usage_daily_metrics.count) + 1",
+                [.text(d), .text(event)])
+        }
+    }
+
+    public func record(_ event: AnalyticsEvent) { record(event.eventName) }
+
+    /// 批量落库恢复（D4：崩溃/挂起后补写挂起的 +1 记录，条目 = (事件名, 增量, day)）
+    public func recordBatch(_ events: [(String, Int, String)]) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            _ = try? self.db.transaction { db in
+                for (event, delta, day) in events where delta != 0 {
+                    try db.run(
+                        "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
+                        "ON CONFLICT(day, event_name) DO UPDATE SET count = MAX(0, usage_daily_metrics.count) + excluded.count",
+                        [.text(day), .text(event), .int(Int64(delta))])
+                }
+            }
+        }
+    }
+
+    // MARK: 查询（Q1-Q8，照 spec 17 §5 映射；所有查询对 count<=0 归零）
+
+    /// Q1 全量按事件总计 → __totalCounts
+    public func totalCounts() -> [String: Int] {
+        queue.sync {
+            guard let rows = try? db.query(
+                "SELECT event_name, SUM(CASE WHEN count > 0 THEN count ELSE 0 END) AS total " +
+                "FROM usage_daily_metrics GROUP BY event_name") else { return [:] }
+            var out: [String: Int] = [:]
+            for r in rows { if let n = r.string("event_name") { out[n] = Int(r.int("total")) } }
+            return out
+        }
+    }
+
+    /// Q2 指定日按事件 → __todayCounts
+    public func todayCounts(day: String, events: [String]) -> [String: Int] {
+        guard !events.isEmpty else { return [:] }
+        let ph = Array(repeating: "?", count: events.count).joined(separator: ",")
+        let values = [.text(day)] + events.map { SQLiteValue.text($0) }
+        return queue.sync {
+            guard let rows = try? db.query(
+                "SELECT event_name, CASE WHEN count > 0 THEN count ELSE 0 END AS c " +
+                "FROM usage_daily_metrics WHERE day = ? AND event_name IN (\(ph))", values) else { return [:] }
+            var out: [String: Int] = [:]
+            for r in rows { if let n = r.string("event_name") { out[n] = Int(r.int("c")) } }
+            return out
+        }
+    }
+
+    /// Q3 活跃天数 → __activeDaysCount
+    public func activeDaysCount(events: [String]) -> Int {
+        guard !events.isEmpty else { return 0 }
+        let ph = Array(repeating: "?", count: events.count).joined(separator: ",")
+        let values = events.map { SQLiteValue.text($0) }
+        return queue.sync {
+            Int((try? db.scalarInt(
+                "SELECT COUNT(DISTINCT day) FROM usage_daily_metrics " +
+                "WHERE event_name IN (\(ph)) AND count > 0", values)) ?? 0)
+        }
+    }
+
+    /// Q4 每日总计（热力图）→ [(day, total)]
+    public func dailyTotals(since: String, events: [String]) -> [(String, Int)] {
+        guard !events.isEmpty else { return [] }
+        let ph = Array(repeating: "?", count: events.count).joined(separator: ",")
+        let values: [SQLiteValue] = [.text(since)] + events.map { .text($0) }
+        return queue.sync {
+            guard let rows = try? db.query(
+                "SELECT day, SUM(CASE WHEN count > 0 THEN count ELSE 0 END) AS total FROM usage_daily_metrics " +
+                "WHERE day >= ? AND event_name IN (\(ph)) GROUP BY day ORDER BY day ASC", values) else { return [] }
+            return rows.compactMap { r in r.string("day").map { ($0, Int(r.int("total"))) } }
+        }
+    }
+
+    /// Q5 每日按事件（最近 30 天分解柱图）→ [(day, event, count)]
+    public func dailyBreakdowns(since: String, events: [String]) -> [(String, String, Int)] {
+        guard !events.isEmpty else { return [] }
+        let ph = Array(repeating: "?", count: events.count).joined(separator: ",")
+        let values: [SQLiteValue] = [.text(since)] + events.map { .text($0) }
+        return queue.sync {
+            guard let rows = try? db.query(
+                "SELECT day, event_name, CASE WHEN count > 0 THEN count ELSE 0 END AS c " +
+                "FROM usage_daily_metrics WHERE day >= ? AND event_name IN (\(ph)) " +
+                "ORDER BY day ASC, event_name ASC", values) else { return [] }
+            return rows.compactMap { r in
+                guard let d = r.string("day"), let e = r.string("event_name") else { return nil }
+                return (d, e, Int(r.int("c")))
+            }
+        }
+    }
+
+    /// Q6 单事件总计（metricConfigs 单卡/tooltip）
+    public func total(event: String) -> Int {
+        queue.sync {
+            Int((try? db.scalarInt(
+                "SELECT COALESCE(SUM(CASE WHEN count > 0 THEN count ELSE 0 END), 0) " +
+                "FROM usage_daily_metrics WHERE event_name = ?", [.text(event)])) ?? 0)
+        }
+    }
+
+    /// Q7 评分请求口径：history_copy + screenshot_capture 之和（D8）
+    public func reviewRequestUsage() -> Int {
+        queue.sync {
+            Int((try? db.scalarInt(
+                "SELECT COALESCE(SUM(CASE WHEN count > 0 THEN count ELSE 0 END), 0) " +
+                "FROM usage_daily_metrics WHERE event_name IN ('history_copy','screenshot_capture')")) ?? 0)
+        }
+    }
+
+    /// Q8 导出全量（设置导出携带统计数据）
+    public func exportAll() -> [(String, String, Int)] {
+        queue.sync {
+            guard let rows = try? db.query(
+                "SELECT day, event_name, count FROM usage_daily_metrics ORDER BY day ASC") else { return [] }
+            return rows.compactMap { r in
+                guard let d = r.string("day"), let e = r.string("event_name") else { return nil }
+                return (d, e, Int(r.int("count")))
+            }
+        }
+    }
+
+    /// Q8 导入合并：事务内 MAX(旧, 新, 0)，不覆盖削减（S12）
+    public func importMerge(_ rows: [(String, String, Int)]) {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            _ = try? self.db.transaction { db in
+                for (day, event, count) in rows {
+                    try db.run(
+                        "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
+                        "ON CONFLICT(day, event_name) DO UPDATE SET " +
+                        "count = MAX(usage_daily_metrics.count, excluded.count, 0)",
+                        [.text(day), .text(event), .int(Int64(max(count, 0)))])
+                }
+            }
+        }
+    }
+
+    // MARK: app_meta / install_date（D6：惰性初始化）
+
+    private func ensureInstallDate() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            let metaRows = (try? self.db.query(
+                "SELECT value FROM app_meta WHERE key = 'install_date'")) ?? []
+            if metaRows.isEmpty {
+                try? self.db.run("INSERT OR IGNORE INTO app_meta(key, value) VALUES('install_date', ?)",
+                                 [.text(Self.dayString())])
+            }
+        }
+    }
+
+    /// 安装日期（yyyy-MM-dd；无记录时返回 nil）
+    public func installDate() -> String? {
+        queue.sync {
+            guard let rows = try? db.query("SELECT value FROM app_meta WHERE key = 'install_date'") else { return nil }
+            return rows.first?.string("value")
+        }
+    }
+
+    // MARK: 工具
+
+    /// day 串格式 = yyyy-MM-dd（TimeZone.current，D7 小字符串立即数实证）
+    public static func dayString(from date: Date = Date()) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.timeZone = TimeZone.current
+        return fmt.string(from: date)
     }
 }

@@ -38,7 +38,7 @@ public enum CaptureModule: AppModule {
         case .full:     ScreenshotManager.shared.captureFullScreen()
         case .ocr:      ScreenshotManager.shared.captureAndOCR()
         case .pin:      ScreenshotManager.shared.captureAndPin()
-        case .long:     break                                // 长截图需要先选图，走面板入口
+        case .long:     ScreenshotManager.shared.captureLongScreenshot()   // 选区→滚动采捕会话
         case .annotate: ScreenshotManager.shared.annotateLatest()
         case .color:    Eyedropper.shared.start()
         }

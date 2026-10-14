@@ -16,6 +16,10 @@ public enum SettingsModule: AppModule {
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "general", title: "通用", systemImage: "gearshape",
             build: { AnyView(GeneralSettingsPane()) }))
+        // 搜索页签（specs/18：补齐原作 5 页签缺失项，排序数组已含 "search"）
+        SettingsPaneRegistry.register(SettingsPaneDescriptor(
+            id: "search", title: "搜索", systemImage: "magnifyingglass",
+            build: { AnyView(SearchSettingsPane()) }))
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "about", title: "关于", systemImage: "info.circle",
             build: { AnyView(AboutSettingsPane()) }))
@@ -23,6 +27,9 @@ public enum SettingsModule: AppModule {
         // 2) 注入共享能力：其他模块通过 ServiceLocator.settings 唤起设置窗口
         ServiceLocator.settings = SettingsWindowController.shared
 
-        Log.info("Settings", "设置模块已启动（2 个基础页签已注册；快捷键/工具页签由 Toolbox 注册）")
+        // 3) 外观/语言基建生效（specs/18：appearance 键 + language 键）
+        AppearanceManager.shared.applyCurrent()
+
+        Log.info("Settings", "设置模块已启动（3 个基础页签已注册；快捷键/工具页签由 Toolbox 注册）")
     }
 }

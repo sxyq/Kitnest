@@ -262,6 +262,7 @@ public final class Eyedropper: ObservableObject {
                 self.rgbText = EyedropperView.rgbText(of: color)
                 self.copyHexToPasteboard(hex)
                 CaptureEventBus.onTextRecognized?(hex)
+                Toast.show("颜色已复制 \(hex)", icon: "checkmark.circle.fill")   // spec 13 §4：取色成功场景
                 self.message = "已复制 \(hex)"
             } else {
                 self.message = nil
