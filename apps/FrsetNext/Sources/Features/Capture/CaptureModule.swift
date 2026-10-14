@@ -1,0 +1,46 @@
+import SwiftUI
+
+// MARK: - 截图模块入口
+
+/// 截图与 OCR 模块：
+/// 1) 注入 OCRService 到 ServiceLocator（供搜索 / AI / 剪贴板等模块复用）；
+/// 2) 注册主面板区段与设置页签；
+/// 3) 预热截图目录与最近截图列表。
+public enum CaptureModule: AppModule {
+    public static let identifier = "capture"
+
+    public static func start() {
+        // 共享能力：其它模块只依赖 OCRServiceProtocol
+        ServiceLocator.ocrService = OCRService.shared
+
+        // 预热：扫描保存目录，建立最近截图列表
+        ScreenshotManager.shared.reloadRecent()
+
+        PanelSectionRegistry.register(PanelSectionDescriptor(
+            id: "capture",
+            title: "截图",
+            priority: 30,
+            build: { AnyView(CaptureSectionView()) }))
+
+        SettingsPaneRegistry.register(SettingsPaneDescriptor(
+            id: "capture",
+            title: "截图",
+            systemImage: "camera",
+            build: { AnyView(CaptureSettingsPane()) }))
+
+        Log.info("Capture", "截图模块已启动")
+    }
+
+    /// 快捷入口（供状态栏菜单 / 全局快捷键接线调用）
+    public static func capture(_ mode: CaptureMode) {
+        switch mode {
+        case .area:     ScreenshotManager.shared.captureRegion()
+        case .full:     ScreenshotManager.shared.captureFullScreen()
+        case .ocr:      ScreenshotManager.shared.captureAndOCR()
+        case .pin:      ScreenshotManager.shared.captureAndPin()
+        case .long:     break                                // 长截图需要先选图，走面板入口
+        case .annotate: ScreenshotManager.shared.annotateLatest()
+        case .color:    Eyedropper.shared.start()
+        }
+    }
+}

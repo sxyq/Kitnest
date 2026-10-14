@@ -1,0 +1,142 @@
+# FrsetNext 并行开发契约（所有模块代理必须遵守）
+
+## 0. 项目背景
+
+我们在**正向重建**一款 macOS 菜单栏效率工具（逆向目标：闭源应用 Frset 1.3.12）。
+技术栈（已实证）：**AppKit + SwiftUI 混用 / Combine / libsqlite3 / Swift 6.4（用 `-swift-version 5` 语法模式）**。
+全部功能规格书在 `../../specs/`。本工程源码目录：
+
+```
+apps/FrsetNext/Sources/
+├── Core/        ✅ 已完成：Support(Log/Theme/ServiceLocator/ModuleRegistry/String.sha256/Date.relativeText/AppDirectories)
+│                             Preferences、Registry(面板区段/设置页签/状态栏项 三个注册表 + 控制协议)
+├── Models/      ✅ 已完成：ClipboardItem/Tag/FileTypeIcon/Tool*/LLM*/MonitorSample/Calendar*
+├── Storage/     ✅ 已完成：SQLiteDatabase(封装) + DatabaseManager(schema 已建表，含 LLM/工具表)
+├── Features/    ⬜ 各模块（你负责其中一个目录）
+└── App/         ✅ 已完成（FrsetNextApp + AppBootstrap 总控接线；模块代理请勿修改）
+```
+
+## 1. 硬性约束（违反会导致整轮返工）
+
+1. **只在你被分配的 `Features/<模块>/` 目录内创建/修改文件**。不要动 `Core/`、`Models/`、`Storage/`、其他 `Features/*`、根目录文档、`App/`。
+2. **不要执行任何 git 命令**（总控统一提交）。
+3. **禁止模块间直接引用彼此的具体类型**（如 Clipboard 不要 `import` 或调用 Monitor 的类）。跨模块一律走 §3 的注册表 / ServiceLocator。这是并行可独立编译的前提。
+4. **不要创建 `App/` 目录、不要写 `@main`**（唯一入口由总控最后写）。
+5. 每个模块必须提供 `AppModule` 实现（见 §2），在 `start()` 里完成自我注册。
+6. 代码风格：类名/方法名**沿用原作命名**（见各自规格的「类清单」），注释用中文，克制使用第三方依赖（**零外部依赖**，只用系统框架）。
+
+## 2. 模块必须实现的入口
+
+```swift
+public enum MonitorModule: AppModule {          // 名字换成你的模块名
+    public static let identifier = "monitor"
+    public static func start() {
+        // 1) 启动服务/定时器
+        // 2) 注册面板区段 / 设置页签 / 状态栏项（按需，见 §3）
+        // 3) 若你提供共享能力，注入 ServiceLocator（如 AI 模块注入 llmService）
+    }
+}
+```
+
+## 3. 跨模块交互的三个注册表（Core/Registry.swift 已定义，直接调用）
+
+```swift
+// ① 主面板区段（供 04 面板模块渲染）
+PanelSectionRegistry.register(PanelSectionDescriptor(
+    id: "clipboard", title: "剪贴板", priority: 20,
+    build: { AnyView(ClipboardSectionView()) }))
+
+// ② 设置窗口页签（供 07 设置模块渲染，id 建议用 general/monitor/clipboard/search/ai/tools/shortcuts/about）
+SettingsPaneRegistry.register(SettingsPaneDescriptor(
+    id: "monitor", title: "监测", systemImage: "gauge",
+    build: { AnyView(MonitorSettingsPane()) }))
+
+// ③ 状态栏项（供 08 状态栏模块创建 NSStatusItem）
+StatusItemRegistry.register(StatusItemDescriptor(
+    id: "monitor.cpu", priority: 10,
+    title: { "12%" },
+    attributedTitle: nil,
+    onTap: nil,
+    popover: { AnyView(CPUPopoverView()) }))
+
+// ④ 共享能力注入（AI 模块 / 截图模块用）
+ServiceLocator.llmService = AnthropicService.shared
+ServiceLocator.ocrService = OCRService.shared
+// ⑤ 需要唤起面板/设置窗口时（不要引用具体类）
+ServiceLocator.panel?.toggle()
+ServiceLocator.settings?.open(pane: "monitor")
+```
+
+## 4. 可用共享 API 速查
+
+| API | 位置 | 说明 |
+|---|---|---|
+| `Log.info/debug/warn/error(tag, msg)` | Core/Support | 日志 |
+| `Theme.cornerRadius/rowHeight/thumbSize/cardBackground/sectionHeader()` | Core/Support | 视觉常量 |
+| `Preferences.shared.value/set/binding` + `Preferences.Keys` | Core/Preferences | 偏好（键名见文件） |
+| `AppDirectories.base` / `.sub("images")` | Core/Support | 数据目录 |
+| `DatabaseManager.shared.clipboard / .statistics` | Storage | 已建好 schema 的库 |
+| `db.run(sql, [SQLiteValue])` / `db.query(sql, [SQLiteValue])` / `db.transaction{}` | Storage | SQLite 操作 |
+| `row.string("content") / .int() / .real() / .bool()` | Storage | 取值便捷方法 |
+| `String.sha256` / `.truncatedForDisplay`、`Date.relativeText` | Core/Support | 工具扩展 |
+| `MonitorSample` / `ClipboardItem` / `Tag` / `LLMChatSession` / `CalendarDay` 等 | Models | 数据模型 |
+| `OCRTextObservation`、`OCRServiceProtocol`、`LLMServiceProtocol` | Core/Support | 协议 |
+
+## 5. 完成前必须自检（把错误修到 0）
+
+```bash
+cd /Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/Sources
+SDK=$(xcrun --show-sdk-path)
+swiftc -typecheck -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
+  Core/*.swift Models/*.swift Storage/*.swift Features/<你的模块>/*.swift
+```
+
+要求：**0 错误**（警告可留）。若确需新系统框架，确认它在 macOS SDK 中存在（如 `ScreenCaptureKit`、`Vision`、`EventKit`、`CoreGraphics`、`IOKit`、`Combine`、`AppKit`、`SwiftUI`）。
+
+## 6. 交付
+
+完成后回报：创建了哪些文件 + 每个文件职责一句话 + typecheck 结果 + 你认为需要总控接线的点（如"需要 App 层调用 MonitorModule.start()"）。
+
+## 7. 总装补充裁决（2026-10-15，planning；优先级等同 §1，禁止回退）
+
+总装阶段发现并已修复的跨模块问题，以下为最终裁决，后续任何代理不得回退：
+
+### 7.1 快捷键体系归属
+- `ShortcutRegistry` / `ShortcutManager` / `ShortcutDefinition`（Carbon 全局热键 + 冲突检测）**唯一实现在 `Features/Toolbox/ShortcutManager.swift`**。
+- 设置页签「快捷键」（id `"shortcuts"`）由 **ToolboxModule** 注册（`ShortcutSettingsPane`）；设置模块只保留 `general` / `about`。原 Settings 内的展示用简化版 `ShortcutRegistry`/`ShortcutEntry` 已删除，**禁止恢复或改名重加**。
+- 页签 id 归属表：`general`/`about`→Settings，`tools`/`shortcuts`→Toolbox，`monitor`→Monitor，`clipboard`→Clipboard，`capture`→Capture，`ai`→AI。同一 id 只允许注册一次。
+
+### 7.2 剪贴板跨模块写入 API（App 层事件接线用）
+```swift
+ClipboardManager.shared.insert(_ result: ClipboardReadResult)   // 通用：复用捕获管线（去重/落盘/统计）
+ClipboardManager.shared.insertImage(data:fileURL:sourceApp:)    // 截图模块产出
+ClipboardManager.shared.insertText(_:sourceApp:subtitle:)       // OCR / 文本产出
+ClipboardManager.shared.ingestToolOutput(text:sourceToolKeyword:analyticsId:)  // 工具/AI 产出（is_generated_by_tool=1）
+await ClipboardManager.shared.searchGlobal(query:limit:)        // 全局搜索源 → [ClipboardGlobalSearchHit]
+```
+配套：`ClipboardPasteboardReader.imageResult(...)` / `.textResult(...)` 静态工厂（图片自动补算指纹）；
+`ClipboardGlobalSearchHit`（剪贴板模块自有 DTO；映射为 Toolbox `SearchResultItem` 的职责在总控，保持模块零耦合）。
+
+### 7.3 事件总线签名冻结（App 层已接线，禁止改动）
+- `CaptureEventBus.onImageCaptured: ((URL, Data) -> Void)?`、`onTextRecognized: ((String) -> Void)?`
+- `AIEventBus.onResultProduced: ((String) -> Void)?` + `emitResult(_:)`
+- `ToolboxEventBus.onResultProduced: ((String, ToolKind) -> Void)?` + `emitResult(_:kind:)`
+- `SearchHookRegistry.register(_:)` / `search(_:)`
+
+### 7.4 @Stored 属性包装器补充规则（本机替代 @State 的唯一方式）
+```swift
+@Stored private var mode: Mode          // 无默认值 OK
+@Stored private var opt: String?        // Optional 无默认值 OK
+// 自定义 init 中的初始化（后备存储是 StateObject<StoredBox<T>>）：
+self._mode = Stored(wrappedValue: mode ?? .infer(from: text))   // ✅
+self._mode = State(initialValue: ...)                            // ❌ 类型不匹配
+```
+
+### 7.5 新版工具链 C 函数迁移
+遇到旧 API obsoleted/迁移提示时：`CGEventTapCreate` → `CGEvent.tapCreate(tap:place:options:eventsOfInterest:callback:userInfo:)`；
+`CGEventTapEnable` → `CGEvent.tapEnable(tap:enable:)`。准确签名查 SDK `CoreGraphics.framework/Headers/CoreGraphics.apinotes` 的 `SwiftName:` 字段。
+
+### 7.6 自检工具（每次改动后必跑）
+- 逐模块 + 全量 typecheck：`apps/FrsetNext/check.sh`（逐模块 + 全量，报告写入 `build/typecheck-report.txt`）
+- 跨模块耦合/重名/入口对账：`apps/FrsetNext/coupling_check.py`（报告 `build/coupling-report.txt`）
+- 标准：全量总装与逐模块自检均须 **0 error**。

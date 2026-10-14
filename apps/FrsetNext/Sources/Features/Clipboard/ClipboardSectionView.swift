@@ -1,0 +1,562 @@
+import AppKit
+import SwiftUI
+
+// MARK: - 主面板区段（05 号规格 1.3：ClipboardSectionView）
+
+/// 剪贴板区段：搜索框 + 过滤栏 + 行列表。
+/// 数据来源直接观察 `ClipboardManager`（ObservableObject），避免中间 store 带来的双重真相。
+public struct ClipboardSectionView: View {
+
+    @ObservedObject private var manager = ClipboardManager.shared
+    @ObservedObject private var tagStore = TagStore.shared
+
+    @Stored private var previewItem: ClipboardItem?
+    @Stored private var newTagName: String = ""
+    @Stored private var summaryState = SummaryState()
+    @Stored private var isHoveringList = false
+
+    public init() {}
+
+    public var body: some View {
+        VStack(spacing: 8) {
+            header
+            ClipboardSearchTextField(text: Binding(get: { manager.searchText },
+                                                   set: { manager.searchText = $0 }),
+                                     resultCount: manager.items.count)
+            ClipboardFilterBarView(selection: Binding(get: { manager.filter },
+                                                      set: { manager.filter = $0 }))
+            list
+        }
+        .onAppear {
+            manager.reload(reset: true)
+            tagStore.refresh()
+        }
+        .sheet(item: $previewItem) { item in
+            LargeTextPreviewContainerView(item: item)
+                .frame(minWidth: 560, minHeight: 420)
+        }
+        .alert(summaryState.title, isPresented: $summaryState.isPresented) {
+            Button("好") { summaryState.reset() }
+        } message: {
+            Text(summaryState.message)
+        }
+    }
+
+    // MARK: 头部
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Theme.sectionHeader("剪贴板")
+            Spacer()
+            ClipboardTagFilterMenu(selectedTagID: Binding(get: { manager.tagFilterID },
+                                                          set: { manager.tagFilterID = $0 }))
+            Button {
+                FloatingClipboardWindowController.shared.toggle()
+            } label: {
+                Image(systemName: "macwindow")
+            }
+            .buttonStyle(.borderless)
+            .help("打开/关闭浮动窗")
+            Button {
+                manager.reload(reset: true)
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help("刷新")
+        }
+    }
+
+    // MARK: 列表
+
+    private var list: some View {
+        Group {
+            if manager.items.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "clipboard")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.secondary)
+                    Text(manager.searchText.isEmpty ? "还没有剪贴板记录" : "没有匹配的结果")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 96)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(manager.items) { item in
+                            ClipboardRow(item: item,
+                                         onCopy: { manager.copy(item) },
+                                         onEdit: { ClipboardItemEditWindowRecord.open(for: item) },
+                                         onPreview: { previewItem = item },
+                                         onSummarize: { Task { await runSummary(for: item) } })
+                                .contextMenu { ClipboardRowMenuContent(item: item, newTagName: $newTagName) }
+                                .onAppear { manager.loadMoreIfNeeded(currentItem: item) }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .frame(maxHeight: 420)
+            }
+        }
+    }
+
+    // MARK: AI 摘要
+
+    private func runSummary(for item: ClipboardItem) async {
+        do {
+            let summary = try await ClipboardSummaryExecutionCoordinator.shared.summarize(item)
+            summaryState.show(title: "AI 摘要", message: summary)
+        } catch {
+            summaryState.show(title: "摘要失败", message: error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - 摘要提示状态
+
+private struct SummaryState {
+    var isPresented = false
+    var title = ""
+    var message = ""
+
+    mutating func show(title: String, message: String) {
+        self.title = title; self.message = message; self.isPresented = true
+    }
+    mutating func reset() {
+        self.title = ""; self.message = ""; self.isPresented = false
+    }
+}
+
+// MARK: - 搜索框（05 号规格 1.3：ClipboardSearchTextField）
+
+public struct ClipboardSearchTextField: View {
+
+    @Binding public var text: String
+    public var resultCount: Int
+
+    public init(text: Binding<String>, resultCount: Int = 0) {
+        self._text = text
+        self.resultCount = resultCount
+    }
+
+    public var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+            TextField("搜索内容 / 标题 / 重命名", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                    .buttonStyle(.borderless)
+                Text("\(resultCount)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+            .fill(Color(NSColor.controlBackgroundColor)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+            .strokeBorder(Theme.separator, lineWidth: 0.5))
+    }
+}
+
+// MARK: - 过滤栏（05 号规格 1.3：ClipboardFilterBarView）
+
+public struct ClipboardFilterBarView: View {
+
+    @Binding public var selection: ClipboardFilterKind
+
+    public init(selection: Binding<ClipboardFilterKind>) { self._selection = selection }
+
+    public var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(ClipboardFilterKind.allCases) { kind in
+                    Button {
+                        selection = kind
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: kind.systemImage)
+                                .font(.system(size: 10))
+                            Text(kind.label)
+                                .font(.system(size: 11))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(selection == kind ? Color.accentColor.opacity(0.18) : Color.clear)
+                        )
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+        .frame(height: 24)
+    }
+}
+
+// MARK: - 标签过滤入口（05 号规格 B6：按标签过滤）
+
+/// 头部标签下拉：选中某个标签后，列表只显示该标签下的条目；再选一次取消。
+public struct ClipboardTagFilterMenu: View {
+
+    @ObservedObject private var tagStore = TagStore.shared
+    @Binding public var selectedTagID: String?
+
+    public init(selectedTagID: Binding<String?>) { self._selectedTagID = selectedTagID }
+
+    public var body: some View {
+        Menu {
+            Button("全部标签") { selectedTagID = nil }
+            if !tagStore.tags.isEmpty { Divider() }
+            ForEach(tagStore.tags) { tag in
+                Button {
+                    selectedTagID = (selectedTagID == tag.id) ? nil : tag.id
+                } label: {
+                    Label(tag.name, systemImage: selectedTagID == tag.id ? "checkmark" : "tag")
+                }
+            }
+            if tagStore.tags.isEmpty { Text("暂无标签") }
+        } label: {
+            Image(systemName: selectedTagID == nil ? "tag" : "tag.fill")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("按标签过滤")
+    }
+}
+
+// MARK: - 行
+
+/// 菜单动作描述（05 号规格 1.3：ClipboardMenuActionItem）
+public struct ClipboardMenuActionItem: Identifiable {
+    public let id: String
+    public let title: String
+    public let systemImage: String
+    public let isEnabled: Bool
+    public let action: () -> Void
+
+    public init(id: String = UUID().uuidString, title: String, systemImage: String,
+                isEnabled: Bool = true, action: @escaping () -> Void) {
+        self.id = id; self.title = title; self.systemImage = systemImage
+        self.isEnabled = isEnabled; self.action = action
+    }
+}
+
+/// 右键菜单内容（复制/编辑/标签/预览/AI摘要/删除）
+public struct ClipboardRowMenuContent: View {
+
+    @ObservedObject private var tagStore = TagStore.shared
+    public let item: ClipboardItem
+    @Binding public var newTagName: String
+
+    public init(item: ClipboardItem, newTagName: Binding<String> = .constant("")) {
+        self.item = item
+        self._newTagName = newTagName
+    }
+
+    public var body: some View {
+        actionsView
+        Divider()
+        Menu("标签") {
+            ForEach(tagStore.tags) { tag in
+                Button {
+                    tagStore.toggle(tagID: tag.id, dedupeKey: item.dedupeKey)
+                } label: {
+                    Label(tag.name, systemImage: item.tagIDs.contains(tag.id) ? "checkmark" : "tag")
+                }
+            }
+            if tagStore.tags.isEmpty { Text("暂无标签") }
+            Divider()
+            TextField("新建标签…", text: $newTagName, onCommit: {
+                guard let created = tagStore.create(name: newTagName) else { newTagName = ""; return }
+                tagStore.assign(tagID: created.id, toDedupeKey: item.dedupeKey)
+                newTagName = ""
+            })
+        }
+    }
+
+    private var actionsView: some View {
+        ForEach(actions) { action in
+            Button(action: action.action) {
+                Label(action.title, systemImage: action.systemImage)
+            }
+            .disabled(!action.isEnabled)
+        }
+    }
+
+    /// 菜单项集合：AI 摘要在无 LLM 服务时被禁用
+    private var actions: [ClipboardMenuActionItem] {
+        let manager = ClipboardManager.shared
+        let canSummarize = ClipboardSummaryExecutionCoordinator.shared.isAvailable
+        return [
+            ClipboardMenuActionItem(id: "copy", title: "复制", systemImage: "doc.on.doc") { manager.copy(item) },
+            ClipboardMenuActionItem(id: "edit", title: "编辑", systemImage: "pencil") {
+                ClipboardItemEditWindowRecord.open(for: item)
+            },
+            ClipboardMenuActionItem(id: "rename", title: "重命名", systemImage: "character.cursor.ibeam") {
+                ClipboardItemEditWindowRecord.open(for: item)
+            },
+            ClipboardMenuActionItem(id: "note", title: item.isNote ? "取消笔记标记" : "标记为笔记",
+                                    systemImage: "note.text") { manager.setNote(item, isNote: !item.isNote) },
+            ClipboardMenuActionItem(id: "preview", title: "大文本预览", systemImage: "doc.text.magnifyingglass") {
+                ClipboardPreviewWindow.open(item: item)
+            },
+            ClipboardMenuActionItem(id: "summary", title: "AI 摘要", systemImage: "sparkles",
+                                    isEnabled: canSummarize) {
+                Task { _ = try? await ClipboardSummaryExecutionCoordinator.shared.summarizeAndWriteBack(item) }
+            },
+            ClipboardMenuActionItem(id: "delete", title: "删除", systemImage: "trash") { manager.delete(item) }
+        ]
+    }
+}
+
+// MARK: - 行视图
+
+public struct ClipboardRow: View {
+
+    public let item: ClipboardItem
+    public let onCopy: () -> Void
+    public let onEdit: () -> Void
+    public let onPreview: () -> Void
+    public let onSummarize: () -> Void
+
+    @Stored private var isHovering = false
+    @ObservedObject private var tagStore = TagStore.shared
+
+    public init(item: ClipboardItem,
+                onCopy: @escaping () -> Void,
+                onEdit: @escaping () -> Void,
+                onPreview: @escaping () -> Void,
+                onSummarize: @escaping () -> Void) {
+        self.item = item; self.onCopy = onCopy; self.onEdit = onEdit
+        self.onPreview = onPreview; self.onSummarize = onSummarize
+    }
+
+    public var body: some View {
+        HStack(spacing: 10) {
+            ClipboardThumbnailView(item: item, size: Theme.thumbSize, corner: 6)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.displayTitle)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                HStack(spacing: 6) {
+                    Text(AppNameResolver.displayName(bundleIdentifier: item.sourceApp))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Text(item.timestamp.relativeText)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                    ForEach(tagStore.tags(for: item.dedupeKey)) { tag in
+                        Circle()
+                            .fill(Color(hex: tag.colorHex) ?? .accentColor)
+                            .frame(width: 6, height: 6)
+                    }
+                    if item.isGeneratedByTool {
+                        Image(systemName: "wrench.and.screwdriver")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+            if isHovering { hoverActions }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(minHeight: Theme.rowHeight)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                .fill(isHovering ? Color.accentColor.opacity(0.10) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in isHovering = hovering }
+        .onTapGesture(perform: onCopy)
+    }
+
+    private var hoverActions: some View {
+        HStack(spacing: 2) {
+            iconButton("sparkles", help: "AI 摘要", enabled: ClipboardSummaryExecutionCoordinator.shared.isAvailable, action: onSummarize)
+            iconButton("doc.text.magnifyingglass", help: "预览", enabled: true, action: onPreview)
+            iconButton("pencil", help: "编辑", enabled: true, action: onEdit)
+            iconButton("trash", help: "删除", enabled: true, action: { ClipboardManager.shared.delete(item) })
+        }
+    }
+
+    private func iconButton(_ name: String, help: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: name)
+                .font(.system(size: 11))
+                .frame(width: 22, height: 22)
+        }
+        .buttonStyle(.borderless)
+        .disabled(!enabled)
+        .help(help)
+    }
+}
+
+// MARK: - 缩略图
+
+/// 行缩略图：图片走磁盘缩略图，文件走系统图标，其余走类型符号
+public struct ClipboardThumbnailView: View {
+
+    public let item: ClipboardItem
+    public let size: CGFloat
+    public let corner: CGFloat
+
+    public init(item: ClipboardItem, size: CGFloat = Theme.thumbSize, corner: CGFloat = 6) {
+        self.item = item; self.size = size; self.corner = corner
+    }
+
+    public var body: some View {
+        Group {
+            if let image = image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else if let fileIcon = fileIcon {
+                Image(nsImage: fileIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(3)
+            } else {
+                Image(systemName: symbolName)
+                    .font(.system(size: size * 0.36))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .background(
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(Theme.cardBackground)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous)
+            .strokeBorder(Theme.separator, lineWidth: 0.5))
+    }
+
+    private var image: NSImage? {
+        ClipboardImageStorage.image(relativePath: item.thumbnailPath ?? item.imagePath)
+    }
+
+    private var fileIcon: NSImage? {
+        guard item.type == .file, let path = item.content?.split(separator: "\n").first else { return nil }
+        return NSWorkspace.shared.icon(forFile: String(path))
+    }
+
+    private var symbolName: String {
+        switch item.type {
+        case .text: return "doc.plaintext"
+        case .richtext: return "doc.richtext"
+        case .url: return "link"
+        case .image: return "photo"
+        case .file: return "doc"
+        }
+    }
+}
+
+// MARK: - 应用名解析
+
+/// bundle id → 可读应用名（带缓存，避免每行一次 NSWorkspace 调用）
+public enum AppNameResolver {
+    private static let lock = NSLock()
+    private static var cache: [String: String] = [:]
+
+    public static func displayName(bundleIdentifier: String?) -> String {
+        guard let id = bundleIdentifier, !id.isEmpty else { return "未知来源" }
+        lock.lock()
+        if let cached = cache[id] { lock.unlock(); return cached }
+        lock.unlock()
+
+        let name: String
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+            name = FileManager.default.displayName(atPath: url.path)
+                .replacingOccurrences(of: ".app", with: "")
+        } else {
+            name = id.split(separator: ".").last.map(String.init) ?? id
+        }
+        lock.lock(); cache[id] = name; lock.unlock()
+        return name
+    }
+}
+
+// MARK: - 预览独立窗口
+
+/// 菜单里的"大文本预览"：从 AppKit 菜单条件出 window 更稳，避免 menu 内 sheet 不响应
+public enum ClipboardPreviewWindow {
+    private static var controllers: [String: NSWindowController] = [:]
+
+    public static func open(item: ClipboardItem) {
+        if let existing = controllers[item.dedupeKey] {
+            existing.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let controller = make(item: item)
+        controllers[item.dedupeKey] = controller
+        controller.window?.center()
+        controller.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private static func make(item: ClipboardItem) -> NSWindowController {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
+                              styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                              backing: .buffered, defer: false)
+        window.title = item.displayTitle
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: LargeTextPreviewContainerView(item: item))
+        window.delegate = PreviewWindowCleaner.shared
+        PreviewWindowCleaner.shared.bind(key: item.dedupeKey, window: window)
+        return NSWindowController(window: window)
+    }
+}
+
+/// 预览窗关闭时清理登记表（NSWindowDelegate）
+private final class PreviewWindowCleaner: NSObject, NSWindowDelegate {
+    static let shared = PreviewWindowCleaner()
+    private let lock = NSLock()
+    private var keyedWindows: [NSWindow: String] = [:]
+
+    func bind(key: String, window: NSWindow) {
+        lock.lock(); keyedWindows[window] = key; lock.unlock()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow else { return }
+        lock.lock()
+        let key = keyedWindows.removeValue(forKey: window)
+        lock.unlock()
+        guard let key else { return }
+        ClipboardPreviewWindow.release(dedupeKey: key)
+    }
+}
+
+public extension ClipboardPreviewWindow {
+    static func release(dedupeKey: String) { controllers.removeValue(forKey: dedupeKey) }
+}
+
+// MARK: - 颜色扩展
+
+public extension Color {
+    /// 支持 #RRGGBB / #RGB 两种写法
+    init?(hex: String) {
+        var value = hex.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: ["#"])
+        if value.count == 3 {
+            value = value.map { "\($0)\($0)" }.joined()
+        }
+        guard value.count == 6, let number = UInt64(value, radix: 16) else { return nil }
+        let r = Double((number >> 16) & 0xff) / 255
+        let g = Double((number >> 8) & 0xff) / 255
+        let b = Double(number & 0xff) / 255
+        self = Color(red: r, green: g, blue: b)
+    }
+}
