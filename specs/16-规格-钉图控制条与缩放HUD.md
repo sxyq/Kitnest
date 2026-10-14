@@ -5,7 +5,10 @@
 > 1. **chained-fixups selref 可解码**：`__objc_selrefs` 表项原始 u64 的低 38 位 = 目标 VA 偏移（image base 0x100000000），直接解出 `__objc_methname` 选择器名（任务书称"暂不可解码"已过时）；
 > 2. **`__objc_stubs` 桩可解码**：桩首条 `adrp x1, page` + `ldr x1,[x1,#off]` → selref VA → 选择器名。全量解码表 `/tmp/frset-re/stub2sel4.txt`（2377 条）；
 > 3. **相对方法表可解码**：`__objc_methlist` 头 = `u32(0x80000000|entsize12), u32(count)`；条目 `(selRel, typesRel, impRel)` 各 int32，selRel 指向 `__objc_selrefs`，impRel 有符号相对条目地址。由此获得每个 Pin 类的完整 @objc 方法表（含 imp 地址）。
-> 用词勘误：原作用语为「**贴图**」（0x100b57b80 "优化截图与贴图体验。"，v1.3.12 changelog），类名 PinnedScreenshot*。
+> 用词勘误：原作用语为「**贴图**」（0x100b57b80 "优化截图与贴图体验。"，v1.3.12 changelog；截图动作 "Screenshot and Pin" → zh-Hans "截图并贴图"），类名 PinnedScreenshot*。
+> **补丁（zh-Hans lproj 交叉验证，2026-10-15）**：钉图全部 UI 文案均为 `Localizable.strings` 本地化键（英文键面 = 代码内小串立即数，中文值实译）：
+> `Zoom→缩放`、`Annotate→标注`、`Extract Text→提取文字`、`Translate→翻译`、`Save→保存`、`Close→关闭`、`Right-click for more actions→右键查看更多操作`、`Text Recognition Failed→文字识别失败`、`Failed to load image→无法加载图片`、`No text recognized→未识别到文字`。
+> 重建时须走 L10n（specs/18 基建），键面用上列英文句。
 
 ---
 
@@ -104,7 +107,7 @@ Close         action=closeClicked      (selref 0x100c3c840)
 5. 调度：DispatchWorkItem 存字段 [0xe70]（0x1002f8a7c），DispatchQueue.main `async(execute:)`（0x1002f8ab0/0x1002f8abc）；执行块 0x1002fc5ac→0x1002f8aec（弱引用存活才显示，0x1002f8b18）；layout（0x1002f36e0→0x1002f8838）与控制条显示路径均会调度。
 
 **Tip 内容与形态**：
-- 文案：**"Right-click for more actions"**（cstring 0x100b43c30，引用 0x1002f8cfc）；即"贴图太小放不下控制条时，提示用户改用右键菜单"；
+- 文案：**"Right-click for more actions"**（cstring 0x100b43c30，引用 0x1002f8cfc；zh-Hans 值 **"右键查看更多操作"**，lproj 键面即此英文句）；即"贴图太小放不下控制条时，提示用户改用右键菜单"；
 - 窗体：`PinnedScreenshotSmallModeTipWindow`（NSPanel，init 0x1002fef54；needsPanelToBecomeKey；windowWillClose 回调 0x10044f858）；
 - 内容经 `PinnedScreenshotTipHostingView`（SwiftUI 宿主）承载，构建函数 0x1002fe828（传入文案 String + 字体 + dismiss 闭包 0x1002fc58c→淡出 0x1002fbe28+0x1002f8e40）；
 - 显示时创建即写 UserDefaults 标记（0x1002f8db0–0x1002f8de0）；⬜ Tip 窗的精确尺寸/屏幕定位常量未完全解出（创建函数 0x1002ff470 内含 screen 换算 0x10094fa60 `screen`）。
@@ -215,24 +218,24 @@ final class PinnedScreenshotContentView: NSView {
 //   文案 "Right-click for more actions"，TipHostingView 承载，点击/超时淡出
 ```
 
-右键菜单骨架（对齐 0x1002f9b6c 字符串/选择器证据）：
+右键菜单骨架（对齐 0x1002f9b6c 字符串/选择器证据；标题为 L10n 键，中文值见文首补丁）：
 
 ```swift
-let zoom = NSMenu(title: "Zoom")
+let zoom = NSMenu(title: L10n("Zoom"))               // 缩放
 for n in Self.scalePresets {
     let it = NSMenuItem(title: "\(n)%", action: #selector(handleScalePreset(_:)), keyEquivalent: "")
     it.representedObject = NSNumber(value: Double(n) / 100.0)
     it.target = self; zoom.addItem(it)
 }
 let menu = NSMenu(title: "More")            // ⚠️ 主菜单标题 "More" 为实现串，UI 呈现以系统右键为准
-let zoomItem = NSMenuItem(title: "Zoom"); zoomItem.submenu = zoom; menu.addItem(zoomItem)
+let zoomItem = NSMenuItem(title: L10n("Zoom")); zoomItem.submenu = zoom; menu.addItem(zoomItem)
 menu.addItem(.separator())
-for (title, sel) in [("Annotate", #selector(annotateClicked)),
-                     ("Extract Text", #selector(ocrClicked)),
-                     ("Translate", #selector(translateClicked)),
-                     ("Save", #selector(saveClicked))] { … }
+for (key, sel) in [("Annotate", #selector(annotateClicked)),      // 标注
+                   ("Extract Text", #selector(ocrClicked)),       // 提取文字
+                   ("Translate", #selector(translateClicked)),    // 翻译
+                   ("Save", #selector(saveClicked))] { … }        // 保存
 menu.addItem(.separator())
-menu.addItem(NSMenuItem(title: "Close", action: #selector(closeClicked)))
+menu.addItem(NSMenuItem(title: L10n("Close"), action: #selector(closeClicked)))  // 关闭
 menu.popUp(positioning: nil, at: locationInWindow, in: self)
 ```
 
@@ -247,10 +250,10 @@ menu.popUp(positioning: nil, at: locationInWindow, in: self)
 | P-3 | 滚轮/双指缩放以**光标为锚点**；贴图非 key 时先抢 key 再缩放 | 0x1002f55b0（0x1002f561c/0x1002f56b8/0x1002f5838） |
 | P-4 | 缩放时 HUD（56×28 黑底白字 semibold）出现在贴图**正中心**，HUD 本身穿透点击 | 0x1002f961c/0x1002fe124/0x1002fe11c/0x1002f7970 |
 | P-5 | 四边/四角 ~10pt 手柄拖拽调尺寸，光标随方向切换（含两枚自定义对角光标）；body 区拖拽=移动窗口 | 0x1002f4b58/0x1002f5080/0x1002f454c/0x1002f4a8c |
-| P-6 | 贴图缩小到 **宽<200pt 或 高<60pt** 进入小模式：首次触发 "Right-click for more actions" 提示（UserDefaults 一次性 `pinnedScreenshot.smallModeTipSeen_v2`） | 0x1002fe4d4/0x1002f8838/0x100b43c30/0x100b4c270 |
+| P-6 | 贴图缩小到 **宽<200pt 或 高<60pt** 进入小模式：首次触发 "右键查看更多操作"（L10n 键 "Right-click for more actions"）提示（UserDefaults 一次性 `pinnedScreenshot.smallModeTipSeen_v2`） | 0x1002fe4d4/0x1002f8838/0x100b43c30/0x100b4c270 + zh-Hans lproj |
 | P-7 | 贴图窗浮动层级（NSFloatingWindowLevel=3）、无阴影、跨 Space；constrainFrameRect 直通=可拖出屏幕边缘自由摆放 | 0x100300714/0x100300768/0x1003021fc |
 | P-8 | Esc / Delete / Forward Delete 三个键（本地监听）作用于贴图关闭语义 | 0x1002fff98–0x1002fffbc |
-| P-9 | Extract Text（贴图 OCR）失败时占位显示 "Text Recognition Failed" + exclamationmark.circle.fill | 0x1002fa964/0x1002fa990 |
+| P-9 | Extract Text（贴图 OCR）失败时占位显示 L10n "文字识别失败"（键 "Text Recognition Failed"）+ exclamationmark.circle.fill | 0x1002fa964/0x1002fa990 + zh-Hans lproj |
 | P-10 | 关闭采用 setReleasedWhenClosed(false) 的面板 close；becomeKeyWindow 同步 Manager 活动贴图 | 0x100302174/0x10030152c |
 
 ---
