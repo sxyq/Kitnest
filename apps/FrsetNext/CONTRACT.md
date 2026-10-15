@@ -163,6 +163,21 @@ self._mode = State(initialValue: ...)                            // ❌ 类型�
    （证据：`RowHostingView.acceptsFirstMouse = true` 使 NSTableView 收不到空格/↩；
    已用「显式 `selectRowIndexes` + `makeFirstResponder(table)`」修复。）
 
+### 5.3 新建窗口四项检查表（缺一即 review 不通过）
+
+| # | 项 | 判定标准 |
+|---|---|---|
+| 1 | `canBecomeKey` / `canBecomeMain` | 窗口内需要键盘输入 → `canBecomeKey = true`；纯展示窗可 false |
+| 2 | `acceptsMouseMovedEvents` | **按窗体实际用途判**：需要跟鼠标移动（悬停态/拖拽跟手/抑制解除）才 true；气泡类点击穿透窗、对话框类无 hover 态 → **不要无条件全开**（mouseMoved 分发有持续开销，且会让本应穿透的窗吞事件） |
+| 3 | 呈现方式 | 需要键盘焦点用 `makeKeyAndOrderFront`；纯展示用 `orderFrontRegardless` |
+| 4 | first responder 归属 | 谁承接键盘事件；点击后焦点落在哪；非激活面板是否需显式夺权 |
+
+> 证据一：`FloatingPanel` 漏设 `acceptsMouseMovedEvents` → 悬停抑制永久无法解除（功能静默失效）。
+> 证据二（两个独立模块同因）：`MenuBarIconEasterEggDialogOverlay`（borderless）沿用默认
+> `canBecomeKey = false` → 卡片按钮拿不到焦点、`keyboardShortcut(.defaultAction)` 回车静默失效；
+> `ClipboardTableHostView` 行视图 `acceptsFirstMouse` 抢焦点 → 表格收不到空格/↩。
+> 两者修法一致：显式声明归属 + `makeFirstResponder` 夺权。
+
 ## 6. 视图/对象反查纪律
 
 读取或编写「取视图/取句柄/取节点」类代码（`subviews`、`superview` 链、`hitTest`、
@@ -206,3 +221,30 @@ self._mode = State(initialValue: ...)                            // ❌ 类型�
 3. 切换语言须广播 `languageDidChange` **并有观察者刷新 UI**，否则语言下拉是装饰性开关。
 4. 基建类注入器（EnvironmentKey / ViewModifier / protocol 适配器）必须有真实消费点，
    零挂载的死代码等同未实现——收尾须 grep 验证消费点存在。
+
+---
+
+## 11. 推测措辞纪律（本条最重要）
+
+**推测只能标 ⬜，不能写成「建议」。**
+
+当你只读了部分代码、对某处的理解低于该处 owner 的理解时，正确的输出是：
+
+> ⚠️ 此处存疑（我未通读 `文件:行` 前后），建议由 owner 确认。
+
+**严禁**输出「这看着像 X，可能有问题」「建议检查一下」这类替换性判断——它会让 owner 失去
+自主判断，并在 owner 未复核时直接引入真实缺陷。
+
+> 证据（本轮最贵的一次）：审计代理对 CPU 读取处输出「`vm_deallocate` 的字节数疑似算错，
+> 跑起来可能出问题」——但它只读了 21 行、未见调用点。owner 照此"修复"，改成了
+> `infoCount * MemoryLayout<processor_cpu_load_info_t>.size`，而头文件宏
+> `PROCESSOR_CPU_LOAD_INFO_COUNT = sizeof(...) / sizeof(natural_t)` 表明 infoCount 的单位本就是整数个数——
+> 照此修改会把释放量放大 4 倍。owner 与另一代理交叉核实后驳回该建议。
+>
+> 讽刺的是它同一时刻对**另一处未读全的代码**给出了正确判断——因为那处它确实读全了。
+> 这恰好证明：**输出的可信度取决于覆盖范围，与结论的自信程度无关。**
+>
+> 配套约束：
+> 1. 结论必须标注覆盖范围（读了哪几行 / 是否通读）；
+> 2. 涉及资源释放、内存布局、指针算术、C ABI 边界的推测，一律先回读权威来源（头文件宏、反汇编）；
+> 3. 他人转述的结论同样适用本条——引用前必须独立核实（本轮已出现三条转述全部过时/误判）。
