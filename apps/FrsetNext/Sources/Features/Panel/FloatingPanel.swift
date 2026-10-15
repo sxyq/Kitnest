@@ -22,6 +22,10 @@ public final class FloatingPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         isReleasedWhenClosed = false               // 只 orderOut，不销毁实例
         hidesOnDeactivate = false                  // 失焦关闭由 PanelController 统一处理
+        // 接收 mouseMoved：悬停预览的行高亮/预览调度与「关闭后移动鼠标才解除抑制」
+        // 依赖本地 mouseMoved 监视器（specs/12 §3.7），缺此设置抑制将无法解除。
+        // 原作贴图窗亦有同名设置（specs/16 §3.5 实证 acceptsMouseMovedEvents=true）。
+        acceptsMouseMovedEvents = true
         backgroundColor = .clear
         isOpaque = false
         hasShadow = true

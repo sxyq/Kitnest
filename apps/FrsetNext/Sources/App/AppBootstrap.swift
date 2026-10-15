@@ -26,6 +26,11 @@ enum AppBootstrap {
         // 3) 跨模块事件接线（总控统一连，模块之间不互相引用）
         wireEventBuses()
 
+        // 3.5) 预览数据桥接线（specs/12）：Panel 侧预览内容消费 ClipboardManager 的全文/OCR 文本。
+        //      未接线时走数据桥内置后备（直读 textPath / richTextPath / content），但 OCR 附加区块缺失。
+        PreviewPopoverDataBridge.shared.fullTextProvider = { ClipboardManager.shared.fullText(for: $0) }
+        PreviewPopoverDataBridge.shared.ocrTextProvider = { ClipboardManager.shared.ocrText(for: $0) }
+
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
         registerAppLevelTools()
 

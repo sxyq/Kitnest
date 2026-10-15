@@ -586,13 +586,17 @@ final class PinnedScreenshotContentView: NSView {
         showHUD()
     }
 
-    /// 以光标为锚点缩放（0x1002f5838/0x1002f5854）；最小边 50pt（0x1002f59ec）、上限 8 倍基准（0x1002f5a00）
+    /// 以光标为锚点缩放（0x1002f5838/0x1002f5854）；最小边 50pt（0x1002f59ec）
+    ///
+    /// 上限说明：本实现此前按"0x1002f5a00 = 8 倍基准上限"加了自定上限，经双方案件复核（实测反汇编）：
+    /// 该地址实为**下限钳制**——`0x1002f59e4 fmov d3,#1.0` / `0x1002f5a00 fcmp d2,d3` /
+    /// `0x1002f5a04 fcsel d2,d3,d4,ls`，对宽/高逐分量做 min 钳制（1.0 与 50pt 两个下限），
+    /// **原作无上限**。故移除自定的 8 倍上限，恢复原作无上限行为。
     private func applyZoom(percentDelta: CGFloat, anchor: NSPoint) {
         guard let window = window else { return }
         let frame = window.frame
         let aspect = max(CGFloat(image.width) / max(CGFloat(image.height), 1), 0.0001)
         var width = max(Self.minWindowWidth, frame.width * (1.0 + percentDelta / 100.0))
-        width = min(width, baseSize.width * 8)
         var height = width / aspect
         if height < Self.minWindowWidth {
             height = Self.minWindowWidth
