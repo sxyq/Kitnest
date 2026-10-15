@@ -140,3 +140,69 @@ self._mode = State(initialValue: ...)                            // ❌ 类型�
 - 逐模块 + 全量 typecheck：`apps/FrsetNext/check.sh`（逐模块 + 全量，报告写入 `build/typecheck-report.txt`）
 - 跨模块耦合/重名/入口对账：`apps/FrsetNext/coupling_check.py`（报告 `build/coupling-report.txt`）
 - 标准：全量总装与逐模块自检均须 **0 error**。
+
+---
+
+## 5. 窗口事件与焦点归属（新建 NSWindow / NSPanel 必答两问）
+
+> 本轮共性坑：四个 NSPanel 分属不同模块、不同时期编写，**全部**依赖 `mouseMoved`，**全部**漏设
+> `acceptsMouseMovedEvents`；另有两处 P0 缺陷同属此类。每个新窗口都要重新踩一遍，故立为契约。
+
+1. **是否需要 `acceptsMouseMovedEvents = true`？**
+   窗口内若有任何依赖 `mouseMoved` 的逻辑（悬停预览、抑制解除、拖拽跟手），必须显式开启。
+   否则依赖 `addLocalMonitorForEvents(.mouseMoved)` 的链路**静默失效**——不报错、不崩溃，
+   只是功能永远不恢复。
+   （证据：`Panel/FloatingPanel.swift` 曾漏设，导致预览关闭后永久无法复弹。）
+
+2. **first responder 归属谁？**
+   - `canBecomeKey` / `canBecomeMain` 是否为 true？点击后谁接收键盘事件？
+   - **非激活面板**（`.nonactivatingPanel`）内含 NSView 子视图时，子视图 `acceptsFirstMouse`
+     会抢走键盘归属，需显式 `window.makeFirstResponder(目标视图)` 反向夺权。
+   - 跨 SwiftUI 边界：`TextField` 获得焦点后会持续持有 first responder，纯 NSView 侧键盘通路
+     必须显式夺权并在真机验证。
+   （证据：`RowHostingView.acceptsFirstMouse = true` 使 NSTableView 收不到空格/↩；
+   已用「显式 `selectRowIndexes` + `makeFirstResponder(table)`」修复。）
+
+## 6. 视图/对象反查纪律
+
+读取或编写「取视图/取句柄/取节点」类代码（`subviews`、`superview` 链、`hitTest`、
+`rowView(at:)`、`cellView(at:)`）时：
+
+1. **先验证来源本身能否拿到目标对象**，再验证取值逻辑（边界、判空、相交判断）。
+2. 必须确认容器的**数据源模式**：view-based（`tableView(_:viewFor:row:)`）与 cell-based
+   （`cellFor`）**视图层级完全不同**——view-based 会把 delegate 返回的视图包进 `NSTableRowView`，
+   `table.subviews` 的直接子元素不是你的视图，**强转恒为 nil**。差异就写在方法签名里。
+
+> 证据：`table.subviews.first { … } as? RowHostingView` 恒 nil，致 hover 高亮从未亮过、
+> 单击预览贴在面板左上角而非被点行、键盘预览锚点为 nil——三条链路同时哑，且审计据此签发的
+> ✅ 判定是错的（已撤回）。修复改用「行号 → 弱引用视图」侧表 + 复用时覆盖 + reload 时按行号裁剪。
+
+## 7. 引用原作地址前必须回读反汇编
+
+注释里写「`0x…` = 某语义」之前，**必须回读该地址附近的指令确认**；相邻地址语义相似时尤其危险
+（钳制 vs 限幅、比较 vs 传送）。
+
+> 证据：贴图缩放「8 倍上限」误引 `0x1002f5a00`，实测该处为
+> `fmov d3,#1.0` / `fcmp d2,d3` / `fcsel d2,d3,d4,ls`（下限钳制），原作无上限。
+
+## 8. 审计判定纪律
+
+1. **静态证据只支撑 ⚠️（待实测），✅ 必须有真机验证支撑**。代码修好 ≠ 判定通过——
+   静态只能证明「接线正确」，证明不了「运行时 first responder 归属」与「实际呈现位置」。
+2. 审计代理发现自己的误判必须**主动撤回**并修正统计（勘误优于沉默）。
+3. 结论双侧举证：原作侧引 SPEC 实证地址/字面量，重建侧给 `文件:行号`。
+
+## 9. 收尾守门纪律
+
+1. **静置再跑**：并发写文件期间跑 typecheck 会出现
+   `error: input file 'X' was modified during the build` 的**假红**（swiftc 读到半个文件）。
+   收尾汇总前必须在无人改文件的时间点静置 30~60 秒再跑 `tools/check.sh`。
+2. 不可把假红误判为回归后草率派单——先确认 git status 是否有并发写入。
+
+## 10. 资源与本地化
+
+1. 文案资源放 `Resources/<lang>.lproj/Localizable.strings`，**键面 = 英文句本身**，缺失回退英文。
+2. `build.sh` 必须把 `Resources/` 打进 app bundle。
+3. 切换语言须广播 `languageDidChange` **并有观察者刷新 UI**，否则语言下拉是装饰性开关。
+4. 基建类注入器（EnvironmentKey / ViewModifier / protocol 适配器）必须有真实消费点，
+   零挂载的死代码等同未实现——收尾须 grep 验证消费点存在。
