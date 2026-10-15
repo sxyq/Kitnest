@@ -212,6 +212,12 @@ final class ClipboardTableView: NSTableView {
     var onSpaceKey: (() -> Void)?
     /// ↩ → 复制
     var onReturnKey: (() -> Void)?
+    /// 本次选中变化是否由键盘导航（↑/↓/PageUp/PageDown/Home/End/首字母）引起。
+    /// 生命周期仅覆盖一次 keyDown → super.keyDown 的同步分派：
+    /// 置位 → super.keyDown 内同步触发 selectionDidChange → 消费 → 复位。
+    /// 用于让 tableViewSelectionDidChange 区分「键盘导航移动选择」（应取消未决键盘预览）
+    /// 与「鼠标点击 / reloadData 导致的选中变化」（不应取消）。
+    var isKeyboardNavigating = false
     /// 鼠标移动（解除 hover 抑制 + 刷新高亮）
     var onMouseMoved: ((NSEvent) -> Void)?
     /// 鼠标离开列表
@@ -242,6 +248,12 @@ final class ClipboardTableView: NSTableView {
     // 键盘语义（specs/14 §3.7）：空格=预览、↩=复制；↑/↓ 走 NSTableView 默认选择移动
     override func keyDown(with event: NSEvent) {
         let characters = event.charactersIgnoringModifiers ?? ""
+        // 诊断（临时）：键盘入口打状态。handleSpaceKey/handleReturnKey 的入口日志
+        // 只在本函数真正分派过去后才才会执行；若这里完全没有日志 → 说明本表格
+        // 不是 first responder（焦点被搜索框等抢占），keyDown 压根没被调用。
+        // ⚠️ 诊断点，非行为变更，不计入对照差异。
+        Log.info("clipboard", "keyDown[\(characters)] selectedRow=\(selectedRow) "
+            + "firstResponder=\(String(describing: window?.firstResponder))")
         switch characters {
         case " ":
             if selectedRow >= 0 { onSpaceKey?(); return }
@@ -250,7 +262,15 @@ final class ClipboardTableView: NSTableView {
             if selectedRow >= 0 { onReturnKey?(); return }
             super.keyDown(with: event)
         default:
+            // 其余按键（↑/↓/PageUp/PageDown/Home/End/首字母选择）一律交给 NSTableView 默认处理，
+            // 且它们都可能**同步**改变选中态。置标记供 tableViewSelectionDidChange 判别来源：
+            // 「键盘导航导致的选中变化」应取消未决键盘预览（specs/12 F6），
+            // 「鼠标点击 / reloadData 导致的选中变化」不应取消。
+            isKeyboardNavigating = true
             super.keyDown(with: event)
+            // 兜底复位：末行按 ↓、首行按 ↑ 等边界不会产生选中变化，selectionDidChange 不触发，
+            // 标记必须在此回收，否则会泄漏到下一次鼠标点击。
+            isKeyboardNavigating = false
         }
     }
 }
@@ -438,7 +458,14 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         public func tableViewSelectionDidChange(_ notification: Notification) {
-            // 选择移动 → 取消未决键盘预览（specs/12 F6）
+            // 选择移动 → 取消未决键盘预览（specs/12 F6）。
+            // **仅限键盘导航导致**：方向键移动选择后，旧的空格预览 WorkItem 不该再弹。
+            // 鼠标点击与 reloadData 导致的选中变化不取消：
+            //  - 鼠标点击：单击/双击走presentPreview/复制，其内部已调用 cancelKeyboardPreview
+            //    （MainPanelPreviewPopoverCoordinator.swift:164），此处再取消是重复动作；
+            //  - reloadData：捕获到新内容会重建选中态，若在此取消，用户刚按下的空格
+            //    预览会被静默吞掉（0.30s 延时窗口内），且无任何提示。
+            guard table?.isKeyboardNavigating == true else { return }
             ServiceLocator.panelPreview?.cancelKeyboardPreview()
         }
 
@@ -629,6 +656,14 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleSpaceKey() {
+            // 诊断（临时）：入口打全量状态，一次区分三道门哪个挂了
+            // ⚠️ 诊断点，非行为变更，不计入对照差异。注意不能引用下方才声明的 item，
+            //    故此处按行号安全取 id。
+            let row = table?.selectedRow ?? -1
+            let rowID = owner.manager.items.indices.contains(row) ? owner.manager.items[row].id : "<none>"
+            Log.info("clipboard", "space → selectedRow=\(row) "
+                + "firstResponder=\(String(describing: table?.window?.firstResponder)) "
+                + "rowView=\(rowView(forItemID: rowID) != nil)")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             let item = owner.manager.items[table.selectedRow]
             let view = rowView(forItemID: item.id)
@@ -637,6 +672,11 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleReturnKey() {
+            // 诊断（临时）：↩ 只依赖 selectedRow + first responder（不依赖锚点），
+            // 是二分判据的干净探针——与space 的 rowView= 值对比即可定位失败层。
+            let row = table?.selectedRow ?? -1
+            Log.info("clipboard", "return → selectedRow=\(row) "
+                + "firstResponder=\(String(describing: table?.window?.firstResponder))")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             let item = owner.manager.items[table.selectedRow]
             ServiceLocator.panelPreview?.dismissPreview()

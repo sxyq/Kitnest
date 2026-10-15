@@ -44,6 +44,12 @@ public enum StatusBarMenuBuilder {
         toggle.state = Preferences.shared.menuBarIconsVisible ? .on : .off
         menu.addItem(toggle)
 
+        // 图标彩蛋解锁后出现的「自定义菜单栏图标」选项（spec 13 §6，revealCustomMenuBarIconOption）
+        if MenuBarIconEasterEggManager.shared.isUnlocked {
+            menu.addItem(NSMenuItem.separator())
+            menu.addItem(customIconSubmenu())
+        }
+
         menu.addItem(NSMenuItem.separator())
 
         menu.addItem(item("退出 Frset",
@@ -53,6 +59,48 @@ public enum StatusBarMenuBuilder {
                           target: target))
 
         return menu
+    }
+
+    /// 自定义菜单栏图标子菜单：四样式单选 + 隐藏/恢复选项
+    /// （spec 13 §6：logo/fan/date/custom 四键；hide/restore 对应对话框的触发点）
+    private static func customIconSubmenu() -> NSMenuItem {
+        let root = NSMenuItem(title: "自定义菜单栏图标", action: nil, keyEquivalent: "")
+        root.image = NSImage(systemSymbolName: MenuBarIconStyle.custom.systemImage,
+                             accessibilityDescription: "自定义菜单栏图标")
+        let submenu = NSMenu()
+        let revealed = MenuBarIconStyleStore.revealsCustomOption
+        let current = MenuBarIconStyleStore.current
+        // 自定义项被隐藏时（revealCustomMenuBarIconOption = false）：只给「后悔/恢复」入口（spec §6.3 restore）
+        let styles = revealed ? MenuBarIconStyle.allCases : MenuBarIconStyle.allCases.filter { $0 != .custom }
+        for style in styles {
+            let styleItem = NSMenuItem(title: style.title,
+                                       action: #selector(MenuBarIconStyleMenuActions.selectIconStyle(_:)),
+                                       keyEquivalent: "")
+            styleItem.target = MenuBarIconStyleMenuActions.shared
+            styleItem.representedObject = style.rawValue
+            styleItem.state = (style == current) ? .on : .off
+            submenu.addItem(styleItem)
+        }
+        submenu.addItem(NSMenuItem.separator())
+        // 自定义 Symbol 的名称设置入口（仅在自定义项可见时）
+        if revealed {
+            let nameItem = NSMenuItem(title: "设置 Symbol 名称…",
+                                      action: #selector(MenuBarIconStyleMenuActions.openCustomIconSettings(_:)),
+                                      keyEquivalent: "")
+            nameItem.target = MenuBarIconStyleMenuActions.shared
+            submenu.addItem(nameItem)
+        }
+        submenu.addItem(NSMenuItem.separator())
+        // 隐藏 / 恢复：对应 spec 13 §6.3 的 hide / restore 两类对话框
+        let toggleItem = NSMenuItem(
+            title: revealed ? "隐藏这个选项…" : "把 Symbol 选项放回来…",
+            action: revealed ? #selector(MenuBarIconStyleMenuActions.hideIconOption(_:))
+                             : #selector(MenuBarIconStyleMenuActions.restoreIconOption(_:)),
+            keyEquivalent: "")
+        toggleItem.target = MenuBarIconStyleMenuActions.shared
+        submenu.addItem(toggleItem)
+        root.submenu = submenu
+        return root
     }
 
     /// 统一构造带快捷键显示的菜单项

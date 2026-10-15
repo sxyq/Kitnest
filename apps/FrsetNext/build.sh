@@ -17,6 +17,16 @@ cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 
 FILES=$(find "$SRC" -name '*.swift' | sort | tr '\n' ' ')
 
+echo "== 资源 =="
+# 本地化资源必须在**签名前**拷入 bundle：codesign --deep 会对 bundle 整体做签名封印，
+# 签完再添加文件会导致签名失效（资源被判定为篡改），故拷贝严格排在签名步骤之前（契约 §10.2）。
+if [ -d "$ROOT/Resources" ]; then
+  cp -R "$ROOT/Resources/." "$APP/Contents/Resources/"
+  find "$APP/Contents/Resources" -name 'Localizable.strings' | sort | sed 's/^/  打包: /'
+else
+  echo "  （无 Resources/ 目录，跳过本地化资源打包）"
+fi
+
 echo "== 编译 =="
 swiftc -O -parse-as-library \
   -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
@@ -37,4 +47,8 @@ codesign --force --deep -s - "$APP" 2>&1 | tail -2
 
 echo "== 完成 =="
 ls -la "$APP/Contents/MacOS/FrsetNext"
+# 资源落地验证：确认 .lproj 进了 bundle 且签名覆盖（签名有效性由上一步 codesign 负责）
+if [ -d "$APP/Contents/Resources" ]; then
+  echo "  bundle 内 lproj:"; find "$APP/Contents/Resources" -maxdepth 1 -name '*.lproj' | sort | sed 's/^/    /'
+fi
 echo "应用包: $APP"

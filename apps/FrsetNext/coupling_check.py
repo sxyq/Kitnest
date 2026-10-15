@@ -110,10 +110,35 @@ def swift_files(root: str) -> list[str]:
     return sorted(result)
 
 
+_STR_RE = re.compile(r'"(?:[^"\\\n]|\\.)*"' + r"|'(?:[^'\\\n]|\\.)*'", re.S)
+
+def strip_comments_and_strings(code: str) -> str:
+    """把注释与字符串字面量替换为等长空格（保留换行），使类型名扫描不被
+    「注释里提到某类型」或「字符串里含某类型名」污染。
+
+    本轮第三类误报：StatisticsSettingsPane.swift:433 的偏好键白名单里有
+    `"clipboard.autoPaste",  // ClipboardManager.swift 的 Keys 扩展`
+    —— 扫描器把注释与字符串里的标识符当成了跨模块类型引用。
+    保留换行与列宽，故行号与列号在过滤前后完全一致，报错定位不受影响。
+    """
+    def repl(m: re.Match) -> str:
+        return re.sub(r"[^\n]", " ", m.group(0))
+    out = re.sub(r"/\*.*?\*/", repl, code, flags=re.S)      # 块注释
+    out = re.sub(r"//[^\n]*", repl, out)                    # 行注释
+    out = _STR_RE.sub(repl, out)                             # 字符串字面量
+    return out
+
 def declared_types(code: str) -> set[str]:
-    names = {m.group(2) for m in DECL_RE.finditer(code)}
-    names |= {m.group(1) for m in EXT_RE.finditer(code)}
-    return names
+    """本模块**定义**的类型名（class/struct/enum/protocol/actor/typealias）。
+
+    注意：**不含 extension 扩展的类型名**。`extension String {}` 出现在 Clipboard 与 Panel
+    并不表示「String 属于这两个模块」——扩展只是给已有类型加成员，跨模块各扩展各的系统类型
+    是完全合法的。此前把 EXT_RE 的结果也算进模块类型表，导致两类长期误报：
+    ①B 段报「String 同时定义于 Clipboard, Panel」（全量编译实际通过）；
+    ②A 段报「Capture 的 NSTextView 被 Clipboard/Panel 引用」（NSTextView 是 AppKit 系统类型）。
+    这两类误报反复出现在每轮收尾，引发重复争论，故在此从源头剔除。
+    """
+    return {m.group(2) for m in DECL_RE.finditer(code)}
 
 
 def main() -> int:
@@ -157,9 +182,9 @@ def main() -> int:
     total = 0
     for module, files in modules.items():
         for path in files:
-            code = file_code[path]
+            code = strip_comments_and_strings(file_code[path])
             with open(path, "r", encoding="utf-8", errors="replace") as handle:
-                raw = handle.read().split("\n")
+                raw = strip_comments_and_strings(handle.read()).split("\n")
             for owner, names in module_types.items():
                 if owner == module:
                     continue

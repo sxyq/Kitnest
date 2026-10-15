@@ -47,6 +47,8 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
     public func translate(_ text: String, to targetLanguage: String? = nil) -> AsyncThrowingStream<String, Error> {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
+            // spec 13 §4：未读取到文字场景（0x10000d45c，上游未取到可翻译文本）
+            Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
             return AsyncThrowingStream { $0.finish(throwing: TranslationToolError.emptyInput) }
         }
         guard let service = llmProvider() else {
@@ -60,7 +62,11 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
     /// 一次性翻译（用于「翻译后直接写回剪贴板」等无需逐字渲染的场景）
     public func complete(_ text: String, to targetLanguage: String? = nil) async throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { throw TranslationToolError.emptyInput }
+        // spec 13 §4：未读取到文字场景（0x10000d45c，上游未取到可翻译文本）
+        guard !trimmed.isEmpty else {
+            Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+            throw TranslationToolError.emptyInput
+        }
         guard let service = llmProvider() else { throw TranslationToolError.llmUnavailable }
         return try await service.complete(prompt: userPrompt(for: trimmed),
                                           system: systemPrompt(target: targetLanguage),

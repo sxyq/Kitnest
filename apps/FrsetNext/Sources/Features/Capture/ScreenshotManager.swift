@@ -135,7 +135,10 @@ public final class ScreenshotManager: ObservableObject {
         alert.addButton(withTitle: "稍后")
         if alert.runModal() == .alertFirstButtonReturn,
            let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
+            // spec 13 §4：无法打开链接场景（原作 Unable to Open Link，open 返回 false 即失败）
+            if !NSWorkspace.shared.open(url) {
+                Toast.show("无法打开链接", icon: "exclamationmark.circle.fill")
+            }
         }
     }
 
@@ -365,6 +368,10 @@ public final class ScreenshotManager: ObservableObject {
                 let text = try await OCRService.shared.recognizeText(imageData: imageData)
                 self.ocrText = text
                 self.statusMessage = text.isEmpty ? CaptureError.noText.errorDescription : nil
+                // spec 13 §4：未读取到文字场景（0x10000d45c，空识别结果分支）
+                if text.isEmpty {
+                    Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+                }
                 if !text.isEmpty {
                     CaptureEventBus.onTextRecognized?(text)
                     // 弹出「原文对照 + 识别文本」结果窗（B5）
@@ -390,6 +397,14 @@ public final class ScreenshotManager: ObservableObject {
         CaptureEventBus.onTextRecognized?(ocrText)
         statusMessage = "识别结果已复制"
     }
+
+    // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）
+    //
+    // TODO(spec 13 §4)：「二维码识别失败」（0x1003c98e0 / 0x1003c99e8 / 0x100411b08，
+    // 文案 Text Recognition Failed 与 QR Code Recognition Failed 两态）——
+    // 重建版截图链路目前只有文字 OCR（recognize(imageData:)），没有独立的二维码识别入口；
+    // 待二维码识别能力落地后，在其失败分支接
+    // `Toast.show("二维码识别失败", icon: "exclamationmark.circle.fill")`。
 
     // MARK: 长截图 / 钉图
 

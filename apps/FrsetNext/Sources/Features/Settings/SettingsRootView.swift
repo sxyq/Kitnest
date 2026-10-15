@@ -7,12 +7,23 @@ import SwiftUI
 struct SettingsRootView: View {
     @ObservedObject var state: SettingsUIState
 
+    // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
+    @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
+    @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
+    @Environment(\.usesMidnightTextColor) private var usesMidnightTextColor
+    @Environment(\.midnightTextColorOverride) private var midnightTextColor
+
     /// 注册表快照（已按约定顺序排序）
     private var panes: [SettingsPaneDescriptor] { SettingsPaneRegistry.all }
 
     /// 当前页签：优先取 state 指定 id；找不到时回退到第一个
     private var currentPane: SettingsPaneDescriptor? {
         panes.first { $0.id == state.selectedPaneID } ?? panes.first
+    }
+
+    /// 正文色：Midnight 且 usesMidnightTextColor 为真时用冷白蓝，否则系统 primary
+    private var bodyTextColor: Color {
+        (usesMidnightTextColor ? midnightTextColor : nil) ?? .primary
     }
 
     var body: some View {
@@ -22,7 +33,10 @@ struct SettingsRootView: View {
             contentArea
         }
         .frame(width: 720, height: 520)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(midnightBaseBackground ?? Color(NSColor.windowBackgroundColor))
+        .foregroundStyle(bodyTextColor)
+        // Midnight 主题注入器挂载点（注入器与四个 EnvironmentKey 在共享层 Core/AppearanceTheme.swift）
+        .frsetAppearanceTheme()
     }
 
     // MARK: - 左侧页签栏
@@ -46,6 +60,11 @@ struct SettingsRootView: View {
         }
         .padding(.top, 14)
         .frame(width: 168)
+        // Midnight：侧栏用卡片底色与内容区拉开层次（原作 Midnight 侧栏底衬色值 ⬜ 未探明，
+        // 此处取 MidnightTheme.cardBackground 近似；非 Midnight 不铺底色）
+        .background {
+            if let card = midnightCardBackground { card }
+        }
     }
 
     private func paneButton(_ pane: SettingsPaneDescriptor) -> some View {
@@ -63,7 +82,7 @@ struct SettingsRootView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .foregroundStyle(isSelected ? Color.white : bodyTextColor)
             .background(
                 // 选中态胶囊高亮（对齐原版选中底色，改为竖排）
                 RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)

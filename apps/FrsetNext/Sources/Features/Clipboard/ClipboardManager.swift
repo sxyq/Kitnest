@@ -459,6 +459,18 @@ public final class ClipboardManager: ObservableObject {
         if shouldPaste { pasteToFrontmostApplication() }
     }
 
+    // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）
+    //
+    // TODO(spec 13 §4)：以下三个原作调用点在重建版**尚无对应业务分支**，本轮不接：
+    // 1) 已复制 %d 项（0x1000f8070 / 0x1000fa6d4）——依赖主列表多选批量复制能力；
+    //    批量入口落在 ClipboardTableHostView（表格多选），能力落地后在此处按批次数
+    //    调用 `Toast.show("已复制 \(count) 项", icon: "checkmark.circle.fill")`。
+    // 2) 已跳过 %d 项（0x1000f73a4）——依赖清理/去重流程的「跳过计数」返回值；
+    //    清理主体在 ClipboardPruneSchedulers，待其返回 skipped 数后接
+    //    `Toast.show("已跳过 \(count) 项", icon: "checkmark.circle.fill")`。
+    // 3) 已暂停/已恢复剪贴板记录（0x1000e9e34）——重建版尚无「暂停记录」开关，
+    //    待该开关落地后在开关回调里接 paused/resumed 两条通知条。
+
     /// 删除条目（含文件回收）
     public func delete(_ item: ClipboardItem) {
         queue.async { [weak self] in
@@ -606,7 +618,11 @@ public final class ClipboardManager: ObservableObject {
         Task.detached(priority: .utility) {
             do {
                 let text = try await service.recognizeText(imageData: imageData)
-                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                // spec 13 §4：未读取到文字场景（0x10000d45c，空识别结果分支）
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+                    return
+                }
                 ClipboardOCRTextStorage.write(text, dedupeKey: dedupeKey)
                 DatabaseManager.shared.bumpStat("ocr_count")
                 Log.info("clipboard", "OCR 完成：\(text.count) 字符")
@@ -625,12 +641,18 @@ public final class ClipboardManager: ObservableObject {
             return
         }
         let source = CGEventSource(stateID: .combinedSessionState)
+        // spec 13 §4：粘贴失败场景（合成事件失败，原作 Pasted failed）
         guard let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
-              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return }
+              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else {
+            Toast.show("粘贴失败", icon: "exclamationmark.circle.fill")
+            return
+        }
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
+        // spec 13 §4：粘贴完成场景（原作 Pasted completed）
+        Toast.show("粘贴完成", icon: "checkmark.circle.fill")
     }
 }
 

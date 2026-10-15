@@ -1,0 +1,25 @@
+/* FrsetNext 本地化资源（键面 = 英文句本身，缺失回退英文）
+ * 来源：/Applications/Frset.app/Contents/Resources/zh-Hans.lproj/Localizable.strings（简体中文 793 键，键集与 en 完全一致）
+ * 仅收录**已被代码消费**的键子集（SettingsPanes.swift / StatisticsRootView.swift），
+ * 取值逐字抄自原作，未臆造任何译文。
+ */
+
+"Appearance" = "外观";
+"Language" = "语言";
+"Start" = "启动";
+"Auto" = "跟随系统";
+"System" = "系统";
+"Light" = "浅色";
+"Dark" = "深色";
+"Midnight" = "Midnight";
+"Show Menu Bar Icon" = "显示菜单栏图标";
+"Fan icon speed changes with CPU usage" = "图标转速随 CPU 使用率动态调整";
+"Show_in_Finder" = "在访达中显示";
+"Last 30 Days" = "过去30天";
+"Screenshot" = "截图";
+"Color Picker" = "取色";
+"OCR" = "OCR";
+"Tool" = "工具";
+"Cancel" = "取消";
+"Dynamic Fan Icon" = "动态风扇图标";
+"Menu Bar Icon Logo" = "Logo";

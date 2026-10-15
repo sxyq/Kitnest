@@ -233,8 +233,13 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
             defer { self.isRecognizing = false }
             do {
                 let text = try await OCRService.shared.recognizeText(imageData: data)
+                // spec 13 §4：未读取到文字场景（0x10000d45c，重新识别为空）
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+                    return
+                }
                 self.window?.setResultText(text)
-                if !text.isEmpty { CaptureEventBus.onTextRecognized?(text) }
+                CaptureEventBus.onTextRecognized?(text)
             } catch {
                 Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
                 Log.error("Capture", "重新识别失败: \(error.localizedDescription)")

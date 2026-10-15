@@ -125,6 +125,8 @@ public final class AISummaryViewModel: ObservableObject {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         didCopy = true
+        // spec 13 §4：文本已复制场景（0x100412774，翻译/摘要结果复制）
+        Toast.show("文本已复制", icon: "checkmark.circle.fill")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.didCopy = false }
     }
 

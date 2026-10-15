@@ -10,6 +10,8 @@ public enum StatusBarModule: AppModule {
     public static func start() {
         StatusBarController.shared.install()
         _ = FileTypeIconProvider.shared
+        // 菜单栏图标样式应用器（spec 13 §6：logo / fan / date / custom，自定义项需彩蛋解锁）
+        MenuBarIconStyleApplier.shared.start()
         Log.info("StatusBar", "module started")
     }
 }

@@ -160,8 +160,10 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         let panel = FloatingClipboardPanel(contentRect: FloatingClipboardPinState.shared.clampedFrame())
         super.init(window: panel)
         panel.delegate = self
+        // Midnight 主题注入器挂载点（注入器与四个 EnvironmentKey 在共享层 Core/AppearanceTheme.swift）
         let root = FloatingClipboardContentView()
             .environmentObject(store)
+            .frsetAppearanceTheme()
         panel.contentView = NSHostingView(rootView: root)
     }
 
@@ -213,8 +215,26 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 public struct FloatingClipboardContentView: View {
 
     @EnvironmentObject private var store: FloatingClipboardStore
+    // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
+    @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
+    @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
+    @Environment(\.usesMidnightTextColor) private var usesMidnightTextColor
+    @Environment(\.midnightTextColorOverride) private var midnightTextColor
 
     public init() {}
+
+    /// 正文色：Midnight 且 usesMidnightTextColor 为真时用冷白蓝，否则系统 primary
+    private var bodyTextColor: Color {
+        (usesMidnightTextColor ? midnightTextColor : nil) ?? .primary
+    }
+
+    /// 窗口底色：Midnight 用深冷黑蓝基底，否则沿用系统窗底 + 0.94 透明度
+    private var windowBackground: Color {
+        guard let base = midnightBaseBackground else {
+            return Color(NSColor.windowBackgroundColor).opacity(0.94)
+        }
+        return base.opacity(0.96)
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -245,9 +265,10 @@ public struct FloatingClipboardContentView: View {
         .frame(minWidth: 200, minHeight: 220)
         .background(
             RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .fill(Color(NSColor.windowBackgroundColor).opacity(0.94))
+                .fill(windowBackground)
         )
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .foregroundStyle(bodyTextColor)
         .onAppear { store.refresh() }
     }
 
@@ -274,6 +295,10 @@ public struct FloatingClipboardContentView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
+        // Midnight：标题栏用卡片底色与列表区拉开层次（非 Midnight 不铺底色）
+        .background {
+            if let card = midnightCardBackground { card }
+        }
     }
 }
 

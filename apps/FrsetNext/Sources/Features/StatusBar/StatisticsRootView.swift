@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 // MARK: - 统计窗根视图（spec 17 §1 S3：三层版面）
@@ -6,6 +7,11 @@ import SwiftUI
 // ② GitHub 式活动热力图（level 0-4 自绘 RoundedRectangle，isFuture 灰格，hover 延时 tooltip，S6）
 // ③ 最近 30 天分解柱图（无 Charts 框架，RoundedRectangle 自绘）
 // 页脚 "DATA IS STORED LOCALLY ON YOUR MAC"（S9）
+//
+// 本地化状态（spec 17 §S7c 实测：原作统计窗是**英文硬编码 + 部分 L10n 混合**）：
+// - ✅ 有真实 L10n 键：节头 "Last 30 Days"、图例 Screenshot / Color Picker / OCR / Tool
+// - ❌ 原作 793 键全查无：卡片标题 "Total Interactions" 等、页脚、热力图节头「使用活动」、
+//   「共活跃 N 天」、tooltip「N 次」——这些保持硬编码原样，**不臆造键面**。
 
 // MARK: 指标卡配置（S4：title/tooltip/eventNames/icon/iconSize/iconYOffset）
 
@@ -43,6 +49,8 @@ struct StatisticsRootView: View {
     @Stored private var activityTotals: [String: Int] = [:]   // __activityMatrixTotals（day → total）
     @Stored private var last30DayBreakdowns: [(day: String, event: String, count: Int)] = []  // __last30DayBreakdowns
     @Stored private var metricNumbersAnimatedIn: Bool = false // S5 数字入场动画门控（一次）
+    /// 语言版本号：languageDidChange 到达时自增，驱动统计窗重绘（契约 §10.3；@Stored 见 §7.4）
+    @Stored private var l10nVersion: Int = 0
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -75,6 +83,10 @@ struct StatisticsRootView: View {
         }
         .background(Color(NSColor.windowBackgroundColor))
         .onAppear(perform: loadData)
+        // 语言切换即时刷新（契约 §10.3）：广播到达即重算 body，节头/图例重新过 L10n.t()
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            l10nVersion &+= 1
+        }
     }
 
     // MARK: ① 概览大数字卡
@@ -242,9 +254,9 @@ private struct ActivityHeatmapView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Theme.sectionHeader("使用活动")
+                Theme.sectionHeader("使用活动")   // TODO 待本地化：原作 793 键无对应键面
                 Spacer()
-                Text("共活跃 \(activeDays) 天")
+                Text("共活跃 \(activeDays) 天")   // TODO 待本地化：同上
                     .font(Font.custom("PingFangSC-Regular", size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -393,7 +405,7 @@ private struct ActivityHeatmapView: View {
         Group {
             if let id = highlightedCellID, let cell = cellsByID[id] {
                 VStack(spacing: 2) {
-                    Text("\(cell.count) 次")
+                    Text("\(cell.count) 次")   // TODO 待本地化：原作无该句式键面
                         .font(Font.custom("PingFangSC-Semibold", size: 12))
                         .foregroundStyle(.primary)
                     Text(prettyDate(cell.day))
@@ -421,6 +433,9 @@ private struct ActivityHeatmapView: View {
 }
 
 // MARK: - ③ 最近 30 天分解柱图（RoundedRectangle 自绘，无 Charts；S7c 节头 "过去30天"）
+//
+// S7c 实测：节头有真实 L10n 键 "Last 30 Days"（ZH「过去30天」）→ 走 L10n；
+// 图例 4 个标签在原作 793 键中有对应键面 → 走 L10n；剪贴板/AI 两个标签原作无键，保持硬编码。
 
 private struct Last30BarsView: View {
     let breakdowns: [(day: String, event: String, count: Int)]
@@ -436,7 +451,7 @@ private struct Last30BarsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Theme.sectionHeader("过去30天")
+            Theme.sectionHeader(L10n.t("Last 30 Days"))
             HStack(alignment: .bottom, spacing: barSpacing) {
                 ForEach(days) { day in
                     barColumn(for: day)
@@ -533,15 +548,20 @@ private struct Last30BarsView: View {
     }
 
     // MARK: 图例
+    //
+    // 标签走 L10n 的前提是原作 793 键中存在对应键面（已逐键核对）：
+    // Screenshot=截图 / Color Picker=取色 / OCR=OCR / Tool=工具；
+    // 「剪贴板」「AI」原作无独立短标签键（仅有 "Clipboard Manager"=剪切板管理 等长句，
+    // 语义不等价），故保持硬编码，不臆造键面。
 
     private var legend: some View {
         HStack(spacing: 12) {
-            legendDot(color: barColor("clipboard_capture"), label: "剪贴板")
-            legendDot(color: barColor("screenshot_capture"), label: "截图")
-            legendDot(color: barColor("color_pick_success"), label: "取色")
-            legendDot(color: barColor("ocr_use"), label: "OCR")
-            legendDot(color: barColor("tool_execute_success"), label: "工具")
-            legendDot(color: barColor("ai_request_count"), label: "AI")
+            legendDot(color: barColor("clipboard_capture"), label: "剪贴板")  // TODO 待本地化
+            legendDot(color: barColor("screenshot_capture"), label: L10n.t("Screenshot"))
+            legendDot(color: barColor("color_pick_success"), label: L10n.t("Color Picker"))
+            legendDot(color: barColor("ocr_use"), label: L10n.t("OCR"))
+            legendDot(color: barColor("tool_execute_success"), label: L10n.t("Tool"))
+            legendDot(color: barColor("ai_request_count"), label: "AI")          // TODO 待本地化
         }
     }
 

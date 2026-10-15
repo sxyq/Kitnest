@@ -20,6 +20,10 @@ public enum SettingsModule: AppModule {
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "search", title: "搜索", systemImage: "magnifyingglass",
             build: { AnyView(SearchSettingsPane()) }))
+        // 数据页签（spec 17 S12：设置导出/导入携带统计数据 + Q6/Q7 统计口径出口）
+        SettingsPaneRegistry.register(SettingsPaneDescriptor(
+            id: "statistics", title: "数据", systemImage: "chart.bar.doc.horizontal",
+            build: { AnyView(StatisticsSettingsPane()) }))
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "about", title: "关于", systemImage: "info.circle",
             build: { AnyView(AboutSettingsPane()) }))
@@ -30,6 +34,6 @@ public enum SettingsModule: AppModule {
         // 3) 外观/语言基建生效（specs/18：appearance 键 + language 键）
         AppearanceManager.shared.applyCurrent()
 
-        Log.info("Settings", "设置模块已启动（3 个基础页签已注册；快捷键/工具页签由 Toolbox 注册）")
+        Log.info("Settings", "设置模块已启动（4 个基础页签已注册；快捷键/工具页签由 Toolbox 注册）")
     }
 }

@@ -8,20 +8,44 @@ import Foundation
 // - `language` defaults 键存覆盖值（"auto" = 跟随系统，其余为语言码）；
 // - 切换广播 `languageDidChange` 通知，全 UI 刷新（不重启 App）。
 //
-// 本轮只落基建 + 中文起步：存量中文文案保持现状，新代码可用 L10n.t("英文键面")，
-// 翻译表随后补（specs/11 §4 铁律：不批量臆造 793 键）。
+// 本轮落地范围：抽取原作 zh-Hans.lproj / en.lproj 的**真实键面**建表（键面=英文句，
+// 缺失回退英文），并在「通用设置页 + 统计窗」两个界面实接入 `t()`；
+// 其余界面仍为硬编码中文，注释标注「待本地化」，待后续按真实键面批量接入。
+//
+// 键面来源（可复现）：
+//   plutil -convert json -o en.json  /Applications/Frset.app/Contents/Resources/en.lproj/Localizable.strings
+//   plutil -convert json -o zh.json  /Applications/Frset.app/Contents/Resources/zh-Hans.lproj/Localizable.strings
+//   → 两侧各 793 键、键集完全一致（specs/18 §3.4 实证）。
+// 本仓库 Resources/ 只收录**已被代码消费**的键子集，避免臆造未验证的键。
 
 /// 轻量翻译入口
 /// 用法：`L10n.t("Advanced Settings")` —— 键面为英文句，命中当前语言翻译则返回译文，否则原样返回英文键面
 public enum L10n {
 
+    /// lproj bundle 缓存：`Bundle(path:)` 每次新建代价高，而 `t()` 在 view body 内被高频调用。
+    /// 语言切换后 `LanguageManager.apply` 会调用 `L10n.invalidateCache()` 清空。
+    private static var bundleCache: [String: Bundle] = [:]
+
     /// 取键面在当前生效语言下的译文；缺失回退键面本身（英文兜底，对齐原作）
     public static func t(_ key: String) -> String {
-        guard let code = LanguageManager.shared.resolvedLanguageCode else { return key }
-        guard code != "en" else { return key }   // 英文键面即原文，无需查表
-        guard let path = Bundle.main.path(forResource: code, ofType: "lproj"),
-              let bundle = Bundle(path: path) else { return key }
+        guard let bundle = lprojBundle(for: LanguageManager.shared.resolvedLanguageCode ?? "en")
+        else { return key }
+        // value: key —— 表中查不到该键时 NSBundle 原样返回 key（英文兜底）
         return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
+    /// 按语言码取对应 .lproj bundle；资源缺失（未打包 / 裸可执行文件调试）时返回 nil
+    private static func lprojBundle(for code: String) -> Bundle? {
+        if let cached = bundleCache[code] { return cached }
+        guard let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+              let bundle = Bundle(path: path) else { return nil }
+        bundleCache[code] = bundle
+        return bundle
+    }
+
+    /// 语言切换后清缓存（`LanguageManager.apply` 调用）
+    static func invalidateCache() {
+        bundleCache.removeAll()
     }
 
     /// 当前语言是否为 RTL（阿拉伯语；原作反射串 isRightToLeftLanguage）
@@ -103,6 +127,7 @@ public final class LanguageManager: ObservableObject {
         let normalized = Self.availableLanguages.contains(code) || code == "auto" ? code : "auto"
         overrideDisplayLanguage = normalized
         defaults.set(normalized, forKey: Self.defaultsKey)
+        L10n.invalidateCache()   // 丢弃旧 lproj bundle 缓存
         NotificationCenter.default.post(name: Self.languageDidChange, object: nil)
         Log.info("L10n", "显示语言已切换: \(normalized)")
     }

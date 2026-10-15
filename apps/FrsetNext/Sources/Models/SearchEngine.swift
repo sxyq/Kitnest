@@ -130,17 +130,15 @@ public final class SearchServiceManager: ObservableObject {
         return true
     }
 
-    /// 搜索栏内移动（编辑模式拖拽/上下移；首次移动由调用方落 hasSeenSearchBarOrderingTip）
+    /// 搜索栏内移动（拖拽排序唯一入口；调用方负责落 hasSeenSearchBarOrderingTip 一次性提示）
+    ///
+    /// - Parameters:
+    ///   - fromOffsets: 被拖动项在激活集中的下标集合（拖拽源）
+    ///   - toOffset: 目标插入位。**注意语义**：`Array.move(fromOffsets:toOffset:)` 的 toOffset 取
+    ///     「移除前」的数组坐标——向下拖需传 `目标下标 + 1` 才落在目标行原位，向上拖直接传目标下标。
+    ///     调用方（Settings/SearchSettingsPane）负责这层换算。
     public func moveInSearchBar(fromOffsets: IndexSet, toOffset: Int) {
         activeBarItems.move(fromOffsets: fromOffsets, toOffset: toOffset)
-        persistActiveBarItems()
-    }
-
-    public func moveInSearchBar(engineID: String, up: Bool) {
-        guard let idx = activeBarItems.firstIndex(of: engineID) else { return }
-        let target = up ? idx - 1 : idx + 1
-        guard activeBarItems.indices.contains(target) else { return }
-        activeBarItems.swapAt(idx, target)
         persistActiveBarItems()
     }
 
@@ -163,6 +161,23 @@ public final class SearchServiceManager: ObservableObject {
         persistActiveBarItems()
         rebuildOrder()
         persistCustomEngines()
+    }
+
+    /// 更新自定义引擎（行内编辑表单保存；引擎 id 保持不变，落盘键与新增路径一致）
+    /// - Returns: 是否命中并更新
+    @discardableResult
+    public func updateCustomEngine(id: String, name: String, urlTemplate: String) -> Bool {
+        guard let index = customEngines.firstIndex(where: { $0.id == id }) else { return false }
+        customEngines[index].name = name
+        customEngines[index].urlTemplate = urlTemplate
+        rebuildOrder()
+        persistCustomEngines()
+        return true
+    }
+
+    /// 从 defaults 重新装载（配置导入后调用，使搜索页立即反映导入结果）
+    public func reloadFromDefaults() {
+        load()
     }
 
     // MARK: 排序

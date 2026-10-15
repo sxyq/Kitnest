@@ -9,6 +9,15 @@ struct PanelRootView: View {
     var onDismiss: () -> Void
     var onOpenSettings: () -> Void
 
+    /// 顶部搜索框焦点（⌥F「打开并搜索」经 .frsetFocusPanelSearch 通知程序化聚焦）
+    @FocusState private var searchFieldFocused: Bool
+
+    // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
+    @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
+    @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
+    @Environment(\.usesMidnightTextColor) private var usesMidnightTextColor
+    @Environment(\.midnightTextColorOverride) private var midnightTextColor
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -22,6 +31,34 @@ struct PanelRootView: View {
         .opacity(presentation.visible ? 1 : 0)
         .animation(.spring(response: 0.25, dampingFraction: 0.85), value: presentation.visible)
         .onExitCommand { onDismiss() }             // Esc 关闭面板
+        // Midnight：深色基底（原作只在 DarkAqua NSAppearance 之上叠 SwiftUI 覆盖层）；
+        // 非 Midnight 时不铺任何底色，保持 NSVisualEffectView 毛玻璃透出
+        .background {
+            if let base = midnightBaseBackground { base }
+        }
+        .foregroundStyle(bodyTextColor)
+        // 主题注入器挂载点（注入器与四个 EnvironmentKey 在共享层 Core/AppearanceTheme.swift）
+        .frsetAppearanceTheme()
+        // ⌥F「打开并搜索」：原作聚焦的是**主面板顶部搜索框**，不是区段内的搜索框
+        // （区段内 SearchSectionView 的接收保留：面板区段搜索框也能被聚焦不算回归）。
+        // 通知名字面量与 Toolbox/SearchSectionView.swift 的 frsetFocusPanelSearch 一致；
+        // 此处不引用该模块类型，遵守契约 §1.3（跨模块零直接类型引用）。
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("frset.focusPanelSearch"))) { _ in
+            // 面板可能刚被 show()，稍等一拍让 TextField 挂到窗口后再聚焦
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                searchFieldFocused = true
+            }
+        }
+    }
+
+    /// 正文色：Midnight 且 usesMidnightTextColor 为真时用冷白蓝，否则用系统 primary
+    private var bodyTextColor: Color {
+        (usesMidnightTextColor ? midnightTextColor : nil) ?? .primary
+    }
+
+    /// 卡片底色：Midnight 覆盖优先，否则沿用 Theme.cardBackground
+    private var cardBackground: Color {
+        midnightCardBackground ?? Theme.cardBackground
     }
 
     // MARK: - 顶部工具条（约 40pt）
@@ -30,6 +67,7 @@ struct PanelRootView: View {
         HStack(spacing: 10) {
             Text("Frset")
                 .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(bodyTextColor)     // Midnight 正文色覆盖
             Spacer()
             Button {
                 onOpenSettings()
@@ -61,6 +99,9 @@ struct PanelRootView: View {
             TextField("搜索或输入 / 使用工具", text: $searchHook.query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .foregroundStyle(bodyTextColor)
+                // ⌥F 聚焦落点（契约 §5.2：仅 SwiftUI 侧焦点，不夺 NSView 的 first responder）
+                .focused($searchFieldFocused)
             if !searchHook.query.isEmpty {
                 Button {
                     searchHook.query = ""
@@ -74,7 +115,7 @@ struct PanelRootView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Theme.cardBackground)
+        .background(cardBackground)                 // Midnight 下取 cardBackground 覆盖
         .cornerRadius(Theme.smallRadius)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -160,6 +201,12 @@ struct PanelRootView: View {
 /// 搜索结果列表（过滤本地剪贴板文本条目，点击复制）
 struct PanelSearchResultsView: View {
     @ObservedObject var hook: PanelSearchHook
+    // Midnight 卡片底色覆盖（由根视图的 .frsetAppearanceTheme() 注入）
+    @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
+
+    private var cardBackground: Color {
+        midnightCardBackground ?? Theme.cardBackground
+    }
 
     var body: some View {
         ScrollView {
@@ -179,7 +226,7 @@ struct PanelSearchResultsView: View {
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.cardBackground)
+                    .background(cardBackground)
                     .cornerRadius(Theme.smallRadius)
                     .contentShape(Rectangle())
                     .onTapGesture {
