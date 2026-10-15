@@ -213,9 +213,12 @@ public final class StatusBarController: NSObject {
 
     @objc private func mainItemClicked(_ sender: Any?) {
         guard let button = sender as? NSStatusBarButton else { return }
-        // 彩蛋：连续单击主图标 10 次触发 Symbol Mode 解锁（spec 13 §6，重建版触发器改造）
-        MenuBarIconEasterEggManager.shared.registerMainIconClick()
         let isRightClick = NSApp.currentEvent?.type == .rightMouseUp
+        // 彩蛋：连续单击主图标 10 次触发 Symbol Mode 解锁（spec 13 §6，重建版触发器改造）。
+        // 仅左键计数——本方法同时响应 leftMouseUp/rightMouseUp，右键点菜单不应计入。
+        if !isRightClick {
+            MenuBarIconEasterEggManager.shared.registerMainIconClick()
+        }
         if isRightClick {
             let menu = StatusBarMenuBuilder.mainMenu(target: self)
             menu.popUp(positioning: nil,
