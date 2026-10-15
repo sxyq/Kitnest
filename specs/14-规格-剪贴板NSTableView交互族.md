@@ -56,6 +56,7 @@
 | 类 | 证据 |
 |---|---|
 | `ClipboardRowContextMenuActivationTrackerNSView` | NSView 子类；methlist `0x100958940`（7 方法）：`acceptsFirstMouse:`→`0x1001b15b4`、`hitTest:`→`0x1001b16a4`、`rightMouseDown:`→`0x1001b16f0`、`mouseDown:`→`0x1001b1890`、`initWithFrame:`→`0x1001b18e0`、`initWithCoder:`→`0x1001b1a14`；ivars `onRightMouseDown`/`onSelectionMouseDown`/`interceptPlainMouseDown`；类对象 `0x100c45fa0` |
+> **注（2026-10-15 team-lead 补）**：本行记录的是 `acceptsFirstMouse:` 方法的**存在**（地址 `0x1001b15b4`），它作用于该 NSView 子类自身；但**悬浮剪贴板窗 `FloatingClipboardWindow` 的行内容仍是 SwiftUI `LazyVStack`**（R5 实测缺口），故 C9「悬浮窗首次点击」在悬浮窗场景尚未对齐——`acceptsFirstMouse` 的存在不等于该窗已具备同等能力。
 | `ClipboardRowHoverSuppressionController` | Swift 类（SwiftObject 基）；ctx `0x1009bd41c`，accessor `0x1001db2f0`；instanceSize 17；ivars `isSuppressedUntilMouseMove`(Bool)/`hoveredRowItemID`/`hoveredIconItemID`；使用点 `0x1002795d4`、`0x10027f360`（列表视图 @State 初始化） |
 | `ClipboardListTopScrollTracker` | Swift 类；ctx `0x1009bd3d8`，accessor `0x1001db258`；instanceSize 41；ivars `band`(8B)/`isOut`(Bool)/`lastMinY`(9B)；使用点 `0x100279590`、`0x10027f31c` |
 | `FloatingClipboardActiveHoverTrackerNSView` | NSView 子类；methlist `0x1009588c8`（9 方法）：`updateTrackingAreas`→`0x1001d8bdc`、`mouseEntered:`→`0x1001d8c04`(w3=1)、`mouseExited:`→`0x1001d8c0c`(w3=0)、公共体 `0x1001d8c14` 调 `onHoverChanged(Bool, NSEvent)`；`acceptsFirstMouse:`→`0x1001d8cb8` **恒返回 true**；`mouseDown:`→`0x1001d8d58`→`0x1001d8cc0`；`hitTest:`→`0x1001d8da8`（CGRectContainsPoint + `isPreviewPresented` 门控）；ivars `isPreviewPresented`/`onHoverChanged`/`onPreviewIconClick`/`currentTrackingArea` |
