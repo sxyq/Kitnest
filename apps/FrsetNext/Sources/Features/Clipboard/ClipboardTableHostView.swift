@@ -455,9 +455,15 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 : 0
 
             table.reloadData()
-            // reloadData 后所有行视图被回收重建，行号→视图的映射全部失效，
-            // 必须清空侧表；后续可见行会在 viewFor 中重新登记。
-            rowViewsByRow.removeAll()
+            // reloadData 后按行号裁剪侧表，**不做整体清空**。
+            // 原因：reloadData() 可能同步触发可见行的 tableView(_:viewFor:row:) 重新登记，
+            // 整体 removeAll() 会把刚登记好的新映射一并抹掉 → 预览锚点退化 + hover 高亮失效，
+            // 且因 AppKit display pass 时机而「时隐时现」（审计代理 v-a 勘误指出）。
+            // 只裁掉「行号越界」与「视图已被回收」两类条目：前者是条目删除后的残留，
+            // 后者由 weak 引用自然变 nil（残留条目只会查得 nil，不会给出错误视图），
+            // 一并清掉可避免字典无限增长——这正是整体 removeAll() 原本的唯一收益。
+            let validRows = Set(0..<table.numberOfRows)
+            rowViewsByRow = rowViewsByRow.filter { validRows.contains($0.key) && $0.value.view != nil }
             hoveredRowView = nil
             // hoveredItemID 必须与 hoveredRowView 同步清空：若只清视图而保留 ID，
             // 下一次 mouseMoved 会因「item.id == hoveredItemID」提前 return（见 handleMouseMoved
