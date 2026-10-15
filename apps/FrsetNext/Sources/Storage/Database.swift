@@ -392,6 +392,11 @@ public final class StatisticsManager {
     public var trackedEventNames: Set<String> {
         var names = Set(AnalyticsEvent.allCases.map { $0.eventName })
         names.formUnion(Self.bareStringEvents)
+        // 重建扩展事件：ai_request_count 由旧 bumpStat("ai_request_count") 路径写入
+        // （LLMService 等调用点），并非枚举 case。此前未列入本集合 → record 写入成功，
+        // 但 Q3/Q4/Q5 的 `event_name IN (...)` 绑定把它过滤掉，统计窗永不显示（静默丢失）。
+        // 原作 53 事件中无此项，属重建的有意扩展（见 specs/17 §4 注释），故在此显式并入。
+        names.insert("ai_request_count")
         return names
     }
     /// 裸串事件（主面板 4 个 + 权限 1 个）
