@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CommonCrypto
 
 // MARK: - 日志（贴近原作：Sentry 已断，本地统一出口）
 
@@ -122,60 +123,32 @@ public extension Date {
 }
 
 public extension String {
-    var sha256: String {
-        // 纯 Swift 实现（避免 CommonCrypto 链接问题）
-        var h: [UInt64] = [
-            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-            0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
-        ]
-        let k: [UInt64] = [
-            0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-            0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-            0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-            0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-            0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-            0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-            0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-            0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-        ]
-        var msg = Array(self.utf8)
-        msg.append(0x80)
-        while (msg.count % 64) != 56 { msg.append(0) }
-        let bitLen = UInt64(self.utf8.count) * 8
-        for i in stride(from: 56, through: 0, by: -8) { msg.append(UInt8((bitLen >> UInt64(i)) & 0xff)) }
-        func rotr(_ x: UInt64, _ n: UInt64) -> UInt64 { (x >> n) | (x << (64 - n)) }
-        for chunk in stride(from: 0, to: msg.count, by: 64) {
-            var w = [UInt64](repeating: 0, count: 64)
-            for i in 0..<16 {
-                w[i] = (0..<8).reduce(UInt64(0)) { $0 | (UInt64(msg[chunk + i * 8 + Int($1)]) << UInt64(56 - 8 * $1)) }
-            }
-            for i in 16..<64 {
-                let s0 = rotr(w[i-15], 7) ^ rotr(w[i-15], 18) ^ (w[i-15] >> 3)
-                let s1 = rotr(w[i-2], 17) ^ rotr(w[i-2], 19) ^ (w[i-2] >> 10)
-                w[i] = (w[i-16] &+ s0 &+ w[i-7] &+ s1) & 0xffffffff
-            }
-            var a = h
-            for i in 0..<64 {
-                let s1 = rotr(a[4], 6) ^ rotr(a[4], 11) ^ rotr(a[4], 25)
-                let ch = (a[4] & a[5]) ^ ((~a[4]) & a[6])
-                let t1 = (a[7] &+ s1 &+ ch &+ k[i] &+ w[i]) & 0xffffffff
-                let s0 = rotr(a[0], 2) ^ rotr(a[0], 13) ^ rotr(a[0], 22)
-                let maj = (a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2])
-                let t2 = (s0 &+ maj) & 0xffffffff
-                a[7] = a[6]; a[6] = a[5]; a[5] = a[4]
-                a[4] = (a[3] &+ t1) & 0xffffffff
-                a[3] = a[2]; a[2] = a[1]; a[1] = a[0]
-                a[0] = (t1 &+ t2) & 0xffffffff
-            }
-            for i in 0..<8 { h[i] = (h[i] &+ a[i]) & 0xffffffff }
-        }
-        return h.map { String(format: "%08x", $0) }.joined()
-    }
+    /// SHA-256 十六进制摘要（小写）。
+    ///
+    /// 实现说明：此处曾为手写纯 Swift SHA-256（注释写"避免 CommonCrypto 链接问题"），
+    /// 但消息调度字被 `& 0xffffffff` 掩成 32 位等缺陷，使长输入在剪贴板指纹路径
+    /// （约 32KB）崩溃——实测崩溃报告 FrsetNext-2026-10-15-111300.ips：
+    /// poll → ingest → read → fingerprint → String.sha256（自适应轮询每秒一次，故为间歇性崩溃）。
+    /// 现统一走 CommonCrypto CC_SHA256（与 Features/AI/AICredentialJournal 同一实现），
+    /// 已用标准向量（空串 / "abc" / 1MB 数据）对照 `shasum -a 256` 验证。
+    var sha256: String { Data(utf8).sha256Hex }
 
     var truncatedForDisplay: String {
         var s = replacingOccurrences(of: "\n", with: " ")
         if s.count > 120 { s = String(s.prefix(120)) + "…" }
         return s
+    }
+}
+
+public extension Data {
+    /// SHA-256 十六进制摘要（小写）；空输入合法（e3b0c442…）。
+    /// 逐字节摘要，供剪贴板指纹等热路径使用（CommonCrypto，单次调用 O(n) 无堆分配风暴）。
+    var sha256Hex: String {
+        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        self.withUnsafeBytes { raw in
+            _ = CC_SHA256(raw.baseAddress, CC_LONG(count), &digest)
+        }
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 

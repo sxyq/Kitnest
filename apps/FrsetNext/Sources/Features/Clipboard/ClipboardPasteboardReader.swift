@@ -206,11 +206,19 @@ public final class ClipboardPasteboardReader {
         return CGSize(width: w, height: h)
     }
 
-    /// 图片指纹：用于去重键。对超长数据采样（首 8KB + 尾 8KB + 长度），避免每次全量哈希
+    /// 图片/大数据指纹：用于去重键。对超长数据采样（长度 + 首 8KB + 尾 8KB 字节）后做 SHA-256。
+    ///
+    /// 实现说明：原实现先把头尾各 8KB 转成十六进制字符串再哈希，输入膨胀到约 32KB，
+    /// 且当时走的是有缺陷的手写 SHA-256 —— 双开实测时于轮询热路径崩溃
+    /// （FrsetNext-2026-10-15-111300.ips：`poll → ingest → read → fingerprint → String.sha256`）。
+    /// 现直接对字节流摘要（Data.sha256Hex → CommonCrypto CC_SHA256），输入体积小两个数量级且实现可靠。
     public static func fingerprint(_ data: Data) -> String {
-        let head = data.prefix(8192).map { String(format: "%02x", $0) }.joined()
-        let tail = data.suffix(8192).map { String(format: "%02x", $0) }.joined()
-        return "\(data.count)|\(head)|\(tail)".sha256
+        var payload = Data()
+        payload.reserveCapacity(16_400)
+        withUnsafeBytes(of: UInt64(data.count).littleEndian) { payload.append(contentsOf: $0) }
+        payload.append(data.prefix(8192))
+        if data.count > 16_384 { payload.append(data.suffix(8192)) }
+        return payload.sha256Hex
     }
 
     // MARK: 外部事件写入的结果构造（截图 / OCR 等经 ClipboardManager 复用同一管线）
