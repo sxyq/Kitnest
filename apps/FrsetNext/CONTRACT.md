@@ -213,6 +213,12 @@ self._mode = State(initialValue: ...)                            // ❌ 类型�
    `error: input file 'X' was modified during the build` 的**假红**（swiftc 读到半个文件）。
    收尾汇总前必须在无人改文件的时间点静置 30~60 秒再跑 `tools/check.sh`。
 2. 不可把假红误判为回归后草率派单——先确认 git status 是否有并发写入。
+3. **区分「编译失败」与「进程被杀」**：全量 typecheck 前台跑可能因内存/CPU 抢占被 OS SIGKILL
+   （**exit 137**，或 143），输出可能同样是红色。判读规则：
+   - **exit 137/143 一律按环境问题处理，不计入 error 统计**（本轮实测：pages free 仅 ~128MB 时必被杀）；
+   - 处方是**后台 + `-j 2` 限并发**（实测 1m23s exit 0），**静置对它无效**——与 §9.1 第 1 条机制不同：
+     静置解决「读到半个文件」，降并发解决「资源抢占」；
+   - 收尾汇总必须**看退出码**，不能只看输出颜色。
 
 ## 10. 资源与本地化
 
@@ -392,7 +398,7 @@ self._mode = State(initialValue: ...)                            // ❌ 类型�
 **判定规则**：
 - 只有定义处 → 未接线（真死代码）
 - 有定义 + 挂载、无消费 → 接了线但不影响行为（更隐蔽，需继续追）
-- 三层齐全 → 已真实生效
+- 三层齐全 → **仍须编译验证通过**才算生效，见 §15.1
 
 跨模块能力的赋值/挂载**常在 App 层或根视图层**，而非定义层——`PreviewPopoverDataBridge` 的赋值在
 `AppBootstrap.swift`（不在其定义文件 `PanelPreviewPreferences.swift`），`frsetAppearanceTheme()` 的挂载在
@@ -483,3 +489,41 @@ macOS 自带 grep 是 BSD 版，`\|` 的行为不可靠——本轮已三次因�
 
 执行代理把已作废的建议**原样粘贴**回来时，读起来像"请确认这段"，而非"这段已废弃"。
 因此：转述他人代码时**必须显式标注状态**（作废 / 已修正 / 待验证），不要只贴代码。
+
+
+### 15.1 三层齐备 ≠ 能用：跨模块消费的共享类型必须下沉到 Core/Models/Storage
+
+**反例（本轮真实发生）**：Midnight 主题的三层齐备——定义处（`AppearanceManager.swift:160-176`
+含 modifier 与四个 key）、挂载处（三个根视图各挂 `.frsetAppearanceTheme()`）、消费处（三处各四个
+`@Environment` 声明 + 实际应用点）、注释也写明"三处均挂载并读取"。
+
+**但 per-module 编译失败**：`PanelRootView.swift:16` 与 `FloatingClipboardWindow.swift:219`
+报 `generic parameter 'Value' could not be inferred`——因为 Clipboard/Panel 模块的编译子集里
+**没有 Settings 模块**，而 EnvironmentKey 的声明与 `EnvironmentValues` 扩展都在 Settings 里。
+**全量 typecheck 却 PASS**（所有文件一起编译，扩展可见）。
+
+**两条规律**：
+1. `check.sh` 的 **per-module PASS 是硬门槛**——它专门暴露跨模块依赖；只看全量会漏。
+2. **被两个以上模块消费的共享类型（EnvironmentKey / ViewModifier / 协议 / 常量组）必须放在
+   Core / Models / Storage**，由使用方模块直接依赖共享层；不得由某个 Features 模块"顺便"定义。
+
+**自检问句：**「这个类型被几个模块用？——≥2 个，它就不属于任何一个业务模块，该下沉了。」
+
+---
+
+## 17. 静态读数与编译读数是两套证据，不得互相当场否证
+
+- **静态核验**（grep / 读代码 / 三层判据）只能证明「接线意图存在」；
+  **能否编译通过**必须由编译验证回答。
+- 跨代理引用他人的报错/结论前，须**以自己当时的基准重跑一次**，或至少声明「**我未复现该错误**」；
+  **不可直接采信，也不可直接否证**。
+
+> 证据（本轮三方各执一词，最终由编译定案）：
+> - 执行代理报 per-module 编译失败（KeyPath/Value.Type 类错误），给了「`private` 不可见」的根因假设；
+> - 审计代理用静态读数 + 四组隔离编译**无法复现**，但其隔离测试把提供方文件与消费方文件放在一起编译，
+>   恰好掩盖了真因——于是双方各有一半对；
+> - team-lead 跑 `check.sh` 复现了错误，并发现**全量 PASS / per-module FAIL** 的组合，
+>   据此定位真因 = 跨模块依赖（提供方文件不在消费方的编译子集内）。
+>
+> 教训：静态与编译证据冲突时，**冲突本身就是最有价值的信号**——它指向「两者都没看到的那一层」
+> （此处是编译单元的文件集合）。遇到冲突不要投票，要去找那个能同时解释两边现象的机制。
