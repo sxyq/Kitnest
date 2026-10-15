@@ -436,3 +436,30 @@ self._mode = State(initialValue: ...)                            // ❌ 类型�
 > 四个布尔偏好键写错档。已抽出内部标识修复。
 >
 > 自检问句：**「我把这个字符串换成另一种语言，它还认得出来吗？——认不出，说明标识和文案还没分离。」**
+
+### 10.1 修正：键面 ≠ 英文原文（实测 793 键，仅 66% 成立）
+
+早前版本写「键面 = 英文句本身」，实测**只对 66% 的键成立**：
+
+| 类别 | 比例 | 例 |
+|---|---|---|
+| 键面 == en 值 | 525/793 = 66% | `"Appearance"` = `"Appearance"` |
+| 键面 ≠ en 值 | **268/793 = 34%** | 见下三类 |
+
+三类例外：
+1. 值是更短英文：`"Auto"`→`"System"`、`"Show_in_Finder"`→`"Reveal in Finder"`、`"Usage Statistics"`→`"Usage Stats"`
+2. **键面像句子、值才是真正显示文案**（占例外的大多数）：
+   `"Fan icon speed changes with CPU usage"`→`"Rotation speed adapts to CPU usage"`、
+   `"Delete Tool Confirm Title"`→`'Delete "%@"?'`
+3. 键面为中英混写或纯中文：`"发现新版本 %@"`→`"New Version %@ Available"`、`"yyyy年"`→`"yyyy"`
+
+**关键语义（扩展时勿"优化"）**：回退是**回退键面**，不是回退 en 的值。
+第 2 类键若未命中当前语言表，会显示"像句子"的键面（如 `Fan icon speed changes with CPU usage`）
+而非自然英文（`Rotation speed adapts to CPU usage`）。**这是原作机制，照抄不優化**——
+不要因为"看起来是 bug"就去改成回退 en 值。
+
+**检索纪律（由此得出）**：查表必须用**键面**，不能用界面上看到的英文文案
+（界面上的英文是**值**，与键面可能不同；键名形态也可能是下划线式，如 `Show_in_Finder`）。
+
+> 证据：`docs/l10n-original-reference/`（原作 793 键证据件，team-lead 与执行代理双向校验：
+> 键数 793/键集一致/全表逐键逐值 `==`）。
