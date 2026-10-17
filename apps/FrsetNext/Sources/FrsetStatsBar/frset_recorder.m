@@ -10,6 +10,8 @@
 #import "frset_barwidgets.h"
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <AVFoundation/AVFoundation.h>
+#import <ImageIO/ImageIO.h>
+#import <CoreServices/CoreServices.h>
 #import <dlfcn.h>
 
 void FSBarLog(NSString *fmt, ...);
@@ -121,9 +123,89 @@ static CGRect FSRecCG(CGRect cocoa) {
 }
 - (BOOL)needMic { return self.audioMode == 2 || self.audioMode == 3; }
 - (BOOL)needSys { return self.audioMode == 1 || self.audioMode == 3; }
-- (NSString *)ext { return self.format == 0 ? @"mov" : @"mp4"; }
-- (NSString *)fileType { return self.format == 0 ? (NSString *)AVFileTypeQuickTimeMovie : (NSString *)AVFileTypeMPEG4; }
+- (BOOL)isGIF { return self.format == 2; }
+// GIF 不是 AVAssetWriter 能直接写的容器：先落成 mov，停止后再转 GIF 并删临时文件
+- (NSString *)ext { return self.format == 1 ? @"mp4" : @"mov"; }
+- (NSString *)fileType { return self.format == 1 ? (NSString *)AVFileTypeMPEG4 : (NSString *)AVFileTypeQuickTimeMovie; }
 @end
+
+// ============ GIF 导出（纯系统 API，不依赖 ffmpeg） ============
+// 参照 ZTools「录屏生成GIF」插件的产物形态：录完转成循环 GIF。
+// 与插件不同的是：插件内置 FFmpeg，本机没有，所以用 AVAssetImageGenerator 抽帧
+// + ImageIO 写 GIF。代价是没有调色板优化、体积偏大，因此这里把宽度压到 ≤720px、
+// 帧率压到 ≤12fps，够做操作演示。
+//
+// GIF 不是 AVAssetWriter 能直接写的容器：录制阶段仍落成 mov 临时文件，
+// 停止后再转换，转完立刻删掉临时 mov（避免用户目录里留一堆半成品）。
+
+static CGImageRef FSRecCreateScaledImage(CGImageRef src, CGFloat maxWidth) {
+    size_t w = CGImageGetWidth(src);
+    size_t h = CGImageGetHeight(src);
+    if (w == 0 || h == 0) return NULL;
+    if ((CGFloat)w <= maxWidth) return NULL;          // 不需要缩放
+    CGFloat scale = maxWidth / (CGFloat)w;
+    size_t nw = MAX(1, (size_t)lround(w * scale));
+    size_t nh = MAX(1, (size_t)lround(h * scale));
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(NULL, nw, nh, 8, 0, space,
+                                             kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(space);
+    if (!ctx) return NULL;
+    CGContextSetInterpolationQuality(ctx, kCGInterpolationHigh);
+    CGContextDrawImage(ctx, CGRectMake(0, 0, nw, nh), src);
+    CGImageRef out = CGBitmapContextCreateImage(ctx);
+    CGContextRelease(ctx);
+    return out;
+}
+
+/// 把 mov 转成循环 GIF；成功返回 gif 路径，失败返回 nil
+static NSString *FSRecConvertMovieToGIF(NSString *moviePath, NSString *gifPath,
+                                        NSInteger fps, CGFloat maxWidth) {
+    AVAsset *asset = [AVAsset assetWithURL:[NSURL fileURLWithPath:moviePath]];
+    if (!asset) return nil;
+    NSTimeInterval duration = CMTimeGetSeconds(asset.duration);
+    if (!isfinite(duration) || duration <= 0.05) return nil;
+
+    AVAssetImageGenerator *generator = [AVAssetImageGenerator assetImageGeneratorWithAsset:asset];
+    generator.appliesPreferredTrackTransform = YES;
+    generator.requestedTimeToleranceBefore = kCMTimeZero;
+    generator.requestedTimeToleranceAfter = kCMTimeZero;
+
+    NSInteger gifFPS = MIN(MAX(4, fps), 12);
+    NSTimeInterval step = 1.0 / (NSTimeInterval)gifFPS;
+    NSInteger frameCount = (NSInteger)floor(duration / step);
+    frameCount = MIN(MAX(frameCount, 1), 900);        // 上限 900 帧，防爆内存
+
+    NSURL *outURL = [NSURL fileURLWithPath:gifPath];
+    CGImageDestinationRef dest = CGImageDestinationCreateWithURL(
+        (__bridge CFURLRef)outURL, CFSTR("com.compuserve.gif"), (size_t)frameCount, NULL);
+    if (!dest) return nil;
+
+    // 无限循环
+    NSDictionary *fileProps = @{ @"{GIF}": @{ @"LoopCount": @0 } };
+    CGImageDestinationSetProperties(dest, (__bridge CFDictionaryRef)fileProps);
+    NSDictionary *frameProps = @{ @"{GIF}": @{ @"DelayTime": @(step) } };
+
+    NSInteger written = 0;
+    for (NSInteger i = 0; i < frameCount; i++) {
+        CMTime time = CMTimeMakeWithSeconds(i * step, 600);
+        CGImageRef frame = [generator copyCGImageAtTime:time actualTime:NULL error:NULL];
+        if (!frame) continue;
+        CGImageRef scaled = FSRecCreateScaledImage(frame, maxWidth);
+        CGImageDestinationAddImage(dest, scaled ?: frame,
+                                   (__bridge CFDictionaryRef)frameProps);
+        if (scaled) CGImageRelease(scaled);
+        CGImageRelease(frame);
+        written++;
+    }
+    BOOL ok = CGImageDestinationFinalize(dest);
+    CFRelease(dest);
+    if (!ok || written == 0) {
+        [[NSFileManager defaultManager] removeItemAtURL:outURL error:NULL];
+        return nil;
+    }
+    return gifPath;
+}
 
 // ============ 区域选择 overlay ============
 @interface FSRegionView : NSView@property (nonatomic, copy) void (^onDone)(CGRect cg, CGDirectDisplayID did);
@@ -364,7 +446,7 @@ static void FSRecBarHide(void) {
     if ([key isEqualToString:@"resScale"]) return @[@"原始", @"75%", @"50%"];
     if ([key isEqualToString:@"areaMode"]) return @[@"整个屏幕", @"选择区域"];
     if ([key isEqualToString:@"audioMode"]) return @[@"无", @"系统音", @"麦克风", @"系统+麦克"];
-       if ([key isEqualToString:@"format"]) return @[@"MOV", @"MP4"];
+       if ([key isEqualToString:@"format"]) return @[@"MOV", @"MP4", @"GIF"];
     return @[];
 }
 - (NSInteger)segValue:(NSString *)key {
@@ -890,7 +972,31 @@ void FSScreenRecCloseSettings(void) {
                     // 不在收尾里自动弹 Finder：录制是高频操作，每次都跳窗口很吵，
                     // 而且 selectFile 会抢焦点、把后面的完成回调拖住。
                     // 改成「完成提示面板」里手动点「在 Finder 中显示」。
-                    if (weak.onFinished) weak.onFinished(ferr ? nil : weak.outPath, ferr);
+                    NSString *finalPath = ferr ? nil : weak.outPath;
+
+                    // GIF：mov 只是中间产物，转完立刻删掉，只留 GIF
+                    if (finalPath && [FSRecSettings shared].isGIF) {
+                        NSString *moviePath = finalPath;
+                        NSString *gifPath = [[moviePath stringByDeletingPathExtension]
+                                             stringByAppendingPathExtension:@"gif"];
+                        NSInteger fps = [FSRecSettings shared].fps;
+                        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                            NSString *converted = FSRecConvertMovieToGIF(moviePath, gifPath, fps, 720);
+                            if (converted) {
+                                [[NSFileManager defaultManager] removeItemAtPath:moviePath error:NULL];
+                                FSBarLog(@"[录屏] 已转 GIF → %@", converted);
+                            } else {
+                                FSBarLog(@"[录屏] GIF 转换失败，保留 mov 中间文件");
+                            }
+                            NSString *result = converted ?: moviePath;
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                if (weak.onFinished) weak.onFinished(result, ferr);
+                            });
+                        });
+                        return;
+                    }
+
+                    if (weak.onFinished) weak.onFinished(finalPath, ferr);
                 }];
             } else {
                 if (weak.onFinished) weak.onFinished(nil, weak.writer.error);
