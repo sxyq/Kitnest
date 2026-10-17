@@ -110,6 +110,8 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
     var showsLineNumbers: Bool = false
     var initialScrollOffset: CGFloat? = nil
     var onScrollOffsetChanged: ((CGFloat) -> Void)? = nil
+    /// 外部请求滚动到指定字符位置（左侧目录点击）；nil = 无请求
+    var scrollRequest: Int? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
@@ -124,6 +126,15 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
         textView.font = monospaced
             ? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
             : NSFont.systemFont(ofSize: 13)
+        // 目录跳转 / 外链点击（v82「可点击目录」重建）：委托 + 链接样式
+        textView.delegate = context.coordinator
+        textView.isAutomaticLinkDetectionEnabled = false
+        textView.linkTextAttributes = [
+            .foregroundColor: NSColor.labelColor,
+            .cursor: NSCursor.pointingHand,
+            .underlineStyle: NSUnderlineStyle.single.rawValue
+        ]
+        context.coordinator.textView = textView
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -164,6 +175,11 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
             context.coordinator.lastText = attributedText.string
             textView.textStorage?.setAttributedString(attributedText)
         }
+        // 左侧目录点击 → 滚动到对应标题（同一请求只执行一次）
+        if let request = scrollRequest, context.coordinator.lastScrollRequest != request {
+            context.coordinator.lastScrollRequest = request
+            context.coordinator.scrollToCharacter(request, in: textView)
+        }
     }
 
     static func dismantleNSView(_ scrollView: NSScrollView, coordinator: ScrollCoordinator) {
@@ -172,13 +188,53 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
 
     func makeCoordinator() -> ScrollCoordinator { ScrollCoordinator() }
 
-    final class ScrollCoordinator: NSObject {
+    final class ScrollCoordinator: NSObject, NSTextViewDelegate {
         var onScroll: ((CGFloat) -> Void)?
         var lastText: String?
+        var lastScrollRequest: Int?
+        weak var textView: NSTextView?
 
         @objc func boundsDidChange(_ note: Notification) {
             guard let clipView = note.object as? NSClipView else { return }
             onScroll?(clipView.bounds.origin.y)
+        }
+
+        // 目录链接（frset-toc://loc=N）→ 滚动到标题；http(s) → 系统浏览器
+        func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+            let url: URL?
+            if let u = link as? URL { url = u }
+            else if let s = link as? String { url = URL(string: s) }
+            else { url = nil }
+            guard let url else { return false }
+
+            if url.scheme == PreviewMarkdownRenderer.tocScheme {
+                let comp = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                if let locText = comp?.queryItems?.first(where: { $0.name == "loc" })?.value,
+                   let loc = Int(locText) {
+                    scrollToCharacter(loc, in: textView)
+                }
+                return true
+            }
+            if url.scheme == "http" || url.scheme == "https" {
+                NSWorkspace.shared.open(url)
+                return true
+            }
+            return false
+        }
+
+        func scrollToCharacter(_ index: Int, in textView: NSTextView) {
+            guard let layoutManager = textView.layoutManager,
+                  let container = textView.textContainer else { return }
+            let length = (textView.string as NSString).length
+            guard length > 0 else { return }
+            let clamped = min(max(0, index), length - 1)
+            let glyphRange = layoutManager.glyphRange(
+                forCharacterRange: NSRange(location: clamped, length: 1),
+                actualCharacterRange: nil)
+            var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: container)
+            rect.origin.y += textView.textContainerInset.height
+            rect.size.height += 8
+            textView.scrollToVisible(rect)
         }
 
         deinit {
@@ -323,40 +379,99 @@ struct PreviewFileBackedTextView: View {
 struct PreviewMarkdownTextView: View {
     let model: PreviewPopoverContentModel
     @Stored private var rendered: NSAttributedString
+    @Stored private var headings: [MarkdownHeading] = []
+    @Stored private var scrollRequest: Int? = nil
+    @Stored private var activeHeading: Int? = nil
 
     init(model: PreviewPopoverContentModel) {
         self.model = model
-        self._rendered = Stored(wrappedValue: Self.render(model.inlineText))
+        let parsed = Self.render(model.inlineText)
+        self._rendered = Stored(wrappedValue: parsed.body)
+        self._headings = Stored(wrappedValue: parsed.headings)
     }
 
-    static func render(_ text: String) -> NSAttributedString {
-        let baseFont = NSFont.systemFont(ofSize: 13)
-        if let parsed = try? AttributedString(
-            markdown: text,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            let mutable = NSMutableAttributedString(attributedString: NSAttributedString(parsed))
-            // 统一基字体（Markdown 解析出的属性优先保留颜色/粗细，字体尺寸归一）
-            mutable.addAttribute(.font, value: baseFont, range: NSRange(location: 0, length: mutable.length))
-            mutable.addAttribute(.foregroundColor, value: NSColor.labelColor,
-                                 range: NSRange(location: 0, length: mutable.length))
-            return mutable
-        }
-        return NSAttributedString(string: text,
-                                  attributes: [.font: baseFont, .foregroundColor: NSColor.labelColor])
+    /// 正文 + 标题锚点（目录由左侧栏渲染，不再贴在文首）
+    static func render(_ text: String) -> (body: NSAttributedString, headings: [MarkdownHeading]) {
+        PreviewMarkdownRenderer.renderBody(text)
     }
 
     var body: some View {
-        PreviewTextViewRepresentable(
-            attributedText: rendered,
-            initialScrollOffset: MainPanelPreviewPopoverCoordinator.shared
-                .markdownScrollState(for: model.item.dedupeKey)?.scrollOffset,
-            onScrollOffsetChanged: { offset in
-                // 块帧表/偏移快照：重开预览回到原滚动位（P10）
-                MainPanelPreviewPopoverCoordinator.shared.rememberMarkdownScroll(
-                    dedupeKey: model.item.dedupeKey,
-                    state: MarkdownScrollState(scrollOffset: offset))
-            })
+        HStack(spacing: 0) {
+            if headings.count >= 2 {
+                PreviewTOCSidebar(headings: headings, activeLocation: activeHeading) { heading in
+                    activeHeading = heading.location
+                    scrollRequest = heading.location
+                }
+                .frame(width: 142)
+                Divider().opacity(0.5)
+            }
+            PreviewTextViewRepresentable(
+                attributedText: rendered,
+                initialScrollOffset: MainPanelPreviewPopoverCoordinator.shared
+                    .markdownScrollState(for: model.item.dedupeKey)?.scrollOffset,
+                onScrollOffsetChanged: { offset in
+                    // 块帧表/偏移快照：重开预览回到原滚动位（P10）
+                    MainPanelPreviewPopoverCoordinator.shared.rememberMarkdownScroll(
+                        dedupeKey: model.item.dedupeKey,
+                        state: MarkdownScrollState(scrollOffset: offset))
+                },
+                scrollRequest: scrollRequest)
+        }
+    }
+}
+
+// MARK: - 左侧目录侧栏（原版：目录在左边，颜色中性）
+
+struct PreviewTOCSidebar: View {
+    let headings: [MarkdownHeading]
+    let activeLocation: Int?
+    let onSelect: (MarkdownHeading) -> Void
+
+    @Stored private var hovered: Int?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("目录")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    ForEach(headings) { heading in
+                        let isActive = activeLocation == heading.location
+                        Button {
+                            onSelect(heading)
+                        } label: {
+                            Text(heading.title)
+                                .font(.system(size: 11.5,
+                                              weight: isActive ? .medium : .regular))
+                                .foregroundStyle(isActive ? Color.primary
+                                                          : (hovered == heading.location ? Color.primary : Color.secondary))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 8)
+                                .padding(.leading, heading.indent)
+                                .padding(.vertical, 4)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                        .fill(isActive ? Color.primary.opacity(0.09)
+                                                       : (hovered == heading.location ? Color.primary.opacity(0.05) : Color.clear))
+                                }
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { inside in hovered = inside ? heading.location : nil }
+                        .padding(.horizontal, 6)
+                    }
+                }
+                .padding(.bottom, 10)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Color.primary.opacity(0.02))
     }
 }
 
@@ -388,14 +503,9 @@ struct PreviewJSONTextView: View {
     }
 
     var body: some View {
-        PreviewTextViewRepresentable(
-            attributedText: NSAttributedString(
-                string: displayText,
-                attributes: [
-                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
-                    .foregroundColor: NSColor.labelColor
-                ]),
-            monospaced: true)
+        // JSON 不再是「一屏 pretty-print 文本」：树形 / 表格双视图（见 JSONInspectorView）。
+        // 大文件（>5MB）走主面板拖放 → 独立检视器窗口，popover 只做快速看结构。
+        JSONInspectorView(text: model.inlineText, compact: true)
     }
 }
 
@@ -425,6 +535,8 @@ struct PreviewImageView: View {
     @Stored private var fullImage: NSImage?
     @Stored private var needsFullRebuild = true
     @Stored private var isQRCode = false
+    /// 解码失败（文件缺失/损坏）→ 显示占位，不留无限转圈
+    @Stored private var didFailToLoad = false
 
     private var displayImage: NSImage? { fullImage ?? thumbnail }
 
@@ -443,6 +555,19 @@ struct PreviewImageView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: .infinity)
+            } else if didFailToLoad {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.08))
+                    .overlay {
+                        VStack(spacing: 6) {
+                            Image(systemName: "photo.badge.exclamationmark")
+                                .font(.system(size: 22))
+                                .foregroundStyle(.secondary)
+                            Text("无法预览这张图片")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
             } else {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.08))
@@ -470,12 +595,18 @@ struct PreviewImageView: View {
 
     @MainActor
     private func loadImages() async {
-        guard let fullPath = model.item.imagePath else { return }
-        let fullURL = URL(fileURLWithPath: fullPath)
-        let thumbnailURL = model.item.thumbnailPath.map { URL(fileURLWithPath: $0) }
+        guard let fullPath = model.item.imagePath else {
+            didFailToLoad = true
+            return
+        }
+        // 注意：item.imagePath / thumbnailPath 存的是**相对路径**（"images/xxx.png"），
+        // 必须经 ClipboardFileStore 解析到应用支持目录；直接用 URL(fileURLWithPath:)
+        // 会相对当前工作目录解析 → 文件不存在 → 永远转圈（2026-10-17 实测）。
+        let fullURL = ClipboardFileStore.url(forRelativePath: fullPath)
+        let thumbnailURL = model.item.thumbnailPath.map { ClipboardFileStore.url(forRelativePath: $0) }
         let loader = PreviewImageLoader.shared
 
-        // P9 步骤 1：缩略图先行
+        // P9 步骤 1：缩略图先行（几十毫秒内先出图，避免空白等待）
         thumbnail = await withCheckedContinuation { continuation in
             loader.loadImage(at: fullURL, thumbnailURL: thumbnailURL,
                              needsFullRebuild: false) { continuation.resume(returning: $0) }
@@ -495,6 +626,7 @@ struct PreviewImageView: View {
             }.value
         }
         needsFullRebuild = false
+        didFailToLoad = (fullImage == nil && thumbnail == nil)
     }
 }
 

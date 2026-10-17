@@ -129,7 +129,19 @@ public struct PreviewPopoverContentModel: Identifiable {
                                        imagePreviewMaxPopoverHeight: CGFloat,
                                        textPreviewLoadingMinHeight: CGFloat) -> CGFloat {
         switch kind {
-        case .text, .markdown, .json:
+        case .markdown:
+            // Markdown 里有代码块、表格、mermaid 流程图（图片附件）——按行数估算会严重偏矮，
+            // 直接把渲染结果量一遍（渲染一次的成本远低于高度不足导致的裁切）。
+            let rendered = PreviewMarkdownTextView.render(inlineText).body
+            let width: CGFloat = 304
+            let rect = rendered.boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                             options: [.usesLineFragmentOrigin, .usesFontLeading])
+            return min(maxPopoverHeight, max(textPreviewLoadingMinHeight, ceil(rect.height) + 24))
+        case .json:
+            // JSON 走树形/表格视图（JSONInspectorView），没有「行数」可估；
+            // 给一个固定可用高度，避免树只露出两三行就被裁掉
+            return min(maxPopoverHeight, max(360, textPreviewLoadingMinHeight))
+        case .text:
             let lineHeight: CGFloat = 17          // 13pt 字体行高（⬜ 原作值未探明）
             let padding: CGFloat = 20
             let lines = CGFloat(max(1, inlineText.lineCountEstimate))
@@ -153,7 +165,10 @@ public struct PreviewPopoverContentModel: Identifiable {
     /// 用 CGImageSource 元数据读图片尺寸（不解码像素，便宜）
     public static func imagePixelSize(item: ClipboardItem) -> CGSize? {
         let path = item.imagePath ?? item.thumbnailPath
-        guard let path, let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
+        // 相对路径必须经存储层解析（否则 CGImageSource 打不开 → 预估高度永远是默认值）
+        guard let path else { return nil }
+        let url = ClipboardFileStore.url(forRelativePath: path)
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         guard let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return nil }
         guard let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
               let h = props[kCGImagePropertyPixelHeight] as? CGFloat else { return nil }
