@@ -52,6 +52,27 @@ plutil -lint *.Localizable.strings          # 22 个全 OK
 plutil -convert json -o - en.Localizable.strings | python3 -c "import json,sys;print(len(json.load(sys.stdin)))"   # → 793
 ```
 
+## 二之二、⚠️ 本机 grep 陷阱（影响一切「搜不到 = 不存在」的结论）
+
+```
+$ grep --version
+toybox 0.8.13 (is not GNU grep 9.0)      ← 不是 GNU grep
+```
+
+**BRE 不支持 `\|` 交替**（那是 GNU grep 扩展），含该模式的命令**恒返回空**：
+
+| 命令 | 结果 |
+|---|---|
+| `grep -n "Appearance\|nonexistentzz"` | **空**（退出码 1） |
+| `grep -nE "Appearance\|nonexistentzz"` | 有命中✅ |
+
+已在**本机实测复现**（toybox 0.8.13）。危险之处在于它**绕过思考直接伪造输入**：
+你不会怀疑一个「返回空」的检索命令，只会把空当成事实。
+写检索时统一用 `grep -E` 或 `grep -e A -e B`。
+**凡基于「grep 返回空」得出的「不存在 / 未接线 / 零调用」结论，一律用专用 Grep 工具复核一遍。**
+
+（本目录为文本 `.strings`，日常检索建议直接用专用 Grep 工具或 `grep -E`。）
+
 ## 三、🔴 扩展前必读：79 个「空值键」陷阱（实测）
 
 **22 个语言里，各有 79 个键的值为空串（`""`），且 22 个语言完全相同。**
