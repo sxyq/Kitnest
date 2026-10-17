@@ -5,7 +5,8 @@ import CoreGraphics
 
 /// 标注工具类型（对应原作截图工具条的箭头 / 矩形 / 文字等）
 public enum AnnotationTool: String, CaseIterable, Identifiable {
-    case rectangle, ellipse, arrow, pen, text
+    // 前 5 个是原版截图标注就有的；后 3 个对齐 ZTools「剪贴板图片涂改」插件
+    case rectangle, ellipse, arrow, pen, text, highlighter, mosaic, eraser
 
     public var id: String { rawValue }
 
@@ -16,6 +17,9 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .arrow:     return "箭头"
         case .pen:       return "画笔"
         case .text:      return "文字"
+        case .highlighter: return "荧光"
+        case .mosaic:    return "马赛克"
+        case .eraser:    return "橡皮"
         }
     }
 
@@ -26,6 +30,9 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .arrow:     return "arrow.up.right"
         case .pen:       return "pencil.tip"
         case .text:      return "textformat"
+        case .highlighter: return "highlighter"
+        case .mosaic:    return "squareshape.split.3x3"
+        case .eraser:    return "eraser"
         }
     }
 }
@@ -100,15 +107,15 @@ public enum AnnotationCompositor {
 
     /// 在当前 NSGraphicsContext 中绘制标注。`rect` 为可绘制区域（左上原点坐标），
     /// 用于把坐标裁剪掉落在画面外的部分。
-    public static func draw(_ annotations: [Annotation], in rect: CGRect) {
+    public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil) {
         guard let clip = NSGraphicsContext.current else { return }
         clip.saveGraphicsState()
         NSBezierPath(rect: rect).addClip()
-        for annotation in annotations { draw(annotation) }
+        for annotation in annotations { draw(annotation, base: base) }
         clip.restoreGraphicsState()
     }
 
-    private static func draw(_ a: Annotation) {
+    private static func draw(_ a: Annotation, base: CGImage? = nil) {
         let color = color(fromHex: a.colorHex)
         switch a.tool {
         case .rectangle:
@@ -127,6 +134,22 @@ public enum AnnotationCompositor {
             path.move(to: a.points[0])
             for p in a.points.dropFirst() { path.line(to: p) }
             apply(path, color: color, lineWidth: a.lineWidth)
+        case .highlighter:
+            // 荧光笔：同画笔轨迹，但更粗且半透明（压字不挡字）
+            guard a.points.count >= 2 else { return }
+            let path = NSBezierPath()
+            path.move(to: a.points[0])
+            for p in a.points.dropFirst() { path.line(to: p) }
+            path.lineWidth = a.lineWidth * 4
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            color.withAlphaComponent(0.35).setStroke()
+            path.stroke()
+        case .mosaic:
+            guard let r = rect(of: a) else { return }
+            drawMosaic(in: r, base: base, fallbackColor: color)
+        case .eraser:
+            return   // 橡皮不产生图元（在画布上直接删标注）
         case .text:
             guard let anchor = a.points.first, let text = a.text, !text.isEmpty else { return }
             let attrs: [NSAttributedString.Key: Any] = [
@@ -135,6 +158,34 @@ public enum AnnotationCompositor {
             ]
             (text as NSString).draw(at: anchor, withAttributes: attrs)
         }
+    }
+
+    /// 马赛克：取底图对应区域「缩小再放大」（nearest）做像素化；
+    /// 画布预览阶段拿不到底图时退化为半透明灰块（导出 composite 时一定走真像素化）。
+    private static func drawMosaic(in rect: CGRect, base: CGImage?, fallbackColor: NSColor) {
+        guard rect.width >= 2, rect.height >= 2 else { return }
+        guard let base,
+              let crop = base.cropping(to: rect),
+              let ctx = NSGraphicsContext.current?.cgContext else {
+            fallbackColor.withAlphaComponent(0.25).setFill()
+            NSBezierPath(rect: rect).fill()
+            return
+        }
+        let block: CGFloat = 10
+        let w = max(1, Int(rect.width / block))
+        let h = max(1, Int(rect.height / block))
+        guard let small = CGContext(data: nil, width: w, height: h,
+                                    bitsPerComponent: 8, bytesPerRow: 0,
+                                    space: CGColorSpaceCreateDeviceRGB(),
+                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        small.interpolationQuality = .low
+        small.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
+        guard let smallImage = small.makeImage() else { return }
+        ctx.saveGState()
+        ctx.clip(to: rect)
+        ctx.interpolationQuality = .none
+        ctx.draw(smallImage, in: rect)
+        ctx.restoreGState()
     }
 
     private static func drawArrow(_ a: Annotation, color: NSColor) {
@@ -163,7 +214,7 @@ public enum AnnotationCompositor {
     }
 
     /// 形状类标注的规范化矩形（左上原点）
-    private static func rect(of a: Annotation) -> CGRect? {
+    static func rect(of a: Annotation) -> CGRect? {
         guard a.points.count >= 2 else { return nil }
         let p0 = a.points.first!, p1 = a.points.last!
         return CGRect(x: min(p0.x, p1.x), y: min(p0.y, p1.y),

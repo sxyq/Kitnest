@@ -10,6 +10,14 @@ public enum CaptureModule: AppModule {
     public static let identifier = "capture"
 
     public static func start() {
+        // 剪贴板预览里点「标注」→ 用截图标注编辑器改这张图（跨模块走通知，不互相引用）
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("frset.clipboard.editImage"),
+            object: nil, queue: .main) { note in
+                guard let nsImage = note.object as? NSImage,
+                      let cg = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+                AnnotationEditorController.shared.open(image: cg)
+            }
         // 共享能力：其它模块只依赖 OCRServiceProtocol
         ServiceLocator.ocrService = OCRService.shared
 

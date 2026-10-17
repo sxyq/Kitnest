@@ -75,15 +75,48 @@ final class AnnotationCanvasView: NSView {
         ctx.translateBy(x: f.minX, y: f.minY)
         ctx.scaleBy(x: imageScale, y: imageScale)
         let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: CGFloat(image.height))
-        AnnotationCompositor.draw(annotations, in: canvasRect)
-        if let draft = draft { AnnotationCompositor.draw([draft], in: canvasRect) }
+        AnnotationCompositor.draw(annotations, in: canvasRect, base: image)
+        if let draft = draft { AnnotationCompositor.draw([draft], in: canvasRect, base: image) }
         ctx.restoreGState()
+    }
+
+    // MARK: 命中测试（橡皮擦用）
+
+    /// 判断某个标注是否被点中：形状类看包围盒，画笔/荧光看轨迹邻近点，
+    /// 文字看锚点附近。容差按线宽放大，小图元也点得到。
+    private func hitTest(_ a: Annotation, at point: CGPoint) -> Bool {
+        let tolerance = max(6, a.lineWidth * 2)
+        switch a.tool {
+        case .rectangle, .ellipse, .mosaic:
+            guard let r = AnnotationCompositor.rect(of: a) else { return false }
+            return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+        case .arrow:
+            return a.points.contains { hypot($0.x - point.x, $0.y - point.y) <= tolerance }
+        case .pen, .highlighter:
+            return a.points.contains { hypot($0.x - point.x, $0.y - point.y) <= tolerance * 1.5 }
+        case .text:
+            guard let anchor = a.points.first else { return false }
+            return hypot(anchor.x - point.x, anchor.y - point.y) <= max(20, a.lineWidth * 8)
+        case .eraser:
+            return false
+        }
     }
 
     // MARK: 鼠标
 
     override func mouseDown(with event: NSEvent) {
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
+
+        if tool == .eraser {
+            // 橡皮擦的是「标注」而不是像素：从后往前找第一个命中的图元删掉
+            if let index = annotations.lastIndex(where: { hitTest($0, at: ip) }) {
+                annotations.remove(at: index)
+                needsDisplay = true
+                onChange?()
+            }
+            return
+        }
+
         if tool == .text {
             if let text = promptText(), !text.isEmpty {
                 annotations.append(Annotation(tool: .text, points: [ip], text: text,
@@ -100,9 +133,9 @@ final class AnnotationCanvasView: NSView {
     override func mouseDragged(with event: NSEvent) {
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
-        if tool == .pen {
+        if tool == .pen || tool == .highlighter {
             if draft == nil {
-                draft = Annotation(tool: .pen, points: [start],
+                draft = Annotation(tool: tool, points: [start],
                                    colorHex: AnnotationCompositor.hex(of: color),
                                    lineWidth: lineWidth)
             }
@@ -120,8 +153,8 @@ final class AnnotationCanvasView: NSView {
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
         let finished: Annotation?
-        if tool == .pen {
-            var a = draft ?? Annotation(tool: .pen, points: [start],
+        if tool == .pen || tool == .highlighter {
+            var a = draft ?? Annotation(tool: tool, points: [start],
                                         colorHex: AnnotationCompositor.hex(of: color),
                                         lineWidth: lineWidth)
             a.points.append(ip)
@@ -147,8 +180,13 @@ final class AnnotationCanvasView: NSView {
             guard a.points.count >= 2 else { return false }
             let dx = a.points[0].x - a.points[1].x, dy = a.points[0].y - a.points[1].y
             return (dx * dx + dy * dy).squareRoot() >= 6
-        case .pen:
+        case .pen, .highlighter:
             return a.points.count >= 2
+        case .mosaic:
+            guard a.points.count >= 2 else { return false }
+            return abs(a.points[0].x - a.points[1].x) >= 4 && abs(a.points[0].y - a.points[1].y) >= 4
+        case .eraser:
+            return false
         case .text:
             return true
         }
@@ -240,9 +278,9 @@ final class AnnotationEditorWindow: NSWindow {
                                        trackingMode: .selectOne,
                                        target: self, action: #selector(toolChanged(_:)))
         tools.selectedSegment = 0
-        tools.frame = NSRect(x: 10, y: 8, width: 300, height: 28)
+        tools.frame = NSRect(x: 10, y: 8, width: 372, height: 28)
 
-        let colorWell = NSColorWell(frame: NSRect(x: 320, y: 8, width: 40, height: 28))
+        let colorWell = NSColorWell(frame: NSRect(x: 392, y: 8, width: 40, height: 28))
         colorWell.color = canvas.color
         colorWell.target = self
         colorWell.action = #selector(colorChanged(_:))

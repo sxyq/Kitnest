@@ -584,12 +584,43 @@ struct PreviewImageView: View {
                     .frame(maxHeight: 120)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if displayImage != nil {
+                Button {
+                    editImage()
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "pencil.tip.crop.circle")
+                            .font(.system(size: 11))
+                        Text("标注")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.regularMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(8)
+                .help("用标注工具改这张图（画笔/矩形/箭头/文字/荧光/马赛克）")
+            }
+        }
         .padding(.vertical, MainPanelPreviewPopoverCoordinator.shared.imagePreviewVerticalPaddingHeight)
         // F13 头尾高度分支：QR 图保留更大头尾高度，普通图片更紧凑
         .frame(minHeight: headerFooterHeight * 2 + MainPanelPreviewPopoverCoordinator.shared.imagePreviewVerticalPaddingHeight * 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: model.item.dedupeKey) {
             await loadImages()
+        }
+    }
+
+    /// 当前图片交给标注编辑器。跨模块走通知（Panel 不直接引用 Capture 类型）：
+    /// 关预览 → 发 frset.clipboard.editImage → Capture 模块用标注编辑器打开。
+    private func editImage() {
+        guard let image = displayImage else { return }
+        MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            NotificationCenter.default.post(name: Notification.Name("frset.clipboard.editImage"),
+                                            object: image)
         }
     }
 
