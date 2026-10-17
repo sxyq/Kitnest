@@ -161,7 +161,7 @@ struct PanelRootView: View {
             segmentItem("性能监测", selected: page == .performance) {
                 monitorPresenter.selectPerformance(true)
             }
-            segmentItem("中转站", selected: page == .transfer) {
+            segmentItem("文件中转", selected: page == .transfer) {
                 monitorPresenter.selectTransferDock()
             }
         }

@@ -68,8 +68,22 @@ final class TransferDockService: ObservableObject {
     @Published private(set) var lastSyncedAt: Date?
 
     private let queue = DispatchQueue(label: "frset.transferdock.bridge", qos: .userInitiated)
+    private var keepAliveTimer: Timer?
 
     private init() {}
+
+    /// 会话保活（docs/08：会话 30 分钟滑动，5 分钟一刷即可常驻在线）。
+    /// 首次登录成功后启动；只在已登录时打桥，且 Python 侧另有 60s 节流兜底。
+    func startKeepAlive() {
+        guard keepAliveTimer == nil else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.keepAliveTimer == nil else { return }
+            self.keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+                guard let self, self.loggedIn else { return }
+                self.queue.async { _ = Self.runBridge(["keepalive"]) }
+            }
+        }
+    }
 
     var spaceText: String {
         guard totalSpace > 0 else { return "" }
@@ -237,6 +251,7 @@ final class TransferDockService: ObservableObject {
             loggedIn = true
             statusMessage = "登录态已保存（\(relevant.count) 条 cookie）"
             errorMessage = nil
+            startKeepAlive()
         } catch {
             errorMessage = "写入登录态失败：\(error.localizedDescription)"
         }
@@ -262,18 +277,17 @@ final class TransferDockService: ObservableObject {
             return ["ok": false, "error": "无法启动桥接脚本：\(error.localizedDescription)"]
         }
 
-        // 上传/下载可能很慢：给 10 分钟上限，避免 UI 永远转圈
-        let deadline = Date().addingTimeInterval(600)
-        while process.isRunning && Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
+        // 先把两个管道读空再等退出（readDataToEndOfFile 阻塞到 EOF，零轮询开销；
+        // 顺序很重要：先读后 wait，否则子进程可能因管道写满而卡死）。
+        // 超时保护用「兜底杀手」：10 分钟后还在跑就 terminate，EOF 自然到达。
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 600) {
+            if process.isRunning {
+                process.terminate()
+            }
         }
-        if process.isRunning {
-            process.terminate()
-            return ["ok": false, "error": "操作超时（10 分钟）"]
-        }
-
         let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
         let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         let stdout = String(data: outData, encoding: .utf8) ?? ""
         let stderr = String(data: errData, encoding: .utf8) ?? ""
 

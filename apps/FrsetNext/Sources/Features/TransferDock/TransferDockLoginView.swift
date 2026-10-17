@@ -24,7 +24,7 @@ struct TransferDockLoginView: View {
                 Image(systemName: "person.crop.circle.badge.key")
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
-                Text("登录中转站账号")
+                Text("登录文件中转账号")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 8)
                 Text(progressText)
@@ -41,8 +41,10 @@ struct TransferDockLoginView: View {
                 onCookiesDetected: { cookies in
                     TransferDockService.shared.saveCookies(cookies)
                     detected = true
-                    progressText = "登录成功，正在保存…"
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { onLoggedIn() }
+                    // 账密只需要输一次：之后官方页面的长效主会话（id.heytap.com 域）
+                    // 会让这里「打开即登录态」→ 自动落盘 → 自动关窗，全程无感。
+                    progressText = "登录态已就绪，正在保存…"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { onLoggedIn() }
                 },
                 onProgress: { text in progressText = text })
         }

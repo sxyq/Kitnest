@@ -53,7 +53,7 @@ struct TransferDockView: View {
             Image(systemName: "arrow.left.arrow.right.square")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-            Text("中转站")
+            Text("文件中转")
                 .font(.system(size: 13, weight: .semibold))
             if service.loggedIn {
                 Text("已登录")
@@ -207,7 +207,7 @@ struct TransferDockView: View {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 26, weight: .light))
                 .foregroundStyle(.secondary)
-            Text("还没有登录中转站")
+            Text("还没有登录文件中转")
                 .font(.system(size: 13, weight: .medium))
             Text(service.errorMessage ?? "登录一次即可长期使用，之后会自动续期")
                 .font(.system(size: 11))

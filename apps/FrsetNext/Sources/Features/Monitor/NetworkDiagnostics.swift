@@ -57,7 +57,7 @@ final class NetworkDiagnostics: ObservableObject {
     static let defaultSites: [SiteLatency] = [
         .init(name: "百度", host: "https://www.baidu.com/favicon.ico", milliseconds: nil),
         .init(name: "网易云", host: "https://music.163.com/favicon.ico", milliseconds: nil),
-        .init(name: "阿里云", host: "https://cloud.tencent.com/favicon.ico", milliseconds: nil),
+        .init(name: "阿里云", host: "https://www.aliyun.com/favicon.ico", milliseconds: nil),
         .init(name: "腾讯云", host: "https://cloud.tencent.com/favicon.ico", milliseconds: nil),
         .init(name: "GitHub", host: "https://github.com/favicon.ico", milliseconds: nil),
         .init(name: "Google", host: "https://www.google.com/generate_204", milliseconds: nil),
