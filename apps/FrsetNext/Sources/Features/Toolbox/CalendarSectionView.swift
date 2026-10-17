@@ -1,50 +1,106 @@
 import SwiftUI
 import AppKit
 
-// MARK: - 主面板「日历」区段（id "calendar", priority 60）
-// 结构：月份切换条 → 7 列月视图网格（今天高亮 / 周末灰 / 农历小字 / 事件打点）→ 今日事件列表 → 授权提示
+// MARK: - 主面板「日历」卡（原版两周视图，1:1）
+//
+// 原版实测（400×700 面板）：白底圆角卡，高约 112pt。
+//   ‹ 2026年10月 ›                                    ⌄
+//   周日   周一   周二   周三   周四   周五   周六
+//    11    12    13    14    15    16   [17]
+//   初二   初三   初四   初五   初六   初七   初八
+//    18    19    20    21    22    23    24
+//   重阳   初十   十一   十二   十三   霜降   十五
+//
+// 交互：‹ › 前后翻两周；点月标题回今天；⌄ 折叠（只留标题行）。
+// 今天 = 蓝底白字圆角块；节气/节日 = 橙色文字。
 
 public struct CalendarSectionView: View {
     @ObservedObject private var service = CalendarService.shared
-    @Stored private var monthBase: Date = Date()
-    @Stored private var grid: [CalendarDay] = []
-    @Stored private var todayEvents: [CalendarEvent] = []
+    /// 当前两周期间的锚点（渲染时归一化到所在周的周日）
+    @Stored private var anchor: Date = Date()
+    @Stored private var collapsed = false
+    /// 缓存 42 天数据（含农历/节气/事件），避免每帧查 EventKit
+    @Stored private var cachedDays: [CalendarDay] = []
+    @Environment(\.colorScheme) private var colorScheme
 
-    private static let weekdayTitles = ["日", "一", "二", "三", "四", "五", "六"]
+    private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
     public init() {}
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 6) {
             header
-            weekdayHeader
-            monthGrid
-            if !service.isAuthorized { authorizationBanner }
-            todayEventsList
+            if !collapsed {
+                weekdayHeader
+                weeksGrid
+            }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(cardFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
+        )
         .onAppear { reload() }
-        .onChange(of: monthBase) { _ in reload() }
     }
 
-    // MARK: 顶部（月份切换）
+    private var cardFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.07) : Color.white.opacity(0.86)
+    }
+
+    // MARK: 标题行
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text(CalendarService.monthTitle(monthBase))
-                .font(.system(size: 13, weight: .semibold))
-            Spacer()
-            Button(action: { shiftMonth(-1) }) {
-                Image(systemName: "chevron.left").font(.system(size: 11, weight: .semibold))
+            Button { shift(-14) } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            Button("今天") { monthBase = Date() }
-                .buttonStyle(.plain)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            Button(action: { shiftMonth(1) }) {
-                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+
+            Button {
+                anchor = Date()
+                reload()
+            } label: {
+                Text(monthTitle)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
             }
             .buttonStyle(.plain)
+            .help("回到今天")
+
+            Button { shift(14) } label: {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 6)
+
+            Button {
+                withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                    collapsed.toggle()
+                }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(collapsed ? -90 : 0))
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(collapsed ? "展开日历" : "收起日历")
         }
     }
 
@@ -52,125 +108,139 @@ public struct CalendarSectionView: View {
         HStack(spacing: 0) {
             ForEach(Self.weekdayTitles, id: \.self) { title in
                 Text(title)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
             }
         }
+        .padding(.top, 2)
     }
 
-    // MARK: 月视图网格
+    // MARK: 两行日期
 
-    private var monthGrid: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 7)
-        return LazyVGrid(columns: columns, spacing: 2) {
-            ForEach(grid) { day in
-                calendarCell(day)
-            }
-        }
-    }
-
-    private func calendarCell(_ day: CalendarDay) -> some View {
-        let inMonth = Calendar.current.component(.month, from: day.date) == Calendar.current.component(.month, from: monthBase)
-        let isHoliday = day.holidayText != nil
-        return VStack(spacing: 1) {
-            Text("\(Calendar.current.component(.day, from: day.date))")
-                .font(.system(size: 12, weight: day.isToday ? .bold : .regular))
-                .foregroundStyle(cellTextColor(day, inMonth: inMonth))
-            Text(day.lunarText ?? " ")
-                .font(.system(size: 8))
-                .foregroundStyle(isHoliday ? Color.orange : Color.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Circle()
-                .fill(day.events.isEmpty ? Color.clear : Color.accentColor)
-                .frame(width: 4, height: 4)
-        }
-        .frame(height: 34)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(day.isToday ? Color.accentColor.opacity(0.18) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 5)
-                .stroke(day.isToday ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1)
-        )
-    }
-
-    private func cellTextColor(_ day: CalendarDay, inMonth: Bool) -> Color {
-        if !inMonth { return Color.secondary.opacity(0.35) }
-        if day.isToday { return Color.accentColor }
-        if day.holidayText != nil { return Color.orange }
-        if day.isWeekend { return Color.secondary }
-        return Color.primary
-    }
-
-    // MARK: 授权提示
-
-    private var authorizationBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.system(size: 11))
-            Text(service.authorizationHint ?? "日历未授权，事件列表为空")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-            Spacer()
-            Button("去授权") { service.openCalendarPrivacySettings() }
-                .buttonStyle(.plain)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-        }
-        .padding(6)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Color.orange.opacity(0.1)))
-    }
-
-    // MARK: 今日事件
-
-    private var todayEventsList: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("今日事件")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            if todayEvents.isEmpty {
-                Text(service.isAuthorized ? "今天没有日程" : "授权后可显示日历事件")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 2)
-            } else {
-                ForEach(todayEvents) { event in
-                    HStack(spacing: 6) {
-                        Circle().fill(Color.accentColor).frame(width: 5, height: 5)
-                        Text(event.title)
-                            .font(.system(size: 11))
-                            .lineLimit(1)
-                        Spacer()
-                        Text(event.isAllDay ? "全天" : timeText(event.startDate))
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+    private var weeksGrid: some View {
+        VStack(spacing: 2) {
+            ForEach(0..<2, id: \.self) { row in
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { column in
+                        dayCell(row: row, column: column)
                     }
                 }
             }
         }
     }
 
+    private func dayCell(row: Int, column: Int) -> some View {
+        let index = row * 7 + column
+        let day = index < twoWeekDays.count ? twoWeekDays[index] : nil
+        let isToday = day?.isToday ?? false
+        let isFestival = day.map { isFestivalDay($0) } ?? false
+
+        return VStack(spacing: 1) {
+            Text(day.map { "\(Calendar.current.component(.day, from: $0.date))" } ?? "")
+                .font(.system(size: 15, weight: isToday ? .semibold : .medium))
+                .foregroundStyle(isToday ? Color.white : Color.primary)
+            Text(day?.lunarDisplay ?? " ")
+                .font(.system(size: 9))
+                .foregroundStyle(isToday ? Color.white.opacity(0.92)
+                                         : (isFestival ? Color.orange : Color.secondary))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 34)
+        .background {
+            if isToday {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.accentColor)
+                    .padding(.horizontal, 11)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard let date = day?.date else { return }
+            NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
+                                            userInfo: ["date": date])
+        }
+    }
+
     // MARK: 数据
 
+    /// 两周 14 天（按当前锚点所在周起算）
+    private var twoWeekDays: [CalendarDay] {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        calendar.firstWeekday = 1
+        let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
+        var map: [Date: CalendarDay] = [:]
+        for day in cachedDays { map[calendar.startOfDay(for: day.date)] = day }
+        return (0..<14).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
+            if let hit = map[calendar.startOfDay(for: date)] { return hit }
+            return CalendarDay(date: date,
+                               isToday: calendar.isDateInToday(date),
+                               isWeekend: calendar.component(.weekday, from: date) == 1
+                                       || calendar.component(.weekday, from: date) == 7)
+        }
+    }
+
+    private var monthTitle: String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        calendar.firstWeekday = 1
+        let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
+        return CalendarService.monthTitle(start)
+    }
+
+    /// 节气 / 传统节日（橙色高亮）：农历节气表或节日表命中
+    private func isFestivalDay(_ day: CalendarDay) -> Bool {
+        if let text = day.holidayText, !text.isEmpty { return true }
+        if LunarCalendar.solarTerm(day.date) != nil { return true }
+        if let lunar = LunarCalendar.lunarDate(day.date),
+           LunarCalendar.lunarFestival(lunar) != nil { return true }
+        return false
+    }
+
+    private func shift(_ days: Int) {
+        guard let next = Calendar.current.date(byAdding: .day, value: days, to: anchor) else { return }
+        anchor = next
+        reload()
+    }
+
     private func reload() {
-        grid = service.monthDays(for: monthBase)
-        todayEvents = service.todayEvents
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        calendar.firstWeekday = 1
+        let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
+        var days = service.monthDays(for: start)
+        if let next = calendar.date(byAdding: .day, value: 14, to: start) {
+            days.append(contentsOf: service.monthDays(for: next))
+        }
+        cachedDays = days
+    }
+}
+
+// MARK: - 农历展示
+
+private extension CalendarDay {
+    /// 单元格第二行：优先节气/节日名，其次农历日名
+    /// 原版日历第二行文字更短：「重阳节」→「重阳」、「国庆节」→「国庆」
+    static func shortName(_ text: String) -> String {
+        text.hasSuffix("节") && text.count > 2 ? String(text.dropLast()) : text
     }
 
-    private func shiftMonth(_ delta: Int) {
-        guard let next = Calendar.current.date(byAdding: .month, value: delta, to: monthBase) else { return }
-        monthBase = next
+    var lunarDisplay: String {
+        if let lunar = LunarCalendar.lunarDate(date) {
+            if let festival = LunarCalendar.lunarFestival(lunar) { return Self.shortName(festival) }
+            if let term = LunarCalendar.solarTerm(date) { return term }
+        }
+        if let text = lunarText, !text.isEmpty { return Self.shortName(text) }
+        if let holiday = holidayText, !holiday.isEmpty { return Self.shortName(holiday) }
+        return ""
     }
+}
 
-    private func timeText(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "HH:mm"
-        return fmt.string(from: date)
-    }
+public extension Notification.Name {
+    /// 点击日历某一天（userInfo["date"]）
+    static let calendarDidSelectDay = Notification.Name("frset.calendar.didSelectDay")
 }

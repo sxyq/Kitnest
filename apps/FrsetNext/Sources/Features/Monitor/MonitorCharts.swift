@@ -202,7 +202,7 @@ public enum MonitorColors {
 
 // MARK: - 小组件
 
-/// 卡片容器（Frset 视觉：圆角 + 半透明底）
+/// 卡片容器（Liquid Glass 镀边：斜向高光 + 细亮边 + 内阴影；不叠第二层模糊）
 public struct MonitorCard<Content: View>: View {
     private let content: Content
 
@@ -213,14 +213,7 @@ public struct MonitorCard<Content: View>: View {
     public var body: some View {
         content
             .padding(10)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                    .fill(Theme.cardBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                    .stroke(Theme.separator, lineWidth: 0.5)
-            )
+            .background(GlassCardBackground(cornerRadius: Theme.cornerRadius))
     }
 }
 
@@ -239,18 +232,20 @@ public struct MonitorRow: View {
     public var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.system(size: 11))
+                .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             Text(value)
-                .font(.system(size: 12, weight: .medium).monospacedDigit())
+                .font(.system(size: 13, weight: .medium).monospacedDigit())
                 .foregroundStyle(color)
                 .multilineTextAlignment(.trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
     }
 }
 
-/// 分区标题（对齐 Frset 设置页风格）
+/// 分区标题（原版 Stats 版式：居中文字 + 两侧细线，如「──── 负载历史 ────」）
 public struct MonitorSectionTitle: View {
     public let title: String
 
@@ -259,10 +254,20 @@ public struct MonitorSectionTitle: View {
     }
 
     public var body: some View {
-        HStack {
-            Theme.sectionHeader(title)
-            Spacer()
+        HStack(spacing: 10) {
+            line
+            Text(title)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize()
+            line
         }
-        .padding(.top, 4)
+        .padding(.vertical, 5)
+    }
+
+    private var line: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.12))
+            .frame(height: 0.5)
     }
 }

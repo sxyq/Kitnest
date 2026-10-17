@@ -324,12 +324,12 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
         let table = ClipboardTableView()
         table.headerView = nil
-        table.rowHeight = Theme.rowHeight
+        table.rowHeight = Theme.statsRowHeight
         table.usesAutomaticRowHeights = false
         table.allowsMultipleSelection = false
         table.allowsEmptySelection = true
         table.backgroundColor = .clear
-        table.intercellSpacing = NSSize(width: 0, height: 2)
+        table.intercellSpacing = NSSize(width: 0, height: 8)
         table.gridStyleMask = []
         table.style = .fullWidth
         table.dataSource = context.coordinator
@@ -414,7 +414,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             let identifier = NSUserInterfaceItemIdentifier("row.\(item.type.rawValue)")
             let host = tableView.makeView(withIdentifier: identifier, owner: nil) as? RowHostingView
                 ?? RowHostingView(reuseIdentifier: identifier,
-                                  frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: Theme.rowHeight))
+                                  frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: Theme.statsRowHeight))
             host.identifier = identifier
             host.row = row
 
@@ -446,8 +446,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-            // 行高策略（specs/14 §4）：图/文统一 56，大文本预览交给 popover（specs/12）
-            Theme.rowHeight
+            // 行高（原版实测 400 宽面板）：缩略图 50 + 上下留白 ≈ 68pt 行内容 + 8pt 行距
+            Theme.statsRowHeight
         }
 
         public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {

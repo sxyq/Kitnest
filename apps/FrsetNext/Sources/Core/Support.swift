@@ -91,6 +91,8 @@ public enum Theme {
     public static let panelWidth: CGFloat = 400
     public static let panelMaxHeight: CGFloat = 700
     public static let rowHeight: CGFloat = 56
+    /// 原版主页剪贴板行高（缩略图 50 + 上下 8pt 留白；行距由 intercellSpacing 8 提供）
+    public static let statsRowHeight: CGFloat = 68
     public static let thumbSize: CGFloat = 44
 
     public static let accent = Color.accentColor

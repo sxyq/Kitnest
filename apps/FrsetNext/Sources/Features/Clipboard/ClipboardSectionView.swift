@@ -17,17 +17,12 @@ public struct ClipboardSectionView: View {
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 8) {
-            header
-            ClipboardSearchTextField(text: Binding(get: { manager.searchText },
-                                                   set: { manager.searchText = $0 }),
-                                     resultCount: manager.items.count)
-            ClipboardFilterBarView(selection: Binding(get: { manager.filter },
-                                                      set: { manager.filter = $0 }),
-                                   showsScrollToTop: !manager.isMainListAtTop,
-                                   onScrollToTop: { scrollProxy.scrollToTop() })
+        // 原版主页的剪贴板**没有**区段标题、搜索框和过滤栏——就是一条条的行；
+        // 搜索走面板顶部搜索框（PanelSearchHook），标签过滤/浮动窗/刷新收进右键菜单与状态栏菜单。
+        VStack(spacing: 0) {
             list
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .onAppear {
             // 面板复用：清理预览协调器的抑制/未决 WorkItem（specs/12 prepareForPanelAppear）
             // 经 ServiceLocator.panelPreview 协议调用，不引用 Panel 具体类型（CONTRACT §1.3）
@@ -93,7 +88,7 @@ public struct ClipboardSectionView: View {
                                            ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
                                            manager.delete(item)
                                        })
-                    .frame(maxHeight: 420)
+                    .frame(maxHeight: .infinity)
             }
         }
     }
@@ -355,6 +350,7 @@ public struct ClipboardRow: View {
     public let onSummarize: () -> Void
 
     @ObservedObject private var tagStore = TagStore.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     public init(item: ClipboardItem,
                 isHighlighted: Bool,
@@ -369,62 +365,105 @@ public struct ClipboardRow: View {
     }
 
     public var body: some View {
-        HStack(spacing: 10) {
-            ClipboardThumbnailView(item: item, size: Theme.thumbSize, corner: 6)
+        // 原版行式（400 宽面板实测）：50pt 缩略图 + 单行标题 + 「时间 · 详情」，
+        // hover 时右侧出现 ↓（复制）/ ↵（复制并粘贴）两个图标；行底为浅色圆角卡。
+        HStack(spacing: 12) {
+            ClipboardThumbnailView(item: item, size: 50, corner: 8)
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(2)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
                     .truncationMode(.tail)
-                HStack(spacing: 6) {
-                    Text(AppNameResolver.displayName(bundleIdentifier: item.sourceApp))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Text(item.timestamp.relativeText)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                    ForEach(tagStore.tags(for: item.dedupeKey)) { tag in
-                        Circle()
-                            .fill(Color(hex: tag.colorHex) ?? .accentColor)
-                            .frame(width: 6, height: 6)
-                    }
-                    if item.isGeneratedByTool {
-                        Image(systemName: "wrench.and.screwdriver")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
+                Text(subline)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 6)
+            if isHighlighted {
+                HStack(spacing: 10) {
+                    iconButton("arrow.down", help: "复制") { onCopy() }
+                    iconButton("return.left", help: "复制并粘贴") {
+                        ClipboardManager.shared.copy(item, autoPaste: true)
                     }
                 }
             }
-            Spacer(minLength: 0)
-            if isHighlighted { hoverActions }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                .fill(isHighlighted ? Color.accentColor.opacity(0.10) : Color.clear)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(rowFill)
         )
     }
 
-    private var hoverActions: some View {
-        HStack(spacing: 2) {
-            iconButton("sparkles", help: "AI 摘要", enabled: ClipboardSummaryExecutionCoordinator.shared.isAvailable, action: onSummarize)
-            iconButton("doc.text.magnifyingglass", help: "预览", enabled: true, action: onPreviewWindow)
-            iconButton("pencil", help: "编辑", enabled: true, action: onEdit)
-            iconButton("trash", help: "删除", enabled: true, action: { ClipboardManager.shared.delete(item) })
+    /// 行底色：浅色模式白 0.55 / 深色模式白 0.06；hover 提亮
+    private var rowFill: Color {
+        let base = colorScheme == .dark ? 0.07 : 0.76
+        return isHighlighted
+            ? Color.accentColor.opacity(colorScheme == .dark ? 0.22 : 0.16)
+            : Color.white.opacity(base)
+    }
+
+    /// 副行：「3分钟前 · 341 个字符」/「1分钟前 · 291×465 pt」/「1分钟前 · rgb(24,24,24) · /picker」
+    private var subline: String {
+        var parts: [String] = [item.timestamp.relativeText]
+        if let detail = detailText, !detail.isEmpty { parts.append(detail) }
+        return parts.joined(separator: " · ")
+    }
+
+    private var detailText: String? {
+        switch item.type {
+        case .text, .richtext:
+            // 原版副行第二段：字符数（"341 个字符"）；取色/工具条目显示来源标记
+            if let input = item.sourceInput, !input.isEmpty {
+                let keyword = item.sourceToolKeyword.map { " · /\($0)" } ?? ""
+                return input + keyword
+            }
+            let count = item.fullTextCharCount ?? item.content?.count ?? 0
+            return count > 0 ? "\(count) 个字符" : nil
+        case .image:
+            return imagePixelSize() ?? "图片"
+        case .url:
+            if let host = item.content.flatMap({ URL(string: $0)?.host }) { return host }
+            return "链接"
+        case .file:
+            guard let first = item.content?.split(separator: "\n").first.map(String.init) else { return nil }
+            let path = first.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let size = imagePixelSize(at: path) { return size }
+            return (path as NSString).lastPathComponent
         }
     }
 
-    private func iconButton(_ name: String, help: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func imagePixelSize() -> String? {
+        guard let path = item.imagePath else { return nil }
+        let url = ClipboardFileStore.url(forRelativePath: path)
+        return Self.imageSizeText(at: url.path)
+    }
+
+    private func imagePixelSize(at path: String) -> String? {
+        Self.imageSizeText(at: path)
+    }
+
+    private static func imageSizeText(at path: String) -> String? {
+        guard let image = NSImage(contentsOfFile: path) else { return nil }
+        guard let rep = image.representations.first else { return nil }
+        let width = rep.pixelsWide, height = rep.pixelsHigh
+        guard width > 0, height > 0 else { return nil }
+        return "\(width)×\(height) pt"
+    }
+
+    private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: name)
-                .font(.system(size: 11))
-                .frame(width: 22, height: 22)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
-        .disabled(!enabled)
+        .buttonStyle(.plain)
         .help(help)
     }
 }
