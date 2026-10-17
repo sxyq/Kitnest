@@ -7,6 +7,10 @@ enum AppBootstrap {
     private static var started = false
 
     static func start() {
+        // 菜单栏常驻 App 必须常驻内存：LSUIElement + 无窗口时，macOS 的 automatic
+        // termination 会把它回收掉（实测：录屏收尾阶段进程提前消失）。
+        // 全局禁用一次；退出走菜单里的「退出」。
+        ProcessInfo.processInfo.disableAutomaticTermination("frset.menubar.resident")
         guard !started else { return }
         started = true
 
