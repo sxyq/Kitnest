@@ -90,15 +90,12 @@ enum MenuBarIconStyleStore {
         Log.info("StatusBar", "菜单栏图标样式切换为 \(style.rawValue)")
     }
 
-    /// 彩蛋是否已解锁（解锁后才出现自定义选项）
-    static var isUnlocked: Bool {
-        UserDefaults.standard.bool(forKey: unlockedKey)
-    }
-
-    /// 是否应在菜单/设置里显示「自定义图标」选项（对应原作 revealCustomMenuBarIconOption，0x1005eeabc）
+    /// 是否已在菜单/设置里显示「自定义图标」选项（对应原作 revealCustomMenuBarIconOption，0x1005eeabc）
     /// 未落盘时默认展示（仅受解锁状态约束）
     static var revealsCustomOption: Bool {
-        guard isUnlocked else { return false }
+        // 解锁状态读同一个 defaults 键（custom_icon_easter_egg_unlocked）；
+        // 解锁判定本身由 MenuBarIconEasterEggManager.isUnlocked 负责，此处只读不解锁语义
+        guard UserDefaults.standard.bool(forKey: unlockedKey) else { return false }
         return UserDefaults.standard.object(forKey: revealCustomOptionKey) as? Bool ?? true
     }
 
@@ -107,14 +104,11 @@ enum MenuBarIconStyleStore {
         UserDefaults.standard.set(reveals, forKey: revealCustomOptionKey)
     }
 
+    /// 当前自定义 Symbol 名（设置页经 @AppStorage 直接写 customSymbolKey，此处只读）
     static var customSymbol: String {
         let raw = UserDefaults.standard.string(forKey: customSymbolKey) ?? ""
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? defaultCustomSymbol : trimmed
-    }
-
-    static func setCustomSymbol(_ name: String) {
-        UserDefaults.standard.set(name, forKey: customSymbolKey)
     }
 }
 
@@ -142,6 +136,8 @@ final class RotatingLayerView: NSView {
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.autoresizingMask = [.width, .height]
         addSubview(imageView)
+        // 四向弹性边距：按钮宽度变化时保持在按钮内居中（2026-10-16）
+        autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
     }
 
     required init?(coder: NSCoder) {
@@ -150,6 +146,7 @@ final class RotatingLayerView: NSView {
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.autoresizingMask = [.width, .height]
         addSubview(imageView)
+        autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
     }
 
     /// 设置旋转中的图标（模板图）
@@ -289,7 +286,7 @@ enum SystemCPULoad {
 // MARK: - 样式应用器
 
 /// 把选中的样式应用到主状态项按钮（ToastAnchor.button，即 StatusBarController 安装的主图标）。
-/// 应用器自装 UserDefaults 观察：偏好一变即刻刷新；date/fan 两种动态样式另起轻量定时器。
+/// 应用器观察图标样式变化；date/fan 两种动态样式另起轻量定时器。
 final class MenuBarIconStyleApplier {
 
     static let shared = MenuBarIconStyleApplier()
@@ -298,12 +295,17 @@ final class MenuBarIconStyleApplier {
     private static let dateRefreshInterval: TimeInterval = 60
     /// CPU 采样间隔
     private static let cpuSampleInterval: TimeInterval = 3
+    /// fan 样式状态项固定宽度（容纳 18pt 旋转视图 + 左右留白）
+    static let fanItemLength: CGFloat = 30
+    /// fan 旋转视图边长
+    static let fanViewSize: CGFloat = 18
 
     private var defaultsObservation: NSObjectProtocol?
     private var dateTimer: Timer?
     private var cpuTimer: Timer?
     private var rotatingView: RotatingLayerView?
     private var appliedStyle: MenuBarIconStyle?
+    private var appliedCustomSymbol: String?
     /// 当前旋转周期（等价原作 StatusBarController.currentRotationDuration 字段）
     private(set) var currentRotationDuration: CFTimeInterval = RotatingLayerView.slowestDuration
 
@@ -333,30 +335,46 @@ final class MenuBarIconStyleApplier {
 
     private func apply() {
         let style = MenuBarIconStyleStore.current
-        guard let button = ToastAnchor.button else { return }
+        let customSymbol = style == .custom ? MenuBarIconStyleStore.customSymbol : nil
+        guard let button = ToastAnchor.button else {
+            Log.info("StatusBar", "iconStyle apply 跳过：锚点按钮未就绪")
+            return
+        }
+        // 窗口尺寸保存也会发送偏好通知；图标未变时保持现有按钮布局和动画。
+        guard appliedStyle != style || appliedCustomSymbol != customSymbol else { return }
+        appliedStyle = style
+        appliedCustomSymbol = customSymbol
         stopTimers()
         stopRotating()
+        Log.info("StatusBar", "iconStyle 应用：\(style.rawValue)")
 
         switch style {
         case .logo, .custom:
-            let symbol = style == .logo ? MenuBarIconStyle.logo.systemImage : MenuBarIconStyleStore.customSymbol
+            let symbol = style == .logo ? MenuBarIconStyle.logo.systemImage : customSymbol!
             let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Frset")
             image?.isTemplate = true
             button.image = image
             button.title = ""
             button.toolTip = "Frset（右键查看更多）"
+            StatusBarController.shared.setMainItemLength(NSStatusItem.variableLength)
         case .date:
             button.image = nil
             button.title = Self.dateFormatter.string(from: Date())
             button.toolTip = "Frset（右键查看更多）"
+            StatusBarController.shared.setMainItemLength(NSStatusItem.variableLength)
             startDateTimer()
         case .fan:
-            button.image = nil
+            // 空图占位：无图按钮不绘制子视图（STATS 实证，同双层项做法）；
+            // 2026-10-16 之前此处设 nil，导致旋转视图整个不渲染、主图标不可见
+            button.image = NSImage()
             button.title = ""
             button.toolTip = "Frset（动态风扇）"
+            // 固定宽度容纳 18pt 旋转视图（variableLength 会把按钮压到只剩几个点，
+            // 子视图被裁剪成「<<」状残影，2026-10-16 实证）
+            StatusBarController.shared.setMainItemLength(Self.fanItemLength)
             startFan(on: button)
+            Log.info("StatusBar", "iconStyle fan：length=\(Self.fanItemLength) itemLength=\(StatusBarController.shared.mainItemLength.map { String(describing: $0) } ?? "nil") bounds=\(button.bounds)")
         }
-        appliedStyle = style
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -380,15 +398,31 @@ final class MenuBarIconStyleApplier {
     // MARK: fan 定时器 + 旋转视图
 
     private func startFan(on button: NSStatusBarButton) {
-        let size = NSSize(width: 18, height: 18)
+        let size = NSSize(width: Self.fanViewSize, height: Self.fanViewSize)
         let view = RotatingLayerView(frame: NSRect(origin: .zero, size: size))
         view.setSymbol(MenuBarIconStyle.fan.systemImage)
         // 挂到状态项按钮内（imagePosition 需为 noImage，避免与内置 image 叠加）
         button.imagePosition = .noImage
         button.addSubview(view)
-        view.frame = NSRect(x: 0, y: 0, width: size.width, height: size.height)
+        // 约束居中：不依赖 apply 瞬间的 button.bounds（那一刻按钮可能还没布局），
+        // 按钮随后被系统拉到 30pt 宽时视图仍保持居中（2026-10-16 修复：
+        // 此前按当时 bounds 手算 frame，布局后偏移/裁剪导致风扇不可见）
+        view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            view.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            view.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            view.widthAnchor.constraint(equalToConstant: size.width),
+            view.heightAnchor.constraint(equalToConstant: size.height),
+        ])
         rotatingView = view
         view.spin()
+
+        // 布局后核验：按钮真实宽度 / 子视图是否就位 / 窗口是否可见
+        // （2026-10-16 主图标不可见排障：区分「按钮零宽」与「有位置不渲染」）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak button] in
+            guard let b = button else { return }
+            Log.info("StatusBar", "fan 布局核验：bounds=\(b.bounds) 子视图=\(b.subviews.count) 窗口=\(b.window?.frame ?? .zero) 可见=\(b.window?.isVisible ?? false)")
+        }
 
         let timer = Timer(timeInterval: Self.cpuSampleInterval, repeats: true) { [weak self] _ in
             self?.updateFanSpeed()

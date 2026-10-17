@@ -54,6 +54,16 @@ enum AppBootstrap {
             DatabaseManager.shared.bumpStat("screenshot_count")
         }
 
+        // 面板截图功能菜单 → 截图翻译 / 划词翻译（Capture 模块发通知，App 层持有会话）
+        NotificationCenter.default.addObserver(
+            forName: .frsetScreenshotTranslate, object: nil, queue: .main) { _ in
+            beginScreenshotTranslate()
+        }
+        NotificationCenter.default.addObserver(
+            forName: .frsetTranslateSelection, object: nil, queue: .main) { _ in
+            runTranslateSelection()
+        }
+
         // OCR 完成 → 写入剪贴板历史（文本条目）
         CaptureEventBus.onTextRecognized = { text in
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -65,6 +75,11 @@ enum AppBootstrap {
             if takeScreenshotTranslatePending() {
                 translateAndIngest(text, successTip: "截图翻译完成，译文已写入剪贴板")
             }
+        }
+
+        CaptureEventBus.onColorPicked = { hex in
+            ClipboardManager.shared.insertText(hex, sourceApp: "FrsetNext.Color", subtitle: "取色")
+            StatisticsManager.shared.record(.colorPickSuccess)
         }
 
         // AI 产出 → 写入剪贴板历史（标记为工具生成：is_generated_by_tool=1）
@@ -120,7 +135,7 @@ enum AppBootstrap {
     // MARK: - 全局快捷键默认绑定表（specs/19）
 
     /// 默认热键表条目（组合键依据原作注册函数 0x1005c1094 还原，Carbon 掩码）
-    private struct DefaultHotkeyEntry {
+    struct DefaultHotkeyEntry {
         let id: String
         let title: String
         let keyCode: UInt32
@@ -133,8 +148,8 @@ enum AppBootstrap {
     /// 组合键物理冲突时后注册者失败（restoreAll 先注册用户绑定，默认表后注册 →
     /// 冲突时默认条目失败并计入 ShortcutManager.failureReason，用户绑定胜出）。
     /// handler 只做懒分发：触发时才经 ServiceLocator / 各模块公开 API 执行。
-    private static let defaultHotkeys: [DefaultHotkeyEntry] = [
-        DefaultHotkeyEntry(id: "openFrset", title: "呼出主面板",
+    static let defaultHotkeys: [DefaultHotkeyEntry] = [
+        DefaultHotkeyEntry(id: "openFrset", title: "打开 Frset",
                            keyCode: 0x00, modifiers: UInt32(optionKey)) {
             ServiceLocator.panel?.toggle()
         },
@@ -142,11 +157,11 @@ enum AppBootstrap {
                            keyCode: 0x01, modifiers: UInt32(optionKey)) {
             ScreenshotManager.shared.captureRegion()
         },
-        DefaultHotkeyEntry(id: "colorPicker", title: "取色器",
+        DefaultHotkeyEntry(id: "colorPicker", title: "取色",
                            keyCode: 0x08, modifiers: UInt32(optionKey)) {
             Eyedropper.shared.start()
         },
-        DefaultHotkeyEntry(id: "openAndSearch", title: "打开并搜索",
+        DefaultHotkeyEntry(id: "openAndSearch", title: "打开搜索框",
                            keyCode: 0x03, modifiers: UInt32(optionKey)) {
             ServiceLocator.panel?.show()
             NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
@@ -155,7 +170,7 @@ enum AppBootstrap {
                            keyCode: 0x09, modifiers: UInt32(shiftKey | cmdKey)) {
             FloatingClipboardWindowController.shared.toggle()
         },
-        DefaultHotkeyEntry(id: "screenshotOCR", title: "截图 OCR",
+        DefaultHotkeyEntry(id: "screenshotOCR", title: "截图提取文字",
                            keyCode: 0x01, modifiers: UInt32(shiftKey | optionKey)) {
             ScreenshotManager.shared.captureAndOCR()
         },
@@ -163,11 +178,11 @@ enum AppBootstrap {
                            keyCode: 0x11, modifiers: UInt32(shiftKey | optionKey)) {
             beginScreenshotTranslate()
         },
-        DefaultHotkeyEntry(id: "screenshotCopy", title: "截图复制",
+        DefaultHotkeyEntry(id: "screenshotCopy", title: "截图并复制",
                            keyCode: 0x08, modifiers: UInt32(shiftKey | optionKey)) {
             ScreenshotManager.shared.captureAndCopy()
         },
-        DefaultHotkeyEntry(id: "screenshotPin", title: "截图钉图",
+        DefaultHotkeyEntry(id: "screenshotPin", title: "截图并贴图",
                            keyCode: 0x23, modifiers: UInt32(shiftKey | optionKey)) {
             ScreenshotManager.shared.captureAndPin()
         },
@@ -187,11 +202,43 @@ enum AppBootstrap {
                 Log.info("Shortcut", "跳过默认绑定 \(entry.id)：已有用户自定义绑定")
                 continue
             }
+            guard let binding = shortcutBinding(for: entry.id) else { continue }
             ShortcutRegistry.register(id: entry.id, title: entry.title,
-                                      keyCode: entry.keyCode, modifiers: entry.modifiers,
+                                      keyCode: binding.keyCode, modifiers: binding.modifiers,
                                       handler: entry.action)
         }
         Log.info("Bootstrap", "默认热键表注册完成（共 \(defaultHotkeys.count) 条）")
+    }
+
+    static func shortcutBinding(for id: String) -> (keyCode: UInt32, modifiers: UInt32)? {
+        let saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
+        if let pair = saved[id] {
+            return pair.isEmpty ? nil : (pair[0], pair[1])
+        }
+        return defaultHotkeys.first { $0.id == id }.map { ($0.keyCode, $0.modifiers) }
+    }
+
+    @discardableResult
+    static func setShortcut(_ id: String, keyCode: UInt32?, modifiers: UInt32 = 0) -> Bool {
+        guard let entry = defaultHotkeys.first(where: { $0.id == id }) else { return false }
+        var saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
+        if let keyCode {
+            let definition = ShortcutDefinition(id: id, title: entry.title, keyCode: keyCode,
+                                                modifiers: modifiers, handler: entry.action)
+            guard ShortcutManager.shared.bind(definition) else { return false }
+            saved[id] = [keyCode, modifiers]
+        } else {
+            ShortcutRegistry.unregister(id: id)
+            saved[id] = []
+        }
+        Preferences.shared.set("shortcuts.bindings", saved)
+        return true
+    }
+
+    static func restoreDefaultShortcuts() {
+        for entry in defaultHotkeys { ShortcutRegistry.unregister(id: entry.id) }
+        Preferences.shared.set("shortcuts.bindings", nil)
+        registerDefaultHotkeys()
     }
 
     /// 默认表 id → ToolShortcutStore 工具 id 映射。

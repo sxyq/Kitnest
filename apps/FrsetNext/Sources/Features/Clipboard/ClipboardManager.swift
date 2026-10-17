@@ -461,15 +461,17 @@ public final class ClipboardManager: ObservableObject {
 
     // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）
     //
-    // TODO(spec 13 §4)：以下三个原作调用点在重建版**尚无对应业务分支**，本轮不接：
+    // 下列三项经 Grep 复核（全工程零命中，除本注释外）：重建版确无对应业务分支，故本轮不接。
+    // TODO(spec 13 §4)：
     // 1) 已复制 %d 项（0x1000f8070 / 0x1000fa6d4）——依赖主列表多选批量复制能力；
     //    批量入口落在 ClipboardTableHostView（表格多选），能力落地后在此处按批次数
     //    调用 `Toast.show("已复制 \(count) 项", icon: "checkmark.circle.fill")`。
     // 2) 已跳过 %d 项（0x1000f73a4）——依赖清理/去重流程的「跳过计数」返回值；
-    //    清理主体在 ClipboardPruneSchedulers，待其返回 skipped 数后接
-    //    `Toast.show("已跳过 \(count) 项", icon: "checkmark.circle.fill")`。
-    // 3) 已暂停/已恢复剪贴板记录（0x1000e9e34）——重建版尚无「暂停记录」开关，
-    //    待该开关落地后在开关回调里接 paused/resumed 两条通知条。
+    //    清理主体在 ClipboardPruneSchedulers（当前只统计 removed，无 skipped），待其返回
+    //    skipped 数后接 `Toast.show("已跳过 \(count) 项", icon: "checkmark.circle.fill")`。
+    // 3) 已暂停/已恢复剪贴板记录（0x1000e9e34）——重建版无剪贴板「暂停记录」开关
+    //    （isPaused 仅存在于 Capture/LongScreenshotSession，与本模块无关），
+    //    待开关落地后在开关回调里接 paused/resumed 两条通知条。
 
     /// 删除条目（含文件回收）
     public func delete(_ item: ClipboardItem) {
@@ -614,6 +616,7 @@ public final class ClipboardManager: ObservableObject {
 
     /// 图片 OCR：遵循 IOC 约定，能力缺失时静默跳过
     private func scheduleOCR(dedupeKey: String, imageData: Data) {
+        if !Preferences.shared.value("automaticScreenshotOCREnabled", default: true) { return }
         guard let service = ServiceLocator.ocrService else { return }
         Task.detached(priority: .utility) {
             do {

@@ -62,11 +62,23 @@ public struct MonitorSettingsPane: View {
                     .frame(width: 44, alignment: .trailing)
             }
 
-            Toggle("合并模式（状态栏只显示一个总览项）", isOn: Binding(
-                get: { MonitorPreferences.combinedMode },
-                set: { MonitorPreferences.combinedMode = $0; bump() }
-            ))
-            .font(.system(size: 13))
+            Divider()
+
+            // 菜单栏部件（STATS 引擎）——与原版注入版同款设置窗
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("菜单栏部件")
+                        .font(.system(size: 13))
+                    Text("形态 / 间距 / 分隔线（与 Stats 配置互通）")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("打开部件设置") {
+                    StatsBarEngine.openSettings()
+                }
+                .font(.system(size: 12))
+            }
         }
     }
 
@@ -75,7 +87,7 @@ public struct MonitorSettingsPane: View {
     private var modulesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Theme.sectionHeader("模块")
-            Text("关闭的模块不再采集，状态栏对应项也会隐藏。")
+            Text("控制面板监测中心显示哪些模块；关闭的模块不再采集。菜单栏部件的显隐在「菜单栏部件」设置里。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
@@ -136,6 +148,7 @@ public struct MonitorSettingsPane: View {
     private func statusLine(for module: MonitorModuleID) -> String {
         let sample = sampler.sample
         switch module {
+        case .power: return MonitorStatusItems.powerDetailText()
         case .cpu: return MonitorFormat.percent(sample.cpuUsage)
         case .memory: return "\(MonitorFormat.bytes(sample.memoryUsed)) / \(MonitorFormat.bytes(sample.memoryTotal))"
         case .network: return MonitorFormat.directionalRate(upload: sample.netUpload, download: sample.netDownload)
@@ -146,6 +159,9 @@ public struct MonitorSettingsPane: View {
         case .battery:
             if let level = sample.batteryLevel { return MonitorFormat.percent(level) }
             return "无电池"
+        case .gpu:
+            let usage = StatsDataProvider.shared.current.gpuUsage
+            return usage >= 0 ? MonitorFormat.percent(usage) : "无数据"
         }
     }
 

@@ -7,14 +7,26 @@
     <key>CFBundleIdentifier</key><string>com.sxyq.frsetnext</string>
     <key>CFBundleExecutable</key><string>FrsetNext</string>
     <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleShortVersionString</key><string>1.0.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSScreenCaptureUsageDescription</key><string>FrsetNext 需要屏幕录制权限以执行截图与 OCR 文字识别。</string>
+    <key>NSMicrophoneUsageDescription</key><string>FrsetNext 录屏时可选择录入麦克风声音。</string>
     <key>NSAppleEventsUsageDescription</key><string>FrsetNext 需要辅助功能权限以执行自动粘贴。</string>
     <key>NSCalendarsUsageDescription</key><string>FrsetNext 需要日历权限以在面板中显示今日日程。</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>com.sxyq.frsetnext</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>frsetnext</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

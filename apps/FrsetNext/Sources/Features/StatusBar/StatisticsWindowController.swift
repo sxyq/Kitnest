@@ -4,8 +4,8 @@ import SwiftUI
 // MARK: - 统计窗控制器（spec 17 §1 S7b/S11）
 
 /// StatisticsWindowController：SwiftUI + NSWindow 底座
-/// 窗体实证（stub 解码）：initWithContentRect:(0,0,800,800) styleMask:0x8003(titled+closable+fullSizeContentView)
-/// backing:2 defer:0；空标题 + titlebarAppearsTransparent + 隐藏 close/mini/zoom 三按钮 + center()
+/// 采用同机原版使用统计.png 的整窗 800×562 pt，保留现有单例和窗口标识。
+/// 空标题与透明标题栏，仅显示关闭按钮。
 public final class StatisticsWindowController: NSWindowController, NSWindowDelegate {
 
     public static let shared = StatisticsWindowController()
@@ -14,7 +14,10 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
     public static let windowID = "statisticsWindow"
 
     private convenience init() {
-        let contentRect = NSRect(x: 0, y: 0, width: 800, height: 800)
+        // contentRect 直接取整窗目标尺寸 800×562（与设置窗同一模式）：
+        // 原写法 530 + installContent 内 setFrame 562 会多一次帧变更；
+        // 统计窗无 setFrameAutosaveName，不存在旧帧覆盖问题。
+        let contentRect = NSRect(x: 0, y: 0, width: 800, height: 530)
         let window = NSWindow(contentRect: contentRect,
                               styleMask: [.titled, .closable, .fullSizeContentView],
                               backing: .buffered,
@@ -24,8 +27,9 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         if #available(macOS 11.0, *) { window.titlebarSeparatorStyle = .none }
-        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-            window.standardWindowButton(button)?.isHidden = true   // 三按钮全隐藏
+        window.standardWindowButton(.closeButton)?.isHidden = false
+        for button in [NSWindow.ButtonType.miniaturizeButton, .zoomButton] {
+            window.standardWindowButton(button)?.isHidden = true
         }
         window.isMovableByWindowBackground = true
         window.hasShadow = true
@@ -33,12 +37,29 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         window.isReleasedWhenClosed = false                 // setReleasedWhenClosed:（控制器复用同一窗）
         window.hidesOnDeactivate = false                    // setHidesOnDeactivate: 调用存在，取值 ⬜（统计窗取不隐藏）
         window.delegate = self
-        window.contentView = NSHostingView(rootView: StatisticsRootView())
+        installContent(in: window)
+    }
+
+    private func installContent(in window: NSWindow) {
+        // 固定尺寸上下限：防止 SwiftUI extrema 更新在 layout cycle 内触发
+        // NSWindow._postWindowNeedsUpdateConstraints 异常（同设置窗，2026-10-16 实证）
+        window.contentMinSize = NSSize(width: 800, height: 530)
+        window.contentMaxSize = NSSize(width: 800, height: 530)
+        // SwiftUI 内容延后一个 runloop 装载：窗口创建/显示与 NSHostingView 首次布局
+        // 若落在同一 display cycle，AppKit 在 updateConstraints observer 内收到
+        // 次级窗口约束更新请求即抛 NSException（与设置窗同源，2026-10-16 实证）。
+        window.contentView = NSView()
+        DispatchQueue.main.async {
+            let hostingView = NSHostingView(rootView: StatisticsRootView())
+            hostingView.sizingOptions = []
+            if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
+            window.contentView = hostingView
+        }
     }
 
     /// 打开统计窗（每次打开重建内容视图 → 数据/入场动画重放）
     public func openStatistics() {
-        window?.contentView = NSHostingView(rootView: StatisticsRootView())
+        if let window { installContent(in: window) }
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)

@@ -161,6 +161,7 @@ public final class MonitorReader {
 
         sample.temperatures = temperatureEnabled ? readTemperatures(timeout: .milliseconds(150)) : [:]
         sample.batteryLevel = readBatteryLevel()
+        readPower(into: &sample)
 
         return MonitorReadResult(sample: sample, compressedMemory: memory.compressed)
     }
@@ -489,6 +490,53 @@ public final class MonitorReader {
             return clamp(current.doubleValue / maximum.doubleValue)
         }
         return nil
+    }
+
+    // MARK: - 整机功耗（AppleSmartBattery PowerTelemetryData）
+
+    /// 读取整机功耗并写入 sample：
+    /// - 接电源：优先充入电池功率（IsCharging 且 BatteryPower > 0），否则取 SystemPowerIn（适配器输入）
+    /// - 放电：取 |BatteryPower|（≈ SystemLoad，电池放电功率 = 整机输出功耗）
+    /// 数据源实证（2026-10-16 本机 M4 MacBook Pro）：接电满电 SystemPowerIn=19464mW；
+    /// 放电 BatteryPower=-19904mW（负值）、SystemLoad=19904mW。单位 mW。
+    private func readPower(into sample: inout MonitorSample) {
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
+        guard service != 0 else { return }
+        defer { IOObjectRelease(service) }
+
+        func prop(_ key: String) -> Any? {
+            IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+        }
+
+        let external = (prop("ExternalConnected") as? Bool) ?? false
+        let charging = (prop("IsCharging") as? Bool) ?? false
+        sample.externalPower = external
+
+        var batteryPowerMW: Int? = nil
+        var systemPowerInMW: Int? = nil
+        if let telemetry = prop("PowerTelemetryData") as? [String: Any] {
+            batteryPowerMW = (telemetry["BatteryPower"] as? NSNumber)?.intValue
+            systemPowerInMW = (telemetry["SystemPowerIn"] as? NSNumber)?.intValue
+        }
+
+        if external {
+            // 输入侧：充电功率优先，其次适配器输入功率
+            if charging, let battery = batteryPowerMW, battery > 0 {
+                sample.powerWatts = Double(battery) / 1000.0
+                sample.powerIsInput = true
+                sample.isCharging = true
+            } else if let input = systemPowerInMW, input > 0 {
+                sample.powerWatts = Double(input) / 1000.0
+                sample.powerIsInput = true
+                sample.isCharging = charging
+            }
+        } else {
+            // 输出侧：电池放电功率（负值取绝对值）
+            if let battery = batteryPowerMW, battery != 0 {
+                sample.powerWatts = abs(Double(battery)) / 1000.0
+                sample.powerIsInput = false
+            }
+        }
     }
 
     // MARK: - 工具

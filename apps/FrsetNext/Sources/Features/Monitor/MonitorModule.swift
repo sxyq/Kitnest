@@ -25,8 +25,11 @@ public enum MonitorModule: AppModule {
             build: { AnyView(MonitorSettingsPane()) }
         ))
 
-        // 4) 状态栏部件（CPU / 网络 / 内存 / 磁盘 / 温度 + 合并总览）
-        MonitorStatusItems.registerAll()
+        // 4) STATS 部件引擎（菜单栏合并条：12 形态 × 7 模块，配置与 Stats 互通）。
+        //    引擎启用后重建版自带的 monitor.* 双排状态项不再注册——合并条即其替代
+        //    （与注入版「原生项隐藏、合并条呈现」观感一致；功耗/网络等数据改由
+        //     合并条部件 + 监测面板呈现）。
+        StatsBarEngine.start()
 
         Log.info("Monitor", "监测模块已启动")
     }
@@ -34,5 +37,6 @@ public enum MonitorModule: AppModule {
     /// 停止采样（总开关关闭 / App 退出前可调用）
     public static func stop() {
         MonitorSampler.shared.stop()
+        StatsBarEngine.stop()
     }
 }

@@ -16,7 +16,7 @@ import Foundation
 //   plutil -convert json -o en.json  /Applications/Frset.app/Contents/Resources/en.lproj/Localizable.strings
 //   plutil -convert json -o zh.json  /Applications/Frset.app/Contents/Resources/zh-Hans.lproj/Localizable.strings
 //   → 两侧各 793 键、键集完全一致（specs/18 §3.4 实证）。
-// 本仓库 Resources/ 只收录**已被代码消费**的键子集，避免臆造未验证的键。
+// Resources/ 已导入原版 22 套完整资源，各 793 键；业务调用仍逐步接入。
 
 /// 轻量翻译入口
 /// 用法：`L10n.t("Advanced Settings")` —— 键面为英文句，命中当前语言翻译则返回译文，否则原样返回英文键面

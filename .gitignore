@@ -3,3 +3,7 @@ build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+
+# 构建脚本备份
+build.sh.bak-*
+*.bak-*

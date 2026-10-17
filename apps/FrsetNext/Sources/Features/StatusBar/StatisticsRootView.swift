@@ -1,17 +1,15 @@
 import Combine
 import SwiftUI
 
-// MARK: - 统计窗根视图（spec 17 §1 S3：三层版面）
-//
-// ① 概览大数字卡（卡片标题为原作硬编码英文，S7c）
-// ② GitHub 式活动热力图（level 0-4 自绘 RoundedRectangle，isFuture 灰格，hover 延时 tooltip，S6）
-// ③ 最近 30 天分解柱图（无 Charts 框架，RoundedRectangle 自绘）
-// 页脚 "DATA IS STORED LOCALLY ON YOUR MAC"（S9）
-//
-// 本地化状态（spec 17 §S7c 实测：原作统计窗是**英文硬编码 + 部分 L10n 混合**）：
-// - ✅ 有真实 L10n 键：节头 "Last 30 Days"、图例 Screenshot / Color Picker / OCR / Tool
-// - ❌ 原作 793 键全查无：卡片标题 "Total Interactions" 等、页脚、热力图节头「使用活动」、
-//   「共活跃 N 天」、tooltip「N 次」——这些保持硬编码原样，**不臆造键面**。
+// MARK: - 统计窗（specs/17，原版使用统计.png，800×562 pt）
+// 顶部日期和当天计数，中段总览与 30 天柱图，底部跨年活动矩阵。
+// 数据继续从原有 loadData 与 StatisticsManager 查询装载，不增加计数入口。
+
+private enum StatisticsPalette {
+    static let text = Color(red: 0.29, green: 0.32, blue: 0.39)
+    static let secondary = Color(red: 0.49, green: 0.53, blue: 0.61)
+    static let caption = Color(red: 0.59, green: 0.63, blue: 0.69)
+}
 
 // MARK: 指标卡配置（S4：title/tooltip/eventNames/icon/iconSize/iconYOffset）
 
@@ -28,101 +26,138 @@ struct MetricConfig: Identifiable {
 // MARK: 根视图
 
 struct StatisticsRootView: View {
-    // 布局常量（S7 字段簇；视图区浮点常量池 {1,2,8,10,11,14,26,29,30} 归属 ⬜，取整组合）
-    private static let activityColumnCount = 26
+    // 原版图：60 列、7 行，格子 8 pt、间隔 3 pt。
+    private static let activityColumnCount = 60
     private static let activityRowCount = 7
-    private static let heatmapCellSize: CGFloat = 11
-    private static let heatmapSpacing: CGFloat = 2
-    private static let overviewToDividerSpacing: CGFloat = 14
-    private static let dividerToChartGap: CGFloat = 10
-    private static let last30BarWidth: CGFloat = 14
-    private static let last30BarSpacing: CGFloat = 10
-    private static let last30ChartHeight: CGFloat = 160
+    private static let heatmapCellSize: CGFloat = 8
+    private static let heatmapSpacing: CGFloat = 3
+    private static let last30BarWidth: CGFloat = 6
+    private static let last30BarSpacing: CGFloat = 4
+    private static let last30ChartHeight: CGFloat = 48
     /// hover 延时 tooltip 的延时秒数（S6 数值 ⬜，推断 0.4s）
     private static let hoverDelay: TimeInterval = 0.4
 
-    // 数据（S3 字段簇对应；@Stored 为本机 @State 替代，见 CONTRACT §7.4）
+    // 原有查询结果与视图状态。
     @Stored private var totalInteractions: Int = 0            // __totalCounts 聚合
     @Stored private var activeDaysCount: Int = 0              // __activeDaysCount
     @Stored private var storedItemsCount: Int = 0             // __storedItemsCount
     @Stored private var todayCountsMap: [String: Int] = [:]   // __todayCounts
     @Stored private var activityTotals: [String: Int] = [:]   // __activityMatrixTotals（day → total）
     @Stored private var last30DayBreakdowns: [(day: String, event: String, count: Int)] = []  // __last30DayBreakdowns
-    @Stored private var metricNumbersAnimatedIn: Bool = false // S5 数字入场动画门控（一次）
-    /// 语言版本号：languageDidChange 到达时自增，驱动统计窗重绘（契约 §10.3；@Stored 见 §7.4）
+    @Stored private var metricNumbersAnimatedIn: Bool = false
+    /// 语言变更后继续刷新现有视图。
     @Stored private var l10nVersion: Int = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                overviewCards
-                    .padding(.bottom, Self.overviewToDividerSpacing)
-                Divider()
-                    .padding(.bottom, Self.dividerToChartGap)
-                ActivityHeatmapView(totals: activityTotals,
-                                    activeDays: activeDaysCount,
-                                    cellSize: Self.heatmapCellSize,
-                                    spacing: Self.heatmapSpacing,
-                                    columnCount: Self.activityColumnCount,
-                                    hoverDelay: Self.hoverDelay)
-                    .padding(.bottom, Self.overviewToDividerSpacing)
-                Divider()
-                    .padding(.bottom, Self.dividerToChartGap)
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .frame(height: 58, alignment: .top)
+                .padding(.bottom, 31)
+            overviewCards
+                .frame(height: 50, alignment: .top)
+                .padding(.bottom, 20)
+            Rectangle()
+                .fill(StatisticsPalette.secondary.opacity(0.25))
+                .frame(height: 0.5)
+                .padding(.bottom, 29)
+            HStack(alignment: .top, spacing: 0) {
+                overviewSummary
+                    .frame(width: 284, alignment: .leading)
+                Rectangle()
+                    .fill(StatisticsPalette.secondary.opacity(0.25))
+                    .frame(width: 0.5, height: 88)
+                    .padding(.leading, 20)
+                    .padding(.top, 28)
+                    .padding(.trailing, 56)
                 Last30BarsView(breakdowns: last30DayBreakdowns,
                                barWidth: Self.last30BarWidth,
                                barSpacing: Self.last30BarSpacing,
                                chartHeight: Self.last30ChartHeight)
-                // S9：隐私页脚（硬编码英文 + semibold）
-                Text("DATA IS STORED LOCALLY ON YOUR MAC")
-                    .font(Font.custom("PingFangSC-Semibold", size: 10))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 18)
             }
-            .padding(24)
+            .frame(height: 138, alignment: .top)
+            .padding(.bottom, 24)
+            ActivityHeatmapView(totals: activityTotals,
+                                cellSize: Self.heatmapCellSize,
+                                spacing: Self.heatmapSpacing,
+                                columnCount: Self.activityColumnCount,
+                                hoverDelay: Self.hoverDelay)
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(width: 660, alignment: .leading)
+        .padding(.horizontal, 70)
+        .padding(.top, 58)
+        .frame(width: 800, height: 530)
+        .foregroundStyle(colorScheme == .dark ? Color.primary : StatisticsPalette.text)
+        .background(colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.87))
+        .ignoresSafeArea()
         .onAppear(perform: loadData)
-        // 语言切换即时刷新（契约 §10.3）：广播到达即重算 body，节头/图例重新过 L10n.t()
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
         }
     }
 
-    // MARK: ① 概览大数字卡
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Frset")
+                    .font(.custom("AvenirNextCondensed-DemiBold", size: 30))
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill").font(.system(size: 9))
+                    Text("DATA IS STORED LOCALLY ON YOUR MAC")
+                        .font(.system(size: 8, weight: .semibold))
+                        .tracking(2)
+                }
+                .foregroundStyle(StatisticsPalette.caption)
+            }
+            Spacer()
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(Calendar.current.component(.day, from: Date()))")
+                    .font(.custom("DINAlternate-Bold", size: 32))
+                Text(currentMonth)
+                    .font(.custom("AvenirNextCondensed-DemiBold", size: 13))
+            }
+        }
+    }
 
-    /// metricConfigs（S4；id 与原作可实证的聚合 id 对齐）
+    private var currentMonth: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMMM"
+        return formatter.string(from: Date())
+    }
+
+    // MARK: 当天五项计数，提示来自原版 AX Help，查询使用现有事件名。
+
+    /// 当前五项配置与事件来源；原版精确分组尚待逐字段确认。
     private var metricConfigs: [MetricConfig] {
         [
-            MetricConfig(id: "statistics_active",
-                         title: "Total Interactions",
-                         tooltip: "全部功能的累计互动次数",
-                         eventNames: Array(StatisticsManager.shared.trackedEventNames),
-                         icon: "chart.line.uptrend.xyaxis",
-                         iconSize: 14, iconYOffset: 0),
+            MetricConfig(id: "statistics_pastes", title: "Pastes",
+                         tooltip: "Pastes today",
+                         eventNames: [AnalyticsEvent.historyCopy.eventName],
+                         icon: "square.on.square.fill", iconSize: 13, iconYOffset: 0),
+            MetricConfig(id: "statistics_searchs", title: "Searches",
+                         tooltip: "Searches today",
+                         eventNames: [AnalyticsEvent.searchExecute.eventName],
+                         icon: "magnifyingglass", iconSize: 13, iconYOffset: 0),
             MetricConfig(id: "statistics_tools",
-                         title: "Tools used today",
-                         tooltip: "今日划词工具执行次数",
-                         eventNames: ["tool_execute_success"],
-                         icon: "square.and.pencil",
-                         iconSize: 14, iconYOffset: 0),
-            MetricConfig(id: "statistics_screenshots",
-                         title: "Screenshots and color picks today",
-                         tooltip: "今日截图 + 取色次数",
-                         eventNames: ["screenshot_capture", "color_pick_success"],
-                         icon: "camera.viewfinder",
-                         iconSize: 14, iconYOffset: 0),
-            MetricConfig(id: "statistics_items",
-                         title: "Stored Items",
-                         tooltip: "本地剪贴板存储条目数",
-                         eventNames: [],
-                         icon: "square.stack.3d.up",
-                         iconSize: 14, iconYOffset: 0),
+                         title: "Tools",
+                         tooltip: "Tools used today",
+                         eventNames: [AnalyticsEvent.toolExecuteSuccess.eventName],
+                         icon: "square.fill", iconSize: 13, iconYOffset: 0),
+            MetricConfig(id: "statistics_notes", title: "Note",
+                         tooltip: "New notes today",
+                         eventNames: [AnalyticsEvent.noteCreateSuccess.eventName],
+                         icon: "square.and.pencil", iconSize: 13, iconYOffset: 0),
+            MetricConfig(id: "statistics_capture", title: "Capture",
+                         tooltip: "Screenshots and color picks today",
+                         eventNames: [AnalyticsEvent.screenshotCapture.eventName,
+                                      AnalyticsEvent.colorPickSuccess.eventName],
+                         icon: "viewfinder", iconSize: 13, iconYOffset: 0),
         ]
     }
 
     private var overviewCards: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 0) {
             ForEach(metricConfigs) { config in
                 MetricCardView(config: config,
                                value: cardValue(for: config),
@@ -132,23 +167,45 @@ struct StatisticsRootView: View {
     }
 
     private func cardValue(for config: MetricConfig) -> Int {
-        switch config.id {
-        case "statistics_active":
-            return totalInteractions
-        case "statistics_tools":
-            return todayCountsMap["tool_execute_success"] ?? 0
-        case "statistics_screenshots":
-            return (todayCountsMap["screenshot_capture"] ?? 0) + (todayCountsMap["color_pick_success"] ?? 0)
-        case "statistics_items":
-            return storedItemsCount
-        default:
-            return 0
+        config.eventNames.reduce(0) { $0 + (todayCountsMap[$1] ?? 0) }
+    }
+
+    private var overviewSummary: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Overview")
+                .font(.system(size: 12, design: .monospaced))
+                .frame(height: 18)
+            VStack(spacing: 0) {
+                summaryRow("Total Interactions", value: totalInteractions,
+                           icon: "cursorarrow.click.2", color: .yellow)
+                summaryRow("Days Active", value: activeDaysCount,
+                           icon: "calendar", color: .blue)
+                summaryRow("Clipboard Items", value: storedItemsCount,
+                           icon: "doc.on.clipboard.fill", color: .orange)
+            }
         }
+    }
+
+    private func summaryRow(_ title: String, value: Int, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(color.opacity(0.7))
+                .frame(width: 18)
+            Text(title)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(StatisticsPalette.secondary)
+            Spacer(minLength: 8)
+            Text("\(value)").font(.custom("DINAlternate-Bold", size: 16))
+        }
+        .padding(.trailing, 3)
+        .frame(height: 32)
     }
 
     // MARK: 数据装载（Q1/Q2/Q3/Q4/Q5 → 三层版面；条目数读 clipboard.sqlite）
 
     private func loadData() {
+        let dailyEvents = metricConfigs.flatMap(\.eventNames)
         DispatchQueue.global(qos: .userInitiated).async {
             let mgr = StatisticsManager.shared
             let events = Array(mgr.trackedEventNames)
@@ -157,12 +214,12 @@ struct StatisticsRootView: View {
             let todayStart = calendar.startOfDay(for: Date())
 
             let totals = mgr.totalCounts()                                    // Q1
-            let todayCounts = mgr.todayCounts(day: today, events: [           // Q2
-                "tool_execute_success", "screenshot_capture", "color_pick_success"])
+            let todayCounts = mgr.todayCounts(day: today, events: dailyEvents) // Q2
             let activeDays = mgr.activeDaysCount(events: events)              // Q3
-            // 热力图区间：26 周（列数 × 7 行 - 1 天）
+            // 与矩阵同一周日对齐区间，复用 Q4。
             let heatStart = calendar.date(byAdding: .day,
-                                          value: -(Self.activityColumnCount * Self.activityRowCount - 1),
+                                          value: -((Self.activityColumnCount - 1) * Self.activityRowCount
+                                                   + calendar.component(.weekday, from: todayStart) - 1),
                                           to: todayStart) ?? todayStart
             let heatTotals = mgr.dailyTotals(since: StatisticsManager.dayString(from: heatStart),
                                              events: events)                  // Q4
@@ -179,7 +236,7 @@ struct StatisticsRootView: View {
                 activityTotals = Dictionary(uniqueKeysWithValues: heatTotals)
                 last30DayBreakdowns = breakdowns
                 storedItemsCount = Int(stored)
-                // S5：数字入场动画一次（__metricNumbersAnimatedIn 门控）
+                // 保留原有一次性数字动画。
                 if !metricNumbersAnimatedIn {
                     withAnimation(.easeOut(duration: 0.45)) { metricNumbersAnimatedIn = true }
                 }
@@ -196,37 +253,45 @@ private struct MetricCardView: View {
     let animatedIn: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: config.icon)
-                .font(.system(size: config.iconSize, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .offset(y: config.iconYOffset)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 3) {
+                Image(systemName: config.icon)
+                    .font(.system(size: config.iconSize, weight: .semibold))
+                    .frame(width: 18)
+                    .overlay {
+                        if config.id == "statistics_tools" {
+                            Text("/").font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Color(white: 0.87))
+                        } else if config.id == "statistics_capture" {
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(StatisticsPalette.secondary)
+                                .frame(width: 8, height: 6)
+                        }
+                    }
+                    .offset(y: config.iconYOffset)
+                Text(config.title)
+                    .font(.custom("AvenirNextCondensed-DemiBold", size: 13))
+            }
+            .frame(height: 18)
+            .foregroundStyle(StatisticsPalette.secondary)
             Text("\(value)")
-                .font(Font.custom("DINAlternate-Bold", size: 32))
-                .foregroundStyle(.primary)
+                .font(Font.custom("DINAlternate-Bold", size: 20))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 // S5：数字入场动画一次
                 .scaleEffect(animatedIn ? 1 : 0.6)
                 .opacity(animatedIn ? 1 : 0)
-            Text(config.title)
-                .font(Font.custom("AvenirNextCondensed-DemiBold", size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 20)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: Theme.cornerRadius).fill(Theme.cardBackground))
+        .frame(width: 136, alignment: .leading)
         .help(config.tooltip)
     }
 }
 
-// MARK: - ② 活动热力图（GitHub 式：26 列 × 7 行，列对齐周日；S6 hover 延时 tooltip）
+// MARK: - 活动矩阵：60 列 × 7 行，保留原有 hover 延时提示。
 
 private struct ActivityHeatmapView: View {
     let totals: [String: Int]
-    let activeDays: Int
     let cellSize: CGFloat
     let spacing: CGFloat
     let columnCount: Int
@@ -252,36 +317,55 @@ private struct ActivityHeatmapView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Theme.sectionHeader("使用活动")   // TODO 待本地化：原作 793 键无对应键面
+                Text("Activity Matrix")
+                    .font(.system(size: 12, design: .monospaced))
                 Spacer()
-                Text("共活跃 \(activeDays) 天")   // TODO 待本地化：同上
-                    .font(Font.custom("PingFangSC-Regular", size: 11))
-                    .foregroundStyle(.secondary)
+                Text("Less")
+                HStack(spacing: 3) {
+                    ForEach(0..<5) { level in
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(levelColor(level))
+                            .frame(width: cellSize, height: cellSize)
+                    }
+                }
+                Text("More")
             }
+            .font(.custom("AvenirNextCondensed-DemiBold", size: 11))
+            .foregroundStyle(StatisticsPalette.secondary)
+            .frame(height: 18)
             heatmapGrid
+            monthLabels
+                .padding(.top, 3)
         }
     }
 
     private var heatmapGrid: some View {
         ZStack(alignment: .topLeading) {
-            HStack(alignment: .top, spacing: 0) {
-                ForEach(columns) { column in
-                    VStack(alignment: .leading, spacing: spacing) {
-                        // 月份标签：该列首日月份与前一列不同时显示（高度占位对齐）
-                        Text(monthLabel(for: column))
-                            .font(Font.custom("PingFangSC-Regular", size: 9))
-                            .foregroundStyle(.secondary)
-                            .frame(height: 14, alignment: .bottom)
-                            .opacity(showsMonthLabel(for: column) ? 1 : 0)
-                        ForEach(column.cells) { cell in
-                            heatCellView(cell)
+            HStack(alignment: .top, spacing: 8) {
+                VStack(spacing: spacing) {
+                    ForEach(0..<7) { row in
+                        Text(row == 0 ? "SUN" : row == 3 ? "WED" : row == 6 ? "SAT" : "")
+                            .font(.system(size: 8, design: .monospaced))
+                            .tracking(1.5)
+                            .foregroundStyle(StatisticsPalette.secondary)
+                            .frame(width: 22, height: cellSize, alignment: .leading)
+                    }
+                }
+                HStack(alignment: .top, spacing: spacing) {
+                    ForEach(columns) { column in
+                        VStack(alignment: .leading, spacing: spacing) {
+                            ForEach(column.cells) { cell in
+                                heatCellView(cell)
+                            }
                         }
                     }
-                    .padding(.trailing, spacing)
                 }
             }
+            .fixedSize(horizontal: true, vertical: false)
+            .offset(x: -30)
+            .frame(width: gridWidth, alignment: .leading)
             .coordinateSpace(name: "heatmapSpace")
             tooltipBubble
         }
@@ -302,7 +386,28 @@ private struct ActivityHeatmapView: View {
             )
     }
 
-    // MARK: 列构建（26 列 × 7 行，首列对齐周日，最后一列到今天所在周）
+    private var gridWidth: CGFloat {
+        CGFloat(columnCount) * cellSize + CGFloat(columnCount - 1) * spacing
+    }
+
+    private var monthLabels: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(columns) { column in
+                if let firstOfMonth = column.cells.first(where: {
+                    Calendar.current.component(.day, from: $0.day) == 1 && !$0.isFuture
+                }) {
+                    Text(monthLabel(firstOfMonth.day))
+                        .font(.custom("AvenirNextCondensed-DemiBold", size: 11))
+                        .foregroundStyle(StatisticsPalette.secondary)
+                        .fixedSize()
+                        .offset(x: CGFloat(column.id) * (cellSize + spacing))
+                }
+            }
+        }
+        .frame(width: gridWidth, height: 16, alignment: .topLeading)
+    }
+
+    // MARK: 列构建（首列对齐周日，最后一列到今天所在周）
 
     private struct HeatColumn: Identifiable {
         let id: Int
@@ -344,32 +449,27 @@ private struct ActivityHeatmapView: View {
         }
     }
 
-    // MARK: 配色（S10 外观自适应；zeroColor + GitHub 四档绿）
+    // MARK: 原版暖色矩阵，未来日期留空。
 
     private func cellColor(for cell: HeatCell) -> Color {
-        // isFuture：未来日期置灰（S6）
-        if cell.isFuture {
-            return colorScheme == .dark ? Color(white: 0.16) : Color(white: 0.93)
-        }
-        switch cell.level {
-        case 1:  return colorScheme == .dark ? Color(red: 0.055, green: 0.267, blue: 0.161) : Color(red: 0.608, green: 0.914, blue: 0.659)
-        case 2:  return colorScheme == .dark ? Color(red: 0.000, green: 0.427, blue: 0.196) : Color(red: 0.251, green: 0.769, blue: 0.388)
-        case 3:  return colorScheme == .dark ? Color(red: 0.149, green: 0.651, blue: 0.255) : Color(red: 0.188, green: 0.631, blue: 0.306)
-        case 4:  return colorScheme == .dark ? Color(red: 0.224, green: 0.827, blue: 0.325) : Color(red: 0.129, green: 0.431, blue: 0.224)
-        default: return colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.92)   // zeroColor
+        cell.isFuture ? .clear : levelColor(cell.level)
+    }
+
+    private func levelColor(_ level: Int) -> Color {
+        switch level {
+        case 1: return Color(red: 0.98, green: 0.84, blue: 0.55)
+        case 2: return Color(red: 0.96, green: 0.73, blue: 0.27)
+        case 3: return Color(red: 0.94, green: 0.55, blue: 0.10)
+        case 4: return Color(red: 0.88, green: 0.35, blue: 0.04)
+        default: return colorScheme == .dark ? Color(white: 0.18) : Color(white: 0.80)
         }
     }
 
-    private func monthLabel(for column: HeatColumn) -> String {
-        let m = Calendar.current.component(.month, from: column.firstDay)
-        return "\(m)月"
-    }
-
-    private func showsMonthLabel(for column: HeatColumn) -> Bool {
-        guard let prev = columns.first(where: { $0.id == column.id - 1 }) else { return true }
-        let m1 = Calendar.current.component(.month, from: column.firstDay)
-        let m2 = Calendar.current.component(.month, from: prev.firstDay)
-        return m1 != m2
+    private func monthLabel(_ day: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: day)
     }
 
     // MARK: hover 延时 tooltip（S6）
@@ -417,7 +517,7 @@ private struct ActivityHeatmapView: View {
                 .background(RoundedRectangle(cornerRadius: 6)
                     .fill(Color(NSColor.controlBackgroundColor))
                     .shadow(color: .black.opacity(0.18), radius: 3, y: 1))
-                .position(x: min(max(tooltipFrame.midX, 44), 800 - 44),
+                .position(x: min(max(tooltipFrame.midX, 44), gridWidth - 44),
                           y: tooltipFrame.minY - 24)
                 .transition(.opacity)
             }
@@ -431,11 +531,7 @@ private struct ActivityHeatmapView: View {
         return fmt.string(from: day)
     }
 }
-
-// MARK: - ③ 最近 30 天分解柱图（RoundedRectangle 自绘，无 Charts；S7c 节头 "过去30天"）
-//
-// S7c 实测：节头有真实 L10n 键 "Last 30 Days"（ZH「过去30天」）→ 走 L10n；
-// 图例 4 个标签在原作 793 键中有对应键面 → 走 L10n；剪贴板/AI 两个标签原作无键，保持硬编码。
+// MARK: - 最近 30 天：复用已有每日分解结果，按日求和绘制单色细柱。
 
 private struct Last30BarsView: View {
     let breakdowns: [(day: String, event: String, count: Int)]
@@ -443,21 +539,17 @@ private struct Last30BarsView: View {
     let barSpacing: CGFloat
     let chartHeight: CGFloat
 
-    /// 柱内堆叠顺序（事件 → 分解段）
-    private static let stackOrder = [
-        "clipboard_capture", "screenshot_capture", "color_pick_success",
-        "ocr_use", "tool_execute_success", "ai_request_count",
-    ]
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Theme.sectionHeader(L10n.t("Last 30 Days"))
+        VStack(alignment: .leading, spacing: 11) {
+            Text("Last 30 Days")
+                .font(.system(size: 12, design: .monospaced))
+                .frame(height: 18)
             HStack(alignment: .bottom, spacing: barSpacing) {
                 ForEach(days) { day in
                     barColumn(for: day)
                 }
             }
-            legend
+            .frame(height: 81, alignment: .bottom)
         }
     }
 
@@ -466,30 +558,23 @@ private struct Last30BarsView: View {
     private struct DayBucket: Identifiable {
         let id: String
         let day: Date
-        let segments: [(event: String, count: Int)]
-        var total: Int { segments.reduce(0) { $0 + $1.count } }
+        let total: Int
     }
 
     private var days: [DayBucket] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        var byDay: [String: [(String, Int)]] = [:]
-        for (day, event, count) in breakdowns {
-            byDay[day, default: []].append((event, count))
+        var byDay: [String: Int] = [:]
+        for (day, _, count) in breakdowns {
+            byDay[day, default: 0] += count
         }
         var result: [DayBucket] = []
         for offset in -29...0 {
             guard let d = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
             let key = StatisticsManager.dayString(from: d)
-            var segments = byDay[key] ?? []
-            segments.sort { orderIndex($0.0) < orderIndex($1.0) }
-            result.append(DayBucket(id: key, day: d, segments: segments))
+            result.append(DayBucket(id: key, day: d, total: byDay[key] ?? 0))
         }
         return result
-    }
-
-    private func orderIndex(_ event: String) -> Int {
-        Self.stackOrder.firstIndex(of: event) ?? Self.stackOrder.count
     }
 
     private var maxTotal: Int {
@@ -497,34 +582,11 @@ private struct Last30BarsView: View {
     }
 
     private func barColumn(for day: DayBucket) -> some View {
-        VStack(alignment: .center, spacing: 3) {
-            VStack(spacing: 0) {
-                ForEach(Array(day.segments.enumerated()), id: \.offset) { _, seg in
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(barColor(seg.event))
-                        .frame(width: barWidth,
-                               height: max(2, CGFloat(seg.count) / CGFloat(maxTotal) * chartHeight))
-                }
-                if day.total == 0 {
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.secondary.opacity(0.12))
-                        .frame(width: barWidth, height: 2)
-                }
-            }
-            .frame(height: chartHeight, alignment: .bottom)
-            // 轴标签：每月 1 日显示 "M月"
-            Text(dayLabel(day))
-                .font(Font.custom("PingFangSC-Regular", size: 9))
-                .foregroundStyle(.secondary)
-                .frame(width: barWidth)
-                .opacity(dayLabel(day).isEmpty ? 0 : 1)
-        }
-        .help("\(prettyDay(day.day)) · \(day.total) 次")
-    }
-
-    private func dayLabel(_ day: DayBucket) -> String {
-        let comps = Calendar.current.dateComponents([.day, .month], from: day.day)
-        return comps.day == 1 ? "\(comps.month ?? 0)月" : ""
+        RoundedRectangle(cornerRadius: 1.5)
+            .fill(StatisticsPalette.secondary.opacity(0.35))
+            .frame(width: barWidth,
+                   height: max(3, CGFloat(day.total) / CGFloat(maxTotal) * chartHeight))
+            .help("\(prettyDay(day.day)) · \(day.total) 次")
     }
 
     private func prettyDay(_ day: Date) -> String {
@@ -534,43 +596,4 @@ private struct Last30BarsView: View {
         return fmt.string(from: day)
     }
 
-    private func barColor(_ event: String) -> Color {
-        switch event {
-        case "clipboard_capture":      return Color(red: 0.30, green: 0.56, blue: 1.00)  // 蓝：剪贴板
-        case "screenshot_capture":     return Color(red: 1.00, green: 0.62, blue: 0.24)  // 橙：截图
-        case "color_pick_success":     return Color(red: 0.94, green: 0.36, blue: 0.62)  // 粉：取色
-        case "ocr_use":                return Color(red: 0.66, green: 0.45, blue: 0.95)  // 紫：OCR
-        case "tool_execute_success", "search_execute":
-                                       return Color(red: 0.22, green: 0.72, blue: 0.44)  // 绿：工具
-        case "ai_request_count":       return Color(red: 0.20, green: 0.72, blue: 0.76)  // 青：AI
-        default:                       return Color.secondary.opacity(0.5)
-        }
-    }
-
-    // MARK: 图例
-    //
-    // 标签走 L10n 的前提是原作 793 键中存在对应键面（已逐键核对）：
-    // Screenshot=截图 / Color Picker=取色 / OCR=OCR / Tool=工具；
-    // 「剪贴板」「AI」原作无独立短标签键（仅有 "Clipboard Manager"=剪切板管理 等长句，
-    // 语义不等价），故保持硬编码，不臆造键面。
-
-    private var legend: some View {
-        HStack(spacing: 12) {
-            legendDot(color: barColor("clipboard_capture"), label: "剪贴板")  // TODO 待本地化
-            legendDot(color: barColor("screenshot_capture"), label: L10n.t("Screenshot"))
-            legendDot(color: barColor("color_pick_success"), label: L10n.t("Color Picker"))
-            legendDot(color: barColor("ocr_use"), label: L10n.t("OCR"))
-            legendDot(color: barColor("tool_execute_success"), label: L10n.t("Tool"))
-            legendDot(color: barColor("ai_request_count"), label: "AI")          // TODO 待本地化
-        }
-    }
-
-    private func legendDot(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 1.5).fill(color).frame(width: 8, height: 8)
-            Text(label)
-                .font(Font.custom("PingFangSC-Regular", size: 10))
-                .foregroundStyle(.secondary)
-        }
-    }
 }

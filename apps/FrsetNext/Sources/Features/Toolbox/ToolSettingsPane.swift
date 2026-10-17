@@ -1,83 +1,110 @@
 import SwiftUI
 import AppKit
 
-// MARK: - 设置页签「工具」（id "tools", systemImage "wrench"）
-// 内容：默认输出行为 + 各工具启用/禁用 + 日历显示项（农历）
-
 public struct ToolSettingsPane: View {
-    @Stored private var defaultAction: BuiltinTools.DefaultAction = BuiltinTools.defaultAction
-    @Stored private var enabledMap: [String: Bool] = [:]
-    @Stored private var showLunar: Bool = Preferences.shared.calendarShowLunar
-    @Stored private var refreshTick = 0
+    @Stored private var revision = 0
+    @Stored private var confirmReset = false
 
     public init() {}
 
     public var body: some View {
-        Form {
-            Section("默认输出行为") {
-                Picker("工具执行完成后", selection: $defaultAction) {
-                    ForEach(BuiltinTools.DefaultAction.allCases, id: \.self) { action in
-                        Text(action.rawValue).tag(action)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-                .onChange(of: defaultAction) { newValue in
-                    BuiltinTools.setDefaultAction(newValue)
-                }
-                Text("「存为剪贴板条目」会经由 ToolboxEventBus 交给剪贴板模块，工具箱本身不直接依赖它。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Text("名称").frame(width: 112, alignment: .leading)
+                Text("关键词").frame(width: 102, alignment: .leading)
+                Text("描述").frame(width: 264, alignment: .leading)
+                Text("快捷键").frame(width: 152, alignment: .leading)
+                Spacer()
+                Text("更多")
             }
+            .foregroundStyle(.secondary)
+            .frame(height: 26)
 
-            Section("工具列表") {
-                ForEach(ToolRegistry.all) { tool in
-                    Toggle(isOn: Binding(
-                        get: { enabledMap[tool.identifier] ?? true },
-                        set: { newValue in
-                            enabledMap[tool.identifier] = newValue
-                            ToolRegistry.setEnabled(id: tool.identifier, newValue)
-                            refreshTick += 1
-                        }
-                    )) {
-                        HStack(spacing: 8) {
-                            Image(systemName: tool.systemImage)
-                                .frame(width: 18)
-                            Text(tool.name)
-                            Spacer()
-                            Text(tool.category.title)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(ToolRegistry.all) { tool in
+                        toolRow(tool)
+                        Divider()
                     }
                 }
-                Text("已启用 \(enabledToolsCount) / \(ToolRegistry.all.count) 个工具")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
+            .scrollIndicators(.hidden)
 
-            Section("日历") {
-                Toggle("显示农历 / 节气 / 节日", isOn: $showLunar)
-                    .onChange(of: showLunar) { newValue in
-                        Preferences.shared.set(Preferences.Keys.calendarShowLunar, newValue)
-                    }
-                Text("农历覆盖 \(LunarCalendar.coveredYears.lowerBound)-\(LunarCalendar.coveredYears.upperBound) 年；节气覆盖 \(LunarCalendar.solarTermYears.first ?? 0)-\(LunarCalendar.solarTermYears.last ?? 0) 年；法定节假日覆盖 \(HolidayManager.coveredYears) 年。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 42) {
+                Button {
+                    ServiceLocator.settings?.open(pane: "ai")
+                } label: {
+                    Label("自定义 AI 工具", systemImage: "plus")
+                }
+                Button { confirmReset = true } label: {
+                    Label("重置工具", systemImage: "arrow.clockwise")
+                }
+                Spacer()
             }
+            .buttonStyle(.link)
+            .frame(height: 32)
+            .padding(.top, 8)
         }
-        .formStyle(.grouped)
-        .frame(minWidth: 420, minHeight: 420)
-        .id(refreshTick)
-        .onAppear {
-            var map: [String: Bool] = [:]
-            for tool in ToolRegistry.all { map[tool.identifier] = ToolRegistry.isEnabled(id: tool.identifier) }
-            enabledMap = map
-            showLunar = Preferences.shared.calendarShowLunar
-            defaultAction = BuiltinTools.defaultAction
+        .font(.system(size: 12))
+        .id(revision)
+        .confirmationDialog("恢复工具默认设置？", isPresented: $confirmReset) {
+            Button("恢复默认设置") {
+                for tool in ToolRegistry.all {
+                    ToolRegistry.setEnabled(id: tool.identifier, true)
+                    ToolShortcutStore.clear(toolID: tool.identifier)
+                }
+                BuiltinTools.setDefaultAction(.copy)
+                revision += 1
+            }
+            Button("取消", role: .cancel) {}
         }
     }
 
-    private var enabledToolsCount: Int {
-        ToolRegistry.all.filter { enabledMap[$0.identifier] ?? true }.count
+    private func toolRow(_ tool: ToolDescriptor) -> some View {
+        HStack(spacing: 0) {
+            Text(tool.name).frame(width: 112, alignment: .leading)
+            Text("/" + tool.keyword)
+                .foregroundStyle(.secondary)
+                .frame(width: 102, alignment: .leading)
+            Text(tool.toolDescription)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .frame(width: 264, alignment: .leading)
+            ShortcutRecorderButton(
+                display: ToolShortcutStore.binding(for: tool.identifier).map {
+                    ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
+                },
+                onCapture: { code, modifiers in
+                    _ = ToolShortcutStore.set(toolID: tool.identifier, keyCode: code, modifiers: modifiers)
+                    revision += 1
+                },
+                onClear: {
+                    ToolShortcutStore.clear(toolID: tool.identifier)
+                    revision += 1
+                })
+                .frame(width: 152)
+            Spacer(minLength: 12)
+            Menu {
+                Toggle("启用", isOn: Binding(
+                    get: { ToolRegistry.isEnabled(id: tool.identifier) },
+                    set: {
+                        ToolRegistry.setEnabled(id: tool.identifier, $0)
+                        revision += 1
+                    }))
+                Button("打开工具") {
+                    ToolboxUIState.shared.open(tool.identifier)
+                    ServiceLocator.panel?.show()
+                }
+                if let reason = ShortcutManager.shared.failureReason(id: ToolShortcutStore.registrationID(tool.identifier)) {
+                    Text(reason)
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 24)
+        }
+        .frame(height: 46.5)
     }
 }

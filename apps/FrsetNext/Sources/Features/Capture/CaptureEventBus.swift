@@ -10,8 +10,21 @@ import Foundation
 public enum CaptureEventBus {
     /// 图片已落盘：参数为文件 URL 与 PNG 原始数据
     public static var onImageCaptured: ((URL, Data) -> Void)?
-    /// OCR / 取色产出的文本（供剪贴板、翻译等模块消费）
+    /// OCR 产出的文本（供剪贴板、翻译等模块消费）
     public static var onTextRecognized: ((String) -> Void)?
+    /// 取色成功的 HEX 文本，由 App 层写入历史并记录取色次数。
+    public static var onColorPicked: ((String) -> Void)?
+}
+
+// MARK: - 截图翻译 / 划词翻译请求（面板功能菜单 → App 层会话）
+
+/// 翻译会话由 App 层持有（AppBootstrap），Capture 模块只发请求，
+/// 保持 CONTRACT §1.3「模块之间不互相引用具体类型」。
+public extension Notification.Name {
+    /// 截图翻译：截取区域 → OCR → 交给划词翻译会话
+    static let frsetScreenshotTranslate = Notification.Name("frset.screenshotTranslate.request")
+    /// 划词翻译：读取当前选中文本 → 翻译
+    static let frsetTranslateSelection = Notification.Name("frset.translateSelection.request")
 }
 
 // MARK: - 截图模式与产出

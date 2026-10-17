@@ -14,54 +14,113 @@ public enum MonitorStatusItems {
         !MonitorPreferences.visibleStatusItemIDs().contains(id)
     }
 
-    /// CPU：迷你折线用文本近似（百分比 + 趋势箭头）
+    /// 单行标题供菜单使用，菜单栏复用同一组双排数据。
     public static func cpuTitle() -> String {
-        guard !MonitorPreferences.combinedMode else { return hiddenMarker }
-        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.cpu) else { return hiddenMarker }
+        title(from: cpuTwoLine())
+    }
+
+    public static func memoryTitle() -> String {
+        title(from: memoryTwoLine())
+    }
+
+    public static func networkTitle() -> String {
+        title(from: networkTwoLine())
+    }
+
+    /// CPU：标签 / 百分比与趋势。
+    public static func cpuTwoLine() -> (String, String)? {
+        guard !MonitorPreferences.combinedMode else { return nil }
+        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.cpu) else { return nil }
         let sample = MonitorSampler.shared.sample
         let trend = trendSymbol(MonitorSampler.shared.history.cpu)
-        return "\(MonitorFormat.percent(sample.cpuUsage))\(trend)"
+        return ("CPU", "\(MonitorFormat.percent(sample.cpuUsage))\(trend)")
     }
 
-    /// 内存：百分比
-    public static func memoryTitle() -> String {
-        guard !MonitorPreferences.combinedMode else { return hiddenMarker }
-        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.memory) else { return hiddenMarker }
-        let sample = MonitorSampler.shared.sample
-        return MonitorFormat.percent(sample.memoryPressure)
+    /// 内存：标签 / 百分比。
+    public static func memoryTwoLine() -> (String, String)? {
+        guard !MonitorPreferences.combinedMode else { return nil }
+        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.memory) else { return nil }
+        return ("RAM", MonitorFormat.percent(MonitorSampler.shared.sample.memoryPressure))
     }
 
-    /// 网络：↑上传 ↓下载
-    public static func networkTitle() -> String {
-        guard !MonitorPreferences.combinedMode else { return hiddenMarker }
-        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.network) else { return hiddenMarker }
+    /// 网络（双层：上行 / 下行）——2026-10-16 用户诉求：双层省横向空间
+    public static func networkTwoLine() -> (String, String)? {
+        guard !MonitorPreferences.combinedMode else { return nil }
+        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.network) else { return nil }
         let sample = MonitorSampler.shared.sample
-        return "↑\(MonitorFormat.rate(sample.netUpload)) ↓\(MonitorFormat.rate(sample.netDownload))"
+        return ("↑\(MonitorFormat.compactRate(sample.netUpload))", "↓\(MonitorFormat.compactRate(sample.netDownload))")
+    }
+
+    public static func powerTitle() -> String {
+        title(from: powerTwoLine())
+    }
+
+    /// 整机功耗：输入 / 输出标签与瓦数，接电保留 ⚡。
+    public static func powerTwoLine() -> (String, String)? {
+        guard !MonitorPreferences.combinedMode else { return nil }
+        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.power) else { return nil }
+        let sample = MonitorSampler.shared.sample
+        guard let watts = sample.powerWatts else { return nil }
+        let symbol = sample.powerIsInput ? "⚡" : ""
+        return (sample.powerIsInput ? "输入" : "功耗", "\(symbol)\(MonitorFormat.power(watts))")
+    }
+
+    /// 功耗文案（输入/输出语义，详情与设置行用）
+    public static func powerDetailText() -> String {
+        let sample = MonitorSampler.shared.sample
+        guard let watts = sample.powerWatts else { return "无数据" }
+        let value = MonitorFormat.power(watts)
+        if sample.powerIsInput {
+            return sample.isCharging ? "输入 \(value)（充电中）" : "输入 \(value)"
+        }
+        return "输出 \(value)"
     }
 
     /// 磁盘：R 读 W 写
     public static func diskTitle() -> String {
-        guard !MonitorPreferences.combinedMode else { return hiddenMarker }
-        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.disk) else { return hiddenMarker }
+        title(from: diskTwoLine())
+    }
+
+    /// 磁盘（双层：读取 / 写入）——与网络同款双层，省横向空间
+    public static func diskTwoLine() -> (String, String)? {
+        guard !MonitorPreferences.combinedMode else { return nil }
+        guard MonitorPreferences.isEnabled, MonitorPreferences.isModuleEnabled(.disk) else { return nil }
         let sample = MonitorSampler.shared.sample
-        return MonitorFormat.diskRate(read: sample.diskRead, write: sample.diskWrite)
+        return ("R\(MonitorFormat.compactRate(sample.diskRead))", "W\(MonitorFormat.compactRate(sample.diskWrite))")
     }
 
     /// 温度：最高温度（关闭温度采集或读不到时隐藏）
     public static func sensorsTitle() -> String {
-        guard !MonitorPreferences.combinedMode else { return hiddenMarker }
-        guard MonitorPreferences.isEnabled,
-              MonitorPreferences.showTemperatures,
-              MonitorPreferences.isModuleEnabled(.sensors) else { return hiddenMarker }
-        guard let value = MonitorSampler.shared.sample.temperatures.values.max() else { return hiddenMarker }
-        return MonitorFormat.temperature(value)
+        title(from: sensorsTwoLine())
     }
 
-    /// 合并模式总览项：CPU 占用 + 图标
+    public static func sensorsTwoLine() -> (String, String)? {
+        guard !MonitorPreferences.combinedMode else { return nil }
+        guard MonitorPreferences.isEnabled,
+              MonitorPreferences.showTemperatures,
+              MonitorPreferences.isModuleEnabled(.sensors) else { return nil }
+        guard let value = MonitorSampler.shared.sample.temperatures.values.max() else { return nil }
+        return ("温度", MonitorFormat.temperature(value))
+    }
+
+    /// 合并模式总览项：CPU / RAM 两排。
     public static func combinedTitle() -> String {
-        guard MonitorPreferences.isEnabled else { return hiddenMarker }
-        guard MonitorPreferences.combinedMode else { return hiddenMarker }
-        return "⁘ \(MonitorFormat.percent(MonitorSampler.shared.sample.cpuUsage))"
+        title(from: combinedTwoLine())
+    }
+
+    public static func combinedTwoLine() -> (String, String)? {
+        guard MonitorPreferences.isEnabled, MonitorPreferences.combinedMode else { return nil }
+        let cpuEnabled = MonitorPreferences.isModuleEnabled(.cpu)
+        let memoryEnabled = MonitorPreferences.isModuleEnabled(.memory)
+        guard cpuEnabled || memoryEnabled else { return nil }
+        let sample = MonitorSampler.shared.sample
+        return (cpuEnabled ? "CPU\(MonitorFormat.percent(sample.cpuUsage))" : "",
+                memoryEnabled ? "RAM\(MonitorFormat.percent(sample.memoryPressure))" : "")
+    }
+
+    private static func title(from pair: (String, String)?) -> String {
+        guard let pair else { return hiddenMarker }
+        return [pair.0, pair.1].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// 趋势近似：比较最近两点
@@ -75,24 +134,34 @@ public enum MonitorStatusItems {
 
     // MARK: - 注册
 
-    /// 注册全部监测状态栏项（CPU / 内存 / 网络 / 磁盘 / 温度 / 合并总览）
+    /// 注册全部监测状态栏项，统一使用现有双排渲染链。
     public static func registerAll() {
-        register(id: "monitor.cpu", priority: 10, title: cpuTitle) {
+        register(id: "monitor.power", priority: 9, title: powerTitle,
+                 twoLineTitle: powerTwoLine) {
+            AnyView(MonitorDetailView(module: .power))
+        }
+        register(id: "monitor.cpu", priority: 10, title: cpuTitle,
+                 twoLineTitle: cpuTwoLine) {
             AnyView(MonitorDetailView(module: .cpu))
         }
-        register(id: "monitor.network", priority: 11, title: networkTitle) {
+        register(id: "monitor.network", priority: 11, title: networkTitle,
+                 twoLineTitle: networkTwoLine) {
             AnyView(MonitorDetailView(module: .network))
         }
-        register(id: "monitor.memory", priority: 12, title: memoryTitle) {
+        register(id: "monitor.memory", priority: 12, title: memoryTitle,
+                 twoLineTitle: memoryTwoLine) {
             AnyView(MonitorDetailView(module: .memory))
         }
-        register(id: "monitor.disk", priority: 13, title: diskTitle) {
+        register(id: "monitor.disk", priority: 13, title: diskTitle,
+                 twoLineTitle: diskTwoLine) {
             AnyView(MonitorDetailView(module: .disk))
         }
-        register(id: "monitor.sensors", priority: 14, title: sensorsTitle) {
+        register(id: "monitor.sensors", priority: 14, title: sensorsTitle,
+                 twoLineTitle: sensorsTwoLine) {
             AnyView(MonitorDetailView(module: .sensors))
         }
-        register(id: "monitor.combined", priority: 15, title: combinedTitle) {
+        register(id: "monitor.combined", priority: 15, title: combinedTitle,
+                 twoLineTitle: combinedTwoLine) {
             AnyView(MonitorDetailView(module: .cpu))
         }
     }
@@ -100,11 +169,13 @@ public enum MonitorStatusItems {
     private static func register(id: String,
                                  priority: Int,
                                  title: @escaping () -> String,
+                                 twoLineTitle: (() -> (String, String)?)? = nil,
                                  popover: @escaping () -> AnyView) {
         StatusItemRegistry.register(StatusItemDescriptor(
             id: id,
             priority: priority,
             title: title,
+            twoLineTitle: twoLineTitle,
             onTap: nil,
             popover: popover
         ))

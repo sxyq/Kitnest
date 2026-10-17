@@ -4,7 +4,7 @@ import Carbon.HIToolbox
 
 // MARK: - 快捷键录入控件
 //
-// 说明：原作默认热键表未知（specs/01 §13 待查 #7），故**不预置任何默认组合**，组合键完全由用户录制。
+// 默认组合由 AppBootstrap.defaultHotkeys 提供，本控件只负责录入用户覆盖值。
 // 为避免劫持日常输入，要求组合中至少包含 ⌘ / ⌥ / ⌃ 之一；录制期间吞掉按键，Esc 取消。
 
 /// 录制状态与键盘监听（本地 monitor，随设置页消失而停止）
@@ -67,21 +67,18 @@ public struct ShortcutRecorderButton: View {
                 capture.onCapture = onCapture
                 capture.toggle()
             } label: {
-                Text(capture.isRecording ? "请按组合键…" : (display ?? "点击录入"))
+                Text(capture.isRecording ? "请按组合键…" : (display ?? "无"))
                     .font(.system(size: 11, design: display == nil ? .default : .monospaced))
-                    .frame(minWidth: 84)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 24)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.025)))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.09), lineWidth: 1))
             .help(capture.isRecording ? "按下含 ⌘/⌥/⌃ 的组合键，Esc 取消" : "点击录入全局快捷键")
 
-            if display != nil && !capture.isRecording {
-                Button { onClear() } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("清除快捷键")
-            }
         }
+        .contextMenu { Button("清除快捷键", action: onClear) }
         .onDisappear { capture.stop() }
     }
 }

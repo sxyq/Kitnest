@@ -8,6 +8,60 @@ import SwiftUI
 private struct StatusItemEntry {
     let descriptor: StatusItemDescriptor
     let item: NSStatusItem
+    /// 双层项的自定义内容视图（nil = 单行标题项）
+    let twoLineView: MenuBarTwoLineView?
+}
+
+// MARK: - 双层状态项视图（2026-10-16 v3，参照 STATS 源码重建）
+//
+// 实证依据（stats-recon/stats-source，STATS 同款方案）：
+// 1) 状态项内容用 `button.addSubview(自定义 NSView)` 呈现，**不用 NSImage**——
+//    位图模板图在 NSStatusBarButton 上不渲染（2026-10-16 本机实证：图赋值后
+//    按钮连同图层背景一起不绘制；SF Symbol 模板图正常，疑与位图 rep 的模板
+//    着色路径有关）。v2 的 NSBitmapImageRep 方案因此弃用；
+// 2) `statusItem(withLength: 视图宽度)`——长度必须等于视图宽，否则按钮过窄
+//    把子视图裁成残影（v1「<<」裁剪 Bug 根因）；
+// 3) `button.image = NSImage()` 空图占位，否则按钮不绘制子视图（STATS 实证）；
+// 4) 文字用 `NSColor.textColor`，随菜单栏明暗自适应——用户反馈"不要色块"，
+//    默认不着色；网络上行/下行如需配色再由上层决定；
+// 5) 宽度"只增不减"：内容变宽才更新 item.length，避免每秒重排（STATS 的
+//    固定 rowWidth 同思路）。
+
+final class MenuBarTwoLineView: NSView {
+    private var line1: String = ""
+    private var line2: String = ""
+    private let font = NSFont.systemFont(ofSize: 9, weight: .light)
+    /// 宽度变化回调（STATS widthHandler 同款，暂留扩展位）
+    var widthHandler: (() -> Void)?
+
+    /// 更新两行文本（无变化不触发重绘）
+    func setTexts(_ l1: String, _ l2: String) {
+        guard l1 != line1 || l2 != line2 else { return }
+        line1 = l1; line2 = l2
+        needsDisplay = true
+    }
+
+    /// 内容宽度（两行取宽者 + 内边距）
+    var contentWidth: CGFloat {
+        let attrs: [NSAttributedString.Key: Any] = [.font: font]
+        let w1 = (line1 as NSString).size(withAttributes: attrs).width
+        let w2 = (line2 as NSString).size(withAttributes: attrs).width
+        return ceil(max(w1, w2)) + 4
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.textColor   // 自适应菜单栏明暗，无固定色块
+        ]
+        let rowHeight = bounds.height / 2
+        // NSView 原点在左下：第一行画在上半（高 y），第二行画在下半（低 y）
+        (line1 as NSString).draw(in: NSRect(x: 0, y: rowHeight, width: bounds.width, height: rowHeight),
+                                 withAttributes: attrs)
+        (line2 as NSString).draw(in: NSRect(x: 0, y: 0, width: bounds.width, height: rowHeight),
+                                 withAttributes: attrs)
+    }
 }
 
 // MARK: - 菜单栏状态项总控
@@ -34,11 +88,14 @@ public final class StatusBarController: NSObject {
     private var overflowDescriptors: [StatusItemDescriptor] = []
     /// 上次同步时的状态项 id 序列（用于判定是否需要重建）
     private var lastIDs: [String] = []
+    /// 布局核验：每个状态项上次记录到的窗口框架键（变化才记日志）
+    private var lastLayoutKeys: [String: String] = [:]
 
     private var currentPopover: NSPopover?
     private var refreshTimer: Timer?
     private var syncTimer: Timer?
     private var defaultsObservation: NSObjectProtocol?
+    private var statisticsObservation: NSObjectProtocol?
     private var didInstall = false
 
     private override init() { super.init() }
@@ -61,6 +118,9 @@ public final class StatusBarController: NSObject {
         syncStatusItems()
         startTimers()
         observePreferences()
+        statisticsObservation = NotificationCenter.default.addObserver(
+            forName: Notification.Name("frset.openStatistics"), object: nil, queue: .main
+        ) { [weak self] _ in self?.showStatisticsAction(nil) }
         Log.info("StatusBar", "installed")
     }
 
@@ -70,13 +130,23 @@ public final class StatusBarController: NSObject {
         refreshTimer?.invalidate(); refreshTimer = nil
         syncTimer?.invalidate(); syncTimer = nil
         if let obs = defaultsObservation { NotificationCenter.default.removeObserver(obs); defaultsObservation = nil }
+        if let obs = statisticsObservation { NotificationCenter.default.removeObserver(obs); statisticsObservation = nil }
         teardownItems()
         if let main = mainItem { NSStatusBar.system.removeStatusItem(main); mainItem = nil }
         didInstall = false
     }
 
     private func installMainItem() {
+        // v30：主图标初始位置键（仅无键时写，不覆盖用户拖动后的值）。
+        // 2026-10-16 实测：主图标 autosaveName 有键前系统每次自选落点
+        // （受菜单栏其他 app 项数量影响，运行间在 1298-1342 间变），而合并条
+        // 按 position 500 固定 → 两者相对位置时相邻时差 38-57pt。钉住初始位
+        // （322 ≈ 本机实证相邻槽：主图标 x=1342 时合并条 1146+196=1342 贴住）。
+        if UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position \(Self.statusItemName("main"))") == nil {
+            UserDefaults.standard.set(322, forKey: "NSStatusItem Preferred Position \(Self.statusItemName("main"))")
+        }
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.autosaveName = Self.statusItemName("main")   // 固定 autosaveName（带前缀），位置持久化稳定
         let symbol = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "Frset")
         symbol?.isTemplate = true                 // 模板图：随菜单栏明暗自动变色
         item.button?.image = symbol
@@ -88,7 +158,23 @@ public final class StatusBarController: NSObject {
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         ToastAnchor.button = item.button       // 通知条定位锚点（spec 13 §3，主状态项图标）
         mainItem = item
+        // v30：把主图标项注册给 STATS 引擎（位置校准/保邻的参照物）
+        StatsBarEngine.syncMainItem()
     }
+
+    /// v30：主图标状态项（STATS 引擎保邻修正的参照物；只读）
+    public var mainStatusItem: NSStatusItem? { mainItem }
+
+    /// 调整主图标状态项宽度（MenuBarIconStyleApplier 的 fan 样式需要固定宽度容纳旋转视图；
+    /// 传 NSStatusItem.variableLength 恢复自适应）。2026-10-16：fan 的 18pt 子视图
+    /// 在可变长度按钮里被裁剪成「<<」状扇叶，故 fan 期间固定 30pt 并居中。
+    public func setMainItemLength(_ length: CGFloat) {
+        guard Thread.isMainThread else { DispatchQueue.main.async { self.setMainItemLength(length) }; return }
+        mainItem?.length = length
+    }
+
+    /// 主状态项当前长度（排障用：验证 setMainItemLength 对 variableLength 创建的项是否生效）
+    public var mainItemLength: CGFloat? { mainItem?.length }
 
     private func startTimers() {
         refreshTimer?.invalidate()
@@ -113,15 +199,24 @@ public final class StatusBarController: NSObject {
 
     // MARK: 同步（新建/移除）
 
+    /// 防重入标志：2026-10-16 崩溃实证——refreshTitles 变更 isVisible 会引发系统写
+    /// defaults → UserDefaults.didChangeNotification → observePreferences →
+    /// syncStatusItems 的同步递归，深栈后溢出（EXC_BAD_ACCESS at stack guard）。
+    private var isSyncing = false
+
     /// 与 StatusItemRegistry 对齐：id 序列变化才重建，否则只刷新标题
     public func syncStatusItems() {
         guard Thread.isMainThread else { DispatchQueue.main.async { self.syncStatusItems() }; return }
         guard didInstall else { return }
+        guard !isSyncing else { return }        // 防重入（同步递归链直接截断）
+        isSyncing = true
+        defer { isSyncing = false }
         // 关闭开关时只保留主图标；再过滤掉注册方标记为隐藏的项
         let descriptors = Preferences.shared.menuBarIconsVisible
             ? StatusItemRegistry.all.filter { !Self.isHidden($0) }
             : []
         let ids = descriptors.map { $0.id }
+        Log.info("StatusBar", "sync: descriptors=\(descriptors.count) ids=\(ids) lastIDs=\(lastIDs)")
         guard ids != lastIDs else { refreshTitles(); return }
         rebuild(descriptors)
     }
@@ -130,13 +225,65 @@ public final class StatusBarController: NSObject {
     private static func isHidden(_ d: StatusItemDescriptor) -> Bool {
         if d.title().hasPrefix(hiddenMarker) { return true }
         if let attr = d.attributedTitle?(), attr.string.hasPrefix(hiddenMarker) { return true }
+        // 双层项：返回 nil 视为隐藏（如读不到功耗数据）
+        if let twoLine = d.twoLineTitle { return twoLine() == nil }
         return false
+    }
+
+    /// 诊断：打印状态项按钮的真实窗口位置/尺寸（系统布局结果）。
+    /// 2026-10-16 排障：双层项日志 img=true/visible=true 但菜单栏不可见，
+    /// 需区分「系统没给位置（frame 为零/屏幕外）」与「有位置但渲染异常」。
+    static func diagnose(_ id: String, button: NSStatusBarButton, item: NSStatusItem) {
+        let frame = button.window?.frame ?? .zero
+        let imgSize = button.image?.size ?? .zero
+        let inScreen = NSScreen.screens.contains { $0.frame.intersects(frame) }
+        Log.info("StatusBar", "diag \(id): frame=\(frame) imgSize=\(imgSize) imgPos=\(button.imagePosition.rawValue) title='\(button.title)' hidden=\(button.isHidden) winVis=\(button.window?.isVisible ?? false) alpha=\(button.alphaValue) onScreen=\(inScreen) screens=\(NSScreen.screens.count)")
+    }
+
+    // MARK: 状态项位置持久化（STATS save/restoreNSStatusItemPosition 同款）
+    //
+    // 系统在 removeStatusItem 时会**删除**该 autosaveName 的
+    // 「NSStatusItem Preferred Position <id>」键；不先备份的话，重建出来的项
+    // 拿不到原位置，只能落到默认位——与别家状态项重叠（2026-10-16 实证：
+    // 四个双层项 frame 互相叠在一起、菜单栏只看到一个残影）。
+    // STATS 的解法：移除前把位置存到自家键，重建后写回系统键。
+    //
+    // autosaveName 带「frsetnext.」前缀：与原版 Frset.app 的状态项同名 id
+    // （monitor.* / main）隔离——2026-10-16 实证两版共存时同名 autosaveName
+    // 会让系统拒绝为后注册的项布局（frame=(0,0,w,0)，菜单栏不显示），
+    // 前缀后两版可同时运行、各自管理位置。
+
+    /// 状态项在系统位置存储中的唯一名（autosaveName + 位置键共用）
+    static func statusItemName(_ id: String) -> String { "frsetnext.\(id)" }
+
+    private static func saveStatusItemPosition(id: String) {
+        let name = Self.statusItemName(id)
+        guard let position = UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position \(name)") as? NSNumber else { return }
+        UserDefaults.standard.set(position.intValue, forKey: "NSStatusItem Restore Position \(name)")
+    }
+
+    private static func restoreStatusItemPosition(id: String) {
+        let name = Self.statusItemName(id)
+        let prev = UserDefaults.standard.integer(forKey: "NSStatusItem Restore Position \(name)")
+        guard prev != 0 else { return }
+        UserDefaults.standard.set(prev, forKey: "NSStatusItem Preferred Position \(name)")
+        UserDefaults.standard.removeObject(forKey: "NSStatusItem Restore Position \(name)")
     }
 
     private func rebuild(_ descriptors: [StatusItemDescriptor]) {
         teardownItems()
         let visible = Array(descriptors.prefix(Self.maxVisibleItems))
-        entries = visible.map { StatusItemEntry(descriptor: $0, item: makeStatusItem(for: $0)) }
+        // 反向创建：系统把每个新状态项插到已有项的左侧，创建序与显示序相反。
+        // 描述符序已是「功耗首位」（power, cpu, network, memory），反向创建后
+        // 菜单栏显示序即功耗在最左（2026-10-16 用户需求：功耗项排首位）。
+        // 主图标在 installMainItem 中最先创建 → 落在本组最右（与原版布局一致）。
+        let creationOrder = Array(visible.reversed())
+        entries = creationOrder.map { d in
+            let (item, view) = makeStatusItem(for: d)
+            let entry = StatusItemEntry(descriptor: d, item: item, twoLineView: view)
+            item.isVisible = true      // 防系统/持久化隐藏（2026-10-16 实证动态项全部不可见）
+            return entry
+        }
         let rest = Array(descriptors.dropFirst(Self.maxVisibleItems))
         overflowDescriptors = rest
         if rest.isEmpty {
@@ -153,23 +300,53 @@ public final class StatusBarController: NSObject {
         }
         lastIDs = descriptors.map { $0.id }
         refreshTitles()
-        Log.debug("StatusBar", "synced: visible=\(visible.count) overflow=\(rest.count)")
+        Log.info("StatusBar", "synced: visible=\(visible.count) overflow=\(rest.count)")
     }
 
-    private func makeStatusItem(for d: StatusItemDescriptor) -> NSStatusItem {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = d.title()
+    /// 创建状态项；双层项返回其内容视图（STATS 模式：子视图 + 定长 + 空图占位）
+    private func makeStatusItem(for d: StatusItemDescriptor) -> (NSStatusItem, MenuBarTwoLineView?) {
+        var twoLineView: MenuBarTwoLineView?
+        // 双层项：先建视图、按当前内容量出宽度，状态项长度=视图宽（v1「<<」裁剪根因修复）
+        if let pair = d.twoLineTitle?() {
+            let v = MenuBarTwoLineView(frame: NSRect(x: 0, y: 0, width: 40, height: 20))
+            v.setTexts(pair.0, pair.1)
+            v.setFrameSize(NSSize(width: v.contentWidth, height: v.frame.height))
+            twoLineView = v
+        }
+        // 恢复系统位置键（必须在创建前写回，STATS 同款顺序）
+        Self.restoreStatusItemPosition(id: d.id)
+        let item = NSStatusBar.system.statusItem(withLength: twoLineView?.frame.width ?? NSStatusItem.variableLength)
+        // 固定 autosaveName（带 frsetnext. 前缀，与原版隔离）：系统按名持久化
+        // 位置/可见性，避免无名项按创建计数器累加（Item-N 无限增长）导致布局状态漂移
+        item.autosaveName = Self.statusItemName(d.id)
         item.button?.font = NSFont.menuBarFont(ofSize: 11)
         item.button?.target = self
         item.button?.action = #selector(statusItemClicked(_:))
         item.button?.sendAction(on: [.leftMouseUp])
         item.button?.toolTip = d.id
-        return item
+        if let view = twoLineView, let button = item.button {
+            button.image = NSImage()              // 空图占位：无图按钮不绘制子视图（STATS 实证）
+            button.addSubview(view)
+            // 按钮内垂直居中；尺寸未定时靠四向弹性边距自动保持居中
+            let y = max(2, (button.bounds.height - view.frame.height) / 2)
+            view.frame = NSRect(x: 0, y: y, width: view.frame.width, height: view.frame.height)
+            view.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
+        }
+        // 单行项才设 title——双层项内容由子视图呈现，同时设 title 会重叠成多行堆叠
+        if d.twoLineTitle == nil {
+            item.button?.title = d.title()
+        }
+        if let button = item.button { Self.diagnose(d.id, button: button, item: item) }
+        return (item, twoLineView)
     }
 
     private func teardownItems() {
         currentPopover?.close(); currentPopover = nil
-        for e in entries { NSStatusBar.system.removeStatusItem(e.item) }
+        // 先备份系统位置键再移除（系统会删除它，见 saveStatusItemPosition 注释）
+        for e in entries {
+            Self.saveStatusItemPosition(id: e.descriptor.id)
+            NSStatusBar.system.removeStatusItem(e.item)
+        }
         entries = []
         if let overflow = overflowItem { NSStatusBar.system.removeStatusItem(overflow) }
         overflowItem = nil
@@ -182,7 +359,6 @@ public final class StatusBarController: NSObject {
         guard Thread.isMainThread else { return }
         var needsResync = false
         for e in entries {
-            guard let button = e.item.button else { continue }
             // 运行中被标记隐藏（两次同步之间）：先就地隐藏，再触发同步释放名额
             if Self.isHidden(e.descriptor) {
                 if e.item.isVisible { e.item.isVisible = false }
@@ -190,14 +366,26 @@ public final class StatusBarController: NSObject {
                 continue
             }
             if !e.item.isVisible { e.item.isVisible = true }
+            // 双层项：更新自定义视图的两行文本；宽度只增不减，避免每秒重排
+            if let pair = e.descriptor.twoLineTitle?() {
+                if let view = e.twoLineView {
+                    view.setTexts(pair.0, pair.1)
+                    let w = view.contentWidth
+                    if w > view.frame.width + 0.5 {
+                        view.setFrameSize(NSSize(width: w, height: view.frame.height))
+                        e.item.length = w
+                        view.widthHandler?()
+                    }
+                }
+                continue
+            }
+            guard let button = e.item.button else { continue }
             if let attributed = e.descriptor.attributedTitle?() {
                 button.attributedTitle = attributed
             } else {
                 let text = e.descriptor.title()
                 if button.title != text { button.title = text }
             }
-            // B6：按内容自适应宽度
-            e.item.length = NSStatusItem.variableLength
         }
         // 「更多」聚合项：其下全部被隐藏时一并隐藏
         if let overflow = overflowItem {
@@ -205,8 +393,33 @@ public final class StatusBarController: NSObject {
             if overflow.isVisible != hasVisible { overflow.isVisible = hasVisible }
             if !hasVisible { needsResync = true }
         }
-        // 有项被隐藏 → 立即重建，把名额让给后面的项（重建后 entries 不再含隐藏项，不会递归）
-        if needsResync { syncStatusItems() }
+        // 有项被隐藏 → 重建名额；**异步**跳出当前栈：2026-10-16 崩溃实证，
+        // 同步递归（refresh → isVisible 变更 → UserDefaults 通知 → observePreferences
+        // → syncStatusItems → refresh …）会导致栈溢出（EXC_BAD_ACCESS at stack guard）。
+        if needsResync { DispatchQueue.main.async { [weak self] in self?.syncStatusItems() } }
+        verifyLayout(tag: "refresh")
+    }
+
+    /// 布局核验：系统每给状态项分配/改变窗口框架就记录一次（含无效框架 (0,0,w,0)）。
+    /// 2026-10-16 排障「原版 app 运行时动态项不显示」：区分「系统没布局」
+    /// 「布局到屏幕外」「有框架仍不渲染」三种状态。
+    private func verifyLayout(tag: String) {
+        if let main = mainItem, let button = main.button {
+            let frame = button.window?.frame ?? .zero
+            let key = "\(Int(frame.origin.x)),\(Int(frame.origin.y)),\(Int(frame.width)),\(Int(frame.height))"
+            if lastLayoutKeys["main"] != key {
+                lastLayoutKeys["main"] = key
+                Log.info("StatusBar", "layout[\(tag)] main: frame=\(frame) len=\(main.length) vis=\(main.isVisible) hidden=\(button.isHidden) subviews=\(button.subviews.count)")
+            }
+        }
+        for e in entries {
+            guard let button = e.item.button else { continue }
+            let frame = button.window?.frame ?? .zero
+            let key = "\(Int(frame.origin.x)),\(Int(frame.origin.y)),\(Int(frame.width)),\(Int(frame.height))"
+            guard lastLayoutKeys[e.descriptor.id] != key else { continue }
+            lastLayoutKeys[e.descriptor.id] = key
+            Log.info("StatusBar", "layout[\(tag)] \(e.descriptor.id): frame=\(frame) len=\(e.item.length) vis=\(e.item.isVisible) hidden=\(button.isHidden) subviews=\(button.subviews.count)")
+        }
     }
 
     // MARK: 交互
@@ -267,11 +480,53 @@ public final class StatusBarController: NSObject {
         currentPopover = popover
     }
 
+    /// STATS 部件引擎的部件点击 → 监测详情 popover（锚点 = 合并条按钮）。
+    /// 与状态项点击同一套呈现（transient + 主面板同宽）；深数据页较长，
+    /// 按内容实际高度自适应（上限 = 屏幕可用高度 - 边距）。
+    public func presentStatsPopover(_ view: AnyView, anchor button: NSStatusBarButton) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.presentStatsPopover(view, anchor: button) }
+            return
+        }
+        currentPopover?.close()
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+        let host = NSHostingController(rootView: view)
+        host.view.layoutSubtreeIfNeeded()
+        let fitting = host.view.fittingSize
+        let maxHeight = (button.window?.screen?.visibleFrame.height ?? 800) - 36
+        popover.contentSize = NSSize(
+            width: max(Theme.panelWidth, fitting.width),
+            height: min(max(fitting.height, 200), maxHeight)
+        )
+        popover.contentViewController = host
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        currentPopover = popover
+    }
+
     // MARK: 菜单动作（StatusBarMenuBuilder 组装的菜单目标）
 
     @objc func openPanelAction(_ sender: Any?) { ServiceLocator.panel?.show() }
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
+
+    @objc func openMonitorSettingsAction(_ sender: Any?) {
+        ServiceLocator.settings?.open(pane: "monitor")
+    }
+
+    @objc func toggleMonitorModuleAction(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let module = MonitorModuleID(rawValue: rawValue) else { return }
+        MonitorPreferences.setModuleEnabled(module, !MonitorPreferences.isModuleEnabled(module))
+        syncStatusItems()
+    }
+
+    @objc func toggleMonitorCombinedAction(_ sender: NSMenuItem) {
+        MonitorPreferences.combinedMode.toggle()
+        syncStatusItems()
+    }
 
     /// 打开统计窗（spec 17 S1/S2：打开即埋点 statistics_open，埋点在 StatisticsWindowController.openStatistics 内）
     @objc func showStatisticsAction(_ sender: Any?) {

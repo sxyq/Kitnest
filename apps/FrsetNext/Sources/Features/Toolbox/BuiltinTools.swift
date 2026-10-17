@@ -3,7 +3,7 @@ import AppKit
 
 // MARK: - 内置工具注册
 // 每个工具：id / 名称 / 图标 / 分类 / 选项 / 执行函数。
-// 执行函数只依赖本模块的转换器，不引用任何其他 Features。
+// 文本转换复用本模块转换器，AI 动作复用现有翻译会话与摘要提示词。
 
 public enum BuiltinTools {
     /// 工具默认输出行为（设置页可切换）
@@ -26,16 +26,56 @@ public enum BuiltinTools {
     // MARK: 注册入口（ToolboxModule.start 调用）
 
     public static func registerAll() {
+        registerAITool(id: "translate", name: "Translate", description: "Translate text",
+                       kind: .translation)
+        registerAITool(id: "summary", name: "Summary", description: "Summarize text with AI",
+                       kind: .summary)
+        registerQRCodeTool()
+        registerUUIDTool()
         registerTimestampTool()
+        registerJSONTool()
+        registerImageCompressTool()
         registerIPTool()
         registerVarNameTool()
         registerBase64Tool()
         registerURLEncodeTool()
-        registerJSONTool()
         registerCodePreviewTool()
-        registerImageCompressTool()
         registerHashTool()
-        registerQRCodeTool()
+    }
+
+    private static func registerAITool(id: String, name: String, description: String,
+                                       kind: ToolKind) {
+        ToolRegistry.register(ToolDescriptor(
+            identifier: id, kind: kind, name: L10n.t(name),
+            keyword: id, toolDescription: L10n.t(description),
+            systemImage: id == "translate" ? "character.bubble" : "text.alignleft",
+            category: .convert, placeholder: L10n.t(description)
+        ) { input, _ in
+            do {
+                if kind == .translation {
+                    return ToolOutput(text: try await TranslationToolSession.shared.complete(input))
+                }
+                guard let service = ServiceLocator.llmService else {
+                    return .error("请先配置 AI 服务商")
+                }
+                let action = AISummaryAction.summarize
+                return ToolOutput(text: try await service.complete(
+                    prompt: action.prompt(for: input), system: action.systemPrompt, model: nil))
+            } catch {
+                return .error(error.localizedDescription)
+            }
+        })
+    }
+
+    private static func registerUUIDTool() {
+        ToolRegistry.register(ToolDescriptor(
+            identifier: "uuid", kind: .uuid, name: "UUID",
+            keyword: "uuid", toolDescription: L10n.t("Generate random UUID v4 values"),
+            systemImage: "number", category: .convert,
+            placeholder: L10n.t("Generate random UUID v4 values")
+        ) { _, _ in
+            ToolOutput(text: UUID().uuidString.lowercased())
+        })
     }
 
     // MARK: 1. 时间戳转换
@@ -44,7 +84,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "timestamp",
             kind: .timestampConverter,
-            name: "时间戳转换",
+            name: L10n.t("Timestamp"),
+            keyword: "time",
+            toolDescription: L10n.t("Convert between timestamps and dates"),
             systemImage: "clock",
             category: .convert,
             placeholder: "输入 Unix 时间戳（1700000000）或日期（2025-03-01 12:00:00），留空显示当前时间",
@@ -64,7 +106,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "ip",
             kind: .ipAddress,
-            name: "IP 地址查询",
+            name: L10n.t("IP Addresses"),
+            keyword: "ip",
+            toolDescription: L10n.t("View your public and local IP addresses"),
             systemImage: "network",
             category: .network,
             placeholder: "无需输入，点击执行即查询（公网走 api.ipify.org，失败降级内网 IP）",
@@ -91,7 +135,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "varname",
             kind: .varNameConverter,
-            name: "变量名转换",
+            name: L10n.t("Variable Naming"),
+            keyword: "var",
+            toolDescription: L10n.t("Generate variable names via AI"),
             systemImage: "chevron.left.forwardslash.chevron.right",
             category: .convert,
             placeholder: "输入变量名，如 user_name / UserName / user-name",
@@ -113,7 +159,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "base64",
             kind: .base64,
-            name: "Base64 编解码",
+            name: L10n.t("Base64"),
+            keyword: "base64",
+            toolDescription: L10n.t("Encode or decode Base64 text"),
             systemImage: "doc.text.magnifyingglass",
             category: .encode,
             placeholder: "输入文本（编码）或 Base64 串（解码），支持中文",
@@ -139,7 +187,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "urlencode",
             kind: .urlEncode,
-            name: "URL 编解码",
+            name: L10n.t("URL Encode"),
+            keyword: "url",
+            toolDescription: L10n.t("Encode or decode URL text"),
             systemImage: "link",
             category: .encode,
             placeholder: "输入 URL 或查询参数文本",
@@ -168,7 +218,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "json",
             kind: .jsonFormat,
-            name: "JSON 格式化",
+            name: L10n.t("JSON"),
+            keyword: "json",
+            toolDescription: L10n.t("Format or minify JSON"),
             systemImage: "curlybraces",
             category: .format,
             placeholder: "粘贴 JSON 文本",
@@ -214,7 +266,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "imagecompress",
             kind: .imageCompress,
-            name: "图片压缩",
+            name: L10n.t("TinyPNG"),
+            keyword: "tinypng",
+            toolDescription: L10n.t("TinyPNG Compress Images"),
             systemImage: "photo",
             category: .media,
             inputKind: .filePath,
@@ -282,8 +336,10 @@ public enum BuiltinTools {
     private static func registerQRCodeTool() {
         ToolRegistry.register(ToolDescriptor(
             identifier: "qrcode",
-            kind: .codePreview,
-            name: "二维码生成",
+            kind: .qrCode,
+            name: L10n.t("QR Code"),
+            keyword: "qrcode",
+            toolDescription: L10n.t("Generate QR Code from text or URL"),
             systemImage: "qrcode",
             category: .media,
             placeholder: "输入要编码的文本或链接",

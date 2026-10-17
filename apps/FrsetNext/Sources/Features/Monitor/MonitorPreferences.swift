@@ -3,42 +3,48 @@ import Foundation
 // MARK: - 监测偏好（键名沿用原作 monitor.* 风格，全部经 Preferences 持久化）
 
 public enum MonitorModuleID: String, CaseIterable, Sendable {
+    case power
     case cpu
     case memory
     case network
     case disk
     case sensors
     case battery
+    case gpu
 
     /// 显示名（设置页签 / 详情标题）
     public var displayName: String {
         switch self {
+        case .power: return "功耗"
         case .cpu: return "CPU"
         case .memory: return "内存"
         case .network: return "网络"
         case .disk: return "磁盘"
         case .sensors: return "温度"
         case .battery: return "电池"
+        case .gpu: return "GPU"
         }
     }
 
     /// 状态栏图标
     public var systemImage: String {
         switch self {
+        case .power: return "bolt.fill"
         case .cpu: return "cpu"
         case .memory: return "memorychip"
         case .network: return "arrow.up.arrow.down"
         case .disk: return "internaldrive"
         case .sensors: return "thermometer"
         case .battery: return "battery.100"
+        case .gpu: return "cube.transparent"
         }
     }
 
-    /// 默认是否启用（对齐规划 v2：GPU/电池类默认关，这里电池默认关）
+    /// 新配置保留功耗与原版三个常用项；已有用户选择继续读取原值。
     public var enabledByDefault: Bool {
         switch self {
-        case .cpu, .memory, .network, .disk, .sensors: return true
-        case .battery: return false
+        case .power, .memory, .network, .disk: return true
+        case .cpu, .sensors, .battery, .gpu: return false
         }
     }
 }

@@ -117,6 +117,7 @@ public struct FileTypeIcon: Codable, Hashable, Sendable {
 public enum ToolKind: String, Codable, CaseIterable, Sendable {
     case timestampConverter, ipAddress, varNameConverter, base64, urlEncode
     case jsonFormat, codePreview, imageCompress, colorPicker, translation, hashGenerator
+    case uuid, summary, qrCode
 }
 
 public struct ToolInvocationRecord: Codable, Identifiable, Sendable {
@@ -181,11 +182,21 @@ public struct MonitorSample: Sendable {
     public var netDownload: UInt64
     public var temperatures: [String: Double]
     public var batteryLevel: Double?
+    // MARK: 整机功耗（AppleSmartBattery PowerTelemetryData，2026-10-16）
+    /// 功率绝对值（W）；nil = 读不到
+    public var powerWatts: Double?
+    /// true = 输入（接电源/充电），false = 输出（电池放电）
+    public var powerIsInput: Bool
+    /// 是否正在充电（接电且 BatteryPower > 0）
+    public var isCharging: Bool
+    /// 是否接着外部电源
+    public var externalPower: Bool
     public init() {
         cpuUsage = 0; systemCPU = 0; userCPU = 0; idleCPU = 1; perCore = []
         memoryUsed = 0; memoryTotal = 0; memoryPressure = 0; swapUsed = 0
         diskRead = 0; diskWrite = 0; netUpload = 0; netDownload = 0
         temperatures = [:]; batteryLevel = nil
+        powerWatts = nil; powerIsInput = false; isCharging = false; externalPower = false
     }
 }
 

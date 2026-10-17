@@ -27,6 +27,7 @@ public final class MonitorSampler: ObservableObject {
         public var netUpload: [Double] = []
         public var diskRead: [Double] = []
         public var diskWrite: [Double] = []
+        public var gpu: [Double] = []
 
         public init() {}
     }
@@ -48,6 +49,7 @@ public final class MonitorSampler: ObservableObject {
         var netUpload = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var diskRead = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var diskWrite = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var gpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
     }
 
     private init() {
@@ -128,6 +130,9 @@ public final class MonitorSampler: ObservableObject {
     }
 
     private func sampleOnce() {
+        // 深数据（C 采集层：GPU/SMART/连通性/进程/传感器/适配器）——后台队列刷新，内部节流
+        StatsDataProvider.shared.refresh()
+
         let result = reader.readResult()
         let sample = result.sample
         let loadAverages = reader.loadAverages()
@@ -140,6 +145,8 @@ public final class MonitorSampler: ObservableObject {
         buffers.netUpload.append(Double(sample.netUpload))
         buffers.diskRead.append(Double(sample.diskRead))
         buffers.diskWrite.append(Double(sample.diskWrite))
+        let gpuUsage = StatsDataProvider.shared.current.gpuUsage
+        buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : 0)
         var snapshot = History()
         snapshot.cpu = buffers.cpu.values()
         snapshot.memory = buffers.memory.values()
@@ -147,6 +154,7 @@ public final class MonitorSampler: ObservableObject {
         snapshot.netUpload = buffers.netUpload.values()
         snapshot.diskRead = buffers.diskRead.values()
         snapshot.diskWrite = buffers.diskWrite.values()
+        snapshot.gpu = buffers.gpu.values()
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）

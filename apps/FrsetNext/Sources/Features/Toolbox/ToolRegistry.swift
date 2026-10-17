@@ -73,6 +73,8 @@ public struct ToolDescriptor: Identifiable {
     /// 统计归属（写入 tool_invocations.kind 与 daily_stats.tool_count）
     public let kind: ToolKind
     public let name: String
+    public let keyword: String
+    public let toolDescription: String
     public let systemImage: String
     public let category: ToolCategory
     public let inputKind: ToolInputKind
@@ -86,6 +88,8 @@ public struct ToolDescriptor: Identifiable {
     public init(identifier: String,
                 kind: ToolKind,
                 name: String,
+                keyword: String? = nil,
+                toolDescription: String = "",
                 systemImage: String,
                 category: ToolCategory,
                 inputKind: ToolInputKind = .text,
@@ -93,6 +97,8 @@ public struct ToolDescriptor: Identifiable {
                 options: [ToolOption] = [],
                 execute: @escaping (String, [String: String]) async -> ToolOutput) {
         self.identifier = identifier; self.kind = kind; self.name = name
+        self.keyword = keyword ?? identifier
+        self.toolDescription = toolDescription
         self.systemImage = systemImage; self.category = category
         self.inputKind = inputKind; self.placeholder = placeholder
         self.options = options; self.execute = execute

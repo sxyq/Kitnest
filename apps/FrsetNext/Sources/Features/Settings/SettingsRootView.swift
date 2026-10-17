@@ -1,123 +1,134 @@
 import SwiftUI
 
 // MARK: - 设置窗口根视图
-// 左侧竖向页签栏（图标 + 文字，选中态胶囊高亮）+ 右侧内容区。
-// 页签完全由 SettingsPaneRegistry 驱动，其他模块注册即自动出现。
+//
+// 结构：五个居中顶部页签（通用/搜索/工具/快捷键/关于）+ 内容区。
+// 页签几何对齐原版：居中成组，中心归一化 x = 0.262/0.377/0.500/0.623/0.741，
+// 页签栏高 92pt（specs/07 §5-5 实证）。
+//
+// 布局纪律（2026-10-16 实证，勿改）：
+// 根视图必须固定 .frame(width: 800, height: 530)。SwiftUI App lifecycle 下
+// NSHostingView 会把根视图 fitting size 折成窗口尺寸请求；高度自由的根视图
+// （.frame(maxHeight: .infinity)）令窗口被反复请求撑到内容自然高（实测 1554pt），
+// 与窗口固定尺寸冲突，触发无限 Update Constraints 循环 →
+// NSGenericException（"has already had more Update Constraints in Window passes
+// than there are views in the window"）。各页内部滚动由 ScrollView 承担。
 
 struct SettingsRootView: View {
     @ObservedObject var state: SettingsUIState
+    @ObservedObject private var appearance = AppearanceState.shared
+    @Environment(\.colorScheme) private var colorScheme
+    /// 页签高亮块：切换时平滑滑动（matchedGeometry）
+    @Namespace private var tabNamespace
 
-    // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
-    @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
-    @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
-    @Environment(\.usesMidnightTextColor) private var usesMidnightTextColor
-    @Environment(\.midnightTextColorOverride) private var midnightTextColor
+    private let tabIDs = ["general", "search", "tools", "shortcuts", "about"]
+    private let tabIcons = ["gearshape.fill", "magnifyingglass.circle.fill", "square.fill", "command.square.fill", "info.circle.fill"]
 
-    /// 注册表快照（已按约定顺序排序）
     private var panes: [SettingsPaneDescriptor] { SettingsPaneRegistry.all }
-
-    /// 当前页签：优先取 state 指定 id；找不到时回退到第一个
-    private var currentPane: SettingsPaneDescriptor? {
-        panes.first { $0.id == state.selectedPaneID } ?? panes.first
-    }
-
-    /// 正文色：Midnight 且 usesMidnightTextColor 为真时用冷白蓝，否则系统 primary
-    private var bodyTextColor: Color {
-        (usesMidnightTextColor ? midnightTextColor : nil) ?? .primary
+    private var selectedPane: SettingsPaneDescriptor? {
+        panes.first { $0.id == state.selectedPaneID }
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
+        VStack(spacing: 0) {
+            HStack(spacing: 20) {
+                ForEach(Array(tabIDs.enumerated()), id: \.element) { index, id in
+                    if let pane = panes.first(where: { $0.id == id }) {
+                        Button {
+                            withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+                                state.selectedPaneID = id
+                                state.detailPaneID = nil
+                            }
+                        } label: {
+                            VStack(spacing: 8) {
+                                Image(systemName: tabIcons[index])
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .frame(height: 24)
+                                    .overlay {
+                                        if id == "tools" {
+                                            Image(systemName: "line.diagonal")
+                                                .font(.system(size: 14, weight: .heavy))
+                                                .foregroundStyle(Color(NSColor.windowBackgroundColor))
+                                        }
+                                    }
+                                Text(pane.title)
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .frame(width: 76, height: 56)
+                            .foregroundStyle(state.selectedPaneID == id ? Color.primary : Color.secondary)
+                            .background {
+                                if state.selectedPaneID == id {
+                                    RoundedRectangle(cornerRadius: 13)
+                                        .fill(Color.primary.opacity(0.07))
+                                        .matchedGeometryEffect(id: "settingsTab", in: tabNamespace)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings.tab.\(id)")
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 92)
+            .offset(y: 2)
             Divider()
-            contentArea
+            if let pane = selectedPane {
+                Group {
+                    if state.selectedPaneID == "general" {
+                        ScrollView {
+                            pane.build()
+                                .padding(.horizontal, 50)
+                                .padding(.top, 12)
+                                .padding(.bottom, 24)
+                        }
+                    } else if state.selectedPaneID == "about" {
+                        pane.build()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if state.selectedPaneID == "tools" || state.selectedPaneID == "search" {
+                        pane.build()
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 16)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else {
+                        ScrollView {
+                            pane.build()
+                                .padding(.horizontal, 30)
+                                .padding(.vertical, 16)
+                                .frame(maxWidth: .infinity, alignment: .top)
+                        }
+                    }
+                }
+                .id(state.selectedPaneID)
+                .transition(.opacity.combined(with: .offset(y: 6)))
+            }
         }
-        .frame(width: 720, height: 520)
-        .background(midnightBaseBackground ?? Color(NSColor.windowBackgroundColor))
-        .foregroundStyle(bodyTextColor)
-        // Midnight 主题注入器挂载点（注入器与四个 EnvironmentKey 在共享层 Core/AppearanceTheme.swift）
+        .frame(width: 800, height: 530)
+        .background(appearance.isMidnight ? MidnightTheme.baseBackground :
+                    colorScheme == .light ? Color(white: 222.0 / 255.0) : Color(NSColor.windowBackgroundColor))
+        .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         .frsetAppearanceTheme()
-    }
-
-    // MARK: - 左侧页签栏
-
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(panes, id: \.id) { pane in
-                paneButton(pane)
+        .ignoresSafeArea()
+        .sheet(isPresented: Binding(
+            get: { state.detailPaneID != nil },
+            set: { if !$0 { state.detailPaneID = nil } }
+        )) {
+            if let pane = panes.first(where: { $0.id == state.detailPaneID }) {
+                VStack(spacing: 0) {
+                    HStack {
+                        Text(pane.title).font(.headline)
+                        Spacer()
+                        Button("完成") { state.detailPaneID = nil }
+                            .keyboardShortcut(.cancelAction)
+                    }
+                    .padding(20)
+                    Divider()
+                    ScrollView { pane.build().padding(24) }
+                }
+                .frame(width: 700, height: 460)
+                .frsetAppearanceTheme()
             }
-            Spacer(minLength: 0)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("FrsetNext")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.tertiary)
-                Text("正向重建版")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 12)
-        }
-        .padding(.top, 14)
-        .frame(width: 168)
-        // Midnight：侧栏用卡片底色与内容区拉开层次（原作 Midnight 侧栏底衬色值 ⬜ 未探明，
-        // 此处取 MidnightTheme.cardBackground 近似；非 Midnight 不铺底色）
-        .background {
-            if let card = midnightCardBackground { card }
-        }
-    }
-
-    private func paneButton(_ pane: SettingsPaneDescriptor) -> some View {
-        let isSelected = currentPane?.id == pane.id
-        return Button {
-            state.selectedPaneID = pane.id
-        } label: {
-            HStack(spacing: 9) {
-                Image(systemName: pane.systemImage)
-                    .font(.system(size: 13, weight: .medium))
-                    .frame(width: 18)
-                Text(pane.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .foregroundStyle(isSelected ? Color.white : bodyTextColor)
-            .background(
-                // 选中态胶囊高亮（对齐原版选中底色，改为竖排）
-                RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-    }
-
-    // MARK: - 右侧内容区
-
-    @ViewBuilder
-    private var contentArea: some View {
-        if let pane = currentPane {
-            ScrollView {
-                pane.build()
-                    .padding(24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            }
-        } else {
-            // 无页签注册时的空状态
-            VStack(spacing: 10) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 34))
-                    .foregroundStyle(.tertiary)
-                Text("暂无设置项")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text("各功能模块可通过 SettingsPaneRegistry 注册设置页签")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

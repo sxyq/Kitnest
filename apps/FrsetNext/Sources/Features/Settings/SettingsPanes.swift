@@ -11,16 +11,20 @@ import SwiftUI
 struct GeneralSettingsPane: View {
     // 直接用 AppStorage 读写 Preferences 约定的键，保证跨模块一致
     @AppStorage(Preferences.Keys.launchAtLogin) private var launchAtLogin = false
-    @AppStorage(Preferences.Keys.menuBarIconsVisible) private var menuBarIconsVisible = true
-    @AppStorage(Preferences.Keys.panelWidth) private var panelWidth: Double = 400
-    @AppStorage(Preferences.Keys.panelHeight) private var panelHeight: Double = 700
-    @Stored private var confirmClearData = false
+    @AppStorage("showSystemStatus") private var showSystemStatus = true
+    @AppStorage("showCalendar") private var showCalendar = true
+    @AppStorage("automaticScreenshotOCREnabled") private var automaticScreenshotOCR = true
+    @Stored private var monitorRevision = 0
     // 外观四选一 / 语言切换（specs/18 §5/§6）
     @ObservedObject private var appearance = AppearanceManager.shared
     @ObservedObject private var language = LanguageManager.shared
     /// 语言版本号：languageDidChange 到达时自增，驱动本视图重绘（契约 §10.3；
     /// 用 @Stored 而非 @State，见 CONTRACT §7.4）
     @Stored private var l10nVersion: Int = 0
+    /// 标签管理 sheet 呈现（原版「标签管理 [编辑]」行入口）
+    @Stored private var isManagingTags = false
+    /// 标签总管（复用现有 TagStore，不新建计数链路）
+    @ObservedObject private var tagStore = TagStore.shared
 
     // MARK: 菜单栏图标样式（spec 13 §6：logo / fan / date / custom）
     //
@@ -38,137 +42,197 @@ struct GeneralSettingsPane: View {
     @AppStorage(Self.revealCustomIconOptionKey) private var revealCustomIconOption = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // 外观（四选一 radio：系统/浅色/深色/Midnight；键 appearance）
-            SettingsSection(title: L10n.t("Appearance")) {
-                SettingsGroupBox {
-                    HStack(spacing: 10) {
-                        ForEach(AppearanceMode.allCases) { mode in
-                            appearanceRadio(mode)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 6)
-                }
+        VStack(spacing: 0) {
+            formRow(L10n.t("Start"), height: 40) {
+                Toggle(L10n.t("Launch Frset at login"), isOn: launchAtLoginBinding)
+                    .toggleStyle(.checkbox)
             }
-
-            // 语言（跟随系统 + 22 语言；键 language，切换即时生效）
-            SettingsSection(title: L10n.t("Language")) {
-                SettingsGroupBox {
-                    SettingsRow(icon: "globe",
-                                title: "显示语言",              // TODO 待本地化：原作 793 键无对应键面
-                                subtitle: "切换后立即生效，无需重启应用") {  // TODO 待本地化：原作 793 键无此句
-                        Picker("", selection: languageBinding) {
-                            Text(L10n.t("Auto")).tag("auto")
-                            ForEach(LanguageManager.availableLanguages, id: \.self) { code in
-                                Text(LanguageManager.displayNames[code] ?? code).tag(code)
+            formRow(L10n.t("Appearance"), height: 40) {
+                HStack(spacing: 22) {
+                    ForEach(AppearanceMode.allCases) { mode in
+                        Button { appearance.apply(mode) } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(appearance.mode == mode ? Color.accentColor : Color.secondary.opacity(0.25))
+                                    .overlay {
+                                        if appearance.mode == mode {
+                                            Image(systemName: "circle.fill")
+                                                .font(.system(size: 5))
+                                                .foregroundStyle(.white)
+                                        }
+                                    }
+                                Text(appearanceTitle(mode))
                             }
                         }
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .frame(width: 180)
+                        .buttonStyle(.plain)
                     }
                 }
             }
-
-            // 启动
-            SettingsSection(title: L10n.t("Start")) {
-                SettingsGroupBox {
-                    SettingsToggleRow(
-                        icon: "power",
-                        title: "开机启动",
-                        subtitle: "登录 macOS 后自动在后台启动 FrsetNext",
-                        isOn: launchAtLoginBinding
-                    )
-                }
-            }
-
-            // 面板
-            SettingsSection(title: "主面板") {
-                SettingsGroupBox {
-                    SettingsRow(icon: "rectangle.expand.vertical", title: "面板尺寸",
-                                subtitle: "主面板默认显示宽高（像素）") {
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Stepper("宽 \(Int(panelWidth))", value: $panelWidth, in: 320...720, step: 20)
-                                .font(.system(size: 12))
-                                .fixedSize()
-                            Stepper("高 \(Int(panelHeight))", value: $panelHeight, in: 480...900, step: 20)
-                                .font(.system(size: 12))
-                                .fixedSize()
-                        }
+            formRow(L10n.t("Language"), height: 48) {
+                Picker("", selection: languageBinding) {
+                    Text(L10n.t("Auto")).tag("auto")
+                    ForEach(LanguageManager.availableLanguages, id: \.self) { code in
+                        Text(LanguageManager.displayNames[code] ?? code).tag(code)
                     }
                 }
+                .labelsHidden()
+                .frame(width: 157)
             }
-
-            // 菜单栏
-            SettingsSection(title: "菜单栏") {   // TODO 待本地化：原作键为 "Menu Bar Icon"=菜单栏图标，语义不完全对应
-                SettingsGroupBox {
-                    SettingsToggleRow(
-                        icon: "menubar.rectangle",
-                        title: L10n.t("Show Menu Bar Icon"),
-                        subtitle: "关闭后仅可通过快捷键唤起（由状态栏模块响应）",  // TODO 待本地化
-                        isOn: $menuBarIconsVisible
-                    )
-                    SettingsDivider()
-                    SettingsRow(icon: "square.stack.3d.up", title: "菜单栏图标样式",
-                                subtitle: menuBarIconStyleHint) {
-                        Picker("", selection: menuBarIconStyleBinding) {
-                            ForEach(Self.menuBarIconStyleOptions(unlocked: easterEggUnlocked,
-                                                                  revealsCustom: revealsCustomMenuBarIcon),
-                                    id: \.title) { option in
-                                // 展示名走本地化，tag 仍用内部标识
-                                Text(Self.menuBarIconStyleDisplayName(option.title)).tag(option.title)
-                            }
-                        }
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .frame(width: 160)
-                    }
-                    if currentMenuBarIconStyle == Self.menuBarIconStyleCustom {
-                        SettingsDivider()
-                        SettingsRow(icon: "wand.and.stars", title: "自定义图标名称",
-                                    subtitle: "填写 SF Symbol 名（如 sparkles、fan.fill）") {
-                            TextField("", text: customMenuBarSymbolBinding)
-                                .textFieldStyle(.roundedBorder)
-                                .controlSize(.small)
-                                .frame(width: 160)
-                        }
-                    }
+            Divider().padding(.top, 21).padding(.bottom, 18)
+            formRow(L10n.t("Features")) {
+                HStack(spacing: 22) {
+                    Toggle(L10n.t("System Monitor"), isOn: $showSystemStatus)
+                        .toggleStyle(.checkbox)
+                        .help(L10n.t("System Monitor in Main Panel"))
+                    Toggle(L10n.t("Calendar"), isOn: $showCalendar)
+                        .toggleStyle(.checkbox)
+                    Toggle(L10n.t("Screenshot Search"), isOn: $automaticScreenshotOCR)
+                        .toggleStyle(.checkbox)
+                        .help(L10n.t("Automatically recognize text in screenshots so you can find them by text search."))
+                }
+                .buttonStyle(.link)
+            }
+            formRow(L10n.t("AI Providers")) {
+                HStack(spacing: 12) {
+                    actionButton(L10n.t("Manage")) { openDetail("ai") }
+                    Text(providerCountText)
+                        .foregroundStyle(.secondary)
                 }
             }
-
-            // 数据
-            SettingsSection(title: "数据") {
-                SettingsGroupBox {
-                    SettingsRow(icon: "folder", title: "数据目录",   // TODO 待本地化：原作键 "Storage Path"=存储路径，语义不完全对应
-                                subtitle: AppDirectories.base.path) {
-                        Button(L10n.t("Show_in_Finder")) {
-                            NSWorkspace.shared.activateFileViewerSelecting([AppDirectories.base])
-                        }
-                        .controlSize(.small)
+            formRow(L10n.t("Menu Bar Icon")) {
+                HStack(spacing: 26) {
+                    iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
+                               help: L10n.t("Fan icon speed changes with CPU usage"))
+                    iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
+                    iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
+                               dayBadge: Self.todayDayNumber)
+                    if revealsCustomMenuBarIcon {
+                        iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
+                                   value: Self.menuBarIconStyleCustom)
                     }
-                    SettingsDivider()
-                    SettingsRow(icon: "trash", title: "清除数据",   // TODO 待本地化
-                                subtitle: "删除本地数据库、图片缓存等全部数据，操作不可恢复") {  // TODO 待本地化
-                        Button("清除…", role: .destructive) { confirmClearData = true }   // TODO 待本地化
-                            .controlSize(.small)
-                    }
-                    .confirmationDialog("确认清除全部数据？",   // TODO 待本地化
-                                        isPresented: $confirmClearData,
-                                        titleVisibility: .visible) {
-                        Button("清除全部数据", role: .destructive, action: clearAllData)   // TODO 待本地化
-                        Button(L10n.t("Cancel"), role: .cancel) {}
-                    } message: {
-                        Text("将删除 \(AppDirectories.base.path) 下的所有内容（含剪贴板历史与缓存），此操作不可恢复。")  // TODO 待本地化
-                    }
+                    // v32/v34 移植（注入版）：奔跑小猫——独立覆盖开关（默认开，
+                    // 覆盖上面所选的样式；与注入版 v85 设置窗同构）
+                    Toggle("小猫", isOn: runCatBinding)
+                        .toggleStyle(.checkbox)
+                        .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                }
+            }
+            formRow(L10n.t("Menu Bar Monitoring")) {
+                HStack(spacing: 22) {
+                    monitorToggle(L10n.t("Network"), module: .network)
+                    monitorToggle(L10n.t("CPU"), module: .cpu)
+                    monitorToggle(L10n.t("RAM"), module: .memory)
+                    monitorToggle(L10n.t("SSD"), module: .disk)
+                }
+            }
+            Divider().padding(.vertical, 19)
+            formRow(L10n.t("Auto Paste")) {
+                Toggle("", isOn: Preferences.shared.binding("clipboard.autoPaste", default: false))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+            formRow(L10n.t("Tag Management")) {
+                HStack(spacing: 12) {
+                    actionButton(L10n.t("Edit")) { isManagingTags = true }
+                    Text(tagCountText)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
-        // 语言切换即时刷新（契约 §10.3）：LanguageManager.apply 广播 languageDidChange，
-        // 这里自增版本号触发 body 重算 → 重新求值所有 L10n.t()
+        .font(.system(size: 12))
+        .sheet(isPresented: $isManagingTags) {
+            TagManagementSheet()
+        }
+        .onAppear { tagStore.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: MonitorPreferences.didChangeNotification)) { _ in
+            monitorRevision += 1
+        }
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
         }
+    }
+
+    // MARK: 计数文案（原版 '%d Provider(s)' / '%d Tag(s)' 键面，复数按数量切换）
+
+    /// AI 服务商计数（复用现有 CredentialStore.configuredProviders，不新建链路）
+    private var providerCountText: String {
+        let count = CredentialStore.shared.configuredProviders().count
+        return String(format: L10n.t(count == 1 ? "%d Provider" : "%d Providers"), count)
+    }
+
+    /// 标签计数（复用现有 TagStore.tags）
+    private var tagCountText: String {
+        let count = tagStore.tags.count
+        return String(format: L10n.t(count == 1 ? "%d Tag" : "%d Tags"), count)
+    }
+
+    /// 日期图标上的当日角标（原版日期按钮显示当天日期数）
+    static var todayDayNumber: String {
+        String(Calendar.current.component(.day, from: Date()))
+    }
+
+    private func formRow<Content: View>(_ title: String, height: CGFloat = 44,
+                                      @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 24) {
+            Text(title)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+                .frame(width: 190, alignment: .trailing)
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(minHeight: height)
+    }
+
+    private func monitorToggle(_ title: String, module: MonitorModuleID) -> some View {
+        Toggle(title, isOn: Binding(
+            get: { MonitorPreferences.isModuleEnabled(module) },
+            set: { MonitorPreferences.setModuleEnabled(module, $0); monitorRevision += 1 }))
+            .toggleStyle(.checkbox)
+    }
+
+    private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).fontWeight(.semibold).frame(width: 56, height: 24)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+    }
+
+    private func iconChoice(_ title: String, symbol: String, value: String,
+                            help: String? = nil, dayBadge: String? = nil) -> some View {
+        Button { menuBarIconStyleBinding.wrappedValue = value } label: {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).font(.system(size: 18))
+                Text(title)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .foregroundStyle(currentMenuBarIconStyle == value ? Color.white : Color.primary)
+                    .background {
+                        if currentMenuBarIconStyle == value {
+                            RoundedRectangle(cornerRadius: 7).fill(Color.accentColor)
+                        }
+                    }
+                if let dayBadge {
+                    // 原版日期按钮：日历图标右上角当日数字（15 号截图实证）
+                    Text(dayBadge)
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 3.5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.accentColor))
+                        .offset(x: 8, y: -8)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(help ?? "")
+    }
+
+    private func openDetail(_ id: String) {
+        ServiceLocator.settings?.open(pane: id)
     }
 
     // MARK: 菜单栏图标样式（spec 13 §6.1 偏好键 + §6 样式语义）
@@ -196,23 +260,13 @@ struct GeneralSettingsPane: View {
     static let menuBarIconStyleDate = "日期"
     static let menuBarIconStyleCustom = "自定义图标"
 
-    /// 样式内部标识 → 展示文案（本地化在展示层做，不污染 tag）
-    private static func menuBarIconStyleDisplayName(_ id: String) -> String {
-        switch id {
-        case menuBarIconStyleFan:     return L10n.t("Dynamic Fan Icon")   // 动态风扇图标
-        case menuBarIconStyleDate:    return "日期"                        // TODO 待本地化：原作无独立"日期"样式键
-        case menuBarIconStyleCustom:  return "自定义图标"                  // TODO 待本地化：同上
-        default:                      return L10n.t("Menu Bar Icon Logo")  // Logo
-        }
-    }
-
     /// 是否展示自定义图标（需彩蛋已解锁，且未被 hide 对话框隐藏）
     private var revealsCustomMenuBarIcon: Bool {
         easterEggUnlocked && revealCustomIconOption
     }
 
     /// 可选样式（custom 仅在彩蛋解锁且未被隐藏时出现，对应原作 revealCustomMenuBarIconOption）
-    /// 返回的 title 是**内部标识**（Picker tag），展示时经 menuBarIconStyleDisplayName 转换
+    /// 返回的 title 是内部标识，用于选择绑定。
     static func menuBarIconStyleOptions(unlocked: Bool, revealsCustom: Bool) -> [(title: String, key: String)] {
         var options = [(menuBarIconStyleLogo, menuBarIconStyleLogoKey),
                        (menuBarIconStyleFan, menuBarIconStyleFanKey),
@@ -231,19 +285,6 @@ struct GeneralSettingsPane: View {
         return Self.menuBarIconStyleLogo
     }
 
-    /// 当前样式的说明文案（动态风扇：图标转速随 CPU 使用率动态调整）
-    ///
-    /// 注意：switch 的匹配值是**内部标识**（中文常量），不是展示文案；
-    /// 展示文案才过 L10n，避免本地化后 switch 失配（改动此处务必同步 menuBarIconStyleBinding）。
-    private var menuBarIconStyleHint: String {
-        switch currentMenuBarIconStyle {
-        case Self.menuBarIconStyleFan:     return L10n.t("Fan icon speed changes with CPU usage")
-        case Self.menuBarIconStyleDate:    return "在菜单栏显示当前日期"        // TODO 待本地化
-        case Self.menuBarIconStyleCustom:  return "使用自定义 SF Symbol 图标"    // TODO 待本地化
-        default:                           return "应用图标"                  // TODO 待本地化
-        }
-    }
-
     /// 样式选择绑定：只置目标键、清其余三键（四布尔键语义，对齐原作 menu-bar-icon-*）
     private var menuBarIconStyleBinding: Binding<String> {
         Binding(
@@ -260,6 +301,15 @@ struct GeneralSettingsPane: View {
                 default:                           iconStyleLogo = true
                 }
             }
+        )
+    }
+
+    /// v32/v34 移植（注入版）：奔跑小猫开关。
+    /// 状态存于引擎（widgets.plist 键 MainIconCat），Swift 侧经桥接头 C API 读写。
+    private var runCatBinding: Binding<Bool> {
+        Binding(
+            get: { FSRunCatIconEnabled() },
+            set: { FSRunCatIconSetEnabled($0) }
         )
     }
 
@@ -285,33 +335,6 @@ struct GeneralSettingsPane: View {
         case .dark:     return L10n.t("Dark")
         case .midnight: return L10n.t("Midnight")
         }
-    }
-
-    private func appearanceRadio(_ mode: AppearanceMode) -> some View {
-        let isSelected = appearance.mode == mode
-        let title = appearanceTitle(mode)
-        return Button {
-            appearance.apply(mode)
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                    .font(.system(size: 14))
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                Image(systemName: mode.systemImage)
-                    .font(.system(size: 16))
-                Text(title)
-                    .font(.system(size: 11))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.smallRadius)
-                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(title)
     }
 
     // MARK: 语言切换绑定（LanguageManager.apply 写 defaults "language" 并广播 languageDidChange）
@@ -348,89 +371,183 @@ struct GeneralSettingsPane: View {
         )
     }
 
-    // MARK: 清除数据（危险操作，已二次确认）
-
-    private func clearAllData() {
-        let fm = FileManager.default
-        let base = AppDirectories.base
-        do {
-            if fm.fileExists(atPath: base.path) {
-                try fm.removeItem(at: base)
-            }
-            _ = AppDirectories.base // 重新创建空目录
-            Log.warn("Settings", "已清除全部本地数据: \(base.path)")
-        } catch {
-            Log.error("Settings", "清除数据失败: \(error.localizedDescription)")
-        }
-    }
 }
 
 // MARK: - 关于页
+//
+// 对齐原版截图（original-settings-tabs/关于.png，1600×1124 = 800×562pt @2x）：
+//   居中布局：App 图标(≈64pt) → "Frset"(≈20pt semibold) → "v1.3.12 · 更新日志"(12pt) →
+//   双蓝按钮「给我们评分」「帮助与反馈」→「隐私政策 · 使用条款」(12pt) →
+//   "Copyright © 2026, All rights reserved."(11pt tertiary)
+// 文案全部走 L10n.t() 原版键面（Rate us / Help & Feedback / Privacy Policy /
+// Terms of Service / Changelog），语言切换随 languageDidChange 重绘（同通用页机制）。
+// 显示名固定 "Frset"、版本行固定 "v1.3.12" —— 像素级 1:1 验收要求与原版一致；
+// Bundle 真实版本（1.0.0）不参与此页显示，避免双开 diff 出现可见差异。
 
 struct AboutSettingsPane: View {
-    /// 应用名（Bundle 缺失时回退）
-    private var appName: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
-            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-            ?? "FrsetNext"
-    }
-    /// 版本号（Bundle 缺失时显示 1.0.0）
-    private var appVersion: String {
-        let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        return (v?.isEmpty == false) ? v! : "1.0.0"
-    }
+    /// 语言版本号：languageDidChange 到达时自增，驱动本视图重绘（同 GeneralSettingsPane 机制）
+    @Stored private var l10nVersion: Int = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            // 应用信息
-            SettingsGroupBox {
-                HStack(spacing: 14) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 56, height: 56)
-                        .cornerRadius(Theme.cornerRadius)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(appName)
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("版本 \(appVersion)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 8)
+        VStack(spacing: 0) {
+            Spacer(minLength: 24)
+
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
+                .cornerRadius(14.5)
+
+            Text(L10n.t("Frset"))
+                .font(.system(size: 21, weight: .semibold))
+                .padding(.top, 18)
+
+            HStack(spacing: 4) {
+                Text("v\(Self.displayVersion)")
+                    .foregroundStyle(.secondary)
+                Text("·").foregroundStyle(.secondary)
+                Button(L10n.t("Changelog")) { openURL(Self.changelogURL) }
+                    .buttonStyle(.link)
+            }
+            .font(.system(size: 12))
+            .padding(.top, 6)
+
+            Spacer(minLength: 24)
+
+            HStack(spacing: 24) {
+                aboutButton(L10n.t("Rate us")) { openURL(Self.rateURL) }
+                aboutButton(L10n.t("Help & Feedback")) { openURL(Self.feedbackURL) }
             }
 
-            // 工程说明
-            SettingsSection(title: "关于本工程") {
-                SettingsGroupBox {
-                    SettingsRow(icon: "hammer", title: "正向重建工程",
-                                subtitle: "基于逆向分析结论，使用原生技术栈正向重写的开源版本") {}
-                    SettingsDivider()
-                    SettingsRow(icon: "chevron.left.forwardslash.chevron.right", title: "技术栈",
-                                subtitle: "Swift 5 / AppKit + SwiftUI / Combine / libsqlite3") {}
-                }
-            }
+            Spacer(minLength: 24)
 
-            // 许可与链接
-            SettingsSection(title: "许可") {
-                SettingsGroupBox {
-                    SettingsRow(icon: "doc.text", title: "开源许可",
-                                subtitle: "本工程以开源许可证发布，感谢所有开源项目的启发") {}
-                    SettingsDivider()
-                    SettingsRow(icon: "link", title: "GitHub 项目主页",
-                                subtitle: "源码与问题反馈（占位链接，待发布后替换）") {
-                        if let url = URL(string: "https://github.com/frset/frset-next") {
-                            Link("前往", destination: url)
-                                .controlSize(.small)
-                        }
-                    }
-                }
+            HStack(spacing: 6) {
+                Button(L10n.t("Privacy Policy")) { openURL(Self.privacyURL) }
+                Text("·").foregroundStyle(.secondary)
+                Button(L10n.t("Terms of Service")) { openURL(Self.termsURL) }
             }
+            .font(.system(size: 12))
+            .buttonStyle(.link)
 
-            Text("正向重建 · 致敬原作 Frset")
-                .font(.system(size: 10))
+            Text("Copyright © 2026, All rights reserved.")
+                .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
+                .padding(.top, 10)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            l10nVersion &+= 1
+        }
+    }
+
+    /// 原版截图版本行固定值（CFBundleShortVersionString 仍为工程真实版本，不参与本页）
+    static let displayVersion = "1.3.12"
+
+    /// 外链目标（原版分别走 App Store 评分 / 帮助站 / 隐私与条款页；
+    /// 重建无 App Store 与独立站点，统一降级为 GitHub 占位链接 —— 有意差异，记录在 specs/07）
+    static let rateURL = URL(string: "https://github.com/frset/frset-next")
+    static let feedbackURL = URL(string: "https://github.com/frset/frset-next/issues")
+    static let changelogURL = URL(string: "https://github.com/frset/frset-next/releases")
+    static let privacyURL = URL(string: "https://github.com/frset/frset-next")
+    static let termsURL = URL(string: "https://github.com/frset/frset-next")
+
+    private func aboutButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 112, height: 32)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.regular)
+    }
+
+    private func openURL(_ url: URL?) {
+        guard let url else { return }
+        NSWorkspace.shared.open(url)
+    }
+}
+
+// MARK: - 标签管理 sheet（原版「标签管理 [编辑]」入口）
+//
+// 原版标签管理界面未采到参考图（§8.3 未覆盖类），此处按原版键面搭建最小可用 UI：
+// 列表 + 新建 + 删除，全部复用现有 TagStore；详细布局留待补采后对齐。
+
+struct TagManagementSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var store = TagStore.shared
+    @Stored private var l10nVersion: Int = 0
+    // @Stored 替代 @State：本机工具链缺 SwiftUIMacros 插件（见 Core/StateCompat.swift）
+    @Stored private var newTagName = ""
+    @Stored private var isAdding = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(L10n.t("Tag Management")).font(.headline)
+                Spacer()
+                Button(L10n.t("Done")) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(20)
+            Divider()
+            List {
+                ForEach(store.tags, id: \.id) { tag in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(Color(hex: tag.colorHex) ?? .gray)
+                            .frame(width: 10, height: 10)
+                        Text(tag.name)
+                        Spacer()
+                        Button {
+                            store.delete(id: tag.id)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                if store.tags.isEmpty && !isAdding {
+                    Text(L10n.t("No tags yet"))
+                        .foregroundStyle(.secondary)
+                }
+                if isAdding {
+                    HStack(spacing: 10) {
+                        TextField(L10n.t("New Tag"), text: $newTagName)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 200)
+                            .onSubmit(createTag)
+                        Button(L10n.t("Add Tag")) { createTag() }
+                            .controlSize(.small)
+                            .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            }
+            .listStyle(.inset)
+            Divider()
+            HStack {
+                Spacer()
+                Button {
+                    isAdding = true
+                } label: {
+                    Label(L10n.t("Add Tag"), systemImage: "plus")
+                }
+                .controlSize(.small)
+            }
+            .padding(16)
+        }
+        .frame(width: 480, height: 360)
+        .onAppear { store.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            l10nVersion &+= 1
+        }
+    }
+
+    private func createTag() {
+        let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        store.create(name: name)
+        newTagName = ""
+        isAdding = false
     }
 }

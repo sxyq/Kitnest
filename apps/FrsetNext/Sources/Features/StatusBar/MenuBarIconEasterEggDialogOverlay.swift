@@ -242,7 +242,7 @@ final class MenuBarIconEasterEggOverlayController: NSObject {
         // 一次展示只允许触发一次回调：回车既走窗口层 performKeyEquivalent，
         // 也可能被 SwiftUI 的 .defaultAction 按钮捕获，不去重会重复执行（例如开两次设置窗）
         var hasTriggered = false
-        let fireOnce: (() -> Void) -> () -> Void = { [weak self] action in
+        let fireOnce: (@escaping () -> Void) -> () -> Void = { [weak self] action in
             {
                 guard let self, !hasTriggered else { return }
                 hasTriggered = true

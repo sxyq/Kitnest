@@ -263,10 +263,16 @@ public struct FloatingClipboardContentView: View {
             }
         }
         .frame(minWidth: 200, minHeight: 220)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                .fill(windowBackground)
-        )
+        .background {
+            // 悬浮剪贴板同样是结构面：macOS 26+ 铺 Liquid Glass，旧系统/Midnight 用实底
+            if midnightBaseBackground == nil {
+                LiquidGlassBackground(cornerRadius: Theme.cornerRadius,
+                                      tint: Color(NSColor.windowBackgroundColor).opacity(0.55))
+            } else {
+                RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                    .fill(windowBackground)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
         .foregroundStyle(bodyTextColor)
         .onAppear { store.refresh() }

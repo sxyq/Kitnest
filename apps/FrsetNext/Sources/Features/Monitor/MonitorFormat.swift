@@ -21,6 +21,11 @@ public enum MonitorFormat {
         bytes(value) + "/s"
     }
 
+    /// 菜单栏速率：沿用字节单位与精度，省去单位前的空格。
+    public static func compactRate(_ value: UInt64) -> String {
+        rate(value).replacingOccurrences(of: " ", with: "")
+    }
+
     /// 带方向的速率（↑ 上传 / ↓ 下载）
     public static func directionalRate(upload: UInt64, download: UInt64) -> String {
         "↑\(rate(upload)) ↓\(rate(download))"
@@ -51,5 +56,11 @@ public enum MonitorFormat {
     /// 磁盘读写合并显示（状态栏用，紧凑）
     public static func diskRate(read: UInt64, write: UInt64) -> String {
         "R\(rate(read)) W\(rate(write))"
+    }
+
+    /// 整机功耗（W，保留一位小数；≥100W 取整）
+    public static func power(_ watts: Double) -> String {
+        guard watts.isFinite, watts >= 0 else { return "—" }
+        return String(format: watts >= 100 ? "%.0fW" : "%.1fW", watts)
     }
 }

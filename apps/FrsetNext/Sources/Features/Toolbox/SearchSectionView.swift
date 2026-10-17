@@ -66,7 +66,7 @@ public enum ToolboxSearchSource {
         SearchHookRegistry.register { query in
             let keyword = query.lowercased()
             return ToolRegistry.enabledTools.compactMap { tool in
-                let haystack = [tool.name, tool.identifier, tool.category.title].joined(separator: " ").lowercased()
+                let haystack = [tool.name, tool.identifier, tool.keyword, tool.toolDescription, tool.category.title].joined(separator: " ").lowercased()
                 guard haystack.contains(keyword) else { return nil }
                 return SearchResultItem(id: "tool-\(tool.identifier)",
                                         title: tool.name,

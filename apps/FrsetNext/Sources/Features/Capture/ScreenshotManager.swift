@@ -402,8 +402,10 @@ public final class ScreenshotManager: ObservableObject {
     //
     // TODO(spec 13 §4)：「二维码识别失败」（0x1003c98e0 / 0x1003c99e8 / 0x100411b08，
     // 文案 Text Recognition Failed 与 QR Code Recognition Failed 两态）——
-    // 重建版截图链路目前只有文字 OCR（recognize(imageData:)），没有独立的二维码识别入口；
-    // 待二维码识别能力落地后，在其失败分支接
+    // 重建版截图链路只有文字 OCR（recognize(imageData:)）。全工程唯一的二维码能力是
+    // Panel 侧 PreviewImageLoader.detectQRCode（CIDetector，仅返回「有没有」的 Bool，
+    // 供预览头尾高度分支用，无失败态、也不在本模块），故此处**没有可挂失败分支的入口**；
+    // 待截图链路接入真正的二维码识别后再接
     // `Toast.show("二维码识别失败", icon: "exclamationmark.circle.fill")`。
 
     // MARK: 长截图 / 钉图

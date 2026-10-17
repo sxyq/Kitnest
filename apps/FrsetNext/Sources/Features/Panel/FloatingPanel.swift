@@ -30,28 +30,19 @@ public final class FloatingPanel: NSPanel {
         isOpaque = false
         hasShadow = true
 
-        // 毛玻璃底层（hudWindow 材质，behindWindow 混合），圆角由该层裁切
-        let effect = NSVisualEffectView(frame: NSRect(origin: .zero, size: contentRect.size))
-        effect.material = .hudWindow
-        effect.blendingMode = .behindWindow
-        effect.state = .active
-        effect.wantsLayer = true
-        if effect.layer == nil { effect.layer = CALayer() }
-        effect.layer?.cornerRadius = Theme.cornerRadius
-        effect.layer?.masksToBounds = true
-        effect.autoresizingMask = [.width, .height]
+        // 玻璃底层：macOS 26+ 用 Liquid Glass（NSGlassEffectView），旧系统回退毛玻璃。
+        // 圆角由玻璃层裁切；SwiftUI 内容铺满其上（内容自身不再铺底色）。
+        // tint 抬高对比：纯 regular 玻璃透得太狠，面板上的 10-11pt 小字会发飘；
+        // 用窗口底色 55% 做底衬（Apple 自家玻璃面板同做法），既保留透光又不牺牲可读性。
+        let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: contentRect.size),
+                                         cornerRadius: 14,
+                                         material: .hudWindow,
+                                         tint: NSColor.windowBackgroundColor.withAlphaComponent(0.55))
 
-        // SwiftUI 根视图铺满毛玻璃层
+        // SwiftUI 根视图铺满玻璃层
         let hosting = NSHostingView(rootView: rootView)
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        effect.addSubview(hosting)
-        NSLayoutConstraint.activate([
-            hosting.leadingAnchor.constraint(equalTo: effect.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: effect.trailingAnchor),
-            hosting.topAnchor.constraint(equalTo: effect.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: effect.bottomAnchor),
-        ])
-        contentView = effect
+        LiquidGlass.embed(hosting, in: glass)
+        contentView = glass
     }
 
     /// 允许成为 key（顶部搜索框需要键盘输入）；

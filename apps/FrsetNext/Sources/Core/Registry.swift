@@ -70,6 +70,9 @@ public struct StatusItemDescriptor {
     public let title: () -> String
     /// 可选富文本（带颜色/图标）
     public let attributedTitle: (() -> NSAttributedString)?
+    /// 可选双层标题（状态栏两行紧凑渲染：第一行/第二行）；非 nil 且返回非 nil 时优先于 title，
+    /// 由 StatusBarController 用自绘子视图呈现（省横向空间，2026-10-16）
+    public let twoLineTitle: (() -> (String, String)?)?
     /// 点击行为
     public let onTap: (() -> Void)?
     /// 点击后弹出的 popover 内容（监测模块详情面板）
@@ -78,10 +81,12 @@ public struct StatusItemDescriptor {
                 priority: Int,
                 title: @escaping () -> String,
                 attributedTitle: (() -> NSAttributedString)? = nil,
+                twoLineTitle: (() -> (String, String)?)? = nil,
                 onTap: (() -> Void)? = nil,
                 popover: (() -> AnyView)? = nil) {
         self.id = id; self.priority = priority; self.title = title
-        self.attributedTitle = attributedTitle; self.onTap = onTap; self.popover = popover
+        self.attributedTitle = attributedTitle; self.twoLineTitle = twoLineTitle
+        self.onTap = onTap; self.popover = popover
     }
 }
 

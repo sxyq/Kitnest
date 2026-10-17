@@ -67,6 +67,11 @@ public final class AppearanceManager: ObservableObject {
         }
     }
 
-    /// 当前是否为 Midnight 主题（转发到共享层 AppearanceState，现有调用点不变）
+    /// 当前是否为 Midnight 主题。
+    ///
+    /// 注意：这里**从 mode 计算**而非转发 `AppearanceState.shared.isMidnight`。
+    /// 若反向转发，`apply()` 里的 `AppearanceState.shared.isMidnight = isMidnight`
+    /// 会退化成自赋值（右边读的就是左边要写的那个槽），主题将永远停在 false。
+    /// `mode` 是持久化的真实来源，本属性由它派生，再单向同步给 AppearanceState。
     public var isMidnight: Bool { mode == .midnight }
 }

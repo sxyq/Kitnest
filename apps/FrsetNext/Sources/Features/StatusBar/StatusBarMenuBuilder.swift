@@ -23,6 +23,9 @@ public enum StatusBarMenuBuilder {
                           action: #selector(StatusBarController.openSettingsAction(_:)),
                           target: target))
 
+        menu.addItem(item("性能监测…", key: "", modifiers: [],
+                          action: #selector(StatusBarController.openMonitorSettingsAction(_:)), target: target))
+
         // 统计入口（spec 17 S1：SF Symbol chart.line.uptrend.xyaxis，与记录控制区同菜单）
         let statsItem = item("使用统计",
                              key: "",
@@ -43,6 +46,20 @@ public enum StatusBarMenuBuilder {
                           target: target)
         toggle.state = Preferences.shared.menuBarIconsVisible ? .on : .off
         menu.addItem(toggle)
+
+        let modules = NSMenuItem(title: "显示项", action: nil, keyEquivalent: "")
+        let moduleMenu = NSMenu()
+        for module in MonitorModuleID.allCases where module != .battery {
+            let option = item(module.displayName, key: "", modifiers: [],
+                              action: #selector(StatusBarController.toggleMonitorModuleAction(_:)), target: target)
+            option.representedObject = module.rawValue
+            option.state = MonitorPreferences.isModuleEnabled(module) ? .on : .off
+            moduleMenu.addItem(option)
+        }
+        // 注：原「合并」项随 monitor.* 双排状态项一并退场——菜单栏合并条由
+        // STATS 部件引擎管理（形态/间距/分隔线在「菜单栏部件」设置窗里）
+        modules.submenu = moduleMenu
+        menu.addItem(modules)
 
         // 图标彩蛋解锁后出现的「自定义菜单栏图标」选项（spec 13 §6，revealCustomMenuBarIconOption）
         if MenuBarIconEasterEggManager.shared.isUnlocked {
