@@ -14,9 +14,14 @@ public enum CaptureModule: AppModule {
         NotificationCenter.default.addObserver(
             forName: Notification.Name("frset.clipboard.editImage"),
             object: nil, queue: .main) { note in
+                Log.info("Capture", "标注：收到 editImage 通知 \(type(of: note.object))")
                 guard let nsImage = note.object as? NSImage,
-                      let cg = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+                      let cg = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+                    Log.warn("Capture", "标注：通知里的图片无法转 CGImage")
+                    return
+                }
                 AnnotationEditorController.shared.open(image: cg)
+                Log.info("Capture", "标注：编辑器已请求打开")
             }
         // 共享能力：其它模块只依赖 OCRServiceProtocol
         ServiceLocator.ocrService = OCRService.shared

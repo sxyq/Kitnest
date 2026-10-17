@@ -642,7 +642,11 @@ struct PreviewImageView: View {
     /// 当前图片交给标注编辑器。跨模块走通知（Panel 不直接引用 Capture 类型）：
     /// 关预览 → 发 frset.clipboard.editImage → Capture 模块用标注编辑器打开。
     private func editImage() {
-        guard let image = displayImage else { return }
+        guard let image = displayImage else {
+            Log.info("panel.preview", "标注：没有可编辑的图片")
+            return
+        }
+        Log.info("panel.preview", "标注：发送编辑请求（\(Int(image.size.width))×\(Int(image.size.height))）")
         MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             NotificationCenter.default.post(name: Notification.Name("frset.clipboard.editImage"),

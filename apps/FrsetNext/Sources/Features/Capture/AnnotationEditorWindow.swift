@@ -409,6 +409,7 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         editor.center()
         editor.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        Log.info("Capture", "标注：编辑器窗口已显示（\(Int(editor.frame.width))×\(Int(editor.frame.height))）")
     }
 
     public func windowWillClose(_ notification: Notification) {
