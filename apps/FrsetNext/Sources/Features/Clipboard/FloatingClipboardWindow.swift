@@ -185,6 +185,17 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         if window?.isVisible == true { hide() } else { show() }
     }
 
+    /// 双击修饰键呼出（原版 AppKitDoubleTapMonitor 语义）：把窗口挪到鼠标附近再显示。
+    public func showNearMouse() {
+        let mouse = NSEvent.mouseLocation
+        var frame = state.clampedFrame()
+        frame.origin = CGPoint(x: mouse.x - frame.width / 2, y: mouse.y - frame.height / 2)
+        store.setVisible(true)
+        store.refresh()
+        window?.setFrame(frame, display: true)
+        window?.orderFrontRegardless()
+    }
+
     /// App 启动时调用：恢复上次的可见状态
     public func restoreVisibilityIfNeeded() {
         guard !didRestoreVisibility else { return }

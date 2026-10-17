@@ -131,6 +131,9 @@ final class RowHostingView: NSHostingView<AnyView> {
     var onSingleClick: ((ClipboardItem) -> Void)?
     /// 双击（clickCount >= 2）→ 复制
     var onDoubleClick: ((ClipboardItem) -> Void)?
+    /// 修饰键点击（⌘=toggle 加选 / ⇧=范围加选）→ 多选批量复制（原版「已复制 N 项」）。
+    /// 多选期间不触发预览/复制，由宿主维护 selectedRowIndexes。
+    var onModifierClick: ((Int, Bool) -> Void)?
     /// 右键**按下**即触发（吞事件，不透传）
     var onRightMouseDown: ((ClipboardItem, CGPoint, NSView) -> Void)?
 
@@ -179,7 +182,15 @@ final class RowHostingView: NSHostingView<AnyView> {
             super.mouseDown(with: event)
             return
         }
-        // 行点击语义（specs/14 §3.7）：单击=预览、双击=复制
+        // 行点击语义（specs/14 §3.7）：单击=预览、双击=复制；
+        // ⌘=toggle 加选、⇧=范围加选（多选期间不触发预览/复制）
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let cmd = mods.contains(.command), shift = mods.contains(.shift)
+        if cmd || shift {
+            if row >= 0 { onModifierClick?(row, shift) }
+            if row >= 0 { onPlainMouseDown?(row, event) }   // 仍夺键盘归属（↩ 批量复制用）
+            return
+        }
         if event.clickCount >= 2 {
             onDoubleClick?(item)
         } else {
@@ -326,7 +337,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         table.headerView = nil
         table.rowHeight = Theme.statsRowHeight
         table.usesAutomaticRowHeights = false
-        table.allowsMultipleSelection = false
+        table.allowsMultipleSelection = true
         table.allowsEmptySelection = true
         table.backgroundColor = .clear
         table.intercellSpacing = NSSize(width: 0, height: 8)
@@ -431,6 +442,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             }
             host.onSingleClick = { [weak self] item in self?.handleSingleClick(item) }
             host.onDoubleClick = { [weak self] item in self?.handleDoubleClick(item) }
+            host.onModifierClick = { [weak self] row, shift in self?.handleModifierClick(row: row, shift: shift) }
             host.onPlainMouseDown = { [weak self] row, event in self?.handlePlainMouseDown(row: row, event: event) }
             host.onRightMouseDown = { [weak self] item, location, sourceView in
                 // 右键按下即弹菜单（specs/14 §3.2/C4）；菜单打开期间抑制 hover
@@ -634,6 +646,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleSingleClick(_ item: ClipboardItem) {
+            multiSelected.removeAll()   // 普通点击回到单选，清掉多选集
             // 单击 = 预览（不复制）；锚点取行视图 window 坐标
             let anchor = anchorProvider(for: rowView(forItemID: item.id))
             if consumeOneTimeHint(Self.singleClickPreviewHintKey) {
@@ -665,10 +678,39 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 + "firstResponder=\(String(describing: table?.window?.firstResponder)) "
                 + "rowView=\(rowView(forItemID: rowID) != nil)")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
+            multiSelected.removeAll()
             let item = owner.manager.items[table.selectedRow]
             let view = rowView(forItemID: item.id)
             ServiceLocator.panelPreview?.requestKeyboardPreview(item: item,
                                                                 anchorRectProvider: anchorProvider(for: view))
+        }
+
+        /// 多选状态（⌘/⇧ 点击维护；普通点击/键盘导航清空）
+        private var multiSelected = IndexSet()
+        private var multiAnchor: Int = -1
+
+        /// ⌘=toggle 该行加选；⇧=从锚点范围加选。同步 table.selectedRowIndexes 供键盘/复制用。
+        private func handleModifierClick(row: Int, shift: Bool) {
+            guard row >= 0, row < owner.manager.items.count else { return }
+            if shift, multiAnchor >= 0 {
+                let lo = min(multiAnchor, row), hi = max(multiAnchor, row)
+                multiSelected.formUnion(IndexSet(integersIn: lo...hi))
+            } else {
+                if multiSelected.contains(row) { multiSelected.remove(row) }
+                else { multiSelected.insert(row) }
+                multiAnchor = row
+            }
+            // 表格选中态与多选集合同步（selectedRow 取最小选中行，键盘 ↩ 仍走批量复制）
+            if let table {
+                let anchor = multiSelected.min() ?? row
+                table.selectRowIndexes(multiSelected.isEmpty
+                                       ? IndexSet(integer: row)
+                                       : multiSelected,
+                                       byExtendingSelection: false)
+                _ = anchor
+            }
+            hoverSuppression.suppressUntilMouseMove()   // 多选期间不弹 hover 预览
+            clearHoverHighlight()
         }
 
         private func handleReturnKey() {
@@ -678,6 +720,28 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             Log.info("clipboard", "return → selectedRow=\(row) "
                 + "firstResponder=\(String(describing: table?.window?.firstResponder))")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
+            // 多选批量复制（原版「已复制 %d 项」）：⌘/⇧ 点击 ≥2 条后按 ↩ 一次性写入剪贴板
+            if multiSelected.count > 1 {
+                let items = multiSelected.sorted().compactMap { idx in
+                    idx < owner.manager.items.count ? owner.manager.items[idx] : nil
+                }
+                let text = items.compactMap { item -> String? in
+                    let content = item.content ?? ""
+                    return content.isEmpty ? item.title : content
+                }.joined(separator: "\n")
+                if !text.isEmpty {
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(text, forType: .string)
+                    // 统计口径与单条复制一致（StatisticsManager）
+                    StatisticsManager.shared.record(.historyBatchCopy)
+                    Log.info("clipboard", "批量复制 \(items.count) 项")
+                }
+                multiSelected.removeAll()
+                ServiceLocator.panelPreview?.dismissPreview()
+                return
+            }
+            multiSelected.removeAll()
             let item = owner.manager.items[table.selectedRow]
             ServiceLocator.panelPreview?.dismissPreview()
             owner.onCopy(item)

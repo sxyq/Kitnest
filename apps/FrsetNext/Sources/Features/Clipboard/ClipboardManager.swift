@@ -233,6 +233,13 @@ public final class ClipboardManager: ObservableObject {
             return
         }
         guard !result.isEmpty else { return }
+        // 忽略应用（原版「忽略应用」隐私名单）：来源 App 在名单内 → 不采集。
+        // 名单存 Preferences（bundle id 数组），设置 → 通用 → 忽略应用里管理。
+        if let source = result.sourceApp,
+           (Preferences.shared.value(Preferences.Keys.clipboardIgnoredApps, default: [String]()) as [String]).contains(source) {
+            Log.info("clipboard", "忽略应用命中：\(source)，不采集")
+            return
+        }
         burstUntil = Date().addingTimeInterval(Self.burstDuration)
         currentPollingInterval = Self.burstPollingInterval
         persist(result)

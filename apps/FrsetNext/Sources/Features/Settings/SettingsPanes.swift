@@ -25,6 +25,8 @@ struct GeneralSettingsPane: View {
     @Stored private var isManagingTags = false
     /// 标签总管（复用现有 TagStore，不新建计数链路）
     @ObservedObject private var tagStore = TagStore.shared
+    /// 忽略应用（隐私名单）修订号：Preferences 无观察者，用自增驱动重绘
+    @Stored private var ignoredAppsRevision = 0
 
     // MARK: 菜单栏图标样式（spec 13 §6：logo / fan / date / custom）
     //
@@ -136,6 +138,10 @@ struct GeneralSettingsPane: View {
             formRow(L10n.t("Tag Management")) {
                 HStack(spacing: 12) {
                     actionButton(L10n.t("Edit")) { isManagingTags = true }
+
+            formRow(L10n.t("Ignored Apps"), height: 40) {
+                IgnoredAppsEditor(revision: $ignoredAppsRevision)
+            }
                     Text(tagCountText)
                         .foregroundStyle(.secondary)
                 }
@@ -549,5 +555,93 @@ struct TagManagementSheet: View {
         store.create(name: name)
         newTagName = ""
         isAdding = false
+    }
+}
+
+
+// MARK: - 忽略应用（隐私名单）编辑器（原版缺失功能 §3-2）
+
+/// 名单内的来源 App 不写入剪贴板历史；名单存 Preferences（bundle id 数组）。
+/// UI 沿用设置页风格：formRow 行 + 12pt 字号 + 细边框胶囊按钮。
+struct IgnoredAppsEditor: View {
+    @Binding var revision: Int
+    @Stored private var expanded = false
+
+    private var apps: [String] {
+        _ = revision
+        return Preferences.shared.value(Preferences.Keys.clipboardIgnoredApps, default: [String]())
+    }
+
+    private func persist(_ list: [String]) {
+        Preferences.shared.set(Preferences.Keys.clipboardIgnoredApps, list.isEmpty ? nil : list)
+        revision += 1
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Button {
+                    expanded.toggle()
+                } label: {
+                    Text(expanded ? "收起（\(apps.count)）" : "管理（\(apps.count)）")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.18))
+                        }
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    guard let bundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                          bundle != Bundle.main.bundleIdentifier else { return }
+                    var list = apps
+                    guard !list.contains(bundle) else { return }
+                    list.append(bundle)
+                    persist(list)
+                } label: {
+                    Text("+ 添加当前前台应用")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.18))
+                        }
+                }
+                .buttonStyle(.plain)
+                .help("把最前面那个应用加入忽略名单，它复制的内容将不再被采集")
+            }
+
+            if expanded {
+                if apps.isEmpty {
+                    Text("名单为空——所有应用的复制内容都会被采集")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(apps, id: \.self) { bundle in
+                        HStack {
+                            Text(bundle)
+                                .font(.system(size: 11.5).monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer(minLength: 8)
+                            Button {
+                                persist(apps.filter { $0 != bundle })
+                            } label: {
+                                Image(systemName: "minus.circle")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("从名单移除")
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
     }
 }

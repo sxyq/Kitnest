@@ -29,6 +29,7 @@ public final class Preferences: ObservableObject {
         public static let panelHeight = "panel.height"
         // 剪贴板（05）
         public static let clipboardRetentionDays = "clipboard.retentionDays"
+        public static let clipboardIgnoredApps = "clipboard.ignoredApps"
         public static let clipboardStorageLimitMB = "clipboard.storageLimitMB"
         public static let floatingOriginX = "floatingClipboard.originX"
         public static let floatingOriginY = "floatingClipboard.originY"
