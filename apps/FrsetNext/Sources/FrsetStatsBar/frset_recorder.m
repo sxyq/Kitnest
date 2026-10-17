@@ -887,7 +887,9 @@ void FSScreenRecCloseSettings(void) {
                 [weak.writer finishWritingWithCompletionHandler:^{
                     NSError *ferr = weak.writer.error;
                     if (ferr) FSBarLog(@"[录屏] 收尾失败：%@", ferr.localizedDescription);
-                    else [[NSWorkspace sharedWorkspace] selectFile:weak.outPath inFileViewerRootedAtPath:@""];  // Finder 揭示
+                    // 不在收尾里自动弹 Finder：录制是高频操作，每次都跳窗口很吵，
+                    // 而且 selectFile 会抢焦点、把后面的完成回调拖住。
+                    // 改成「完成提示面板」里手动点「在 Finder 中显示」。
                     if (weak.onFinished) weak.onFinished(ferr ? nil : weak.outPath, ferr);
                 }];
             } else {
@@ -917,6 +919,136 @@ NSView *FSScreenRecDebugPanelView(void) { return g_settingsPanel.contentView; }
 NSView *FSScreenRecDebugBarView(void) { return g_barWin.contentView; }
 
 
+
+// ============ 录制完成提示（参考 QuickRecorder 的完成反馈） ============
+// 之前录完只写日志，用户不知道文件在哪、录成功没有。这里给一个 5 秒自动消失的
+// 小面板：图标 + 「录屏已保存」+ 文件名 + [在 Finder 中显示] [打开]。
+static NSPanel *g_donePanel = nil;
+static NSString *g_donePath = nil;
+static void FSScreenRecCloseDone(void);   // 前向声明：按钮点击里要用
+
+@interface FSRecDoneView : NSView
+@property (nonatomic) NSInteger hoverBtn;   // 0 无 1 finder 2 打开
+@end
+
+@implementation FSRecDoneView
+- (BOOL)isOpaque { return NO; }
+- (BOOL)acceptsFirstMouse:(NSEvent *)e { return YES; }
+
+- (NSRect)finderRect {
+    CGFloat w = NSWidth(self.bounds);
+    return NSMakeRect(18, NSHeight(self.bounds) - 34, (w - 44) / 2.0, 22);
+}
+- (NSRect)openRect {
+    CGFloat w = NSWidth(self.bounds);
+    return NSMakeRect(18 + (w - 44) / 2.0 + 8, NSHeight(self.bounds) - 34, (w - 44) / 2.0, 22);
+}
+
+- (void)drawRect:(NSRect)dirty {
+    NSRect r = NSInsetRect(self.bounds, 0.5, 0.5);
+    [[[NSColor controlBackgroundColor] colorWithAlphaComponent:0.9] setFill];
+    [[NSBezierPath bezierPathWithRoundedRect:r xRadius:12 yRadius:12] fill];
+    [[[NSColor separatorColor] colorWithAlphaComponent:0.5] setStroke];
+    NSBezierPath *bd = [NSBezierPath bezierPathWithRoundedRect:r xRadius:12 yRadius:12];
+    bd.lineWidth = 1; [bd stroke];
+
+    // 图标（绿色对勾圆）
+    [[NSColor colorWithSRGBRed:0.30 green:0.72 blue:0.38 alpha:1] setFill];
+    [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(16, NSHeight(self.bounds) - 40, 18, 18)] fill];
+    [[NSColor whiteColor] setStroke];
+    NSBezierPath *ck = [NSBezierPath bezierPath];
+    [ck moveToPoint:NSMakePoint(20, NSHeight(self.bounds) - 31.5)];
+    [ck lineToPoint:NSMakePoint(23.5, NSHeight(self.bounds) - 35)];
+    [ck lineToPoint:NSMakePoint(30, NSHeight(self.bounds) - 27.5)];
+    ck.lineWidth = 1.8; ck.lineCapStyle = NSLineCapStyleRound; [ck stroke];
+
+    NSDictionary *ta = @{NSFontAttributeName: [NSFont systemFontOfSize:12.5 weight:NSFontWeightSemibold],
+                         NSForegroundColorAttributeName: NSColor.labelColor};
+    // path 为 nil 时是「保存中」态（收尾还没回来）
+    NSString *title = g_donePath.length ? @"录屏已保存" : @"正在保存录屏…";
+    [title drawAtPoint:NSMakePoint(42, NSHeight(self.bounds) - 39) withAttributes:ta];
+
+    NSDictionary *na = @{NSFontAttributeName: [NSFont systemFontOfSize:10.5],
+                         NSForegroundColorAttributeName: NSColor.secondaryLabelColor};
+    NSString *name = g_donePath.lastPathComponent ?: @"";
+    if (name.length > 34) name = [[name substringToIndex:31] stringByAppendingString:@"…"];
+    [name drawAtPoint:NSMakePoint(42, NSHeight(self.bounds) - 53) withAttributes:na];
+
+    // 保存中态没有按钮（收尾完成后再给操作）
+    if (!g_donePath.length) return;
+    NSArray *titles = @[@"在 Finder 中显示", @"打开"];
+    for (NSInteger i = 0; i < 2; i++) {
+        NSRect br = i == 0 ? [self finderRect] : [self openRect];
+        BOOL hot = self.hoverBtn == i + 1;
+        [[[NSColor separatorColor] colorWithAlphaComponent:hot ? 0.45 : 0.25] setFill];
+        [[NSBezierPath bezierPathWithRoundedRect:br xRadius:6 yRadius:6] fill];
+        NSDictionary *ba = @{NSFontAttributeName: [NSFont systemFontOfSize:11 weight:NSFontWeightMedium],
+                             NSForegroundColorAttributeName: NSColor.labelColor};
+        NSSize bs = [titles[i] sizeWithAttributes:ba];
+        [titles[i] drawAtPoint:NSMakePoint(NSMidX(br) - bs.width / 2.0, NSMidY(br) - bs.height / 2.0)
+                withAttributes:ba];
+    }
+}
+
+- (void)mouseDown:(NSEvent *)e {
+    NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
+    if (NSPointInRect(p, [self finderRect])) {
+        if (g_donePath) [NSWorkspace.sharedWorkspace activateFileViewerSelectingURLs:@[[NSURL fileURLWithPath:g_donePath]]];
+        FSScreenRecCloseDone();
+    } else if (NSPointInRect(p, [self openRect])) {
+        if (g_donePath) [NSWorkspace.sharedWorkspace openURL:[NSURL fileURLWithPath:g_donePath]];
+        FSScreenRecCloseDone();
+    }
+}
+- (void)mouseMoved:(NSEvent *)e {
+    NSPoint p = [self convertPoint:e.locationInWindow fromView:nil];
+    NSInteger h = NSPointInRect(p, [self finderRect]) ? 1 : (NSPointInRect(p, [self openRect]) ? 2 : 0);
+    if (h != self.hoverBtn) { self.hoverBtn = h; [self setNeedsDisplay:YES]; }
+}
+- (void)updateTrackingAreas {
+    [super updateTrackingAreas];
+    for (NSTrackingArea *a in self.trackingAreas) [self removeTrackingArea:a];
+    NSTrackingArea *area = [[NSTrackingArea alloc] initWithRect:self.bounds
+        options:NSTrackingMouseMoved | NSTrackingActiveAlways | NSTrackingInVisibleRect
+        owner:self userInfo:nil];
+    [self addTrackingArea:area];
+}
+@end
+
+static void FSScreenRecCloseDone(void) {
+    [g_donePanel orderOut:nil];
+    g_donePanel = nil;
+}
+
+/// 录制结束后弹完成提示（成功显示文件名，失败显示原因）
+static void FSRecShowDonePanel(NSString *path, NSError *err) {
+    FSScreenRecCloseDone();
+    g_donePath = path;
+    CGFloat w = 300, h = 96;
+    NSScreen *sc = [NSScreen mainScreen];
+    NSRect vf = sc.visibleFrame;
+    NSPanel *p = [[NSPanel alloc] initWithContentRect:NSMakeRect(NSMidX(vf) - w / 2.0, NSMinY(vf) + 60, w, h)
+        styleMask:NSWindowStyleMaskNonactivatingPanel | NSWindowStyleMaskBorderless
+        backing:NSBackingStoreBuffered defer:NO];
+    p.level = NSFloatingWindowLevel + 4;
+    p.releasedWhenClosed = NO;
+    p.opaque = NO;
+    p.backgroundColor = [NSColor clearColor];
+    p.ignoresMouseEvents = NO;
+    p.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces;
+    FSRecDoneView *v = [[FSRecDoneView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
+    p.contentView = v;
+    [p orderFrontRegardless];
+    g_donePanel = p;
+    // 完成态 5 秒后自动收起；「保存中」态不自动收（等收尾结果来替换）
+    if (path.length) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            FSScreenRecCloseDone();
+        });
+    }
+    FSBarLog(@"[录屏] 完成提示已显示 path=%@ err=%@", path ?: @"-", err.localizedDescription ?: @"-");
+}
+
 void FSScreenRecBeginFromSettings(void) {
     FSRecSettings *s = [FSRecSettings shared];
     if (s.needMic) {
@@ -934,6 +1066,8 @@ void FSScreenRecBeginFromSettings(void) {
         }
     }
     if (g_engine || g_starting) { FSBarLog(@"[录屏] 已在进行中"); return; }
+    // 录制期间阻止 App 被系统自动终止（无窗口时 macOS 会回收，导致录到一半断掉）
+    [[NSProcessInfo processInfo] disableAutomaticTermination:@"frset.screenrecording"];
     g_starting = YES;
     g_engine = [[FSRecEngine alloc] init];
     g_engine.onStarted = ^{
@@ -942,17 +1076,28 @@ void FSScreenRecBeginFromSettings(void) {
         FSRecBarShow();
     };
     g_engine.onFinished = ^(NSString *path, NSError *err) {
+        FSRecEngine *finished = g_engine;
         g_engine = nil;
         g_starting = NO;
+        (void)finished;
+        // 录制结束，恢复系统的自动终止行为
+        [[NSProcessInfo processInfo] enableAutomaticTermination:@"frset.screenrecording"];
         FSRecBarHide();
         if (path) FSBarLog(@"[录屏] 完成 → %@", path);
         else FSBarLog(@"[录屏] 失败：%@", err.localizedDescription ?: @"未知");
+        // 用户可见反馈：成功给「在 Finder 中显示 / 打开」，失败给出原因
+        FSRecShowDonePanel(path, err);
     };
     FSBarLog(@"[录屏] 开始（fps=%ld res=%ld%% 区域=%ld 音频=%ld 格式=%ld）",
              (long)s.fps, (long)s.resScale, (long)s.areaMode, (long)s.audioMode, (long)s.format);
     [g_engine start];
 }
 void FSScreenRecStart(void) { FSScreenRecBeginFromSettings(); }
-void FSScreenRecStop(void) { [g_engine stop]; }
+void FSScreenRecStop(void) {
+    // 先给「正在保存」反馈，再收尾：收尾回调偶发不回来（或进程被回收）时，
+    // 用户至少知道已经点了停止、文件在写。
+    FSRecShowDonePanel(nil, nil);
+    [g_engine stop];
+}
 BOOL FSScreenRecIsRunning(void) { return g_engine != nil; }
 
