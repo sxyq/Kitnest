@@ -47,7 +47,9 @@ public final class MainPanelPreviewPopoverSlot {
 
     init(contentModel: PreviewPopoverContentModel) {
         self.contentModel = contentModel
-        popover.behavior = .transient
+        // 固定模式（📌）：点别处才关，hover 离开不再收起 → 弹层必须由我们手动关闭
+        popover.behavior = MainPanelPreviewPopoverCoordinator.shared.previewPinned
+            ? .applicationDefined : .transient
         popover.animates = true
     }
 }
@@ -207,6 +209,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         slot.popover.show(relativeTo: anchorRect, of: anchorHostView, preferredEdge: edge)
 
         activeItemID = item.id
+        if previewPinned { installOutsideClickMonitor() }
         track("main_panel_preview", "exposed", model)
         return true
     }
@@ -214,6 +217,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
                         completion: (() -> Void)? = nil) {
+        removeOutsideClickMonitor()
         guard let slot, slot.state != .idle else {
             completion?()
             return
@@ -317,9 +321,51 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         if inside {
             hoverPreviewCloseWorkItem?.cancel()
             hoverPreviewCloseWorkItem = nil
-        } else if hasActivePreview {
+        } else if hasActivePreview, !previewPinned {
             scheduleHoverClose()
         }
+    }
+
+    // MARK: 固定模式（📌）
+    //
+    // 默认（跟随式）：鼠标移开预览就收起。
+    // 固定式（📌 开）：hover 离开不再收起，只有点击预览外部（面板/其他 App）或 Esc 才关，
+    // 方便一边看预览一边操作别处。两种模式随时用预览右上角的 📌 切换，选择会记住。
+
+    /// 预览是否固定（UserDefaults 持久化，跨启动记忆）
+    public var previewPinned: Bool {
+        get { UserDefaults.standard.bool(forKey: "panel.previewPinned") }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "panel.previewPinned")
+            if newValue { installOutsideClickMonitor() } else { removeOutsideClickMonitor() }
+        }
+    }
+
+    private var outsideGlobalMonitor: Any?
+    private var outsideLocalMonitor: Any?
+
+    private func installOutsideClickMonitor() {
+        guard outsideGlobalMonitor == nil, outsideLocalMonitor == nil else { return }
+        // 点其他 App
+        outsideGlobalMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.dismiss(reason: .programmatic)
+        }
+        // 点本 App（面板本体等）；点击 popover 内容窗口不算「外部」
+        outsideLocalMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            if let popoverWindow = self?.slot?.popover.contentViewController?.view.window,
+               event.window === popoverWindow {
+                return event
+            }
+            self?.dismiss(reason: .programmatic)
+            return event
+        }
+    }
+
+    private func removeOutsideClickMonitor() {
+        if let m = outsideGlobalMonitor { NSEvent.removeMonitor(m); outsideGlobalMonitor = nil }
+        if let m = outsideLocalMonitor { NSEvent.removeMonitor(m); outsideLocalMonitor = nil }
     }
 
     // MARK: 导航（F7）
@@ -409,7 +455,9 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     // MARK: 内部
 
     private func estimatedHeight(for model: PreviewPopoverContentModel) -> CGFloat {
-        model.estimatedPopoverHeight(maxPopoverHeight: maxPopoverHeight,
+        // 📌 固定条占 18pt
+        let extra: CGFloat = 18
+        return extra + model.estimatedPopoverHeight(maxPopoverHeight: maxPopoverHeight,
                                      imagePreviewMaxPopoverHeight: imagePreviewMaxPopoverHeight,
                                      textPreviewLoadingMinHeight: textPreviewLoadingMinHeight)
     }

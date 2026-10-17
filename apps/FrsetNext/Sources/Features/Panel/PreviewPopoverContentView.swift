@@ -14,9 +14,12 @@ import SwiftUI
 public struct MainPanelPreviewPopoverSlotHostView: View {
     let model: PreviewPopoverContentModel
     let onClose: (MainPanelPreviewPopoverCloseReason) -> Void
+    /// 固定模式（📌）：开 = hover 离开不收起，点别处才关；选择跨启动记忆
+    @Stored private var pinned = MainPanelPreviewPopoverCoordinator.shared.previewPinned
 
     public var body: some View {
         VStack(spacing: 0) {
+            pinBar
             if model.showsKeyboardHint {
                 hintBar
             }
@@ -31,7 +34,30 @@ public struct MainPanelPreviewPopoverSlotHostView: View {
     }
 
     /// F6 一次性提示（文案实证 "Click or Space to preview" @0x100b43c10）
-    private var hintBar: some View {
+        /// 📌 固定开关（预览右上角小图标）
+    private var pinBar: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Button {
+                let newValue = !pinned
+                MainPanelPreviewPopoverCoordinator.shared.previewPinned = newValue
+                pinned = newValue
+            } label: {
+                Image(systemName: pinned ? "pin.fill" : "pin")
+                    .font(.system(size: 10))
+                    .foregroundStyle(pinned ? Color.primary : Color.secondary)
+                    .frame(width: 18, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(pinned ? "固定中：点击别处才会关闭（点击取消固定）"
+                         : "固定预览：移开鼠标不再自动收起")
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 18)
+    }
+
+private var hintBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "keyboard")
                 .font(.system(size: 10))
