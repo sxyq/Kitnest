@@ -756,6 +756,8 @@ private struct DiskStatsPanel: View {
 
 private struct NetworkStatsPanel: View {
     @ObservedObject private var sampler = MonitorSampler.shared
+    @ObservedObject private var diagnostics = NetworkDiagnostics.shared
+    @Stored private var showsInterfacePicker = false
 
     var body: some View {
         let sample = sampler.sample
@@ -807,6 +809,9 @@ private struct NetworkStatsPanel: View {
                 }
             }
 
+            // ── 网络诊断（对照「鹅的IP」插件：内网 / 公网 / 归属 / 延迟 / DNS）
+            diagnosticsSection
+
             if !stats.netInterface.isEmpty || !stats.netLocalIP.isEmpty {
                 MonitorSectionTitle("接口")
                 VStack(alignment: .leading, spacing: 6) {
@@ -827,6 +832,107 @@ private struct NetworkStatsPanel: View {
                     [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
                      MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
                 }
+            }
+        }
+    }
+
+    // MARK: 网络诊断
+
+    private var diagnosticsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            MonitorSectionTitle("IP 信息")
+
+            // 内网：可切换网卡
+            HStack(spacing: 6) {
+                Text("内网")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 54, alignment: .leading)
+                Menu {
+                    ForEach(diagnostics.interfaces) { item in
+                        Button {
+                            diagnostics.selectInterface(item.name)
+                        } label: {
+                            Text("\(item.name) · \(item.address)")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(diagnostics.selectedAddress)
+                            .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+                            .lineLimit(1)
+                        if diagnostics.interfaces.count > 1 {
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                Spacer(minLength: 4)
+                if !diagnostics.selectedInterface.isEmpty {
+                    Text(diagnostics.selectedInterface)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            StatsLegendRow(color: .clear, label: "公网",
+                           value: diagnostics.publicIP ?? (diagnostics.isLoading ? "查询中…" : "—"),
+                           showsDot: false)
+            StatsLegendRow(color: .clear, label: "归属",
+                           value: diagnostics.publicLocation ?? "—",
+                           showsDot: false)
+            if diagnostics.isProxyLikely, let overseas = diagnostics.overseasIP {
+                StatsLegendRow(color: .clear, label: "国外出口", value: overseas, showsDot: false)
+                if let location = diagnostics.overseasLocation, !location.isEmpty {
+                    StatsLegendRow(color: .clear, label: "位置", value: location, showsDot: false)
+                }
+            } else if diagnostics.publicIP != nil {
+                StatsLegendRow(color: .clear, label: "代理", value: "未走代理", showsDot: false)
+            }
+
+            // 站点延迟（两列，与原版键值行同字号）
+            if diagnostics.latencies.contains(where: { $0.milliseconds != nil }) {
+                MonitorSectionTitle("站点延迟")
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
+                                    GridItem(.flexible(), spacing: 12)],
+                          spacing: 6) {
+                    ForEach(diagnostics.latencies) { site in
+                        HStack(spacing: 4) {
+                            Text(site.name)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer(minLength: 2)
+                            Text(site.milliseconds.map { "\($0) ms" } ?? "超时")
+                                .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                                .foregroundStyle(site.milliseconds == nil ? .tertiary : .primary)
+                        }
+                    }
+                }
+            }
+
+            if !diagnostics.dnsServers.isEmpty {
+                MonitorSectionTitle("DNS 出口")
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(diagnostics.dnsServers.enumerated()), id: \.offset) { _, server in
+                        Text(server)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            // 首次进入或距上次超过 60 秒才重新探测（避免每次切页都打一轮外网请求）
+            if diagnostics.lastRefresh == nil
+                || Date().timeIntervalSince(diagnostics.lastRefresh!) > 60 {
+                diagnostics.refresh()
             }
         }
     }
