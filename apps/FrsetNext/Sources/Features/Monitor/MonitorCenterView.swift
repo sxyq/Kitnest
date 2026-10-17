@@ -4,6 +4,11 @@ import SwiftUI
 ///
 /// 通过 PanelSectionRegistry 注册（id "monitor", priority 10）。
 /// 卡片点击后的详情展示状态（放在 ObservableObject 里，避免依赖 SwiftUI 的 @Stored 宏）
+/// 面板顶部三段：主页 / 性能监测 / 中转站
+public enum PanelCenterPage {
+    case home, performance, transfer
+}
+
 public final class MonitorCenterPresenter: ObservableObject {
     /// 非 nil = 主面板停在「性能监测」页并选中该模块；nil = 主面板在「主页」。
     /// STATS 合并条部件点击走 StatsBarEngine.openMonitor → 这里预排，首帧即对应模块页。
@@ -13,10 +18,30 @@ public final class MonitorCenterPresenter: ObservableObject {
     @Published public var isCollapsed: Bool = false
 
     /// 当前是否处于性能监测页
-    public var isPerformance: Bool { presented != nil }
+    public var isPerformance: Bool { presented != nil && !showsTransferDock }
+
+    /// 第三页：中转站（文件暂存与转发）。与性能页互斥：进中转站时清掉模块选中。
+    @Published public var showsTransferDock = false
+
+    /// 面板当前主页面（三段：主页 / 性能监测 / 中转站）
+    public var activePage: PanelCenterPage {
+        if showsTransferDock { return .transfer }
+        return presented == nil ? .home : .performance
+    }
+
+    public func selectHome() {
+        showsTransferDock = false
+        presented = nil
+    }
+
+    public func selectTransferDock() {
+        presented = nil
+        showsTransferDock = true
+    }
 
     /// 切页（分段控件）：主页 ↔ 性能监测
     public func selectPerformance(_ on: Bool) {
+        showsTransferDock = false
         presented = on ? lastModule : nil
     }
 

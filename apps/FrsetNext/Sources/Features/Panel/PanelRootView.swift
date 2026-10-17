@@ -34,6 +34,7 @@ struct PanelRootView: View {
     @Stored private var isDropTargeted = false
 
     private var isPerformance: Bool { monitorPresenter.isPerformance }
+    private var page: PanelCenterPage { monitorPresenter.activePage }
 
     // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
     @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
@@ -54,10 +55,10 @@ struct PanelRootView: View {
         .opacity(presentation.visible ? 1 : 0)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: presentation.visible)
         // 主页/性能切换：内容横移 + 交叉淡入，与顶部分段高亮同一条弹簧
-        .animation(.spring(response: 0.30, dampingFraction: 0.88), value: isPerformance)
+        .animation(.spring(response: 0.30, dampingFraction: 0.88), value: page)
         // 切回主页：窗口高度还原（性能页按内容缩高，见 PanelController.applyStatsPageHeight）
-        .onChange(of: isPerformance) { nowPerformance in
-            if !nowPerformance {
+        .onChange(of: page) { newPage in
+            if newPage != .performance {
                 NotificationCenter.default.post(name: .statsPageHeightDidChange,
                                                 object: nil,
                                                 userInfo: ["height": CGFloat(0)])
@@ -154,11 +155,14 @@ struct PanelRootView: View {
     /// 「主页 | 性能监测」分段（自绘胶囊，对齐原版选中态）
     private var pageSegments: some View {
         HStack(spacing: 0) {
-            segmentItem("主页", selected: !isPerformance) {
-                monitorPresenter.presented = nil
+            segmentItem("主页", selected: page == .home) {
+                monitorPresenter.selectHome()
             }
-            segmentItem("性能监测", selected: isPerformance) {
+            segmentItem("性能监测", selected: page == .performance) {
                 monitorPresenter.selectPerformance(true)
+            }
+            segmentItem("中转站", selected: page == .transfer) {
+                monitorPresenter.selectTransferDock()
             }
         }
         .padding(2)
@@ -239,16 +243,23 @@ struct PanelRootView: View {
     @ViewBuilder private var content: some View {
         ZStack(alignment: .top) {
             homePage
-                .opacity(isPerformance ? 0 : 1)
-                .offset(x: isPerformance ? -16 : 0)
-                .allowsHitTesting(!isPerformance)
-                .accessibilityHidden(isPerformance)
+                .opacity(page == .home ? 1 : 0)
+                .offset(x: page == .home ? 0 : -16)
+                .allowsHitTesting(page == .home)
+                .accessibilityHidden(page != .home)
 
-            StatsPageView(isActive: isPerformance)
-                .opacity(isPerformance ? 1 : 0)
-                .offset(x: isPerformance ? 0 : 16)
-                .allowsHitTesting(isPerformance)
-                .accessibilityHidden(!isPerformance)
+            StatsPageView(isActive: page == .performance)
+                .opacity(page == .performance ? 1 : 0)
+                .offset(x: page == .performance ? 0 : 16)
+                .allowsHitTesting(page == .performance)
+                .accessibilityHidden(page != .performance)
+
+            // 第三页：中转站（文件暂存与转发）
+            TransferDockView()
+                .opacity(page == .transfer ? 1 : 0)
+                .offset(x: page == .transfer ? 0 : 16)
+                .allowsHitTesting(page == .transfer)
+                .accessibilityHidden(page != .transfer)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
