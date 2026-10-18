@@ -55,18 +55,10 @@ public enum StatsBarEngine {
         // （不依赖合成鼠标事件；"settings" 打开部件设置窗；"cycle" 每 4s 轮播各模块页）
         if let probe = ProcessInfo.processInfo.environment["FRSET_STATSBAR_PROBE"] {
             if probe == "home" {
-                // v30：只开主面板首页（不开监测 sheet）——首页视觉对比/截图用。
-                // 探针窗口期内每 0.5s 清一次 presented：此前的真实部件点击会留下
-                // sheet（2026-10-17 实测被真实点击污染一次），清掉才是纯首页。
+                // 只开主面板首页（v60：性能页已删，面板恒为 主页/中转站 两页）。
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                     Log.info("StatsBar", "探针触发 home（主面板首页）")
-                    MonitorCenterPresenter.shared.presented = nil
                     PanelController.shared.show()
-                    for i in 0..<60 {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 * Double(i + 1)) {
-                            MonitorCenterPresenter.shared.presented = nil
-                        }
-                    }
                 }
             } else if probe == "poschk" {
                 // v30：坐标系/稳定性探针——每 2s 采一次 × 8 次，看主图标与合并条
@@ -184,37 +176,18 @@ public enum StatsBarEngine {
         FSBarSetMainItem(item)
     }
 
-    /// 部件点击 → 打开主面板直达监测页（v30：1:1 注入版行为）。
+    /// 部件点击 → 打开监测独立窗口（v60：性能监测只留独立窗一套实现）。
     ///
-    /// 注入版语义（frset_stats_inject.m FSOpenPanelAtModule）：
-    ///   · 面板未开：预排监测态 → 调起原版打开逻辑 → FSSettlePanel(alignX: YES)
-    ///     （顶边贴菜单栏下缘 -2pt；x 对齐点击锚点中心）→ 首帧即监测页
-    ///   · 面板已开：只切模块 + 收敛顶边，不动 x（避免每次切模块横向跳动）
-    /// 重建版对应：presented 预排（共享 presenter）→ PanelController.show(atAnchor:)；
-    /// 已开则 settleTopEdge()。
+    /// v30-v59 行为（已废弃）：预排主面板监测页 → panel.show(atAnchor:)。
+    /// v60 行为：未开窗口 → 打开并停在该模块；已开 → 只切模块（不挪位置）。
     static func openMonitor(index: Int) {
         let module = module(forIndex: index)
-        Log.info("StatsBar", "部件点击 → 打开主面板监测页 module=\(module.displayName)")
-
-        // 预排监测态：面板首个可见帧即对应模块页（消灭"先主页后监测"跳变）
-        let tPresent = ProcessInfo.processInfo.systemUptime
-        MonitorCenterPresenter.shared.presented = module
-        Log.info("StatsBar", String(format: "presented 设置耗时 %.1fms", (ProcessInfo.processInfo.systemUptime - tPresent) * 1000))
-
-        let panel = PanelController.shared
-        if panel.isPanelVisible {
-            // 面板已开：切模块（presented 已设）+ 仅收敛顶边，不动 x
-            panel.settleTopEdge()
-            return
-        }
-        // 锚点：引擎记录的点击位置（屏幕坐标，注入版同源）；无效时回退合并条按钮窗口
-        let anchor = FSBarLastAnchorScreenRect()
-        if anchor.width > 0 && anchor.midX > 0 {
-            panel.show(atAnchor: anchor)
-        } else if let button = FSBarMergedButton(), let win = button.window {
-            panel.show(atAnchor: win.frame)
+        Log.info("StatsBar", "部件点击 → 监测独立窗口 module=\(module.displayName)")
+        let popout = MonitorPopoutWindowController.shared
+        if popout.isVisible {
+            popout.showModule(module)
         } else {
-            panel.show()
+            popout.open(module: module)
         }
     }
 

@@ -188,12 +188,12 @@ enum AppBootstrap {
                            keyCode: 0x02, modifiers: UInt32(shiftKey | optionKey)) {
             runTranslateSelection()
         },
-        // v59 新增（用户要求：补齐功能快捷键）——
+        // v59 新增（用户要求：补齐功能快捷键）；v60 ⌥P 改为直达监测独立窗口
+        // （主面板性能页已删，只留独立窗一套实现）
         DefaultHotkeyEntry(id: "openPerformance", title: "性能监测",
                            keyCode: 0x23, modifiers: UInt32(optionKey)) {   // ⌥P
             NSApp.activate(ignoringOtherApps: true)
-            ServiceLocator.panel?.show()
-            MonitorCenterPresenter.shared.selectPerformance(true)
+            MonitorPopoutWindowController.shared.toggle()
         },
         DefaultHotkeyEntry(id: "longScreenshot", title: "长截图",
                            keyCode: 0x25, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥L

@@ -1,21 +1,24 @@
 import AppKit
 import SwiftUI
 
-// MARK: - 性能监测独立窗口（v59）
+// MARK: - 性能监测独立窗口（v59 新建，v60 定为唯一性能界面）
 //
-// 用户需求：状态栏点开的性能界面应当能「独立成单独的窗口」。
-// 实现：性能页页脚「弹出」按钮（或 ⌥M）把当前模块内容挂到一个可缩放的
-// 常驻小窗里 —— 内容复用 MonitorDetailView（自带模块切换条，切模块零成本），
-// 窗口用 official chrome（灰底 + 圆形关闭钮），floating 层级可叠在别的 App 上。
-//
-// 与主面板的关系：完全独立（自己一份 MonitorDetailSelection），两边可看不同模块；
-// 再次 ⌥M / 再点按钮 = 关闭。
+// v60（2026-10-19 用户决策）：性能监测只保留这一套——
+//   · 主面板里的「性能监测」页已删除（两套重复实现会打架）；
+//   · 状态栏部件点击 / ⌥P / ⌥M 都直达本窗口：未开时打开，已开时只切模块；
+//   · 失焦不自动消失（与主面板的"点外即收"不同，这里是常驻浮窗，招之即来
+//     挥之即去 = 再点部件 / ⌥M / 关闭按钮）；
+//   · 窗口可见期间 MonitorSampler 用用户刷新间隔（采样门控从主面板迁移过来）。
+// 实现：内容复用 MonitorDetailView（模块切换条点击直切，自适应换行），
+// 窗口 official chrome（灰底 + 圆形关闭钮），floating 层级可叠在别的 App 上。
 
 public final class MonitorPopoutWindowController: NSWindowController, NSWindowDelegate {
     public static let shared = MonitorPopoutWindowController()
 
-    /// 独立窗口自己的模块选中态（不与主面板共享）
+    /// 独立窗口自己的模块选中态（唯一一套，不再与主面板共享）
     private var selection: MonitorDetailSelection
+    /// 无指定模块时的回退（记忆上次查看的模块）
+    private var lastModule: MonitorModuleID = .cpu
 
     private convenience init() {
         let selection = MonitorDetailSelection(.cpu)
@@ -45,9 +48,12 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     // MARK: 开关
 
-    /// ⌥M / 页脚按钮：可见则收起，否则按 module（缺省 = 面板当前模块）打开
+    /// 窗口当前是否可见
+    public var isVisible: Bool { window?.isVisible == true }
+
+    /// ⌥M：可见则收起，否则按 module（缺省 = 上次查看的模块）打开
     public func toggle(module: MonitorModuleID? = nil) {
-        if window?.isVisible == true {
+        if isVisible {
             dismissPopout()
         } else {
             open(module: module)
@@ -55,10 +61,9 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     }
 
     public func open(module: MonitorModuleID? = nil) {
-        guard let w = window else { return }
-        let target = module
-            ?? MonitorCenterPresenter.shared.presented
-            ?? MonitorCenterPresenter.shared.lastModule
+        guard let w = window, !isVisible else { return }
+        let target = module ?? lastModule
+        lastModule = target
         selection.module = target
         w.setFrameOrigin(topRightOrigin(for: w.frame.size))
         w.alphaValue = 0
@@ -69,7 +74,17 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             w.animator().alphaValue = 1
         }
+        // 采样门控：窗口可见期间用用户刷新间隔（原主面板性能页的节奏迁移至此）
+        MonitorSampler.shared.setPanelActive(true)
         Log.info("Monitor", "监测独立窗口：打开（\(target.displayName)）")
+    }
+
+    /// 窗口已开时部件再点：只切模块，不挪窗口位置、不重播动画
+    public func showModule(_ module: MonitorModuleID) {
+        guard isVisible else { open(module: module); return }
+        lastModule = module
+        selection.module = module
+        Log.info("Monitor", "监测独立窗口：切换模块（\(module.displayName)）")
     }
 
     /// 与 NSWindowController.close 区分：这里是"动画收起窗口"
@@ -81,6 +96,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         }, completionHandler: { [weak w] in
             w?.orderOut(nil)
             w?.alphaValue = 1
+            // 门控复位：窗口隐藏后回到空闲采样节奏
+            MonitorSampler.shared.setPanelActive(false)
         })
         Log.info("Monitor", "监测独立窗口：关闭")
     }
