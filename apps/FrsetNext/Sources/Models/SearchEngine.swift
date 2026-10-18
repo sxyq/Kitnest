@@ -21,6 +21,25 @@ public struct SearchEngine: Identifiable, Codable, Equatable {
         self.id = id; self.name = name; self.urlTemplate = urlTemplate
         self.systemImage = systemImage; self.isBuiltIn = isBuiltIn
     }
+
+    /// 品牌 logo 资源名（官方 Assets.car 提取；Resources/BrandLogos/<name>.png）。
+    /// 无对应资源（自定义源等）返回 nil，调用方回退 systemImage。
+    public var logoAssetName: String? {
+        switch id {
+        case "google":           return "icon_google"
+        case "chatgpt":          return "icon_chatgpt"
+        case "bing":             return "icon_bing"
+        case "baidu":            return "icon_baidu"
+        case "yandex":           return "icon_yandex"
+        case "claude":           return "icon_claude"
+        case "github":           return "icon_github"
+        case "duckduckgo":       return "icon_duckduckgo"
+        case "naver":            return "icon_naver"
+        case "yahoo-japan":      return "icon_yahoo_japan"
+        case "google-translate": return "icon_googletranslate"
+        default:                 return nil
+        }
+    }
 }
 
 // MARK: 数据中心（原作 SearchServiceManager 等价）
@@ -55,8 +74,15 @@ public final class SearchServiceManager: ObservableObject {
     /// 自定义引擎表单默认 URL 占位（原作 'Search URL Placeholder' 键值）
     public static let customEngineURLPlaceholder = "https://example.com/search?q={query}"
 
-    /// 默认激活集（原作 ⬜ 未探明，specs/18 §4.2 建议以 Google/百度/ChatGPT 起步）
-    private static let defaultActiveBarItems = ["google", "baidu", "chatgpt"]
+    /// 默认激活集（对齐官方原版搜索栏：Bing / Google / Baidu / DuckDuckGo /
+    /// ChatGPT / Claude / Google 翻译 七项引擎；工具项由工具模块另行注入）。
+    /// 2026-10-18 官方原版设置·搜索页实测：搜索栏列为 11 项（7 引擎 + 4 工具）。
+    private static let defaultActiveBarItems = [
+        "bing", "google", "baidu", "duckduckgo", "chatgpt", "claude", "google-translate",
+    ]
+
+    /// 旧版默认集（3 项）——启动时若发现用户从未改过（等于旧默认）则迁移到新版默认
+    private static let legacyDefaultActiveBarItems = ["google", "baidu", "chatgpt"]
 
     /// 自定义引擎名称长度上限（原作 "Name Too Long Limit" 校验）
     public static let customEngineNameLimit = 20
@@ -218,6 +244,12 @@ public final class SearchServiceManager: ObservableObject {
         }
         allEngines = ordered
         activeBarItems = defaults.stringArray(forKey: Keys.activeBarItems) ?? Self.defaultActiveBarItems
+        // 2026-10-18：旧版默认集（3 项）迁移到官方默认集（7 引擎）——
+        // 仅当用户从未改过（当前集 == 旧默认）时迁移，自定义过的保持原样
+        if activeBarItems == Self.legacyDefaultActiveBarItems {
+            activeBarItems = Self.defaultActiveBarItems
+            defaults.set(activeBarItems, forKey: Keys.activeBarItems)
+        }
         // 激活集清洗：只保留仍存在的引擎；空集回默认（保证"至少一项"不变式）
         activeBarItems.removeAll { id in !ordered.contains(where: { $0.id == id }) }
         if activeBarItems.isEmpty { activeBarItems = Self.defaultActiveBarItems }

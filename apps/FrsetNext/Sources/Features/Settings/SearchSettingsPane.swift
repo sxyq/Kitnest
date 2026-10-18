@@ -39,6 +39,10 @@ struct SearchSettingsPane: View {
     @Stored private var enginePendingDelete: SearchEngine? = nil
     // 重置确认
     @Stored private var confirmReset = false
+    // v47 首页搜索分类开关（与首页分类行的眼睛按钮共用同一批键）
+    @AppStorage(Preferences.Keys.searchCategoryWeb) private var showWeb = true
+    @AppStorage(Preferences.Keys.searchCategoryClipboard) private var showClipboard = true
+    @AppStorage(Preferences.Keys.searchCategoryFiles) private var showFiles = true
 
     /// 一次性拖拽提示键（原作 defaults 键 hasSeenSearchBarOrderingTip）
     static let orderingTipKey = "hasSeenSearchBarOrderingTip"
@@ -48,8 +52,31 @@ struct SearchSettingsPane: View {
         UserDefaults.standard.bool(forKey: Self.orderingTipKey)
     }
 
+    /// v47：首页搜索分类开关（首页分类行的眼睛按钮与此处共用同一批键）。
+    /// 网页分类含 WKWebView 内嵌预览；本地文件走系统 Spotlight（mdfind，Everything 的 macOS 对应物）。
+    private var searchCategorySection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("首页搜索分类")
+                .font(.system(size: 13, weight: .semibold))
+            HStack(spacing: 22) {
+                Toggle("网页搜索（引擎 + 内嵌预览）", isOn: $showWeb)
+                    .toggleStyle(.checkbox)
+                Toggle("剪贴板历史", isOn: $showClipboard)
+                    .toggleStyle(.checkbox)
+                Toggle("本地文件（Spotlight）", isOn: $showFiles)
+                    .toggleStyle(.checkbox)
+            }
+            Text("关闭的分类不在首页搜索结果中出现；首页分类行右侧的眼睛按钮同样可快速隐藏/显示。")
+                .font(.system(size: 10.5))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.bottom, 4)
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
+            searchCategorySection
+            HStack(alignment: .top, spacing: 20) {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
                     Text(L10n.t("Name")).frame(width: 142, alignment: .leading)
@@ -81,7 +108,7 @@ struct SearchSettingsPane: View {
                 .buttonStyle(.link)
                 .frame(height: 40)
             }
-            .frame(width: 540)
+            .frame(width: 510)
             Divider()
             VStack(spacing: 10) {
                 Text(L10n.t("Search Bar")).foregroundStyle(.secondary).frame(height: 26)
@@ -94,7 +121,9 @@ struct SearchSettingsPane: View {
                 }
                 .scrollIndicators(.hidden)
             }
-            .frame(maxWidth: .infinity)
+            // v41：设置窗侧边栏版式内容区略窄，右侧搜索栏列给最小宽度，避免引擎名换行
+            .frame(minWidth: 150, maxWidth: .infinity)
+            }
         }
         .font(.system(size: 13))
         .coordinateSpace(name: "SearchBarOrderingTipCoordinateSpace")   // 原作提示锚点同名
@@ -133,6 +162,7 @@ struct SearchSettingsPane: View {
             Text(engine.name)
                 .font(.system(size: 13))
                 .fontWeight(isEditingSearchBar ? .medium : .regular)
+                .lineLimit(1)
             Spacer()
             Button {
                 removeFromSearchBar(engine)
@@ -158,7 +188,7 @@ struct SearchSettingsPane: View {
             return NSItemProvider(object: engine.id as NSString)
         } preview: {
             HStack(spacing: 6) {
-                Image(systemName: engine.systemImage).font(.system(size: 12))
+                engineIcon(engine, size: 13)
                 Text(engine.name).font(.system(size: 13))
             }
             .padding(.horizontal, 10).padding(.vertical, 5)
@@ -205,7 +235,7 @@ struct SearchSettingsPane: View {
     private func engineRow(_ engine: SearchEngine, index: Int) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: engine.systemImage).frame(width: 14)
+                engineIcon(engine)
                 Text(engine.name)
             }
             .frame(width: 142, alignment: .leading)
@@ -246,6 +276,15 @@ struct SearchSettingsPane: View {
     private func addToSearchBar(_ engine: SearchEngine) {
         SearchServiceManager.shared.addToSearchBar(engineID: engine.id)
         Toast.show(L10n.t("Added to Search Bar"), icon: "checkmark.circle.fill")
+    }
+
+    /// 引擎图标：统一 SF Symbol。
+    /// v42（2026-10-18 用户指示）：**不采用官方品牌 logo**——项目既有图标体系已统一，
+    /// 不再为"对齐官方"引入一套彩色位图（Resources/BrandLogos 保留备用，不再引用）。
+    private func engineIcon(_ engine: SearchEngine, size: CGFloat = 14) -> some View {
+        Image(systemName: engine.systemImage)
+            .font(.system(size: size - 2))
+            .frame(width: 16)
     }
 
     // MARK: 自定义引擎表单（三连校验，specs/18 §4.1）
