@@ -131,6 +131,18 @@ public struct StatsPageView: View {
             .buttonStyle(SpringyIconButtonStyle())
             .help("立即刷新")
 
+            // v59：性能页独立成窗口（⌥M 同款）——内容复用 MonitorDetailView
+            Button {
+                MonitorPopoutWindowController.shared.open(module: selected)
+            } label: {
+                Image(systemName: "rectangle.on.rectangle")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+            }
+            .buttonStyle(SpringyIconButtonStyle())
+            .help("独立窗口 ⌥M")
+
             Button {
                 StatsBarEngine.openSettings()
             } label: {

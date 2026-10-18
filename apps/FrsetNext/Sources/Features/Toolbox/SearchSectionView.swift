@@ -414,6 +414,17 @@ public struct SearchSectionView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             TextField("搜索或输入 / 使用工具", text: $query)
+
+            // v59：⌘K 面板内聚焦搜索（与 ⌥F 全局快捷键同一条通知链路）
+            .background {
+                Button {
+                    NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+                } label: {
+                    Color.clear.frame(width: 0, height: 0)
+                }
+                .keyboardShortcut("k", modifiers: .command)
+                .opacity(0)
+            }
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .focused($searchFieldFocused)

@@ -163,6 +163,9 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 面板是否可见（外部导航判定：注入版"面板已开则只切模块、不重开"）
     public var isPanelVisible: Bool { panel?.isVisible ?? false }
 
+    /// 监测独立窗口定位用：主面板当前 frame（不可见时 nil）
+    public var panelFrameForPopout: NSRect? { panel?.isVisible == true ? panel?.frame : nil }
+
     /// v30：位置收敛——仅顶边（注入版 FSSettlePanel(alignX: NO)：切模块/改高度时
     /// 不动 x，避免横向跳动）
     public func settleTopEdge() {

@@ -147,7 +147,7 @@ enum AppBootstrap {
         let action: () -> Void
     }
 
-    /// 出厂默认表（specs/19 §4 全量 10 条）。
+    /// 出厂默认表（specs/19 §4 原版 10 条 + v59 自研 5 条）。
     /// 注册语义（对齐原作）：先查用户自定义，命中则跳过该条默认注册；
     /// 组合键物理冲突时后注册者失败（restoreAll 先注册用户绑定，默认表后注册 →
     /// 冲突时默认条目失败并计入 ShortcutManager.failureReason，用户绑定胜出）。
@@ -196,6 +196,33 @@ enum AppBootstrap {
         DefaultHotkeyEntry(id: "translateSelection", title: "划词翻译",
                            keyCode: 0x02, modifiers: UInt32(shiftKey | optionKey)) {
             runTranslateSelection()
+        },
+        // v59 新增（用户要求：补齐功能快捷键）——
+        DefaultHotkeyEntry(id: "openPerformance", title: "性能监测",
+                           keyCode: 0x23, modifiers: UInt32(optionKey)) {   // ⌥P
+            NSApp.activate(ignoringOtherApps: true)
+            ServiceLocator.panel?.show()
+            MonitorCenterPresenter.shared.selectPerformance(true)
+        },
+        DefaultHotkeyEntry(id: "longScreenshot", title: "长截图",
+                           keyCode: 0x25, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥L
+            ScreenshotManager.shared.captureLongScreenshot()
+        },
+        DefaultHotkeyEntry(id: "openTransferDock", title: "文件中转",
+                           keyCode: 0x11, modifiers: UInt32(optionKey)) {   // ⌥T
+            NSApp.activate(ignoringOtherApps: true)
+            ServiceLocator.panel?.show()
+            MonitorCenterPresenter.shared.selectTransferDock()
+        },
+        DefaultHotkeyEntry(id: "toggleClipboardRecording", title: "暂停/恢复剪贴板记录",
+                           keyCode: 0x0F, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥R（⇧⌥P 已被原版「截图并贴图」占用）
+            let paused = !ClipboardManager.shared.isRecordingPaused
+            ClipboardManager.shared.isRecordingPaused = paused
+            Toast.show(paused ? "已暂停记录剪贴板" : "已恢复剪贴板记录", icon: paused ? "pause.fill" : "play.fill")
+        },
+        DefaultHotkeyEntry(id: "monitorPopout", title: "监测独立窗口",
+                           keyCode: 0x2E, modifiers: UInt32(optionKey)) {   // ⌥M
+            MonitorPopoutWindowController.shared.toggle()
         },
     ]
 

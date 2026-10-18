@@ -25,6 +25,7 @@ public struct ShortcutSettingsPane: View {
             }
             .frame(height: 37)
             HStack(spacing: 30) {
+                staticRow("搜索（面板内）", key: "⌘ K")
                 staticRow("预览", key: "⎋")
                 staticRow("新建笔记", key: "⌘ N")
             }
