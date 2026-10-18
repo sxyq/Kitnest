@@ -51,6 +51,31 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     /// 窗口当前是否可见
     public var isVisible: Bool { window?.isVisible == true }
 
+    // MARK: 空闲预热（v62）
+
+    private var warmupDone = false
+
+    /// 启动空闲期离屏布局一次（与主面板 warmup 同模式，3s 错峰避免争抢）。
+    /// 实测冷启动首开 489ms（NSHostingView 首建 + 模块页首布局），预热后首开
+    /// 只剩定位 + 淡入（~140ms）。
+    public func scheduleWarmup(after delay: TimeInterval = 3.0) {
+        guard !warmupDone else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, !self.isVisible, let w = self.window, w.alphaValue == 1 else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            w.alphaValue = 0
+            w.orderFrontRegardless()      // 只上屏、不激活、不抢 key
+            w.contentView?.layoutSubtreeIfNeeded()
+            w.displayIfNeeded()
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
+            w.orderOut(nil)
+            w.alphaValue = 1
+            self.warmupDone = true
+            Log.info("Monitor", String(format: "监测独立窗口预热完成 %.0fms",
+                                      (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+        }
+    }
+
     /// ⌥M：可见则收起，否则按 module（缺省 = 上次查看的模块）打开
     public func toggle(module: MonitorModuleID? = nil) {
         if isVisible {

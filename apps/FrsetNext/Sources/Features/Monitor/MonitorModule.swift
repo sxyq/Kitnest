@@ -27,6 +27,9 @@ public enum MonitorModule: AppModule {
         //    v60：部件点击 → 监测独立窗口（主面板性能页已删，只留独立窗一套）。
         StatsBarEngine.start()
 
+        // 5) 监测独立窗口空闲预热（v62：冷启动首开 489ms → 预热后 ~140ms）
+        MonitorPopoutWindowController.shared.scheduleWarmup()
+
         Log.info("Monitor", "监测模块已启动")
     }
 
