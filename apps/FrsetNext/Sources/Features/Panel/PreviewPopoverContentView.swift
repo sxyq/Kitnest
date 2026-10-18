@@ -124,7 +124,33 @@ public struct PreviewPopoverContentView: View {
             PreviewImageView(model: model)
         case .file:
             PreviewFileView(model: model)
+        case .richText:
+            PreviewRichTextView(model: model)
         }
+    }
+}
+
+// MARK: - 富文本保真渲染（v65）
+
+/// RTF → NSAttributedString → AttributedTextView（NSTextView 承载：完整字体/颜色/列表保真）。
+/// 文档语义底色：RTF 通常按白纸排版，固定 textBackgroundColor（浅色=白）保证显式黑色
+/// 正文字号在深色系统外观下也不至于隐形（深色下的双向反色留待后续按需增强）。
+private struct PreviewRichTextView: View {
+    let model: PreviewPopoverContentModel
+    /// init 时同步加载（RTF 为落盘小文件，几十 KB 级；渲染量高已在高度估算时做过一次）
+    private let attributed: NSAttributedString
+
+    init(model: PreviewPopoverContentModel) {
+        self.model = model
+        self.attributed = model.richAttributed
+            ?? NSAttributedString(string: model.inlineText,
+                                  attributes: [.font: NSFont.systemFont(ofSize: 13)])
+    }
+
+    var body: some View {
+        AttributedTextView(attributed)
+            .background(Color(nsColor: .textBackgroundColor))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

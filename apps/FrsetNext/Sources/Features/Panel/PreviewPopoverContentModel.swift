@@ -31,6 +31,7 @@ public struct PreviewPopoverContentModel: Identifiable {
         case code                     // 代码（尺寸阶梯，F14）
         case image                    // 图片（PreviewImageLoader + QR 分支，F12/F13）
         case file                     // 文件条目（路径列表）
+        case richText                 // 富文本（v65：RTF 保真渲染，不再降级纯文本）
     }
 
     public let id: String             // 沿用 item.id
@@ -81,7 +82,9 @@ public struct PreviewPopoverContentModel: Identifiable {
         case .file:
             return .file
         case .richtext:
-            // 富文本一律按普通文本渲染（RTF 数据由 fullText 读出纯文本）
+            // v65：有 RTF 数据 → 富文本保真渲染（此前一律降级纯文本，用户反馈渲染错误）；
+            // 无 RTF 数据（历史条目）退回文本路径
+            if PreviewPopoverDataBridge.shared.richTextAttributed(for: item) != nil { return .richText }
             return item.textPath != nil ? .fileBackedText : .text
         case .text, .url:
             if item.textPath != nil { return .fileBackedText }
@@ -90,6 +93,11 @@ public struct PreviewPopoverContentModel: Identifiable {
             if looksLikeCode(fullText) { return .code }
             return .text
         }
+    }
+
+    /// v65 富文本保真渲染数据（RTF → NSAttributedString；经数据桥，App 总控接线）
+    public var richAttributed: NSAttributedString? {
+        PreviewPopoverDataBridge.shared.richTextAttributed(for: item)
     }
 
     /// JSON 预览资格（F16 __isJSONPreviewEligible）：首字符 { 或 [ 且可完整解析
@@ -183,6 +191,13 @@ public struct PreviewPopoverContentModel: Identifiable {
             // 按图片像素宽高比 + popover 宽度估算，越屏约束在协调器侧再兜底
             let estimated = PreviewPopoverContentModel.imageDisplayHeight(item: item, contentWidth: 340) + 24
             return min(imagePreviewMaxPopoverHeight, max(textPreviewLoadingMinHeight, estimated))
+        case .richText:
+            // 渲染量高（同 Markdown 策略：一次 boundingRect 换高度准确）
+            let width = MainPanelPreviewPopoverCoordinator.shared.popoverWidth - 36
+            let attributed = richAttributed ?? NSAttributedString(string: inlineText)
+            let rect = attributed.boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                               options: [.usesLineFragmentOrigin, .usesFontLeading])
+            return min(maxPopoverHeight, max(textPreviewLoadingMinHeight, ceil(rect.height) + 24))
         case .file:
             return 96
         }

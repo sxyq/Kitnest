@@ -47,9 +47,11 @@ public final class MainPanelPreviewPopoverSlot {
 
     init(contentModel: PreviewPopoverContentModel) {
         self.contentModel = contentModel
-        // 固定模式（📌）：点别处才关，hover 离开不再收起 → 弹层必须由我们手动关闭
-        popover.behavior = MainPanelPreviewPopoverCoordinator.shared.previewPinned
-            ? .applicationDefined : .transient
+        // v65：behavior 恒 applicationDefined——关闭完全由协调器仲裁（点外 global+local
+        // 监听 / Esc / hoverOut / 滚动出视口 / 条目删除 / 程序化）。
+        // 不再用 .transient：主面板是 nonactivating panel，实测 transient popover
+        // 在「点击其他 App」时不会被系统关闭（点外即失灵 → 用户反馈"关不掉"）。
+        popover.behavior = .applicationDefined
         popover.animates = true
     }
 }
@@ -147,6 +149,20 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] note in self?.handlePopoverDidClose(note) }
             .store(in: &cancellables)
+        // v65「点外即消」主通道：applicationDefined popover 取得 key 后，**resignKey =
+        // 用户去了别处**（点其他 App / 点面板本体）→ 关闭。
+        // 不再用 NSEvent 全局监听：实测 global monitor 对面板场景不可靠，且
+        // transient behavior 在 nonactivating panel 上点外也不关（用户反馈"关不掉"）。
+        NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] note in
+                guard let self, let slot = self.slot,
+                      let w = slot.popover.contentViewController?.view.window,
+                      (note.object as? NSWindow) === w,
+                      slot.state == .presented else { return }
+                self.dismiss(reason: .systemInterruption)
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: 公开呈现 API（dev-clipboard 行点击接线入口）
@@ -212,7 +228,9 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         slot.popover.show(relativeTo: anchorRect, of: anchorHostView, preferredEdge: edge)
 
         activeItemID = item.id
-        if previewPinned { installOutsideClickMonitor() }
+        // v65：无条件安装点外监听（behavior 恒 applicationDefined，点外关闭由协调器负责；
+        // 此前只在 📌 模式安装，transient 模式全靠系统行为——在 nonactivating 面板上失灵）
+        installOutsideClickMonitor()
         track("main_panel_preview", "exposed", model)
         return true
     }
@@ -507,6 +525,11 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     private func handlePopoverWillShow(_ note: Notification) {
         guard let slot, (note.object as? NSPopover) === slot.popover else { return }
         slot.state = .presented
+        // v65：applicationDefined popover 会成为 key window——打上标识，让
+        // PanelController.windowDidResignKey 豁免（否则面板因失焦被 hide，
+        // 预览还开着、面板却没了）。
+        slot.popover.contentViewController?.view.window?.identifier =
+            NSUserInterfaceItemIdentifier("frset.panelPreviewPopover")
     }
 
     private func handlePopoverDidClose(_ note: Notification) {

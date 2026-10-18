@@ -54,4 +54,18 @@ public final class PreviewPopoverDataBridge {
     public func ocrText(for item: ClipboardItem) -> String? {
         ocrTextProvider?(item)
     }
+
+    /// v65 富文本保真渲染数据：条目的 RTF → NSAttributedString（保真字体/颜色/列表）。
+    /// 相对路径经 ClipboardFileStore 解析（与 ClipboardRichTextStorage.read 同口径）。
+    public func richTextAttributed(for item: ClipboardItem) -> NSAttributedString? {
+        guard let relative = item.richTextPath else { return nil }
+        // 后备路径解析：ClipboardFileStore 的根目录在 App 支持目录，桥内不知道根——
+        // 经注入闭包（Clipboard 侧接线）最干净；未接线时按绝对路径兜底。
+        if let provider = richTextProvider { return provider(item) }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: relative)) else { return nil }
+        return NSAttributedString(rtf: data, documentAttributes: nil)
+    }
+
+    /// 富文本提供者（接 ClipboardRichTextStorage.read；App 总控接线）
+    public var richTextProvider: ((ClipboardItem) -> NSAttributedString?)?
 }

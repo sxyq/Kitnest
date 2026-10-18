@@ -83,6 +83,17 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
 
     // MARK: NSWindowDelegate
 
+    /// v65（用户反馈"点击预览关不掉"）：失焦即关——常驻窗此前只有标题栏关闭钮一条
+    /// 退路。resign 后短暂复核：焦点去了其他 App（本 App 失活）→ 关闭；
+    /// 焦点在本 App 内其他窗口（点主面板换条目/悬浮剪贴板）→ 保持「边看边换」。
+    public func windowDidResignKey(_ notification: Notification) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            guard let self, let w = self.window, w.isVisible, !w.isKeyWindow else { return }
+            if NSApp.isActive, NSApp.keyWindow != nil { return }
+            w.performClose(nil)
+        }
+    }
+
     public func windowWillClose(_ notification: Notification) {
         ClipboardPreviewWindowRecord.shared.clear(self)
     }
@@ -107,6 +118,11 @@ public final class ClipboardPreviewWindowRecord {
         let controller = ClipboardPreviewWindowController(item: item)
         record.controller = controller
         controller.show(item: item, anchorView: anchorView)
+    }
+
+    /// v65：Esc 关闭入口（常驻预览窗 onExitCommand）
+    public static func closeActive() {
+        Self.shared.controller?.window?.performClose(nil)
     }
 
     func clear(_ controller: ClipboardPreviewWindowController) {
@@ -142,6 +158,10 @@ struct ClipboardPreviewWindowView: View {
         }
         .background(Color(nsColor: OfficialChrome.windowBackground))
         .frame(minWidth: 420, minHeight: 320)
+        .onExitCommand {
+            // v65：Esc 关闭常驻预览窗（此前只有标题栏关闭钮一条退路）
+            ClipboardPreviewWindowRecord.closeActive()
+        }
     }
 
     // MARK: 预览态

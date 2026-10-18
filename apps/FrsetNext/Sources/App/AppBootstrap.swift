@@ -34,6 +34,10 @@ enum AppBootstrap {
         //      未接线时走数据桥内置后备（直读 textPath / richTextPath / content），但 OCR 附加区块缺失。
         PreviewPopoverDataBridge.shared.fullTextProvider = { ClipboardManager.shared.fullText(for: $0) }
         PreviewPopoverDataBridge.shared.ocrTextProvider = { ClipboardManager.shared.ocrText(for: $0) }
+        // v65 富文本保真渲染：RTF → NSAttributedString（预览 .richText 分支用）
+        PreviewPopoverDataBridge.shared.richTextProvider = { item in
+            item.richTextPath.flatMap { ClipboardRichTextStorage.read($0) }
+        }
 
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
         registerAppLevelTools()

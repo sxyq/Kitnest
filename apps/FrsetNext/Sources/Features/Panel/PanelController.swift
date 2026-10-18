@@ -253,6 +253,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
            key.identifier?.rawValue == "frset.clipboardPreview" {
             return
         }
+        // v65 例外：主面板预览 popover（applicationDefined，成为 key window）——
+        // 预览的关闭由协调器统一仲裁（点外/Esc/hoverOut/滚动出视口），面板保持。
+        if NSApp.isActive, let key = NSApp.keyWindow, key !== p, key.isVisible,
+           key.identifier?.rawValue == "frset.panelPreviewPopover" {
+            return
+        }
         hide()
     }
 

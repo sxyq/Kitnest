@@ -200,6 +200,7 @@ final class RowHostingView: NSHostingView<AnyView> {
         if event.clickCount >= 2 {
             onDoubleClick?(item)
         } else {
+            Log.info("clipboard", "row mouseDown: single click dispatched (row=\(row))")
             onSingleClick?(item)
         }
         // 分派之后才建立选中态与键盘归属（修复 C11，两个动作缺一不可）：
