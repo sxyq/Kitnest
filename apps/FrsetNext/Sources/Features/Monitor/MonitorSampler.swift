@@ -42,6 +42,29 @@ public final class MonitorSampler: ObservableObject {
     private var pendingWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
 
+    /// v57：UI 可见性门控。面板性能页 / 监测设置页可见时用用户设置的间隔刷新；
+    /// 不可见时降到 ≥5s（隐藏面板每 2s 全量重绘一轮 SwiftUI 是无谓的常驻开销，
+    /// 用户反馈「性能开销非常差」的主要来源之一）。菜单栏 STATS 部件走 C 引擎
+    /// 自己的采样，不受这里影响。
+    private var panelActive = false
+    private var settingsActive = false
+
+    public func setPanelActive(_ active: Bool) {
+        guard panelActive != active else { return }
+        panelActive = active
+        applyPreferences()
+        if active { refresh() }   // 打开瞬间立即出一帧，不等下个周期
+    }
+
+    public func setSettingsActive(_ active: Bool) {
+        guard settingsActive != active else { return }
+        settingsActive = active
+        applyPreferences()
+        if active { refresh() }
+    }
+
+    private var uiActive: Bool { panelActive || settingsActive }
+
     private struct Buffers {
         var cpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var memory = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
@@ -97,13 +120,15 @@ public final class MonitorSampler: ObservableObject {
     /// 依据偏好决定：是否运行、采样间隔、是否读温度
     private func applyPreferences() {
         let enabled = MonitorPreferences.isEnabled
-        let interval = MonitorPreferences.refreshInterval
         reader.temperatureEnabled = MonitorPreferences.showTemperatures
 
         if !enabled {
             stop()
             return
         }
+        // UI 可见 → 用户设置的间隔；不可见 → 至少 5s（保持数据不至于太陈旧）
+        let base = MonitorPreferences.refreshInterval
+        let interval = uiActive ? base : max(base, 5.0)
         if !isRunning {
             DispatchQueue.main.async { [weak self] in self?.isRunning = true }
         }

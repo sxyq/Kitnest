@@ -12,7 +12,10 @@ public enum PanelCenterPage {
 public final class MonitorCenterPresenter: ObservableObject {
     /// 非 nil = 主面板停在「性能监测」页并选中该模块；nil = 主面板在「主页」。
     /// STATS 合并条部件点击走 StatsBarEngine.openMonitor → 这里预排，首帧即对应模块页。
-    @Published public var presented: MonitorModuleID?
+    /// v57：性能页可见性同时门控 MonitorSampler 的刷新节奏（隐藏面板不再 2s 全量重绘）。
+    @Published public var presented: MonitorModuleID? {
+        didSet { MonitorSampler.shared.setPanelActive(presented != nil) }
+    }
     /// 分段控件从「主页」切回「性能监测」时恢复的模块（原版记忆上次停留的标签）。
     @Published public var lastModule: MonitorModuleID = .cpu
     @Published public var isCollapsed: Bool = false

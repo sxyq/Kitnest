@@ -20,6 +20,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private var isAdjustingForStatsPage = false
     /// 上一次性能页请求的高度（防抖：窗口缩放会引起内容重排，±8pt 内不再调整，避免抖动）
     private var lastRequestedStatsHeight: CGFloat = 0
+    /// 启动空闲预热是否已排期（避免重复）
+    private var warmupScheduled = false
 
     private override init() {
         super.init()
@@ -53,7 +55,57 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // Toast 定位（原作 0x1002bf3d0）：面板所在屏优先——面板可见时通知卡落在面板屏中线
         ToastAnchor.windowProvider = { [weak self] in self?.panel }
         observeStatsPageHeight()
+        scheduleWarmup()
         Log.info("Panel", "prepared \(Int(width))x\(Int(height))")
+    }
+
+    // MARK: - 首次显示预热
+
+    /// 启动 2s 后在空闲时离屏布局一次整棵面板视图树。
+    ///
+    /// 背景（2026-10-19 实测）：面板三页（主页/性能/中转）常驻，第一次
+    /// `makeKeyAndOrderFront` 会在同一个调用里做完整 SwiftUI 布局 —— sample 显示
+    /// 400ms 左右全部耗在 `updateConstraintsIfNeeded → NSHostingView.minSize → ViewGraph`，
+    /// 表现就是「点部件后要等一下才弹出来」。把这次布局提前到启动空闲期、以 alpha=0
+    /// 离屏完成，点击路径上的首次显示就只剩窗口上屏 + 0.18s 淡入。
+    private func scheduleWarmup() {
+        guard !warmupScheduled else { return }
+        warmupScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.warmupPanel()
+        }
+    }
+
+    private func warmupPanel() {
+        guard let p = panel, !p.isVisible, p.alphaValue == 1 else { return }
+        let t0 = ProcessInfo.processInfo.systemUptime
+        let oldAlpha = p.alphaValue
+        p.alphaValue = 0                 // 离屏不可见：不留白闪
+        p.orderFrontRegardless()         // 只上屏、不激活 app、不抢 key
+
+        // 关键：presentation.visible=false 时根视图是 opacity 0 / scale 0.93，
+        // SwiftUI 会跳过不可见子树的布局（实测预热只花 45ms，等于没热）。
+        // 预热期间先置 true，让内容真正布局一次；结束后再复位。
+        presentation.visible = true
+        p.contentView?.layoutSubtreeIfNeeded()
+        p.displayIfNeeded()
+        // 给 SwiftUI 一个显示周期，把 AttributeGraph 真正跑完
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.12))
+
+        // 性能页也预排一次（默认 CPU）：否则第一次点部件时还要现建 tabs + 模块页
+        let tPerf = ProcessInfo.processInfo.systemUptime
+        MonitorCenterPresenter.shared.presented = .cpu
+        p.contentView?.layoutSubtreeIfNeeded()
+        p.displayIfNeeded()
+        let perfMs = (ProcessInfo.processInfo.systemUptime - tPerf) * 1000
+
+        MonitorCenterPresenter.shared.selectHome()
+        presentation.visible = false
+        p.contentView?.layoutSubtreeIfNeeded()
+        p.orderOut(nil)
+        p.alphaValue = oldAlpha
+        let ms = (ProcessInfo.processInfo.systemUptime - t0) * 1000
+        Log.info("Panel", String(format: "预热完成 %.0fms（其中性能页 %.0fms）", ms, perfMs))
     }
 
     // MARK: - PanelControlling
@@ -73,7 +125,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.18
+            ctx.duration = 0.14
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             p.animator().alphaValue = 1
         }
@@ -84,19 +136,28 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     ///   · 顶边 = 屏幕可见区顶 - 2pt（菜单栏下缘，任何路径都校）
     ///   · x    = 锚点中心 - 面板宽/2，钳制在可见区内（仅"打开时"校）
     public func show(atAnchor anchorRect: NSRect) {
+        let t0 = ProcessInfo.processInfo.systemUptime
         prepare()
         guard let p = panel else { return }
         MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
         p.setFrameOrigin(anchorOrigin(anchorRect, for: p.frame.size))
         presentation.visible = true
         p.alphaValue = 0
-        NSApp.activate(ignoringOtherApps: true)    // v30：同上（部件点击时前端可能是别的 app）
+        let tAct = ProcessInfo.processInfo.systemUptime
+        NSApp.activate(ignoringOtherApps: true)
+        let tKey = ProcessInfo.processInfo.systemUptime
         p.makeKeyAndOrderFront(nil)
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.18
+        let t1 = ProcessInfo.processInfo.systemUptime
+        Log.info("Panel", String(format: "show(anchor): 激活 %.0fms + 上屏 %.0fms（总 %.0fms）",
+                                 (tKey - tAct) * 1000, (t1 - tKey) * 1000, (t1 - t0) * 1000))
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.14
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             p.animator().alphaValue = 1
-        }
+        }, completionHandler: {
+            let t2 = ProcessInfo.processInfo.systemUptime
+            Log.info("Panel", String(format: "show(anchor): 淡入完成 +%.0fms", (t2 - t1) * 1000))
+        })
     }
 
     /// 面板是否可见（外部导航判定：注入版"面板已开则只切模块、不重开"）

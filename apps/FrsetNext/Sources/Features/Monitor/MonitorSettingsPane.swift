@@ -32,6 +32,13 @@ public struct MonitorSettingsPane: View {
         .onReceive(NotificationCenter.default.publisher(for: MonitorPreferences.didChangeNotification)) { _ in
             bump()
         }
+        // 设置页展示实时数值：出现时进入活跃采样，消失即退出（面板关闭时不再常驻全速采样）
+        .onAppear {
+            MonitorSampler.shared.setSettingsActive(true)
+        }
+        .onDisappear {
+            MonitorSampler.shared.setSettingsActive(false)
+        }
     }
 
     // MARK: - 通用

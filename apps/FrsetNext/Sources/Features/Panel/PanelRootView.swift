@@ -72,9 +72,9 @@ struct PanelRootView: View {
         .scaleEffect(presentation.visible ? 1 : 0.93, anchor: .top)
         .offset(y: presentation.visible ? 0 : -10)
         .opacity(presentation.visible ? 1 : 0)
-        .animation(.spring(response: 0.32, dampingFraction: 0.78), value: presentation.visible)
+        .animation(.spring(response: 0.24, dampingFraction: 0.82), value: presentation.visible)
         // 主页/性能切换：内容横移 + 交叉淡入，与顶部分段高亮同一条弹簧
-        .animation(.spring(response: 0.30, dampingFraction: 0.88), value: page)
+        .animation(.spring(response: 0.24, dampingFraction: 0.88), value: page)
         // 切回主页：窗口高度还原（性能页按内容缩高，见 PanelController.applyStatsPageHeight）
         .onChange(of: page) { newPage in
             // 2026-10-18：切页即关预览——主页 hover 打开的预览不能跟到性能/中转站页

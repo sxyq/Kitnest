@@ -197,7 +197,9 @@ public enum StatsBarEngine {
         Log.info("StatsBar", "部件点击 → 打开主面板监测页 module=\(module.displayName)")
 
         // 预排监测态：面板首个可见帧即对应模块页（消灭"先主页后监测"跳变）
+        let tPresent = ProcessInfo.processInfo.systemUptime
         MonitorCenterPresenter.shared.presented = module
+        Log.info("StatsBar", String(format: "presented 设置耗时 %.1fms", (ProcessInfo.processInfo.systemUptime - tPresent) * 1000))
 
         let panel = PanelController.shared
         if panel.isPanelVisible {
