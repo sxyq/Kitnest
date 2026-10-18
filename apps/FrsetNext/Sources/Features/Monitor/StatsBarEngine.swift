@@ -178,8 +178,8 @@ public enum StatsBarEngine {
 
     /// 部件点击 → 打开监测独立窗口（v60：性能监测只留独立窗一套实现）。
     ///
-    /// v30-v59 行为（已废弃）：预排主面板监测页 → panel.show(atAnchor:)。
-    /// v60 行为：未开窗口 → 打开并停在该模块；已开 → 只切模块（不挪位置）。
+    /// v63：窗口在**该部件图标正下方**展开（锚点定位），动画与主面板同款
+    /// 「长出来」弹簧；已开则只切模块（不重定位）。
     static func openMonitor(index: Int) {
         let module = module(forIndex: index)
         Log.info("StatsBar", "部件点击 → 监测独立窗口 module=\(module.displayName)")
@@ -187,7 +187,10 @@ public enum StatsBarEngine {
         if popout.isVisible {
             popout.showModule(module)
         } else {
-            popout.open(module: module)
+            // 锚点：引擎记录的点击位置（屏幕坐标，注入版同源）
+            let anchor = FSBarLastAnchorScreenRect()
+            popout.open(module: module,
+                        anchor: (anchor.width > 0 && anchor.midX > 0) ? anchor : nil)
         }
     }
 
