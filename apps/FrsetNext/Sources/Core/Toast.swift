@@ -2,27 +2,37 @@ import AppKit
 import Foundation
 import SwiftUI
 
-// MARK: - 菜单栏通知条（MenuBarToast，spec 13）
+// MARK: - 屏幕通知卡（原作 MenuBarToastManager，spec 13 §3/§5 + 2026-10-18 实测勘误版）
 //
-// 还原自原作 MenuBarToastManager（classobj 0x100c6a2d0）+ MenuBarToastAnimationState（0x100c6a428）：
-// - 一条出现在主状态项图标正下方、随图标水平居中（±8pt 防溢出）的毛玻璃浮层，高 32pt；
-// - 窗口 borderless + clearColor + opaque:false + 无阴影 + level=14 + ignoresMouseEvents（不挡点击）；
-// - 出现/消失动画 spring(response:0.35, dampingFraction:0.7)，alpha 直接置 1（非渐显）；
-// - 3.0s 自动隐藏，animationGeneration 代际计数防连续 show 串台；
-// - 窗口复用不销毁，appearance 跟随系统 Aqua/DarkAqua。
-// 对外入口仍是 `Toast.show(_:icon:)`（全工程既有调用点签名不变）。
+// ⚠️ 勘误（2026-10-18）：spec 13 §3 当年把定位基准误读为「主状态项图标正下方」。
+// 本轮以原版 1.3.12 arm64 双重复核——反汇编（show=0x1002bd010 定位段、基准屏解析=0x1002bf3d0）
+// + 官方原版实机自动化（双击剪贴板条目 → CGWindowList 实测），得到定位真值：
+//   1) 基准矩形 = 目标屏的 visibleFrame。目标屏解析（原作 0x1002bf3d0）：
+//      传入屏 → 全局主面板窗口所在屏（.screen）→ 含鼠标位置的那块屏（NSScreen.screens ×
+//      NSEvent.mouseLocation）→ mainScreen。
+//   2) 水平 = visibleFrame 中线居中：x = clamp(midX - w/2, minX-8, maxX-w+8)（26/18 合成 ±8）。
+//   3) 垂直 = y = max(minY-16, min(maxY-h+16, minY + frameH*0.1833 - 26))。
+//      （0x3fc7765ab891fcdf = 0.18330；实测 1710×1112 屏 → toast 底边距屏底 176pt ✓）
+//   4) 窗口层级 = kCGScreenSaverWindowLevel + 1（实测 CGWindowList layer=2147483631）。
+//   5) 样式 = 原作 ToastView：圆形图标底（leadingColor 圆 + 白色 SF Symbol）+ 单行文本的
+//      自适应深/浅色胶囊卡（实测 176×91，"文本已复制"）。
+// 动画/时长：spring(0.35, 0.7) 弹入弹出（spec 13 §5）、3.0s 自动隐藏、generation 防串台、
+// 窗口复用不销毁——均与原作一致，继续沿用。
+// 对外入口仍是 `Toast.show(_:icon:isWarning:)`（全工程既有调用点签名不变）。
 
-// MARK: - 状态项锚点（StatusBar 模块安装主图标时登记，供定位算法取图标中线）
+// MARK: - 锚点（Core 层不引用 Features，由 App/Panel 层注入）
 
-/// ToastAnchor：主状态项按钮的弱引用锚点。
-/// Core 层不引用 Features 模块，由 StatusBarController 在 installMainItem 时写入。
 public enum ToastAnchor {
+    /// 主状态项按钮（旧字段，保留兼容既有引用；新定位不再使用）
     public weak static var button: NSStatusBarButton?
+    /// 主面板窗口提供者：注入 PanelController 的面板窗口。
+    /// 对应原作 0x1002bf3d0 的「全局主窗口 → .screen」分支（面板开着时 toast 落在面板所在屏）。
+    public static var windowProvider: () -> NSWindow? = { nil }
 }
 
 // MARK: - 动画状态（对应原作 MenuBarToastAnimationState，@Published 驱动 SwiftUI 内容）
 
-/// 通知条内容状态（原作字段：_isVisible/_message/_icon/_iconColor/_isWarning）
+/// 通知卡内容状态（原作字段：_isVisible/_message/_icon/_iconColor/_isWarning）
 final class MenuBarToastAnimationState: ObservableObject {
     @Published var isVisible = false
     @Published var message = ""
@@ -32,50 +42,60 @@ final class MenuBarToastAnimationState: ObservableObject {
     @Published var isWarning = false
 }
 
-// MARK: - SwiftUI 内容视图（毛玻璃胶囊 + 图标 + 单行文本，总高 32pt）
+// MARK: - SwiftUI 内容视图（圆形图标底 + 单行文本的自适应胶囊卡，原作 ToastView 还原）
 
-/// 通知条内容（internal：仅本文件装配使用）
+/// 通知卡内容（internal：仅本文件装配使用）
 struct MenuBarToastContentView: View {
     @ObservedObject var state: MenuBarToastAnimationState
+    @Environment(\.colorScheme) private var colorScheme
 
     /// 实际展示的图标：调用方未指定时按警告分态回落
     private var resolvedIcon: String? {
         state.icon ?? (state.isWarning ? "exclamationmark.triangle.fill" : nil)
     }
 
+    /// 圆形图标底色：调用方指定色 > 警告橙 > 原版蓝
+    private var circleColor: Color {
+        state.iconColor ?? (state.isWarning ? Color(red: 1.0, green: 0.78, blue: 0.25)
+                                            : Color(red: 0.24, green: 0.51, blue: 0.96))
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 9) {
             if let icon = resolvedIcon {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(state.iconColor ?? Color.primary)
+                ZStack {
+                    Circle().fill(circleColor)
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 27, height: 27)
             }
             Text(state.message)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Color.primary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 14)
-        .frame(height: 32)
+        .padding(.horizontal, 18)
+        .frame(height: 60)
         .background(
-            Capsule().fill(.ultraThinMaterial)   // 毛玻璃：随 Aqua/DarkAqua 自动着色
+            Capsule().fill(colorScheme == .dark ? Color(white: 0.135) : Color(white: 0.99))
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.18), radius: 12, y: 4)
         )
         .fixedSize()
         // spring 弹入/弹出：几何由窗口定位，出现感由 scale+opacity 驱动
-        .scaleEffect(state.isVisible ? 1.0 : 0.5, anchor: .top)
+        .scaleEffect(state.isVisible ? 1.0 : 0.5, anchor: .center)
         .opacity(state.isVisible ? 1.0 : 0.0)
     }
 }
 
-// MARK: - 通知条管理器（对应原作 MenuBarToastManager：toastWindow/hideWorkItem/animationState/animationGeneration）
+// MARK: - 通知卡管理器（对应原作 MenuBarToastManager：toastWindow/hideWorkItem/animationState/animationGeneration）
 
-/// MenuBarToastManager：复用单例窗口的菜单栏通知条（原作 show 实现 0x1002bd010）
+/// MenuBarToastManager：复用单例窗口的屏幕通知卡（原作 show 实现 0x1002bd010）
 final class MenuBarToastManager: NSObject {
 
     static let shared = MenuBarToastManager()
 
-    /// 内容条高度（原作常量 32.0f，0x100964d80）
-    private static let contentHeight: CGFloat = 32
     /// 自动隐藏延时（原作 3.0s，0x1002bdf54）
     private static let displayDuration: TimeInterval = 3.0
     /// 隐藏动画结束后的 orderOut 延时（窗口复用不销毁，仅视觉收尾）
@@ -122,13 +142,18 @@ final class MenuBarToastManager: NSObject {
         animationState.iconColor = isWarning ? Color(red: 1.0, green: 0.78, blue: 0.25) : nil
         animationState.isWarning = isWarning
 
-        // 先按新内容量尺寸并定位到状态项图标正下方
+        // 先按新内容量尺寸并定位到目标屏（面板屏/鼠标屏）可见区中线
         layoutContent()
-        positionRelativeToStatusItem()
+        positionOnTargetScreen()
 
         // alpha 直接置 1（原作 0x1002bdb88 fmov d0,#1.0），出现感交给 SwiftUI spring
         toastWindow?.alphaValue = 1
         toastWindow?.orderFrontRegardless()
+
+        // 排障日志（2026-10-18）：位置勘误后首版，观察 frame 是否落在目标屏中线
+        if let w = toastWindow {
+            Log.info("Toast", "显示「\(message)」 visible=\(w.isVisible) frame=\(NSStringFromRect(w.frame)) level=\(w.level.rawValue)")
+        }
 
         withAnimation(Self.springAnimation) {
             animationState.isVisible = true
@@ -162,14 +187,18 @@ final class MenuBarToastManager: NSObject {
     /// 创建/复用 borderless 透明窗口（原作 show 函数 0x1002bd7b4 起的 objc stub 调用序列）
     private func ensureWindow() {
         guard toastWindow == nil else { return }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: Self.contentHeight),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 92),
                               styleMask: [.borderless],
                               backing: .buffered,
                               defer: false)
         window.backgroundColor = .clear            // clearColor
         window.isOpaque = false                    // setOpaque: false
-        window.hasShadow = false                   // setHasShadow:
-        window.level = NSWindow.Level(14)          // setLevel: 0xe（非标准枚举，原作实测值）
+        window.hasShadow = false                   // setHasShadow:（阴影由内容层绘制）
+        // 原作 0x1002bd830：setLevel:(CGWindowLevelForKey(0xe))；0xe=14。
+        // 本机实测 CGWindowLevelKey(rawValue:14)=2147483631（kCGUtilityWindowLevel），
+        // 与官方原版 toast 的 CGWindowList layer 实测值完全一致。
+        // ⚠️ 不用 Swift 符号 .utilityWindow（其桥接映射与本机 key14 不符，实测返回 19）。
+        window.level = NSWindow.Level(Int(CGWindowLevelForKey(CGWindowLevelKey(rawValue: 14)!)))
         window.ignoresMouseEvents = true           // 不挡点击（点击穿透）
         window.hidesOnDeactivate = false           // 失活不隐藏
         window.isMovable = false
@@ -194,44 +223,49 @@ final class MenuBarToastManager: NSObject {
         toastWindow?.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
     }
 
-    /// 按内容自适应宽度（高度恒 32pt）
+    /// 按内容自适应宽度
     private func layoutContent() {
         guard let window = toastWindow, let view = hosting?.view else { return }
         view.layoutSubtreeIfNeeded()
-        var size = view.fittingSize
-        size.height = Self.contentHeight
-        // 单行防溢出上限
-        size.width = min(max(size.width, 60), 360)
+        let size = view.fittingSize
         window.setContentSize(size)
         view.frame = NSRect(origin: .zero, size: size)
     }
 
-    // MARK: 定位（spec 13 §3：0x1002bda4c-0x1002bdb7c 汇编逐条还原）
+    // MARK: 定位（spec 13 §3 勘误版：0x1002bda4c-0x1002bdb7c 汇编逐条 + 实机实测）
 
-    /// 以状态项图标 visibleFrame 中线水平居中，clamp ±8pt（26-18 合成）防溢出；垂直贴菜单栏正下方
-    private func positionRelativeToStatusItem() {
-        guard let window = toastWindow else { return }
+    /// 目标屏解析（原作 0x1002bf3d0）：
+    /// 主面板窗口所在屏 → 含鼠标位置的那块屏 → mainScreen
+    private func resolveTargetScreen() -> NSScreen? {
+        if let panelWindow = ToastAnchor.windowProvider(), panelWindow.isVisible,
+           let s = panelWindow.screen {
+            return s
+        }
+        let mouse = NSEvent.mouseLocation
+        for s in NSScreen.screens where NSMouseInRect(mouse, s.frame, false) {
+            return s
+        }
+        return NSScreen.main
+    }
 
-        // 基准矩形：状态项按钮所在屏的 visibleFrame（锚点未登记时回落主屏）
-        let screen = ToastAnchor.button?.window?.screen ?? NSScreen.main ?? NSScreen.screens.first
-        guard let screen else { return }
+    /// 原作定位公式（0x1002bda4c-0x1002bdb7c 逐条还原，2026-10-18 实机验证）：
+    /// - 水平：x = clamp(visibleFrame.midX - w/2, minX-8, maxX-w+8)   → 可见区水平居中
+    /// - 垂直：y = max(minY-16, min(maxY-h+16, minY + frameH*0.1833 - 26))
+    private func positionOnTargetScreen() {
+        guard let window = toastWindow, let screen = resolveTargetScreen() else { return }
         let visible = screen.visibleFrame
-
-        // 原作常量集：26.0（菜单栏厚度）/ 18.0 / 10.0
-        let menuBarThickness: CGFloat = 26
-        let edgeInset: CGFloat = 18
+        let frameH = screen.frame.height
 
         let width = window.frame.width
         let height = window.frame.height
 
-        // 水平：理想 x = 图标中线 - toastWidth/2；clamp 到 [minX-26+18, maxX-width-18+26]
-        let iconMidX = ToastAnchor.button?.window?.frame.midX ?? visible.midX
-        let xLower = visible.minX - menuBarThickness + edgeInset
-        let xUpper = visible.maxX - width - edgeInset + menuBarThickness
-        let x = min(max(iconMidX - width / 2, xLower), xUpper)
+        // 水平：可见区中线居中，clamp ±8（原作 26/18 合成）
+        let idealX = visible.midX - width / 2
+        let x = min(max(idealX, visible.minX - 8), visible.maxX - width + 8)
 
-        // 垂直：落在菜单栏正下方的窄带上沿（visibleFrame.maxY 即菜单栏底边）
-        let y = visible.maxY - height
+        // 垂直：cap = visibleMinY + frameH*0.1833 - 26；带 [minY-16, maxY-h+16]
+        let cap = visible.minY + frameH * 0.18330 - 26
+        let y = max(visible.minY - 16, min(visible.maxY - height + 16, cap))
 
         window.setFrameOrigin(NSPoint(x: x, y: y))
     }
