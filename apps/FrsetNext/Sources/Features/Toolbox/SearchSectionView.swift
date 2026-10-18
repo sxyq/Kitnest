@@ -427,6 +427,16 @@ enum SearchCategory: String, CaseIterable, Identifiable {
         case .tools: return "hammer"
         }
     }
+    /// 分类识别色（v63 分级展示：组头图标块/徽标同色，一眼分清结果类别）
+    var tint: Color {
+        switch self {
+        case .all: return .accentColor
+        case .web: return .indigo
+        case .clipboard: return .teal
+        case .files: return .blue
+        case .tools: return .purple
+        }
+    }
 }
 
 // MARK: UI
@@ -605,8 +615,9 @@ public struct SearchSectionView: View {
         }
     }
 
-    /// 展开上限：主面板固定 700pt，需给日历卡留可视空间，结果区最多 360pt
-    private let resultListMaxHeight: CGFloat = 360
+    /// 展开上限：主面板固定 700pt，搜索结果区最多 420pt（分级展示条数更多，
+    /// 超出在区内滚动；日历卡仍露出大半）
+    private let resultListMaxHeight: CGFloat = 420
 
     private var resultList: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -636,13 +647,13 @@ public struct SearchSectionView: View {
 
             switch selectedCategory {
             case .all:
-                // 全部视图：四类同显（沿用 v47 堆叠 + 眼睛开关）。
-                // v60 紧凑单行模式：每类 2-3 条概览 + 右侧次级信息，一屏看清全局分布；
-                // 富行（多行详情）在单类聚焦视图中呈现。
-                if showWeb { webCategory(maxRows: 2, compact: true); if showClipboard || showFiles || !toolResults.isEmpty { categoryDivider } }
-                if showClipboard { clipboardCategory(maxRows: 2, compact: true); if showFiles || !toolResults.isEmpty { categoryDivider } }
-                if showFiles { filesCategory(maxRows: 3, compact: true); if !toolResults.isEmpty { categoryDivider } }
-                if !toolResults.isEmpty { toolCategory(maxRows: 2, compact: true) }
+                // 全部视图（v63 分级/分类展示）：按匹配优先级排列——本地文件（模糊
+                // 引擎主场景）→ 工具 → 剪贴板 → 网页；每类更多条 + 类型色分级组头
+                //（点组头进入该分类完整列表）。上限内滚动浏览。
+                if showFiles { filesCategory(maxRows: 6, compact: true); if !toolResults.isEmpty || showClipboard || showWeb { categoryDivider } }
+                if !toolResults.isEmpty { toolCategory(maxRows: 4, compact: true); if showClipboard || showWeb { categoryDivider } }
+                if showClipboard { clipboardCategory(maxRows: 3, compact: true); if showWeb { categoryDivider } }
+                if showWeb { webCategory(maxRows: 3, compact: true) }
             case .web:
                 webCategory(maxRows: 10, compact: false)
             case .clipboard:
@@ -686,32 +697,59 @@ public struct SearchSectionView: View {
     }
 
     /// 分类标题行：图标 + 名 + 计数 + 快速隐藏（眼睛）
-    private func categoryHeader(_ title: String, icon: String,
-                                isShown: Binding<Bool>, count: Int? = nil) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 13)
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-            if let count {
-                Text("\(count)")
-                    .font(.system(size: 10).monospacedDigit())
-                    .foregroundStyle(.tertiary)
+    /// v63 分级展示·一级（分类组头）：类型色图标块 + 标题 + 计数徽标 +
+    /// 「查看全部 ›」（点击整行进入该分类的完整结果列表）+ 右侧眼睛显隐开关。
+    private func categoryHeader(_ category: SearchCategory,
+                                isShown: Binding<Bool>? = nil,
+                                count: Int? = nil) -> some View {
+        Button {
+            if category != .all { selectedCategory = category }
+        } label: {
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(category.tint.opacity(0.14))
+                    .frame(width: 20, height: 20)
+                    .overlay(
+                        Image(systemName: category.icon)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(category.tint)
+                    )
+                Text(category.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if let count {
+                    Text("\(count)")
+                        .font(.system(size: 9.5, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(Capsule().fill(Color.primary.opacity(0.06)))
+                }
+                if category != .all {
+                    Text("查看全部")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color(NSColor.tertiaryLabelColor))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 7.5, weight: .semibold))
+                        .foregroundStyle(Color(NSColor.tertiaryLabelColor))
+                }
+                Spacer(minLength: 0)
+                if let isShown {
+                    Button {
+                        isShown.wrappedValue.toggle()
+                    } label: {
+                        Image(systemName: isShown.wrappedValue ? "eye" : "eye.slash")
+                            .font(.system(size: 10))
+                            .foregroundStyle(isShown.wrappedValue ? Color.secondary : Color.primary.opacity(0.35))
+                    }
+                    .buttonStyle(.plain)
+                    .help(isShown.wrappedValue ? "隐藏该分类（设置 → 搜索 里也可开关）" : "该分类已隐藏，点击显示")
+                }
             }
-            Spacer(minLength: 0)
-            Button {
-                isShown.wrappedValue.toggle()
-            } label: {
-                Image(systemName: isShown.wrappedValue ? "eye" : "eye.slash")
-                    .font(.system(size: 10))
-                    .foregroundStyle(isShown.wrappedValue ? Color.secondary : Color.primary.opacity(0.35))
-            }
-            .buttonStyle(.plain)
-            .help(isShown.wrappedValue ? "隐藏该分类（设置 → 搜索 里也可开关）" : "该分类已隐藏，点击显示")
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .help(category == .all ? "" : "点击查看「\(category.title)」分类的全部结果")
         .padding(.vertical, 3)
     }
 
@@ -727,7 +765,7 @@ public struct SearchSectionView: View {
     private func webCategory(maxRows: Int, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             if selectedCategory == .all {
-                categoryHeader("网页搜索", icon: "globe", isShown: $showWeb)
+                categoryHeader(.web, isShown: $showWeb)
             }
             if !compact {
                 engineActionsRow
@@ -1006,8 +1044,8 @@ public struct SearchSectionView: View {
         let matches = Array(filteredClipboardMatches.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
             if selectedCategory == .all {
-                categoryHeader("剪贴板历史", icon: "doc.on.clipboard",
-                               isShown: $showClipboard, count: filteredClipboardMatches.count)
+                categoryHeader(.clipboard, isShown: $showClipboard,
+                               count: filteredClipboardMatches.isEmpty ? nil : filteredClipboardMatches.count)
             } else {
                 filterChips(ClipboardFilterKind.allCases, selection: $clipboardKind) { $0.title }
             }
@@ -1122,8 +1160,8 @@ public struct SearchSectionView: View {
         let rows = Array(fileResults.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
             if selectedCategory == .all {
-                categoryHeader("本地文件", icon: "folder",
-                               isShown: $showFiles, count: fileResults.isEmpty ? nil : fileResults.count)
+                categoryHeader(.files, isShown: $showFiles,
+                               count: fileResults.isEmpty ? nil : fileResults.count)
             } else {
                 filterChips(FileSearchSource.Kind.allCases, selection: $fileKind) { $0.title }
             }
@@ -1204,7 +1242,7 @@ public struct SearchSectionView: View {
 
     @ViewBuilder private func toolCategory(maxRows: Int, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            categoryHeader("工具", icon: "hammer", isShown: .constant(true), count: toolResults.count)
+            categoryHeader(.tools, count: toolResults.isEmpty ? nil : toolResults.count)
             ForEach(toolResults.prefix(maxRows)) { item in
                 Button {
                     item.action()
