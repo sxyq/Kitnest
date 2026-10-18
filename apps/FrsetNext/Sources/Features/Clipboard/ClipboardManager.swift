@@ -145,6 +145,25 @@ public final class ClipboardManager: ObservableObject {
 
     // MARK: 启停
 
+    /// 暂停记录剪贴板（官方菜单项「暂停记录剪贴板」，原版 0x1000e9e34 处 Toggle）。
+    /// 暂停期间轮询仍跑（保持 changeCount 同步），但跳过 ingest——恢复后
+    /// **不回补**暂停期间的最后一次内容（与原版一致）。
+    public var isRecordingPaused: Bool = false {
+        didSet {
+            guard oldValue != isRecordingPaused else { return }
+            if isRecordingPaused {
+                lastChangeCount = NSPasteboard.general.changeCount
+            }
+            NotificationCenter.default.post(name: Self.recordingPausedDidChangeNotification,
+                                            object: self)
+            Log.info("clipboard", isRecordingPaused ? "已暂停记录剪贴板" : "已恢复剪贴板记录")
+        }
+    }
+
+    /// 暂停状态变化广播（齿轮菜单勾选态刷新用）
+    public static let recordingPausedDidChangeNotification =
+        Notification.Name("ClipboardManager.recordingPausedDidChange")
+
     public func start() {
         lastChangeCount = reader.currentChangeCount
         schedulePoll(interval: Self.idlePollingInterval)
@@ -193,6 +212,11 @@ public final class ClipboardManager: ObservableObject {
             return
         }
         guard first != lastChangeCount else { return }
+        // 暂停记录：只同步 changeCount，不 ingest（恢复后不回补暂停期间内容）
+        guard !isRecordingPaused else {
+            lastChangeCount = first
+            return
+        }
         // 自写回声抑制：粘贴板仍带本会话 selfwrite-token 标记且未过 TTL → 跳过；
         // TTL 过期后按新内容入库（spec 14 验收对照）；标记被外部覆盖（无 token/异 token）→ 正常捕获
         if first == lastSelfWriteChangeCount,

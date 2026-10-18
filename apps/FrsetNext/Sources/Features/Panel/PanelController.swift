@@ -40,7 +40,6 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let p = FloatingPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
                               rootView: PanelRootView(
                                 presentation: presentation,
-                                searchHook: PanelSearchHook.shared,
                                 onDismiss: { [weak self] in self?.hide() },
                                 onOpenSettings: { [weak self] in
                                     // 设置窗口由 07 号模块经 ServiceLocator 注入，此处不引用其具体类型
@@ -51,6 +50,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         panel = p
         homeHeight = Theme.panelMaxHeight
         ServiceLocator.panel = self
+        // Toast 定位（原作 0x1002bf3d0）：面板所在屏优先——面板可见时通知卡落在面板屏中线
+        ToastAnchor.windowProvider = { [weak self] in self?.panel }
         observeStatsPageHeight()
         Log.info("Panel", "prepared \(Int(width))x\(Int(height))")
     }
@@ -64,6 +65,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     public func show() {
         prepare()
         guard let p = panel else { return }
+        p.level = isPinned ? .statusBar : .floating   // 置顶状态应用到新建/复用窗口
         MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
         p.setFrameOrigin(rightEdgeOrigin(for: p.frame.size))
         presentation.visible = true                // 触发 SwiftUI 缩放淡入
@@ -199,10 +201,24 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate（点外/失焦自动关闭 + 尺寸持久化）
 
+    /// 置顶窗口（官方齿轮菜单「置顶窗口 ⌘P」）：
+    /// 开启后面板不因失焦自动收起，并抬升到 .statusBar 层级保持在最前。
+    /// 持久化到偏好（重启后保持勾选态）。
+    public var isPinned: Bool {
+        get { Preferences.shared.value(Preferences.Keys.panelPinned, default: false) }
+        set {
+            Preferences.shared.set(Preferences.Keys.panelPinned, newValue)
+            panel?.level = newValue ? .statusBar : .floating
+            Log.info("Panel", newValue ? "置顶窗口：开" : "置顶窗口：关")
+        }
+    }
+
     public func windowDidResignKey(_ notification: Notification) {
         // 排障/截图专用：FRSET_PANEL_PIN=1 时面板不因失焦自动收起
         // （终端脚本没有辅助功能权限，无法把焦点交回本 app，不加这个开关就截不到面板）
         if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return }
+        // 置顶窗口：不自动收起（官方菜单勾选态）
+        if isPinned { return }
         guard let p = panel, (notification.object as? NSWindow) === p else { return }
         // 本 app 自己的 sheet 取得 key 时不关闭面板：SwiftUI 的 sheet 是独立窗口，
         // 呈现瞬间父面板会 resignKey——照旧 hide() 的话面板被藏、sheet 变成无父浮窗
@@ -212,7 +228,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
            key.isSheet || key.sheetParent != nil {
             return
         }
-        // 原作 .transient 行为：点击面板外任意处即关闭
+        // 原作 .transient 行为：点击面板外任意处即关闭。
+        // v53 例外：本 app 的常驻预览窗（单击条目打开）取得 key 时保持面板——
+        // 用户是"边看列表边看预览"，面板收起会打断浏览。
+        if NSApp.isActive, let key = NSApp.keyWindow, key !== p, key.isVisible,
+           key.identifier?.rawValue == "frset.clipboardPreview" {
+            return
+        }
         hide()
     }
 

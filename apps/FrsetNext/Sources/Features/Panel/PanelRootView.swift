@@ -4,7 +4,7 @@ import SwiftUI
 /// 主面板 SwiftUI 根视图（1:1 复刻原版 Frset 1.3.12 实测版式）：
 ///
 /// ```
-/// ┌ 工具条：[截图][取色][悬浮剪贴板]   (主页│性能监测)   [⚙] ┐ 40pt
+/// ┌ 工具条：[截图][取色][悬浮剪贴板]   (主页│性能监测│文件中转)   [⚙] ┐ 40pt
 /// ├ 主页 ────────────────────────────────────────────────┤
 /// │  🔍 搜索或输入 / 使用工具                                │
 /// │  （建议位留白，原版同布局）                              │
@@ -19,19 +19,25 @@ import SwiftUI
 ///
 /// 说明：原版主页**没有**区段标题、没有底部退出/设置栏、没有「⋯」菜单，
 /// 剪贴板也不是「标题 + 过滤栏 + 表格」——就是一条条的行。这里按原版收敛。
+///
+/// v41（2026-10-18 用户澄清）：主面板版式**保持官方原样**（400pt、顶部三段），
+/// 大侧边栏改造只作用于**设置窗口**（见 SettingsRootView）。
+/// 本面板唯一新增：顶部「文件中转」分段受「设置 → 常规 → 功能」开关控制显隐。
 struct PanelRootView: View {
     @ObservedObject var presentation: PanelPresentationState
-    @ObservedObject var searchHook: PanelSearchHook
     var onDismiss: () -> Void
     var onOpenSettings: () -> Void
-
-    /// 顶部搜索框焦点（⌥F「打开并搜索」经 .frsetFocusPanelSearch 通知程序化聚焦）
-    @FocusState private var searchFieldFocused: Bool
 
     /// 当前页与选中模块（nil = 主页；非 nil = 性能监测页 + 该模块）
     @ObservedObject private var monitorPresenter = MonitorCenterPresenter.shared
     /// 文件拖入高亮（拖 .json 进面板 → 打开 JSON 检视器）
     @Stored private var isDropTargeted = false
+    /// 底部工具条「标签」→ 标签管理 sheet（官方原版工具条第 3 个图标）
+    @Stored private var isShowingTagSheet = false
+    /// 剪贴板列表当前选中项（编辑/上传按钮按选中态启用，2026-10-18）
+    @Stored private var selectedClipboardItem: ClipboardItem?
+    /// 「文件中转」分段显隐（设置 → 常规 → 功能）
+    @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
 
     private var isPerformance: Bool { monitorPresenter.isPerformance }
     private var page: PanelCenterPage { monitorPresenter.activePage }
@@ -48,6 +54,19 @@ struct PanelRootView: View {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // 底部悬浮工具条（官方原版主页，2026-10-18 补齐）：仅主页显示
+        .overlay(alignment: .bottom) {
+            if page == .home {
+                bottomToolbar
+                    .padding(.bottom, 14)
+            }
+        }
+        .sheet(isPresented: $isShowingTagSheet) {
+            TagManagementSheet()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .clipboardSelectionChanged)) { note in
+            selectedClipboardItem = note.object as? ClipboardItem
+        }
         // 弹出/收起：缩放 + 轻微上移 + 淡入（锚点贴菜单栏，像从图标「长出来」）。
         // 只动 transform/opacity，弹簧可被下一次开合打断。
         .scaleEffect(presentation.visible ? 1 : 0.93, anchor: .top)
@@ -58,10 +77,19 @@ struct PanelRootView: View {
         .animation(.spring(response: 0.30, dampingFraction: 0.88), value: page)
         // 切回主页：窗口高度还原（性能页按内容缩高，见 PanelController.applyStatsPageHeight）
         .onChange(of: page) { newPage in
+            // 2026-10-18：切页即关预览——主页 hover 打开的预览不能跟到性能/中转站页
+            // （与 ClipboardTableView 的 tracking 禁用双保险）
+            MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
             if newPage != .performance {
                 NotificationCenter.default.post(name: .statsPageHeightDidChange,
                                                 object: nil,
                                                 userInfo: ["height": CGFloat(0)])
+            }
+        }
+        // 文件中转开关关闭时：若正停在该页则回主页（v41）
+        .onChange(of: transferDockEnabled) { enabled in
+            if !enabled && page == .transfer {
+                monitorPresenter.selectHome()
             }
         }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
@@ -93,11 +121,9 @@ struct PanelRootView: View {
                     anchorRectInWindow: CGRect(x: 24, y: 250, width: 340, height: 60))
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("frset.focusPanelSearch"))) { _ in
-            monitorPresenter.presented = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                searchFieldFocused = true
-            }
+        // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
+        .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
+            if page != .home { monitorPresenter.selectHome() }
         }
     }
 
@@ -131,16 +157,48 @@ struct PanelRootView: View {
                 .help("悬浮剪贴板")
                 .accessibilityLabel("悬浮剪贴板")
                 Spacer(minLength: 0)
-                Button {
-                    onOpenSettings()
+                // 齿轮菜单（官方原版 1:1，2026-10-18 实测截图）：
+                // 置顶窗口 ⌘P / 悬浮剪贴板 ⇧⌘V / ─ / 暂停记录剪贴板 /
+                // 设置 ⌘, / 使用统计 / 功能建议 / ─ / 退出 ⌘Q
+                Menu {
+                    Toggle("置顶窗口", isOn: Binding(
+                        get: { PanelController.shared.isPinned },
+                        set: { PanelController.shared.isPinned = $0 }
+                    ))
+                    .keyboardShortcut("p", modifiers: .command)
+                    Button("悬浮剪贴板") {
+                        onDismiss()
+                        FloatingClipboardWindowController.shared.toggle()
+                    }
+                    .keyboardShortcut("v", modifiers: [.command, .shift])
+                    Divider()
+                    Toggle("暂停记录剪贴板", isOn: Binding(
+                        get: { ClipboardManager.shared.isRecordingPaused },
+                        set: { ClipboardManager.shared.isRecordingPaused = $0 }
+                    ))
+                    Button("设置") { onOpenSettings() }
+                        .keyboardShortcut(",", modifiers: .command)
+                    Button("使用统计") {
+                        onDismiss()
+                        StatisticsWindowController.shared.openStatistics()
+                    }
+                    Button("功能建议") {
+                        if let url = URL(string: "https://github.com/frset/frset-next/issues") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    Divider()
+                    Button("退出") { NSApp.terminate(nil) }
+                        .keyboardShortcut("q", modifiers: .command)
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 15))
                         .frame(width: 22, height: 22)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(SpringyIconButtonStyle())
-                .focusable(false)
-                .foregroundStyle(.secondary)
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
                 .help("设置")
                 .accessibilityLabel("设置")
             }
@@ -152,7 +210,8 @@ struct PanelRootView: View {
         .frame(height: 40)
     }
 
-    /// 「主页 | 性能监测」分段（自绘胶囊，对齐原版选中态）
+    /// 「主页 | 性能监测 | 文件中转」分段（自绘胶囊，对齐原版选中态）
+    /// v41：文件中转由设置开关控制显隐。
     private var pageSegments: some View {
         HStack(spacing: 0) {
             segmentItem("主页", selected: page == .home) {
@@ -161,8 +220,10 @@ struct PanelRootView: View {
             segmentItem("性能监测", selected: page == .performance) {
                 monitorPresenter.selectPerformance(true)
             }
-            segmentItem("文件中转", selected: page == .transfer) {
-                monitorPresenter.selectTransferDock()
+            if transferDockEnabled {
+                segmentItem("文件中转", selected: page == .transfer) {
+                    monitorPresenter.selectTransferDock()
+                }
             }
         }
         .padding(2)
@@ -222,6 +283,87 @@ struct PanelRootView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: action)
     }
 
+    // MARK: - 底部悬浮工具条（官方原版主页，2026-10-18 补齐）
+    //
+    // 官方实测（FrsetClean 主面板截图）：白色胶囊悬浮于列表底部居中，
+    // 5 个图标 = 搜索 / 筛选（蓝色激活态）/ 标签 / 编辑 / 上传。
+    // 接线上限说明：搜索=聚焦搜索框（既有通知）；筛选=ClipboardManager.filter
+    // （9 种类型）；标签=标签管理 sheet（TagStore 既有能力）；
+    // 编辑=需列表选中项；上传=需图床配置（未实现 → 置灰）。
+
+    private var bottomToolbar: some View {
+        HStack(spacing: 10) {
+            toolbarIcon("magnifyingglass", help: "搜索") {
+                NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+            }
+            Menu {
+                ForEach(ClipboardFilterKind.allCases) { kind in
+                    Button {
+                        ClipboardManager.shared.filter = kind
+                    } label: {
+                        if ClipboardManager.shared.filter == kind {
+                            Label(kind.label, systemImage: "checkmark")
+                        } else {
+                            Text(kind.label)
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "line.3.horizontal.circle")
+                    .font(.system(size: 16))
+                    .frame(width: 30, height: 30)
+                    // 官方该图标为蓝色激活态（当前筛选生效）
+                    .foregroundStyle(Color.accentColor)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("筛选")
+            .accessibilityLabel("筛选")
+            toolbarIcon("tag", help: "标签") {
+                isShowingTagSheet = true
+            }
+            // 编辑：有选中项时打开编辑窗（官方「编辑」按钮，2026-10-18 接通选中态）
+            toolbarIcon("square.and.pencil",
+                        help: selectedClipboardItem == nil ? "编辑（先选中一条）" : "编辑选中条目") {
+                guard let item = selectedClipboardItem else { return }
+                ClipboardItemEditWindowRecord.open(for: item)
+            }
+            .disabled(selectedClipboardItem == nil)
+            // 上传：官方「上传」按钮（图床能力未配置 → 提示而非静默）
+            toolbarIcon("arrow.up", help: "上传") {
+                Toast.show("未配置图床（上传能力待接入）", icon: "exclamationmark.triangle.fill", isWarning: true)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
+    }
+
+    private func toolbarIcon(_ symbol: String, help: String,
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16))
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .foregroundStyle(.secondary)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+
     private func captureButton(_ symbol: String, title: String, mode: CaptureMode) -> some View {
         Button {
             onDismiss()
@@ -238,7 +380,7 @@ struct PanelRootView: View {
         .accessibilityLabel(title)
     }
 
-    // MARK: - 内容区（两页常驻：滚动位置/动画状态互不干扰）
+    // MARK: - 内容区（各页常驻：滚动位置/动画状态互不干扰）
 
     @ViewBuilder private var content: some View {
         ZStack(alignment: .top) {
@@ -264,65 +406,31 @@ struct PanelRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    // MARK: - 主页：搜索框 → 建议位 → 日历 → 剪贴板
+    // MARK: - 主页：搜索区段 → 日历 → 剪贴板
 
     private var homePage: some View {
         VStack(spacing: 0) {
-            searchBar
+            // 搜索区段由 Toolbox 模块注入（id "search"）：原版同款——
+            // 输入关键词 → 搜索引擎栏（点击/回车打开网页搜索）；输入 / → 工具列表；
+            // 剪贴板列表与日历**不被过滤**（对齐原版 2026-10-18 实测行为）
+            searchSection
                 .padding(.horizontal, 14)
                 .padding(.top, 2)
 
-            if searchHook.query.isEmpty {
-                // 建议位（原版：搜索框与日历之间留白，输入时这里出结果）
-                Color.clear.frame(height: 96)
-                calendarCard
-                clipboardSection
-                    .padding(.top, 12)
-                    .frame(maxHeight: .infinity, alignment: .top)
-            } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    PanelSearchResultsView(hook: searchHook)
-                        .padding(.horizontal, 10)
-                        .padding(.top, 10)
-                        .padding(.bottom, 12)
-                }
+            Color.clear.frame(height: 12)
+            calendarCard
+            clipboardSection
+                .padding(.top, 12)
                 .frame(maxHeight: .infinity, alignment: .top)
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-            TextField("搜索或输入 / 使用工具", text: $searchHook.query)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundStyle(bodyTextColor)
-                .focused($searchFieldFocused)
-            if !searchHook.query.isEmpty {
-                Button {
-                    searchHook.query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
+    /// 搜索区段（Toolbox 模块经 PanelSectionRegistry 注入）
+    @ViewBuilder private var searchSection: some View {
+        if let descriptor = PanelSectionRegistry.all.first(where: { $0.id == "search" }) {
+            descriptor.build()
         }
-        .padding(.horizontal, 12)
-        .frame(height: 34)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.82))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-        )
     }
 
     // MARK: - 文件拖放（JSON 检视器入口）
@@ -382,53 +490,5 @@ struct PanelRootView: View {
             descriptor.build()
                 .padding(.horizontal, 8)
         }
-    }
-}
-
-/// 搜索结果列表（过滤本地剪贴板文本条目，点击复制）
-struct PanelSearchResultsView: View {
-    @ObservedObject var hook: PanelSearchHook
-    @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
-
-    private var cardBackground: Color {
-        midnightCardBackground ?? Theme.cardBackground
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("剪贴板搜索 · \(hook.results.count) 条")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 2)
-            ForEach(hook.results) { r in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(r.title)
-                        .font(.system(size: 12, weight: .medium))
-                        .lineLimit(1)
-                    Text(r.timestamp.relativeText)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(cardBackground)
-                .cornerRadius(Theme.smallRadius)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(r.snippet, forType: .string)
-                }
-            }
-            if hook.results.isEmpty {
-                Text("没有匹配的剪贴板条目")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 20)
-            }
-        }
-        .onAppear { hook.performSearch() }
-        .onChange(of: hook.query) { _ in hook.performSearch() }
     }
 }
