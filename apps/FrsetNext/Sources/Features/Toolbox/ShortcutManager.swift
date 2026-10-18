@@ -289,7 +289,11 @@ public final class ShortcutManager {
     }
 
     public static func display(keyCode: UInt32, modifiers: UInt32) -> String {
-        modifierText(modifiers) + keyText(keyCode)
+        // 原版设置页的展示格式为「⌥ A」「⌘ 2」「⌥ ⇧ T」——修饰键之间、修饰键与主键之间都有空格
+        // （2026-10-18 原版 AX 实测 AXStaticText 值），这里按同格式拼接。
+        let symbols = modifierText(modifiers).map { String($0) }
+        let key = keyText(keyCode)
+        return symbols.isEmpty ? key : symbols.joined(separator: " ") + " " + key
     }
 
     /// NSEvent 修饰键 → Carbon 修饰键

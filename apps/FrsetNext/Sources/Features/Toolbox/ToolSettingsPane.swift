@@ -4,6 +4,8 @@ import AppKit
 public struct ToolSettingsPane: View {
     @Stored private var revision = 0
     @Stored private var confirmReset = false
+    /// 划词运行（官方工具页底部「划词运行 ⓘ [开关]」，2026-10-18 补齐）
+    @AppStorage("tools.selectionRun") private var selectionRun = false
 
     public init() {}
 
@@ -40,6 +42,19 @@ public struct ToolSettingsPane: View {
                     Label("重置工具", systemImage: "arrow.clockwise")
                 }
                 Spacer()
+                // 官方工具页底部右侧：划词运行 ⓘ [开关]
+                HStack(spacing: 6) {
+                    Text("划词运行")
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .help("选中文本后显示划词工具栏（需辅助功能权限）")
+                    Toggle("", isOn: $selectionRun)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                }
             }
             .buttonStyle(.link)
             .frame(height: 32)
@@ -84,7 +99,21 @@ public struct ToolSettingsPane: View {
                 })
                 .frame(width: 152)
             Spacer(minLength: 12)
-            Menu {
+            // 官方「更多」列：✓ 启用勾选（行内可见）+ ⋯ 菜单
+            HStack(spacing: 8) {
+                Button {
+                    let enabled = ToolRegistry.isEnabled(id: tool.identifier)
+                    ToolRegistry.setEnabled(id: tool.identifier, !enabled)
+                    revision += 1
+                } label: {
+                    Image(systemName: ToolRegistry.isEnabled(id: tool.identifier) ? "checkmark" : "")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(ToolRegistry.isEnabled(id: tool.identifier) ? Color.accentColor : Color.clear)
+                }
+                .buttonStyle(.plain)
+                .help("启用")
+                Menu {
                 Toggle("启用", isOn: Binding(
                     get: { ToolRegistry.isEnabled(id: tool.identifier) },
                     set: {
@@ -99,12 +128,14 @@ public struct ToolSettingsPane: View {
                     Text(reason)
                 }
             } label: {
-                Image(systemName: "ellipsis")
+                // 原版「更多」按钮为齿轮形（AX desc=齿轮形状，2026-10-18 纯净原版核验）
+                Image(systemName: "gearshape")
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .frame(width: 24)
+            }
         }
-        .frame(height: 46.5)
+        .frame(height: 42)   // 8 行一屏（官方工具页 8 行全显示，2026-10-18）
     }
 }

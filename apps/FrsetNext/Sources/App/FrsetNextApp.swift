@@ -14,10 +14,54 @@ struct FrsetNextApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // v43：菜单栏监控「唯一一套」护栏——先于任何模块启动执行。
+        // 菜单栏监控的唯一实现是 STATS 合并条；多开实例/官方原版同跑都会各画一套，
+        // 表现为菜单栏出现重复的 CPU/RAM/SSD 组件（用户 2026-10-18 反馈）。
+        guard enforceSingleMenubarOwner() else { return }
+
         // 不显示 Dock 图标（菜单栏应用）
         NSApp.setActivationPolicy(.accessory)
         AppBootstrap.start()
         Log.info("App", "启动完成")
+
+        // 排障探针（2026-10-18）：FRSET_TOAST_PROBE=1 时启动 2s 后弹一条通知条，
+        // 用于验证菜单栏通知条窗口在真机上确实可见（截图后"无提示"类问题的最小复现）。
+        // 只在显式设置环境变量时执行，平时零开销、不打扰。
+        if ProcessInfo.processInfo.environment["FRSET_TOAST_PROBE"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                Toast.show("提示条自检", icon: "checkmark.circle.fill")
+            }
+        }
+    }
+
+    /// 菜单栏监控「唯一一套」：STATS 合并条。
+    ///
+    /// 两道防线：
+    /// 1. **同 bundle 多实例** → 新实例立即退出。每个进程都会 `StatsBarEngine.start()`
+    ///    建一套合并条（同一个 NSStatusBar 上并列），菜单栏就出现重复组件。
+    /// 2. **官方原版 Frset.app 在跑** → 原版的 STATS 注入引擎也会画一套合并条，且与本 app
+    ///    共用 `~/Library/Application Support/FrsetStats/widgets.plist` 与 `engine.log`。
+    ///    无法从进程内阻止它，因此只提示用户退出原版（避免误以为是我们重复创建）。
+    private func enforceSingleMenubarOwner() -> Bool {
+        if let bid = Bundle.main.bundleIdentifier {
+            let others = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
+                .filter { $0.processIdentifier != getpid() }
+            if let existing = others.first {
+                Log.info("App", "已有实例在运行（pid=\(existing.processIdentifier)）→ 本实例退出，保证菜单栏只有一套监控组件")
+                existing.activate(options: [.activateIgnoringOtherApps])
+                NSApp.terminate(nil)
+                return false
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            let originals = NSRunningApplication.runningApplications(withBundleIdentifier: "com.maoux.frset")
+            guard !originals.isEmpty else { return }
+            Log.info("App", "检测到官方原版 Frset 在运行：它的注入引擎会重复绘制一套菜单栏组件")
+            Toast.show("官方原版 Frset 正在运行，会重复绘制一套菜单栏监控组件，建议退出原版",
+                       icon: "exclamationmark.triangle.fill", isWarning: true)
+        }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {

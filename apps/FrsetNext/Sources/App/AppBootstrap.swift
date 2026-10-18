@@ -167,6 +167,9 @@ enum AppBootstrap {
         },
         DefaultHotkeyEntry(id: "openAndSearch", title: "打开搜索框",
                            keyCode: 0x03, modifiers: UInt32(optionKey)) {
+            // 必须先激活：主面板是 transient（resignKey 即 hide），不激活时面板
+            // 打开后立即失焦自关（2026-10-18 ⌥F 实测修缺，同 URL scheme panel 分支）
+            NSApp.activate(ignoringOtherApps: true)
             ServiceLocator.panel?.show()
             NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
         },
@@ -199,11 +202,19 @@ enum AppBootstrap {
     /// 批量注册默认热键表（specs/19 §4）。
     /// 前置：ModuleRegistry.startAll() 已完成（handler 懒分发，触发时模块均已注入）。
     private static func registerDefaultHotkeys() {
+        // 双击快捷键（原版 2× 开关，2026-10-18 补齐）：先注入 handler 与已保存绑定，
+        // 再注册组合键——双击模式的动作跳过组合键注册（原版切到双击后组合键位置被替换）。
+        installDoubleTapBindings()
+
         for entry in defaultHotkeys {
             // 用户自定义优先：该工具已有用户录入的绑定 → 跳过默认注册（原作「已自定义清单命中即跳过」）
             if let toolID = userCustomizableToolID(for: entry.id),
                ToolShortcutStore.binding(for: toolID) != nil {
                 Log.info("Shortcut", "跳过默认绑定 \(entry.id)：已有用户自定义绑定")
+                continue
+            }
+            if DoubleTapShortcutCenter.shared.modifier(for: entry.id) != nil {
+                Log.info("Shortcut", "跳过默认绑定 \(entry.id)：该动作已切换为双击快捷键")
                 continue
             }
             guard let binding = shortcutBinding(for: entry.id) else { continue }
@@ -212,6 +223,79 @@ enum AppBootstrap {
                                       handler: entry.action)
         }
         Log.info("Bootstrap", "默认热键表注册完成（共 \(defaultHotkeys.count) 条）")
+    }
+
+    // MARK: - 双击快捷键（原版 2× 开关）
+
+    /// 持久化键：actionID → DoubleTapModifier.rawValue。
+    /// 原版存储格式（double_tap_shortcut_enabled / doubleTapModifiers）未探明序列化细节，
+    /// 重建侧沿用 Preferences 的字典风格，语义等价：存在 = 双击模式，值 = 双击哪个修饰键。
+    private static let doubleTapBindingsKey = "shortcuts.doubleTap"
+    /// 兼容性提示只弹一次（原版 hasSeenDoubleTapShortcutTip_v1 的同语义键）
+    private static let doubleTapTipSeenKey = "shortcuts.doubleTapTipSeen"
+
+    static func doubleTapModifier(for id: String) -> DoubleTapModifier? {
+        let saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
+        return saved[id].flatMap(DoubleTapModifier.init(rawValue:))
+    }
+
+    private static func installDoubleTapBindings() {
+        var handlers: [String: () -> Void] = [:]
+        for entry in defaultHotkeys { handlers[entry.id] = entry.action }
+        DoubleTapShortcutCenter.shared.setHandlers(handlers)
+
+        // 按默认表顺序恢复绑定，保证同修饰键冲突时“先者优先”的行为稳定
+        let saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
+        for entry in defaultHotkeys {
+            guard let raw = saved[entry.id], let modifier = DoubleTapModifier(rawValue: raw) else { continue }
+            DoubleTapShortcutCenter.shared.bind(actionID: entry.id, modifier: modifier)
+        }
+    }
+
+    /// 切换某动作的「2×」模式。enabled=true 时默认双击 ⌘（原版菜单默认项）。
+    static func setDoubleTap(_ id: String, enabled: Bool) {
+        guard let entry = defaultHotkeys.first(where: { $0.id == id }) else { return }
+        var saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
+
+        if enabled {
+            let modifier = saved[id].flatMap(DoubleTapModifier.init(rawValue:)) ?? .command
+            saved[id] = modifier.rawValue
+            // 双击模式接管：注销该动作的组合键（原版 UI 同时把组合键位置换成双击选择器）
+            ShortcutRegistry.unregister(id: id)
+            DoubleTapShortcutCenter.shared.bind(actionID: id, modifier: modifier)
+            Preferences.shared.set(doubleTapBindingsKey, saved)
+            Log.info("Shortcut", "\(id) 切换为双击快捷键：双击 \(modifier.symbol)")
+            presentDoubleTapCompatibilityTipIfNeeded()
+        } else {
+            saved.removeValue(forKey: id)
+            DoubleTapShortcutCenter.shared.unbind(actionID: id)
+            Preferences.shared.set(doubleTapBindingsKey, saved)
+            // 切回组合键：按用户覆盖值（无覆盖则默认表）重新注册
+            if let binding = shortcutBinding(for: id) {
+                ShortcutRegistry.register(id: id, title: entry.title,
+                                          keyCode: binding.keyCode, modifiers: binding.modifiers,
+                                          handler: entry.action)
+            }
+            Log.info("Shortcut", "\(id) 切回组合快捷键")
+        }
+    }
+
+    /// 双击模式下更换修饰键（原版下拉菜单：⌘ ⌘ / ⌥ ⌥ / ⌃ ⌃ / ⇧ ⇧）
+    static func setDoubleTapModifier(_ id: String, _ modifier: DoubleTapModifier) {
+        var saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
+        guard saved[id] != nil else { return }
+        saved[id] = modifier.rawValue
+        Preferences.shared.set(doubleTapBindingsKey, saved)
+        DoubleTapShortcutCenter.shared.bind(actionID: id, modifier: modifier)
+        Log.info("Shortcut", "\(id) 双击修饰键改为 \(modifier.symbol)")
+    }
+
+    /// 原版兼容性提示（Double-tap shortcut compatibility warning），仅在缺少辅助功能权限且首次开启时出现
+    private static func presentDoubleTapCompatibilityTipIfNeeded() {
+        guard !DoubleTapShortcutCenter.accessibilityTrusted else { return }
+        if Preferences.shared.value(doubleTapTipSeenKey, default: false) { return }
+        Preferences.shared.set(doubleTapTipSeenKey, true)
+        DoubleTapTipWindowController.shared.show()
     }
 
     static func shortcutBinding(for id: String) -> (keyCode: UInt32, modifiers: UInt32)? {
@@ -225,6 +309,10 @@ enum AppBootstrap {
     @discardableResult
     static func setShortcut(_ id: String, keyCode: UInt32?, modifiers: UInt32 = 0) -> Bool {
         guard let entry = defaultHotkeys.first(where: { $0.id == id }) else { return false }
+        // 双击模式下用户重新录入组合键 → 视为切回组合键模式（与 UI 的互斥语义一致）
+        if DoubleTapShortcutCenter.shared.modifier(for: id) != nil {
+            setDoubleTap(id, enabled: false)
+        }
         var saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
         if let keyCode {
             let definition = ShortcutDefinition(id: id, title: entry.title, keyCode: keyCode,
@@ -241,7 +329,10 @@ enum AppBootstrap {
 
     static func restoreDefaultShortcuts() {
         for entry in defaultHotkeys { ShortcutRegistry.unregister(id: entry.id) }
+        // 原版「恢复默认快捷键」同时清掉 2× 双击模式（否则恢复后仍有动作处于双击态）
+        DoubleTapShortcutCenter.shared.unbindAll()
         Preferences.shared.set("shortcuts.bindings", nil)
+        Preferences.shared.set(doubleTapBindingsKey, nil)
         registerDefaultHotkeys()
     }
 
