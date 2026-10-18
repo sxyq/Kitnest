@@ -4,16 +4,14 @@ import SwiftUI
 /// 主面板 SwiftUI 根视图（1:1 复刻原版 Frset 1.3.12 实测版式）：
 ///
 /// ```
-/// ┌ 工具条：[截图][取色][悬浮剪贴板]   (主页│性能监测│文件中转)   [⚙] ┐ 40pt
+/// ┌ 工具条：[截图][取色][悬浮剪贴板]     (主页│文件中转)     [⚙] ┐ 40pt
 /// ├ 主页 ────────────────────────────────────────────────┤
 /// │  🔍 搜索或输入 / 使用工具                                │
-/// │  （建议位留白，原版同布局）                              │
 /// │  ‹ 2026年10月 ›                              ⌄          │
 /// │  周日 周一 周二 周三 周四 周五 周六                       │
 /// │  11  12  13  14  15  16  [17]                           │
 /// │  18  19  20  21  22  23  24                             │
 /// │  [缩略图] 标题 …                         ↓  ↵           │
-/// ├ 性能监测 ── StatsPageView（标签行 + 模块页 + 刷新条）────┤
 /// └──────────────────────────────────────────────────────┘
 /// ```
 ///
@@ -22,6 +20,8 @@ import SwiftUI
 ///
 /// v41（2026-10-18 用户澄清）：主面板版式**保持官方原样**（400pt、顶部三段），
 /// 大侧边栏改造只作用于**设置窗口**（见 SettingsRootView）。
+/// v60（2026-10-19 用户决策）：「性能监测」页删除——只保留独立窗口一套实现
+/// （MonitorPopoutWindow，⌥P / ⌥M / 状态栏部件点击直达），避免两套实现打架。
 /// 本面板唯一新增：顶部「文件中转」分段受「设置 → 常规 → 功能」开关控制显隐。
 struct PanelRootView: View {
     @ObservedObject var presentation: PanelPresentationState
@@ -39,7 +39,6 @@ struct PanelRootView: View {
     /// 「文件中转」分段显隐（设置 → 常规 → 功能）
     @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
 
-    private var isPerformance: Bool { monitorPresenter.isPerformance }
     private var page: PanelCenterPage { monitorPresenter.activePage }
 
     // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
@@ -73,18 +72,10 @@ struct PanelRootView: View {
         .offset(y: presentation.visible ? 0 : -10)
         .opacity(presentation.visible ? 1 : 0)
         .animation(.spring(response: 0.24, dampingFraction: 0.82), value: presentation.visible)
-        // 主页/性能切换：内容横移 + 交叉淡入，与顶部分段高亮同一条弹簧
-        .animation(.spring(response: 0.24, dampingFraction: 0.88), value: page)
-        // 切回主页：窗口高度还原（性能页按内容缩高，见 PanelController.applyStatsPageHeight）
-        .onChange(of: page) { newPage in
-            // 2026-10-18：切页即关预览——主页 hover 打开的预览不能跟到性能/中转站页
-            // （与 ClipboardTableView 的 tracking 禁用双保险）
+        // 切页：关预览——主页 hover 打开的预览不能跟到中转站页
+        // （与 ClipboardTableView 的 tracking 禁用双保险）
+        .onChange(of: page) { _ in
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
-            if newPage != .performance {
-                NotificationCenter.default.post(name: .statsPageHeightDidChange,
-                                                object: nil,
-                                                userInfo: ["height": CGFloat(0)])
-            }
         }
         // 文件中转开关关闭时：若正停在该页则回主页（v41）
         .onChange(of: transferDockEnabled) { enabled in
@@ -210,15 +201,13 @@ struct PanelRootView: View {
         .frame(height: 40)
     }
 
-    /// 「主页 | 性能监测 | 文件中转」分段（自绘胶囊，对齐原版选中态）
+    /// 「主页 | 文件中转」分段（自绘胶囊，对齐原版选中态）
     /// v41：文件中转由设置开关控制显隐。
+    /// v60：性能监测段删除——只留独立窗口一套实现，⌥P / 部件点击直达。
     private var pageSegments: some View {
         HStack(spacing: 0) {
             segmentItem("主页", selected: page == .home) {
                 monitorPresenter.selectHome()
-            }
-            segmentItem("性能监测", selected: page == .performance) {
-                monitorPresenter.selectPerformance(true)
             }
             if transferDockEnabled {
                 segmentItem("文件中转", selected: page == .transfer) {
@@ -381,6 +370,7 @@ struct PanelRootView: View {
     }
 
     // MARK: - 内容区（各页常驻：滚动位置/动画状态互不干扰）
+    // v60：性能监测页删除（只留独立窗口一套实现，⌥P / ⌥M / 状态栏部件点击直达）
 
     @ViewBuilder private var content: some View {
         ZStack(alignment: .top) {
@@ -390,13 +380,7 @@ struct PanelRootView: View {
                 .allowsHitTesting(page == .home)
                 .accessibilityHidden(page != .home)
 
-            StatsPageView(isActive: page == .performance)
-                .opacity(page == .performance ? 1 : 0)
-                .offset(x: page == .performance ? 0 : 16)
-                .allowsHitTesting(page == .performance)
-                .accessibilityHidden(page != .performance)
-
-            // 第三页：中转站（文件暂存与转发）
+            // 第二页：中转站（文件暂存与转发）
             TransferDockView()
                 .opacity(page == .transfer ? 1 : 0)
                 .offset(x: page == .transfer ? 0 : 16)

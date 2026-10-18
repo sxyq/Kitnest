@@ -14,12 +14,6 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     private var panel: FloatingPanel?
     private let presentation = PanelPresentationState()
-    /// 主页高度（性能页会按内容缩高；切回主页要还原）
-    private var homeHeight: CGFloat = Theme.panelMaxHeight
-    /// 正在按性能页内容调整高度（此期间的 windowDidResize 不应写回主页高度偏好）
-    private var isAdjustingForStatsPage = false
-    /// 上一次性能页请求的高度（防抖：窗口缩放会引起内容重排，±8pt 内不再调整，避免抖动）
-    private var lastRequestedStatsHeight: CGFloat = 0
     /// 启动空闲预热是否已排期（避免重复）
     private var warmupScheduled = false
 
@@ -32,9 +26,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 创建面板与内容（幂等）。由 PanelModule.start() 调用，并注入 ServiceLocator.panel。
     public func prepare() {
         guard panel == nil else { return }
-        // 原版主面板是固定 400×700（性能页才按内容缩高，见 applyStatsPageHeight）。
-        // 宽度仍允许用户拖拽后持久化；高度不再读持久化值——否则上一次性能页的
-        // 矮高度（如 632）会被当成主页高度，主页底部出现莫名空白/裁切。
+        // 原版主面板是固定 400×700（v60：性能页已删，高度恒定不再缩放）。
+        // 宽度仍允许用户拖拽后持久化；高度不读持久化值——避免历史矮高度残留。
         let width = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
                                                       default: Double(Theme.panelWidth)))
         let height = Theme.panelMaxHeight
@@ -50,11 +43,9 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
                                 }))
         p.delegate = self
         panel = p
-        homeHeight = Theme.panelMaxHeight
         ServiceLocator.panel = self
         // Toast 定位（原作 0x1002bf3d0）：面板所在屏优先——面板可见时通知卡落在面板屏中线
         ToastAnchor.windowProvider = { [weak self] in self?.panel }
-        observeStatsPageHeight()
         scheduleWarmup()
         Log.info("Panel", "prepared \(Int(width))x\(Int(height))")
     }
@@ -92,20 +83,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 给 SwiftUI 一个显示周期，把 AttributeGraph 真正跑完
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.12))
 
-        // 性能页也预排一次（默认 CPU）：否则第一次点部件时还要现建 tabs + 模块页
-        let tPerf = ProcessInfo.processInfo.systemUptime
-        MonitorCenterPresenter.shared.presented = .cpu
-        p.contentView?.layoutSubtreeIfNeeded()
-        p.displayIfNeeded()
-        let perfMs = (ProcessInfo.processInfo.systemUptime - tPerf) * 1000
-
-        MonitorCenterPresenter.shared.selectHome()
         presentation.visible = false
         p.contentView?.layoutSubtreeIfNeeded()
         p.orderOut(nil)
         p.alphaValue = oldAlpha
         let ms = (ProcessInfo.processInfo.systemUptime - t0) * 1000
-        Log.info("Panel", String(format: "预热完成 %.0fms（其中性能页 %.0fms）", ms, perfMs))
+        Log.info("Panel", String(format: "预热完成 %.0fms", ms))
     }
 
     // MARK: - PanelControlling
@@ -227,36 +210,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         return NSPoint(x: x, y: vf.maxY - size.height - 2)
     }
 
-    // MARK: - 性能页高度自适应（原版：内容多高窗口多高，402~602pt）
-
-    private func observeStatsPageHeight() {
-        NotificationCenter.default.addObserver(forName: .statsPageHeightDidChange,
-                                               object: nil, queue: .main) { [weak self] note in
-            guard let self, let height = note.userInfo?["height"] as? CGFloat else { return }
-            self.applyStatsPageHeight(height)
-        }
-    }
-
-    /// height 为 0 表示「回到主页高度」
-    private func applyStatsPageHeight(_ height: CGFloat) {
-        guard let p = panel, p.isVisible else { return }
-        let target = height <= 1 ? homeHeight : min(max(height, 300), Theme.panelMaxHeight)
-        guard abs(p.frame.height - target) > 1 else { return }
-        guard abs(lastRequestedStatsHeight - target) > 8 else { return }
-        lastRequestedStatsHeight = target
-        var frame = p.frame
-        let top = frame.maxY
-        frame.size.height = target
-        frame.origin.y = top - target          // 顶边不动（贴着菜单栏）
-        isAdjustingForStatsPage = true
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.18
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            p.animator().setFrame(frame, display: true)
-        } completionHandler: { [weak self] in
-            self?.isAdjustingForStatsPage = false
-        }
-    }
+    // MARK: - 尺寸持久化（v60：性能页高度自适应已随该页删除）
 
     private func persistSize(_ p: NSWindow) {
         Preferences.shared.set(Preferences.Keys.panelWidth, Double(p.frame.width))
@@ -304,9 +258,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     public func windowDidResize(_ notification: Notification) {
         guard let p = panel, (notification.object as? NSWindow) === p, p.isVisible else { return }
-        if isAdjustingForStatsPage { return }
         persistSize(p)
-        homeHeight = p.frame.height
     }
 
     public func windowWillClose(_ notification: Notification) {
