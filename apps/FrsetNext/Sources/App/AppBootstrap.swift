@@ -98,18 +98,9 @@ enum AppBootstrap {
             ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: kind.rawValue)
         }
 
-        // 全局搜索源：剪贴板条目检索（映射为工具箱的 SearchResultItem，注册进检索框架）
-        SearchHookRegistry.register { query in
-            await ClipboardManager.shared.searchGlobal(query: query, limit: 8).map { hit in
-                SearchResultItem(id: "clipboard-" + hit.item.dedupeKey,
-                                 title: hit.title,
-                                 subtitle: hit.subtitle,
-                                 icon: "doc.on.clipboard") {
-                    ClipboardManager.shared.copy(hit.item)
-                    ServiceLocator.panel?.hide()
-                }
-            }
-        }
+        // v60 移除「剪贴板条目 → 搜索结果」hook：剪贴板内容已由搜索区独立的
+        // 「剪贴板历史」分类覆盖（内存模糊匹配 + 命中高亮，能力为其超集）。
+        // 原 hook 会把剪贴板命中混进「工具」分类渲染，造成同类信息重复与层级混乱。
     }
 
     // MARK: - App 层工具注册（跨模块工具砖）
