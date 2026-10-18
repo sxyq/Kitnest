@@ -127,43 +127,6 @@ private struct SummaryState {
     }
 }
 
-// MARK: - 搜索框（05 号规格 1.3：ClipboardSearchTextField）
-
-public struct ClipboardSearchTextField: View {
-
-    @Binding public var text: String
-    public var resultCount: Int
-
-    public init(text: Binding<String>, resultCount: Int = 0) {
-        self._text = text
-        self.resultCount = resultCount
-    }
-
-    public var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .font(.system(size: 12))
-            TextField("搜索内容 / 标题 / 重命名", text: $text)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-            if !text.isEmpty {
-                Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
-                    .buttonStyle(.borderless)
-                Text("\(resultCount)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-            .fill(Color(NSColor.controlBackgroundColor)))
-        .overlay(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-            .strokeBorder(Theme.separator, lineWidth: 0.5))
-    }
-}
-
 // MARK: - 过滤栏（05 号规格 1.3 + specs/14 §3.6：九类型项 + 回顶按钮）
 
 public struct ClipboardFilterBarView: View {
@@ -554,31 +517,6 @@ public struct ClipboardThumbnailView: View {
         case .image: return "photo"
         case .file: return "doc"
         }
-    }
-}
-
-// MARK: - 应用名解析
-
-/// bundle id → 可读应用名（带缓存，避免每行一次 NSWorkspace 调用）
-public enum AppNameResolver {
-    private static let lock = NSLock()
-    private static var cache: [String: String] = [:]
-
-    public static func displayName(bundleIdentifier: String?) -> String {
-        guard let id = bundleIdentifier, !id.isEmpty else { return "未知来源" }
-        lock.lock()
-        if let cached = cache[id] { lock.unlock(); return cached }
-        lock.unlock()
-
-        let name: String
-        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
-            name = FileManager.default.displayName(atPath: url.path)
-                .replacingOccurrences(of: ".app", with: "")
-        } else {
-            name = id.split(separator: ".").last.map(String.init) ?? id
-        }
-        lock.lock(); cache[id] = name; lock.unlock()
-        return name
     }
 }
 

@@ -43,23 +43,6 @@ struct SettingsRow<Trailing: View>: View {
     }
 }
 
-/// 开关行：SettingsRow + 右侧 Toggle
-struct SettingsToggleRow: View {
-    let icon: String?
-    let title: String
-    var subtitle: String? = nil
-    @Binding var isOn: Bool
-
-    var body: some View {
-        SettingsRow(icon: icon, title: title, subtitle: subtitle) {
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .controlSize(.small)
-        }
-    }
-}
-
 /// 分组标题（分节头）
 struct SettingsSection<Content: View>: View {
     let title: String
