@@ -44,6 +44,16 @@ enum PreviewMarkdownRenderer {
     /// 目录链接前缀（PreviewTextViewRepresentable 拦截）
     static let tocScheme = "frset-toc"
 
+    // MARK: 缩放（2026-10-18 用户需求：整体文本部分 = 原来的 1.5 倍）
+    //
+    // 所有字号 / 行距 / 段距统一乘此系数；调用方无需改任何数值。
+    // 注意：estimatedPopoverHeight 里的测高渲染也读同一系数（见 PreviewPopoverContentModel），
+    // 保证"估算高度"与"实际渲染"一致，否则 popover 会裁切。
+    static var scale: CGFloat = 1.5
+
+    /// 字号/间距缩放辅助
+    private static func s(_ value: CGFloat) -> CGFloat { value * scale }
+
     // MARK: 入口
 
     /// 把 markdown 文本渲染为带块级样式的富文本（含内联目录）。
@@ -250,20 +260,20 @@ enum PreviewMarkdownRenderer {
 
     // MARK: 块渲染
 
-    private static let baseSize: CGFloat = 12.5
+    private static var baseSize: CGFloat { s(12.5) }
     private static var baseFont: NSFont { .systemFont(ofSize: baseSize) }
-    private static var monoFont: NSFont { .monospacedSystemFont(ofSize: 11.5, weight: .regular) }
+    private static var monoFont: NSFont { .monospacedSystemFont(ofSize: s(11.5), weight: .regular) }
 
     private static func paragraphStyle(lineSpacing: CGFloat = 2,
                                        before: CGFloat = 0,
                                        after: CGFloat = 3,
                                        headIndent: CGFloat = 0) -> NSParagraphStyle {
         let p = NSMutableParagraphStyle()
-        p.lineSpacing = lineSpacing
-        p.paragraphSpacingBefore = before
-        p.paragraphSpacing = after
-        p.headIndent = headIndent
-        p.firstLineHeadIndent = headIndent
+        p.lineSpacing = s(lineSpacing)
+        p.paragraphSpacingBefore = s(before)
+        p.paragraphSpacing = s(after)
+        p.headIndent = s(headIndent)
+        p.firstLineHeadIndent = s(headIndent)
         return p
     }
 
@@ -302,7 +312,7 @@ enum PreviewMarkdownRenderer {
     static func render(_ block: MarkdownBlock) -> NSAttributedString {
         switch block {
         case .heading(let level, let text):
-            let size: CGFloat = level <= 1 ? 16.5 : (level == 2 ? 14.5 : (level == 3 ? 13 : 12.5))
+            let size: CGFloat = s(level <= 1 ? 16.5 : (level == 2 ? 14.5 : (level == 3 ? 13 : 12.5)))
             let font = NSFont.systemFont(ofSize: size, weight: level <= 3 ? .bold : .semibold)
             let attr = NSMutableAttributedString(attributedString: inlineAttributed(text, font: font))
             let ps = paragraphStyle(lineSpacing: 2, before: level <= 2 ? 10 : 7, after: 3)
@@ -349,7 +359,7 @@ enum PreviewMarkdownRenderer {
 
         case .divider:
             let line = NSAttributedString(string: String(repeating: "─", count: 48), attributes: [
-                .font: NSFont.systemFont(ofSize: 9),
+                .font: NSFont.systemFont(ofSize: s(9)),
                 .foregroundColor: NSColor.tertiaryLabelColor,
                 .paragraphStyle: paragraphStyle(lineSpacing: 0, before: 4, after: 4)
             ])
@@ -378,7 +388,7 @@ enum PreviewMarkdownRenderer {
         // 语言标签（代码块美化：右上角小字，替代裸露的围栏标记）
         if !lang.isEmpty {
             out.append(NSAttributedString(string: lang + "\n", attributes: [
-                .font: NSFont.systemFont(ofSize: 9, weight: .medium),
+                .font: NSFont.systemFont(ofSize: s(9), weight: .medium),
                 .foregroundColor: NSColor.tertiaryLabelColor,
                 .paragraphStyle: paragraphStyle(lineSpacing: 0, after: 1, headIndent: 6)
             ]))
@@ -399,7 +409,8 @@ enum PreviewMarkdownRenderer {
 
     /// 把流程图图片作为附件插入富文本；下方附一行可折叠的源码提示（灰色小字）
     private static func renderDiagram(image: NSImage, source: String) -> NSAttributedString {
-        let maxWidth: CGFloat = 470
+        // 内容宽随 popover（480 - 2×18 边距 ≈ 444）；420 留余量防溢出
+        let maxWidth: CGFloat = 420
         let scale = min(1, maxWidth / max(1, image.size.width))
         let attachment = NSTextAttachment()
         attachment.image = image
@@ -549,14 +560,14 @@ enum PreviewMarkdownRenderer {
                 line += pad(cell, widths[c]) + (c < cols - 1 ? " │ " : "")
             }
             let attr = NSMutableAttributedString(string: line, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 11, weight: r == 0 ? .semibold : .regular),
+                .font: NSFont.monospacedSystemFont(ofSize: s(11), weight: r == 0 ? .semibold : .regular),
                 .foregroundColor: r == 0 ? NSColor.labelColor : NSColor.secondaryLabelColor,
                 .paragraphStyle: paragraphStyle(lineSpacing: 1.5, after: 1, headIndent: 4)
             ])
             out.append(attr)
             if r == 0 {
                 out.append(NSAttributedString(string: String(repeating: "─", count: min(line.count, 60)) + "\n",
-                                              attributes: [.font: NSFont.systemFont(ofSize: 8),
+                                              attributes: [.font: NSFont.systemFont(ofSize: s(8)),
                                                            .foregroundColor: NSColor.tertiaryLabelColor]))
             } else if r < rows.count - 1 {
                 out.append(NSAttributedString(string: "\n", attributes: [.font: monoFont]))
@@ -570,7 +581,7 @@ enum PreviewMarkdownRenderer {
     private static func renderTOC(_ anchors: [(level: Int, title: String, location: Int)]) -> NSAttributedString {
         let out = NSMutableAttributedString()
         out.append(NSAttributedString(string: "目录\n", attributes: [
-            .font: NSFont.systemFont(ofSize: 10.5, weight: .semibold),
+            .font: NSFont.systemFont(ofSize: s(10.5), weight: .semibold),
             .foregroundColor: NSColor.secondaryLabelColor,
             .paragraphStyle: paragraphStyle(lineSpacing: 2, after: 2)
         ]))
@@ -581,7 +592,7 @@ enum PreviewMarkdownRenderer {
             comp.scheme = tocScheme
             comp.queryItems = [URLQueryItem(name: "loc", value: String(a.location))]
             var attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 11.5),
+                .font: NSFont.systemFont(ofSize: s(11.5)),
                 .paragraphStyle: paragraphStyle(lineSpacing: 1.5, after: 0.5, headIndent: 4)
             ]
             if let url = comp.url {
@@ -592,7 +603,7 @@ enum PreviewMarkdownRenderer {
             out.append(NSAttributedString(string: line, attributes: attrs))
         }
         out.append(NSAttributedString(string: String(repeating: "─", count: 48) + "\n", attributes: [
-            .font: NSFont.systemFont(ofSize: 9),
+            .font: NSFont.systemFont(ofSize: s(9)),
             .foregroundColor: NSColor.tertiaryLabelColor,
             .paragraphStyle: paragraphStyle(lineSpacing: 0, before: 3, after: 5)
         ]))

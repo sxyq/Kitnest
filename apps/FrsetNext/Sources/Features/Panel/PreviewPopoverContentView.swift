@@ -148,7 +148,7 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.textContainer?.widthTracksTextView = true
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.textContainerInset = NSSize(width: 12, height: 12)   // 2026-10-18：1.5 倍字号下略加内边距
         textView.font = monospaced
             ? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
             : NSFont.systemFont(ofSize: 13)
@@ -330,9 +330,41 @@ struct PreviewTextContentView: View {
             attributedText: NSAttributedString(
                 string: text,
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: 13),
+                    .font: NSFont.systemFont(ofSize: 19.5),   // 13 × 1.5（整体文本放大，2026-10-18）
                     .foregroundColor: NSColor.labelColor
                 ]))
+    }
+}
+
+// MARK: - 落盘长文档的 Markdown 渲染（全文异步加载完成后使用）
+//
+// 与内联条目的 PreviewMarkdownTextView 同渲染口径（1.5 倍字号 + 左侧目录），
+// 区别仅在数据来源是落盘全文。
+
+struct MarkdownFilePreviewBody: View {
+    let text: String
+    let restoreKey: String
+    @Stored private var rendered: NSAttributedString
+    @Stored private var headings: [MarkdownHeading] = []
+    @Stored private var scrollRequest: Int? = nil
+    @Stored private var activeHeading: Int? = nil
+
+    init(text: String, restoreKey: String) {
+        self.text = text
+        self.restoreKey = restoreKey
+        let parsed = PreviewMarkdownRenderer.renderBody(text)
+        self._rendered = Stored(wrappedValue: parsed.body)
+        self._headings = Stored(wrappedValue: parsed.headings)
+    }
+
+    var body: some View {
+        MarkdownPreviewBody(
+            text: text,
+            scrollRestoreKey: restoreKey,
+            rendered: rendered,
+            headings: headings,
+            scrollRequest: $scrollRequest,
+            activeHeading: $activeHeading)
     }
 }
 
@@ -357,11 +389,18 @@ struct PreviewFileBackedTextView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
             case .loaded(let text):
-                PreviewTextViewRepresentable(
-                    attributedText: NSAttributedString(
-                        string: text,
-                        attributes: [.font: NSFont.systemFont(ofSize: 13),
-                                     .foregroundColor: NSColor.labelColor]))
+                // 2026-10-18：长文档（Markdown/TXT 落盘）加载后按内容分态——
+                // 判定为 Markdown 的走富文本渲染 + 左侧目录（与内联 Markdown 一致）；
+                // 否则纯文本。此前一律纯文本，导致"长 Markdown 文档预览不渲染"。
+                if PreviewPopoverContentModel.looksLikeMarkdown(text) {
+                    MarkdownFilePreviewBody(text: text, restoreKey: model.item.dedupeKey)
+                } else {
+                    PreviewTextViewRepresentable(
+                        attributedText: NSAttributedString(
+                            string: text,
+                            attributes: [.font: NSFont.systemFont(ofSize: 19.5),   // 13 × 1.5（整体文本放大）
+                                         .foregroundColor: NSColor.labelColor]))
+                }
             case .failed(let message):
                 Text(message)
                     .font(.system(size: 12))
@@ -422,23 +461,49 @@ struct PreviewMarkdownTextView: View {
     }
 
     var body: some View {
+        MarkdownPreviewBody(
+            text: model.inlineText,
+            scrollRestoreKey: model.item.dedupeKey,
+            rendered: rendered,
+            headings: headings,
+            scrollRequest: $scrollRequest,
+            activeHeading: $activeHeading)
+    }
+}
+
+// MARK: - Markdown 正文视图（内联条目与落盘长文档共用）
+//
+// 2026-10-18：从 PreviewMarkdownTextView 抽出——落盘长文本（长 Markdown/TXT 文档）
+// 加载全文后若判定为 Markdown，也走同一套「左侧目录 + 富文本正文」渲染。
+
+struct MarkdownPreviewBody: View {
+    let text: String
+    /// 滚动记忆键（clipboard 条目用 dedupeKey；落盘文档也复用它）
+    let scrollRestoreKey: String
+    let rendered: NSAttributedString
+    let headings: [MarkdownHeading]
+    @Binding var scrollRequest: Int?
+    @Binding var activeHeading: Int?
+
+    var body: some View {
         HStack(spacing: 0) {
             if headings.count >= 2 {
                 PreviewTOCSidebar(headings: headings, activeLocation: activeHeading) { heading in
                     activeHeading = heading.location
                     scrollRequest = heading.location
                 }
-                .frame(width: 142)
+                // 目录框宽度（用户需求 2026-10-18：比原来的 142 宽一些）
+                .frame(width: 180)
                 Divider().opacity(0.5)
             }
             PreviewTextViewRepresentable(
                 attributedText: rendered,
                 initialScrollOffset: MainPanelPreviewPopoverCoordinator.shared
-                    .markdownScrollState(for: model.item.dedupeKey)?.scrollOffset,
+                    .markdownScrollState(for: scrollRestoreKey)?.scrollOffset,
                 onScrollOffsetChanged: { offset in
                     // 块帧表/偏移快照：重开预览回到原滚动位（P10）
                     MainPanelPreviewPopoverCoordinator.shared.rememberMarkdownScroll(
-                        dedupeKey: model.item.dedupeKey,
+                        dedupeKey: scrollRestoreKey,
                         state: MarkdownScrollState(scrollOffset: offset))
                 },
                 scrollRequest: scrollRequest)

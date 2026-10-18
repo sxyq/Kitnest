@@ -74,7 +74,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public var previewLoadingIndicatorDelay: TimeInterval = 0.40
 
     /// 文本类 popover 高度上限（F13 maxPopoverHeight；⬜ 原作值未探明）
-    public var maxPopoverHeight: CGFloat = 480
+    /// 2026-10-18：480 → 620（正文 1.5 倍字号后行高增加，需同步抬高上限）
+    public var maxPopoverHeight: CGFloat = 620
     /// 图片类 popover 高度上限（F13 imagePreviewMaxPopoverHeight；⬜ 原作值未探明）
     public var imagePreviewMaxPopoverHeight: CGFloat = 620
     /// 文本 loading 占位最小高度（F13 textPreviewLoadingMinHeight；⬜ 原作值未探明）
@@ -87,8 +88,10 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public var imagePreviewVerticalPaddingHeight: CGFloat = 8
     /// JSON 预览字符截断上限（F16 jsonPreviewCharCap；⬜ 原作值未探明）
     public var jsonPreviewCharCap: Int = 20_000
-    /// popover 内容宽度（⬜ 视觉规格未证实：探针截图无预览实拍）
-    public var popoverWidth: CGFloat = 340
+    /// popover 内容宽度
+    /// 2026-10-18：340 → 480（正文 1.5 倍字号 + 目录侧栏 180pt，原宽度每行挤不下几个字）
+    /// 2026-10-19（用户：文本宽度再扩一点）：480 → 560
+    public var popoverWidth: CGFloat = 560
 
     // 代码预览尺寸阶梯（F14；数值⬜ 原作值未探明）
     public var codePreviewCompactMinHeight: CGFloat = 96

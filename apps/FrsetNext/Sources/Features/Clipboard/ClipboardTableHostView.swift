@@ -14,6 +14,12 @@ import SwiftUI
 
 // MARK: - 回顶滚动代理
 
+public extension Notification.Name {
+    /// 剪贴板列表选中项变化（object: ClipboardItem?）。
+    /// 主面板底部工具条的「编辑/上传」按选中项启用（2026-10-18）。
+    static let clipboardSelectionChanged = Notification.Name("frset.clipboardSelectionChanged")
+}
+
 /// ClipboardSectionView 持有，触发表格平滑回顶（FilterBar_ScrollToTop，specs/14 F8）
 public final class ClipboardTableScrollProxy {
     fileprivate weak var scrollView: NSScrollView?
@@ -234,11 +240,26 @@ final class ClipboardTableView: NSTableView {
     /// 鼠标离开列表
     var onMouseExited: (() -> Void)?
 
+    /// 页面激活状态（2026-10-18「幽灵预览」修复）：
+    /// 主面板三页（主页/性能监测/中转站）是 ZStack **常驻**结构，非当前页只做
+    /// `opacity(0) + allowsHitTesting(false)`——但 NSTrackingArea 是 AppKit 层机制，
+    /// **不受 SwiftUI 命中测试控制**：透明主页的表格仍在接收 mouseMoved，
+    /// 在性能页/中转站页上划过「隐形行」的位置就会弹出文本框/图片预览。
+    /// 非激活时移除 tracking area 并忽略 mouseMoved。
+    var isActive: Bool = true {
+        didSet {
+            guard oldValue != isActive else { return }
+            updateTrackingAreas()
+            if !isActive { onMouseExited?() }   // 顺带清掉残留的 hover 高亮/预览
+        }
+    }
+
     private var hoverTrackingArea: NSTrackingArea?
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea) }
+        if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea); self.hoverTrackingArea = nil }
+        guard isActive else { return }
         // inVisibleRect：随可视区自动伸缩
         let area = NSTrackingArea(rect: .zero,
                                   options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
@@ -249,10 +270,12 @@ final class ClipboardTableView: NSTableView {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        guard isActive else { return }
         onMouseMoved?(event)
     }
 
     override func mouseExited(with event: NSEvent) {
+        guard isActive else { return }
         onMouseExited?()
     }
 
@@ -303,6 +326,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
     @ObservedObject var manager: ClipboardManager
     var scrollProxy: ClipboardTableScrollProxy
+    /// 页面是否激活（非主页 = 面板切到性能监测/中转站时禁用 hover 追踪，防幽灵预览）
+    var isActive: Bool = true
     var onCopy: (ClipboardItem) -> Void
     var onEdit: (ClipboardItem) -> Void
     var onSummarize: (ClipboardItem) -> Void
@@ -310,12 +335,14 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
     public init(manager: ClipboardManager,
                 scrollProxy: ClipboardTableScrollProxy,
+                isActive: Bool = true,
                 onCopy: @escaping (ClipboardItem) -> Void,
                 onEdit: @escaping (ClipboardItem) -> Void,
                 onSummarize: @escaping (ClipboardItem) -> Void,
                 onDelete: @escaping (ClipboardItem) -> Void) {
         self.manager = manager
         self.scrollProxy = scrollProxy
+        self.isActive = isActive
         self.onCopy = onCopy
         self.onEdit = onEdit
         self.onSummarize = onSummarize
@@ -334,6 +361,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
 
         let table = ClipboardTableView()
+        table.isActive = isActive
         table.headerView = nil
         table.rowHeight = Theme.statsRowHeight
         table.usesAutomaticRowHeights = false
@@ -364,6 +392,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
     public func updateNSView(_ nsView: NSScrollView, context: Context) {
         context.coordinator.owner = self
+        // 页面激活状态同步（非主页时表格移除 hover 追踪，防幽灵预览）
+        (nsView.documentView as? ClipboardTableView)?.isActive = isActive
         context.coordinator.reloadTable()
     }
 
@@ -470,6 +500,13 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         public func tableViewSelectionDidChange(_ notification: Notification) {
+            // 选中项广播（工具条编辑/上传按钮消费；键盘/鼠标/重载都会经过这里）
+            if let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count {
+                NotificationCenter.default.post(name: .clipboardSelectionChanged,
+                                                object: owner.manager.items[table.selectedRow])
+            } else {
+                NotificationCenter.default.post(name: .clipboardSelectionChanged, object: nil)
+            }
             // 选择移动 → 取消未决键盘预览（specs/12 F6）。
             // **仅限键盘导航导致**：方向键移动选择后，旧的空格预览 WorkItem 不该再弹。
             // 鼠标点击与 reloadData 导致的选中变化不取消：
@@ -647,15 +684,17 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
         private func handleSingleClick(_ item: ClipboardItem) {
             multiSelected.removeAll()   // 普通点击回到单选，清掉多选集
-            // 单击 = 预览（不复制）；锚点取行视图 window 坐标
-            let anchor = anchorProvider(for: rowView(forItemID: item.id))
+            // 工具条操作目标 = 最后点击项（单击走预览路径不产生标准选中，
+            // 2026-10-18：编辑/上传按钮据此启用）
+            NotificationCenter.default.post(name: .clipboardSelectionChanged, object: item)
+            // v53（用户需求 2026-10-19）：单击 → 常驻预览窗（可缩放、可编辑）；
+            // hover 仍是临时 NSPopover。先关掉 hover 预览，避免叠在常驻窗下面。
+            ServiceLocator.panelPreview?.dismissPreview()
             if consumeOneTimeHint(Self.singleClickPreviewHintKey) {
-                Toast.show("单击条目可预览", icon: "eye")
+                Toast.show("单击条目打开预览窗", icon: "eye")
             }
-            ServiceLocator.panelPreview?.presentPreview(for: item,
-                                                        anchorRectInWindow: anchor(),
-                                                        anchorView: nil,
-                                                        isFloatingSource: false)
+            ClipboardPreviewWindowRecord.open(for: item,
+                                              anchorView: rowView(forItemID: item.id))
         }
 
         private func handleDoubleClick(_ item: ClipboardItem) {

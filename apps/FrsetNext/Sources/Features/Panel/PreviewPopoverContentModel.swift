@@ -49,7 +49,8 @@ public struct PreviewPopoverContentModel: Identifiable {
                 entry: Entry = .mainList,
                 sessionID: UUID,
                 inlineText: String,
-                showsKeyboardHint: Bool = false) {
+                showsKeyboardHint: Bool = false,
+                kindOverride: Kind? = nil) {
         self.id = item.id
         self.item = item
         self.source = source
@@ -57,7 +58,17 @@ public struct PreviewPopoverContentModel: Identifiable {
         self.sessionID = sessionID
         self.inlineText = inlineText
         self.showsKeyboardHint = showsKeyboardHint
-        self.kind = PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
+        // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
+        // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
+        self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
+    }
+
+    /// v53：纯文本内容分态（不看条目的 textPath）——编辑保存后的即时预览用
+    public static func classifyRawText(_ text: String) -> Kind {
+        if isJSONPreviewEligible(text) { return .json }
+        if looksLikeMarkdown(text) { return .markdown }
+        if looksLikeCode(text) { return .code }
+        return .text
     }
 
     // MARK: 分态判定
@@ -90,16 +101,29 @@ public struct PreviewPopoverContentModel: Identifiable {
     }
 
     /// Markdown 启发式：标题/围栏/链接/强调/列表 等特征
+    ///
+    /// 2026-10-18 放宽（用户反馈"有些文本能渲染 Markdown 有些不能"）：
+    ///   · 扫描行数 24 → 40（长文档特征更靠后）
+    ///   · 新增特征：分隔线 / 表格 / H4+ / 有序列表 / 行内代码 / 引用块
+    ///   · 阈值 3 → 2（`- ` 列表 + `**粗体**` 这类两特征组合已是明确 Markdown 信号；
+    ///     误判风险低——被误判的普通文本只是按 Markdown 样式排版，内容不丢）
+    /// 落盘长文本（fileBackedText）加载后也走本判定（见 PreviewFileBackedTextView）。
     public static func looksLikeMarkdown(_ text: String) -> Bool {
         var score = 0
-        for line in text.split(separator: "\n", maxSplits: 40, omittingEmptySubsequences: true).prefix(24) {
+        for line in text.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(40) {
             let t = line.drop(while: { $0 == " " })
-            if t.hasPrefix("# ") || t.hasPrefix("## ") || t.hasPrefix("### ") { score += 2 }
-            if t.hasPrefix("```") { score += 2 }
-            if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("> ") { score += 1 }
-            if t.contains("](") && t.contains("[") { score += 1 }
+            if t.hasPrefix("# ") || t.hasPrefix("## ") || t.hasPrefix("### ")
+                || t.hasPrefix("#### ") || t.hasPrefix("##### ") { score += 2 }
+            if t.hasPrefix("```") || t.hasPrefix("~~~") { score += 2 }
+            if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ")
+                || t.hasPrefix("> ") { score += 1 }
+            if t.range(of: "^\\d+[.)]\\s+", options: .regularExpression) != nil { score += 1 }   // 有序列表
+            if t.range(of: "^([-*_])\\s*(\\1\\s*){2,}$", options: .regularExpression) != nil { score += 2 }   // 分隔线
+            if t.hasPrefix("|") && t.hasSuffix("|") { score += 1 }                                // 表格
+            if t.contains("](") && t.contains("[") { score += 1 }                                 // 链接
             if t.contains("**") { score += 1 }
-            if score >= 3 { return true }
+            if t.contains("`") { score += 1 }                                                     // 行内代码
+            if score >= 2 { return true }
         }
         return false
     }
@@ -132,18 +156,20 @@ public struct PreviewPopoverContentModel: Identifiable {
         case .markdown:
             // Markdown 里有代码块、表格、mermaid 流程图（图片附件）——按行数估算会严重偏矮，
             // 直接把渲染结果量一遍（渲染一次的成本远低于高度不足导致的裁切）。
-            let rendered = PreviewMarkdownTextView.render(inlineText).body
-            let width: CGFloat = 304
-            let rect = rendered.boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
-                                             options: [.usesLineFragmentOrigin, .usesFontLeading])
+            let parsed = PreviewMarkdownTextView.render(inlineText)
+            // 内容宽 = 协调器 popoverWidth - 36 内边距；有目录时正文区再窄 181（180 + 分隔线）
+            let tocWidth: CGFloat = parsed.headings.count >= 2 ? 181 : 0
+            let width: CGFloat = MainPanelPreviewPopoverCoordinator.shared.popoverWidth - 36 - tocWidth
+            let rect = parsed.body.boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                                options: [.usesLineFragmentOrigin, .usesFontLeading])
             return min(maxPopoverHeight, max(textPreviewLoadingMinHeight, ceil(rect.height) + 24))
         case .json:
             // JSON 走树形/表格视图（JSONInspectorView），没有「行数」可估；
             // 给一个固定可用高度，避免树只露出两三行就被裁掉
             return min(maxPopoverHeight, max(360, textPreviewLoadingMinHeight))
         case .text:
-            let lineHeight: CGFloat = 17          // 13pt 字体行高（⬜ 原作值未探明）
-            let padding: CGFloat = 20
+            let lineHeight: CGFloat = 25.5        // 19.5pt 字体的行高（2026-10-18：13×1.5 字号）
+            let padding: CGFloat = 30
             let lines = CGFloat(max(1, inlineText.lineCountEstimate))
             return min(maxPopoverHeight, max(textPreviewLoadingMinHeight, lines * lineHeight + padding))
         case .fileBackedText:
