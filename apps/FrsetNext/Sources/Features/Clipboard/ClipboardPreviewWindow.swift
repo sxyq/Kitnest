@@ -140,6 +140,8 @@ struct ClipboardPreviewWindowView: View {
     @Stored private var model: PreviewPopoverContentModel
     @Stored private var isEditing = false
     @Stored private var draft = ""
+    /// 关闭钮悬停态（红底白叉反馈）
+    @Stored private var closeHover = false
 
     init(item: ClipboardItem) {
         self.item = item
@@ -209,6 +211,27 @@ struct ClipboardPreviewWindowView: View {
             }
             .buttonStyle(.borderless)
             .help("复制内容")
+            // v66（用户需求）：显式关闭叉号——此前关闭手段（标题栏红点/Esc/失焦）
+            // 不够直观，头部行右侧加常驻关闭钮，悬停红底白叉
+            Button {
+                ClipboardPreviewWindowRecord.closeActive()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(closeHover ? Color.white : Color.secondary)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(closeHover ? Color.red : Color.primary.opacity(0.06)))
+            }
+            .buttonStyle(.borderless)
+            .onHover { hovering in
+                closeHover = hovering
+                if hovering {
+                    NSCursor.pointingHand.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .help("关闭预览（Esc）")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
