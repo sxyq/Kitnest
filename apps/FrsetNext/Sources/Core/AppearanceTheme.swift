@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -49,13 +50,35 @@ public enum AppearanceMode: String, CaseIterable, Identifiable {
 // MARK: Midnight 色板
 
 /// Midnight 色板（深色基底 + 冷黑蓝调；视觉近似原作 Midnight）
+/// v66：三色支持个性化色相偏移（-30...30，SwiftUI hueRotation 矢量旋转）
 public enum MidnightTheme {
+    private static var hueShift: Double { Personalization.shared.midnightHueShift }
+    /// HSB 色相真旋转（SwiftUI Color.hueRotation 返回 View 不能再当 Color 用）
+    private static func h(_ color: Color) -> Color {
+        guard hueShift != 0 else { return color }
+        let ns = NSColor(color).usingColorSpace(.deviceRGB) ?? NSColor(color)
+        let r = Double(ns.redComponent), g = Double(ns.greenComponent), b = Double(ns.blueComponent)
+        let mx = max(r, g, b), mn = min(r, g, b)
+        let delta = mx - mn
+        var hue: Double = 0
+        if delta > 0 {
+            if mx == r { hue = ((g - b) / delta).truncatingRemainder(dividingBy: 6) }
+            else if mx == g { hue = (b - r) / delta + 2 }
+            else { hue = (r - g) / delta + 4 }
+            hue *= 60
+            if hue < 0 { hue += 360 }
+        }
+        let sat = mx == 0 ? 0 : delta / mx
+        var shifted = hue + hueShift
+        shifted = fmod(shifted + 360, 360)
+        return Color(hue: shifted / 360, saturation: sat, brightness: mx)
+    }
     /// 基础背景覆盖色
-    public static let baseBackground = Color(red: 0.055, green: 0.067, blue: 0.105)
+    public static var baseBackground: Color { h(Color(red: 0.055, green: 0.067, blue: 0.105)) }
     /// 卡片背景（略提亮）
-    public static let cardBackground = Color(red: 0.09, green: 0.10, blue: 0.15)
+    public static var cardBackground: Color { h(Color(red: 0.09, green: 0.10, blue: 0.15)) }
     /// 文本主色（冷白偏蓝）
-    public static let textColor = Color(red: 0.88, green: 0.91, blue: 1.0)
+    public static var textColor: Color { h(Color(red: 0.88, green: 0.91, blue: 1.0)) }
 }
 
 // MARK: 主题状态（视图侧唯一数据源）

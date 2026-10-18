@@ -60,6 +60,22 @@ public final class Preferences: ObservableObject {
         // 工具箱（10）
         public static let toolboxEnabled = "toolbox.enabled"
         public static let calendarShowLunar = "calendar.showLunar"
+        // 个性化（v66：设置 → 常规 →「个性化」，全档即改即生效）
+        public static let uiAccentColor = "ui.accent.color"            // hex 字符串，空 = 跟随系统
+        public static let uiFontScale = "ui.font.scale"                // 0.9 / 1.0 / 1.1 / 1.25
+        public static let uiListDensity = "ui.list.density"            // compact / standard / relaxed
+        public static let uiCornerRadius = "ui.corner.radius"          // 6 / 10 / 14
+        public static let uiOpenAnimation = "ui.open.animation"        // snappy / standard / soft
+        public static let uiPanelMaterial = "ui.panel.material"        // solid / vibrancy
+        public static let uiSourceBadge = "ui.clipboard.sourceBadge"   // 来源应用徽章显隐
+        public static let uiThumbSize = "ui.clipboard.thumb"           // 44 / 56 / 72
+        public static let uiToastDuration = "ui.toast.duration"        // 2 / 3 / 5 秒
+        public static let uiToastPosition = "ui.toast.position"        // followPanel / screenCenter
+        public static let uiBarDividerColor = "ui.bar.divider.color"   // hex，空 = 默认
+        public static let uiBarDividerAlpha = "ui.bar.divider.alpha"   // 0..1
+        public static let uiMidnightHue = "ui.midnight.hue"            // -30...30 色相偏移
+        public static let uiBackgroundImage = "ui.background.image"    // 面板背景图路径
+        public static let uiBackgroundDim = "ui.background.dim"        // 遮罩 0...0.8
     }
 
     // MARK: - 具体项（带默认值，直接读写 UserDefaults）

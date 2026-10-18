@@ -28,8 +28,10 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         guard panel == nil else { return }
         // 原版主面板是固定 400×700（v60：性能页已删，高度恒定不再缩放）。
         // 宽度仍允许用户拖拽后持久化；高度不读持久化值——避免历史矮高度残留。
-        let width = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
-                                                      default: Double(Theme.panelWidth)))
+        // v66：视觉宽 = 持久基准宽 × 字号缩放（个性化联动）
+        let baseWidth = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
+                                                         default: 400))
+        let width = baseWidth * Personalization.shared.fontScale
         let height = Theme.panelMaxHeight
 
         let p = FloatingPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
@@ -46,6 +48,20 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         ServiceLocator.panel = self
         // Toast 定位（原作 0x1002bf3d0）：面板所在屏优先——面板可见时通知卡落在面板屏中线
         ToastAnchor.windowProvider = { [weak self] in self?.panel }
+        // v66 个性化：字号缩放变更 → 窗口宽高联动（重设为动态默认尺寸，保持顶边）
+        NotificationCenter.default.addObserver(forName: Personalization.didChangeNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            guard let self, let p = self.panel, p.isVisible else { return }
+            let f = p.frame
+            var target = f
+            let baseWidth = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
+                                                             default: 400))
+            target.size.width = baseWidth * Personalization.shared.fontScale
+            target.size.height = Theme.panelMaxHeight
+            target.origin.y = f.maxY - target.height
+            p.setFrame(target, display: true)
+            p.applyPersonalizedMaterial()
+        }
         scheduleWarmup()
         Log.info("Panel", "prepared \(Int(width))x\(Int(height))")
     }
@@ -108,7 +124,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.14
+            ctx.duration = Personalization.shared.openAnimation.fadeDuration
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             p.animator().alphaValue = 1
         }

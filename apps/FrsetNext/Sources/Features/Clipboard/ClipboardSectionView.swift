@@ -310,6 +310,9 @@ public struct ClipboardRowMenuContent: View {
 /// hover 高亮由 ClipboardTableView 的跟踪回调驱动（抑制语义见 ClipboardRowHoverSuppressionController）。
 public struct ClipboardRow: View {
 
+    /// v66 个性化（徽章显隐/缩略图档位变更 → 行即时刷新）
+    @ObservedObject private var personalization = Personalization.shared
+
     public let item: ClipboardItem
     /// 是否处于 hover 高亮态（由表格宿主设置）
     public let isHighlighted: Bool
@@ -338,10 +341,11 @@ public struct ClipboardRow: View {
         // 原版行式（400 宽面板实测）：50pt 缩略图 + 单行标题 + 「时间 · 详情」，
         // hover 时右侧出现 ↓（复制）/ ↵（复制并粘贴）两个图标；行底为浅色圆角卡。
         // 2026-10-18 补齐官方「来源应用徽章」：缩略图右下角小图标（bundleId → icon）。
+        // v66：徽章显隐走「个性化」（默认开）；缩略图边长走密度/覆盖档位。
         HStack(spacing: 12) {
-            ClipboardThumbnailView(item: item, size: 50, corner: 8)
+            ClipboardThumbnailView(item: item, size: Personalization.shared.effectiveThumbSize, corner: 8)
                 .overlay(alignment: .bottomTrailing) {
-                    if let badge = sourceAppBadge {
+                    if Personalization.shared.showSourceBadge, let badge = sourceAppBadge {
                         Image(nsImage: badge)
                             .resizable()
                             .interpolation(.high)

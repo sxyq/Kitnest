@@ -77,6 +77,10 @@ struct GeneralSettingsPane: View {
                     }
                 }
             }
+            formRow("个性化") {
+                PersonalizationSettingsView()
+            }
+
             formRow(L10n.t("Language"), height: 48) {
                 Picker("", selection: languageBinding) {
                     Text(L10n.t("Auto")).tag("auto")

@@ -30,6 +30,8 @@ struct PanelRootView: View {
 
     /// 当前页与选中模块（nil = 主页；非 nil = 性能监测页 + 该模块）
     @ObservedObject private var monitorPresenter = MonitorCenterPresenter.shared
+    /// 个性化（v66：字号缩放 / 强调色 / 打开动画 / 密度——即改即生效）
+    @ObservedObject private var personalization = Personalization.shared
     /// 文件拖入高亮（拖 .json 进面板 → 打开 JSON 检视器）
     @Stored private var isDropTargeted = false
     /// 底部工具条「标签」→ 标签管理 sheet（官方原版工具条第 3 个图标）
@@ -52,6 +54,11 @@ struct PanelRootView: View {
             toolbar
             content
         }
+        // v66 字号缩放：内容整体乘系数，窗口宽高在 PanelController 侧同步联动
+        .scaleEffect(personalization.fontScale, anchor: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // 强调色注入（个性化自定义优先；覆盖子树全部 Color.accentColor）
+        .tint(personalization.accentColor ?? Color.accentColor)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // 底部悬浮工具条（官方原版主页，2026-10-18 补齐）：仅主页显示
         .overlay(alignment: .bottom) {
@@ -67,11 +74,11 @@ struct PanelRootView: View {
             selectedClipboardItem = note.object as? ClipboardItem
         }
         // 弹出/收起：缩放 + 轻微上移 + 淡入（锚点贴菜单栏，像从图标「长出来」）。
-        // 只动 transform/opacity，弹簧可被下一次开合打断。
+        // 只动 transform/opacity，弹簧可被下一次开合打断。参数档位见「个性化」。
         .scaleEffect(presentation.visible ? 1 : 0.93, anchor: .top)
         .offset(y: presentation.visible ? 0 : -10)
         .opacity(presentation.visible ? 1 : 0)
-        .animation(.spring(response: 0.24, dampingFraction: 0.82), value: presentation.visible)
+        .animation(personalization.openAnimation.spring, value: presentation.visible)
         // 切页：关预览——主页 hover 打开的预览不能跟到中转站页
         // （与 ClipboardTableView 的 tracking 禁用双保险）
         .onChange(of: page) { _ in
@@ -92,7 +99,21 @@ struct PanelRootView: View {
             if isDropTargeted { dropHintOverlay }
         }
         .background {
-            if let base = midnightBaseBackground { base }
+            // v66 个性化背景图（优先）；否则 Midnight 基底
+            if !personalization.backgroundImagePath.isEmpty,
+               let image = NSImage(contentsOfFile: personalization.backgroundImagePath) {
+                GeometryReader { geo in
+                    ZStack {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                        Color(nsColor: .windowBackgroundColor)
+                            .opacity(personalization.backgroundImageDim)
+                    }
+                }
+            } else if let base = midnightBaseBackground { base }
         }
         .foregroundStyle(bodyTextColor)
         .frsetAppearanceTheme()

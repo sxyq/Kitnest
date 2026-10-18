@@ -326,6 +326,8 @@ final class ClipboardListScrollView: NSScrollView {
 public struct ClipboardTableHostView: NSViewRepresentable {
 
     @ObservedObject var manager: ClipboardManager
+    /// v66 个性化（密度/徽章/缩略图变更 → updateNSView 即时生效）
+    @ObservedObject var personalization = Personalization.shared
     var scrollProxy: ClipboardTableScrollProxy
     /// 页面是否激活（非主页 = 面板切到性能监测/中转站时禁用 hover 追踪，防幽灵预览）
     var isActive: Bool = true
@@ -395,6 +397,13 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         context.coordinator.owner = self
         // 页面激活状态同步（非主页时表格移除 hover 追踪，防幽灵预览）
         (nsView.documentView as? ClipboardTableView)?.isActive = isActive
+        // v66 个性化：密度档位变更 → 行高/间距即时生效
+        let table = nsView.documentView as? ClipboardTableView
+        let newHeight = Theme.statsRowHeight
+        if table?.rowHeight != newHeight {
+            table?.rowHeight = newHeight
+            table?.intercellSpacing = NSSize(width: 0, height: max(2, newHeight * 0.12))
+        }
         context.coordinator.reloadTable()
     }
 

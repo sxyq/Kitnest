@@ -85,7 +85,9 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
     /// 打开设置窗口；pane 传旧页签 id（如 "general"/"shortcuts"/"monitor"），
     /// nil 保持当前位置。v41：所有 id 映射到侧边栏二级项（见 SettingsUIState）。
     public func open(pane: String?) {
+        Log.info("settings", "open(pane:\(pane ?? "nil")) called, window=\(window == nil ? "nil" : "exists")")
         ensureWindow()
+        Log.info("settings", "ensureWindow done, window=\(window != nil ? "exists" : "nil")")
         if let pane {
             uiState.selectPane(pane)
         }
@@ -141,8 +143,11 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         win.contentView = NSView()
         window = win
         DispatchQueue.main.async { [weak self] in
+            Log.info("settings", "async mount block fired, self=\(self != nil)")
             guard let self, let win = self.window else { return }
+            Log.info("settings", "hosting view mounting (SettingsRootView)")
             let hostingView = NSHostingView(rootView: SettingsRootView(state: self.uiState))
+            Log.info("settings", "hosting view mounted, sizing=\(hostingView.fittingSize)")
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             win.contentView = hostingView

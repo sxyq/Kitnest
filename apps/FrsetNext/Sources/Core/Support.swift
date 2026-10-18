@@ -113,24 +113,33 @@ public enum ServiceLocator {
 }
 
 // MARK: - 主题（视觉对齐 Frset：毛玻璃 + 圆角 + SF 字体）
+//
+// v66：布局尺寸与强调色全部动态化——读 Personalization（设置 → 常规 →「个性化」），
+// 即改即生效；引用点（全工程 ~40 处）同名访问零改动。
 
 public enum Theme {
-    public static let cornerRadius: CGFloat = 10
+    /// 面板圆角（个性化：6 / 10 / 14）
+    public static var cornerRadius: CGFloat { Personalization.shared.cornerRadius }
     public static let smallRadius: CGFloat = 6
     /// 主面板宽度（官方原版 400pt；v41 起大侧边栏只用于设置窗口，面板版式不动）
-    public static let panelWidth: CGFloat = 400
+    public static var panelWidth: CGFloat { 400 * Personalization.shared.fontScale }
     /// 设置窗口侧边栏宽度（v41：设置窗改左侧大侧边栏 + 内容区）
     public static let settingsSidebarWidth: CGFloat = 186
-    public static let panelMaxHeight: CGFloat = 700
-    public static let rowHeight: CGFloat = 56
+    /// 面板最大高度（随字号缩放联动：内容 scaleEffect 后视觉高度 = 700 × scale）
+    public static var panelMaxHeight: CGFloat { 700 * Personalization.shared.fontScale }
+    /// 通用行高（个性化密度联动）
+    public static var rowHeight: CGFloat { Personalization.shared.density.rowHeight }
     /// 原版主页剪贴板行高（缩略图 50 + 上下 8pt 留白；行距由 intercellSpacing 8 提供）
-    public static let statsRowHeight: CGFloat = 68
-    public static let thumbSize: CGFloat = 44
+    public static var statsRowHeight: CGFloat { Personalization.shared.density.statsRowHeight }
+    /// 缩略图边长（密度联动 / 覆盖档位优先）
+    public static var thumbSize: CGFloat { Personalization.shared.effectiveThumbSize }
 
-    public static let accent = Color.accentColor
     public static let secondaryText = Color.secondary
     public static let cardBackground = Color(NSColor.controlBackgroundColor).opacity(0.6)
     public static let separator = Color(NSColor.separatorColor).opacity(0.5)
+
+    /// 强调色（个性化自定义优先，nil 跟随系统）
+    public static var accent: Color { Personalization.shared.accentColor ?? Color.accentColor }
 
     public static func sectionHeader(_ title: String) -> some View {
         Text(title)

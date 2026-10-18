@@ -97,7 +97,8 @@ final class MenuBarToastManager: NSObject {
     static let shared = MenuBarToastManager()
 
     /// 自动隐藏延时（原作 3.0s，0x1002bdf54）
-    private static let displayDuration: TimeInterval = 3.0
+    /// v66 个性化：停留时长（2/3/5s，设置 → 常规 →「个性化」）
+    private static var displayDuration: TimeInterval { Personalization.shared.toastDuration }
     /// 隐藏动画结束后的 orderOut 延时（窗口复用不销毁，仅视觉收尾）
     private static let orderOutDelay: TimeInterval = 0.4
     /// spring 动画（原作常量 0.35/0.7，0x1002be1c0-0x1002be200）
@@ -259,6 +260,16 @@ final class MenuBarToastManager: NSObject {
         let width = window.frame.width
         let height = window.frame.height
 
+        // v66 个性化：跟随主面板 = 面板下方 8pt 水平居中（面板不可见回退屏幕中线）
+        if Personalization.shared.toastFollowPanel,
+           let panelWindow = ToastAnchor.windowProvider(), panelWindow.isVisible {
+            let panelFrame = panelWindow.frame
+            let x = min(max(panelFrame.midX - width / 2, visible.minX + 8),
+                        visible.maxX - width - 8)
+            let y = max(visible.minY + 8, panelFrame.minY - height - 8)
+            window.setFrameOrigin(NSPoint(x: x, y: y))
+            return
+        }
         // 水平：可见区中线居中，clamp ±8（原作 26/18 合成）
         let idealX = visible.midX - width / 2
         let x = min(max(idealX, visible.minX - 8), visible.maxX - width + 8)

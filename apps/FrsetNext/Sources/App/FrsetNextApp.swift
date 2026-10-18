@@ -7,8 +7,28 @@ struct FrsetNextApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
-        // 主界面由各模块自管理窗口（面板/设置/截图选区等），这里只保留一个空场景
-        Settings { EmptyView() }
+        // 主界面由各模块自管理窗口（面板/设置/截图选区等），这里只保留一个空场景。
+        // v66 重要：`Settings { }` scene 会**自动注册 ⌘, 快捷键**——此前用户按 ⌘, 弹出的
+        // 是 SwiftUI 的**空设置窗**（900×450 空白、title="FrsetNext设置"），
+        // 而真正的设置窗（SettingsWindowController，940×620）从未打开。
+        // 现在 scene 内容在出现时**转发**到自管设置窗，并收掉 SwiftUI 的空窗。
+        Settings {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .onAppear {
+                    DispatchQueue.main.async {
+                        ServiceLocator.settings?.open(pane: nil)
+                        // 收掉 SwiftUI Settings scene 的空窗：
+                        // 标题含「设置」且非当前 key（自管窗已 makeKey）、宽 < 940（自管窗恒 940）
+                        for w in NSApp.windows where w.isVisible
+                            && w.title.contains("设置")
+                            && w !== NSApp.keyWindow
+                            && w.frame.width < 940 {
+                            w.orderOut(nil)
+                        }
+                    }
+                }
+        }
     }
 }
 
