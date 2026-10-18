@@ -276,7 +276,8 @@ struct MonitorWidgetsPane: View {
             SettingsGroupBox {
                 SettingsRow(title: "重新导入 Stats 配置",
                            subtitle: "用 Stats 的偏好覆盖当前部件配置") {
-                    Button("选择文件") { confirmReimport = true }
+                    // 注意：这是从 eu.exelban.Stats 的偏好域直接读取，不是选文件
+                    Button("重新导入") { confirmReimport = true }
                         .controlSize(.small)
                 }
                 SettingsDivider()
@@ -414,7 +415,7 @@ struct MonitorWidgetsPane: View {
 
 // MARK: - 选项模型
 
-private struct OptionSpec {
+struct OptionSpec {
     enum Kind {
         case toggle(key: String, def: Bool)
         case menu(key: String, items: [(String, String)], def: String)
@@ -434,14 +435,14 @@ private struct OptionSpec {
     }
 }
 
-private struct OptionGroup {
+struct OptionGroup {
     let title: String
     let options: [OptionSpec]
 }
 
 // MARK: - STATS 选项表（逐项对齐引擎设置窗）
 
-fileprivate extension MonitorWidgetsPane {
+extension MonitorWidgetsPane {
 
     static let intervalItems: [(value: Int, label: String)] = [
         (1, "1 秒"), (2, "2 秒"), (3, "3 秒"), (5, "5 秒"),

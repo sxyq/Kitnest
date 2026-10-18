@@ -48,6 +48,8 @@ public enum StatsBarEngine {
         startScreenGapProbe()
         FSStatsTickStart()
         Log.info("Monitor", "STATS 部件引擎已启动（合并条 + 设置窗 + Stats 配置互通）")
+        // 部件设置全量自测（FRSET_WIDGET_SELFTEST=1）：逐项写读所有配置后原样恢复
+        WidgetSettingsSelfTest.runIfRequested()
         // 排障探针：FRSET_STATSBAR_PROBE=<模块索引|settings|cycle> 时，3s 后按引擎点击的
         // 同一条链路（跳板 → openMonitor → popover）走一遍，验证接线
         // （不依赖合成鼠标事件；"settings" 打开部件设置窗；"cycle" 每 4s 轮播各模块页）
