@@ -1,0 +1,33 @@
+FrsetNext 安装说明（未签名分发版）
+====================================
+
+一、安装
+  1. 把 FrsetNext.app 拖进右边 Applications 文件夹
+  2. 打开一次「修复Gatekeeper授权.command」（见下），或按下面手动去隔离
+  3. 启动 FrsetNext
+
+二、首次打开被拦？（未签名应用的正常现象）
+  本 App 没有苹果 Developer ID 签名，从网络下载的文件会带「隔离标记」，
+  Gatekeeper 会拦。三选一即可：
+
+  方法 A（推荐）：双击「修复Gatekeeper授权.command」
+    - 若提示无法打开：右键该文件 → 打开
+    - 它会自动去掉隔离标记，必要时还会用你本机的证书重签
+
+  方法 B（终端一行命令）：
+    xattr -dr com.apple.quarantine /Applications/FrsetNext.app
+
+  方法 C：右键 FrsetNext.app → 打开 → 再点「打开」
+    或 系统设置 → 隐私与安全性 → 拉到下面点「仍要打开」
+
+三、报「已损坏，无法打开」？
+    说明传输过程中签名校验失败。跑一次方法 A 的脚本即可（会自动重签）。
+
+四、权限
+  · 屏幕录制（截图/长截图需要）：系统会弹窗引导，按提示去
+    系统设置 → 隐私与安全性 → 屏幕录制 勾选 FrsetNext
+  · 辅助功能（双击快捷键/长截图滚动）：需要时系统会提示
+
+五、卸载
+    退出 FrsetNext → 把 /Applications/FrsetNext.app 拖进废纸篓即可
+    （配置在 ~/Library/Application Support/FrsetNext/ 与 FrsetStats/，可一并删除）
