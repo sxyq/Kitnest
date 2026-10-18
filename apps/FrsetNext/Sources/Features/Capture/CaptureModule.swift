@@ -42,6 +42,67 @@ public enum CaptureModule: AppModule {
             build: { AnyView(CaptureSettingsPane()) }))
 
         Log.info("Capture", "截图模块已启动")
+
+        // 排障探针（FRSET_CAPTURE_PROBE=1）：启动 3s 后实测抓屏——
+        // CGPreflight 返回 true ≠ 实际能抓图（TCC 校验 requirement 失败时会返回黑图）。
+        // 同时用 ScreenCaptureKit 抓一张对照，两张图尺寸+平均亮度打印，判断：
+        //   · dlsym 旧 API 抓图是否黑（长截图/区域截图不可用的第一判据）
+        //   · SCK 抓图是否正常（权限是否真正生效）
+        if ProcessInfo.processInfo.environment["FRSET_CAPTURE_PROBE"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                runCaptureProbe()
+            }
+        }
+    }
+
+    // MARK: 抓屏诊断探针（排障专用，不影响正常使用）
+
+    static func runCaptureProbe() {
+        guard let screen = NSScreen.main else { return }
+        let cgRect = ScreenSnapshot.cgRect(for: screen)
+
+        // ① dlsym 旧 API（长截图/区域截图快照走这条）
+        if let img = ScreenSnapshot.cgCapture(rect: cgRect) {
+            let brightness = Self.averageBrightness(img)
+            Log.info("Capture", "探针[dlsym] 抓图 OK \(img.width)x\(img.height) 平均亮度=\(String(format: "%.1f", brightness))"
+                + (brightness < 3 ? " ⚠️疑似全黑（无实际抓屏权限或 API 失效）" : ""))
+            if let data = ImageProcessor.pngData(img) {
+                try? data.write(to: URL(fileURLWithPath: "/tmp/frset_probe_dlsym.png"))
+            }
+        } else {
+            Log.error("Capture", "探针[dlsym] 抓图失败（nil）——长截图/区域截图不可用")
+        }
+
+        // ② ScreenCaptureKit（全屏截图主路径）
+        if #available(macOS 14.0, *), let displayID = ScreenSnapshot.displayID(of: screen) {
+            Task {
+                do {
+                    let img = try await ScreenSnapshot.sckCapture(displayID: displayID)
+                    let brightness = Self.averageBrightness(img)
+                    Log.info("Capture", "探针[SCK] 抓图 OK \(img.width)x\(img.height) 平均亮度=\(String(format: "%.1f", brightness))")
+                    if let data = ImageProcessor.pngData(img) {
+                        try? data.write(to: URL(fileURLWithPath: "/tmp/frset_probe_sck.png"))
+                    }
+                } catch {
+                    Log.error("Capture", "探针[SCK] 抓图失败：\(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    /// 抽样平均亮度（0-255）：全黑图 ≈ 0，可直接判"抓到的是黑屏"
+    static func averageBrightness(_ image: CGImage) -> Double {
+        let w = 64, h = 64
+        var bytes = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &bytes, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return -1 }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var sum = 0.0
+        for i in stride(from: 0, to: bytes.count, by: 4) {
+            sum += 0.299 * Double(bytes[i]) + 0.587 * Double(bytes[i + 1]) + 0.114 * Double(bytes[i + 2])
+        }
+        return sum / Double(w * h)
     }
 
     /// 快捷入口（供状态栏菜单 / 全局快捷键接线调用）

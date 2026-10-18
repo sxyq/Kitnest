@@ -109,6 +109,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "识别结果"
+        applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
         minSize = NSSize(width: 480, height: 320)
         isReleasedWhenClosed = false
 

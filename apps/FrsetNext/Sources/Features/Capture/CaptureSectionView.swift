@@ -49,7 +49,7 @@ public struct CaptureSectionView: View {
             Text("尚未获得屏幕录制权限")
                 .font(.system(size: 12))
             Spacer()
-            Button("前往授权") { manager.ensureScreenRecordingPermission() }
+            Button("前往授权") { Task { _ = await manager.ensureScreenRecordingPermission() } }
                 .buttonStyle(.borderless)
         }
         .padding(8)

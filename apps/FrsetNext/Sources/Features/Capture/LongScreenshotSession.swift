@@ -170,6 +170,7 @@ final class LongScreenshotSession {
         state = .capturing
         guard let frame = captureFrame() else {
             captureFailures += 1
+            Log.warn("Capture", "长截图采帧失败（第 \(captureFailures) 次）——若连续 3 次将终止")
             if captureFailures >= 3 {
                 isStopped = true
                 state = .failed
@@ -189,7 +190,9 @@ final class LongScreenshotSession {
         state = .processing
         let appended = stitcher.append(frame: frame, pendingDelta: delta, scale: contentScale)
         if appended {
-            Log.debug("Capture", "长截图追加 \(stitcher.appendedRows) 行（重叠对齐完成）")
+            Log.info("Capture", "长截图追加成功：画布累计 \(stitcher.appendedRows) 行（本帧 \(frame.width)×\(frame.height)，δ=\(Int(delta))）")
+        } else {
+            Log.debug("Capture", "长截图本帧未追加（恒等帧/新内容不足/对齐失败，δ=\(Int(delta))）")
         }
         if !isStopped { state = .running }
     }
@@ -202,10 +205,13 @@ final class LongScreenshotSession {
         guard bounds.width > 0, bounds.height > 0 else { return nil }
         // option = 0x14（onScreenAboveWindow | excludeDesktopElements）、imageOption = 8
         // （原作立即数，枚举名按 CG 常量表推断，spec 15 §7.7 标注⬜）
-        guard let img = CGWindowListCreateImage(bounds,
-                                                CGWindowListOption(rawValue: 0x14),
-                                                windowID,
-                                                CGWindowImageOption(rawValue: 8)) else { return nil }
+        // 2026-10-18：改走 ScreenSnapshot 的 dlsym 兼容层——CGWindowListCreateImage
+        // 在 macOS 15 被 obsoleted（直接调用返回 nil，长截图因此连续采帧失败终止）。
+        guard let img = ScreenSnapshot.legacyCapture(
+                rect: bounds,
+                option: CGWindowListOption(rawValue: 0x14),
+                windowID: windowID,
+                imageOption: CGWindowImageOption(rawValue: 8)) else { return nil }
         let rect = selectionRectCG
         let reqWidth = max(rect.width, 1)
         // scale = imgWidth / reqWidth（@0x10045ae8c 起）

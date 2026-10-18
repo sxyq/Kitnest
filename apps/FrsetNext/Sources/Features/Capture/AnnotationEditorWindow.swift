@@ -250,6 +250,7 @@ final class AnnotationEditorWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "标注截图"
+        applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
         minSize = NSSize(width: 420, height: 300)
         isReleasedWhenClosed = false
         canvas.frame = NSRect(x: 0, y: 44, width: canvasW, height: canvasH)

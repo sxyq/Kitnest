@@ -200,7 +200,14 @@ public final class Eyedropper: ObservableObject {
     public func start() {
         // 手动取色会顶掉可能挂起的程序化请求，先以 nil 收尾，避免 continuation 悬挂
         resolvePending(nil)
-        beginSession()
+        Task { @MainActor in
+            // v32：权限以真实抓屏能力为准（preflight 会假阴性，见 ScreenshotManager.probePermission）
+            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
+                self.message = "需要「屏幕录制」权限才能取色"
+                return
+            }
+            self.beginSession()
+        }
     }
 
     /// 程序化取色：启动一次取色会话并回调结果（供 `EyedropperPickBridge` 复用）。
@@ -209,19 +216,21 @@ public final class Eyedropper: ObservableObject {
         // 上一个请求若仍挂起，先以 nil 结束（不能让它悬挂）
         resolvePending(nil)
 
-        guard CGPreflightScreenCaptureAccess() else {
-            message = "需要「屏幕录制」权限才能取色"
-            completion(nil)
-            return
+        Task { @MainActor in
+            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
+                self.message = "需要「屏幕录制」权限才能取色"
+                completion(nil)
+                return
+            }
+            guard let screen = self.screenUnderMouse() else {
+                completion(nil)
+                return
+            }
+            self.finish(nil)                 // 关闭可能残留的旧窗口（内部 resolvePending 此时为 no-op）
+            self.pendingPick = completion    // 必须在 finish 之后登记，避免被 finish 误清
+            NSApp.activate(ignoringOtherApps: true)
+            self.presentPicker(on: screen)
         }
-        guard let screen = screenUnderMouse() else {
-            completion(nil)
-            return
-        }
-        finish(nil)                 // 关闭可能残留的旧窗口（内部 resolvePending 此时为 no-op）
-        pendingPick = completion    // 必须在 finish 之后登记，避免被 finish 误清
-        NSApp.activate(ignoringOtherApps: true)
-        presentPicker(on: screen)
     }
 
     /// 结束取色（传 nil 表示只是关闭窗口）
@@ -236,10 +245,6 @@ public final class Eyedropper: ObservableObject {
     // MARK: 会话（手动 / 程序化共用同一套 UI 与取色逻辑）
 
     private func beginSession() {
-        guard CGPreflightScreenCaptureAccess() else {
-            message = "需要「屏幕录制」权限才能取色"
-            return
-        }
         guard let screen = screenUnderMouse() else { return }
         finish(nil)
         NSApp.activate(ignoringOtherApps: true)

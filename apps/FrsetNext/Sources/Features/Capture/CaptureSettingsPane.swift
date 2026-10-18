@@ -5,6 +5,7 @@ import AppKit
 
 /// 截图设置：保存路径 / 提示音 / OCR 语言 / 截图后默认动作
 public struct CaptureSettingsPane: View {
+    @ObservedObject private var manager = ScreenshotManager.shared
     @Stored private var savePath: String
     @Stored private var soundEnabled: Bool
     @Stored private var languageIndex: Int
@@ -83,9 +84,11 @@ public struct CaptureSettingsPane: View {
 
             Section("权限") {
                 HStack {
-                    Text(CGPreflightScreenCaptureAccess() ? "已获得屏幕录制权限" : "尚未获得屏幕录制权限")
+                    Text(manager.hasPermission ? "已获得屏幕录制权限" : "尚未获得屏幕录制权限")
                     Spacer()
-                    Button("检查 / 申请") { _ = ScreenshotManager.shared.ensureScreenRecordingPermission() }
+                    Button("检查 / 申请") {
+                        Task { _ = await ScreenshotManager.shared.ensureScreenRecordingPermission() }
+                    }
                 }
             }
         }

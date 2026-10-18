@@ -73,54 +73,68 @@ final class LongScreenshotImageScrollView: NSScrollView {
 }
 
 /// 编辑器容器（原作 LongScreenshotEditorContainerView）：滚动视图 + 底部工具条
+///
+/// 2026-10-18 重写布局（用户反馈"提示窗太小"）：
+///   旧实现内容区固定 640×480 且不随窗口缩放——窗口 880×640 里内容只占一角，
+///   长截图预览显得很小。现在：
+///   · scrollView 撑满工具条以上全部区域（autoresizing + layout 双保险）
+///   · 工具条贴底、按钮靠右随宽度重排
+///   · 窗口尺寸由窗口侧按图像尺寸钳制到屏幕可视区（见 LongScreenshotEditorWindow.init）
 final class LongScreenshotEditorContainerView: NSView {
     let scrollView: LongScreenshotImageScrollView
-    private let toolbar = NSView(frame: NSRect(x: 0, y: 0, width: 0, height: 44))
+    private let toolbar = NSView(frame: .zero)
+    private let saveButton = NSButton(title: "保存", target: nil, action: nil)
+    private let copyButton = NSButton(title: "复制", target: nil, action: nil)
+    private let closeButton = NSButton(title: "关闭", target: nil, action: nil)
+    private static let toolbarHeight: CGFloat = 48
+    private static let buttonW: CGFloat = 76
+    private static let buttonH: CGFloat = 30
 
     init(document: LongScreenshotEditorDocumentView,
          onSave: @escaping () -> Void,
          onCopy: @escaping () -> Void,
          onClose: @escaping () -> Void) {
         scrollView = LongScreenshotImageScrollView(document: document)
-        super.init(frame: NSRect(origin: .zero, size: NSSize(width: 640, height: 480)))
+        super.init(frame: NSRect(origin: .zero, size: NSSize(width: 960, height: 700)))
+        autoresizingMask = [.width, .height]
 
-        scrollView.frame = NSRect(x: 0, y: 44, width: 640, height: 436)
+        scrollView.frame = bounds.insetBy(dx: 0, dy: 0)
         scrollView.autoresizingMask = [.width, .height]
         addSubview(scrollView)
 
-        let save = NSButton(title: "保存", target: nil, action: nil)
-        save.bezelStyle = .rounded
-        save.keyEquivalent = "\r"
-        save.frame = NSRect(x: 640 - 232, y: 8, width: 72, height: 28)
-        save.autoresizingMask = [.minXMargin]
-        let copy = NSButton(title: "复制", target: nil, action: nil)
-        copy.bezelStyle = .rounded
-        copy.frame = NSRect(x: 640 - 156, y: 8, width: 72, height: 28)
-        copy.autoresizingMask = [.minXMargin]
-        let close = NSButton(title: "关闭", target: nil, action: nil)
-        close.bezelStyle = .rounded
-        close.frame = NSRect(x: 640 - 80, y: 8, width: 72, height: 28)
-        close.autoresizingMask = [.minXMargin]
-
-        // 目标-动作桥接（NSButton 无 onAction，用闭包包装器）
-        ClosureButtonAction.bind(save) { onSave() }
-        ClosureButtonAction.bind(copy) { onCopy() }
-        ClosureButtonAction.bind(close) { onClose() }
-
-        toolbar.frame = NSRect(x: 0, y: 0, width: 640, height: 44)
-        toolbar.autoresizingMask = [.width]
-        toolbar.addSubview(save)
-        toolbar.addSubview(copy)
-        toolbar.addSubview(close)
+        for (btn, action) in [(saveButton, onSave), (copyButton, onCopy), (closeButton, onClose)] {
+            btn.bezelStyle = .rounded
+            btn.autoresizingMask = [.minXMargin]
+            ClosureButtonAction.bind(btn, handler: action)
+            toolbar.addSubview(btn)
+        }
+        saveButton.keyEquivalent = "\r"
+        toolbar.autoresizingMask = [.width, .minYMargin]
         addSubview(toolbar)
+        layoutEditor()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
 
     override func layout() {
         super.layout()
+        layoutEditor()
         // DocumentView 初始居中 + 钳制（0x10044cdbc）
         scrollView.document?.fitCentered(in: scrollView.contentSize)
+    }
+
+    private func layoutEditor() {
+        let bar = Self.toolbarHeight
+        toolbar.frame = NSRect(x: 0, y: 0, width: bounds.width, height: bar)
+        scrollView.frame = NSRect(x: 0, y: bar, width: bounds.width, height: max(0, bounds.height - bar))
+
+        let w = Self.buttonW, h = Self.buttonH, y = (bar - h) / 2
+        var x = bounds.width - 16 - w
+        closeButton.frame = NSRect(x: x, y: y, width: w, height: h)
+        x -= (w + 10)
+        copyButton.frame = NSRect(x: x, y: y, width: w, height: h)
+        x -= (w + 10)
+        saveButton.frame = NSRect(x: x, y: y, width: w, height: h)
     }
 }
 
@@ -151,11 +165,20 @@ final class LongScreenshotEditorWindow: NSWindow {
                                                           onSave: onSave,
                                                           onCopy: onCopy,
                                                           onClose: onClose)
-        super.init(contentRect: NSRect(origin: .zero, size: NSSize(width: 880, height: 640)),
+        // 2026-10-18：窗口按图像尺寸自适应（旧实现固定 880×640 / 内容 640×480，长截图显得很小）。
+        // 取图像点尺寸（Retina 2x → ÷2）+ 工具条 48 + 边距，钳制到屏幕可视区 85%，下限 760×560。
+        let img = document.image
+        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let docW = CGFloat(img.width) / 2
+        let docH = CGFloat(img.height) / 2
+        let wantW = min(max(docW + 48, 760), screen.width * 0.85)
+        let wantH = min(max(docH + 48 + 56, 560), screen.height * 0.85)
+        super.init(contentRect: NSRect(origin: .zero, size: NSSize(width: wantW, height: wantH)),
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "长截图"
-        minSize = NSSize(width: 480, height: 360)
+        applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
+        minSize = NSSize(width: 640, height: 460)
         isReleasedWhenClosed = false
         contentView = container
         center()

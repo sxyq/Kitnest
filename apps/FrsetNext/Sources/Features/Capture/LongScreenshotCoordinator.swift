@@ -12,6 +12,9 @@ import Foundation
 /// 全局监视器**只观察不拦截**——与被动采捕模型自洽（原作不合成任何滚轮/键盘事件）。
 final class LongScreenshotCaptureStream {
 
+    /// 「首次全局滚动已到达」日志只打一次（诊断全局监视器/授权是否生效）
+    private static var loggedFirstScroll = false
+
     private weak var session: LongScreenshotSession?
     private var scrollMonitor: Any?
     private var mouseMonitor: Any?
@@ -27,6 +30,13 @@ final class LongScreenshotCaptureStream {
 
         // ① scrollWheel（掩码 0x400000，注册点 0x100445e98）
         scrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            // 诊断（首次）：确认全局监视器确实收到事件——macOS 的全局 scrollWheel
+            // 监视需要「输入监控/辅助功能」授权，未授权时**静默失效**（回调不触发）。
+            // 这行日志是「长截图滚动没反应」类问题的第一判据。
+            if !Self.loggedFirstScroll {
+                Self.loggedFirstScroll = true
+                Log.info("Capture", "长截图：已收到全局滚动事件（全局监视器生效）")
+            }
             self?.session?.onScroll(deltaY: Double(event.scrollingDeltaY),
                                     deltaX: Double(event.scrollingDeltaX),
                                     cursorInSelection: self?.cursorInSelection() ?? false)
@@ -38,9 +48,19 @@ final class LongScreenshotCaptureStream {
         }
 
         // ③ keyDown（掩码 0x400，注册点 0x10045b1cc；keyCode 0x35=Esc → 主队列取消 0x10045b494）
+        //    2026-10-18：全局监视器同时处理 Return（0x24）收尾——长截图的滚动目标是
+        //    别的 App（浏览器/文档），此时本 App 未激活，**local monitor 收不到 Return**，
+        //    用户无法完成截图（此前只能 Esc 取消）。全局监视器只观察不拦截，
+        //    目标 App 的 Return 行为不受影响。
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
-            guard event.keyCode == 0x35 else { return }
-            DispatchQueue.main.async { self?.session?.cancel() }
+            switch event.keyCode {
+            case 0x35:   // Esc → 取消
+                DispatchQueue.main.async { self?.session?.cancel() }
+            case 0x24:   // Return → 完成（长截图在别的窗口滚动时的收尾路径）
+                DispatchQueue.main.async { self?.session?.finish() }
+            default:
+                break
+            }
         }
         // 补充：本 App 活动时的 Esc / Return（0x24 完成，重建扩展——原作自动收尾逻辑未探明）
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
@@ -115,8 +135,15 @@ final class LongScreenshotCoordinator: NSObject {
     /// 进入选区阶段（复用截图覆盖层：每屏一层，框选后启动会话）
     func beginSelection() {
         guard session == nil else { return }   // 已有会话进行中
-        guard ScreenshotManager.shared.ensureScreenRecordingPermission() else { return }
+        Task { @MainActor in
+            // v32：权限以真实抓屏能力为准（preflight 会假阴性）
+            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else { return }
+            self.beginSelectionUI()
+        }
+    }
 
+    @MainActor
+    private func beginSelectionUI() {
         selectionOverlays.removeAll()
         NSApp.activate(ignoringOtherApps: true)
         for screen in NSScreen.screens {
@@ -166,6 +193,7 @@ final class LongScreenshotCoordinator: NSObject {
         self.session = session
         stream.start(session: session)
         session.start()
+        Toast.show("长截图：滚动目标窗口，Return 完成 / Esc 取消", icon: "arrow.up.and.down.text.horizontal")
         Log.info("Capture", "长截图会话已启动（选区 \(Int(appKit.width))×\(Int(appKit.height))）：滚动目标窗口，Return 完成 / Esc 取消")
     }
 
@@ -187,14 +215,17 @@ final class LongScreenshotCoordinator: NSObject {
         case .finished:
             guard let image = image else {
                 Log.warn("Capture", "长截图收尾：无有效画布")
+                Toast.show("长截图失败：没有采到画面（请确认已滚动目标窗口）", icon: "exclamationmark.triangle")
                 return
             }
             LongScreenshotPreviewController.shared.show(image: image)
+            Toast.show("长截图完成", icon: "checkmark.circle.fill")
             Log.info("Capture", "长截图完成：\(image.width)×\(image.height)")
         case .cancelled:
             Log.info("Capture", "长截图已取消")
         case .failed:
             Log.error("Capture", "长截图采捕连续失败，会话终止")
+            Toast.show("长截图失败：采帧连续失败（多为屏幕录制权限问题）", icon: "exclamationmark.triangle")
         default:
             break
         }

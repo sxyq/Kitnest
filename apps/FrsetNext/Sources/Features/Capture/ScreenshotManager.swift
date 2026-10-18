@@ -11,9 +11,35 @@ import Foundation
 /// - CGWindowListCreateImage：低版本回退，同步，覆盖层快照（放大镜）也走这条路。
 enum ScreenSnapshot {
 
+    // MARK: 旧 API 兼容层（2026-10-18 修复「长截屏不可用 / 区域截图黑屏」）
+    //
+    // `CGWindowListCreateImage` 在 macOS 15.0 被系统 obsoleted（SDK 标注，
+    // 运行时直接返回 nil）——长截图采帧（LongScreenshotSession.captureFrame）
+    // 与区域截图/长截图选区快照全依赖它，导致：
+    //   · 长截图：采帧连续失败 → state=.failed → "长截图采捕连续失败，会话终止"
+    //   · 区域截图：覆盖层底图 nil → 确认后 "截图失败"
+    // 系统兼容实现仍在（dlsym 实测 macOS 15 返回有效图，2x Retina），
+    // 与引擎侧 frset_barwidgets.m 用 dlsym 取 CGDisplayCreateImageForRect 同款手法。
+    private typealias LegacyCreateImageFn = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+
+    private static let legacyCreateImage: LegacyCreateImageFn? = {
+        guard let handle = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", RTLD_LAZY),
+              let sym = dlsym(handle, "CGWindowListCreateImage") else { return nil }
+        return unsafeBitCast(sym, to: LegacyCreateImageFn.self)
+    }()
+
+    /// 旧 API 的动态入口（保留原始 option 值；系统未移除时与原生调用等价）
+    static func legacyCapture(rect: CGRect,
+                              option: CGWindowListOption,
+                              windowID: CGWindowID = 0,
+                              imageOption: CGWindowImageOption = [.bestResolution]) -> CGImage? {
+        guard let fn = legacyCreateImage else { return nil }
+        return fn(rect, option.rawValue, UInt32(windowID), imageOption.rawValue)?.takeRetainedValue()
+    }
+
     /// 同步抓屏（覆盖层快照 / 回退路径都用）
     static func cgCapture(rect: CGRect) -> CGImage? {
-        CGWindowListCreateImage(rect, .optionOnScreenOnly, CGWindowID(0), [.bestResolution])
+        legacyCapture(rect: rect, option: .optionOnScreenOnly, imageOption: [.bestResolution])
     }
 
     /// NSScreen.frame（左下原点、Y 向上）→ CG 全局显示坐标（主屏左上角为原点、Y 向下）。
@@ -70,6 +96,10 @@ public final class ScreenshotManager: ObservableObject {
     @Published public var statusMessage: String?
     /// 是否已获得屏幕录制权限（供 UI 显示提示条）
     @Published public private(set) var hasPermission: Bool = CGPreflightScreenCaptureAccess()
+    /// 是否已完成一次「权威探测」（真实抓屏通道）
+    private var permissionProbed = false
+    /// 探测进行中（防重入）
+    private var permissionProbing = false
 
     // MARK: 私有
 
@@ -77,7 +107,29 @@ public final class ScreenshotManager: ObservableObject {
     private let thumbCache = NSCache<NSURL, NSImage>()
     private var pendingAction: CaptureDefaultAction = .save
 
-    init() { reloadRecent() }
+    init() {
+        reloadRecent()
+        // v30（2026-10-18）：启动即打权限实况——TCC 授权按 code identity 校验，
+        // ad-hoc 签名（cdhash）在重新构建后失效、证书签名（FrsetDev）跨构建保留。
+        // 这行日志是"授权了却又提示没授权"类问题的第一判据。
+        Log.info("Capture", "屏幕录制权限启动实况：\(CGPreflightScreenCaptureAccess() ? "已获得" : "未获得")（bundle=\(Bundle.main.bundleIdentifier ?? "?")）")
+        // v32（2026-10-18）：preflight 会假阴性——启动后立刻用真实抓屏通道（SCK）复核，
+        // 以「能不能真的枚举可共享内容」作为权威判据（见 probePermission 注释）。
+        Task { _ = await probePermission() }
+
+        // 排障：FRSET_TCC_REQUEST=1 或存在标记文件时主动发一次系统录屏请求。
+        // 用途：TCC 记录被移除后，让系统按当前二进制重新建立记录（设置列表随之出现该 app）。
+        // 标记文件方案用于经 LaunchServices（open/双击）启动的场景——环境变量传不进去。
+        let tccMarker = "/tmp/frset_tcc_request_once"
+        if ProcessInfo.processInfo.environment["FRSET_TCC_REQUEST"] == "1"
+            || FileManager.default.fileExists(atPath: tccMarker) {
+            try? FileManager.default.removeItem(atPath: tccMarker)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                let granted = CGRequestScreenCaptureAccess()
+                Log.info("Capture", "TCC 请求探针：granted=\(granted)")
+            }
+        }
+    }
 
     // MARK: 偏好
 
@@ -114,15 +166,66 @@ public final class ScreenshotManager: ObservableObject {
     /// 刷新权限状态（系统设置里授权后回来调用）
     public func refreshPermission() {
         hasPermission = CGPreflightScreenCaptureAccess()
+        Task { _ = await probePermission() }
     }
 
-    /// 检查屏幕录制权限；未授权时触发系统请求并弹中文说明
+    /// 权威权限探测：以「真实抓屏通道是否可用」为准，而不是只看 CGPreflight。
+    ///
+    /// 为什么（2026-10-18 用户实障，必须写清）：
+    /// `CGPreflightScreenCaptureAccess()` 返回的是**TCC 记录与当前进程 code identity
+    /// 的匹配结果**，在以下情形会**假阴性**（系统里明明已授权、抓屏也能成功，它却返回 false）：
+    ///   · 应用刚被重新签名/替换，tccd/amfid 的校验缓存尚未刷新；
+    ///   · 本工程用自签名证书 FrsetDev 签名，TCC 记录建立时的 csreq 与当前二进制
+    ///     不完全一致（设置里开关仍是「开」）；
+    ///   · 经 LaunchServices（双击）启动 vs 从终端直接启动，responsible process
+    ///     归属不同，preflight 结果可能不同（实测：同一二进制同一时刻，终端启动
+    ///     报“已获得”、双击启动报“未获得”）。
+    /// 直接拿 preflight 当硬闸门 → 用户明明授权了，app 却反复弹「需要屏幕录制权限」。
+    ///
+    /// ScreenCaptureKit 的 `SCShareableContent` 只在系统**真正拒绝**录屏时抛错，
+    /// 因此用它做权威判据：能枚举到显示器 = 权限真实可用 → UI 不再提示授权。
     @discardableResult
-    public func ensureScreenRecordingPermission() -> Bool {
-        hasPermission = CGPreflightScreenCaptureAccess()
+    public func probePermission() async -> Bool {
+        if permissionProbing { return hasPermission }
+        permissionProbing = true
+        defer { permissionProbing = false }
+
+        if CGPreflightScreenCaptureAccess() {
+            await MainActor.run {
+                self.hasPermission = true
+                self.permissionProbed = true
+            }
+            Log.info("Capture", "权限探测：preflight=已获得")
+            return true
+        }
+
+        var granted = false
+        if #available(macOS 14.0, *) {
+            do {
+                let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+                granted = !content.displays.isEmpty
+            } catch {
+                granted = false
+                Log.info("Capture", "权限探测：SCK 失败 \(error.localizedDescription)")
+            }
+        }
+        await MainActor.run {
+            self.hasPermission = granted
+            self.permissionProbed = true
+        }
+        Log.info("Capture", "权限探测：preflight=未获得 SCK=\(granted ? "可用" : "不可用")")
+        return granted
+    }
+
+    /// 检查屏幕录制权限；只有「真实抓屏也不可用」时才请求并弹说明
+    @discardableResult
+    public func ensureScreenRecordingPermission() async -> Bool {
         if hasPermission { return true }
-        CGRequestScreenCaptureAccess()
-        showPermissionAlert()
+        if await probePermission() { return true }
+        await MainActor.run {
+            CGRequestScreenCaptureAccess()
+            self.showPermissionAlert()
+        }
         return false
     }
 
@@ -157,7 +260,14 @@ public final class ScreenshotManager: ObservableObject {
     public func captureAndCopy() { startRegionCapture(action: .clipboard) }
 
     private func startRegionCapture(action: CaptureDefaultAction) {
-        guard ensureScreenRecordingPermission() else { return }
+        Task { @MainActor in
+            guard await ensureScreenRecordingPermission() else { return }
+            self.beginRegionCapture(action: action)
+        }
+    }
+
+    @MainActor
+    private func beginRegionCapture(action: CaptureDefaultAction) {
         closeOverlays()
         pendingAction = action
         isCapturing = true
@@ -178,6 +288,7 @@ public final class ScreenshotManager: ObservableObject {
         if overlays.isEmpty {
             isCapturing = false
             statusMessage = CaptureError.captureFailed.errorDescription
+            Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
         }
     }
 
@@ -192,6 +303,8 @@ public final class ScreenshotManager: ObservableObject {
         guard let snapshot = snapshot,
               let cropped = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame) else {
             statusMessage = CaptureError.captureFailed.errorDescription
+            // 屏幕级反馈：失败不能只写在面板状态里（面板此刻根本没开）
+            Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
         handle(cropped, action: pendingAction)
@@ -211,12 +324,12 @@ public final class ScreenshotManager: ObservableObject {
 
     /// 全屏截图：抓鼠标所在屏幕；优先 ScreenCaptureKit，低版本回退 CG
     public func captureFullScreen() {
-        guard ensureScreenRecordingPermission() else { return }
-        guard let screen = currentScreen(),
-              let displayID = ScreenSnapshot.displayID(of: screen) else { return }
-        let action = defaultAction
-
         Task { @MainActor in
+            guard await ensureScreenRecordingPermission() else { return }
+            guard let screen = currentScreen(),
+                  let displayID = ScreenSnapshot.displayID(of: screen) else { return }
+            let action = defaultAction
+
             var image: CGImage?
             if #available(macOS 14.0, *) {
                 image = try? await ScreenSnapshot.sckCapture(displayID: displayID)
@@ -242,10 +355,12 @@ public final class ScreenshotManager: ObservableObject {
     private func handle(_ image: CGImage, action: CaptureDefaultAction) {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
+            Toast.show("截图失败：图片编码失败", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
         guard let url = savePNG(data) else {
             statusMessage = CaptureError.saveFailed.errorDescription
+            Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
         registerCaptured(url: url, data: data, playSound: true)
@@ -266,6 +381,11 @@ public final class ScreenshotManager: ObservableObject {
     public func apply(_ action: CaptureDefaultAction, to image: CGImage, url: URL) {
         switch action {
         case .save:
+            // 屏幕级反馈（2026-10-18 用户实障「截图后没有提示」）：
+            // 此前保存分支只写 statusMessage，而该字段只在主面板的截图页里渲染，
+            // 用户按 ⌥S 截完图时面板是关着的 → 落盘成功却没有任何可见确认。
+            // 原版对应文案 Saved Successfully（zh-Hans「已保存」）。
+            Toast.show("已保存", icon: "checkmark.circle.fill")
             statusMessage = "已保存到 \(url.lastPathComponent)"
         case .clipboard:
             copyToPasteboard(image)
@@ -275,6 +395,7 @@ public final class ScreenshotManager: ObservableObject {
             recognize(image)
         case .pin:
             PinnedScreenshotManager.shared.show(image: image)
+            Toast.show("已钉在屏幕上", icon: "pin.fill")
             statusMessage = "已钉在屏幕上"
         }
     }
