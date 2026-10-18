@@ -64,18 +64,18 @@ public struct MonitorSettingsPane: View {
 
             Divider()
 
-            // 菜单栏部件（STATS 引擎）——与原版注入版同款设置窗
+            // 菜单栏部件（STATS 引擎）——v54：完整设置已内嵌到「性能监测 → 部件设置」页
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("菜单栏部件")
                         .font(.system(size: 13))
-                    Text("形态 / 间距 / 分隔线（与 Stats 配置互通）")
+                    Text("形态 / 颜色 / 间距 / 每模块选项（功能对齐 Stats，全部内嵌在「部件设置」）")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("打开部件设置") {
-                    StatsBarEngine.openSettings()
+                    SettingsWindowController.shared.open(pane: "monitor.widgets")
                 }
                 .font(.system(size: 12))
             }

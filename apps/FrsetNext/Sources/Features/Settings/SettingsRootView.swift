@@ -1,133 +1,167 @@
 import SwiftUI
 
-// MARK: - 设置窗口根视图
+// MARK: - 设置窗口根视图（v41：左侧大侧边栏 + 内容区）
 //
-// 结构：五个居中顶部页签（通用/搜索/工具/快捷键/关于）+ 内容区。
-// 页签几何对齐原版：居中成组，中心归一化 x = 0.262/0.377/0.500/0.623/0.741，
-// 页签栏高 92pt（specs/07 §5-5 实证）。
+// 用户 2026-10-18 指定：
+//   ① 状态栏点开的主面板**保持官方原样**；改的是设置界面；
+//   ② 设置界面加一个大左侧侧边栏——第一项「主页」= 完整设置
+//      （10 个设置页归类成 6 个二级标签），第二项「性能监测」= 模块二级目录；
+//   ③ 配色以性能监测页为准（MonitorColors.user 作选中色 + 玻璃卡片感）。
 //
-// 布局纪律（2026-10-16 实证，勿改）：
-// 根视图必须固定 .frame(width: 800, height: 530)。SwiftUI App lifecycle 下
-// NSHostingView 会把根视图 fitting size 折成窗口尺寸请求；高度自由的根视图
-// （.frame(maxHeight: .infinity)）令窗口被反复请求撑到内容自然高（实测 1554pt），
-// 与窗口固定尺寸冲突，触发无限 Update Constraints 循环 →
-// NSGenericException（"has already had more Update Constraints in Window passes
-// than there are views in the window"）。各页内部滚动由 ScrollView 承担。
+// 布局纪律（2026-10-16 实证，勿改）：根视图必须固定 .frame(...)。SwiftUI App
+// lifecycle 下 NSHostingView 会把根视图 fitting size 折成窗口尺寸请求；高度自由的
+// 根视图会令窗口被反复请求撑到内容自然高，触发无限 Update Constraints 循环 →
+// NSGenericException。各页内部滚动由 ScrollView 承担。
 
 struct SettingsRootView: View {
     @ObservedObject var state: SettingsUIState
     @ObservedObject private var appearance = AppearanceState.shared
     @Environment(\.colorScheme) private var colorScheme
-    /// 页签高亮块：切换时平滑滑动（matchedGeometry）
-    @Namespace private var tabNamespace
-
-    private let tabIDs = ["general", "search", "tools", "shortcuts", "about"]
-    private let tabIcons = ["gearshape.fill", "magnifyingglass.circle.fill", "square.fill", "command.square.fill", "info.circle.fill"]
-
-    private var panes: [SettingsPaneDescriptor] { SettingsPaneRegistry.all }
-    private var selectedPane: SettingsPaneDescriptor? {
-        panes.first { $0.id == state.selectedPaneID }
-    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 20) {
-                ForEach(Array(tabIDs.enumerated()), id: \.element) { index, id in
-                    if let pane = panes.first(where: { $0.id == id }) {
-                        Button {
-                            withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
-                                state.selectedPaneID = id
-                                state.detailPaneID = nil
-                            }
-                        } label: {
-                            VStack(spacing: 8) {
-                                Image(systemName: tabIcons[index])
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .frame(height: 24)
-                                    .overlay {
-                                        if id == "tools" {
-                                            Image(systemName: "line.diagonal")
-                                                .font(.system(size: 14, weight: .heavy))
-                                                .foregroundStyle(Color(NSColor.windowBackgroundColor))
-                                        }
-                                    }
-                                Text(pane.title)
-                                    .font(.system(size: 11, weight: .semibold))
-                            }
-                            .frame(width: 76, height: 56)
-                            .foregroundStyle(state.selectedPaneID == id ? Color.primary : Color.secondary)
-                            .background {
-                                if state.selectedPaneID == id {
-                                    RoundedRectangle(cornerRadius: 13)
-                                        .fill(Color.primary.opacity(0.07))
-                                        .matchedGeometryEffect(id: "settingsTab", in: tabNamespace)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("settings.tab.\(id)")
-                    }
-                }
+        HStack(spacing: 0) {
+            SettingsSidebarView(state: state)
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(width: 0.5)
+            VStack(spacing: 0) {
+                header
+                Rectangle()
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(height: 0.5)
+                content
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 92)
-            .offset(y: 2)
-            Divider()
-            if let pane = selectedPane {
-                Group {
-                    if state.selectedPaneID == "general" {
-                        ScrollView {
-                            pane.build()
-                                .padding(.horizontal, 50)
-                                .padding(.top, 12)
-                                .padding(.bottom, 24)
-                        }
-                    } else if state.selectedPaneID == "about" {
-                        pane.build()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if state.selectedPaneID == "tools" || state.selectedPaneID == "search" {
-                        pane.build()
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 16)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    } else {
-                        ScrollView {
-                            pane.build()
-                                .padding(.horizontal, 30)
-                                .padding(.vertical, 16)
-                                .frame(maxWidth: .infinity, alignment: .top)
-                        }
-                    }
-                }
-                .id(state.selectedPaneID)
-                .transition(.opacity.combined(with: .offset(y: 6)))
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 800, height: 530)
-        .background(appearance.isMidnight ? MidnightTheme.baseBackground :
-                    colorScheme == .light ? Color(white: 222.0 / 255.0) : Color(NSColor.windowBackgroundColor))
+        // 根视图尺寸必须等于窗口 contentRect（940×620）：NSHostingView 的 fitting size
+        // 会被当作窗口内容尺寸请求——设大 32 会让窗口被撑到 684（2026-10-18 实测）。
+        // fullSizeContentView 下 contentView 已含标题栏区域，620 正好铺满。
+        .frame(width: 940, height: 620)
+        .background(backgroundColor)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         .frsetAppearanceTheme()
         .ignoresSafeArea()
-        .sheet(isPresented: Binding(
-            get: { state.detailPaneID != nil },
-            set: { if !$0 { state.detailPaneID = nil } }
-        )) {
-            if let pane = panes.first(where: { $0.id == state.detailPaneID }) {
-                VStack(spacing: 0) {
-                    HStack {
-                        Text(pane.title).font(.headline)
-                        Spacer()
-                        Button("完成") { state.detailPaneID = nil }
-                            .keyboardShortcut(.cancelAction)
+    }
+
+    private var backgroundColor: Color {
+        if appearance.isMidnight { return MidnightTheme.baseBackground }
+        return colorScheme == .light ? Color(white: 222.0 / 255.0) : Color(NSColor.windowBackgroundColor)
+    }
+
+    // MARK: - 头部（当前分类标题）
+
+    private var currentTitle: String {
+        switch state.selection {
+        case .category(let category): return category.title
+        case .monitorModule(let module): return module == .sensors ? "传感器" : module.displayName
+        case .monitorSettings: return "监测设置"
+        case .monitorWidgets: return "部件设置"
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Text(currentTitle)
+                .font(.system(size: 16, weight: .semibold))
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 34)
+        .frame(height: 56)
+    }
+
+    // MARK: - 内容分发
+
+    @ViewBuilder private var content: some View {
+        switch state.selection {
+        case .category(let category):
+            switch category {
+            case .general:
+                panePage { GeneralSettingsPane() }
+            case .clipboard:
+                panePage { ClipboardSettingsPane() }
+            case .searchAI:
+                segmentedPage(selection: $state.searchAISub, tabs: [
+                    ("搜索", AnyView(SearchSettingsPane())),
+                    ("AI", AnyView(AISettingsPane()))
+                ])
+            case .tooling:
+                segmentedPage(selection: $state.toolingSub, tabs: [
+                    ("工具", AnyView(ToolSettingsPane())),
+                    ("快捷键", AnyView(ShortcutSettingsPane())),
+                    ("截图", AnyView(CaptureSettingsPane()))
+                ])
+            case .statistics:
+                panePage { StatisticsSettingsPane() }
+            case .about:
+                AboutSettingsPane()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        case .monitorModule(let module):
+            ScrollView(.vertical, showsIndicators: true) {
+                StatsModulePage(module: module)
+                    .padding(.horizontal, 34)
+                    .padding(.vertical, 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        case .monitorSettings:
+            panePage { MonitorSettingsPane() }
+        case .monitorWidgets:
+            // v55：用本项目设置组件重写的部件设置页（功能覆盖 STATS，不嵌入其界面）
+            MonitorWidgetsPane()
+        }
+    }
+
+    /// 单页设置：整页纵向滚动
+    private func panePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            content()
+                .padding(.horizontal, 34)
+                .padding(.vertical, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// 多合一分类（搜索与 AI / 工具与快捷键）：顶部分段 + 内容滚动
+    private func segmentedPage(selection: Binding<Int>,
+                               tabs: [(String, AnyView)]) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 2) {
+                ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                    let selected = selection.wrappedValue == index
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                            selection.wrappedValue = index
+                        }
+                    } label: {
+                        Text(tab.0)
+                            .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                            .foregroundStyle(selected ? MonitorColors.user : Color.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background {
+                                if selected {
+                                    Capsule(style: .continuous)
+                                        .fill(MonitorColors.user.opacity(0.15))
+                                }
+                            }
+                            .contentShape(Capsule(style: .continuous))
                     }
-                    .padding(20)
-                    Divider()
-                    ScrollView { pane.build().padding(24) }
+                    .buttonStyle(.plain)
                 }
-                .frame(width: 700, height: 460)
-                .frsetAppearanceTheme()
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 30)
+            .frame(height: 40)
+
+            Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 0.5)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                if tabs.indices.contains(selection.wrappedValue) {
+                    tabs[selection.wrappedValue].1
+                        .padding(.horizontal, 34)
+                        .padding(.vertical, 18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }

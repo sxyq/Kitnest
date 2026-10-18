@@ -9,11 +9,17 @@ import SwiftUI
 // MARK: - 通用页
 
 struct GeneralSettingsPane: View {
+    /// v40 面板内嵌模式（主面板「主页 → 常规」）：左侧标题列收窄、宽行改分行布局——
+    /// 面板内容区约 576pt，原 800pt 窗口版式（190pt 标题列 + 4 图标横排）放不下。
+    var compact: Bool = false
+
     // 直接用 AppStorage 读写 Preferences 约定的键，保证跨模块一致
     @AppStorage(Preferences.Keys.launchAtLogin) private var launchAtLogin = false
     @AppStorage("showSystemStatus") private var showSystemStatus = true
     @AppStorage("showCalendar") private var showCalendar = true
     @AppStorage("automaticScreenshotOCREnabled") private var automaticScreenshotOCR = true
+    /// 主面板是否显示「文件中转」入口（v40 侧边栏一级项）
+    @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
     @Stored private var monitorRevision = 0
     // 外观四选一 / 语言切换（specs/18 §5/§6）
     @ObservedObject private var appearance = AppearanceManager.shared
@@ -81,17 +87,18 @@ struct GeneralSettingsPane: View {
                 .labelsHidden()
                 .frame(width: 157)
             }
-            Divider().padding(.top, 21).padding(.bottom, 18)
+            Divider().padding(.top, 13).padding(.bottom, 11)
             formRow(L10n.t("Features")) {
-                HStack(spacing: 22) {
-                    Toggle(L10n.t("System Monitor"), isOn: $showSystemStatus)
-                        .toggleStyle(.checkbox)
-                        .help(L10n.t("System Monitor in Main Panel"))
-                    Toggle(L10n.t("Calendar"), isOn: $showCalendar)
-                        .toggleStyle(.checkbox)
-                    Toggle(L10n.t("Screenshot Search"), isOn: $automaticScreenshotOCR)
-                        .toggleStyle(.checkbox)
-                        .help(L10n.t("Automatically recognize text in screenshots so you can find them by text search."))
+                Group {
+                    if compact {
+                        VStack(alignment: .leading, spacing: 7) {
+                            featuresChoices
+                        }
+                    } else {
+                        HStack(spacing: 22) {
+                            featuresChoices
+                        }
+                    }
                 }
                 .buttonStyle(.link)
             }
@@ -102,33 +109,60 @@ struct GeneralSettingsPane: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            formRow(L10n.t("Menu Bar Icon")) {
-                HStack(spacing: 26) {
-                    iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
-                               help: L10n.t("Fan icon speed changes with CPU usage"))
-                    iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
-                    iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
-                               dayBadge: Self.todayDayNumber)
-                    if revealsCustomMenuBarIcon {
-                        iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
-                                   value: Self.menuBarIconStyleCustom)
+            formRow(L10n.t("Menu Bar Icon"), height: compact ? 88 : 40) {
+                if compact {
+                    // 面板窄版：2 + 2 分行（4 个图标选项横排会在 576pt 面板内溢出）
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 16) {
+                            iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
+                                       help: L10n.t("Fan icon speed changes with CPU usage"))
+                            iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
+                        }
+                        HStack(spacing: 16) {
+                            iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
+                                       dayBadge: Self.todayDayNumber)
+                            if revealsCustomMenuBarIcon {
+                                iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
+                                           value: Self.menuBarIconStyleCustom)
+                            }
+                            Toggle("小猫", isOn: runCatBinding)
+                                .toggleStyle(.checkbox)
+                                .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                        }
                     }
-                    // v32/v34 移植（注入版）：奔跑小猫——独立覆盖开关（默认开，
-                    // 覆盖上面所选的样式；与注入版 v85 设置窗同构）
-                    Toggle("小猫", isOn: runCatBinding)
-                        .toggleStyle(.checkbox)
-                        .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                } else {
+                    HStack(spacing: 26) {
+                        iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
+                                   help: L10n.t("Fan icon speed changes with CPU usage"))
+                        iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
+                        iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
+                                   dayBadge: Self.todayDayNumber)
+                        if revealsCustomMenuBarIcon {
+                            iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
+                                       value: Self.menuBarIconStyleCustom)
+                        }
+                        // v32/v34 移植（注入版）：奔跑小猫——独立覆盖开关（默认开，
+                        // 覆盖上面所选的样式；与注入版 v85 设置窗同构）
+                        Toggle("小猫", isOn: runCatBinding)
+                            .toggleStyle(.checkbox)
+                            .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                    }
                 }
             }
-            formRow(L10n.t("Menu Bar Monitoring")) {
-                HStack(spacing: 22) {
-                    monitorToggle(L10n.t("Network"), module: .network)
-                    monitorToggle(L10n.t("CPU"), module: .cpu)
-                    monitorToggle(L10n.t("RAM"), module: .memory)
-                    monitorToggle(L10n.t("SSD"), module: .disk)
+            // v42：官方原版这里是「菜单栏监控：网速/CPU/RAM/SSD」四个勾选。
+            // 我们已有更好的菜单栏呈现（STATS 合并条，多模块合并 + 可配形态），
+            // 不再注册那 4 个独立原生图标 → 此处改为直达「部件设置」的入口，
+            // 避免留下点了没反应的死开关。
+            formRow("菜单栏部件") {
+                HStack(spacing: 12) {
+                    actionButton("设置") { StatsBarEngine.openSettings() }
+                    Text("合并条：CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池")
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
-            Divider().padding(.vertical, 19)
+            Divider().padding(.vertical, 12)
             formRow(L10n.t("Auto Paste")) {
                 Toggle("", isOn: Preferences.shared.binding("clipboard.autoPaste", default: false))
                     .labelsHidden()
@@ -138,13 +172,12 @@ struct GeneralSettingsPane: View {
             formRow(L10n.t("Tag Management")) {
                 HStack(spacing: 12) {
                     actionButton(L10n.t("Edit")) { isManagingTags = true }
-
-            formRow(L10n.t("Ignored Apps"), height: 40) {
-                IgnoredAppsEditor(revision: $ignoredAppsRevision)
-            }
                     Text(tagCountText)
                         .foregroundStyle(.secondary)
                 }
+            }
+            formRow(L10n.t("Ignored Apps"), height: 40) {
+                IgnoredAppsEditor(revision: $ignoredAppsRevision)
             }
         }
         .font(.system(size: 12))
@@ -179,13 +212,29 @@ struct GeneralSettingsPane: View {
         String(Calendar.current.component(.day, from: Date()))
     }
 
-    private func formRow<Content: View>(_ title: String, height: CGFloat = 44,
+    /// 功能开关组（面板功能显隐）：系统监控 / 日历 / 截图检索 / 文件中转。
+    /// v40 新增「文件中转」——控制主面板侧边栏一级入口是否出现。
+    @ViewBuilder private var featuresChoices: some View {
+        Toggle(L10n.t("System Monitor"), isOn: $showSystemStatus)
+            .toggleStyle(.checkbox)
+            .help(L10n.t("System Monitor in Main Panel"))
+        Toggle(L10n.t("Calendar"), isOn: $showCalendar)
+            .toggleStyle(.checkbox)
+        Toggle(L10n.t("Screenshot Search"), isOn: $automaticScreenshotOCR)
+            .toggleStyle(.checkbox)
+            .help(L10n.t("Automatically recognize text in screenshots so you can find them by text search."))
+        Toggle("文件中转", isOn: $transferDockEnabled)
+            .toggleStyle(.checkbox)
+            .help("在主面板侧边栏显示「文件中转」（文件暂存与转发）")
+    }
+
+    private func formRow<Content: View>(_ title: String, height: CGFloat = 40,
                                       @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 24) {
+        HStack(spacing: compact ? 14 : 24) {
             Text(title)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
-                .frame(width: 190, alignment: .trailing)
+                .frame(width: compact ? 104 : 190, alignment: .trailing)
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
