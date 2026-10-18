@@ -50,38 +50,38 @@ public struct MonitorDetailView: View {
 
     // MARK: - 模块切换
 
+    /// v60：切换条不再横向滑动（用户反馈"网络/磁盘/温度/电池/GPU 要滑很久"）——
+    /// 改自适应换行布局：宽够一行摆下，不够自动折行，全部模块直接可点。
     private var modulePicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(availableModules(), id: \.self) { module in
-                    Button {
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                            selection.module = module
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: module.systemImage)
-                                .font(.system(size: 10))
-                            Text(module.displayName)
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background {
-                            // 选中胶囊用 matchedGeometry 滑动（灵动切换，不闪）
-                            if selection.module == module {
-                                Capsule(style: .continuous)
-                                    .fill(Color.accentColor.opacity(0.18))
-                                    .matchedGeometryEffect(id: "modulePill", in: tabNamespace)
-                            }
-                        }
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .stroke(selection.module == module ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 0.5)
-                        )
+        FlowHStack(spacing: 6, lineSpacing: 6) {
+            ForEach(availableModules(), id: \.self) { module in
+                Button {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                        selection.module = module
                     }
-                    .buttonStyle(.plain)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: module.systemImage)
+                            .font(.system(size: 10))
+                        Text(module.displayName)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background {
+                        // 选中胶囊用 matchedGeometry 滑动（灵动切换，不闪）
+                        if selection.module == module {
+                            Capsule(style: .continuous)
+                                .fill(Color.accentColor.opacity(0.18))
+                                .matchedGeometryEffect(id: "modulePill", in: tabNamespace)
+                        }
+                    }
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(selection.module == module ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 0.5)
+                    )
                 }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -849,8 +849,7 @@ public struct MonitorDetailView: View {
 // MARK: - 深数据共享组件（进程排行行 / 双值列）
 
 /// 进程排行行（名称 + 自定义数值区）
-private struct StatsProcRows: View {
-    let items: [StatsProcItem]
+private struct StatsProcRows: View {    let items: [StatsProcItem]
     @ViewBuilder let value: (StatsProcItem) -> StatsDualValue
 
     var body: some View {
@@ -880,5 +879,48 @@ private struct StatsDualValue: View {
             Text(right).monospacedDigit().frame(width: 62, alignment: .trailing)
         }
         .font(.system(size: 10))
+    }
+}
+
+// MARK: - 自适应换行布局（v60 模块切换条用）
+
+/// 横向流式布局：子视图从左到右排，一行放不下自动折行——
+/// 替代横向 ScrollView（用户反馈：切换模块要"滑动"，不舒服）。
+struct FlowHStack: Layout {
+    var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, lineHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += lineHeight + lineSpacing
+                lineHeight = 0
+            }
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+        return CGSize(width: maxWidth.isFinite ? maxWidth : x,
+                      height: y + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var lineHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += lineHeight + lineSpacing
+                lineHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: .unspecified)
+            x += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
     }
 }
