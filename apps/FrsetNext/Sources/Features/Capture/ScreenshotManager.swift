@@ -105,7 +105,14 @@ public final class ScreenshotManager: ObservableObject {
 
     private var overlays: [ScreenshotOverlayWindow] = []
     private let thumbCache = NSCache<NSURL, NSImage>()
-    private var pendingAction: CaptureDefaultAction = .save
+    /// 直接动作（热键直连：captureAndOCR/Pin/Copy）；toolbar = 框选后弹动作工具条
+    private enum PendingFlow {
+        case direct(CaptureDefaultAction)
+        case toolbar
+    }
+    private var pendingFlow: PendingFlow = .direct(.save)
+    /// 最近一次选区（AppKit 全局坐标，左下原点）——屏幕翻译钉回原位用
+    private(set) var lastSelectionAppKit: CGRect = .zero
 
     init() {
         reloadRecent()
@@ -247,29 +254,32 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 区域截图
 
-    /// 区域截图（按设置的默认动作收尾）
-    public func captureRegion() { startRegionCapture(action: defaultAction) }
+    /// 区域截图（框选后弹动作工具条；关闭工具条开关则直接执行默认动作）
+    public func captureRegion() { startRegionCapture(flow: .toolbar) }
 
     /// 截图后直接走 OCR（对应原作「截图并 OCR」入口）
-    public func captureAndOCR() { startRegionCapture(action: .ocr) }
+    public func captureAndOCR() { startRegionCapture(flow: .direct(.ocr)) }
 
     /// 截图后直接钉图
-    public func captureAndPin() { startRegionCapture(action: .pin) }
+    public func captureAndPin() { startRegionCapture(flow: .direct(.pin)) }
 
     /// 截图后直接复制到剪贴板（specs/19 默认热键 screenshotCopy 用；与 captureAndOCR/captureAndPin 同型）
-    public func captureAndCopy() { startRegionCapture(action: .clipboard) }
+    public func captureAndCopy() { startRegionCapture(flow: .direct(.clipboard)) }
 
-    private func startRegionCapture(action: CaptureDefaultAction) {
+    /// 截图后直接屏幕翻译（OCR→翻译→按坐标画回→钉回原位）
+    public func captureAndScreenTranslate() { startRegionCapture(flow: .direct(.screenTranslate)) }
+
+    private func startRegionCapture(flow: PendingFlow) {
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else { return }
-            self.beginRegionCapture(action: action)
+            self.beginRegionCapture(flow: flow)
         }
     }
 
     @MainActor
-    private func beginRegionCapture(action: CaptureDefaultAction) {
+    private func beginRegionCapture(flow: PendingFlow) {
         closeOverlays()
-        pendingAction = action
+        pendingFlow = flow
         isCapturing = true
         NSApp.activate(ignoringOtherApps: true)
 
@@ -300,6 +310,8 @@ public final class ScreenshotManager: ObservableObject {
 
         // 视图坐标 → 屏幕全局坐标
         let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
+        // 选区（AppKit 全局，左下原点）——屏幕翻译钉回原位用
+        lastSelectionAppKit = global
         guard let snapshot = snapshot,
               let cropped = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame) else {
             statusMessage = CaptureError.captureFailed.errorDescription
@@ -307,7 +319,19 @@ public final class ScreenshotManager: ObservableObject {
             Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
-        handle(cropped, action: pendingAction)
+        switch pendingFlow {
+        case .direct(let action):
+            handle(cropped, action: action)
+        case .toolbar:
+            // 先落盘（动作链各工具都以 URL/已保存文件为前提），再弹动作工具条
+            guard let data = ImageProcessor.pngData(cropped),
+                  let url = savePNG(data) else {
+                Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            registerCaptured(url: url, data: data, playSound: true)
+            CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global)
+        }
     }
 
     private func cancelCapture() {
@@ -397,6 +421,13 @@ public final class ScreenshotManager: ObservableObject {
             PinnedScreenshotManager.shared.show(image: image)
             Toast.show("已钉在屏幕上", icon: "pin.fill")
             statusMessage = "已钉在屏幕上"
+        case .screenTranslate:
+            // 钉回原选区位置（无选区上下文时 nil → 贴图默认错位平铺）
+            ScreenTranslator.run(image: image, pinOrigin: lastSelectionAppKit.isNull ? nil : lastSelectionAppKit.origin)
+        case .annotate:
+            AnnotationEditorController.shared.open(image: image)
+        case .beautify:
+            BeautifyController.shared.show(image: image)
         }
     }
 

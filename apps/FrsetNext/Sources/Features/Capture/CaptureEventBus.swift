@@ -62,18 +62,21 @@ public enum CaptureMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// 截图完成后的默认动作（设置项）
+/// 截图完成后的默认动作（设置项；v67 扩展为动作链全量，与 CaptureActionChain.tools 对应）
 public enum CaptureDefaultAction: String, CaseIterable, Identifiable {
-    case save, clipboard, ocr, pin
+    case save, clipboard, ocr, pin, screenTranslate, annotate, beautify
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
-        case .save:      return "保存到文件夹"
-        case .clipboard: return "复制到剪贴板"
-        case .ocr:       return "识别图中文字"
-        case .pin:       return "钉在屏幕上"
+        case .save:            return "保存到文件夹"
+        case .clipboard:       return "复制到剪贴板"
+        case .ocr:             return "识别图中文字"
+        case .pin:             return "钉在屏幕上"
+        case .screenTranslate: return "屏幕翻译（贴图回填）"
+        case .annotate:        return "打开标注编辑"
+        case .beautify:        return "截图美化"
         }
     }
 }
