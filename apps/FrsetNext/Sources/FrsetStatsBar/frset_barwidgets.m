@@ -618,7 +618,10 @@ static BOOL g_runCatTimerStarted = NO;
 static NSImage *FSRunCatImage(int idx, BOOL white);
 static void FSRunCatStartTimer(void);
 // v34：主图标换猫状态（v35：image 直改已被覆盖层方案取代）
-static BOOL g_mainIconCatEnabled = YES;
+// v43（2026-10-18 用户指示）：**默认关闭**——状态栏主图标回到之前版本
+// （动态风扇 / Logo / 日期，由通用页「菜单栏图标」选择）。奔跑小猫只是注入版
+// 的额外玩法，不再默认覆盖官方图标；想要的用户可在设置里勾选「小猫」。
+static BOOL g_mainIconCatEnabled = NO;
 static BOOL g_mainIconCatInited = NO;
 static int g_mainIconCatLastFrame = -1;
 static BOOL g_mainIconCatLastDark = YES;
@@ -1763,13 +1766,20 @@ static void FSBarShowMergedMenu(NSString *hitModule, NSPoint at) {
 
 @implementation FSBarManager
 // v14 修正：按钮动作的发送者恒为 NSStatusBarButton（不是 NSStatusItem）——两种类型均兼容比对
+// v46：独立项点击也记录锚点（与 openMerged 同源）——面板贴被点图标展开
 - (void)openItem:(id)sender {
     NSString *m = nil;
+    NSStatusItem *hitItem = nil;
     for (NSString *k in g_ownItems) {
         NSStatusItem *it = g_ownItems[k];
-        if (it == sender || it.button == sender) { m = [k componentsSeparatedByString:@"/"][0]; break; }
+        if (it == sender || it.button == sender) { m = [k componentsSeparatedByString:@"/"][0]; hitItem = it; break; }
     }
-    if (m) FSBarOpenMonitor(FSBarModuleIndex(m));
+    if (m) {
+        if (hitItem.button.window) {
+            g_anchorScreen = [hitItem.button.window convertRectToScreen:hitItem.button.bounds];
+        }
+        FSBarOpenMonitor(FSBarModuleIndex(m));
+    }
     else FSBarLog(@"openItem: 发送者未匹配（%@）", NSStringFromClass([sender class]));
 }
 
@@ -1790,8 +1800,33 @@ void FSBarSetDebugAnchorX(CGFloat x) { g_anchorScreen = NSMakeRect(x, 0, 1, 1); 
     else if ([sender isKindOfClass:[NSStatusItem class]]) win = ((NSStatusItem *)sender).button.window;
     if (!win) win = g_mergedItem.button.window;
     NSPoint p = [NSEvent mouseLocation];
-    if (win) p = [win convertPointFromScreen:p];
-    p = [g_mergedView convertPoint:p fromView:nil];
+    // v52：菜单栏状态项窗口的 AppKit 屏幕坐标不可靠（实测 win.frame 比窗口服务器的真实
+    //   位置偏 24pt，导致点击 SSD 命中 CPU；事件 locationInWindow 又恒为按钮中心）。
+    //   改用 CGWindowList 的窗口 bounds —— 与截图同一坐标系；内边距按
+    //   (窗口宽 - 合并视图宽)/2 补偿。CG 查询失败时退回 AppKit 换算。
+    if (win && g_mergedView) {
+        CGFloat winX = NSMinX(win.frame);
+        CFArrayRef arr = CGWindowListCopyWindowInfo(kCGWindowListOptionIncludingWindow,
+                                                    (CGWindowID)win.windowNumber);
+        if (arr) {
+            if (CFArrayGetCount(arr) > 0) {
+                NSDictionary *info = (__bridge NSDictionary *)CFArrayGetValueAtIndex(arr, 0);
+                NSDictionary *bounds = info[(id)kCGWindowBounds];
+                if (bounds[@"X"]) winX = [bounds[@"X"] doubleValue];
+            }
+            CFRelease(arr);
+        }
+        CGFloat inset = MAX(0.0, (NSWidth(win.frame) - NSWidth(g_mergedView.frame)) / 2.0);
+        // macOS 26：菜单栏项 NSWindow.frame 比真实绘制位置右移 32pt（实测：窗口 frame
+        //   x=1140 / 宽 168，而屏幕截图上部件内容从 1116 开始、右缘 1266 —— 用 frame
+        //   命中会整体偏一个部件）。此处按实测常量回补；若未来系统修正该偏差，
+        //   命中会在 ±32pt 内错位，届时把该常量改为 0。
+        static const CGFloat kStatusItemFrameDX = 32.0;
+        p = NSMakePoint(p.x - (winX - kStatusItemFrameDX) - inset, NSMidY(g_mergedView.bounds));
+    } else {
+        if (win) p = [win convertPointFromScreen:p];
+        p = [g_mergedView convertPoint:p fromView:nil];
+    }
     NSString *target = nil;
     for (NSString *m in FSBarAllModules()) {
         NSArray *forms = FSBarEnabledForms(m);
@@ -1812,22 +1847,17 @@ void FSBarSetDebugAnchorX(CGFloat x) { g_anchorScreen = NSMakeRect(x, 0, 1, 1); 
         }
     }
     // v24：记录锚点 —— 用"点击位置所在部件"的屏幕 x（更贴近用户直觉：点到哪个部件就从哪展开）
+    // v52：直接用鼠标屏幕 x（与命中测试同一来源），不再经 AppKit 窗口换算——后者在菜单栏
+    //   窗口上有 24pt 系统偏差，会把面板锚点带偏。
     {
-        NSView *av = nil;
-        if ([sender isKindOfClass:[NSView class]]) av = (NSView *)sender;
-        else if (g_mergedItem.button) av = g_mergedItem.button;
-        CGFloat clickScreenX = 0; BOOL hasX = NO;
-        if (g_mergedView.window) {
+        CGFloat screenX = [NSEvent mouseLocation].x;
+        if (screenX > 0) {
+            g_anchorScreen = NSMakeRect(screenX, 0, 1, 1);
+        } else if (g_mergedView.window) {
             NSPoint inWin = [g_mergedView convertPoint:NSMakePoint(p.x, NSMidY(g_mergedView.bounds)) toView:nil];
             NSRect sr = [g_mergedView.window convertRectToScreen:NSMakeRect(inWin.x, inWin.y, 1, 1)];
-            clickScreenX = sr.origin.x; hasX = YES;
+            g_anchorScreen = NSMakeRect(sr.origin.x, 0, 1, 1);
         }
-        if (!hasX && av && av.window) {
-            NSPoint c = [av convertPoint:NSMakePoint(NSMidX(av.bounds), NSMidY(av.bounds)) toView:nil];
-            NSRect sr = [av.window convertRectToScreen:NSMakeRect(c.x, c.y, 1, 1)];
-            clickScreenX = sr.origin.x; hasX = YES;
-        }
-        if (hasX) g_anchorScreen = NSMakeRect(clickScreenX, 0, 1, 1);
     }
     FSBarLog(@"合并项点击 x=%.1f → %@（event=%ld）", p.x, target ?: @"(未分派)",
              (long)(NSApp.currentEvent ? NSApp.currentEvent.type : -1));
@@ -2386,6 +2416,11 @@ static void FSBarMount(NSStatusItem *item, NSString *module, NSString *form) {
     NSButton *btn = item.button;
     FSBarHideNativeSubviews(btn, w);
     CGFloat want = [w preferredWidth] + 2 * FS_WIDGET_PAD;   // v28：内容 pad 一致
+    // v52 备注（用户反馈"默认距离太大"）：实测 macOS 给每个独立状态项窗口固定加
+    //   16pt（左右各 8pt）内边距——window = len + 16，相邻窗口紧贴，视觉间隙即双方
+    //   各 8pt。试过"缩 len + 视图外扩画进内边距"：NSButton 会裁掉超出 bounds 的
+    //   内容（图表右缘被切），不可行。独立模式无法再压缩，收紧只能走合并条
+    //   （CombinedModules=YES + spacing 0 + 分隔线关）。
     if (fabs(item.length - want) > 0.5) item.length = want;   // 先定长（按钮随之布局）
     if (w.superview != btn) [btn addSubview:w];
     else if (btn.subviews.lastObject != w) [btn addSubview:w positioned:NSWindowAbove relativeTo:nil];
@@ -2560,6 +2595,28 @@ static void FSBarDumpItems(const char *tag) {
         [s appendFormat:@"%@(v=%d) ", it.autosaveName ?: @"<nil>", it.visible];
     }
     NSLog(@"[FrsetStats] 状态项[%s]: %@", tag, s);
+
+    // v51 诊断：独立模式自有项的屏幕坐标/宽度 + 相邻间隙（排查"默认距离太大"）
+    if (g_ownItems.count == 0) return;
+    NSArray *keys = [[g_ownItems allKeys] sortedArrayUsingSelector:@selector(compare:)];
+    NSMutableArray *rows = [NSMutableArray array];
+    for (NSString *key in keys) {
+        NSStatusItem *it = g_ownItems[key];
+        NSRect r = FSBarItemRect(it);
+        [rows addObject:@{@"key": key, @"x": @(r.origin.x), @"w": @(r.size.width), @"len": @(it.length)}];
+    }
+    [rows sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        return [a[@"x"] compare:b[@"x"]];
+    }];
+    NSMutableString *d = [NSMutableString string];
+    CGFloat prevMax = -1;
+    for (NSDictionary *row in rows) {
+        CGFloat x = [row[@"x"] doubleValue], w = [row[@"w"] doubleValue];
+        CGFloat gap = (prevMax < 0) ? 0 : (x - prevMax);
+        [d appendFormat:@"\n  %@ x=%.1f w=%.1f len=%.1f gap=%.1f", row[@"key"], x, w, [row[@"len"] doubleValue], gap];
+        prevMax = x + w;
+    }
+    FSBarLog(@"[items] 自有项[%s]%@", tag, d);
 }
 
 void FSBarSystemTick(void) {
@@ -2572,6 +2629,7 @@ void FSBarSystemTick(void) {
     FSBarProbeMenuBarDarkAsync();
     g_tickN++;
     if (g_tickN == 1) FSBarDumpItems("tick1");
+    if (g_tickN == 8) FSBarDumpItems("tick8");   // v51：4s 后布局稳定，再采一次间距
 }
 
 void FSBarSystemStart(NSMutableArray *statusItems) {

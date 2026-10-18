@@ -34,8 +34,13 @@ static frset_mem_t     s_mem;
 static frset_net_t     s_net;
 static frset_disk_t    s_disk;
 static frset_battery_t s_batt;
+// v49 性能修复：SMC 全量扫描（600 键，sample 实测单次 ~150ms）移出主线程。
+// 主线程每 6s 的这一次扫描是菜单栏/UI 周期性尖峰卡顿的元凶。改为后台线程扫描
+// s_bgSensors，经 release/acquire 发布到 s_sensorCountA；主线程每 tick 只读快照。
+// 数据发布后不可变（后台只在扫描完成时整块覆盖），主线程无锁读取不撕裂。
+#include <stdatomic.h>
 static frset_sensor_t  s_sensors[600];
-static int             s_sensorCount = 0;
+static _Atomic int     s_sensorCountA = 0;
 static int             s_tickCount = 0;
 static uint64_t        s_diskTotal = 0, s_diskFree = 0;
 
@@ -60,8 +65,17 @@ void FSBarOpenMonitor(int module) {
 /// 实现见 frset_barwidgets.m），本文件不重复定义。
 /// 设置界面传感器选择：返回 SMC 扫描到的传感器 key/value（按扫描序）
 int FSBarCopySensorKeys(char keys[][8], double *values, int max) {
-    if (s_sensorCount <= 0) s_sensorCount = frset_smc_scan(s_sensors, 600);
-    int n = s_sensorCount < max ? s_sensorCount : max;
+    // v49：懒扫描保留（设置页低频操作），计数改走原子发布
+    if (atomic_load_explicit(&s_sensorCountA, memory_order_acquire) <= 0) {
+        frset_sensor_t tmp[600];
+        int n = frset_smc_scan(tmp, 600);
+        if (n > 0) {
+            memcpy(s_sensors, tmp, (size_t)n * sizeof(frset_sensor_t));
+            atomic_store_explicit(&s_sensorCountA, n, memory_order_release);
+        }
+    }
+    int n = atomic_load_explicit(&s_sensorCountA, memory_order_acquire);
+    n = n < max ? n : max;
     for (int i = 0; i < n; i++) {
         memcpy(keys[i], s_sensors[i].key, 8);
         if (values) values[i] = s_sensors[i].value;
@@ -99,7 +113,18 @@ static void statsTick(void) {
     if (s_tickCount % 2 == 0) frset_battery_sample(&s_batt);   // 1s（省 IORegistry 开销）
     frset_loadavg(&g_snap.load1, &g_snap.load5, &g_snap.load15);
     frset_disk_capacity(&s_diskTotal, &s_diskFree);
-    if (s_tickCount % 12 == 1) s_sensorCount = frset_smc_scan(s_sensors, 600);  // 6s
+    if (s_tickCount % 12 == 1) {
+        // v49 性能修复：SMC 全量扫描（~150ms）放后台线程，主线程零尖峰。
+        // g_conn 已在 FSStatsTickStart 主线程打开，之后只读（IOKit 驱动侧串行化），跨线程安全。
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            frset_sensor_t tmp[600];
+            int n = frset_smc_scan(tmp, 600);
+            if (n > 0) {
+                memcpy(s_sensors, tmp, (size_t)n * sizeof(frset_sensor_t));
+                atomic_store_explicit(&s_sensorCountA, n, memory_order_release);
+            }
+        });
+    }
 
     double ramNow = s_mem.total ? (double)s_mem.used / s_mem.total : 0;
     g_snap.valid = 1;
@@ -125,16 +150,19 @@ static void statsTick(void) {
         g_snap.batteryRemainMin = rem > 0 ? rem / 60.0 : -1;
     }
     {
+        // v49：后台扫描发布计数（acquire 与后台 release 配对，保证数组可见性）
+        int sensorCount = atomic_load_explicit(&s_sensorCountA, memory_order_acquire);
         frset_sensor_t tb[100];
-        int tn = collectTemps(s_sensors, s_sensorCount, tb, 100, "TV", "TG");
+        int tn = collectTemps(s_sensors, sensorCount, tb, 100, "TV", "TG");
         g_snap.gpuTemp = tn > 0 ? tb[0].value : 0;
     }
     {
+        int sensorCount = atomic_load_explicit(&s_sensorCountA, memory_order_acquire);
         NSString *sk = FSBarCfgStr(@"Sensors", nil, @"sensor", @"PPBR");
         strncpy(g_snap.sensorKey, sk.UTF8String ?: "PPBR", 7);
         g_snap.sensorKey[7] = 0;
         g_snap.sensorValue = 0;
-        for (int i = 0; i < s_sensorCount; i++) {
+        for (int i = 0; i < sensorCount; i++) {
             if (strcmp(s_sensors[i].key, g_snap.sensorKey) == 0) { g_snap.sensorValue = s_sensors[i].value; break; }
         }
     }

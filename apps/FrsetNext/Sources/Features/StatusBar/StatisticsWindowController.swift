@@ -34,6 +34,9 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         window.isMovableByWindowBackground = true
         window.hasShadow = true
         window.isOpaque = true
+        // 官方外观：统一灰底（同设置窗——fullSizeContentView + 透明标题栏下
+        // 根视图固定 530 而内容区 562，露底必须是官方灰，否则上下白条）
+        window.applyOfficialChrome()
         window.isReleasedWhenClosed = false                 // setReleasedWhenClosed:（控制器复用同一窗）
         window.hidesOnDeactivate = false                    // setHidesOnDeactivate: 调用存在，取值 ⬜（统计窗取不隐藏）
         window.delegate = self
@@ -54,6 +57,8 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             window.contentView = hostingView
+            // 内容视图换新 → 重挂官方圆形关闭钮
+            window.attachOfficialRoundCloseButton()
         }
     }
 

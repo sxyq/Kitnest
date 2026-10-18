@@ -216,7 +216,7 @@ public final class StatusBarController: NSObject {
             ? StatusItemRegistry.all.filter { !Self.isHidden($0) }
             : []
         let ids = descriptors.map { $0.id }
-        Log.info("StatusBar", "sync: descriptors=\(descriptors.count) ids=\(ids) lastIDs=\(lastIDs)")
+        Log.debug("StatusBar", "sync: descriptors=\(descriptors.count) ids=\(ids) lastIDs=\(lastIDs)")
         guard ids != lastIDs else { refreshTitles(); return }
         rebuild(descriptors)
     }
@@ -409,7 +409,7 @@ public final class StatusBarController: NSObject {
             let key = "\(Int(frame.origin.x)),\(Int(frame.origin.y)),\(Int(frame.width)),\(Int(frame.height))"
             if lastLayoutKeys["main"] != key {
                 lastLayoutKeys["main"] = key
-                Log.info("StatusBar", "layout[\(tag)] main: frame=\(frame) len=\(main.length) vis=\(main.isVisible) hidden=\(button.isHidden) subviews=\(button.subviews.count)")
+                Log.debug("StatusBar", "layout[\(tag)] main: frame=\(frame) len=\(main.length) vis=\(main.isVisible) hidden=\(button.isHidden) subviews=\(button.subviews.count)")
             }
         }
         for e in entries {
@@ -418,7 +418,7 @@ public final class StatusBarController: NSObject {
             let key = "\(Int(frame.origin.x)),\(Int(frame.origin.y)),\(Int(frame.width)),\(Int(frame.height))"
             guard lastLayoutKeys[e.descriptor.id] != key else { continue }
             lastLayoutKeys[e.descriptor.id] = key
-            Log.info("StatusBar", "layout[\(tag)] \(e.descriptor.id): frame=\(frame) len=\(e.item.length) vis=\(e.item.isVisible) hidden=\(button.isHidden) subviews=\(button.subviews.count)")
+            Log.debug("StatusBar", "layout[\(tag)] \(e.descriptor.id): frame=\(frame) len=\(e.item.length) vis=\(e.item.isVisible) hidden=\(button.isHidden) subviews=\(button.subviews.count)")
         }
     }
 

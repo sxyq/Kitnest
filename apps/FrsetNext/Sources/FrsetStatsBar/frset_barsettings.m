@@ -910,6 +910,10 @@ static NSSwitch *gModuleToggle = nil;
 static NSToolbarItem *gModuleToggleItem = nil;
 static void FSSelectPage(NSString *page);
 static int gInitialTab = 0;   // 快照用：0=模块 1=小组件
+// v54：设置界面并入 App 设置窗口（性能监测 → 部件设置）——此标记表示已用内嵌模式，
+// 不再创建独立 NSWindow（全局 gHostContainer/gSidebar 归内嵌视图所有）。
+static BOOL gEmbedded = NO;
+static NSView *gEmbeddedRoot = nil;
 
 // 设置页（对齐 Stats ApplicationSettings 结构：信息块 + 分组）
 static NSView *FSBuildSettingsPage(void) {
@@ -1038,6 +1042,22 @@ static NSView *FSBuildModulePage(NSString *module) {
             // 模块设置页
             scroll = FSScroll(&st, 10, NSEdgeInsetsMake(0, 0, 0, 0));
             NSMutableArray *rows = [NSMutableArray array];
+            // v54：内嵌设置没有工具栏开关 → 模块页顶部提供「在菜单栏显示」
+            BOOL moduleEnabled = FSBarEnabledForms(module).count > 0;
+            [rows addObject:FSRow(@"Show in menu bar", FSNewSwitch(moduleEnabled, ^(id s) {
+                BOOL on = ((NSSwitch *)s).state == NSControlStateValueOn;
+                if (on) {
+                    NSArray *forms = FSBarEnabledForms(module);
+                    if (forms.count == 0) {
+                        NSArray *allForms = FSBarFormsForModule(module);
+                        if (allForms.count) FSBarSetEnabledForms(module, @[allForms[0]]);
+                    }
+                } else {
+                    FSBarSetEnabledForms(module, @[]);
+                }
+                FSBarReloadFromStore();
+                if (gCurrentPage) FSSelectPage(gCurrentPage);
+            }))];
             NSMutableArray *iv = [NSMutableArray array];
             for (NSNumber *n in @[@1, @2, @3, @5, @10, @15, @30, @60])
                 [iv addObject:@[[n stringValue], [NSString stringWithFormat:@"%d 秒", n.intValue]]];
@@ -1209,7 +1229,9 @@ static void FSEnsureWindow(void) {
 static void FSSelectPage(NSString *page) {
     if (!page) page = @"Settings";
     gCurrentPage = page;
-    FSEnsureWindow();
+    if (gSidebar) [gSidebar setActive:page];
+    // v54：内嵌模式下宿主视图可能还没创建——只记录页码，创建时再渲染
+    if (!gHostContainer) return;
     NSView *pageView = [page isEqualToString:@"Settings"] ? FSBuildSettingsPage() : FSBuildModulePage(page);
     for (NSView *v in [gHostContainer.subviews copy]) [v removeFromSuperview];
     pageView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1220,26 +1242,67 @@ static void FSSelectPage(NSString *page) {
         [pageView.trailingAnchor constraintEqualToAnchor:gHostContainer.trailingAnchor],
         [pageView.bottomAnchor constraintEqualToAnchor:gHostContainer.bottomAnchor],
     ]];
-    gWin.title = FSL(page);
-    [gSidebar setActive:page];
+    if (gWin) gWin.title = FSL(page);
     BOOL modulePage = ![page isEqualToString:@"Settings"];
-    gModuleToggle.hidden = !modulePage;
-    if (modulePage) {
-        [CATransaction begin];
-        [CATransaction setDisableActions:YES];
-        gModuleToggle.state = FSBarEnabledForms(page).count > 0 ? NSControlStateValueOn : NSControlStateValueOff;
-        [CATransaction commit];
+    if (gModuleToggle) {
+        gModuleToggle.hidden = !modulePage;
+        if (modulePage) {
+            [CATransaction begin];
+            [CATransaction setDisableActions:YES];
+            gModuleToggle.state = FSBarEnabledForms(page).count > 0 ? NSControlStateValueOn : NSControlStateValueOff;
+            [CATransaction commit];
+        }
     }
-    [gWin makeKeyAndOrderFront:nil];
-    [NSApp activateIgnoringOtherApps:YES];
+    if (gWin && !gEmbedded) {
+        [gWin makeKeyAndOrderFront:nil];
+        [NSApp activateIgnoringOtherApps:YES];
+    }
     [gHostContainer layoutSubtreeIfNeeded];
 }
 
-void FSBarSettingsOpen(void) {
-    FSSelectPage(gCurrentPage ?: @"Settings");
+// v54：内嵌设置视图（侧边栏 180 + 内容区 540）——供 App 设置窗口「性能监测 → 部件设置」页使用。
+// 与独立窗口共用同一套页面构建代码；gSidebar / gHostContainer 全局指针在本视图生命周期内有效。
+NSView *FSBarSettingsCreateEmbeddedView(void) {
+    if (gEmbeddedRoot) return gEmbeddedRoot;
+    gEmbedded = YES;
 
-    // 自检：渲染各页面快照（FRSET_SETTINGSHOT=1）
-    if (getenv("FRSET_SETTINGSHOT") && *getenv("FRSET_SETTINGSHOT")) {
+    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 720, 520)];
+
+    gSidebar = [[FSSidebar alloc] initWithFrame:NSMakeRect(0, 0, 180, 520)];
+    __weak FSSidebar *weakSidebar = gSidebar;
+    gSidebar.onSelect = ^(NSString *page) { (void)weakSidebar; FSSelectPage(page); };
+    [root addSubview:gSidebar];
+
+    NSView *mainView = [[NSView alloc] initWithFrame:NSMakeRect(180, 0, 540, 520)];
+    gHostContainer = [[NSView alloc] initWithFrame:mainView.bounds];
+    gHostContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [mainView addSubview:gHostContainer];
+    [root addSubview:mainView];
+
+    gSidebar.translatesAutoresizingMaskIntoConstraints = NO;
+    mainView.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [gSidebar.leadingAnchor constraintEqualToAnchor:root.leadingAnchor],
+        [gSidebar.topAnchor constraintEqualToAnchor:root.topAnchor],
+        [gSidebar.bottomAnchor constraintEqualToAnchor:root.bottomAnchor],
+        [mainView.leadingAnchor constraintEqualToAnchor:gSidebar.trailingAnchor],
+        [mainView.trailingAnchor constraintEqualToAnchor:root.trailingAnchor],
+        [mainView.topAnchor constraintEqualToAnchor:root.topAnchor],
+        [mainView.bottomAnchor constraintEqualToAnchor:root.bottomAnchor],
+    ]];
+
+    gEmbeddedRoot = root;
+    FSSelectPage(gCurrentPage ?: @"Settings");
+    return root;
+}
+
+void FSBarSettingsOpen(void) {
+    // v54：设置界面并入 App 设置窗口 → 深链跳到「性能监测 → 部件设置」页
+    NSURL *url = [NSURL URLWithString:@"frsetnext://settings?pane=monitor.widgets"];
+    if (url) [[NSWorkspace sharedWorkspace] openURL:url];
+
+    // 自检：渲染各页面快照（FRSET_SETTINGSHOT=1）——仅在独立窗口模式可用
+    if (getenv("FRSET_SETTINGSHOT") && *getenv("FRSET_SETTINGSHOT") && gWin && gHostContainer) {
         NSArray *all = [@[@"Settings"] arrayByAddingObjectsFromArray:FSBarAllModules()];
         for (NSString *page in all) {
             NSString *name = [page isEqualToString:@"Settings"] ? @"general" : page;
@@ -1266,6 +1329,19 @@ void FSBarSettingsOpen(void) {
 
 // v17：打开设置并直达指定模块页（弹窗头部 command 图标调用）
 void FSBarSettingsOpenModule(NSString *module) {
+    // v54：内嵌设置页里再选模块（侧边栏）；此入口先打开部件设置页
     FSBarSettingsOpen();
-    if (module.length) FSSelectPage(module);
+    if (module.length && gHostContainer) FSSelectPage(module);
+}
+
+// v55：Swift 设置页用 —— 传感器 key 列表（C 数组不便跨语言，这里转成 NSArray）
+NSArray<NSString *> *FSBarSensorKeysList(void) {
+    char keys[200][8];
+    int n = FSBarCopySensorKeys(keys, NULL, 200);
+    NSMutableArray *arr = [NSMutableArray array];
+    for (int i = 0; i < n; i++) {
+        NSString *k = [NSString stringWithUTF8String:keys[i]];
+        if (k.length) [arr addObject:k];
+    }
+    return arr;
 }

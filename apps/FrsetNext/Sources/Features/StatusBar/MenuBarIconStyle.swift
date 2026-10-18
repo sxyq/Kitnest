@@ -120,11 +120,15 @@ final class RotatingLayerView: NSView {
 
     /// 当前旋转周期（秒），由 CPU 负载驱动（对应原作 currentRotationDuration）
     private(set) var storedDuration: CFTimeInterval = RotatingLayerView.slowestDuration
-    /// 图标位是否为模板图（模板图随菜单栏明暗自动变色）
-    private let isTemplateImage = true
 
     private let imageView = NSImageView()
-    private static let spinKey = "spin"
+    // v49：回归 CABasicAnimation（Core Animation 渲染线程驱动，主线程零逐帧开销）。
+    // v46 的 60fps Timer 逐帧写 layer.transform 实测每帧都触发 NSViewBackingLayer
+    // display 整视图位图重绘（sample 实测占主线程 Timer 时间的约 1/3），与引擎部件
+    // 刷新叠加后菜单栏明显卡顿——废弃该方案。v46 要解决的"相位跳变"改由
+    // 「变速时从 presentation 当前角度续接」解决：读 presentation 角度 → remove 旧
+    // 动画 → 模型层同步该角度 → 新动画 from=当前角 to=当前角+2π、duration=新周期。
+    private var spinRunning = false
 
     /// 转速档位边界：负载 0 → 最慢，负载 1 → 最快
     static let slowestDuration: CFTimeInterval = 4.0
@@ -151,41 +155,93 @@ final class RotatingLayerView: NSView {
 
     /// 设置旋转中的图标（模板图）
     func setSymbol(_ name: String) {
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: name)
-        image?.isTemplate = isTemplateImage
-        imageView.image = image
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        guard let base = NSImage(systemSymbolName: name, accessibilityDescription: name)?
+            .withSymbolConfiguration(config) else { return }
+        // v56（用户：风车没有中心点）：SF Symbol 的轴心是**空心环**——合成一个
+        //   实心圆点补上。模板图渲染（alpha 决定形状），颜色随菜单栏明暗自动反相。
+        let size = NSSize(width: 18, height: 18)
+        let composed = NSImage(size: size, flipped: false) { rect in
+            let natural = base.size
+            let drawRect = NSRect(x: rect.midX - natural.width / 2,
+                                  y: rect.midY - natural.height / 2,
+                                  width: natural.width,
+                                  height: natural.height)
+            base.draw(in: drawRect)
+            let d: CGFloat = 3.0
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: NSRect(x: rect.midX - d / 2, y: rect.midY - d / 2,
+                                        width: d, height: d)).fill()
+            return true
+        }
+        composed.isTemplate = true
+        imageView.image = composed
     }
 
     override func layout() {
         super.layout()
         imageView.frame = bounds
+        // v49 修复「公转」：macOS 上 NSView 托管 layer 的默认 anchorPoint 是 (0,0)
+        // （左下角），不像 iOS 是中心——逐帧/动画旋转时图标整体绕角点打转（用户实测
+        // 反馈"绕着一个点旋转，类似公转"）。改为绕中心：anchorPoint=(0.5,0.5) 且
+        // position=视图中心，同帧修正（禁隐式动画防跳）。
+        guard let l = layer, bounds.width > 0.5, bounds.height > 0.5 else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if l.anchorPoint.x != 0.5 || l.anchorPoint.y != 0.5 {
+            l.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        }
+        let target = CGPoint(x: bounds.midX, y: bounds.midY)
+        if abs(l.position.x - target.x) > 0.25 || abs(l.position.y - target.y) > 0.25 {
+            l.position = target
+        }
+        CATransaction.commit()
     }
 
-    /// 设置旋转周期并立即生效（周期变化时重启动画）
+    /// 设置旋转周期并立即生效（v49：变速从当前相位续接，不重置相位）
     func setRotationDuration(_ duration: CFTimeInterval) {
         let clamped = min(max(duration, Self.fastestDuration), Self.slowestDuration)
         guard abs(clamped - storedDuration) > 0.01 else { return }
         storedDuration = clamped
-        guard layer != nil else { return }
-        spin()
+        guard spinRunning, let l = layer, l.animation(forKey: "spin") != nil else { return }
+        // presentation 当前角度（考虑在飞动画；无展示层时退回模型层）
+        let current = (l.presentation() ?? l).value(forKeyPath: "transform.rotation.z") as? CGFloat ?? 0
+        l.removeAnimation(forKey: "spin")
+        applyRotation(duration: clamped, resumeFrom: current)
     }
 
-    /// 开始旋转（对应原作 CABasicAnimation keyPath "transform.rotation.z"，spec §7）
+    /// 挂载一圈旋转动画（v49：CA 渲染线程插值，主线程零逐帧开销）
+    private func applyRotation(duration: CFTimeInterval, resumeFrom: CGFloat) {
+        guard let l = layer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // 模型层同步到续接角度：动画移除/窗口重建时不会跳回 0°
+        l.transform = CATransform3DMakeRotation(resumeFrom, 0, 0, 1)
+        let anim = CABasicAnimation(keyPath: "transform.rotation.z")
+        anim.fromValue = resumeFrom
+        anim.toValue = resumeFrom + 2 * CGFloat.pi
+        anim.duration = duration
+        anim.repeatCount = .infinity
+        anim.isRemovedOnCompletion = false
+        l.add(anim, forKey: "spin")
+        CATransaction.commit()
+    }
+
+    /// 开始旋转（v49：单条 CABasicAnimation 无限循环）
     func spin() {
-        guard let layer else { return }
-        layer.removeAnimation(forKey: Self.spinKey)
-        let animation = CABasicAnimation(keyPath: "transform.rotation.z")
-        animation.fromValue = 0
-        animation.toValue = 2 * Double.pi
-        animation.duration = storedDuration
-        animation.repeatCount = .infinity
-        animation.isRemovedOnCompletion = false
-        layer.add(animation, forKey: Self.spinKey)
+        guard layer != nil, !spinRunning else { return }
+        spinRunning = true
+        applyRotation(duration: storedDuration, resumeFrom: 0)
     }
 
     /// 停止旋转（样式切走时调用）
     func stop() {
-        layer?.removeAnimation(forKey: Self.spinKey)
+        spinRunning = false
+        layer?.removeAnimation(forKey: "spin")
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer?.transform = CATransform3DIdentity
+        CATransaction.commit()
     }
 }
 
@@ -255,14 +311,34 @@ final class MenuBarIconStyleMenuActions: NSObject {
 /// 原作转速↔CPU 映射表⬜ 未探明（spec §11.4），此处按线性映射实现最小版。
 enum SystemCPULoad {
 
-    /// 读取一次系统 CPU 负载；失败时返回 0
+    /// 上一次采样的累计 ticks（v56：原来直接拿累计值相除 = 开机以来平均负载，几乎恒定，
+    /// 风车转速因此看不出变化。改为「两次采样差值」得到区间占用）
+    private static var lastTotals: (user: Double, system: Double, idle: Double)?
+    private static var ema: Double = 0
+
+    /// 读取一次区间 CPU 负载（0…1）；首次调用无历史 → 返回 0（下次开始有效）
     static func current() -> Double {
+        guard let totals = readTotals() else { return ema }
+        defer { lastTotals = totals }
+        guard let prev = lastTotals else { return ema }
+        let du = totals.user - prev.user
+        let ds = totals.system - prev.system
+        let di = totals.idle - prev.idle
+        let total = du + ds + di
+        guard total > 0 else { return ema }
+        let instant = min(max((du + ds) / total, 0), 1)
+        // 平滑：0.6 旧 + 0.4 新（与小猫的 EMA 同思路，但响应更快一点）
+        ema = ema * 0.6 + instant * 0.4
+        return ema
+    }
+
+    private static func readTotals() -> (user: Double, system: Double, idle: Double)? {
         var processorCount: mach_msg_type_number_t = 0
         var infoCount: mach_msg_type_number_t = 0
         var infoArray: processor_info_array_t?
         let kernelResult = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO,
                                               &processorCount, &infoArray, &infoCount)
-        guard kernelResult == KERN_SUCCESS, let infoArray, infoCount > 0 else { return 0 }
+        guard kernelResult == KERN_SUCCESS, let infoArray, infoCount > 0 else { return nil }
         defer {
             // host_processor_info 分配的内存需显式释放
             let byteCount = vm_size_t(infoCount) * vm_size_t(MemoryLayout<integer_t>.size)
@@ -278,8 +354,8 @@ enum SystemCPULoad {
             idle += Double(loads[i].cpu_ticks.2)
         }
         let total = user + system + idle
-        guard total > 0 else { return 0 }
-        return min(max((Double(user) + Double(system)) / total, 0), 1)
+        guard total > 0 else { return nil }
+        return (user, system, idle)
     }
 }
 
@@ -294,7 +370,7 @@ final class MenuBarIconStyleApplier {
     /// date 样式刷新间隔（跨日/跨分钟）
     private static let dateRefreshInterval: TimeInterval = 60
     /// CPU 采样间隔
-    private static let cpuSampleInterval: TimeInterval = 3
+    private static let cpuSampleInterval: TimeInterval = 2
     /// fan 样式状态项固定宽度（容纳 18pt 旋转视图 + 左右留白）
     static let fanItemLength: CGFloat = 30
     /// fan 旋转视图边长
@@ -432,14 +508,31 @@ final class MenuBarIconStyleApplier {
         updateFanSpeed()
     }
 
-    /// 按当前 CPU 负载线性映射旋转周期并下发（负载越高转得越快）
+    /// 按当前 CPU 负载分档映射旋转周期（v56：与小猫同一套 7 档思路——离散档位，
+    /// 负载越高转得越快，肉眼能看出变化；连续线性映射在 20%–40% 区间几乎看不出差别）
     private func updateFanSpeed() {
         let load = SystemCPULoad.current()
-        let duration = RotatingLayerView.slowestDuration
-            + (RotatingLayerView.fastestDuration - RotatingLayerView.slowestDuration) * load
+        let duration: CFTimeInterval
+        switch load {
+        case ..<0.10: duration = 4.0
+        case ..<0.25: duration = 3.2
+        case ..<0.40: duration = 2.6
+        case ..<0.55: duration = 2.0
+        case ..<0.70: duration = 1.5
+        case ..<0.85: duration = 1.1
+        default:      duration = 0.8
+        }
         currentRotationDuration = duration
         rotatingView?.setRotationDuration(duration)
+        // 换档才记日志（排障/验收用：CPU 升高应看到 duration 变小）
+        if abs(duration - Self.lastLoggedDuration) > 0.01 {
+            Self.lastLoggedDuration = duration
+            Log.info("StatusBar", String(format: "fan 转速换档：CPU %.0f%% → 周期 %.1fs", load * 100, duration))
+        }
     }
+
+    /// 上次记录的档位周期（日志节流）
+    private static var lastLoggedDuration: CFTimeInterval = -1
 
     // MARK: 收尾
 

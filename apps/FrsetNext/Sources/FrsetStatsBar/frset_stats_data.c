@@ -619,6 +619,11 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
 }
 
 int frset_gpu_usage(double *device, double *renderer, double *tiler) {
+    // 输出先清零：某些芯片/系统版本缺个别键（如 Tiler Utilization %），
+    // 不清零会把调用方未初始化的内存当读数用（v44 修复）
+    if (device) *device = 0;
+    if (renderer) *renderer = 0;
+    if (tiler) *tiler = 0;
     io_iterator_t iter = 0;
     if (IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOAccelerator"), &iter) != KERN_SUCCESS) return -1;
     io_registry_entry_t svc;

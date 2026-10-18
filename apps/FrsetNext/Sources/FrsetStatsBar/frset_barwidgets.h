@@ -44,6 +44,7 @@ void FSBarSystemStart(NSMutableArray *statusItems);
 /// inject 主轮询每 0.5s 调用（内部自行管理节奏与自愈）
 void FSBarSystemTick(void);
 /// 打开部件设置窗口（监测面板页脚齿轮调用）
+/// v54：改为深链到 App 设置窗口的「性能监测 → 部件设置」页
 void FSBarSettingsOpen(void);
 /// 设置变更后重建部件（供设置窗口调用）
 void FSBarReloadFromStore(void);
@@ -83,6 +84,8 @@ NSRect FSBarLastAnchorScreenRect(void);
 void FSBarSetDebugAnchorX(CGFloat x);
 /// 拷贝温度传感器 key 列表（返回数量；keys 每项 8 字节；values 可 NULL）——设置界面传感器选择用
 int FSBarCopySensorKeys(char keys[][8], double *values, int max);
+/// v55：传感器 key 列表（NSArray 版，Swift 设置页用）
+NSArray<NSString *> *FSBarSensorKeysList(void);
 
 // ---- v15：设置界面支持 ----
 NSString *FSBarModuleSymbol(NSString *module);                          // 模块 SF Symbol 名

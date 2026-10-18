@@ -31,7 +31,16 @@ public enum StatsBarEngine {
     }
 
     /// 启动部件引擎（监测模块启动时调用一次）
+    /// v43：引擎幂等标志。菜单栏监控只允许一套（STATS 合并条）——
+    /// 模块重复启动 / 探针重入都不得再建第二个状态项。
+    private static var isStarted = false
+
     public static func start() {
+        guard !isStarted else {
+            Log.info("Monitor", "STATS 引擎已在运行，忽略重复启动（菜单栏只允许一套合并条）")
+            return
+        }
+        isStarted = true
         // 引擎点击回调必须是无捕获的 C 函数指针——经顶层跳板函数转接
         // （闭包字面量里嵌 async 块会被判为“捕获上下文”，无法形成 C 指针）
         FSStatsSetOpenMonitorHandler(statsBarOpenMonitorTrampoline)
@@ -134,6 +143,7 @@ public enum StatsBarEngine {
         FSStatsTickStop()
         screenGapTimer?.invalidate()
         screenGapTimer = nil
+        isStarted = false
     }
 
     /// v30：屏幕口径空隙下发器（每 0.5s）。
