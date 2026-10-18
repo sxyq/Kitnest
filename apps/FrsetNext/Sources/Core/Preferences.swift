@@ -27,6 +27,16 @@ public final class Preferences: ObservableObject {
         public static let menuBarIconsVisible = "menuBar.iconsVisible"
         public static let panelWidth = "panel.width"
         public static let panelHeight = "panel.height"
+        /// 置顶窗口（官方齿轮菜单勾选态，2026-10-18）
+        public static let panelPinned = "panel.pinned"
+        /// 主面板是否显示「文件中转」入口（v40 侧边栏，设置→常规→功能）
+        public static let panelTransferDock = "panel.transferDock"
+        /// 主面板宽度（v40 大侧边栏版式；旧版 panel.width=400 不复用）
+        public static let panelWidthV2 = "panel.width.v2"
+        /// v47 首页搜索分类开关（分类展现：网页 / 剪贴板历史 / 本地文件）
+        public static let searchCategoryWeb = "search.category.web"
+        public static let searchCategoryClipboard = "search.category.clipboard"
+        public static let searchCategoryFiles = "search.category.files"
         // 剪贴板（05）
         public static let clipboardRetentionDays = "clipboard.retentionDays"
         public static let clipboardIgnoredApps = "clipboard.ignoredApps"
