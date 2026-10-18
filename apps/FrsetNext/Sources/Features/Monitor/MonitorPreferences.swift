@@ -40,11 +40,14 @@ public enum MonitorModuleID: String, CaseIterable, Sendable {
         }
     }
 
-    /// 新配置保留功耗与原版三个常用项；已有用户选择继续读取原值。
+    /// 模块默认是否启用（控制**监测面板 / 中心卡片**的可见性）。
+    ///
+    /// v42 澄清：这与「菜单栏原生图标」是两件事——菜单栏我们不摆官方那 4 个独立项了
+    /// （已有更好的 STATS 合并条），但面板卡片仍需按模块显示，故默认值保持原样。
     public var enabledByDefault: Bool {
         switch self {
-        case .power, .memory, .network, .disk: return true
-        case .cpu, .sensors, .battery, .gpu: return false
+        case .memory, .network, .disk: return true
+        case .power, .cpu, .sensors, .battery, .gpu: return false
         }
     }
 }

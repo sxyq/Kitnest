@@ -12,6 +12,7 @@ public final class MonitorDetailSelection: ObservableObject {
 public struct MonitorDetailView: View {
     @ObservedObject private var sampler = MonitorSampler.shared
     @ObservedObject private var selection: MonitorDetailSelection
+    @ObservedObject private var memoryOptimizer = MemoryOptimizer.shared
     /// 模块切换条的高亮胶囊（matchedGeometry：选中项滑动而非瞬移）
     @Namespace private var tabNamespace
     /// 页面模式：只渲染模块内容，标签行与底栏由 StatsPageView 提供（宽度撑满、无固定 292 限宽）
@@ -299,6 +300,8 @@ public struct MonitorDetailView: View {
                     MonitorRow(label: "压缩", value: MonitorFormat.bytes(compressed), color: MonitorColors.compressed)
                 }
             }
+
+            MemoryOptimizeSection(optimizer: memoryOptimizer)
 
             MonitorSectionTitle("内存构成")
             MonitorStackedBar(segments: [

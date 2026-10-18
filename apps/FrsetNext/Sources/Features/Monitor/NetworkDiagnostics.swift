@@ -1,12 +1,14 @@
+import CFNetwork
 import Foundation
 import Network
 
-// MARK: - 网络诊断（IP / 归属 / 延迟 / DNS）
+// MARK: - 网络诊断（IP / 归属 / 代理 / 延迟 / DNS）
 //
 // 能力对照「鹅的IP」插件（ZToolsCenter/ZTools-plugins · plugins/e-de-ip）：
 //   内网：本机网卡 IPv4，可切换
 //   公网：国内接口拿 IPv4 + 区县归属（myip.ipip.net 一步返回中文归属）
-//   国外出口：走系统代理/TUN 时公网 IP 已经是出口 IP，这里额外标注是否代理
+//   代理：**读本地真实状态**（v45）——系统代理设置 + 常见代理端口监听 + 进程名，
+//        不再只靠"公网归属非中国"推断（那只在开着代理时才准，且认不出 Clash）
 //   延迟：并发 HEAD 各站点 favicon，取 TTFB（与插件同口径）
 //   DNS：bash.ws 泄漏检测，拿真实出口解析器（不是系统里填的那个）
 //
@@ -37,6 +39,12 @@ final class NetworkDiagnostics: ObservableObject {
     @Published private(set) var overseasIP: String?
     @Published private(set) var overseasLocation: String?
     @Published private(set) var isProxyLikely = false
+    /// 本地代理客户端名（"Clash" / "Clash Verge" / "Surge" / "系统代理" / nil=没检测到）
+    @Published private(set) var proxyLabel: String?
+    /// 代理地址（"127.0.0.1:7890"）
+    @Published private(set) var proxyAddress: String?
+    /// 补充说明（"系统代理" / "TUN 模式（未设系统代理）"）
+    @Published private(set) var proxyNote: String?
     @Published private(set) var latencies: [SiteLatency] = NetworkDiagnostics.defaultSites
     @Published private(set) var dnsServers: [String] = []
     @Published private(set) var isLoading = false
@@ -83,6 +91,7 @@ final class NetworkDiagnostics: ObservableObject {
         queue.async { [weak self] in
             guard let self else { return }
             self.reloadInterfaces()
+            self.probeProxy()
             self.probePublicIP { ip, location in
                 DispatchQueue.main.async {
                     self.publicIP = ip
@@ -108,6 +117,138 @@ final class NetworkDiagnostics: ObservableObject {
         // 归属里出现「中国」且不含港澳台 → 视为直连；否则按代理出口处理
         if location.contains("中国") { return false }
         return true
+    }
+
+    // MARK: 本地代理（Clash / mihomo / Surge / sing-box …）
+    //
+    // 用户 2026-10-18 反馈"公网以及代理没有读取到本地 Clash 的情况"：
+    // 旧逻辑只按"公网归属是否含中国"推断代理，认不出客户端、也读不到端口。
+    // 这里改读三处**真实状态**：
+    //   ① 系统代理设置（CFNetworkCopySystemProxySettings，HTTP/SOCKS）
+    //   ② 常见代理端口的本地监听（7890/7891/1087/6152/8889/1080/8080）
+    //   ③ 进程表里的客户端名（clash / mihomo / verge / surge / sing-box / v2ray）
+    private func probeProxy() {
+        let system = Self.systemProxyInfo()
+        let listeningPort = Self.detectListeningProxyPort()
+        // 客户端名：优先看进程；沙箱/权限拿不到 ps 时按端口约定推断
+        // （7890/7891/7897 = Clash 系，6152 = Surge，8889 = ClashX，1080 = SOCKS）
+        let client = Self.detectProxyProcess()
+            ?? Self.clientName(forPort: system?.port)
+            ?? Self.clientName(forPort: listeningPort)
+        let systemAddress = system?.address
+
+        DispatchQueue.main.async {
+            switch (client, systemAddress, listeningPort) {
+            case let (client?, system?, _):
+                self.proxyLabel = client
+                self.proxyAddress = system
+                self.proxyNote = "系统代理"
+            case let (client?, nil, port?):
+                self.proxyLabel = client
+                self.proxyAddress = "127.0.0.1:\(port)"
+                self.proxyNote = "TUN 模式（未设系统代理）"
+            case let (client?, nil, nil):
+                self.proxyLabel = client
+                self.proxyAddress = nil
+                self.proxyNote = "客户端在运行，未发现本地监听端口"
+            case let (nil, system?, _):
+                self.proxyLabel = "系统代理"
+                self.proxyAddress = system
+                self.proxyNote = nil
+            case let (nil, nil, port?):
+                self.proxyLabel = "本地代理"
+                self.proxyAddress = "127.0.0.1:\(port)"
+                self.proxyNote = "TUN 模式"
+            default:
+                self.proxyLabel = nil
+                self.proxyAddress = nil
+                self.proxyNote = nil
+            }
+        }
+    }
+
+    /// 系统代理（HTTP 优先，其次 SOCKS）——Clash 开「系统代理」时这里会有值
+    private static func systemProxyInfo() -> (address: String, port: Int)? {
+        guard let settings = CFNetworkCopySystemProxySettings()?.takeRetainedValue() as? [String: Any] else {
+            return nil
+        }
+        if let enabled = settings["HTTPEnable"] as? Int, enabled == 1,
+           let host = settings["HTTPProxy"] as? String, let port = settings["HTTPPort"] as? Int {
+            return ("\(host):\(port)", port)
+        }
+        if let enabled = settings["SOCKSEnable"] as? Int, enabled == 1,
+           let host = settings["SOCKSProxy"] as? String, let port = settings["SOCKSPort"] as? Int {
+            return ("\(host):\(port)", port)
+        }
+        return nil
+    }
+
+    /// 按端口约定推断客户端（ps 不可用时的兜底）
+    private static func clientName(forPort port: Int?) -> String? {
+        guard let port else { return nil }
+        switch port {
+        case 7890, 7891, 7897: return "Clash"
+        case 8889:             return "ClashX"
+        case 6152:             return "Surge"
+        case 1080:             return "SOCKS 代理"
+        default:               return nil
+        }
+    }
+
+    /// 进程表里找代理客户端（GUI 与后台核心都能命中）
+    private static func detectProxyProcess() -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-Ao", "comm="]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        do { try process.run() } catch { return nil }
+        process.waitUntilExit()
+        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        for raw in output.split(separator: "\n") {
+            let name = (raw.trimmingCharacters(in: .whitespaces) as NSString).lastPathComponent.lowercased()
+            guard !name.isEmpty else { continue }
+            if name.contains("clash-verge") || name.contains("verge-mihomo") || name.contains("clash verge") {
+                return "Clash Verge"
+            }
+            if name.contains("clash") || name.contains("mihomo") { return "Clash" }
+            if name.contains("surge") { return "Surge" }
+            if name.contains("sing-box") { return "sing-box" }
+            if name.contains("v2ray") { return "V2Ray" }
+            if name.contains("shadowsocks") { return "Shadowsocks" }
+        }
+        return nil
+    }
+
+    /// 常见代理客户端的本地混合 / HTTP 端口
+    /// （Clash 7890、Clash Verge 7897、Surge 6152、V2Ray 1080、ClashX 8889 …）
+    private static let candidateProxyPorts = [7890, 7891, 7897, 1087, 6152, 8889, 1080, 8080]
+
+    private static func detectListeningProxyPort() -> Int? {
+        candidateProxyPorts.first { isLocalPortOpen($0) }
+    }
+
+    /// 127.0.0.1 端口是否在监听（非阻塞 connect + poll 80ms，不阻塞主线程太久）
+    private static func isLocalPortOpen(_ port: Int) -> Bool {
+        let fd = socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return false }
+        defer { close(fd) }
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = in_port_t(UInt16(port).bigEndian)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let flags = fcntl(fd, F_GETFL, 0)
+        _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+        let result = withUnsafePointer(to: &addr) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                connect(fd, sa, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        if result == 0 { return true }
+        guard errno == EINPROGRESS else { return false }
+        var descriptor = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+        return poll(&descriptor, 1, 80) > 0
     }
 
     // MARK: 内网网卡

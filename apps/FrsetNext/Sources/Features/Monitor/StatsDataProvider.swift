@@ -188,7 +188,10 @@ public final class StatsDataProvider {
         lock.unlock()
 
         // ---- GPU（IOAccelerator，轻）----
+        // 先清零：C 层只在对应键存在时写值，未命中会保留下未初始化的垃圾
+        // （M 系列偶发缺 "Tiler Utilization %"）。0 = 无占用，-1 才是无数据。
         let gpuPtr = UnsafeMutablePointer<Double>.allocate(capacity: 3)
+        gpuPtr.initialize(repeating: 0, count: 3)
         defer { gpuPtr.deallocate() }
         if frset_gpu_usage(gpuPtr, gpuPtr + 1, gpuPtr + 2) == 0 {
             snap.gpuUsage = gpuPtr[0]

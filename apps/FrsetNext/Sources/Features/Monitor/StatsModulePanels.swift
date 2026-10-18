@@ -498,6 +498,7 @@ private struct CPUStatsPanel: View {
 
 private struct MemoryStatsPanel: View {
     @ObservedObject private var sampler = MonitorSampler.shared
+    @ObservedObject private var memoryOptimizer = MemoryOptimizer.shared
 
     var body: some View {
         let sample = sampler.sample
@@ -543,6 +544,8 @@ private struct MemoryStatsPanel: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+
+            MemoryOptimizeSection(optimizer: memoryOptimizer)
 
             MonitorSectionTitle("使用历史")
             StatsHistoryChart(values: sampler.history.memory, color: MonitorColors.user, upperBound: 1, height: 72)
@@ -606,9 +609,12 @@ private struct GPUStatsPanel: View {
 
     var body: some View {
         let stats = StatsDataProvider.shared.current
-        let usage = stats.gpuUsage >= 0 ? stats.gpuUsage / 100 : 0
-        let renderer = stats.gpuRenderer >= 0 ? stats.gpuRenderer / 100 : usage
-        let tiler = stats.gpuTiler >= 0 ? stats.gpuTiler / 100 : usage
+        // v44（2026-10-18 修复）：`gpuUsage/gpuRenderer/gpuTiler` 已是 0…1 的比例
+        // （C 层 `frset_gpu_usage` 内部做的 v/100），这里**不能再除 100**——
+        // 旧代码双除导致真实 27% 显示成 0%、100% 显示成 1%（用户反馈"一直显示 1%"）。
+        let usage = stats.gpuUsage >= 0 ? stats.gpuUsage : 0
+        let renderer = stats.gpuRenderer >= 0 ? stats.gpuRenderer : usage
+        let tiler = stats.gpuTiler >= 0 ? stats.gpuTiler : usage
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 26) {
@@ -801,7 +807,6 @@ private struct NetworkStatsPanel: View {
                 }
                 if !stats.connHistory.isEmpty {
                     StatsConnGrid(values: stats.connHistory)
-                        .frame(height: 44)
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     StatsLegendRow(color: .clear, label: "延迟", value: StatsFormat.ms(stats.connAvgLatencyMs), showsDot: false)
@@ -885,13 +890,29 @@ private struct NetworkStatsPanel: View {
             StatsLegendRow(color: .clear, label: "归属",
                            value: diagnostics.publicLocation ?? "—",
                            showsDot: false)
+            // v45（2026-10-18 用户反馈）：代理改为读**本地真实状态**——
+            // 系统代理设置 + 常见代理端口监听 + 客户端进程（Clash / mihomo / Surge…）。
+            // 旧逻辑只按"公网归属非中国"推断，认不出 Clash，也读不到端口信息。
+            if let label = diagnostics.proxyLabel {
+                StatsLegendRow(color: .clear, label: "代理",
+                               value: diagnostics.proxyAddress.map { "\(label) · \($0)" } ?? label,
+                               valueColor: MonitorColors.user,
+                               showsDot: false)
+                if let note = diagnostics.proxyNote {
+                    Text(note)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                        .padding(.leading, 2)
+                }
+            } else if diagnostics.publicIP != nil {
+                StatsLegendRow(color: .clear, label: "代理", value: "未检测到本地代理",
+                               valueColor: .secondary, showsDot: false)
+            }
             if diagnostics.isProxyLikely, let overseas = diagnostics.overseasIP {
                 StatsLegendRow(color: .clear, label: "国外出口", value: overseas, showsDot: false)
                 if let location = diagnostics.overseasLocation, !location.isEmpty {
                     StatsLegendRow(color: .clear, label: "位置", value: location, showsDot: false)
                 }
-            } else if diagnostics.publicIP != nil {
-                StatsLegendRow(color: .clear, label: "代理", value: "未走代理", showsDot: false)
             }
 
             // 站点延迟（两列，与原版键值行同字号）
@@ -908,8 +929,9 @@ private struct NetworkStatsPanel: View {
                                 .lineLimit(1)
                             Spacer(minLength: 2)
                             Text(site.milliseconds.map { "\($0) ms" } ?? "超时")
-                                .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                                .foregroundStyle(site.milliseconds == nil ? .tertiary : .primary)
+                                .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
+                                // v45：按快慢分级着色（用户要求不要纯黑）
+                                .foregroundStyle(latencyColor(site.milliseconds))
                         }
                     }
                 }
@@ -937,6 +959,18 @@ private struct NetworkStatsPanel: View {
         }
     }
 
+    /// 站点延迟分级配色（v45）：绿(<80ms) → 黄(<200ms) → 橙(<400ms) → 红(≥400ms)，
+    /// 超时用 tertiary。用户要求"不要纯黑，多种颜色展现"。
+    private func latencyColor(_ milliseconds: Int?) -> Color {
+        guard let milliseconds else { return Color.primary.opacity(0.32) }   // 超时：淡灰
+        switch milliseconds {
+        case ..<80:  return Color(red: 0.24, green: 0.72, blue: 0.38)
+        case ..<200: return Color(red: 0.93, green: 0.66, blue: 0.16)
+        case ..<400: return Color(red: 0.94, green: 0.48, blue: 0.16)
+        default:     return MonitorColors.system
+        }
+    }
+
     private func legendValue(color: Color, value: String) -> some View {
         HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 9, height: 9)
@@ -947,31 +981,32 @@ private struct NetworkStatsPanel: View {
     }
 }
 
-/// 连通性网格（原版 5×24 绿/红方块）
+/// 连通性网格（原版 30×3 绿/红方块）
+///
+/// v45（2026-10-18 用户反馈"字体和状态条图重叠"）：旧实现是
+/// `GeometryReader` + 外部 `.frame(height: 44)`——格子边长按**宽度**算
+/// （30 列 ≈ 12pt），但行数写死 5 行时总高 ≈ 130pt，远超 44pt 的框，
+/// 内容向上/向下溢出，把上方「● 已连接」和下方「延迟/抖动」压住。
+/// 改为 LazyVGrid + `aspectRatio(1)`：高度由内容自然撑开，不再需要外部 frame。
 private struct StatsConnGrid: View {
     var values: [Int]
 
+    private let columns = 30
+    private let rows = 3
+    private let spacing: CGFloat = 1.5
+
     var body: some View {
-        GeometryReader { geo in
-            let columns = 24
-            let rows = 5
-            let total = columns * rows
-            let spacing: CGFloat = 1.5
-            let cell = (geo.size.width - spacing * CGFloat(columns - 1)) / CGFloat(columns)
-            let visible = Array(values.suffix(total))
-            VStack(spacing: spacing) {
-                ForEach(0..<rows, id: \.self) { row in
-                    HStack(spacing: spacing) {
-                        ForEach(0..<columns, id: \.self) { col in
-                            let index = row * columns + col
-                            let offset = total - visible.count
-                            let value = index >= offset ? visible[index - offset] : -1
-                            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                                .fill(color(for: value))
-                                .frame(width: max(2, cell), height: max(2, cell))
-                        }
-                    }
-                }
+        let total = columns * rows
+        let visible = Array(values.suffix(total))
+        let offset = total - visible.count
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing),
+                                 count: columns),
+                  spacing: spacing) {
+            ForEach(0..<total, id: \.self) { index in
+                let value = index >= offset ? visible[index - offset] : -1
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(color(for: value))
+                    .aspectRatio(1, contentMode: .fit)
             }
         }
     }
