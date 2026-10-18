@@ -99,11 +99,11 @@ struct StatisticsRootView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Frset")
+                Text(verbatim: "Frset")
                     .font(.custom("AvenirNextCondensed-DemiBold", size: 30))
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill").font(.system(size: 9))
-                    Text("DATA IS STORED LOCALLY ON YOUR MAC")
+                    Text(verbatim: "DATA IS STORED LOCALLY ON YOUR MAC")
                         .font(.system(size: 8, weight: .semibold))
                         .tracking(2)
                 }
@@ -172,7 +172,7 @@ struct StatisticsRootView: View {
 
     private var overviewSummary: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Overview")
+            Text(verbatim: "Overview")
                 .font(.system(size: 12, design: .monospaced))
                 .frame(height: 18)
             VStack(spacing: 0) {
@@ -319,10 +319,10 @@ private struct ActivityHeatmapView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text("Activity Matrix")
+                Text(verbatim: "Activity Matrix")
                     .font(.system(size: 12, design: .monospaced))
                 Spacer()
-                Text("Less")
+                Text(verbatim: "Less")
                 HStack(spacing: 3) {
                     ForEach(0..<5) { level in
                         RoundedRectangle(cornerRadius: 1.5)
@@ -330,7 +330,7 @@ private struct ActivityHeatmapView: View {
                             .frame(width: cellSize, height: cellSize)
                     }
                 }
-                Text("More")
+                Text(verbatim: "More")
             }
             .font(.custom("AvenirNextCondensed-DemiBold", size: 11))
             .foregroundStyle(StatisticsPalette.secondary)
@@ -541,7 +541,7 @@ private struct Last30BarsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
-            Text("Last 30 Days")
+            Text(verbatim: "Last 30 Days")
                 .font(.system(size: 12, design: .monospaced))
                 .frame(height: 18)
             HStack(alignment: .bottom, spacing: barSpacing) {
