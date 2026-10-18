@@ -107,6 +107,7 @@ public final class ClipboardItemEditWindowController: NSWindowController, NSWind
                              backing: .buffered,
                              defer: false)
         panel.title = "编辑条目"
+        panel.applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
         panel.level = .floating
         panel.isReleasedWhenClosed = false
         super.init(window: panel)

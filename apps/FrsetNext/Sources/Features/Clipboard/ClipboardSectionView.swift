@@ -9,16 +9,22 @@ public struct ClipboardSectionView: View {
 
     @ObservedObject private var manager = ClipboardManager.shared
     @ObservedObject private var tagStore = TagStore.shared
+    /// 面板当前页（主页/性能监测/中转站）——非主页时要禁用列表的 hover 追踪
+    /// （2026-10-18 幽灵预览修复：三页 ZStack 常驻，透明主页的 NSTrackingArea
+    ///  仍在接收 mouseMoved，会在性能页/中转站页上误弹预览）
+    @ObservedObject private var pagePresenter = MonitorCenterPresenter.shared
 
     @Stored private var summaryState = SummaryState()
     // 注意：裸 swiftc 自检无 SwiftUIMacros 插件，@State 不可用（CONTRACT §7.4）→ 用 @Stored
     @Stored private var scrollProxy = ClipboardTableScrollProxy()
 
+    private var isPageActive: Bool { pagePresenter.activePage == .home }
+
     public init() {}
 
     public var body: some View {
         // 原版主页的剪贴板**没有**区段标题、搜索框和过滤栏——就是一条条的行；
-        // 搜索走面板顶部搜索框（PanelSearchHook），标签过滤/浮动窗/刷新收进右键菜单与状态栏菜单。
+        // 搜索走面板顶部搜索框（Toolbox 的 SearchSectionView），标签过滤/浮动窗/刷新收进右键菜单与状态栏菜单。
         VStack(spacing: 0) {
             list
         }
@@ -79,6 +85,7 @@ public struct ClipboardSectionView: View {
             } else {
                 ClipboardTableHostView(manager: manager,
                                        scrollProxy: scrollProxy,
+                                       isActive: isPageActive,
                                        onCopy: { manager.copy($0) },
                                        onEdit: { ClipboardItemEditWindowRecord.open(for: $0) },
                                        onSummarize: { item in
@@ -367,8 +374,24 @@ public struct ClipboardRow: View {
     public var body: some View {
         // 原版行式（400 宽面板实测）：50pt 缩略图 + 单行标题 + 「时间 · 详情」，
         // hover 时右侧出现 ↓（复制）/ ↵（复制并粘贴）两个图标；行底为浅色圆角卡。
+        // 2026-10-18 补齐官方「来源应用徽章」：缩略图右下角小图标（bundleId → icon）。
         HStack(spacing: 12) {
             ClipboardThumbnailView(item: item, size: 50, corner: 8)
+                .overlay(alignment: .bottomTrailing) {
+                    if let badge = sourceAppBadge {
+                        Image(nsImage: badge)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 16, height: 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.85), lineWidth: 0.75)
+                            )
+                            .shadow(color: .black.opacity(0.18), radius: 1.5, y: 0.5)
+                            .offset(x: 3, y: 3)
+                    }
+                }
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle)
                     .font(.system(size: 13))
@@ -405,6 +428,12 @@ public struct ClipboardRow: View {
         return isHighlighted
             ? Color.accentColor.opacity(colorScheme == .dark ? 0.22 : 0.16)
             : Color.white.opacity(base)
+    }
+
+    /// 来源应用图标（官方行式：缩略图右下角徽章；sourceApp 优先 bundleId）
+    private var sourceAppBadge: NSImage? {
+        guard let name = item.sourceApp, !name.isEmpty else { return nil }
+        return ClipboardAppIconCache.icon(forAppName: name)
     }
 
     /// 副行：「3分钟前 · 341 个字符」/「1分钟前 · 291×465 pt」/「1分钟前 · rgb(24,24,24) · /picker」
@@ -577,6 +606,7 @@ public enum ClipboardPreviewWindow {
                               styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
         window.title = item.displayTitle
+        window.applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏（消除露白）
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: LargeTextPreviewContainerView(item: item))
         window.delegate = PreviewWindowCleaner.shared

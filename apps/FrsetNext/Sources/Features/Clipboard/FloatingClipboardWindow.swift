@@ -113,6 +113,19 @@ public final class FloatingClipboardStore: ObservableObject {
     @Published public private(set) var recentItems: [ClipboardItem] = []
     @Published public var isVisible: Bool = FloatingClipboardPinState.shared.isVisible
     @Published public var isPinned: Bool = FloatingClipboardPinState.shared.isPinned
+    /// 「搜索剪贴板」模式的过滤词（原版 ClipboardFilterBarView 的 FilterBar_Search）
+    @Published public var searchText: String = ""
+
+    /// 过滤后的列表（搜索词为空 = 全部最近条目）
+    public var filteredItems: [ClipboardItem] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return recentItems }
+        return recentItems.filter { item in
+            let title = (item.aliasTitle?.isEmpty == false) ? item.aliasTitle! : (item.title ?? item.content ?? "")
+            return title.localizedCaseInsensitiveContains(q)
+                || (item.content?.localizedCaseInsensitiveContains(q) ?? false)
+        }
+    }
 
     public static let recentLimit = 12
 
@@ -222,7 +235,9 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
 // MARK: - 浮动窗内容（SwiftUI）
 
-/// 浮动窗内容：标题栏 + 最近条目列表；行交互 = 单击预览、双击粘贴（specs/14 F9）
+/// 浮动窗内容：最近条目列表 + 底部工具条（对齐原版 ClipboardFilterBarView，2026-10-18 实机核验）。
+/// 原版悬浮窗**没有标题栏**，底部悬浮条从左到右：🔍 搜索剪贴板 / ✏️ 编辑 / 📌 钉住 / ↑ 回到顶部。
+/// 行交互 = 单击预览、双击粘贴（specs/14 F9）
 public struct FloatingClipboardContentView: View {
 
     @EnvironmentObject private var store: FloatingClipboardStore
@@ -231,6 +246,10 @@ public struct FloatingClipboardContentView: View {
     @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
     @Environment(\.usesMidnightTextColor) private var usesMidnightTextColor
     @Environment(\.midnightTextColorOverride) private var midnightTextColor
+    /// 「搜索剪贴板」模式开关（🔍）
+    @Stored private var isSearchMode = false
+    /// 回到顶部（↑）用
+    @Stored private var scrollTrigger = 0
 
     public init() {}
 
@@ -249,29 +268,40 @@ public struct FloatingClipboardContentView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider()
-            if store.recentItems.isEmpty {
+            if isSearchMode {
+                searchField
+                Divider()
+            }
+            if store.filteredItems.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "clipboard")
                         .font(.system(size: 26))
                         .foregroundStyle(.secondary)
-                    Text("还没有剪贴板记录")
+                    Text(store.searchText.isEmpty ? "还没有剪贴板记录" : "没有匹配的条目")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(store.recentItems) { item in
-                            FloatingRow(item: item)
-                                .contextMenu { ClipboardRowMenuContent(item: item) }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 2) {
+                            ForEach(store.filteredItems) { item in
+                                FloatingRow(item: item)
+                                    .contextMenu { ClipboardRowMenuContent(item: item) }
+                                    .id(item.id)
+                            }
+                        }
+                        .padding(6)
+                    }
+                    .onChange(of: scrollTrigger) { _ in
+                        if let first = store.filteredItems.first {
+                            proxy.scrollTo(first.id, anchor: .top)
                         }
                     }
-                    .padding(6)
                 }
             }
+            filterBar
         }
         .frame(minWidth: 200, minHeight: 220)
         .background {
@@ -289,33 +319,64 @@ public struct FloatingClipboardContentView: View {
         .onAppear { store.refresh() }
     }
 
-    private var header: some View {
+    /// 搜索框（搜索模式下显示在列表上方；对齐原版「搜索剪贴板」入口）
+    private var searchField: some View {
         HStack(spacing: 6) {
-            Image(systemName: "clipboard.fill")
+            Image(systemName: "magnifyingglass")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Text("剪贴板")
-                .font(.system(size: 12, weight: .semibold))
-            Spacer()
-            Button(action: { store.setPinned(!store.isPinned) }) {
-                Image(systemName: store.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 11))
+            TextField("搜索剪贴板", text: $store.searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+            if !store.searchText.isEmpty {
+                Button {
+                    store.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.borderless)
-            .help("钉住：始终置顶")
-            Button(action: { store.refresh() }) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 11))
-            }
-            .buttonStyle(.borderless)
-            .help("刷新")
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        // Midnight：标题栏用卡片底色与列表区拉开层次（非 Midnight 不铺底色）
+        .padding(.vertical, 6)
+    }
+
+    /// 底部工具条（原版 ClipboardFilterBarView：🔍 搜索剪贴板 / 📌 钉住 / ↑ 回到顶部）
+    private var filterBar: some View {
+        HStack(spacing: 18) {
+            barButton("magnifyingglass", help: "搜索剪贴板", active: isSearchMode) {
+                isSearchMode.toggle()
+                if !isSearchMode { store.searchText = "" }
+            }
+            Spacer(minLength: 0)
+            barButton(store.isPinned ? "pin.fill" : "pin", help: "钉住：始终置顶") {
+                store.setPinned(!store.isPinned)
+            }
+            barButton("arrow.up.to.line", help: "回到顶部") {
+                scrollTrigger += 1
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .background {
             if let card = midnightCardBackground { card }
         }
+    }
+
+    private func barButton(_ symbol: String, help: String, active: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 12))
+                .foregroundStyle(active ? Color.accentColor : Color.secondary)
+                .frame(width: 22, height: 22)
+                .background {
+                    if active { Circle().fill(Color.accentColor.opacity(0.14)) }
+                }
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 }
 
