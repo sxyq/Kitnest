@@ -50,140 +50,108 @@ struct GeneralSettingsPane: View {
     @AppStorage(Self.revealCustomIconOptionKey) private var revealCustomIconOption = true
 
     var body: some View {
-        VStack(spacing: 0) {
-            formRow(L10n.t("Start"), height: 40) {
-                Toggle(L10n.t("Launch Frset at login"), isOn: launchAtLoginBinding)
-                    .toggleStyle(.checkbox)
-            }
-            formRow(L10n.t("Appearance"), height: 40) {
-                HStack(spacing: 22) {
-                    ForEach(AppearanceMode.allCases) { mode in
-                        Button { appearance.apply(mode) } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "circle.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(appearance.mode == mode ? Color.accentColor : Color.secondary.opacity(0.25))
-                                    .overlay {
-                                        if appearance.mode == mode {
-                                            Image(systemName: "circle.fill")
-                                                .font(.system(size: 5))
-                                                .foregroundStyle(.white)
-                                        }
-                                    }
-                                Text(appearanceTitle(mode))
+        // v71（用户：各设置界面版式不一致，需统一组件）：灰底全宽行 → 卡片分组
+        // （SettingsSection + SettingsGroupBox，与剪贴板/数据页同一套组件）。
+        // 外层滚动由 SettingsRootView.panePage 提供。
+        VStack(spacing: 20) {
+            SettingsSection("通用") {
+                SettingsGroupBox {
+                    formRow(L10n.t("Start"), height: 40) {
+                        Toggle(L10n.t("Launch Frset at login"), isOn: launchAtLoginBinding)
+                            .toggleStyle(.checkbox)
+                    }
+                    SettingsDivider()
+                    formRow(L10n.t("Appearance"), height: 40) {
+                        appearanceChoices
+                    }
+                    SettingsDivider()
+                    formRow(L10n.t("Language"), height: 48) {
+                        Picker("", selection: languageBinding) {
+                            Text(L10n.t("Auto")).tag("auto")
+                            ForEach(LanguageManager.availableLanguages, id: \.self) { code in
+                                Text(LanguageManager.displayNames[code] ?? code).tag(code)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .labelsHidden()
+                        .frame(width: 157)
                     }
                 }
-            }
-            formRow("个性化") {
-                PersonalizationSettingsView()
             }
 
-            formRow(L10n.t("Language"), height: 48) {
-                Picker("", selection: languageBinding) {
-                    Text(L10n.t("Auto")).tag("auto")
-                    ForEach(LanguageManager.availableLanguages, id: \.self) { code in
-                        Text(LanguageManager.displayNames[code] ?? code).tag(code)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 157)
-            }
-            Divider().padding(.top, 13).padding(.bottom, 11)
-            formRow(L10n.t("Features")) {
-                Group {
-                    if compact {
-                        VStack(alignment: .leading, spacing: 7) {
-                            featuresChoices
-                        }
-                    } else {
-                        HStack(spacing: 22) {
-                            featuresChoices
-                        }
-                    }
-                }
-                .buttonStyle(.link)
-            }
-            formRow(L10n.t("AI Providers")) {
-                HStack(spacing: 12) {
-                    actionButton(L10n.t("Manage")) { openDetail("ai") }
-                    Text(providerCountText)
-                        .foregroundStyle(.secondary)
+            SettingsSection("个性化") {
+                SettingsGroupBox {
+                    PersonalizationSettingsView()
+                        .padding(.vertical, 6)
                 }
             }
-            formRow(L10n.t("Menu Bar Icon"), height: compact ? 88 : 40) {
-                if compact {
-                    // 面板窄版：2 + 2 分行（4 个图标选项横排会在 576pt 面板内溢出）
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 16) {
-                            iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
-                                       help: L10n.t("Fan icon speed changes with CPU usage"))
-                            iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
-                        }
-                        HStack(spacing: 16) {
-                            iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
-                                       dayBadge: Self.todayDayNumber)
-                            if revealsCustomMenuBarIcon {
-                                iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
-                                           value: Self.menuBarIconStyleCustom)
+
+            SettingsSection("菜单栏") {
+                SettingsGroupBox {
+                    formRow(L10n.t("Features")) {
+                        Group {
+                            if compact {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    featuresChoices
+                                }
+                            } else {
+                                HStack(spacing: 22) {
+                                    featuresChoices
+                                }
                             }
-                            Toggle("小猫", isOn: runCatBinding)
-                                .toggleStyle(.checkbox)
-                                .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                        }
+                        .buttonStyle(.link)
+                    }
+                    SettingsDivider()
+                    formRow(L10n.t("AI Providers")) {
+                        HStack(spacing: 12) {
+                            actionButton(L10n.t("Manage")) { openDetail("ai") }
+                            Text(providerCountText)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                } else {
-                    HStack(spacing: 26) {
-                        iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
-                                   help: L10n.t("Fan icon speed changes with CPU usage"))
-                        iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
-                        iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
-                                   dayBadge: Self.todayDayNumber)
-                        if revealsCustomMenuBarIcon {
-                            iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
-                                       value: Self.menuBarIconStyleCustom)
+                    SettingsDivider()
+                    formRow(L10n.t("Menu Bar Icon"), height: compact ? 88 : 40) {
+                        menuBarIconChoices
+                    }
+                    SettingsDivider()
+                    formRow("菜单栏部件") {
+                        HStack(spacing: 12) {
+                            actionButton("设置") { StatsBarEngine.openSettings() }
+                            Text("合并条：CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
-                        // v32/v34 移植（注入版）：奔跑小猫——独立覆盖开关（默认开，
-                        // 覆盖上面所选的样式；与注入版 v85 设置窗同构）
-                        Toggle("小猫", isOn: runCatBinding)
-                            .toggleStyle(.checkbox)
-                            .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
                     }
                 }
             }
-            // v42：官方原版这里是「菜单栏监控：网速/CPU/RAM/SSD」四个勾选。
-            // 我们已有更好的菜单栏呈现（STATS 合并条，多模块合并 + 可配形态），
-            // 不再注册那 4 个独立原生图标 → 此处改为直达「部件设置」的入口，
-            // 避免留下点了没反应的死开关。
-            formRow("菜单栏部件") {
-                HStack(spacing: 12) {
-                    actionButton("设置") { StatsBarEngine.openSettings() }
-                    Text("合并条：CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池")
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+
+            SettingsSection("剪贴板") {
+                SettingsGroupBox {
+                    formRow(L10n.t("Auto Paste")) {
+                        Toggle("", isOn: Preferences.shared.binding("clipboard.autoPaste", default: false))
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                    SettingsDivider()
+                    formRow(L10n.t("Tag Management")) {
+                        HStack(spacing: 12) {
+                            actionButton(L10n.t("Edit")) { isManagingTags = true }
+                            Text(tagCountText)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    SettingsDivider()
+                    formRow(L10n.t("Ignored Apps"), height: 40) {
+                        IgnoredAppsEditor(revision: $ignoredAppsRevision)
+                    }
                 }
-            }
-            Divider().padding(.vertical, 12)
-            formRow(L10n.t("Auto Paste")) {
-                Toggle("", isOn: Preferences.shared.binding("clipboard.autoPaste", default: false))
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-            }
-            formRow(L10n.t("Tag Management")) {
-                HStack(spacing: 12) {
-                    actionButton(L10n.t("Edit")) { isManagingTags = true }
-                    Text(tagCountText)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            formRow(L10n.t("Ignored Apps"), height: 40) {
-                IgnoredAppsEditor(revision: $ignoredAppsRevision)
             }
         }
+        .padding(.horizontal, 34)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .font(.system(size: 12))
         .sheet(isPresented: $isManagingTags) {
             TagManagementSheet()
@@ -194,6 +162,73 @@ struct GeneralSettingsPane: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
+        }
+    }
+
+    /// 外观四选一（系统/浅色/深色/Midnight）
+    private var appearanceChoices: some View {
+        HStack(spacing: 22) {
+            ForEach(AppearanceMode.allCases) { mode in
+                Button { appearance.apply(mode) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(appearance.mode == mode ? Color.accentColor : Color.secondary.opacity(0.25))
+                            .overlay {
+                                if appearance.mode == mode {
+                                    Image(systemName: "circle.fill")
+                                        .font(.system(size: 5))
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                        Text(appearanceTitle(mode))
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// 菜单栏图标四选一 + 小猫覆盖（compact 2+2 分行 / 宽版单行）
+    private var menuBarIconChoices: some View {
+        Group {
+            if compact {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 16) {
+                        iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
+                                   help: L10n.t("Fan icon speed changes with CPU usage"))
+                        iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
+                    }
+                    HStack(spacing: 16) {
+                        iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
+                                   dayBadge: Self.todayDayNumber)
+                        if revealsCustomMenuBarIcon {
+                            iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
+                                       value: Self.menuBarIconStyleCustom)
+                        }
+                        Toggle("小猫", isOn: runCatBinding)
+                            .toggleStyle(.checkbox)
+                            .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                    }
+                }
+            } else {
+                HStack(spacing: 26) {
+                    iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
+                               help: L10n.t("Fan icon speed changes with CPU usage"))
+                    iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
+                    iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
+                               dayBadge: Self.todayDayNumber)
+                    if revealsCustomMenuBarIcon {
+                        iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
+                                   value: Self.menuBarIconStyleCustom)
+                    }
+                    // v32/v34 移植（注入版）：奔跑小猫——独立覆盖开关（默认开，
+                    // 覆盖上面所选的样式；与注入版 v85 设置窗同构）
+                    Toggle("小猫", isOn: runCatBinding)
+                        .toggleStyle(.checkbox)
+                        .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                }
+            }
         }
     }
 

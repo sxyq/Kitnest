@@ -384,7 +384,8 @@ public struct ClipboardRow: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            // v71：接个性化「面板圆角」档位（6/10/14，即改即生效）
+            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
                 .fill(rowFill)
         )
     }

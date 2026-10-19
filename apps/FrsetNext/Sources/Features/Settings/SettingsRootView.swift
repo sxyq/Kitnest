@@ -16,6 +16,9 @@ import SwiftUI
 struct SettingsRootView: View {
     @ObservedObject var state: SettingsUIState
     @ObservedObject private var appearance = AppearanceState.shared
+    /// v71：个性化强调色作用于设置窗子树（此前只在主面板生效——用户点强调色
+    /// 「无效」的主观感受主要来自设置窗自身无反馈）
+    @ObservedObject private var personalization = Personalization.shared
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -39,6 +42,7 @@ struct SettingsRootView: View {
         .frame(width: 940, height: 620)
         .background(backgroundColor)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
+        .tint(personalization.accentColor ?? Color.accentColor)
         .frsetAppearanceTheme()
         .ignoresSafeArea()
     }
