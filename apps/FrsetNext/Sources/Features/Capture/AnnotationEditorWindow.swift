@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import SwiftUI
 
 // MARK: - 标注画布
 
@@ -360,11 +361,11 @@ final class AnnotationCanvasView: NSView {
 /// 标注编辑器窗口：上方画布 + 下方工具条（工具 / 颜色 / 粗细 / 撤销 / 清空 / 复制 / 保存）
 final class AnnotationEditorWindow: NSWindow {
     let canvas: AnnotationCanvasView
+    /// 工具条状态（v71 SwiftUI 化后由本模型驱动选中态与撤销可用态）
+    let toolbarModel = EditorToolbarModel()
 
     var onCopy: ((CGImage) -> Void)?
     var onSave: ((CGImage) -> Void)?
-
-    private let undoButton = NSButton(title: "撤销", target: nil, action: nil)
 
     init(image: CGImage) {
         let maxW: CGFloat = 960, maxH: CGFloat = 720
@@ -379,7 +380,7 @@ final class AnnotationEditorWindow: NSWindow {
                    backing: .buffered, defer: false)
         title = "标注截图"
         applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
-        minSize = NSSize(width: 420, height: 300)
+        minSize = NSSize(width: 880, height: 300)   // v71：工具条单行所需最小宽度
         isReleasedWhenClosed = false
         canvas.frame = NSRect(x: 0, y: 44, width: canvasW, height: canvasH)
         canvas.autoresizingMask = [.width, .height]
@@ -401,75 +402,36 @@ final class AnnotationEditorWindow: NSWindow {
     // MARK: 工具条
 
     private func buildToolbar(width: CGFloat) -> NSView {
-        let bar = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 44))
-
-        let tools = NSSegmentedControl(labels: AnnotationTool.allCases.map { $0.title },
-                                       trackingMode: .selectOne,
-                                       target: self, action: #selector(toolChanged(_:)))
-        tools.selectedSegment = 0
-        tools.frame = NSRect(x: 10, y: 8, width: 420, height: 28)
-
-        let colorWell = NSColorWell(frame: NSRect(x: 438, y: 8, width: 40, height: 28))
-        colorWell.color = canvas.color
-        colorWell.target = self
-        colorWell.action = #selector(colorChanged(_:))
-
-        let widths = NSSegmentedControl(labels: ["细", "中", "粗"],
-                                        trackingMode: .selectOne,
-                                        target: self, action: #selector(widthChanged(_:)))
-        widths.selectedSegment = 1
-        widths.frame = NSRect(x: 482, y: 8, width: 120, height: 28)
-
-        undoButton.target = self
-        undoButton.action = #selector(undoTapped)
-        undoButton.bezelStyle = .rounded
-        undoButton.frame = NSRect(x: 608, y: 8, width: 60, height: 28)
-
-        let clearButton = NSButton(title: "清空", target: self, action: #selector(clearTapped))
-        clearButton.bezelStyle = .rounded
-        clearButton.frame = NSRect(x: 672, y: 8, width: 60, height: 28)
-
-        let longButton = NSButton(title: "长截图", target: self, action: #selector(longScreenshotTapped))
-        longButton.bezelStyle = .rounded
-        longButton.frame = NSRect(x: width - 266, y: 8, width: 60, height: 28)
-        longButton.autoresizingMask = [.minXMargin]
-
-        let copyButton = NSButton(title: "复制", target: self, action: #selector(copyTapped))
-        copyButton.bezelStyle = .rounded
-        copyButton.frame = NSRect(x: width - 200, y: 8, width: 60, height: 28)
-        copyButton.autoresizingMask = [.minXMargin]
-
-        let saveButton = NSButton(title: "保存", target: self, action: #selector(saveTapped))
-        saveButton.bezelStyle = .rounded
-        saveButton.keyEquivalent = "\r"
-        saveButton.frame = NSRect(x: width - 134, y: 8, width: 60, height: 28)
-        saveButton.autoresizingMask = [.minXMargin]
-
-        let closeButton = NSButton(title: "关闭", target: self, action: #selector(closeTapped))
-        closeButton.bezelStyle = .rounded
-        closeButton.frame = NSRect(x: width - 68, y: 8, width: 60, height: 28)
-        closeButton.autoresizingMask = [.minXMargin]
-
-        for view in [tools, colorWell, widths, undoButton, clearButton, longButton, copyButton, saveButton, closeButton] {
-            bar.addSubview(view)
-        }
-        return bar
+        // v71（用户实障：控件重叠、橡皮处色块压字）：工具条改 SwiftUI FlowHStack
+        // 自适应流式布局（Core/FlowLayout 唯一实现），控件按内容尺寸排列不再
+        // 硬坐标重叠；窗口 minWidth 880 保证单行放得下。
+        let host = NSHostingView(rootView: EditorToolbarView(
+            model: toolbarModel,
+            onTool: { [weak self] index in
+                self?.canvas.tool = AnnotationTool.allCases[index]
+            },
+            onColor: { [weak self] color in
+                self?.canvas.color = NSColor(color)
+            },
+            onWidth: { [weak self] index in
+                self?.canvas.lineWidth = [2, 4, 8][index]
+            },
+            onUndo: { [weak self] in self?.undoTapped() },
+            onClear: { [weak self] in self?.clearTapped() },
+            onLong: { [weak self] in self?.longScreenshotTapped() },
+            onCopy: { [weak self] in self?.copyTapped() },
+            onSave: { [weak self] in self?.saveTapped() },
+            onClose: { [weak self] in self?.closeTapped() }
+        ))
+        host.sizingOptions = []
+        host.frame = NSRect(x: 0, y: 0, width: width, height: 44)
+        host.autoresizingMask = [.width]
+        return host
     }
 
-    private func refreshUndo() { undoButton.isEnabled = canvas.canUndo }
+    private func refreshUndo() { toolbarModel.canUndo = canvas.canUndo }
 
     // MARK: 动作
-
-    @objc private func toolChanged(_ sender: NSSegmentedControl) {
-        let index = max(0, min(sender.selectedSegment, AnnotationTool.allCases.count - 1))
-        canvas.tool = AnnotationTool.allCases[index]
-    }
-
-    @objc private func colorChanged(_ sender: NSColorWell) { canvas.color = sender.color }
-
-    @objc private func widthChanged(_ sender: NSSegmentedControl) {
-        canvas.lineWidth = [2, 4, 8][max(0, min(sender.selectedSegment, 2))]
-    }
 
     @objc private func undoTapped() { canvas.undo() }
     @objc private func clearTapped() { canvas.clear() }
@@ -543,5 +505,88 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
 
     public func windowWillClose(_ notification: Notification) {
         if (notification.object as? AnnotationEditorWindow) === window { window = nil }
+    }
+}
+
+// MARK: - 工具条（v71：SwiftUI FlowHStack 自适应布局）
+
+/// 工具条状态：选中态与撤销可用态（画布 onChange → refreshUndo 同步 canUndo）
+final class EditorToolbarModel: ObservableObject {
+    @Published var toolIndex = 0
+    @Published var color: Color = .red
+    @Published var widthIndex = 1
+    @Published var canUndo = false
+}
+
+/// 工具条视图：控件按内容尺寸流式排列（一行放不下自动折行，不再硬坐标重叠）
+private struct EditorToolbarView: View {
+    @ObservedObject var model: EditorToolbarModel
+    var onTool: (Int) -> Void
+    var onColor: (Color) -> Void
+    var onWidth: (Int) -> Void
+    var onUndo: () -> Void
+    var onClear: () -> Void
+    var onLong: () -> Void
+    var onCopy: () -> Void
+    var onSave: () -> Void
+    var onClose: () -> Void
+
+    var body: some View {
+        FlowHStack(spacing: 8, lineSpacing: 6) {
+            Picker("", selection: Binding(
+                    get: { model.toolIndex },
+                    set: { model.toolIndex = $0; onTool($0) })) {
+                ForEach(Array(AnnotationTool.allCases.enumerated()), id: \.offset) { index, tool in
+                    Text(tool.title).tag(index)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+
+            ColorPicker("", selection: Binding(
+                    get: { model.color },
+                    set: { model.color = $0; onColor($0) }), supportsOpacity: false)
+                .labelsHidden()
+                .fixedSize()
+
+            Picker("", selection: Binding(
+                    get: { model.widthIndex },
+                    set: { model.widthIndex = $0; onWidth($0) })) {
+                Text("细").tag(0)
+                Text("中").tag(1)
+                Text("粗").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+
+            toolbarButton("撤销", systemImage: "arrow.uturn.backward", enabled: model.canUndo, action: onUndo)
+            toolbarButton("清空", systemImage: "trash", action: onClear)
+            toolbarButton("长截图", systemImage: "scroll.down", action: onLong)
+            Spacer(minLength: 4)
+            toolbarButton("复制", systemImage: "doc.on.doc", action: onCopy)
+            toolbarButton("保存", systemImage: "square.and.arrow.down", action: onSave)
+            toolbarButton("关闭", systemImage: "xmark", action: onClose)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 44)
+        .background(Color(nsColor: OfficialChrome.windowBackground))
+    }
+
+    private func toolbarButton(_ title: String, systemImage: String, enabled: Bool = true,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 11))
+                .labelStyle(.titleAndIcon)
+                .foregroundStyle(enabled ? Color.primary : Color.secondary)
+                .opacity(enabled ? 1 : 0.5)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
