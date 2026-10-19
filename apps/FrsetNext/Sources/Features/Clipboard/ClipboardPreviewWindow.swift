@@ -285,18 +285,22 @@ struct ClipboardPreviewWindowView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 12)
-            Picker("", selection: $isEditing) {
-                Text("预览").tag(false)
-                Text("编辑").tag(true)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 132)
-            .onChange(of: isEditing) { editing in
-                onEditingChanged?(editing)
-                if editing {
-                    draft = PreviewPopoverDataBridge.shared.fullText(for: item)
-                    model = Self.makeModel(item: item, editedText: nil)
+            // v71：图片/文件条目没有可编辑的文本内容（content 是 @image#N: 文件名
+            // 之类的引用串），对齐原版交互——隐藏「预览|编辑」分段，只保留预览
+            if item.type != .image && item.type != .file {
+                Picker("", selection: $isEditing) {
+                    Text("预览").tag(false)
+                    Text("编辑").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 132)
+                .onChange(of: isEditing) { editing in
+                    onEditingChanged?(editing)
+                    if editing {
+                        draft = PreviewPopoverDataBridge.shared.fullText(for: item)
+                        model = Self.makeModel(item: item, editedText: nil)
+                    }
                 }
             }
             Button {

@@ -26,6 +26,8 @@ final class AnnotationCanvasView: NSView {
     private var ops: [EditOp] = []
     /// 抹除工具：正在涂抹的轨迹（图像像素坐标、左上原点）
     private var removalStroke: [CGPoint]?
+    /// 橡皮正在滑动擦除（v71：拖拽路径连续删除命中标注，与画笔滑动一致）
+    private var isErasing = false
     private var draft: Annotation?
     private var dragStart: CGPoint?
 
@@ -138,12 +140,9 @@ final class AnnotationCanvasView: NSView {
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
 
         if tool == .eraser {
-            // 橡皮擦的是「标注」而不是像素：从后往前找第一个命中的图元删掉
-            if let index = annotations.lastIndex(where: { hitTest($0, at: ip) }) {
-                annotations.remove(at: index)
-                needsDisplay = true
-                onChange?()
-            }
+            // 橡皮擦的是「标注」而不是像素：v71 支持滑动——按下即擦，拖拽路径连续擦
+            isErasing = true
+            eraseAt(ip)
             return
         }
 
@@ -170,6 +169,11 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        if tool == .eraser, isErasing {
+            // 滑动擦除：拖拽路径上每个命中的标注都删（同画笔滑动体验）
+            eraseAt(imagePoint(convert(event.locationInWindow, from: nil)))
+            return
+        }
         if tool == .removal {
             let ip = imagePoint(convert(event.locationInWindow, from: nil))
             removalStroke?.append(ip)
@@ -194,6 +198,10 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if tool == .eraser {
+            isErasing = false
+            return
+        }
         if tool == .removal {
             defer { removalStroke = nil; needsDisplay = true }
             guard var stroke = removalStroke, !stroke.isEmpty else { return }
@@ -228,6 +236,16 @@ final class AnnotationCanvasView: NSView {
 
     /// 抹除笔刷半径（细/中/粗 → 16/32/64 直径）
     var brushRadius: CGFloat { lineWidth * 4 }
+
+    /// 橡皮：删除命中点处的一个标注（从后往前找第一个命中）。
+    /// v71：进撤销栈（此前橡皮删除不可撤销）；滑动时每个命中图元各占一条撤销记录。
+    private func eraseAt(_ ip: CGPoint) {
+        guard let index = annotations.lastIndex(where: { hitTest($0, at: ip) }) else { return }
+        let victim = annotations.remove(at: index)
+        ops.append(.annotation(victim))
+        needsDisplay = true
+        onChange?()
+    }
 
     /// 对涂抹轨迹执行修复：轨迹 → 灰度 mask → ObjectRemovalEngine → 替换底图
     private func applyRemoval(stroke: [CGPoint]) {
