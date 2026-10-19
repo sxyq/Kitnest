@@ -219,6 +219,11 @@ enum AppBootstrap {
                            keyCode: 0x2E, modifiers: UInt32(optionKey)) {   // ⌥M
             MonitorPopoutWindowController.shared.toggle()
         },
+        // v68：命令面板（全功能统一目录；⌘K 系统级会被浏览器等占用，默认 ⌥K，可改绑）
+        DefaultHotkeyEntry(id: "commandPalette", title: "命令面板",
+                           keyCode: 0x28, modifiers: UInt32(optionKey)) {   // ⌥K
+            CommandPaletteController.shared.toggle()
+        },
     ]
 
     /// 批量注册默认热键表（specs/19 §4）。
