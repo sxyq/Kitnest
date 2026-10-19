@@ -196,7 +196,11 @@ public enum StatsBarEngine {
 
     /// 打开 Stats 风格部件设置窗（监测面板页脚齿轮）
     public static func openSettings() {
-        FSBarSettingsOpen()
+        // v71（用户：部件设置入口合并，不要多个重复实现）：原 FSBarSettingsOpen()
+        // 是注入版移植的独立 ObjC 设置小窗，与设置窗侧边栏「部件设置」页
+        // （MonitorWidgetsPane，功能覆盖 STATS 全部形态/间隔/间距配置）双轨并存。
+        // 统一收敛到唯一实现：设置窗 → 部件设置页（pane id "barSettings" 已映射）。
+        ServiceLocator.settings?.open(pane: "barSettings")
     }
 
     /// 打开录屏设置小窗（截图菜单「录屏」——注入版独有能力，v47 移植）
