@@ -44,8 +44,9 @@ final class LongScreenshotSession {
     // MARK: 会话字段
 
     private let stitcher = LongScreenshotStitcher()
-    /// 滚动累积 δ（+0xd0）
+    /// 滚动累积 δ（+0xd0）；v68 增加横向分量（二维对齐）
     private var pendingDelta: Double = 0
+    private var pendingDeltaX: Double = 0
     /// 去抖去重令牌（+0xa0，同一时刻仅一个 pending）
     private var pendingWorkItem: DispatchWorkItem?
     /// 「暂停采帧」布尔（+0x128，真 → 不调度）
@@ -128,6 +129,7 @@ final class LongScreenshotSession {
 
         lock.lock()
         pendingDelta += deltaY
+        pendingDeltaX += deltaX
         scheduleDebouncedCaptureLocked()
         lock.unlock()
     }
@@ -184,15 +186,21 @@ final class LongScreenshotSession {
 
         lock.lock()
         let delta = pendingDelta
+        let deltaX = pendingDeltaX
         pendingDelta = 0
+        pendingDeltaX = 0
         lock.unlock()
 
         state = .processing
-        let appended = stitcher.append(frame: frame, pendingDelta: delta, scale: contentScale)
+        // v68 二维拼接：位移提示按内容缩放换算为像素（仅作搜索窗参考，方向由图像对齐决定）
+        let appended = stitcher.append(frame: frame,
+                                       hintDX: deltaX * contentScale,
+                                       hintDY: delta * contentScale,
+                                       scale: contentScale)
         if appended {
-            Log.info("Capture", "长截图追加成功：画布累计 \(stitcher.appendedRows) 行（本帧 \(frame.width)×\(frame.height)，δ=\(Int(delta))）")
+            Log.info("Capture", "长截图追加成功：画布累计 \(stitcher.appendedRows) 行当量（本帧 \(frame.width)×\(frame.height)，位移 d(\(stitcher.lastOffset.dx),\(stitcher.lastOffset.dy))）")
         } else {
-            Log.debug("Capture", "长截图本帧未追加（恒等帧/新内容不足/对齐失败，δ=\(Int(delta))）")
+            Log.debug("Capture", "长截图本帧未追加（恒等帧/新内容不足/对齐失败，δ=(\(Int(deltaX)),\(Int(delta)))）")
         }
         if !isStopped { state = .running }
     }

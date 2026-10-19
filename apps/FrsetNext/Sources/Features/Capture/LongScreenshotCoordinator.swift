@@ -193,8 +193,8 @@ final class LongScreenshotCoordinator: NSObject {
         self.session = session
         stream.start(session: session)
         session.start()
-        Toast.show("长截图：滚动目标窗口，Return 完成 / Esc 取消", icon: "arrow.up.and.down.text.horizontal")
-        Log.info("Capture", "长截图会话已启动（选区 \(Int(appKit.width))×\(Int(appKit.height))）：滚动目标窗口，Return 完成 / Esc 取消")
+        Toast.show("长截图：向任意方向滚动目标窗口，Return 完成 / Esc 取消", icon: "arrow.up.and.down.text.horizontal")
+        Log.info("Capture", "长截图会话已启动（选区 \(Int(appKit.width))×\(Int(appKit.height))）：二维拼接（横/竖/斜向滚动均可），Return 完成 / Esc 取消")
     }
 
     private func cancelSelection() {
