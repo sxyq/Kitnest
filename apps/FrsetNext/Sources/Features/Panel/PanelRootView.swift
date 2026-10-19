@@ -222,13 +222,17 @@ struct PanelRootView: View {
         .frame(height: 40)
     }
 
-    /// 「主页 | 文件中转」分段（自绘胶囊，对齐原版选中态）
+    /// 「主页 | 性能监测 | 文件中转」三段分段（自绘胶囊，对齐原版选中态）
     /// v41：文件中转由设置开关控制显隐。
-    /// v60：性能监测段删除——只留独立窗口一套实现，⌥P / 部件点击直达。
+    /// v71：性能监测段恢复（用户需求「顶部加回三页面的切换」）——内容复用
+    /// MonitorDetailView 同一套组件（与独立窗一致，不多一套实现）。
     private var pageSegments: some View {
         HStack(spacing: 0) {
             segmentItem("主页", selected: page == .home) {
                 monitorPresenter.selectHome()
+            }
+            segmentItem("性能监测", selected: page == .performance) {
+                monitorPresenter.selectPerformance()
             }
             if transferDockEnabled {
                 segmentItem("文件中转", selected: page == .transfer) {
@@ -401,7 +405,20 @@ struct PanelRootView: View {
                 .allowsHitTesting(page == .home)
                 .accessibilityHidden(page != .home)
 
-            // 第二页：中转站（文件暂存与转发）
+            // 第二页：性能监测（v71 恢复三页切换）——与独立窗同一套面板组件，
+            // fixedWidth=nil 撑满面板宽度；玻璃底与首页同源（根背景统一）
+            ScrollView(.vertical, showsIndicators: false) {
+                MonitorDetailView(selection: monitorPresenter.monitorSelection,
+                                  pageMode: false, fixedWidth: nil)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+            }
+            .opacity(page == .performance ? 1 : 0)
+            .offset(x: page == .performance ? 0 : 16)
+            .allowsHitTesting(page == .performance)
+            .accessibilityHidden(page != .performance)
+
+            // 第三页：中转站（文件暂存与转发）
             TransferDockView()
                 .opacity(page == .transfer ? 1 : 0)
                 .offset(x: page == .transfer ? 0 : 16)
