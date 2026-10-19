@@ -2,106 +2,10 @@ import AppKit
 import Foundation
 import SwiftUI
 
-// MARK: - 预览内容视图族（specs/12：MainPanelPreviewPopoverSlotHostView + PreviewPopoverView 内容态）
+// MARK: - 预览内容视图族（specs/12：PreviewPopoverContentView 内容态）
 //
-// 宿主视图挂进 NSPopover（contentViewController = NSHostingController），
-// 内部按 PreviewPopoverContentModel.Kind 分态渲染：
-// 文本 / 落盘长文本（异步+代际防串）/ Markdown（滚动记忆）/ JSON（截断）/ 代码（尺寸阶梯+行号）/ 图片（QR 分支）/ 文件。
-
-// MARK: - Slot 宿主视图
-
-/// popover 内容根视图（原作 MainPanelPreviewPopoverSlotHostView）
-public struct MainPanelPreviewPopoverSlotHostView: View {
-    let model: PreviewPopoverContentModel
-    let onClose: (MainPanelPreviewPopoverCloseReason) -> Void
-    /// 固定模式（📌）：开 = hover 离开不收起，点别处才关；选择跨启动记忆
-    @Stored private var pinned = MainPanelPreviewPopoverCoordinator.shared.previewPinned
-
-    public var body: some View {
-        VStack(spacing: 0) {
-            pinBar
-            if model.showsKeyboardHint {
-                hintBar
-            }
-            PreviewPopoverContentView(model: model)
-        }
-        .frame(width: contentWidth, height: contentHeight)
-        .onPreviewPopoverHoverChanged { inside in
-            MainPanelPreviewPopoverCoordinator.shared.popoverHoverChanged(inside)
-        }
-        .onExitCommand { onClose(.escape) }        // Esc 关闭
-        .background(Color(nsColor: .controlBackgroundColor))
-    }
-
-    /// F6 一次性提示（文案实证 "Click or Space to preview" @0x100b43c10）
-        /// 📌 固定开关（预览右上角小图标）
-    private var pinBar: some View {
-        HStack {
-            Spacer(minLength: 0)
-            Button {
-                let newValue = !pinned
-                MainPanelPreviewPopoverCoordinator.shared.previewPinned = newValue
-                pinned = newValue
-            } label: {
-                Image(systemName: pinned ? "pin.fill" : "pin")
-                    .font(.system(size: 10))
-                    .foregroundStyle(pinned ? Color.primary : Color.secondary)
-                    .frame(width: 18, height: 16)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(pinned ? "固定中：点击别处才会关闭（点击取消固定）"
-                         : "固定预览：移开鼠标不再自动收起")
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 18)
-    }
-
-private var hintBar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "keyboard")
-                .font(.system(size: 10))
-            Text("Click or Space to preview · 单击或按空格预览")
-                .font(.system(size: 10))
-            Spacer()
-        }
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Theme.separator)
-    }
-
-    // MARK: 尺寸（F13/F14：文本高度上限 / 图片高度上限 / 代码尺寸阶梯）
-
-    private var contentWidth: CGFloat {
-        let c = MainPanelPreviewPopoverCoordinator.shared
-        if model.kind == .code {
-            let lines = model.inlineText.lineCountEstimate
-            if lines <= 15 { return c.codePreviewMinWidth }
-            if lines <= 60 { return c.codePreviewMediumWidth }
-            return c.codePreviewMaxWidth
-        }
-        return c.popoverWidth
-    }
-
-    private var contentHeight: CGFloat {
-        let c = MainPanelPreviewPopoverCoordinator.shared
-        if model.kind == .code {
-            // 代码尺寸阶梯：行数 → compact / min / max 三档
-            let lines = CGFloat(model.inlineText.lineCountEstimate)
-            let lineHeight: CGFloat = 16          // 等宽 12pt 行高（⬜ 原作值未探明）
-            let raw = lines * lineHeight + c.codePreviewContentPadding * 2
-            if lines <= 15 {
-                return min(c.codePreviewCompactMaxHeight, max(c.codePreviewCompactMinHeight, raw))
-            }
-            return min(c.codePreviewMaxHeight, max(c.codePreviewMinHeight, raw))
-        }
-        return model.estimatedPopoverHeight(
-            maxPopoverHeight: c.maxPopoverHeight,
-            imagePreviewMaxPopoverHeight: c.imagePreviewMaxPopoverHeight,
-            textPreviewLoadingMinHeight: c.textPreviewLoadingMinHeight)
-    }
-}
+// v71：原 MainPanelPreviewPopoverSlotHostView（NSPopover 宿主 + 📌/hint 条）随 popover
+// 底座退役——hover/单击统一由 ClipboardPreviewWindowView（完整头部）承载本视图族。
 
 // MARK: - 分态路由
 
