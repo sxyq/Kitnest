@@ -5,8 +5,8 @@ import CoreGraphics
 
 /// 标注工具类型（对应原作截图工具条的箭头 / 矩形 / 文字等）
 public enum AnnotationTool: String, CaseIterable, Identifiable {
-    // 前 5 个是原版截图标注就有的；后 3 个对齐 ZTools「剪贴板图片涂改」插件
-    case rectangle, ellipse, arrow, pen, text, highlighter, mosaic, eraser
+    // 前 5 个是原版截图标注就有的；后 4 个对齐 ZTools「剪贴板图片涂改」插件 + eSearch removeObj
+    case rectangle, ellipse, arrow, pen, text, highlighter, mosaic, eraser, removal
 
     public var id: String { rawValue }
 
@@ -20,6 +20,7 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .highlighter: return "荧光"
         case .mosaic:    return "马赛克"
         case .eraser:    return "橡皮"
+        case .removal:   return "抹除"
         }
     }
 
@@ -33,6 +34,7 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .highlighter: return "highlighter"
         case .mosaic:    return "squareshape.split.3x3"
         case .eraser:    return "eraser"
+        case .removal:   return "wand.and.rays.inverse"
         }
     }
 }
@@ -150,6 +152,8 @@ public enum AnnotationCompositor {
             drawMosaic(in: r, base: base, fallbackColor: color)
         case .eraser:
             return   // 橡皮不产生图元（在画布上直接删标注）
+        case .removal:
+            return   // 抹除不产生图元（在画布上直接修底图像素，画布另有涂抹预览）
         case .text:
             guard let anchor = a.points.first, let text = a.text, !text.isEmpty else { return }
             let attrs: [NSAttributedString.Key: Any] = [

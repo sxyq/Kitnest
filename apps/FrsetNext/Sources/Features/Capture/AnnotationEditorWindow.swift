@@ -7,7 +7,8 @@ import CoreGraphics
 /// 视图为 flipped（左上原点），并把「图像像素坐标」通过 CTM 映射到视图坐标，
 /// 因此标注坐标在整个编辑器里始终是同一套，落盘时交给 AnnotationCompositor。
 final class AnnotationCanvasView: NSView {
-    let image: CGImage
+    /// 底图（抹除工具会原地替换为修复结果）
+    var image: CGImage
     /// 已确认的标注
     private(set) var annotations: [Annotation] = []
     /// 当前工具与样式
@@ -17,6 +18,14 @@ final class AnnotationCanvasView: NSView {
     /// 标注变化回调（用于刷新撤销按钮可用态）
     var onChange: (() -> Void)?
 
+    /// 撤销栈：标注追加 / 抹除前的底图快照
+    private enum EditOp {
+        case annotation(Annotation)
+        case imageSnapshot(CGImage)
+    }
+    private var ops: [EditOp] = []
+    /// 抹除工具：正在涂抹的轨迹（图像像素坐标、左上原点）
+    private var removalStroke: [CGPoint]?
     private var draft: Annotation?
     private var dragStart: CGPoint?
 
@@ -77,6 +86,27 @@ final class AnnotationCanvasView: NSView {
         let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: CGFloat(image.height))
         AnnotationCompositor.draw(annotations, in: canvasRect, base: image)
         if let draft = draft { AnnotationCompositor.draw([draft], in: canvasRect, base: image) }
+        // 抹除涂抹预览（半透明蓝，线宽 = 实际笔刷直径）
+        if let stroke = removalStroke, stroke.count >= 1 {
+            ctx.saveGState()
+            ctx.setFillColor(CGColor(red: 0.2, green: 0.5, blue: 1, alpha: 0.35))
+            ctx.setStrokeColor(CGColor(red: 0.2, green: 0.5, blue: 1, alpha: 0.45))
+            ctx.setLineWidth(brushRadius * 2)
+            ctx.setLineCap(.round)
+            ctx.setLineJoin(.round)
+            if stroke.count == 1 {
+                let p = stroke[0]
+                ctx.fillEllipse(in: CGRect(x: p.x - brushRadius, y: p.y - brushRadius,
+                                           width: brushRadius * 2, height: brushRadius * 2))
+            } else {
+                let path = CGMutablePath()
+                path.move(to: stroke[0])
+                for p in stroke.dropFirst() { path.addLine(to: p) }
+                ctx.addPath(path)
+                ctx.strokePath()
+            }
+            ctx.restoreGState()
+        }
         ctx.restoreGState()
     }
 
@@ -97,7 +127,7 @@ final class AnnotationCanvasView: NSView {
         case .text:
             guard let anchor = a.points.first else { return false }
             return hypot(anchor.x - point.x, anchor.y - point.y) <= max(20, a.lineWidth * 8)
-        case .eraser:
+        case .eraser, .removal:
             return false
         }
     }
@@ -119,18 +149,33 @@ final class AnnotationCanvasView: NSView {
 
         if tool == .text {
             if let text = promptText(), !text.isEmpty {
-                annotations.append(Annotation(tool: .text, points: [ip], text: text,
-                                              colorHex: AnnotationCompositor.hex(of: color),
-                                              lineWidth: lineWidth))
+                let a = Annotation(tool: .text, points: [ip], text: text,
+                                   colorHex: AnnotationCompositor.hex(of: color),
+                                   lineWidth: lineWidth)
+                annotations.append(a)
+                ops.append(.annotation(a))
                 needsDisplay = true
                 onChange?()
             }
             return
         }
+
+        if tool == .removal {
+            removalStroke = [ip]
+            needsDisplay = true
+            return
+        }
+
         dragStart = ip
     }
 
     override func mouseDragged(with event: NSEvent) {
+        if tool == .removal {
+            let ip = imagePoint(convert(event.locationInWindow, from: nil))
+            removalStroke?.append(ip)
+            needsDisplay = true
+            return
+        }
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
         if tool == .pen || tool == .highlighter {
@@ -149,6 +194,14 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if tool == .removal {
+            defer { removalStroke = nil; needsDisplay = true }
+            guard var stroke = removalStroke, !stroke.isEmpty else { return }
+            let ip = imagePoint(convert(event.locationInWindow, from: nil))
+            stroke.append(ip)
+            applyRemoval(stroke: stroke)
+            return
+        }
         defer { dragStart = nil; draft = nil; needsDisplay = true }
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
@@ -166,8 +219,59 @@ final class AnnotationCanvasView: NSView {
         }
         if let a = finished, isValid(a) {
             annotations.append(a)
+            ops.append(.annotation(a))
             onChange?()
         }
+    }
+
+    // MARK: 物体抹除（eSearch removeObj 对齐）
+
+    /// 抹除笔刷半径（细/中/粗 → 16/32/64 直径）
+    var brushRadius: CGFloat { lineWidth * 4 }
+
+    /// 对涂抹轨迹执行修复：轨迹 → 灰度 mask → ObjectRemovalEngine → 替换底图
+    private func applyRemoval(stroke: [CGPoint]) {
+        let w = image.width, h = image.height
+        guard w > 0, h > 0, stroke.count >= 1 else { return }
+
+        // mask：灰度位图，白色圆头线连轨迹（坐标是顶部原点系 → CG 画时翻转 y）
+        let ptr = UnsafeMutableRawPointer.allocate(byteCount: w * h, alignment: 64)
+        guard let mctx = CGContext(data: ptr, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w,
+                                   space: CGColorSpaceCreateDeviceGray(),
+                                   bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue)) else {
+            ptr.deallocate()
+            return
+        }
+        defer { ptr.deallocate() }
+        memset(ptr, 0, w * h)
+        mctx.setFillColor(gray: 1, alpha: 1)
+        mctx.setStrokeColor(gray: 1, alpha: 1)
+        let r = brushRadius
+        if stroke.count == 1 {
+            let p = stroke[0]
+            mctx.fillEllipse(in: CGRect(x: p.x - r, y: CGFloat(h) - p.y - r, width: r * 2, height: r * 2))
+        } else {
+            let path = CGMutablePath()
+            let first = CGPoint(x: stroke[0].x, y: CGFloat(h) - stroke[0].y)
+            path.move(to: first)
+            for p in stroke.dropFirst() { path.addLine(to: CGPoint(x: p.x, y: CGFloat(h) - p.y)) }
+            mctx.addPath(path)
+            mctx.setLineWidth(r * 2)
+            mctx.setLineCap(.round)
+            mctx.setLineJoin(.round)
+            mctx.strokePath()
+        }
+        guard let mask = mctx.makeImage() else { return }
+
+        let old = image
+        guard let cleaned = ObjectRemovalEngine.inpaint(image: image, mask: mask) else {
+            Log.warn("Capture", "抹除：修复引擎返回空")
+            return
+        }
+        image = cleaned
+        ops.append(.imageSnapshot(old))
+        onChange?()
+        Log.info("Capture", "抹除：修复完成（轨迹 \(stroke.count) 点，笔刷直径 \(Int(r * 2))px）")
     }
 
     /// 过滤误点产生的过小标注
@@ -185,7 +289,7 @@ final class AnnotationCanvasView: NSView {
         case .mosaic:
             guard a.points.count >= 2 else { return false }
             return abs(a.points[0].x - a.points[1].x) >= 4 && abs(a.points[0].y - a.points[1].y) >= 4
-        case .eraser:
+        case .eraser, .removal:
             return false
         case .text:
             return true
@@ -205,11 +309,16 @@ final class AnnotationCanvasView: NSView {
 
     // MARK: 操作（供工具条调用）
 
-    var canUndo: Bool { !annotations.isEmpty }
+    var canUndo: Bool { !ops.isEmpty }
 
     func undo() {
-        guard !annotations.isEmpty else { return }
-        annotations.removeLast()
+        guard let op = ops.popLast() else { return }
+        switch op {
+        case .annotation(let a):
+            annotations.removeAll { $0.id == a.id }
+        case .imageSnapshot(let old):
+            image = old
+        }
         needsDisplay = true
         onChange?()
     }
@@ -217,6 +326,7 @@ final class AnnotationCanvasView: NSView {
     func clear() {
         guard !annotations.isEmpty else { return }
         annotations.removeAll()
+        ops.removeAll()
         needsDisplay = true
         onChange?()
     }
@@ -241,7 +351,7 @@ final class AnnotationEditorWindow: NSWindow {
     init(image: CGImage) {
         let maxW: CGFloat = 960, maxH: CGFloat = 720
         let scale = min(1, min(maxW / CGFloat(image.width), maxH / CGFloat(image.height)))
-        let canvasW = max(520, CGFloat(image.width) * scale)
+        let canvasW = max(880, CGFloat(image.width) * scale)
         let canvasH = max(300, CGFloat(image.height) * scale)
         let size = NSSize(width: canvasW, height: canvasH + 44)
 
@@ -279,9 +389,9 @@ final class AnnotationEditorWindow: NSWindow {
                                        trackingMode: .selectOne,
                                        target: self, action: #selector(toolChanged(_:)))
         tools.selectedSegment = 0
-        tools.frame = NSRect(x: 10, y: 8, width: 372, height: 28)
+        tools.frame = NSRect(x: 10, y: 8, width: 420, height: 28)
 
-        let colorWell = NSColorWell(frame: NSRect(x: 392, y: 8, width: 40, height: 28))
+        let colorWell = NSColorWell(frame: NSRect(x: 438, y: 8, width: 40, height: 28))
         colorWell.color = canvas.color
         colorWell.target = self
         colorWell.action = #selector(colorChanged(_:))
@@ -290,16 +400,16 @@ final class AnnotationEditorWindow: NSWindow {
                                         trackingMode: .selectOne,
                                         target: self, action: #selector(widthChanged(_:)))
         widths.selectedSegment = 1
-        widths.frame = NSRect(x: 368, y: 8, width: 120, height: 28)
+        widths.frame = NSRect(x: 482, y: 8, width: 120, height: 28)
 
         undoButton.target = self
         undoButton.action = #selector(undoTapped)
         undoButton.bezelStyle = .rounded
-        undoButton.frame = NSRect(x: 496, y: 8, width: 60, height: 28)
+        undoButton.frame = NSRect(x: 608, y: 8, width: 60, height: 28)
 
         let clearButton = NSButton(title: "清空", target: self, action: #selector(clearTapped))
         clearButton.bezelStyle = .rounded
-        clearButton.frame = NSRect(x: 560, y: 8, width: 60, height: 28)
+        clearButton.frame = NSRect(x: 672, y: 8, width: 60, height: 28)
 
         let longButton = NSButton(title: "长截图", target: self, action: #selector(longScreenshotTapped))
         longButton.bezelStyle = .rounded
