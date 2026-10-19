@@ -507,7 +507,18 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.hoverPreviewCloseWorkItem = nil
-            if self.isPreviewPopoverHovered { return }   // F4：鼠标在 popover 内不关闭
+            if self.isPreviewPopoverHovered { return }   // F4：SwiftUI 探测鼠标在 popover 内
+            // v71 兜底（用户实障：hover 图片预览想复制 OCR 文本，鼠标一移过去预览即消）：
+            // SwiftUI onHover 在 popover 弹出动画期间 / NSViewRepresentable（OCR 的
+            // NSTextView）上方 / nonactivating 面板 key 窗口切换瞬间可能迟到或丢失，
+            // isPreviewPopoverHovered 恒 false → 倒计时到点误判「已移出」→ hoverOut 关闭。
+            // 改为以鼠标屏幕实测位置为准：落在 popover 窗口 frame（含箭头）内 → 递归
+            // 重调度继续等待，形成「关闭流程激活期间的轻量轮询」，鼠标真正离开才关。
+            if let popoverWindow = self.slot?.popover.contentViewController?.view.window,
+               popoverWindow.frame.contains(NSEvent.mouseLocation) {
+                self.scheduleHoverClose()
+                return
+            }
             self.dismiss(reason: .hoverOut)
         }
         hoverPreviewCloseWorkItem = work
