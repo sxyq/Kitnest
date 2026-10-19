@@ -49,21 +49,30 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // Toast 定位（原作 0x1002bf3d0）：面板所在屏优先——面板可见时通知卡落在面板屏中线
         ToastAnchor.windowProvider = { [weak self] in self?.panel }
         // v66 个性化：字号缩放变更 → 窗口宽高联动（重设为动态默认尺寸，保持顶边）
+        // v71 修正：去掉 isVisible guard。用户典型流：面板 → 设置（面板被 hide）→
+        // 改字号 → 重开面板；隐藏时 return 会导致尺寸永不更新，重开还是旧尺寸
+        // =「个性化完全无效」的实障根因（运行中点击无效，冷启动才生效）。
         NotificationCenter.default.addObserver(forName: Personalization.didChangeNotification,
                                                object: nil, queue: .main) { [weak self] _ in
-            guard let self, let p = self.panel, p.isVisible else { return }
-            let f = p.frame
-            var target = f
-            let baseWidth = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
-                                                             default: 400))
-            target.size.width = baseWidth * Personalization.shared.fontScale
-            target.size.height = Theme.panelMaxHeight
-            target.origin.y = f.maxY - target.height
-            p.setFrame(target, display: true)
-            p.applyPersonalizedMaterial()
+            self?.syncPanelFrameToPersonalization()
         }
         scheduleWarmup()
         Log.info("Panel", "prepared \(Int(width))x\(Int(height))")
+    }
+
+    /// 按当前个性化（字号缩放 + 面板宽度键）校准面板尺寸（顶边不动）。
+    /// 通知链路与 show() 双入口调用；面板隐藏时同步无害（下次打开即新尺寸）。
+    private func syncPanelFrameToPersonalization() {
+        guard let p = panel else { return }
+        let f = p.frame
+        var target = f
+        let baseWidth = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
+                                                         default: 400))
+        target.size.width = baseWidth * Personalization.shared.fontScale
+        target.size.height = Theme.panelMaxHeight
+        target.origin.y = f.maxY - target.height
+        p.setFrame(target, display: true)
+        p.applyPersonalizedMaterial()
     }
 
     // MARK: - 首次显示预热
@@ -116,6 +125,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     public func show() {
         prepare()
         guard let p = panel else { return }
+        // v71：打开时按当前个性化校准尺寸（防通知漏收/隐藏期间变更）
+        syncPanelFrameToPersonalization()
         p.level = isPinned ? .statusBar : .floating   // 置顶状态应用到新建/复用窗口
         MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
         p.setFrameOrigin(rightEdgeOrigin(for: p.frame.size))
