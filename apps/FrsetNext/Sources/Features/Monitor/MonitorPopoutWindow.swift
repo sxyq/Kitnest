@@ -83,6 +83,14 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     /// 窗口当前是否可见
     public var isVisible: Bool { window?.isVisible == true }
 
+    /// 开/关动画序号（v71 白屏实障修复）：dismissPopout 的 completion 原来用
+    /// `isVisible` 判断「动画期间是否重开」——但动画结束时窗口尚未 orderOut，
+    /// isVisible 恒为 true → completion 永远 return → orderOut 永不执行、
+    /// layer.opacity 停在 0 → contentView 透明露出窗口灰底 = 白屏（titlebar 仍在）。
+    /// 现改用 token：open 递增，dismiss 记录起点，completion 发现 token 变了
+    /// （期间重开过）才跳过收起。
+    private var appearToken = 0
+
     // MARK: 空闲预热（v62）
 
     private var warmupDone = false
@@ -121,6 +129,10 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         let target = module ?? lastModule
         lastModule = target
         selection.module = target
+        appearToken += 1                       // v71：递增，令在途 dismiss completion 失效
+        w.contentView?.layer?.removeAllAnimations()
+        w.contentView?.layer?.transform = CATransform3DIdentity   // 兜底复位（白屏态重开）
+        w.contentView?.layer?.opacity = 1
         w.setFrameOrigin(origin(for: w.frame.size, anchor: anchor))
         w.alphaValue = 1
         // v71：layer 级入场动画（GPU 合成）——从锚点方向「长出来」
@@ -191,6 +203,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         Log.info("Monitor", "监测独立窗口：dismiss")
         RenderProbe.snapshot(window, name: "monitorPopout", reason: "dismiss")
         guard let w = window, w.isVisible else { return }
+        let token = appearToken                  // v71：记录起点，completion 以此判断是否被重开打断
         guard let layer = w.contentView?.layer else {
             w.orderOut(nil)
             MonitorSampler.shared.setPanelActive(false)
@@ -206,14 +219,20 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         layer.opacity = 0
         CATransaction.setCompletionBlock { [weak self] in
             guard let self else { return }
-            if self.isVisible { return }   // 动画期间重开（open 已重置 transform）→ 不收起
+            // v71：原 isVisible 判断恒为 true（窗口未 orderOut）→ 永不收起 → 白屏。
+            // 改 token：期间 open() 递增过 = 用户已重开 → 不收起。
+            if self.appearToken != token {
+                Log.info("Monitor", "dismiss 被重开打断，跳过收起")
+                return
+            }
             self.window?.orderOut(nil)
             self.window?.contentView?.layer?.transform = CATransform3DIdentity
             self.window?.contentView?.layer?.opacity = 1
             MonitorSampler.shared.setPanelActive(false)
+            Log.info("Monitor", "监测独立窗口：已收起")
+            RenderProbe.snapshot(self.window, name: "monitorPopout", reason: "dismissDone")
         }
         CATransaction.commit()
-        Log.info("Monitor", "监测独立窗口：关闭")
     }
 
     /// 入场起点横移：从锚点相对窗口中心的水平距离反向补偿（视觉上从部件图标处展开）

@@ -30,21 +30,31 @@ public final class FloatingPanel: NSPanel {
         isOpaque = false
         hasShadow = true
 
-        // 玻璃底层：macOS 26+ 用 Liquid Glass（NSGlassEffectView），旧系统回退毛玻璃。
-        // 圆角由玻璃层裁切；SwiftUI 内容铺满其上（内容自身不再铺底色）。
-        // tint 抬高对比：纯 regular 玻璃透得太狠，面板上的 10-11pt 小字会发飘；
-        // 用窗口底色 55% 做底衬（Apple 自家玻璃面板同做法），既保留透光又不牺牲可读性。
+        // v71（用户：透明玻璃态用性能检测这边的）：solid = 性能检测窗同款
+        // 纯色圆角卡片（windowBackgroundColor 不透桌面）；vibrancy = LiquidGlass 毛玻璃。
+        // 原实现 solid 也走 NSGlassEffectView（tint 1.0 仍透光），与性能检测窗观感不一致。
         let solid = Personalization.shared.material == .solid
-        let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: contentRect.size),
-                                         cornerRadius: Personalization.shared.cornerRadius,
-                                         material: .hudWindow,
-                                         tint: NSColor.windowBackgroundColor
-                                             .withAlphaComponent(solid ? 1.0 : 0.55))
-
-        // SwiftUI 根视图铺满玻璃层
+        let radius = Personalization.shared.cornerRadius
         let hosting = NSHostingView(rootView: rootView)
-        LiquidGlass.embed(hosting, in: glass)
-        contentView = glass
+        if solid {
+            let bg = NSView(frame: NSRect(origin: .zero, size: contentRect.size))
+            bg.wantsLayer = true
+            bg.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+            bg.layer?.cornerRadius = radius
+            bg.layer?.cornerCurve = .continuous
+            bg.layer?.masksToBounds = true
+            hosting.frame = bg.bounds
+            hosting.autoresizingMask = [.width, .height]
+            bg.addSubview(hosting)
+            contentView = bg
+        } else {
+            let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: contentRect.size),
+                                             cornerRadius: radius,
+                                             material: .hudWindow,
+                                             tint: NSColor.windowBackgroundColor.withAlphaComponent(0.55))
+            LiquidGlass.embed(hosting, in: glass)
+            contentView = glass
+        }
     }
 
     /// 允许成为 key（顶部搜索框需要键盘输入）；
@@ -60,11 +70,21 @@ public final class FloatingPanel: NSPanel {
 // MARK: - v66 个性化材质
 
 extension FloatingPanel {
-    /// 「个性化 → 背景材质」即时切换：纯色（tint 全不透明）/ 毛玻璃（tint 55%）
+    /// 「个性化 → 背景材质」即时切换：纯色（性能检测窗同款圆角卡片）/ 毛玻璃
     public func applyPersonalizedMaterial() {
         let solid = Personalization.shared.material == .solid
-        let tint = NSColor.windowBackgroundColor.withAlphaComponent(solid ? 1.0 : 0.55)
         let radius = Personalization.shared.cornerRadius
+        // v71：solid = 纯色圆角容器（非玻璃层）
+        if solid, let bg = contentView {
+            var isEffect = bg is NSVisualEffectView
+            if #available(macOS 26.0, *), bg is NSGlassEffectView { isEffect = true }
+            if !isEffect {
+                bg.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+                bg.layer?.cornerRadius = radius
+                return
+            }
+        }
+        let tint = NSColor.windowBackgroundColor.withAlphaComponent(solid ? 1.0 : 0.55)
         if #available(macOS 26.0, *), let glass = contentView as? NSGlassEffectView {
             glass.tintColor = tint
             glass.cornerRadius = radius

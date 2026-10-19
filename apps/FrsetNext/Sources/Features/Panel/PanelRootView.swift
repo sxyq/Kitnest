@@ -400,12 +400,12 @@ struct PanelRootView: View {
     // v60：性能监测页删除（只留独立窗口一套实现，⌥P / ⌥M / 状态栏部件点击直达）
 
     @ViewBuilder private var content: some View {
+        // v71（用户：主页/性能检测同一套内容，渐入渐出动画要一样）：三页共用
+        // 同一过渡语言——fade + 轻微 scale（与性能检测独立窗 popout 动画同族），
+        // 不再一页一方向。
         ZStack(alignment: .top) {
             homePage
-                .opacity(page == .home ? 1 : 0)
-                .offset(x: page == .home ? 0 : -16)
-                .allowsHitTesting(page == .home)
-                .accessibilityHidden(page != .home)
+                .pageTransition(active: page == .home)
 
             // 第二页：性能监测（v71 恢复三页切换）——与独立窗同一套面板组件，
             // fixedWidth=nil 撑满面板宽度；玻璃底与首页同源（根背景统一）
@@ -415,19 +415,14 @@ struct PanelRootView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
             }
-            .opacity(page == .performance ? 1 : 0)
-            .offset(x: page == .performance ? 0 : 16)
-            .allowsHitTesting(page == .performance)
-            .accessibilityHidden(page != .performance)
+            .pageTransition(active: page == .performance)
 
             // 第三页：中转站（文件暂存与转发）
             TransferDockView()
-                .opacity(page == .transfer ? 1 : 0)
-                .offset(x: page == .transfer ? 0 : 16)
-                .allowsHitTesting(page == .transfer)
-                .accessibilityHidden(page != .transfer)
+                .pageTransition(active: page == .transfer)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.spring(response: 0.26, dampingFraction: 0.86), value: page)
     }
 
     // MARK: - 主页：搜索区段 → 日历 → 剪贴板
@@ -514,5 +509,20 @@ struct PanelRootView: View {
             descriptor.build()
                 .padding(.horizontal, 8)
         }
+    }
+}
+
+// MARK: - 三页统一过渡（v71：主页/性能检测/文件中转动画语言一致）
+
+private extension View {
+    /// 页面过渡：fade + 轻微 scale + 12pt 横移（与性能检测独立窗 popout 同族）。
+    /// 三页共用同一 modifier，互切时动画完全一致（用户需求「渐入渐出动画要一样」）。
+    func pageTransition(active: Bool) -> some View {
+        self
+            .opacity(active ? 1 : 0)
+            .scaleEffect(active ? 1 : 0.97, anchor: .top)
+            .offset(x: active ? 0 : 12)
+            .allowsHitTesting(active)
+            .accessibilityHidden(!active)
     }
 }
