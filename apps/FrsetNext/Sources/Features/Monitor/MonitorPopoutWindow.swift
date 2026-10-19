@@ -1,39 +1,44 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 // MARK: - 性能监测独立窗口（v59 新建，v60 定为唯一性能界面，v63 交互对齐主面板）
 //
-// v63（2026-10-19 用户澄清）：
-//   · **点外即消正是想要的行为**——恢复失焦自动关闭（与主面板一致，招之即来挥之即去）；
-//   · 展开位置/动画：从**状态栏部件图标**处展开（顶边贴菜单栏、x 对齐锚点中心，
-//     钳制可见区），动画与主面板同款「长出来」弹簧（scale 0.93→1 anchor top +
-//     下移进入 + 淡入，response 0.24 / damping 0.82），不再是生硬的 alpha 淡入；
-//   · 模块切换：窗口尺寸固定（NSHostingView.sizingOptions = [] 禁止内容反驱窗口，
-//     此前切模块时窗口随内容 320×529 之类跳变 = 「切换动画不对」的根源），
-//     内容改在固定窗口内滚动。
+// v71（2026-10-19 用户需求「布局留白 / 框大小可不一致 / 展开动画不流畅」）：
+//   · 布局：内容撑满窗口宽度（fixedWidth=nil，原 292 限宽是 380 窗内两侧大留白的根源），
+//     窗口高度**内容驱动**（GeometryReader 异步测量 → animator 平滑过渡，
+//     各模块内容多少不同 → 窗口高低可不同，顶边贴菜单栏不动）；
+//   · 动画：SwiftUI scaleEffect 换成 **contentView.layer 的 CA 动画**（GPU 合成，
+//     ScrollView 内容不参与逐帧重绘——原实现每帧主线程 layout+合成导致卡顿）。
+//     进出场 = 锚点横向偏移 + scale 0.93→1 + 上移 12 + 淡入，timing 类弹簧；
+//   · 交互不变：点外即消 / 部件锚点展开 / 切模块不挪位置 / 采样门控。
 // 链路：部件点击（带锚点）/ ⌥P / ⌥M → open；再点部件 = 切模块不重定位。
-// 窗口可见期间 MonitorSampler 用用户刷新间隔（门控在 open/dismiss 挂接）。
 
-/// 独立窗内容的进出场状态（驱动「长出来」弹簧动画）
-public final class PopoutPresentation: ObservableObject {
-    @Published public var visible = false
+/// 内容高度偏好键（异步测量 → 控制器 resize）
+private struct ContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 { value = next }
+    }
 }
 
-/// 窗口内容根：固定尺寸内滚动 + 进出场弹簧（主面板同款参数）
+/// 窗口内容根：detail 自带模块切换条 + 底栏（fixedWidth=nil 撑满）；
+/// 内容高度经偏好异步上报控制器（驱动窗口平滑 resize）
 private struct PopoutRootView: View {
-    @ObservedObject var presentation: PopoutPresentation
     let detail: MonitorDetailView
+    let onHeightChange: (CGFloat) -> Void
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             detail
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
+                })
         }
-        .scaleEffect(presentation.visible ? 1 : 0.93, anchor: .top)
-        .offset(y: presentation.visible ? 0 : -10)
-        .opacity(presentation.visible ? 1 : 0)
-        .animation(.spring(response: 0.24, dampingFraction: 0.82), value: presentation.visible)
+        .onPreferenceChange(ContentHeightKey.self) { height in
+            onHeightChange(height)
+        }
     }
 }
 
@@ -42,20 +47,16 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     /// 独立窗口自己的模块选中态（唯一一套，不再与主面板共享）
     private var selection: MonitorDetailSelection
-    /// 进出场动画状态
-    private let presentation = PopoutPresentation()
     /// 无指定模块时的回退（记忆上次查看的模块）
     private var lastModule: MonitorModuleID = .cpu
 
     private convenience init() {
-        // 先走 designated init（selection/presentation 就绪），再把 rootView
-        // 装进窗口——保证 PopoutRootView 观察的 presentation 与 controller
-        // 操作的是**同一个实例**（此前两处各自 new，open() 置 visible 打在
-        // 无人观察的实例上，内容恒 opacity 0 = 空白窗）。
         self.init(window: nil)
-        let detail = MonitorDetailView(selection: selection, pageMode: false)
-        let host = NSHostingView(rootView: PopoutRootView(presentation: presentation, detail: detail))
-        host.sizingOptions = []          // 内容不反驱窗口大小（固定尺寸，切模块不跳变）
+        let detail = MonitorDetailView(selection: selection, pageMode: false, fixedWidth: nil)
+        let host = NSHostingView(rootView: PopoutRootView(detail: detail) { [weak self] height in
+            self?.resize(toContentHeight: height)
+        })
+        host.sizingOptions = []          // 内容不反驱窗口大小（高度由控制器按测量值动画过渡）
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 640),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
@@ -87,7 +88,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     private var warmupDone = false
 
     /// 启动空闲期离屏布局一次（与主面板 warmup 同模式，3s 错峰避免争抢）。
-    /// 预热后首开只剩定位 + 「长出来」动画。
+    /// 预热后首开只剩定位 + 入场动画。
     public func scheduleWarmup(after delay: TimeInterval = 3.0) {
         guard !warmupDone else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -122,13 +123,9 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         selection.module = target
         w.setFrameOrigin(origin(for: w.frame.size, anchor: anchor))
         w.alphaValue = 1
-        presentation.visible = false
-        NSApp.activate(ignoringOtherApps: true)
+        // v71：layer 级入场动画（GPU 合成）——从锚点方向「长出来」
+        playAppearAnimation(anchor: anchor)
         w.makeKeyAndOrderFront(nil)
-        // 下一拍触发「长出来」弹簧（同帧置 true 无状态变化、动画不发生）
-        DispatchQueue.main.async { [weak self] in
-            self?.presentation.visible = true
-        }
         // 采样门控：窗口可见期间用用户刷新间隔
         MonitorSampler.shared.setPanelActive(true)
         Log.info("Monitor", "监测独立窗口：打开（\(target.displayName)）")
@@ -142,19 +139,89 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         Log.info("Monitor", "监测独立窗口：切换模块（\(module.displayName)）")
     }
 
-    /// 「点外即消」收起：内容弹簧退出（visible=false），0.22s 后 orderOut；
-    /// 期间再次 open（visible 置回 true）则跳过 orderOut。
+    // MARK: 布局（v71：内容高度驱动，各模块框大小可不同）
+
+    /// 内容高度变化 → 窗口高度平滑过渡（顶边贴菜单栏不动；clamp 480~屏高-40）。
+    /// animator 帧动画与 layer 入场动画可并存（frame 动画改窗口、transform 改内容层）。
+    func resize(toContentHeight height: CGFloat) {
+        guard let w = window, height > 1 else { return }
+        let screen = w.screen ?? NSScreen.main
+        let maxH = min(880, (screen?.visibleFrame.height ?? 900) - 40)
+        let target = max(480, min(maxH, height))
+        guard abs(target - w.frame.height) > 1 else { return }
+        var frame = w.frame
+        frame.origin.y -= (target - frame.height)   // 顶边固定，向下增高
+        frame.size.height = target
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            w.animator().setFrame(frame, display: true)
+        }
+    }
+
+    // MARK: 动画（v71：contentView.layer CA 动画，GPU 合成不卡顿）
+
+    /// 入场：从锚点横向偏移 + scale 0.93→1 + 上移 12 + 淡入（timing 类弹簧 0.28s）
+    private func playAppearAnimation(anchor: NSRect?) {
+        guard let layer = window?.contentView?.layer else { return }
+        layer.removeAllAnimations()
+        let dx = anchorDx(anchor: anchor)
+        let start = CATransform3DConcat(
+            CATransform3DMakeScale(0.93, 0.93, 1),
+            CATransform3DMakeTranslation(dx, -12, 0)
+        )
+        layer.transform = start
+        layer.opacity = 0
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.28)
+        CATransaction.setAnimationTimingFunction(
+            CAMediaTimingFunction(controlPoints: 0.22, 1.05, 0.36, 1))
+        CATransaction.setCompletionBlock { [weak self] in
+            self?.window?.contentView?.layer?.transform = CATransform3DIdentity
+            self?.window?.contentView?.layer?.opacity = 1
+        }
+        layer.transform = CATransform3DIdentity
+        layer.opacity = 1
+        CATransaction.commit()
+    }
+
+    /// 退场：缩小 + 上移 + 淡出（0.18s easeIn），完成后 orderOut；期间重开则取消
     public func dismissPopout() {
         guard let w = window, w.isVisible else { return }
-        presentation.visible = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { [weak self] in
-            guard let self, let w = self.window, !self.presentation.visible else { return }
+        guard let layer = w.contentView?.layer else {
             w.orderOut(nil)
-            // 门控复位：窗口隐藏后回到空闲采样节奏
+            MonitorSampler.shared.setPanelActive(false)
+            return
+        }
+        layer.removeAllAnimations()
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.18)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeIn))
+        layer.transform = CATransform3DConcat(
+            CATransform3DMakeScale(0.95, 0.95, 1),
+            CATransform3DMakeTranslation(0, -8, 0))
+        layer.opacity = 0
+        CATransaction.setCompletionBlock { [weak self] in
+            guard let self else { return }
+            if self.isVisible { return }   // 动画期间重开（open 已重置 transform）→ 不收起
+            self.window?.orderOut(nil)
+            self.window?.contentView?.layer?.transform = CATransform3DIdentity
+            self.window?.contentView?.layer?.opacity = 1
             MonitorSampler.shared.setPanelActive(false)
         }
+        CATransaction.commit()
         Log.info("Monitor", "监测独立窗口：关闭")
     }
+
+    /// 入场起点横移：从锚点相对窗口中心的水平距离反向补偿（视觉上从部件图标处展开）
+    private func anchorDx(anchor: NSRect?) -> CGFloat {
+        guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }
+        let anchorCenterX = anchor.midX - w.frame.minX
+        let ratio = max(0, min(1, anchorCenterX / w.frame.width))
+        return (0.5 - ratio) * w.frame.width
+    }
+
+    // MARK: 定位
 
     /// 定位：锚点下方（顶边贴菜单栏 -2pt、x 对齐锚点中心、钳制可见区）或右上贴边
     private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {

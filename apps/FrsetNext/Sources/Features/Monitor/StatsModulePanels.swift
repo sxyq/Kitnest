@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 import SwiftUI
 
 // MARK: - 原版 Stats 模块面板（性能监测页正文，1:1 版式）
@@ -284,12 +285,18 @@ struct StatsProcTable: View {
                             .frame(width: 86, alignment: .trailing)
                     }
                 }
+                .contentShape(Rectangle())
+                // v71：点击/右键 → 进程菜单（查看信息 / 退出进程）
+                .onTapGesture { ProcMenuPresenter.shared.present(for: item, values: values(item), at: NSEvent.mouseLocation) }
+                .contextMenu { StatsProcContextMenu(item: item, values: values(item)) }
             }
         }
     }
 }
 
-/// 进程图标：优先真实 app 图标（按可执行名反查 bundle），否则用通用方块（原版观感）。
+/// 进程图标：真实 app 图标（按可执行名/显示名反查 bundle），否则通用应用图标。
+/// v71：解析能力扩展——硬编码快路径 + 异步扫描 /Applications 等目录建「可执行名→app」索引，
+/// 覆盖 QQ / python3.12 / mdworker_shared 等硬编码清单外的进程（此前显示灰方块）。
 struct StatsAppIcon: View {
     var name: String
     var size: CGFloat = 16
@@ -310,21 +317,63 @@ struct StatsAppIcon: View {
 
     private static var cache: [String: NSImage] = [:]
     private static let lock = NSLock()
+    /// 可执行名/显示名 → app 路径索引（首次访问时异步预热，见 ensureAppIndex）
+    private static var appIndex: [String: String] = [:]
+    private static var indexReady = false
 
-    private static func cachedIcon(for name: String) -> NSImage? {
+    static func cachedIcon(for name: String) -> NSImage? {
         lock.lock(); defer { lock.unlock() }
         if let hit = cache[name] { return hit }
-        guard let icon = resolveIcon(name) else { return nil }
+        ensureAppIndex()
+        var icon = resolveIcon(name)
+        if icon == nil {
+            // 通用应用图标（系统进程/未知进程：python3.12/mdworker_shared 等）
+            icon = NSWorkspace.shared.icon(forFileType: kUTTypeApplication as String)
+            icon?.size = NSSize(width: 16, height: 16)
+        }
         cache[name] = icon
         return icon
     }
 
+    /// 异步预热 app 索引（一次性；/Applications + Utilities + ~/Applications 一级 .app）
+    static func ensureAppIndex() {
+        guard !indexReady else { return }
+        indexReady = true   // 只触发一次；结果到达前 resolveIcon 走硬编码/通用
+        DispatchQueue.global(qos: .utility).async {
+            var index: [String: String] = [:]
+            var dirs: [String] = [
+                "/Applications", "/Applications/Utilities", "/System/Applications/Utilities"
+            ]
+            if let home = ProcessInfo.processInfo.environment["HOME"] {
+                dirs.append("\(home)/Applications")
+            }
+            for dir in dirs {
+                guard let entries = try? FileManager.default.contentsOfDirectory(atPath: dir) else { continue }
+                for entry in entries where entry.hasSuffix(".app") {
+                    let path = "\(dir)/\(entry)"
+                    let plistPath = "\(path)/Contents/Info.plist"
+                    guard let plist = NSDictionary(contentsOfFile: plistPath) else { continue }
+                    var keys: [String] = []
+                    if let exe = plist["CFBundleExecutable"] as? String { keys.append(exe) }
+                    if let bundleName = plist["CFBundleName"] as? String { keys.append(bundleName) }
+                    if let display = plist["CFBundleDisplayName"] as? String { keys.append(display) }
+                    // app 文件名本身也是键（"QQ.app" → "QQ"）
+                    keys.append(String(entry.dropLast(4)))
+                    lock.lock()
+                    for key in keys where !key.isEmpty {
+                        appIndex[key] = path
+                    }
+                    lock.unlock()
+                }
+            }
+        }
+    }
+
     private static func resolveIcon(_ name: String) -> NSImage? {
-        // 常见进程名 → bundle 路径（只做低成本匹配，避免每次遍历 /Applications）
+        // 常见进程名 → bundle 路径（低成本快路径）
         let known: [String: String] = [
             "ChatGPT": "/Applications/ChatGPT.app",
             "Microsoft Edge": "/Applications/Microsoft Edge.app",
-            "Microsoft Edge Helper": "/Applications/Microsoft Edge.app",
             "Codex": "/Applications/Codex.app",
             "Frset": "/Applications/Frset.app",
             "WorkBuddy": "/Applications/WorkBuddy.app",
@@ -332,12 +381,102 @@ struct StatsAppIcon: View {
             "Electron": "/Applications/Electron.app",
             "ZTools": "/Applications/ZTools.app"
         ]
-        for (key, path) in known where name.hasPrefix(key) {
-            if FileManager.default.fileExists(atPath: path) {
-                return NSWorkspace.shared.icon(forFile: path)
-            }
+        if let path = known.first(where: { name.hasPrefix($0.key) })?.value,
+           FileManager.default.fileExists(atPath: path) {
+            let icon = NSWorkspace.shared.icon(forFile: path)
+            icon.size = NSSize(width: 16, height: 16)
+            return icon
+        }
+        // 索引反查：可执行名 / 显示名 / app 名（含合并前的 "Microsoft Edge Helper" 形态）
+        lock.lock(); let index = appIndex; lock.unlock()
+        if let path = index[name], FileManager.default.fileExists(atPath: path) {
+            let icon = NSWorkspace.shared.icon(forFile: path)
+            icon.size = NSSize(width: 16, height: 16)
+            return icon
+        }
+        // 前缀兜底："QQNT" → "QQ"、"Chrome" → "Google Chrome"
+        if let hit = index.first(where: { name.hasPrefix($0.key) && $0.key.count >= 2 })?.value,
+           FileManager.default.fileExists(atPath: hit) {
+            let icon = NSWorkspace.shared.icon(forFile: hit)
+            icon.size = NSSize(width: 16, height: 16)
+            return icon
         }
         return nil
+    }
+}
+
+/// 进程菜单（v71：用户需求「进程可点击→选择退出」）：点击行以 NSMenu 在鼠标位置弹出，
+/// 右键走 SwiftUI contextMenu（同一菜单构造）。退出 = SIGTERM 全部合并 pid。
+final class ProcMenuPresenter: NSObject {
+    static let shared = ProcMenuPresenter()
+
+    /// 在屏幕坐标处弹出菜单（onTapGesture 点击路径）
+    func present(for item: StatsProcItem, values: [String], at screenPoint: NSPoint) {
+        let menu = buildMenu(item: item, values: values)
+        menu.popUp(positioning: nil, at: screenPoint, in: nil)
+    }
+
+    /// 构建菜单（含 target-action 退出项；菜单持有 item → 关闭后释放）
+    func buildMenu(item: StatsProcItem, values: [String]) -> NSMenu {
+        let menu = NSMenu()
+        let pidText = item.pids.count > 1 ? "\(item.pids.count) 个进程 · PID \(item.pids.map(String.init).joined(separator: ", "))"
+                                         : "PID \(item.pid)"
+        let info = NSMenuItem(title: "\(item.name) · \(pidText) · \(values.joined(separator: " · "))",
+                              action: nil, keyEquivalent: "")
+        info.isEnabled = false
+        menu.addItem(info)
+        menu.addItem(.separator())
+        let quitItem = NSMenuItem(title: "退出 \(item.name)",
+                                  action: #selector(quit(_:)),
+                                  keyEquivalent: "")
+        quitItem.target = self
+        quitItem.representedObject = item
+        menu.addItem(quitItem)
+        menu.addItem(.separator())
+        let cancel = NSMenuItem(title: "取消", action: nil, keyEquivalent: "")
+        menu.addItem(cancel)
+        return menu
+    }
+
+    @objc private func quit(_ sender: NSMenuItem) {
+        guard let item = sender.representedObject as? StatsProcItem else { return }
+        StatsProcQuitter.quit(item: item)
+    }
+}
+
+/// SwiftUI contextMenu（右键路径）：菜单内容与 NSMenu 版一致
+struct StatsProcContextMenu: View {
+    let item: StatsProcItem
+    let values: [String]
+
+    var body: some View {
+        Text(verbatim: "\(item.name) · PID \(item.pids.map(String.init).joined(separator: ", "))")
+            .foregroundStyle(.secondary)
+        Divider()
+        Button(role: .destructive) {
+            StatsProcQuitter.quit(item: item)
+        } label: {
+            Label("退出 \(item.name)", systemImage: "xmark.circle")
+        }
+        Divider()
+        Text(verbatim: values.joined(separator: " · "))
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+    }
+}
+
+/// 退出进程：SIGTERM 全部合并 pid（同 App 的 Helper/Renderer 一并结束）
+enum StatsProcQuitter {
+    static func quit(item: StatsProcItem) {
+        var succeeded = 0
+        for pid in item.pids where kill(pid, SIGTERM) == 0 { succeeded += 1 }
+        DispatchQueue.main.async {
+            if succeeded > 0 {
+                Toast.show("已请求退出 \(item.name)（\(succeeded) 个进程）", icon: "xmark.circle")
+            } else {
+                Toast.show("无法退出 \(item.name)：权限不足或已退出", icon: "exclamationmark.triangle")
+            }
+        }
     }
 }
 

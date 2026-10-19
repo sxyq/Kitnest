@@ -21,11 +21,15 @@ public struct StatsProcItem: Identifiable, Sendable {
     public var memBytes: Double   // footprint 字节
     public var diskRead: Double   // B/s
     public var diskWrite: Double  // B/s
+    /// 同 App 合并后的全部 pid（单进程 = [pid]；「退出」时全杀）
+    public var pids: [Int32]
 
-    public init(pid: Int32, name: String, cpu: Double, memBytes: Double, diskRead: Double, diskWrite: Double) {
+    public init(pid: Int32, name: String, cpu: Double, memBytes: Double, diskRead: Double, diskWrite: Double,
+                pids: [Int32]? = nil) {
         self.pid = pid; self.name = name
         self.cpu = cpu; self.memBytes = memBytes
         self.diskRead = diskRead; self.diskWrite = diskWrite
+        self.pids = pids ?? [pid]
     }
 }
 
@@ -379,24 +383,62 @@ public final class StatsDataProvider {
 
     // MARK: - 内部辅助
 
-    /// 读一类进程排行（kind：0=CPU 1=内存 2=磁盘 3=网络）
+    /// 读一类进程排行（kind：0=CPU 1=内存 2=磁盘 3=网络）。
+    /// v71：读入后按 App 聚合——「一个 App 的多个进程/Helper/Renderer 合并显示」，
+    /// 聚合项保留全部 pid（退出时一并结束），主指标相加后重排截 max。
     private static func readProcList(kind: Int, max: Int) -> [StatsProcItem] {
         let ptr = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: max)
         defer { ptr.deallocate() }
         let n = frset_proc_top(Int32(kind), ptr, Int32(max))
-        var items: [StatsProcItem] = []
+        var raw: [(pid: Int32, name: String, cpu: Double, mem: Double, r: Double, w: Double)] = []
         for i in 0..<Int(n) {
-            var raw = ptr[i]
-            items.append(StatsProcItem(
-                pid: raw.pid,
-                name: String(cString: FSStatsProcName(&raw)),
-                cpu: raw.cpu,
-                memBytes: raw.mem,
-                diskRead: raw.disk_r,
-                diskWrite: raw.disk_w
-            ))
+            var item = ptr[i]
+            raw.append((item.pid,
+                        String(cString: FSStatsProcName(&item)),
+                        item.cpu, item.mem, item.disk_r, item.disk_w))
         }
-        return items
+        // 网络 kind（3）的 down/up 复用 diskRead/diskWrite 字段，随聚合相加
+        struct Acc { var pids: [Int32] = []; var cpu = 0.0; var mem = 0.0; var r = 0.0; var w = 0.0 }
+        var groups: [String: Acc] = [:]
+        var order: [String] = []
+        for item in raw {
+            let key = appGroupName(item.name)
+            if groups[key] == nil { order.append(key) }
+            var acc = groups[key] ?? Acc()
+            acc.pids.append(item.pid)
+            acc.cpu += item.cpu; acc.mem += item.mem
+            acc.r += item.r; acc.w += item.w
+            groups[key] = acc
+        }
+        var items: [StatsProcItem] = groups.map { key, acc in
+            StatsProcItem(pid: acc.pids[0], name: key,
+                          cpu: acc.cpu, memBytes: acc.mem,
+                          diskRead: acc.r, diskWrite: acc.w,
+                          pids: acc.pids)
+        }
+        // 按当前 kind 的主指标降序（保持排行语义），截 max
+        switch kind {
+        case 1: items.sort { $0.memBytes > $1.memBytes }
+        case 3: items.sort { ($0.diskRead + $0.diskWrite) > ($1.diskRead + $1.diskWrite) }
+        case 2: items.sort { ($0.diskRead + $0.diskWrite) > ($1.diskRead + $1.diskWrite) }
+        default: items.sort { $0.cpu > $1.cpu }
+        }
+        return Array(items.prefix(max))
+    }
+
+    /// 同 App 进程名归一：「Microsoft Edge Helper (Renderer)」→「Microsoft Edge」、
+    /// 「Safari (Web Content)」→「Safari」。系统进程（mdworker_shared/python3.12）原样保留。
+    static func appGroupName(_ name: String) -> String {
+        var n = name.trimmingCharacters(in: .whitespaces)
+        // 去 " (Renderer)" / " (GPU Process)" / " (Web Content)" 等括号后缀
+        if let parenRange = n.range(of: " ("), parenRange.lowerBound > n.startIndex {
+            n = String(n[..<parenRange.lowerBound])
+        }
+        // 去 " Helper" / " Helper (GPU)" 类尾巴（括号已去，剩纯 Helper）
+        if n.hasSuffix(" Helper") {
+            n = String(n.dropLast(" Helper".count))
+        }
+        return n.trimmingCharacters(in: .whitespaces)
     }
 
     /// 多风扇：数量（FNum）+ 名称（F{i}ID）+ 转速（F{i}Ac）+ 官方百分比 (v-Mn)/(Mx-Mn)

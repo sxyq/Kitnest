@@ -17,15 +17,19 @@ public struct MonitorDetailView: View {
     @Namespace private var tabNamespace
     /// 页面模式：只渲染模块内容，标签行与底栏由 StatsPageView 提供（宽度撑满、无固定 292 限宽）
     private let pageMode: Bool
+    /// 固定宽度（nil = 撑满容器；独立窗 v71 传 nil 消除两侧留白，菜单栏 popover 保留 292）
+    private let fixedWidth: CGFloat?
 
     public init(module: MonitorModuleID = .cpu, pageMode: Bool = false) {
         self.selection = MonitorDetailSelection(module)
         self.pageMode = pageMode
+        self.fixedWidth = 292
     }
 
-    public init(selection: MonitorDetailSelection, pageMode: Bool = false) {
+    public init(selection: MonitorDetailSelection, pageMode: Bool = false, fixedWidth: CGFloat? = 292) {
         self.selection = selection
         self.pageMode = pageMode
+        self.fixedWidth = fixedWidth
     }
 
     public var body: some View {
@@ -44,7 +48,7 @@ public struct MonitorDetailView: View {
                 footer
             }
             .padding(12)
-            .frame(width: 292)
+            .frame(width: fixedWidth, alignment: .leading)
         }
     }
 
