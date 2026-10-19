@@ -969,6 +969,7 @@ public struct SearchSectionView: View {
                     .buttonStyle(.plain)
                     .help("点击内嵌预览该页面（⌘点击 = 浏览器打开）")
                     .simultaneousGesture(TapGesture().modifiers(.command).onEnded {
+                        Log.info("Search", "openResult url=\(result.url.absoluteString)")
                         NSWorkspace.shared.open(result.url)
                     })
                 }
@@ -1341,6 +1342,7 @@ public struct SearchSectionView: View {
     private func performWebSearch(_ engine: SearchEngine) {
         let text = trimmedQuery
         guard !text.isEmpty, let url = SearchServiceManager.searchURL(for: engine, query: text) else { return }
+        Log.info("Search", "performWebSearch engine=\(engine.name) q='\(text)' url=\(url.absoluteString)")
         NSWorkspace.shared.open(url)
         if SearchServiceManager.shared.clearSearchInputAfterWebAction {
             clearInput()

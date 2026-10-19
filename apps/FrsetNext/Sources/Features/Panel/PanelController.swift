@@ -134,6 +134,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.alphaValue = 0
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
+        Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) alpha=\(Int(p.alphaValue))")
+        RenderProbe.snapshot(p, name: "panel", reason: "show")
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = Personalization.shared.openAnimation.fadeDuration
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -176,6 +178,9 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 监测独立窗口定位用：主面板当前 frame（不可见时 nil）
     public var panelFrameForPopout: NSRect? { panel?.isVisible == true ? panel?.frame : nil }
 
+    /// RenderProbe 渲染健康探针用（只读窗口引用，v71 白屏排查）
+    public var panelWindowForProbe: NSWindow? { panel }
+
     /// v30：位置收敛——仅顶边（注入版 FSSettlePanel(alignX: NO)：切模块/改高度时
     /// 不动 x，避免横向跳动）
     public func settleTopEdge() {
@@ -190,6 +195,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     public func hide() {
         guard let p = panel, p.isVisible else { return }
+        Log.info("Panel", "hide: 开始收起")
+        RenderProbe.snapshot(p, name: "panel", reason: "hideStart")
         persistSize(p)
         presentation.visible = false
         // 原作行为（12 号 P8 waitsForPreviewClose）：面板收起前先等预览 popover 关闭

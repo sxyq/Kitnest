@@ -40,7 +40,7 @@ static int FSBarModuleIndex(NSString *m) {
 }
 
 // 各模块支持的部件形态（顺序即设置列表顺序；第 1 个接管原生图标位）
-NSArray<NSString *> *FSBarFormsForModule(NSString *m) {    if ([m isEqualToString:@"CPU"])     return @[@"line_chart", @"mini", @"run_cat", @"bar_chart", @"pie_chart", @"tachometer", @"label", @"icon"];
+NSArray<NSString *> *FSBarFormsForModule(NSString *m) {    if ([m isEqualToString:@"CPU"])     return @[@"line_chart", @"mini", @"bar_chart", @"pie_chart", @"tachometer", @"label", @"icon"];
     if ([m isEqualToString:@"RAM"])     return @[@"bar_chart", @"mini", @"line_chart", @"pie_chart", @"memory", @"tachometer", @"label", @"icon"];
     if ([m isEqualToString:@"GPU"])     return @[@"mini", @"line_chart", @"tachometer", @"label", @"icon"];
     if ([m isEqualToString:@"Disk"])    return @[@"mini", @"bar_chart", @"network_chart", @"speed", @"pie_chart", @"line_chart", @"memory", @"label", @"icon"];
@@ -58,8 +58,7 @@ NSString *FSBarFormName(NSString *form) {
         map = @{@"mini": @"迷你（数值）", @"line_chart": @"折线图", @"bar_chart": @"柱状图",
                 @"pie_chart": @"饼图", @"network_chart": @"网络图", @"speed": @"速度",
                 @"memory": @"内存", @"tachometer": @"仪表盘", @"battery": @"电池",
-                @"label": @"标签", @"state": @"状态点", @"icon": @"图标",
-                @"run_cat": @"奔跑小猫"};
+                @"label": @"标签", @"state": @"状态点", @"icon": @"图标"};
     });
     return map[form] ?: form;
 }
@@ -709,7 +708,6 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 }
 
 - (CGFloat)preferredWidth {
-    if ([_form isEqualToString:@"run_cat"]) return 34;   // v32：奔跑小猫（帧高 20 → 宽 ~31 + pad）
     if ([_form isEqualToString:@"mini"]) {
         // v28：宽度 = 实际内容宽（label 与值文本取大，量化 4pt）——内容居中绘制后，
         //   跨部件"内容-内容"间隙趋于均匀（统计口径见 drawMini；原 31/36 固定宽会让
@@ -874,7 +872,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     else if ([_form isEqualToString:@"label"]) { [self drawLabelColumn:_module at:0 dark:dark height:H]; }
     else if ([_form isEqualToString:@"state"]) { [self drawState:cr dark:dark]; }
     else if ([_form isEqualToString:@"icon"]) { [self drawIcon:cr dark:dark]; }
-    else if ([_form isEqualToString:@"run_cat"]) { [self drawRunCat:cr dark:dark]; }   // v32：奔跑小猫
+    else { [self drawMini:cr dark:dark]; }   // v71：未知/废弃 form（含存量 run_cat）fallback mini
 
     [NSGraphicsContext restoreGraphicsState];
 }
@@ -1465,20 +1463,6 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     return map[_module] ?: @"gearshape";
 }
 
-// ======== 形态 13（v32 移植）：run_cat（RunCat Neo 帧 · 帧速 ∝ CPU）========
-- (void)drawRunCat:(NSRect)r dark:(BOOL)dark {
-    FSRunCatStartTimer();   // 首次绘制即启动（幂等）
-    NSImage *img = FSRunCatImage(g_runCatFrame, dark);
-    if (!img) return;
-    CGFloat h = r.size.height - 2;
-    CGFloat w = h * 56.0 / 36.0;
-    if (w > r.size.width - 2) { w = r.size.width - 2; h = w * 36.0 / 56.0; }
-    NSRect dr = NSMakeRect(r.origin.x + (r.size.width - w) / 2.0,
-                           r.origin.y + (r.size.height - h) / 2.0, w, h);
-    [img drawInRect:dr fromRect:NSZeroRect operation:NSCompositingOperationSourceOver
-           fraction:1 respectFlipped:YES hints:nil];
-}
-
 @end
 
 // ======== v32/v34/v35 移植（注入版）：奔跑小猫 —— static 实现区 ========
@@ -1580,9 +1564,7 @@ static void FSRunCatTick(void) {
             if ([v isKindOfClass:[NSNumber class]]) g_mainIconCatEnabled = [v boolValue];
         }
     }
-    FSBarWidgetView *w = g_views[@"CPU/run_cat"];   // 合并或独立挂载均登记于 g_views
-    BOOL needPart = (w && w.superview);
-    if (!needPart && !g_mainIconCatEnabled) return;
+    if (!g_mainIconCatEnabled) return;   // v71：合并条 run_cat 形态已移除，仅主图标一套
 
     double cpu = g_snap.valid ? g_snap.cpuUsage : 0;
     if (cpu < 0) cpu = 0;
@@ -1616,7 +1598,7 @@ static void FSRunCatTick(void) {
         g_runCatFrame = (g_runCatFrame + 1) % frset_runcat_frame_count();
         advanced = YES;
     }
-    if (advanced && needPart) [w setNeedsDisplay:YES];
+    // v71：合并条 run_cat 已移除，帧推进仅服务主图标覆盖层
 
     // v35：主图标换猫（用户需求"完全替换"）——覆盖层方案：帧/明暗变化时重绘覆盖层；
     //   原 button.image 不动（被覆盖层盖住），点击穿透 → 打开主页行为不变。

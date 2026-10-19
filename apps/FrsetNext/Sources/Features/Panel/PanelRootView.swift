@@ -81,7 +81,9 @@ struct PanelRootView: View {
         .animation(personalization.openAnimation.spring, value: presentation.visible)
         // 切页：关预览——主页 hover 打开的预览不能跟到中转站页
         // （与 ClipboardTableView 的 tracking 禁用双保险）
-        .onChange(of: page) { _ in
+        .onChange(of: page) { newPage in
+            Log.info("Panel", "切页: \(newPage)")
+            RenderProbe.snapshotAll(reason: "pageChange")
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
         }
         // 文件中转开关关闭时：若正停在该页则回主页（v41）

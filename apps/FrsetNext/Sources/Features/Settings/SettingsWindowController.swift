@@ -28,6 +28,7 @@ final class SettingsUIState: ObservableObject {
 
     /// 旧 pane id → 侧边栏位置映射（含多合一分类的内部子页）
     func selectPane(_ pane: String) {
+        Log.info("settings", "selectPane: \(pane)")
         selectedPaneID = pane
         detailPaneID = nil
         applyPaneMapping(pane)
@@ -93,9 +94,13 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+        Log.info("settings", "open 显示完成 visible=\(window?.isVisible ?? false) frame=\(window.map { String(describing: $0.frame) } ?? "nil")")
+        RenderProbe.snapshot(window, name: "settings", reason: "open")
     }
 
     public func close() {
+        Log.info("settings", "close()")
+        RenderProbe.snapshot(window, name: "settings", reason: "close")
         window?.orderOut(nil)
     }
 

@@ -28,6 +28,10 @@ enum AppBootstrap {
         // 2) 启动（各模块在 start() 内完成自我注册与服务注入）
         ModuleRegistry.startAll()
 
+        // 2.5) v71：渲染健康探针（白屏排查基础设施）——周期 dump 关键窗口
+        //      frame/alpha/layer 状态；白屏发生时日志必有现场。
+        RenderProbe.install()
+
         // 3) 跨模块事件接线（总控统一连，模块之间不互相引用）
         wireEventBuses()
 

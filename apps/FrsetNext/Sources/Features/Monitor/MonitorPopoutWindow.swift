@@ -129,6 +129,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         // 采样门控：窗口可见期间用用户刷新间隔
         MonitorSampler.shared.setPanelActive(true)
         Log.info("Monitor", "监测独立窗口：打开（\(target.displayName)）")
+        RenderProbe.snapshot(w, name: "monitorPopout", reason: "open")
     }
 
     /// 窗口已开时部件再点：只切模块，不挪窗口位置
@@ -187,6 +188,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     /// 退场：缩小 + 上移 + 淡出（0.18s easeIn），完成后 orderOut；期间重开则取消
     public func dismissPopout() {
+        Log.info("Monitor", "监测独立窗口：dismiss")
+        RenderProbe.snapshot(window, name: "monitorPopout", reason: "dismiss")
         guard let w = window, w.isVisible else { return }
         guard let layer = w.contentView?.layer else {
             w.orderOut(nil)
