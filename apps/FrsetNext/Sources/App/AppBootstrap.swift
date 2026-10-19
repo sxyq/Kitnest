@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import AppKit
 import Carbon.HIToolbox
 
@@ -41,6 +42,14 @@ enum AppBootstrap {
 
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
         registerAppLevelTools()
+
+        // 4.5) 音频混音器设置页（v68；公开 CoreAudio 边界见 AudioMixer.swift 头注）
+        SettingsPaneRegistry.register(SettingsPaneDescriptor(
+            id: "audio",
+            title: "音频",
+            systemImage: "speaker.wave.2",
+            build: { AnyView(AudioMixerPane()) }
+        ))
 
         // 5) 全局快捷键默认绑定表（specs/19）：须在 ModuleRegistry.startAll() 之后调用，
         //    handler 为懒分发，触发时才经 ServiceLocator / 各模块公开 API 执行

@@ -54,7 +54,7 @@ public enum SettingsPaneRegistry {
     }
     /// 默认排序（与原作设置窗口页签序一致：通用/监测/剪贴板/截图/搜索/AI/工具/快捷键/关于；
     /// "search" 为规格 07 预留位——原作有搜索设置页但内容未测绘，暂无模块注册）
-    private static let order = ["general", "monitor", "clipboard", "capture", "search", "ai", "tools", "shortcuts", "statistics", "about"]
+    private static let order = ["general", "audio", "monitor", "clipboard", "capture", "search", "ai", "tools", "shortcuts", "statistics", "about"]
     public static var all: [SettingsPaneDescriptor] {
         lock.lock(); defer { lock.unlock() }
         return items.sorted { (order.firstIndex(of: $0.id) ?? 99) < (order.firstIndex(of: $1.id) ?? 99) }

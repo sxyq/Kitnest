@@ -145,6 +145,16 @@ public enum CommandCatalog {
             Personalization.shared.toastFollowPanel.toggle()
         }))
 
+        // ③.5 音频混音器
+        items.append(CommandItem(id: "audio.mixer",
+                                 title: "音频混音器（系统音量 / 设备 / 有声 App）",
+                                 subtitle: "音频",
+                                 systemImage: "speaker.wave.2",
+                                 kind: .settings) {
+            NSApp.activate(ignoringOtherApps: true)
+            ServiceLocator.settings?.open(pane: "audio")
+        })
+
         // ④ 设置页直达
         for pane in SettingsPaneRegistry.all {
             items.append(CommandItem(id: "settings.\(pane.id)",
