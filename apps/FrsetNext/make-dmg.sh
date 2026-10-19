@@ -4,7 +4,7 @@
 #       ./make-dmg.sh --build    （先跑一次 build.sh 再打包）
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-APP="$ROOT/build/FrsetNext.app"
+APP="$ROOT/build.noindex/FrsetNext.app"
 
 if [ "${1:-}" = "--build" ]; then
   echo "== 先构建 App =="
@@ -14,8 +14,8 @@ fi
 
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo "1.0.0")"
 STAMP="$(date +%Y%m%d-%H%M)"
-STAGE="$ROOT/build/.dmg-staging"
-OUT_DIR="$ROOT/dist"
+STAGE="$ROOT/build.noindex/.dmg-staging"
+OUT_DIR="$ROOT/dist.noindex"
 OUT="$OUT_DIR/FrsetNext-$VERSION-arm64-$STAMP.dmg"
 
 echo "== 组装 DMG 内容（v${VERSION}）=="

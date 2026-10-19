@@ -11,8 +11,8 @@ SRC="$ROOT/Sources"
 # 方案：编译/签名/校验全在 build/.staging/ 的暂存 bundle 内完成，最后 rename 换位
 #   （同卷 rename 是原子操作）。对外可见的 build/FrsetNext.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
-APP_FINAL="$ROOT/build/FrsetNext.app"          # 对外可见的构建产物（始终完整可启动）
-APP="$ROOT/build/.staging/FrsetNext.app"       # 编译暂存（构建期间对外不可见）
+APP_FINAL="$ROOT/build.noindex/FrsetNext.app"          # 对外可见的构建产物（始终完整可启动）
+APP="$ROOT/build.noindex/.staging/FrsetNext.app"       # 编译暂存（构建期间对外不可见）
 SDK="$(xcrun --show-sdk-path)"
 
 # 优化档位：默认 `-O` + **关闭全模块优化（no-WMO）**。
@@ -220,16 +220,16 @@ fi
 # 同上：rename 同卷原子，任何时刻 build/ 下的 app 都是完整可启动的；
 # 用户在构建期间双击也只会启动**上一个可用版本**，不会看到"已损坏"。
 # ============================================================================
-mkdir -p "$ROOT/build/.staging"
-rm -rf "$ROOT/build/.staging/old"
+mkdir -p "$ROOT/build.noindex/.staging"
+rm -rf "$ROOT/build.noindex/.staging/old"
 if [ -d "$APP_FINAL" ]; then
-  mv "$APP_FINAL" "$ROOT/build/.staging/old" 2>/dev/null || true
+  mv "$APP_FINAL" "$ROOT/build.noindex/.staging/old" 2>/dev/null || true
 fi
 if mv "$APP" "$APP_FINAL" 2>/dev/null; then
-  rm -rf "$ROOT/build/.staging/old"
+  rm -rf "$ROOT/build.noindex/.staging/old"
 else
   echo "  ⚠ 产物换位失败，回滚旧版"
-  [ -d "$ROOT/build/.staging/old" ] && mv "$ROOT/build/.staging/old" "$APP_FINAL"
+  [ -d "$ROOT/build.noindex/.staging/old" ] && mv "$ROOT/build.noindex/.staging/old" "$APP_FINAL"
   exit 1
 fi
 APP="$APP_FINAL"
