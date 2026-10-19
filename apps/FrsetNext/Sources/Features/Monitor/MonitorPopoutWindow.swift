@@ -145,7 +145,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     /// animator 帧动画与 layer 入场动画可并存（frame 动画改窗口、transform 改内容层）。
     func resize(toContentHeight height: CGFloat) {
         guard let w = window, height > 1 else { return }
-        let screen = w.screen ?? NSScreen.main
+        let screen = w.screen ?? Self.screen(for: nil)
         let maxH = min(880, (screen?.visibleFrame.height ?? 900) - 40)
         let target = max(480, min(maxH, height))
         guard abs(target - w.frame.height) > 1 else { return }
@@ -225,7 +225,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     /// 定位：锚点下方（顶边贴菜单栏 -2pt、x 对齐锚点中心、钳制可见区）或右上贴边
     private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {
-        let screen = NSScreen.main ?? NSScreen.screens.first
+        let screen = Self.screen(for: anchor)
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         if let anchor, anchor.width > 0, anchor.midX > 0 {
             var x = NSMidX(anchor) - size.width * 0.5
@@ -240,6 +240,20 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
             x = min(x, panelFrame.minX - size.width - 12)
         }
         return NSPoint(x: max(visible.minX + 8, x), y: visible.maxY - size.height - 2)
+    }
+
+    /// 屏幕选择（v71 实障修复）：NSScreen.main 在 LSUIElement 无 key window 时常为 nil，
+    /// 旧代码落到 1440×900 虚拟屏 fallback 钳制——真实屏 1280 宽时 x=1046 不被钳制，
+    /// 窗口超出右缘 145pt（用户实障：chips 第二行/网络等被裁）。
+    /// 现按锚点坐标命中屏优先，退回 NSScreen.main → 主屏链。
+    private static func screen(for anchor: NSRect?) -> NSScreen? {
+        if let anchor, anchor.width > 0 {
+            let pt = NSPoint(x: anchor.midX, y: anchor.midY)
+            if let hit = NSScreen.screens.first(where: {
+                NSMouseInRect(pt, $0.frame, false)
+            }) { return hit }
+        }
+        return NSScreen.main ?? NSScreen.screens.first
     }
 }
 
