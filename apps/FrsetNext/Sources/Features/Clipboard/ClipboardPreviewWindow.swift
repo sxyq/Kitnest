@@ -71,6 +71,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     private func installContent() {
         guard let window else { return }
         let view = ClipboardPreviewWindowView(item: item, showsHint: showsHint,
+                                              hoverStyle: mode == .hover,
                                               onEditingChanged: { [weak self] editing in
                                                   self?.onEditingChanged?(editing)
                                               })
@@ -81,23 +82,18 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         window.contentView = host
         if mode == .persistent {
             window.applyOfficialChrome()   // contentView 已替换 → 圆形关闭钮重新挂上
-        } else {
-            configureHoverChrome(window: window)
         }
     }
 
-    /// hover 态外观：圆角裁剪 + 拖动 + 阴影（无边框窗默认方角、不可拖）
+    /// hover 态外观：透明窗口 + 内容自裁圆角。
+    /// v71 修正：不再用 contentView.layer.masksToBounds 裁圆角——那会切断系统
+    /// 阴影的形状采样，阴影退化成「窗口矩形」，肉眼看就是圆角外多了一层图层
+    /// （用户实障截图）。改为 SwiftUI 内容自身 clipShape，阴影自动跟随圆角。
     private func configureHoverChrome(window: NSWindow) {
         window.isMovableByWindowBackground = true
         window.hasShadow = true
         window.isOpaque = false
         window.backgroundColor = .clear
-        if let host = window.contentView {
-            host.wantsLayer = true
-            host.layer?.cornerRadius = 10
-            host.layer?.masksToBounds = true
-            host.layer?.cornerCurve = .continuous
-        }
     }
 
     // MARK: 呈现
@@ -201,6 +197,8 @@ struct ClipboardPreviewWindowView: View {
 
     let item: ClipboardItem
     var showsHint: Bool = false
+    /// hover 态：内容自裁圆角（窗口透明，系统阴影跟随圆角形状）
+    var hoverStyle: Bool = false
     var onEditingChanged: ((Bool) -> Void)? = nil
 
     // 注：本项目用 swiftc 直编（无 macro plugin），@State 宏不可用 → 统一用 @Stored（StateCompat）
@@ -212,9 +210,11 @@ struct ClipboardPreviewWindowView: View {
     /// 关闭钮悬停态（红底白叉反馈）
     @Stored private var closeHover = false
 
-    init(item: ClipboardItem, showsHint: Bool = false, onEditingChanged: ((Bool) -> Void)? = nil) {
+    init(item: ClipboardItem, showsHint: Bool = false, hoverStyle: Bool = false,
+         onEditingChanged: ((Bool) -> Void)? = nil) {
         self.item = item
         self.showsHint = showsHint
+        self.hoverStyle = hoverStyle
         self.onEditingChanged = onEditingChanged
         _model = Stored(wrappedValue: Self.makeModel(item: item, editedText: nil))
     }
@@ -235,6 +235,7 @@ struct ClipboardPreviewWindowView: View {
         }
         .background(Color(nsColor: OfficialChrome.windowBackground))
         .frame(minWidth: 420, minHeight: 320)
+        .modifier(HoverClipModifier(active: hoverStyle))
         .onExitCommand {
             // Esc 关闭（hover / persistent 两模式同效）
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .escape)
@@ -448,5 +449,23 @@ struct ClipboardPreviewWindowView: View {
         }
         if let app = item.sourceApp, !app.isEmpty { parts.append(app) }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// hover 态内容裁剪：圆角 + 半透明描边（active=false 时不裁，persistent 走系统标题栏圆角）
+private struct HoverClipModifier: ViewModifier {
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                )
+        } else {
+            content
+        }
     }
 }
