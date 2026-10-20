@@ -58,21 +58,26 @@ public final class AirDropReceiveWatcher {
     public func start() {
         guard !started else { return }
         started = true
-        let dir = downloadsDir
-        // 基线：已存在的文件不触发
-        seen = Set((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
-        let fd = open(dir.path, O_EVTONLY)
-        guard fd >= 0 else {
-            Log.warn("Transfer", "Downloads 目录监听打开失败")
-            return
+        // v105（2026-10-21 卡死根因，sample 栈实锤）：此处在**主线程**做
+        // contentsOfDirectory + open(dir)——~/Downloads 枚举被文件系统/同步盘
+        // 挂起时主线程整体冻结（实测 236s 完整卡死）。全部移后台队列执行。
+        queue.async { [weak self] in
+            guard let self else { return }
+            let dir = self.downloadsDir
+            self.seen = Set((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+            let fd = open(dir.path, O_EVTONLY)
+            guard fd >= 0 else {
+                Log.warn("Transfer", "Downloads 目录监听打开失败")
+                return
+            }
+            let src = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: fd, eventMask: [.write, .extend], queue: self.queue)
+            src.setEventHandler { [weak self] in self?.scan() }
+            src.setCancelHandler { close(fd) }
+            src.resume()
+            self.source = src
+            Log.info("Transfer", "空投接收监听已启动（~/Downloads）")
         }
-        let src = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd, eventMask: [.write, .extend], queue: queue)
-        src.setEventHandler { [weak self] in self?.scan() }
-        src.setCancelHandler { close(fd) }
-        src.resume()
-        source = src
-        Log.info("Transfer", "空投接收监听已启动（~/Downloads）")
     }
 
     public func stop() {
@@ -145,27 +150,29 @@ public enum ScreenCastEngine {
         return nil
     }
 
-    /// 已连接设备列表（serial\tstate 每行；未装 adb 返回 nil）
-    public static func connectedDevices() -> [(serial: String, state: String)]? {
-        guard let adb = findADB() else { return nil }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: adb)
-        task.arguments = ["devices"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        try? task.run()
-        task.waitUntilExit()
-        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
-                         encoding: .utf8) ?? ""
-        var result: [(String, String)] = []
-        for line in out.split(separator: "\n").dropFirst() {
-            let parts = line.split(separator: "\t")
-            if parts.count >= 2 {
-                result.append((String(parts[0]), String(parts[1])))
+    /// 已连接设备列表（后台执行——adb 挂起不得卡主线程，v105 卡死教训）
+    public static func connectedDevices(completion: @escaping ([(serial: String, state: String)]?) -> Void) {
+        guard let adb = findADB() else { completion(nil); return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: adb)
+            task.arguments = ["devices"]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = FileHandle.nullDevice
+            try? task.run()
+            task.waitUntilExit()
+            let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
+                             encoding: .utf8) ?? ""
+            var result: [(String, String)] = []
+            for line in out.split(separator: "\n").dropFirst() {
+                let parts = line.split(separator: "\t")
+                if parts.count >= 2 {
+                    result.append((String(parts[0]), String(parts[1])))
+                }
             }
+            DispatchQueue.main.async { completion(result) }
         }
-        return result
     }
 
     /// 启动投屏镜像（scrcpy 独立进程；等 ADB 连真机后实测调参）

@@ -344,11 +344,14 @@ struct TransferDockView: View {
                           tint: Color(red: 0.55, green: 0.4, blue: 0.9)) {
                 smallAction("检测设备", icon: "antenna.radiowaves.left.and.right") {
                     castScrcpyReady = ScreenCastEngine.findScrcpy() != nil
-                    castDevices = ScreenCastEngine.connectedDevices() ?? []
-                    Toast.show(castDevices.isEmpty
-                               ? "未发现 Android 设备（USB 连接并开启 USB 调试）"
-                               : "发现 \(castDevices.count) 台设备",
-                               icon: castDevices.isEmpty ? "antenna.radiowaves.left.and.right.slash" : "display")
+                    // v105：adb 检测后台化（主线程 waitUntilExit 挂起=卡死）
+                    ScreenCastEngine.connectedDevices { list in
+                        castDevices = list ?? []
+                        Toast.show(castDevices.isEmpty
+                                   ? "未发现 Android 设备（USB 连接并开启 USB 调试）"
+                                   : "发现 \(castDevices.count) 台设备",
+                                   icon: castDevices.isEmpty ? "antenna.radiowaves.left.and.right.slash" : "display")
+                    }
                 }
             }
             ForEach(Array(castDevices.enumerated()), id: \.offset) { _, dev in
