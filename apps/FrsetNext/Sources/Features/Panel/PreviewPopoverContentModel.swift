@@ -75,6 +75,10 @@ public struct PreviewPopoverContentModel: Identifiable {
     // MARK: 分态判定
 
     /// 内容分态判定：图片/文件按条目类型；文本类按启发式细分（Markdown/JSON/代码/纯文本）
+    ///
+    /// v87（2026-10-20 用户反馈「预览不统一：有些没用 Markdown 展现、目录不是都有」）：
+    /// 文本类**全部**走同一条启发式链（classifyRawText：JSON → Markdown → 代码 → 纯文本），
+    /// 不再因「富文本无 RTF 数据」等路径短路成纯文本。
     public static func classify(item: ClipboardItem, fullText: String) -> Kind {
         switch item.type {
         case .image:
@@ -83,15 +87,13 @@ public struct PreviewPopoverContentModel: Identifiable {
             return .file
         case .richtext:
             // v65：有 RTF 数据 → 富文本保真渲染（此前一律降级纯文本，用户反馈渲染错误）；
-            // 无 RTF 数据（历史条目）退回文本路径
+            // 无 RTF 数据（历史条目）与纯文本同一条启发式链，避免渲染口径分叉
             if PreviewPopoverDataBridge.shared.richTextAttributed(for: item) != nil { return .richText }
-            return item.textPath != nil ? .fileBackedText : .text
+            return item.textPath != nil ? .fileBackedText : classifyRawText(fullText)
         case .text, .url:
+            // 落盘长文本统一进 fileBackedText（加载全文后同样走 classifyRawText 链）
             if item.textPath != nil { return .fileBackedText }
-            if isJSONPreviewEligible(fullText) { return .json }
-            if looksLikeMarkdown(fullText) { return .markdown }
-            if looksLikeCode(fullText) { return .code }
-            return .text
+            return classifyRawText(fullText)
         }
     }
 
@@ -124,6 +126,7 @@ public struct PreviewPopoverContentModel: Identifiable {
         //    这些模式在普通文本里几乎不会出现，误判成本也只是「排版更好看」，内容不会丢。
         let strongPatterns = [
             "(?m)^#{1,6}\\s+\\S",                 // 标题
+            "(?m)^#{1,6}[\\u4e00-\\u9fff]",       // 中文标题（`#标题` 无空格——中文 Markdown 高频写法）
             "(?m)^\\s*```",                        // 围栏代码
             "(?m)^\\s*([-*+]|\\d+[.)])\\s+\\S",  // 列表
             "(?m)^\\s*>\\s+\\S",                 // 引用
@@ -178,7 +181,7 @@ public struct PreviewPopoverContentModel: Identifiable {
             // 直接把渲染结果量一遍（渲染一次的成本远低于高度不足导致的裁切）。
             let parsed = PreviewMarkdownTextView.render(inlineText)
             // 内容宽 = 协调器 popoverWidth - 36 内边距；有目录时正文区再窄 181（180 + 分隔线）
-            let tocWidth: CGFloat = parsed.headings.count >= 2 ? 181 : 0
+            let tocWidth: CGFloat = parsed.headings.count >= 1 ? 181 : 0
             let width: CGFloat = MainPanelPreviewPopoverCoordinator.shared.popoverWidth - 36 - tocWidth
             let rect = parsed.body.boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
                                                 options: [.usesLineFragmentOrigin, .usesFontLeading])

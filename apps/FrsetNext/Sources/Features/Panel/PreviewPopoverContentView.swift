@@ -73,6 +73,47 @@ private struct PreviewRichTextView: View {
 
 // MARK: - 文本基座（NSScrollView + NSTextView，支持滚动偏移恢复与上报）
 
+/// 可回源复制的预览文本视图（v87）：⌘C 把选区按「渲染↔源」映射回 Markdown 源文本。
+/// 渲染后的正文丢了 `#`、表格竖线等标记，直接复制与纯文本预览「复制即源文」的口径不一致。
+final class PreviewSourceTextView: NSTextView {
+    var sourceText: String?
+    var sourceSegments: [(rendered: NSRange, source: NSRange)]?
+
+    override func copy(_ sender: Any?) {
+        let sel = selectedRange()
+        guard sel.length > 0,
+              let source = sourceText as NSString?,
+              let segments = sourceSegments, !segments.isEmpty else {
+            super.copy(sender)
+            return
+        }
+        var pieces: [String] = []
+        for seg in segments {
+            let inter = NSIntersectionRange(seg.rendered, sel)
+            guard inter.length > 0 else { continue }
+            let src = seg.source
+            if inter == seg.rendered {
+                pieces.append(source.substring(with: src))
+            } else {
+                // 段内部分选中：按字符比例近似裁剪源切片（渲染长度≈源长度，误差一个标记符号级）
+                let r0 = seg.rendered.length > 0
+                    ? Double(inter.location - seg.rendered.location) / Double(seg.rendered.length) : 0
+                let r1 = seg.rendered.length > 0
+                    ? Double(inter.location + inter.length - seg.rendered.location) / Double(seg.rendered.length) : 1
+                let s = src.location + Int((Double(src.length) * r0).rounded(.down))
+                let e = src.location + min(src.length, Int((Double(src.length) * r1).rounded(.up)))
+                pieces.append(source.substring(with: NSRange(location: s, length: max(0, e - s))))
+            }
+        }
+        guard !pieces.isEmpty else {
+            super.copy(sender)
+            return
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(pieces.joined(separator: "\n"), forType: .string)
+    }
+}
+
 struct PreviewTextViewRepresentable: NSViewRepresentable {
     var attributedText: NSAttributedString
     var monospaced: Bool = false
@@ -81,9 +122,15 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
     var onScrollOffsetChanged: ((CGFloat) -> Void)? = nil
     /// 外部请求滚动到指定字符位置（左侧目录点击）；nil = 无请求
     var scrollRequest: Int? = nil
+    /// 回源复制（v87）：Markdown 渲染正文丢了 `#`/表格竖线等标记，
+    /// ⌘C 时按「渲染区间 ↔ 源区间」映射回源文本，与纯文本预览的复制口径统一
+    var sourceText: String? = nil
+    var sourceSegments: [(rendered: NSRange, source: NSRange)]? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        let textView = PreviewSourceTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        textView.sourceText = sourceText
+        textView.sourceSegments = sourceSegments
         textView.isEditable = false
         textView.isSelectable = true
         textView.isRichText = false
@@ -140,6 +187,10 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.onScroll = onScrollOffsetChanged
         guard let textView = scrollView.documentView as? NSTextView else { return }
+        if let sourceView = textView as? PreviewSourceTextView {
+            sourceView.sourceText = sourceText
+            sourceView.sourceSegments = sourceSegments
+        }
         if context.coordinator.lastText != attributedText.string {
             context.coordinator.lastText = attributedText.string
             textView.textStorage?.setAttributedString(attributedText)
@@ -289,6 +340,7 @@ struct MarkdownFilePreviewBody: View {
     let restoreKey: String
     @Stored private var rendered: NSAttributedString
     @Stored private var headings: [MarkdownHeading] = []
+    @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
     @Stored private var activeHeading: Int? = nil
 
@@ -298,6 +350,7 @@ struct MarkdownFilePreviewBody: View {
         let parsed = PreviewMarkdownRenderer.renderBody(text)
         self._rendered = Stored(wrappedValue: parsed.body)
         self._headings = Stored(wrappedValue: parsed.headings)
+        self._sourceSegments = Stored(wrappedValue: parsed.segments)
     }
 
     var body: some View {
@@ -306,6 +359,7 @@ struct MarkdownFilePreviewBody: View {
             scrollRestoreKey: restoreKey,
             rendered: rendered,
             headings: headings,
+            sourceSegments: sourceSegments,
             scrollRequest: $scrollRequest,
             activeHeading: $activeHeading)
     }
@@ -332,12 +386,22 @@ struct PreviewFileBackedTextView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
             case .loaded(let text):
-                // 2026-10-18：长文档（Markdown/TXT 落盘）加载后按内容分态——
-                // 判定为 Markdown 的走富文本渲染 + 左侧目录（与内联 Markdown 一致）；
-                // 否则纯文本。此前一律纯文本，导致"长 Markdown 文档预览不渲染"。
-                if PreviewPopoverContentModel.looksLikeMarkdown(text) {
+                // 2026-10-18：长文档（Markdown/TXT 落盘）加载后按内容分态。
+                // v87（2026-10-20 用户反馈「预览不统一」）：与内联条目同一条
+                // classifyRawText 链（JSON → Markdown → 代码 → 纯文本），
+                // 此前只判 Markdown、其余一律纯文本，长 JSON/代码没有结构化预览。
+                switch PreviewPopoverContentModel.classifyRawText(text) {
+                case .markdown:
                     MarkdownFilePreviewBody(text: text, restoreKey: model.item.dedupeKey)
-                } else {
+                case .json:
+                    JSONInspectorView(text: text, compact: true)
+                case .code:
+                    let lang = PreviewMarkdownRenderer.detectLanguage(text)
+                    PreviewTextViewRepresentable(
+                        attributedText: PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: text),
+                        monospaced: true,
+                        showsLineNumbers: true)
+                default:
                     PreviewTextViewRepresentable(
                         attributedText: NSAttributedString(
                             string: text,
@@ -388,6 +452,7 @@ struct PreviewMarkdownTextView: View {
     let model: PreviewPopoverContentModel
     @Stored private var rendered: NSAttributedString
     @Stored private var headings: [MarkdownHeading] = []
+    @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
     @Stored private var activeHeading: Int? = nil
 
@@ -396,10 +461,13 @@ struct PreviewMarkdownTextView: View {
         let parsed = Self.render(model.inlineText)
         self._rendered = Stored(wrappedValue: parsed.body)
         self._headings = Stored(wrappedValue: parsed.headings)
+        self._sourceSegments = Stored(wrappedValue: parsed.segments)
     }
 
-    /// 正文 + 标题锚点（目录由左侧栏渲染，不再贴在文首）
-    static func render(_ text: String) -> (body: NSAttributedString, headings: [MarkdownHeading]) {
+    /// 正文 + 标题锚点 + 渲染↔源映射（目录由左侧栏渲染；⌘C 复制回源用）
+    static func render(_ text: String) -> (body: NSAttributedString,
+                                           headings: [MarkdownHeading],
+                                           segments: [(rendered: NSRange, source: NSRange)]) {
         PreviewMarkdownRenderer.renderBody(text)
     }
 
@@ -409,6 +477,7 @@ struct PreviewMarkdownTextView: View {
             scrollRestoreKey: model.item.dedupeKey,
             rendered: rendered,
             headings: headings,
+            sourceSegments: sourceSegments,
             scrollRequest: $scrollRequest,
             activeHeading: $activeHeading)
     }
@@ -425,12 +494,14 @@ struct MarkdownPreviewBody: View {
     let scrollRestoreKey: String
     let rendered: NSAttributedString
     let headings: [MarkdownHeading]
+    /// 渲染区间 ↔ 源文本区间（⌘C 回源复制）
+    let sourceSegments: [(rendered: NSRange, source: NSRange)]
     @Binding var scrollRequest: Int?
     @Binding var activeHeading: Int?
 
     var body: some View {
         HStack(spacing: 0) {
-            if headings.count >= 2 {
+            if headings.count >= 1 {
                 PreviewTOCSidebar(headings: headings, activeLocation: activeHeading) { heading in
                     activeHeading = heading.location
                     scrollRequest = heading.location
@@ -449,7 +520,9 @@ struct MarkdownPreviewBody: View {
                         dedupeKey: scrollRestoreKey,
                         state: MarkdownScrollState(scrollOffset: offset))
                 },
-                scrollRequest: scrollRequest)
+                scrollRequest: scrollRequest,
+                sourceText: text,
+                sourceSegments: sourceSegments)
         }
     }
 }

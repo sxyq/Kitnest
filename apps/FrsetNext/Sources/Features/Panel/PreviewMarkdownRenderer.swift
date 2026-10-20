@@ -60,7 +60,7 @@ enum PreviewMarkdownRenderer {
     /// 注：预览弹层改用左侧目录侧栏，正文请走 `renderBody(_:)`；本方法保留给
     /// 需要「目录就在文首」的场景（导出/独立窗口）。
     static func render(_ text: String) -> NSAttributedString {
-        let (body, headings) = renderBody(text)
+        let (body, headings, _) = renderBody(text)
         guard headings.count >= 2 else { return body }
 
         let offsetCandidate = renderTOC(headings.map { ($0.level, $0.title, $0.location) })
@@ -84,46 +84,76 @@ enum PreviewMarkdownRenderer {
         return result
     }
 
-    /// 只渲染正文（不含内联目录），同时返回标题锚点——供左侧目录侧栏使用。
-    static func renderBody(_ text: String) -> (body: NSAttributedString, headings: [MarkdownHeading]) {
-        let blocks = parse(text)
+    /// 只渲染正文（不含内联目录），同时返回标题锚点与「渲染区间 ↔ 源文本区间」映射——
+    /// 目录侧栏用标题锚点；⌘C 复制用映射段回源（v87：复制所选文本与纯文本口径统一，
+    /// 渲染后的正文丢了 `#`、表格竖线等标记，直接复制会与源文不一致）。
+    static func renderBody(_ text: String) -> (body: NSAttributedString,
+                                               headings: [MarkdownHeading],
+                                               segments: [(rendered: NSRange, source: NSRange)]) {
+        let sourced = parseSourced(text)
 
         // 正文先渲染，记录标题位置（目录要用）
         var headingAnchors: [MarkdownHeading] = []
+        var segments: [(rendered: NSRange, source: NSRange)] = []
         let body = NSMutableAttributedString()
-        for (idx, block) in blocks.enumerated() {
-            let attr = render(block)
-            if case .heading(let level, let title) = block {
+        for (idx, item) in sourced.enumerated() {
+            let renderedStart = body.length
+            let attr = render(item.block)
+            if case .heading(let level, let title) = item.block {
                 headingAnchors.append(MarkdownHeading(level: level, title: title, location: body.length))
             }
             body.append(attr)
+            segments.append((NSRange(location: renderedStart, length: body.length - renderedStart), item.source))
             // 块间换行：块各自不带宽尾换行，这里统一补（缺了会所有块挤成一行）
-            if idx < blocks.count - 1 {
+            if idx < sourced.count - 1 {
                 body.append(NSAttributedString(string: "\n", attributes: [.font: baseFont]))
             }
         }
-        return (body, headingAnchors)
+        return (body, headingAnchors, segments)
     }
 
     // MARK: 解析
 
     static func parse(_ text: String) -> [MarkdownBlock] {
+        parseSourced(text).map { $0.block }
+    }
+
+    /// 解析并记录每块的源文本区间（UTF-16；⌘C 回源复制用，v87）
+    static func parseSourced(_ text: String) -> [(block: MarkdownBlock, source: NSRange)] {
         let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+        let ns = normalized as NSString
         let lines = normalized.components(separatedBy: "\n")
+
+        // 行首 UTF-16 偏移（块源区间换算）
+        var lineOffsets: [Int] = []
+        var off = 0
+        for line in lines {
+            lineOffsets.append(off)
+            off += (line as NSString).length + 1
+        }
+        func span(_ startLine: Int, _ endLine: Int) -> NSRange {
+            let s = lineOffsets[max(0, min(startLine, lineOffsets.count - 1))]
+            let e = endLine < lineOffsets.count ? lineOffsets[endLine] : ns.length
+            return NSRange(location: s, length: max(0, e - s))
+        }
 
         // 裸代码自动识别（v85）：无围栏且整体像代码 → 合成一个代码块
         if !normalized.contains("```"), looksLikeNakedCode(lines) {
-            return [.code(lang: guessLanguage(lines), code: normalized)]
+            return [(.code(lang: guessLanguage(lines), code: normalized),
+                     NSRange(location: 0, length: ns.length))]
         }
 
-        var blocks: [MarkdownBlock] = []
+        var blocks: [(block: MarkdownBlock, source: NSRange)] = []
         var paragraph: [String] = []
+        var paragraphStart: Int? = nil
         var i = 0
 
         func flushParagraph() {
             if !paragraph.isEmpty {
-                blocks.append(.paragraph(paragraph.joined(separator: "\n")))
+                blocks.append((.paragraph(paragraph.joined(separator: "\n")),
+                               span(paragraphStart ?? max(0, i - paragraph.count), i)))
                 paragraph.removeAll()
+                paragraphStart = nil
             }
         }
 
@@ -134,6 +164,7 @@ enum PreviewMarkdownRenderer {
             // 代码围栏
             if line.hasPrefix("```") {
                 flushParagraph()
+                let fenceStart = i
                 let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
                 var code: [String] = []
                 i += 1
@@ -143,7 +174,8 @@ enum PreviewMarkdownRenderer {
                     code.append(lines[i])
                     i += 1
                 }
-                blocks.append(.code(lang: lang.lowercased(), code: code.joined(separator: "\n")))
+                blocks.append((.code(lang: lang.lowercased(), code: code.joined(separator: "\n")),
+                               span(fenceStart, i)))
                 continue
             }
 
@@ -154,12 +186,13 @@ enum PreviewMarkdownRenderer {
                 continue
             }
 
-            // 标题
-            if let m = line.range(of: "^#{1,6}\\s+", options: .regularExpression) {
+            // 标题（v87：兼容中文 `#标题` 无空格写法）
+            if let m = line.range(of: "^#{1,6}(\\s+|(?=[\\u4e00-\\u9fff]))", options: .regularExpression) {
                 flushParagraph()
-                let hashes = line[line.startIndex..<m.upperBound].filter { $0 == "#" }.count
+                let head = String(line[line.startIndex..<m.upperBound])
+                let hashes = head.filter { $0 == "#" }.count
                 let title = String(line[m.upperBound...]).trimmingCharacters(in: .whitespaces)
-                blocks.append(.heading(level: hashes, text: title))
+                blocks.append((.heading(level: hashes, text: title), span(i, i + 1)))
                 i += 1
                 continue
             }
@@ -167,7 +200,7 @@ enum PreviewMarkdownRenderer {
             // 分隔线
             if line.range(of: "^([-*_])\\s*(\\1\\s*){2,}$", options: .regularExpression) != nil {
                 flushParagraph()
-                blocks.append(.divider)
+                blocks.append((.divider, span(i, i + 1)))
                 i += 1
                 continue
             }
@@ -175,6 +208,7 @@ enum PreviewMarkdownRenderer {
             // 引用（连续行合并）
             if line.hasPrefix(">") {
                 flushParagraph()
+                let quoteStart = i
                 var quote: [String] = []
                 while i < lines.count {
                     let l = lines[i].trimmingCharacters(in: .whitespaces)
@@ -182,13 +216,14 @@ enum PreviewMarkdownRenderer {
                     quote.append(String(l.dropFirst()).trimmingCharacters(in: .whitespaces))
                     i += 1
                 }
-                blocks.append(.quote(quote.joined(separator: "\n")))
+                blocks.append((.quote(quote.joined(separator: "\n")), span(quoteStart, i)))
                 continue
             }
 
             // 表格（连续 | 行）
             if line.hasPrefix("|") && line.hasSuffix("|") {
                 flushParagraph()
+                let tableStart = i
                 var rows: [[String]] = []
                 while i < lines.count {
                     let l = lines[i].trimmingCharacters(in: .whitespaces)
@@ -202,7 +237,7 @@ enum PreviewMarkdownRenderer {
                     rows.append(cells)
                     i += 1
                 }
-                if !rows.isEmpty { blocks.append(.table(rows: rows)) }
+                if !rows.isEmpty { blocks.append((.table(rows: rows), span(tableStart, i))) }
                 continue
             }
 
@@ -215,17 +250,18 @@ enum PreviewMarkdownRenderer {
                 let ordered = markerPart.trimmingCharacters(in: .whitespaces).first?.isNumber ?? false
                 let marker = markerPart.trimmingCharacters(in: .whitespaces)
                 let content = String(line[m.upperBound...])
-                blocks.append(.listItem(indent: indentChars / 2, ordered: ordered, marker: marker, text: content))
+                blocks.append((.listItem(indent: indentChars / 2, ordered: ordered, marker: marker, text: content),
+                               span(i, i + 1)))
                 i += 1
                 continue
             }
 
             // 普通段落
+            if paragraphStart == nil { paragraphStart = i }
             paragraph.append(line)
             i += 1
         }
         flushParagraph()
-        _ = lines
         return blocks
     }
 
