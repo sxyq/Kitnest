@@ -253,6 +253,7 @@ public final class LanTransferServer: ObservableObject {
     }
 
     private func handle(_ connection: NWConnection) {
+        StatisticsManager.shared.record(.fileTransferReceive)
         connection.start(queue: queue)
         let context = ConnectionContext(connection)
         queue.asyncAfter(deadline: .now() + 300) {

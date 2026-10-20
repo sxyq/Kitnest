@@ -126,6 +126,7 @@ public final class LocalTransferStore: ObservableObject {
     /// 把一批文件/目录加入本地中转；返回成功条数。
     @discardableResult
     public func add(urls: [URL]) -> Int {
+        StatisticsManager.shared.record(.fileTransferSend)
         var added: [LocalTransferItem] = []
         var failures: [String] = []
         let fm = FileManager.default

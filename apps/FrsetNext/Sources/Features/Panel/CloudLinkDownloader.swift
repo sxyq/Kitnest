@@ -318,6 +318,8 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 self.items[index].progress = 1
                 Toast.show("已下载：\(localURL.lastPathComponent)", icon: "checkmark.circle.fill")
                 Log.info("CloudLink", "下载完成：\(localURL.path)")
+                // v95：使用统计接入（下载）
+                StatisticsManager.shared.record(.fileDownload)
                 if CloudLinkSettings.revealAfterDownload {
                     NSWorkspace.shared.activateFileViewerSelecting([localURL])
                 }

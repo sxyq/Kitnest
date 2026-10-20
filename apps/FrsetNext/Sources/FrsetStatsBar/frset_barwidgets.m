@@ -21,7 +21,12 @@ FSSnap g_snap;
 //   绘制层整体平移 FS_WIDGET_PAD。效果：相邻部件的"内容到内容"间隔统一且稍宽
 //   （有分隔线 = 3+1+3+3+3 = 13pt 均匀；无分隔线 = 6pt），修掉"有的贴边有的留白"的不匀感。
 // v73 移植（注入版）：3.0→0（用户：默认再改小一点，内容顶到项边缘）
-#define FS_WIDGET_PAD 0.0
+// v95（2026-10-21 用户：「部件间距修改后没有生效」）：旧实现 pad=0，间距只进
+//   带标签形态的宽度计算——默认形态（标签关）完全看不出变化。现让**部件内边距**
+//   跟随统一间距（Widgets_spacing）：调大 → 每个部件内容两侧留白变宽、条变松；
+//   调小 → 收紧。合并模式下叠加部件间距（FSBarMergedSpacing）一起生效。
+CGFloat FSBarWidgetSpacing(void);   // 前向声明（定义见合并间距处）
+#define FS_WIDGET_PAD (MAX(0, (FSBarWidgetSpacing() - 1) * 0.75))
 
 NSArray<NSString *> *FSBarAllModules(void) {
     return @[@"CPU", @"RAM", @"GPU", @"Disk", @"Network", @"Sensors", @"Battery"];
