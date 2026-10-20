@@ -469,14 +469,14 @@ private struct ActivityHeatmapView: View {
     /// level 0-4 分档
     /// v95（2026-10-21 用户：「颜色区分要跨度大，当前这么点使用量都是最高等级，
     /// 要把当前等级改为中等颜色」）：旧档 ≥20 即最高——轻度使用几天就满格。
-    /// 新档把中档抬到 6-30（当前日常量落**中间色**），高/最高留给 31-100 / ≥101，
-    /// 量级翻几倍才升档，色阶跨度约 5 倍。
+    /// v98 拉大：0 / 1-15 / 16-250 / 251-1000 / ≥1001（用户：「跨度进一步拉大」）——
+    /// 当前日常量落 16-250 中间色；高/最高留作重度日，量级再翻 4 倍才升档。
     private static func level(for count: Int) -> Int {
         switch count {
         case 0:          return 0
-        case 1...5:      return 1
-        case 6...30:     return 2
-        case 31...100:   return 3
+        case 1...15:     return 1
+        case 16...250:   return 2
+        case 251...1000: return 3
         default:         return 4
         }
     }

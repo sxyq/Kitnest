@@ -683,14 +683,12 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         NSString *display = FSBarCfgStr(_module, _form, @"displayValue", @"oi");
         BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
         if (![mode isEqualToString:@"oneRow"]) {
-            // v28：双行模式宽度按实际文本（两行取大，量化 4pt）——原固定 48/30 会在
-            //   值文本短时留下大段右侧空白，造成跨部件间隙不均（对齐左/右时尤其明显）
-            NSFont *vf = [NSFont systemFontOfSize:9 weight:NSFontWeightLight];
-            NSString *inStr = units ? FSSpeedStr((uint64_t)[self netIn]) : FSSpeedStrShort((uint64_t)[self netIn]);
-            NSString *outStr = units ? FSSpeedStr((uint64_t)[self netOut]) : FSSpeedStrShort((uint64_t)[self netOut]);
-            CGFloat tw = 0;
-            if (value && inStr.length) tw = MAX(tw, [inStr sizeWithAttributes:@{NSFontAttributeName: vf}].width);
-            if (value && outStr.length) tw = MAX(tw, [outStr sizeWithAttributes:@{NSFontAttributeName: vf}].width);
+            // v98（2026-10-21 用户：「网络监测左右间距不固定，数字时刻变化」）：
+            // 双行宽度**定宽**——按最宽数值形态（"888.8 MB/s"）计算，不随位数/
+            // 单位变化挤动左右布局；数值用等宽数字字体，各位对齐。
+            NSFont *vf = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
+            NSString *ref = units ? @"888.8 MB/s" : @"888.8M";
+            CGFloat tw = value ? [ref sizeWithAttributes:@{NSFontAttributeName: vf}].width : 0;
             CGFloat cw = MAX(24, ceil(tw / 4.0) * 4.0);
             return (iconOn ? 7 : 0) + cw;
         }
@@ -915,7 +913,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
     NSString *inStr = units ? FSSpeedStr(inV) : FSSpeedStrShort(inV);
     NSString *outStr = units ? FSSpeedStr(outV) : FSSpeedStrShort(outV);
-    NSFont *f = [NSFont systemFontOfSize:9 weight:NSFontWeightLight];
+    // v98：等宽数字——位数变化不再抖动（配合定宽 rect）
+    NSFont *f = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
     NSDictionary *inAttrs = @{NSFontAttributeName: f, NSForegroundColorAttributeName: valInC};
     NSDictionary *outAttrs = @{NSFontAttributeName: f, NSForegroundColorAttributeName: valOutC};
 
@@ -931,7 +930,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         BOOL outFirst = !io;   // "oi" → output 在左
         CGFloat rowW = units ? 58 : 32;
         CGFloat x = iconOn ? (iconRight ? 0 : 10) : 0;   // icon(8) + 2
-        NSFont *vf = [NSFont systemFontOfSize:11 weight:NSFontWeightRegular];
+        NSFont *vf = [NSFont monospacedDigitSystemFontOfSize:11 weight:NSFontWeightRegular];
         NSDictionary *iA = @{NSFontAttributeName: vf, NSForegroundColorAttributeName: valInC};
         NSDictionary *oA = @{NSFontAttributeName: vf, NSForegroundColorAttributeName: valOutC};
         if (outFirst) {
@@ -1551,11 +1550,16 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 11：icon（Stats IconWidget：SF Symbol，14pt） ========
 - (void)drawIcon:(NSRect)r dark:(BOOL)dark {
+    // v98（2026-10-21 用户：「状态栏图标显示看不太清晰」）：
+    // 14pt Regular 小符号发虚——改 15pt Semibold + 模板着色（跟随前景色），
+    // 深浅色都清晰；预览图（FSBarRenderFormPreview）同源自动受益。
     NSString *sym = FSBarCfgStr(_module, _form, @"icon", [self defaultSymbol]);
     NSImage *img = [NSImage imageWithSystemSymbolName:sym accessibilityDescription:nil];
-    img = [img imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPointSize:14 weight:NSFontWeightRegular]];
+    img = [img imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPointSize:15 weight:NSFontWeightSemibold]];
+    img.template = YES;
     NSSize sz = img.size;
     NSPoint p = NSMakePoint((r.size.width - sz.width) / 2, (r.size.height - sz.height) / 2);
+    [FSBarTextColor(dark) set];
     [img drawInRect:NSMakeRect(p.x, p.y, sz.width, sz.height) fromRect:NSZeroRect
            operation:NSCompositingOperationSourceOver fraction:1 respectFlipped:YES hints:nil];
 }
