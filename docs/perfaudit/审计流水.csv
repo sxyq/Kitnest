@@ -1,0 +1,39 @@
+时间,文件,函数,判定,备注
+2026-10-20 11:17:10,App/FrsetNextApp.swift,applicationWillTerminate,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:10,App/FrsetNextApp.swift,applicationShouldHandleReopen,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:10,Core/FlowLayout.swift,placeSubviews,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:10,Features/Capture/PinWindow.swift,magnify,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:10,Features/Clipboard/ClipboardItemEditWindowController.swift,textDidChange,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:10,Features/Clipboard/FloatingClipboardWindow.swift,windowDidMove,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:10,Features/Panel/PanelController.swift,handleGlobalShortcut,keep,预留公开接口（热键接线用）
+2026-10-20 11:17:11,Features/Panel/PreviewPopoverContentView.swift,drawHashMarksAndLabels,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:11,Features/Settings/SearchSettingsPane.swift,dropEntered,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:11,Features/Settings/SearchSettingsPane.swift,dropUpdated,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:11,Features/Settings/SearchSettingsPane.swift,performDrop,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:11,Features/Settings/SearchSettingsPane.swift,dropExited,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:11,Features/StatusBar/StatusBarController.swift,popoverDidClose,keep,框架运行时回调/override，静态零引用属正常
+2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarSetDebugAnchorX,keep,排障探针（环境变量/自检触发）
+2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarDebugPosProbe,keep,排障探针（环境变量/自检触发）
+2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarDebugMergedReady,keep,排障探针（环境变量/自检触发）
+2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarDebugAppearanceProbe,keep,排障探针（环境变量/自检触发）
+2026-10-20 11:17:11,FrsetStatsBar/frset_recorder.m,FSScreenRecDebugPanelView,keep,排障探针（环境变量/自检触发）
+2026-10-20 11:17:11,FrsetStatsBar/frset_recorder.m,FSScreenRecDebugBarView,keep,排障探针（环境变量/自检触发）
+2026-10-20 11:17:11,Features/Monitor/MonitorSampler.swift,sampleOnce,hotspot_fixed,2026-10-20 实测：refresh p50 126.4ms（SMC 占 102.9ms/82%）→ 门控后 10.6ms；保留 readResult 0.7ms
+2026-10-20 11:17:11,Features/Monitor/MonitorSampler.swift,scheduleNext,hotspot_fixed,UI 门控保留（隐藏≥5s）；静息实测 0.16% 单核
+2026-10-20 11:17:11,Features/Monitor/MonitorSampler.swift,start,normal,采样生命周期入口，无阻塞
+2026-10-20 11:17:11,Features/Monitor/MonitorSampler.swift,stop,normal,取消 pendingWork，无泄漏
+2026-10-20 11:17:11,Features/Monitor/MonitorSampler.swift,applyPreferences,normal,按可见性计算间隔，逻辑正确
+2026-10-20 11:17:11,Features/Monitor/MonitorSampler.swift,resetHistory,normal,仅设置页重置调用
+2026-10-20 11:17:11,Features/Monitor/StatsDataProvider.swift,refresh,hotspot_fixed,分段实测 smc 102.9ms/proc 10.5/gpu 6.6；已加 uiActive 门控（SMC 5s/30s、进程 3s/15s）+ 传感器元数据缓存 + GPU 型号缓存；p50 126.4→10.6ms
+2026-10-20 11:17:11,Features/Monitor/StatsDataProvider.swift,readProcList,normal,单次 10.5ms（3 路调用）；已按可见性 3s/15s 门控
+2026-10-20 11:17:11,Features/Monitor/StatsDataProvider.swift,readFans,normal,随 SMC 扫描节流（5s/30s）
+2026-10-20 11:17:11,Features/Monitor/MonitorReader.swift,readResult,optimize,0.7ms/tick；CPU/内存/网络/磁盘结果随后被 g_snap 覆盖，属冗余路径，建议后续拆 readSupplement（未实施）
+2026-10-20 11:17:11,Features/Monitor/MonitorReader.swift,readCPU,optimize,sampleOnce 路径结果被 g_snap 覆盖，仍执行 host_processor_info；待瘦身
+2026-10-20 11:17:11,Features/Monitor/MonitorReader.swift,readMemory,optimize,sampleOnce 路径结果被 g_snap 覆盖；待瘦身
+2026-10-20 11:17:11,Features/Monitor/MonitorReader.swift,readNetworkCounters,optimize,sampleOnce 路径结果被 g_snap 覆盖；待瘦身
+2026-10-20 11:17:11,Features/Monitor/MonitorReader.swift,readDiskRate,optimize,sampleOnce 路径结果被 g_snap 覆盖；待瘦身
+2026-10-20 11:17:11,Features/StatusBar/StatusBarController.swift,refreshTitles,normal,探针实测单次 <0.5ms（未触发日志阈值），非瓶颈；模板图缓存暂无必要
+2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarSystemTick,normal,sample 6s 内约 8 样本 ≈0.13% 单核，可接受
+2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarKeepAdjacentTick,optimize,非校准期每 0.5s 主队列空跳；建议加 g_posCalibrating 短路（未实施）
+2026-10-20 11:17:11,FrsetStatsBar/frset_stats_tick.m,statsTick,normal,0.5s；SMC 600 键扫描已在后台线程
+2026-10-20 11:17:11,FrsetStatsBar/frset_stats_tick.m,FSStatsTickStart,normal,启动即采 + 0.5s NSTimer，设计合理
