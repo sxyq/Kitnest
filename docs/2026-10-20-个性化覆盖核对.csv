@@ -1,16 +1,17 @@
 ﻿项目,设置键,设置入口,期望覆盖,当前消费点,实际覆盖范围,状态,缺口与建议
-强调色,ui.accent.color,通用 → 个性化,全局所有窗口,Theme.accent / PanelRootView.tint / SettingsRootView.tint / StatisticsRootView.tint,主面板 + 设置窗 + 统计窗 + 设置内所有开关,已覆盖,悬浮剪贴板与预览窗按钮未显式 tint（跟随系统色）——待补
+强调色,ui.accent.color,通用 → 个性化,全局所有窗口,Theme.accent / Theme.accentNS（全量替换 Color.accentColor）+ frsetThemeChrome() 根视图注入 tint,主面板 + 设置窗 + 统计窗 + 悬浮剪贴板 + 预览弹窗 + JSON 检视器 + 监测独立窗 + 标注编辑器（工具条/选中框/输入框）,已覆盖,AppKit 原生控件（NSMenu、标准按钮描边）跟随系统强调色，无法用 app 内自定义色覆盖——属系统限制
 字号缩放,ui.font.scale,通用 → 个性化,全局字号 + 窗口尺寸,Theme.panelWidth / Theme.panelMaxHeight,仅主面板窗口尺寸,部分覆盖,字号本身不变；设置窗/统计窗为固定尺寸（940×620 / 800×530，有约束循环崩溃史，暂不联动）
 列表密度,ui.list.density,通用 → 个性化,所有剪贴板列表,Theme.rowHeight / statsRowHeight / thumbSize,主面板列表 + 悬浮剪贴板,已覆盖,预览窗正文为自适排版，不参与密度
-圆角,ui.corner.radius,通用 → 个性化,全局卡片与窗口,Theme.cornerRadius / FloatingPanel / 设置窗外框,主面板卡片 + 主面板外框 + 设置窗外框（7 个文件）,部分覆盖,其余 82 处硬编码（6/7/8/12/14 等），机械替换会改变现有观感——建议后续按「主表面优先」分批收敛到 Theme
+圆角,ui.corner.radius,通用 → 个性化,全局卡片与窗口,Theme.cornerRadius + PanelGlass/LiquidGlass 默认圆角 + FloatingPanel / MonitorPopout / LongHUD / 标注输入框,主面板卡片 + 主面板外框 + 悬浮剪贴板 + 设置窗外框 + 浮条 + 监测独立窗 + 长截图 HUD + 标注框,部分覆盖（主表面已全接）,其余小控件仍有 6/7/8/12/14 硬编码（图标按钮胶囊等）；机械替换会改变现有观感，留待按控件批次收敛
 开启动画,ui.open.animation,通用 → 个性化,主面板 + 监测独立窗,PanelController.fadeDuration / PanelRootView.spring,主面板,部分覆盖,监测独立窗（MonitorPopoutWindow）动画参数未接
-背景材质,ui.panel.material,通用 → 个性化,所有结构面窗口,FloatingPanel.applyPersonalizedMaterial,仅主面板,部分覆盖,设置窗/统计窗/预览窗为固定灰底，不随「毛玻璃/纯色卡片」切换——观感割裂的主要来源
+背景材质,ui.panel.material,通用 → 个性化,所有结构面窗口,LiquidGlass.makeView / reapplyStyle（solid 时不透明底）+ PanelGlass 浮层 tier + FloatingPanel.applyPersonalizedMaterial,主面板 + 悬浮剪贴板 + 监测独立窗 + 长截图 HUD + 面板底部浮条,已覆盖（本次补 5 处）,设置窗/统计窗为固定灰底（系统窗口材质），不随「毛玻璃/纯色卡片」切换
 来源徽标,ui.source.badge,通用 → 个性化,剪贴板列表行,ClipboardSectionView,主面板列表,部分覆盖,悬浮剪贴板行没有来源字段，无法隐藏/显示
 缩略图尺寸,ui.thumb.size,通用 → 个性化,剪贴板缩略图,Theme.thumbSize / effectiveThumbSize,主面板列表,部分覆盖,悬浮剪贴板缩略图为固定尺寸
 通知时长,ui.toast.duration,通用 → 个性化,全部 Toast,Toast.displayDuration,全局（所有 Toast）,已覆盖,
 通知位置,ui.toast.position,通用 → 个性化,全部 Toast,Toast / CommandPalette 菜单,全局,已覆盖,
 合并条分隔线颜色,ui.bar.divider.color,未开放（UI 仅占位说明）,C 引擎合并条,无,无,预留未接线,属性已持久化；UI 标注「颜色自定义将随引擎渲染链开放」；C 层无分隔线颜色接口
 合并条分隔线透明度,ui.bar.divider.alpha,未开放（UI 仅占位说明）,C 引擎合并条,无,无,预留未接线,同上
-Midnight 色相,ui.midnight.hue,通用 → 个性化,所有窗口,MidnightTheme（全局色板）+ PanelRootView / FloatingClipboard / SettingsRootView / StatisticsRootView,主面板 + 悬浮剪贴板 + 设置窗 + 统计窗,已覆盖（本次补统计窗）,预览窗正文未接 Midnight 色板
+Midnight 色相,ui.midnight.hue,通用 → 个性化,所有窗口,MidnightTheme（全局色板）+ frsetThemeChrome 注入 + PanelGlass 卡片底色,主面板 + 悬浮剪贴板 + 设置窗 + 统计窗 + 预览弹窗 + JSON 检视器 + 监测独立窗 + 标注工具条,已覆盖（本次补 4 处 + 玻璃层）,预览窗正文（NSTextView 承载）文本色仍为固定 secondaryLabelColor，未随 Midnight 色板
 面板背景图,ui.background.image,通用 → 个性化,主面板,PanelRootView.background,仅主面板,按设计限定,其他窗口不显示背景图（避免遮挡内容）
 背景图暗度,ui.background.dim,通用 → 个性化,主面板,PanelRootView.background,仅主面板,按设计限定,同上
+玻璃层级（卡片/浮层）,—,代码层约定（Core/PanelGlass.swift）,面板内卡片与浮条,panelGlassCard / panelGlassFloating / LiquidGlassBackground,主面板日历卡 + 剪贴板行 + 底部浮条 + 悬浮剪贴板底,已覆盖（本次接入 Midnight/材质/圆角三向联动）,其他窗口玻璃处已统一走 LiquidGlass.makeView（监测独立窗 / 长截图 HUD）

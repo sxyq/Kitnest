@@ -217,3 +217,55 @@ final class PreviewArrowGeometryStore {                                         
 - [ ] 列表滚动跟随 + 出视口关闭
 - [ ] 图片大图重建、落盘长文异步加载、Markdown 滚动恢复可用
 - [ ] 行为对照 P1-P12 逐项通过
+
+## 2026-10-20 富渲染修复（Markdown / JSON / 代码）
+
+用户反馈：悬停预览与点击预览里 Markdown 富渲染不生效、JSON 表格没验证、代码没有语法高亮。
+逐项定位到的根因与修复：
+
+### 1. Markdown 行内样式（粗体/斜体）从来没生效
+
+`AttributedString(markdown:)` 不会产出粗体字体，而是给 `.inlinePresentationIntent`。
+Foundation 桥接到 NSAttributedString 时把它存成 **NSNumber**（NSInlinePresentationIntent = 1/2/4），
+旧代码 `value as? InlinePresentationIntent` 恒为 nil → 粗体/斜体/行内代码样式全部丢失，
+只有标题/列表/表格这类块级样式还在，观感上就是「富渲染没生效」。
+
+修复 `PreviewMarkdownRenderer.inlineAttributed`：
+- intent 取值兼容 `NSNumber`；`stronglyEmphasized` → bold、`emphasized` → italic、
+  `code` → 等宽 + 浅底、`strikethrough` → 删除线；
+- `.link` 统一染成 linkColor + 下划线 + 手型光标（AttributedString 只给 URL，不会着色）。
+
+### 2. Markdown 识别过严（短文档被当成纯文本）
+
+旧启发式要累计 2 分：一条 `**粗体**` 或一个行内代码只有 1 分 → 分态成 `.text`，走纯文本视图。
+改为强信号命中即判定：标题 / 围栏 / 列表 / 引用 / 表格行 / 粗体 / 行内代码 / 链接 / 分隔线；
+`__`/`~~` 仍需两条。误判成本仅是「排版更好看」，内容不丢。
+
+### 3. 代码预览没有语法高亮
+
+`PreviewCodeTextView` 之前是纯等宽文本（高亮只在 Markdown 围栏代码块里生效）。
+改为 `PreviewMarkdownRenderer.renderCodeBody`：
+- 按内容自动识别语言（新增 Swift 判定：import SwiftUI/Foundation、@State/@Published、func+->/guard；
+  Go/Rust/Kotlin/Java 也各有特征），
+- 关键字紫 / 字符串红 / 数字蓝 / 类型青 / 注释灰，行号与源码行一一对应。
+
+### 4. JSON 表格只有「对象数组」可用
+
+- 表格视图按根类型自动选表型：对象数组 → 键并集成列；对象根 → 键/值两列；标量数组 → 序号/值；
+- 修复表格每次 body 求值调用 `toggle()` 反复翻转展开态的问题，新增 `ensureChildren()`（只建子级）；
+- 为可测试性新增 `initialMode` 初始化参数（默认 .tree，行为不变）。
+
+### 5. Markdown 表格列错位
+
+`pad` 用 `String.count` 补空格，中文按 1 计而等宽字体占 2 列 → 行列全错位。
+新增 `displayWidth`（东亚宽字符按 2 列）用于列宽与补白。
+
+### 验证
+
+- 离屏渲染（同一份 PreviewMarkdownRenderer 源码）：标题/列表/表格/引用/分隔线/有序列表正常；
+  「粗体」属性为 SFNS-Bold、「Markdown」为斜体、代码块关键字紫色；
+  中文表格三列对齐（/tmp 探针图，构建产物同源）。
+- JSON：NSHostingView 离屏渲染对象根 → 键/值表（enabled/features/maxItems/name/owner/version）；
+  对象数组 → id/name/score 三列表格。
+- 代码：Swift/Python 样本语言识别正确，token 配色齐全。
+- 应用内 popover 截图在本机被其它窗口抢焦点打断，未能稳定截到；渲染器与视图分态链路已按同源代码验证。

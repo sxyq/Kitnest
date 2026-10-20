@@ -1,42 +1,45 @@
 lang,file,scope,name,start,end,nlines,params,mods,sig
-swift,App/AppBootstrap.swift,AppBootstrap,start,10,78,69,0,static,static func start() {
-swift,App/AppBootstrap.swift,AppBootstrap,stop,80,82,3,0,static,static func stop() {
-swift,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,86,136,51,0,static private,private static func wireEventBuses() {
-swift,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,142,160,19,0,static private,private static func registerAppLevelTools() {
-swift,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,259,281,23,0,static private,private static func registerDefaultHotkeys() {
-swift,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,292,295,4,1,static,static func doubleTapModifier(for id: String) -> DoubleTapModifier? {
-swift,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,297,308,12,0,static private,private static func installDoubleTapBindings() {
-swift,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,311,336,26,2,static,"static func setDoubleTap(_ id: String, enabled: Bool) {"
-swift,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,339,346,8,2,static,"static func setDoubleTapModifier(_ id: String, _ modifier: DoubleTapModifier) {"
-swift,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,349,354,6,0,static private,private static func presentDoubleTapCompatibilityTipIfNeeded() {
-swift,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,356,362,7,1,static,"static func shortcutBinding(for id: String) -> (keyCode: UInt32, modifiers: UInt32)? {"
-swift,App/AppBootstrap.swift,AppBootstrap,setShortcut,365,383,19,3,static,"static func setShortcut(_ id: String, keyCode: UInt32?, modifiers: UInt32 = 0) -> Bool {"
-swift,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,385,392,8,0,static,static func restoreDefaultShortcuts() {
-swift,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,396,401,6,1,static private,private static func userCustomizableToolID(for defaultID: String) -> String? {
-swift,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,410,415,6,0,static private,private static func beginScreenshotTranslate() {
-swift,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,418,423,6,0,static private,private static func takeScreenshotTranslatePending() -> Bool {
-swift,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,428,438,11,2,static private,"private static func translateAndIngest(_ text: String, successTip: String) {"
-swift,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,443,452,10,0,static private,private static func runTranslateSelection() {
+swift,App/AppBootstrap.swift,AppBootstrap,start,10,107,98,0,static,static func start() {
+swift,App/AppBootstrap.swift,AppBootstrap,stop,109,111,3,0,static,static func stop() {
+swift,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,115,165,51,0,static private,private static func wireEventBuses() {
+swift,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,171,189,19,0,static private,private static func registerAppLevelTools() {
+swift,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,288,310,23,0,static private,private static func registerDefaultHotkeys() {
+swift,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,321,324,4,1,static,static func doubleTapModifier(for id: String) -> DoubleTapModifier? {
+swift,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,326,337,12,0,static private,private static func installDoubleTapBindings() {
+swift,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,340,365,26,2,static,"static func setDoubleTap(_ id: String, enabled: Bool) {"
+swift,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,368,375,8,2,static,"static func setDoubleTapModifier(_ id: String, _ modifier: DoubleTapModifier) {"
+swift,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,378,383,6,0,static private,private static func presentDoubleTapCompatibilityTipIfNeeded() {
+swift,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,385,391,7,1,static,"static func shortcutBinding(for id: String) -> (keyCode: UInt32, modifiers: UInt32)? {"
+swift,App/AppBootstrap.swift,AppBootstrap,setShortcut,394,412,19,3,static,"static func setShortcut(_ id: String, keyCode: UInt32?, modifiers: UInt32 = 0) -> Bool {"
+swift,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,414,421,8,0,static,static func restoreDefaultShortcuts() {
+swift,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,425,430,6,1,static private,private static func userCustomizableToolID(for defaultID: String) -> String? {
+swift,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,439,444,6,0,static private,private static func beginScreenshotTranslate() {
+swift,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,447,452,6,0,static private,private static func takeScreenshotTranslatePending() -> Bool {
+swift,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,457,467,11,2,static private,"private static func translateAndIngest(_ text: String, successTip: String) {"
+swift,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,472,481,10,0,static private,private static func runTranslateSelection() {
 swift,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,33,52,20,1,,func applicationDidFinishLaunching(_ notification: Notification) {
 swift,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,62,82,21,0,private,private func enforceSingleMenubarOwner() -> Bool {
 swift,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,84,89,6,1,,func applicationWillTerminate(_ notification: Notification) {
 swift,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,91,94,4,2,,"func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {"
-swift,App/FrsetNextApp.swift,AppDelegate,application,102,161,60,2,,"func application(_ application: NSApplication, open urls: [URL]) {"
+swift,App/FrsetNextApp.swift,AppDelegate,application,102,200,99,2,,"func application(_ application: NSApplication, open urls: [URL]) {"
 swift,Core/AppearanceTheme.swift,MidnightTheme,h,57,75,19,1,static private,private static func h(_ color: Color) -> Color {
 swift,Core/AppearanceTheme.swift,AppearanceThemeModifier,body,150,158,9,1,public,public func body(content: Content) -> some View {
 swift,Core/AppearanceTheme.swift,View,frsetAppearanceTheme,168,170,3,1,,func frsetAppearanceTheme(_ state: AppearanceState = .shared) -> some View {
+swift,Core/AppearanceTheme.swift,View,frsetThemeChrome,175,177,3,0,,func frsetThemeChrome() -> some View {
+swift,Core/AppearanceTheme.swift,ThemeChromeModifier,body,188,192,5,1,public,public func body(content: Content) -> some View {
 swift,Core/FlowLayout.swift,FlowHStack,sizeThatFits,13,28,16,3,,"func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {"
 swift,Core/FlowLayout.swift,FlowHStack,placeSubviews,30,45,16,4,,"func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {"
 swift,Core/L10n.swift,L10n,t,30,35,6,1,static public,public static func t(_ key: String) -> String {
 swift,Core/L10n.swift,L10n,lprojBundle,38,44,7,1,static private,private static func lprojBundle(for code: String) -> Bundle? {
 swift,Core/L10n.swift,L10n,invalidateCache,47,49,3,0,static,static func invalidateCache() {
 swift,Core/L10n.swift,LanguageManager,apply,126,133,8,1,public,public func apply(_ code: String) {
-swift,Core/LiquidGlass.swift,LiquidGlass,makeView,29,55,27,,static,"static func makeView(frame: NSRect = .zero, cornerRadius: CGFloat, material: NSVisualEffectView.Material = .hudWindow,"
-swift,Core/LiquidGlass.swift,LiquidGlass,embed,58,71,14,2,static,"static func embed(_ content: NSView, in container: NSView) {"
-swift,Core/LiquidGlass.swift,LiquidGlassBackground,makeNSView,80,92,13,1,,func makeNSView(context: Context) -> NSView {
-swift,Core/LiquidGlass.swift,LiquidGlassBackground,updateNSView,94,94,1,2,,"func updateNSView(_ nsView: NSView, context: Context) {}"
-swift,Core/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,147,153,7,1,,func makeBody(configuration: Configuration) -> some View {
-swift,Core/LiquidGlass.swift,HoverLift,body,162,167,6,1,,func body(content: Content) -> some View {
+swift,Core/LiquidGlass.swift,LiquidGlass,makeView,34,61,28,,static,"static func makeView(frame: NSRect = .zero, cornerRadius: CGFloat, material: NSVisualEffectView.Material = .hudWindow,"
+swift,Core/LiquidGlass.swift,LiquidGlass,reapplyStyle,64,78,15,3,static,"static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?) {"
+swift,Core/LiquidGlass.swift,LiquidGlass,embed,81,94,14,2,static,"static func embed(_ content: NSView, in container: NSView) {"
+swift,Core/LiquidGlass.swift,LiquidGlassBackground,makeNSView,103,115,13,1,,func makeNSView(context: Context) -> NSView {
+swift,Core/LiquidGlass.swift,LiquidGlassBackground,updateNSView,117,122,6,2,,"func updateNSView(_ nsView: NSView, context: Context) {"
+swift,Core/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,175,181,7,1,,func makeBody(configuration: Configuration) -> some View {
+swift,Core/LiquidGlass.swift,HoverLift,body,190,195,6,1,,func body(content: Content) -> some View {
 swift,Core/LogArchive.swift,LogArchive,start,60,105,46,0,public,public func start() {
 swift,Core/LogArchive.swift,LogArchive,stop,107,120,14,0,public,public func stop() {
 swift,Core/LogArchive.swift,LogArchive,append,125,127,3,3,public,"public func append(level: String, tag: String, message: String) {"
@@ -49,6 +52,9 @@ swift,Core/LogArchive.swift,LogArchive,appendRaw,213,247,35,3,private,"private f
 swift,Core/LogArchive.swift,LogArchive,cleanupOldLogs,250,265,16,0,public,public func cleanupOldLogs() {
 swift,Core/LogArchive.swift,LogArchive,tail,270,277,8,1,public,public func tail(lines: Int = 200) -> String {
 swift,Core/OfficialWindowChrome.swift,NSWindow,applyOfficialChrome,28,33,6,0,,func applyOfficialChrome() {
+swift,Core/PanelGlass.swift,PanelGlassSurface,body,47,49,3,1,,func body(content: Content) -> some View {
+swift,Core/PanelGlass.swift,View,panelGlassCard,128,132,5,2,,"func panelGlassCard(cornerRadius: CGFloat? = nil, tint: Color? = nil) -> some View {"
+swift,Core/PanelGlass.swift,View,panelGlassFloating,135,138,4,1,,func panelGlassFloating(cornerRadius: CGFloat? = nil) -> some View {
 swift,Core/Personalization.swift,Personalization,persist,136,142,7,0,private,private func persist() {
 swift,Core/Personalization.swift,Personalization,flushPendingPersist,145,149,5,0,public,public func flushPendingPersist() {
 swift,Core/Personalization.swift,Personalization,flushPersist,151,171,21,0,private,private func flushPersist() {
@@ -83,8 +89,8 @@ swift,Core/Support.swift,Log,error,24,24,1,2,static public,"public static func e
 swift,Core/Support.swift,Log,breadcrumb,27,29,3,2,static public,"public static func breadcrumb(_ tag: String, _ message: String) {"
 swift,Core/Support.swift,ModuleRegistry,register,42,47,6,1,static public,public static func register(_ m: any AppModule.Type) {
 swift,Core/Support.swift,ModuleRegistry,startAll,48,54,7,0,static public,public static func startAll() {
-swift,Core/Support.swift,Theme,sectionHeader,126,131,6,1,static public,public static func sectionHeader(_ title: String) -> some View {
-swift,Core/Support.swift,AppDirectories,sub,193,197,5,1,static public,public static func sub(_ name: String) -> URL {
+swift,Core/Support.swift,Theme,sectionHeader,129,134,6,1,static public,public static func sectionHeader(_ title: String) -> some View {
+swift,Core/Support.swift,AppDirectories,sub,196,200,5,1,static public,public static func sub(_ name: String) -> URL {
 swift,Core/Toast.swift,MenuBarToastManager,show,127,133,7,3,,"func show(_ message: String, icon: String?, isWarning: Bool = false) {"
 swift,Core/Toast.swift,MenuBarToastManager,present,135,176,42,3,private,"private func present(message: String, icon: String?, isWarning: Bool) {"
 swift,Core/Toast.swift,MenuBarToastManager,hideAnimated,180,189,10,1,private,private func hideAnimated(generation: Int) {
@@ -95,6 +101,14 @@ swift,Core/Toast.swift,MenuBarToastManager,layoutContent,233,239,7,0,private,pri
 swift,Core/Toast.swift,MenuBarToastManager,resolveTargetScreen,245,255,11,0,private,private func resolveTargetScreen() -> NSScreen? {
 swift,Core/Toast.swift,MenuBarToastManager,positionOnTargetScreen,260,286,27,0,private,private func positionOnTargetScreen() {
 swift,Core/Toast.swift,Toast,show,294,296,3,3,static public,"public static func show(_ message: String, icon: String? = nil, isWarning: Bool = false) {"
+swift,Core/TransientWindows.swift,TransientWindowCenter,register,39,40,2,,,"func register(window: NSWindow,"
+swift,Core/TransientWindows.swift,TransientWindowCenter,unregister,51,54,4,1,,func unregister(window: NSWindow) {
+swift,Core/TransientWindows.swift,TransientWindowCenter,requestDismiss,57,61,5,1,,func requestDismiss(window: NSWindow) {
+swift,Core/TransientWindows.swift,TransientWindowCenter,dismissAll,64,69,6,1,,func dismissAll(except keep: NSWindow? = nil) {
+swift,Core/TransientWindows.swift,TransientWindowCenter,startMonitoringIfNeeded,73,99,27,0,private,private func startMonitoringIfNeeded() {
+swift,Core/TransientWindows.swift,TransientWindowCenter,stopMonitoring,101,108,8,0,private,private func stopMonitoring() {
+swift,Core/TransientWindows.swift,TransientWindowCenter,handleLocalClick,112,133,22,1,private,private func handleLocalClick(_ event: NSEvent) {
+swift,Core/TransientWindows.swift,TransientWindowCenter,isInMenuBar,135,139,5,1,private,private func isInMenuBar(_ screenPoint: NSPoint) -> Bool {
 swift,Features/AI/AIChatView.swift,AIChatViewModel,onAppear,94,109,16,0,public,public func onAppear() {
 swift,Features/AI/AIChatView.swift,AIChatViewModel,refreshModels,111,125,15,0,public,public func refreshModels() async {
 swift,Features/AI/AIChatView.swift,AIChatViewModel,send,127,145,19,0,public,public func send() {
@@ -270,42 +284,95 @@ swift,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,157,16
 swift,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,165,190,26,0,public,public func reloadDevices() {
 swift,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,192,198,7,1,public,public func selectDefaultDevice(_ id: AudioObjectID) {
 swift,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,202,233,32,0,public,public func refreshPlayingApps() {
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,composite,81,106,26,2,static public,"public static func composite(base: CGImage, annotations: [Annotation]) -> CGImage? {"
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,draw,112,118,7,3,static public,"public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil) {"
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,draw,120,165,46,2,static private,"private static func draw(_ a: Annotation, base: CGImage? = nil) {"
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,drawMosaic,169,193,25,3,static private,"private static func drawMosaic(in rect: CGRect, base: CGImage?, fallbackColor: NSColor) {"
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,drawArrow,195,210,16,2,static private,"private static func drawArrow(_ a: Annotation, color: NSColor) {"
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,apply,212,218,7,3,static private,"private static func apply(_ path: NSBezierPath, color: NSColor, lineWidth: CGFloat) {"
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,rect,221,226,6,1,static,static func rect(of a: Annotation) -> CGRect? {
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,fontSize,229,231,3,1,static private,private static func fontSize(for lineWidth: CGFloat) -> CGFloat {
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,color,235,243,9,1,static public,public static func color(fromHex hex: String) -> NSColor {
-swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,hex,245,251,7,1,static public,public static func hex(of color: NSColor) -> String {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,imagePoint,62,66,5,1,private,private func imagePoint(_ viewPoint: NSPoint) -> CGPoint {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,draw,70,114,45,1,override,override func draw(_ dirtyRect: NSRect) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,hitTest,120,136,17,2,private,"private func hitTest(_ a: Annotation, at point: CGPoint) -> Bool {"
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseDown,140,170,31,1,override,override func mouseDown(with event: NSEvent) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseDragged,172,199,28,1,override,override func mouseDragged(with event: NSEvent) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseUp,201,234,34,1,override,override func mouseUp(with event: NSEvent) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,eraseAt,243,249,7,1,private,private func eraseAt(_ ip: CGPoint) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,applyRemoval,252,294,43,1,private,private func applyRemoval(stroke: [CGPoint]) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,isValid,297,316,20,1,private,private func isValid(_ a: Annotation) -> Bool {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,promptText,318,327,10,0,private,private func promptText() -> String? {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,undo,333,343,11,0,,func undo() {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,clear,345,351,7,0,,func clear() {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,composite,354,356,3,0,,func composite() -> CGImage? {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,buildToolbar,404,430,27,1,private,private func buildToolbar(width: CGFloat) -> NSView {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,refreshUndo,432,432,1,0,private,private func refreshUndo() { toolbarModel.canUndo = canvas.canUndo }
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,undoTapped,436,436,1,0,private @objc,@objc private func undoTapped() { canvas.undo() }
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,clearTapped,437,437,1,0,private @objc,@objc private func clearTapped() { canvas.clear() }
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,longScreenshotTapped,440,445,6,0,private @objc,@objc private func longScreenshotTapped() {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,copyTapped,447,450,4,0,private @objc,@objc private func copyTapped() {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,saveTapped,452,455,4,0,private @objc,@objc private func saveTapped() {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,closeTapped,457,457,1,0,private @objc,@objc private func closeTapped() { performClose(nil) }
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,openLatest,473,477,5,0,public,public func openLatest() -> Bool {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,open,479,485,7,1,public open,public func open(url: URL) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,open,487,504,18,1,public open,public func open(image: CGImage) {
-swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,windowWillClose,506,508,3,1,public,public func windowWillClose(_ notification: Notification) {
-swift,Features/Capture/AnnotationEditorWindow.swift,EditorToolbarView,toolbarButton,577,591,15,,private,"private func toolbarButton(_ title: String, systemImage: String, enabled: Bool = true,"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,composite,104,139,36,2,static public,"public static func composite(base: CGImage, annotations: [Annotation]) -> CGImage? {"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,draw,145,152,8,,static public,"public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil,"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,draw,154,201,48,,static private,"private static func draw(_ a: Annotation, base: CGImage? = nil,"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,drawMosaicBrush,211,241,31,,static private,"private static func drawMosaicBrush(_ a: Annotation, base: CGImage?, fallbackColor: NSColor,"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,strokeMosaic,245,280,36,,static public,"public static func strokeMosaic(into ctx: CGContext, pixelated: CGImage, size: CGSize, points: [CGPoint],"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,pixelated,283,294,12,2,static public,"public static func pixelated(_ base: CGImage, block: CGFloat) -> CGImage? {"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,drawArrow,296,311,16,2,static private,"private static func drawArrow(_ a: Annotation, color: NSColor) {"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,apply,313,319,7,3,static private,"private static func apply(_ path: NSBezierPath, color: NSColor, lineWidth: CGFloat) {"
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,rect,322,327,6,1,static,static func rect(of a: Annotation) -> CGRect? {
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,fontSize,330,332,3,1,static,static func fontSize(for lineWidth: CGFloat) -> CGFloat {
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,textFontSize,335,337,3,1,static,static func textFontSize(scale: CGFloat) -> CGFloat {
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,fontWeight,340,346,7,1,static,static func fontWeight(_ value: Int) -> NSFont.Weight {
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,textBounds,351,358,8,1,static,static func textBounds(_ a: Annotation) -> CGRect? {
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,color,362,370,9,1,static public,public static func color(fromHex hex: String) -> NSColor {
+swift,Features/Capture/AnnotationCompositor.swift,AnnotationCompositor,hex,372,378,7,1,static public,public static func hex(of color: NSColor) -> String {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,decoded,73,85,13,1,static private,private static func decoded(_ image: CGImage) -> CGImage {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,imagePoint,108,112,5,1,private,private func imagePoint(_ viewPoint: NSPoint) -> CGPoint {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,draw,116,238,123,1,override,override func draw(_ dirtyRect: NSRect) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,hitTest,244,263,20,2,private,"private func hitTest(_ a: Annotation, at point: CGPoint) -> Bool {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,distanceToPolyline,266,279,14,2,private,"private func distanceToPolyline(_ p: CGPoint, _ points: [CGPoint]) -> CGFloat {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseDown,283,333,51,1,override,override func mouseDown(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseDragged,335,393,59,1,override,override func mouseDragged(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseUp,395,450,56,1,override,override func mouseUp(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,strokeWidth,458,464,7,1,private,private func strokeWidth(for tool: AnnotationTool) -> CGFloat {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,updateTrackingAreas,479,488,10,0,override,override func updateTrackingAreas() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseMoved,490,504,15,1,override,override func mouseMoved(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseEntered,506,515,10,1,override,override func mouseEntered(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mouseExited,517,520,4,1,override,override func mouseExited(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,updateCursor,525,536,12,1,private,private func updateCursor(_ point: CGPoint?) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,cursorRingRect,539,546,8,1,private,private func cursorRingRect(for imagePoint: CGPoint?) -> CGRect? {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,keyDown,548,562,15,1,override,override func keyDown(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,eraseAt,566,572,7,1,private,private func eraseAt(_ ip: CGPoint) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,applyRemoval,575,618,44,1,private,private func applyRemoval(stroke: [CGPoint]) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,isValid,621,640,20,1,private,private func isValid(_ a: Annotation) -> Bool {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,textAnnotation,680,685,6,1,private,private func textAnnotation(at ip: CGPoint) -> Annotation? {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,textSelectionViewRect,688,695,8,0,private,private func textSelectionViewRect() -> CGRect? {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,handleRects,698,716,19,1,private,"private func handleRects(for rect: CGRect) -> [(TextHandle, CGRect)] {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,handleHit,719,722,4,1,private,private func handleHit(at viewPoint: CGPoint) -> TextHandle? {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,selectText,725,729,5,1,,func selectText(_ annotation: Annotation?) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,applyTextSizeToSelection,732,734,3,1,,func applyTextSizeToSelection(_ value: CGFloat) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,applyColorToSelection,737,739,3,1,,func applyColorToSelection(_ hex: String) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,applyWeightToSelection,742,744,3,1,,func applyWeightToSelection(_ value: Int) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,deleteSelectedText,747,754,8,0,,func deleteSelectedText() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,mutateSelectedText,756,767,12,1,private,private func mutateSelectedText(_ body: (inout Annotation) -> Void) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,showFontPopover,772,788,17,2,private,"private func showFontPopover(for annotation: Annotation, at rect: CGRect) {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,makeFontPopover,790,797,8,0,private,private func makeFontPopover() -> NSPopover {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,closeFontPopover,799,801,3,0,,func closeFontPopover() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,roundedRectPath,806,810,5,2,static private,"private static func roundedRectPath(_ rect: CGRect, radius: CGFloat) -> CGPath {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,beginTextEditing,812,863,52,1,private,private func beginTextEditing(at viewPoint: CGPoint) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,updateEditorBoxSize,866,886,21,0,private,private func updateEditorBoxSize() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,textFieldSubmitted,888,890,3,0,private @objc,@objc private func textFieldSubmitted() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,finishTextEditing,893,914,22,1,,func finishTextEditing(commit: Bool) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,record,923,937,15,1,private,private func record(_ op: EditOp) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,undo,939,945,7,0,,func undo() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,redo,947,953,7,0,,func redo() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,apply,955,972,18,2,private,"private func apply(_ op: EditOp, forward: Bool) {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,clear,974,982,9,0,,func clear() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,composite,985,987,3,0,,func composite() -> CGImage? {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,scrollWheel,990,997,8,1,override,override func scrollWheel(with event: NSEvent) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,runAnnotateTextProbe,1003,1018,16,0,,func runAnnotateTextProbe() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,controlTextDidEndEditing,1024,1027,4,1,,func controlTextDidEndEditing(_ obj: Notification) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,controlTextDidChange,1029,1032,4,1,,func controlTextDidChange(_ obj: Notification) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationCanvasView,control,1034,1040,7,3,,"func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,buildToolbar,1116,1144,29,1,private,private func buildToolbar(width: CGFloat) -> NSView {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidSelectTool,1147,1158,12,1,,func toolbarDidSelectTool(_ index: Int) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeColor,1160,1167,8,1,,func toolbarDidChangeColor(_ color: NSColor) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeSize,1169,1180,12,1,,func toolbarDidChangeSize(_ value: CGFloat) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeBlock,1182,1185,4,1,,func toolbarDidChangeBlock(_ value: Int) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,adjustSize,1188,1192,5,1,,func adjustSize(by delta: CGFloat) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,refreshActions,1194,1197,4,0,private,private func refreshActions() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,refocusCanvas,1201,1205,5,0,private,private func refocusCanvas() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,selectTool,1209,1219,11,1,private,private func selectTool(_ tool: AnnotationTool) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,undoTapped,1221,1221,1,0,private @objc,@objc private func undoTapped() { canvas.undo() }
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,redoTapped,1222,1222,1,0,private @objc,@objc private func redoTapped() { canvas.redo() }
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,clearTapped,1223,1223,1,0,private @objc,@objc private func clearTapped() { canvas.clear() }
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,longScreenshotTapped,1226,1231,6,0,private @objc,@objc private func longScreenshotTapped() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,copyTapped,1233,1236,4,0,private @objc,@objc private func copyTapped() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,saveTapped,1238,1241,4,0,private @objc,@objc private func saveTapped() {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,closeTapped,1243,1243,1,0,private @objc,@objc private func closeTapped() { performClose(nil) }
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorWindow,handleKey,1247,1282,36,1,private,private func handleKey(_ event: NSEvent) -> Bool {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,openLatest,1298,1302,5,0,public,public func openLatest() -> Bool {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,open,1304,1310,7,1,public open,public func open(url: URL) {
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,open,1312,1344,33,2,public open,"public func open(image: CGImage, tool: AnnotationTool? = nil) {"
+swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,windowWillClose,1346,1348,3,1,public,public func windowWillClose(_ notification: Notification) {
+swift,Features/Capture/AnnotationToolbarView.swift,EditorToolbarModel,applyImageDefaults,38,44,7,1,,func applyImageDefaults(imageWidth: Int) {
+swift,Features/Capture/AnnotationToolbarView.swift,EditorToolbarModel,setSize,106,113,8,1,,func setSize(_ value: Double) {
+swift,Features/Capture/AnnotationToolbarView.swift,EditorToolbarModel,nudgeSize,115,118,4,1,,func nudgeSize(by delta: Double) {
+swift,Features/Capture/AnnotationToolbarView.swift,AnnotationToolbarView,commitSize,341,344,4,1,private,private func commitSize(_ value: Double) {
+swift,Features/Capture/AnnotationToolbarView.swift,AnnotationToolbarView,isSameColor,473,480,8,2,private,"private func isSameColor(_ a: Color, _ b: Color) -> Bool {"
 swift,Features/Capture/BeautifyPanel.swift,BeautifyRenderer,render,35,95,61,2,static public,"public static func render(image: CGImage, options: BeautifyOptions) -> CGImage? {"
 swift,Features/Capture/BeautifyPanel.swift,BeautifyController,show,109,117,9,1,public,public func show(image: CGImage) {
 swift,Features/Capture/BeautifyPanel.swift,BeautifyController,showOnMain,119,147,29,1,private,private func showOnMain(image: CGImage) {
@@ -340,7 +407,7 @@ swift,Features/Capture/CaptureSectionView.swift,CaptureSectionView,pickAndStitch
 swift,Features/Capture/CaptureSectionView.swift,CaptureSectionView,pinLatest,194,200,7,0,private,private func pinLatest() {
 swift,Features/Capture/CaptureSectionView.swift,CaptureSectionView,annotateLatest,203,207,5,0,private,private func annotateLatest() {
 swift,Features/Capture/CaptureSectionView.swift,CaptureSectionView,chooseSingleImage,209,215,7,0,private,private func chooseSingleImage() -> URL? {
-swift,Features/Capture/CaptureSettingsPane.swift,CaptureSettingsPane,chooseDirectory,103,111,9,0,private,private func chooseDirectory() {
+swift,Features/Capture/CaptureSettingsPane.swift,CaptureSettingsPane,chooseDirectory,115,123,9,0,private,private func chooseDirectory() {
 swift,Features/Capture/Eyedropper.swift,EyedropperView,pixel,31,39,9,1,private,"private func pixel(at point: NSPoint) -> (r: UInt8, g: UInt8, b: UInt8)? {"
 swift,Features/Capture/Eyedropper.swift,EyedropperView,makeColor,42,48,7,1,private,"private func makeColor(_ rgb: (r: UInt8, g: UInt8, b: UInt8)) -> NSColor {"
 swift,Features/Capture/Eyedropper.swift,EyedropperView,mouseMoved,50,57,8,1,override,override func mouseMoved(with event: NSEvent) {
@@ -379,11 +446,11 @@ swift,Features/Capture/LongScreenshotCoordinator.swift,LongScreenshotCoordinator
 swift,Features/Capture/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,closeSelectionOverlays,222,225,4,0,private,private func closeSelectionOverlays() {
 swift,Features/Capture/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,handleSessionFinished,229,255,27,2,private,"private func handleSessionFinished(state: LongScreenshotState, image: CGImage?) {"
 swift,Features/Capture/LongScreenshotHUD.swift,BorderView,draw,34,56,23,1,override,override func draw(_ dirtyRect: NSRect) {
-swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,show,70,143,74,1,,func show(near point: NSPoint) {
-swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,update,145,147,3,1,,func update(rows: Int) {
-swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,close,150,155,6,0,,func close() {
-swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,finishTapped,157,157,1,0,private @objc,@objc private func finishTapped() { onFinish?() }
-swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,cancelTapped,158,158,1,0,private @objc,@objc private func cancelTapped() { onCancel?() }
+swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,show,70,139,70,1,,func show(near point: NSPoint) {
+swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,update,141,143,3,1,,func update(rows: Int) {
+swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,close,146,151,6,0,,func close() {
+swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,finishTapped,153,153,1,0,private @objc,@objc private func finishTapped() { onFinish?() }
+swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,cancelTapped,154,154,1,0,private @objc,@objc private func cancelTapped() { onCancel?() }
 swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,draw,23,29,7,1,override,override func draw(_ dirtyRect: NSRect) {
 swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,fitCentered,32,52,21,1,,func fitCentered(in containerSize: NSSize) {
 swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,layout,119,124,6,0,override,override func layout() {
@@ -409,12 +476,16 @@ swift,Features/Capture/LongScreenshotStitcher.swift,LongScreenshotStitcher,meanA
 swift,Features/Capture/LongScreenshotStitcher.swift,LongScreenshotStitcher,append,219,323,105,4,,"func append(frame: CGImage, hintDX: Double, hintDY: Double, scale: Double) -> Bool {"
 swift,Features/Capture/LongScreenshotStitcher.swift,LongScreenshotStitcher,searchOffset,329,422,94,,static,"static func searchOffset(canvasBuf: LongShotRGBA, canvasSmall: DownsampledGray, canvasOriginX: Int, canvasOriginY: Int, lastFrameX: Int, lastFrameY: Int, frame: CGImage,"
 swift,Features/Capture/OCRService.swift,ScreenshotOCRDirectImageStore,image,20,26,7,1,public,public func image(for data: Data) -> CGImage? {
-swift,Features/Capture/OCRService.swift,OCRService,recognizeText,45,48,4,1,public,public func recognizeText(imageData: Data) async throws -> String {
-swift,Features/Capture/OCRService.swift,OCRService,recognizeObservations,51,57,7,1,public,public func recognizeObservations(imageData: Data) async throws -> [OCRTextObservation] {
-swift,Features/Capture/OCRService.swift,OCRService,recognizeText,61,63,3,1,public,public func recognizeText(image: CGImage) async throws -> String {
-swift,Features/Capture/OCRService.swift,OCRService,recognizeObservations,65,74,10,1,public,public func recognizeObservations(image: CGImage) async throws -> [OCRTextObservation] {
-swift,Features/Capture/OCRService.swift,OCRService,makeRequest,78,89,12,0,private,private func makeRequest() -> VNRecognizeTextRequest {
-swift,Features/Capture/OCRService.swift,OCRService,setLanguages,98,100,3,1,static public,public static func setLanguages(_ languages: [String]) {
+swift,Features/Capture/OCRService.swift,OCRService,recognizeText,60,62,3,1,public,public func recognizeText(imageData: Data) async throws -> String {
+swift,Features/Capture/OCRService.swift,OCRService,recognizeObservations,66,72,7,1,public,public func recognizeObservations(imageData: Data) async throws -> [OCRTextObservation] {
+swift,Features/Capture/OCRService.swift,OCRService,recognizeText,76,78,3,1,public,public func recognizeText(image: CGImage) async throws -> String {
+swift,Features/Capture/OCRService.swift,OCRService,recognizeObservations,80,89,10,1,public,public func recognizeObservations(image: CGImage) async throws -> [OCRTextObservation] {
+swift,Features/Capture/OCRService.swift,OCRService,visionRecognizeText,93,96,4,1,private,private func visionRecognizeText(imageData: Data) async throws -> String {
+swift,Features/Capture/OCRService.swift,OCRService,makeRequest,100,117,18,0,private,private func makeRequest() -> VNRecognizeTextRequest {
+swift,Features/Capture/OCRService.swift,OCRService,readingOrder,123,131,9,1,static public,public static func readingOrder(_ list: [OCRTextObservation]) -> [OCRTextObservation] {
+swift,Features/Capture/OCRService.swift,OCRService,assemble,134,147,14,1,static public,public static func assemble(_ ordered: [OCRTextObservation]) -> String {
+swift,Features/Capture/OCRService.swift,OCRService,cleanLine,150,159,10,1,static public,public static func cleanLine(_ raw: String) -> String {
+swift,Features/Capture/OCRService.swift,OCRService,setLanguages,168,170,3,1,static public,public static func setLanguages(_ languages: [String]) {
 swift,Features/Capture/ObjectRemovalEngine.swift,ObjectRemovalEngine,inpaint,35,38,4,2,static public,"public static func inpaint(image: CGImage, mask: CGImage) -> CGImage? {"
 swift,Features/Capture/ObjectRemovalEngine.swift,DiffusionInpainter,inpaint,52,104,53,2,public,"public func inpaint(image: CGImage, mask: CGImage) -> CGImage? {"
 swift,Features/Capture/ObjectRemovalEngine.swift,DiffusionInpainter,solveLevels,110,141,32,4,static,"static func solveLevels(imgBuf: [UInt8], isHole: [Bool], w: Int, h: Int) -> [Double] {"
@@ -681,16 +752,17 @@ swift,Features/Clipboard/ClipboardRepository.swift,ClipboardRepository,escapeLik
 swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardSectionView,runSummary,105,112,8,1,private,private func runSummary(for item: ClipboardItem) async {
 swift,Features/Clipboard/ClipboardSectionView.swift,SummaryState,show,122,124,3,2,mutating,"mutating func show(title: String, message: String) {"
 swift,Features/Clipboard/ClipboardSectionView.swift,SummaryState,reset,125,127,3,0,mutating,mutating func reset() {
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,437,441,5,0,private,private func imagePixelSize() -> String? {
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,443,445,3,1,private,private func imagePixelSize(at path: String) -> String? {
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imageSizeText,447,453,7,1,static private,private static func imageSizeText(at path: String) -> String? {
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,iconButton,455,465,11,3,private,"private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {"
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow,open,534,545,12,1,static public open,public static func open(item: ClipboardItem) {
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow,make,547,558,12,1,static private,private static func make(item: ClipboardItem) -> NSWindowController {
-swift,Features/Clipboard/ClipboardSectionView.swift,PreviewWindowCleaner,bind,567,569,3,2,,"func bind(key: String, window: NSWindow) {"
-swift,Features/Clipboard/ClipboardSectionView.swift,PreviewWindowCleaner,windowWillClose,571,578,8,1,,func windowWillClose(_ notification: Notification) {
-swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow,release,582,582,1,1,static,static func release(dedupeKey: String) { controllers.removeValue(forKey: dedupeKey) }
-swift,Features/Clipboard/ClipboardSettingsPane.swift,ClipboardSettingsPane,bytesText,83,87,5,1,static private,private static func bytesText(_ bytes: Int64) -> String {
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,433,437,5,0,private,private func imagePixelSize() -> String? {
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,439,441,3,1,private,private func imagePixelSize(at path: String) -> String? {
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imageSizeText,443,449,7,1,static private,private static func imageSizeText(at path: String) -> String? {
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,iconButton,451,461,11,3,private,"private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {"
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow,open,530,541,12,1,static public open,public static func open(item: ClipboardItem) {
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow,make,543,554,12,1,static private,private static func make(item: ClipboardItem) -> NSWindowController {
+swift,Features/Clipboard/ClipboardSectionView.swift,PreviewWindowCleaner,bind,563,565,3,2,,"func bind(key: String, window: NSWindow) {"
+swift,Features/Clipboard/ClipboardSectionView.swift,PreviewWindowCleaner,windowWillClose,567,574,8,1,,func windowWillClose(_ notification: Notification) {
+swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow,release,578,578,1,1,static,static func release(dedupeKey: String) { controllers.removeValue(forKey: dedupeKey) }
+swift,Features/Clipboard/ClipboardSettingsPane.swift,ClipboardSettingsPane,sliderRow,108,130,23,,private,"private func sliderRow(_ title: String, valueText: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double,"
+swift,Features/Clipboard/ClipboardSettingsPane.swift,ClipboardSettingsPane,bytesText,132,136,5,1,static private,private static func bytesText(_ bytes: Int64) -> String {
 swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,isRunning,34,37,4,1,public,public func isRunning(dedupeKey: String) -> Bool {
 swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,beginRun,41,46,6,1,private,private func beginRun(dedupeKey: String) -> Bool {
 swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,endRun,48,51,4,1,private,private func endRun(dedupeKey: String) {
@@ -711,33 +783,33 @@ swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,mouseEx
 swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,keyDown,268,294,27,1,override,override func keyDown(with event: NSEvent) {
 swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,302,305,4,1,override,override func scrollWheel(with event: NSEvent) {
 swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,339,341,3,0,public,public func makeCoordinator() -> Coordinator {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,343,378,36,1,public,public func makeNSView(context: Context) -> NSScrollView {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,380,392,13,2,public,"public func updateNSView(_ nsView: NSScrollView, context: Context) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,bind,422,437,16,3,,"func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,numberOfRows,441,443,3,1,public,public func numberOfRows(in tableView: NSTableView) -> Int {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,445,482,38,3,public,"public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,484,487,4,2,public,"public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,489,494,6,3,public,"public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,496,513,18,1,public,public func tableViewSelectionDidChange(_ notification: Notification) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,reloadTable,517,557,41,0,,func reloadTable() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,561,564,4,1,@objc,@objc func clipboardBoundsDidChange(_ note: Notification) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,feedTopTracker,569,578,10,0,private,private func feedTopTracker() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,582,607,26,1,private,private func handleMouseMoved(_ event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseExited,609,611,3,0,private,private func handleMouseExited() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,613,625,13,0,private,private func clearHoverHighlight() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,628,631,4,1,private,private func rowView(at row: Int) -> RowHostingView? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,641,656,16,2,private,"private func handlePlainMouseDown(row: Int, event: NSEvent) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,665,670,6,1,private,private func consumeOneTimeHint(_ key: String) -> Bool {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,anchorProvider,672,677,6,1,private,private func anchorProvider(for view: NSView?) -> () -> CGRect? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSingleClick,679,692,14,1,private,private func handleSingleClick(_ item: ClipboardItem) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,694,702,9,1,private,private func handleDoubleClick(_ item: ClipboardItem) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,704,719,16,0,private,private func handleSpaceKey() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleModifierClick,726,747,22,2,private,"private func handleModifierClick(row: Int, shift: Bool) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleReturnKey,749,781,33,0,private,private func handleReturnKey() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,783,786,4,1,private,private func rowView(forItemID itemID: String) -> NSView? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,797,855,59,3,public,"public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,857,859,3,1,private @objc,@objc private func menuAction(_ sender: NSMenuItem) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,BlockMenuItemAction,run,866,866,1,0,,func run() { block() }
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,343,381,39,1,public,public func makeNSView(context: Context) -> NSScrollView {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,383,395,13,2,public,"public func updateNSView(_ nsView: NSScrollView, context: Context) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,bind,425,440,16,3,,"func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,numberOfRows,444,446,3,1,public,public func numberOfRows(in tableView: NSTableView) -> Int {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,448,485,38,3,public,"public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,487,490,4,2,public,"public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,492,497,6,3,public,"public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,499,516,18,1,public,public func tableViewSelectionDidChange(_ notification: Notification) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,reloadTable,520,560,41,0,,func reloadTable() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,564,567,4,1,@objc,@objc func clipboardBoundsDidChange(_ note: Notification) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,feedTopTracker,572,581,10,0,private,private func feedTopTracker() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,585,610,26,1,private,private func handleMouseMoved(_ event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseExited,612,614,3,0,private,private func handleMouseExited() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,616,628,13,0,private,private func clearHoverHighlight() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,631,634,4,1,private,private func rowView(at row: Int) -> RowHostingView? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,644,659,16,2,private,"private func handlePlainMouseDown(row: Int, event: NSEvent) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,668,673,6,1,private,private func consumeOneTimeHint(_ key: String) -> Bool {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,anchorProvider,675,680,6,1,private,private func anchorProvider(for view: NSView?) -> () -> CGRect? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSingleClick,682,695,14,1,private,private func handleSingleClick(_ item: ClipboardItem) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,697,705,9,1,private,private func handleDoubleClick(_ item: ClipboardItem) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,707,722,16,0,private,private func handleSpaceKey() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleModifierClick,729,750,22,2,private,"private func handleModifierClick(row: Int, shift: Bool) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleReturnKey,752,784,33,0,private,private func handleReturnKey() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,786,789,4,1,private,private func rowView(forItemID itemID: String) -> NSView? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,800,858,59,3,public,"public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,860,862,3,1,private @objc,@objc private func menuAction(_ sender: NSMenuItem) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,BlockMenuItemAction,run,869,869,1,0,,func run() { block() }
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardPinState,save,49,54,6,1,public,public func save(frame: NSRect) {
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardPinState,clampedFrame,57,67,11,0,public,public func clampedFrame() -> NSRect {
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardStore,refresh,144,148,5,0,public,public func refresh() {
@@ -751,7 +823,7 @@ swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowCo
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,windowDidMove,226,229,4,1,public,public func windowDidMove(_ notification: Notification) {
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,windowDidResize,231,234,4,1,public,public func windowDidResize(_ notification: Notification) {
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,windowWillClose,236,238,3,1,public,public func windowWillClose(_ notification: Notification) {
-swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardContentView,barButton,373,385,13,4,private,"private func barButton(_ symbol: String, help: String, active: Bool = false, action: @escaping () -> Void) -> some View {"
+swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardContentView,barButton,379,391,13,4,private,"private func barButton(_ symbol: String, help: String, active: Bool = false, action: @escaping () -> Void) -> some View {"
 swift,Features/Clipboard/LargeTextPreviewView.swift,LargeTextPreviewMode,infer,47,55,9,1,static public,public static func infer(from text: String) -> LargeTextPreviewMode {
 swift,Features/Clipboard/LargeTextPreviewView.swift,JSONHighlighter,prettify,65,72,8,1,static public,public static func prettify(_ text: String) -> String? {
 swift,Features/Clipboard/LargeTextPreviewView.swift,JSONHighlighter,render,74,94,21,2,static public,"public static func render(_ text: String, enabled: Bool = PreviewJSONPreferenceStore.shared.isEnabled) -> NSAttributedString {"
@@ -831,11 +903,11 @@ swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,uptimeText,274,
 swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,loadCell,283,292,10,2,private,"private func loadCell(_ title: String, value: Double) -> some View {"
 swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,primaryTemperature,294,300,7,0,private,private func primaryTemperature() -> Double? {
 swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,legendItem,363,368,6,2,private,"private func legendItem(_ title: String, color: Color) -> some View {"
-swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,connCellColor,478,484,7,1,private,private func connCellColor(_ value: Int) -> Color {
-swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,sensorCategorySection,698,730,33,4,private,"private func sensorCategorySection(title: String, category: Int, unit: SensorUnit, items: [StatsSensorItem]) -> some View {"
-swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,sensorBarRow,733,754,22,4,private,"private func sensorBarRow(name: String, valueText: String, ratio: Double, color: Color) -> some View {"
-swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,batteryStatusText,842,846,5,1,private,private func batteryStatusText(_ batt: StatsBattery) -> String {
-swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,sensorValueText,849,857,9,2,private,"private func sensorValueText(_ value: Double, unit: SensorUnit) -> String {"
+swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,connCellColor,482,488,7,1,private,private func connCellColor(_ value: Int) -> Color {
+swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,sensorCategorySection,702,734,33,4,private,"private func sensorCategorySection(title: String, category: Int, unit: SensorUnit, items: [StatsSensorItem]) -> some View {"
+swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,sensorBarRow,737,758,22,4,private,"private func sensorBarRow(name: String, valueText: String, ratio: Double, color: Color) -> some View {"
+swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,batteryStatusText,846,850,5,1,private,private func batteryStatusText(_ batt: StatsBattery) -> String {
+swift,Features/Monitor/MonitorDetailView.swift,MonitorDetailView,sensorValueText,853,861,9,2,private,"private func sensorValueText(_ value: Double, unit: SensorUnit) -> String {"
 swift,Features/Monitor/MonitorFormat.swift,MonitorFormat,bytes,8,17,10,1,static public,public static func bytes(_ value: UInt64) -> String {
 swift,Features/Monitor/MonitorFormat.swift,MonitorFormat,rate,20,22,3,1,static public,public static func rate(_ value: UInt64) -> String {
 swift,Features/Monitor/MonitorFormat.swift,MonitorFormat,compactRate,25,27,3,1,static public,public static func compactRate(_ value: UInt64) -> String {
@@ -852,24 +924,20 @@ swift,Features/Monitor/MonitorHistory.swift,MonitorHistoryBuffer,reset,37,41,5,0
 swift,Features/Monitor/MonitorModule.swift,MonitorModule,start,8,34,27,0,static public,public static func start() {
 swift,Features/Monitor/MonitorModule.swift,MonitorModule,stop,37,40,4,0,static public,public static func stop() {
 swift,Features/Monitor/MonitorPopoutWindow.swift,ContentHeightKey,reduce,20,23,4,2,static,"static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {"
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,wasJustDismissed,174,176,3,1,public,public func wasJustDismissed(within interval: TimeInterval = 0.6) -> Bool {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,scheduleWarmup,184,198,15,1,public,public func scheduleWarmup(after delay: TimeInterval = 3.0) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,toggle,201,207,7,1,public,public func toggle(module: MonitorModuleID? = nil) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,open,211,247,37,2,public open,"public func open(module: MonitorModuleID? = nil, anchor: NSRect? = nil) {"
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,cancelDismiss,251,260,10,0,private,private func cancelDismiss() {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,263,269,7,1,public,public func showModule(_ module: MonitorModuleID) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,resize,279,293,15,1,,func resize(toContentHeight height: CGFloat) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,298,319,22,1,private,private func playAppearAnimation(anchor: NSRect?) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,325,357,33,0,public,public func dismissPopout() {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,360,378,19,1,private,private func finishDismiss(token: Int) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorDx,381,385,5,1,private,"private func anchorDx(anchor: NSRect?) -> CGFloat { guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }"
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,390,406,17,2,private,"private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {"
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,412,420,9,1,static private,private static func screen(for anchor: NSRect?) -> NSScreen? {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,426,439,14,1,public,public func windowDidResignKey(_ notification: Notification) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,appDidResignActive,442,447,6,0,@objc,@objc func appDidResignActive() {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,installOutsideClickMonitor,457,497,41,0,,func installOutsideClickMonitor() {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,startOutsidePoll,502,524,23,0,private,private func startOutsidePoll() {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,stopOutsideWatchers,527,539,13,0,,func stopOutsideWatchers() {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,wasJustDismissed,154,156,3,1,public,public func wasJustDismissed(within interval: TimeInterval = 0.6) -> Bool {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,scheduleWarmup,164,178,15,1,public,public func scheduleWarmup(after delay: TimeInterval = 3.0) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,toggle,181,187,7,1,public,public func toggle(module: MonitorModuleID? = nil) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,open,191,230,40,2,public open,"public func open(module: MonitorModuleID? = nil, anchor: NSRect? = nil) {"
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,cancelDismiss,234,242,9,0,private,private func cancelDismiss() {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,245,251,7,1,public,public func showModule(_ module: MonitorModuleID) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,resize,261,275,15,1,,func resize(toContentHeight height: CGFloat) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,280,301,22,1,private,private func playAppearAnimation(anchor: NSRect?) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,307,338,32,0,public,public func dismissPopout() {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,341,359,19,1,private,private func finishDismiss(token: Int) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorDx,362,366,5,1,private,"private func anchorDx(anchor: NSRect?) -> CGFloat { guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }"
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,371,387,17,2,private,"private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {"
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,393,401,9,1,static private,private static func screen(for anchor: NSRect?) -> NSScreen? {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,407,425,19,1,public,public func windowDidResignKey(_ notification: Notification) {
 swift,Features/Monitor/MonitorPreferences.swift,MonitorPreferences,keyEnabled,70,72,3,1,static public,public static func keyEnabled(for module: MonitorModuleID) -> String {
 swift,Features/Monitor/MonitorPreferences.swift,MonitorPreferences,isModuleEnabled,105,107,3,1,static public,public static func isModuleEnabled(_ module: MonitorModuleID) -> Bool {
 swift,Features/Monitor/MonitorPreferences.swift,MonitorPreferences,setModuleEnabled,109,112,4,2,static public,"public static func setModuleEnabled(_ module: MonitorModuleID, _ enabled: Bool) {"
@@ -949,6 +1017,14 @@ swift,Features/Monitor/NetworkDiagnostics.swift,NetworkDiagnostics,extractIP,367
 swift,Features/Monitor/NetworkDiagnostics.swift,NetworkDiagnostics,extractLocation,376,383,8,1,static private,private static func extractLocation(from text: String) -> String? {
 swift,Features/Monitor/NetworkDiagnostics.swift,NetworkDiagnostics,probeLatencies,387,410,24,0,private,private func probeLatencies() {
 swift,Features/Monitor/NetworkDiagnostics.swift,NetworkDiagnostics,probeDNS,414,436,23,0,private,private func probeDNS() {
+swift,Features/Monitor/PortInspector.swift,PortInspector,start,84,95,12,0,,func start() {
+swift,Features/Monitor/PortInspector.swift,PortInspector,stop,98,103,6,0,,func stop() {
+swift,Features/Monitor/PortInspector.swift,PortInspector,scan,107,133,27,1,,func scan(force: Bool = false) {
+swift,Features/Monitor/PortInspector.swift,PortInspector,runLsof,142,174,33,0,static private,private static func runLsof() -> ScanResult {
+swift,Features/Monitor/PortInspector.swift,PortInspector,parse,178,247,70,1,static,static func parse(_ text: String) -> [PortBinding] {
+swift,Features/Monitor/PortOccupancySection.swift,PortOccupancySection,chip,80,98,19,4,private,"private func chip(_ text: String, color: Color, active: Bool = false, action: (() -> Void)? = nil) -> some View {"
+swift,Features/Monitor/PortOccupancySection.swift,PortOccupancySection,row,102,148,47,1,private,private func row(_ item: PortBinding) -> some View {
+swift,Features/Monitor/PortOccupancySection.swift,PortOccupancySection,copy,204,209,6,1,private,private func copy(_ item: PortBinding) {
 swift,Features/Monitor/StatsBarEngine.swift,StatsBarEngine,module,20,31,12,1,static public,public static func module(forIndex index: Int) -> MonitorModuleID {
 swift,Features/Monitor/StatsBarEngine.swift,StatsBarEngine,start,38,133,96,0,static public,public static func start() {
 swift,Features/Monitor/StatsBarEngine.swift,StatsBarEngine,stop,136,141,6,0,static public,public static func stop() {
@@ -998,26 +1074,65 @@ swift,Features/Monitor/StatsModulePanels.swift,BatteryStatsPanel,healthText,1450
 swift,Features/Monitor/StatsModulePanels.swift,BatteryStatsPanel,healthFraction,1456,1459,4,1,private,private func healthFraction(_ battery: StatsBattery?) -> Double {
 swift,Features/Monitor/StatsModulePanels.swift,BatteryStatsPanel,batteryTempColor,1462,1468,7,1,private,private func batteryTempColor(_ celsius: Double) -> Color {
 swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,provider,96,103,8,1,static public,public static func provider(forHost host: String) -> CloudDriveProvider? {
-swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,106,109,4,1,static public,public static func isSharePage(_ url: URL) -> Bool {
-swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,detect,112,136,25,1,static public,public static func detect(in text: String) -> CloudDriveLink? {
-swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,139,147,9,2,static public,"public static func recentLink(in items: [ClipboardItem], scanLimit: Int = 40) -> CloudDriveLink? {"
+swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,109,116,8,1,static public,public static func isSharePage(_ url: URL) -> Bool {
+swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,119,126,8,1,static private,private static func normalized(_ url: URL) -> URL {
+swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,detect,129,154,26,1,static public,public static func detect(in text: String) -> CloudDriveLink? {
+swift,Features/Panel/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,157,165,9,2,static public,"public static func recentLink(in items: [ClipboardItem], scanLimit: Int = 40) -> CloudDriveLink? {"
 swift,Features/Panel/CloudLinkBar.swift,CloudLinkBar,detectionKey,26,28,3,1,static public,public static func detectionKey(items: [ClipboardItem]) -> String {
 swift,Features/Panel/CloudLinkBar.swift,CloudLinkBar,bar,58,117,60,1,private,private func bar(_ link: CloudDriveLink) -> some View {
 swift,Features/Panel/CloudLinkBar.swift,CloudLinkBar,providerBadge,119,128,10,1,private,private func providerBadge(_ p: CloudDriveProvider) -> some View {
 swift,Features/Panel/CloudLinkBar.swift,CloudLinkBar,shortURL,130,134,5,1,private,private func shortURL(_ link: CloudDriveLink) -> String {
-swift,Features/Panel/CloudLinkBar.swift,CloudLinkActions,resolve,185,192,8,1,static,static func resolve(_ link: CloudDriveLink) {
+swift,Features/Panel/CloudLinkBar.swift,CloudLinkActions,resolve,185,191,7,1,static,static func resolve(_ link: CloudDriveLink) {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkSettings,defaultUA,161,170,10,1,static,static func defaultUA(for provider: CloudDriveProvider) -> String {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkTester,run,193,248,56,1,,func run(link: CloudDriveLink) {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkTester,probe,250,299,50,2,private,"private func probe(url: URL, provider: CloudDriveProvider) {"
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkTester,mark,301,305,5,3,private,"private func mark(_ index: Int, _ state: CloudLinkCheck.State, _ detail: String) {"
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkTester,scriptVersion,307,325,19,1,static,static func scriptVersion(at path: String) -> String? {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkTester,htmlTitle,327,334,8,1,static,static func htmlTitle(_ data: Data) -> String? {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkCenterView,stateIcon,459,470,12,1,private,private func stateIcon(_ state: CloudLinkCheck.State) -> some View {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkCenterView,configRow,668,680,13,,private,"private func configRow<Content: View>(title: String, hint: String,"
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkCenterView,pickScript,739,751,13,0,private,private func pickScript() {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkCenterView,pickDownloadDir,753,763,11,0,private,private func pickDownloadDir() {
+swift,Features/Panel/CloudLinkCenter.swift,CloudLinkCenterController,show,773,787,15,1,,func show(link: CloudDriveLink) {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,start,58,90,33,1,,func start(link: CloudDriveLink) {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,startDirectDownload,93,96,4,1,,func startDirectDownload(url: URL) {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,isDirectFileURL,98,100,3,1,static private,private static func isDirectFileURL(_ url: URL) -> Bool {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,enqueueDownload,115,124,10,3,private,"private func enqueueDownload(url: URL, preferredName: String?, provider: CloudDriveProvider?) {"
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,pump,126,132,7,0,private,private func pump() {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,release,134,137,4,0,private,private func release() {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,run,139,152,14,1,private,private func run(_ job: Job) {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,download,154,191,38,1,private,private func download(_ job: Job) {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,sendToAria2,194,253,60,1,private,private func sendToAria2(_ job: Job) {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,handleFailure,255,270,16,2,private,"private func handleFailure(_ job: Job, reason: String) {"
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,destination,277,298,22,1,private,private func destination(for filename: String) throws -> Destination {
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,setStatus,300,305,6,2,private,"private func setStatus(_ id: UUID, _ status: Status) {"
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,finish,307,329,23,4,private,"private func finish(id: UUID, localURL: URL? = nil, error: String? = nil, note: String? = nil) {"
+swift,Features/Panel/CloudLinkDownloader.swift,CloudLinkDownloader,sanitize,331,335,5,1,static private,private static func sanitize(_ name: String) -> String {
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,resolve,353,369,17,2,,"func resolve(pageURL: URL, completion: @escaping (Result) -> Void) {"
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,webView,371,376,6,2,,"func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {"
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,webView,378,380,3,3,,"func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {"
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,webView,382,384,3,3,,"func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {"
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,extractLinks,386,416,31,1,private,private func extractLinks(from webView: WKWebView) {
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,syncCookiesFrom,419,431,13,1,private,private func syncCookiesFrom(_ webView: WKWebView) {
+swift,Features/Panel/CloudLinkDownloader.swift,LinkPageResolver,finish,433,443,11,2,private,"private func finish(_ result: Result, syncCookiesFrom webView: WKWebView? = nil) {"
+swift,Features/Panel/CloudLinkPrompt.swift,CloudLinkPromptController,start,26,40,15,0,,func start() {
+swift,Features/Panel/CloudLinkPrompt.swift,CloudLinkPromptController,handle,42,60,19,1,private,private func handle(_ items: [ClipboardItem]) {
+swift,Features/Panel/CloudLinkPrompt.swift,CloudLinkPromptController,show,64,101,38,1,private,private func show(_ link: CloudDriveLink) {
+swift,Features/Panel/CloudLinkPrompt.swift,CloudLinkPromptController,positionFrame,104,116,13,1,private,private func positionFrame(size: NSSize) -> NSRect {
+swift,Features/Panel/CloudLinkPrompt.swift,CloudLinkPromptController,dismiss,118,124,7,0,,func dismiss() {
 swift,Features/Panel/FloatingPanel.swift,FloatingPanel,applyPersonalizedMaterial,75,87,13,0,public,public func applyPersonalizedMaterial() {
-swift,Features/Panel/JSONInspectorView.swift,JSONNodeModel,toggle,87,93,7,0,,func toggle() {
-swift,Features/Panel/JSONInspectorView.swift,JSONNodeModel,makeChildren,96,115,20,3,static private,"private static func makeChildren(raw: Any, parentPath: String, depth: Int) -> [JSONNodeModel] {"
-swift,Features/Panel/JSONInspectorView.swift,JSONDocument,walk,137,149,13,1,,func walk(_ value: Any) {
+swift,Features/Panel/JSONInspectorView.swift,JSONNodeModel,ensureChildren,88,93,6,0,,func ensureChildren() {
+swift,Features/Panel/JSONInspectorView.swift,JSONNodeModel,toggle,96,102,7,0,,func toggle() {
+swift,Features/Panel/JSONInspectorView.swift,JSONNodeModel,makeChildren,105,124,20,3,static private,"private static func makeChildren(raw: Any, parentPath: String, depth: Int) -> [JSONNodeModel] {"
+swift,Features/Panel/JSONInspectorView.swift,JSONDocument,walk,146,158,13,1,,func walk(_ value: Any) {
 swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorWindowController,open,29,36,8,2,public open,"public func open(text: String, title: String = ""JSON 检视器"") {"
 swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorWindowController,open,39,74,36,1,public open,public func open(fileURL: URL) {
 swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorWindowController,close,76,78,3,0,public override,override public func close() {
 swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorWindowController,makeWindowIfNeeded,83,99,17,0,private,private func makeWindowIfNeeded() -> JSONInspectorWindowController {
 swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorWindowController,presentAlert,101,107,7,2,private,"private func presentAlert(title: String, message: String) {"
 swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorHostController,load,126,130,5,3,,"func load(text: String, title: String, subtitle: String) {"
-swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorRootView,parse,210,230,21,0,private,private func parse() {
-swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorRootView,copyFormatted,232,235,4,0,private,private func copyFormatted() {
+swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorRootView,parse,212,232,21,0,private,private func parse() {
+swift,Features/Panel/JSONInspectorWindow.swift,JSONInspectorRootView,copyFormatted,234,237,4,0,private,private func copyFormatted() {
 swift,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,163,223,61,,public,"public func present(for item: ClipboardItem, anchorRectInWindow: CGRect? = nil, anchorView: NSView? = nil, source: PreviewPopoverContentModel.Source = .mainPreview, entry: PreviewPopoverContentModel.Entry = .mainList, showsKeyboardHint: Bool = false,"
 swift,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentPersistent,226,233,8,2,public,"public func presentPersistent(for item: ClipboardItem, anchorView: NSView?) {"
 swift,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,236,248,13,,public,"public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,"
@@ -1067,20 +1182,22 @@ swift,Features/Panel/PanelController.swift,PanelController,warmupPanel,98,120,23
 swift,Features/Panel/PanelController.swift,PanelController,toggle,124,126,3,0,public,public func toggle() {
 swift,Features/Panel/PanelController.swift,PanelController,toggle,129,131,3,1,public,public func toggle(atAnchor anchorRect: NSRect?) {
 swift,Features/Panel/PanelController.swift,PanelController,show,133,135,3,0,public,public func show() {
-swift,Features/Panel/PanelController.swift,PanelController,show,143,179,37,1,public,public func show(atAnchor anchorRect: NSRect?) {
-swift,Features/Panel/PanelController.swift,PanelController,hide,197,207,11,0,public,public func hide() {
-swift,Features/Panel/PanelController.swift,PanelController,performHide,210,219,10,1,private,private func performHide(_ p: NSWindow) {
-swift,Features/Panel/PanelController.swift,PanelController,handleGlobalShortcut,223,225,3,0,open,open func handleGlobalShortcut() {
-swift,Features/Panel/PanelController.swift,PanelController,rightEdgeOrigin,230,235,6,1,private,private func rightEdgeOrigin(for size: NSSize) -> NSPoint {
-swift,Features/Panel/PanelController.swift,PanelController,anchorOrigin,239,247,9,2,private,"private func anchorOrigin(_ anchor: NSRect, for size: NSSize) -> NSPoint {"
-swift,Features/Panel/PanelController.swift,PanelController,persistSize,251,261,11,1,private,private func persistSize(_ p: NSWindow) {
-swift,Features/Panel/PanelController.swift,PanelController,windowDidResignKey,279,308,30,1,public,public func windowDidResignKey(_ notification: Notification) {
-swift,Features/Panel/PanelController.swift,PanelController,windowDidResize,310,313,4,1,public,public func windowDidResize(_ notification: Notification) {
-swift,Features/Panel/PanelController.swift,PanelController,windowWillClose,315,317,3,1,public,public func windowWillClose(_ notification: Notification) {
+swift,Features/Panel/PanelController.swift,PanelController,show,143,190,48,1,public,public func show(atAnchor anchorRect: NSRect?) {
+swift,Features/Panel/PanelController.swift,PanelController,hide,208,219,12,0,public,public func hide() {
+swift,Features/Panel/PanelController.swift,PanelController,performHide,222,231,10,1,private,private func performHide(_ p: NSWindow) {
+swift,Features/Panel/PanelController.swift,PanelController,handleGlobalShortcut,235,237,3,0,open,open func handleGlobalShortcut() {
+swift,Features/Panel/PanelController.swift,PanelController,rightEdgeOrigin,242,247,6,1,private,private func rightEdgeOrigin(for size: NSSize) -> NSPoint {
+swift,Features/Panel/PanelController.swift,PanelController,anchorOrigin,251,259,9,2,private,"private func anchorOrigin(_ anchor: NSRect, for size: NSSize) -> NSPoint {"
+swift,Features/Panel/PanelController.swift,PanelController,persistSize,263,273,11,1,private,private func persistSize(_ p: NSWindow) {
+swift,Features/Panel/PanelController.swift,PanelController,windowDidResignKey,291,320,30,1,public,public func windowDidResignKey(_ notification: Notification) {
+swift,Features/Panel/PanelController.swift,PanelController,windowDidResize,322,325,4,1,public,public func windowDidResize(_ notification: Notification) {
+swift,Features/Panel/PanelController.swift,PanelController,windowWillClose,327,329,3,1,public,public func windowWillClose(_ notification: Notification) {
 swift,Features/Panel/PanelModule.swift,PanelModule,start,8,30,23,0,static public,public static func start() {
-swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,fullText,37,51,15,1,public,public func fullText(for item: ClipboardItem) -> String {
-swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,ocrText,54,56,3,1,public,public func ocrText(for item: ClipboardItem) -> String? {
-swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,richTextAttributed,60,67,8,1,public,public func richTextAttributed(for item: ClipboardItem) -> NSAttributedString? {
+swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,fullText,52,66,15,1,public,public func fullText(for item: ClipboardItem) -> String {
+swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,ocrText,69,71,3,1,public,public func ocrText(for item: ClipboardItem) -> String? {
+swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,saveOCRText,74,76,3,2,public,"public func saveOCRText(_ text: String, for item: ClipboardItem) {"
+swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,recognizeImage,79,84,6,1,public,public func recognizeImage(_ data: Data) async throws -> String {
+swift,Features/Panel/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,richTextAttributed,88,95,8,1,public,public func richTextAttributed(for item: ClipboardItem) -> NSAttributedString? {
 swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,presentPreview,16,25,10,,,"func presentPreview(for item: ClipboardItem, anchorRectInWindow: CGRect?, anchorView: NSView?,"
 swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,dismissPreview,28,30,3,0,,func dismissPreview() {
 swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,rowHover,33,41,9,,,"func rowHover(_ hovering: Bool, item: ClipboardItem, anchorRectProvider: (() -> CGRect?)?,"
@@ -1089,13 +1206,15 @@ swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAda
 swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,prepareForPanelAppear,56,58,3,0,,func prepareForPanelAppear() {
 swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,setPreviewOrder,61,63,3,1,,func setPreviewOrder(_ ids: [String]) {
 swift,Features/Panel/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,notifyItemRemoved,66,68,3,1,,func notifyItemRemoved(itemID: String) {
-swift,Features/Panel/PanelRootView.swift,AnchorArrow,path,178,185,8,1,,func path(in rect: CGRect) -> Path {
-swift,Features/Panel/PanelRootView.swift,PanelRootView,segmentItem,295,315,21,3,private,"private func segmentItem(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {"
-swift,Features/Panel/PanelRootView.swift,PanelRootView,runCapture,352,355,4,1,private,private func runCapture(_ action: @escaping () -> Void) {
-swift,Features/Panel/PanelRootView.swift,PanelRootView,toolbarIcon,423,436,14,,private,"private func toolbarIcon(_ symbol: String, help: String,"
-swift,Features/Panel/PanelRootView.swift,PanelRootView,captureButton,438,452,15,3,private,"private func captureButton(_ symbol: String, title: String, mode: CaptureMode) -> some View {"
-swift,Features/Panel/PanelRootView.swift,PanelRootView,handleFileDrop,544,560,17,1,private,private func handleFileDrop(_ providers: [NSItemProvider]) -> Bool {
-swift,Features/Panel/PanelRootView.swift,View,pageTransition,584,591,8,1,,func pageTransition(active: Bool) -> some View {
+swift,Features/Panel/PanelRootView.swift,AnchorArrow,path,201,208,8,1,,func path(in rect: CGRect) -> Path {
+swift,Features/Panel/PanelRootView.swift,PanelRootView,dropToLocalTransfer,332,358,27,1,private,private func dropToLocalTransfer(_ providers: [NSItemProvider]) -> Bool {
+swift,Features/Panel/PanelRootView.swift,PanelRootView,segmentItem,360,380,21,3,private,"private func segmentItem(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {"
+swift,Features/Panel/PanelRootView.swift,PanelRootView,runCapture,417,420,4,1,private,private func runCapture(_ action: @escaping () -> Void) {
+swift,Features/Panel/PanelRootView.swift,PanelRootView,closeBottomSearch,514,520,7,1,private,private func closeBottomSearch(clear: Bool = true) {
+swift,Features/Panel/PanelRootView.swift,PanelRootView,toolbarIcon,522,535,14,,private,"private func toolbarIcon(_ symbol: String, help: String,"
+swift,Features/Panel/PanelRootView.swift,PanelRootView,captureButton,537,551,15,3,private,"private func captureButton(_ symbol: String, title: String, mode: CaptureMode) -> some View {"
+swift,Features/Panel/PanelRootView.swift,PanelRootView,handleFileDrop,643,659,17,1,private,private func handleFileDrop(_ providers: [NSItemProvider]) -> Bool {
+swift,Features/Panel/PanelRootView.swift,View,pageTransition,683,690,8,1,,func pageTransition(active: Bool) -> some View {
 swift,Features/Panel/PreviewImageLoader.swift,PreviewImageLoader,loadImage,49,85,37,,public,"public func loadImage(at url: URL, thumbnailURL: URL? = nil, needsFullRebuild: Bool,"
 swift,Features/Panel/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,88,95,8,1,static public,public static func detectQRCode(in image: NSImage) -> Bool {
 swift,Features/Panel/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,99,101,3,2,private,"private func cacheKey(url: URL, full: Bool) -> String {"
@@ -1105,37 +1224,43 @@ swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,rende
 swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderBody,88,106,19,1,static,"static func renderBody(_ text: String) -> (body: NSAttributedString, headings: [MarkdownHeading]) {"
 swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,parse,110,230,121,1,static,static func parse(_ text: String) -> [MarkdownBlock] {
 swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,looksLikeNakedCode,233,247,15,1,static private,private static func looksLikeNakedCode(_ lines: [String]) -> Bool {
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,guessLanguage,250,259,10,1,static private,private static func guessLanguage(_ lines: [String]) -> String {
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,paragraphStyle,267,278,12,,static private,"private static func paragraphStyle(lineSpacing: CGFloat = 2, before: CGFloat = 0, after: CGFloat = 3,"
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,inlineAttributed,281,310,30,2,static,"static func inlineAttributed(_ text: String, font: NSFont = baseFont) -> NSAttributedString {"
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,render,312,374,63,1,static,static func render(_ block: MarkdownBlock) -> NSAttributedString {
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCode,378,408,31,2,static,"static func renderCode(lang: String, code: String) -> NSAttributedString {"
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderDiagram,411,424,14,2,static private,"private static func renderDiagram(image: NSImage, source: String) -> NSAttributedString {"
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,normalizedLang,442,455,14,1,static private,private static func normalizedLang(_ lang: String) -> String {
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,highlight,458,538,81,3,static,"static func highlight(line: String, lang: String, font: NSFont) -> NSMutableAttributedString {"
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,542,577,36,1,static private,private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
-swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTOC,581,611,31,1,static private,"private static func renderTOC(_ anchors: [(level: Int, title: String, location: Int)]) -> NSAttributedString {"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,guessLanguage,250,268,19,1,static,static func guessLanguage(_ lines: [String]) -> String {
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,paragraphStyle,276,287,12,,static private,"private static func paragraphStyle(lineSpacing: CGFloat = 2, before: CGFloat = 0, after: CGFloat = 3,"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,inlineAttributed,295,350,56,2,static,"static func inlineAttributed(_ text: String, font: NSFont = baseFont) -> NSAttributedString {"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,render,352,414,63,1,static,static func render(_ block: MarkdownBlock) -> NSAttributedString {
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,detectLanguage,419,421,3,1,static,static func detectLanguage(_ code: String) -> String {
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCodeBody,424,426,3,2,static,"static func renderCodeBody(lang: String, code: String) -> NSAttributedString {"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCode,428,458,31,3,static,"static func renderCode(lang: String, code: String, showLabel: Bool = true) -> NSAttributedString {"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderDiagram,461,474,14,2,static private,"private static func renderDiagram(image: NSImage, source: String) -> NSAttributedString {"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,normalizedLang,492,505,14,1,static private,private static func normalizedLang(_ lang: String) -> String {
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,highlight,508,588,81,3,static,"static func highlight(line: String, lang: String, font: NSFont) -> NSMutableAttributedString {"
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,displayWidth,595,606,12,1,static,static func displayWidth(_ text: String) -> Int {
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,608,643,36,1,static private,private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
+swift,Features/Panel/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTOC,647,677,31,1,static private,"private static func renderTOC(_ anchors: [(level: Int, title: String, location: Int)]) -> NSAttributedString {"
 swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,68,73,6,1,static public,public static func classifyRawText(_ text: String) -> Kind {
 swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,78,96,19,2,static public,"public static func classify(item: ClipboardItem, fullText: String) -> Kind {"
 swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,104,109,6,1,static public,public static func isJSONPreviewEligible(_ text: String) -> Bool {
-swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,119,137,19,1,static public,public static func looksLikeMarkdown(_ text: String) -> Bool {
-swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,140,155,16,1,static public,public static func looksLikeCode(_ text: String) -> Bool {
-swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,estimatedPopoverHeight,160,204,45,,public,"public func estimatedPopoverHeight(maxPopoverHeight: CGFloat, imagePreviewMaxPopoverHeight: CGFloat,"
-swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,imagePixelSize,207,217,11,1,static public,public static func imagePixelSize(item: ClipboardItem) -> CGSize? {
-swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,imageDisplayHeight,220,224,5,2,static public,"public static func imageDisplayHeight(item: ClipboardItem, contentWidth: CGFloat) -> CGFloat {"
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,83,136,54,1,,func makeNSView(context: Context) -> NSScrollView {
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,updateNSView,138,150,13,2,,"func updateNSView(_ scrollView: NSScrollView, context: Context) {"
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,dismantleNSView,152,154,3,2,static,"static func dismantleNSView(_ scrollView: NSScrollView, coordinator: ScrollCoordinator) {"
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeCoordinator,156,156,1,0,,func makeCoordinator() -> ScrollCoordinator { ScrollCoordinator() }
-swift,Features/Panel/PreviewPopoverContentView.swift,ScrollCoordinator,boundsDidChange,164,167,4,1,@objc,@objc func boundsDidChange(_ note: Notification) {
-swift,Features/Panel/PreviewPopoverContentView.swift,ScrollCoordinator,textView,170,190,21,3,,"func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {"
-swift,Features/Panel/PreviewPopoverContentView.swift,ScrollCoordinator,scrollToCharacter,192,205,14,2,,"func scrollToCharacter(_ index: Int, in textView: NSTextView) {"
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,drawHashMarksAndLabels,232,261,30,1,override,override func drawHashMarksAndLabels(in rect: NSRect) {
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,357,380,24,0,private,private func loadFullText() async {
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,400,402,3,1,static,"static func render(_ text: String) -> (body: NSAttributedString, headings: [MarkdownHeading]) {"
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewJSONTextView,prepare,521,535,15,1,static,static func prepare(_ raw: String) -> String {
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,editImage,650,661,12,0,private,private func editImage() {
-swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,loadImages,664,697,34,0,private,private func loadImages() async {
+swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,119,149,31,1,static public,public static func looksLikeMarkdown(_ text: String) -> Bool {
+swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,152,167,16,1,static public,public static func looksLikeCode(_ text: String) -> Bool {
+swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,estimatedPopoverHeight,172,216,45,,public,"public func estimatedPopoverHeight(maxPopoverHeight: CGFloat, imagePreviewMaxPopoverHeight: CGFloat,"
+swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,imagePixelSize,219,229,11,1,static public,public static func imagePixelSize(item: ClipboardItem) -> CGSize? {
+swift,Features/Panel/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,imageDisplayHeight,232,236,5,2,static public,"public static func imageDisplayHeight(item: ClipboardItem, contentWidth: CGFloat) -> CGFloat {"
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,85,138,54,1,,func makeNSView(context: Context) -> NSScrollView {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,updateNSView,140,152,13,2,,"func updateNSView(_ scrollView: NSScrollView, context: Context) {"
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,dismantleNSView,154,156,3,2,static,"static func dismantleNSView(_ scrollView: NSScrollView, coordinator: ScrollCoordinator) {"
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeCoordinator,158,158,1,0,,func makeCoordinator() -> ScrollCoordinator { ScrollCoordinator() }
+swift,Features/Panel/PreviewPopoverContentView.swift,ScrollCoordinator,boundsDidChange,166,169,4,1,@objc,@objc func boundsDidChange(_ note: Notification) {
+swift,Features/Panel/PreviewPopoverContentView.swift,ScrollCoordinator,textView,172,192,21,3,,"func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {"
+swift,Features/Panel/PreviewPopoverContentView.swift,ScrollCoordinator,scrollToCharacter,194,207,14,2,,"func scrollToCharacter(_ index: Int, in textView: NSTextView) {"
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,drawHashMarksAndLabels,234,263,30,1,override,override func drawHashMarksAndLabels(in rect: NSRect) {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,359,382,24,0,private,private func loadFullText() async {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,402,404,3,1,static,"static func render(_ text: String) -> (body: NSAttributedString, headings: [MarkdownHeading]) {"
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewJSONTextView,prepare,523,537,15,1,static,static func prepare(_ raw: String) -> String {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,smallAction,699,721,23,,private,"private func smallAction(_ title: String, icon: String,"
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,723,729,7,0,private,private func copyOCR() {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,732,764,33,0,private,private func recognizeNow() {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,editImage,768,779,12,0,private,private func editImage() {
+swift,Features/Panel/PreviewPopoverContentView.swift,PreviewImageView,loadImages,782,815,34,0,private,private func loadImages() async {
 swift,Features/Settings/AppearanceManager.swift,AppearanceManager,apply,39,49,11,1,public,public func apply(_ newMode: AppearanceMode) {
 swift,Features/Settings/AppearanceManager.swift,AppearanceManager,applyCurrent,52,55,4,0,public,public func applyCurrent() {
 swift,Features/Settings/AppearanceManager.swift,AppearanceManager,applyNSAppearance,58,68,11,0,private,private func applyNSAppearance() {
@@ -1168,47 +1293,47 @@ swift,Features/Settings/PersonalizationSettingsPane.swift,PersonalizationSetting
 swift,Features/Settings/PersonalizationSettingsPane.swift,PersonalizationSettingsView,settingRow,294,303,10,2,private,"private func settingRow(_ title: String, @ViewBuilder content: () -> some View) -> some View {"
 swift,Features/Settings/PersonalizationSettingsPane.swift,PersonalizationSettingsView,presetColor,305,307,3,1,static private,private static func presetColor(_ hex: String) -> Color {
 swift,Features/Settings/PersonalizationSettingsPane.swift,PersonalizationSettingsView,pickBackgroundImage,310,319,10,0,private,private func pickBackgroundImage() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,searchBarRow,153,199,47,1,private,private func searchBarRow(_ engine: SearchEngine) -> some View {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,searchBarDropDelegate,203,214,12,1,private,private func searchBarDropDelegate(targetID: String) -> SearchBarReorderDelegate {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,markOrderingTipShownIfNeeded,217,221,5,0,private,private func markOrderingTipShownIfNeeded() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,removeFromSearchBar,224,231,8,1,private,private func removeFromSearchBar(_ engine: SearchEngine) {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineRow,235,274,40,2,private,"private func engineRow(_ engine: SearchEngine, index: Int) -> some View {"
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,addToSearchBar,276,279,4,1,private,private func addToSearchBar(_ engine: SearchEngine) {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineIcon,284,288,5,2,private,"private func engineIcon(_ engine: SearchEngine, size: CGFloat = 14) -> some View {"
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineEditForm,309,325,17,1,private,private func engineEditForm(_ engine: SearchEngine) -> some View {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineFormFields,328,354,27,,private,"private func engineFormFields(name: Binding<String>, url: Binding<String>, errorMessage: Binding<String?>,"
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,validateEngineForm,359,378,20,3,private,"private func validateEngineForm(name: String, url: String, excludingID: String?) -> String? {"
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,saveCustomEngine,380,393,14,0,private,private func saveCustomEngine() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,clearForm,395,399,5,0,private,private func clearForm() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,beginEditing,403,408,6,1,private,private func beginEditing(_ engine: SearchEngine) {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,cancelEditing,410,415,6,0,private,private func cancelEditing() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,saveEngineEdit,417,428,12,1,private,private func saveEngineEdit(_ engine: SearchEngine) {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,performReset,441,450,10,0,private,private func performReset() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,performDeletePendingEngine,454,460,7,0,private,private func performDeletePendingEngine() {
-swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,dropEntered,478,486,9,1,,func dropEntered(info: DropInfo) {
-swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,dropUpdated,488,490,3,1,,func dropUpdated(info: DropInfo) -> DropProposal? {
-swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,performDrop,492,496,5,1,,func performDrop(info: DropInfo) -> Bool {
-swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,dropExited,498,500,3,1,,func dropExited(info: DropInfo) {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,searchBarRow,161,207,47,1,private,private func searchBarRow(_ engine: SearchEngine) -> some View {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,searchBarDropDelegate,211,222,12,1,private,private func searchBarDropDelegate(targetID: String) -> SearchBarReorderDelegate {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,markOrderingTipShownIfNeeded,225,229,5,0,private,private func markOrderingTipShownIfNeeded() {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,removeFromSearchBar,232,239,8,1,private,private func removeFromSearchBar(_ engine: SearchEngine) {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineRow,243,282,40,2,private,"private func engineRow(_ engine: SearchEngine, index: Int) -> some View {"
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,addToSearchBar,284,287,4,1,private,private func addToSearchBar(_ engine: SearchEngine) {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineIcon,292,296,5,2,private,"private func engineIcon(_ engine: SearchEngine, size: CGFloat = 14) -> some View {"
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineEditForm,317,333,17,1,private,private func engineEditForm(_ engine: SearchEngine) -> some View {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,engineFormFields,336,362,27,,private,"private func engineFormFields(name: Binding<String>, url: Binding<String>, errorMessage: Binding<String?>,"
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,validateEngineForm,367,386,20,3,private,"private func validateEngineForm(name: String, url: String, excludingID: String?) -> String? {"
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,saveCustomEngine,388,401,14,0,private,private func saveCustomEngine() {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,clearForm,403,407,5,0,private,private func clearForm() {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,beginEditing,411,416,6,1,private,private func beginEditing(_ engine: SearchEngine) {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,cancelEditing,418,423,6,0,private,private func cancelEditing() {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,saveEngineEdit,425,436,12,1,private,private func saveEngineEdit(_ engine: SearchEngine) {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,performReset,449,458,10,0,private,private func performReset() {
+swift,Features/Settings/SearchSettingsPane.swift,SearchSettingsPane,performDeletePendingEngine,462,468,7,0,private,private func performDeletePendingEngine() {
+swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,dropEntered,486,494,9,1,,func dropEntered(info: DropInfo) {
+swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,dropUpdated,496,498,3,1,,func dropUpdated(info: DropInfo) -> DropProposal? {
+swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,performDrop,500,504,5,1,,func performDrop(info: DropInfo) -> Bool {
+swift,Features/Settings/SearchSettingsPane.swift,SearchBarReorderDelegate,dropExited,506,508,3,1,,func dropExited(info: DropInfo) {
 swift,Features/Settings/SettingsModule.swift,SettingsModule,start,14,38,25,0,static public,public static func start() {
-swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,formRow,269,280,12,,private,"private func formRow<Content: View>(_ title: String, height: CGFloat = 40,"
-swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,actionButton,283,289,7,2,private,"private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {"
-swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,iconChoice,291,319,29,,private,"private func iconChoice(_ title: String, symbol: String, value: String,"
-swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,openDetail,321,323,3,1,private,private func openDetail(_ id: String) {
-swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,405,412,8,1,private,private func appearanceTitle(_ mode: AppearanceMode) -> String {
-swift,Features/Settings/SettingsPanes.swift,AboutSettingsPane,aboutButton,528,536,9,2,private,"private func aboutButton(_ title: String, action: @escaping () -> Void) -> some View {"
-swift,Features/Settings/SettingsPanes.swift,AboutSettingsPane,openURL,538,541,4,1,private,private func openURL(_ url: URL?) {
-swift,Features/Settings/SettingsPanes.swift,TagManagementSheet,createTag,620,626,7,0,private,private func createTag() {
-swift,Features/Settings/SettingsPanes.swift,IgnoredAppsEditor,persist,643,646,4,1,private,private func persist(_ list: [String]) {
-swift,Features/Settings/SettingsRootView.swift,SettingsRootView,panePage,127,134,8,1,private,private func panePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-swift,Features/Settings/SettingsRootView.swift,SettingsRootView,segmentedPage,137,179,43,,private,"private func segmentedPage(selection: Binding<Int>,"
-swift,Features/Settings/SettingsSidebarView.swift,SettingsSidebarView,groupTitle,134,141,8,1,private,private func groupTitle(_ title: String) -> some View {
-swift,Features/Settings/SettingsSidebarView.swift,SettingsSidebarView,navRow,143,169,27,,private,"private func navRow(title: String, icon: String, selected: Bool,"
+swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,formRow,268,279,12,,private,"private func formRow<Content: View>(_ title: String, height: CGFloat = 40,"
+swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,actionButton,282,288,7,2,private,"private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {"
+swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,iconChoice,290,318,29,,private,"private func iconChoice(_ title: String, symbol: String, value: String,"
+swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,openDetail,320,322,3,1,private,private func openDetail(_ id: String) {
+swift,Features/Settings/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,404,411,8,1,private,private func appearanceTitle(_ mode: AppearanceMode) -> String {
+swift,Features/Settings/SettingsPanes.swift,AboutSettingsPane,aboutButton,527,535,9,2,private,"private func aboutButton(_ title: String, action: @escaping () -> Void) -> some View {"
+swift,Features/Settings/SettingsPanes.swift,AboutSettingsPane,openURL,537,540,4,1,private,private func openURL(_ url: URL?) {
+swift,Features/Settings/SettingsPanes.swift,TagManagementSheet,createTag,619,625,7,0,private,private func createTag() {
+swift,Features/Settings/SettingsPanes.swift,IgnoredAppsEditor,persist,642,645,4,1,private,private func persist(_ list: [String]) {
+swift,Features/Settings/SettingsRootView.swift,SettingsRootView,panePage,129,136,8,1,private,private func panePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+swift,Features/Settings/SettingsRootView.swift,SettingsRootView,segmentedPage,139,181,43,,private,"private func segmentedPage(selection: Binding<Int>,"
+swift,Features/Settings/SettingsSidebarView.swift,SettingsSidebarView,groupTitle,138,145,8,1,private,private func groupTitle(_ title: String) -> some View {
+swift,Features/Settings/SettingsSidebarView.swift,SettingsSidebarView,navRow,147,173,27,,private,"private func navRow(title: String, icon: String, selected: Bool,"
 swift,Features/Settings/SettingsWindowController.swift,SettingsUIState,selectPane,30,36,7,1,,func selectPane(_ pane: String) {
-swift,Features/Settings/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,38,59,22,1,private,private func applyPaneMapping(_ pane: String) {
-swift,Features/Settings/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,64,71,8,1,override,override func performKeyEquivalent(with event: NSEvent) -> Bool {
-swift,Features/Settings/SettingsWindowController.swift,SettingsWindowController,open,90,103,14,1,public open,public func open(pane: String?) {
-swift,Features/Settings/SettingsWindowController.swift,SettingsWindowController,close,105,109,5,0,public,public func close() {
-swift,Features/Settings/SettingsWindowController.swift,SettingsWindowController,ensureWindow,116,167,52,0,private,private func ensureWindow() {
+swift,Features/Settings/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,38,60,23,1,private,private func applyPaneMapping(_ pane: String) {
+swift,Features/Settings/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,65,72,8,1,override,override func performKeyEquivalent(with event: NSEvent) -> Bool {
+swift,Features/Settings/SettingsWindowController.swift,SettingsWindowController,open,91,104,14,1,public open,public func open(pane: String?) {
+swift,Features/Settings/SettingsWindowController.swift,SettingsWindowController,close,106,110,5,0,public,public func close() {
+swift,Features/Settings/SettingsWindowController.swift,SettingsWindowController,ensureWindow,117,168,52,0,private,private func ensureWindow() {
 swift,Features/Settings/StatisticsSettingsPane.swift,PreferenceValue,encode,107,117,11,1,,func encode(to encoder: Encoder) throws {
 swift,Features/Settings/StatisticsSettingsPane.swift,StatisticsSettingsPane,refresh,267,290,24,0,private,private func refresh() {
 swift,Features/Settings/StatisticsSettingsPane.swift,StatisticsSettingsPane,performExport,294,334,41,0,private,private func performExport() {
@@ -1266,18 +1391,18 @@ swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan
 swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,499,518,20,0,private,private func updateFanSpeed() {
 swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,525,530,6,0,private,private func stopRotating() {
 swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,532,535,4,0,private,private func stopTimers() {
-swift,Features/StatusBar/StatisticsRootView.swift,StatisticsRootView,cardValue,196,198,3,1,private,private func cardValue(for config: MetricConfig) -> Int {
-swift,Features/StatusBar/StatisticsRootView.swift,StatisticsRootView,summaryRow,216,230,15,4,private,"private func summaryRow(_ title: String, value: Int, icon: String, color: Color) -> some View {"
-swift,Features/StatusBar/StatisticsRootView.swift,StatisticsRootView,loadData,234,272,39,0,private,private func loadData() {
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,heatCellView,401,414,14,1,private,private func heatCellView(_ cell: HeatCell) -> some View {
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,level,469,477,9,1,static private,private static func level(for count: Int) -> Int {
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,cellColor,481,483,3,1,private,private func cellColor(for cell: HeatCell) -> Color {
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,levelColor,485,493,9,1,private,private func levelColor(_ level: Int) -> Color {
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,monthLabel,495,500,6,1,private,private func monthLabel(_ day: Date) -> String {
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,handleHover,504,523,20,3,private,"private func handleHover(_ cell: HeatCell, frame: CGRect, inside: Bool) {"
-swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,prettyDate,554,559,6,1,private,private func prettyDate(_ day: Date) -> String {
-swift,Features/StatusBar/StatisticsRootView.swift,Last30BarsView,barColumn,611,617,7,1,private,private func barColumn(for day: DayBucket) -> some View {
-swift,Features/StatusBar/StatisticsRootView.swift,Last30BarsView,prettyDay,619,624,6,1,private,private func prettyDay(_ day: Date) -> String {
+swift,Features/StatusBar/StatisticsRootView.swift,StatisticsRootView,cardValue,197,199,3,1,private,private func cardValue(for config: MetricConfig) -> Int {
+swift,Features/StatusBar/StatisticsRootView.swift,StatisticsRootView,summaryRow,217,231,15,4,private,"private func summaryRow(_ title: String, value: Int, icon: String, color: Color) -> some View {"
+swift,Features/StatusBar/StatisticsRootView.swift,StatisticsRootView,loadData,235,273,39,0,private,private func loadData() {
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,heatCellView,402,415,14,1,private,private func heatCellView(_ cell: HeatCell) -> some View {
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,level,470,478,9,1,static private,private static func level(for count: Int) -> Int {
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,cellColor,482,484,3,1,private,private func cellColor(for cell: HeatCell) -> Color {
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,levelColor,486,494,9,1,private,private func levelColor(_ level: Int) -> Color {
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,monthLabel,496,501,6,1,private,private func monthLabel(_ day: Date) -> String {
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,handleHover,505,524,20,3,private,"private func handleHover(_ cell: HeatCell, frame: CGRect, inside: Bool) {"
+swift,Features/StatusBar/StatisticsRootView.swift,ActivityHeatmapView,prettyDate,555,560,6,1,private,private func prettyDate(_ day: Date) -> String {
+swift,Features/StatusBar/StatisticsRootView.swift,Last30BarsView,barColumn,612,618,7,1,private,private func barColumn(for day: DayBucket) -> some View {
+swift,Features/StatusBar/StatisticsRootView.swift,Last30BarsView,prettyDay,620,625,6,1,private,private func prettyDay(_ day: Date) -> String {
 swift,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,installContent,46,63,18,1,private,private func installContent(in window: NSWindow) {
 swift,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,openStatistics,66,79,14,0,public,public func openStatistics() {
 swift,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,windowWillClose,83,85,3,1,public,public func windowWillClose(_ notification: Notification) {
@@ -1335,11 +1460,13 @@ swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerCodePreviewTool,2
 swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerImageCompressTool,265,307,43,0,static private,private static func registerImageCompressTool() {
 swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerHashTool,311,330,20,0,static private,private static func registerHashTool() {
 swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerQRCodeTool,336,360,25,0,static private,private static func registerQRCodeTool() {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,dayCell,133,165,33,2,private,"private func dayCell(row: Int, column: Int) -> some View {"
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,196,202,7,1,private,private func isFestivalDay(_ day: CalendarDay) -> Bool {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,shift,204,208,5,1,private,private func shift(_ days: Int) {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,reload,210,220,11,0,private,private func reload() {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarDay,shortName,228,230,3,1,static,static func shortName(_ text: String) -> String {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,dayCell,143,178,36,2,private,"private func dayCell(row: Int, column: Int) -> some View {"
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,184,202,19,0,private,private func installScrollMonitor() {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,204,208,5,0,private,private func removeScrollMonitor() {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,244,250,7,1,private,private func isFestivalDay(_ day: CalendarDay) -> Bool {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,shift,252,256,5,1,private,private func shift(_ days: Int) {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,reload,258,268,11,0,private,private func reload() {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarDay,shortName,276,278,3,1,static,static func shortName(_ text: String) -> String {
 swift,Features/Toolbox/CalendarService.swift,CalendarService,requestAccessIfNeeded,26,48,23,0,public,public func requestAccessIfNeeded() {
 swift,Features/Toolbox/CalendarService.swift,CalendarService,isGranted,51,53,3,1,private,private func isGranted(rawValue: Int) -> Bool {
 swift,Features/Toolbox/CalendarService.swift,CalendarService,update,56,61,6,2,private,"private func update(authorized: Bool, hint: String?) {"
@@ -1481,7 +1608,7 @@ swift,Features/Toolbox/ToolRegistry.swift,ToolRegistry,setEnabled,161,163,3,2,st
 swift,Features/Toolbox/ToolRegistry.swift,ToolRegistry,grouped,171,177,7,0,static public,"public static func grouped() -> [(ToolCategory, [ToolDescriptor])] {"
 swift,Features/Toolbox/ToolRegistry.swift,ToolRegistry,run,183,189,7,,static public,"public static func run(_ tool: ToolDescriptor, input: String,"
 swift,Features/Toolbox/ToolRegistry.swift,ToolRegistry,recordInvocation,191,204,14,3,static public,"public static func recordInvocation(kind: ToolKind, input: String, output: String) {"
-swift,Features/Toolbox/ToolSettingsPane.swift,ToolSettingsPane,toolRow,78,140,63,1,private,private func toolRow(_ tool: ToolDescriptor) -> some View {
+swift,Features/Toolbox/ToolSettingsPane.swift,ToolSettingsPane,toolRow,81,143,63,1,private,private func toolRow(_ tool: ToolDescriptor) -> some View {
 swift,Features/Toolbox/ToolShortcutStore.swift,ToolShortcutStore,registrationID,27,27,1,1,static public,"public static func registrationID(_ toolID: String) -> String { ""tool.\(toolID)"" }"
 swift,Features/Toolbox/ToolShortcutStore.swift,ToolShortcutStore,title,29,31,3,1,static public,public static func title(for toolID: String) -> String {
 swift,Features/Toolbox/ToolShortcutStore.swift,ToolShortcutStore,loadRaw,35,37,3,0,static private,private static func loadRaw() -> [String: [Int]] {
@@ -1507,6 +1634,55 @@ swift,Features/Toolbox/WindowManager.swift,WindowManager,windows,80,82,3,1,stati
 swift,Features/Toolbox/WindowManager.swift,WindowManager,closeAll,85,101,17,1,static public,public static func closeAll(kind: AuxiliaryWindowKind? = nil) {
 swift,Features/Toolbox/WindowManager.swift,WindowManager,count,105,105,1,1,static public,public static func count(of kind: AuxiliaryWindowKind) -> Int { windows(of: kind).count }
 swift,Features/Toolbox/WindowManager.swift,WindowManager,pruneLocked,108,110,3,0,static private,private static func pruneLocked() {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,start,56,58,3,0,public,public func start() {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,startIfEnabled,61,65,5,0,public,public func startIfEnabled() {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,stop,67,80,14,0,public,public func stop() {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,restart,83,90,8,0,public,public func restart() {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,rotateToken,93,101,9,0,public,public func rotateToken() {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,startLocked,103,107,5,1,private,private func startLocked(preferred: UInt16) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,attemptBind,109,166,58,2,private,"private func attemptBind(startingAt candidate: UInt16, remaining: Int) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,invalidateTokenCache,178,178,1,0,static,static func invalidateTokenCache() { _tokenCache = nil }
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,loadToken,180,185,6,0,static private,private static func loadToken() -> String {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,regenerateToken,188,194,7,0,static,static func regenerateToken() -> String {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,lanIPv4,199,225,27,0,static,static func lanIPv4() -> String? {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,handle,245,252,8,1,private,private func handle(_ connection: NWConnection) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,receive,254,271,18,1,private,private func receive(_ context: ConnectionContext) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,consume,273,301,29,2,private,"private func consume(_ context: ConnectionContext, _ data: Data) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,parseHead,303,320,18,2,private,"private func parseHead(_ context: ConnectionContext, _ data: Data) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,writeBody,322,328,7,2,private,"private func writeBody(_ context: ConnectionContext, _ data: Data) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,finish,330,336,7,1,private,private func finish(_ context: ConnectionContext) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,route,340,383,44,1,private,private func route(_ context: ConnectionContext) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,onMain,389,392,4,1,static private,private static func onMain<T>(_ body: () -> T) -> T {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,listPayload,394,406,13,0,static private,private static func listPayload() -> Data {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,handleUpload,408,449,42,1,private,private func handleUpload(_ context: ConnectionContext) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,handleDownload,451,475,25,2,private,"private func handleDownload(_ context: ConnectionContext, id: String) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,handleDelete,477,489,13,2,private,"private func handleDelete(_ context: ConnectionContext, id: String?) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,cleanupBody,491,494,4,1,private,private func cleanupBody(_ context: ConnectionContext) {
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,respond,498,501,4,3,private,"private func respond(_ context: ConnectionContext, status: Int, json: [String: Any]) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,respond,503,505,3,3,private,"private func respond(_ context: ConnectionContext, status: Int, html: String) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,respond,507,509,3,3,private,"private func respond(_ context: ConnectionContext, status: Int, text: String) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,respond,511,531,21,4,private,"private func respond(_ context: ConnectionContext, status: Int, data: Data, contentType: String) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,send,533,537,5,2,private,"private func send(_ context: ConnectionContext, _ payload: Data) {"
+swift,Features/TransferDock/LanTransferServer.swift,LanTransferServer,errorPage,541,551,11,2,static private,"private static func errorPage(_ title: String, detail: String) -> String {"
+swift,Features/TransferDock/LanTransferServer.swift,MultipartParser,boundary,719,729,11,1,static,static func boundary(from contentType: String) -> String? {
+swift,Features/TransferDock/LanTransferServer.swift,MultipartParser,files,731,734,4,2,static,"static func files(in fileURL: URL, boundary: String) -> [Part] {"
+swift,Features/TransferDock/LanTransferServer.swift,MultipartParser,files,736,769,34,2,static,"static func files(in data: Data, boundary: String) -> [Part] {"
+swift,Features/TransferDock/LanTransferServer.swift,MultipartParser,filename,771,794,24,1,static private,private static func filename(fromHeaderData data: Data) -> String? {
+swift,Features/TransferDock/LanTransferServer.swift,MultipartParser,sanitize,796,803,8,1,static private,private static func sanitize(_ name: String) -> String {
+swift,Features/TransferDock/LanTransferServer.swift,MultipartParser,write,806,827,22,3,static,"static func write(_ part: Part, from fileURL: URL, to destination: URL) -> Bool {"
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,load,101,108,8,0,private,private func load() {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,persist,110,113,4,0,private,private func persist() {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,pruneMissing,116,122,7,0,private,private func pruneMissing() {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,add,128,174,47,1,public,public func add(urls: [URL]) -> Int {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,addUploads,179,218,40,2,public,"public func addUploads(_ entries: [(name: String, tempURL: URL)], source: String = ""手机"") -> Int {"
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,stage,221,244,24,2,private,"private func stage(from source: URL, to dest: URL) throws -> LocalTransferItem.Mode {"
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,sizeOf,246,250,5,1,static private,private static func sizeOf(_ url: URL) -> Int64 {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,remove,254,262,9,1,public,public func remove(_ item: LocalTransferItem) {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,clearAll,264,272,9,0,public,public func clearAll() {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,reveal,274,276,3,1,public,public func reveal(_ item: LocalTransferItem) {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,open,278,280,3,1,public open,public func open(_ item: LocalTransferItem) {
+swift,Features/TransferDock/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,282,284,3,0,public,public func openStagingFolder() {
+swift,Features/TransferDock/QRCodeView.swift,QRCodeImage,make,19,31,13,2,static,"static func make(from string: String, size: CGFloat) -> NSImage? {"
 swift,Features/TransferDock/TransferDockLoginView.swift,TransferDockWebView,makeNSView,60,72,13,1,,func makeNSView(context: Context) -> WKWebView {
 swift,Features/TransferDock/TransferDockLoginView.swift,TransferDockWebView,updateNSView,74,74,1,2,,"func updateNSView(_ nsView: WKWebView, context: Context) {}"
 swift,Features/TransferDock/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,76,78,3,2,static,"static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {"
@@ -1516,6 +1692,7 @@ swift,Features/TransferDock/TransferDockLoginView.swift,Coordinator,stopPolling,
 swift,Features/TransferDock/TransferDockLoginView.swift,Coordinator,checkCookies,112,124,13,0,private,private func checkCookies() {
 swift,Features/TransferDock/TransferDockLoginView.swift,Coordinator,webView,126,128,3,2,,"func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {"
 swift,Features/TransferDock/TransferDockLoginView.swift,Coordinator,webView,130,132,3,3,,"func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {"
+swift,Features/TransferDock/TransferDockPreferences.swift,TransferDockPref,isOn,37,40,4,2,static public,"public static func isOn(_ key: String, default fallback: Bool = true) -> Bool {"
 swift,Features/TransferDock/TransferDockService.swift,TransferDockService,startKeepAlive,77,86,10,0,,func startKeepAlive() {
 swift,Features/TransferDock/TransferDockService.swift,TransferDockService,refresh,101,154,54,0,,func refresh() {
 swift,Features/TransferDock/TransferDockService.swift,TransferDockService,upload,158,178,21,1,,func upload(url: URL) {
@@ -1523,11 +1700,24 @@ swift,Features/TransferDock/TransferDockService.swift,TransferDockService,downlo
 swift,Features/TransferDock/TransferDockService.swift,TransferDockService,delete,204,220,17,1,,func delete(_ file: TransferDockFile) {
 swift,Features/TransferDock/TransferDockService.swift,TransferDockService,saveCookies,225,258,34,1,,func saveCookies(_ cookies: [HTTPCookie]) {
 swift,Features/TransferDock/TransferDockService.swift,TransferDockService,runBridge,263,303,41,1,static private,private static func runBridge(_ args: [String]) -> [String: Any] {
-swift,Features/TransferDock/TransferDockView.swift,TransferDockView,row,143,177,35,1,private,private func row(_ file: TransferDockFile) -> some View {
-swift,Features/TransferDock/TransferDockView.swift,TransferDockView,iconButton,179,189,11,3,private,"private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {"
-swift,Features/TransferDock/TransferDockView.swift,TransferDockView,iconName,191,201,11,1,private,private func iconName(for name: String) -> String {
-swift,Features/TransferDock/TransferDockView.swift,TransferDockView,handleDrop,291,304,14,1,private,private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-swift,Features/TransferDock/TransferDockView.swift,TransferDockView,pickAndUpload,306,315,10,0,private,private func pickAndUpload() {
+swift,Features/TransferDock/TransferDockSettingsPane.swift,TransferDockSettingsPane,row,179,199,21,,private,"private func row<Content: View>(_ title: String, subtitle: String? = nil,"
+swift,Features/TransferDock/TransferDockSettingsPane.swift,TransferDockSettingsPane,applyPort,208,219,12,0,private,private func applyPort() {
+swift,Features/TransferDock/TransferDockSettingsPane.swift,TransferDockSettingsPane,chooseBridgeFolder,221,236,16,0,private,private func chooseBridgeFolder() {
+swift,Features/TransferDock/TransferDockSettingsPane.swift,TransferDockSettingsPane,copy,238,242,5,1,private,private func copy(_ text: String) {
+swift,Features/TransferDock/TransferDockSettingsPane.swift,TransferDockSettingsPane,notifyChange,244,246,3,0,private,private func notifyChange() {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,openSettings,141,143,3,0,private,private func openSettings() {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,copyLink,222,226,5,1,private,private func copyLink(_ url: String) {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,smallAction,228,242,15,3,private,"private func smallAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {"
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,cloudRow,333,372,40,1,private,private func cloudRow(_ file: TransferDockFile) -> some View {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,localRow,491,541,51,1,private,private func localRow(_ item: LocalTransferItem) -> some View {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,sectionHeader,545,563,19,,private,"private func sectionHeader<Trailing: View>(title: String, symbol: String, detail: String, tint: Color,"
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,miniButton,565,575,11,3,private,"private func miniButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {"
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,dropHint,577,590,14,1,private,private func dropHint(_ text: String) -> some View {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,iconName,592,602,11,1,private,private func iconName(for name: String) -> String {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,urls,606,626,21,2,private,"private func urls(from providers: [NSItemProvider], completion: @escaping ([URL]) -> Void) {"
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,handleLocalDrop,628,634,7,1,private,private func handleLocalDrop(_ providers: [NSItemProvider]) -> Bool {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,handleCloudDrop,636,649,14,1,private,private func handleCloudDrop(_ providers: [NSItemProvider]) -> Bool {
+swift,Features/TransferDock/TransferDockView.swift,TransferDockView,pickAndUpload,651,660,10,0,private,private func pickAndUpload() {
 objc,FrsetStatsBar/frset_barsettings.m,,FSSetAction,36,40,5,2,static,"static void FSSetAction(NSControl *c, FSAct block) {"
 objc,FrsetStatsBar/frset_barsettings.m,,FSL,43,100,58,1,static,static NSString *FSL(NSString *en) {
 objc,FrsetStatsBar/frset_barsettings.m,,FSFormDisplayName,103,113,11,1,static,static NSString *FSFormDisplayName(NSString *form) {
