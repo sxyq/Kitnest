@@ -246,7 +246,8 @@ struct PanelRootView: View {
             Spacer(minLength: 2)
             // 齿轮菜单（官方原版 1:1，2026-10-18 实测截图）：
             // 置顶窗口 ⌘P / 悬浮剪贴板 ⇧⌘V / ─ / 暂停记录剪贴板 /
-            // 设置 ⌘, / 使用统计 / 功能建议 / ─ / 退出 ⌘Q
+            // 设置 ⌘, / 使用统计 / ─ / 退出 ⌘Q
+            // v85（2026-10-20 用户要求）：移除「功能建议」入口
             Menu {
                 Toggle("置顶窗口", isOn: Binding(
                     get: { PanelController.shared.isPinned },
@@ -268,11 +269,6 @@ struct PanelRootView: View {
                 Button("使用统计") {
                     onDismiss()
                     StatisticsWindowController.shared.openStatistics()
-                }
-                Button("功能建议") {
-                    if let url = URL(string: "https://github.com/frset/frset-next/issues") {
-                        NSWorkspace.shared.open(url)
-                    }
                 }
                 Divider()
                 Button("退出") { NSApp.terminate(nil) }

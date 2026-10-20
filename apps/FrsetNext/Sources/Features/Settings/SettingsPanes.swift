@@ -489,6 +489,7 @@ struct AboutSettingsPane: View {
             HStack(spacing: 24) {
                 aboutButton(L10n.t("Rate us")) { openURL(Self.rateURL) }
                 aboutButton(L10n.t("Help & Feedback")) { openURL(Self.feedbackURL) }
+                aboutButton("导出使用记录") { DiagnosticsExporter.export() }
             }
 
             Spacer(minLength: 24)
