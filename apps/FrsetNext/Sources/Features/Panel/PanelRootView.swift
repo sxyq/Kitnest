@@ -492,22 +492,22 @@ struct PanelRootView: View {
             toolbarIcon("tag", help: "标签") {
                 isShowingTagSheet = true
             }
-            // 编辑：有选中项时打开编辑窗（官方「编辑」按钮，2026-10-18 接通选中态）
-            toolbarIcon("square.and.pencil",
-                        help: selectedClipboardItem == nil ? "编辑（先选中一条）" : "编辑选中条目") {
-                guard let item = selectedClipboardItem else { return }
-                ClipboardItemEditWindowRecord.open(for: item)
-            }
-            .disabled(selectedClipboardItem == nil)
             // 上传：官方「上传」按钮（图床能力未配置 → 提示而非静默）
             toolbarIcon("arrow.up", help: "上传") {
                 Toast.show("未配置图床（上传能力待接入）", icon: "exclamationmark.triangle.fill", isWarning: true)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        // 第三种玻璃：悬浮控件的真材质模糊（区别于卡片的轻玻璃与面板大玻璃）
-        .panelGlassFloating()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
+                .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+        )
         .fixedSize()
     }
 
