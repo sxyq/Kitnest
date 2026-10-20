@@ -214,7 +214,7 @@ struct PersonalizationSettingsView: View {
                 .labelsHidden()
                 Picker("", selection: $p.toastFollowPanel) {
                     Text("跟随主面板").tag(true)
-                    Text("屏幕中线").tag(false)
+                    Text("屏幕中线偏下").tag(false)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 180)

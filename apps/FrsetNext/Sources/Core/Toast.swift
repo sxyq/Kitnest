@@ -11,8 +11,8 @@ import SwiftUI
 //      传入屏 → 全局主面板窗口所在屏（.screen）→ 含鼠标位置的那块屏（NSScreen.screens ×
 //      NSEvent.mouseLocation）→ mainScreen。
 //   2) 水平 = visibleFrame 中线居中：x = clamp(midX - w/2, minX-8, maxX-w+8)（26/18 合成 ±8）。
-//   3) 垂直 = y = max(minY-16, min(maxY-h+16, minY + frameH*0.1833 - 26))。
-//      （0x3fc7765ab891fcdf = 0.18330；实测 1710×1112 屏 → toast 底边距屏底 176pt ✓）
+//   3) 垂直 —— 2026-10-20 用户需求变更：改为「屏幕中线偏下」（可见区中线下方 6%），
+//      不再沿用原版「距屏底 18.3%」的底部定位；设置项「屏幕中线」与此一致。
 //   4) 窗口层级 = kCGScreenSaverWindowLevel + 1（实测 CGWindowList layer=2147483631）。
 //   5) 样式 = 原作 ToastView：圆形图标底（leadingColor 圆 + 白色 SF Symbol）+ 单行文本的
 //      自适应深/浅色胶囊卡（实测 176×91，"文本已复制"）。
@@ -83,6 +83,11 @@ struct MenuBarToastContentView: View {
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.18), radius: 12, y: 4)
         )
         .fixedSize()
+        // 阴影留白（2026-10-20 用户反馈「已复制框外面还有一层矩形」根因）：
+        // 窗口尺寸原等于胶囊尺寸，radius 12 / y 4 的阴影被窗口边界裁断，
+        // 四角残留非零 alpha → 视觉上是一圈方形硬边。这里加 24pt 透明边距，
+        // 窗口按 fittingSize 同步扩大，阴影完整落在窗口内呈柔和胶囊光晕。
+        .padding(24)
         // spring 弹入/弹出：几何由窗口定位，出现感由 scale+opacity 驱动
         .scaleEffect(state.isVisible ? 1.0 : 0.5, anchor: .center)
         .opacity(state.isVisible ? 1.0 : 0.0)
@@ -255,7 +260,6 @@ final class MenuBarToastManager: NSObject {
     private func positionOnTargetScreen() {
         guard let window = toastWindow, let screen = resolveTargetScreen() else { return }
         let visible = screen.visibleFrame
-        let frameH = screen.frame.height
 
         let width = window.frame.width
         let height = window.frame.height
@@ -270,13 +274,13 @@ final class MenuBarToastManager: NSObject {
             window.setFrameOrigin(NSPoint(x: x, y: y))
             return
         }
-        // 水平：可见区中线居中，clamp ±8（原作 26/18 合成）
+        // 屏幕中线偏下（2026-10-20 用户需求）：水平居中，垂直落在可见区中线下方 6%。
+        // 原实现沿用原作「距屏底 18.3%」公式，与「屏幕中线」选项语义不符——
+        // 选该项却显示在底部，故改为真正的中线偏下全局提示。
         let idealX = visible.midX - width / 2
-        let x = min(max(idealX, visible.minX - 8), visible.maxX - width + 8)
-
-        // 垂直：cap = visibleMinY + frameH*0.1833 - 26；带 [minY-16, maxY-h+16]
-        let cap = visible.minY + frameH * 0.18330 - 26
-        let y = max(visible.minY - 16, min(visible.maxY - height + 16, cap))
+        let x = min(max(idealX, visible.minX + 8), visible.maxX - width - 8)
+        let belowCenter = visible.midY - height / 2 - visible.height * 0.06
+        let y = min(max(belowCenter, visible.minY + 8), visible.maxY - height - 8)
 
         window.setFrameOrigin(NSPoint(x: x, y: y))
     }

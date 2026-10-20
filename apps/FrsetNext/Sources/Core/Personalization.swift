@@ -108,7 +108,7 @@ public final class Personalization: ObservableObject {
     @Published public var showSourceBadge: Bool = true { didSet { persist() } }
     @Published public var thumbOverride: CGFloat? { didSet { persist() } }    // 44/56/72，nil=随密度
     @Published public var toastDuration: TimeInterval = 3 { didSet { persist() } }   // 2/3/5
-    @Published public var toastFollowPanel: Bool = true { didSet { persist() } }     // true=跟随主面板
+    @Published public var toastFollowPanel: Bool = false { didSet { persist() } }    // true=跟随主面板；默认屏幕中线偏下
     @Published public var barDividerColorHex: String = "" { didSet { persist() } }  // 空 = 默认
     @Published public var barDividerAlpha: Double = 0.35 { didSet { persist() } }   // 0..1
 
@@ -192,7 +192,7 @@ public final class Personalization: ObservableObject {
         let toast = d.double(forKey: Preferences.Keys.uiToastDuration)
         toastDuration = toast > 0 ? toast : 3
         toastFollowPanel = d.object(forKey: Preferences.Keys.uiToastPosition) == nil
-            ? true : d.bool(forKey: Preferences.Keys.uiToastPosition)
+            ? false : d.bool(forKey: Preferences.Keys.uiToastPosition)
         barDividerColorHex = d.string(forKey: Preferences.Keys.uiBarDividerColor) ?? ""
         let alpha = d.double(forKey: Preferences.Keys.uiBarDividerAlpha)
         barDividerAlpha = alpha > 0 ? alpha : 0.35
@@ -257,7 +257,7 @@ public final class Personalization: ObservableObject {
         showSourceBadge = true
         thumbOverride = nil
         toastDuration = 3
-        toastFollowPanel = true
+        toastFollowPanel = false
         barDividerColorHex = ""
         barDividerAlpha = 0.35
         midnightHueShift = 0

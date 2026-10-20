@@ -145,6 +145,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     ServiceLocator.panel?.show()
                 }
+            case "toast":
+                // v89 视觉验收/排障深链：frsetnext://toast?text=已复制&icon=checkmark.circle.fill
+                // 用途：不依赖具体业务路径即可复现全局提示，便于核对位置/样式/层级。
+                let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                let text = comps?.queryItems?.first(where: { $0.name == "text" })?.value ?? "已复制"
+                let icon = comps?.queryItems?.first(where: { $0.name == "icon" })?.value
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    Toast.show(text, icon: icon)
+                }
             default:
                 break
             }
