@@ -365,12 +365,6 @@ public struct FloatingClipboardContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .overlay(alignment: .top) {
-            // 悬浮窗底部条：与窗口玻璃同源，仅用一条 hairline 分隔（第三种玻璃的边界表达）
-            Rectangle()
-                .fill(Color.primary.opacity(0.06))
-                .frame(height: 0.5)
-        }
         .background {
             if let card = midnightCardBackground { card }
         }

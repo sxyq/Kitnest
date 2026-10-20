@@ -342,14 +342,14 @@ public struct ClipboardRow: View {
         // hover 时右侧出现 ↓（复制）/ ↵（复制并粘贴）两个图标；行底为浅色圆角卡。
         // 2026-10-18 补齐官方「来源应用徽章」：缩略图右下角小图标（bundleId → icon）。
         // v66：徽章显隐走「个性化」（默认开）；缩略图边长走密度/覆盖档位。
-        HStack(spacing: 10) {
-            ClipboardThumbnailView(item: item, size: Personalization.shared.effectiveThumbSize, corner: 7)
+        HStack(spacing: 12) {
+            ClipboardThumbnailView(item: item, size: Personalization.shared.effectiveThumbSize, corner: 8)
                 .overlay(alignment: .bottomTrailing) {
                     if Personalization.shared.showSourceBadge, let badge = sourceAppBadge {
                         Image(nsImage: badge)
                             .resizable()
                             .interpolation(.high)
-                            .frame(width: 15, height: 15)
+                            .frame(width: 16, height: 16)
                             .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -359,14 +359,14 @@ public struct ClipboardRow: View {
                             .offset(x: 3, y: 3)
                     }
                 }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle)
-                    .font(.system(size: 12.5))
+                    .font(.system(size: 13))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(subline)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -380,18 +380,22 @@ public struct ClipboardRow: View {
                 }
             }
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
-        // 卡片左右留 6pt：白卡不再顶满整行宽度（用户反馈「白底太大」）
-        .padding(.horizontal, 6)
-        // 卡片尺寸收紧（旧版 minHeight 68 / padding 8）；背景改为「轻玻璃」卡：
-        // 淡白 0.42 + 极弱斜高光 + 0.5pt 亮边，和面板玻璃背景只差一个层次，
-        // hover 时叠 accent 提亮（用户反馈：白框太大、和背景差距过大）
-        .panelGlassCard(cornerRadius: Theme.cornerRadius,
-                        tint: isHighlighted
-                            ? Theme.accent.opacity(colorScheme == .dark ? 0.22 : 0.14)
-                            : nil)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+        .background(
+            // v71：接个性化「面板圆角」档位（6/10/14，即改即生效）
+            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                .fill(rowFill)
+        )
+    }
+
+    /// 行底色：浅色模式白 0.55 / 深色模式白 0.06；hover 提亮
+    private var rowFill: Color {
+        let base = colorScheme == .dark ? 0.07 : 0.76
+        return isHighlighted
+            ? Theme.accent.opacity(colorScheme == .dark ? 0.22 : 0.16)
+            : Color.white.opacity(base)
     }
 
     /// 来源应用图标（官方行式：缩略图右下角徽章；sourceApp 优先 bundleId）

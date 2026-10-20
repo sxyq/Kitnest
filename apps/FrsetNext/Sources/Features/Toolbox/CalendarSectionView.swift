@@ -34,16 +34,23 @@ public struct CalendarSectionView: View {
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 6) {
             header
             if !collapsed {
                 weekdayHeader
                 weeksGrid
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .panelGlassCard()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(cardFill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
+        )
         .background(
             GeometryReader { geo in
                 Color.clear
@@ -58,15 +65,19 @@ public struct CalendarSectionView: View {
         .onDisappear { removeScrollMonitor() }
     }
 
+    private var cardFill: Color {
+        colorScheme == .dark ? Color.white.opacity(0.07) : Color.white.opacity(0.86)
+    }
+
     // MARK: 标题行
 
     private var header: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             Button { shift(-7) } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.primary.opacity(0.55))
-                    .frame(width: 22, height: 20)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -77,7 +88,7 @@ public struct CalendarSectionView: View {
                 reload()
             } label: {
                 Text(monthTitle)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.primary)
                     .frame(minWidth: 92, alignment: .leading)
                     .contentShape(Rectangle())
@@ -88,8 +99,8 @@ public struct CalendarSectionView: View {
             Button { shift(7) } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.primary.opacity(0.55))
-                    .frame(width: 22, height: 20)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

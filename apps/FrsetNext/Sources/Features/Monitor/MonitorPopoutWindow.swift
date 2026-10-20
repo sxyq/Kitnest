@@ -98,11 +98,17 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         //   · 玻璃 = NSVisualEffectView(.popover)，12pt 连续圆角，圆角裁剪
         //   · canBecomeKey = true（点外/失焦收起依赖 key 状态）
         //   · isMovableByWindowBackground = true（可拖动）
-        // 玻璃统一走 LiquidGlass：跟随「个性化 → 背景材质」（纯色卡片时不走毛玻璃），
-        // 圆角也跟 ui.corner.radius（此前固定 12pt）
-        let glass = LiquidGlass.makeView(cornerRadius: Theme.cornerRadius, material: .popover)
+        let glass = NSVisualEffectView()
+        glass.material = .popover
+        glass.blendingMode = .behindWindow
+        glass.state = .active
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = 12
         glass.layer?.cornerCurve = .continuous
-        LiquidGlass.embed(host, in: glass)
+        glass.layer?.masksToBounds = true
+        host.frame = glass.bounds
+        host.autoresizingMask = [.width, .height]
+        glass.addSubview(host)
 
         let window = MonitorPopoutPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 640),
                                         styleMask: [.borderless, .fullSizeContentView],
