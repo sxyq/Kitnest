@@ -88,6 +88,9 @@ public final class StatusBarController: NSObject {
     private var overflowDescriptors: [StatusItemDescriptor] = []
     /// 上次同步时的状态项 id 序列（用于判定是否需要重建）
     private var lastIDs: [String] = []
+
+    /// 性能探针开关（FRSET_PERF_PROBE=1）：仅性能测试时打开，生产零日志
+    private static let perfProbe = ProcessInfo.processInfo.environment["FRSET_PERF_PROBE"] != nil
     /// 布局核验：每个状态项上次记录到的窗口框架键（变化才记日志）
     private var lastLayoutKeys: [String: String] = [:]
 
@@ -366,6 +369,16 @@ public final class StatusBarController: NSObject {
 
     private func refreshTitles() {
         guard Thread.isMainThread else { return }
+        let probe = Self.perfProbe
+        let t0 = probe ? DispatchTime.now().uptimeNanoseconds : 0
+        defer {
+            if probe {
+                let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
+                if ms >= 0.5 {
+                    Log.info("Perf", String(format: "refreshTitles %.2fms entries=%d", ms, entries.count))
+                }
+            }
+        }
         var needsResync = false
         for e in entries {
             // 运行中被标记隐藏（两次同步之间）：先就地隐藏，再触发同步释放名额

@@ -34,6 +34,9 @@ public final class MonitorSampler: ObservableObject {
 
     public static let historyCapacity = 60
 
+    /// 性能探针开关（FRSET_PERF_PROBE=1）：仅排障/性能测试时打开
+    private static let perfProbe = ProcessInfo.processInfo.environment["FRSET_PERF_PROBE"] != nil
+
     private let reader = MonitorReader()
     private let samplingQueue = DispatchQueue(label: "com.frset.monitor.sampler", qos: .utility)
     private let lock = NSLock()
@@ -173,10 +176,22 @@ public final class MonitorSampler: ObservableObject {
     }
 
     private func sampleOnce() {
-        // 深数据（C 采集层：GPU/SMART/连通性/进程/传感器/适配器）——后台队列刷新，内部节流
-        StatsDataProvider.shared.refresh()
+        // 性能探针（FRSET_PERF_PROBE=1）：分段计时，定位每 tick 的真实开销。
+        // 生产路径只多一次静态布尔判断，无日志、无分配。
+        let probe = Self.perfProbe
+        let t0 = probe ? DispatchTime.now().uptimeNanoseconds : 0
+        // 深数据（C 采集层：GPU/SMART/连通性/进程/传感器/适配器）——后台队列刷新，内部节流。
+        // uiActive 传入可见性：面板不可见时 SMC 扫描/进程枚举大幅降频（性能实测 2026-10-20）。
+        StatsDataProvider.shared.refresh(uiActive: uiActive)
+        let t1 = probe ? DispatchTime.now().uptimeNanoseconds : 0
 
         let result = reader.readResult()
+        let t2 = probe ? DispatchTime.now().uptimeNanoseconds : 0
+        if probe {
+            let ms = { (a: UInt64, b: UInt64) in Double(b - a) / 1_000_000 }
+            Log.info("Perf", String(format: "tick refresh=%.2fms read=%.2fms total=%.2fms",
+                                   ms(t0, t1), ms(t1, t2), ms(t0, t2)))
+        }
         var sample = result.sample
         // v76（全盘统一数据源，2026-10-19）：菜单栏部件显示的数值来自 C 引擎
         // 0.5s 快照 g_snap（frset_stats_tick.m）；SwiftUI 面板此前由 MonitorReader

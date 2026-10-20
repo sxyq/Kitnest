@@ -173,6 +173,9 @@ public struct StatsSnapshot: Sendable {
 public final class StatsDataProvider {
     public static let shared = StatsDataProvider()
 
+    /// 性能探针开关（FRSET_PERF_PROBE=1）：仅性能测试时打开
+    static let perfProbe = ProcessInfo.processInfo.environment["FRSET_PERF_PROBE"] != nil
+
     private let lock = NSLock()
     private var storage = StatsSnapshot()
 
@@ -182,9 +185,21 @@ public final class StatsDataProvider {
     private var lastSlowAt: TimeInterval = -10
 
     // 节流窗口（秒）
-    private let procInterval: TimeInterval = 3     // 进程排行（单次 ~1s，最重）
-    private let scanInterval: TimeInterval = 3     // SMC 全量扫描（IOKit）
-    private let slowInterval: TimeInterval = 5     // 磁盘中频项
+    // 2026-10-20 性能实测：SMC 全量扫描单次 ~103ms（占 refresh 的 82%），
+    // 而传感器/风扇只被监测面板消费——面板不可见时没必要 3s 扫一次。
+    // 改为按 UI 可见性分档：可见 5s / 隐藏 30s；进程排行同理（隐藏 15s）。
+    private let slowInterval: TimeInterval = 5     // 磁盘中频项（SMART 由 C 层 30s 缓存）
+
+    /// 传感器静态元数据缓存（key → 官方名/类型/分组/是否参与均值）
+    /// 600 个传感器每次扫描要查 4 次映射函数（2400 次 C 字符串查找），
+    /// 而映射是静态表——缓存后只在首次扫描付一次成本。
+    private struct SensorMeta {
+        let name: String
+        let type: Int32
+        let group: Int32
+        let isAvg: Int32
+    }
+    private var sensorMeta: [String: SensorMeta] = [:]
 
     private init() {}
 
@@ -195,10 +210,23 @@ public final class StatsDataProvider {
     }
 
     /// 刷新一帧深数据。在**后台队列**调用（MonitorSampler 采样队列）。
-    /// 内部按成本节流：GPU/电池/连通性每帧；SMC 扫描与进程 3s；磁盘中频 5s；
+    /// 内部按成本节流：GPU/电池/连通性每帧；磁盘中频 5s；
+    /// SMC 扫描 / 进程排行按 UI 可见性分档（可见 5s/3s，隐藏 30s/15s）。
     /// SMART 由 C 层内部 30s 缓存（调用近乎免费）。
-    public func refresh() {
+    /// - Parameter uiActive: 监测面板/设置页是否可见（决定重活频率）
+    public func refresh(uiActive: Bool = true) {
+        let procInterval: TimeInterval = uiActive ? 3 : 15
+        let scanInterval: TimeInterval = uiActive ? 5 : 30
         let now = ProcessInfo.processInfo.systemUptime
+        // 性能探针（FRSET_PERF_PROBE=1）：分段计时，定位阻塞段；生产零日志
+        let probe = Self.perfProbe
+        var tPrev = DispatchTime.now().uptimeNanoseconds
+        func mark(_ label: String) {
+            guard probe else { return }
+            let t = DispatchTime.now().uptimeNanoseconds
+            Log.info("Perf", String(format: "refresh.%@ %.2fms", label, Double(t - tPrev) / 1_000_000))
+            tPrev = t
+        }
         lock.lock()
         var snap = storage
         lock.unlock()
@@ -216,9 +244,12 @@ public final class StatsDataProvider {
         }
         let nameBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
         defer { nameBuf.deallocate() }
-        if frset_gpu_model(nameBuf, 128) == 0 {
+        if snap.gpuModel.isEmpty, frset_gpu_model(nameBuf, 128) == 0 {
+            // 型号是静态信息，只取一次；此前每帧 String(cString:) 重建
             snap.gpuModel = String(cString: nameBuf)
         }
+
+        mark("gpu")
 
         // ---- CPU 集群拓扑（sysctl perflevel；Intel 返回非 0）----
         let clusterPtr = UnsafeMutablePointer<Int32>.allocate(capacity: 3)
@@ -240,6 +271,8 @@ public final class StatsDataProvider {
             snap.clusterMedUsage = usagePtr[2]
         }
 
+        mark("cpuCluster")
+
         // ---- 内存构成（host_statistics64，轻；与 STATS 引擎同口径）----
         let memPtr = UnsafeMutablePointer<frset_mem_t>.allocate(capacity: 1)
         defer { memPtr.deallocate() }
@@ -251,6 +284,8 @@ public final class StatsDataProvider {
         snap.memCompressed = mem.compressed
         snap.memSwapUsed = mem.swap_used
         snap.memPressureLevel = frset_mem_pressure()
+
+        mark("mem")
 
         // ---- 电池（IORegistry，每帧；字段含 v27 适配器段）----
         let battPtr = UnsafeMutablePointer<frset_battery_t>.allocate(capacity: 1)
@@ -279,6 +314,8 @@ public final class StatsDataProvider {
         )
         snap.batteryRemainSec = frset_battery_remaining_sec()
 
+        mark("battery")
+
         // ---- 网络连通性（C 层后台线程；本调用非阻塞读缓存）----
         let connPtr = UnsafeMutablePointer<frset_conn_t>.allocate(capacity: 1)
         defer { connPtr.deallocate() }
@@ -300,6 +337,8 @@ public final class StatsDataProvider {
         frset_net_ip(ipBuf, 64)
         snap.netLocalIP = String(cString: ipBuf)
         snap.netInterface = StatsDataProvider.primaryInterfaceName()
+
+        mark("conn")
 
         // ---- 磁盘中频项（5s）：容量/型号/连接/文件系统/SMART/网络 Top ----
         if now - lastSlowAt >= slowInterval {
@@ -340,7 +379,9 @@ public final class StatsDataProvider {
             snap.procNet = StatsDataProvider.readProcList(kind: 3, max: 8)
         }
 
-        // ---- SMC 全量扫描（3s）----
+        mark("slow")
+
+        // ---- SMC 全量扫描（可见 5s / 隐藏 30s）----
         if now - lastScanAt >= scanInterval {
             lastScanAt = now
             let sensorPtr = UnsafeMutablePointer<frset_sensor_t>.allocate(capacity: 600)
@@ -353,17 +394,27 @@ public final class StatsDataProvider {
             for i in 0..<Int(n) {
                 var raw = sensorPtr[i]
                 let key = String(cString: FSStatsSensorKey(&raw))
-                var groupOut: Int32 = 0
-                let official = key.withCString { frset_sensor_name($0, &groupOut) }
-                let name = official != nil ? String(cString: official!) : key
-                let type = key.withCString { frset_sensor_type($0) }
-                let group = key.withCString { frset_sensor_group($0) }
-                let isAvg = key.withCString { frset_sensor_average($0) }
-                items.append(StatsSensorItem(key: key, name: name, category: Int(type), group: Int(group), value: raw.value))
+                // 静态映射走缓存：首次扫描建表，后续零 C 调用
+                let meta: SensorMeta
+                if let cached = sensorMeta[key] {
+                    meta = cached
+                } else {
+                    var groupOut: Int32 = 0
+                    let official = key.withCString { frset_sensor_name($0, &groupOut) }
+                    meta = SensorMeta(
+                        name: official != nil ? String(cString: official!) : key,
+                        type: key.withCString { frset_sensor_type($0) },
+                        group: key.withCString { frset_sensor_group($0) },
+                        isAvg: key.withCString { frset_sensor_average($0) }
+                    )
+                    sensorMeta[key] = meta
+                }
+                items.append(StatsSensorItem(key: key, name: meta.name, category: Int(meta.type),
+                                             group: Int(meta.group), value: raw.value))
                 // 计算项口径：group∈{CPU(1),GPU(2)} 且 type=温度(0) 且官方 average 标记
-                if type == 0 && isAvg == 1 {
-                    if group == 1 { cpuTemps.append(raw.value) }
-                    if group == 2 { gpuTemps.append(raw.value) }
+                if meta.type == 0 && meta.isAvg == 1 {
+                    if meta.group == 1 { cpuTemps.append(raw.value) }
+                    if meta.group == 2 { gpuTemps.append(raw.value) }
                 }
             }
             snap.sensors = items
@@ -379,13 +430,17 @@ public final class StatsDataProvider {
             snap.fans = StatsDataProvider.readFans()
         }
 
-        // ---- 进程排行 CPU/内存/磁盘（3s，单次 ~1s）----
+        mark("smc")
+
+        // ---- 进程排行 CPU/内存/磁盘（可见 3s / 隐藏 15s）----
         if now - lastProcAt >= procInterval {
             lastProcAt = now
             snap.procCPU = StatsDataProvider.readProcList(kind: 0, max: 8)
             snap.procMem = StatsDataProvider.readProcList(kind: 1, max: 8)
             snap.procDisk = StatsDataProvider.readProcList(kind: 2, max: 8)
         }
+
+        mark("proc")
 
         snap.updatedAt = Date()
         lock.lock()
