@@ -27,6 +27,9 @@ public final class MonitorCenterPresenter: ObservableObject {
         page = .performance
         // v84：性能监测页打开埋点（面板段切换 / URL 深链 / 状态栏部件点击共用）
         StatisticsManager.shared.record(.monitorPanelOpen)
+        // v107（2026-10-21 用户：「活动监测也要计入使用统计」）：原版键
+        // activityMonitorClick 从未落点——监测中心即「活动监测」功能入口，补记
+        StatisticsManager.shared.record(.activityMonitorClick)
     }
 
     public func selectTransferDock() {
