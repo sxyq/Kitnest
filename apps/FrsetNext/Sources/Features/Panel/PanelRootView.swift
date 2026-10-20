@@ -655,11 +655,14 @@ struct PanelRootView: View {
         return true
     }
 
+    /// 首页分区统一横向内边距（v91：日历卡与剪贴板行卡必须同宽同缘）
+    private let homeSectionInset: CGFloat = 8
+
     /// 日历卡（由 Toolbox 模块经 PanelSectionRegistry 注入；无区段标题，原版是一张独立卡片）
     @ViewBuilder private var calendarCard: some View {
         if let descriptor = PanelSectionRegistry.all.first(where: { $0.id == "calendar" }) {
             descriptor.build()
-                .padding(.horizontal, 8)
+                .padding(.horizontal, homeSectionInset)
         }
     }
 
@@ -667,7 +670,7 @@ struct PanelRootView: View {
     @ViewBuilder private var clipboardSection: some View {
         if let descriptor = PanelSectionRegistry.all.first(where: { $0.id == "clipboard" }) {
             descriptor.build()
-                .padding(.horizontal, 8)
+                .padding(.horizontal, homeSectionInset)
         }
     }
 }

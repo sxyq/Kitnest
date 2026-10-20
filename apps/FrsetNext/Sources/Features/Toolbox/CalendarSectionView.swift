@@ -41,7 +41,11 @@ public struct CalendarSectionView: View {
                 weeksGrid
             }
         }
-        .padding(.horizontal, 14)
+        // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
+        // 外层强制满宽（与剪贴板行卡同宽）；内边距 14→10 与行内 10pt 对齐，
+        // 卡片左右边缘与内容起始线同源。
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 10)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)

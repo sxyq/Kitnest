@@ -365,6 +365,10 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         table.delegate = context.coordinator
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clipboard.items"))
+        // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：行卡宽度 = 列宽，
+        // 列必须钉死随表宽走（默认 uniform 分栏会让单列略窄于表宽 → 行卡比日历卡窄几 pt）
+        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        column.width = table.bounds.width
         column.resizingMask = .autoresizingMask
         table.addTableColumn(column)
 
@@ -391,6 +395,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             table?.rowHeight = newHeight
             table?.intercellSpacing = NSSize(width: 0, height: max(2, newHeight * 0.10))
         }
+        // v91：宽度随表走（行卡与日历卡同宽的最后一环）
+        table?.sizeLastColumnToFit()
         context.coordinator.reloadTable()
     }
 

@@ -95,7 +95,10 @@ public struct ClipboardSectionView: View {
                                            ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
                                            manager.delete(item)
                                        })
-                    .frame(maxHeight: .infinity)
+                    // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
+                    // 此前只锁高度，NSScrollView 的固有宽度参与布局 → 表格比
+                    // 日历卡（maxWidth: .infinity）窄约 6pt。锁满宽后行卡与日历卡同宽。
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
