@@ -138,6 +138,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let monitorRaw, let module = MonitorModuleID(rawValue: monitorRaw) {
                     MonitorCenterPresenter.shared.selectPerformance(module: module)
                 }
+                // 深链直达页面：frsetnext://panel?page=transfer
+                if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "page" })?.value == "transfer" {
+                    MonitorCenterPresenter.shared.selectTransferDock()
+                }
                 if anchorIcon,
                    let anchor = StatusBarController.shared.mainStatusItem?.button?.window?.frame {
                     Log.info("App", "URL 锚点展开：icon frame=\(anchor)")
@@ -150,10 +155,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // 不经过截图流程直接打开标注编辑器，便于核对工具条与画笔马赛克。
                 let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
                 let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                // ?tool=m / ?tool=highlighter / ?tool=mosaic —— 排障与自动化截图时直接落到指定工具
+                let rawTool = comps?.queryItems?.first(where: { $0.name == "tool" })?.value?.lowercased()
+                let tool = rawTool.flatMap { raw in
+                    AnnotationTool.allCases.first {
+                        $0.rawValue == raw || $0.shortcut.lowercased() == raw
+                    }
+                }
                 if let path, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
-                    AnnotationEditorController.shared.open(image: img)
+                    AnnotationEditorController.shared.open(image: img, tool: tool)
                 } else if !AnnotationEditorController.shared.openLatest() {
                     Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
+                }
+            case "cloudlink":
+                // 排障深链：frsetnext://cloudlink?url=<网盘链接>
+                // 不复制也能直接打开解析中心，验证 8 家网盘的识别与配置页。
+                let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                let raw = comps?.queryItems?.first(where: { $0.name == "url" })?.value
+                    ?? "https://pan.quark.cn/s/000000000000"
+                if let link = CloudDriveLinkDetector.detect(in: raw)
+                    ?? URL(string: raw).flatMap({ u in
+                        CloudDriveLinkDetector.provider(forHost: u.host ?? "").map {
+                            CloudDriveLink(url: u, provider: $0,
+                                           isSharePage: CloudDriveLinkDetector.isSharePage(u))
+                        }
+                    }) {
+                    CloudLinkCenterController.shared.show(link: link)
+                } else {
+                    Log.warn("App", "cloudlink 深链：无法识别网盘链接 \(raw)")
                 }
             case "toast":
                 // v89 视觉验收/排障深链：frsetnext://toast?text=已复制&icon=checkmark.circle.fill
