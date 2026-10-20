@@ -1,3 +1,4 @@
+import QuickLookThumbnailing
 import AppKit
 import Foundation
 import SwiftUI
@@ -902,12 +903,11 @@ struct PreviewFileView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             ForEach(paths, id: \.self) { path in
                 HStack(spacing: 8) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: path))
-                        .resizable()
-                        .frame(width: 28, height: 28)
+                    // v111（ArcZip 接入 P0-c / FR-103）：QuickLook 分级解码缩略图
+                    PreviewFileThumb(path: path, size: paths.count == 1 ? 120 : 44)
                     VStack(alignment: .leading, spacing: 2) {
                         Text((path as NSString).lastPathComponent)
                             .font(.system(size: 12, weight: .medium))
@@ -928,5 +928,116 @@ struct PreviewFileView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 文件缩略图分级解码（v111 P0-c，FR-103；ArcZip 悬停预览③解码层同口径）
+//
+// 分级：图片 → ImageIO/NSImage；PDF → CGPDFDocument 首页渲染；
+//       其余（Office / 压缩包 / 任意二进制）→ QLThumbnailGenerator 兜底。
+// 缓存：NSCache 上限自动回收（FR-105 临时产物纪律的内存侧对应物）。
+// 两段式：先出系统文件图标，解码完成后原位替换（FR-104 观感：无闪白）。
+
+private enum PreviewFileThumbCache {
+    static let store: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 60
+        return c
+    }()
+}
+
+private enum PreviewFileThumbnailLoader {
+
+    private static let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "heic", "webp", "bmp", "tiff", "tif", "ico"]
+
+    static func decode(path: String) async -> NSImage? {
+        let url = URL(fileURLWithPath: path)
+        let ext = url.pathExtension.lowercased()
+        if imageExts.contains(ext), let img = NSImage(contentsOfFile: path) {
+            return img
+        }
+        if ext == "pdf", let img = renderPDF(url: url) {
+            return img
+        }
+        return await qlThumbnail(url: url)
+    }
+
+    /// PDF 首页渲染（CGPDFDocument，D1：Office 二进制只浏览，PDF 给渲染预览）
+    private static func renderPDF(url: URL) -> NSImage? {
+        guard let doc = CGPDFDocument(url as CFURL), let page = doc.page(at: 1) else { return nil }
+        let box = page.getBoxRect(.mediaBox)
+        let scale: CGFloat = 2
+        let w = max(1, Int(box.width * scale)), h = max(1, Int(box.height * scale))
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+        let c = ctx.cgContext
+        c.setFillColor(NSColor.white.cgColor)
+        c.fill(CGRect(x: 0, y: 0, width: CGFloat(w), height: CGFloat(h)))
+        c.scaleBy(x: scale, y: scale)
+        c.drawPDFPage(page)
+        NSGraphicsContext.restoreGraphicsState()
+        guard let cg = rep.cgImage else { return nil }
+        return NSImage(cgImage: cg, size: NSSize(width: box.width, height: box.height))
+    }
+
+    /// QLThumbnailGenerator 兜底（Office/任意格式，FR-103 第 4/5 档）
+    private static func qlThumbnail(url: URL) async -> NSImage? {
+        let request = QLThumbnailGenerator.Request(
+            fileAt: url,
+            size: CGSize(width: 512, height: 512),
+            scale: 2,
+            representationTypes: .all)
+        return await withCheckedContinuation { cont in
+            QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { rep, _ in
+                cont.resume(returning: rep?.nsImage)
+            }
+        }
+    }
+}
+
+/// 缩略图视图：先图标、异步解码后替换（缓存命中即时）
+private struct PreviewFileThumb: View {
+    let path: String
+    let size: CGFloat
+    @Stored private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+                    .resizable()
+            }
+        }
+        .frame(width: size, height: size)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .onAppear(perform: load)
+    }
+
+    private func load() {
+        if let hit = PreviewFileThumbCache.store.object(forKey: path as NSString) {
+            image = hit
+            return
+        }
+        let p = path
+        Task {
+            let img = await PreviewFileThumbnailLoader.decode(path: p)
+            if let img {
+                PreviewFileThumbCache.store.setObject(img, forKey: p as NSString)
+            }
+            await MainActor.run { image = img }
+        }
     }
 }
