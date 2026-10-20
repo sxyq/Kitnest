@@ -912,7 +912,7 @@ private struct EditorToolbarView: View {
                               enabled: model.canRedo,
                               help: "重做  ⇧⌘Z", action: onRedo)
             ToolbarIconButton(symbol: "trash", help: "清空标注", action: onClear)
-            ToolbarIconButton(symbol: "scroll.down", help: "长截图", action: onLong)
+            ToolbarIconButton(symbol: "arrow.down.to.line", help: "长截图", action: onLong)
 
             divider
 
