@@ -20,6 +20,8 @@ public struct PreviewPopoverContentView: View {
                 CloudLinkPreviewAction(link: link)
             }
         }
+        // 主题统一入口：强调色（个性化）+ Midnight——预览窗此前两者都没接
+        .frsetThemeChrome()
     }
 
     @ViewBuilder
@@ -547,13 +549,11 @@ struct PreviewCodeTextView: View {
     let model: PreviewPopoverContentModel
 
     var body: some View {
+        // 代码态此前是纯等宽文本——语法高亮只在 Markdown 代码块里生效，用户看不出「代码预览」。
+        // 这里复用同一套高亮器，并按内容自动识别语言（Swift/Python/JS/Go/Rust/SQL/Shell…）。
+        let lang = PreviewMarkdownRenderer.detectLanguage(model.inlineText)
         PreviewTextViewRepresentable(
-            attributedText: NSAttributedString(
-                string: model.inlineText,
-                attributes: [
-                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
-                    .foregroundColor: NSColor.labelColor
-                ]),
+            attributedText: PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: model.inlineText),
             monospaced: true,
             showsLineNumbers: true)
     }
@@ -569,6 +569,10 @@ struct PreviewImageView: View {
     @Stored private var isQRCode = false
     /// 解码失败（文件缺失/损坏）→ 显示占位，不留无限转圈
     @Stored private var didFailToLoad = false
+    /// OCR 文本（已缓存的先显示；没有则给「识别文本」按钮现算）
+    @Stored private var ocrText = ""
+    @Stored private var ocrBusy = false
+    @Stored private var ocrError: String?
 
     private var displayImage: NSImage? { fullImage ?? thumbnail }
 
@@ -605,15 +609,28 @@ struct PreviewImageView: View {
                     .fill(Color.secondary.opacity(0.08))
                     .overlay(ProgressView().controlSize(.small))
             }
-            // 图片 OCR 文本区块（数据桥注入；无则不占位）
-            if let ocr = PreviewPopoverDataBridge.shared.ocrText(for: model.item), !ocr.isEmpty {
+
+            // 图片下方的操作行：识别/复制识别文本（2026-10-20 用户需求）
+            if displayImage != nil {
+                ocrActionBar
+            }
+
+            // 图片 OCR 文本区块（缓存 / 现算结果；无则不占位）
+            if !ocrText.isEmpty {
                 Divider().padding(.vertical, 4)
                 PreviewTextViewRepresentable(
                     attributedText: NSAttributedString(
-                        string: ocr,
+                        string: ocrText,
                         attributes: [.font: NSFont.systemFont(ofSize: 11),
                                      .foregroundColor: NSColor.secondaryLabelColor]))
                     .frame(maxHeight: 120)
+            } else if let ocrError {
+                Text(ocrError)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 4)
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -642,6 +659,107 @@ struct PreviewImageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: model.item.dedupeKey) {
             await loadImages()
+            ocrText = PreviewPopoverDataBridge.shared.ocrText(for: model.item) ?? ""
+        }
+    }
+
+    // MARK: 图片下方：识别 / 复制文本
+
+    private var ocrActionBar: some View {
+        HStack(spacing: 8) {
+            if ocrBusy {
+                ProgressView().controlSize(.mini)
+                Text("识别中…")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.secondary)
+            } else if !ocrText.isEmpty {
+                smallAction("复制文本", icon: "doc.on.doc", prominent: true) { copyOCR() }
+                smallAction("重新识别", icon: "arrow.clockwise") { recognizeNow() }
+                Spacer(minLength: 4)
+                Text("\(ocrText.count) 字")
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.tertiary)
+            } else {
+                smallAction("识别文本", icon: "text.viewfinder") { recognizeNow() }
+                Spacer(minLength: 4)
+                Text(ocrHint)
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
+    }
+
+    private var ocrHint: String {
+        ocrError == nil ? "图中文字可识别后复制" : "识别失败，可重试"
+    }
+
+    private func smallAction(_ title: String, icon: String,
+                             prominent: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(title)
+                    .font(.system(size: 10.5, weight: .medium))
+            }
+            .foregroundStyle(prominent ? Color.white : Color.primary.opacity(0.85))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background {
+                if prominent {
+                    Capsule(style: .continuous).fill(Theme.accent)
+                } else {
+                    Capsule(style: .continuous).fill(Color.primary.opacity(0.07))
+                }
+            }
+            .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func copyOCR() {
+        let text = ocrText
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        Toast.show("已复制识别文本", icon: "doc.on.doc")
+    }
+
+    /// 现算/重算 OCR：走「设置 → 截图 → 文字识别」指定的引擎，结果回写缓存
+    private func recognizeNow() {
+        guard let path = model.item.imagePath else {
+            ocrError = "读不到图片文件"
+            return
+        }
+        let url = ClipboardFileStore.url(forRelativePath: path)
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else {
+            ocrError = "读不到图片文件"
+            return
+        }
+        ocrBusy = true
+        ocrError = nil
+        let item = model.item
+        Task {
+            do {
+                let text = try await PreviewPopoverDataBridge.shared.recognizeImage(data)
+                await MainActor.run {
+                    ocrText = text
+                    ocrBusy = false
+                    if !text.isEmpty {
+                        PreviewPopoverDataBridge.shared.saveOCRText(text, for: item)
+                    } else {
+                        ocrError = "没有识别到文字"
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    ocrBusy = false
+                    ocrError = error.localizedDescription
+                }
+            }
         }
     }
 

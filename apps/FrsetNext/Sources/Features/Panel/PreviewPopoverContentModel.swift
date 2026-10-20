@@ -117,20 +117,32 @@ public struct PreviewPopoverContentModel: Identifiable {
     ///     误判风险低——被误判的普通文本只是按 Markdown 样式排版，内容不丢）
     /// 落盘长文本（fileBackedText）加载后也走本判定（见 PreviewFileBackedTextView）。
     public static func looksLikeMarkdown(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        // ① 强信号：命中任意一条就按 Markdown 渲染。
+        //    这些模式在普通文本里几乎不会出现，误判成本也只是「排版更好看」，内容不会丢。
+        let strongPatterns = [
+            "(?m)^#{1,6}\\s+\\S",                 // 标题
+            "(?m)^\\s*```",                        // 围栏代码
+            "(?m)^\\s*([-*+]|\\d+[.)])\\s+\\S",  // 列表
+            "(?m)^\\s*>\\s+\\S",                 // 引用
+            "(?m)^\\s*\\|.*\\|\\s*$",            // 表格行
+            "\\*\\*[^*\\n]+\\*\\*",              // 粗体
+            "`[^`\\n]+`",                          // 行内代码
+            "\\[[^\\]\\n]+\\]\\([^)\\n]+\\)",     // 链接
+            "(?m)^\\s*([-*_])(\\s*\\1){2,}\\s*$"   // 分隔线
+        ]
+        for pattern in strongPatterns {
+            if trimmed.range(of: pattern, options: .regularExpression) != nil { return true }
+        }
+
+        // ② 弱信号：短文本（≤ 240 字）里两条即判定；长文本维持原来的累计口径
         var score = 0
-        for line in text.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(40) {
-            let t = line.drop(while: { $0 == " " })
-            if t.hasPrefix("# ") || t.hasPrefix("## ") || t.hasPrefix("### ")
-                || t.hasPrefix("#### ") || t.hasPrefix("##### ") { score += 2 }
-            if t.hasPrefix("```") || t.hasPrefix("~~~") { score += 2 }
-            if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ")
-                || t.hasPrefix("> ") { score += 1 }
-            if t.range(of: "^\\d+[.)]\\s+", options: .regularExpression) != nil { score += 1 }   // 有序列表
-            if t.range(of: "^([-*_])\\s*(\\1\\s*){2,}$", options: .regularExpression) != nil { score += 2 }   // 分隔线
-            if t.hasPrefix("|") && t.hasSuffix("|") { score += 1 }                                // 表格
-            if t.contains("](") && t.contains("[") { score += 1 }                                 // 链接
-            if t.contains("**") { score += 1 }
-            if t.contains("`") { score += 1 }                                                     // 行内代码
+        for line in trimmed.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(40) {
+            let t = line.drop(while: { $0 == " " || $0 == "\t" })
+            if t.contains("__") { score += 1 }
+            if t.contains("~~") { score += 1 }
             if score >= 2 { return true }
         }
         return false
@@ -184,7 +196,7 @@ public struct PreviewPopoverContentModel: Identifiable {
             // 落盘长文：先按 loading 占位高度呈现，全文加载后由内容撑开（≤ maxPopoverHeight）
             return textPreviewLoadingMinHeight
         case .code:
-            let lineHeight: CGFloat = 16          // 等宽字体行高（⬜ 原作值未探明）
+            let lineHeight: CGFloat = 23          // 高亮后等宽字体 17pt 的实际行高
             let lines = CGFloat(max(1, inlineText.lineCountEstimate))
             return min(maxPopoverHeight, max(96, lines * lineHeight + 24))
         case .image:

@@ -83,6 +83,15 @@ final class JSONNodeModel: ObservableObject, Identifiable {
 
     var isExpandable: Bool { childCount > 0 }
 
+    /// 只构建子级、不改展开态：表格视图每次求值都要读子级，
+    /// 用 toggle() 会一次展开一次收起（旧实现表格行会闪）。
+    func ensureChildren() {
+        if builtChildren == nil {
+            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: 0)
+            children = builtChildren ?? []
+        }
+    }
+
     /// 首次展开时才生成子节点模型（懒构建）
     func toggle() {
         if !isExpanded && builtChildren == nil {
@@ -161,13 +170,14 @@ struct JSONInspectorView: View {
     @Stored private var searchText: String = ""
     private let compact: Bool
 
-    init(text: String, compact: Bool = false) {
+    init(text: String, compact: Bool = false, initialMode: JSONViewMode = .tree) {
         self.compact = compact
         // 解析失败时给一个空的根节点（调用方已判过 kind，这里是兜底）
         let document = JSONDocument(text: text) ?? JSONDocument(text: "null")!
         // 首层自动展开：折叠的根节点只有一行，看不出结构（原版 JSON 预览打开即可见第一层）
         if document.root.isExpandable { document.root.toggle() }
         _document = ObservedObject(wrappedValue: document)
+        _mode = Stored(wrappedValue: initialMode)
     }
 
     enum JSONViewMode: String, CaseIterable {
@@ -339,64 +349,102 @@ private struct JSONTreeList: View {
     }
 }
 
-// MARK: - 表格视图（对象数组 → 数据库表）
+// MARK: - 表格视图（对象数组 → 数据库表；对象 → 键值表；标量数组 → 序号表）
+//
+// 2026-10-20：此前只有「根是对象数组」才有表，对象根直接显示「表格视图需要对象数组」，
+// 用户拿一份普通对象 JSON 点表格只会看到死路。现在按根类型自动选表型。
 
 private struct JSONTableView: View {
     let document: JSONDocument
     let fontSize: CGFloat
 
-    /// 列定义（键并集，只扫前 500 行）
     private struct Column {
         let key: String
         let width: CGFloat
     }
 
-    /// 列 = 前 500 行对象的键并集（保持首次出现顺序），列宽按键长估算
+    private enum Shape {
+        case objectRows      // 根 = 对象数组（每个元素变一行，键并集变列）
+        case keyValue        // 根 = 对象（键 / 值 两列）
+        case scalars         // 根 = 标量数组（序号 / 值）
+        case unsupported
+    }
+
+    private var shape: Shape {
+        switch document.root.kind {
+        case .object:
+            return .keyValue
+        case .array:
+            if document.root.children.isEmpty { document.root.ensureChildren() }
+            let rows = document.root.children.prefix(200)
+            let objectLike = rows.filter { $0.kind == .object || $0.kind == .array }
+            return objectLike.isEmpty ? .scalars : .objectRows
+        default:
+            return .unsupported
+        }
+    }
+
     private var columns: [Column] {
-        guard document.root.kind == .array else { return [] }
-        // root.children 未构建时先展开一次（表格模式必然要子级）
-        if document.root.children.isEmpty { document.root.toggle() }
-        var order: [String] = []
-        var maxLength: [String: Int] = [:]
-        for row in document.root.children.prefix(500) {
-            if row.children.isEmpty { row.toggle() }     // 行对象展开一次拿到成员
-            for child in row.children {
-                let key = child.key ?? ""
-                if maxLength[key] == nil {
-                    order.append(key)
-                    maxLength[key] = key.count
-                } else {
-                    maxLength[key] = max(maxLength[key] ?? 0, key.count)
+        switch shape {
+        case .keyValue:
+            return [Column(key: "键", width: fontSize * 9),
+                    Column(key: "值", width: fontSize * 12)]
+        case .scalars:
+            return [Column(key: "值", width: fontSize * 12)]
+        case .objectRows:
+            var order: [String] = []
+            var maxLength: [String: Int] = [:]
+            for row in document.root.children.prefix(500) {
+                if row.children.isEmpty { row.ensureChildren() }
+                for child in row.children {
+                    let key = child.key ?? ""
+                    if maxLength[key] == nil {
+                        order.append(key)
+                        maxLength[key] = key.count
+                    } else {
+                        maxLength[key] = max(maxLength[key] ?? 0, key.count)
+                    }
                 }
             }
-        }
-        return order.map { key in
-            Column(key: key, width: min(180, max(64, CGFloat(maxLength[key] ?? 0) * fontSize * 0.62 + 28)))
+            return order.map { key in
+                Column(key: key, width: min(180, max(64, CGFloat(maxLength[key] ?? 0) * fontSize * 0.62 + 28)))
+            }
+        case .unsupported:
+            return []
         }
     }
 
     private var rowValues: [(index: Int, cells: [String])] {
-        guard document.root.kind == .array else { return [] }
-        var result: [(index: Int, cells: [String])] = []
-        let cols = columns.map { $0.key }
-        for (index, row) in document.root.children.prefix(500).enumerated() {
-            row.toggle()
-            var map: [String: String] = [:]
-            for child in row.children {
-                if let key = child.key { map[key] = child.preview }
+        switch shape {
+        case .keyValue:
+            if document.root.children.isEmpty { document.root.ensureChildren() }
+            return document.root.children.enumerated().map { index, child in
+                (index, [child.key ?? "", child.preview])
             }
-            result.append((index, cols.map { map[$0] ?? "—" }))
+        case .scalars:
+            if document.root.children.isEmpty { document.root.ensureChildren() }
+            return document.root.children.prefix(500).enumerated().map { index, child in
+                (index, [child.preview])
+            }
+        case .objectRows:
+            let cols = columns.map { $0.key }
+            return document.root.children.prefix(500).enumerated().map { index, row in
+                row.ensureChildren()
+                var map: [String: String] = [:]
+                for child in row.children { if let key = child.key { map[key] = child.preview } }
+                return (index, cols.map { map[$0] ?? "—" })
+            }
+        case .unsupported:
+            return []
         }
-        return result
     }
 
     var body: some View {
         if columns.isEmpty {
-            // 根不是对象数组 → 提示退回树形
             VStack(spacing: 8) {
-                Text("表格视图需要「对象数组」")
+                Text("当前 JSON 是单个值，没有可展开的表格")
                     .font(.system(size: fontSize))
-                Text("当前根节点是 \(document.root.kind.badge) 类型，请切回树形")
+                Text("请切回树形查看")
                     .font(.system(size: fontSize - 2))
                     .foregroundStyle(.secondary)
             }
@@ -407,10 +455,17 @@ private struct JSONTableView: View {
                     header
                     ForEach(rowValues, id: \.index) { row in
                         HStack(spacing: 0) {
-                            Text("#\(row.index + 1)")
-                                .font(.system(size: fontSize - 2, design: .monospaced))
-                                .foregroundStyle(.tertiary)
-                                .frame(width: 34, alignment: .leading)
+                            if shape != .scalars {
+                                Text("#\(row.index + 1)")
+                                    .font(.system(size: fontSize - 2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: 34, alignment: .leading)
+                            } else {
+                                Text("\(row.index + 1)")
+                                    .font(.system(size: fontSize - 2, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: 34, alignment: .leading)
+                            }
                             ForEach(Array(row.cells.enumerated()), id: \.offset) { colIndex, value in
                                 let isLast = colIndex == row.cells.count - 1
                                 let width = columns[min(colIndex, columns.count - 1)].width
@@ -418,7 +473,6 @@ private struct JSONTableView: View {
                                     .font(.system(size: fontSize - 1, design: .monospaced))
                                     .lineLimit(1)
                                     .truncationMode(.tail)
-                                    // 最后一列吃掉剩余宽度（值列更长），其余列按内容估算固定
                                     .frame(width: isLast ? nil : width, alignment: .leading)
                                     .frame(maxWidth: isLast ? .infinity : nil, alignment: .leading)
                                     .padding(.horizontal, 4)

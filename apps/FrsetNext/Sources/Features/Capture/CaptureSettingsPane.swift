@@ -11,6 +11,8 @@ public struct CaptureSettingsPane: View {
     @Stored private var languageIndex: Int
     @Stored private var action: CaptureDefaultAction
     @Stored private var showOCRWindow: Bool
+    /// Vision 自动检测语言（开启后忽略下方语言列表）
+    @Stored private var autoDetect: Bool
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -26,6 +28,7 @@ public struct CaptureSettingsPane: View {
         _languageIndex = Stored(wrappedValue: Self.languageOptions.firstIndex { $0.codes == langs } ?? 0)
         _action = Stored(wrappedValue: ScreenshotManager.shared.defaultAction)
         _showOCRWindow = Stored(wrappedValue: ScreenshotManager.shared.ocrShowResultWindow)
+        _autoDetect = Stored(wrappedValue: OCRService.autoDetectLanguages)
     }
 
     public var body: some View {
@@ -65,19 +68,28 @@ public struct CaptureSettingsPane: View {
             }
 
             Section("文字识别") {
+                Text("识别引擎：Apple Vision（本机）")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+
                 Picker("识别语言", selection: $languageIndex) {
                     ForEach(0..<Self.languageOptions.count, id: \.self) { index in
                         Text(Self.languageOptions[index].title).tag(index)
                     }
                 }
+                .disabled(autoDetect)
                 .onChange(of: languageIndex) { newValue in
                     OCRService.setLanguages(Self.languageOptions[newValue].codes)
                 }
+                Toggle("自动检测语言", isOn: $autoDetect)
+                    .onChange(of: autoDetect) { newValue in
+                        OCRService.autoDetectLanguages = newValue
+                    }
                 Toggle("识别后弹出结果窗", isOn: $showOCRWindow)
                     .onChange(of: showOCRWindow) { newValue in
                         ScreenshotManager.shared.ocrShowResultWindow = newValue
                     }
-                Text("识别在本机完成（Vision 框架），不联网、不上传图片。")
+                Text("识别在本机完成（Apple Vision），不联网、不上传图片。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }

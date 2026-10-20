@@ -23,6 +23,17 @@ public extension Preferences.Keys {
 //     PreviewPopoverDataBridge.shared.ocrTextProvider = { ClipboardManager.shared.ocrText(for: $0) }
 // 未接线时走内置后备（直接读落盘文件 / 内联 content），预览仍然可用。
 
+/// 数据桥未接线时的可读错误（预览里直接展示）
+public enum PreviewDataBridgeError: Error, LocalizedError {
+    case notWired
+
+    public var errorDescription: String? {
+        switch self {
+        case .notWired: return "识别服务尚未接线"
+        }
+    }
+}
+
 public final class PreviewPopoverDataBridge {
     public static let shared = PreviewPopoverDataBridge()
 
@@ -30,6 +41,10 @@ public final class PreviewPopoverDataBridge {
     public var fullTextProvider: ((ClipboardItem) -> String)?
     /// OCR 文本提供者（接 ClipboardManager.ocrText(for:)；图片条目预览的附加文本）
     public var ocrTextProvider: ((ClipboardItem) -> String?)?
+    /// 保存 OCR 文本（接 ClipboardOCRTextStorage.write；预览里「识别/重新识别」后回写）
+    public var saveOCRTextProvider: ((ClipboardItem, String) -> Void)?
+    /// 现算 OCR 文本（接 OCRService.recognizeText；引擎按「设置 → 截图」走）
+    public var recognizeImageProvider: ((Data) async throws -> String)?
 
     public init() {}
 
@@ -53,6 +68,19 @@ public final class PreviewPopoverDataBridge {
     /// 图片条目 OCR 文本（未接线时返回 nil，预览不显示 OCR 区块）
     public func ocrText(for item: ClipboardItem) -> String? {
         ocrTextProvider?(item)
+    }
+
+    /// 回写 OCR 文本（让下次预览 / 搜索能直接用，不必重算）
+    public func saveOCRText(_ text: String, for item: ClipboardItem) {
+        saveOCRTextProvider?(item, text)
+    }
+
+    /// 现算 OCR（未接线时抛出可读错误，预览里显示）
+    public func recognizeImage(_ data: Data) async throws -> String {
+        guard let provider = recognizeImageProvider else {
+            throw PreviewDataBridgeError.notWired
+        }
+        return try await provider(data)
     }
 
     /// v65 富文本保真渲染数据：条目的 RTF → NSAttributedString（保真字体/颜色/列表）。

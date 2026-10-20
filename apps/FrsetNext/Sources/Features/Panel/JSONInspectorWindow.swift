@@ -205,6 +205,8 @@ struct JSONInspectorRootView: View {
         }
         .onAppear(perform: parse)
         .onChange(of: state.text) { _ in parse() }
+        // 主题统一入口：JSON 检视器的强调色 + Midnight（此前两者都没接）
+        .frsetThemeChrome()
     }
 
     private func parse() {

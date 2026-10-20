@@ -247,14 +247,23 @@ enum PreviewMarkdownRenderer {
     }
 
     /// 裸代码语言猜测（只做高亮配色用；猜不到按通用处理）
-    private static func guessLanguage(_ lines: [String]) -> String {
+    static func guessLanguage(_ lines: [String]) -> String {
         let joined = lines.joined(separator: "\n")
-        if joined.contains("#include") || joined.contains("std::") { return "cpp" }
+        // 顺序有讲究：先判特征更强的语言，避免被通用关键字抢先
+        if joined.contains("#include") || joined.contains("std::") || joined.contains("using namespace") { return "cpp" }
+        if joined.contains("import SwiftUI") || joined.contains("import Foundation")
+            || joined.contains("@State") || joined.contains("@Published") || joined.contains("@objc") { return "swift" }
+        if joined.contains("func ") && (joined.contains("let ") || joined.contains("var ")
+            || joined.contains("->") || joined.contains("guard ")) { return "swift" }
+        if joined.contains("package ") && joined.contains("func ") { return "go" }
+        if joined.contains("fn ") && (joined.contains("let mut") || joined.contains("impl ")) { return "rust" }
+        if joined.contains("fun ") && (joined.contains("val ") || joined.contains("?: ")) { return "kotlin" }
+        if joined.contains("public class") && joined.contains("System.out") { return "java" }
         if joined.contains("def ") && joined.contains(":") { return "python" }
-        if joined.contains("func ") && joined.contains("let ") { return "swift" }
-        if joined.contains("import React") || joined.contains("const ") { return "js" }
+        if joined.contains("import React") || joined.contains("=>") || joined.contains("const ")
+            || joined.contains("console.log") { return "js" }
         if joined.contains("SELECT ") || joined.contains("select ") { return "sql" }
-        if joined.contains("#!/bin/") || joined.contains("echo ") { return "shell" }
+        if joined.contains("#!/bin/") || joined.contains("echo ") || joined.contains("sudo ") { return "shell" }
         return ""
     }
 
@@ -277,7 +286,12 @@ enum PreviewMarkdownRenderer {
         return p
     }
 
-    /// 行内 markdown（粗体/斜体/行内代码）→ 富文本；失败退回纯文本
+    /// 行内 markdown（粗体/斜体/行内代码/删除线/链接）→ 富文本；失败退回纯文本。
+    ///
+    /// 关键：`AttributedString(markdown:)` **不会**直接给出粗体字体，它给的是
+    /// `.inlinePresentationIntent`（stronglyEmphasized / emphasized / code / strikethrough）。
+    /// 旧实现只看 `.font` 的 traits，解析结果里根本没有该属性 → 粗体/斜体全部丢失，
+    /// 预览看起来"和纯文本一样"。这里改为按 intent 现算字重/字形。
     static func inlineAttributed(_ text: String, font: NSFont = baseFont) -> NSAttributedString {
         guard let parsed = try? AttributedString(
             markdown: text,
@@ -287,24 +301,50 @@ enum PreviewMarkdownRenderer {
         }
         let mutable = NSMutableAttributedString(attributedString: NSAttributedString(parsed))
         let full = NSRange(location: 0, length: mutable.length)
-        mutable.addAttribute(.foregroundColor, value: NSColor.labelColor, range: full)
-        // 行内代码：等宽 + 浅底（AttributedString 已给 inlinePresentationIntent 的 code 情形）
+        guard full.length > 0 else { return mutable }
+
+        // 统一底色与基字体（标题/正文各自的字号由调用方传入）
+        mutable.addAttributes([.foregroundColor: NSColor.labelColor, .font: font], range: full)
+
         mutable.enumerateAttribute(.inlinePresentationIntent, in: full) { value, range, _ in
-            guard let intent = value as? InlinePresentationIntent, intent.contains(.code) else { return }
-            mutable.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: font.pointSize - 0.5, weight: .regular), range: range)
-            mutable.addAttribute(.backgroundColor, value: NSColor.labelColor.withAlphaComponent(0.07), range: range)
-        }
-        // 非粗体/斜体区间统一基字体（保留粗斜体字形）
-        mutable.enumerateAttribute(.font, in: full) { value, range, _ in
-            guard let f = value as? NSFont else {
-                mutable.addAttribute(.font, value: font, range: range)
-                return
+            // 桥接差异：Foundation 把 inlinePresentationIntent 存成 NSNumber（NSInlinePresentationIntent），
+            // 直接 as? InlinePresentationIntent 永远失败——这正是粗体/斜体一直不生效的根因。
+            let intent: InlinePresentationIntent?
+            if let direct = value as? InlinePresentationIntent {
+                intent = direct
+            } else if let number = value as? NSNumber {
+                intent = InlinePresentationIntent(rawValue: number.uintValue)
+            } else {
+                intent = nil
             }
-            let traits = NSFontManager.shared.traits(of: f)
+            guard let intent else { return }
             var out = font
-            if traits.contains(.boldFontMask) { out = NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) }
-            if traits.contains(.italicFontMask) { out = NSFontManager.shared.convert(out, toHaveTrait: .italicFontMask) }
+            if intent.contains(.stronglyEmphasized) {
+                out = NSFontManager.shared.convert(out, toHaveTrait: .boldFontMask)
+            }
+            if intent.contains(.emphasized) {
+                out = NSFontManager.shared.convert(out, toHaveTrait: .italicFontMask)
+            }
+            if intent.contains(.code) {
+                out = NSFont.monospacedSystemFont(
+                    ofSize: font.pointSize - 0.5,
+                    weight: intent.contains(.stronglyEmphasized) ? .semibold : .regular)
+                mutable.addAttribute(.backgroundColor,
+                                     value: NSColor.labelColor.withAlphaComponent(0.07), range: range)
+            }
             mutable.addAttribute(.font, value: out, range: range)
+            if intent.contains(.strikethrough) {
+                mutable.addAttribute(.strikethroughStyle,
+                                     value: NSUnderlineStyle.single.rawValue, range: range)
+            }
+        }
+
+        // 链接：系统链接色 + 下划线（AttributedString 只给 .link，不会着色）
+        mutable.enumerateAttribute(.link, in: full) { value, range, _ in
+            guard value != nil else { return }
+            mutable.addAttributes([.foregroundColor: NSColor.linkColor,
+                                   .underlineStyle: NSUnderlineStyle.single.rawValue,
+                                   .cursor: NSCursor.pointingHand], range: range)
         }
         return mutable
     }
@@ -375,7 +415,17 @@ enum PreviewMarkdownRenderer {
 
     // MARK: 代码块 + 语法高亮
 
-    static func renderCode(lang: String, code: String) -> NSAttributedString {
+    /// 代码预览用：自动识别语言（无围栏的裸代码也走同一套配色）
+    static func detectLanguage(_ code: String) -> String {
+        guessLanguage(code.components(separatedBy: "\n"))
+    }
+
+    /// 代码体（无语言标签）：预览窗口代码态用，保证行号与源码行一一对应
+    static func renderCodeBody(lang: String, code: String) -> NSAttributedString {
+        renderCode(lang: lang, code: code, showLabel: false)
+    }
+
+    static func renderCode(lang: String, code: String, showLabel: Bool = true) -> NSAttributedString {
         let lowered = lang.lowercased()
         let isDiagram = lowered.hasPrefix("mermaid") || lowered.hasPrefix("plantuml")
 
@@ -386,7 +436,7 @@ enum PreviewMarkdownRenderer {
 
         let out = NSMutableAttributedString()
         // 语言标签（代码块美化：右上角小字，替代裸露的围栏标记）
-        if !lang.isEmpty {
+        if showLabel, !lang.isEmpty {
             out.append(NSAttributedString(string: lang + "\n", attributes: [
                 .font: NSFont.systemFont(ofSize: s(9), weight: .medium),
                 .foregroundColor: NSColor.tertiaryLabelColor,
@@ -539,18 +589,34 @@ enum PreviewMarkdownRenderer {
 
     // MARK: 表格
 
+    /// 显示宽度：东亚宽字符按 2 列计算。
+    /// 旧实现用 `String.count` 补空格——每行中文都算 1，等宽字体实际占 2 列，
+    /// 于是表格的行与行、列与列全部错位（用户看到的「表格没格式化」）。
+    static func displayWidth(_ text: String) -> Int {
+        var width = 0
+        for scalar in text.unicodeScalars {
+            let v = scalar.value
+            let wide = (0x1100...0x115F).contains(v) || (0x2E80...0xA4CF).contains(v)
+                || (0xAC00...0xD7A3).contains(v) || (0xF900...0xFAFF).contains(v)
+                || (0xFE30...0xFE4F).contains(v) || (0xFF00...0xFF60).contains(v)
+                || (0xFFE0...0xFFE6).contains(v) || (0x1F300...0x1FAFF).contains(v)
+            width += wide ? 2 : 1
+        }
+        return width
+    }
+
     private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
         guard let first = rows.first else { return NSAttributedString() }
         let cols = rows.map(\.count).max() ?? first.count
         var widths = Array(repeating: 4, count: cols)
         for row in rows {
             for (c, cell) in row.enumerated() where c < cols {
-                widths[c] = max(widths[c], cell.count)
+                widths[c] = max(widths[c], displayWidth(cell))
             }
         }
-        func pad(_ s: String, _ w: Int) -> String {
-            let count = s.count
-            return count >= w ? s : s + String(repeating: " ", count: w - count)
+        func pad(_ text: String, _ w: Int) -> String {
+            let count = displayWidth(text)
+            return count >= w ? text : text + String(repeating: " ", count: w - count)
         }
         let out = NSMutableAttributedString()
         for (r, row) in rows.enumerated() {
