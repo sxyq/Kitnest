@@ -165,6 +165,65 @@ struct GlassCardBackground: View {
     }
 }
 
+// MARK: - 白色玻璃卡（v110 三级玻璃之「内容卡」层）
+//
+// 三级玻璃口径（2026-10-21 用户）：
+//   L1 页面底（FloatingPanel 窗玻璃）——最淡，衬底
+//   L2 内容卡（剪贴板行 / 日历卡）——白色玻璃 + liquid 镀边（本样式）
+//   L3 工具条胶囊——半透明真玻璃，第三种质感
+// 卡片不叠真玻璃（逐卡模糊掉帧）：白渐变实底 + 斜向高光 + 顶部亮边 + 柔投影，
+// 即「liquid glass 质感」的卡片表达（亮边与高光是质感来源，不是模糊）。
+
+struct WhiteGlassCard: ViewModifier {
+    var cornerRadius: CGFloat = 12
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var dark: Bool { colorScheme == .dark }
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        content
+            .background(
+                ZStack {
+                    // 白玻璃基底：上亮下微暗的纵向渐变（玻璃的厚薄感）
+                    shape.fill(
+                        LinearGradient(
+                            colors: dark
+                                ? [Color.white.opacity(0.12), Color.white.opacity(0.05)]
+                                : [Color.white.opacity(0.93), Color.white.opacity(0.80)],
+                            startPoint: .top, endPoint: .bottom)
+                    )
+                    // 斜向高光（liquid 反光层）
+                    shape.fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(dark ? 0.10 : 0.42), .clear],
+                            startPoint: .topLeading, endPoint: .bottomTrailing)
+                    )
+                }
+            )
+            .overlay(
+                // liquid 镀边：顶部亮边（白 85%）→ 底部转深（玻璃边缘折光）
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(dark ? 0.24 : 0.85),
+                            Color.white.opacity(dark ? 0.06 : 0.22),
+                            Color.primary.opacity(0.08),
+                        ],
+                        startPoint: .top, endPoint: .bottom),
+                    lineWidth: 0.6)
+            )
+            .shadow(color: .black.opacity(dark ? 0.22 : 0.08), radius: 8, x: 0, y: 2)
+    }
+}
+
+extension View {
+    /// 白色玻璃卡（内容卡层）：圆角可覆盖（默认 12）
+    func whiteGlassCard(_ radius: CGFloat = 12) -> some View {
+        modifier(WhiteGlassCard(cornerRadius: radius))
+    }
+}
+
 // MARK: - 按压回弹按钮样式（工具条 / 图标按钮）
 //
 // 只动 transform + opacity，短促 0.16s；指针设备高频操作不拖泥带水。

@@ -511,14 +511,24 @@ struct PanelRootView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
+        // v110（三级玻璃 L3 工具条胶囊）：半透明真玻璃——与页面底（更淡）、
+        // 白卡片（实底白玻璃）都不同的第三种质感；亮边 + 浮起投影。
         .background(
-            Capsule(style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
-                .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
+            ZStack {
+                Capsule(style: .continuous).fill(.ultraThinMaterial)
+                Capsule(style: .continuous)
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.55))
+            }
+            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.55), Color.white.opacity(0.12),
+                                 Color.primary.opacity(0.10)],
+                        startPoint: .top, endPoint: .bottom),
+                    lineWidth: 0.6)
         )
         .fixedSize()
     }

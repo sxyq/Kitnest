@@ -46,7 +46,7 @@ public final class FloatingPanel: NSPanel {
         hosting.sizingOptions = []
         if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
         let glass = NSVisualEffectView()
-        glass.material = .popover
+        glass.material = .hudWindow   // v110：页面底减淡（L1 最淡衬底）
         glass.blendingMode = .behindWindow
         glass.state = .active
         glass.wantsLayer = true
@@ -75,10 +75,12 @@ extension FloatingPanel {
     public func applyPersonalizedMaterial() {
         let radius = Personalization.shared.cornerRadius
         if #available(macOS 26.0, *), let glass = contentView as? NSGlassEffectView {
-            glass.tintColor = NSColor.windowBackgroundColor.withAlphaComponent(0.55)
+            // v110（三级玻璃 L1）：0.55 → 0.32——页面底减淡（用户「玻璃有点深了」）
+            glass.tintColor = NSColor.windowBackgroundColor.withAlphaComponent(0.32)
             glass.cornerRadius = radius
         } else if let effect = contentView as? NSVisualEffectView {
-            effect.material = .popover
+            // v110：popover（偏深）→ hudWindow（更轻的系统玻璃）
+            effect.material = .hudWindow
             effect.blendingMode = .behindWindow
             effect.layer?.cornerRadius = radius
         } else if let bg = contentView {

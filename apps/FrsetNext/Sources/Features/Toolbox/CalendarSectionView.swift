@@ -47,14 +47,8 @@ public struct CalendarSectionView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
-        )
+        // v110：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
+        .whiteGlassCard(14)
         .background(
             GeometryReader { geo in
                 Color.clear

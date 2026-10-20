@@ -386,20 +386,10 @@ public struct ClipboardRow: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-        .background(
-            // v99（2026-10-21 用户：「间距拉开、圆角矩形小卡片、间隙透出玻璃底」）：
-            // 圆角抬到 ≥12（比个性化档位更饱满），卡内边距 12/10，
-            // 配 14pt 行距——每条都是独立小模块，间隙透出面板玻璃态背景。
-            RoundedRectangle(cornerRadius: Self.cardRadius, style: .continuous)
-                .fill(rowFill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Self.cardRadius, style: .continuous)
-                .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08),
-                              lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.22 : 0.08),
-                radius: 3, x: 0, y: 1.5)
+        // v110（2026-10-21 用户：「白色玻璃态要有 liquid glass 质感」）：
+        // 统一走设计系统 WhiteGlassCard——白渐变 + 斜向高光 + liquid 镀边 + 柔投影
+        // （三级玻璃 L2 内容卡层，与页面玻璃/工具条胶囊质感区分）。
+        .whiteGlassCard(Self.cardRadius)
     }
 
     /// 小卡片圆角（不低于 12，个性化档位可再放大）
