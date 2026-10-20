@@ -409,7 +409,12 @@ public final class StatsDataProvider {
                     )
                     sensorMeta[key] = meta
                 }
-                items.append(StatsSensorItem(key: key, name: meta.name, category: Int(meta.type),
+                // category 必须用**扫描层的字母分类**（categorize：0温1扇2压3流4功5能），
+                // 与 StatsSensorItem 文档和 UI 各分节过滤一致；名表 type 是另一套枚举
+                // （0温1压2流3功4能5扇），直接搬过来会把电压/电流/功率/能耗全部错位、
+                // 未收录键（如 BDAT，type=-1）更无类可归——2026-10-20 用户实证
+                // 「传感器获取到的数据不对（BDAT 显示 5388°）」。
+                items.append(StatsSensorItem(key: key, name: meta.name, category: Int(raw.category),
                                              group: Int(meta.group), value: raw.value))
                 // 计算项口径：group∈{CPU(1),GPU(2)} 且 type=温度(0) 且官方 average 标记
                 if meta.type == 0 && meta.isAvg == 1 {

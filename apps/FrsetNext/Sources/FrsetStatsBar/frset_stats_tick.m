@@ -75,12 +75,17 @@ int FSBarCopySensorKeys(char keys[][8], double *values, int max) {
         }
     }
     int n = atomic_load_explicit(&s_sensorCountA, memory_order_acquire);
-    n = n < max ? n : max;
-    for (int i = 0; i < n; i++) {
-        memcpy(keys[i], s_sensors[i].key, 8);
-        if (values) values[i] = s_sensors[i].value;
+    // v88（2026-10-20 用户实证「BDAT 显示 5388°」）：温度模块的传感器选择器
+    // 只列**温度类**键（category==0，即 T*）；此前把全部扫描键（含 B*/V*/P* 的
+    // 电池数据/电压/功率）都塞进选项，选中后又被当温度打「°」，数据就错了。
+    int cnt = 0;
+    for (int i = 0; i < n && cnt < max; i++) {
+        if (s_sensors[i].category != 0) continue;
+        memcpy(keys[cnt], s_sensors[i].key, 8);
+        if (values) values[cnt] = s_sensors[i].value;
+        cnt++;
     }
-    return n;
+    return cnt;
 }
 
 // ---- v14 诊断接口（引擎声明、注入层实现；重建版保留空实现以满足链接）----
@@ -157,13 +162,30 @@ static void statsTick(void) {
         g_snap.gpuTemp = tn > 0 ? tb[0].value : 0;
     }
     {
+        // v88（2026-10-20 用户实证「BDAT 显示 5388°」）：温度模块的取值同样只认
+        // 温度类键（category==0）；配置的键不存在/不是温度时回退「当前最热温度」，
+        // 不再把电池数据（B*）等非温度值当摄氏度展示。
         int sensorCount = atomic_load_explicit(&s_sensorCountA, memory_order_acquire);
         NSString *sk = FSBarCfgStr(@"Sensors", nil, @"sensor", @"PPBR");
         strncpy(g_snap.sensorKey, sk.UTF8String ?: "PPBR", 7);
         g_snap.sensorKey[7] = 0;
         g_snap.sensorValue = 0;
+        int found = 0;
         for (int i = 0; i < sensorCount; i++) {
-            if (strcmp(s_sensors[i].key, g_snap.sensorKey) == 0) { g_snap.sensorValue = s_sensors[i].value; break; }
+            if (strcmp(s_sensors[i].key, g_snap.sensorKey) == 0 && s_sensors[i].category == 0) {
+                g_snap.sensorValue = s_sensors[i].value; found = 1; break;
+            }
+        }
+        if (!found) {
+            double best = -9999; const char *bestKey = NULL;
+            for (int i = 0; i < sensorCount; i++) {
+                if (s_sensors[i].category != 0) continue;
+                if (s_sensors[i].value > best) { best = s_sensors[i].value; bestKey = s_sensors[i].key; }
+            }
+            if (bestKey) {
+                strncpy(g_snap.sensorKey, bestKey, 7); g_snap.sensorKey[7] = 0;
+                g_snap.sensorValue = best;
+            }
         }
     }
 }

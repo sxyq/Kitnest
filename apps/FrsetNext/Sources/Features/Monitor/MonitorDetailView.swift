@@ -122,10 +122,16 @@ public struct MonitorDetailView: View {
     }
 
     /// 可选模块：过滤掉无数据的项，但始终保留当前选中项
+    /// v88（2026-10-20 用户反馈「监测设置改变后没有生效」）：设置里关掉的模块
+    /// 此前只影响状态栏项、不从监测中心过滤——补上开关过滤（当前选中项保留，
+    /// 避免选中态突然消失）。
     private func availableModules() -> [MonitorModuleID] {
         var modules: [MonitorModuleID] = []
         let stats = StatsDataProvider.shared.current
         for module in MonitorModuleID.allCases {
+            if !MonitorPreferences.isModuleEnabled(module), selection.module != module {
+                continue
+            }
             switch module {
             case .sensors:
                 if MonitorPreferences.showTemperatures { modules.append(module) }

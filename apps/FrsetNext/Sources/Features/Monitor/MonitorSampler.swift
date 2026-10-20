@@ -135,7 +135,10 @@ public final class MonitorSampler: ObservableObject {
     /// 依据偏好决定：是否运行、采样间隔、是否读温度
     private func applyPreferences() {
         let enabled = MonitorPreferences.isEnabled
+        // v88：传感器模块关掉后**不再采集**温度（设置页承诺口径）；
+        // 另受「采集温度」高级开关与总开关共同控制
         reader.temperatureEnabled = MonitorPreferences.showTemperatures
+            && MonitorPreferences.isModuleEnabled(.sensors)
 
         if !enabled {
             stop()
