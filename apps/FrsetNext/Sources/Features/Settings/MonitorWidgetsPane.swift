@@ -110,18 +110,21 @@ struct MonitorWidgetsPane: View {
                         .labelsHidden()
                         .controlSize(.small)
                 }
-                if FSBarMergedEnabled() {
-                    SettingsDivider()
-                    SettingsRow(title: "模块间距") {
-                        Picker("", selection: spacingBinding) {
-                            ForEach(Self.spacingItems, id: \.0) { item in
-                                Text(item.1).tag(item.0)
-                            }
+                SettingsDivider()
+                // v89（2026-10-20 用户：「各个部件的间距用统一的一个设置」）：
+                // 一个间距设置统一作用于所有部件内部间隙 + 合并条部件间距（不再各处分散）
+                SettingsRow(title: "部件间距",
+                           subtitle: "统一作用于所有部件（图标/标签/数值间隙）与合并后的部件间距") {
+                    Picker("", selection: spacingBinding) {
+                        ForEach(Self.spacingItems, id: \.0) { item in
+                            Text(item.1).tag(item.0)
                         }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .fixedSize()
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+                if FSBarMergedEnabled() {
                     SettingsDivider()
                     SettingsRow(title: "分隔线",
                                subtitle: "模块之间画 1pt 竖线") {
@@ -372,9 +375,11 @@ struct MonitorWidgetsPane: View {
 
     private var spacingBinding: Binding<String> {
         Binding(get: {
-            (FSBarGlobalRaw("CombinedModules_spacing") as? String) ?? "none"
+            if let v = FSBarGlobalRaw("Widgets_spacing") as? String, !v.isEmpty { return v }
+            return (FSBarGlobalRaw("CombinedModules_spacing") as? String) ?? "2"
         }, set: { value in
-            FSBarGlobalSet("CombinedModules_spacing", value)
+            FSBarGlobalSet("Widgets_spacing", value)
+            FSBarGlobalSet("CombinedModules_spacing", value)   // 迁移兼容：旧读点同步
             FSBarReloadFromStore()
             bump()
         })
@@ -494,9 +499,11 @@ extension MonitorWidgetsPane {
         (10, "10 秒"), (15, "15 秒"), (30, "30 秒"), (60, "60 秒")
     ]
 
+    /// v89 统一间距档位（pt；Widgets_spacing，作用于所有部件间隙与合并间距）
     static let spacingItems: [(String, String)] = [
-        ("none", "无"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"),
-        ("5", "5"), ("6", "6"), ("7", "7"), ("8", "8")
+        ("none", "无"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"),
+        ("6", "6"), ("7", "7"), ("8", "8"), ("9", "9"), ("10", "10"),
+        ("11", "11"), ("12", "12")
     ]
 
     static let alignItems: [(String, String)] = [
@@ -603,6 +610,35 @@ extension MonitorWidgetsPane {
                     .color("上传颜色", "uploadColor")
                 ])
             ]
+        case "ring":
+            return [OptionGroup(title: "外观", options: [
+                .toggle("标签", "label", false),
+                .color("颜色", "color"),
+                .toggle("单色强调", "monochrome", false)
+            ])]
+        case "wave":
+            return [
+                OptionGroup(title: "显示", options: [
+                    .toggle("标签", "label", false)
+                ]),
+                OptionGroup(title: "外观", options: [
+                    .color("颜色", "color")
+                ]),
+                OptionGroup(title: "数据", options: [
+                    .menu("历史点数", "historyCount", historyItems, "60")
+                ])
+            ]
+        case "dots":
+            return [OptionGroup(title: "外观", options: [
+                .toggle("标签", "label", false),
+                .color("颜色", "color"),
+                .toggle("单色强调", "monochrome", false)
+            ])]
+        case "bar":
+            return [OptionGroup(title: "外观", options: [
+                .toggle("标签", "label", false),
+                .color("颜色", "color")
+            ])]
         case "memory":
             return [OptionGroup(title: "外观", options: [
                 .color("颜色", "color"),

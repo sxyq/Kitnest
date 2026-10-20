@@ -40,14 +40,21 @@ static int FSBarModuleIndex(NSString *m) {
 }
 
 // 各模块支持的部件形态（顺序即设置列表顺序；第 1 个接管原生图标位）
-NSArray<NSString *> *FSBarFormsForModule(NSString *m) {    if ([m isEqualToString:@"CPU"])     return @[@"line_chart", @"mini", @"bar_chart", @"pie_chart", @"tachometer", @"label", @"icon"];
-    if ([m isEqualToString:@"RAM"])     return @[@"bar_chart", @"mini", @"line_chart", @"pie_chart", @"memory", @"tachometer", @"label", @"icon"];
-    if ([m isEqualToString:@"GPU"])     return @[@"mini", @"line_chart", @"tachometer", @"label", @"icon"];
-    if ([m isEqualToString:@"Disk"])    return @[@"mini", @"bar_chart", @"network_chart", @"speed", @"pie_chart", @"line_chart", @"memory", @"label", @"icon"];
-    if ([m isEqualToString:@"Network"]) return @[@"speed", @"network_chart", @"state", @"label", @"icon"];
-    if ([m isEqualToString:@"Sensors"]) return @[@"mini", @"label", @"icon"];
-    if ([m isEqualToString:@"Battery"]) return @[@"mini", @"battery", @"bar_chart", @"state", @"label", @"icon"];
-    return @[];
+NSArray<NSString *> *FSBarFormsForModule(NSString *m) {
+    // v89（2026-10-20 用户：「展示方式不够多，原版每个数值都有很多方式」）：
+    // 通用形态（迷你/折线/柱状/饼/仪表/环形/波形/点阵/进度条/标签/图标）全模块放开，
+    // 模块专属形态（speed/memory/network_chart/battery/state）保持原样。
+    NSArray<NSString *> *common = @[@"mini", @"line_chart", @"bar_chart", @"pie_chart",
+                                    @"tachometer", @"ring", @"wave", @"dots", @"bar",
+                                    @"label", @"icon"];
+    if ([m isEqualToString:@"CPU"])     return @[@"line_chart", @"mini", @"bar_chart", @"pie_chart", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"];
+    if ([m isEqualToString:@"RAM"])     return @[@"bar_chart", @"mini", @"line_chart", @"pie_chart", @"memory", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"];
+    if ([m isEqualToString:@"GPU"])     return @[@"mini", @"line_chart", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"pie_chart", @"label", @"icon"];
+    if ([m isEqualToString:@"Disk"])    return @[@"mini", @"bar_chart", @"network_chart", @"speed", @"pie_chart", @"line_chart", @"memory", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"];
+    if ([m isEqualToString:@"Network"]) return @[@"speed", @"network_chart", @"wave", @"dots", @"state", @"label", @"icon"];
+    if ([m isEqualToString:@"Sensors"]) return @[@"mini", @"ring", @"bar", @"wave", @"dots", @"label", @"icon"];
+    if ([m isEqualToString:@"Battery"]) return @[@"mini", @"battery", @"bar_chart", @"ring", @"wave", @"dots", @"bar", @"state", @"label", @"icon"];
+    return common;
 }
 
 // 形态中文名（设置界面用）
@@ -58,7 +65,8 @@ NSString *FSBarFormName(NSString *form) {
         map = @{@"mini": @"迷你（数值）", @"line_chart": @"折线图", @"bar_chart": @"柱状图",
                 @"pie_chart": @"饼图", @"network_chart": @"网络图", @"speed": @"速度",
                 @"memory": @"内存", @"tachometer": @"仪表盘", @"battery": @"电池",
-                @"label": @"标签", @"state": @"状态点", @"icon": @"图标"};
+                @"label": @"标签", @"state": @"状态点", @"icon": @"图标",
+                @"ring": @"环形图", @"wave": @"波形图", @"dots": @"点阵", @"bar": @"进度条"};
     });
     return map[form] ?: form;
 }
@@ -284,9 +292,25 @@ static NSString *FSBarGlobalStr(NSString *key, NSString *def) {
 // v44 移植（注入版）：默认拆分（用户要求"状态栏组件拆分"；合并需在设置里显式开启）
 BOOL FSBarMergedEnabled(void)   { return FSBarGlobalBool(@"CombinedModules", NO); }
 BOOL FSBarMergedSeparator(void) { return FSBarGlobalBool(@"CombinedModules_separator", YES); }
-CGFloat FSBarMergedSpacing(void) {
-    NSString *s = FSBarGlobalStr(@"CombinedModules_spacing", @"none");
+// v89（2026-10-20 用户：「各个部件的间距用统一的一个设置」）：
+//   统一间距键 Widgets_spacing（0-12，pt）——同时作用于
+//   · 合并条内「部件与部件」的间距（原 CombinedModules_spacing）
+//   · 各部件内部「图标/标签/数值」的间隙（原硬编码 2/6/12）
+//   旧键 CombinedModules_spacing 仅作迁移兼容（新键未设时读旧值）。
+CGFloat FSBarWidgetSpacing(void) {
+    NSString *s = FSBarGlobalStr(@"Widgets_spacing", nil);
+    if (!s || s.length == 0) s = FSBarGlobalStr(@"CombinedModules_spacing", @"2");
     if ([s isEqualToString:@"none"]) return 0;
+    double v = s.doubleValue;
+    if (v <= 0 && ![s isEqualToString:@"0"]) return 2;
+    return (CGFloat)MAX(0, MIN(12, v));
+}
+
+CGFloat FSBarMergedSpacing(void) {
+    NSString *s = FSBarGlobalStr(@"Widgets_spacing", nil);
+    if (!s || s.length == 0) s = FSBarGlobalStr(@"CombinedModules_spacing", @"none");
+    if ([s isEqualToString:@"none"]) return 0;
+    if ([s isEqualToString:@"Widgets_uniform"]) return FSBarWidgetSpacing();
     return (CGFloat)MIN(8, MAX(0, [s intValue]));
 }
 
@@ -676,19 +700,30 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         if (display.length > 1) row = row * 2 + 6;
         return row;
     }
-    if ([_form isEqualToString:@"line_chart"]) {
+    CGFloat gap = FSBarWidgetSpacing();
+    if ([_form isEqualToString:@"line_chart"] || [_form isEqualToString:@"wave"]) {
         // Stats LineChart.width：30→24 / 60→32 / 90→42 / 120→52；label 再 +（6 + spacing）
         int hc = FSBarCfgInt(_module, _form, @"historyCount", 60);
         CGFloat w = (hc <= 30) ? 24 : (hc <= 60 ? 32 : (hc <= 90 ? 42 : 52));
-        return w + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + 2) : 0);
+        return w + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"bar_chart"]) {
         // Stats BarChart.draw：单条（RAM 单柱）→ 10 + offset*2 ≈ 11
-        return 11 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + 2) : 0);
+        return 11 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"network_chart"]) {
         // Stats NetworkChart init：30 + label?(6 + spacing)
-        return 30 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + 2) : 0);
+        return 30 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+    }
+    if ([_form isEqualToString:@"ring"]) {
+        CGFloat size = MIN(self.bounds.size.height, 20);
+        return size + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+    }
+    if ([_form isEqualToString:@"dots"]) {
+        return 20 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+    }
+    if ([_form isEqualToString:@"bar"]) {
+        return 28 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"memory"]) {
         // Stats Memory：width 50 + symbols?(letterWidth 8 + spacing*2 = 12)
@@ -697,7 +732,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     if ([_form isEqualToString:@"pie_chart"] || [_form isEqualToString:@"tachometer"]) {
         // Stats：size(=height) + label?(6 + spacing)；本实现 size = MIN(h, 20)
         CGFloat size = MIN(self.bounds.size.height, 20);
-        return size + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + 2) : 0);
+        return size + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"battery"]) {
         NSString *disp = FSBarCfgStr(_module, _form, @"display", @"percentage");
@@ -788,6 +823,10 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     else if ([_form isEqualToString:@"bar_chart"]) { [self drawBarChart:cr dark:dark]; }
     else if ([_form isEqualToString:@"pie_chart"]) { [self drawPie:cr dark:dark]; }
     else if ([_form isEqualToString:@"tachometer"]) { [self drawTachometer:cr dark:dark]; }
+    else if ([_form isEqualToString:@"ring"]) { [self drawRing:cr dark:dark]; }
+    else if ([_form isEqualToString:@"wave"]) { [self drawWave:cr dark:dark]; }
+    else if ([_form isEqualToString:@"dots"]) { [self drawDots:cr dark:dark]; }
+    else if ([_form isEqualToString:@"bar"]) { [self drawProgressBar:cr dark:dark]; }
     else if ([_form isEqualToString:@"line_chart"]) { [self drawLineChart:cr dark:dark]; }
     else if ([_form isEqualToString:@"network_chart"]) { [self drawNetworkChart:cr dark:dark]; }
     else if ([_form isEqualToString:@"memory"]) { [self drawMemory:cr dark:dark]; }
@@ -1105,6 +1144,147 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     NSDictionary *attrs = @{NSFontAttributeName: [NSFont systemFontOfSize:9 weight:NSFontWeightRegular],
                             NSForegroundColorAttributeName: FSBarTextColor(dark)};
     FSBarTextCenter(str, attrs, x + size / 2, r.size.height - 6);
+}
+
+// ======== 形态 13：ring（环形图——整圆环 + 中心值；对比 tachometer 半圆仪表） ========
+- (void)drawRing:(NSRect)r dark:(BOOL)dark {
+    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
+    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
+    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    CGFloat x = label ? 8 : 0;
+    if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
+    CGFloat size = MIN(r.size.height, 20);
+    NSPoint center = NSMakePoint(x + size / 2, r.size.height / 2);
+    CGFloat radius = size / 2 - 2.2;
+    double v = MIN(1.0, MAX(0.0, [self primaryValue]));
+    NSBezierPath *track = [NSBezierPath bezierPathWithOvalInRect:
+                           NSMakeRect(center.x - radius, center.y - radius, radius * 2, radius * 2)];
+    track.lineWidth = 3.2;
+    [[[NSColor labelColor] colorWithAlphaComponent:0.15] setStroke];
+    [track stroke];
+    if (v > 0.008) {
+        NSBezierPath *prog = [NSBezierPath bezierPath];
+        [prog appendBezierPathWithArcWithCenter:center radius:radius
+                                    startAngle:90 endAngle:90 - 360 * v clockwise:YES];
+        prog.lineWidth = 3.2;
+        prog.lineCapStyle = NSLineCapStyleRound;
+        NSColor *c = mono ? [self inverseColor:dark] : FSBarColorFromKey(colorKey, dark, v);
+        [c setStroke];
+        [prog stroke];
+    }
+    NSString *str = nil, *suf = nil;
+    FSBarModuleValue(&_snap, _module, &str, &suf);
+    NSDictionary *attrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightMedium],
+                            NSForegroundColorAttributeName: FSBarTextColor(dark)};
+    FSBarTextCenter(str, attrs, center.x, center.y + 3);
+}
+
+// ======== 形态 14：wave（波形图——平滑曲线 + 渐变填充，折线图的柔和版） ========
+- (void)drawWave:(NSRect)r dark:(BOOL)dark {
+    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
+    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    int hc = FSBarCfgInt(_module, _form, @"historyCount", 60);
+    CGFloat x = label ? 8 : 0;
+    if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
+    CGFloat w = (hc <= 30 ? 24 : (hc <= 60 ? 32 : (hc <= 90 ? 42 : 52)));
+    CGFloat chartH = r.size.height - 2;
+    NSColor *lineC = FSBarColorFromKey(colorKey, dark, [self primaryValue]);
+
+    int slots = hc;
+    int n = MIN(_histN, slots);
+    if (n < 2 || chartH < 4) return;
+    double maxV = 0;
+    for (int i = _histN - n; i < _histN; i++) if (_hist[i] > maxV) maxV = _hist[i];
+    BOOL ratio = FSBarModuleIsRatio(_module);
+    if (maxV <= 0) maxV = 1;
+
+    [NSGraphicsContext saveGraphicsState];
+    NSRectClip(NSMakeRect(x, 1, w, chartH));
+    CGFloat dx = (w - 2) / (CGFloat)(slots - 1);
+    NSMutableArray<NSValue *> *pts = [NSMutableArray array];
+    for (int j = 0; j < n; j++) {
+        double raw = _hist[_histN - n + j];
+        double f = ratio ? MIN(1.0, raw) : MIN(1.0, raw / maxV);
+        CGFloat px = x + 1 + (w - 2) - (CGFloat)(n - 1 - j) * dx;
+        CGFloat py = 1 + chartH - 1 - (CGFloat)f * (chartH - 3);
+        [pts addObject:[NSValue valueWithPoint:NSMakePoint(px, py)]];
+    }
+    // 二次贝塞尔平滑（中点法）——与折线图的硬折线区分
+    NSBezierPath *wave = [NSBezierPath bezierPath];
+    NSPoint p0 = pts.firstObject.pointValue;
+    [wave moveToPoint:p0];
+    for (NSUInteger i = 1; i + 1 < pts.count; i++) {
+        NSPoint cur = pts[i].pointValue;
+        NSPoint nxt = pts[i + 1].pointValue;
+        NSPoint mid = NSMakePoint((cur.x + nxt.x) / 2, (cur.y + nxt.y) / 2);
+        [wave curveToPoint:mid controlPoint1:cur controlPoint2:cur];
+    }
+    [wave lineToPoint:pts.lastObject.pointValue];
+    NSBezierPath *area = [wave copy];
+    CGFloat lastX = pts.lastObject.pointValue.x;
+    [area lineToPoint:NSMakePoint(lastX, 1 + chartH - 0.5)];
+    [area lineToPoint:NSMakePoint(p0.x, 1 + chartH - 0.5)];
+    [area closePath];
+    NSGradient *grad = [[NSGradient alloc] initWithColors:@[
+        [lineC colorWithAlphaComponent:0.08], [lineC colorWithAlphaComponent:0.55]]];
+    [grad drawInBezierPath:area angle:90];
+    wave.lineWidth = 1.2;
+    wave.lineJoinStyle = NSLineJoinStyleRound;
+    [lineC setStroke];
+    [wave stroke];
+    [NSGraphicsContext restoreGraphicsState];
+}
+
+// ======== 形态 15：dots（点阵——2×4 活动点，按比例点亮） ========
+- (void)drawDots:(NSRect)r dark:(BOOL)dark {
+    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
+    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
+    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    CGFloat x = label ? 8 : 0;
+    if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
+    const int cols = 4, rows = 2;
+    const int total = cols * rows;
+    double v = MIN(1.0, MAX(0.0, [self primaryValue]));
+    int lit = (int)llround(v * total);
+    CGFloat cellW = 20.0 / cols, cellH = MIN(r.size.height, 16.0) / rows;
+    CGFloat top = (r.size.height - cellH * rows) / 2;
+    NSColor *on = mono ? [self inverseColor:dark] : FSBarColorFromKey(colorKey, dark, v);
+    NSColor *off = [[NSColor labelColor] colorWithAlphaComponent:0.18];
+    for (int i = 0; i < total; i++) {
+        int row = i / cols, col = i % cols;
+        CGFloat cx = x + col * cellW + cellW / 2;
+        CGFloat cy = top + (rows - 1 - row) * cellH + cellH / 2;
+        CGFloat d = MIN(cellW, cellH) * 0.55;
+        // 自左上往右下点亮
+        NSBezierPath *dot = [NSBezierPath bezierPathWithOvalInRect:
+                             NSMakeRect(cx - d / 2, cy - d / 2, d, d)];
+        [(i < lit ? on : off) setFill];
+        [dot fill];
+    }
+}
+
+// ======== 形态 16：bar（进度条——横向圆角条 + 右侧数值） ========
+- (void)drawProgressBar:(NSRect)r dark:(BOOL)dark {
+    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
+    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    CGFloat x = label ? 8 : 0;
+    if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
+    double v = MIN(1.0, MAX(0.0, [self primaryValue]));
+    CGFloat barH = 6;
+    CGFloat barY = (r.size.height - barH) / 2;
+    CGFloat barW = 28;
+    NSBezierPath *track = [NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x, barY, barW, barH)
+                                                          xRadius:barH / 2 yRadius:barH / 2];
+    [[[NSColor labelColor] colorWithAlphaComponent:0.15] setFill];
+    [track fill];
+    if (v > 0.01) {
+        NSBezierPath *fill = [NSBezierPath bezierPathWithRoundedRect:
+                              NSMakeRect(x, barY, MAX(barH, barW * v), barH)
+                                                            xRadius:barH / 2 yRadius:barH / 2];
+        NSColor *c = FSBarColorFromKey(colorKey, dark, v);
+        [c setFill];
+        [fill fill];
+    }
 }
 
 // ======== 形态 6：line_chart（Stats LineChart.swift + LineChartView，右锚定 60 槽） ========
