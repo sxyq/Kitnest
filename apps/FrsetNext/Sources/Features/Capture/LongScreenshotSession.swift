@@ -220,11 +220,18 @@ final class LongScreenshotSession {
         // （原作立即数，枚举名按 CG 常量表推断，spec 15 §7.7 标注⬜）
         // 2026-10-18：改走 ScreenSnapshot 的 dlsym 兼容层——CGWindowListCreateImage
         // 在 macOS 15 被 obsoleted（直接调用返回 nil，长截图因此连续采帧失败终止）。
-        guard let img = ScreenSnapshot.legacyCapture(
+        // v108（2026-10-21 用户：「滑动后没有正确记录形成长截图」）：
+        // legacy CGWindowListCreateImage 在 macOS 15+ 已被移除（macOS 27 实测
+        // dlsym 路径返回 nil → 采帧连续失败 → 无有效画布）。回退 ScreenCaptureKit。
+        var img = ScreenSnapshot.legacyCapture(
                 rect: bounds,
                 option: CGWindowListOption(rawValue: 0x14),
                 windowID: windowID,
-                imageOption: CGWindowImageOption(rawValue: 8)) else { return nil }
+                imageOption: CGWindowImageOption(rawValue: 8))
+        if img == nil, #available(macOS 14.0, *) {
+            img = ScreenSnapshot.sckCaptureSync(displayID: displayID)
+        }
+        guard let img else { return nil }
         let rect = selectionRectCG
         let reqWidth = max(rect.width, 1)
         // scale = imgWidth / reqWidth（@0x10045ae8c 起）

@@ -63,6 +63,22 @@ enum ScreenSnapshot {
         return CGDirectDisplayID(num.uint32Value)
     }
 
+    /// 同步版 ScreenCaptureKit 抓整屏（v108：长截图采帧用）。
+    /// legacy dlsym 路径在 macOS 15+ 被移除后返回 nil（实测 macOS 27 采帧
+    /// 连续失败 → 无有效画布）；此封装在**后台队列**信号量等待异步 SCK，
+    /// 禁止主线程调用。
+    @available(macOS 14.0, *)
+    static func sckCaptureSync(displayID: CGDirectDisplayID) -> CGImage? {
+        let sem = DispatchSemaphore(value: 0)
+        var img: CGImage?
+        Task {
+            img = try? await sckCapture(displayID: displayID)
+            sem.signal()
+        }
+        sem.wait()
+        return img
+    }
+
     /// ScreenCaptureKit 抓整屏（macOS 14+）
     @available(macOS 14.0, *)
     static func sckCapture(displayID: CGDirectDisplayID) async throws -> CGImage {

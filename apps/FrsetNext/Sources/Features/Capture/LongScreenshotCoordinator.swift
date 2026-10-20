@@ -137,6 +137,9 @@ final class LongScreenshotCoordinator: NSObject {
 
     /// 进入选区阶段（复用截图覆盖层：每屏一层，框选后启动会话）
     func beginSelection() {
+        // v108（用户：「点击之后没有提示开始运行」）：进入框选即给提示
+        Toast.show("长截图：请框选要捕获的区域（Esc 取消）",
+                   icon: "crop")
         guard session == nil else { return }   // 已有会话进行中
         Task { @MainActor in
             // v32：权限以真实抓屏能力为准（preflight 会假阴性）
