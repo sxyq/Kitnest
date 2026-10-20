@@ -166,6 +166,17 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.alphaValue = 0
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
+        // 统一「点外/失焦收起」：全工程唯一实现（Core/TransientWindows）
+        TransientWindowCenter.shared.register(
+            window: p,
+            isPinned: { [weak self] in self?.isPinned ?? false },
+            allowsClickIn: { win in
+                // 自家 sheet / 预览窗取得 key 时保持面板（原先散落在 resignKey 里的三条例外）
+                if win.isSheet || win.sheetParent != nil { return true }
+                let id = win.identifier?.rawValue
+                return id == "frset.clipboardPreview" || id == "frset.panelPreviewPopover"
+            },
+            onDismiss: { [weak self] in self?.hide() })
         // 主面板可见期间按用户间隔采样（与独立窗同一节奏；不含此项时主面板
         // 性能页处于「隐藏态 5s」降频，而独立窗是 1.5s——用户说的两套时间）
         MonitorSampler.shared.setHomePanelActive(true)
@@ -196,6 +207,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     public func hide() {
         guard let p = panel, p.isVisible else { return }
+        TransientWindowCenter.shared.unregister(window: p)
         Log.info("Panel", "hide: 开始收起")
         RenderProbe.snapshot(p, name: "panel", reason: "hideStart")
         persistSize(p)
@@ -304,7 +316,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
            key.identifier?.rawValue == "frset.panelPreviewPopover" {
             return
         }
-        hide()
+        TransientWindowCenter.shared.requestDismiss(window: p)
     }
 
     public func windowDidResize(_ notification: Notification) {

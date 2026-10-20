@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 主面板 SwiftUI 根视图（1:1 复刻原版 Frset 1.3.12 实测版式）：
 ///
@@ -36,6 +37,12 @@ struct PanelRootView: View {
     @Stored private var isDropTargeted = false
     /// 底部工具条「标签」→ 标签管理 sheet（官方原版工具条第 3 个图标）
     @Stored private var isShowingTagSheet = false
+    /// 底部工具条的搜索框展开态（点击放大镜展开）
+    @Stored private var isSearchExpanded = false
+    /// 「文件中转」分段作为放置目标（文件拖到分段上即存本地中转）
+    @Stored private var transferTabTargeted = false
+    /// 底部搜索框焦点
+    @FocusState private var bottomSearchFocused: Bool
     /// 剪贴板列表当前选中项（编辑/上传按钮按选中态启用，2026-10-18）
     @Stored private var selectedClipboardItem: ClipboardItem?
     /// 「文件中转」分段显隐（设置 → 常规 → 功能）
@@ -67,8 +74,8 @@ struct PanelRootView: View {
         // 表现为内容只占窗口 90%（右侧空条）+ hosting 反向压窗（324pt）拉锯。
         // 纪律：缩放只发生一处（窗口尺寸），内容始终 1:1 填充窗口。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        // 强调色注入（个性化自定义优先；覆盖子树全部 Color.accentColor）
-        .tint(personalization.accentColor ?? Color.accentColor)
+        // 强调色 + Midnight 统一主题入口（个性化改色即生效；覆盖子树全部 Theme.accent）
+        .frsetThemeChrome()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // 底部悬浮工具条（官方原版主页，2026-10-18 补齐）：仅主页显示
         .overlay(alignment: .bottom) {
@@ -95,6 +102,8 @@ struct PanelRootView: View {
             Log.info("Panel", "切页: \(newPage)")
             RenderProbe.snapshotAll(reason: "pageChange")
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
+            // 切到中转页才起局域网直传服务（默认不在后台常开端口）
+            if newPage == .transfer { LanTransferServer.shared.startIfEnabled() }
         }
         // 文件中转开关关闭时：若正停在该页则回主页（v41）
         .onChange(of: transferDockEnabled) { enabled in
@@ -128,7 +137,6 @@ struct PanelRootView: View {
             } else if let base = midnightBaseBackground { base }
         }
         .foregroundStyle(bodyTextColor)
-        .frsetAppearanceTheme()
         // v73（2026-10-19 用户反馈）：锚点展开时面板顶部中央画三角，指向菜单栏图标
         // ——即用户描述的「一个三角形从图标这里指下来、正对位置」。与下方
         // scaleEffect(anchor:.top)「长出来」弹簧组合，整体观感为从图标下方弹出。
@@ -144,20 +152,35 @@ struct PanelRootView: View {
             }
         }
         // ⌥F「打开并搜索」：聚焦主面板顶部搜索框；若当前在性能页则先回主页
-        // 排障探针：FRSET_PREVIEW_PROBE=1 时打开面板后自动对「最后一条文本条目」弹预览，
-        // 用于无鼠标环境验证 Markdown 目录侧栏 / 图片预览渲染（不影响正常使用）。
-        .onAppear {
-            guard ProcessInfo.processInfo.environment["FRSET_PREVIEW_PROBE"] == "1" else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                guard let item = ClipboardManager.shared.items.first(where: { $0.type == .text }) else {
-                    Log.info("Panel", "预览探针：没有可预览的文本条目")
+        // 排障探针：FRSET_PREVIEW_PROBE=1（或 defaults 键 probe.preview=text|image）时
+        // 面板显示后自动弹预览，用于无鼠标环境验证 Markdown 目录侧栏 / 图片预览 / OCR 文本行。
+        // 注意挂在「面板可见」上而不是 onAppear：popover 挂在面板窗口上，面板没显示时弹了也看不见。
+        .onChange(of: presentation.visible) { visible in
+            guard visible else { return }
+            let mode = ProcessInfo.processInfo.environment["FRSET_PREVIEW_PROBE"]
+                ?? (UserDefaults.standard.string(forKey: "probe.preview"))
+            guard let mode, mode != "0" else { return }
+            let wantedType: ClipboardItemType = (mode == "image") ? .image : .text
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                guard let item = ClipboardManager.shared.items.first(where: { $0.type == wantedType }) else {
+                    Log.info("Panel", "预览探针：没有可预览的 \(wantedType) 条目")
                     return
+                }
+                // 图片探针：没有缓存 OCR 文本时先塞一段样例，好让「复制文本/重新识别」行可见
+                if wantedType == .image, PreviewPopoverDataBridge.shared.ocrText(for: item) == nil {
+                    PreviewPopoverDataBridge.shared.saveOCRText(
+                        "（探针样例）OCR 识别文本：这里展示识别结果，可一键复制。",
+                        for: item)
                 }
                 Log.info("Panel", "预览探针：弹出 \(item.type) 条目（\(item.fullTextCharCount ?? 0) 字符）")
                 _ = MainPanelPreviewPopoverCoordinator.shared.present(
                     for: item,
                     anchorRectInWindow: CGRect(x: 24, y: 250, width: 340, height: 60))
             }
+        }
+        // 面板直接以中转页打开时（上次停留页）也要把直传服务拉起来
+        .onAppear {
+            if page == .transfer { LanTransferServer.shared.startIfEnabled() }
         }
         // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
@@ -287,9 +310,51 @@ struct PanelRootView: View {
                 segmentItem("文件中转", selected: page == .transfer) {
                     monitorPresenter.selectTransferDock()
                 }
+                // 拖文件到「文件中转」分段 = 存进本地中转（硬链接，不复制数据）
+                .onDrop(of: [.fileURL], isTargeted: $transferTabTargeted) { providers in
+                    dropToLocalTransfer(providers)
+                }
+                .overlay {
+                    if transferTabTargeted {
+                        Capsule(style: .continuous)
+                            .strokeBorder(Theme.accent.opacity(0.7),
+                                          style: StrokeStyle(lineWidth: 1.2, dash: [3, 2]))
+                            .padding(-2)
+                    }
+                }
+                .help("拖文件到这里：存进本地中转（硬链接）")
             }
         }
         .padding(2)
+    }
+
+    /// 文件拖到「文件中转」分段：进本地中转 + 切到中转页 + 轻提示
+    private func dropToLocalTransfer(_ providers: [NSItemProvider]) -> Bool {
+        let group = DispatchGroup()
+        var urls: [URL] = []
+        let lock = NSLock()
+        for provider in providers {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
+                defer { group.leave() }
+                var url: URL?
+                if let data = item as? Data {
+                    url = URL(dataRepresentation: data, relativeTo: nil)
+                } else if let direct = item as? URL {
+                    url = direct
+                }
+                if let url { lock.lock(); urls.append(url); lock.unlock() }
+            }
+        }
+        group.notify(queue: .main) {
+            guard !urls.isEmpty else { return }
+            let count = LocalTransferStore.shared.add(urls: urls)
+            if count > 0 {
+                monitorPresenter.selectTransferDock()
+                Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
+            }
+        }
+        return true
     }
 
     private func segmentItem(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -298,7 +363,7 @@ struct PanelRootView: View {
             // 避免三段时间排不下被压缩或压住图标）
             Text(title)
                 .font(.system(size: 11, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                .foregroundStyle(selected ? Theme.accent : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .padding(.horizontal, 9)
@@ -306,7 +371,7 @@ struct PanelRootView: View {
                 .background {
                     if selected {
                         Capsule(style: .continuous)
-                            .fill(Color.accentColor.opacity(0.16))
+                            .fill(Theme.accent.opacity(0.16))
                     }
                 }
                 .contentShape(Capsule(style: .continuous))
@@ -363,10 +428,41 @@ struct PanelRootView: View {
     // 编辑=需列表选中项；上传=需图床配置（未实现 → 置灰）。
 
     private var bottomToolbar: some View {
-        HStack(spacing: 10) {
-            toolbarIcon("magnifyingglass", help: "搜索") {
-                NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+        HStack(spacing: 5) {
+            if isSearchExpanded {
+                // 展开态：胶囊内直接搜索剪贴板（用户需求：底部要有搜索框，而不只是图标）
+                HStack(spacing: 5) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    TextField("搜索剪贴板", text: $clipboard.searchText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .frame(width: 168)
+                        .focused($bottomSearchFocused)
+                        .onSubmit { closeBottomSearch() }
+                    Button {
+                        closeBottomSearch(clear: false)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16, height: 16)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("收起搜索")
+                }
+                .transition(.opacity.combined(with: .move(edge: .leading)))
+            } else {
+                toolbarIcon("magnifyingglass", help: "搜索") {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        isSearchExpanded = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { bottomSearchFocused = true }
+                }
             }
+
             Menu {
                 ForEach(ClipboardFilterKind.allCases) { kind in
                     Button {
@@ -381,17 +477,18 @@ struct PanelRootView: View {
                 }
             } label: {
                 Image(systemName: "line.3.horizontal.circle")
-                    .font(.system(size: 16))
-                    .frame(width: 30, height: 30)
+                    .font(.system(size: 14))
+                    .frame(width: 26, height: 26)
                     // 官方该图标为蓝色激活态（当前筛选生效）
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help("筛选")
-            .accessibilityLabel("筛选")
+            .help("分类筛选")
+            .accessibilityLabel("分类筛选")
+
             toolbarIcon("tag", help: "标签") {
                 isShowingTagSheet = true
             }
@@ -407,25 +504,27 @@ struct PanelRootView: View {
                 Toast.show("未配置图床（上传能力待接入）", icon: "exclamationmark.triangle.fill", isWarning: true)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
-                .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        // 第三种玻璃：悬浮控件的真材质模糊（区别于卡片的轻玻璃与面板大玻璃）
+        .panelGlassFloating()
+        .fixedSize()
+    }
+
+    private func closeBottomSearch(clear: Bool = true) {
+        bottomSearchFocused = false
+        if clear { clipboard.searchText = "" }
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.88)) {
+            isSearchExpanded = false
+        }
     }
 
     private func toolbarIcon(_ symbol: String, help: String,
                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 16))
-                .frame(width: 30, height: 30)
+                .font(.system(size: 14))
+                .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -522,9 +621,9 @@ struct PanelRootView: View {
     private var dropHintOverlay: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.accentColor.opacity(0.06))
+                .fill(Theme.accent.opacity(0.06))
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.accentColor.opacity(0.45),
+                .strokeBorder(Theme.accent.opacity(0.45),
                               style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
             VStack(spacing: 8) {
                 Image(systemName: "doc.badge.gearshape")

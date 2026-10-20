@@ -50,10 +50,31 @@ enum AppBootstrap {
         Log.breadcrumb("Bootstrap", "preview bridge begin")
         PreviewPopoverDataBridge.shared.fullTextProvider = { ClipboardManager.shared.fullText(for: $0) }
         PreviewPopoverDataBridge.shared.ocrTextProvider = { ClipboardManager.shared.ocrText(for: $0) }
+        // 预览里「识别 / 重新识别 / 复制文本」（2026-10-20）：现算 OCR + 回写缓存（下次预览/搜索直接可用）
+        PreviewPopoverDataBridge.shared.saveOCRTextProvider = { item, text in
+            ClipboardOCRTextStorage.write(text, dedupeKey: item.dedupeKey)
+        }
+        PreviewPopoverDataBridge.shared.recognizeImageProvider = { data in
+            try await OCRService.shared.recognizeText(imageData: data)
+        }
         // v65 富文本保真渲染：RTF → NSAttributedString（预览 .richText 分支用）
         PreviewPopoverDataBridge.shared.richTextProvider = { item in
             item.richTextPath.flatMap { ClipboardRichTextStorage.read($0) }
         }
+
+        // 3.6) 剪贴板文件 → 文件中转自动暂存（2026-10-20）：模块间不互相引用，这里接线。
+        //      复制 zip / Word / PPT / Excel 等文件时自动进本地暂存（硬链接，不复制数据）。
+        NotificationCenter.default.addObserver(
+            forName: ClipboardManager.filesCapturedNotification,
+            object: nil,
+            queue: .main) { note in
+                guard TransferDockPref.isOn(TransferDockPref.autoStageClipboard),
+                      let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
+                let count = LocalTransferStore.shared.autoStage(urls: urls)
+                if count > 0 {
+                    Toast.show("已自动暂存 \(count) 个文件到中转", icon: "arrow.down.doc")
+                }
+            }
 
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
         Log.breadcrumb("Bootstrap", "appTools begin")
@@ -75,6 +96,28 @@ enum AppBootstrap {
         Log.breadcrumb("Bootstrap", "hotkeys done")
 
         Log.info("Bootstrap", "全部模块已启动")
+
+        // 复制网盘链接 → 状态栏小提示（点击进入解析中心）
+        CloudLinkPromptController.shared.start()
+
+        // 排障探针（2026-10-20）：FRSET_CLOUDLINK_TEST_URL=<直链> 时启动 3s 后直接走一次下载，
+        // 用于无 UI 自动化环境下验证「解析下载」的下载落盘链路。
+        if let raw = ProcessInfo.processInfo.environment["FRSET_CLOUDLINK_TEST_URL"],
+           let url = URL(string: raw) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                Log.info("CloudLink", "探针：直链下载测试 \(raw)")
+                CloudLinkDownloader.shared.startDirectDownload(url: url)
+            }
+        }
+
+        // 排障探针（2026-10-20）：FRSET_LAN_PROBE=1（或 defaults 键 probe.lan）直接拉起
+        // 局域网直传服务，用于无 UI 自动化环境下 curl 验证「直传页 / 列表 / 上传 / 下载」端点。
+        // 走 defaults 键是为了 `open -a` 启动（拿不到环境变量）时也能验。
+        if ProcessInfo.processInfo.environment["FRSET_LAN_PROBE"] == "1"
+            || UserDefaults.standard.bool(forKey: "probe.lan") {
+            LanTransferServer.shared.start()
+            Log.info("TransferDock", "探针：局域网直传服务已拉起")
+        }
     }
 
     static func stop() {

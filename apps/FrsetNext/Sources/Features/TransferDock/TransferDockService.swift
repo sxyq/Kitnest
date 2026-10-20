@@ -69,8 +69,26 @@ final class TransferDockService: ObservableObject {
 
     private let queue = DispatchQueue(label: "frset.transferdock.bridge", qos: .userInitiated)
     private var keepAliveTimer: Timer?
+    /// 云端「实时同步」定时器：30s 拉一次列表（OPPO 中转像云盘一样会变，UI 要跟着变）
+    private var liveSyncTimer: Timer?
 
     private init() {}
+
+    /// 实时同步开关（面板打开中转页时启动；重复调用幂等）
+    func startLiveSync() {
+        guard liveSyncTimer == nil else { return }
+        let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+            guard let self, self.loggedIn, !self.isLoading, !self.isUploading else { return }
+            self.refresh()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        liveSyncTimer = timer
+    }
+
+    func stopLiveSync() {
+        liveSyncTimer?.invalidate()
+        liveSyncTimer = nil
+    }
 
     /// 会话保活（docs/08：会话 30 分钟滑动，5 分钟一刷即可常驻在线）。
     /// 首次登录成功后启动；只在已登录时打桥，且 Python 侧另有 60s 节流兜底。
@@ -171,6 +189,38 @@ final class TransferDockService: ObservableObject {
                 } else {
                     self.statusMessage = ""
                     self.errorMessage = (result["error"] as? String) ?? "上传失败"
+                }
+            }
+            self.refresh()
+        }
+    }
+
+    /// 批量上传（本地暂存勾选后「加入云端」）：逐个走桥接，最后统一刷新一次列表
+    func uploadBatch(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        isUploading = true
+        statusMessage = "正在上传 \(urls.count) 个文件…"
+        errorMessage = nil
+        queue.async { [weak self] in
+            guard let self else { return }
+            var ok = 0
+            var failed: [String] = []
+            for url in urls {
+                let result = Self.runBridge(["upload", url.path])
+                if result["ok"] as? Bool == true {
+                    ok += 1
+                } else {
+                    failed.append(url.lastPathComponent)
+                }
+            }
+            DispatchQueue.main.async {
+                self.isUploading = false
+                if failed.isEmpty {
+                    self.statusMessage = "已上传 \(ok) 个文件"
+                    self.errorMessage = nil
+                } else {
+                    self.statusMessage = ok > 0 ? "已上传 \(ok) 个，失败 \(failed.count) 个" : ""
+                    self.errorMessage = "上传失败：" + failed.joined(separator: "、")
                 }
             }
             self.refresh()

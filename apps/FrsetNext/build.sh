@@ -101,6 +101,7 @@ swiftc $OPT_FLAGS -parse-as-library \
   -framework ServiceManagement -framework UniformTypeIdentifiers \
   -framework IOKit -framework SystemConfiguration \
   -framework AVFoundation -framework CoreMedia \
+  -framework QuickLookThumbnailing \
   -framework WebKit 2>&1 | tee -a /tmp/frsetnext_build.log | tail -40
 BUILD_RC=${PIPESTATUS[0]}
 rm -f "$STAMP"   # 走到这里说明脚本活着，撤掉标记

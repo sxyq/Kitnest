@@ -90,6 +90,9 @@ public final class ClipboardManager: ObservableObject {
     /// 条目变化时广播（浮动窗等非 SwiftUI 消费者使用）
     public static let itemsDidChangeNotification = Notification.Name("FrsetNext.Clipboard.itemsDidChange")
 
+    /// 剪贴板捕获到文件 URL（2026-10-20：文件中转据此自动暂存；AppBootstrap 接线）
+    public static let filesCapturedNotification = Notification.Name("FrsetNext.Clipboard.filesCaptured")
+
     // MARK: 常量
 
     /// 捕获轮询常量（原作汇编立即数，specs/14 §3.1）
@@ -362,6 +365,10 @@ public final class ClipboardManager: ObservableObject {
             Log.debug("clipboard", "入库 [\(result.type.rawValue)] \(key.prefix(24))")
             // 图片条目：有 OCR 能力时后台补识别文本（无能力则静默跳过）
             if result.type == .image, let data = result.imageData { scheduleOCR(dedupeKey: key, imageData: data) }
+            // 文件条目（zip / Word / PPT / Excel 等）：自动暂存进「文件中转」（硬链接，不复制数据）
+            if result.type == .file, !result.fileURLs.isEmpty {
+                Self.scheduleAutoStage(result.fileURLs)
+            }
         } else {
             // INSERT 失败且行已存在（并发窗口）→ 退化为置顶
             repository.touch(dedupeKey: key)
@@ -633,6 +640,17 @@ public final class ClipboardManager: ObservableObject {
         ClipboardFileStore.fileSize(item.imagePath)
             + ClipboardFileStore.fileSize(item.thumbnailPath)
             + ClipboardFileStore.fileSize(item.richTextPath)
+    }
+
+    /// 剪贴板文件自动暂存（2026-10-20）：复制 zip / Word / PPT / Excel 等 → 自动进「文件中转」。
+    /// 模块间不直接引用（契约 §1.3）：这里只发通知，由 AppBootstrap 接到 LocalTransferStore。
+    private static func scheduleAutoStage(_ urls: [URL]) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: ClipboardManager.filesCapturedNotification,
+                object: nil,
+                userInfo: ["urls": urls])
+        }
     }
 
     /// 图片 OCR：遵循 IOC 约定，能力缺失时静默跳过
