@@ -58,7 +58,15 @@ public struct MonitorSettingsPane: View {
                 Slider(
                     value: Binding(
                         get: { MonitorPreferences.refreshInterval },
-                        set: { MonitorPreferences.refreshInterval = $0; bump() }
+                        set: { v in
+                            MonitorPreferences.refreshInterval = v
+                            // v93（2026-10-21 用户再报「设置改变后没有生效」）：
+                            // 统一应用到菜单栏部件各模块的 updateInterval——此前
+                            // 这个滑杆只管监测采样器，菜单栏部件走自己每模块间隔，
+                            // 用户调完看菜单栏没变化就等于「没生效」。
+                            applyIntervalToBarWidgets(v)
+                            bump()
+                        }
                     ),
                     in: 0.5...10,
                     step: 0.5
@@ -152,7 +160,19 @@ public struct MonitorSettingsPane: View {
 
     // MARK: - 辅助
 
+    /// 刷新间隔统一应用到菜单栏部件（每模块 updateInterval 键，整秒 1..60）
+    private func applyIntervalToBarWidgets(_ seconds: Double) {
+        let v = NSNumber(value: Int(max(1, min(60, seconds.rounded()))))
+        if let modules = FSBarAllModules() as? [String] {
+            for m in modules { FSBarCfgSet(m, nil, "updateInterval", v) }
+        }
+        FSBarReloadFromStore()
+    }
+
     private func statusLine(for module: MonitorModuleID) -> String {
+        // v93：关闭的模块显示「已停用」——开关的**生效反馈**（此前照常刷数值，
+        // 用户看着像「勾了没用」）
+        guard MonitorPreferences.isModuleEnabled(module) else { return "已停用" }
         let sample = sampler.sample
         switch module {
         case .power: return MonitorStatusItems.powerDetailText()
