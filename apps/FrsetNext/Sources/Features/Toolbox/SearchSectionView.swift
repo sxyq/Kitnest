@@ -517,6 +517,15 @@ public struct SearchSectionView: View {
                     query = probe
                 }
             }
+            // 排障探针：probe.openTool=<工具id> 启动 3.5s 后自动打开工具——
+            // 与点击工具行同一条 ToolboxUIState.open 链路（验证工具窗弹出）
+            if let toolID = UserDefaults.standard.string(forKey: "probe.openTool"),
+               !toolID.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    Log.info("Toolbox", "探针：自动打开工具 \(toolID)")
+                    ToolboxUIState.shared.open(toolID)
+                }
+            }
         }
     }
 

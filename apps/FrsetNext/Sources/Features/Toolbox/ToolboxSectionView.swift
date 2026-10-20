@@ -5,12 +5,22 @@ import UniformTypeIdentifiers
 // MARK: - 工具箱面板 UI
 
 /// 跨视图共享的"当前打开的工具"状态（搜索区段也可通过它唤起工具面板）
+///
+/// v88（2026-10-20）：弹出改走全局工具窗（ToolRunnerWindowController）——
+/// 此前面板挂在本文件 .sheet 上，而主页不渲染「工具」区段时 sheet 无宿主，
+/// 搜索/快捷键/命令面板点了工具毫无反应。
 public final class ToolboxUIState: ObservableObject {
     public static let shared = ToolboxUIState()
     @Published public var activeToolID: String?
     private init() {}
-    public func open(_ id: String) { activeToolID = id }
-    public func close() { activeToolID = nil }
+    public func open(_ id: String) {
+        activeToolID = id
+        ToolRunnerWindowController.shared.show(toolID: id)
+    }
+    public func close() {
+        activeToolID = nil
+        ToolRunnerWindowController.shared.close()
+    }
 }
 
 private struct ToolSheetItem: Identifiable { let id: String }
@@ -56,14 +66,8 @@ public struct ToolboxSectionView: View {
         }
         .id(refreshTick)
         .onAppear { refreshTick += 1 }
-        .sheet(item: Binding(
-            get: { uiState.activeToolID.map { ToolSheetItem(id: $0) } },
-            set: { uiState.activeToolID = $0?.id }
-        )) { item in
-            if let tool = ToolRegistry.tool(id: item.id) {
-                ToolRunnerView(tool: tool)
-            }
-        }
+        // v88：弹出迁至全局工具窗（ToolRunnerWindowController），不再用 .sheet——
+        // 本区段不在主页渲染时 .sheet 无宿主，工具点了没反应。
     }
 
     private func toolGrid(_ tools: [ToolDescriptor]) -> some View {
@@ -95,6 +99,8 @@ public struct ToolboxSectionView: View {
 
 public struct ToolRunnerView: View {
     public let tool: ToolDescriptor
+    /// 窗口模式下的关闭回调（.sheet 场景仍走 @Environment(dismiss)）
+    var onClose: (() -> Void)? = nil
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
     @Stored private var output: ToolOutput?
@@ -102,7 +108,10 @@ public struct ToolRunnerView: View {
     @Stored private var statusText: String = ""
     @Environment(\.dismiss) private var dismiss
 
-    public init(tool: ToolDescriptor) { self.tool = tool }
+    public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil) {
+        self.tool = tool
+        self.onClose = onClose
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -110,7 +119,10 @@ public struct ToolRunnerView: View {
                 Image(systemName: tool.systemImage)
                 Text(tool.name).font(.system(size: 14, weight: .semibold))
                 Spacer()
-                Button("关闭") { dismiss() }.buttonStyle(.plain).foregroundStyle(.secondary)
+                Button("关闭") {
+                    onClose?()
+                    dismiss()
+                }.buttonStyle(.plain).foregroundStyle(.secondary)
             }
 
             // 输入区
