@@ -148,8 +148,7 @@ struct GeneralSettingsPane: View {
                 }
             }
         }
-        .padding(.horizontal, 34)
-        .padding(.vertical, 18)
+        // 外层 SettingsRootView.panePage 已统一提供 34/18 内边距，此处不再重复
         .frame(maxWidth: .infinity, alignment: .leading)
         .font(.system(size: 12))
         .sheet(isPresented: $isManagingTags) {

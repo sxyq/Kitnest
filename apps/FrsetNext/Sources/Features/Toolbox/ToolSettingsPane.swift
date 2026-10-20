@@ -14,23 +14,22 @@ public struct ToolSettingsPane: View {
             HStack(spacing: 0) {
                 Text("名称").frame(width: 112, alignment: .leading)
                 Text("关键词").frame(width: 102, alignment: .leading)
-                Text("描述").frame(width: 264, alignment: .leading)
-                Text("快捷键").frame(width: 152, alignment: .leading)
+                Text("描述").frame(width: 210, alignment: .leading)
+                Text("快捷键").frame(width: 130, alignment: .leading)
                 Spacer()
                 Text("更多")
             }
             .foregroundStyle(.secondary)
             .frame(height: 26)
 
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(ToolRegistry.all) { tool in
-                        toolRow(tool)
-                        Divider()
-                    }
+            // 2026-10-20 统一版式：去掉内层 ScrollView（外层 panePage 已滚动），
+            // 整个表格收进浅色圆角卡片，与常规/剪贴板/数据页同构。
+            LazyVStack(spacing: 0) {
+                ForEach(ToolRegistry.all) { tool in
+                    toolRow(tool)
+                    Divider()
                 }
             }
-            .scrollIndicators(.hidden)
 
             HStack(spacing: 42) {
                 Button {
@@ -61,6 +60,10 @@ public struct ToolSettingsPane: View {
             .padding(.top, 8)
         }
         .font(.system(size: 12))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
         .id(revision)
         .confirmationDialog("恢复工具默认设置？", isPresented: $confirmReset) {
             Button("恢复默认设置") {
@@ -84,7 +87,7 @@ public struct ToolSettingsPane: View {
             Text(tool.toolDescription)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .frame(width: 264, alignment: .leading)
+                .frame(width: 210, alignment: .leading)
             ShortcutRecorderButton(
                 display: ToolShortcutStore.binding(for: tool.identifier).map {
                     ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
@@ -97,7 +100,7 @@ public struct ToolSettingsPane: View {
                     ToolShortcutStore.clear(toolID: tool.identifier)
                     revision += 1
                 })
-                .frame(width: 152)
+                .frame(width: 130)
             Spacer(minLength: 12)
             // 官方「更多」列：✓ 启用勾选（行内可见）+ ⋯ 菜单
             HStack(spacing: 8) {

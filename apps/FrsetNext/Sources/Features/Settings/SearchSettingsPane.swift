@@ -70,7 +70,12 @@ struct SearchSettingsPane: View {
                 .font(.system(size: 10.5))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.bottom, 4)
+        // 2026-10-20 统一版式：设置页统一「浅色圆角卡片」，与常规/剪贴板页同构
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
     }
 
     var body: some View {
@@ -85,17 +90,14 @@ struct SearchSettingsPane: View {
                 }
                 .foregroundStyle(.secondary)
                 .frame(height: 26)
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(service.allEngines.enumerated()), id: \.element.id) { index, engine in
-                            engineRow(engine, index: index)
-                            if editingEngineID == engine.id { engineEditForm(engine) }
-                            Divider()
-                        }
-                        if isAddingCustomEngine { customEngineForm }
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(service.allEngines.enumerated()), id: \.element.id) { index, engine in
+                        engineRow(engine, index: index)
+                        if editingEngineID == engine.id { engineEditForm(engine) }
+                        Divider()
                     }
+                    if isAddingCustomEngine { customEngineForm }
                 }
-                .scrollIndicators(.hidden)
                 HStack(spacing: 36) {
                     Button {
                         isAddingCustomEngine.toggle()
@@ -108,21 +110,27 @@ struct SearchSettingsPane: View {
                 .buttonStyle(.link)
                 .frame(height: 40)
             }
-            .frame(width: 510)
+            .frame(minWidth: 380, maxWidth: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Theme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
             Divider()
             VStack(spacing: 10) {
                 Text(L10n.t("Search Bar")).foregroundStyle(.secondary).frame(height: 26)
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(service.activeBarEngines) { engine in
-                            searchBarRow(engine)
-                        }
+                LazyVStack(spacing: 0) {
+                    ForEach(service.activeBarEngines) { engine in
+                        searchBarRow(engine)
                     }
                 }
-                .scrollIndicators(.hidden)
             }
             // v41：设置窗侧边栏版式内容区略窄，右侧搜索栏列给最小宽度，避免引擎名换行
-            .frame(minWidth: 150, maxWidth: .infinity)
+            // 先加内边距再取剩余宽度：否则 maxWidth 先占满、padding 再外扩 24pt 会溢出窗口
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Theme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+            .frame(width: 210)
             }
         }
         .font(.system(size: 13))

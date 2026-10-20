@@ -177,188 +177,240 @@ public struct AISettingsPane: View {
     public init() {}
 
     public var body: some View {
-        Form {
-            Section {
-                Picker("服务商", selection: Binding(
-                    get: { vm.provider },
-                    set: { vm.selectProvider($0) })) {
-                    ForEach(LLMProviderKind.allCases, id: \.rawValue) { kind in
-                        Text(kind.displayName).tag(kind)
-                    }
-                }
-
-                HStack {
-                    TextField("Base URL（留空使用默认）", text: $vm.baseURLText)
-                        .textFieldStyle(.roundedBorder)
-                    Button("应用") { vm.commitBaseURL() }
-                }
-                Text(providerHint)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            } header: {
-                Theme.sectionHeader("服务商")
-            }
-
-            Section {
-                SecureField(vm.provider == .ollama ? "本地服务无需密钥" : "API Key（保存后不再明文显示）",
-                            text: $vm.apiKeyText)
-                    .textFieldStyle(.roundedBorder)
-                HStack {
-                    if vm.hasStoredKey {
-                        Label("已保存密钥", systemImage: "checkmark.shield.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.green)
-                    } else {
-                        Label(vm.provider.needsCredential ? "尚未配置密钥" : "无需密钥",
-                              systemImage: vm.provider.needsCredential ? "exclamationmark.shield.fill" : "lock.open.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(vm.provider.needsCredential ? .orange : .secondary)
-                    }
-                    Spacer()
-                    Button("删除") { vm.removeKey() }
-                        .disabled(!vm.hasStoredKey)
-                    Button("保存") { vm.saveKey() }
-                        .disabled(vm.apiKeyText.isEmpty)
-                }
-            } header: {
-                Theme.sectionHeader("凭证")
-            } footer: {
-                Text("密钥保存在应用数据目录的 AES-256 加密文件中（权限 0600），不使用系统钥匙串，因此不会触发授权弹窗。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-            }
-
-            Section {
-                HStack {
-                    Menu {
-                        if vm.models.isEmpty {
-                            Text("点击右侧刷新拉取模型")
-                        } else {
-                            ForEach(vm.models, id: \.self) { item in
-                                Button(item) { vm.modelText = item; vm.commitModel() }
+        // 2026-10-20 统一版式：原 `Form(.grouped)` 在 macOS 会自绘整页纯白底，
+        // 与其它设置页「灰底 + 浅色圆角卡片」不一致；改用共用组件（同常规/数据/剪贴板页）。
+        VStack(spacing: 20) {
+            SettingsSection("服务商") {
+                SettingsGroupBox {
+                    SettingsRow(title: "服务商") {
+                        Picker("", selection: Binding(
+                            get: { vm.provider },
+                            set: { vm.selectProvider($0) })) {
+                            ForEach(LLMProviderKind.allCases, id: \.rawValue) { kind in
+                                Text(kind.displayName).tag(kind)
                             }
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(vm.modelText.isEmpty ? "跟随厂商默认模型" : vm.modelText)
-                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
-                        }
+                        .labelsHidden()
+                        .frame(width: 220)
                     }
-                    .frame(maxWidth: 260, alignment: .leading)
-
-                    TextField("手动输入模型名", text: $vm.modelText, onCommit: { vm.commitModel() })
-                        .textFieldStyle(.roundedBorder)
-
-                    Button {
-                        vm.refreshModels()
-                    } label: {
-                        HStack(spacing: 4) {
-                            if vm.isLoadingModels { ProgressView().controlSize(.small) }
-                            Text("刷新")
-                        }
-                    }
-                    .disabled(vm.isLoadingModels)
-                }
-            } header: {
-                Theme.sectionHeader("模型")
-            }
-
-            Section {
-                HStack(alignment: .top, spacing: 10) {
-                    Button {
-                        vm.testConnection()
-                    } label: {
-                        HStack(spacing: 6) {
-                            if vm.isTesting { ProgressView().controlSize(.small) }
-                            Text(vm.isTesting ? "测试中…" : "测试连接")
-                        }
-                    }
-                    .disabled(vm.isTesting)
-
-                    if let result = vm.testResult {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Label(result.message, systemImage: result.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                    SettingsDivider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Text("Base URL")
+                                .font(.system(size: 13, weight: .medium))
+                            Spacer(minLength: 8)
+                            Text("留空使用默认")
                                 .font(.system(size: 11))
-                                .foregroundStyle(result.ok ? Color.green : Color.red)
-                            Text(String(format: "耗时 %.2fs", result.elapsed))
-                                .font(.system(size: 10))
                                 .foregroundStyle(.tertiary)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 8) {
+                            TextField("https://…", text: $vm.baseURLText)
+                                .textFieldStyle(.roundedBorder)
+                            Button("应用") { vm.commitBaseURL() }
+                                .controlSize(.small)
+                        }
+                        Text(providerHint)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
                     }
-                    Spacer()
+                    .padding(.vertical, 9)
                 }
-
-                if let info = vm.infoMessage {
-                    Text(info)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Theme.sectionHeader("连通性")
             }
 
-            Section {
-                Picker("默认动作", selection: Binding(
-                    get: { AISummaryAction.storedDefault },
-                    set: { $0.saveAsDefault() })) {
-                    ForEach(AISummaryAction.allCases) { action in
-                        Text(action.title).tag(action)
+            SettingsSection("凭证") {
+                VStack(alignment: .leading, spacing: 6) {
+                    SettingsGroupBox {
+                        VStack(alignment: .leading, spacing: 8) {
+                            SecureField(vm.provider == .ollama ? "本地服务无需密钥" : "API Key（保存后不再明文显示）",
+                                        text: $vm.apiKeyText)
+                                .textFieldStyle(.roundedBorder)
+                            HStack(spacing: 8) {
+                                if vm.hasStoredKey {
+                                    Label("已保存密钥", systemImage: "checkmark.shield.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.green)
+                                } else {
+                                    Label(vm.provider.needsCredential ? "尚未配置密钥" : "无需密钥",
+                                          systemImage: vm.provider.needsCredential ? "exclamationmark.shield.fill" : "lock.open.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(vm.provider.needsCredential ? .orange : .secondary)
+                                }
+                                Spacer()
+                                Button("删除") { vm.removeKey() }
+                                    .controlSize(.small)
+                                    .disabled(!vm.hasStoredKey)
+                                Button("保存") { vm.saveKey() }
+                                    .controlSize(.small)
+                                    .disabled(vm.apiKeyText.isEmpty)
+                            }
+                        }
+                        .padding(.vertical, 9)
                     }
+                    Text("密钥保存在应用数据目录的 AES-256 加密文件中（权限 0600），不使用系统钥匙串，因此不会触发授权弹窗。")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .padding(.leading, 2)
                 }
-            } header: {
-                Theme.sectionHeader("文本工具")
-            } footer: {
-                Text("面板「AI → 摘要 / 润色 / 翻译」的默认入口动作。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
             }
 
-            Section {
-                if vm.customTools.isEmpty {
-                    Text("尚未定义自定义工具。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(vm.customTools) { tool in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(tool.name).font(.system(size: 12, weight: .medium))
-                                Text(tool.systemPrompt.isEmpty ? tool.promptTemplate : tool.systemPrompt)
+            SettingsSection("模型") {
+                SettingsGroupBox {
+                    HStack(spacing: 8) {
+                        Menu {
+                            if vm.models.isEmpty {
+                                Text("点击右侧刷新拉取模型")
+                            } else {
+                                ForEach(vm.models, id: \.self) { item in
+                                    Button(item) { vm.modelText = item; vm.commitModel() }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(vm.modelText.isEmpty ? "跟随厂商默认模型" : vm.modelText)
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                            }
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+
+                        TextField("手动输入模型名", text: $vm.modelText, onCommit: { vm.commitModel() })
+                            .textFieldStyle(.roundedBorder)
+
+                        Button {
+                            vm.refreshModels()
+                        } label: {
+                            HStack(spacing: 4) {
+                                if vm.isLoadingModels { ProgressView().controlSize(.small) }
+                                Text("刷新")
+                            }
+                        }
+                        .controlSize(.small)
+                        .disabled(vm.isLoadingModels)
+                    }
+                    .padding(.vertical, 9)
+                }
+            }
+
+            SettingsSection("连通性") {
+                SettingsGroupBox {
+                    HStack(alignment: .top, spacing: 10) {
+                        Button {
+                            vm.testConnection()
+                        } label: {
+                            HStack(spacing: 6) {
+                                if vm.isTesting { ProgressView().controlSize(.small) }
+                                Text(vm.isTesting ? "测试中…" : "测试连接")
+                            }
+                        }
+                        .controlSize(.small)
+                        .disabled(vm.isTesting)
+
+                        if let result = vm.testResult {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(result.message, systemImage: result.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(result.ok ? Color.green : Color.red)
+                                Text(String(format: "耗时 %.2fs", result.elapsed))
                                     .font(.system(size: 10))
                                     .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
                             }
-                            Spacer()
-                            Button("删除") { vm.deleteCustomTool(id: tool.id) }
-                                .font(.system(size: 11))
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 9)
+
+                    if let info = vm.infoMessage {
+                        HStack {
+                            Text(info)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.top, 6)
+                        .padding(.bottom, 3)
                     }
                 }
+            }
 
-                TextField("工具名称", text: $vm.newToolName)
-                    .textFieldStyle(.roundedBorder)
-                TextField("系统提示词（可选）", text: $vm.newToolSystemPrompt)
-                    .textFieldStyle(.roundedBorder)
-                TextField("提示词模板，用 {input} 代表待处理文本", text: $vm.newToolTemplate, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...4)
-                HStack {
-                    Spacer()
-                    Button("添加自定义工具") { vm.addCustomTool() }
-                        .disabled(vm.newToolName.trimmingCharacters(in: .whitespaces).isEmpty
-                                  || vm.newToolTemplate.trimmingCharacters(in: .whitespaces).isEmpty)
+            SettingsSection("文本工具") {
+                VStack(alignment: .leading, spacing: 6) {
+                    SettingsGroupBox {
+                        SettingsRow(title: "默认动作") {
+                            Picker("", selection: Binding(
+                                get: { AISummaryAction.storedDefault },
+                                set: { $0.saveAsDefault() })) {
+                                ForEach(AISummaryAction.allCases) { action in
+                                    Text(action.title).tag(action)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 220)
+                        }
+                    }
+                    Text("面板「AI → 摘要 / 润色 / 翻译」的默认入口动作。")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .padding(.leading, 2)
                 }
-            } header: {
-                Theme.sectionHeader("自定义工具")
-            } footer: {
-                Text("对应原作 CustomAIToolStore：定义后会在文本工具面板中显示为独立按钮，与内置动作并列。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+            }
+
+            SettingsSection("自定义工具") {
+                VStack(alignment: .leading, spacing: 6) {
+                    SettingsGroupBox {
+                        if vm.customTools.isEmpty {
+                            Text("尚未定义自定义工具。")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 10)
+                        } else {
+                            ForEach(vm.customTools) { tool in
+                                HStack(spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(tool.name).font(.system(size: 12, weight: .medium))
+                                        Text(tool.systemPrompt.isEmpty ? tool.promptTemplate : tool.systemPrompt)
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(.tertiary)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer(minLength: 8)
+                                    Button("删除") { vm.deleteCustomTool(id: tool.id) }
+                                        .controlSize(.small)
+                                }
+                                .padding(.vertical, 6)
+                                SettingsDivider()
+                            }
+                        }
+
+                        VStack(spacing: 8) {
+                            TextField("工具名称", text: $vm.newToolName)
+                                .textFieldStyle(.roundedBorder)
+                            TextField("系统提示词（可选）", text: $vm.newToolSystemPrompt)
+                                .textFieldStyle(.roundedBorder)
+                            TextField("提示词模板，用 {input} 代表待处理文本", text: $vm.newToolTemplate, axis: .vertical)
+                                .textFieldStyle(.roundedBorder)
+                                .lineLimit(2...4)
+                        }
+                        .padding(.vertical, 9)
+
+                        HStack {
+                            Spacer()
+                            Button("添加自定义工具") { vm.addCustomTool() }
+                                .controlSize(.small)
+                                .disabled(vm.newToolName.trimmingCharacters(in: .whitespaces).isEmpty
+                                          || vm.newToolTemplate.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                        .padding(.bottom, 6)
+                    }
+                    Text("定义后会在文本工具面板中显示为独立按钮，与内置动作并列。")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .padding(.leading, 2)
+                }
             }
         }
-        .formStyle(.grouped)
-        .padding(12)
+        .font(.system(size: 13))
         .onAppear { vm.reload() }
     }
 
