@@ -12,3 +12,6 @@ dist/
 # 构建中间产物（swiftc 无索引构建）
 apps/FrsetNext/.build/
 *.noindex/
+
+# CodeGraph 索引工具状态（机器本地）
+apps/FrsetNext/.codegraph/
