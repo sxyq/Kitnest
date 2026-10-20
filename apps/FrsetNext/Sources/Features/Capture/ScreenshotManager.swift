@@ -120,9 +120,11 @@ public final class ScreenshotManager: ObservableObject {
         // ad-hoc 签名（cdhash）在重新构建后失效、证书签名（FrsetDev）跨构建保留。
         // 这行日志是"授权了却又提示没授权"类问题的第一判据。
         Log.info("Capture", "屏幕录制权限启动实况：\(CGPreflightScreenCaptureAccess() ? "已获得" : "未获得")（bundle=\(Bundle.main.bundleIdentifier ?? "?")）")
-        // v32（2026-10-18）：preflight 会假阴性——启动后立刻用真实抓屏通道（SCK）复核，
-        // 以「能不能真的枚举可共享内容」作为权威判据（见 probePermission 注释）。
-        Task { _ = await probePermission() }
+        // v77（2026-10-19 全盘排查）：启动不再用 SCK 探测。
+        // `SCShareableContent` 属于屏幕录制 TCC 授权 API——放在 init 里会导致
+        // **每次启动都请求一次权限**（用户实测「一直重复请求」）。改为只在用户
+        // 真正发起截图/取色时按需探测（ensureScreenRecordingPermission）。
+        // 启动只做 CGPreflight（纯查询，不弹窗）。
 
         // 排障：FRSET_TCC_REQUEST=1 或存在标记文件时主动发一次系统录屏请求。
         // 用途：TCC 记录被移除后，让系统按当前二进制重新建立记录（设置列表随之出现该 app）。
@@ -172,8 +174,9 @@ public final class ScreenshotManager: ObservableObject {
 
     /// 刷新权限状态（系统设置里授权后回来调用）
     public func refreshPermission() {
+        // v77：设置页出现时只查 preflight（不弹窗）；权威探测留到用户点
+        // 「前往授权」或真正截图时（probePermission 会走 SCK）。
         hasPermission = CGPreflightScreenCaptureAccess()
-        Task { _ = await probePermission() }
     }
 
     /// 权威权限探测：以「真实抓屏通道是否可用」为准，而不是只看 CGPreflight。
@@ -224,14 +227,30 @@ public final class ScreenshotManager: ObservableObject {
         return granted
     }
 
-    /// 检查屏幕录制权限；只有「真实抓屏也不可用」时才请求并弹说明
+    /// 本次启动是否已向系统发过录屏授权请求 / 已弹过说明
+    private var didRequestScreenRecordingThisLaunch = false
+    private var didShowPermissionAlertThisLaunch = false
+
+    /// 检查屏幕录制权限；只有「真实抓屏也不可用」时才请求并弹说明。
+    /// v77：`CGRequestScreenCaptureAccess()` 每次调用都会让系统再弹一次授权，
+    /// 用户在没授权成功时反复截图 → 无限弹窗。现在**每次启动只请求一次**，
+    /// 后续失败只提示去系统设置（不再重复请求）。
     @discardableResult
     public func ensureScreenRecordingPermission() async -> Bool {
         if hasPermission { return true }
         if await probePermission() { return true }
         await MainActor.run {
-            CGRequestScreenCaptureAccess()
-            self.showPermissionAlert()
+            if !self.didRequestScreenRecordingThisLaunch {
+                self.didRequestScreenRecordingThisLaunch = true
+                CGRequestScreenCaptureAccess()
+            }
+            if !self.didShowPermissionAlertThisLaunch {
+                self.didShowPermissionAlertThisLaunch = true
+                self.showPermissionAlert()
+            } else {
+                Toast.show("仍未获得屏幕录制权限：系统设置 → 隐私与安全性 → 屏幕录制，勾选后重启应用",
+                           icon: "exclamationmark.circle.fill")
+            }
         }
         return false
     }

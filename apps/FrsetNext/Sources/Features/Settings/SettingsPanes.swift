@@ -44,9 +44,8 @@ struct GeneralSettingsPane: View {
     @AppStorage(Self.menuBarIconStyleDateKey) private var iconStyleDate = false
     @AppStorage(Self.menuBarIconStyleCustomKey) private var iconStyleCustom = false
     @AppStorage(Self.menuBarIconCustomSymbolKey) private var iconCustomSymbol = Self.defaultCustomSymbol
-    /// 图标彩蛋解锁键（原作 custom_icon_easter_egg_unlocked）；解锁后才出现「自定义图标」
-    @AppStorage(Self.easterEggUnlockedKey) private var easterEggUnlocked = false
     /// 是否展示自定义图标选项（原作 revealCustomMenuBarIconOption；未落盘时默认展示）
+    /// v83：彩蛋解锁门控已移除——自定义图标为常规功能，直接可用。
     @AppStorage(Self.revealCustomIconOptionKey) private var revealCustomIconOption = true
 
     var body: some View {
@@ -338,8 +337,6 @@ struct GeneralSettingsPane: View {
     static let menuBarIconStyleCustomKey = "menu-bar-icon-custom"
     /// 自定义 Symbol 名键（⬜ 原作键名未探明，重建侧自定）
     static let menuBarIconCustomSymbolKey = "menu-bar-icon-custom-symbol"
-    /// 图标彩蛋解锁键（原作 custom_icon_easter_egg_unlocked）
-    static let easterEggUnlockedKey = "custom_icon_easter_egg_unlocked"
     /// 是否展示自定义图标选项（原作 revealCustomMenuBarIconOption）
     static let revealCustomIconOptionKey = "revealCustomMenuBarIconOption"
     static let defaultCustomSymbol = "sparkles"
@@ -354,18 +351,18 @@ struct GeneralSettingsPane: View {
     static let menuBarIconStyleDate = "日期"
     static let menuBarIconStyleCustom = "自定义图标"
 
-    /// 是否展示自定义图标（需彩蛋已解锁，且未被 hide 对话框隐藏）
+    /// 是否展示自定义图标（仅受 hide/restore 开关控制；v83 起不再依赖彩蛋解锁）
     private var revealsCustomMenuBarIcon: Bool {
-        easterEggUnlocked && revealCustomIconOption
+        revealCustomIconOption
     }
 
-    /// 可选样式（custom 仅在彩蛋解锁且未被隐藏时出现，对应原作 revealCustomMenuBarIconOption）
+    /// 可选样式（custom 仅在未被隐藏时出现）
     /// 返回的 title 是内部标识，用于选择绑定。
-    static func menuBarIconStyleOptions(unlocked: Bool, revealsCustom: Bool) -> [(title: String, key: String)] {
+    static func menuBarIconStyleOptions(revealsCustom: Bool) -> [(title: String, key: String)] {
         var options = [(menuBarIconStyleLogo, menuBarIconStyleLogoKey),
                        (menuBarIconStyleFan, menuBarIconStyleFanKey),
                        (menuBarIconStyleDate, menuBarIconStyleDateKey)]
-        if unlocked && revealsCustom {
+        if revealsCustom {
             options.append((menuBarIconStyleCustom, menuBarIconStyleCustomKey))
         }
         return options

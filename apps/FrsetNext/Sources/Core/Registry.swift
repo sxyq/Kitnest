@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -111,6 +112,16 @@ public protocol PanelControlling: AnyObject {
     func toggle()
     func show()
     func hide()
+    /// 锚点展开（2026-10-19 用户反馈修复）：面板停到锚点（菜单栏图标）正下方，
+    /// 替代原「屏幕右上右对齐」。anchorRect 为屏幕坐标（NSStatusBarButton.window?.frame）。
+    func toggle(atAnchor anchorRect: NSRect?)
+    func show(atAnchor anchorRect: NSRect?)
+}
+
+public extension PanelControlling {
+    /// 默认实现：无锚点能力时回落到原行为（协议兼容旧实现）
+    func toggle(atAnchor anchorRect: NSRect?) { toggle() }
+    func show(atAnchor anchorRect: NSRect?) { show() }
 }
 
 public protocol SettingsWindowControlling: AnyObject {

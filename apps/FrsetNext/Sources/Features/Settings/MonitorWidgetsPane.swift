@@ -21,7 +21,42 @@ struct MonitorWidgetsPane: View {
     @Stored private var confirmReset = false
     @Stored private var confirmReimport = false
 
-    private var modules: [String] { (FSBarAllModules() as? [String]) ?? [] }
+    // v84（2026-10-20 用户反馈「设置页随便点两下就卡死」）：
+    // 原来 modules / 形态列表 / 显示名全部是 computed——每次 body 重算都同步调
+    // C 引擎（FSBarAllModules / FSBarEnabledForms / FSBarFormsForModule /
+    // FSBarModuleName / FSBarFormName），一页 ≈ 8 模块 × 数个形态 ≈ 50+ 次 C 调用；
+    // 任意开关触发 bump() 整页重绘即再来一轮，与 FSBarReloadFromStore 的
+    // 状态项重建叠加，主线程直接卡住。
+    // 现改为一次性缓存：onAppear / bump 后各读一遍，重绘期零 C 调用。
+    @Stored private var cachedModules: [String] = []
+    @Stored private var cachedEnabledForms: [String: [String]] = [:]
+    @Stored private var cachedAllForms: [String: [String]] = [:]
+    @Stored private var cachedModuleNames: [String: String] = [:]
+    @Stored private var cachedFormNames: [String: String] = [:]
+
+    private var modules: [String] { cachedModules }
+
+    /// 一次性读取全部引擎查询结果（模块 / 形态 / 显示名）
+    private func reloadCache() {
+        let mods = (FSBarAllModules() as? [String]) ?? []
+        var enabled: [String: [String]] = [:]
+        var all: [String: [String]] = [:]
+        var moduleNames: [String: String] = [:]
+        var formNames: [String: String] = [:]
+        for m in mods {
+            enabled[m] = (FSBarEnabledForms(m) as? [String]) ?? []
+            let forms = (FSBarFormsForModule(m) as? [String]) ?? []
+            all[m] = forms
+            moduleNames[m] = FSBarModuleName(m) ?? m
+            for f in forms { formNames[f] = FSBarFormName(f) ?? f }
+        }
+        cachedModules = mods
+        cachedEnabledForms = enabled
+        cachedAllForms = all
+        cachedModuleNames = moduleNames
+        cachedFormNames = formNames
+        Log.breadcrumb("WidgetsPane", "缓存重载：\(mods.count) 模块")
+    }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -33,6 +68,13 @@ struct MonitorWidgetsPane: View {
             .padding(.horizontal, 34)
             .padding(.vertical, 18)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onAppear {
+            if cachedModules.isEmpty { reloadCache() }
+            Log.breadcrumb("Settings", "进入部件设置")
+        }
+        .onDisappear {
+            Log.breadcrumb("Settings", "离开部件设置")
         }
         .alert("初始化所有设置？", isPresented: $confirmReset) {
             Button("取消", role: .cancel) {}
@@ -106,8 +148,8 @@ struct MonitorWidgetsPane: View {
     }
 
     private func moduleCard(_ module: String) -> some View {
-        let enabledForms = (FSBarEnabledForms(module) as? [String]) ?? []
-        let allForms = (FSBarFormsForModule(module) as? [String]) ?? []
+        let enabledForms = cachedEnabledForms[module] ?? []
+        let allForms = cachedAllForms[module] ?? []
         let on = !enabledForms.isEmpty
 
         return VStack(spacing: 0) {
@@ -117,7 +159,7 @@ struct MonitorWidgetsPane: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .frame(width: 16)
-                Text(FSBarModuleName(module) ?? module)
+                Text(cachedModuleNames[module] ?? module)
                     .font(.system(size: 13, weight: .semibold))
                 Text(summary(module: module, forms: enabledForms))
                     .font(.system(size: 11))
@@ -202,7 +244,7 @@ struct MonitorWidgetsPane: View {
                         .scaledToFit()
                         .frame(height: 11)
                 }
-                Text(FSBarFormName(form) ?? form)
+                Text(cachedFormNames[form] ?? form)
                     .font(.system(size: 11))
             }
             .padding(.horizontal, 8)
@@ -218,7 +260,7 @@ struct MonitorWidgetsPane: View {
             .foregroundStyle(active ? Color.accentColor : Color.primary)
         }
         .buttonStyle(.plain)
-        .help(FSBarFormName(form) ?? form)
+        .help(cachedFormNames[form] ?? form)
     }
 
     @ViewBuilder
@@ -226,7 +268,7 @@ struct MonitorWidgetsPane: View {
         let groups = Self.optionGroups(module: module, form: form)
         if !groups.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
-                Text(FSBarFormName(form) ?? form)
+                Text(cachedFormNames[form] ?? form)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
@@ -404,13 +446,16 @@ struct MonitorWidgetsPane: View {
 
     private func summary(module: String, forms: [String]) -> String {
         guard let first = forms.first else { return "未在菜单栏显示" }
-        let name = FSBarFormName(first) ?? first
+        let name = cachedFormNames[first] ?? first
         let interval = FSBarCfgInt(module, nil, "updateInterval", 1)
         let extra = forms.count > 1 ? " 等 \(forms.count) 种" : ""
         return "\(name)\(extra) · 每 \(interval) 秒"
     }
 
-    private func bump() { revision &+= 1 }
+    private func bump() {
+        reloadCache()
+        revision &+= 1
+    }
 }
 
 // MARK: - 选项模型

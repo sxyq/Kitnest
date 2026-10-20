@@ -1343,6 +1343,9 @@ public struct SearchSectionView: View {
         let text = trimmedQuery
         guard !text.isEmpty, let url = SearchServiceManager.searchURL(for: engine, query: text) else { return }
         Log.info("Search", "performWebSearch engine=\(engine.name) q='\(text)' url=\(url.absoluteString)")
+        // v84：搜索结果打开埋点（面板内所有「搜索」动作的统一出口）
+        StatisticsManager.shared.record(.searchExecute)
+        StatisticsManager.shared.record(.webSearchOpen)
         NSWorkspace.shared.open(url)
         if SearchServiceManager.shared.clearSearchInputAfterWebAction {
             clearInput()

@@ -40,6 +40,8 @@ struct PanelRootView: View {
     @Stored private var selectedClipboardItem: ClipboardItem?
     /// 「文件中转」分段显隐（设置 → 常规 → 功能）
     @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
+    /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
+    @ObservedObject private var clipboard = ClipboardManager.shared
 
     private var page: PanelCenterPage { monitorPresenter.activePage }
 
@@ -51,11 +53,19 @@ struct PanelRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // v73：锚点展开时顶部让出 9pt 给三角指示器（画在窗口内，避免被窗口
+            // 边界裁剪——SwiftUI overlay 超出窗口 frame 的部分不会渲染）。
+            if presentation.anchored {
+                Color.clear.frame(height: 9)
+            }
             toolbar
             content
         }
-        // v66 字号缩放：内容整体乘系数，窗口宽高在 PanelController 侧同步联动
-        .scaleEffect(personalization.fontScale, anchor: .topLeading)
+        // v66 字号缩放：窗口宽高在 PanelController 侧已按 fontScale 联动（v73 修正）。
+        // v73（2026-10-19 用户反馈「比例非常怪、按钮挤一堆」）：此处**不再**对内容
+        // 叠加 scaleEffect——否则窗口 400×0.9=360 与内容再缩 0.9=324 双重缩放，
+        // 表现为内容只占窗口 90%（右侧空条）+ hosting 反向压窗（324pt）拉锯。
+        // 纪律：缩放只发生一处（窗口尺寸），内容始终 1:1 填充窗口。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // 强调色注入（个性化自定义优先；覆盖子树全部 Color.accentColor）
         .tint(personalization.accentColor ?? Color.accentColor)
@@ -119,6 +129,20 @@ struct PanelRootView: View {
         }
         .foregroundStyle(bodyTextColor)
         .frsetAppearanceTheme()
+        // v73（2026-10-19 用户反馈）：锚点展开时面板顶部中央画三角，指向菜单栏图标
+        // ——即用户描述的「一个三角形从图标这里指下来、正对位置」。与下方
+        // scaleEffect(anchor:.top)「长出来」弹簧组合，整体观感为从图标下方弹出。
+        // 非锚点路径（快捷键/菜单）不显示，保持右缘停腾的干净形态。
+        .overlay(alignment: .top) {
+            if presentation.anchored {
+                // 注：不可用 windowBackgroundColor——面板本身白底，白三角=隐形。
+                // 用 primary 12% 浅灰，白底上清晰、深色主题下自动反相。
+                AnchorArrow()
+                    .fill(Color.primary.opacity(0.12))
+                    .frame(width: 26, height: 10)
+                    .allowsHitTesting(false)
+            }
+        }
         // ⌥F「打开并搜索」：聚焦主面板顶部搜索框；若当前在性能页则先回主页
         // 排障探针：FRSET_PREVIEW_PROBE=1 时打开面板后自动对「最后一条文本条目」弹预览，
         // 用于无鼠标环境验证 Markdown 目录侧栏 / 图片预览渲染（不影响正常使用）。
@@ -149,12 +173,30 @@ struct PanelRootView: View {
         midnightCardBackground ?? Theme.cardBackground
     }
 
+    /// v73：面板顶部三角指示器（锚点展开时显示，尖端指向菜单栏图标）
+    private struct AnchorArrow: Shape {
+        func path(in rect: CGRect) -> Path {
+            var p = Path()
+            p.move(to: CGPoint(x: rect.midX, y: rect.minY))   // 顶点（朝上，指向图标）
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.closeSubpath()
+            return p
+        }
+    }
+
     // MARK: - 顶部工具条（40pt，原版同序：截图 / 取色 / 悬浮剪贴板 ｜ 分段 ｜ 设置）
 
+    // v84（2026-10-20 用户反馈「性能监测/文件中转的切换压在截屏/录屏/取色按钮上」）：
+    // 原实现用 ZStack 把「左图标组 + 齿轮」（下层）与「居中的三段分段」（上层）叠在一起。
+    // 面板宽 360~400pt 时，分段总宽 ≈204pt、两侧各只剩 ≈78~98pt，而左侧图标组
+    // （3×22 + 2×20 spacing ≈ 106pt）比余量更宽 → 分段整块压在截图/取色/悬浮剪贴板
+    // 图标上（用户实拍重叠）。现改为**单行顺序排布**：图标组 │ 分段（可伸缩）│ 齿轮，
+    // 并收紧图标间距与分段内边距，保证 360pt（fontScale 0.9）下仍有余量。
     private var toolbar: some View {
-        ZStack {
+        HStack(spacing: 8) {
             // 左侧三个动作图标（原版：截图、取色 ⌥C、悬浮剪贴板）
-            HStack(spacing: 20) {
+            HStack(spacing: 12) {
                 captureAction
                 captureButton("eyedropper", title: "取色 ⌥C", mode: .color)
                 Button {
@@ -162,7 +204,7 @@ struct PanelRootView: View {
                     FloatingClipboardWindowController.shared.toggle()
                 } label: {
                     Image(systemName: "macwindow")
-                        .font(.system(size: 15))
+                        .font(.system(size: 14))
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(SpringyIconButtonStyle())
@@ -170,55 +212,60 @@ struct PanelRootView: View {
                 .foregroundStyle(.secondary)
                 .help("悬浮剪贴板")
                 .accessibilityLabel("悬浮剪贴板")
-                Spacer(minLength: 0)
-                // 齿轮菜单（官方原版 1:1，2026-10-18 实测截图）：
-                // 置顶窗口 ⌘P / 悬浮剪贴板 ⇧⌘V / ─ / 暂停记录剪贴板 /
-                // 设置 ⌘, / 使用统计 / 功能建议 / ─ / 退出 ⌘Q
-                Menu {
-                    Toggle("置顶窗口", isOn: Binding(
-                        get: { PanelController.shared.isPinned },
-                        set: { PanelController.shared.isPinned = $0 }
-                    ))
-                    .keyboardShortcut("p", modifiers: .command)
-                    Button("悬浮剪贴板") {
-                        onDismiss()
-                        FloatingClipboardWindowController.shared.toggle()
-                    }
-                    .keyboardShortcut("v", modifiers: [.command, .shift])
-                    Divider()
-                    Toggle("暂停记录剪贴板", isOn: Binding(
-                        get: { ClipboardManager.shared.isRecordingPaused },
-                        set: { ClipboardManager.shared.isRecordingPaused = $0 }
-                    ))
-                    Button("设置") { onOpenSettings() }
-                        .keyboardShortcut(",", modifiers: .command)
-                    Button("使用统计") {
-                        onDismiss()
-                        StatisticsWindowController.shared.openStatistics()
-                    }
-                    Button("功能建议") {
-                        if let url = URL(string: "https://github.com/frset/frset-next/issues") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }
-                    Divider()
-                    Button("退出") { NSApp.terminate(nil) }
-                        .keyboardShortcut("q", modifiers: .command)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 15))
-                        .frame(width: 22, height: 22)
-                        .foregroundStyle(.secondary)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("设置")
-                .accessibilityLabel("设置")
             }
-
-            // 中间分段（原版胶囊式：选中项浅蓝底）
+            Spacer(minLength: 2)
+            // 中间分段（原版胶囊式：选中项浅蓝底）。
+            // 不设 fixedSize（那会阻止缩字导致溢出）：320pt（最小面板宽）下
+            // 文字按 minimumScaleFactor 0.8 兜底缩放，绝不回落到与左右图标
+            // 重叠的旧 ZStack 行为。
             pageSegments
+                .layoutPriority(1)
+            Spacer(minLength: 2)
+            // 齿轮菜单（官方原版 1:1，2026-10-18 实测截图）：
+            // 置顶窗口 ⌘P / 悬浮剪贴板 ⇧⌘V / ─ / 暂停记录剪贴板 /
+            // 设置 ⌘, / 使用统计 / 功能建议 / ─ / 退出 ⌘Q
+            Menu {
+                Toggle("置顶窗口", isOn: Binding(
+                    get: { PanelController.shared.isPinned },
+                    set: { PanelController.shared.isPinned = $0 }
+                ))
+                .keyboardShortcut("p", modifiers: .command)
+                Button("悬浮剪贴板") {
+                    onDismiss()
+                    FloatingClipboardWindowController.shared.toggle()
+                }
+                .keyboardShortcut("v", modifiers: [.command, .shift])
+                Divider()
+                Toggle("暂停记录剪贴板", isOn: Binding(
+                    get: { ClipboardManager.shared.isRecordingPaused },
+                    set: { ClipboardManager.shared.isRecordingPaused = $0 }
+                ))
+                Button("设置") { onOpenSettings() }
+                    .keyboardShortcut(",", modifiers: .command)
+                Button("使用统计") {
+                    onDismiss()
+                    StatisticsWindowController.shared.openStatistics()
+                }
+                Button("功能建议") {
+                    if let url = URL(string: "https://github.com/frset/frset-next/issues") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                Divider()
+                Button("退出") { NSApp.terminate(nil) }
+                    .keyboardShortcut("q", modifiers: .command)
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14))
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(Color.secondary)   // 同截图钮：显式灰，避免落 accent
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .focusable(false)
+            .help("设置")
+            .accessibilityLabel("设置")
         }
         .padding(.horizontal, 14)
         .frame(height: 40)
@@ -247,11 +294,15 @@ struct PanelRootView: View {
 
     private func segmentItem(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
+            // v84：字号 12→11、内边距 12/4→9/3（面板 360pt 宽时与左右图标组共存，
+            // 避免三段时间排不下被压缩或压住图标）
             Text(title)
-                .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                .font(.system(size: 11, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Color.accentColor : Color.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
                 .background {
                     if selected {
                         Capsule(style: .continuous)
@@ -281,14 +332,18 @@ struct PanelRootView: View {
             Button("录屏") { runCapture { StatsBarEngine.openRecorder() } }
         } label: {
             Image(systemName: "viewfinder")
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .frame(width: 22, height: 22)
+                // Menu 的 label 不走外层 foregroundStyle（会落到 accent 色），
+                // 显式着色，与右侧 Button 图标（取色/悬浮剪贴板）保持同一灰阶
+                .foregroundStyle(Color.secondary)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
         .focusable(false)
         .foregroundStyle(.secondary)
+        .tint(.secondary)      // Menu 图标默认取 accent 色（截图钮显示为粉红），统一为次级灰
         .help("截图")
         .accessibilityLabel("截图")
     }
@@ -386,7 +441,7 @@ struct PanelRootView: View {
             CaptureModule.capture(mode)
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .frame(width: 22, height: 22)
         }
         .buttonStyle(SpringyIconButtonStyle())
@@ -407,15 +462,14 @@ struct PanelRootView: View {
             homePage
                 .pageTransition(active: page == .home)
 
-            // 第二页：性能监测（v71 恢复三页切换）——与独立窗同一套面板组件，
-            // fixedWidth=nil 撑满面板宽度；玻璃底与首页同源（根背景统一）
-            ScrollView(.vertical, showsIndicators: false) {
-                MonitorDetailView(selection: monitorPresenter.monitorSelection,
-                                  pageMode: false, fixedWidth: nil)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-            }
-            .pageTransition(active: page == .performance)
+            // 第二页：性能监测（v71 恢复三页切换）——与独立窗**同一个容器**
+            // （MonitorPerformanceContent：同一选中态、同一内外边距、同一滚动策略），
+            // 不允许各自再写一份版式。
+            // v82（2026-10-19）：外层 ScrollView 移除——滚动由 MonitorDetailView
+            // 内部按内容区自行管理（切换条固定）。双层 ScrollView 嵌套曾导致
+            // 模块切换按钮的点击被外层滚动容器吞掉（用户实证「点不动」）。
+            MonitorPerformanceContent()
+                .pageTransition(active: page == .performance)
 
             // 第三页：中转站（文件暂存与转发）
             TransferDockView()
@@ -436,6 +490,12 @@ struct PanelRootView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 2)
 
+            // v74（用户需求 2026-10-19）：网盘链接条——搜索框正下方。
+            // 剪贴板最近条目命中网盘分享链接时显示（无链接时不占位）。
+            CloudLinkBar()
+                .padding(.horizontal, 14)
+                .padding(.top, 8)
+
             Color.clear.frame(height: 12)
             calendarCard
             clipboardSection
@@ -443,6 +503,10 @@ struct PanelRootView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // v74（用户澄清）：复制网盘链接 → 链接条自动弹出，日历与下方列表**平滑下移**；
+        // 链接消失（关闭/换新）同样回弹。key 变化驱动整个首页纵向布局动画。
+        .animation(.spring(response: 0.34, dampingFraction: 0.86),
+                   value: CloudLinkBar.detectionKey(items: clipboard.items))
     }
 
     /// 搜索区段（Toolbox 模块经 PanelSectionRegistry 注入）

@@ -1,0 +1,98 @@
+entry,entry_file,chain_size,total_lines,cpu_level,mem_level,storage_level,freq_signals,hot_apis,verdicts,watch_functions
+startRegionCapture,Features/Capture/ScreenshotManager.swift,26,390,high,high,low,1,"animation,cgImage,fileIO,mainThread,network,screenCapture,sortFilter,timer",normal=24;review=2,probePermission(review) | savePNG(review)
+longScreenshotTapped,Features/Capture/AnnotationEditorWindow.swift,15,177,high,high,none,0,"cgImage,network,screenCapture",normal=14;review=1,probePermission(review)
+showOnMain,Features/Capture/BeautifyPanel.swift,8,78,high,high,medium,0,"cgImage,fileIO,pasteboard",normal=6;review=2,copyToPasteboard(review) | savePNG(review)
+mainItemClicked,Features/StatusBar/StatusBarController.swift,72,918,high,medium,low,6,"animation,cgImage,fileIO,mainThread,sortFilter,timer",normal=70;review=1;optimize=1,savePNG(review) | refreshTitles(optimize)
+startTimers,Features/StatusBar/StatusBarController.swift,41,531,high,medium,low,3,"animation,cgImage,fileIO,mainThread,sortFilter,timer",normal=39;review=1;optimize=1,savePNG(review) | refreshTitles(optimize)
+toggleMonitorCombinedAction,Features/StatusBar/StatusBarController.swift,28,321,high,medium,low,0,"cgImage,fileIO,mainThread,sortFilter",normal=26;review=1;optimize=1,savePNG(review) | refreshTitles(optimize)
+toggleMonitorModuleAction,Features/StatusBar/StatusBarController.swift,28,326,high,medium,low,0,"cgImage,fileIO,mainThread,sortFilter",normal=26;review=1;optimize=1,savePNG(review) | refreshTitles(optimize)
+toggleIconsAction,Features/StatusBar/StatusBarController.swift,27,322,high,medium,low,0,"cgImage,fileIO,mainThread,sortFilter",normal=25;review=1;optimize=1,savePNG(review) | refreshTitles(optimize)
+registerAppLevelTools,App/AppBootstrap.swift,26,357,high,medium,low,3,"animation,cgImage,mainThread,network,pasteboard,screenCapture,sortFilter,timer",normal=25;review=1,probePermission(review)
+FSBarDebugClickProbe,FrsetStatsBar/frset_barwidgets.m,12,227,high,low,low,0,"eventTap,fileIO",normal=9;review=3,FSBarLog(review) | FSBarDebugSyntheticClickAtCG(review) | FSBarDebugClickProbe(review)
+sampleOnce,Features/Monitor/MonitorSampler.swift,34,649,high,none,none,3,"animation,hostStat,ioKit,mainThread,semaphore,sortFilter,sysctl,timer",normal=33;optimize=1,sampleOnce(optimize)
+openSettings,Features/Monitor/StatsBarEngine.swift,73,1430,medium,medium,low,0,"cgImage,fileIO,ioKit",normal=69;review=4,FSBarLog(review) | FSFormSettingsView(review) | FSBuildModulePage(review) | frset_smc_open(review)
+onAppear,Features/AI/AIChatView.swift,26,404,medium,medium,low,3,"animation,db,machTime,mainThread,network,sortFilter,timer",normal=25;review=1,query(review)
+translateClicked,Features/Capture/PinWindow.swift,22,286,medium,medium,none,3,"animation,cgImage,mainThread,sortFilter,timer",normal=22,
+ocrClicked,Features/Capture/PinWindow.swift,21,271,medium,medium,low,3,"animation,cgImage,mainThread,pasteboard,sortFilter,timer",normal=20;review=1,ocrClicked(review)
+onMouseActivity,Features/Capture/LongScreenshotSession.swift,17,305,medium,medium,none,4,"animation,cgImage,mainThread,screenCapture,timer",normal=17,
+onScroll,Features/Capture/LongScreenshotSession.swift,17,312,medium,medium,none,4,"animation,cgImage,mainThread,screenCapture,timer",normal=17,
+menuNeedsUpdate,Features/StatusBar/StatusBarController.swift,16,151,medium,medium,low,0,"cgImage,fileIO,sortFilter",normal=15;review=1,savePNG(review)
+scheduleDebouncedCaptureLocked,Features/Capture/LongScreenshotSession.swift,16,298,medium,medium,none,4,"animation,cgImage,mainThread,screenCapture,timer",normal=16,
+overflowItemAction,Features/StatusBar/StatusBarController.swift,9,103,medium,medium,low,0,"cgImage,fileIO,sortFilter",normal=8;review=1,savePNG(review)
+statusItemClicked,Features/StatusBar/StatusBarController.swift,9,102,medium,medium,low,0,"cgImage,fileIO,sortFilter",normal=8;review=1,savePNG(review)
+handle,MemoryHelper/main.swift,8,97,medium,medium,low,0,"cgImage,fileIO,sortFilter",normal=7;review=1,savePNG(review)
+copyTapped,Features/Capture/ScreenshotOCRWindow.swift,3,12,medium,medium,none,0,cgImage,normal=3,
+saveTapped,Features/Clipboard/ClipboardItemEditWindowController.swift,3,27,medium,medium,none,0,cgImage,normal=3,
+installMainItem,Features/StatusBar/StatusBarController.swift,72,904,medium,low,low,7,"animation,fileIO,mainThread,sortFilter,timer",normal=70;review=1;optimize=1,FSBarLog(review) | refreshTitles(optimize)
+saveClicked,Features/Capture/PinWindow.swift,21,251,low,medium,low,3,"animation,cgImage,fileIO,mainThread,timer",normal=20;review=1,savePNG(review)
+registerImageCompressTool,Features/Toolbox/BuiltinTools.swift,17,310,low,low,low,3,"animation,cgImage,fileIO,machTime,mainThread,timer",normal=17,
+sampleBackground,Features/Capture/ScreenTranslator.swift,3,41,low,low,none,0,cgImage,normal=3,
+handleMouseMoved,Features/Clipboard/ClipboardTableHostView.swift,29,380,low,none,none,4,"animation,mainThread,sortFilter,timer",normal=29,
+handleModifierClick,Features/Clipboard/ClipboardTableHostView.swift,25,356,low,none,none,4,"animation,mainThread,sortFilter,timer",normal=25,
+handleMouseExited,Features/Clipboard/ClipboardTableHostView.swift,24,332,low,none,none,4,"animation,mainThread,sortFilter,timer",normal=24,
+startScreenGapProbe,Features/Monitor/StatsBarEngine.swift,20,290,low,none,none,3,"animation,mainThread,sortFilter,timer",normal=20,
+registerDefaultHotkeys,App/AppBootstrap.swift,19,262,low,none,none,3,"animation,mainThread,sortFilter,timer",normal=19,
+handleReturnKey,Features/Clipboard/ClipboardTableHostView.swift,18,244,low,none,low,3,"animation,mainThread,pasteboard,sortFilter,timer",normal=17;review=1,handleReturnKey(review)
+handleSpaceKey,Features/Clipboard/ClipboardTableHostView.swift,17,268,low,none,none,1,"animation,mainThread,sortFilter,timer",normal=17,
+registerHashTool,Features/Toolbox/BuiltinTools.swift,17,279,low,none,none,3,"animation,mainThread,sortFilter,timer",normal=17,
+registerTimestampTool,Features/Toolbox/BuiltinTools.swift,17,295,low,none,none,3,"animation,mainThread,sortFilter,timer",normal=17,
+registerVarNameTool,Features/Toolbox/BuiltinTools.swift,17,297,low,none,none,3,"animation,mainThread,sortFilter,timer",normal=17,
+installEscapeMonitor,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,16,218,low,none,none,3,"animation,eventTap,mainThread,timer",normal=15;review=1,installEscapeMonitor(review)
+installOutsideClickMonitor,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,16,228,low,none,none,3,"animation,eventTap,mainThread,timer",normal=15;review=1,installOutsideClickMonitor(review)
+startFan,Features/StatusBar/MenuBarIconStyle.swift,7,127,low,none,none,1,"animation,machTime,mainThread,timer",normal=7,
+handlePreviewWindowDidClose,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,5,47,low,none,none,0,eventTap,normal=4;review=1,beginHoverSuppression(review)
+installHelper,Features/Monitor/Memory/MemoryOptimizer.swift,5,42,low,none,none,0,"mainThread,sortFilter",normal=5,
+install,Features/StatusBar/StatusBarController.swift,4,33,low,none,none,0,"mainThread,sortFilter",normal=4,
+handleDrop,Features/TransferDock/TransferDockView.swift,3,76,low,none,none,1,"mainThread,shell,timer",normal=3,
+applicationDidFinishLaunching,App/FrsetNextApp.swift,2,41,low,none,none,2,"mainThread,sortFilter,timer",normal=2,
+beginHoverSuppression,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,2,16,low,none,none,0,eventTap,review=1;normal=1,beginHoverSuppression(review)
+startKeepAlive,Features/TransferDock/TransferDockService.swift,2,51,low,none,none,2,"mainThread,shell,timer",normal=2,
+startMonitoringIfNeeded,Features/Toolbox/DoubleTapShortcut.swift,2,32,low,none,none,0,eventTap,normal=1;review=1,startMonitoringIfNeeded(review)
+registerIPTool,Features/Toolbox/BuiltinTools.swift,19,346,none,medium,low,3,"animation,db,mainThread,network,timer",normal=18;review=1,query(review)
+installDate,Storage/Database.swift,5,98,none,medium,low,0,"db,network",normal=4;review=1,query(review)
+openRecorder,Features/Monitor/StatsBarEngine.swift,6,95,none,low,low,0,fileIO,normal=5;review=1,FSBarLog(review)
+showActionsMenu,Features/Capture/PinWindow.swift,22,296,none,none,none,4,"animation,mainThread,timer",normal=22,
+handleSingleClick,Features/Clipboard/ClipboardTableHostView.swift,19,234,none,none,none,3,"animation,mainThread,timer",normal=19,
+registerMainIconClick,Features/StatusBar/MenuBarIconEasterEggManager.swift,19,289,none,none,none,4,"animation,mainThread,timer",normal=19,
+handleDoubleClick,Features/Clipboard/ClipboardTableHostView.swift,18,225,none,none,none,3,"animation,mainThread,timer",normal=18,
+handleScalePreset,Features/Capture/PinWindow.swift,17,244,none,none,none,4,"animation,mainThread,timer",normal=17,
+registerCodePreviewTool,Features/Toolbox/BuiltinTools.swift,17,344,none,none,none,3,"animation,mainThread,timer",normal=17,
+startPolling,Features/TransferDock/TransferDockLoginView.swift,17,230,none,none,none,4,"animation,mainThread,timer",normal=17,
+annotateClicked,Features/Capture/PinWindow.swift,16,211,none,none,none,3,"animation,mainThread,timer",normal=16,
+registerAITool,Features/Toolbox/BuiltinTools.swift,16,252,none,none,none,3,"animation,mainThread,timer",normal=16,
+registerBase64Tool,Features/Toolbox/BuiltinTools.swift,16,247,none,none,none,3,"animation,mainThread,timer",normal=16,
+registerJSONTool,Features/Toolbox/BuiltinTools.swift,16,253,none,none,none,3,"animation,mainThread,timer",normal=16,
+registerURLEncodeTool,Features/Toolbox/BuiltinTools.swift,16,250,none,none,none,3,"animation,mainThread,timer",normal=16,
+showHUD,Features/Capture/PinWindow.swift,16,223,none,none,none,4,"animation,mainThread,timer",normal=16,
+dismiss,Features/Toolbox/DoubleTapTipWindow.swift,15,207,none,none,none,3,"animation,mainThread,timer",normal=15,
+stopPolling,Features/TransferDock/TransferDockLoginView.swift,15,208,none,none,none,3,"animation,mainThread,timer",normal=15,
+stopRefreshing,Features/Audio/AudioMixer.swift,15,208,none,none,none,3,"animation,mainThread,timer",normal=15,
+stopTimers,Features/StatusBar/MenuBarIconStyle.swift,15,208,none,none,none,3,"animation,mainThread,timer",normal=15,
+installEventHandler,Features/Toolbox/ShortcutManager.swift,14,232,none,none,none,3,"animation,mainThread,timer",normal=14,
+registerAll,Features/Toolbox/BuiltinTools.swift,14,227,none,none,none,3,"animation,mainThread,timer",normal=14,
+registerQRCodeTool,Features/Toolbox/BuiltinTools.swift,14,235,none,none,none,3,"animation,mainThread,timer",normal=14,
+registerUUIDTool,Features/Toolbox/BuiltinTools.swift,14,220,none,none,none,3,"animation,mainThread,timer",normal=14,
+handleCarbonEvent,Features/Toolbox/ShortcutManager.swift,13,223,none,none,none,3,"animation,mainThread,timer",normal=13,
+hideIconOption,Features/StatusBar/MenuBarIconStyle.swift,13,193,none,none,none,1,"animation,mainThread,timer",normal=13,
+register,Features/Toolbox/WindowManager.swift,13,210,none,none,none,3,"animation,mainThread,timer",normal=13,
+startAll,Core/Support.swift,13,207,none,none,none,3,"animation,mainThread,timer",normal=13,
+restoreIconOption,Features/StatusBar/MenuBarIconStyle.swift,12,191,none,none,none,1,"animation,mainThread,timer",normal=12,
+showControls,Features/Capture/PinWindow.swift,11,196,none,none,none,1,"animation,mainThread,timer",normal=11,
+application,App/FrsetNextApp.swift,8,121,none,none,none,2,"mainThread,timer",normal=8,
+present,Features/StatusBar/MenuBarIconEasterEggDialogOverlay.swift,8,156,none,none,none,1,"animation,mainThread,timer",normal=8,
+showStatisticsAction,Features/StatusBar/StatusBarController.swift,8,99,none,none,none,2,"mainThread,timer",normal=8,
+openStatistics,Features/StatusBar/StatisticsWindowController.swift,7,96,none,none,none,2,"mainThread,timer",normal=7,
+installContent,Features/StatusBar/StatisticsWindowController.swift,5,81,none,none,none,1,"mainThread,timer",normal=5,
+showBubble,Features/StatusBar/MenuBarIconEasterEggManager.swift,5,61,none,none,none,1,"mainThread,timer",normal=5,
+openMonitor,Features/Monitor/StatsBarEngine.swift,3,20,none,none,none,0,,normal=3,
+showNearMouse,Features/Clipboard/FloatingClipboardWindow.swift,3,24,none,none,none,0,,normal=3,
+aliasDidChange,Features/Clipboard/ClipboardItemEditWindowController.swift,2,4,none,none,none,0,,normal=2,
+clipboardBoundsDidChange,Features/Clipboard/ClipboardTableHostView.swift,2,14,none,none,none,0,,normal=2,
+handleGlobalShortcut,Features/Panel/PanelController.swift,2,4,none,none,none,0,,normal=2,
+installDoubleTapBindings,App/AppBootstrap.swift,2,15,none,none,none,0,,normal=2,
+onPreviewPopoverHoverChanged,Features/Panel/MainPanelPreviewPopoverCoordinator.swift,2,4,none,none,none,0,,normal=2,
+registerCaptured,Features/Capture/ScreenshotManager.swift,2,10,none,none,none,0,,normal=2,
+selectIconStyle,Features/StatusBar/MenuBarIconStyle.swift,2,13,none,none,none,0,,normal=2,
+showTextResultAlert,Features/Capture/PinWindow.swift,2,24,none,none,none,0,,normal=2,
+startNewChat,Features/AI/AIChatView.swift,2,31,none,none,none,0,,normal=2,
+startRefreshing,Features/Audio/AudioMixer.swift,2,39,none,none,none,1,"mainThread,timer",normal=2,

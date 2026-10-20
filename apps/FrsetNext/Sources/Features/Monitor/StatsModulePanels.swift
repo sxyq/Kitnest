@@ -62,14 +62,18 @@ struct StatsRing: View {
     var body: some View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
-            let radius = (side - lineWidth) / 2
             let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
             ZStack {
+                // v84（用户反馈「环状图左侧与上侧截断」）：SwiftUI 的 stroke 居中于路径，
+                // Circle 路径取 bounds 内接圆 → 描边有 lineWidth/2 画到 frame 外被裁。
+                // 路径按半个线宽内缩，描边完全落在 frame 内（外径不变）。
                 Circle()
+                    .inset(by: lineWidth / 2)
                     .stroke(Color.primary.opacity(trackOpacity), lineWidth: lineWidth)
                 ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
                     let start = segments.prefix(index).reduce(0) { $0 + max(0, $1.value) }
                     Circle()
+                        .inset(by: lineWidth / 2)
                         .trim(from: max(0, min(1, start)),
                               to: max(0, min(1, start + segment.value)))
                         .stroke(segment.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
@@ -78,19 +82,12 @@ struct StatsRing: View {
             }
             .frame(width: side, height: side)
             .position(x: center.x, y: center.y)
-            .environment(\.statsRingRadius, radius)
+            // v85（2026-10-20 设置页卡死根因）：此处在 GeometryReader 闭包内用
+            // .environment 注入「基于 geo.size 计算出的 radius」——environment 变更
+            // 会重新求值整棵子树，子树又读 geo.size，形成 render→layout→render 死循环
+            // （实测 sample 栈：GeometryReader.Child.updateValue → GeometryProxy.size.getter
+            //  无限递归，主线程阻塞 60s+ 只能强杀）。该 environment 键零消费方，直接移除。
         }
-    }
-}
-
-private struct StatsRingRadiusKey: EnvironmentKey {
-    static let defaultValue: CGFloat = 40
-}
-
-extension EnvironmentValues {
-    var statsRingRadius: CGFloat {
-        get { self[StatsRingRadiusKey.self] }
-        set { self[StatsRingRadiusKey.self] = newValue }
     }
 }
 
@@ -229,6 +226,12 @@ struct StatsHistoryDualChart: View {
 }
 
 /// 进程表（原版「高占用进程」）：表头 + 行（应用图标 + 名称 + 右侧一/两列数值）
+///
+/// v84（用户需求「归类 + 展开 + 图标 + 退出」）：
+/// · 归类：数据层已按 App 合并（Helper/Renderer 归到宿主），行显示「名称 + N 个进程」；
+/// · 展开：点击行展开组内子进程明细（按当前维度降序，第一行即「占得最多」的那个）；
+/// · 退出：右键（或长按）行 → 菜单「退出 xxx」，结束整组全部 pid；
+/// · 图标：StatsAppIcon 按 App 名解析真实 bundle 图标。
 struct StatsProcTable: View {
     struct Column {
         var title: String
@@ -240,6 +243,33 @@ struct StatsProcTable: View {
     var items: [StatsProcItem]
     var subtitle: (StatsProcItem) -> String? = { _ in nil }
     var values: (StatsProcItem) -> [String]
+    /// 展开行的数值格式（子进程用）——默认与主行相同
+    var childValues: ((StatsProcItem) -> [String])? = nil
+
+    /// 已展开的组（按 bundle 路径/进程名标识——pid 会随排序变化，不能当键）
+    @Stored private var expandedIDs: Set<String> = []
+
+    /// 数值列宽：单列 86（对齐原版），双列各 64——否则 380 宽窗里名字只剩 5~6 个字符
+    private var columnWidth: CGFloat { columns.count > 1 ? 64 : 86 }
+
+    private func childValueTexts(_ child: StatsProcItem) -> [String] {
+        if let childValues { return childValues(child) }
+        return values(child)
+    }
+
+    /// 子进程显示名：去掉与组名重复的前缀，让「哪个 Helper 占得多」一眼可辨。
+    /// 「Microsoft Edge Helper (Renderer)」→「Helper (Renderer)」；主进程本身 → 「主进程」。
+    private func childLabel(_ child: StatsProcItem, group: String) -> String {
+        var name = child.name
+        if name == group { return "主进程" }
+        if name.hasPrefix(group) {
+            name = String(name.dropFirst(group.count)).trimmingCharacters(in: .whitespaces)
+            while name.hasPrefix("-") || name.hasPrefix("—") {
+                name = String(name.dropFirst()).trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return name.isEmpty ? child.name : name
+    }
 
     var body: some View {
         VStack(spacing: 6) {
@@ -254,60 +284,128 @@ struct StatsProcTable: View {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(color)
                             .frame(width: 9, height: 9)
-                            .frame(width: 86, alignment: .trailing)
+                            .frame(width: columnWidth, alignment: .trailing)
                     } else {
                         Text(column.title)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
-                            .frame(width: 86, alignment: .trailing)
+                            .frame(width: columnWidth, alignment: .trailing)
                     }
                 }
             }
             ForEach(items) { item in
-                HStack(spacing: 8) {
-                    StatsAppIcon(name: item.name, size: 16)
-                    Text(item.name)
-                        .font(.system(size: 12))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if let note = subtitle(item), !note.isEmpty {
-                        Text(note)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
+                let expandable = !item.children.isEmpty
+                let expanded = expandedIDs.contains(item.groupKey)
+                VStack(spacing: 4) {
+                    HStack(spacing: 8) {
+                        // 展开指示：可展开组显示 chevron，单进程组留空占位（不再用 3pt 圆点）
+                        Group {
+                            if expandable {
+                                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                            } else {
+                                Color.clear
+                            }
+                        }
+                        .frame(width: 8)
+                        StatsAppIcon(name: item.name, path: item.iconPath, size: 16)
+                        Text(item.name)
+                            .font(.system(size: 12))
                             .lineLimit(1)
-                            .fixedSize()
+                            .truncationMode(.middle)
+                        if let note = subtitle(item), !note.isEmpty {
+                            Text(note)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
+                        if expandable, !expanded {
+                            Text("\(item.children.count) 进程")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                                .fixedSize()
+                        }
+                        Spacer(minLength: 4)
+                        ForEach(Array(values(item).enumerated()), id: \.offset) { _, text in
+                            Text(text)
+                                .font(.system(size: 12).monospacedDigit())
+                                .lineLimit(1)
+                                .frame(width: columnWidth, alignment: .trailing)
+                        }
+                        // v84：显式退出按钮（右键菜单之外的直达入口；整组 pid 一并结束）
+                        Button {
+                            StatsProcQuitter.confirmAndQuit(item: item)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.secondary.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
+                        .help("退出 \(item.name)（\(item.pids.count) 个进程）")
                     }
-                    Spacer(minLength: 4)
-                    ForEach(Array(values(item).enumerated()), id: \.offset) { _, text in
-                        Text(text)
-                            .font(.system(size: 12).monospacedDigit())
-                            .lineLimit(1)
-                            .frame(width: 86, alignment: .trailing)
+                    .contentShape(Rectangle())
+                    // v84：点击展开/收起（原 v71 是点开菜单；退出改走右键，避免误触）
+                    .onTapGesture {
+                        guard expandable else {
+                            ProcMenuPresenter.shared.present(for: item, values: values(item), at: NSEvent.mouseLocation)
+                            return
+                        }
+                        if expanded { expandedIDs.remove(item.groupKey) } else { expandedIDs.insert(item.groupKey) }
+                    }
+                    .contextMenu { StatsProcContextMenu(item: item, values: values(item)) }
+
+                    // 展开：组内子进程明细（缩进 + 小字号 + 同列对齐）
+                    if expanded, expandable {
+                        ForEach(item.children) { child in
+                            HStack(spacing: 8) {
+                                Color.clear.frame(width: 8)
+                                Color.clear.frame(width: 16)
+                                Text(childLabel(child, group: item.name))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer(minLength: 4)
+                                ForEach(Array(childValueTexts(child).enumerated()), id: \.offset) { _, text in
+                                    Text(text)
+                                        .font(.system(size: 11).monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .frame(width: columnWidth, alignment: .trailing)
+                                }
+                            }
+                        }
                     }
                 }
-                .contentShape(Rectangle())
-                // v71：点击/右键 → 进程菜单（查看信息 / 退出进程）
-                .onTapGesture { ProcMenuPresenter.shared.present(for: item, values: values(item), at: NSEvent.mouseLocation) }
-                .contextMenu { StatsProcContextMenu(item: item, values: values(item)) }
             }
         }
     }
 }
 
-/// 进程图标：真实 app 图标（按可执行名/显示名反查 bundle），否则通用应用图标。
-/// v71：解析能力扩展——硬编码快路径 + 异步扫描 /Applications 等目录建「可执行名→app」索引，
-/// 覆盖 QQ / python3.12 / mdworker_shared 等硬编码清单外的进程（此前显示灰方块）。
+/// 进程图标（v86 重写）：按**可执行路径**取宿主 App 图标，路径为空时才回落到名字。
+///
+/// 旧实现的问题（用户反馈「图标并没有正确展现」）：
+///   · 按进程名查硬编码表 + 异步扫 /Applications 建索引 → 首次渲染必然落空，
+///     而落空结果被永久写进缓存（`cache[name] = 通用图标`），索引就绪后也再也不刷新；
+///   · 归类键是「进程名去 Helper/括号」，与真实 App 无绑定，同名不同 App 会串图标。
+/// 现在：归类与图标同源——C 层给出的可执行路径截取 `.app`，NSWorkspace 直接取宿主图标，
+/// 不依赖任何名字猜测，也不存在「先落空后不刷新」。缓存键 = 路径，一次解析终身复用。
 struct StatsAppIcon: View {
     var name: String
+    /// 宿主 `.app` 路径，或（无 bundle 的进程）可执行文件路径
+    var path: String = ""
     var size: CGFloat = 16
 
     var body: some View {
         Group {
-            if let icon = Self.cachedIcon(for: name) {
+            if let icon = Self.cachedIcon(path: path, name: name) {
                 Image(nsImage: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } else {
+                // 连可执行路径都拿不到（内核进程等）——保持原版观感：深灰圆角方块
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(Color.primary.opacity(0.82))
             }
@@ -315,93 +413,32 @@ struct StatsAppIcon: View {
         .frame(width: size, height: size)
     }
 
+    /// 路径 → 图标缓存（只缓存成功结果；失败不写缓存，避免「一次落空、永不刷新」）
     private static var cache: [String: NSImage] = [:]
     private static let lock = NSLock()
-    /// 可执行名/显示名 → app 路径索引（首次访问时异步预热，见 ensureAppIndex）
-    private static var appIndex: [String: String] = [:]
-    private static var indexReady = false
 
-    static func cachedIcon(for name: String) -> NSImage? {
-        lock.lock(); defer { lock.unlock() }
-        if let hit = cache[name] { return hit }
-        ensureAppIndex()
-        var icon = resolveIcon(name)
-        if icon == nil {
-            // 通用应用图标（系统进程/未知进程：python3.12/mdworker_shared 等）
-            icon = NSWorkspace.shared.icon(forFileType: kUTTypeApplication as String)
-            icon?.size = NSSize(width: 16, height: 16)
-        }
-        cache[name] = icon
-        return icon
-    }
+    static func cachedIcon(path: String, name: String) -> NSImage? {
+        let key = path.isEmpty ? "name:" + name : path
+        lock.lock()
+        if let hit = cache[key] { lock.unlock(); return hit }
+        lock.unlock()
 
-    /// 异步预热 app 索引（一次性；/Applications + Utilities + ~/Applications 一级 .app）
-    static func ensureAppIndex() {
-        guard !indexReady else { return }
-        indexReady = true   // 只触发一次；结果到达前 resolveIcon 走硬编码/通用
-        DispatchQueue.global(qos: .utility).async {
-            var index: [String: String] = [:]
-            var dirs: [String] = [
-                "/Applications", "/Applications/Utilities", "/System/Applications/Utilities"
-            ]
-            if let home = ProcessInfo.processInfo.environment["HOME"] {
-                dirs.append("\(home)/Applications")
-            }
-            for dir in dirs {
-                guard let entries = try? FileManager.default.contentsOfDirectory(atPath: dir) else { continue }
-                for entry in entries where entry.hasSuffix(".app") {
-                    let path = "\(dir)/\(entry)"
-                    let plistPath = "\(path)/Contents/Info.plist"
-                    guard let plist = NSDictionary(contentsOfFile: plistPath) else { continue }
-                    var keys: [String] = []
-                    if let exe = plist["CFBundleExecutable"] as? String { keys.append(exe) }
-                    if let bundleName = plist["CFBundleName"] as? String { keys.append(bundleName) }
-                    if let display = plist["CFBundleDisplayName"] as? String { keys.append(display) }
-                    // app 文件名本身也是键（"QQ.app" → "QQ"）
-                    keys.append(String(entry.dropLast(4)))
-                    lock.lock()
-                    for key in keys where !key.isEmpty {
-                        appIndex[key] = path
-                    }
-                    lock.unlock()
-                }
-            }
+        var icon: NSImage?
+        if !path.isEmpty, FileManager.default.fileExists(atPath: path) {
+            icon = NSWorkspace.shared.icon(forFile: path)
+        } else if !name.isEmpty {
+            // 兜底：仅当拿不到路径时，才用名字在运行中的 App 里找同名 bundle
+            icon = NSWorkspace.shared.runningApplications
+                .first { ($0.localizedName ?? "") == name }
+                .flatMap { $0.bundleURL?.path }
+                .map { NSWorkspace.shared.icon(forFile: $0) }
         }
-    }
-
-    private static func resolveIcon(_ name: String) -> NSImage? {
-        // 常见进程名 → bundle 路径（低成本快路径）
-        let known: [String: String] = [
-            "ChatGPT": "/Applications/ChatGPT.app",
-            "Microsoft Edge": "/Applications/Microsoft Edge.app",
-            "Codex": "/Applications/Codex.app",
-            "Frset": "/Applications/Frset.app",
-            "WorkBuddy": "/Applications/WorkBuddy.app",
-            "WorkBuddy Helper": "/Applications/WorkBuddy.app",
-            "Electron": "/Applications/Electron.app",
-            "ZTools": "/Applications/ZTools.app"
-        ]
-        if let path = known.first(where: { name.hasPrefix($0.key) })?.value,
-           FileManager.default.fileExists(atPath: path) {
-            let icon = NSWorkspace.shared.icon(forFile: path)
-            icon.size = NSSize(width: 16, height: 16)
-            return icon
-        }
-        // 索引反查：可执行名 / 显示名 / app 名（含合并前的 "Microsoft Edge Helper" 形态）
-        lock.lock(); let index = appIndex; lock.unlock()
-        if let path = index[name], FileManager.default.fileExists(atPath: path) {
-            let icon = NSWorkspace.shared.icon(forFile: path)
-            icon.size = NSSize(width: 16, height: 16)
-            return icon
-        }
-        // 前缀兜底："QQNT" → "QQ"、"Chrome" → "Google Chrome"
-        if let hit = index.first(where: { name.hasPrefix($0.key) && $0.key.count >= 2 })?.value,
-           FileManager.default.fileExists(atPath: hit) {
-            let icon = NSWorkspace.shared.icon(forFile: hit)
-            icon.size = NSSize(width: 16, height: 16)
-            return icon
-        }
-        return nil
+        guard let image = icon else { return nil }
+        image.size = NSSize(width: 32, height: 32)   // 32pt 源图，16pt 显示更锐利（Retina）
+        lock.lock()
+        cache[key] = image
+        lock.unlock()
+        return image
     }
 }
 
@@ -477,6 +514,21 @@ enum StatsProcQuitter {
                 Toast.show("无法退出 \(item.name)：权限不足或已退出", icon: "exclamationmark.triangle")
             }
         }
+    }
+
+    /// v84：行内「退出」按钮走确认框（避免误点杀掉正在编辑的 App）；
+    /// 右键菜单是显式选择，仍直接退出。
+    static func confirmAndQuit(item: StatsProcItem) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "退出 \(item.name)？"
+        alert.informativeText = item.pids.count > 1
+            ? "将结束该应用的 \(item.pids.count) 个进程，未保存的内容可能丢失。"
+            : "未保存的内容可能丢失。"
+        alert.addButton(withTitle: "退出")
+        alert.addButton(withTitle: "取消")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        quit(item: item)
     }
 }
 
@@ -756,9 +808,13 @@ private struct GPUStatsPanel: View {
         let tiler = stats.gpuTiler >= 0 ? stats.gpuTiler : usage
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 26) {
+            // 三环横向铺满（v88：用户反馈「宽度很短」——原固定 spacing=26 把三环挤成
+            // 中间一簇、两侧留白；改用 Spacer 均分，宽度自适应容器）
+            HStack(alignment: .center, spacing: 0) {
                 ring(value: usage, size: 66, fontSize: 15)
+                Spacer(minLength: 16)
                 ring(value: renderer, size: 92, fontSize: 19)
+                Spacer(minLength: 16)
                 ring(value: tiler, size: 66, fontSize: 15)
             }
             .frame(maxWidth: .infinity)

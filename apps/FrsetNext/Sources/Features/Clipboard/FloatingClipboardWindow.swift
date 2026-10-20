@@ -195,7 +195,12 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     }
 
     public func toggle() {
-        if window?.isVisible == true { hide() } else { show() }
+        if window?.isVisible == true {
+            hide()
+        } else {
+            StatisticsManager.shared.record(.floatingClipboardActivate)
+            show()
+        }
     }
 
     /// 双击修饰键呼出（原版 AppKitDoubleTapMonitor 语义）：把窗口挪到鼠标附近再显示。

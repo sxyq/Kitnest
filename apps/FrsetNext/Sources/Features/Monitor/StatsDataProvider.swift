@@ -15,6 +15,9 @@ import SystemConfiguration   // SCDynamicStore：主接口 BSD 名
 /// 进程排行项（CPU/内存/磁盘/网络 Top）
 public struct StatsProcItem: Identifiable, Sendable {
     public var id: Int32 { pid }
+    /// 展开状态用的稳定键：bundle 路径（无 bundle 时用进程名）。
+    /// 不能用 pid——组内排序会把「第一个 pid」换人，导致展开状态每次刷新都跳。
+    public var groupKey: String { iconPath.isEmpty ? name : iconPath }
     public var pid: Int32
     public var name: String
     public var cpu: Double        // 单核百分比（100 = 单核满载）
@@ -23,13 +26,22 @@ public struct StatsProcItem: Identifiable, Sendable {
     public var diskWrite: Double  // B/s
     /// 同 App 合并后的全部 pid（单进程 = [pid]；「退出」时全杀）
     public var pids: [Int32]
+    /// v86：图标来源路径——宿主的 `.app` 完整路径（无 bundle 的进程为可执行文件路径）。
+    /// 由 C 层进程路径按 `.app/` 截取，不再按进程名猜图标（猜测是图标显示错误的根因）。
+    public var iconPath: String
+    /// v84（用户需求「进程展开查看明细」）：组内子进程明细（已按当前维度降序）。
+    /// 归类行 = 某 App 的全部 Helper/Renderer 合并；children 保留每个子进程的原始名与用量，
+    /// 供 UI 展开查看「到底哪个渲染进程占得多」。单进程组为空数组。
+    public var children: [StatsProcItem]
 
     public init(pid: Int32, name: String, cpu: Double, memBytes: Double, diskRead: Double, diskWrite: Double,
-                pids: [Int32]? = nil) {
+                pids: [Int32]? = nil, iconPath: String = "", children: [StatsProcItem] = []) {
         self.pid = pid; self.name = name
         self.cpu = cpu; self.memBytes = memBytes
         self.diskRead = diskRead; self.diskWrite = diskWrite
         self.pids = pids ?? [pid]
+        self.iconPath = iconPath
+        self.children = children
     }
 }
 
@@ -386,59 +398,159 @@ public final class StatsDataProvider {
     /// 读一类进程排行（kind：0=CPU 1=内存 2=磁盘 3=网络）。
     /// v71：读入后按 App 聚合——「一个 App 的多个进程/Helper/Renderer 合并显示」，
     /// 聚合项保留全部 pid（退出时一并结束），主指标相加后重排截 max。
+    /// v84（用户需求「展开看明细」）：聚合时同步收集 children（每个子进程的原始名与用量），
+    /// 并把 C 层取样上限放宽到 64——否则带多个 Helper 的 App（Chrome/Edge）会被截断，
+    /// 展开后看不到真正的「大头」子进程。UI 侧只展示前 N 组。
+    /// v86（用户反馈「图标没有正确展现 / 归类不准」）：改成**按可执行路径的 .app bundle 归类**，
+    /// 与注入版 frset_proc_grouped 同一口径——不再按进程名猜 App。
+    ///   · 归类键 = `/Applications/X.app`（Chrome 的 N 个 Helper/Renderer 自动归一行）
+    ///   · 图标路径 = 同一个 bundle 路径 → NSWorkspace 直接取宿主 App 图标（不再靠名字匹配表）
+    ///   · 无 .app 的守护进程/CLI = 按可执行路径独立成行，图标取该可执行文件图标
+    /// 采样上限 640：C 层本来就要遍历全部 pid（瓶颈在 proc_pid_rusage），
+    /// 抬高输出上限不增加扫描成本，却能保证「聚合后的排名」完整（大 App 不再被 64 截断）。
     private static func readProcList(kind: Int, max: Int) -> [StatsProcItem] {
-        let ptr = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: max)
+        let sampleMax = Swift.max(max, 640)
+        let ptr = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: sampleMax)
         defer { ptr.deallocate() }
-        let n = frset_proc_top(Int32(kind), ptr, Int32(max))
-        var raw: [(pid: Int32, name: String, cpu: Double, mem: Double, r: Double, w: Double)] = []
+        // kind 3 = 网络：走 nettop 后台差分（frset_net_top，字段 disk_r/disk_w = 下载/上传）
+        let n = (kind == 3) ? frset_net_top(ptr, Int32(sampleMax))
+                            : frset_proc_top(Int32(kind), ptr, Int32(sampleMax))
+        struct RawProc {
+            var pid: Int32
+            var name: String
+            var path: String
+            var cpu: Double
+            var mem: Double
+            var r: Double
+            var w: Double
+        }
+        var raw: [RawProc] = []
+        raw.reserveCapacity(Int(n))
         for i in 0..<Int(n) {
             var item = ptr[i]
-            raw.append((item.pid,
-                        String(cString: FSStatsProcName(&item)),
-                        item.cpu, item.mem, item.disk_r, item.disk_w))
+            raw.append(RawProc(pid: item.pid,
+                               name: String(cString: FSStatsProcName(&item)),
+                               path: String(cString: FSStatsProcPath(&item)),
+                               cpu: item.cpu, mem: item.mem,
+                               r: item.disk_r, w: item.disk_w))
         }
         // 网络 kind（3）的 down/up 复用 diskRead/diskWrite 字段，随聚合相加
-        struct Acc { var pids: [Int32] = []; var cpu = 0.0; var mem = 0.0; var r = 0.0; var w = 0.0 }
+        struct Acc {
+            var displayName = ""
+            var iconPath = ""
+            var pids: [Int32] = []
+            var cpu = 0.0, mem = 0.0, r = 0.0, w = 0.0
+            var children: [StatsProcItem] = []
+        }
         var groups: [String: Acc] = [:]
-        var order: [String] = []
         for item in raw {
-            let key = appGroupName(item.name)
-            if groups[key] == nil { order.append(key) }
+            let bundle = appBundlePath(item.path)
+            // 归类键：优先宿主 .app；否则用可执行路径（同一二进制的多实例合并）；再否则用名字
+            let key = bundle ?? (item.path.isEmpty ? item.name : item.path)
             var acc = groups[key] ?? Acc()
+            if acc.displayName.isEmpty {
+                acc.displayName = bundle.map { appDisplayName(bundle: $0) } ?? item.name
+                acc.iconPath = bundle ?? item.path
+            }
             acc.pids.append(item.pid)
             acc.cpu += item.cpu; acc.mem += item.mem
             acc.r += item.r; acc.w += item.w
+            acc.children.append(StatsProcItem(pid: item.pid, name: item.name,
+                                              cpu: item.cpu, memBytes: item.mem,
+                                              diskRead: item.r, diskWrite: item.w,
+                                              iconPath: bundle ?? item.path))
             groups[key] = acc
         }
-        var items: [StatsProcItem] = groups.map { key, acc in
-            StatsProcItem(pid: acc.pids[0], name: key,
-                          cpu: acc.cpu, memBytes: acc.mem,
-                          diskRead: acc.r, diskWrite: acc.w,
-                          pids: acc.pids)
+        // 组内子进程按当前维度降序（同样分桶，避免展开后行序抖动）
+        func sortChildren(_ list: inout [StatsProcItem]) {
+            func key(_ item: StatsProcItem) -> Double {
+                switch kind {
+                case 1: return (item.memBytes / (16 * 1024 * 1024)).rounded()
+                case 2, 3: return (Swift.max(item.diskRead, item.diskWrite) / 65536).rounded()
+                default: return (item.cpu * 2).rounded()
+                }
+            }
+            list.sort { a, b in
+                let ka = key(a), kb = key(b)
+                if ka != kb { return ka > kb }
+                return a.name.localizedStandardCompare(b.name) == .orderedAscending
+            }
         }
-        // 按当前 kind 的主指标降序（保持排行语义），截 max
-        switch kind {
-        case 1: items.sort { $0.memBytes > $1.memBytes }
-        case 3: items.sort { ($0.diskRead + $0.diskWrite) > ($1.diskRead + $1.diskWrite) }
-        case 2: items.sort { ($0.diskRead + $0.diskWrite) > ($1.diskRead + $1.diskWrite) }
-        default: items.sort { $0.cpu > $1.cpu }
+        var items: [StatsProcItem] = groups.values.map { acc in
+            var kids = acc.children
+            sortChildren(&kids)
+            return StatsProcItem(pid: acc.pids[0], name: acc.displayName,
+                                 cpu: acc.cpu, memBytes: acc.mem,
+                                 diskRead: acc.r, diskWrite: acc.w,
+                                 pids: acc.pids,
+                                 iconPath: acc.iconPath,
+                                 children: kids.count > 1 ? kids : [])
         }
+        // 按当前 kind 的主指标降序（保持排行语义），截 max。
+        // v86：排序 = 分桶指标 + **沿用上一轮名次**兜底。
+        //   直接按原始值排：1.5s 刷新时 0.1% / 1MB 级噪声会让行序反复跳动（点不中想展开的行）；
+        //   纯分桶再按名称：0% 与 1% 会在桶边界交错，看起来像没排序。
+        //   现在同桶内保持上一轮相对次序，只有指标实质变化才换位（既稳定又不会明显乱序）。
+        func rank(_ item: StatsProcItem) -> Double {
+            switch kind {
+            case 1: return (item.memBytes / (8 * 1024 * 1024)).rounded()
+            case 2, 3: return (Swift.max(item.diskRead, item.diskWrite) / 32768).rounded()
+            default: return (item.cpu * 10).rounded()
+            }
+        }
+        orderLock.lock()
+        let previous = lastOrders[kind] ?? [:]
+        orderLock.unlock()
+        items.sort { a, b in
+            let ra = rank(a), rb = rank(b)
+            if ra != rb { return ra > rb }
+            let ia = previous[a.groupKey] ?? Int.max
+            let ib = previous[b.groupKey] ?? Int.max
+            if ia != ib { return ia < ib }
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+        var snapshot: [String: Int] = [:]
+        for (index, item) in items.enumerated() { snapshot[item.groupKey] = index }
+        orderLock.lock()
+        lastOrders[kind] = snapshot
+        orderLock.unlock()
         return Array(items.prefix(max))
     }
 
-    /// 同 App 进程名归一：「Microsoft Edge Helper (Renderer)」→「Microsoft Edge」、
-    /// 「Safari (Web Content)」→「Safari」。系统进程（mdworker_shared/python3.12）原样保留。
-    static func appGroupName(_ name: String) -> String {
-        var n = name.trimmingCharacters(in: .whitespaces)
-        // 去 " (Renderer)" / " (GPU Process)" / " (Web Content)" 等括号后缀
-        if let parenRange = n.range(of: " ("), parenRange.lowerBound > n.startIndex {
-            n = String(n[..<parenRange.lowerBound])
+    /// 上一轮组序（按 kind 分开存：CPU/内存/磁盘/网络 各自独立，互不冲掉对方次序）
+    private static var lastOrders: [Int: [String: Int]] = [:]
+    private static let orderLock = NSLock()
+
+    /// 可执行路径 → 宿主 `.app` 路径（与 C 层 frset_bundle_of 同规则：截到第一个 ".app" 为止）。
+    /// 例：`/Applications/Google Chrome.app/Contents/Frameworks/…/Helper` → `/Applications/Google Chrome.app`
+    static func appBundlePath(_ path: String) -> String? {
+        guard let range = path.range(of: ".app/") else { return nil }
+        let end = path.index(range.lowerBound, offsetBy: 4)   // 含 ".app"
+        return String(path[..<end])
+    }
+
+    /// bundle 显示名：CFBundleDisplayName / CFBundleName 优先，回落 `.app` 文件名。
+    /// （有些 app 文件名是英文而显示名是中文，或反之；与 Finder/Dock 显示一致）
+    private static let displayNameCacheLock = NSLock()
+    private static var displayNameCache: [String: String] = [:]
+    static func appDisplayName(bundle path: String) -> String {
+        displayNameCacheLock.lock()
+        if let hit = displayNameCache[path] { displayNameCacheLock.unlock(); return hit }
+        displayNameCacheLock.unlock()
+        var name = (path as NSString).lastPathComponent
+        if name.hasSuffix(".app") { name = String(name.dropLast(4)) }
+        if let info = NSDictionary(contentsOfFile: path + "/Contents/Info.plist") {
+            if let display = info["CFBundleDisplayName"] as? String, !display.isEmpty {
+                name = display
+            } else if let bundleName = info["CFBundleName"] as? String, !bundleName.isEmpty,
+                      bundleName.count <= 24 {
+                name = bundleName
+            }
         }
-        // 去 " Helper" / " Helper (GPU)" 类尾巴（括号已去，剩纯 Helper）
-        if n.hasSuffix(" Helper") {
-            n = String(n.dropLast(" Helper".count))
-        }
-        return n.trimmingCharacters(in: .whitespaces)
+        displayNameCacheLock.lock()
+        displayNameCache[path] = name
+        displayNameCacheLock.unlock()
+        return name
     }
 
     /// 多风扇：数量（FNum）+ 名称（F{i}ID）+ 转速（F{i}Ac）+ 官方百分比 (v-Mn)/(Mx-Mn)

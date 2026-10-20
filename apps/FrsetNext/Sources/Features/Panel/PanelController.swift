@@ -4,6 +4,8 @@ import SwiftUI
 /// 面板可见性状态（供 SwiftUI 根视图做缩放淡入动画）
 public final class PanelPresentationState: ObservableObject {
     @Published public var visible = false
+    /// 本次是否锚点（菜单栏图标）展开——根视图据此显示顶部三角指示器
+    @Published public var anchored = false
     public init() {}
 }
 
@@ -26,12 +28,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 创建面板与内容（幂等）。由 PanelModule.start() 调用，并注入 ServiceLocator.panel。
     public func prepare() {
         guard panel == nil else { return }
-        // 原版主面板是固定 400×700（v60：性能页已删，高度恒定不再缩放）。
-        // 宽度仍允许用户拖拽后持久化；高度不读持久化值——避免历史矮高度残留。
-        // v66：视觉宽 = 持久基准宽 × 字号缩放（个性化联动）
-        let baseWidth = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
-                                                         default: 400))
-        let width = baseWidth * Personalization.shared.fontScale
+        // v73：**不再乘 fontScale**。「设置 → 个性化 → 面板宽度」的选项
+        // （360/400/440）即最终视觉宽度；此前「宽度 × 字号缩放」与内容
+        // scaleEffect 三重叠加，360×0.9=324 是用户所见「比例怪/按钮挤一堆」
+        // 的直接来源。字号缩放档位只影响字号（待接入全局字体缩放），不参与窗口宽。
+        let baseWidth = max(CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
+                                                         default: 400)), 320)
+        let width = baseWidth
         let height = Theme.panelMaxHeight
 
         let p = FloatingPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height),
@@ -66,9 +69,9 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         guard let p = panel else { return }
         let f = p.frame
         var target = f
-        let baseWidth = CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
-                                                         default: 400))
-        target.size.width = baseWidth * Personalization.shared.fontScale
+        let baseWidth = max(CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
+                                                         default: 400)), 320)
+        target.size.width = baseWidth     // v73：宽度即选值，不乘 fontScale（见 prepare 注释）
         target.size.height = Theme.panelMaxHeight
         target.origin.y = f.maxY - target.height
         p.setFrame(target, display: true)
@@ -122,19 +125,51 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         if panel?.isVisible == true { hide() } else { show() }
     }
 
+    /// 锚点开合（状态栏主图标点击）：展开时停到图标正下方并显示三角指示器
+    public func toggle(atAnchor anchorRect: NSRect?) {
+        if panel?.isVisible == true { hide() } else { show(atAnchor: anchorRect) }
+    }
+
     public func show() {
+        show(atAnchor: nil)
+    }
+
+    /// v73（2026-10-19 用户反馈）：主面板三处回归修复——
+    /// ① 宽度污染：persistSize 曾把 SwiftUI 压窄的形态（167pt）写进 panel.width，
+    ///    此后每次启动都读窄值，按钮全挤一起。prepare/sync 增加下限钳制（<320 丢弃旧值）；
+    /// ② 位置：无 anchor 时仍走右缘（快捷键等路径），有 anchor 时停到图标正下方；
+    /// ③ 动画：presentation.anchored 驱动根视图顶部三角 + scaleEffect(anchor:.top)
+    ///    「从图标长出来」，与监测独立窗（e466a3c）同款弹簧。
+    public func show(atAnchor anchorRect: NSRect?) {
         prepare()
         guard let p = panel else { return }
+        // v84（2026-10-20）：面板打开埋点（主图标 / 快捷键 / 深链统一收口）
+        StatisticsManager.shared.record(.panelOpen)
+        Log.breadcrumb("Panel", "打开面板")
+        // 主面板与「性能监测独立窗」互斥：两个都开时不仅叠窗，还会出现
+        // 「同一时刻两套数据/两套刷新节奏」的观感（用户多次反馈）。
+        MonitorPopoutWindowController.shared.dismissPopout()
         // v71：打开时按当前个性化校准尺寸（防通知漏收/隐藏期间变更）
         syncPanelFrameToPersonalization()
         p.level = isPinned ? .statusBar : .floating   // 置顶状态应用到新建/复用窗口
         MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
-        p.setFrameOrigin(rightEdgeOrigin(for: p.frame.size))
+        let origin: NSPoint
+        if let anchorRect {
+            origin = anchorOrigin(anchorRect, for: p.frame.size)
+            presentation.anchored = true
+        } else {
+            origin = rightEdgeOrigin(for: p.frame.size)
+            presentation.anchored = false
+        }
+        p.setFrameOrigin(origin)
         presentation.visible = true                // 触发 SwiftUI 缩放淡入
         p.alphaValue = 0
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
-        Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) alpha=\(Int(p.alphaValue))")
+        // 主面板可见期间按用户间隔采样（与独立窗同一节奏；不含此项时主面板
+        // 性能页处于「隐藏态 5s」降频，而独立窗是 1.5s——用户说的两套时间）
+        MonitorSampler.shared.setHomePanelActive(true)
+        Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y))")
         RenderProbe.snapshot(p, name: "panel", reason: "show")
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = Personalization.shared.openAnimation.fadeDuration
@@ -147,30 +182,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 注入版 FSSettlePanel(alignX: YES) 同款定位）：
     ///   · 顶边 = 屏幕可见区顶 - 2pt（菜单栏下缘，任何路径都校）
     ///   · x    = 锚点中心 - 面板宽/2，钳制在可见区内（仅"打开时"校）
-    public func show(atAnchor anchorRect: NSRect) {
-        let t0 = ProcessInfo.processInfo.systemUptime
-        prepare()
-        guard let p = panel else { return }
-        MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
-        p.setFrameOrigin(anchorOrigin(anchorRect, for: p.frame.size))
-        presentation.visible = true
-        p.alphaValue = 0
-        let tAct = ProcessInfo.processInfo.systemUptime
-        NSApp.activate(ignoringOtherApps: true)
-        let tKey = ProcessInfo.processInfo.systemUptime
-        p.makeKeyAndOrderFront(nil)
-        let t1 = ProcessInfo.processInfo.systemUptime
-        Log.info("Panel", String(format: "show(anchor): 激活 %.0fms + 上屏 %.0fms（总 %.0fms）",
-                                 (tKey - tAct) * 1000, (t1 - tKey) * 1000, (t1 - t0) * 1000))
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.14
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            p.animator().alphaValue = 1
-        }, completionHandler: {
-            let t2 = ProcessInfo.processInfo.systemUptime
-            Log.info("Panel", String(format: "show(anchor): 淡入完成 +%.0fms", (t2 - t1) * 1000))
-        })
-    }
+    /// v73：本方法已由上方 show(atAnchor:) 统一实现（含 anchored 三角态），此处删除旧副本。
 
     /// 面板是否可见（外部导航判定：注入版"面板已开则只切模块、不重开"）
     public var isPanelVisible: Bool { panel?.isVisible ?? false }
@@ -213,6 +225,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }, completionHandler: { [weak p] in
             p?.orderOut(nil)
             p?.alphaValue = 1
+            MonitorSampler.shared.setHomePanelActive(false)
         })
     }
 
@@ -247,6 +260,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     // MARK: - 尺寸持久化（v60：性能页高度自适应已随该页删除）
 
     private func persistSize(_ p: NSWindow) {
+        // v73：下限保护——只持久化用户主动拖拽后的合理尺寸。
+        // SwiftUI 内容 fitting 曾把窗口压到 167pt，windowDidResize 照单全写，
+        // 污染 panel.width 导致此后每次启动都窄（按钮挤压回归）。
+        guard p.frame.width >= 320, p.frame.height >= 400 else {
+            Log.info("Panel", "persistSize: 忽略异常尺寸 \(Int(p.frame.width))x\(Int(p.frame.height))（低于下限）")
+            return
+        }
         Preferences.shared.set(Preferences.Keys.panelWidth, Double(p.frame.width))
         Preferences.shared.set(Preferences.Keys.panelHeight, Double(p.frame.height))
     }
@@ -261,6 +281,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         set {
             Preferences.shared.set(Preferences.Keys.panelPinned, newValue)
             panel?.level = newValue ? .statusBar : .floating
+            // v84：置顶开启埋点（只在开启时记一次，关闭不记）
+            if newValue { StatisticsManager.shared.record(.alwaysOnTopEnable) }
             Log.info("Panel", newValue ? "置顶窗口：开" : "置顶窗口：关")
         }
     }

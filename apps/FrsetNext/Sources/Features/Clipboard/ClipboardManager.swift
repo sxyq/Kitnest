@@ -484,10 +484,15 @@ public final class ClipboardManager: ObservableObject {
         lastSelfWriteChangeCount = pasteboard.changeCount
         // 自己写回的粘贴板不应被再次捕获 → 同步 changeCount
         lastChangeCount = pasteboard.changeCount
+        // v84：单条复制埋点（面板列表 / 悬浮剪贴板 / 预览窗复制共用同一收口）
+        StatisticsManager.shared.record(.historyCopy)
         Toast.show("已复制", icon: "checkmark.circle.fill")   // spec 13 §4：复制成功场景
 
         let shouldPaste = autoPaste ?? preferences.value(Preferences.Keys.clipboardAutoPaste, default: false)
-        if shouldPaste { pasteToFrontmostApplication() }
+        if shouldPaste {
+            StatisticsManager.shared.record(.clipboardPaste)
+            pasteToFrontmostApplication()
+        }
     }
 
     // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）

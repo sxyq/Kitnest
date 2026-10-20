@@ -48,6 +48,10 @@ struct StatisticsRootView: View {
     /// 语言变更后继续刷新现有视图。
     @Stored private var l10nVersion: Int = 0
     @Environment(\.colorScheme) private var colorScheme
+    // v84（2026-10-20 用户需求「个性化覆盖全局」）：统计窗此前不读个性化——
+    // 强调色不生效、Midnight 主题下背景不跟随（仍用固定灰/深灰）。现接入两者。
+    @ObservedObject private var personalization = Personalization.shared
+    @ObservedObject private var appearance = AppearanceState.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -88,7 +92,15 @@ struct StatisticsRootView: View {
         .padding(.top, 58)
         .frame(width: 800, height: 530)
         .foregroundStyle(colorScheme == .dark ? Color.primary : StatisticsPalette.text)
-        .background(colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.87))
+        .background {
+            if appearance.isMidnight {
+                MidnightTheme.baseBackground
+            } else {
+                colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.87)
+            }
+        }
+        // 强调色跟随个性化（统计页内的按钮/焦点环）
+        .tint(personalization.accentColor ?? Color.accentColor)
         .ignoresSafeArea()
         .onAppear(perform: loadData)
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
@@ -103,7 +115,7 @@ struct StatisticsRootView: View {
                     .font(.custom("AvenirNextCondensed-DemiBold", size: 30))
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill").font(.system(size: 9))
-                    Text(verbatim: "DATA IS STORED LOCALLY ON YOUR MAC")
+                    Text(verbatim: "数据仅存储在本机")
                         .font(.system(size: 8, weight: .semibold))
                         .tracking(2)
                 }
@@ -126,33 +138,48 @@ struct StatisticsRootView: View {
         return formatter.string(from: Date())
     }
 
-    // MARK: 当天五项计数，提示来自原版 AX Help，查询使用现有事件名。
+    // MARK: 当天五项计数（v84：按重建版实际功能重划分组 + 中文化）
 
-    /// 当前五项配置与事件来源；原版精确分组尚待逐字段确认。
+    /// 五张指标卡：复制 / 截图 / 识别 / 工具 / 监测。
+    /// v84（2026-10-20 用户需求「统计要覆盖新增功能」）：原版五卡是
+    /// Pastes/Searches/Tools/Note/Capture，其中 Note 在重建版没有对应能力、
+    /// 而截图族新增了长截图/贴图/标注、监测新增了性能页/中转站，故重划分组：
+    /// · 复制 = 单条复制 + 批量复制 + 自动粘贴
+    /// · 截图 = 截图完成 + 长截图 + 贴图 + 标注
+    /// · 识别 = OCR + 翻译
+    /// · 工具 = 工具执行 + 取色
+    /// · 监测 = 性能监测页 + 状态栏监测部件点击 + 文件中转
     private var metricConfigs: [MetricConfig] {
         [
-            MetricConfig(id: "statistics_pastes", title: "Pastes",
-                         tooltip: "Pastes today",
-                         eventNames: [AnalyticsEvent.historyCopy.eventName],
+            MetricConfig(id: "statistics_copy", title: "复制",
+                         tooltip: "今日复制次数（含批量复制与自动粘贴）",
+                         eventNames: [AnalyticsEvent.historyCopy.eventName,
+                                      AnalyticsEvent.historyBatchCopy.eventName,
+                                      AnalyticsEvent.clipboardPaste.eventName],
                          icon: "square.on.square.fill", iconSize: 13, iconYOffset: 0),
-            MetricConfig(id: "statistics_searchs", title: "Searches",
-                         tooltip: "Searches today",
-                         eventNames: [AnalyticsEvent.searchExecute.eventName],
-                         icon: "magnifyingglass", iconSize: 13, iconYOffset: 0),
-            MetricConfig(id: "statistics_tools",
-                         title: "Tools",
-                         tooltip: "Tools used today",
-                         eventNames: [AnalyticsEvent.toolExecuteSuccess.eventName],
-                         icon: "square.fill", iconSize: 13, iconYOffset: 0),
-            MetricConfig(id: "statistics_notes", title: "Note",
-                         tooltip: "New notes today",
-                         eventNames: [AnalyticsEvent.noteCreateSuccess.eventName],
-                         icon: "square.and.pencil", iconSize: 13, iconYOffset: 0),
-            MetricConfig(id: "statistics_capture", title: "Capture",
-                         tooltip: "Screenshots and color picks today",
+            MetricConfig(id: "statistics_capture", title: "截图",
+                         tooltip: "今日截图次数（含长截图、贴图、标注）",
                          eventNames: [AnalyticsEvent.screenshotCapture.eventName,
-                                      AnalyticsEvent.colorPickSuccess.eventName],
+                                      AnalyticsEvent.longScreenshot.eventName,
+                                      AnalyticsEvent.pinImage.eventName,
+                                      AnalyticsEvent.annotateEdit.eventName],
                          icon: "viewfinder", iconSize: 13, iconYOffset: 0),
+            MetricConfig(id: "statistics_recognize", title: "识别",
+                         tooltip: "今日文字识别与翻译次数",
+                         eventNames: [AnalyticsEvent.ocrUse.eventName,
+                                      AnalyticsEvent.translationUse.eventName],
+                         icon: "text.viewfinder", iconSize: 13, iconYOffset: 0),
+            MetricConfig(id: "statistics_tools", title: "工具",
+                         tooltip: "今日工具执行与取色次数",
+                         eventNames: [AnalyticsEvent.toolExecuteSuccess.eventName,
+                                      AnalyticsEvent.colorPickSuccess.eventName],
+                         icon: "square.fill", iconSize: 13, iconYOffset: 0),
+            MetricConfig(id: "statistics_monitor", title: "监测",
+                         tooltip: "今日性能监测与文件中转次数",
+                         eventNames: [AnalyticsEvent.monitorPanelOpen.eventName,
+                                      AnalyticsEvent.activityMonitorClick.eventName,
+                                      AnalyticsEvent.transferDockOpen.eventName],
+                         icon: "gauge.with.dots.needle.67percent", iconSize: 13, iconYOffset: 0),
         ]
     }
 
@@ -172,15 +199,15 @@ struct StatisticsRootView: View {
 
     private var overviewSummary: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(verbatim: "Overview")
+            Text(verbatim: "总览")
                 .font(.system(size: 12, design: .monospaced))
                 .frame(height: 18)
             VStack(spacing: 0) {
-                summaryRow("Total Interactions", value: totalInteractions,
+                summaryRow("总交互", value: totalInteractions,
                            icon: "cursorarrow.click.2", color: .yellow)
-                summaryRow("Days Active", value: activeDaysCount,
+                summaryRow("活跃天数", value: activeDaysCount,
                            icon: "calendar", color: .blue)
-                summaryRow("Clipboard Items", value: storedItemsCount,
+                summaryRow("剪贴板条目", value: storedItemsCount,
                            icon: "doc.on.clipboard.fill", color: .orange)
             }
         }
@@ -319,10 +346,10 @@ private struct ActivityHeatmapView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(verbatim: "Activity Matrix")
+                Text(verbatim: "活动矩阵")
                     .font(.system(size: 12, design: .monospaced))
                 Spacer()
-                Text(verbatim: "Less")
+                Text(verbatim: "少")
                 HStack(spacing: 3) {
                     ForEach(0..<5) { level in
                         RoundedRectangle(cornerRadius: 1.5)
@@ -330,7 +357,7 @@ private struct ActivityHeatmapView: View {
                             .frame(width: cellSize, height: cellSize)
                     }
                 }
-                Text(verbatim: "More")
+                Text(verbatim: "多")
             }
             .font(.custom("AvenirNextCondensed-DemiBold", size: 11))
             .foregroundStyle(StatisticsPalette.secondary)
@@ -541,7 +568,7 @@ private struct Last30BarsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
-            Text(verbatim: "Last 30 Days")
+            Text(verbatim: "近 30 天")
                 .font(.system(size: 12, design: .monospaced))
                 .frame(height: 18)
             HStack(alignment: .bottom, spacing: barSpacing) {

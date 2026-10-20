@@ -12,7 +12,7 @@ public enum PanelCenterPage {
 public final class MonitorCenterPresenter: ObservableObject {
     /// 面板当前主页面（三段：主页 / 性能监测 / 文件中转站）
     @Published public var page: PanelCenterPage = .home
-    /// 性能页当前模块（主面板侧独立记忆；独立窗有自己的 selection）
+    /// 性能页当前模块（**主面板与状态栏独立窗共用这一份**；改这里两边同时切换）
     @Published public var monitorSelection = MonitorDetailSelection(.cpu)
 
     /// 兼容旧读取方（activePage）
@@ -25,10 +25,14 @@ public final class MonitorCenterPresenter: ObservableObject {
     public func selectPerformance(module: MonitorModuleID? = nil) {
         if let module { monitorSelection.module = module }
         page = .performance
+        // v84：性能监测页打开埋点（面板段切换 / URL 深链 / 状态栏部件点击共用）
+        StatisticsManager.shared.record(.monitorPanelOpen)
     }
 
     public func selectTransferDock() {
         page = .transfer
+        // v84：文件中转页打开埋点
+        StatisticsManager.shared.record(.transferDockOpen)
     }
 
     /// 「文件中转」入口是否启用（设置 → 常规 → 功能，v41 新增开关）。

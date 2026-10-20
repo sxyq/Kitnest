@@ -29,6 +29,7 @@ final class SettingsUIState: ObservableObject {
     /// 旧 pane id → 侧边栏位置映射（含多合一分类的内部子页）
     func selectPane(_ pane: String) {
         Log.info("settings", "selectPane: \(pane)")
+        Log.breadcrumb("Settings", "切页 \(pane)")   // v84：卡死定位面包屑
         selectedPaneID = pane
         detailPaneID = nil
         applyPaneMapping(pane)
@@ -47,6 +48,7 @@ final class SettingsUIState: ObservableObject {
         case "about":                    selection = .category(.about)
         case "monitor", "monitorSettings": selection = .monitorSettings
         case "monitor.widgets", "widgets", "barSettings": selection = .monitorWidgets
+        case "manual", "help":           selection = .manual
         default:
             // 排障/直达：pane = "monitor.cpu" / "monitor.memory" … → 性能监测模块页
             if pane.hasPrefix("monitor."),
@@ -87,6 +89,8 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
     /// nil 保持当前位置。v41：所有 id 映射到侧边栏二级项（见 SettingsUIState）。
     public func open(pane: String?) {
         Log.info("settings", "open(pane:\(pane ?? "nil")) called, window=\(window == nil ? "nil" : "exists")")
+        // v84：设置窗打开埋点（齿轮菜单 / ⌘, / 各处「设置」入口共用）
+        StatisticsManager.shared.record(.settingsOpen)
         ensureWindow()
         Log.info("settings", "ensureWindow done, window=\(window != nil ? "exists" : "nil")")
         if let pane {

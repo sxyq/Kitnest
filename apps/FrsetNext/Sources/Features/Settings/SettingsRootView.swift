@@ -44,6 +44,10 @@ struct SettingsRootView: View {
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         .tint(personalization.accentColor ?? Color.accentColor)
         .frsetAppearanceTheme()
+        // v84：侧边栏切换面包屑（卡死时日志可见「切到哪一页后卡住」）
+        .onChange(of: state.selection) { newValue in
+            Log.breadcrumb("Settings", "侧边栏 → \(newValue)")
+        }
         .ignoresSafeArea()
     }
 
@@ -60,6 +64,7 @@ struct SettingsRootView: View {
         case .monitorModule(let module): return module == .sensors ? "传感器" : module.displayName
         case .monitorSettings: return "监测设置"
         case .monitorWidgets: return "部件设置"
+        case .manual: return "使用手册"
         }
     }
 
@@ -112,6 +117,9 @@ struct SettingsRootView: View {
         case .monitorWidgets:
             // v55：用本项目设置组件重写的部件设置页（功能覆盖 STATS，不嵌入其界面）
             MonitorWidgetsPane()
+        case .manual:
+            // v88：交互式树形使用手册（左树 + 右内容；图片/表格/搜索/上下一节）
+            ManualPaneView()
         }
     }
 

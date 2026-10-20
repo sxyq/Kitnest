@@ -127,8 +127,28 @@ public final class Personalization: ObservableObject {
     /// 随后 fontScale 读回被污染值，用户设置永远失效）
     private var isLoading = false
 
+    /// v84（2026-10-20 设置页卡死治理）：写盘合并到 150ms 一次。
+    /// 此前每个属性 didSet 都立刻写 15 个 defaults 键并发通知——拖动滑块时
+    /// 每帧一轮（15 写入 + N 个监听者重建状态栏），主线程直接被淹没。
+    /// 现改为防抖：连续修改只落盘一次；退出前 flushPendingPersist() 兜底。
+    private var persistWork: DispatchWorkItem?
+
     private func persist() {
         guard !isLoading else { return }
+        persistWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.flushPersist() }
+        persistWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+    }
+
+    /// 立即落盘（防抖窗口内退出时由 App 层调用，避免丢设置）
+    public func flushPendingPersist() {
+        persistWork?.cancel()
+        persistWork = nil
+        flushPersist()
+    }
+
+    private func flushPersist() {
         Log.info("personalization", "persist: fontScale=\(fontScale) density=\(density.rawValue) corner=\(cornerRadius)")
         let d = UserDefaults.standard
         d.set(accentColorHex, forKey: Preferences.Keys.uiAccentColor)

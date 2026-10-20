@@ -203,6 +203,12 @@ const char *FSStatsProcName(const void *p) {
     return ((const frset_proc_t *)p)->name;
 }
 
+// v86：进程可执行路径（归类键与图标来源）——Swift 侧按 ".app/" 前缀取宿主 bundle，
+// 是「归类正确 + 图标正确」的唯一可靠依据（按进程名猜测会误合并/误配图标）。
+const char *FSStatsProcPath(const void *p) {
+    return ((const frset_proc_t *)p)->path;
+}
+
 const char *FSStatsSensorKey(const void *s) {
     return ((const frset_sensor_t *)s)->key;
 }

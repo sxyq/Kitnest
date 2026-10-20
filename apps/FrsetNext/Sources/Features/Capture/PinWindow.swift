@@ -159,6 +159,9 @@ final class PinnedScreenshotControlsHostView: NSView {
 /// 隐藏 = NSAnimationContext 淡出 + setHidden + ignoresMouseEvents（0x1002fae6c/0x1002fb0c0）。
 final class PinnedScreenshotControlsWindow: NSPanel {
 
+    /// 控制条窗口尺寸（按钮布局按此宽度居中计算）
+    static let defaultSize = NSSize(width: 320, height: 44)
+
     /// 自动隐藏间隔（2.0s，原作立即数）
     static let autoHideInterval: TimeInterval = 2.0
 
@@ -168,7 +171,7 @@ final class PinnedScreenshotControlsWindow: NSPanel {
     private var pendingHide: DispatchWorkItem?
 
     init() {
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 320, height: 44),
+        super.init(contentRect: NSRect(origin: .zero, size: Self.defaultSize),
                    styleMask: [.borderless, .nonactivatingPanel],
                    backing: .buffered, defer: false)
         isOpaque = false
@@ -178,7 +181,7 @@ final class PinnedScreenshotControlsWindow: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
-        contentView = PinnedScreenshotControlsHostView(frame: NSRect(x: 0, y: 0, width: 320, height: 44))
+        contentView = PinnedScreenshotControlsHostView(frame: NSRect(origin: .zero, size: Self.defaultSize))
     }
 
     override var canBecomeKey: Bool { true }
@@ -275,21 +278,12 @@ final class PinnedScreenshotContentView: NSView {
     /// 控制条（懒建， addChildWindow 挂到贴图窗）
     private lazy var controlsWindow = PinnedScreenshotControlsWindow()
     private var controlsInstalled = false
-    /// 缩放 HUD 子窗口
-    private lazy var hudWindow: NSPanel = {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 56, height: 28),
-                            styleMask: [.borderless, .nonactivatingPanel],
-                            backing: .buffered, defer: false)
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = true     // 0x1002f7970
-        panel.isReleasedWhenClosed = false
-        let hud = PinnedScreenshotScaleHUD()
-        hud.frame = NSRect(origin: .zero, size: NSSize(width: 56, height: 28))
-        panel.contentView = hud
-        return panel
-    }()
+    /// 缩放 HUD —— v83（2026-10-19 用户反馈「100% 一直飘着关不掉」）：
+    /// 原实现用独立 NSPanel + addChildWindow(hudWindow)，2s 后只 orderOut；
+    /// **childWindow 会在父窗每次 orderFront/成为 key 时被系统重新带出**，
+    /// 于是贴图被点击/拖动后 HUD 复活并永久常驻（无新 timer 收尾）。
+    /// 现改为内容视图内的子视图：随贴图绘制、随 2s 定时器隐藏，无窗口联动。
+    private let scaleHUD = PinnedScreenshotScaleHUD()
     private var hudHideTimer: Timer?
 
     /// 小模式一次性提示调度（0x1002f8838）
@@ -311,6 +305,8 @@ final class PinnedScreenshotContentView: NSView {
                                   options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
                                   owner: self, userInfo: nil)
         addTrackingArea(area)
+        scaleHUD.isHidden = true
+        addSubview(scaleHUD)
         smallCloseButton.isHidden = true
         smallCloseButton.handleClick = { [weak self] in self?.closeClicked() }
         addSubview(smallCloseButton)
@@ -360,26 +356,21 @@ final class PinnedScreenshotContentView: NSView {
 
     // MARK: HUD
 
-    /// HUD 挂贴图正中心，56×28（0x1002f961c-0x1002f9730）
+    /// HUD 居中（内容视图子视图，56×28）
     private func repositionHUD() {
-        guard let window = window else { return }
-        guard hudWindow.parent == window || hudWindow.parent == nil else { return }
-        if hudWindow.parent == nil {
-            window.addChildWindow(hudWindow, ordered: .above)   // 0x1002f79e4
-            hudWindow.level = window.level                       // level 拷贝父窗
-        }
-        let frame = window.frame
-        hudWindow.setFrameOrigin(NSPoint(x: frame.midX - 28, y: frame.midY - 14))
+        scaleHUD.frame = NSRect(x: (bounds.width - 56) / 2,
+                                y: (bounds.height - 28) / 2,
+                                width: 56, height: 28)
     }
 
-    /// 缩放时短暂显示 HUD（淡出延时复用 2.0s 路径，spec 16 §3.2 ⬜）
+    /// 缩放时短暂显示 HUD（2.0s 后隐藏；子视图方案无窗口联动问题）
     private func showHUD() {
         repositionHUD()
-        (hudWindow.contentView as? PinnedScreenshotScaleHUD)?.update(percent: Int((currentScale * 100).rounded()))
-        hudWindow.orderFront(nil)
+        scaleHUD.update(percent: Int((currentScale * 100).rounded()))
+        scaleHUD.isHidden = false
         hudHideTimer?.invalidate()
         hudHideTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
-            self?.hudWindow.orderOut(nil)
+            self?.scaleHUD.isHidden = true
         }
     }
 
@@ -419,7 +410,13 @@ final class PinnedScreenshotContentView: NSView {
             ("square.and.arrow.down", #selector(saveClicked)),
             ("xmark.circle", #selector(closeClicked)),
         ]
-        let width: CGFloat = 28, spacing: CGFloat = 30, start: CGFloat = 85
+        // v83（2026-10-19 用户反馈「点叉号无法关闭」根因）：
+        // 原布局 start=85、index×58 → 第 5 个（关闭）按钮 x=317、右缘 345，
+        // **超出 320pt 窗口宽被裁掉**，用户看不到也点不到关闭钮。
+        // 改为整组水平居中：5×28 + 4×30 = 260pt，起点 (320-260)/2 = 30。
+        let width: CGFloat = 28, spacing: CGFloat = 30
+        let totalWidth = CGFloat(buttons.count) * width + CGFloat(buttons.count - 1) * spacing
+        let start = (PinnedScreenshotControlsWindow.defaultSize.width - totalWidth) / 2
         for (index, item) in buttons.enumerated() {
             let button = NSButton(frame: NSRect(x: start + CGFloat(index) * (width + spacing),
                                                 y: 8, width: width, height: width))
@@ -503,6 +500,22 @@ final class PinnedScreenshotContentView: NSView {
     }
 
     // MARK: 拖拽：body 区移动窗口，边缘手柄调尺寸（0x1002f454c / 0x1002f4a8c）
+
+    /// v83（2026-10-19 用户反馈「关不掉」补强）：贴图窗是 nonactivating panel——
+    /// 点击贴图不会激活本 App，PinnedScreenshotManager 的**本地** keyDown 监听
+    /// 收不到 Esc（本地监视器只在本 App 为活动应用时回调），用户没有任何键盘关闭路径。
+    /// nonactivating 面板成为 key window 后仍可收键盘，故在内容视图直接处理：
+    /// Esc / Delete / ForwardDelete 均关闭当前贴图（比 manager 的「Esc 全关」更安全）。
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 53, 51, 117:   // Esc / Delete / Forward Delete
+            closeClicked()
+        default:
+            super.keyDown(with: event)
+        }
+    }
 
     override func mouseDown(with event: NSEvent) {
         dragStartWindowFrame = window?.frame
@@ -841,6 +854,8 @@ final class PinnedScreenshotWindow: NSPanel {
     /// becomeKey → super → 通知 Manager 更新活动贴图（0x100302174/0x10030152c）
     override func becomeKey() {
         super.becomeKey()
+        // v83：把键盘焦点交给内容视图，Esc/Delete 才能到达其 keyDown
+        if let view = contentView { makeFirstResponder(view) }
         PinnedScreenshotManager.shared.windowDidBecomeKey(self)
     }
 

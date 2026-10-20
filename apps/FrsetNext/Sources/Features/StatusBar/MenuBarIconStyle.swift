@@ -65,8 +65,6 @@ enum MenuBarIconStyleStore {
 
     /// 自定义 Symbol 名（⬜ 原作键名未探明，此处自定 menu-bar-icon-custom-symbol，注释标明）
     static let customSymbolKey = "menu-bar-icon-custom-symbol"
-    /// 彩蛋解锁键（原作 custom_icon_easter_egg_unlocked，读写点 0x100308ed8）
-    static let unlockedKey = "custom_icon_easter_egg_unlocked"
     /// 设置页是否显示自定义选项（原作 revealCustomMenuBarIconOption，0x1005eeabc）
     static let revealCustomOptionKey = "revealCustomMenuBarIconOption"
     /// custom 缺省 Symbol（未指定时的兜底）
@@ -90,13 +88,11 @@ enum MenuBarIconStyleStore {
         Log.info("StatusBar", "菜单栏图标样式切换为 \(style.rawValue)")
     }
 
-    /// 是否已在菜单/设置里显示「自定义图标」选项（对应原作 revealCustomMenuBarIconOption，0x1005eeabc）
-    /// 未落盘时默认展示（仅受解锁状态约束）
+    /// 是否显示「自定义图标」选项（对应原作 revealCustomMenuBarIconOption，0x1005eeabc）
+    /// v83：解锁门控随彩蛋机制移除——自定义图标是常规功能，未落盘时默认展示，
+    /// 仅由 hide/restore 的显式开关控制。
     static var revealsCustomOption: Bool {
-        // 解锁状态读同一个 defaults 键（custom_icon_easter_egg_unlocked）；
-        // 解锁判定本身由 MenuBarIconEasterEggManager.isUnlocked 负责，此处只读不解锁语义
-        guard UserDefaults.standard.bool(forKey: unlockedKey) else { return false }
-        return UserDefaults.standard.object(forKey: revealCustomOptionKey) as? Bool ?? true
+        UserDefaults.standard.object(forKey: revealCustomOptionKey) as? Bool ?? true
     }
 
     /// 写入 revealCustomMenuBarIconOption（hide / restore 对话框的落点）
@@ -267,41 +263,21 @@ final class MenuBarIconStyleMenuActions: NSObject {
         ServiceLocator.settings?.open(pane: "general")
     }
 
-    /// 隐藏自定义图标选项 → 先走 hide 类对话框（spec 13 §6.3 逐字文案）
+    /// 隐藏自定义图标选项（v83：原彩蛋 hide 对话框随彩蛋机制一并移除，直接执行）
     @objc func hideIconOption(_ sender: Any?) {
-        MenuBarIconEasterEggManager.shared.presentDialog(
-            kind: .hide,
-            onConfirm: { [weak self] in
-                MenuBarIconStyleStore.setRevealsCustomOption(false)
-                self?.toastHidden()
-            },
-            onCancel: { [weak self] in
-                self?.toastKept()
-            }
-        )
+        MenuBarIconStyleStore.setRevealsCustomOption(false)
+        toastHidden()
     }
 
     private func toastHidden() {
         Toast.show("已隐藏自定义菜单栏图标", icon: "eye.slash")
     }
 
-    private func toastKept() {
-        Toast.show("保留自定义菜单栏图标选项", icon: "checkmark.circle.fill")
-    }
-
-    /// 恢复自定义图标选项 → 先走 restore 类对话框（spec 13 §6.3 文案族与 regret 相同）
+    /// 恢复自定义图标选项（v83：原彩蛋 restore 对话框随彩蛋机制一并移除，直接执行）
     @objc func restoreIconOption(_ sender: Any?) {
-        MenuBarIconEasterEggManager.shared.presentDialog(
-            kind: .restore,
-            onConfirm: {
-                MenuBarIconStyleStore.setRevealsCustomOption(true)
-                MenuBarIconStyleApplier.shared.refresh()
-                Toast.show("已恢复自定义菜单栏图标选项", icon: "checkmark.circle.fill")
-            },
-            onCancel: { [weak self] in
-                self?.toastKept()
-            }
-        )
+        MenuBarIconStyleStore.setRevealsCustomOption(true)
+        MenuBarIconStyleApplier.shared.refresh()
+        Toast.show("已恢复自定义菜单栏图标选项", icon: "checkmark.circle.fill")
     }
 }
 
@@ -395,6 +371,16 @@ final class MenuBarIconStyleApplier {
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
             self?.apply()
+        }
+        // v82：小猫开关变化 → 强制重应用样式（apply 有“样式未变就跳过”守卫，
+        // 这里先清空 applied 状态，确保关闭小猫后原图标/宽度立即恢复）。
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("FrsetRunCatIconChanged"), object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.appliedStyle = nil
+            self.appliedCustomSymbol = nil
+            self.apply()
         }
         apply()
         // 主状态项按钮由 StatusBarController.installMainItem 登记锚点；

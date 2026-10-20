@@ -8,26 +8,23 @@ struct FrsetNextApp: App {
 
     var body: some Scene {
         // 主界面由各模块自管理窗口（面板/设置/截图选区等），这里只保留一个空场景。
-        // v66 重要：`Settings { }` scene 会**自动注册 ⌘, 快捷键**——此前用户按 ⌘, 弹出的
-        // 是 SwiftUI 的**空设置窗**（900×450 空白、title="FrsetNext设置"），
-        // 而真正的设置窗（SettingsWindowController，940×620）从未打开。
-        // 现在 scene 内容在出现时**转发**到自管设置窗，并收掉 SwiftUI 的空窗。
+        // v85（2026-10-20 设置页卡死根因）：此前 `Settings { Color.clear.frame(1,1)
+        // .onAppear { 转发到自管窗 + 收掉 SwiftUI 空窗 } }`——**两个设置窗同时存在并
+        // 同时布局**（SwiftUI Settings scene 的空窗 + 自管 NSHostingView 窗），
+        // 实测 sample 栈：NSWindow layoutIfNeeded → 多层 _layoutSubtreeWithOldSize
+        // → NSHostingView.layout → GeometryReader 读 size → 再触发 layout，主线程死循环。
+        // 现改为：scene 只放 EmptyView（不转发、不创建内容），⌘, 用 commands
+        // 直接指向自管设置窗——永远只有一个设置窗参与布局。
         Settings {
-            Color.clear
-                .frame(width: 1, height: 1)
-                .onAppear {
-                    DispatchQueue.main.async {
-                        ServiceLocator.settings?.open(pane: nil)
-                        // 收掉 SwiftUI Settings scene 的空窗：
-                        // 标题含「设置」且非当前 key（自管窗已 makeKey）、宽 < 940（自管窗恒 940）
-                        for w in NSApp.windows where w.isVisible
-                            && w.title.contains("设置")
-                            && w !== NSApp.keyWindow
-                            && w.frame.width < 940 {
-                            w.orderOut(nil)
-                        }
-                    }
+            EmptyView()
+        }
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("设置…") {
+                    ServiceLocator.settings?.open(pane: nil)
                 }
+                .keyboardShortcut(",", modifiers: .command)
+            }
         }
     }
 }
@@ -85,6 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // v84：退出前把个性化防抖窗口内的改动立即落盘（否则 150ms 内退出会丢设置）
+        Personalization.shared.flushPendingPersist()
+        LogArchive.shared.stop()
         AppBootstrap.stop()
     }
 
@@ -114,11 +114,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ServiceLocator.settings?.open(pane: pane)
             case "statistics":
                 StatisticsWindowController.shared.openStatistics()
+            case "monitor":
+                // v74 深链：打开性能监测独立窗（部件点击/⌥P 的等价入口，便于排障）
+                // v86：支持 frsetnext://monitor?module=memory 直达指定模块（排障/截图验证用）
+                let moduleRaw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "module" })?.value
+                let module = moduleRaw.flatMap(MonitorModuleID.init(rawValue:))
+                MonitorPopoutWindowController.shared.open(module: module)
+            case "longshot":
+                // v74 排障/深链入口：直接进入长截图选区（等价 ⇧⌥L 与面板菜单「长截图」）
+                LongScreenshotCoordinator.shared.beginSelection()
             case "panel":
                 // 先激活：主面板 windowDidResignKey → hide（transient 行为），
                 // 不激活时窗口成为 key 后立即 resign 被自动关闭（2026-10-16 实证）
                 NSApp.activate(ignoringOtherApps: true)
-                ServiceLocator.panel?.show()
+                // v73 排障入口：frsetnext://panel?anchor=icon —— 用主图标实际 frame
+                // 走锚点展开（验证「图标正下方 + 顶部三角」，等价左键点击路径）
+                let anchorIcon = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "anchor" })?.value == "icon"
+                // v74 深链：frsetnext://panel?monitor=sensors——面板打开后直达性能页指定模块
+                let monitorRaw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "monitor" })?.value
+                if let monitorRaw, let module = MonitorModuleID(rawValue: monitorRaw) {
+                    MonitorCenterPresenter.shared.selectPerformance(module: module)
+                }
+                if anchorIcon,
+                   let anchor = StatusBarController.shared.mainStatusItem?.button?.window?.frame {
+                    Log.info("App", "URL 锚点展开：icon frame=\(anchor)")
+                    ServiceLocator.panel?.show(atAnchor: anchor)
+                } else {
+                    ServiceLocator.panel?.show()
+                }
             default:
                 break
             }

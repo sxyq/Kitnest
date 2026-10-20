@@ -137,14 +137,11 @@ public final class StatusBarController: NSObject {
     }
 
     private func installMainItem() {
-        // v30：主图标初始位置键（仅无键时写，不覆盖用户拖动后的值）。
-        // 2026-10-16 实测：主图标 autosaveName 有键前系统每次自选落点
-        // （受菜单栏其他 app 项数量影响，运行间在 1298-1342 间变），而合并条
-        // 按 position 500 固定 → 两者相对位置时相邻时差 38-57pt。钉住初始位
-        // （322 ≈ 本机实证相邻槽：主图标 x=1342 时合并条 1146+196=1342 贴住）。
-        if UserDefaults.standard.object(forKey: "NSStatusItem Preferred Position \(Self.statusItemName("main"))") == nil {
-            UserDefaults.standard.set(322, forKey: "NSStatusItem Preferred Position \(Self.statusItemName("main"))")
-        }
+        // v71（实测：菜单栏图标被挤出屏幕外）：不再钉 Preferred Position=322。
+        // 322 是 2026-10-16 旧屏/旧图标数下的相邻槽位；如今菜单栏图标增多后，
+        // 钉死位置导致主图标 + 合并条整组被挤到屏幕右缘外（只剩末字符残段）。
+        // 清掉钉位让系统自动排布（同队列其他 app 图标右侧）。
+        UserDefaults.standard.removeObject(forKey: "NSStatusItem Preferred Position \(Self.statusItemName("main"))")
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = Self.statusItemName("main")   // 固定 autosaveName（带前缀），位置持久化稳定
         let symbol = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "Frset")
@@ -189,11 +186,23 @@ public final class StatusBarController: NSObject {
     }
 
     /// 偏好变化时立即生效（menuBar.iconsVisible）
+    ///
+    /// v84（2026-10-20 用户反馈「设置界面随便点两下就卡死」）：
+    /// Personalization 一次 persist 会连写 15 个键 → 15 次 didChangeNotification；
+    /// 拖动个性化滑块时每帧一次 persist → 每秒数百次通知，每次都同步跑
+    /// syncStatusItems（遍历状态项 + 重绘双层图 + C 引擎对齐），主线程被淹没。
+    /// 改为 250ms 合并节流：连续通知只跑最后一次。
+    private var prefSyncWorkItem: DispatchWorkItem?
+
     private func observePreferences() {
         defaultsObservation = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            self?.syncStatusItems()
+            guard let self else { return }
+            self.prefSyncWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.syncStatusItems() }
+            self.prefSyncWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
         }
     }
 
@@ -427,18 +436,20 @@ public final class StatusBarController: NSObject {
     @objc private func mainItemClicked(_ sender: Any?) {
         guard let button = sender as? NSStatusBarButton else { return }
         let isRightClick = NSApp.currentEvent?.type == .rightMouseUp
-        // 彩蛋：连续单击主图标 10 次触发 Symbol Mode 解锁（spec 13 §6，重建版触发器改造）。
-        // 仅左键计数——本方法同时响应 leftMouseUp/rightMouseUp，右键点菜单不应计入。
-        if !isRightClick {
-            MenuBarIconEasterEggManager.shared.registerMainIconClick()
-        }
+        // v83（2026-10-20 用户需求「点开面板不要弹表情+英文」）：
+        // 原「连续单击主图标 10 次解锁」彩蛋（第 1 次必弹
+        // "🤫 This is not a button. Probably." 气泡）已整体移除——
+        // 该彩蛋是原版付费墙拒绝计数的移植产物，与重建版产品定位无关，
+        // 且首次点击就打气泡、干扰正常使用（用户实测反馈）。
+        // 自定义菜单栏图标功能保留（门控去掉，见 StatusBarMenuBuilder）。
         if isRightClick {
             let menu = StatusBarMenuBuilder.mainMenu(target: self)
             menu.popUp(positioning: nil,
                        at: NSPoint(x: 0, y: button.bounds.height + 6),
                        in: button)
         } else {
-            ServiceLocator.panel?.toggle()
+            // v73：主图标左键 → 锚点展开（面板停到图标正下方 + 三角指示器 + 长出来动画）
+            ServiceLocator.panel?.toggle(atAnchor: button.window?.frame)
         }
     }
 
@@ -465,7 +476,8 @@ public final class StatusBarController: NSObject {
             showPopover(build(), relativeTo: button)
             return
         }
-        ServiceLocator.panel?.toggle()
+        // v73：回落打开主面板也走锚点展开（在该部件正下方）
+        ServiceLocator.panel?.toggle(atAnchor: button.window?.frame)
     }
 
     private func showPopover(_ view: AnyView, relativeTo button: NSStatusBarButton) {
@@ -474,8 +486,12 @@ public final class StatusBarController: NSObject {
         popover.behavior = .transient                 // 点击外部自动关闭
         popover.animates = true
         popover.delegate = self
-        popover.contentSize = NSSize(width: Theme.panelWidth, height: 260)
+        // v74（用户反馈「两套界面/时间不一样」）：popover 与主页性能页统一——
+        // 尺寸 292×260 → 340×620（接近主面板 360×630，同一信息密度），
+        // 打开期间提升采样频率到用户间隔（隐藏态默认 ≥5s 会让数值显得"不走"）。
+        popover.contentSize = NSSize(width: 340, height: 620)
         popover.contentViewController = NSHostingController(rootView: view)
+        MonitorSampler.shared.setSettingsActive(true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         currentPopover = popover
     }
@@ -508,7 +524,10 @@ public final class StatusBarController: NSObject {
 
     // MARK: 菜单动作（StatusBarMenuBuilder 组装的菜单目标）
 
-    @objc func openPanelAction(_ sender: Any?) { ServiceLocator.panel?.show() }
+    @objc func openPanelAction(_ sender: Any?) {
+        // v73：菜单唤起也停到主图标正下方（与左键点击一致）
+        ServiceLocator.panel?.show(atAnchor: mainItem?.button?.window?.frame)
+    }
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
 
@@ -548,6 +567,8 @@ public final class StatusBarController: NSObject {
 extension StatusBarController: NSPopoverDelegate, NSMenuDelegate {
     public func popoverDidClose(_ notification: Notification) {
         currentPopover = nil
+        // v74：popover 关闭 → 恢复隐藏态降频（与打开时的提升配对）
+        MonitorSampler.shared.setSettingsActive(false)
     }
 
     /// 「更多」菜单：每次打开按最新数据重建

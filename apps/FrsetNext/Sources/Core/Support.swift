@@ -8,43 +8,25 @@ public enum Log {
     public enum Level: String { case debug, info, warn, error }
     public static var isVerbose = false
 
-    /// 日志落盘（2026-10-18）：open/双击启动的实例没有 stdout，排障时拿不到任何记录。
-    /// 现在同时写 `~/Library/Application Support/FrsetNext/app.log`（200KB 滚动），
-    /// 用户操作后可直接查。高频调用点已降级为 .debug（见 StatusBarController）。
-    private static let fileURL: URL? = {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let dir = base.appendingPathComponent("FrsetNext", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("app.log")
-    }()
-    private static let fileLock = NSLock()
-
+    /// 日志落盘（v84，2026-10-20 用户需求「3 天日志 + 卡死诊断」）：
+    /// 统一交给 LogArchive——按天分文件（logs/YYYY-MM-DD.log）、保留 3 天自动清理、
+    /// 单文件 4MB 上限、主线程卡死看门狗与 60s 状态快照都在那里实现。
+    /// 本枚举的 API 签名保持不变，全工程调用点零改动。
     public static func write(_ level: Level, _ tag: String, _ message: String) {
         guard level != .debug || isVerbose else { return }
         let line = "[\(level.rawValue.uppercased())][\(tag)] \(message)"
         FileHandle.standardError.write(Data((line + "\n").utf8))
-
-        fileLock.lock()
-        defer { fileLock.unlock() }
-        guard let url = fileURL else { return }
-        let data = Data((line + "\n").utf8)
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-           let size = attrs[.size] as? Int, size > 200_000 {
-            try? FileManager.default.removeItem(at: url)
-        }
-        if let fh = try? FileHandle(forWritingTo: url) {
-            fh.seekToEndOfFile()
-            fh.write(data)
-            try? fh.close()
-        } else {
-            try? data.write(to: url)
-        }
+        LogArchive.shared.append(level: level.rawValue.uppercased(), tag: tag, message: message)
     }
     public static func debug(_ tag: String, _ m: String) { write(.debug, tag, m) }
     public static func info(_ tag: String, _ m: String) { write(.info, tag, m) }
     public static func warn(_ tag: String, _ m: String) { write(.warn, tag, m) }
     public static func error(_ tag: String, _ m: String) { write(.error, tag, m) }
+
+    /// 操作面包屑（卡死看门狗在 HANG 日志里附最近 5 条，定位「卡死前最后一步」）
+    public static func breadcrumb(_ tag: String, _ message: String) {
+        LogArchive.shared.pushBreadcrumb("\(tag): \(message)")
+    }
 }
 
 // MARK: - 模块注册（各功能模块自行实现 AppModule，由 App 层统一 start）

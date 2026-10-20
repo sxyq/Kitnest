@@ -106,7 +106,14 @@ public enum CaptureModule: AppModule {
     }
 
     /// 快捷入口（供状态栏菜单 / 全局快捷键接线调用）
+    ///
+    /// v84（2026-10-20 用户需求「使用统计要记录所有功能」）：本方法是截图族全部入口的
+    /// 统一收口（面板截图菜单 / 菜单栏右键 / 全局热键 / 长截图深链）。
+    /// 埋点口径：只记**结果型**事件——截图/OCR/取色已有 App 层完成回调
+    /// （CaptureEventBus.onImageCaptured / onTextRecognized / onColorPicked 各自 bumpStat），
+    /// 此处不重复计数；仅贴图/长截图/标注三类无完成回调的模式在调用时记。
     public static func capture(_ mode: CaptureMode) {
+        recordUsage(for: mode)
         switch mode {
         case .area:     ScreenshotManager.shared.captureRegion()
         case .full:     ScreenshotManager.shared.captureFullScreen()
@@ -118,22 +125,37 @@ public enum CaptureModule: AppModule {
         }
     }
 
+    /// 截图模式 → 使用统计事件（v84：只覆盖无完成回调的模式，避免双计）
+    private static func recordUsage(for mode: CaptureMode) {
+        let event: AnalyticsEvent?
+        switch mode {
+        case .pin:      event = .pinImage
+        case .long:     event = .longScreenshot
+        case .annotate: event = .annotateEdit
+        default:        event = nil      // area/full → onImageCaptured；ocr → onTextRecognized；color → onColorPicked
+        }
+        if let event { StatisticsManager.shared.record(event) }
+    }
+
     // MARK: 面板截图功能菜单的动作（对齐原版：截图 / 截图并复制 / 截图并贴图 /
     // 截图提取文字 / 长截图 / 截图翻译 / 划词翻译——见 specs/20 与
     // docs/逆向版新需求对照-v74-v124.md R7）
 
     /// 截图并复制（区域截图 + 直接进剪贴板）
+    /// 注：不在此埋 screenshotCapture——onImageCaptured 完成回调已计入，避免双计。
     public static func captureCopy() {
         ScreenshotManager.shared.captureAndCopy()
     }
 
     /// 截图翻译：截取区域 → OCR → 交 App 层翻译会话（通知跨模块派发）
     public static func captureTranslate() {
+        StatisticsManager.shared.record(.translationUse)
         NotificationCenter.default.post(name: .frsetScreenshotTranslate, object: nil)
     }
 
     /// 划词翻译：读取选中文本 → 翻译（通知跨模块派发）
     public static func translateSelection() {
+        StatisticsManager.shared.record(.translationUse)
         NotificationCenter.default.post(name: .frsetTranslateSelection, object: nil)
     }
 }

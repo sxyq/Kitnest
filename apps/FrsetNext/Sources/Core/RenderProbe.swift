@@ -17,12 +17,14 @@ import Foundation
 
 public enum RenderProbe {
 
-    /// 探针是否启用（默认开；FRSET_RENDER_PROBE=0 关闭）
+    /// 探针是否启用（v73：默认**关闭**——2026-10-19 性能审计实测发现生产环境
+    /// 每 5s 全窗口快照并落盘一行日志（app.log 一天 100KB+，5s 一次主线程遍历），
+    /// 白屏问题已定位修复后无常态运行必要。排障时显式设 FRSET_RENDER_PROBE=1 开启。）
     public static var isEnabled: Bool {
         if let env = ProcessInfo.processInfo.environment["FRSET_RENDER_PROBE"] {
-            return env != "0"
+            return env == "1"
         }
-        return true
+        return false
     }
 
     private static var timer: Timer?

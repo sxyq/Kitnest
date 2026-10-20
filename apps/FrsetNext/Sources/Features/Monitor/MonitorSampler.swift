@@ -47,6 +47,7 @@ public final class MonitorSampler: ObservableObject {
     /// 用户反馈「性能开销非常差」的主要来源之一）。菜单栏 STATS 部件走 C 引擎
     /// 自己的采样，不受这里影响。
     private var panelActive = false
+    private var homePanelActive = false
     private var settingsActive = false
 
     public func setPanelActive(_ active: Bool) {
@@ -56,6 +57,17 @@ public final class MonitorSampler: ObservableObject {
         if active { refresh() }   // 打开瞬间立即出一帧，不等下个周期
     }
 
+    /// 主面板可见性门控（性能页在主面板里）。
+    /// 必须与独立窗的 panelActive **分开**：两者可能同时开，任一方关闭
+    /// 不能把另一方的刷新节奏一起降频——这正是用户看到的
+    /// 「主页性能页 5s 一帧 / 状态栏面板 1.5s 一帧，两套时间」的根源。
+    public func setHomePanelActive(_ active: Bool) {
+        guard homePanelActive != active else { return }
+        homePanelActive = active
+        applyPreferences()
+        if active { refresh() }
+    }
+
     public func setSettingsActive(_ active: Bool) {
         guard settingsActive != active else { return }
         settingsActive = active
@@ -63,7 +75,7 @@ public final class MonitorSampler: ObservableObject {
         if active { refresh() }
     }
 
-    private var uiActive: Bool { panelActive || settingsActive }
+    private var uiActive: Bool { panelActive || homePanelActive || settingsActive }
 
     private struct Buffers {
         var cpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
@@ -145,7 +157,13 @@ public final class MonitorSampler: ObservableObject {
             guard let self else { return }
             guard MonitorPreferences.isEnabled else { return }
             self.sampleOnce()
-            self.scheduleNext(interval: MonitorPreferences.refreshInterval)
+            // v73（2026-10-19 性能审计）：原实现直接用 refreshInterval 重排，
+            // 丢失了 applyPreferences 的 UI 隐藏门控——面板/设置都不可见时
+            // 仍按用户间隔（默认 1s）全量采样 + 主线程发布 3 个 @Published，
+            // 是「常驻开销大」的主因。此处复用同一门控：隐藏时 ≥5s。
+            let base = MonitorPreferences.refreshInterval
+            let interval = self.uiActive ? base : max(base, 5.0)
+            self.scheduleNext(interval: interval)
         }
         lock.lock()
         pendingWork = work
@@ -159,7 +177,39 @@ public final class MonitorSampler: ObservableObject {
         StatsDataProvider.shared.refresh()
 
         let result = reader.readResult()
-        let sample = result.sample
+        var sample = result.sample
+        // v76（全盘统一数据源，2026-10-19）：菜单栏部件显示的数值来自 C 引擎
+        // 0.5s 快照 g_snap（frset_stats_tick.m）；SwiftUI 面板此前由 MonitorReader
+        // 再采一份，同一时刻两条时间线的数值会不同（用户反复反馈的「两套时间」）。
+        // 核心指标直接采用同一份 g_snap：状态栏部件 / 主面板性能页 / 状态栏独立窗
+        // 从此显示同一时刻的同一组数值；其余字段（温度/功耗/内存压力/交换）仍走本采样。
+        // 注：g_snap 在主线程 0.5s 更新，此处后台读取；arm64 上 8 字节标量读写原子，
+        // 最坏情况是拿到相邻两 tick 的混合快照（≤0.5s），不影响观感与正确性。
+        let cSnap = g_snap
+        if cSnap.valid != 0 {
+            sample.cpuUsage = cSnap.cpuUsage
+            sample.systemCPU = cSnap.cpuSystem
+            sample.userCPU = cSnap.cpuUser
+            sample.idleCPU = cSnap.cpuIdle
+            if cSnap.coreCount > 0 {
+                let count = min(Int(cSnap.coreCount), 32)
+                sample.perCore = withUnsafeBytes(of: cSnap.coreUsage) { raw in
+                    let p = raw.bindMemory(to: Double.self)
+                    return (0..<count).map { p[$0] }
+                }
+            }
+            if cSnap.ramTotalBytes > 0 {
+                sample.memoryUsed = UInt64(max(0, cSnap.ramUsedBytes))
+                sample.memoryTotal = UInt64(max(0, cSnap.ramTotalBytes))
+            }
+            sample.diskRead = UInt64(max(0, cSnap.diskReadBps))
+            sample.diskWrite = UInt64(max(0, cSnap.diskWriteBps))
+            sample.netUpload = UInt64(max(0, cSnap.netUpBps))
+            sample.netDownload = UInt64(max(0, cSnap.netDownBps))
+            if cSnap.batteryPresent != 0 {
+                sample.batteryLevel = cSnap.batteryPercent / 100.0
+            }
+        }
         let loadAverages = reader.loadAverages()
 
         lock.lock()

@@ -30,31 +30,31 @@ public final class FloatingPanel: NSPanel {
         isOpaque = false
         hasShadow = true
 
-        // v71（用户：透明玻璃态用性能检测这边的）：solid = 性能检测窗同款
-        // 纯色圆角卡片（windowBackgroundColor 不透桌面）；vibrancy = LiquidGlass 毛玻璃。
-        // 原实现 solid 也走 NSGlassEffectView（tint 1.0 仍透光），与性能检测窗观感不一致。
-        let solid = Personalization.shared.material == .solid
+        // v74（用户需求）：**玻璃态统一**——主面板与「性能监测」面板/状态栏部件
+        // 展开的 NSPopover 用同一材质 `NSVisualEffectMaterial.popover`（系统 popover
+        // 的原生玻璃）。此前 solid = windowBackground 纯色（与监测面板观感割裂），
+        // 用户明确要求参考性能图标展开面板。
         let radius = Personalization.shared.cornerRadius
         let hosting = NSHostingView(rootView: rootView)
-        if solid {
-            let bg = NSView(frame: NSRect(origin: .zero, size: contentRect.size))
-            bg.wantsLayer = true
-            bg.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-            bg.layer?.cornerRadius = radius
-            bg.layer?.cornerCurve = .continuous
-            bg.layer?.masksToBounds = true
-            hosting.frame = bg.bounds
-            hosting.autoresizingMask = [.width, .height]
-            bg.addSubview(hosting)
-            contentView = bg
-        } else {
-            let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: contentRect.size),
-                                             cornerRadius: radius,
-                                             material: .hudWindow,
-                                             tint: NSColor.windowBackgroundColor.withAlphaComponent(0.55))
-            LiquidGlass.embed(hosting, in: glass)
-            contentView = glass
-        }
+        // v73（2026-10-19 用户反馈「比例非常怪/按钮全挤一起」的深层根因）：
+        // NSHostingView 默认 sizingOptions 会把 SwiftUI 内容 fitting size 折成
+        // 窗口尺寸请求。PanelRootView 根部有 .scaleEffect(fontScale=0.9)，内容
+        // fitting 缩到 0.9 后 hosting 反向把窗口压成 360×0.9=324pt，与
+        // PanelController 设定的 400×0.9=360 打架——每轮布局反复拉锯，最终
+        // 停在窄值并被 persistSize 记住。与设置窗 800×1554 死循环崩溃同族。
+        // 纪律：宿主窗口决定尺寸，内容只负责填充（sizingOptions=[] + safeArea=[]）。
+        hosting.sizingOptions = []
+        if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
+        let glass = NSVisualEffectView()
+        glass.material = .popover
+        glass.blendingMode = .behindWindow
+        glass.state = .active
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = radius
+        glass.layer?.cornerCurve = .continuous
+        glass.layer?.masksToBounds = true
+        LiquidGlass.embed(hosting, in: glass)
+        contentView = glass
     }
 
     /// 允许成为 key（顶部搜索框需要键盘输入）；
@@ -70,28 +70,19 @@ public final class FloatingPanel: NSPanel {
 // MARK: - v66 个性化材质
 
 extension FloatingPanel {
-    /// 「个性化 → 背景材质」即时切换：纯色（性能检测窗同款圆角卡片）/ 毛玻璃
+    /// 「个性化 → 背景材质」即时切换（v74：统一为 popover 原生玻璃，
+    /// 与性能监测面板/状态栏 popover 同一视觉语言；仅圆角随设置变化）
     public func applyPersonalizedMaterial() {
-        let solid = Personalization.shared.material == .solid
         let radius = Personalization.shared.cornerRadius
-        // v71：solid = 纯色圆角容器（非玻璃层）
-        if solid, let bg = contentView {
-            var isEffect = bg is NSVisualEffectView
-            if #available(macOS 26.0, *), bg is NSGlassEffectView { isEffect = true }
-            if !isEffect {
-                bg.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-                bg.layer?.cornerRadius = radius
-                return
-            }
-        }
-        let tint = NSColor.windowBackgroundColor.withAlphaComponent(solid ? 1.0 : 0.55)
         if #available(macOS 26.0, *), let glass = contentView as? NSGlassEffectView {
-            glass.tintColor = tint
+            glass.tintColor = NSColor.windowBackgroundColor.withAlphaComponent(0.55)
             glass.cornerRadius = radius
         } else if let effect = contentView as? NSVisualEffectView {
-            effect.material = solid ? .windowBackground : .hudWindow
-            effect.blendingMode = solid ? .withinWindow : .behindWindow
+            effect.material = .popover
+            effect.blendingMode = .behindWindow
             effect.layer?.cornerRadius = radius
+        } else if let bg = contentView {
+            bg.layer?.cornerRadius = radius
         }
     }
 }

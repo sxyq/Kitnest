@@ -138,31 +138,31 @@ public enum MonitorStatusItems {
     public static func registerAll() {
         register(id: "monitor.power", priority: 9, title: powerTitle,
                  twoLineTitle: powerTwoLine) {
-            AnyView(MonitorDetailView(module: .power))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.power), pageMode: false, fixedWidth: nil))
         }
         register(id: "monitor.cpu", priority: 10, title: cpuTitle,
                  twoLineTitle: cpuTwoLine) {
-            AnyView(MonitorDetailView(module: .cpu))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.cpu), pageMode: false, fixedWidth: nil))
         }
         register(id: "monitor.network", priority: 11, title: networkTitle,
                  twoLineTitle: networkTwoLine) {
-            AnyView(MonitorDetailView(module: .network))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.network), pageMode: false, fixedWidth: nil))
         }
         register(id: "monitor.memory", priority: 12, title: memoryTitle,
                  twoLineTitle: memoryTwoLine) {
-            AnyView(MonitorDetailView(module: .memory))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.memory), pageMode: false, fixedWidth: nil))
         }
         register(id: "monitor.disk", priority: 13, title: diskTitle,
                  twoLineTitle: diskTwoLine) {
-            AnyView(MonitorDetailView(module: .disk))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.disk), pageMode: false, fixedWidth: nil))
         }
         register(id: "monitor.sensors", priority: 14, title: sensorsTitle,
                  twoLineTitle: sensorsTwoLine) {
-            AnyView(MonitorDetailView(module: .sensors))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.sensors), pageMode: false, fixedWidth: nil))
         }
         register(id: "monitor.combined", priority: 15, title: combinedTitle,
                  twoLineTitle: combinedTwoLine) {
-            AnyView(MonitorDetailView(module: .cpu))
+            AnyView(MonitorDetailView(selection: MonitorDetailSelection(.cpu), pageMode: false, fixedWidth: nil))
         }
     }
 

@@ -270,7 +270,10 @@ struct StatisticsSettingsPane: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let review = mgr.reviewRequestUsage()                       // Q7
             let capture = mgr.total(event: AnalyticsEvent.clipboardCapture.eventName)          // Q6
-            let screenshot = mgr.total(event: AnalyticsEvent.screenshotCapture.eventName)      // Q6
+            // v84：截图总数合并截图族全部事件（截图 / 长截图 / 贴图 / 标注）
+            let screenshot = [AnalyticsEvent.screenshotCapture,
+                              .longScreenshot, .pinImage, .annotateEdit]
+                .reduce(0) { $0 + mgr.total(event: $1.eventName) }                             // Q6
             let tool = mgr.total(event: AnalyticsEvent.toolExecuteSuccess.eventName)          // Q6
             let days = mgr.activeDaysCount(events: events)                                    // Q3
             let stored = Int((try? DatabaseManager.shared.clipboard.scalarInt(

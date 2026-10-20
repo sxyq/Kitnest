@@ -118,6 +118,12 @@ public struct MonitorBarChart: View {
 // MARK: - 环形图（CPU / 内存占比）
 
 /// 单值环形进度（Stats 语义色）
+///
+/// v84（2026-10-20 用户反馈「环状图左侧与上侧被截断」）：SwiftUI 的
+/// `Circle().stroke(lineWidth:)` 是**描边居中于路径**——路径取 bounds 内接圆，
+/// 于是描边有 `lineWidth/2` 画到 frame 之外（66pt 环 + 7pt 线 → 四边各溢 3.5pt），
+/// 被容器裁掉后表现为左上缺边（视觉重心所在）。修复：路径按半个线宽内缩
+/// （`inset(by: lineWidth/2)`），描边恰好贴合 frame，外径不变、不再被裁。
 public struct MonitorRing: View {
     public let value: Double
     public let lineWidth: CGFloat
@@ -132,8 +138,10 @@ public struct MonitorRing: View {
     public var body: some View {
         ZStack {
             Circle()
+                .inset(by: lineWidth / 2)
                 .stroke(Color.primary.opacity(0.10), lineWidth: lineWidth)
             Circle()
+                .inset(by: lineWidth / 2)
                 .trim(from: 0, to: min(1, max(0, value.isFinite ? value : 0)))
                 .stroke(color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))

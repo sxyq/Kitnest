@@ -185,13 +185,27 @@ public enum StatsBarEngine {
         Log.info("StatsBar", "部件点击 → 监测独立窗口 module=\(module.displayName)")
         let popout = MonitorPopoutWindowController.shared
         if popout.isVisible {
-            popout.showModule(module)
-        } else {
-            // 锚点：引擎记录的点击位置（屏幕坐标，注入版同源）
-            let anchor = FSBarLastAnchorScreenRect()
-            popout.open(module: module,
-                        anchor: (anchor.width > 0 && anchor.midX > 0) ? anchor : nil)
+            if popout.currentModule == module {
+                // 同一部件再点 = 收起（菜单栏部件通用 toggle 语义）。
+                // 原实现只 showModule → 永远不关，这是用户「点了图标关不掉」的直接原因之一。
+                Log.info("StatsBar", "部件点击 → 同模块再点：收起")
+                popout.dismissPopout()
+            } else {
+                Log.info("StatsBar", "部件点击 → 切换模块 \(module.displayName)")
+                popout.showModule(module)
+            }
+            return
         }
+        // 本次点击的 mouseDown 被「点外」轮询先一步收起（同一部件）→ 保持关闭，
+        // 否则会出现「关了又立刻弹回来」的观感。
+        if popout.wasJustDismissed(), popout.currentModule == module {
+            Log.info("StatsBar", "部件点击 → 本次点击已收起，保持关闭")
+            return
+        }
+        // 锚点：引擎记录的点击位置（屏幕坐标，注入版同源）
+        let anchor = FSBarLastAnchorScreenRect()
+        popout.open(module: module,
+                    anchor: (anchor.width > 0 && anchor.midX > 0) ? anchor : nil)
     }
 
     /// 打开 Stats 风格部件设置窗（监测面板页脚齿轮）
@@ -205,6 +219,8 @@ public enum StatsBarEngine {
 
     /// 打开录屏设置小窗（截图菜单「录屏」——注入版独有能力，v47 移植）
     public static func openRecorder() {
+        // v84：录屏启动埋点（截图菜单 / 状态栏菜单 / 快捷键统一走本入口）
+        StatisticsManager.shared.record(.screenRecord)
         FSScreenRecOpenSettings()
     }
 }

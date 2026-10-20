@@ -15,6 +15,10 @@ enum AppBootstrap {
         guard !started else { return }
         started = true
 
+        // 0) v84（用户需求）：3 天日志归档 + 主线程卡死看门狗（logs/YYYY-MM-DD.log，自动清理）
+        LogArchive.shared.start()
+        Log.breadcrumb("Bootstrap", "应用启动")
+
         // 1) 注册模块（顺序 = 依赖顺序：基础服务 → UI 容器 → 功能）
         ModuleRegistry.register(PanelModule.self)
         ModuleRegistry.register(SettingsModule.self)
@@ -26,17 +30,24 @@ enum AppBootstrap {
         ModuleRegistry.register(ToolboxModule.self)
 
         // 2) 启动（各模块在 start() 内完成自我注册与服务注入）
+        Log.breadcrumb("Bootstrap", "模块启动 begin")
         ModuleRegistry.startAll()
+        Log.breadcrumb("Bootstrap", "模块启动 done")
 
         // 2.5) v71：渲染健康探针（白屏排查基础设施）——周期 dump 关键窗口
         //      frame/alpha/layer 状态；白屏发生时日志必有现场。
+        Log.breadcrumb("Bootstrap", "RenderProbe.install begin")
         RenderProbe.install()
+        Log.breadcrumb("Bootstrap", "RenderProbe.install done")
 
         // 3) 跨模块事件接线（总控统一连，模块之间不互相引用）
+        Log.breadcrumb("Bootstrap", "wireEventBuses begin")
         wireEventBuses()
+        Log.breadcrumb("Bootstrap", "wireEventBuses done")
 
         // 3.5) 预览数据桥接线（specs/12）：Panel 侧预览内容消费 ClipboardManager 的全文/OCR 文本。
         //      未接线时走数据桥内置后备（直读 textPath / richTextPath / content），但 OCR 附加区块缺失。
+        Log.breadcrumb("Bootstrap", "preview bridge begin")
         PreviewPopoverDataBridge.shared.fullTextProvider = { ClipboardManager.shared.fullText(for: $0) }
         PreviewPopoverDataBridge.shared.ocrTextProvider = { ClipboardManager.shared.ocrText(for: $0) }
         // v65 富文本保真渲染：RTF → NSAttributedString（预览 .richText 分支用）
@@ -45,7 +56,9 @@ enum AppBootstrap {
         }
 
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
+        Log.breadcrumb("Bootstrap", "appTools begin")
         registerAppLevelTools()
+        Log.breadcrumb("Bootstrap", "appTools done")
 
         // 4.5) 音频混音器设置页（v68；公开 CoreAudio 边界见 AudioMixer.swift 头注）
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
@@ -57,7 +70,9 @@ enum AppBootstrap {
 
         // 5) 全局快捷键默认绑定表（specs/19）：须在 ModuleRegistry.startAll() 之后调用，
         //    handler 为懒分发，触发时才经 ServiceLocator / 各模块公开 API 执行
+        Log.breadcrumb("Bootstrap", "hotkeys begin")
         registerDefaultHotkeys()
+        Log.breadcrumb("Bootstrap", "hotkeys done")
 
         Log.info("Bootstrap", "全部模块已启动")
     }

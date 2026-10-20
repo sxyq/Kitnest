@@ -13,6 +13,17 @@ public struct PreviewPopoverContentView: View {
     let model: PreviewPopoverContentModel
 
     public var body: some View {
+        VStack(spacing: 0) {
+            content
+            // v74（用户需求）：文本内容命中网盘链接时，底部给出「复制/打开/解析下载」操作条
+            if let link = CloudDriveLinkDetector.detect(in: model.inlineText) {
+                CloudLinkPreviewAction(link: link)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch model.kind {
         case .text:
             PreviewTextContentView(text: model.inlineText)

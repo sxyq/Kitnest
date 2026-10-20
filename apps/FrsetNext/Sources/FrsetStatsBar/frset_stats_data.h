@@ -102,6 +102,30 @@ typedef struct {
 /// 进程排行（kind：0=CPU 1=内存 2=磁盘）。需 ~1..2s 周期调用（内部差分）。
 int frset_proc_top(int kind, frset_proc_t *out, int max);
 
+// ---- v84：进程按 App 归类（移植注入版 v30；子进程合并到宿主 App ——
+//      Chrome 的 N 个渲染进程只显示一行；同一行即可退出/强制退出） ----
+typedef struct {
+    char bundle[512];      // 归类键（.app 路径；无 .app 的进程为可执行文件路径）
+    char name[64];         // 显示名（.app 的 basename 去后缀；否则进程名）
+    char icon_path[512];   // 图标来源路径
+    double cpu;            // 组内合计（单核百分比口径，100=单核满载）
+    double mem;            // 组内合计 footprint（字节）
+    double disk_r;         // 组内合计读速率 B/s
+    double disk_w;         // 组内合计写速率 B/s
+    int procCount;         // 组内进程数（如 Chrome 的 40 个渲染进程）
+    int pids[64];          // 组内 pid（供退出；最多 64）
+    int pidCount;
+} frset_proc_grp_t;
+
+/// 按 App 归类的进程排行（kind 同 frset_proc_top）。内部按 .app bundle 聚合后按 kind 降序。
+int frset_proc_grouped(int kind, frset_proc_grp_t *out, int max);
+/// 退出指定 bundle 的全部进程。force=0 → SIGTERM（温和），1 → SIGKILL（强制）。
+/// 重新扫描系统进程按路径匹配；跳过自身进程。返回成功发送信号的进程数。
+int frset_kill_bundle(const char *bundle, int force);
+/// v84：某归组内的进程明细（供 UI 展开）。bundle 传 frset_proc_grp_t.bundle；
+/// 无 .app 的独立进程传其可执行路径（与 grouped 的 bundle 字段一致）。
+int frset_proc_group_detail(const char *bundle, int kind, frset_proc_t *out, int max);
+
 double frset_uptime(void);            // 系统运行秒数
 int frset_mem_pressure(void);         // kern.memorystatus_vm_pressure_level（1=正常 2=警告 4=严重 0=未知）
 /// GPU 利用率（IOAccelerator PerformanceStatistics）；返回 0=成功，比值 0..1

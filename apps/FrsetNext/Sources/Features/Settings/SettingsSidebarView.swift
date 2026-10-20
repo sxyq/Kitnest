@@ -49,6 +49,8 @@ enum SettingsSidebarSelection: Hashable {
     case monitorSettings
     /// v54：内嵌 STATS 部件设置（形态/颜色/间距/每模块选项，功能对齐 Stats）
     case monitorWidgets
+    /// v88：使用手册（交互式树形手册，2026-10-20 用户需求）
+    case manual
 }
 
 /// 侧边栏视图（宽 186，整窗高）
@@ -173,6 +175,25 @@ struct SettingsSidebarView: View {
             Rectangle()
                 .fill(Color.primary.opacity(0.07))
                 .frame(height: 0.5)
+            // v88：使用手册固定入口——放在页脚常驻可见（此前挂在滚动列表末尾，
+            // 侧边栏内容超出可视区时需要滚动才能看到）
+            Button {
+                state.selection = .manual
+            } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 11))
+                        .frame(width: 16)
+                    Text("使用手册")
+                        .font(.system(size: 11.5))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(state.selection == .manual ? Color.accentColor : Color.primary)
+                .padding(.horizontal, 14)
+                .frame(height: 30)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             HStack(spacing: 9) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 11))

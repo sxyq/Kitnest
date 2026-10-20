@@ -140,6 +140,8 @@ final class CaptureActionToolbarPanel: NSPanel {
     private let image: CGImage
     private let url: URL
     private var keyMonitor: Any?
+    private var outsideLocalMonitor: Any?
+    private var outsideGlobalMonitor: Any?
     /// 关闭回调（清理 CaptureActionChain.toolbar 强引用）
     var onClose: (() -> Void)?
 
@@ -188,9 +190,26 @@ final class CaptureActionToolbarPanel: NSPanel {
             }
             return event
         }
+
+        // v83（2026-10-19 用户反馈「截图后不选择，工具条一直飘着关不掉」）：
+        // 工具条此前只有 Esc/Return/点工具三种退出路径，用户不知道时无法关闭。
+        // 补「点击工具条外部即关闭」：本 App 内点击走 local，其他 App 点击走 global
+        // （global 需辅助功能授权，未授权时静默失效，local 仍覆盖本 App 场景）。
+        outsideLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self, event.window !== self else { return event }
+            self.close()
+            return event
+        }
+        outsideGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.close()
+        }
     }
 
     override var canBecomeKey: Bool { true }
+
+    /// Esc 兜底：nonactivating 面板未成为 key 时 local monitor 收不到 keyDown，
+    /// 但一旦用户点过工具条（面板成为 key），responder chain 的 cancelOperation 必然可达。
+    override func cancelOperation(_ sender: Any?) { close() }
 
     /// 工具条位置：优先选区下方 10pt（AppKit 全局，左下原点），放不下贴上方；可见区内钳制
     func place(near selectionAppKit: CGRect) {
@@ -213,6 +232,10 @@ final class CaptureActionToolbarPanel: NSPanel {
     override func close() {
         if let monitor = keyMonitor { NSEvent.removeMonitor(monitor) }
         keyMonitor = nil
+        if let monitor = outsideLocalMonitor { NSEvent.removeMonitor(monitor) }
+        outsideLocalMonitor = nil
+        if let monitor = outsideGlobalMonitor { NSEvent.removeMonitor(monitor) }
+        outsideGlobalMonitor = nil
         onClose?()
         super.close()
     }

@@ -76,6 +76,8 @@ final class LongScreenshotSession {
     var onStateChange: ((LongScreenshotState) -> Void)?
     /// 会话收尾（finished → 产物；cancelled / failed → nil）
     var onFinish: ((LongScreenshotState, CGImage?) -> Void)?
+    /// 采集进度（已追加行数，主线程回调）——采集期 HUD 实时高度（v74）
+    var onProgress: ((Int) -> Void)?
 
     // MARK: 初始化
 
@@ -198,6 +200,9 @@ final class LongScreenshotSession {
                                        hintDY: delta * contentScale,
                                        scale: contentScale)
         if appended {
+            // v74：采集进度回调（主线程）——采集期 HUD 实时显示已追加行数
+            let rowsNow = stitcher.appendedRows
+            DispatchQueue.main.async { [weak self] in self?.onProgress?(rowsNow) }
             Log.info("Capture", "长截图追加成功：画布累计 \(stitcher.appendedRows) 行当量（本帧 \(frame.width)×\(frame.height)，位移 d(\(stitcher.lastOffset.dx),\(stitcher.lastOffset.dy))）")
         } else {
             Log.debug("Capture", "长截图本帧未追加（恒等帧/新内容不足/对齐失败，δ=(\(Int(deltaX)),\(Int(delta)))）")

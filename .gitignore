@@ -8,3 +8,7 @@ xcuserdata/
 build.sh.bak-*
 *.bak-*
 dist/
+
+# 构建中间产物（swiftc 无索引构建）
+apps/FrsetNext/.build/
+*.noindex/

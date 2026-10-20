@@ -23,21 +23,46 @@ private struct ContentHeightKey: PreferenceKey {
     }
 }
 
+/// v74：无标题栏玻璃面板（borderless 默认 canBecomeKey=false，需显式放行，
+/// 否则「点外/失焦收起」依赖的 key 状态永远不会发生）
+final class MonitorPopoutPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
 /// 窗口内容根：detail 自带模块切换条 + 底栏（fixedWidth=nil 撑满）；
 /// 内容高度经偏好异步上报控制器（驱动窗口平滑 resize）
+/// 独立窗滚动复位信号：窗口是长期复用的，SwiftUI ScrollView 会**保留上次滚动位置**。
+/// 用户在温度长列表滚到底再关窗，下次点部件重开时顶部模块切换条会停在视口外，
+/// 看起来就是「面板上面没有切换按钮」——每次 open 递增 token 强制滚回顶部。
+private final class PopoutScrollState: ObservableObject {
+    @Published var resetToken = 0
+}
+
 private struct PopoutRootView: View {
-    let detail: MonitorDetailView
+    @ObservedObject var scrollState: PopoutScrollState
     let onHeightChange: (CGFloat) -> Void
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            detail
-                .background(GeometryReader { geo in
-                    Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
-                })
-        }
-        .onPreferenceChange(ContentHeightKey.self) { height in
-            onHeightChange(height)
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 0).id("top")   // 滚动锚点
+                    // v75：与主面板性能页**共用 MonitorPerformanceContent**（唯一实现）。
+                    // 唯一差异 = 顶部 22pt，让出左上角自绘关闭钮（borderless 窗无标题栏）。
+                    // 选中态共用 MonitorCenterPresenter.shared.monitorSelection，
+                    // 两个入口永远显示同一个模块、同一份数据、同一个刷新节奏。
+                    MonitorPerformanceContent(topInset: 22)
+                        .background(GeometryReader { geo in
+                            Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
+                        })
+                }
+            }
+            .onChange(of: scrollState.resetToken) { _ in
+                proxy.scrollTo("top", anchor: .top)
+            }
+            .onPreferenceChange(ContentHeightKey.self) { height in
+                onHeightChange(height)
+            }
         }
     }
 }
@@ -45,34 +70,70 @@ private struct PopoutRootView: View {
 public final class MonitorPopoutWindowController: NSWindowController, NSWindowDelegate {
     public static let shared = MonitorPopoutWindowController()
 
-    /// 独立窗口自己的模块选中态（唯一一套，不再与主面板共享）
-    private var selection: MonitorDetailSelection
     /// 无指定模块时的回退（记忆上次查看的模块）
     private var lastModule: MonitorModuleID = .cpu
+    /// 滚动复位信号（每次打开回到顶部）
+    private let scrollState = PopoutScrollState()
+
+    /// 与主面板性能页**共用**的模块选中态（唯一一套）
+    private var sharedSelection: MonitorDetailSelection {
+        MonitorCenterPresenter.shared.monitorSelection
+    }
 
     private convenience init() {
         self.init(window: nil)
-        let detail = MonitorDetailView(selection: selection, pageMode: false, fixedWidth: nil)
-        let host = NSHostingView(rootView: PopoutRootView(detail: detail) { [weak self] height in
+        let host = NSHostingView(rootView: PopoutRootView(scrollState: scrollState) { [weak self] height in
             self?.resize(toContentHeight: height)
         })
         host.sizingOptions = []          // 内容不反驱窗口大小（高度由控制器按测量值动画过渡）
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 640),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
-                              backing: .buffered, defer: false)
+
+        // v74 修正（用户 2026-10-19 再次指出「两套不一样」）：上一版只换了材质，
+        // 窗口仍是 .titled（系统标题栏悬浮在 fullSizeContentView 顶部）——
+        // **顶部模块切换条 modulePicker 被标题栏区域压住/挤掉**，看起来「上面没有
+        // 切换按钮、只有对应模块的内容」，与主页 Performance 页不是同一套。
+        // 现彻底对齐「状态栏部件点开的 popover」形态：
+        //   · borderless 面板（无标题栏、无红绿灯），自定义圆角关闭钮
+        //   · 玻璃 = NSVisualEffectView(.popover)，12pt 连续圆角，圆角裁剪
+        //   · canBecomeKey = true（点外/失焦收起依赖 key 状态）
+        //   · isMovableByWindowBackground = true（可拖动）
+        let glass = NSVisualEffectView()
+        glass.material = .popover
+        glass.blendingMode = .behindWindow
+        glass.state = .active
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = 12
+        glass.layer?.cornerCurve = .continuous
+        glass.layer?.masksToBounds = true
+        host.frame = glass.bounds
+        host.autoresizingMask = [.width, .height]
+        glass.addSubview(host)
+
+        let window = MonitorPopoutPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 640),
+                                        styleMask: [.borderless, .fullSizeContentView],
+                                        backing: .buffered, defer: false)
         window.title = "性能监测"
         window.isReleasedWhenClosed = false
         window.level = .floating
-        window.minSize = NSSize(width: 340, height: 480)
-        window.contentView = host
-        window.applyOfficialChrome()
+        window.minSize = NSSize(width: 320, height: 200)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = true
+        window.isMovableByWindowBackground = true
+        window.contentView = glass
         window.attachOfficialRoundCloseButton()
         window.delegate = self
         self.window = window
+        // 切到其它 app（点桌面/别的窗口）时一定会先失活——比 resignKey 更可靠，
+        // 因为部分场景下窗口可能从未成为 key（本 app 辅助功能被拒）。
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidResignActive),
+            name: NSApplication.didResignActiveNotification,
+            object: nil
+        )
     }
 
     private override init(window: NSWindow?) {
-        self.selection = MonitorDetailSelection(.cpu)
         super.init(window: window)
     }
 
@@ -90,6 +151,29 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     /// 现改用 token：open 递增，dismiss 记录起点，completion 发现 token 变了
     /// （期间重开过）才跳过收起。
     private var appearToken = 0
+
+    /// 全局鼠标监视器（仅能收到「投递给其它 app」的点击）
+    private var outsideClickMonitor: Any?
+    /// 本 app 内点击监视器（状态栏图标/自家窗口；全局监视器收不到本 app 的事件）
+    private var localClickMonitor: Any?
+    /// 无权限兜底：轮询全局按键状态。本 app 辅助功能/输入监控均未授权
+    /// （TCC: Accessibility=0、ListenEvent 无记录），全局监视器可能静默失效，
+    /// 而窗口若从未成为 key，resignKey 也永不触发——这是「点外部不关」的兜底通道。
+    private var outsidePollTimer: Timer?
+    private var lastMouseButtons: Int = 0
+    /// 收起流程幂等锁（防全局/本地/轮询/resign 多路重复触发互相打断动画）
+    private var isDismissing = false
+    /// 最近一次收起的时刻（供状态项做「刚被这次点击关掉」的去抖判断）
+    private var lastDismissUptime: TimeInterval = 0
+
+    /// 当前展示的模块（状态项 toggle 判断用；与主面板性能页同一选中态）
+    public var currentModule: MonitorModuleID { sharedSelection.module }
+
+    /// 最近 interval 秒内是否刚收起过（状态项 mouseUp 晚于监视器 mouseDown 触发时，
+    /// 避免同一图标点击被「先关后开」重新拉起来）
+    public func wasJustDismissed(within interval: TimeInterval = 0.6) -> Bool {
+        ProcessInfo.processInfo.systemUptime - lastDismissUptime < interval
+    }
 
     // MARK: 空闲预热（v62）
 
@@ -125,11 +209,18 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     /// 打开。anchor = 状态栏部件屏幕坐标（部件点击传入）——窗口在其正下方展开，
     /// x 对齐锚点中心并钳制可见区；nil（⌥P/⌥M）回退右上贴边（主面板停靠时让位）。
     public func open(module: MonitorModuleID? = nil, anchor: NSRect? = nil) {
+        // v86：显式模块优先——窗口已经打开时也要切过去（深链 monitor?module=memory 用）
+        if let module { sharedSelection.module = module; lastModule = module }
         guard let w = window, !isVisible else { return }
-        let target = module ?? lastModule
+        // 无显式模块（⌥M / URL / 快捷键）时沿用**共享选中态**当前模块，
+        // 不再用独立窗自己的 lastModule——否则刚在主页性能页选好温度，
+        // 从状态栏打开又跳回 CPU，两个入口就像两套东西。
+        let target = module ?? sharedSelection.module
         lastModule = target
-        selection.module = target
+        sharedSelection.module = target
         appearToken += 1                       // v71：递增，令在途 dismiss completion 失效
+        isDismissing = false                   // 重开：清掉上一次收起的幂等锁
+        scrollState.resetToken += 1            // 回到顶部：顶部模块切换条必须可见
         w.contentView?.layer?.removeAllAnimations()
         w.contentView?.layer?.transform = CATransform3DIdentity   // 兜底复位（白屏态重开）
         w.contentView?.layer?.opacity = 1
@@ -137,30 +228,59 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         w.alphaValue = 1
         // v71：layer 级入场动画（GPU 合成）——从锚点方向「长出来」
         playAppearAnimation(anchor: anchor)
+        // v74（2026-10-19 用户反馈「点其他位置无法收起」）：
+        // LSUIElement 未前台时窗口可能成不了 key → resignKey 永不触发；
+        // 且本 app 辅助功能未授权，全局监视器可能收不到事件。
+        // 现在四路冗余：① 激活+key ② 全局监视器 ③ 本 app 内监视器 ④ 按键轮询兜底
+        NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
+        installOutsideClickMonitor()
         // 采样门控：窗口可见期间用用户刷新间隔
         MonitorSampler.shared.setPanelActive(true)
         Log.info("Monitor", "监测独立窗口：打开（\(target.displayName)）")
+        // 诊断（排查「点外不关」必备）：0.2s 后记录是否真的成为 key/激活
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self, let w = self.window, w.isVisible else { return }
+            Log.info("Monitor", "开窗态：appActive=\(NSApp.isActive) isKey=\(w.isKeyWindow)")
+        }
         RenderProbe.snapshot(w, name: "monitorPopout", reason: "open")
+    }
+
+    /// 取消在途收起（点外监视器先于 statusItem 的 mouseUp 触发时，
+    /// 用户其实是在「切换模块」，不能让窗口在 0.2s 后照旧收起）
+    private func cancelDismiss() {
+        guard isDismissing else { return }
+        isDismissing = false
+        appearToken += 1
+        window?.contentView?.layer?.removeAllAnimations()
+        window?.contentView?.layer?.transform = CATransform3DIdentity
+        window?.contentView?.layer?.opacity = 1
+        installOutsideClickMonitor()
+        Log.info("Monitor", "取消在途收起（切换模块/重开）")
     }
 
     /// 窗口已开时部件再点：只切模块，不挪窗口位置
     public func showModule(_ module: MonitorModuleID) {
         guard isVisible else { open(module: module); return }
+        cancelDismiss()                        // 若点外监视器已抢先触发收起，先撤销
         lastModule = module
-        selection.module = module
+        sharedSelection.module = module
         Log.info("Monitor", "监测独立窗口：切换模块（\(module.displayName)）")
     }
 
     // MARK: 布局（v71：内容高度驱动，各模块框大小可不同）
 
-    /// 内容高度变化 → 窗口高度平滑过渡（顶边贴菜单栏不动；clamp 480~屏高-40）。
+    /// 内容高度变化 → 窗口高度平滑过渡（顶边贴菜单栏不动；clamp 200~屏高-40）。
     /// animator 帧动画与 layer 入场动画可并存（frame 动画改窗口、transform 改内容层）。
+    ///
+    /// v88（2026-10-20 用户反馈「GPU 页高度很短却留大片空白，应自适应匹配」）：
+    /// 原下限 480 会把内容仅 ~350 的短页撑出底部空白；改为 200 下限，
+    /// 窗口高度=内容高度，短页不再留白。
     func resize(toContentHeight height: CGFloat) {
         guard let w = window, height > 1 else { return }
         let screen = w.screen ?? Self.screen(for: nil)
         let maxH = min(880, (screen?.visibleFrame.height ?? 900) - 40)
-        let target = max(480, min(maxH, height))
+        let target = max(200, min(maxH, height))
         guard abs(target - w.frame.height) > 1 else { return }
         var frame = w.frame
         frame.origin.y -= (target - frame.height)   // 顶边固定，向下增高
@@ -198,46 +318,67 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         CATransaction.commit()
     }
 
-    /// 退场：缩小 + 上移 + 淡出（0.18s easeIn），完成后 orderOut；期间重开则取消
+    /// 退场：缩小 + 上移 + 淡出，**200ms 硬兜底强制 orderOut**。
+    /// 历史 bug（本轮定位）：原实现只在 CATransaction completion 里 orderOut，
+    /// 窗口被遮挡/动画被系统跳过/重复 dismiss 打断动画时 completion 不执行 →
+    /// 日志有「dismiss」但没有「已收起」，窗口永远留在屏上，用户以为「点外不关」。
     public func dismissPopout() {
-        Log.info("Monitor", "监测独立窗口：dismiss")
-        RenderProbe.snapshot(window, name: "monitorPopout", reason: "dismiss")
-        guard let w = window, w.isVisible else { return }
-        let token = appearToken                  // v71：记录起点，completion 以此判断是否被重开打断
-        guard let layer = w.contentView?.layer else {
-            w.orderOut(nil)
+        guard let w = window, w.isVisible else {
+            // 已不可见：只清理监听与采样门控（幂等）
+            stopOutsideWatchers()
             MonitorSampler.shared.setPanelActive(false)
             return
         }
-        layer.removeAllAnimations()
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(0.18)
-        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeIn))
-        layer.transform = CATransform3DConcat(
-            CATransform3DMakeScale(0.95, 0.95, 1),
-            CATransform3DMakeTranslation(0, -8, 0))
-        layer.opacity = 0
-        CATransaction.setCompletionBlock { [weak self] in
-            guard let self else { return }
-            // v71：原 isVisible 判断恒为 true（窗口未 orderOut）→ 永不收起 → 白屏。
-            // 改 token：期间 open() 递增过 = 用户已重开 → 不收起。
-            if self.appearToken != token {
-                Log.info("Monitor", "dismiss 被重开打断，跳过收起")
-                return
+        guard !isDismissing else { return }    // 多路触发（全局/本地/轮询/resign）只跑一次
+        isDismissing = true
+        lastDismissUptime = ProcessInfo.processInfo.systemUptime
+        let token = appearToken
+        Log.info("Monitor", "监测独立窗口：dismiss")
+        RenderProbe.snapshot(w, name: "monitorPopout", reason: "dismiss")
+        stopOutsideWatchers()                  // 先停监听，防重复触发
+        if let layer = w.contentView?.layer {
+            layer.removeAllAnimations()
+            CATransaction.begin()
+            CATransaction.setAnimationDuration(0.16)
+            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeIn))
+            layer.transform = CATransform3DConcat(
+                CATransform3DMakeScale(0.96, 0.96, 1),
+                CATransform3DMakeTranslation(0, -8, 0))
+            layer.opacity = 0
+            CATransaction.setCompletionBlock { [weak self] in
+                self?.finishDismiss(token: token)
             }
-            self.window?.orderOut(nil)
-            self.window?.contentView?.layer?.transform = CATransform3DIdentity
-            self.window?.contentView?.layer?.opacity = 1
-            MonitorSampler.shared.setPanelActive(false)
-            Log.info("Monitor", "监测独立窗口：已收起")
-            RenderProbe.snapshot(self.window, name: "monitorPopout", reason: "dismissDone")
+            CATransaction.commit()
         }
-        CATransaction.commit()
+        // 硬兜底：无论动画回调是否执行，0.2s 后一定收尾（幂等）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.finishDismiss(token: token)
+        }
+    }
+
+    /// 收尾（幂等）：orderOut + 复位图层 + 卸监听 + 关采样门控
+    private func finishDismiss(token: Int) {
+        guard isDismissing else { return }
+        guard let w = window else { isDismissing = false; return }
+        // 期间 open()/cancelDismiss 递增过 token = 已重开 → 放弃本次收起
+        guard appearToken == token else {
+            isDismissing = false
+            Log.info("Monitor", "dismiss 被重开打断，跳过收起")
+            return
+        }
+        isDismissing = false
+        w.orderOut(nil)
+        w.contentView?.layer?.removeAllAnimations()
+        w.contentView?.layer?.transform = CATransform3DIdentity
+        w.contentView?.layer?.opacity = 1
+        stopOutsideWatchers()
+        MonitorSampler.shared.setPanelActive(false)
+        Log.info("Monitor", "监测独立窗口：已收起")
+        RenderProbe.snapshot(w, name: "monitorPopout", reason: "dismissDone")
     }
 
     /// 入场起点横移：从锚点相对窗口中心的水平距离反向补偿（视觉上从部件图标处展开）
-    private func anchorDx(anchor: NSRect?) -> CGFloat {
-        guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }
+    private func anchorDx(anchor: NSRect?) -> CGFloat {        guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }
         let anchorCenterX = anchor.midX - w.frame.minX
         let ratio = max(0, min(1, anchorCenterX / w.frame.width))
         return (0.5 - ratio) * w.frame.width
@@ -285,6 +426,115 @@ extension MonitorPopoutWindowController {
     public func windowDidResignKey(_ notification: Notification) {
         // 排障/截图专用：FRSET_PANEL_PIN=1 时不因失焦自动收起（与主面板同探针）
         if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return }
+        // 本 app 仍在前台 = 换 key 的是自家窗口（状态栏图标点击 / 预览窗等）。
+        // 这条路径不能直接收起：状态项 action 是 mouseUp 才触发，先收起会被
+        // openMonitor/showModule 重新拉起来，表现为「点了图标不关」。
+        // 真正的「点外」会触发 didResignActive（切到别的 app）或点击监视器。
+        if NSApp.isActive {
+            Log.info("Monitor", "resignKey：app 仍活跃（本 app 内部换 key），交由点击目标处理")
+            return
+        }
+        Log.info("Monitor", "点外：windowDidResignKey（app 已失活）→ 收起")
         dismissPopout()
+    }
+
+    /// app 失活 = 用户切到了别的 app/点桌面（最可靠的点外信号，不依赖 key）
+    @objc func appDidResignActive() {
+        if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return }
+        guard let w = window, w.isVisible else { return }
+        Log.info("Monitor", "点外：app 失活 → 收起")
+        dismissPopout()
+    }
+}
+
+// MARK: - 点外即消（四路冗余，v75）
+
+extension MonitorPopoutWindowController {
+    /// 安装点外监听：
+    ///  ① 全局鼠标监视器（收「其它 app」的点击；受 TCC 输入监控影响）
+    ///  ② 本 app 内监视器（收状态栏图标/自家窗口的点击；全局监视器永远收不到本 app 事件）
+    ///  ③ 按键轮询兜底（不依赖任何授权；本 app Accessibility=拒绝、无输入监控记录）
+    func installOutsideClickMonitor() {
+        // 排障/截图专用：FRSET_PANEL_PIN=1 时四路点外收起全部停用
+        // （此前只守了 resignKey / app失活 两路，全局监视器仍会收起——
+        //  2026-10-20 一一截图核对时实测窗口 0.7s 即被误收）
+        if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return }
+        if outsideClickMonitor == nil {
+            outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+                matching: [.leftMouseDown, .rightMouseDown]
+            ) { [weak self] _ in
+                guard let self, let w = self.window, w.isVisible else { return }
+                if !w.frame.contains(NSEvent.mouseLocation) {
+                    Log.info("Monitor", "点外：全局监视器 → 收起")
+                    self.dismissPopout()
+                }
+            }
+        }
+
+        if localClickMonitor == nil {
+            localClickMonitor = NSEvent.addLocalMonitorForEvents(
+                matching: [.leftMouseDown, .rightMouseDown]
+            ) { [weak self] event in
+                guard let self, let w = self.window, w.isVisible else { return event }
+                if let win = event.window {
+                    let cls = String(describing: type(of: win))
+                    // 状态栏图标：交给部件 action（toggle/切模块），这里不抢跑
+                    if cls.contains("StatusBar") { return event }
+                    // 菜单/弹层：点击落在菜单里不算「点外」
+                    if cls.contains("Menu") || win.level == .popUpMenu { return event }
+                    // 自家 sheet：不算点外
+                    if win !== w, win.sheetParent === w { return event }
+                }
+                if !w.frame.contains(NSEvent.mouseLocation) {
+                    Log.info("Monitor", "点外：本 app 内监视器 → 收起")
+                    self.dismissPopout()
+                }
+                return event
+            }
+        }
+
+        startOutsidePoll()
+    }
+
+    /// 按键轮询兜底：50ms 检查一次全局鼠标按键从 0→1 的瞬间，
+    /// 点击点不在窗口内即收起。NSEvent.pressedMouseButtons 不需要 TCC 授权，
+    /// 且在本 app 非激活时同样可读——这是权限被拒环境下唯一可靠的「点外」通道。
+    private func startOutsidePoll() {
+        if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return }
+        guard outsidePollTimer == nil else { return }
+        lastMouseButtons = NSEvent.pressedMouseButtons       // 安装时已按下的不触发
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            guard let self, let w = self.window, w.isVisible else { return }
+            // 菜单追踪期间不判点外（菜单可能伸出窗口外）
+            if let key = NSApp.keyWindow,
+               key.level == .popUpMenu || String(describing: type(of: key)).contains("Menu") {
+                return
+            }
+            let buttons = NSEvent.pressedMouseButtons
+            let previous = self.lastMouseButtons
+            self.lastMouseButtons = buttons
+            guard buttons != 0, previous == 0 else { return }
+            if !w.frame.contains(NSEvent.mouseLocation) {
+                Log.info("Monitor", "点外：按键轮询兜底 → 收起")
+                self.dismissPopout()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)            // 菜单/拖拽追踪期间也跑
+        outsidePollTimer = timer
+    }
+
+    /// 卸载全部监听（收起/重开/窗口销毁时调用，幂等）
+    func stopOutsideWatchers() {
+        if let m = outsideClickMonitor {
+            NSEvent.removeMonitor(m)
+            outsideClickMonitor = nil
+        }
+        if let m = localClickMonitor {
+            NSEvent.removeMonitor(m)
+            localClickMonitor = nil
+        }
+        outsidePollTimer?.invalidate()
+        outsidePollTimer = nil
+        lastMouseButtons = 0
     }
 }

@@ -9,12 +9,31 @@ public final class MonitorDetailSelection: ObservableObject {
     public init(_ module: MonitorModuleID = .cpu) { self.module = module }
 }
 
+/// 性能页正文容器：**主面板性能页与状态栏独立窗共用唯一实现**。
+/// 两处只允许在「顶部让位」上有差异（独立窗左上角自绘关闭钮 → topInset 22），
+/// 其余内外边距/滚动策略/模块选中态/数据源必须完全一致——任何一侧单独改版式
+/// 都会造成用户看到的「两套 UI」。
+public struct MonitorPerformanceContent: View {
+    @ObservedObject private var presenter = MonitorCenterPresenter.shared
+    private let topInset: CGFloat
+
+    public init(topInset: CGFloat = 0) {
+        self.topInset = topInset
+    }
+
+    public var body: some View {
+        MonitorDetailView(selection: presenter.monitorSelection,
+                          pageMode: false, fixedWidth: nil)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .padding(.top, topInset)
+    }
+}
+
 public struct MonitorDetailView: View {
     @ObservedObject private var sampler = MonitorSampler.shared
     @ObservedObject private var selection: MonitorDetailSelection
     @ObservedObject private var memoryOptimizer = MemoryOptimizer.shared
-    /// 模块切换条的高亮胶囊（matchedGeometry：选中项滑动而非瞬移）
-    @Namespace private var tabNamespace
     /// 页面模式：只渲染模块内容，标签行与底栏由 StatsPageView 提供（宽度撑满、无固定 292 限宽）
     private let pageMode: Bool
     /// 固定宽度（nil = 撑满容器；独立窗 v71 传 nil 消除两侧留白，菜单栏 popover 保留 292）
@@ -40,10 +59,16 @@ public struct MonitorDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 modulePicker
                 Divider().opacity(0.5)
-                content
-                    .id(selection.module)
-                    .transition(.opacity.combined(with: .offset(y: 8)))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // v82（2026-10-19 修复「GPU/内存等按钮点不动」）：滚动区只包内容区，
+                // 切换条/底栏固定。此前整页（含 modulePicker）由外层 ScrollView 包裹，
+                // macOS SwiftUI 下 ScrollView 的手势/命中容器会拦截其直接子级按钮的
+                // 点击（页签在 toolbar 里可点、模块按钮在 ScrollView 里点不动即为实证）。
+                ScrollView(.vertical, showsIndicators: false) {
+                    content
+                        .id(selection.module)
+                        .transition(.opacity.combined(with: .offset(y: 8)))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 Divider().opacity(0.5)
                 footer
             }
@@ -56,10 +81,17 @@ public struct MonitorDetailView: View {
 
     /// v60：切换条不再横向滑动（用户反馈"网络/磁盘/温度/电池/GPU 要滑很久"）——
     /// 改自适应换行布局：宽够一行摆下，不够自动折行，全部模块直接可点。
+    ///
+    /// v82（2026-10-19 修复「GPU/内存等按钮点不动」）：选中胶囊此前用
+    /// matchedGeometryEffect 且放在 `.background {}` 内——macOS SwiftUI 在该组合下
+    /// 会生成一层不可见拦截视图，未选中按钮收不到点击（选中项自身有视觉反馈，
+    /// 用户感知为「只有当前模块点得动、其他点不动」）。现改为普通条件填充，
+    /// 显式 contentShape 保证整个胶囊区域可命中。
     private var modulePicker: some View {
         FlowHStack(spacing: 6, lineSpacing: 6) {
             ForEach(availableModules(), id: \.self) { module in
                 Button {
+                    Log.info("Monitor", "切换模块: \(module.displayName)（原 \(selection.module.displayName)）")
                     withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                         selection.module = module
                     }
@@ -73,17 +105,16 @@ public struct MonitorDetailView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background {
-                        // 选中胶囊用 matchedGeometry 滑动（灵动切换，不闪）
                         if selection.module == module {
                             Capsule(style: .continuous)
                                 .fill(Color.accentColor.opacity(0.18))
-                                .matchedGeometryEffect(id: "modulePill", in: tabNamespace)
                         }
                     }
                     .overlay(
                         Capsule(style: .continuous)
                             .stroke(selection.module == module ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 0.5)
                     )
+                    .contentShape(Capsule(style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -227,23 +258,14 @@ public struct MonitorDetailView: View {
                 loadCell("15 分钟", value: sample.loadAverage15m)
             }
 
-            // 高占用进程（原版 v56 底部段：进程名 + 用量%）
-            let procs = Array(StatsDataProvider.shared.current.procCPU.prefix(5))
+            // v84（用户需求「归类 + 展开 + 图标 + 退出」）：高占用进程改用统一进程表——
+            // 按 App 归类（Helper/Renderer 合并）、真实图标、点击展开组内明细、右键退出。
+            let procs = Array(StatsDataProvider.shared.current.procCPU.prefix(8))
             if !procs.isEmpty {
-                MonitorSectionTitle("高占用进程")
-                VStack(spacing: 3) {
-                    ForEach(procs) { proc in
-                        HStack(spacing: 6) {
-                            Text(proc.name)
-                                .font(.system(size: 10))
-                                .lineLimit(1)
-                            Spacer(minLength: 6)
-                            Text(String(format: "%.0f%%", proc.cpu))
-                                .font(.system(size: 10).monospacedDigit())
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
+                StatsProcTable(title: "CPU 占用进程",
+                               columns: [.init(title: "CPU")],
+                               items: procs,
+                               values: { [String(format: "%.0f%%", $0.cpu)] })
             }
         }
     }
@@ -325,6 +347,16 @@ public struct MonitorDetailView: View {
                 .frame(height: 46)
 
             MonitorRow(label: "内存压力", value: MonitorFormat.percentFine(sample.memoryPressure))
+
+            // v84（用户需求「内存界面也要有进程占用排序」）：内存占用进程表——
+            // 与 CPU 页同一组件（归类 + 图标 + 展开 + 右键退出），按 footprint 降序。
+            let memProcs = Array(StatsDataProvider.shared.current.procMem.prefix(8))
+            if !memProcs.isEmpty {
+                StatsProcTable(title: "内存占用进程",
+                               columns: [.init(title: "内存")],
+                               items: memProcs,
+                               values: { [MonitorFormat.bytes(UInt64(max(0, $0.memBytes)))] })
+            }
         }
     }
 
@@ -429,11 +461,15 @@ public struct MonitorDetailView: View {
             }
 
             // 网络高占用进程（官方 nettop -P -L 1 -n 差分；C 层 down/up 复用 disk_r/disk_w）
+            // v84：统一进程表（归类 + 图标 + 展开 + 右键退出）
             if !stats.procNet.isEmpty {
-                MonitorSectionTitle("网络占用进程")
-                StatsProcRows(items: stats.procNet) { item in
-                    StatsDualValue(left: MonitorFormat.rate(UInt64(max(0, item.diskRead))), right: MonitorFormat.rate(UInt64(max(0, item.diskWrite))))
-                }
+                StatsProcTable(title: "网络占用进程",
+                               columns: [.init(title: "下行"), .init(title: "上行")],
+                               items: Array(stats.procNet.prefix(8)),
+                               values: { item in
+                                   [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
+                                    MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
+                               })
             }
         }
     }
@@ -533,11 +569,15 @@ public struct MonitorDetailView: View {
             }
 
             // 按进程磁盘 I/O（官方 proc_pid_rusage 差分）
+            // v84：统一进程表（归类 + 图标 + 展开 + 右键退出）
             if !stats.procDisk.isEmpty {
-                MonitorSectionTitle("磁盘占用进程")
-                StatsProcRows(items: stats.procDisk) { item in
-                    StatsDualValue(left: MonitorFormat.rate(UInt64(max(0, item.diskRead))), right: MonitorFormat.rate(UInt64(max(0, item.diskWrite))))
-                }
+                StatsProcTable(title: "磁盘占用进程",
+                               columns: [.init(title: "读"), .init(title: "写")],
+                               items: Array(stats.procDisk.prefix(8)),
+                               values: { item in
+                                   [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
+                                    MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
+                               })
             }
 
             Text("统计来源：IOKit IOBlockStorageDriver + NVMe SMART 插件接口（官方同源）")
@@ -569,12 +609,25 @@ public struct MonitorDetailView: View {
                 .padding(.vertical, 6)
             } else if hasDeep {
                 // 计算项（官方 initCalculatedSensors：Average/Hottest CPU/GPU）
+                // v74：与温度行同标尺（20~110°C）加可视化条
                 if stats.calcAverageCPU != nil || stats.calcAverageGPU != nil {
                     MonitorSectionTitle("计算项")
-                    if let v = stats.calcAverageCPU { MonitorRow(label: "Average CPU", value: MonitorFormat.temperature(v)) }
-                    if let v = stats.calcHottestCPU { MonitorRow(label: "Hottest CPU", value: MonitorFormat.temperature(v)) }
-                    if let v = stats.calcAverageGPU { MonitorRow(label: "Average GPU", value: MonitorFormat.temperature(v)) }
-                    if let v = stats.calcHottestGPU { MonitorRow(label: "Hottest GPU", value: MonitorFormat.temperature(v)) }
+                    if let v = stats.calcAverageCPU {
+                        sensorBarRow(name: "Average CPU", valueText: MonitorFormat.temperature(v),
+                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
+                    }
+                    if let v = stats.calcHottestCPU {
+                        sensorBarRow(name: "Hottest CPU", valueText: MonitorFormat.temperature(v),
+                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
+                    }
+                    if let v = stats.calcAverageGPU {
+                        sensorBarRow(name: "Average GPU", valueText: MonitorFormat.temperature(v),
+                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
+                    }
+                    if let v = stats.calcHottestGPU {
+                        sensorBarRow(name: "Hottest GPU", valueText: MonitorFormat.temperature(v),
+                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
+                    }
                 }
 
                 // 风扇（官方顺序：风扇节在最前）
@@ -661,8 +714,42 @@ public struct MonitorDetailView: View {
             // （官方弹窗可滚动，我方弹窗限高控长——对齐注入版 v26 的既定策略与用户"一页别太长"取向）
             let limit = (category == 0) ? 6 : 3
             ForEach(filtered.prefix(limit), id: \.name) { item in
-                MonitorRow(label: item.name, value: sensorValueText(item.value, unit: unit))
+                if category == 0 {
+                    // v74（用户需求）：温度可视化条——按注入版 v42 规格，
+                    // 固定标尺 20~110°C 映射（温度同量纲，绝对值比相对最大值更有信息量），
+                    // 颜色 sRGB(0.95,0.60,0.30)（注入版 MC_temperature）。
+                    sensorBarRow(name: item.name,
+                                 valueText: sensorValueText(item.value, unit: unit),
+                                 ratio: min(1, max(0, (item.value - 20) / 90)),
+                                 color: MonitorColors.temperature)
+                } else {
+                    MonitorRow(label: item.name, value: sensorValueText(item.value, unit: unit))
+                }
             }
+        }
+    }
+
+    /// 温度行：名称 + 进度条 + 数值（Bar 规格对齐注入版 FSPUSensorRow）
+    private func sensorBarRow(name: String, valueText: String, ratio: Double, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(width: 92, alignment: .leading)
+                .lineLimit(1)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.primary.opacity(0.1))
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(color)
+                        .frame(width: max(2, geo.size.width * ratio))
+                }
+            }
+            .frame(height: 6)
+            Text(valueText)
+                .font(.system(size: 10).monospacedDigit())
+                .frame(width: 70, alignment: .trailing)
         }
     }
 

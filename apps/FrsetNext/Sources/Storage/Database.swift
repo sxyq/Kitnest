@@ -35,6 +35,13 @@ public final class SQLiteDatabase {
         handle = h
         try exec("PRAGMA journal_mode=WAL;")
         try exec("PRAGMA foreign_keys=ON;")
+        // v73（2026-10-19 性能/存储审计）：WAL 无上限增长——实测 statistics.sqlite
+        // 主库仅 4KB 而 -wal 达 2.1MB（数据全滞留 WAL，每次读都要扫）。加两项：
+        //   ① journal_size_limit=1MB：checkpoint 后 WAL 文件收缩到 ≤1MB；
+        //   ② 启动即 checkpoint(TRUNCATE)：把历史遗留的大 WAL 就地收掉。
+        // 两项均幂等、无数据风险（TRUNCATE 仅在无读者时生效）。
+        try exec("PRAGMA journal_size_limit=1048576;")
+        try exec("PRAGMA wal_checkpoint(TRUNCATE);")
     }
 
     deinit { if let h = handle { sqlite3_close(h) } }
@@ -337,6 +344,10 @@ public enum AnalyticsEvent: String, CaseIterable {
     case whatsNewView, paywallView, paywallUpgradeClick, paywallUnlockOnceClick
     case paywallMaybeLaterClick, paywallIncludedClick, paywallTrialStart
     case statisticsOpen
+    // v84（2026-10-20 用户需求「统计要覆盖新增功能」）：重建版新增能力事件。
+    // 原版 59 键里没有这些功能，故不占用原版键位，直接追加（snake_case 自动派生）。
+    case pinImage, longScreenshot, annotateEdit, screenRecord
+    case monitorPanelOpen, transferDockOpen, clipboardPaste
 
     /// DB 事件名：camelCase → snake_case（historyCopy → history_copy）
     public var eventName: String {

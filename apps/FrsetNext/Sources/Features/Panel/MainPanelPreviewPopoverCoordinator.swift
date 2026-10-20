@@ -545,8 +545,14 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         guard let slot else { return }
         slot.pendingCloseReason = reason
         slot.state = .closing
-        slot.windowController.window?.performClose(nil)
-        // performClose 后 windowWillClose → onWindowClosed → handlePreviewWindowDidClose 完成清理
+        // v83（2026-10-19 用户反馈「点叉号关不掉」根因）：
+        // performClose 对 **borderless 的 hover 预览窗静默无效**（NSWindow.performClose
+        // 要求 isCloseable，hover 模式 styleMask=.borderless 不满足）→ 旧窗变孤儿常驻，
+        // 且 present() 已把 self.slot 指向新窗口 → 叉号的 dismiss 关的是另一个窗，
+        // 用户观感即「点叉号无法关闭」。
+        // 统一 close()：两种模式都可靠（isReleasedWhenClosed=false，controller 不销毁），
+        // windowWillClose → onWindowClosed → handlePreviewWindowDidClose 清理链不变。
+        slot.windowController.window?.close()
     }
 
     /// 预览窗已关闭（ClipboardPreviewWindowController.onWindowClosed 转入）

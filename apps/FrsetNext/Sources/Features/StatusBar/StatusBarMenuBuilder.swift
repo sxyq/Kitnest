@@ -61,11 +61,10 @@ public enum StatusBarMenuBuilder {
         modules.submenu = moduleMenu
         menu.addItem(modules)
 
-        // 图标彩蛋解锁后出现的「自定义菜单栏图标」选项（spec 13 §6，revealCustomMenuBarIconOption）
-        if MenuBarIconEasterEggManager.shared.isUnlocked {
-            menu.addItem(NSMenuItem.separator())
-            menu.addItem(customIconSubmenu())
-        }
+        // 「自定义菜单栏图标」选项（v83：原彩蛋解锁门控已移除——功能直接可用，
+        // 不再要求「连续单击主图标 10 次」解锁，见 StatusBarController.mainItemClicked）
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(customIconSubmenu())
 
         menu.addItem(NSMenuItem.separator())
 

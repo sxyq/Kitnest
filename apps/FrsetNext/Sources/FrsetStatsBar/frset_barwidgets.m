@@ -301,81 +301,30 @@ void FSBarLog(NSString *fmt, ...);   // 引擎日志（跨文件可用：drawRec
 //   在**浅色菜单栏**上会照旧画白图标 → 用户反馈"图标没有做黑/白反相自适应"。
 // 做法：截取菜单栏横条（取菜单栏下部 1/3 带，避开图标/菜单文字）→ 亮度中位数：
 //   中位数 < 128 → 背景偏深 → 白图标；否则 → 黑图标。后台线程采样，2s 节流。
-static BOOL g_menuBarDark = YES;          // 绘制读这个（默认 YES＝与改造前观感一致）
-static BOOL g_menuBarDarkValid = NO;      // 首次实测完成前用兜底信号
-static CFAbsoluteTime g_menuBarDarkT = 0;
-static int g_menuBarLuma = -1;            // 最近一次采样的亮度中位数（日志用）
 
 static void FSBarRefreshAllWidgets(void);   // 前向声明（定义于文件后部）
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-// CGDisplayCreateImageForRect 在 macOS 15 SDK 里被标为 obsoleted（编译期不可直接调用），
-// 但系统运行时符号仍在 → 用 dlsym 取函数指针调用；取不到则回退 appearance 判定。
-typedef CGImageRef (*FSDisplayImageForRectFn)(CGDirectDisplayID, CGRect);
-static FSDisplayImageForRectFn pFSDisplayCreateImageForRect = NULL;
-static BOOL pFSDisplayFnLoaded = NO;
-static void FSBarLoadDisplayCaptureFn(void) {
-    if (pFSDisplayFnLoaded) return;
-    pFSDisplayFnLoaded = YES;
-    void *h = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", RTLD_LAZY);
-    if (!h) h = dlopen("/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics", RTLD_LAZY);
-    if (h) pFSDisplayCreateImageForRect = (FSDisplayImageForRectFn)dlsym(h, "CGDisplayCreateImageForRect");
+// v77（2026-10-19 全盘排查）：**不再用截屏判断菜单栏明暗**。
+// 原实现每 2s 调一次 dlsym 取到的 CGDisplayCreateImageForRect —— 该 API 属于
+// 屏幕录制 TCC 管辖，会让系统反复弹「需要屏幕录制权限」，即使已授权也会因
+// 自签名 code identity 变化而反复请求。现完全改为「视图绘制上下文外观」
+// （与 Stats 原生 isDarkMode 同源，vibrant 系可识别浅色/深色菜单栏），
+// 绘制时按视图自身外观取色，不再维护全局像素采样。
+static BOOL FSBarAppearanceDark(NSView *v) {
+    NSAppearance *ap = (v && v.effectiveAppearance) ? v.effectiveAppearance : NSApp.effectiveAppearance;
+    if (!ap) ap = NSApp.effectiveAppearance;
+    NSAppearanceName n = [ap bestMatchFromAppearancesWithNames:@[
+        NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
+        NSAppearanceNameVibrantLight, NSAppearanceNameVibrantDark,
+        NSAppearanceNameAccessibilityHighContrastAqua,
+        NSAppearanceNameAccessibilityHighContrastDarkAqua,
+        NSAppearanceNameAccessibilityHighContrastVibrantLight,
+        NSAppearanceNameAccessibilityHighContrastVibrantDark]];
+    return [n containsString:@"Dark"];
 }
 
-static BOOL FSBarSampleMenuBarDarkNow(void) {
-    FSBarLoadDisplayCaptureFn();
-    if (!pFSDisplayCreateImageForRect) return g_menuBarDark;
-    NSScreen *sc = [NSScreen mainScreen];
-    if (!sc) return g_menuBarDark;
-    CGFloat barH = [NSStatusBar systemStatusBar].thickness;
-    if (barH < 8) barH = 24;
-    // CG 坐标：原点左上、主屏为基准。菜单栏下部 1/3 带基本是纯背景玻璃。
-    CGRect r = CGRectMake(0, barH * 0.62, sc.frame.size.width, MAX(2, barH * 0.30));
-    CGImageRef img = pFSDisplayCreateImageForRect(CGMainDisplayID(), r);
-    if (!img) return g_menuBarDark;   // 无屏幕录制权限等 → 保持旧值
-    size_t w = CGImageGetWidth(img), h = CGImageGetHeight(img);
-    if (w < 16 || h < 1) { CGImageRelease(img); return g_menuBarDark; }
-    size_t bpr = w;
-    uint8_t *buf = calloc(h * bpr, 1);
-    CGColorSpaceRef cs = CGColorSpaceCreateDeviceGray();
-    CGContextRef ctx = CGBitmapContextCreate(buf, w, h, 8, bpr, cs, kCGImageAlphaNone);
-    CGColorSpaceRelease(cs);
-    if (!ctx) { free(buf); CGImageRelease(img); return g_menuBarDark; }
-    CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), img);
-    CGContextRelease(ctx);
-    CGImageRelease(img);
-    uint32_t hist[256] = {0}; size_t n = 0;
-    for (size_t y = 0; y < h; y++)
-        for (size_t x = 0; x < w; x += 2) { hist[buf[y * bpr + x]]++; n++; }
-    free(buf);
-    if (n < 32) return g_menuBarDark;
-    size_t acc = 0; int median = 128;
-    for (int i = 0; i < 256; i++) { acc += hist[i]; if (acc * 2 >= n) { median = i; break; } }
-    g_menuBarLuma = median;
-    return median < 128;
-}
-#pragma clang diagnostic pop
-
-static void FSBarProbeMenuBarDarkAsync(void) {
-    CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-    if (now - g_menuBarDarkT < 2.0) return;
-    g_menuBarDarkT = now;
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-        BOOL dark = FSBarSampleMenuBarDarkNow();
-        int luma = g_menuBarLuma;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            BOOL changed = (!g_menuBarDarkValid || dark != g_menuBarDark);
-            g_menuBarDark = dark;
-            g_menuBarDarkValid = YES;
-            if (changed) {
-                FSBarLog(@"[appear] 菜单栏背景实测 → %@（亮度中位数 %d，源=像素）",
-                         dark ? @"深色·白图标" : @"浅色·黑图标", luma);
-                FSBarRefreshAllWidgets();
-            }
-        });
-    });
-}
+// 保留空实现（FSBarSystemTick 仍在调用；v77 起不再做任何采样/截屏）
+static void FSBarProbeMenuBarDarkAsync(void) { }
 
 // v18：反相信号源改为"视图绘制上下文的外观"——对齐 Stats 原版实现：
 //   stats-source/Kit/extensions.swift:365  NSView.isDarkMode → effectiveAppearance
@@ -388,20 +337,8 @@ static void FSBarProbeMenuBarDarkAsync(void) {
 // 一次观测误推广）；App 级外观感知不到菜单栏/壁纸触发的反相，正是用户反馈
 // "图标颜色没有做系统自适应"的根因。
 static BOOL FSBarDark(NSView *v) {
-    // ① 优先：菜单栏背景像素实测（v19）——唯一与菜单栏实际明暗一致的信号。
-    if (g_menuBarDarkValid) return g_menuBarDark;
-    // ② 兜底：首次实测完成前，用视图绘制上下文的外观（含 vibrant 系）。
-    //    注意该源对自建状态项可能恒为 VibrantDark（见上方 v19 说明），仅作暫用。
-    NSAppearance *ap = (v && v.effectiveAppearance) ? v.effectiveAppearance : NSApp.effectiveAppearance;
-    if (!ap) ap = NSApp.effectiveAppearance;
-    NSAppearanceName n = [ap bestMatchFromAppearancesWithNames:@[
-        NSAppearanceNameAqua, NSAppearanceNameDarkAqua,
-        NSAppearanceNameVibrantLight, NSAppearanceNameVibrantDark,
-        NSAppearanceNameAccessibilityHighContrastAqua,
-        NSAppearanceNameAccessibilityHighContrastDarkAqua,
-        NSAppearanceNameAccessibilityHighContrastVibrantLight,
-        NSAppearanceNameAccessibilityHighContrastVibrantDark]];
-    return [n containsString:@"Dark"];
+    // v77：全部走视图绘制上下文外观，无任何截屏/全局缓存
+    return FSBarAppearanceDark(v);
 }
 
 // 前景文本色：硬编码白/黑双值（对齐 Stats 的 isDarkMode 着色方式）。
@@ -1491,12 +1428,17 @@ static FSRunCatIconView *g_mainIconCatView = nil;   // v35：主图标覆盖层�
 - (NSView *)hitTest:(NSPoint)p { (void)p; return nil; }   // 点击穿透到 button（保持原 action）
 - (void)drawRect:(NSRect)dirty {
     (void)dirty;
-    NSImage *img = FSRunCatImage(g_runCatFrame, g_menuBarDark);
+    NSImage *img = FSRunCatImage(g_runCatFrame, FSBarDark(self));
     if (!img) return;
     NSRect r = self.bounds;
-    // v35.1：按高度定尺寸（56:36），允许少量左右溢出
-    CGFloat h = r.size.height - 2;
+    // v82：按高度定尺寸（56:36），但**不得超过按钮可用宽度**——原实现固定 56:36，
+    // 在 custom/logo 的 variableLength 按钮（约 20-24pt）上会被裁掉头/尾。
+    CGFloat h = MAX(1, r.size.height - 2);
     CGFloat w = h * 56.0 / 36.0;
+    if (w > r.size.width) {
+        w = MAX(1, r.size.width);
+        h = w * 36.0 / 56.0;
+    }
     NSRect dr = NSMakeRect(r.origin.x + (r.size.width - w) / 2.0,
                            r.origin.y + (r.size.height - h) / 2.0, w, h);
     [img drawInRect:dr fromRect:NSZeroRect operation:NSCompositingOperationSourceOver
@@ -1533,6 +1475,22 @@ static void FSRunCatEnsureMainIconOverlay(void) {
     if (!NSEqualRects(g_mainIconCatView.frame, b.bounds)) {
         g_mainIconCatView.frame = b.bounds;
     }
+    // v82（用户：菜单栏像有两只猫、且一只被裁）：底层 button.image 仍会被 NSButton
+    // 自己绘制（隐藏子视图挡不住），custom 猫符号会从覆盖层透明区透出来，形成
+    // “静态猫 + 动画猫”两套观感。接管期间清空 button 自带图/标题。
+    if (b.image && b.image.size.width > 1) {
+        b.image = [NSImage new];   // 空图占位（同 fan 做法：无图则不绘制子视图）
+        b.title = @"";
+    }
+    // v82：主项宽度按猫的 56:36 固定，避免 variableLength 把猫裁掉
+    //（按钮尚未布局时高度为 0，跳过，等下一拍再定宽）
+    CGFloat bh = b.bounds.size.height;
+    if (bh > 8) {
+        CGFloat wantW = ceil((bh - 2) * 56.0 / 36.0) + 2;
+        if (main.length < wantW - 0.5) {
+            main.length = wantW;
+        }
+    }
 }
 
 // v85：运行时开关（设置窗「菜单栏图标 · 小猫」用）
@@ -1545,6 +1503,8 @@ void FSRunCatIconSetEnabled(BOOL on) {
         g_mainIconCatView = nil;
         NSStatusItem *main = FSFindMainBarItem();
         for (NSView *sv in main.button.subviews) sv.hidden = NO;   // 恢复官方图标
+        main.length = NSVariableStatusItemLength;                  // v82：恢复原宽度
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"FrsetRunCatIconChanged" object:nil];
         FSBarLog(@"[mainicon] 小猫关 → 恢复官方图标");
     } else {
         FSRunCatEnsureMainIconOverlay();
@@ -1560,7 +1520,10 @@ static void FSRunCatTick(void) {
         if (env && *env) {
             g_mainIconCatEnabled = (atoi(env) != 0);
         } else {
-            id v = FSBarGlobalRaw(@"MainIconCat");
+            // v82 修正：开关由 FSBarCfgSet(@"Bar", nil, @"MainIconCat") 写入，
+            // 实际键名是 Bar_MainIconCat；原读取用 FSBarGlobalRaw(@"MainIconCat")
+            // 永远读到 nil → 重启后小猫默认关闭（设置里勾着但菜单栏没猫）。
+            id v = FSBarCfgRaw(@"Bar", nil, @"MainIconCat");
             if ([v isKindOfClass:[NSNumber class]]) g_mainIconCatEnabled = [v boolValue];
         }
     }
@@ -1569,12 +1532,20 @@ static void FSRunCatTick(void) {
     double cpu = g_snap.valid ? g_snap.cpuUsage : 0;
     if (cpu < 0) cpu = 0;
     if (cpu > 1) cpu = 1;
-    g_runCatCpuEMA = g_runCatCpuEMA * 0.9 + cpu * 0.1;   // 平滑（避免速度抽动）
+    // v82（用户：小猫有两套时间）：速度档只在 **CPU 部件刷新时刻**更新一次
+    // （FSBarModuleInterval(@"CPU")，当前 3s），与菜单栏 CPU 数值同一节奏；
+    // 动画帧本身仍 20Hz 平滑推进，不再每个 tick 都改变速度。
+    double now = CFAbsoluteTimeGetCurrent();
+    static double g_runCatLastSpeedAt = 0;
+    double speedIv = FSBarModuleInterval(@"CPU");
+    if (g_runCatLastSpeedAt <= 0 || now - g_runCatLastSpeedAt >= speedIv) {
+        g_runCatLastSpeedAt = now;
+        g_runCatCpuEMA = g_runCatCpuEMA * 0.6 + cpu * 0.4;
+    }
     // v78：完整循环 + 倍速 —— 基础 8fps 完整播放 5 帧跑步循环，
     //   CPU 负载只改变播放倍速，帧间隔恒定不再忽快忽慢卡顿
     static double g_runCatProgress = 0;    // 累计播放进度（秒）
     static double g_runCatLastTick = 0;
-    double now = CFAbsoluteTimeGetCurrent();
     double dt = (g_runCatLastTick > 0) ? (now - g_runCatLastTick) : 0;
     g_runCatLastTick = now;
     if (dt > 0.5) dt = 0.5;                // 防休眠后跳帧
@@ -1606,7 +1577,7 @@ static void FSRunCatTick(void) {
         NSStatusItem *main = FSFindMainBarItem();
         if (main && main.button) {
             FSRunCatEnsureMainIconOverlay();
-            BOOL dark = g_menuBarDark;
+            BOOL dark = FSBarDark(g_mainIconCatView);
             if (g_runCatFrame != g_mainIconCatLastFrame || dark != g_mainIconCatLastDark) {
                 g_mainIconCatLastFrame = g_runCatFrame;
                 g_mainIconCatLastDark = dark;
@@ -2017,9 +1988,10 @@ static void FSBarEnsureMergedItem(void) {
     if (!g_posCalibrating) {
         FSBarPositionRestore(@"frset.bar.merged");
         // v17：首次创建无历史值时用实测默认 500（实证：该值使合并条紧贴主图标左侧）
-        if (![[NSUserDefaults standardUserDefaults] objectForKey:@"NSStatusItem Preferred Position frset.bar.merged"]) {
-            [[NSUserDefaults standardUserDefaults] setDouble:500.0 forKey:@"NSStatusItem Preferred Position frset.bar.merged"];
-        }
+        // v71（实测：合并条被挤出屏幕右缘只剩残段）：不再钉 Preferred Position=500。
+        // 500 是旧屏/旧图标数下的锚位；图标增多后 500+宽度与主图标 322 把整组
+        // 挤到屏幕外。清掉钉位让系统自动排布。
+        [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"NSStatusItem Preferred Position frset.bar.merged"];
     }
     g_mergedItem = [[NSStatusBar systemStatusBar] statusItemWithLength:0];
     g_mergedItem.autosaveName = @"frset.bar.merged";

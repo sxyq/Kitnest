@@ -109,6 +109,9 @@ final class LongScreenshotCoordinator: NSObject {
     static let shared = LongScreenshotCoordinator()
 
     private var session: LongScreenshotSession?
+    /// v74：采集期 HUD（进度 + 完成/取消）与选区边框
+    private var hud: LongScreenshotHUDController?
+    private var borderWindow: LongScreenshotSelectionBorderWindow?
     private let stream = LongScreenshotCaptureStream()
     /// 选区阶段的覆盖层（复用截图选区交互）
     private var selectionOverlays: [ScreenshotOverlayWindow] = []
@@ -190,9 +193,24 @@ final class LongScreenshotCoordinator: NSObject {
         session.onFinish = { [weak self] state, image in
             self?.handleSessionFinished(state: state, image: image)
         }
+        // v74（用户反馈「框选后没有 UI」）：采集期 HUD + 选区边框
+        session.onProgress = { [weak self] rows in
+            self?.hud?.update(rows: rows)
+        }
         self.session = session
         stream.start(session: session)
         session.start()
+
+        let border = LongScreenshotSelectionBorderWindow(rect: appKit)
+        border.orderFrontRegardless()
+        borderWindow = border
+
+        let hud = LongScreenshotHUDController()
+        hud.onFinish = { [weak session] in session?.finish() }
+        hud.onCancel = { [weak session] in session?.cancel() }
+        hud.show(near: NSEvent.mouseLocation)
+        self.hud = hud
+
         Toast.show("长截图：向任意方向滚动目标窗口，Return 完成 / Esc 取消", icon: "arrow.up.and.down.text.horizontal")
         Log.info("Capture", "长截图会话已启动（选区 \(Int(appKit.width))×\(Int(appKit.height))）：二维拼接（横/竖/斜向滚动均可），Return 完成 / Esc 取消")
     }
@@ -211,6 +229,11 @@ final class LongScreenshotCoordinator: NSObject {
     private func handleSessionFinished(state: LongScreenshotState, image: CGImage?) {
         stream.stop()
         session = nil
+        // v74：收尾时关闭采集期 HUD 与选区边框
+        hud?.close()
+        hud = nil
+        borderWindow?.orderOut(nil)
+        borderWindow = nil
         switch state {
         case .finished:
             guard let image = image else {
