@@ -146,9 +146,6 @@ final class LongScreenshotHUDController {
         rowsLabel?.stringValue = "\(rows) px"
     }
 
-    func setStatus(_ text: String) {
-        statusLabel?.stringValue = text
-    }
 
     func close() {
         panel?.orderOut(nil)

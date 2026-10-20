@@ -52,11 +52,6 @@ public final class CalendarService: ObservableObject {
         rawValue >= EKAuthorizationStatus.authorized.rawValue
     }
 
-    /// 打开系统"日历"隐私设置页（macOS 13+ 的设置 URL scheme）
-    public func openCalendarPrivacySettings() {
-        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")!
-        NSWorkspace.shared.open(url)
-    }
 
     private func update(authorized: Bool, hint: String?) {
         isAuthorized = authorized

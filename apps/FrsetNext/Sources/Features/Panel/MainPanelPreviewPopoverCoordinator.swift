@@ -412,44 +412,9 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         previewOrder = ids
     }
 
-    /// 条目间移动预览（clipboardPreviewNavigate action；埋点 item_preview_navigation）
-    public func navigate(_ command: PreviewNavigationCommand,
-                         items: [ClipboardItem],
-                         anchorProvider: @escaping () -> CGRect?) {
-        guard !previewOrder.isEmpty, let current = activeItemID,
-              let index = previewOrder.firstIndex(of: current) else { return }
-        let targetID: String?
-        switch command.direction {
-        case .previous: targetID = index > 0 ? previewOrder[index - 1] : nil
-        case .next:     targetID = index < previewOrder.count - 1 ? previewOrder[index + 1] : nil
-        }
-        guard let id = targetID, let item = items.first(where: { $0.id == id }) else { return }
-        guard let rect = anchorProvider() else { return }
-        present(for: item, anchorRectInWindow: rect, source: activeSource)
-        track("item_preview_navigation", command.direction.rawValue, nil)
-        track("preview_navigation", command.direction.rawValue, nil)
-    }
 
     // MARK: 滚动跟随与校验（F8/P6）
 
-    /// 列表滚动时上报条目几何（__trackedPreviewItemMinYByID）；锚条目出视口即关闭
-    public func itemFrameChanged(itemID: String, minY: CGFloat, viewportTop: CGFloat, viewportBottom: CGFloat) {
-        trackedPreviewItemMinYByID[itemID] = minY
-        guard itemID == activeItemID else { return }
-        let estimatedRowHeight: CGFloat = Theme.rowHeight
-        let itemBottom = minY + estimatedRowHeight
-        if itemBottom < viewportTop || minY > viewportBottom {
-            pendingPreviewVisibilityValidationTargetID = itemID
-            dismiss(reason: .scrolledOutOfViewport)
-        }
-    }
-
-    /// 滚动停止后的可见性校验钩子（__pendingPreviewVisibilityValidationTargetID/Direction）
-    public func validatePreviewVisibility(anchorItemID: String, isVisible: Bool) {
-        guard anchorItemID == activeItemID else { return }
-        pendingPreviewVisibilityValidationTargetID = isVisible ? nil : anchorItemID
-        if !isVisible { dismiss(reason: .scrolledOutOfViewport) }
-    }
 
     // MARK: 条目删除（F10 itemRemoved）
 
@@ -640,9 +605,6 @@ public final class PreviewArrowGeometryStore {
         return edge
     }
 
-    public func cachedEdge(for itemID: String) -> Edge {
-        cachedEdges[itemID] ?? .leading
-    }
 
     public func invalidate() {
         cachedEdges.removeAll()

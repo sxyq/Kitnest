@@ -21,10 +21,6 @@ public enum OfficialChrome {
             : NSColor(srgbRed: 0.867, green: 0.875, blue: 0.875, alpha: 1)   // #DDDFDF
     }
 
-    /// 批量应用（窗口数组）
-    public static func applyAll(_ windows: [NSWindow?]) {
-        for w in windows { w?.applyOfficialChrome() }
-    }
 }
 
 public extension NSWindow {

@@ -100,15 +100,6 @@ public enum WindowManager {
         Log.info("WindowManager", "closeAll: \(kind?.rawValue ?? "all"), count=\(targets.count)")
     }
 
-    /// 把某类窗口提到最前（如唤起浮动剪贴板）
-    public static func bringToFront(kind: AuxiliaryWindowKind) {
-        for info in windows(of: kind) {
-            DispatchQueue.main.async {
-                info.window?.makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
-            }
-        }
-    }
 
     /// 数量统计（设置页 / 调试展示用）
     public static func count(of kind: AuxiliaryWindowKind) -> Int { windows(of: kind).count }

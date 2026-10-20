@@ -202,11 +202,6 @@ public final class ShortcutManager {
         return failures[id]
     }
 
-    /// 与给定组合冲突的已注册快捷键
-    public func conflicts(keyCode: UInt32, modifiers: UInt32) -> [ShortcutDefinition] {
-        lock.lock(); defer { lock.unlock() }
-        return conflictsLocked(keyCode: keyCode, modifiers: modifiers)
-    }
 
     private func conflictsLocked(keyCode: UInt32, modifiers: UInt32) -> [ShortcutDefinition] {
         definitions.values.filter { $0.keyCode == keyCode && $0.modifiers == modifiers }

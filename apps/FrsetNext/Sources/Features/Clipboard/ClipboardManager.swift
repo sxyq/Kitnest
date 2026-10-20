@@ -625,21 +625,6 @@ public final class ClipboardManager: ObservableObject {
         insert(ClipboardPasteboardReader.textResult(text, sourceApp: sourceApp, subtitle: subtitle))
     }
 
-    /// 全局搜索源：把剪贴板条目接入主面板搜索（总控经 SearchHookRegistry 注册时调用）。
-    /// 返回模块自有 DTO，映射为搜索 UI 类型的职责留在总控，保持模块间零耦合。
-    public func searchGlobal(query: String, limit: Int = 8) async -> [ClipboardGlobalSearchHit] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
-        // 只捕获 Sendable 的仓储与队列，避免把非 Sendable 的 self 带进 @Sendable 闭包
-        let repository = self.repository
-        let queue = self.queue
-        return await withCheckedContinuation { continuation in
-            queue.async {
-                let fetched = repository.fetch(ClipboardQuery(search: trimmed, limit: limit))
-                continuation.resume(returning: fetched.map { ClipboardGlobalSearchHit(item: $0) })
-            }
-        }
-    }
 
     // MARK: 辅助
 

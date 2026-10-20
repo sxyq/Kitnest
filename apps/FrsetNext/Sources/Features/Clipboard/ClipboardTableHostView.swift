@@ -26,22 +26,6 @@ public final class ClipboardTableScrollProxy {
 
     public init() {}
 
-    public func scrollToTop(animated: Bool = true) {
-        guard let scrollView, let document = scrollView.documentView else { return }
-        let work = {
-            document.scroll(NSPoint(x: 0, y: 0))
-            scrollView.reflectScrolledClipView(scrollView.contentView)
-        }
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.allowsImplicitAnimation = true
-                context.duration = 0.25
-                work()
-            }
-        } else {
-            work()
-        }
-    }
 }
 
 // MARK: - hover 抑制控制器（specs/14 §3.3，字段对齐原作）

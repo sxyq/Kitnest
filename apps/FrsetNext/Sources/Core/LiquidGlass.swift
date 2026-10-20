@@ -168,8 +168,4 @@ struct HoverLift: ViewModifier {
 }
 
 extension View {
-    /// 悬停轻微放大（指针进入/离开，弹簧回弹）
-    func hoverLift(_ scale: CGFloat = 1.02) -> some View {
-        modifier(HoverLift(scale: scale))
-    }
 }

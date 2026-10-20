@@ -58,9 +58,6 @@ public final class AIProviderModelDiscoveryCache {
         prefs.set(timeKey(for: provider), nil)
     }
 
-    public func invalidateAll() {
-        for kind in LLMProviderKind.allCases { invalidate(kind) }
-    }
 }
 
 // MARK: - 厂商解析器

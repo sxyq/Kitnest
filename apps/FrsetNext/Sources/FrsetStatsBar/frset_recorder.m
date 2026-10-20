@@ -57,7 +57,6 @@ static void FSRecInstallGlass(NSPanel *panel, CGFloat radius) {
     }
     [g addSubview:content positioned:NSWindowBelow relativeTo:nil];
 }
-static void FSRecDrawGlassPanel(NSView *v) { (void)v; }
 
 // 主屏高度（Cocoa 全局坐标 → CG 全局坐标换算用；主屏 origin=(0,0)）
 static CGFloat FSRecMainScreenH(void) {
@@ -323,8 +322,6 @@ static NSString *FSRecConvertMovieToGIF(NSString *moviePath, NSString *gifPath,
 @end
 
 static NSMutableArray *g_regionWins = nil;
-// v62：框选期间标记（供悬停预览等浮动层让路，避免拖动时做文本排版导致卡顿）
-BOOL FSRegionOverlayIsActive(void) { return g_regionWins != nil && g_regionWins.count > 0; }
 
 static void FSRegionOverlayShow(void (^onDone)(CGRect, CGDirectDisplayID), void (^onCancel)(void)) {
     [g_regionWins makeObjectsPerformSelector:@selector(orderOut:) withObject:nil];
@@ -1025,7 +1022,6 @@ NSView *FSScreenRecDebugPanelView(void) { return g_settingsPanel.contentView; }
 NSView *FSScreenRecDebugBarView(void) { return g_barWin.contentView; }
 
 
-
 // ============ 录制完成提示（参考 QuickRecorder 的完成反馈） ============
 // 之前录完只写日志，用户不知道文件在哪、录成功没有。这里给一个 5 秒自动消失的
 // 小面板：图标 + 「录屏已保存」+ 文件名 + [在 Finder 中显示] [打开]。
@@ -1198,7 +1194,6 @@ void FSScreenRecBeginFromSettings(void) {
              (long)s.fps, (long)s.resScale, (long)s.areaMode, (long)s.audioMode, (long)s.format);
     [g_engine start];
 }
-void FSScreenRecStart(void) { FSScreenRecBeginFromSettings(); }
 void FSScreenRecStop(void) {
     // 先给「正在保存」反馈，再收尾：收尾回调偶发不回来（或进程被回收）时，
     // 用户至少知道已经点了停止、文件在写。

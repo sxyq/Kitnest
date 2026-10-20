@@ -17,15 +17,6 @@ public enum ImageProcessor {
         return out as Data
     }
 
-    /// CGImage → JPEG 数据（长截图体积过大时用）
-    public static func jpegData(_ image: CGImage, quality: CGFloat = 0.9) -> Data? {
-        let out = NSMutableData()
-        guard let dest = CGImageDestinationCreateWithData(out, "public.jpeg" as CFString, 1, nil) else { return nil }
-        let opts = [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
-        CGImageDestinationAddImage(dest, image, opts)
-        guard CGImageDestinationFinalize(dest) else { return nil }
-        return out as Data
-    }
 
     // MARK: 缩放
 
@@ -109,18 +100,6 @@ public struct RGBABuffer {
         self.pixels = pixels
     }
 
-    /// 取整行平均色（0~255），用于行相似度比较
-    public func rowMean(_ y: Int) -> (r: Float, g: Float, b: Float)? {
-        guard y >= 0, y < height, width > 0 else { return nil }
-        var sr = 0, sg = 0, sb = 0
-        let base = y * width * 4
-        for x in 0..<width {
-            let i = base + x * 4
-            sr += Int(pixels[i]); sg += Int(pixels[i + 1]); sb += Int(pixels[i + 2])
-        }
-        let f = Float(width)
-        return (Float(sr) / f, Float(sg) / f, Float(sb) / f)
-    }
 
     /// 取单点颜色（0~255）
     public func colorAt(x: Int, y: Int) -> (r: UInt8, g: UInt8, b: UInt8)? {

@@ -203,18 +203,4 @@ public enum ToolRegistry {
         DatabaseManager.shared.bumpStat("tool_count")
     }
 
-    /// 最近调用记录（设置页 / 调试用）
-    public static func recentInvocations(limit: Int = 20) -> [ToolInvocationRecord] {
-        guard let rows = try? DatabaseManager.shared.clipboard.query(
-            "SELECT id,kind,input,output,created_at FROM tool_invocations ORDER BY created_at DESC LIMIT \(limit);"
-        ) else { return [] }
-        return rows.compactMap { row in
-            guard let kind = ToolKind(rawValue: row.string("kind") ?? "") else { return nil }
-            return ToolInvocationRecord(id: row.string("id") ?? UUID().uuidString,
-                                        kind: kind,
-                                        input: row.string("input") ?? "",
-                                        output: row.string("output") ?? "",
-                                        createdAt: Date(timeIntervalSince1970: row.real("created_at")))
-        }
-    }
 }

@@ -193,17 +193,6 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// RenderProbe 渲染健康探针用（只读窗口引用，v71 白屏排查）
     public var panelWindowForProbe: NSWindow? { panel }
 
-    /// v30：位置收敛——仅顶边（注入版 FSSettlePanel(alignX: NO)：切模块/改高度时
-    /// 不动 x，避免横向跳动）
-    public func settleTopEdge() {
-        guard let p = panel, p.isVisible else { return }
-        guard let screen = p.screen ?? NSScreen.main else { return }
-        let targetTop = screen.visibleFrame.maxY - 2
-        let f = p.frame
-        if abs(f.maxY - targetTop) > 0.5 {
-            p.setFrameOrigin(NSPoint(x: f.origin.x, y: targetTop - f.size.height))
-        }
-    }
 
     public func hide() {
         guard let p = panel, p.isVisible else { return }

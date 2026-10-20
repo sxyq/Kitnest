@@ -502,17 +502,6 @@ static NSImage *FSGrayscaleImage(NSImage *img) {
 }
 @end
 
-// ---------- 部件选择条（Stats WidgetSelectorView / WidgetPreview） ----------
-static NSImage *FSScaleImage(NSImage *img, CGFloat maxH) {
-    NSSize sz = img.size;
-    if (sz.height <= maxH || sz.height <= 0) return img;
-    CGFloat k = maxH / sz.height;
-    NSImage *out = [[NSImage alloc] initWithSize:NSMakeSize(sz.width * k, maxH)];
-    [out lockFocus];
-    [img drawInRect:NSMakeRect(0, 0, sz.width * k, maxH) fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:1];
-    [out unlockFocus];
-    return out;
-}
 
 @interface FSWidgetChip : NSView
 @property (nonatomic, copy) NSString *form;
@@ -1172,59 +1161,6 @@ static NSView *FSBuildModulePage(NSString *module) {
 }
 @end
 
-static void FSEnsureWindow(void) {
-    if (gWin) return;
-    gWin = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 720, 480)
-                                       styleMask:(NSWindowStyleMaskClosable | NSWindowStyleMaskTitled |
-                                                  NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskFullSizeContentView |
-                                                  NSWindowStyleMaskResizable)
-                                         backing:NSBackingStoreBuffered
-                                           defer:NO];
-    gWin.titlebarAppearsTransparent = YES;
-    gWin.title = FSL(@"Settings");
-    gWin.minSize = NSMakeSize(720, 480 - 42);
-    gWin.releasedWhenClosed = NO;
-    gWin.delegate = [FSSettingsWindowDelegate shared];
-    [gWin setFrameAutosaveName:@"frset.stats.settings.window"];
-
-    NSToolbar *tb = [[NSToolbar alloc] initWithIdentifier:@"frset.stats.settings.toolbar"];
-    tb.allowsUserCustomization = NO;
-    tb.autosavesConfiguration = NO;
-    tb.displayMode = NSToolbarDisplayModeDefault;
-    tb.showsBaselineSeparator = YES;
-    tb.delegate = [FSSettingsWindowDelegate shared];
-    gWin.toolbar = tb;
-
-    // 分栏：侧边栏(180) + 内容区
-    NSSplitViewController *split = [[NSSplitViewController alloc] init];
-    gSidebar = [[FSSidebar alloc] initWithFrame:NSMakeRect(0, 0, 180, 480)];
-    __weak FSSidebar *weakSidebar = gSidebar;
-    gSidebar.onSelect = ^(NSString *page) { (void)weakSidebar; FSSelectPage(page); };
-    NSViewController *sideVC = [[NSViewController alloc] init];
-    sideVC.view = gSidebar;
-    NSSplitViewItem *sideItem = [NSSplitViewItem sidebarWithViewController:sideVC];
-    sideItem.canCollapse = NO;
-
-    NSView *mainView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 540, 480)];
-    NSVisualEffectView *bg = [[NSVisualEffectView alloc] initWithFrame:mainView.bounds];
-    bg.blendingMode = NSVisualEffectBlendingModeWithinWindow;
-    bg.material = NSVisualEffectMaterialContentBackground;
-    bg.state = NSVisualEffectStateActive;
-    bg.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [mainView addSubview:bg positioned:NSWindowBelow relativeTo:nil];
-    gHostContainer = [[NSView alloc] initWithFrame:NSMakeRect(0, 59, 540, 421)];
-    gHostContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [mainView addSubview:gHostContainer];
-    NSViewController *mainVC = [[NSViewController alloc] init];
-    mainVC.view = mainView;
-    NSSplitViewItem *mainItem = [NSSplitViewItem splitViewItemWithViewController:mainVC];
-    mainItem.canCollapse = NO;
-    [split addSplitViewItem:sideItem];
-    [split addSplitViewItem:mainItem];
-    gWin.contentViewController = split;
-
-    if (![gWin setFrameUsingName:@"frset.stats.settings.window"]) [gWin center];
-}
 
 static void FSSelectPage(NSString *page) {
     if (!page) page = @"Settings";
@@ -1260,41 +1196,6 @@ static void FSSelectPage(NSString *page) {
     [gHostContainer layoutSubtreeIfNeeded];
 }
 
-// v54：内嵌设置视图（侧边栏 180 + 内容区 540）——供 App 设置窗口「性能监测 → 部件设置」页使用。
-// 与独立窗口共用同一套页面构建代码；gSidebar / gHostContainer 全局指针在本视图生命周期内有效。
-NSView *FSBarSettingsCreateEmbeddedView(void) {
-    if (gEmbeddedRoot) return gEmbeddedRoot;
-    gEmbedded = YES;
-
-    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 720, 520)];
-
-    gSidebar = [[FSSidebar alloc] initWithFrame:NSMakeRect(0, 0, 180, 520)];
-    __weak FSSidebar *weakSidebar = gSidebar;
-    gSidebar.onSelect = ^(NSString *page) { (void)weakSidebar; FSSelectPage(page); };
-    [root addSubview:gSidebar];
-
-    NSView *mainView = [[NSView alloc] initWithFrame:NSMakeRect(180, 0, 540, 520)];
-    gHostContainer = [[NSView alloc] initWithFrame:mainView.bounds];
-    gHostContainer.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [mainView addSubview:gHostContainer];
-    [root addSubview:mainView];
-
-    gSidebar.translatesAutoresizingMaskIntoConstraints = NO;
-    mainView.translatesAutoresizingMaskIntoConstraints = NO;
-    [NSLayoutConstraint activateConstraints:@[
-        [gSidebar.leadingAnchor constraintEqualToAnchor:root.leadingAnchor],
-        [gSidebar.topAnchor constraintEqualToAnchor:root.topAnchor],
-        [gSidebar.bottomAnchor constraintEqualToAnchor:root.bottomAnchor],
-        [mainView.leadingAnchor constraintEqualToAnchor:gSidebar.trailingAnchor],
-        [mainView.trailingAnchor constraintEqualToAnchor:root.trailingAnchor],
-        [mainView.topAnchor constraintEqualToAnchor:root.topAnchor],
-        [mainView.bottomAnchor constraintEqualToAnchor:root.bottomAnchor],
-    ]];
-
-    gEmbeddedRoot = root;
-    FSSelectPage(gCurrentPage ?: @"Settings");
-    return root;
-}
 
 void FSBarSettingsOpen(void) {
     // v54：设置界面并入 App 设置窗口 → 深链跳到「性能监测 → 部件设置」页
@@ -1327,12 +1228,6 @@ void FSBarSettingsOpen(void) {
     }
 }
 
-// v17：打开设置并直达指定模块页（弹窗头部 command 图标调用）
-void FSBarSettingsOpenModule(NSString *module) {
-    // v54：内嵌设置页里再选模块（侧边栏）；此入口先打开部件设置页
-    FSBarSettingsOpen();
-    if (module.length && gHostContainer) FSSelectPage(module);
-}
 
 // v55：Swift 设置页用 —— 传感器 key 列表（C 数组不便跨语言，这里转成 NSArray）
 NSArray<NSString *> *FSBarSensorKeysList(void) {

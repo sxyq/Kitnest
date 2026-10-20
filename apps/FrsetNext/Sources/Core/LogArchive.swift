@@ -207,17 +207,6 @@ public final class LogArchive {
         return r > 0 ? Int(info.pti_threadnum) : 0
     }
 
-    /// 日志目录当前体积（字节）
-    public func currentSizeBytes() -> Int64 {
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.fileSizeKey])) ?? []
-        var total: Int64 = 0
-        for f in files {
-            let size = (try? f.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            total += Int64(size)
-        }
-        return total
-    }
 
     // MARK: 文件管理
 

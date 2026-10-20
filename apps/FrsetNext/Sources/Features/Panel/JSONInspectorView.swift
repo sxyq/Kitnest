@@ -92,9 +92,6 @@ final class JSONNodeModel: ObservableObject, Identifiable {
         isExpanded.toggle()
     }
 
-    func expand(expanded: Bool) {
-        if expanded { toggle() } else if isExpanded { toggle() }
-    }
 
     private static func makeChildren(raw: Any, parentPath: String, depth: Int) -> [JSONNodeModel] {
         var result: [JSONNodeModel] = []

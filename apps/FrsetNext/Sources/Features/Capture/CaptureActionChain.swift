@@ -122,11 +122,6 @@ public enum CaptureActionChain {
         panel.makeKeyAndOrderFront(nil)
     }
 
-    @MainActor
-    static func dismissToolbar() {
-        toolbar?.close()
-        toolbar = nil
-    }
 
     @MainActor
     static var toolbar: CaptureActionToolbarPanel?

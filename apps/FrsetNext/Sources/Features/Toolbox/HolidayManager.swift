@@ -58,8 +58,6 @@ public enum HolidayManager {
         return solarFestivals[m * 100 + d]
     }
 
-    /// 该日期是否在法定放假区间内
-    public static func isOnLeave(_ date: Date) -> Bool { holiday(on: date) != nil }
 
     private static func components(_ date: Date) -> (Int, Int, Int) {
         var calendar = Calendar(identifier: .gregorian)

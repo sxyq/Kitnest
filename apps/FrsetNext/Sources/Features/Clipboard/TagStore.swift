@@ -94,11 +94,6 @@ public final class TagStore: ObservableObject {
         refresh()
     }
 
-    public func setColor(id: String, colorHex: String) {
-        try? db.run("UPDATE tags SET color_hex = ?, updated_at = ? WHERE id = ?",
-                    [.text(colorHex), .real(Date().timeIntervalSince1970), .text(id)])
-        refresh()
-    }
 
     public func delete(id: String) {
         // clipboard_item_tags 外键 ON DELETE CASCADE，关联行自动清理
@@ -128,9 +123,4 @@ public final class TagStore: ObservableObject {
         else { assign(tagID: tagID, toDedupeKey: dedupeKey) }
     }
 
-    /// 某标签下的全部条目去重键（过滤栏"按标签筛选"用）
-    public func dedupeKeys(forTagID tagID: String) -> [String] {
-        let rows = (try? db.query("SELECT item_dedupe_key FROM clipboard_item_tags WHERE tag_id = ?", [.text(tagID)])) ?? []
-        return rows.compactMap { $0.string("item_dedupe_key") }
-    }
 }

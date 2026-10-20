@@ -44,12 +44,6 @@ final class ScreenshotOCRSourceScrollView: NSScrollView {
         documentView = imageView
     }
 
-    /// 展示原文文本
-    func setSourceText(_ text: String) {
-        textView.configureInside(self)
-        textView.string = text
-        documentView = textView
-    }
 }
 
 /// 文本视图放进滚动视图的常规配置（宽度跟随、纵向自适应）

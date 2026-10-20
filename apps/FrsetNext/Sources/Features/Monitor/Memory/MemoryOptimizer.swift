@@ -77,9 +77,6 @@ public final class MemoryOptimizer: ObservableObject {
 
     private init() {}
 
-    public func refreshHelperState() {
-        helperInstalled = MemoryHelperClient.isInstalled
-    }
 
     public func optimize() async {
         guard !isOptimizing else { return }
@@ -124,23 +121,5 @@ public final class MemoryOptimizer: ObservableObject {
         }
     }
 
-    public func installHelper() async {
-        guard !isOptimizing else { return }
-        isOptimizing = true
-        message = nil
-        let result = await MemoryHelperClient.install()
-        message = result.message
-        helperInstalled = MemoryHelperClient.isInstalled
-        isOptimizing = false
-    }
 
-    public func uninstallHelper() async {
-        guard !isOptimizing else { return }
-        isOptimizing = true
-        message = nil
-        let result = await MemoryHelperClient.uninstall()
-        message = result.1
-        helperInstalled = MemoryHelperClient.isInstalled
-        isOptimizing = false
-    }
 }

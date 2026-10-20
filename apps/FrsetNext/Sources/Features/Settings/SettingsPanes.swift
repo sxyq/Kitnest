@@ -279,12 +279,6 @@ struct GeneralSettingsPane: View {
         .frame(minHeight: height)
     }
 
-    private func monitorToggle(_ title: String, module: MonitorModuleID) -> some View {
-        Toggle(title, isOn: Binding(
-            get: { MonitorPreferences.isModuleEnabled(module) },
-            set: { MonitorPreferences.setModuleEnabled(module, $0); monitorRevision += 1 }))
-            .toggleStyle(.checkbox)
-    }
 
     private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -356,17 +350,6 @@ struct GeneralSettingsPane: View {
         revealCustomIconOption
     }
 
-    /// 可选样式（custom 仅在未被隐藏时出现）
-    /// 返回的 title 是内部标识，用于选择绑定。
-    static func menuBarIconStyleOptions(revealsCustom: Bool) -> [(title: String, key: String)] {
-        var options = [(menuBarIconStyleLogo, menuBarIconStyleLogoKey),
-                       (menuBarIconStyleFan, menuBarIconStyleFanKey),
-                       (menuBarIconStyleDate, menuBarIconStyleDateKey)]
-        if revealsCustom {
-            options.append((menuBarIconStyleCustom, menuBarIconStyleCustomKey))
-        }
-        return options
-    }
 
     /// 当前选中的样式**内部标识**（全false / 多 true 时取 Logo）
     private var currentMenuBarIconStyle: String {

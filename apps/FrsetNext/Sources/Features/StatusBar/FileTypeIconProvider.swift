@@ -43,11 +43,6 @@ public final class FileTypeIconProvider {
         icon(forExtension: url.pathExtension)
     }
 
-    /// 清空内存缓存（磁盘缓存保留）
-    public func clearMemoryCache() {
-        lock.lock(); defer { lock.unlock() }
-        cache.removeAll(); lruOrder.removeAll()
-    }
 
     /// 缓存目录（供设置页展示/清理）
     public var cacheDirectory: URL { iconDirectory }
@@ -126,23 +121,6 @@ public final class FileTypeIconProvider {
         }
     }
 
-    /// 读取缓存记录（用于调试/设置页展示）
-    public func cachedRecord(key: String) -> FileTypeIcon? {
-        do {
-            let rows = try DatabaseManager.shared.clipboard.query(
-                "SELECT icon_key, handler_bundle_id, icon_path, updated_at FROM file_type_icons WHERE icon_key = ?;",
-                [.text(Self.normalize(key))]
-            )
-            guard let row = rows.first else { return nil }
-            return FileTypeIcon(iconKey: row.string("icon_key") ?? key,
-                                handlerBundleId: row.string("handler_bundle_id"),
-                                iconPath: row.string("icon_path"),
-                                updatedAt: Date(timeIntervalSince1970: row.real("updated_at")))
-        } catch {
-            Log.error("FileTypeIcon", "读缓存记录失败 \(key): \(error)")
-            return nil
-        }
-    }
 
     // MARK: 内存 LRU
 

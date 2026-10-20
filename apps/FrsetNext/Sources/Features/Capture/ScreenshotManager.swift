@@ -581,19 +581,6 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 长截图 / 钉图
 
-    /// 拼接多张带重叠的截图并保存
-    @discardableResult
-    public func stitchAndSave(urls: [URL]) -> URL? {
-        guard urls.count >= 2 else {
-            statusMessage = "请至少选择两张有重叠区域的截图"
-            return nil
-        }
-        guard let result = Stitcher.stitch(urls: urls) else {
-            statusMessage = "拼接失败：请确认图片同宽且存在重叠内容"
-            return nil
-        }
-        return saveStitchedResult(result.image, overlaps: result.overlaps)
-    }
 
     /// 拼接结果的落盘 + 列表刷新（拼接计算可在后台线程做，落盘回主线程调这里）
     @discardableResult

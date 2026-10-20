@@ -76,9 +76,6 @@ public final class CustomAIToolStore {
         lock.unlock()
     }
 
-    public func replaceAll(_ tools: [CustomAITool]) {
-        lock.lock(); persist(tools); lock.unlock()
-    }
 
     // MARK: - 私有
 

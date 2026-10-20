@@ -322,18 +322,6 @@ void frset_disk_sample(frset_disk_t *out) {
 
 // ============ 格式化 ============
 
-void frset_fmt_bytes(uint64_t v, char *buf, int buflen) {
-    const char *units[] = {"B", "KB", "MB", "GB", "TB"};
-    double d = (double)v; int i = 0;
-    while (d >= 1024 && i < 4) { d /= 1024; i++; }
-    snprintf(buf, buflen, "%.1f %s", d, units[i]);
-}
-
-void frset_fmt_rate(uint64_t v, char *buf, int buflen) {
-    char tmp[32];
-    frset_fmt_bytes(v, tmp, sizeof(tmp));
-    snprintf(buf, buflen, "%s/s", tmp);
-}
 
 // ============ v4 追加：电池（IORegistry AppleSmartBattery） ============
 
@@ -502,15 +490,6 @@ double frset_battery_remaining_sec(void) {
 #include <libproc.h>
 #include <time.h>
 
-double frset_uptime(void) {
-    struct timeval boot = {0};
-    size_t len = sizeof(boot);
-    int mib[2] = {CTL_KERN, KERN_BOOTTIME};
-    if (sysctl(mib, 2, &boot, &len, NULL, 0) != 0 || boot.tv_sec == 0) return 0;
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    return (double)(now.tv_sec - boot.tv_sec) + (double)(now.tv_usec - boot.tv_usec) / 1e6;
-}
 
 int frset_mem_pressure(void) {
     int level = 0;
@@ -734,27 +713,6 @@ int frset_kill_bundle(const char *bundle, int force) {
     return killed;
 }
 
-int frset_proc_group_detail(const char *bundle, int kind, frset_proc_t *out, int max) {
-    if (!bundle || !bundle[0] || !out || max <= 0) return 0;
-    static frset_proc_t tmp[256];
-    int n = frset_proc_top(kind, tmp, 256);
-    if (n <= 0) return 0;
-    int m = 0;
-    for (int i = 0; i < n && m < max; i++) {
-        char b[512] = {0};
-        int hasBundle = frset_bundle_of(tmp[i].path, b, sizeof(b));
-        int match;
-        if (strchr(bundle, '/')) {
-            // bundle 形态：路径前缀匹配（与 kill 同规则）
-            match = hasBundle ? (strcmp(b, bundle) == 0) : (strcmp(tmp[i].path, bundle) == 0);
-        } else {
-            match = (strcmp(tmp[i].name, bundle) == 0);
-        }
-        if (!match) continue;
-        out[m++] = tmp[i];
-    }
-    return m;
-}
 
 int frset_gpu_usage(double *device, double *renderer, double *tiler) {
     // 输出先清零：某些芯片/系统版本缺个别键（如 Tiler Utilization %），

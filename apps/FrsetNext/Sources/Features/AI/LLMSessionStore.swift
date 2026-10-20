@@ -85,24 +85,6 @@ public final class LLMSessionStore {
         }
     }
 
-    /// 更新会话使用的模型
-    public func updateSession(id: String, model: String) {
-        do {
-            try db.run("UPDATE llm_sessions SET model = ? WHERE id = ?;", [.text(model), .text(id)])
-        } catch {
-            Log.error("AI", "更新会话模型失败：\(error.localizedDescription)")
-        }
-    }
-
-    /// 删除会话（外键级联删除消息）
-    public func deleteSession(id: String) {
-        do {
-            try db.run("DELETE FROM llm_messages WHERE session_id = ?;", [.text(id)])
-            try db.run("DELETE FROM llm_sessions WHERE id = ?;", [.text(id)])
-        } catch {
-            Log.error("AI", "删除会话失败：\(error.localizedDescription)")
-        }
-    }
 
     /// 清空全部会话
     public func clearAll() {
@@ -158,60 +140,6 @@ public final class LLMSessionStore {
 
     // MARK: - 全局搜索（供总控在 App 层注册检索源）
 
-    /// 在所有会话的标题与消息内容中做子串匹配。
-    /// 本方法只返回 AI 侧的中立结果类型，**不引用任何其它模块的搜索类型**（契约 §1.3）；
-    /// 由总控在 App 层把它映射成检索框架的条目并注册（与剪贴板源的做法一致）。
-    public func searchSessions(query: String, limit: Int = 8) -> [LLMSessionSearchHit] {
-        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return [] }
-        let pattern = Self.likePattern(q)
-        guard let rows = try? db.query("""
-            SELECT id, title, updated_at FROM llm_sessions
-            WHERE title LIKE ? ESCAPE '\\'
-               OR id IN (SELECT session_id FROM llm_messages WHERE content LIKE ? ESCAPE '\\')
-            ORDER BY updated_at DESC LIMIT ?;
-            """, [.text(pattern), .text(pattern), .int(Int64(limit))]) else { return [] }
-
-        return rows.compactMap { row -> LLMSessionSearchHit? in
-            guard let id = row.string("id") else { return nil }
-            let title = row.string("title") ?? "新会话"
-            let matchesTitle = title.range(of: q, options: .caseInsensitive) != nil
-            var snippet = ""
-            var role: LLMMessage.Role?
-            if !matchesTitle, let hit = firstMatchingMessage(sessionID: id, pattern: pattern, query: q) {
-                snippet = hit.snippet
-                role = hit.role
-            }
-            return LLMSessionSearchHit(id: id,
-                                       title: title,
-                                       snippet: snippet,
-                                       role: role,
-                                       matchesTitle: matchesTitle,
-                                       updatedAt: Date(timeIntervalSince1970: row.real("updated_at")))
-        }
-    }
-
-    private func firstMatchingMessage(sessionID: String,
-                                      pattern: String,
-                                      query: String) -> (snippet: String, role: LLMMessage.Role)? {
-        guard let rows = try? db.query("""
-            SELECT content, role FROM llm_messages
-            WHERE session_id = ? AND content LIKE ? ESCAPE '\\'
-            ORDER BY created_at ASC LIMIT 1;
-            """, [.text(sessionID), .text(pattern)]),
-              let row = rows.first,
-              let content = row.string("content") else { return nil }
-        return (Self.snippet(from: content, around: query),
-                row.string("role").flatMap(LLMMessage.Role.init(rawValue:)) ?? .assistant)
-    }
-
-    /// 把用户输入转成 LIKE 模式，转义 `%` `_` `\` 通配符，避免误匹配
-    private static func likePattern(_ query: String) -> String {
-        var escaped = query.replacingOccurrences(of: "\\", with: "\\\\")
-        escaped = escaped.replacingOccurrences(of: "%", with: "\\%")
-        escaped = escaped.replacingOccurrences(of: "_", with: "\\_")
-        return "%" + escaped + "%"
-    }
 
     /// 截取命中词前后的一段上下文作为摘要
     private static func snippet(from content: String, around query: String, radius: Int = 30) -> String {

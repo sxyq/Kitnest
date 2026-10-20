@@ -278,15 +278,6 @@ public final class ClipboardRepository: @unchecked Sendable {
         (try? db.scalarInt("SELECT COALESCE(SUM(storage_bytes), 0) FROM clipboard_items")) ?? 0
     }
 
-    public func deleteAll(dedupeKeys: [String]) {
-        guard !dedupeKeys.isEmpty else { return }
-        try? db.transaction { database in
-            for key in dedupeKeys {
-                try? database.run("DELETE FROM clipboard_items WHERE dedupe_key = ?", [.text(key)])
-                try? database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ?", [.text(key)])
-            }
-        }
-    }
 
     // MARK: 映射
 

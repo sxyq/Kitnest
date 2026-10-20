@@ -397,10 +397,6 @@ static NSColor *FSBarColorFromKey(NSString *key, BOOL dark, double value) {
     return c ?: [NSColor controlAccentColor];
 }
 
-// v17：导出给注入层（弹窗复刻取色）
-NSColor *FSBarColorFor(NSString *key, BOOL dark, double value) {
-    return FSBarColorFromKey(key, dark, value);
-}
 
 // 设置界面的颜色候选（key 对齐 Stats SColor 常用项）
 NSArray<NSString *> *FSBarColorKeys(void) {
@@ -408,16 +404,6 @@ NSArray<NSString *> *FSBarColorKeys(void) {
              @"yellow", @"orange", @"purple", @"pink", @"gray"];
 }
 
-NSString *FSBarColorName(NSString *key) {
-    static NSDictionary *map = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        map = @{@"systemAccent": @"强调色", @"monochrome": @"单色", @"utilization": @"随占用变色",
-                @"red": @"红", @"green": @"绿", @"blue": @"蓝", @"yellow": @"黄",
-                @"orange": @"橙", @"purple": @"紫", @"pink": @"粉", @"gray": @"灰"};
-    });
-    return map[key] ?: key;
-}
 
 // Stats grayscaled() 近似
 static NSColor *FSBarGray(NSColor *c) {
@@ -2965,11 +2951,3 @@ void FSBarDebugCharProbe(void) {
     });
 }
 
-// ============================================================================
-// 重建版桥接补充（2026-10-16）：合并条状态项按钮访问器
-// 用途：Swift 侧点击部件时以合并条按钮为锚点呈现 popover（与其它状态项一致）。
-// 仅新增只读访问器，不改动引擎任何行为。
-// ============================================================================
-NSStatusBarButton *FSBarMergedButton(void) {
-    return g_mergedItem.button;
-}

@@ -57,13 +57,6 @@ public enum LLMTransport {
     /// 整体资源超时（流式长连接）
     public static let resourceTimeout: TimeInterval = 600
 
-    /// 校验一次性请求的 HTTP 状态
-    public static func validate(response: URLResponse, data: Data) throws {
-        guard let http = response as? HTTPURLResponse else { return }
-        guard http.statusCode >= 400 else { return }
-        let detail = String(data: data, encoding: .utf8) ?? ""
-        throw LLMError.httpStatus(http.statusCode, truncate(detail, limit: 300))
-    }
 
     /// 流式读取：产出服务端原始字节切片
     /// - Parameter refineError: 把错误响应体翻译成厂商口径的可读文案

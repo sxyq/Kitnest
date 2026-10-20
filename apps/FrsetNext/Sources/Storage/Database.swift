@@ -82,7 +82,6 @@ public final class SQLiteDatabase {
         }
     }
 
-    public func lastInsertRowID() -> Int64 { handle.map { sqlite3_last_insert_rowid($0) } ?? 0 }
 
     public func query(_ sql: String, _ values: [SQLiteValue] = []) throws -> [[String: SQLiteValue]] {
         guard let h = handle else { throw DatabaseError(message: "db closed") }
@@ -443,20 +442,6 @@ public final class StatisticsManager {
 
     public func record(_ event: AnalyticsEvent) { record(event.eventName) }
 
-    /// 批量落库恢复（D4：崩溃/挂起后补写挂起的 +1 记录，条目 = (事件名, 增量, day)）
-    public func recordBatch(_ events: [(String, Int, String)]) {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            _ = try? self.db.transaction { db in
-                for (event, delta, day) in events where delta != 0 {
-                    try db.run(
-                        "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
-                        "ON CONFLICT(day, event_name) DO UPDATE SET count = MAX(0, usage_daily_metrics.count) + excluded.count",
-                        [.text(day), .text(event), .int(Int64(delta))])
-                }
-            }
-        }
-    }
 
     // MARK: 查询（Q1-Q8，照 spec 17 §5 映射；所有查询对 count<=0 归零）
 
@@ -589,13 +574,6 @@ public final class StatisticsManager {
         }
     }
 
-    /// 安装日期（yyyy-MM-dd；无记录时返回 nil）
-    public func installDate() -> String? {
-        queue.sync {
-            guard let rows = try? db.query("SELECT value FROM app_meta WHERE key = 'install_date'") else { return nil }
-            return rows.first?.string("value")
-        }
-    }
 
     // MARK: 工具
 

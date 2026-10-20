@@ -159,11 +159,6 @@ public final class AIChatViewModel: ObservableObject {
         errorMessage = nil
     }
 
-    /// 供外部（如划词翻译）直接把一段提问灌进来
-    public func ask(_ prompt: String) {
-        draft = prompt
-        send()
-    }
 
     // MARK: 私有
 

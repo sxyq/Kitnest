@@ -271,4 +271,3 @@ int frset_sensor_group(const char *key) {
     return -1;
 }
 
-int frset_sensor_names_count(void) { return kFSNamesN; }
