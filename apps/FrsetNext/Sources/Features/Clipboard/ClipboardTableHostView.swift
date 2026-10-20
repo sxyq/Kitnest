@@ -340,6 +340,11 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         Coordinator(owner: self)
     }
 
+    /// 行卡之间的呼吸间距（v92 用户反馈「卡片之间距离过近」）：
+    /// 卡片列表的观感关键——6pt 时卡卡贴边显得拥挤，10pt 拉开层次仍紧凑；
+    /// 与行高档位解耦（密度变化时间距恒定，节奏不跳）。
+    private static let rowGap: CGFloat = 10
+
     public func makeNSView(context: Context) -> NSScrollView {
         let scrollView = ClipboardListScrollView()
         scrollView.hasVerticalScroller = true
@@ -348,7 +353,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
         // 底部悬浮工具条会盖住最后一条：留出滚动内边距，让末尾卡片能滚到条上方
         scrollView.automaticallyAdjustsContentInsets = false
-        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 52, right: 0)
+        // v92（2026-10-20 用户：「卡片之间距离过近，注意 UI 设计」）：
+        // 顶部给 4pt 呼吸（列表不顶到日历卡），底部 52pt 仍留给悬浮工具条
+        scrollView.contentInsets = NSEdgeInsets(top: 4, left: 0, bottom: 52, right: 0)
 
         let table = ClipboardTableView()
         table.isActive = isActive
@@ -358,7 +365,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         table.allowsMultipleSelection = true
         table.allowsEmptySelection = true
         table.backgroundColor = .clear
-        table.intercellSpacing = NSSize(width: 0, height: 6)
+        // 行卡间距：6pt 太挤（卡片贴卡片）——统一 10pt（见 rowGap 常量）
+        table.intercellSpacing = NSSize(width: 0, height: Self.rowGap)
         table.gridStyleMask = []
         table.style = .fullWidth
         table.dataSource = context.coordinator
@@ -393,7 +401,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         let newHeight = Theme.statsRowHeight
         if table?.rowHeight != newHeight {
             table?.rowHeight = newHeight
-            table?.intercellSpacing = NSSize(width: 0, height: max(2, newHeight * 0.10))
+            table?.intercellSpacing = NSSize(width: 0, height: Self.rowGap)
         }
         // v91：宽度随表走（行卡与日历卡同宽的最后一环）
         table?.sizeLastColumnToFit()
