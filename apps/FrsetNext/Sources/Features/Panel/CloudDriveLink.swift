@@ -102,10 +102,27 @@ public enum CloudDriveLinkDetector {
         return nil
     }
 
-    /// 分享页判定：路径含 /s/ 或 /share/（各网盘通用约定）
+    /// 分享页判定（按各家实际路径规则）：
+    ///   通用：/s/、/share/、/shareweb/
+    ///   天翼 189：/t/<id>
+    ///   移动 139：/w/、/m/（caiyun 移动云盘）
     public static func isSharePage(_ url: URL) -> Bool {
-        let path = url.path
-        return path.contains("/s/") || path.contains("/share/")
+        let path = url.path.lowercased()
+        let host = url.host?.lowercased() ?? ""
+        if path.contains("/share") || path.contains("/s/") { return true }
+        if host.contains("189.cn"), path.hasPrefix("/t/") { return true }
+        if host.contains("139.com"), path.contains("/w/") || path.contains("/m/") { return true }
+        return false
+    }
+
+    /// 裸域名被 NSDataDetector 识别时会补成 http://，统一升到 https（网盘分享页都强制 https）
+    private static func normalized(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == "http",
+              let host = components.host,
+              provider(forHost: host) != nil else { return url }
+        components.scheme = "https"
+        return components.url ?? url
     }
 
     /// 从一段文本中提取第一条网盘链接（含无 scheme 的裸域名）
@@ -116,7 +133,8 @@ public enum CloudDriveLinkDetector {
             let range = NSRange(text.startIndex..., in: text)
             for match in detector.matches(in: text, options: [], range: range) {
                 guard let url = match.url, let host = url.host, let p = provider(forHost: host) else { continue }
-                return CloudDriveLink(url: url, provider: p, isSharePage: isSharePage(url))
+                let fixed = normalized(url)
+                return CloudDriveLink(url: fixed, provider: p, isSharePage: isSharePage(fixed))
             }
         }
         // 2) 裸域名（如 pan.quark.cn/s/xxx 复制时丢 scheme）

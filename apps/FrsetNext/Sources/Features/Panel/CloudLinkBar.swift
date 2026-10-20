@@ -183,11 +183,10 @@ public struct CloudLinkPreviewAction: View {
 
 enum CloudLinkActions {
     static func resolve(_ link: CloudDriveLink) {
-        // P1 落点：CloudLinkResolver.shared.present(link) → WKWebView 注入 LinkSwift
-        // → 抓直链 → DownloadCenter 原生下载。当前先给出可行动路径，不让用户空等。
         Log.info("CloudLink", "解析请求: \(link.provider.rawValue) \(link.url.absoluteString) share=\(link.isSharePage)")
         StatisticsManager.shared.record(.browserOpen)
-        Toast.show("解析器接入中：已打开\(link.provider.displayName)页面", icon: "arrow.up.right.square")
-        NSWorkspace.shared.open(link.url)
+        // 真实下载链路（2026-10-20）：直链直接下；分享页 WKWebView 抓直链后下；
+        // 解析不了就明确报错并打开页面，不再只弹「接入中」。
+        CloudLinkDownloader.shared.start(link: link)
     }
 }
