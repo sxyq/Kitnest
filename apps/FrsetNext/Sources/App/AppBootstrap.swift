@@ -274,7 +274,7 @@ enum AppBootstrap {
                            keyCode: 0x25, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥L
             ScreenshotManager.shared.captureLongScreenshot()
         },
-        DefaultHotkeyEntry(id: "openTransferDock", title: "文件中转",
+        DefaultHotkeyEntry(id: "openTransferDock", title: "传输与投屏",
                            keyCode: 0x11, modifiers: UInt32(optionKey)) {   // ⌥T
             NSApp.activate(ignoringOtherApps: true)
             ServiceLocator.panel?.show()

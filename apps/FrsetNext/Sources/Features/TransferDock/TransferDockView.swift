@@ -52,24 +52,13 @@ struct TransferDockView: View {
             header
             Divider().opacity(0.5)
 
-            if lanEnabled {
-                lanCard
-                Divider().opacity(0.5)
-            }
-
-            if showsCloud {
-                // 已登录：与本地各占一半；未登录：云端只留一个矮条（空状态说明 + 登录/上传），
-                // 把高度让给真正有内容的本地暂存。
-                if service.loggedIn {
-                    cloudSection
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    cloudSection
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 150)
-                }
-                Divider().opacity(0.5)
-            }
+            // v103 重构（2026-10-21）：旧 OPPO 云端桥接 / 局域网扫码直传下线，
+            // 换为「隔空投送（原生互传，iPhone 零安装）+ 投屏（scrcpy 引擎）」。
+            // 旧实现代码暂留（lanCard/cloudSection 等），待 ADB 真机实测通过后删除。
+            airDropSection
+            Divider().opacity(0.5)
+            screenCastSection
+            Divider().opacity(0.5)
 
             localSection
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -77,10 +66,12 @@ struct TransferDockView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
             bridgeAvailable = TransferDockPath.isAvailable
-            if showsCloud {
-                service.refresh()
-                service.startLiveSync()   // 云端像云盘一样会变 → 30s 实时拉列表
+            // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
+            AirDropReceiveWatcher.shared.onFileReceived = { url in
+                let n = LocalTransferStore.shared.add(urls: [url])
+                if n > 0 { Toast.show("空投已接收：\(url.lastPathComponent)", icon: "airdrop") }
             }
+            AirDropReceiveWatcher.shared.start()
             runTransferProbe()
         }
         .onChange(of: cloudEnabled) { on in
@@ -130,7 +121,7 @@ struct TransferDockView: View {
             Image(systemName: "arrow.left.arrow.right.square")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-            Text("文件中转")
+            Text("传输与投屏")   // v103：文件中转 → 传输与投屏（用户定名）
                 .font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 6)
             Button {
@@ -162,7 +153,7 @@ struct TransferDockView: View {
                     .font(.system(size: 12))
             }
             .buttonStyle(.borderless)
-            .help("文件中转设置")
+            .help("传输与投屏设置")
         }
         .padding(.horizontal, 14)
         .frame(height: 38)
@@ -300,6 +291,89 @@ struct TransferDockView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: 隔空投送（v103 新传输路线：系统级 AirDrop，iPhone 零安装）
+
+    private var airDropSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader(title: "隔空投送", symbol: "airdrop",
+                          detail: AirDropSendEngine.isAvailable
+                            ? "系统原生互传 · iPhone 无需安装任何 App"
+                            : "本机隔空投送不可用",
+                          tint: Color(red: 0.15, green: 0.55, blue: 0.95)) {
+                smallAction("发送文件", icon: "paperplane") {
+                    let panel = NSOpenPanel()
+                    panel.allowsMultipleSelection = true
+                    panel.canChooseDirectories = false
+                    if panel.runModal() == .OK {
+                        AirDropSendEngine.send(urls: panel.urls)
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                smallAction("发送暂存项", icon: "square.and.arrow.up") {
+                    let urls = LocalTransferStore.shared.items
+                        .map { URL(fileURLWithPath: $0.originalPath) }
+                        .filter { FileManager.default.fileExists(atPath: $0.path) }
+                    AirDropSendEngine.send(urls: urls)
+                }
+                smallAction("接收说明", icon: "info.circle") {
+                    Toast.show("iPhone 选中文件 → 隔空投送 → 本机即自动入暂存",
+                               icon: "airdrop")
+                }
+            }
+            Text("发送：调系统空投面板选 iPhone；接收：iPhone 空投到本机，落盘后自动进入「本地暂存」。")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: 投屏（v103：scrcpy 引擎 = AndroMeld 同实现路线；Android 零安装）
+
+    @Stored private var castDevices: [(serial: String, state: String)] = []
+    @Stored private var castScrcpyReady: Bool = false
+
+    private var screenCastSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader(title: "投屏", symbol: "display",
+                          detail: castScrcpyReady ? "scrcpy 引擎就绪" : "需要 scrcpy（brew install scrcpy）",
+                          tint: Color(red: 0.55, green: 0.4, blue: 0.9)) {
+                smallAction("检测设备", icon: "antenna.radiowaves.left.and.right") {
+                    castScrcpyReady = ScreenCastEngine.findScrcpy() != nil
+                    castDevices = ScreenCastEngine.connectedDevices() ?? []
+                    Toast.show(castDevices.isEmpty
+                               ? "未发现 Android 设备（USB 连接并开启 USB 调试）"
+                               : "发现 \(castDevices.count) 台设备",
+                               icon: castDevices.isEmpty ? "antenna.radiowaves.left.and.right.slash" : "display")
+                }
+            }
+            ForEach(Array(castDevices.enumerated()), id: \.offset) { _, dev in
+                HStack(spacing: 8) {
+                    Image(systemName: dev.state == "device" ? "checkmark.circle.fill" : "exclamationmark.circle")
+                        .foregroundStyle(dev.state == "device" ? Color.green : Color.orange)
+                        .font(.system(size: 11))
+                    Text(dev.serial)
+                        .font(.system(size: 11, design: .monospaced))
+                        .lineLimit(1)
+                    Spacer()
+                    if dev.state == "device" {
+                        smallAction("开始投屏", icon: "play.fill") {
+                            ScreenCastEngine.startMirror(serial: dev.serial)
+                        }
+                    }
+                }
+            }
+            Text("与 AndroMeld 同实现方式（ADB + 视频流镜像）：手机开启 USB 调试即可，无需安装 App。等待 ADB 连接真机实测。")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: 云端（OPPO 中转）
