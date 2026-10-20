@@ -139,15 +139,16 @@ public enum Theme {
 public extension Date {
     /// 相对时间文案（"刚刚" / "3分钟前" / 昨天具体时间）
     var relativeText: String {
-        let interval = -timeIntervalSinceNow
-        if interval < 60 { return "刚刚" }
-        if interval < 3600 { return "\(Int(interval / 60))分钟前" }
-        if interval < 86400 { return "\(Int(interval / 3600))小时前" }
-        let fmt = DateFormatter()
+        // v101 性能审计：DateFormatter 每次新建（0.5-2ms）→ 静态复用（两枚）
+        let fmt = Self.relativeFormatter(today: Calendar.current.isDateInToday(self))
         fmt.dateFormat = Calendar.current.isDateInToday(self) ? "今天 HH:mm" : "M月d日 HH:mm"
-        fmt.locale = Locale(identifier: "zh_CN")
         return fmt.string(from: self)
     }
+
+    private static let fmtToday: DateFormatter = { let f = DateFormatter(); return f }()
+    private static let fmtOther: DateFormatter = { let f = DateFormatter(); return f }()
+
+    private static func relativeFormatter(today: Bool) -> DateFormatter { today ? fmtToday : fmtOther }
 }
 
 public extension String {

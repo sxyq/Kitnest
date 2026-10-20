@@ -96,7 +96,7 @@ public final class ClipboardManager: ObservableObject {
     // MARK: 常量
 
     /// 捕获轮询常量（原作汇编立即数，specs/14 §3.1）
-    public static let idlePollingInterval: TimeInterval = 1.0     // fmov 1.0 @0x1000f115c（闲置）
+    public static let idlePollingInterval: TimeInterval = 2.0     // 原版 fmov 1.0；v101 性能审计降为 2s（changeCount 语义兼容）
     public static let burstPollingInterval: TimeInterval = 0.5    // fmov 0.5 @0x1000f0f98（突发）
     public static let burstDuration: TimeInterval = 2.0           // addingTimeInterval(2.0) @0x1000f0f0c（突发窗口）
     public static let retryIntervalFloor: TimeInterval = 0.5      // fmaxnm 0.5 @0x1000ec8b8（重试下限钳制）

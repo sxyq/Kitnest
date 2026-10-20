@@ -121,8 +121,9 @@ struct PanelRootView: View {
         }
         .background {
             // v66 个性化背景图（优先）；否则 Midnight 基底
+            // v101 性能审计：背景图此前每次 body 求值都读盘解码 → 按路径缓存
             if !personalization.backgroundImagePath.isEmpty,
-               let image = NSImage(contentsOfFile: personalization.backgroundImagePath) {
+               let image = Self.cachedBackgroundImage(path: personalization.backgroundImagePath) {
                 GeometryReader { geo in
                     ZStack {
                         Image(nsImage: image)
@@ -665,6 +666,15 @@ struct PanelRootView: View {
             }
         }
         return true
+    }
+
+    /// 背景图缓存（v101：路径不变不重读盘）
+    private static var bgImageCache: (path: String, image: NSImage?)?
+    private static func cachedBackgroundImage(path: String) -> NSImage? {
+        if let c = bgImageCache, c.path == path { return c.image }
+        let img = NSImage(contentsOfFile: path)
+        bgImageCache = (path, img)
+        return img
     }
 
     /// 首页分区统一横向内边距（v91：日历卡与剪贴板行卡必须同宽同缘）

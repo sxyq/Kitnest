@@ -133,11 +133,15 @@ public enum CloudDriveLinkDetector {
         return components.url ?? url
     }
 
+    /// v101 性能审计：探测器/正则静态化（此前每条目构造一次）
+    private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    private static let bareDomainRegex = try? NSRegularExpression(pattern: #"(?i)((?:pan\.baidu|yun\.baidu|www\.aliyundrive|aliyundrive|www\.alipan|alipan|yun\.139|caiyun\.139|cloud\.189|pan\.xunlei|pan\.quark|drive\.uc|(?:[a-z0-9-]+\.)?123(?:pan|684|865|952|912)\.(?:com|cn))[^\s"'<>）)]*)"#)
+
     /// 从一段文本中提取第一条网盘链接（含无 scheme 的裸域名）
     public static func detect(in text: String) -> CloudDriveLink? {
         guard !text.isEmpty else { return nil }
         // 1) 标准 URL（NSDataDetector 兜底复杂文本）
-        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+        if let detector = Self.linkDetector {
             let range = NSRange(text.startIndex..., in: text)
             for match in detector.matches(in: text, options: [], range: range) {
                 guard let url = match.url, let host = url.host, let p = provider(forHost: host) else { continue }
@@ -147,7 +151,7 @@ public enum CloudDriveLinkDetector {
         }
         // 2) 裸域名（如 pan.quark.cn/s/xxx 复制时丢 scheme）
         let pattern = #"(?i)((?:pan\.baidu|yun\.baidu|www\.aliyundrive|aliyundrive|www\.alipan|alipan|yun\.139|caiyun\.139|cloud\.189|pan\.xunlei|pan\.quark|drive\.uc|(?:[a-z0-9-]+\.)?123(?:pan|684|865|952|912)\.(?:com|cn))[^\s"'<>）)]*)"#
-        if let re = try? NSRegularExpression(pattern: pattern) {
+        if let re = Self.bareDomainRegex {
             let range = NSRange(text.startIndex..., in: text)
             if let m = re.firstMatch(in: text, options: [], range: range),
                let r = Range(m.range, in: text) {

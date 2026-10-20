@@ -81,7 +81,7 @@ public final class LogArchive {
 
         // 看门狗（0.5s；首 3s 容忍启动期布局）
         let wd = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
-        wd.schedule(deadline: .now() + 3, repeating: 0.5)
+        wd.schedule(deadline: .now() + 3, repeating: 2.0)   // v101：0.5→2s（看门狗降频，2s 阈值语义不变）
         wd.setEventHandler { [weak self] in self?.checkHang() }
         wd.resume()
         watchdog = wd

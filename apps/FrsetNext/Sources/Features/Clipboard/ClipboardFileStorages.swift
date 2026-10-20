@@ -198,10 +198,20 @@ public enum ClipboardImageStorage {
         return CGImageDestinationFinalize(destination)
     }
 
+    /// v101 性能审计：缩略图缓存（此前每次行渲染都 Data(contentsOf:) 读盘+解码，
+    /// 滑动掉帧的行级主因）——NSCache 自动回收，上限 80 张
+    private static let imageCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 80
+        return c
+    }()
+
     public static func image(relativePath: String?) -> NSImage? {
-        guard let path = relativePath, !path.isEmpty,
-              let data = ClipboardFileStore.read(path) else { return nil }
-        return NSImage(data: data)
+        guard let path = relativePath, !path.isEmpty else { return nil }
+        if let hit = imageCache.object(forKey: path as NSString) { return hit }
+        guard let data = ClipboardFileStore.read(path), let img = NSImage(data: data) else { return nil }
+        imageCache.setObject(img, forKey: path as NSString)
+        return img
     }
 
     // MARK: 内部

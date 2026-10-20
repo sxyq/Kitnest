@@ -959,11 +959,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     [self drawSpeedIcon:icon at:iconX rect:r inC:iconInC outC:iconOutC twoRows:YES];
 }
 
-- (CGFloat)speedRowWidth:(NSString *)s attrs:(NSDictionary *)attrs rect:(NSRect)r align:(NSTextAlignment)ta at:(CGFloat)x {
-    NSSize sz = [s sizeWithAttributes:attrs];
-    FSBarTextRect(s, attrs, NSMakeRect(x, 0, MAX(sz.width, 20), r.size.height), ta);
-    return sz.width;
-}
+// v101 死代码剔除：speedRowWidth（零调用的宽度助手，行宽已由 preferredWidth 定宽接管）
 
 // 图标：dots 圆点 / arrows 箭头 / chars 字符 / none
 - (void)drawSpeedIcon:(NSString *)icon at:(CGFloat)x rect:(NSRect)r inC:(NSColor *)inC outC:(NSColor *)outC twoRows:(BOOL)two {
@@ -1765,7 +1761,8 @@ static void FSRunCatTick(void) {
 static void FSRunCatStartTimer(void) {
     if (g_runCatTimerStarted) return;
     g_runCatTimerStarted = YES;
-    NSTimer *t = [NSTimer timerWithTimeInterval:0.05 repeats:YES block:^(NSTimer *tm) { FSRunCatTick(); }];
+    // v101 性能审计：20Hz 常驻空转 → 10Hz（8fps 动画步进本就 1/8s），见 FSRunCatTick 门控
+    NSTimer *t = [NSTimer timerWithTimeInterval:0.10 repeats:YES block:^(NSTimer *tm) { FSRunCatTick(); }];
     [[NSRunLoop mainRunLoop] addTimer:t forMode:NSRunLoopCommonModes];
     FSBarLog(@"[runcat] 奔跑小猫动画定时器已启动（20Hz——部件动画 / 主图标换猫）");
 }

@@ -460,9 +460,12 @@ public struct ClipboardRow: View {
     }
 
     private static func imageSizeText(at path: String) -> String? {
-        guard let image = NSImage(contentsOfFile: path) else { return nil }
-        guard let rep = image.representations.first else { return nil }
-        let width = rep.pixelsWide, height = rep.pixelsHigh
+        // v101 性能审计：原实现 NSImage(contentsOfFile:) 整图解码只为取像素宽高——
+        // 图片行每次 body 求值都同步解码整图（滑动掉帧源）。改 ImageIO 只读元数据。
+        guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else { return nil }
+        let width = props[kCGImagePropertyPixelWidth] as? Int ?? 0
+        let height = props[kCGImagePropertyPixelHeight] as? Int ?? 0
         guard width > 0, height > 0 else { return nil }
         return "\(width)×\(height) pt"
     }

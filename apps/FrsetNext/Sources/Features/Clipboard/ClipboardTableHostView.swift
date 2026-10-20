@@ -132,6 +132,12 @@ final class RowHostingView: NSHostingView<AnyView> {
         super.init(rootView: AnyView(EmptyView()))
         self.frame = frame
         autoresizingMask = [.width]
+        // v100（2026-10-21 用户：「每条卡片横向宽度不一致，改了没生效」）：
+        // 真凶在此——NSHostingView 默认 sizingOptions 会**按内容自定尺寸**，
+        // SwiftUI 视图被换 rootView 后自缩宽度 → 每条卡片宽窄不一、和日历卡
+        // 对不齐；此前改 padding/列宽都没用，因为宽度被宿主视图自己改掉。
+        // 关掉自适应（与工具窗/预览窗宿主同规格）：宽度由表格列宽决定，恒满宽。
+        sizingOptions = []
     }
 
     @available(*, unavailable)
@@ -144,16 +150,22 @@ final class RowHostingView: NSHostingView<AnyView> {
         fatalError("RowHostingView 不支持 nib")
     }
 
+    /// 当前渲染的 hover 态（v101：同值短路，rootView 重挂是 NSHostingView 最贵操作）
+    private var renderedHovered: Bool?
+
     func setItem(_ item: ClipboardItem, hovered: Bool) {
+        let same = (self.item?.id == item.id) && renderedHovered == hovered
         self.item = item
-        if let contentBuilder {
-            rootView = contentBuilder(item, hovered)
-        }
+        guard !same, let contentBuilder else { return }
+        renderedHovered = hovered
+        rootView = contentBuilder(item, hovered)
     }
 
     /// hover 高亮刷新（由表格宿主的跟踪回调驱动）
     func setHovered(_ hovered: Bool) {
         guard let item, let contentBuilder else { return }
+        guard renderedHovered != hovered else { return }   // v101 同值短路
+        renderedHovered = hovered
         rootView = contentBuilder(item, hovered)
     }
 
@@ -404,13 +416,28 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             table?.intercellSpacing = NSSize(width: 0, height: Self.rowGap)
         }
         // v91：宽度随表走（行卡与日历卡同宽的最后一环）
+        // v101 性能审计：updateNSView 此前无条件全表 reload（滑动卡顿总放大器）
         table?.sizeLastColumnToFit()
-        context.coordinator.reloadTable()
+        context.coordinator.reloadTableIfNeeded()
     }
 
     // MARK: Coordinator（DataSource + Delegate + 交互仲裁）
 
     public final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+
+        /// v101 脏检查：上次渲染的 items 身份与行高
+        private var lastItemsSignature: Int = 0
+        private var lastRowHeight: CGFloat = 0
+
+        /// 仅当 items 身份或行高变化时才全表 reload
+        func reloadTableIfNeeded() {
+            var h = 5381
+            for it in owner.manager.items { for b in it.id.utf8 { h = (h &* 33) &+ Int(b) } }
+            let height = Theme.statsRowHeight
+            guard h != lastItemsSignature || height != lastRowHeight else { return }
+            lastItemsSignature = h; lastRowHeight = height
+            reloadTable()
+        }
 
         fileprivate var owner: ClipboardTableHostView
         private weak var scrollView: NSScrollView?
@@ -506,7 +533,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {
             // 分页加载：尾行进入视口 → loadMoreIfNeeded
             // （顺序表刷新挂预览协调器，specs/12 F8 __pendingPreviewPaginationRequest 对接点）
-            guard row < owner.manager.items.count else { return }
+            // v101：仅尾行附近触发分页（此前每行入视口都调）
+            let count = owner.manager.items.count
+            guard row < count, row >= count - 3 else { return }
             owner.manager.loadMoreIfNeeded(currentItem: owner.manager.items[row])
         }
 
