@@ -18,6 +18,8 @@ public extension Notification.Name {
     /// 剪贴板列表选中项变化（object: ClipboardItem?）。
     /// 主面板底部工具条的「编辑/上传」按选中项启用（2026-10-18）。
     static let clipboardSelectionChanged = Notification.Name("frset.clipboardSelectionChanged")
+    /// v102：底部工具条「回到顶部」→ 剪贴板列表回顶（代理在 ClipboardSectionView 内，走通知触发）
+    static let frsetClipboardScrollTop = Notification.Name("frset.clipboardScrollTop")
 }
 
 /// ClipboardSectionView 持有，触发表格平滑回顶（FilterBar_ScrollToTop，specs/14 F8）
@@ -26,6 +28,19 @@ public final class ClipboardTableScrollProxy {
 
     public init() {}
 
+    /// v102（2026-10-21 用户：「向上箭头按钮无法点击，功能应该是回到顶部」）：
+    /// 回顶此前从未实现（代理空壳），按钮被误做成「上传」占位。补真实现：
+    /// 平滑滚回列表顶部并同步滚动条。
+    public func scrollToTop() {
+        guard let scrollView else { return }
+        let clip = scrollView.contentView
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            ctx.allowsImplicitAnimation = true
+            clip.animator().setBoundsOrigin(NSPoint(x: 0, y: 0))
+            scrollView.reflectScrolledClipView(clip)
+        }
+    }
 }
 
 // MARK: - hover 抑制控制器（specs/14 §3.3，字段对齐原作）
@@ -468,6 +483,10 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             self.table = table
             self.proxy = proxy
             proxy.scrollView = scrollView
+            // v102：底部「回到顶部」按钮经通知触发（代理在别处持有）
+            NotificationCenter.default.addObserver(
+                forName: .frsetClipboardScrollTop, object: nil, queue: .main
+            ) { [weak proxy] _ in proxy?.scrollToTop() }
 
             table.onMouseMoved = { [weak self] event in self?.handleMouseMoved(event) }
             table.onMouseExited = { [weak self] in self?.handleMouseExited() }

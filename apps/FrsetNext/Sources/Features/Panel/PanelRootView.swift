@@ -502,9 +502,11 @@ struct PanelRootView: View {
             toolbarIcon("tag", help: "标签") {
                 isShowingTagSheet = true
             }
-            // 上传：官方「上传」按钮（图床能力未配置 → 提示而非静默）
-            toolbarIcon("arrow.up", help: "上传") {
-                Toast.show("未配置图床（上传能力待接入）", icon: "exclamationmark.triangle.fill", isWarning: true)
+            // v102（2026-10-21 用户：「向上箭头功能应该是回到顶部」）：
+            // 按钮此前误做成「上传」占位（只弹提示，用户感知为点击无效）。
+            // 改为回到顶部：平滑滚回剪贴板列表顶端（FilterBar_ScrollToTop 语义）。
+            toolbarIcon("arrow.up", help: "回到顶部") {
+                NotificationCenter.default.post(name: .frsetClipboardScrollTop, object: nil)
             }
         }
         .padding(.horizontal, 12)
