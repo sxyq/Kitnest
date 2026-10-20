@@ -55,7 +55,9 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
 
     // MARK: - 入口
 
-    func start(link: CloudDriveLink) {
+    /// - Parameter openBrowserOnFailure: 解析失败时是否兜底打开分享页
+    ///   （UI 按钮走 true；自动化测试深链走 false，避免弹满浏览器标签）
+    func start(link: CloudDriveLink, openBrowserOnFailure: Bool = true) {
         let direct = Self.isDirectFileURL(link.url) && !link.isSharePage
         Log.info("CloudLink", "解析下载：provider=\(link.provider.rawValue) direct=\(direct) engine=\(CloudLinkSettings.engine.rawValue) url=\(link.url.absoluteString)")
 
@@ -84,7 +86,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
             case .failure(let reason):
                 Log.info("CloudLink", "解析失败：\(reason)")
                 Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
-                NSWorkspace.shared.open(link.url)
+                if openBrowserOnFailure { NSWorkspace.shared.open(link.url) }
             }
         }
     }

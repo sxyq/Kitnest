@@ -37,6 +37,30 @@ final class CloudLinkPromptController {
                 self?.handle(ClipboardManager.shared.items)
             }
         Log.info("CloudLink", "状态栏网盘提示已启动（基线条目 \(lastSeenItemID ?? "无")）")
+        // 启动追赶（2026-10-20 用户：「之前复制的 123 下载链接没自动弹出」）：
+        // 复制发生在重启前的分享链接，启动后 2s 内补提示一次（30 分钟内、限一条），
+        // 不让「恰好重启过」吞掉下载助手。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.catchUpRecentShareLink()
+        }
+    }
+
+    /// 启动追赶：最近 30 分钟内入库、且尚未提示过的分享链接 → 补弹一次
+    private func catchUpRecentShareLink() {
+        guard lastPromptedURL == nil else { return }
+        let now = Date()
+        for item in ClipboardManager.shared.items.prefix(20) {
+            guard item.timestamp.timeIntervalSince(now) > -1800 else { break }
+            guard item.type == .text || item.type == .url || item.type == .file || item.type == .richtext,
+                  let text = item.content ?? item.title,
+                  let link = CloudDriveLinkDetector.detect(in: text),
+                  link.isSharePage else { continue }
+            guard link.url.absoluteString != lastPromptedURL else { return }
+            lastPromptedURL = link.url.absoluteString
+            Log.info("CloudLink", "启动追赶：补提示 \(link.provider.rawValue) \(link.url.absoluteString)")
+            show(link)
+            return
+        }
     }
 
     private func handle(_ items: [ClipboardItem]) {
@@ -47,7 +71,7 @@ final class CloudLinkPromptController {
         guard newest.id != lastSeenItemID else { return }
         lastSeenItemID = newest.id
         Log.info("CloudLink", "剪贴板新条目 type=\(newest.type) chars=\(newest.content?.count ?? 0)")
-        guard newest.type == .text || newest.type == .url || newest.type == .file else { return }
+        guard newest.type == .text || newest.type == .url || newest.type == .file || newest.type == .richtext else { return }
         guard let text = newest.content ?? newest.title,
               let link = CloudDriveLinkDetector.detect(in: text) else {
             Log.info("CloudLink", "新条目未命中网盘链接")

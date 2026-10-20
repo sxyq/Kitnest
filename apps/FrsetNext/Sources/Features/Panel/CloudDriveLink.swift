@@ -106,12 +106,20 @@ public enum CloudDriveLinkDetector {
     ///   通用：/s/、/share/、/shareweb/
     ///   天翼 189：/t/<id>
     ///   移动 139：/w/、/m/（caiyun 移动云盘）
+    ///   123 云盘：<uid>.share.123pan.cn/123pan/<id>?notoken=1（用户实证 2026-10-20
+    ///   「复制了 123 下载链接没弹下载助手」——路径是 /123pan/<id> 而非 /s/，
+    ///   旧判定误落「非分享页」，解析/下载助手全链路降级）
     public static func isSharePage(_ url: URL) -> Bool {
         let path = url.path.lowercased()
         let host = url.host?.lowercased() ?? ""
         if path.contains("/share") || path.contains("/s/") { return true }
         if host.contains("189.cn"), path.hasPrefix("/t/") { return true }
         if host.contains("139.com"), path.contains("/w/") || path.contains("/m/") { return true }
+        // 123 云盘：/123pan/<id> 直达分享；*.share.* 子域本身就是分享域
+        if provider(forHost: host) == .pan123 {
+            if path.hasPrefix("/123pan/") || path.contains("/share") { return true }
+            if host.contains("share.") { return true }
+        }
         return false
     }
 
@@ -156,7 +164,7 @@ public enum CloudDriveLinkDetector {
     /// 从剪贴板条目列表挑出最近一条网盘链接（首页条数据源）
     public static func recentLink(in items: [ClipboardItem], scanLimit: Int = 40) -> CloudDriveLink? {
         for item in items.prefix(scanLimit) {
-            guard item.type == .text || item.type == .file else { continue }
+            guard item.type == .text || item.type == .url || item.type == .file || item.type == .richtext else { continue }
             if let link = detect(in: item.content ?? item.title ?? "") {
                 return link
             }

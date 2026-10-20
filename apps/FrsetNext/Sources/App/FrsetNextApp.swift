@@ -173,6 +173,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
                 let raw = comps?.queryItems?.first(where: { $0.name == "url" })?.value
                     ?? "https://pan.quark.cn/s/000000000000"
+                // &action=download：跳过解析中心 UI，直驱「解析→下载」链路（网盘测试矩阵用）
+                let wantsDownload = comps?.queryItems?
+                    .first(where: { $0.name == "action" })?.value == "download"
                 if let link = CloudDriveLinkDetector.detect(in: raw)
                     ?? URL(string: raw).flatMap({ u in
                         CloudDriveLinkDetector.provider(forHost: u.host ?? "").map {
@@ -180,7 +183,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                            isSharePage: CloudDriveLinkDetector.isSharePage(u))
                         }
                     }) {
-                    CloudLinkCenterController.shared.show(link: link)
+                    if wantsDownload {
+                        Log.info("App", "cloudlink 深链：直驱下载 \(link.provider.rawValue) share=\(link.isSharePage)")
+                        CloudLinkDownloader.shared.start(link: link, openBrowserOnFailure: false)
+                    } else {
+                        CloudLinkCenterController.shared.show(link: link)
+                    }
                 } else {
                     Log.warn("App", "cloudlink 深链：无法识别网盘链接 \(raw)")
                 }

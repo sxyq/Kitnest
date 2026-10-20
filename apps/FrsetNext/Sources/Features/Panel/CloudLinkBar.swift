@@ -24,12 +24,12 @@ public struct CloudLinkBar: View {
 
     /// 布局动画 key（父视图用：链接出现/消失时驱动日历与列表平滑下移）
     public static func detectionKey(items: [ClipboardItem]) -> String {
-        CloudDriveLinkDetector.recentLink(in: items, scanLimit: 3)?.url.absoluteString ?? ""
+        CloudDriveLinkDetector.recentLink(in: items, scanLimit: 20)?.url.absoluteString ?? ""
     }
 
     /// 只扫最近 3 条（复制即识别，不做历史考古）
     private var link: CloudDriveLink? {
-        guard let l = CloudDriveLinkDetector.recentLink(in: clipboard.items, scanLimit: 3) else { return nil }
+        guard let l = CloudDriveLinkDetector.recentLink(in: clipboard.items, scanLimit: 20) else { return nil }
         if let dismissedURL, dismissedURL == l.url.absoluteString { return nil }
         return l
     }
