@@ -106,6 +106,10 @@ public enum CommandCatalog {
                                  isOn: { !ClipboardManager.shared.isRecordingPaused },
                                  handler: {
             ClipboardManager.shared.isRecordingPaused.toggle()
+            // v97：与齿轮菜单一致的生效反馈（Toast 明示新状态）
+            let paused = ClipboardManager.shared.isRecordingPaused
+            Toast.show(paused ? "已暂停记录剪贴板" : "已恢复剪贴板记录",
+                       icon: paused ? "pause.fill" : "play.fill")
         }))
         items.append(CommandItem(id: "toggle.captureSound",
                                  title: "截图提示音",

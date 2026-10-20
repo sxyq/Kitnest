@@ -261,10 +261,22 @@ struct PanelRootView: View {
                 }
                 .keyboardShortcut("v", modifiers: [.command, .shift])
                 Divider()
-                Toggle("暂停记录剪贴板", isOn: Binding(
-                    get: { ClipboardManager.shared.isRecordingPaused },
-                    set: { ClipboardManager.shared.isRecordingPaused = $0 }
-                ))
+                // v97（2026-10-21 用户：「点击暂停统计剪贴板无效并且无提示」）：
+                // Menu 内自定义 Binding 的 Toggle 在 macOS 上点击偶发不触发 set
+                // （无效）且无任何反馈（无提示）。改 Button：点击必执行 + Toast
+                // 明示新状态，标题随暂停/恢复切换。
+                Button {
+                    let paused = !ClipboardManager.shared.isRecordingPaused
+                    ClipboardManager.shared.isRecordingPaused = paused
+                    Toast.show(paused ? "已暂停记录剪贴板" : "已恢复剪贴板记录",
+                               icon: paused ? "pause.fill" : "play.fill")
+                } label: {
+                    if ClipboardManager.shared.isRecordingPaused {
+                        Label("恢复剪贴板记录", systemImage: "play.fill")
+                    } else {
+                        Label("暂停记录剪贴板", systemImage: "pause.fill")
+                    }
+                }
                 Button("设置") { onOpenSettings() }
                     .keyboardShortcut(",", modifiers: .command)
                 Button("使用统计") {
