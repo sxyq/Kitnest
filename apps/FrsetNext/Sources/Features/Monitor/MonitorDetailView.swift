@@ -471,6 +471,10 @@ public struct MonitorDetailView: View {
                                     MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
                                })
             }
+
+            // 端口占用（2026-10-20）：本机监听端口 + 进程归属 + 是否对外暴露。
+            // 放在网络页最底部；页面本身在 ScrollView 内，窗口高度达上限后可滚动查看。
+            PortOccupancySection()
         }
     }
 
