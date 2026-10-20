@@ -21,8 +21,8 @@ F0019,swift,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,33,
 F0020,swift,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,62,82,21,1,,,,,mainThread,private,private func enforceSingleMenubarOwner() -> Bool {,static,normal,low,静态判定：热点=mainThread
 F0021,swift,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,84,89,6,0,,,,Y,,,func applicationWillTerminate(_ notification: Notification) {,manual,keep,none,框架运行时回调/override，静态零引用属正常
 F0022,swift,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,91,94,4,0,,,,Y,mainThread,,"func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {",manual,keep,none,框架运行时回调/override，静态零引用属正常
-F0023,swift,App/FrsetNextApp.swift,AppDelegate,application,102,152,51,11,Y,,,,mainThread,,"func application(_ application: NSApplication, open urls: [URL]) {",static,normal,low,静态判定：热点=mainThread
-F0024,swift,Core/AppearanceTheme.swift,MidnightTheme,h,57,75,19,364,,,,,,static private,private static func h(_ color: Color) -> Color {,static,normal,low,静态判定：热点=无
+F0023,swift,App/FrsetNextApp.swift,AppDelegate,application,102,161,60,11,Y,,,,mainThread,,"func application(_ application: NSApplication, open urls: [URL]) {",static,normal,low,静态判定：热点=mainThread
+F0024,swift,Core/AppearanceTheme.swift,MidnightTheme,h,57,75,19,362,,,,,,static private,private static func h(_ color: Color) -> Color {,static,normal,low,静态判定：热点=无
 F0025,swift,Core/AppearanceTheme.swift,AppearanceThemeModifier,body,150,158,9,175,,,,,,public,public func body(content: Content) -> some View {,static,normal,low,静态判定：热点=无
 F1816,swift,Core/AppearanceTheme.swift,View,frsetAppearanceTheme,168,170,3,6,,,,,,,func frsetAppearanceTheme(_ state: AppearanceState = .shared) -> some View {,static,normal,low,静态判定：热点=无
 F0027,swift,Core/FlowLayout.swift,FlowHStack,sizeThatFits,13,28,16,2,,,Y,,,,"func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {",static,normal,low,静态判定：热点=无
@@ -56,14 +56,14 @@ F0043,swift,Core/Personalization.swift,Personalization,load,173,204,32,30,,,,,,p
 F0044,swift,Core/Personalization.swift,Personalization,color,218,226,9,335,,,,,,static public,public static func color(fromHex hex: String) -> Color? {,static,normal,low,静态判定：热点=无
 F0045,swift,Core/Personalization.swift,Personalization,hex,228,234,7,75,,,,,,static public,public static func hex(fromColor color: Color) -> String {,static,normal,low,静态判定：热点=无
 F0046,swift,Core/Personalization.swift,Personalization,resetAll,250,266,17,1,,,,,,public,public func resetAll() {,static,normal,low,静态判定：热点=无
-F0047,swift,Core/Preferences.swift,Preferences,value,16,19,4,643,,,,,,public,"public func value<T>(_ key: String, default fallback: T) -> T {",static,normal,low,静态判定：热点=无
+F0047,swift,Core/Preferences.swift,Preferences,value,16,19,4,645,,,,,,public,"public func value<T>(_ key: String, default fallback: T) -> T {",static,normal,low,静态判定：热点=无
 F0048,swift,Core/Preferences.swift,Preferences,set,20,20,1,275,,,,,,public,"public func set(_ key: String, _ value: Any?) { defaults.set(value, forKey: key) }",static,normal,low,静态判定：热点=无
 F1833,swift,Core/Preferences.swift,Preferences,binding,99,102,4,12,,,,,,,"func binding<T>(_ key: String, default fallback: T) -> Binding<T> {",static,normal,low,静态判定：热点=无
 F0050,swift,Core/Registry.swift,PanelSectionRegistry,register,24,29,6,69,,,,,,static public,public static func register(_ d: PanelSectionDescriptor) {,static,normal,low,静态判定：热点=无
 F0051,swift,Core/Registry.swift,SettingsPaneRegistry,register,51,55,5,69,,,,,,static public,public static func register(_ d: SettingsPaneDescriptor) {,static,normal,low,静态判定：热点=无
 F0052,swift,Core/Registry.swift,StatusItemRegistry,register,97,102,6,69,,,,,,static public,public static func register(_ d: StatusItemDescriptor) {,static,normal,low,静态判定：热点=无
 F1834,swift,Core/Registry.swift,PanelControlling,toggle,123,123,1,96,,,,,,,func toggle(atAnchor anchorRect: NSRect?) { toggle() },static,normal,low,静态判定：热点=无
-F1835,swift,Core/Registry.swift,PanelControlling,show,124,124,1,150,,,,,,,func show(atAnchor anchorRect: NSRect?) { show() },static,normal,low,静态判定：热点=无
+F1835,swift,Core/Registry.swift,PanelControlling,show,124,124,1,151,,,,,,,func show(atAnchor anchorRect: NSRect?) { show() },static,normal,low,静态判定：热点=无
 F0053,swift,Core/RenderProbe.swift,RenderProbe,install,34,42,9,10,,,,,timer,static public,public static func install() {,static,normal,low,静态判定：热点=timer
 F0054,swift,Core/RenderProbe.swift,RenderProbe,snapshotAll,45,51,7,2,,,,,mainThread,static public,public static func snapshotAll(reason: String) {,static,normal,low,静态判定：热点=mainThread
 F0055,swift,Core/RenderProbe.swift,RenderProbe,snapshot,54,59,6,85,,,,,mainThread,static public,"public static func snapshot(_ window: NSWindow?, name: String, reason: String) {",static,normal,low,静态判定：热点=mainThread
@@ -85,16 +85,16 @@ F0070,swift,Core/Support.swift,ModuleRegistry,register,42,47,6,69,,,,,,static pu
 F0071,swift,Core/Support.swift,ModuleRegistry,startAll,48,54,7,5,,,Y,,,static public,public static func startAll() {,static,normal,low,静态判定：热点=无
 F0072,swift,Core/Support.swift,Theme,sectionHeader,126,131,6,14,,,,,,static public,public static func sectionHeader(_ title: String) -> some View {,static,normal,low,静态判定：热点=无
 F0073,swift,Core/Support.swift,AppDirectories,sub,193,197,5,7,,,,,fileIO,static public,public static func sub(_ name: String) -> URL {,static,normal,low,静态判定：热点=fileIO
-F0074,swift,Core/Toast.swift,MenuBarToastManager,show,122,128,7,150,,,,,mainThread,,"func show(_ message: String, icon: String?, isWarning: Bool = false) {",static,normal,low,静态判定：热点=mainThread
-F0075,swift,Core/Toast.swift,MenuBarToastManager,present,130,171,42,26,,,,,"animation,mainThread",private,"private func present(message: String, icon: String?, isWarning: Bool) {",static,normal,low,"静态判定：热点=animation,mainThread"
-F0076,swift,Core/Toast.swift,MenuBarToastManager,hideAnimated,175,184,10,1,,,,,"animation,mainThread",private,private func hideAnimated(generation: Int) {,static,normal,low,"静态判定：热点=animation,mainThread"
-F0077,swift,Core/Toast.swift,MenuBarToastManager,ensureWindow,189,210,22,4,,,,,mainThread,private,private func ensureWindow() {,static,normal,low,静态判定：热点=mainThread
-F0078,swift,Core/Toast.swift,MenuBarToastManager,makeContentView,212,219,8,1,,,,,,private,private func makeContentView() -> NSView {,static,normal,low,静态判定：热点=无
-F0079,swift,Core/Toast.swift,MenuBarToastManager,syncAppearance,222,225,4,1,,,,,mainThread,private,private func syncAppearance() {,static,normal,low,静态判定：热点=mainThread
-F0080,swift,Core/Toast.swift,MenuBarToastManager,layoutContent,228,234,7,1,,,,,,private,private func layoutContent() {,static,normal,low,静态判定：热点=无
-F0081,swift,Core/Toast.swift,MenuBarToastManager,resolveTargetScreen,240,250,11,1,,,Y,,,private,private func resolveTargetScreen() -> NSScreen? {,static,normal,low,静态判定：热点=无
-F0082,swift,Core/Toast.swift,MenuBarToastManager,positionOnTargetScreen,255,282,28,1,,,,,,private,private func positionOnTargetScreen() {,static,normal,low,静态判定：热点=无
-F0083,swift,Core/Toast.swift,Toast,show,290,292,3,150,,,,,,static public,"public static func show(_ message: String, icon: String? = nil, isWarning: Bool = false) {",static,normal,low,静态判定：热点=无
+F0074,swift,Core/Toast.swift,MenuBarToastManager,show,127,133,7,151,,,,,mainThread,,"func show(_ message: String, icon: String?, isWarning: Bool = false) {",static,normal,low,静态判定：热点=mainThread
+F0075,swift,Core/Toast.swift,MenuBarToastManager,present,135,176,42,26,,,,,"animation,mainThread",private,"private func present(message: String, icon: String?, isWarning: Bool) {",manual,normal,low,3s 自动隐藏 + 代际防串台；窗口复用，无每次创建开销
+F0076,swift,Core/Toast.swift,MenuBarToastManager,hideAnimated,180,189,10,1,,,,,"animation,mainThread",private,private func hideAnimated(generation: Int) {,static,normal,low,"静态判定：热点=animation,mainThread"
+F0077,swift,Core/Toast.swift,MenuBarToastManager,ensureWindow,194,215,22,4,,,,,mainThread,private,private func ensureWindow() {,manual,normal,low,单例窗口按需创建；层级 CGWindowLevelKey14，点击穿透，可跨 Space
+F0078,swift,Core/Toast.swift,MenuBarToastManager,makeContentView,217,224,8,1,,,,,,private,private func makeContentView() -> NSView {,static,normal,low,静态判定：热点=无
+F0079,swift,Core/Toast.swift,MenuBarToastManager,syncAppearance,227,230,4,1,,,,,mainThread,private,private func syncAppearance() {,static,normal,low,静态判定：热点=mainThread
+F0080,swift,Core/Toast.swift,MenuBarToastManager,layoutContent,233,239,7,1,,,,,,private,private func layoutContent() {,manual,normal,low,2026-10-20 修复外圈方形阴影：内容加 24pt 透明边距，窗口按 fittingSize 扩大，阴影不再被边界裁断（四角 alpha 5/4/9/9 → 0）
+F0081,swift,Core/Toast.swift,MenuBarToastManager,resolveTargetScreen,245,255,11,1,,,Y,,,private,private func resolveTargetScreen() -> NSScreen? {,static,normal,low,静态判定：热点=无
+F0082,swift,Core/Toast.swift,MenuBarToastManager,positionOnTargetScreen,260,286,27,1,,,,,,private,private func positionOnTargetScreen() {,manual,normal,low,2026-10-20 用户需求：改为 visibleFrame 水平居中、中线下方 6%（约69pt）；原「距屏底18.3%」公式废弃
+F0083,swift,Core/Toast.swift,Toast,show,294,296,3,151,,,,,,static public,"public static func show(_ message: String, icon: String? = nil, isWarning: Bool = false) {",static,normal,low,静态判定：热点=无
 F0084,swift,Features/AI/AIChatView.swift,AIChatViewModel,onAppear,94,109,16,29,,,,,,public,public func onAppear() {,static,normal,low,静态判定：热点=无
 F0085,swift,Features/AI/AIChatView.swift,AIChatViewModel,refreshModels,111,125,15,4,,,,,,public,public func refreshModels() async {,static,normal,low,静态判定：热点=无
 F0086,swift,Features/AI/AIChatView.swift,AIChatViewModel,send,127,145,19,18,,,,,,public,public func send() {,static,normal,low,静态判定：热点=无
@@ -301,7 +301,7 @@ F0301,swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorContro
 F0302,swift,Features/Capture/AnnotationEditorWindow.swift,AnnotationEditorController,windowWillClose,506,508,3,12,,,,,,public,public func windowWillClose(_ notification: Notification) {,static,normal,low,静态判定：热点=无
 F0303,swift,Features/Capture/AnnotationEditorWindow.swift,EditorToolbarView,toolbarButton,577,591,15,6,,,,,,private,"private func toolbarButton(_ title: String, systemImage: String, enabled: Bool = true,",static,normal,low,静态判定：热点=无
 F0304,swift,Features/Capture/BeautifyPanel.swift,BeautifyRenderer,render,35,95,61,17,,,,,cgImage,static public,"public static func render(image: CGImage, options: BeautifyOptions) -> CGImage? {",static,normal,low,静态判定：热点=cgImage
-F0305,swift,Features/Capture/BeautifyPanel.swift,BeautifyController,show,109,117,9,150,,,,,"cgImage,mainThread",public,public func show(image: CGImage) {,static,normal,low,"静态判定：热点=cgImage,mainThread"
+F0305,swift,Features/Capture/BeautifyPanel.swift,BeautifyController,show,109,117,9,151,,,,,"cgImage,mainThread",public,public func show(image: CGImage) {,static,normal,low,"静态判定：热点=cgImage,mainThread"
 F0306,swift,Features/Capture/BeautifyPanel.swift,BeautifyController,showOnMain,119,147,29,2,,,,,"cgImage,mainThread",private,private func showOnMain(image: CGImage) {,static,normal,low,"静态判定：热点=cgImage,mainThread"
 F0307,swift,Features/Capture/BeautifyPanel.swift,BeautifyController,windowWillClose,149,151,3,12,,,,,,public,public func windowWillClose(_ notification: Notification) {,static,normal,low,静态判定：热点=无
 F0308,swift,Features/Capture/BeautifyPanel.swift,BeautifyWindow,update,184,187,4,14,,,,,cgImage,,func update(image newImage: CGImage) {,static,normal,low,静态判定：热点=cgImage
@@ -372,7 +372,7 @@ F0374,swift,Features/Capture/LongScreenshotCoordinator.swift,LongScreenshotCoord
 F0375,swift,Features/Capture/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,closeSelectionOverlays,222,225,4,2,,,Y,,,private,private func closeSelectionOverlays() {,static,normal,low,静态判定：热点=无
 F0376,swift,Features/Capture/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,handleSessionFinished,229,255,27,1,,,,,cgImage,private,"private func handleSessionFinished(state: LongScreenshotState, image: CGImage?) {",static,normal,low,静态判定：热点=cgImage
 F1848,swift,Features/Capture/LongScreenshotHUD.swift,BorderView,draw,34,56,23,59,,,Y,,cgImage,override,override func draw(_ dirtyRect: NSRect) {,static,normal,low,静态判定：热点=cgImage
-F1849,swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,show,70,143,74,150,,,,,,,func show(near point: NSPoint) {,static,normal,low,静态判定：热点=无
+F1849,swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,show,70,143,74,151,,,,,,,func show(near point: NSPoint) {,static,normal,low,静态判定：热点=无
 F1850,swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,update,145,147,3,14,,,,,,,func update(rows: Int) {,static,normal,low,静态判定：热点=无
 F1852,swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,close,150,155,6,53,,,,,,,func close() {,static,normal,low,静态判定：热点=无
 F1853,swift,Features/Capture/LongScreenshotHUD.swift,LongScreenshotHUDController,finishTapped,157,157,1,1,,,,,,private @objc,@objc private func finishTapped() { onFinish?() },static,normal,low,静态判定：热点=无
@@ -383,7 +383,7 @@ F0379,swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotEdi
 F0380,swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,layoutEditor,126,138,13,2,,,,,,private,private func layoutEditor() {,static,normal,low,静态判定：热点=无
 F0381,swift,Features/Capture/LongScreenshotPreviewWindow.swift,ClosureButtonAction,bind,146,151,6,15,,,,,,static,"static func bind(_ button: NSButton, handler: @escaping () -> Void) {",static,normal,low,静态判定：热点=无
 F0382,swift,Features/Capture/LongScreenshotPreviewWindow.swift,ClosureButtonAction,fire,153,153,1,3,Y,,,,,private @objc,@objc private func fire(_ sender: NSButton?) { handler() },static,normal,low,静态判定：热点=无
-F0383,swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,show,197,219,23,150,,,,,"cgImage,mainThread",,func show(image: CGImage) {,static,normal,low,"静态判定：热点=cgImage,mainThread"
+F0383,swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,show,197,219,23,151,,,,,"cgImage,mainThread",,func show(image: CGImage) {,static,normal,low,"静态判定：热点=cgImage,mainThread"
 F0384,swift,Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,windowWillClose,221,223,3,12,,,,,,,func windowWillClose(_ notification: Notification) {,static,normal,low,静态判定：热点=无
 F0385,swift,Features/Capture/LongScreenshotSession.swift,LongScreenshotSession,start,95,102,8,115,,,,,,,func start() {,static,normal,low,静态判定：热点=无
 F0386,swift,Features/Capture/LongScreenshotSession.swift,LongScreenshotSession,cancel,105,110,6,51,,,,,,,func cancel() {,static,normal,low,静态判定：热点=无
@@ -471,7 +471,7 @@ F0469,swift,Features/Capture/PinWindow.swift,PinnedScreenshotContentView,present
 F0470,swift,Features/Capture/PinWindow.swift,PinnedScreenshotWindow,initialSize,841,849,9,4,,,Y,,cgImage,static private,private static func initialSize(for image: CGImage) -> NSSize {,static,normal,low,静态判定：热点=cgImage
 F0471,swift,Features/Capture/PinWindow.swift,PinnedScreenshotWindow,becomeKey,855,860,6,3,,,,,,override,override func becomeKey() {,static,normal,low,静态判定：热点=无
 F0472,swift,Features/Capture/PinWindow.swift,PinnedScreenshotWindow,constrainFrameRect,863,865,3,3,,,,,,override,"override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {",static,normal,low,静态判定：热点=无
-F0474,swift,Features/Capture/PinWindow.swift,PinnedScreenshotManager,show,908,918,11,150,,,,,"cgImage,mainThread",public,"public func show(image: CGImage, at origin: NSPoint? = nil) -> Bool {",static,normal,low,"静态判定：热点=cgImage,mainThread"
+F0474,swift,Features/Capture/PinWindow.swift,PinnedScreenshotManager,show,908,918,11,151,,,,,"cgImage,mainThread",public,"public func show(image: CGImage, at origin: NSPoint? = nil) -> Bool {",static,normal,low,"静态判定：热点=cgImage,mainThread"
 F0475,swift,Features/Capture/PinWindow.swift,PinnedScreenshotManager,closeAll,928,931,4,6,,,Y,,,public,public func closeAll() {,static,normal,low,静态判定：热点=无
 F0476,swift,Features/Capture/PinWindow.swift,PinnedScreenshotManager,closeActive,934,937,4,2,,,,,,private,private func closeActive() {,static,normal,low,静态判定：热点=无
 F0477,swift,Features/Capture/PinWindow.swift,PinnedScreenshotManager,windowDidBecomeKey,942,945,4,1,,,,,,,func windowDidBecomeKey(_ window: PinnedScreenshotWindow) {,static,normal,low,静态判定：热点=无
@@ -529,7 +529,7 @@ F0535,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow
 F0536,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setResultText,167,167,1,2,,,,,,,func setResultText(_ text: String) { resultScroll.text = text },static,normal,low,静态判定：热点=无
 F0537,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,copyTapped,171,171,1,5,Y,,,,,private @objc,@objc private func copyTapped() { onCopy?() },static,normal,low,静态判定：热点=无
 F0538,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,redoWrapped,172,172,1,1,Y,,,,,private @objc,@objc private func redoWrapped() { onReRecognize?() },static,normal,low,静态判定：热点=无
-F0539,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,show,190,207,18,150,,,,,"cgImage,mainThread",public,"public func show(sourceImage: CGImage, imageData: Data, text: String) {",static,normal,low,"静态判定：热点=cgImage,mainThread"
+F0539,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,show,190,207,18,151,,,,,"cgImage,mainThread",public,"public func show(sourceImage: CGImage, imageData: Data, text: String) {",static,normal,low,"静态判定：热点=cgImage,mainThread"
 F0540,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,close,209,212,4,53,,,,,,public,public func close() {,static,normal,low,静态判定：热点=无
 F0541,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,copyResult,216,222,7,3,,,,,,private,private func copyResult() {,static,normal,low,静态判定：热点=无
 F0542,swift,Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,reRecognize,224,243,20,1,,,,,,private,private func reRecognize() {,static,normal,low,静态判定：热点=无
@@ -548,8 +548,8 @@ F0554,swift,Features/Capture/ScreenshotOverlay.swift,ScreenshotOverlayView,drawC
 F0556,swift,Features/Capture/Stitcher.swift,Stitcher,stitch,38,94,57,3,,,Y,,cgImage,static public,public static func stitch(_ images: [CGImage]) -> Result? {,static,normal,low,静态判定：热点=cgImage
 F0557,swift,Features/Capture/Stitcher.swift,Stitcher,detectOverlap,106,139,34,1,,,Y,,cgImage,static private,"private static func detectOverlap(top: CGImage, bottom: CGImage) -> Int {",static,normal,low,静态判定：热点=cgImage
 F0559,swift,Features/Capture/Stitcher.swift,Stitcher,meanAbsDiff,142,144,3,5,,,,,,static,"static func meanAbsDiff(_ a: GraySignature, _ b: GraySignature) -> Double {",static,normal,low,静态判定：热点=无
-F0560,swift,Features/Clipboard/ClipboardAppIconCache.swift,ClipboardAppIconCache,icon,13,43,31,256,,,Y,,fileIO,static,static func icon(forAppName name: String) -> NSImage? {,static,normal,low,静态判定：热点=fileIO
-F0561,swift,Features/Clipboard/ClipboardFileStorages.swift,ClipboardFileStore,url,14,16,3,410,,,,,,static public,public static func url(forRelativePath path: String) -> URL {,static,normal,low,静态判定：热点=无
+F0560,swift,Features/Clipboard/ClipboardAppIconCache.swift,ClipboardAppIconCache,icon,13,43,31,261,,,Y,,fileIO,static,static func icon(forAppName name: String) -> NSImage? {,static,normal,low,静态判定：热点=fileIO
+F0561,swift,Features/Clipboard/ClipboardFileStorages.swift,ClipboardFileStore,url,14,16,3,412,,,,,,static public,public static func url(forRelativePath path: String) -> URL {,static,normal,low,静态判定：热点=无
 F0562,swift,Features/Clipboard/ClipboardFileStorages.swift,ClipboardFileStore,write,20,31,12,50,,,,,fileIO,static public,"public static func write(_ data: Data, toRelativePath path: String) -> Bool {",static,normal,low,静态判定：热点=fileIO
 F0563,swift,Features/Clipboard/ClipboardFileStorages.swift,ClipboardFileStore,read,33,35,3,46,,,,,fileIO,static public,public static func read(_ path: String) -> Data? {,static,normal,low,静态判定：热点=fileIO
 F0564,swift,Features/Clipboard/ClipboardFileStorages.swift,ClipboardFileStore,remove,37,40,4,27,,,,,fileIO,static public,public static func remove(_ path: String?) {,static,normal,low,静态判定：热点=fileIO
@@ -577,7 +577,7 @@ F0585,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,Clipboard
 F0586,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,configure,62,73,12,5,,,,,,private,private func configure() {,static,normal,low,静态判定：热点=无
 F0587,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,buildLayout,120,176,57,1,,,,,,private,private func buildLayout(initialContent: String) {,static,normal,low,静态判定：热点=无
 F0588,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,statText,178,185,8,1,,,,,,static private,private static func statText(_ item: ClipboardItem) -> String {,static,normal,low,静态判定：热点=无
-F0589,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,show,189,194,6,150,,,,,mainThread,public,public func show() {,static,normal,low,静态判定：热点=mainThread
+F0589,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,show,189,194,6,151,,,,,mainThread,public,public func show() {,static,normal,low,静态判定：热点=mainThread
 F0590,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,aliasDidChange,198,200,3,1,Y,,,,,private @objc,@objc private func aliasDidChange(_ sender: NSTextField) {,static,normal,low,静态判定：热点=无
 F0591,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,saveTapped,202,217,16,5,Y,,,,,private @objc,@objc private func saveTapped(_ sender: NSButton) {,static,normal,low,静态判定：热点=无
 F0592,swift,Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,cancelTapped,219,222,4,3,Y,,,,,private @objc,@objc private func cancelTapped(_ sender: NSButton) {,static,normal,low,静态判定：热点=无
@@ -630,7 +630,7 @@ F0639,swift,Features/Clipboard/ClipboardPasteboardReader.swift,ClipboardPasteboa
 F0640,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,initialSize,67,69,3,4,,,Y,,,static private,private static func initialSize(for mode: Mode) -> NSSize {,static,normal,low,静态判定：热点=无
 F0641,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,installContent,71,86,16,6,,,Y,,,private,private func installContent() {,static,normal,low,静态判定：热点=无
 F0642,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,configureHoverChrome,92,97,6,1,,,,,mainThread,private,private func configureHoverChrome(window: NSWindow) {,static,normal,low,静态判定：热点=mainThread
-F0643,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,show,102,117,16,150,,,,,mainThread,,"func show(item newItem: ClipboardItem,",static,normal,low,静态判定：热点=mainThread
+F0643,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,show,102,117,16,151,,,,,mainThread,,"func show(item newItem: ClipboardItem,",static,normal,low,静态判定：热点=mainThread
 F0644,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,focusFront,120,123,4,1,,,,,mainThread,,func focusFront() {,static,normal,low,静态判定：热点=mainThread
 F0645,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,place,126,143,18,12,,,,,,private,"private func place(anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect) {",static,normal,low,静态判定：热点=无
 F0646,swift,Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,windowDidResignKey,150,162,13,6,,,,,mainThread,public,public func windowDidResignKey(_ notification: Notification) {,static,normal,low,静态判定：热点=mainThread
@@ -665,7 +665,7 @@ F0675,swift,Features/Clipboard/ClipboardRepository.swift,ClipboardRepository,mak
 F0676,swift,Features/Clipboard/ClipboardRepository.swift,ClipboardRepository,bindings,315,344,30,12,,,,,database,static public,public static func bindings(_ item: ClipboardItem) -> [SQLiteValue] {,static,normal,low,静态判定：热点=database
 F0679,swift,Features/Clipboard/ClipboardRepository.swift,ClipboardRepository,escapeLike,347,358,12,1,,,Y,,,static,static func escapeLike(_ text: String) -> String {,static,normal,low,静态判定：热点=无
 F0680,swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardSectionView,runSummary,105,112,8,1,,,Y,,,private,private func runSummary(for item: ClipboardItem) async {,static,normal,low,静态判定：热点=无
-F0681,swift,Features/Clipboard/ClipboardSectionView.swift,SummaryState,show,122,124,3,150,,,,,,mutating,"mutating func show(title: String, message: String) {",static,normal,low,静态判定：热点=无
+F0681,swift,Features/Clipboard/ClipboardSectionView.swift,SummaryState,show,122,124,3,151,,,,,,mutating,"mutating func show(title: String, message: String) {",static,normal,low,静态判定：热点=无
 F0682,swift,Features/Clipboard/ClipboardSectionView.swift,SummaryState,reset,125,127,3,20,,,,,,mutating,mutating func reset() {,static,normal,low,静态判定：热点=无
 F0684,swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,437,441,5,5,,,,,,private,private func imagePixelSize() -> String? {,static,normal,low,静态判定：热点=无
 F0685,swift,Features/Clipboard/ClipboardSectionView.swift,ClipboardRow,imageSizeText,447,453,7,2,,,,,fileIO,static private,private static func imageSizeText(at path: String) -> String? {,static,normal,low,静态判定：热点=fileIO
@@ -725,7 +725,7 @@ F0743,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardPi
 F0744,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardStore,refresh,144,148,5,48,,,,,,public,public func refresh() {,static,normal,low,静态判定：热点=无
 F0745,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardStore,setVisible,150,153,4,4,,,,,,public,public func setVisible(_ visible: Bool) {,static,normal,low,静态判定：热点=无
 F0746,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardStore,setPinned,155,158,4,1,,,,,,public,public func setPinned(_ pinned: Bool) {,static,normal,low,静态判定：热点=无
-F0747,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,show,185,190,6,150,,,,,,public,public func show() {,static,normal,low,静态判定：热点=无
+F0747,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,show,185,190,6,151,,,,,,public,public func show() {,static,normal,low,静态判定：热点=无
 F0748,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,hide,192,195,4,27,,,,,,public,public func hide() {,static,normal,low,静态判定：热点=无
 F0749,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,toggle,197,204,8,96,,,,,,public,public func toggle() {,static,normal,low,静态判定：热点=无
 F0750,swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardWindowController,showNearMouse,207,215,9,1,,,,,,public,public func showNearMouse() {,static,normal,low,静态判定：热点=无
@@ -846,7 +846,7 @@ F0844,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowContro
 F1902,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,360,378,19,2,,,,,,private,private func finishDismiss(token: Int) {,static,normal,low,静态判定：热点=无
 F0845,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorDx,381,385,5,1,,,,,,private,"private func anchorDx(anchor: NSRect?) -> CGFloat { guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }",static,normal,low,静态判定：热点=无
 F0846,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,390,406,17,211,,,Y,,,private,"private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {",static,normal,low,静态判定：热点=无
-F0847,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,412,420,9,90,,,Y,,,static private,private static func screen(for anchor: NSRect?) -> NSScreen? {,static,normal,low,静态判定：热点=无
+F0847,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,412,420,9,89,,,Y,,,static private,private static func screen(for anchor: NSRect?) -> NSScreen? {,static,normal,low,静态判定：热点=无
 F1903,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,426,439,14,6,,,,,mainThread,public,public func windowDidResignKey(_ notification: Notification) {,static,normal,low,静态判定：热点=mainThread
 F1904,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,appDidResignActive,442,447,6,1,,,,,,@objc,@objc func appDidResignActive() {,static,normal,low,静态判定：热点=无
 F1905,swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,installOutsideClickMonitor,457,497,41,4,,,,,,,func installOutsideClickMonitor() {,static,normal,low,静态判定：热点=无
@@ -878,7 +878,7 @@ F0871,swift,Features/Monitor/MonitorReader.swift,MonitorReader,readBatteryLevel,
 F0872,swift,Features/Monitor/MonitorReader.swift,MonitorReader,readPower,502,540,39,1,,,,,iokit,private,private func readPower(into sample: inout MonitorSample) {,manual,normal,low,AppleSmartBattery PowerTelemetryData，IOKit 单次
 F0874,swift,Features/Monitor/MonitorReader.swift,MonitorReader,delta,544,546,3,58,,,,,,private,"private func delta(_ current: UInt64, _ previous: UInt64) -> UInt64 {",static,normal,low,静态判定：热点=无
 F0875,swift,Features/Monitor/MonitorReader.swift,MonitorReader,rate,548,553,6,34,,,,,,private,"private func rate(_ bytes: UInt64, elapsed: TimeInterval) -> UInt64 {",static,normal,low,静态判定：热点=无
-F0876,swift,Features/Monitor/MonitorReader.swift,MonitorReader,clamp,555,558,4,12,,,,,,private,private func clamp(_ value: Double) -> Double {,static,normal,low,静态判定：热点=无
+F0876,swift,Features/Monitor/MonitorReader.swift,MonitorReader,clamp,555,558,4,11,,,,,,private,private func clamp(_ value: Double) -> Double {,static,normal,low,静态判定：热点=无
 F0877,swift,Features/Monitor/MonitorReader.swift,MonitorReader,uint64Value,560,564,5,3,,,,,,private,private func uint64Value(_ value: Any?) -> UInt64 {,static,normal,low,静态判定：热点=无
 F0878,swift,Features/Monitor/MonitorReader.swift,MonitorReader,fourCharCode,566,568,3,1,,,,,sortFilter,private,private func fourCharCode(_ text: String) -> UInt32 {,static,normal,low,静态判定：热点=sortFilter
 F0879,swift,Features/Monitor/MonitorReader.swift,MonitorReader,fourCharString,570,576,7,1,,,,,,private,private func fourCharString(_ code: UInt32) -> String {,static,normal,low,静态判定：热点=无
@@ -1046,7 +1046,7 @@ F1036,swift,Features/Panel/PanelController.swift,PanelController,syncPanelFrameT
 F1037,swift,Features/Panel/PanelController.swift,PanelController,scheduleWarmup,90,96,7,3,,,,,mainThread,private,private func scheduleWarmup() {,static,normal,low,静态判定：热点=mainThread
 F1038,swift,Features/Panel/PanelController.swift,PanelController,warmupPanel,98,120,23,1,,,,,,private,private func warmupPanel() {,static,normal,low,静态判定：热点=无
 F1039,swift,Features/Panel/PanelController.swift,PanelController,toggle,124,126,3,96,,,,,,public,public func toggle() {,static,normal,low,静态判定：热点=无
-F1041,swift,Features/Panel/PanelController.swift,PanelController,show,133,135,3,150,,,,,,public,public func show() {,static,normal,low,静态判定：热点=无
+F1041,swift,Features/Panel/PanelController.swift,PanelController,show,133,135,3,151,,,,,,public,public func show() {,static,normal,low,静态判定：热点=无
 F1043,swift,Features/Panel/PanelController.swift,PanelController,hide,197,207,11,27,,,,,,public,public func hide() {,static,normal,low,静态判定：热点=无
 F1044,swift,Features/Panel/PanelController.swift,PanelController,performHide,210,219,10,1,,,,,"animation,mainThread",private,private func performHide(_ p: NSWindow) {,static,normal,low,"静态判定：热点=animation,mainThread"
 F1045,swift,Features/Panel/PanelController.swift,PanelController,handleGlobalShortcut,223,225,3,0,,,,Y,,open,open func handleGlobalShortcut() {,manual,keep,none,预留公开接口（热键接线用）
@@ -1209,7 +1209,7 @@ F1204,swift,Features/Settings/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTes
 F1205,swift,Features/Settings/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,restore,256,275,20,10,,,Y,,fileIO,static private,private static func restore(_ original: [String: Any]) {,static,normal,low,静态判定：热点=fileIO
 F1206,swift,Features/Settings/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,diffKeys,277,286,10,1,,,,,sortFilter,static private,"private static func diffKeys(_ a: [String: Any], _ b: [String: Any]) -> String {",static,normal,low,静态判定：热点=sortFilter
 F1207,swift,Features/Settings/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,report,288,299,12,35,,,Y,,fileIO,static private,private static func report() {,static,normal,low,静态判定：热点=fileIO
-F1209,swift,Features/StatusBar/FileTypeIconProvider.swift,FileTypeIconProvider,icon,27,39,13,256,,,Y,,,public,public func icon(forExtension ext: String) -> NSImage {,static,normal,low,静态判定：热点=无
+F1209,swift,Features/StatusBar/FileTypeIconProvider.swift,FileTypeIconProvider,icon,27,39,13,261,,,Y,,,public,public func icon(forExtension ext: String) -> NSImage {,static,normal,low,静态判定：热点=无
 F1211,swift,Features/StatusBar/FileTypeIconProvider.swift,FileTypeIconProvider,systemIcon,52,59,8,1,,,Y,,,private,private func systemIcon(forExtension ext: String) -> NSImage {,static,normal,low,静态判定：热点=无
 F1212,swift,Features/StatusBar/FileTypeIconProvider.swift,FileTypeIconProvider,handlerBundleID,62,68,7,1,,,,,,private,private func handlerBundleID(forExtension ext: String) -> String? {,static,normal,low,静态判定：热点=无
 F1213,swift,Features/StatusBar/FileTypeIconProvider.swift,FileTypeIconProvider,diskURL,72,77,6,2,,,,,,private,private func diskURL(_ key: String) -> URL {,static,normal,low,静态判定：热点=无
@@ -1326,7 +1326,7 @@ F1354,swift,Features/Toolbox/CalendarService.swift,CalendarService,monthDays,105
 F1355,swift,Features/Toolbox/CalendarService.swift,CalendarService,monthTitle,168,173,6,3,,,,,,static public,public static func monthTitle(_ date: Date) -> String {,static,normal,low,静态判定：热点=无
 F1356,swift,Features/Toolbox/CommandPalette.swift,CommandCatalog,build,48,184,137,35,,,Y,,mainThread,static public,public static func build() -> [CommandItem] {,static,normal,low,静态判定：热点=mainThread
 F1357,swift,Features/Toolbox/CommandPalette.swift,CommandPaletteController,toggle,196,203,8,96,,,,,,public,public func toggle() {,static,normal,low,静态判定：热点=无
-F1358,swift,Features/Toolbox/CommandPalette.swift,CommandPaletteController,show,205,212,8,150,,,,,mainThread,public,public func show() {,static,normal,low,静态判定：热点=mainThread
+F1358,swift,Features/Toolbox/CommandPalette.swift,CommandPaletteController,show,205,212,8,151,,,,,mainThread,public,public func show() {,static,normal,low,静态判定：热点=mainThread
 F1359,swift,Features/Toolbox/CommandPalette.swift,CommandPaletteController,windowWillClose,214,216,3,12,,,,,,public,public func windowWillClose(_ notification: Notification) {,static,normal,low,静态判定：热点=无
 F1360,swift,Features/Toolbox/CommandPalette.swift,CommandPalettePanel,centerInScreen,247,253,7,1,,,,,,,func centerInScreen() {,static,normal,low,静态判定：热点=无
 F1361,swift,Features/Toolbox/CommandPalette.swift,CommandPalettePanel,windowWillClose,255,257,3,12,,,,,,,func windowWillClose(_ notification: Notification) {,static,normal,low,静态判定：热点=无
@@ -1345,7 +1345,7 @@ F1373,swift,Features/Toolbox/DoubleTapShortcut.swift,DoubleTapShortcutCenter,sta
 F1374,swift,Features/Toolbox/DoubleTapShortcut.swift,DoubleTapShortcutCenter,stopMonitoringIfNeeded,142,150,9,2,Y,,,,,private,private func stopMonitoringIfNeeded() {,static,normal,low,静态判定：热点=无
 F1375,swift,Features/Toolbox/DoubleTapShortcut.swift,DoubleTapShortcutCenter,handleFlags,153,171,19,2,,,Y,,,private,private func handleFlags(_ flags: NSEvent.ModifierFlags) {,static,normal,low,静态判定：热点=无
 F1376,swift,Features/Toolbox/DoubleTapShortcut.swift,DoubleTapShortcutCenter,fire,174,179,6,3,,,,,mainThread,private,private func fire(_ modifier: DoubleTapModifier) {,static,normal,low,静态判定：热点=mainThread
-F1377,swift,Features/Toolbox/DoubleTapTipWindow.swift,DoubleTapTipWindowController,show,20,77,58,150,,,,,mainThread,,func show() {,static,normal,low,静态判定：热点=mainThread
+F1377,swift,Features/Toolbox/DoubleTapTipWindow.swift,DoubleTapTipWindowController,show,20,77,58,151,,,,,mainThread,,func show() {,static,normal,low,静态判定：热点=mainThread
 F1378,swift,Features/Toolbox/DoubleTapTipWindow.swift,DoubleTapTipWindowController,dismiss,79,81,3,42,Y,,,,,private @objc,@objc private func dismiss() {,static,normal,low,静态判定：热点=无
 F1379,swift,Features/Toolbox/DoubleTapTipWindow.swift,DoubleTapTipWindowController,position,84,91,8,25,,,,,mainThread,private,private func position(_ panel: NSPanel) {,static,normal,low,静态判定：热点=mainThread
 F1380,swift,Features/Toolbox/FuzzyMatcher.swift,FuzzyMatcher,match,37,73,37,70,,,Y,,,static public,"public static func match(_ pattern: String, in target: String) -> FuzzyMatch? {",static,normal,low,静态判定：热点=无

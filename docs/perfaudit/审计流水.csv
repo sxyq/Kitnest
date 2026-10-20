@@ -37,3 +37,7 @@
 2026-10-20 11:17:11,FrsetStatsBar/frset_barwidgets.m,FSBarKeepAdjacentTick,optimize,非校准期每 0.5s 主队列空跳；建议加 g_posCalibrating 短路（未实施）
 2026-10-20 11:17:11,FrsetStatsBar/frset_stats_tick.m,statsTick,normal,0.5s；SMC 600 键扫描已在后台线程
 2026-10-20 11:17:11,FrsetStatsBar/frset_stats_tick.m,FSStatsTickStart,normal,启动即采 + 0.5s NSTimer，设计合理
+2026-10-20 11:28:58,Core/Toast.swift,positionOnTargetScreen,normal,2026-10-20 用户需求：改为 visibleFrame 水平居中、中线下方 6%（约69pt）；原「距屏底18.3%」公式废弃
+2026-10-20 11:28:58,Core/Toast.swift,layoutContent,normal,2026-10-20 修复外圈方形阴影：内容加 24pt 透明边距，窗口按 fittingSize 扩大，阴影不再被边界裁断（四角 alpha 5/4/9/9 → 0）
+2026-10-20 11:28:58,Core/Toast.swift,present,normal,3s 自动隐藏 + 代际防串台；窗口复用，无每次创建开销
+2026-10-20 11:28:58,Core/Toast.swift,ensureWindow,normal,单例窗口按需创建；层级 CGWindowLevelKey14，点击穿透，可跨 Space

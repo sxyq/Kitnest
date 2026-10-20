@@ -21,7 +21,7 @@ swift,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,33,52,20,
 swift,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,62,82,21,0,private,private func enforceSingleMenubarOwner() -> Bool {
 swift,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,84,89,6,1,,func applicationWillTerminate(_ notification: Notification) {
 swift,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,91,94,4,2,,"func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {"
-swift,App/FrsetNextApp.swift,AppDelegate,application,102,152,51,2,,"func application(_ application: NSApplication, open urls: [URL]) {"
+swift,App/FrsetNextApp.swift,AppDelegate,application,102,161,60,2,,"func application(_ application: NSApplication, open urls: [URL]) {"
 swift,Core/AppearanceTheme.swift,MidnightTheme,h,57,75,19,1,static private,private static func h(_ color: Color) -> Color {
 swift,Core/AppearanceTheme.swift,AppearanceThemeModifier,body,150,158,9,1,public,public func body(content: Content) -> some View {
 swift,Core/AppearanceTheme.swift,View,frsetAppearanceTheme,168,170,3,1,,func frsetAppearanceTheme(_ state: AppearanceState = .shared) -> some View {
@@ -85,16 +85,16 @@ swift,Core/Support.swift,ModuleRegistry,register,42,47,6,1,static public,public 
 swift,Core/Support.swift,ModuleRegistry,startAll,48,54,7,0,static public,public static func startAll() {
 swift,Core/Support.swift,Theme,sectionHeader,126,131,6,1,static public,public static func sectionHeader(_ title: String) -> some View {
 swift,Core/Support.swift,AppDirectories,sub,193,197,5,1,static public,public static func sub(_ name: String) -> URL {
-swift,Core/Toast.swift,MenuBarToastManager,show,122,128,7,3,,"func show(_ message: String, icon: String?, isWarning: Bool = false) {"
-swift,Core/Toast.swift,MenuBarToastManager,present,130,171,42,3,private,"private func present(message: String, icon: String?, isWarning: Bool) {"
-swift,Core/Toast.swift,MenuBarToastManager,hideAnimated,175,184,10,1,private,private func hideAnimated(generation: Int) {
-swift,Core/Toast.swift,MenuBarToastManager,ensureWindow,189,210,22,0,private,private func ensureWindow() {
-swift,Core/Toast.swift,MenuBarToastManager,makeContentView,212,219,8,0,private,private func makeContentView() -> NSView {
-swift,Core/Toast.swift,MenuBarToastManager,syncAppearance,222,225,4,0,private,private func syncAppearance() {
-swift,Core/Toast.swift,MenuBarToastManager,layoutContent,228,234,7,0,private,private func layoutContent() {
-swift,Core/Toast.swift,MenuBarToastManager,resolveTargetScreen,240,250,11,0,private,private func resolveTargetScreen() -> NSScreen? {
-swift,Core/Toast.swift,MenuBarToastManager,positionOnTargetScreen,255,282,28,0,private,private func positionOnTargetScreen() {
-swift,Core/Toast.swift,Toast,show,290,292,3,3,static public,"public static func show(_ message: String, icon: String? = nil, isWarning: Bool = false) {"
+swift,Core/Toast.swift,MenuBarToastManager,show,127,133,7,3,,"func show(_ message: String, icon: String?, isWarning: Bool = false) {"
+swift,Core/Toast.swift,MenuBarToastManager,present,135,176,42,3,private,"private func present(message: String, icon: String?, isWarning: Bool) {"
+swift,Core/Toast.swift,MenuBarToastManager,hideAnimated,180,189,10,1,private,private func hideAnimated(generation: Int) {
+swift,Core/Toast.swift,MenuBarToastManager,ensureWindow,194,215,22,0,private,private func ensureWindow() {
+swift,Core/Toast.swift,MenuBarToastManager,makeContentView,217,224,8,0,private,private func makeContentView() -> NSView {
+swift,Core/Toast.swift,MenuBarToastManager,syncAppearance,227,230,4,0,private,private func syncAppearance() {
+swift,Core/Toast.swift,MenuBarToastManager,layoutContent,233,239,7,0,private,private func layoutContent() {
+swift,Core/Toast.swift,MenuBarToastManager,resolveTargetScreen,245,255,11,0,private,private func resolveTargetScreen() -> NSScreen? {
+swift,Core/Toast.swift,MenuBarToastManager,positionOnTargetScreen,260,286,27,0,private,private func positionOnTargetScreen() {
+swift,Core/Toast.swift,Toast,show,294,296,3,3,static public,"public static func show(_ message: String, icon: String? = nil, isWarning: Bool = false) {"
 swift,Features/AI/AIChatView.swift,AIChatViewModel,onAppear,94,109,16,0,public,public func onAppear() {
 swift,Features/AI/AIChatView.swift,AIChatViewModel,refreshModels,111,125,15,0,public,public func refreshModels() async {
 swift,Features/AI/AIChatView.swift,AIChatViewModel,send,127,145,19,0,public,public func send() {
