@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import QuartzCore
 import SwiftUI
 
 // MARK: - 标注画布
@@ -14,21 +15,32 @@ final class AnnotationCanvasView: NSView {
     private(set) var annotations: [Annotation] = []
     /// 当前工具与样式
     var tool: AnnotationTool = .rectangle {
-        didSet { cursorPoint = nil; needsDisplay = true }
+        didSet {
+            // 换工具即取消文字选中（选中框只属于文字工具）
+            if tool != .text, selectedTextID != nil { selectText(nil) }
+            updateCursor(nil)
+            needsDisplay = true
+        }
     }
     var color: NSColor = .systemRed
     var lineWidth: CGFloat = 3 { didSet { needsDisplay = true } }
     /// 马赛克笔刷直径（图像像素）与块大小（像素）
-    var brushWidth: CGFloat = 36 { didSet { needsDisplay = true } }
-    var mosaicBlock: CGFloat = 10
+    var brushWidth: CGFloat = 120 { didSet { needsDisplay = true } }
+    var mosaicBlock: CGFloat = 16
+    /// 文字字号（与线宽同刻度：fontSize = value * 6）
+    var textSize: CGFloat = 1
     /// 标注变化回调（用于刷新撤销按钮可用态）
     var onChange: (() -> Void)?
     /// 键盘事件回调（工具条快捷键 / ⌘Z 等；返回 true 表示已处理）
     var onKey: ((NSEvent) -> Bool)?
+    /// 滚轮调粗细（Snipaste / Flameshot 惯例）：+1 / -1 档
+    var onSizeDelta: ((CGFloat) -> Void)?
 
-    /// 撤销栈：标注追加 / 抹除前的底图快照
+    /// 撤销栈：标注追加 / 标注改写（移动·改字号·改色）/ 抹除前的底图快照
     private enum EditOp {
         case annotation(Annotation)
+        /// 同一条标注的属性改写（文字移动/改字号/改色）
+        case modify(old: Annotation, new: Annotation)
         /// 底图替换（抹除）：同时记录新旧图，撤销/重做都能还原
         case imageSnapshot(old: CGImage, new: CGImage)
     }
@@ -49,9 +61,27 @@ final class AnnotationCanvasView: NSView {
     private var dragStart: CGPoint?
 
     init(image: CGImage) {
-        self.image = image
+        // CGImageSourceCreateImageAtIndex 产出的图像是**惰性解码**的：每次 draw 都可能重新解码。
+        // 编辑器每帧都要画底图（光标环/笔触都触发重绘），惰性解码会让「移动橡皮擦」直接卡死。
+        // 进编辑器时一次性解成设备 RGB 位图，后续每帧只做贴图。
+        self.image = Self.decoded(image)
         super.init(frame: .zero)
         wantsLayer = true
+    }
+
+    /// 一次性解码到内存位图（RGBA8，sRGB），返回可高速重复绘制的 CGImage
+    private static func decoded(_ image: CGImage) -> CGImage {
+        let w = image.width, h = image.height
+        guard w > 0, h > 0,
+              let ctx = CGContext(data: nil, width: w, height: h,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return image
+        }
+        ctx.interpolationQuality = .none
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return ctx.makeImage() ?? image
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
@@ -84,11 +114,26 @@ final class AnnotationCanvasView: NSView {
     // MARK: 绘制
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(white: 0.12, alpha: 1).setFill()
+        let frameStart = CACurrentMediaTime()
+        defer {
+            let ms = (CACurrentMediaTime() - frameStart) * 1000
+            if ms > 40 {
+                Log.warn("Capture", "标注画布重绘 \(Int(ms))ms（dirty \(Int(dirtyRect.width))×\(Int(dirtyRect.height))）")
+            }
+        }
+        EditorBackdrop.color.setFill()
         bounds.fill()
 
         let f = fitRect
         guard f.width > 0, let ctx = NSGraphicsContext.current?.cgContext else { return }
+
+        // 图片投影：让截图从画布上「浮」起来（工具条改为悬浮胶囊后需要这层空间关系）
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: 1), blur: 16,
+                      color: CGColor(gray: 0, alpha: 0.30))
+        ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+        ctx.fill(f)
+        ctx.restoreGState()
 
         // 底图：临时还原成 CG 常规坐标系，避免在 flipped 视图里上下颠倒
         ctx.saveGState()
@@ -96,6 +141,13 @@ final class AnnotationCanvasView: NSView {
         ctx.scaleBy(x: 1, y: -1)
         ctx.interpolationQuality = .high
         ctx.draw(image, in: CGRect(x: f.minX, y: bounds.height - f.maxY, width: f.width, height: f.height))
+        ctx.restoreGState()
+
+        // 1px 描边：浅色底上给图片一个确定的边界
+        ctx.saveGState()
+        ctx.setStrokeColor(CGColor(gray: 0, alpha: 0.10))
+        ctx.setLineWidth(1)
+        ctx.stroke(f.insetBy(dx: 0.5, dy: 0.5))
         ctx.restoreGState()
 
         // 标注：图像像素坐标 → 视图坐标
@@ -153,6 +205,36 @@ final class AnnotationCanvasView: NSView {
             ctx.restoreGState()
         }
         ctx.restoreGState()
+
+        // 选中文字的选择框：虚线胶囊 + 淡蓝底（提示「这段文字可以被拖动/改字号」），
+        // 四角与边中点是控制点——拖动即按比例改字号
+        if let a = selectedText, let r = AnnotationCompositor.textBounds(a) {
+            let s = imageScale
+            let vr = CGRect(x: f.minX + r.minX * s - 6,
+                            y: f.minY + r.minY * s - 5,
+                            width: r.width * s + 12,
+                            height: r.height * s + 10)
+            let path = NSBezierPath(roundedRect: vr, xRadius: 4, yRadius: 4)
+            Theme.accentNS.withAlphaComponent(0.10).setFill()
+            path.fill()
+            Theme.accentNS.withAlphaComponent(0.95).setStroke()
+            path.lineWidth = 1.2
+            path.setLineDash([4, 3], count: 2, phase: 0)
+            path.stroke()
+
+            // 控制点：实心方块 + 白描边（角）；边中点稍扁
+            for (handle, rect) in handleRects(for: vr) {
+                let dot = NSBezierPath(roundedRect: rect,
+                                       xRadius: handle == .top || handle == .bottom
+                                           || handle == .left || handle == .right ? 2.5 : 2,
+                                       yRadius: 2.5)
+                Theme.accentNS.setFill()
+                dot.fill()
+                NSColor.white.withAlphaComponent(0.95).setStroke()
+                dot.lineWidth = 1
+                dot.stroke()
+            }
+        }
     }
 
     // MARK: 命中测试（橡皮擦用）
@@ -162,26 +244,48 @@ final class AnnotationCanvasView: NSView {
     private func hitTest(_ a: Annotation, at point: CGPoint) -> Bool {
         let tolerance = max(6, a.lineWidth * 2)
         switch a.tool {
-        case .rectangle, .ellipse, .mosaic:
+        case .rectangle, .ellipse:
             guard let r = AnnotationCompositor.rect(of: a) else { return false }
             return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+        case .mosaic:
+            // 笔刷型：命中 = 落在笔触覆盖范围内（半径 = 笔刷直径/2 + 容差）
+            return distanceToPolyline(point, a.points) <= max(4, a.lineWidth / 2) + 4
         case .arrow:
             return a.points.contains { hypot($0.x - point.x, $0.y - point.y) <= tolerance }
         case .pen, .highlighter:
             return a.points.contains { hypot($0.x - point.x, $0.y - point.y) <= tolerance * 1.5 }
         case .text:
-            guard let anchor = a.points.first else { return false }
-            return hypot(anchor.x - point.x, anchor.y - point.y) <= max(20, a.lineWidth * 8)
+            guard let r = AnnotationCompositor.textBounds(a) else { return false }
+            return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
         case .eraser, .removal:
             return false
         }
     }
 
+    /// 点到折线的最短距离（马赛克笔触命中测试用）
+    private func distanceToPolyline(_ p: CGPoint, _ points: [CGPoint]) -> CGFloat {
+        guard let first = points.first else { return .greatestFiniteMagnitude }
+        guard points.count > 1 else { return hypot(first.x - p.x, first.y - p.y) }
+        var best = CGFloat.greatestFiniteMagnitude
+        for i in 0..<(points.count - 1) {
+            let a = points[i], b = points[i + 1]
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len2 = dx * dx + dy * dy
+            let t = len2 <= 0.0001 ? 0 : max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
+            let proj = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
+            best = min(best, hypot(proj.x - p.x, proj.y - p.y))
+        }
+        return best
+    }
+
     // MARK: 鼠标
 
     override func mouseDown(with event: NSEvent) {
+        // 正在输入文字时，先提交未完成的文本（与原版「点别处即落字」一致）
+        if textEditor != nil { finishTextEditing(commit: true) }
+
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
-        cursorPoint = ip
+        updateCursor(ip)
 
         if tool == .eraser {
             // 橡皮擦的是「标注」而不是像素：v71 支持滑动——按下即擦，拖拽路径连续擦
@@ -191,15 +295,36 @@ final class AnnotationCanvasView: NSView {
         }
 
         if tool == .text {
-            if let text = promptText(), !text.isEmpty {
-                let a = Annotation(tool: .text, points: [ip], text: text,
-                                   colorHex: AnnotationCompositor.hex(of: color),
-                                   lineWidth: lineWidth)
-                annotations.append(a)
-                record(.annotation(a))
-                needsDisplay = true
-                onChange?()
+            let viewPoint = convert(event.locationInWindow, from: nil)
+            // ① 先测控制点（画在文字框外沿，必须早于文字命中——否则点控制点会被当成"点空白"取消选中）
+            if selectedTextID != nil, let handle = handleHit(at: viewPoint), let hit = selectedText {
+                activeHandle = handle
+                handleDragStart = viewPoint
+                handleStartScale = hit.lineWidth
+                handleStartCenter = textSelectionViewRect().map { CGPoint(x: $0.midX, y: $0.midY) }
+                textDragOld = hit
+                return
             }
+            // ② 点文字（含选中框内边距）→ 选中 + 弹字体配置；按住拖 = 移动
+            if let hit = textAnnotation(at: ip) {
+                if selectedTextID != hit.id {
+                    selectText(hit)
+                    if let rect = textSelectionViewRect() {
+                        showFontPopover(for: hit, at: rect)
+                    }
+                } else if let rect = textSelectionViewRect(), fontPopover?.isShown != true {
+                    // 已选中再点一次：弹层被关掉后重新打开（拖动/缩放时弹层保持打开）
+                    showFontPopover(for: hit, at: rect)
+                }
+                textDragOld = hit
+                textDragAnchor = hit.points.first
+                textDragMoved = false
+                dragStart = ip
+                return
+            }
+            closeFontPopover()
+            if selectedTextID != nil { selectText(nil) }
+            beginTextEditing(at: viewPoint)
             return
         }
 
@@ -213,7 +338,7 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        cursorPoint = imagePoint(convert(event.locationInWindow, from: nil))
+        updateCursor(imagePoint(convert(event.locationInWindow, from: nil)))
         if tool == .eraser, isErasing {
             // 滑动擦除：拖拽路径上每个命中的标注都删（同画笔滑动体验）
             eraseAt(imagePoint(convert(event.locationInWindow, from: nil)))
@@ -225,6 +350,30 @@ final class AnnotationCanvasView: NSView {
             needsDisplay = true
             return
         }
+        // 文字：拖控制点 = 按比例改字号（框随字号涨缩）
+        if tool == .text, activeHandle != nil, let start = handleDragStart {
+            let viewPoint = convert(event.locationInWindow, from: nil)
+            let center = handleStartCenter ?? viewPoint
+            let d0 = max(6, hypot(start.x - center.x, start.y - center.y))
+            let d1 = hypot(viewPoint.x - center.x, viewPoint.y - center.y)
+            let target = min(12, max(1, (handleStartScale * d1 / d0)))
+            if abs(target - (selectedText?.lineWidth ?? 0)) > 0.05 {
+                applyTextSizeToSelection(target)
+            }
+            return
+        }
+        // 文字：拖动选中的文本框（松手才进撤销栈）
+        if tool == .text, let old = textDragOld, let origin = textDragAnchor, let start = dragStart {
+            let ip = imagePoint(convert(event.locationInWindow, from: nil))
+            let dx = ip.x - start.x, dy = ip.y - start.y
+            guard abs(dx) > 0.5 || abs(dy) > 0.5 else { return }
+            textDragMoved = true
+            if let index = annotations.firstIndex(where: { $0.id == old.id }) {
+                annotations[index].points = [CGPoint(x: origin.x + dx, y: origin.y + dy)]
+                needsDisplay = true
+            }
+            return
+        }
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
         if tool == .pen || tool == .highlighter || tool == .mosaic {
@@ -233,6 +382,11 @@ final class AnnotationCanvasView: NSView {
                                    colorHex: AnnotationCompositor.hex(of: color),
                                    lineWidth: strokeWidth(for: tool),
                                    blockSize: mosaicBlock)
+            }
+            // 采样抽稀：事件频率高时避免几万个点把路径撑爆（1.2px 以内不记）
+            if let last = draft?.points.last,
+               hypot(ip.x - last.x, ip.y - last.y) < 1.2 {
+                return
             }
             draft?.points.append(ip)
         } else {
@@ -244,7 +398,7 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        cursorPoint = imagePoint(convert(event.locationInWindow, from: nil))
+        updateCursor(imagePoint(convert(event.locationInWindow, from: nil)))
         if tool == .eraser {
             isErasing = false
             return
@@ -255,6 +409,23 @@ final class AnnotationCanvasView: NSView {
             let ip = imagePoint(convert(event.locationInWindow, from: nil))
             stroke.append(ip)
             applyRemoval(stroke: stroke)
+            return
+        }
+        // 文字：拖动/缩放结束
+        if tool == .text {
+            defer {
+                textDragOld = nil; textDragAnchor = nil; textDragMoved = false; dragStart = nil
+                activeHandle = nil; handleDragStart = nil; handleStartCenter = nil
+            }
+            // 控制点缩放：每档都已进撤销栈（连续操作会合并），这里只同步工具条
+            if activeHandle != nil {
+                onTextSelectionChange?(selectedText)
+                return
+            }
+            guard textDragMoved, let old = textDragOld,
+                  let updated = annotations.first(where: { $0.id == old.id }) else { return }
+            record(.modify(old: old, new: updated))
+            onTextSelectionChange?(updated)
             return
         }
         defer { dragStart = nil; draft = nil; needsDisplay = true }
@@ -277,6 +448,9 @@ final class AnnotationCanvasView: NSView {
             annotations.append(a)
             record(.annotation(a))
             onChange?()
+            if a.tool == .mosaic {
+                Log.info("Capture", "马赛克笔触：\(a.points.count) 点，直径 \(Int(a.lineWidth))px，块 \(Int(a.blockSize))px")
+            }
         }
     }
 
@@ -319,26 +493,75 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        // 文字工具：控制点 → 十字（拖=改字号）；文字上 → 抓手；空白 → 文本光标
+        if tool == .text {
+            let viewPoint = convert(event.locationInWindow, from: nil)
+            if selectedTextID != nil, handleHit(at: viewPoint) != nil {
+                NSCursor.crosshair.set()
+                return
+            }
+            let overText = textAnnotation(at: imagePoint(viewPoint)) != nil
+            (overText ? NSCursor.openHand : NSCursor.iBeam).set()
+            return
+        }
         guard brushRingRadius != nil else { return }
-        cursorPoint = imagePoint(convert(event.locationInWindow, from: nil))
-        needsDisplay = true
+        updateCursor(imagePoint(convert(event.locationInWindow, from: nil)))
     }
 
     override func mouseEntered(with event: NSEvent) {
+        if tool == .text {
+            NSCursor.iBeam.set()
+            return
+        }
         if brushRingRadius != nil {
-            cursorPoint = imagePoint(convert(event.locationInWindow, from: nil))
+            updateCursor(imagePoint(convert(event.locationInWindow, from: nil)))
             NSCursor.crosshair.set()
-            needsDisplay = true
         }
     }
 
     override func mouseExited(with event: NSEvent) {
-        cursorPoint = nil
-        needsDisplay = true
+        updateCursor(nil)
         NSCursor.arrow.set()
     }
 
+    /// 移动笔刷光标：只把「旧环 ∪ 新环」标脏。
+    /// 之前每次 mouseMoved 都是整张画布重绘（底图 + 全部标注），
+    /// 2K/4K 截图上移动橡皮擦会掉到个位数帧率。
+    private func updateCursor(_ point: CGPoint?) {
+        let oldRect = cursorRingRect(for: cursorPoint)
+        cursorPoint = point
+        let newRect = cursorRingRect(for: point)
+        switch (oldRect, newRect) {
+        case let (old?, new?):
+            setNeedsDisplay(old.union(new))
+        default:
+            // 至少一侧没有环：整块重绘一次（进入/离开笔刷状态，代价可接受）
+            needsDisplay = true
+        }
+    }
+
+    /// 笔刷环在视图坐标下的占位（含 2pt 描边与阴影余量）
+    private func cursorRingRect(for imagePoint: CGPoint?) -> CGRect? {
+        guard let imagePoint, let radius = brushRingRadius else { return nil }
+        let scale = imageScale
+        let center = CGPoint(x: fitRect.minX + imagePoint.x * scale,
+                             y: fitRect.minY + imagePoint.y * scale)
+        let r = radius * scale + 4
+        return CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)
+    }
+
     override func keyDown(with event: NSEvent) {
+        // 选中文字时：Delete/⌫ 删除、Esc 取消选中（都不再走工具快捷键）
+        if selectedTextID != nil {
+            if event.keyCode == 51 || event.keyCode == 117 {
+                deleteSelectedText()
+                return
+            }
+            if event.keyCode == 53 {
+                selectText(nil)
+                return
+            }
+        }
         if onKey?(event) == true { return }
         super.keyDown(with: event)
     }
@@ -421,15 +644,338 @@ final class AnnotationCanvasView: NSView {
         }
     }
 
-    private func promptText() -> String? {
-        let alert = NSAlert()
-        alert.messageText = "输入标注文字"
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
-        alert.accessoryView = field
-        alert.addButton(withTitle: "确定")
-        alert.addButton(withTitle: "取消")
-        alert.window.initialFirstResponder = field
-        return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
+    // MARK: 文字：内联输入（虚线框随字宽）+ 选中（拖边框改字号 / 点开字体配置）
+
+    /// 正在编辑的文字框（虚线框，宽度随输入内容增长）与它的锚点（图像像素坐标）
+    private var textEditor: NSTextField?
+    private var textEditorBox: NSView?
+    private var textEditorBorder: CAShapeLayer?
+    private var textAnchor: CGPoint?
+    /// 画布上选中的文字标注（点一下选中并弹字体配置；可拖动、可拖边框改字号、可删）
+    private(set) var selectedTextID: UUID?
+    /// 选中态变化回调（窗口同步工具条的字号/颜色）
+    var onTextSelectionChange: ((Annotation?) -> Void)?
+    /// 拖动文字时的原始值（松手才进撤销栈）
+    private var textDragOld: Annotation?
+    private var textDragAnchor: CGPoint?
+    private var textDragMoved = false
+    /// 正在拖的控制点（非空 = 按比例改字号，而不是移动）
+    private var activeHandle: TextHandle?
+    private var handleDragStart: CGPoint?
+    private var handleStartScale: CGFloat = 1
+    /// 拖控制点时选中框的中心（缩放基准点，固定住避免反馈抖动）
+    private var handleStartCenter: CGPoint?
+    /// 字体配置弹层（点中文字后弹出）
+    private var fontPopover: NSPopover?
+    private let fontModel = TextFontModel()
+
+    /// 选中框的 8 个控制点（角 + 边中点）
+    enum TextHandle: CaseIterable {
+        case topLeft, topRight, bottomLeft, bottomRight
+        case left, right, top, bottom
+    }
+
+    /// 当前选中的文字标注
+    private var selectedText: Annotation? {
+        guard let id = selectedTextID else { return nil }
+        return annotations.first { $0.id == id }
+    }
+
+    /// 命中最上层的文字标注（包围盒判定，容差 6px）
+    private func textAnnotation(at ip: CGPoint) -> Annotation? {
+        annotations.last { a in
+            guard a.tool == .text, let r = AnnotationCompositor.textBounds(a) else { return false }
+            return r.insetBy(dx: -6, dy: -6).contains(ip)
+        }
+    }
+
+    /// 选中框在视图坐标下的矩形（与 draw() 的虚线框同口径）
+    private func textSelectionViewRect() -> CGRect? {
+        guard let a = selectedText, let r = AnnotationCompositor.textBounds(a) else { return nil }
+        let s = imageScale, f = fitRect
+        return CGRect(x: f.minX + r.minX * s - 6,
+                      y: f.minY + r.minY * s - 5,
+                      width: r.width * s + 12,
+                      height: r.height * s + 10)
+    }
+
+    /// 控制点矩形（视图坐标；角 12×12，边中点 14×12——比视觉略大，方便抓）
+    private func handleRects(for rect: CGRect) -> [(TextHandle, CGRect)] {
+        let size: CGFloat = 12
+        func square(_ x: CGFloat, _ y: CGFloat) -> CGRect {
+            CGRect(x: x - size / 2, y: y - size / 2, width: size, height: size)
+        }
+        func pill(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect {
+            CGRect(x: x - w / 2, y: y - h / 2, width: w, height: h)
+        }
+        return [
+            (.topLeft, square(rect.minX, rect.minY)),
+            (.topRight, square(rect.maxX, rect.minY)),
+            (.bottomLeft, square(rect.minX, rect.maxY)),
+            (.bottomRight, square(rect.maxX, rect.maxY)),
+            (.top, pill(rect.midX, rect.minY, 12, 10)),
+            (.bottom, pill(rect.midX, rect.maxY, 12, 10)),
+            (.left, pill(rect.minX, rect.midY, 10, 12)),
+            (.right, pill(rect.maxX, rect.midY, 10, 12)),
+        ]
+    }
+
+    /// 命中控制点（容差 4pt）
+    private func handleHit(at viewPoint: CGPoint) -> TextHandle? {
+        guard let rect = textSelectionViewRect() else { return nil }
+        return handleRects(for: rect).first { $0.1.insetBy(dx: -4, dy: -4).contains(viewPoint) }?.0
+    }
+
+    /// 选中 / 取消选中文字
+    func selectText(_ annotation: Annotation?) {
+        if annotation == nil { closeFontPopover() }
+        selectedTextID = annotation?.id
+        onTextSelectionChange?(annotation)
+        needsDisplay = true
+    }
+
+    /// 改选中文字的字号（工具条滑杆 / 滚轮 / [ ] / 拖控制点 都走这里）
+    func applyTextSizeToSelection(_ value: CGFloat) {
+        mutateSelectedText { $0.lineWidth = value }
+    }
+
+    /// 改选中文字的颜色
+    func applyColorToSelection(_ hex: String) {
+        mutateSelectedText { $0.colorHex = hex }
+    }
+
+    /// 改选中文字的字重（0 标准 / 1 中粗 / 2 加粗）
+    func applyWeightToSelection(_ value: Int) {
+        mutateSelectedText { $0.weight = value }
+    }
+
+    /// 删除选中文字（Delete / ⌫）
+    func deleteSelectedText() {
+        guard let id = selectedTextID, let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        let victim = annotations.remove(at: index)
+        record(.annotation(victim))
+        closeFontPopover()
+        selectText(nil)
+        onChange?()
+    }
+
+    private func mutateSelectedText(_ body: (inout Annotation) -> Void) {
+        guard let id = selectedTextID,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        let old = annotations[index]
+        var updated = old
+        body(&updated)
+        guard updated != old else { return }
+        annotations[index] = updated
+        record(.modify(old: old, new: updated))
+        onTextSelectionChange?(updated)
+        // 弹层里的滑杆/字重/颜色跟着外部改动同步（拖控制点、工具条滑杆都会走到这里）
+        if fontPopover?.isShown == true {
+            fontModel.size = Double(updated.lineWidth)
+            fontModel.weight = updated.weight
+            fontModel.colorHex = updated.colorHex
+        }
+        needsDisplay = true
+    }
+
+    // MARK: 字体配置弹层
+
+    /// 点中文字 → 选中 + 弹出字体配置（字号 / 字重 / 颜色 / 删除）
+    private func showFontPopover(for annotation: Annotation, at rect: CGRect) {
+        fontModel.size = Double(annotation.lineWidth)
+        fontModel.weight = annotation.weight
+        fontModel.colorHex = annotation.colorHex
+        fontModel.onSize = { [weak self] value in self?.applyTextSizeToSelection(CGFloat(value)) }
+        fontModel.onWeight = { [weak self] value in self?.applyWeightToSelection(value) }
+        fontModel.onColor = { [weak self] hex in self?.applyColorToSelection(hex) }
+        fontModel.onDelete = { [weak self] in
+            self?.deleteSelectedText()
+            self?.closeFontPopover()
+        }
+        fontModel.onClose = { [weak self] in self?.closeFontPopover() }
+
+        let popover = fontPopover ?? makeFontPopover()
+        fontPopover = popover
+        if popover.isShown { popover.close() }
+        popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
+    }
+
+    private func makeFontPopover() -> NSPopover {
+        let popover = NSPopover()
+        // .applicationDefined：弹层不自动吞点击。之前用 .transient 时，第二次点控制点
+        // 的那次按下被弹层拿去「关闭自己」，根本不传到画布——表现为「拖边框没反应」。
+        // 现在由本类显式关闭（换选中/Esc/点空白/换工具），拖动与缩放期间弹层保持打开。
+        popover.behavior = .applicationDefined
+        popover.animates = true
+        popover.contentViewController = NSHostingController(
+            rootView: TextFontPopoverView(model: fontModel))
+        return popover
+    }
+
+    func closeFontPopover() {
+        fontPopover?.close()
+    }
+
+    // MARK: 内联输入框（虚线框，宽度随文字增长）
+
+    /// 圆角矩形 CGPath（NSBezierPath.cgPath 需 macOS 14，部署目标 13 —— 手工构造）
+    private static func roundedRectPath(_ rect: CGRect, radius: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.addRoundedRect(in: rect, cornerWidth: radius, cornerHeight: radius)
+        return path
+    }
+
+    private func beginTextEditing(at viewPoint: CGPoint) {
+        closeFontPopover()
+        let anchor = imagePoint(viewPoint)
+        let fontPx = AnnotationCompositor.textFontSize(scale: textSize)
+        let displayFont = max(13, fontPx * imageScale)
+        let font = NSFont.systemFont(ofSize: displayFont,
+                                     weight: AnnotationCompositor.fontWeight(1))
+
+        // 起始宽度只按占位符算（≈3 个字）；之后随文字生长，到上限自动换行、框高随行长
+        let placeholder = "输入文字"
+        let seedWidth = ceil((placeholder as NSString).size(withAttributes: [.font: font]).width)
+        let boxH = ceil(displayFont * 1.9)
+        var boxW = min(520, max(110, seedWidth + 28))
+        var origin = CGPoint(x: viewPoint.x - 8, y: viewPoint.y - boxH / 2)
+        origin.x = min(max(6, origin.x), max(6, bounds.width - boxW - 6))
+        origin.y = min(max(6, origin.y), max(6, bounds.height - boxH - 6))
+
+        let box = NSView(frame: NSRect(x: origin.x, y: origin.y, width: boxW, height: boxH))
+        box.wantsLayer = true
+        // 虚线框：极淡底 + 强调色虚线描边（提示「这里是输入区」，不压住画面）
+        let border = CAShapeLayer()
+        border.lineWidth = 1.4
+        border.lineDashPattern = [5, 4]
+        border.fillColor = NSColor.textBackgroundColor.withAlphaComponent(0.88).cgColor
+        border.strokeColor = Theme.accentNS.withAlphaComponent(0.95).cgColor
+        border.path = Self.roundedRectPath(box.bounds, radius: 7)
+        box.layer?.addSublayer(border)
+        textEditorBorder = border
+
+        let fieldH = ceil(displayFont * 1.35)
+        let field = NSTextField(frame: NSRect(x: 12, y: (boxH - fieldH) / 2,
+                                              width: boxW - 24, height: fieldH))
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.font = font
+        field.textColor = color
+        field.placeholderString = "输入文字，回车确认"
+        // 多行 + 自动换行：长文换行继续显示，不再被 .byClipping 切掉
+        //（回车仍 = 确认；⇧回车 才插入换行，见 doCommandBy）
+        // 按字符断行（CJK 友好），提交时用同一算法硬换行，保证画布上与预览一致
+        field.cell?.usesSingleLineMode = false
+        field.cell?.wraps = true
+        field.cell?.isScrollable = false
+        field.cell?.lineBreakMode = .byCharWrapping
+        field.delegate = self
+        field.target = self
+        field.action = #selector(textFieldSubmitted)
+        box.addSubview(field)
+        addSubview(box)
+        textEditorBox = box
+        textEditor = field
+        textAnchor = anchor
+        window?.makeFirstResponder(field)
+        Log.info("Capture", "标注：内联输入框（字号 \(Int(fontPx))px／屏显 \(Int(displayFont))pt，初始宽 \(Int(boxW)))")
+    }
+
+    /// 文字换行宽度（图像像素）：画布宽 82% 与「锚点右侧剩余宽」取小——
+    /// 点在画面右半边时收窄换行，文字就不会冲出画面被窗口切掉。
+    private func textWrapWidth(for anchor: CGPoint) -> CGFloat {
+        let margin: CGFloat = 32
+        return min(CGFloat(image.width) * 0.82,
+                   max(240, CGFloat(image.width) - anchor.x - margin))
+    }
+
+    /// 输入内容变化 → 框随文字生长：
+    ///   · 单行放得下：宽度 = 文字宽 + 内边距，向右生长；
+    ///   · 放不下：宽度封顶（画布 ~80%），文字换行，框高随行数增长（上边不动，向下长）。
+    private func updateEditorBoxSize() {
+        guard let field = textEditor, let box = textEditorBox, let border = textEditorBorder else { return }
+        let font = field.font ?? .systemFont(ofSize: 13)
+        let shown = field.stringValue.isEmpty
+            ? (field.placeholderString ?? "输入文字")
+            : field.stringValue
+
+        let padX: CGFloat = 28      // 左右各 12 + 光标余量
+        let padY: CGFloat = 18      // 上下留白
+        // 宽度上限 = 提交时的换行宽度（视图坐标），保证「输入框看到的换行」=「画布上的换行」
+        let wrapPts = (textAnchor.map { textWrapWidth(for: $0) } ?? (fitRect.width * 0.82)) / max(imageScale, 0.01)
+        let maxW = min(bounds.width - 12, max(180, wrapPts))
+
+        // 单行宽度（不换行）
+        let unwrapped = ceil((shown as NSString).size(withAttributes: [.font: font]).width)
+        let singleLine = unwrapped + padX <= maxW
+        let targetWidth = singleLine ? max(110, unwrapped + padX) : maxW
+
+        // 高度：按 targetWidth 内的排版高度算（单行时就是一个行高）
+        let textRect = (shown as NSString).boundingRect(
+            with: CGSize(width: max(20, targetWidth - padX), height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font])
+        let targetHeight = max(34, ceil(textRect.height) + padY)
+
+        guard abs(targetWidth - box.frame.width) > 0.5
+            || abs(targetHeight - box.frame.height) > 0.5 else { return }
+
+        var frame = box.frame
+        // 宽度：左边缘不动；贴到右边缘时改为右不动，避免长文飞出画布
+        if frame.maxX + (targetWidth - frame.width) > bounds.width - 6 {
+            frame.origin.x = max(6, bounds.width - 6 - targetWidth)
+        }
+        // 高度：上边缘不动，向下生长；超出画布底部则整体上移
+        if frame.maxY + (targetHeight - frame.height) > bounds.height - 6 {
+            frame.origin.y = max(6, bounds.height - 6 - targetHeight)
+        }
+        frame.size.width = targetWidth
+        frame.size.height = targetHeight
+        box.frame = frame
+
+        // 文字区：水平内边距 12，垂直居中
+        let innerH = max(ceil(displayFontSize(of: font) * 1.35), ceil(textRect.height))
+        field.frame = NSRect(x: 12, y: max(6, (targetHeight - innerH) / 2),
+                             width: targetWidth - 24, height: innerH)
+        border.path = Self.roundedRectPath(box.bounds, radius: 7)
+    }
+
+    private func displayFontSize(of font: NSFont) -> CGFloat { font.pointSize }
+
+    @objc private func textFieldSubmitted() {
+        finishTextEditing(commit: true)
+    }
+
+    /// 提交或取消内联文字。提交空串等价于取消。
+    func finishTextEditing(commit: Bool) {
+        guard let field = textEditor else { return }
+        let raw = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let anchor = textAnchor
+        textEditor = nil
+        textAnchor = nil
+        textEditorBorder = nil
+        textEditorBox?.removeFromSuperview()
+        textEditorBox = nil
+        window?.makeFirstResponder(self)
+        guard commit, !raw.isEmpty, let anchor else { needsDisplay = true; return }
+
+        // 存「逻辑文本 + 换行宽度」（图像像素）：绘制时按此宽度软换行，调字号后自动重排
+        let wrapWidthImage = textWrapWidth(for: anchor)
+        let a = Annotation(tool: .text, points: [anchor], text: raw,
+                           colorHex: AnnotationCompositor.hex(of: color),
+                           lineWidth: textSize,
+                           weight: 1,
+                           wrapWidth: wrapWidthImage)
+        annotations.append(a)
+        record(.annotation(a))
+        // 落字后自动选中 + 弹字体配置：与「点已有文字」同一套交互
+        selectText(a)
+        if let rect = textSelectionViewRect() {
+            showFontPopover(for: a, at: rect)
+        }
+        needsDisplay = true
+        onChange?()
     }
 
     // MARK: 操作（供工具条调用）
@@ -437,8 +983,18 @@ final class AnnotationCanvasView: NSView {
     var canUndo: Bool { !ops.isEmpty }
     var canRedo: Bool { !redoOps.isEmpty }
 
-    /// 记录一次编辑：入撤销栈并清空重做栈
+    /// 记录一次编辑：入撤销栈并清空重做栈。
+    /// 连续改写同一条标注（拖字号滑杆 / 拖动文字）合并成一条，避免撤销栈被几十个中间态塞满。
     private func record(_ op: EditOp) {
+        if case .modify(let old, let new) = op,
+           case .modify(let prevOld, let prevNew)? = ops.last,
+           prevNew.id == new.id {
+            ops[ops.count - 1] = .modify(old: prevOld, new: new)
+            redoOps.removeAll()
+            needsDisplay = true
+            onChange?()
+            return
+        }
         ops.append(op)
         redoOps.removeAll()
         needsDisplay = true
@@ -466,6 +1022,14 @@ final class AnnotationCanvasView: NSView {
         case .annotation(let a):
             if forward { annotations.append(a) }
             else { annotations.removeAll { $0.id == a.id } }
+        case .modify(let old, let new):
+            if let index = annotations.firstIndex(where: { $0.id == new.id }) {
+                annotations[index] = forward ? new : old
+            }
+            // 撤销/重做后同步选中态：被还原的那段文字如果还选中着，工具条数字要跟着回退
+            if selectedTextID == new.id {
+                onTextSelectionChange?(forward ? new : old)
+            }
         case .imageSnapshot(let old, let new):
             image = forward ? new : old
             mosaicPixelCache.removeAll(); mosaicCacheBase = nil
@@ -477,6 +1041,7 @@ final class AnnotationCanvasView: NSView {
         annotations.removeAll()
         ops.removeAll()
         redoOps.removeAll()
+        if selectedTextID != nil { selectText(nil) }
         needsDisplay = true
         onChange?()
     }
@@ -484,6 +1049,66 @@ final class AnnotationCanvasView: NSView {
     /// 合成结果（无标注则返回原图）
     func composite() -> CGImage? {
         AnnotationCompositor.composite(base: image, annotations: annotations)
+    }
+
+    /// 滚轮调粗细：Snipaste / Flameshot 的通用手势（纵向滚轮才生效，避免误触横向滑动）
+    override func scrollWheel(with event: NSEvent) {
+        let dy = event.scrollingDeltaY
+        guard abs(dy) > abs(event.scrollingDeltaX), abs(dy) >= 0.5 else {
+            super.scrollWheel(with: event)
+            return
+        }
+        onSizeDelta?(dy > 0 ? 1 : -1)
+    }
+
+    // MARK: 验收探针（无鼠标环境）
+
+    /// 在画布中心打开内联文字框，1.2s 后落字并选中。
+    /// 仅用于截图验收「输入框尺寸 / 选中框 / 字号联动」，由 defaults 键 probe.annotate 打开。
+    func runAnnotateTextProbe() {
+        let point = CGPoint(x: bounds.midX, y: bounds.midY)
+        beginTextEditing(at: point)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard let self, let field = self.textEditor else { return }
+            // 长文本：验证「超宽自动换行、不截断」
+            field.stringValue = "这是一段比较长的标注文字用来验证输入框超出宽度后会自动换行不再截断 Aa 123"
+            self.updateEditorBoxSize()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                self.finishTextEditing(commit: true)
+                // 落字后选中 + 弹字体配置；再推大字号验证「拖边框/滑杆改字号」链路
+                if let a = self.selectedText, let r = self.textSelectionViewRect() {
+                    self.showFontPopover(for: a, at: r)
+                    self.applyTextSizeToSelection(min(12, a.lineWidth + 3))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 内联文字输入
+
+extension AnnotationCanvasView: NSTextFieldDelegate {
+    func controlTextDidEndEditing(_ obj: Notification) {
+        // 失焦（点画布别处 / Tab）也落字，与「所见即所得」一致
+        finishTextEditing(commit: true)
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        // 每敲一个字：虚线框宽跟着文字走（左边缘不动，向右生长）
+        updateEditorBoxSize()
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            finishTextEditing(commit: false)
+            return true
+        }
+        // 多行输入框里回车默认是「换行」；这里改成语义：回车 = 确认，⇧回车 = 插入换行
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            finishTextEditing(commit: true)
+            return true
+        }
+        return false
     }
 }
 
@@ -500,8 +1125,8 @@ final class AnnotationEditorWindow: NSWindow {
     var onCopy: ((CGImage) -> Void)?
     var onSave: ((CGImage) -> Void)?
 
-    /// 工具条高度（画布下方固定条）
-    private static let toolbarHeight: CGFloat = 58
+    /// 工具条高度（画布下方悬浮胶囊的容纳区）
+    private static let toolbarHeight: CGFloat = 84
 
     init(image: CGImage) {
         let maxW: CGFloat = 960, maxH: CGFloat = 720
@@ -514,21 +1139,39 @@ final class AnnotationEditorWindow: NSWindow {
         super.init(contentRect: NSRect(origin: .zero, size: size),
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
-        title = "标注截图"
-        applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
+        title = "标注截图  ·  \(image.width) × \(image.height)"
+        // 灰色画布 + 透明标题栏：标题栏与画布同底，不再出现上下两条异色
+        backgroundColor = EditorBackdrop.color
+        titlebarAppearsTransparent = true
         minSize = NSSize(width: 880, height: 300 + Self.toolbarHeight)
         isReleasedWhenClosed = false
         canvas.frame = NSRect(x: 0, y: Self.toolbarHeight, width: canvasW, height: canvasH)
         canvas.autoresizingMask = [.width, .height]
         canvas.onChange = { [weak self] in self?.refreshActions() }
         canvas.onKey = { [weak self] event in self?.handleKey(event) ?? false }
+        canvas.onSizeDelta = { [weak self] delta in self?.adjustSize(by: delta) }
+        // 选中文字 → 工具条显示「这段文字」的字号/颜色，滑杆直接改它
+        canvas.onTextSelectionChange = { [weak self] annotation in
+            guard let self else { return }
+            self.toolbarModel.textSelectionActive = annotation != nil
+            guard let annotation else { return }
+            self.toolbarModel.textSize = Double(annotation.lineWidth)
+            self.toolbarModel.color = Color(nsColor: AnnotationCompositor.color(fromHex: annotation.colorHex))
+        }
         canvas.tool = AnnotationTool.allCases[toolbarModel.toolIndex]
+        // 默认粗细随图幅走（3000px 级截图默认给粗，避免「细到看不见」）
+        toolbarModel.applyImageDefaults(imageWidth: image.width)
+        canvas.lineWidth = CGFloat(toolbarModel.lineWidth)
+        canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
+        canvas.textSize = CGFloat(toolbarModel.textSize)
+        canvas.mosaicBlock = CGFloat(toolbarModel.mosaicBlock)
         // 鼠标移动事件必须由**窗口**开启（NSWindow 属性）；画布侧靠 trackingArea(.mouseMoved) 接收，
         // 第一响应者负责 keyDown——两者缺一都会表现为「橡皮圈不跟手 / 快捷键无效」。
         acceptsMouseMovedEvents = true
 
         let container = NSView(frame: NSRect(origin: .zero, size: size))
         container.autoresizesSubviews = true
+        container.wantsLayer = true
         container.addSubview(canvas)
 
         let toolbar = buildToolbar(width: canvasW)
@@ -543,40 +1186,81 @@ final class AnnotationEditorWindow: NSWindow {
     // MARK: 工具条
 
     private func buildToolbar(width: CGFloat) -> NSView {
-        let host = NSHostingView(rootView: EditorToolbarView(
-            model: toolbarModel,
-            onTool: { [weak self] index in
-                self?.canvas.tool = AnnotationTool.allCases[index]
-                self?.refocusCanvas()
-            },
-            onColor: { [weak self] color in
-                self?.canvas.color = NSColor(color)
-                self?.refocusCanvas()
-            },
-            onLineWidth: { [weak self] value in
-                self?.canvas.lineWidth = CGFloat(value)
-                self?.refocusCanvas()
-            },
-            onBrushWidth: { [weak self] value in
-                self?.canvas.brushWidth = CGFloat(value)
-                self?.refocusCanvas()
-            },
-            onBlock: { [weak self] value in
-                self?.canvas.mosaicBlock = CGFloat(value)
-                self?.refocusCanvas()
-            },
-            onUndo: { [weak self] in self?.undoTapped(); self?.refocusCanvas() },
-            onRedo: { [weak self] in self?.redoTapped(); self?.refocusCanvas() },
-            onClear: { [weak self] in self?.clearTapped(); self?.refocusCanvas() },
-            onLong: { [weak self] in self?.longScreenshotTapped() },
-            onCopy: { [weak self] in self?.copyTapped() },
-            onSave: { [weak self] in self?.saveTapped() },
-            onClose: { [weak self] in self?.closeTapped() }
-        ))
+        let root = VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            AnnotationToolbarView(
+                model: toolbarModel,
+                onTool: { [weak self] index in self?.toolbarDidSelectTool(index) },
+                onColor: { [weak self] color in self?.toolbarDidChangeColor(NSColor(color)) },
+                onSize: { [weak self] value in self?.toolbarDidChangeSize(CGFloat(value)) },
+                onBlock: { [weak self] value in self?.toolbarDidChangeBlock(value) },
+                onUndo: { [weak self] in self?.undoTapped(); self?.refocusCanvas() },
+                onRedo: { [weak self] in self?.redoTapped(); self?.refocusCanvas() },
+                onClear: { [weak self] in self?.clearTapped(); self?.refocusCanvas() },
+                onLong: { [weak self] in self?.longScreenshotTapped() },
+                onCopy: { [weak self] in self?.copyTapped() },
+                onSave: { [weak self] in self?.saveTapped() },
+                onClose: { [weak self] in self?.closeTapped() }
+            )
+            .padding(.bottom, 16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 主题统一入口：标注工具条的强调色（复制按钮/选中态）跟个性化走
+        .frsetThemeChrome()
+
+        let host = NSHostingView(rootView: root)
         host.sizingOptions = []
         host.frame = NSRect(x: 0, y: 0, width: width, height: Self.toolbarHeight)
         host.autoresizingMask = [.width]
         return host
+    }
+
+    /// 工具条回调 → 画布/窗口动作（集中在一处，SwiftUI 侧不持有 NSWindow）
+    func toolbarDidSelectTool(_ index: Int) {
+        let tool = AnnotationTool.allCases[index]
+        canvas.tool = tool
+        // 切到文字/笔刷时把它们各自的尺寸同步给画布
+        switch tool {
+        case .text: canvas.textSize = CGFloat(toolbarModel.textSize)
+        case .highlighter: canvas.lineWidth = CGFloat(toolbarModel.highlighterWidth)
+        case .eraser, .mosaic, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
+        default: canvas.lineWidth = CGFloat(toolbarModel.lineWidth)
+        }
+        refocusCanvas()
+    }
+
+    func toolbarDidChangeColor(_ color: NSColor) {
+        canvas.color = color
+        // 有选中的文字时，改色直接落到这段文字上（不然用户会觉得「选了却改不动」）
+        if canvas.tool == .text, canvas.selectedTextID != nil {
+            canvas.applyColorToSelection(AnnotationCompositor.hex(of: color))
+        }
+        refocusCanvas()
+    }
+
+    func toolbarDidChangeSize(_ value: CGFloat) {
+        switch toolbarModel.activeTool {
+        case .text:
+            canvas.textSize = value
+            // 选中了某段文字：滑杆改的是它，而不是只改「下一个文字的默认字号」
+            if canvas.selectedTextID != nil { canvas.applyTextSizeToSelection(value) }
+        case .highlighter: canvas.lineWidth = value
+        case .eraser, .mosaic, .removal: canvas.brushWidth = value
+        default: canvas.lineWidth = value
+        }
+        refocusCanvas()
+    }
+
+    func toolbarDidChangeBlock(_ value: Int) {
+        canvas.mosaicBlock = CGFloat(value)
+        refocusCanvas()
+    }
+
+    /// 滚轮/方括号调尺寸：同时更新工具条数值与画布
+    func adjustSize(by delta: CGFloat) {
+        toolbarModel.nudgeSize(by: Double(delta))
+        toolbarDidChangeSize(CGFloat(toolbarModel.sizeValue))
+        canvas.needsDisplay = true
     }
 
     private func refreshActions() {
@@ -598,6 +1282,12 @@ final class AnnotationEditorWindow: NSWindow {
         guard let index = AnnotationTool.allCases.firstIndex(of: tool) else { return }
         toolbarModel.toolIndex = index
         canvas.tool = tool
+        switch tool {
+        case .text: canvas.textSize = CGFloat(toolbarModel.textSize)
+        case .highlighter: canvas.lineWidth = CGFloat(toolbarModel.highlighterWidth)
+        case .eraser, .mosaic, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
+        default: canvas.lineWidth = CGFloat(toolbarModel.lineWidth)
+        }
     }
 
     @objc private func undoTapped() { canvas.undo() }
@@ -656,8 +1346,9 @@ final class AnnotationEditorWindow: NSWindow {
         case "t": selectTool(.text); return true
         case "e": selectTool(.eraser); return true
         case "d": selectTool(.removal); return true
-        case "[": canvas.undo(); return true
-        case "]": canvas.redo(); return true
+        // [ ] 调当前工具粗细/笔刷直径（Photoshop / Flameshot 惯例）
+        case "[": adjustSize(by: -2); return true
+        case "]": adjustSize(by: 2); return true
         default: return false
         }
     }
@@ -690,9 +1381,16 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         open(image: image)
     }
 
-    public func open(image: CGImage) {
-        window?.close()
+    public func open(image: CGImage, tool: AnnotationTool? = nil) {
+        // 编辑器是单实例：旧窗口（含深链/贴图/剪贴板多入口开的）一律收掉，
+        // 否则会出现「两个编辑器叠着、输入框落在旧窗口上」的幽灵状态。
+        for w in NSApp.windows where w is AnnotationEditorWindow { w.close() }
+        window = nil
         let editor = AnnotationEditorWindow(image: image)
+        if let tool, let index = AnnotationTool.allCases.firstIndex(of: tool) {
+            editor.toolbarModel.toolIndex = index
+            editor.canvas.tool = tool
+        }
         editor.delegate = self
         editor.onCopy = { image in
             ScreenshotManager.shared.copyToPasteboard(image)
@@ -708,331 +1406,16 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         // 画布为第一响应者：笔刷光标圈（mouseMoved）与工具快捷键（keyDown）才能收到事件
         editor.makeFirstResponder(editor.canvas)
         NSApp.activate(ignoringOtherApps: true)
-        Log.info("Capture", "标注：编辑器窗口已显示（\(Int(editor.frame.width))×\(Int(editor.frame.height))）")
+        // 无鼠标环境的视觉验收钩子（probe.annotate = 1）
+        if UserDefaults.standard.bool(forKey: "probe.annotate") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                editor.canvas.runAnnotateTextProbe()
+            }
+        }
+        Log.info("Capture", "标注：编辑器窗口已显示（\(Int(editor.frame.width))×\(Int(editor.frame.height))）origin=\(editor.frame.origin) screen=\(NSScreen.main?.frame.size ?? .zero)")
     }
 
     public func windowWillClose(_ notification: Notification) {
         if (notification.object as? AnnotationEditorWindow) === window { window = nil }
-    }
-}
-
-// MARK: - 工具条状态与视图（2026-10-20 重做）
-
-/// 工具条状态：当前工具、颜色、线宽、马赛克笔刷/块大小、撤销重做可用态
-final class EditorToolbarModel: ObservableObject {
-    @Published var toolIndex = 2                 // 默认箭头（截图后最常用）
-    @Published var color: Color = Color(nsColor: .systemRed)
-    @Published var lineWidth: Double = 3
-    /// 笔刷类工具（马赛克/橡皮/抹除）的直径
-    @Published var brushWidth: Double = 36
-    /// 马赛克块大小（像素）
-    @Published var mosaicBlock: Int = 10
-    @Published var canUndo = false
-    @Published var canRedo = false
-
-    var activeTool: AnnotationTool {
-        let all = AnnotationTool.allCases
-        return all[max(0, min(toolIndex, all.count - 1))]
-    }
-    /// 当前工具是否笔刷类
-    var isBrushTool: Bool {
-        switch activeTool {
-        case .mosaic, .eraser, .removal: return true
-        default: return false
-        }
-    }
-    /// 当前工具是否需要颜色
-    var usesColor: Bool {
-        switch activeTool {
-        case .mosaic, .eraser, .removal: return false
-        default: return true
-        }
-    }
-}
-
-/// 工具条：图标工具分组 + 上下文样式 + 撤销/重做 + 主次操作。
-private struct EditorToolbarView: View {
-    @ObservedObject var model: EditorToolbarModel
-    var onTool: (Int) -> Void
-    var onColor: (Color) -> Void
-    var onLineWidth: (Double) -> Void
-    var onBrushWidth: (Double) -> Void
-    var onBlock: (Int) -> Void
-    var onUndo: () -> Void
-    var onRedo: () -> Void
-    var onClear: () -> Void
-    var onLong: () -> Void
-    var onCopy: () -> Void
-    var onSave: () -> Void
-    var onClose: () -> Void
-
-    /// 预设色（与 macOS 系统色一致；马赛克/橡皮不显示）
-    private static let palette: [String] = ["#FF3B30", "#FF9500", "#FFCC00",
-                                            "#34C759", "#0A84FF", "#FFFFFF", "#1C1C1E"]
-
-    var body: some View {
-        HStack(spacing: 9) {
-            toolCluster
-            Spacer(minLength: 12)
-            styleCluster
-            divider
-            actionCluster
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 58)
-        .background(Color(nsColor: OfficialChrome.windowBackground))
-        .overlay(alignment: .top) {
-            Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5)
-        }
-    }
-
-    // MARK: 工具
-
-    private var toolCluster: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(AnnotationTool.allCases.enumerated()), id: \.offset) { index, tool in
-                ToolbarIconButton(symbol: tool.systemImage,
-                                  selected: model.toolIndex == index,
-                                  help: "\(tool.title)  \(tool.shortcut)") {
-                    model.toolIndex = index
-                    onTool(index)
-                }
-                // 工具分组：形状 / 画笔 / 文字与修复，中间留一点呼吸
-                if index == 2 || index == 5 {
-                    Rectangle().fill(Color.primary.opacity(0.10))
-                        .frame(width: 0.5, height: 16)
-                        .padding(.horizontal, 3)
-                }
-            }
-        }
-    }
-
-    // MARK: 样式（颜色 / 笔刷 / 块大小）
-
-    private var styleCluster: some View {
-        HStack(spacing: 8) {
-            if model.usesColor {
-                colorCluster
-            }
-            sizeControl
-            if model.activeTool == .mosaic {
-                blockControl
-            }
-        }
-    }
-
-    private var colorCluster: some View {
-        HStack(spacing: 5) {
-            ForEach(Self.palette, id: \.self) { hex in
-                let color = Color(nsColor: AnnotationCompositor.color(fromHex: hex))
-                Button {
-                    model.color = color
-                    onColor(color)
-                } label: {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 14, height: 14)
-                        .overlay(Circle().stroke(Color.primary.opacity(0.18), lineWidth: 0.8))
-                        .overlay {
-                            if isSameColor(model.color, color) {
-                                Circle().stroke(Color.accentColor, lineWidth: 2)
-                                    .frame(width: 18, height: 18)
-                            }
-                        }
-                        .frame(width: 18, height: 18)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .help("颜色 \(hex)")
-            }
-            ColorWellButton(current: NSColor(model.color)) { picked in
-                model.color = picked
-                onColor(picked)
-            }
-        }
-    }
-
-    /// 粗细 / 笔刷直径：一条滑杆 + 实时圆点预览 + 数值
-    private var sizeControl: some View {
-        let isBrush = model.isBrushTool
-        let value = isBrush ? model.brushWidth : model.lineWidth
-        let range: ClosedRange<Double> = isBrush ? 8...80 : 1...20
-        let preview = max(2.5, min(14, isBrush ? value / 5 : value + 1))
-        return HStack(spacing: 6) {
-            Circle()
-                .fill(model.usesColor ? model.color : Color.primary.opacity(0.55))
-                .frame(width: preview, height: preview)
-                .frame(width: 14, height: 14)
-            Slider(value: Binding(
-                get: { value },
-                set: { newValue in
-                    if isBrush { model.brushWidth = newValue; onBrushWidth(newValue) }
-                    else { model.lineWidth = newValue; onLineWidth(newValue) }
-                }), in: range)
-                .controlSize(.small)
-                .tint(Color.accentColor)
-                .frame(width: 96)
-            Text(isBrush ? "\(Int(value))" : String(format: "%.0f", value))
-                .font(.system(size: 9.5).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 20, alignment: .trailing)
-        }
-        .help(isBrush ? "笔刷直径（像素）" : "线条粗细")
-    }
-
-    /// 马赛克块大小：6 / 10 / 16（块越小越容易被还原，块越大越糊）
-    private var blockControl: some View {
-        HStack(spacing: 4) {
-            Text("块")
-                .font(.system(size: 9.5))
-                .foregroundStyle(.tertiary)
-            Picker("", selection: Binding(
-                get: { model.mosaicBlock },
-                set: { model.mosaicBlock = $0; onBlock($0) })) {
-                Text("6").tag(6)
-                Text("10").tag(10)
-                Text("16").tag(16)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 92)
-        }
-        .help("马赛克块大小（像素）")
-    }
-
-    // MARK: 操作
-
-    private var actionCluster: some View {
-        HStack(spacing: 2) {
-            ToolbarIconButton(symbol: "arrow.uturn.backward",
-                              enabled: model.canUndo,
-                              help: "撤销  ⌘Z", action: onUndo)
-            ToolbarIconButton(symbol: "arrow.uturn.forward",
-                              enabled: model.canRedo,
-                              help: "重做  ⇧⌘Z", action: onRedo)
-            ToolbarIconButton(symbol: "trash", help: "清空标注", action: onClear)
-            ToolbarIconButton(symbol: "arrow.down.to.line", help: "长截图", action: onLong)
-
-            divider
-
-            Button(action: onCopy) {
-                HStack(spacing: 4) {
-                    Image(systemName: "doc.on.doc").font(.system(size: 11, weight: .semibold))
-                    Text("复制").font(.system(size: 11.5, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .frame(height: 26)
-                .background(Capsule().fill(Color.accentColor))
-                .contentShape(Capsule())
-                .fixedSize()
-            }
-            .buttonStyle(.plain)
-            .focusable(false)
-            .help("复制到剪贴板  ⌘C")
-
-            ToolbarIconButton(symbol: "square.and.arrow.down", help: "保存  ⌘S", action: onSave)
-            ToolbarIconButton(symbol: "xmark", help: "关闭  Esc", action: onClose)
-        }
-    }
-
-    private var divider: some View {
-        Rectangle()
-            .fill(Color.primary.opacity(0.10))
-            .frame(width: 0.5, height: 20)
-            .padding(.horizontal, 2)
-    }
-
-    private func isSameColor(_ a: Color, _ b: Color) -> Bool {
-        let na = NSColor(a).usingColorSpace(.sRGB)
-        let nb = NSColor(b).usingColorSpace(.sRGB)
-        guard let na, let nb else { return false }
-        return abs(na.redComponent - nb.redComponent) < 0.02
-            && abs(na.greenComponent - nb.greenComponent) < 0.02
-            && abs(na.blueComponent - nb.blueComponent) < 0.02
-    }
-}
-
-/// 工具条图标按钮：选中态强调色、悬停浅底、禁用态降透明度；带 tooltip
-private struct ToolbarIconButton: View {
-    let symbol: String
-    var selected: Bool = false
-    var enabled: Bool = true
-    let help: String
-    let action: () -> Void
-    @Stored private var hovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 12.5, weight: .medium))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(selected ? Color.accentColor : Color.primary.opacity(enabled ? 0.85 : 0.35))
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(selected ? Color.accentColor.opacity(0.16)
-                              : (hovering ? Color.primary.opacity(0.07) : Color.clear))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .stroke(selected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .onHover { hovering = $0 }
-        .help(help)
-        .disabled(!enabled)
-    }
-}
-
-
-// MARK: - 自定义颜色（替换系统 ColorPicker 在工具条里被拉宽的问题）
-
-/// 一个彩虹圆点：点击打开系统取色面板，回调所选颜色。
-private struct ColorWellButton: View {
-    let current: NSColor
-    let onPick: (Color) -> Void
-
-    var body: some View {
-        Button {
-            ColorPanelBridge.shared.present(current: current) { ns in
-                onPick(Color(nsColor: ns))
-            }
-        } label: {
-            Circle()
-                .fill(AngularGradient(
-                    gradient: Gradient(colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .red]),
-                    center: .center))
-                .frame(width: 15, height: 15)
-                .overlay(Circle().stroke(Color.primary.opacity(0.22), lineWidth: 0.8))
-                .frame(width: 18, height: 18)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help("自定义颜色…")
-    }
-}
-
-/// NSColorPanel 桥（单例持有 target，避免面板 action 丢失）
-private final class ColorPanelBridge: NSObject {
-    static let shared = ColorPanelBridge()
-    private var onChange: ((NSColor) -> Void)?
-
-    func present(current: NSColor, onChange: @escaping (NSColor) -> Void) {
-        self.onChange = onChange
-        let panel = NSColorPanel.shared
-        panel.showsAlpha = false
-        panel.color = current
-        panel.setTarget(self)
-        panel.setAction(#selector(colorChanged(_:)))
-        panel.orderFront(nil)
-    }
-
-    @objc private func colorChanged(_ sender: NSColorPanel) {
-        onChange?(sender.color)
     }
 }

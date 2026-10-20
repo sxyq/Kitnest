@@ -66,6 +66,12 @@ public struct Annotation: Identifiable, Hashable {
     public var lineWidth: CGFloat
     /// 马赛克块大小（图像像素；8–16 之间观感最好，越小越容易被还原）
     public var blockSize: CGFloat
+    /// 文字字重（0 常规 / 1 中粗 / 2 加粗；仅 .text 用，字体配置弹层可改）
+    public var weight: Int
+    /// 文字换行宽度（图像像素；0 = 不换行）。
+    /// 存「逻辑文本」+ 换行宽度，绘制时才软换行——调字号后文字会按新字宽**重新排**，
+    /// 不会退化成一整条冲出画面（2026-10-20 用户实障：长文提交后截断/溢出）。
+    public var wrapWidth: CGFloat
 
     public init(id: UUID = UUID(),
                 tool: AnnotationTool,
@@ -73,7 +79,9 @@ public struct Annotation: Identifiable, Hashable {
                 text: String? = nil,
                 colorHex: String = "#FF3B30",
                 lineWidth: CGFloat = 3,
-                blockSize: CGFloat = 10) {
+                blockSize: CGFloat = 10,
+                weight: Int = 1,
+                wrapWidth: CGFloat = 0) {
         self.id = id
         self.tool = tool
         self.points = points
@@ -81,6 +89,8 @@ public struct Annotation: Identifiable, Hashable {
         self.colorHex = colorHex
         self.lineWidth = lineWidth
         self.blockSize = blockSize
+        self.weight = weight
+        self.wrapWidth = wrapWidth
     }
 }
 
@@ -188,52 +198,92 @@ public enum AnnotationCompositor {
             return   // 抹除不产生图元（在画布上直接修底图像素，画布另有涂抹预览）
         case .text:
             guard let anchor = a.points.first, let text = a.text, !text.isEmpty else { return }
+            let font = NSFont.systemFont(ofSize: fontSize(for: a.lineWidth), weight: fontWeight(a.weight))
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: fontSize(for: a.lineWidth), weight: .semibold),
+                .font: font,
                 .foregroundColor: color
             ]
-            (text as NSString).draw(at: anchor, withAttributes: attrs)
+            (displayText(text, wrapWidth: a.wrapWidth, font: font) as NSString)
+                .draw(at: anchor, withAttributes: attrs)
         }
     }
 
-    /// 马赛克笔刷：把「像素化底图」裁剪进笔触路径里。
-    /// 参考实现：SuperSnip（像素化笔刷 + 笔刷尺寸）、js-screenshot（blockSize/brushSize 分离）、
-    /// Flameshot（块均值重采样）。像素化图层由调用方缓存，拖动时零重算。
+    /// 马赛克笔刷：沿轨迹铺像素化底图，笔触 = 圆头圆角的**粗描边区域**。
+    ///
+    /// 关键：必须先把路径转成「描边轮廓」（`replacePathWithStrokedPath`）再裁剪。
+    /// 直接 `addClip` 会把开放折线**隐式闭合**成多边形——描出来的是一块介于轨迹和直线之间的
+    /// 色块（旧版实障：马赛克看起来像线条/三角形，而不是画笔），笔刷宽度也完全不生效。
+    ///
+    /// 参考实现：Snipaste（笔刷大小与单元格大小两个独立参数）、Flameshot（滚轮调笔触粗细）、
+    /// js-screenshot（pixelate 图层 + round stroke 遮罩）。
     private static func drawMosaicBrush(_ a: Annotation,
                                         base: CGImage?,
                                         fallbackColor: NSColor,
                                         pixelated: CGImage?) {
         let width = max(4, a.lineWidth)
-        let path = NSBezierPath()
-        path.lineWidth = width
-        path.lineCapStyle = .round
-        path.lineJoinStyle = .round
-        if a.points.count == 1, let p = a.points.first {
-            path.appendOval(in: CGRect(x: p.x - width / 2, y: p.y - width / 2,
-                                       width: width, height: width))
-        } else {
-            guard let first = a.points.first else { return }
-            path.move(to: first)
-            for p in a.points.dropFirst() { path.line(to: p) }
-        }
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
-        guard let pixelated, let base, let ctx = NSGraphicsContext.current?.cgContext else {
+        guard let pixelated, let base, !a.points.isEmpty else {
             // 无底图（纯预览）时用半透明色带表示笔触范围
-            fallbackColor.withAlphaComponent(0.22).setStroke()
-            fallbackColor.withAlphaComponent(0.22).setFill()
-            if a.points.count == 1 { path.fill() } else { path.stroke() }
+            let path = NSBezierPath()
+            path.lineWidth = width
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            if a.points.count == 1, let p = a.points.first {
+                path.appendOval(in: CGRect(x: p.x - width / 2, y: p.y - width / 2,
+                                           width: width, height: width))
+                fallbackColor.withAlphaComponent(0.22).setFill()
+                path.fill()
+            } else if let first = a.points.first {
+                path.move(to: first)
+                for p in a.points.dropFirst() { path.line(to: p) }
+                fallbackColor.withAlphaComponent(0.22).setStroke()
+                path.stroke()
+            }
             return
         }
 
+        let size = CGSize(width: CGFloat(base.width), height: CGFloat(base.height))
+        strokeMosaic(into: ctx, pixelated: pixelated, size: size,
+                     points: a.points, width: width)
+    }
+
+    /// 把一段马赛克笔触直接画进当前上下文（左上原点、单位为图像像素的坐标系）。
+    /// 不生成整图中间层：裁剪后只栅格化笔触覆盖的区域，拖拽时每帧都便宜。
+    public static func strokeMosaic(into ctx: CGContext,
+                                    pixelated: CGImage,
+                                    size: CGSize,
+                                    points: [CGPoint],
+                                    width: CGFloat) {
+        guard !points.isEmpty, size.width >= 1, size.height >= 1 else { return }
+        let strokeWidth = max(2, width)
+
         ctx.saveGState()
-        if a.points.count == 1 {
-            // 单击落一个点：填充圆
-            path.addClip()
+        // ① 笔触几何：开放折线 → 描边轮廓 → 裁剪区
+        let path = CGMutablePath()
+        if points.count == 1 {
+            // 单击落点：给一个极小线段，配合圆头端帽得到一个正圆
+            let p = points[0]
+            path.move(to: CGPoint(x: p.x - 0.01, y: p.y))
+            path.addLine(to: CGPoint(x: p.x + 0.01, y: p.y))
         } else {
-            path.addClip()
+            path.move(to: points[0])
+            for p in points.dropFirst() { path.addLine(to: p) }
         }
+        ctx.addPath(path)
+        ctx.setLineWidth(strokeWidth)
+        ctx.setLineCap(.round)
+        ctx.setLineJoin(.round)
+        ctx.replacePathWithStrokedPath()
+        ctx.clip()
+
+        // ② 在「左上原点」坐标里画图需要再翻一次；否则马赛克内容会上下颠倒
+        //    （旧版第二个实障：马赛克块里显示的是镜像位置的画面）
+        ctx.translateBy(x: 0, y: size.height)
+        ctx.scaleBy(x: 1, y: -1)
         ctx.interpolationQuality = .none
-        ctx.draw(pixelated, in: CGRect(x: 0, y: 0, width: CGFloat(base.width), height: CGFloat(base.height)))
+        ctx.draw(pixelated, in: CGRect(origin: .zero, size: size))
+
         ctx.restoreGState()
     }
 
@@ -285,8 +335,68 @@ public enum AnnotationCompositor {
     }
 
     /// 文字字号随线宽联动（细→小、粗→大），保证视觉一致
-    private static func fontSize(for lineWidth: CGFloat) -> CGFloat {
+    static func fontSize(for lineWidth: CGFloat) -> CGFloat {
         max(12, min(lineWidth * 6, 72))
+    }
+
+    /// 文字标注的字号（图像像素）——画布内联输入框、命中框、合成共用同一个口径
+    static func textFontSize(scale: CGFloat) -> CGFloat {
+        fontSize(for: scale)
+    }
+
+    /// 字重映射（0 常规 / 1 中粗 / 2 加粗）
+    static func fontWeight(_ value: Int) -> NSFont.Weight {
+        switch value {
+        case 0: return .regular
+        case 2: return .bold
+        default: return .semibold
+        }
+    }
+
+    /// 文字标注的包围盒（图像像素、左上原点）。
+    /// 与 `draw` 里 `(text as NSString).draw(at:)` 的落笔点一致：锚点即文本框左上角，
+    /// 向下延伸排版高度（多行文本按行高累计）。选中框、拖动命中、字号联动都用它。
+    static func textBounds(_ a: Annotation) -> CGRect? {
+        guard a.tool == .text, let anchor = a.points.first,
+              let text = a.text, !text.isEmpty else { return nil }
+        let font = NSFont.systemFont(ofSize: fontSize(for: a.lineWidth), weight: fontWeight(a.weight))
+        // 与 draw 同一口径：先按 wrapWidth 软换行，再按段落排版算高度
+        let rect = (displayText(text, wrapWidth: a.wrapWidth, font: font) as NSString).boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude,
+                         height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font])
+        return CGRect(x: anchor.x, y: anchor.y,
+                      width: max(4, rect.width), height: max(font.pointSize, rect.height))
+    }
+
+    /// 实际绘制/测量用的文本：按 `wrapWidth`（图像像素）软换行。
+    /// 0 或过窄 = 不换行。手动换行（\n）保留为段落边界，段内再按宽度折行。
+    static func displayText(_ text: String, wrapWidth: CGFloat, font: NSFont) -> String {
+        guard wrapWidth > 8 else { return text }
+        return wrapText(text, font: font, maxWidth: wrapWidth)
+    }
+
+    /// 按最大宽度硬换行（逐字符，CJK 友好），与内联输入框的 `.byCharWrapping` 同算法，
+    /// 保证「输入时看到的换行」与「提交后画布上的换行」一致。
+    static func wrapText(_ text: String, font: NSFont, maxWidth: CGFloat) -> String {
+        guard maxWidth > 8 else { return text }
+        var lines: [String] = []
+        for paragraph in text.components(separatedBy: "\n") {
+            var current = ""
+            for ch in paragraph {
+                let candidate = current + String(ch)
+                let width = (candidate as NSString).size(withAttributes: [.font: font]).width
+                if width > maxWidth, !current.isEmpty {
+                    lines.append(current)
+                    current = String(ch)
+                } else {
+                    current = candidate
+                }
+            }
+            lines.append(current)
+        }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: 颜色工具（HEX ↔ NSColor，sRGB）
