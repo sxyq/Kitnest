@@ -158,6 +158,11 @@ struct CloudLinkPromptView: View {
 
     private var tint: Color { Color(nsColor: link.provider.tint) }
 
+    private var subtitleText: String {
+        if link.requiresLogin { return "⚠ 该网盘需登录账号后才能下载 · 点击「测试」打开登录" }
+        return link.isSharePage ? "分享页 · 点击测试解析" : "非分享页 · 可能需要登录"
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
@@ -170,9 +175,12 @@ struct CloudLinkPromptView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("检测到\(link.provider.displayName)链接")
                     .font(.system(size: 12.5, weight: .semibold))
-                Text(link.isSharePage ? "分享页 · 点击测试解析" : "非分享页 · 可能需要登录")
+                // v104（2026-10-21 用户：「弹出的框里要提示该网盘需要登录」）：
+                // 需登录网盘（139/189 实测无游客直链）在卡片里直接警示，
+                // 不再让用户点了才发现解析失败。
+                Text(subtitleText)
                     .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(link.requiresLogin ? Color.orange : Color.secondary)
             }
 
             Spacer(minLength: 2)

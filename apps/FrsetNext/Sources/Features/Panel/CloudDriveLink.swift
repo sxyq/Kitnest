@@ -56,6 +56,12 @@ public struct CloudDriveLink: Equatable, Sendable {
     }
 
     public var host: String { url.host ?? "" }
+
+    /// 下载需登录的网盘（2026-10-20 解析矩阵实测：139/189 无游客直链，
+    /// 解析必失败"该网盘可能要求登录/客户端下载"；104 提示卡片需明示）
+    public var requiresLogin: Bool {
+        provider == .mobile139 || provider == .tianyi189
+    }
 }
 
 public enum CloudDriveLinkDetector {
