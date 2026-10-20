@@ -36,6 +36,15 @@ public enum StatsBarEngine {
     private static var isStarted = false
 
     public static func start() {
+        // v109：录屏保存完成 Toast（引擎广播 FrsetScreenRecDidSave → 与截图同款提示）
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("FrsetScreenRecDidSave"), object: nil, queue: .main
+        ) { note in
+            let path = (note.userInfo?["path"] as? String) ?? ""
+            let name = (path as NSString).lastPathComponent
+            Toast.show(name.isEmpty ? "录屏已保存" : "录屏已保存：\(name)",
+                       icon: "record.circle.fill")
+        }
         guard !isStarted else {
             Log.info("Monitor", "STATS 引擎已在运行，忽略重复启动（菜单栏只允许一套合并条）")
             return
@@ -221,6 +230,8 @@ public enum StatsBarEngine {
     public static func openRecorder() {
         // v84：录屏启动埋点（截图菜单 / 状态栏菜单 / 快捷键统一走本入口）
         StatisticsManager.shared.record(.screenRecord)
+        // v109（2026-10-21 用户：「点击之后 UI 半天没变」）：即时反馈
+        Toast.show("录屏：设置面板已打开（选区域 → 开始录制）", icon: "record.circle")
         FSScreenRecOpenSettings()
     }
 }

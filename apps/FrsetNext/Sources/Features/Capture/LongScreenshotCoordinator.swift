@@ -163,6 +163,8 @@ final class LongScreenshotCoordinator: NSObject {
                 self?.cancelSelection()
             }
             selectionOverlays.append(window)
+            // v109：先激活应用——否则首个点击被系统用于激活、拖拽无反应（要第二次）
+            NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
         }
         if selectionOverlays.isEmpty {

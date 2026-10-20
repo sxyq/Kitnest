@@ -328,6 +328,8 @@ public final class ScreenshotManager: ObservableObject {
             }
             window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
             overlays.append(window)
+            // v109：先激活应用，防首击被激活吃掉（拉伸没反应要第二次）
+            NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
         }
         if overlays.isEmpty {

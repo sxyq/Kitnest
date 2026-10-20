@@ -1028,6 +1028,7 @@ NSView *FSScreenRecDebugBarView(void) { return g_barWin.contentView; }
 static NSPanel *g_donePanel = nil;
 static NSString *g_donePath = nil;
 static void FSScreenRecCloseDone(void);   // 前向声明：按钮点击里要用
+static void FSRecShowDonePanel(NSString *path, NSError *err);   // v109 前向声明：Stop 超时兜底要用
 
 @interface FSRecDoneView : NSView
 @property (nonatomic) NSInteger hoverBtn;   // 0 无 1 finder 2 打开
@@ -1126,6 +1127,11 @@ static void FSScreenRecCloseDone(void) {
 static void FSRecShowDonePanel(NSString *path, NSError *err) {
     FSScreenRecCloseDone();
     g_donePath = path;
+    // v109（2026-10-21 用户：「保存之后要有提示说在哪里」）：广播给 Swift 侧
+    // 弹 Toast（与截图「已保存」同款提示）；完成面板本身继续走原逻辑。
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"FrsetScreenRecDidSave"
+                                                        object:nil
+                                                      userInfo:@{@"path": path ?: @""}];
     CGFloat w = 300, h = 96;
     NSScreen *sc = [NSScreen mainScreen];
     NSRect vf = sc.visibleFrame;
@@ -1195,6 +1201,30 @@ void FSScreenRecBeginFromSettings(void) {
     [g_engine start];
 }
 void FSScreenRecStop(void) {
+    // v109：收尾回调偶发不回来（收尾回调不回来 → 完成面板卡在「正在保存」、
+    // 用户看不到保存提示）。8s 兜底：扫描保存目录取最新产物补弹完成面板。
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        if (g_donePath != nil) return;
+        NSString *dir = [FSRecSettings shared].dir ?: NSHomeDirectory();
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSString *best = nil; NSDate *bestDate = nil;
+        for (NSString *name in [fm contentsOfDirectoryAtPath:dir error:nil]) {
+            NSString *ext = name.pathExtension.lowercaseString;
+            if (!([ext isEqualToString:@"mov"] || [ext isEqualToString:@"mp4"] || [ext isEqualToString:@"gif"])) continue;
+            NSString *fp = [dir stringByAppendingPathComponent:name];
+            NSDate *d = [fm attributesOfItemAtPath:fp error:nil].fileModificationDate;
+            if (d && [d timeIntervalSinceNow] > -120 && (!bestDate || [d compare:bestDate] == NSOrderedDescending)) {
+                bestDate = d; best = fp;
+            }
+        }
+        if (best) {
+            FSBarLog(@"[录屏] 收尾回调超时，兜底取最新产物：%@", best);
+            FSRecShowDonePanel(best, nil);
+        } else {
+            FSBarLog(@"[录屏] 收尾回调超时且未找到产物");
+        }
+    });
     // 先给「正在保存」反馈，再收尾：收尾回调偶发不回来（或进程被回收）时，
     // 用户至少知道已经点了停止、文件在写。
     FSRecShowDonePanel(nil, nil);

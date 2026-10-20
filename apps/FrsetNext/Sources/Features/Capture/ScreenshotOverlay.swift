@@ -202,12 +202,19 @@ final class ScreenshotOverlayView: NSView {
         let dim = NSColor(calibratedWhite: 0, alpha: 0.35)
 
         if let rect = selectionRect {
-            // 选区外压暗、选区内镂空（even-odd 填充）
-            let path = NSBezierPath(rect: bounds)
-            path.append(NSBezierPath(rect: rect))
-            path.windingRule = .evenOdd
+            // v109（2026-10-21 用户：「第一次拉伸十分卡顿、没反应要第二次」）：
+            // 全屏 evenOdd 路径填充在每次拖拽重绘都遍历 7.6M 像素——
+            // 照录屏覆盖层 v62 方案改「选区外 4 个矩形」压暗，成本降到边框级。
+            let r = rect.intersection(bounds)
             dim.setFill()
-            path.fill()
+            NSRect(x: bounds.minX, y: bounds.minY,
+                   width: bounds.width, height: max(0, r.minY - bounds.minY)).fill()
+            NSRect(x: bounds.minX, y: r.maxY,
+                   width: bounds.width, height: max(0, bounds.maxY - r.maxY)).fill()
+            NSRect(x: bounds.minX, y: r.minY,
+                   width: max(0, r.minX - bounds.minX), height: r.height).fill()
+            NSRect(x: r.maxX, y: r.minY,
+                   width: max(0, bounds.maxX - r.maxX), height: r.height).fill()
 
             NSColor.white.setStroke()
             let border = NSBezierPath(rect: rect)
