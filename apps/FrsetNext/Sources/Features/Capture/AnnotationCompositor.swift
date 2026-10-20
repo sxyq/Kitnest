@@ -24,13 +24,28 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         }
     }
 
+    /// 键盘快捷键（单键；与 Flameshot / SuperSnip 的直觉一致）
+    public var shortcut: String {
+        switch self {
+        case .rectangle: return "R"
+        case .ellipse:   return "O"
+        case .arrow:     return "A"
+        case .pen:       return "P"
+        case .text:      return "T"
+        case .highlighter: return "H"
+        case .mosaic:    return "M"
+        case .eraser:    return "E"
+        case .removal:   return "D"
+        }
+    }
+
     public var systemImage: String {
         switch self {
         case .rectangle: return "rectangle"
         case .ellipse:   return "circle"
         case .arrow:     return "arrow.up.right"
-        case .pen:       return "pencil.tip"
-        case .text:      return "textformat"
+        case .pen:       return "pencil"            // pencil.tip 部分 SDK 缺失
+        case .text:      return "text.cursor"        // textformat 在 mac SDK 不存在，会回退显示「格式」
         case .highlighter: return "highlighter"
         case .mosaic:    return "squareshape.split.3x3"
         case .eraser:    return "eraser"
@@ -49,19 +64,23 @@ public struct Annotation: Identifiable, Hashable {
     public var text: String?
     public var colorHex: String
     public var lineWidth: CGFloat
+    /// 马赛克块大小（图像像素；8–16 之间观感最好，越小越容易被还原）
+    public var blockSize: CGFloat
 
     public init(id: UUID = UUID(),
                 tool: AnnotationTool,
                 points: [CGPoint],
                 text: String? = nil,
                 colorHex: String = "#FF3B30",
-                lineWidth: CGFloat = 3) {
+                lineWidth: CGFloat = 3,
+                blockSize: CGFloat = 10) {
         self.id = id
         self.tool = tool
         self.points = points
         self.text = text
         self.colorHex = colorHex
         self.lineWidth = lineWidth
+        self.blockSize = blockSize
     }
 }
 
@@ -99,7 +118,17 @@ public enum AnnotationCompositor {
         // ③ 用 AppKit 绘制（NSString 在 flipped 上下文里方向才正确）
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
-        draw(annotations, in: CGRect(x: 0, y: 0, width: w, height: h))
+        // 马赛克像素化图层：同块大小只算一次（导出/复制路径没有画布的缓存）
+        var mosaicCache: [Int: CGImage] = [:]
+        let provider: (CGFloat) -> CGImage? = { block in
+            let key = Int(block)
+            if let hit = mosaicCache[key] { return hit }
+            guard let img = pixelated(base, block: block) else { return nil }
+            mosaicCache[key] = img
+            return img
+        }
+        draw(annotations, in: CGRect(x: 0, y: 0, width: w, height: h),
+             base: base, mosaicCache: provider)
         NSGraphicsContext.restoreGraphicsState()
 
         return ctx.makeImage()
@@ -109,15 +138,17 @@ public enum AnnotationCompositor {
 
     /// 在当前 NSGraphicsContext 中绘制标注。`rect` 为可绘制区域（左上原点坐标），
     /// 用于把坐标裁剪掉落在画面外的部分。
-    public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil) {
+    public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil,
+                            mosaicCache: ((CGFloat) -> CGImage?)? = nil) {
         guard let clip = NSGraphicsContext.current else { return }
         clip.saveGraphicsState()
         NSBezierPath(rect: rect).addClip()
-        for annotation in annotations { draw(annotation, base: base) }
+        for annotation in annotations { draw(annotation, base: base, mosaicCache: mosaicCache) }
         clip.restoreGraphicsState()
     }
 
-    private static func draw(_ a: Annotation, base: CGImage? = nil) {
+    private static func draw(_ a: Annotation, base: CGImage? = nil,
+                             mosaicCache: ((CGFloat) -> CGImage?)? = nil) {
         let color = color(fromHex: a.colorHex)
         switch a.tool {
         case .rectangle:
@@ -148,8 +179,9 @@ public enum AnnotationCompositor {
             color.withAlphaComponent(0.35).setStroke()
             path.stroke()
         case .mosaic:
-            guard let r = rect(of: a) else { return }
-            drawMosaic(in: r, base: base, fallbackColor: color)
+            // 画笔式马赛克：沿轨迹铺像素化图层（遮罩 = 圆头笔触），支持任意笔刷宽度
+            drawMosaicBrush(a, base: base, fallbackColor: color,
+                            pixelated: mosaicCache?(a.blockSize))
         case .eraser:
             return   // 橡皮不产生图元（在画布上直接删标注）
         case .removal:
@@ -164,32 +196,59 @@ public enum AnnotationCompositor {
         }
     }
 
-    /// 马赛克：取底图对应区域「缩小再放大」（nearest）做像素化；
-    /// 画布预览阶段拿不到底图时退化为半透明灰块（导出 composite 时一定走真像素化）。
-    private static func drawMosaic(in rect: CGRect, base: CGImage?, fallbackColor: NSColor) {
-        guard rect.width >= 2, rect.height >= 2 else { return }
-        guard let base,
-              let crop = base.cropping(to: rect),
-              let ctx = NSGraphicsContext.current?.cgContext else {
-            fallbackColor.withAlphaComponent(0.25).setFill()
-            NSBezierPath(rect: rect).fill()
+    /// 马赛克笔刷：把「像素化底图」裁剪进笔触路径里。
+    /// 参考实现：SuperSnip（像素化笔刷 + 笔刷尺寸）、js-screenshot（blockSize/brushSize 分离）、
+    /// Flameshot（块均值重采样）。像素化图层由调用方缓存，拖动时零重算。
+    private static func drawMosaicBrush(_ a: Annotation,
+                                        base: CGImage?,
+                                        fallbackColor: NSColor,
+                                        pixelated: CGImage?) {
+        let width = max(4, a.lineWidth)
+        let path = NSBezierPath()
+        path.lineWidth = width
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        if a.points.count == 1, let p = a.points.first {
+            path.appendOval(in: CGRect(x: p.x - width / 2, y: p.y - width / 2,
+                                       width: width, height: width))
+        } else {
+            guard let first = a.points.first else { return }
+            path.move(to: first)
+            for p in a.points.dropFirst() { path.line(to: p) }
+        }
+
+        guard let pixelated, let base, let ctx = NSGraphicsContext.current?.cgContext else {
+            // 无底图（纯预览）时用半透明色带表示笔触范围
+            fallbackColor.withAlphaComponent(0.22).setStroke()
+            fallbackColor.withAlphaComponent(0.22).setFill()
+            if a.points.count == 1 { path.fill() } else { path.stroke() }
             return
         }
-        let block: CGFloat = 10
-        let w = max(1, Int(rect.width / block))
-        let h = max(1, Int(rect.height / block))
-        guard let small = CGContext(data: nil, width: w, height: h,
-                                    bitsPerComponent: 8, bytesPerRow: 0,
-                                    space: CGColorSpaceCreateDeviceRGB(),
-                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
-        small.interpolationQuality = .low
-        small.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
-        guard let smallImage = small.makeImage() else { return }
+
         ctx.saveGState()
-        ctx.clip(to: rect)
+        if a.points.count == 1 {
+            // 单击落一个点：填充圆
+            path.addClip()
+        } else {
+            path.addClip()
+        }
         ctx.interpolationQuality = .none
-        ctx.draw(smallImage, in: rect)
+        ctx.draw(pixelated, in: CGRect(x: 0, y: 0, width: CGFloat(base.width), height: CGFloat(base.height)))
         ctx.restoreGState()
+    }
+
+    /// 像素化：按 block 尺寸缩小再放大（nearest）。块内取均值，不是模糊滤镜。
+    public static func pixelated(_ base: CGImage, block: CGFloat) -> CGImage? {
+        let b = max(4, block)
+        let smallW = max(1, Int(round(CGFloat(base.width) / b)))
+        let smallH = max(1, Int(round(CGFloat(base.height) / b)))
+        guard let ctx = CGContext(data: nil, width: smallW, height: smallH,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(base, in: CGRect(x: 0, y: 0, width: smallW, height: smallH))
+        return ctx.makeImage()
     }
 
     private static func drawArrow(_ a: Annotation, color: NSColor) {

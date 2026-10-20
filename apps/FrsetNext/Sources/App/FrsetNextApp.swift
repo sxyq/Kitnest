@@ -145,6 +145,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     ServiceLocator.panel?.show()
                 }
+            case "annotate":
+                // v100 视觉验收/排障深链：frsetnext://annotate?file=/tmp/a.png&tool=m
+                // 不经过截图流程直接打开标注编辑器，便于核对工具条与画笔马赛克。
+                let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                if let path, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
+                    AnnotationEditorController.shared.open(image: img)
+                } else if !AnnotationEditorController.shared.openLatest() {
+                    Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
+                }
             case "toast":
                 // v89 视觉验收/排障深链：frsetnext://toast?text=已复制&icon=checkmark.circle.fill
                 // 用途：不依赖具体业务路径即可复现全局提示，便于核对位置/样式/层级。
