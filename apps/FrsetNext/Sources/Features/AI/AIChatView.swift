@@ -46,7 +46,7 @@ private struct ChatBubble: View {
                     .padding(10)
                     .background {
                         RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
-                            .fill(role == .user ? Color.accentColor.opacity(0.16) : Color(NSColor.controlBackgroundColor))
+                            .fill(role == .user ? Theme.accent.opacity(0.16) : Color(NSColor.controlBackgroundColor))
                     }
                     .overlay(alignment: .bottomTrailing) {
                         // 打字光标效果

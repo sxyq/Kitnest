@@ -112,7 +112,7 @@ public struct ToolSettingsPane: View {
                     Image(systemName: ToolRegistry.isEnabled(id: tool.identifier) ? "checkmark" : "")
                         .font(.system(size: 11, weight: .semibold))
                         .frame(width: 14, height: 14)
-                        .foregroundStyle(ToolRegistry.isEnabled(id: tool.identifier) ? Color.accentColor : Color.clear)
+                        .foregroundStyle(ToolRegistry.isEnabled(id: tool.identifier) ? Theme.accent : Color.clear)
                 }
                 .buttonStyle(.plain)
                 .help("启用")

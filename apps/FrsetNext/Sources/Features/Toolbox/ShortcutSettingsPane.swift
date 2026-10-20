@@ -147,7 +147,7 @@ struct DoubleTapSwitch: View {
         Button(action: action) {
             ZStack(alignment: isOn ? .trailing : .leading) {
                 Capsule()
-                    .fill(isOn ? Color.accentColor : Color.primary.opacity(0.16))
+                    .fill(isOn ? Theme.accent : Color.primary.opacity(0.16))
                     .frame(width: 32, height: 18)
                 Circle()
                     .fill(Color.white)

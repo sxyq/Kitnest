@@ -412,7 +412,7 @@ private struct CommandRowView: View {
         HStack(spacing: 10) {
             Image(systemName: item.systemImage)
                 .font(.system(size: 13))
-                .foregroundStyle(selected ? Color.accentColor : .secondary)
+                .foregroundStyle(selected ? Theme.accent : .secondary)
                 .frame(width: 20)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
@@ -442,7 +442,7 @@ private struct CommandRowView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
-        .background(selected ? Color.accentColor.opacity(0.12) : Color.clear)
+        .background(selected ? Theme.accent.opacity(0.12) : Color.clear)
         .contentShape(Rectangle())
     }
 }

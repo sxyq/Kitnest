@@ -590,10 +590,10 @@ public struct SearchSectionView: View {
                         .padding(.vertical, 3.5)
                         .background(
                             Capsule().fill(selectedCategory == category
-                                           ? Color.accentColor.opacity(0.16)
+                                           ? Theme.accent.opacity(0.16)
                                            : Theme.cardBackground)
                         )
-                        .foregroundStyle(selectedCategory == category ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(selectedCategory == category ? Theme.accent : Color.secondary)
                         .opacity(enabled ? 1 : 0.35)
                         .contentShape(Capsule())
                     }
@@ -803,7 +803,7 @@ public struct SearchSectionView: View {
                         .background(
                             RoundedRectangle(cornerRadius: Theme.smallRadius)
                                 .fill(previewEngineID == engine.id
-                                      ? Color.accentColor.opacity(0.14)
+                                      ? Theme.accent.opacity(0.14)
                                       : Theme.cardBackground)
                         )
                         .contentShape(Rectangle())
@@ -1031,9 +1031,9 @@ public struct SearchSectionView: View {
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2.5)
                         .background(Capsule().fill(selection.wrappedValue == kind
-                                                   ? Color.accentColor.opacity(0.15)
+                                                   ? Theme.accent.opacity(0.15)
                                                    : Theme.cardBackground))
-                        .foregroundStyle(selection.wrappedValue == kind ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(selection.wrappedValue == kind ? Theme.accent : Color.secondary)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -1151,10 +1151,10 @@ public struct SearchSectionView: View {
             Text("最佳")
                 .font(.system(size: 9, weight: .semibold))
         }
-        .foregroundStyle(Color.accentColor)
+        .foregroundStyle(Theme.accent)
         .padding(.horizontal, 5)
         .padding(.vertical, 2)
-        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+        .background(Capsule().fill(Theme.accent.opacity(0.12)))
     }
 
     private func filesCategory(maxRows: Int, compact: Bool) -> some View {
@@ -1325,7 +1325,7 @@ public struct SearchSectionView: View {
         for segment in segments {
             let piece = Text(segment.str)
                 .font(segment.hit ? font.weight(.semibold) : font)
-                .foregroundColor(segment.hit ? Color.accentColor : color)
+                .foregroundColor(segment.hit ? Theme.accent : color)
             output = output + piece
         }
         return output

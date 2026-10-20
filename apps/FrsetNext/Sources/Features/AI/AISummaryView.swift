@@ -274,7 +274,7 @@ public struct AISummaryView: View {
                         .padding(.vertical, 5)
                         .background {
                             Capsule().fill(model.activeAction == action && model.isRunning
-                                           ? Color.accentColor.opacity(0.18)
+                                           ? Theme.accent.opacity(0.18)
                                            : Color(NSColor.controlBackgroundColor))
                         }
                 }
@@ -306,7 +306,7 @@ public struct AISummaryView: View {
                             .padding(.vertical, 4)
                             .background {
                                 Capsule().fill(model.activeToolID == tool.id && model.isRunning
-                                               ? Color.accentColor.opacity(0.18)
+                                               ? Theme.accent.opacity(0.18)
                                                : Color(NSColor.controlBackgroundColor))
                             }
                     }

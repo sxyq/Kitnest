@@ -281,7 +281,7 @@ public struct AudioMixerPane: View {
                             Spacer()
                             Image(systemName: "waveform")
                                 .font(.system(size: 10))
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(Theme.accent)
                         }
                     }
                 }

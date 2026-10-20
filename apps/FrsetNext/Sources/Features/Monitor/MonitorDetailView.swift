@@ -107,12 +107,12 @@ public struct MonitorDetailView: View {
                     .background {
                         if selection.module == module {
                             Capsule(style: .continuous)
-                                .fill(Color.accentColor.opacity(0.18))
+                                .fill(Theme.accent.opacity(0.18))
                         }
                     }
                     .overlay(
                         Capsule(style: .continuous)
-                            .stroke(selection.module == module ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 0.5)
+                            .stroke(selection.module == module ? Theme.accent.opacity(0.5) : Color.clear, lineWidth: 0.5)
                     )
                     .contentShape(Capsule(style: .continuous))
                 }

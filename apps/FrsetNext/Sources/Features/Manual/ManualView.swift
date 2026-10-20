@@ -153,7 +153,7 @@ public struct ManualPaneView: View {
                 Button(p.title) { selection = p.id }
                     .buttonStyle(.plain)
                     .font(.system(size: 10.5))
-                    .foregroundStyle(selection == p.id ? Color.accentColor : .secondary)
+                    .foregroundStyle(selection == p.id ? Theme.accent : .secondary)
                 if p.id != path.last?.id {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 7.5, weight: .semibold))
@@ -311,12 +311,12 @@ private struct ManualTreeRow: View {
             .padding(.vertical, 4.5)
             .background(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(selected ? Color.accentColor.opacity(0.16) : Color.clear)
+                    .fill(selected ? Theme.accent.opacity(0.16) : Color.clear)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(selected ? Color.accentColor : (dimmed ? Color.secondary.opacity(0.5) : Color.primary))
+        .foregroundStyle(selected ? Theme.accent : (dimmed ? Color.secondary.opacity(0.5) : Color.primary))
     }
 }
 
@@ -420,7 +420,7 @@ private struct ManualBlockView: View {
 
         case .quote(let s):
             HStack(alignment: .top, spacing: 8) {
-                RoundedRectangle(cornerRadius: 2).fill(Color.accentColor.opacity(0.45))
+                RoundedRectangle(cornerRadius: 2).fill(Theme.accent.opacity(0.45))
                     .frame(width: 3)
                 Text(inline(s))
                     .font(.system(size: 12))
