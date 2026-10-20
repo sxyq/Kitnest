@@ -171,7 +171,7 @@ struct GeneralSettingsPane: View {
                     HStack(spacing: 6) {
                         Image(systemName: "circle.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(appearance.mode == mode ? Color.accentColor : Color.secondary.opacity(0.25))
+                            .foregroundStyle(appearance.mode == mode ? Theme.accent : Color.secondary.opacity(0.25))
                             .overlay {
                                 if appearance.mode == mode {
                                     Image(systemName: "circle.fill")
@@ -262,7 +262,7 @@ struct GeneralSettingsPane: View {
             .help(L10n.t("Automatically recognize text in screenshots so you can find them by text search."))
         Toggle("文件中转", isOn: $transferDockEnabled)
             .toggleStyle(.checkbox)
-            .help("在主面板侧边栏显示「文件中转」（文件暂存与转发）")
+            .help("在主面板顶部显示「文件中转」分段（完整的开关/端口/二维码见「设置 → 文件中转」）")
     }
 
     private func formRow<Content: View>(_ title: String, height: CGFloat = 40,
@@ -298,7 +298,7 @@ struct GeneralSettingsPane: View {
                     .foregroundStyle(currentMenuBarIconStyle == value ? Color.white : Color.primary)
                     .background {
                         if currentMenuBarIconStyle == value {
-                            RoundedRectangle(cornerRadius: 7).fill(Color.accentColor)
+                            RoundedRectangle(cornerRadius: 7).fill(Theme.accent)
                         }
                     }
                 if let dayBadge {
@@ -308,7 +308,7 @@ struct GeneralSettingsPane: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 3.5)
                         .padding(.vertical, 1)
-                        .background(Capsule().fill(Color.accentColor))
+                        .background(Capsule().fill(Theme.accent))
                         .offset(x: 8, y: -8)
                 }
             }

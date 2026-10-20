@@ -42,8 +42,8 @@ struct SettingsRootView: View {
         .frame(width: 940, height: 620)
         .background(backgroundColor)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
-        .tint(personalization.accentColor ?? Color.accentColor)
-        .frsetAppearanceTheme()
+        // 强调色 + Midnight 统一主题入口（个性化改色即生效）
+        .frsetThemeChrome()
         // v84：侧边栏切换面包屑（卡死时日志可见「切到哪一页后卡住」）
         .onChange(of: state.selection) { newValue in
             Log.breadcrumb("Settings", "侧边栏 → \(newValue)")
@@ -88,6 +88,8 @@ struct SettingsRootView: View {
                 panePage { GeneralSettingsPane() }
             case .clipboard:
                 panePage { ClipboardSettingsPane() }
+            case .transfer:
+                panePage { TransferDockSettingsPane() }
             case .searchAI:
                 segmentedPage(selection: $state.searchAISub, tabs: [
                     ("搜索", AnyView(SearchSettingsPane())),

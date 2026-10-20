@@ -39,6 +39,7 @@ final class SettingsUIState: ObservableObject {
         switch pane {
         case "general":                  selection = .category(.general)
         case "clipboard":                selection = .category(.clipboard)
+        case "transfer":                 selection = .category(.transfer)
         case "search":                   selection = .category(.searchAI); searchAISub = 0
         case "ai":                       selection = .category(.searchAI); searchAISub = 1
         case "tools":                    selection = .category(.tooling); toolingSub = 0

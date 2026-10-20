@@ -250,14 +250,14 @@ struct MonitorWidgetsPane: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(
-                Capsule().fill(active ? Color.accentColor.opacity(0.18)
+                Capsule().fill(active ? Theme.accent.opacity(0.18)
                                       : Color.primary.opacity(0.06))
             )
             .overlay(
-                Capsule().strokeBorder(active ? Color.accentColor.opacity(0.55) : .clear,
+                Capsule().strokeBorder(active ? Theme.accent.opacity(0.55) : .clear,
                                        lineWidth: 1)
             )
-            .foregroundStyle(active ? Color.accentColor : Color.primary)
+            .foregroundStyle(active ? Theme.accent : Color.primary)
         }
         .buttonStyle(.plain)
         .help(cachedFormNames[form] ?? form)

@@ -186,7 +186,7 @@ struct SearchSettingsPane: View {
         .padding(.horizontal, 0)
         .background(
             RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                .fill(isDropTarget ? Color.accentColor.opacity(0.14) : Color.clear)
+                .fill(isDropTarget ? Theme.accent.opacity(0.14) : Color.clear)
         )
         .contentShape(Rectangle())
         // 拖拽源：整行可拖；拖起时记录拖拽中引擎并消费一次性排序提示

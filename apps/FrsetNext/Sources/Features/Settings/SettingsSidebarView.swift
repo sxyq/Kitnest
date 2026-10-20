@@ -12,6 +12,8 @@ import SwiftUI
 enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
     case general
     case clipboard
+    /// 文件中转（2026-10-20 用户要求单独一页：面板入口 / 手机扫码直传 / OPPO 云端通道 / 本地暂存）
+    case transfer
     case searchAI
     case tooling
     case statistics
@@ -23,6 +25,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: return "常规"
         case .clipboard: return "剪贴板"
+        case .transfer: return "文件中转"
         case .searchAI: return "搜索与 AI"
         case .tooling: return "工具与快捷键"
         case .statistics: return "数据"
@@ -34,6 +37,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general: return "gearshape"
         case .clipboard: return "doc.on.clipboard"
+        case .transfer: return "arrow.left.arrow.right.square"
         case .searchAI: return "magnifyingglass"
         case .tooling: return "hammer"
         case .statistics: return "chart.bar.xaxis"
@@ -188,7 +192,7 @@ struct SettingsSidebarView: View {
                         .font(.system(size: 11.5))
                     Spacer(minLength: 0)
                 }
-                .foregroundStyle(state.selection == .manual ? Color.accentColor : Color.primary)
+                .foregroundStyle(state.selection == .manual ? Theme.accent : Color.primary)
                 .padding(.horizontal, 14)
                 .frame(height: 30)
                 .contentShape(Rectangle())

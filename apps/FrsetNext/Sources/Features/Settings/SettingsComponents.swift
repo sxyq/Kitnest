@@ -21,9 +21,9 @@ struct SettingsRow<Trailing: View>: View {
             if let icon {
                 Image(systemName: icon)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
                     .frame(width: 26, height: 26)
-                    .background(Color.accentColor.opacity(0.12))
+                    .background(Theme.accent.opacity(0.12))
                     .cornerRadius(Theme.smallRadius)
             }
             VStack(alignment: .leading, spacing: 2) {
