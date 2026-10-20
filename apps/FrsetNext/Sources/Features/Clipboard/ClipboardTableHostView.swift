@@ -268,6 +268,33 @@ final class ClipboardTableView: NSTableView {
 
     private var hoverTrackingArea: NSTrackingArea?
 
+    // v112（2026-10-21 宽度实证：日历卡 344.0 vs 行卡 332.06，两侧各缩 6pt）：
+    // 列宽此前只在 updateNSView 修一次——SwiftUI 后续布局变化不再触发 →
+    // 列宽停在中间值，单元格比表窄（NSTableView 居中放置 = 两侧各缩 6pt）。
+    // 每次 layout 钉死列宽 = 表宽，行卡恒满宽（与日历卡 344 对齐）。
+    override func layout() {
+        super.layout()
+        // v112（AppKit 实测链：table=344 而 column=332 → 行卡 332 vs 日历卡 344，
+        // 两侧各缩 6pt 的真凶是列宽）。注意：NSTableView 的 bounds.width =
+        // 列宽之和（自撑 documentView），钉 bounds.width 会自增循环（实测爆到
+        // 22686）；稳定基准是**剪辑视图宽**（可视宽，恒 344）。
+        if let clip = enclosingScrollView?.contentView,
+           let col = tableColumns.first, clip.bounds.width > 50,
+           abs(col.width - clip.bounds.width) > 0.5 {
+            col.width = clip.bounds.width
+        }
+    }
+
+    // v112：宽度对齐后仍有 6pt 水平偏移——AppKit 默认 cell 框带缩进标记内边距
+    //（indentationMarkerInset 默认 6pt）。覆写 cell 框：x=0、宽=剪辑宽，
+    // 行卡与日历卡完全同缘。
+    override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {
+        let base = super.frameOfCell(atColumn: column, row: row)
+        let w = enclosingScrollView?.contentView.bounds.width ?? base.width
+        guard w > 50 else { return base }
+        return NSRect(x: 0, y: base.origin.y, width: w, height: base.height)
+    }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let hoverTrackingArea { removeTrackingArea(hoverTrackingArea); self.hoverTrackingArea = nil }
@@ -537,6 +564,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 ClipboardNativeMenuPresenter.shared.presentMenu(for: item, at: location, in: sourceView)
             }
             host.setItem(item, hovered: (item.id == hoveredItemID))
+                Log.info("WidthAudit", "cell frame=\(host.frame) tableW=\(tableView.bounds.width)")
             // 行号侧表登记（修复 C2）：view-based NSTableView 会把 delegate 返回的视图
             // 包进 NSTableRowView，table.subviews 的直接子元素是 NSTableRowView 而非
             // RowHostingView，按 subviews 强转恒为 nil。故按行号侧记，弱引用防泄漏。

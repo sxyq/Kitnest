@@ -52,8 +52,14 @@ public struct CalendarSectionView: View {
         .background(
             GeometryReader { geo in
                 Color.clear
-                    .onAppear { cardFrame = geo.frame(in: .global) }
-                    .onChange(of: geo.frame(in: .global)) { cardFrame = $0 }
+                    .onAppear {
+                        cardFrame = geo.frame(in: .global)
+                        Log.info("WidthAudit", "日历卡 global=\(cardFrame)")
+                    }
+                    .onChange(of: geo.frame(in: .global)) {
+                        cardFrame = $0
+                        Log.info("WidthAudit", "日历卡 settled=\($0)")
+                    }
             }
         )
         .onAppear {

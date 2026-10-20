@@ -390,6 +390,16 @@ public struct ClipboardRow: View {
         // 统一走设计系统 WhiteGlassCard——白渐变 + 斜向高光 + liquid 镀边 + 柔投影
         // （三级玻璃 L2 内容卡层，与页面玻璃/工具条胶囊质感区分）。
         .whiteGlassCard(Self.cardRadius)
+        // v112 宽度实证：行卡全局坐标（与日历卡 global 对照，定位宽度偏差）
+        .background(
+            GeometryReader { g in
+                Color.clear
+                    .onAppear { Log.info("WidthAudit", "行卡 global=\(g.frame(in: .global))") }
+                    .onChange(of: g.frame(in: .global)) {
+                        Log.info("WidthAudit", "行卡 settled=\($0)")
+                    }
+            }
+        )
     }
 
     /// 小卡片圆角（不低于 12，个性化档位可再放大）
