@@ -391,11 +391,21 @@ public struct ClipboardRow: View {
             RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
                 .fill(rowFill)
         )
+        // v96（2026-10-21 用户：「要那种小模块的效果，卡片圆角矩形效果」）：
+        // 行做成与日历卡同规格的独立小卡片——实底 + 细描边 + 轻投影，
+        // 卡片从面板里"浮起来"，加上 10pt 行距，模块感清晰。
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.08),
+                              lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.20 : 0.07),
+                radius: 2, x: 0, y: 1)
     }
 
-    /// 行底色：浅色模式白 0.55 / 深色模式白 0.06；hover 提亮
+    /// 行底色：浅色模式白 0.86（对齐日历卡实底）/ 深色模式白 0.07；hover 提亮
     private var rowFill: Color {
-        let base = colorScheme == .dark ? 0.07 : 0.76
+        let base = colorScheme == .dark ? 0.07 : 0.86
         return isHighlighted
             ? Theme.accent.opacity(colorScheme == .dark ? 0.22 : 0.16)
             : Color.white.opacity(base)
