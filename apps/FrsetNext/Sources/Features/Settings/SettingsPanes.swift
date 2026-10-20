@@ -53,6 +53,9 @@ struct GeneralSettingsPane: View {
         // （SettingsSection + SettingsGroupBox，与剪贴板/数据页同一套组件）。
         // 外层滚动由 SettingsRootView.panePage 提供。
         VStack(spacing: 20) {
+            // 排障探针（2026-10-20）：probe.settingsMenuBarFirst=1 时把「菜单栏」区
+            // 临时置顶（正常顺序不变），便于截屏核对菜单栏图标行；默认不生效。
+            if probeMenuBarFirst { menuBarSection }
             SettingsSection("通用") {
                 SettingsGroupBox {
                     formRow(L10n.t("Start"), height: 40) {
@@ -84,45 +87,8 @@ struct GeneralSettingsPane: View {
                 }
             }
 
-            SettingsSection("菜单栏") {
-                SettingsGroupBox {
-                    formRow(L10n.t("Features")) {
-                        Group {
-                            if compact {
-                                VStack(alignment: .leading, spacing: 7) {
-                                    featuresChoices
-                                }
-                            } else {
-                                HStack(spacing: 22) {
-                                    featuresChoices
-                                }
-                            }
-                        }
-                        .buttonStyle(.link)
-                    }
-                    SettingsDivider()
-                    formRow(L10n.t("AI Providers")) {
-                        HStack(spacing: 12) {
-                            actionButton(L10n.t("Manage")) { openDetail("ai") }
-                            Text(providerCountText)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    SettingsDivider()
-                    formRow(L10n.t("Menu Bar Icon"), height: compact ? 88 : 40) {
-                        menuBarIconChoices
-                    }
-                    SettingsDivider()
-                    formRow("菜单栏部件") {
-                        HStack(spacing: 12) {
-                            actionButton("设置") { StatsBarEngine.openSettings() }
-                            Text("合并条：CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池")
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                    }
-                }
+            if !probeMenuBarFirst {
+                menuBarSection
             }
 
             SettingsSection("剪贴板") {
@@ -187,47 +153,99 @@ struct GeneralSettingsPane: View {
         }
     }
 
-    /// 菜单栏图标四选一 + 小猫覆盖（compact 2+2 分行 / 宽版单行）
-    private var menuBarIconChoices: some View {
-        Group {
-            if compact {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 16) {
-                        iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
-                                   help: L10n.t("Fan icon speed changes with CPU usage"))
-                        iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
-                    }
-                    HStack(spacing: 16) {
-                        iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
-                                   dayBadge: Self.todayDayNumber)
-                        if revealsCustomMenuBarIcon {
-                            iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
-                                       value: Self.menuBarIconStyleCustom)
+    /// 排障探针：把「菜单栏」区置顶便于截屏（见 body 顶注释）
+    private var probeMenuBarFirst: Bool {
+        UserDefaults.standard.bool(forKey: "probe.settingsMenuBarFirst")
+    }
+
+    /// 「菜单栏」设置区（功能 / AI 服务商 / 菜单栏图标 / 菜单栏部件）
+    private var menuBarSection: some View {
+        SettingsSection("菜单栏") {
+            SettingsGroupBox {
+                formRow(L10n.t("Features")) {
+                    Group {
+                        if compact {
+                            VStack(alignment: .leading, spacing: 7) {
+                                featuresChoices
+                            }
+                        } else {
+                            HStack(spacing: 22) {
+                                featuresChoices
+                            }
                         }
-                        Toggle("小猫", isOn: runCatBinding)
-                            .toggleStyle(.checkbox)
-                            .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
+                    }
+                    .buttonStyle(.link)
+                }
+                SettingsDivider()
+                formRow(L10n.t("AI Providers")) {
+                    HStack(spacing: 12) {
+                        actionButton(L10n.t("Manage")) { openDetail("ai") }
+                        Text(providerCountText)
+                            .foregroundStyle(.secondary)
                     }
                 }
-            } else {
-                HStack(spacing: 26) {
-                    iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
-                               help: L10n.t("Fan icon speed changes with CPU usage"))
-                    iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
-                    iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
-                               dayBadge: Self.todayDayNumber)
-                    if revealsCustomMenuBarIcon {
-                        iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
-                                   value: Self.menuBarIconStyleCustom)
+                SettingsDivider()
+                formRow(L10n.t("Menu Bar Icon"), height: 76) {
+                    menuBarIconChoices
+                }
+                SettingsDivider()
+                formRow("菜单栏部件") {
+                    HStack(spacing: 12) {
+                        actionButton("设置") { StatsBarEngine.openSettings() }
+                        Text("合并条：CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
-                    // v32/v34 移植（注入版）：奔跑小猫——独立覆盖开关（默认开，
-                    // 覆盖上面所选的样式；与注入版 v85 设置窗同构）
-                    Toggle("小猫", isOn: runCatBinding)
-                        .toggleStyle(.checkbox)
-                        .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
                 }
             }
         }
+    }
+
+    /// 菜单栏图标四选一 + 小猫覆盖
+    /// v86（2026-10-20 用户反馈「展现有截断、小猫没有图标」）：一律两行排布
+    /// （3 + 2），文字单行固定宽不折行；小猫补猫图标预览，与其它选项同视觉权重。
+    private var menuBarIconChoices: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 16) {
+                iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
+                           help: L10n.t("Fan icon speed changes with CPU usage"))
+                iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
+                iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
+                           dayBadge: Self.todayDayNumber)
+            }
+            HStack(spacing: 16) {
+                if revealsCustomMenuBarIcon {
+                    iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
+                               value: Self.menuBarIconStyleCustom)
+                }
+                runCatChoice
+            }
+        }
+    }
+
+    /// 小猫：独立覆盖开关（勾选后盖住上方所选样式）。
+    /// v86：补猫图标预览（SF Symbol cat.fill）+ 选中态与其它选项一致的胶囊高亮。
+    private var runCatChoice: some View {
+        Toggle(isOn: runCatBinding) {
+            HStack(spacing: 6) {
+                Image(systemName: "cat.fill")
+                    .font(.system(size: 18))
+                Text("小猫")
+                    .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .foregroundStyle(runCatBinding.wrappedValue ? Color.white : Color.primary)
+                    .background {
+                        if runCatBinding.wrappedValue {
+                            RoundedRectangle(cornerRadius: 7).fill(Theme.accent)
+                        }
+                    }
+            }
+        }
+        .toggleStyle(.checkbox)
+        .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
     }
 
     // MARK: 计数文案（原版 '%d Provider(s)' / '%d Tag(s)' 键面，复数按数量切换）
@@ -293,6 +311,8 @@ struct GeneralSettingsPane: View {
             HStack(spacing: 6) {
                 Image(systemName: symbol).font(.system(size: 18))
                 Text(title)
+                    .lineLimit(1)
+                    .fixedSize()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .foregroundStyle(currentMenuBarIconStyle == value ? Color.white : Color.primary)
