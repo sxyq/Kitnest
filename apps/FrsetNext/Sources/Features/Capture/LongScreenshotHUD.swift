@@ -89,14 +89,10 @@ final class LongScreenshotHUDController {
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         p.isReleasedWhenClosed = false
 
-        let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        glass.material = .popover
-        glass.blendingMode = .behindWindow
-        glass.state = .active
-        glass.wantsLayer = true
-        glass.layer?.cornerRadius = 12
-        glass.layer?.cornerCurve = .continuous
-        glass.layer?.masksToBounds = true
+        // 玻璃统一走 LiquidGlass：跟随「个性化 → 背景材质 / 圆角」
+        let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: size),
+                                         cornerRadius: Theme.cornerRadius,
+                                         material: .popover)
 
         // 红点（录制中）
         let dot = NSView(frame: NSRect(x: 14, y: (size.height - 8) / 2, width: 8, height: 8))

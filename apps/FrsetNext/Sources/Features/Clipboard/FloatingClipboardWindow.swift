@@ -173,10 +173,10 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         let panel = FloatingClipboardPanel(contentRect: FloatingClipboardPinState.shared.clampedFrame())
         super.init(window: panel)
         panel.delegate = self
-        // Midnight 主题注入器挂载点（注入器与四个 EnvironmentKey 在共享层 Core/AppearanceTheme.swift）
+        // 主题统一入口：强调色（个性化）+ Midnight 注入（注入器与 EnvironmentKey 在共享层）
         let root = FloatingClipboardContentView()
             .environmentObject(store)
-            .frsetAppearanceTheme()
+            .frsetThemeChrome()
         panel.contentView = NSHostingView(rootView: root)
     }
 
@@ -365,6 +365,12 @@ public struct FloatingClipboardContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .overlay(alignment: .top) {
+            // 悬浮窗底部条：与窗口玻璃同源，仅用一条 hairline 分隔（第三种玻璃的边界表达）
+            Rectangle()
+                .fill(Color.primary.opacity(0.06))
+                .frame(height: 0.5)
+        }
         .background {
             if let card = midnightCardBackground { card }
         }
@@ -374,10 +380,10 @@ public struct FloatingClipboardContentView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12))
-                .foregroundStyle(active ? Color.accentColor : Color.secondary)
+                .foregroundStyle(active ? Theme.accent : Color.secondary)
                 .frame(width: 22, height: 22)
                 .background {
-                    if active { Circle().fill(Color.accentColor.opacity(0.14)) }
+                    if active { Circle().fill(Theme.accent.opacity(0.14)) }
                 }
         }
         .buttonStyle(.plain)
@@ -440,7 +446,7 @@ private struct FloatingRow: View {
         .padding(.vertical, 4)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(isHovering ? Color.accentColor.opacity(0.12) : Color.clear)
+                .fill(isHovering ? Theme.accent.opacity(0.12) : Color.clear)
         )
         .contentShape(Rectangle())
     }

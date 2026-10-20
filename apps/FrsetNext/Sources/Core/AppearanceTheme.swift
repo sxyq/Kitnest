@@ -168,4 +168,26 @@ public extension View {
     func frsetAppearanceTheme(_ state: AppearanceState = .shared) -> some View {
         modifier(AppearanceThemeModifier(state: state))
     }
+
+    /// **主题统一入口**（2026-10-20 全量接入）：强调色（个性化）+ Midnight 覆盖 + 圆角/材质联动。
+    /// 每个窗口/浮层的根视图挂一次；修饰器内部观察 Personalization 与 AppearanceState，
+    /// 强调色一改，整棵子树立刻重算（`Theme.accent` 不跟随个性化，统一改读 `Theme.accent`）。
+    func frsetThemeChrome() -> some View {
+        modifier(ThemeChromeModifier())
+    }
+}
+
+/// 主题统一修饰器：强调色 tint + Midnight 注入。
+/// 观察两个单例 = 变更即重绘；子树里 `Theme.accent` / Midnight environment 都能即时跟上。
+public struct ThemeChromeModifier: ViewModifier {
+    @ObservedObject private var personalization = Personalization.shared
+    @ObservedObject private var appearance = AppearanceState.shared
+
+    public init() {}
+
+    public func body(content: Content) -> some View {
+        content
+            .tint(Theme.accent)
+            .frsetAppearanceTheme(appearance)
+    }
 }

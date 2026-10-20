@@ -24,13 +24,19 @@ enum LiquidGlass {
         NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     }
 
+    /// 个性化「背景材质」：纯色卡片时不走真玻璃/毛玻璃（设置 → 常规 → 个性化）
+    static var prefersSolid: Bool {
+        Personalization.shared.material == .solid
+    }
+
     /// 玻璃容器。返回 NSGlassEffectView（26+）或 NSVisualEffectView（回退）。
-    /// 内容由 `embed(_:in:)` 装入。
+    /// 内容由 `embed(_:in:)` 装入。`Personalization.material == .solid` 时退化为不透明底。
     static func makeView(frame: NSRect = .zero,
                          cornerRadius: CGFloat,
                          material: NSVisualEffectView.Material = .hudWindow,
                          tint: NSColor? = nil) -> NSView {
-        if #available(macOS 26.0, *), !reduceTransparency {
+        let solid = prefersSolid || reduceTransparency
+        if #available(macOS 26.0, *), !solid {
             let glass = NSGlassEffectView(frame: frame)
             glass.style = .regular
             glass.cornerRadius = cornerRadius
@@ -41,10 +47,10 @@ enum LiquidGlass {
             }
             return glass
         }
-        // 回退：毛玻璃（原实现），降低透明度时改不透明底
+        // 回退 / 纯色：毛玻璃（原实现）；纯色与「降低透明度」都改不透明底
         let effect = NSVisualEffectView(frame: frame)
-        effect.material = reduceTransparency ? .windowBackground : material
-        effect.blendingMode = reduceTransparency ? .withinWindow : .behindWindow
+        effect.material = solid ? .windowBackground : material
+        effect.blendingMode = solid ? .withinWindow : .behindWindow
         effect.state = .active
         effect.wantsLayer = true
         if effect.layer == nil { effect.layer = CALayer() }
@@ -52,6 +58,23 @@ enum LiquidGlass {
         effect.layer?.masksToBounds = true
         effect.autoresizingMask = [.width, .height]
         return effect
+    }
+
+    /// 已存在的玻璃容器在「材质/圆角/着色」变更后重新套样式（个性化即改即生效）
+    static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?) {
+        if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView {
+            glass.cornerRadius = cornerRadius
+            glass.tintColor = tint
+            return
+        }
+        guard let effect = view as? NSVisualEffectView else {
+            view.layer?.cornerRadius = cornerRadius
+            return
+        }
+        let solid = prefersSolid || reduceTransparency
+        effect.material = solid ? .windowBackground : .hudWindow
+        effect.blendingMode = solid ? .withinWindow : .behindWindow
+        effect.layer?.cornerRadius = cornerRadius
     }
 
     /// 把内容装进玻璃容器并铺满
@@ -91,7 +114,12 @@ struct LiquidGlassBackground: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // 个性化「背景材质 / 圆角 / 着色」变更后重套样式（否则切「纯色卡片」不生效）
+        LiquidGlass.reapplyStyle(on: nsView,
+                                 cornerRadius: cornerRadius,
+                                 tint: tint.map { NSColor($0) })
+    }
 }
 
 // MARK: - 卡片「玻璃镀边」样式

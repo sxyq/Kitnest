@@ -123,6 +123,9 @@ public enum Theme {
     /// 强调色（个性化自定义优先，nil 跟随系统）
     public static var accent: Color { Personalization.shared.accentColor ?? Color.accentColor }
 
+    /// 强调色的 AppKit 形态（画布/图层描边等 NSColor 消费点，与 Theme.accent 同源）
+    public static var accentNS: NSColor { NSColor(accent) }
+
     public static func sectionHeader(_ title: String) -> some View {
         Text(title)
             .font(.system(size: 11, weight: .semibold))

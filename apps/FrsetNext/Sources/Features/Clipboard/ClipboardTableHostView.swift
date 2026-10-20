@@ -346,6 +346,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
+        // 底部悬浮工具条会盖住最后一条：留出滚动内边距，让末尾卡片能滚到条上方
+        scrollView.automaticallyAdjustsContentInsets = false
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 52, right: 0)
 
         let table = ClipboardTableView()
         table.isActive = isActive
@@ -355,7 +358,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         table.allowsMultipleSelection = true
         table.allowsEmptySelection = true
         table.backgroundColor = .clear
-        table.intercellSpacing = NSSize(width: 0, height: 8)
+        table.intercellSpacing = NSSize(width: 0, height: 6)
         table.gridStyleMask = []
         table.style = .fullWidth
         table.dataSource = context.coordinator
@@ -386,7 +389,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         let newHeight = Theme.statsRowHeight
         if table?.rowHeight != newHeight {
             table?.rowHeight = newHeight
-            table?.intercellSpacing = NSSize(width: 0, height: max(2, newHeight * 0.12))
+            table?.intercellSpacing = NSSize(width: 0, height: max(2, newHeight * 0.10))
         }
         context.coordinator.reloadTable()
     }

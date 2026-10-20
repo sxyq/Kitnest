@@ -23,9 +23,9 @@ public enum PersonalizationDensity: String, CaseIterable, Identifiable {
     /// 剪贴板表格行高
     public var statsRowHeight: CGFloat {
         switch self {
-        case .compact: return 52
-        case .standard: return 68
-        case .relaxed: return 84
+        case .compact: return 46
+        case .standard: return 58
+        case .relaxed: return 76
         }
     }
     /// 通用行高（预览锚点估算等）
@@ -39,9 +39,9 @@ public enum PersonalizationDensity: String, CaseIterable, Identifiable {
     /// 缩略图边长
     public var thumbSize: CGFloat {
         switch self {
-        case .compact: return 36
-        case .standard: return 44
-        case .relaxed: return 56
+        case .compact: return 32
+        case .standard: return 40
+        case .relaxed: return 52
         }
     }
 }

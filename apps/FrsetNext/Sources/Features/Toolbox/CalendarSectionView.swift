@@ -21,6 +21,12 @@ public struct CalendarSectionView: View {
     @Stored private var collapsed = false
     /// 缓存 42 天数据（含农历/节气/事件），避免每帧查 EventKit
     @Stored private var cachedDays: [CalendarDay] = []
+    /// 卡片在窗口内的 frame（横滑手势命中区判定）
+    @Stored private var cardFrame: CGRect = .zero
+    /// 横向滚动累积量（两指左右滑切周）
+    @Stored private var scrollAccum: CGFloat = 0
+    /// 滚动监听 token（窗口内 local monitor）
+    @Stored private var scrollMonitor: Any? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
@@ -28,64 +34,68 @@ public struct CalendarSectionView: View {
     public init() {}
 
     public var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             header
             if !collapsed {
                 weekdayHeader
                 weeksGrid
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .panelGlassCard()
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardFill)
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { cardFrame = geo.frame(in: .global) }
+                    .onChange(of: geo.frame(in: .global)) { cardFrame = $0 }
+            }
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
-        )
-        .onAppear { reload() }
-    }
-
-    private var cardFill: Color {
-        colorScheme == .dark ? Color.white.opacity(0.07) : Color.white.opacity(0.86)
+        .onAppear {
+            reload()
+            installScrollMonitor()
+        }
+        .onDisappear { removeScrollMonitor() }
     }
 
     // MARK: 标题行
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Button { shift(-14) } label: {
+        HStack(spacing: 4) {
+            Button { shift(-7) } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18, height: 18)
+                    .foregroundStyle(Color.primary.opacity(0.55))
+                    .frame(width: 22, height: 20)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help("上一周")
 
             Button {
                 anchor = Date()
                 reload()
             } label: {
                 Text(monthTitle)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13.5, weight: .semibold))
                     .foregroundStyle(.primary)
+                    .frame(minWidth: 92, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("回到今天")
 
-            Button { shift(14) } label: {
+            Button { shift(7) } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18, height: 18)
+                    .foregroundStyle(Color.primary.opacity(0.55))
+                    .frame(width: 22, height: 20)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .help("下一周")
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 4)
 
             Button {
                 withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
@@ -93,10 +103,10 @@ public struct CalendarSectionView: View {
                 }
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .rotationEffect(.degrees(collapsed ? -90 : 0))
-                    .frame(width: 18, height: 18)
+                    .frame(width: 20, height: 18)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -108,18 +118,18 @@ public struct CalendarSectionView: View {
         HStack(spacing: 0) {
             ForEach(Self.weekdayTitles, id: \.self) { title in
                 Text(title)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
             }
         }
-        .padding(.top, 2)
+        .padding(.top, 1)
     }
 
     // MARK: 两行日期
 
     private var weeksGrid: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 1) {
             ForEach(0..<2, id: \.self) { row in
                 HStack(spacing: 0) {
                     ForEach(0..<7, id: \.self) { column in
@@ -136,24 +146,27 @@ public struct CalendarSectionView: View {
         let isToday = day?.isToday ?? false
         let isFestival = day.map { isFestivalDay($0) } ?? false
 
-        return VStack(spacing: 1) {
+        return VStack(spacing: 0) {
             Text(day.map { "\(Calendar.current.component(.day, from: $0.date))" } ?? "")
-                .font(.system(size: 15, weight: isToday ? .semibold : .medium))
+                .font(.system(size: 14, weight: isToday ? .semibold : .regular))
                 .foregroundStyle(isToday ? Color.white : Color.primary)
+                .frame(height: 18)
             Text(day?.lunarDisplay ?? " ")
                 .font(.system(size: 9))
                 .foregroundStyle(isToday ? Color.white.opacity(0.92)
                                          : (isFestival ? Color.orange : Color.secondary))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
+                .frame(height: 12)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 34)
         .background {
             if isToday {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.accentColor)
-                    .padding(.horizontal, 11)
+                // 今天：胶囊底固定 30×30，居中——不再按列宽撑满（旧版块面过大）
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Theme.accent)
+                    .frame(width: 32, height: 32)
             }
         }
         .contentShape(Rectangle())
@@ -162,6 +175,41 @@ public struct CalendarSectionView: View {
             NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
                                             userInfo: ["date": date])
         }
+    }
+
+    // MARK: 两指左右滑动切周（trackpad 横向滚动）
+
+    /// 窗口内 local monitor：命中区限定在日历卡内、且以横向滚动为主才处理。
+    /// 与箭头语义一致：向右滑（内容右移）看更早一周，向左滑看后一周。
+    private func installScrollMonitor() {
+        guard scrollMonitor == nil else { return }
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+            // 面板是 key window 时，面板内唯一的横向滚动区域就是日历卡，
+            // 因此不再做像素级命中判定（SwiftUI .global 与 AppKit 视坐标系不一致，
+            // 逐次换算反而易错）：横向为主的滚动即切周。
+            guard let win = event.window ?? NSApp.keyWindow,
+                  win == NSApp.keyWindow else { return event }
+            let dx = event.scrollingDeltaX
+            let dy = event.scrollingDeltaY
+            guard abs(dx) > abs(dy), abs(dx) > 0.3 else { return event }
+            scrollAccum += dx
+            if abs(scrollAccum) >= 12 {
+                shift(scrollAccum > 0 ? -7 : 7)
+                scrollAccum = 0
+            }
+            return nil
+        }
+    }
+
+    private func removeScrollMonitor() {
+        if let monitor = scrollMonitor { NSEvent.removeMonitor(monitor) }
+        scrollMonitor = nil
+        scrollAccum = 0
+    }
+
+    /// 面板窗口（日历只在主面板里出现）
+    private var activeWindow: NSWindow? {
+        NSApp.keyWindow ?? NSApp.mainWindow
     }
 
     // MARK: 数据

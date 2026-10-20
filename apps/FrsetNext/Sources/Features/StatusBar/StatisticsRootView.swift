@@ -100,7 +100,8 @@ struct StatisticsRootView: View {
             }
         }
         // 强调色跟随个性化（统计页内的按钮/焦点环）
-        .tint(personalization.accentColor ?? Color.accentColor)
+        // 强调色 + Midnight 统一主题入口（统计窗同源；个性化改色即生效）
+        .frsetThemeChrome()
         .ignoresSafeArea()
         .onAppear(perform: loadData)
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
