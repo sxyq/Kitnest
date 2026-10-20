@@ -203,7 +203,7 @@ struct SettingsSidebarView: View {
                     .font(.system(size: 11))
                     .frame(width: 16)
                     .foregroundStyle(.tertiary)
-                Text(verbatim: "Frset v1.3.12")
+                Text(verbatim: "Frset v1.0.0")
                     .font(.system(size: 10.5))
                     .foregroundStyle(.tertiary)
                 Spacer(minLength: 0)

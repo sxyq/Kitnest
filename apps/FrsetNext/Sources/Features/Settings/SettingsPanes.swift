@@ -494,33 +494,17 @@ struct AboutSettingsPane: View {
                 .font(.system(size: 21, weight: .semibold))
                 .padding(.top, 18)
 
-            HStack(spacing: 4) {
-                Text("v\(Self.displayVersion)")
-                    .foregroundStyle(.secondary)
-                Text("·").foregroundStyle(.secondary)
-                Button(L10n.t("Changelog")) { openURL(Self.changelogURL) }
-                    .buttonStyle(.link)
-            }
-            .font(.system(size: 12))
-            .padding(.top, 6)
+            // v90（2026-10-20 用户要求）：外链全部移除，版本号回退 1.0.0
+            Text("v\(Self.displayVersion)")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
 
             Spacer(minLength: 24)
 
-            HStack(spacing: 24) {
-                aboutButton(L10n.t("Rate us")) { openURL(Self.rateURL) }
-                aboutButton(L10n.t("Help & Feedback")) { openURL(Self.feedbackURL) }
-                aboutButton("导出使用记录") { DiagnosticsExporter.export() }
-            }
+            aboutButton("导出使用记录") { DiagnosticsExporter.export() }
 
             Spacer(minLength: 24)
-
-            HStack(spacing: 6) {
-                Button(L10n.t("Privacy Policy")) { openURL(Self.privacyURL) }
-                Text("·").foregroundStyle(.secondary)
-                Button(L10n.t("Terms of Service")) { openURL(Self.termsURL) }
-            }
-            .font(.system(size: 12))
-            .buttonStyle(.link)
 
             Text("Copyright © 2026, All rights reserved.")
                 .font(.system(size: 11))
@@ -534,8 +518,8 @@ struct AboutSettingsPane: View {
         }
     }
 
-    /// 原版截图版本行固定值（CFBundleShortVersionString 仍为工程真实版本，不参与本页）
-    static let displayVersion = "1.3.12"
+    /// 版本号（v90 用户要求回退 1.0.0；原对齐原版截图的 1.3.12 不再使用）
+    static let displayVersion = "1.0.0"
 
     /// 外链目标（原版分别走 App Store 评分 / 帮助站 / 隐私与条款页；
     /// 重建无 App Store 与独立站点，统一降级为 GitHub 占位链接 —— 有意差异，记录在 specs/07）
