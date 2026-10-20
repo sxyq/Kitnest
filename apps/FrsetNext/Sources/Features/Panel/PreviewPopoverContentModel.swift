@@ -102,12 +102,29 @@ public struct PreviewPopoverContentModel: Identifiable {
         PreviewPopoverDataBridge.shared.richTextAttributed(for: item)
     }
 
-    /// JSON 预览资格（F16 __isJSONPreviewEligible）：首字符 { 或 [ 且可完整解析
+    /// JSON 预览资格（F16 __isJSONPreviewEligible）：单根 JSON 或 **JSONL**
+    /// （一行一条 JSON 的多行记录——2026-10-20 用户实证 JSONL 文件不自动解析，
+    /// 旧判定只认单根，多根直接落纯文本）。JSONL 要求 ≥2 个有效行且每行都是
+    /// 对象/数组（防把两行普通文本误判）。
     public static func isJSONPreviewEligible(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix("{") || trimmed.hasPrefix("[") else { return false }
-        guard trimmed.count <= 200_000, let data = trimmed.data(using: .utf8) else { return false }
-        return (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) != nil
+        guard trimmed.count <= 200_000 else { return false }
+        if trimmed.hasPrefix("{") || trimmed.hasPrefix("["),
+           let data = trimmed.data(using: .utf8),
+           (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) != nil {
+            return true
+        }
+        // JSONL：每行独立可解析且为对象/数组
+        var good = 0
+        for line in trimmed.components(separatedBy: "\n") {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            if t.isEmpty { continue }
+            guard let d = t.data(using: .utf8),
+                  let o = try? JSONSerialization.jsonObject(with: d, options: [.fragmentsAllowed]),
+                  o is [String: Any] || o is [Any] else { return false }
+            good += 1
+        }
+        return good >= 2
     }
 
     /// Markdown 启发式：标题/围栏/链接/强调/列表 等特征

@@ -132,13 +132,41 @@ final class JSONDocument: ObservableObject {
 
     static let maxNodes = 20000
 
+    /// 解析来源（JSONL = 一行一条 JSON 的多行记录，2026-10-20 用户实证
+    /// 「这个 json 文件没有自动完成解析」——JSONL 旧判定直接失败落纯文本）
+    let isJSONL: Bool
+    /// 原始文本（「原始」视图用；JSONL 保留行结构）
+    let sourceText: String
+
     init?(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              let data = trimmed.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else {
-            return nil
+        guard !trimmed.isEmpty else { return nil }
+        var object: Any?
+        var isJSONL = false
+        if let data = trimmed.data(using: .utf8),
+           let parsed = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
+            object = parsed
+        } else {
+            // JSONL 回退：逐行解析，全部有效行合成对象数组（表格/卡片直接当记录表用）
+            var records: [Any] = []
+            for line in trimmed.components(separatedBy: "\n") {
+                let t = line.trimmingCharacters(in: .whitespaces)
+                if t.isEmpty { continue }
+                guard let d = t.data(using: .utf8),
+                      let o = try? JSONSerialization.jsonObject(with: d, options: [.fragmentsAllowed]),
+                      o is [String: Any] || o is [Any] else {
+                    records = []
+                    break
+                }
+                records.append(o)
+            }
+            guard !records.isEmpty else { return nil }
+            object = records
+            isJSONL = true
         }
+        guard let object else { return nil }
+        self.isJSONL = isJSONL
+        self.sourceText = trimmed
         root = JSONNodeModel(key: nil, raw: object, path: "$", depth: 0)
         // 计数单独走一遍（不建模型，成本低；上限到了就停）
         var count = 0
@@ -177,12 +205,21 @@ struct JSONInspectorView: View {
         // 首层自动展开：折叠的根节点只有一行，看不出结构（原版 JSON 预览打开即可见第一层）
         if document.root.isExpandable { document.root.toggle() }
         _document = ObservedObject(wrappedValue: document)
-        _mode = Stored(wrappedValue: initialMode)
+        // 记录型（对象数组 / JSONL）默认进「表格」——像数据库表一样直接看数据
+        var mode = initialMode
+        if mode == .tree, document.root.kind == .array {
+            if document.root.children.isEmpty { document.root.ensureChildren() }
+            let sample = document.root.children.prefix(20)
+            if !sample.isEmpty, sample.allSatisfy({ $0.kind == .object }) { mode = .table }
+        }
+        _mode = Stored(wrappedValue: mode)
     }
 
     enum JSONViewMode: String, CaseIterable {
         case tree = "树形"
         case table = "表格"
+        case cards = "卡片"
+        case raw = "原始"
     }
 
     private var fontSize: CGFloat { compact ? 11 : 12.5 }
@@ -253,6 +290,117 @@ struct JSONInspectorView: View {
             }
         case .table:
             JSONTableView(document: document, fontSize: fontSize)
+        case .cards:
+            JSONCardsView(document: document, fontSize: fontSize, filter: searchText)
+        case .raw:
+            JSONRawView(document: document, fontSize: fontSize)
+        }
+    }
+}
+
+// MARK: - 卡片视图（记录逐张卡片：序号 + 键值行；对齐 jlens 卡片态）
+
+/// 值预览去引号：字符串节点的 preview 带 JSON 引号，表/卡视图里显得脏
+private func displayValue(_ s: String) -> String {
+    var v = s.trimmingCharacters(in: .whitespaces)
+    if v.count >= 2, v.hasPrefix("\""), v.hasSuffix("\"") {
+        v = String(v.dropFirst().dropLast())
+    }
+    return v
+}
+
+private struct JSONCardsView: View {
+    let document: JSONDocument
+    let fontSize: CGFloat
+    let filter: String
+
+    private var records: [JSONNodeModel] {
+        if document.root.children.isEmpty { document.root.ensureChildren() }
+        // 根是对象 → 一张卡；根是数组 → 每元素一张卡
+        let list = document.root.kind == .array ? document.root.children : [document.root]
+        let q = filter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return Array(list.prefix(500)) }
+        return Array(list.filter { node in
+            node.ensureChildren()
+            if let k = node.key, k.lowercased().contains(q) { return true }
+            return node.children.contains { child in
+                (child.key ?? "").lowercased().contains(q) || child.preview.lowercased().contains(q)
+            }
+        }.prefix(500))
+    }
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(records.enumerated()), id: \.offset) { index, node in
+                    card(node: node, index: index)
+                }
+            }
+            .padding(10)
+        }
+    }
+
+    private func card(node: JSONNodeModel, index: Int) -> some View {
+        node.ensureChildren()
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text("#\(index + 1)")
+                    .font(.system(size: fontSize - 1, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            Divider().opacity(0.4)
+            ForEach(node.children) { child in
+                HStack(alignment: .top, spacing: 8) {
+                    Text(child.key ?? "值")
+                        .font(.system(size: fontSize - 1, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 92, alignment: .leading)
+                        .lineLimit(1)
+                    Text(displayValue(child.preview))
+                        .font(.system(size: fontSize - 1, design: .monospaced))
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.primary.opacity(0.045))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - 原始视图（pretty-print 文本 / JSONL 原行，可选中复制）
+
+private struct JSONRawView: View {
+    let document: JSONDocument
+    let fontSize: CGFloat
+
+    private var pretty: String {
+        guard !document.isJSONL else { return document.sourceText }
+        if let data = document.sourceText.data(using: .utf8),
+           let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
+           let out = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+           let s = String(data: out, encoding: .utf8) {
+            return s
+        }
+        return document.sourceText
+    }
+
+    var body: some View {
+        ScrollView([.vertical, .horizontal], showsIndicators: true) {
+            Text(pretty)
+                .font(.system(size: fontSize, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
         }
     }
 }
@@ -357,6 +505,9 @@ private struct JSONTreeList: View {
 private struct JSONTableView: View {
     let document: JSONDocument
     let fontSize: CGFloat
+    /// 排序列（nil = 原序；点表头切换 升/降）
+    @Stored private var sortKey: String? = nil
+    @Stored private var sortAscending: Bool = true
 
     private struct Column {
         let key: String
@@ -415,11 +566,12 @@ private struct JSONTableView: View {
     }
 
     private var rowValues: [(index: Int, cells: [String])] {
+        var rows: [(index: Int, cells: [String])]
         switch shape {
         case .keyValue:
             if document.root.children.isEmpty { document.root.ensureChildren() }
             return document.root.children.enumerated().map { index, child in
-                (index, [child.key ?? "", child.preview])
+                (index, [child.key ?? "", displayValue(child.preview)])
             }
         case .scalars:
             if document.root.children.isEmpty { document.root.ensureChildren() }
@@ -432,10 +584,33 @@ private struct JSONTableView: View {
                 row.ensureChildren()
                 var map: [String: String] = [:]
                 for child in row.children { if let key = child.key { map[key] = child.preview } }
-                return (index, cols.map { map[$0] ?? "—" })
+                return (index, cols.map { displayValue(map[$0] ?? "—") })
             }
         case .unsupported:
-            return []
+            rows = []
+        }
+        // 点表头排序（升/降切换；再点恢复原序需要点第三下——两次内完成常用操作）
+        if let key = sortKey, !rows.isEmpty, let colIndex = columns.firstIndex(where: { $0.key == key }) {
+            let asc = sortAscending
+            rows.sort { a, b in
+                let av = a.cells.count > colIndex ? a.cells[colIndex] : ""
+                let bv = b.cells.count > colIndex ? b.cells[colIndex] : ""
+                if let an = Double(av), let bn = Double(bv) {
+                    return asc ? an < bn : an > bn
+                }
+                return asc ? av.localizedCaseInsensitiveCompare(bv) == .orderedAscending
+                           : av.localizedCaseInsensitiveCompare(bv) == .orderedDescending
+            }
+        }
+        return rows
+    }
+
+    private func tapHeader(_ key: String) {
+        if sortKey == key {
+            sortAscending.toggle()
+        } else {
+            sortKey = key
+            sortAscending = true
         }
     }
 
@@ -494,11 +669,25 @@ private struct JSONTableView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 34, alignment: .leading)
             ForEach(columns, id: \.key) { column in
-                Text(column.key)
+                Button {
+                    tapHeader(column.key)
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(column.key)
+                            .lineLimit(1)
+                        if sortKey == column.key {
+                            Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 8, weight: .bold))
+                        }
+                    }
                     .font(.system(size: fontSize - 2, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(sortKey == column.key ? Theme.accent : Color.secondary)
                     .frame(width: column.width, alignment: .leading)
                     .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("点击按此列排序")
             }
         }
         .frame(height: 24)
