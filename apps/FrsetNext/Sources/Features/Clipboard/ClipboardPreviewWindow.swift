@@ -209,6 +209,8 @@ struct ClipboardPreviewWindowView: View {
     @Stored private var pinned = MainPanelPreviewPopoverCoordinator.shared.previewPinned
     /// 关闭钮悬停态（红底白叉反馈）
     @Stored private var closeHover = false
+    /// v106：液态玻璃入场态（easeOut 0.18s）
+    @Stored private var glassAppeared = false
 
     init(item: ClipboardItem, showsHint: Bool = false, hoverStyle: Bool = false,
          onEditingChanged: ((Bool) -> Void)? = nil) {
@@ -233,9 +235,16 @@ struct ClipboardPreviewWindowView: View {
                 preview
             }
         }
-        .background(Color(nsColor: OfficialChrome.windowBackground))
+        // v106：hover 态根背景置空，让液态玻璃面透出来（persistent 保留原实底）
+        .background(hoverStyle ? Color.clear : Color(nsColor: OfficialChrome.windowBackground))
         .frame(minWidth: 420, minHeight: 320)
         .modifier(HoverClipModifier(active: hoverStyle))
+        // v106 入场动效（GSAP 原则：ease-out 进场、0.96 缩放、0.18s、可中断；
+        // 高频 hover 复现同条目时不重播——只在内容安装时播一次）
+        .opacity(glassAppeared ? 1 : 0)
+        .scaleEffect(glassAppeared ? 1 : 0.96, anchor: .center)
+        .animation(.easeOut(duration: 0.18), value: glassAppeared)
+        .onAppear { glassAppeared = true }
         .onExitCommand {
             // Esc 关闭（hover / persistent 两模式同效）
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .escape)
@@ -453,19 +462,48 @@ struct ClipboardPreviewWindowView: View {
 }
 
 /// hover 态内容裁剪：圆角 + 半透明描边（active=false 时不裁，persistent 走系统标题栏圆角）
+/// v106（2026-10-21 用户：「文本预览框要玻璃改造」，对齐 liquid-glass 规范）：
+/// 毛玻璃材质 + 顶部高光渐变描边 + 柔和投影；对比度靠半实底 tint 保障
+/// （设计守则：材质不能压过文字对比）；开启「减弱透明度」时回退纯色。
 private struct HoverClipModifier: ViewModifier {
     let active: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    private let radius: CGFloat = 12
 
     func body(content: Content) -> some View {
         if active {
             content
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(glassSurface)
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(reduceTransparency ? 0.12 : 0.38),
+                                    Color.white.opacity(0.10),
+                                    Color.primary.opacity(0.10),
+                                ],
+                                startPoint: .top, endPoint: .bottom),
+                            lineWidth: 0.5)
                 )
+                // 液态玻璃的"浮起"感：大而柔的投影（仅 hover 态，滚动列表不受影响）
+                .shadow(color: .black.opacity(0.22), radius: 16, y: 6)
         } else {
             content
+        }
+    }
+
+    /// 玻璃面：ultraThin 材质 + 半实底 tint（文字对比度），减弱透明度时纯色兜底
+    @ViewBuilder private var glassSurface: some View {
+        if reduceTransparency {
+            Color(nsColor: .windowBackgroundColor)
+        } else {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Color(nsColor: .windowBackgroundColor).opacity(0.55)
+            }
         }
     }
 }

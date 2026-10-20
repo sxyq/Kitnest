@@ -66,7 +66,8 @@ private struct PreviewRichTextView: View {
 
     var body: some View {
         AttributedTextView(attributed)
-            .background(Color(nsColor: .textBackgroundColor))
+            // v106：置空让液态玻璃透出（原实底会盖住玻璃面）
+            .background(Color.clear)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
