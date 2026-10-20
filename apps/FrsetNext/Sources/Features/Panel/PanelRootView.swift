@@ -102,8 +102,8 @@ struct PanelRootView: View {
             Log.info("Panel", "切页: \(newPage)")
             RenderProbe.snapshotAll(reason: "pageChange")
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
-            // 切到中转页才起局域网直传服务（默认不在后台常开端口）
-            if newPage == .transfer { LanTransferServer.shared.startIfEnabled() }
+            // 切到中转页**不再**自动起直传服务（2026-10-20 用户需求）：
+            // 服务按需启动——勾选文件后点「扫码直传」才拉起并生成二维码。
         }
         // 文件中转开关关闭时：若正停在该页则回主页（v41）
         .onChange(of: transferDockEnabled) { enabled in
@@ -178,9 +178,10 @@ struct PanelRootView: View {
                     anchorRectInWindow: CGRect(x: 24, y: 250, width: 340, height: 60))
             }
         }
-        // 面板直接以中转页打开时（上次停留页）也要把直传服务拉起来
+        // 面板直接以中转页打开时（上次停留页）也不自动起直传服务：
+        // 按需启动，勾选文件后点「扫码直传」才拉起（2026-10-20 用户需求）
         .onAppear {
-            if page == .transfer { LanTransferServer.shared.startIfEnabled() }
+            if page == .transfer { Log.info("Panel", "中转页打开：直传服务保持按需启动") }
         }
         // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in

@@ -44,7 +44,9 @@ struct TransferDockSettingsPane: View {
                         Toggle("", isOn: $lanEnabled)
                             .labelsHidden().toggleStyle(.switch).controlSize(.small)
                             .onChange(of: lanEnabled) { on in
-                                if on { lan.start() } else { lan.stop() }
+                                // 只在关闭时停服务；开启不自动启动（2026-10-20 用户需求）：
+                                // 服务按需启动——中转页勾选文件点「扫码直传」，或点下方「启动」。
+                                if !on { lan.stop() }
                                 notifyChange()
                             }
                     }
@@ -62,7 +64,9 @@ struct TransferDockSettingsPane: View {
                         }
                     }
                     SettingsDivider()
-                    row("访问地址", subtitle: "手机浏览器打开即可上传/下载") {
+                    row("访问地址", subtitle: lan.running
+                        ? "手机浏览器打开即可上传/下载"
+                        : "服务未启动 · 勾选文件后点「扫码直传」，或手动启动") {
                         HStack(spacing: 10) {
                             Text(lan.shareURL ?? "—")
                                 .font(.system(size: 11.5, design: .monospaced))
@@ -76,6 +80,15 @@ struct TransferDockSettingsPane: View {
                                     if let u = URL(string: url) { NSWorkspace.shared.open(u) }
                                 }
                                 .controlSize(.small)
+                                Button("停止") { lan.stop(); revision += 1 }
+                                    .controlSize(.small)
+                            } else {
+                                Button("启动") {
+                                    lan.startIfEnabled()
+                                    revision += 1
+                                }
+                                .controlSize(.small)
+                                .disabled(!lanEnabled)
                             }
                             Spacer(minLength: 0)
                         }
@@ -171,9 +184,8 @@ struct TransferDockSettingsPane: View {
             portText = String(TransferDockPref.lanPort)
             bridgePath = TransferDockPath.root.path
             bridgeAvailable = TransferDockPath.isAvailable
-            // 进到这个设置页就把直传服务拉起来：否则「启用 = 开」但地址/二维码是空的，
-            // 用户会以为功能没生效。
-            if lanEnabled { lan.startIfEnabled() }
+            // 不自动拉起直传服务（2026-10-20 用户需求）：按需启动——
+            // 中转页勾选文件点「扫码直传」，或本页「访问地址」行手动启动。
         }
         .onReceive(NotificationCenter.default.publisher(for: .localTransferDidChange)) { _ in
             revision += 1

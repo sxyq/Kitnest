@@ -41,6 +41,8 @@ struct TransferDockView: View {
     @Stored private var selectedIDs = Set<String>()
     /// 「扫码直传」选中文件的二维码链接（带 ?pick=ids，手机只看到这几个）
     @Stored private var pickShareURL: String?
+    /// 直传服务是否由「传输」动作拉起（是则勾选清空时随停；手动启动的不代停）
+    @Stored private var lanStartedForTransfer = false
 
     /// 云端分区是否出现：开关 + 桥接工程都在才算
     private var showsCloud: Bool { cloudEnabled && bridgeAvailable }
@@ -90,7 +92,16 @@ struct TransferDockView: View {
             }
         }
         .onChange(of: lanEnabled) { on in
-            if on { lan.startIfEnabled() } else { lan.stop() }
+            // 只在关闭时停服务；开启**不**自动启动（2026-10-20 用户需求）：
+            // 勾选文件后点「扫码直传」才拉起服务并生成二维码。
+            if !on { lan.stop() }
+        }
+        .onChange(of: selectedIDs) { ids in
+            // 没有选中文件 → 关二维码；若服务是「传输」拉起的则一并停掉
+            if ids.isEmpty {
+                pickShareURL = nil
+                stopServiceIfStartedForTransfer()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .transferDockSettingsDidChange)) { _ in
             bridgeAvailable = TransferDockPath.isAvailable
@@ -179,6 +190,11 @@ struct TransferDockView: View {
                 selectedIDs = Set(ids)
                 Log.info("TransferDock", "探针：勾选 \(ids.count) 项并弹定向二维码")
                 showPickQR()
+                // 3.5s 后自动清空勾选，验证「无勾选 → 停直传服务」（排障用）
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    selectedIDs.removeAll()
+                    Log.info("TransferDock", "探针：清空勾选（应触发停服务）")
+                }
             default:
                 break
             }
@@ -234,12 +250,14 @@ struct TransferDockView: View {
                                     if let u = URL(string: url) { NSWorkspace.shared.open(u) }
                                 }
                             }
-                            Text("微信/相机扫一扫 → 浏览器里选文件上传，也能下载 Mac 上的暂存文件")
+                            Text(lan.running
+                                 ? "微信/相机扫一扫 → 浏览器里选文件上传，也能下载 Mac 上的暂存文件"
+                                 : "勾选文件后点「扫码直传」生成二维码；如需手机上传可手动启动")
                                 .font(.system(size: 8.5))
                                 .foregroundStyle(.tertiary)
                                 .fixedSize(horizontal: false, vertical: true)
                         } else {
-                            Text(lan.statusText.isEmpty ? "按设置开启后生成二维码" : lan.statusText)
+                            Text(lan.statusText.isEmpty ? "服务未启动 · 勾选文件后点「扫码直传」" : lan.statusText)
                                 .font(.system(size: 9.5))
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -558,11 +576,15 @@ struct TransferDockView: View {
         }
     }
 
-    /// 勾选后「扫码直传」：生成 ?pick=ids 的定向接收二维码（手机只看到这几个文件）
+    /// 勾选后「扫码直传」：**此时才**启动服务并生成 ?pick=ids 的定向接收二维码
+    /// （2026-10-20 用户需求：没选中文件不起服务，点传输才拉起并出码）。
     private func showPickQR() {
         let ids = local.items.filter { selectedIDs.contains($0.id) }.map(\.id)
         guard !ids.isEmpty else { return }
-        if !lan.running { lan.startIfEnabled() }
+        if !lan.running {
+            lan.startIfEnabled()
+            lanStartedForTransfer = true
+        }
         let build: () -> Void = {
             guard let base = lan.shareURL else {
                 Toast.show("直传服务未启动，无法生成二维码", icon: "exclamationmark.triangle", isWarning: true)
@@ -576,6 +598,13 @@ struct TransferDockView: View {
             // 服务刚拉起，shareURL 要等端口绑定后才有
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: build)
         }
+    }
+
+    /// 停掉由「传输」拉起的直传服务（手动启动的不动）
+    private func stopServiceIfStartedForTransfer() {
+        guard lanStartedForTransfer else { return }
+        lanStartedForTransfer = false
+        lan.stop()
     }
 
     /// 勾选后「加入云端」：批量走 OPPO 中转桥接上传

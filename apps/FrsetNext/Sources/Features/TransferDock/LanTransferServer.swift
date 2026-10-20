@@ -57,7 +57,8 @@ public final class LanTransferServer: ObservableObject {
         queue.async { [weak self] in self?.startLocked(preferred: TransferDockPref.lanPort) }
     }
 
-    /// 只在「设置里开着」时才启动——面板切到中转页时调用
+    /// 只在「设置里开着」时才启动——「扫码直传」传输动作 / 手动启动按钮调用
+    /// （2026-10-20 用户需求：页面打开不再自动起服务，按需启动）
     public func startIfEnabled() {
         guard TransferDockPref.isOn(TransferDockPref.lanEnabled) else { return }
         guard !running, listener == nil else { return }
@@ -79,12 +80,21 @@ public final class LanTransferServer: ObservableObject {
         }
     }
 
-    /// 端口/开关变更后重启（设置页调用）
+    /// 端口/开关变更后重启（设置页调用）：原本没在跑就只换端口，**不代启动**
+    /// （2026-10-20 用户需求：没选中文件/没点传输时服务保持不运行）
     public func restart() {
         queue.async { [weak self] in
             guard let self else { return }
+            let wasRunning = self.listener != nil
             self.listener?.cancel()
             self.listener = nil
+            guard wasRunning else {
+                DispatchQueue.main.async {
+                    self.running = false
+                    self.shareURL = nil
+                }
+                return
+            }
             self.startLocked(preferred: TransferDockPref.lanPort)
         }
     }
