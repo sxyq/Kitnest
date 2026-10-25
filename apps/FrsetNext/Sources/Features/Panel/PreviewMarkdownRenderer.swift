@@ -120,149 +120,158 @@ enum PreviewMarkdownRenderer {
 
     /// 解析并记录每块的源文本区间（UTF-16；⌘C 回源复制用，v87）
     static func parseSourced(_ text: String) -> [(block: MarkdownBlock, source: NSRange)] {
-        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
-        let ns = normalized as NSString
-        let lines = normalized.components(separatedBy: "\n")
+        // v128（内存优化）：外层包 autoreleasepool——每次预览渲染都跑一遍解析，
+        // 逐行 NSString 桥接/正则匹配产生大量临时对象，显式防堆积
+        autoreleasepool {
+            let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+            let ns = normalized as NSString
+            let lines = normalized.components(separatedBy: "\n")
 
-        // 行首 UTF-16 偏移（块源区间换算）
-        var lineOffsets: [Int] = []
-        var off = 0
-        for line in lines {
-            lineOffsets.append(off)
-            off += (line as NSString).length + 1
-        }
-        func span(_ startLine: Int, _ endLine: Int) -> NSRange {
-            let s = lineOffsets[max(0, min(startLine, lineOffsets.count - 1))]
-            let e = endLine < lineOffsets.count ? lineOffsets[endLine] : ns.length
-            return NSRange(location: s, length: max(0, e - s))
-        }
-
-        // 裸代码自动识别（v85）：无围栏且整体像代码 → 合成一个代码块
-        if !normalized.contains("```"), looksLikeNakedCode(lines) {
-            return [(.code(lang: guessLanguage(lines), code: normalized),
-                     NSRange(location: 0, length: ns.length))]
-        }
-
-        var blocks: [(block: MarkdownBlock, source: NSRange)] = []
-        var paragraph: [String] = []
-        var paragraphStart: Int? = nil
-        var i = 0
-
-        func flushParagraph() {
-            if !paragraph.isEmpty {
-                blocks.append((.paragraph(paragraph.joined(separator: "\n")),
-                               span(paragraphStart ?? max(0, i - paragraph.count), i)))
-                paragraph.removeAll()
-                paragraphStart = nil
+            // 行首 UTF-16 偏移（块源区间换算）
+            var lineOffsets: [Int] = []
+            var off = 0
+            for line in lines {
+                lineOffsets.append(off)
+                off += (line as NSString).length + 1
             }
-        }
+            func span(_ startLine: Int, _ endLine: Int) -> NSRange {
+                let s = lineOffsets[max(0, min(startLine, lineOffsets.count - 1))]
+                let e = endLine < lineOffsets.count ? lineOffsets[endLine] : ns.length
+                return NSRange(location: s, length: max(0, e - s))
+            }
 
-        while i < lines.count {
-            let raw = lines[i]
-            let line = raw.trimmingCharacters(in: .whitespaces)
+            // 裸代码自动识别（v85）：无围栏且整体像代码 → 合成一个代码块
+            if !normalized.contains("```"), looksLikeNakedCode(lines) {
+                return [(.code(lang: guessLanguage(lines), code: normalized),
+                         NSRange(location: 0, length: ns.length))]
+            }
 
-            // 代码围栏
-            if line.hasPrefix("```") {
-                flushParagraph()
-                let fenceStart = i
-                let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
-                var code: [String] = []
-                i += 1
-                while i < lines.count {
-                    let l = lines[i].trimmingCharacters(in: .whitespaces)
-                    if l.hasPrefix("```") { i += 1; break }
-                    code.append(lines[i])
-                    i += 1
+            var blocks: [(block: MarkdownBlock, source: NSRange)] = []
+            var paragraph: [String] = []
+            var paragraphStart: Int? = nil
+            var i = 0
+
+            func flushParagraph() {
+                if !paragraph.isEmpty {
+                    blocks.append((.paragraph(paragraph.joined(separator: "\n")),
+                                   span(paragraphStart ?? max(0, i - paragraph.count), i)))
+                    paragraph.removeAll()
+                    paragraphStart = nil
                 }
-                blocks.append((.code(lang: lang.lowercased(), code: code.joined(separator: "\n")),
-                               span(fenceStart, i)))
-                continue
             }
 
-            // 空行
-            if line.isEmpty {
-                flushParagraph()
-                i += 1
-                continue
-            }
+            while i < lines.count {
+                let raw = lines[i]
+                let line = raw.trimmingCharacters(in: .whitespaces)
 
-            // 标题（v87：兼容中文 `#标题` 无空格写法）
-            if let m = line.range(of: "^#{1,6}(\\s+|(?=[\\u4e00-\\u9fff]))", options: .regularExpression) {
-                flushParagraph()
-                let head = String(line[line.startIndex..<m.upperBound])
-                let hashes = head.filter { $0 == "#" }.count
-                let title = String(line[m.upperBound...]).trimmingCharacters(in: .whitespaces)
-                blocks.append((.heading(level: hashes, text: title), span(i, i + 1)))
-                i += 1
-                continue
-            }
-
-            // 分隔线
-            if line.range(of: "^([-*_])\\s*(\\1\\s*){2,}$", options: .regularExpression) != nil {
-                flushParagraph()
-                blocks.append((.divider, span(i, i + 1)))
-                i += 1
-                continue
-            }
-
-            // 引用（连续行合并）
-            if line.hasPrefix(">") {
-                flushParagraph()
-                let quoteStart = i
-                var quote: [String] = []
-                while i < lines.count {
-                    let l = lines[i].trimmingCharacters(in: .whitespaces)
-                    guard l.hasPrefix(">") else { break }
-                    quote.append(String(l.dropFirst()).trimmingCharacters(in: .whitespaces))
+                // 代码围栏
+                if line.hasPrefix("```") {
+                    flushParagraph()
+                    let fenceStart = i
+                    let lang = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+                    var code: [String] = []
                     i += 1
-                }
-                blocks.append((.quote(quote.joined(separator: "\n")), span(quoteStart, i)))
-                continue
-            }
-
-            // 表格（连续 | 行）
-            if line.hasPrefix("|") && line.hasSuffix("|") {
-                flushParagraph()
-                let tableStart = i
-                var rows: [[String]] = []
-                while i < lines.count {
-                    let l = lines[i].trimmingCharacters(in: .whitespaces)
-                    guard l.hasPrefix("|"), l.hasSuffix("|") else { break }
-                    if l.range(of: "^\\|[\\s:|-]+\\|$", options: .regularExpression) != nil {
-                        i += 1; continue   // 分隔行
+                    while i < lines.count {
+                        let l = lines[i].trimmingCharacters(in: .whitespaces)
+                        if l.hasPrefix("```") { i += 1; break }
+                        code.append(lines[i])
+                        i += 1
                     }
-                    let cells = l.dropFirst().dropLast()
-                        .components(separatedBy: "|")
-                        .map { $0.trimmingCharacters(in: .whitespaces) }
-                    rows.append(cells)
-                    i += 1
+                    blocks.append((.code(lang: lang.lowercased(), code: code.joined(separator: "\n")),
+                                   span(fenceStart, i)))
+                    continue
                 }
-                if !rows.isEmpty { blocks.append((.table(rows: rows), span(tableStart, i))) }
-                continue
-            }
 
-            // 列表
-            if let m = line.range(of: "^(\\s*)([-*+]|\\d+[.)])\\s+", options: .regularExpression) {
-                flushParagraph()
-                let head = String(line[line.startIndex..<m.upperBound])
-                let indentChars = head.prefix { $0 == " " || $0 == "\t" }.count
-                let markerPart = String(line[m.lowerBound..<m.upperBound])
-                let ordered = markerPart.trimmingCharacters(in: .whitespaces).first?.isNumber ?? false
-                let marker = markerPart.trimmingCharacters(in: .whitespaces)
-                let content = String(line[m.upperBound...])
-                blocks.append((.listItem(indent: indentChars / 2, ordered: ordered, marker: marker, text: content),
-                               span(i, i + 1)))
+                // 空行
+                if line.isEmpty {
+                    flushParagraph()
+                    i += 1
+                    continue
+                }
+
+                // 标题（v87：兼容中文 `#标题` 无空格写法）
+                // v126（性能审计 F1077）：原 range(of:options:.regularExpression) 每行隐式编译一次
+                // 正则（一篇长文档上千次），改走 cachedRe 编译缓存 + NSRange 匹配。
+                let nsLine = line as NSString
+                if let m = Self.firstMatchRange(#"^#{1,6}(\s+|(?=[一-鿿]))"#, in: line) {
+                    flushParagraph()
+                    let head = nsLine.substring(with: NSRange(location: 0, length: NSMaxRange(m)))
+                    let hashes = head.filter { $0 == "#" }.count
+                    let title = nsLine.substring(from: NSMaxRange(m)).trimmingCharacters(in: .whitespaces)
+                    blocks.append((.heading(level: hashes, text: title), span(i, i + 1)))
+                    i += 1
+                    continue
+                }
+
+                // 分隔线
+                if Self.firstMatchRange(#"^([-*_])\s*(\1\s*){2,}$"#, in: line) != nil {
+                    flushParagraph()
+                    blocks.append((.divider, span(i, i + 1)))
+                    i += 1
+                    continue
+                }
+
+                // 引用（连续行合并）
+                if line.hasPrefix(">") {
+                    flushParagraph()
+                    let quoteStart = i
+                    var quote: [String] = []
+                    while i < lines.count {
+                        let l = lines[i].trimmingCharacters(in: .whitespaces)
+                        guard l.hasPrefix(">") else { break }
+                        quote.append(String(l.dropFirst()).trimmingCharacters(in: .whitespaces))
+                        i += 1
+                    }
+                    blocks.append((.quote(quote.joined(separator: "\n")), span(quoteStart, i)))
+                    continue
+                }
+
+                // 表格（连续 | 行）
+                if line.hasPrefix("|") && line.hasSuffix("|") {
+                    flushParagraph()
+                    let tableStart = i
+                    var rows: [[String]] = []
+                    while i < lines.count {
+                        let l = lines[i].trimmingCharacters(in: .whitespaces)
+                        guard l.hasPrefix("|"), l.hasSuffix("|") else { break }
+                        // v126（性能审计 F1077）：分隔行判定走 cachedRe，避免逐行隐式编译正则
+                        if Self.firstMatchRange(#"^\|[\s:|-]+\|$"#, in: l) != nil {
+                            i += 1; continue   // 分隔行
+                        }
+                        let cells = l.dropFirst().dropLast()
+                            .components(separatedBy: "|")
+                            .map { $0.trimmingCharacters(in: .whitespaces) }
+                        rows.append(cells)
+                        i += 1
+                    }
+                    if !rows.isEmpty { blocks.append((.table(rows: rows), span(tableStart, i))) }
+                    continue
+                }
+
+                // 列表
+                // v126（性能审计 F1077）：列表判定同样改 cachedRe（原 range(of:.regularExpression) 逐行编译）
+                if let m = Self.firstMatchRange(#"^(\s*)([-*+]|\d+[.)])\s+"#, in: line) {
+                    flushParagraph()
+                    let head = nsLine.substring(with: NSRange(location: 0, length: NSMaxRange(m)))
+                    let indentChars = head.prefix { $0 == " " || $0 == "\t" }.count
+                    let markerPart = nsLine.substring(with: m)
+                    let ordered = markerPart.trimmingCharacters(in: .whitespaces).first?.isNumber ?? false
+                    let marker = markerPart.trimmingCharacters(in: .whitespaces)
+                    let content = nsLine.substring(from: NSMaxRange(m))
+                    blocks.append((.listItem(indent: indentChars / 2, ordered: ordered, marker: marker, text: content),
+                                   span(i, i + 1)))
+                    i += 1
+                    continue
+                }
+
+                // 普通段落
+                if paragraphStart == nil { paragraphStart = i }
+                paragraph.append(line)
                 i += 1
-                continue
             }
-
-            // 普通段落
-            if paragraphStart == nil { paragraphStart = i }
-            paragraph.append(line)
-            i += 1
+            flushParagraph()
+            return blocks
         }
-        flushParagraph()
-        return blocks
     }
 
     /// 裸代码启发式（对应 v85：无 ``` 但整体是代码）
@@ -509,6 +518,26 @@ enum PreviewMarkdownRenderer {
         return out
     }
 
+    // v125（性能审计 F1077）：正则编译缓存。语法高亮对每行 × 每关键字都
+    // NSRegularExpression(pattern:) 一次，一篇长代码块就是上千次编译。
+    // 改为按 pattern 字符串缓存，命中后零成本。
+    private static var _reCache: [String: NSRegularExpression] = [:]
+    private static func cachedRe(_ pattern: String) -> NSRegularExpression? {
+        if let hit = _reCache[pattern] { return hit }
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
+        _reCache[pattern] = re
+        return re
+    }
+
+    // v126（性能审计 F1077）：String.range(of:options:.regularExpression) 内部每次都重新
+    // 编译正则（Swift 不缓存），parseSourced 逐行调用 4 处就是每行 4 次编译。
+    // 统一改走 cachedRe 编译缓存，只做一次匹配。
+    private static func firstMatchRange(_ pattern: String, in text: String) -> NSRange? {
+        guard let re = cachedRe(pattern) else { return nil }
+        let ns = text as NSString
+        return re.firstMatch(in: text, range: NSRange(location: 0, length: ns.length))?.range
+    }
+
     // 12 语言关键字表（对应 v84：C/C++ Java Python Kotlin C# JS Swift Go Rust SQL Shell）
     private static let keywords: [String: Set<String>] = [
         "c": ["int","char","float","double","void","struct","enum","typedef","static","const","unsigned","signed","long","short","if","else","for","while","do","switch","case","default","break","continue","return","sizeof","goto","extern","volatile","inline"],
@@ -523,6 +552,12 @@ enum PreviewMarkdownRenderer {
         "rust": ["fn","let","mut","const","static","struct","enum","trait","impl","use","mod","pub","crate","self","super","if","else","match","for","while","loop","break","continue","return","true","false","Some","None","Ok","Err","unsafe","async","await","move","ref","type","where"],
         "sql": ["SELECT","FROM","WHERE","INSERT","INTO","VALUES","UPDATE","SET","DELETE","CREATE","TABLE","ALTER","DROP","INDEX","JOIN","LEFT","RIGHT","INNER","OUTER","ON","GROUP","BY","ORDER","HAVING","LIMIT","OFFSET","AS","AND","OR","NOT","NULL","IS","IN","LIKE","BETWEEN","DISTINCT","COUNT","SUM","AVG","MIN","MAX","PRIMARY","KEY","FOREIGN","REFERENCES","DEFAULT"],
         "shell": ["if","then","else","elif","fi","for","while","do","done","case","esac","function","return","exit","export","local","echo","cd","source","sudo","rm","mv","cp","ls","grep","awk","sed","cat","chmod","mkdir","pwd","set","unset","read","shift"]
+    ]
+
+    // v126（性能审计 F1087）：未知语言的通用关键字集合（Set 化供标识符单遍扫描查表）
+    private static let genericKeywords: Set<String> = [
+        "if","else","for","while","return","func","function","class","struct",
+        "let","var","const","import","def","true","false","null","nil","new"
     ]
 
     private static func normalizedLang(_ lang: String) -> String {
@@ -542,85 +577,80 @@ enum PreviewMarkdownRenderer {
 
     /// 单行语法高亮（VSCode 风格配色；语义色随明暗自适应）
     static func highlight(line: String, lang: String, font: NSFont) -> NSMutableAttributedString {
-        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
-        let out = NSMutableAttributedString(string: line, attributes: base)
-        let ns = line as NSString
-        let full = NSRange(location: 0, length: ns.length)
-        guard full.length > 0 else { return out }
+        // v128（内存优化）：外层包 autoreleasepool——renderCode 对代码块逐行调用本函数
+        // （长代码块上千行），每行都做正则匹配 + 属性字符串构造，临时对象显式 drain
+        autoreleasepool {
+            let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
+            let out = NSMutableAttributedString(string: line, attributes: base)
+            let ns = line as NSString
+            let full = NSRange(location: 0, length: ns.length)
+            guard full.length > 0 else { return out }
 
-        let keywordColor = NSColor.systemPurple
-        let stringColor = NSColor.systemRed
-        let commentColor = NSColor.secondaryLabelColor
-        let numberColor = NSColor.systemBlue
-        let typeColor = NSColor.systemTeal
+            let keywordColor = NSColor.systemPurple
+            let stringColor = NSColor.systemRed
+            let commentColor = NSColor.secondaryLabelColor
+            let numberColor = NSColor.systemBlue
+            let typeColor = NSColor.systemTeal
 
-        // 注释（整行优先：// # -- /* *）
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed.hasPrefix("//") || trimmed.hasPrefix("#") || trimmed.hasPrefix("--")
-            || (trimmed.hasPrefix("*") && !trimmed.hasPrefix("**")) || trimmed.hasPrefix("/*") {
-            // 例外：markdown 标题已在上层分流；这里的 # 视为注释（shell/python）
-            out.addAttribute(.foregroundColor, value: commentColor, range: full)
+            // 注释（整行优先：// # -- /* *）
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("//") || trimmed.hasPrefix("#") || trimmed.hasPrefix("--")
+                || (trimmed.hasPrefix("*") && !trimmed.hasPrefix("**")) || trimmed.hasPrefix("/*") {
+                // 例外：markdown 标题已在上层分流；这里的 # 视为注释（shell/python）
+                out.addAttribute(.foregroundColor, value: commentColor, range: full)
+                return out
+            }
+
+            // 字符串
+            let strPattern = "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'"
+            if let re = Self.cachedRe(strPattern) {
+                for m in re.matches(in: line, range: full) {
+                    out.addAttribute(.foregroundColor, value: stringColor, range: m.range)
+                }
+            }
+
+            // 注释（行尾）
+            if let range = line.range(of: "//") {
+                let loc = line.distance(from: line.startIndex, to: range.lowerBound)
+                if loc > 0 {
+                    // 不在字符串内才标（粗略：看前面引号数量）
+                    let prefix = String(line.prefix(loc))
+                    let quotes = prefix.filter { $0 == "\"" }.count
+                    if quotes % 2 == 0 {
+                        out.addAttribute(.foregroundColor, value: commentColor, range: NSRange(location: loc, length: ns.length - loc))
+                    }
+                }
+            }
+
+            // 数字（v125：正则缓存，避免每行重编译）
+            if let re = Self.cachedRe("\\b\\d+(?:\\.\\d+)?\\b") {
+                for m in re.matches(in: line, range: full) {
+                    out.addAttribute(.foregroundColor, value: numberColor, range: m.range)
+                }
+            }
+
+            // 关键字 / 类型（v125：正则缓存——原来 O(行数×关键字数) 次 NSRegularExpression 编译，
+            // 现在每个 pattern 只编译一次，后续纯查表）
+            // v126（性能审计 F1087）：再进一步——原实现每行 × 每关键字跑一次全行正则匹配
+            // （40+ 关键字 × 行数 ≈ 上千次扫描），改为一次标识符扫描 + Set 查表着色。
+            // 着色优先级与原实现一致：关键字色先写、类型色后写覆盖（类型 > 关键字）。
+            let langKey = normalizedLang(lang)
+            let kwSet = keywords[langKey] ?? genericKeywords
+            if let re = Self.cachedRe(#"[A-Za-z_][A-Za-z0-9_]*"#) {
+                for m in re.matches(in: line, range: full) {
+                    let word = ns.substring(with: m.range)
+                    if kwSet.contains(word) {
+                        out.addAttribute(.foregroundColor, value: keywordColor, range: m.range)
+                    }
+                    // 类型名（大写开头，非全大写常量的词）
+                    if word.count >= 3, let first = word.first, ("A"..."Z").contains(first),
+                       word != word.uppercased() {
+                        out.addAttribute(.foregroundColor, value: typeColor, range: m.range)
+                    }
+                }
+            }
             return out
         }
-
-        // 字符串
-        let strPattern = "\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'"
-        if let re = try? NSRegularExpression(pattern: strPattern) {
-            for m in re.matches(in: line, range: full) {
-                out.addAttribute(.foregroundColor, value: stringColor, range: m.range)
-            }
-        }
-
-        // 注释（行尾）
-        if let range = line.range(of: "//") {
-            let loc = line.distance(from: line.startIndex, to: range.lowerBound)
-            if loc > 0 {
-                // 不在字符串内才标（粗略：看前面引号数量）
-                let prefix = String(line.prefix(loc))
-                let quotes = prefix.filter { $0 == "\"" }.count
-                if quotes % 2 == 0 {
-                    out.addAttribute(.foregroundColor, value: commentColor, range: NSRange(location: loc, length: ns.length - loc))
-                }
-            }
-        }
-
-        // 数字
-        if let re = try? NSRegularExpression(pattern: "\\b\\d+(?:\\.\\d+)?\\b") {
-            for m in re.matches(in: line, range: full) {
-                out.addAttribute(.foregroundColor, value: numberColor, range: m.range)
-            }
-        }
-
-        // 关键字 / 类型
-        let langKey = normalizedLang(lang)
-        if let kw = keywords[langKey] {
-            for word in kw {
-                let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
-                guard let re = try? NSRegularExpression(pattern: pattern) else { continue }
-                for m in re.matches(in: line, range: full) {
-                    out.addAttribute(.foregroundColor, value: keywordColor, range: m.range)
-                }
-            }
-        } else {
-            // 未知语言：通用关键字集合（c+js 常见词）
-            for word in ["if","else","for","while","return","func","function","class","struct","let","var","const","import","def","true","false","null","nil","new"] {
-                let pattern = "\\b" + word + "\\b"
-                guard let re = try? NSRegularExpression(pattern: pattern) else { continue }
-                for m in re.matches(in: line, range: full) {
-                    out.addAttribute(.foregroundColor, value: keywordColor, range: m.range)
-                }
-            }
-        }
-
-        // 类型名（大写开头，非全大写常量的词）
-        if let re = try? NSRegularExpression(pattern: "\\b[A-Z][A-Za-z0-9_]{2,}\\b") {
-            for m in re.matches(in: line, range: full) {
-                let word = ns.substring(with: m.range)
-                if word == word.uppercased() { continue }   // 常量不标
-                out.addAttribute(.foregroundColor, value: typeColor, range: m.range)
-            }
-        }
-        return out
     }
 
     // MARK: 表格
@@ -644,23 +674,35 @@ enum PreviewMarkdownRenderer {
     private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
         guard let first = rows.first else { return NSAttributedString() }
         let cols = rows.map(\.count).max() ?? first.count
+        // v126（性能审计 F1088）：每格显示宽度只算一遍（原实现 widths 遍历算一次、
+        // pad() 内又算一次，且逐格 String += 拼接）——一次算好宽度，
+        // 行串改 Array join。
         var widths = Array(repeating: 4, count: cols)
-        for row in rows {
-            for (c, cell) in row.enumerated() where c < cols {
-                widths[c] = max(widths[c], displayWidth(cell))
+        let cellWidths: [[Int]] = rows.map { row in
+            row.map { cell in
+                let w = displayWidth(cell)
+                return w
             }
         }
-        func pad(_ text: String, _ w: Int) -> String {
-            let count = displayWidth(text)
-            return count >= w ? text : text + String(repeating: " ", count: w - count)
+        for ws in cellWidths {
+            for (c, w) in ws.enumerated() where c < cols {
+                widths[c] = max(widths[c], w)
+            }
+        }
+        func pad(_ text: String, _ w: Int, _ width: Int) -> String {
+            width >= w ? text : text + String(repeating: " ", count: w - width)
         }
         let out = NSMutableAttributedString()
         for (r, row) in rows.enumerated() {
-            var line = ""
+            var parts: [String] = []
+            parts.reserveCapacity(cols * 2)
             for c in 0..<cols {
                 let cell = c < row.count ? row[c] : ""
-                line += pad(cell, widths[c]) + (c < cols - 1 ? " │ " : "")
+                let cw = c < cellWidths[r].count ? cellWidths[r][c] : displayWidth(cell)
+                parts.append(pad(cell, widths[c], cw))
+                if c < cols - 1 { parts.append(" │ ") }
             }
+            let line = parts.joined()
             let attr = NSMutableAttributedString(string: line, attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: s(11), weight: r == 0 ? .semibold : .regular),
                 .foregroundColor: r == 0 ? NSColor.labelColor : NSColor.secondaryLabelColor,

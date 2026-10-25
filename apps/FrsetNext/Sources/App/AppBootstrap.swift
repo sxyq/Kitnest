@@ -76,6 +76,16 @@ enum AppBootstrap {
                 }
             }
 
+        // 3.7) 空投联动（v112 对标报告第一批 P1）：剪贴板右键 / 截图动作链发来的
+        //      空投请求 → AirDropSendEngine（系统面板，iPhone 零安装）。
+        NotificationCenter.default.addObserver(
+            forName: .frsetAirDropFiles,
+            object: nil,
+            queue: .main) { note in
+                guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
+                AirDropSendEngine.send(urls: urls)
+            }
+
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
         Log.breadcrumb("Bootstrap", "appTools begin")
         registerAppLevelTools()
@@ -100,9 +110,17 @@ enum AppBootstrap {
         // 复制网盘链接 → 状态栏小提示（点击进入解析中心）
         CloudLinkPromptController.shared.start()
 
+        // v126（性能审计 F0001）：探针判据集中取值——`ProcessInfo.processInfo.environment`
+        // 每次访问都整表拷贝环境字典，`UserDefaults.bool(forKey:)` 也是逐次查偏好库；
+        // 原来 5 个探针门各查各的。这里一次性取齐，之后只读局部量（探针本身仍是零开销路径）。
+        let env = ProcessInfo.processInfo.environment
+        let probeLan = UserDefaults.standard.bool(forKey: "probe.lan")
+        let probeMCP = UserDefaults.standard.bool(forKey: "probe.mcp")
+        let probeWebDAV = UserDefaults.standard.bool(forKey: "probe.webdav")
+
         // 排障探针（2026-10-20）：FRSET_CLOUDLINK_TEST_URL=<直链> 时启动 3s 后直接走一次下载，
         // 用于无 UI 自动化环境下验证「解析下载」的下载落盘链路。
-        if let raw = ProcessInfo.processInfo.environment["FRSET_CLOUDLINK_TEST_URL"],
+        if let raw = env["FRSET_CLOUDLINK_TEST_URL"],
            let url = URL(string: raw) {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 Log.info("CloudLink", "探针：直链下载测试 \(raw)")
@@ -113,11 +131,35 @@ enum AppBootstrap {
         // 排障探针（2026-10-20）：FRSET_LAN_PROBE=1（或 defaults 键 probe.lan）直接拉起
         // 局域网直传服务，用于无 UI 自动化环境下 curl 验证「直传页 / 列表 / 上传 / 下载」端点。
         // 走 defaults 键是为了 `open -a` 启动（拿不到环境变量）时也能验。
-        if ProcessInfo.processInfo.environment["FRSET_LAN_PROBE"] == "1"
-            || UserDefaults.standard.bool(forKey: "probe.lan") {
+        if env["FRSET_LAN_PROBE"] == "1" || probeLan {
             LanTransferServer.shared.start()
             Log.info("TransferDock", "探针：局域网直传服务已拉起")
         }
+        // v116 探针：MCP / WebDAV（无 UI 自动化环境下用 curl 验证端点）
+        if probeMCP {
+            _ = MCPServer.shared.start()
+            Log.info("MCP", "探针：MCP 服务器已拉起 \(MCPServer.shared.endpoint)")
+        }
+        if probeWebDAV {
+            _ = AndroidWebDAVServer.shared.start()
+            Log.info("WebDAV", "探针：WebDAV 已拉起 \(AndroidWebDAVServer.shared.baseURL)")
+        }
+
+        // 6) 首启引导（onboarding）：欢迎窗自动弹出（首启或引导版本过旧）。
+        //    时序（v111 性能收紧）：不紧贴 bootstrap 末尾弹——实测启动期主线程有
+        //    ~0.9s 拥塞（状态项搭建 + 面板预热 + WidthAudit 布局），欢迎窗若在
+        //    拥塞区内 makeKeyAndOrderFront，既抢预热焦点又让自身渲染晚 0.9s 才
+        //    可见。延后 1.5s 到预热基本收敛后再弹，首启体验反而更稳。
+        //    权限引导窗不自动抢镜——由欢迎窗内的入口进入。
+        if WelcomeWindowController.shouldPresentOnLaunch {
+            Log.info("Bootstrap", "首启引导：1.5s 后弹出欢迎窗（seenVersion < \(WelcomeWindowController.onboardingVersion)）")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                WelcomeWindowController.shared.show()
+            }
+        }
+
+        // 7) 更新静默检查（v112：feed 为空/24h 内查过则跳过；对标报告第二批）
+        AppUpdateChecker.shared.checkOnLaunch()
     }
 
     static func stop() {
@@ -227,6 +269,11 @@ enum AppBootstrap {
                            keyCode: 0x01, modifiers: UInt32(optionKey)) {
             ScreenshotManager.shared.captureRegion()
         },
+        // v112：窗口截图（对标报告第二批「焦点窗」；⇧⌥W 不与既有 ⇧⌥ 系冲突）
+        DefaultHotkeyEntry(id: "screenshotWindow", title: "窗口截图",
+                           keyCode: 0x0D, modifiers: UInt32(shiftKey | optionKey)) {
+            ScreenshotManager.shared.captureWindow()
+        },
         DefaultHotkeyEntry(id: "colorPicker", title: "取色",
                            keyCode: 0x08, modifiers: UInt32(optionKey)) {
             Eyedropper.shared.start()
@@ -274,7 +321,7 @@ enum AppBootstrap {
                            keyCode: 0x25, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥L
             ScreenshotManager.shared.captureLongScreenshot()
         },
-        DefaultHotkeyEntry(id: "openTransferDock", title: "传输与投屏",
+        DefaultHotkeyEntry(id: "openTransferDock", title: "文件中转",
                            keyCode: 0x11, modifiers: UInt32(optionKey)) {   // ⌥T
             NSApp.activate(ignoringOtherApps: true)
             ServiceLocator.panel?.show()

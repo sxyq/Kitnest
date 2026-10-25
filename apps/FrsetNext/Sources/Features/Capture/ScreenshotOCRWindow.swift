@@ -89,15 +89,26 @@ final class OCRReadOnlyScrollView: NSScrollView {
 
 // MARK: - OCR 结果窗
 
-/// OCR 结果窗（对应原作 `ScreenshotOCRResultWindow`）：左「原文图」/ 右「识别文本」，底部操作条。
+/// OCR 结果窗（对应原作 `ScreenshotOCRResultWindow`）：左「原文图」/ 右「识别文本 | 二维码」，底部操作条。
+/// v130（SnowShot 对齐）⑤：右栏加「二维码」页签——截图自动识码命中时展示
+/// 「识别到 N 个二维码」+ 每条 payload（点击打开链接 / 复制），与 OCR 文本合并同一面板。
 final class ScreenshotOCRResultWindow: NSWindow {
     private let sourceScroll = ScreenshotOCRSourceScrollView(frame: .zero)
     private let resultScroll = OCRReadOnlyScrollView(frame: .zero)
+    /// v130⑤：二维码页签内容（payload 列表）
+    private let qrScroll = NSScrollView()
+    private let qrStack = NSStackView()
+    private var qrPayloads: [String] = []
+    /// 右栏页签切换（0 = 识别文本，1 = 二维码）
+    private let tabControl = NSSegmentedControl(labels: ["识别文本", "二维码"],
+                                                trackingMode: .selectOne, target: nil, action: nil)
+    private let rightPane = NSView()
+    private let rightPaneLabel = NSTextField(labelWithString: "识别文本")
 
     var onCopy: (() -> Void)?
     var onReRecognize: (() -> Void)?
 
-    init(sourceImage: CGImage, text: String) {
+    init(sourceImage: CGImage, text: String, qrPayloads: [String] = []) {
         let size = NSSize(width: 760, height: 480)
         super.init(contentRect: NSRect(origin: .zero, size: size),
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
@@ -110,6 +121,11 @@ final class ScreenshotOCRResultWindow: NSWindow {
         let container = NSView(frame: NSRect(origin: .zero, size: size))
         container.autoresizingMask = [.width, .height]
 
+        // 右栏容器：识别文本 / 二维码 两页签同位切换
+        setupRightPane()
+        resultScroll.text = text
+        setQRPayloads(qrPayloads)
+
         // 左右分栏
         let split = NSSplitView(frame: NSRect(x: 0, y: 44, width: size.width, height: size.height - 44))
         split.isVertical = true
@@ -117,15 +133,21 @@ final class ScreenshotOCRResultWindow: NSWindow {
         split.arrangesAllSubviews = true
         split.autoresizingMask = [.width, .height]
         split.addArrangedSubview(labelled("原文", content: sourceScroll))
-        split.addArrangedSubview(labelled("识别文本", content: resultScroll))
+        split.addArrangedSubview(labelledRightPane())
         container.addSubview(split)
 
         sourceScroll.setImage(sourceImage)
-        resultScroll.text = text
 
         // 底部操作条
         let bottom = NSView(frame: NSRect(x: 0, y: 0, width: size.width, height: 44))
         bottom.autoresizingMask = [.width, .maxYMargin]
+
+        tabControl.frame = NSRect(x: 12, y: 10, width: 190, height: 24)
+        tabControl.target = self
+        tabControl.action = #selector(tabChanged(_:))
+        tabControl.selectedSegment = 0
+        tabControl.autoresizingMask = [.maxXMargin]
+        bottom.addSubview(tabControl)
 
         let copyButton = NSButton(title: "复制", target: self, action: #selector(copyTapped))
         copyButton.bezelStyle = .rounded
@@ -142,6 +164,48 @@ final class ScreenshotOCRResultWindow: NSWindow {
         container.addSubview(bottom)
 
         contentView = container
+    }
+
+    /// 右栏页签内容布局（识别文本 / 二维码 重叠切换）
+    private func setupRightPane() {
+        resultScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
+        resultScroll.autoresizingMask = [.width, .height]
+        qrScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
+        qrScroll.autoresizingMask = [.width, .height]
+        qrScroll.hasVerticalScroller = true
+        qrScroll.borderType = .noBorder
+        qrScroll.drawsBackground = false
+        qrScroll.autohidesScrollers = true
+
+        qrStack.orientation = .vertical
+        qrStack.alignment = .leading
+        qrStack.spacing = 8
+        qrStack.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        qrStack.translatesAutoresizingMaskIntoConstraints = false
+        qrScroll.documentView = qrStack
+        // 宽度跟随滚动视图内容区，高度自适应（autolayout 文档视图）
+        NSLayoutConstraint.activate([
+            qrStack.widthAnchor.constraint(equalTo: qrScroll.contentView.widthAnchor),
+        ])
+
+        qrScroll.isHidden = true
+        rightPane.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
+        rightPane.autoresizingMask = [.width, .height]
+        rightPane.addSubview(resultScroll)
+        rightPane.addSubview(qrScroll)
+    }
+
+    /// 右栏容器套标题（标题随页签切换改名）
+    private func labelledRightPane() -> NSView {
+        rightPaneLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        rightPaneLabel.textColor = .secondaryLabelColor
+        rightPaneLabel.frame = NSRect(x: 8, y: 380, width: 200, height: 16)
+        rightPaneLabel.autoresizingMask = [.width, .minYMargin]
+        let holder = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 400))
+        holder.autoresizingMask = [.width, .height]
+        holder.addSubview(rightPane)
+        holder.addSubview(rightPaneLabel)
+        return holder
     }
 
     /// 给滚动视图套一个带标题的容器
@@ -166,6 +230,91 @@ final class ScreenshotOCRResultWindow: NSWindow {
     var resultText: String { resultScroll.text }
     func setResultText(_ text: String) { resultScroll.text = text }
 
+    // MARK: v130（SnowShot 对齐）⑤：二维码页签
+
+    /// 更新二维码 payload 并刷新页签标题（「二维码(N)」）
+    func setQRPayloads(_ payloads: [String]) {
+        qrPayloads = payloads
+        rebuildQRRows()
+        tabControl.setLabel(payloads.isEmpty ? "二维码" : "二维码(\(payloads.count))", forSegment: 1)
+    }
+
+    /// 选中二维码页签（识码命中自动跳转）
+    func selectQRTab(_ qr: Bool) {
+        tabControl.selectedSegment = qr && !qrPayloads.isEmpty ? 1 : 0
+        tabChanged(tabControl)
+    }
+
+    @objc private func tabChanged(_ sender: NSSegmentedControl) {
+        let qr = sender.selectedSegment == 1
+        resultScroll.isHidden = qr
+        qrScroll.isHidden = !qr
+        rightPaneLabel.stringValue = qr ? "二维码" : "识别文本"
+    }
+
+    private func rebuildQRRows() {
+        qrStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        if qrPayloads.isEmpty {
+            let empty = NSTextField(labelWithString: "未识别到二维码/条码")
+            empty.font = .systemFont(ofSize: 12)
+            empty.textColor = .secondaryLabelColor
+            qrStack.addArrangedSubview(empty)
+            return
+        }
+        let header = NSTextField(labelWithString: "识别到 \(qrPayloads.count) 个二维码")
+        header.font = .systemFont(ofSize: 12, weight: .semibold)
+        qrStack.addArrangedSubview(header)
+        for (i, payload) in qrPayloads.enumerated() {
+            qrStack.addArrangedSubview(qrRow(payload, index: i))
+        }
+    }
+
+    private func qrRow(_ payload: String, index: Int) -> NSView {
+        let text = NSTextField(labelWithString: payload)
+        text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        text.lineBreakMode = .byTruncatingMiddle
+        text.isSelectable = true
+        text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let copy = NSButton(title: "复制", target: self, action: #selector(copyQR(_:)))
+        copy.bezelStyle = .rounded
+        copy.tag = index
+        copy.controlSize = .small
+
+        var views: [NSView] = [text, copy]
+        if let url = URL(string: payload), let scheme = url.scheme?.lowercased(),
+           scheme == "http" || scheme == "https" {
+            let open = NSButton(title: "打开", target: self, action: #selector(openQR(_:)))
+            open.bezelStyle = .rounded
+            open.tag = index
+            open.controlSize = .small
+            views.append(open)
+        }
+        let row = NSStackView(views: views)
+        row.orientation = .horizontal
+        row.spacing = 6
+        row.alignment = .centerY
+        row.distribution = .fill
+        text.widthAnchor.constraint(greaterThanOrEqualToConstant: 120).isActive = true
+        return row
+    }
+
+    @objc private func copyQR(_ sender: NSButton) {
+        guard sender.tag >= 0, sender.tag < qrPayloads.count else { return }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(qrPayloads[sender.tag], forType: .string)
+        Toast.show("二维码内容已复制", icon: "checkmark.circle.fill")
+    }
+
+    @objc private func openQR(_ sender: NSButton) {
+        guard sender.tag >= 0, sender.tag < qrPayloads.count,
+              let url = URL(string: qrPayloads[sender.tag]) else { return }
+        if !NSWorkspace.shared.open(url) {
+            Toast.show("无法打开链接", icon: "exclamationmark.circle.fill")
+        }
+    }
+
     // MARK: 动作
 
     @objc private func copyTapped() { onCopy?() }
@@ -186,21 +335,26 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
 
     private override init() { super.init() }
 
-    /// 展示识别结果窗
-    public func show(sourceImage: CGImage, imageData: Data, text: String) {
+    /// 展示识别结果窗（v130⑤：text/qrPayloads 为空表示对应页签无内容；已有窗口时只增量更新，
+    /// 不用空文本覆盖已有 OCR 结果）
+    public func show(sourceImage: CGImage, imageData: Data, text: String,
+                     qrPayloads: [String] = [], selectQR: Bool = false) {
         self.sourceImage = sourceImage
         self.imageData = imageData
         if let existing = window {
-            existing.setResultText(text)
+            if !text.isEmpty { existing.setResultText(text) }
+            if !qrPayloads.isEmpty { existing.setQRPayloads(qrPayloads) }
+            if selectQR { existing.selectQRTab(true) }
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let win = ScreenshotOCRResultWindow(sourceImage: sourceImage, text: text)
+        let win = ScreenshotOCRResultWindow(sourceImage: sourceImage, text: text, qrPayloads: qrPayloads)
         win.delegate = self
         win.onCopy = { [weak self] in self?.copyResult() }
         win.onReRecognize = { [weak self] in self?.reRecognize() }
         window = win
+        if selectQR { win.selectQRTab(true) }
         win.center()
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

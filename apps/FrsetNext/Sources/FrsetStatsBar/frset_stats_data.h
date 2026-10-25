@@ -189,3 +189,10 @@ typedef struct {
 void frset_conn_start(void);
 /// 取连通性快照（线程安全）
 void frset_conn_sample(frset_conn_t *out);
+
+/* v128（CPU 优化）：后台采样线程的可见性开关（新增函数，不改旧签名）。
+   active=0 暂停发包/轮询（线程空转），=1 恢复。由 StatsDataProvider.refresh(uiActive:)
+   驱动：监测面板不可见时 conn（1 包/秒 ICMP）与 nettop（每 5s popen 子进程）没有
+   消费者，暂停即省掉常驻后台开销；恢复后数据继续累积。 */
+void frset_conn_set_active(int active);
+void frset_net_top_set_active(int active);

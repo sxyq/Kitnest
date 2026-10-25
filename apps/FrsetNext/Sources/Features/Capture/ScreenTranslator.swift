@@ -96,6 +96,10 @@ public enum ScreenTranslator {
 
     // MARK: 翻译（批量一次调用，行号对齐；失败/错位回退逐块）
 
+    /// v126（性能审计 F0483）：正则编译缓存，避免 parseNumberedLines 每次重新编译
+    private static let numberedLineRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: "^\\s*(\\d{1,3})[.、)．]\\s*(.+)$")
+
     static func translateBlocks(_ texts: [String]) async throws -> [String] {
         var result = [String](repeating: "", count: texts.count)
         var start = 0
@@ -132,7 +136,7 @@ public enum ScreenTranslator {
 
     /// 解析「1. 译文」格式；行数不齐或编号缺失时返回空数组（由调用方回退）
     static func parseNumberedLines(_ reply: String, expected: Int) -> [String] {
-        guard let regex = try? NSRegularExpression(pattern: "^\\s*(\\d{1,3})[.、)．]\\s*(.+)$") else { return [] }
+        guard let regex = numberedLineRegex else { return [] }
         var map: [Int: String] = [:]
         for line in reply.split(separator: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)

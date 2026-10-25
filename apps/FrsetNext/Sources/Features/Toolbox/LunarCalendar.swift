@@ -96,28 +96,33 @@ public enum LunarCalendar {
     /// 已覆盖年份（供设置页/调试展示）
     public static var coveredYears: ClosedRange<Int> { 2023...2028 }
 
-    private static var beijing: TimeZone { TimeZone(identifier: "Asia/Shanghai") ?? .current }
+    // v126（性能审计 F1395）：Calendar 构造/keys 排序外提缓存——lunarDate 被月视图
+    // 42 格逐日调用，原实现每次调用都新建 3 个 Calendar 并对 yearTable.keys 全量排序。
+    // （原 beijing 时区属性并入 bjCalendar，随之删除死变量）
+    private static let bjCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
+        return calendar
+    }()
+    private static let sortedYears: [Int] = yearTable.keys.sorted()
 
     private static func gregorianComponents(_ date: Date) -> (Int, Int, Int) {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = beijing
-        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        // v126（性能审计 F1395）：复用 bjCalendar，不再每次新建 Calendar
+        let c = bjCalendar.dateComponents([.year, .month, .day], from: date)
         return (c.year ?? 1970, c.month ?? 1, c.day ?? 1)
     }
 
     private static func makeDate(_ y: Int, _ m: Int, _ d: Int) -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = beijing
-        return calendar.date(from: DateComponents(year: y, month: m, day: d)) ?? Date()
+        // v126（性能审计 F1395）：复用 bjCalendar
+        return bjCalendar.date(from: DateComponents(year: y, month: m, day: d)) ?? Date()
     }
 
     /// 两个"零时"日期之间的整日差
     private static func daysBetween(_ from: Date, _ to: Date) -> Int {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = beijing
-        let a = calendar.startOfDay(for: from)
-        let b = calendar.startOfDay(for: to)
-        return calendar.dateComponents([.day], from: a, to: b).day ?? 0
+        // v126（性能审计 F1395）：复用 bjCalendar
+        let a = bjCalendar.startOfDay(for: from)
+        let b = bjCalendar.startOfDay(for: to)
+        return bjCalendar.dateComponents([.day], from: a, to: b).day ?? 0
     }
 
     // MARK: 公历 → 农历
@@ -130,7 +135,8 @@ public enum LunarCalendar {
         if y > upperBound.year || (y == upperBound.year && (m, d) >= (upperBound.month, upperBound.day)) { return nil }
 
         // 定位农历年：date ∈ [S(Y), S(Y+1))
-        let years = yearTable.keys.sorted()
+        // v126（性能审计 F1395）：年份序改用预排序的 sortedYears（原每次调用 keys.sorted()）
+        let years = Self.sortedYears
         var targetYear: Int?
         for (index, year) in years.enumerated() {
             guard let info = yearTable[year] else { continue }

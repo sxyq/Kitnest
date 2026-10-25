@@ -117,11 +117,13 @@ public enum CaptureModule: AppModule {
         switch mode {
         case .area:     ScreenshotManager.shared.captureRegion()
         case .full:     ScreenshotManager.shared.captureFullScreen()
+        case .window:   ScreenshotManager.shared.captureWindow()          // v112 窗口截图
         case .ocr:      ScreenshotManager.shared.captureAndOCR()
         case .pin:      ScreenshotManager.shared.captureAndPin()
         case .long:     ScreenshotManager.shared.captureLongScreenshot()   // 选区→滚动采捕会话
         case .annotate: ScreenshotManager.shared.annotateLatest()
         case .color:    Eyedropper.shared.start()
+        case .delayed:  ScreenshotManager.shared.captureDelayed()          // v130④ 延时截图
         }
     }
 

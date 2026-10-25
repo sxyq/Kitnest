@@ -18,10 +18,23 @@ final class ManualNode: Identifiable {
     var blocks: [ManualBlockItem] = []
     var children: [ManualNode] = []
 
+    // v128（流畅度）：搜索用纯文本一次性缓存（标题 + 全部块文本拼接）——
+    // 原 nodeMatches 每次命中判定都要对每个块重算 plainText（数组 join），
+    // 搜索框每敲一键全树节点都要重算一遍。解析完成后建一次，之后只读。
+    private(set) var searchText = ""
+
     init(id: String, title: String, level: Int) {
         self.id = id
         self.title = title
         self.level = level
+    }
+
+    /// v128（流畅度）：解析完成后调用一次，固化 searchText（含自身全部块）
+    func finalizeSearchText() {
+        var parts: [String] = [title]
+        parts.reserveCapacity(blocks.count + 1)
+        for b in blocks { parts.append(b.block.plainText) }
+        searchText = parts.joined(separator: " ")
     }
 
     /// 子树内全部节点（含自身），先序
@@ -60,6 +73,21 @@ enum ManualBlock: Identifiable {
         case .divider: return "hr:\(UUID().uuidString)"
         }
     }
+
+    // v128（流畅度）：从 ManualView 的 private 扩展移入本文件——ManualNode.finalizeSearchText
+    // 解析时一次性调用（原先每次搜索命中判定都重算 join）。
+    var plainText: String {
+        switch self {
+        case .paragraph(let s): return s
+        case .bullets(let a): return a.joined(separator: " ")
+        case .numbered(let a): return a.joined(separator: " ")
+        case .quote(let s): return s
+        case .image(let r, let c): return "\(c ?? "") \(r)"
+        case .table(let h, let rows): return h.joined(separator: " ") + " " + rows.flatMap { $0 }.joined(separator: " ")
+        case .code(let s): return s
+        case .divider: return ""
+        }
+    }
 }
 
 enum ManualDocument {
@@ -68,6 +96,13 @@ enum ManualDocument {
         let roots: [ManualNode]
         let index: [String: ManualNode]
         let title: String
+        // v128（流畅度）：父指针索引（子 id → 父 id）——parent(of:) 原来是递归扫树
+        // （深度 × 节点数），面包屑/上一节每次 body 求值（搜索每键）都走一遍。
+        // 解析时建好，查询 O(1)。
+        let parentIndex: [String: String]
+        // v128（流畅度）：先序平铺（上/下一节导航用）——原 flat 计算属性每次 body
+        // 求值都重新 flatten 整棵树（递归分配数组），搜索每键都白付一遍。
+        let flatNodes: [ManualNode]
     }
 
     static func load(bundle: Bundle = .main) -> Doc {
@@ -76,7 +111,8 @@ enum ManualDocument {
             let fallback = ManualNode(id: "err", title: "手册未打包", level: 1)
             fallback.blocks = [ManualBlockItem(id: "err-b0",
                 block: .paragraph("未找到 Resources/Manual/用户手册.md——请检查 build.sh 的资源打包步骤。"))]
-            return Doc(roots: [fallback], index: ["err": fallback], title: "使用手册")
+            return Doc(roots: [fallback], index: ["err": fallback], title: "使用手册",
+                       parentIndex: [:], flatNodes: [fallback])
         }
         return parse(text)
     }
@@ -129,8 +165,19 @@ enum ManualDocument {
         flush(into: stack.last)
 
         var index: [String: ManualNode] = [:]
-        for r in roots { for n in r.flatten() { index[n.id] = n } }
-        return Doc(roots: roots, index: index, title: docTitle)
+        var parentIndex: [String: String] = [:]
+        var flatNodes: [ManualNode] = []
+        func register(_ n: ManualNode, parentID: String?) {
+            index[n.id] = n
+            if let parentID { parentIndex[n.id] = parentID }
+            // v128（流畅度）：解析时一次性固化搜索文本（见 ManualNode.searchText）
+            n.finalizeSearchText()
+            flatNodes.append(n)   // v128（流畅度）：先序平铺，供 navFooter 直读
+            for c in n.children { register(c, parentID: n.id) }
+        }
+        for r in roots { register(r, parentID: nil) }
+        return Doc(roots: roots, index: index, title: docTitle,
+                   parentIndex: parentIndex, flatNodes: flatNodes)
     }
 
     /// `#` 数量 → (层级, 标题)。`##`=1、`###`=2、`####`=3；`#`=0（文档标题）
@@ -171,7 +218,7 @@ enum ManualDocument {
             }
 
             // 分隔线
-            if trimmed.range(of: "^[-*_]{3,}$", options: .regularExpression) != nil {
+            if matches(reDivider, trimmed) {
                 blocks.append(.divider); i += 1; continue
             }
 
@@ -236,14 +283,12 @@ enum ManualDocument {
             }
 
             // 有序列表
-            if trimmed.range(of: "^[0-9]+[.、] ", options: .regularExpression) != nil {
+            if firstRange(reNumberedItem, trimmed) != nil {
                 var items: [String] = []
                 while i < lines.count {
                     let t = lines[i].trimmingCharacters(in: .whitespaces)
-                    guard t.range(of: "^[0-9]+[.、] ", options: .regularExpression) != nil else { break }
-                    if let r = t.range(of: "^[0-9]+[.、] ", options: .regularExpression) {
-                        items.append(String(t[r.upperBound...]))
-                    }
+                    guard let r = firstRange(reNumberedItem, t) else { break }
+                    items.append(String(t[r.upperBound...]))
                     i += 1
                 }
                 blocks.append(.numbered(items))
@@ -275,13 +320,44 @@ enum ManualDocument {
     }
 
     private static func isSeparatorRow(_ cells: [String]) -> Bool {
-        !cells.isEmpty && cells.allSatisfy {
-            $0.range(of: "^:?-{2,}:?$", options: .regularExpression) != nil
-        }
+        !cells.isEmpty && cells.allSatisfy { matches(reSeparatorCell, $0) }
     }
 
+    // v126（性能审计 F1881/F1883/F1884）：隐式正则编译缓存——`String.range(of:options:.regularExpression)`
+    // 内部每次都重新编译 pattern，而 parseBlocks 对**每一行**（分隔线/有序列表）和
+    // 表格的**每一个单元格**（isSeparatorRow）都会各编译一次；一篇 971 行手册就是上千次
+    // 编译。改成一次性 static 编译 + 直接区间匹配，命中后零编译成本。
+    private static let reDivider = try? NSRegularExpression(pattern: "^[-*_]{3,}$")
+    private static let reNumberedItem = try? NSRegularExpression(pattern: "^[0-9]+[.、] ")
+    private static let reSeparatorCell = try? NSRegularExpression(pattern: "^:?-{2,}:?$")
+
+    /// 整串匹配（等价 `text.range(of: pattern, options: .regularExpression) != nil`）
+    private static func matches(_ re: NSRegularExpression?, _ text: String) -> Bool {
+        guard let re else { return false }
+        return re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
+    }
+
+    /// 首个匹配区间（等价 `text.range(of: pattern, options: .regularExpression)`）
+    private static func firstRange(_ re: NSRegularExpression?, _ text: String) -> Range<String.Index>? {
+        guard let re,
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let r = Range(m.range, in: text) else { return nil }
+        return r
+    }
+
+    // v125（性能审计 F1881）：正则缓存——原来每次调用都 NSRegularExpression(pattern:)，
+    // 一篇手册解析会重复编译同一批 pattern。改为字典缓存，命中后零编译成本。
+    private static var _reCache: [String: NSRegularExpression] = [:]
+
     private static func firstMatch(_ text: String, pattern: String) -> [String]? {
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let re: NSRegularExpression
+        if let cached = _reCache[pattern] {
+            re = cached
+        } else {
+            guard let compiled = try? NSRegularExpression(pattern: pattern) else { return nil }
+            _reCache[pattern] = compiled
+            re = compiled
+        }
         let range = NSRange(text.startIndex..., in: text)
         guard let m = re.firstMatch(in: text, range: range) else { return nil }
         var out: [String] = []

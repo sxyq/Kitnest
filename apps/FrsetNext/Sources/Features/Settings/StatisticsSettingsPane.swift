@@ -414,10 +414,12 @@ struct StatisticsSettingsPane: View {
                 StatisticsManager.shared.importMerge(
                     file.statistics.map { ($0.day, $0.event, $0.count) })   // Q8
                 StatisticsManager.shared.record(AnalyticsEvent.settingsImportSuccess)
-                // 搜索设置落盘后重载，使搜索页立即反映导入结果
-                SearchServiceManager.shared.reloadFromDefaults()
                 Log.info("Settings", "导入配置完成：偏好 \(file.preferences.count) 项 / 统计 \(file.statistics.count) 条")
                 DispatchQueue.main.async {
+                    // v126（性能审计 F1190）：搜索设置重载回主线程——SearchServiceManager 是
+                    // ObservableObject，load() 会写 @Published；原来在后台队列调用会触发
+                    // SwiftUI「后台线程发布变更」未定义行为。放在状态刷新之前，页面仍能立即反映导入结果。
+                    SearchServiceManager.shared.reloadFromDefaults()
                     self.isBusy = false
                     self.lastActionFailed = !invalid.isEmpty
                     self.lastActionResult = invalid.isEmpty
@@ -521,6 +523,7 @@ struct StatisticsSettingsPane: View {
     static func exportablePreferences() -> [String: PreferenceValue] {
         let defaults = UserDefaults.standard
         var out: [String: PreferenceValue] = [:]
+        out.reserveCapacity(exportablePreferenceKeys.count)
         for key in exportablePreferenceKeys {
             guard let raw = defaults.object(forKey: key),
                   let value = PreferenceValue(defaultsValue: raw) else { continue }
@@ -529,11 +532,15 @@ struct StatisticsSettingsPane: View {
         return out
     }
 
+    // v126（性能审计 F1190）：白名单集合缓存——applyPreferences 原来每次导入都从
+    // 40+ 项数组重建一个 Set（逐项哈希），提为 static 常量后只建一次。
+    private static let exportablePreferenceKeySet: Set<String> = Set(exportablePreferenceKeys)
+
     /// 写回导入的偏好键值
     /// - Returns: 被忽略（不在白名单内）的键名；按原作 `settings.invalid-` 前缀落标记
     @discardableResult
     static func applyPreferences(_ incoming: [String: PreferenceValue]) -> [String] {
-        let whitelist = Set(exportablePreferenceKeys)
+        let whitelist = exportablePreferenceKeySet
         let defaults = UserDefaults.standard
         var ignored: [String] = []
         for (key, value) in incoming {
@@ -561,19 +568,29 @@ struct StatisticsSettingsPane: View {
         "FrsetNext-配置-\(Self.dayStamp(now)).frsetconfig"
     }
 
-    /// yyyyMMdd（导出文件名用，避免文件名里的冒号）
-    private static func dayStamp(_ date: Date) -> String {
+    // v126（性能审计 F1188/F1190）：DateFormatter 复用——导出/导入各 new 一个
+    // formatter（初始化要装载 locale/ICU 表），提为 static 常量。
+    private static let dayStampFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMdd-HHmmss"
         fmt.timeZone = TimeZone.current
-        return fmt.string(from: date)
+        return fmt
+    }()
+
+    private static let iso8601Formatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        fmt.timeZone = TimeZone.current
+        return fmt
+    }()
+
+    /// yyyyMMdd（导出文件名用，避免文件名里的冒号）
+    private static func dayStamp(_ date: Date) -> String {
+        dayStampFormatter.string(from: date)
     }
 
     /// ISO-8601（写进文件头的 exportedAt）
     private static func iso8601Now() -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        fmt.timeZone = TimeZone.current
-        return fmt.string(from: Date())
+        iso8601Formatter.string(from: Date())
     }
 }

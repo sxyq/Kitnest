@@ -33,23 +33,32 @@ public enum Stitcher {
     private static let maxOverlapRatio: CGFloat = 0.6
     /// 最小重叠行数（原作常量，spec 15 @0x100437044）
     private static let minOverlapRows = 2
+    // v128（内存优化）：单次拼接帧数上限。N 帧会在合成前全量驻留解码产物，
+    // 100 张 2000×1500 截图峰值可达 GB 级。超出直接拒绝（调用方提示分批），
+    // 不静默丢帧——丢帧会产出错位长图。
+    public static let maxStitchFrames = 24
 
     /// 拼接 CGImage 序列（至少两张）
     public static func stitch(_ images: [CGImage]) -> Result? {
         guard images.count >= 2 else { return nil }
+        // v128（内存优化）：帧数上限，超出拒绝
+        guard images.count <= maxStitchFrames else { return nil }
 
         let width = images[0].width
         // ① 统一宽度并解码成像素缓冲
-        var buffers: [RGBABuffer] = []
+        // v128（内存优化）：原 buffers 数组整段驻留每帧 RGBA 像素（w×h×4 字节/帧），
+        // 但后续只读 buffers[i].height（③④ 的行高）——像素数据纯属白占。
+        // 改为只留 height；解码缓冲逐帧释放（guard 保留「解码失败 → nil」语义）。
+        var heights: [Int] = []
         var normalized: [CGImage] = []
         for image in images {
             if image.width == width {
                 guard let buf = ImageProcessor.rgbaBuffer(image) else { return nil }
-                buffers.append(buf)
+                heights.append(buf.height)
                 normalized.append(image)
             } else {
                 guard let buf = ImageProcessor.rgbaBuffer(image, targetWidth: width) else { return nil }
-                buffers.append(buf)
+                heights.append(buf.height)
                 if buf.height != image.height {
                     normalized.append(ImageProcessor.resized(image, to: CGSize(width: width, height: buf.height)))
                 } else {
@@ -57,18 +66,18 @@ public enum Stitcher {
                 }
             }
         }
-        guard buffers.count == normalized.count, buffers.count >= 2 else { return nil }
+        guard heights.count == normalized.count, heights.count >= 2 else { return nil }
 
         // ② 逐对检测重叠
         var overlaps: [Int] = []
-        for i in 0..<(buffers.count - 1) {
+        for i in 0..<(heights.count - 1) {
             overlaps.append(detectOverlap(top: normalized[i], bottom: normalized[i + 1]))
         }
 
         // ③ 计算画布高度（用缓冲高度，保证与缩放后的图一致）
-        var totalHeight = buffers[0].height
-        for i in 1..<buffers.count {
-            totalHeight += buffers[i].height - overlaps[i - 1]
+        var totalHeight = heights[0]
+        for i in 1..<heights.count {
+            totalHeight += heights[i] - overlaps[i - 1]
         }
         guard totalHeight > 0, width > 0 else { return nil }
 
@@ -84,8 +93,8 @@ public enum Stitcher {
 
         var penY = totalHeight          // 当前绘制行的"顶部"位置（CG 坐标）
         for i in 0..<normalized.count {
-            penY -= buffers[i].height
-            ctx.draw(normalized[i], in: CGRect(x: 0, y: penY, width: width, height: buffers[i].height))
+            penY -= heights[i]
+            ctx.draw(normalized[i], in: CGRect(x: 0, y: penY, width: width, height: heights[i]))
             if i + 1 < normalized.count { penY += overlaps[i] }
         }
 

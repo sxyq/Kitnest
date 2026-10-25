@@ -13,6 +13,8 @@ public struct CaptureSettingsPane: View {
     @Stored private var showOCRWindow: Bool
     /// Vision 自动检测语言（开启后忽略下方语言列表）
     @Stored private var autoDetect: Bool
+    /// v130（SnowShot 对齐）④：延时截图秒数（3 / 5 / 10）
+    @Stored private var delaySeconds: Int
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -29,6 +31,7 @@ public struct CaptureSettingsPane: View {
         _action = Stored(wrappedValue: ScreenshotManager.shared.defaultAction)
         _showOCRWindow = Stored(wrappedValue: ScreenshotManager.shared.ocrShowResultWindow)
         _autoDetect = Stored(wrappedValue: OCRService.autoDetectLanguages)
+        _delaySeconds = Stored(wrappedValue: ScreenshotManager.shared.delaySeconds)
     }
 
     public var body: some View {
@@ -64,6 +67,15 @@ public struct CaptureSettingsPane: View {
                 }
                 .onChange(of: action) { newValue in
                     ScreenshotManager.shared.defaultAction = newValue
+                }
+                // v130（SnowShot 对齐）④：延时截图秒数（倒计时 5→4→3→2→1，Esc 可取消）
+                Picker("延时截图秒数", selection: $delaySeconds) {
+                    Text("3 秒").tag(3)
+                    Text("5 秒").tag(5)
+                    Text("10 秒").tag(10)
+                }
+                .onChange(of: delaySeconds) { newValue in
+                    ScreenshotManager.shared.delaySeconds = newValue
                 }
             }
 

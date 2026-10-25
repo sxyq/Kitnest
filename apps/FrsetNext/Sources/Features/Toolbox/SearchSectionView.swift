@@ -1012,17 +1012,52 @@ public struct SearchSectionView: View {
     }
 
     /// v60 模糊匹配 + 标题命中区间（match 用于行内高亮；title 未命中但正文命中时 match = nil）
+    // v128（流畅度）：过滤结果记忆化——query 是 @Stored，输入框每敲一键 body 就重算，
+    // 而 filteredClipboardMatches 是全量模糊过滤（每条 joined 三个字段 + FuzzyMatcher），
+    // 且 clipboardCategory 与 nothingFound 在同帧各求值一次 = 每键两遍全量扫描。
+    // 改为按「关键词 + 类型筛选 + 条目签名」缓存：同帧重复求值零开销，剪贴板增删才失效。
+    private struct FilterCache {
+        var keyword = ""
+        var kind = ClipboardFilterKind.all
+        var itemsSignature = 0
+        var result: [(item: ClipboardItem, match: FuzzyMatch?)] = []
+    }
+
+    private static var filterCache = FilterCache()
+
+    /// 正文参与匹配的上限（v128：超长条目（整篇文档/日志）每键都要全量 lowercased +
+    /// 贪心扫描，是输入卡顿的大头；搜索列表本就只展示标题/副标题，截到前 4096 字符
+    /// 对常规条目零差异，超长条目只损失尾部命中）。
+    private static let matchContentLimit = 4096
+
     private var filteredClipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] {
         let keyword = trimmedQuery
         guard !keyword.isEmpty else { return [] }
-        return ClipboardManager.shared.items.compactMap { item in
+        let items = ClipboardManager.shared.items
+        // 轻量失效签名：剪贴板条目只增删不改，count + 首末 id 即可识别变化
+        var sig = Hasher()
+        sig.combine(items.count)
+        sig.combine(items.first?.id)
+        sig.combine(items.last?.id)
+        let signature = sig.finalize()
+        if Self.filterCache.keyword == keyword,
+           Self.filterCache.kind == clipboardKind,
+           Self.filterCache.itemsSignature == signature {
+            return Self.filterCache.result
+        }
+        let limit = Self.matchContentLimit
+        let result: [(item: ClipboardItem, match: FuzzyMatch?)] = items.compactMap { item in
             guard clipboardKind.matches(item.type) else { return nil }
-            let haystack = [item.title, item.subtitle, item.content]
+            let content = item.content.map { $0.count > limit ? String($0.prefix(limit)) : $0 }
+            let haystack = [item.title, item.subtitle, content]
                 .compactMap { $0 }.joined(separator: " ")
             guard FuzzyMatcher.isMatch(keyword, in: haystack) else { return nil }
             let titleMatch = item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) }
             return (item, titleMatch)
         }
+        Self.filterCache = FilterCache(keyword: keyword, kind: clipboardKind,
+                                       itemsSignature: signature, result: result)
+        return result
     }
 
     private var clipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] { filteredClipboardMatches }
@@ -1051,11 +1086,15 @@ public struct SearchSectionView: View {
     }
 
     private func clipboardCategory(maxRows: Int, compact: Bool) -> some View {
-        let matches = Array(filteredClipboardMatches.prefix(maxRows))
+        // v126（性能审计 F1423）：filteredClipboardMatches 是全量模糊过滤（对每个剪贴板
+        // 条目做 FuzzyMatcher），原实现对 count / rows 各求值一次 = 每次渲染两遍全量过滤，
+        // 且行内用 matches.first(where:) 反查 match 是 O(n²)。改为一次求值 + 枚举直取。
+        let all = filteredClipboardMatches
+        let matches = Array(all.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
             if selectedCategory == .all {
                 categoryHeader(.clipboard, isShown: $showClipboard,
-                               count: filteredClipboardMatches.isEmpty ? nil : filteredClipboardMatches.count)
+                               count: all.isEmpty ? nil : all.count)
             } else {
                 filterChips(ClipboardFilterKind.allCases, selection: $clipboardKind) { $0.title }
             }
@@ -1066,8 +1105,9 @@ public struct SearchSectionView: View {
                     .padding(.leading, 4)
                     .padding(.bottom, 2)
             } else {
-                ForEach(matches.map(\.item)) { item in
-                    let match = matches.first(where: { $0.item.id == item.id })?.match
+                ForEach(matches.indices, id: \.self) { idx in
+                    let item = matches[idx].item
+                    let match = matches[idx].match
                     Button {
                         ClipboardManager.shared.copy(item)
                         Toast.show("已复制剪贴板条目", icon: "checkmark.circle.fill")
@@ -1142,13 +1182,22 @@ public struct SearchSectionView: View {
     // MARK: 分类③ 本地文件（v60：真实文件图标 + 命中高亮 + 层级排版）
 
     /// 文件图标缓存（NSWorkspace 真实图标，FSearch/Everything 同款风格）
-    private static let fileIconCache = NSCache<NSString, NSImage>()
+    // v128（内存）：NSCache 原本无上限——每次搜索结果路径都不同，长会话下图标可无限堆积。
+    // 上限 256 项 + 按像素面积计 cost（18×18 图约 1.3KB，256 项约 0.3MB 量级，压力可忽略）。
+    private static let fileIconCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 256
+        return cache
+    }()
 
     private static func fileIcon(for url: URL) -> NSImage {
-        if let cached = fileIconCache.object(forKey: url.path as NSString) { return cached }
+        let key = url.path as NSString
+        if let cached = fileIconCache.object(forKey: key) { return cached }
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         icon.size = NSSize(width: 18, height: 18)
-        fileIconCache.setObject(icon, forKey: url.path as NSString)
+        // v128（内存）：按像素面积计 cost，配合 totalCostLimit 语义更准（现主要靠 countLimit 兜底）
+        let cost = Int(icon.size.width * icon.size.height * 4)
+        fileIconCache.setObject(icon, forKey: key, cost: cost)
         return icon
     }
 

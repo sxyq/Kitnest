@@ -14,6 +14,8 @@ public struct ClipboardSettingsPane: View {
     @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
     @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
     @Stored private var floatingVisible: Bool = Preferences.shared.value(Preferences.Keys.floatingVisible, default: false)
+    /// 权限状态（v111：自动粘贴行的「去授权」入口按授权态显隐）
+    @ObservedObject private var permissions = PermissionCenter.shared
 
     private let preferences = Preferences.shared
 
@@ -65,13 +67,21 @@ public struct ClipboardSettingsPane: View {
                     SettingsDivider()
                     SettingsRow(title: "复制后自动粘贴到前台应用",
                                 subtitle: "需要「辅助功能」权限，默认关闭。") {
-                        Toggle("", isOn: $autoPaste)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .onChange(of: autoPaste) { newValue in
-                                preferences.set(Preferences.Keys.clipboardAutoPaste, newValue)
+                        HStack(spacing: 8) {
+                            // v111：权限引导窗统一入口（授权状态实时观察）
+                            if !permissions.status(.accessibility).isGranted {
+                                Button("去授权") { PermissionGuideWindowController.shared.show() }
+                                    .controlSize(.small)
+                                    .buttonStyle(.borderless)
                             }
+                            Toggle("", isOn: $autoPaste)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .onChange(of: autoPaste) { newValue in
+                                    preferences.set(Preferences.Keys.clipboardAutoPaste, newValue)
+                                }
+                        }
                     }
                 }
             }

@@ -22,7 +22,7 @@ public struct CalendarSectionView: View {
     /// 缓存 42 天数据（含农历/节气/事件），避免每帧查 EventKit
     @Stored private var cachedDays: [CalendarDay] = []
     /// 卡片在窗口内的 frame（横滑手势命中区判定）
-    @Stored private var cardFrame: CGRect = .zero
+    // v129（内存）：删除 cardFrame（v112 宽度实证埋点专用，全仓零读取）
     /// 横向滚动累积量（两指左右滑切周）
     @Stored private var scrollAccum: CGFloat = 0
     /// 滚动监听 token（窗口内 local monitor）
@@ -39,6 +39,10 @@ public struct CalendarSectionView: View {
             if !collapsed {
                 weekdayHeader
                 weeksGrid
+                // v111：未授权时 surfaced 提示（CalendarService.authorizationHint 此前无 UI 消费）
+                if !service.isAuthorized {
+                    calendarPermissionBanner
+                }
             }
         }
         // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
@@ -47,21 +51,10 @@ public struct CalendarSectionView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        // v110：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
+        // v111：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
         .whiteGlassCard(14)
-        .background(
-            GeometryReader { geo in
-                Color.clear
-                    .onAppear {
-                        cardFrame = geo.frame(in: .global)
-                        Log.info("WidthAudit", "日历卡 global=\(cardFrame)")
-                    }
-                    .onChange(of: geo.frame(in: .global)) {
-                        cardFrame = $0
-                        Log.info("WidthAudit", "日历卡 settled=\($0)")
-                    }
-            }
-        )
+        // v129（内存）：移除 v112「宽度实证」GeometryReader 埋点——onAppear/onChange
+        // 各打一条 Log（字符串格式化+落盘），且 cardFrame 全仓零读取，属纯调试残留。
         .onAppear {
             reload()
             installScrollMonitor()
@@ -69,8 +62,24 @@ public struct CalendarSectionView: View {
         .onDisappear { removeScrollMonitor() }
     }
 
-    private var cardFill: Color {
-        colorScheme == .dark ? Color.white.opacity(0.07) : Color.white.opacity(0.86)
+    // v126（性能审计 死代码复审）：删除死计算属性 cardFill（零引用，非框架回调）
+
+    /// 日历未授权提示条（v111）：日期仍可见，事件/节假日为空；「去授权」弹统一权限引导窗
+    private var calendarPermissionBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+            Text("日历未授权，仅显示日期")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("去授权") { PermissionGuideWindowController.shared.show() }
+                .buttonStyle(.borderless)
+                .font(.system(size: 10))
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 2)
     }
 
     // MARK: 标题行

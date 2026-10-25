@@ -1,0 +1,14 @@
+{
+  "binary": "/Applications/Frset.app/Contents/MacOS/Frset",
+  "arch": "arm64",
+  "functions_total": 41778,
+  "objc_classes": 531,
+  "objc_categories": 4,
+  "objc_protocols": 65,
+  "objc_methods": 2670,
+  "objc_methods_imp_in_funcstarts": 2143,
+  "swift_type_descriptors": 1462,
+  "swift_protocols": 82,
+  "frset_module_classes": 222,
+  "third_party_classes": 308
+}

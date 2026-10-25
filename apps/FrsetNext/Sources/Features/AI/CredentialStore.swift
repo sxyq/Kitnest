@@ -123,8 +123,29 @@ public final class CredentialStore: LLMCredentialStoring {
 
     // MARK: - 加解密（AES-256-CBC + PBKDF2）
 
+    // v126（性能审计 F0154）：masterSecret 内存缓存。
+    // 原实现每次 encrypt/decrypt 都从磁盘读 keystore + 剥文件头（persist/load 都各走一次），
+    // 凭证保存是设置页主线程动作。密钥文件创建后不再变化，进程内缓存一次即可
+    //（测试多实例按 keyFileURL 分别缓存，互不影响）。
+    private static let secretLock = NSLock()
+    private static var secretCache: [String: Data] = [:]
+
     /// 主密钥：首次使用时随机生成并落盘（0600）
     private static func masterSecret(keyFileURL: URL) throws -> Data {
+        secretLock.lock()
+        if let cached = secretCache[keyFileURL.path] {
+            secretLock.unlock()
+            return cached
+        }
+        secretLock.unlock()
+        let secret = try loadMasterSecret(keyFileURL: keyFileURL)
+        secretLock.lock()
+        secretCache[keyFileURL.path] = secret
+        secretLock.unlock()
+        return secret
+    }
+
+    private static func loadMasterSecret(keyFileURL: URL) throws -> Data {
         if FileManager.default.fileExists(atPath: keyFileURL.path) {
             let raw = try Data(contentsOf: keyFileURL)
             if raw.count > keyFileMagic.utf8.count,

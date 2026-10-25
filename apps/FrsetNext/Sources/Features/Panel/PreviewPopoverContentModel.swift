@@ -127,6 +127,20 @@ public struct PreviewPopoverContentModel: Identifiable {
         return good >= 2
     }
 
+    /// Markdown 强信号正则（v126 性能审计 F1094：静态预编译，避免每次调用隐式编译 10 条）
+    private static let markdownStrongRegexes: [NSRegularExpression] = [
+        "(?m)^#{1,6}\\s+\\S",                 // 标题
+        "(?m)^#{1,6}[\\u4e00-\\u9fff]",       // 中文标题（`#标题` 无空格——中文 Markdown 高频写法）
+        "(?m)^\\s*```",                        // 围栏代码
+        "(?m)^\\s*([-*+]|\\d+[.)])\\s+\\S",  // 列表
+        "(?m)^\\s*>\\s+\\S",                 // 引用
+        "(?m)^\\s*\\|.*\\|\\s*$",            // 表格行
+        "\\*\\*[^*\\n]+\\*\\*",              // 粗体
+        "`[^`\\n]+`",                          // 行内代码
+        "\\[[^\\]\\n]+\\]\\([^)\\n]+\\)",     // 链接
+        "(?m)^\\s*([-*_])(\\s*\\1){2,}\\s*$"   // 分隔线
+    ].compactMap { try? NSRegularExpression(pattern: $0) }
+
     /// Markdown 启发式：标题/围栏/链接/强调/列表 等特征
     ///
     /// 2026-10-18 放宽（用户反馈"有些文本能渲染 Markdown 有些不能"）：
@@ -141,20 +155,12 @@ public struct PreviewPopoverContentModel: Identifiable {
 
         // ① 强信号：命中任意一条就按 Markdown 渲染。
         //    这些模式在普通文本里几乎不会出现，误判成本也只是「排版更好看」，内容不会丢。
-        let strongPatterns = [
-            "(?m)^#{1,6}\\s+\\S",                 // 标题
-            "(?m)^#{1,6}[\\u4e00-\\u9fff]",       // 中文标题（`#标题` 无空格——中文 Markdown 高频写法）
-            "(?m)^\\s*```",                        // 围栏代码
-            "(?m)^\\s*([-*+]|\\d+[.)])\\s+\\S",  // 列表
-            "(?m)^\\s*>\\s+\\S",                 // 引用
-            "(?m)^\\s*\\|.*\\|\\s*$",            // 表格行
-            "\\*\\*[^*\\n]+\\*\\*",              // 粗体
-            "`[^`\\n]+`",                          // 行内代码
-            "\\[[^\\]\\n]+\\]\\([^)\\n]+\\)",     // 链接
-            "(?m)^\\s*([-*_])(\\s*\\1){2,}\\s*$"   // 分隔线
-        ]
-        for pattern in strongPatterns {
-            if trimmed.range(of: pattern, options: .regularExpression) != nil { return true }
+        // v126（性能审计 F1094）：原 range(of:options:.regularExpression) 每次调用把 10 个
+        // 模式各隐式编译一遍（Swift 不缓存正则），改为静态预编译一次、逐条匹配即用。
+        let strongPatterns = Self.markdownStrongRegexes
+        for re in strongPatterns {
+            let range = NSRange(trimmed.startIndex..., in: trimmed)
+            if re.firstMatch(in: trimmed, options: [], range: range) != nil { return true }
         }
 
         // ② 弱信号：短文本（≤ 240 字）里两条即判定；长文本维持原来的累计口径

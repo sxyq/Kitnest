@@ -20,15 +20,25 @@ public enum DiagnosticsExporter {
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let dest = panel.url else { return }
 
-        do {
-            try writeBundle(to: dest)
-            Log.info("Settings", "诊断包已导出：\(dest.path)")
-            Toast.show("已导出使用记录", icon: "doc.zipper")
-            AnalyticsEvent.settingsExportSuccess.recordNow()
-            NSWorkspace.shared.activateFileViewerSelecting([dest])
-        } catch {
-            Log.warn("Settings", "诊断包导出失败：\(error.localizedDescription)")
-            Toast.show("导出失败：\(error.localizedDescription)", icon: "exclamationmark.triangle.fill", isWarning: true)
+        // v128（流畅度）：打包整体移出主线程——原实现同步跑 writeBundle（统计全量查询
+        // + 日志目录拷贝 + 性能行逐文件扫描 + ditto 压缩 waitUntilExit），导出期间
+        // 整窗冻结数秒。面板关闭后后台打包，完成后回主线程提示/回显。
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try writeBundle(to: dest)
+                Log.info("Settings", "诊断包已导出：\(dest.path)")
+                DispatchQueue.main.async {
+                    Toast.show("已导出使用记录", icon: "doc.zipper")
+                    AnalyticsEvent.settingsExportSuccess.recordNow()
+                    NSWorkspace.shared.activateFileViewerSelecting([dest])
+                }
+            } catch {
+                Log.warn("Settings", "诊断包导出失败：\(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    Toast.show("导出失败：\(error.localizedDescription)",
+                               icon: "exclamationmark.triangle.fill", isWarning: true)
+                }
+            }
         }
     }
 

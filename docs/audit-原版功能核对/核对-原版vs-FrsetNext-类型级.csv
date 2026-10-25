@@ -1,0 +1,1526 @@
+原版类型,原版种类,原版来源,FrsetNext对应,核对状态,备注
+AIAPIKeyDraft,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AICredentialCleanupTarget,struct,Swift描述符,FrsetNext:AICredentialJournalEntry/AICredentialJournalStore/AICredentialCommitCoordinator,待确认,名称部分匹配，需人工确认
+AICredentialCommitCoordinator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AICredentialJournal,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+AICredentialJournalError,enum,Swift描述符,FrsetNext:AICredentialJournalEntry/AICredentialJournalStore/AICredentialCommitCoordinator,待确认,名称部分匹配，需人工确认
+AICredentialJournalStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AICredentialStore,struct,Swift描述符,FrsetNext:AICredentialJournalEntry/AICredentialJournalStore/AICredentialCommitCoordinator,待确认,名称部分匹配，需人工确认
+AICredentialStoring,protocol,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+AICredentialTransaction,struct,Swift描述符,FrsetNext:AICredentialJournalEntry/AICredentialJournalStore/AICredentialCommitCoordinator,待确认,名称部分匹配，需人工确认
+AIProviderConnectionController,class,Swift描述符,Features/AI/AIConnectionService.swift,已覆盖-迁移,
+AIProviderConnectionService,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AIProviderDefinition,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderInstance,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderInstanceMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderKind,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderMenuAssetIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderMenuIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderMenuItems,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderMenuSymbolIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderMetadataStoring,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderModelDiscoveryCache,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AIProviderProtocol,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderReorderList,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderRowFramePreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderSelectionResolution,struct,Swift描述符,FrsetNext:AIProviderSettingsViewModel,待确认,名称部分匹配，需人工确认
+AIProviderStore,class,Swift描述符,Features/AI/CredentialStore.swift,已覆盖-迁移,
+AIProviderType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIProviderURLSessionDelegate,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AIProvidersSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AISettings,struct,Swift描述符,FrsetNext:enum,已覆盖-同名,
+AIToolExecutionSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIToolModelOption,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIToolStreamingPhase,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIToolStreamingPreviewView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AIToolStreamingSession,class,Swift描述符,Features/AI/TranslationToolSession.swift,已覆盖-迁移,
+ANRTrackerBuilder,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+AXUIElement,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+AboutDebugSettingsSheet,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AboutEasterEggBubbleContent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AboutEasterEggBubbleView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AboutSettingsView,struct,Swift描述符,FrsetNext:AboutSettingsPane,待确认,名称部分匹配，需人工确认
+AbsolutePositionCandidate,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AccessoryDisplayItem,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Action,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ActivationPolicy,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ActiveBlock,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ActiveToolControlBar,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ActiveToolSwitchMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ActiveTrialSession,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AlwaysOnTopState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnchoredTipBubble,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnchoredTipBubbleShape,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnimatedToastWrapper,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnnotationCompositor,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+AnnotationEditorAction,enum,Swift描述符,FrsetNext:AnnotationEditorWindow/AnnotationEditorController,待确认,名称部分匹配，需人工确认
+AnnotationHandle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnnotationHitZone,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnnotationItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnnotationSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnnotationType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnnotationTypeCase,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicAuthenticationMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicContentBlock,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicLLMAdapter,class,Swift描述符,Features/AI/AnthropicService.swift,已覆盖-迁移,
+AnthropicMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicMessageRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicModelsEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicResponseEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicStreamDelta,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicStreamMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnthropicUsage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnyIntegration,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AnyToolWrapper,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppActivationPolicyCoordinator,class,Swift描述符,App/AppBootstrap.swift,已覆盖-迁移,
+AppActivationPolicyReason,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppDelegate,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AppHangTrackerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppKitDoubleTapEvent,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+AppKitDoubleTapMonitor,class,Swift描述符,Features/Toolbox/DoubleTapShortcut.swift,已覆盖-迁移,
+AppLanguage,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppLaunchCoordinator,class,Swift描述符,App/AppBootstrap.swift,已覆盖-迁移,
+AppLifecyclePublishing,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppStateManagerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppUpdateManager,class,Swift描述符,—,未实现,
+AppVersion,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppWindowBackground,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AppearanceManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+AppearanceMode,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ApplicationIconKey,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ApplicationIconProvider,class,Swift描述符,Features/Clipboard/ClipboardAppIconCache.swift,已覆盖-迁移,
+ApplicationLifecyclePublisher,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+ApplicationProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ApplicationScreenViewPublisher,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+ApplyResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ArbitraryData,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AsyncThumbnailView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AuthenticatedRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AuthorizationState,enum,Swift描述符,FrsetNext:ClientAuthorization,待确认,名称部分匹配，需人工确认
+AutoPasteEligibilityManager,class,Swift描述符,Features/Clipboard/ClipboardManager.swift,已覆盖-迁移,
+AutoPastePromptAttempt,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AutoPastePromptCard,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AutoPastePromptCoordinator,class,Swift描述符,Features/Clipboard/ClipboardManager.swift,已覆盖-迁移,
+AutoPastePromptPersistedState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AutoPastePromptSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AutoSessionTrackingProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+AutoSidebarTextView,class,Swift描述符,Features/Manual/ManualView.swift,待确认,
+BarItemDropDelegate,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BarItemRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BarItemsPanelView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BarWidthKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Base64Tool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Base64ToolError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BatchLimits,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BeforeSendChain,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Behavior,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BinaryImageCacheProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BlendingMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Block,enum,Swift描述符,FrsetNext:BlockMenuItemAction/ManualBlockItem/ManualBlock,待确认,名称部分匹配，需人工确认
+BlockNode,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Body,struct,Swift描述符,FrsetNext:MarkdownFilePreviewBody/MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+BodyContent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BoxedBeforeSendBlock,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+BoxedBeforeSendLogBlock,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+BreadcrumbDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BreadcrumbDeserializer,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BreadcrumbDeserializerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+BundleFinder,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+CARotatingView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFAllocator,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFData,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFMachPort,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFRunLoop,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFRunLoopActivity,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFRunLoopMode,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFRunLoopObserver,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFRunLoopSource,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CFString,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGColor,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGImage,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGPathElement,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGPathElementType,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGPoint,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGRect,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CGSize,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+CPUFanMetricRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CPUUsageCalculator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarAuthorizationService,class,Swift描述符,Features/Toolbox/CalendarService.swift,已覆盖-迁移,
+CalendarAuthorizationStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarDay,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+CalendarDayEvent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarDaySection,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarDaySectionKey,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarDayView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarDetectedLinks,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarEventAttendee,struct,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventCardInteractionModifier,struct,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventDetail,struct,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventDetailContentHeightPreferenceKey,struct,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventDetailLoadError,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventDetailPopoverSurfaceModifier,struct,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventDetailPopoverView,struct,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventLinkKind,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventNotesLinkStyler,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventRecurrenceKind,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
+CalendarEventService,class,Swift描述符,Features/Toolbox/CalendarService.swift,已覆盖-迁移,
+CalendarExternalOpenTarget,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarFoldedWeekScrollMonitor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarFoldedWeekScrollMonitorView,class,Swift描述符,Features/Toolbox/CalendarSectionView.swift,已覆盖-迁移,
+CalendarHeaderView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarHoverTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarPanelState,class,Swift描述符,Features/Toolbox/CalendarSectionView.swift,已覆盖-迁移,
+CalendarPermissionHoverTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarRSVPStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarScrollDismissObserver,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarScrollDismissObserverView,class,Swift描述符,Features/Toolbox/CalendarSectionView.swift,已覆盖-迁移,
+CalendarSectionView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+CalendarSessionPageView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarSummaryEvent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CalendarTodaySummaryCacheEntry,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CallStackTreeProviding,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Candidate,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CanonicalGeometry,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClearHistoryConfirmationDialog,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Click,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+ClientProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardAliasInlineEditor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardBatchAction,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardBatchFailure,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardCaptureTransaction,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardEditTransactionResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardEmptyView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardFilterBarHostView,struct,Swift描述符,FrsetNext:ClipboardFileStore/ClipboardFilterKind/ClipboardFilterBarView,待确认,名称部分匹配，需人工确认
+ClipboardFilterBarView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+ClipboardFilterType,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+ClipboardHistoryRetentionPruneScheduler,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardImageDimensionUnit,enum,Swift描述符,FrsetNext:ClipboardImageStorage,待确认,名称部分匹配，需人工确认
+ClipboardItem,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+ClipboardItemEditMode,enum,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemEditSession,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardItemEditTextEditor,struct,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemEditTextView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardItemEditToolbarControlsWidthPreferenceKey,struct,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemEditView,struct,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemEditWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardItemEditWindowDelegate,class,Swift描述符,FrsetNext:protocol,已覆盖-同名,
+ClipboardItemEditWindowKey,enum,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemEditWindowRecord,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardItemEditorPresentationState,struct,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemIcon,struct,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemRow,struct,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemTitleLineMode,enum,Swift描述符,FrsetNext:ClipboardItemEditSession/ClipboardItemEditTextView/ClipboardItemEditWindowDelegate,待确认,名称部分匹配，需人工确认
+ClipboardItemType,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ClipboardKeyboardCursorState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardKeyboardInteractionSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardListEntry,struct,Swift描述符,FrsetNext:ClipboardListTopScrollTracker/ClipboardListScrollView,待确认,名称部分匹配，需人工确认
+ClipboardListKeyboardCommand,enum,Swift描述符,FrsetNext:ClipboardListTopScrollTracker/ClipboardListScrollView,待确认,名称部分匹配，需人工确认
+ClipboardListKeyboardCommandSource,enum,Swift描述符,FrsetNext:ClipboardListTopScrollTracker/ClipboardListScrollView,待确认,名称部分匹配，需人工确认
+ClipboardListKeyboardCommandToken,struct,Swift描述符,FrsetNext:ClipboardListTopScrollTracker/ClipboardListScrollView,待确认,名称部分匹配，需人工确认
+ClipboardListTopPreferenceKey,struct,Swift描述符,FrsetNext:ClipboardListTopScrollTracker/ClipboardListScrollView,待确认,名称部分匹配，需人工确认
+ClipboardListTopScrollTracker,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardMenuActionItem,class,Swift描述符,FrsetNext:struct,已覆盖-同名,
+ClipboardMenuButton,struct,Swift描述符,FrsetNext:ClipboardMenuActionItem,待确认,名称部分匹配，需人工确认
+ClipboardNativeMenuButton,struct,Swift描述符,FrsetNext:ClipboardNativeMenuPresenter,待确认,名称部分匹配，需人工确认
+ClipboardNativeMenuPresenter,struct,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardOCRTask,struct,Swift描述符,FrsetNext:ClipboardOCRTextStorage,待确认,名称部分匹配，需人工确认
+ClipboardOCRTemporaryText,struct,Swift描述符,FrsetNext:ClipboardOCRTextStorage,待确认,名称部分匹配，需人工确认
+ClipboardOCRTextStorage,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ClipboardPasteboardCaptureRequest,struct,Swift描述符,FrsetNext:ClipboardPasteboardReader,待确认,名称部分匹配，需人工确认
+ClipboardPasteboardReadResult,enum,Swift描述符,FrsetNext:ClipboardPasteboardReader,待确认,名称部分匹配，需人工确认
+ClipboardPasteboardReader,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardPasteboardStableOutcome,enum,Swift描述符,FrsetNext:ClipboardPasteboardReader,待确认,名称部分匹配，需人工确认
+ClipboardPaywallCardView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardPaywallKind,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardPaywallOverlayStyle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardPaywallOverlayView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardPaywallPresentation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardPaywallSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardRichTextPayload,struct,Swift描述符,FrsetNext:ClipboardRichTextStorage,待确认,名称部分匹配，需人工确认
+ClipboardRichTextStorage,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ClipboardRowContextMenuActivationTrackerNSView,class,Swift描述符,Features/Clipboard/ClipboardTableHostView.swift,已覆盖-迁移,
+ClipboardRowContextMenuActivationTrackerView,struct,Swift描述符,FrsetNext:ClipboardRowMenuContent/ClipboardRow/ClipboardRowHoverSuppressionController,待确认,名称部分匹配，需人工确认
+ClipboardRowHoverSuppressionController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardSearchInputField,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardSearchInputKeyboardCommand,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ClipboardSearchTextField,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,已覆盖-迁移,
+ClipboardSectionContext,enum,Swift描述符,FrsetNext:ClipboardSectionView,待确认,名称部分匹配，需人工确认
+ClipboardSectionView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+ClipboardStorageLimitMode,enum,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+ClipboardStorageLimitSheet,struct,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+ClipboardStoragePruneResult,struct,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+ClipboardStoragePruneScheduler,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardStorageUsage,struct,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+ClipboardStorageUsageProvider,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardStorageUsageTooltipBubble,struct,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+ClipboardStorageUsageTooltipIcon,struct,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+ClipboardSummaryExecutionCoordinator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ClipboardSummaryRequest,struct,Swift描述符,FrsetNext:ClipboardSummaryError/ClipboardSummaryExecutionCoordinator,待确认,名称部分匹配，需人工确认
+ClipboardSummarySource,enum,Swift描述符,FrsetNext:ClipboardSummaryError/ClipboardSummaryExecutionCoordinator,待确认,名称部分匹配，需人工确认
+ClipboardTag,struct,Swift描述符,FrsetNext:ClipboardTagFilterMenu,待确认,名称部分匹配，需人工确认
+ClipboardTagCreationFailure,enum,Swift描述符,FrsetNext:ClipboardTagFilterMenu,待确认,名称部分匹配，需人工确认
+ClipboardTagCreationResult,enum,Swift描述符,FrsetNext:ClipboardTagFilterMenu,待确认,名称部分匹配，需人工确认
+ClipboardTagFilterMenu,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+ClipboardTagRef,struct,Swift描述符,FrsetNext:ClipboardTagFilterMenu,待确认,名称部分匹配，需人工确认
+ClipboardTextStorage,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ClipboardTextTypeClassifier,enum,Swift描述符,FrsetNext:ClipboardTextStorage,待确认,名称部分匹配，需人工确认
+CoarseCandidate,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CodableColor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CodeBlockFragment,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CodeHighlightSpan,struct,Swift描述符,FrsetNext:CodeHighlighter,待确认,名称部分匹配，需人工确认
+CodeLineIndex,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CodeLineNumberRulerView,class,Swift描述符,Features/Panel/JSONInspectorView.swift,已覆盖-迁移,
+CodePreviewScrollAxisLockNSView,class,Swift描述符,Features/Panel/JSONInspectorView.swift,待确认,
+CodePreviewScrollAxisLockView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CodePreviewScrollView,class,Swift描述符,Features/Panel/JSONInspectorView.swift,已覆盖-迁移,
+CodeSyntaxHighlighting,enum,Swift描述符,FrsetNext:MarkdownCodeSyntaxHighlighter,待确认,名称部分匹配，需人工确认
+CodeTokenKind,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CodingKeys,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+CollapsibleSearchBarSidebar,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ColorPickerMagnifierView,class,Swift描述符,Features/Capture/EyedropperBridge.swift,已覆盖-迁移,
+ColorPickerManager,class,Swift描述符,Features/Capture/Eyedropper.swift,已覆盖-迁移,
+ColorPickerOverlayView,class,Swift描述符,Features/Capture/EyedropperBridge.swift,已覆盖-迁移,
+ColorPickerSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ColorPickerWindow,class,Swift描述符,Features/Capture/Eyedropper.swift,已覆盖-迁移,
+ComparisonRowModel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ComparisonValue,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CompletionPageView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Component,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CompressionLevel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ConcurrentRateLimitsDictionary,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Config,struct,Swift描述符,FrsetNext:FrsetConfigFile/FrsetConfigStatRow/ConfigImportError,待确认,名称部分匹配，需人工确认
+ConfiguringView,class,Swift描述符,—,待确认,
+Container,class,ObjC类(PostHog(第三方)),FrsetNext:LongScreenshotEditorContainerView/ScreenshotMagnifierContainerView/LargeTextPreviewContainerView,待确认,名称部分匹配，需人工确认
+Context,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+Coordinator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+CountryResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CrashInstallationReporterBuilder,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CrashIntegrationSessionHandlerBuilder,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CrashReportFilterBridge,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CrashWrapperProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CurrentDateProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CursorRegionView,class,Swift描述符,—,待确认,
+CustomAITool,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+CustomAIToolConfig,struct,Swift描述符,FrsetNext:CustomAITool/CustomAIToolStore,待确认,名称部分匹配，需人工确认
+CustomAIToolEditSheet,struct,Swift描述符,FrsetNext:CustomAITool/CustomAIToolStore,待确认,名称部分匹配，需人工确认
+CustomAIToolStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+CustomCheckbox,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomMenuBarIconEasterEggDialog,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomMenuBarIconEasterEggDialogKind,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomMenuBarIconEasterEggDialogOverlayView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomMenuBarIconEasterEggManager,class,Swift描述符,Features/StatusBar/MenuBarIconStyle.swift,已覆盖-迁移,
+CustomMenuBarIconPalettePopover,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomMenuBarIconPickerOption,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomMenuBarIconSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+CustomRadioButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DatabaseCollectionOptions,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DatabaseManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+DateProviderProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DebugImageProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DebugMetaDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DebugProRefundAction,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DebugProRefundRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Decimal,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DecodedValueContainer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultBreadcrumbDeserializer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultHub,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultInstallationIdProvider,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultOptionsDeserializer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultRateLimits,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultSdkMetadataProvider,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultSdkPackagesProvider,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultTelemetryBuffer,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultTelemetryBufferDataForwardingTriggers,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultTelemetryScheduler,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultTranslationToolRequestExecutor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultUserDeserializer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DefaultValues,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Definition,struct,Swift描述符,FrsetNext:ShortcutDefinition,待确认,名称部分匹配，需人工确认
+DelegateWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DeleteKeyMonitor,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+Dependencies,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Detail,struct,Swift描述符,FrsetNext:MonitorDetailSelection/MonitorDetailView,待确认,名称部分匹配，需人工确认
+DetectedLink,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DirectError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DiscoveredModel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DiskActivityLampsLayerView,class,Swift描述符,Features/Monitor/MonitorStatusItems.swift,已覆盖-迁移,
+DiskActivityLampsOverlay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DispatchFactoryProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+DispatchQueueWrapperProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+DocumentAttributeKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DocumentReadingOptionKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DocumentType,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+DoubleTapInlineSwitch,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+DoubleTapModifier,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+DoubleTapModifierInputView,struct,Swift描述符,FrsetNext:DoubleTapModifier,待确认,名称部分匹配，需人工确认
+DoubleTapRuntimeAvailability,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DoubleTapShortcutDetector,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+DoubleTapUnavailableReason,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+DragView,class,Swift描述符,—,待确认,
+DynamicCodingKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+EKWeekday,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+EditorField,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+EngineEditSheet,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+EngineManagementRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+EngineManagementView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+EntitlementRefreshTask,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Entry,struct,Swift描述符,FrsetNext:class,已覆盖-同名,
+Error,enum,Swift描述符,FrsetNext:extension,已覆盖-同名,
+EvaluatedFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+EvaluationResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Event,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+EventHotKeyID,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+EventMonitor,class,Swift描述符,App/AppBootstrap.swift + Features/Clipboard/ClipboardManager.swift,已覆盖-迁移,
+EventTapContext,class,Swift描述符,Features/Toolbox/DoubleTapShortcut.swift,已覆盖-迁移,
+EventTypeMask,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ExceptionDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ExpandingTextView,class,Swift描述符,—,待确认,
+ExtensionDetectorProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ExtraContextProviderProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileAttributeKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileBackedCodePreviewView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileBackedPreviewLoadResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileBackedPreviewLoadState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileIOTrackerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileManagerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FileTypeIconCacheRecord,struct,Swift描述符,FrsetNext:FileTypeIconProvider/FileTypeIcon,待确认,名称部分匹配，需人工确认
+FileTypeIconProvider,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+FloatingClipboardActiveHoverTrackerNSView,class,Swift描述符,Features/Clipboard/FloatingClipboardWindow.swift,已覆盖-迁移,
+FloatingClipboardActiveHoverTrackerView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardHostingView,class,Swift描述符,Features/Clipboard/FloatingClipboardWindow.swift,已覆盖-迁移,
+FloatingClipboardInteractionMode,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardKeyboardCommand,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardKeyboardStateResetBehavior,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardListTopPreferenceKey,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardPanel,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+FloatingClipboardPaywallContentView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardPaywallPanel,class,Swift描述符,—,不适用,
+FloatingClipboardPinState,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+FloatingClipboardPreviewSource,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardRowIcon,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardRowView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardSearchBarView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardSourceAppCornerBadge,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+FloatingClipboardTitlebarControlsView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardTitlebarHostingView,class,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
+FloatingClipboardWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+FloatingPanel,class,Swift描述符,FrsetNext:extension,已覆盖-同名,
+FootnoteDefinition,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FootnoteEntry,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Fragment,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FrameDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FrsetApp,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FrsetConfirmationDialogCard,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FrsetDialogOverlayStyle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FrsetDialogOverlayView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+FrsetSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiCandidate,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiContent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiDiscoveredModel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiErrorEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiGenerationConfig,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiLLMAdapter,class,Swift描述符,Features/AI/GeminiService.swift,已覆盖-迁移,
+GeminiModelsEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiPart,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiRequestPayload,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiResponseEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiThinkingConfig,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeminiUsageMetadata,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GeneralSettings,struct,Swift描述符,FrsetNext:GeneralSettingsPane,待确认,名称部分匹配，需人工确认
+GeneralSettingsView,struct,Swift描述符,FrsetNext:GeneralSettingsPane,待确认,名称部分匹配，需人工确认
+GeoDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GlobalEventProcessorProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GraphQLCollectionOptions,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GraphQLRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Gzip,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+GzipError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+HTTPHeaderReader,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+HTTPHeaderSanitizer,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Handle,enum,Swift描述符,FrsetNext:PanelWindowHandle/TextHandle,待确认,名称部分匹配，需人工确认
+Holiday,struct,Swift描述符,FrsetNext:HolidayManager,待确认,名称部分匹配，需人工确认
+HolidayConfig,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+HolidayManager,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+HoverTintIconButton,class,Swift描述符,—,待确认,
+HttpBodyType,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+HttpDateParser,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+HttpHeaderCollectionOptions,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Hub,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+HubProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+IPAddressTool,struct,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
+IPAddressToolAnchorView,struct,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
+IPAddressToolPresentationState,class,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
+IPAddressToolUsageTracker,class,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
+IPResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+IgnoredAppManagementSheet,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+IgnoredAppPreviewIconStack,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+IgnoredAppSetting,struct,Swift描述符,FrsetNext:IgnoredAppsEditor,待确认,名称部分匹配，需人工确认
+ImageAnnotationContext,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ImageAnnotationPresentation,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ImageAnnotationResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ImageProcessor,class,Swift描述符,FrsetNext:extension,已覆盖-同名,
+InAppShortcutGuideItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InAppShortcutGuideRowView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InAppShortcutGuideView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InAppShortcutKeycap,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InAppShortcutKeycapView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InMemoryInternalTelemetryBuffer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+IndicatorMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InlineParseResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InstallCohort,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InstallationIdProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InstallationIdProviderProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InteractionMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InternalPostHogError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+InternalTelemetryBuffer,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ItemStateKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+JSONFormatterTool,struct,Swift描述符,FrsetNext:enum,已覆盖-同名,
+JSONHighlightLayoutStrategy,enum,Swift描述符,FrsetNext:JSONHighlighter,待确认,名称部分匹配，需人工确认
+JSONHighlightView,struct,Swift描述符,FrsetNext:JSONHighlighter,待确认,名称部分匹配，需人工确认
+JSONHighlighter,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+JSONPreservingFormatterError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+JSONToolError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Key,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+KeyValueCollectionBehavior,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+KeyboardActionIndicator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+KeychainError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Kind,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+LLMCredentialReading,protocol,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+LLMMessage,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+LLMMessageRole,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMProviderAdapting,protocol,Swift描述符,FrsetNext:extension,已覆盖-同名,
+LLMProviderInstanceReading,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMRequest,struct,Swift描述符,FrsetNext:LLMRequestBuilding,待确认,名称部分匹配，需人工确认
+LLMRequestPurpose,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMResolver,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LLMResponse,struct,Swift描述符,FrsetNext:LLMResponseParsing,待确认,名称部分匹配，需人工确认
+LLMRetryPolicy,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMRetrySleeping,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMService,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LLMServiceError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMStreamEvent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LLMUsage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LanguageManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LanguageMenuItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LanguageSelectionMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LargeTextPreviewContainerView,class,Swift描述符,FrsetNext:struct,已覆盖-同名,
+LargeTextPreviewView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+LaunchAtLoginManager,class,Swift描述符,Features/Settings/SettingsPanes.swift（SMAppService）,已覆盖-迁移,
+LaunchSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LegacyGeminiMigrationLedger,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LegacyGeminiMigrator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LegacyGeminiSettingsStoring,protocol,Swift描述符,FrsetNext:protocol,已覆盖-同名,
+Level,struct,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ListItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ListItemParseResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LoadValidator,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LocalStateSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LocalizedResourceSelection,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LongScreenshotCaptureConfiguration,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotCaptureError,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotCaptureState,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotCaptureStream,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotContinuityController,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotCoordinator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotEditorContainerView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotEditorDocumentView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotEditorScrollView,class,Swift描述符,Features/Capture/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
+LongScreenshotEditorWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotEditorWindowController,class,Swift描述符,Features/Capture/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
+LongScreenshotFixedBands,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotFloatingOverlayDetector,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotGrayFrame,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotImageDocumentView,class,Swift描述符,Features/Capture/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
+LongScreenshotImageScrollView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotMatchScope,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotMotionEstimator,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotMovementCoverage,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotNormalizedHorizontalRange,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotPendingScrollInput,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotPreviewController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotPreviewModel,class,Swift描述符,Features/Capture/LongScreenshotCoordinator.swift,已覆盖-迁移,
+LongScreenshotPreviewView,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotRegionalMatch,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotRegionalMotionEstimator,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotSession,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotSnapshot,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotStitcher,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+LongScreenshotVerticalDirection,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LongScreenshotVerticalMovement,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
+LookupApp,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LookupResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LossyDecodedValue,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+LunarCalendar,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+LunarDate,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+MXFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MXSample,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MacEditorView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelHostingView,class,Swift描述符,Features/Panel/PanelRootView.swift,已覆盖-迁移,
+MainPanelKeyboardCommand,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelPreviewContent,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewContentSizePreferenceKey,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewHostSizingModifier,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewMeasuredSize,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewMode,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewPopoverCloseReason,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+MainPanelPreviewPopoverCoordinator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+MainPanelPreviewPopoverSlot,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+MainPanelPreviewPopoverSlotHostView,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+MainPanelPreviewPopoverSlotState,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewPositioningView,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewPresentation,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewRequestID,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewSource,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewStreamingSizePolicy,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelPreviewTransitionStyle,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
+MainPanelStreamingPopoverScrollAction,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelStreamingPopoverScrollPhase,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelStreamingPopoverScrollState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelStreamingPopoverSizeAction,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelStreamingPopoverSizeState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelStreamingPopoverStage,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainPanelView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MainQueueState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MarkdownCodeSyntaxHighlightResult,struct,Swift描述符,FrsetNext:MarkdownCodeSyntaxHighlighter,待确认,名称部分匹配，需人工确认
+MarkdownCodeSyntaxHighlighter,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
+MarkdownContentRenderer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MarkdownFenceBlock,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MarkdownNavigationTarget,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MarkdownPreviewCapability,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewEligibilityState,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewProgrammaticScrollRequest,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewRestoreRequest,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewScrollOffsetPreferenceKey,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewScrollStabilizer,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewToggleButton,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownPreviewViewportAnchor,struct,Swift描述符,FrsetNext:MarkdownPreviewBody,待确认,名称部分匹配，需人工确认
+MarkdownRenderPipeline,enum,Swift描述符,FrsetNext:PreviewMarkdownRenderer,待确认,名称部分匹配，需人工确认
+MarkdownRenderedBlockFrame,struct,Swift描述符,FrsetNext:PreviewMarkdownRenderer,待确认,名称部分匹配，需人工确认
+MarkdownRenderedBlockFramePreferenceKey,struct,Swift描述符,FrsetNext:PreviewMarkdownRenderer,待确认,名称部分匹配，需人工确认
+MarkdownRendererCopyButton,struct,Swift描述符,FrsetNext:PreviewMarkdownRenderer,待确认,名称部分匹配，需人工确认
+MarkdownRendererStyle,enum,Swift描述符,FrsetNext:PreviewMarkdownRenderer,待确认,名称部分匹配，需人工确认
+MarkdownScrollTarget,enum,Swift描述符,FrsetNext:MarkdownScrollState,待确认,名称部分匹配，需人工确认
+MarkdownTableAlignment,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MatchingFlags,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Material,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+MechanismContextDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MechanismDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MemoryIconPinsLayerView,class,Swift描述符,Features/Monitor/MonitorStatusItems.swift,已覆盖-迁移,
+MemoryIconPinsOverlay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarAnimatedToastWrapper,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarButtonContextSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarFeaturesSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarIconHorizontalOption,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarIconType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarMetric,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+MenuBarMetricContent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarMetricDisplayState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarMetricsHostingView,class,Swift描述符,Features/Monitor/StatsBarEngine.swift（合并条）,已覆盖-迁移,
+MenuBarMetricsStatusBarController,class,Swift描述符,Features/Monitor/StatsBarEngine.swift（合并条取代 4 独立项）,已覆盖-迁移,
+MenuBarNetworkView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuBarToastAnimationState,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+MenuBarToastManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+MenuBarUsageView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MenuRowButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MicrosoftResponseItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MicrosoftTranslation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Mode,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+Model,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+ModelDiscoveryMenuButton,struct,Swift描述符,FrsetNext:AIProviderModelDiscoveryCache,待确认,名称部分匹配，需人工确认
+ModelDiscoveryMenuButtonView,class,Swift描述符,Features/AI/AISettingsPane.swift,已覆盖-迁移,
+ModifierFlags,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+MoreMenuButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MoreMenuPopover,struct,Swift描述符,Features/StatusBar/StatusBarMenuBuilder.swift + Features/Panel/PanelRootView.swift,已覆盖-迁移,
+MoreMenuPopoverArrowCover,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MoreMenuPopoverArrowShape,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MosaicIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+MosaicStyle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+NLLanguage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+NSDataSwizzlingProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NSDeviceDescriptionKey,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NSFileManagerSwizzlingProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NSNumberDecodableWrapper,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NSURLSessionDelegate,class,ObjC类(ObjC/其他),—,不适用-系统类型,Apple SDK 类型，由系统提供
+Name,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+NamingStyle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+NamingStyleMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+NegativeCacheRecord,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+NetworkBodyWarning,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkCounters,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkDataPoint,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoAddress,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoContentHeightKey,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoDiscoveryTip,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoEntrySource,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoLocalAddress,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoPopoverController,class,Swift描述符,Features/Monitor/NetworkDiagnostics.swift,已覆盖-迁移,
+NetworkInfoPopoverView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoPublicIPQuery,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkInfoService,class,Swift描述符,Features/Monitor/NetworkDiagnostics.swift,已覆盖-迁移,
+NetworkMonitor,class,Swift描述符,Features/Monitor/MonitorSampler.swift,已覆盖-迁移,
+NetworkSpeedButtonStyle,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkSpeedChart,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkSpeedChartLayerRepresentable,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkSpeedChartLayerView,class,Swift描述符,Features/Monitor/MonitorCharts.swift,已覆盖-迁移,
+NetworkSpeedRow,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NetworkTrackerProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+NotificationCenterProvider,protocol,Swift描述符,FrsetNext:Notification,待确认,名称部分匹配，需人工确认
+OCRFloatingActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRReadOnlyScrollView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+OCRReadOnlyTextView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRRecord,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRSystemLanguageMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTextPane,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRToolbarControlPalette,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRToolbarIconButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslateActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationLanguage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationLanguageCatalog,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationProviderID,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationProviderMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationProviderMenuStyle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationRequestSignature,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRTranslationStreamEvent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRWebTranslationServiceError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OCRWindowPinButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ObservationBlock,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ObservedMenuBarIconState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ObserverEntry,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OllamaNativeChatMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OllamaNativeChatOptions,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OllamaNativeChatRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OllamaNativeChatStreamResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OnboardingContentContainer,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OnboardingPrimaryButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OnboardingShortcutCaptureView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OnboardingShortcutKeyView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OnboardingShortcutPiece,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIChatMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIChatRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIChatResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIChoice,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAICompatibleLLMAdapter,class,Swift描述符,Features/AI/OpenAICompatibleService.swift,已覆盖-迁移,
+OpenAIError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIErrorResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIModelsEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIResponseMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIThinkingConfiguration,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OpenAIUsage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Operation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Options,class,Swift描述符,FrsetNext:BeautifyOptions/OptionSpec,待确认,名称部分匹配，需人工确认
+OptionsDeserializer,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OptionsDeserializerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+OwnedPreviewPopoverView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashHostInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashMachExceptionPort,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashMachExceptionPortSet,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashMachExceptionServer,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashProcessInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReport,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportApplicationInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportBinaryImageInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportExceptionInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportMachExceptionInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportMachineInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportProcessInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportProcessorInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportRegisterInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportSignalInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportStackFrameInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportSymbolInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportSystemInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportTextFormatter,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReportThreadInfo,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReporter,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashReporterConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashSignalHandler,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHPLCrashUncaughtExceptionHandler,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PHURLSessionTaskSafeAccess,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PanelCloseReason,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ParsedTimestamp,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PasteTargetSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PasteboardItemRepresentation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PasteboardItemSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PasteboardType,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+PatternRule,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PendingAutomaticResize,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PendingFeatureFlagsRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PendingFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PendingPreviewPaginationRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PendingRegionalFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PendingReservation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PermissionPromptKind,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PermissionPromptModel,class,Swift描述符,—,未实现,
+PermissionPromptView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PermissionWindow,class,Swift描述符,—,未实现,
+PermissionWindowController,class,Swift描述符,—,未实现,
+PinnedScreenshotContentView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotControlsHostView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotControlsMode,enum,Swift描述符,FrsetNext:PinnedScreenshotScaleHUD/PinnedScreenshotSmallCloseButton/PinnedScreenshotSmallModeTipWindow,待确认,名称部分匹配，需人工确认
+PinnedScreenshotControlsWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotPresentationMode,enum,Swift描述符,FrsetNext:PinnedScreenshotScaleHUD/PinnedScreenshotSmallCloseButton/PinnedScreenshotSmallModeTipWindow,待确认,名称部分匹配，需人工确认
+PinnedScreenshotScaleHUD,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotSmallCloseButton,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotSmallModeTipWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedScreenshotTipHostingView,class,Swift描述符,Features/Capture/PinWindow.swift,已覆盖-迁移,
+PinnedScreenshotWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PinnedToolButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PlaceholderProcessInfoClass,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PlaceholderSentryApplication,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PointingHandCursorRegion,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PopoverArrowCover,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PopoverArrowShape,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PopoverWindowBackgroundConfigurator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PositionKeyframe,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogAPIDateFormatter,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogApi,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogAppLifeCycleIntegration,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogBinaryImageInfo,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogContext,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogCrashCustomDataWriter,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDataMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogDeepLinkListener,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplayChoiceQuestion,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplayLinkQuestion,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplayOpenQuestion,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplayRatingQuestion,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplaySurvey,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplaySurveyAppearance,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplaySurveyQuestion,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplaySurveyRatingType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogDisplaySurveyTextContentType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogErrorTrackingAutoCaptureIntegration,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogErrorTrackingConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogEvent,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogExceptionStepsBuffer,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogExceptionStepsConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogFeatureFlagResult,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogFileBackedQueue,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogIntegration,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogIntegrationInstallState,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogLogRecord,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogLogSeverity,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogLogger,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogLogsConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogManager,class,Swift描述符,—,不适用,
+PostHogMulticastCallback,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogNextSurveyQuestion,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogPersonProfiles,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogQueue,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogRageClickConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogRedirectHeaderStripper,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogRemoteConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogReplayBufferDelegate,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogReplayBufferQueue,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogReplayQueue,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogSDK,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogScreenViewIntegration,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogSessionManager,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogStackFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogStorage,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogStorageManager,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogSurveyQuestionProperties,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogSurveyResponse,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogSurveyResponseType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogSurveysConfig,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogSurveysDefaultDelegate,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PostHogSwiftUIViewModifier,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogThrottledMulticastCallback,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHogUploadInfo,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PostHog_PHPLCrashReporter_SWIFTPM_MODULE_BUNDLER_FINDER,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+PreviewArrowGeometryStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PreviewFooterTagView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PreviewFormatToggleButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PreviewHeaderActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PreviewHoverTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PreviewImageLoadResult,struct,Swift描述符,FrsetNext:PreviewImageLoader/PreviewImageView,待确认,名称部分匹配，需人工确认
+PreviewImageLoader,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PreviewImageRequest,struct,Swift描述符,FrsetNext:PreviewImageLoader/PreviewImageView,待确认,名称部分匹配，需人工确认
+PreviewJSONPreferenceStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PreviewMarkdownPreferenceStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+PreviewNavigationCommand,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+PreviewNavigationDirection,enum,Swift描述符,FrsetNext:PreviewNavigationCommand,待确认,名称部分匹配，需人工确认
+PreviewPopoverContentModel,class,Swift描述符,FrsetNext:struct,已覆盖-同名,
+PreviewPopoverView,struct,Swift描述符,Features/Panel/PreviewPopoverContentView.swift,已覆盖-迁移,
+PreviewScreenFrameReporter,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PrivateSentrySDKOnly,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+ProEntitlementObservation,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProEntitlementRecord,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProEntitlementResolution,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProEntitlementState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProOfferCodeRedemptionModifier,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProPaywallCard,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProPlanNotchedBorder,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProPlanSelectionView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProPurchaseManager,class,Swift描述符,—,不适用,
+ProSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProSubscriptionDetails,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProTrialFeature,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProTrialOverrideManager,class,Swift描述符,—,不适用,
+ProTrialPhase,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProcessInfoProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PromptTextEditor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PromptTextView,class,Swift描述符,—,待确认,
+PromptTextViewFocusDelegate,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PropertyKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProviderError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ProviderErrorEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+PublicAddress,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+QRCodeTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+QueryError,enum,Swift描述符,FrsetNext:IPQueryError,待确认,名称部分匹配，需人工确认
+QueueEndpoint,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RRStyle,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+RRWireframe,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+RageClickDetector,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+RandomProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RateLimitParser,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RateLimitsProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RawClipboardSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RawCodeBlock,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RawFragment,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RawWindow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Reachability,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+ReachabilityError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ReachabilityProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ReachabilityWeakifier,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+ReadingOptions,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RecognizedLine,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RefinedCandidate,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RegistrationToken,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+ReportingView,class,Swift描述符,—,待确认,
+RequestRecord,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RequestState,class,Swift描述符,—,待确认,
+ResizingEdge,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Resolution,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ResolvedLLMConfiguration,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ResourceBundleClass,class,Swift描述符,—,不适用,
+RetryAfterHeaderParser,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ReviewPreviewWindowReader,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ReviewRequestCoordinator,class,Swift描述符,—,未实现,
+ReviewUsageQueryError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ReviewUsageSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Role,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+RotatingFanIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+RotatingLayerView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+Rule,struct,Swift描述符,FrsetNext:PreviewLineNumberRulerView,待确认,名称部分匹配，需人工确认
+SCNetworkInterface,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SCNetworkReachability,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SCNetworkReachabilityFlags,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SCStreamFrameInfo,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SSEEvent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SSEParserError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SavePreparation,class,Swift描述符,—,待确认,
+ScaleMenuButton,class,Swift描述符,Features/Capture/AnnotationEditorWindow.swift,待确认,
+ScreenImageCaptureFailure,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenImageCaptureFailureStage,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenImageCaptureResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenRecordingPermissionResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenViewPublishing,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenshotBrushCursorConfiguration,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenshotCapturePreparation,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream,待确认,名称部分匹配，需人工确认
+ScreenshotCompletionBehavior,enum,Swift描述符,FrsetNext:LongScreenshotCoordinator/PinnedScreenshotControlsHostView/PinnedScreenshotControlsWindow,待确认,名称部分匹配，需人工确认
+ScreenshotMagnifierContainerView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotMagnifierView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotOCRDirectImageStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotOCRDirectVisionClient,class,Swift描述符,Features/Capture/OCRService.swift,已覆盖-迁移,
+ScreenshotOCRMode,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRPanelInitialMode,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRPanelState,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRPanelView,struct,Swift描述符,Features/Capture/ScreenshotOCRWindow.swift,已覆盖-迁移,
+ScreenshotOCRRecognitionStrategy,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRResultWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotOCRResultWindowDelegate,class,Swift描述符,Features/Capture/ScreenshotOCRWindow.swift,已覆盖-迁移,
+ScreenshotOCRSourceNSTextView,class,Swift描述符,Features/Capture/ScreenshotOCRWindow.swift,已覆盖-迁移,
+ScreenshotOCRSourcePane,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRSourcePanePresentation,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRSourceScrollView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotOCRSourceTextView,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRTaskType,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRTextAssembler,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRTextAssemblyBlock,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRTextBlock,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotOCRWorkerClient,class,Swift描述符,Features/Capture/OCRService.swift,已覆盖-迁移,
+ScreenshotOCRWorkerRequest,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOCRWorkerResponse,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
+ScreenshotOverlayView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotOverlayWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ScreenshotToolboxMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenshotToolboxView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScreenshotWindowCandidate,struct,Swift描述符,FrsetNext:PinnedScreenshotWindow,待确认,名称部分匹配，需人工确认
+ScreenshotWindowSelectionPolicy,struct,Swift描述符,FrsetNext:PinnedScreenshotWindow,待确认,名称部分匹配，需人工确认
+ScrollAnchor,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ScrollOwner,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SdkMetadataProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SdkMetadataProviderProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SdkPackagesProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SdkPackagesProviderProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchActiveToolSwitchMenuOverlay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchBarAdjustButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchBarItem,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchBarKeyboardNavigationState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchBarMouseWheelController,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,待确认,
+SearchBarMouseWheelHorizontalBridge,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchBarOrderingTipAnchorPreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchBarTabHandling,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchEngine,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+SearchEngineButton,struct,Swift描述符,FrsetNext:SearchEngine,待确认,名称部分匹配，需人工确认
+SearchInputScrollController,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,待确认,
+SearchInteractionGeometry,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,已覆盖-迁移,
+SearchLoadingView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SearchSectionView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+SearchServiceManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+SearchSettings,struct,Swift描述符,FrsetNext:SearchSettingsPane,待确认,名称部分匹配，需人工确认
+SearchSettingsView,struct,Swift描述符,FrsetNext:SearchSettingsPane,待确认,名称部分匹配，需人工确认
+SearchStateManager,class,Swift描述符,Models/SearchEngine.swift,已覆盖-迁移,
+SearchToolResultBackdrop,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryANRStoppedResult,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryANRTracker,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryANRTrackerInternalProtocol,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryANRTrackerV1,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryANRType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAppHang,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAppHangTypeMapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAppState,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAppStateManager,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAsyncLogWrapper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryAsynchronousOperation,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryAttachment,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryAttribute,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAttributeContent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAttributeValue,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAutoBreadcrumbTrackingIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryAutoSessionTrackingIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryBaggage,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryBaggageSerialization,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryBinaryImageCache,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryBinaryImageInfo,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryBreadcrumb,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryBreadcrumbTracker,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryByteCountFormatter,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryClientInternal,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryClientReport,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryConnectivity,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryContinuousProfiler,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCoreDataSwizzling,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCoreDataSwizzlingHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCoreDataSwizzlingProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCoreDataTracker,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCoreDataTrackerBuilder,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCoreDataTrackingIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrash,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashBridge,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashDefaultMachineContextWrapper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashDoctor,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashDoctorFunctionCall,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashDoctorParam,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashExceptionApplication,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashInstallation,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashInstallationReporter,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashIntegrationSessionHandler,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashJSONCodec,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportConverter,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterCombine,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterConcatenate,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterDataToString,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterObjectForKey,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterPassthrough,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterPipeline,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterStringToData,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterSubset,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportFilterSwift,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReportSink,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashReporterProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashScopeObserver,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashStackEntryMapper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryCrashSwift,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDataCategory,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDataCollection,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDateUtil,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDebugImageProvider,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDebugMeta,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultAppHangTracker,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultCrashReporter,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultCurrentDateProvider,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultEventContextEnricher,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultLogScopeApplier,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultObjCRuntimeWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultRunLoopDelayTracker,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultScopeApplyingMetadata,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultTelemetryProcessor,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultTelemetryProcessorTransport,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryDefaultThreadInspector,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryDependencyContainer,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDependencyContainerSwiftHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryDictionary,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryDiscardedEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDispatchFactory,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDispatchQueueWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDispatchQueueWrapperProtocol,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDispatchSourceWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryDsn,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEnabledFeaturesBuilder,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelope,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelopeAttachmentHeader,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelopeHeader,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelopeItem,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelopeItemHeader,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelopeItemTypes,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEnvelopeRateLimit,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryEvent,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryEventDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEventDecoder,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryEventSwiftHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryException,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryExperimentalOptions,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryExtensionDetector,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryExtensionType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryExtraContextProvider,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryExtraPackages,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeatureFlagBuffer,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeatureFlagBufferOverflowBehavior,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeatureFlagBufferWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeatureFlagEvaluation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeatureFlagValueContent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeedback,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFeedbackSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFileContents,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFileIOTracker,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFileIOTrackerHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryFileIOTrackingIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFileManager,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryFileManagerHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryFrame,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryFrameRemover,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryGeo,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryGlobalEventProcessor,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryHangTrackerIntegrationObjC,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryHangTrackingIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryHttpStatusCodeRange,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryHttpTransport,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryHttpTransportHttpStatusCodeLogger,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryHubInternal,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryId,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryInAppLogic,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryInfoPlistError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryInfoPlistWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryInfoPlistWrapperProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryInstallation,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryInternalDebugApi,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLastRunStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLevel,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLevelHelper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLocale,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLog,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLogClientReport,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLogMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryLogger,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMXCallStack,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMXCallStackTree,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMXFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMXManager,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryManager,class,Swift描述符,—,不适用,
+SentryMeasurementValue,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMechanism,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMechanismContext,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMessage,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMessageDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMeta,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMetric,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricKitIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricProfiler,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricReading,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricValue,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricsApi,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricsApiDependencies,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricsApiProtocol,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricsIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricsIntegrationDependencies,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMetricsIntegrationProtocol,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMigrateSessionInit,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMobileProvisionParser,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryMsgPackSerializer,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryMutex,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNSDataSwizzling,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNSDataSwizzlingHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNSDataUtils,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNSError,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNSErrorDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNSExceptionCaptureHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNSFileManagerSwizzling,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNSFileManagerSwizzlingHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNSTimerFactory,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNSURLRequestBuilder,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNSURLSessionTaskSearch,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNetworkTracker,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryNetworkTrackingIntegration,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryNoOpSpan,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryPredicateDescriptor,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryProfileCollector,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryProfileConfiguration,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryProfileLifecycle,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryProfileOptions,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryProfiler,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryProfilerMutableState,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryProfilerState,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryPropagationContext,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryQueueableRequestManager,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebBreadcrumbEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebCustomEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebEventType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebMetaEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebSpanEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRRWebVideoEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRandom,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReachability,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReplayEvent,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReplayNetworkDetails,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReplayOptions,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReplayQuality,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReplayRecording,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryReplayType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRequest,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryRequestDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryRequestOperation,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryRunLoopDelay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySDK,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySDKInternal,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySDKLog,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySDKLogSupport,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySDKSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySRDefaultBreadcrumbConverter,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySample,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySampleDecision,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySamplerDecision,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySamplingContext,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryScope,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryScopeField,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryScopePersistentStore,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySdkInfo,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySdkInfoObjC,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySdkPackage,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySerialization,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySerializationSwift,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySession,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySessionStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySpanContext,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySpanId,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySpanInternal,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySpotlightTransport,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryStacktrace,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryStacktraceBuilder,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryStacktraceDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySwiftIntegrationInstaller,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySwizzle,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySwizzleInfo,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySwizzleWrapperHelper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySysctl,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentrySysctlObjC,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentrySystemWrapper,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTelemetryProcessor,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryTelemetryProcessorFactory,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryThread,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryThreadDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryThreadInspector,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryThreadWrapper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryTraceContext,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTraceHeader,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTraceProfiler,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTracePropagation,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTracer,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTracerConfiguration,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTransaction,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTransactionContext,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTransportAdapter,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryTransportFactory,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryURLRequestFactory,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryUncaughtNSExceptions,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryUnit,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryUrlMatchable,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryUrlMatcher,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryUser,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+SentryVideoInfo,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SentryWatchdogTerminationConstants,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SessionIDChangeReason,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SessionTracker,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsBackground,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsConfettiHostingView,class,Swift描述符,—,待确认,
+SettingsConfettiOverlayView,struct,Swift描述符,—,待确认,
+SettingsConfigurationError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsFocusSentinelNSView,class,Swift描述符,—,待确认,
+SettingsFormRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsIgnoredAppIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInitialFocusSentinelView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInlineActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInlineSwitch,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInstantTooltipAnchor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInstantTooltipBubble,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInstantTooltipIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInstantTooltipOverlay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsInstantTooltipPreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsLabelWithProBadge,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsLoadResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsNavBar,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsRoute,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsRouter,class,Swift描述符,Features/Settings/SettingsModule.swift,已覆盖-迁移,
+SettingsSectionDivider,struct,Swift描述符,FrsetNext:SettingsSection,待确认,名称部分匹配，需人工确认
+SettingsStore,class,Swift描述符,Core/Preferences.swift,已覆盖-迁移,
+SettingsTab,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsTabItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsTextActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SettingsToastManager,class,Swift描述符,Core/Toast.swift,已覆盖-迁移,
+SettingsView,struct,Swift描述符,FrsetNext:AIProviderSettingsViewModel/PersonalizationSettingsView,待确认,名称部分匹配，需人工确认
+SettingsWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ShortcutAction,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutBadgeView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutBindingConfiguration,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutCaptureNSView,class,Swift描述符,Features/Toolbox/ShortcutRecorder.swift,已覆盖-迁移,
+ShortcutGridItemView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutInputView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutKeyView,class,Swift描述符,Features/Toolbox/ShortcutRecorder.swift,已覆盖-迁移,
+ShortcutManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+ShortcutModeInputView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutPreferredMode,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutRecorderNSView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutRuntimeCoordinator,class,Swift描述符,Features/Toolbox/ShortcutManager.swift,已覆盖-迁移,
+ShortcutSettings,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+ShortcutsSettingsView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SizeLabelSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SlashCommandEntry,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SmartBrowserButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SmartBrowserTarget,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SmartToolButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Source,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+SourceAppIconBadge,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StartContext,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+State,struct,Swift描述符,FrsetNext:enum,已覆盖-同名,
+StatisticsActivityCell,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsActivityMatrix,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsActivityMatrixTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsDailyBreakdown,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsDailyTotal,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsEventType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsLast30DaysChart,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsLast30DaysTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+StatisticsMetricConfig,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsMetricIcon,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsMonthLabel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsMonthLabels,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsPanelBackground,struct,Swift描述符,FrsetNext:StatisticsPalette,待确认,名称部分匹配，需人工确认
+StatisticsScene,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StatisticsWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+StatisticsWindowDelegate,class,Swift描述符,Features/StatusBar/StatisticsWindowController.swift,已覆盖-迁移,
+StatusBarController,class,Swift描述符,FrsetNext:extension,已覆盖-同名,
+SteppedSliderView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Storage,class,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+StorageKey,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StorageTooltipBubbleShape,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StreamingPopoverWindowBackgroundConfigurator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StreamingTextScrollBehavior,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StreamingTextScrollView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+StreamingTextScrollViewContainer,class,Swift描述符,Features/AI/AISummaryView.swift,已覆盖-迁移,
+StringInterpolation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryDetailLevel,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryDetailMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryExecutionSnapshot,struct,Swift描述符,FrsetNext:ClipboardSummaryExecutionCoordinator,待确认,名称部分匹配，需人工确认
+SummaryLanguage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryLanguageRequirement,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryOutputLanguageMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryToolError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryToolSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SummaryToolSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Surface,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SwiftAsyncIntegration,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SwiftDescriptor,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SwiftIntegration,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+SystemMetricRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemMetricSample,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemMetricsCollector,class,Swift描述符,Features/Monitor/MonitorSampler.swift,已覆盖-迁移,
+SystemMonitoringDemand,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemOCRTranslationTaskView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemStatusHeightPreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemStatusInteractionGeometry,class,Swift描述符,Features/Monitor/StatsModulePanels.swift,已覆盖-迁移,
+SystemStatusSectionView,struct,Swift描述符,Features/Monitor/StatsModulePanels.swift,已覆盖-迁移,
+SystemUsageButtonStyle,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemUsageButtonView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+SystemUsageHeaderRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TagColorDotsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TagColorPalettePopover,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TagManagementAlert,enum,Swift描述符,FrsetNext:TagManagementSheet,待确认,名称部分匹配，需人工确认
+TagManagementNameField,struct,Swift描述符,FrsetNext:TagManagementSheet,待确认,名称部分匹配，需人工确认
+TagManagementSheet,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+TagRenameDismissReason,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TaskLLMRetrySleeper,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryBuffer,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryBufferConfig,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryBufferItemForwardingDelegate,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryBufferItemForwardingTriggers,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryItem,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryScheduler,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TelemetryScopeMetadata,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TextAnnotationLayout,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TextChunkLoadRequestTracker,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TextChunkLoadResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TextInputBorderView,class,Swift描述符,—,待确认,
+Theme,struct,Swift描述符,FrsetNext:enum,已覆盖-同名,
+ThermalState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ThreadInspectorProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ThrottledCallback,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Ticks,struct,Swift描述符,FrsetNext:CPUTicks,待确认,名称部分匹配，需人工确认
+TileGroup,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TileMatch,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TimeAgoTemplates,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TimeAgoTemplatesCache,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TimeBasedEpochGenerator,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+TimestampConverter,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
+TimestampOutputType,enum,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampPrecision,enum,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampSettings,class,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampSettingsView,struct,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampTool,struct,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampToolError,enum,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampToolSettings,struct,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TinyPNGDisplayState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGOutputDirectoryStore,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGQueueRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGRestoredDirectory,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGShakeEffect,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGSpinner,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGStatusIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGTaskFile,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGTaskStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGTaskViewModel,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGThumbnailCache,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGThumbnailView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGWindowController,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGWindowDelegate,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGWindowView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGWorkerClient,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGWorkerEvent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGWorkerEventType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGWorkerItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGWorkerRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TinyPNGWorkerSummary,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToastAnimationState,class,Swift描述符,Core/Toast.swift,已覆盖-迁移,
+ToastView,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+TodayDateIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Tool,protocol,Swift描述符,FrsetNext:CustomAITool/CustomAIToolStore/TranslationToolError,待确认,名称部分匹配，需人工确认
+ToolButtonPositionKey,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
+ToolCommandDescriptor,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
+ToolConfigError,enum,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
+ToolCustomConfig,struct,Swift描述符,Features/Toolbox/ToolSettingsPane.swift,已覆盖-迁移,
+ToolEditSheet,struct,Swift描述符,Features/Toolbox/ToolSettingsPane.swift,已覆盖-迁移,
+ToolError,enum,Swift描述符,FrsetNext:TranslationToolError,待确认,名称部分匹配，需人工确认
+ToolExecutionSource,enum,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolManagementRow,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
+ToolManagementView,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift + ToolSettingsPane.swift,已覆盖-迁移,
+ToolManager,class,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
+ToolModeSession,class,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolOperationMode,enum,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolSettings,struct,Swift描述符,Features/Toolbox/ToolSettingsPane.swift,已覆盖-迁移,
+ToolShortcutBehavior,enum,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutConfiguration,struct,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutEnablePromptCard,struct,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutEnablePromptOverlayView,struct,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutEnablePromptPresenter,class,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutExecutionCoordinator,class,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutExecutionRequest,struct,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutInputView,struct,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutInvocation,enum,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutManager,class,Swift描述符,Features/Toolbox/ShortcutManager.swift + ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutRuntimeStatus,enum,Swift描述符,FrsetNext:ToolShortcutStore,待确认,名称部分匹配，需人工确认
+ToolUsageQuotaManager,class,Swift描述符,Features/Toolbox/MediaTools.swift（纯本地实现，无配额）,不适用,
+ToolUsageQuotaPermit,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolUsageQuotaSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolUsageQuotaSurface,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolbarIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolbarIconButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolbarShortcutTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolbarShortcutTooltipItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolboxAction,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ToolsSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TopToolbarView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TrackedPreviewItemPreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TranslateTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Translation,enum,Swift描述符,FrsetNext:TranslationToolError/TranslationToolRequestExecuting/TranslationToolSession,待确认,名称部分匹配，需人工确认
+TranslationLanguageMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TranslationRequestSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TranslationToolCompletion,struct,Swift描述符,FrsetNext:TranslationToolError/TranslationToolRequestExecuting/TranslationToolSession,待确认,名称部分匹配，需人工确认
+TranslationToolPreviewView,struct,Swift描述符,FrsetNext:TranslationToolError/TranslationToolRequestExecuting/TranslationToolSession,待确认,名称部分匹配，需人工确认
+TranslationToolProviderControl,struct,Swift描述符,FrsetNext:TranslationToolError/TranslationToolRequestExecuting/TranslationToolSession,待确认,名称部分匹配，需人工确认
+TranslationToolRequestExecuting,protocol,Swift描述符,FrsetNext:protocol,已覆盖-同名,
+TranslationToolSession,class,Swift描述符,FrsetNext:class,已覆盖-同名,
+TranslationToolSystemRequest,struct,Swift描述符,FrsetNext:TranslationToolError/TranslationToolRequestExecuting/TranslationToolSession,待确认,名称部分匹配，需人工确认
+TrialUsageFeatureState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TrialUsageState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+TrialUsageStore,class,Swift描述符,—,不适用,
+URLCodecTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+URLCodecToolError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+URLResourceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+URLSessionTaskHelper,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UUIDQuantityControl,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UUIDTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UUIDToolSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UnderlineTagMarker,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UpdateIndicatorDot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UrlSanitized,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UserDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UserDeserializer,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+UserDeserializerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+VNImageOption,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+VarNameSettings,class,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+VarNameSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+VariableNameTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+VariableNameToolSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+VerticalBarIndicator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+ViewTreeSnapshotStatus,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+VisionGate,class,Swift描述符,Features/AI/AISettings.swift,待确认,
+VisualEffectBackground,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
+VisualEffectView,struct,Swift描述符,FrsetNext:VisualEffectBackground,待确认,名称部分匹配，需人工确认
+WeekdayHeaderView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+Weight,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+WelcomeContainerView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WelcomeWindowController,class,Swift描述符,—,未实现,
+WelcomeWindowDelegate,class,Swift描述符,—,未实现,
+WhatsNewCategory,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WhatsNewEntry,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WhatsNewOverlayView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WhatsNewPresentation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WhatsNewPresenter,class,Swift描述符,—,未实现,
+WhatsNewSection,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WhatsNewSectionView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WhatsNewStore,class,Swift描述符,—,未实现,
+WhiteMiniProgressView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WindowAccessor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WindowDelegate,class,Swift描述符,—,待确认,
+WindowDragView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WindowFullscreenStateReader,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WindowReader,class,Swift描述符,—,待确认,
+WorkerClientError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WorkerError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+WritingOptions,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
+YearConfig,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+YearMonthPicker,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+_ACResourceInitProtocol,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+_NSRange,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
+_SentryDispatchQueueWrapperInternal,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
+os_unfair_lock_s,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
+sockaddr,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）

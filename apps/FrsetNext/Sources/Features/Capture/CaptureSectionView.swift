@@ -49,8 +49,13 @@ public struct CaptureSectionView: View {
             Text("尚未获得屏幕录制权限")
                 .font(.system(size: 12))
             Spacer()
+            // v111：统一权限引导窗入口（四类权限总览）
+            Button("权限引导") { PermissionGuideWindowController.shared.show() }
+                .buttonStyle(.borderless)
+                .font(.system(size: 11))
             Button("前往授权") { Task { _ = await manager.ensureScreenRecordingPermission() } }
                 .buttonStyle(.borderless)
+                .font(.system(size: 11))
         }
         .padding(8)
         .background(Color.yellow.opacity(0.12))
@@ -64,11 +69,49 @@ public struct CaptureSectionView: View {
         return LazyVGrid(columns: columns, spacing: 8) {
             entryButton(mode: .area)     { manager.captureRegion() }
             entryButton(mode: .full)     { manager.captureFullScreen() }
+            entryButton(mode: .window)   { manager.captureWindow() }
             entryButton(mode: .ocr)      { manager.captureAndOCR() }
             entryButton(mode: .long)     { pickAndStitch() }
             entryButton(mode: .pin)      { pinLatest() }
             entryButton(mode: .annotate) { annotateLatest() }
             entryButton(mode: .color)    { picker.start() }
+            // v130（SnowShot 对齐）④：延时截图（N 秒后自动截图，设置里调秒数）
+            entryButton(mode: .delayed)  { manager.captureDelayed() }
+            // v130（SnowShot 对齐）②：截图历史入口
+            Button {
+                CaptureHistoryWindowController.shared.show()
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 16))
+                    Text("历史")
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Theme.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+            }
+            .buttonStyle(.plain)
+            // v116：录屏提为截图区一级入口（原在 STATS 合并条/设置里）
+            Button {
+                StatsBarEngine.openRecorder()
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "record.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.red.opacity(0.85))
+                    Text("录屏")
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Theme.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -174,6 +217,13 @@ public struct CaptureSectionView: View {
         panel.message = "按顺序选择多张有重叠区域的滚动截图"
         guard panel.runModal() == .OK, panel.urls.count >= 2 else { return }
         let urls = panel.urls
+        // v128（内存优化）：拼接帧数上限——超限在入口拦截并明确提示（否则
+        // Stitcher 拒绝后回退成「拼接失败」误导排查）。分批拼接即可。
+        guard urls.count <= Stitcher.maxStitchFrames else {
+            Toast.show("一次最多拼接 \(Stitcher.maxStitchFrames) 张，请分批拼接",
+                       icon: "exclamationmark.triangle.fill", isWarning: true)
+            return
+        }
         isStitching = true
         manager.statusMessage = "正在拼接 \(urls.count) 张图片…"
         // 拼接是 CPU 密集操作，放后台；落盘与 UI 刷新回主线程

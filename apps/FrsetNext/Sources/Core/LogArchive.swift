@@ -82,21 +82,33 @@ public final class LogArchive {
         // 看门狗（0.5s；首 3s 容忍启动期布局）
         let wd = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         wd.schedule(deadline: .now() + 3, repeating: 2.0)   // v101：0.5→2s（看门狗降频，2s 阈值语义不变）
-        wd.setEventHandler { [weak self] in self?.checkHang() }
+        // v128（流畅度）：回调体进 autoreleasepool——字符串拼接/日志行的临时对象
+        // 不再等 runloop 回收（后台 timer 线程无 runloop tick，堆积更久）。
+        // 注：周期维持 2s——checkHang 判定阈值 stalled > 2.0s，采样再稀会漏掉 2~5s 的
+        // 短阻塞（采样间隙恢复即不报）；handler 本身已压到几次时钟读取 + 一次锁。
+        wd.setEventHandler { [weak self] in
+            autoreleasepool { self?.checkHang() }
+        }
         wd.resume()
         watchdog = wd
 
         // 状态快照（60s）
         let st = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         st.schedule(deadline: .now() + 60, repeating: 60)
-        st.setEventHandler { [weak self] in self?.appendStatus() }
+        st.setEventHandler { [weak self] in
+            // v128（流畅度）：同上，临时对象随回调结束即排空
+            autoreleasepool { self?.appendStatus() }
+        }
         st.resume()
         statusTimer = st
 
         // 旧日志清理（6h）
         let ct = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         ct.schedule(deadline: .now() + 6 * 3600, repeating: 6 * 3600)
-        ct.setEventHandler { [weak self] in self?.cleanupOldLogs() }
+        ct.setEventHandler { [weak self] in
+            // v128（流畅度）：同上
+            autoreleasepool { self?.cleanupOldLogs() }
+        }
         ct.resume()
         cleanupTimer = ct
 
@@ -148,7 +160,9 @@ public final class LogArchive {
 
         beatLock.lock()
         let stalled = CFAbsoluteTimeGetCurrent() - lastBeat
-        let crumbs = breadcrumbs.suffix(5).joined(separator: " → ")
+        // v128（流畅度）：面包屑拼接延后到真正要写日志时——原来每 2s 都 join 一次
+        // （即使一切正常），字符串分配是看门狗唯一的固定垃圾源。
+        let crumbsSnapshot = breadcrumbs
         let startedAt = hangStartedAt
         beatLock.unlock()
 
@@ -165,6 +179,7 @@ public final class LogArchive {
             if shouldLog {
                 lastHangLogAt = now
                 let mem = Self.footprintMB()
+                let crumbs = crumbsSnapshot.suffix(5).joined(separator: " → ")
                 appendRaw(level: "ERROR", tag: "HANG",
                           message: String(format: "主线程阻塞 %.1fs（footprint %.0fMB）最近操作：%@",
                                           stalled, mem, crumbs.isEmpty ? "（无）" : crumbs))
@@ -210,13 +225,28 @@ public final class LogArchive {
 
     // MARK: 文件管理
 
-    private func appendRaw(level: String, tag: String, message: String) {
+    // v126（性能审计 F1827）：DateFormatter 复用——appendRaw 是**每条日志**都要走的热路径
+    // （Log.info/debug 全走这里），原实现每次 new 一个 DateFormatter 还连改两次 dateFormat
+    // （初始化要装载 locale/ICU 表，比写一行日志本身还贵）。改为两个 static 缓存；
+    // NSDateFormatter 自 macOS 10.9 起读取线程安全，多线程写日志可共用。
+    private static let dayFormatter: DateFormatter = {
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd"
-        let day = df.string(from: Date())
+        return df
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "HH:mm:ss.SSS"
-        let ts = df.string(from: Date())
+        return df
+    }()
+
+    private func appendRaw(level: String, tag: String, message: String) {
+        let now = Date()
+        let day = Self.dayFormatter.string(from: now)
+        let ts = Self.timeFormatter.string(from: now)
         let line = "[\(ts)][\(level)][\(tag)] \(message)\n"
 
         fileLock.lock()

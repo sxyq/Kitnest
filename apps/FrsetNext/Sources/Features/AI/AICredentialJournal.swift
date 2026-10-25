@@ -84,13 +84,34 @@ public final class AICredentialJournalStore {
                         secret: String?) {
         let fp = secret.flatMap { $0.isEmpty ? nil : Self.fingerprint($0) }
         let entry = AICredentialJournalEntry(provider: providerRaw, action: action, fingerprint: fp)
+        guard let line = Self.encodeLine(entry) else { return }
         lock.lock()
-        var lines = Self.loadAll(fileURL: fileURL)
-        lines.append(entry)
-        if lines.count > Self.maxEntries { lines = Array(lines.suffix(Self.maxEntries)) }
-        let text = lines.compactMap { Self.encodeLine($0) }.joined(separator: "\n")
+        // v126（性能审计 F0102/F0104/F0105）：单行追加代替「全量 decode → 追加 → 全量 re-encode → 整文件重写」。
+        // 原实现每条凭证保存都把整个 jsonl（上限 500 行）解码再重新编码后原子重写，
+        // 一次保存就是 O(n) 次 JSON 编解码 + O(n) 字节落盘。改为直接追加一行（O(1)），
+        // 仅当条数将超上限时才走一次全量裁剪重写（500 次保存里最多 1 次）。
         do {
-            try (text + "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+            if !FileManager.default.fileExists(atPath: fileURL.path) {
+                try (line + "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+            } else {
+                // v126：裁剪判据只数行数（不 JSON 解码），常规追加路径整体 O(1) 落盘
+                let raw = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
+                let lineCount = raw.split(separator: "\n", omittingEmptySubsequences: true).count
+                if lineCount >= Self.maxEntries {
+                    // 超限：保留最新 maxEntries-1 条 + 新条目（与原 suffix 语义一致）
+                    var lines = Self.loadAll(fileURL: fileURL)
+                    lines.append(entry)
+                    lines = Array(lines.suffix(Self.maxEntries))
+                    let text = lines.compactMap { Self.encodeLine($0) }.joined(separator: "\n")
+                    try (text + "\n").write(to: fileURL, atomically: true, encoding: .utf8)
+                } else {
+                    // 追加单行（整文件重写退化为 O(1) 追加）
+                    let handle = try FileHandle(forWritingTo: fileURL)
+                    defer { try? handle.close() }
+                    _ = try handle.seekToEnd()
+                    try handle.write(contentsOf: Data((line + "\n").utf8))
+                }
+            }
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
         } catch {
             Log.error("Credential", "写入审计日志失败：\(error.localizedDescription)")

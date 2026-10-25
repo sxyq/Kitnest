@@ -344,17 +344,19 @@ public final class ClipboardRepository: @unchecked Sendable {
     }
 
     /// LIKE 转义：屏蔽用户输入的通配符，保证"所见即所搜"
+    /// v126（性能审计 F0660）：逐字符 `out +=` 改 Array + join（Swift String 拼接是 O(n²) 放大）
     static func escapeLike(_ text: String) -> String {
-        var out = ""
+        var out = [Character]()
+        out.reserveCapacity(text.count + 8)
         for ch in text {
             switch ch {
-            case "\\": out += "\\\\"
-            case "%":  out += "\\%"
-            case "_":  out += "\\_"
+            case "\\": out.append(contentsOf: "\\\\")
+            case "%":  out.append(contentsOf: "\\%")
+            case "_":  out.append(contentsOf: "\\_")
             default:   out.append(ch)
             }
         }
-        return out
+        return String(out)
     }
 }
 

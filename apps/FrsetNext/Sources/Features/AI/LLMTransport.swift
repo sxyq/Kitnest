@@ -132,13 +132,21 @@ public final class LLMLineBuffer {
 
     private func drain(force: Bool) -> [String] {
         var lines: [String] = []
-        while let range = remainder.range(of: Data([0x0A])) {
-            let lineData = remainder.subdata(in: 0..<range.lowerBound)
-            remainder.removeSubrange(0...range.lowerBound)
-            if let line = String(data: lineData, encoding: .utf8) {
+        // v126（性能审计 F0224）：单趟扫描收集行边界，末尾一次性裁剪。
+        // 原实现每行都 range(of: Data([0x0A])) 从头搜索 + removeSubrange 整段前移
+        //（每行一次 O(n) 拷贝，一个 chunk 攒出几十行就是 O(n²)）——SSE 流式回包是 AI 热路径。
+        var cursor = remainder.startIndex
+        var lineStart = remainder.startIndex
+        while let nl = remainder[cursor...].firstIndex(of: 0x0A) {
+            if let line = String(data: remainder[lineStart..<nl], encoding: .utf8) {
                 let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty { lines.append(trimmed) }
             }
+            cursor = remainder.index(after: nl)
+            lineStart = cursor
+        }
+        if lineStart > remainder.startIndex {
+            remainder.removeSubrange(remainder.startIndex..<lineStart)
         }
         if force, !remainder.isEmpty {
             if let tail = String(data: remainder, encoding: .utf8) {

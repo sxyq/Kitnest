@@ -102,7 +102,11 @@ public final class ClipboardStoragePruneScheduler {
         guard limit > 0 else { return }
         let target = Int64(Double(limit) * Self.hysteresis)
         var removed = 0
-        while usage.totalBytes > target {
+        // v126（性能审计 F0657）：循环条件改判据短路（exceeds）。
+        // 原 `usage.totalBytes > target` 每批都做 1 次 SQL 全表 SUM + 5 次目录树遍历
+        //（max(db, disk) 两侧都必须算完才能比较）；exceeds 用等价的 OR 短路——
+        // 仅当数据库口径未超限时才去遍历目录，清理循环的计量开销降一个数量级。
+        while usage.exceeds(target) {
             let batch = repository.oldestRows(limit: 200)
             if batch.isEmpty { break }
             // 先删文件再删行：即便事务失败也不会留下孤儿文件

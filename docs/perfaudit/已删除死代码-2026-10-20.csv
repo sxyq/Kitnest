@@ -54,3 +54,4 @@ FrsetStatsBar/frset_stats_data.c,,frset_proc_group_detail,737,21,0,零引用且�
 Storage/Database.swift,SQLiteDatabase,lastInsertRowID,85,1,0,零引用且非框架回调/override；逐个核验后删除
 Storage/Database.swift,StatisticsManager,recordBatch,447,13,0,零引用且非框架回调/override；逐个核验后删除
 Storage/Database.swift,StatisticsManager,installDate,593,6,0,零引用且非框架回调/override；逐个核验后删除
+Features/TransferDock/LanTransferServer.swift,LanTransferServer,invalidateTokenCache,188,1,0,v125 复审：regenerateToken 直接写 _tokenCache=value；Grep 验证 lanToken 仅 loadToken 读 / regenerateToken 写，无外部写入方，失效器从未被调用

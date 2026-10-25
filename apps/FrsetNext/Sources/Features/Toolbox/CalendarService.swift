@@ -135,8 +135,11 @@ public final class CalendarService: ObservableObject {
                 calendar.component(.month, from: date) == (comps.month ?? 0)
 
             var lunarText: String?
+            // v126（性能审计 F1354）：holiday(on:) 每格只算一次——原实现 lunarText 分支
+            // 与 holidayText 字段各调一次（42 格 × 2 = 84 次查表 + Calendar 分量换算）。
+            let holidayName = HolidayManager.holiday(on: date)
             if showLunar {
-                if let holiday = HolidayManager.holiday(on: date) {
+                if let holiday = holidayName {
                     lunarText = holiday
                 } else if let lunar = LunarCalendar.lunarDate(date) {
                     if let festival = LunarCalendar.lunarFestival(lunar) {
@@ -157,7 +160,7 @@ public final class CalendarService: ObservableObject {
                                   isToday: calendar.isDate(date, inSameDayAs: today),
                                   isWeekend: weekday == 1 || weekday == 7,
                                   lunarText: lunarText,
-                                  holidayText: HolidayManager.holiday(on: date),
+                                  holidayText: holidayName,
                                   events: isInMonth ? (eventsByDay[calendar.startOfDay(for: date)] ?? []) : [])
             days.append(day)
         }

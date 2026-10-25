@@ -59,10 +59,16 @@ public enum HolidayManager {
     }
 
 
-    private static func components(_ date: Date) -> (Int, Int, Int) {
+    // v126（性能审计 F1354）：Calendar 复用——holiday/festival 被月视图 42 格逐日调用，
+    // 原实现每次新建 Calendar（含时区解析），改为静态一份。
+    private static let bjCalendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
-        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return calendar
+    }()
+
+    private static func components(_ date: Date) -> (Int, Int, Int) {
+        let c = bjCalendar.dateComponents([.year, .month, .day], from: date)
         return (c.year ?? 1970, c.month ?? 1, c.day ?? 1)
     }
 }

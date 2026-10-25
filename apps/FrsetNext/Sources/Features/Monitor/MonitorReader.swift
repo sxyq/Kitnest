@@ -128,39 +128,53 @@ public final class MonitorReader {
     public init() {}
 
     // MARK: - 对外入口
-
-    /// 采集一帧完整指标。SMC 读取最多等待 150ms，超时则复用上一次缓存，绝不阻塞。
-    public func readSample() -> MonitorSample {
-        readResult().sample
-    }
+    // v126（性能审计 F0857）：删除 readSample() 薄包装（`readResult().sample`），
+    // 全仓零调用方（MonitorSampler 直接走 readResult(needFull:)），属真死代码。
 
     /// 采集一帧，并附带 MonitorSample 之外的补充字段。
-    public func readResult() -> MonitorReadResult {
+    /// - Parameter needFull: **v125 性能优化（审计 F0858/F0860/F0861/F0864/F0866）**——
+    ///   `sampleOnce` 路径里 CPU / 内存已用 / 网络 / 磁盘 / 电池 5 组结果随后会被
+    ///   C 引擎 0.5s 快照 `g_snap` 整体覆盖（见 MonitorSampler.sampleOnce），
+    ///   属冗余计算（实测 0.7ms/tick）。`needFull = false` 时**跳过这 5 路采集**，
+    ///   只留 g_snap 不提供的字段：温度 / 功耗 / 内存压力 / 交换 / 压缩内存。
+    ///   `needFull = true`（默认）保持原全量行为，供 g_snap 无效时兜底。
+    public func readResult(needFull: Bool = true) -> MonitorReadResult {
         var sample = MonitorSample()
 
-        let cpu = readCPU()
-        sample.cpuUsage = cpu.usage
-        sample.systemCPU = cpu.system
-        sample.userCPU = cpu.user
-        sample.idleCPU = cpu.idle
-        sample.perCore = cpu.perCore
+        // —— 以下 5 组会被 g_snap 覆盖：仅 needFull 时才采 ——
+        var memory = MemoryReading()
+        if needFull {
+            let cpu = readCPU()
+            sample.cpuUsage = cpu.usage
+            sample.systemCPU = cpu.system
+            sample.userCPU = cpu.user
+            sample.idleCPU = cpu.idle
+            sample.perCore = cpu.perCore
 
-        let memory = readMemory()
-        sample.memoryUsed = memory.used
-        sample.memoryTotal = memory.total
-        sample.memoryPressure = memory.pressure
-        sample.swapUsed = memory.swapUsed
+            memory = readMemory()
+            sample.memoryUsed = memory.used
+            sample.memoryTotal = memory.total
+            sample.memoryPressure = memory.pressure
+            sample.swapUsed = memory.swapUsed
 
-        let network = readNetworkRate()
-        sample.netUpload = network.upload
-        sample.netDownload = network.download
+            let network = readNetworkRate()
+            sample.netUpload = network.upload
+            sample.netDownload = network.download
 
-        let disk = readDiskRate()
-        sample.diskRead = disk.read
-        sample.diskWrite = disk.written
+            let disk = readDiskRate()
+            sample.diskRead = disk.read
+            sample.diskWrite = disk.written
 
+            sample.batteryLevel = readBatteryLevel()
+        } else {
+            // 只取 g_snap 不覆盖的内存侧字段（压力/交换/压缩）
+            memory = readMemory()
+            sample.memoryPressure = memory.pressure
+            sample.swapUsed = memory.swapUsed
+        }
+
+        // —— 以下 g_snap 不提供，恒采 ——
         sample.temperatures = temperatureEnabled ? readTemperatures(timeout: .milliseconds(150)) : [:]
-        sample.batteryLevel = readBatteryLevel()
         readPower(into: &sample)
 
         return MonitorReadResult(sample: sample, compressedMemory: memory.compressed)

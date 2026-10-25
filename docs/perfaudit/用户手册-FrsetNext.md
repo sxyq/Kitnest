@@ -13,7 +13,7 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 - **系统监控**：CPU、内存、网络、磁盘、温度、电池、功耗实时数据，菜单栏一眼可见，独立窗口看细节；
 - **AI 能力**：接入多家大模型服务商，提供聊天、文本总结与翻译；
 - **工具箱**：IP 查询、日历/农历/节假日、媒体转换、哈希、二维码、模糊搜索、命令面板等一整套小工具；
-- **文件中转（传输坞）**：把文件暂存到中转站，在别的设备或场合再取回。
+- **传输与投屏**：隔空投送收发（iPhone 零安装）、无线配对与 scrcpy 投屏（Android 零安装）、ADB 文件互传、扫码直传（任意设备浏览器）、本地暂存。
 
 ---
 
@@ -28,14 +28,17 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 ### 首次使用建议授予的权限
 
+首次启动会自动弹出**欢迎窗**（功能导览 + 快捷键速查），内含**权限引导窗**入口——四类权限的状态、用途与一键授权集中在那里（`PermissionCenter` / `PermissionGuideWindowController`，状态以 SCK 实探为准）。菜单栏图标右键 →「欢迎与权限…」可随时回看。
+
 | 权限 | 用途 | 不授予的后果 |
 |---|---|---|
-| 屏幕录制 / 屏幕录制 | 截图、录屏、长截图 | 截图画面为黑色或直接失败（`ensureScreenRecordingPermission` 会在缺失时弹引导） |
-| 辅助功能 | 全局快捷键、双击修饰键、划词翻译 | 快捷键无响应（`DoubleTapShortcut.startMonitoringIfNeeded` 检测授权状态） |
-| 日历 | 主面板日历卡显示系统日程 | 日历卡为空（`CalendarService.requestAccessIfNeeded`） |
+| 屏幕录制 | 截图、录屏、长截图、OCR、取色 | 截图画面为黑色或直接失败（`ensureScreenRecordingPermission` 会弹统一权限引导） |
+| 辅助功能 | 全局快捷键、双击修饰键、划词工具条、复制后自动粘贴 | 快捷键无响应；自动粘贴首次触发会弹模态引导（`presentAccessibilityGuide`，每启动一次） |
+| 麦克风 | 录屏时收麦克风声音（可选） | 录屏自动降级为只录系统音（`frset_recorder.m`） |
+| 日历 | 主面板日历卡显示系统日程与节假日 | 日历卡仅显示日期（`CalendarService`，UI 有「去授权」入口） |
 | 完全磁盘访问 | 工具箱文件搜索（mdfind 增强） | 文件搜索结果可能不全（待确认） |
 
-> 权限均可在「系统设置 → 隐私与安全性」中随时开关。
+> 权限均可在「系统设置 → 隐私与安全性」中随时开关；欢迎窗/权限引导窗可从状态栏菜单「欢迎与权限…」随时回看。
 
 ### 菜单栏图标说明
 
@@ -132,7 +135,7 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 ### 功能是什么
 
-主面板是 FrsetNext 的核心窗口，宽约 400pt，从菜单栏图标「长出来」。面板分三页：**主页**（搜索 + 日历 + 剪贴板）、**性能监测**、**文件中转**（受设置开关控制显隐）。
+主面板是 FrsetNext 的核心窗口，宽约 400pt，从菜单栏图标「长出来」。面板分四页（顶部胶囊左右切换）：**主页**（搜索 + 日历 + 剪贴板）、**性能监测**、**文件中转**（仅文件传输）、**投屏**（Android 设备中心）；后两页受设置开关控制显隐。
 
 ### 用户怎么用
 
@@ -183,7 +186,8 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 | 功能 | 快捷键 | 说明 |
 |---|---|---|
-| 区域截图 | ⌥S | 框选区域后进入默认动作（复制/保存等） |
+| 区域截图 | ⌥S | 框选区域后进入默认动作（复制/保存等）；纯手动拖拽（不做窗口吸附） |
+| 窗口截图 | ⇧⌥W | 原版固有模式（v113 对齐）：覆盖层窗口选择——悬停识别高亮 + 单击截取，SCK 窗口级抓取排除遮挡 |
 | 截图并复制 | ⇧⌥C | 框选后图片直接进剪贴板 |
 | 截图并贴图 | ⇧⌥P | 框选后图片钉在桌面上 |
 | 截图提取文字 | ⇧⌥S | 框选后 OCR，结果窗可复制、重新识别 |
@@ -192,11 +196,13 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 | 长截图 | ⇧⌥L | 框选区域后自动滚屏采集并拼接 |
 | 取色 | ⌥C | 屏幕任意位置取 HEX，右键/Esc 取消 |
 
-截图类动作也可以从主面板顶部「截图」菜单、菜单栏菜单或命令面板发起。
+截图类动作也可以从主面板顶部「截图」菜单、菜单栏菜单或命令面板发起。框选后的动作工具条含**空投**（⌘D）——截图落盘文件直接调系统隔空投送。
 
 ### 关键能力点
 
 - **选区覆盖层**：半透明遮罩 + 白色虚线选框 + 黄色手柄 + 实时尺寸标签 + 十字准线，Esc 取消、回车确认（`ScreenshotOverlay.drawHandles` / `drawSizeLabel` / `drawCrosshair`）。
+- **窗口模式（v113 对齐原版）**：原版 CaptureMode 含 `.window`（specs/06 反汇编），二进制反射字段 windows/windowOrder/selectedWindowId/keyDownMonitor 表明窗口选择交互。实现：`pickMode = .window` 覆盖层——悬停识别高亮 + 窗口名标签 + 单击截取 + 顶部提示 + Esc 取消；提交优先 SCK `desktopIndependentWindow`（排除遮挡），回退快照裁剪（`ScreenshotOverlay.snapshotWindowHits` / `ScreenshotManager.commitWindow`）。
+- **区域模式不做窗口吸附**（v112 曾在区域模式混入悬停吸附，属自研发明，v113 已移除；原版无此行为证据）。
 - **截图后动作链**：截图、复制、贴图、OCR、翻译由同一条动作链分发（`ScreenshotManager.captureAndOCR` / `captureAndPin` / `captureAndCopy` / `captureAndScreenTranslate`），完成后播放快门音（`playShutterSound`）并自动写入剪贴板历史。
 - **标注编辑器**（截图后点「标注」，或对贴图/最近截图点「标注」）：九种工具——矩形、椭圆、箭头、画笔、文字、荧光笔、马赛克、橡皮、物体擦除（`AnnotationTool` 定义于 `AnnotationCompositor.swift:9`）；支持撤销、清空、复制、保存，标注坐标与图像像素对齐（`AnnotationEditorWindow.undoTapped` / `composite`）。
 - **OCR**：系统级文字识别，支持中英等多语言（`OCRService.recognizeText`），结果窗可一键复制、重新识别（`ScreenshotOCRWindow.copyTapped` / `reRecognize`）；截图 OCR 文本会自动存入剪贴板历史，图片条目也会被异步 OCR 建立索引。
@@ -440,7 +446,7 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 **数据**：导出/导入偏好数据（含快捷键绑定、搜索引擎、工具配置等，**不含 AI 密钥**）（`StatisticsSettingsPane.performExport` / `performImport`）。
 
-**关于（settings-about）**：版本信息、官网与反馈入口、开源协议。
+**关于（settings-about）**：版本信息、导出使用记录（诊断包）、**检查更新**（v112：手动检查按钮 + 更新源配置——默认空=关闭，指向 GitHub `releases/latest` 或任意含 tag_name 的 JSON；状态栏菜单「检查更新…」共用 `AppUpdateChecker`）。
 
 ![](shots/settings-about.png)
 
@@ -462,34 +468,34 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 ---
 
-## 第十章 传输坞（文件中转）
+## 第十章 文件中转与投屏
 
 ### 功能是什么
 
-「文件中转」是主面板的第三页：把文件丢上去暂存，之后在别的设备/场合取回。背后由中转服务与本地 Python 桥完成上传、下载、删除。
+v114（2026-10-25 用户需求）拆成两页：**文件中转**（第三页，只做文件传输：隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）与**投屏**（第四页，Android 设备中心：设备检测 / 无线配对 / scrcpy 镜像）。全部对端零安装。背后是系统空投（`AirDropSendEngine` / `AirDropReceiveWatcher`）、ADB 无线配对与文件桥（`ADBWirelessEngine` / `ADBFileBridge`）、局域网 HTTP 直传（`LanTransferServer`）与 scrcpy 投屏（`ScreenCastEngine`）。
 
 ### 用户怎么用
 
-| 操作 | 入口 | 效果 |
+| 通道 | 对方设备 | 怎么用 |
 |---|---|---|
-| 打开中转页 | ⌥T，或主面板点「文件中转」段 | 面板切到中转页 |
-| 登录 | 页面内登录引导 | 打开登录页，按提示完成 Cookie 登录（`TransferDockLoginView.checkCookies`） |
-| 上传 | 拖文件到页面，或「选择文件上传」 | 文件进入中转列表（`handleDrop` / `pickAndUpload`） |
-| 下载 / 删除 | 列表中对应按钮 | 取回本地或移除（`TransferDockService.download` / `delete`） |
+| 隔空投送 | iPhone / iPad / Mac | 发送：面板按钮或剪贴板条目右键「隔空投送」；接收：对方空投到本机 → 自动进本地暂存（监听 ~/Downloads） |
+| 无线投屏 | Android 11+ | USB 或无线（扫描/配对码）连上后「开始投屏」；镜像期间剪贴板双向同步（`--clipboard-autosync`） |
+| 文件互传 · Android | Android | 推送暂存项 → 手机 `Download/FrsetNext/`；拉取该目录全部文件 → 本地暂存（`adb push/pull`） |
+| 扫码直传 | 任何有浏览器的设备 | 勾选暂存文件 → 扫码直传 → 相机扫码在浏览器上传/下载（一次性 token 门控） |
 
 ### 关键能力点
 
-- **空间与列表**：顶部显示空间用量与登录状态，下列文件清单，含类型图标与行内操作（`TransferDockView.row` / `iconName`）。
-- **拖拽上传**：整页支持文件拖放，拖入时有高亮提示。
-- **保活与刷新**：会话保活、进出页面自动刷新列表（`startKeepAlive` / `refresh`）。
-- **本地桥**：所有网络动作经本地 Python 桥执行（`runBridge`），不直连第三方 SDK。
+- **隔空投送联动**（v112）：截图动作链「空投」（⌘D）与剪贴板两套右键菜单「隔空投送」经 `.frsetAirDropFiles` 通知接线到发送引擎（App 层统一分发）。
+- **无线配对**（v112）：`adb mdns services` 发现 pairing/connecting 服务，配对码 `adb pair` + `adb connect`；手动 IP:端口输入框。
+- **ADB 文件桥**（v112）：逐文件推送精确报数；拉取前清空暂存目录、走 `LocalTransferStore.add` 正式入索引。
+- **接收落盘**：AirDrop 接收监听 ~/Downloads（DispatchSource，跳过 `.download` 未完成文件）。
 
 ### 注意事项
 
-- 首次使用需登录；登录态过期后列表操作会失败，重新登录即可。
-- 中转空间有配额限制，大文件注意额度。
-- 该功能依赖本地 Python 环境与桥脚本，缺失时上传/下载不可用（待确认：应用是否自带运行时）。
-- 不需要时可在「设置 → 常规 → 功能」关掉面板里的入口，⌥T 也随之隐藏该页。
+- 隔空投送只通苹果设备；安卓/Windows 用扫码直传或 ADB 文件互传补齐。
+- 无线投屏与文件互传需要手机开启 USB/无线调试（Android 11+ 支持配对码无线配对）；scrcpy 未安装时按引导 `brew install scrcpy`。
+- 首次配对需在手机「无线调试」页确认；之后 `adb connect` 随连随用。
+- 云端 OPPO 中转与旧扫码上传链路已下线，代码暂留待清理。
 
 ---
 
@@ -623,7 +629,8 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 | 功能 | 组合键 | 可改绑 | 备注 |
 |---|---|---|---|
 | 打开 Frset 主面板 | ⌥A | 否 | 菜单中该行显示为 ⌥空格（显示问题，待确认） |
-| 截图（区域） | ⌥S | 否 | |
+| 截图（区域） | ⌥S | 否 | 悬停自动吸附窗口，单击截整个窗口 |
+| 窗口截图 | ⇧⌥W | 否 | v112 新增：抓最前台应用主窗口 |
 | 取色 | ⌥C | 是（工具域） | |
 | 打开并搜索 | ⌥F | 否 | 打开面板并聚焦搜索框 |
 | 悬浮剪贴板 | ⇧⌘V | 否 | |

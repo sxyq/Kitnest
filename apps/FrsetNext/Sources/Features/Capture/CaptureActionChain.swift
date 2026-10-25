@@ -58,6 +58,10 @@ public enum CaptureActionChain {
             CaptureActionTool(id: "ocr", title: "识字", systemImage: "text.viewfinder", key: "o") { image, _ in
                 ScreenshotManager.shared.recognize(image)
             },
+            // v117：识码（原版截图动作含 qrCode，见 QRCodeRecognizer 头注）
+            CaptureActionTool(id: "qrCode", title: "识码", systemImage: "qrcode.viewfinder", key: "r") { image, _ in
+                QRCodeRecognizer.run(image: image)
+            },
             CaptureActionTool(id: "screenTranslate", title: "屏幕翻译", systemImage: "character.book.closed", key: "t") { image, _ in
                 // 钉回原选区位置（工具条流程必有 lastSelectionAppKit）
                 let origin = ScreenshotManager.shared.lastSelectionAppKit
@@ -68,6 +72,17 @@ public enum CaptureActionChain {
             },
             CaptureActionTool(id: "beautify", title: "美化", systemImage: "wand.and.stars", key: "b") { image, _ in
                 BeautifyController.shared.show(image: image)
+            },
+            CaptureActionTool(id: "airDrop", title: "空投", systemImage: "dot.radiowaves.left.and.right", key: "d") { _, url in
+                // v112 空投联动（对标报告第一批 P1）：截图落盘文件 → 系统空投面板。
+                // 跨模块经通知走 App 层接线（见 AirDropSendEngine 头注）。
+                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                                userInfo: ["urls": [url]])
+                Toast.show("已发起隔空投送", icon: "dot.radiowaves.left.and.right")
+            },
+            // v130（SnowShot 对齐）②：历史——截图结果工具条直达截图历史窗
+            CaptureActionTool(id: "history", title: "历史", systemImage: "clock.arrow.circlepath", key: "h") { _, _ in
+                CaptureHistoryWindowController.shared.show()
             },
         ]
     }

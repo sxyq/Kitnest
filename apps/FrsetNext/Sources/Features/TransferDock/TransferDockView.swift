@@ -34,8 +34,8 @@ struct TransferDockView: View {
     @Stored private var bridgeAvailable = TransferDockPath.isAvailable
     @Stored private var cloudDropTargeted = false
     @Stored private var localDropTargeted = false
-    @Stored private var hoveredCloudID: String?
-    @Stored private var hoveredLocalID: String?
+    // v128（流畅度）：hoveredCloudID/hoveredLocalID 已下沉到行视图（CloudRowView /
+    // LocalCardRowView 各自持有），父视图不再跟踪 hover，避免 hover 触发整表重算。
     @Stored private var lanCollapsed = false
     /// 本地暂存勾选集合（勾选后可「扫码直传 / 加入云端 / 移出」批量操作）
     @Stored private var selectedIDs = Set<String>()
@@ -43,6 +43,8 @@ struct TransferDockView: View {
     @Stored private var pickShareURL: String?
     /// 直传服务是否由「传输」动作拉起（是则勾选清空时随停；手动启动的不代停）
     @Stored private var lanStartedForTransfer = false
+    /// v119：发送 / 接收 / 云端 三段（按动作分，不再按协议堆区块）
+    @Stored private var transferTab = 0
 
     /// 云端分区是否出现：开关 + 桥接工程都在才算
     private var showsCloud: Bool { cloudEnabled && bridgeAvailable }
@@ -52,12 +54,22 @@ struct TransferDockView: View {
             header
             Divider().opacity(0.5)
 
-            // v103 重构（2026-10-21）：旧 OPPO 云端桥接 / 局域网扫码直传下线，
-            // 换为「隔空投送（原生互传，iPhone 零安装）+ 投屏（scrcpy 引擎）」。
-            // 旧实现代码暂留（lanCard/cloudSection 等），待 ADB 真机实测通过后删除。
-            airDropSection
+            // v119（2026-10-25 用户：「一个文件传输一个隔空投送，太多了、意义不明」）：
+            // 原来按**协议**分块（隔空投送 / ADB 文件互传 / 云端中转），三块都在干「把文件发出去」，
+            // 用户不知道该点哪个。现在按**动作**分三段：发送（选出口）/ 接收 / 云端；
+            // 「本地暂存」是三者共用的池子，常驻底部。
+            transferSegments
             Divider().opacity(0.5)
-            screenCastSection
+
+            Group {
+                switch transferTab {
+                case 1:  receiveSection
+                case 2:  cloudTab
+                default: sendSection
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Divider().opacity(0.5)
 
             localSection
@@ -65,13 +77,18 @@ struct TransferDockView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
+            // v130（AndroMeld/AgentHUD）：Agent HUD 模块自举（App/AppBootstrap 并行在改不动；
+            // 面板启动预热会构建本页，借此拉起用量监控/状态栏项/深链。幂等）
+            AgentHUDModule.startIfNeeded()
             bridgeAvailable = TransferDockPath.isAvailable
             // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
             AirDropReceiveWatcher.shared.onFileReceived = { url in
                 let n = LocalTransferStore.shared.add(urls: [url])
-                if n > 0 { Toast.show("空投已接收：\(url.lastPathComponent)", icon: "airdrop") }
+                if n > 0 { Toast.show("空投已接收：\(url.lastPathComponent)", icon: "dot.radiowaves.left.and.right") }
             }
             AirDropReceiveWatcher.shared.start()
+            // v120：预热隔空投送服务（首次实例化会同步初始化 AWDL，1~3s）
+            AirDropSendEngine.warmUp()
             runTransferProbe()
         }
         .onChange(of: cloudEnabled) { on in
@@ -114,6 +131,345 @@ struct TransferDockView: View {
         }
     }
 
+    // MARK: - v119 三段：发送 / 接收 / 云端
+
+    private var transferSegments: some View {
+        HStack(spacing: 4) {
+            segmentPill("发送", icon: "paperplane.fill", index: 0)
+            segmentPill("接收", icon: "tray.and.arrow.down.fill", index: 1)
+            segmentPill("云端", icon: "icloud.fill", index: 2)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+    }
+
+    private func segmentPill(_ title: String, icon: String, index: Int) -> some View {
+        let on = transferTab == index
+        return Button {
+            transferTab = index
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: icon).font(.system(size: 8.5))
+                Text(title).font(.system(size: 10.5, weight: on ? .semibold : .regular))
+            }
+            .foregroundStyle(on ? Color.white : Color.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .background {
+                if on { Capsule().fill(Theme.accent.gradient) }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: 发送（暂存勾选 → 三个出口）
+
+    private var sendSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 5) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.accent)
+                Text(selectedIDs.isEmpty
+                     ? "先在下方暂存里勾选文件"
+                     : "已选 \(selectedIDs.count) 项，选对方是什么设备")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(selectedIDs.isEmpty ? Color.secondary : Theme.accent)
+                Spacer(minLength: 2)
+                smallAction("添加文件", icon: "plus") { addFilesToStaging() }
+            }
+
+            // v120（用户：「应该就分为两种设备」）：只留两类目标；
+            // ADB 从主入口降级为下面一行次要链接（它要开发者选项，日常太麻烦）。
+            HStack(spacing: 8) {
+                deviceCard("苹果设备", subtitle: "隔空投送 · 零安装", icon: "dot.radiowaves.left.and.right",
+                           tint: Color(red: 0.15, green: 0.55, blue: 0.95)) {
+                    sendViaAirDrop()
+                }
+                deviceCard("安卓 / 其他", subtitle: "扫码即传 · 零安装", icon: "qrcode",
+                           tint: Color(red: 0.60, green: 0.40, blue: 0.95)) {
+                    sendViaBrowser()
+                }
+            }
+
+            // v122：传输进度条（百分比 + 已传/总量 + 速率 + 剩余时间）
+            if pushActive {
+                VStack(alignment: .leading, spacing: 3) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.primary.opacity(0.08))
+                            Capsule()
+                                .fill(Theme.accent.gradient)
+                                .frame(width: max(4, geo.size.width * pushFraction))
+                                .animation(.linear(duration: 0.2), value: pushFraction)
+                        }
+                    }
+                    .frame(height: 5)
+                    HStack(spacing: 4) {
+                        Text("\(Int(pushFraction * 100))%")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Theme.accent)
+                        Text(pushDetail)
+                            .font(.system(size: 8.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                }
+            } else if !adbFileStatus.isEmpty {
+                Text(adbFileStatus)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack(spacing: 5) {
+                Text("大文件/批量走 ADB 更快（需开发者选项）")
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(.tertiary)
+                Button("ADB 直传") { sendViaADB() }
+                    .font(.system(size: 8.5, weight: .medium))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.accent)
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+    }
+
+    /// 目标设备卡（两类设备各一张，比原三出口卡更大更好点）
+    private func deviceCard(_ title: String, subtitle: String, icon: String,
+                            tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                ZStack {
+                    Circle()
+                        .fill(tint.opacity(0.16))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: icon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Text(subtitle)
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(Color.primary.opacity(0.035),
+                        in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .strokeBorder(tint.opacity(0.20), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help("\(title) · \(subtitle)")
+    }
+
+    /// v120 修复：暂存项的实际可发路径。
+    /// 原来直接用 `originalPath`（加入暂存时的原文件路径）——原文件一旦删掉/移走，
+    /// `fileExists` 就是 false，于是「明明勾选了却提示没勾选」。
+    /// 暂存目录里是硬链接/副本，真实存在，优先用它。
+    private func sendableURL(_ item: LocalTransferItem) -> URL {
+        let staged = item.stagedURL
+        if FileManager.default.fileExists(atPath: staged.path) { return staged }
+        return URL(fileURLWithPath: item.originalPath)
+    }
+
+    /// 暂存里勾选的文件（两类设备共用）
+    private func stagedSelection() -> [URL] {
+        local.items
+            .filter { selectedIDs.contains($0.id) }
+            .map { sendableURL($0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    private func addFilesToStaging() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = true
+        panel.message = "添加到本地暂存"
+        guard panel.runModal() == .OK else { return }
+        let n = local.add(urls: panel.urls)
+        Toast.show(n > 0 ? "已添加 \(n) 个文件到暂存" : "没有可添加的文件",
+                   icon: n > 0 ? "tray.and.arrow.down" : "exclamationmark.triangle",
+                   isWarning: n == 0)
+    }
+
+    private func sendViaAirDrop() {
+        let urls = stagedSelection()
+        guard !urls.isEmpty else {
+            Toast.show("先在下方暂存里勾选要发送的文件", icon: "hand.point.up.left")
+            return
+        }
+        AirDropSendEngine.send(urls: urls)
+    }
+
+    private func sendViaADB() {
+        guard !adbPushing else { return }
+        let urls = stagedSelection()
+        guard !urls.isEmpty else {
+            Toast.show("先在下方暂存里勾选要发送的文件", icon: "hand.point.up.left")
+            return
+        }
+        adbPushing = true
+        pushActive = true
+        pushFraction = 0
+        pushDetail = "准备推送…"
+        adbFileStatus = ""
+        ADBFileBridge.push(urls: urls, progress: { p in
+            pushFraction = p.fraction
+            pushDetail = "\(p.fileIndex + 1)/\(p.fileCount) · \(p.doneText)"
+                + (p.speedText.isEmpty ? "" : " · \(p.speedText)")
+                + (p.etaText.isEmpty ? "" : " · 剩 \(p.etaText)")
+        }, completion: { sent, log in
+            adbPushing = false
+            pushActive = false
+            pushFraction = sent > 0 ? 1 : 0
+            adbFileStatus = log
+            Toast.show(sent > 0 ? "已推送 \(sent)/\(urls.count) 个文件到手机"
+                                : "推送失败：手机没连？（去「投屏」页连一次）",
+                       icon: sent > 0 ? "square.and.arrow.up" : "exclamationmark.triangle",
+                       isWarning: sent == 0)
+        })
+    }
+
+    private func sendViaBrowser() {
+        guard !selectedIDs.isEmpty else {
+            Toast.show("先在下方暂存里勾选要发送的文件", icon: "hand.point.up.left")
+            return
+        }
+        showPickQR()
+    }
+
+    // MARK: 接收
+
+    private var receiveSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            receiveRow(icon: "dot.radiowaves.left.and.right", tint: Color(red: 0.15, green: 0.55, blue: 0.95),
+                       title: "隔空投送",
+                       detail: "iPhone / iPad 投过来，自动进暂存") {
+                Text("已监听")
+                    .font(.system(size: 8.5, weight: .medium))
+                    .foregroundStyle(Color.green)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.green.opacity(0.12), in: Capsule())
+            }
+            receiveRow(icon: "internaldrive", tint: Color(red: 0.2, green: 0.65, blue: 0.5),
+                       title: "从手机拉取",
+                       detail: "ADB · Download/FrsetNext/ 全部文件") {
+                smallAction(adbPushing ? "拉取中…" : "拉取", icon: "arrow.down.circle") {
+                    pullFromPhone()
+                }
+            }
+            receiveRow(icon: "qrcode", tint: Color(red: 0.60, green: 0.40, blue: 0.95),
+                       title: "浏览器上传",
+                       detail: "对方扫码后可在网页里反向传给你") {
+                smallAction("出码", icon: "qrcode") { openUploadQR() }
+            }
+            if !adbFileStatus.isEmpty {
+                Text(adbFileStatus)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+            }
+            Text("收到的文件都进下方「本地暂存」，不会散落在下载目录。")
+                .font(.system(size: 9))
+                .foregroundStyle(.tertiary)
+            // v120：安卓没有 AWDL（隔空投送是苹果私有协议），只能经本机中转
+            HStack(alignment: .top, spacing: 4) {
+                Image(systemName: "arrow.triangle.swap")
+                    .font(.system(size: 8))
+                    .foregroundStyle(Theme.accent.opacity(0.8))
+                Text("安卓传给 iPhone：先扫码传到本机暂存，勾选它再点「苹果设备」空投出去（安卓无法直接空投苹果）。")
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+    }
+
+    private func receiveRow<Trailing: View>(icon: String, tint: Color,
+                                            title: String, detail: String,
+                                            @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(spacing: 7) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(tint.opacity(0.16))
+                    .frame(width: 22, height: 22)
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(tint)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title).font(.system(size: 10, weight: .medium))
+                Text(detail).font(.system(size: 8.5)).foregroundStyle(.tertiary).lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            trailing()
+        }
+    }
+
+    /// 反向：不带 pick 的分享链接 → 对方打开网页可上传 + 下载全部暂存
+    private func openUploadQR() {
+        if !lan.running {
+            lan.startIfEnabled()
+            lanStartedForTransfer = true
+        }
+        let build: () -> Void = {
+            guard let base = lan.shareURL else {
+                Toast.show("直传服务未启动，无法生成二维码",
+                           icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            pickShareURL = base
+        }
+        if lan.shareURL != nil {
+            build()
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: build)
+        }
+    }
+
+    // MARK: 云端
+
+    @ViewBuilder
+    private var cloudTab: some View {
+        if showsCloud {
+            cloudSection
+        } else {
+            VStack(spacing: 6) {
+                Image(systemName: "icloud.slash")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.tertiary)
+                Text("云端中转未启用")
+                    .font(.system(size: 11, weight: .medium))
+                Text("设置 → 文件中转 → 云端中转（需要 OPPO 中转桥接工程）")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                Button("去设置") { openSettings() }
+                    .controlSize(.small)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 18)
+        }
+    }
+
     // MARK: 顶部
 
     private var header: some View {
@@ -121,7 +477,7 @@ struct TransferDockView: View {
             Image(systemName: "arrow.left.arrow.right.square")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-            Text("传输与投屏")   // v103：文件中转 → 传输与投屏（用户定名）
+            Text("文件中转")   // v114：投屏拆出后本页只做文件传输（用户定名「文件传输这边只仅限」）
                 .font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 6)
             Button {
@@ -153,7 +509,7 @@ struct TransferDockView: View {
                     .font(.system(size: 12))
             }
             .buttonStyle(.borderless)
-            .help("传输与投屏设置")
+            .help("文件中转设置")
         }
         .padding(.horizontal, 14)
         .frame(height: 38)
@@ -297,7 +653,7 @@ struct TransferDockView: View {
 
     private var airDropSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title: "隔空投送", symbol: "airdrop",
+            sectionHeader(title: "隔空投送", symbol: "dot.radiowaves.left.and.right",
                           detail: AirDropSendEngine.isAvailable
                             ? "系统原生互传 · iPhone 无需安装任何 App"
                             : "本机隔空投送不可用",
@@ -314,13 +670,13 @@ struct TransferDockView: View {
             HStack(spacing: 8) {
                 smallAction("发送暂存项", icon: "square.and.arrow.up") {
                     let urls = LocalTransferStore.shared.items
-                        .map { URL(fileURLWithPath: $0.originalPath) }
+                        .map { sendableURL($0) }
                         .filter { FileManager.default.fileExists(atPath: $0.path) }
                     AirDropSendEngine.send(urls: urls)
                 }
                 smallAction("接收说明", icon: "info.circle") {
                     Toast.show("iPhone 选中文件 → 隔空投送 → 本机即自动入暂存",
-                               icon: "airdrop")
+                               icon: "dot.radiowaves.left.and.right")
                 }
             }
             Text("发送：调系统空投面板选 iPhone；接收：iPhone 空投到本机，落盘后自动进入「本地暂存」。")
@@ -332,60 +688,157 @@ struct TransferDockView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: 投屏（v103：scrcpy 引擎 = AndroMeld 同实现路线；Android 零安装）
+    // MARK: 文件互传 · Android（v112：ADB 文件桥，对标报告第一批 P1）
 
-    @Stored private var castDevices: [(serial: String, state: String)] = []
-    @Stored private var castScrcpyReady: Bool = false
+    @Stored private var adbFileStatus = ""
+    @Stored private var adbPushing = false
+    // v122：传输进度（用户：「数据也要显示」）
+    @Stored private var pushActive = false
+    @Stored private var pushFraction: Double = 0
+    @Stored private var pushDetail = ""
 
-    private var screenCastSection: some View {
+    private var adbFileSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title: "投屏", symbol: "display",
-                          detail: castScrcpyReady ? "scrcpy 引擎就绪" : "需要 scrcpy（brew install scrcpy）",
-                          tint: Color(red: 0.55, green: 0.4, blue: 0.9)) {
-                smallAction("检测设备", icon: "antenna.radiowaves.left.and.right") {
-                    castScrcpyReady = ScreenCastEngine.findScrcpy() != nil
-                    // v105：adb 检测后台化（主线程 waitUntilExit 挂起=卡死）
-                    ScreenCastEngine.connectedDevices { list in
-                        castDevices = list ?? []
-                        Toast.show(castDevices.isEmpty
-                                   ? "未发现 Android 设备（USB 连接并开启 USB 调试）"
-                                   : "发现 \(castDevices.count) 台设备",
-                                   icon: castDevices.isEmpty ? "antenna.radiowaves.left.and.right.slash" : "display")
-                    }
+            sectionHeader(title: "文件互传 · Android", symbol: "internaldrive",
+                          detail: "ADB 通道 · 手机零安装",
+                          tint: Color(red: 0.2, green: 0.65, blue: 0.5)) {
+                // v114：连接设备（USB/无线配对）统一收在「投屏」页，此处直达
+                smallAction("连接设备", icon: "wifi") {
+                    MonitorCenterPresenter.shared.selectCast()
+                }
+                smallAction(adbPushing ? "传输中…" : "拉取手机文件", icon: "square.and.arrow.down") {
+                    pullFromPhone()
                 }
             }
-            ForEach(Array(castDevices.enumerated()), id: \.offset) { _, dev in
-                HStack(spacing: 8) {
-                    Image(systemName: dev.state == "device" ? "checkmark.circle.fill" : "exclamationmark.circle")
-                        .foregroundStyle(dev.state == "device" ? Color.green : Color.orange)
-                        .font(.system(size: 11))
-                    Text(dev.serial)
-                        .font(.system(size: 11, design: .monospaced))
-                        .lineLimit(1)
-                    Spacer()
-                    if dev.state == "device" {
-                        smallAction("开始投屏", icon: "play.fill") {
-                            ScreenCastEngine.startMirror(serial: dev.serial)
-                        }
-                    }
+            HStack(spacing: 8) {
+                smallAction("推送暂存项到手机", icon: "square.and.arrow.up") {
+                    pushStagedToPhone()
                 }
+                // v116：APK 安装（adb install -r -d）
+                smallAction("安装 APK", icon: "plus.app") {
+                    installAPK()
+                }
+                Text("需先在「投屏」页连接设备（USB 或无线）；推送目标 Download/FrsetNext/，拉取同目录入暂存。")
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text("与 AndroMeld 同实现方式（ADB + 视频流镜像）：手机开启 USB 调试即可，无需安装 App。等待 ADB 连接真机实测。")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
+            if !adbFileStatus.isEmpty {
+                Text(adbFileStatus)
+                    .font(.system(size: 9.5))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// v116：选择 APK → adb install（保留数据 -r、允许降级 -d）
+    private func installAPK() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = []
+        panel.allowedFileTypes = ["apk", "apks", "xapk"]
+        panel.allowsMultipleSelection = false
+        panel.message = "选择要安装到手机的 APK"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        adbFileStatus = "安装中：\(url.lastPathComponent)…"
+        ADBExtrasEngine.installAPK(url: url) { ok, log in
+            adbFileStatus = log
+            Toast.show(ok ? "安装成功：\(url.lastPathComponent)" : "安装失败（见状态行）",
+                       icon: ok ? "checkmark.seal.fill" : "exclamationmark.triangle",
+                       isWarning: !ok)
+        }
+    }
+
+    private func pushStagedToPhone() {
+        guard !adbPushing else { return }
+        let urls = LocalTransferStore.shared.items
+            .map { sendableURL($0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard !urls.isEmpty else {
+            adbFileStatus = "本地暂存为空——先在下方暂存区添加文件"; return
+        }
+        adbPushing = true
+        adbFileStatus = "推送中（\(urls.count) 个文件）…"
+        ADBFileBridge.push(urls: urls) { sent, log in
+            adbPushing = false
+            adbFileStatus = log
+            Toast.show("已推送 \(sent)/\(urls.count) 个文件到手机", icon: "square.and.arrow.up")
+            Log.info("Transfer", "ADB 推送完成 \(sent)/\(urls.count)")
+        }
+    }
+
+    private func pullFromPhone() {
+        guard !adbPushing else { return }
+        adbPushing = true
+        adbFileStatus = "拉取中…"
+        let staging = ADBFileBridge.stagingDirectory
+        ADBFileBridge.pull(into: staging) { count, log in
+            adbPushing = false
+            adbFileStatus = log
+            // 拉取落盘的文件 → 走 add() 正式入暂存索引（硬链接语义，不重复占空间）
+            let pulled = (try? FileManager.default.contentsOfDirectory(
+                at: staging, includingPropertiesForKeys: nil))?
+                .filter { $0.lastPathComponent != ".DS_Store" } ?? []
+            let n = pulled.isEmpty ? 0 : LocalTransferStore.shared.add(urls: pulled)
+            Toast.show(n > 0 ? "已拉取 \(n) 个文件入暂存" : "手机目录为空或未连接",
+                       icon: n > 0 ? "square.and.arrow.down" : "tray",
+                       isWarning: n == 0)
+        }
+    }
+
     // MARK: 云端（OPPO 中转）
+
+    /// v116：重跑 extract_edge_cookies.py（从 Edge 取 OPPO 中转站 cookie）
+    private func refreshCloudLogin() {
+        let web = TransferDockPath.webRoot
+        let script = web.appendingPathComponent("scripts/extract_edge_cookies.py")
+        guard FileManager.default.fileExists(atPath: script.path) else {
+            Toast.show("未找到 extract_edge_cookies.py（检查设置里的桥接目录）",
+                       icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        Toast.show("正在从 Edge 读取登录态…", icon: "icloud")
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+            task.arguments = [script.path]
+            task.currentDirectoryURL = web
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = pipe
+            do { try task.run() } catch {
+                DispatchQueue.main.async {
+                    Toast.show("无法运行脚本：\(error.localizedDescription)",
+                               icon: "exclamationmark.triangle", isWarning: true)
+                }
+                return
+            }
+            task.waitUntilExit()
+            let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
+                             encoding: .utf8) ?? ""
+            DispatchQueue.main.async {
+                let ok = task.terminationStatus == 0
+                Toast.show(ok ? "登录态已刷新" : "刷新失败（确认 Edge 已登录中转站后重试）",
+                           icon: ok ? "checkmark.seal.fill" : "exclamationmark.triangle",
+                           isWarning: !ok)
+                Log.info("Transfer", "OPPO cookie 刷新：\(out.suffix(200))")
+                service.refresh()
+            }
+        }
+    }
 
     private var cloudSection: some View {
         VStack(spacing: 0) {
             sectionHeader(title: "云端 · OPPO 中转", symbol: "icloud",
                           detail: service.loggedIn ? "已登录" : "未登录",
                           tint: service.loggedIn ? Theme.accent : .secondary) {
+                if !service.loggedIn {
+                    // v116：登录态失效时一键从 Edge 重新提取 cookie
+                    smallAction("刷新登录", icon: "arrow.clockwise.icloud") { refreshCloudLogin() }
+                }
                 if service.loggedIn {
                     // 云端是「云盘式」实时同步：绿点 = 自动刷新在跑，旁边是当前文件数
                     HStack(spacing: 4) {
@@ -464,8 +917,12 @@ struct TransferDockView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 18)
                 }
+                // v128（流畅度）：行抽成 Equatable 子视图——原 hoveredCloudID 是父视图
+                // @Stored，鼠标扫过列表每换一行就重算整个 body（200 行 cloudRow 全重建，
+                // 含 sizeText/dateText 格式化 + 图标匹配）。现 hover 态行内自持，
+                // 父级状态未变时行 body 直接跳过。
                 ForEach(service.files) { file in
-                    cloudRow(file)
+                    CloudRowView(file: file).equatable()
                 }
             }
             .padding(.horizontal, 5)
@@ -476,47 +933,6 @@ struct TransferDockView: View {
             if service.isLoading && service.files.isEmpty {
                 ProgressView().controlSize(.small)
             }
-        }
-    }
-
-    private func cloudRow(_ file: TransferDockFile) -> some View {
-        let hovered = hoveredCloudID == file.id
-        return HStack(spacing: 5) {
-            Image(systemName: iconName(for: file.name))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 14)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(file.name)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text("\(file.sizeText) · \(file.dateText)")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if hovered {
-                HStack(spacing: 5) {
-                    miniButton("arrow.down.circle", help: "下载") { service.download(file) }
-                    miniButton("trash", help: "删除") { service.delete(file) }
-                }
-            }
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(hovered ? Color.primary.opacity(0.07) : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .onHover { inside in hoveredCloudID = inside ? file.id : nil }
-        .onTapGesture(count: 2) { service.download(file) }
-        .contextMenu {
-            Button("下载") { service.download(file) }
-            Button("删除", role: .destructive) { service.delete(file) }
         }
     }
 
@@ -539,6 +955,14 @@ struct TransferDockView: View {
         .padding(6)
     }
 
+    // v126（性能审计 F2143）：DateFormatter 复用——cloudStatus 是 body 每次求值都会走的
+    // 计算属性，原实现每次 new 一个 DateFormatter。提为 static 缓存。
+    private static let syncTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
     private var cloudStatus: String {
         // 未登录时不要把桥接层的原始报错（如「[1003] 用户信息获取失败」）怼到脸上，
         // 那是没 cookie 时的必然结果，对用户没有信息量。
@@ -546,9 +970,7 @@ struct TransferDockView: View {
         if let error = service.errorMessage { return error }
         if !service.statusMessage.isEmpty { return service.statusMessage }
         if let synced = service.lastSyncedAt {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "HH:mm"
-            return "同步 \(formatter.string(from: synced))"
+            return "同步 \(Self.syncTimeFormatter.string(from: synced))"
         }
         return "就绪"
     }
@@ -633,7 +1055,7 @@ struct TransferDockView: View {
                 .font(.system(size: 9.5, weight: .semibold))
                 .foregroundStyle(Theme.accent)
             Spacer(minLength: 2)
-            smallAction("扫码直传", icon: "qrcode") { showPickQR() }
+            smallAction("通用互传", icon: "qrcode") { showPickQR() }
             if showsCloud {
                 smallAction("加入云端", icon: "icloud.and.arrow.up") { pushSelectedToCloud() }
             }
@@ -711,7 +1133,7 @@ struct TransferDockView: View {
                 .onTapGesture { pickShareURL = nil }
             VStack(spacing: 10) {
                 HStack {
-                    Text("扫码接收选中文件")
+                    Text(selectedIDs.isEmpty ? "扫码传给我" : "扫码接收选中文件")
                         .font(.system(size: 12, weight: .semibold))
                     Spacer(minLength: 0)
                     Button {
@@ -724,9 +1146,16 @@ struct TransferDockView: View {
                     .buttonStyle(.plain)
                 }
                 QRCodeView(text: url, size: 148)
-                Text("手机与本机同一 Wi-Fi，扫码后可直接下载这 \(selectedIDs.count) 个文件")
+                Text(selectedIDs.isEmpty
+                     ? "手机扫码后，可在网页里把文件传给你，也能下载暂存里的全部文件"
+                     : "手机扫码后可直接下载这 \(selectedIDs.count) 个文件")
                     .font(.system(size: 9.5))
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("前提：手机与本机连同一个 Wi-Fi（扫码走局域网，不经服务器）")
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
@@ -775,106 +1204,41 @@ struct TransferDockView: View {
 
     private var localList: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 1) {
+            // v115：改双列彩色卡片（用户：「跟剪贴板一样，改为卡片，一行两个，
+            // 图标 + 名字就够」）。列用 adaptive 而不是两个 .flexible()——
+            // 面板预热会以 0 宽过一次布局，flexible 双列会算出负宽度触发
+            // AppKit 布局异常（实测崩溃 2026-10-25）；adaptive 在窄宽自动退 1 列。
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: .infinity), spacing: 6)],
+                      spacing: 6) {
                 ForEach(local.items) { item in
-                    localRow(item)
+                    localCard(item)
                 }
             }
-            .padding(.horizontal, 5)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
         }
         .frame(maxHeight: .infinity)
     }
 
-    private func localRow(_ item: LocalTransferItem) -> some View {
-        let hovered = hoveredLocalID == item.id
-        let selected = selectedIDs.contains(item.id)
-        return HStack(spacing: 5) {
-            // 勾选框：勾选后底部出现「扫码直传 / 加入云端」批量操作条
-            Button {
-                toggleSelect(item.id)
-            } label: {
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 11))
-                    .foregroundStyle(selected ? Theme.accent : Color.secondary.opacity(0.55))
-                    .frame(width: 14, height: 14)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("勾选后可批量扫码直传 / 加入云端")
-
-            Image(systemName: iconName(for: item.name))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 14)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(item.name)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                HStack(spacing: 3) {
-                    Image(systemName: item.mode.symbol)
-                        .font(.system(size: 7))
-                    Text("\(item.mode.label) · \(item.sizeText)")
-                        .font(.system(size: 8.5))
-                }
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if hovered {
-                HStack(spacing: 5) {
-                    miniButton("folder", help: "在 Finder 中显示") { local.reveal(item) }
-                    miniButton("xmark.circle", help: "移出中转") {
-                        local.remove(item)
-                        selectedIDs.remove(item.id)
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(selected
-                      ? Theme.accent.opacity(0.12)
-                      : (hovered ? Color.primary.opacity(0.07) : Color.clear))
-        )
-        .contentShape(Rectangle())
-        .onHover { inside in
-            hoveredLocalID = inside ? item.id : nil
-            // 悬停自动出预览（Word / PPT / Excel / PDF / 图片…），移开自动收
-            if inside {
-                FileHoverPreviewController.shared.scheduleShow(url: item.stagedURL)
-            } else {
-                FileHoverPreviewController.shared.scheduleHide()
-            }
-        }
-        .onTapGesture(count: 2) { local.open(item) }
-        // 拖出去：交给 Finder 的是暂存路径（同源数据，不是再一次拷贝）
-        .onDrag {
-            NSItemProvider(contentsOf: item.stagedURL) ?? NSItemProvider()
-        }
-        .contextMenu {
-            Button("打开") { local.open(item) }
-            Button("在 Finder 中显示") { local.reveal(item) }
-            Divider()
-            Button(selectedIDs.contains(item.id) ? "取消勾选" : "勾选") { toggleSelect(item.id) }
-            Button("扫码直传这个") {
-                selectedIDs = [item.id]
+    // v128（流畅度）：本地卡抽成 Equatable 行视图——原实现依赖父视图 @Stored
+    // hoveredLocalID/selectedIDs，hover 一动就重算父 body，LazyVGrid 全部卡片跟着
+    // 重建（含 fileTint/iconName 的字符串 switch、渐变/描边视图树）。现在 hover 态
+    // 行内自持，勾选态作为参数参与 Equatable 比较，未变的行跳过 body。
+    private func localCard(_ item: LocalTransferItem) -> some View {
+        LocalCardRowView(
+            item: item,
+            selected: selectedIDs.contains(item.id),
+            showsCloud: showsCloud,
+            onToggleSelect: { toggleSelect($0) },
+            onPickOnly: { id in
+                selectedIDs = [id]
                 showPickQR()
-            }
-            if showsCloud {
-                Button("加入云端") { service.upload(url: item.stagedURL) }
-            }
-            Divider()
-            Button("移出中转") {
-                local.remove(item)
-                selectedIDs.remove(item.id)
-            }
-        }
-        .help("悬停预览 · 双击打开 · 拖到 Finder 或其他 App 即可使用")
+            },
+            onRemove: { victim in
+                local.remove(victim)
+                selectedIDs.remove(victim.id)
+            })
+        .equatable()
     }
 
     // MARK: 共用件
@@ -899,18 +1263,6 @@ struct TransferDockView: View {
         .background(Color.primary.opacity(0.02))
     }
 
-    private func miniButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: name)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .frame(width: 14, height: 14)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(help)
-    }
-
     private func dropHint(_ text: String) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -924,18 +1276,6 @@ struct TransferDockView: View {
         }
         .padding(4)
         .allowsHitTesting(false)
-    }
-
-    private func iconName(for name: String) -> String {
-        switch (name as NSString).pathExtension.lowercased() {
-        case "png", "jpg", "jpeg", "webp", "gif", "heic": return "photo"
-        case "mp4", "mov", "mkv", "avi": return "film"
-        case "pdf": return "doc.richtext"
-        case "zip", "rar", "7z", "tar", "gz": return "archivebox"
-        case "md", "txt", "json", "xml", "csv": return "doc.text"
-        case "swift", "py", "js", "ts", "c", "cpp", "m", "sh": return "chevron.left.forwardslash.chevron.right"
-        default: return "doc"
-        }
     }
 
     // MARK: 拖放与选择
@@ -1000,4 +1340,246 @@ struct TransferDockView: View {
 extension Notification.Name {
     /// 设置页改了文件中转相关开关/路径/端口
     static let transferDockSettingsDidChange = Notification.Name("frset.transferDock.settingsChanged")
+}
+
+// MARK: - v128（流畅度）：列表行独立视图（hover/勾选态行内自持，避免整表重算）
+
+/// 云端文件行（原 TransferDockView.cloudRow）
+/// v128（流畅度）：hover 态从父视图 @Stored 下沉到行内——原实现鼠标扫过列表
+/// 每换一行 hoveredCloudID 就变，父 body 重算导致全列表行重建（200 行 × 图标
+/// 匹配/格式化/视图树）。现在只有被悬停的那一行重绘；Equatable 使父级重算时
+/// 未变化的行直接跳过 body。闭包不参与比较（同 HeatmapGridView 的处理）。
+private struct CloudRowView: View, Equatable {
+    let file: TransferDockFile
+
+    @Stored private var hovered = false
+
+    static func == (lhs: CloudRowView, rhs: CloudRowView) -> Bool {
+        lhs.file == rhs.file
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: TransferRowStyle.iconName(for: file.name))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(file.name)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text("\(file.sizeText) · \(file.dateText)")
+                    .font(.system(size: 8.5))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if hovered {
+                HStack(spacing: 5) {
+                    TransferRowStyle.miniButton("arrow.down.circle", help: "下载") {
+                        TransferDockService.shared.download(file)
+                    }
+                    TransferRowStyle.miniButton("trash", help: "删除") {
+                        TransferDockService.shared.delete(file)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(hovered ? Color.primary.opacity(0.07) : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { inside in hovered = inside }
+        .onTapGesture(count: 2) { TransferDockService.shared.download(file) }
+        .contextMenu {
+            Button("下载") { TransferDockService.shared.download(file) }
+            Button("删除", role: .destructive) { TransferDockService.shared.delete(file) }
+        }
+    }
+}
+
+/// 本地暂存卡行（原 TransferDockView.localCard 的主体；动作经闭包回传父视图）
+private struct LocalCardRowView: View, Equatable {
+    let item: LocalTransferItem
+    let selected: Bool
+    let showsCloud: Bool
+    var onToggleSelect: (String) -> Void
+    var onPickOnly: (String) -> Void
+    var onRemove: (LocalTransferItem) -> Void
+
+    @Stored private var hovered = false
+
+    // v128（流畅度）：hover 是行内态不参与比较——父级重算时只要 item/selected
+    // 没变就跳过 body，悬停高亮由本行 @Stored 自驱动。
+    static func == (lhs: LocalCardRowView, rhs: LocalCardRowView) -> Bool {
+        lhs.item == rhs.item
+            && lhs.selected == rhs.selected
+            && lhs.showsCloud == rhs.showsCloud
+    }
+
+    var body: some View {
+        let tint = TransferRowStyle.fileTint(for: item.name)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                // 类型图标（按格式着色，渐变底）
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(LinearGradient(colors: [tint.opacity(0.95), tint.opacity(0.55)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: TransferRowStyle.iconName(for: item.name))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                Spacer(minLength: 0)
+                Button {
+                    onToggleSelect(item.id)
+                } label: {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(selected ? Theme.accent : Color.secondary.opacity(0.45))
+                        .frame(width: 14, height: 14)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("勾选后可批量扫码直传 / 加入云端")
+            }
+            Text(item.name)
+                .font(.system(size: 10.5, weight: .medium))
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 4) {
+                Text(item.sizeText)
+                    .font(.system(size: 8.5, design: .rounded))
+                Spacer(minLength: 0)
+                if hovered {
+                    TransferRowStyle.miniButton("folder", help: "在 Finder 中显示") {
+                        LocalTransferStore.shared.reveal(item)
+                    }
+                    TransferRowStyle.miniButton("xmark.circle", help: "移出中转") {
+                        onRemove(item)
+                    }
+                } else {
+                    Image(systemName: item.mode.symbol)
+                        .font(.system(size: 7.5))
+                }
+            }
+            .foregroundStyle(.tertiary)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(selected
+                      ? Theme.accent.opacity(0.10)
+                      : Color.primary.opacity(hovered ? 0.06 : 0.035))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(selected ? Theme.accent.opacity(0.55)
+                                       : Color.primary.opacity(0.06),
+                              lineWidth: 1)
+        )
+        .scaleEffect(hovered ? 1.02 : 1.0)
+        .animation(.spring(response: 0.22, dampingFraction: 0.72), value: hovered)
+        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onHover { inside in
+            hovered = inside
+            if inside {
+                FileHoverPreviewController.shared.scheduleShow(url: item.stagedURL)
+            } else {
+                FileHoverPreviewController.shared.scheduleHide()
+            }
+        }
+        .onTapGesture(count: 2) {
+            // v118：压缩包双击进归档浏览（ArcZip 能力），其他文件仍交给系统
+            if ArchiveCore.isArchive(item.stagedURL) {
+                ArchiveBrowserWindowController.show(url: item.stagedURL)
+            } else {
+                LocalTransferStore.shared.open(item)
+            }
+        }
+        .onDrag {
+            NSItemProvider(contentsOf: item.stagedURL) ?? NSItemProvider()
+        }
+        .contextMenu {
+            if ArchiveCore.isArchive(item.stagedURL) {
+                Button("浏览压缩包") { ArchiveBrowserWindowController.show(url: item.stagedURL) }
+                Button("解压到…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true; panel.canChooseFiles = false
+                    panel.prompt = "解压到这里"
+                    if panel.runModal() == .OK, let dir = panel.url {
+                        ArchiveCore.extract(url: item.stagedURL, to: dir) { ok, msg in
+                            Toast.show(ok ? "已解压" : "解压失败：\(msg)",
+                                       icon: ok ? "archivebox" : "exclamationmark.triangle",
+                                       isWarning: !ok)
+                        }
+                    }
+                }
+                Divider()
+            }
+            Button("打开") { LocalTransferStore.shared.open(item) }
+            Button("在 Finder 中显示") { LocalTransferStore.shared.reveal(item) }
+            Divider()
+            Button(selected ? "取消勾选" : "勾选") { onToggleSelect(item.id) }
+            Button("通用互传这个") { onPickOnly(item.id) }
+            if showsCloud {
+                Button("加入云端") { TransferDockService.shared.upload(url: item.stagedURL) }
+            }
+            Divider()
+            Button("移出中转") { onRemove(item) }
+        }
+        .help("悬停预览 · 双击打开 · 拖到 Finder 或其他 App 即可使用")
+    }
+}
+
+/// v128（流畅度）：行内共用的小件（从 TransferDockView 的私有方法提出，供行视图复用）
+private enum TransferRowStyle {
+    static func iconName(for name: String) -> String {
+        switch (name as NSString).pathExtension.lowercased() {
+        case "png", "jpg", "jpeg", "webp", "gif", "heic": return "photo"
+        case "mp4", "mov", "mkv", "avi": return "film"
+        case "pdf": return "doc.richtext"
+        case "zip", "rar", "7z", "tar", "gz": return "archivebox"
+        case "md", "txt", "json", "xml", "csv": return "doc.text"
+        case "swift", "py", "js", "ts", "c", "cpp", "m", "sh": return "chevron.left.forwardslash.chevron.right"
+        default: return "doc"
+        }
+    }
+
+    /// 文件格式 → 卡片主题色（v115：让文件区不再是清一色灰）
+    static func fileTint(for name: String) -> Color {
+        switch (name as NSString).pathExtension.lowercased() {
+        case "png", "jpg", "jpeg", "webp", "gif", "heic", "tiff":   return .pink
+        case "mp4", "mov", "mkv", "avi", "webm":                    return .purple
+        case "pdf":                                                 return .red
+        case "doc", "docx", "pages":                                return .blue
+        case "xls", "xlsx", "numbers", "csv":                       return .green
+        case "ppt", "pptx", "key":                                  return .orange
+        case "zip", "rar", "7z", "tar", "gz", "tgz":                return .brown
+        case "swift", "py", "js", "ts", "c", "cpp", "m", "sh",
+             "json", "xml", "html", "css":                          return .teal
+        case "md", "txt":                                           return .gray
+        default:                                                    return .indigo
+        }
+    }
+
+    static func miniButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: name)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .frame(width: 14, height: 14)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
 }

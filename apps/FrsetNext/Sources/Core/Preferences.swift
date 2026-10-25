@@ -24,6 +24,8 @@ public final class Preferences: ObservableObject {
     public struct Keys {
         // 通用
         public static let launchAtLogin = "launchAtLogin"
+        /// 已看过的欢迎窗版本（onboardingVersion；空=没看过。见 WelcomeWindowController）
+        public static let onboardingWelcomeSeenVersion = "onboarding.welcomeSeenVersion"
         public static let menuBarIconsVisible = "menuBar.iconsVisible"
         public static let panelWidth = "panel.width"
         public static let panelHeight = "panel.height"

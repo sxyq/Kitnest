@@ -46,9 +46,12 @@ public enum LargeTextPreviewMode: String, CaseIterable, Identifiable {
     /// 自动推断：JSON 优先，其次疑似 Markdown，否则纯文本
     public static func infer(from text: String) -> LargeTextPreviewMode {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if JSONHighlighter.prettify(trimmed) != nil, PreviewJSONPreferenceStore.shared.isEnabled { return .json }
+        // v126（性能审计 F0756）：JSON 判定只解析不回写（原 prettify(...) != nil 白跑一次全量序列化）
+        if JSONHighlighter.isParseableJSON(trimmed), PreviewJSONPreferenceStore.shared.isEnabled { return .json }
         if PreviewMarkdownPreferenceStore.shared.isEnabled,
-           trimmed.range(of: #"(?m)^\s*(#{1,6}\s|[-*+]\s|>\s|```|\d+\.\s)"#, options: .regularExpression) != nil {
+           // v126（性能审计 F0756）：Markdown 特征正则改缓存编译（原先每次 infer 都重编译）
+           JSONHighlighter.cachedRe(#"(?m)^\s*(#{1,6}\s|[-*+]\s|>\s|```|\d+\.\s)"#)?
+            .firstMatch(in: trimmed, range: NSRange(location: 0, length: (trimmed as NSString).length)) != nil {
             return .markdown
         }
         return .plain
@@ -61,6 +64,21 @@ public enum LargeTextPreviewMode: String, CaseIterable, Identifiable {
 /// 不使用外部依赖，全部为系统 API。
 public enum JSONHighlighter {
 
+    // v126（性能审计 F0756/F0758/F0765）：正则编译缓存。
+    // 渲染路径对每个字符串匹配都重新 NSRegularExpression(pattern:)，
+    // 一篇大 JSON / 长 Markdown 就是上千次编译；按 pattern 静态缓存，命中后零成本。
+    // fileprivate：同文件的 MarkdownCodeSyntaxHighlighter / LargeTextPreviewMode 复用同一份缓存。
+    // 加锁：infer/render 可能在非主线程调用（预览准备阶段），缓存字典需线程安全。
+    private static let _reLock = NSLock()
+    private static var _reCache: [String: NSRegularExpression] = [:]
+    fileprivate static func cachedRe(_ pattern: String) -> NSRegularExpression? {
+        _reLock.lock(); defer { _reLock.unlock() }
+        if let hit = _reCache[pattern] { return hit }
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
+        _reCache[pattern] = re
+        return re
+    }
+
     /// 规范化：能解析则输出 prettyPrinted 文本，否则返回 nil
     public static func prettify(_ text: String) -> String? {
         guard let data = text.data(using: .utf8),
@@ -69,6 +87,14 @@ public enum JSONHighlighter {
                                                        options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed]),
               let string = String(data: pretty, encoding: .utf8) else { return nil }
         return string
+    }
+
+    /// v126（性能审计 F0756）：只判「是不是 JSON」而不产出 pretty 文本。
+    /// infer 原先调用 prettify(...) != nil —— 为拿一个 Bool 跑完整解析 + 重新序列化 + UTF8 解码，
+    /// 大文本预览打开时白付一次全量编解码。改为只解析不回写。
+    public static func isParseableJSON(_ text: String) -> Bool {
+        guard let data = text.data(using: .utf8) else { return false }
+        return (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) != nil
     }
 
     public static func render(_ text: String, enabled: Bool = PreviewJSONPreferenceStore.shared.isEnabled) -> NSAttributedString {
@@ -81,19 +107,20 @@ public enum JSONHighlighter {
         let full = NSRange(location: 0, length: (source as NSString).length)
 
         // ① 字符串：紧随冒号的视为 key，其余为字符串值
-        if let strings = try? NSRegularExpression(pattern: #""(?:\\.|[^"\\])*""#) {
+        if let strings = Self.cachedRe(#""(?:\\.|[^"\\])*""#) {
             for match in strings.matches(in: source, range: full) {
                 let keyRange = NSRange(location: match.range.upperBound,
                                        length: min(8, max(0, full.length - match.range.upperBound)))
                 let tail = (source as NSString).substring(with: keyRange)
-                let isKey = tail.range(of: #"^\s*:"#, options: .regularExpression) != nil
+                // v126（性能审计 F0758）：key 判定改缓存正则（原先每个字符串匹配都重编译一次）
+                let isKey = Self.cachedRe(#"^\s*:"#)?.firstMatch(in: tail, range: NSRange(location: 0, length: (tail as NSString).length)) != nil
                 result.addAttribute(.foregroundColor,
                                     value: isKey ? NSColor.systemPurple : NSColor.systemGreen,
                                     range: match.range)
             }
         }
         // ② 数字 / 字面量
-        if let literals = try? NSRegularExpression(pattern: #"\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"#) {
+        if let literals = Self.cachedRe(#"\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"#) {
             for match in literals.matches(in: source, range: full) {
                 let token = (source as NSString).substring(with: match.range)
                 let isBoolOrNull = token == "true" || token == "false" || token == "null"
@@ -246,8 +273,8 @@ public enum MarkdownCodeSyntaxHighlighter {
 
     /// 行内标记：**粗体** / __粗体__ / `代码`
     private static func appendInline(_ text: String, container: AttributeContainer, to output: inout AttributedString) {
-        let pattern = #"(\*\*|__)(.+?)\1|`([^`]+)`"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        // v126（性能审计 F0765）：每行都重新编译同一份行内正则（长文档数千次编译），改走缓存
+        guard let regex = JSONHighlighter.cachedRe(#"(\*\*|__)(.+?)\1|`([^`]+)`"#) else {
             appendRun(text, container: container, to: &output)
             return
         }

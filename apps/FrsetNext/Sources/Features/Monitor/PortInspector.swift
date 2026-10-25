@@ -11,7 +11,7 @@ import Combine
 //   · lsof -F（机器可读字段）—— 单次约 30ms，能同时给出协议/地址/端口/进程名/PID，
 //     且无需 root 即可看到同用户与多数系统进程。故选它，并做三重约束：
 //       1) 只在网络页可见时扫描（页面 onAppear/onDisappear 控制）；
-//       2) 可见时 10s 轮询 / 最小间隔 3s（手动刷新可强制），应用非前台时跳过；
+//       2) 可见时 30s 轮询（v128 降频，原 10s）/ 最小间隔 3s（手动刷新可强制），应用非前台时跳过；
 //       3) 后台队列执行，主线程只接收解析后的快照。
 //
 // 解析口径：
@@ -65,7 +65,9 @@ final class PortInspector: ObservableObject {
     private var lastScanUptime: TimeInterval = -1000
 
     /// 自动刷新间隔（页面可见时）
-    private static let refreshInterval: TimeInterval = 10
+    /// v128（CPU 优化）：10s → 30s。lsof 单次约 30ms（进程 fork+全量 fd 枚举），
+    /// 端口占用是低频变化信息，30s 足够；手动刷新（scan(force:)）不受此限。
+    private static let refreshInterval: TimeInterval = 30
     /// 最小扫描间隔（手动连点/页面反复切换时的兜底）
     private static let minInterval: TimeInterval = 3
 
@@ -242,7 +244,8 @@ final class PortInspector: ObservableObject {
                 if a.isExposed != b.isExposed { return a.isExposed }   // 对外暴露优先
                 if a.proto != b.proto { return a.proto == "TCP" }      // TCP 在前
                 if a.port != b.port { return a.port < b.port }
-                return a.process.localizedCompare(b.process) == .orderedAscending
+                // v126（性能审计 F2029）：localizedCompare（Foundation 重量级）→ < 字典序
+                return a.process < b.process
             }
     }
 }

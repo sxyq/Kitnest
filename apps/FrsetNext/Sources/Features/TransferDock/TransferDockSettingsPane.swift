@@ -38,6 +38,67 @@ struct TransferDockSettingsPane: View {
                 }
             }
 
+            SettingsSection("投屏画质") {
+                SettingsGroupBox {
+                    row("分辨率", subtitle: "短边上限；「原始」= 设备原生分辨率（更清晰、更吃带宽）") {
+                        Picker("", selection: Binding(
+                            get: { TransferDockPref.CastQuality.maxSize },
+                            set: { TransferDockPref.CastQuality.maxSize = $0; notifyChange() })) {
+                            ForEach(TransferDockPref.CastQuality.sizeOptions, id: \.1) { opt in
+                                Text(opt.1 == 0 ? "原始" : "\(opt.0)p").tag(opt.1)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 110)
+                    }
+                    SettingsDivider()
+                    row("码率", subtitle: "越高越清晰；Wi-Fi 不稳时降到 8-16") {
+                        Picker("", selection: Binding(
+                            get: { TransferDockPref.CastQuality.bitrate },
+                            set: { TransferDockPref.CastQuality.bitrate = $0; notifyChange() })) {
+                            ForEach(TransferDockPref.CastQuality.bitrateOptions, id: \.self) { b in
+                                Text("\(b) Mbps").tag(b)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 110)
+                    }
+                    SettingsDivider()
+                    row("帧率", subtitle: "30 省电；60 顺滑；90 高刷屏") {
+                        Picker("", selection: Binding(
+                            get: { TransferDockPref.CastQuality.fps },
+                            set: { TransferDockPref.CastQuality.fps = $0; notifyChange() })) {
+                            ForEach(TransferDockPref.CastQuality.fpsOptions, id: \.self) { f in
+                                Text(f == 0 ? "默认" : "\(f) fps").tag(f)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 110)
+                    }
+                    SettingsDivider()
+                    // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
+                    row("双向剪贴板", subtitle: "Mac↔手机剪贴板自动同步；关闭后投屏/Meld 窗口不再同步剪贴板") {
+                        Toggle("", isOn: Binding(
+                            get: { TransferDockPref.CastQuality.clipboardAutoSync },
+                            set: { TransferDockPref.CastQuality.clipboardAutoSync = $0; notifyChange() }))
+                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    }
+                    SettingsDivider()
+                    row("当前参数", subtitle: TransferDockPref.CastQuality.summary) {
+                        Button("恢复推荐") {
+                            TransferDockPref.CastQuality.maxSize = 1920
+                            TransferDockPref.CastQuality.bitrate = 16
+                            TransferDockPref.CastQuality.fps = 60
+                            notifyChange()
+                        }
+                        .controlSize(.small)
+                    }
+                }
+            }
+
             SettingsSection("手机扫码直传") {
                 SettingsGroupBox {
                     row("启用", subtitle: "手机与本机在同一 Wi-Fi，扫码即可在浏览器里上传/下载") {

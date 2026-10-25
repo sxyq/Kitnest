@@ -93,13 +93,17 @@ public struct ManualPaneView: View {
             .padding(.bottom, 4)
 
             ScrollView(.vertical, showsIndicators: true) {
+                let idx = searchIndex
                 VStack(alignment: .leading, spacing: 1) {
                     ForEach(visibleRoots) { node in
+                        // v128（流畅度）：树行改传命中/可见集合——原 matcher 闭包在每层
+                        // 行都递归整棵子树判断可见性（节点 × 深度）；现退化为集合查表。
                         ManualTreeRow(node: node,
                                       selection: $selection,
                                       expanded: $expanded,
                                       query: query,
-                                      matcher: nodeMatches)
+                                      matched: idx.matched,
+                                      visible: idx.visible)
                     }
                 }
                 .padding(.horizontal, 6)
@@ -178,7 +182,9 @@ public struct ManualPaneView: View {
     }
 
     /// 上/下一节（按先序平铺）
-    private var flat: [ManualNode] { doc.roots.flatMap { $0.flatten() } }
+    // v128（流畅度）：直读解析期平铺好的 flatNodes——原 flat 是计算属性，每次 body
+    // 求值都 flatten 整棵树（递归分配数组），搜索每键都白付一遍。
+    private var flat: [ManualNode] { doc.flatNodes }
 
     private func navFooter(_ node: ManualNode) -> some View {
         let list = flat
@@ -208,7 +214,8 @@ public struct ManualPaneView: View {
     // MARK: - 树辅助
 
     private func allGroupIDs() -> [String] {
-        doc.roots.flatMap { $0.flatten() }.filter { !$0.children.isEmpty }.map(\.id)
+        // v128（流畅度）：复用解析期平铺（原 flatten 全树重建数组；仅按钮点击时调用，顺手统一）
+        doc.flatNodes.filter { !$0.children.isEmpty }.map(\.id)
     }
 
     private func ancestorPath(_ node: ManualNode) -> [ManualNode] {
@@ -222,31 +229,45 @@ public struct ManualPaneView: View {
     }
 
     private func parent(of node: ManualNode) -> ManualNode? {
-        for root in doc.roots {
-            for n in root.flatten() where n.children.contains(where: { $0.id == node.id }) {
-                return n
+        // v126（性能审计 F1888）：去掉 flatten 中间数组——原实现在 ancestorPath 的每一层
+        // 都把整棵文档树 flatten 成数组再线性扫（深度 × 节点数 次分配），而 navFooter
+        // 每次 body 求值（搜索框每敲一键）都要走一遍。改为直接递归查找，命中即返回。
+        // v128（流畅度）：再改为解析期建好的 parentIndex 查表 O(1)——原递归查找仍是
+        // 每次 body 求值 × 每层祖先各扫一遍子树（面包屑 4 层 = 4 次全树扫描）。
+        guard let parentID = doc.parentIndex[node.id] else { return nil }
+        return doc.index[parentID]
+    }
+
+    /// 搜索命中集合 + 可见（命中 + 祖先）集合
+    // v128（流畅度）：visibleRoots 原来对每个根递归 subtreeMatches，而 ManualTreeRow
+    // 的 visibleChildren 又对每层子节点再递归一遍（节点 × 深度 次重复扫描），
+    // 且命中判定每次都要对每个块重算 plainText（数组 join）。改为：
+    // · 判定走解析期固化的 searchText（不再每键重拼文本）；
+    // · 一次性算出「命中节点 id 集合」与「命中子树祖先并集」，行过滤退化为集合查表。
+    private var searchIndex: (matched: Set<String>, visible: Set<String>) {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else {
+            return (Set(doc.index.keys), Set(doc.index.keys))
+        }
+        var matched: Set<String> = []
+        for (id, node) in doc.index where node.searchText.localizedCaseInsensitiveContains(q) {
+            matched.insert(id)
+        }
+        // 命中节点的所有祖先也可见（父行要显示才能展开到命中行）
+        var visible = matched
+        for id in matched {
+            var cur = id
+            while let parentID = doc.parentIndex[cur] {
+                visible.insert(parentID)
+                cur = parentID
             }
         }
-        return nil
+        return (matched, visible)
     }
 
-    /// 搜索命中：标题或正文包含关键词（空查询恒真）
-    private func nodeMatches(_ node: ManualNode) -> Bool {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return true }
-        if node.title.localizedCaseInsensitiveContains(q) { return true }
-        for b in node.blocks where b.block.plainText.localizedCaseInsensitiveContains(q) { return true }
-        return false
-    }
-
-    /// 搜索时可见的根：自身或任一后代命中
     private var visibleRoots: [ManualNode] {
-        doc.roots.filter { subtreeMatches($0) }
-    }
-
-    private func subtreeMatches(_ node: ManualNode) -> Bool {
-        if nodeMatches(node) { return true }
-        return node.children.contains { subtreeMatches($0) }
+        let idx = searchIndex
+        return doc.roots.filter { idx.visible.contains($0.id) }
     }
 }
 
@@ -257,7 +278,11 @@ private struct ManualTreeRow: View {
     @Binding var selection: String?
     @Binding var expanded: Set<String>
     let query: String
-    let matcher: (ManualNode) -> Bool
+    // v128（流畅度）：命中/可见集合替代 matcher 闭包——原 visibleChildren 每次 body
+    // 求值都对整棵子树递归 subtreeMatches（搜索每键 × 树行数 = 节点² 量级），
+    // 现在两次 Set 查表。
+    let matched: Set<String>
+    let visible: Set<String>
 
     private var isExpanded: Binding<Bool> {
         Binding(get: { expanded.contains(node.id) || !query.isEmpty },
@@ -267,12 +292,7 @@ private struct ManualTreeRow: View {
     }
 
     private var visibleChildren: [ManualNode] {
-        node.children.filter { subtreeMatches($0) }
-    }
-
-    private func subtreeMatches(_ n: ManualNode) -> Bool {
-        if matcher(n) { return true }
-        return n.children.contains { subtreeMatches($0) }
+        node.children.filter { visible.contains($0.id) }
     }
 
     var body: some View {
@@ -282,7 +302,8 @@ private struct ManualTreeRow: View {
             DisclosureGroup(isExpanded: isExpanded) {
                 ForEach(visibleChildren) { child in
                     ManualTreeRow(node: child, selection: $selection,
-                                  expanded: $expanded, query: query, matcher: matcher)
+                                  expanded: $expanded, query: query,
+                                  matched: matched, visible: visible)
                         .padding(.leading, 8)
                 }
             } label: {
@@ -294,7 +315,7 @@ private struct ManualTreeRow: View {
 
     private var row: some View {
         let selected = selection == node.id
-        let dimmed = !query.isEmpty && !matcher(node)
+        let dimmed = !query.isEmpty && !matched.contains(node.id)
         return Button { selection = node.id } label: {
             HStack(spacing: 5) {
                 if node.level >= 3 {
@@ -593,19 +614,5 @@ private struct ManualTableView: View {
     }
 }
 
-// MARK: - 块文本（搜索用）
-
-private extension ManualBlock {
-    var plainText: String {
-        switch self {
-        case .paragraph(let s): return s
-        case .bullets(let a): return a.joined(separator: " ")
-        case .numbered(let a): return a.joined(separator: " ")
-        case .quote(let s): return s
-        case .image(let r, let c): return "\(c ?? "") \(r)"
-        case .table(let h, let rows): return h.joined(separator: " ") + " " + rows.flatMap { $0 }.joined(separator: " ")
-        case .code(let s): return s
-        case .divider: return ""
-        }
-    }
-}
+// v128（流畅度）：ManualBlock.plainText 移至 ManualDocument.swift——
+// ManualNode.finalizeSearchText 在解析期一次性调用（原每次搜索命中判定都重算 join）。

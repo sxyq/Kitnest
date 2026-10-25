@@ -113,11 +113,22 @@ static void statsTick(void) {
     s_tickCount++;
     frset_cpu_sample(&s_cpu);
     frset_mem_sample(&s_mem);
-    frset_net_sample(&s_net);
-    frset_disk_sample(&s_disk);
-    if (s_tickCount % 2 == 0) frset_battery_sample(&s_batt);   // 1s（省 IORegistry 开销）
+    /* v128（CPU 优化）：网络/磁盘/电池降为 1s 采样（0.5s tick 的隔拍执行）。
+       状态栏主显示是 CPU/内存（保持 0.5s）；这三项是次要读数，1s 采样与部件默认
+       updateInterval=1s 一致，观感无差。速率本身是差分均值，间隔放宽只是把平均
+       窗口从 0.5s 变成 1s。s_net/s_disk/s_batt 保留上一轮读数，g_snap 每 tick 照常
+       拷贝（隔拍之间数值不变，部件按自身间隔读 g_snap 不受影响）。 */
+    if (s_tickCount % 2 == 1) {
+        /* 奇数拍执行：FSStatsTickStart 的立即首采（count=1）就带上这三项，
+           避免启动后第一秒电池/网速显示 0（v128 配套） */
+        frset_net_sample(&s_net);
+        frset_disk_sample(&s_disk);
+        frset_battery_sample(&s_batt);   // 1s（省 IORegistry 开销）
+    }
     frset_loadavg(&g_snap.load1, &g_snap.load5, &g_snap.load15);
-    frset_disk_capacity(&s_diskTotal, &s_diskFree);
+    /* v126（性能审计 F1723 配套）：statfs 磁盘容量改为 30s 缓存——原先每 0.5s
+       调 frset_disk_capacity（statfs 系统调用），磁盘容量分钟级才变，削减 96% syscall。 */
+    if (s_tickCount % 60 == 1) frset_disk_capacity(&s_diskTotal, &s_diskFree);
     if (s_tickCount % 12 == 1) {
         // v49 性能修复：SMC 全量扫描（~150ms）放后台线程，主线程零尖峰。
         // g_conn 已在 FSStatsTickStart 主线程打开，之后只读（IOKit 驱动侧串行化），跨线程安全。
@@ -201,11 +212,17 @@ void FSStatsTickStart(void) {
     frset_conn_start();          // Net 面板连通性历史（ICMP 后台线程，幂等）
     statsTick();                 // 立即采一次，避免首帧空值
     s_tickTimer = [NSTimer timerWithTimeInterval:kSampleInterval repeats:YES block:^(NSTimer *t) {
-        statsTick();
-        FSBarSystemTick();
-        // v30：保邻看守每 tick（0.5s）调——与 length 重排（网速数值变化）同频，
-        // frame 修正后最多半个采样周期被覆盖，视觉空隙最小化
-        FSBarKeepAdjacentTick();
+        /* v128（CPU 优化）：tick 体包 @autoreleasepool——C 引擎→ObjC/Swift 的桥接
+           （FSBarCfgStr 的 NSString、FSBarSystemTick 内部的字典/数组）产生 autorelease
+           对象，靠 runloop 周期性回收不及时，长期累积推高常驻堆；显式池化保证每次
+           tick 结束即释放（63MB 小堆的主嫌之一）。 */
+        @autoreleasepool {
+            statsTick();
+            FSBarSystemTick();
+            // v30：保邻看守每 tick（0.5s）调——与 length 重排（网速数值变化）同频，
+            // frame 修正后最多半个采样周期被覆盖，视觉空隙最小化
+            FSBarKeepAdjacentTick();
+        }
     }];
     [[NSRunLoop mainRunLoop] addTimer:s_tickTimer forMode:NSRunLoopCommonModes];
     FSBarSystemStart([NSMutableArray array]);

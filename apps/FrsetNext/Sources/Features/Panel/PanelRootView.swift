@@ -304,20 +304,23 @@ struct PanelRootView: View {
         .frame(height: 40)
     }
 
-    /// 「主页 | 性能监测 | 文件中转」三段分段（自绘胶囊，对齐原版选中态）
+    /// 「主页 | 性能监测 | 文件中转 | 投屏」四段分段（自绘胶囊，对齐原版选中态）
     /// v41：文件中转由设置开关控制显隐。
     /// v71：性能监测段恢复（用户需求「顶部加回三页面的切换」）——内容复用
     /// MonitorDetailView 同一套组件（与独立窗一致，不多一套实现）。
+    /// v114（2026-10-25 用户需求）：投屏从文件中转拆出，新增第四段「投屏」，
+    /// 四段左右切换；投屏页与文件中转同受传输功能开关控制。
     private var pageSegments: some View {
         HStack(spacing: 0) {
             segmentItem("主页", selected: page == .home) {
                 monitorPresenter.selectHome()
             }
-            segmentItem("性能监测", selected: page == .performance) {
+            segmentItem("监测", selected: page == .performance) {
                 monitorPresenter.selectPerformance()
             }
+            .help("性能监测")
             if transferDockEnabled {
-                segmentItem("文件中转", selected: page == .transfer) {
+                segmentItem("中转", selected: page == .transfer) {
                     monitorPresenter.selectTransferDock()
                 }
                 // 拖文件到「文件中转」分段 = 存进本地中转（硬链接，不复制数据）
@@ -332,7 +335,11 @@ struct PanelRootView: View {
                             .padding(-2)
                     }
                 }
-                .help("拖文件到这里：存进本地中转（硬链接）")
+                .help("文件中转：拖文件到这里存进本地中转（硬链接）")
+                segmentItem("投屏", selected: page == .cast) {
+                    monitorPresenter.selectCast()
+                }
+                .help("投屏：Android 无线配对与镜像")
             }
         }
         .padding(2)
@@ -397,6 +404,8 @@ struct PanelRootView: View {
     private var captureAction: some View {
         Menu {
             Button("截图") { runCapture { CaptureModule.capture(.area) } }
+            // v113：窗口截图（原版 CaptureMode.window；入口对齐原版「窗口图标」位置）
+            Button("窗口截图") { runCapture { CaptureModule.capture(.window) } }
             Button("截图并复制") { runCapture { CaptureModule.captureCopy() } }
             Button("截图并贴图") { runCapture { CaptureModule.capture(.pin) } }
             Button("截图提取文字") { runCapture { CaptureModule.capture(.ocr) } }
@@ -592,9 +601,13 @@ struct PanelRootView: View {
             MonitorPerformanceContent()
                 .pageTransition(active: page == .performance)
 
-            // 第三页：中转站（文件暂存与转发）
+            // 第三页：文件中转（仅文件传输：隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）
             TransferDockView()
                 .pageTransition(active: page == .transfer)
+
+            // 第四页：投屏（v114 从文件中转拆出：设备检测 / 无线连接 / scrcpy 镜像）
+            CastView()
+                .pageTransition(active: page == .cast)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: page)

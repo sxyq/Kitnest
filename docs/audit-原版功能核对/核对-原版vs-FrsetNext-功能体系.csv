@@ -1,0 +1,19 @@
+体系号,功能体系,specs提到类数,已覆盖,缺口数,覆盖率,缺口类
+1,应用生命周期与启动,11,6,5,55%,ReviewRequestCoordinator; WelcomeWindowController; WelcomeWindowDelegate; WhatsNewPresenter; WhatsNewStore
+2,菜单栏体系,7,7,0,100%,
+3,主面板 FloatingPanel,12,12,0,100%,
+4,剪贴板体系（最大模块，~35 类）,33,32,1,97%,WindowDelegate
+5,截图体系,12,12,0,100%,
+6,OCR 体系,10,10,0,100%,
+7,长截图体系,7,7,0,100%,
+8,钉图体系,5,4,1,80%,ScaleMenuButton
+9,AI 体系 🔶（设置里有「AI 服务商」页）,20,19,1,95%,PromptTextView
+10,工具箱体系,43,42,0,98%,
+11,搜索体系,5,3,2,60%,SearchBarMouseWheelController; SearchInputScrollController
+12,日历体系,8,7,1,88%,CursorRegionView
+13,快捷键体系,4,4,0,100%,
+14,设置体系,7,4,3,57%,SettingsConfettiHostingView; SettingsConfettiOverlayView; SettingsFocusSentinelNSView
+15,数据层,0,0,0,—,
+16,系统监控（→ 由 Stats 替换）,8,8,0,100%,
+17,窗口、提示与统计,8,5,3,62%,PermissionPromptModel; PermissionWindowController; WindowDelegate
+18,系统集成与已处理项,2,0,0,0%,

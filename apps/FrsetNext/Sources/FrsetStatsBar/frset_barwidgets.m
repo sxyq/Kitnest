@@ -28,8 +28,13 @@ FSSnap g_snap;
 CGFloat FSBarWidgetSpacing(void);   // 前向声明（定义见合并间距处）
 #define FS_WIDGET_PAD (MAX(0, (FSBarWidgetSpacing() - 1) * 0.75))
 
+// v126（性能审计 F1631/F1649）：模块列表改为 static 常量——原先每次调用都
+// 分配一个新 NSArray（0.5s tick 内 FSBarReconcile + FSBarMergedLayout 合计调 3+ 次）。
 NSArray<NSString *> *FSBarAllModules(void) {
-    return @[@"CPU", @"RAM", @"GPU", @"Disk", @"Network", @"Sensors", @"Battery"];
+    static NSArray<NSString *> *mods;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ mods = @[@"CPU", @"RAM", @"GPU", @"Disk", @"Network", @"Sensors", @"Battery"]; });
+    return mods;
 }
 
 // 面板模块索引（FSBarOpenMonitor 用）
@@ -46,20 +51,29 @@ static int FSBarModuleIndex(NSString *m) {
 
 // 各模块支持的部件形态（顺序即设置列表顺序；第 1 个接管原生图标位）
 NSArray<NSString *> *FSBarFormsForModule(NSString *m) {
+    // v126（性能审计 F1631/F1649）：形态表改为 dispatch_once 缓存——原先每次调用
+    // 都分配一个新 NSArray 字面量（0.5s tick 内 FSBarEnabledForms 被调 14+ 次）。
     // v89（2026-10-20 用户：「展示方式不够多，原版每个数值都有很多方式」）：
     // 通用形态（迷你/折线/柱状/饼/仪表/环形/波形/点阵/进度条/标签/图标）全模块放开，
     // 模块专属形态（speed/memory/network_chart/battery/state）保持原样。
-    NSArray<NSString *> *common = @[@"mini", @"line_chart", @"bar_chart", @"pie_chart",
-                                    @"tachometer", @"ring", @"wave", @"dots", @"bar",
-                                    @"label", @"icon"];
-    if ([m isEqualToString:@"CPU"])     return @[@"line_chart", @"mini", @"bar_chart", @"pie_chart", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"];
-    if ([m isEqualToString:@"RAM"])     return @[@"bar_chart", @"mini", @"line_chart", @"pie_chart", @"memory", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"];
-    if ([m isEqualToString:@"GPU"])     return @[@"mini", @"line_chart", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"pie_chart", @"label", @"icon"];
-    if ([m isEqualToString:@"Disk"])    return @[@"mini", @"bar_chart", @"network_chart", @"speed", @"pie_chart", @"line_chart", @"memory", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"];
-    if ([m isEqualToString:@"Network"]) return @[@"speed", @"network_chart", @"wave", @"dots", @"state", @"label", @"icon"];
-    if ([m isEqualToString:@"Sensors"]) return @[@"mini", @"ring", @"bar", @"wave", @"dots", @"label", @"icon"];
-    if ([m isEqualToString:@"Battery"]) return @[@"mini", @"battery", @"bar_chart", @"ring", @"wave", @"dots", @"bar", @"state", @"label", @"icon"];
-    return common;
+    static NSDictionary<NSString *, NSArray<NSString *> *> *map;
+    static NSArray<NSString *> *common;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        common = @[@"mini", @"line_chart", @"bar_chart", @"pie_chart",
+                   @"tachometer", @"ring", @"wave", @"dots", @"bar",
+                   @"label", @"icon"];
+        map = @{
+            @"CPU":     @[@"line_chart", @"mini", @"bar_chart", @"pie_chart", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"],
+            @"RAM":     @[@"bar_chart", @"mini", @"line_chart", @"pie_chart", @"memory", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"],
+            @"GPU":     @[@"mini", @"line_chart", @"tachometer", @"ring", @"wave", @"dots", @"bar", @"pie_chart", @"label", @"icon"],
+            @"Disk":    @[@"mini", @"bar_chart", @"network_chart", @"speed", @"pie_chart", @"line_chart", @"memory", @"ring", @"wave", @"dots", @"bar", @"label", @"icon"],
+            @"Network": @[@"speed", @"network_chart", @"wave", @"dots", @"state", @"label", @"icon"],
+            @"Sensors": @[@"mini", @"ring", @"bar", @"wave", @"dots", @"label", @"icon"],
+            @"Battery": @[@"mini", @"battery", @"bar_chart", @"ring", @"wave", @"dots", @"bar", @"state", @"label", @"icon"],
+        };
+    });
+    return map[m] ?: common;
 }
 
 // 形态中文名（设置界面用）
@@ -98,6 +112,10 @@ static NSString *FSBarNativeModule(NSString *autosaveName) {
 // ============ 设置存储（键名对齐 Stats） ============
 
 static NSMutableDictionary *g_cfg = nil;
+// v126（性能审计 F1631/F1649）：配置代数计数器——FSBarEnabledForms 的缓存失效依据。
+// 配置变更（CfgSet / ReloadFromStore / ResetToDefaults）时递增，缓存命中时跳过
+// 字符串分割 + 过滤（原先 0.5s tick 内被调 14+ 次，每次 ~3 次 NSArray 分配）。
+static int g_cfgGen = 0;
 static NSString *FSBarStorePath(void) {
     NSString *dir = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/FrsetStats"];
     [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
@@ -230,6 +248,7 @@ void FSBarCfgSet(NSString *module, NSString *form, NSString *key, id value) {
     NSString *k = FSBarCfgKey(module, form, key);
     if (value == nil) [g_cfg removeObjectForKey:k];
     else g_cfg[k] = value;
+    g_cfgGen++;   // v126：配置变更 → FSBarEnabledForms 缓存失效
     FSBarSaveStore();
 }
 
@@ -255,13 +274,29 @@ int FSBarCfgInt(NSString *module, NSString *form, NSString *key, int def) {
 
 // 该模块启用的形态列表（已过滤到支持的形态）
 NSArray<NSString *> *FSBarEnabledForms(NSString *module) {
+    // v126（性能审计 F1631/F1649）：按模块缓存结果 + 配置代数失效。原先 0.5s tick 内
+    // FSBarReconcile + FSBarMergedLayout 合计调 14+ 次，每次做 dict 查找 + 逗号分割 +
+    // N×containsObject 过滤（约 3 次 NSArray 分配）。缓存命中时直接返回。
+    static NSMutableDictionary<NSString *, NSArray<NSString *> *> *cache;
+    static int cacheGen = -1;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ cache = [NSMutableDictionary dictionary]; });
+    if (cacheGen != g_cfgGen) {
+        [cache removeAllObjects];
+        cacheGen = g_cfgGen;
+    }
+    NSArray<NSString *> *cached = cache[module];
+    if (cached) return cached;
+
     NSString *list = FSBarCfgStr(module, nil, @"widget", @"");
     NSArray *supported = FSBarFormsForModule(module);
     NSMutableArray *out = [NSMutableArray array];
     for (NSString *f in [list componentsSeparatedByString:@","]) {
         if (f.length && [supported containsObject:f] && ![out containsObject:f]) [out addObject:f];
     }
-    return out;
+    NSArray<NSString *> *result = [out copy];
+    cache[module] = result;
+    return result;
 }
 
 void FSBarSetEnabledForms(NSString *module, NSArray<NSString *> *forms) {
@@ -544,8 +579,18 @@ static void FSBarTextCenter(NSString *s, NSDictionary *attrs, CGFloat x, CGFloat
 static void FSBarTextRect(NSString *s, NSDictionary *attrs, NSRect r, NSTextAlignment align) {
     r.origin.x = floor(r.origin.x);
     r.origin.y = floor(r.origin.y);
-    NSMutableParagraphStyle *ps = [[NSMutableParagraphStyle alloc] init];
-    ps.alignment = align;
+    // v129（内存）：段落样式按对齐缓存（只有3 种对齐）——原实现每次文本绘制都
+    // 新建 NSMutableParagraphStyle + mutableCopy attrs（部件每 0.5s tick 重绘 ×
+    // 每部件多次文本调用），是 tick 路径稳定的双份小对象churn。
+    static NSMutableParagraphStyle *leftPS, *centerPS, *rightPS;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        leftPS = [[NSMutableParagraphStyle alloc] init];   leftPS.alignment = NSTextAlignmentLeft;
+        centerPS = [[NSMutableParagraphStyle alloc] init]; centerPS.alignment = NSTextAlignmentCenter;
+        rightPS = [[NSMutableParagraphStyle alloc] init];  rightPS.alignment = NSTextAlignmentRight;
+    });
+    NSMutableParagraphStyle *ps = (align == NSTextAlignmentCenter) ? centerPS
+                                : (align == NSTextAlignmentRight) ? rightPS : leftPS;
     NSMutableDictionary *a = [attrs mutableCopy];
     a[NSParagraphStyleAttributeName] = ps;
     [s drawInRect:r withAttributes:a];
@@ -1473,6 +1518,24 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 }
 
 // ======== 形态 9：battery（Stats Battery.swift：电池壳 + 内填充 + 文本） ========
+// v129（内存）：SF Symbol 图像静态缓存——drawBattery/drawIcon 在每次 drawRect
+// （部件按 updateInterval 每 0.5~1s 重绘）都新建 NSImage(systemSymbolName:) +
+// imageWithSymbolConfiguration，每次重建都触发 CoreSVG 解码（heap：SVGAttribute
+// 27K 个 + SVGPathCommand 23K 个 + CGPath 1.6K 个 ≈ 3.8MB 就是这批符号渲染产物）。
+// 符号内容只依赖 (符号名, 字号, 字重)，缓存后整个 tick 周期零解码。
+static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight weight) {
+    static NSMutableDictionary<NSString *, NSImage *> *cache = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ cache = [NSMutableDictionary dictionary]; });
+    NSString *key = [NSString stringWithFormat:@"%@|%.1f|%.1f", sym, pointSize, (double)weight];
+    NSImage *img = cache[key];
+    if (img) return img;
+    img = [NSImage imageWithSystemSymbolName:sym accessibilityDescription:nil];
+    img = [img imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPointSize:pointSize weight:weight]];
+    if (img) cache[key] = img;
+    return img;
+}
+
 - (void)drawBattery:(NSRect)r dark:(BOOL)dark {
     NSString *disp = FSBarCfgStr(_module, _form, @"display", @"percentage");
     NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
@@ -1481,8 +1544,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     CGFloat x = 0;
     CGFloat y = (r.size.height - Hh) / 2;
     if (_snap.batteryPresent && _snap.batteryCharging) {
-        NSImage *bolt = [NSImage imageWithSystemSymbolName:@"bolt.fill" accessibilityDescription:nil];
-        bolt = [bolt imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPointSize:8 weight:NSFontWeightSemibold]];
+        NSImage *bolt = FSBarSymbolImage(@"bolt.fill", 8, NSFontWeightSemibold);
         [FSBarTextColor(dark) set];
         [bolt drawInRect:NSMakeRect(0, y, 8, Hh) fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:0.8 respectFlipped:YES hints:nil];
         x += 10;
@@ -1549,9 +1611,10 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     // v98（2026-10-21 用户：「状态栏图标显示看不太清晰」）：
     // 14pt Regular 小符号发虚——改 15pt Semibold + 模板着色（跟随前景色），
     // 深浅色都清晰；预览图（FSBarRenderFormPreview）同源自动受益。
+    // v129（内存）：符号图像走 FSBarSymbolImage 静态缓存（每 drawRect 重建
+    // 是 CoreSVG 解码churn 的最大来源，见缓存实现处注释）。
     NSString *sym = FSBarCfgStr(_module, _form, @"icon", [self defaultSymbol]);
-    NSImage *img = [NSImage imageWithSystemSymbolName:sym accessibilityDescription:nil];
-    img = [img imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPointSize:15 weight:NSFontWeightSemibold]];
+    NSImage *img = FSBarSymbolImage(sym, 15, NSFontWeightSemibold);
     img.template = YES;
     NSSize sz = img.size;
     NSPoint p = NSMakePoint((r.size.width - sz.width) / 2, (r.size.height - sz.height) / 2);
@@ -2351,6 +2414,11 @@ static void FSBarKeepAdjacentToMain(void) {
 /// 保邻看守入口（tick 每 0.5s 调；与 length 重排同频；quiet 时不动作）
 void FSBarKeepAdjacentTick(void) {
     if (!g_mergedItem || g_posCalibrating) return;
+    // v125（性能审计 F1641）：空隙已达标时跳过主队列跳。
+    // 原来每 0.5s 无条件 dispatch_async → FSBarKeepAdjacentToMain 内部再判 fabs<=6 早退，
+    // 属「空跳」：白付一次主队列 hop + 函数调用。现把判据提到 dispatch 之前，
+    // 稳态（gap 16±6pt，绝大多数时间）零开销；只在真正需要修正时才进主线程。
+    if (s_screenGap >= 0 && fabs(s_screenGap - kScreenGapTarget) <= 6) return;
     dispatch_async(dispatch_get_main_queue(), ^{ FSBarKeepAdjacentToMain(); });
 }
 
@@ -2685,6 +2753,7 @@ static void FSBarRefreshValues(void) {
 
 void FSBarReloadFromStore(void) {
     FSBarLoadStore();
+    g_cfgGen++;   // v126：配置重载 → FSBarEnabledForms 缓存失效
     FSBarReconcile();
 }
 
@@ -2694,6 +2763,7 @@ void FSBarResetFromStats(void) {
     if (!g_cfg[@"CPU_widget"] && !g_cfg[@"RAM_widget"] && !g_cfg[@"Network_widget"]) {
         FSBarSeedDefaults(g_cfg);   // Stats 不存在时的兜底
     }
+    g_cfgGen++;   // v126：配置重置 → FSBarEnabledForms 缓存失效
     FSBarSaveStore();
     FSBarReconcile();
     NSLog(@"[FrsetStats] 部件设置已从 Stats 重新导入");
@@ -2702,6 +2772,7 @@ void FSBarResetFromStats(void) {
 void FSBarResetToDefaults(void) {
     g_cfg = [NSMutableDictionary dictionary];
     FSBarSeedDefaults(g_cfg);
+    g_cfgGen++;   // v126：配置重置 → FSBarEnabledForms 缓存失效
     FSBarSaveStore();
     FSBarReconcile();
     NSLog(@"[FrsetStats] 部件设置已恢复默认");

@@ -803,14 +803,21 @@ private struct ColorKeyControl: View {
 // MARK: - 形态预览缓存（引擎 FSBarRenderFormPreview 较贵，按 模块/形态/明暗 缓存）
 
 private enum FormPreviewCache {
-    private static var cache: [String: NSImage] = [:]
+    // v128（内存）：无界字典改 NSCache——组合键是 模块/形态/明暗（7×~5×2 ≈ 70 量级），
+    // 单张预览是引擎渲染的位图，字典常驻不释放。上限 32 张足够覆盖可视区，
+    // 系统内存压力下自动淘汰。
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 32
+        return cache
+    }()
 
     static func image(module: String, form: String) -> NSImage? {
         let dark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let key = "\(module)/\(form)/\(dark ? "d" : "l")"
-        if let cached = cache[key] { return cached }
+        let key = "\(module)/\(form)/\(dark ? "d" : "l")" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
         guard let image = FSBarRenderFormPreview(module, form, dark) else { return nil }
-        cache[key] = image
+        cache.setObject(image, forKey: key)
         return image
     }
 }

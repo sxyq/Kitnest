@@ -80,6 +80,18 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         window.contentView = host
+        // v121：文件态窗口高度贴合内容。窗口默认 720×620，而文件预览内容通常只有
+        // 250~420pt，不收缩就会在下面留一大片空白（用户形容"里面啥也没有"）。
+        if item.type == .file {
+            host.layoutSubtreeIfNeeded()
+            let fit = host.fittingSize
+            if fit.height > 40, fit.height < Self.initialSize(for: mode).height {
+                var f = window.frame
+                f.size.height = max(window.minSize.height, fit.height)
+                window.setFrame(f, display: false)
+                Log.info("Preview", "文件态高度自适应：内容 \(Int(fit.height)) → 窗口 \(Int(f.size.height))")
+            }
+        }
         if mode == .persistent {
             window.applyOfficialChrome()   // contentView 已替换 → 圆形关闭钮重新挂上
         }
@@ -238,6 +250,8 @@ struct ClipboardPreviewWindowView: View {
         // v106：hover 态根背景置空，让液态玻璃面透出来（persistent 保留原实底）
         .background(hoverStyle ? Color.clear : Color(nsColor: OfficialChrome.windowBackground))
         .frame(minWidth: 420, minHeight: 320)
+        // v121：内容顶部对齐（原来默认垂直居中，文件态内容少时上下各留一大片空白）
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .modifier(HoverClipModifier(active: hoverStyle))
         // v106 入场动效（GSAP 原则：ease-out 进场、0.96 缩放、0.18s、可中断；
         // 高频 hover 复现同条目时不重播——只在内容安装时播一次）

@@ -450,8 +450,11 @@ final class MenuBarIconStyleApplier {
 
     private func startDateTimer() {
         let timer = Timer(timeInterval: Self.dateRefreshInterval, repeats: true) { _ in
-            guard let button = ToastAnchor.button else { return }
-            button.title = Self.dateFormatter.string(from: Date())
+            // v128（流畅度）：回调体进 autoreleasepool（格式化临时对象随回调排空）
+            autoreleasepool {
+                guard let button = ToastAnchor.button else { return }
+                button.title = Self.dateFormatter.string(from: Date())
+            }
         }
         RunLoop.main.add(timer, forMode: .common)
         dateTimer = timer
@@ -487,7 +490,8 @@ final class MenuBarIconStyleApplier {
         }
 
         let timer = Timer(timeInterval: Self.cpuSampleInterval, repeats: true) { [weak self] _ in
-            self?.updateFanSpeed()
+            // v128（流畅度）：回调体进 autoreleasepool（CPU 采样的临时对象随回调排空）
+            autoreleasepool { self?.updateFanSpeed() }
         }
         RunLoop.main.add(timer, forMode: .common)
         cpuTimer = timer

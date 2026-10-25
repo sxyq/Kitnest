@@ -42,6 +42,10 @@ public final class MonitorSampler: ObservableObject {
     private let lock = NSLock()
 
     private var buffers = Buffers()
+    // v129（内存）：History 快照双缓冲（见 sampleOnce 内注释）
+    private var scratchA = History()
+    private var scratchB = History()
+    private var scratchIndex = 0
     private var pendingWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
 
@@ -122,6 +126,11 @@ public final class MonitorSampler: ObservableObject {
         pendingWork?.cancel()
         pendingWork = nil
         lock.unlock()
+        // v128（CPU 优化）：采样器停机（监测模块关闭）时连带暂停 C 层后台采样线程，
+        // 否则 conn（1 包/秒 ICMP）与 nettop（5s 轮询）在无人消费时继续常驻。
+        // 重新 start() 后由下一次 refresh(uiActive:) 恢复。
+        frset_conn_set_active(0)
+        frset_net_top_set_active(0)
         DispatchQueue.main.async { [weak self] in self?.isRunning = false }
     }
 
@@ -188,12 +197,23 @@ public final class MonitorSampler: ObservableObject {
         StatsDataProvider.shared.refresh(uiActive: uiActive)
         let t1 = probe ? DispatchTime.now().uptimeNanoseconds : 0
 
-        let result = reader.readResult()
+        // v125（性能审计 F0858/F0860/F0861/F0864/F0866）：先查 g_snap 有效性再决定
+        // 读取深度。CPU / 内存已用 / 网络 / 磁盘 / 电池 5 组随后会被 g_snap 整体覆盖，
+        // 属冗余采集（实测 0.7ms/tick）。g_snap 有效（绝大多数 tick）时跳过这 5 路，
+        // 只补温度/功耗/内存压力/交换/压缩内存——省掉 host_processor_info + sysctl +
+        // IOKit 磁盘 + IOKit 电池共 4 类系统调用。
+        // 注：g_snap 在主线程 0.5s 更新，此处后台读取；arm64 上 8 字节标量读写原子，
+        // 最坏情况是拿到相邻两 tick 的混合快照（≤0.5s），不影响观感与正确性。
+        let cSnap = g_snap
+        let gSnapValid = (cSnap.valid != 0)
+
+        let result = reader.readResult(needFull: !gSnapValid)
         let t2 = probe ? DispatchTime.now().uptimeNanoseconds : 0
         if probe {
             let ms = { (a: UInt64, b: UInt64) in Double(b - a) / 1_000_000 }
-            Log.info("Perf", String(format: "tick refresh=%.2fms read=%.2fms total=%.2fms",
-                                   ms(t0, t1), ms(t1, t2), ms(t0, t2)))
+            Log.info("Perf", String(format: "tick refresh=%.2fms read=%.2fms total=%.2fms gSnap=%@",
+                                   ms(t0, t1), ms(t1, t2), ms(t0, t2),
+                                   gSnapValid ? "valid(skip5)" : "invalid(full)"))
         }
         var sample = result.sample
         // v76（全盘统一数据源，2026-10-19）：菜单栏部件显示的数值来自 C 引擎
@@ -201,10 +221,7 @@ public final class MonitorSampler: ObservableObject {
         // 再采一份，同一时刻两条时间线的数值会不同（用户反复反馈的「两套时间」）。
         // 核心指标直接采用同一份 g_snap：状态栏部件 / 主面板性能页 / 状态栏独立窗
         // 从此显示同一时刻的同一组数值；其余字段（温度/功耗/内存压力/交换）仍走本采样。
-        // 注：g_snap 在主线程 0.5s 更新，此处后台读取；arm64 上 8 字节标量读写原子，
-        // 最坏情况是拿到相邻两 tick 的混合快照（≤0.5s），不影响观感与正确性。
-        let cSnap = g_snap
-        if cSnap.valid != 0 {
+        if gSnapValid {
             sample.cpuUsage = cSnap.cpuUsage
             sample.systemCPU = cSnap.cpuSystem
             sample.userCPU = cSnap.cpuUser
@@ -240,18 +257,40 @@ public final class MonitorSampler: ObservableObject {
         buffers.diskWrite.append(Double(sample.diskWrite))
         let gpuUsage = StatsDataProvider.shared.current.gpuUsage
         buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : 0)
-        var snapshot = History()
-        snapshot.cpu = buffers.cpu.values()
-        snapshot.memory = buffers.memory.values()
-        snapshot.netDownload = buffers.netDownload.values()
-        snapshot.netUpload = buffers.netUpload.values()
-        snapshot.diskRead = buffers.diskRead.values()
-        snapshot.diskWrite = buffers.diskWrite.values()
-        snapshot.gpu = buffers.gpu.values()
+        // v129（内存）：History 快照双缓冲轮换——每 tick 7 个 values() 新数组
+        //（480B×7 + History 结构拷贝）改为复用两个 scratch 的底座；
+        // 交替发布后旧快照已释放（refcount 回 1），回填即原地写
+        //（removeAll(keepingCapacity:)），稳态零分配，砍掉每 tick 7 个小数组
+        //（32B/48B 直方图峰值源之一）。
+        scratchIndex ^= 1
+        let snapshot: History
+        if scratchIndex == 0 {
+            buffers.cpu.values(into: &scratchA.cpu)
+            buffers.memory.values(into: &scratchA.memory)
+            buffers.netDownload.values(into: &scratchA.netDownload)
+            buffers.netUpload.values(into: &scratchA.netUpload)
+            buffers.diskRead.values(into: &scratchA.diskRead)
+            buffers.diskWrite.values(into: &scratchA.diskWrite)
+            buffers.gpu.values(into: &scratchA.gpu)
+            snapshot = scratchA
+        } else {
+            buffers.cpu.values(into: &scratchB.cpu)
+            buffers.memory.values(into: &scratchB.memory)
+            buffers.netDownload.values(into: &scratchB.netDownload)
+            buffers.netUpload.values(into: &scratchB.netUpload)
+            buffers.diskRead.values(into: &scratchB.diskRead)
+            buffers.diskWrite.values(into: &scratchB.diskWrite)
+            buffers.gpu.values(into: &scratchB.gpu)
+            snapshot = scratchB
+        }
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）
+        // v129（内存）：两次 MonitorExtra.update 合并为一次（原来峰值段/累计段
+        // 各拿一次锁、各包一个闭包，每 tick 双份）。
         let previousPeaks = MonitorExtra.current
+        let netIn = UInt64(max(0, Double(sample.netDownload) * MonitorPreferences.refreshInterval))
+        let netOut = UInt64(max(0, Double(sample.netUpload) * MonitorPreferences.refreshInterval))
         MonitorExtra.update { extra in
             extra.compressedMemory = result.compressedMemory
             extra.loadAverages = loadAverages
@@ -260,11 +299,9 @@ public final class MonitorSampler: ObservableObject {
             extra.diskPeakRead = max(previousPeaks.diskPeakRead, sample.diskRead)
             extra.diskPeakWrite = max(previousPeaks.diskPeakWrite, sample.diskWrite)
             extra.updatedAt = Date()
-        }
-        // 累计流量（自本进程启动起累加，重启清零）
-        MonitorExtra.update { extra in
-            extra.netTotalIn += UInt64(max(0, Double(sample.netDownload) * MonitorPreferences.refreshInterval))
-            extra.netTotalOut += UInt64(max(0, Double(sample.netUpload) * MonitorPreferences.refreshInterval))
+            // 累计流量（自本进程启动起累加，重启清零）
+            extra.netTotalIn += netIn
+            extra.netTotalOut += netOut
         }
 
         DispatchQueue.main.async { [weak self] in

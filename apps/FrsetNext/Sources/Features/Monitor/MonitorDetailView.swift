@@ -605,7 +605,7 @@ public struct MonitorDetailView: View {
         return VStack(alignment: .leading, spacing: 10) {
             if temperatures.isEmpty && !hasDeep {
                 VStack(alignment: .leading, spacing: 6) {
-                    Image(systemName: "thermometer.slash")
+                    Image(systemName: "thermometer.medium.slash")
                         .font(.system(size: 20))
                         .foregroundStyle(.secondary)
                     Text("未获取到传感器数据")

@@ -185,7 +185,9 @@ public final class LanTransferServer: ObservableObject {
         _tokenCache = value
         return value
     }
-    static func invalidateTokenCache() { _tokenCache = nil }
+    // v125：删掉 invalidateTokenCache（死代码）——regenerateToken 直接写 _tokenCache，
+    // 全工程无外部写入方（Grep 验证 lanToken 仅 loadToken 读 / regenerateToken 写），
+    // 失效器从未被调用。cache 只在「首次读」和「重新生成」两个时点被赋值，无需失效。
 
     private static func loadToken() -> String {
         let key = TransferDockPref.lanToken

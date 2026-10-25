@@ -48,12 +48,15 @@ public final class TagStore: ObservableObject {
     /// 给查询出来的条目填充 tagIDs（批量，无 N+1）
     public func attachTags(to items: inout [ClipboardItem]) {
         guard !items.isEmpty else { return }
+        // v126（性能审计 F0769）：去掉整表快照复制。
+        // 原实现 `let snapshot = mapping` 在每次 fetch（首页 200 条）都把整个
+        // [dedupeKey: [tagID]] 字典做一次值语义拷贝；改为持锁就地查表，
+        // 拷贝量从 O(mapping 全表) 降为 0（锁内只做 items.count 次字典查找）。
         lock.lock()
-        let snapshot = mapping
-        lock.unlock()
         for index in items.indices {
-            items[index].tagIDs = snapshot[items[index].dedupeKey] ?? []
+            items[index].tagIDs = mapping[items[index].dedupeKey] ?? []
         }
+        lock.unlock()
     }
 
     public func tags(for dedupeKey: String) -> [Tag] {
@@ -104,14 +107,36 @@ public final class TagStore: ObservableObject {
     // MARK: 分配
 
     public func assign(tagID: String, toDedupeKey key: String) {
-        try? db.run("INSERT OR IGNORE INTO clipboard_item_tags(item_dedupe_key, tag_id, created_at) VALUES (?,?,?)",
-                    [.text(key), .text(tagID), .real(Date().timeIntervalSince1970)])
-        refresh()
+        do {
+            try db.run("INSERT OR IGNORE INTO clipboard_item_tags(item_dedupe_key, tag_id, created_at) VALUES (?,?,?)",
+                       [.text(key), .text(tagID), .real(Date().timeIntervalSince1970)])
+            // v126（性能审计 F0769）：增量维护内存索引，免去全表 refresh。
+            // 原实现每次分配/取消都 reload tags 全表 + clipboard_item_tags 全表（主线程 UI 动作触发），
+            // 而 assign/unassign 只改一条关联行、tags 列表根本没变——直接就地更新 mapping 即可。
+            lock.lock()
+            var list = mapping[key] ?? []
+            if !list.contains(tagID) { list.append(tagID) }
+            mapping[key] = list
+            lock.unlock()
+        } catch {
+            // 失败时不做增量（保持 mapping 与库一致），下次 refresh 兜底
+            Log.warn("clipboard", "标签分配失败: \(error)")
+        }
     }
 
     public func unassign(tagID: String, fromDedupeKey key: String) {
-        try? db.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ? AND tag_id = ?", [.text(key), .text(tagID)])
-        refresh()
+        do {
+            try db.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ? AND tag_id = ?", [.text(key), .text(tagID)])
+            // v126（性能审计 F0769）：同 assign，增量摘除代替全表 refresh
+            lock.lock()
+            if var list = mapping[key] {
+                list.removeAll { $0 == tagID }
+                if list.isEmpty { mapping.removeValue(forKey: key) } else { mapping[key] = list }
+            }
+            lock.unlock()
+        } catch {
+            Log.warn("clipboard", "标签取消失败: \(error)")
+        }
     }
 
     /// 菜单勾选用：已分配则取消，否则分配

@@ -91,22 +91,35 @@ public final class SQLiteDatabase {
         }
         defer { sqlite3_finalize(s) }
         bindValues(s, values)
+        // v126（性能审计 F1790）：循环内不变量外提——列名与 statement 绑定、与行无关，
+        // 原来在**每行每列**都 `String(cString: sqlite3_column_name)` 重建一次同样的
+        // 字符串（N 行 × C 列 = N*C 次分配）。提到循环外只建一次；行字典同时预分配容量。
+        let count = sqlite3_column_count(s)
+        let countInt = Int(count)
+        var names: [String] = []
+        names.reserveCapacity(countInt)
+        for i in 0..<countInt {
+            if let cName = sqlite3_column_name(s, Int32(i)) {
+                names.append(String(cString: cName))
+            } else {
+                names.append("c\(i)")
+            }
+        }
         var rows: [[String: SQLiteValue]] = []
         while sqlite3_step(s) == SQLITE_ROW {
-            let count = sqlite3_column_count(s)
             var row: [String: SQLiteValue] = [:]
-            for i in 0..<count {
-                guard let cName = sqlite3_column_name(s, i) else { continue }
-                let name = String(cString: cName)
-                switch sqlite3_column_type(s, i) {
-                case SQLITE_INTEGER: row[name] = .int(sqlite3_column_int64(s, i))
-                case SQLITE_FLOAT:   row[name] = .real(sqlite3_column_double(s, i))
+            row.reserveCapacity(countInt)
+            for i in 0..<countInt {
+                let name = names[i]
+                switch sqlite3_column_type(s, Int32(i)) {
+                case SQLITE_INTEGER: row[name] = .int(sqlite3_column_int64(s, Int32(i)))
+                case SQLITE_FLOAT:   row[name] = .real(sqlite3_column_double(s, Int32(i)))
                 case SQLITE_TEXT:
-                    if let p = sqlite3_column_text(s, i) { row[name] = .text(String(cString: p)) }
+                    if let p = sqlite3_column_text(s, Int32(i)) { row[name] = .text(String(cString: p)) }
                     else { row[name] = .null }
                 case SQLITE_BLOB:
-                    let n = Int(sqlite3_column_bytes(s, i))
-                    if let p = sqlite3_column_blob(s, i) { row[name] = .blob(Data(bytes: p, count: n)) }
+                    let n = Int(sqlite3_column_bytes(s, Int32(i)))
+                    if let p = sqlite3_column_blob(s, Int32(i)) { row[name] = .blob(Data(bytes: p, count: n)) }
                     else { row[name] = .null }
                 default: row[name] = .null
                 }
@@ -347,6 +360,8 @@ public enum AnalyticsEvent: String, CaseIterable {
     // 原版 59 键里没有这些功能，故不占用原版键位，直接追加（snake_case 自动派生）。
     case pinImage, longScreenshot, annotateEdit, screenRecord
     case monitorPanelOpen, transferDockOpen, clipboardPaste
+    // v114（2026-10-25 用户需求「投屏从文件中转拆出」）：投屏页打开事件
+    case screenCastOpen
     // v95（2026-10-21 用户：「使用统计要接入下载等功能」）
     case fileDownload, fileTransferSend, fileTransferReceive
 
@@ -580,10 +595,27 @@ public final class StatisticsManager {
     // MARK: 工具
 
     /// day 串格式 = yyyy-MM-dd（TimeZone.current，D7 小字符串立即数实证）
+    ///
+    /// v126（性能审计 F1805/F1806/F1807/F1808 + F1275）：DateFormatter 复用——
+    /// 原实现**每次调用都 new 一个 DateFormatter**（初始化要装载 locale/ICU 表，是重量级
+    /// 操作）。统计窗一次 body 求值会走1200+ 次（活动矩阵 60×7 格 × body 内 3 处求值），
+    /// 是实测卡顿主因。`static let` 初始化线程安全，之后只读复用（NSDateFormatter 自
+    /// macOS 10.9 起读取线程安全）；仅在系统时区被用户改掉的极低频场景回落新建。
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        return f
+    }()
+
     public static func dayString(from date: Date = Date()) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-        fmt.timeZone = TimeZone.current
+        let fmt = dayFormatter
+        if fmt.timeZone?.identifier != TimeZone.current.identifier {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            f.timeZone = .current
+            return f.string(from: date)
+        }
         return fmt.string(from: date)
     }
 }

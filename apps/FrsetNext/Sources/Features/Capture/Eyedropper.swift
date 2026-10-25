@@ -5,6 +5,12 @@ import CoreGraphics
 
 /// 取色视图：全屏透明层，跟随光标显示放大镜与色值，点击取色并复制 HEX
 final class EyedropperView: NSView {
+    /// v126（性能审计 F0343）：缓存标签字体与属性字典，避免 draw 每帧重建
+    private static let labelFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+    private static let labelAttrs: [NSAttributedString.Key: Any] = [
+        .font: labelFont,
+        .foregroundColor: NSColor.white
+    ]
     /// 屏幕快照（设备像素）
     private let snapshot: CGImage?
     /// 快照对应的像素缓冲（读单点颜色用）
@@ -101,6 +107,26 @@ final class EyedropperView: NSView {
                                   height: clamped.height / side * loupeSize)
                 ctx.draw(piece, in: dest)
             }
+            // v130（SnowShot 对齐）⑥：放大镜像素网格——每格 = 1 个屏幕像素（zoom≥6 时
+            // 格宽 ≥6pt，网格线可读），看清像素边界再取色
+            if zoom >= 6 {
+                ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.22))
+                ctx.setLineWidth(0.5)
+                ctx.beginPath()
+                var gx = loupe.minX
+                while gx <= loupe.maxX + 0.5 {
+                    ctx.move(to: CGPoint(x: gx, y: loupe.minY))
+                    ctx.addLine(to: CGPoint(x: gx, y: loupe.maxY))
+                    gx += zoom
+                }
+                var gy = loupe.minY
+                while gy <= loupe.maxY + 0.5 {
+                    ctx.move(to: CGPoint(x: loupe.minX, y: gy))
+                    ctx.addLine(to: CGPoint(x: loupe.maxX, y: gy))
+                    gy += zoom
+                }
+                ctx.strokePath()
+            }
         }
 
         // 中心十字
@@ -117,10 +143,8 @@ final class EyedropperView: NSView {
 
         // 色值标签：#RRGGBB / R,G,B
         let text = "\(Self.hex(of: color))   \(Self.rgbText(of: color))" as NSString
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.white
-        ]
+        // v126（性能审计 F0343）：复用静态缓存属性字典
+        let attrs = Self.labelAttrs
         let size = text.size(withAttributes: attrs)
         var labelY = loupe.minY - 26
         if labelY < 0 { labelY = loupe.maxY + 6 }
@@ -189,17 +213,26 @@ public final class Eyedropper: ObservableObject {
     @Published public var hex: String = ""
     @Published public var rgbText: String = ""
     @Published public var message: String?
+    /// v130（SnowShot 对齐）⑥：取色历史（最近 10 个 HEX，最新在前，落 UserDefaults）
+    @Published public private(set) var recentColors: [String] = []
 
     private var window: EyedropperWindow?
     /// 程序化取色的挂起回调（同一时刻至多一个）
     private var pendingPick: ((String?) -> Void)?
+    /// v130⑥：手动取色（start）完成后弹色值面板；程序化取色（pickColor）不弹
+    private var wantsValuePanel = false
 
-    private init() {}
+    private static let keyRecentColors = "capture.eyedropper.recent"
+
+    private init() {
+        recentColors = UserDefaults.standard.stringArray(forKey: Self.keyRecentColors) ?? []
+    }
 
     /// 开始取色（鼠标所在屏幕）
     public func start() {
         // 手动取色会顶掉可能挂起的程序化请求，先以 nil 收尾，避免 continuation 悬挂
         resolvePending(nil)
+        wantsValuePanel = true
         Task { @MainActor in
             // v32：权限以真实抓屏能力为准（preflight 会假阴性，见 ScreenshotManager.probePermission）
             guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
@@ -215,6 +248,7 @@ public final class Eyedropper: ObservableObject {
     public func pickColor(completion: @escaping (String?) -> Void) {
         // 上一个请求若仍挂起，先以 nil 结束（不能让它悬挂）
         resolvePending(nil)
+        wantsValuePanel = false   // v130⑥：程序化取色不弹色值面板
 
         Task { @MainActor in
             guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
@@ -269,6 +303,12 @@ public final class Eyedropper: ObservableObject {
                 CaptureEventBus.onColorPicked?(hex)
                 Toast.show("颜色已复制 \(hex)", icon: "checkmark.circle.fill")   // spec 13 §4：取色成功场景
                 self.message = "已复制 \(hex)"
+                // v130（SnowShot 对齐）⑥：入取色历史（最近 10 个）+ 弹色值面板
+                self.pushRecentColor(hex)
+                if self.wantsValuePanel {
+                    ColorValuePanelController.shared.show(color: color,
+                                                          recentColors: self.recentColors)
+                }
             } else {
                 self.message = nil
             }
@@ -286,6 +326,15 @@ public final class Eyedropper: ObservableObject {
         let pending = pendingPick
         pendingPick = nil
         pending?(hex)
+    }
+
+    /// v130（SnowShot 对齐）⑥：取色历史入栈（去重置顶，上限 10，落盘持久化）
+    private func pushRecentColor(_ hex: String) {
+        var list = recentColors.filter { $0.caseInsensitiveCompare(hex) != .orderedSame }
+        list.insert(hex, at: 0)
+        if list.count > 10 { list = Array(list.prefix(10)) }
+        recentColors = list
+        UserDefaults.standard.set(list, forKey: Self.keyRecentColors)
     }
 
     /// 复制 HEX 到剪贴板

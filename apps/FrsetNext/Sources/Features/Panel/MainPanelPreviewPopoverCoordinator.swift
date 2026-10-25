@@ -126,7 +126,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     private var sessionID = UUID()                        // F9 __previewSessionID
     private var hoverStartedAt: Date?
     private var isPreviewPopoverHovered = false           // F4 __isPreviewPopoverHovered
-    private var cancellables = Set<AnyCancellable>()
+    // v126（性能审计 死代码复审）：删除死属性 cancellables（Set<AnyCancellable>，
+    // 全工程无 store(in:) 订阅引用，Combine import 保留供后续订阅使用）
     private var pendingCloseCompletion: (() -> Void)?
     private var escapeMonitor: Any?
 

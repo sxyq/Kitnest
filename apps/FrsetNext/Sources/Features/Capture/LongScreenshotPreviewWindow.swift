@@ -204,7 +204,7 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
                       let image = doc.scrollView.document?.image,
                       let data = ImageProcessor.pngData(image),
                       let url = ScreenshotManager.shared.savePNG(data) else { return }
-                ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true)
+                ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true, mode: "long")   // v130②
             },
             onCopy: { [weak self] in
                 guard let self = self, let doc = self.window?.contentView as? LongScreenshotEditorContainerView,

@@ -1,0 +1,171 @@
+[
+ {
+  "no": 1,
+  "name": "应用生命周期与启动",
+  "total": 11,
+  "covered": 6,
+  "gap": 5,
+  "gap_classes": [
+   "ReviewRequestCoordinator",
+   "WelcomeWindowController",
+   "WelcomeWindowDelegate",
+   "WhatsNewPresenter",
+   "WhatsNewStore"
+  ]
+ },
+ {
+  "no": 2,
+  "name": "菜单栏体系",
+  "total": 7,
+  "covered": 7,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 3,
+  "name": "主面板 FloatingPanel",
+  "total": 12,
+  "covered": 12,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 4,
+  "name": "剪贴板体系（最大模块，~35 类）",
+  "total": 33,
+  "covered": 32,
+  "gap": 1,
+  "gap_classes": [
+   "WindowDelegate"
+  ]
+ },
+ {
+  "no": 5,
+  "name": "截图体系",
+  "total": 12,
+  "covered": 12,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 6,
+  "name": "OCR 体系",
+  "total": 10,
+  "covered": 10,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 7,
+  "name": "长截图体系",
+  "total": 7,
+  "covered": 7,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 8,
+  "name": "钉图体系",
+  "total": 5,
+  "covered": 4,
+  "gap": 1,
+  "gap_classes": [
+   "ScaleMenuButton"
+  ]
+ },
+ {
+  "no": 9,
+  "name": "AI 体系 🔶（设置里有「AI 服务商」页）",
+  "total": 20,
+  "covered": 19,
+  "gap": 1,
+  "gap_classes": [
+   "PromptTextView"
+  ]
+ },
+ {
+  "no": 10,
+  "name": "工具箱体系",
+  "total": 43,
+  "covered": 42,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 11,
+  "name": "搜索体系",
+  "total": 5,
+  "covered": 3,
+  "gap": 2,
+  "gap_classes": [
+   "SearchBarMouseWheelController",
+   "SearchInputScrollController"
+  ]
+ },
+ {
+  "no": 12,
+  "name": "日历体系",
+  "total": 8,
+  "covered": 7,
+  "gap": 1,
+  "gap_classes": [
+   "CursorRegionView"
+  ]
+ },
+ {
+  "no": 13,
+  "name": "快捷键体系",
+  "total": 4,
+  "covered": 4,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 14,
+  "name": "设置体系",
+  "total": 7,
+  "covered": 4,
+  "gap": 3,
+  "gap_classes": [
+   "SettingsConfettiHostingView",
+   "SettingsConfettiOverlayView",
+   "SettingsFocusSentinelNSView"
+  ]
+ },
+ {
+  "no": 15,
+  "name": "数据层",
+  "total": 0,
+  "covered": 0,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 16,
+  "name": "系统监控（→ 由 Stats 替换）",
+  "total": 8,
+  "covered": 8,
+  "gap": 0,
+  "gap_classes": []
+ },
+ {
+  "no": 17,
+  "name": "窗口、提示与统计",
+  "total": 8,
+  "covered": 5,
+  "gap": 3,
+  "gap_classes": [
+   "PermissionPromptModel",
+   "PermissionWindowController",
+   "WindowDelegate"
+  ]
+ },
+ {
+  "no": 18,
+  "name": "系统集成与已处理项",
+  "total": 2,
+  "covered": 0,
+  "gap": 0,
+  "gap_classes": []
+ }
+]

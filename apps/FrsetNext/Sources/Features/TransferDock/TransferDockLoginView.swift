@@ -21,7 +21,7 @@ struct TransferDockLoginView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Image(systemName: "person.crop.circle.badge.key")
+                Image(systemName: "person.badge.key")
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
                 Text("登录文件中转账号")
@@ -98,8 +98,11 @@ private struct TransferDockWebView: NSViewRepresentable {
             self.webView = webView
             onProgress("请在页面里输入账号密码")
             // 轮询 cookie：登录成功后官方前端会写入 OCLOUD_ACCESS_TOKEN
+            // v128（流畅度）：生命周期已与登录页绑定——makeNSView 起、dismantleNSView 停，
+            // 关闭登录窗即彻底停止，不存在常驻成本。回调体补 autoreleasepool
+            // （getAllCookies 的桥接对象随回调排空，不等 runloop）。
             timer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
-                self?.checkCookies()
+                autoreleasepool { self?.checkCookies() }
             }
             RunLoop.main.add(timer!, forMode: .common)
         }

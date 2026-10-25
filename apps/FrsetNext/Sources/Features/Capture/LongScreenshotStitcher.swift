@@ -218,13 +218,15 @@ final class LongScreenshotStitcher {
     @discardableResult
     func append(frame: CGImage, hintDX: Double, hintDY: Double, scale: Double) -> Bool {
         // ① 恒等帧剔除（全帧签名，@0x100436cf0）
+        // v126（性能审计 F0399）：graySignature 只算一次，避免重复 CGImage→灰度缩放
+        let newSig = Self.graySignature(frame, width: Self.identitySignatureWidth)
         if let last = lastIdentitySignature,
-           let sig = Self.graySignature(frame, width: Self.identitySignatureWidth),
+           let sig = newSig,
            Self.meanAbsDiff(sig, last) < Self.identityThreshold {
             lastIdentitySignature = sig
             return false
         }
-        lastIdentitySignature = Self.graySignature(frame, width: Self.identitySignatureWidth)
+        lastIdentitySignature = newSig
 
         // 首帧：直接作为画布（世界原点即首帧左上角）
         guard let base = canvas else {
@@ -250,7 +252,7 @@ final class LongScreenshotStitcher {
         // ② 二级对齐搜索
         let band = min(Int(max(abs(hintDX), abs(hintDY)) * scale * Self.bandDeltaScale) + Self.bandBaseRows,
                        Self.bandMaxRows)
-        guard let curBuf = canvasBuf, let curSmall = canvasSmall else { return false }
+        // v126（性能审计 F0399）：去掉冗余二次解包（上方已有 curBuf/curSmall）
         guard let offset = Self.searchOffset(canvasBuf: curBuf,
                                              canvasSmall: curSmall,
                                              canvasOriginX: canvasOriginX,
@@ -339,12 +341,14 @@ final class LongScreenshotStitcher {
         // 帧在降采样空间的大小
         let fsW = frameSmall.w, fsH = frameSmall.h
 
+        // v126（性能审计 F0400）：循环不变量外提——canvas 原点换算只算一次
+        let cx = canvasOriginX / f
+        let cy = canvasOriginY / f
+
         func coarseScore(_ dx: Int, _ dy: Int) -> Double {
             // 帧世界位置（像素）→ 降采样空间
             let fx = (lastFrameX + dx) / f
             let fy = (lastFrameY + dy) / f
-            let cx = canvasOriginX / f
-            let cy = canvasOriginY / f
             // 帧相对画布的重叠（降采样坐标系）
             let ox = max(fx, cx), oy = max(fy, cy)
             let or = min(fx + fsW, cx + canvasSmall.w)
@@ -357,11 +361,13 @@ final class LongScreenshotStitcher {
         }
 
         // A) 粗搜（零中心 ±band/4 格），收集全部候选
+        // v126（性能审计 F0400）：循环边界 band/f 外提
+        let bandF = band / f
         var candidates: [(dx: Int, dy: Int, score: Double)] = []
-        var dy = -(band / f)
-        while dy <= band / f {
-            var dx = -(band / f)
-            while dx <= band / f {
+        var dy = -bandF
+        while dy <= bandF {
+            var dx = -bandF
+            while dx <= bandF {
                 let s = coarseScore(dx * f, dy * f)
                 if s < .greatestFiniteMagnitude {
                     candidates.append((dx * f, dy * f, s))
@@ -375,6 +381,10 @@ final class LongScreenshotStitcher {
 
         // B) 全分辨率精修：粗搜 top-N 候选各 ±fineRadius 逐像素评分（降采样空间的
         //    半格偏差无法区分真伪，真值常落在次优候选的邻域内）
+        // v126（性能审计 F0400）：热路径属性访问外提为局部常量，减少间接寻址
+        let fbW = frameBuf.w, fbH = frameBuf.h
+        let cbW = canvasBuf.w, cbH = canvasBuf.h
+        let fbBytes = frameBuf.bytes, cbBytes = canvasBuf.bytes
         var fineDx = candidates[0].dx, fineDy = candidates[0].dy
         var bestScore = Double.greatestFiniteMagnitude
         let seeds = candidates.prefix(Self.fineSeedCount)
@@ -383,20 +393,20 @@ final class LongScreenshotStitcher {
                 for ddx in (seed.dx - Self.fineRadius)...(seed.dx + Self.fineRadius) {
                 let fx = lastFrameX + ddx, fy = lastFrameY + ddy
                 let ox = max(fx, canvasOriginX), oy = max(fy, canvasOriginY)
-                let or = min(fx + frameBuf.w, canvasOriginX + canvasBuf.w)
-                let ob = min(fy + frameBuf.h, canvasOriginY + canvasBuf.h)
+                let or = min(fx + fbW, canvasOriginX + cbW)
+                let ob = min(fy + fbH, canvasOriginY + cbH)
                 guard or - ox >= Self.minOverlapRows, ob - oy >= Self.minOverlapRows else { continue }
                 var sum = 0, count = 0
                 var y = oy
                 while y < ob {
-                    let srcRow = (y - fy) * frameBuf.w + (ox - fx)
-                    let dstRow = (y - canvasOriginY) * canvasBuf.w + (ox - canvasOriginX)
+                    let srcRow = (y - fy) * fbW + (ox - fx)
+                    let dstRow = (y - canvasOriginY) * cbW + (ox - canvasOriginX)
                     var x = 0
                     while x < or - ox {
                         let a = srcRow + x, b = dstRow + x
-                        let dr = Int(frameBuf.bytes[a * 4]) - Int(canvasBuf.bytes[b * 4])
-                        let dg = Int(frameBuf.bytes[a * 4 + 1]) - Int(canvasBuf.bytes[b * 4 + 1])
-                        let db = Int(frameBuf.bytes[a * 4 + 2]) - Int(canvasBuf.bytes[b * 4 + 2])
+                        let dr = Int(fbBytes[a * 4]) - Int(cbBytes[b * 4])
+                        let dg = Int(fbBytes[a * 4 + 1]) - Int(cbBytes[b * 4 + 1])
+                        let db = Int(fbBytes[a * 4 + 2]) - Int(cbBytes[b * 4 + 2])
                         sum += abs(dr) + abs(dg) + abs(db)
                         count += 3
                         x += 2

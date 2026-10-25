@@ -364,9 +364,13 @@ final class NetworkDiagnostics: ObservableObject {
         }.resume()
     }
 
+    // v126（性能审计 F0924）：正则编译缓存——NSRegularExpression(pattern:) 代价高（编译+JIT），
+    // 模式固定不变，static 缓存后仅首次编译一次。
+    private static let ipRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"#)
+
     private static func extractIP(from text: String) -> String? {
-        let pattern = #"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = ipRegex,
               let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) else {
             return nil
         }

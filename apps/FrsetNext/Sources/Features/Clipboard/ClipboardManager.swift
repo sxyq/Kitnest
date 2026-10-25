@@ -106,6 +106,10 @@ public final class ClipboardManager: ObservableObject {
     public static let selfWriteTokenTTL: TimeInterval = 5.0
     /// 主列表分页大小
     public static let pageSize: Int = ClipboardRepository.defaultPageSize
+    // v128（内存优化）：items 驻留硬上限。翻页是「从头拉 pageSize×(page+1) 条」累积模型，
+    // 用户深翻页时 items 无限涨（每条最多内联 64KB 文本 + 标签）。上限 800 条（4 页），
+    // 超出丢弃最旧（timestamp DESC 尾部）；到顶后不再触发翻页（见 loadMoreIfNeeded）。
+    public static let maxResidentItems: Int = 800
     /// 长文本落盘阈值：超过 64KB 写 texts/，避免大字符串常驻数据库与内存
     public static let inlineTextByteLimit: Int = 64 * 1024
     /// 超阈值时内联保留的预览长度
@@ -207,31 +211,35 @@ public final class ClipboardManager: ObservableObject {
     }
 
     private func poll() {
-        let pasteboard = NSPasteboard.general
-        // changeCount 双读比对（原作 0x10016cc40 防撕裂模式）：读取期间变化 → 重试下一拍
-        let first = pasteboard.changeCount
-        guard first == pasteboard.changeCount else {
-            scheduleRetry()
-            return
-        }
-        guard first != lastChangeCount else { return }
-        // 暂停记录：只同步 changeCount，不 ingest（恢复后不回补暂停期间内容）
-        guard !isRecordingPaused else {
+        // v128（内存优化）：外层包 autoreleasepool，防 0.5s 突发轮询下
+        // NSPasteboard 读取产生的 NSString/NSData autorelease 对象堆积
+        autoreleasepool {
+            let pasteboard = NSPasteboard.general
+            // changeCount 双读比对（原作 0x10016cc40 防撕裂模式）：读取期间变化 → 重试下一拍
+            let first = pasteboard.changeCount
+            guard first == pasteboard.changeCount else {
+                scheduleRetry()
+                return
+            }
+            guard first != lastChangeCount else { return }
+            // 暂停记录：只同步 changeCount，不 ingest（恢复后不回补暂停期间内容）
+            guard !isRecordingPaused else {
+                lastChangeCount = first
+                return
+            }
+            // 自写回声抑制：粘贴板仍带本会话 selfwrite-token 标记且未过 TTL → 跳过；
+            // TTL 过期后按新内容入库（spec 14 验收对照）；标记被外部覆盖（无 token/异 token）→ 正常捕获
+            if first == lastSelfWriteChangeCount,
+               let token = lastSelfWriteToken, Date() < lastSelfWriteExpiresAt,
+               let marker = pasteboard.data(forType: Self.selfWriteMarkerPasteboardType),
+               String(data: marker, encoding: .utf8) == token {
+                lastChangeCount = first
+                Log.debug("clipboard", "跳过自写回放（selfwrite-token 未过期）")
+                return
+            }
             lastChangeCount = first
-            return
+            ingest()
         }
-        // 自写回声抑制：粘贴板仍带本会话 selfwrite-token 标记且未过 TTL → 跳过；
-        // TTL 过期后按新内容入库（spec 14 验收对照）；标记被外部覆盖（无 token/异 token）→ 正常捕获
-        if first == lastSelfWriteChangeCount,
-           let token = lastSelfWriteToken, Date() < lastSelfWriteExpiresAt,
-           let marker = pasteboard.data(forType: Self.selfWriteMarkerPasteboardType),
-           String(data: marker, encoding: .utf8) == token {
-            lastChangeCount = first
-            Log.debug("clipboard", "跳过自写回放（selfwrite-token 未过期）")
-            return
-        }
-        lastChangeCount = first
-        ingest()
     }
 
     /// 读取失败重试：一次性 Timer（repeats=false），间隔 ≥0.5s，.common 模式（specs/14 F2 @0x1000ec8b8）
@@ -281,99 +289,132 @@ public final class ClipboardManager: ObservableObject {
 
     /// 在持久化串行队列上执行：落盘 + 去重判定 + 入库
     private func writeToDatabase(_ result: ClipboardReadResult) {
-        let key = ClipboardItem.makeDedupeKey(type: result.type,
-                                              content: result.content,
-                                              imageHash: result.imageHash)
+        // v128（内存优化）：外层包 autoreleasepool——本函数跑在 GCD 串行队列（无 run loop
+        // 边界），每次入库产生大量 NSString/NSAttributedString 桥接对象，不显式 drain 会堆积
+        autoreleasepool {
+            let key = ClipboardItem.makeDedupeKey(type: result.type,
+                                                  content: result.content,
+                                                  imageHash: result.imageHash)
 
-        // 去重命中：更新时间戳 → 置顶
-        if repository.exists(dedupeKey: key) {
-            repository.touch(dedupeKey: key)
-            Log.debug("clipboard", "去重置顶：\(key.prefix(24))")
-            DispatchQueue.main.async { self.reload(reset: true) }
-            return
-        }
+            // 去重命中：更新时间戳 → 置顶
+            if repository.exists(dedupeKey: key) {
+                repository.touch(dedupeKey: key)
+                Log.debug("clipboard", "去重置顶：\(key.prefix(24))")
+                scheduleReloadCoalesced()
+                return
+            }
 
-        var imagePath: String?
-        var thumbnailPath: String?
-        var richTextPath: String?
-        var textPath: String?
-        var charCount: Int?
-        var lineCount: Int?
-        var content = result.content
-        // storage_bytes 口径：**实际落盘产物 + 数据库内联内容**，与 ClipboardStorageUsageProvider 的磁盘口径一致。
-        // 注意不要用 result.approximateBytes 起步再叠加落盘字节，否则同一份内容会被计两次。
-        var fileBytes = 0
+            var imagePath: String?
+            var thumbnailPath: String?
+            var richTextPath: String?
+            var textPath: String?
+            var charCount: Int?
+            var lineCount: Int?
+            var content = result.content
+            // storage_bytes 口径：**实际落盘产物 + 数据库内联内容**，与 ClipboardStorageUsageProvider 的磁盘口径一致。
+            // 注意不要用 result.approximateBytes 起步再叠加落盘字节，否则同一份内容会被计两次。
+            var fileBytes = 0
 
-        switch result.type {
-        case .image:
-            if let data = result.imageData, let stored = ClipboardImageStorage.store(imageData: data) {
-                imagePath = stored.imagePath
-                thumbnailPath = stored.thumbnailPath
-                fileBytes += stored.byteCount
-                fileBytes += ClipboardFileStore.fileSize(stored.thumbnailPath)
+            switch result.type {
+            case .image:
+                if let data = result.imageData, let stored = ClipboardImageStorage.store(imageData: data) {
+                    imagePath = stored.imagePath
+                    thumbnailPath = stored.thumbnailPath
+                    fileBytes += stored.byteCount
+                    fileBytes += ClipboardFileStore.fileSize(stored.thumbnailPath)
+                } else {
+                    fileBytes += result.approximateBytes
+                }
+            case .richtext:
+                if let rtf = result.richTextData {
+                    richTextPath = ClipboardRichTextStorage.write(rtf)
+                    fileBytes += rtf.count
+                }
+                // 富文本正文同样受长文本阈值约束：索引/搜素用 content，全量用 rich_text_path
+                // v126（性能审计 F0605）：utf16 长度外提一次（原分支内 NSString 桥接算两遍）
+                if let text = result.content {
+                    let utf16Len = (text as NSString).length
+                    if utf16Len > Self.inlineTextByteLimit, let stored = ClipboardTextStorage.write(text) {
+                        textPath = stored.path
+                        charCount = utf16Len
+                        lineCount = text.lineCount
+                        fileBytes += stored.bytes
+                        content = String(text.prefix(Self.inlinePreviewLength))
+                    }
+                }
+                fileBytes += (content ?? "").utf8.count
+            case .file, .text, .url:
+                // v126（性能审计 F0605）：utf16 长度外提一次（同上）
+                if let text = result.content {
+                    let utf16Len = (text as NSString).length
+                    if utf16Len > Self.inlineTextByteLimit, let stored = ClipboardTextStorage.write(text) {
+                        textPath = stored.path
+                        charCount = utf16Len
+                        lineCount = text.lineCount
+                        fileBytes += stored.bytes
+                        content = String(text.prefix(Self.inlinePreviewLength))
+                    }
+                }
+                fileBytes += (content ?? "").utf8.count
+            }
+
+            let item = ClipboardItem(
+                type: result.type,
+                content: content,
+                title: result.title,
+                subtitle: result.subtitle,
+                timestamp: Date(),
+                sourceApp: result.sourceApp,
+                imagePath: imagePath,
+                thumbnailPath: thumbnailPath,
+                textPath: textPath,
+                richTextPath: richTextPath,
+                fullTextCharCount: charCount,
+                fullTextLineCount: lineCount,
+                fileIconKey: result.fileIconKey,
+                imageDimensionUnit: "px",
+                storageBytes: fileBytes,
+                dedupeKey: key
+            )
+
+            if repository.insert(item) {
+                DatabaseManager.shared.bumpStat("capture_count")
+                Log.debug("clipboard", "入库 [\(result.type.rawValue)] \(key.prefix(24))")
+                // 图片条目：有 OCR 能力时后台补识别文本（无能力则静默跳过）
+                if result.type == .image, let data = result.imageData { scheduleOCR(dedupeKey: key, imageData: data) }
+                // 文件条目（zip / Word / PPT / Excel 等）：自动暂存进「文件中转」（硬链接，不复制数据）
+                if result.type == .file, !result.fileURLs.isEmpty {
+                    Self.scheduleAutoStage(result.fileURLs)
+                }
             } else {
-                fileBytes += result.approximateBytes
+                // INSERT 失败且行已存在（并发窗口）→ 退化为置顶
+                repository.touch(dedupeKey: key)
             }
-        case .richtext:
-            if let rtf = result.richTextData {
-                richTextPath = ClipboardRichTextStorage.write(rtf)
-                fileBytes += rtf.count
-            }
-            // 富文本正文同样受长文本阈值约束：索引/搜素用 content，全量用 rich_text_path
-            if let text = result.content, (text as NSString).length > Self.inlineTextByteLimit,
-               let stored = ClipboardTextStorage.write(text) {
-                textPath = stored.path
-                charCount = (text as NSString).length
-                lineCount = text.lineCount
-                fileBytes += stored.bytes
-                content = String(text.prefix(Self.inlinePreviewLength))
-            }
-            fileBytes += (content ?? "").utf8.count
-        case .file, .text, .url:
-            if let text = result.content, (text as NSString).length > Self.inlineTextByteLimit,
-               let stored = ClipboardTextStorage.write(text) {
-                textPath = stored.path
-                charCount = (text as NSString).length
-                lineCount = text.lineCount
-                fileBytes += stored.bytes
-                content = String(text.prefix(Self.inlinePreviewLength))
-            }
-            fileBytes += (content ?? "").utf8.count
+            scheduleReloadCoalesced()
         }
+    }
 
-        let item = ClipboardItem(
-            type: result.type,
-            content: content,
-            title: result.title,
-            subtitle: result.subtitle,
-            timestamp: Date(),
-            sourceApp: result.sourceApp,
-            imagePath: imagePath,
-            thumbnailPath: thumbnailPath,
-            textPath: textPath,
-            richTextPath: richTextPath,
-            fullTextCharCount: charCount,
-            fullTextLineCount: lineCount,
-            fileIconKey: result.fileIconKey,
-            imageDimensionUnit: "px",
-            storageBytes: fileBytes,
-            dedupeKey: key
-        )
+    // v126（性能审计 F0605）：reload 合并（结果被覆盖则跳过采集）。
+    // 剪贴板突发捕获（burst 0.5s 拍）下连发 N 条内容会各自 DispatchQueue.main.async 一次
+    // 全量 reload（每次 fetch 首页 + attachTags + 全表 reloadData），主线程被重复刷 N 遍。
+    // 合并为「同一 main 派发批次内只跑最后一次」：先入队的 reload 看到 pending 已置位直接跳过，
+    // 最后一次 reload 读到的必然是含全部新条目的最新状态（结果被后续覆盖的中间态无需采集）。
+    private let reloadGate = NSLock()
+    private var reloadPending = false
 
-        if repository.insert(item) {
-            DatabaseManager.shared.bumpStat("capture_count")
-            Log.debug("clipboard", "入库 [\(result.type.rawValue)] \(key.prefix(24))")
-            // 图片条目：有 OCR 能力时后台补识别文本（无能力则静默跳过）
-            if result.type == .image, let data = result.imageData { scheduleOCR(dedupeKey: key, imageData: data) }
-            // 文件条目（zip / Word / PPT / Excel 等）：自动暂存进「文件中转」（硬链接，不复制数据）
-            if result.type == .file, !result.fileURLs.isEmpty {
-                Self.scheduleAutoStage(result.fileURLs)
-            }
-        } else {
-            // INSERT 失败且行已存在（并发窗口）→ 退化为置顶
-            repository.touch(dedupeKey: key)
+    private func scheduleReloadCoalesced() {
+        reloadGate.lock()
+        let alreadyQueued = reloadPending
+        reloadPending = true
+        reloadGate.unlock()
+        guard !alreadyQueued else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.reloadGate.lock()
+            self.reloadPending = false
+            self.reloadGate.unlock()
+            self.reload(reset: true)
         }
-        DispatchQueue.main.async { self.reload(reset: true) }
     }
 
     /// 首条目滚出状态回写（ClipboardListTopScrollTracker.onFirstItemScrolledOutChange 桥接）
@@ -394,7 +435,8 @@ public final class ClipboardManager: ObservableObject {
                               generatedSourceKeyword: mapping.generatedSourceKeyword,
                               codeLikeOnly: mapping.codeLikeOnly,
                               tagID: tagFilterID,
-                              limit: limit,
+                              // v128（内存优化）：limit 钳到驻留上限，SQL 层就只出 800 行
+                              limit: min(limit, Self.maxResidentItems),
                               offset: 0)
     }
 
@@ -409,9 +451,12 @@ public final class ClipboardManager: ObservableObject {
 
         queue.async { [weak self] in
             guard let self else { return }
-            let fetched = self.repository.fetch(target)
+            // v128（内存优化）：包 autoreleasepool——fetch 在 GCD 队列把 SQL 行映射成
+            // ClipboardItem（大量 NSString 桥接），无 run loop 边界不自动 drain
+            let fetched = autoreleasepool { self.repository.fetch(target) }
             DispatchQueue.main.async {
-                self.items = fetched
+                // v128（内存优化）：硬上限 800 条，防御性截断（超出丢弃最旧 = DESC 尾部）
+                self.items = Array(fetched.prefix(Self.maxResidentItems))
                 self.currentPage = page
                 NotificationCenter.default.post(name: Self.itemsDidChangeNotification, object: nil)
             }
@@ -419,6 +464,9 @@ public final class ClipboardManager: ObservableObject {
     }
 
     public func loadMoreIfNeeded(currentItem: ClipboardItem) {
+        // v128（内存优化）：驻留到顶（800 条）后不再翻页——继续翻只会在内存里堆旧条目，
+        // 深历史请走搜索/过滤（SQL 侧 LIMIT 仍生效）。
+        guard items.count < Self.maxResidentItems else { return }
         guard items.count >= Self.pageSize * (currentPage + 1) else { return }
         guard let last = items.last, last.id == currentItem.id else { return }
         guard !isLoadingMore else { return }
@@ -427,9 +475,11 @@ public final class ClipboardManager: ObservableObject {
         let target = makeQuery(limit: Self.pageSize * (currentPage + 1))
         queue.async { [weak self] in
             guard let self else { return }
-            let fetched = self.repository.fetch(target)
+            // v128（内存优化）：同 reload，fetch 体包 autoreleasepool
+            let fetched = autoreleasepool { self.repository.fetch(target) }
             DispatchQueue.main.async {
-                self.items = fetched
+                // v128（内存优化）：同上，截断到驻留上限
+                self.items = Array(fetched.prefix(Self.maxResidentItems))
                 self.isLoadingMore = false
             }
         }
@@ -679,7 +729,7 @@ public final class ClipboardManager: ObservableObject {
     private func pasteToFrontmostApplication() {
         // spec 13 §4：权限缺失场景（原作 Auto Paste Requires Accessibility）
         guard AXIsProcessTrusted() else {
-            Toast.show("自动粘贴需要辅助功能权限", icon: "exclamationmark.circle.fill")
+            presentAccessibilityGuide()
             return
         }
         let source = CGEventSource(stateID: .combinedSessionState)
@@ -695,6 +745,36 @@ public final class ClipboardManager: ObservableObject {
         keyUp.post(tap: .cghidEventTap)
         // spec 13 §4：粘贴完成场景（原作 Pasted completed）
         Toast.show("粘贴完成", icon: "checkmark.circle.fill")
+    }
+
+    /// 本次启动是否已弹过辅助功能授权引导（自动粘贴是复制即触发的高频路径，
+    /// 每次弹模态会逼疯用户；与 ScreenshotManager 的 didShowPermissionAlertThisLaunch 同策略）
+    private var didShowAccessibilityGuideThisLaunch = false
+
+    /// 辅助功能缺失引导（v111）：首次弹模态（权限引导 / 打开设置 / 暂不开启），
+    /// 之后只 Toast 提示入口——与统一权限引导窗接线。
+    private func presentAccessibilityGuide() {
+        if didShowAccessibilityGuideThisLaunch {
+            Toast.show("自动粘贴需要辅助功能权限（菜单栏 → 欢迎与权限）",
+                       icon: "exclamationmark.circle.fill")
+            return
+        }
+        didShowAccessibilityGuideThisLaunch = true
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "自动粘贴需要「辅助功能」权限"
+        alert.informativeText = "合成 Cmd+V 需要系统授权。授权后自动粘贴即可用；划词工具条、全局快捷键、双击唤起也依赖同一权限。"
+        alert.addButton(withTitle: "权限引导")
+        alert.addButton(withTitle: "打开系统设置")
+        alert.addButton(withTitle: "暂不开启")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            PermissionGuideWindowController.shared.show()
+        case .alertSecondButtonReturn:
+            PermissionCenter.shared.openSystemSettings(.accessibility)
+        default:
+            break
+        }
     }
 }
 

@@ -118,6 +118,13 @@ final class ScreenshotMagnifierContainerView: NSView {
 
 /// 全屏覆盖层：拖拽选区 + 尺寸标签 + 十字准星 + 放大镜
 final class ScreenshotOverlayView: NSView {
+    /// v126（性能审计 F0553）：缓存标签字体与属性字典，避免 drawSizeLabel 每帧重建
+    private static let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
+    private static let labelAttrs: [NSAttributedString.Key: Any] = [
+        .font: labelFont,
+        .foregroundColor: NSColor.white
+    ]
+
     /// 选区确认回调，参数是视图内矩形（左下原点，点坐标）
     var onCommit: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
@@ -125,15 +132,87 @@ final class ScreenshotOverlayView: NSView {
     /// 该屏幕的快照（用于放大镜与最终裁剪，可为 nil → 放大镜隐藏）
     var snapshot: CGImage?
 
+    // MARK: 覆盖层两种拾取模式（v113 对齐原版）
+    //
+    // 原版 Frset 的 CaptureMode 含 `.window`（规格 06 反汇编还原：
+    // `capture(_ mode:) // .area/.window/.full/.ocr/.pin/.long`），窗口模式自带
+    // 窗口识别与选择（二进制反射字段：windows / windowOrder / selectedWindowId /
+    // keyDownMonitor / isClosingWindow）。
+    //
+    // 窗口模式：悬停高亮窗口、单击截取。
+    // v130（SnowShot 对齐）①：区域模式**重新引入元素吸附**（对标 Snow Shot
+    // 「框选自动识别元素边界并吸附高亮」）——与 v112 的区别：
+    //   · 只吸附、不劫持框选：拖拽仍是自由矩形，吸附仅在光标贴近元素边缘（8pt）时对齐；
+    //   · 单击（无拖拽）且命中元素 → 直接截取该元素；
+    //   · 按住 ⌥ 临时关闭吸附（精确手动框选）；
+    //   · 无辅助功能权限时 ElementSnapEngine 全部返回 nil，自动退化纯手动（不报错）。
+
+    enum OverlayPickMode {
+        case region   // 区域截图：拖拽框选
+        case window   // 窗口截图：悬停识别 + 单击截取
+    }
+
     private var startPoint: NSPoint?
     private var currentPoint: NSPoint?
     private let magnifier = ScreenshotMagnifierContainerView(frame: NSRect(x: 0, y: 0, width: 120, height: 120))
     private var keyMonitor: DeleteKeyMonitor?
 
+    /// 拾取模式（窗口截图时置为 .window）
+    var pickMode: OverlayPickMode = .region
+    /// 窗口模式单击提交（rect=视图坐标，windowID=CG 窗口号）
+    var onWindowCommit: ((CGRect, CGWindowID) -> Void)?
+
+    private struct WindowHit {
+        let globalRect: CGRect   // cocoa 全局坐标（左下原点）
+        let windowID: CGWindowID
+        let label: String
+    }
+
+    private var windowHits: [WindowHit] = []
+    private var highlightedWindow: WindowHit?
+    /// v116：AX 元素级吸附（比窗口更细，落在控件/文本块上；v130 起由 ElementSnapEngine 提供）
+    private var highlightedElement: (rect: CGRect, label: String)?
+    private var lastAXQuery: TimeInterval = 0
+    /// 鼠标按下瞬间的高亮窗口（mouseUp 判定「单击截窗口」用）
+    private var highlightedAtMouseDown: WindowHit?
+
+    /// v130（SnowShot 对齐）①：区域模式的元素吸附命中（视图坐标）
+    private var snapHighlight: (rect: CGRect, label: String)?
+
+    /// 枚举可吸附窗口（本进程排除——覆盖层/工具条自身不能选到自己）
+    private static func snapshotWindowHits() -> [WindowHit] {
+        let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                              kCGNullWindowID) as? [[String: Any]] ?? []
+        let ownPID = Int(NSRunningApplication.current.processIdentifier)
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        var hits: [WindowHit] = []
+        for w in list {
+            guard (w[kCGWindowLayer as String] as? Int) == 0,
+                  (w[kCGWindowOwnerPID as String] as? Int) != ownPID,
+                  let wid = (w[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
+                  let b = w[kCGWindowBounds as String] as? [String: CGFloat],
+                  let x = b["X"], let y = b["Y"], let wd = b["Width"], let ht = b["Height"],
+                  wd >= 80, ht >= 60 else { continue }
+            // CG 全局（主屏左上原点）→ cocoa 全局（主屏左下原点）
+            let rect = CGRect(x: x, y: primaryHeight - y - ht, width: wd, height: ht)
+            let owner = w[kCGWindowOwnerName as String] as? String ?? ""
+            let name = w[kCGWindowName as String] as? String ?? ""
+            let label = name.isEmpty ? owner : (owner.isEmpty ? name : "\(owner) · \(name)")
+            hits.append(WindowHit(globalRect: rect, windowID: wid, label: label))
+        }
+        return hits
+    }
+
+    /// 全局 rect → 本视图坐标（视图铺满窗口内容区）
+    private func viewRect(of global: CGRect) -> CGRect {
+        window?.convertFromScreen(global) ?? global
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         magnifier.isHidden = true
         addSubview(magnifier)
+        windowHits = Self.snapshotWindowHits()
         keyMonitor = DeleteKeyMonitor { [weak self] event in
             guard let self = self else { return false }
             if event.type == .rightMouseDown { self.onCancel?(); return true }
@@ -157,6 +236,11 @@ final class ScreenshotOverlayView: NSView {
     // MARK: 鼠标
 
     override func mouseDown(with event: NSEvent) {
+        guard pickMode == .region else {
+            // 窗口模式：单击只记录当前高亮，不做拖拽选区
+            highlightedAtMouseDown = highlightedWindow
+            return
+        }
         startPoint = convert(event.locationInWindow, from: nil)
         currentPoint = startPoint
         magnifier.isHidden = snapshot == nil
@@ -164,7 +248,13 @@ final class ScreenshotOverlayView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        guard pickMode == .region else { return }
         currentPoint = convert(event.locationInWindow, from: nil)
+        // v130①：拖拽中持续吸附（⌥ 按住时关闭吸附 → 精确手动框选）
+        if let p = currentPoint {
+            refreshSnap(at: p)
+            currentPoint = snappedPoint(p)
+        }
         needsDisplay = true
         if let p = currentPoint {
             magnifier.follow(pointInView: p, viewSize: bounds.size, snapshot: snapshot)
@@ -172,28 +262,107 @@ final class ScreenshotOverlayView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard startPoint == nil else { return }
         currentPoint = convert(event.locationInWindow, from: nil)
+        if pickMode == .window {
+            // 窗口模式：悬停识别（缓存的 rects，零 CG 调用）
+            let p = currentPoint ?? .zero
+            highlightedWindow = windowHits.first { viewRect(of: $0.globalRect).contains(p) }
+            // v116：AX 元素探测（节流 90ms；只对本进程外的窗口生效）
+            let now = Date().timeIntervalSince1970
+            if now - lastAXQuery > 0.09 {
+                lastAXQuery = now
+                highlightedElement = elementHit(atViewPoint: p)
+            }
+            needsDisplay = true
+            return
+        }
+        // 区域模式：十字准线 + 放大镜 + v130① 元素吸附
+        guard startPoint == nil else { return }
         if let p = currentPoint {
+            refreshSnap(at: p)
             magnifier.isHidden = snapshot == nil
             magnifier.follow(pointInView: p, viewSize: bounds.size, snapshot: snapshot)
         }
         needsDisplay = true
     }
 
+    /// v130①：⌥ 按下/松开即刷新（吸附加锁态要立即反馈，不等鼠标移动）
+    override func flagsChanged(with event: NSEvent) {
+        if pickMode == .region { needsDisplay = true }
+    }
+
     override func mouseUp(with event: NSEvent) {
+        if pickMode == .window {
+            // 窗口模式：单击（几乎无位移）且有高亮 → 提交该窗口
+            // 优先截到更细的 AX 元素（windowID 传 0 → 上层按快照裁剪）
+            if let el = highlightedElement, let hit = highlightedAtMouseDown,
+               el.rect.width < viewRect(of: hit.globalRect).width - 8 {
+                highlightedAtMouseDown = nil
+                onWindowCommit?(el.rect, 0)
+                return
+            }
+            if let hit = highlightedAtMouseDown {
+                highlightedAtMouseDown = nil
+                onWindowCommit?(viewRect(of: hit.globalRect), hit.windowID)
+            }
+            return
+        }
         currentPoint = convert(event.locationInWindow, from: nil)
+        magnifier.isHidden = true
+        // v130①：单击（无拖拽位移）且命中吸附元素 → 直接截取该元素
+        if let rect = selectionRect, rect.width < 4, rect.height < 4, let snap = snapHighlight {
+            onCommit?(snap.rect)
+            return
+        }
         guard let rect = selectionRect else {
             onCancel?()
             return
         }
-        magnifier.isHidden = true
         // 太小的选区视为误点，直接放弃
         guard rect.width >= 4, rect.height >= 4 else {
             onCancel?()
             return
         }
         onCommit?(rect)
+    }
+
+    // MARK: v130（SnowShot 对齐）① 元素吸附
+
+    /// 按住 ⌥ = 临时关闭吸附（精确手动框选）
+    private var snapActive: Bool {
+        pickMode == .region && !NSEvent.modifierFlags.contains(.option)
+    }
+
+    /// 节流查询光标下的可吸附元素（AX 调用；90ms 与窗口模式同阈值）
+    private func refreshSnap(at viewPoint: NSPoint) {
+        guard snapActive else {
+            snapHighlight = nil
+            return
+        }
+        let now = Date().timeIntervalSince1970
+        guard now - lastAXQuery > 0.09 else { return }
+        lastAXQuery = now
+        snapHighlight = elementHit(atViewPoint: viewPoint)
+    }
+
+    /// 拖拽点吸附：贴近吸附矩形边缘（8pt 内）时对齐该边缘
+    private func snappedPoint(_ p: NSPoint) -> NSPoint {
+        guard snapActive, let snap = snapHighlight else { return p }
+        let threshold: CGFloat = 8
+        var out = p
+        if abs(out.x - snap.rect.minX) < threshold { out.x = snap.rect.minX }
+        else if abs(out.x - snap.rect.maxX) < threshold { out.x = snap.rect.maxX }
+        if abs(out.y - snap.rect.minY) < threshold { out.y = snap.rect.minY }
+        else if abs(out.y - snap.rect.maxY) < threshold { out.y = snap.rect.maxY }
+        return out
+    }
+
+    /// 视图点 → 元素命中（返回视图坐标矩形；无权限/无命中时 nil）
+    private func elementHit(atViewPoint point: NSPoint) -> (rect: CGRect, label: String)? {
+        // 视图坐标 → cocoa 全局（覆盖层铺满所在屏幕窗口）
+        let global = window?.convertToScreen(NSRect(origin: point, size: .zero)).origin ?? point
+        guard let hit = ElementSnapEngine.snap(atCocoaGlobal: global) else { return nil }
+        return (viewRect(of: hit.rect), hit.label)
     }
 
     // MARK: 绘制
@@ -226,9 +395,122 @@ final class ScreenshotOverlayView: NSView {
         } else {
             dim.setFill()
             bounds.fill()
+            if pickMode == .window {
+                // 窗口模式：高亮识别 + 顶部操作提示（无十字准线）
+                if let hit = highlightedWindow {
+                    drawWindowHighlight(hit)
+                }
+                if let el = highlightedElement {
+                    drawElementHighlight(el)
+                }
+                if highlightedWindow == nil && highlightedElement == nil {
+                    drawWindowModeHint()
+                }
+                return
+            }
         }
 
         if let p = currentPoint { drawCrosshair(p) }
+        // v130（SnowShot 对齐）①：元素吸附高亮（橙色描边 + 半透明填充，⌥ 按住不显示）
+        if pickMode == .region, snapActive, let snap = snapHighlight {
+            drawSnapHighlight(snap)
+        }
+    }
+
+    // MARK: AX 元素命中（v116；v130 起查询逻辑收敛到 ElementSnapEngine）
+
+    /// 元素吸附高亮（v130 SnowShot 对齐）：橙色实线描边 + 半透明橙填充
+    private func drawSnapHighlight(_ el: (rect: CGRect, label: String)) {
+        let r = el.rect.intersection(bounds)
+        guard r.width > 2, r.height > 2 else { return }
+        NSColor.systemOrange.withAlphaComponent(0.14).setFill()
+        r.fill()
+        let path = NSBezierPath(rect: r.insetBy(dx: 1, dy: 1))
+        path.lineWidth = 1.5
+        NSColor.systemOrange.setStroke()
+        path.stroke()
+        guard !el.label.isEmpty else { return }
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 9.5, weight: .medium),
+            .foregroundColor: NSColor.white
+        ]
+        let size = (el.label as NSString).size(withAttributes: attrs)
+        var box = NSRect(x: r.minX, y: r.maxY + 3, width: size.width + 8, height: 15)
+        if box.maxY > bounds.maxY { box.origin.y = r.minY - 18 }
+        box.origin.x = max(0, min(box.origin.x, bounds.maxX - box.width))
+        NSColor.systemOrange.withAlphaComponent(0.92).setFill()
+        NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+        (el.label as NSString).draw(at: NSPoint(x: box.minX + 4, y: box.minY + 3), withAttributes: attrs)
+    }
+
+    /// 元素高亮：细虚线 + 小标签（比窗口高亮更亮）
+    private func drawElementHighlight(_ el: (rect: CGRect, label: String)) {
+        let r = el.rect.intersection(bounds)
+        guard r.width > 2, r.height > 2 else { return }
+        let path = NSBezierPath(rect: r.insetBy(dx: 1, dy: 1))
+        path.lineWidth = 1.5
+        path.setLineDash([4, 3], count: 2, phase: 0)
+        NSColor.systemYellow.setStroke()
+        path.stroke()
+        path.setLineDash(nil, count: 0, phase: 0)
+        NSColor.systemYellow.withAlphaComponent(0.08).setFill()
+        r.fill()
+        guard !el.label.isEmpty else { return }
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 9.5, weight: .medium),
+            .foregroundColor: NSColor.black
+        ]
+        let size = (el.label as NSString).size(withAttributes: attrs)
+        let box = NSRect(x: r.minX, y: max(r.minY - 16, 0), width: size.width + 8, height: 15)
+        NSColor.systemYellow.withAlphaComponent(0.9).setFill()
+        NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+        (el.label as NSString).draw(at: NSPoint(x: box.minX + 4, y: box.minY + 3), withAttributes: attrs)
+    }
+
+    /// 窗口模式空态提示（覆盖层顶部居中）
+    private func drawWindowModeHint() {
+        let text = "悬停窗口以识别 · 单击截取 · Esc 取消" as NSString
+        // v126（性能审计 F0553）：复用静态缓存属性字典
+        let attrs = Self.labelAttrs
+        let size = text.size(withAttributes: attrs)
+        let box = NSRect(x: (bounds.width - size.width - 24) / 2,
+                         y: bounds.height - 68,
+                         width: size.width + 24, height: 26)
+        NSColor(calibratedWhite: 0.1, alpha: 0.78).setFill()
+        NSBezierPath(roundedRect: box, xRadius: 13, yRadius: 13).fill()
+        text.draw(at: NSPoint(x: box.minX + 12, y: box.minY + 7), withAttributes: attrs)
+    }
+
+    /// 窗口吸附高亮：半透明提亮 + 强调色描边 + 窗口标签
+    private func drawWindowHighlight(_ hit: WindowHit) {
+        let rect = viewRect(of: hit.globalRect).intersection(bounds)
+        guard rect.width > 1, rect.height > 1 else { return }
+        NSColor.white.withAlphaComponent(0.10).setFill()
+        rect.fill()
+        let stroke = NSBezierPath(rect: rect.insetBy(dx: 1, dy: 1))
+        stroke.lineWidth = 2
+        NSColor.controlAccentColor.setStroke()
+        stroke.stroke()
+
+        // 标签：窗口名，贴高亮框左上角（越界翻到框内）
+        if !hit.label.isEmpty {
+            let text = hit.label as NSString
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.white
+            ]
+            let size = text.size(withAttributes: attrs)
+            let boxW = size.width + 12
+            let boxH: CGFloat = 20
+            var x = rect.minX
+            var y = rect.maxY + 4
+            if y + boxH > bounds.maxY { y = rect.maxY - boxH - 4 }
+            x = max(0, min(x, bounds.maxX - boxW))
+            let box = NSRect(x: x, y: y, width: boxW, height: boxH)
+            NSColor.controlAccentColor.withAlphaComponent(0.85).setFill()
+            NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
+            text.draw(at: NSPoint(x: x + 6, y: y + 3), withAttributes: attrs)
+        }
     }
 
     /// 四角小方块把手
@@ -241,20 +523,24 @@ final class ScreenshotOverlayView: NSView {
         }
     }
 
-    /// 尺寸标签：显示 W × H，贴选区左上角，越界时自动翻到下方/左侧
+    /// 尺寸标签（v130 SnowShot 对齐③：像素单位、贴选区**右下角**，实时刷新）
+    /// 显示 W × H（设备像素 = 点 × backingScale），越界时自动翻到上方/左侧
     private func drawSizeLabel(_ rect: CGRect) {
-        let text = "\(Int(rect.width)) × \(Int(rect.height))" as NSString
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.white
-        ]
+        // v130③：像素单位——Retina 下 1pt = 2px，与 Snow Shot 尺寸气泡一致
+        let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        let w = Int((rect.width * scale).rounded())
+        let h = Int((rect.height * scale).rounded())
+        let text = "\(w) × \(h)" as NSString
+        // v126（性能审计 F0553）：复用静态缓存属性字典
+        let attrs = Self.labelAttrs
         let size = text.size(withAttributes: attrs)
         let boxW = size.width + 12
         let boxH: CGFloat = 20
 
-        var x = rect.minX
-        var y = rect.maxY + 6
-        if y + boxH > bounds.maxY { y = rect.minY - boxH - 6 }
+        // 右下角：先贴框右下方，越界翻到框内右上/左侧
+        var x = rect.maxX - boxW
+        var y = rect.minY - boxH - 6
+        if y < 0 { y = rect.minY + 6 }
         x = max(0, min(x, bounds.maxX - boxW))
         y = max(0, min(y, bounds.maxY - boxH))
 
@@ -264,18 +550,19 @@ final class ScreenshotOverlayView: NSView {
         text.draw(at: NSPoint(x: x + 6, y: y + 3), withAttributes: attrs)
     }
 
-    /// 十字准星（贯穿全屏的虚线）
+    /// 十字准星（v130 SnowShot 对齐③：贯穿全屏 1px 实线，双色描边随背景反相——
+    /// 深底上白线可见、浅底上黑影压边，任何背景都读得出）
     private func drawCrosshair(_ point: NSPoint) {
         let path = NSBezierPath()
         path.move(to: NSPoint(x: bounds.minX, y: point.y))
         path.line(to: NSPoint(x: bounds.maxX, y: point.y))
         path.move(to: NSPoint(x: point.x, y: bounds.minY))
         path.line(to: NSPoint(x: point.x, y: bounds.maxY))
-        NSColor(white: 1, alpha: 0.55).setStroke()
         path.lineWidth = 1
-        path.setLineDash([4, 4], count: 2, phase: 0)
+        NSColor.black.withAlphaComponent(0.35).setStroke()
         path.stroke()
-        path.setLineDash(nil, count: 0, phase: 0)
+        NSColor.white.withAlphaComponent(0.75).setStroke()
+        path.stroke()
     }
 }
 
@@ -285,8 +572,9 @@ final class ScreenshotOverlayView: NSView {
 final class ScreenshotOverlayWindow: NSWindow {
     let overlayView: ScreenshotOverlayView
 
-    init(screen: NSScreen, snapshot: CGImage?) {
+    init(screen: NSScreen, snapshot: CGImage?, pickMode: ScreenshotOverlayView.OverlayPickMode = .region) {
         self.overlayView = ScreenshotOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
+        self.overlayView.pickMode = pickMode
         super.init(contentRect: screen.frame,
                    styleMask: .borderless,
                    backing: .buffered,

@@ -178,12 +178,19 @@ public final class StatusBarController: NSObject {
 
     private func startTimers() {
         refreshTimer?.invalidate()
-        let refresh = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in self?.refreshTitles() }
+        // v128（流畅度）：Timer 回调体进 autoreleasepool（标题格式化/布局键字符串
+        // 的临时对象随回调排空，不等 runloop 回收）。
+        let refresh = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+            autoreleasepool { self?.refreshTitles() }
+        }
         RunLoop.main.add(refresh, forMode: .common)
         refreshTimer = refresh
 
         syncTimer?.invalidate()
-        let sync = Timer(timeInterval: 5.0, repeats: true) { [weak self] _ in self?.syncStatusItems() }
+        let sync = Timer(timeInterval: 5.0, repeats: true) { [weak self] _ in
+            // v128（流畅度）：同上
+            autoreleasepool { self?.syncStatusItems() }
+        }
         RunLoop.main.add(sync, forMode: .common)
         syncTimer = sync
     }
@@ -546,6 +553,16 @@ public final class StatusBarController: NSObject {
 
     @objc func openMonitorSettingsAction(_ sender: Any?) {
         ServiceLocator.settings?.open(pane: "monitor")
+    }
+
+    /// 欢迎与权限引导（重建版 onboarding：欢迎窗 + 权限引导窗手动入口）
+    @objc func showOnboardingAction(_ sender: Any?) {
+        WelcomeWindowController.shared.show()
+    }
+
+    /// 检查更新（v112：手动检查，feed 在 设置 → 关于 配置）
+    @objc func checkForUpdatesAction(_ sender: Any?) {
+        AppUpdateChecker.shared.checkNowManual()
     }
 
     @objc func toggleMonitorModuleAction(_ sender: NSMenuItem) {

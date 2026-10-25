@@ -92,10 +92,11 @@ public final class OpenAICompatibleService: LLMProviderAdapting {
         if let err = LLMJSON.errorMessage(dict) { throw LLMError.provider(err) }
         guard let list = dict["data"] as? [[String: Any]] else { return [] }
         // 过滤非对话模型，避免下拉里出现 embedding / tts / dall-e
+        // v126（性能审计 F0247）：循环不变量外提——blocked 名单原在闭包内逐条重建
+        let blocked = ["embedding", "tts", "whisper", "dall-e", "moderation", "rerank", "babbage", "davinci"]
         return list.compactMap { entry -> String? in
             guard let id = entry["id"] as? String else { return nil }
             let lower = id.lowercased()
-            let blocked = ["embedding", "tts", "whisper", "dall-e", "moderation", "rerank", "babbage", "davinci"]
             guard !blocked.contains(where: { lower.contains($0) }) else { return nil }
             return id
         }.sorted()

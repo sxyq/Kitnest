@@ -564,7 +564,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 ClipboardNativeMenuPresenter.shared.presentMenu(for: item, at: location, in: sourceView)
             }
             host.setItem(item, hovered: (item.id == hoveredItemID))
-                Log.info("WidthAudit", "cell frame=\(host.frame) tableW=\(tableView.bounds.width)")
+            // v129（内存）：移除 WidthAudit 调试日志（v112 宽度实证残留）——
+            // 每次 viewFor（滚动/刷新每可见行一次）都做字符串格式化+落盘。
             // 行号侧表登记（修复 C2）：view-based NSTableView 会把 delegate 返回的视图
             // 包进 NSTableRowView，table.subviews 的直接子元素是 NSTableRowView 而非
             // RowHostingView，按 subviews 强转恒为 nil。故按行号侧记，弱引用防泄漏。
@@ -887,6 +888,23 @@ public final class ClipboardNativeMenuPresenter: NSObject {
 
     public static let shared = ClipboardNativeMenuPresenter()
 
+    // v129（内存）：菜单符号静态缓存——每次右键都为 ~8 个固定菜单项重建
+    // NSImage(systemSymbolName:)（CoreSVG 解码，heap：SVGAttribute/SVGPathCommand
+    // 就是这批产物）。符号名固定，一次解码全局复用。
+    private static let symbolCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 32
+        return c
+    }()
+
+    private static func symbol(_ name: String) -> NSImage? {
+        let key = name as NSString
+        if let hit = symbolCache.object(forKey: key) { return hit }
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
+        symbolCache.setObject(image, forKey: key)
+        return image
+    }
+
     public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView) {
         let menu = NSMenu()
         let manager = ClipboardManager.shared
@@ -898,13 +916,20 @@ public final class ClipboardNativeMenuPresenter: NSObject {
             menuItem.target = self
             menuItem.representedObject = BlockMenuItemAction(action)
             menuItem.isEnabled = enabled
-            if let systemImage, let image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title) {
-                menuItem.image = image
+            if let systemImage {
+                menuItem.image = Self.symbol(systemImage)
             }
             menu.addItem(menuItem)
         }
 
         addItem("复制", systemImage: "doc.on.doc") { manager.copy(item) }
+        // v112 空投联动（与 ClipboardRowMenuContent 的 SwiftUI 菜单同款）
+        addItem("隔空投送", systemImage: "dot.radiowaves.left.and.right", enabled: item.airDropFileURL != nil) {
+            if let url = item.airDropFileURL {
+                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                                userInfo: ["urls": [url]])
+            }
+        }
         addItem("编辑", systemImage: "pencil") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem("重命名", systemImage: "character.cursor.ibeam") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem(item.isNote ? "取消笔记标记" : "标记为笔记", systemImage: "note.text") {
@@ -924,7 +949,7 @@ public final class ClipboardNativeMenuPresenter: NSObject {
                 tagStore.toggle(tagID: tag.id, dedupeKey: item.dedupeKey)
             }
             tagItem.state = item.tagIDs.contains(tag.id) ? .on : .off
-            tagItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: tag.name)
+            tagItem.image = Self.symbol("tag")   // v129（内存）：同上，符号缓存复用
             tagMenu.addItem(tagItem)
         }
         if tagStore.tags.isEmpty {

@@ -28,5 +28,30 @@
             </array>
         </dict>
     </array>
+    <!-- v127（ArcZip P3）：NSServices 访达集成（FinderSync/QuickLook 扩展不可行，
+         构建系统无 extension target，改走系统服务菜单）。
+         NSMessage 与 ArchiveServicesProvider 的 @objc 方法一一对应：
+         extractHere / extractTo / compress（userData:error: 签名由系统回调）。 -->
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key><dict><key>default</key><string>解压到此处</string></dict>
+            <key>NSMessage</key><string>extractHere</string>
+            <key>NSPortName</key><string>FrsetNext</string>
+            <key>NSSendTypes</key><array><string>public.file-url</string></array>
+        </dict>
+        <dict>
+            <key>NSMenuItem</key><dict><key>default</key><string>解压到…</string></dict>
+            <key>NSMessage</key><string>extractTo</string>
+            <key>NSPortName</key><string>FrsetNext</string>
+            <key>NSSendTypes</key><array><string>public.file-url</string></array>
+        </dict>
+        <dict>
+            <key>NSMenuItem</key><dict><key>default</key><string>压缩</string></dict>
+            <key>NSMessage</key><string>compress</string>
+            <key>NSPortName</key><string>FrsetNext</string>
+            <key>NSSendTypes</key><array><string>public.file-url</string></array>
+        </dict>
+    </array>
 </dict>
 </plist>

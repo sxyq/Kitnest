@@ -44,9 +44,13 @@ public struct CommandItem: Identifiable {
 public enum CommandCatalog {
 
     /// 全量目录（每次打开时构建，保证开关态新鲜）
+    // v126（性能审计 F1356）：调用频率核实——build 只在命令面板每次打开时执行一次
+    // （CommandPaletteState.init），非启动常驻热点，无需缓存；只做轻量优化：
+    // 预留容量避免 ~40 个条目追加过程中的多次扩容。
     @MainActor
     public static func build() -> [CommandItem] {
         var items: [CommandItem] = []
+        items.reserveCapacity(48)
 
         // ① 动作：截图全家桶
         for mode in CaptureMode.allCases {
@@ -286,17 +290,22 @@ final class CommandPaletteState: ObservableObject {
             selectedIndex = min(selectedIndex, max(items.count - 1, 0))
             return
         }
+        // v126（性能审计 F1356）：删除恒假分支（q 已被上方 guard 排空），
+        // 并预留容量——refilter 在每次按键防抖后执行，是本文件真正的热路径。
+        // v128（流畅度）：复核无 O(n²)——单趟匹配 O(n) + 排序 O(n log n)，n≈40。
+        // 但结果无变化时也会写 @Published 触发整列表重绘（40 行 CommandRowView），
+        // 故比对 id 序列后只在真变化时发布（40 条 String 比对远比 40 行重绘便宜）。
         var scored: [(item: CommandItem, score: Int)] = []
-        if q.isEmpty {
-            items = all
-        } else {
-            for item in all {
-                if let m = FuzzyMatcher.match(q, in: item.title) {
-                    scored.append((item, m.score))
-                }
+        scored.reserveCapacity(all.count)
+        for item in all {
+            if let m = FuzzyMatcher.match(q, in: item.title) {
+                scored.append((item, m.score))
             }
-            scored.sort { $0.score > $1.score }
-            items = scored.map { $0.item }
+        }
+        scored.sort { $0.score > $1.score }
+        let next = scored.map { $0.item }
+        if next.map(\.id) != items.map(\.id) {
+            items = next
         }
         if !items.isEmpty {
             selectedIndex = min(max(selectedIndex, 0), items.count - 1)

@@ -156,7 +156,8 @@ public enum CloudDriveLinkDetector {
             }
         }
         // 2) 裸域名（如 pan.quark.cn/s/xxx 复制时丢 scheme）
-        let pattern = #"(?i)((?:pan\.baidu|yun\.baidu|www\.aliyundrive|aliyundrive|www\.alipan|alipan|yun\.139|caiyun\.139|cloud\.189|pan\.xunlei|pan\.quark|drive\.uc|(?:[a-z0-9-]+\.)?123(?:pan|684|865|952|912)\.(?:com|cn))[^\s"'<>）)]*)"#
+        // v126（性能审计 F1916）：删除死局部变量 pattern（每调用构造一次却从未使用，
+        // 真正生效的是上方静态 bareDomainRegex）
         if let re = Self.bareDomainRegex {
             let range = NSRange(text.startIndex..., in: text)
             if let m = re.firstMatch(in: text, options: [], range: range),

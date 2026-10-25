@@ -210,10 +210,18 @@ public struct CalendarDay: Identifiable, Hashable, Sendable {
     public var lunarText: String?
     public var holidayText: String?
     public var events: [CalendarEvent]
+    // v126（性能审计 F1781）：DateFormatter 复用——CalendarDay.init 是日历网格每格都要
+    // 走一次的构造（一屏 42 格 × 每次渲染），原实现每次 new 一个 DateFormatter。
+    // 提为 static 缓存（NSDateFormatter 读取线程安全）。
+    private static let idFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyyMMdd"
+        return fmt
+    }()
+
     public init(date: Date, isToday: Bool = false, isWeekend: Bool = false,
                 lunarText: String? = nil, holidayText: String? = nil, events: [CalendarEvent] = []) {
-        let fmt = DateFormatter(); fmt.dateFormat = "yyyyMMdd"
-        self.id = fmt.string(from: date)
+        self.id = Self.idFormatter.string(from: date)
         self.date = date; self.isToday = isToday; self.isWeekend = isWeekend
         self.lunarText = lunarText; self.holidayText = holidayText; self.events = events
     }

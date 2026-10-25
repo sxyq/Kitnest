@@ -299,8 +299,18 @@ final class PreviewLineNumberRulerView: NSRulerView {
             .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor
         ]
-        var lineNumber = content.substring(to: charRange.location)
-            .components(separatedBy: "\n").count
+        // v126（性能审计 F1106）：起始行号改为数前缀换行符——原实现把可见区前的
+        // 全部文本 substring + components(separatedBy:) 出一个大数组，每次滚动重绘
+        // 都 O(前缀长) 分配；现在只查 "\n" 位置，零大数组分配，结果一致（行号=换行数+1）。
+        var lineNumber = 1
+        var search = NSRange(location: 0, length: charRange.location)
+        while true {
+            let hit = content.range(of: "\n", options: [], range: search)
+            if hit.location == NSNotFound { break }
+            lineNumber += 1
+            search = NSRange(location: NSMaxRange(hit),
+                             length: charRange.location - NSMaxRange(hit))
+        }
         var charIndex = charRange.location
 
         while charIndex < NSMaxRange(charRange) {
@@ -810,14 +820,22 @@ struct PreviewImageView: View {
             return
         }
         let url = ClipboardFileStore.url(forRelativePath: path)
-        guard let data = try? Data(contentsOf: url), !data.isEmpty else {
-            ocrError = "读不到图片文件"
-            return
-        }
         ocrBusy = true
         ocrError = nil
         let item = model.item
         Task {
+            // v126（性能审计 F2079）：文件读取放后台队列——原实现主线程同步
+            // Data(contentsOf:)，大图会卡 UI 一帧以上。
+            let data = await Task.detached(priority: .userInitiated) {
+                try? Data(contentsOf: url)
+            }.value
+            guard let data, !data.isEmpty else {
+                await MainActor.run {
+                    ocrBusy = false
+                    ocrError = "读不到图片文件"
+                }
+                return
+            }
             do {
                 let text = try await PreviewPopoverDataBridge.shared.recognizeImage(data)
                 await MainActor.run {
@@ -902,34 +920,90 @@ struct PreviewFileView: View {
             .filter { !$0.isEmpty }
     }
 
+    /// 单文件且是压缩包（多选时不做归档内展开，避免一次起多个 7zz）
+    private func isArchivePath(_ path: String) -> Bool {
+        paths.count == 1 && ArchiveCore.isArchive(URL(fileURLWithPath: path))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(paths, id: \.self) { path in
-                HStack(spacing: 8) {
-                    // v111（ArcZip 接入 P0-c / FR-103）：QuickLook 分级解码缩略图
-                    PreviewFileThumb(path: path, size: paths.count == 1 ? 120 : 44)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text((path as NSString).lastPathComponent)
-                            .font(.system(size: 12, weight: .medium))
-                            .lineLimit(1)
-                        Text(path)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        // v111：QuickLook 分级解码缩略图；v118 单文件放大到 168pt。
+                        // v121：压缩包**不再放大图**（ZIP 图标本身没信息量），
+                        //       把横向空间让给下面的内部条目网格。
+                        PreviewFileThumb(path: path,
+                                         size: isArchivePath(path) ? 72
+                                              : (paths.count == 1 ? 260 : 44))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text((path as NSString).lastPathComponent)
+                                .font(.system(size: 12, weight: .medium))
+                                .lineLimit(1)
+                            Text(path)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            if paths.count == 1 {
+                                HStack(spacing: 6) {
+                                    // 快速查看：Word/PPT 可翻页看全文（系统 QuickLook）
+                                    Button("快速查看") {
+                                        QuickLookPresenter.shared.show(URL(fileURLWithPath: path))
+                                    }
+                                    .controlSize(.mini)
+                                    if isArchivePath(path) {
+                                        Button("编辑归档") {
+                                            ArchiveBrowserWindowController.show(url: URL(fileURLWithPath: path))
+                                        }
+                                        .controlSize(.mini)
+                                    }
+                                }
+                            }                        }
+                        Spacer(minLength: 0)
                     }
-                    Spacer()
+                    // v121（用户要求）：压缩包内条目 → **图标网格**，
+                    // 每个文件用自己类型的系统图标（Word/PPT/图片/APK…）
+                    if isArchivePath(path) {
+                        ArchivePeekView(path: path)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 6) {
+                            Button("解压到…") {
+                                let panel = NSOpenPanel()
+                                panel.canChooseDirectories = true
+                                panel.canChooseFiles = false
+                                panel.prompt = "解压到这里"
+                                if panel.runModal() == .OK, let dir = panel.url {
+                                    ArchiveCore.extract(url: URL(fileURLWithPath: path), to: dir) { ok, msg in
+                                        Toast.show(ok ? "已解压" : "解压失败：\(msg)",
+                                                   icon: ok ? "archivebox" : "exclamationmark.triangle",
+                                                   isWarning: !ok)
+                                    }
+                                }
+                            }
+                            .controlSize(.mini)
+                            Spacer(minLength: 0)
+                        }
+                    }
                 }
             }
-            if paths.isEmpty {
-                Text(model.item.displayTitle)
-                    .font(.system(size: 12))
+            // v124：所选文件可直接压成归档（ArcZip「创建归档」+ 用途预设 5 种）
+            if !paths.isEmpty {
+                HStack(spacing: 6) {
+                    Button(paths.count > 1 ? "压缩所选 \(paths.count) 项…" : "压缩…") {
+                        ArchiveCreateWindowController.show(
+                            files: paths.map { URL(fileURLWithPath: $0) })
+                    }
+                    .controlSize(.mini)
+                    Spacer(minLength: 0)
+                }
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        // v121：只吃满宽度、不吃满高度——让内容按自身高度参与窗口拟合
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
+
 
 // MARK: - 文件缩略图分级解码（v111 P0-c，FR-103；ArcZip 悬停预览③解码层同口径）
 //
@@ -1040,4 +1114,40 @@ private struct PreviewFileThumb: View {
             await MainActor.run { image = img }
         }
     }
+}
+
+
+// MARK: - 快速查看（v118）：系统 QLPreviewPanel（Word/PPT 可翻页看全文）
+
+import QuickLookUI
+
+final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+    static let shared = QuickLookPresenter()
+    private var current: URL?
+
+    func show(_ url: URL) {
+        current = url
+        guard let panel = QLPreviewPanel.shared() else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        panel.dataSource = self
+        panel.delegate = self
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { current == nil ? 0 : 1 }
+
+    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        current as NSURL?
+    }
+
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool { true }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = self
+        panel.delegate = self
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {}
 }

@@ -522,12 +522,14 @@ public enum CodeHighlighter {
     /// 生成带颜色的富文本（SwiftUI 用 AttributedString，AppKit 用 NSAttributedString）
     public static func attributed(_ code: String, language: CodeLanguage) -> NSAttributedString {
         let result = NSMutableAttributedString(string: code)
+        // v126（性能审计 F1480）：NSString 长度只桥接计算一次（原 3 次）
+        let nsLength = (code as NSString).length
         let baseFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        result.addAttribute(.font, value: baseFont, range: NSRange(location: 0, length: (code as NSString).length))
+        result.addAttribute(.font, value: baseFont, range: NSRange(location: 0, length: nsLength))
         result.addAttribute(.foregroundColor, value: NSColor.labelColor,
-                            range: NSRange(location: 0, length: (code as NSString).length))
+                            range: NSRange(location: 0, length: nsLength))
         for (range, kind) in tokenize(code, language: language) {
-            guard range.location + range.length <= (code as NSString).length else { continue }
+            guard range.location + range.length <= nsLength else { continue }
             result.addAttribute(.foregroundColor, value: color(for: kind), range: range)
         }
         return result

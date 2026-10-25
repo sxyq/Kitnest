@@ -64,14 +64,29 @@ public struct LocalTransferItem: Identifiable, Codable, Equatable {
 
     public var stagedURL: URL { LocalTransferPaths.root.appendingPathComponent(relativePath) }
 
+    // v126（性能审计 F2117/F2118）：字节格式化器复用——sizeText 是列表每行都要求值的计算
+    // 属性，`ByteCountFormatter.string(fromByteCount:countStyle:)` 这个类方法内部每次都
+    // 新建 formatter。改为 static 实例复用。
+    private static let byteFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f
+    }()
+
     public var sizeText: String {
-        size > 0 ? ByteCountFormatter.string(fromByteCount: size, countStyle: .file) : "—"
+        size > 0 ? Self.byteFormatter.string(fromByteCount: size) : "—"
     }
 
-    public var addedText: String {
+    // v126（性能审计 F2117/F2118）：DateFormatter 复用——addedText 是中转列表每行都要
+    // 求值的计算属性，原实现每次 new 一个 DateFormatter。提为 static 缓存。
+    private static let addedTextFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd HH:mm"
-        return formatter.string(from: Date(timeIntervalSince1970: addedAt))
+        return formatter
+    }()
+
+    public var addedText: String {
+        Self.addedTextFormatter.string(from: Date(timeIntervalSince1970: addedAt))
     }
 }
 

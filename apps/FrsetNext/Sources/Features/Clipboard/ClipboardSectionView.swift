@@ -238,6 +238,25 @@ public struct ClipboardMenuActionItem: Identifiable {
     }
 }
 
+/// 剪贴板条目 → 可投递文件（v112 空投联动；两个菜单实现共用）
+/// 图片 → 图片文件；文件 → 原文件；文本/富文本/URL → 文本文件。磁盘上不存在则 nil。
+extension ClipboardItem {
+    public var airDropFileURL: URL? {
+        let fm = FileManager.default
+        switch type {
+        case .image:
+            if let p = imagePath, fm.fileExists(atPath: p) { return URL(fileURLWithPath: p) }
+            return nil
+        case .file:
+            if let c = content, fm.fileExists(atPath: c) { return URL(fileURLWithPath: c) }
+            return nil
+        case .text, .richtext, .url:
+            if let p = textPath, fm.fileExists(atPath: p) { return URL(fileURLWithPath: p) }
+            return nil
+        }
+    }
+}
+
 /// 右键菜单内容（复制/编辑/标签/预览/AI摘要/删除）
 public struct ClipboardRowMenuContent: View {
 
@@ -286,6 +305,14 @@ public struct ClipboardRowMenuContent: View {
         let canSummarize = ClipboardSummaryExecutionCoordinator.shared.isAvailable
         return [
             ClipboardMenuActionItem(id: "copy", title: "复制", systemImage: "doc.on.doc") { manager.copy(item) },
+            // v112 空投联动：条目文件 → 系统空投面板（经通知走 App 层接线）
+            ClipboardMenuActionItem(id: "airDrop", title: "隔空投送", systemImage: "dot.radiowaves.left.and.right",
+                                    isEnabled: item.airDropFileURL != nil) {
+                if let url = item.airDropFileURL {
+                    NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                                    userInfo: ["urls": [url]])
+                }
+            },
             ClipboardMenuActionItem(id: "edit", title: "编辑", systemImage: "pencil") {
                 ClipboardItemEditWindowRecord.open(for: item)
             },
@@ -390,16 +417,10 @@ public struct ClipboardRow: View {
         // 统一走设计系统 WhiteGlassCard——白渐变 + 斜向高光 + liquid 镀边 + 柔投影
         // （三级玻璃 L2 内容卡层，与页面玻璃/工具条胶囊质感区分）。
         .whiteGlassCard(Self.cardRadius)
-        // v112 宽度实证：行卡全局坐标（与日历卡 global 对照，定位宽度偏差）
-        .background(
-            GeometryReader { g in
-                Color.clear
-                    .onAppear { Log.info("WidthAudit", "行卡 global=\(g.frame(in: .global))") }
-                    .onChange(of: g.frame(in: .global)) {
-                        Log.info("WidthAudit", "行卡 settled=\($0)")
-                    }
-            }
-        )
+        // v129（内存）：移除 v112「宽度实证」的 GeometryReader 埋点——每行一个
+        // GeometryReader + onAppear/onChange 各打一条 Log（字符串格式化 + 落盘），
+        // 列表滚动/布局抖动时是每行每帧的分配churn（non-object 小块 + CFString），
+        // 实证完成后属纯调试残留。
     }
 
     /// 小卡片圆角（不低于 12，个性化档位可再放大）
@@ -459,15 +480,34 @@ public struct ClipboardRow: View {
         Self.imageSizeText(at: path)
     }
 
+    // v126（性能审计 F0685）：图片像素尺寸文本缓存。
+    // 行 body 每次求值都 CGImageSourceCreateWithURL 读盘取元数据（滑动时每帧×每行），
+    // 而图片落盘后尺寸不变——按路径缓存，滚动热路径零 IO。
+    // v128（内存优化）：原缓存无界，按路径无限增长。加 countLimit=512
+    // （字符串条目小，可多留；文本类无需 totalCostLimit）。
+    private static let sizeTextCache: NSCache<NSString, NSString> = {
+        let c = NSCache<NSString, NSString>()
+        c.countLimit = 512
+        return c
+    }()
+
     private static func imageSizeText(at path: String) -> String? {
-        // v101 性能审计：原实现 NSImage(contentsOfFile:) 整图解码只为取像素宽高——
-        // 图片行每次 body 求值都同步解码整图（滑动掉帧源）。改 ImageIO 只读元数据。
-        guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
-              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else { return nil }
-        let width = props[kCGImagePropertyPixelWidth] as? Int ?? 0
-        let height = props[kCGImagePropertyPixelHeight] as? Int ?? 0
-        guard width > 0, height > 0 else { return nil }
-        return "\(width)×\(height) pt"
+        if let hit = sizeTextCache.object(forKey: path as NSString) { return hit as String }
+        // v128（内存优化）：包 autoreleasepool——滚动热路径每行 body 求值都可能
+        // CGImageSource 读盘取元数据（产生 CFString/NSDictionary 桥接对象），
+        // 列表重绘是成批触发，不显式 drain 会堆积
+        return autoreleasepool {
+            // v101 性能审计：原实现 NSImage(contentsOfFile:) 整图解码只为取像素宽高——
+            // 图片行每次 body 求值都同步解码整图（滑动掉帧源）。改 ImageIO 只读元数据。
+            guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else { return nil }
+            let width = props[kCGImagePropertyPixelWidth] as? Int ?? 0
+            let height = props[kCGImagePropertyPixelHeight] as? Int ?? 0
+            guard width > 0, height > 0 else { return nil }
+            let text = "\(width)×\(height) pt"
+            sizeTextCache.setObject(text as NSString, forKey: path as NSString)
+            return text
+        }
     }
 
     private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {

@@ -94,6 +94,23 @@ enum ScreenSnapshot {
         config.scalesToFit = false
         return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
     }
+
+    /// ScreenCaptureKit 窗口级抓取（v112 窗口截图用；desktopIndependentWindow
+    /// 只含该窗口本身、自动排除遮挡在其上的其他窗口——区域裁剪做不到这点）
+    @available(macOS 14.0, *)
+    static func sckCapture(windowID: CGWindowID) async throws -> CGImage {
+        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+        guard let window = content.windows.first(where: { $0.windowID == windowID }) else {
+            throw CaptureError.captureFailed
+        }
+        let filter = SCContentFilter(desktopIndependentWindow: window)
+        let config = SCStreamConfiguration()
+        config.width = max(1, Int(window.frame.width))
+        config.height = max(1, Int(window.frame.height))
+        config.pixelFormat = kCVPixelFormatType_32BGRA
+        config.showsCursor = false
+        return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+    }
 }
 
 // MARK: - 截图管理器
@@ -120,7 +137,14 @@ public final class ScreenshotManager: ObservableObject {
     // MARK: 私有
 
     private var overlays: [ScreenshotOverlayWindow] = []
-    private let thumbCache = NSCache<NSURL, NSImage>()
+    // v128（内存优化）：原缩略图缓存无界，截图目录大时长期驻留只涨不落。
+    // 加 countLimit=48 + totalCostLimit=20MB，写入按像素字节记账（w*h*4）。
+    private let thumbCache: NSCache<NSURL, NSImage> = {
+        let c = NSCache<NSURL, NSImage>()
+        c.countLimit = 48
+        c.totalCostLimit = 20 * 1024 * 1024
+        return c
+    }()
     /// 直接动作（热键直连：captureAndOCR/Pin/Copy）；toolbar = 框选后弹动作工具条
     private enum PendingFlow {
         case direct(CaptureDefaultAction)
@@ -129,6 +153,12 @@ public final class ScreenshotManager: ObservableObject {
     private var pendingFlow: PendingFlow = .direct(.save)
     /// 最近一次选区（AppKit 全局坐标，左下原点）——屏幕翻译钉回原位用
     private(set) var lastSelectionAppKit: CGRect = .zero
+    /// v130（SnowShot 对齐）②：最近一次落盘截图的路径（OCR 文本回填历史库用）
+    private var lastHistoryPath: String?
+    /// v130②：本次截图的模式标签（历史库 mode 列；入口处设置）
+    private var currentModeTag: String = "area"
+    /// v130（SnowShot 对齐）⑤：最近一次识别到的二维码 payload（结果窗二维码页签用）
+    @Published public private(set) var qrPayloads: [String] = []
 
     init() {
         reloadRecent()
@@ -162,6 +192,14 @@ public final class ScreenshotManager: ObservableObject {
     private static let keyDefaultAction = "capture.defaultAction"
     /// OCR 完成后是否弹出结果窗
     private static let keyOCRResultWindow = "capture.ocrShowResultWindow"
+    /// v130（SnowShot 对齐）④：延时截图秒数（3 / 5 / 10）
+    private static let keyDelaySeconds = "capture.delaySeconds"
+
+    /// v130④：延时截图秒数（设置 → 截图 → 延时截图）
+    public var delaySeconds: Int {
+        get { Preferences.shared.value(Self.keyDelaySeconds, default: 5) }
+        set { Preferences.shared.set(Self.keyDelaySeconds, newValue) }
+    }
 
     public var defaultAction: CaptureDefaultAction {
         get {
@@ -276,14 +314,22 @@ public final class ScreenshotManager: ObservableObject {
         alert.alertStyle = .warning
         alert.messageText = "需要「屏幕录制」权限"
         alert.informativeText = "截图功能需要系统授权。请打开 系统设置 → 隐私与安全性 → 屏幕录制，勾选本应用后重新启动。"
+        alert.addButton(withTitle: "权限引导")
         alert.addButton(withTitle: "打开系统设置")
         alert.addButton(withTitle: "稍后")
-        if alert.runModal() == .alertFirstButtonReturn,
-           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            // spec 13 §4：无法打开链接场景（原作 Unable to Open Link，open 返回 false 即失败）
-            if !NSWorkspace.shared.open(url) {
-                Toast.show("无法打开链接", icon: "exclamationmark.circle.fill")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            // v111：统一权限引导窗（四类权限总览；各失败点统一入口）
+            PermissionGuideWindowController.shared.show()
+        case .alertSecondButtonReturn:
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                // spec 13 §4：无法打开链接场景（原作 Unable to Open Link，open 返回 false 即失败）
+                if !NSWorkspace.shared.open(url) {
+                    Toast.show("无法打开链接", icon: "exclamationmark.circle.fill")
+                }
             }
+        default:
+            break
         }
     }
 
@@ -315,6 +361,7 @@ public final class ScreenshotManager: ObservableObject {
     private func beginRegionCapture(flow: PendingFlow) {
         closeOverlays()
         pendingFlow = flow
+        currentModeTag = "area"      // v130②：历史库模式标签
         isCapturing = true
         NSApp.activate(ignoringOtherApps: true)
 
@@ -367,6 +414,7 @@ public final class ScreenshotManager: ObservableObject {
                 return
             }
             registerCaptured(url: url, data: data, playSound: true)
+            autoDetectQR(in: cropped)   // v130⑤：自动检测二维码
             CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global)
         }
     }
@@ -390,6 +438,7 @@ public final class ScreenshotManager: ObservableObject {
             guard let screen = currentScreen(),
                   let displayID = ScreenSnapshot.displayID(of: screen) else { return }
             let action = defaultAction
+            self.currentModeTag = "full"   // v130②：历史库模式标签
 
             var image: CGImage?
             if #available(macOS 14.0, *) {
@@ -405,9 +454,101 @@ public final class ScreenshotManager: ObservableObject {
         }
     }
 
+    // MARK: 延时截图（v130 SnowShot 对齐④）
+
+    /// 延时截图：N 秒倒计时后自动截取当前屏幕（Esc 取消；N = 设置项 delaySeconds）
+    public func captureDelayed() {
+        DelayedCaptureController.shared.start(seconds: delaySeconds)
+    }
+
     private func currentScreen() -> NSScreen? {
         let point = NSEvent.mouseLocation
         return NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main ?? NSScreen.screens.first
+    }
+
+    // MARK: 窗口截图（v113 对齐原版窗口模式）
+    //
+    // 证据（docs/窗口识别与传输功能-既有实现彻查.md）：
+    //   · 原版 CaptureMode 含 `.window`（specs/06 反汇编还原）；
+    //   · 原版二进制反射字段 windows / windowOrder / selectedWindowId /
+    //     keyDownMonitor / isClosingWindow → 窗口模式自带「识别 + 选择」交互。
+    //
+    // 因此本实现走「覆盖层窗口选择」：悬停高亮 + 单击截取（Esc 取消），
+    // 与原版交互对齐；v112 的「直接抓最前台窗口」与「区域模式悬停吸附」已移除
+    // （前者偏离原版交互，后者是自研发明）。
+
+    /// 进入窗口截图：覆盖层窗口选择（悬停识别 → 单击截取）
+    public func captureWindow() {
+        Task { @MainActor in
+            guard await ensureScreenRecordingPermission() else { return }
+            self.beginWindowCapture()
+        }
+    }
+
+    @MainActor
+    private func beginWindowCapture() {
+        closeOverlays()
+        pendingFlow = .toolbar          // 截取后与区域截图同一套动作工具条
+        currentModeTag = "window"       // v130②：历史库模式标签
+        isCapturing = true
+        NSApp.activate(ignoringOtherApps: true)
+
+        for screen in NSScreen.screens {
+            let snapshot = ScreenSnapshot.cgCapture(screen: screen)
+            let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot, pickMode: .window)
+            window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
+                guard let self = self, let window = window else { return }
+                self.commitWindow(rect: rect, windowID: windowID, window: window)
+            }
+            window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
+            overlays.append(window)
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
+        if overlays.isEmpty {
+            isCapturing = false
+            Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+        }
+    }
+
+    /// 提交窗口选择：优先 SCK 窗口级抓取（排除遮挡窗口），回退覆盖层快照裁剪
+    private func commitWindow(rect: CGRect, windowID: CGWindowID, window: ScreenshotOverlayWindow) {
+        let screenFrame = window.frame
+        let snapshot = window.overlayView.snapshot
+        closeOverlays()
+        isCapturing = false
+
+        let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
+        lastSelectionAppKit = global
+
+        Task { @MainActor in
+            var image: CGImage?
+            if windowID != 0, #available(macOS 14.0, *) {
+                image = try? await ScreenSnapshot.sckCapture(windowID: windowID)
+            }
+            if image == nil, let snapshot {
+                image = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame)
+            }
+            guard let image else {
+                self.statusMessage = CaptureError.captureFailed.errorDescription
+                Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            // 与区域截图同一条收尾路径（落盘 + 广播 + 动作工具条/默认动作）
+            switch self.pendingFlow {
+            case .direct(let action):
+                self.handle(image, action: action)
+            case .toolbar:
+                guard let data = ImageProcessor.pngData(image),
+                      let url = self.savePNG(data) else {
+                    Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
+                self.registerCaptured(url: url, data: data, playSound: true)
+                self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
+                CaptureActionChain.present(image: image, url: url, selectionAppKit: global)
+            }
+        }
     }
 
     // MARK: 产出分流
@@ -425,15 +566,20 @@ public final class ScreenshotManager: ObservableObject {
             return
         }
         registerCaptured(url: url, data: data, playSound: true)
+        autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
         apply(action, to: image, url: url)
     }
 
     /// 登记一张已落盘的截图：刷新最近列表 + 可选提示音 + 事件广播。
     /// 供截图主流程与标注保存复用，保证两条链路行为一致。
-    public func registerCaptured(url: URL, data: Data, playSound: Bool = false) {
+    /// v130（SnowShot 对齐）②：同时写入截图历史库（缩略图 + 可检索，上限 500 条）。
+    public func registerCaptured(url: URL, data: Data, playSound: Bool = false, mode: String? = nil) {
         recent.insert(CapturedImage(url: url, createdAt: Date()), at: 0)
         if recent.count > 60 { recent = Array(recent.prefix(60)) }
         if playSound, Preferences.shared.value(Preferences.Keys.captureSound, default: true) { playShutterSound() }
+        // v130②：历史入库（异步生成缩略图；mode 缺省用本次截图入口标签）
+        CaptureHistoryStore.shared.record(url: url, mode: mode ?? currentModeTag)
+        lastHistoryPath = url.path
         // 不直接调用剪贴板模块：由 App 层接线把这条回调接到剪贴板历史入库
         CaptureEventBus.onImageCaptured?(url, data)
     }
@@ -534,10 +680,16 @@ public final class ScreenshotManager: ObservableObject {
     /// 缩略图（带内存缓存）
     public func thumbnail(for url: URL, maxSide: CGFloat = 240) -> NSImage? {
         if let cached = thumbCache.object(forKey: url as NSURL) { return cached }
-        guard let cg = ImageProcessor.cgImage(from: url) else { return nil }
-        let image = ImageProcessor.nsImage(ImageProcessor.scaled(cg, maxSide: maxSide))
-        thumbCache.setObject(image, forKey: url as NSURL)
-        return image
+        // v128（内存优化）：包 autoreleasepool——缩略图生成（CGImage 解码 + 缩放）
+        // 在列表滚动时成批触发，临时对象显式 drain
+        return autoreleasepool {
+            guard let cg = ImageProcessor.cgImage(from: url) else { return nil }
+            let image = ImageProcessor.nsImage(ImageProcessor.scaled(cg, maxSide: maxSide))
+            // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
+            thumbCache.setObject(image, forKey: url as NSURL,
+                                 cost: Int(image.size.width * image.size.height * 4))
+            return image
+        }
     }
 
     // MARK: OCR
@@ -563,6 +715,10 @@ public final class ScreenshotManager: ObservableObject {
                 }
                 if !text.isEmpty {
                     CaptureEventBus.onTextRecognized?(text)
+                    // v130（SnowShot 对齐）②：OCR 文本回填截图历史（历史窗可按文本搜索）
+                    if let p = self.lastHistoryPath {
+                        CaptureHistoryStore.shared.updateOCR(path: p, text: text)
+                    }
                     // 弹出「原文对照 + 识别文本」结果窗（B5）
                     if self.ocrShowResultWindow,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
@@ -587,15 +743,24 @@ public final class ScreenshotManager: ObservableObject {
         statusMessage = "识别结果已复制"
     }
 
-    // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）
+    // MARK: 二维码自动检测（v130 SnowShot 对齐⑤）
     //
-    // TODO(spec 13 §4)：「二维码识别失败」（0x1003c98e0 / 0x1003c99e8 / 0x100411b08，
-    // 文案 Text Recognition Failed 与 QR Code Recognition Failed 两态）——
-    // 重建版截图链路只有文字 OCR（recognize(imageData:)）。全工程唯一的二维码能力是
-    // Panel 侧 PreviewImageLoader.detectQRCode（CIDetector，仅返回「有没有」的 Bool，
-    // 供预览头尾高度分支用，无失败态、也不在本模块），故此处**没有可挂失败分支的入口**；
-    // 待截图链路接入真正的二维码识别后再接
-    // `Toast.show("二维码识别失败", icon: "exclamationmark.circle.fill")`。
+    // v130 起截图链路已接入真正的二维码识别（QRCodeRecognizer / VNDetectBarcodesRequest），
+    // 之前的 TODO「二维码识别失败提示无挂点」就地闭环：识别失败 = 静默（不弹错），
+    // 命中时弹结果窗二维码页签 + Toast（见 autoDetectQR）。
+
+    /// 截图完成后自动检测二维码：命中 → 结果窗「二维码」页签展示 payload（可打开/复制）
+    private func autoDetectQR(in image: CGImage) {
+        QRCodeRecognizer.recognize(image) { [weak self] payloads in
+            guard let self, !payloads.isEmpty else { return }
+            self.qrPayloads = payloads
+            Toast.show("识别到 \(payloads.count) 个二维码", icon: "qrcode.viewfinder")
+            // 与 OCR 结果窗合并展示（同一面板加二维码页签）
+            let data = ImageProcessor.pngData(image) ?? Data()
+            ScreenshotOCRWindowController.shared.show(sourceImage: image, imageData: data,
+                                                      text: "", qrPayloads: payloads, selectQR: true)
+        }
+    }
 
     // MARK: 长截图 / 钉图
 
@@ -613,6 +778,8 @@ public final class ScreenshotManager: ObservableObject {
         }
         recent.insert(CapturedImage(url: url, createdAt: Date()), at: 0)
         if recent.count > 60 { recent = Array(recent.prefix(60)) }
+        CaptureHistoryStore.shared.record(url: url, mode: "long")   // v130②：长截图入历史
+        lastHistoryPath = url.path
         CaptureEventBus.onImageCaptured?(url, data)
         let total = overlaps.reduce(0, +)
         statusMessage = "长截图已保存（重叠 \(total) 像素）"

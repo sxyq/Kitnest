@@ -82,6 +82,11 @@ public final class AudioMixerController: ObservableObject {
 
     private var refreshTimer: Timer?
 
+    // v128（流畅度）：进程图标缓存（pid → NSImage）——原来每 2s 对每个有声进程
+    // 重取 NSRunningApplication.icon（AppKit 图标查找/解码），窗口开着半小时就是
+    // 几千次重复查找。图标随 pid 不变，缓存后整窗生命周期内每进程只查一次。
+    private var iconCache: [Int32: NSImage] = [:]
+
     private init() {
         outputVolume = getSystemVolume()
         outputMuted = getSystemMuted()
@@ -94,8 +99,13 @@ public final class AudioMixerController: ObservableObject {
     public func startRefreshing() {
         guard refreshTimer == nil else { return }
         refreshPlayingApps()
+        // v128（流畅度）：周期维持 2s——本 timer 仅在「设置 → 音频」页可见时跑
+        // （onAppear/onDisappear 成对启停），关闭页面即完全停止，不存在常驻成本；
+        // 「谁在出声」需要实时性，降频会让列表明显滞后。回调体补 autoreleasepool。
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async { self?.refreshPlayingApps() }
+            DispatchQueue.main.async {
+                autoreleasepool { self?.refreshPlayingApps() }
+            }
         }
     }
 
@@ -211,6 +221,7 @@ public final class AudioMixerController: ObservableObject {
         guard AudioObjectGetPropertyData(sys, &listAddr, 0, nil, &size, &ids) == 0 else { return }
 
         var apps: [AudioAppInfo] = []
+        apps.reserveCapacity(ids.count)
         for objID in ids {
             var runAddr = addr(cc("piro"))
             var run: UInt32 = 0
@@ -223,13 +234,26 @@ public final class AudioMixerController: ObservableObject {
             guard AudioObjectGetPropertyData(objID, &pidAddr, 0, nil, &pidSize, &pid) == 0, pid > 0 else { continue }
 
             let running = NSRunningApplication(processIdentifier: pid)
+            // v128（流畅度）：图标按 pid 缓存——原每 2s 重取 NSRunningApplication.icon
+            // （AppKit 图标查找/解码），有声进程不变时纯属重复开销。
+            let icon: NSImage?
+            if let cached = iconCache[pid] {
+                icon = cached
+            } else {
+                icon = running?.icon
+                if let icon { iconCache[pid] = icon }
+            }
             apps.append(AudioAppInfo(id: Int(pid),
                                      processObjectID: objID,
                                      name: running?.localizedName ?? "PID \(pid)",
                                      bundleID: running?.bundleIdentifier ?? "",
-                                     icon: running?.icon))
+                                     icon: icon))
         }
-        playingApps = apps
+        // v128（流畅度）：无变化不触发 @Published——AudioAppInfo 的 == 只比 pid，
+        // 列表不变时写回会让整页 Form 每 2s 白重绘一次（含 Slider/Picker）。
+        if apps.map(\.id) != playingApps.map(\.id) {
+            playingApps = apps
+        }
     }
 }
 

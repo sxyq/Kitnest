@@ -31,7 +31,8 @@ public extension Notification.Name {
 
 /// 截图模式（沿用原作 CaptureMode 语义）
 public enum CaptureMode: String, CaseIterable, Identifiable {
-    case area, full, ocr, pin, long, annotate, color
+    // v130（SnowShot 对齐）④：新增 .delayed 延时截图（N 秒后自动截图）
+    case area, full, window, ocr, pin, long, annotate, color, delayed
 
     public var id: String { rawValue }
 
@@ -40,11 +41,13 @@ public enum CaptureMode: String, CaseIterable, Identifiable {
         switch self {
         case .area:     return "区域截图"
         case .full:     return "全屏截图"
+        case .window:   return "窗口截图"
         case .ocr:      return "截图识字"
         case .pin:      return "屏幕钉图"
         case .long:     return "长截图"
         case .annotate: return "标注编辑"
         case .color:    return "取色器"
+        case .delayed:  return "延时截图"
         }
     }
 
@@ -53,11 +56,13 @@ public enum CaptureMode: String, CaseIterable, Identifiable {
         switch self {
         case .area:     return "crop"
         case .full:     return "macwindow"
+        case .window:   return "macwindow.on.rectangle"
         case .ocr:      return "text.viewfinder"
         case .pin:      return "pin"
         case .long:     return "rectangle.stack"
         case .annotate: return "pencil.and.outline"
         case .color:    return "eyedropper"
+        case .delayed:  return "timer"
         }
     }
 }

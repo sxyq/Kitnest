@@ -146,11 +146,14 @@ public final class OCRService: OCRServiceProtocol {
         return lines.joined(separator: "\n")
     }
 
+    /// v126（性能审计 F2023）：正则编译缓存，避免 cleanLine 每次调用重新编译
+    private static let cleanSpaceRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: "(?<=[\\u4E00-\\u9FFF\\u3400-\\u4DBF\\u3000-\\u303F\\uFF01-\\uFF60])[ \\u00A0]+"
+            + "(?=[\\u4E00-\\u9FFF\\u3400-\\u4DBF\\u3000-\\u303F\\uFF01-\\uFF60])")
+
     /// 去掉中文字符之间的空格（Vision 常见误差：「文 字 录 入」→「文字录入」）
     public static func cleanLine(_ raw: String) -> String {
-        let pattern = "(?<=[\\u4E00-\\u9FFF\\u3400-\\u4DBF\\u3000-\\u303F\\uFF01-\\uFF60])[ \\u00A0]+"
-            + "(?=[\\u4E00-\\u9FFF\\u3400-\\u4DBF\\u3000-\\u303F\\uFF01-\\uFF60])"
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        guard let regex = cleanSpaceRegex else {
             return raw.trimmingCharacters(in: .whitespaces)
         }
         let range = NSRange(raw.startIndex..., in: raw)

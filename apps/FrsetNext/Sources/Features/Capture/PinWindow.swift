@@ -17,6 +17,13 @@ private func pinL10n(_ key: String) -> String {
 /// 字体 systemFont 12pt semibold（0x1002fe0ac）；黑底白字百分比文本。
 final class PinnedScreenshotScaleHUD: NSView {
 
+    /// v126（性能审计 F0426）：缓存 HUD 字体与属性字典，避免 draw 每帧重建
+    private static let hudFont = NSFont.systemFont(ofSize: 12, weight: .semibold)
+    private static let hudAttrs: [NSAttributedString.Key: Any] = [
+        .font: hudFont,
+        .foregroundColor: NSColor.white,
+    ]
+
     private var percentText: String = "100%"
 
     init() {
@@ -40,10 +47,8 @@ final class PinnedScreenshotScaleHUD: NSView {
         let path = NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8)
         NSColor(white: 0, alpha: 0.72).setFill()
         path.fill()
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
-            .foregroundColor: NSColor.white,
-        ]
+        // v126（性能审计 F0426）：复用静态缓存属性字典
+        let attrs = Self.hudAttrs
         let size = (percentText as NSString).size(withAttributes: attrs)
         (percentText as NSString).draw(at: NSPoint(x: (bounds.width - size.width) / 2,
                                                    y: (bounds.height - size.height) / 2),
@@ -210,16 +215,22 @@ final class PinnedScreenshotControlsWindow: NSPanel {
         let generationAtSchedule = generation
         let work = DispatchWorkItem { [weak self] in
             guard let self = self, self.generation == generationAtSchedule else { return }   // 世代比对防错序
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = animated ? 0.18 : 0
-                self.animator().alphaValue = 0
-            }, completionHandler: {
-                // alpha 已归零；若期间又有 show（generation 变化）则不落隐藏态
-                if self.generation == generationAtSchedule {
-                    self.orderOut(nil)
-                    self.ignoresMouseEvents = true
-                }
-            })
+            // v126（性能审计 F0436）：非动画路径跳过 NSAnimationContext，减少主线程开销
+            if animated {
+                NSAnimationContext.runAnimationGroup({ context in
+                    context.duration = 0.18
+                    self.animator().alphaValue = 0
+                }, completionHandler: {
+                    if self.generation == generationAtSchedule {
+                        self.orderOut(nil)
+                        self.ignoresMouseEvents = true
+                    }
+                })
+            } else {
+                self.alphaValue = 0
+                self.orderOut(nil)
+                self.ignoresMouseEvents = true
+            }
         }
         pendingHide = work
         DispatchQueue.main.async(execute: work)
@@ -747,7 +758,7 @@ final class PinnedScreenshotContentView: NSView {
         controlsWindow.dismiss(animated: false)
         guard let data = ImageProcessor.pngData(image),
               let url = ScreenshotManager.shared.savePNG(data) else { return }
-        ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true)
+        ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true, mode: "pin")   // v130②
     }
 
     /// 关闭（setReleasedWhenClosed(false) 面板 close，0x100302174 链）

@@ -44,6 +44,64 @@ public enum TransferDockPref {
         isOn(cloudEnabled) && TransferDockPath.isAvailable
     }
 
+    // MARK: - 投屏画质（v117；用户：「画质十分差，要能在设置里手动设置」）
+
+    /// 投屏画质档位：分辨率上限 / 码率 / 帧率，全部可在 设置 → 文件中转 调整
+    public enum CastQuality {
+        private static let sizeKey = "cast.maxSize"       // 0 = 原始分辨率
+        private static let bitrateKey = "cast.bitrate"    // Mbps
+        private static let fpsKey = "cast.fps"            // 0 = scrcpy 默认
+
+        /// 分辨率上限（短边像素；0 = 原始）
+        public static var maxSize: Int {
+            get { UserDefaults.standard.object(forKey: sizeKey) as? Int ?? 1920 }
+            set { UserDefaults.standard.set(newValue, forKey: sizeKey) }
+        }
+        /// 码率（Mbps）
+        public static var bitrate: Int {
+            get { UserDefaults.standard.object(forKey: bitrateKey) as? Int ?? 16 }
+            set { UserDefaults.standard.set(newValue, forKey: bitrateKey) }
+        }
+        /// 帧率上限（0 = 默认）
+        public static var fps: Int {
+            get { UserDefaults.standard.object(forKey: fpsKey) as? Int ?? 60 }
+            set { UserDefaults.standard.set(newValue, forKey: fpsKey) }
+        }
+
+        // v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2）。
+        // 开（默认）→ scrcpy 拉起显式带双向剪贴板；关 → 明确关闭（不再依赖默认值）。
+        private static let clipboardKey = "cast.clipboardAutoSync"
+        public static var clipboardAutoSync: Bool {
+            get {
+                guard let v = UserDefaults.standard.object(forKey: clipboardKey) as? Bool else { return true }
+                return v
+            }
+            set { UserDefaults.standard.set(newValue, forKey: clipboardKey) }
+        }
+
+        /// 组装 scrcpy 参数（统一入口：镜像与 Meld 窗口共用同一套画质）
+        public static func arguments() -> [String] {
+            var a: [String] = []
+            if maxSize > 0 { a += ["--max-size", "\(maxSize)"] }
+            a += ["--video-bit-rate", "\(bitrate)M"]
+            if fps > 0 { a += ["--max-fps", "\(fps)"] }
+            return a
+        }
+
+        /// 人类可读摘要（设置页/投屏页展示）
+        public static var summary: String {
+            let size = maxSize == 0 ? "原始分辨率" : "\(maxSize)p"
+            let fpsText = fps == 0 ? "默认帧率" : "\(fps)fps"
+            return "\(size) · \(bitrate)Mbps · \(fpsText)"
+        }
+
+        public static let sizeOptions: [(String, Int)] = [
+            ("原始", 0), ("1920", 1920), ("1440", 1440), ("1280", 1280), ("1024", 1024), ("854", 854)
+        ]
+        public static let bitrateOptions: [Int] = [4, 8, 16, 24, 32, 50]
+        public static let fpsOptions: [Int] = [30, 60, 90, 0]
+    }
+
     /// 剪贴板文件自动暂存（复制 Word / PPT / Excel / 压缩包等 → 自动进本地中转）
     public static let autoStageClipboard = "transferDock.autoStageClipboard"
 

@@ -156,8 +156,11 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
     private func download(_ job: Job) {
         setStatus(job.id, .downloading)
         var request = URLRequest(url: job.url)
-        request.timeoutInterval = CloudLinkSettings.timeout
+        // v126（性能审计 F2052）：CloudLinkSettings 每个属性读一次 UserDefaults——
+        // 外提为局部快照，减少 3 次读取并保证本次请求配置一致。
+        let timeout = CloudLinkSettings.timeout
         let custom = CloudLinkSettings.uaOverride.trimmingCharacters(in: .whitespacesAndNewlines)
+        request.timeoutInterval = timeout
         let provider = job.provider ?? CloudDriveLinkDetector.provider(forHost: job.url.host ?? "")
         let ua = custom.isEmpty
             ? (provider.map(CloudLinkSettings.defaultUA(for:)) ?? "")
@@ -195,7 +198,16 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
     /// aria2 JSON-RPC 直投：并发/分片/续传/UA 都按配置下发
     private func sendToAria2(_ job: Job) {
         setStatus(job.id, .downloading)
-        guard let endpoint = URL(string: CloudLinkSettings.aria2Endpoint) else {
+        // v126（性能审计 F2053）：CloudLinkSettings 每属性一次 UserDefaults 读取，
+        // 本函数原本读 9+ 次——外提为局部快照，一次读齐、配置一致。
+        let endpointText = CloudLinkSettings.aria2Endpoint
+        let downloadDir = CloudLinkSettings.downloadDirectory
+        let connections = CloudLinkSettings.connectionsPerFile
+        let chunkMB = CloudLinkSettings.chunkSizeMB
+        let resume = CloudLinkSettings.resumeEnabled
+        let conflict = CloudLinkSettings.conflictPolicy
+        let aria2Token = CloudLinkSettings.aria2Token
+        guard let endpoint = URL(string: endpointText) else {
             finish(id: job.id, error: "aria2 地址无效")
             release()
             return
@@ -207,20 +219,20 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
             : custom
 
         var options: [String: Any] = [
-            "dir": CloudLinkSettings.downloadDirectory,
-            "split": "\(CloudLinkSettings.connectionsPerFile)",
-            "max-connection-per-server": "\(CloudLinkSettings.connectionsPerFile)",
-            "min-split-size": "\(CloudLinkSettings.chunkSizeMB)M",
-            "continue": CloudLinkSettings.resumeEnabled ? "true" : "false",
-            "auto-file-renaming": CloudLinkSettings.conflictPolicy == .rename ? "true" : "false",
-            "allow-overwrite": CloudLinkSettings.conflictPolicy == .overwrite ? "true" : "false",
+            "dir": downloadDir,
+            "split": "\(connections)",
+            "max-connection-per-server": "\(connections)",
+            "min-split-size": "\(chunkMB)M",
+            "continue": resume ? "true" : "false",
+            "auto-file-renaming": conflict == .rename ? "true" : "false",
+            "allow-overwrite": conflict == .overwrite ? "true" : "false",
             "out": job.name
         ]
         if !ua.isEmpty { options["user-agent"] = ua }
 
         var params: [Any] = []
-        if !CloudLinkSettings.aria2Token.isEmpty {
-            params.append("token:\(CloudLinkSettings.aria2Token)")
+        if !aria2Token.isEmpty {
+            params.append("token:\(aria2Token)")
         }
         params.append([job.url.absoluteString])
         params.append(options)
@@ -249,7 +261,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 self.handleFailure(job, reason: "aria2：\(err["message"] as? String ?? "未知错误")")
                 return
             }
-            self.finish(id: job.id, note: "已交给 aria2（\(CloudLinkSettings.connectionsPerFile) 连接）")
+            self.finish(id: job.id, note: "已交给 aria2（\(connections) 连接）")
             self.release()
         }.resume()
     }

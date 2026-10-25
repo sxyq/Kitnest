@@ -325,12 +325,32 @@ void frset_disk_sample(frset_disk_t *out) {
 
 // ============ v4 追加：电池（IORegistry AppleSmartBattery） ============
 
+/* v126（性能审计 F1723）：缓存 AppleSmartBattery 的 io_service_t 句柄——
+   原先每秒调 IOServiceGetMatchingService 做一次完整 IOKit 注册表匹配（~100µs），
+   电池服务句柄在进程生命周期内稳定不变，缓存后只在句柄失效时重取。 */
+static io_service_t g_battSvc = 0;
+
 void frset_battery_sample(frset_battery_t *out) {
     memset(out, 0, sizeof(*out));
-    io_service_t svc = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"));
+    /* v126：优先复用缓存句柄；句柄无效或属性读取失败时重新匹配 */
+    if (!g_battSvc) {
+        g_battSvc = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"));
+    }
+    io_service_t svc = g_battSvc;
     if (!svc) { out->present = 0; return; }
     CFMutableDictionaryRef props = NULL;
-    if (IORegistryEntryCreateCFProperties(svc, &props, kCFAllocatorDefault, 0) == KERN_SUCCESS && props) {
+    if (IORegistryEntryCreateCFProperties(svc, &props, kCFAllocatorDefault, 0) != KERN_SUCCESS || !props) {
+        /* v126：句柄可能已失效（电池热插拔等），释放并重取一次 */
+        if (g_battSvc) { IOObjectRelease(g_battSvc); g_battSvc = 0; }
+        svc = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"));
+        g_battSvc = svc;
+        if (!svc) { out->present = 0; return; }
+        if (IORegistryEntryCreateCFProperties(svc, &props, kCFAllocatorDefault, 0) != KERN_SUCCESS || !props) {
+            out->present = 0;
+            return;
+        }
+    }
+    {
         int iv; double dv; CFTypeRef cv;
         // v25 关键修复（对照官方 Modules/Battery/readers.swift）：
         //   Apple Silicon 上 "MaxCapacity" 是**百分比**(100)，真实容量在 "AppleRawMaxCapacity"(mAh)，
@@ -447,7 +467,7 @@ void frset_battery_sample(frset_battery_t *out) {
         if (wv && CFNumberGetValue(wv, kCFNumberIntType, &w) && w > 0) out->adapter_watts = w;
         CFRelease(acd);
     }
-    IOObjectRelease(svc);
+    /* v126：句柄已缓存在 g_battSvc，此处不再 IOObjectRelease（仅失效时才释放重取） */
 }
 
 // ============ v4 追加：磁盘容量（statfs） ============
@@ -504,7 +524,16 @@ static double frset_nowsec(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-#define FRSET_PROC_CAP 2048
+/* v128（CPU 优化）：FRSET_PROC_CAP 2048 → 512。
+   · 内存：g_pPrev[4][CAP]（136B/项）1.06MB → 265KB，cur+score 同步缩小（-220KB），
+     合计省约 1MB 静态堆。
+   · 截断语义：frset_proc_top 用 proc_listallpids 枚举 pid（返回 n），扫描循环以
+     ncur < FRSET_PROC_CAP 为界；进程数 > 512 时**只扫描前 512 个 pid**（枚举序、
+     非用量序），Top 表可能漏掉枚举序靠后的进程。Top 表只展示前 N 个
+     （readProcList max=8），macOS 常态进程数 300-700，可接受。
+   · 边界：cur/score/g_pPrev 所有写入都在 `ncur < FRSET_PROC_CAP` 条件内，不会越界；
+     g_pPrevN[k] = ncur（ncur 恒 ≤ CAP）。 */
+#define FRSET_PROC_CAP 512
 
 typedef struct {
     int pid;
@@ -520,18 +549,62 @@ static frset_proc_raw_t g_pPrev[4][FRSET_PROC_CAP];
 static int g_pPrevN[4] = {0, 0, 0, 0};
 static double g_pPrevT[4] = {0, 0, 0, 0};
 
+/* v128（CPU 优化）：共享扫描缓存（200ms）。
+   readProcList 同一刷新周期对 kind 0/1/2 连调三次 frset_proc_top，原实现每次都
+   proc_listallpids + 全量 proc_pid_rusage/proc_name（3×~500 次系统调用/周期）。
+   进程原始计数（ut/st/rb/wb/mem/name）与 kind 无关，缓存一次扫描 200ms 内复用；
+   速率仍按各 kind 自己的上一轮快照（g_pPrev[k]）差分，数值口径不变。
+   缓存命中时 t 回拨到扫描时刻，保证 dt 与实际采样窗口一致。 */
+static frset_proc_raw_t g_scanCache[FRSET_PROC_CAP];
+static int    g_scanCacheN = 0;
+static double g_scanCacheT = 0;
+
 int frset_proc_top(int kind, frset_proc_t *out, int max) {
     if (!out || max <= 0) return 0;
-    int n = proc_listallpids(NULL, 0);
-    if (n <= 0) return 0;
-    int cap = n + 64;
-    pid_t *pids = malloc(sizeof(pid_t) * (size_t)cap);
-    if (!pids) return 0;
-    n = proc_listallpids(pids, (int)(sizeof(pid_t) * (size_t)cap));
-    if (n <= 0) { free(pids); return 0; }
 
     int k = (kind >= 0 && kind < 4) ? kind : 0;
     double t = frset_nowsec();
+
+    /* v128：200ms 内复用上一次扫描；否则重新扫描并填缓存 */
+    frset_proc_raw_t *src = g_scanCache;
+    int nsrc = g_scanCacheN;
+    if (!(g_scanCacheT > 0 && t - g_scanCacheT <= 0.2 && nsrc > 0)) {
+        nsrc = 0;
+        int n = proc_listallpids(NULL, 0);
+        if (n <= 0) return 0;
+        int cap = n + 64;
+        pid_t *pids = malloc(sizeof(pid_t) * (size_t)cap);
+        if (!pids) return 0;
+        n = proc_listallpids(pids, (int)(sizeof(pid_t) * (size_t)cap));
+        if (n <= 0) { free(pids); return 0; }
+        /* 每 pid 两次系统调用（proc_pid_rusage + proc_name）；macOS 无廉价的
+           「可见进程」过滤口径，只能按枚举序截断（见 FRSET_PROC_CAP 注释）。
+           v128：批量收益来自上面的扫描缓存（三次调用共用一次扫描）。 */
+        for (int i = 0; i < n && nsrc < FRSET_PROC_CAP; i++) {
+            pid_t pid = pids[i];
+            if (pid <= 0) continue;
+            struct rusage_info_v4 ri;
+            memset(&ri, 0, sizeof(ri));
+            if (proc_pid_rusage(pid, RUSAGE_INFO_V4, (rusage_info_t *)&ri) != 0) continue;
+            char name[64] = {0};
+            if (proc_name(pid, name, sizeof(name)) <= 0 || name[0] == 0) continue;
+            frset_proc_raw_t *r = &g_scanCache[nsrc++];
+            memset(r, 0, sizeof(*r));
+            r->pid = pid;
+            r->ut = ri.ri_user_time;
+            r->st = ri.ri_system_time;
+            r->rb = ri.ri_diskio_bytesread;
+            r->wb = ri.ri_diskio_byteswritten;
+            r->mem = (double)ri.ri_phys_footprint;
+            strncpy(r->name, name, sizeof(r->name) - 1);
+        }
+        free(pids);
+        g_scanCacheN = nsrc;
+        g_scanCacheT = t;
+    } else {
+        t = g_scanCacheT;   /* v128：缓存命中回拨到扫描时刻（dt 口径一致） */
+    }
+
     double dt = (g_pPrevT[k] > 0) ? (t - g_pPrevT[k]) : 0.0;
     int havePrev = (dt > 0.15);
 
@@ -539,23 +612,9 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
     static double score[FRSET_PROC_CAP];
     int ncur = 0;
 
-    for (int i = 0; i < n && ncur < FRSET_PROC_CAP; i++) {
-        pid_t pid = pids[i];
-        if (pid <= 0) continue;
-        struct rusage_info_v4 ri;
-        memset(&ri, 0, sizeof(ri));
-        if (proc_pid_rusage(pid, RUSAGE_INFO_V4, (rusage_info_t *)&ri) != 0) continue;
-        char name[64] = {0};
-        if (proc_name(pid, name, sizeof(name)) <= 0 || name[0] == 0) continue;
-        frset_proc_raw_t r;
-        memset(&r, 0, sizeof(r));
-        r.pid = pid;
-        r.ut = ri.ri_user_time;
-        r.st = ri.ri_system_time;
-        r.rb = ri.ri_diskio_bytesread;
-        r.wb = ri.ri_diskio_byteswritten;
-        r.mem = (double)ri.ri_phys_footprint;
-        strncpy(r.name, name, sizeof(r.name) - 1);
+    for (int i = 0; i < nsrc && ncur < FRSET_PROC_CAP; i++) {
+        frset_proc_raw_t r = src[i];
+        int pid = r.pid;
         if (havePrev) {
             for (int j = 0; j < g_pPrevN[k]; j++) {
                 if (g_pPrev[k][j].pid != pid) continue;
@@ -602,7 +661,7 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         }
         score[best] = -1;
     }
-    free(pids);
+    /* v128：pids 缓冲已在扫描分支内释放（缓存命中时根本没有 pids） */
     return m;
 }
 
@@ -898,6 +957,14 @@ static frset_conn_t g_netConn = { -1, 0, 0, 0, 0, {0}, 0 };
 static pthread_mutex_t g_netConnMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t g_netConnThread;
 static int g_netConnThreadStarted = 0;
+/* v128（CPU 优化）：连通性探测可暂停。conn 历史（90 格）只被监测面板网络页消费，
+   面板不可见时 1 包/秒的 ICMP 探测没有观众——置 0 后线程空转不发送，恢复后历史
+   继续累积（暂停期间没有样本，与「未探测」语义一致）。 */
+static volatile int g_netConnActive = 1;
+
+void frset_conn_set_active(int active) {
+    g_netConnActive = active ? 1 : 0;
+}
 
 static uint16_t frset_icmp_checksum(const uint8_t *d, size_t n) {
     uint32_t sum = 0;
@@ -932,23 +999,29 @@ static void *frset_conn_thread(void *arg) {
     uint16_t seq = 0;
     double prevLat = -1, jitter = 0;
     double latRing[90] = {0}, jitRing[90] = {0};
-    int ringN = 0;
+    int ringN = 0, ringHead = 0;   /* v126：环形缓冲写位置 */
+    /* v126（性能审计 F1741）：增量式均值——原实现每秒 O(90) 遍历环求和，
+       改为维护运行和，推入/淘汰时 O(1) 更新。 */
+    double latSum = 0, jitSum = 0;
 
     for (;;) {
+        /* v128（CPU 优化）：面板不可见（frset_conn_set_active(0)）时暂停发包，
+           线程只低频空转；可见性恢复后下一拍立即继续探测。 */
+        if (!g_netConnActive) { usleep(500000); continue; }
         seq++;
         uint8_t pkt[8 + 16];
         memset(pkt, 0, sizeof(pkt));
         pkt[0] = 8; pkt[1] = 0;                       // echo request
         pkt[4] = (uint8_t)(id >> 8); pkt[5] = (uint8_t)(id & 0xff);
         pkt[6] = (uint8_t)(seq >> 8); pkt[7] = (uint8_t)(seq & 0xff);
-        struct timespec ts;
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        memcpy(pkt + 8, &ts, sizeof(ts));             // 指纹：发送时刻
+        /* v126（性能审计 F1741）：合并指纹与 RTT 起点为一次 clock_gettime——
+           原先 ts（指纹）和 t0（RTT）两次调用相隔仅微秒级，省 1 次 syscall/秒。 */
+        struct timespec t0;
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        memcpy(pkt + 8, &t0, sizeof(t0));             // 指纹：发送时刻（兼 RTT 起点）
         uint16_t cks = frset_icmp_checksum(pkt, sizeof(pkt));
         pkt[2] = (uint8_t)(cks >> 8); pkt[3] = (uint8_t)(cks & 0xff);
 
-        struct timespec t0;
-        clock_gettime(CLOCK_MONOTONIC, &t0);
         if (sendto(sock, pkt, sizeof(pkt), 0, (struct sockaddr *)&dst, sizeof(dst)) < 0) {
             usleep(1000000);
             continue;
@@ -1005,16 +1078,21 @@ static void *frset_conn_thread(void *arg) {
         // 推入 90 样本环 + 状态历史（官方无论是否连通都追加当前值）
         double pushLat = got ? lat : (prevLat >= 0 ? prevLat : 0);
         double pushJit = jitter;
-        if (ringN < 90) { latRing[ringN] = pushLat; jitRing[ringN] = pushJit; ringN++; }
-        else {
-            memmove(latRing, latRing + 1, 89 * sizeof(double));
-            memmove(jitRing, jitRing + 1, 89 * sizeof(double));
-            latRing[89] = pushLat;
-            jitRing[89] = pushJit;
+        /* v126（性能审计 F1741）：环形缓冲 + 增量均值。原实现每秒 memmove 720B×2
+           搬移数组 + O(90) 遍历求均值，改为 head 索引循环写 + 运行和 O(1) 更新。 */
+        if (ringN < 90) {
+            latRing[ringHead] = pushLat; jitRing[ringHead] = pushJit;
+            latSum += pushLat; jitSum += pushJit;
+            ringHead = (ringHead + 1) % 90;
+            ringN++;
+        } else {
+            latSum += pushLat - latRing[ringHead];
+            jitSum += pushJit - jitRing[ringHead];
+            latRing[ringHead] = pushLat; jitRing[ringHead] = pushJit;
+            ringHead = (ringHead + 1) % 90;
         }
-        double avgLat = 0, avgJit = 0;
-        for (int i = 0; i < ringN; i++) { avgLat += latRing[i]; avgJit += jitRing[i]; }
-        if (ringN > 0) { avgLat /= ringN; avgJit /= ringN; }
+        double avgLat = ringN ? latSum / ringN : 0;
+        double avgJit = ringN ? jitSum / ringN : 0;
 
         pthread_mutex_lock(&g_netConnMutex);
         frset_conn_push(&g_netConn, got ? 1 : 0, got ? lat : -1, jitter);
@@ -1206,6 +1284,14 @@ static frset_proc_t g_netTop[16];
 static int g_netTopN = 0;
 static pthread_mutex_t g_netTopMutex = PTHREAD_MUTEX_INITIALIZER;
 static int g_netTopStarted = 0;
+/* v128（CPU 优化）：nettop 轮询可暂停。每轮 popen("/usr/bin/nettop") 要创建子进程
+   并实测 ~1s 采样，是后台常驻开销的大头；消费者只有面板的网络占用进程表，
+   不可见时暂停轮询（frset_net_top_set_active(0)），可见时恢复 5s 一轮。 */
+static volatile int g_netTopActive = 1;
+
+void frset_net_top_set_active(int active) {
+    g_netTopActive = active ? 1 : 0;
+}
 
 static void *frset_net_top_thread(void *arg) {
     (void)arg;
@@ -1216,6 +1302,8 @@ static void *frset_net_top_thread(void *arg) {
     int firstRound = 1;
 
     for (;;) {
+        /* v128（CPU 优化）：不可见时不 popen nettop，只低频空转等待恢复 */
+        if (!g_netTopActive) { sleep(1); continue; }
         struct { int pid; char name[64]; unsigned long long rx, tx; } cur[256];
         int curN = 0;
         FILE *fp = popen("/usr/bin/nettop -P -L 1 -n -k time,interface,state,rx_dupe,rx_ooo,re-tx,rtt_avg,rcvsize,tx_win,tc_class,tc_mgt,cc_algo,P,C,R,W,arch 2>/dev/null", "r");

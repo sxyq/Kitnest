@@ -241,15 +241,18 @@ enum WidgetSettingsSelfTest {
 
     // MARK: - 校验 / 还原 / 报告
 
-    private static func check(_ condition: Bool, _ label: String) {
+    // v126（性能审计 F1199）：断言文案改 @autoclosure 惰性求值——原来即使断言通过，
+    // 也会把 `keys.sorted()`、`diffKeys(整个字典对比)` 等结果拼进字符串再丢掉，
+    // testModules 的几百次断言白白付了字符串与排序成本。调用点写法不变。
+    private static func check(_ condition: Bool, _ label: @autoclosure () -> String) {
         total += 1
-        if !condition { failures.append(label) }
+        if !condition { failures.append(label()) }
     }
 
-    private static func checkEqual<T: Equatable>(_ actual: T, _ expected: T, _ label: String) {
+    private static func checkEqual<T: Equatable>(_ actual: T, _ expected: T, _ label: @autoclosure () -> String) {
         total += 1
         if actual != expected {
-            failures.append("\(label)（实际 \(actual)，期望 \(expected)）")
+            failures.append("\(label())（实际 \(actual)，期望 \(expected)）")
         }
     }
 

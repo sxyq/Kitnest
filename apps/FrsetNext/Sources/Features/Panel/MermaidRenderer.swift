@@ -45,12 +45,36 @@ final class MermaidRenderer {
 
     // MARK: 对外
 
+    // v126（性能审计 F1023）：渲染结果缓存——预览每次重渲染都会对同一段 mermaid
+    // 重新 parse+draw（布局+CG 绘制），悬停/展开反复触发时白做。按「源码+宽度」
+    // 缓存 NSImage，命中即跳过全部解析与绘制；NSCache 自动响应内存压力。
+    // v128（内存优化）：原缓存无界（无 countLimit/totalCostLimit），渲染图大、
+    // 长期运行只涨不落。加 countLimit=24 + totalCostLimit=16MB 双保险，
+    // 写入按像素字节记账（w*h*4）。
+    private let imageCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 24
+        c.totalCostLimit = 16 * 1024 * 1024
+        return c
+    }()
+
     /// 渲染 mermaid 文本为图片；无法解析时返回 nil（调用方回退为代码块）
     func image(for source: String, maxWidth: CGFloat = 520) -> NSImage? {
-        let graph = parse(source)
-        guard !graph.nodes.isEmpty else { return nil }
-        return draw(nodes: graph.nodes, edges: graph.edges,
-                    direction: graph.direction, maxWidth: maxWidth)
+        let key = "\(maxWidth)|\(source)" as NSString
+        if let hit = imageCache.object(forKey: key) { return hit }
+        // v128（内存优化）：外层包 autoreleasepool，覆盖 parse+draw 全程——
+        // 解析/布局做大量 NSString 测量与桥接，预览反复渲染时防临时对象堆积
+        let rendered: NSImage? = autoreleasepool {
+            let graph = parse(source)
+            guard !graph.nodes.isEmpty else { return nil }
+            return draw(nodes: graph.nodes, edges: graph.edges,
+                        direction: graph.direction, maxWidth: maxWidth)
+        }
+        guard let image = rendered else { return nil }
+        // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
+        let cost = Int(image.size.width * image.size.height * 4)
+        imageCache.setObject(image, forKey: key, cost: cost)
+        return image
     }
 
     // MARK: 解析
@@ -143,10 +167,15 @@ final class MermaidRenderer {
     /// 解析一条语句：节点定义 / 连线链。
     /// ⚠️ 这里必须是**纯函数**：早前版本把 `graph` 以 inout 传入、同时又传一个闭包去改它，
     /// 触发 Swift 独占访问冲突（Fatal access conflict），预览一打开就崩。
+    // v126（性能审计 F1027）：语句/箭头标签两个正则改静态缓存——原实现每条语句、
+    // 每条边都 NSRegularExpression(pattern:) 编译一次，一张流程图几十次编译。
+    private static let statementRegex = try? NSRegularExpression(
+        pattern: #"([A-Za-z_][A-Za-z0-9_]*)\s*(\[\[[^\]]*\]\]|\[[^\]]*\]|\(\([^\)]*\)\)|\([^\)]*\)|\{[^\}]*\})?"#)
+    private static let edgeLabelRegex = try? NSRegularExpression(pattern: #"\|([^\|]*)\|"#)
+
     private func parseStatement(_ statement: String) -> ParsedStatement {
         var result = ParsedStatement()
-        let pattern = #"([A-Za-z_][A-Za-z0-9_]*)\s*(\[\[[^\]]*\]\]|\[[^\]]*\]|\(\([^\)]*\)\)|\([^\)]*\)|\{[^\}]*\})?"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return result }
+        guard let regex = Self.statementRegex else { return result }
         let ns = statement as NSString
         let matches = regex.matches(in: statement, range: NSRange(location: 0, length: ns.length))
         guard !matches.isEmpty else { return result }
@@ -171,7 +200,7 @@ final class MermaidRenderer {
             let between = textBetween(statement, fromID: from, toID: to)
             let dashed = between.contains("-.->") || between.contains("-.-")
             var label: String?
-            if let barRegex = try? NSRegularExpression(pattern: #"\|([^\|]*)\|"#),
+            if let barRegex = Self.edgeLabelRegex,
                let m = barRegex.firstMatch(in: between, range: NSRange(location: 0, length: (between as NSString).length)) {
                 label = (between as NSString).substring(with: m.range(at: 1))
                     .trimmingCharacters(in: .whitespaces)
@@ -237,9 +266,10 @@ final class MermaidRenderer {
 
         // 2) 尺寸
         let font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        // v126（性能审计 F1031）：测量属性字典外提（原每节点重建一次）
+        let measureAttrs: [NSAttributedString.Key: Any] = [.font: font]
         func measure(_ text: String) -> CGSize {
-            let attrs: [NSAttributedString.Key: Any] = [.font: font]
-            let size = (text as NSString).size(withAttributes: attrs)
+            let size = (text as NSString).size(withAttributes: measureAttrs)
             return CGSize(width: max(48, ceil(size.width) + 26), height: 34)
         }
 
@@ -263,12 +293,14 @@ final class MermaidRenderer {
 
         if horizontal {
             var x: CGFloat = 0
-            for layer in layouts {
+            for (layerIdx, layer) in layouts.enumerated() {
                 let layerWidth = layer.map(\.size.width).max() ?? 0
                 var y: CGFloat = 0
                 let totalHeight = layer.reduce(0) { $0 + $1.size.height } + gapCross * CGFloat(max(0, layer.count - 1))
                 for i in layer.indices {
-                    layouts[layouts.firstIndex(where: { $0.first?.layer == layer.first?.layer }) ?? 0][i].origin =
+                    // v126（性能审计 F1031）：原每节点 firstIndex(where:) 全表线性查找
+                    // （O(层数×节点数)），这里层索引本来就是枚举下标，直接用。
+                    layouts[layerIdx][i].origin =
                         CGPoint(x: x + (layerWidth - layer[i].size.width) / 2, y: y)
                     y += layer[i].size.height + gapCross
                 }
@@ -278,16 +310,14 @@ final class MermaidRenderer {
             }
         } else {
             var y: CGFloat = 0
-            for layer in layouts {
+            for (layerIdx, layer) in layouts.enumerated() {
                 let layerHeight = layer.map(\.size.height).max() ?? 0
                 let totalWidth = layer.reduce(0) { $0 + $1.size.width } + gapCross * CGFloat(max(0, layer.count - 1))
                 var x: CGFloat = 0
-                if let layerIdx = layer.first?.layer {
-                    for i in layouts[layerIdx].indices {
-                        layouts[layerIdx][i].origin =
-                            CGPoint(x: x, y: y + (layerHeight - layouts[layerIdx][i].size.height) / 2)
-                        x += layouts[layerIdx][i].size.width + gapCross
-                    }
+                for i in layouts[layerIdx].indices {
+                    layouts[layerIdx][i].origin =
+                        CGPoint(x: x, y: y + (layerHeight - layouts[layerIdx][i].size.height) / 2)
+                    x += layouts[layerIdx][i].size.width + gapCross
                 }
                 contentWidth = max(contentWidth, totalWidth)
                 y += layerHeight + gapMain
@@ -348,6 +378,13 @@ final class MermaidRenderer {
             ctx.scaleBy(x: scale, y: scale)
             ctx.translateBy(x: margin, y: margin)
 
+            // v126（性能审计 F1031）：边/节点文字属性字典外提（原每条边、每个节点重建）
+            let edgeLabelAttrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 10),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+            let nodeLabelAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: labelColor]
+
             // 连线先画（节点盖住端点）
             for edge in edges {
                 guard let fromRect = positions[edge.from], let toRect = positions[edge.to] else { continue }
@@ -370,13 +407,9 @@ final class MermaidRenderer {
                 self.drawArrowHead(ctx, at: p1, from: p0, color: lineColor)
 
                 if let label = edge.label, !label.isEmpty {
-                    let attrs: [NSAttributedString.Key: Any] = [
-                        .font: NSFont.systemFont(ofSize: 10),
-                        .foregroundColor: NSColor.secondaryLabelColor
-                    ]
-                    let size = (label as NSString).size(withAttributes: attrs)
+                    let size = (label as NSString).size(withAttributes: edgeLabelAttrs)
                     let point = CGPoint(x: (p0.x + p1.x) / 2 - size.width / 2, y: midY - size.height / 2)
-                    (label as NSString).draw(at: point, withAttributes: attrs)
+                    (label as NSString).draw(at: point, withAttributes: edgeLabelAttrs)
                 }
             }
 
@@ -420,12 +453,11 @@ final class MermaidRenderer {
                         ctx.strokePath()
                     }
 
-                    let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: labelColor]
                     let text = item.node.label as NSString
-                    let size = text.size(withAttributes: attrs)
+                    let size = text.size(withAttributes: nodeLabelAttrs)
                     text.draw(at: CGPoint(x: rect.midX - size.width / 2,
                                           y: rect.midY - size.height / 2),
-                              withAttributes: attrs)
+                              withAttributes: nodeLabelAttrs)
                 }
             }
             ctx.restoreGState()

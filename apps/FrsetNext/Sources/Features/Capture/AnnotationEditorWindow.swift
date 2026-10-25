@@ -86,6 +86,14 @@ final class AnnotationCanvasView: NSView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
 
+    /// v130（SnowShot 对齐）②：恢复未完成标注（历史窗「继续标注」载入的快照）
+    func restore(annotations: [Annotation]) {
+        guard !annotations.isEmpty else { return }
+        self.annotations.append(contentsOf: annotations)
+        onChange?()
+        needsDisplay = true
+    }
+
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
@@ -153,7 +161,8 @@ final class AnnotationCanvasView: NSView {
         // 标注：图像像素坐标 → 视图坐标
         ctx.saveGState()
         ctx.translateBy(x: f.minX, y: f.minY)
-        ctx.scaleBy(x: imageScale, y: imageScale)
+        let scale = imageScale   // v126（性能审计 F0279）：计算属性外提，draw 内多处引用
+        ctx.scaleBy(x: scale, y: scale)
         let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: CGFloat(image.height))
         if mosaicCacheBase !== image {
             mosaicPixelCache.removeAll()
@@ -176,25 +185,26 @@ final class AnnotationCanvasView: NSView {
             ctx.saveGState()
             let base = CGRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2)
             ctx.setStrokeColor(CGColor(gray: 0, alpha: 0.55))
-            ctx.setLineWidth(3 / max(imageScale, 0.01))
+            ctx.setLineWidth(3 / max(scale, 0.01))
             ctx.strokeEllipse(in: base)
             ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.95))
-            ctx.setLineWidth(1.2 / max(imageScale, 0.01))
+            ctx.setLineWidth(1.2 / max(scale, 0.01))
             ctx.strokeEllipse(in: base)
             ctx.restoreGState()
         }
         // 抹除涂抹预览（半透明蓝，线宽 = 实际笔刷直径）
         if let stroke = removalStroke, stroke.count >= 1 {
             ctx.saveGState()
+            let br = brushRadius   // v126（性能审计 F0279）：计算属性外提
             ctx.setFillColor(CGColor(red: 0.2, green: 0.5, blue: 1, alpha: 0.35))
             ctx.setStrokeColor(CGColor(red: 0.2, green: 0.5, blue: 1, alpha: 0.45))
-            ctx.setLineWidth(brushRadius * 2)
+            ctx.setLineWidth(br * 2)
             ctx.setLineCap(.round)
             ctx.setLineJoin(.round)
             if stroke.count == 1 {
                 let p = stroke[0]
-                ctx.fillEllipse(in: CGRect(x: p.x - brushRadius, y: p.y - brushRadius,
-                                           width: brushRadius * 2, height: brushRadius * 2))
+                ctx.fillEllipse(in: CGRect(x: p.x - br, y: p.y - br,
+                                           width: br * 2, height: br * 2))
             } else {
                 let path = CGMutablePath()
                 path.move(to: stroke[0])
@@ -209,7 +219,7 @@ final class AnnotationCanvasView: NSView {
         // 选中文字的选择框：虚线胶囊 + 淡蓝底（提示「这段文字可以被拖动/改字号」），
         // 四角与边中点是控制点——拖动即按比例改字号
         if let a = selectedText, let r = AnnotationCompositor.textBounds(a) {
-            let s = imageScale
+            let s = scale   // v126（性能审计 F0279）：复用已外提的 imageScale
             let vr = CGRect(x: f.minX + r.minX * s - 6,
                             y: f.minY + r.minY * s - 5,
                             width: r.width * s + 12,
@@ -1362,6 +1372,8 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
     public static let shared = AnnotationEditorController()
 
     private var window: AnnotationEditorWindow?
+    /// v130（SnowShot 对齐）②：当前编辑图的来源路径（关闭时把未完成标注快照写回截图历史）
+    private var sourcePath: String?
 
     private override init() { super.init() }
 
@@ -1374,11 +1386,22 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
     }
 
     public func open(url: URL) {
+        open(url: url, annotationState: "")
+    }
+
+    /// v130②：打开图片并恢复未完成标注（历史窗「继续标注」入口）。
+    /// `annotationState` 为历史库 annotation_state 列的 JSON；空串 = 无快照。
+    public func open(url: URL, annotationState: String) {
         guard let image = ImageProcessor.cgImage(from: url) else {
             Log.warn("Capture", "标注：无法读取图片 \(url.lastPathComponent)")
             return
         }
         open(image: image)
+        sourcePath = url.path
+        if let restored = AnnotationStateSnapshot.decode(annotationState), !restored.isEmpty {
+            window?.canvas.restore(annotations: restored)
+            Log.info("Capture", "标注：已恢复未完成标注 \(restored.count) 条")
+        }
     }
 
     public func open(image: CGImage, tool: AnnotationTool? = nil) {
@@ -1386,6 +1409,7 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         // 否则会出现「两个编辑器叠着、输入框落在旧窗口上」的幽灵状态。
         for w in NSApp.windows where w is AnnotationEditorWindow { w.close() }
         window = nil
+        sourcePath = nil   // v130②：无文件来源（仅内存图）不写标注快照
         let editor = AnnotationEditorWindow(image: image)
         if let tool, let index = AnnotationTool.allCases.firstIndex(of: tool) {
             editor.toolbarModel.toolIndex = index
@@ -1398,7 +1422,7 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         editor.onSave = { image in
             guard let data = ImageProcessor.pngData(image),
                   let url = ScreenshotManager.shared.savePNG(data) else { return }
-            ScreenshotManager.shared.registerCaptured(url: url, data: data)
+            ScreenshotManager.shared.registerCaptured(url: url, data: data, mode: "annotate")   // v130②
         }
         window = editor
         editor.center()
@@ -1416,6 +1440,15 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
     }
 
     public func windowWillClose(_ notification: Notification) {
-        if (notification.object as? AnnotationEditorWindow) === window { window = nil }
+        if (notification.object as? AnnotationEditorWindow) === window {
+            // v130（SnowShot 对齐）②：关闭时若有未保存标注，快照写回截图历史库
+            // （annotation_state 列 → 下次「继续标注」恢复）；已保存走 onSave 新记录，不覆盖。
+            if let path = sourcePath, let canvas = window?.canvas, !canvas.annotations.isEmpty {
+                CaptureHistoryStore.shared.updateAnnotationState(
+                    path: path, json: AnnotationStateSnapshot.encode(canvas.annotations))
+            }
+            sourcePath = nil
+            window = nil
+        }
     }
 }

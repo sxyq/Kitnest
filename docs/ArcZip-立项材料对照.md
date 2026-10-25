@@ -44,12 +44,15 @@
 - QuickLookThumbnailing 框架已链入（build.sh）
 
 ## 四、后续实施顺序（按需求文档 §9）
-- [x] P0-c 部分：文件悬停预览分级解码（本轮）
+- [x] P0-c 部分：文件悬停预览分级解码（v111）
+- [x] **P0-a（v118）**：`ArchiveCore` 归档引擎（7zz 子进程封装：list / readEntry / extract / updateEntry / addFiles / removeEntries / create）
+- [x] **悬停气泡内 ZIP 预览（v118 用户明确要求）**：`ArchivePeekView` 直接嵌在首页剪贴板悬停气泡的「文件」态里——列出归档条目（目录优先、前 8 条、图标/大小/压缩前后），**不弹新窗口**
+- [x] **P1-a（v118）**：归档浏览窗口 `ArchiveBrowserWindow`（条目列表 + 搜索 + 文本编辑 + 图片/PDF/Office 预览 + 解压/添加/删除）
+- [x] **P1-b 部分（v118）**：归档内文本编辑并写回（`7zz a` 保持包内路径；首次修改自动 `.bak` 备份）；Office 按 D1 只读预览
+- [x] **Word/PPT 悬停预览（v118）**：气泡内 168pt 首页大图 + 「快速查看」（系统 QLPreviewPanel，可翻页看全文）
 - [ ] P0-c 收尾：双 CALayer 交叉淡入（FR-104 动画层）
-- [ ] P0-a：ArchiveCore 引擎（7zz 子进程封装 list/extract/create + 可取消 + 进度）
+- [ ] FR-403 撤销/重做栈、FR-405 合并到最新版（需对 Unlocked.app 补 REA 对照）
 - [ ] P0-b：工具箱两个工具 + 面板区段
-- [ ] P1-a：归档浏览独立窗口（三视图）
-- [ ] P1-b：归档内编辑（**缺口**：撤销/合并到最新版——实施时对 Unlocked.app 做 REA 对照）
 - [ ] P1-c/d：访达右键 + 默认应用接管
 - [ ] P2：UI 精细化（VariableBlur 等）
 

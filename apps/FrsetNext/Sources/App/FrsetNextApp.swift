@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 不显示 Dock 图标（菜单栏应用）
         NSApp.setActivationPolicy(.accessory)
         AppBootstrap.start()
+        // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
+        // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
+        NSApp.servicesProvider = ArchiveServicesProvider.shared
         Log.info("App", "启动完成")
 
         // 排障探针（2026-10-18）：FRSET_TOAST_PROBE=1 时启动 2s 后弹一条通知条，
@@ -81,6 +84,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    // v127（ArcZip P3）：退出前确认未完成归档任务（ArchiveTaskQueue 是 arch-engine 的
+    // 公开类型，只读调用）——有未完成任务时弹确认框，「返回」则取消退出。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard ArchiveTaskQueue.shared.confirmQuitIfNeeded() else { return .terminateCancel }
+        return .terminateNow
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // v84：退出前把个性化防抖窗口内的改动立即落盘（否则 150ms 内退出会丢设置）
         Personalization.shared.flushPendingPersist()
@@ -107,9 +117,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 导致 NSWindow._postWindowNeedsUpdateConstraints 异常（2026-10-16 实测：
         // 最小视图同样复现，与视图内容无关）。
         DispatchQueue.main.async {
+            // v126（性能审计 F0023）：URLComponents 只解析一次——原实现每个分支各自
+            // `URLComponents(url:resolvingAgainstBaseURL:)`，"panel" 分支一连解析 4 次
+            // （每次都重做 scheme/host/query 切分），纯重复计算。
+            let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             switch url.host {
             case "settings":
-                let pane = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value
                 ServiceLocator.settings?.open(pane: pane)
             case "statistics":
@@ -117,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "monitor":
                 // v74 深链：打开性能监测独立窗（部件点击/⌥P 的等价入口，便于排障）
                 // v86：支持 frsetnext://monitor?module=memory 直达指定模块（排障/截图验证用）
-                let moduleRaw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                let moduleRaw = comps?
                     .queryItems?.first(where: { $0.name == "module" })?.value
                 let module = moduleRaw.flatMap(MonitorModuleID.init(rawValue:))
                 MonitorPopoutWindowController.shared.open(module: module)
@@ -130,16 +144,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.activate(ignoringOtherApps: true)
                 // v73 排障入口：frsetnext://panel?anchor=icon —— 用主图标实际 frame
                 // 走锚点展开（验证「图标正下方 + 顶部三角」，等价左键点击路径）
-                let anchorIcon = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                let anchorIcon = comps?
                     .queryItems?.first(where: { $0.name == "anchor" })?.value == "icon"
                 // v74 深链：frsetnext://panel?monitor=sensors——面板打开后直达性能页指定模块
-                let monitorRaw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                let monitorRaw = comps?
                     .queryItems?.first(where: { $0.name == "monitor" })?.value
                 if let monitorRaw, let module = MonitorModuleID(rawValue: monitorRaw) {
                     MonitorCenterPresenter.shared.selectPerformance(module: module)
                 }
                 // 深链直达页面：frsetnext://panel?page=transfer
-                if URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                if comps?
                     .queryItems?.first(where: { $0.name == "page" })?.value == "transfer" {
                     MonitorCenterPresenter.shared.selectTransferDock()
                 }
@@ -153,7 +167,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "annotate":
                 // v100 视觉验收/排障深链：frsetnext://annotate?file=/tmp/a.png&tool=m
                 // 不经过截图流程直接打开标注编辑器，便于核对工具条与画笔马赛克。
-                let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
                 let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value
                 // ?tool=m / ?tool=highlighter / ?tool=mosaic —— 排障与自动化截图时直接落到指定工具
                 let rawTool = comps?.queryItems?.first(where: { $0.name == "tool" })?.value?.lowercased()
@@ -167,10 +180,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else if !AnnotationEditorController.shared.openLatest() {
                     Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
                 }
+            case "capture":
+                // v130（SnowShot 对齐）：frsetnext://capture?action=history|delayed[&seconds=N]
+                // 历史窗 / 延时截图深链入口（CaptureDeepLink.handle 内部分流）
+                CaptureDeepLink.handle(url: url)
+            case "agenthud":
+                // v130（AgentHUD）：frsetnext://agenthud → Agent 用量窗
+                AgentHUDDeepLink.handle(url)
+            case "archive":
+                // v118（ArcZip FR-603）：frsetnext://archive?path=/a/b.zip[&action=extract|compress|open]
+                let rawPath = comps?.queryItems?.first(where: { $0.name == "path" })?.value ?? ""
+                let action = comps?.queryItems?.first(where: { $0.name == "action" })?.value ?? "open"
+                // v127（ArcZip P3）：action=filebox 开文件盒/暂存架浮窗——不需要压缩包路径，
+                // 必须先于下面的路径存在性校验分流（空路径会被误判「文件不存在」）。
+                if action == "filebox" {
+                    ArchiveFileBoxWindow.show()
+                    break
+                }
+                let fileURL = URL(fileURLWithPath: rawPath)
+                guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                    Log.warn("App", "归档深链：文件不存在 \(rawPath)")
+                    break
+                }
+                switch action {
+                case "extract":
+                    let dir = fileURL.deletingLastPathComponent()
+                    ArchiveCore.extract(url: fileURL, to: dir) { ok, msg in
+                        Toast.show(ok ? "已解压到源目录" : "解压失败：\(msg)",
+                                   icon: ok ? "archivebox" : "exclamationmark.triangle",
+                                   isWarning: !ok)
+                    }
+                case "compress":
+                    // v124：打开创建压缩包面板（含 5 种用途预设 / 分卷 / 密码）
+                    ArchiveCreateWindowController.show(files: [fileURL])
+                case "mini":
+                    // v127（ArcZip P3）：Mini 独立小窗浏览（P3-1，不打断主窗口）
+                    ArchiveMiniWindowController.show(url: fileURL)
+                default:
+                    ArchiveBrowserWindowController.show(url: fileURL)
+                }
             case "cloudlink":
                 // 排障深链：frsetnext://cloudlink?url=<网盘链接>
                 // 不复制也能直接打开解析中心，验证 8 家网盘的识别与配置页。
-                let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
                 let raw = comps?.queryItems?.first(where: { $0.name == "url" })?.value
                     ?? "https://pan.quark.cn/s/000000000000"
                 // &action=download：跳过解析中心 UI，直驱「解析→下载」链路（网盘测试矩阵用）
@@ -195,7 +246,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "toast":
                 // v89 视觉验收/排障深链：frsetnext://toast?text=已复制&icon=checkmark.circle.fill
                 // 用途：不依赖具体业务路径即可复现全局提示，便于核对位置/样式/层级。
-                let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
                 let text = comps?.queryItems?.first(where: { $0.name == "text" })?.value ?? "已复制"
                 let icon = comps?.queryItems?.first(where: { $0.name == "icon" })?.value
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

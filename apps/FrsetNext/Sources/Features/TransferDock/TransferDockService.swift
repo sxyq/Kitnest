@@ -14,18 +14,32 @@ struct TransferDockFile: Identifiable, Equatable {
     let createdAt: Double
     let type: String
 
+    // v126（性能审计 F1530）：字节格式化器复用——sizeText 是列表每行都要求值的计算属性，
+    // `ByteCountFormatter.string(fromByteCount:countStyle:)` 类方法内部每次都新建 formatter。
+    private static let byteFormatter: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f
+    }()
+
     var sizeText: String {
-        ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+        Self.byteFormatter.string(fromByteCount: size)
     }
+
+    // v126（性能审计 F1530）：DateFormatter 复用——dateText 是列表每行都要求值的计算属性，
+    // 原实现每次 new 一个 DateFormatter。提为 static 缓存。
+    private static let dateTextFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd HH:mm"
+        return formatter
+    }()
 
     var dateText: String {
         guard createdAt > 0 else { return "—" }
         // 服务端下发的是毫秒时间戳
         let seconds = createdAt > 1_000_000_000_000 ? createdAt / 1000 : createdAt
         let date = Date(timeIntervalSince1970: seconds)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm"
-        return formatter.string(from: date)
+        return Self.dateTextFormatter.string(from: date)
     }
 }
 
@@ -77,9 +91,11 @@ final class TransferDockService: ObservableObject {
     /// 实时同步开关（面板打开中转页时启动；重复调用幂等）
     func startLiveSync() {
         guard liveSyncTimer == nil else { return }
+        // v128（流畅度）：回调体进 autoreleasepool——桥接返回的 JSON 字典/字符串
+        // 不再等 runloop 排空；周期 30s 与启停时机（中转页 onAppear/onDisappear）不变。
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
             guard let self, self.loggedIn, !self.isLoading, !self.isUploading else { return }
-            self.refresh()
+            autoreleasepool { self.refresh() }
         }
         RunLoop.main.add(timer, forMode: .common)
         liveSyncTimer = timer
@@ -98,7 +114,11 @@ final class TransferDockService: ObservableObject {
             guard let self, self.keepAliveTimer == nil else { return }
             self.keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
                 guard let self, self.loggedIn else { return }
-                self.queue.async { _ = Self.runBridge(["keepalive"]) }
+                // v128（流畅度）：回调体进 autoreleasepool（Python 桥接的 JSON 临时对象
+                // 随回调排空）；300s 低频周期保持不变。
+                self.queue.async {
+                    autoreleasepool { _ = Self.runBridge(["keepalive"]) }
+                }
             }
         }
     }
@@ -125,48 +145,53 @@ final class TransferDockService: ObservableObject {
         errorMessage = nil
         queue.async { [weak self] in
             guard let self else { return }
-            let status = Self.runBridge(["status"])
-            guard let statusData = status["data"] as? [String: Any] else {
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.errorMessage = (status["error"] as? String) ?? "无法读取登录态"
-                }
-                return
-            }
-            let logged = statusData["loggedIn"] as? Bool ?? false
-            DispatchQueue.main.async {
-                self.loggedIn = logged
-                self.leftSpace = (statusData["leftSpace"] as? NSNumber)?.int64Value ?? 0
-                self.totalSpace = (statusData["totalSpace"] as? NSNumber)?.int64Value ?? 0
-            }
-            guard logged else {
-                let reason = (statusData["reason"] as? String) ?? "登录态已失效"
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.files = []
-                    self.errorMessage = reason
-                }
-                return
-            }
-            let listing = Self.runBridge(["list", "1", "200"])
-            DispatchQueue.main.async {
-                self.isLoading = false
-                self.lastSyncedAt = Date()
-                guard let data = listing["data"] as? [String: Any],
-                      let rawFiles = data["files"] as? [[String: Any]] else {
-                    self.errorMessage = (listing["error"] as? String) ?? "列表拉取失败"
+            // v128（流畅度）：桥接 JSON 解析块进 autoreleasepool——status/list 两次
+            // Python 桥接返回的字典树不再等队列线程 runloop 排空（30s 轮询 × 200 条
+            // 列表的临时对象是小堆堆积源）。
+            autoreleasepool {
+                let status = Self.runBridge(["status"])
+                guard let statusData = status["data"] as? [String: Any] else {
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = (status["error"] as? String) ?? "无法读取登录态"
+                    }
                     return
                 }
-                self.files = rawFiles.compactMap { item in
-                    guard let id = item["id"] as? String else { return nil }
-                    return TransferDockFile(
-                        id: id,
-                        name: (item["name"] as? String) ?? "未命名",
-                        size: (item["size"] as? NSNumber)?.int64Value ?? 0,
-                        createdAt: (item["createdAt"] as? NSNumber)?.doubleValue ?? 0,
-                        type: (item["type"] as? String) ?? "")
+                let logged = statusData["loggedIn"] as? Bool ?? false
+                DispatchQueue.main.async {
+                    self.loggedIn = logged
+                    self.leftSpace = (statusData["leftSpace"] as? NSNumber)?.int64Value ?? 0
+                    self.totalSpace = (statusData["totalSpace"] as? NSNumber)?.int64Value ?? 0
                 }
-                self.errorMessage = nil
+                guard logged else {
+                    let reason = (statusData["reason"] as? String) ?? "登录态已失效"
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.files = []
+                        self.errorMessage = reason
+                    }
+                    return
+                }
+                let listing = Self.runBridge(["list", "1", "200"])
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.lastSyncedAt = Date()
+                    guard let data = listing["data"] as? [String: Any],
+                          let rawFiles = data["files"] as? [[String: Any]] else {
+                        self.errorMessage = (listing["error"] as? String) ?? "列表拉取失败"
+                        return
+                    }
+                    self.files = rawFiles.compactMap { item in
+                        guard let id = item["id"] as? String else { return nil }
+                        return TransferDockFile(
+                            id: id,
+                            name: (item["name"] as? String) ?? "未命名",
+                            size: (item["size"] as? NSNumber)?.int64Value ?? 0,
+                            createdAt: (item["createdAt"] as? NSNumber)?.doubleValue ?? 0,
+                            type: (item["type"] as? String) ?? "")
+                    }
+                    self.errorMessage = nil
+                }
             }
         }
     }
