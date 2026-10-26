@@ -37,6 +37,13 @@ final class CaptureHistoryVM: ObservableObject {
         items = CaptureHistoryStore.shared.items(query: query, mode: modeFilter)
     }
 
+    /// v130.2：点外部收起时重置搜索/过滤，下次打开是干净状态
+    func clearOnDismiss() {
+        query = ""
+        modeFilter = "all"
+        items = []
+    }
+
     func delete(_ item: CaptureHistoryItem) {
         CaptureHistoryStore.shared.delete(id: item.id)
         items.removeAll { $0.id == item.id }
@@ -236,6 +243,10 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
     public static let shared = CaptureHistoryWindowController()
     private var window: NSWindow?
     private let vm = CaptureHistoryVM()
+    // v130.2：点外部收起——历史窗是工具条/⌘H 弹出的瞬态窗，点其他地方应自动消失。
+    //  双监听：global（点其他 App）+ local（点本 App 其他地方）；只留其一会漏一半场景。
+    private var outsideGlobal: Any?
+    private var outsideLocal: Any?
 
     private override init() { super.init() }
 
@@ -245,6 +256,7 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             vm.reload()
+            installOutsideMonitors()
             return
         }
         let win = NSWindow(
@@ -261,10 +273,52 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window = win
+        installOutsideMonitors()
+    }
+
+    /// v130.2：点窗口外部即关闭（global + local 双监听；Esc 也关）
+    private func installOutsideMonitors() {
+        removeOutsideMonitors()
+        // ① 点其他 App：global（无需本 App 焦点，但需辅助功能授权；未授权时静默失效）
+        outsideGlobal = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.dismiss()
+        }
+        // ② 点本 App 其他区域：local（过滤掉点在本窗内的）
+        outsideLocal = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] ev in
+            guard let self, let win = self.window else { return ev }
+            // Esc 关闭
+            if ev.type == .keyDown, ev.keyCode == 53 { self.dismiss(); return nil }
+            // 鼠标：点在窗外才关
+            if ev.type == .leftMouseDown || ev.type == .rightMouseDown {
+                if !win.frame.contains(NSEvent.mouseLocation) {
+                    self.dismiss()
+                    return ev
+                }
+            }
+            return ev
+        }
+    }
+
+    private func removeOutsideMonitors() {
+        if let g = outsideGlobal { NSEvent.removeMonitor(g) }
+        if let l = outsideLocal { NSEvent.removeMonitor(l) }
+        outsideGlobal = nil
+        outsideLocal = nil
+    }
+
+    /// 收起（等价关闭；保留下次 show() 重建语义）
+    public func dismiss() {
+        removeOutsideMonitors()
+        window?.orderOut(nil)
+        window = nil
+        vm.clearOnDismiss()
     }
 
     public func windowWillClose(_ notification: Notification) {
-        if (notification.object as? NSWindow) === window { window = nil }
+        if (notification.object as? NSWindow) === window {
+            removeOutsideMonitors()
+            window = nil
+        }
     }
 }
 
