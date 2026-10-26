@@ -77,9 +77,6 @@ struct TransferDockView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
-            // v130（AndroMeld/AgentHUD）：Agent HUD 模块自举（App/AppBootstrap 并行在改不动；
-            // 面板启动预热会构建本页，借此拉起用量监控/状态栏项/深链。幂等）
-            AgentHUDModule.startIfNeeded()
             bridgeAvailable = TransferDockPath.isAvailable
             // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
             AirDropReceiveWatcher.shared.onFileReceived = { url in

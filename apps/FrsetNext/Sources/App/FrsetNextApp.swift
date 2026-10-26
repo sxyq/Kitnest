@@ -184,9 +184,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // v130（SnowShot 对齐）：frsetnext://capture?action=history|delayed[&seconds=N]
                 // 历史窗 / 延时截图深链入口（CaptureDeepLink.handle 内部分流）
                 CaptureDeepLink.handle(url: url)
-            case "agenthud":
-                // v130（AgentHUD）：frsetnext://agenthud → Agent 用量窗
-                AgentHUDDeepLink.handle(url)
             case "archive":
                 // v118（ArcZip FR-603）：frsetnext://archive?path=/a/b.zip[&action=extract|compress|open]
                 let rawPath = comps?.queryItems?.first(where: { $0.name == "path" })?.value ?? ""

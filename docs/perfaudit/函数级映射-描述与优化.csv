@@ -6,9 +6,6 @@ V130-001,swift,Features/Capture/DelayedCaptureHUD.swift,DelayedCaptureController
 V130-001,swift,Features/Capture/ColorValuePanel.swift,ColorValuePanel,body,取色值面板（HEX/RGB/HSB + 最近 10 色历史）,UserDefaults 读写频率,已优化：最近色数组上限 10 去重置顶,SnowShot ⑥ 取色增强,v130 新增
 V130-001,swift,Features/TransferDock/AdbPairingService.swift,AdbPairingService,pair,无线配对（adb pair/connect + mDNS 发现）,mDNS 扫描频率,已优化：pair/connect 不注入 -s serial（多设备坑）,AndroMeld P0-1 无线配对,v130 新增
 V130-001,swift,Features/TransferDock/AdbPairingView.swift,AdbPairingView,body,无线配对 UI（发现列表 + 配对码输入 + 已连接管理）,列表刷新频率,已优化：Phase 状态机避免重复扫描,AndroMeld P0-1 无线配对,v130 新增
-V130-001,swift,Features/AgentHUD/AgentUsageMonitor.swift,AgentUsageMonitor,refresh,Agent 用量监控（读 ~/.claude、~/.codex 本地记录）,大 JSONL 文件读取,已优化：只扫近 30 天 mtime、各限 400 个、Codex 尾部 2MB,AgentHUD B1 用量监控,v130 新增
-V130-001,swift,Features/AgentHUD/AgentHUDView.swift,AgentHUDView,body,Agent 用量窗（额度条 + Token 统计 + 最近会话 + 告警设置）,列表重绘,已优化：@Stored 状态 + 卡片复用,AgentHUD B1/B2,v130 新增
-V130-001,swift,Features/AgentHUD/AgentApprovalWatcher.swift,AgentApprovalWatcher,poll,批准/提问拦截（轮询 agent-hud-events.jsonl + 系统通知）,轮询频率,已优化：5s 轮询 + 字节偏移增量读，文件不存在零开销,AgentHUD B3 拦截,v130 新增
 F0001,swift,App/AppBootstrap.swift,AppBootstrap,start,AppBootstrap.start（98行，hot=mainThread）,low,v126 audit-core：ProcessInfo.environment 与 3 个 UserDefaults 探针判据集中取值,—,optimize_done
 F0023,swift,App/FrsetNextApp.swift,AppDelegate,application,AppDelegate.application（99行，hot=mainThread）,low,v126 audit-core：URLComponents 提到 switch 前只解析一次,—,optimize_done
 F1827,swift,Core/LogArchive.swift,LogArchive,appendRaw,LogArchive.appendRaw（35行，hot=fileIO）,low,v126 audit-core：LogArchive.appendRaw DateFormatter static（每条日志热路径）,—,optimize_done

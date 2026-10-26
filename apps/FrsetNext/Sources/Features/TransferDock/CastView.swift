@@ -62,8 +62,6 @@ struct CastView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
-            // v130（AndroMeld/AgentHUD）：Agent HUD 模块自举（幂等；App/ 不动，见 AgentHUDModule）
-            AgentHUDModule.startIfNeeded()
             // 首次进入自动扫一次（设备 + scrcpy 状态），不打扰、只一次
             guard !autoScanDone else { return }
             autoScanDone = true
