@@ -215,7 +215,7 @@ public struct AISummaryView: View {
                     if model.inputText.isEmpty {
                         Text("在此粘贴要处理的文本…")
                             .font(.system(size: 12))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.tertiaryText)
                             .padding(12)
                             .allowsHitTesting(false)
                     }
@@ -235,7 +235,7 @@ public struct AISummaryView: View {
                     } else if model.outputText.isEmpty {
                         Text("结果将显示在这里")
                             .font(.system(size: 12))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.tertiaryText)
                     } else {
                         MarkdownText(model.outputText)
                             .font(.system(size: 13))
@@ -333,7 +333,7 @@ public struct AISummaryView: View {
             }
             Text("\(model.outputText.count) 字")
                 .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
         }
         .font(.system(size: 12))
     }

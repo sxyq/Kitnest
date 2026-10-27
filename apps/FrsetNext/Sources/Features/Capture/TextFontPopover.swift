@@ -42,7 +42,7 @@ struct TextFontPopoverView: View {
                     model.onClose?()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .frame(width: 16, height: 16)
                         .contentShape(Rectangle())
@@ -62,7 +62,7 @@ struct TextFontPopoverView: View {
                 ), in: TextFontModel.sizeRange)
                 .controlSize(.small)
                 Text("\(Int(model.size.rounded()))")
-                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    .font(.system(size: 11, weight: .medium).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 18, alignment: .trailing)
             }

@@ -62,4 +62,12 @@ const char *FSStatsSensorKey(const void *sensor);   // frset_sensor_t* → key
 int FSStatsConnHistoryAt(const void *conn, int i);  // frset_conn_t* → history[i]（1/0/-1）
 const char *FSStatsRootFileSystem(void);            // 根卷文件系统（statfs，如 "apfs"）
 
+// ---- 本地 PP-OCR 识别模型（ONNX Runtime；离线中文 OCR，缺模型时静默降级回 Vision）----
+typedef void *FSPPOCRSession;
+FSPPOCRSession FSPPOCRSessionCreate(const char *libPath, const char *modelPath, char *errBuf, int errCap);
+void FSPPOCRSessionDestroy(FSPPOCRSession handle);
+float *FSPPOCRRun(FSPPOCRSession handle, const float *input, int64_t height, int64_t width,
+                   int64_t *outT, int64_t *outC);
+void FSPPOCRFree(float *data);
+
 #endif /* FRSET_STATS_BAR_H */

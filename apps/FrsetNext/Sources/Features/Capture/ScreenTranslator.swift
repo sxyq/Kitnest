@@ -46,7 +46,7 @@ public enum ScreenTranslator {
         // ① OCR（带坐标）
         let observations: [OCRTextObservation]
         do {
-            observations = try await OCRService.shared.recognizeObservations(image: image)
+            observations = try await OCRService.shared.recognizeObservations(image: image, quality: .thorough)
         } catch {
             Toast.show("屏幕翻译失败：文字识别出错", icon: "exclamationmark.triangle", isWarning: true)
             Log.error("Capture", "屏幕翻译 OCR 失败: \(error.localizedDescription)")
@@ -65,7 +65,10 @@ public enum ScreenTranslator {
         let texts = blocks.map { $0.1 }
         let translated: [String]
         do {
-            translated = try await translateBlocks(texts)
+            // v139：先按整幅文字判定译入语言（中文为主→英文，否则→中文），
+            // 避免模型在短句上误判方向（旧实现完全交给模型自己判断）
+            let target = TranslationToolSession.autoTarget(for: texts.joined(separator: "\n"))
+            translated = try await translateBlocks(texts, to: target)
         } catch {
             Toast.show("屏幕翻译失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
             Log.error("Capture", "屏幕翻译调用失败: \(error.localizedDescription)")
@@ -100,13 +103,13 @@ public enum ScreenTranslator {
     private static let numberedLineRegex: NSRegularExpression? = try? NSRegularExpression(
         pattern: "^\\s*(\\d{1,3})[.、)．]\\s*(.+)$")
 
-    static func translateBlocks(_ texts: [String]) async throws -> [String] {
+    static func translateBlocks(_ texts: [String], to targetLanguage: String? = nil) async throws -> [String] {
         var result = [String](repeating: "", count: texts.count)
         var start = 0
         while start < texts.count {
             let end = min(start + batchSize, texts.count)
             let slice = Array(texts[start..<end])
-            let part = try await translateBatch(slice)
+            let part = try await translateBatch(slice, to: targetLanguage)
             for (offset, value) in part.enumerated() where start + offset < texts.count {
                 result[start + offset] = value
             }
@@ -115,21 +118,19 @@ public enum ScreenTranslator {
         return result
     }
 
-    private static func translateBatch(_ texts: [String]) async throws -> [String] {
-        // 批量：编号行 → 一次会话 → 行号解析回填
-        let numbered = texts.enumerated()
-            .map { "\($0.offset + 1). \($0.element.replacingOccurrences(of: "\n", with: " "))" }
-            .joined(separator: "\n")
-        if let reply = try? await TranslationToolSession.shared.complete(numbered) {
-            let parsed = parseNumberedLines(reply, expected: texts.count)
-            if parsed.count == texts.count && parsed.allSatisfy({ !$0.isEmpty }) {
-                return parsed
-            }
+    private static func translateBatch(_ texts: [String], to targetLanguage: String?) async throws -> [String] {
+        // v139：走「⟦n⟧ 行号协议」的批量翻译——整幅文字一次性进模型，上下文完整；
+        // 行号标记与正文里的「1. 2.」不冲突，解析失败率比旧的编号格式低得多
+        // （旧格式解析失败会静默退化成「逐块翻译」，每块孤立翻译 → 质量极差）。
+        if let part = try? await TranslationToolSession.shared.translateNumberedBlocks(texts, to: targetLanguage),
+           part.count == texts.count, part.allSatisfy({ !$0.isEmpty }) {
+            return part
         }
+        Log.warn("Capture", "屏幕翻译：批量行号协议未对齐，回退逐块（\(texts.count) 块）")
         // 回退：逐块翻译（OCR 常见碎块，串行即可）
         var out: [String] = []
         for text in texts {
-            out.append((try? await TranslationToolSession.shared.complete(text)) ?? text)
+            out.append((try? await TranslationToolSession.shared.complete(text, to: targetLanguage)) ?? text)
         }
         return out
     }

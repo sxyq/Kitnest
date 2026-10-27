@@ -343,7 +343,8 @@ CGFloat FSBarWidgetSpacing(void) {
     if ([s isEqualToString:@"none"]) return 0;
     double v = s.doubleValue;
     if (v <= 0 && ![s isEqualToString:@"0"]) return 2;
-    return (CGFloat)MAX(0, MIN(12, v));
+    // v134：上限 12→24（滑条 0–24pt、0.5 步进）
+    return (CGFloat)MAX(0, MIN(24, v));
 }
 
 CGFloat FSBarMergedSpacing(void) {
@@ -351,7 +352,8 @@ CGFloat FSBarMergedSpacing(void) {
     if (!s || s.length == 0) s = FSBarGlobalStr(@"CombinedModules_spacing", @"none");
     if ([s isEqualToString:@"none"]) return 0;
     if ([s isEqualToString:@"Widgets_uniform"]) return FSBarWidgetSpacing();
-    return (CGFloat)MIN(8, MAX(0, [s intValue]));
+    // v134：intValue（截断小数）→ doubleValue；上限 8→24 与滑条一致
+    return (CGFloat)MIN(24, MAX(0, s.doubleValue));
 }
 
 // ============ 颜色 / 数值辅助 ============
@@ -632,9 +634,15 @@ static BOOL g_mainIconCatLastDark = YES;
 @property (nonatomic) FSSnap snap;          // 最近一次刷新的数据
 @property (nonatomic) int histN;
 @property (nonatomic) CFAbsoluteTime lastUpdate;
+/// v134：宽度迟滞状态——文本类部件按实时值算宽，数值位数一变整条重排
+///（实测：Sensors/mini 在 23↔27pt 间每 7s 抖动）。迟滞：变宽立即生效、
+/// 变窄需连续 6 次刷新且差超 8pt 才收缩，消除高频抖动。
+@property (nonatomic, assign) CGFloat stableWidth;
+@property (nonatomic, assign) NSInteger shrinkVotes;
 - (instancetype)initWithModule:(NSString *)m form:(NSString *)f;
 - (void)refreshWithSnap:(const FSSnap *)s;
 - (CGFloat)preferredWidth;
+- (CGFloat)stabilizeWidth:(CGFloat)raw;     // v134：宽度迟滞
 - (double)primaryValue;                     // 当前主值（归一化 0..1 或原值）
 @end
 
@@ -704,11 +712,34 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     return [[self moduleLabel] sizeWithAttributes:@{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight]}].width + 1;
 }
 
+- (CGFloat)stabilizeWidth:(CGFloat)raw {
+    if (_stableWidth <= 0 || raw > _stableWidth) {
+        // 变宽立即生效（防内容截断）；首帧直接采纳
+        _stableWidth = raw;
+        _shrinkVotes = 0;
+        return raw;
+    }
+    if (raw < _stableWidth - 4) {
+        // 比稳定宽窄超 4pt 才计票；连续 4 次刷新才收缩。
+        // 带宽必须 < 单个数字字符步进（9pt 等宽数字≈5.4pt、12pt≈6.7pt）——
+        // v135 实测：带 6pt 时 "305 KB/s"→"29 KB/s"（差 5.5pt）落在带内永不收缩，
+        // 网络块锁在历史峰值宽度、右侧留 12pt 死空白，正是"间距不均"残留来源。
+        if (++_shrinkVotes >= 4) {
+            _stableWidth = raw;
+            _shrinkVotes = 0;
+        }
+    } else {
+        _shrinkVotes = 0;
+    }
+    return _stableWidth;
+}
+
 - (CGFloat)preferredWidth {
     if ([_form isEqualToString:@"mini"]) {
         // v28：宽度 = 实际内容宽（label 与值文本取大，量化 4pt）——内容居中绘制后，
         //   跨部件"内容-内容"间隙趋于均匀（统计口径见 drawMini；原 31/36 固定宽会让
         //   窄内容部件两侧留白 10~20pt，正是"有的间隔太小有的太大"的主因）
+        // v134：套宽度迟滞——实测值位数变化使宽度 23↔27pt 每 7s 抖动、整条重排
         BOOL label = FSBarCfgBool(_module, _form, @"label",
                                   [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"]);
         NSDictionary *lattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight]};
@@ -716,9 +747,28 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         CGFloat labelW = 0;
         if (label) labelW = [[self moduleLabel] sizeWithAttributes:lattrs].width;
         NSString *val = FSBarModuleString(&_snap, _module);
-        CGFloat valueW = val.length ? [val sizeWithAttributes:vattrs].width : 24;
-        CGFloat cw = ceil(MAX(labelW, valueW) / 4.0) * 4.0;
-        return MAX(cw, 12);
+        if (val.length == 0) {
+            // v135：首帧无值——不参与迟滞判定。原先的 24pt 占位宽会污染 stableWidth，
+            // 之后真实值（如 "57°"≈15pt）与稳定宽差 4pt 落在迟滞带内永远缩不回来，
+            // 表现为传感器块右侧多出一截死空白（网络↔传感器间距比内存↔网络大 6pt）
+            return _stableWidth > 0 ? _stableWidth : 12;
+        }
+        CGFloat valueW = [val sizeWithAttributes:vattrs].width;
+        // v135：量化 4pt → 2pt——标签/数值比槽宽窄时两侧各留 (槽宽-内容)/2，
+        // 4pt 量化让传感器块每侧多留 ~1.5pt，叠加后视觉间隙比内存↔网络大 4pt
+        CGFloat cw = ceil(MAX(labelW, valueW) / 2.0) * 2.0;
+        CGFloat raw = MAX(cw, 12);
+        // 诊断（宽度变化时留痕）：v137 节流 ≥10s 一条——FSBarLog 同步写盘，不能频繁
+        if (fabs(raw - _stableWidth) > 0.5) {
+            static CFAbsoluteTime lastDiagAt = 0;
+            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+            if (now - lastDiagAt >= 10.0) {
+                lastDiagAt = now;
+                FSBarLog(@"[宽度诊断] %@/%@ label=\"%@\"(%.1f) value=\"%@\"(%.1f) raw=%.0f stable=%.0f",
+                         _module, _form, [self moduleLabel], labelW, val, valueW, raw, _stableWidth);
+            }
+        }
+        return [self stabilizeWidth:raw];
     }
     if ([_form isEqualToString:@"speed"]) {
         BOOL units = FSBarCfgBool(_module, _form, @"units", YES);
@@ -728,14 +778,25 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         NSString *display = FSBarCfgStr(_module, _form, @"displayValue", @"oi");
         BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
         if (![mode isEqualToString:@"oneRow"]) {
-            // v98（2026-10-21 用户：「网络监测左右间距不固定，数字时刻变化」）：
-            // 双行宽度**定宽**——按最宽数值形态（"888.8 MB/s"）计算，不随位数/
-            // 单位变化挤动左右布局；数值用等宽数字字体，各位对齐。
+            // v98（2026-10-21）：双行宽度曾**定宽**（按最宽 "888.8 MB/s" 计 62pt），
+            // 目的是数值位数变化不挤动布局。
+            // v134（用户：「当前传感器与流量的检测是间距过大的」）：定宽在轻流量下
+            // 右侧空出 15-20pt，该部件与相邻部件的视觉间距被撑大。
+            // 改为「实际文本宽 + 宽度迟滞」（stabilizeWidth：变宽即时、变窄迟钝），
+            // 既贴紧内容又保持 v98 的"不时刻抖动"目标。
             NSFont *vf = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
-            NSString *ref = units ? @"888.8 MB/s" : @"888.8M";
-            CGFloat tw = value ? [ref sizeWithAttributes:@{NSFontAttributeName: vf}].width : 0;
-            CGFloat cw = MAX(24, ceil(tw / 4.0) * 4.0);
-            return (iconOn ? 7 : 0) + cw;
+            CGFloat tw = 0;
+            if (value) {
+                NSString *inStr = units ? FSSpeedStr((uint64_t)[self netIn])
+                                        : FSSpeedStrShort((uint64_t)[self netIn]);
+                NSString *outStr = units ? FSSpeedStr((uint64_t)[self netOut])
+                                         : FSSpeedStrShort((uint64_t)[self netOut]);
+                CGFloat w1 = [inStr sizeWithAttributes:@{NSFontAttributeName: vf}].width;
+                CGFloat w2 = [outStr sizeWithAttributes:@{NSFontAttributeName: vf}].width;
+                tw = MAX(w1, w2);
+            }
+            CGFloat cw = value ? MAX(24, ceil(tw / 2.0) * 2.0) : 0;
+            return [self stabilizeWidth:(iconOn ? 7 : 0) + cw];
         }
         // oneRow（Stats drawOneRow/drawRowItem）：icon + 2 + rowWidth(58/32)，双值再 + spacing*3
         CGFloat iconW = 0;
@@ -892,9 +953,11 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     BOOL label = FSBarCfgBool(_module, _form, @"label",
                               [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"]);
     NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"monochrome");
-    // v28：默认对齐改居中 —— 内容在部件内居中后，跨部件"内容-内容"间隙均匀
-    //（原默认 left：内容常偏一侧，视觉间隔忽大忽小；用户可在配置里显式覆盖）
-    NSString *align = FSBarCfgStr(_module, _form, @"alignment", @"center");
+    // v28：默认对齐曾改居中（固定宽时代内容常偏一侧）；v135 起帧宽按内容紧贴
+    //（2pt 量化 + 宽度迟滞），居中会在两侧各留 (槽宽-内容)/2 的内侧空白——
+    // 实测使「网络↔传感器」内容间隙 9pt vs「内存↔网络」5pt（用户实证偏大）。
+    // 改回左对齐（与 speed 等文本部件一致），传感器块左缘直贴帧边
+    NSString *align = FSBarCfgStr(_module, _form, @"alignment", @"left");
     NSString *val = FSBarModuleString(&_snap, _module);
     double v = [self primaryValue];
     NSColor *c = FSBarColorFromKey(colorKey, dark, v);
@@ -1270,8 +1333,12 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     [area lineToPoint:NSMakePoint(lastX, 1 + chartH - 0.5)];
     [area lineToPoint:NSMakePoint(p0.x, 1 + chartH - 0.5)];
     [area closePath];
+    // v132：还原真实菜单栏配色（v129 的 previewBoost 提对比是失真来源——
+    // 用户对比的是芯片预览 vs 真实状态栏，两者必须同色同线宽）。
+    // 可读性改由渲染链解决：2x 采样 + 紧裁内容框（FSBarRenderFormPreview）。
     NSGradient *grad = [[NSGradient alloc] initWithColors:@[
-        [lineC colorWithAlphaComponent:0.08], [lineC colorWithAlphaComponent:0.55]]];
+        [lineC colorWithAlphaComponent:0.08],
+        [lineC colorWithAlphaComponent:0.55]]];
     [grad drawInBezierPath:area angle:90];
     wave.lineWidth = 1.2;
     wave.lineJoinStyle = NSLineJoinStyleRound;
@@ -2199,18 +2266,25 @@ static void FSBarMergedLayout(void) {
     if (fabs(g_mergedItem.length - MAX(x, 1)) > 0.5) g_mergedItem.length = MAX(x, 1);
 
     // 布局宽度变化时留痕（明细：模块/形态=宽度）
+    // v137（性能审计）：FSBarLog 是**同步写盘**——流量数字每几秒变化一次宽度就
+    // 触发一次写，长期运行时是稳定的小额阻塞。节流到 ≥5s 一条（诊断足够用）。
     static CGFloat lastTotal = -1;
+    static CFAbsoluteTime lastLogAt = 0;
     if (fabs(lastTotal - x) > 0.5) {
         lastTotal = x;
-        NSMutableArray *parts = [NSMutableArray array];
-        for (NSString *m in FSBarAllModules()) {
-            NSArray *forms = FSBarEnabledForms(m);
-            if (!forms.count) continue;
-            FSBarWidgetView *w = g_views[[NSString stringWithFormat:@"%@/%@", m, forms[0]]];
-            if (w) [parts addObject:[NSString stringWithFormat:@"%@/%@=%.0f", m, forms[0], w.frame.size.width]];
+        CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+        if (now - lastLogAt >= 5.0) {
+            lastLogAt = now;
+            NSMutableArray *parts = [NSMutableArray array];
+            for (NSString *m in FSBarAllModules()) {
+                NSArray *forms = FSBarEnabledForms(m);
+                if (!forms.count) continue;
+                FSBarWidgetView *w = g_views[[NSString stringWithFormat:@"%@/%@", m, forms[0]]];
+                if (w) [parts addObject:[NSString stringWithFormat:@"%@/%@=%.0f", m, forms[0], w.frame.size.width]];
+            }
+            FSBarLog(@"合并布局 总宽=%.0fpt（spacing=%.0f sep=%d）: %@",
+                     x, FSBarMergedSpacing(), FSBarMergedSeparator(), [parts componentsJoinedByString:@" "]);
         }
-        FSBarLog(@"合并布局 总宽=%.0fpt（spacing=%.0f sep=%d）: %@",
-                 x, FSBarMergedSpacing(), FSBarMergedSeparator(), [parts componentsJoinedByString:@" "]);
         // v30：宽度变了 → position 锚定的相邻态失效，延迟到系统重排后保邻修正
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ FSBarKeepAdjacentToMain(); });
@@ -3112,13 +3186,61 @@ NSImage *FSBarRenderFormPreview(NSString *module, NSString *form, BOOL dark) {
     CGFloat width = MAX(24, [w preferredWidth] + 2 * FS_WIDGET_PAD);   // v28：与真实布局一致（含 pad）
     CGFloat height = 24;
     w.frame = NSMakeRect(0, 0, width, height);
+    // v129：显式外观——此前绘制用的是视图 effectiveAppearance（离屏=NSApp 级），
+    // 入参 dark 只进了缓存键没进绘制，深浅色芯片可能拿到同一种配色
+    w.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua
+                                                      : NSAppearanceNameAqua];
     for (int i = 0; i < 24; i++) {
         FSSnap snap = FSBarPreviewSnap(i);
         [w refreshWithSnap:&snap];
     }
     [w setNeedsDisplay:YES];
-    NSBitmapImageRep *rep = [w bitmapImageRepForCachingDisplayInRect:w.bounds];
+    // 2x 渲染——芯片缩显后细线糊没；2x 采样保细节
+    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
+              initWithBitmapDataPlanes:NULL
+                            pixelsWide:(NSUInteger)(width * 2)
+                            pixelsHigh:(NSUInteger)(height * 2)
+                         bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
+                 colorSpaceName:NSCalibratedRGBColorSpace
+                    bytesPerRow:0 bitsPerPixel:0];
+    rep.size = w.bounds.size;
     [w cacheDisplayInRect:w.bounds toBitmapImageRep:rep];
+
+    // v132：紧裁到实际内容——整幅位图含左右 FS_WIDGET_PAD 与上下留白，
+    // 芯片按高度缩显时图形既小又偏离视觉中心（用户："主要是颜色问题 与位置"）。
+    // 扫描 alpha 包围盒，裁出图形本体（宽度溢出场景由芯片 scaledToFit 收口）。
+    NSUInteger pw = rep.pixelsWide, ph = rep.pixelsHigh;
+    NSUInteger minX = pw, minY = ph, maxX = 0, maxY = 0;
+    BOOL found = NO;
+    for (NSUInteger y = 0; y < ph; y++) {
+        for (NSUInteger x = 0; x < pw; x++) {
+            NSUInteger px[4] = {0, 0, 0, 0};
+            [rep getPixel:px atX:(NSInteger)x y:(NSInteger)y];
+            if (px[3] > 2) {                       // alpha > ~0.8%：纳入内容
+                found = YES;
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+        }
+    }
+    if (found) {
+        CGRect pxBox = CGRectMake((CGFloat)minX, (CGFloat)minY,
+                                  (CGFloat)(maxX - minX + 1), (CGFloat)(maxY - minY + 1));
+        CGImageRef full = rep.CGImage;
+        CGImageRef cropped = CGImageCreateWithImageInRect(full, pxBox);
+        if (cropped) {
+            CGSize logical = CGSizeMake(pxBox.size.width / 2.0, pxBox.size.height / 2.0);
+            NSBitmapImageRep *crep = [[NSBitmapImageRep alloc] initWithCGImage:cropped];
+            CFRelease(cropped);
+            crep.size = logical;
+            NSImage *img = [[NSImage alloc] initWithSize:logical];
+            [img addRepresentation:crep];
+            return img;
+        }
+    }
+    // 兜底（全透明/异常）：整幅原图
     NSImage *img = [[NSImage alloc] initWithSize:w.bounds.size];
     [img addRepresentation:rep];
     return img;

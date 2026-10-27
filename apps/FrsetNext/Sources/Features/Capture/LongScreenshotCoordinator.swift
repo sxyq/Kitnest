@@ -2,14 +2,14 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-// MARK: - 长截图采帧流（全局事件监视器三件套）
+// MARK: - 长截图采帧流（全局事件监视器）
 
-/// 事件监视器组（spec 15 §3①，选择器经 stub 0x100944920 实证）：
-/// | 掩码        | 事件                    | 处理                       |
-/// | 0x400000    | scrollWheel             | Δ 过滤+累积+去抖调度        |
-/// | 0xe0        | mouseMoved+左右拖拽     | 光标在选区内→调度捕获       |
-/// | 0x400       | keyDown                 | keyCode 0x35(Esc)→主队列取消|
-/// 全局监视器**只观察不拦截**——与被动采捕模型自洽（原作不合成任何滚轮/键盘事件）。
+/// v150 改造（对齐 ScrollSnap）：
+///   · **采帧不再由事件驱动**——会话内部 250ms 定时采样；
+///   · 滚轮事件只累积「位移提示」，供对齐搜索估算窗口；
+///   · 删除 mouseMoved 监视器（旧逻辑「光标必须在选区内才采帧」，手一抖就静默停采）；
+///   · **删除全局 Return**——旧实现会在目标 App 里也触发一次 Return（可能提交表单）；
+///     完成改为点 HUD 的「完成」按钮（本 App 聚焦时仍支持 Return）。
 final class LongScreenshotCaptureStream {
 
     /// 「首次全局滚动已到达」日志只打一次（诊断全局监视器/授权是否生效）
@@ -17,58 +17,39 @@ final class LongScreenshotCaptureStream {
 
     private weak var session: LongScreenshotSession?
     private var scrollMonitor: Any?
-    private var mouseMonitor: Any?
     private var globalKeyMonitor: Any?
     /// 本地 keyDown 补充监视器：全局监视器收不到本 App 自身窗口的事件
-    /// （如 Esc 时焦点在本 App），与原作「全局 Esc 取消」语义互补。
     private var localKeyMonitor: Any?
 
-    /// 注册三个全局监视器
+    /// 注册监视器
     func start(session: LongScreenshotSession) {
-        self.session = session
+        // v137 BUGFIX：先清旧监视器，再挂新会话（stop() 会把 session 置 nil）
         stop()
+        self.session = session
 
-        // ① scrollWheel（掩码 0x400000，注册点 0x100445e98）
+        // ① scrollWheel：仅累积位移提示
         scrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
-            // 诊断（首次）：确认全局监视器确实收到事件——macOS 的全局 scrollWheel
-            // 监视需要「输入监控/辅助功能」授权，未授权时**静默失效**（回调不触发）。
-            // 这行日志是「长截图滚动没反应」类问题的第一判据。
             if !Self.loggedFirstScroll {
                 Self.loggedFirstScroll = true
                 Log.info("Capture", "长截图：已收到全局滚动事件（全局监视器生效）")
             }
-            self?.session?.onScroll(deltaY: Double(event.scrollingDeltaY),
-                                    deltaX: Double(event.scrollingDeltaX),
-                                    cursorInSelection: self?.cursorInSelection() ?? false)
+            // scrollingDeltaY > 0 = 向上滚（内容下移）→ 取负，换成「画布向下追加」的符号
+            self?.session?.onScroll(deltaY: -Double(event.scrollingDeltaY),
+                                    deltaX: -Double(event.scrollingDeltaX))
         }
 
-        // ② mouseMoved + 左右拖拽（掩码 0xe0，注册点 0x10045aa14）
-        mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged]) { [weak self] _ in
-            self?.session?.onMouseActivity(cursorInSelection: self?.cursorInSelection() ?? false)
-        }
-
-        // ③ keyDown（掩码 0x400，注册点 0x10045b1cc；keyCode 0x35=Esc → 主队列取消 0x10045b494）
-        //    2026-10-18：全局监视器同时处理 Return（0x24）收尾——长截图的滚动目标是
-        //    别的 App（浏览器/文档），此时本 App 未激活，**local monitor 收不到 Return**，
-        //    用户无法完成截图（此前只能 Esc 取消）。全局监视器只观察不拦截，
-        //    目标 App 的 Return 行为不受影响。
+        // ② 全局 keyDown：只处理 Esc（观察不拦截，目标 App 行为不受影响）
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
-            switch event.keyCode {
-            case 0x35:   // Esc → 取消
-                DispatchQueue.main.async { self?.session?.cancel() }
-            case 0x24:   // Return → 完成（长截图在别的窗口滚动时的收尾路径）
-                DispatchQueue.main.async { self?.session?.finish() }
-            default:
-                break
-            }
+            guard event.keyCode == 0x35 else { return }
+            DispatchQueue.main.async { self?.session?.cancel() }
         }
-        // 补充：本 App 活动时的 Esc / Return（0x24 完成，重建扩展——原作自动收尾逻辑未探明）
+        // ③ 本 App 聚焦时：Esc 取消 / Return 完成（Return 不再全局监听）
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             switch event.keyCode {
-            case 0x35:  // Esc
+            case 0x35:
                 DispatchQueue.main.async { self?.session?.cancel() }
                 return nil
-            case 0x24:  // Return：手动收尾（对应原作 flags/到底收尾的替代路径）
+            case 0x24:
                 DispatchQueue.main.async { self?.session?.finish() }
                 return nil
             default:
@@ -79,23 +60,16 @@ final class LongScreenshotCaptureStream {
 
     /// 注销全部监视器（随会话结束）
     func stop() {
-        for monitor in [scrollMonitor, mouseMonitor, globalKeyMonitor, localKeyMonitor] {
+        for monitor in [scrollMonitor, globalKeyMonitor, localKeyMonitor] {
             if let monitor = monitor { NSEvent.removeMonitor(monitor) }
         }
         scrollMonitor = nil
-        mouseMonitor = nil
         globalKeyMonitor = nil
         localKeyMonitor = nil
         session = nil
     }
 
     deinit { stop() }
-
-    /// 光标（AppKit 全局坐标）是否在选区内（NSEvent.mouseLocation + CGRectContainsPoint）
-    private func cursorInSelection() -> Bool {
-        guard let session = session else { return false }
-        return session.containsCursor(NSEvent.mouseLocation)
-    }
 }
 
 // MARK: - 长截图编排器
@@ -140,17 +114,28 @@ final class LongScreenshotCoordinator: NSObject {
         // v108（用户：「点击之后没有提示开始运行」）：进入框选即给提示
         Toast.show("长截图：请框选要捕获的区域（Esc 取消）",
                    icon: "crop")
-        guard session == nil else { return }   // 已有会话进行中
+        guard session == nil else {
+            Log.warn("Capture", "长截图：已有会话进行中，忽略本次框选请求")
+            return
+        }
         Task { @MainActor in
             // v32：权限以真实抓屏能力为准（preflight 会假阴性）
-            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else { return }
+            // v139：这里**不再因权限判定失败而直接 return**——用户实测「点了没反应」：
+            // 权限在启动时已确认获得（日志「屏幕录制权限启动实况：已获得」），但
+            // 这一步的探测有时会长时间不返回/返回假阴性，覆盖层就永远不出现。
+            // 让覆盖层先出来，真抓不到帧时由会话自己报错。
+            let ok = await ScreenshotManager.shared.ensureScreenRecordingPermission()
+            Log.info("Capture", "长截图：进入选区阶段（权限检查=\(ok)）")
             self.beginSelectionUI()
         }
     }
 
     @MainActor
     private func beginSelectionUI() {
-        selectionOverlays.removeAll()
+        // v139 BUGFIX：原来只 removeAll() 不动窗口——旧覆盖层仍留在最上层，
+        // 任何一次鼠标松开/右键都会命中旧层触发 onCancel，把**新建的**覆盖层
+        // 一起关掉（实测：创建后 0.2-1s 就被「关闭选区覆盖层（1 屏）」）。
+        closeSelectionOverlays()
         NSApp.activate(ignoringOtherApps: true)
         for screen in NSScreen.screens {
             let snapshot = ScreenSnapshot.cgCapture(screen: screen)
@@ -165,10 +150,17 @@ final class LongScreenshotCoordinator: NSObject {
             selectionOverlays.append(window)
             // v109：先激活应用——否则首个点击被系统用于激活、拖拽无反应（要第二次）
             NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            // v139：makeKeyAndOrderFront 在后台（非活跃）状态下会被系统忽略——
+            // 用户实测「点长截图没反应」：日志说覆盖层已创建，屏幕上却没有。
+            // 改用 orderFrontRegardless（无条件上屏）+ 再尝试设为 key。
+            window.orderFrontRegardless()
+            window.makeKey()
+            Log.info("Capture", "长截图：覆盖层 window frame=\(Int(window.frame.width))×\(Int(window.frame.height)) visible=\(window.isVisible) level=\(window.level.rawValue) appActive=\(NSApp.isActive)")
         }
         if selectionOverlays.isEmpty {
             Log.warn("Capture", "长截图：无法创建选区覆盖层")
+        } else {
+            Log.info("Capture", "长截图：选区覆盖层已显示（\(selectionOverlays.count) 屏）")
         }
     }
 
@@ -177,10 +169,6 @@ final class LongScreenshotCoordinator: NSObject {
         let screenFrame = window.frame
         // 视图内矩形 → AppKit 全局坐标（左下原点）
         let appKit = rect.offsetBy(dx: screenFrame.minX, dy: screenFrame.minY)
-        // AppKit → CG 全局坐标（主屏左上原点，Y 向下；对齐 ScreenSnapshot.cgRect 的换算）
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? screenFrame.height
-        let cg = CGRect(x: appKit.minX, y: primaryHeight - appKit.maxY,
-                        width: appKit.width, height: appKit.height)
         let screen = window.screen ?? NSScreen.main
         let displayID = screen.flatMap { ScreenSnapshot.displayID(of: $0) } ?? CGMainDisplayID()
 
@@ -190,17 +178,43 @@ final class LongScreenshotCoordinator: NSObject {
             Log.warn("Capture", "长截图：选区过小，已取消")
             return
         }
+        startSession(appKit: appKit, displayID: displayID)
+    }
+
+    /// v137：复用「上一次正常截图的选区」直接进入长截图（动作工具条「长截图」入口）。
+    /// 用户需求：普通截图后那条长条动作栏里，加一个用当前框选区域直接上下滚动长截图的按钮。
+    @discardableResult
+    func beginFromLastSelection() -> Bool {
+        let appKit = ScreenshotManager.shared.lastSelectionAppKit
+        guard !appKit.isNull, appKit.width >= 8, appKit.height >= 8 else { return false }
+        guard session == nil else { return true }   // 已有会话
+        let screen = NSScreen.screens.first { $0.frame.intersects(appKit) } ?? NSScreen.main
+        let displayID = screen.flatMap { ScreenSnapshot.displayID(of: $0) } ?? CGMainDisplayID()
+        Task { @MainActor in
+            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else { return }
+            self.startSession(appKit: appKit, displayID: displayID)
+        }
+        return true
+    }
+
+    /// 建会话 + 监视器 + HUD/边框（选区入口与"复用上次选区"共用）
+    private func startSession(appKit: CGRect, displayID: CGDirectDisplayID) {
+        // AppKit 全局（左下原点）→ CG 全局（主屏左上原点）
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? appKit.height
+        let cg = CGRect(x: appKit.minX, y: primaryHeight - appKit.maxY,
+                        width: appKit.width, height: appKit.height)
 
         let session = LongScreenshotSession(selectionRectAppKit: appKit,
                                             selectionRectCG: cg,
                                             displayID: displayID,
                                             windowID: 0)
-        session.onFinish = { [weak self] state, image in
-            self?.handleSessionFinished(state: state, image: image)
+        session.onFinish = { [weak self, weak session] state, image in
+            self?.handleSessionFinished(state: state, image: image,
+                                        dropped: session?.droppedContent ?? false)
         }
-        // v74（用户反馈「框选后没有 UI」）：采集期 HUD + 选区边框
-        session.onProgress = { [weak self] rows in
-            self?.hud?.update(rows: rows)
+        // v150：进度 = 画布真实高度 + 是否「没有新内容」（HUD 据此换状态文案）
+        session.onProgress = { [weak self] height, status in
+            self?.hud?.update(height: height, status: status)
         }
         self.session = session
         stream.start(session: session)
@@ -213,11 +227,13 @@ final class LongScreenshotCoordinator: NSObject {
         let hud = LongScreenshotHUDController()
         hud.onFinish = { [weak session] in session?.finish() }
         hud.onCancel = { [weak session] in session?.cancel() }
-        hud.show(near: NSEvent.mouseLocation)
+        // HUD 避开选区（滚轮向上框选时 HUD 会翻到鼠标上方 → 压进选区 → 每帧截入 HUD）
+        hud.show(near: NSEvent.mouseLocation, avoiding: appKit)
         self.hud = hud
 
-        Toast.show("长截图：向任意方向滚动目标窗口，Return 完成 / Esc 取消", icon: "arrow.up.and.down.text.horizontal")
-        Log.info("Capture", "长截图会话已启动（选区 \(Int(appKit.width))×\(Int(appKit.height))）：二维拼接（横/竖/斜向滚动均可），Return 完成 / Esc 取消")
+        // 不再弹全屏 Toast：它就落在选区中央（用户实测被截进图里），而且 HUD 已经
+        // 写着「滚动目标窗口即可，结束后点完成」，同一条信息说两遍只会挡内容。
+        Log.info("Capture", "长截图会话已启动（选区 \(Int(appKit.width))×\(Int(appKit.height))）：自适应定时采样（约 \(Int(LongScreenshotSession.samplingInterval(frameHeight: Int(appKit.height)) * 1000))ms），无需光标留在框内；点 HUD「完成」或按 Esc")
     }
 
     private func cancelSelection() {
@@ -225,13 +241,15 @@ final class LongScreenshotCoordinator: NSObject {
     }
 
     private func closeSelectionOverlays() {
+        let n = selectionOverlays.count
         for window in selectionOverlays { window.orderOut(nil) }
         selectionOverlays.removeAll()
+        if n > 0 { Log.warn("Capture", "长截图：关闭选区覆盖层（\(n) 屏）") }
     }
 
     // MARK: 会话收尾
 
-    private func handleSessionFinished(state: LongScreenshotState, image: CGImage?) {
+    private func handleSessionFinished(state: LongScreenshotState, image: CGImage?, dropped: Bool = false) {
         stream.stop()
         session = nil
         // v74：收尾时关闭采集期 HUD 与选区边框
@@ -246,9 +264,16 @@ final class LongScreenshotCoordinator: NSObject {
                 Toast.show("长截图失败：没有采到画面（请确认已滚动目标窗口）", icon: "exclamationmark.triangle")
                 return
             }
+            // v137（用户反馈「点击完成没有正确复制到剪贴板」）：收尾即复制——
+            // 与普通截图"完成即可粘贴"的心智一致；编辑器里仍可再复制/保存
+            ScreenshotManager.shared.copyToPasteboard(image)
             LongScreenshotPreviewController.shared.show(image: image)
-            Toast.show("长截图完成", icon: "checkmark.circle.fill")
-            Log.info("Capture", "长截图完成：\(image.width)×\(image.height)")
+            if dropped {
+                Toast.show("长截图完成（有一段因滚动过快跳过），已复制到剪贴板", icon: "checkmark.circle.fill")
+            } else {
+                Toast.show("长截图完成，已复制到剪贴板", icon: "checkmark.circle.fill")
+            }
+            Log.info("Capture", "长截图完成：\(image.width)×\(image.height)，已复制到剪贴板\(dropped ? "（有跳过段）" : "")")
         case .cancelled:
             Log.info("Capture", "长截图已取消")
         case .failed:
@@ -257,6 +282,28 @@ final class LongScreenshotCoordinator: NSObject {
         default:
             break
         }
+    }
+
+    // MARK: 排障入口（不经过框选，便于无人值守验证 HUD/预览）
+
+    /// 用屏幕中央的固定矩形直接起一次会话（不碰鼠标；配合 finish/cancel 深链使用）
+    func beginDemoSession() {
+        guard session == nil else { return }
+        let vf = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let rect = NSRect(x: vf.midX - 300, y: vf.midY - 250, width: 600, height: 500)
+        let displayID = NSScreen.main.flatMap { ScreenSnapshot.displayID(of: $0) } ?? CGMainDisplayID()
+        startSession(appKit: rect, displayID: displayID)
+        Log.info("Capture", "长截图演示会话已启动（排障用，固定选区 600×500）")
+    }
+
+    /// 结束当前会话并出图（排障用）
+    func finishCurrentSession() {
+        session?.finish()
+    }
+
+    /// 取消当前会话（排障用）
+    func cancelCurrentSession() {
+        session?.cancel()
     }
 
     /// 是否有会话进行中（供 UI 状态提示）

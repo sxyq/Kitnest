@@ -712,7 +712,7 @@ final class PinnedScreenshotContentView: NSView {
         guard let data = ImageProcessor.pngData(image) else { return }
         Task { @MainActor in
             do {
-                let text = try await OCRService.shared.recognizeText(imageData: data)
+                let text = try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
                 if text.isEmpty {
                     Self.showTextResultAlert(title: pinL10n("No text recognized"), body: "", failure: false)
                 } else {
@@ -734,7 +734,7 @@ final class PinnedScreenshotContentView: NSView {
         guard let data = ImageProcessor.pngData(image) else { return }
         Task { @MainActor in
             do {
-                let text = try await OCRService.shared.recognizeText(imageData: data)
+                let text = try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
                 guard !text.isEmpty else {
                     Self.showTextResultAlert(title: pinL10n("No text recognized"), body: "", failure: false)
                     return

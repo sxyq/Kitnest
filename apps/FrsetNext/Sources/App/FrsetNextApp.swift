@@ -138,6 +138,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "longshot":
                 // v74 排障/深链入口：直接进入长截图选区（等价 ⇧⌥L 与面板菜单「长截图」）
                 LongScreenshotCoordinator.shared.beginSelection()
+            case "longshotdemo":
+                // v150 排障：固定选区直接起会话（无人值守验证 HUD / 预览）
+                LongScreenshotCoordinator.shared.beginDemoSession()
+            case "longshotfinish":
+                LongScreenshotCoordinator.shared.finishCurrentSession()
+            case "longshotcancel":
+                LongScreenshotCoordinator.shared.cancelCurrentSession()
+            case "longshotpreview":
+                // v150 排障：用合成 480×3600 长图打开预览（验等比缩放/初始位置）
+                LongScreenshotDiagnostics.showPreviewDemo()
+            case "longshotcheck":
+                // v150 排障入口：用「合成长图 + 已知位移切片」回灌拼接器，
+                // 校验画布尺寸/接缝/重复帧/向上滚动——不碰鼠标。
+                LongScreenshotDiagnostics.runStitcherCheck()
+            case "ocr":
+                // v145 排障入口：跑一遍完整 OCR 链路（样张 → Vision → 本地 PP-OCR 复核），
+                // 把两侧识别文本、耗时、内存都写进日志。不依赖鼠标，便于真机验收。
+                OCRDiagnostics.runPipelineCheck()
+            case "translate":
+                // v146 排障入口：翻译链路自检（快速通道 / 当前引擎路由），同样不碰鼠标。
+                TranslationDiagnostics.run()
             case "panel":
                 // 先激活：主面板 windowDidResignKey → hide（transient 行为），
                 // 不激活时窗口成为 key 后立即 resign 被自动关闭（2026-10-16 实证）
@@ -152,10 +173,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let monitorRaw, let module = MonitorModuleID(rawValue: monitorRaw) {
                     MonitorCenterPresenter.shared.selectPerformance(module: module)
                 }
-                // 深链直达页面：frsetnext://panel?page=transfer
-                if comps?
-                    .queryItems?.first(where: { $0.name == "page" })?.value == "transfer" {
-                    MonitorCenterPresenter.shared.selectTransferDock()
+                // 深链直达页面：frsetnext://panel?page=transfer|cast|performance
+                switch comps?.queryItems?.first(where: { $0.name == "page" })?.value {
+                case "transfer":   MonitorCenterPresenter.shared.selectTransferDock()
+                case "cast":       MonitorCenterPresenter.shared.selectCast()
+                case "performance": MonitorCenterPresenter.shared.selectPerformance()
+                default: break
                 }
                 if anchorIcon,
                    let anchor = StatusBarController.shared.mainStatusItem?.button?.window?.frame {

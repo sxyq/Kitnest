@@ -154,8 +154,8 @@ struct CaptureHistoryView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             Text("截图后自动记录（上限 \(CaptureHistoryStore.maxEntries) 条）")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -185,27 +185,27 @@ struct CaptureHistoryView: View {
             )
 
             Text(item.url.lastPathComponent)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .lineLimit(1)
                 .foregroundStyle(.secondary)
             HStack(spacing: 4) {
                 Text(modeTitle(item.mode))
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .padding(.horizontal, 4)
                     .padding(.vertical, 1)
                     .background(Theme.accent.opacity(0.14))
                     .clipShape(Capsule())
                 Text("\(item.width)×\(item.height)")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                 Spacer()
                 Text(item.createdAt.relativeText)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             if !item.ocrText.isEmpty {
                 Text(item.ocrText.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .lineLimit(1)
                     .foregroundStyle(.secondary)
             }

@@ -15,6 +15,7 @@ public final class AIProviderSettingsViewModel: ObservableObject {
     @Published public var isLoadingModels: Bool = false
     @Published public var testResult: AIConnectionTestResult?
     @Published public var hasStoredKey: Bool = false
+
     @Published public var infoMessage: String?
 
     // 自定义工具管理
@@ -32,6 +33,7 @@ public final class AIProviderSettingsViewModel: ObservableObject {
         self.credentialCoordinator = credentialCoordinator
         self.customTools = CustomAIToolStore.shared.all()
     }
+
 
     public func reload() {
         provider = AISettings.providerKind
@@ -201,7 +203,7 @@ public struct AISettingsPane: View {
                             Spacer(minLength: 8)
                             Text("留空使用默认")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Theme.tertiaryText)
                         }
                         HStack(spacing: 8) {
                             TextField("https://…", text: $vm.baseURLText)
@@ -247,8 +249,8 @@ public struct AISettingsPane: View {
                         .padding(.vertical, 9)
                     }
                     Text("密钥保存在应用数据目录的 AES-256 加密文件中（权限 0600），不使用系统钥匙串，因此不会触发授权弹窗。")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .padding(.leading, 2)
                 }
             }
@@ -268,7 +270,7 @@ public struct AISettingsPane: View {
                             HStack(spacing: 4) {
                                 Text(vm.modelText.isEmpty ? "跟随厂商默认模型" : vm.modelText)
                                     .lineLimit(1)
-                                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                                Image(systemName: "chevron.down").font(.system(size: 11, weight: .bold))
                             }
                         }
                         .menuStyle(.borderlessButton)
@@ -312,8 +314,8 @@ public struct AISettingsPane: View {
                                     .font(.system(size: 11))
                                     .foregroundStyle(result.ok ? Color.green : Color.red)
                                 Text(String(format: "耗时 %.2fs", result.elapsed))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -350,8 +352,8 @@ public struct AISettingsPane: View {
                         }
                     }
                     Text("面板「AI → 摘要 / 润色 / 翻译」的默认入口动作。")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .padding(.leading, 2)
                 }
             }
@@ -370,8 +372,8 @@ public struct AISettingsPane: View {
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text(tool.name).font(.system(size: 12, weight: .medium))
                                         Text(tool.systemPrompt.isEmpty ? tool.promptTemplate : tool.systemPrompt)
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(.tertiary)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(Theme.tertiaryText)
                                             .lineLimit(1)
                                     }
                                     Spacer(minLength: 8)
@@ -404,8 +406,8 @@ public struct AISettingsPane: View {
                         .padding(.bottom, 6)
                     }
                     Text("定义后会在文本工具面板中显示为独立按钮，与内置动作并列。")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .padding(.leading, 2)
                 }
             }

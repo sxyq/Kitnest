@@ -55,7 +55,7 @@ enum AppBootstrap {
             ClipboardOCRTextStorage.write(text, dedupeKey: item.dedupeKey)
         }
         PreviewPopoverDataBridge.shared.recognizeImageProvider = { data in
-            try await OCRService.shared.recognizeText(imageData: data)
+            try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
         }
         // v65 富文本保真渲染：RTF → NSAttributedString（预览 .richText 分支用）
         PreviewPopoverDataBridge.shared.richTextProvider = { item in
@@ -106,6 +106,12 @@ enum AppBootstrap {
         Log.breadcrumb("Bootstrap", "hotkeys done")
 
         Log.info("Bootstrap", "全部模块已启动")
+        // v143：**取消**启动预热。原先这里后台调 PPOCROCR.shared.prepare()，
+        // 代价是把 43MB 运行时 + 10MB 模型映射进来常驻（实测进程 RSS +54MB），
+        // 而收益只是「首次点识字」省 110ms。实测 dlclose 也归还不了这块内存
+        // （malloc 空闲页留在进程里），所以一旦加载就回不去了。
+        // 现在改为**首次使用时懒加载**：不用 OCR 的用户一分钱不花，
+        // 用的人多等 0.11s（在后台线程，界面上无感）。
 
         // 复制网盘链接 → 状态栏小提示（点击进入解析中心）
         CloudLinkPromptController.shared.start()
@@ -155,6 +161,28 @@ enum AppBootstrap {
             Log.info("Bootstrap", "首启引导：1.5s 后弹出欢迎窗（seenVersion < \(WelcomeWindowController.onboardingVersion)）")
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 WelcomeWindowController.shared.show()
+            }
+        }
+
+        // 6.5) WhatsNew 版本说明浮层（v114；原版 WhatsNewStore 逆向实锤——
+        //      whatsNewLastSeenVersion，每个版本只弹一次）。与欢迎窗互斥同批：
+        //      首启用欢迎窗（新用户引导优先），WhatsNew 留待下次启动再弹；
+        //      升级用户（已看过欢迎窗）则由 WhatsNew 弹「本次更新了什么」。
+        //      探针：FRSET_TEST_WHATSNEW=1 / defaults probe.whatsnew 无条件弹
+        //      （对应原版设置调试菜单 onTestWhatsNew）。
+        let whatsNewProbe = env["FRSET_TEST_WHATSNEW"] == "1"
+            || UserDefaults.standard.bool(forKey: "probe.whatsnew")
+        if whatsNewProbe {
+            Log.info("Bootstrap", "探针：WhatsNew 强制弹出（onTestWhatsNew 对应件）")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+                WhatsNewWindowController.shared.show(force: true)
+            }
+        } else if WelcomeWindowController.shouldPresentOnLaunch {
+            Log.info("Bootstrap", "首启引导：欢迎窗优先，WhatsNew 留待下次启动")
+        } else if WhatsNewStore.shared.shouldShow {
+            Log.info("Bootstrap", "WhatsNew：2.2s 后弹出（seen < \(WhatsNewCatalog.contentVersion)）")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+                WhatsNewWindowController.shared.show()
             }
         }
 

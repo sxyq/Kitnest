@@ -49,7 +49,7 @@ struct ColorValueView: View {
                     Text("取色结果")
                         .font(.system(size: 11, weight: .semibold))
                     Text("点击任一行复制该格式")
-                        .font(.system(size: 9))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -69,7 +69,7 @@ struct ColorValueView: View {
             if !recentColors.isEmpty {
                 Divider()
                 Text("最近取色（点击复制）")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 // v130⑥：取色历史，最近 10 个色块可复取
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 20), spacing: 6)], spacing: 6) {
@@ -101,7 +101,7 @@ struct ColorValueView: View {
         } label: {
             HStack {
                 Text(title)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(width: 32, alignment: .leading)
                 Text(value)
@@ -109,8 +109,8 @@ struct ColorValueView: View {
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: "doc.on.doc")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)

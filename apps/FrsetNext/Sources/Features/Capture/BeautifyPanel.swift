@@ -280,8 +280,8 @@ private struct BeautifyControlsView: View {
             }
             Spacer()
             Text("美化结果可复制 / 保存 / 贴图；也可在「截图后默认执行」里设为默认动作。")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
         .padding(.horizontal, 4)
     }
@@ -292,8 +292,8 @@ private struct BeautifyControlsView: View {
                 Text(title).font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
                 Text("\(Int(value.wrappedValue))")
-                    .font(.system(size: 10).monospacedDigit())
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(Theme.tertiaryText)
             }
             Slider(value: value, in: range)
                 .controlSize(.small)

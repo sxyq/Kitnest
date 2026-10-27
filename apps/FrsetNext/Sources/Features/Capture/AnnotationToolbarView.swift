@@ -308,7 +308,7 @@ struct AnnotationToolbarView: View {
                 .disabled(!model.usesSize)
 
             Text("\(Int(model.sizeValue.rounded()))")
-                .font(.system(size: 10, weight: .medium).monospacedDigit())
+                .font(.system(size: 11, weight: .medium).monospacedDigit())
                 .foregroundStyle(model.textSelectionActive && model.activeTool == .text
                                  ? Theme.accent : Color.secondary)
                 .frame(width: 20, alignment: .trailing)
@@ -352,9 +352,9 @@ struct AnnotationToolbarView: View {
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "squareshape.split.3x3")
-                            .font(.system(size: 10.5))
+                            .font(.system(size: 11))
                         Text("\(model.mosaicBlock)")
-                            .font(.system(size: 10, weight: .medium).monospacedDigit())
+                            .font(.system(size: 11, weight: .medium).monospacedDigit())
                             .fixedSize()
                         Image(systemName: "chevron.down")
                             .font(.system(size: 7, weight: .semibold))
@@ -398,7 +398,7 @@ struct AnnotationToolbarView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             Text("块越小越接近原图纹理，越大遮蔽越彻底。\n笔刷直径用左侧滑杆或滚轮调整。")
-                .font(.system(size: 10.5))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

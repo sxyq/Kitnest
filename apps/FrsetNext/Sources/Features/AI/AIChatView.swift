@@ -39,8 +39,8 @@ private struct ChatBubble: View {
 
             VStack(alignment: role == .user ? .trailing : .leading, spacing: 4) {
                 Text(role == .user ? "我" : role == .assistant ? "助手" : "系统")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.tertiaryText)
                 MarkdownText(content)
                     .font(.system(size: 13))
                     .padding(10)
@@ -258,7 +258,7 @@ public struct AIChatView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                 }
                 .font(.system(size: 11))
                 .padding(.horizontal, 8)
@@ -292,13 +292,13 @@ public struct AIChatView: View {
                         VStack(spacing: 6) {
                             Image(systemName: "bubble.left.and.bubble.right")
                                 .font(.system(size: 26))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Theme.tertiaryText)
                             Text("在下方输入内容开始对话")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                             Text("未配置 API Key 时请先到「设置 → AI」填写")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Theme.tertiaryText)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 28)

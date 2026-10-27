@@ -700,13 +700,19 @@ public final class ScreenshotManager: ObservableObject {
         recognize(imageData: data)
     }
 
-    public func recognize(imageData: Data) {
+    /// v139：动作条「翻译」——识字后直接打开结果窗的翻译页签（自动提取并翻译）
+    public func recognizeAndTranslate(_ image: CGImage) {
+        guard let data = ImageProcessor.pngData(image) else { return }
+        recognize(imageData: data, autoTranslate: true)
+    }
+
+    public func recognize(imageData: Data, autoTranslate: Bool = false) {
         isRecognizing = true
         statusMessage = nil
         Task { @MainActor in
             defer { self.isRecognizing = false }
             do {
-                let text = try await OCRService.shared.recognizeText(imageData: imageData)
+                let text = try await OCRService.shared.recognizeText(imageData: imageData, quality: .thorough)
                 self.ocrText = text
                 self.statusMessage = text.isEmpty ? CaptureError.noText.errorDescription : nil
                 // spec 13 §4：未读取到文字场景（0x10000d45c，空识别结果分支）
@@ -720,9 +726,10 @@ public final class ScreenshotManager: ObservableObject {
                         CaptureHistoryStore.shared.updateOCR(path: p, text: text)
                     }
                     // 弹出「原文对照 + 识别文本」结果窗（B5）
-                    if self.ocrShowResultWindow,
+                    if self.ocrShowResultWindow || autoTranslate,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
-                        ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData, text: text)
+                        ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData,
+                                                                  text: text, autoTranslate: autoTranslate)
                     }
                 }
             } catch {

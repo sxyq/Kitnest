@@ -62,6 +62,12 @@ public enum CaptureActionChain {
             CaptureActionTool(id: "qrCode", title: "识码", systemImage: "qrcode.viewfinder", key: "r") { image, _ in
                 QRCodeRecognizer.run(image: image)
             },
+            // v139（用户需求）：识码旁边加「翻译」——自动提取文字并翻译，
+            // 结果开在识别结果窗的「翻译」页签里（与「屏幕翻译」钉图是两条路：
+            // 这条要的是**可复制可编辑的译文文本**）
+            CaptureActionTool(id: "ocrTranslate", title: "翻译", systemImage: "character.book.closed", key: "f") { image, _ in
+                ScreenshotManager.shared.recognizeAndTranslate(image)
+            },
             CaptureActionTool(id: "screenTranslate", title: "屏幕翻译", systemImage: "character.book.closed", key: "t") { image, _ in
                 // 钉回原选区位置（工具条流程必有 lastSelectionAppKit）
                 let origin = ScreenshotManager.shared.lastSelectionAppKit
@@ -83,6 +89,14 @@ public enum CaptureActionChain {
             // v130（SnowShot 对齐）②：历史——截图结果工具条直达截图历史窗
             CaptureActionTool(id: "history", title: "历史", systemImage: "clock.arrow.circlepath", key: "h") { _, _ in
                 CaptureHistoryWindowController.shared.show()
+            },
+            // v137（用户需求）：复用当前框选区域直接进入上下滚动长截图——
+            // 与"再按一次长截图快捷键重选一遍"相比少一次框选
+            CaptureActionTool(id: "longShot", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal", key: "l") { _, _ in
+                if !LongScreenshotCoordinator.shared.beginFromLastSelection() {
+                    // 无上次选区（理论不发生——工具条必然跟着一次框选）→ 走正常框选入口
+                    LongScreenshotCoordinator.shared.beginSelection()
+                }
             },
         ]
     }
@@ -270,7 +284,7 @@ private struct CaptureActionToolbarView: View {
                             .font(.system(size: 13, weight: .medium))
                             .frame(height: 15)
                         Text(tool.title)
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                     }
                     .frame(width: 46, height: 38)
                     .background(RoundedRectangle(cornerRadius: 8)

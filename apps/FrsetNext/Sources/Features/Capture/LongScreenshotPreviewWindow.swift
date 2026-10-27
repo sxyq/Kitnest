@@ -9,11 +9,14 @@ import Foundation
 /// 超限时 setFrameSize 后 setFrameOrigin((fw-vw)/2, (fh-vh)/2)（spec 15 §3④，0x10044cdbc-0x10044ce74）。
 final class LongScreenshotEditorDocumentView: NSView {
     let image: CGImage
+    /// 图片在文档视图内的绘制矩形（水平居中；宽度不足容器时两侧留白）
+    private var imageRect: NSRect = .zero
 
     init(image: CGImage) {
         self.image = image
         // 请求尺寸 = 图像点尺寸（72dpi 基准）
         super.init(frame: NSRect(origin: .zero, size: NSSize(width: image.width, height: image.height)))
+        imageRect = bounds
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
@@ -25,30 +28,26 @@ final class LongScreenshotEditorDocumentView: NSView {
         NSColor(white: 0.12, alpha: 1).setFill()
         bounds.fill()
         ctx.interpolationQuality = .high
-        ctx.draw(image, in: bounds)
+        ctx.draw(image, in: imageRect)
     }
 
-    /// 钳制到容器可视尺寸并居中（对齐原作居中/钳制逻辑）
+    /// 按容器宽度等比缩放（v150 修复「预览里也被拉扁 / 一打开是空白」）
+    ///
+    /// 关键：**不要改 documentView.frame.origin**。NSClipView 会按 bounds.origin 再偏移
+    /// 一次，两边都设等于偏移算两遍——实测 dirtyRect 落在图片之外，整窗空白。
+    /// 现在文档宽度至少铺满容器、图片在文档内水平居中，origin 恒为 (0,0)，
+    /// 竖向位置完全交给 clipView.scroll(to:)。
     func fitCentered(in containerSize: NSSize) {
-        let requested = NSSize(width: image.width, height: image.height)
-        var size = requested
-        var clamped = false
-        if size.width > containerSize.width {
-            size.width = containerSize.width
-            clamped = true
-        }
-        if size.height > containerSize.height {
-            size.height = containerSize.height
-            clamped = true
-        }
-        if clamped {
-            setFrameSize(size)
-        }
-        if containerSize.width > size.width || containerSize.height > size.height {
-            let x = (containerSize.width - size.width) / 2
-            let y = (containerSize.height - size.height) / 2
-            setFrameOrigin(NSPoint(x: max(0, x), y: max(0, y)))
-        }
+        let iw = CGFloat(image.width), ih = CGFloat(image.height)
+        guard iw > 0, ih > 0, containerSize.width > 0, containerSize.height > 0 else { return }
+        let scale = min(1, containerSize.width / iw)
+        let drawW = max(1, (iw * scale).rounded())
+        let drawH = max(1, (ih * scale).rounded())
+        let docW = max(containerSize.width, drawW)
+        setFrameSize(NSSize(width: docW, height: drawH))
+        setFrameOrigin(.zero)
+        imageRect = NSRect(x: ((docW - drawW) / 2).rounded(), y: 0, width: drawW, height: drawH)
+        needsDisplay = true
     }
 }
 
@@ -89,6 +88,8 @@ final class LongScreenshotEditorContainerView: NSView {
     private static let toolbarHeight: CGFloat = 48
     private static let buttonW: CGFloat = 76
     private static let buttonH: CGFloat = 30
+    /// 只定位一次：之后用户滚动/改窗口大小时不要把人拉回顶部
+    private var didPositionInitially = false
 
     init(document: LongScreenshotEditorDocumentView,
          onSave: @escaping () -> Void,
@@ -119,8 +120,21 @@ final class LongScreenshotEditorContainerView: NSView {
     override func layout() {
         super.layout()
         layoutEditor()
-        // DocumentView 初始居中 + 钳制（0x10044cdbc）
+        // DocumentView 按容器宽度等比缩放（0x10044cdbc）
         scrollView.document?.fitCentered(in: scrollView.contentSize)
+        // 首次显示滚到顶部：NSClipView 会忽略 documentView.frame.origin 的负值，
+        // 必须通过 clipView.scroll(to:) 定位，否则长图一打开停在**底部**（页脚）。
+        // 注意：首次 layout 时 clipView 尺寸可能还是 0——此时算出的 maxY = 文档高，
+        // 会把可视区滚到图片**上方**（全白空白）。必须等尺寸就绪再定位。
+        if !didPositionInitially, let doc = scrollView.document {
+            let clip = scrollView.contentView
+            if clip.bounds.height > 1, doc.frame.height > 1 {
+                didPositionInitially = true
+                let maxY = max(0, doc.frame.height - clip.bounds.height)
+                clip.scroll(to: NSPoint(x: 0, y: maxY))
+                scrollView.reflectScrolledClipView(clip)
+            }
+        }
     }
 
     private func layoutEditor() {
@@ -165,12 +179,12 @@ final class LongScreenshotEditorWindow: NSWindow {
                                                           onSave: onSave,
                                                           onCopy: onCopy,
                                                           onClose: onClose)
-        // 2026-10-18：窗口按图像尺寸自适应（旧实现固定 880×640 / 内容 640×480，长截图显得很小）。
-        // 取图像点尺寸（Retina 2x → ÷2）+ 工具条 48 + 边距，钳制到屏幕可视区 85%，下限 760×560。
+        // 窗口按图像像素宽自适应（旧实现固定 ÷2 假设 Retina，1x 屏上会显得很小），
+        // 钳制到屏幕可视区 85%；内容区再按宽度等比缩放（见 fitCentered）。
         let img = document.image
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let docW = CGFloat(img.width) / 2
-        let docH = CGFloat(img.height) / 2
+        let docW = CGFloat(img.width)
+        let docH = CGFloat(img.height)
         let wantW = min(max(docW + 48, 760), screen.width * 0.85)
         let wantH = min(max(docH + 48 + 56, 560), screen.height * 0.85)
         super.init(contentRect: NSRect(origin: .zero, size: NSSize(width: wantW, height: wantH)),

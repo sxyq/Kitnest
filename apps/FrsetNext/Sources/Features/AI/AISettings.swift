@@ -72,6 +72,44 @@ public enum AISettings {
         return min(max(v, 256), 200_000)
     }
 
+    // MARK: 翻译 Provider（v147：从「三档枚举」升级为可插拔 Provider）
+
+    /// "auto" = 按注册表优先级依次尝试（大模型 → 快速通道）
+    public static let translationAutoPreference = "auto"
+    public static let keyTranslationProvider = "ai.translationProvider"
+    /// v146 的旧键（auto/ai/quick），仅用于一次性迁移
+    private static let legacyKeyTranslationEngine = "ai.translationEngine"
+
+    /// 用户选择的翻译 Provider：`auto` 或某个 Provider 的 id
+    public static var translationProviderPreference: String {
+        get {
+            let stored = prefs.value(keyTranslationProvider, default: "") as String
+            if !stored.isEmpty { return stored }
+            // 迁移 v146 的旧值（auto/ai/quick → auto/llm/qnw）
+            let legacy = prefs.value(legacyKeyTranslationEngine, default: "") as String
+            switch legacy {
+            case "ai":    return "llm"
+            case "quick": return "qnw"
+            case "auto":  return translationAutoPreference
+            default:      return translationAutoPreference
+            }
+        }
+        set { prefs.set(keyTranslationProvider, newValue) }
+    }
+
+    // MARK: 文字识别引擎（v147）
+
+    public static let keyOCRRefiner = "ocr.refiner"
+
+    /// 识别引擎：`auto`（有本地模型用本地，否则纯系统）/ `system`（仅 Apple Vision）
+    public static var ocrRefinerPreference: String {
+        get {
+            let stored = prefs.value(keyOCRRefiner, default: "") as String
+            return stored.isEmpty ? "auto" : stored
+        }
+        set { prefs.set(keyOCRRefiner, newValue) }
+    }
+
     // MARK: 系统提示词
 
     public static let fallbackSystemPrompt =

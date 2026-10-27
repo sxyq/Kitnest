@@ -81,7 +81,22 @@ final class OCRReadOnlyScrollView: NSScrollView {
     var text: String {
         get { textView.string }
         set {
-            textView.string = newValue
+            // v151：识别出的网址做成可点击链接（用户拿 OCR 就是为了打开/复制链接）。
+            // 只加 .link 属性，文本本身不变；复制仍然是纯文本。
+            let attributed = NSMutableAttributedString(
+                string: newValue,
+                attributes: [
+                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+                    .foregroundColor: NSColor.labelColor
+                ])
+            let full = NSRange(location: 0, length: (newValue as NSString).length)
+            if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+                detector.enumerateMatches(in: newValue, options: [], range: full) { result, _, _ in
+                    guard let result, let url = result.url else { return }
+                    attributed.addAttribute(.link, value: url, range: result.range)
+                }
+            }
+            textView.textStorage?.setAttributedString(attributed)
             textView.scrollToBeginningOfDocument(nil)
         }
     }
@@ -99,14 +114,18 @@ final class ScreenshotOCRResultWindow: NSWindow {
     private let qrScroll = NSScrollView()
     private let qrStack = NSStackView()
     private var qrPayloads: [String] = []
-    /// 右栏页签切换（0 = 识别文本，1 = 二维码）
-    private let tabControl = NSSegmentedControl(labels: ["识别文本", "二维码"],
+    /// v139：译文页（第三个页签）——OCR 原文旁边直接给译文，不用再走「屏幕翻译」钉图
+    private let translatedScroll = OCRReadOnlyScrollView(frame: .zero)
+    /// 右栏页签切换（0 = 识别文本，1 = 二维码，2 = 翻译）
+    private let tabControl = NSSegmentedControl(labels: ["识别文本", "二维码", "翻译"],
                                                 trackingMode: .selectOne, target: nil, action: nil)
     private let rightPane = NSView()
     private let rightPaneLabel = NSTextField(labelWithString: "识别文本")
 
     var onCopy: (() -> Void)?
     var onReRecognize: (() -> Void)?
+    /// v139：切到「翻译」页签/点翻译按钮时请求译文（由控制器发起，避免窗口自己依赖 AI 模块）
+    var onTranslate: (() -> Void)?
 
     init(sourceImage: CGImage, text: String, qrPayloads: [String] = []) {
         let size = NSSize(width: 760, height: 480)
@@ -142,7 +161,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
         let bottom = NSView(frame: NSRect(x: 0, y: 0, width: size.width, height: 44))
         bottom.autoresizingMask = [.width, .maxYMargin]
 
-        tabControl.frame = NSRect(x: 12, y: 10, width: 190, height: 24)
+        tabControl.frame = NSRect(x: 12, y: 10, width: 250, height: 24)
         tabControl.target = self
         tabControl.action = #selector(tabChanged(_:))
         tabControl.selectedSegment = 0
@@ -170,6 +189,9 @@ final class ScreenshotOCRResultWindow: NSWindow {
     private func setupRightPane() {
         resultScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
         resultScroll.autoresizingMask = [.width, .height]
+        translatedScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
+        translatedScroll.autoresizingMask = [.width, .height]
+        translatedScroll.isHidden = true
         qrScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
         qrScroll.autoresizingMask = [.width, .height]
         qrScroll.hasVerticalScroller = true
@@ -193,6 +215,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
         rightPane.autoresizingMask = [.width, .height]
         rightPane.addSubview(resultScroll)
         rightPane.addSubview(qrScroll)
+        rightPane.addSubview(translatedScroll)
     }
 
     /// 右栏容器套标题（标题随页签切换改名）
@@ -246,11 +269,30 @@ final class ScreenshotOCRResultWindow: NSWindow {
     }
 
     @objc private func tabChanged(_ sender: NSSegmentedControl) {
-        let qr = sender.selectedSegment == 1
-        resultScroll.isHidden = qr
-        qrScroll.isHidden = !qr
-        rightPaneLabel.stringValue = qr ? "二维码" : "识别文本"
+        let index = sender.selectedSegment
+        resultScroll.isHidden = index != 0
+        qrScroll.isHidden = index != 1
+        translatedScroll.isHidden = index != 2
+        rightPaneLabel.stringValue = index == 1 ? "二维码" : (index == 2 ? "翻译" : "识别文本")
+        if index == 2 { onTranslate?() }
     }
+
+    /// 选中「翻译」页签（外部入口用）
+    func selectTranslateTab() {
+        tabControl.selectedSegment = 2
+        tabChanged(tabControl)
+    }
+
+    /// 译文文本（nil → 显示占位提示）
+    func setTranslatedText(_ text: String?) {
+        if let text {
+            translatedScroll.text = text
+        } else {
+            translatedScroll.text = "翻译中…"
+        }
+    }
+
+    var translatedText: String { translatedScroll.text }
 
     private func rebuildQRRows() {
         qrStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -332,35 +374,89 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
     private var sourceImage: CGImage?
     private var imageData: Data?
     private var isRecognizing = false
+    // v139：翻译状态 + 失焦自动关闭
+    private var translated: String?
+    private var isTranslating = false
+    private var resignObserver: NSObjectProtocol?
 
     private override init() { super.init() }
 
     /// 展示识别结果窗（v130⑤：text/qrPayloads 为空表示对应页签无内容；已有窗口时只增量更新，
     /// 不用空文本覆盖已有 OCR 结果）
     public func show(sourceImage: CGImage, imageData: Data, text: String,
-                     qrPayloads: [String] = [], selectQR: Bool = false) {
+                     qrPayloads: [String] = [], selectQR: Bool = false,
+                     autoTranslate: Bool = false) {
         self.sourceImage = sourceImage
         self.imageData = imageData
+        if !text.isEmpty { translated = nil }   // 新文本 → 旧译文作废
         if let existing = window {
             if !text.isEmpty { existing.setResultText(text) }
             if !qrPayloads.isEmpty { existing.setQRPayloads(qrPayloads) }
             if selectQR { existing.selectQRTab(true) }
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            if autoTranslate { existing.selectTranslateTab() }
             return
         }
         let win = ScreenshotOCRResultWindow(sourceImage: sourceImage, text: text, qrPayloads: qrPayloads)
         win.delegate = self
         win.onCopy = { [weak self] in self?.copyResult() }
         win.onReRecognize = { [weak self] in self?.reRecognize() }
+        win.onTranslate = { [weak self] in self?.translateCurrentText() }
         window = win
+        // v139（用户反馈「点其他地方不消失」）：结果窗丢失键盘焦点即关闭。
+        // 点窗口内部按钮不会失焦；点其它窗口/桌面才触发，语义上等同 popover。
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: win, queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                guard let self, let w = self.window, !w.isKeyWindow else { return }
+                self.close()
+            }
+        }
         if selectQR { win.selectQRTab(true) }
         win.center()
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if autoTranslate { win.selectTranslateTab() }
+    }
+
+    // MARK: 翻译（v139：结果窗第三个页签）
+
+    private func translateCurrentText() {
+        guard !isTranslating, let win = window else { return }
+        let text = win.resultText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            Toast.show("没有可翻译的文字", icon: "exclamationmark.circle.fill")
+            return
+        }
+        if let cached = translated, !cached.isEmpty {
+            win.setTranslatedText(cached)   // 已有译文，直接复用
+            return
+        }
+        isTranslating = true
+        win.setTranslatedText(nil)          // 「翻译中…」
+        Task { @MainActor in
+            defer { self.isTranslating = false }
+            do {
+                let result = try await TranslationToolSession.shared.translateDocument(text)
+                self.translated = result
+                self.window?.setTranslatedText(result)
+                Log.info("Capture", "截图翻译完成：\(text.count) 字符 → \(result.count) 字符")
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                self.window?.setTranslatedText("翻译失败：\(message)")
+                Toast.show("翻译失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
+                Log.error("Capture", "截图翻译失败: \(error.localizedDescription)")
+            }
+        }
     }
 
     public func close() {
+        if let resignObserver {
+            NotificationCenter.default.removeObserver(resignObserver)
+            self.resignObserver = nil
+        }
         window?.close()
         window = nil
     }
@@ -381,13 +477,14 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
         Task { @MainActor in
             defer { self.isRecognizing = false }
             do {
-                let text = try await OCRService.shared.recognizeText(imageData: data)
+                let text = try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
                 // spec 13 §4：未读取到文字场景（0x10000d45c，重新识别为空）
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
                     return
                 }
                 self.window?.setResultText(text)
+                self.translated = nil
                 CaptureEventBus.onTextRecognized?(text)
             } catch {
                 Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
@@ -399,6 +496,12 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
     // MARK: NSWindowDelegate
 
     public func windowWillClose(_ notification: Notification) {
-        if (notification.object as? ScreenshotOCRResultWindow) === window { window = nil }
+        if (notification.object as? ScreenshotOCRResultWindow) === window {
+            window = nil
+            if let resignObserver {
+                NotificationCenter.default.removeObserver(resignObserver)
+                self.resignObserver = nil
+            }
+        }
     }
 }

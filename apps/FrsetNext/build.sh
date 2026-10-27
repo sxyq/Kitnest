@@ -33,7 +33,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 
-FILES=$(find "$SRC" -name '*.swift' -not -path "$SRC/MemoryHelper/*" | sort | tr '\n' ' ')
+FILES=$(find "$SRC" -name '*.swift' \
+  -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
+  | sort | tr '\n' ' ')
 
 echo "== 资源 =="
 # 本地化资源必须在**签名前**拷入 bundle：codesign --deep 会对 bundle 整体做签名封印，
@@ -43,6 +45,16 @@ if [ -d "$ROOT/Resources" ]; then
   find "$APP/Contents/Resources" -name 'Localizable.strings' | sort | sed 's/^/  打包: /'
 else
   echo "  （无 Resources/ 目录，跳过本地化资源打包）"
+fi
+
+# ---- 本地 OCR 运行时（ONNX Runtime）----
+# 必须**在签名前**拷入 bundle：codesign 之后添加文件会破坏签名封印。
+if [ -f "$ROOT/Vendor/ocr/libonnxruntime.dylib" ]; then
+  mkdir -p "$APP/Contents/Frameworks"
+  cp "$ROOT/Vendor/ocr/libonnxruntime.dylib" "$APP/Contents/Frameworks/libonnxruntime.dylib"
+  echo "  打包 ONNX Runtime: $(du -h "$APP/Contents/Frameworks/libonnxruntime.dylib" | cut -f1)"
+else
+  echo "  （无 Vendor/ocr/libonnxruntime.dylib，跳过本地 OCR 运行时）"
 fi
 
 echo "== 资源预检 =="
@@ -70,6 +82,7 @@ if [ -d "$OBJC_DIR" ]; then
     obj="$OBJ_DIR/$(basename "${f%.*}").o"
     clang -c "$f" -o "$obj" \
       -isysroot "$SDK" -target arm64-apple-macosx13.0 \
+      -I "$ROOT/Vendor/ocr" \
       -fobjc-arc -O1 2>&1 | tee -a /tmp/frsetnext_build.log | tail -5
     CLANG_RC=${PIPESTATUS[0]}
     if [ "$CLANG_RC" -ne 0 ] || [ ! -f "$obj" ]; then
@@ -97,7 +110,7 @@ swiftc $OPT_FLAGS -parse-as-library \
   -lsqlite3 \
   -framework AppKit -framework SwiftUI -framework Combine \
   -framework CoreGraphics -framework CoreImage -framework ImageIO \
-  -framework Vision -framework ScreenCaptureKit -framework EventKit \
+  -framework Vision -Xlinker -weak_framework -Xlinker Translation -framework ScreenCaptureKit -framework EventKit \
   -framework ServiceManagement -framework UniformTypeIdentifiers \
   -framework IOKit -framework SystemConfiguration \
   -framework AVFoundation -framework CoreMedia \
@@ -168,6 +181,68 @@ if [ -f "$HELPER_SRC" ]; then
     echo "  ⚠ helper 编译失败"
     exit 1
   fi
+fi
+
+# ============================================================================
+# 本地 OCR helper（2026-10-27 v144）
+#
+# 为什么要有独立可执行文件：ONNX Runtime 在进程内**卸载不了**——实测
+# ReleaseSession + dlclose 之后 dyld 镜像里仍在、RSS 一点不降。要让「识别完就还内存」
+# 成立，只能让推理跑在一个一次性进程里，跑完退出，内存整块回收。
+#
+# 必须在主 App 签名之前编译+签名：它被放在 Contents/Helpers/（嵌套代码），
+# 主 App 的签名封印包含它；顺序反了会破坏封印。
+# ============================================================================
+OCR_H_DIR="$SRC/OCRHelper"
+OCR_H_OUT="$APP/Contents/Helpers/FrsetOCRHelper"
+if [ -f "$OCR_H_DIR/main.swift" ]; then
+  echo "== 本地 OCR helper =="
+  mkdir -p "$(dirname "$OCR_H_OUT")"
+  OCR_OBJ_DIR="/tmp/frsetnext_ocr_helper"
+  rm -rf "$OCR_OBJ_DIR"; mkdir -p "$OCR_OBJ_DIR"
+  if ! clang -c "$OBJC_DIR/frset_ocr_onnx.m" -o "$OCR_OBJ_DIR/frset_ocr_onnx.o" \
+       -isysroot "$SDK" -target arm64-apple-macosx13.0 -I "$ROOT/Vendor/ocr" \
+       -fobjc-arc -O1 2>&1 | tail -5; then
+    echo "  ✗ helper 的 ONNX 封装编译失败"
+    exit 1
+  fi
+  if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
+       -o "$OCR_H_OUT" \
+       "$OCR_H_DIR/main.swift" "$OCR_H_DIR/LogStub.swift" \
+       "$SRC/Features/Capture/PPOCROCR.swift" \
+       "$OCR_OBJ_DIR/frset_ocr_onnx.o" \
+       -import-objc-header "$OCR_H_DIR/ocr_bridge.h" \
+       -framework AppKit -framework CoreGraphics 2>&1 | tail -10; then
+    if [ -x "$OCR_H_OUT" ]; then
+      if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
+        codesign --force -s "FrsetDev" -i "com.sxyq.frsetnext.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
+      else
+        codesign --force -s - -i "com.sxyq.frsetnext.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
+      fi
+      codesign -v "$OCR_H_OUT" 2>/dev/null && echo "  OCR helper 签名 ✓" || { echo "  ⚠ OCR helper 签名失败"; exit 1; }
+      # 冒烟：无参数运行应返回用法错误（退出码 2），证明二进制能启动
+      "$OCR_H_OUT" >/dev/null 2>&1; rc=$?
+      [ "$rc" -eq 2 ] && echo "  OCR helper 可执行 ✓" || echo "  ⚠ OCR helper 启动异常（退出码 $rc）"
+    else
+      echo "  ⚠ OCR helper 未产出"
+      exit 1
+    fi
+  else
+    echo "  ✗ OCR helper 编译失败"
+    exit 1
+  fi
+fi
+
+# 先签 Frameworks 里的动态库，再签 app——codesign 不会自动签嵌套 dylib，
+# 未签名的库在运行时会被系统拒绝加载（本地 OCR 会静默降级回 Vision）。
+if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
+  if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
+    codesign --force -s "FrsetDev" "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
+  else
+    codesign --force -s - "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
+  fi
+  codesign -v "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>/dev/null \
+    && echo "  ONNX Runtime 签名 ✓" || echo "  ⚠ ONNX Runtime 签名失败"
 fi
 
 echo "== 签名 =="
