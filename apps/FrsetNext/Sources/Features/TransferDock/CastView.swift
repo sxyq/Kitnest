@@ -7,11 +7,24 @@ import SwiftUI
 // 用户要求（2026-10-25）：「把投屏分拆开，文件传输这边只仅限 [文件传输]；
 // 顶部加一个投屏按钮，做成左右切换的栏」。
 //
-// 本页职责 = Android 设备中心 + 镜像投屏：
-//   ① 设备检测（adb devices）与 scrcpy 就绪状态；
-//   ② 无线连接（v112 ADBWirelessEngine：扫描 / 配对码 / 手动连接）；
-//   ③ 开始投屏（scrcpy 独立窗，剪贴板双向同步）。
-// 文件传输相关（隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）留在「文件中转」页。
+// v154 精简（用户 2026-10-28：「投屏这边按钮太多了，太小了，内容太多了，需要进行一定的精简」）：
+// 旧版把 6 个区块平铺在一屏里——设备(3 个行内按钮) + 配对卡 + 4 连导航 + 画质 + 剪贴板开关
+// + 通知(刷新/清空) + 存储(刷新) + 应用(读取 + 24 个磁贴) + 扩展服务(2 复制 + 2 开关) + 5 条说明，
+// 合计 45 个可点目标，全部 11pt 字号。在 360pt 面板里既看不清也点不准。
+//
+// v154.1（同日）：用户又说「按钮太多了，太小了」——上一版虽然收到 3 段，
+// 但所有字号仍是全局规范化的 11pt，图标 24–30pt，在 360pt 面板里依然点不准。
+// 这一版统一抬一档（正文 11.5–12.5、图标 13–14、主按钮 32 高、折叠行 38 高），
+// 并把内容再砍一轮：通知 6→4 条、存储 6→4 条、应用磁贴 24→12 个。
+//
+// 现在的结构（3 段，进入页面只有 4 个大目标）：
+//   ① 投屏主场：设备状态 + 唯一主按钮「开始投屏」+ 遥控行（图标 26pt，仅连接后出现）
+//   ② 无线连接：（折叠，点开才出现配对列表 / 手动 IP / 一键无线）
+//   ③ 更多工具：（折叠，内含 通知 / 存储 / 应用窗口 / 扩展服务）
+// 说明改成右上角「?」弹层，不再常驻 5 行文字。
+//
+// 性能附赠：手机通知的 6s 轮询、存储与应用的 adb 调用原来在进入页面时就跑，
+// 现在都挂在「更多工具」展开之后 —— 不进工具区就不起 adb 子进程。
 
 struct CastView: View {
 
@@ -20,12 +33,9 @@ struct CastView: View {
     @Stored private var devices: [(serial: String, state: String)] = []
     @Stored private var scrcpyReady = false
     @Stored private var scanned = false
-    // 无线配对（v130 移入 AdbPairingView/AdbPairingService，仅保留一键无线/提示用状态）
     @Stored private var wirelessStatus = ""
     @Stored private var autoScanDone = false
-    // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
     @Stored private var clipboardSyncOn = TransferDockPref.CastQuality.clipboardAutoSync
-    // v116：通知 / 存储 / 应用
     @Stored private var notifications: [ADBExtrasEngine.PhoneNotification] = []
     @Stored private var notifBusy = false
     @Stored private var storageSummary = ""
@@ -35,6 +45,10 @@ struct CastView: View {
     @Stored private var wirelessBusy = false
     @Stored private var mcpOn = false
     @Stored private var webdavOn = false
+    // v154：两个折叠区 + 说明弹层
+    @Stored private var toolsExpanded = false
+    @Stored private var wirelessExpanded = false
+    @Stored private var showTips = false
     @ObservedObject private var panelPage = MonitorCenterPresenter.shared
 
     // v128（流畅度）：轮询 timer 提为 static——原 `Timer.publish(...).autoconnect()` 写在
@@ -42,206 +56,173 @@ struct CastView: View {
     // 启动新定时器），页面状态一抖就重建定时器。改为共享单例，只在条件满足时干活。
     private static let notifTick = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
 
+    // MARK: 派生
+
+    private var connectedDevices: [(serial: String, state: String)] {
+        devices.filter { $0.state == "device" }
+    }
+    private var hasDevice: Bool { !connectedDevices.isEmpty }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // v115：设备连上就能投——连接/镜像合并为一个「Android 设备」区
-                deviceSection
+                hero
                 Divider().opacity(0.5)
-                // v116：通知 / 存储 / 应用（Meld）
-                notificationsSection
+                wirelessBlock
                 Divider().opacity(0.5)
-                storageSection
-                Divider().opacity(0.5)
-                appsSection
-                Divider().opacity(0.5)
-                servicesSection
-                Divider().opacity(0.5)
-                tipsSection
+                toolsBlock
             }
+            .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
-            // 首次进入自动扫一次（设备 + scrcpy 状态），不打扰、只一次
+            // 首次进入只做「设备 + scrcpy」，不再顺手拉通知/存储（进工具区才拉）
             guard !autoScanDone else { return }
             autoScanDone = true
             scrcpyReady = ScreenCastEngine.findScrcpy() != nil
             refreshDevices(quiet: true)
-            refreshNotifications()
-            loadStorage()
         }
-        // v116：只在「投屏」页在前台时轮询手机通知（6s；离开即停，不空烧 adb）
-        // v128（流畅度）：再收紧为「投屏页在前台 + 至少一台设备已连接」才拉通知——
-        // 无设备时每 6s 白跑一次 adb 子进程（通知桥会起 shell），纯 CPU/IO 浪费。
+        // v154：轮询条件再收紧一层——「更多工具」没展开就不拉通知（用户看不到也没必要跑 adb）
         .onReceive(Self.notifTick) { _ in
-            guard panelPage.page == .cast else { return }
-            guard devices.contains(where: { $0.state == "device" }) else { return }
-            // v128（流畅度）：回调体进 autoreleasepool（adb 桥接临时对象随回调排空）
+            guard panelPage.page == .cast, toolsExpanded else { return }
+            guard hasDevice else { return }
             autoreleasepool { refreshNotifications() }
+        }
+        // 部署目标 macOS 13：用单参数 onChange（双参数是 14+ API）
+        .onChange(of: toolsExpanded) { expanded in
+            guard expanded else { return }
+            if hasDevice {
+                refreshNotifications()
+                loadStorage()
+            }
+            if apps.isEmpty { loadApps() }
         }
     }
 
-    // MARK: ① 设备（连接 + 镜像同一件事：连上就能投）
+    // MARK: - ① 投屏主场
 
-    private var deviceSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TransferChrome.sectionHeader(
-                title: "Android 设备",
-                symbol: "display",
-                detail: scrcpyReady
-                        ? "双向剪贴板：\(TransferDockPref.CastQuality.clipboardAutoSync ? "已开启" : "已关闭") · \(TransferDockPref.CastQuality.summary)"
-                        : "未装 scrcpy（brew install scrcpy）",
-                tint: Color(red: 0.45, green: 0.36, blue: 0.95)) {
-                TransferChrome.smallAction("检测", icon: "antenna.radiowaves.left.and.right") {
-                    scrcpyReady = ScreenCastEngine.findScrcpy() != nil
-                    refreshDevices(quiet: false)
-                }
-                TransferChrome.smallAction("无线扫描",
-                                           icon: "wifi") {
-                    AdbPairingService.shared.scan()
-                }
-                // v116：USB 一次 → adb tcpip 5555 → 之后免配对码直连
-                TransferChrome.smallAction(wirelessBusy ? "启用中…" : "一键无线",
-                                           icon: "wifi.router") {
-                    enableWireless()
-                }
-            }
-            .padding(.horizontal, 8)
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            heroHeader
 
             if devices.isEmpty {
-                emptyDeviceCard
+                emptyState
             } else {
-                // adaptive 列（同 TransferDockView：预热 0 宽布局下不会算负宽度）
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: .infinity), spacing: 6)],
-                          spacing: 6) {
+                VStack(spacing: 6) {
                     ForEach(Array(devices.enumerated()), id: \.offset) { _, dev in
                         deviceCard(serial: dev.serial, state: dev.state)
                     }
                 }
-                .padding(.horizontal, 10)
             }
 
-            // v130（AndroMeld/AgentHUD）：无线配对独立卡片（AndroMeld P0-1 配对流程 UI：
-            // 扫描发现 / 配对码弹框 / 已连接列表 + 断开 / 状态提示），替代原内联配对行
-            AdbPairingView()
-
-            // v117：导航键（全面屏/手势机没有实体返回键，投屏时用这排按钮操作手机）
-            HStack(spacing: 6) {
-                navButton("返回", "arrow.uturn.backward", .back)
-                navButton("主页", "house.fill", .home)
-                navButton("多任务", "square.on.square", .recents)
-                Button {
-                    ADBExtrasEngine.expandNotifications()
-                } label: {
-                    navLabel(icon: "bell.fill", title: "通知栏")
-                }
-                .buttonStyle(.plain)
-                Spacer(minLength: 0)
-                Button {
-                    ServiceLocator.settings?.open(pane: "transfer")
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                }
-                .buttonStyle(.plain)
-                .help("画质设置")
-                .accessibilityLabel("画质设置")
+            if hasDevice {
+                remoteRow
             }
-            .padding(.horizontal, 12)
 
-            // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text("双向剪贴板：\(clipboardSyncOn ? "已开启" : "已关闭")")
-                        .font(.system(size: 11, weight: .medium))
-                    Toggle("", isOn: Binding(
-                        get: { clipboardSyncOn },
-                        set: { v in
-                            TransferDockPref.CastQuality.clipboardAutoSync = v
-                            clipboardSyncOn = v
-                        }))
-                        .labelsHidden()
-                        .controlSize(.mini)
-                        .toggleStyle(.switch)
-                    Spacer(minLength: 0)
-                }
-                // v153：说明原来挤在开关同一行，360pt 下会折成两行并顶到边缘。
-                Text("关掉则投屏 / Meld 窗口不做 Mac↔手机剪贴板同步")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
+            if !scrcpyReady {
+                Text("未装 scrcpy：brew install scrcpy 后才能投屏")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 12)
-
-            // 一键无线 / 打开无线调试页 的状态提示（v130 保留：配对卡片自身状态走 AdbPairingService）
-            if !wirelessStatus.isEmpty {
-                Text(wirelessStatus)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+    }
+
+    private var heroHeader: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "display")
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.accent)
+            Text("投屏")
+                .font(.system(size: 13, weight: .semibold))
+            Text(heroDetail)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.tertiaryText)
+                .lineLimit(1)
+            Spacer(minLength: 2)
+            iconAction("arrow.clockwise", "重新检测设备") {
+                scrcpyReady = ScreenCastEngine.findScrcpy() != nil
+                refreshDevices(quiet: false)
+            }
+            Button {
+                showTips = true
+            } label: {
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("投屏使用说明")
+            .accessibilityLabel("投屏使用说明")
+            .popover(isPresented: $showTips, arrowEdge: .bottom) { tipsPopover }
+        }
+    }
+
+    private var heroDetail: String {
+        if devices.isEmpty { return scanned ? "未发现设备" : "未检测" }
+        let n = connectedDevices.count
+        return n > 0 ? "\(n) 台已连接" : "\(devices.count) 台未就绪"
+    }
+
+    /// 空态：一句话说明 + 两个入口（不再列三行小字）
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "ipad.and.iphone")
+                .font(.system(size: 26))
+                .foregroundStyle(Theme.tertiaryText)
+            Text(scanned ? "未发现设备" : "尚未检测设备")
+                .font(.system(size: 12.5, weight: .medium))
+            Text("USB 连接手机并开启「开发者选项 → USB 调试」")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 6) {
+                // v154.1：两个按钮原来固定 132/110 宽再留白，现在平分整行——
+                // 面板里等宽的双按钮比「一大一小 + 空白」干净，点击面积也更大。
+                primaryButton("重新检测", icon: "antenna.radiowaves.left.and.right") {
+                    scrcpyReady = ScreenCastEngine.findScrcpy() != nil
+                    refreshDevices(quiet: false)
+                }
+                secondaryButton("无线连接", icon: "wifi") {
+                    withAnimation(.easeOut(duration: 0.16)) { wirelessExpanded = true }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
     }
 
-    /// 设备卡（双列，与文件中转的文件卡同族）
+    /// 设备卡：状态行 + 唯一主按钮
     private func deviceCard(serial: String, state: String) -> some View {
         let connected = state == "device"
-        let tint = connected ? Color.green : Color.orange
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(LinearGradient(colors: [tint.opacity(0.95), tint.opacity(0.55)],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 26, height: 26)
-                    Image(systemName: "ipad.landscape")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                Spacer(minLength: 0)
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
                 Circle()
-                    .fill(tint)
+                    .fill(connected ? Color.green : Color.orange)
                     .frame(width: 6, height: 6)
-            }
-            Text(serial)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(1)
-            if connected {
-                Button {
-                    ScreenCastEngine.startMirror(serial: serial)
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "play.fill").font(.system(size: 11))
-                        Text("开始投屏").font(.system(size: 11, weight: .medium))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(tint.gradient, in: Capsule())
-                }
-                .buttonStyle(.plain)
-            } else {
-                Text(state)
-                    .font(.system(size: 11))
+                Text(serial)
+                    .font(.system(size: 12.5, design: .monospaced))
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                Text(connected ? "已连接" : state)
+                    .font(.system(size: 12))
                     .foregroundStyle(Theme.tertiaryText)
             }
+            if connected {
+                primaryButton("开始投屏", icon: "play.fill") {
+                    ScreenCastEngine.startMirror(serial: serial)
+                }
+            }
         }
-        .padding(8)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.primary.opacity(0.035),
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-        )
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.container, style: .continuous))
         .contextMenu {
             if connected {
                 Button("开始投屏") { ScreenCastEngine.startMirror(serial: serial) }
@@ -257,7 +238,113 @@ struct CastView: View {
         }
     }
 
-    /// v116 一键无线：USB 已连时 tcpip + connect
+    /// 遥控行：图标按钮 26pt（比原来 11pt 文字的胶囊好点得多）+ 剪贴板同步开关
+    private var remoteRow: some View {
+        HStack(spacing: 8) {
+            navIcon("arrow.uturn.backward", "返回", .back)
+            navIcon("house.fill", "主页", .home)
+            navIcon("square.on.square", "多任务", .recents)
+            Button {
+                ADBExtrasEngine.expandNotifications()
+            } label: {
+                navIconLabel("bell.fill")
+            }
+            .buttonStyle(.plain)
+            .help("下拉手机通知栏")
+            .accessibilityLabel("下拉手机通知栏")
+
+            Spacer(minLength: 4)
+
+            // 剪贴板同步：只留图标 + 开关，说明进 tooltip
+            HStack(spacing: 3) {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Toggle("", isOn: Binding(
+                    get: { clipboardSyncOn },
+                    set: { v in
+                        TransferDockPref.CastQuality.clipboardAutoSync = v
+                        clipboardSyncOn = v
+                    }))
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .toggleStyle(.switch)
+            }
+            .help("双向剪贴板（\(clipboardSyncOn ? "已开启" : "已关闭")）：关掉则投屏窗口不做 Mac↔手机同步")
+            .accessibilityLabel("双向剪贴板")
+        }
+    }
+
+    private func navIcon(_ icon: String, _ title: String,
+                         _ key: ADBExtrasEngine.NavKey) -> some View {
+        Button {
+            ADBExtrasEngine.sendKey(key)
+        } label: {
+            navIconLabel(icon)
+        }
+        .buttonStyle(.plain)
+        .help(title)
+        .accessibilityLabel(title)
+    }
+
+    private func navIconLabel(_ icon: String) -> some View {
+        Image(systemName: icon)
+            .font(.system(size: 14))
+            .foregroundStyle(Theme.accent)
+            .frame(width: 34, height: 30)
+            .background(Theme.accent.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .contentShape(Rectangle())
+    }
+
+    // MARK: - ② 无线连接（折叠）
+
+    private var wirelessBlock: some View {
+        VStack(spacing: 0) {
+            disclosureRow(title: "无线连接",
+                          icon: "wifi",
+                          detail: wirelessDetail,
+                          expanded: wirelessExpanded) {
+                withAnimation(.easeOut(duration: 0.16)) { wirelessExpanded.toggle() }
+            }
+
+            if wirelessExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        secondaryButton(wirelessBusy ? "启用中…" : "一键无线",
+                                        icon: "wifi.router") { enableWireless() }
+                        secondaryButton("扫描附近", icon: "antenna.radiowaves.left.and.right") {
+                            AdbPairingService.shared.scan()
+                        }
+                    }
+                    Text("USB 连一次即可（adb tcpip 5555），之后免配对码直连")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    // 配对卡片自带「发现列表 + 手动 IP + 状态」，这里内嵌，不再重复标题与按钮
+                    AdbPairingView(embedded: true)
+
+                    if !wirelessStatus.isEmpty {
+                        Text(wirelessStatus)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+            }
+        }
+    }
+
+    private var wirelessDetail: String {
+        if wirelessBusy { return "启用中…" }
+        let n = AdbPairingService.shared.wirelessConnected.count
+        return n > 0 ? "\(n) 台无线已连" : "USB 一次即可免配对码"
+    }
+
     private func enableWireless() {
         guard !wirelessBusy else { return }
         wirelessBusy = true
@@ -270,53 +357,383 @@ struct CastView: View {
         }
     }
 
-    private var emptyDeviceCard: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "ipad.and.iphone")
-                .font(.system(size: 22))
-                .foregroundStyle(Theme.tertiaryText)
-            Text(scanned ? "未发现设备" : "点右上「检测」开始")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-            Text("USB 连上并开启「开发者选项 → USB 调试」；或点「无线扫描」配对")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .multilineTextAlignment(.center)
+    // MARK: - ③ 更多工具（折叠：通知 / 存储 / 应用 / 服务）
+
+    private var toolsBlock: some View {
+        VStack(spacing: 0) {
+            disclosureRow(title: "更多工具",
+                          icon: "square.grid.2x2",
+                          detail: "通知 · 存储 · 应用 · 服务",
+                          expanded: toolsExpanded) {
+                withAnimation(.easeOut(duration: 0.16)) { toolsExpanded.toggle() }
+            }
+
+            if toolsExpanded {
+                VStack(alignment: .leading, spacing: 14) {
+                    notificationsBlock
+                    storageBlock
+                    appsBlock
+                    servicesBlock
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
+                .padding(.bottom, 12)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(Color.primary.opacity(0.025),
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .padding(.horizontal, 10)
     }
 
-    private func navButton(_ title: String, _ icon: String, _ key: ADBExtrasEngine.NavKey) -> some View {
-        Button {
-            ADBExtrasEngine.sendKey(key)
-        } label: {
-            navLabel(icon: icon, title: title)
+    // 通知
+    private var notificationsBlock: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            subHeader("手机通知",
+                      detail: notifBusy ? "同步中…" : (hasDevice ? "6 秒自动" : "未连接设备"),
+                      refresh: hasDevice ? { refreshNotifications() } : nil)
+
+            if notifications.isEmpty {
+                hint("暂无通知（手机需有未清除的通知）")
+            } else {
+                VStack(spacing: 3) {
+                    ForEach(notifications.prefix(4)) { n in
+                        HStack(alignment: .top, spacing: 6) {
+                            Text(n.app.prefix(2).uppercased())
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .frame(width: 22, height: 22)
+                                .background(notifTint(n.pkg).gradient,
+                                            in: RoundedRectangle(cornerRadius: Theme.Radius.chip,
+                                                                style: .continuous))
+                            VStack(alignment: .leading, spacing: 1) {
+                                HStack(spacing: 4) {
+                                    Text(n.title)
+                                        .font(.system(size: 11.5, weight: .medium))
+                                        .lineLimit(1)
+                                    Spacer(minLength: 0)
+                                    Text(n.time)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Theme.tertiaryText)
+                                }
+                                if !n.text.isEmpty {
+                                    Text(n.text)
+                                        .font(.system(size: 11.5))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Color.primary.opacity(0.03),
+                                    in: RoundedRectangle(cornerRadius: Theme.Radius.chip,
+                                                        style: .continuous))
+                        .contextMenu {
+                            Button("复制正文") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(n.title + "\n" + n.text, forType: .string)
+                                Toast.show("已复制通知内容", icon: "doc.on.doc")
+                            }
+                        }
+                    }
+                }
+                .contextMenu {
+                    Button("清空列表") { notifications = [] }
+                }
+            }
+        }
+    }
+
+    // 存储
+    private var storageBlock: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            subHeader("手机存储",
+                      detail: storageSummary.isEmpty ? (hasDevice ? "读取中…" : "未连接设备") : storageSummary,
+                      refresh: hasDevice ? { loadStorage() } : nil)
+
+            if storageItems.isEmpty {
+                hint(hasDevice ? "读取中…" : "连接设备后可查看")
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(storageItems.prefix(4)) { item in
+                        HStack(spacing: 6) {
+                            Image(systemName: "folder.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(red: 0.2, green: 0.62, blue: 0.55).opacity(0.8))
+                            Text(item.name)
+                                .font(.system(size: 11.5))
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                            Text(item.sizeText)
+                                .font(.system(size: 11.5, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+        }
+    }
+
+    // 应用窗口
+    private var appsBlock: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            subHeader("应用窗口",
+                      detail: appsBusy ? "读取中…" : "每个 App 一个独立窗口",
+                      refresh: hasDevice ? { loadApps() } : nil)
+
+            if apps.isEmpty {
+                hint(hasDevice ? (appsBusy ? "读取中…" : "点右上角刷新读取已安装应用")
+                               : "连接设备后可读取")
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 104, maximum: .infinity), spacing: 6)],
+                          spacing: 6) {
+                    ForEach(apps.prefix(12)) { app in
+                        Button {
+                            ADBExtrasEngine.startAppWindow(package: app.id)
+                        } label: {
+                            VStack(spacing: 3) {
+                                Text(app.label.prefix(3).uppercased())
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                    .frame(width: 34, height: 34)
+                                    .background(notifTint(app.id).gradient,
+                                                in: RoundedRectangle(cornerRadius: Theme.Radius.control,
+                                                                    style: .continuous))
+                                Text(app.label)
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(Color.primary.opacity(0.03),
+                                        in: RoundedRectangle(cornerRadius: Theme.Radius.control,
+                                                            style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .help(app.id)
+                        .accessibilityLabel("在独立窗口打开 \(app.label)")
+                    }
+                }
+            }
+        }
+    }
+
+    // 扩展服务
+    private var servicesBlock: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            subHeader("扩展服务", detail: "仅本机 127.0.0.1", refresh: nil)
+
+            serviceRow(icon: "brain.head.profile",
+                       title: "MCP 服务器",
+                       detail: MCPServer.shared.endpoint,
+                       help: "给 AI 客户端用的本机 MCP 接口",
+                       on: $mcpOn) { on in
+                if on {
+                    if !MCPServer.shared.start() { mcpOn = false }
+                } else {
+                    MCPServer.shared.stop()
+                }
+            }
+
+            serviceRow(icon: "externaldrive.connected.to.line.below",
+                       title: "手机文件 · WebDAV",
+                       detail: AndroidWebDAVServer.shared.baseURL,
+                       help: "Finder → 前往 → 连接服务器 → 粘贴地址，即可像网络盘一样浏览 /sdcard",
+                       on: $webdavOn) { on in
+                if on {
+                    if !AndroidWebDAVServer.shared.start() { webdavOn = false }
+                } else {
+                    AndroidWebDAVServer.shared.stop()
+                }
+            }
+        }
+    }
+
+    private func serviceRow(icon: String, title: String, detail: String, help: String,
+                            on: Binding<Bool>, toggle: @escaping (Bool) -> Void) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title).font(.system(size: 11.5, weight: .medium))
+                Text(detail)
+                    .font(.system(size: 11.5, design: .monospaced))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 2)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(detail, forType: .string)
+                Toast.show("已复制地址", icon: "doc.on.doc")
+            } label: {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("复制地址")
+            .accessibilityLabel("复制 \(title) 地址")
+            Toggle("", isOn: Binding(get: { on.wrappedValue },
+                                     set: { v in on.wrappedValue = v; toggle(v) }))
+                .labelsHidden()
+                .controlSize(.mini)
+                .toggleStyle(.switch)
+                .accessibilityLabel("\(title) 开关")
+        }
+        .padding(.vertical, 1)
+        .help(help)
+    }
+
+    // MARK: - 通用小部件
+
+    /// 折叠入口行（高度 32、整行可点、chevron 随状态旋转）
+    private func disclosureRow(title: String, icon: String, detail: String,
+                               expanded: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(.system(size: 12.5, weight: .medium))
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .rotationEffect(.degrees(expanded ? 180 : 0))
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 38)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(title)，\(expanded ? "收起" : "展开")")
     }
 
-    private func navLabel(icon: String, title: String) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon).font(.system(size: 11))
-            // v153：360pt 面板里 4 连 chip + 画质设置会超出可用宽度，
-            // 旧版会让「多任务」折成两行。这里禁止折行并允许轻微缩字。
-            Text(title).font(.system(size: 11, weight: .medium))
+    /// 工具区子标题：标题 + 说明 + 单个刷新图标（不再各配一排胶囊按钮）
+    private func subHeader(_ title: String, detail: String,
+                           refresh: (() -> Void)?) -> some View {
+        HStack(spacing: 5) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+            Text(detail)
+                .font(.system(size: 11.5))
+                .foregroundStyle(Theme.tertiaryText)
                 .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            Spacer(minLength: 2)
+            if let refresh {
+                Button(action: refresh) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("刷新\(title)")
+                .accessibilityLabel("刷新\(title)")
+            }
         }
-        .fixedSize()
-        .foregroundStyle(Theme.accent)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Theme.accent.opacity(0.10), in: Capsule())
-        .contentShape(Capsule())
     }
 
-    /// 检测设备（v105 教训：adb 必须后台执行，禁止主线程 waitUntilExit）
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11.5))
+            .foregroundStyle(Theme.tertiaryText)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func iconAction(_ icon: String, _ help: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+
+    /// 主按钮：整宽、高 28、强调色实底（一屏只有一个）
+    private func primaryButton(_ title: String, icon: String,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 12.5, weight: .semibold))
+                Text(title).font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(Theme.accent.gradient,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    /// 次按钮：描边、高 26、无底色填充
+    private func secondaryButton(_ title: String, icon: String,
+                                 action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 12))
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .foregroundStyle(Theme.accent)
+            .frame(maxWidth: .infinity)
+            .frame(height: 30)
+            .background(Theme.accent.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+
+    // MARK: - 说明弹层（替代原来常驻的 5 行小字）
+
+    private var tipsPopover: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("投屏说明")
+                .font(.system(size: 12.5, weight: .semibold))
+            tipLine("投屏窗口是独立 scrcpy 窗，关掉即断开（不影响手机）")
+            tipLine("需要手机开启「开发者选项 → USB 调试」")
+            tipLine("「一键无线」USB 连一次即可，之后免配对码直连")
+            tipLine("「应用窗口」是虚拟屏（Android 14+），每个 App 独立窗口")
+        }
+        .padding(12)
+        .frame(width: 268, alignment: .leading)
+    }
+
+    private func tipLine(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 5) {
+            Text("·").foregroundStyle(Theme.tertiaryText)
+            Text(text)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - 数据
+
     private func refreshDevices(quiet: Bool) {
         scanned = true
         ScreenCastEngine.connectedDevices { list in
@@ -330,81 +747,6 @@ struct CastView: View {
         }
     }
 
-    // v130（AndroMeld/AgentHUD）：原 scanWireless/connect/pair 内联实现删除，
-    // 配对流程统一走 AdbPairingService/AdbPairingView（host 级 adb，不带 -s）。
-
-    // MARK: ② 手机通知（v116，dumpsys 轮询，零安装）
-
-    private var notificationsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TransferChrome.sectionHeader(
-                title: "手机通知",
-                symbol: "bell.badge",
-                detail: notifBusy ? "同步中…" : "零安装 · 6 秒轮询",
-                tint: Color(red: 0.95, green: 0.55, blue: 0.15)) {
-                TransferChrome.smallAction("刷新", icon: "arrow.clockwise") { refreshNotifications() }
-                TransferChrome.smallAction("清空", icon: "trash") { notifications = [] }
-            }
-            .padding(.horizontal, 8)
-
-            if notifications.isEmpty {
-                Text("暂无通知（手机需有未清除的通知；下拉手机通知栏可触发）")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .padding(.horizontal, 12)
-            } else {
-                VStack(spacing: 4) {
-                    ForEach(notifications.prefix(6)) { n in
-                        HStack(alignment: .top, spacing: 6) {
-                            Text(n.app.prefix(2).uppercased())
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .frame(width: 20, height: 20)
-                                .background(notifTint(n.pkg).gradient,
-                                            in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                            VStack(alignment: .leading, spacing: 1) {
-                                HStack(spacing: 4) {
-                                    Text(n.title)
-                                        .font(.system(size: 11, weight: .medium))
-                                        .lineLimit(1)
-                                    Spacer(minLength: 0)
-                                    Text(n.time)
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Theme.tertiaryText)
-                                }
-                                if !n.text.isEmpty {
-                                    Text(n.text)
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Color.primary.opacity(0.03),
-                                    in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                        .contextMenu {
-                            Button("复制正文") {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(n.title + "\n" + n.text, forType: .string)
-                                Toast.show("已复制通知内容", icon: "doc.on.doc")
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 10)
-            }
-        }
-        .padding(.vertical, 10)
-    }
-
-    private func notifTint(_ pkg: String) -> Color {
-        let palette: [Color] = [.blue, .green, .orange, .pink, .purple, .teal, .red]
-        let h = abs(pkg.hashValue)
-        return palette[h % palette.count]
-    }
-
     private func refreshNotifications() {
         guard !notifBusy else { return }
         notifBusy = true
@@ -414,61 +756,6 @@ struct CastView: View {
         }
     }
 
-    // MARK: ③ 存储（v116）
-
-    private var storageSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TransferChrome.sectionHeader(
-                title: "手机存储",
-                symbol: "internaldrive",
-                detail: storageSummary,
-                tint: Color(red: 0.2, green: 0.62, blue: 0.55)) {
-                TransferChrome.smallAction("刷新", icon: "arrow.clockwise") { loadStorage() }
-            }
-            .padding(.horizontal, 8)
-
-            if storageItems.isEmpty {
-                HStack(spacing: 6) {
-                    smallProgress(0)
-                    Text("读取中…").font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
-                }
-                .padding(.horizontal, 12)
-            } else {
-                VStack(spacing: 4) {
-                    ForEach(storageItems.prefix(6)) { item in
-                        HStack(spacing: 6) {
-                            Image(systemName: "folder.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color(red: 0.2, green: 0.62, blue: 0.55).opacity(0.8))
-                            Text(item.name)
-                                .font(.system(size: 11))
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                            Text(item.sizeText)
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                    }
-                }
-                .padding(.horizontal, 10)
-            }
-        }
-        .padding(.vertical, 10)
-    }
-
-    private func smallProgress(_ v: Double) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.08))
-                Capsule().fill(Theme.accent.gradient)
-                    .frame(width: max(2, geo.size.width * v))
-            }
-        }
-        .frame(width: 60, height: 5)
-    }
-
     private func loadStorage() {
         ADBExtrasEngine.storage { summary, items in
             storageSummary = summary
@@ -476,164 +763,18 @@ struct CastView: View {
         }
     }
 
-    // MARK: ④ 应用 · Meld 独立窗口（v116，scrcpy --new-display）
-
-    private var appsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TransferChrome.sectionHeader(
-                title: "应用窗口",
-                symbol: "macwindow.on.rectangle",
-                detail: appsBusy ? "读取中…" : "每个 App 一个独立窗口",
-                tint: Color(red: 0.62, green: 0.42, blue: 0.95)) {
-                TransferChrome.smallAction(apps.isEmpty ? "读取应用" : "重读", icon: "square.grid.2x2") {
-                    appsBusy = true
-                    ADBExtrasEngine.thirdPartyApps { list in
-                        appsBusy = false
-                        apps = list
-                    }
-                }
-            }
-            .padding(.horizontal, 8)
-
-            if apps.isEmpty {
-                Text("读取手机已安装的第三方应用，点一下就在 Mac 上开一个独立窗口（Android 14+）")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .padding(.horizontal, 12)
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: .infinity), spacing: 6)],
-                          spacing: 6) {
-                    ForEach(apps.prefix(24)) { app in
-                        Button {
-                            ADBExtrasEngine.startAppWindow(package: app.id)
-                        } label: {
-                            VStack(spacing: 3) {
-                                Text(app.label.prefix(3).uppercased())
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .frame(width: 30, height: 30)
-                                    .background(notifTint(app.id).gradient,
-                                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                Text(app.label)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 5)
-                            .background(Color.primary.opacity(0.03),
-                                        in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .help(app.id)
-                    }
-                }
-                .padding(.horizontal, 10)
-            }
+    private func loadApps() {
+        guard !appsBusy else { return }
+        appsBusy = true
+        ADBExtrasEngine.thirdPartyApps { list in
+            appsBusy = false
+            apps = list
         }
-        .padding(.vertical, 10)
     }
 
-    // MARK: ④ 对外服务（MCP / WebDAV）
-
-    private var servicesSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TransferChrome.sectionHeader(
-                title: "扩展服务",
-                symbol: "app.connected.to.app.below.fill",
-                detail: "仅本机 127.0.0.1",
-                tint: Color(red: 0.35, green: 0.55, blue: 0.95)) { EmptyView() }
-            .padding(.horizontal, 8)
-
-            // MCP：给 AI 客户端用
-            serviceRow(icon: "brain.head.profile",
-                       title: "MCP 服务器",
-                       detail: MCPServer.shared.endpoint,
-                       on: $mcpOn) { on in
-                if on {
-                    if !MCPServer.shared.start() { mcpOn = false }
-                } else {
-                    MCPServer.shared.stop()
-                }
-            }
-
-            // WebDAV：Finder 挂安卓存储
-            serviceRow(icon: "externaldrive.connected.to.line.below",
-                       title: "手机文件 · WebDAV",
-                       detail: AndroidWebDAVServer.shared.baseURL,
-                       on: $webdavOn) { on in
-                if on {
-                    if !AndroidWebDAVServer.shared.start() { webdavOn = false }
-                } else {
-                    AndroidWebDAVServer.shared.stop()
-                }
-            }
-            Text("WebDAV：Finder → 前往 → 连接服务器 → 粘贴上面的地址，即可像网络盘一样浏览 /sdcard。")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .padding(.horizontal, 12)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.vertical, 10)
-    }
-
-    private func serviceRow(icon: String, title: String, detail: String,
-                            on: Binding<Bool>, toggle: @escaping (Bool) -> Void) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 14)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(.system(size: 11, weight: .medium))
-                Text(detail)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 2)
-            Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(detail, forType: .string)
-                Toast.show("已复制地址", icon: "doc.on.doc")
-            } label: {
-                Image(systemName: "doc.on.doc").font(.system(size: 11))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            Toggle("", isOn: Binding(get: { on.wrappedValue },
-                                     set: { v in on.wrappedValue = v; toggle(v) }))
-                .labelsHidden()
-                .controlSize(.mini)
-                .toggleStyle(.switch)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 2)
-    }
-
-    // MARK: ③ 说明
-
-    private var tipsSection: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            label("投屏窗口是独立 scrcpy 窗，关掉即断开（不影响手机）")
-            label("多个设备同时连接时，先「检测设备」再对目标设备点「开始投屏」")
-            label("投屏/无线连接需要「开发者选项」；公司网络若隔离组播，请用手动 IP:端口")
-            label("「一键无线」用 USB 连一次即可（adb tcpip 5555），之后免配对码直连")
-            label("「应用窗口」是 scrcpy 虚拟屏（Android 14+），每个 App 独立窗口")
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func label(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 5) {
-            Text("·").foregroundStyle(Theme.tertiaryText)
-            Text(text)
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+    private func notifTint(_ pkg: String) -> Color {
+        let palette: [Color] = [.blue, .green, .orange, .pink, .purple, .teal, .red]
+        let h = abs(pkg.hashValue)
+        return palette[h % palette.count]
     }
 }

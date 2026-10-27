@@ -2140,7 +2140,7 @@ swift,Features/TransferDock/AdbPairingService.swift,AdbPairingService,connect,13
 swift,Features/TransferDock/AdbPairingService.swift,AdbPairingService,disconnect,162,170,9,1,public,public func disconnect(target: String) {
 swift,Features/TransferDock/AdbPairingService.swift,AdbPairingService,refreshConnected,173,184,12,0,public,public func refreshConnected() {
 swift,Features/TransferDock/AdbPairingService.swift,AdbPairingService,runADB,188,212,25,2,private,"private func runADB(_ args: [String], completion: @escaping (String?) -> Void) {"
-swift,Features/TransferDock/AdbPairingView.swift,AdbPairingView,discoveredRow,118,149,32,1,private,private func discoveredRow(_ dev: AdbPairingService.DiscoveredDevice) -> some View {
+swift,Features/TransferDock/AdbPairingView.swift,AdbPairingView,discoveredRow,132,163,32,1,private,private func discoveredRow(_ dev: AdbPairingService.DiscoveredDevice) -> some View {
 swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,29,36,8,0,public,public func start() -> Bool {
 swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,38,66,29,1,private,private func bind(port: UInt16) -> Bool {
 swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,68,71,4,0,public,public func stop() {
@@ -2157,17 +2157,23 @@ swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRe
 swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,251,281,31,3,private,"private func download(_ conn: NWConnection, path: String, headOnly: Bool) {"
 swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,283,291,9,3,private,"private func upload(_ conn: NWConnection, path: String, data: Data) {"
 swift,Features/TransferDock/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,295,305,11,4,private,"private func send(_ conn: NWConnection, status: String, headers: [String: String], body: Data) {"
-swift,Features/TransferDock/CastView.swift,CastView,deviceCard,183,246,64,2,private,"private func deviceCard(serial: String, state: String) -> some View {"
-swift,Features/TransferDock/CastView.swift,CastView,enableWireless,249,259,11,0,private,private func enableWireless() {
-swift,Features/TransferDock/CastView.swift,CastView,navButton,281,288,8,3,private,"private func navButton(_ title: String, _ icon: String, _ key: ADBExtrasEngine.NavKey) -> some View {"
-swift,Features/TransferDock/CastView.swift,CastView,navLabel,290,300,11,2,private,"private func navLabel(icon: String, title: String) -> some View {"
-swift,Features/TransferDock/CastView.swift,CastView,refreshDevices,303,314,12,1,private,private func refreshDevices(quiet: Bool) {
-swift,Features/TransferDock/CastView.swift,CastView,notifTint,385,389,5,1,private,private func notifTint(_ pkg: String) -> Color {
-swift,Features/TransferDock/CastView.swift,CastView,refreshNotifications,391,398,8,0,private,private func refreshNotifications() {
-swift,Features/TransferDock/CastView.swift,CastView,smallProgress,444,453,10,1,private,private func smallProgress(_ v: Double) -> some View {
-swift,Features/TransferDock/CastView.swift,CastView,loadStorage,455,460,6,0,private,private func loadStorage() {
-swift,Features/TransferDock/CastView.swift,CastView,serviceRow,564,596,33,,private,"private func serviceRow(icon: String, title: String, detail: String,"
-swift,Features/TransferDock/CastView.swift,CastView,label,613,621,9,1,private,private func label(_ text: String) -> some View {
+swift,Features/TransferDock/CastView.swift,CastView,deviceCard,201,239,39,2,private,"private func deviceCard(serial: String, state: String) -> some View {"
+swift,Features/TransferDock/CastView.swift,CastView,navIcon,278,288,11,,private,"private func navIcon(_ icon: String, _ title: String,"
+swift,Features/TransferDock/CastView.swift,CastView,navIconLabel,290,298,9,1,private,private func navIconLabel(_ icon: String) -> some View {
+swift,Features/TransferDock/CastView.swift,CastView,enableWireless,348,358,11,0,private,private func enableWireless() {
+swift,Features/TransferDock/CastView.swift,CastView,serviceRow,552,590,39,,private,"private func serviceRow(icon: String, title: String, detail: String, help: String,"
+swift,Features/TransferDock/CastView.swift,CastView,disclosureRow,595,620,26,,private,"private func disclosureRow(title: String, icon: String, detail: String,"
+swift,Features/TransferDock/CastView.swift,CastView,subHeader,623,646,24,,private,"private func subHeader(_ title: String, detail: String,"
+swift,Features/TransferDock/CastView.swift,CastView,hint,648,653,6,1,private,private func hint(_ text: String) -> some View {
+swift,Features/TransferDock/CastView.swift,CastView,iconAction,655,667,13,,private,"private func iconAction(_ icon: String, _ help: String,"
+swift,Features/TransferDock/CastView.swift,CastView,primaryButton,670,686,17,,private,"private func primaryButton(_ title: String, icon: String,"
+swift,Features/TransferDock/CastView.swift,CastView,secondaryButton,689,708,20,,private,"private func secondaryButton(_ title: String, icon: String,"
+swift,Features/TransferDock/CastView.swift,CastView,tipLine,725,733,9,1,private,private func tipLine(_ text: String) -> some View {
+swift,Features/TransferDock/CastView.swift,CastView,refreshDevices,737,748,12,1,private,private func refreshDevices(quiet: Bool) {
+swift,Features/TransferDock/CastView.swift,CastView,refreshNotifications,750,757,8,0,private,private func refreshNotifications() {
+swift,Features/TransferDock/CastView.swift,CastView,loadStorage,759,764,6,0,private,private func loadStorage() {
+swift,Features/TransferDock/CastView.swift,CastView,loadApps,766,773,8,0,private,private func loadApps() {
+swift,Features/TransferDock/CastView.swift,CastView,notifTint,775,779,5,1,private,private func notifTint(_ pkg: String) -> Color {
 swift,Features/TransferDock/FileHoverPreview.swift,FilePreviewBuilder,build,42,113,72,2,static public,"public static func build(url: URL, completion: @escaping (FilePreviewPayload) -> Void) {"
 swift,Features/TransferDock/FileHoverPreview.swift,FilePreviewBuilder,requestThumbnail,115,125,11,2,static private,"private static func requestThumbnail(url: URL, completion: @escaping (NSImage?) -> Void) {"
 swift,Features/TransferDock/FileHoverPreview.swift,FilePreviewBuilder,kindLabel,128,152,25,1,static public,public static func kindLabel(for url: URL) -> String {
