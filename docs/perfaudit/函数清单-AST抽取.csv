@@ -1936,13 +1936,13 @@ swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerCodePreviewTool,2
 swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerImageCompressTool,265,307,43,0,static private,private static func registerImageCompressTool() {
 swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerHashTool,311,330,20,0,static private,private static func registerHashTool() {
 swift,Features/Toolbox/BuiltinTools.swift,BuiltinTools,registerQRCodeTool,336,360,25,0,static private,private static func registerQRCodeTool() {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,dayCell,175,222,48,2,private,"private func dayCell(row: Int, column: Int) -> some View {"
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,228,246,19,0,private,private func installScrollMonitor() {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,248,252,5,0,private,private func removeScrollMonitor() {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,288,294,7,1,private,private func isFestivalDay(_ day: CalendarDay) -> Bool {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,shift,296,300,5,1,private,private func shift(_ days: Int) {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,reload,302,312,11,0,private,private func reload() {
-swift,Features/Toolbox/CalendarSectionView.swift,CalendarDay,shortName,320,322,3,1,static,static func shortName(_ text: String) -> String {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,dayCell,177,224,48,2,private,"private func dayCell(row: Int, column: Int) -> some View {"
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,230,248,19,0,private,private func installScrollMonitor() {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,250,254,5,0,private,private func removeScrollMonitor() {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,290,296,7,1,private,private func isFestivalDay(_ day: CalendarDay) -> Bool {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,shift,298,302,5,1,private,private func shift(_ days: Int) {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarSectionView,reload,304,314,11,0,private,private func reload() {
+swift,Features/Toolbox/CalendarSectionView.swift,CalendarDay,shortName,322,324,3,1,static,static func shortName(_ text: String) -> String {
 swift,Features/Toolbox/CalendarService.swift,CalendarService,requestAccessIfNeeded,26,48,23,0,public,public func requestAccessIfNeeded() {
 swift,Features/Toolbox/CalendarService.swift,CalendarService,isGranted,51,53,3,1,private,private func isGranted(rawValue: Int) -> Bool {
 swift,Features/Toolbox/CalendarService.swift,CalendarService,update,56,61,6,2,private,"private func update(authorized: Bool, hint: String?) {"

@@ -868,7 +868,7 @@ private struct DiskStatsPanel: View {
         return VStack(alignment: .leading, spacing: 12) {
             // 卷名行（原版：「Macintosh HD                    ⌄」）
             Button {
-                withAnimation(Theme.Motion.spring) { showsDetails.toggle() }
+                withAnimation(Theme.Motion.fast) { showsDetails.toggle() }
             } label: {
                 HStack(spacing: 8) {
                     Text(stats.diskModel.isEmpty ? "Macintosh HD" : stats.diskModel)

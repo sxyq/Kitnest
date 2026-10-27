@@ -129,7 +129,9 @@ public struct CalendarSectionView: View {
             Spacer(minLength: 4)
 
             Button {
-                withAnimation(Theme.Motion.spring) {
+                // v155.1：展开/收起统一 fast（此前这里是 spring，投屏页是 easeOut，
+                // 同一个「点箭头展开」动作两种手感）。chevron 的 90° 旋转与高度变化同一条曲线。
+                withAnimation(Theme.Motion.fast) {
                     collapsed.toggle()
                 }
             } label: {
