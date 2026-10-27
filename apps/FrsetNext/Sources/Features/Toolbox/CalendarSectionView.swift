@@ -129,7 +129,7 @@ public struct CalendarSectionView: View {
             Spacer(minLength: 4)
 
             Button {
-                withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                withAnimation(Theme.Motion.spring) {
                     collapsed.toggle()
                 }
             } label: {

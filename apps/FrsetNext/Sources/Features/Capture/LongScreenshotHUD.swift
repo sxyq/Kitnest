@@ -139,7 +139,7 @@ final class LongScreenshotHUDController {
         pulse.duration = 0.7
         pulse.autoreverses = true
         pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        pulse.timingFunction = Theme.Motion.caEaseInEaseOut
         dot.layer?.add(pulse, forKey: "recording.pulse")
         glass.addSubview(dot)
 

@@ -92,7 +92,7 @@ public struct MonitorDetailView: View {
             ForEach(availableModules(), id: \.self) { module in
                 Button {
                     Log.info("Monitor", "切换模块: \(module.displayName)（原 \(selection.module.displayName)）")
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                    withAnimation(Theme.Motion.springSoft) {
                         selection.module = module
                     }
                 } label: {

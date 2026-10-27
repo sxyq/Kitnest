@@ -35,7 +35,8 @@ public final class ClipboardTableScrollProxy {
         guard let scrollView else { return }
         let clip = scrollView.contentView
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.22
+            ctx.duration = Theme.Motion.dPage
+            ctx.timingFunction = Theme.Motion.caEaseOut
             ctx.allowsImplicitAnimation = true
             clip.animator().setBoundsOrigin(NSPoint(x: 0, y: 0))
             scrollView.reflectScrolledClipView(clip)

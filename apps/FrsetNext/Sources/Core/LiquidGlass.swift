@@ -235,7 +235,7 @@ struct SpringyIconButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? pressedScale : 1)
             .opacity(configuration.isPressed ? 0.65 : 1)
-            .animation(.spring(response: 0.22, dampingFraction: 0.62),
+            .animation(Theme.Motion.springBouncy,
                        value: configuration.isPressed)
     }
 }
@@ -249,7 +249,7 @@ struct HoverLift: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scaleEffect(hovered ? scale : 1)
-            .animation(.spring(response: 0.26, dampingFraction: 0.80), value: hovered)
+            .animation(Theme.Motion.spring, value: hovered)
             .onHover { hovered = $0 }
     }
 }

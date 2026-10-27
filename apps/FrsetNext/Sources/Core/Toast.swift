@@ -107,7 +107,7 @@ final class MenuBarToastManager: NSObject {
     /// 隐藏动画结束后的 orderOut 延时（窗口复用不销毁，仅视觉收尾）
     private static let orderOutDelay: TimeInterval = 0.4
     /// spring 动画（原作常量 0.35/0.7，0x1002be1c0-0x1002be200）
-    private static let springAnimation = Animation.spring(response: 0.35, dampingFraction: 0.7, blendDuration: 0)
+    private static let springAnimation = Theme.Motion.springBouncy
 
     /// 复用窗口（不销毁）
     private var toastWindow: NSWindow?

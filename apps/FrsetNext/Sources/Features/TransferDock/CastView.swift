@@ -189,7 +189,7 @@ struct CastView: View {
                     refreshDevices(quiet: false)
                 }
                 secondaryButton("无线连接", icon: "wifi") {
-                    withAnimation(.easeOut(duration: 0.16)) { wirelessExpanded = true }
+                    withAnimation(Theme.Motion.fast) { wirelessExpanded = true }
                 }
             }
         }
@@ -305,7 +305,7 @@ struct CastView: View {
                           icon: "wifi",
                           detail: wirelessDetail,
                           expanded: wirelessExpanded) {
-                withAnimation(.easeOut(duration: 0.16)) { wirelessExpanded.toggle() }
+                withAnimation(Theme.Motion.fast) { wirelessExpanded.toggle() }
             }
 
             if wirelessExpanded {
@@ -365,7 +365,7 @@ struct CastView: View {
                           icon: "square.grid.2x2",
                           detail: "通知 · 存储 · 应用 · 服务",
                           expanded: toolsExpanded) {
-                withAnimation(.easeOut(duration: 0.16)) { toolsExpanded.toggle() }
+                withAnimation(Theme.Motion.fast) { toolsExpanded.toggle() }
             }
 
             if toolsExpanded {

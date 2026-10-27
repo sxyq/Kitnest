@@ -184,7 +184,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         RenderProbe.snapshot(p, name: "panel", reason: "show")
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = Personalization.shared.openAnimation.fadeDuration
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            ctx.timingFunction = Theme.Motion.caEaseOut
             p.animator().alphaValue = 1
         }
     }

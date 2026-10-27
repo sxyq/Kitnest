@@ -50,7 +50,7 @@ public struct ArchiveProgressPanel: View {
     private var header: some View {
         HStack(spacing: 8) {
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+                withAnimation(Theme.Motion.fast) { expanded.toggle() }
             } label: {
                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 11, weight: .semibold))

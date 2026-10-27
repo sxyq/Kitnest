@@ -475,7 +475,7 @@ struct PanelRootView: View {
                 .transition(.opacity.combined(with: .move(edge: .leading)))
             } else {
                 toolbarIcon("magnifyingglass", help: "搜索") {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    withAnimation(Theme.Motion.spring) {
                         isSearchExpanded = true
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { bottomSearchFocused = true }
@@ -547,7 +547,7 @@ struct PanelRootView: View {
     private func closeBottomSearch(clear: Bool = true) {
         bottomSearchFocused = false
         if clear { clipboard.searchText = "" }
-        withAnimation(.spring(response: 0.26, dampingFraction: 0.88)) {
+        withAnimation(Theme.Motion.spring) {
             isSearchExpanded = false
         }
     }
@@ -610,7 +610,7 @@ struct PanelRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.easeOut(duration: 0.16), value: page)
+        .animation(Theme.Motion.fast, value: page)
     }
 
     // MARK: - 主页：搜索区段 → 日历 → 剪贴板
@@ -639,7 +639,7 @@ struct PanelRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // v74（用户澄清）：复制网盘链接 → 链接条自动弹出，日历与下方列表**平滑下移**；
         // 链接消失（关闭/换新）同样回弹。key 变化驱动整个首页纵向布局动画。
-        .animation(.spring(response: 0.34, dampingFraction: 0.86),
+        .animation(Theme.Motion.springSoft,
                    value: CloudLinkBar.detectionKey(items: clipboard.items))
     }
 

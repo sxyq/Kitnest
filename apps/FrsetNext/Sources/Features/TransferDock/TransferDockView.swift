@@ -204,7 +204,7 @@ struct TransferDockView: View {
                             Capsule()
                                 .fill(Theme.accent.gradient)
                                 .frame(width: max(4, geo.size.width * pushFraction))
-                                .animation(.linear(duration: 0.2), value: pushFraction)
+                                .animation(Theme.Motion.progress, value: pushFraction)
                         }
                     }
                     .frame(height: 5)
@@ -555,7 +555,7 @@ struct TransferDockView: View {
                     .foregroundStyle(Theme.tertiaryText)
                 Spacer(minLength: 2)
                 Button {
-                    withAnimation(.easeInOut(duration: 0.16)) { lanCollapsed.toggle() }
+                    withAnimation(Theme.Motion.fast) { lanCollapsed.toggle() }
                 } label: {
                     Image(systemName: lanCollapsed ? "chevron.down" : "chevron.up")
                         .font(.system(size: 11, weight: .semibold))
@@ -1479,7 +1479,7 @@ private struct LocalCardRowView: View, Equatable {
                               lineWidth: 1)
         )
         .scaleEffect(hovered ? 1.02 : 1.0)
-        .animation(.spring(response: 0.22, dampingFraction: 0.72), value: hovered)
+        .animation(Theme.Motion.springSnappy, value: hovered)
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .onHover { inside in
             hovered = inside

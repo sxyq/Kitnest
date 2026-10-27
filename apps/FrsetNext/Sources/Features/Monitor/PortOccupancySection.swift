@@ -191,7 +191,7 @@ struct PortOccupancySection: View {
                 .foregroundStyle(.secondary)
                 .rotationEffect(.degrees(inspector.isScanning ? 360 : 0))
                 .animation(inspector.isScanning
-                           ? .linear(duration: 0.9).repeatForever(autoreverses: false)
+                           ? Theme.Motion.loop.repeatForever(autoreverses: false)
                            : .default,
                            value: inspector.isScanning)
         }

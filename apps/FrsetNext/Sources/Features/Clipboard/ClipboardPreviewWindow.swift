@@ -257,7 +257,7 @@ struct ClipboardPreviewWindowView: View {
         // 高频 hover 复现同条目时不重播——只在内容安装时播一次）
         .opacity(glassAppeared ? 1 : 0)
         .scaleEffect(glassAppeared ? 1 : 0.96, anchor: .center)
-        .animation(.easeOut(duration: 0.18), value: glassAppeared)
+        .animation(Theme.Motion.fast, value: glassAppeared)
         .onAppear { glassAppeared = true }
         .onExitCommand {
             // Esc 关闭（hover / persistent 两模式同效）

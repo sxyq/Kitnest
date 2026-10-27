@@ -143,7 +143,7 @@ struct SettingsRootView: View {
                 ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
                     let selected = selection.wrappedValue == index
                     Button {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                        withAnimation(Theme.Motion.spring) {
                             selection.wrappedValue = index
                         }
                     } label: {

@@ -318,7 +318,7 @@ public struct AIChatView: View {
                 }
             }
             .onChange(of: model.messages.count) { _ in
-                withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(lastAnchor(), anchor: .bottom) }
+                withAnimation(Theme.Motion.fast) { proxy.scrollTo(lastAnchor(), anchor: .bottom) }
             }
             .onChange(of: model.streamingText) { _ in
                 proxy.scrollTo("streaming", anchor: .bottom)

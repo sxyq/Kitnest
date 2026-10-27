@@ -639,7 +639,7 @@ public struct SearchSectionView: View {
                 )
         }
         .frame(height: min(max(listContentHeight, 1), resultListMaxHeight))
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: listContentHeight)
+        .animation(Theme.Motion.spring, value: listContentHeight)
         .onPreferenceChange(ContentHeightKey.self) { listContentHeight = $0 }
     }
 

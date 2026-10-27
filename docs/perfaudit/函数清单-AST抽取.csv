@@ -97,17 +97,17 @@ swift,Core/RoundCloseButton.swift,RoundCloseButton,updateTrackingAreas,54,60,7,0
 swift,Core/RoundCloseButton.swift,RoundCloseButton,mouseEntered,62,62,1,1,override,override func mouseEntered(with event: NSEvent) { isHovering = true; needsDisplay = true }
 swift,Core/RoundCloseButton.swift,RoundCloseButton,mouseExited,63,63,1,1,override,override func mouseExited(with event: NSEvent) { isHovering = false; needsDisplay = true }
 swift,Core/RoundCloseButton.swift,NSWindow,attachOfficialRoundCloseButton,71,106,36,0,,func attachOfficialRoundCloseButton() {
-swift,Core/Support.swift,Log,write,15,20,6,3,static public,"public static func write(_ level: Level, _ tag: String, _ message: String) {"
-swift,Core/Support.swift,Log,debug,21,21,1,2,static public,"public static func debug(_ tag: String, _ m: String) { write(.debug, tag, m) }"
-swift,Core/Support.swift,Log,info,22,22,1,2,static public,"public static func info(_ tag: String, _ m: String) { write(.info, tag, m) }"
-swift,Core/Support.swift,Log,warn,23,23,1,2,static public,"public static func warn(_ tag: String, _ m: String) { write(.warn, tag, m) }"
-swift,Core/Support.swift,Log,error,24,24,1,2,static public,"public static func error(_ tag: String, _ m: String) { write(.error, tag, m) }"
-swift,Core/Support.swift,Log,breadcrumb,27,29,3,2,static public,"public static func breadcrumb(_ tag: String, _ message: String) {"
-swift,Core/Support.swift,ModuleRegistry,register,42,47,6,1,static public,public static func register(_ m: any AppModule.Type) {
-swift,Core/Support.swift,ModuleRegistry,startAll,48,54,7,0,static public,public static func startAll() {
-swift,Core/Support.swift,Theme,sectionHeader,153,158,6,1,static public,public static func sectionHeader(_ title: String) -> some View {
-swift,Core/Support.swift,Date,relativeFormatter,175,175,1,1,static private,private static func relativeFormatter(today: Bool) -> DateFormatter { today ? fmtToday : fmtOther }
-swift,Core/Support.swift,AppDirectories,sub,221,225,5,1,static public,public static func sub(_ name: String) -> URL {
+swift,Core/Support.swift,Log,write,16,21,6,3,static public,"public static func write(_ level: Level, _ tag: String, _ message: String) {"
+swift,Core/Support.swift,Log,debug,22,22,1,2,static public,"public static func debug(_ tag: String, _ m: String) { write(.debug, tag, m) }"
+swift,Core/Support.swift,Log,info,23,23,1,2,static public,"public static func info(_ tag: String, _ m: String) { write(.info, tag, m) }"
+swift,Core/Support.swift,Log,warn,24,24,1,2,static public,"public static func warn(_ tag: String, _ m: String) { write(.warn, tag, m) }"
+swift,Core/Support.swift,Log,error,25,25,1,2,static public,"public static func error(_ tag: String, _ m: String) { write(.error, tag, m) }"
+swift,Core/Support.swift,Log,breadcrumb,28,30,3,2,static public,"public static func breadcrumb(_ tag: String, _ message: String) {"
+swift,Core/Support.swift,ModuleRegistry,register,43,48,6,1,static public,public static func register(_ m: any AppModule.Type) {
+swift,Core/Support.swift,ModuleRegistry,startAll,49,55,7,0,static public,public static func startAll() {
+swift,Core/Support.swift,Theme,sectionHeader,195,200,6,1,static public,public static func sectionHeader(_ title: String) -> some View {
+swift,Core/Support.swift,Date,relativeFormatter,217,217,1,1,static private,private static func relativeFormatter(today: Bool) -> DateFormatter { today ? fmtToday : fmtOther }
+swift,Core/Support.swift,AppDirectories,sub,263,267,5,1,static public,public static func sub(_ name: String) -> URL {
 swift,Core/Toast.swift,MenuBarToastManager,show,127,133,7,3,,"func show(_ message: String, icon: String?, isWarning: Bool = false) {"
 swift,Core/Toast.swift,MenuBarToastManager,present,135,176,42,3,private,"private func present(message: String, icon: String?, isWarning: Bool) {"
 swift,Core/Toast.swift,MenuBarToastManager,hideAnimated,180,189,10,1,private,private func hideAnimated(generation: Int) {
@@ -1162,53 +1162,53 @@ swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSum
 swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,endRun,48,51,4,1,private,private func endRun(dedupeKey: String) {
 swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,summarize,54,68,15,2,public,"public func summarize(_ item: ClipboardItem, systemPrompt: String? = nil) async throws -> String {"
 swift,Features/Clipboard/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,summarizeAndWriteBack,72,77,6,1,public,public func summarizeAndWriteBack(_ item: ClipboardItem) async throws -> ClipboardItem {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableScrollProxy,scrollToTop,34,43,10,0,public,public func scrollToTop() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,suppressUntilMouseMove,58,62,5,0,public,public func suppressUntilMouseMove() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,mouseMoved,65,67,3,0,public,public func mouseMoved() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,feed,95,108,14,3,public,"public func feed(firstRowMinY: Double?, firstRowHeight: Double, viewportOriginY: Double) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,setOut,110,114,5,1,private,private func setOut(_ value: Bool) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,setItem,171,177,7,2,,"func setItem(_ item: ClipboardItem, hovered: Bool) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,setHovered,180,185,6,1,,func setHovered(_ hovered: Bool) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,rightMouseDown,188,192,5,1,override,override func rightMouseDown(with event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,mouseDown,194,225,32,1,override,override func mouseDown(with event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,acceptsFirstMouse,227,227,1,1,override,override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,layout,275,286,12,0,override,override func layout() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,frameOfCell,291,296,6,2,override,"override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,updateTrackingAreas,298,309,12,0,override,override func updateTrackingAreas() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,mouseMoved,311,314,4,1,override,override func mouseMoved(with event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,mouseExited,316,319,4,1,override,override func mouseExited(with event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,keyDown,322,348,27,1,override,override func keyDown(with event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,356,359,4,1,override,override func scrollWheel(with event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,393,395,3,0,public,public func makeCoordinator() -> Coordinator {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,404,449,46,1,public,public func makeNSView(context: Context) -> NSScrollView {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,451,466,16,2,public,"public func updateNSView(_ nsView: NSScrollView, context: Context) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,reloadTableIfNeeded,477,484,8,0,,func reloadTableIfNeeded() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,bind,510,529,20,3,,"func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,numberOfRows,533,535,3,1,public,public func numberOfRows(in tableView: NSTableView) -> Int {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,537,576,40,3,public,"public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,578,581,4,2,public,"public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,583,590,8,3,public,"public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,592,609,18,1,public,public func tableViewSelectionDidChange(_ notification: Notification) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,reloadTable,613,653,41,0,,func reloadTable() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,657,660,4,1,@objc,@objc func clipboardBoundsDidChange(_ note: Notification) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,feedTopTracker,665,674,10,0,private,private func feedTopTracker() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,678,703,26,1,private,private func handleMouseMoved(_ event: NSEvent) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseExited,705,707,3,0,private,private func handleMouseExited() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,709,721,13,0,private,private func clearHoverHighlight() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,724,727,4,1,private,private func rowView(at row: Int) -> RowHostingView? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,737,752,16,2,private,"private func handlePlainMouseDown(row: Int, event: NSEvent) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,761,766,6,1,private,private func consumeOneTimeHint(_ key: String) -> Bool {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,anchorProvider,768,773,6,1,private,private func anchorProvider(for view: NSView?) -> () -> CGRect? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSingleClick,775,788,14,1,private,private func handleSingleClick(_ item: ClipboardItem) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,790,798,9,1,private,private func handleDoubleClick(_ item: ClipboardItem) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,800,815,16,0,private,private func handleSpaceKey() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleModifierClick,822,843,22,2,private,"private func handleModifierClick(row: Int, shift: Bool) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleReturnKey,845,877,33,0,private,private func handleReturnKey() {
-swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,879,882,4,1,private,private func rowView(forItemID itemID: String) -> NSView? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,902,908,7,1,static private,private static func symbol(_ name: String) -> NSImage? {
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,910,975,66,3,public,"public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView) {"
-swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,977,979,3,1,private @objc,@objc private func menuAction(_ sender: NSMenuItem) {
-swift,Features/Clipboard/ClipboardTableHostView.swift,BlockMenuItemAction,run,986,986,1,0,,func run() { block() }
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableScrollProxy,scrollToTop,34,44,11,0,public,public func scrollToTop() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,suppressUntilMouseMove,59,63,5,0,public,public func suppressUntilMouseMove() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,mouseMoved,66,68,3,0,public,public func mouseMoved() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,feed,96,109,14,3,public,"public func feed(firstRowMinY: Double?, firstRowHeight: Double, viewportOriginY: Double) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,setOut,111,115,5,1,private,private func setOut(_ value: Bool) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,setItem,172,178,7,2,,"func setItem(_ item: ClipboardItem, hovered: Bool) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,setHovered,181,186,6,1,,func setHovered(_ hovered: Bool) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,rightMouseDown,189,193,5,1,override,override func rightMouseDown(with event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,mouseDown,195,226,32,1,override,override func mouseDown(with event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,RowHostingView,acceptsFirstMouse,228,228,1,1,override,override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,layout,276,287,12,0,override,override func layout() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,frameOfCell,292,297,6,2,override,"override func frameOfCell(atColumn column: Int, row: Int) -> NSRect {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,updateTrackingAreas,299,310,12,0,override,override func updateTrackingAreas() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,mouseMoved,312,315,4,1,override,override func mouseMoved(with event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,mouseExited,317,320,4,1,override,override func mouseExited(with event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableView,keyDown,323,349,27,1,override,override func keyDown(with event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,357,360,4,1,override,override func scrollWheel(with event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,394,396,3,0,public,public func makeCoordinator() -> Coordinator {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,405,450,46,1,public,public func makeNSView(context: Context) -> NSScrollView {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,452,467,16,2,public,"public func updateNSView(_ nsView: NSScrollView, context: Context) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,reloadTableIfNeeded,478,485,8,0,,func reloadTableIfNeeded() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,bind,511,530,20,3,,"func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,numberOfRows,534,536,3,1,public,public func numberOfRows(in tableView: NSTableView) -> Int {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,538,577,40,3,public,"public func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,579,582,4,2,public,"public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableView,584,591,8,3,public,"public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,593,610,18,1,public,public func tableViewSelectionDidChange(_ notification: Notification) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,reloadTable,614,654,41,0,,func reloadTable() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,658,661,4,1,@objc,@objc func clipboardBoundsDidChange(_ note: Notification) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,feedTopTracker,666,675,10,0,private,private func feedTopTracker() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,679,704,26,1,private,private func handleMouseMoved(_ event: NSEvent) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleMouseExited,706,708,3,0,private,private func handleMouseExited() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,710,722,13,0,private,private func clearHoverHighlight() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,725,728,4,1,private,private func rowView(at row: Int) -> RowHostingView? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,738,753,16,2,private,"private func handlePlainMouseDown(row: Int, event: NSEvent) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,762,767,6,1,private,private func consumeOneTimeHint(_ key: String) -> Bool {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,anchorProvider,769,774,6,1,private,private func anchorProvider(for view: NSView?) -> () -> CGRect? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSingleClick,776,789,14,1,private,private func handleSingleClick(_ item: ClipboardItem) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,791,799,9,1,private,private func handleDoubleClick(_ item: ClipboardItem) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,801,816,16,0,private,private func handleSpaceKey() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleModifierClick,823,844,22,2,private,"private func handleModifierClick(row: Int, shift: Bool) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,handleReturnKey,846,878,33,0,private,private func handleReturnKey() {
+swift,Features/Clipboard/ClipboardTableHostView.swift,Coordinator,rowView,880,883,4,1,private,private func rowView(forItemID itemID: String) -> NSView? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,903,909,7,1,static private,private static func symbol(_ name: String) -> NSImage? {
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,911,976,66,3,public,"public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView) {"
+swift,Features/Clipboard/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,978,980,3,1,private @objc,@objc private func menuAction(_ sender: NSMenuItem) {
+swift,Features/Clipboard/ClipboardTableHostView.swift,BlockMenuItemAction,run,987,987,1,0,,func run() { block() }
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardPinState,save,49,54,6,1,public,public func save(frame: NSRect) {
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardPinState,clampedFrame,57,67,11,0,public,public func clampedFrame() -> NSRect {
 swift,Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardStore,refresh,144,148,5,0,public,public func refresh() {
@@ -1341,13 +1341,13 @@ swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,o
 swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,cancelDismiss,240,248,9,0,private,private func cancelDismiss() {
 swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,251,257,7,1,public,public func showModule(_ module: MonitorModuleID) {
 swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,resize,267,281,15,1,,func resize(toContentHeight height: CGFloat) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,286,307,22,1,private,private func playAppearAnimation(anchor: NSRect?) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,313,344,32,0,public,public func dismissPopout() {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,347,365,19,1,private,private func finishDismiss(token: Int) {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorDx,368,372,5,1,private,"private func anchorDx(anchor: NSRect?) -> CGFloat { guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }"
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,377,393,17,2,private,"private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {"
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,399,407,9,1,static private,private static func screen(for anchor: NSRect?) -> NSScreen? {
-swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,413,431,19,1,public,public func windowDidResignKey(_ notification: Notification) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,286,306,21,1,private,private func playAppearAnimation(anchor: NSRect?) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,312,343,32,0,public,public func dismissPopout() {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,346,364,19,1,private,private func finishDismiss(token: Int) {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorDx,367,371,5,1,private,"private func anchorDx(anchor: NSRect?) -> CGFloat { guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }"
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,376,392,17,2,private,"private func origin(for size: NSSize, anchor: NSRect?) -> NSPoint {"
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,398,406,9,1,static private,private static func screen(for anchor: NSRect?) -> NSScreen? {
+swift,Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,412,430,19,1,public,public func windowDidResignKey(_ notification: Notification) {
 swift,Features/Monitor/MonitorPreferences.swift,MonitorPreferences,keyEnabled,70,72,3,1,static public,public static func keyEnabled(for module: MonitorModuleID) -> String {
 swift,Features/Monitor/MonitorPreferences.swift,MonitorPreferences,isModuleEnabled,105,107,3,1,static public,public static func isModuleEnabled(_ module: MonitorModuleID) -> Bool {
 swift,Features/Monitor/MonitorPreferences.swift,MonitorPreferences,setModuleEnabled,109,112,4,2,static public,"public static func setModuleEnabled(_ module: MonitorModuleID, _ enabled: Bool) {"
@@ -1844,24 +1844,24 @@ swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,setReveals
 swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,setSymbol,153,175,23,1,,func setSymbol(_ name: String) {
 swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,layout,177,195,19,0,override,override func layout() {
 swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,setRotationDuration,198,207,10,1,,func setRotationDuration(_ duration: CFTimeInterval) {
-swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,applyRotation,210,224,15,2,private,"private func applyRotation(duration: CFTimeInterval, resumeFrom: CGFloat) {"
-swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,spin,227,231,5,0,,func spin() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,stop,234,241,8,0,,func stop() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,selectIconStyle,253,258,6,1,@objc,@objc func selectIconStyle(_ sender: NSMenuItem) {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,261,264,4,1,@objc,@objc func openCustomIconSettings(_ sender: Any?) {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,hideIconOption,267,270,4,1,@objc,@objc func hideIconOption(_ sender: Any?) {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,toastHidden,272,274,3,0,private,private func toastHidden() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,restoreIconOption,277,281,5,1,@objc,@objc func restoreIconOption(_ sender: Any?) {
-swift,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,296,309,14,0,static,static func current() -> Double {
-swift,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,311,335,25,0,static private,"private static func readTotals() -> (user: Double, system: Double, idle: Double)? {"
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,368,391,24,0,,func start() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,394,394,1,0,,func refresh() { apply() }
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,398,440,43,0,private,private func apply() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,451,461,11,0,private,private func startDateTimer() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,465,499,35,1,private,private func startFan(on button: NSStatusBarButton) {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,503,522,20,0,private,private func updateFanSpeed() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,529,534,6,0,private,private func stopRotating() {
-swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,536,539,4,0,private,private func stopTimers() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,applyRotation,210,228,19,2,private,"private func applyRotation(duration: CFTimeInterval, resumeFrom: CGFloat) {"
+swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,spin,231,235,5,0,,func spin() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,stop,238,245,8,0,,func stop() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,selectIconStyle,257,262,6,1,@objc,@objc func selectIconStyle(_ sender: NSMenuItem) {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,265,268,4,1,@objc,@objc func openCustomIconSettings(_ sender: Any?) {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,hideIconOption,271,274,4,1,@objc,@objc func hideIconOption(_ sender: Any?) {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,toastHidden,276,278,3,0,private,private func toastHidden() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,restoreIconOption,281,285,5,1,@objc,@objc func restoreIconOption(_ sender: Any?) {
+swift,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,300,313,14,0,static,static func current() -> Double {
+swift,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,315,339,25,0,static private,"private static func readTotals() -> (user: Double, system: Double, idle: Double)? {"
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,372,395,24,0,,func start() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,398,398,1,0,,func refresh() { apply() }
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,402,444,43,0,private,private func apply() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,455,465,11,0,private,private func startDateTimer() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,469,503,35,1,private,private func startFan(on button: NSStatusBarButton) {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,507,526,20,0,private,private func updateFanSpeed() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,533,538,6,0,private,private func stopRotating() {
+swift,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,540,543,4,0,private,private func stopTimers() {
 swift,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,cardValue,222,224,3,1,private,private func cardValue(for config: MetricConfig) -> Int {
 swift,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,summaryRow,242,256,15,4,private,"private func summaryRow(_ title: String, value: Int, icon: String, color: Color) -> some View {"
 swift,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,loadData,260,306,47,0,private,private func loadData() {

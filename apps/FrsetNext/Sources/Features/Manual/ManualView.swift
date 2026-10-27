@@ -347,7 +347,7 @@ private struct ManualDisclosureStyle: DisclosureGroupStyle {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 3) {
                 Button {
-                    withAnimation(.easeOut(duration: 0.15)) { configuration.isExpanded.toggle() }
+                    withAnimation(Theme.Motion.fast) { configuration.isExpanded.toggle() }
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))

@@ -217,6 +217,10 @@ final class RotatingLayerView: NSView {
         anim.fromValue = resumeFrom
         anim.toValue = resumeFrom + 2 * CGFloat.pi
         anim.duration = duration
+        // v155：连续旋转必须匀速。此前没有 timingFunction，CA 套的是默认曲线
+        // （≈CSS ease）——每圈都「先加速再减速」，接缝处速度从 0 跳回最大，
+        // 观感就是转一下喘一口气。linear 让位置与速度在接缝两侧都连续。
+        anim.timingFunction = Theme.Motion.caLinear
         anim.repeatCount = .infinity
         anim.isRemovedOnCompletion = false
         l.add(anim, forKey: "spin")

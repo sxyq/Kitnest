@@ -436,7 +436,7 @@ private struct JSONTreeList: View {
 
     private var row: some View {
         Button {
-            withAnimation(.easeOut(duration: 0.12)) { node.toggle() }
+            withAnimation(Theme.Motion.tap) { node.toggle() }
         } label: {
             HStack(spacing: 4) {
                 // 展开箭头（叶子节点占位对齐）

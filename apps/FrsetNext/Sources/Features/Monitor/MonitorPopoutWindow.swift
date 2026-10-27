@@ -274,8 +274,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         frame.origin.y -= (target - frame.height)   // 顶边固定，向下增高
         frame.size.height = target
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.22
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            ctx.duration = Theme.Motion.dPage
+            ctx.timingFunction = Theme.Motion.caEaseOut
             w.animator().setFrame(frame, display: true)
         }
     }
@@ -295,8 +295,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         layer.opacity = 0
         CATransaction.begin()
         CATransaction.setAnimationDuration(0.28)
-        CATransaction.setAnimationTimingFunction(
-            CAMediaTimingFunction(controlPoints: 0.22, 1.05, 0.36, 1))
+        CATransaction.setAnimationTimingFunction(Theme.Motion.caBackOut)
         CATransaction.setCompletionBlock { [weak self] in
             self?.window?.contentView?.layer?.transform = CATransform3DIdentity
             self?.window?.contentView?.layer?.opacity = 1
@@ -326,8 +325,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         if let layer = w.contentView?.layer {
             layer.removeAllAnimations()
             CATransaction.begin()
-            CATransaction.setAnimationDuration(0.16)
-            CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeIn))
+            CATransaction.setAnimationDuration(Theme.Motion.dFast)
+            CATransaction.setAnimationTimingFunction(Theme.Motion.caEaseIn)
             layer.transform = CATransform3DConcat(
                 CATransform3DMakeScale(0.96, 0.96, 1),
                 CATransform3DMakeTranslation(0, -8, 0))

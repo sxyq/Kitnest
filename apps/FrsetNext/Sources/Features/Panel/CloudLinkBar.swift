@@ -45,14 +45,14 @@ public struct CloudLinkBar: View {
                     .scaleEffect(pulse ? 1.015 : 1.0)
                     .onAppear {
                         // 一次轻脉冲：让「自动弹出」被看见
-                        withAnimation(.spring(response: 0.22, dampingFraction: 0.55)) { pulse = true }
+                        withAnimation(Theme.Motion.springBouncy) { pulse = true }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { pulse = false }
+                            withAnimation(Theme.Motion.springBouncy) { pulse = false }
                         }
                     }
             }
         }
-        .animation(.spring(response: 0.34, dampingFraction: 0.86), value: link?.url.absoluteString)
+        .animation(Theme.Motion.springSoft, value: link?.url.absoluteString)
     }
 
     private func bar(_ link: CloudDriveLink) -> some View {
@@ -94,7 +94,7 @@ public struct CloudLinkBar: View {
             .help("取直链并下载（解析器 P1 接入中）")
             // 关闭：同链接不再自动弹
             Button {
-                withAnimation(.easeOut(duration: 0.16)) { dismissedURL = link.url.absoluteString }
+                withAnimation(Theme.Motion.fast) { dismissedURL = link.url.absoluteString }
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))

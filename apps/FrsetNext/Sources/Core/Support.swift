@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import QuartzCore
 import CommonCrypto
 
 // MARK: - 日志（贴近原作：Sentry 已断，本地统一出口）
@@ -139,6 +140,47 @@ public enum Theme {
     /// 三级文字：主 / 次 / 弱。弱文字用 0.55 alpha（白底 ≈4.8:1，达 AA），
     /// 不再用 .tertiary（系统 tertiaryLabel 在白底只有 ~2.6:1）。
     public static let tertiaryText = Color.primary.opacity(0.55)
+
+    // MARK: 动效令牌（v155，2026-10-28）
+    //
+    // 审计结果：全 App 的动画曲线散成 9 种时长 × 6 类曲线，spring 有 14 组不同写法；
+    // 而且**唯一一个持续旋转**的动画（菜单栏风扇，RotatingLayerView）根本没设
+    // timingFunction，走的是 CA 默认曲线（≈CSS ease，0.25/0.1/0.25/1）——
+    // 每转一圈都「加速→减速」，接缝处速度从 0 直接跳回最大，看起来就是转一下顿一下。
+    //
+    // 统一规则（曲线只从这里取，不许再写字面量）：
+    //   · 连续循环（旋转 / 扫描 / 进度）→ **只能线性**。给循环套缓动等于每圈重新起步，
+    //     位置连续但速度不连续（连 G1 都不过），再漂亮的曲线也不如匀速。
+    //   · 单次交互（悬停 / 按压 / 展开 / 淡入）→ 统一 ease-out，三档时长。
+    //   · 有物理感的收放（卡片、面板）→ 统一弹簧，四档。
+    public enum Motion {
+        // 单次交互
+        public static let tap: Animation = .easeOut(duration: 0.12)
+        public static let fast: Animation = .easeOut(duration: 0.16)
+        public static let page: Animation = .easeOut(duration: 0.22)
+        public static let slow: Animation = .easeOut(duration: 0.45)
+
+        // 弹簧四档（跟手 / 标准 / 柔和 / 回弹）
+        public static let springSnappy: Animation = .spring(response: 0.22, dampingFraction: 0.85)
+        public static let spring: Animation = .spring(response: 0.28, dampingFraction: 0.86)
+        public static let springSoft: Animation = .spring(response: 0.34, dampingFraction: 0.86)
+        public static let springBouncy: Animation = .spring(response: 0.24, dampingFraction: 0.62)
+
+        // 连续循环
+        public static let loop: Animation = .linear(duration: 0.9)
+        public static let progress: Animation = .linear(duration: 0.2)
+
+        // AppKit / CoreAnimation 侧（时长单列，避免与 SwiftUI 混用）
+        public static let dTap: TimeInterval = 0.12
+        public static let dFast: TimeInterval = 0.16
+        public static let dPage: TimeInterval = 0.22
+        public static let caLinear = CAMediaTimingFunction(name: .linear)
+        public static let caEaseOut = CAMediaTimingFunction(controlPoints: 0.22, 0, 0, 1)
+        public static let caEaseIn = CAMediaTimingFunction(name: .easeIn)
+        public static let caEaseInEaseOut = CAMediaTimingFunction(name: .easeInEaseOut)
+        /// 入场「略冲过」曲线（监测独立窗）
+        public static let caBackOut = CAMediaTimingFunction(controlPoints: 0.22, 1.05, 0.36, 1)
+    }
 
     public static let secondaryText = Color.secondary
     public static let cardBackground = Color(NSColor.controlBackgroundColor).opacity(0.6)

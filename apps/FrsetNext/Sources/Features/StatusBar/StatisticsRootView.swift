@@ -299,7 +299,7 @@ struct StatisticsChartsView: View {
                 storedItemsCount = Int(result.stored)
                 // 保留原有一次性数字动画。
                 if !metricNumbersAnimatedIn {
-                    withAnimation(.easeOut(duration: 0.45)) { metricNumbersAnimatedIn = true }
+                    withAnimation(Theme.Motion.slow) { metricNumbersAnimatedIn = true }
                 }
             }
         }
