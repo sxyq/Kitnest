@@ -224,7 +224,7 @@ final class AnnotationCanvasView: NSView {
                             y: f.minY + r.minY * s - 5,
                             width: r.width * s + 12,
                             height: r.height * s + 10)
-            let path = NSBezierPath(roundedRect: vr, xRadius: 4, yRadius: 4)
+            let path = NSBezierPath.continuousRoundedRect(vr, radius: 4)
             Theme.accentNS.withAlphaComponent(0.10).setFill()
             path.fill()
             Theme.accentNS.withAlphaComponent(0.95).setStroke()
@@ -234,10 +234,9 @@ final class AnnotationCanvasView: NSView {
 
             // 控制点：实心方块 + 白描边（角）；边中点稍扁
             for (handle, rect) in handleRects(for: vr) {
-                let dot = NSBezierPath(roundedRect: rect,
-                                       xRadius: handle == .top || handle == .bottom
-                                           || handle == .left || handle == .right ? 2.5 : 2,
-                                       yRadius: 2.5)
+                // v156：控制点也走 G2（原来 x/y 半径 2 / 2.5 的圆弧；5pt 见方，
+                // 这点椭圆差异肉眼不可见，统一成 2.5 后与其它圆角同一条曲线）
+                let dot = NSBezierPath.continuousRoundedRect(rect, radius: 2.5)
                 Theme.accentNS.setFill()
                 dot.fill()
                 NSColor.white.withAlphaComponent(0.95).setStroke()

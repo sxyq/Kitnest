@@ -353,7 +353,6 @@ public struct ClipboardRow: View {
     public let onSummarize: () -> Void
 
     @ObservedObject private var tagStore = TagStore.shared
-    @Environment(\.colorScheme) private var colorScheme
 
     public init(item: ClipboardItem,
                 isHighlighted: Bool,
@@ -410,36 +409,33 @@ public struct ClipboardRow: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        // v153 设计审计（用户：「剪贴板那个就不太规范」）：
-        // 旧版每条是一张带渐变+高光+投影的玻璃卡，行距 17pt —— 630pt 面板只装 4 条，
-        // 而剪贴板的任务是「扫一眼找最近那条」。按 taste-skill 的硬规则：
-        // 卡片只在高度差能表达层级时使用，否则用分隔线分组。
-        // 改为行式：整行铺满、底部 1px 分隔、hover 只换底色，不加 elevation。
-        .background(
-            isHighlighted
-                ? Theme.accent.opacity(colorScheme == .dark ? 0.20 : 0.10)
-                : Color.clear
-        )
+        // v156（用户：「这些色彩需要回退，当前版本非常鲜艳…中间没有什么间距，
+        // 蓝色框会直接填满」）：
+        // v153 把行做成「整行铺强调色 + 无行距」，hover 时就是一条贴边的蓝砖。
+        // 现在拆成两级、都内缩：
+        //   · hover（这里）——中性色、内缩 6pt、G2 圆角，只做「指针在这行」的提示；
+        //   · 选中（AppKit 的 ClipboardRowChromeView 绘制）——同样内缩，低透明度强调色。
+        .background {
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(isHighlighted ? Theme.rowHoverFill : Color.clear)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1.5)
+        }
+        // 分隔线内缩到文字左缘（跟随缩略图），两端留白——满宽横线会让行看起来像表格而不是列表
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Theme.separator.opacity(0.55))
+                .fill(Theme.separator.opacity(0.5))
                 .frame(height: 0.5)
+                .padding(.leading, 14)
+                .padding(.trailing, 10)
         }
         // v129（内存）：移除 v112「宽度实证」的 GeometryReader 埋点——每行一个
         // GeometryReader + onAppear/onChange 各打一条 Log（字符串格式化 + 落盘），
         // 列表滚动/布局抖动时是每行每帧的分配churn（non-object 小块 + CFString），
         // 实证完成后属纯调试残留。
-    }
-
-    /// 行底色：浅色模式白 0.86（对齐日历卡实底）/ 深色模式白 0.07；hover 提亮
-    private var rowFill: Color {
-        let base = colorScheme == .dark ? 0.07 : 0.86
-        return isHighlighted
-            ? Theme.accent.opacity(colorScheme == .dark ? 0.22 : 0.16)
-            : Color.white.opacity(base)
     }
 
     /// 来源应用图标（官方行式：缩略图右下角徽章；sourceApp 优先 bundleId）

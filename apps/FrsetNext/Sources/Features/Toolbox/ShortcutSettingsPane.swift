@@ -66,8 +66,8 @@ public struct ShortcutSettingsPane: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(width: 150, height: 24)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.025)))
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.09), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.primary.opacity(0.025)))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(Color.primary.opacity(0.09), lineWidth: 1))
         }
         .frame(maxWidth: .infinity)
     }
@@ -104,8 +104,8 @@ public struct ShortcutSettingsPane: View {
                     }
                     .padding(.horizontal, 9)
                     .frame(width: 150, height: 24)
-                    .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.025)))
-                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.09), lineWidth: 1))
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.primary.opacity(0.025)))
+                    .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(Color.primary.opacity(0.09), lineWidth: 1))
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)

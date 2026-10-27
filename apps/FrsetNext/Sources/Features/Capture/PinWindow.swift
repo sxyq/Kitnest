@@ -44,7 +44,7 @@ final class PinnedScreenshotScaleHUD: NSView {
     override var acceptsFirstResponder: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath(roundedRect: bounds, xRadius: 8, yRadius: 8)
+        let path = NSBezierPath.continuousRoundedRect(bounds, radius: 8)
         NSColor(white: 0, alpha: 0.72).setFill()
         path.fill()
         // v126（性能审计 F0426）：复用静态缓存属性字典
@@ -121,6 +121,7 @@ final class PinnedScreenshotSmallModeTipWindow: NSPanel {
         tip.wantsLayer = true
         tip.layer?.backgroundColor = CGColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.85)
         tip.layer?.cornerRadius = 8
+        tip.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         tip.frame = NSRect(origin: .zero, size: size)
         contentView = tip
     }

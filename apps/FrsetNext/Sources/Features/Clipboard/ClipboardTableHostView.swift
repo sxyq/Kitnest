@@ -119,6 +119,28 @@ public final class ClipboardListTopScrollTracker {
 
 /// 行容器：NSHostingView 包 SwiftUI ClipboardRow；右键**按下**即回调（不透传 super，
 /// specs/14 §3.2），普通按下按单击/双击分派。尾部 hover 操作按钮区事件交还 SwiftUI。
+// MARK: - 行容器（接管系统选中绘制）
+
+/// v156（用户：「蓝色框会直接填满，状态品味很差」）：
+/// NSTableView 默认选中是**整行铺满 controlAccentColor**，在无边框、无内距的列表里
+/// 就是一块高饱和蓝砖，而且会盖住行内的圆角与分隔线。这里接管绘制：
+///   · 与 hover 同款内缩（左右 6pt / 上下 1.5pt）+ G2 圆角（半径 9）
+///   · 强调色只上 12%（非活动窗口 8%），选中是「淡底」而不是「实心」
+final class ClipboardRowChromeView: NSTableRowView {
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard selectionHighlightStyle != .none else { return }
+        let inset = bounds.insetBy(dx: 6, dy: 1.5)
+        guard inset.width > 8, inset.height > 8 else { return }
+        let alpha: CGFloat = isEmphasized ? 0.12 : 0.08
+        Theme.accentNS.withAlphaComponent(alpha).setFill()
+        NSBezierPath.continuousRoundedRect(inset, radius: 9).fill()
+    }
+
+    /// 不用系统的行底色（交替条纹/压暗），列表背景由页面负责
+    override func drawBackground(in dirtyRect: NSRect) {}
+}
+
 final class RowHostingView: NSHostingView<AnyView> {
 
     static let hoverActionsZoneWidth: CGFloat = 104
@@ -398,9 +420,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     /// 行卡之间的呼吸间距（v92 用户反馈「卡片之间距离过近」）：
     /// 卡片列表的观感关键——6pt 时卡卡贴边显得拥挤，10pt 拉开层次仍紧凑；
     /// 与行高档位解耦（密度变化时间距恒定，节奏不跳）。
-    // v153：17 → 0。行卡改为分隔线列表后，留白由行内 padding 提供，
-    // 再留 17pt 空隙会变成「一条一条漂着」（630pt 面板只装 4 条）。
-    private static let rowGap: CGFloat = 0
+    // v156：0 → 3。行高亮改成「内缩 6pt 的圆角块」后，相邻两行的色块会贴在一起；
+    // 3pt 间隙让它们读作两个独立的 pill，同时不会像 v152 的 17pt 那样只剩 4 行。
+    private static let rowGap: CGFloat = 3
 
     public func makeNSView(context: Context) -> NSScrollView {
         let scrollView = ClipboardListScrollView()
@@ -579,6 +601,11 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
             // 行高（原版实测 400 宽面板）：缩略图 50 + 上下留白 ≈ 68pt 行内容 + 8pt 行距
             Theme.statsRowHeight
+        }
+
+        /// 行容器：接管系统选中绘制（见 ClipboardRowChromeView 注释）
+        public func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+            ClipboardRowChromeView()
         }
 
         public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {

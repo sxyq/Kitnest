@@ -568,7 +568,7 @@ public struct SearchSectionView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.cardBackground))
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.cardBackground))
     }
 
     // MARK: 分类 chips（v50：用户自选聚焦类别）
@@ -810,7 +810,7 @@ public struct SearchSectionView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: Theme.smallRadius)
+                            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
                                 .fill(previewEngineID == engine.id
                                       ? Theme.accent.opacity(0.14)
                                       : Theme.cardBackground)
@@ -948,7 +948,7 @@ public struct SearchSectionView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
                         } else {
                             VStack(alignment: .leading, spacing: 1) {
@@ -971,7 +971,7 @@ public struct SearchSectionView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
                         }
                     }
@@ -1131,7 +1131,7 @@ public struct SearchSectionView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
                         } else {
                             HStack(spacing: 8) {
@@ -1158,7 +1158,7 @@ public struct SearchSectionView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
                         }
                     }
@@ -1255,7 +1255,7 @@ public struct SearchSectionView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
                         } else {
                             HStack(spacing: 8) {
@@ -1263,7 +1263,7 @@ public struct SearchSectionView: View {
                                 Image(nsImage: Self.fileIcon(for: result.url))
                                     .interpolation(.high)
                                     .frame(width: 26, height: 26)
-                                    .background(RoundedRectangle(cornerRadius: 6)
+                                    .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
                                         .fill(Color.primary.opacity(0.045)))
                                 VStack(alignment: .leading, spacing: 1) {
                                     // 主层级：文件名 + 命中高亮
@@ -1286,7 +1286,7 @@ public struct SearchSectionView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.clear))
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
                         }
                     }

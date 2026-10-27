@@ -441,7 +441,7 @@ private struct ManualBlockView: View {
 
         case .quote(let s):
             HStack(alignment: .top, spacing: 8) {
-                RoundedRectangle(cornerRadius: 2).fill(Theme.accent.opacity(0.45))
+                RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Theme.accent.opacity(0.45))
                     .frame(width: 3)
                 Text(inline(s))
                     .font(.system(size: 12))

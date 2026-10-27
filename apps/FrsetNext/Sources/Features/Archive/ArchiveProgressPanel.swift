@@ -42,7 +42,7 @@ public struct ArchiveProgressPanel: View {
         }
         .padding(compact ? 8 : 10)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(compact ? Color.clear : Color(nsColor: .controlBackgroundColor))
         )
     }

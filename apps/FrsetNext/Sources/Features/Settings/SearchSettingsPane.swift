@@ -200,7 +200,7 @@ struct SearchSettingsPane: View {
                 Text(engine.name).font(.system(size: 13))
             }
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: Theme.smallRadius).fill(Theme.cardBackground))
+            .background(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous).fill(Theme.cardBackground))
         }
         // 落位目标：非编辑模式传入空类型列表，等价于关闭本行的接收
         .onDrop(of: isEditingSearchBar ? [UTType.text] : [], delegate: searchBarDropDelegate(targetID: engine.id))

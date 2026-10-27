@@ -55,6 +55,7 @@ enum LiquidGlass {
         effect.wantsLayer = true
         if effect.layer == nil { effect.layer = CALayer() }
         effect.layer?.cornerRadius = cornerRadius
+        effect.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         effect.layer?.masksToBounds = true
         effect.autoresizingMask = [.width, .height]
         return effect
@@ -69,12 +70,14 @@ enum LiquidGlass {
         }
         guard let effect = view as? NSVisualEffectView else {
             view.layer?.cornerRadius = cornerRadius
+            view.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
             return
         }
         let solid = prefersSolid || reduceTransparency
         effect.material = solid ? .windowBackground : .hudWindow
         effect.blendingMode = solid ? .withinWindow : .behindWindow
         effect.layer?.cornerRadius = cornerRadius
+        effect.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
     }
 
     /// 把内容装进玻璃容器并铺满

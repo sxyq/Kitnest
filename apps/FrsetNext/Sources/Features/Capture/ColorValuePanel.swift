@@ -38,11 +38,11 @@ struct ColorValueView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color(nsColor: color))
                     .frame(width: 32, height: 32)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .strokeBorder(Color.primary.opacity(0.18), lineWidth: 1)
                     )
                 VStack(alignment: .leading, spacing: 1) {
@@ -77,11 +77,11 @@ struct ColorValueView: View {
                         Button {
                             onPickRecent(hex)
                         } label: {
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
                                 .fill(Color(hexString: hex))
                                 .frame(width: 20, height: 20)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
                                         .strokeBorder(Color.primary.opacity(0.18), lineWidth: 1)
                                 )
                         }
@@ -115,7 +115,7 @@ struct ColorValueView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
             .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

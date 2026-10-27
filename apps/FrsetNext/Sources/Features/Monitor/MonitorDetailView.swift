@@ -442,7 +442,7 @@ public struct MonitorDetailView: View {
                                 ForEach(0..<columns, id: \.self) { col in
                                     let index = row * columns + col
                                     let value = index < stats.connHistory.count ? stats.connHistory[index] : -1
-                                    RoundedRectangle(cornerRadius: 1)
+                                    RoundedRectangle(cornerRadius: 1, style: .continuous)
                                         .fill(connCellColor(value))
                                         .frame(height: 5)
                                 }
@@ -533,9 +533,9 @@ public struct MonitorDetailView: View {
                 VStack(spacing: 4) {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 3)
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(Color.primary.opacity(0.1))
-                            RoundedRectangle(cornerRadius: 3)
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(MonitorColors.read)
                                 .frame(width: geo.size.width * usedRatio)
                         }
@@ -652,8 +652,8 @@ public struct MonitorDetailView: View {
                                 .lineLimit(1)
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 2).fill(Color.primary.opacity(0.1))
-                                    RoundedRectangle(cornerRadius: 2).fill(MonitorColors.temperature)
+                                    RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Color.primary.opacity(0.1))
+                                    RoundedRectangle(cornerRadius: 2, style: .continuous).fill(MonitorColors.temperature)
                                         .frame(width: geo.size.width * fan.percent)
                                 }
                             }
@@ -749,9 +749,9 @@ public struct MonitorDetailView: View {
                 .lineLimit(1)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(Color.primary.opacity(0.1))
-                    RoundedRectangle(cornerRadius: 2)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(color)
                         .frame(width: max(2, geo.size.width * ratio))
                 }
@@ -805,8 +805,8 @@ public struct MonitorDetailView: View {
                     VStack(spacing: 4) {
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.1))
-                                RoundedRectangle(cornerRadius: 3).fill(health > 0.8 ? MonitorColors.battery : MonitorColors.temperature)
+                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Color.primary.opacity(0.1))
+                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(health > 0.8 ? MonitorColors.battery : MonitorColors.temperature)
                                     .frame(width: geo.size.width * health)
                             }
                         }

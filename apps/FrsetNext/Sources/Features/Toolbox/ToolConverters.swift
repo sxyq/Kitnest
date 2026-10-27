@@ -563,7 +563,7 @@ public enum CodeHighlighter {
         let image = NSImage(size: NSSize(width: width, height: height))
         image.lockFocusFlipped(false)
         let rect = NSRect(origin: .zero, size: NSSize(width: width, height: height))
-        let path = NSBezierPath(roundedRect: rect, xRadius: 10, yRadius: 10)
+        let path = NSBezierPath.continuousRoundedRect(rect, radius: 10)
         NSColor(calibratedWhite: 0.13, alpha: 1).setFill()
         path.fill()
         attributed.draw(in: NSRect(x: inset, y: inset, width: maxWidth, height: textHeight))

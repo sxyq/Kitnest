@@ -281,7 +281,7 @@ struct StatsProcTable: View {
                 Spacer(minLength: 4)
                 ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
                     if let color = column.color {
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
                             .fill(color)
                             .frame(width: 9, height: 9)
                             .frame(width: columnWidth, alignment: .trailing)
@@ -958,7 +958,7 @@ private struct DiskStatsPanel: View {
 
     private func legendValue(color: Color, value: String) -> some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 9, height: 9)
+            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 9, height: 9)
             Text(value)
                 .font(.system(size: 13, weight: .medium).monospacedDigit())
                 .lineLimit(1)
@@ -1181,7 +1181,7 @@ private struct NetworkStatsPanel: View {
 
     private func legendValue(color: Color, value: String) -> some View {
         HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 9, height: 9)
+            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 9, height: 9)
             Text(value)
                 .font(.system(size: 13, weight: .medium).monospacedDigit())
                 .lineLimit(1)

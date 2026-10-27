@@ -59,7 +59,7 @@ public struct CaptureSectionView: View {
         }
         .padding(8)
         .background(Color.yellow.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
     }
 
     // MARK: 入口按钮
@@ -91,7 +91,7 @@ public struct CaptureSectionView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
                 .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             // v116：录屏提为截图区一级入口（原在 STATS 合并条/设置里）
@@ -109,7 +109,7 @@ public struct CaptureSectionView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
                 .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -127,7 +127,7 @@ public struct CaptureSectionView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -160,7 +160,7 @@ public struct CaptureSectionView: View {
                 .frame(minHeight: 80, maxHeight: 160)
                 .padding(6)
                 .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         }
     }
 
@@ -188,9 +188,9 @@ public struct CaptureSectionView: View {
         }
         .frame(height: 68)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.smallRadius)
+            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
                 .stroke(Theme.separator, lineWidth: 0.5)
         )
         .contentShape(Rectangle())

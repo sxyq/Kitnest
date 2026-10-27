@@ -287,9 +287,9 @@ private struct CaptureActionToolbarView: View {
                             .font(.system(size: 11))
                     }
                     .frame(width: 46, height: 38)
-                    .background(RoundedRectangle(cornerRadius: 8)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(tool.id == defaultToolID ? Theme.accent.opacity(0.16) : Color.clear))
-                    .overlay(RoundedRectangle(cornerRadius: 8)
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .strokeBorder(tool.id == defaultToolID ? Theme.accent.opacity(0.55) : Color.clear, lineWidth: 1))
                     .contentShape(Rectangle())
                 }

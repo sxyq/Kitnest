@@ -77,6 +77,7 @@ final class ScreenshotMagnifierContainerView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.cornerRadius = 8
+        layer?.cornerCurve = .continuous   // v156: G2
         layer?.borderWidth = 1
         layer?.borderColor = NSColor.white.withAlphaComponent(0.9).cgColor
         layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
@@ -439,7 +440,7 @@ final class ScreenshotOverlayView: NSView {
         if box.maxY > bounds.maxY { box.origin.y = r.minY - 18 }
         box.origin.x = max(0, min(box.origin.x, bounds.maxX - box.width))
         NSColor.systemOrange.withAlphaComponent(0.92).setFill()
-        NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+        NSBezierPath.continuousRoundedRect(box, radius: 3).fill()
         (el.label as NSString).draw(at: NSPoint(x: box.minX + 4, y: box.minY + 3), withAttributes: attrs)
     }
 
@@ -463,7 +464,7 @@ final class ScreenshotOverlayView: NSView {
         let size = (el.label as NSString).size(withAttributes: attrs)
         let box = NSRect(x: r.minX, y: max(r.minY - 16, 0), width: size.width + 8, height: 15)
         NSColor.systemYellow.withAlphaComponent(0.9).setFill()
-        NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+        NSBezierPath.continuousRoundedRect(box, radius: 3).fill()
         (el.label as NSString).draw(at: NSPoint(x: box.minX + 4, y: box.minY + 3), withAttributes: attrs)
     }
 
@@ -477,7 +478,7 @@ final class ScreenshotOverlayView: NSView {
                          y: bounds.height - 68,
                          width: size.width + 24, height: 26)
         NSColor(calibratedWhite: 0.1, alpha: 0.78).setFill()
-        NSBezierPath(roundedRect: box, xRadius: 13, yRadius: 13).fill()
+        NSBezierPath.continuousRoundedRect(box, radius: 13).fill()
         text.draw(at: NSPoint(x: box.minX + 12, y: box.minY + 7), withAttributes: attrs)
     }
 
@@ -508,7 +509,7 @@ final class ScreenshotOverlayView: NSView {
             x = max(0, min(x, bounds.maxX - boxW))
             let box = NSRect(x: x, y: y, width: boxW, height: boxH)
             NSColor.controlAccentColor.withAlphaComponent(0.85).setFill()
-            NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
+            NSBezierPath.continuousRoundedRect(box, radius: 4).fill()
             text.draw(at: NSPoint(x: x + 6, y: y + 3), withAttributes: attrs)
         }
     }
@@ -546,7 +547,7 @@ final class ScreenshotOverlayView: NSView {
 
         let box = NSRect(x: x, y: y, width: boxW, height: boxH)
         NSColor(calibratedWhite: 0.1, alpha: 0.85).setFill()
-        NSBezierPath(roundedRect: box, xRadius: 4, yRadius: 4).fill()
+        NSBezierPath.continuousRoundedRect(box, radius: 4).fill()
         text.draw(at: NSPoint(x: x + 6, y: y + 3), withAttributes: attrs)
     }
 

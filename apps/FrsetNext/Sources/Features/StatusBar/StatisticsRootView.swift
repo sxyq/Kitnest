@@ -324,7 +324,7 @@ private struct MetricCardView: View {
                             Text("/").font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(Color(white: 0.87))
                         } else if config.id == "statistics_capture" {
-                            RoundedRectangle(cornerRadius: 1)
+                            RoundedRectangle(cornerRadius: 1, style: .continuous)
                                 .fill(StatisticsPalette.secondary)
                                 .frame(width: 8, height: 6)
                         }
@@ -376,7 +376,7 @@ private struct ActivityHeatmapView: View {
                 Text(verbatim: "少")
                 HStack(spacing: 3) {
                     ForEach(0..<5) { level in
-                        RoundedRectangle(cornerRadius: 1.5)
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                             .fill(levelColor(level))
                             .frame(width: cellSize, height: cellSize)
                     }
@@ -470,7 +470,7 @@ private struct ActivityHeatmapView: View {
                 }
                 .padding(.horizontal, 9)
                 .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 6)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color(NSColor.controlBackgroundColor))
                     .shadow(color: .black.opacity(0.18), radius: 3, y: 1))
                 .position(x: min(max(tooltipFrame.midX, 44), gridWidth - 44),
@@ -646,7 +646,7 @@ private struct HeatmapGridView: View, Equatable {
     }
 
     private func heatCellView(_ cell: HeatCell) -> some View {
-        RoundedRectangle(cornerRadius: 2)
+        RoundedRectangle(cornerRadius: 2, style: .continuous)
             .fill(cellColor(for: cell))
             .frame(width: cellSize, height: cellSize)
             .overlay(
@@ -762,7 +762,7 @@ private struct Last30BarsView: View {
     }
 
     private func barColumn(for day: DayBucket) -> some View {
-        RoundedRectangle(cornerRadius: 1.5)
+        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
             .fill(StatisticsPalette.secondary.opacity(0.35))
             .frame(width: barWidth,
                    height: max(3, CGFloat(day.total) / CGFloat(maxTotal) * chartHeight))

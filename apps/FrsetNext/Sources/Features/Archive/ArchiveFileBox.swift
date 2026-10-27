@@ -390,6 +390,7 @@ public final class ArchiveFileBoxWindow: NSPanel, NSDraggingDestination {
         let hosting = NSHostingView(rootView: view)
         hosting.wantsLayer = true
         hosting.layer?.cornerRadius = 12
+        hosting.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         hosting.layer?.masksToBounds = true
         contentView = hosting
     }

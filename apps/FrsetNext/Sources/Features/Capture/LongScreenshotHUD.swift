@@ -39,7 +39,7 @@ private final class BorderView: NSView {
     override var isFlipped: Bool { false }
     override func draw(_ dirtyRect: NSRect) {
         let r = bounds.insetBy(dx: 0.5, dy: 0.5)
-        let path = NSBezierPath(roundedRect: r, xRadius: 2, yRadius: 2)
+        let path = NSBezierPath.continuousRoundedRect(r, radius: 2)
         path.lineWidth = 1.5
         NSColor(srgbRed: 0.95, green: 0.60, blue: 0.30, alpha: 0.95).setStroke()
         path.stroke()
@@ -133,6 +133,7 @@ final class LongScreenshotHUDController {
         dot.wantsLayer = true
         dot.layer?.backgroundColor = NSColor.systemRed.cgColor
         dot.layer?.cornerRadius = 4
+        dot.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         let pulse = CABasicAnimation(keyPath: "opacity")
         pulse.fromValue = 1.0
         pulse.toValue = 0.25

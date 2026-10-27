@@ -83,8 +83,10 @@ extension FloatingPanel {
             effect.material = .hudWindow
             effect.blendingMode = .behindWindow
             effect.layer?.cornerRadius = radius
+            effect.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         } else if let bg = contentView {
             bg.layer?.cornerRadius = radius
+            bg.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         }
     }
 }

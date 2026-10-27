@@ -98,6 +98,7 @@ final class DelayedCountdownWindow: NSWindow {
         let container = NSView(frame: NSRect(origin: .zero, size: size))
         container.wantsLayer = true
         container.layer?.cornerRadius = 24
+        container.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         container.layer?.backgroundColor = NSColor(calibratedWhite: 0.08, alpha: 0.86).cgColor
 
         label.frame = NSRect(x: 0, y: 0, width: size.width, height: size.height)

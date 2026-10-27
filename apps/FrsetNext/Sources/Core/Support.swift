@@ -137,6 +137,11 @@ public enum Theme {
         public static let control: CGFloat = 8
         public static let chip: CGFloat = 6
     }
+    /// 列表行 hover 底色（v156）：中性、极淡——强调色只留给「选中」，不用于悬停。
+    /// 之前用 accent 0.10 整行铺满，等于一条蓝砖（用户：「蓝色框会直接填满」）。
+    /// 用 primary 而不是 white：浅色下是「黑 5.5%」，深色下是「白 5.5%」，一套值两套主题。
+    public static var rowHoverFill: Color { Color.primary.opacity(0.055) }
+
     /// 三级文字：主 / 次 / 弱。弱文字用 0.55 alpha（白底 ≈4.8:1，达 AA），
     /// 不再用 .tertiary（系统 tertiaryLabel 在白底只有 ~2.6:1）。
     public static let tertiaryText = Color.primary.opacity(0.55)

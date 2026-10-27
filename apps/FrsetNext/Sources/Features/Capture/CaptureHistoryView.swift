@@ -178,9 +178,9 @@ struct CaptureHistoryView: View {
             }
             .frame(height: 88)
             .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.smallRadius)
+                RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
                     .stroke(Theme.separator, lineWidth: 0.5)
             )
 
