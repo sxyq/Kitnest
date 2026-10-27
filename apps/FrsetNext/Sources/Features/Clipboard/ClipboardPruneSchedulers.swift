@@ -1,5 +1,15 @@
 import Foundation
 
+// MARK: - 清理结果（v115：设置页「立即清理」需要反馈——此前删 0 条时零提示，
+// 用户误以为按钮失效；实则按策略本就无可删，见接手清单 v115 诊断）
+
+public struct ClipboardPruneResult {
+    public let removed: Int
+    public let reclaimedBytes: Int64
+
+    public static let none = ClipboardPruneResult(removed: 0, reclaimedBytes: 0)
+}
+
 // MARK: - 时间保留期清理（05 号规格 B5 双调度之一）
 
 /// 按保留天数清理：删除 timestamp 早于 (now - retentionDays) 的条目，**同步回收落盘文件**。
@@ -38,15 +48,20 @@ public final class ClipboardHistoryRetentionPruneScheduler {
     }
 
     /// 单次清理：批量推进直到没有更早的条目
-    public func prune() {
+    @discardableResult
+    public func prune() -> ClipboardPruneResult {
         let days = retentionDays
-        guard days > 0 else { return }
+        guard days > 0 else { return .none }
         let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
         var removed = 0
+        var reclaimed: Int64 = 0
         while true {
             let batch = repository.rowsOlderThan(cutoff, limit: 200)
             if batch.isEmpty { break }
-            for item in batch { repository.delete(dedupeKey: item.dedupeKey) }
+            for item in batch {
+                reclaimed += Int64(item.storageBytes)
+                repository.delete(dedupeKey: item.dedupeKey)
+            }
             removed += batch.count
             if batch.count < 200 { break }
         }
@@ -54,6 +69,7 @@ public final class ClipboardHistoryRetentionPruneScheduler {
             Log.info("clipboard", "保留期清理：删除 \(removed) 条（早于 \(cutoff)）")
             ClipboardManager.shared.reload()
         }
+        return ClipboardPruneResult(removed: removed, reclaimedBytes: reclaimed)
     }
 }
 
@@ -97,11 +113,14 @@ public final class ClipboardStoragePruneScheduler {
         timer = nil
     }
 
-    public func prune() {
+    /// 单次清理：从最旧开始删，直到回落到 90% 水位
+    @discardableResult
+    public func prune() -> ClipboardPruneResult {
         let limit = limitBytes
-        guard limit > 0 else { return }
+        guard limit > 0 else { return .none }
         let target = Int64(Double(limit) * Self.hysteresis)
         var removed = 0
+        var reclaimed: Int64 = 0
         // v126（性能审计 F0657）：循环条件改判据短路（exceeds）。
         // 原 `usage.totalBytes > target` 每批都做 1 次 SQL 全表 SUM + 5 次目录树遍历
         //（max(db, disk) 两侧都必须算完才能比较）；exceeds 用等价的 OR 短路——
@@ -111,6 +130,7 @@ public final class ClipboardStoragePruneScheduler {
             if batch.isEmpty { break }
             // 先删文件再删行：即便事务失败也不会留下孤儿文件
             for item in batch {
+                reclaimed += Int64(item.storageBytes)
                 repository.delete(dedupeKey: item.dedupeKey)
             }
             removed += batch.count
@@ -120,5 +140,6 @@ public final class ClipboardStoragePruneScheduler {
             Log.info("clipboard", "容量清理：删除 \(removed) 条，当前用量 \(usage.totalBytes / 1024 / 1024) MB")
             ClipboardManager.shared.reload()
         }
+        return ClipboardPruneResult(removed: removed, reclaimedBytes: reclaimed)
     }
 }

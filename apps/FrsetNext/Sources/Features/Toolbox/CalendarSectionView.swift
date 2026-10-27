@@ -27,6 +27,8 @@ public struct CalendarSectionView: View {
     @Stored private var scrollAccum: CGFloat = 0
     /// 滚动监听 token（窗口内 local monitor）
     @Stored private var scrollMonitor: Any? = nil
+    /// 点选的日期（v132：此前日期点击只发通知无任何视觉反馈，观感即"点不动"）
+    @Stored private var selectedDay: Date? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
@@ -68,15 +70,15 @@ public struct CalendarSectionView: View {
     private var calendarPermissionBanner: some View {
         HStack(spacing: 6) {
             Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.orange)
             Text("日历未授权，仅显示日期")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer()
             Button("去授权") { PermissionGuideWindowController.shared.show() }
                 .buttonStyle(.borderless)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
         }
         .padding(.horizontal, 4)
         .padding(.top, 2)
@@ -86,7 +88,9 @@ public struct CalendarSectionView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Button { shift(-7) } label: {
+            Button {
+                shift(-7)
+            } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
@@ -94,6 +98,7 @@ public struct CalendarSectionView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help("上一周")
 
             Button {
@@ -107,6 +112,7 @@ public struct CalendarSectionView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help("回到今天")
 
             Button { shift(7) } label: {
@@ -117,6 +123,7 @@ public struct CalendarSectionView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help("下一周")
 
             Spacer(minLength: 4)
@@ -127,13 +134,14 @@ public struct CalendarSectionView: View {
                 }
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .rotationEffect(.degrees(collapsed ? -90 : 0))
                     .frame(width: 20, height: 18)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help(collapsed ? "展开日历" : "收起日历")
         }
     }
@@ -142,8 +150,8 @@ public struct CalendarSectionView: View {
         HStack(spacing: 0) {
             ForEach(Self.weekdayTitles, id: \.self) { title in
                 Text(title)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -169,6 +177,11 @@ public struct CalendarSectionView: View {
         let day = index < twoWeekDays.count ? twoWeekDays[index] : nil
         let isToday = day?.isToday ?? false
         let isFestival = day.map { isFestivalDay($0) } ?? false
+        // v132：点选态（今天有蓝底胶囊，其余选中日用描边环）
+        let isSelected: Bool = {
+            guard let date = day?.date, let selected = selectedDay else { return false }
+            return Calendar.current.isDate(date, inSameDayAs: selected)
+        }()
 
         return VStack(spacing: 0) {
             Text(day.map { "\(Calendar.current.component(.day, from: $0.date))" } ?? "")
@@ -176,7 +189,7 @@ public struct CalendarSectionView: View {
                 .foregroundStyle(isToday ? Color.white : Color.primary)
                 .frame(height: 18)
             Text(day?.lunarDisplay ?? " ")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(isToday ? Color.white.opacity(0.92)
                                          : (isFestival ? Color.orange : Color.secondary))
                 .lineLimit(1)
@@ -191,11 +204,18 @@ public struct CalendarSectionView: View {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(Theme.accent)
                     .frame(width: 32, height: 32)
+            } else if isSelected {
+                // 选中日：描边环（与今天胶囊同心，点击的即时反馈）
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(Theme.accent.opacity(0.55), lineWidth: 1.5)
+                    .frame(width: 32, height: 32)
             }
         }
         .contentShape(Rectangle())
+        .pointingHandCursor()
         .onTapGesture {
             guard let date = day?.date else { return }
+            selectedDay = date
             NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
                                             userInfo: ["date": date])
         }

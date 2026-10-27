@@ -55,7 +55,7 @@ public struct ManualPaneView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 TextField("搜索手册…", text: $query)
                     .textFieldStyle(.plain)
@@ -63,8 +63,8 @@ public struct ManualPaneView: View {
                 if !query.isEmpty {
                     Button { query = "" } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
                     }.buttonStyle(.plain)
                 }
             }
@@ -80,14 +80,14 @@ public struct ManualPaneView: View {
 
             HStack(spacing: 10) {
                 Button("展开全部") { expanded = Set(allGroupIDs()) }
-                    .buttonStyle(.plain).font(.system(size: 10))
+                    .buttonStyle(.plain).font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Button("收起全部") { expanded = [] }
-                    .buttonStyle(.plain).font(.system(size: 10))
+                    .buttonStyle(.plain).font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 Text("\(doc.index.count) 节")
-                    .font(.system(size: 9.5)).foregroundStyle(.tertiary)
+                    .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 4)
@@ -156,7 +156,7 @@ public struct ManualPaneView: View {
             ForEach(path) { p in
                 Button(p.title) { selection = p.id }
                     .buttonStyle(.plain)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(selection == p.id ? Theme.accent : .secondary)
                 if p.id != path.last?.id {
                     Image(systemName: "chevron.right")
@@ -172,7 +172,7 @@ public struct ManualPaneView: View {
     private func sectionLinks(_ node: ManualNode) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("本节目录")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
             FlowLinks(nodes: node.children) { n in selection = n.id }
         }
@@ -195,7 +195,7 @@ public struct ManualPaneView: View {
             if let prev {
                 Button { selection = prev.id } label: {
                     Label(prev.title, systemImage: "chevron.left")
-                        .font(.system(size: 10.5)).lineLimit(1)
+                        .font(.system(size: 11)).lineLimit(1)
                 }.buttonStyle(.plain).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -204,7 +204,7 @@ public struct ManualPaneView: View {
                     HStack(spacing: 4) {
                         Text(next.title).lineLimit(1)
                         Image(systemName: "chevron.right")
-                    }.font(.system(size: 10.5))
+                    }.font(.system(size: 11))
                 }.buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }
@@ -350,7 +350,7 @@ private struct ManualDisclosureStyle: DisclosureGroupStyle {
                     withAnimation(.easeOut(duration: 0.15)) { configuration.isExpanded.toggle() }
                 } label: {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
                         .frame(width: 11, height: 11)
@@ -379,9 +379,9 @@ private struct FlowLinks: View {
                 Button { onTap(n) } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.turn.down.right")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.tertiary)
-                        Text(n.title).font(.system(size: 10.5)).lineLimit(1)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
+                        Text(n.title).font(.system(size: 11)).lineLimit(1)
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 7).padding(.vertical, 4)
@@ -520,7 +520,7 @@ private struct ManualImageView: View {
                     Image(systemName: "photo.badge.exclamationmark")
                         .font(.system(size: 12))
                     Text("截图待补：\(ref)")
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 11))
                 }
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12).padding(.vertical, 10)
@@ -530,7 +530,7 @@ private struct ManualImageView: View {
                     .strokeBorder(Color.orange.opacity(0.3), style: StrokeStyle(lineWidth: 0.7, dash: [3, 2])))
             }
             if let caption, !caption.isEmpty {
-                Text(caption).font(.system(size: 10)).foregroundStyle(.tertiary)
+                Text(caption).font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
             }
         }
     }

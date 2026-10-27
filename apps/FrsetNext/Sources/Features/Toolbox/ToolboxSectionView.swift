@@ -57,7 +57,7 @@ public struct ToolboxSectionView: View {
                 ForEach(groups, id: \.0) { category, tools in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(category.title)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(Color(NSColor.tertiaryLabelColor))
                         toolGrid(tools)
                     }
@@ -79,7 +79,7 @@ public struct ToolboxSectionView: View {
                         Image(systemName: tool.systemImage)
                             .font(.system(size: 15))
                         Text(tool.name)
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
@@ -189,7 +189,7 @@ public struct ToolRunnerView: View {
                 .disabled(isRunning)
                 Spacer()
                 if !statusText.isEmpty {
-                    Text(statusText).font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(statusText).font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
 
@@ -235,8 +235,8 @@ public struct ToolRunnerView: View {
                 }
                 if let note = output.note {
                     HStack(alignment: .top, spacing: 4) {
-                        Image(systemName: "info.circle").font(.system(size: 10))
-                        Text(note).font(.system(size: 10))
+                        Image(systemName: "info.circle").font(.system(size: 11))
+                        Text(note).font(.system(size: 11))
                     }
                     .foregroundStyle(.secondary)
                 }

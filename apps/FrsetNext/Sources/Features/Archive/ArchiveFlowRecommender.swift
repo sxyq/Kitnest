@@ -382,7 +382,7 @@ public struct ArchiveFlowBar: View {
                             Text("另有 \(moreCount) 个备选")
                             Image(systemName: "chevron.down")
                         }
-                        .font(.system(size: 9.5))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -405,14 +405,14 @@ public struct ArchiveFlowBar: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: rec.systemImage)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                 VStack(alignment: .leading, spacing: 0) {
                     Text(rec.title)
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .lineLimit(1)
                     Text(rec.subtitle)
-                        .font(.system(size: 8))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .lineLimit(1)
                 }
             }

@@ -345,8 +345,8 @@ struct CommandPaletteView: View {
                     .onSubmit { state.executeSelected() }
                     .onChange(of: state.query) { _ in state.refilter() }
                 Text("⌥K")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
@@ -378,12 +378,12 @@ struct CommandPaletteView: View {
             Divider()
             HStack(spacing: 12) {
                 Text("↑↓ 选择 · ↵ 执行 · Esc 关闭")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                 Spacer()
                 Text("\(state.items.count) 项")
-                    .font(.system(size: 10).monospacedDigit())
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
@@ -433,7 +433,7 @@ private struct CommandRowView: View {
                     .lineLimit(1)
                 if !item.subtitle.isEmpty {
                     Text(item.subtitle)
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -447,8 +447,8 @@ private struct CommandRowView: View {
                     .disabled(true)
             }
             Text(item.kind.rawValue)
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Color.primary.opacity(0.06)))

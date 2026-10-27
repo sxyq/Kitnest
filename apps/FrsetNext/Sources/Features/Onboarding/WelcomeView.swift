@@ -130,7 +130,7 @@ struct WelcomeView: View {
                 ForEach(item.lines, id: \.self) { line in
                     HStack(alignment: .top, spacing: 5) {
                         Text("·")
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.tertiaryText)
                         Text(line)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
@@ -167,8 +167,8 @@ struct WelcomeView: View {
                 hotkeyRow("⇧⌥R", "暂停 / 恢复剪贴板")
             }
             Text("全部可在 设置 → 快捷键 中自定义。")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
     }
 

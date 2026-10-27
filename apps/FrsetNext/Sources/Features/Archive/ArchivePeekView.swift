@@ -31,26 +31,26 @@ struct ArchivePeekView: View {
             if loading {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("读取归档…").font(.system(size: 9.5)).foregroundStyle(.tertiary)
+                    Text("读取归档…").font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                 }
             } else if let errorText {
                 Text(errorText)
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .lineLimit(2)
             } else {
                 // 概要行
                 HStack(spacing: 6) {
                     Image(systemName: "archivebox.fill")
-                        .font(.system(size: 8))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Text("\(entries.count) 项")
-                        .font(.system(size: 9, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                     if totalSize > 0 {
                         Text("\(byteText(totalSize)) → \(byteText(packedSize))")
-                            .font(.system(size: 8.5, design: .monospaced))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Theme.tertiaryText)
                     }
                     Spacer(minLength: 0)
                 }
@@ -75,8 +75,8 @@ struct ArchivePeekView: View {
 
                 if entries.count > previewEntries.count {
                     Text("还有 \(entries.count - previewEntries.count) 项…")
-                        .font(.system(size: 8.5))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -138,14 +138,14 @@ struct ArchiveEntryTile: View {
                     .frame(width: size * 0.78, height: size * 0.78)
             }
             Text(entry.name)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .truncationMode(.middle)
                 .foregroundStyle(.primary)
             Text(entry.sizeText)
-                .font(.system(size: 8, design: .monospaced))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Theme.tertiaryText)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
@@ -156,7 +156,7 @@ struct ArchiveEntryTile: View {
         .overlay(alignment: .topTrailing) {
             if entry.isUnsafe {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .padding(2)
                     .help("路径不安全（../ 穿越 / 绝对路径 / 设备名）。穿越与绝对路径解压时拦截跳过，设备名仅警告（v127.1）")

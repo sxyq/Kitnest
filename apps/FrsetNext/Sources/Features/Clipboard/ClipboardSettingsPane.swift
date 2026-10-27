@@ -14,6 +14,9 @@ public struct ClipboardSettingsPane: View {
     @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
     @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
     @Stored private var floatingVisible: Bool = Preferences.shared.value(Preferences.Keys.floatingVisible, default: false)
+    /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
+    /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
+    @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
     /// 权限状态（v111：自动粘贴行的「去授权」入口按授权态显隐）
     @ObservedObject private var permissions = PermissionCenter.shared
 
@@ -41,17 +44,29 @@ public struct ClipboardSettingsPane: View {
                         preferences.set(Preferences.Keys.clipboardStorageLimitMB, Int(storageLimitMB))
                     }
                     SettingsDivider()
+                    // v115：占用改为状态存储——此前是 body 里的裸计算值，点「立即清理」
+                    // 后无状态变化不重渲染，占用显示永远停在进页时刻（加重"没生效"错觉）
                     SettingsRow(title: "当前占用") {
-                        Text(Self.bytesText(ClipboardStorageUsageProvider.shared.totalBytes))
+                        Text(Self.bytesText(usageBytes))
                             .font(.system(size: 13).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     SettingsDivider()
                     SettingsRow(title: "清理历史",
-                                subtitle: "按保留天数与容量上限立即执行一次清理") {
+                                subtitle: "按保留天数与容量上限删除超限条目；清空全部请用主面板底部工具条「清空」") {
                         Button("立即清理") {
-                            ClipboardHistoryRetentionPruneScheduler.shared.prune()
-                            ClipboardStoragePruneScheduler.shared.prune()
+                            // v115：无论删没删都给反馈——此前删 0 条时零提示，用户误判按钮失效
+                            let r1 = ClipboardHistoryRetentionPruneScheduler.shared.prune()
+                            let r2 = ClipboardStoragePruneScheduler.shared.prune()
+                            let removed = r1.removed + r2.removed
+                            usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
+                            if removed > 0 {
+                                let reclaimed = Self.bytesText(r1.reclaimedBytes + r2.reclaimedBytes)
+                                Toast.show("已清理 \(removed) 条，回收 \(reclaimed)", icon: "trash")
+                            } else {
+                                Toast.show("没有超过保留期（\(Int(retentionDays)) 天）或容量上限的条目",
+                                           icon: "checkmark.circle")
+                            }
                         }
                         .controlSize(.small)
                     }

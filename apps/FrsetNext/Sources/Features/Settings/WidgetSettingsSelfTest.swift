@@ -81,11 +81,13 @@ enum WidgetSettingsSelfTest {
         FSBarReloadFromStore()
         check(FSBarMergedEnabled(), "布局/合并模块：开启")
 
-        for (key, label) in MonitorWidgetsPane.spacingItems {
-            FSBarGlobalSet("CombinedModules_spacing", key)
+        // v134：间距滑条 0–24pt、0.5 步进——抽验边界、默认与含小数档位
+        for (raw, expected) in [("0", CGFloat(0)), ("3", CGFloat(3)),
+                                ("3.5", CGFloat(3.5)), ("24", CGFloat(24))] {
+            FSBarGlobalSet("CombinedModules_spacing", raw)
+            FSBarGlobalSet("Widgets_spacing", raw)
             FSBarReloadFromStore()
-            let expected: CGFloat = (key == "none") ? 0 : CGFloat(Int(key) ?? 0)
-            checkEqual(FSBarMergedSpacing(), expected, "布局/间距 \(label)")
+            checkEqual(FSBarMergedSpacing(), expected, "布局/间距 \(raw)pt")
         }
 
         FSBarGlobalSet("CombinedModules_separator", true)
@@ -153,12 +155,12 @@ enum WidgetSettingsSelfTest {
                 perModule[module, default: 0] += specs.count
             }
 
-            // 更新间隔全部档位
-            for (value, label) in MonitorWidgetsPane.intervalItems {
+            // 更新间隔全部档位（v134：滑条 1–60 秒——抽验边界与中点）
+            for value in [1, 30, 60] {
                 FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: value))
                 FSBarReloadFromStore()
                 checkEqual(Int(FSBarCfgInt(module, nil, "updateInterval", 1)), value,
-                           "\(module)/间隔：\(label)")
+                           "\(module)/间隔：\(value) 秒")
             }
             FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: originalInterval))
 
@@ -214,6 +216,18 @@ enum WidgetSettingsSelfTest {
             checkEqual(FSBarCfgStr(module, form, key, def) ?? "", "red",
                        "\(module)/\(form)/\(key)：预设色")
             FSBarCfgSet(module, form, key, old)
+
+        case .slider(let key, let def, let min, let max, let step, _):
+            // v134：滑条选项自检——默认值合法（在区间内）、步进对齐写回
+            let old = FSBarCfgStr(module, form, key, def) ?? def
+            let defV = Double(old) ?? min
+            check(defV >= min && defV <= max, "\(module)/\(form)/\(key)：默认值 \(old) 在 [\(min), \(max)] 内")
+            let mid = ((min + max) / 2 / step).rounded() * step
+            FSBarCfgSet(module, form, key, String(format: "%.0f", mid))
+            FSBarReloadFromStore()
+            checkEqual(FSBarCfgStr(module, form, key, def) ?? "", String(format: "%.0f", mid),
+                       "\(module)/\(form)/\(key)：滑条写回 \(mid)")
+            FSBarCfgSet(module, form, key, old)
         }
     }
 
@@ -222,6 +236,7 @@ enum WidgetSettingsSelfTest {
         case .toggle(let key, _): return key
         case .menu(let key, _, _): return key
         case .color(let key, _): return key
+        case .slider(let key, _, _, _, _, _): return key
         }
     }
 

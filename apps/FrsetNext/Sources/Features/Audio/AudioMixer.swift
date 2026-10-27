@@ -304,21 +304,21 @@ public struct AudioMixerPane: View {
                             Text(app.name).font(.system(size: 12))
                             Spacer()
                             Image(systemName: "waveform")
-                                .font(.system(size: 10))
+                                .font(.system(size: 11))
                                 .foregroundStyle(Theme.accent)
                         }
                     }
                 }
                 Text("每 App 独立音量/静音需要私有 HAL 接口（公开 CoreAudio 在本系统实测仅支持进程枚举与活动判断，见探针记录），系统设置 > 声音 中的每 App 音量为系统私有实现。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
 
             Section("本 App 音频") {
                 Toggle("本 App 音频可被听到（音频 bypass 豁免）", isOn: $mixer.selfAudible)
                 Text("公开 API 仅允许进程管理自身音频通道（kAudioHardwarePropertyProcessIsAudible）。关闭后本 App 发出的声音静默，用于「自管音频 App bypass」。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
         }
         .formStyle(.grouped)

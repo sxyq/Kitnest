@@ -467,9 +467,19 @@ public final class StatsDataProvider {
                 } else {
                     var groupOut: Int32 = 0
                     let official = key.withCString { frset_sensor_name($0, &groupOut) }
+                    // v129：未收录键回落「中文类别（键名）」——纯英文简写（TPDA/PHPB 等
+                    // Apple Silicon 键不在官方名表）对用户不可读，扫描层 category 最可靠
+                    // v132：供电轨三件套族优先（V×I=P 已实测精确吻合，见 railFamilyName）
+                    let fallbackName: String
+                    if let rail = Self.railFamilyName(key: key) {
+                        fallbackName = rail
+                    } else {
+                        fallbackName = Self.genericSensorName(key: key, category: Int(raw.category))
+                    }
                     meta = SensorMeta(
                         key: key,
-                        name: official != nil ? String(cString: official!) : key,
+                        name: official != nil ? String(cString: official!)
+                                              : fallbackName,
                         type: key.withCString { frset_sensor_type($0) },
                         group: key.withCString { frset_sensor_group($0) },
                         isAvg: key.withCString { frset_sensor_average($0) }
@@ -745,6 +755,56 @@ public final class StatsDataProvider {
               let value = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
               let name = value["PrimaryInterface"] as? String else { return "" }
         return name
+    }
+
+    // MARK: 传感器中文名（v129：未收录键不再裸露英文简写）
+
+    /// 扫描类别 → 中文（与 frset_smc_scan 的 categorize 口径一致）
+    private static let sensorCategoryCN = ["温度", "风扇", "电压", "电流", "功率", "能耗"]
+
+    /// 未收录键的回落名：中文类别（原始键名），如「功率传感器（PHPB）」
+    private static func genericSensorName(key: String, category: Int) -> String {
+        let cn = sensorCategoryCN[min(max(category, 0), sensorCategoryCN.count - 1)]
+        return "\(cn)传感器（\(key)）"
+    }
+
+    // MARK: v132：供电轨三件套族（V/I/P 同后缀；V×I=P 已实测精确吻合）
+    //
+    // 本机 M5 实测：VP0b 1.016V × IP0b 4.876A = 4.954W = PP0b（精确）、
+    // VP2b×IP2b=PP2b、VMVC×IMVC=PMVC、VD0R↔PDTR/ID0R（19.7V 适配器）全部吻合。
+    // 特征：4 字符键、首字母 V/I/P、末字母 b/l（b/l 为同一轨的两组测量点）。
+    // 具体哪条轨对应 CPU/GPU/内存核心 Apple 未文档化，保持键名透明。
+
+    private static func railFamilyName(key: String) -> String? {
+        guard key.count == 4,
+              let first = key.first, "VIP".contains(first),
+              let last = key.last, "bl".contains(last) else { return nil }
+        switch first {
+        case "V": return "供电轨电压（\(key)）"
+        case "I": return "供电轨电流（\(key)）"
+        default:  return "供电轨功率（\(key)）"
+        }
+    }
+
+    /// 供设置页传感器选择器使用：官方名表命中用官方中文名，
+    /// 其次供电轨三件套族（V×I=P 实测验证），最后按 SMC 首字母族推断
+    public static func sensorDisplayName(_ key: String) -> String {
+        var groupOut: Int32 = 0
+        let official: String? = key.withCString { cKey in
+            guard let ptr = frset_sensor_name(cKey, &groupOut) else { return nil }
+            return String(cString: ptr)
+        }
+        if let official, !official.isEmpty { return official }
+        if let rail = railFamilyName(key: key) { return rail }
+        let family: String
+        switch key.first {
+        case "T": family = "温度传感器"
+        case "I": family = "电流传感器"
+        case "V": family = "电压传感器"
+        case "P": family = "功耗传感器"
+        default:  family = "传感器"
+        }
+        return "\(family)（\(key)）"
     }
 }
 

@@ -161,17 +161,17 @@ public struct ArchiveCreateView: View {
             options
             if let warn = model.windowsNameWarning {
                 Label(warn, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.orange)
             }
             if let warn = model.passwordWarning {
                 Label(warn, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.orange)
             }
             if let err = model.errorText {
                 Label(err, systemImage: "xmark.octagon.fill")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.red)
             }
             Divider()
@@ -190,7 +190,7 @@ public struct ArchiveCreateView: View {
             Text("创建压缩包")
                 .font(.system(size: 13, weight: .semibold))
             Text("将 \(model.files.count) 个项目压缩为一个归档")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
     }
@@ -200,7 +200,7 @@ public struct ArchiveCreateView: View {
     private var presetPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("用途预设")
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
             ForEach(Array(ArchiveCore.presets.enumerated()), id: \.element.id) { idx, preset in
                 Button {
@@ -214,13 +214,13 @@ public struct ArchiveCreateView: View {
                             Text(preset.title)
                                 .font(.system(size: 11, weight: .medium))
                             Text(preset.detail)
-                                .font(.system(size: 9))
+                                .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Text(preset.format.uppercased())
-                            .font(.system(size: 8.5, design: .monospaced))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Theme.tertiaryText)
                     }
                     .contentShape(Rectangle())
                 }
@@ -297,7 +297,7 @@ public struct ArchiveCreateView: View {
                         .frame(width: 64)
                         .font(.system(size: 11))
                     Text("MB / 卷")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -308,8 +308,8 @@ public struct ArchiveCreateView: View {
     private var footer: some View {
         HStack {
             Text(model.outputURL.lastPathComponent)
-                .font(.system(size: 9.5, design: .monospaced))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Theme.tertiaryText)
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer()

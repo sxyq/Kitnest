@@ -324,7 +324,7 @@ struct GeneralSettingsPane: View {
                 if let dayBadge {
                     // 原版日期按钮：日历图标右上角当日数字（15 号截图实证）
                     Text(dayBadge)
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 3.5)
                         .padding(.vertical, 1)
@@ -519,14 +519,14 @@ struct AboutSettingsPane: View {
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
                     .frame(width: 320)
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
             }
 
             Spacer(minLength: 24)
 
             Text("Copyright © 2026, All rights reserved.")
                 .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)

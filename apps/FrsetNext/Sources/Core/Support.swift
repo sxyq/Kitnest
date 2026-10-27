@@ -116,6 +116,30 @@ public enum Theme {
     /// 缩略图边长（密度联动 / 覆盖档位优先）
     public static var thumbSize: CGFloat { Personalization.shared.effectiveThumbSize }
 
+    // MARK: 设计令牌（v153）
+    //
+    // 审计基线（apple-ui-designer + taste-skill）：
+    //   · 345 个按钮/Menu 里只有 35% 有 help、3% 有 accessibilityLabel；
+    //   · 297 处字号 <11pt（HIG 文本下限 11pt）；
+    //   · 132 处 .tertiary 小字，实测 #808080 on #F2F2F4 ≈ 3.2:1，不达 AA 4.5:1；
+    //   · 圆角出现 2/4/5/6/7/8/10/12/14 九种，无规则。
+    // 这里先立规矩，后续新代码只许用这些令牌。
+    public enum TextSize {
+        public static let caption: CGFloat = 11       // 最小可用字号（HIG 下限）
+        public static let small: CGFloat = 12
+        public static let body: CGFloat = 13
+        public static let title: CGFloat = 15
+    }
+    /// 圆角三档：容器 / 控件 / 胶囊（胶囊用 Capsule，不写数值）
+    public enum Radius {
+        public static let container: CGFloat = 12
+        public static let control: CGFloat = 8
+        public static let chip: CGFloat = 6
+    }
+    /// 三级文字：主 / 次 / 弱。弱文字用 0.55 alpha（白底 ≈4.8:1，达 AA），
+    /// 不再用 .tertiary（系统 tertiaryLabel 在白底只有 ~2.6:1）。
+    public static let tertiaryText = Color.primary.opacity(0.55)
+
     public static let secondaryText = Color.secondary
     public static let cardBackground = Color(NSColor.controlBackgroundColor).opacity(0.6)
     public static let separator = Color(NSColor.separatorColor).opacity(0.5)

@@ -431,7 +431,7 @@ private struct FloatingRow: View {
                     .font(.system(size: 12))
                     .lineLimit(1)
                 Text(item.timestamp.relativeText)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)

@@ -137,39 +137,51 @@ struct CastView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer(minLength: 0)
-                TransferChrome.smallAction("画质设置", icon: "slider.horizontal.3") {
+                Button {
                     ServiceLocator.settings?.open(pane: "transfer")
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
                 }
+                .buttonStyle(.plain)
+                .help("画质设置")
+                .accessibilityLabel("画质设置")
             }
             .padding(.horizontal, 12)
 
             // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
-            HStack(spacing: 6) {
-                Image(systemName: "doc.on.doc")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
-                Text("双向剪贴板：\(clipboardSyncOn ? "已开启" : "已关闭")")
-                    .font(.system(size: 9.5, weight: .medium))
-                Toggle("", isOn: Binding(
-                    get: { clipboardSyncOn },
-                    set: { v in
-                        TransferDockPref.CastQuality.clipboardAutoSync = v
-                        clipboardSyncOn = v
-                    }))
-                    .labelsHidden()
-                    .controlSize(.mini)
-                    .toggleStyle(.switch)
-                Text("关掉则投屏/Meld 窗口不做 Mac↔手机剪贴板同步")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("双向剪贴板：\(clipboardSyncOn ? "已开启" : "已关闭")")
+                        .font(.system(size: 11, weight: .medium))
+                    Toggle("", isOn: Binding(
+                        get: { clipboardSyncOn },
+                        set: { v in
+                            TransferDockPref.CastQuality.clipboardAutoSync = v
+                            clipboardSyncOn = v
+                        }))
+                        .labelsHidden()
+                        .controlSize(.mini)
+                        .toggleStyle(.switch)
+                    Spacer(minLength: 0)
+                }
+                // v153：说明原来挤在开关同一行，360pt 下会折成两行并顶到边缘。
+                Text("关掉则投屏 / Meld 窗口不做 Mac↔手机剪贴板同步")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 12)
 
             // 一键无线 / 打开无线调试页 的状态提示（v130 保留：配对卡片自身状态走 AdbPairingService）
             if !wirelessStatus.isEmpty {
                 Text(wirelessStatus)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -200,15 +212,15 @@ struct CastView: View {
                     .frame(width: 6, height: 6)
             }
             Text(serial)
-                .font(.system(size: 9.5, design: .monospaced))
+                .font(.system(size: 11, design: .monospaced))
                 .lineLimit(1)
             if connected {
                 Button {
                     ScreenCastEngine.startMirror(serial: serial)
                 } label: {
                     HStack(spacing: 3) {
-                        Image(systemName: "play.fill").font(.system(size: 8))
-                        Text("开始投屏").font(.system(size: 9.5, weight: .medium))
+                        Image(systemName: "play.fill").font(.system(size: 11))
+                        Text("开始投屏").font(.system(size: 11, weight: .medium))
                     }
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8)
@@ -218,8 +230,8 @@ struct CastView: View {
                 .buttonStyle(.plain)
             } else {
                 Text(state)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
         }
         .padding(8)
@@ -262,13 +274,13 @@ struct CastView: View {
         VStack(spacing: 6) {
             Image(systemName: "ipad.and.iphone")
                 .font(.system(size: 22))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
             Text(scanned ? "未发现设备" : "点右上「检测」开始")
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
             Text("USB 连上并开启「开发者选项 → USB 调试」；或点「无线扫描」配对")
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -289,9 +301,14 @@ struct CastView: View {
 
     private func navLabel(icon: String, title: String) -> some View {
         HStack(spacing: 3) {
-            Image(systemName: icon).font(.system(size: 9))
-            Text(title).font(.system(size: 9.5, weight: .medium))
+            Image(systemName: icon).font(.system(size: 11))
+            // v153：360pt 面板里 4 连 chip + 画质设置会超出可用宽度，
+            // 旧版会让「多任务」折成两行。这里禁止折行并允许轻微缩字。
+            Text(title).font(.system(size: 11, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
         }
+        .fixedSize()
         .foregroundStyle(Theme.accent)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -332,15 +349,15 @@ struct CastView: View {
 
             if notifications.isEmpty {
                 Text("暂无通知（手机需有未清除的通知；下拉手机通知栏可触发）")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .padding(.horizontal, 12)
             } else {
                 VStack(spacing: 4) {
                     ForEach(notifications.prefix(6)) { n in
                         HStack(alignment: .top, spacing: 6) {
                             Text(n.app.prefix(2).uppercased())
-                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                                 .frame(width: 20, height: 20)
                                 .background(notifTint(n.pkg).gradient,
@@ -348,16 +365,16 @@ struct CastView: View {
                             VStack(alignment: .leading, spacing: 1) {
                                 HStack(spacing: 4) {
                                     Text(n.title)
-                                        .font(.system(size: 9.5, weight: .medium))
+                                        .font(.system(size: 11, weight: .medium))
                                         .lineLimit(1)
                                     Spacer(minLength: 0)
                                     Text(n.time)
-                                        .font(.system(size: 8))
-                                        .foregroundStyle(.tertiary)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Theme.tertiaryText)
                                 }
                                 if !n.text.isEmpty {
                                     Text(n.text)
-                                        .font(.system(size: 9))
+                                        .font(.system(size: 11))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(2)
                                 }
@@ -413,7 +430,7 @@ struct CastView: View {
             if storageItems.isEmpty {
                 HStack(spacing: 6) {
                     smallProgress(0)
-                    Text("读取中…").font(.system(size: 9)).foregroundStyle(.tertiary)
+                    Text("读取中…").font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                 }
                 .padding(.horizontal, 12)
             } else {
@@ -421,14 +438,14 @@ struct CastView: View {
                     ForEach(storageItems.prefix(6)) { item in
                         HStack(spacing: 6) {
                             Image(systemName: "folder.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 11))
                                 .foregroundStyle(Color(red: 0.2, green: 0.62, blue: 0.55).opacity(0.8))
                             Text(item.name)
-                                .font(.system(size: 9.5))
+                                .font(.system(size: 11))
                                 .lineLimit(1)
                             Spacer(minLength: 0)
                             Text(item.sizeText)
-                                .font(.system(size: 9, design: .monospaced))
+                                .font(.system(size: 11, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 6)
@@ -480,8 +497,8 @@ struct CastView: View {
 
             if apps.isEmpty {
                 Text("读取手机已安装的第三方应用，点一下就在 Mac 上开一个独立窗口（Android 14+）")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .padding(.horizontal, 12)
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 96, maximum: .infinity), spacing: 6)],
@@ -492,14 +509,14 @@ struct CastView: View {
                         } label: {
                             VStack(spacing: 3) {
                                 Text(app.label.prefix(3).uppercased())
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                     .frame(width: 30, height: 30)
                                     .background(notifTint(app.id).gradient,
                                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 Text(app.label)
-                                    .font(.system(size: 8))
+                                    .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
@@ -553,8 +570,8 @@ struct CastView: View {
                 }
             }
             Text("WebDAV：Finder → 前往 → 连接服务器 → 粘贴上面的地址，即可像网络盘一样浏览 /sdcard。")
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
                 .padding(.horizontal, 12)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -565,14 +582,14 @@ struct CastView: View {
                             on: Binding<Bool>, toggle: @escaping (Bool) -> Void) -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(Theme.accent)
                 .frame(width: 14)
             VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(.system(size: 9.5, weight: .medium))
+                Text(title).font(.system(size: 11, weight: .medium))
                 Text(detail)
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.tertiaryText)
                     .lineLimit(1)
             }
             Spacer(minLength: 2)
@@ -581,7 +598,7 @@ struct CastView: View {
                 NSPasteboard.general.setString(detail, forType: .string)
                 Toast.show("已复制地址", icon: "doc.on.doc")
             } label: {
-                Image(systemName: "doc.on.doc").font(.system(size: 9))
+                Image(systemName: "doc.on.doc").font(.system(size: 11))
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
@@ -612,10 +629,10 @@ struct CastView: View {
 
     private func label(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 5) {
-            Text("·").foregroundStyle(.tertiary)
+            Text("·").foregroundStyle(Theme.tertiaryText)
             Text(text)
-                .font(.system(size: 9.5))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

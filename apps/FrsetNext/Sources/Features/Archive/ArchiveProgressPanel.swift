@@ -30,8 +30,8 @@ public struct ArchiveProgressPanel: View {
             if expanded {
                 if queue.tasks.isEmpty {
                     Text("暂无任务")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .padding(.vertical, 2)
                 } else {
                     ForEach(queue.tasks) { task in
@@ -53,7 +53,7 @@ public struct ArchiveProgressPanel: View {
                 withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
             } label: {
                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -61,7 +61,7 @@ public struct ArchiveProgressPanel: View {
 
             // 顶部汇总：「运行中 2 · 等待 1 · 失败 0」
             Text(queue.summaryText)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
 
             Spacer()
@@ -69,13 +69,13 @@ public struct ArchiveProgressPanel: View {
             if queue.tasks.contains(where: { !$0.isFinished }) {
                 Button("全部取消") { queue.cancelAll() }
                     .buttonStyle(.plain)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.red)
             }
             if queue.tasks.contains(where: { $0.isFinished }) {
                 Button("清除已完成") { queue.clearFinished() }
                     .buttonStyle(.plain)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
         }
@@ -98,7 +98,7 @@ struct ArchiveTaskRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
@@ -116,7 +116,7 @@ struct ArchiveTaskRow: View {
 
                 if !task.message.isEmpty {
                     Text(task.message)
-                        .font(.system(size: 9))
+                        .font(.system(size: 11))
                         .foregroundStyle(task.state == .failed ? Color.red : Color.secondary)
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -126,7 +126,7 @@ struct ArchiveTaskRow: View {
             Spacer(minLength: 4)
 
             Image(systemName: task.state.icon)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(stateColor)
 
             if !task.isFinished {

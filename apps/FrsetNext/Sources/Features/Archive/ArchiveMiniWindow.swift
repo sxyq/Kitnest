@@ -71,13 +71,13 @@ struct MiniEntryTile: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 34, height: 34)
             Text(entry.name)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .truncationMode(.middle)
             Text(entry.sizeText)
-                .font(.system(size: 8, design: .monospaced))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Theme.tertiaryText)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
@@ -179,8 +179,8 @@ struct ArchiveMiniView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text("\(model.entries.count) 项")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             Spacer()
             // v127（ArcZip P3）：置顶图钉按钮（状态与 window.level 同步）
@@ -205,7 +205,7 @@ struct ArchiveMiniView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(.secondary)
                 Text(err)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }

@@ -26,6 +26,88 @@ struct MetricConfig: Identifiable {
 // MARK: 根视图
 
 struct StatisticsRootView: View {
+    /// hover 延时 tooltip 的延时秒数（S6 数值 ⬜，推断 0.4s）
+    private static let hoverDelay: TimeInterval = 0.4
+
+    @Environment(\.colorScheme) private var colorScheme
+    // v84（2026-10-20 用户需求「个性化覆盖全局」）：统计窗此前不读个性化——
+    // 强调色不生效、Midnight 主题下背景不跟随（仍用固定灰/深灰）。现接入两者。
+    @ObservedObject private var appearance = AppearanceState.shared
+    /// 语言变更后继续刷新现有视图。
+    @Stored private var l10nVersion: Int = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+                .frame(height: 58, alignment: .top)
+                .padding(.bottom, 31)
+            // v115：三层图表抽成 StatisticsChartsView（设置 → 数据 页同源嵌入）
+            StatisticsChartsView()
+        }
+        .frame(width: 660, alignment: .leading)
+        .padding(.horizontal, 70)
+        .padding(.top, 58)
+        .frame(width: 800, height: 530)
+        .foregroundStyle(colorScheme == .dark ? Color.primary : StatisticsPalette.text)
+        .background {
+            if appearance.isMidnight {
+                MidnightTheme.baseBackground
+            } else {
+                colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.87)
+            }
+        }
+        // 强调色跟随个性化（统计页内的按钮/焦点环）
+        // 强调色 + Midnight 统一主题入口（统计窗同源；个性化改色即生效）
+        .frsetThemeChrome()
+        .ignoresSafeArea()
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            l10nVersion &+= 1
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "Frset")
+                    .font(.custom("AvenirNextCondensed-DemiBold", size: 30))
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill").font(.system(size: 11))
+                    Text(verbatim: "数据仅存储在本机")
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(2)
+                }
+                .foregroundStyle(StatisticsPalette.caption)
+            }
+            Spacer()
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("\(Calendar.current.component(.day, from: Date()))")
+                    .font(.custom("DINAlternate-Bold", size: 32))
+                Text(currentMonth)
+                    .font(.custom("AvenirNextCondensed-DemiBold", size: 13))
+            }
+        }
+    }
+
+    // v126（性能审计 F1275）：DateFormatter 复用——原来 body 每次求值都 new 一个
+    // DateFormatter（初始化要装载 locale/ICU 表，是重量级操作）。改为 static 缓存。
+    private static let monthFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMMM"
+        return formatter
+    }()
+
+    private var currentMonth: String {
+        Self.monthFormatter.string(from: Date())
+    }
+}
+
+// MARK: - 用量图表块（v115 从统计窗抽出：统计窗与设置 → 数据 页共用）
+//
+// 三层版面（specs/17 S5/S8）：五张指标卡 → 总览 + 最近 30 天柱状图 → 活动热力图。
+// 数据装载（Q1/Q2/Q3/Q4/Q5）随视图自带：onAppear 即拉取，Settings 页嵌入零额外接线。
+
+struct StatisticsChartsView: View {
     // 原版图：60 列、7 行，格子 8 pt、间隔 3 pt。
     private static let activityColumnCount = 60
     private static let activityRowCount = 7
@@ -45,19 +127,9 @@ struct StatisticsRootView: View {
     @Stored private var activityTotals: [String: Int] = [:]   // __activityMatrixTotals（day → total）
     @Stored private var last30DayBreakdowns: [(day: String, event: String, count: Int)] = []  // __last30DayBreakdowns
     @Stored private var metricNumbersAnimatedIn: Bool = false
-    /// 语言变更后继续刷新现有视图。
-    @Stored private var l10nVersion: Int = 0
-    @Environment(\.colorScheme) private var colorScheme
-    // v84（2026-10-20 用户需求「个性化覆盖全局」）：统计窗此前不读个性化——
-    // 强调色不生效、Midnight 主题下背景不跟随（仍用固定灰/深灰）。现接入两者。
-    @ObservedObject private var personalization = Personalization.shared
-    @ObservedObject private var appearance = AppearanceState.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-                .frame(height: 58, alignment: .top)
-                .padding(.bottom, 31)
             overviewCards
                 .frame(height: 50, alignment: .top)
                 .padding(.bottom, 20)
@@ -88,61 +160,7 @@ struct StatisticsRootView: View {
                                 hoverDelay: Self.hoverDelay)
         }
         .frame(width: 660, alignment: .leading)
-        .padding(.horizontal, 70)
-        .padding(.top, 58)
-        .frame(width: 800, height: 530)
-        .foregroundStyle(colorScheme == .dark ? Color.primary : StatisticsPalette.text)
-        .background {
-            if appearance.isMidnight {
-                MidnightTheme.baseBackground
-            } else {
-                colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.87)
-            }
-        }
-        // 强调色跟随个性化（统计页内的按钮/焦点环）
-        // 强调色 + Midnight 统一主题入口（统计窗同源；个性化改色即生效）
-        .frsetThemeChrome()
-        .ignoresSafeArea()
         .onAppear(perform: loadData)
-        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
-            l10nVersion &+= 1
-        }
-    }
-
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "Frset")
-                    .font(.custom("AvenirNextCondensed-DemiBold", size: 30))
-                HStack(spacing: 6) {
-                    Image(systemName: "lock.fill").font(.system(size: 9))
-                    Text(verbatim: "数据仅存储在本机")
-                        .font(.system(size: 8, weight: .semibold))
-                        .tracking(2)
-                }
-                .foregroundStyle(StatisticsPalette.caption)
-            }
-            Spacer()
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(Calendar.current.component(.day, from: Date()))")
-                    .font(.custom("DINAlternate-Bold", size: 32))
-                Text(currentMonth)
-                    .font(.custom("AvenirNextCondensed-DemiBold", size: 13))
-            }
-        }
-    }
-
-    // v126（性能审计 F1275）：DateFormatter 复用——原来 body 每次求值都 new 一个
-    // DateFormatter（初始化要装载 locale/ICU 表，是重量级操作）。改为 static 缓存。
-    private static let monthFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "MMMM"
-        return formatter
-    }()
-
-    private var currentMonth: String {
-        Self.monthFormatter.string(from: Date())
     }
 
     // MARK: 当天五项计数（v84：按重建版实际功能重划分组 + 中文化）
@@ -447,7 +465,7 @@ private struct ActivityHeatmapView: View {
                         .font(Font.custom("PingFangSC-Semibold", size: 12))
                         .foregroundStyle(.primary)
                     Text(prettyDate(cell.day))
-                        .font(Font.custom("PingFangSC-Regular", size: 10))
+                        .font(Font.custom("PingFangSC-Regular", size: 11))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 9)
@@ -605,7 +623,7 @@ private struct HeatmapGridView: View, Equatable {
             VStack(spacing: spacing) {
                 ForEach(0..<7) { row in
                     Text(row == 0 ? "SUN" : row == 3 ? "WED" : row == 6 ? "SAT" : "")
-                        .font(.system(size: 8, design: .monospaced))
+                        .font(.system(size: 11, design: .monospaced))
                         .tracking(1.5)
                         .foregroundStyle(StatisticsPalette.secondary)
                         .frame(width: 22, height: cellSize, alignment: .leading)

@@ -307,8 +307,8 @@ struct StatsProcTable: View {
                         Group {
                             if expandable {
                                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                                    .font(.system(size: 8, weight: .semibold))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Theme.tertiaryText)
                             } else {
                                 Color.clear
                             }
@@ -321,15 +321,15 @@ struct StatsProcTable: View {
                             .truncationMode(.middle)
                         if let note = subtitle(item), !note.isEmpty {
                             Text(note)
-                                .font(.system(size: 10))
+                                .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 .fixedSize()
                         }
                         if expandable, !expanded {
                             Text("\(item.children.count) 进程")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
                                 .fixedSize()
                         }
                         Spacer(minLength: 4)
@@ -602,7 +602,7 @@ private struct CPUStatsPanel: View {
                         Text(MonitorFormat.percent(sample.cpuUsage))
                             .font(.system(size: 19, weight: .semibold).monospacedDigit())
                         Text("总占用")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -666,7 +666,7 @@ private struct CPUStatsPanel: View {
     private func loadCell(_ title: String, value: Double) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Text(MonitorFormat.load(value))
                 .font(.system(size: 14, weight: .semibold).monospacedDigit())
@@ -729,7 +729,7 @@ private struct MemoryStatsPanel: View {
                         Text(MonitorFormat.percent(used / total))
                             .font(.system(size: 19, weight: .semibold).monospacedDigit())
                         Text("已用")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1076,8 +1076,8 @@ private struct NetworkStatsPanel: View {
                             .lineLimit(1)
                         if diagnostics.interfaces.count > 1 {
                             Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
                         }
                     }
                 }
@@ -1087,8 +1087,8 @@ private struct NetworkStatsPanel: View {
                 Spacer(minLength: 4)
                 if !diagnostics.selectedInterface.isEmpty {
                     Text(diagnostics.selectedInterface)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                 }
             }
 
@@ -1108,8 +1108,8 @@ private struct NetworkStatsPanel: View {
                                showsDot: false)
                 if let note = diagnostics.proxyNote {
                     Text(note)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .padding(.leading, 2)
                 }
             } else if diagnostics.publicIP != nil {
@@ -1277,16 +1277,16 @@ private struct SensorsStatsPanel: View {
     private func orderedTemperatures(_ items: [StatsSensorItem], stats: StatsSnapshot) -> [StatsSensorItem] {
         var result: [StatsSensorItem] = []
         if let v = stats.calcAverageCPU {
-            result.append(StatsSensorItem(key: "calc.avg.cpu", name: "Average CPU", category: 0, group: 1, value: v))
+            result.append(StatsSensorItem(key: "calc.avg.cpu", name: "CPU 平均温度", category: 0, group: 1, value: v))
         }
         if let v = stats.calcHottestCPU {
-            result.append(StatsSensorItem(key: "calc.max.cpu", name: "Hottest CPU", category: 0, group: 1, value: v))
+            result.append(StatsSensorItem(key: "calc.max.cpu", name: "CPU 最热核心", category: 0, group: 1, value: v))
         }
         if let v = stats.calcAverageGPU {
-            result.append(StatsSensorItem(key: "calc.avg.gpu", name: "Average GPU", category: 0, group: 2, value: v))
+            result.append(StatsSensorItem(key: "calc.avg.gpu", name: "GPU 平均温度", category: 0, group: 2, value: v))
         }
         if let v = stats.calcHottestGPU {
-            result.append(StatsSensorItem(key: "calc.max.gpu", name: "Hottest GPU", category: 0, group: 2, value: v))
+            result.append(StatsSensorItem(key: "calc.max.gpu", name: "GPU 最热核心", category: 0, group: 2, value: v))
         }
         let rest = items
             .filter { !$0.name.hasPrefix("Average") && !$0.name.hasPrefix("Hottest") }
@@ -1309,7 +1309,7 @@ private struct SensorGroup: View {
             HStack(spacing: 10) {
                 line
                 HStack(spacing: 4) {
-                    Image(systemName: symbol).font(.system(size: 10))
+                    Image(systemName: symbol).font(.system(size: 11))
                     Text(title).font(.system(size: 11))
                 }
                 .foregroundStyle(.secondary)
@@ -1374,7 +1374,7 @@ private struct BatteryStatsPanel: View {
                         Text(MonitorFormat.percent(level))
                             .font(.system(size: 19, weight: .semibold).monospacedDigit())
                         Text(battery?.isCharging == true ? "充电中" : "电量")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }

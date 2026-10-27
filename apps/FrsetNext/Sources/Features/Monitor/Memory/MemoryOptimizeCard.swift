@@ -20,7 +20,7 @@ struct MemoryOptimizeSection: View {
                     ProgressView()
                         .controlSize(.small)
                     Text(optimizer.helperInstalled ? "正在释放…" : "正在安装后台服务…")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 } else {
                     Button {
@@ -38,17 +38,17 @@ struct MemoryOptimizeSection: View {
                 reportView(report)
             } else if let message = optimizer.message {
                 Text(message)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else if !optimizer.helperInstalled {
                 Text("首次使用需要一次管理员授权安装后台服务（只安装固定的内存维护命令，之后不再询问）。")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("先向所有应用广播内存压力（让它们自行回收缓存），再清理文件缓存。Wired 内存无法释放。")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -63,7 +63,7 @@ struct MemoryOptimizeSection: View {
                     Text(MonitorFormat.bytes(report.before.used))
                         .foregroundStyle(.secondary)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 9))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Text(MonitorFormat.bytes(report.after.used))
                         .fontWeight(.semibold)
@@ -82,14 +82,14 @@ struct MemoryOptimizeSection: View {
                 }
             } else {
                 Text("这次没有可回收的缓存。压缩内存属于正在运行的应用，只有它们自己响应压力时才会释放。")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             if !report.releases.isEmpty {
                 Text("响应应用")
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.top, 1)
                 ForEach(report.releases.prefix(3), id: \.name) { item in
@@ -101,14 +101,14 @@ struct MemoryOptimizeSection: View {
                             .monospacedDigit()
                             .foregroundStyle(Color.green)
                     }
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                 }
             }
 
             if !report.steps.isEmpty {
                 Text(report.steps.map(\.title).sorted().joined(separator: " + "))
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
         }
         .padding(8)
@@ -128,7 +128,7 @@ struct MemoryOptimizeSection: View {
                 .monospacedDigit()
                 .foregroundStyle(delta < 0 ? Color.green : Color.secondary)
         }
-        .font(.system(size: 10))
+        .font(.system(size: 11))
     }
 
     private func signed(_ delta: Int64) -> String {

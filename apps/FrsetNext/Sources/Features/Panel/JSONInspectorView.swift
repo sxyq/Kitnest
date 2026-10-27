@@ -232,7 +232,7 @@ struct JSONInspectorView: View {
             toolbar
             if document.isTruncated {
                 Text("文件过大，仅解析前 \(Self.maxNodesText) 个节点")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10)
@@ -261,7 +261,7 @@ struct JSONInspectorView: View {
 
             HStack(spacing: 5) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 TextField("筛选 key / 值", text: $searchText)
                     .textFieldStyle(.plain)
@@ -443,7 +443,7 @@ private struct JSONTreeList: View {
                 Group {
                     if node.isExpandable {
                         Image(systemName: node.isExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 8, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                     } else {
                         Color.clear
                     }
@@ -469,7 +469,7 @@ private struct JSONTreeList: View {
 
                 Text(node.kind.badge)
                     .font(.system(size: fontSize - 3, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
                     .frame(width: 18, alignment: .leading)
 
                 Text(node.preview)
@@ -483,7 +483,7 @@ private struct JSONTreeList: View {
                 if node.isExpandable {
                     Text("· \(node.childCount)")
                         .font(.system(size: fontSize - 3, design: .monospaced))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.tertiaryText)
                         .fixedSize()
                 }
             }
@@ -633,12 +633,12 @@ private struct JSONTableView: View {
                             if shape != .scalars {
                                 Text("#\(row.index + 1)")
                                     .font(.system(size: fontSize - 2, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .frame(width: 34, alignment: .leading)
                             } else {
                                 Text("\(row.index + 1)")
                                     .font(.system(size: fontSize - 2, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .frame(width: 34, alignment: .leading)
                             }
                             ForEach(Array(row.cells.enumerated()), id: \.offset) { colIndex, value in
@@ -677,7 +677,7 @@ private struct JSONTableView: View {
                             .lineLimit(1)
                         if sortKey == column.key {
                             Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                         }
                     }
                     .font(.system(size: fontSize - 2, weight: .semibold))

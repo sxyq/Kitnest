@@ -208,6 +208,10 @@ final class MenuBarToastManager: NSObject {
         window.ignoresMouseEvents = true           // 不挡点击（点击穿透）
         window.hidesOnDeactivate = false           // 失活不隐藏
         window.isMovable = false
+        // 提示卡永不进屏幕捕获：它的层级是 statusBar，SCK 的 excludingApplications
+        // 对高 level 覆盖窗不生效（实测：长截图把「长截图：直接滚动目标窗口…」整条截了进去）。
+        // sharingType = .none 是系统级开关，普通截图/录屏/长截图都取不到它。
+        window.sharingType = .none
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.contentView = makeContentView()
         toastWindow = window

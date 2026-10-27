@@ -62,7 +62,7 @@ public struct CloudLinkBar: View {
                 Text(link.provider.displayName)
                     .font(.system(size: 12, weight: .semibold))
                 Text(shortURL(link))
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -97,9 +97,9 @@ public struct CloudLinkBar: View {
                 withAnimation(.easeOut(duration: 0.16)) { dismissedURL = link.url.absoluteString }
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
             }
             .buttonStyle(.plain)
             .help("暂时收起（同一链接不再弹出）")

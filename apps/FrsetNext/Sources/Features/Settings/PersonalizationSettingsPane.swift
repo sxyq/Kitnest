@@ -236,7 +236,7 @@ struct PersonalizationSettingsView: View {
                 .toggleStyle(.checkbox)
                 .font(.system(size: 12))
                 Text("颜色自定义将随引擎渲染链开放")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(Color(NSColor.tertiaryLabelColor))
             }
         }
@@ -251,7 +251,7 @@ struct PersonalizationSettingsView: View {
                 Slider(value: $p.midnightHueShift, in: -30...30) { Text("色相") }
                     .frame(width: 180)
                 Text(String(format: "%+.0f", p.midnightHueShift))
-                    .font(.system(size: 10).monospacedDigit())
+                    .font(.system(size: 11).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 40, alignment: .leading)
             }

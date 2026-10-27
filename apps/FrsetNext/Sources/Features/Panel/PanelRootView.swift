@@ -464,7 +464,7 @@ struct PanelRootView: View {
                         closeBottomSearch(clear: false)
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.secondary)
                             .frame(width: 16, height: 16)
                             .contentShape(Rectangle())
@@ -498,8 +498,10 @@ struct PanelRootView: View {
                 Image(systemName: "line.3.horizontal.circle")
                     .font(.system(size: 14))
                     .frame(width: 26, height: 26)
-                    // 官方该图标为蓝色激活态（当前筛选生效）
-                    .foregroundStyle(Theme.accent)
+                    // v153：只有「筛选生效」时才用强调色。旧版无条件染蓝，
+                    // 让用户以为一直有个筛选在起作用（状态色被当成装饰色）。
+                    .foregroundStyle(ClipboardManager.shared.filter == .all
+                                     ? Color.secondary : Theme.accent)
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
@@ -585,32 +587,30 @@ struct PanelRootView: View {
     // v60：性能监测页删除（只留独立窗口一套实现，⌥P / ⌥M / 状态栏部件点击直达）
 
     @ViewBuilder private var content: some View {
-        // v71（用户：主页/性能检测同一套内容，渐入渐出动画要一样）：三页共用
-        // 同一过渡语言——fade + 轻微 scale（与性能检测独立窗 popout 动画同族），
-        // 不再一页一方向。
+        // v136（用户：「毛玻璃效果和之前不一样 + 滑动明显卡顿」诊断结论）：
+        // 三/四页常驻 ZStack + opacity(0) 的旧结构，每帧都要合成全部页面图层
+        //（v130 增第四页「投屏」后叠到 4 层），且任何面板状态变化（剪贴板每秒
+        //  更新等）都会重算隐藏页的 body——滚动掉帧与玻璃观感发闷的共同来源。
+        // 改为**按页实例化**：隐藏页完全不进入视图树（零合成、零 body 求值）。
+        // 页面数据在单例 Store，切换丢的只是滚动位置，可接受。
         ZStack(alignment: .top) {
-            homePage
-                .pageTransition(active: page == .home)
-
-            // 第二页：性能监测（v71 恢复三页切换）——与独立窗**同一个容器**
-            // （MonitorPerformanceContent：同一选中态、同一内外边距、同一滚动策略），
-            // 不允许各自再写一份版式。
-            // v82（2026-10-19）：外层 ScrollView 移除——滚动由 MonitorDetailView
-            // 内部按内容区自行管理（切换条固定）。双层 ScrollView 嵌套曾导致
-            // 模块切换按钮的点击被外层滚动容器吞掉（用户实证「点不动」）。
-            MonitorPerformanceContent()
-                .pageTransition(active: page == .performance)
-
-            // 第三页：文件中转（仅文件传输：隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）
-            TransferDockView()
-                .pageTransition(active: page == .transfer)
-
-            // 第四页：投屏（v114 从文件中转拆出：设备检测 / 无线连接 / scrcpy 镜像）
-            CastView()
-                .pageTransition(active: page == .cast)
+            if page == .home {
+                homePage.transition(.opacity)
+            } else if page == .performance {
+                // 第二页：性能监测——与独立窗**同一个容器**（MonitorPerformanceContent：
+                // 同一选中态、同一内外边距、同一滚动策略）。v82（2026-10-19）：外层
+                // ScrollView 移除——双层嵌套曾导致模块切换按钮点击被吞。
+                MonitorPerformanceContent().transition(.opacity)
+            } else if page == .transfer {
+                // 第三页：文件中转（隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）
+                TransferDockView().transition(.opacity)
+            } else {
+                // 第四页：投屏（v114 从文件中转拆出；v136 起不再常驻合成）
+                CastView().transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.spring(response: 0.26, dampingFraction: 0.86), value: page)
+        .animation(.easeOut(duration: 0.16), value: page)
     }
 
     // MARK: - 主页：搜索区段 → 日历 → 剪贴板
@@ -722,17 +722,5 @@ struct PanelRootView: View {
     }
 }
 
-// MARK: - 三页统一过渡（v71：主页/性能检测/文件中转动画语言一致）
-
-private extension View {
-    /// 页面过渡：fade + 轻微 scale + 12pt 横移（与性能检测独立窗 popout 同族）。
-    /// 三页共用同一 modifier，互切时动画完全一致（用户需求「渐入渐出动画要一样」）。
-    func pageTransition(active: Bool) -> some View {
-        self
-            .opacity(active ? 1 : 0)
-            .scaleEffect(active ? 1 : 0.97, anchor: .top)
-            .offset(x: active ? 0 : 12)
-            .allowsHitTesting(active)
-            .accessibilityHidden(!active)
-    }
-}
+// MARK: - 页面过渡（v136：改按页实例化后，pageTransition(active:) 已弃用——
+// 常驻层淡入淡出是「每帧合成全部页面」的根源；过渡改由 .transition(.opacity) 承担）

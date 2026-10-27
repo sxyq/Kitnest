@@ -165,7 +165,7 @@ struct TransferDockSettingsPane: View {
                                     .controlSize(.small)
                                     .disabled(!lanEnabled)
                                 Text("手机相机 / 微信扫一扫 → 打开直传页")
-                                    .font(.system(size: 10.5))
+                                    .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
@@ -264,8 +264,8 @@ struct TransferDockSettingsPane: View {
                     .foregroundStyle(.secondary)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .multilineTextAlignment(.trailing)
                         .lineLimit(2)
                 }

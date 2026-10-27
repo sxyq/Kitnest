@@ -67,8 +67,8 @@ struct SearchSettingsPane: View {
                     .toggleStyle(.checkbox)
             }
             Text("关闭的分类不在首页搜索结果中出现；首页分类行右侧的眼睛按钮同样可快速隐藏/显示。")
-                .font(.system(size: 10.5))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
         // 2026-10-20 统一版式：设置页统一「浅色圆角卡片」，与常规/剪贴板页同构
         .padding(.horizontal, 12)
@@ -165,7 +165,7 @@ struct SearchSettingsPane: View {
                 // 拖拽手柄（提示这是可拖动的行）
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
             }
             Text(engine.name)
                 .font(.system(size: 13))
@@ -350,8 +350,8 @@ struct SearchSettingsPane: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12))
                 Text(L10n.t("Use {query} for search term"))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             if let message = errorMessage.wrappedValue {
                 Text(message)

@@ -157,7 +157,7 @@ public struct ClipboardFilterBarView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: kind.systemImage)
-                                    .font(.system(size: 10))
+                                    .font(.system(size: 11))
                                 Text(kind.label)
                                     .font(.system(size: 11))
                             }
@@ -411,20 +411,28 @@ public struct ClipboardRow: View {
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
-        // v110（2026-10-21 用户：「白色玻璃态要有 liquid glass 质感」）：
-        // 统一走设计系统 WhiteGlassCard——白渐变 + 斜向高光 + liquid 镀边 + 柔投影
-        // （三级玻璃 L2 内容卡层，与页面玻璃/工具条胶囊质感区分）。
-        .whiteGlassCard(Self.cardRadius)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        // v153 设计审计（用户：「剪贴板那个就不太规范」）：
+        // 旧版每条是一张带渐变+高光+投影的玻璃卡，行距 17pt —— 630pt 面板只装 4 条，
+        // 而剪贴板的任务是「扫一眼找最近那条」。按 taste-skill 的硬规则：
+        // 卡片只在高度差能表达层级时使用，否则用分隔线分组。
+        // 改为行式：整行铺满、底部 1px 分隔、hover 只换底色，不加 elevation。
+        .background(
+            isHighlighted
+                ? Theme.accent.opacity(colorScheme == .dark ? 0.20 : 0.10)
+                : Color.clear
+        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Theme.separator.opacity(0.55))
+                .frame(height: 0.5)
+        }
         // v129（内存）：移除 v112「宽度实证」的 GeometryReader 埋点——每行一个
         // GeometryReader + onAppear/onChange 各打一条 Log（字符串格式化 + 落盘），
         // 列表滚动/布局抖动时是每行每帧的分配churn（non-object 小块 + CFString），
         // 实证完成后属纯调试残留。
     }
-
-    /// 小卡片圆角（不低于 12，个性化档位可再放大）
-    private static var cardRadius: CGFloat { max(Theme.cornerRadius, 12) }
 
     /// 行底色：浅色模式白 0.86（对齐日历卡实底）/ 深色模式白 0.07；hover 提亮
     private var rowFill: Color {
@@ -567,9 +575,22 @@ public struct ClipboardThumbnailView: View {
         ClipboardImageStorage.image(relativePath: item.thumbnailPath ?? item.imagePath)
     }
 
+    // v137（性能审计 #6）：行卡文件图标缓存——NSWorkspace.icon(forFile:) 每次 body
+    // 求值都走 IconServices 查找/生成（滚动时每帧×每行），图标本身不随时间变化，
+    // 按路径缓存即可（countLimit 256，与 AppIconCache 同口径）
+    private static let fileIconCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 256
+        return c
+    }()
+
     private var fileIcon: NSImage? {
         guard item.type == .file, let path = item.content?.split(separator: "\n").first else { return nil }
-        return NSWorkspace.shared.icon(forFile: String(path))
+        let key = String(path) as NSString
+        if let hit = Self.fileIconCache.object(forKey: key) { return hit }
+        let icon = NSWorkspace.shared.icon(forFile: key as String)
+        Self.fileIconCache.setObject(icon, forKey: key)
+        return icon
     }
 
     private var symbolName: String {

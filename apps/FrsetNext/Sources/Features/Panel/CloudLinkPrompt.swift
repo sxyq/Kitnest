@@ -179,7 +179,7 @@ struct CloudLinkPromptView: View {
                 // 需登录网盘（139/189 实测无游客直链）在卡片里直接警示，
                 // 不再让用户点了才发现解析失败。
                 Text(subtitleText)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(link.requiresLogin ? Color.orange : Color.secondary)
             }
 
@@ -199,7 +199,7 @@ struct CloudLinkPromptView: View {
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(.secondary)
                     .frame(width: 20, height: 20)
                     .contentShape(Rectangle())

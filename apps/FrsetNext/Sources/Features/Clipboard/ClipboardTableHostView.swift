@@ -397,7 +397,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     /// 行卡之间的呼吸间距（v92 用户反馈「卡片之间距离过近」）：
     /// 卡片列表的观感关键——6pt 时卡卡贴边显得拥挤，10pt 拉开层次仍紧凑；
     /// 与行高档位解耦（密度变化时间距恒定，节奏不跳）。
-    private static let rowGap: CGFloat = 17   // v110：用户要求更稀疏（14→17），间隙透出玻璃底更通透
+    // v153：17 → 0。行卡改为分隔线列表后，留白由行内 padding 提供，
+    // 再留 17pt 空隙会变成「一条一条漂着」（630pt 面板只装 4 条）。
+    private static let rowGap: CGFloat = 0
 
     public func makeNSView(context: Context) -> NSScrollView {
         let scrollView = ClipboardListScrollView()

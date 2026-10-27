@@ -195,7 +195,7 @@ struct JSONInspectorRootView: View {
             // 底部状态条
             HStack {
                 Text(state.nodeCountText)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()
             }

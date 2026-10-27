@@ -787,7 +787,7 @@ struct ArchiveBrowserView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                 Text(subtitle)
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -801,7 +801,7 @@ struct ArchiveBrowserView: View {
             // v124：辅助文件显隐开关（ArcZip「显示辅助文件开关」）
             Toggle("辅助文件", isOn: $model.showAuxiliary)
                 .toggleStyle(.checkbox)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .help("__MACOSX / .DS_Store / Thumbs.db / desktop.ini / ._* ")
             TextField("搜索条目", text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
@@ -862,7 +862,7 @@ struct ArchiveBrowserView: View {
         HStack(spacing: 6) {
             Button { model.goBack() } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
             }
             .buttonStyle(.borderless)
             .disabled(model.currentPath.isEmpty)
@@ -875,13 +875,13 @@ struct ArchiveBrowserView: View {
                         if index > 0 {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 7))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(Theme.tertiaryText)
                         }
                         Button(seg.name) {
                             model.navigateTo(seg.path)
                         }
                         .buttonStyle(.borderless)
-                        .font(.system(size: 10, weight: seg.path == model.currentPath
+                        .font(.system(size: 11, weight: seg.path == model.currentPath
                                       ? .semibold : .regular))
                         .foregroundStyle(seg.path == model.currentPath
                                          ? Theme.accent : Color.secondary)
@@ -891,7 +891,7 @@ struct ArchiveBrowserView: View {
             Spacer(minLength: 0)
             if model.selection.count > 1 {
                 Text("已选 \(model.selection.count) 项")
-                    .font(.system(size: 9.5, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Theme.accent)
             }
         }
@@ -926,7 +926,7 @@ struct ArchiveBrowserView: View {
             Text("大小").frame(width: 64, alignment: .trailing)
             Text("压缩率").frame(width: 48, alignment: .trailing)
         }
-        .font(.system(size: 9.5, weight: .medium))
+        .font(.system(size: 11, weight: .medium))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
@@ -936,7 +936,7 @@ struct ArchiveBrowserView: View {
         VStack(spacing: 6) {
             Image(systemName: model.searchText.isEmpty ? "folder" : "magnifyingglass")
                 .font(.system(size: 24))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
             Text(model.searchText.isEmpty ? "此文件夹为空" : "无匹配条目")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -986,25 +986,25 @@ struct ArchiveBrowserView: View {
                     Image(systemName: model.selection.count > 1
                           ? "checkmark.circle" : "doc.text.magnifyingglass")
                         .font(.system(size: 30))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.tertiaryText)
                     // v127：多选摘要
                     Text(model.selection.count > 1
                          ? "已选 \(model.selection.count) 项"
                          : "选一个条目预览")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                     Text("文本类可直接修改并「保存到归档」；Office/PDF 走 QuickLook 预览")
-                        .font(.system(size: 9.5)).foregroundStyle(.tertiary)
+                        .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .text(let text):
                 VStack(spacing: 0) {
                     HStack {
                         Text("文本 · \(model.previewEntry?.name ?? "")")
-                            .font(.system(size: 9.5)).foregroundStyle(.secondary)
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
                         Spacer()
                         if model.editable {
                             Text(model.dirty ? "未保存" : "已同步")
-                                .font(.system(size: 9))
+                                .font(.system(size: 11))
                                 .foregroundStyle(model.dirty ? .orange : .secondary)
                         }
                     }
@@ -1020,7 +1020,7 @@ struct ArchiveBrowserView: View {
             case .image(let img):
                 VStack(spacing: 8) {
                     Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).padding(12)
-                    Text(model.previewEntry?.sizeText ?? "").font(.system(size: 9)).foregroundStyle(.tertiary)
+                    Text(model.previewEntry?.sizeText ?? "").font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .pdf(let doc):
@@ -1035,7 +1035,7 @@ struct ArchiveBrowserView: View {
                     }
                     HStack(spacing: 8) {
                         Text("Office 文档不做框内编辑（与原版一致）")
-                            .font(.system(size: 9.5)).foregroundStyle(.tertiary)
+                            .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                         Button("用默认应用打开") { NSWorkspace.shared.open(tempURL) }
                             .controlSize(.small)
                     }
@@ -1043,8 +1043,8 @@ struct ArchiveBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .unsupported(let msg):
                 VStack(spacing: 8) {
-                    Image(systemName: "eye.slash").font(.system(size: 24)).foregroundStyle(.tertiary)
-                    Text(msg).font(.system(size: 10)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Image(systemName: "eye.slash").font(.system(size: 24)).foregroundStyle(Theme.tertiaryText)
+                    Text(msg).font(.system(size: 11)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     if let entry = model.previewEntry, !entry.isDirectory {
                         Button("解压并用默认应用打开") { model.openExternally(entry) }
                             .controlSize(.small)

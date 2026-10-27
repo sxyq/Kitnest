@@ -98,7 +98,7 @@ public struct MonitorDetailView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: module.systemImage)
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                         Text(module.displayName)
                             .font(.system(size: 11, weight: .medium))
                     }
@@ -190,7 +190,7 @@ public struct MonitorDetailView: View {
             }
             MonitorRow(label: "电源", value: sample.externalPower ? "已连接适配器" : "电池供电")
             Text("数据源：AppleSmartBattery PowerTelemetryData（接电取 SystemPowerIn / 充入电池功率；放电取电池放电功率绝对值）")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -220,7 +220,7 @@ public struct MonitorDetailView: View {
                         Text(MonitorFormat.percent(sample.cpuUsage))
                             .font(.system(size: 17, weight: .semibold).monospacedDigit())
                         Text("总占用")
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -289,7 +289,7 @@ public struct MonitorDetailView: View {
     private func loadCell(_ title: String, value: Double) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Text(MonitorFormat.load(value))
                 .font(.system(size: 12, weight: .medium).monospacedDigit())
@@ -321,7 +321,7 @@ public struct MonitorDetailView: View {
                         Text(MonitorFormat.percent(sample.memoryPressure))
                             .font(.system(size: 17, weight: .semibold).monospacedDigit())
                         Text("已用")
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -346,7 +346,7 @@ public struct MonitorDetailView: View {
                 legendItem("压缩", color: MonitorColors.compressed)
                 legendItem("联动/空闲", color: MonitorColors.wired)
             }
-            .font(.system(size: 9))
+            .font(.system(size: 11))
 
             MonitorSectionTitle("使用历史")
             MonitorAreaSparkline(values: sampler.history.memory, color: MonitorColors.memory, upperBound: 1)
@@ -384,8 +384,8 @@ public struct MonitorDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.down").font(.system(size: 10))
-                            Text("下载").font(.system(size: 10))
+                            Image(systemName: "arrow.down").font(.system(size: 11))
+                            Text("下载").font(.system(size: 11))
                         }
                         .foregroundStyle(MonitorColors.download)
                         Text(MonitorFormat.rate(sample.netDownload))
@@ -395,8 +395,8 @@ public struct MonitorDetailView: View {
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.up").font(.system(size: 10))
-                            Text("上传").font(.system(size: 10))
+                            Image(systemName: "arrow.up").font(.system(size: 11))
+                            Text("上传").font(.system(size: 11))
                         }
                         .foregroundStyle(MonitorColors.upload)
                         Text(MonitorFormat.rate(sample.netUpload))
@@ -503,13 +503,13 @@ public struct MonitorDetailView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("读取").font(.system(size: 10)).foregroundStyle(MonitorColors.read)
+                    Text("读取").font(.system(size: 11)).foregroundStyle(MonitorColors.read)
                     Text(MonitorFormat.rate(sample.diskRead))
                         .font(.system(size: 14, weight: .semibold).monospacedDigit())
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("写入").font(.system(size: 10)).foregroundStyle(MonitorColors.write)
+                    Text("写入").font(.system(size: 11)).foregroundStyle(MonitorColors.write)
                     Text(MonitorFormat.rate(sample.diskWrite))
                         .font(.system(size: 14, weight: .semibold).monospacedDigit())
                 }
@@ -545,7 +545,7 @@ public struct MonitorDetailView: View {
                         legendItem("已用 \(MonitorFormat.bytes(used))", color: MonitorColors.read)
                         legendItem("可用 \(MonitorFormat.bytes(stats.diskFreeBytes))", color: .secondary)
                     }
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     MonitorRow(label: "总量", value: MonitorFormat.bytes(stats.diskTotalBytes))
                 }
             }
@@ -591,7 +591,7 @@ public struct MonitorDetailView: View {
             }
 
             Text("统计来源：IOKit IOBlockStorageDriver + NVMe SMART 插件接口（官方同源）")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
     }
@@ -611,7 +611,7 @@ public struct MonitorDetailView: View {
                     Text("未获取到传感器数据")
                         .font(.system(size: 12, weight: .medium))
                     Text("本机 SMC 不可读（常见于未授权或非 Apple 芯片环境），已优雅降级，不影响其他指标。")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -623,19 +623,19 @@ public struct MonitorDetailView: View {
                 if stats.calcAverageCPU != nil || stats.calcAverageGPU != nil {
                     MonitorSectionTitle("计算项")
                     if let v = stats.calcAverageCPU {
-                        sensorBarRow(name: "Average CPU", valueText: MonitorFormat.temperature(v),
+                        sensorBarRow(name: "CPU 平均温度", valueText: MonitorFormat.temperature(v),
                                      ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
                     }
                     if let v = stats.calcHottestCPU {
-                        sensorBarRow(name: "Hottest CPU", valueText: MonitorFormat.temperature(v),
+                        sensorBarRow(name: "CPU 最热核心", valueText: MonitorFormat.temperature(v),
                                      ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
                     }
                     if let v = stats.calcAverageGPU {
-                        sensorBarRow(name: "Average GPU", valueText: MonitorFormat.temperature(v),
+                        sensorBarRow(name: "GPU 平均温度", valueText: MonitorFormat.temperature(v),
                                      ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
                     }
                     if let v = stats.calcHottestGPU {
-                        sensorBarRow(name: "Hottest GPU", valueText: MonitorFormat.temperature(v),
+                        sensorBarRow(name: "GPU 最热核心", valueText: MonitorFormat.temperature(v),
                                      ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
                     }
                 }
@@ -659,7 +659,7 @@ public struct MonitorDetailView: View {
                             }
                             .frame(height: 6)
                             Text(StatsFormat.rpm(fan.rpm))
-                                .font(.system(size: 10).monospacedDigit())
+                                .font(.system(size: 11).monospacedDigit())
                                 .frame(width: 76, alignment: .trailing)
                         }
                     }
@@ -679,7 +679,7 @@ public struct MonitorDetailView: View {
                         MonitorCard {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.key)
-                                    .font(.system(size: 10))
+                                    .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                 Text(MonitorFormat.temperature(item.value))
@@ -758,7 +758,7 @@ public struct MonitorDetailView: View {
             }
             .frame(height: 6)
             Text(valueText)
-                .font(.system(size: 10).monospacedDigit())
+                .font(.system(size: 11).monospacedDigit())
                 .frame(width: 70, alignment: .trailing)
         }
     }
@@ -812,7 +812,7 @@ public struct MonitorDetailView: View {
                         }
                         .frame(height: 8)
                         Text("\(Int((health * 100).rounded())) %")
-                            .font(.system(size: 10).monospacedDigit())
+                            .font(.system(size: 11).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -880,7 +880,7 @@ public struct MonitorDetailView: View {
                         Text(usage.map { MonitorFormat.percent($0) } ?? "—")
                             .font(.system(size: 17, weight: .semibold).monospacedDigit())
                         Text("GPU 占用")
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -906,7 +906,7 @@ public struct MonitorDetailView: View {
                 .frame(height: 46)
 
             Text("数据来源：IOAccelerator PerformanceStatistics（Apple Silicon）")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
     }
@@ -916,14 +916,14 @@ public struct MonitorDetailView: View {
     private var footer: some View {
         HStack(spacing: 8) {
             Text("刷新间隔 \(String(format: "%.1f", MonitorPreferences.refreshInterval))s")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer()
             Button {
                 sampler.refresh()
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
             }
             .buttonStyle(.plain)
             .help("立即刷新")
@@ -931,7 +931,7 @@ public struct MonitorDetailView: View {
                 StatsBarEngine.openSettings()
             } label: {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
             }
             .buttonStyle(.plain)
             .help("菜单栏部件设置（Stats 风格：形态 / 间距 / 分隔线）")
@@ -939,7 +939,7 @@ public struct MonitorDetailView: View {
                 ServiceLocator.settings?.open(pane: "monitor")
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
             }
             .buttonStyle(.plain)
             .help("打开监测设置")
@@ -958,7 +958,7 @@ private struct StatsProcRows: View {    let items: [StatsProcItem]
             ForEach(items) { item in
                 HStack(spacing: 8) {
                     Text(item.name)
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -979,7 +979,7 @@ private struct StatsDualValue: View {
             Text(left).monospacedDigit().frame(width: 62, alignment: .trailing)
             Text(right).monospacedDigit().frame(width: 62, alignment: .trailing)
         }
-        .font(.system(size: 10))
+        .font(.system(size: 11))
     }
 }
 

@@ -592,7 +592,7 @@ public struct SearchSectionView: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: category.icon).font(.system(size: 9.5, weight: .semibold))
+                            Image(systemName: category.icon).font(.system(size: 11, weight: .semibold))
                             Text(category.title).font(.system(size: 11, weight: .medium))
                         }
                         .padding(.horizontal, 8)
@@ -673,7 +673,7 @@ public struct SearchSectionView: View {
                 if toolResults.isEmpty {
                     Text("没有匹配的工具（输入 / 查看全部）")
                         .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.tertiaryText)
                         .padding(.leading, 4)
                         .padding(.vertical, 8)
                 } else {
@@ -687,7 +687,7 @@ public struct SearchSectionView: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Text("网页 / 剪贴板 / 文件分类可在分类行右侧的眼睛按钮或设置中调整显隐。")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(Color(NSColor.tertiaryLabelColor))
                 }
                 .padding(.leading, 4)
@@ -720,7 +720,7 @@ public struct SearchSectionView: View {
                     .frame(width: 20, height: 20)
                     .overlay(
                         Image(systemName: category.icon)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(category.tint)
                     )
                 Text(category.title)
@@ -728,7 +728,7 @@ public struct SearchSectionView: View {
                     .foregroundStyle(.primary)
                 if let count {
                     Text("\(count)")
-                        .font(.system(size: 9.5, weight: .semibold).monospacedDigit())
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1.5)
@@ -736,7 +736,7 @@ public struct SearchSectionView: View {
                 }
                 if category != .all {
                     Text("查看全部")
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(Color(NSColor.tertiaryLabelColor))
                     Image(systemName: "chevron.right")
                         .font(.system(size: 7.5, weight: .semibold))
@@ -748,7 +748,7 @@ public struct SearchSectionView: View {
                         isShown.wrappedValue.toggle()
                     } label: {
                         Image(systemName: isShown.wrappedValue ? "eye" : "eye.slash")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(isShown.wrappedValue ? Color.secondary : Color.primary.opacity(0.35))
                     }
                     .buttonStyle(.plain)
@@ -800,7 +800,7 @@ public struct SearchSectionView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: engine.systemImage)
-                                .font(.system(size: 10))
+                                .font(.system(size: 11))
                             Text(WebResultScraper.supportsResultList(engine)
                                  ? engine.name
                                  : "\(engine.name) ↗")
@@ -841,7 +841,7 @@ public struct SearchSectionView: View {
                         previewArticleURL = nil
                     } label: {
                         Label("结果列表", systemImage: "chevron.left")
-                            .font(.system(size: 10.5, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -851,7 +851,7 @@ public struct SearchSectionView: View {
                         NSWorkspace.shared.open(articleURL)
                     } label: {
                         Label("浏览器打开", systemImage: "arrow.up.forward.app")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -874,7 +874,7 @@ public struct SearchSectionView: View {
                     if let engine { performWebSearch(engine) }
                 } label: {
                     Label("在浏览器中搜索", systemImage: "arrow.up.forward.app")
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 1)
@@ -899,7 +899,7 @@ public struct SearchSectionView: View {
                     if let engine { performWebSearch(engine) }
                 } label: {
                     Label("在浏览器中搜索", systemImage: "arrow.up.forward.app")
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 1)
@@ -910,14 +910,14 @@ public struct SearchSectionView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
                     Text("搜索结果 · \(engine?.name ?? "")")
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
                     Button {
                         if let engine { performWebSearch(engine) }
                     } label: {
                         Label("浏览器打开", systemImage: "arrow.up.forward.app")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -931,8 +931,8 @@ public struct SearchSectionView: View {
                             // 全部视图：单行——标题（命中高亮）+ 右侧域名
                             HStack(spacing: 8) {
                                 Image(systemName: "globe")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .frame(width: 14)
                                 highlighted(result.title,
                                             match: FuzzyMatcher.match(previewQuery, in: result.title),
@@ -941,8 +941,8 @@ public struct SearchSectionView: View {
                                     .layoutPriority(1)
                                 Spacer(minLength: 8)
                                 Text(result.host)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
                             }
@@ -959,13 +959,13 @@ public struct SearchSectionView: View {
                                     .lineLimit(1)
                                 if !result.snippet.isEmpty {
                                     Text(result.snippet)
-                                        .font(.system(size: 10.5))
+                                        .font(.system(size: 11))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(2)
                                 }
                                 Text(result.host)
-                                    .font(.system(size: 9.5))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1071,7 +1071,7 @@ public struct SearchSectionView: View {
                     selection.wrappedValue = kind
                 } label: {
                     Text(title(kind))
-                        .font(.system(size: 10, weight: selection.wrappedValue == kind ? .semibold : .regular))
+                        .font(.system(size: 11, weight: selection.wrappedValue == kind ? .semibold : .regular))
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2.5)
                         .background(Capsule().fill(selection.wrappedValue == kind
@@ -1101,7 +1101,7 @@ public struct SearchSectionView: View {
             if matches.isEmpty {
                 Text("没有匹配的剪贴板条目")
                     .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
                     .padding(.leading, 4)
                     .padding(.bottom, 2)
             } else {
@@ -1116,8 +1116,8 @@ public struct SearchSectionView: View {
                             // 全部视图：单行——标题（命中高亮）+ 右侧时间
                             HStack(spacing: 8) {
                                 Image(systemName: clipboardIcon(item.type))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .frame(width: 14)
                                 highlighted(item.title ?? item.content ?? "(空)",
                                             match: match, size: 12)
@@ -1125,8 +1125,8 @@ public struct SearchSectionView: View {
                                     .layoutPriority(1)
                                 Spacer(minLength: 8)
                                 Text(item.timestamp.formatted(.relative(presentation: .named)))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .lineLimit(1)
                             }
                             .padding(.horizontal, 8)
@@ -1146,15 +1146,15 @@ public struct SearchSectionView: View {
                                         .lineLimit(1)
                                     if let subtitle = item.subtitle, !subtitle.isEmpty {
                                         Text(subtitle)
-                                            .font(.system(size: 10))
+                                            .font(.system(size: 11))
                                             .foregroundStyle(.secondary)
                                             .lineLimit(1)
                                     }
                                 }
                                 Spacer(minLength: 0)
                                 Text(item.timestamp.formatted(.relative(presentation: .named)))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -1205,9 +1205,9 @@ public struct SearchSectionView: View {
     private var bestBadge: some View {
         HStack(spacing: 2) {
             Image(systemName: "sparkle")
-                .font(.system(size: 8, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
             Text("最佳")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
         }
         .foregroundStyle(Theme.accent)
         .padding(.horizontal, 5)
@@ -1227,7 +1227,7 @@ public struct SearchSectionView: View {
             if rows.isEmpty {
                 Text(hasSearched ? "没有匹配的文件（FSearch 模糊引擎 · Spotlight 索引范围）" : "输入文件名搜索全盘文件（支持乱序模糊匹配）")
                     .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
                     .padding(.leading, 4)
                     .padding(.bottom, 2)
             } else {
@@ -1248,8 +1248,8 @@ public struct SearchSectionView: View {
                                 if index == 0 { bestBadge }
                                 Spacer(minLength: 8)
                                 Text(result.url.deletingLastPathComponent().lastPathComponent)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
                             }
@@ -1274,7 +1274,7 @@ public struct SearchSectionView: View {
                                     // 次层级：父目录路径（灰字，中段截断）
                                     highlighted(result.url.deletingLastPathComponent().path,
                                                 match: result.pathMatch,
-                                                size: 10, color: .secondary)
+                                                size: 11, color: .secondary)
                                         .lineLimit(1)
                                         .truncationMode(.middle)
                                 }
@@ -1313,16 +1313,16 @@ public struct SearchSectionView: View {
                         // 全部视图：单行——工具名（命中高亮）+ 右侧分类
                         HStack(spacing: 8) {
                             Image(systemName: item.icon)
-                                .font(.system(size: 10))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
                                 .frame(width: 14)
                             highlighted(item.title, match: item.match, size: 12)
                                 .lineLimit(1)
                                 .layoutPriority(1)
                             Spacer(minLength: 8)
                             Text(item.subtitle ?? "")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                         }
@@ -1341,7 +1341,7 @@ public struct SearchSectionView: View {
                                     .lineLimit(1)
                                 if let subtitle = item.subtitle {
                                     Text(subtitle)
-                                        .font(.system(size: 10))
+                                        .font(.system(size: 11))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
                                 }

@@ -14,13 +14,13 @@ enum TransferChrome {
                                               @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 4) {
             Image(systemName: symbol)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(tint)
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
             Text(detail)
-                .font(.system(size: 8.5))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
             Spacer(minLength: 2)
             trailing()
         }
@@ -39,9 +39,9 @@ enum TransferChrome {
         Button(action: action) {
             HStack(spacing: 3) {
                 Image(systemName: icon)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                 Text(title)
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
             }
             .foregroundStyle(Theme.accent)
             .padding(.horizontal, 6)

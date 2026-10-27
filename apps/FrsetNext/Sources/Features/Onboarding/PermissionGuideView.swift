@@ -137,7 +137,7 @@ private struct PermissionCard: View {
                         .font(.system(size: 14, weight: .semibold))
                     if kind.isCore {
                         Text("核心")
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1.5)
                             .background(Color.accentColor.opacity(0.15), in: Capsule())
@@ -153,7 +153,7 @@ private struct PermissionCard: View {
                 FlowHStack(spacing: 5, lineSpacing: 4) {
                     ForEach(kind.features, id: \.self) { f in
                         Text(f)
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(.quaternary.opacity(0.6), in: Capsule())
@@ -188,10 +188,10 @@ private struct PermissionCard: View {
                 ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
             } else {
                 Image(systemName: status.symbol)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
             }
             Text(probing ? "检测中" : status.label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
         }
         .foregroundStyle(probing ? Color.secondary : status.tint)
     }
@@ -213,8 +213,8 @@ private struct PermissionCard: View {
                 .buttonStyle(.borderedProminent)
         case .unsupported:
             Text("当前系统不支持")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
     }
 }

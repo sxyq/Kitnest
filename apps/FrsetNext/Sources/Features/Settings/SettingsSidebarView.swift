@@ -75,7 +75,8 @@ struct SettingsSidebarView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 1) {
                     groupTitle("主页")
-                    ForEach(SettingsCategory.allCases) { category in
+                    // v153：关于不该夹在常规/剪贴板中间（macOS 惯例是整列最后一项）
+                    ForEach(SettingsCategory.allCases.filter { $0 != .about }) { category in
                         navRow(title: category.title,
                                icon: category.systemImage,
                                selected: state.selection == .category(category)) {
@@ -100,6 +101,14 @@ struct SettingsSidebarView: View {
                            icon: "menubar.rectangle",
                            selected: state.selection == .monitorWidgets) {
                         state.selection = .monitorWidgets
+                    }
+
+                    Rectangle().fill(Theme.separator).frame(height: 0.5)
+                        .padding(.horizontal, 9).padding(.vertical, 8)
+                    navRow(title: SettingsCategory.about.title,
+                           icon: SettingsCategory.about.systemImage,
+                           selected: state.selection == .category(.about)) {
+                        state.selection = .category(.about)
                     }
                 }
                 .padding(.horizontal, 9)
@@ -137,7 +146,7 @@ struct SettingsSidebarView: View {
 
     private func groupTitle(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 10.5, weight: .semibold))
+            .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(.leading, 9)
             .padding(.top, 8)
@@ -202,10 +211,10 @@ struct SettingsSidebarView: View {
                 Image(systemName: "info.circle")
                     .font(.system(size: 11))
                     .frame(width: 16)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
                 Text(verbatim: "Frset v1.0.0")
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)

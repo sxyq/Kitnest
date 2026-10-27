@@ -40,10 +40,10 @@ struct AdbPairingView: View {
                     ForEach(svc.wirelessConnected, id: \.self) { target in
                         HStack(spacing: 6) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 11))
                                 .foregroundStyle(.green)
                             Text(target)
-                                .font(.system(size: 9.5, design: .monospaced))
+                                .font(.system(size: 11, design: .monospaced))
                                 .lineLimit(1)
                             Spacer(minLength: 2)
                             TransferChrome.smallAction("断开", icon: "wifi.slash") {
@@ -62,13 +62,13 @@ struct AdbPairingView: View {
             // 手动连接（mDNS 被公司网络隔离时兜底）
             HStack(spacing: 5) {
                 Image(systemName: "network")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 TextField("手动 IP:连接端口", text: $manualTarget)
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
                     .frame(width: 150)
-                    .font(.system(size: 9.5, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                 TransferChrome.smallAction("连接", icon: "link") {
                     svc.connect(target: manualTarget)
                 }
@@ -79,7 +79,7 @@ struct AdbPairingView: View {
             // 状态提示（配对中/已连接/失败原因）
             if !svc.statusText.isEmpty {
                 Text(svc.statusText)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(svc.phase.isBusy ? Color.orange : .secondary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -118,15 +118,15 @@ struct AdbPairingView: View {
     private func discoveredRow(_ dev: AdbPairingService.DiscoveredDevice) -> some View {
         HStack(spacing: 6) {
             Image(systemName: dev.needsPairing ? "exclamationmark.triangle.fill" : "link")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(dev.needsPairing ? Color.orange : Color.green)
             VStack(alignment: .leading, spacing: 0) {
                 Text(dev.name)
-                    .font(.system(size: 9.5, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .lineLimit(1)
                 Text("\(dev.target) · \(dev.serviceType)")
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.tertiaryText)
                     .lineLimit(1)
             }
             Spacer(minLength: 2)
@@ -155,7 +155,7 @@ struct AdbPairingView: View {
             Text("输入配对码")
                 .font(.system(size: 13, weight: .semibold))
             Text("手机「开发者选项 → 无线调试 → 使用配对码配对设备」\n弹窗显示 IP:端口 与 6 位配对码")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             TextField("IP:配对端口", text: $pairTarget)

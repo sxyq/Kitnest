@@ -146,8 +146,8 @@ struct TransferDockView: View {
             transferTab = index
         } label: {
             HStack(spacing: 3) {
-                Image(systemName: icon).font(.system(size: 8.5))
-                Text(title).font(.system(size: 10.5, weight: on ? .semibold : .regular))
+                Image(systemName: icon).font(.system(size: 11))
+                Text(title).font(.system(size: 11, weight: on ? .semibold : .regular))
             }
             .foregroundStyle(on ? Color.white : Color.secondary)
             .frame(maxWidth: .infinity)
@@ -166,12 +166,12 @@ struct TransferDockView: View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 5) {
                 Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(Theme.accent)
                 Text(selectedIDs.isEmpty
                      ? "先在下方暂存里勾选文件"
                      : "已选 \(selectedIDs.count) 项，选对方是什么设备")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(selectedIDs.isEmpty ? Color.secondary : Theme.accent)
                 Spacer(minLength: 2)
                 smallAction("添加文件", icon: "plus") { addFilesToStaging() }
@@ -179,14 +179,19 @@ struct TransferDockView: View {
 
             // v120（用户：「应该就分为两种设备」）：只留两类目标；
             // ADB 从主入口降级为下面一行次要链接（它要开发者选项，日常太麻烦）。
-            HStack(spacing: 8) {
-                deviceCard("苹果设备", subtitle: "隔空投送 · 零安装", icon: "dot.radiowaves.left.and.right",
-                           tint: Color(red: 0.15, green: 0.55, blue: 0.95)) {
+            // v153 设计审计（用户：「中转以及传输那些都不太好」）：
+            // 旧版把「怎么发」拆成三种语汇——两张渐变大卡（苹果/安卓）+ 一行 8.5pt
+            // 灰字里的「ADB 直传」文字链。同一决策三种控件、主按钮不唯一。
+            // 现在收敛成一行等宽 chip：同一层级、同一尺寸、同一字号。
+            HStack(spacing: 6) {
+                sendChip("隔空投送", icon: "dot.radiowaves.left.and.right", help: "苹果设备 · 零安装") {
                     sendViaAirDrop()
                 }
-                deviceCard("安卓 / 其他", subtitle: "扫码即传 · 零安装", icon: "qrcode",
-                           tint: Color(red: 0.60, green: 0.40, blue: 0.95)) {
+                sendChip("扫码直传", icon: "qrcode", help: "安卓/其他 · 浏览器扫码接收") {
                     sendViaBrowser()
+                }
+                sendChip("ADB 直传", icon: "cable.connector", help: "大文件/批量更快 · 需开发者选项") {
+                    sendViaADB()
                 }
             }
 
@@ -205,10 +210,10 @@ struct TransferDockView: View {
                     .frame(height: 5)
                     HStack(spacing: 4) {
                         Text("\(Int(pushFraction * 100))%")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundStyle(Theme.accent)
                         Text(pushDetail)
-                            .font(.system(size: 8.5))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                         Spacer(minLength: 0)
@@ -216,62 +221,45 @@ struct TransferDockView: View {
                 }
             } else if !adbFileStatus.isEmpty {
                 Text(adbFileStatus)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 5) {
-                Text("大文件/批量走 ADB 更快（需开发者选项）")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
-                Button("ADB 直传") { sendViaADB() }
-                    .font(.system(size: 8.5, weight: .medium))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Theme.accent)
-                Spacer(minLength: 0)
-            }
-            .padding(.top, 1)
+            // ADB 已是 chip：说明进 tooltip，不再占一行小灰字
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
     }
 
-    /// 目标设备卡（两类设备各一张，比原三出口卡更大更好点）
-    private func deviceCard(_ title: String, subtitle: String, icon: String,
-                            tint: Color, action: @escaping () -> Void) -> some View {
+    /// 发送方式 chip（v153）：同层级、等宽、单行，图标与文字同字号。
+    /// 旧的 deviceCard 是「渐变底 + 38pt 圆形图标 + 两行文案」的 landing page 卡，
+    /// 在 360pt 面板里既占地方又抢主按钮的位置。
+    private func sendChip(_ title: String, icon: String, help: String,
+                          action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 5) {
-                ZStack {
-                    Circle()
-                        .fill(tint.opacity(0.16))
-                        .frame(width: 38, height: 38)
-                    Image(systemName: icon)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(tint)
-                }
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .medium))
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 11, weight: .medium))
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
-                Text(subtitle)
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.primary.opacity(0.035),
-                        in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .padding(.vertical, 7)
+            .background(Color.primary.opacity(0.05),
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .strokeBorder(tint.opacity(0.20), lineWidth: 1)
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help("\(title) · \(subtitle)")
+        .help(help)
+        .accessibilityLabel("\(title)：\(help)")
     }
 
     /// v120 修复：暂存项的实际可发路径。
@@ -358,7 +346,7 @@ struct TransferDockView: View {
                        title: "隔空投送",
                        detail: "iPhone / iPad 投过来，自动进暂存") {
                 Text("已监听")
-                    .font(.system(size: 8.5, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Color.green)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -378,21 +366,21 @@ struct TransferDockView: View {
             }
             if !adbFileStatus.isEmpty {
                 Text(adbFileStatus)
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
             Text("收到的文件都进下方「本地暂存」，不会散落在下载目录。")
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
             // v120：安卓没有 AWDL（隔空投送是苹果私有协议），只能经本机中转
             HStack(alignment: .top, spacing: 4) {
                 Image(systemName: "arrow.triangle.swap")
-                    .font(.system(size: 8))
+                    .font(.system(size: 11))
                     .foregroundStyle(Theme.accent.opacity(0.8))
                 Text("安卓传给 iPhone：先扫码传到本机暂存，勾选它再点「苹果设备」空投出去（安卓无法直接空投苹果）。")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -409,12 +397,12 @@ struct TransferDockView: View {
                     .fill(tint.opacity(0.16))
                     .frame(width: 22, height: 22)
                 Image(systemName: icon)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(tint)
             }
             VStack(alignment: .leading, spacing: 0) {
-                Text(title).font(.system(size: 10, weight: .medium))
-                Text(detail).font(.system(size: 8.5)).foregroundStyle(.tertiary).lineLimit(1)
+                Text(title).font(.system(size: 11, weight: .medium))
+                Text(detail).font(.system(size: 11)).foregroundStyle(Theme.tertiaryText).lineLimit(1)
             }
             Spacer(minLength: 4)
             trailing()
@@ -452,12 +440,12 @@ struct TransferDockView: View {
             VStack(spacing: 6) {
                 Image(systemName: "icloud.slash")
                     .font(.system(size: 20))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.tertiaryText)
                 Text("云端中转未启用")
                     .font(.system(size: 11, weight: .medium))
                 Text("设置 → 文件中转 → 云端中转（需要 OPPO 中转桥接工程）")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .multilineTextAlignment(.center)
                 Button("去设置") { openSettings() }
                     .controlSize(.small)
@@ -474,39 +462,46 @@ struct TransferDockView: View {
             Image(systemName: "arrow.left.arrow.right.square")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-            Text("文件中转")   // v114：投屏拆出后本页只做文件传输（用户定名「文件传输这边只仅限」）
+            Text("文件中转")   // v114：投屏拆出后本页只做文件传输
                 .font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 6)
-            Button {
-                if showsCloud { service.refresh() }
-                local.objectWillChange.send()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 12))
-            }
-            .buttonStyle(.borderless)
-            .disabled(service.isLoading)
-            .help("刷新")
-
-            if showsCloud {
+            // v153 设计审计：原来是刷新 / 登录 / 齿轮三个无标签图标并排，
+            // 其中齿轮与窗口右上角的全局齿轮职责重叠（一个开设置、一个也开设置）。
+            // 收进一个「⋯」菜单，顶部只留一个可点目标。
+            Menu {
                 Button {
-                    showsLogin = true
+                    if showsCloud { service.refresh() }
+                    local.objectWillChange.send()
                 } label: {
-                    Image(systemName: service.loggedIn ? "person.crop.circle" : "person.crop.circle.badge.plus")
-                        .font(.system(size: 12))
+                    Label("刷新", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.borderless)
-                .help(service.loggedIn ? "重新登录云端" : "登录云端中转")
-            }
+                .disabled(service.isLoading)
 
-            Button {
-                openSettings()
+                if showsCloud {
+                    Button {
+                        showsLogin = true
+                    } label: {
+                        Label(service.loggedIn ? "重新登录云端" : "登录云端中转",
+                              systemImage: service.loggedIn ? "person.crop.circle" : "person.crop.circle.badge.plus")
+                    }
+                }
+
+                Divider()
+                Button {
+                    openSettings()
+                } label: {
+                    Label("文件中转设置…", systemImage: "gearshape")
+                }
             } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 12))
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
-            .help("文件中转设置")
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("更多操作")
+            .accessibilityLabel("更多操作")
         }
         .padding(.horizontal, 14)
         .frame(height: 38)
@@ -551,20 +546,20 @@ struct TransferDockView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "iphone.and.arrow.forward")
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(lan.running ? Theme.accent : Color.secondary)
                 Text("手机扫码直传")
                     .font(.system(size: 11, weight: .semibold))
                 Text(lan.running ? "同一 Wi-Fi" : "未启动")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                 Spacer(minLength: 2)
                 Button {
                     withAnimation(.easeInOut(duration: 0.16)) { lanCollapsed.toggle() }
                 } label: {
                     Image(systemName: lanCollapsed ? "chevron.down" : "chevron.up")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.tertiaryText)
                         .frame(width: 16, height: 16)
                         .contentShape(Rectangle())
                 }
@@ -583,7 +578,7 @@ struct TransferDockView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if let url = lan.shareURL {
                             Text(url)
-                                .font(.system(size: 9.5, design: .monospaced))
+                                .font(.system(size: 11, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
@@ -597,12 +592,12 @@ struct TransferDockView: View {
                             Text(lan.running
                                  ? "微信/相机扫一扫 → 浏览器里选文件上传，也能下载 Mac 上的暂存文件"
                                  : "勾选文件后点「扫码直传」生成二维码；如需手机上传可手动启动")
-                                .font(.system(size: 8.5))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
                                 .fixedSize(horizontal: false, vertical: true)
                         } else {
                             Text(lan.statusText.isEmpty ? "服务未启动 · 勾选文件后点「扫码直传」" : lan.statusText)
-                                .font(.system(size: 9.5))
+                                .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                             smallAction("启动直传", icon: "play.fill") {
@@ -611,8 +606,8 @@ struct TransferDockView: View {
                         }
                         if lan.receivedCount > 0 || lan.sentCount > 0 {
                             Text("本次已收 \(lan.receivedCount) · 已发 \(lan.sentCount)")
-                                .font(.system(size: 8.5))
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -633,8 +628,8 @@ struct TransferDockView: View {
     private func smallAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 3) {
-                Image(systemName: icon).font(.system(size: 8.5))
-                Text(title).font(.system(size: 9.5, weight: .medium))
+                Image(systemName: icon).font(.system(size: 11))
+                Text(title).font(.system(size: 11, weight: .medium))
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 2.5)
@@ -677,7 +672,7 @@ struct TransferDockView: View {
                 }
             }
             Text("发送：调系统空投面板选 iPhone；接收：iPhone 空投到本机，落盘后自动进入「本地暂存」。")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
@@ -716,13 +711,13 @@ struct TransferDockView: View {
                     installAPK()
                 }
                 Text("需先在「投屏」页连接设备（USB 或无线）；推送目标 Download/FrsetNext/，拉取同目录入暂存。")
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !adbFileStatus.isEmpty {
                 Text(adbFileStatus)
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(4)
             }
@@ -843,12 +838,12 @@ struct TransferDockView: View {
                             .fill(Color.green)
                             .frame(width: 5, height: 5)
                         Text("实时")
-                            .font(.system(size: 8.5))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
                         if !service.files.isEmpty {
                             Text("\(service.files.count)")
-                                .font(.system(size: 9.5, weight: .medium).monospacedDigit())
-                                .foregroundStyle(.tertiary)
+                                .font(.system(size: 11, weight: .medium).monospacedDigit())
+                                .foregroundStyle(Theme.tertiaryText)
                         }
                     }
                 }
@@ -865,13 +860,13 @@ struct TransferDockView: View {
             HStack(spacing: 6) {
                 if service.isUploading { ProgressView().controlSize(.mini) }
                 Text(cloudStatus)
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: 2)
                 Button("上传") { pickAndUpload() }
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .buttonStyle(.borderless)
                     .disabled(!service.loggedIn || service.isUploading)
             }
@@ -909,8 +904,8 @@ struct TransferDockView: View {
             LazyVStack(spacing: 1) {
                 if service.files.isEmpty && !service.isLoading {
                     Text("空")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 18)
                 }
@@ -937,14 +932,14 @@ struct TransferDockView: View {
         VStack(spacing: 6) {
             Image(systemName: "icloud.slash")
                 .font(.system(size: 18, weight: .light))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
             Text("未登录云端")
                 .font(.system(size: 11, weight: .medium))
             Text("登录后可跨设备取回")
-                .font(.system(size: 9.5))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Button("登录") { showsLogin = true }
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
         }
@@ -989,7 +984,7 @@ struct TransferDockView: View {
                         }
                     } label: {
                         Text(selectedIDs.count == local.items.count ? "清选" : "全选")
-                            .font(.system(size: 9.5, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                     }
                     .buttonStyle(.borderless)
                     .help("勾选全部条目（勾选后可批量扫码直传 / 加入云端）")
@@ -999,7 +994,7 @@ struct TransferDockView: View {
                         selectedIDs.removeAll()
                     } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 9.5))
+                            .font(.system(size: 11))
                     }
                     .buttonStyle(.borderless)
                     .help("清空本地中转（不删原文件）")
@@ -1017,18 +1012,18 @@ struct TransferDockView: View {
                 HStack(spacing: 6) {
                     if let error = local.lastError {
                         Text(error)
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                     } else {
                         Text(local.lastMessage.isEmpty ? "拖入即存 · 拖出即用" : local.lastMessage)
-                            .font(.system(size: 9))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 2)
                     Button("打开目录") { local.openStagingFolder() }
-                        .font(.system(size: 9.5, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .buttonStyle(.borderless)
                 }
                 .padding(.horizontal, 8)
@@ -1049,7 +1044,7 @@ struct TransferDockView: View {
     private var selectionBar: some View {
         HStack(spacing: 6) {
             Text("已选 \(selectedIDs.count) 项")
-                .font(.system(size: 9.5, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.accent)
             Spacer(minLength: 2)
             smallAction("通用互传", icon: "qrcode") { showPickQR() }
@@ -1138,7 +1133,7 @@ struct TransferDockView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.tertiaryText)
                     }
                     .buttonStyle(.plain)
                 }
@@ -1146,13 +1141,13 @@ struct TransferDockView: View {
                 Text(selectedIDs.isEmpty
                      ? "手机扫码后，可在网页里把文件传给你，也能下载暂存里的全部文件"
                      : "手机扫码后可直接下载这 \(selectedIDs.count) 个文件")
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("前提：手机与本机连同一个 Wi-Fi（扫码走局域网，不经服务器）")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
@@ -1185,11 +1180,11 @@ struct TransferDockView: View {
         VStack(spacing: 5) {
             Image(systemName: "arrow.down.doc")
                 .font(.system(size: 20, weight: .light))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
             Text("拖文件到这里")
                 .font(.system(size: 11, weight: .medium))
             Text("不占双份空间；手机上传的也落在这里")
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1245,13 +1240,13 @@ struct TransferDockView: View {
                                                @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 4) {
             Image(systemName: symbol)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(tint)
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
             Text(detail)
-                .font(.system(size: 8.5))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
             Spacer(minLength: 2)
             trailing()
         }
@@ -1268,7 +1263,7 @@ struct TransferDockView: View {
                 .strokeBorder(Theme.accent.opacity(0.45),
                               style: StrokeStyle(lineWidth: 1.2, dash: [5, 3]))
             Text(text)
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
         }
         .padding(4)
@@ -1367,8 +1362,8 @@ private struct CloudRowView: View, Equatable {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text("\(file.sizeText) · \(file.dateText)")
-                    .font(.system(size: 8.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
@@ -1447,13 +1442,13 @@ private struct LocalCardRowView: View, Equatable {
                 .help("勾选后可批量扫码直传 / 加入云端")
             }
             Text(item.name)
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 4) {
                 Text(item.sizeText)
-                    .font(.system(size: 8.5, design: .rounded))
+                    .font(.system(size: 11, design: .rounded))
                 Spacer(minLength: 0)
                 if hovered {
                     TransferRowStyle.miniButton("folder", help: "在 Finder 中显示") {
@@ -1467,7 +1462,7 @@ private struct LocalCardRowView: View, Equatable {
                         .font(.system(size: 7.5))
                 }
             }
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(Theme.tertiaryText)
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1571,7 +1566,7 @@ private enum TransferRowStyle {
     static func miniButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: name)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(width: 14, height: 14)
                 .contentShape(Rectangle())

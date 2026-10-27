@@ -79,7 +79,7 @@ struct PortOccupancySection: View {
 
     private func chip(_ text: String, color: Color, active: Bool = false, action: (() -> Void)? = nil) -> some View {
         let label = Text(text)
-            .font(.system(size: 10, weight: .semibold).monospacedDigit())
+            .font(.system(size: 11, weight: .semibold).monospacedDigit())
             .foregroundStyle(color)
             .padding(.horizontal, 7)
             .padding(.vertical, 2.5)
@@ -111,7 +111,7 @@ struct PortOccupancySection: View {
                     .frame(width: 50, alignment: .leading)
 
                 Text(item.proto)
-                    .font(.system(size: 8.5, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(item.proto == "TCP" ? MonitorColors.download : MonitorColors.memory)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1.5)
@@ -128,7 +128,7 @@ struct PortOccupancySection: View {
                 Spacer(minLength: 4)
 
                 Text(item.addressLabel)
-                    .font(.system(size: 10, weight: .regular).monospaced())
+                    .font(.system(size: 11, weight: .regular).monospaced())
                     .foregroundStyle(item.isExposed ? MonitorColors.upload : Color.secondary.opacity(0.75))
                     .lineLimit(1)
                     .layoutPriority(1)
@@ -153,7 +153,7 @@ struct PortOccupancySection: View {
         HStack(spacing: 6) {
             Image(systemName: inspector.isScanning ? "hourglass" : "checkmark.shield")
                 .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Theme.tertiaryText)
             Text(inspector.isScanning ? "检测中…" : (onlyExposed ? "没有对局域网开放的端口" : "未检测到监听端口"))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -166,15 +166,15 @@ struct PortOccupancySection: View {
     private var footer: some View {
         HStack(spacing: 6) {
             Text("对外 = 同一局域网可访问")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
             Spacer(minLength: 4)
             if filtered.count > 6 {
                 Button {
                     showAll.toggle()
                 } label: {
                     Text(showAll ? "收起" : "全部 \(filtered.count)")
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(MonitorColors.download)
                 }
                 .buttonStyle(.plain)
@@ -187,7 +187,7 @@ struct PortOccupancySection: View {
             inspector.scan(force: true)
         } label: {
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .rotationEffect(.degrees(inspector.isScanning ? 360 : 0))
                 .animation(inspector.isScanning

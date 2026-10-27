@@ -551,8 +551,8 @@ struct PreviewTOCSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("目录")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.tertiaryText)
                 .padding(.horizontal, 12)
                 .padding(.top, 10)
                 .padding(.bottom, 6)
@@ -711,7 +711,7 @@ struct PreviewImageView: View {
                     .frame(maxHeight: 120)
             } else if let ocrError {
                 Text(ocrError)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10)
@@ -755,21 +755,21 @@ struct PreviewImageView: View {
             if ocrBusy {
                 ProgressView().controlSize(.mini)
                 Text("识别中…")
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else if !ocrText.isEmpty {
                 smallAction("复制文本", icon: "doc.on.doc", prominent: true) { copyOCR() }
                 smallAction("重新识别", icon: "arrow.clockwise") { recognizeNow() }
                 Spacer(minLength: 4)
                 Text("\(ocrText.count) 字")
-                    .font(.system(size: 9.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             } else {
                 smallAction("识别文本", icon: "text.viewfinder") { recognizeNow() }
                 Spacer(minLength: 4)
                 Text(ocrHint)
-                    .font(.system(size: 9.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
                     .lineLimit(1)
             }
         }
@@ -786,9 +786,9 @@ struct PreviewImageView: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                 Text(title)
-                    .font(.system(size: 10.5, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(prominent ? Color.white : Color.primary.opacity(0.85))
             .padding(.horizontal, 9)
@@ -941,7 +941,7 @@ struct PreviewFileView: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .lineLimit(1)
                             Text(path)
-                                .font(.system(size: 10))
+                                .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 .truncationMode(.middle)

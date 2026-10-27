@@ -392,7 +392,7 @@ struct CloudLinkCenterView: View {
                 Text("\(link.provider.displayName) · 链接解析")
                     .font(.system(size: 14, weight: .semibold))
                 Text(link.url.absoluteString)
-                    .font(.system(size: 10.5, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -447,19 +447,19 @@ struct CloudLinkCenterView: View {
 
             if !tester.summary.isEmpty {
                 Text(tester.summary)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             Text("说明：解析依赖网盘页面登录态，检测只验证链接与脚本配置；实际取直链在「开始解析」后由网页解析器完成。")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
     }
 
     private func stateIcon(_ state: CloudLinkCheck.State) -> some View {
         Group {
             switch state {
-            case .pending: Image(systemName: "circle.dotted").foregroundStyle(.tertiary)
+            case .pending: Image(systemName: "circle.dotted").foregroundStyle(Theme.tertiaryText)
             case .running: Image(systemName: "clock").foregroundStyle(.secondary)
             case .ok: Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
             case .warn: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -672,8 +672,8 @@ struct CloudLinkCenterView: View {
                 Text(title)
                     .font(.system(size: 11, weight: .medium))
                 Text(hint)
-                    .font(.system(size: 9.5))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             content()
         }
@@ -697,7 +697,7 @@ struct CloudLinkCenterView: View {
                         Spacer(minLength: 2)
                         if active {
                             Text("当前")
-                                .font(.system(size: 9))
+                                .font(.system(size: 11))
                                 .foregroundStyle(Color(nsColor: provider.tint))
                         }
                     }
@@ -711,8 +711,8 @@ struct CloudLinkCenterView: View {
                 }
             }
             Text("域名规则来自 LinkSwift v1.1.3 的 @match（AGPL-3.0）。解析失败时请先在网页解析器里登录对应网盘。")
-                .font(.system(size: 9.5))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
     }
 
@@ -721,7 +721,7 @@ struct CloudLinkCenterView: View {
     private var footer: some View {
         HStack(spacing: 8) {
             Text(link.isSharePage ? "分享页" : "非分享页")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer()
             Button("开始解析下载") {

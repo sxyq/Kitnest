@@ -274,9 +274,9 @@ struct ClipboardPreviewWindowView: View {
     private var hintBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "keyboard")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
             Text("Click or Space to preview · 单击或按空格预览")
-                .font(.system(size: 10))
+                .font(.system(size: 11))
             Spacer()
         }
         .foregroundStyle(.secondary)

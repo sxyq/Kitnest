@@ -134,12 +134,16 @@ struct StatisticsSettingsPane: View {
     @Stored private var lastActionResult: String? = nil
     @Stored private var lastActionFailed = false
     @Stored private var isBusy = false
+    /// v115：图表刷新纪元——「刷新统计」时 +1 强制 StatisticsChartsView 重建重拉
+    @Stored private var chartsEpoch = 0
 
     /// 导入前的确认弹窗（spec 18 F8：Import Settings Confirm Title/Message）
     @Stored private var pendingImportURL: URL? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // v115：与用量统计窗同源的三层图表（指标卡 / 总览+30 天柱状 / 活动热力图）
+            chartsSection
             metricsSection
             featureSection
             reviewSection
@@ -152,6 +156,36 @@ struct StatisticsSettingsPane: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("导入会用配置文件中的偏好设置覆盖当前设置，统计数据按较大值合并（不会削减已有计数）。")
+        }
+    }
+
+    // MARK: 用量图表（v115：复用统计窗 StatisticsChartsView，同源数据装载）
+
+    private var chartsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("用量图表")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("与「使用统计」窗同源 · 数据仅存储在本机")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
+                Spacer()
+                Button("刷新") {
+                    refresh()
+                    chartsEpoch += 1
+                }
+                .controlSize(.small)
+                .disabled(isBusy)
+            }
+            StatisticsChartsView()
+                .id(chartsEpoch)
+                .padding(12)
+                .background(Color(NSColor.textBackgroundColor).opacity(0.5),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                )
         }
     }
 
@@ -201,10 +235,13 @@ struct StatisticsSettingsPane: View {
                 }
                 SettingsDivider()
                 SettingsRow(icon: "arrow.clockwise", title: "刷新统计",
-                            subtitle: "重新读取统计库与剪贴板库") {
-                    Button("刷新") { refresh() }
-                        .controlSize(.small)
-                        .disabled(isBusy)
+                            subtitle: "重新读取统计库与剪贴板库（含上方图表）") {
+                    Button("刷新") {
+                        refresh()
+                        chartsEpoch += 1
+                    }
+                    .controlSize(.small)
+                    .disabled(isBusy)
                 }
             }
         }

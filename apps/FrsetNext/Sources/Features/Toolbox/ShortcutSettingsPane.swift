@@ -99,7 +99,7 @@ public struct ShortcutSettingsPane: View {
                             .font(.system(size: 11))
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 8, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 9)

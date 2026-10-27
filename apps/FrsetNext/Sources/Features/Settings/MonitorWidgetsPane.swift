@@ -104,7 +104,7 @@ struct MonitorWidgetsPane: View {
         SettingsSection(title: "布局") {
             SettingsGroupBox {
                 SettingsRow(title: "合并模块",
-                           subtitle: "关闭后每个部件各自占用一个菜单栏图标；开启后合并为一条，可调间距") {
+                           subtitle: "拆分模式部件间隙由系统固定（每项 16pt）无法收紧；要更紧密的间距请开启合并") {
                     Toggle("", isOn: mergedBinding)
                         .toggleStyle(.switch)
                         .labelsHidden()
@@ -113,16 +113,17 @@ struct MonitorWidgetsPane: View {
                 SettingsDivider()
                 // v89（2026-10-20 用户：「各个部件的间距用统一的一个设置」）：
                 // 一个间距设置统一作用于所有部件内部间隙 + 合并条部件间距（不再各处分散）
+                // v134：点击菜单 → 滑条（0–24pt、0.5 步进 = 49 档；原 0–12pt 13 档）
                 SettingsRow(title: "部件间距",
-                           subtitle: "统一作用于所有部件（图标/标签/数值间隙）与合并后的部件间距") {
-                    Picker("", selection: spacingBinding) {
-                        ForEach(Self.spacingItems, id: \.0) { item in
-                            Text(item.1).tag(item.0)
-                        }
+                           subtitle: "合并模式下部件间实际间隙 = 左右内边距 + 该值（引擎同步作用于部件内部间隙）") {
+                    HStack(spacing: 8) {
+                        Slider(value: spacingSliderBinding, in: 0...24, step: 0.5)
+                            .frame(width: 150)
+                        Text("\(spacingValueText) pt")
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 46, alignment: .trailing)
                     }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .fixedSize()
                 }
                 if FSBarMergedEnabled() {
                     SettingsDivider()
@@ -191,21 +192,24 @@ struct MonitorWidgetsPane: View {
                             }
                         }
                     }
+                    // v134：点击菜单 → 滑条（1–60 秒，60 档）
                     optionRow("更新间隔") {
-                        Picker("", selection: intervalBinding(module)) {
-                            ForEach(Self.intervalItems, id: \.value) { item in
-                                Text(item.label).tag(item.value)
-                            }
+                        HStack(spacing: 8) {
+                            Slider(value: intervalBinding(module), in: 1...60, step: 1)
+                                .frame(width: 130)
+                            Text("\(Int(intervalBinding(module).wrappedValue)) 秒")
+                                .font(.system(size: 11).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .frame(width: 40, alignment: .trailing)
                         }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
-                        .fixedSize()
                     }
                     if module == "Sensors" {
                         optionRow("传感器") {
+                            // v129：选择器标签走中文名表（TPDA → 温度传感器（TPDA） 等），
+                            // tag 仍为原始键（配置持久化不变）
                             Picker("", selection: sensorBinding(module)) {
                                 ForEach(sensorKeys(module), id: \.self) { key in
-                                    Text(key).tag(key)
+                                    Text(StatsDataProvider.sensorDisplayName(key)).tag(key)
                                 }
                             }
                             .pickerStyle(.menu)
@@ -245,7 +249,9 @@ struct MonitorWidgetsPane: View {
                     Image(nsImage: preview)
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 11)
+                        // v132：11→14pt——配合引擎紧裁（去掉 pad 留白），
+                        // 有效图形面积约为原 11pt 全幅显示的 2 倍，且 2x 采样保清晰
+                        .frame(height: 14)
                 }
                 Text(cachedFormNames[form] ?? form)
                     .font(.system(size: 11))
@@ -278,8 +284,8 @@ struct MonitorWidgetsPane: View {
                 ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
                     if !group.title.isEmpty {
                         Text(group.title)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.tertiary)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Theme.tertiaryText)
                             .textCase(.uppercase)
                             .padding(.top, 4)
                     }
@@ -309,6 +315,17 @@ struct MonitorWidgetsPane: View {
             .pickerStyle(.menu)
             .labelsHidden()
             .fixedSize()
+        case .slider(let key, let def, let min, let max, let step, let unit):
+            // v134：数值滑条（步进对齐后写回整数串；标签实时显示当前值）
+            HStack(spacing: 8) {
+                Slider(value: numericStringBinding(module: module, form: form, key: key, def: def, min: min, max: max, step: step),
+                       in: min...max, step: step)
+                    .frame(width: 130)
+                Text("\(numericValueText(module: module, form: form, key: key, def: def))\(unit)")
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .trailing)
+            }
         case .color(let key, let def):
             ColorKeyControl(module: module, form: form, key: key, def: def) { bump() }
         }
@@ -339,7 +356,7 @@ struct MonitorWidgetsPane: View {
                     Spacer()
                     Text("\(modules.count) 个模块")
                         .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.tertiaryText)
                 }
                 .padding(.vertical, 6)
             }
@@ -373,16 +390,26 @@ struct MonitorWidgetsPane: View {
                 })
     }
 
-    private var spacingBinding: Binding<String> {
-        Binding(get: {
-            if let v = FSBarGlobalRaw("Widgets_spacing") as? String, !v.isEmpty { return v }
-            return (FSBarGlobalRaw("CombinedModules_spacing") as? String) ?? "2"
-        }, set: { value in
-            FSBarGlobalSet("Widgets_spacing", value)
-            FSBarGlobalSet("CombinedModules_spacing", value)   // 迁移兼容：旧读点同步
+    /// v134：部件间距滑条绑定（0–24pt、0.5 步进；存储仍为字符串，引擎 doubleValue 解析）
+    private var spacingSliderBinding: Binding<Double> {
+        Binding(get: { Self.spacingValueFromStore }, set: { value in
+            let s = String(format: "%.1f", value)
+            FSBarGlobalSet("Widgets_spacing", s)
+            FSBarGlobalSet("CombinedModules_spacing", s)   // 迁移兼容：旧读点同步
             FSBarReloadFromStore()
             bump()
         })
+    }
+
+    private var spacingValueText: String {
+        let v = Self.spacingValueFromStore
+        return v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
+    }
+
+    private static var spacingValueFromStore: Double {
+        if let v = FSBarGlobalRaw("Widgets_spacing") as? String, !v.isEmpty, let d = Double(v) { return d }
+        if let v = FSBarGlobalRaw("CombinedModules_spacing") as? String, let d = Double(v) { return d }
+        return 2
     }
 
     private var separatorBinding: Binding<Bool> {
@@ -426,10 +453,33 @@ struct MonitorWidgetsPane: View {
                 })
     }
 
-    private func intervalBinding(_ module: String) -> Binding<Int> {
-        Binding(get: { Int(FSBarCfgInt(module, nil, "updateInterval", 1)) },
+    // MARK: v134：数值滑条绑定（存储为字符串的数值选项）
+
+    private func numericStringBinding(module: String, form: String, key: String, def: String,
+                                      min: Double, max: Double, step: Double) -> Binding<Double> {
+        Binding(get: {
+            let raw = FSBarCfgStr(module, form, key, def) ?? def
+            let v = Double(raw) ?? (Double(def) ?? min)
+            return Swift.min(max, Swift.max(min, v))
+        }, set: { value in
+            let aligned = (value / step).rounded() * step
+            FSBarCfgSet(module, form, key, String(format: "%.0f", aligned))
+            FSBarReloadFromStore()
+            bump()
+        })
+    }
+
+    private func numericValueText(module: String, form: String, key: String, def: String) -> String {
+        let raw = FSBarCfgStr(module, form, key, def) ?? def
+        let v = Double(raw) ?? (Double(def) ?? 0)
+        return v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
+    }
+
+    /// v134：更新间隔滑条绑定（1–60 秒；原 8 档菜单）
+    private func intervalBinding(_ module: String) -> Binding<Double> {
+        Binding(get: { Double(FSBarCfgInt(module, nil, "updateInterval", 1)) },
                 set: { value in
-                    FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: value))
+                    FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: Int(value.rounded())))
                     FSBarReloadFromStore()
                     bump()
                 })
@@ -470,6 +520,8 @@ struct OptionSpec {
         case toggle(key: String, def: Bool)
         case menu(key: String, items: [(String, String)], def: String)
         case color(key: String, def: String)
+        /// v134：数值滑条（存储仍为字符串；step 对齐后写回整数串）
+        case slider(key: String, def: String, min: Double, max: Double, step: Double, unit: String)
     }
     let title: String
     let kind: Kind
@@ -483,6 +535,11 @@ struct OptionSpec {
     static func color(_ title: String, _ key: String, _ def: String = "system") -> OptionSpec {
         OptionSpec(title: title, kind: .color(key: key, def: def))
     }
+    /// v134：数值滑条（如 历史点数 10–120）
+    static func slider(_ title: String, _ key: String, _ def: String,
+                       _ min: Double, _ max: Double, _ step: Double, unit: String = "") -> OptionSpec {
+        OptionSpec(title: title, kind: .slider(key: key, def: def, min: min, max: max, step: step, unit: unit))
+    }
 }
 
 struct OptionGroup {
@@ -494,26 +551,13 @@ struct OptionGroup {
 
 extension MonitorWidgetsPane {
 
-    static let intervalItems: [(value: Int, label: String)] = [
-        (1, "1 秒"), (2, "2 秒"), (3, "3 秒"), (5, "5 秒"),
-        (10, "10 秒"), (15, "15 秒"), (30, "30 秒"), (60, "60 秒")
-    ]
-
-    /// v89 统一间距档位（pt；Widgets_spacing，作用于所有部件间隙与合并间距）
-    static let spacingItems: [(String, String)] = [
-        ("none", "无"), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"),
-        ("6", "6"), ("7", "7"), ("8", "8"), ("9", "9"), ("10", "10"),
-        ("11", "11"), ("12", "12")
-    ]
+    // v134：intervalItems/spacingItems/historyItems 已改滑条，档位表移除
 
     static let alignItems: [(String, String)] = [
         ("left", "左对齐"), ("center", "居中"), ("right", "右对齐")
     ]
     static let scaleItems: [(String, String)] = [
         ("none", "无"), ("square", "平方"), ("cube", "立方"), ("logarithmic", "对数")
-    ]
-    static let historyItems: [(String, String)] = [
-        ("30", "30"), ("60", "60"), ("90", "90"), ("120", "120")
     ]
     static let pictogramItems: [(String, String)] = [
         ("none", "无"), ("dots", "圆点"), ("arrows", "箭头"), ("chars", "字符")
@@ -554,7 +598,7 @@ extension MonitorWidgetsPane {
                     .menu("缩放", "scale", scaleItems, "none")
                 ]),
                 OptionGroup(title: "数据", options: [
-                    .menu("历史点数", "historyCount", historyItems, "60")
+                    .slider("历史点数", "historyCount", "60", 10, 120, 10, unit: " 点")
                 ])
             ]
         case "bar_chart":
@@ -583,7 +627,7 @@ extension MonitorWidgetsPane {
                     .menu("缩放", "scale", scaleItems, "none")
                 ]),
                 OptionGroup(title: "数据", options: [
-                    .menu("历史点数", "historyCount", historyItems, "60")
+                    .slider("历史点数", "historyCount", "60", 10, 120, 10, unit: " 点")
                 ])
             ]
         case "speed":
@@ -625,7 +669,7 @@ extension MonitorWidgetsPane {
                     .color("颜色", "color")
                 ]),
                 OptionGroup(title: "数据", options: [
-                    .menu("历史点数", "historyCount", historyItems, "60")
+                    .slider("历史点数", "historyCount", "60", 10, 120, 10, unit: " 点")
                 ])
             ]
         case "dots":

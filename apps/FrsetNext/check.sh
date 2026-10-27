@@ -20,6 +20,9 @@ if [ -z "$SDK" ]; then
 fi
 
 TARGET="arm64-apple-macosx13.0"
+BRIDGE="$SRC/FrsetStatsBar/FrsetStatsBar.h"
+BRIDGE_ARG=""
+[ -f "$BRIDGE" ] && BRIDGE_ARG="-import-objc-header $BRIDGE"
 SWIFT_VERSION="5"
 # 每个模块最多展示的错误行数
 ERR_LINES="${ERR_LINES:-15}"
@@ -59,8 +62,10 @@ run_typecheck() {
   tmp="$(mktemp)"
   for attempt in 1 2 3; do
     # shellcheck disable=SC2086
+    # v153：补 ObjC 桥接头（PP-OCR 的 FSPPOCR* 等 C 接口在其中）。此前漏传，
+    # 全量检查恒定报 6 处 "cannot find FSPPOCR*"，是脚本缺陷不是代码问题。
     swiftc -typecheck -sdk "$SDK" -target "$TARGET" -swift-version "$SWIFT_VERSION" \
-      "$@" > "$tmp" 2>&1
+      ${BRIDGE_ARG:-} "$@" > "$tmp" 2>&1
     code=$?   # 紧跟 swiftc 捕获退出码（注意：for 循环中的 break 会把 $? 吞成 0，不能循环后再取）
     # 并行开发时文件可能被同伴改写：swiftc 报 "was modified during the build" 时重试一次
     if ! grep -q "was modified during the build" "$tmp"; then break; fi
@@ -107,10 +112,11 @@ check_module() {
     } >> "$REPORT"
     [ -n "$body" ] && { echo "  （警告）"; echo "$body" | head -"$ERR_LINES"; } >> "$REPORT"
   else
-    overall=1
+    # v153：逐模块编译只喂 Core+Models+Storage+本模块，跨模块引用（RenderProbe → PanelController
+    # 等）必然找不到——这类错误不算回归，仅供定位；退出码只看下面的「全量」。
     local errcount
     errcount="$(echo "$body" | grep -c 'error:')"
-    module_lines+=("FAIL    $module  (${errcount} 处错误)")
+    module_lines+=("参考    $module  (${errcount} 处，多为跨模块缺失)")
     {
       echo "[FAIL] $module  —  ${errcount} 处 error"
       echo "  完整错误: build/errors-$module.log"

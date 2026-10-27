@@ -380,7 +380,7 @@ struct FileHoverPreviewView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(payload?.kindLabel ?? "…")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -400,7 +400,7 @@ struct FileHoverPreviewView: View {
                 } else if let text = payload.text {
                     ScrollView {
                         Text(text)
-                            .font(.system(size: 10, design: .monospaced))
+                            .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(.primary)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -410,9 +410,9 @@ struct FileHoverPreviewView: View {
                     VStack(spacing: 6) {
                         Image(systemName: iconName)
                             .font(.system(size: 26, weight: .light))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.tertiaryText)
                         Text(payload.error ?? "没有可显示的预览")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -428,14 +428,14 @@ struct FileHoverPreviewView: View {
     private var footer: some View {
         HStack(spacing: 6) {
             Text(payload?.sizeText ?? "—")
-            Text("·").foregroundStyle(.tertiary)
+            Text("·").foregroundStyle(Theme.tertiaryText)
             Text(payload?.modifiedText ?? "—")
             Spacer(minLength: 0)
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             } label: {
                 Image(systemName: "folder")
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
             }
             .buttonStyle(.borderless)
             .help("在 Finder 中显示")
@@ -443,12 +443,12 @@ struct FileHoverPreviewView: View {
                 NSWorkspace.shared.open(url)
             } label: {
                 Image(systemName: "arrow.up.forward.app")
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 11))
             }
             .buttonStyle(.borderless)
             .help("打开")
         }
-        .font(.system(size: 9))
+        .font(.system(size: 11))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

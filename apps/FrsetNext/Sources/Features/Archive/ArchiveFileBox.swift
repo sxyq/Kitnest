@@ -185,7 +185,7 @@ struct ArchiveFileBoxView: View {
             Text("文件盒")
                 .font(.system(size: 11, weight: .semibold))
             Text("\(model.items.count)")
-                .font(.system(size: 9, design: .monospaced))
+                .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
             Spacer()
             miniButton("plus", help: "从剪贴板添加") { model.addFromPasteboard() }
@@ -219,18 +219,18 @@ struct ArchiveFileBoxView: View {
                 .frame(width: 18, height: 18)
             VStack(alignment: .leading, spacing: 0) {
                 Text(item.name)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(item.sizeText)
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             Spacer()
             if !item.isReadable {
                 // v127（ArcZip P3）：来源权限提示——不可读文件标注原因
                 Image(systemName: "lock.slash")
-                    .font(.system(size: 9))
+                    .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .help("无法读取：可能被「文件与文件夹」权限拦截，或文件已被移走")
             }
@@ -248,11 +248,11 @@ struct ArchiveFileBoxView: View {
                 .font(.system(size: 22))
                 .foregroundStyle(.secondary)
             Text("把文件拖进来集中处理")
-                .font(.system(size: 10.5))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Text("或点「+」从剪贴板添加")
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -260,9 +260,9 @@ struct ArchiveFileBoxView: View {
     private var permissionHint: some View {
         HStack(spacing: 4) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 8))
+                .font(.system(size: 11))
             Text("\(model.unreadableCount) 个文件不可读，压缩前请检查权限（系统设置 → 隐私与安全性 → 文件与文件夹）")
-                .font(.system(size: 8.5))
+                .font(.system(size: 11))
                 .lineLimit(2)
         }
         .foregroundStyle(.orange)
@@ -291,8 +291,8 @@ struct ArchiveFileBoxView: View {
                     onActivity()
                 }
                 Text("浓度 \(Int(opacity * 100))%")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             Section("闲置行为") {
                 Toggle("闲置 30 秒后自动关闭", isOn: $idleClose)
@@ -305,7 +305,7 @@ struct ArchiveFileBoxView: View {
     private func miniButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: { onActivity(); action() }) {
             Image(systemName: name)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(width: 14, height: 14)
                 .contentShape(Rectangle())
