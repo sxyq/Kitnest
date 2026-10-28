@@ -25,6 +25,12 @@ import SwiftUI
 //
 // 性能附赠：手机通知的 6s 轮询、存储与应用的 adb 调用原来在进入页面时就跑，
 // 现在都挂在「更多工具」展开之后 —— 不进工具区就不起 adb 子进程。
+//
+// v158（用户 2026-10-29）：「客户端逻辑也要改，只有唯一的一套；区分 iOS 和安卓设备，
+// 其他连接方式都不需要存在，只需要一种唯一的连接方式 + 交互方式——手机扫电脑上的码」。
+//   · 连接方式只留「扫码直连」（Android 11+ 无线调试 QR 配对），删掉 USB/tcpip、
+//     手动配对、附近扫描、配对卡列表 —— UI 里不再有任何第二条路。
+//   · 顶部加设备类型切换：安卓（扫码直连）/ iPhone（系统限制，需 AirPlay 接收端）。
 
 struct CastView: View {
 
@@ -33,7 +39,6 @@ struct CastView: View {
     @Stored private var devices: [(serial: String, state: String)] = []
     @Stored private var scrcpyReady = false
     @Stored private var scanned = false
-    @Stored private var wirelessStatus = ""
     @Stored private var autoScanDone = false
     @Stored private var clipboardSyncOn = TransferDockPref.CastQuality.clipboardAutoSync
     @Stored private var notifications: [ADBExtrasEngine.PhoneNotification] = []
@@ -42,13 +47,13 @@ struct CastView: View {
     @Stored private var storageItems: [ADBExtrasEngine.StorageItem] = []
     @Stored private var apps: [ADBExtrasEngine.AppItem] = []
     @Stored private var appsBusy = false
-    @Stored private var wirelessBusy = false
     @Stored private var mcpOn = false
     @Stored private var webdavOn = false
     // v154：两个折叠区 + 说明弹层
     @Stored private var toolsExpanded = false
-    @Stored private var wirelessExpanded = false
     @Stored private var showTips = false
+    /// 设备类型：安卓（扫码直连）/ iPhone（系统层限制，暂不支持投屏）
+    @Stored private var deviceKind: CastDeviceKind = .android
     // v157：扫码直连（Android 11+ 无线调试 QR 配对）
     @StateObject private var qrPair = AdbQrPairing()
     @Stored private var showQrPair = false
@@ -58,6 +63,14 @@ struct CastView: View {
     // body 的 onReceive 里，每次 body 重算都新建一个 Timer publisher（autoconnect 随订阅
     // 启动新定时器），页面状态一抖就重建定时器。改为共享单例，只在条件满足时干活。
     private static let notifTick = Timer.publish(every: 6, on: .main, in: .common).autoconnect()
+
+    // MARK: 设备类型
+
+    enum CastDeviceKind: String, CaseIterable {
+        case android, ios
+        var title: String { self == .android ? "安卓" : "iPhone" }
+        var icon: String { self == .android ? "smartphone" : "iphone" }
+    }
 
     // MARK: 派生
 
@@ -69,11 +82,15 @@ struct CastView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                hero
+                kindSwitch
                 Divider().opacity(0.5)
-                wirelessBlock
-                Divider().opacity(0.5)
-                toolsBlock
+                if deviceKind == .android {
+                    hero
+                    Divider().opacity(0.5)
+                    toolsBlock
+                } else {
+                    iosPane
+                }
             }
             .padding(.bottom, 8)
         }
@@ -127,6 +144,8 @@ struct CastView: View {
 
             if hasDevice {
                 remoteRow
+                qrButton("扫码添加设备", prominent: false)
+                    .frame(maxWidth: 160)
             }
 
             if !scrcpyReady {
@@ -178,33 +197,134 @@ struct CastView: View {
         return n > 0 ? "\(n) 台已连接" : "\(devices.count) 台未就绪"
     }
 
-    /// 空态：一句话说明 + 两个入口（不再列三行小字）
+    /// 空态：唯一入口 = 扫码直连（不再有「重新检测 / 无线连接」两个入口）
     private var emptyState: some View {
         VStack(spacing: 10) {
-            Image(systemName: "ipad.and.iphone")
-                .font(.system(size: 26))
-                .foregroundStyle(Theme.tertiaryText)
-            Text(scanned ? "未发现设备" : "尚未检测设备")
-                .font(.system(size: 12.5, weight: .medium))
-            Text("USB 连接手机并开启「开发者选项 → USB 调试」")
+            Image(systemName: "qrcode.viewfinder")
+                .font(.system(size: 30))
+                .foregroundStyle(Theme.accent.opacity(0.9))
+            Text("用手机扫一下就连上")
+                .font(.system(size: 13, weight: .medium))
+            qrButton("扫码直连", prominent: true)
+                .frame(maxWidth: 220)
+            Text("手机：设置 → 开发者选项 → 无线调试 → 「使用二维码配对设备」")
                 .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 6) {
-                // v154.1：两个按钮原来固定 132/110 宽再留白，现在平分整行——
-                // 面板里等宽的双按钮比「一大一小 + 空白」干净，点击面积也更大。
-                primaryButton("重新检测", icon: "antenna.radiowaves.left.and.right") {
-                    scrcpyReady = ScreenCastEngine.findScrcpy() != nil
-                    refreshDevices(quiet: false)
-                }
-                secondaryButton("无线连接", icon: "wifi") {
-                    withAnimation(Theme.Motion.fast) { wirelessExpanded = true }
-                }
-            }
+            Text("配对 + 连接 + 投屏一次完成 · 同一 Wi-Fi · 不用数据线")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
+    }
+
+    /// 设备类型切换（安卓 / iPhone）——顶部分段，两段等宽
+    private var kindSwitch: some View {
+        HStack(spacing: 4) {
+            ForEach(CastDeviceKind.allCases, id: \.self) { k in
+                Button {
+                    withAnimation(Theme.Motion.fast) { deviceKind = k }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: k.icon)
+                            .font(.system(size: 11.5, weight: .medium))
+                        Text(k.title)
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundStyle(deviceKind == k ? Color.primary : Color.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(deviceKind == k ? Color.primary.opacity(0.09) : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(k.title)
+            }
+        }
+        .padding(3)
+        .background(Color.primary.opacity(0.045),
+                    in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+    }
+
+    /// iPhone：系统层限制说明（不做假入口，也不塞无效按钮）
+    private var iosPane: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "airplayvideo")
+                .font(.system(size: 30))
+                .foregroundStyle(Theme.tertiaryText)
+            Text("iPhone 不走扫码连接")
+                .font(.system(size: 13, weight: .medium))
+            Text("iPhone 投屏到 Mac，需要 Mac 端作为 AirPlay 接收端。这一版没有内置，所以不给入口——右下角也不会有「假装能连」的按钮。")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("传文件请用「隔空投送」：iPhone 零安装，系统原生。")
+                .font(.system(size: 11.5))
+                .foregroundStyle(Theme.tertiaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                MonitorCenterPresenter.shared.selectTransferDock()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 12))
+                    Text("去「文件中转」用隔空投送").font(.system(size: 12, weight: .medium))
+                }
+                .foregroundStyle(Theme.accent)
+                .frame(maxWidth: .infinity)
+                .frame(height: 30)
+                .background(Theme.accent.opacity(0.08),
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: 220)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 26)
+    }
+
+    /// 唯一连接入口：弹出二维码
+    private func qrButton(_ title: String, prominent: Bool) -> some View {
+        Button {
+            showQrPair = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "qrcode.viewfinder")
+                    .font(.system(size: prominent ? 13 : 12, weight: .semibold))
+                Text(title)
+                    .font(.system(size: prominent ? 13 : 12, weight: .semibold))
+            }
+            .foregroundStyle(prominent ? Color.white : Theme.accent)
+            .frame(maxWidth: .infinity)
+            .frame(height: prominent ? 36 : 30)
+            .background {
+                if prominent {
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .fill(Theme.accent.gradient)
+                } else {
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .fill(Theme.accent.opacity(0.08))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("手机扫二维码：配对 → 连接 → 投屏（Android 11+ 无线调试）")
+        .accessibilityLabel("扫码直连")
+        .popover(isPresented: $showQrPair, arrowEdge: .bottom) { qrPairPopover }
     }
 
     /// 设备卡：状态行 + 唯一主按钮
@@ -238,10 +358,8 @@ struct CastView: View {
                 Button("开始投屏") { ScreenCastEngine.startMirror(serial: serial) }
                 Divider()
             }
-            Button("用 USB 开启无线（tcpip 5555）") { enableWireless() }
             Button("打开手机无线调试页") {
                 ADBExtrasEngine.openWirelessDebugging { msg in
-                    wirelessStatus = msg
                     Toast.show(msg, icon: "iphone.gen3")
                 }
             }
@@ -307,93 +425,7 @@ struct CastView: View {
             .contentShape(Rectangle())
     }
 
-    // MARK: - ② 无线连接（折叠）
-
-    private var wirelessBlock: some View {
-        VStack(spacing: 0) {
-            disclosureRow(title: "无线连接",
-                          icon: "wifi",
-                          detail: wirelessDetail,
-                          expanded: wirelessExpanded) {
-                withAnimation(Theme.Motion.fast) { wirelessExpanded.toggle() }
-            }
-
-            if wirelessExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    // v157（用户：「最重要的是扫码直连，不是基于某个局域网再用 adb 连」）：
-                    // 主路径改成扫码——手机扫一下即配对+连接+投屏，不用插线、不用输 IP。
-                    Button {
-                        showQrPair = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "qrcode.viewfinder")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text("扫码直连")
-                                .font(.system(size: 13, weight: .semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 32)
-                        .background(Theme.accent.gradient,
-                                    in: RoundedRectangle(cornerRadius: Theme.Radius.control,
-                                                         style: .continuous))
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("手机扫一下二维码即配对、连接并开始投屏（Android 11+ 无线调试）")
-                    .accessibilityLabel("扫码直连")
-                    .popover(isPresented: $showQrPair, arrowEdge: .bottom) { qrPairPopover }
-
-                    Text("手机：设置 → 开发者选项 → 无线调试 → 「使用二维码配对设备」")
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    // 兜底两条：USB 打开 tcpip / 手动配对列表
-                    HStack(spacing: 6) {
-                        secondaryButton(wirelessBusy ? "启用中…" : "USB 开无线",
-                                        icon: "wifi.router") { enableWireless() }
-                        secondaryButton("手动配对", icon: "antenna.radiowaves.left.and.right") {
-                            AdbPairingService.shared.scan()
-                        }
-                    }
-
-                    // 配对卡片自带「发现列表 + 手动 IP + 状态」，这里内嵌，不再重复标题与按钮
-                    AdbPairingView(embedded: true)
-
-                    if !wirelessStatus.isEmpty {
-                        Text(wirelessStatus)
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
-            }
-        }
-    }
-
-    private var wirelessDetail: String {
-        if wirelessBusy { return "启用中…" }
-        let n = AdbPairingService.shared.wirelessConnected.count
-        return n > 0 ? "\(n) 台无线已连" : "扫码直连，零手输"
-    }
-
-    private func enableWireless() {
-        guard !wirelessBusy else { return }
-        wirelessBusy = true
-        wirelessStatus = "正在用 USB 开启无线…"
-        ADBExtrasEngine.enableWireless { ok, msg in
-            wirelessBusy = false
-            wirelessStatus = msg
-            Toast.show(msg, icon: ok ? "wifi.router" : "exclamationmark.triangle", isWarning: !ok)
-            if ok { refreshDevices(quiet: true) }
-        }
-    }
-
-    // MARK: - ③ 更多工具（折叠：通知 / 存储 / 应用 / 服务）
+    // MARK: - ② 更多工具（折叠：通知 / 存储 / 应用 / 服务）
 
     private var toolsBlock: some View {
         VStack(spacing: 0) {
