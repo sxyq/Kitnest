@@ -176,7 +176,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // 深链直达页面：frsetnext://panel?page=transfer|cast|performance
                 switch comps?.queryItems?.first(where: { $0.name == "page" })?.value {
                 case "transfer":   MonitorCenterPresenter.shared.selectTransferDock()
-                case "cast":       MonitorCenterPresenter.shared.selectCast()
+                case "cast":
+                    MonitorCenterPresenter.shared.selectCast()
+                    // v159 排障/自动化入口：frsetnext://panel?page=cast&qr=1 —— 打开扫码弹层。
+                    // 用途：① 无鼠标环境下验证弹层与重连链路；② 快捷指令一键唤起扫码。
+                    if comps?.queryItems?.first(where: { $0.name == "qr" })?.value == "1" {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                            NotificationCenter.default.post(name: .frsetOpenCastQR, object: nil)
+                        }
+                    }
                 case "performance": MonitorCenterPresenter.shared.selectPerformance()
                 default: break
                 }

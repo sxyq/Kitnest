@@ -12,6 +12,11 @@ import SwiftUI
 // + 通知(刷新/清空) + 存储(刷新) + 应用(读取 + 24 个磁贴) + 扩展服务(2 复制 + 2 开关) + 5 条说明，
 // 合计 45 个可点目标，全部 11pt 字号。在 360pt 面板里既看不清也点不准。
 //
+extension Notification.Name {
+    /// v159：外部请求打开「扫码直连」弹层（深链 frsetnext://panel?page=cast&qr=1）
+    static let frsetOpenCastQR = Notification.Name("frset.openCastQR")
+}
+
 // v154.1（同日）：用户又说「按钮太多了，太小了」——上一版虽然收到 3 段，
 // 但所有字号仍是全局规范化的 11pt，图标 24–30pt，在 360pt 面板里依然点不准。
 // 这一版统一抬一档（正文 11.5–12.5、图标 13–14、主按钮 32 高、折叠行 38 高），
@@ -95,19 +100,23 @@ struct CastView: View {
             .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onReceive(NotificationCenter.default.publisher(for: .frsetOpenCastQR)) { _ in
+            showQrPair = true
+        }
         .onAppear {
-            // 首次进入只做「设备 + scrcpy」，不再顺手拉通知/存储（进工具区才拉）
-            guard !autoScanDone else { return }
-            autoScanDone = true
-            scrcpyReady = ScreenCastEngine.findScrcpy() != nil
-            refreshDevices(quiet: true)
-            // 扫码配对成功 → 直接投屏（用户点「扫码直连」的预期就是「扫完就看」）
+            // v159：回调必须在 guard 之外——视图重建时 @StateObject 可能已是新实例，
+            // 放在 guard 后面会导致「第二次进页面点扫码，连上了却不投屏」。
             qrPair.onConnected = { serial in
                 showQrPair = false
                 Toast.show("已连接 \(serial)，开始投屏", icon: "display")
                 ScreenCastEngine.startMirror(serial: serial)
                 refreshDevices(quiet: true)
             }
+            // 首次进入只做「设备 + scrcpy」，不再顺手拉通知/存储（进工具区才拉）
+            guard !autoScanDone else { return }
+            autoScanDone = true
+            scrcpyReady = ScreenCastEngine.findScrcpy() != nil
+            refreshDevices(quiet: true)
         }
         // v154：轮询条件再收紧一层——「更多工具」没展开就不拉通知（用户看不到也没必要跑 adb）
         .onReceive(Self.notifTick) { _ in
@@ -197,26 +206,40 @@ struct CastView: View {
         return n > 0 ? "\(n) 台已连接" : "\(devices.count) 台未就绪"
     }
 
-    /// 空态：唯一入口 = 扫码直连（不再有「重新检测 / 无线连接」两个入口）
+    /// 空态：有历史设备时主按钮是「继续连接」（v159，对标 AndroMeld 的零交互重连）
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "qrcode.viewfinder")
+        let last = AdbCastMemory.shared.lastDevice
+        return VStack(spacing: 10) {
+            Image(systemName: last == nil ? "qrcode.viewfinder" : "arrow.triangle.2.circlepath")
                 .font(.system(size: 30))
                 .foregroundStyle(Theme.accent.opacity(0.9))
-            Text("用手机扫一下就连上")
+            Text(last == nil ? "用手机扫一下就连上" : "连回上次的设备")
                 .font(.system(size: 13, weight: .medium))
-            qrButton("扫码直连", prominent: true)
-                .frame(maxWidth: 220)
-            Text("手机：设置 → 开发者选项 → 无线调试 → 「使用二维码配对设备」")
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("配对 + 连接 + 投屏一次完成 · 同一 Wi-Fi · 不用数据线")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            if let last {
+                // v159：主路径变成「继续连接」——端口没变时 0 交互直接连上。
+                // 这就是 AndroMeld「配对一次之后不用再管」在我们这套 ADB 方案里的等价物。
+                qrButton("继续连接 \(last.displayName)", prominent: true)
+                    .frame(maxWidth: 240)
+                qrButton("扫码连接新设备", prominent: false)
+                    .frame(maxWidth: 200)
+                Text("上次连接：\(last.serial)")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .lineLimit(1)
+            } else {
+                qrButton("扫码直连", prominent: true)
+                    .frame(maxWidth: 220)
+                Text("手机：设置 → 开发者选项 → 无线调试 → 「使用二维码配对设备」")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("配对 + 连接 + 投屏一次完成 · 同一 Wi-Fi · 不用数据线")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 6)
@@ -779,11 +802,27 @@ struct CastView: View {
 
     private var qrPairPopover: some View {
         VStack(spacing: 10) {
-            Text("用手机扫这张码")
-                .font(.system(size: 13, weight: .semibold))
-            QRCodeView(text: qrPair.qrText, size: 208)
-                .onAppear { qrPair.start() }
-                .onDisappear { qrPair.cancel() }
+            // v159：先重连、后扫码。重连阶段不摆二维码，否则用户会以为必须扫。
+            if qrPair.phase.showsQR {
+                Text(qrPair.didTryReconnect ? "换一台手机：扫这张码" : "用手机扫这张码")
+                    .font(.system(size: 13, weight: .semibold))
+                QRCodeView(text: qrPair.qrText, size: 208)
+            } else {
+                Text("正在连接上次的设备")
+                    .font(.system(size: 13, weight: .semibold))
+                VStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("端口没变就不用再扫")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                }
+                .frame(width: 208, height: 208)
+                Button("改为扫码") { qrPair.skipReconnect() }
+                    .font(.system(size: 11.5))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.accent)
+            }
             HStack(spacing: 5) {
                 Circle()
                     .fill(qrPhaseColor)
@@ -810,6 +849,10 @@ struct CastView: View {
         }
         .padding(14)
         .frame(width: 250)
+        // v159：生命周期提到整个弹层——重连阶段没有 QRCodeView，
+        // 原来挂在它身上的 onAppear 就不会触发，弹层会一直停在 idle。
+        .onAppear { qrPair.start() }
+        .onDisappear { qrPair.cancel() }
     }
 
     private var qrPhaseColor: Color {
@@ -817,6 +860,8 @@ struct CastView: View {
         case .connected: return .green
         case .failed, .expired: return .orange
         case .idle: return .secondary
+        case .reconnecting: return .accentColor      // v159：重连中（蓝）
+        case .launching: return .green               // v159：已连上，起画面
         default: return .accentColor
         }
     }

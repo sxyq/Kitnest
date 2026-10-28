@@ -215,7 +215,10 @@ public enum ScreenCastEngine {
             for line in out.split(separator: "\n").dropFirst() {
                 let parts = line.split(separator: "\t")
                 if parts.count >= 2 {
-                    result.append((String(parts[0]), String(parts[1])))
+                    // v159：state 可能带附加信息（`device product:xxx model:yyy`），
+                    // 只取第一个词——否则 `== "device"` 的判断会漏掉新版本 adb 的输出。
+                    let state = String(parts[1].split(separator: " ").first ?? parts[1])
+                    result.append((String(parts[0]), state))
                 }
             }
             DispatchQueue.main.async { completion(result) }
@@ -354,15 +357,20 @@ public enum ADBWirelessEngine {
     }
 
     /// `adb connect ip:port`（后台执行；输出如 "connected to ..." / "already connected"）
+    /// - Parameter timeout: 超时秒数。**必须给**：`adb connect` 打到不可达地址时
+    ///   自身要等满 75 秒 TCP 超时才返回（实测 10.255.255.1 精确 75s），
+    ///   不给超时的话「重连上次设备」会转圈一分多钟。
     public static func connect(host: String, port: String,
+                               timeout: TimeInterval? = nil,
                                completion: @escaping (String) -> Void) {
-        runADB(["connect", "\(host):\(port)"]) { out in
+        runADB(["connect", "\(host):\(port)"], timeout: timeout) { out in
             DispatchQueue.main.async { completion(out ?? "adb 不可用") }
         }
     }
 
     /// adb 子进程统一封装（全后台；v105 教训：adb 挂起不得碰主线程）
-    private static func runADB(_ args: [String], completion: @escaping (String?) -> Void) {
+    private static func runADB(_ args: [String], timeout: TimeInterval? = nil,
+                               completion: @escaping (String?) -> Void) {
         guard let adb = ScreenCastEngine.findADB() else {
             DispatchQueue.main.async { completion(nil) }
             return
@@ -388,7 +396,18 @@ public enum ADBWirelessEngine {
                 DispatchQueue.main.async { completion(nil) }
                 return
             }
-            task.waitUntilExit()
+            // v159：可选超时。到点 terminate，让调用方立刻拿到当前输出（通常为空），
+            // 而不是等 adb 自己的 75 秒 TCP 超时。
+            if let timeout {
+                let killer = DispatchWorkItem { [weak task] in
+                    if let t = task, t.isRunning { t.terminate() }
+                }
+                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
+                task.waitUntilExit()
+                killer.cancel()
+            } else {
+                task.waitUntilExit()
+            }
             var text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
