@@ -371,8 +371,13 @@ public enum ADBWirelessEngine {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: adb)
             // v117：多设备（USB + 无线）同时在线时必须指定目标
+            // mdns / pair / connect / devices / tcpip 是 adb 的**全局命令**，
+            // 加 -s 会被当成「对某台设备执行」而直接失败（多设备时必踩）。
+            let global: Set<String> = ["devices", "connect", "disconnect", "pair",
+                                       "mdns", "tcpip", "start-server", "kill-server", "version"]
             var full = args
-            if let serial = ADBExtrasEngine.activeSerial, !args.contains("-s") {
+            if let serial = ADBExtrasEngine.activeSerial,
+               let first = args.first, !global.contains(first), !args.contains("-s") {
                 full = ["-s", serial] + args
             }
             task.arguments = full

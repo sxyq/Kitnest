@@ -1,54 +1,56 @@
 # C1 · Capture 模块逐行测绘
 
-> 范围：`apps/FrsetNext/Sources/Features/Capture/`，39 个 `.swift`，**12 929 行**。
-> 全部文件整读，无抽样。符号对账：CSV 中该目录 697 条声明，其中 **500 func + 69 init = 569 个函数级符号**，本文表格逐条覆盖（嵌套闭包/局部 func 也在 CSV 中，一并列出）。
+> 范围：`apps/FrsetNext/Sources/Features/Capture/`，39 个 `.swift`，**12 929 行**。  
+> 全部文件整读，无抽样。符号对账：CSV 中该目录 697 条声明，其中 **500 func + 69 init = 569 个函数级符号**，本文表格逐条覆盖（嵌套闭包/局部 func 也在 CSV 中，一并列出）。  
 > 只读测绘，未修改源码、未执行构建。
+
+
 
 ---
 
 ## 1. 文件清单
 
-| # | 路径 | 行数 | 一句话职责 |
-|---|---|---|---|
-| 1 | `AnnotationCompositor.swift` | 421 | 标注数据模型 + 把标注烧录进底图的合成器（形状/箭头/画笔/荧光/马赛克/文字） |
-| 2 | `AnnotationEditorWindow.swift` | 1453 | 标注编辑器：画布（含内联文字、控制点缩放、橡皮、物体抹除）+ 浮动工具条 + 单例控制器 |
-| 3 | `AnnotationToolbarView.swift` | 516 | 标注工具条 SwiftUI 视图 + `EditorToolbarModel`（工具/颜色/粗细/马赛克块状态机）+ 配景色 |
-| 4 | `BeautifyPanel.swift` | 303 | 截图美化（背景/圆角/投影）渲染器 + 预览窗 |
-| 5 | `CaptureActionChain.swift` | 307 | 框选后动作工具条：工具注册表 + 浮条 NSPanel + 键位 |
-| 6 | `CaptureEventBus.swift` | 119 | 跨模块静态回调总线 + `CaptureMode`/`CaptureDefaultAction`/`CapturedImage`/`CaptureError` |
-| 7 | `CaptureHistoryStore.swift` | 297 | 截图历史 SQLite 存储（500 条上限、缩略图、OCR 文本、未完成标注快照） |
-| 8 | `CaptureHistoryView.swift` | 350 | 历史窗（网格+搜索+模式过滤）+ 点外即关的窗口控制器 + `frsetnext://capture` 深链 |
-| 9 | `CaptureModule.swift` | 163 | 模块启动装配、面板/设置注册、抓屏诊断探针、使用统计埋点收口 |
-| 10 | `CaptureSectionView.swift` | 266 | 主面板「截图」区段（10 个入口 + 最近截图网格 + OCR 结果区） |
-| 11 | `CaptureSettingsPane.swift` | 136 | 设置→截图页签（保存路径/提示音/默认动作/延时秒数/OCR 语言/权限） |
-| 12 | `ColorValuePanel.swift` | 208 | 取色后的色值面板（HEX/RGB/HSB + 最近 10 色） |
-| 13 | `DelayedCaptureHUD.swift` | 128 | 延时截图倒计时控制器 + 居中大数字窗 |
-| 14 | `ElementSnap.swift` | 152 | AX 元素级吸附引擎（点→元素帧，cocoa 全局坐标） |
-| 15 | `Eyedropper.swift` | 348 | 取色器：全屏取色视图/窗口 + 单例会话（手动/程序化共用） |
-| 16 | `EyedropperBridge.swift` | 34 | 取色器的 async 接缝（工具箱复用，单次 resume 保证） |
-| 17 | `ImageProcessor.swift` | 128 | 图像工具：PNG 编码/缩放/按点坐标裁剪/解码/RGBA 缓冲 |
-| 18 | `LongScreenshotCoordinator.swift` | 311 | 长截图编排：选区覆盖层→会话→HUD/边框→收尾；含全局监视器流 |
-| 19 | `LongScreenshotDiagnostics.swift` | 161 | 拼接器合成数据自检（`frsetnext://longshotcheck`） |
-| 20 | `LongScreenshotFrameStream.swift` | 143 | SCK 30fps 连续帧流（排除本 App 窗口，只留最新帧） |
-| 21 | `LongScreenshotHUD.swift` | 218 | 采集期 HUD（红点/高度/完成取消）+ 选区边框窗（`sharingType=.none`） |
-| 22 | `LongScreenshotMotionCrop.swift` | 153 | 逐列差异检测「正在滚动」的列区间，裁掉静止背景 |
-| 23 | `LongScreenshotPreviewWindow.swift` | 238 | 长截图预览/编辑器窗（文档视图等比缩放 + 底部工具条） |
-| 24 | `LongScreenshotSession.swift` | 474 | 长截图会话状态机：定时采样 tick、帧流/同步兜底、运动裁剪、收尾 |
-| 25 | `LongScreenshotStitcher.swift` | 732 | 定宽画布流式拼接器（1D 行投影 NCC 粗搜 + 2D NCC 精校 + 重同步） |
-| 26 | `OCRDiagnostics.swift` | 157 | OCR 全链路自检（Vision vs +PP-OCR，耗时/内存/小字链接样本） |
-| 27 | `OCRRefiner.swift` | 78 | OCR 复核层协议 + system/local 两实现 + 注册表 |
-| 28 | `OCRService.swift` | 613 | Vision OCR 主通道：多遍变体、小字增强、行级合并、阅读顺序、URL 清洗、PP-OCR 复核 |
-| 29 | `ObjectRemovalEngine.swift` | 359 | 物体抹除：扩散（SOR 调和填充）修复引擎 + LaMa 插槽协议 |
-| 30 | `PPOCROCR.swift` | 229 | 进程内 PP-OCR（ONNX Runtime + CTC 解码）——现仅 OCRHelper 目标使用 |
-| 31 | `PPOCROCREmote.swift` | 185 | 起一次性 `FrsetOCRHelper` 子进程做本地 OCR（空闲零占用） |
-| 32 | `PinWindow.swift` | 964 | 钉图窗全家族：缩放 HUD/控制条/内容视图/窗口/多贴图管理器 |
-| 33 | `QRCodeRecognizer.swift` | 54 | Vision 条码/二维码识别 + 结果弹窗 |
-| 34 | `ScreenTranslator.swift` | 311 | 屏幕翻译：OCR→LLM 批量翻译→按坐标画回→钉回原位 |
-| 35 | `ScreenshotManager.swift` | 821 | 截图总控：抓屏通道兼容层、权限、区域/全屏/窗口/延时、落盘、动作分流、OCR |
-| 36 | `ScreenshotOCRWindow.swift` | 507 | OCR 结果窗（原文图 / 识别文本 / 二维码 / 翻译 四块）+ 窗口控制器（失焦即关） |
-| 37 | `ScreenshotOverlay.swift` | 597 | 全屏选区覆盖层：拖拽选区、放大镜、窗口拾取、AX 吸附、绘制 |
-| 38 | `Stitcher.swift` | 154 | 多图拼接（用户手选 N 张重叠截图）——与滚动长截图是两条独立路径 |
-| 39 | `TextFontPopover.swift` | 140 | 选中文字后的字体配置弹层（字号/字重/颜色/删除） |
+| #  | 路径                                  | 行数   | 一句话职责                                                                           |
+| -- | ----------------------------------- | ---- | ------------------------------------------------------------------------------- |
+| 1  | `AnnotationCompositor.swift`        | 421  | 标注数据模型 + 把标注烧录进底图的合成器（形状/箭头/画笔/荧光/马赛克/文字）                                       |
+| 2  | `AnnotationEditorWindow.swift`      | 1453 | 标注编辑器：画布（含内联文字、控制点缩放、橡皮、物体抹除）+ 浮动工具条 + 单例控制器                                    |
+| 3  | `AnnotationToolbarView.swift`       | 516  | 标注工具条 SwiftUI 视图 + `EditorToolbarModel`（工具/颜色/粗细/马赛克块状态机）+ 配景色                  |
+| 4  | `BeautifyPanel.swift`               | 303  | 截图美化（背景/圆角/投影）渲染器 + 预览窗                                                         |
+| 5  | `CaptureActionChain.swift`          | 307  | 框选后动作工具条：工具注册表 + 浮条 NSPanel + 键位                                                |
+| 6  | `CaptureEventBus.swift`             | 119  | 跨模块静态回调总线 + `CaptureMode`/`CaptureDefaultAction`/`CapturedImage`/`CaptureError` |
+| 7  | `CaptureHistoryStore.swift`         | 297  | 截图历史 SQLite 存储（500 条上限、缩略图、OCR 文本、未完成标注快照）                                      |
+| 8  | `CaptureHistoryView.swift`          | 350  | 历史窗（网格+搜索+模式过滤）+ 点外即关的窗口控制器 + `frsetnext://capture` 深链                          |
+| 9  | `CaptureModule.swift`               | 163  | 模块启动装配、面板/设置注册、抓屏诊断探针、使用统计埋点收口                                                  |
+| 10 | `CaptureSectionView.swift`          | 266  | 主面板「截图」区段（10 个入口 + 最近截图网格 + OCR 结果区）                                            |
+| 11 | `CaptureSettingsPane.swift`         | 136  | 设置→截图页签（保存路径/提示音/默认动作/延时秒数/OCR 语言/权限）                                           |
+| 12 | `ColorValuePanel.swift`             | 208  | 取色后的色值面板（HEX/RGB/HSB + 最近 10 色）                                                 |
+| 13 | `DelayedCaptureHUD.swift`           | 128  | 延时截图倒计时控制器 + 居中大数字窗                                                             |
+| 14 | `ElementSnap.swift`                 | 152  | AX 元素级吸附引擎（点→元素帧，cocoa 全局坐标）                                                    |
+| 15 | `Eyedropper.swift`                  | 348  | 取色器：全屏取色视图/窗口 + 单例会话（手动/程序化共用）                                                  |
+| 16 | `EyedropperBridge.swift`            | 34   | 取色器的 async 接缝（工具箱复用，单次 resume 保证）                                               |
+| 17 | `ImageProcessor.swift`              | 128  | 图像工具：PNG 编码/缩放/按点坐标裁剪/解码/RGBA 缓冲                                                |
+| 18 | `LongScreenshotCoordinator.swift`   | 311  | 长截图编排：选区覆盖层→会话→HUD/边框→收尾；含全局监视器流                                                |
+| 19 | `LongScreenshotDiagnostics.swift`   | 161  | 拼接器合成数据自检（`frsetnext://longshotcheck`）                                          |
+| 20 | `LongScreenshotFrameStream.swift`   | 143  | SCK 30fps 连续帧流（排除本 App 窗口，只留最新帧）                                                |
+| 21 | `LongScreenshotHUD.swift`           | 218  | 采集期 HUD（红点/高度/完成取消）+ 选区边框窗（`sharingType=.none`）                                 |
+| 22 | `LongScreenshotMotionCrop.swift`    | 153  | 逐列差异检测「正在滚动」的列区间，裁掉静止背景                                                         |
+| 23 | `LongScreenshotPreviewWindow.swift` | 238  | 长截图预览/编辑器窗（文档视图等比缩放 + 底部工具条）                                                    |
+| 24 | `LongScreenshotSession.swift`       | 474  | 长截图会话状态机：定时采样 tick、帧流/同步兜底、运动裁剪、收尾                                              |
+| 25 | `LongScreenshotStitcher.swift` | 732 | 定宽画布流式拼接器（1D 行投影 NCC 粗搜 + 2D NCC 精校 + 重同步）           |
+| 26 | `OCRDiagnostics.swift`         | 157 | OCR 全链路自检（Vision vs +PP-OCR，耗时/内存/小字链接样本）            |
+| 27 | `OCRRefiner.swift`             | 78  | OCR 复核层协议 + system/local 两实现 + 注册表                   |
+| 28 | `OCRService.swift`             | 613 | Vision OCR 主通道：多遍变体、小字增强、行级合并、阅读顺序、URL 清洗、PP-OCR 复核  |
+| 29 | `ObjectRemovalEngine.swift`    | 359 | 物体抹除：扩散（SOR 调和填充）修复引擎 + LaMa 插槽协议                    |
+| 30 | `PPOCROCR.swift`               | 229 | 进程内 PP-OCR（ONNX Runtime + CTC 解码）——现仅 OCRHelper 目标使用 |
+| 31 | `PPOCROCREmote.swift`          | 185 | 起一次性 `FrsetOCRHelper` 子进程做本地 OCR（空闲零占用）              |
+| 32 | `PinWindow.swift`              | 964 | 钉图窗全家族：缩放 HUD/控制条/内容视图/窗口/多贴图管理器                     |
+| 33 | `QRCodeRecognizer.swift`       | 54  | Vision 条码/二维码识别 + 结果弹窗                               |
+| 34 | `ScreenTranslator.swift`       | 311 | 屏幕翻译：OCR→LLM 批量翻译→按坐标画回→钉回原位                         |
+| 35 | `ScreenshotManager.swift`      | 821 | 截图总控：抓屏通道兼容层、权限、区域/全屏/窗口/延时、落盘、动作分流、OCR              |
+| 36 | `ScreenshotOCRWindow.swift`    | 507 | OCR 结果窗（原文图 / 识别文本 / 二维码 / 翻译 四块）+ 窗口控制器（失焦即关）       |
+| 37 | `ScreenshotOverlay.swift`      | 597 | 全屏选区覆盖层：拖拽选区、放大镜、窗口拾取、AX 吸附、绘制                       |
+| 38 | `Stitcher.swift`               | 154 | 多图拼接（用户手选 N 张重叠截图）——与滚动长截图是两条独立路径                    |
+| 39 | `TextFontPopover.swift`        | 140 | 选中文字后的字体配置弹层（字号/字重/颜色/删除）                            |
 
 合计 12 929 行，与 `wc -l` 一致。
 
@@ -57,6 +59,7 @@
 ## 2. 类型清单
 
 ### 2.1 `ScreenSnapshot`（enum，ScreenshotManager.swift:12）
+
 - **职责**：唯一的抓屏通道抽象。三条路径：① `legacyCapture` 用 `dlsym("CGWindowListCreateImage")` 动态解析（SDK 在 macOS 15 已 obsoleted，运行时符号仍在，实测返回有效 2x 图）；② `sckCapture(displayID:)` 单帧整屏；③ `sckCapture(windowID:)` 单窗口（`desktopIndependentWindow`，天然排除遮挡）。
 - **状态**：仅一个 `static let legacyCreateImage: LegacyCreateImageFn?`（一次性 dlopen，永不释放）。
 - **生命周期**：纯静态，随进程。
@@ -65,6 +68,7 @@
 - **注**：`sckCaptureSync` 用 `DispatchSemaphore.wait()` 桥接异步 SCK，**注释明确禁止主线程调用**，实现里没有任何运行时断言保护。
 
 ### 2.2 `ScreenshotManager`（final class，`ObservableObject` 单例）
+
 - **职责**：截图流程编排与唯一落盘/登记入口。
 - **内部状态**：`recent: [CapturedImage]`（上限 60）、`isCapturing`、`ocrText`、`isRecognizing`、`statusMessage`、`hasPermission`、`qrPayloads`；私有 `overlays: [ScreenshotOverlayWindow]`、`thumbCache: NSCache`（48 项 / 20 MB）、`pendingFlow`、`lastSelectionAppKit`、`lastHistoryPath`、`currentModeTag`、`permissionProbed/Probing`、`didRequestScreenRecordingThisLaunch`、`didShowPermissionAlertThisLaunch`。
 - **生命周期**：`init()` 里 `reloadRecent()` + 打权限实况日志 + 读 `FRSET_TCC_REQUEST`/`/tmp/frset_tcc_request_once` 做一次性 TCC 重试；进程期常驻。
@@ -72,6 +76,7 @@
 - **被依赖**：`CaptureModule`、`CaptureSectionView`、`CaptureActionChain` 全部 12 个 handler、`Eyedropper`、`ScreenTranslator`、`AnnotationEditorController`、`BeautifyController`、`LongScreenshotPreviewController`、`PinWindow.saveClicked`、`DelayedCaptureController`、`CaptureHistoryView`。
 
 ### 2.3 `ScreenshotOverlayWindow` / `ScreenshotOverlayView` / `DeleteKeyMonitor` / 放大镜两件套
+
 - **职责**：每屏一个 `.screenSaver` 级 borderless 窗口；视图负责拖拽选区/窗口拾取/AX 吸附/放大镜/尺寸标签/十字准星。
 - **状态**：`snapshot`（覆盖层出现**前**抓的底图）、`startPoint/currentPoint`、`windowHits: [WindowHit]`（init 时一次性枚举）、`highlightedWindow/highlightedElement/snapHighlight`、`lastAXQuery`（90ms 节流）、`dragStartWindowFrame` 等。
 - **生命周期**：`ScreenshotManager`/`LongScreenshotCoordinator` 创建并持有 `overlays` 数组，`closeOverlays()` 逐个 `orderOut` 后清空（**不 close**）；视图 `deinit` 时 `DeleteKeyMonitor` 释放监视器。
@@ -79,6 +84,7 @@
 - **被依赖**：`ScreenshotManager`（区域/窗口）、`LongScreenshotCoordinator`（选区）。
 
 ### 2.4 `CaptureActionChain` + `CaptureActionToolbarPanel` + `CaptureActionToolbarView`
+
 - **职责**：框选后的动作注册表与浮条。`tools` 是**计算属性**，每次访问重建 12 个 tool（含闭包）。
 - **状态**：`static var toolbar: CaptureActionToolbarPanel?`（@MainActor，强引用），Preferences 键 `capture.afterSelect.showToolbar`。
 - **生命周期**：`present` → 主线程建 panel → `onClose` 里把静态引用置 nil。
@@ -86,6 +92,7 @@
 - **被依赖**：`ScreenshotManager.commitRegion/commitWindow`。
 
 ### 2.5 长截图家族（6 个类型 + 1 结构体）
+
 - `LongScreenshotCoordinator`（单例）：编排 + 持有 `session/hud/borderWindow/stream/selectionOverlays`。
 - `LongScreenshotCaptureStream`：3 个 NSEvent 监视器（global scrollWheel、global keyDown、local keyDown）。
 - `LongScreenshotSession`：状态机 + 串行队列 `com.surfrset.long-screenshot`（实为 `com.frset.long-screenshot`）+ `NSLock` + `DispatchSourceTimer`。
@@ -95,6 +102,7 @@
 - `LongScreenshotMotionCrop`（enum，纯函数）、`LongScreenshotDiagnostics`（enum）、`LongScreenshotHUDController`、`LongScreenshotSelectionBorderWindow`、`LongScreenshotPreviewController` + 编辑器三个视图、`ClosureButtonAction`。
 
 ### 2.6 OCR 家族
+
 - `OCRService`（单例，实现 `OCRServiceProtocol`）：`ScreenshotOCRDirectImageStore` 内容缓存（12 项）、单遍/多遍/小字增强三条路径、`refineWithPPOCR` 采纳规则、`readingOrder/assemble/cleanLine/sanitizeURL`。
 - `OCRRefiner` 协议 + `SystemOCRRefiner` / `LocalOCRRefiner` + `OCRRefinerRegistry.active`（读 `AISettings.ocrRefinerPreference`）。
 - `PPOCROCREmote`（enum）：`Process` 起 `Contents/Helpers/FrsetOCRHelper`，BGRA raw + boxes.json，10s 超时。
@@ -102,6 +110,7 @@
 - `OCRDiagnostics` / `LongScreenshotDiagnostics`：可被深链/环境变量触发的自检代码，编译进生产包。
 
 ### 2.7 标注家族
+
 - `AnnotationTool`（9 种工具枚举）、`Annotation`（struct，坐标一律**图像像素、左上原点**）。
 - `AnnotationCompositor`（enum）：`composite` 先画底图再翻转 CTM，然后用 AppKit 画标注；马赛克走 `replacePathWithStrokedPath` 裁剪。
 - `AnnotationCanvasView`：flipped NSView，`EditOp` 三态撤销栈（annotation / modify / imageSnapshot）+ 重做栈。
@@ -109,34 +118,40 @@
 - `AnnotationStateSnapshot`（Codable，存在 `CaptureHistoryStore` 文件里）→ 历史「继续标注」。
 
 ### 2.8 钉图家族（PinWindow.swift 内 8 个类型）
+
 `PinnedScreenshotScaleHUD`（点击穿透子视图）、`PinnedScreenshotSmallCloseButton`、`PinnedScreenshotSmallModeTipWindow`（一次性提示 + 4s 淡出）、`PinnedScreenshotControlsHostView`、`PinnedScreenshotControlsWindow`（childWindow，2s 自动隐藏，世代计数防错序）、`PinnedScreenshotContentView`（命中区 9 分法、锚点缩放、右键菜单）、`PinnedScreenshotWindow`（`.floating`，`canBecomeKey/Main=true`）、`PinnedScreenshotManager`（单例，窗口数组 + 本地 keyDown 监视器）。
 
 ### 2.9 其它
+
 `Eyedropper` / `EyedropperView` / `EyedropperWindow` / `EyedropperPickBridge`、`DelayedCaptureController` / `DelayedCountdownWindow`、`CaptureHistoryStore` / `CaptureHistoryVM` / `CaptureHistoryWindowController` / `CaptureDeepLink`、`BeautifyRenderer` / `BeautifyController` / `BeautifyWindow`、`ObjectRemovalEngine` / `DiffusionInpainter`、`Stitcher`、`ScreenTranslator`、`ScreenshotOCRResultWindow` + 三个 NSScrollView/NSTextView 子类 + `ScreenshotOCRWindowController`、`ElementSnapEngine`、`QRCodeRecognizer`、`ImageProcessor` / `RGBABuffer`、`CaptureModule`、`CaptureSectionView`、`CaptureSettingsPane`、`ColorValueFormats`/`ColorValueView`/`ColorValuePanelController`。
 
 ---
 
 ## 3. 函数级清单
 
+|   |   |   |
+| - | - | - |
+
 > 列：`函数名 | 行 | 说明`。行号为声明起始行（来自 `/tmp/frset_symbols.csv`）。仅列 func/init；class/enum/struct 归入第 2 节。
 
 ### 3.1 AnnotationCompositor.swift
 
-| 函数名 | 行 | 说明 |
-|---|---|---|
-| `composite` | 110 | 建 RGBA 上下文→画底图→`translate/scale` 翻成左上原点→`NSGraphicsContext(flipped:true)`→`draw`；无标注直接返回底图；马赛克层按块大小缓存一次（导出路径无画布缓存） |
-| `pixelated` | 291 | 缩小到 `w/block` 再放大（nearest 语义），块内取均值；块最小 4px |
-| `drawArrow` | 304 | 直线 + 两条 `±0.82π` 箭头翼，头长 `max(10, lineWidth*4)` |
-| `apply` | 321 | 统一描边：圆头圆角、线宽 ≥1 |
-| `rect` | 330 | 取首末点规范化矩形；点数 <2 返回 nil |
-| `fontSize` | 338 | 线宽 ×6，钳制 12…72 |
-| `textFontSize` | 343 | `fontSize` 的语义别名（画布/输入框/合成共用一个口径） |
-| `fontWeight` | 348 | 0→regular / 2→bold / 其余 semibold |
-| `textBounds` | 359 | 按 `wrapWidth` 软换行后 `boundingRect` 求高；选中框/命中/字号联动共用 |
-| `displayText` | 375 | `wrapWidth>8` 才折行 |
-| `wrapText` | 382 | 逐字符硬折行（CJK 友好），与输入框 `.byCharWrapping` 同算法 |
-| `color` | 404 | `#RRGGBB` → sRGB NSColor，失败回退 systemRed |
-| `hex` | 414 | NSColor → `#RRGGBB`，非 sRGB 回退 `#FF3B30` |
+| 函数名            | 行   | 说明                                                                                                                 |
+| -------------- | --- | ------------------------------------------------------------------------------------------------------------------ |
+| `composite`    | 110 | 建 RGBA 上下文→画底图→`translate/scale` 翻成左上原点→`NSGraphicsContext(flipped:true)`→`draw`；无标注直接返回底图；马赛克层按块大小缓存一次（导出路径无画布缓存） |
+| `pixelated`    | 291 | 缩小到 `w/block` 再放大（nearest 语义），块内取均值；块最小 4px                                                                        |
+| `drawArrow`    | 304 | 直线 + 两条 `±0.82π` 箭头翼，头长 `max(10, lineWidth*4)`                                                                     |
+| `apply`        | 321 | 统一描边：圆头圆角、线宽 ≥1                                                                                                    |
+| `rect`         | 330 | 取首末点规范化矩形；点数 <2 返回 nil                                                                                             |
+| `fontSize`     | 338 | 线宽 ×6，钳制 12…72                                                                                                     |
+| `textFontSize` | 343 | `fontSize` 的语义别名（画布/输入框/合成共用一个口径）                                                                                  |
+| `fontWeight`   | 348 | 0→regular / 2→bold / 其余 semibold                                                                                   |
+| `textBounds`   | 359 | 按 `wrapWidth` 软换行后 `boundingRect` 求高；选中框/命中/字号联动共用                                                                 |
+| `displayText`  | 375 | `wrapWidth>8` 才折行                                                                                                  |
+| `wrapText`     | 382 | 逐字符硬折行（CJK 友好），与输入框 `.byCharWrapping` 同算法                                                                          |
+| `color`        | 404 | `#RRGGBB` → sRGB NSColor，失败回退 systemRed                                                                            |
+| `hex`          | 414 | NSColor → `#RRGGBB`，非 sRGB 回退 `#FF3B30`                                                                            |
+
 
 **散文补充（composite / drawMosaicBrush 的坑）**
 - `composite` 必须"先画底图、再翻转"，否则底图上下颠倒；翻转后 `NSGraphicsContext(flipped: true)` 才能让 `NSString.draw` 正立。
@@ -356,6 +371,7 @@
 | `pinLatest` | 244 | 钉最近一张，无则选文件 |
 | `annotateLatest` | 253 | 标注最近一张，无则选文件 |
 | `chooseSingleImage` | 259 | 单文件选择面板 |
+
 
 **⚠ 注意**：本视图的「长截图」按钮走的是 `pickAndStitch()`（**多图拼接**），而 `CaptureModule.capture(.long)` 走的是 `LongScreenshotCoordinator`（**滚动长截图**）。同一个 `CaptureMode.long` 在两个入口有不同语义，见第 7 节。
 
@@ -584,6 +600,7 @@
 - `streamStale` 分支刻意不增加 `captureFailures`：静画面时 SCK 不出帧是正常现象，把它当失败会导致"滚到底部就报错"。
 - 同步兜底限流 3 次/秒（`lastSyncFallbackAt`），且只在"确有滚动提示"或 `force` 时才走——避免静止时每 tick 都做一次 100–400ms 的 `SCShareableContent` 枚举。
 
+
 ### 3.25 LongScreenshotStitcher.swift
 
 | 函数名 | 行 | 说明 |
@@ -802,6 +819,7 @@
 | `windowDidBecomeKey` | 954 | 校验 contentView 类型后更新弱引用 |
 | `windowDidClose` | 959 | 从数组移除 + 反注册通知 |
 
+
 **散文（贴图窗三处历史 bug 与现解）**
 - **HUD 一直飘着**（v83）：旧实现用独立 NSPanel + `addChildWindow`，childWindow 会在父窗每次 `orderFront`/成为 key 时被系统重新带出，于是 2s 后 `orderOut` 的 HUD 又复活且没有新 timer 收尾。现改为**内容视图内的子视图**，随贴图绘制、随 2s 定时器隐藏。
 - **点叉号关不掉**（v83）：旧布局 `start=85, index×58`，第 5 个按钮 x=317、右缘 345，超出 320pt 窗口被裁掉。现整组居中：`5×28 + 4×30 = 260`，起点 30。
@@ -1017,6 +1035,7 @@
             └─ 12 个工具之一 → perform(id:) → 各模块入口
 ```
 
+
 跨模块边界：`CaptureEventBus`（静态闭包）、`Notification.frsetAirDropFiles`（空投）、`TranslationToolSession`（AI 模块，**直接引用，违反文件头声称的 CONTRACT §1.3**）。
 
 ### 4.2 长截图（滚动）
@@ -1168,6 +1187,8 @@ CaptureMode.color / 工具箱（EyedropperPickBridge.pickColor）
 `FRSET_TCC_REQUEST=1`、`FRSET_CAPTURE_PROBE=1`。
 
 ### 5.9 深链
+|  |  |  |
+| --- | --- | --- |
 - `frsetnext://capture?action=history|delayed|region[&seconds=N]`
 - `frsetnext://longshotcheck`（拼接自检，入口在 App 层）
 

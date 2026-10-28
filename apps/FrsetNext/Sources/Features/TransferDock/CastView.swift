@@ -49,6 +49,9 @@ struct CastView: View {
     @Stored private var toolsExpanded = false
     @Stored private var wirelessExpanded = false
     @Stored private var showTips = false
+    // v157：扫码直连（Android 11+ 无线调试 QR 配对）
+    @StateObject private var qrPair = AdbQrPairing()
+    @Stored private var showQrPair = false
     @ObservedObject private var panelPage = MonitorCenterPresenter.shared
 
     // v128（流畅度）：轮询 timer 提为 static——原 `Timer.publish(...).autoconnect()` 写在
@@ -81,6 +84,13 @@ struct CastView: View {
             autoScanDone = true
             scrcpyReady = ScreenCastEngine.findScrcpy() != nil
             refreshDevices(quiet: true)
+            // 扫码配对成功 → 直接投屏（用户点「扫码直连」的预期就是「扫完就看」）
+            qrPair.onConnected = { serial in
+                showQrPair = false
+                Toast.show("已连接 \(serial)，开始投屏", icon: "display")
+                ScreenCastEngine.startMirror(serial: serial)
+                refreshDevices(quiet: true)
+            }
         }
         // v154：轮询条件再收紧一层——「更多工具」没展开就不拉通知（用户看不到也没必要跑 adb）
         .onReceive(Self.notifTick) { _ in
@@ -310,17 +320,43 @@ struct CastView: View {
 
             if wirelessExpanded {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        secondaryButton(wirelessBusy ? "启用中…" : "一键无线",
-                                        icon: "wifi.router") { enableWireless() }
-                        secondaryButton("扫描附近", icon: "antenna.radiowaves.left.and.right") {
-                            AdbPairingService.shared.scan()
+                    // v157（用户：「最重要的是扫码直连，不是基于某个局域网再用 adb 连」）：
+                    // 主路径改成扫码——手机扫一下即配对+连接+投屏，不用插线、不用输 IP。
+                    Button {
+                        showQrPair = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "qrcode.viewfinder")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("扫码直连")
+                                .font(.system(size: 13, weight: .semibold))
                         }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 32)
+                        .background(Theme.accent.gradient,
+                                    in: RoundedRectangle(cornerRadius: Theme.Radius.control,
+                                                         style: .continuous))
+                        .contentShape(Rectangle())
                     }
-                    Text("USB 连一次即可（adb tcpip 5555），之后免配对码直连")
+                    .buttonStyle(.plain)
+                    .help("手机扫一下二维码即配对、连接并开始投屏（Android 11+ 无线调试）")
+                    .accessibilityLabel("扫码直连")
+                    .popover(isPresented: $showQrPair, arrowEdge: .bottom) { qrPairPopover }
+
+                    Text("手机：设置 → 开发者选项 → 无线调试 → 「使用二维码配对设备」")
                         .font(.system(size: 11.5))
                         .foregroundStyle(Theme.tertiaryText)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    // 兜底两条：USB 打开 tcpip / 手动配对列表
+                    HStack(spacing: 6) {
+                        secondaryButton(wirelessBusy ? "启用中…" : "USB 开无线",
+                                        icon: "wifi.router") { enableWireless() }
+                        secondaryButton("手动配对", icon: "antenna.radiowaves.left.and.right") {
+                            AdbPairingService.shared.scan()
+                        }
+                    }
 
                     // 配对卡片自带「发现列表 + 手动 IP + 状态」，这里内嵌，不再重复标题与按钮
                     AdbPairingView(embedded: true)
@@ -342,7 +378,7 @@ struct CastView: View {
     private var wirelessDetail: String {
         if wirelessBusy { return "启用中…" }
         let n = AdbPairingService.shared.wirelessConnected.count
-        return n > 0 ? "\(n) 台无线已连" : "USB 一次即可免配对码"
+        return n > 0 ? "\(n) 台无线已连" : "扫码直连，零手输"
     }
 
     private func enableWireless() {
@@ -705,6 +741,52 @@ struct CastView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
+    }
+
+    // MARK: - 扫码直连弹层
+
+    private var qrPairPopover: some View {
+        VStack(spacing: 10) {
+            Text("用手机扫这张码")
+                .font(.system(size: 13, weight: .semibold))
+            QRCodeView(text: qrPair.qrText, size: 208)
+                .onAppear { qrPair.start() }
+                .onDisappear { qrPair.cancel() }
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(qrPhaseColor)
+                    .frame(width: 6, height: 6)
+                Text(qrPair.phase.text)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(qrPair.phase.isTerminal ? Theme.tertiaryText : .secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            if qrPair.phase.isTerminal {
+                Button("重新生成") { qrPair.restart() }
+                    .font(.system(size: 11.5))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.accent)
+            }
+            Text("手机与 Mac 需在同一 Wi-Fi（未开热点隔离）")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(width: 250)
+    }
+
+    private var qrPhaseColor: Color {
+        switch qrPair.phase {
+        case .connected: return .green
+        case .failed, .expired: return .orange
+        case .idle: return .secondary
+        default: return .accentColor
+        }
     }
 
     // MARK: - 说明弹层（替代原来常驻的 5 行小字）
