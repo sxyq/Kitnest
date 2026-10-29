@@ -137,30 +137,33 @@ final class LongScreenshotCoordinator: NSObject {
         // 一起关掉（实测：创建后 0.2-1s 就被「关闭选区覆盖层（1 屏）」）。
         closeSelectionOverlays()
         NSApp.activate(ignoringOtherApps: true)
-        for screen in NSScreen.screens {
-            let snapshot = ScreenSnapshot.cgCapture(screen: screen)
-            let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
-            window.overlayView.onCommit = { [weak self, weak window] rect in
-                guard let self = self, let window = window else { return }
-                self.commitSelection(rect: rect, window: window)
+        // v161：快照异步获取——macOS 27 上主线程同步调 legacy 抓屏会死锁（与 ⌘1 卡死同根因）
+        Task { @MainActor in
+            let snapshots = await ScreenshotManager.acquireScreenSnapshots()
+            for (screen, snapshot) in snapshots {
+                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
+                window.overlayView.onCommit = { [weak self, weak window] rect in
+                    guard let self = self, let window = window else { return }
+                    self.commitSelection(rect: rect, window: window)
+                }
+                window.overlayView.onCancel = { [weak self] in
+                    self?.cancelSelection()
+                }
+                selectionOverlays.append(window)
+                // v109：先激活应用——否则首个点击被系统用于激活、拖拽无反应（要第二次）
+                NSApp.activate(ignoringOtherApps: true)
+                // v139：makeKeyAndOrderFront 在后台（非活跃）状态下会被系统忽略——
+                // 用户实测「点长截图没反应」：日志说覆盖层已创建，屏幕上却没有。
+                // 改用 orderFrontRegardless（无条件上屏）+ 再尝试设为 key。
+                window.orderFrontRegardless()
+                window.makeKey()
+                Log.info("Capture", "长截图：覆盖层 window frame=\(Int(window.frame.width))×\(Int(window.frame.height)) visible=\(window.isVisible) level=\(window.level.rawValue) appActive=\(NSApp.isActive)")
             }
-            window.overlayView.onCancel = { [weak self] in
-                self?.cancelSelection()
+            if selectionOverlays.isEmpty {
+                Log.warn("Capture", "长截图：无法创建选区覆盖层")
+            } else {
+                Log.info("Capture", "长截图：选区覆盖层已显示（\(selectionOverlays.count) 屏）")
             }
-            selectionOverlays.append(window)
-            // v109：先激活应用——否则首个点击被系统用于激活、拖拽无反应（要第二次）
-            NSApp.activate(ignoringOtherApps: true)
-            // v139：makeKeyAndOrderFront 在后台（非活跃）状态下会被系统忽略——
-            // 用户实测「点长截图没反应」：日志说覆盖层已创建，屏幕上却没有。
-            // 改用 orderFrontRegardless（无条件上屏）+ 再尝试设为 key。
-            window.orderFrontRegardless()
-            window.makeKey()
-            Log.info("Capture", "长截图：覆盖层 window frame=\(Int(window.frame.width))×\(Int(window.frame.height)) visible=\(window.isVisible) level=\(window.level.rawValue) appActive=\(NSApp.isActive)")
-        }
-        if selectionOverlays.isEmpty {
-            Log.warn("Capture", "长截图：无法创建选区覆盖层")
-        } else {
-            Log.info("Capture", "长截图：选区覆盖层已显示（\(selectionOverlays.count) 屏）")
         }
     }
 

@@ -50,7 +50,8 @@ public enum CaptureModule: AppModule {
         //   · SCK 抓图是否正常（权限是否真正生效）
         if ProcessInfo.processInfo.environment["FRSET_CAPTURE_PROBE"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                runCaptureProbe()
+                // v161：探针整体挪后台——legacy 同步抓屏禁止主线程（macOS 27 死锁）
+                Task.detached(priority: .utility) { runCaptureProbe() }
             }
         }
     }
@@ -58,8 +59,12 @@ public enum CaptureModule: AppModule {
     // MARK: 抓屏诊断探针（排障专用，不影响正常使用）
 
     static func runCaptureProbe() {
-        guard let screen = NSScreen.main else { return }
-        let cgRect = ScreenSnapshot.cgRect(for: screen)
+        // v161：NSScreen/NSSound 等 AppKit 查询回主线程取值，抓屏留在本后台线程
+        let cgRect = DispatchQueue.main.sync { () -> CGRect in
+            guard let screen = NSScreen.main else { return .zero }
+            return ScreenSnapshot.cgRect(for: screen)
+        }
+        guard !cgRect.isEmpty else { return }
 
         // ① dlsym 旧 API（长截图/区域截图快照走这条）
         if let img = ScreenSnapshot.cgCapture(rect: cgRect) {
@@ -74,17 +79,23 @@ public enum CaptureModule: AppModule {
         }
 
         // ② ScreenCaptureKit（全屏截图主路径）
-        if #available(macOS 14.0, *), let displayID = ScreenSnapshot.displayID(of: screen) {
-            Task {
-                do {
-                    let img = try await ScreenSnapshot.sckCapture(displayID: displayID)
-                    let brightness = Self.averageBrightness(img)
-                    Log.info("Capture", "探针[SCK] 抓图 OK \(img.width)x\(img.height) 平均亮度=\(String(format: "%.1f", brightness))")
-                    if let data = ImageProcessor.pngData(img) {
-                        try? data.write(to: URL(fileURLWithPath: "/tmp/frset_probe_sck.png"))
+        if #available(macOS 14.0, *) {
+            let displayID = DispatchQueue.main.sync { () -> CGDirectDisplayID? in
+                guard let screen = NSScreen.main else { return nil }
+                return ScreenSnapshot.displayID(of: screen)
+            }
+            if let displayID {
+                Task {
+                    do {
+                        let img = try await ScreenSnapshot.sckCapture(displayID: displayID)
+                        let brightness = Self.averageBrightness(img)
+                        Log.info("Capture", "探针[SCK] 抓图 OK \(img.width)x\(img.height) 平均亮度=\(String(format: "%.1f", brightness))")
+                        if let data = ImageProcessor.pngData(img) {
+                            try? data.write(to: URL(fileURLWithPath: "/tmp/frset_probe_sck.png"))
+                        }
+                    } catch {
+                        Log.error("Capture", "探针[SCK] 抓图失败：\(error.localizedDescription)")
                     }
-                } catch {
-                    Log.error("Capture", "探针[SCK] 抓图失败：\(error.localizedDescription)")
                 }
             }
         }

@@ -365,25 +365,52 @@ public final class ScreenshotManager: ObservableObject {
         isCapturing = true
         NSApp.activate(ignoringOtherApps: true)
 
-        // 每个屏幕一个覆盖层；快照在覆盖层出现前先抓，避免把覆盖层自己拍进去
-        for screen in NSScreen.screens {
-            let snapshot = ScreenSnapshot.cgCapture(screen: screen)
-            let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
-            window.overlayView.onCommit = { [weak self, weak window] rect in
-                guard let self = self, let window = window else { return }
-                self.commitRegion(rect: rect, window: window)
+        // v161（2026-10-29 修「⌘1 快捷截屏必定卡死」）：快照抓取移出主线程。
+        // 根因（真机采样实锤）：macOS 27 上 legacy CGWindowListCreateImage 已被系统
+        // 改造为 ScreenCaptureKit 代理（SLWindowListCreateImage →
+        // SLSWindowListCreateImageProxying），内部把完成块派发回主队列后 signal
+        // 信号量——主线程同步等待它 = 永久死锁（覆盖层都来不及建，整个 App 无响应）。
+        // 修复：快照统一异步获取（SCK 优先），完成后再回主线程建覆盖层。
+        Task { @MainActor in
+            let snapshots = await Self.acquireScreenSnapshots()
+            guard self.isCapturing else { return }   // 等待期间已被取消（如再次触发）
+            for (screen, snapshot) in snapshots {
+                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
+                window.overlayView.onCommit = { [weak self, weak window] rect in
+                    guard let self = self, let window = window else { return }
+                    self.commitRegion(rect: rect, window: window)
+                }
+                window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
+                self.overlays.append(window)
+                // v109：先激活应用，防首击被激活吃掉（拉伸没反应要第二次）
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
             }
-            window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
-            overlays.append(window)
-            // v109：先激活应用，防首击被激活吃掉（拉伸没反应要第二次）
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            if self.overlays.isEmpty {
+                self.isCapturing = false
+                self.statusMessage = CaptureError.captureFailed.errorDescription
+                Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+            }
         }
-        if overlays.isEmpty {
-            isCapturing = false
-            statusMessage = CaptureError.captureFailed.errorDescription
-            Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+    }
+
+    /// v161：每屏快照异步获取（区域/窗口/长截图选区共用）。SCK 异步通道为主（macOS 14+，主线程安全）；
+    /// legacy 同步 API 只允许在后台线程调（macOS 27 主线程同步调用会死锁，见 beginRegionCapture 注释）。
+    static func acquireScreenSnapshots() async -> [(screen: NSScreen, image: CGImage?)] {
+        var result: [(NSScreen, CGImage?)] = []
+        for screen in NSScreen.screens {
+            var image: CGImage?
+            if #available(macOS 14.0, *), let displayID = ScreenSnapshot.displayID(of: screen) {
+                image = try? await ScreenSnapshot.sckCapture(displayID: displayID)
+            }
+            if image == nil {
+                image = await Task.detached(priority: .userInitiated) {
+                    ScreenSnapshot.cgCapture(screen: screen)
+                }.value
+            }
+            result.append((screen, image))
         }
+        return result
     }
 
     private func commitRegion(rect: CGRect, window: ScreenshotOverlayWindow) {
@@ -444,7 +471,12 @@ public final class ScreenshotManager: ObservableObject {
             if #available(macOS 14.0, *) {
                 image = try? await ScreenSnapshot.sckCapture(displayID: displayID)
             }
-            if image == nil { image = ScreenSnapshot.cgCapture(screen: screen) }
+            if image == nil {
+                // v161：legacy 兜底也必须在后台线程（macOS 27 主线程同步调用会死锁）
+                image = await Task.detached(priority: .userInitiated) {
+                    ScreenSnapshot.cgCapture(screen: screen)
+                }.value
+            }
             guard let image = image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 Log.error("Capture", "全屏截图失败")
@@ -493,21 +525,25 @@ public final class ScreenshotManager: ObservableObject {
         isCapturing = true
         NSApp.activate(ignoringOtherApps: true)
 
-        for screen in NSScreen.screens {
-            let snapshot = ScreenSnapshot.cgCapture(screen: screen)
-            let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot, pickMode: .window)
-            window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
-                guard let self = self, let window = window else { return }
-                self.commitWindow(rect: rect, windowID: windowID, window: window)
+        // v161：与 beginRegionCapture 同修——快照异步获取，legacy 同步调用禁止主线程（macOS 27 死锁）
+        Task { @MainActor in
+            let snapshots = await Self.acquireScreenSnapshots()
+            guard self.isCapturing else { return }
+            for (screen, snapshot) in snapshots {
+                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot, pickMode: .window)
+                window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
+                    guard let self = self, let window = window else { return }
+                    self.commitWindow(rect: rect, windowID: windowID, window: window)
+                }
+                window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
+                self.overlays.append(window)
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
             }
-            window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
-            overlays.append(window)
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
-        }
-        if overlays.isEmpty {
-            isCapturing = false
-            Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+            if self.overlays.isEmpty {
+                self.isCapturing = false
+                Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+            }
         }
     }
 
