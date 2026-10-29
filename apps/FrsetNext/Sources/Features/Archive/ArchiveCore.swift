@@ -586,10 +586,13 @@ public enum ArchiveCore {
                 // 有硬不安全条目时只解压安全的（显式列路径 = 跳过不安全项）
                 var restrict: [String]? = nil
                 if !unsafe.isEmpty {
-                    let safe = entries.filter { !$0.isDirectory && !isHardUnsafeEntryPath($0.path) }
+                    // v164（2026-10-29 修 P0）：此前「安全条目 > 1500 → restrict=nil 整包解压」，
+                    // 实测（7zz 26.02）越界条目并不会逃出目标目录，但**会被照常解出来**，
+                    // 而对外仍报「已跳过 N 个不安全路径」——说跳过却没跳过。
+                    // 现在永远走白名单：清单写临时文件，用 7zz 的 `-i@listfile`，
+                    // 不受 argv 长度限制，因此不需要这个「太多就整包」的降级分支。
+                    restrict = entries.filter { !$0.isDirectory && !isHardUnsafeEntryPath($0.path) }
                         .map { $0.path }
-                    // 条目太多时命令行放不下 → 退化为整包解压（仅在 message 警告）
-                    restrict = safe.count <= 1500 ? safe : nil
                 }
                 performExtract(url: url, entry: nil, to: dir, password: pw,
                                includeAuxiliary: includeAuxiliary,
@@ -619,13 +622,31 @@ public enum ArchiveCore {
         args += passwordArg(password)
         args += auxExcludeArgs(includeAuxiliary)
         args += [url.path]
+        // 白名单清单文件（restrictTo 非 nil 时）：7zz 的 -i@listfile 从文件读 include 列表。
+        // 逐条摆在命令行会在 1500 条前后撞 argv 上限，用文件则无上限（实测 26.02：
+        // 精确匹配、与 cwd 无关）。文件必须在 **7zz 跑完之后** 才删，不能 defer 到本函数返回。
+        var listFile: URL?
         if let restrictTo {
-            args += restrictTo
+            let f = FileManager.default.temporaryDirectory
+                .appendingPathComponent("frset-include-\(UUID().uuidString).txt")
+            do {
+                try restrictTo.joined(separator: "\n").appending("\n")
+                    .write(to: f, atomically: true, encoding: .utf8)
+                listFile = f
+                args.append("-i@\(f.path)")
+            } catch {
+                // 清单写不出来就不解压（fail closed）——绝不退回「整包解压」
+                DispatchQueue.main.async {
+                    completion(false, "准备安全条目清单失败：\(error.localizedDescription)")
+                }
+                return
+            }
         } else if let entry {
             args.append(entry)
         }
         run(args, taskID: taskID, onProgress: progressCallback(taskID, phase: "解压中…")) {
             code, _, err in
+            if let listFile { try? FileManager.default.removeItem(at: listFile) }
             completion(code == 0, code == 0 ? "已解压到 \(dir.path)" : err)
         }
     }
@@ -873,6 +894,15 @@ public enum ArchiveCore {
             var staging: URL? = nil
             let name = archiveURL.lastPathComponent.lowercased()
 
+            // v164（2026-10-29 修 P0）：tar.gz 是「先 tar 再 gzip」两趟，gzip 是单流格式，
+            // 7zz 的 `-v` 只会把 **tar** 切成 .tar.001/.002，gz 那一趟根本没跑；旧实现还报
+            // 「已创建 x.tar.gz（分卷 N MB）」，用户拿到的是分卷 tar，双击也解不开。
+            // 这里直接拒绝：不静默降级为「不分卷」——用户明确要了分卷，悄悄忽略同样是骗人。
+            if (name.hasSuffix(".tar.gz") || name.hasSuffix(".tgz")), volumeMB > 0 {
+                both(false, "tar.gz 不支持分卷：请改用 7z / zip 分卷，或关闭分卷")
+                return
+            }
+
             // v127（ArcZip P2）：Windows 文件名修正——包内名用建议名，磁盘原名不动
             if useWindowsSafeNames {
                 let sanitized = uniqueWindowsNames(names.map { sanitizeWindowsName($0) })
@@ -935,11 +965,7 @@ public enum ArchiveCore {
                         finalize(code, err)
                         return
                     }
-                    // 单卷直接 gzip；分卷时 7zz 已切成 .tar.001…，不再二次压缩
-                    guard volumeMB == 0 else {
-                        finalize(0, "")
-                        return
-                    }
+                    // 分卷 + tar.gz 的组合已在入口拒绝 → 走到这里必然是单卷，直接 gzip
                     if ArchiveTaskQueue.shared.isCancelled(taskID) {
                         try? FileManager.default.removeItem(at: tarURL)
                         finalize(-1, "已取消")

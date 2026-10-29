@@ -63,7 +63,13 @@ public final class ArchiveCreateModel: ObservableObject {
         let base = (outputName as NSString).deletingPathExtension
         let ext = format == "tar.gz" ? "tar.gz" : format
         outputName = base + "." + ext
+        // v164：tar.gz 走「tar → gzip」两趟，gzip 是单流、没有分卷；切到该格式就顺手关掉分卷，
+        // 免得点了「创建」才被核心层拒绝
+        if !supportsVolumes { volumeEnabled = false }
     }
+
+    /// 分卷能力：tar.gz 没有分卷（7zz 的 -v 只会切 tar，产出 .tar.001 且没有 gz 那一趟）
+    public var supportsVolumes: Bool { format != "tar.gz" }
 
     public var outputURL: URL {
         outputDir.appendingPathComponent(outputName)
@@ -291,7 +297,15 @@ public struct ArchiveCreateView: View {
                 Toggle("分卷压缩", isOn: $model.volumeEnabled)
                     .toggleStyle(.checkbox)
                     .font(.system(size: 11))
-                if model.volumeEnabled {
+                    .disabled(!model.supportsVolumes)
+                    .help(model.supportsVolumes
+                          ? "按设定大小切成多卷（.001/.002…）"
+                          : "TAR.GZ 不支持分卷：gzip 是单流格式")
+                if !model.supportsVolumes {
+                    Text("TAR.GZ 不支持分卷")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                } else if model.volumeEnabled {
                     TextField("", value: $model.volumeMB, format: .number)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 64)
