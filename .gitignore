@@ -15,3 +15,7 @@ apps/FrsetNext/.build/
 
 # CodeGraph 索引工具状态（机器本地）
 apps/FrsetNext/.codegraph/
+
+# 编译产物不入库
+apps/FrsetNext/tools/**/amd_inject
+apps/FrsetNext/tools/**/amd_mcpui
