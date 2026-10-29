@@ -41,6 +41,8 @@ public final class AdbQrPairing: ObservableObject {
 
     public enum Phase: Equatable {
         case idle
+        /// v164：先找 mDNS 里已授权的连接服务（0 交互，不急着出二维码）
+        case discovering
         /// v159：正在尝试「上次的设备」，命中就不需要扫码
         case reconnecting(String)
         /// 等手机扫码
@@ -59,6 +61,7 @@ public final class AdbQrPairing: ObservableObject {
         public var text: String {
             switch self {
             case .idle:                 return "准备中…"
+            case .discovering:          return "正在查找已授权设备…"
             case .reconnecting(let d):  return "正在连接上次的设备 \(d)…"
             case .waiting:              return "等待手机扫码…"
             case .found(let host):      return "发现手机 \(host)，开始配对…"
@@ -81,7 +84,7 @@ public final class AdbQrPairing: ObservableObject {
         /// 是否需要显示二维码（重连阶段先不显示，避免用户以为必须扫）
         public var showsQR: Bool {
             switch self {
-            case .reconnecting, .idle: return false
+            case .reconnecting, .idle, .discovering: return false
             default: return true
             }
         }
@@ -122,13 +125,16 @@ public final class AdbQrPairing: ObservableObject {
         // 避免个别 ROM 的相机处理器只认这个前缀（AOSP 代码里就是判 T:ADB，
         // 但前缀保持一致零成本）。
         serviceName = "studio-frset-" + Self.randomToken(6)
-        code = Self.randomToken(8)
+        // v164：配对码改成 **6 位数字**。系统「使用配对码配对设备」给的就是 6 位数字，
+        // 主流实现（Super_ADB / adbqr）也按 6 位随机数生成；此前用 8 位字母数字，
+        // 部分 ROM 的扫码解析会直接判为非法二维码（表现为「扫了没反应」）。
+        code = Self.randomDigits(6)
     }
 
     /// 换一套凭证（配对码是一次性的，重试必须重新生成，否则手机会拒）
     private func regenerate() {
         serviceName = "studio-frset-" + Self.randomToken(6)
-        code = Self.randomToken(8)
+        code = Self.randomDigits(6)
     }
 
     deinit { timer?.invalidate() }
@@ -153,8 +159,18 @@ public final class AdbQrPairing: ObservableObject {
             Log.info("Transfer", "扫码直连：先尝试免扫码重连 \(last.serial)")
             scheduleReconnectFallback()
         } else {
-            phase = .waiting
-            Log.info("Transfer", "扫码直连：等待扫码 service=\(serviceName)")
+            // v164：没有历史记录也先找 mDNS 里现成的连接服务——
+            // 只要这台手机以前授权过（USB 授权或配对过），无线调试一开就能直连，
+            // 完全不需要再扫一次码。找不到才出二维码。
+            phase = .discovering
+            Log.info("Transfer", "扫码直连：先查找 mDNS 里的已授权设备")
+            let gen = generation
+            tryDiscoveredConnections(gen: gen) { [weak self] hit in
+                guard let self, gen == self.generation, !hit, self.phase == .discovering else { return }
+                self.phase = .waiting
+                Log.info("Transfer", "扫码直连：未发现可用设备，等待扫码 service=\(self.serviceName)")
+                self.tick()
+            }
         }
 
         let t = Timer(timeInterval: 1.2, repeats: true) { [weak self] _ in
@@ -209,6 +225,9 @@ public final class AdbQrPairing: ObservableObject {
             return
         }
         switch phase {
+        case .discovering:
+            // 一次性发现任务在跑，不在这里轮询（避免拿到过期配对码）
+            break
         case .connecting:
             pollConnectService()
         case .reconnecting:
@@ -260,8 +279,66 @@ public final class AdbQrPairing: ObservableObject {
                 self.succeed(serial: online.serial)
                 return
             }
-            // ② 记忆里的 serial 逐个试
-            self.tryCandidates(index: 0)
+            // ①.5 v164：mDNS 里现成的「连接服务」直接试。
+            // 无线调试的端口每次开关都会变，记忆里的 serial 很快过期（本例记的是
+            // 10.255.255.1:37651，早已不可达）；而 mDNS 广播里的 target 永远是当前端口。
+            // 已配对/已授权的设备因此可以完全跳过扫码。
+            self.tryDiscoveredConnections(gen: gen) { hit in
+                guard !hit else { return }
+                // ② 记忆里的 serial 逐个试
+                self.tryCandidates(index: 0)
+            }
+        }
+    }
+
+    /// 用 mDNS 发现的 `_adb-tls-connect` 服务直接连（不配对、不出二维码）
+    private func tryDiscoveredConnections(gen: Int, attempt: Int = 0,
+                                          completion: @escaping (Bool) -> Void) {
+        ADBWirelessEngine.discoverServices { [weak self] list in
+            guard let self, gen == self.generation else { return }
+            let targets = (list ?? []).filter { !$0.needsPairing }.map { $0.target }
+            guard !targets.isEmpty else {
+                // adb 的 mDNS 列表偶发返回空（实测：刚 adb disconnect 后有一次空列表），
+                // 空结果不等于没有设备 —— 重试两次再放弃。
+                if attempt < 2 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                        self?.tryDiscoveredConnections(gen: gen, attempt: attempt + 1,
+                                                       completion: completion)
+                    }
+                } else {
+                    completion(false)
+                }
+                return
+            }
+            Log.info("Transfer", "扫码直连：mDNS 发现 \(targets.count) 个连接服务，尝试直连")
+            self.tryDiscoveredTargets(targets, index: 0, gen: gen, completion: completion)
+        }
+    }
+
+    private func tryDiscoveredTargets(_ targets: [String], index: Int, gen: Int,
+                                      completion: @escaping (Bool) -> Void) {
+        guard index < targets.count else { completion(false); return }
+        guard let addr = Self.split(targets[index]) else {
+            tryDiscoveredTargets(targets, index: index + 1, gen: gen, completion: completion)
+            return
+        }
+        ADBWirelessEngine.connect(host: addr.host, port: addr.port, timeout: 3) { [weak self] out in
+            guard let self, gen == self.generation else { return }
+            guard out.lowercased().contains("connected") else {
+                self.tryDiscoveredTargets(targets, index: index + 1, gen: gen, completion: completion)
+                return
+            }
+            // adb connect 成功 ≠ 设备可用（可能 unauthorized/offline），再确认一次
+            ScreenCastEngine.connectedDevices { [weak self] list in
+                guard let self, gen == self.generation else { return }
+                if list?.contains(where: { $0.serial == targets[index] && $0.state == "device" }) == true {
+                    Log.info("Transfer", "扫码直连：mDNS 直连成功 \(targets[index])")
+                    self.succeed(serial: targets[index])
+                    completion(true)
+                } else {
+                    self.tryDiscoveredTargets(targets, index: index + 1, gen: gen, completion: completion)
+                }
+            }
         }
     }
 
@@ -409,5 +486,10 @@ public final class AdbQrPairing: ObservableObject {
     private static func randomToken(_ n: Int) -> String {
         let alphabet = Array("abcdefghijkmnpqrstuvwxyz23456789")
         return String((0..<n).compactMap { _ in alphabet.randomElement() })
+    }
+
+    /// 6 位数字配对码（与系统「使用配对码配对设备」同形）
+    private static func randomDigits(_ n: Int) -> String {
+        String((0..<n).compactMap { _ in "0123456789".randomElement() })
     }
 }

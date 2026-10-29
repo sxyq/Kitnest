@@ -321,30 +321,91 @@ public enum ADBWirelessEngine {
         public let needsPairing: Bool  // _adb-tls-pairing = 需要配对码
     }
 
-    /// `adb mdns services` 解析（后台执行）
+    /// 上一次发现结果的签名（只在变化时打日志，避免每 1.2s 刷屏）
+    private static var lastDiscoverySignature = ""
+
+    /// 进程内 Bonjour 浏览器（复用同一实例，避免每次轮询新建）
+    private static let bonjour = AdbBonjour()
+
+    /// 发现 adb 无线调试服务。
+    ///
+    /// v164（2026-10-29，用户「扫码后连不上」）：**先走系统 Bonjour，adb 解析降为兜底**。
+    /// 依据见 `AdbBonjour.swift` 头注：`adb mdns services` 的列表会周期性变空
+    /// （实测 2~14s 一次，同一时刻 `dns-sd` 一直能看到），依赖它就会「等不到手机」。
+    ///
+    /// 同时修了输出解析：adb 37 给的是**三列**（实例名 / 服务类型 / ip:port），
+    /// 旧代码按两列读，把服务类型当成 ip:port，`contains(":")` 全部 continue ——
+    /// 即使手机广播了也永远发现不了。
     public static func discoverServices(completion: @escaping ([DiscoveredService]?) -> Void) {
+        bonjour.browse { hits in
+            if !hits.isEmpty {
+                let result = hits.map {
+                    DiscoveredService(id: "\($0.name)@\($0.host):\($0.port)",
+                                      name: $0.name,
+                                      target: "\($0.host):\($0.port)",
+                                      needsPairing: $0.pairing)
+                }
+                Self.emit(result, completion: completion)
+                return
+            }
+            Self.discoverViaADB(completion: completion)
+        }
+    }
+
+    /// 兜底：解析 `adb mdns services`（旧版 adb / Bonjour 被防火墙拦时）
+    private static func discoverViaADB(completion: @escaping ([DiscoveredService]?) -> Void) {
         runADB(["mdns", "services"]) { out in
-            guard let out, !out.isEmpty else { completion(nil); return }
+            guard let out, !out.isEmpty else { emit([], completion: completion); return }
             var result: [DiscoveredService] = []
             var seen = Set<String>()
             for line in out.split(separator: "\n") {
                 let l = line.trimmingCharacters(in: .whitespaces)
-                // 形如：adb-XXXX-YYYY._adb-tls-connect._tcp  192.168.1.5:37xxx
                 let parts = l.split(separator: "\t").map { String($0) }
-                guard parts.count >= 2 else { continue }
-                let service = parts[0]
-                let target = parts[1]
+                var instance = ""
+                var serviceType = ""
+                var target = ""
+                if parts.count >= 3 {
+                    // 新格式：实例名 / 服务类型 / ip:port
+                    instance = parts[0]
+                    serviceType = parts[1]
+                    target = parts[2]
+                } else if parts.count == 2 {
+                    // 旧格式：`<实例>._adb-tls-xxx._tcp` + ip:port
+                    serviceType = parts[0]
+                    target = parts[1]
+                    instance = parts[0]
+                        .replacingOccurrences(of: "._adb-tls-connect._tcp", with: "")
+                        .replacingOccurrences(of: "._adb-tls-pairing._tcp", with: "")
+                } else {
+                    continue
+                }
                 guard target.contains(":") else { continue }
-                let needsPairing = service.contains("_adb-tls-pairing")
-                let name = service
-                    .replacingOccurrences(of: "._adb-tls-connect._tcp", with: "")
-                    .replacingOccurrences(of: "._adb-tls-pairing._tcp", with: "")
-                let id = service + "@" + target
+                let needsPairing = serviceType.contains("_adb-tls-pairing")
+                    || instance.contains("_adb-tls-pairing")
+                let id = instance + "@" + target
                 guard !seen.contains(id) else { continue }
                 seen.insert(id)
-                result.append(DiscoveredService(id: id, name: name, target: target, needsPairing: needsPairing))
+                result.append(DiscoveredService(id: id, name: instance,
+                                                target: target, needsPairing: needsPairing))
             }
-            DispatchQueue.main.async { completion(result) }
+            emit(result, completion: completion)
+        }
+    }
+
+    /// 统一下发：切主线程 + 结果变化时才打日志
+    private static func emit(_ result: [DiscoveredService],
+                             completion: @escaping ([DiscoveredService]?) -> Void) {
+        DispatchQueue.main.async {
+            // v164 排障：发现结果「变化时」才打一条。扫码卡住时，这条日志能区分
+            // 「手机根本没广播」与「广播了但我们解析不出来」——本次故障就是后者。
+            let sig = result
+                .map { "\($0.name)|\($0.target)|\($0.needsPairing ? "pair" : "conn")" }
+                .sorted().joined(separator: "，")
+            if sig != lastDiscoverySignature {
+                lastDiscoverySignature = sig
+                Log.info("Transfer", "mDNS 发现 \(result.count) 条：\(sig.isEmpty ? "（无）" : sig)")
+            }
+            completion(result)
         }
     }
 
