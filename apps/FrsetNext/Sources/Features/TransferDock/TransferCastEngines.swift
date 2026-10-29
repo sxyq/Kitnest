@@ -269,6 +269,13 @@ public enum ScreenCastEngine {
             }
             if fm.fileExists(atPath: dstServer.path) { server = dstServer.path }
         }
+        // 图标也一并复制，否则 scrcpy 会报 "Could not load icon"（只是 Dock 图标，不影响功能）
+        let srcIcon = realURL.deletingLastPathComponent().appendingPathComponent("scrcpy.png")
+        if fm.fileExists(atPath: srcIcon.path),
+           needsCopy(dir.appendingPathComponent("scrcpy.png"), from: srcIcon) {
+            try? fm.removeItem(at: dir.appendingPathComponent("scrcpy.png"))
+            try? fm.copyItem(at: srcIcon, to: dir.appendingPathComponent("scrcpy.png"))
+        }
         return (exeURL.path, server)
     }
 
@@ -321,6 +328,7 @@ public enum ScreenCastEngine {
             let text = String(data: data, encoding: .utf8) ?? ""
             let tail = text.split(separator: "\n").suffix(6).joined(separator: " | ")
             Log.info("Transfer", "scrcpy 退出 status=\(proc.terminationStatus) err=\(tail)")
+            CastScreenKeeper.shared.stop()
             ScrcpyControlBarController.shared.detach()
         }
         do {
@@ -334,6 +342,8 @@ public enum ScreenCastEngine {
             Log.info("Transfer", "投屏启动：scrcpy \(args.joined(separator: " "))")
             // v165（用户要求）：按钮要贴在 **scrcpy 外部窗口** 底部，不在我们面板里
             ScrcpyControlBarController.shared.attach(serial: serial)
+            // v166.3：手机熄屏后 scrcpy 只能拿黑帧——检测休眠就唤醒到锁屏，保证镜像可用
+            CastScreenKeeper.shared.start(serial: serial)
             Toast.show(TransferDockPref.CastQuality.clipboardAutoSync
                        ? "投屏已启动（镜像窗 · 双向剪贴板：已开启）"
                        : "投屏已启动（双向剪贴板：已关闭）", icon: "display")

@@ -50,7 +50,7 @@ struct CastView: View {
     @Stored private var notifBusy = false
     @Stored private var storageSummary = ""
     @Stored private var storageItems: [ADBExtrasEngine.StorageItem] = []
-    @Stored private var apps: [ADBExtrasEngine.AppItem] = []
+    @Stored private var catalogApps: [DeviceAppCatalog.App] = []
     @Stored private var appsBusy = false
     @Stored private var mcpOn = false
     @Stored private var webdavOn = false
@@ -106,6 +106,8 @@ struct CastView: View {
         .onAppear {
             // v166.1：App 重启后 scrcpy 可能还在跑（我们只负责它的窗口），重新贴回控制条
             ScrcpyControlBarController.shared.attachIfScrcpyRunning()
+            // v166.3：进页面就后台预热应用目录（真图标首次要跑一次设备端渲染，别等展开才转圈）
+            if catalogApps.isEmpty { loadApps() }
             // v159：回调必须在 guard 之外——视图重建时 @StateObject 可能已是新实例，
             // 放在 guard 后面会导致「第二次进页面点扫码，连上了却不投屏」。
             qrPair.onConnected = { serial in
@@ -133,7 +135,7 @@ struct CastView: View {
                 refreshNotifications()
                 loadStorage()
             }
-            if apps.isEmpty { loadApps() }
+            if catalogApps.isEmpty { loadApps() }
         }
     }
 
@@ -499,50 +501,86 @@ struct CastView: View {
         }
     }
 
-    // 应用窗口
+    // 应用窗口（真实图标 + 真实名称 + 按使用频率排序）
     private var appsBlock: some View {
         VStack(alignment: .leading, spacing: 5) {
             subHeader("应用窗口",
-                      detail: appsBusy ? "读取中…" : "每个 App 一个独立窗口",
+                      detail: appsBusy ? "读取中…" : (catalogApps.isEmpty ? "每个 App 一个独立窗口"
+                                                                         : "\(catalogApps.count) 个"),
                       refresh: hasDevice ? { loadApps() } : nil)
 
-            if apps.isEmpty {
+            if catalogApps.isEmpty {
                 hint(hasDevice ? (appsBusy ? "读取中…" : "点右上角刷新读取已安装应用")
                                : "连接设备后可读取")
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 104, maximum: .infinity), spacing: 6)],
-                          spacing: 6) {
-                    ForEach(apps.prefix(12)) { app in
-                        Button {
-                            ADBExtrasEngine.startAppWindow(package: app.id)
-                        } label: {
-                            VStack(spacing: 3) {
-                                Text(app.label.prefix(3).uppercased())
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                    .frame(width: 34, height: 34)
-                                    .background(notifTint(app.id).gradient,
-                                                in: RoundedRectangle(cornerRadius: Theme.Radius.control,
-                                                                    style: .continuous))
-                                Text(app.label)
-                                    .font(.system(size: 11.5))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 5)
-                            .background(Color.primary.opacity(0.03),
-                                        in: RoundedRectangle(cornerRadius: Theme.Radius.control,
-                                                            style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .help(app.id)
-                        .accessibilityLabel("在独立窗口打开 \(app.label)")
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 66, maximum: .infinity), spacing: 6)],
+                          spacing: 8) {
+                    ForEach(topApps) { app in
+                        Button { openApp(app) } label: { appTile(app) }
+                            .buttonStyle(.plain)
+                            .help(app.label)
+                            .accessibilityLabel("在独立窗口打开 \(app.label)")
+                    }
+                }
+                Button {
+                    CastAppLibraryWindowController.shared.show()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 11))
+                        Text("全部应用")
+                            .font(.system(size: 11.5, weight: .medium))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9.5, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 8)
+                    .frame(height: 26)
+                    .background(Theme.accent.opacity(0.08),
+                                in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    /// 面板里只放「最可能用到」的 8 个：按使用次数 + 最近使用排序
+    private var topApps: [DeviceAppCatalog.App] { Array(catalogApps.prefix(8)) }
+
+    private func appTile(_ app: DeviceAppCatalog.App) -> some View {
+        VStack(spacing: 4) {
+            Group {
+                if let img = app.icon {
+                    Image(nsImage: img).resizable().interpolation(.high)
+                } else {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(notifTint(app.id).gradient)
+                        Text(String(app.label.prefix(1)))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
                     }
                 }
             }
+            .frame(width: 38, height: 38)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            Text(app.label)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+    }
+
+    private func openApp(_ app: DeviceAppCatalog.App) {
+        CastAppUsage.record(app.id)
+        ADBExtrasEngine.startAppWindow(package: app.id, title: app.label)
     }
 
     // 扩展服务
@@ -828,9 +866,9 @@ struct CastView: View {
     private func loadApps() {
         guard !appsBusy else { return }
         appsBusy = true
-        ADBExtrasEngine.thirdPartyApps { list in
+        DeviceAppCatalog.shared.load(serial: ADBExtrasEngine.activeSerial) { list in
             appsBusy = false
-            apps = list
+            catalogApps = list
         }
     }
 

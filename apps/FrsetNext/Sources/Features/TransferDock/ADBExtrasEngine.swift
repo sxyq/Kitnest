@@ -379,19 +379,23 @@ public enum ADBExtrasEngine {
 
     /// scrcpy 4.x `--new-display`（Android 14+）：给单个 App 开一块虚拟屏，
     /// 对应 AndroMeld 的 Meld Mode「每个 App 独立 Mac 窗口」。
+    /// - Parameter title: 窗口标题（传真实应用名；不传则用包名）
     @discardableResult
-    public static func startAppWindow(package: String, width: Int = 1280, height: Int = 800) -> Bool {
-        guard let scrcpy = ScreenCastEngine.findScrcpy() else {
+    public static func startAppWindow(package: String, title: String? = nil,
+                                      width: Int = 1280, height: Int = 800) -> Bool {
+        guard ScreenCastEngine.findScrcpy() != nil else {
             Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
             return false
         }
+        // v166.3：与镜像同样用「我们自己的名字」启动，避免菜单栏出现第三方名称
+        let launcher = ScreenCastEngine.brandedLauncher()
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: scrcpy)
+        task.executableURL = URL(fileURLWithPath: launcher.exe)
         var args: [String] = []
         if let serial = ADBExtrasEngine.activeSerial { args += ["--serial", serial] }
         args += ["--new-display=\(width)x\(height)/160",
                     "--start-app=\(package)",
-                    "--window-title=\(package)",
+                    "--window-title=\(title ?? shortAppName(package))",
                     "--stay-awake", "--no-power-on"]
         // v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2），与镜像同一开关
         args += ScreenCastEngine.clipboardArguments()
@@ -401,10 +405,18 @@ public enum ADBExtrasEngine {
             args += ["--max-fps", "\(TransferDockPref.CastQuality.fps)"]
         }
         task.arguments = args
+        var env = ProcessInfo.processInfo.environment
+        if let adb = ScreenCastEngine.findADB() {
+            env["ADB"] = adb
+            env["PATH"] = (adb as NSString).deletingLastPathComponent + ":" + (env["PATH"] ?? "/usr/bin:/bin")
+        }
+        if let server = launcher.server { env["SCRCPY_SERVER_PATH"] = server }
+        task.environment = env
         do {
             try task.run()
-            Log.info("Transfer", "Meld 窗口启动：\(package)")
-            Toast.show("已为 \(shortAppName(package)) 打开独立窗口", icon: "macwindow.on.rectangle")
+            Log.info("Transfer", "应用窗口启动：\(package)（\(title ?? "-")）")
+            Toast.show("已为 \(title ?? shortAppName(package)) 打开独立窗口",
+                       icon: "macwindow.on.rectangle")
             return true
         } catch {
             Toast.show("启动失败：\(error.localizedDescription)",

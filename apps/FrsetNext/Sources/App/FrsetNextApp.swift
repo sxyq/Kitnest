@@ -211,6 +211,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else if !AnnotationEditorController.shared.openLatest() {
                     Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
                 }
+            case "castapps":
+                // v166.3 排障/直达：打开「全部应用」独立窗口
+                CastAppLibraryWindowController.shared.show()
             case "capture":
                 // v130（SnowShot 对齐）：frsetnext://capture?action=history|delayed[&seconds=N]
                 // 历史窗 / 延时截图深链入口（CaptureDeepLink.handle 内部分流）
