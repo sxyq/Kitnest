@@ -160,7 +160,7 @@ struct CastView: View {
             }
 
             if !scrcpyReady {
-                Text("未安装 scrcpy")
+                Text("未安装投屏组件")
                     .font(.system(size: 11.5))
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)

@@ -20,7 +20,7 @@ final class ScrcpyControlBarController {
 
     /// 三个导航键（Android keycode：4=BACK / 3=HOME / 187=APP_SWITCH）
     private static let keys: [(symbol: String, code: Int32, tip: String)] = [
-        ("chevron.backward", 4, "返回（scrcpy 快捷键 ⌥B）"),
+        ("chevron.backward", 4, "返回（⌥B）"),
         ("house", 3, "桌面（⌥H）"),
         ("rectangle.on.rectangle", 187, "多任务（⌥S）"),
     ]
@@ -95,7 +95,7 @@ final class ScrcpyControlBarController {
             // 或窗口被完全遮住时都会查不到；以前 20s 后 detach，切回来条就再也不出现。
             // 现在只按「scrcpy 进程是否还活着」决定收工。
             if let pid = scrcpyPID, kill(pid, 0) != 0 {
-                Log.info("Transfer", "投屏控制条：scrcpy 已退出，摘除")
+                Log.info("Transfer", "投屏控制条：投屏窗口已退出，摘除")
                 detach()
             }
             return
@@ -124,7 +124,13 @@ final class ScrcpyControlBarController {
         }
     }
 
-    /// 找到 scrcpy 的窗口（owner 名 "scrcpy"；多开时取面积最大的那个）
+    /// 兼容两种进程名：改名后的「FrsetNext 投屏」与旧版直接跑的 `scrcpy`
+    private static func isCastOwner(_ name: String) -> Bool {
+        let n = name.lowercased()
+        return n == ScreenCastEngine.castAppName.lowercased() || n == "scrcpy"
+    }
+
+    /// 找到投屏窗口（多开时取面积最大的那个）
     /// 返回窗口矩形、窗口号（用于同级排序）、进程 pid（用于判定前台）
     ///
     /// v166.1：**不能只用 `.optionOnScreenOnly`** —— 实测它会间歇性把 scrcpy 窗口
@@ -138,7 +144,7 @@ final class ScrcpyControlBarController {
         var best: (CGRect, Int, pid_t)?
         for w in list {
             guard let owner = w[kCGWindowOwnerName as String] as? String,
-                  owner.lowercased() == "scrcpy" else { continue }
+                  Self.isCastOwner(owner) else { continue }
             guard (w[kCGWindowLayer as String] as? Int ?? 0) == 0 else { continue }
             let alpha = w[kCGWindowAlpha as String] as? Double ?? 1
             guard alpha > 0.01 else { continue }

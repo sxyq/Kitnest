@@ -195,7 +195,7 @@ public final class MCPServer {
             ], required: ["path"]),
             tool("adb_screencap", "Take a screenshot on the device and pull it locally; returns the local path.", [:]),
             tool("list_apps", "List third-party apps installed on the device.", [:]),
-            tool("launch_app_window", "Open a dedicated mirror window for one app (scrcpy virtual display).", [
+            tool("launch_app_window", "Open a dedicated mirror window for one app (virtual display).", [
                 "package": ["type": "string"]
             ], required: ["package"])
         ]
@@ -255,7 +255,7 @@ public final class MCPServer {
             let pkg = arg("package")
             guard !pkg.isEmpty else { completion("缺少 package 参数", true); return }
             let ok = ADBExtrasEngine.startAppWindow(package: pkg)
-            completion(ok ? "已为 \(pkg) 打开独立窗口" : "启动失败（需 scrcpy 4.x + Android 14+）", !ok)
+            completion(ok ? "已为 \(pkg) 打开独立窗口" : "启动失败（需 Android 14+）", !ok)
         default:
             completion("未知工具：\(name)", true)
         }

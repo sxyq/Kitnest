@@ -50,7 +50,7 @@ struct WelcomeView: View {
                         ]),
                         FeatureItem(symbol: "arrow.left.arrow.right", title: "文件传输 · 投屏", tint: .teal, lines: [
                             "文件中转页：隔空投送收发、扫码直传、ADB 文件互传",
-                            "投屏页：Android 无线配对 + scrcpy 镜像（零安装）",
+                            "投屏页：Android 无线配对 + 镜像投屏（零安装）",
                         ]),
                         FeatureItem(symbol: "clipboard", title: "剪贴板增强", tint: .cyan, lines: [
                             "历史记录、悬浮窗、标签管理、复制后自动粘贴",

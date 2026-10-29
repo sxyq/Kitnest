@@ -225,19 +225,66 @@ public enum ScreenCastEngine {
         }
     }
 
+    /// 投屏窗口的对外名字（用户要求：不出现 scrcpy 字样）
+    public static let castAppName = "FrsetNext 投屏"
+
+    /// 把 scrcpy 复制成「我们自己的可执行名」再启动。
+    ///
+    /// 用户要求（2026-10-30）：「不能写出 SCRCPY 这种字样，应该是使用我们的名字命名的窗口」。
+    /// macOS 的菜单栏 / 任务栏 / 活动监视器显示的是**可执行文件名**，直接跑 scrcpy 就一定是
+    /// "scrcpy"。所以把它（连同 server jar）复制到 App 数据目录下、改名为 `FrsetNext 投屏`，
+    /// 再设置 `SCRCPY_SERVER_PATH` 指向同一份 jar，避免它按可执行文件目录找不到 server。
+    static func brandedLauncher() -> (exe: String, server: String?) {
+        guard let real = findScrcpy() else { return ("scrcpy", nil) }
+        let fm = FileManager.default
+        let realURL = URL(fileURLWithPath: real).resolvingSymlinksInPath()
+        let dir = AppDirectories.sub("bin")
+        let exeURL = dir.appendingPathComponent(castAppName)
+
+        func needsCopy(_ dst: URL, from src: URL) -> Bool {
+            guard fm.fileExists(atPath: dst.path) else { return true }
+            let a = (try? fm.attributesOfItem(atPath: dst.path))?[.modificationDate] as? Date ?? .distantPast
+            let b = (try? fm.attributesOfItem(atPath: src.path))?[.modificationDate] as? Date ?? .distantFuture
+            return a < b
+        }
+
+        if needsCopy(exeURL, from: realURL) {
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? fm.removeItem(at: exeURL)
+            do { try fm.copyItem(at: realURL, to: exeURL) } catch {
+                Log.warn("Transfer", "投屏组件改名失败，回退原名：\(error.localizedDescription)")
+                return (real, nil)
+            }
+            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exeURL.path)
+        }
+
+        // server jar 与可执行文件同目录（本机实测 ~/.local/share/scrcpy/scrcpy-server）
+        var server: String?
+        let srcServer = realURL.deletingLastPathComponent().appendingPathComponent("scrcpy-server")
+        if fm.fileExists(atPath: srcServer.path) {
+            let dstServer = dir.appendingPathComponent("scrcpy-server")
+            if needsCopy(dstServer, from: srcServer) {
+                try? fm.removeItem(at: dstServer)
+                try? fm.copyItem(at: srcServer, to: dstServer)
+            }
+            if fm.fileExists(atPath: dstServer.path) { server = dstServer.path }
+        }
+        return (exeURL.path, server)
+    }
+
     /// 启动投屏镜像（scrcpy 独立进程；等 ADB 连真机后实测调参）
     /// - Parameter serial: 指定设备（多设备时必填）
     @discardableResult
     public static func startMirror(serial: String? = nil,
                                    maxSize: Int? = nil,
                                    bitRateMbps: Int? = nil) -> Bool {
-        guard let scrcpy = findScrcpy() else {
-            Toast.show("未找到 scrcpy（brew install scrcpy 后重试）",
-                       icon: "exclamationmark.triangle", isWarning: true)
+        guard findScrcpy() != nil else {
+            Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
             return false
         }
+        let launcher = brandedLauncher()
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: scrcpy)
+        task.executableURL = URL(fileURLWithPath: launcher.exe)
         // v117：画质走「设置 → 文件中转 → 投屏画质」（默认 1920p / 16Mbps / 60fps）
         var args: [String] = ["--stay-awake", "--no-power-on"]
         // v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2），不再依赖默认值
@@ -248,6 +295,8 @@ public enum ScreenCastEngine {
         let fps = TransferDockPref.CastQuality.fps
         if fps > 0 { args += ["--max-fps", "\(fps)"] }
         if let serial { args += ["--serial", serial] }
+        // 窗口标题也用我们的名字（默认是设备型号）
+        args += ["--window-title", castAppName]
         task.arguments = args
         // v166.1：**必须显式把 ADB 指给我们自己在用的那个**。
         // GUI 进程的 PATH 与终端不同，scrcpy 会去找别的 adb / 起第二个 server，
@@ -258,6 +307,8 @@ public enum ScreenCastEngine {
             env["ADB"] = adb
             env["PATH"] = (adb as NSString).deletingLastPathComponent + ":" + (env["PATH"] ?? "/usr/bin:/bin")
         }
+        // 改名后的可执行文件不在原目录，server jar 必须显式指路
+        if let server = launcher.server { env["SCRCPY_SERVER_PATH"] = server }
         task.environment = env
         // v166.1：把 scrcpy 的 stderr 收进日志。以前它带窗口一起消失时我们什么都看不到，
         // 只能看到「投屏已启动」然后窗口没了（本次排障就卡在这）。

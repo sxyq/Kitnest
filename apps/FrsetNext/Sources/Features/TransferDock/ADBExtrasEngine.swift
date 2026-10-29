@@ -382,7 +382,7 @@ public enum ADBExtrasEngine {
     @discardableResult
     public static func startAppWindow(package: String, width: Int = 1280, height: Int = 800) -> Bool {
         guard let scrcpy = ScreenCastEngine.findScrcpy() else {
-            Toast.show("未找到 scrcpy（brew install scrcpy）", icon: "exclamationmark.triangle", isWarning: true)
+            Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
             return false
         }
         let task = Process()
