@@ -249,9 +249,15 @@ public enum ScreenCastEngine {
         if fps > 0 { args += ["--max-fps", "\(fps)"] }
         if let serial { args += ["--serial", serial] }
         task.arguments = args
+        // v165：scrcpy 退出 → 摘掉贴在它窗口上的控制条
+        task.terminationHandler = { _ in
+            ScrcpyControlBarController.shared.detach()
+        }
         do {
             try task.run()
             Log.info("Transfer", "投屏启动：scrcpy \(args.joined(separator: " "))")
+            // v165（用户要求）：按钮要贴在 **scrcpy 外部窗口** 底部，不在我们面板里
+            ScrcpyControlBarController.shared.attach(serial: serial)
             Toast.show(TransferDockPref.CastQuality.clipboardAutoSync
                        ? "投屏已启动（镜像窗 · 双向剪贴板：已开启）"
                        : "投屏已启动（双向剪贴板：已关闭）", icon: "display")
