@@ -291,18 +291,10 @@ public final class Eyedropper: ObservableObject {
     }
 
     private func presentPicker(on screen: NSScreen) {
-        // v161：快照异步获取（macOS 27 主线程同步调 legacy 抓屏会死锁，见 ScreenshotManager.beginRegionCapture）
+        // v162：统一走自适应通道（按系统版本选 SCK/legacy，legacy 恒在后台，防 macOS 27 主线程死锁）
         isPicking = true
         Task { @MainActor in
-            var snapshot: CGImage?
-            if #available(macOS 14.0, *), let displayID = ScreenSnapshot.displayID(of: screen) {
-                snapshot = try? await ScreenSnapshot.sckCapture(displayID: displayID)
-            }
-            if snapshot == nil {
-                snapshot = await Task.detached(priority: .userInitiated) {
-                    ScreenSnapshot.cgCapture(screen: screen)
-                }.value
-            }
+            let snapshot = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
             self.buildPickerWindow(on: screen, snapshot: snapshot)
         }
     }

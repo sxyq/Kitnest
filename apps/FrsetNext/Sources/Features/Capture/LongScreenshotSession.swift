@@ -433,14 +433,22 @@ final class LongScreenshotSession {
     }
 
     /// 同步抓屏回退路径（帧流启动失败/卡死时的兜底）
+    /// v162：通道次序按系统自适应——legacy 被运行时证实已废（macOS 26/27 返回 nil）时直接走 SCK；
+    /// ≤15 的系统 legacy 仍可用（实测），保持低成本优先。首次 nil 会记账（legacyCaptureProbed）。
     private func captureFrameSync() -> CGImage? {
         let bounds = CGDisplayBounds(displayID)
         guard bounds.width > 0, bounds.height > 0 else { return nil }
-        var img = ScreenSnapshot.legacyCapture(
-                rect: bounds,
-                option: CGWindowListOption(rawValue: 0x14),
-                windowID: windowID,
-                imageOption: CGWindowImageOption(rawValue: 8))
+        var img: CGImage?
+        if #available(macOS 14.0, *), ScreenSnapshot.isLegacyKnownDead {
+            img = ScreenSnapshot.sckCaptureSync(displayID: displayID)
+        }
+        if img == nil {
+            img = ScreenSnapshot.legacyCaptureProbed(
+                    rect: bounds,
+                    option: CGWindowListOption(rawValue: 0x14),
+                    windowID: windowID,
+                    imageOption: CGWindowImageOption(rawValue: 8))
+        }
         if img == nil, #available(macOS 14.0, *) {
             img = ScreenSnapshot.sckCaptureSync(displayID: displayID)
         }

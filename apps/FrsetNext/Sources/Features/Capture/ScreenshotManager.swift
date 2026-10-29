@@ -63,6 +63,75 @@ enum ScreenSnapshot {
         return CGDirectDisplayID(num.uint32Value)
     }
 
+    // MARK: v162 抓屏通道自适应（按系统版本选 API，杜绝「新版系统上主线程同步调 legacy」类死锁）
+    //
+    // 事实矩阵（真机采样/档案证据）：
+    //   · macOS 27：legacy 主线程同步 = 死锁（SLSWindowListCreateImageProxying 主队列回环）；
+    //               legacy 后台线程 = 返回 nil（系统已废）；SCK 异步 = 唯一可用通道
+    //   · macOS 15：legacy dlsym 实测仍返回有效图（SDK 已标 obsoleted）
+    //   · macOS <14：无 ScreenCaptureKit，legacy 是唯一通道（同步直连 WindowServer，无代理死锁）
+    // 策略：14+ 一律 SCK 异步优先（全版本可用且不含光标），legacy 只做后台兜底；
+    //      <14 legacy 后台调用（统一后台纪律，防未来版本再把 legacy 代理化后重演死锁）。
+    // 覆盖开关：环境变量 FRSET_CAPTURE_CHANNEL=sck|legacy 可强制指定（排障用）。
+    enum CaptureChannel: String {
+        case sckAsync = "SCK异步"
+        case legacyBackground = "legacy后台"
+    }
+
+    /// 当前系统应使用的首选通道
+    static var preferredChannel: CaptureChannel {
+        switch ProcessInfo.processInfo.environment["FRSET_CAPTURE_CHANNEL"]?.lowercased() {
+        case "sck": return .sckAsync
+        case "legacy": return .legacyBackground
+        default: break
+        }
+        if #available(macOS 14.0, *) { return .sckAsync }
+        return .legacyBackground
+    }
+
+    private static var channelLogged = false
+
+    /// 自适应抓屏总入口（异步，主线程安全）：截图族所有 UI 快照统一走这里
+    static func captureScreenAdaptive(screen: NSScreen) async -> CGImage? {
+        let channel = preferredChannel
+        if !channelLogged {
+            channelLogged = true
+            let v = ProcessInfo.processInfo.operatingSystemVersion
+            Log.info("Capture", "抓屏通道自适应：macOS \(v.majorVersion).\(v.minorVersion) → \(channel.rawValue)"
+                + (channel == .sckAsync ? "（legacy 仅后台兜底）" : "（无 SCK，legacy 后台直抓）"))
+        }
+        switch channel {
+        case .sckAsync:
+            if #available(macOS 14.0, *), let displayID = displayID(of: screen) {
+                if let img = try? await sckCapture(displayID: displayID) { return img }
+            }
+            return await Task.detached(priority: .userInitiated) { cgCapture(screen: screen) }.value
+        case .legacyBackground:
+            return await Task.detached(priority: .userInitiated) { cgCapture(screen: screen) }.value
+        }
+    }
+
+    /// v162：legacy 通道运行时存活探针（逐帧采捕等高频路径用）。nil=未探测；
+    /// false=该系统上已失效（返回 nil，如 macOS 26/27）；true=可用（如 ≤15）。
+    private static var legacyAlive: Bool?
+
+    /// 带存活记账的 legacy 抓屏：首次 nil 记「该系统 legacy 已废」，此后调用方可直接换通道
+    static func legacyCaptureProbed(rect: CGRect,
+                                    option: CGWindowListOption,
+                                    windowID: CGWindowID = 0,
+                                    imageOption: CGWindowImageOption = [.bestResolution]) -> CGImage? {
+        let img = legacyCapture(rect: rect, option: option, windowID: windowID, imageOption: imageOption)
+        if img != nil {
+            legacyAlive = true
+        } else if legacyAlive == nil {
+            legacyAlive = false
+        }
+        return img
+    }
+
+    /// legacy 是否已被运行时证实失效（false = 未探测或仍可用）
+    static var isLegacyKnownDead: Bool { legacyAlive == false }
+
     /// 同步版 ScreenCaptureKit 抓整屏（v108：长截图采帧用）。
     /// legacy dlsym 路径在 macOS 15+ 被移除后返回 nil（实测 macOS 27 采帧
     /// 连续失败 → 无有效画布）；此封装在**后台队列**信号量等待异步 SCK，
@@ -394,20 +463,12 @@ public final class ScreenshotManager: ObservableObject {
         }
     }
 
-    /// v161：每屏快照异步获取（区域/窗口/长截图选区共用）。SCK 异步通道为主（macOS 14+，主线程安全）；
-    /// legacy 同步 API 只允许在后台线程调（macOS 27 主线程同步调用会死锁，见 beginRegionCapture 注释）。
+    /// v162：每屏快照异步获取（区域/窗口/长截图选区共用）——统一走自适应通道选择，
+    /// 各系统版本自动选对 API（macOS 27 主线程同步调 legacy 会死锁，见 ScreenSnapshot 通道策略注释）。
     static func acquireScreenSnapshots() async -> [(screen: NSScreen, image: CGImage?)] {
         var result: [(NSScreen, CGImage?)] = []
         for screen in NSScreen.screens {
-            var image: CGImage?
-            if #available(macOS 14.0, *), let displayID = ScreenSnapshot.displayID(of: screen) {
-                image = try? await ScreenSnapshot.sckCapture(displayID: displayID)
-            }
-            if image == nil {
-                image = await Task.detached(priority: .userInitiated) {
-                    ScreenSnapshot.cgCapture(screen: screen)
-                }.value
-            }
+            let image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
             result.append((screen, image))
         }
         return result
@@ -458,25 +519,16 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 全屏截图
 
-    /// 全屏截图：抓鼠标所在屏幕；优先 ScreenCaptureKit，低版本回退 CG
+    /// 全屏截图：抓鼠标所在屏幕（v162：自适应通道，按系统版本选 SCK/legacy）
     public func captureFullScreen() {
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else { return }
-            guard let screen = currentScreen(),
-                  let displayID = ScreenSnapshot.displayID(of: screen) else { return }
+            guard let screen = currentScreen() else { return }
             let action = defaultAction
             self.currentModeTag = "full"   // v130②：历史库模式标签
 
-            var image: CGImage?
-            if #available(macOS 14.0, *) {
-                image = try? await ScreenSnapshot.sckCapture(displayID: displayID)
-            }
-            if image == nil {
-                // v161：legacy 兜底也必须在后台线程（macOS 27 主线程同步调用会死锁）
-                image = await Task.detached(priority: .userInitiated) {
-                    ScreenSnapshot.cgCapture(screen: screen)
-                }.value
-            }
+            // v162：统一走自适应通道（按系统版本选 SCK/legacy，legacy 恒在后台）
+            let image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
             guard let image = image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 Log.error("Capture", "全屏截图失败")
