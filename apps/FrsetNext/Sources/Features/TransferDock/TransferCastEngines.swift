@@ -249,12 +249,37 @@ public enum ScreenCastEngine {
         if fps > 0 { args += ["--max-fps", "\(fps)"] }
         if let serial { args += ["--serial", serial] }
         task.arguments = args
+        // v166.1：**必须显式把 ADB 指给我们自己在用的那个**。
+        // GUI 进程的 PATH 与终端不同，scrcpy 会去找别的 adb / 起第二个 server，
+        // 结果 `adb reverse` 落到另一个 server 上 → 报 `ERROR: Server connection failed`
+        // （真机实测：终端里手动跑正常，App 拉起就必失败）。
+        var env = ProcessInfo.processInfo.environment
+        if let adb = ScreenCastEngine.findADB() {
+            env["ADB"] = adb
+            env["PATH"] = (adb as NSString).deletingLastPathComponent + ":" + (env["PATH"] ?? "/usr/bin:/bin")
+        }
+        task.environment = env
+        // v166.1：把 scrcpy 的 stderr 收进日志。以前它带窗口一起消失时我们什么都看不到，
+        // 只能看到「投屏已启动」然后窗口没了（本次排障就卡在这）。
+        let errPipe = Pipe()
+        task.standardError = errPipe
+        task.standardOutput = Pipe()
         // v165：scrcpy 退出 → 摘掉贴在它窗口上的控制条
-        task.terminationHandler = { _ in
+        task.terminationHandler = { proc in
+            let data = errPipe.fileHandleForReading.readDataToEndOfFile()
+            let text = String(data: data, encoding: .utf8) ?? ""
+            let tail = text.split(separator: "\n").suffix(6).joined(separator: " | ")
+            Log.info("Transfer", "scrcpy 退出 status=\(proc.terminationStatus) err=\(tail)")
             ScrcpyControlBarController.shared.detach()
         }
         do {
             try task.run()
+            // v166.1：把镜像窗带到前台。我们是 LSUIElement（无 Dock），系统不会自动激活
+            // 子进程的窗口；不激活就会出现「点了投屏，画面在别的窗口后面」。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                NSRunningApplication(processIdentifier: task.processIdentifier)?
+                    .activate(options: [.activateIgnoringOtherApps])
+            }
             Log.info("Transfer", "投屏启动：scrcpy \(args.joined(separator: " "))")
             // v165（用户要求）：按钮要贴在 **scrcpy 外部窗口** 底部，不在我们面板里
             ScrcpyControlBarController.shared.attach(serial: serial)

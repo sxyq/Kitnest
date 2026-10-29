@@ -28,8 +28,8 @@ final class ScrcpyControlBarController {
     private var panel: NSPanel?
     private var timer: Timer?
     private var serial: String?
-    /// 找不到窗口的起始时刻（超过 20s 认为 scrcpy 已退出，停止跟踪）
-    private var missingSince: Date?
+    /// 上次成功找到的 scrcpy 进程 pid（用于判断它是否还活着）
+    private var scrcpyPID: pid_t?
 
     private init() {}
 
@@ -40,12 +40,18 @@ final class ScrcpyControlBarController {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.serial = serial
-            self.missingSince = nil
+            self.scrcpyPID = nil
             if self.serial == nil { self.resolveSerialIfNeeded() }
             self.startTracking()
             self.tick()
             Log.info("Transfer", "投屏控制条：已挂载（serial=\(serial ?? "自动")）")
         }
+    }
+
+    /// scrcpy 已在跑（App 重启/页面重建）时补挂一次，不启动新进程
+    func attachIfScrcpyRunning() {
+        guard Self.scrcpyWindow() != nil else { return }
+        attach(serial: nil)
     }
 
     /// scrcpy 退出时调用
@@ -57,7 +63,7 @@ final class ScrcpyControlBarController {
             self.panel?.orderOut(nil)
             self.panel = nil
             self.serial = nil
-            self.missingSince = nil
+            self.scrcpyPID = nil
         }
     }
 
@@ -83,18 +89,28 @@ final class ScrcpyControlBarController {
     }
 
     private func tick() {
-        guard let bounds = Self.scrcpyWindowBounds() else {
+        guard let win = Self.scrcpyWindow() else {
             panel?.orderOut(nil)
-            if missingSince == nil { missingSince = Date() }
-            if let since = missingSince, Date().timeIntervalSince(since) > 20 { detach() }
+            // v166.1：**不能因为「这一会儿没找到窗口」就停跟踪** —— 用户切到别的 Space、
+            // 或窗口被完全遮住时都会查不到；以前 20s 后 detach，切回来条就再也不出现。
+            // 现在只按「scrcpy 进程是否还活着」决定收工。
+            if let pid = scrcpyPID, kill(pid, 0) != 0 {
+                Log.info("Transfer", "投屏控制条：scrcpy 已退出，摘除")
+                detach()
+            }
             return
         }
-        missingSince = nil
+        scrcpyPID = win.pid
 
+        // v166.1（用户反馈）：不能浮在所有窗口最上面，要和 scrcpy 窗口**同级**。
+        // 做法：面板降到 .normal，并且每帧把自己插到 scrcpy 窗口的**正上方**。
+        // 这样它的 z 序永远紧贴 scrcpy：别的窗口盖住 scrcpy 时，也一定会盖住它；
+        // 而 scrcpy 只是失去焦点、仍可见时，它不会无故消失。
+        // （不用「前台 App 判断」——那会让后台可见的 scrcpy 丢失控制条。）
         let p = panel ?? makePanel()
-        let target = Self.barFrame(for: bounds)
+        let target = Self.barFrame(for: win.bounds)
         if p.frame != target { p.setFrame(target, display: false) }
-        if !p.isVisible { p.orderFrontRegardless() }
+        p.order(.above, relativeTo: win.number)
 
         // 鼠标靠近才完全显形：它盖住的是手机屏幕底部。
         // 静止 0.62 而不是 0.35——用户要求「能看到」，太淡等于没有。
@@ -109,21 +125,34 @@ final class ScrcpyControlBarController {
     }
 
     /// 找到 scrcpy 的窗口（owner 名 "scrcpy"；多开时取面积最大的那个）
-    private static func scrcpyWindowBounds() -> CGRect? {
-        let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+    /// 返回窗口矩形、窗口号（用于同级排序）、进程 pid（用于判定前台）
+    ///
+    /// v166.1：**不能只用 `.optionOnScreenOnly`** —— 实测它会间歇性把 scrcpy 窗口
+    /// 判成「不在屏」（同一时刻截图里明明可见），导致控制条被误收起。
+    /// 改成取全量列表，再用 `kCGWindowIsOnscreen` + alpha 自己判定。
+    private static func scrcpyWindow() -> (bounds: CGRect, number: Int, pid: pid_t)? {
+        let opts: CGWindowListOption = [.excludeDesktopElements]
         guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
             return nil
         }
-        var best: CGRect?
+        var best: (CGRect, Int, pid_t)?
         for w in list {
             guard let owner = w[kCGWindowOwnerName as String] as? String,
                   owner.lowercased() == "scrcpy" else { continue }
             guard (w[kCGWindowLayer as String] as? Int ?? 0) == 0 else { continue }
+            let alpha = w[kCGWindowAlpha as String] as? Double ?? 1
+            guard alpha > 0.01 else { continue }
             guard let dict = w[kCGWindowBounds as String] as? [String: Any],
                   let r = CGRect(dictionaryRepresentation: dict as CFDictionary) else { continue }
             if r.width < 120 || r.height < 160 { continue }   // 过滤掉辅助/隐藏小窗
-            if best == nil || r.width * r.height > best!.width * best!.height { best = r }
+            guard (w[kCGWindowIsOnscreen as String] as? Bool) ?? false else { continue }
+            let num = w[kCGWindowNumber as String] as? Int ?? 0
+            let pid = pid_t(w[kCGWindowOwnerPID as String] as? Int ?? 0)
+            if best == nil || r.width * r.height > best!.0.width * best!.0.height {
+                best = (r, num, pid)
+            }
         }
+        // 没有「确实在屏」的窗口（最小化/隐藏）→ 返回 nil，让控制条收起
         return best
     }
 
@@ -150,7 +179,9 @@ final class ScrcpyControlBarController {
                         styleMask: [.borderless, .nonactivatingPanel],
                         backing: .buffered, defer: false)
         p.isFloatingPanel = true
-        p.level = .floating
+        // v166.1：普通层级 + 靠 order(.above, relativeTo: scrcpy 窗口) 贴住它。
+        // 用 .floating 会永远压在所有窗口上面（用户实测反馈）。
+        p.level = .normal
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = true

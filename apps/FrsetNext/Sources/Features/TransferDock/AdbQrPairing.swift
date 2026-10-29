@@ -272,9 +272,11 @@ public final class AdbQrPairing: ObservableObject {
         let gen = generation
         ScreenCastEngine.connectedDevices { [weak self] list in
             guard let self, gen == self.generation else { return }
-            if let online = list?.first(where: {
+            // 优先无线（含 ":"），其次 USB —— 插着数据线时也应该直接投，不要逼用户扫码
+            let pick = list?.first(where: {
                 $0.state == "device" && $0.serial.contains(":")
-            }) {
+            }) ?? list?.first(where: { $0.state == "device" })
+            if let online = pick {
                 Log.info("Transfer", "扫码直连：设备已在线 \(online.serial)，跳过扫码")
                 self.succeed(serial: online.serial)
                 return

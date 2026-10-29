@@ -54,9 +54,9 @@ struct CastView: View {
     @Stored private var appsBusy = false
     @Stored private var mcpOn = false
     @Stored private var webdavOn = false
-    // v154：两个折叠区 + 说明弹层
+    // v154：两个折叠区
     @Stored private var toolsExpanded = false
-    @Stored private var showTips = false
+
     /// 设备类型：安卓（扫码直连）/ iPhone（系统层限制，暂不支持投屏）
     @Stored private var deviceKind: CastDeviceKind = .android
     // v157：扫码直连（Android 11+ 无线调试 QR 配对）
@@ -104,6 +104,8 @@ struct CastView: View {
             showQrPair = true
         }
         .onAppear {
+            // v166.1：App 重启后 scrcpy 可能还在跑（我们只负责它的窗口），重新贴回控制条
+            ScrcpyControlBarController.shared.attachIfScrcpyRunning()
             // v159：回调必须在 guard 之外——视图重建时 @StateObject 可能已是新实例，
             // 放在 guard 后面会导致「第二次进页面点扫码，连上了却不投屏」。
             qrPair.onConnected = { serial in
@@ -158,7 +160,7 @@ struct CastView: View {
             }
 
             if !scrcpyReady {
-                Text("未装 scrcpy：brew install scrcpy 后才能投屏")
+                Text("未安装 scrcpy")
                     .font(.system(size: 11.5))
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
@@ -184,19 +186,6 @@ struct CastView: View {
                 scrcpyReady = ScreenCastEngine.findScrcpy() != nil
                 refreshDevices(quiet: false)
             }
-            Button {
-                showTips = true
-            } label: {
-                Image(systemName: "questionmark.circle")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("投屏使用说明")
-            .accessibilityLabel("投屏使用说明")
-            .popover(isPresented: $showTips, arrowEdge: .bottom) { tipsPopover }
         }
     }
 
@@ -229,16 +218,6 @@ struct CastView: View {
             } else {
                 qrButton("扫码直连", prominent: true)
                     .frame(maxWidth: 220)
-                Text("手机：设置 → 开发者选项 → 无线调试 → 「使用二维码配对设备」")
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("配对 + 连接 + 投屏一次完成 · 同一 Wi-Fi · 不用数据线")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity)
@@ -279,30 +258,20 @@ struct CastView: View {
         .padding(.bottom, 4)
     }
 
-    /// iPhone：系统层限制说明（不做假入口，也不塞无效按钮）
+    /// iPhone：只留最基本信息，不写说明性长文
     private var iosPane: some View {
         VStack(spacing: 10) {
             Image(systemName: "airplayvideo")
                 .font(.system(size: 30))
                 .foregroundStyle(Theme.tertiaryText)
-            Text("iPhone 不走扫码连接")
+            Text("iPhone")
                 .font(.system(size: 13, weight: .medium))
-            Text("iPhone 投屏到 Mac，需要 Mac 端作为 AirPlay 接收端。这一版没有内置，所以不给入口——右下角也不会有「假装能连」的按钮。")
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("传文件请用「隔空投送」：iPhone 零安装，系统原生。")
-                .font(.system(size: 11.5))
-                .foregroundStyle(Theme.tertiaryText)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
             Button {
                 MonitorCenterPresenter.shared.selectTransferDock()
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 12))
-                    Text("去「文件中转」用隔空投送").font(.system(size: 12, weight: .medium))
+                    Text("隔空投送").font(.system(size: 12, weight: .medium))
                 }
                 .foregroundStyle(Theme.accent)
                 .frame(maxWidth: .infinity)
@@ -389,21 +358,10 @@ struct CastView: View {
         }
     }
 
-    /// 遥控行：图标按钮 26pt（比原来 11pt 文字的胶囊好点得多）+ 剪贴板同步开关
+    /// 遥控行：导航键已经移到 **scrcpy 窗口上的控制条**（v166），面板里不再重复一份，
+    /// 这里只留「剪贴板同步」开关。
     private var remoteRow: some View {
         HStack(spacing: 8) {
-            navIcon("arrow.uturn.backward", "返回", .back)
-            navIcon("house.fill", "主页", .home)
-            navIcon("square.on.square", "多任务", .recents)
-            Button {
-                ADBExtrasEngine.expandNotifications()
-            } label: {
-                navIconLabel("bell.fill")
-            }
-            .buttonStyle(.plain)
-            .help("下拉手机通知栏")
-            .accessibilityLabel("下拉手机通知栏")
-
             Spacer(minLength: 4)
 
             // 剪贴板同步：只留图标 + 开关，说明进 tooltip
@@ -424,28 +382,6 @@ struct CastView: View {
             .help("双向剪贴板（\(clipboardSyncOn ? "已开启" : "已关闭")）：关掉则投屏窗口不做 Mac↔手机同步")
             .accessibilityLabel("双向剪贴板")
         }
-    }
-
-    private func navIcon(_ icon: String, _ title: String,
-                         _ key: ADBExtrasEngine.NavKey) -> some View {
-        Button {
-            ADBExtrasEngine.sendKey(key)
-        } label: {
-            navIconLabel(icon)
-        }
-        .buttonStyle(.plain)
-        .help(title)
-        .accessibilityLabel(title)
-    }
-
-    private func navIconLabel(_ icon: String) -> some View {
-        Image(systemName: icon)
-            .font(.system(size: 14))
-            .foregroundStyle(Theme.accent)
-            .frame(width: 34, height: 30)
-            .background(Theme.accent.opacity(0.10),
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-            .contentShape(Rectangle())
     }
 
     // MARK: - ② 更多工具（折叠：通知 / 存储 / 应用 / 服务）
@@ -804,18 +740,15 @@ struct CastView: View {
         VStack(spacing: 10) {
             // v159：先重连、后扫码。重连阶段不摆二维码，否则用户会以为必须扫。
             if qrPair.phase.showsQR {
-                Text(qrPair.didTryReconnect ? "换一台手机：扫这张码" : "用手机扫这张码")
+                Text("扫码连接")
                     .font(.system(size: 13, weight: .semibold))
                 QRCodeView(text: qrPair.qrText, size: 208)
             } else {
-                Text("正在连接上次的设备")
+                Text("正在连接")
                     .font(.system(size: 13, weight: .semibold))
                 VStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("端口没变就不用再扫")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.tertiaryText)
                 }
                 .frame(width: 208, height: 208)
                 Button("改为扫码") { qrPair.skipReconnect() }
@@ -841,11 +774,6 @@ struct CastView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.accent)
             }
-            Text("手机与 Mac 需在同一 Wi-Fi（未开热点隔离）")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .frame(width: 250)
@@ -866,31 +794,6 @@ struct CastView: View {
         }
     }
 
-    // MARK: - 说明弹层（替代原来常驻的 5 行小字）
-
-    private var tipsPopover: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("投屏说明")
-                .font(.system(size: 12.5, weight: .semibold))
-            tipLine("投屏窗口是独立 scrcpy 窗，关掉即断开（不影响手机）")
-            tipLine("需要手机开启「开发者选项 → USB 调试」")
-            tipLine("「一键无线」USB 连一次即可，之后免配对码直连")
-            tipLine("「应用窗口」是虚拟屏（Android 14+），每个 App 独立窗口")
-        }
-        .padding(12)
-        .frame(width: 268, alignment: .leading)
-    }
-
-    private func tipLine(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 5) {
-            Text("·").foregroundStyle(Theme.tertiaryText)
-            Text(text)
-                .font(.system(size: 11.5))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     // MARK: - 数据
 
     private func refreshDevices(quiet: Bool) {
@@ -899,7 +802,7 @@ struct CastView: View {
             devices = list ?? []
             if !quiet {
                 Toast.show(devices.isEmpty
-                           ? "未发现 Android 设备（USB 连接并开启 USB 调试）"
+                           ? "未发现设备"
                            : "发现 \(devices.count) 台设备",
                            icon: devices.isEmpty ? "antenna.radiowaves.left.and.right.slash" : "display")
             }
