@@ -16,6 +16,19 @@
 
 import Foundation
 
+// MARK: - 大端字节序追加（协议所有多字节字段均为大端）
+extension Data {
+    /// 追加大端整数
+    mutating func appendBE<T: FixedWidthInteger>(_ value: T) {
+        var v = value.bigEndian
+        Swift.withUnsafeBytes(of: &v) { append(contentsOf: $0) }
+    }
+    /// 追加大端 float32（IEEE754 位模式）
+    mutating func appendBEFloat(_ value: Float) {
+        appendBE(value.bitPattern)
+    }
+}
+
 /// 通道状态
 enum AmdMirrorChannelState: Equatable {
     case idle
@@ -128,6 +141,7 @@ final class AmdMirrorChannel {
             self?.parseQueue.async { [weak self] in
                 guard let self, self.process === proc else { return }
                 self._set(.stopped(reason: "进程退出 \(r)"))
+                self.stopHeartbeat()
             }
         }
         do {
@@ -160,6 +174,7 @@ final class AmdMirrorChannel {
     func stop() {
         parseQueue.async { [weak self] in
             guard let self else { return }
+            self.stopHeartbeat()
             self.sendControl([11])
             DispatchQueue.global().asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self else { return }
@@ -177,6 +192,30 @@ final class AmdMirrorChannel {
         parseQueue.async { [weak self] in self?.sendControl([4]) }
     }
 
+    // MARK: - 心跳保活（op 10）
+    //
+    // 手机端有看门狗：收不到 keepalive 就判定会话失联并主动停止（实测日志
+    // 「Stopping mirror session: heartbeat timeout」）。入站 op 10 无 payload，
+    // 每次收到都刷新看门狗期限。周期取 5s（看门狗上限远大于此）。
+    private var heartbeatTimer: DispatchSourceTimer?
+    private static let heartbeatInterval: TimeInterval = 5.0
+
+    private func startHeartbeat() {
+        guard heartbeatTimer == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: parseQueue)
+        timer.schedule(deadline: .now() + 2, repeating: Self.heartbeatInterval)
+        timer.setEventHandler { [weak self] in
+            self?.sendControl([10])   // op 10 = keepalive
+        }
+        timer.resume()
+        heartbeatTimer = timer
+    }
+
+    private func stopHeartbeat() {
+        heartbeatTimer?.cancel()
+        heartbeatTimer = nil
+    }
+
     /// 帧 ACK（op 36 + 已确认字节数 i64 BE）
     /// 注意：仅当会话启用了帧 ACK 时才能发（否则手机端抛 "Frame ACK is not
     /// enabled" 杀死控制循环——实测教训）。当前启动参数未启用，默认不发送。
@@ -188,6 +227,143 @@ final class AmdMirrorChannel {
         var v = bytes.bigEndian
         withUnsafeBytes(of: &v) { payload.append(contentsOf: $0) }
         parseQueue.async { [weak self] in self?.sendControl([UInt8](payload)) }
+    }
+
+    // MARK: - 输入注入（②.2）
+    //
+    // 字节级规格来源：temp/AndroMeld/逆向-06-六域实现方案与源码依据.md 附录 A
+    // （全部大端；来源 D2.java 分发循环 + MirrorServerMain 处理方法，行号见档案）
+    //
+    //   op 33 触摸（MotionEvent 主路径）：pointerType u8 | action u8 | downTimeOffsetNs u32 | x i32 | y i32
+    //         wire action：0=DOWN 1=MOVE 2=UP 3=CANCEL（**与 MotionEvent 常量编号相反**）
+    //   op 20 指针/鼠标：pointerType u8 | action u8 | x i32 | y i32
+    //         action：0=down(pressure 1.0) 1=move 2=up/hover(pressure 0) 3=cancel
+    //   op 2  滚轮：x i32 | y i32 | axisH f32 | axisV f32（AXIS_HSCROLL=10 / VSCROLL=9）
+    //   op 3  按键：phase u8(1=UP，否则 DOWN) | keycode i32 | metaState i32
+    //   op 7  IME 文本：len i32 | UTF-8 字节（中文直接 UTF-8，天然支持）
+    //
+    // 坐标语义：协议传**视频流编码分辨率下的像素**（非归一化），手机端按
+    // p0(v, src, dst)=clamp(v,0,src)/src×dst 换算到真实屏幕后注入。
+
+    /// 触摸动作（wire 编号，注意与 MotionEvent 常量相反）
+    enum AmdTouchAction: UInt8 {
+        case down = 0, move = 1, up = 2, cancel = 3
+    }
+
+    /// 指针类型
+    enum AmdPointerType: UInt8 {
+        case mouse = 1, pen = 2, finger = 3
+    }
+
+    /// 鼠标/指针动作
+    enum AmdPointerAction: UInt8 {
+        case down = 0, move = 1, up = 2, cancel = 3
+    }
+
+    /// 常用 Android keycode（与 macOS 虚拟键码不同，需映射）
+    enum AmdAndroidKey: Int32 {
+        case home = 3, back = 4, call = 5, endCall = 6
+        case dpadUp = 19, dpadDown = 20, dpadLeft = 21, dpadRight = 22
+        case volumeUp = 24, volumeDown = 25, power = 26, camera = 27
+        case tab = 61, space = 62, enter = 66, del = 67, menu = 82
+        case escape = 111, appSwitch = 187
+    }
+
+    /// 视频编码分辨率（op 1 CSD 带来）——协议坐标的基准
+    private(set) var videoSize: CGSize = .zero
+
+    /// 把视图坐标换算为协议坐标（协议用视频流编码分辨率像素）
+    func protocolPoint(from viewPoint: CGPoint, in viewSize: CGSize) -> CGPoint {
+        guard videoSize.width > 0, videoSize.height > 0,
+              viewSize.width > 0, viewSize.height > 0 else { return viewPoint }
+        return CGPoint(x: viewPoint.x * videoSize.width / viewSize.width,
+                       y: viewPoint.y * videoSize.height / viewSize.height)
+    }
+
+    /// 触摸注入（op 33）
+    /// - Parameter downTimeOffsetNs: 距手势起点的纳秒偏移（手机端据此做 300ms 长按判定，
+    ///   move 累计超过 300ms 会被判为长按并注入 CANCEL）
+    func sendTouch(_ action: AmdTouchAction,
+                   x: Int, y: Int,
+                   pointerType: AmdPointerType = .finger,
+                   downTimeOffsetNs: UInt32 = 0) {
+        var payload = Data([33, pointerType.rawValue, action.rawValue])
+        payload.appendBE(UInt32(downTimeOffsetNs))
+        payload.appendBE(Int32(x))
+        payload.appendBE(Int32(y))
+        parseQueue.async { [weak self] in self?.sendControl([UInt8](payload)) }
+    }
+
+    /// 指针/鼠标注入（op 20）
+    func sendPointer(_ action: AmdPointerAction,
+                     x: Int, y: Int,
+                     pointerType: AmdPointerType = .mouse) {
+        var payload = Data([20, pointerType.rawValue, action.rawValue])
+        payload.appendBE(Int32(x))
+        payload.appendBE(Int32(y))
+        parseQueue.async { [weak self] in self?.sendControl([UInt8](payload)) }
+    }
+
+    /// 滚轮注入（op 2）：axisH/axisV 为滚动量（正=右/上，负=左/下）
+    func sendScroll(x: Int, y: Int, axisH: Float = 0, axisV: Float = 0) {
+        var payload = Data([2])
+        payload.appendBE(Int32(x))
+        payload.appendBE(Int32(y))
+        payload.appendBEFloat(axisH)
+        payload.appendBEFloat(axisV)
+        parseQueue.async { [weak self] in self?.sendControl([UInt8](payload)) }
+    }
+
+    /// 按键注入（op 3）：phaseUp=true 表示抬起，否则按下
+    func sendKey(_ key: AmdAndroidKey, metaState: Int32 = 0, phaseUp: Bool = false) {
+        var payload = Data([3, phaseUp ? 1 : 0])
+        payload.appendBE(key.rawValue)
+        payload.appendBE(metaState)
+        parseQueue.async { [weak self] in self?.sendControl([UInt8](payload)) }
+    }
+
+    /// 完整一次按键（DOWN 后跟 UP）——真实按键成对，只发 DOWN 可能被系统丢弃
+    func sendKeyPress(_ key: AmdAndroidKey, metaState: Int32 = 0, holdMs: UInt32 = 40) {
+        sendKey(key, metaState: metaState, phaseUp: false)
+        parseQueue.asyncAfter(deadline: .now() + .milliseconds(Int(holdMs))) { [weak self] in
+            self?.sendKey(key, metaState: metaState, phaseUp: true)
+        }
+    }
+
+    /// 文本注入（op 7 IME commitText，UTF-8 直进，支持中文）
+    func sendText(_ text: String) {
+        let bytes = Array(text.utf8)
+        var payload = Data([7])
+        payload.appendBE(Int32(bytes.count))
+        payload.append(contentsOf: bytes)
+        parseQueue.async { [weak self] in self?.sendControl([UInt8](payload)) }
+    }
+
+    /// 轻点（down → 短暂停顿 → up）
+    func tap(x: Int, y: Int, durationMs: UInt32 = 60) {
+        sendTouch(.down, x: x, y: y, downTimeOffsetNs: 0)
+        parseQueue.asyncAfter(deadline: .now() + .milliseconds(Int(durationMs))) { [weak self] in
+            self?.sendTouch(.up, x: x, y: y, downTimeOffsetNs: durationMs * 1_000_000)
+        }
+    }
+
+    /// 滑动（down → 若干 move → up）；stepMs 决定总时长，超过 300ms 手机端会判长按并取消
+    func swipe(from: CGPoint, to: CGPoint, durationMs: UInt32 = 200, steps: Int = 10) {
+        let start = ProcessInfo.processInfo.systemUptime
+        sendTouch(.down, x: Int(from.x), y: Int(from.y), downTimeOffsetNs: 0)
+        for i in 1...max(steps, 1) {
+            let t = Double(i) / Double(max(steps, 1))
+            let offset = UInt32(Double(durationMs) * 1_000_000 * t)
+            let px = Int(from.x + (to.x - from.x) * t)
+            let py = Int(from.y + (to.y - from.y) * t)
+            parseQueue.asyncAfter(deadline: .now() + .milliseconds(Int(Double(durationMs) * t))) { [weak self] in
+                self?.sendTouch(.move, x: px, y: py, downTimeOffsetNs: offset)
+            }
+        }
+        _ = start
+        parseQueue.asyncAfter(deadline: .now() + .milliseconds(Int(durationMs))) { [weak self] in
+            self?.sendTouch(.up, x: Int(to.x), y: Int(to.y), downTimeOffsetNs: durationMs * 1_000_000)
+        }
     }
 
     // MARK: - 出站流解析
@@ -271,8 +447,12 @@ final class AmdMirrorChannel {
             readPos += 21 + l1 + l2
             let cfg = AmdMirrorVideoConfig(width: w, height: h, displayId: disp, csd1: csd1, csd2: csd2)
             log("视频配置 \(w)x\(h) display=\(disp) csd1=\(l1)B csd2=\(l2)B")
+            // 协议坐标基准（注入用）：视频流编码分辨率
+            videoSize = CGSize(width: w, height: h)
             delegate?.amdMirrorChannel(self, didReceive: cfg)
             _set(.streaming)
+            // 开始心跳保活（实测：缺 op 10 时手机端看门狗会以 heartbeat timeout 杀会话）
+            startHeartbeat()
             return true
         case 3: // 简版配置: 3×i32
             guard remaining() >= 13 else { return false }
