@@ -195,6 +195,8 @@ final class LongScreenshotEditorWindow: NSWindow {
         minSize = NSSize(width: 640, height: 460)
         isReleasedWhenClosed = false
         contentView = container
+        // v166.8：同 ScreenshotOCRResultWindow —— 换 contentView 后重挂自绘关闭钮
+        attachOfficialRoundCloseButton()
         center()
     }
 }

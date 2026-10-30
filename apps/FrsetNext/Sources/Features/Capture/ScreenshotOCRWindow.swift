@@ -213,28 +213,49 @@ final class ScreenshotOCRResultWindow: NSWindow {
         let bottom = NSView(frame: NSRect(x: 0, y: 0, width: size.width, height: 44))
         bottom.autoresizingMask = [.width, .maxYMargin]
 
-        tabControl.frame = NSRect(x: 12, y: 10, width: 250, height: 24)
+        tabControl.frame = NSRect(x: 12, y: 10, width: 200, height: 24)
         tabControl.target = self
         tabControl.action = #selector(tabChanged(_:))
         tabControl.selectedSegment = 0
         tabControl.autoresizingMask = [.maxXMargin]
         bottom.addSubview(tabControl)
 
+        // v166.8：底部给一个**看得见**的关闭按钮。
+        // 左上角那个自绘圆形钮在静态状态是浅灰圆，压在同色灰底上几乎不可见
+        // （用户实际反馈「没有方式去关闭」），不能只靠它。
+        let closeButton = NSButton(title: "关闭", target: self, action: #selector(closeTapped))
+        closeButton.bezelStyle = .rounded
+        closeButton.keyEquivalent = "\u{1b}"      // Esc
+        closeButton.frame = NSRect(x: size.width - 76, y: 8, width: 64, height: 28)
+        closeButton.autoresizingMask = [.minXMargin]
+
         let copyButton = NSButton(title: "复制", target: self, action: #selector(copyTapped))
         copyButton.bezelStyle = .rounded
-        copyButton.frame = NSRect(x: size.width - 210, y: 8, width: 80, height: 28)
+        copyButton.frame = NSRect(x: size.width - 240, y: 8, width: 64, height: 28)
         copyButton.autoresizingMask = [.minXMargin]
 
         let redoButton = NSButton(title: "重新识别", target: self, action: #selector(redoWrapped))
         redoButton.bezelStyle = .rounded
-        redoButton.frame = NSRect(x: size.width - 122, y: 8, width: 100, height: 28)
+        redoButton.frame = NSRect(x: size.width - 172, y: 8, width: 92, height: 28)
         redoButton.autoresizingMask = [.minXMargin]
 
         bottom.addSubview(copyButton)
         bottom.addSubview(redoButton)
+        bottom.addSubview(closeButton)
         container.addSubview(bottom)
 
         contentView = container
+        // v166.8（用户：「这个弹窗没有方式去关闭」）：
+        // 上面 `applyOfficialChrome()` 是在**替换 contentView 之前**调用的，
+        // 圆形关闭钮被挂到了旧的默认 contentView 上，第 237 行换掉 contentView 后
+        // 它就跟着旧视图消失了 —— 系统红绿灯又已被隐藏，于是窗口看起来完全没法关。
+        // 换成自定义 contentView 之后必须重挂一次。
+        attachOfficialRoundCloseButton()
+    }
+
+    /// Esc 关闭（结果窗没有系统红绿灯，键盘是最快的退出方式）
+    override func cancelOperation(_ sender: Any?) {
+        performClose(nil)
     }
 
     /// 右栏页签内容布局（识别文本 / 二维码 重叠切换）
@@ -413,6 +434,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
 
     @objc private func copyTapped() { onCopy?() }
     @objc private func redoWrapped() { onReRecognize?() }
+    @objc private func closeTapped() { performClose(nil) }
 }
 
 // MARK: - OCR 结果窗控制器

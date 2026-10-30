@@ -220,6 +220,9 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
         }
 
         contentView = container
+        // v166.8：applyOfficialChrome() 挂在旧 contentView 上的圆形关闭钮会随替换消失，
+        // 必须重挂（否则窗口既没有红绿灯也没有自绘关闭钮 = 关不掉）
+        attachOfficialRoundCloseButton()
     }
 
     private func rerender() {

@@ -627,6 +627,8 @@ public enum ClipboardPreviewWindow {
         window.applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏（消除露白）
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: LargeTextPreviewContainerView(item: item))
+        // v166.8：换 contentView 后重挂自绘关闭钮（否则窗口关不掉）
+        window.attachOfficialRoundCloseButton()
         window.delegate = PreviewWindowCleaner.shared
         PreviewWindowCleaner.shared.bind(key: item.dedupeKey, window: window)
         return NSWindowController(window: window)

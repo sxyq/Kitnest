@@ -29,8 +29,12 @@ final class RoundCloseButton: NSButton {
         let circle = NSBezierPath(ovalIn: bounds.insetBy(dx: 0.5, dy: 0.5))
         let base: NSColor = NSColor(name: nil) { appearance in
             let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            if dark { return NSColor(white: self.isHovering ? 0.55 : 0.36, alpha: 1) }
-            return NSColor(white: self.isHovering ? 0.58 : 0.78, alpha: 1)
+            // v166.8（用户：「这个弹窗没有方式去关闭」）：
+            // 原来浅色静态取 white 0.78，压在官方灰底 #DDDFDF（≈0.867）上几乎看不出边界，
+            // 用户会以为窗口根本没有关闭入口。静态提到 0.62，hover 再压到 0.46，
+            // 保证「静置时能看见、悬停时更明确」。
+            if dark { return NSColor(white: self.isHovering ? 0.62 : 0.42, alpha: 1) }
+            return NSColor(white: self.isHovering ? 0.46 : 0.62, alpha: 1)
         }
         base.setFill()
         circle.fill()
@@ -65,43 +69,76 @@ final class RoundCloseButton: NSButton {
 
 extension NSWindow {
     /// 挂载官方圆形关闭钮（幂等；隐藏系统红绿灯）。
-    /// 支持内容视图被替换后重挂（设置/统计窗的 NSHostingView 延后一个 runloop 装载）。
-    /// 注意：NSHostingView 是 flipped（y=0 在顶部），普通 NSView 不 flipped——
-    /// 需按 isFlipped 换算纵坐标（2026-10-18 实测：一律按未翻转算会挂到左下角）。
+    ///
+    /// v166.9（用户：「这个弹窗没有方式去关闭」）——两处修正：
+    /// 1. **位置**：原来挂到 `contentView` 顶部，坐标系差了整个标题栏高度（28pt），
+    ///    按钮实际落在内容区左上角（压在「原文」标签上），看起来像没有关闭钮。
+    ///    现在优先贴到系统关闭钮的原位（父视图 = 标题栏容器），坐标天然对齐。
+    /// 2. **随 contentView 替换存活**：标题栏不属于 contentView，
+    ///    所以「先 applyOfficialChrome 再换 contentView」也不会把按钮弄丢。
+    ///    这也顺带修好了美化面板 / 长截图预览 / 截图历史 / 剪贴板大文本预览
+    ///    这几个同类窗口的关闭钮。
     func attachOfficialRoundCloseButton() {
-        standardWindowButton(.closeButton)?.isHidden = true
-        standardWindowButton(.miniaturizeButton)?.isHidden = true
-        standardWindowButton(.zoomButton)?.isHidden = true
-        guard let host = contentView else { return }
+        // v166.9：用 alpha=0 + isEnabled=false 代替 isHidden。
+        // isHidden 会让 AppKit 把标题左移到 x≈12，正好压上自绘圆钮；
+        // 保留不可见的占位后，标题回到原生位置（x≈80），圆钮与标题互不干扰。
+        for button in [standardWindowButton(.closeButton),
+                       standardWindowButton(.miniaturizeButton),
+                       standardWindowButton(.zoomButton)] {
+            button?.alphaValue = 0
+            button?.isEnabled = false
+        }
 
-        // 按 bounds 手算（不用 Auto Layout：实测 NSHostingView 不参与子视图约束求解，
-        // 设 translatesAutoresizingMaskIntoConstraints=false 后按钮 frame 恒为 0 → 不可见）。
-        // 关键：挂载瞬间 host.bounds 还没布局（实测高度 128），必须等布局完成再摆一次。
-        func place(_ btn: RoundCloseButton, in host: NSView) {
-            let size: CGFloat = 14
-            let y = host.isFlipped ? 14 : host.bounds.height - size - 14
-            btn.frame = NSRect(x: 14, y: y, width: size, height: size)
+        let size: CGFloat = 12
+        let stdHost = standardWindowButton(.closeButton)?.superview
+        guard let host = stdHost ?? contentView else { return }
+
+        // host 可能是标题栏容器（非 flipped）或内容视图；两种都算一遍
+        func place(_ btn: RoundCloseButton) {
+            if let std = standardWindowButton(.closeButton),
+               std.superview === host, std.frame.width > 0 {
+                let f = std.frame
+                // x 固定 10 + 12pt 直径：隐藏三钮后 AppKit 把标题左移到 x≈27，
+                // 这个尺寸刚好留出 5pt 间隙，不再压住标题首字
+                btn.frame = NSRect(x: 10, y: f.midY - size / 2,
+                                   width: size, height: size)
+            } else {
+                let y = host.isFlipped ? 14 : host.bounds.height - size - 14
+                btn.frame = NSRect(x: 14, y: y, width: size, height: size)
+            }
         }
 
         if let existing = objc_getAssociatedObject(self, &roundCloseButtonKey) as? RoundCloseButton {
             if existing.superview !== host {
                 existing.removeFromSuperview()
                 host.addSubview(existing)
-                place(existing, in: host)
-                DispatchQueue.main.async { place(existing, in: host) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { place(existing, in: host) }
+            }
+            place(existing)
+            // 窗口尚未完成布局时 frame 还是 0 —— 排两次兜底
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                place(existing)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                guard let self else { return }
+                place(existing)
             }
             return
         }
 
         let btn = RoundCloseButton(frame: .zero)
-        btn.autoresizingMask = [.minYMargin]      // 窗口改高时贴顶
         btn.target = self
         btn.action = #selector(NSWindow.performClose(_:))
         host.addSubview(btn)
-        place(btn, in: host)
-        DispatchQueue.main.async { place(btn, in: host) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { place(btn, in: host) }
+        place(btn)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            place(btn)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self else { return }
+            place(btn)
+        }
         objc_setAssociatedObject(self, &roundCloseButtonKey, btn, .OBJC_ASSOCIATION_RETAIN)
     }
 }
