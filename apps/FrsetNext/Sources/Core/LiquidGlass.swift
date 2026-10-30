@@ -81,13 +81,16 @@ enum LiquidGlass {
     }
 
     /// 把内容装进玻璃容器并铺满
+    ///
+    /// v166.5：**不再用 `NSGlassEffectView.contentView`**。
+    /// 该分支此前从未被走到（主面板一直用 NSVisualEffectView 回退路径），
+    /// 2026-10-30 首次启用后实测崩溃：
+    ///   `_postWindowNeedsUpdateConstraints` → NSException → SIGABRT
+    /// （把 hosting view 塞进 contentView 后，AppKit 在约束更新时抛异常）。
+    /// 统一 addSubview：玻璃在底、内容在上，与已验证多年的 NSVisualEffectView 路径同构。
     static func embed(_ content: NSView, in container: NSView) {
         content.translatesAutoresizingMaskIntoConstraints = false
-        if #available(macOS 26.0, *), let glass = container as? NSGlassEffectView {
-            glass.contentView = content
-        } else {
-            container.addSubview(content)
-        }
+        container.addSubview(content)
         NSLayoutConstraint.activate([
             content.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             content.trailingAnchor.constraint(equalTo: container.trailingAnchor),

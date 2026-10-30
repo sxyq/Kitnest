@@ -169,7 +169,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 统一「点外/失焦收起」：全工程唯一实现（Core/TransientWindows）
         TransientWindowCenter.shared.register(
             window: p,
-            isPinned: { [weak self] in self?.isPinned ?? false },
+            isPinned: { [weak self] in
+                // v166.5：排障 pin 必须在这里也生效。面板的收起由本中心三路仲裁
+                // （失活通知 / 本地点外 / resignKey），只挡 resignKey 挡不住
+                // didResignActive 那条路——自动化截图时面板照样 0.9s 就没。
+                if PanelController.debugPinned { return true }
+                return self?.isPinned ?? false
+            },
             allowsClickIn: { win in
                 // 自家 sheet / 预览窗取得 key 时保持面板（原先散落在 resignKey 里的三条例外）
                 if win.isSheet || win.sheetParent != nil { return true }
@@ -288,10 +294,16 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
     }
 
+    /// 排障/截图专用：面板不因失焦自动收起。
+    /// 两种开启方式：环境变量 `FRSET_PANEL_PIN=1`，或启动参数 `--args --panel-pin`
+    /// （后者不需要 `launchctl setenv` 权限，`open -a … --args` 即可）。
+    static var debugPinned: Bool {
+        if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return true }
+        return ProcessInfo.processInfo.arguments.contains("--panel-pin")
+    }
+
     public func windowDidResignKey(_ notification: Notification) {
-        // 排障/截图专用：FRSET_PANEL_PIN=1 时面板不因失焦自动收起
-        // （终端脚本没有辅助功能权限，无法把焦点交回本 app，不加这个开关就截不到面板）
-        if ProcessInfo.processInfo.environment["FRSET_PANEL_PIN"] == "1" { return }
+        if PanelController.debugPinned { return }
         // 置顶窗口：不自动收起（官方菜单勾选态）
         if isPinned { return }
         guard let p = panel, (notification.object as? NSWindow) === p else { return }
@@ -314,6 +326,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 预览的关闭由协调器统一仲裁（点外/Esc/hoverOut/滚动出视口），面板保持。
         if NSApp.isActive, let key = NSApp.keyWindow, key !== p, key.isVisible,
            key.identifier?.rawValue == "frset.panelPreviewPopover" {
+            return
+        }
+        // v166.5 例外：面板内 SwiftUI `.popover` 弹出的子窗。
+        // 这类窗口由系统创建、我们拿不到实例，只能靠内容宿主打 identifier
+        // （PanelChildWindow.swift）。没有这条时，「连接手机」弹层的表现是
+        // 出现一瞬就被当成「点了外面」连面板一起收起 —— 用户报的「闪一下就没了」。
+        if NSApp.isActive, let key = NSApp.keyWindow, key !== p, key.isVisible,
+           PanelChildWindow.isPanelChild(key) {
             return
         }
         TransientWindowCenter.shared.requestDismiss(window: p)

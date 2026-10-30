@@ -45,16 +45,22 @@ public final class FloatingPanel: NSPanel {
         // 纪律：宿主窗口决定尺寸，内容只负责填充（sizingOptions=[] + safeArea=[]）。
         hosting.sizingOptions = []
         if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
-        let glass = NSVisualEffectView()
-        glass.material = .hudWindow   // v110：页面底减淡（L1 最淡衬底）
-        glass.blendingMode = .behindWindow
-        glass.state = .active
-        glass.wantsLayer = true
-        glass.layer?.cornerRadius = radius
-        glass.layer?.cornerCurve = .continuous
-        glass.layer?.masksToBounds = true
+        // v166.5（用户：「黑色背景下的主页高斯模糊效果不好」）：
+        // 这里原本是直接 `NSVisualEffectView()` + `.hudWindow` + `.behindWindow`，
+        // 绕过了 LiquidGlass 工厂 —— 也就是说 macOS 26+ 上主面板**根本没吃到**
+        // Liquid Glass，用的还是老式背窗模糊；黑色/深色背景上会被糊成一块均匀灰雾，
+        // 既没有玻璃的折射层次，也没有和背景分离的边缘。
+        // 改走 makeView：26+ 得到真 NSGlassEffectView，旧系统仍是原观感（无损回退）。
+        let glass = LiquidGlass.makeView(
+            cornerRadius: radius,
+            material: .hudWindow,
+            // 着色随外观走：浅色外观一点点乳白保证可读；深色外观几乎不加色。
+            // 深色壁纸 + 白 tint 会变成一块脏灰，这正是「黑色背景下糊得不好看」的来源。
+            tint: FloatingPanel.glassTint)
+        glass.autoresizingMask = [.width, .height]
         LiquidGlass.embed(hosting, in: glass)
         contentView = glass
+        Log.info("Panel", "玻璃容器: \(type(of: glass)) material=\(Personalization.shared.material.rawValue) reduceTransparency=\(LiquidGlass.reduceTransparency)")
     }
 
     /// 允许成为 key（顶部搜索框需要键盘输入）；
@@ -70,23 +76,21 @@ public final class FloatingPanel: NSPanel {
 // MARK: - v66 个性化材质
 
 extension FloatingPanel {
-    /// 「个性化 → 背景材质」即时切换（v74：统一为 popover 原生玻璃，
-    /// 与性能监测面板/状态栏 popover 同一视觉语言；仅圆角随设置变化）
+
+    /// 面板玻璃的着色：浅色外观给淡乳白保证可读，深色外观几乎不加色
+    /// （深色壁纸 + 白色 tint 会变成一块脏灰，这正是「黑色背景下模糊不好看」的观感来源）
+    static let glassTint = NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        return isDark
+            ? NSColor.black.withAlphaComponent(0.10)
+            : NSColor.white.withAlphaComponent(0.18)
+    }
+
+    /// 「个性化 → 背景材质」即时切换（v166.5：统一走 LiquidGlass，保留 solid 语义）
     public func applyPersonalizedMaterial() {
-        let radius = Personalization.shared.cornerRadius
-        if #available(macOS 26.0, *), let glass = contentView as? NSGlassEffectView {
-            // v110（三级玻璃 L1）：0.55 → 0.32——页面底减淡（用户「玻璃有点深了」）
-            glass.tintColor = NSColor.windowBackgroundColor.withAlphaComponent(0.32)
-            glass.cornerRadius = radius
-        } else if let effect = contentView as? NSVisualEffectView {
-            // v110：popover（偏深）→ hudWindow（更轻的系统玻璃）
-            effect.material = .hudWindow
-            effect.blendingMode = .behindWindow
-            effect.layer?.cornerRadius = radius
-            effect.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
-        } else if let bg = contentView {
-            bg.layer?.cornerRadius = radius
-            bg.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
-        }
+        guard let content = contentView else { return }
+        LiquidGlass.reapplyStyle(on: content,
+                                 cornerRadius: Personalization.shared.cornerRadius,
+                                 tint: Self.glassTint)
     }
 }

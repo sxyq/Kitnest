@@ -214,6 +214,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()
+            case "castpair":
+                // v166.5 排障/直达：打开面板并弹出「连接手机」弹层。
+                // 等一个 runloop 再发通知——面板刚建好时 CastView 还没 onAppear，
+                // 立刻发会丢订阅。
+                NSApp.activate(ignoringOtherApps: true)
+                PanelController.shared.show()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotificationCenter.default.post(name: .frsetOpenCastQR, object: nil)
+                }
             case "capture":
                 // v130（SnowShot 对齐）：frsetnext://capture?action=history|delayed[&seconds=N]
                 // 历史窗 / 延时截图深链入口（CaptureDeepLink.handle 内部分流）

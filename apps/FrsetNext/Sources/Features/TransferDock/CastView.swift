@@ -60,7 +60,8 @@ struct CastView: View {
     /// 设备类型：安卓（扫码直连）/ iPhone（系统层限制，暂不支持投屏）
     @Stored private var deviceKind: CastDeviceKind = .android
     // v157：扫码直连（Android 11+ 无线调试 QR 配对）
-    @StateObject private var qrPair = AdbQrPairing()
+    // v166.4：共享实例 —— 弹层开关、面板收起重开都不能把连接流程带走
+    @ObservedObject private var qrPair = AdbQrPairing.shared
     @Stored private var showQrPair = false
     @ObservedObject private var panelPage = MonitorCenterPresenter.shared
 
@@ -108,7 +109,7 @@ struct CastView: View {
             ScrcpyControlBarController.shared.attachIfScrcpyRunning()
             // v166.3：进页面就后台预热应用目录（真图标首次要跑一次设备端渲染，别等展开才转圈）
             if catalogApps.isEmpty { loadApps() }
-            // v159：回调必须在 guard 之外——视图重建时 @StateObject 可能已是新实例，
+            // v159：回调必须在 guard 之外——视图重建时回调不能丢，
             // 放在 guard 后面会导致「第二次进页面点扫码，连上了却不投屏」。
             qrPair.onConnected = { serial in
                 showQrPair = false
@@ -116,7 +117,6 @@ struct CastView: View {
                 ScreenCastEngine.startMirror(serial: serial)
                 refreshDevices(quiet: true)
             }
-            // 首次进入只做「设备 + scrcpy」，不再顺手拉通知/存储（进工具区才拉）
             guard !autoScanDone else { return }
             autoScanDone = true
             scrcpyReady = ScreenCastEngine.findScrcpy() != nil
@@ -170,6 +170,70 @@ struct CastView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
+        // v166.5：弹层锚点 = hero 容器本身（始终存在）。挂在按钮上会随空态消失。
+        // `panelChildWindow()` 让 PanelController 把弹层窗口认作「面板子窗」，
+        // 否则它会抢 key → 被判成「点了面板外面」→ 面板收起 → 弹层跟着没。
+        .popover(isPresented: $showQrPair, arrowEdge: .bottom) { qrPairPopover }
+    }
+
+    /// 扫码 / 连接弹层（原地弹出，不另开窗口）
+    private var qrPairPopover: some View {
+        VStack(spacing: 10) {
+            // 先重连、后扫码：重连阶段不摆二维码，否则用户会以为必须扫
+            if qrPair.phase.showsQR {
+                QRCodeView(text: qrPair.qrText, size: 190)
+            } else {
+                VStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                }
+                .frame(width: 190, height: 190)
+                // 用 Text + 手势而不是 Button：popover 里的 Button 会被系统套上
+                // 默认的 bordered 样式（蓝边圆角），和工程里其他裸文字链接不一致
+                Text("改为扫码")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.accent)
+                    .contentShape(Rectangle())
+                    .onTapGesture { qrPair.skipReconnect() }
+                    .accessibilityAddTraits(.isButton)
+            }
+
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(qrPhaseColor)
+                    .frame(width: 6, height: 6)
+                Text(qrPair.phase.text)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(qrPair.phase.isTerminal ? Theme.tertiaryText : .secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+
+            if qrPair.phase.isTerminal {
+                Text("重新生成")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.accent)
+                    .contentShape(Rectangle())
+                    .onTapGesture { qrPair.restart() }
+                    .accessibilityAddTraits(.isButton)
+            }
+        }
+        .padding(14)
+        .frame(width: 226)
+        .panelChildWindow()
+        .onAppear { qrPair.start() }
+        // 弹出层被系统收起时不 cancel：连接可能正在后台配对，
+        // 取消掉等于「手一抖就把流程掐了」。真正的取消交给终态 / 显式重开。
+    }
+
+    private var qrPhaseColor: Color {
+        switch qrPair.phase {
+        case .connected, .launching: return .green
+        case .failed, .expired:      return .orange
+        case .idle:                  return .secondary
+        default:                     return Theme.accent
+        }
     }
 
     private var heroHeader: some View {
@@ -293,6 +357,9 @@ struct CastView: View {
     /// 唯一连接入口：弹出二维码
     private func qrButton(_ title: String, prominent: Bool) -> some View {
         Button {
+            // v166.4：打开弹层。锚点挂在 hero（见 hero 的 .popover），
+            // **不能挂在按钮上**——这个按钮只存在于「设备为空」的空态里，
+            // `adb devices` 一返回，空态被设备卡替换、锚点销毁，弹层立刻被关掉。
             showQrPair = true
         } label: {
             HStack(spacing: 6) {
@@ -318,7 +385,6 @@ struct CastView: View {
         .buttonStyle(.plain)
         .help("手机扫二维码：配对 → 连接 → 投屏（Android 11+ 无线调试）")
         .accessibilityLabel("扫码直连")
-        .popover(isPresented: $showQrPair, arrowEdge: .bottom) { qrPairPopover }
     }
 
     /// 设备卡：状态行 + 唯一主按钮
@@ -333,7 +399,7 @@ struct CastView: View {
                     .font(.system(size: 12.5, design: .monospaced))
                     .lineLimit(1)
                 Spacer(minLength: 2)
-                Text(connected ? "已连接" : state)
+                Text(connected ? "已连接" : stateLabel(state))
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.tertiaryText)
             }
@@ -341,6 +407,15 @@ struct CastView: View {
                 primaryButton("开始投屏", icon: "play.fill") {
                     ScreenCastEngine.startMirror(serial: serial)
                 }
+            } else if state == "unauthorized" {
+                // v166.4：这台机器实测遇到的真实状态——设备在列表里，但状态是
+                // unauthorized（手机没允许本机调试）。此前只把英文原样印出来，
+                // 用户既看不懂也不知道该干什么，点哪里都连不上。
+                Text("在手机上点「允许」授权本机调试")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                secondaryButton("重新发起授权", icon: "hand.raised") { reauthorize(serial) }
             }
         }
         .padding(12)
@@ -356,6 +431,36 @@ struct CastView: View {
                 ADBExtrasEngine.openWirelessDebugging { msg in
                     Toast.show(msg, icon: "iphone.gen3")
                 }
+            }
+        }
+    }
+
+    /// adb 状态 → 中文（未授权是用户唯一需要动手的，必须说人话）
+    private func stateLabel(_ state: String) -> String {
+        switch state {
+        case "device":       return "已连接"
+        case "unauthorized": return "未授权"
+        case "offline":      return "离线"
+        case "recovery":     return "recovery"
+        case "bootloader":   return "bootloader"
+        default:             return state
+        }
+    }
+
+    /// 重新发起授权：adb 对「已记录但未授权」的传输不会自己重握手，
+    /// 必须 disconnect → connect，手机才会重新弹出「允许 USB 调试」。
+    private func reauthorize(_ serial: String) {
+        let parts = serial.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2, Int(parts[1]) != nil else {
+            // USB 设备（无端口）：直接刷新，手机上重新插拔/点允许即可
+            Toast.show("请在手机上点「允许」后重插一次", icon: "hand.raised")
+            refreshDevices(quiet: true)
+            return
+        }
+        Toast.show("已重新发起授权，请在手机上点「允许」", icon: "hand.raised")
+        ADBWirelessEngine.disconnect(serial) {
+            ADBWirelessEngine.connect(host: parts[0], port: parts[1], timeout: 6) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { refreshDevices(quiet: true) }
             }
         }
     }
@@ -770,66 +875,6 @@ struct CastView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
-    }
-
-    // MARK: - 扫码直连弹层
-
-    private var qrPairPopover: some View {
-        VStack(spacing: 10) {
-            // v159：先重连、后扫码。重连阶段不摆二维码，否则用户会以为必须扫。
-            if qrPair.phase.showsQR {
-                Text("扫码连接")
-                    .font(.system(size: 13, weight: .semibold))
-                QRCodeView(text: qrPair.qrText, size: 208)
-            } else {
-                Text("正在连接")
-                    .font(.system(size: 13, weight: .semibold))
-                VStack(spacing: 8) {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                .frame(width: 208, height: 208)
-                Button("改为扫码") { qrPair.skipReconnect() }
-                    .font(.system(size: 11.5))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Theme.accent)
-            }
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(qrPhaseColor)
-                    .frame(width: 6, height: 6)
-                Text(qrPair.phase.text)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(qrPair.phase.isTerminal ? Theme.tertiaryText : .secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-            }
-            if qrPair.phase.isTerminal {
-                Button("重新生成") { qrPair.restart() }
-                    .font(.system(size: 11.5))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Theme.accent)
-            }
-        }
-        .padding(14)
-        .frame(width: 250)
-        // v159：生命周期提到整个弹层——重连阶段没有 QRCodeView，
-        // 原来挂在它身上的 onAppear 就不会触发，弹层会一直停在 idle。
-        .onAppear { qrPair.start() }
-        .onDisappear { qrPair.cancel() }
-    }
-
-    private var qrPhaseColor: Color {
-        switch qrPair.phase {
-        case .connected: return .green
-        case .failed, .expired: return .orange
-        case .idle: return .secondary
-        case .reconnecting: return .accentColor      // v159：重连中（蓝）
-        case .launching: return .green               // v159：已连上，起画面
-        default: return .accentColor
-        }
     }
 
     // MARK: - 数据

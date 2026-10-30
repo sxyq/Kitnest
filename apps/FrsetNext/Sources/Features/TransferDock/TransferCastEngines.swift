@@ -521,6 +521,17 @@ public enum ADBWirelessEngine {
         }
     }
 
+    /// 断开一条连接。
+    ///
+    /// v166.4：用于「未授权（unauthorized）」自救——adb 对已记录但未授权的传输**不会**
+    /// 自己重新握手，只有 disconnect 之后再 connect 才会重新向手机发起授权请求，
+    /// 手机上才会重新弹出「允许 USB 调试吗」。
+    public static func disconnect(_ serial: String, completion: (() -> Void)? = nil) {
+        runADB(["disconnect", serial], timeout: 5) { _ in
+            DispatchQueue.main.async { completion?() }
+        }
+    }
+
     /// adb 子进程统一封装（全后台；v105 教训：adb 挂起不得碰主线程）
     private static func runADB(_ args: [String], timeout: TimeInterval? = nil,
                                completion: @escaping (String?) -> Void) {

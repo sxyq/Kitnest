@@ -39,6 +39,14 @@ import Combine
 // （酒店/公司 Wi-Fi 常见），因为配对依赖 mDNS 双向发现；此时退回 USB 或手机热点。
 public final class AdbQrPairing: ObservableObject {
 
+    /// v166.4：进程内唯一实例。
+    ///
+    /// 原来它是 CastView 的 `@StateObject`，只在面板里活着。扫码窗口独立出去以后，
+    /// 两条要求同时成立：①窗口要能脱离面板独立存在（面板一收不能把连接流程带走）；
+    /// ②面板里的状态文字要和窗口一致（不能出现「窗口在配对、面板显示等待扫码」）。
+    /// 所以收成共享实例，两边都观察同一份 `phase`。
+    public static let shared = AdbQrPairing()
+
     public enum Phase: Equatable {
         case idle
         /// v164：先找 mDNS 里已授权的连接服务（0 交互，不急着出二维码）
