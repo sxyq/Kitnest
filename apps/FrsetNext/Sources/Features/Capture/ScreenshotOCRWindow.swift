@@ -22,7 +22,16 @@ final class SourceNSTextView: NSTextView {
 /// 默认展示原文图片；来源为文本时可切换成 `SourceNSTextView`。
 final class ScreenshotOCRSourceScrollView: NSScrollView {
     private let imageView = NSImageView()
-    private let textView = SourceNSTextView(frame: .zero, textContainer: nil)
+    /// v166.6：同 OCRReadOnlyScrollView —— 传 nil 会得到没有 textStorage 的空壳
+    private let textView: SourceNSTextView = {
+        let storage = NSTextStorage()
+        let layout = NSLayoutManager()
+        storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 1,
+                                                     height: CGFloat.greatestFiniteMagnitude))
+        layout.addTextContainer(container)
+        return SourceNSTextView(frame: .zero, textContainer: container)
+    }()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -53,15 +62,35 @@ private extension NSTextView {
         isHorizontallyResizable = false
         autoresizingMask = [.width]
         textContainer?.widthTracksTextView = true
-        textContainer?.containerSize = NSSize(width: scrollView.contentSize.width,
+        // v166.6：不能直接用 contentSize —— init 阶段滚动视图还是 0×0，
+        // 会把这个视图钉死成 0 宽（文字排不出来）。真实宽度由 layout()/setText 补齐。
+        textContainer?.containerSize = NSSize(width: max(scrollView.contentSize.width, 1),
                                               height: .greatestFiniteMagnitude)
-        frame = NSRect(origin: .zero, size: scrollView.contentSize)
+        frame = NSRect(origin: .zero,
+                       size: NSSize(width: max(scrollView.contentSize.width, 1),
+                                    height: max(scrollView.contentSize.height, 1)))
     }
 }
 
 /// 识别结果滚动容器（对应原作 `OCRReadOnlyScrollView`）：只读、可选中复制。
 final class OCRReadOnlyScrollView: NSScrollView {
-    let textView = SourceNSTextView(frame: .zero, textContainer: nil)
+    /// v166.6（用户：「点击后没有展现识别后的结果」）——**这就是根因**。
+    ///
+    /// 原来写成 `SourceNSTextView(frame: .zero, textContainer: nil)`。传 nil 时
+    /// AppKit 不会替你建文本系统：`textStorage` / `layoutManager` 全是 nil，
+    /// 于是 `textStorage?.setAttributedString(...)` 是**静默空操作**——
+    /// 识别成功、窗口弹出、剪贴板也有内容，但右栏永远是一片空白。
+    /// 这里显式搭一套 storage → layoutManager → container。
+    let textView: SourceNSTextView = {
+        let storage = NSTextStorage()
+        let layout = NSLayoutManager()
+        storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 1,
+                                                     height: CGFloat.greatestFiniteMagnitude))
+        container.widthTracksTextView = true
+        layout.addTextContainer(container)
+        return SourceNSTextView(frame: .zero, textContainer: container)
+    }()
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -97,8 +126,31 @@ final class OCRReadOnlyScrollView: NSScrollView {
                 }
             }
             textView.textStorage?.setAttributedString(attributed)
+            syncTextViewWidth()      // v166.6：见下，宽度必须在这里补一次
             textView.scrollToBeginningOfDocument(nil)
         }
+    }
+
+    /// v166.6（用户：「点击后没有展现识别后的结果」）：
+    /// 文本视图的宽度此前只在 `configureInside`（init 阶段）用 `scrollView.contentSize` 定过，
+    /// 而那一刻滚动视图还是 0×0 —— 于是 textView 宽度恒为 0，
+    /// `widthTracksTextView = true` 又把 textContainer 宽度锁到 0，
+    /// 结果文本**确实写进了 textStorage，但一个字都排不出来**（右栏一片空白）。
+    /// 这里在每次设值 + 每次布局时按真实内容区宽度补齐。
+    private func syncTextViewWidth() {
+        let w = contentSize.width
+        let h = contentSize.height
+        guard w > 1, h > 1 else { return }
+        var f = textView.frame
+        f.size.width = w
+        if f.size.height < h { f.size.height = h }
+        if textView.frame != f { textView.frame = f }
+        textView.textContainer?.containerSize = NSSize(width: w, height: .greatestFiniteMagnitude)
+    }
+
+    override func layout() {
+        super.layout()
+        syncTextViewWidth()
     }
 }
 
@@ -404,21 +456,20 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
         win.onReRecognize = { [weak self] in self?.reRecognize() }
         win.onTranslate = { [weak self] in self?.translateCurrentText() }
         window = win
-        // v139（用户反馈「点其他地方不消失」）：结果窗丢失键盘焦点即关闭。
-        // 点窗口内部按钮不会失焦；点其它窗口/桌面才触发，语义上等同 popover。
-        resignObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didResignKeyNotification, object: win, queue: .main
-        ) { [weak self] _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                guard let self, let w = self.window, !w.isKeyWindow else { return }
-                self.close()
-            }
-        }
+        // v166.6（用户：「点击后没有展现识别后的结果」）：
+        // **取消「失焦即关」**。这条规则是 v139 为了「点别处要消失」加的，但它把
+        // 「用户还没看到」和「用户看完了」当成同一件事 —— OCR 要跑几秒，
+        // 这期间窗口一旦被任何东西抢走键盘焦点（切 app、脚本、输入法、系统弹窗），
+        // 窗口就在 0.45+1.5 秒内自杀，用户只能看到「点了没反应」。
+        // 结果窗是用户主动要看的产物，改成和预览窗一致：留着，直到用户自己关。
         if selectQR { win.selectQRTab(true) }
         win.center()
-        win.makeKeyAndOrderFront(nil)
+        // v166.6：**先激活、再成为 key**。反过来的话 app 不在前台时窗口拿不到 key，
+        // 立刻触发上面的失焦规则，表现为「识别完了但什么都没弹出来」。
         NSApp.activate(ignoringOtherApps: true)
+        win.makeKeyAndOrderFront(nil)
         if autoTranslate { win.selectTranslateTab() }
+        Log.info("Capture", "识别结果窗：已弹出（\(text.count) 字符，imageData=\(imageData.count)B, key=\(win.isKeyWindow), appActive=\(NSApp.isActive)）")
     }
 
     // MARK: 翻译（v139：结果窗第三个页签）

@@ -342,6 +342,16 @@ public enum CaptureDeepLink {
             DelayedCaptureController.shared.start(seconds: s)
         case "region":
             ScreenshotManager.shared.captureRegion()
+        case "ocr":
+            // v166.6 排障入口：frsetnext://capture?action=ocr&file=/tmp/a.png
+            // 对指定图片走真实「识字」链路（识别 → 写剪贴板 → 弹结果窗），
+            // 用来复现「结果窗没出来但剪贴板有记录」而不需要真的手动截图。
+            let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value ?? ""
+            if let cg = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
+                ScreenshotManager.shared.recognize(cg)
+            } else {
+                Log.warn("Capture", "识字深链：拿不到图片 \(path)")
+            }
         default:
             CaptureHistoryWindowController.shared.show()
         }
