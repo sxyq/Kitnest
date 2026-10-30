@@ -1,8 +1,81 @@
 import AppKit
 import CoreGraphics
 import CoreVideo
+import ImageIO
 import ScreenCaptureKit
 import Foundation
+
+// MARK: - 原生像素区域截图
+
+/// 按「屏幕原生像素」截取一块区域。
+///
+/// v166.7（用户：「截图能否提高分辨率，跟屏幕原生像素一致」）：
+/// 实测这台机器（1710×1112pt / scale 2 / 面板 2560×1664）几条通道的真实表现
+/// （边缘能量越高越锐，系统截图约 12~15）：
+///
+/// | 通道 | 尺寸 | 锐度 |
+/// |---|---|---|
+/// | `screencapture -x`（整屏）| 3420×2224 | **12.38** ✅ 真 2x |
+/// | `screencapture -x -R…` | 3420×2224 | 12.38 ✅ 但慢且不稳定（0.5~1.5s）|
+/// | `screencapture -x **-o** -R…` | 3420×2224 | 8.34 ❌ 被降级成 1x 放大 |
+/// | SCK（`captureResolution = .best`）| 3420×2224 | 7.14 ❌ 插值放大 |
+/// | `CGDisplayCreateImage` | 3420×2224 | 8.31 ❌ 放大 |
+/// | legacy `CGWindowListCreateImage(.bestResolution)` | 3466×2348 | 8.60 ❌ 放大 |
+///
+/// 结论：**只有整屏 `screencapture` 能拿到真 Retina 细节**，约 208ms。
+/// 所以流程改成「整屏抓 → 内存里裁」，既避开 `-R` 的不稳定，也不要 `-o`。
+/// 注意 `-o`（去窗口阴影）会让 screencapture 走另一条渲染路径、直接掉到 1x —— 别加。
+enum NativeRegionCapture {
+
+    /// 抓指定屏幕的整屏原生像素图（screencapture，同步 ~200ms，**禁止主线程调用**）
+    static func captureScreen(_ screen: NSScreen) -> CGImage? {
+        let idx = (NSScreen.screens.firstIndex(of: screen) ?? 0) + 1
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("frset-capture-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        if let img = run(arguments: ["-x", "-D\(idx)", tmp.path], tmp: tmp) { return img }
+        // -D 索引在某些多屏布局下不匹配 → 退回不带 -D（抓主屏）
+        return run(arguments: ["-x", tmp.path], tmp: tmp)
+    }
+
+    /// 按 AppKit 全局坐标（左下原点，点）截一块区域
+    static func capture(appKitRect: CGRect) -> CGImage? {
+        guard appKitRect.width >= 1, appKitRect.height >= 1 else { return nil }
+        let screen = NSScreen.screens.first { $0.frame.intersects(appKitRect) } ?? NSScreen.main
+        guard let screen, let full = captureScreen(screen) else { return nil }
+        // crop 内部按 image.width / screenFrame.width 自适应缩放，
+        // 所以 2x 整屏图裁出来就是 2x 区域
+        return ImageProcessor.crop(full, rectInPoints: appKitRect, screenFrame: screen.frame)
+    }
+
+    private static func run(arguments: [String], tmp: URL) -> CGImage? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        task.arguments = arguments
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+
+        let done = DispatchSemaphore(value: 0)
+        task.terminationHandler = { _ in done.signal() }
+        do { try task.run() } catch {
+            Log.warn("Capture", "原生像素截图：启动 screencapture 失败 \(error.localizedDescription)")
+            return nil
+        }
+        if done.wait(timeout: .now() + 4) == .timedOut {
+            task.terminate()
+            Log.warn("Capture", "原生像素截图：screencapture 超时")
+            return nil
+        }
+        guard task.terminationStatus == 0,
+              let data = try? Data(contentsOf: tmp),
+              let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+            return nil
+        }
+        return img
+    }
+}
 
 // MARK: - 屏幕快照来源
 
@@ -149,6 +222,9 @@ enum ScreenSnapshot {
     }
 
     /// ScreenCaptureKit 抓整屏（macOS 14+）
+    /// v166.7：这条通道**只作为兜底**（原生像素走 NativeRegionCapture）。
+    /// 实测 SCK 在这台机器上只能拿到 1x 源，把输出尺寸写成 2 倍只会插值放大
+    /// （锐度 7.14 vs 真 2x 的 12.8）——所以这里保持 1x，宁小勿糊。
     @available(macOS 14.0, *)
     static func sckCapture(displayID: CGDirectDisplayID) async throws -> CGImage {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -174,6 +250,7 @@ enum ScreenSnapshot {
         }
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let config = SCStreamConfiguration()
+        // 同上：window.frame 是点，乘 scale 只是放大，保持 1:1
         config.width = max(1, Int(window.frame.width))
         config.height = max(1, Int(window.frame.height))
         config.pixelFormat = kCVPixelFormatType_32BGRA
@@ -484,14 +561,36 @@ public final class ScreenshotManager: ObservableObject {
         let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
         // 选区（AppKit 全局，左下原点）——屏幕翻译钉回原位用
         lastSelectionAppKit = global
-        guard let snapshot = snapshot,
-              let cropped = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame) else {
-            statusMessage = CaptureError.captureFailed.errorDescription
-            // 屏幕级反馈：失败不能只写在面板状态里（面板此刻根本没开）
-            Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
-            return
+        let flow = pendingFlow
+
+        // v166.7：产物按「屏幕原生像素」重抓（screencapture，~200ms，必须后台）。
+        // 覆盖层那张快照是 1x，只作为兜底——它裁出来的图在 Retina 上少一半像素。
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let native = NativeRegionCapture.capture(appKitRect: global)
+            let fallback: CGImage? = native == nil
+                ? snapshot.flatMap { ImageProcessor.crop($0, rectInPoints: global, screenFrame: screenFrame) }
+                : nil
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard let image = native ?? fallback else {
+                    self.statusMessage = CaptureError.captureFailed.errorDescription
+                    // 屏幕级反馈：失败不能只写在面板状态里（面板此刻根本没开）
+                    Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
+                if native != nil {
+                    Log.info("Capture", "选区截图：\(Int(global.width))×\(Int(global.height))pt → \(image.width)×\(image.height)px（原生像素）")
+                } else {
+                    Log.warn("Capture", "选区截图：原生像素通道不可用，回退 1x 快照裁剪")
+                }
+                self.finishRegion(image, flow: flow, global: global)
+            }
         }
-        switch pendingFlow {
+    }
+
+    /// 选区截图拿到图之后的收尾（原 commitRegion 的 switch 部分）
+    private func finishRegion(_ cropped: CGImage, flow: PendingFlow, global: CGRect) {
+        switch flow {
         case .direct(let action):
             handle(cropped, action: action)
         case .toolbar:
@@ -527,8 +626,13 @@ public final class ScreenshotManager: ObservableObject {
             let action = defaultAction
             self.currentModeTag = "full"   // v130②：历史库模式标签
 
-            // v162：统一走自适应通道（按系统版本选 SCK/legacy，legacy 恒在后台）
-            let image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
+            // v166.7：优先原生像素（screencapture，后台）；失败才回退 1x 的 SCK/legacy
+            var image = await Task.detached(priority: .userInitiated) {
+                NativeRegionCapture.captureScreen(screen)
+            }.value
+            if image == nil {
+                image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
+            }
             guard let image = image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 Log.error("Capture", "全屏截图失败")

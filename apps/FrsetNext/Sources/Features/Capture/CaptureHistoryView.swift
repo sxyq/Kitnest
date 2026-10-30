@@ -340,6 +340,48 @@ public enum CaptureDeepLink {
             let raw = comps?.queryItems?.first(where: { $0.name == "seconds" })?.value
             let s = raw.flatMap(Int.init) ?? ScreenshotManager.shared.delaySeconds
             DelayedCaptureController.shared.start(seconds: s)
+        case "probe":
+            // v166.7 排障：抓一张快照并记录像素尺寸。
+            // ?native=1 走生产用的原生像素通道（NativeRegionCapture），否则走 SCK 对照。
+            let useNative = comps?.queryItems?.first(where: { $0.name == "native" })?.value == "1"
+            if useNative {
+                Task.detached(priority: .userInitiated) {
+                    let t0 = Date()
+                    guard let screen = NSScreen.screens.first,
+                          let img = NativeRegionCapture.capture(appKitRect: screen.frame) else {
+                        Log.warn("Capture", "原生像素探针：取图失败")
+                        return
+                    }
+                    let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                    if let data = ImageProcessor.pngData(img) {
+                        try? data.write(to: URL(fileURLWithPath: "/tmp/frset_probe_native.png"))
+                    }
+                    // 再验一次「整屏 → 内存裁剪」的换算：400×300pt 应得 800×600px
+                    let probeRect = CGRect(x: screen.frame.minX + 200, y: screen.frame.minY + 100,
+                                           width: 400, height: 300)
+                    let region = NativeRegionCapture.capture(appKitRect: probeRect)
+                    Log.info("Capture", "原生像素探针：\(Int(screen.frame.width))×\(Int(screen.frame.height))pt → \(img.width)×\(img.height)px，耗时 \(ms)ms；"
+                             + "区域 400×300pt → \(region.map { "\($0.width)×\($0.height)px" } ?? "nil")")
+                }
+            } else {
+                Task { @MainActor in
+                    for (screen, img) in await ScreenshotManager.acquireScreenSnapshots() {
+                        guard let img else {
+                            Log.warn("Capture", "抓屏探针：\(Int(screen.frame.width))pt 取图失败")
+                            continue
+                        }
+                        let pt = "\(Int(screen.frame.width))×\(Int(screen.frame.height))pt"
+                        let scale = screen.backingScaleFactor
+                        let px = "\(img.width)×\(img.height)px"
+                        let expect = "\(Int(screen.frame.width * scale))×\(Int(screen.frame.height * scale))"
+                        // 落盘一张，用于比对「真细节 vs 上采样放大」
+                        if let data = ImageProcessor.pngData(img) {
+                            try? data.write(to: URL(fileURLWithPath: "/tmp/frset_probe.png"))
+                        }
+                        Log.info("Capture", "抓屏探针：\(pt) scale=\(scale) → \(px)（期望 \(expect)）\(img.width == Int(screen.frame.width * scale) ? " ✓" : " ✗")")
+                    }
+                }
+            }
         case "region":
             ScreenshotManager.shared.captureRegion()
         case "ocr":
@@ -347,8 +389,14 @@ public enum CaptureDeepLink {
             // 对指定图片走真实「识字」链路（识别 → 写剪贴板 → 弹结果窗），
             // 用来复现「结果窗没出来但剪贴板有记录」而不需要真的手动截图。
             let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value ?? ""
+            // ?translate=1 → 走「翻译」那条（识别后直接切到翻译页签并自动翻译）
+            let translate = comps?.queryItems?.first(where: { $0.name == "translate" })?.value == "1"
             if let cg = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
-                ScreenshotManager.shared.recognize(cg)
+                if translate {
+                    ScreenshotManager.shared.recognizeAndTranslate(cg)
+                } else {
+                    ScreenshotManager.shared.recognize(cg)
+                }
             } else {
                 Log.warn("Capture", "识字深链：拿不到图片 \(path)")
             }
