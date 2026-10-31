@@ -657,6 +657,8 @@ struct PreviewImageView: View {
     @Stored private var didFailToLoad = false
     /// OCR 文本（已缓存的先显示；没有则给「识别文本」按钮现算）
     @Stored private var ocrText = ""
+    /// 整理后的 OCR 文本（v169：合并版面折行、去噪声空格，仅用于显示）
+    @Stored private var tidiedOCR = ""
     @Stored private var ocrBusy = false
     @Stored private var ocrError: String?
 
@@ -705,11 +707,8 @@ struct PreviewImageView: View {
             if !ocrText.isEmpty {
                 Divider().padding(.vertical, 4)
                 PreviewTextViewRepresentable(
-                    attributedText: NSAttributedString(
-                        string: ocrText,
-                        attributes: [.font: NSFont.systemFont(ofSize: 11),
-                                     .foregroundColor: NSColor.secondaryLabelColor]))
-                    .frame(maxHeight: 120)
+                    attributedText: OCRTextTidy.attributed(tidiedOCR.isEmpty ? ocrText : tidiedOCR))
+                    .frame(maxHeight: 160)
             } else if let ocrError {
                 Text(ocrError)
                     .font(.system(size: 11))
@@ -745,7 +744,9 @@ struct PreviewImageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: model.item.dedupeKey) {
             await loadImages()
-            ocrText = PreviewPopoverDataBridge.shared.ocrText(for: model.item) ?? ""
+            let raw = PreviewPopoverDataBridge.shared.ocrText(for: model.item) ?? ""
+            ocrText = raw
+            tidiedOCR = OCRTextTidy.tidy(raw)
         }
     }
 
@@ -841,6 +842,7 @@ struct PreviewImageView: View {
                 let text = try await PreviewPopoverDataBridge.shared.recognizeImage(data)
                 await MainActor.run {
                     ocrText = text
+                    tidiedOCR = OCRTextTidy.tidy(text)
                     ocrBusy = false
                     if !text.isEmpty {
                         PreviewPopoverDataBridge.shared.saveOCRText(text, for: item)
@@ -1197,4 +1199,149 @@ final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPan
     }
 
     override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {}
+}
+
+// MARK: - OCR 文本整理（v169）
+
+/// 用户反馈：「预览图片时下面 OCR 自动识别的文字没有整理，可读性差」。
+///
+/// OCR 给出的是**版面行**，不是语义段落：一句话常被硬切成好几行，行内还夹着
+/// OCR 自己插的孤立空格。这里做**保守**整理：
+///   1. 裁行尾空白；连续空行压成一个（空行视为段落边界，不跨越合并）
+///   2. 上一行不以句末标点收尾、下一行也不是列表项 → 视为同一句，合并
+///   3. 中文与中文合并**不加空格**；拉丁文之间补一个空格
+///   4. 中文与中文之间的孤立空格删掉（OCR 常见噪声）
+///
+/// 刻意不做：不重排段落、不删短行（可能是页码/表格单元）、不跨空行合并、
+/// 表格型内容（行多且每行很短）完全不做行合并 —— 宁可少整理，
+/// 也不要把两栏排版或表格揉成一团。
+enum OCRTextTidy {
+
+    /// 句末：见到就断段
+    private static let sentenceEnd: Set<Character> = ["。", "！", "？", "…", ".", "!", "?"]
+    /// 句中：收尾时说明这句被版面宽度折断了，应当接回下一行
+    private static let softEnd: Set<Character> = ["，", "、", "；", "：", ",", ";", ":", "-", "—"]
+
+    private static let listMarkers: Set<Character> = [
+        "•", "-", "*", "·", "▪", "●", "○", "◆", "■", "□"
+    ]
+
+    static func tidy(_ raw: String) -> String {
+        guard !raw.isEmpty else { return raw }
+
+        let normalized = raw
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        let lines = normalized
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+
+        let nonEmpty = lines.filter { !$0.isEmpty }
+        let looksTabular = nonEmpty.count >= 6
+            && nonEmpty.reduce(0) { $0 + $1.count } / max(1, nonEmpty.count) < 10
+
+        var out: [String] = []
+        var current = ""
+
+        func flush() {
+            if !current.isEmpty { out.append(current); current = "" }
+        }
+
+        for line in lines {
+            if line.isEmpty {
+                flush()
+                continue
+            }
+            if current.isEmpty {
+                current = line
+                continue
+            }
+            if looksTabular {
+                flush()
+                current = line
+                continue
+            }
+            if let first = line.first, listMarkers.contains(first) {
+                flush()
+                current = line
+                continue
+            }
+            if shouldMerge(current, line) {
+                current = merge(current, line)
+            } else {
+                flush()
+                current = line
+            }
+        }
+        flush()
+
+        return out.map { squeezeSpaces($0) }.joined(separator: "\n")
+    }
+
+    /// 是否把下一行接回当前行（**保守**：只接「明显被版面宽度折断」的句子）
+    /// 显示样式（v169）：11.5pt + 行距 2.5 + 段间距 6。
+    /// 原来直接用 11pt 无行距渲染，OCR 的行本来就密，挤在一起读不动。
+    static func attributed(_ text: String) -> NSAttributedString {
+        let para = NSMutableParagraphStyle()
+        para.lineSpacing = 2.5
+        para.paragraphSpacing = 6
+        para.lineBreakMode = .byWordWrapping
+        return NSAttributedString(string: text, attributes: [
+            .font: NSFont.systemFont(ofSize: 11.5),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: para
+        ])
+    }
+
+    private static func shouldMerge(_ current: String, _ next: String) -> Bool {
+        guard let first = next.first else { return false }
+        // 列表项 / 编号 / 装饰符开头 → 一定是新的一条
+        if listMarkers.contains(first) || "0123456789#&©®|·".contains(first) { return false }
+        // 上一行已经说完一句 → 断段
+        if let last = current.last, sentenceEnd.contains(last) { return false }
+        // 逗号/顿号收尾且有一定长度 → 被折断，接回
+        if let last = current.last, softEnd.contains(last), current.count >= 12 { return true }
+        // 行本身够长（超过一般卡片宽度）且没有句末标点 → 被折断，接回
+        if current.count >= 30 { return true }
+        return false
+    }
+
+    private static func merge(_ head: String, _ tail: String) -> String {
+        guard let h = head.last, let t = tail.first else { return head + tail }
+        if h.isCJK || t.isCJK { return head + tail }
+        if head.hasSuffix(" ") { return head + tail }
+        return head + " " + tail
+    }
+
+    /// 删掉中文与中文之间的空格（OCR 噪声），保留英文词间空格
+    private static func squeezeSpaces(_ line: String) -> String {
+        guard line.contains(" ") else { return line }
+        var result = ""
+        result.reserveCapacity(line.count)
+        let chars = Array(line)
+        var i = 0
+        while i < chars.count {
+            let c = chars[i]
+            if c == " ", i > 0, i + 1 < chars.count,
+               chars[i - 1].isCJK, chars[i + 1].isCJK {
+                i += 1
+                continue
+            }
+            result.append(c)
+            i += 1
+        }
+        return result
+    }
+}
+
+extension Character {
+    /// 中日韩字符或全角标点（用于决定合并时要不要补空格）
+    var isCJK: Bool {
+        guard let v = unicodeScalars.first?.value else { return false }
+        return (0x3000...0x303F).contains(v)
+            || (0x4E00...0x9FFF).contains(v)
+            || (0x3400...0x4DBF).contains(v)
+            || (0xFF00...0xFFEF).contains(v)
+    }
 }
