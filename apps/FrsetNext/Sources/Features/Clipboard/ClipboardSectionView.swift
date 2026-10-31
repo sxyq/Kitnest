@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - 主面板区段（05 号规格 1.3：ClipboardSectionView）
 
@@ -582,11 +583,24 @@ public struct ClipboardThumbnailView: View {
 
     private var fileIcon: NSImage? {
         guard item.type == .file, let path = item.content?.split(separator: "\n").first else { return nil }
-        let key = String(path) as NSString
+        let filePath = String(path)
+        let key = filePath as NSString
         if let hit = Self.fileIconCache.object(forKey: key) { return hit }
-        let icon = NSWorkspace.shared.icon(forFile: key as String)
-        Self.fileIconCache.setObject(icon, forKey: key)
-        return icon
+
+        // v170（用户：「剪贴板里的压缩包预览图没有给出来」）：
+        // 原来无条件调 `NSWorkspace.icon(forFile:)`。当原文件已不在（剪贴板里的
+        // /tmp/xxx.zip 被系统清理、或文件被移走）时，它返回的是**一张空白通用文档**，
+        // 行看起来就是「没有预览图」。
+        // 文件还在 → 用真实图标（保留 Finder 里的自定义图标）；
+        // 文件已不在 → 按扩展名取**类型图标**（zip 仍是 zip 图标），不再是一张白纸。
+        if FileManager.default.fileExists(atPath: filePath) {
+            let icon = NSWorkspace.shared.icon(forFile: filePath)
+            Self.fileIconCache.setObject(icon, forKey: key)
+            return icon
+        }
+        let ext = URL(fileURLWithPath: filePath).pathExtension
+        guard !ext.isEmpty, let type = UTType(filenameExtension: ext) else { return nil }
+        return NSWorkspace.shared.icon(for: type)
     }
 
     private var symbolName: String {

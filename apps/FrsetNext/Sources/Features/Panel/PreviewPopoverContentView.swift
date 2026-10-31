@@ -1,5 +1,6 @@
 import QuickLookThumbnailing
 import QuickLookUI
+import UniformTypeIdentifiers
 import AppKit
 import Foundation
 import SwiftUI
@@ -1136,7 +1137,7 @@ private struct PreviewFileThumb: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } else {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+                Image(nsImage: FileIconResolver.icon(forPath: path))
                     .resizable()
             }
         }
@@ -1343,5 +1344,26 @@ extension Character {
             || (0x4E00...0x9FFF).contains(v)
             || (0x3400...0x4DBF).contains(v)
             || (0xFF00...0xFFEF).contains(v)
+    }
+}
+
+
+// MARK: - 文件图标（v170）
+
+/// 按路径取文件图标；**原文件不在时按扩展名兜底**。
+///
+/// `NSWorkspace.icon(forFile:)` 对不存在的路径返回一张空白通用文档，
+/// 剪贴板里指向 `/tmp/xxx.zip` 这类已被系统清理的条目，行里就成了「没有预览图」。
+/// 这里先判断存在性，不在就退回 `UTType` 的类型图标（zip 仍是 zip 图标）。
+enum FileIconResolver {
+    static func icon(forPath path: String) -> NSImage {
+        if FileManager.default.fileExists(atPath: path) {
+            return NSWorkspace.shared.icon(forFile: path)
+        }
+        let ext = URL(fileURLWithPath: path).pathExtension
+        if !ext.isEmpty, let type = UTType(filenameExtension: ext) {
+            return NSWorkspace.shared.icon(for: type)
+        }
+        return NSWorkspace.shared.icon(for: .data)
     }
 }

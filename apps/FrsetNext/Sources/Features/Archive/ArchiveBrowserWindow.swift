@@ -751,8 +751,17 @@ struct ArchiveBrowserView: View {
             HSplitView {
                 browserPane
                     .frame(minWidth: 260, idealWidth: columnWidth)
-                previewPane
-                    .frame(minWidth: 320)
+                VStack(spacing: 0) {
+                    previewPane
+                    // v170（用户：「点开文件它是一个怎样的状态」）：
+                    // 右栏底部补条目详情——原来选中一条只能看到内容预览，
+                    // 看不到大小/压缩率/方法/时间这些"这是什么"的信息。
+                    if let entry = model.previewEntry {
+                        Divider()
+                        ArchiveInspectorBar(entry: entry)
+                    }
+                }
+                .frame(minWidth: 320)
             }
         }
         .frame(minWidth: 640, minHeight: 420)
@@ -1095,5 +1104,100 @@ private struct PDFViewRepresentable: NSViewRepresentable {
     }
     func updateNSView(_ nsView: PDFView, context: Context) {
         if nsView.document !== document { nsView.document = document }
+    }
+}
+
+// MARK: - 条目详情条（v170）
+
+/// 归档窗口右栏底部的检查器：选中条目后显示「这是什么」。
+///
+/// 对应 ArcZip 用例 UC-06（检查器）。原实现只有内容预览，没有元信息，
+/// 用户看到内容却不知道大小/压缩率/压缩方法/时间。
+/// 默认展开，收起后只留一行标题——不干扰预览。
+struct ArchiveInspectorBar: View {
+
+    let entry: ArchiveEntry
+
+    @Stored private var expanded = true
+
+    private var ratioText: String? {
+        guard entry.size > 0, entry.packedSize > 0 else { return nil }
+        let pct = Int((Double(entry.packedSize) / Double(entry.size)) * 100)
+        return "\(pct)%"
+    }
+
+    private func sizeText(_ v: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: v, countStyle: .file)
+    }
+
+    private func row(_ key: String, _ value: String, mono: Bool = false) -> some View {
+        HStack(spacing: 6) {
+            Text(key)
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+                .frame(width: 52, alignment: .leading)
+            Text(value)
+                .font(.system(size: 10.5, design: mono ? .monospaced : .default))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 0)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button {
+                expanded.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                    Text("详情")
+                        .font(.system(size: 11, weight: .medium))
+                    if entry.isEncrypted {
+                        Image(systemName: "lock.fill").font(.system(size: 9))
+                    }
+                    if entry.isUnsafe {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer(minLength: 0)
+                    Text(ByteCountFormatter.string(fromByteCount: entry.size, countStyle: .file))
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiaryText)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("展开 / 收起条目详情")
+
+            if expanded {
+                VStack(spacing: 3) {
+                    row("名称", entry.name)
+                    if !entry.parent.isEmpty {
+                        row("位置", entry.parent, mono: true)
+                    }
+                    row("原始大小", sizeText(entry.size))
+                    if !entry.isDirectory, entry.packedSize > 0 {
+                        let suffix = ratioText.map { "（\($0)）" } ?? ""
+                        row("压缩后", sizeText(entry.packedSize) + suffix)
+                    }
+                    if !entry.method.isEmpty {
+                        row("方法", entry.method, mono: true)
+                    }
+                    if !entry.modified.isEmpty {
+                        row("修改时间", entry.modified)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+            }
+        }
+        .background(Color.primary.opacity(0.03))
     }
 }

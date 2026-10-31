@@ -66,7 +66,7 @@ public enum FilePreviewBuilder {
 
         // 目录：用系统文件夹图标 + 条目数
         if isDir.boolValue {
-            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            let icon = FileIconResolver.icon(forPath: url.path)
             icon.size = NSSize(width: 128, height: 128)
             payload.thumbnail = icon
             let count = (try? fm.contentsOfDirectory(atPath: url.path).count) ?? 0
@@ -101,7 +101,7 @@ public enum FilePreviewBuilder {
                 payload.thumbnail = image
             } else {
                 // QuickLook 没有生成器（少见）→ 至少给系统文件图标
-                let icon = NSWorkspace.shared.icon(forFile: url.path)
+                let icon = FileIconResolver.icon(forPath: url.path)
                 icon.size = NSSize(width: 128, height: 128)
                 payload.thumbnail = icon
                 if payload.text == nil {
