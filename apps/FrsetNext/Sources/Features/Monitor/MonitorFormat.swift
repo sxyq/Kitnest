@@ -2,6 +2,24 @@ import Foundation
 
 /// 监测模块使用的格式化工具（字节/速率/百分比）
 public enum MonitorFormat {
+
+    /// 饱和转换 Double → UInt64（**安全**，不会 trap）。
+    ///
+    /// v168（崩溃修复）：原先全工程写的是 `UInt64(max(0, x))`。当 `x` 是
+    /// NaN / ±Inf / 超出 UInt64 可表示范围时，`UInt64.init(Double)` 会触发
+    /// Swift 运行时陷阱（EXC_BREAKPOINT / SIGTRAP），**整个 App 被系统杀掉**。
+    ///
+    /// 实测两例崩溃报告（2026-10-31 11:19 与 20:19）栈顶都是
+    /// `MonitorSampler.sampleOnce()`，异常 `EXC_BREAKPOINT`、`Trace/BPT trap: 5`。
+    /// 触发源是网卡/磁盘计数器在休眠唤醒、驱动重启、计数器回绕时给出的瞬时非法值，
+    /// 所以表现为「用着用着某个时刻自己退出」。
+    @inline(__always)
+    public static func u64(_ value: Double) -> UInt64 {
+        guard value.isFinite, value > 0 else { return 0 }
+        let limit = Double(UInt64.max)
+        return value >= limit ? UInt64.max : UInt64(value)
+    }
+
     private static let units = ["B", "KB", "MB", "GB", "TB", "PB"]
 
     /// 字节数 → 易读字符串（按 1024 进制）

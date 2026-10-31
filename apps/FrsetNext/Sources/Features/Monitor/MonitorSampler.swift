@@ -234,13 +234,13 @@ public final class MonitorSampler: ObservableObject {
                 }
             }
             if cSnap.ramTotalBytes > 0 {
-                sample.memoryUsed = UInt64(max(0, cSnap.ramUsedBytes))
-                sample.memoryTotal = UInt64(max(0, cSnap.ramTotalBytes))
+                sample.memoryUsed = MonitorFormat.u64(cSnap.ramUsedBytes)
+                sample.memoryTotal = MonitorFormat.u64(cSnap.ramTotalBytes)
             }
-            sample.diskRead = UInt64(max(0, cSnap.diskReadBps))
-            sample.diskWrite = UInt64(max(0, cSnap.diskWriteBps))
-            sample.netUpload = UInt64(max(0, cSnap.netUpBps))
-            sample.netDownload = UInt64(max(0, cSnap.netDownBps))
+            sample.diskRead = MonitorFormat.u64(cSnap.diskReadBps)
+            sample.diskWrite = MonitorFormat.u64(cSnap.diskWriteBps)
+            sample.netUpload = MonitorFormat.u64(cSnap.netUpBps)
+            sample.netDownload = MonitorFormat.u64(cSnap.netDownBps)
             if cSnap.batteryPresent != 0 {
                 sample.batteryLevel = cSnap.batteryPercent / 100.0
             }
@@ -289,8 +289,8 @@ public final class MonitorSampler: ObservableObject {
         // v129（内存）：两次 MonitorExtra.update 合并为一次（原来峰值段/累计段
         // 各拿一次锁、各包一个闭包，每 tick 双份）。
         let previousPeaks = MonitorExtra.current
-        let netIn = UInt64(max(0, Double(sample.netDownload) * MonitorPreferences.refreshInterval))
-        let netOut = UInt64(max(0, Double(sample.netUpload) * MonitorPreferences.refreshInterval))
+        let netIn = MonitorFormat.u64(Double(sample.netDownload) * MonitorPreferences.refreshInterval)
+        let netOut = MonitorFormat.u64(Double(sample.netUpload) * MonitorPreferences.refreshInterval)
         MonitorExtra.update { extra in
             extra.compressedMemory = result.compressedMemory
             extra.loadAverages = loadAverages
@@ -300,8 +300,10 @@ public final class MonitorSampler: ObservableObject {
             extra.diskPeakWrite = max(previousPeaks.diskPeakWrite, sample.diskWrite)
             extra.updatedAt = Date()
             // 累计流量（自本进程启动起累加，重启清零）
-            extra.netTotalIn += netIn
-            extra.netTotalOut += netOut
+            // v168：用回绕加法 `&+=`。netIn/netOut 已经饱和到 UInt64.max，
+            // 普通 `+=` 在累加溢出时会 trap（又一个「用久了突然退出」的来源）。
+            extra.netTotalIn &+= netIn
+            extra.netTotalOut &+= netOut
         }
 
         DispatchQueue.main.async { [weak self] in

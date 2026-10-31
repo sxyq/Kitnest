@@ -766,7 +766,7 @@ private struct MemoryStatsPanel: View {
             .frame(height: 10)
 
             VStack(alignment: .leading, spacing: 5) {
-                StatsLegendRow(color: MonitorColors.user, label: "App 内存", value: MonitorFormat.bytes(UInt64(max(0, appBytes))))
+                StatsLegendRow(color: MonitorColors.user, label: "App 内存", value: MonitorFormat.bytes(MonitorFormat.u64(appBytes)))
                 StatsLegendRow(color: Color(red: 0.98, green: 0.62, blue: 0.24), label: "联动内存", value: MonitorFormat.bytes(UInt64(wired)))
                 StatsLegendRow(color: Color(red: 0.98, green: 0.35, blue: 0.38), label: "压缩内存", value: MonitorFormat.bytes(UInt64(compressed)))
                 StatsLegendRow(color: Color.primary.opacity(0.16), label: "可用", value: MonitorFormat.bytes(UInt64(free)))
@@ -777,7 +777,7 @@ private struct MemoryStatsPanel: View {
                                columns: [.init(title: "内存", color: nil)],
                                items: Array(stats.procMem.prefix(5)),
                                subtitle: { _ in nil }) { item in
-                    [MonitorFormat.bytes(UInt64(max(0, item.memBytes)))]
+                    [MonitorFormat.bytes(MonitorFormat.u64(item.memBytes))]
                 }
             }
         }
@@ -948,8 +948,8 @@ private struct DiskStatsPanel: View {
                                    columns: [.init(title: "", color: Color(red: 0.20, green: 0.52, blue: 0.98)),
                                              .init(title: "", color: Color(red: 0.95, green: 0.27, blue: 0.30))],
                                    items: Array(stats.procDisk.prefix(5))) { item in
-                        [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
-                         MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
+                        [MonitorFormat.rate(MonitorFormat.u64(item.diskRead)),
+                         MonitorFormat.rate(MonitorFormat.u64(item.diskWrite))]
                     }
                 }
             }
@@ -1042,8 +1042,8 @@ private struct NetworkStatsPanel: View {
                                columns: [.init(title: "", color: Color(red: 0.20, green: 0.52, blue: 0.98)),
                                          .init(title: "", color: Color(red: 0.95, green: 0.27, blue: 0.30))],
                                items: Array(stats.procNet.prefix(5))) { item in
-                    [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
-                     MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
+                    [MonitorFormat.rate(MonitorFormat.u64(item.diskRead)),
+                     MonitorFormat.rate(MonitorFormat.u64(item.diskWrite))]
                 }
             }
         }

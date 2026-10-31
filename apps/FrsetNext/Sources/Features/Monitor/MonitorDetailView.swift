@@ -361,7 +361,7 @@ public struct MonitorDetailView: View {
                 StatsProcTable(title: "内存占用进程",
                                columns: [.init(title: "内存")],
                                items: memProcs,
-                               values: { [MonitorFormat.bytes(UInt64(max(0, $0.memBytes)))] })
+                               values: { [MonitorFormat.bytes(MonitorFormat.u64($0.memBytes))] })
             }
         }
     }
@@ -473,8 +473,8 @@ public struct MonitorDetailView: View {
                                columns: [.init(title: "下行"), .init(title: "上行")],
                                items: Array(stats.procNet.prefix(8)),
                                values: { item in
-                                   [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
-                                    MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
+                                   [MonitorFormat.rate(MonitorFormat.u64(item.diskRead)),
+                                    MonitorFormat.rate(MonitorFormat.u64(item.diskWrite))]
                                })
             }
 
@@ -585,8 +585,8 @@ public struct MonitorDetailView: View {
                                columns: [.init(title: "读"), .init(title: "写")],
                                items: Array(stats.procDisk.prefix(8)),
                                values: { item in
-                                   [MonitorFormat.rate(UInt64(max(0, item.diskRead))),
-                                    MonitorFormat.rate(UInt64(max(0, item.diskWrite)))]
+                                   [MonitorFormat.rate(MonitorFormat.u64(item.diskRead)),
+                                    MonitorFormat.rate(MonitorFormat.u64(item.diskWrite))]
                                })
             }
 
