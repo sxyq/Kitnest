@@ -110,6 +110,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Swift renamed import 为 application(_:open:)，参数 [URL]。
     /// 满足 NSApplicationDelegate 该 optional 要求即自动生成 ObjC 入口（有 To 符号）。
     func application(_ application: NSApplication, open urls: [URL]) {
+        // v167：访达双击 / 右键「用 FrsetNext 打开」送来的是**文件 URL**（无 scheme 或 file），
+        // 原实现第一行就 `guard url.scheme == "frsetnext"` 把它们全丢了 —— 所以此前
+        // 双击压缩包只会唤起面板、不会进归档窗。这里先分流文件，再走深链。
+        let files = urls.filter { $0.isFileURL }
+        if !files.isEmpty {
+            let archives = files.filter { ArchiveCore.isArchive($0) }
+            // 窗口创建同样延后到下一 runloop（与下方深链同一原因，见注释）
+            for url in archives {
+                DispatchQueue.main.async { ArchiveBrowserWindowController.show(url: url) }
+            }
+            if !archives.isEmpty { return }
+        }
         guard let url = urls.first, url.scheme == "frsetnext" else { return }
         Log.info("App", "URL 唤起: \(url.absoluteString)")
         // 窗口创建延后到下一 runloop：Apple Event 处理上下文内创建 NSWindow +

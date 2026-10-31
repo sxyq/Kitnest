@@ -71,6 +71,22 @@ public final class ArchiveServicesProvider: NSObject {
         }
     }
 
+    /// 「用 FrsetNext 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
+    ///
+    /// 与「双击压缩包」「拖进面板」走同一个入口 `ArchiveBrowserWindowController.show`，
+    /// 不另开一套窗口。多选时逐个打开（同包已开则系统侧前置，由 controller 去重）。
+    @objc public func openArchive(_ pboard: NSPasteboard, userData: String,
+                                  error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let archives = Self.archives(from: pboard)
+        guard !archives.isEmpty else {
+            error.pointee = "选中的文件里没有可打开的压缩包" as NSString
+            return
+        }
+        for url in archives {
+            ArchiveBrowserWindowController.show(url: url)
+        }
+    }
+
     /// 「压缩」：把选中的文件交给既有创建压缩包面板（5 种用途预设 / 分卷 / 密码都在那边）
     @objc public func compress(_ pboard: NSPasteboard, userData: String,
                                error: AutoreleasingUnsafeMutablePointer<NSString?>) {
