@@ -341,6 +341,9 @@ struct FileHoverPreviewView: View {
     @Stored private var payload: FilePreviewPayload?
     @Stored private var loadToken = 0
 
+    /// v129：压缩包单独走「列包内条目」，不再要 QuickLook 缩略图
+    private var isArchive: Bool { ArchiveCore.isArchive(url) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -354,7 +357,9 @@ struct FileHoverPreviewView: View {
         // 标题栏是透明的（拖动条）：内容要垫到它底下，否则顶部留一条空带
         .ignoresSafeArea()
         .task(id: url.path) {
-            reload()
+            // v129（用户反馈）：中转站悬停压缩包时，原来只拿到一张 QuickLook 缩略图
+            //（多数是 zip 图标），看不到里面有什么。改为直接列条目，见 content。
+            if !isArchive { reload() }
         }
     }
 
@@ -391,7 +396,14 @@ struct FileHoverPreviewView: View {
 
     private var content: some View {
         Group {
-            if let payload {
+            if isArchive {
+                // v129：包内条目网格（复用归档窗/面板同一个 ArchivePeekView），
+                // 悬停即可看到里面有 Word / PPT / 图片 / 文件夹，而不是一张 zip 图标。
+                ScrollView {
+                    ArchivePeekView(path: url.path, maxRows: 120)
+                        .padding(8)
+                }
+            } else if let payload {
                 if let image = payload.thumbnail {
                     Image(nsImage: image)
                         .resizable()

@@ -117,11 +117,13 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.archive</string>
-				<string>public.data</string>
-			</array>
+			<!-- v129（用户反馈：右键「打开方式」里看不到 FrsetNext）：
+			     原来这里写了 LSItemContentTypes = public.archive / public.data，
+			     LaunchServices 会**优先用 UTI 并忽略下面的 CFBundleTypeExtensions**，
+			     结果只认了「任意 public.data」，.zip 的具体 UTI（public.zip-archive）
+			     反而匹配不上，右键打开方式里就没有本 App。
+			     去掉该键后实测 37 个扩展名全部绑定成功（lsregister -dump 可见 .zip/.7z/.rar…）。
+			     不绑 public.data 也顺带避免"任何文件都想用本 App 打开"的噪音。 -->
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>zip</string>

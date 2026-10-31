@@ -266,11 +266,18 @@ public final class ArchiveBrowserModel: ObservableObject {
             return
         }
         // 图片：内存解码
-        if ["png", "jpg", "jpeg", "gif", "heic", "webp", "bmp", "tiff"].contains(ext) {
-            ArchiveCore.readEntry(url: url, entry: entry) { [weak self] data, err in
+        //
+        // v129（用户反馈「预览的照片不太对」）：原先走 readEntry 默认 8 MB 上限，
+        // 手机/单反原图直接被判「文件过大」；即便放行也是整张解码（50MP 吃掉数百 MB）。
+        // 现在放宽到 128 MB，并交给 ImageIO 降采样到长边 2600px —— Retina 够清晰，
+        // 内存只占十几 MB，竖拍照片按 EXIF 转正。
+        if ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "bmp", "tiff"].contains(ext) {
+            ArchiveCore.readEntry(url: url, entry: entry,
+                                  limit: 128 * 1024 * 1024) { [weak self] data, err in
                 guard let self else { return }
                 self.previewLoading = false
-                if let data, let img = NSImage(data: data) {
+                if let data, let img = ArchiveEntryThumbnail.downsample(data: data, maxPixel: 2600)
+                                        ?? NSImage(data: data) {
                     self.previewKind = .image(img)
                 } else {
                     self.previewKind = .unsupported(err ?? "图片解码失败")

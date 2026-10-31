@@ -117,6 +117,25 @@ enum ArchiveEntryThumbnail {
 
     // MARK: 各类型实现
 
+    /// v129（用户反馈「预览的照片不太对」）：整图降采样到长边 maxPixel。
+    /// 两个作用：
+    ///   ① 不再受 readEntry 的 8 MB 上限影响 —— 手机/单反原图动辄 20–80 MB；
+    ///   ② 50MP 照片不再全尺寸解码（原实现一次吃掉数百 MB，且在预览区被缩得糊）。
+    /// `kCGImageSourceCreateThumbnailWithTransform` 顺带按 EXIF 转正，竖拍不会躺着。
+    static func downsample(data: Data, maxPixel: CGFloat) -> NSImage? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let opts: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(64, maxPixel),
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(src, 0, opts as CFDictionary) else {
+            return nil
+        }
+        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+    }
+
     private static func imageThumbnail(url: URL, pixels: CGFloat) -> NSImage? {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         let opts: [CFString: Any] = [
