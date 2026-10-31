@@ -1,4 +1,5 @@
 import QuickLookThumbnailing
+import QuickLookUI
 import AppKit
 import Foundation
 import SwiftUI
@@ -1074,15 +1075,61 @@ private enum PreviewFileThumbnailLoader {
     }
 }
 
+/// 文档内联预览（v167）：用系统 QLPreviewView 渲染真实排版内容。
+///
+/// 与 `PreviewFileThumbnailLoader.qlThumbnail` 的区别：
+/// 后者请求的是 **thumbnail representation**，Office 文件系统只给图标；
+/// `QLPreviewView` 走 **preview representation**（QLPreviewingController），
+/// 才能拿到 docx/pptx/xlsx 的正文渲染。
+struct DocumentInlinePreview: NSViewRepresentable {
+    let url: URL
+
+    /// 能内联渲染的文档类扩展名（含 iWork 与 PDF）
+    static let supportedExtensions: Set<String> = [
+        "doc", "docx", "docm", "dot", "dotx", "rtf", "rtfd", "odt", "webarchive",
+        "ppt", "pptx", "pptm", "pps", "ppsx", "key", "odp",
+        "xls", "xlsx", "xlsm", "numbers", "ods", "csv",
+        "pages", "pdf", "epub"
+    ]
+
+    func makeNSView(context: Context) -> QLPreviewView {
+        let view = QLPreviewView(frame: NSRect(x: 0, y: 0, width: 260, height: 260),
+                                 style: .normal)!
+        view.autostarts = true
+        view.previewItem = url as NSURL
+        return view
+    }
+
+    func updateNSView(_ nsView: QLPreviewView, context: Context) {
+        if (nsView.previewItem as? NSURL)?.path != url.path {
+            nsView.previewItem = url as NSURL
+            nsView.refreshPreviewItem()
+        }
+    }
+}
+
 /// 缩略图视图：先图标、异步解码后替换（缓存命中即时）
 private struct PreviewFileThumb: View {
     let path: String
     let size: CGFloat
     @Stored private var image: NSImage?
 
+    /// v167（用户：「Word / PPT 预览就是一个文件图标，我要的是文件内容」）：
+    /// 文档类改为**内联 QuickLook 渲染**。
+    /// 根因：QLThumbnailGenerator 走的是「缩略图」通道，系统对 Office 只提供图标，
+    /// 于是预览框里永远是一张 Word 图标；QLPreviewView 走的是「预览」通道，
+    /// 能把 docx/pptx/xlsx/pages/key 等真实排版渲染出来（实测 docx 封面/表格/目录完整）。
+    private var inlineDocument: Bool {
+        guard size >= 120 else { return false }       // 多选时的小格子仍用图标，避免起一堆渲染器
+        return DocumentInlinePreview.supportedExtensions.contains(
+            URL(fileURLWithPath: path).pathExtension.lowercased())
+    }
+
     var body: some View {
         Group {
-            if let image {
+            if inlineDocument {
+                DocumentInlinePreview(url: URL(fileURLWithPath: path))
+            } else if let image {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -1097,7 +1144,7 @@ private struct PreviewFileThumb: View {
                 .fill(Color.primary.opacity(0.04))
         )
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .onAppear(perform: load)
+        .onAppear { if !inlineDocument { load() } }
     }
 
     private func load() {

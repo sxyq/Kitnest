@@ -224,6 +224,7 @@ struct PanelRootView: View {
             HStack(spacing: 12) {
                 captureAction
                 captureButton("eyedropper", title: "取色 ⌥C", mode: .color)
+                archiveAction
                 Button {
                     onDismiss()
                     FloatingClipboardWindowController.shared.toggle()
@@ -310,6 +311,55 @@ struct PanelRootView: View {
     /// MonitorDetailView 同一套组件（与独立窗一致，不多一套实现）。
     /// v114（2026-10-25 用户需求）：投屏从文件中转拆出，新增第四段「投屏」，
     /// 四段左右切换；投屏页与文件中转同受传输功能开关控制。
+    /// v167：归档入口。
+    /// 用户反馈「打开浏览 / 创建压缩包 / 撤销重做 / 拖出专送 / 文件盒 / 任务队列全都没做到」——
+    /// 这些功能代码都在 `Features/Archive/` 里，但面板上**没有任何入口**，
+    /// 只能靠 `frsetnext://archive?...` 深链或访达双击触发，日常使用完全触达不到。
+    private var archiveAction: some View {
+        Menu {
+            Button("打开归档…") { chooseArchiveToOpen() }
+            Button("新建压缩包…") { chooseFilesToCompress() }
+            Divider()
+            Button("文件盒") { ArchiveFileBoxWindow.show() }
+            Button("任务队列") { ArchiveProgressWindowController.show() }
+        } label: {
+            Image(systemName: "archivebox")
+                .font(.system(size: 14))
+                .frame(width: 22, height: 22)
+                .foregroundStyle(Color.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("归档：打开 / 压缩 / 文件盒 / 任务")
+        .accessibilityLabel("归档")
+    }
+
+    private func chooseArchiveToOpen() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "选择要打开的归档"
+        panel.prompt = "打开"
+        if panel.runModal() == .OK, let url = panel.url {
+            onDismiss()
+            ArchiveBrowserWindowController.show(url: url)
+        }
+    }
+
+    private func chooseFilesToCompress() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.message = "选择要压缩的文件或文件夹"
+        panel.prompt = "下一步"
+        if panel.runModal() == .OK {
+            onDismiss()
+            ArchiveCreateWindowController.show(files: panel.urls)
+        }
+    }
+
     private var pageSegments: some View {
         HStack(spacing: 0) {
             segmentItem("主页", selected: page == .home) {

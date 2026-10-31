@@ -344,6 +344,12 @@ struct FileHoverPreviewView: View {
     /// v129：压缩包单独走「列包内条目」，不再要 QuickLook 缩略图
     private var isArchive: Bool { ArchiveCore.isArchive(url) }
 
+    /// v167：Office / PDF / iWork 等文档直接内联渲染真实内容
+    /// （原来走 QLThumbnailGenerator，系统对 Office 只给图标）
+    private var isInlineDocument: Bool {
+        DocumentInlinePreview.supportedExtensions.contains(url.pathExtension.lowercased())
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -359,7 +365,8 @@ struct FileHoverPreviewView: View {
         .task(id: url.path) {
             // v129（用户反馈）：中转站悬停压缩包时，原来只拿到一张 QuickLook 缩略图
             //（多数是 zip 图标），看不到里面有什么。改为直接列条目，见 content。
-            if !isArchive { reload() }
+            // v167：文档类由 QLPreviewView 自己异步渲染，不需要走缩略图加载
+            if !isArchive && !isInlineDocument { reload() }
         }
     }
 
@@ -403,6 +410,10 @@ struct FileHoverPreviewView: View {
                     ArchivePeekView(path: url.path, maxRows: 120)
                         .padding(8)
                 }
+            } else if isInlineDocument {
+                // v167：Word / PPT / Excel / PDF / iWork —— 直接渲染正文，不再是文件图标
+                DocumentInlinePreview(url: url)
+                    .padding(1)
             } else if let payload {
                 if let image = payload.thumbnail {
                     Image(nsImage: image)
