@@ -143,9 +143,24 @@ public enum CloudDriveLinkDetector {
     private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
     private static let bareDomainRegex = try? NSRegularExpression(pattern: #"(?i)((?:pan\.baidu|yun\.baidu|www\.aliyundrive|aliyundrive|www\.alipan|alipan|yun\.139|caiyun\.139|cloud\.189|pan\.xunlei|pan\.quark|drive\.uc|(?:[a-z0-9-]+\.)?123(?:pan|684|865|952|912)\.(?:com|cn))[^\s"'<>）)]*)"#)
 
+    /// 廉价预筛词（v172 性能审阅）
+    ///
+    /// 首页 `PanelRootView` 的动画 key + `CloudLinkBar.link` 各算一遍 `recentLink`，
+    /// 一次 body 求值就是 **3 遍 × 最多 20 条** 的全文 `NSDataDetector.matches`；
+    /// 而 `PanelRootView` 观察 `ClipboardManager`，搜索框每敲一个字都会重算。
+    /// 绝大多数剪贴板内容根本不含网盘域名，先在字符串里找特征词，
+    /// 不含就直接返回——省掉 99% 的整段正则扫描。
+    private static let prefilterTokens: [String] = [
+        "pan.", "yun.", "aliyun", "alipan", "cloud.", "123pan", "123684",
+        "123865", "123952", "123912", "drive.", "caiyun", "139.com", "189.cn",
+        "xunlei", "quark", "uc.cn", "baidu.com/s",
+    ]
+
     /// 从一段文本中提取第一条网盘链接（含无 scheme 的裸域名）
     public static func detect(in text: String) -> CloudDriveLink? {
         guard !text.isEmpty else { return nil }
+        let lower = text.lowercased()
+        guard prefilterTokens.contains(where: { lower.contains($0) }) else { return nil }
         // 1) 标准 URL（NSDataDetector 兜底复杂文本）
         if let detector = Self.linkDetector {
             let range = NSRange(text.startIndex..., in: text)

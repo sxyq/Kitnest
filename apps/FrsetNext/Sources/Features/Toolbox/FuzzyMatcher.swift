@@ -73,8 +73,21 @@ public enum FuzzyMatcher {
     }
 
     /// 是否模糊命中（不关心得分与位置）
+    ///
+    /// v172（性能审阅）：原来直接 `match(...) != nil` —— 为了回答一个是非题，
+    /// 会建 indices 数组、做收紧回溯、再转一次 `Array(target)` 算评分。
+    /// 搜索面板每敲一个字对 200–800 条各调一次，这些全是白做。
+    /// 这里走**纯子序列判定**：单趟扫描，零额外数组分配。
     public static func isMatch(_ pattern: String, in target: String) -> Bool {
-        match(pattern, in: target) != nil
+        let query = pattern.lowercased()
+        guard !query.isEmpty else { return false }
+        var rest = query.makeIterator()
+        guard var want = rest.next() else { return false }
+        for ch in target.lowercased() where ch == want {
+            guard let next = rest.next() else { return true }
+            want = next
+        }
+        return false
     }
 
     // MARK: 评分（fzf 风格简化版，全整型）
