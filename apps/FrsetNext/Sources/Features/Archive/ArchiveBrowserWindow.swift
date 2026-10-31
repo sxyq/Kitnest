@@ -663,17 +663,38 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
 
     private static var open: [String: ArchiveBrowserWindowController] = [:]
 
-    public static func show(url: URL) {
+    public static func show(url: URL, selectFirst: Bool = false) {
         let key = url.standardizedFileURL.path
         if let existing = open[key] {
             existing.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            if selectFirst { existing.selectFirstEntry() }
             return
         }
         let controller = ArchiveBrowserWindowController(url: url)
         open[key] = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if selectFirst { controller.selectFirstEntry() }
+    }
+
+    /// 排障用（v171）：选中第一条并加载预览。
+    /// 本机合成鼠标事件点不中 SwiftUI 列表行，靠它把「选中态」稳定复现出来截图核对。
+    /// 列表是异步从 7zz 读出来的，首次 0.6s 往往还没好，所以做重试。
+    func selectFirstEntry(attempt: Int = 0) {
+        let delay: TimeInterval = attempt == 0 ? 1.2 : 0.9
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            if let first = self.model.visibleEntries.first(where: { !$0.isDirectory })
+                ?? self.model.visibleEntries.first {
+                self.model.selection = [first.path]
+                self.model.loadPreview(for: first)
+                Log.info("Archive", "排障：已选中首项 \(first.path)")
+                return
+            }
+            if attempt < 6 { self.selectFirstEntry(attempt: attempt + 1) }
+            else { Log.warn("Archive", "排障：列表始终为空，放弃选中") }
+        }
     }
 
     private let model: ArchiveBrowserModel

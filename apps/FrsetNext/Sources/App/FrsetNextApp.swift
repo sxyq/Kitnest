@@ -269,7 +269,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     // v127（ArcZip P3）：Mini 独立小窗浏览（P3-1，不打断主窗口）
                     ArchiveMiniWindowController.show(url: fileURL)
                 default:
-                    ArchiveBrowserWindowController.show(url: fileURL)
+                    // ?select=first → 排障：打开即选中第一条（本机合成点击点不中列表）
+                    let sel = comps?.queryItems?.first(where: { $0.name == "select" })?.value == "first"
+                    ArchiveBrowserWindowController.show(url: fileURL, selectFirst: sel)
                 }
             case "cloudlink":
                 // 排障深链：frsetnext://cloudlink?url=<网盘链接>
