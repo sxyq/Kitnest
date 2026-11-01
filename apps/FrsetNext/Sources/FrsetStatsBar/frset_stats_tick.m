@@ -248,6 +248,16 @@ const char *FSStatsProcPath(const void *p) {
     return ((const frset_proc_t *)p)->path;
 }
 
+// v178：CPU 能耗行（电池页「CPU 能耗影响」）——Swift 侧取 path 做 .app 归类、
+// 取 name 做显示名；固定长度数组成员不能直接给 Swift，只能走薄包装。
+const char *FSEnergyPath(const void *e) {
+    return ((const frset_energy_pid_t *)e)->path;
+}
+
+const char *FSEnergyName(const void *e) {
+    return ((const frset_energy_pid_t *)e)->name;
+}
+
 const char *FSStatsSensorKey(const void *s) {
     return ((const frset_sensor_t *)s)->key;
 }

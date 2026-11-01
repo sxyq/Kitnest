@@ -766,93 +766,10 @@ public struct MonitorDetailView: View {
     // MARK: - 电池（官方 Battery 页：Dashboard + Health + 适配器段）
 
     private var batteryPanel: some View {
-        let stats = StatsDataProvider.shared.current
-        let batt = stats.battery
-        let level = batt.map { Double($0.percent) / 100 } ?? sampler.sample.batteryLevel
-        return VStack(alignment: .leading, spacing: 10) {
-            if let level, let batt {
-                HStack(spacing: 14) {
-                    ZStack {
-                        MonitorRing(value: level, lineWidth: 7, color: MonitorColors.battery)
-                            .frame(width: 66, height: 66)
-                        Text(MonitorFormat.percent(level))
-                            .font(.system(size: 15, weight: .semibold).monospacedDigit())
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        // 状态徽章（官方四态：充电中/电池供电/已连接电源/暂停）
-                        HStack(spacing: 5) {
-                            Circle()
-                                .fill(batt.isCharging ? MonitorColors.battery : (batt.externalConnected ? MonitorColors.download : MonitorColors.temperature))
-                                .frame(width: 7, height: 7)
-                            Text(batteryStatusText(batt))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        if stats.batteryRemainSec > 0 {
-                            MonitorRow(label: "剩余时间", value: StatsFormat.remaining(stats.batteryRemainSec))
-                        }
-                        if batt.maxCapacity > 0 || batt.designCapacity > 0 {
-                            MonitorRow(label: "最大容量", value: StatsFormat.capacity(batt.maxCapacity))
-                            MonitorRow(label: "设计容量", value: StatsFormat.capacity(batt.designCapacity))
-                        }
-                    }
-                }
-
-                // 健康度进度条（官方 Health 段）
-                if batt.designCapacity > 0 && batt.maxCapacity > 0 {
-                    let health = Swift.min(1, Double(batt.maxCapacity) / Double(batt.designCapacity))
-                    MonitorSectionTitle("健康度")
-                    VStack(spacing: 4) {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(Color.primary.opacity(0.1))
-                                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(health > 0.8 ? MonitorColors.battery : MonitorColors.temperature)
-                                    .frame(width: geo.size.width * health)
-                            }
-                        }
-                        .frame(height: 8)
-                        Text("\(Int((health * 100).rounded())) %")
-                            .font(.system(size: 11).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                MonitorSectionTitle("电池")
-                MonitorRow(label: "循环次数", value: "\(batt.cycleCount)")
-                if batt.temperature > 0 { MonitorRow(label: "温度", value: MonitorFormat.temperature(batt.temperature), color: MonitorColors.temperature) }
-                MonitorRow(label: "电压", value: StatsFormat.voltage(batt.voltageMv))
-                MonitorRow(label: "电流", value: StatsFormat.amperage(batt.amperageMa))
-                MonitorRow(label: "电池功率", value: StatsFormat.watts(batt.batteryPowerW))
-
-                // 电源适配器段（官方 v27：正在充电/功率(PDTR/标称W)/电流/电压）
-                if batt.externalConnected {
-                    MonitorSectionTitle("电源适配器")
-                    MonitorRow(label: "正在充电", value: batt.isCharging ? "是" : "否")
-                    MonitorRow(label: "适配器功率", value: "\(StatsFormat.watts(batt.adapterPowerW)) / \(StatsFormat.watts(batt.adapterWatts))")
-                    MonitorRow(label: "充电电流", value: StatsFormat.amperage(batt.chargingCurrentMa))
-                    MonitorRow(label: "适配器电压", value: StatsFormat.voltage(batt.adapterVoltageV * 1000))
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    Image(systemName: "battery.0")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.secondary)
-                    Text("未检测到电池（台式机或电源信息不可用）")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 6)
-            }
-        }
-    }
-
-    /// 电池状态文案（官方四态）
-    private func batteryStatusText(_ batt: StatsBattery) -> String {
-        if batt.isCharging { return "充电中" }
-        if batt.externalConnected { return "已连接电源" }
-        return "电池供电"
+        // v178（用户：电池展示界面按 Status Trio 改）：整页重做——
+        // 功耗流向图 + 明细 + CPU 能耗影响 + 低电量模式，实现在 BatteryPanel.swift。
+        // 这里只做接线：监测窗的「电池」页与 Stats 面板共用同一个实现，不写两份。
+        BatteryStatsPanel()
     }
 
     /// 传感器值按官方单位格式化（温度 %.1f°C / 电压 %.3f V / 电流 %.2f A / 功率 %.2f W / 能耗 %.2f Wh）

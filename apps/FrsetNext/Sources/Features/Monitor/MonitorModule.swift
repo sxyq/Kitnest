@@ -27,6 +27,14 @@ public enum MonitorModule: AppModule {
         //    v60：部件点击 → 监测独立窗口（主面板性能页已删，只留独立窗一套）。
         StatsBarEngine.start()
 
+        // 排障探针（v178）：probe.batteryPage=YES → 启动 3.5s 后打开电池页。
+        // 电池页在独立监测窗里，能直接截图核对版式（主面板窗在别的 Space 截不到）。
+        if UserDefaults.standard.bool(forKey: "probe.batteryPage") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                MonitorPopoutWindowController.shared.open(module: .battery)
+            }
+        }
+
         // 5) 监测独立窗口空闲预热（v62：冷启动首开 489ms → 预热后 ~140ms）
         MonitorPopoutWindowController.shared.scheduleWarmup()
 

@@ -126,6 +126,21 @@ int frset_kill_bundle(const char *bundle, int force);
 /// 无 .app 的独立进程传其可执行路径（与 grouped 的 bundle 字段一致）。
 int frset_proc_group_detail(const char *bundle, int kind, frset_proc_t *out, int max);
 
+// ---- v178：CPU 能耗排行（电池页「CPU 能耗影响」）----
+//   proc_pid_rusage(RUSAGE_INFO_V6) → ri_energy_nj（纳焦），差分后换算成瓦。
+//   与 CPU% 是两个量纲：前者是「消耗的电能」，后者是「占用时间」，不要混用。
+typedef struct {
+    int pid;
+    char name[64];
+    char path[512];
+    double watts;      // 区间平均功率 W（Δnj / Δt / 1e9）
+} frset_energy_pid_t;
+
+/// 逐进程 CPU 能耗（按 W 降序，最多 max 条）。
+/// 首次调用只建立基线（返回 0）；≥0.5s 后再调才有值，建议 5s 一轮。
+/// 返回 -1：当前内核不支持该计数器（调用方回退 CPU 活跃度口径）。
+int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec);
+
 double frset_uptime(void);            // 系统运行秒数
 int frset_mem_pressure(void);         // kern.memorystatus_vm_pressure_level（1=正常 2=警告 4=严重 0=未知）
 /// GPU 利用率（IOAccelerator PerformanceStatistics）；返回 0=成功，比值 0..1

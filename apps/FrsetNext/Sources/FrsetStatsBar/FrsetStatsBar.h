@@ -61,6 +61,8 @@ const char *FSStatsProcPath(const void *proc);      // frset_proc_t* → path（
 const char *FSStatsSensorKey(const void *sensor);   // frset_sensor_t* → key
 int FSStatsConnHistoryAt(const void *conn, int i);  // frset_conn_t* → history[i]（1/0/-1）
 const char *FSStatsRootFileSystem(void);            // 根卷文件系统（statfs，如 "apfs"）
+const char *FSEnergyPath(const void *e);            // frset_energy_pid_t* → path（v178）
+const char *FSEnergyName(const void *e);            // frset_energy_pid_t* → name
 
 // ---- 本地 PP-OCR 识别模型（ONNX Runtime；离线中文 OCR，缺模型时静默降级回 Vision）----
 typedef void *FSPPOCRSession;

@@ -1405,3 +1405,109 @@ int frset_net_top(frset_proc_t *out, int max) {
     pthread_mutex_unlock(&g_netTopMutex);
     return n;
 }
+
+// ============ v178：CPU 能耗排行（电池页「CPU 能耗影响」） ============
+//
+// 口径：proc_pid_rusage(RUSAGE_INFO_V6) 的 ri_energy_nj（纳焦），对同一 pid
+// 两帧差分 → 瓦。首次调用只建基线（否则差分会把「进程启动至今的累计能耗」
+// 当成这一秒的功率，出现几万瓦的假峰值）。
+//
+// 为什么不用 rusage_info_v4：本机 SDK（macOS 27）里 v4 只有
+// ri_billed_energy / ri_serviced_energy，实测恒为 0；能耗在 v6 才稳定可读。
+// 旧内核上 V6 调用失败 → 返回 -1，Swift 侧整体回退成 CPU 活跃度口径，
+// 两种量纲绝不混排。
+
+typedef struct {
+    int pid;
+    uint64_t nj;
+} frset_energy_raw_t;
+
+static frset_energy_raw_t g_ePrev[FRSET_PROC_CAP];
+static int    g_ePrevN = 0;
+static double g_ePrevT = 0;
+
+int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec) {
+    if (elapsedSec) *elapsedSec = 0;
+    if (!out || max <= 0) return 0;
+
+    double t = frset_nowsec();
+
+    int n = proc_listallpids(NULL, 0);
+    if (n <= 0) return 0;
+    int cap = n + 64;
+    pid_t *pids = malloc(sizeof(pid_t) * (size_t)cap);
+    if (!pids) return 0;
+    n = proc_listallpids(pids, (int)(sizeof(pid_t) * (size_t)cap));
+    if (n <= 0) { free(pids); return 0; }
+
+    static frset_energy_raw_t cur[FRSET_PROC_CAP];
+    int ncur = 0, v6ok = 0;
+    for (int i = 0; i < n && ncur < FRSET_PROC_CAP; i++) {
+        pid_t pid = pids[i];
+        if (pid <= 0) continue;
+        struct rusage_info_v6 ri;
+        memset(&ri, 0, sizeof(ri));
+        if (proc_pid_rusage(pid, RUSAGE_INFO_V6, (rusage_info_t *)&ri) != 0) continue;
+        v6ok = 1;
+        cur[ncur].pid = pid;
+        cur[ncur].nj = ri.ri_energy_nj;
+        ncur++;
+    }
+    free(pids);
+    if (!v6ok) return -1;   /* 旧内核：让调用方回退 */
+
+    int ready = (g_ePrevT > 0 && (t - g_ePrevT) >= 0.5 && g_ePrevN > 0);
+    double dt = ready ? (t - g_ePrevT) : 0.0;
+    int m = 0;
+
+    if (ready) {
+        static frset_energy_pid_t rows[FRSET_PROC_CAP];
+        static double score[FRSET_PROC_CAP];
+        int nr = 0;
+        for (int i = 0; i < ncur && nr < FRSET_PROC_CAP; i++) {
+            uint64_t prev = 0; int found = 0;
+            for (int j = 0; j < g_ePrevN; j++) {
+                if (g_ePrev[j].pid == cur[i].pid) { prev = g_ePrev[j].nj; found = 1; break; }
+            }
+            /* 新进程（无基线）或计数回退（pid 复用 / 唤醒后清零）→ 本轮不计 */
+            if (!found || cur[i].nj <= prev) continue;
+            double watts = (double)(cur[i].nj - prev) / 1e9 / dt;
+            if (watts <= 0.00005) continue;   /* 50 µW 以下视为噪声 */
+            memset(&rows[nr], 0, sizeof(rows[nr]));
+            rows[nr].pid = cur[i].pid;
+            rows[nr].watts = watts;
+            if (proc_name(cur[i].pid, rows[nr].name, sizeof(rows[nr].name)) <= 0) continue;
+            if (!rows[nr].name[0]) continue;
+            /* ⚠️ proc_pidpath 的缓冲必须 ≥ PROC_PIDPATHINFO_MAXSIZE(4096)：
+               给 512 时即使真实路径只有 50 字节，内核也直接返回 0 并置 errno=ENOMEM
+               （实测 macOS 27：rc=0 errno=12）。这与 frset_proc_top 里用 4096
+               局部缓冲是同一原因；写进结构体前再截断到 512。 */
+            {
+                char fullPath[PROC_PIDPATHINFO_MAXSIZE] = {0};
+                if (proc_pidpath(cur[i].pid, fullPath, sizeof(fullPath)) > 0 && fullPath[0]) {
+                    strncpy(rows[nr].path, fullPath, sizeof(rows[nr].path) - 1);
+                }
+            }
+            score[nr] = watts;
+            nr++;
+        }
+        int take = (max < nr) ? max : nr;
+        for (int i = 0; i < take; i++) {
+            int best = -1;
+            for (int j = 0; j < nr; j++) {
+                if (score[j] < 0) continue;
+                if (best < 0 || score[j] > score[best]) best = j;
+            }
+            if (best < 0) { take = i; break; }
+            out[i] = rows[best];
+            score[best] = -1;
+        }
+        m = take;
+        if (elapsedSec) *elapsedSec = dt;
+    }
+
+    g_ePrevN = ncur;
+    for (int i = 0; i < ncur; i++) g_ePrev[i] = cur[i];
+    g_ePrevT = t;
+    return m;
+}
