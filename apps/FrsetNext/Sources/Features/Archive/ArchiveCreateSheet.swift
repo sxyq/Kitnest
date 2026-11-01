@@ -348,6 +348,11 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
 
     private static var open: [String: ArchiveCreateWindowController] = [:]
 
+    /// 是否有创建面板正在显示（它内嵌了进度条，可见时 HUD 不弹，v180）
+    public static var hasVisibleWindow: Bool {
+        open.values.contains { $0.window?.isVisible == true }
+    }
+
     /// 为若干文件打开创建面板（同一组文件只开一个）
     public static func show(files: [URL]) {
         guard !files.isEmpty else { return }
@@ -411,5 +416,7 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
 
     public func windowWillClose(_ notification: Notification) {
         Self.open.removeValue(forKey: key)
+        // v180：面板关掉后，压缩若仍在跑 → 交给 HUD 接管
+        DispatchQueue.main.async { ArchiveTaskCenter.shared.refresh() }
     }
 }

@@ -89,6 +89,11 @@ public enum StatusBarMenuBuilder {
         menu.addItem(track(item("性能监测…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openMonitorSettingsAction(_:)), target: target)))
 
+        // v180：归档任务——压缩/解压可能在没有归档窗口时发起（访达服务、文件盒），
+        // 这里给一个全局入口；任务进行中 HUD 会自动出现，这个入口用于重新打开详情。
+        menu.addItem(track(item("归档任务…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.openArchiveTasksAction(_:)), target: target)))
+
         // 欢迎与权限引导（重建版 onboarding；首启自动弹，此处提供手动入口）
         let onboardingItem = track(item("欢迎与权限…", key: "", modifiers: [],
                                         action: #selector(StatusBarController.showOnboardingAction(_:)), target: target))

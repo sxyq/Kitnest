@@ -42,6 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
         // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
         NSApp.servicesProvider = ArchiveServicesProvider.shared
+        // v180：归档任务中心——任务开始时自动浮出右下角任务条（访达服务/创建面板/
+        // 归档窗解压都走同一个队列，所以只在这里接一次）
+        ArchiveTaskCenter.shared.start()
         Log.info("App", "启动完成")
 
         // 排障探针（2026-10-18）：FRSET_TOAST_PROBE=1 时启动 2s 后弹一条通知条，

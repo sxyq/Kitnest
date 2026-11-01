@@ -761,6 +761,8 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
 struct ArchiveBrowserView: View {
 
     @ObservedObject var model: ArchiveBrowserModel
+    /// v180：任务按钮角标（运行中 + 等待），让「有任务在跑」在窗口里可见
+    @ObservedObject private var taskQueue = ArchiveTaskQueue.shared
     @Stored private var columnWidth: CGFloat = 340
     /// v127（ArcZip P1）：列表 ↔ 图标视图（@AppStorage 跨窗口记住）
     @AppStorage("archiveBrowserViewMode") private var iconView = false
@@ -872,12 +874,26 @@ struct ArchiveBrowserView: View {
                     .help("把整个归档另存为带密码的新归档（v124）")
             }
             // v127 接线（arch-engine P2-1）：归档任务进度窗（解压/压缩队列）
+            // v180：加角标——原来只有一个图标，用户根本不知道有任务在跑
             Button {
                 ArchiveProgressWindowController.toggle()
             } label: {
                 Image(systemName: "list.bullet.rectangle.portrait")
+                    .overlay(alignment: .topTrailing) {
+                        if activeTaskCount > 0 {
+                            Text("\(activeTaskCount)")
+                                .font(.system(size: 9, weight: .bold).monospacedDigit())
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 0.5)
+                                .background(Capsule().fill(Color.red))
+                                .offset(x: 7, y: -6)
+                        }
+                    }
             }
-            .help("归档任务进度（解压/压缩队列）")
+            .help(taskQueue.tasks.isEmpty
+                  ? "归档任务（解压/压缩队列）"
+                  : "归档任务：\(taskQueue.summaryText)")
             if let err = model.errorText {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
@@ -888,6 +904,11 @@ struct ArchiveBrowserView: View {
         .controlSize(.small)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// 运行中 + 等待中（失败的不算，避免角标一直挂着）
+    private var activeTaskCount: Int {
+        taskQueue.runningCount + taskQueue.waitingCount
     }
 
     private var editableSelection: Bool {

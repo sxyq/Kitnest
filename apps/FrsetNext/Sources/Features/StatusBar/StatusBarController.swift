@@ -555,6 +555,11 @@ public final class StatusBarController: NSObject {
         ServiceLocator.settings?.open(pane: "monitor")
     }
 
+    /// v180：归档任务详情（压缩/解压队列）
+    @objc func openArchiveTasksAction(_ sender: Any?) {
+        ArchiveProgressWindowController.show()
+    }
+
     /// 欢迎与权限引导（重建版 onboarding：欢迎窗 + 权限引导窗手动入口）
     @objc func showOnboardingAction(_ sender: Any?) {
         WelcomeWindowController.shared.show()

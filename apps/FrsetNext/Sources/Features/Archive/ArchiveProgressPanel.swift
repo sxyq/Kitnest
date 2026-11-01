@@ -169,6 +169,9 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
 
     private static var current: ArchiveProgressWindowController?
 
+    /// 任务窗是否可见（HUD 用它避免重复展示，v180）
+    public static var isVisible: Bool { current?.window?.isVisible == true }
+
     /// 弹出（或前置）任务面板浮窗
     public static func show() {
         if let current {
@@ -203,12 +206,16 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         win.delegate = self
         win.contentViewController = NSHostingController(rootView: ArchiveProgressPanel())
         win.minSize = NSSize(width: 320, height: 160)
-        win.center()
+        // v180：记住上次位置（原来是每次 center，用户挪到角落下次又回中间）
+        win.setFrameAutosaveName("archive.task.window")
+        if win.frame.origin == .zero { win.center() }
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
     public func windowWillClose(_ notification: Notification) {
         Self.current = nil
+        // 关掉详情窗时若仍有任务在跑 → HUD 重新接管（下次 runloop，窗口已真正隐藏）
+        DispatchQueue.main.async { ArchiveTaskCenter.shared.refresh() }
     }
 }
