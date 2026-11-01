@@ -8,6 +8,11 @@ import SwiftUI
 
 struct PersonalizationSettingsView: View {
     @ObservedObject private var p = Personalization.shared
+    // v177：主面板顶部页面开关（与 PanelRootView 共用同一批键）
+    @AppStorage(PanelSegments.homeKey) private var segmentHome = true
+    @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
+    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = true
+    @AppStorage(PanelSegments.castKey) private var segmentCast = true
     /// 背景图选择器呈现
     @Stored private var isPickingImage = false
 
@@ -30,9 +35,35 @@ struct PersonalizationSettingsView: View {
             midnightHueRow
             backgroundImageRow
             Divider().opacity(0.5)
+            panelPagesRow
+            Divider().opacity(0.5)
             resetRow
         }
         .padding(.vertical, 4)
+    }
+
+    /// 主面板顶部页面（v177）：勾掉的分段不出现，对应视图也不会创建。
+    private var panelPagesRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            settingRow("主面板页面") {
+                HStack(spacing: 14) {
+                    Toggle("主页", isOn: $segmentHome)
+                        .toggleStyle(.checkbox)
+                    Toggle("监测", isOn: $segmentMonitor)
+                        .toggleStyle(.checkbox)
+                    Toggle("中转", isOn: $segmentTransfer)
+                        .toggleStyle(.checkbox)
+                    Toggle("投屏", isOn: $segmentCast)
+                        .toggleStyle(.checkbox)
+                }
+                .font(.system(size: 12))
+            }
+            Text("关掉的页面不会出现在面板顶部，也不会创建对应视图——不占内存。"
+                 + "全部关闭时面板只显示一句提示。「中转 / 投屏」还受「文件中转」总开关约束。")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: P0

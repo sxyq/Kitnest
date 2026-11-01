@@ -47,10 +47,40 @@ struct PanelRootView: View {
     @Stored private var selectedClipboardItem: ClipboardItem?
     /// 「文件中转」分段显隐（设置 → 常规 → 功能）
     @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
+    // v177（用户：设置里自定义顶部页面的展现，关掉的不占内存）
+    @AppStorage(PanelSegments.homeKey) private var segmentHome = true
+    @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
+    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = true
+    @AppStorage(PanelSegments.castKey) private var segmentCast = true
     /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
     @ObservedObject private var clipboard = ClipboardManager.shared
 
     private var page: PanelCenterPage { monitorPresenter.activePage }
+
+    /// 顶部实际出现的页面（顺序固定：主页 → 监测 → 中转 → 投屏）
+    private var enabledPages: [PanelCenterPage] {
+        var pages: [PanelCenterPage] = []
+        if segmentHome { pages.append(.home) }
+        if segmentMonitor { pages.append(.performance) }
+        if transferDockEnabled && segmentTransfer { pages.append(.transfer) }
+        if transferDockEnabled && segmentCast { pages.append(.cast) }
+        return pages
+    }
+
+    /// 当前应渲染的页面：选中页被关掉时落到第一个启用页；全关时回主页占位
+    private var activePage: PanelCenterPage {
+        let pages = enabledPages
+        if pages.contains(page) { return page }
+        return pages.first ?? .home
+    }
+
+    /// 关掉当前页后把 presenter 拉回到可用页（否则分段高亮会全灭）
+    private func normalizeSegmentSelection() {
+        let pages = enabledPages
+        if !pages.isEmpty, !pages.contains(page) {
+            monitorPresenter.page = pages[0]
+        }
+    }
 
     // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
     @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
@@ -107,10 +137,16 @@ struct PanelRootView: View {
         }
         // 文件中转开关关闭时：若正停在该页则回主页（v41）
         .onChange(of: transferDockEnabled) { enabled in
-            if !enabled && page == .transfer {
+            if !enabled && (page == .transfer || page == .cast) {
                 monitorPresenter.selectHome()
             }
+            normalizeSegmentSelection()
         }
+        // v177：分段开关变化 → 若当前页被关掉，切到第一个还开着的页面
+        .onChange(of: segmentHome) { _ in normalizeSegmentSelection() }
+        .onChange(of: segmentMonitor) { _ in normalizeSegmentSelection() }
+        .onChange(of: segmentTransfer) { _ in normalizeSegmentSelection() }
+        .onChange(of: segmentCast) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
         // 拖放：把 .json 文件拖进面板任意位置 → 打开独立 JSON 检视器（大文件不挤在 popover 里）
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
@@ -183,6 +219,10 @@ struct PanelRootView: View {
         // 按需启动，勾选文件后点「扫码直传」才拉起（2026-10-20 用户需求）
         .onAppear {
             if page == .transfer { Log.info("Panel", "中转页打开：直传服务保持按需启动") }
+            // v177 排障：记录当前启用了哪些页面（关掉的不创建视图，日志里应看不到它们）
+            let names = enabledPages.map { PanelSegments.title($0) }.joined(separator: ",")
+            Log.info("Panel", "分段启用：[\(names)]，当前页=\(PanelSegments.title(activePage))")
+            normalizeSegmentSelection()
         }
         // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
@@ -312,14 +352,18 @@ struct PanelRootView: View {
     /// 四段左右切换；投屏页与文件中转同受传输功能开关控制。
     private var pageSegments: some View {
         HStack(spacing: 0) {
-            segmentItem("主页", selected: page == .home) {
-                monitorPresenter.selectHome()
+            if segmentHome {
+                segmentItem("主页", selected: page == .home) {
+                    monitorPresenter.selectHome()
+                }
             }
-            segmentItem("监测", selected: page == .performance) {
-                monitorPresenter.selectPerformance()
+            if segmentMonitor {
+                segmentItem("监测", selected: page == .performance) {
+                    monitorPresenter.selectPerformance()
+                }
+                .help("性能监测")
             }
-            .help("性能监测")
-            if transferDockEnabled {
+            if transferDockEnabled && segmentTransfer {
                 segmentItem("中转", selected: page == .transfer) {
                     monitorPresenter.selectTransferDock()
                 }
@@ -336,6 +380,8 @@ struct PanelRootView: View {
                     }
                 }
                 .help("文件中转：拖文件到这里存进本地中转（硬链接）")
+            }
+            if transferDockEnabled && segmentCast {
                 segmentItem("投屏", selected: page == .cast) {
                     monitorPresenter.selectCast()
                 }
@@ -594,14 +640,29 @@ struct PanelRootView: View {
         // 改为**按页实例化**：隐藏页完全不进入视图树（零合成、零 body 求值）。
         // 页面数据在单例 Store，切换丢的只是滚动位置，可接受。
         ZStack(alignment: .top) {
-            if page == .home {
+            if enabledPages.isEmpty {
+                // v177：四个页面全关 —— 一个内容视图都不创建（不占内存），只留提示
+                VStack(spacing: 8) {
+                    Image(systemName: "rectangle.dashed")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.tertiary)
+                    Text("未启用任何页面")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text("到「设置 → 个性化 → 主面板页面」里开启")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear { Log.info("Panel", "四个页面全部关闭：未创建任何页面视图") }
+            } else if activePage == .home {
                 homePage.transition(.opacity)
-            } else if page == .performance {
+            } else if activePage == .performance {
                 // 第二页：性能监测——与独立窗**同一个容器**（MonitorPerformanceContent：
                 // 同一选中态、同一内外边距、同一滚动策略）。v82（2026-10-19）：外层
                 // ScrollView 移除——双层嵌套曾导致模块切换按钮点击被吞。
                 MonitorPerformanceContent().transition(.opacity)
-            } else if page == .transfer {
+            } else if activePage == .transfer {
                 // 第三页：文件中转（隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）
                 TransferDockView().transition(.opacity)
             } else {
