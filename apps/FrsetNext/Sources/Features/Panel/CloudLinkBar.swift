@@ -118,7 +118,7 @@ public struct CloudLinkBar: View {
 
     private func providerBadge(_ p: CloudDriveProvider) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .fill(Color(nsColor: p.tint).opacity(0.18))
                 .frame(width: 28, height: 28)
             Image(systemName: p.symbolName)

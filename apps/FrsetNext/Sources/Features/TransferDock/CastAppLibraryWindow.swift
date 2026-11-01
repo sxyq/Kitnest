@@ -27,6 +27,7 @@ public final class CastAppLibraryWindowController {
         w.isReleasedWhenClosed = false
         w.contentMinSize = NSSize(width: 720, height: 560)
         w.contentMaxSize = NSSize(width: 720, height: 560)
+        w.applyOfficialChrome()   // v179：统一灰底 + 圆钮（此前是裸窗口默认样式）
         w.center()
 
         let host = NSHostingView(rootView: CastAppLibraryView())
@@ -114,7 +115,7 @@ private struct CastAppLibraryView: View {
                     Image(nsImage: img).resizable()
                 } else {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                             .fill(Color.primary.opacity(0.07))
                         Text(String(app.label.prefix(1)))
                             .font(.system(size: 18, weight: .semibold))
@@ -123,7 +124,7 @@ private struct CastAppLibraryView: View {
                 }
             }
             .frame(width: 48, height: 48)
-            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
 
             Text(app.label)
                 .font(.system(size: 11))

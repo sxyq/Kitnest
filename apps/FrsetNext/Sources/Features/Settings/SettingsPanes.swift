@@ -239,7 +239,7 @@ struct GeneralSettingsPane: View {
                     .foregroundStyle(runCatBinding.wrappedValue ? Color.white : Color.primary)
                     .background {
                         if runCatBinding.wrappedValue {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.accent)
+                            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.accent)
                         }
                     }
             }
@@ -318,7 +318,7 @@ struct GeneralSettingsPane: View {
                     .foregroundStyle(currentMenuBarIconStyle == value ? Color.white : Color.primary)
                     .background {
                         if currentMenuBarIconStyle == value {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.accent)
+                            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.accent)
                         }
                     }
                 if let dayBadge {

@@ -359,7 +359,7 @@ struct FileHoverPreviewView: View {
             Divider().opacity(0.5)
             footer
         }
-        .background(VisualEffectBackground())
+        .background(LiquidGlassBackground(cornerRadius: Theme.Radius.window))
         // 标题栏是透明的（拖动条）：内容要垫到它底下，否则顶部留一条空带
         .ignoresSafeArea()
         .task(id: url.path) {
@@ -494,13 +494,5 @@ struct FileHoverPreviewView: View {
 }
 
 /// 毛玻璃背景（与面板玻璃语言一致）
-private struct VisualEffectBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .popover
-        view.blendingMode = .behindWindow
-        view.state = .active
-        return view
-    }
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
-}
+// v179：删除私有 VisualEffectBackground（固定 .popover，26 上拿不到真玻璃），
+// 统一用 LiquidGlassBackground。

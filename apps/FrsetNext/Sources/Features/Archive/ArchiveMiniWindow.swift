@@ -274,6 +274,7 @@ public final class ArchiveMiniWindowController: NSWindowController, NSWindowDele
         win.minSize = NSSize(width: 320, height: 380)
         win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         win.isReleasedWhenClosed = false
+        win.applyOfficialChrome()   // v179：与其它文档窗统一（灰底 + 透明标题栏 + 圆钮）
         super.init(window: win)
         win.delegate = self
         model.window = win

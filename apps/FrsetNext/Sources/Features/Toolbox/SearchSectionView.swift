@@ -781,7 +781,7 @@ public struct SearchSectionView: View {
             if category != .all { selectedCategory = category }
         } label: {
             HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                     .fill(category.tint.opacity(0.14))
                     .frame(width: 20, height: 20)
                     .overlay(

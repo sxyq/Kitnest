@@ -420,7 +420,7 @@ public struct ClipboardRow: View {
         //   · hover（这里）——中性色、内缩 6pt、G2 圆角，只做「指针在这行」的提示；
         //   · 选中（AppKit 的 ClipboardRowChromeView 绘制）——同样内缩，低透明度强调色。
         .background {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .fill(isHighlighted ? Theme.rowHoverFill : Color.clear)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1.5)

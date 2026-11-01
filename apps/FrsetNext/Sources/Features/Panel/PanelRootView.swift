@@ -716,9 +716,9 @@ struct PanelRootView: View {
     /// 拖入提示：整块虚线框 + 图标 + 文案（松手即开检视器）
     private var dropHintOverlay: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                 .fill(Theme.accent.opacity(0.06))
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                 .strokeBorder(Theme.accent.opacity(0.45),
                               style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
             VStack(spacing: 8) {

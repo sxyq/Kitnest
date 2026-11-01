@@ -258,9 +258,12 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
 
     init(initialQuery: String = "") {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 660, height: 470),
-                   styleMask: [.titled, .nonactivatingPanel, .utilityWindow],
+                   styleMask: [.titled, .nonactivatingPanel, .utilityWindow, .fullSizeContentView],
                    backing: .buffered, defer: false)
         title = "命令面板"
+        // v179：内容铺满整窗。原先 .titled 但没 fullSizeContentView，
+        // 换成玻璃后上方会露出一条白色标题栏（截图确认），与「一整块玻璃」不符。
+        titleVisibility = .hidden
         isFloatingPanel = true
         level = .floating
         isOpaque = false
@@ -437,13 +440,13 @@ struct CommandPaletteView: View {
                         .foregroundStyle(state.isSlashMode ? Theme.accent : Color.secondary)
                         .frame(width: 22, height: 20)
                         .background(
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .fill(state.isSlashMode
                                       ? Theme.accent.opacity(0.18)
                                       : Color.primary.opacity(0.06))
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .strokeBorder(state.isSlashMode ? Theme.accent.opacity(0.45)
                                                                 : Color.clear, lineWidth: 1)
                         )
@@ -500,11 +503,9 @@ struct CommandPaletteView: View {
             .padding(.vertical, 6)
         }
         .frame(width: 660, height: 470)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(nsColor: OfficialChrome.windowBackground).opacity(0.99)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        // v179：原来是一块 99% 不透明官方灰（等于不透明），与主面板的真玻璃不是一套。
+        // 统一走 glassPlate：26+ 真玻璃 / 旧系统毛玻璃 / 纯色偏好退化为不透明底。
+        .glassPlate()
         .background(keyHandler)
         .onAppear {
             state.refilter()

@@ -210,19 +210,10 @@ struct CloudLinkPromptView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(width: 322)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.55))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        // v179：原来是「regularMaterial 上再压一层 55% 窗口色」的私有配方，
+        // 圆角 14 也与其它浮层的 12 不一致。统一走 glassPlate。
+        .glassPlate()
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
         .onTapGesture(perform: onOpen)
     }
 }

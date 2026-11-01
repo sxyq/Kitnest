@@ -171,11 +171,11 @@ struct SettingsSidebarView: View {
             .frame(height: 29)
             .background {
                 if selected {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(accent.opacity(0.15))
                 }
             }
-            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .help(title)

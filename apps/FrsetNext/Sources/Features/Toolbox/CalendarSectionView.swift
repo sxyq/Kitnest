@@ -203,12 +203,12 @@ public struct CalendarSectionView: View {
         .background {
             if isToday {
                 // 今天：胶囊底固定 30×30，居中——不再按列宽撑满（旧版块面过大）
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .fill(Theme.accent)
                     .frame(width: 32, height: 32)
             } else if isSelected {
                 // 选中日：描边环（与今天胶囊同心，点击的即时反馈）
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .strokeBorder(Theme.accent.opacity(0.55), lineWidth: 1.5)
                     .frame(width: 32, height: 32)
             }

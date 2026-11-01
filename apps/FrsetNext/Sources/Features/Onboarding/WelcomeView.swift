@@ -178,7 +178,7 @@ struct WelcomeView: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2.5)
-                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                 .frame(width: 64, alignment: .leading)
             Text(desc)
                 .font(.system(size: 11))

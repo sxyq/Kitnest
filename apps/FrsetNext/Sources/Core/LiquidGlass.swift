@@ -262,3 +262,92 @@ struct HoverLift: ViewModifier {
 
 extension View {
 }
+
+// MARK: - 统一「玻璃面」（v179）
+//
+// 审计（函数表 11,562 个成员 / 144 个 View·Panel·Window 类型）发现的问题：
+//   · 50 个含窗口定义的文件里，只有 4 个真正用了 NSVisualEffectView；
+//     其余各写一套「clear 背景 + 自己画圆角卡片」，圆角从 5 到 24 有 17 种取值；
+//   · 设置窗是官方灰底、命令面板是 .99 实色、悬停预览是自定义 VisualEffect、
+//     云链接弹窗是 regularMaterial + 14pt —— 四个浮层四种"玻璃"。
+//
+// 定一条规则（与 Apple HIG 一致）：
+//   结构面（窗口 / 悬浮面板）→ 真玻璃（26+ NSGlassEffectView，回退毛玻璃）；
+//   内容卡片 → 不叠模糊，只用「玻璃镀边」（极淡填充 + 0.5pt 发丝线）。
+// 所有浮层从这里取，不再各写一份。
+
+/// 玻璃面修饰符：整块内容铺在统一玻璃上，圆角/描边/裁切一次到位。
+struct GlassPlate: ViewModifier {
+    var radius: CGFloat = Theme.Radius.window
+    var bordered: Bool = true
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                ZStack {
+                    LiquidGlassBackground(cornerRadius: radius)
+                    // 可读性底衬：纯真玻璃在浅色壁纸上对比度只有 ~2:1，
+                    // 列表正文会发灰（命令面板截图实测）。压一层 50% 窗口色后
+                    // 仍是半透明，但正文回到 AA 可读区间。
+                    Color(nsColor: .windowBackgroundColor).opacity(0.5)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                if bordered {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                        .allowsHitTesting(false)
+                }
+            }
+    }
+}
+
+public extension View {
+    /// 把视图铺成一块统一玻璃面（浮层根视图用）。
+    /// - Parameter radius: 默认窗口档 12；卡片不要用它，用 `glassCard()`。
+    func glassPlate(radius: CGFloat = Theme.Radius.window,
+                    bordered: Bool = true) -> some View {
+        modifier(GlassPlate(radius: radius, bordered: bordered))
+    }
+
+    /// 内容卡片：极淡填充 + 发丝边（**不叠模糊**，避免 GPU 与糊内容）。
+    func glassCard(radius: CGFloat = Theme.Radius.card,
+                   fill: Color = Theme.cardFill) -> some View {
+        self.background(
+            RoundedRectangle(cornerRadius: radius, style: .continuous).fill(fill)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                .allowsHitTesting(false)
+        }
+    }
+}
+
+public extension NSWindow {
+    /// 把当前 contentView 重新装进统一玻璃底（悬浮层专用）。
+    ///
+    /// 幂等：已经是毛玻璃/真玻璃时直接返回。会同时把窗口置为透明，
+    /// 否则玻璃只能采样到窗口自身的白底，看起来是一块白板（历史踩过）。
+    ///
+    /// - Parameters:
+    ///   - radius: 圆角，默认窗口档 12。带系统标题栏的窗口不要传（会裁掉标题栏圆角）。
+    ///   - material: 回退毛玻璃材质，默认 `.hudWindow`（浮层）。
+    func adoptGlassSurface(cornerRadius radius: CGFloat = Theme.Radius.window,
+                           material: NSVisualEffectView.Material = .hudWindow) {
+        guard let host = contentView else { return }
+        if host is NSVisualEffectView { return }
+        if #available(macOS 26.0, *), host is NSGlassEffectView { return }
+
+        let glass = LiquidGlass.makeView(cornerRadius: radius, material: material)
+        glass.frame = host.frame
+        LiquidGlass.embed(host, in: glass)
+        contentView = glass
+
+        isOpaque = false
+        backgroundColor = .clear
+        glass.layer?.borderWidth = Theme.Stroke.hairline
+        glass.layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.10).cgColor
+    }
+}

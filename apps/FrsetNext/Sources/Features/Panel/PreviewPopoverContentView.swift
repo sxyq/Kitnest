@@ -577,7 +577,7 @@ struct PreviewTOCSidebar: View {
                                 .padding(.leading, heading.indent)
                                 .padding(.vertical, 4)
                                 .background {
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                         .fill(isActive ? Color.primary.opacity(0.09)
                                                        : (hovered == heading.location ? Color.primary.opacity(0.05) : Color.clear))
                                 }

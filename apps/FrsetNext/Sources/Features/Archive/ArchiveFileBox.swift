@@ -238,7 +238,7 @@ struct ArchiveFileBoxView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
         .help(item.url.path)
     }
 
@@ -388,11 +388,10 @@ public final class ArchiveFileBoxWindow: NSPanel, NSDraggingDestination {
             .padding(.vertical, 6)
         }
         let hosting = NSHostingView(rootView: view)
-        hosting.wantsLayer = true
-        hosting.layer?.cornerRadius = 12
-        hosting.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
-        hosting.layer?.masksToBounds = true
         contentView = hosting
+        // v179：原来是「透明窗口 + 自带色调」，没有玻璃底，在浅色桌面上发灰发脏。
+        // 统一铺玻璃（内容本身的 10% 色调仍保留在上层）。
+        adoptGlassSurface()
     }
 
     // MARK: 闲置自动收起（v127（ArcZip P3）：简化为闲置 N 秒自动关闭）

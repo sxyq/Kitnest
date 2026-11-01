@@ -52,9 +52,9 @@ struct QRCodeView: View {
             }
         }
         .padding(5)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Color.white))
         .overlay {
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .strokeBorder(Color.black.opacity(0.10), lineWidth: 0.5)
         }
     }

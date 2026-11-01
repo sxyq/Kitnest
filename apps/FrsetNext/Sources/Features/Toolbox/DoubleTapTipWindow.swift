@@ -41,7 +41,7 @@ final class DoubleTapTipWindowController {
         let card = NSView(frame: NSRect(origin: .zero, size: size))
         card.wantsLayer = true
         card.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        card.layer?.cornerRadius = 16
+        card.layer?.cornerRadius = Theme.Radius.window   // v179：16 → 窗口档 12（全工程统一）
         card.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         card.layer?.masksToBounds = true
         card.layer?.borderWidth = 0.5

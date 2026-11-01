@@ -634,7 +634,7 @@ struct TransferDockView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2.5)
             .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.16))
             }
         }
@@ -1420,7 +1420,7 @@ private struct LocalCardRowView: View, Equatable {
             HStack(spacing: 4) {
                 // 类型图标（按格式着色，渐变底）
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(LinearGradient(colors: [tint.opacity(0.95), tint.opacity(0.55)],
                                              startPoint: .topLeading, endPoint: .bottomTrailing))
                         .frame(width: 26, height: 26)

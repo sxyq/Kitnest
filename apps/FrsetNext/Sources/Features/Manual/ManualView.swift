@@ -331,7 +331,7 @@ private struct ManualTreeRow: View {
             .padding(.horizontal, 7)
             .padding(.vertical, 4.5)
             .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                     .fill(selected ? Theme.accent.opacity(0.16) : Color.clear)
             )
             .contentShape(Rectangle())
@@ -385,7 +385,7 @@ private struct FlowLinks: View {
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 7).padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                         .fill(Color.primary.opacity(0.05)))
                     .contentShape(Rectangle())
                 }
@@ -463,7 +463,7 @@ private struct ManualBlockView: View {
                 .textSelection(.enabled)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .fill(Color.primary.opacity(0.05)))
 
         case .divider:
@@ -524,9 +524,9 @@ private struct ManualImageView: View {
                 }
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12).padding(.vertical, 10)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .fill(Color.orange.opacity(0.08)))
-                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .strokeBorder(Color.orange.opacity(0.3), style: StrokeStyle(lineWidth: 0.7, dash: [3, 2])))
             }
             if let caption, !caption.isEmpty {
@@ -584,8 +584,8 @@ private struct ManualTableView: View {
                 if i < rows.count - 1 { Divider().opacity(0.2) }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
             .strokeBorder(Color.primary.opacity(0.09), lineWidth: 0.5))
     }
 

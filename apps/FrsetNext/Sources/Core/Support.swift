@@ -126,16 +126,56 @@ public enum Theme {
     //   · 圆角出现 2/4/5/6/7/8/10/12/14 九种，无规则。
     // 这里先立规矩，后续新代码只许用这些令牌。
     public enum TextSize {
-        public static let caption: CGFloat = 11       // 最小可用字号（HIG 下限）
+        /// 辅助信息下限（脚注、单位、"近 3 秒"这类）；正文一律 ≥ 11
+        public static let micro: CGFloat = 10
+        public static let caption: CGFloat = 11       // 最小可用正文字号（HIG 下限）
         public static let small: CGFloat = 12
         public static let body: CGFloat = 13
         public static let title: CGFloat = 15
+        /// 指标数值（大号等宽数字）
+        public static let metric: CGFloat = 17
     }
-    /// 圆角三档：容器 / 控件 / 胶囊（胶囊用 Capsule，不写数值）
+
+    /// 圆角只有五档，**不许再写字面量**（v179 统一）：
+    ///   window 12 / card 10 / control 8 / chip 6 / micro 4
+    /// 审计前全工程有 1/1.5/2/3/4/5/6/7/8/9/10/11/12/14/16/19/24 共 17 种取值，
+    /// 其中 6 与 7、8 与 10 混用最严重（7 有 24 处、6 有 33 处，视觉上差 1pt 却
+    /// 让相邻卡片对不齐）。胶囊一律用 `Capsule()`，不写数值。
     public enum Radius {
-        public static let container: CGFloat = 12
+        /// 窗口 / 悬浮面板
+        public static let window: CGFloat = 12
+        /// 内容卡片（设置分组、统计卡、流向图卡）
+        public static let card: CGFloat = 10
+        /// 控件（按钮底、输入框、缩略图容器）
         public static let control: CGFloat = 8
+        /// 小标签 / 徽标底
         public static let chip: CGFloat = 6
+        /// 进度条端点、极小色块
+        public static let micro: CGFloat = 4
+        /// 旧名兼容（历史代码还在用 container）
+        public static let container: CGFloat = window
+    }
+
+    /// 描边只有两档：发丝线 0.5pt（卡片/窗口边）与 1pt（选中态强调）
+    public enum Stroke {
+        public static let hairline: CGFloat = 0.5
+        public static let emphasis: CGFloat = 1
+    }
+
+    /// 发丝线颜色：跟随明暗的 10% 前景色（浅色=黑 10%，深色=白 10%）
+    public static let hairlineColor = Color.primary.opacity(0.10)
+    /// 卡片底：比窗口底亮一档的极淡填充（深色下自动反相）
+    public static let cardFill = Color.primary.opacity(0.045)
+
+    /// 间距只有 4 的倍数档（外加 6/10 两个半档）
+    public enum Space {
+        public static let xxs: CGFloat = 2
+        public static let xs: CGFloat = 4
+        public static let sm: CGFloat = 6
+        public static let md: CGFloat = 8
+        public static let lg: CGFloat = 12
+        public static let xl: CGFloat = 16
+        public static let xxl: CGFloat = 20
     }
     /// 列表行 hover 底色（v156）：中性、极淡——强调色只留给「选中」，不用于悬停。
     /// 之前用 accent 0.10 整行铺满，等于一条蓝砖（用户：「蓝色框会直接填满」）。

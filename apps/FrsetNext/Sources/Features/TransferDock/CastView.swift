@@ -307,7 +307,7 @@ struct CastView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 28)
                     .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                             .fill(deviceKind == k ? Color.primary.opacity(0.09) : Color.clear)
                     )
                     .contentShape(Rectangle())
@@ -318,7 +318,7 @@ struct CastView: View {
         }
         .padding(3)
         .background(Color.primary.opacity(0.045),
-                    in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         .padding(.horizontal, 12)
         .padding(.top, 10)
         .padding(.bottom, 4)

@@ -164,15 +164,15 @@ struct AnnotationToolbarView: View {
         .frame(height: 44)
         .background(
             // 材质 + 一层窗口色：浅色下接近吸顶白卡，深色下压成石墨色，避免「灰上灰」看不见
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                 .fill(.regularMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                         .fill(Color(nsColor: .windowBackgroundColor).opacity(0.88))
                 )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.13), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 3)
@@ -221,7 +221,7 @@ struct AnnotationToolbarView: View {
                 .frame(width: 15, height: 15)
                 .frame(width: 26, height: 26)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(Color.primary.opacity(showCorner ? 0.08 : 0))
                 )
                 .contentShape(Rectangle())
@@ -296,7 +296,7 @@ struct AnnotationToolbarView: View {
                 .overlay(Circle().strokeBorder(Color.black.opacity(0.16), lineWidth: 0.5))
                 .frame(width: 26, height: 26)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(Color.primary.opacity(showPalette ? 0.08 : 0))
                 )
                 .contentShape(Rectangle())
@@ -580,7 +580,7 @@ struct ToolIconButton: View {
                 .foregroundStyle(selected ? Theme.accent
                                  : Color.primary.opacity(enabled ? 0.82 : 0.30))
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(selected ? Theme.accent.opacity(0.14)
                               : (hovering && enabled ? Color.primary.opacity(0.06) : Color.clear))
                 )

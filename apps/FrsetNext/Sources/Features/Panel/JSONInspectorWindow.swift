@@ -87,7 +87,8 @@ public final class JSONInspectorWindowController: NSWindowController {
                                   backing: .buffered, defer: false)
             window.minSize = NSSize(width: 640, height: 420)
             window.isReleasedWhenClosed = false
-            window.backgroundColor = OfficialChrome.windowBackground   // 官方灰（统一窗口观感）
+            // v179：原来只设了底色，标题栏仍是系统样式（与其它文档窗不一致）
+            window.applyOfficialChrome()
             // 普通窗口语义：点击别处只是失焦，**不会**自动关闭（不像预览 popover
             // 那样一点外面就消失）——大文件要看半天，不能点一下就没了。
             // 这里刻意不注册 windowDidResignKey / resignFirstResponder 关闭逻辑。

@@ -71,7 +71,7 @@ struct ArchivePeekView: View {
                 }
                 .padding(6)
                 .background(Color.primary.opacity(0.035),
-                            in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
 
                 if entries.count > previewEntries.count {
                     Text("还有 \(entries.count - previewEntries.count) 项…")

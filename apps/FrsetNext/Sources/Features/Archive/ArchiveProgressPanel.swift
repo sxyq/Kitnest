@@ -196,6 +196,9 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
                            backing: .buffered, defer: false)
         win.title = "归档任务"
         win.isReleasedWhenClosed = false
+        // v179：这是全工程唯一一个「裸 NSWindow」——默认浅灰底 + 系统三钮，
+        // 与设置/OCR 等文档窗不是一套。统一官方外观（灰底 + 透明标题栏 + 圆钮）。
+        win.applyOfficialChrome()
         super.init(window: win)
         win.delegate = self
         win.contentViewController = NSHostingController(rootView: ArchiveProgressPanel())

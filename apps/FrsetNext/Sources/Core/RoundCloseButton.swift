@@ -39,20 +39,22 @@ final class RoundCloseButton: NSButton {
         base.setFill()
         circle.fill()
 
-        if isHovering {
-            let cross = NSBezierPath()
-            cross.lineWidth = 1.1
-            let inset: CGFloat = 4.2
-            cross.move(to: NSPoint(x: inset, y: inset))
-            cross.line(to: NSPoint(x: bounds.width - inset, y: bounds.height - inset))
-            cross.move(to: NSPoint(x: bounds.width - inset, y: inset))
-            cross.line(to: NSPoint(x: inset, y: bounds.height - inset))
-            (NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                    ? NSColor(white: 0.9, alpha: 1) : NSColor(white: 0.28, alpha: 1)
-            }).setStroke()
-            cross.stroke()
-        }
+        // v179：× 常驻显示（不再只在 hover 时出现）。
+        // 审计时发现：静置状态下这个按钮就是一颗纯灰圆点，用户根本认不出是关闭键，
+        // 多个窗口的截图里都像「界面上的脏点」。改成淡 ×（0.55）+ 悬停加深（0.95）。
+        let cross = NSBezierPath()
+        cross.lineWidth = 1.1
+        let inset: CGFloat = 4.2
+        cross.move(to: NSPoint(x: inset, y: inset))
+        cross.line(to: NSPoint(x: bounds.width - inset, y: bounds.height - inset))
+        cross.move(to: NSPoint(x: bounds.width - inset, y: inset))
+        cross.line(to: NSPoint(x: inset, y: bounds.height - inset))
+        (NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let alpha: CGFloat = self.isHovering ? 0.95 : 0.55
+            return dark ? NSColor(white: 0.92, alpha: alpha) : NSColor(white: 0.25, alpha: alpha)
+        }).setStroke()
+        cross.stroke()
     }
 
     override func updateTrackingAreas() {
