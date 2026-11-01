@@ -471,6 +471,8 @@ public struct SearchSectionView: View {
     /// v50 网页结果列表（防抖提交后由抓取器填充）
     @Stored private var webResults: [WebSearchResult] = []
     @Stored private var webFetchFailed = false
+    /// 首选引擎无结果时用了哪个兜底引擎（标题处提示，nil = 没兜底）
+    @Stored private var webFallbackName: String?
     /// v50 点击结果行后内嵌预览的文章页 URL（nil = 显示结果列表）
     @Stored private var previewArticleURL: URL?
     /// 抓取中的引擎 id（防并发显示）
@@ -537,6 +539,20 @@ public struct SearchSectionView: View {
             // 排障探针：probe.slashQuery=1 → 3.5s 后把首页输入框设成 "/"，
             // 5s 时把命令列表打出来（面板窗在别的 Space，截图抓不到，只能靠日志核对）
             // 排障探针：probe.slashRun=uuid → 填 `/uuid` 后执行第一条（验证命令→工具链路）
+            // 排障探针：probe.webQuery=swift → 3.5s 后填入查询，8.5s 时把网页结果打进日志
+            if let wq = UserDefaults.standard.string(forKey: "probe.webQuery"), !wq.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    query = wq
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        let head = webResults.prefix(3).map(\.title).joined(separator: " | ")
+                        Log.info("Toolbox", "探针：网页结果 \(webResults.count) 条，引擎=\(previewEngine?.id ?? "-")，兜底=\(webFallbackName ?? "-")，失败=\(webFetchFailed) → \(head)")
+                        if let first = webResults.first {
+                            Log.info("Toolbox", "探针：点开第一条预览 \(first.url.absoluteString)")
+                            previewArticleURL = first.url
+                        }
+                    }
+                }
+            }
             if let token = UserDefaults.standard.string(forKey: "probe.slashRun"), !token.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
                     query = "/" + token
@@ -959,7 +975,8 @@ public struct SearchSectionView: View {
         } else if !webResults.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
-                    Text("搜索结果 · \(engine?.name ?? "")")
+                    Text(webFallbackName.map { "搜索结果 · \(engine?.name ?? "") → \($0)" }
+                         ?? "搜索结果 · \(engine?.name ?? "")")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
@@ -974,6 +991,7 @@ public struct SearchSectionView: View {
                     .help("在默认浏览器打开该搜索结果")
                 }
                 ForEach(webResults.prefix(maxRows)) { result in
+                    HStack(spacing: 2) {
                     Button {
                         previewArticleURL = result.url
                     } label: {
@@ -1026,11 +1044,26 @@ public struct SearchSectionView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("点击内嵌预览该页面（⌘点击 = 浏览器打开）")
-                    .simultaneousGesture(TapGesture().modifiers(.command).onEnded {
+                    // 撑满行宽：加 ↗ 后按钮不再自动占满，会让点击区缩到文字宽度
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .help("点击在内嵌预览里看这一段网页")
+
+                    // v174（用户：「点击一下就跳转到默认浏览器」）：行尾常驻 ↗，
+                    // 不用记 ⌘ 也能一步到浏览器；⌘ 点击仍然有效。
+                    Button {
                         Log.info("Search", "openResult url=\(result.url.absoluteString)")
                         NSWorkspace.shared.open(result.url)
-                    })
+                    } label: {
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("在默认浏览器打开")
+                    .accessibilityLabel("在默认浏览器打开")
+                    }
                 }
             }
             .padding(.top, 2)
@@ -1481,10 +1514,25 @@ public struct SearchSectionView: View {
         let text = previewQuery
         let current = generation
         Task {
-            let results = await WebResultScraper.shared.fetchResults(engine: engine, query: text)
+            var results = await WebResultScraper.shared.fetchResults(engine: engine, query: text)
+            var fallbackName: String?
+
+            // v174：首选引擎空手而归时兜底。
+            // Google 经常返回同意页/安全验证，WKWebView 里 JS 抓不到条目，
+            // 用户看到的就是「没有搜索结果」。DuckDuckGo 的 html 端点无 JS、稳定。
+            if results.isEmpty, engineID != "duckduckgo",
+               let ddg = SearchServiceManager.shared.allEngines.first(where: { $0.id == "duckduckgo" }) {
+                let backup = await WebResultScraper.shared.fetchResults(engine: ddg, query: text)
+                if !backup.isEmpty {
+                    results = backup
+                    fallbackName = ddg.name
+                }
+            }
+
             guard current == generation else { return }
             webResults = results
             webFetchFailed = results.isEmpty
+            webFallbackName = fallbackName
             fetchingEngineID = nil
         }
     }
@@ -1499,6 +1547,7 @@ public struct SearchSectionView: View {
             toolResults = []; fileResults = []; webResults = []
             hasSearched = false; isSearching = false
             previewQuery = ""; previewArticleURL = nil; fetchingEngineID = nil
+            webFallbackName = nil
             return
         }
         isSearching = true
@@ -1532,11 +1581,26 @@ public struct SearchSectionView: View {
 private struct WebPreviewRepresentable: NSViewRepresentable {
     let url: URL
 
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            Log.info("Search", "内嵌预览加载完成 \(webView.url?.absoluteString ?? "-")")
+        }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            Log.warn("Search", "内嵌预览加载失败：\(error.localizedDescription)")
+        }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            Log.warn("Search", "内嵌预览无法连接：\(error.localizedDescription)")
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         // 预览是临时查看，不留 cookie/缓存/历史
         config.websiteDataStore = .nonPersistent()
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
         webView.load(URLRequest(url: url))
         return webView
