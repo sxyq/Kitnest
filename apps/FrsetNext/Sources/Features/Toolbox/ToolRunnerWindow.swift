@@ -25,7 +25,7 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
     private var currentToolID: String?
 
     /// 打开工具（幂等：同工具置前，换工具原地替换内容）
-    func show(toolID: String) {
+    func show(toolID: String, autoRun: Bool = false) {
         guard let tool = ToolRegistry.tool(id: toolID) else {
             Log.warn("Toolbox", "打开工具失败：未注册 id=\(toolID)")
             return
@@ -34,7 +34,7 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
 
         if let window {
             window.title = tool.name
-            installContent(tool: tool, in: window)
+            installContent(tool: tool, autoRun: autoRun, in: window)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -51,7 +51,7 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.delegate = self
-        installContent(tool: tool, in: window)
+        installContent(tool: tool, autoRun: autoRun, in: window)
         self.window = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -70,10 +70,10 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    private func installContent(tool: ToolDescriptor, in window: NSWindow) {
+    private func installContent(tool: ToolDescriptor, autoRun: Bool, in window: NSWindow) {
         let root = ToolRunnerView(tool: tool, onClose: { [weak self] in
             self?.close()
-        })
+        }, autoRun: autoRun)
         .frsetThemeChrome()
         let host = NSHostingView(rootView: AnyView(root))
         host.sizingOptions = []

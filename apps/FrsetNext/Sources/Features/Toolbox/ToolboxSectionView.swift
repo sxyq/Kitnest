@@ -101,16 +101,20 @@ public struct ToolRunnerView: View {
     public let tool: ToolDescriptor
     /// 窗口模式下的关闭回调（.sheet 场景仍走 @Environment(dismiss)）
     var onClose: (() -> Void)? = nil
+    /// 打开即执行（斜杠命令用：/uuid 这种不需要输入的，落地就有结果）
+    var autoRun: Bool = false
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
     @Stored private var output: ToolOutput?
     @Stored private var isRunning = false
     @Stored private var statusText: String = ""
+    @Stored private var didAutoRun = false
     @Environment(\.dismiss) private var dismiss
 
-    public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil) {
+    public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil, autoRun: Bool = false) {
         self.tool = tool
         self.onClose = onClose
+        self.autoRun = autoRun
     }
 
     public var body: some View {
@@ -209,7 +213,14 @@ public struct ToolRunnerView: View {
         }
         .padding(14)
         .frame(width: 520, height: 520)
-        .onAppear { options = tool.defaultOptions() }
+        .onAppear {
+            options = tool.defaultOptions()
+            // 斜杠命令落地即执行（只跑一次；无输入类工具靠它给结果）
+            if autoRun, !didAutoRun {
+                didAutoRun = true
+                Task { await run() }
+            }
+        }
     }
 
     @ViewBuilder

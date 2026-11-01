@@ -22,6 +22,7 @@ public struct CommandItem: Identifiable {
         case settings = "设置"
         case tool = "工具"
         case monitor = "监测"
+        case command = "命令"
     }
 
     public let id: String
@@ -31,13 +32,17 @@ public struct CommandItem: Identifiable {
     public let kind: Kind
     /// 开关类：返回当前态；执行后回查刷新
     public let isOn: (() -> Bool)?
+    /// 斜杠命令的额外匹配词（命令 token + 别名），其它类型为空
+    public let matchTerms: [String]
     public let handler: () -> Void
 
     public init(id: String, title: String, subtitle: String = "", systemImage: String,
-                kind: Kind, isOn: (() -> Bool)? = nil, handler: @escaping () -> Void) {
+                kind: Kind, isOn: (() -> Bool)? = nil,
+                matchTerms: [String] = [], handler: @escaping () -> Void) {
         self.id = id; self.title = title; self.subtitle = subtitle
         self.systemImage = systemImage; self.kind = kind
-        self.isOn = isOn; self.handler = handler
+        self.isOn = isOn; self.matchTerms = matchTerms
+        self.handler = handler
     }
 }
 
@@ -47,6 +52,22 @@ public enum CommandCatalog {
     // v126（性能审计 F1356）：调用频率核实——build 只在命令面板每次打开时执行一次
     // （CommandPaletteState.init），非启动常驻热点，无需缓存；只做轻量优化：
     // 预留容量避免 ~40 个条目追加过程中的多次扩容。
+    /// 斜杠命令编目（v172）：`/uuid` `/time` `/apollo` … 选中即调起对应工具。
+    @MainActor
+    public static func buildSlash() -> [CommandItem] {
+        SlashCommandCatalog.build().map { cmd in
+            let terms = ([cmd.token] + cmd.aliases).map { $0.lowercased() }
+            return CommandItem(id: "slash.\(cmd.id)",
+                               title: cmd.title,
+                               subtitle: cmd.subtitle,
+                               systemImage: cmd.systemImage,
+                               kind: .command,
+                               matchTerms: terms) {
+                cmd.run()
+            }
+        }
+    }
+
     @MainActor
     public static func build() -> [CommandItem] {
         var items: [CommandItem] = []
@@ -210,13 +231,19 @@ public final class CommandPaletteController: NSObject, NSWindowDelegate {
         }
     }
 
-    public func show() {
+    public func show(slash: Bool = false) {
         panel?.close()
-        let p = CommandPalettePanel()
+        let p = CommandPalettePanel(initialQuery: slash ? "/" : "")
         panel = p
         p.centerInScreen()
         p.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// 命令执行前的收尾（面板已关时不做事）
+    public func dismissForCommand() {
+        panel?.close()
+        panel = nil
     }
 
     public func windowWillClose(_ notification: Notification) {
@@ -229,7 +256,7 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
 
     private var onClose: (() -> Void)?
 
-    init() {
+    init(initialQuery: String = "") {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 660, height: 470),
                    styleMask: [.titled, .nonactivatingPanel, .utilityWindow],
                    backing: .buffered, defer: false)
@@ -242,7 +269,7 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
         standardWindowButton(.closeButton)?.isHidden = true
         titlebarAppearsTransparent = true
 
-        let controller = CommandPaletteState()
+        let controller = CommandPaletteState(initialQuery: initialQuery)
         controller.onDismiss = { [weak self] in self?.close() }
         onClose = { [weak controller] in controller?.onDismiss = nil }
         let host = NSHostingView(rootView: CommandPaletteView(state: controller))
@@ -276,18 +303,63 @@ final class CommandPaletteState: ObservableObject {
     var onDismiss: (() -> Void)?
 
     private let all: [CommandItem]
+    /// 斜杠命令池（v172）
+    private let slashAll: [CommandItem]
 
-    init() {
+    /// 命令模式：查询以 `/` 开头
+    var isSlashMode: Bool {
+        query.trimmingCharacters(in: .whitespaces).hasPrefix("/")
+    }
+
+    init(initialQuery: String = "") {
         all = CommandCatalog.build()
-        items = all
+        slashAll = CommandCatalog.buildSlash()
+        if !initialQuery.isEmpty { query = initialQuery }
+        items = initialQuery.hasPrefix("/") ? slashAll : all
+    }
+
+    /// 点按钮 / 再点一次：在「命令模式」与「普通模式」之间切换
+    func toggleSlashMode() {
+        if isSlashMode {
+            query = ""
+        } else {
+            query = "/"
+        }
+        selectedIndex = 0
+        refilter()
     }
 
     /// FuzzyMatcher 过滤 + 评分排序
     func refilter() {
         let q = query.trimmingCharacters(in: .whitespaces)
+
+        // ── 命令模式：只列工具命令，按 token / 别名命中 ──
+        if q.hasPrefix("/") {
+            let token = String(q.dropFirst()).trimmingCharacters(in: .whitespaces).lowercased()
+            if token.isEmpty {
+                publish(slashAll)
+                return
+            }
+            var scored: [(item: CommandItem, score: Int)] = []
+            for item in slashAll {
+                var best: Int?
+                for term in item.matchTerms {
+                    if term == token { best = 10_000; break }
+                    if term.hasPrefix(token) {
+                        best = max(best ?? 0, 5_000 - (term.count - token.count))
+                    } else if let m = FuzzyMatcher.match(token, in: term) {
+                        best = max(best ?? 0, m.score)
+                    }
+                }
+                if let b = best { scored.append((item, b)) }
+            }
+            scored.sort { $0.score > $1.score }
+            publish(scored.map { $0.item })
+            return
+        }
+
         guard !q.isEmpty else {
-            items = all
-            selectedIndex = min(selectedIndex, max(items.count - 1, 0))
+            publish(all)
             return
         }
         // v126（性能审计 F1356）：删除恒假分支（q 已被上方 guard 排空），
@@ -303,7 +375,11 @@ final class CommandPaletteState: ObservableObject {
             }
         }
         scored.sort { $0.score > $1.score }
-        let next = scored.map { $0.item }
+        publish(scored.map { $0.item })
+    }
+
+    /// 结果发布（id 序列不变则不触发整列表重绘）
+    private func publish(_ next: [CommandItem]) {
         if next.map(\.id) != items.map(\.id) {
             items = next
         }
@@ -336,14 +412,47 @@ struct CommandPaletteView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("搜索命令、开关、设置页、工具…", text: $state.query)
+                Image(systemName: state.isSlashMode ? "terminal" : "magnifyingglass")
+                    .font(.system(size: 13))
+                    .foregroundStyle(state.isSlashMode ? Theme.accent : Color.secondary)
+                    .frame(width: 16)
+                TextField(state.isSlashMode
+                          ? "输入命令名：uuid / time / apollo / json…"
+                          : "搜索命令、开关、设置页、工具…",
+                          text: $state.query)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 15))
+                    .font(.system(size: 15, design: state.isSlashMode ? .monospaced : .default))
                     .focused($focused)
                     .onSubmit { state.executeSelected() }
                     .onChange(of: state.query) { _ in state.refilter() }
+
+                // v172（用户：「添加一个按钮，点击之后就自动输入斜杠，展示这一系列命令」）
+                // 点一下补 `/` 进命令模式，再点一下清空回普通搜索。
+                Button {
+                    state.toggleSlashMode()
+                    focused = true
+                } label: {
+                    Text("/")
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(state.isSlashMode ? Theme.accent : Color.secondary)
+                        .frame(width: 22, height: 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .fill(state.isSlashMode
+                                      ? Theme.accent.opacity(0.18)
+                                      : Color.primary.opacity(0.06))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .strokeBorder(state.isSlashMode ? Theme.accent.opacity(0.45)
+                                                                : Color.clear, lineWidth: 1)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("命令模式：列出全部斜杠命令（如 /uuid、/time、/apollo）")
+                .accessibilityLabel("斜杠命令")
+
                 Text("⌥K")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
@@ -377,7 +486,9 @@ struct CommandPaletteView: View {
 
             Divider()
             HStack(spacing: 12) {
-                Text("↑↓ 选择 · ↵ 执行 · Esc 关闭")
+                Text(state.isSlashMode
+                     ? "/ 命令模式 · 输入名字筛选 · ↵ 执行 · Esc 关闭"
+                     : "↑↓ 选择 · ↵ 执行 · Esc 关闭")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
                 Spacer()

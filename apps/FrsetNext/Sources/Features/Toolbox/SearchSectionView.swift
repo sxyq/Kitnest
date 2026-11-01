@@ -89,19 +89,22 @@ public enum SearchHookRegistry {
 public enum ToolboxSearchSource {
     public static func register() {
         SearchHookRegistry.register { query in
-            // 原版占位符「搜索或输入 / 使用工具」：输入 / 即进入工具模式——
-            // 裸 "/" 列出全部启用工具，"/关键词" 按关键词过滤（2026-10-18 对齐）
-            if query == "/" {
-                return ToolRegistry.enabledTools.map { tool in
-                    Self.item(for: tool)
+            // 原版占位符「搜索或输入 / 使用工具」：输入 / 即进入命令模式。
+            // v172：不再只用工具名，统一走 SlashCommandCatalog——
+            // 每行显示 `/token`，并认原版命令名（/apollo、/tinyimg、/time…）。
+            if query.hasPrefix("/") {
+                let token = String(query.dropFirst())
+                let commands = await MainActor.run { SlashCommandCatalog.match(token) }
+                return commands.map { cmd in
+                    SearchResultItem(id: "slash-\(cmd.id)",
+                                     title: cmd.title,
+                                     subtitle: cmd.subtitle,
+                                     icon: cmd.systemImage,
+                                     match: nil,
+                                     action: cmd.run)
                 }
             }
-            let keyword: String
-            if query.hasPrefix("/") {
-                keyword = String(query.dropFirst()).trimmingCharacters(in: .whitespaces)
-            } else {
-                keyword = query
-            }
+            let keyword = query
             return ToolRegistry.enabledTools.compactMap { tool in
                 // v60 模糊匹配：工具名命中带高亮；名称未命中再看关键字/描述/分类
                 let nameMatch = FuzzyMatcher.match(keyword, in: tool.name)
@@ -443,6 +446,11 @@ enum SearchCategory: String, CaseIterable, Identifiable {
 
 public struct SearchSectionView: View {
     @Stored private var query: String = ""
+
+    /// 命令模式：输入以 `/` 开头（v172）
+    private var isSlashMode: Bool {
+        query.trimmingCharacters(in: .whitespaces).hasPrefix("/")
+    }
     @Stored private var toolResults: [SearchResultItem] = []
     @Stored private var fileResults: [FuzzyFileResult] = []
     @Stored private var isSearching = false
@@ -526,6 +534,27 @@ public struct SearchSectionView: View {
                     ToolboxUIState.shared.open(toolID)
                 }
             }
+            // 排障探针：probe.slashQuery=1 → 3.5s 后把首页输入框设成 "/"，
+            // 5s 时把命令列表打出来（面板窗在别的 Space，截图抓不到，只能靠日志核对）
+            // 排障探针：probe.slashRun=uuid → 填 `/uuid` 后执行第一条（验证命令→工具链路）
+            if let token = UserDefaults.standard.string(forKey: "probe.slashRun"), !token.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    query = "/" + token
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        Log.info("Toolbox", "探针：执行命令 /\(token)，命中 \(toolResults.count) 条")
+                        toolResults.first?.action()
+                    }
+                }
+            }
+            if UserDefaults.standard.bool(forKey: "probe.slashQuery") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    query = "/"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        let titles = toolResults.prefix(20).map(\.title).joined(separator: " ")
+                        Log.info("Toolbox", "探针：斜杠命令 \(toolResults.count) 条 → \(titles)")
+                    }
+                }
+            }
         }
     }
 
@@ -557,6 +586,27 @@ public struct SearchSectionView: View {
                         performWebSearch(first)
                     }
                 }
+            // v172（用户：「添加一个按钮，点击之后就自动输入斜杠，展示这一系列命令」）
+            // 就在首页这个输入框里：点一下补 `/` 列出全部命令，再点一下退回普通搜索。
+            Button {
+                query = isSlashMode ? "" : "/"
+                searchFieldFocused = true
+            } label: {
+                Text("/")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(isSlashMode ? Theme.accent : Color.secondary)
+                    .frame(width: 20, height: 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(isSlashMode ? Theme.accent.opacity(0.18)
+                                              : Color.primary.opacity(0.06))
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("命令模式：列出全部工具命令（/uuid、/time、/apollo…）")
+            .accessibilityLabel("斜杠命令")
+
             if !query.isEmpty {
                 Button {
                     clearInput()

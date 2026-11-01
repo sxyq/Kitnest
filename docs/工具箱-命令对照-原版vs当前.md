@@ -1,0 +1,130 @@
+# 工具箱命令对照：原版 Frset ↔ 当前 FrsetNext
+
+> 生成时间：2026-11-01
+> 目的：回答「原版那套命令行工具，我们现在差多少」，并记录斜杠命令的落地方式。
+
+---
+
+## 1. 材料来源（没有再下载逆向）
+
+原版 App 已不在 `/Applications`（`/Applications/Frset.app` 于核对后删除），但**归档材料是全的**，
+不需要重新下载：`docs/audit-原版功能核对/` 是 2026-10-24 对 **Frset 1.3.12（MAS 版，
+arm64 薄片 14,111,264 B）** 做的二进制码全量分析：
+
+| 材料 | 内容 |
+|---|---|
+| `原版-Swift类型清单.csv` | 1,396 个 Swift 类型（__swift5_types 段） |
+| `原版-二进制函数清单.csv` | 41,778 个函数入口 |
+| `原版-ObjC方法明细.csv` | 2,670 个 ObjC 方法 |
+| `原版功能覆盖核对报告.md` | 18 体系 / 190 功能型类的覆盖结论 |
+
+命令名的证据来自两处：**类型名**（`UUIDTool` / `QRCodeTool` / …）与
+**用户提供的原版界面截图**（命令栏可见 `/calendar`、`/Apollo`、`/uuid`、`/time`、
+`/json`、`/tinyimg`、`/var`，末尾一行 `+ Custom AI Tool`）。
+
+> 诚实标注：归档材料能给到「有哪些工具」，给不到「每个工具的斜杠 token 字面量」
+> （strings 未归档）。所以除截图里可见的 7 个命令名外，其余 token 按工具语义推断，
+> 并用别名兜住可能的差异。
+
+---
+
+## 2. 原版工具清单（类型证据）
+
+`原版-Swift类型清单.csv` 里名字含 `Tool` 的共 **52 个类型**，其中「具体工具」11 个 +
+1 个自定义 AI 工具：
+
+| 原版类型 | 工具 |
+|---|---|
+| `UUIDTool` | UUID 生成 |
+| `TimestampTool` (+`ToolError`) | 时间戳 ↔ 日期 |
+| `IPAddressTool` (+`AnchorView`/`PresentationState`/`UsageTracker`) | 本机 + 公网 IP |
+| `VariableNameTool` | 变量命名 |
+| `Base64Tool` (+`ToolError`) | Base64 编解码 |
+| `URLCodecTool` (+`ToolError`) | URL 编解码 |
+| `JSONFormatterTool` (+`ToolError`) | JSON 格式化 / 校验 |
+| `QRCodeTool` | 二维码（界面里叫 `/Apollo`） |
+| `TranslateTool` | 翻译 |
+| `SummaryTool` (+`ToolError`) | AI 摘要 |
+| `TinyPNGTool` (+**12 个**配套类型：`TaskViewModel`/`TaskStatus`/`QueueRow`/`OutputDirectoryStore`/`SettingsView`/`ThumbnailCache`/`Spinner`/`StatusIcon`/`ShakeEffect`/`DisplayState`/`RestoredDirectory`/`TaskFile`) | TinyPNG **网络**压缩（带任务队列、输出目录、缩略图缓存） |
+| `CustomAITool` (+`Config`/`Store`/`EditSheet`) | 自定义 AI 工具（提示词模板） |
+| `ToolCommandDescriptor` | 斜杠命令的元数据模型 |
+| `ToolManager` / `ToolManagementView` / `ToolEditSheet` / `ToolSettings` | 工具管理与配置 |
+| `ToolUsageQuotaManager` / `ToolUsageQuotaPermit` / `ToolUsageQuotaSnapshot` | 工具用量配额 |
+| `ToolShortcut*`（9 个类型） | 工具级全局热键与授权提示 |
+
+---
+
+## 3. 当前实现（14 个工具）
+
+`Sources/Features/Toolbox/BuiltinTools.swift` 注册 13 个，`Capture` 模块另注册 `colorpicker`：
+
+| id | 命令 | 名称 |
+|---|---|---|
+| `translate` | `/translate` | 翻译（AI） |
+| `summary` | `/summary` | 摘要（AI） |
+| `uuid` | `/uuid` | UUID v4 |
+| `timestamp` | `/time` | 时间戳 ↔ 日期 |
+| `ip` | `/ip` | 本机 + 公网 IP |
+| `varname` | `/var` | 变量命名 |
+| `base64` | `/base64` | Base64 |
+| `urlencode` | `/url` | URL 编解码 |
+| `json` | `/json` | JSON 格式化 / 校验 |
+| `qrcode` | `/qrcode`（别名 `/apollo`） | 二维码 |
+| `imagecompress` | `/tinypng`（别名 `/tinyimg`） | 图片压缩（**本地**） |
+| `codepreview` | `/codepreview` | 代码预览卡片 |
+| `hash` | `/hash` | 哈希 |
+| `colorpicker` | `/colorpicker` | 取色 |
+
+外加两条非工具命令：`/calendar`（打开主面板看日程）、`/tools`（打开工具箱）。
+
+---
+
+## 4. 差多少
+
+### 已对齐（11/12）
+
+原版 11 个具体工具**全部有对应实现**，语义一致：UUID / 时间戳 / IP / 变量名 / Base64 /
+URL / JSON / 二维码 / 翻译 / 摘要 —— 10 个完全对齐。
+
+### 有差距（2 项）
+
+| 项 | 原版 | 现在 | 差在哪 |
+|---|---|---|---|
+| **TinyPNG** | 调 TinyPNG **网络 API**，带任务队列（`QueueRow`）、输出目录持久化、缩略图缓存、失败抖动动画 | 本地 `CGImageSource` 重编码压缩 | 少了「网络压缩 + 队列 + 输出目录」这套；本地压缩不依赖网络与 API Key，但压缩率不如 TinyPNG |
+| **自定义 AI 工具** | `CustomAITool` + 配置存储 + 编辑 sheet，命令栏末尾 `+ Custom AI Tool` | 有 `CustomAIToolStore`（`ai.customTools`）与 `CustomAITool` 模型，但只在 AI 摘要页里用 | **没接进命令栏**，不能 `/我的工具` 直接调 |
+
+### 我们多出来的（5 项）
+
+`/codepreview`、`/hash`、`/colorpicker`、`/calendar`、`/tools` —— 原版二进制里无对应类型。
+
+### 没对齐的管理能力
+
+`ToolManagementView` / `ToolEditSheet` / `ToolUsageQuotaManager` 这套「工具管理 + 用量配额」
+目前只有 `ToolSettingsPane`（逐工具启用开关 + 默认输出行为），没有配额与编辑 sheet。
+
+> 配额（Quota）大概率是原版免费版的限制逻辑，我们本来就不做付费门禁，
+> 是否要补按产品定位决定。
+
+---
+
+## 5. 斜杠命令怎么落地的（v172）
+
+**入口在主面板首页的输入框**（不是独立窗口）：
+
+- 输入框右侧新增一个 `/` 按钮：点一下补上 `/` 并列出全部命令，再点一下退回普通搜索；
+- 也可以直接手动敲 `/`，效果相同；
+- 列表每行显示 `/token` + 中文说明；匹配认 token、工具 id、原版命令名（`/apollo`、`/tinyimg`、`/time`、`/var`）；
+- 选中即打开对应工具；`uuid` / `ip` / `timestamp` / `colorpicker` 这类**不需要输入**的，
+  工具窗一打开就自动跑一次，直接出结果。
+
+单一数据源：`SlashCommandCatalog`（`Sources/Features/Toolbox/SlashCommands.swift`）。
+面板搜索源（`ToolboxSearchSource`）与 ⌥K 命令面板都从它取，不各写一套。
+
+实测（2026-11-01 23:47，面板输入框填 `/`）：
+
+```
+探针：斜杠命令 16 条 → /translate /summary /qrcode /uuid /time /json /tinypng /ip
+/var /base64 /url /codepreview /hash /colorpicker /calendar /tools
+```
+
+实测（23:52，执行 `/uuid`）：命中 1 条 → 弹出「UUID」工具窗并自动生成结果。
