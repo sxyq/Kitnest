@@ -108,6 +108,13 @@ final class AnnotationCanvasView: NSView {
         return CGRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
     }
 
+    /// 成图圆角（视图坐标点）。0 = 直角。
+    /// v176（用户：「截图的边角圆角是可以调的，在编辑栏里」）：编辑区实时按它裁切，
+    /// 复制/保存的成图也按它切（像素半径 = cornerRadius / imageScale）。
+    var cornerRadius: CGFloat = 0 {
+        didSet { if cornerRadius != oldValue { needsDisplay = true } }
+    }
+
     private var imageScale: CGFloat {
         let iw = CGFloat(image.width)
         return iw > 0 ? fitRect.width / iw : 1
@@ -135,27 +142,47 @@ final class AnnotationCanvasView: NSView {
         let f = fitRect
         guard f.width > 0, let ctx = NSGraphicsContext.current?.cgContext else { return }
 
+        let radius = max(0, cornerRadius)
+
         // 图片投影：让截图从画布上「浮」起来（工具条改为悬浮胶囊后需要这层空间关系）
         ctx.saveGState()
         ctx.setShadow(offset: CGSize(width: 0, height: 1), blur: 16,
                       color: CGColor(gray: 0, alpha: 0.30))
         ctx.setFillColor(CGColor(gray: 1, alpha: 1))
-        ctx.fill(f)
+        if radius > 0 {
+            ctx.addPath(CGPath(roundedRect: f, cornerWidth: radius, cornerHeight: radius,
+                               transform: nil))
+            ctx.fillPath()
+        } else {
+            ctx.fill(f)
+        }
         ctx.restoreGState()
 
         // 底图：临时还原成 CG 常规坐标系，避免在 flipped 视图里上下颠倒
         ctx.saveGState()
+        if radius > 0 {
+            ctx.addPath(CGPath(roundedRect: f, cornerWidth: radius, cornerHeight: radius,
+                               transform: nil))
+            ctx.clip()
+        }
         ctx.translateBy(x: 0, y: bounds.height)
         ctx.scaleBy(x: 1, y: -1)
         ctx.interpolationQuality = .high
         ctx.draw(image, in: CGRect(x: f.minX, y: bounds.height - f.maxY, width: f.width, height: f.height))
         ctx.restoreGState()
 
-        // 1px 描边：浅色底上给图片一个确定的边界
+        // 1px 描边：浅色底上给图片一个确定的边界（圆角时沿圆角走）
         ctx.saveGState()
         ctx.setStrokeColor(CGColor(gray: 0, alpha: 0.10))
         ctx.setLineWidth(1)
-        ctx.stroke(f.insetBy(dx: 0.5, dy: 0.5))
+        let borderRect = f.insetBy(dx: 0.5, dy: 0.5)
+        if radius > 0 {
+            ctx.addPath(CGPath(roundedRect: borderRect, cornerWidth: radius, cornerHeight: radius,
+                               transform: nil))
+            ctx.strokePath()
+        } else {
+            ctx.stroke(borderRect)
+        }
         ctx.restoreGState()
 
         // 标注：图像像素坐标 → 视图坐标
@@ -1055,9 +1082,14 @@ final class AnnotationCanvasView: NSView {
         onChange?()
     }
 
-    /// 合成结果（无标注则返回原图）
+    /// 合成结果（无标注则返回原图）；设了圆角就再切一次圆角
     func composite() -> CGImage? {
-        AnnotationCompositor.composite(base: image, annotations: annotations)
+        guard let base = AnnotationCompositor.composite(base: image, annotations: annotations) else {
+            return nil
+        }
+        guard cornerRadius > 0 else { return base }
+        let scale = max(imageScale, 0.0001)
+        return AnnotationCompositor.roundedCorners(base, radius: cornerRadius / scale)
     }
 
     /// 滚轮调粗细：Snipaste / Flameshot 的通用手势（纵向滚轮才生效，避免误触横向滑动）
@@ -1203,6 +1235,7 @@ final class AnnotationEditorWindow: NSWindow {
                 onColor: { [weak self] color in self?.toolbarDidChangeColor(NSColor(color)) },
                 onSize: { [weak self] value in self?.toolbarDidChangeSize(CGFloat(value)) },
                 onBlock: { [weak self] value in self?.toolbarDidChangeBlock(value) },
+                onCorner: { [weak self] value in self?.canvas.cornerRadius = CGFloat(value) },
                 onUndo: { [weak self] in self?.undoTapped(); self?.refocusCanvas() },
                 onRedo: { [weak self] in self?.redoTapped(); self?.refocusCanvas() },
                 onClear: { [weak self] in self?.clearTapped(); self?.refocusCanvas() },
@@ -1400,6 +1433,34 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         if let restored = AnnotationStateSnapshot.decode(annotationState), !restored.isEmpty {
             window?.canvas.restore(annotations: restored)
             Log.info("Capture", "标注：已恢复未完成标注 \(restored.count) 条")
+        }
+    }
+
+    /// 排障（v176）：打开编辑器 + 设 24 圆角 + 导出成图到 /tmp，
+    /// 用来核对「圆角真的落到成图」，而不仅是画布预览。
+    public func debugCornerDemo() {
+        let size = NSSize(width: 420, height: 260)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSColor(calibratedRed: 0.98, green: 0.97, blue: 0.94, alpha: 1).setFill()
+        NSRect(origin: .zero, size: size).fill()
+        NSColor(calibratedRed: 0.20, green: 0.45, blue: 0.90, alpha: 1).setFill()
+        NSRect(x: 24, y: 24, width: 372, height: 90).fill()
+        ("圆角预览示例" as NSString).draw(at: NSPoint(x: 24, y: 170),
+            withAttributes: [.font: NSFont.systemFont(ofSize: 26, weight: .bold),
+                             .foregroundColor: NSColor.black])
+        image.unlockFocus()
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+
+        open(image: cg)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let editor = self?.window else { return }
+            editor.toolbarModel.cornerRadius = 24
+            editor.canvas.cornerRadius = 24
+            if let out = editor.canvas.composite(), let data = ImageProcessor.pngData(out) {
+                try? data.write(to: URL(fileURLWithPath: "/tmp/annot_round.png"))
+                Log.info("Capture", "排障：圆角成图已写 /tmp/annot_round.png（\(out.width)×\(out.height)）")
+            }
         }
     }
 

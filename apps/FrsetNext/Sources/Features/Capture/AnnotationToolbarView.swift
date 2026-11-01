@@ -30,6 +30,9 @@ final class EditorToolbarModel: ObservableObject {
     @Published var brushWidth: Double = 120
     /// 马赛克块大小（像素）
     @Published var mosaicBlock: Int = 16
+    /// 成图圆角（编辑视图坐标下的点；0 = 直角，最大 40）
+    /// v176（用户：「截图的边角圆角是可以调的，在编辑栏里」）
+    @Published var cornerRadius: Double = 0
 
     /// 按图幅给默认粗细：Retina 截图（3000px 级）上 3pt 线细到看不见，
     /// 默认直接给到区间上沿附近；小图则收敛，避免一笔糊满。
@@ -131,6 +134,7 @@ struct AnnotationToolbarView: View {
     var onColor: (Color) -> Void
     var onSize: (Double) -> Void
     var onBlock: (Int) -> Void
+    var onCorner: (Double) -> Void
     var onUndo: () -> Void
     var onRedo: () -> Void
     var onClear: () -> Void
@@ -141,6 +145,7 @@ struct AnnotationToolbarView: View {
 
     @Stored private var showPalette = false
     @Stored private var showBlock = false
+    @Stored private var showCorner = false
 
     /// 预设色：macOS 系统色 + 黑白，够覆盖截图标注的绝大多数场景
     private static let palette: [String] = ["#FF3B30", "#FF9500", "#FFCC00", "#34C759",
@@ -199,8 +204,83 @@ struct AnnotationToolbarView: View {
         HStack(spacing: 7) {
             colorChip
             sizeControl
+            cornerControl
             blockSlot
         }
+    }
+
+    /// 截图圆角（v176）：图标本身就是个圆角方块，圆角随数值实时变化，弹出滑杆细调。
+    /// 圆角作用在「复制 / 保存」的成图上；编辑区画布同步裁切，所见即所得。
+    private var cornerControl: some View {
+        Button {
+            showCorner.toggle()
+        } label: {
+            RoundedRectangle(cornerRadius: 1 + CGFloat(model.cornerRadius) * 0.26,
+                             style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.6), lineWidth: 1.5)
+                .frame(width: 15, height: 15)
+                .frame(width: 26, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(Color.primary.opacity(showCorner ? 0.08 : 0))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help(model.cornerRadius > 0 ? "截图圆角 \(Int(model.cornerRadius))" : "截图圆角：直角")
+        .accessibilityLabel("截图圆角")
+        .popover(isPresented: $showCorner, arrowEdge: .bottom) { cornerPopover }
+    }
+
+    private var cornerPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("截图圆角")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(model.cornerRadius > 0 ? "\(Int(model.cornerRadius.rounded()))" : "直角")
+                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: Binding(
+                get: { model.cornerRadius },
+                set: { value in
+                    model.cornerRadius = value
+                    onCorner(value)
+                }), in: 0...40)
+                .controlSize(.small)
+                .tint(Theme.accent)
+                .frame(width: 176)
+
+            HStack(spacing: 5) {
+                ForEach([0, 6, 12, 20, 32], id: \.self) { preset in
+                    let selected = Int(model.cornerRadius.rounded()) == preset
+                    Button {
+                        model.cornerRadius = Double(preset)
+                        onCorner(Double(preset))
+                    } label: {
+                        Text(preset == 0 ? "直角" : "\(preset)")
+                            .font(.system(size: 11))
+                            .frame(minWidth: 30)
+                            .padding(.vertical, 3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .fill(selected ? Theme.accent.opacity(0.20)
+                                                   : Color.primary.opacity(0.06))
+                            )
+                            .foregroundStyle(selected ? Theme.accent : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Text("作用在「复制 / 保存」的成图，编辑区实时预览")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+        }
+        .padding(12)
+        .frame(width: 220)
     }
 
     /// 颜色：一个色点 + 弹层调色板（不再把 8 个色点铺在工具条上）

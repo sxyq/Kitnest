@@ -148,6 +148,27 @@ public enum AnnotationCompositor {
 
     /// 在当前 NSGraphicsContext 中绘制标注。`rect` 为可绘制区域（左上原点坐标），
     /// 用于把坐标裁剪掉落在画面外的部分。
+    /// 把成图切圆角（透明角）。radius 单位是**像素**。
+    /// v176：截图编辑器「圆角」用，复制/保存时生效。
+    public static func roundedCorners(_ image: CGImage, radius: CGFloat) -> CGImage? {
+        let w = image.width, h = image.height
+        guard radius > 0, w > 0, h > 0 else { return image }
+        let rect = CGRect(x: 0, y: 0, width: w, height: h)
+        guard let ctx = CGContext(data: nil, width: w, height: h,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return image
+        }
+        ctx.clear(rect)
+        let r = min(radius, CGFloat(min(w, h)) / 2)
+        ctx.addPath(CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil))
+        ctx.clip()
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: rect)
+        return ctx.makeImage() ?? image
+    }
+
     public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil,
                             mosaicCache: ((CGFloat) -> CGImage?)? = nil) {
         guard let clip = NSGraphicsContext.current else { return }

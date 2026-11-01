@@ -138,6 +138,8 @@ final class LongScreenshotSession {
     var onFinish: ((LongScreenshotState, CGImage?) -> Void)?
     /// 采集进度（主线程回调）：已拼接高度（像素）+ 当前状态（HUD 文案）
     var onProgress: ((Int, LongScreenshotCaptureStatus) -> Void)?
+    /// v176：追加新内容后吐一次当前画布（实时预览卡用）
+    var onPreview: ((CGImage) -> Void)?
 
     // MARK: 初始化
 
@@ -394,6 +396,11 @@ final class LongScreenshotSession {
         }
         let finalStatus: LongScreenshotCaptureStatus = stitcher.didDropContent ? .lost : status
         DispatchQueue.main.async { [weak self] in self?.onProgress?(height, finalStatus) }
+
+        // v176：只有真的追加了内容才更新预览卡（unchanged/failed 不必重画）
+        if case .appended = outcome, let canvas = stitcher.canvas {
+            DispatchQueue.main.async { [weak self] in self?.onPreview?(canvas) }
+        }
 
         if !isStopped { state = .running }
     }

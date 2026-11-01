@@ -85,6 +85,8 @@ final class LongScreenshotCoordinator: NSObject {
     private var session: LongScreenshotSession?
     /// v74：采集期 HUD（进度 + 完成/取消）与选区边框
     private var hud: LongScreenshotHUDController?
+    /// v176：采集中选区旁的实时预览卡
+    private var livePreview: LongScreenshotLivePreviewPanel?
     private var borderWindow: LongScreenshotSelectionBorderWindow?
     private let stream = LongScreenshotCaptureStream()
     /// 选区阶段的覆盖层（复用截图选区交互）
@@ -219,6 +221,12 @@ final class LongScreenshotCoordinator: NSObject {
         session.onProgress = { [weak self] height, status in
             self?.hud?.update(height: height, status: status)
         }
+        // v176（用户：「长截图需要预览，像原版一样」）：每追加一段就刷新预览卡
+        let preview = LongScreenshotLivePreviewPanel()
+        livePreview = preview
+        session.onPreview = { [weak preview] image in
+            preview?.update(image: image, near: appKit)
+        }
         self.session = session
         stream.start(session: session)
         session.start()
@@ -258,6 +266,9 @@ final class LongScreenshotCoordinator: NSObject {
         // v74：收尾时关闭采集期 HUD 与选区边框
         hud?.close()
         hud = nil
+        livePreview?.orderOut(nil)
+        livePreview?.close()
+        livePreview = nil
         borderWindow?.orderOut(nil)
         borderWindow = nil
         switch state {

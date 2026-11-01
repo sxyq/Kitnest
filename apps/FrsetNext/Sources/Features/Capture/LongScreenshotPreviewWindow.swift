@@ -238,3 +238,119 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
         if (notification.object as? LongScreenshotEditorWindow) === window { window = nil }
     }
 }
+
+// MARK: - 采集中实时预览卡（v176）
+
+/// 长截图采集中，选区旁边一张小卡片：随画布增长实时变大。
+///
+/// 原版（Frset 长截图）在滚动采集时右侧就有这么一张预览，用户能一边滚一边确认
+/// 「截到哪儿了」。我们此前只有采集结束后的编辑器，过程中只有一个高度数字。
+///
+/// 实现要点：
+/// - 面板 `ignoresMouseEvents`，不挡滚动、不抢焦点；
+/// - 放在选区外侧（右优先，放不下放左），**不会**被截进画面；
+/// - 只显示画布**顶部**一段（按宽度缩放后裁到 288pt 高），长图不会缩成细条。
+final class LongScreenshotLivePreviewPanel: NSPanel {
+
+    private final class FlippedCard: NSView {
+        override var isFlipped: Bool { true }
+    }
+
+    private let card = FlippedCard()
+    private let imageView = NSImageView()
+    private let sizeLabel = NSTextField(labelWithString: "")
+
+    private let padding: CGFloat = 8
+    private let footerH: CGFloat = 18
+    private let contentW: CGFloat = 156
+
+    init() {
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 172, height: 200),
+                   styleMask: [.borderless, .nonactivatingPanel],
+                   backing: .buffered, defer: false)
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = false
+        level = .floating
+        ignoresMouseEvents = true
+        isReleasedWhenClosed = false
+        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+
+        card.wantsLayer = true
+        card.layer?.cornerRadius = 10
+        card.layer?.cornerCurve = .continuous
+        card.layer?.backgroundColor = NSColor.white.cgColor
+        card.layer?.borderWidth = 0.5
+        card.layer?.borderColor = NSColor.black.withAlphaComponent(0.16).cgColor
+        card.layer?.masksToBounds = true
+        contentView = card
+
+        imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.wantsLayer = true
+        card.addSubview(imageView)
+
+        sizeLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        sizeLabel.textColor = NSColor.secondaryLabelColor
+        sizeLabel.alignment = .right
+        card.addSubview(sizeLabel)
+
+        let caption = NSTextField(labelWithString: "长截图")
+        caption.font = .systemFont(ofSize: 10, weight: .medium)
+        caption.textColor = NSColor.secondaryLabelColor
+        card.addSubview(caption)
+        self.captionLabel = caption
+    }
+
+    private var captionLabel: NSTextField!
+
+    /// 更新预览（`selection` 是 AppKit 坐标下的选区，用来定位）
+    func update(image: CGImage, near selection: NSRect) {
+        let scale = contentW / CGFloat(max(1, image.width))
+        let maxImageH: CGFloat = 288
+        let visibleSrcH = max(1, min(CGFloat(image.height),
+                                     (maxImageH / max(scale, 0.0001)).rounded()))
+        let cropRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: visibleSrcH)
+        let cropped = image.cropping(to: cropRect) ?? image
+        imageView.image = NSImage(cgImage: cropped,
+                                  size: NSSize(width: cropRect.width, height: cropRect.height))
+
+        let displayH = max(24, (visibleSrcH * scale).rounded())
+        let cardW = contentW + padding * 2
+        let cardH = displayH + footerH + padding * 2
+
+        setContentSize(NSSize(width: cardW, height: cardH))
+        imageView.frame = NSRect(x: padding, y: padding, width: contentW, height: displayH)
+        captionLabel.frame = NSRect(x: padding, y: padding + displayH + 1,
+                                    width: 60, height: 13)
+        sizeLabel.frame = NSRect(x: cardW - padding - 90, y: padding + displayH + 1,
+                                 width: 90, height: 13)
+        sizeLabel.stringValue = "\(image.width)×\(image.height)"
+
+        place(near: selection)
+        if !isVisible { orderFrontRegardless() }
+    }
+
+    /// 排障（v176）：不跑真实会话，直接渲染一张长图到预览卡上，用来核对样式与位置
+    static var debugInstance: LongScreenshotLivePreviewPanel?
+
+    static func debugShow(image: CGImage, near selection: NSRect) {
+        let panel = LongScreenshotLivePreviewPanel()
+        debugInstance = panel
+        panel.update(image: image, near: selection)
+        Log.info("Capture", "排障：长截图预览卡已显示（\(image.width)×\(image.height)）")
+    }
+
+    /// 选区外侧（右优先），顶边与选区对齐；放不下就翻到左侧
+    private func place(near selection: NSRect) {
+        guard let screen = NSScreen.main else { return }
+        let vf = screen.visibleFrame
+        let size = frame.size
+        var x = selection.maxX + 16
+        if x + size.width > vf.maxX - 8 { x = selection.minX - size.width - 16 }
+        if x < vf.minX + 8 { x = vf.minX + 8 }
+        var y = selection.maxY - size.height
+        if y < vf.minY + 8 { y = vf.minY + 8 }
+        if y + size.height > vf.maxY - 8 { y = vf.maxY - size.height - 8 }
+        setFrameOrigin(NSPoint(x: x, y: y))
+    }
+}

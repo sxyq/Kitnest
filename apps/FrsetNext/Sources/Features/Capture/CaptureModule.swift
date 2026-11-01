@@ -18,6 +18,32 @@ public enum CaptureModule: AppModule {
             }
         }
 
+        // 排障探针（v176）：圆角成图 / 长截图预览卡
+        if UserDefaults.standard.bool(forKey: "probe.annotateDemo") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                AnnotationEditorController.shared.debugCornerDemo()
+            }
+        }
+        if UserDefaults.standard.bool(forKey: "probe.longPreview") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                let w = 900, h = 2600
+                let image = NSImage(size: NSSize(width: w, height: h))
+                image.lockFocus()
+                NSColor.white.setFill()
+                NSRect(x: 0, y: 0, width: w, height: h).fill()
+                for i in 0..<12 {
+                    let y = CGFloat(h - 120 - i * 200)
+                    NSColor(calibratedWhite: 0.88, alpha: 1).setFill()
+                    NSRect(x: 40, y: y, width: CGFloat(w) - 80, height: 120).fill()
+                }
+                image.unlockFocus()
+                if let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    let sel = NSRect(x: 360, y: 260, width: 600, height: 500)
+                    LongScreenshotLivePreviewPanel.debugShow(image: cg, near: sel)
+                }
+            }
+        }
+
         // 剪贴板预览里点「标注」→ 用截图标注编辑器改这张图（跨模块走通知，不互相引用）
         NotificationCenter.default.addObserver(
             forName: Notification.Name("frset.clipboard.editImage"),
