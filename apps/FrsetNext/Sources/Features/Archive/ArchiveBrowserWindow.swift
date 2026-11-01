@@ -702,6 +702,10 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
     init(url: URL) {
         self.model = ArchiveBrowserModel(url: url)
         let hosting = NSHostingController(rootView: ArchiveBrowserView(model: model))
+        // 窗口尺寸由我们显式指定，禁止宿主视图反推窗口约束。
+        // 不设的话 NSHostingController 会在首次 layout 时改窗口的约束，
+        // 与 display cycle 撞上就是 _postWindowNeedsUpdateConstraints 异常（冷启动偶发崩溃）。
+        hosting.sizingOptions = []
         let win = NSWindow(contentViewController: hosting)
         win.title = "归档 · \(url.lastPathComponent)"
         win.setContentSize(NSSize(width: 860, height: 560))

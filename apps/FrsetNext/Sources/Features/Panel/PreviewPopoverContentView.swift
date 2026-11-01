@@ -924,6 +924,42 @@ struct PreviewFileView: View {
             .filter { !$0.isEmpty }
     }
 
+    /// 单文件且是可内联渲染的文档（docx/pptx/xlsx/pdf/pages…）
+    private func isDocumentPath(_ path: String) -> Bool {
+        DocumentInlinePreview.supportedExtensions.contains(
+            URL(fileURLWithPath: path).pathExtension.lowercased())
+    }
+
+    /// 文件名 + 路径 + 操作按钮（大图/小图两种布局共用）
+    @ViewBuilder
+    private func fileInfo(_ path: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text((path as NSString).lastPathComponent)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+            Text(path)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            if paths.count == 1 {
+                HStack(spacing: 6) {
+                    // 快速查看：Word/PPT 可翻页看全文（系统 QuickLook）
+                    Button("快速查看") {
+                        QuickLookPresenter.shared.show(URL(fileURLWithPath: path))
+                    }
+                    .controlSize(.mini)
+                    if isArchivePath(path) {
+                        Button("编辑归档") {
+                            ArchiveBrowserWindowController.show(url: URL(fileURLWithPath: path))
+                        }
+                        .controlSize(.mini)
+                    }
+                }
+            }
+        }
+    }
+
     /// 单文件且是压缩包（多选时不做归档内展开，避免一次起多个 7zz）
     private func isArchivePath(_ path: String) -> Bool {
         paths.count == 1 && ArchiveCore.isArchive(URL(fileURLWithPath: path))
@@ -933,38 +969,32 @@ struct PreviewFileView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(paths, id: \.self) { path in
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        // v111：QuickLook 分级解码缩略图；v118 单文件放大到 168pt。
-                        // v121：压缩包**不再放大图**（ZIP 图标本身没信息量），
-                        //       把横向空间让给下面的内部条目网格。
-                        PreviewFileThumb(path: path,
-                                         size: isArchivePath(path) ? 72
-                                              : (paths.count == 1 ? 260 : 44))
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text((path as NSString).lastPathComponent)
-                                .font(.system(size: 12, weight: .medium))
-                                .lineLimit(1)
-                            Text(path)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            if paths.count == 1 {
-                                HStack(spacing: 6) {
-                                    // 快速查看：Word/PPT 可翻页看全文（系统 QuickLook）
-                                    Button("快速查看") {
-                                        QuickLookPresenter.shared.show(URL(fileURLWithPath: path))
-                                    }
-                                    .controlSize(.mini)
-                                    if isArchivePath(path) {
-                                        Button("编辑归档") {
-                                            ArchiveBrowserWindowController.show(url: URL(fileURLWithPath: path))
-                                        }
-                                        .controlSize(.mini)
-                                    }
-                                }
-                            }                        }
-                        Spacer(minLength: 0)
+                    if paths.count == 1, isDocumentPath(path) {
+                        // v171（用户：「预览要有相关的内容」）：单文档改成**整宽大画面**。
+                        // 原来塞在 260×260 的方格里，QLPreviewView 是按 100% 排版渲染的，
+                        // 小方格里只能看到标题左上角一小块；铺满预览窗宽度后
+                        // 能看到正文排版本身。
+                        DocumentInlinePreview(url: URL(fileURLWithPath: path))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 430)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+                            )
+                        fileInfo(path)
+                    } else {
+                        HStack(spacing: 8) {
+                            // v111：QuickLook 分级解码缩略图；v118 单文件放大。
+                            // v121：压缩包**不再放大图**（ZIP 图标本身没信息量），
+                            //       把横向空间让给下面的内部条目网格。
+                            PreviewFileThumb(path: path,
+                                             size: isArchivePath(path) ? 72
+                                                  : (paths.count == 1 ? 260 : 44))
+                            fileInfo(path)
+                            Spacer(minLength: 0)
+                        }
                     }
                     // v121（用户要求）：压缩包内条目 → **图标网格**，
                     // 每个文件用自己类型的系统图标（Word/PPT/图片/APK…）

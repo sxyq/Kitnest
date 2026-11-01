@@ -116,9 +116,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let files = urls.filter { $0.isFileURL }
         if !files.isEmpty {
             let archives = files.filter { ArchiveCore.isArchive($0) }
-            // 窗口创建同样延后到下一 runloop（与下方深链同一原因，见注释）
-            for url in archives {
-                DispatchQueue.main.async { ArchiveBrowserWindowController.show(url: url) }
+            // 窗口创建延后到「下一轮 runloop + 150ms」。
+            // 只 async 一跳仍偶发崩溃（2026-11-01 实测 3 次冷启动崩 1 次）：
+            // Apple Event 处理完紧接着就是 display cycle flush，窗口在这期间建起来，
+            // AppKit 会在更新结构区域时抛 NSWindow._postWindowNeedsUpdateConstraints。
+            // 给一个明确的延后，让首次 display cycle 先结算完。
+            for (idx, url) in archives.enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15 + Double(idx) * 0.05) {
+                    ArchiveBrowserWindowController.show(url: url)
+                }
             }
             if !archives.isEmpty { return }
         }
