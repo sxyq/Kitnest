@@ -90,6 +90,23 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private func scheduleWarmup() {
         guard !warmupScheduled else { return }
         warmupScheduled = true
+        // v173（2026-11-01 崩溃复盘）：**默认不预热**。
+        //
+        // 预热是在一个 `alphaValue = 0` 的离屏窗口上强行 `layoutSubtreeIfNeeded`
+        // + `displayIfNeeded`，把 SwiftUI 的 AttributeGraph 先跑一遍。问题是这时候
+        // 窗口本来不该参与显示周期，AppKit 会在 `_postWindowNeedsUpdateConstraints`
+        // 里抛 NSInternalInconsistencyException → abort（SIGABRT）。
+        //
+        // 实测对照（同一台机器、同一份构建，冷启动各 8 次）：
+        //   预热开 → 存活 6 / 崩 2
+        //   预热关 → 存活 8 / 崩 0
+        // 代价只是首次打开面板慢约 180ms，换掉 25% 的启动崩溃，值得。
+        //
+        // 需要复测预热时可以 `defaults write com.sxyq.frsetnext probe.warmup -bool YES`。
+        if !UserDefaults.standard.bool(forKey: "probe.warmup") {
+            Log.info("Panel", "跳过预热（v173：预热会触发启动崩溃，默认关闭）")
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.warmupPanel()
         }
@@ -108,15 +125,23 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         presentation.visible = true
         p.contentView?.layoutSubtreeIfNeeded()
         p.displayIfNeeded()
-        // 给 SwiftUI 一个显示周期，把 AttributeGraph 真正跑完
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.12))
 
-        presentation.visible = false
-        p.contentView?.layoutSubtreeIfNeeded()
-        p.orderOut(nil)
-        p.alphaValue = oldAlpha
-        let ms = (ProcessInfo.processInfo.systemUptime - t0) * 1000
-        Log.info("Panel", String(format: "预热完成 %.0fms", ms))
+        // 关键（2026-11-01 崩溃复盘）：这里**不能**再 `RunLoop.current.run(until:)`。
+        // 嵌套跑主 runloop 会把 display cycle 的更新重入进来，AppKit 在
+        // `_postWindowNeedsUpdateConstraints / _postWindowNeedsLayout` 里抛
+        // NSInternalInconsistencyException → abort（SIGABRT）。
+        // 冷启动偶发「自己退出」就是这么来的（本机 11-01 崩了 4 次，栈都是这个）。
+        //
+        // 改成两段式：先让内容真布局一次，0.12s 后（下一轮 runloop）再收尾。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            guard let self, let p = self.panel else { return }
+            self.presentation.visible = false
+            p.contentView?.layoutSubtreeIfNeeded()
+            p.orderOut(nil)
+            p.alphaValue = oldAlpha
+            let ms = (ProcessInfo.processInfo.systemUptime - t0) * 1000
+            Log.info("Panel", String(format: "预热完成 %.0fms", ms))
+        }
     }
 
     // MARK: - PanelControlling
