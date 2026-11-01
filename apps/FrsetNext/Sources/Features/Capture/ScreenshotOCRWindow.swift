@@ -107,27 +107,90 @@ final class OCRReadOnlyScrollView: NSScrollView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
 
+    // MARK: 流式呈现（v175）
+
+    /// 正在"打字"时的完整文本（`text` 的 getter 要返回它，否则复制/翻译会拿到半截）
+    private var streamFull = ""
+    private var streamCursor = 0
+    private var streamTimer: Timer?
+
+    private var isStreaming: Bool { streamTimer != nil }
+
+    private var baseAttributes: [NSAttributedString.Key: Any] {
+        [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+         .foregroundColor: NSColor.labelColor]
+    }
+
     var text: String {
-        get { textView.string }
+        get { isStreaming ? streamFull : textView.string }
         set {
-            // v151：识别出的网址做成可点击链接（用户拿 OCR 就是为了打开/复制链接）。
-            // 只加 .link 属性，文本本身不变；复制仍然是纯文本。
-            let attributed = NSMutableAttributedString(
-                string: newValue,
-                attributes: [
-                    .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
-                    .foregroundColor: NSColor.labelColor
-                ])
-            let full = NSRange(location: 0, length: (newValue as NSString).length)
-            if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
-                detector.enumerateMatches(in: newValue, options: [], range: full) { result, _, _ in
-                    guard let result, let url = result.url else { return }
-                    attributed.addAttribute(.link, value: url, range: result.range)
-                }
-            }
-            textView.textStorage?.setAttributedString(attributed)
-            syncTextViewWidth()      // v166.6：见下，宽度必须在这里补一次
-            textView.scrollToBeginningOfDocument(nil)
+            cancelStream()
+            streamFull = newValue
+            applyAttributed(newValue)
+        }
+    }
+
+    /// 逐段"打"出文本：OCR 结果 / 译文不再整块闪现。
+    ///
+    /// 速度按长度自适应（总时长约 0.8–1.2s），短文本每帧 2 字、长文本按比例提速；
+    /// 期间只追加纯文本（每帧做一次链接检测太贵），打完后统一补 `.link` 属性。
+    func stream(_ fullText: String) {
+        cancelStream()
+        streamFull = fullText
+        streamCursor = 0
+        applyAttributed("")
+        let ns = fullText as NSString
+        let total = ns.length
+        guard total > 0 else { return }
+
+        let step = max(2, Int(ceil(Double(total) / 72.0)))   // 72 帧 ≈ 1.2s
+        let attributes = baseAttributes
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] t in
+            guard let self else { t.invalidate(); return }
+            let remain = total - self.streamCursor
+            guard remain > 0 else { self.finishStream(); return }
+            let len = min(step, remain)
+            let chunk = ns.substring(with: NSRange(location: self.streamCursor, length: len))
+            self.streamCursor += len
+            self.textView.textStorage?.append(
+                NSAttributedString(string: chunk, attributes: attributes))
+            if self.streamCursor >= total { self.finishStream() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        streamTimer = timer
+    }
+
+    func cancelStream() {
+        streamTimer?.invalidate()
+        streamTimer = nil
+    }
+
+    private func finishStream() {
+        cancelStream()
+        applyLinks()          // 打完了才做一次链接识别
+        syncTextViewWidth()
+    }
+
+    private func applyAttributed(_ string: String) {
+        // v151：识别出的网址做成可点击链接（用户拿 OCR 就是为了打开/复制链接）。
+        // 只加 .link 属性，文本本身不变；复制仍然是纯文本。
+        let attributed = NSMutableAttributedString(string: string, attributes: baseAttributes)
+        textView.textStorage?.setAttributedString(attributed)
+        applyLinks()
+        syncTextViewWidth()      // v166.6：宽度必须在这里补一次，否则排版宽度为 0
+        textView.scrollToBeginningOfDocument(nil)
+    }
+
+    private func applyLinks() {
+        guard let storage = textView.textStorage else { return }
+        let string = storage.string
+        let full = NSRange(location: 0, length: (string as NSString).length)
+        guard full.length > 0 else { return }
+        storage.removeAttribute(.link, range: full)
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return }
+        detector.enumerateMatches(in: string, options: [], range: full) { result, _, _ in
+            guard let result, let url = result.url else { return }
+            storage.addAttribute(.link, value: url, range: result.range)
         }
     }
 
@@ -194,7 +257,8 @@ final class ScreenshotOCRResultWindow: NSWindow {
 
         // 右栏容器：识别文本 / 二维码 两页签同位切换
         setupRightPane()
-        resultScroll.text = text
+        // v175：首次展示也走流式（短文本 0.3s 内打完，不会有"卡一下"的观感）
+        if text.isEmpty { resultScroll.text = text } else { resultScroll.stream(text) }
         setQRPayloads(qrPayloads)
 
         // 左右分栏
@@ -324,7 +388,10 @@ final class ScreenshotOCRResultWindow: NSWindow {
 
     /// 当前（可能被用户就地修改过的）识别文本
     var resultText: String { resultScroll.text }
-    func setResultText(_ text: String) { resultScroll.text = text }
+    func setResultText(_ text: String) {
+        // v175：重新识别／增量更新同样用流式，保持一致的观感
+        if text.isEmpty { resultScroll.text = text } else { resultScroll.stream(text) }
+    }
 
     // MARK: v130（SnowShot 对齐）⑤：二维码页签
 
@@ -359,7 +426,8 @@ final class ScreenshotOCRResultWindow: NSWindow {
     /// 译文文本（nil → 显示占位提示）
     func setTranslatedText(_ text: String?) {
         if let text {
-            translatedScroll.text = text
+            // v175：译文也逐段出现（译文通常有几百字，整块闪现很突兀）
+            translatedScroll.stream(text)
         } else {
             translatedScroll.text = "翻译中…"
         }
@@ -523,6 +591,33 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
                 Log.error("Capture", "截图翻译失败: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// 排障用（v175）：`probe.ocrDemo=YES` 时用示例文本开一次结果窗，
+    /// 用来核对「流式输出」到底有没有逐段出现（面板窗截不到，这个窗能截）。
+    public func debugDemo() {
+        let size = NSSize(width: 360, height: 180)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSColor.white.setFill()
+        NSRect(origin: .zero, size: size).fill()
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13),
+            .foregroundColor: NSColor.black
+        ]
+        ("OCR 流式输出示例\n第二行文字\n第三行文字" as NSString)
+            .draw(in: NSRect(x: 16, y: 16, width: 320, height: 140), withAttributes: attrs)
+        image.unlockFocus()
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              let data = image.tiffRepresentation else { return }
+
+        let sample = """
+        流式输出用于验证：这段文字应当逐段出现，而不是一次性整块闪出。
+        第一段：识别结果窗右侧的文本框会按帧追加字符，总时长约 1.2 秒。
+        第二段：译文页签同样走流式，等 AI 返回后再逐段铺开。
+        第三段：https://www.swift.org 这样的链接会在打完之后变成可点击。
+        """
+        show(sourceImage: cg, imageData: data, text: sample)
     }
 
     public func close() {

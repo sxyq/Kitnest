@@ -10,6 +10,14 @@ public enum CaptureModule: AppModule {
     public static let identifier = "capture"
 
     public static func start() {
+        // 排障探针（v175）：probe.ocrDemo=YES → 启动 4s 后开一次 OCR 结果窗，
+        // 用来核对流式输出（结果窗能截图，主面板窗在别的 Space 截不到）
+        if UserDefaults.standard.bool(forKey: "probe.ocrDemo") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                ScreenshotOCRWindowController.shared.debugDemo()
+            }
+        }
+
         // 剪贴板预览里点「标注」→ 用截图标注编辑器改这张图（跨模块走通知，不互相引用）
         NotificationCenter.default.addObserver(
             forName: Notification.Name("frset.clipboard.editImage"),
