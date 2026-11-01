@@ -546,9 +546,10 @@ public struct SearchSectionView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
                         let head = webResults.prefix(3).map(\.title).joined(separator: " | ")
                         Log.info("Toolbox", "探针：网页结果 \(webResults.count) 条，引擎=\(previewEngine?.id ?? "-")，兜底=\(webFallbackName ?? "-")，失败=\(webFetchFailed) → \(head)")
+                        // v181：主操作改成「点击即开浏览器」后，探针不再自动打开内嵌预览
+                        //（否则面板一出现就被预览占满，看不到结果列表本身）。
                         if let first = webResults.first {
-                            Log.info("Toolbox", "探针：点开第一条预览 \(first.url.absoluteString)")
-                            previewArticleURL = first.url
+                            Log.info("Toolbox", "探针：首条结果 \(first.url.absoluteString)（点击应直接用浏览器打开）")
                         }
                     }
                 }
@@ -991,9 +992,16 @@ public struct SearchSectionView: View {
                     .help("在默认浏览器打开该搜索结果")
                 }
                 ForEach(webResults.prefix(maxRows)) { result in
-                    HStack(spacing: 2) {
                     Button {
-                        previewArticleURL = result.url
+                        // v181（用户：「只要点击，就是直接默认浏览器打开」）：
+                        // 主操作从「内嵌预览」改成「开浏览器」——点行内任何位置都走这里。
+                        // 内嵌预览退到 ⌥ 点击（功能保留，不再挡在主动作前面）。
+                        if NSEvent.modifierFlags.contains(.option) {
+                            previewArticleURL = result.url
+                        } else {
+                            Log.info("Search", "openResult url=\(result.url.absoluteString)")
+                            NSWorkspace.shared.open(result.url)
+                        }
                     } label: {
                         if compact {
                             // 全部视图：单行——标题（命中高亮）+ 右侧域名
@@ -1008,11 +1016,14 @@ public struct SearchSectionView: View {
                                     .lineLimit(1)
                                     .layoutPriority(1)
                                 Spacer(minLength: 8)
+                                // v181：标题有 layoutPriority(1)，长标题会把域名挤到只剩 1–2 个字符
+                                //（截图实测「(」「...」）。给域名一个最小宽度，让标题先截断。
                                 Text(result.host)
                                     .font(.system(size: 11))
                                     .foregroundStyle(Theme.tertiaryText)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
+                                    .frame(minWidth: 72, alignment: .trailing)
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
@@ -1044,26 +1055,9 @@ public struct SearchSectionView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    // 撑满行宽：加 ↗ 后按钮不再自动占满，会让点击区缩到文字宽度
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .help("点击在内嵌预览里看这一段网页")
-
-                    // v174（用户：「点击一下就跳转到默认浏览器」）：行尾常驻 ↗，
-                    // 不用记 ⌘ 也能一步到浏览器；⌘ 点击仍然有效。
-                    Button {
-                        Log.info("Search", "openResult url=\(result.url.absoluteString)")
-                        NSWorkspace.shared.open(result.url)
-                    } label: {
-                        Image(systemName: "arrow.up.forward.app")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Theme.tertiaryText)
-                            .frame(width: 20, height: 20)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("在默认浏览器打开")
-                    .accessibilityLabel("在默认浏览器打开")
-                    }
+                    .help("点击在默认浏览器打开（⌥ 点击：在此处预览）")
+                    .accessibilityLabel("在默认浏览器打开：\(result.title)")
                 }
             }
             .padding(.top, 2)
