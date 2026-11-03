@@ -86,9 +86,9 @@ final class LongScreenshotImageScrollView: NSScrollView {
 final class LongScreenshotEditorContainerView: NSView {
     let scrollView: LongScreenshotImageScrollView
     private let toolbar = NSView(frame: .zero)
-    private let saveButton = NSButton(title: "保存", target: nil, action: nil)
-    private let copyButton = NSButton(title: "复制", target: nil, action: nil)
-    private let closeButton = NSButton(title: "关闭", target: nil, action: nil)
+    private let saveButton = FirstMouseButton(title: "保存", target: nil, action: nil)
+    private let copyButton = FirstMouseButton(title: "复制", target: nil, action: nil)
+    private let closeButton = FirstMouseButton(title: "关闭", target: nil, action: nil)
     private static let toolbarHeight: CGFloat = 48
     private static let buttonW: CGFloat = 76
     private static let buttonH: CGFloat = 30
@@ -154,6 +154,34 @@ final class LongScreenshotEditorContainerView: NSView {
         x -= (w + 10)
         saveButton.frame = NSRect(x: x, y: y, width: w, height: h)
     }
+
+    /// 排障探针：直接 performClick 三个按钮，验证 action 链是否真的执行。
+    func debugPerformButtons() {
+        saveButton.performClick(nil)
+        copyButton.performClick(nil)
+        closeButton.performClick(nil)
+    }
+
+    /// 排障探针：按钮中心的命中视图 + 该屏幕点上是否还有别的窗口压在编辑器上。
+    /// 入口：`defaults write com.sxyq.frsetnext probe.longshotHit -bool true` +
+    /// `frsetnext://longshotpreview`。
+    func debugHitReport(window: NSWindow) -> [String] {
+        [("保存", saveButton), ("复制", copyButton), ("关闭", closeButton)].map { name, btn in
+            let p = btn.convert(NSPoint(x: btn.bounds.midX, y: btn.bounds.midY), to: self)
+            let hit = hitTest(p)
+            let screenPoint = window.convertPoint(toScreen: convert(p, to: nil))
+            let above = NSWindow.windowNumber(at: screenPoint,
+                                              belowWindowWithWindowNumber: window.windowNumber)
+            return "\(name)：hit=\(hit.map { String(describing: type(of: $0)) } ?? "nil")，"
+                + "上方窗口=\(above)（本窗 \(window.windowNumber)）"
+        }
+    }
+}
+
+/// v200：非激活/非 key 窗口的第一次点击也直接落到按钮上。
+/// 默认 NSButton 要「先点一下激活窗口，再点才生效」，用户体感就是「点了没反应」。
+final class FirstMouseButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 /// target-action → 闭包 的轻量桥接（编辑器工具条按钮用）
@@ -225,22 +253,65 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
         let editor = LongScreenshotEditorWindow(
             document: document,
             onSave: { [weak self] in
-                guard let self = self, let doc = self.window?.contentView as? LongScreenshotEditorContainerView,
-                      let image = doc.scrollView.document?.image,
-                      let data = ImageProcessor.pngData(image),
-                      let url = ScreenshotManager.shared.savePNG(data) else { return }
+                guard let self = self, let doc = self.window?.contentView as? LongScreenshotEditorContainerView else {
+                    Log.warn("Capture", "长截图保存：内容视图不是编辑器容器（contentView=\(String(describing: self?.window?.contentView))）")
+                    return
+                }
+                guard let image = doc.scrollView.document?.image else {
+                    Log.warn("Capture", "长截图保存：取不到文档图")
+                    return
+                }
+                guard let data = ImageProcessor.pngData(image) else {
+                    Log.warn("Capture", "长截图保存：PNG 编码失败")
+                    return
+                }
+                guard let url = ScreenshotManager.shared.savePNG(data) else {
+                    Log.warn("Capture", "长截图保存：savePNG 返回 nil")
+                    return
+                }
                 ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true, mode: "long")   // v130②
+                Log.info("Capture", "长截图保存：\(url.path)")
             },
             onCopy: { [weak self] in
                 guard let self = self, let doc = self.window?.contentView as? LongScreenshotEditorContainerView,
-                      let image = doc.scrollView.document?.image else { return }
+                      let image = doc.scrollView.document?.image else {
+                    Log.warn("Capture", "长截图复制：内容视图/文档图不可用")
+                    return
+                }
                 ScreenshotManager.shared.copyToPasteboard(image)
+                Log.info("Capture", "长截图复制：已写入剪贴板")
             },
-            onClose: { [weak self] in self?.window?.performClose(nil) })
+            onClose: { [weak self] in
+                // v200（用户「保存/复制/关闭点了没反应」）：工具栏关闭原来走 performClose，
+                // 而自绘圆钮的 v181 实测结论是「标准关闭钮被隐藏/禁用后 performClose 静默无效」。
+                // 与圆钮统一：直接 close()，不依赖标准关闭钮状态。
+                Log.info("Capture", "长截图关闭：close()")
+                self?.window?.close()
+            })
         editor.delegate = self
         window = editor
-        editor.makeKeyAndOrderFront(nil)
+        // v200：先激活再置 key——LSUIElement 下反序会让窗口当不上 key，
+        // 第一次点击只激活窗口、不落到按钮上（用户体感「点了没反应」）。
         NSApp.activate(ignoringOtherApps: true)
+        editor.makeKeyAndOrderFront(nil)
+        if UserDefaults.standard.bool(forKey: "probe.longshotHit") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                guard let w = self?.window,
+                      let c = w.contentView as? LongScreenshotEditorContainerView else { return }
+                Log.info("Capture", "长截图探针：active=\(NSApp.isActive) key=\(w.isKeyWindow) "
+                         + "level=\(w.level.rawValue) " + c.debugHitReport(window: w).joined(separator: " | "))
+            }
+        }
+        if UserDefaults.standard.bool(forKey: "probe.longshotClick") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let c = self?.window?.contentView as? LongScreenshotEditorContainerView else { return }
+                Log.info("Capture", "长截图探针：开始 performClick")
+                c.debugPerformButtons()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    Log.info("Capture", "长截图探针：点击后 isVisible=\(self?.window?.isVisible == true)")
+                }
+            }
+        }
 
         // 排障（v181）：`probe.longshotClose=YES` → 1.5s 后**按一下自绘关闭钮**
         // （performClick 等价真点击），2s 后记录窗口是否真的关了。
