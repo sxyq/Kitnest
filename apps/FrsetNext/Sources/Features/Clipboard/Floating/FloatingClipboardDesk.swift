@@ -302,9 +302,8 @@ public struct FloatingClipboardDeskView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // v201：fullSizeContentView 下内容铺到窗顶；顶部 32pt 是红绿灯带
-            // （实测 NSHostingView safeAreaInsets.top=32），背景照常铺满。
-            Color.clear.frame(height: 32)
+            // v206：红绿灯带做成独立分层（玻璃底 + 霜感 + 底部发丝线），不再是一条白条
+            WindowTitleBand()
             searchBar
             categoryBar
             Divider().opacity(0.45)

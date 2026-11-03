@@ -213,6 +213,8 @@ struct WhatsNewView: View {
         }
         .frame(width: 400, height: 500)
         .background(Color(OfficialChrome.windowBackground))
+        // v206：标题栏独立分层（红绿灯不再是一条白条）
+        .background(alignment: .top) { WindowTitleBand() }
     }
 
     private var header: some View {

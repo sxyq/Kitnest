@@ -782,7 +782,8 @@ final class CloudLinkCenterController {
         // v204：解析中心也铺统一玻璃底（此前是系统默认不透明白窗）
         window.isOpaque = false
         window.backgroundColor = .clear
-        window.titlebarAppearsTransparent = true
+        // v206：非 fullSize 窗口用系统标题栏材质（自带标题栏层），不强制透明
+        window.titlebarAppearsTransparent = false
         window.installUnifiedGlassBackground()
         window.isReleasedWhenClosed = false
         window.center()

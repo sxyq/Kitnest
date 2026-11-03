@@ -23,8 +23,8 @@ struct SettingsRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // v206：fullSizeContentView 下红绿灯会压在侧边栏第一项上——顶部留 32pt 标题带
-            Color.clear.frame(height: 32)
+            // v206：标题栏独立分层（玻璃底 + 霜感 + 分隔线），红绿灯浮在这一层上
+            WindowTitleBand()
             HStack(spacing: 0) {
             SettingsSidebarView(state: state)
             Rectangle()

@@ -76,6 +76,8 @@ struct WelcomeView: View {
         }
         .frame(width: 760, height: 620)
         .background(Color(OfficialChrome.windowBackground))
+        // v206：标题栏独立分层（红绿灯不再是一条白条）
+        .background(alignment: .top) { WindowTitleBand() }
         .onAppear { permissions.refreshAll() }
         .onReceive(NotificationCenter.default.publisher(
             for: NSApplication.didBecomeActiveNotification)) { _ in

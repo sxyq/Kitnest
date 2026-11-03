@@ -115,6 +115,7 @@ struct PermissionGuideView: View {
 
     private var backdrop: some View {
         Color(OfficialChrome.windowBackground)
+            .overlay(alignment: .top) { WindowTitleBand() }
     }
 }
 

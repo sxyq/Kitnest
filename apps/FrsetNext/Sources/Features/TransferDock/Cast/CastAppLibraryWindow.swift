@@ -105,6 +105,8 @@ private struct CastAppLibraryView: View {
             }
         }
         .frame(width: 720, height: 560)
+        // v206：标题栏独立分层（红绿灯不再是一条白条）
+        .background(alignment: .top) { WindowTitleBand() }
         .onAppear { reload() }
     }
 

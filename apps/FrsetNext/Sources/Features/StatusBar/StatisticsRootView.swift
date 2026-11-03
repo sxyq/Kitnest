@@ -53,8 +53,13 @@ struct StatisticsRootView: View {
             if appearance.isMidnight {
                 MidnightTheme.baseBackground
             } else {
-                colorScheme == .dark ? Color(white: 0.11) : Color(white: 0.87)
+                // v206：去掉不透明底色，露出统一玻璃底（通透度/磨砂跟随个性化）
+                Color.clear
             }
+        }
+        .background(alignment: .top) {
+            // v206：标题栏独立分层（红绿灯不再是一条白条）
+            if !appearance.isMidnight { WindowTitleBand() }
         }
         // 强调色跟随个性化（统计页内的按钮/焦点环）
         // 强调色 + Midnight 统一主题入口（统计窗同源；个性化改色即生效）
