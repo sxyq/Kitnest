@@ -191,6 +191,8 @@ public final class ClipboardItemEditWindowController: NSWindowController, NSWind
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        // v198：从触发点（面板编辑按钮）展开整块编辑窗
+        if let w = window { WindowReveal.playInFromMouse(on: w) }
     }
 
     // MARK: 动作

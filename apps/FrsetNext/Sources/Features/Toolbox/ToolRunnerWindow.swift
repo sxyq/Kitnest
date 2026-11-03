@@ -37,6 +37,7 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
             installContent(tool: tool, autoRun: autoRun, in: window)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            WindowReveal.playInFromMouse(on: window)
             return
         }
 
@@ -57,11 +58,16 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
         self.window = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        WindowReveal.playInFromMouse(on: window)
         Log.info("Toolbox", "工具窗已打开：\(tool.name)")
     }
 
     func close() {
-        window?.close()
+        guard let w = window, w.isVisible else { return }
+        WindowReveal.playOutToLastAnchor(on: w) { [weak w] in
+            w?.close()
+            if let w { WindowReveal.reset(w) }
+        }
     }
 
     /// 关闭时复位共享状态（工具格/搜索高亮依赖它）

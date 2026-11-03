@@ -117,6 +117,8 @@ final class CloudLinkPromptController {
         panel.setFrame(positionFrame(size: NSSize(width: width, height: height)), display: true)
         panel.orderFrontRegardless()
         self.panel = panel
+        // v198：从状态栏图标/鼠标点展开
+        WindowReveal.playInFromMouse(on: panel, scale: 0.94)
 
         let work = DispatchWorkItem { [weak self] in self?.dismiss() }
         dismissWork = work
@@ -142,9 +144,14 @@ final class CloudLinkPromptController {
     func dismiss() {
         dismissWork?.cancel()
         dismissWork = nil
-        panel?.orderOut(nil)
+        guard let p = panel else { return }
         panel = nil
         currentLink = nil
+        // v198：收回上次展开的锚点后再 orderOut（12s 自动消失同样走这里）
+        WindowReveal.playOutToLastAnchor(on: p, scale: 0.94) { [weak p] in
+            p?.orderOut(nil)
+            if let p { WindowReveal.reset(p) }
+        }
     }
 }
 

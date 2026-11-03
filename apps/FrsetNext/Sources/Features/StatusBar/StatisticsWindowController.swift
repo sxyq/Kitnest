@@ -71,6 +71,8 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         window?.orderFrontRegardless()
         // S2：打开即埋点 statistics_open
         StatisticsManager.shared.record(AnalyticsEvent.statisticsOpen)
+        // v198：从触发点（菜单/状态栏）展开整块统计窗
+        if let w = window { WindowReveal.playInFromMouse(on: w) }
         // S7b：主队列 asyncAfter 1/30s（≈0.0333s，DOM 就绪后刷新）
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 / 30.0) { [weak self] in
             self?.window?.makeKeyAndOrderFront(nil)

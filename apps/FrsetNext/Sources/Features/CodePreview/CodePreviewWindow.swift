@@ -45,6 +45,8 @@ public final class CodePreviewWindowController: NSWindowController {
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // v198：从触发点（面板按钮/拖入文件）展开整块代码预览窗
+        if let w = controller.window { WindowReveal.playInFromMouse(on: w) }
     }
 
     /// 文件打开（按扩展名锁语言；> 8MB 拒绝，避免把内存打满）
@@ -77,7 +79,11 @@ public final class CodePreviewWindowController: NSWindowController {
     }
 
     override public func close() {
-        window?.orderOut(nil)
+        guard let w = window, w.isVisible else { return }
+        WindowReveal.playOutToLastAnchor(on: w) { [weak w] in
+            w?.orderOut(nil)
+            if let w { WindowReveal.reset(w) }
+        }
     }
 
     // MARK: 窗口

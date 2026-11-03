@@ -191,6 +191,8 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public let state = FloatingClipboardPinState.shared
     public let store = FloatingClipboardStore()
     private var didRestoreVisibility = false
+    /// v198：收回动画进行中（重复 hide 不重播）
+    private var isHiding = false
 
     private init() {
         FloatingClipboardPinState.shared.migrateLayoutIfNeeded()
@@ -214,12 +216,20 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         store.refresh()
         window?.setFrame(state.clampedFrame(), display: true)
         window?.orderFrontRegardless()
+        // v198：从触发点（鼠标/工具栏按钮）展开成整块工作台
+        if let w = window { WindowReveal.playInFromMouse(on: w) }
     }
 
     public func hide() {
         Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
-        window?.orderOut(nil)
+        guard let w = window, w.isVisible else { return }
+        WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
+            w?.orderOut(nil)
+            if let w { WindowReveal.reset(w) }
+            self?.isHiding = false
+        }
+        isHiding = true
     }
 
     public func toggle() {
@@ -241,6 +251,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         store.refresh()
         window?.setFrame(frame, display: true)
         window?.orderFrontRegardless()
+        if let w = window { WindowReveal.playInFromMouse(on: w) }
     }
 
     /// App 启动时调用：恢复上次的可见状态

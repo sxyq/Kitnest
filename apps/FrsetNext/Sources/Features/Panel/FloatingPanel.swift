@@ -59,7 +59,16 @@ public final class FloatingPanel: NSPanel {
             tint: FloatingPanel.glassTint)
         glass.autoresizingMask = [.width, .height]
         LiquidGlass.embed(hosting, in: glass)
-        contentView = glass
+        // v198（用户「没一点动效」根因）：NSGlassEffectView 的层不吃 transform/opacity
+        // 的显式 CA 动画（实测 presentation 值始终是终态，动画被平台层吞掉）。
+        // 把玻璃装进一个普通 NSView 容器，窗口 contentView = 容器——
+        // WindowReveal 动的是容器层，玻璃只是子视图，整块面板就能真正缩放/淡入。
+        let container = NSView(frame: NSRect(origin: .zero, size: contentRect.size))
+        container.wantsLayer = true
+        container.autoresizingMask = [.width, .height]
+        glass.frame = container.bounds
+        container.addSubview(glass)
+        contentView = container
         Log.info("Panel", "玻璃容器: \(type(of: glass)) material=\(Personalization.shared.material.rawValue) reduceTransparency=\(LiquidGlass.reduceTransparency)")
     }
 
@@ -88,7 +97,7 @@ extension FloatingPanel {
 
     /// 「个性化 → 背景材质」即时切换（v166.5：统一走 LiquidGlass，保留 solid 语义）
     public func applyPersonalizedMaterial() {
-        guard let content = contentView else { return }
+        guard let content = contentView?.subviews.first ?? contentView else { return }
         LiquidGlass.reapplyStyle(on: content,
                                  cornerRadius: Personalization.shared.cornerRadius,
                                  tint: Self.glassTint)

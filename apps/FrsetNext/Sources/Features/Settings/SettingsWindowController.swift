@@ -77,6 +77,8 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
 
     /// 复用同一窗口实例（isReleasedWhenClosed 已关，关闭只是移出屏幕）
     private var window: SettingsWindow?
+    /// v198：收回动画进行中（防止重复 close / 重入）
+    private var isClosing = false
     /// SwiftUI 根视图的选中状态（open(pane:) 由此驱动页签跳转）
     private let uiState = SettingsUIState()
 
@@ -98,7 +100,10 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             uiState.selectPane(pane)
         }
         NSApp.activate(ignoringOtherApps: true)
+        let wasVisible = window?.isVisible == true
         window?.makeKeyAndOrderFront(nil)
+        // v198：首次打开从触发点（齿轮/快捷键/菜单）展开整块设置窗
+        if !wasVisible, let w = window { WindowReveal.playInFromMouse(on: w) }
         Log.info("settings", "open 显示完成 visible=\(window?.isVisible ?? false) frame=\(window.map { String(describing: $0.frame) } ?? "nil")")
         RenderProbe.snapshot(window, name: "settings", reason: "open")
     }
@@ -106,7 +111,13 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
     public func close() {
         Log.info("settings", "close()")
         RenderProbe.snapshot(window, name: "settings", reason: "close")
-        window?.orderOut(nil)
+        guard let w = window, w.isVisible, !isClosing else { return }
+        isClosing = true
+        WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
+            w?.orderOut(nil)
+            if let w { WindowReveal.reset(w) }
+            self?.isClosing = false
+        }
     }
 
     /// 窗口是否正在显示（状态栏菜单勾选态可用）

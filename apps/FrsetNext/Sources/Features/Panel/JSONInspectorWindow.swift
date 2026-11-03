@@ -41,6 +41,8 @@ public final class JSONInspectorWindowController: NSWindowController {
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // v198：从触发点（拖入/菜单）展开整块检视器
+        if let w = controller.window { WindowReveal.playInFromMouse(on: w) }
     }
 
     /// 用文件打开（拖入的 .json 文件）；超过 32MB 拒绝
@@ -82,10 +84,16 @@ public final class JSONInspectorWindowController: NSWindowController {
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // v198：从触发点（拖入/菜单）展开整块检视器
+        if let w = controller.window { WindowReveal.playInFromMouse(on: w) }
     }
 
     override public func close() {
-        window?.orderOut(nil)
+        guard let w = window, w.isVisible else { return }
+        WindowReveal.playOutToLastAnchor(on: w) { [weak w] in
+            w?.orderOut(nil)
+            if let w { WindowReveal.reset(w) }
+        }
     }
 
     // MARK: - 窗口（复用单实例）

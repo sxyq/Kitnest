@@ -219,30 +219,46 @@ public final class CommandPaletteController: NSObject, NSWindowDelegate {
     public static let shared = CommandPaletteController()
 
     private var panel: CommandPalettePanel?
+    /// v198：收回动画进行中（防止 toggle 重入重复 close）
+    private var isClosing = false
 
     private override init() { super.init() }
 
     public func toggle() {
         if let panel, panel.isVisible {
-            panel.close()
-            self.panel = nil
+            closeAnimated()
         } else {
             show()
         }
     }
 
+    /// v198：收回动画——缩回上次展开的鼠标点，再 close
+    private func closeAnimated() {
+        guard let p = panel, !isClosing else { return }
+        isClosing = true
+        WindowReveal.playOutToLastAnchor(on: p) { [weak self, weak p] in
+            p?.close()
+            self?.isClosing = false
+            if self?.panel === p { self?.panel = nil }
+        }
+    }
+
     public func show(slash: Bool = false) {
+        if let panel, panel.isVisible { panel.makeKeyAndOrderFront(nil); return }
         panel?.close()
         let p = CommandPalettePanel(initialQuery: slash ? "/" : "")
         panel = p
         p.centerInScreen()
         p.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // v198：从触发点（快捷键/菜单）展开整块面板
+        WindowReveal.playInFromMouse(on: p, scale: 0.94)
     }
 
     /// 命令执行前的收尾（面板已关时不做事）
     public func dismissForCommand() {
-        panel?.close()
+        guard let p = panel else { return }
+        WindowReveal.playOutToLastAnchor(on: p) { [weak p] in p?.close() }
         panel = nil
     }
 

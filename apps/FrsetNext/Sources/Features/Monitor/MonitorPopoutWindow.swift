@@ -130,7 +130,14 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         window.backgroundColor = .clear
         window.hasShadow = true
         window.isMovableByWindowBackground = true
-        window.contentView = glass
+        // v198：同 FloatingPanel——NSGlassEffectView 的平台层吞掉 CA transform/opacity
+        // 动画，外面套一个普通 NSView 容器，动画作用在容器层上。
+        let container = NSView(frame: NSRect(origin: .zero, size: glass.frame.size))
+        container.wantsLayer = true
+        container.autoresizingMask = [.width, .height]
+        glass.frame = container.bounds
+        container.addSubview(glass)
+        window.contentView = container
         // v196（用户「上面有个叉那部分需要删掉」）：不再挂自绘圆角关闭钮。
         // 收起仍走点外/失焦（TransientWindowCenter）与 ⌥M 切换，不需要 ✕。
         window.delegate = self
