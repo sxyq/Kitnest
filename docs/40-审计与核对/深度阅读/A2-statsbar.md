@@ -1,5 +1,8 @@
 # A2 — FrsetStatsBar / MemoryHelper / OCRHelper 逐行测绘
 
+> **快照说明（2026-11-03）**：OCRHelper 当前为 2 个 Swift 文件（128 行），
+> 行数为测绘时快照；STATS 引擎本体未变。
+
 范围：`Sources/FrsetStatsBar/`（14 文件：6 头 + 5 `.m` + 3 `.c`）、`Sources/MemoryHelper/`（1）、`Sources/OCRHelper/`（3），合计 **18 文件 / 10,577 行**。全部为 C / Objective-C / 独立 Swift 可执行文件，**不含 SwiftUI**。
 
 符号索引对账：`/tmp/frset_symbols.csv` 是 Swift-only 索引，本目录仅覆盖 `MemoryHelper/main.swift`（10 条声明 / 8 个 func）与 `OCRHelper`（8 条 / 6 个 func）。**FrsetStatsBar 的 14 个 C/ObjC 文件不在索引内**，本文的函数清单由逐文件 grep + 通读人工核对得出：C 函数 **58 个**、ObjC 方法 **86 个**、C 静态辅助 **31 个**，合计约 **175 个可调用符号**（含 `static`）。后文每张表都把 static 一并列出，便于对照。

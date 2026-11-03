@@ -33,7 +33,7 @@ mkdir -p "$OUT"
 BASE_FILES=""
 for d in Core Models Storage; do
   if [ -d "$SRC/$d" ]; then
-    BASE_FILES="$BASE_FILES $(find "$SRC/$d" -name '*.swift' -maxdepth 1 | sort | tr '\n' ' ')"
+    BASE_FILES="$BASE_FILES $(find "$SRC/$d" -name '*.swift' | sort | tr '\n' ' ')"
   fi
 done
 

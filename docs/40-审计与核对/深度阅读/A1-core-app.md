@@ -1,5 +1,9 @@
 # A1 — Core / App / Storage / Models 逐行测绘
 
+> **快照说明（2026-11-03）**：v198 起 Core 已拆成 `Runtime/` + `UI/` 子目录，并新增
+> `Core/Runtime/WindowReveal.swift`（窗口锚点动效）。下表路径已回填新位置，
+> 文件数/行数仍是测绘时快照（新增文件未纳入逐函数分析）。
+
 范围：`apps/FrsetNext/Sources/Core/`（18 文件）、`App/`（2）、`Storage/`（1）、`Models/`（2），共 **23 个 Swift 文件 / 4,883 行**。
 符号索引对账：`/tmp/frset_symbols.csv` 中本范围为 **303 条声明**，其中 `func`+`init` **196 条**（其余为 struct/class/enum/extension/protocol 声明本身）。本文表格覆盖 196 条可调用符号 + 关键 computed property（索引未收录 computed var，故正文额外列出，数量已在各节标注）。
 

@@ -4,21 +4,20 @@
 
 我们在**正向重建**一款 macOS 菜单栏效率工具（逆向目标：闭源应用 Frset 1.3.12）。
 技术栈（已实证）：**AppKit + SwiftUI 混用 / Combine / libsqlite3 / Swift 6.4（用 `-swift-version 5` 语法模式）**。
-全部功能规格书在 `../../specs/`。本工程源码目录：
+全部功能规格书在 `../../docs/10-规格/`。本工程源码目录：
 
 ```
 apps/FrsetNext/Sources/
-├── Core/        ✅ 已完成：Support(Log/Theme/ServiceLocator/ModuleRegistry/String.sha256/Date.relativeText/AppDirectories)
-│                             Preferences、Registry(面板区段/设置页签/状态栏项 三个注册表 + 控制协议)
+├── Core/        ✅ Runtime/（注册表/偏好/个性化/瞬态窗/日志）+ UI/（主题玻璃/窗饰/圆角/布局/Toast）
 ├── Models/      ✅ 已完成：ClipboardItem/Tag/FileTypeIcon/Tool*/LLM*/MonitorSample/Calendar*
 ├── Storage/     ✅ 已完成：SQLiteDatabase(封装) + DatabaseManager(schema 已建表，含 LLM/工具表)
-├── Features/    ⬜ 各模块（你负责其中一个目录）
+├── Features/    ⬜ 各模块（你负责其中一个模块；模块内可按职责再分子目录）
 └── App/         ✅ 已完成（FrsetNextApp + AppBootstrap 总控接线；模块代理请勿修改）
 ```
 
 ## 1. 硬性约束（违反会导致整轮返工）
 
-1. **只在你被分配的 `Features/<模块>/` 目录内创建/修改文件**。不要动 `Core/`、`Models/`、`Storage/`、其他 `Features/*`、根目录文档、`App/`。
+1. **只在你被分配的 `Features/<模块>/` 目录（含其子目录）内创建/修改文件**。不要动 `Core/`、`Models/`、`Storage/`、其他 `Features/*`、根目录文档、`App/`。
 2. **不要执行任何 git 命令**（总控统一提交）。
 3. **禁止模块间直接引用彼此的具体类型**（如 Clipboard 不要 `import` 或调用 Monitor 的类）。跨模块一律走 §3 的注册表 / ServiceLocator。这是并行可独立编译的前提。
 4. **不要创建 `App/` 目录、不要写 `@main`**（唯一入口由总控最后写）。
@@ -88,7 +87,7 @@ ServiceLocator.settings?.open(pane: "monitor")
 cd /Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/Sources
 SDK=$(xcrun --show-sdk-path)
 swiftc -typecheck -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
-  Core/*.swift Models/*.swift Storage/*.swift Features/<你的模块>/*.swift
+  Core/**/*.swift Models/*.swift Storage/*.swift Features/<你的模块>/**/*.swift
 ```
 
 要求：**0 错误**（警告可留）。若确需新系统框架，确认它在 macOS SDK 中存在（如 `ScreenCaptureKit`、`Vision`、`EventKit`、`CoreGraphics`、`IOKit`、`Combine`、`AppKit`、`SwiftUI`）。
@@ -549,7 +548,7 @@ per-module FAIL 有两种完全不同的成因，**必须先判别再动手**：
 **判别一步法**（本轮由执行代理提供，有效）：
 ```
 # 把疑似提供方文件手动加进该模块的编译子集
-swiftc -typecheck … Sources/Core/*.swift … Sources/Features/<模块>/*.swift Sources/Features/<提供方模块>/<提供文件>.swift
+swiftc -typecheck … Sources/Core/**/*.swift … Sources/Features/<模块>/**/*.swift Sources/Features/<提供方模块>/**/<提供文件>.swift
 ```
 0 error → 该模块确实在消费外部符号（无论合规与否，都不是"编译缺陷"）；
 仍报错 → 才是该模块自身的代码问题。
