@@ -57,8 +57,12 @@ public final class FloatingClipboardPinState: ObservableObject {
     }
 
     /// 钉住：始终置顶显示（不随主面板关闭而隐藏）
+    ///
+    /// v205（用户：「它当前剪贴板覆盖在所有窗口之前，这个不行——它跟正常的窗口一样，
+    /// 点击其他窗口就会放到下面」）：默认改为**不钉住**，窗口层级 = .normal；
+    /// 需要常驻置顶时点 📌（置顶语义保留）。
     public var isPinned: Bool {
-        get { preferences.value(Preferences.Keys.floatingPinned, default: true) }
+        get { preferences.value(Preferences.Keys.floatingPinned, default: false) }
         set { preferences.set(Preferences.Keys.floatingPinned, newValue) }
     }
 
@@ -94,7 +98,8 @@ public final class FloatingClipboardPinState: ObservableObject {
 
 // MARK: - 浮动面板（05 号规格 1.4：FloatingClipboardPanel）
 
-/// 独立 NSPanel：默认 240×290，置顶在所有空间之上，背景可拖动
+/// 独立 NSPanel：默认 680×520，**普通窗口层级**（点其他窗口就沉下去）；
+/// 点 📌 钉住后才置顶。
 public final class FloatingClipboardPanel: NSPanel {
 
     public init(contentRect: NSRect) {
@@ -108,9 +113,14 @@ public final class FloatingClipboardPanel: NSPanel {
                    backing: .buffered,
                    defer: false)
         title = "悬浮剪贴板"
-        isFloatingPanel = true
-        level = .floating
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .participatesInCycle]
+        // v205：默认按普通窗口参与层级竞争；只有钉住（📌）时才浮到最前。
+        // isFloatingPanel 是只读属性（不能运行时改），层级统一由 level 显式表达。
+        let pinned = FloatingClipboardPinState.shared.isPinned
+        isFloatingPanel = false
+        level = pinned ? .floating : .normal
+        collectionBehavior = pinned
+            ? [.canJoinAllSpaces, .fullScreenAuxiliary, .participatesInCycle]
+            : [.managed, .participatesInCycle]
         // fullSizeContentView 下 hosting 盖住标题栏，窗口拖动改由「空白背景拖动」承担
         // （卡片/搜索框有自己的手势，不会误拖整个窗口）
         isMovableByWindowBackground = true
@@ -179,6 +189,8 @@ public final class FloatingClipboardStore: ObservableObject {
     public func setPinned(_ pinned: Bool) {
         isPinned = pinned
         FloatingClipboardPinState.shared.isPinned = pinned
+        // v205：📌 开关即时改变窗口层级（未钉住 = 普通窗口，点别的窗口就沉下去）
+        FloatingClipboardWindowController.shared.applyPinLevel()
     }
 }
 
@@ -256,6 +268,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         // 重复 setFrame 会在首帧 placement 里同步重排 hosting（崩溃诱因）。
         let target = state.clampedFrame()
         if window?.frame != target { window?.setFrame(target, display: true) }
+        applyPinLevel()
         window?.orderFrontRegardless()
         // v198：从触发点（鼠标/工具栏按钮）展开成整块工作台
         if let w = window { WindowReveal.playInFromMouse(on: w) }
@@ -285,6 +298,19 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         }
     }
 
+    /// v205：按钉住状态调整窗口层级。
+    /// 未钉住 = .normal（与普通窗口同一层级，点其他窗口就沉下去）；
+    /// 钉住 = .floating（始终置顶、跨所有空间）。
+    func applyPinLevel() {
+        guard let panel = window else { return }
+        let pinned = state.isPinned
+        panel.level = pinned ? .floating : .normal
+        panel.collectionBehavior = pinned
+            ? [.canJoinAllSpaces, .fullScreenAuxiliary, .participatesInCycle]
+            : [.managed, .participatesInCycle]
+        Log.info("Clipboard", "悬浮工作台层级：pinned=\(pinned) level=\(panel.level.rawValue)（0=普通窗口，3=置顶）")
+    }
+
     /// 双击修饰键呼出（原版 AppKitDoubleTapMonitor 语义）：把窗口挪到鼠标附近再显示。
     public func showNearMouse() {
         revealGeneration += 1
@@ -295,6 +321,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         store.setVisible(true)
         store.refresh()
         window?.setFrame(frame, display: true)
+        applyPinLevel()
         window?.orderFrontRegardless()
         if let w = window { WindowReveal.playInFromMouse(on: w) }
     }
