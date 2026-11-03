@@ -98,11 +98,13 @@ public final class FloatingClipboardPinState: ObservableObject {
 public final class FloatingClipboardPanel: NSPanel {
 
     public init(contentRect: NSRect) {
-        // v200（用户：要传统 Mac 窗口、可拖动、红绿灯在左上）：
-        // 从 borderless 浮层改成标准 titled 窗口——原生标题栏可拖动，
-        // 红/黄/绿三颗按钮由系统提供；关闭走 windowWillClose → 只 orderOut 不销毁。
+        // v201（用户：「只有红绿灯悬在那，没有一条横向界面和下面连在一起」）：
+        // 标准标题栏与内容之间出现了断层。改为 fullSizeContentView + 透明标题栏：
+        // 内容铺满整窗（含标题栏区域），同一块玻璃底从红绿灯一直连到底部；
+        // SwiftUI 根视图顶部留 28pt 给红绿灯，标题文字隐藏。
         super.init(contentRect: contentRect,
-                   styleMask: [.titled, .closable, .miniaturizable, .resizable, .nonactivatingPanel],
+                   styleMask: [.titled, .closable, .miniaturizable, .resizable,
+                               .fullSizeContentView, .nonactivatingPanel],
                    backing: .buffered,
                    defer: false)
         title = "悬浮剪贴板"
@@ -112,10 +114,10 @@ public final class FloatingClipboardPanel: NSPanel {
         isMovableByWindowBackground = false      // 只允许拖标题栏，避免拖卡片时误移窗口
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
-        titleVisibility = .visible
-        titlebarAppearsTransparent = false
-        isOpaque = true
-        backgroundColor = .windowBackgroundColor
+        titleVisibility = .hidden
+        titlebarAppearsTransparent = true
+        isOpaque = false
+        backgroundColor = .clear
         hasShadow = true
         minSize = NSSize(width: 520, height: 380)
     }

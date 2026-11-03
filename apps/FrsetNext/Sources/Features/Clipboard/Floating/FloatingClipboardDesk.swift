@@ -298,6 +298,9 @@ public struct FloatingClipboardDeskView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            // v201：fullSizeContentView 下内容铺到窗顶；顶部 28pt 是红绿灯带，
+            // 背景照常铺满（同一块玻璃从红绿灯连到底部），内容从带子下方开始。
+            Color.clear.frame(height: 28)
             searchBar
             categoryBar
             Divider().opacity(0.45)
