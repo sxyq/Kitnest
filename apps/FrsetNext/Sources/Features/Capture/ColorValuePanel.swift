@@ -173,6 +173,8 @@ final class ColorValuePanelController: NSObject, NSWindowDelegate {
         self.panel = panel
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // v198：从取色点展开
+        WindowReveal.playInFromMouse(on: panel, scale: 0.94)
 
         // 点击面板外部即关闭（global 需辅助功能授权，未授权时静默失效）
         outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -183,8 +185,13 @@ final class ColorValuePanelController: NSObject, NSWindowDelegate {
     func close() {
         if let monitor = outsideMonitor { NSEvent.removeMonitor(monitor) }
         outsideMonitor = nil
-        panel?.orderOut(nil)
+        guard let p = panel else { return }
         panel = nil
+        // v198：缩回取色点再 orderOut
+        WindowReveal.playOutToLastAnchor(on: p, scale: 0.94) { [weak p] in
+            p?.orderOut(nil)
+            if let p { WindowReveal.reset(p) }
+        }
     }
 }
 

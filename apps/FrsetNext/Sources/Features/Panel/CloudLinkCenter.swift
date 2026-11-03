@@ -782,6 +782,8 @@ final class CloudLinkCenterController {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        // v198：从触发点（链接提示窗/面板）展开整块解析中心
+        WindowReveal.playInFromMouse(on: window)
         self.window = window
         Log.info("CloudLink", "解析中心已打开：\(link.provider.rawValue) \(link.url.absoluteString)")
     }
