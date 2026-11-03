@@ -203,7 +203,9 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         // 主题统一入口：强调色（个性化）+ Midnight 注入（注入器与 EnvironmentKey 在共享层）
         let root = FloatingClipboardDeskView()
             .frsetThemeChrome()
-            .ignoresSafeArea()   // v202：强制内容铺到标题栏区域（否则顶部仍留一条透明带）
+            // v202：精确忽略容器顶部安全区（标题栏 32pt）。实测 host 虽铺满全窗，
+            // 但 safeAreaInsets.top=32 仍会让 SwiftUI 内容整体下移 → 红绿灯悬空。
+            .ignoresSafeArea(.container, edges: .top)
         // v201 修正（用户截图：红绿灯仍与白色内容分离、悬在透明区域上方）：
         // fullSizeContentView 下 NSHostingView 默认会把标题栏算进 safe area，
         // 内容（连同背景）整体下移 28pt，顶部只剩透明窗 + 红绿灯。
@@ -228,6 +230,12 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             host.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
         panel.contentView = container
+        if UserDefaults.standard.bool(forKey: "probe.floatLayout") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                Log.info("Clipboard", "悬浮窗布局：window=\(panel.frame.size) content=\(panel.contentView?.frame.size ?? .zero) "
+                         + "host=\(host.frame.size) safeTop=\(host.safeAreaInsets.top) layoutRect=\(panel.contentLayoutRect.size)")
+            }
+        }
         // 粘完即走：面板立刻收起，焦点回到原来的 App
         FloatingClipDeskStore.shared.onPaste = { [weak self] in self?.hide() }
         installKeyMonitor()
