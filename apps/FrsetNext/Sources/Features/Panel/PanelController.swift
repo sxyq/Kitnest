@@ -1,11 +1,15 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
-/// 面板可见性状态（供 SwiftUI 根视图做缩放淡入动画）
+/// 面板可见性状态（供根视图做缩放淡入动画）
 public final class PanelPresentationState: ObservableObject {
     @Published public var visible = false
     /// 本次是否锚点（菜单栏图标）展开——根视图据此显示顶部三角指示器
     @Published public var anchored = false
+    /// v197：展开 / 收回的锚点（面板内归一化坐标，0,0 = 左上）。
+    /// 由 PanelController 按菜单栏图标的横坐标算出，窗口层动画据此「从图标长出来 / 收回图标」。
+    @Published public var originUnit: CGPoint = CGPoint(x: 0.5, y: 0)
     public init() {}
 }
 
@@ -193,17 +197,21 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let t0 = ProcessInfo.processInfo.systemUptime
         let wasVisible = p.isVisible
         p.setFrameOrigin(origin)
-        // v194（用户「打开和收起的动画十分卡顿」）：入场动画的时钟要等布局跑完再起。
+        // v194/v197：入场动画等布局跑完再起，并且挪到**窗口内容层**（整块面板，
+        // 含玻璃底）。旧实现只对 SwiftUI 内容做 scaleEffect，玻璃窗口始终原尺寸铺在
+        // 屏上，看上去只是「内容缩放」，不是用户要的「从一个点扩散成一个面」。
         //
-        // 旧顺序：presentation.visible = true → makeKeyAndOrderFront。首开没有预热
-        // （v173 因启动崩溃关闭），整棵视图树在 makeKey 里同步布局，弹簧时钟却已经
-        // 开跑——等窗口真正上屏时动画已过半，观感是「顿一下、然后突然出现」。
-        // 新顺序：先以 visible=true 让 SwiftUI 真正布局一次（visible=false 时
-        // SwiftUI 会跳过布局，等于没热），布局完成后把入场态复位，下一帧再启动弹簧，
-        // 此时窗口 alpha 仍为 0，用户看不到复位的那一帧。
+        // 顺序：① 先把内容层缩到菜单栏图标处并透明 → ② makeKey 在不可见状态完成首次
+        // 布局（v173 关闭预热后首开仍要 ~100ms）→ ③ 布局结束后从锚点展开。
+        let anchorUnit = revealUnit(anchor: anchorRect, windowOrigin: origin, size: p.frame.size)
+        presentation.originUnit = anchorUnit
         if !wasVisible {
-            presentation.visible = true            // 触发真布局（窗口还不可见）
-            p.alphaValue = 0
+            presentation.visible = true            // 内容态（动画由窗口层负责）
+            p.contentView?.layer?.removeAllAnimations()
+            p.contentView?.layer?.transform = WindowReveal.transform(
+                scale: 0.90, around: anchorUnit, in: p.frame.size)
+            p.contentView?.layer?.opacity = 0
+            p.alphaValue = 1                       // 整窗 alpha 动画会逐帧重采样玻璃，弃用
         }
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
@@ -233,36 +241,32 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y)) 布局=\(Int(layoutMs))ms")
         RenderProbe.snapshot(p, name: "panel", reason: "show")
         guard !wasVisible else {
-            // 面板已在屏上（含「收起动画没跑完又被重新打开」）：把内容与窗口
-            // 透明度都拉回可见态，别让上一轮的淡出继续把它藏掉。
+            // 面板已在屏上（含「收起动画没跑完又被重新打开」）：取消在途的收回动画，
+            // 把内容层拉回可见态，别让上一轮淡出继续把它藏掉。
+            p.contentView?.layer?.removeAllAnimations()
+            p.contentView?.layer?.transform = CATransform3DIdentity
+            p.contentView?.layer?.opacity = 1
             MonitorSampler.shared.setHomePanelActive(true)
             presentation.visible = true
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = Personalization.shared.openAnimation.fadeDuration
-                ctx.timingFunction = Theme.Motion.caEaseOut
-                p.animator().alphaValue = 1
-            }
             return
         }
-        // 布局已完成：把入场态复位到起点（此时窗口 alpha 仍为 0，这一帧不可见），
-        // 下一轮 runloop 再置 visible=true 并同步淡入窗口——
-        // 窗口透明度与内容过渡从此同一时钟、同一曲线（v194/v195）。
-        presentation.visible = false
-        DispatchQueue.main.async { [weak self, weak p] in
-            guard let self, let p, p.isVisible, p.alphaValue == 0 else { return }
-            self.presentation.visible = true
-            let duration = Personalization.shared.openAnimation.duration
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = duration
-                ctx.timingFunction = Theme.Motion.caEaseOut  // 与 SwiftUI timingCurve 同一条 (0.22,0,0,1)
-                p.animator().alphaValue = 1
-            }
-            // 采样放到过渡结束之后：动画期间只做合成，不夹带 SwiftUI 重排
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.02) { [weak self] in
-                guard let self, self.panel?.isVisible == true else { return }
-                MonitorSampler.shared.setHomePanelActive(true)
-            }
+        // 布局已完成：从菜单栏图标位置展开整块面板（只动 transform/opacity，GPU 合成）
+        let duration = Personalization.shared.openAnimation.duration
+        WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration)
+        // 采样放到过渡结束之后：动画期间只做合成，不夹带 SwiftUI 重排
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.02) { [weak self] in
+            guard let self, self.panel?.isVisible == true else { return }
+            MonitorSampler.shared.setHomePanelActive(true)
         }
+    }
+
+    /// 入场/退场锚点：菜单栏图标在面板内的归一化位置。
+    /// x 由图标中心决定（面板横向钳制到屏幕内后仍然对准图标）；y = 0 = 顶边。
+    /// 无锚点路径（快捷键/深链）落在右上角，等价于「从状态栏右侧展开」。
+    private func revealUnit(anchor: NSRect?, windowOrigin: NSPoint, size: NSSize) -> CGPoint {
+        guard let anchor, anchor.width > 0, size.width > 0 else { return CGPoint(x: 1, y: 0) }
+        let u = (anchor.midX - windowOrigin.x) / size.width
+        return CGPoint(x: min(max(u, 0), 1), y: 0)
     }
 
     /// v30：按锚点打开主面板（STATS 部件点击 → 打开主面板直达监测页，
@@ -294,23 +298,31 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
     }
 
-    /// hide() 第二段：预览已关闭，执行面板淡出
-    /// v194（用户「打开和收起的动画十分卡顿」）：淡出时长与内容弹簧同为
-    /// fadeDuration（= 弹簧 response）。旧值 0.12s 会在内容还没缩完时就把窗口
-    /// orderOut，弹簧被腰斩，收起看着像「闪一下」。
+    /// hide() 第二段：预览已关闭，执行面板收回
+    /// v197（用户「用面板收回这个点，从哪来回哪去」）：整块内容层（玻璃+内容）
+    /// 缩回本次展开的锚点（菜单栏图标）并淡出，再 orderOut。
+    /// 只动 transform/opacity，时长 = 内容过渡时长（与 WindowReveal 同一曲线系）。
+    /// 完成回调 + 兜底计时器都走 `finish`，避免像监测窗历史 bug 那样
+    /// 「CATransaction completion 不执行 → 窗口永远留在屏上」。
+    private var hideGeneration = 0
+
     private func performHide(_ p: NSWindow) {
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = Personalization.shared.openAnimation.fadeDuration
-            ctx.timingFunction = Theme.Motion.caEaseOut
-            p.animator().alphaValue = 0
-        }, completionHandler: { [weak self, weak p] in
-            // v194：淡出途中被重新打开（presentation.visible 已回 true）时
-            // 不能 orderOut，否则面板会「明明刚打开却又消失」。
-            guard let self, let p, !self.presentation.visible else { return }
+        hideGeneration += 1
+        let token = hideGeneration
+        let duration = Personalization.shared.openAnimation.duration
+        let finish: () -> Void = { [weak self, weak p] in
+            guard let self, let p, p.isVisible else { return }
+            guard token == self.hideGeneration, !self.presentation.visible else { return }
+            p.contentView?.layer?.removeAllAnimations()
+            p.contentView?.layer?.transform = CATransform3DIdentity
+            p.contentView?.layer?.opacity = 1
             p.orderOut(nil)
-            p.alphaValue = 1
             MonitorSampler.shared.setHomePanelActive(false)
-        })
+        }
+        WindowReveal.playOut(on: p, to: presentation.originUnit, scale: 0.90,
+                             duration: duration, completion: finish)
+        // 兜底：动画回调被系统跳过（窗口被遮挡/重复收起）时也一定收尾
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.08, execute: finish)
     }
 
     /// 全局唤起预留接口：具体热键注册由 ShortcutManager/状态栏模块接线，

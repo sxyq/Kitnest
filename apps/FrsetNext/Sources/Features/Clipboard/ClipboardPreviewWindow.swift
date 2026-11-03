@@ -30,6 +30,12 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     /// 窗口已关闭上报（协调器 handleWindowDidClose 统一清理）
     var onWindowClosed: (() -> Void)?
 
+    /// v197：入场/退场锚点（预览窗内归一化坐标，0,0 = 左上）。
+    /// = 主面板里那一行在预览窗内的投影位置：预览在面板左侧时取右边缘，右侧时取左边缘。
+    private var revealUnit = CGPoint(x: 0.5, y: 0.5)
+    /// 收回动画进行中（防止 closeSlot 重入时重复 close）
+    private var isClosing = false
+
     public init(item: ClipboardItem, mode: Mode, showsHint: Bool = false) {
         self.item = item
         self.mode = mode
@@ -159,6 +165,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         if !sameItem { installContent() }
         place(anchorRectInScreen: anchorRectInScreen,
               panelFrame: panelFrame, visibleFrame: visibleFrame)
+        isClosing = false
         switch mode {
         case .hover:
             // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
@@ -166,6 +173,17 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         case .persistent:
             window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+        }
+        // v197：只有换条目时播入场（同条目反复 hover 不重播，避免跟随鼠标一路「呼吸」）
+        if let w = window {
+            w.contentView?.layer?.removeAllAnimations()
+            if sameItem {
+                w.contentView?.layer?.transform = CATransform3DIdentity
+                w.contentView?.layer?.opacity = 1
+            } else {
+                WindowReveal.playIn(on: w, from: revealUnit, scale: 0.94,
+                                    duration: Personalization.shared.openAnimation.duration)
+            }
         }
     }
 
@@ -193,6 +211,32 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         origin.x = min(max(origin.x, visibleFrame.minX + 8), visibleFrame.maxX - size.width - 8)
         origin.y = min(max(origin.y, visibleFrame.minY + 8), visibleFrame.maxY - size.height - 8)
         window.setFrameOrigin(origin)
+        // v197：锚点 = 主面板那一行投影到预览窗的邻边。
+        // 预览在面板左侧 → 锚点取预览窗右边缘（x=1）；在右侧 → 取左边缘（x=0）。
+        if panelFrame != .zero, size.height > 0 {
+            let edgeX: CGFloat = origin.x >= panelFrame.maxX ? 0 : 1
+            let uy = 1 - (anchorRectInScreen.midY - origin.y) / size.height   // 屏幕 y 向上 → 锚点 y 向下
+            revealUnit = CGPoint(x: edgeX, y: min(max(uy, 0), 1))
+        } else {
+            revealUnit = CGPoint(x: 0.5, y: 0.5)
+        }
+    }
+
+    /// v197：收回动画——缩回锚点再真正 close()。
+    /// 协调器 closeSlot 统一走这里，保证预览也是「从哪来、回哪去」；
+    /// 动画回调 + 兜底计时器都会 close()，close 本身幂等。
+    func closeAnimated() {
+        guard !isClosing else { return }
+        guard let w = window, w.isVisible else { window?.close(); return }
+        isClosing = true
+        let duration = Personalization.shared.openAnimation.duration
+        let finish: () -> Void = { [weak w] in
+            guard let w, w.isVisible else { return }
+            w.close()
+        }
+        WindowReveal.playOut(on: w, to: revealUnit, scale: 0.94,
+                             duration: duration, completion: finish)
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.08, execute: finish)
     }
 
     // MARK: NSWindowDelegate
@@ -215,6 +259,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     }
 
     public func windowWillClose(_ notification: Notification) {
+        isClosing = false
         onWindowClosed?()
     }
 }
@@ -248,8 +293,6 @@ struct ClipboardPreviewWindowView: View {
     @Stored private var closeHover = false
     /// 「按代码看」：把 Markdown / JSON / 纯文本强制切到代码视图（代码预览对所有文本可达）
     @Stored private var forceCode = false
-    /// v106：液态玻璃入场态（easeOut 0.18s）
-    @Stored private var glassAppeared = false
 
     init(item: ClipboardItem, showsHint: Bool = false, hoverStyle: Bool = false,
          onEditingChanged: ((Bool) -> Void)? = nil) {
@@ -280,12 +323,8 @@ struct ClipboardPreviewWindowView: View {
         // v121：内容顶部对齐（原来默认垂直居中，文件态内容少时上下各留一大片空白）
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .modifier(HoverClipModifier(active: hoverStyle))
-        // v106 入场动效（GSAP 原则：ease-out 进场、0.96 缩放、0.18s、可中断；
-        // 高频 hover 复现同条目时不重播——只在内容安装时播一次）
-        .opacity(glassAppeared ? 1 : 0)
-        .scaleEffect(glassAppeared ? 1 : 0.96, anchor: .center)
-        .animation(Theme.Motion.fast, value: glassAppeared)
-        .onAppear { glassAppeared = true }
+        // v197（用户「剪贴板预览也一样，从一个点扩散成一个面」）：开合动画挪到
+        // 窗口内容层（WindowReveal），从这里删掉 SwiftUI 的缩放/淡入，避免双重动效。
         .onExitCommand {
             // Esc 关闭（hover / persistent 两模式同效）
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .escape)

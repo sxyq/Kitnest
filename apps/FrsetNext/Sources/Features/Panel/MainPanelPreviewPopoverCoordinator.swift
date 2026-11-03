@@ -511,7 +511,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         // 用户观感即「点叉号无法关闭」。
         // 统一 close()：两种模式都可靠（isReleasedWhenClosed=false，controller 不销毁），
         // windowWillClose → onWindowClosed → handlePreviewWindowDidClose 清理链不变。
-        slot.windowController.window?.close()
+        // v197：改走控制器收回动画（缩回主面板那一行），再真正 close()。
+        slot.windowController.closeAnimated()
     }
 
     /// 预览窗已关闭（ClipboardPreviewWindowController.onWindowClosed 转入）

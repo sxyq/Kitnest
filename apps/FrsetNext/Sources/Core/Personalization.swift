@@ -56,16 +56,12 @@ public enum PersonalizationOpenAnimation: String, CaseIterable, Identifiable {
         case .soft: return "柔和"
         }
     }
-    /// 面板内容过渡曲线（visible 进出场）。
+    /// 面板 / 预览窗 / 监测窗开合动画时长（v197 起统一由 Core/WindowReveal 消费）。
     ///
-    /// v195（用户「过度动效不自然，帧率不够完整，动画不够完整」，按 GSAP 性能口径改）：
-    /// · 只动 transform + opacity（`scaleEffect`/`offset`/`opacity`），全程不触发布局；
-    /// · 不再用弹簧：弹簧的实际收敛时间约是 response 的 1.6–2 倍（0.24s 参数要 ~0.4s
-    ///   才停），而窗口淡出只能按固定时长结束，收起必然被 orderOut 截断——这正是
-    ///   「动画不够完整」。改成显式时长的 cubic-bezier(0.22,0,0,1)（= AppKit 侧
-    ///   Theme.Motion.caEaseOut），内容与窗口透明度同一时钟、同一曲线、同一终点；
-    /// · 时长取 power2.out 档位，帧数比弹簧少一半（玻璃窗 alpha 逐帧重采样的开销
-    ///   也就少一半）。
+    /// v195（GSAP 性能口径）：只动 transform + opacity；不用弹簧——弹簧实际收敛时间
+    /// 约为 response 的 1.6–2 倍，窗口收尾按固定时长结束必然把动画截断。
+    /// v197：动画挪到窗口内容层（整块玻璃+内容从一个锚点展开/缩回），
+    /// 曲线统一为 Theme.Motion.caEaseOut / caEaseIn，这里只留时长档位。
     public var duration: TimeInterval {
         switch self {
         case .snappy: return 0.18
@@ -73,19 +69,6 @@ public enum PersonalizationOpenAnimation: String, CaseIterable, Identifiable {
         case .soft: return 0.28
         }
     }
-
-    /// 与 `Theme.Motion.caEaseOut` 完全同一条曲线（0.22, 0, 0, 1）
-    public var curve: Animation {
-        .timingCurve(0.22, 0, 0, 1, duration: duration)
-    }
-
-    /// 窗口淡入/淡出时长 = 内容过渡时长。
-    ///
-    /// v194（用户「打开和收起的动画十分卡顿」）：v58 只把弹簧和淡入分别调短，
-    /// 两套时钟仍然并存——窗口 0.14s 已完全显示/收完，内容弹簧 0.24s 才走到一半，
-    /// 观感就是「先顿一下再弹」。v195 起窗口与内容统一用 `duration`，
-    /// AppKit 侧不要再写字面量时长。
-    public var fadeDuration: TimeInterval { duration }
 }
 
 public enum PersonalizationMaterial: String, CaseIterable, Identifiable {

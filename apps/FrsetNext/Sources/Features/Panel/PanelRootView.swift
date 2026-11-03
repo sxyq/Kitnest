@@ -126,15 +126,11 @@ struct PanelRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .clipboardSelectionChanged)) { note in
             selectedClipboardItem = note.object as? ClipboardItem
         }
-        // 弹出/收起：缩放 + 轻微上移 + 淡入（锚点贴菜单栏，像从图标「长出来」）。
-        // v195（按 GSAP 性能口径）：只动 transform/opacity，不触发布局；
-        // 弹簧换成显式时长曲线（与窗口 alpha 同钟同curve），收起不会再被 orderOut 截断。
-        // 幅度也从 0.93/-10 收到 0.96/-6：7% 缩放 + 10pt 上移在 0.2s 里显得「过冲」，
-        // 与 macOS 菜单栏面板的原生观感不一致（用户「过度动效不自然」）。
-        .scaleEffect(presentation.visible ? 1 : 0.96, anchor: .top)
-        .offset(y: presentation.visible ? 0 : -6)
-        .opacity(presentation.visible ? 1 : 0)
-        .animation(personalization.openAnimation.curve, value: presentation.visible)
+        // v197（用户「从一个点扩散成一个面，从哪来回哪去」）：开合动画整体挪到
+        // 窗口内容层（Core/WindowReveal）——只有窗口层的 transform 才能连玻璃一起
+        // 从菜单栏图标处展开/收回；SwiftUI 侧不再叠 scale/offset/opacity，
+        // 否则窗口层缩放 + 内容再缩放 = 双重动效（历史 v73 的「比例怪」同源）。
+
         // 切页：关预览——主页 hover 打开的预览不能跟到中转站页
         // （与 ClipboardTableView 的 tracking 禁用双保险）
         .onChange(of: page) { newPage in

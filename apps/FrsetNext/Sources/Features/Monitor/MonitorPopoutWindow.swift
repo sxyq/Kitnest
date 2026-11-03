@@ -72,6 +72,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     /// 无指定模块时的回退（记忆上次查看的模块）
     private var lastModule: MonitorModuleID = .cpu
+    /// v197：最近一次展开的锚点（状态栏部件）。收回时按同一锚点缩回——从哪来回哪去。
+    private var lastAnchor: NSRect?
     /// 滚动复位信号（每次打开回到顶部）
     private let scrollState = PopoutScrollState()
 
@@ -220,14 +222,13 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         w.contentView?.layer?.opacity = 1
         w.setFrameOrigin(origin(for: w.frame.size, anchor: anchor))
         w.alphaValue = 1
-        // v71：layer 级入场动画（GPU 合成）——从锚点方向「长出来」
-        playAppearAnimation(anchor: anchor)
-        // v74（2026-10-19 用户反馈「点其他位置无法收起」）：
-        // LSUIElement 未前台时窗口可能成不了 key → resignKey 永不触发；
-        // 且本 app 辅助功能未授权，全局监视器可能收不到事件。
-        // 现在四路冗余：① 激活+key ② 全局监视器 ③ 本 app 内监视器 ④ 按键轮询兜底
+        lastAnchor = anchor
+        // v74 四路冗余：① 激活+key ② 全局监视器 ③ 本 app 内监视器 ④ 按键轮询兜底
+        // （LSUIElement 未前台时窗口可能成不了 key → resignKey 永不触发）
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
+        // v197：入场动画挪到 makeKey 之后——先上屏再展开，避免动画时钟在布局期间跑掉
+        playAppearAnimation(anchor: anchor)
         // 点外收起：统一注册到 TransientWindowCenter（全工程唯一实现）
         TransientWindowCenter.shared.register(
             window: w,
@@ -290,27 +291,20 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     // MARK: 动画（v71：contentView.layer CA 动画，GPU 合成不卡顿）
 
-    /// 入场：从锚点横向偏移 + scale 0.93→1 + 上移 12 + 淡入（timing 类弹簧 0.28s）
+    /// 入场：以状态栏部件为锚点，整块内容层缩放展开（WindowReveal，只动 transform/opacity）
     private func playAppearAnimation(anchor: NSRect?) {
-        guard let layer = window?.contentView?.layer else { return }
-        layer.removeAllAnimations()
-        let dx = anchorDx(anchor: anchor)
-        let start = CATransform3DConcat(
-            CATransform3DMakeScale(0.93, 0.93, 1),
-            CATransform3DMakeTranslation(dx, -12, 0)
-        )
-        layer.transform = start
-        layer.opacity = 0
-        CATransaction.begin()
-        CATransaction.setAnimationDuration(0.28)
-        CATransaction.setAnimationTimingFunction(Theme.Motion.caBackOut)
-        CATransaction.setCompletionBlock { [weak self] in
-            self?.window?.contentView?.layer?.transform = CATransform3DIdentity
-            self?.window?.contentView?.layer?.opacity = 1
+        guard let w = window else { return }
+        WindowReveal.playIn(on: w, from: anchorUnit(anchor), scale: 0.90,
+                            duration: 0.28, timing: Theme.Motion.caBackOut)
+    }
+
+    /// 状态栏部件在窗口内的归一化锚点（x = 部件中心，y = 0 顶边）
+    private func anchorUnit(_ anchor: NSRect?) -> CGPoint {
+        guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else {
+            return CGPoint(x: 1, y: 0)
         }
-        layer.transform = CATransform3DIdentity
-        layer.opacity = 1
-        CATransaction.commit()
+        let u = (anchor.midX - w.frame.minX) / w.frame.width
+        return CGPoint(x: min(max(u, 0), 1), y: 0)
     }
 
     /// 退场：缩小 + 上移 + 淡出，**200ms 硬兜底强制 orderOut**。
@@ -330,19 +324,10 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         let token = appearToken
         Log.info("Monitor", "监测独立窗口：dismiss")
         RenderProbe.snapshot(w, name: "monitorPopout", reason: "dismiss")
-        if let layer = w.contentView?.layer {
-            layer.removeAllAnimations()
-            CATransaction.begin()
-            CATransaction.setAnimationDuration(Theme.Motion.dFast)
-            CATransaction.setAnimationTimingFunction(Theme.Motion.caEaseIn)
-            layer.transform = CATransform3DConcat(
-                CATransform3DMakeScale(0.96, 0.96, 1),
-                CATransform3DMakeTranslation(0, -8, 0))
-            layer.opacity = 0
-            CATransaction.setCompletionBlock { [weak self] in
-                self?.finishDismiss(token: token)
-            }
-            CATransaction.commit()
+        // v197：整块内容层缩回状态栏部件位置（WindowReveal，只动 transform/opacity）
+        WindowReveal.playOut(on: w, to: anchorUnit(lastAnchor), scale: 0.96,
+                             duration: Theme.Motion.dFast, timing: Theme.Motion.caEaseIn) { [weak self] in
+            self?.finishDismiss(token: token)
         }
         // 硬兜底：无论动画回调是否执行，0.2s 后一定收尾（幂等）
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
@@ -369,13 +354,6 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         MonitorSampler.shared.setPanelActive(false)
         Log.info("Monitor", "监测独立窗口：已收起")
         RenderProbe.snapshot(w, name: "monitorPopout", reason: "dismissDone")
-    }
-
-    /// 入场起点横移：从锚点相对窗口中心的水平距离反向补偿（视觉上从部件图标处展开）
-    private func anchorDx(anchor: NSRect?) -> CGFloat {        guard let w = window, let anchor, anchor.width > 0, w.frame.width > 0 else { return 0 }
-        let anchorCenterX = anchor.midX - w.frame.minX
-        let ratio = max(0, min(1, anchorCenterX / w.frame.width))
-        return (0.5 - ratio) * w.frame.width
     }
 
     // MARK: 定位
