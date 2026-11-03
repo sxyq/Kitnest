@@ -177,6 +177,13 @@ struct PanelRootView: View {
                     }
                 }
             } else if let base = midnightBaseBackground { base }
+            else {
+                // v203（用户：「通透度/磨砂改了无效」）：主面板原本只有窗口里那层
+                // NSVisualEffectView，两个滑块完全读不到。这里叠统一结构面的
+                // 「通透度底衬 + 磨砂霜感」（includesBlur=false，不叠第二层模糊，
+                // 毛玻璃由 FloatingPanel 提供）。
+                GlassSurface(includesBlur: false)
+            }
         }
         .foregroundStyle(bodyTextColor)
         // v73（2026-10-19 用户反馈）：锚点展开时面板顶部中央画三角，指向菜单栏图标

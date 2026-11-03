@@ -64,6 +64,9 @@ private struct PopoutRootView: View {
                 onHeightChange(height)
             }
         }
+        // v203：底衬走统一结构面（通透度底衬 + 磨砂霜感，毛玻璃由窗口提供），
+        // 与主面板/悬浮剪贴板同一配方——「透明度覆盖整个 App」。
+        .background { GlassSurface(includesBlur: false) }
     }
 }
 
@@ -103,18 +106,13 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         // v181（UI 一致性检查 R2）：改走 LiquidGlass 工厂（26+ 真玻璃，旧系统回退），
         // 与主面板/命令面板同一套；纯色偏好与「降低透明度」也自动跟随。
         // v181（UI 一致性检查 R2）：改走 LiquidGlass 工厂（26+ 真玻璃，旧系统回退）。
-        // 纯玻璃直接压在壁纸上对比度只有 ~2:1，正文会发灰 —— 与 .glassPlate() 同一配方，
-        // 加一层 50% 窗口色底衬（放在最底层，不参与命中测试）。
+        // 纯玻璃直接压在壁纸上对比度只有 ~2:1，正文会发灰 —— 与 .glassPlate() 同一配方。
         let glass = LiquidGlass.makeView(frame: NSRect(x: 0, y: 0, width: 380, height: 640),
                                          cornerRadius: Theme.Radius.window,
                                          material: .popover)
-        let backing = NSView(frame: glass.bounds)
-        backing.autoresizingMask = [.width, .height]
-        backing.wantsLayer = true
-        backing.layer?.backgroundColor = NSColor.windowBackgroundColor
-            .withAlphaComponent(0.5).cgColor
-        glass.addSubview(backing)
-
+        // v203（用户：「透明度调节是覆盖整个这个 APP 的」）：旧实现这里写死
+        // 50% 窗口色底衬，「通透度 / 磨砂」滑块在监测窗上永远无效。
+        // 底衬改由 PopoutRootView 的 GlassSurface 提供（跟四个滑块联动）。
         host.frame = glass.bounds
         host.autoresizingMask = [.width, .height]
         glass.addSubview(host)

@@ -238,11 +238,15 @@ public enum Theme {
     }
 
     /// 霜感层（磨砂强度）：真玻璃/毛玻璃之上的一层漫反射，模拟"起雾"
+    ///
+    /// v203（用户：「这两个改了无效」）：霜感必须压在「通透度底衬」之上
+    /// （顺序见 GlassSurface）；夹在 93% 底衬之下时最大只剩 ~0.8% 可见度，滑块等于空转。
+    /// 强度同时上调一档（浅色 0.12→0.20、深色 0.05→0.11），否则浅色主题下几乎看不出。
     public static var glassFrost: Color {
         let blur = Personalization.shared.glassBlur
         return cachedSurface("frost.\(blur)") { isDark in
             let b = CGFloat(blur)
-            return (NSColor(white: 1, alpha: 1), isDark ? 0.05 * b : 0.12 * b)
+            return (NSColor(white: 1, alpha: 1), isDark ? 0.11 * b : 0.20 * b)
         }
     }
 

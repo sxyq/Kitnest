@@ -139,6 +139,40 @@ struct LiquidGlassBackground: NSViewRepresentable {
     }
 }
 
+// MARK: - 统一结构面（v203）
+//
+// 用户：「这两个改了无效……它的一个透明度调节是覆盖整个这个 APP 的，所以你统一」。
+// 旧实现里「通透度 / 磨砂」只被 glassPlate 读取；主面板与悬浮剪贴板各写一套
+// 纯 NSVisualEffectView 背景，两个滑块在两个主界面上等于空转。
+// 这里收敛为全 App 唯一配方：
+//     毛玻璃（采样桌面）→ 通透度底衬（Theme.windowSurface）→ 磨砂霜感（Theme.glassFrost）
+// 霜感必须压在底衬之上——若在 93% 底衬之下，最大只剩 ~0.8% 可见度（滑块无效）。
+//
+// `@ObservedObject` 是必须的：滑块一拖 → Personalization.objectWillChange →
+// 本视图重算 → 四个 Theme 计算属性拿到新值；只靠父视图观察时子树不一定重绘。
+struct GlassSurface: View {
+    var cornerRadius: CGFloat = Theme.Radius.window
+    var tint: Color? = nil
+    /// false = 窗口本身已有毛玻璃（主面板 FloatingPanel），不再叠第二层模糊
+    var includesBlur: Bool = true
+
+    @ObservedObject private var personalization = Personalization.shared
+
+    var body: some View {
+        ZStack {
+            if includesBlur {
+                LiquidGlassBackground(cornerRadius: cornerRadius, tint: tint)
+                    // 「背景材质」（纯色卡片/毛玻璃）切换必须重建 representable：
+                    // 只改颜色覆盖层的话，已创建的 NSVisualEffectView material 不会跟着变
+                    .id(personalization.material.rawValue)
+            }
+            Theme.windowSurface
+            Theme.glassFrost
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
 // MARK: - 卡片「玻璃镀边」样式
 //
 // 不叠真玻璃：只加斜向高光 + 细亮边 + 内阴影。玻璃感来自分层与高光，
@@ -295,16 +329,9 @@ struct GlassPlate: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background {
-                ZStack {
-                    LiquidGlassBackground(cornerRadius: radius)
-                    // 霜感层（v193）：磨砂强度 → 模糊层之上的漫反射，越大越"起雾"。
-                    Theme.glassFrost
-                    // 可读性底衬（v192）：窗口底。
-                    // 旧值 0.5 让整块界面在壁纸上"糊成一片灰"——层次全被玻璃吃掉了；
-                    // ArcZip 的口径是"能透一点点环境色，但层次必须看得见"。
-                    // v193 起不透明度由「个性化 → 玻璃质感 → 通透度」滑块控制。
-                    Theme.windowSurface
-                }
+                // v203：统一配方（玻璃 → 通透度底衬 → 磨砂霜感），
+                // 与主面板 / 悬浮剪贴板同一实现，四个滑块在这类浮层上全部生效。
+                GlassSurface(cornerRadius: radius)
             }
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
@@ -341,6 +368,9 @@ struct GlassCard: ViewModifier {
     var radius: CGFloat = Theme.Radius.card
     var fill: Color? = nil
     @Environment(\.midnightCardBackgroundOverride) private var midnightCard
+    /// v203：卡片亮度/描边两个滑块要即时生效——卡片修饰器自己观察个性化，
+    /// 不能只依赖父视图（父视图不一定因 Theme 计算属性重绘）。
+    @ObservedObject private var personalization = Personalization.shared
 
     func body(content: Content) -> some View {
         let color = fill ?? midnightCard ?? Theme.cardFill

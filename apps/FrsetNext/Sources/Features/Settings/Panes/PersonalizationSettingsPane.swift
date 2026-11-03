@@ -410,7 +410,7 @@ struct PersonalizationSettingsView: View {
                 String(format: "%.0f%%", $0 * 100)
             }
 
-            Text("通透度决定玻璃面透出多少桌面；磨砂是模糊层之上的霜感；"
+            Text("通透度决定玻璃面底衬的不透明度（越小越透出桌面）；磨砂是底衬之上的霜感；"
                  + "卡片亮度是卡片与窗口底之间的明度台阶（层与层的距离）；"
                  + "描边是玻璃边缘那圈发丝亮边。")
                 .font(.system(size: 11))
@@ -419,16 +419,22 @@ struct PersonalizationSettingsView: View {
         }
     }
 
-    /// 实时预览：一小块玻璃面 + 一张卡，拖滑块时立刻看到层次变化
+    /// 实时预览：模拟桌面 + 统一玻璃面 + 一张卡，拖滑块时立刻看到层次变化
+    ///
+    /// v203（用户：「这两个改了无效」）：预览里必须放一块"桌面"底色——
+    /// 之前只在灰底上铺半透明面，"通透度"变化几乎看不出来，"磨砂"更是完全没有入画。
     private var glassPreview: some View {
         HStack(spacing: 8) {
             ZStack {
-                RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                    .fill(Theme.windowSurface)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                            .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
-                    )
+                // 模拟桌面（渐变壁纸）：通透度拖小 → 桌面透出更多
+                LinearGradient(colors: [Color.blue.opacity(0.55),
+                                        Color.purple.opacity(0.40),
+                                        Color.orange.opacity(0.45)],
+                               startPoint: .topLeading,
+                               endPoint: .bottomTrailing)
+                // 与全局 GlassSurface 同序：通透度底衬 → 磨砂霜感 → 卡片
+                Theme.windowSurface
+                Theme.glassFrost
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(Theme.cardFill)
                     .overlay(
@@ -439,6 +445,11 @@ struct PersonalizationSettingsView: View {
                     .frame(width: 78)
             }
             .frame(width: 96, height: 46)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                    .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+            )
 
             Text("玻璃面 → 内容卡（当前层次）")
                 .font(.system(size: 11))

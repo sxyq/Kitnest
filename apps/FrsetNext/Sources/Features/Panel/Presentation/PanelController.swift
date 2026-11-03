@@ -78,12 +78,15 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         target.size.width = baseWidth     // v73：宽度即选值，不乘 fontScale（见 prepare 注释）
         target.size.height = Theme.panelMaxHeight
         target.origin.y = f.maxY - target.height
+        // v203（用户：「背景材质两个选项改了无效」）：材质重套必须在尺寸 guard 之前。
+        // 旧顺序 guard 在前——尺寸没变（绝大多数时候）直接 return，
+        // 「纯色卡片 / 毛玻璃」切换永远到不了 reapplyStyle。
+        p.applyPersonalizedMaterial()
         // v194（用户「打开和收起的动画十分卡顿」）：尺寸没变就不 setFrame。
         // 旧实现每次 show 都 setFrame(display: true)，即使宽高完全一致也会触发
         // 一次整窗重绘 + 重排——恰好压在开合动画的第一帧上。
         guard target != f else { return }
         p.setFrame(target, display: true)
-        p.applyPersonalizedMaterial()
     }
 
     // MARK: - 首次显示预热

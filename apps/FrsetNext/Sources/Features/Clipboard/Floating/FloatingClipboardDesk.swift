@@ -288,6 +288,9 @@ public enum FloatingClipPrefs {
 public struct FloatingClipboardDeskView: View {
 
     @ObservedObject private var store = FloatingClipDeskStore.shared
+    /// v203：玻璃四滑块（通透度/磨砂/卡片亮度/描边）要即拖即生效——
+    /// 根视图自己观察个性化；只靠 frsetThemeChrome 时子树不保证重绘。
+    @ObservedObject private var personalization = Personalization.shared
     @Stored private var showsTags = false
     @FocusState private var searchFocused: Bool
 
@@ -697,8 +700,10 @@ public struct FloatingClipboardDeskView: View {
             if let base = midnightBaseBackground {
                 RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous).fill(base.opacity(0.97))
             } else {
-                LiquidGlassBackground(cornerRadius: Theme.Radius.window,
-                                      tint: Color(NSColor.windowBackgroundColor).opacity(0.72))
+                // v203：改走统一结构面（玻璃 → 通透度底衬 → 磨砂霜感）。
+                // 旧实现只有一层 NSVisualEffectView，「通透度 / 磨砂」两个滑块在这里是空转。
+                GlassSurface(cornerRadius: Theme.Radius.window,
+                             tint: Color(NSColor.windowBackgroundColor).opacity(0.72))
             }
         }
     }
