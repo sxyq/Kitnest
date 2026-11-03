@@ -228,12 +228,18 @@ final class LongScreenshotEditorWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "长截图"
-        applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
+        // v202（用户：「左上角还有个叉号，那部分需要删掉，后面只需要保留最下面的三个按钮」）：
+        // 不再挂自绘圆钮，也隐藏系统红绿灯；关闭只走底部工具条的「关闭」。
+        // applyOfficialChrome 会自动 attach 圆钮，所以这里只手工套灰底 + 透明标题栏。
+        backgroundColor = OfficialChrome.windowBackground
+        titlebarAppearsTransparent = true
+        for button in [NSWindow.ButtonType.closeButton,
+                       .miniaturizeButton, .zoomButton] {
+            standardWindowButton(button)?.isHidden = true
+        }
         minSize = NSSize(width: 760, height: 560)
         isReleasedWhenClosed = false
         contentView = container
-        // v166.8：同 ScreenshotOCRResultWindow —— 换 contentView 后重挂自绘关闭钮
-        attachOfficialRoundCloseButton()
         center()
     }
 }
