@@ -74,6 +74,10 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         target.size.width = baseWidth     // v73：宽度即选值，不乘 fontScale（见 prepare 注释）
         target.size.height = Theme.panelMaxHeight
         target.origin.y = f.maxY - target.height
+        // v194（用户「打开和收起的动画十分卡顿」）：尺寸没变就不 setFrame。
+        // 旧实现每次 show 都 setFrame(display: true)，即使宽高完全一致也会触发
+        // 一次整窗重绘 + 重排——恰好压在开合动画的第一帧上。
+        guard target != f else { return }
         p.setFrame(target, display: true)
         p.applyPersonalizedMaterial()
     }
@@ -186,11 +190,25 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             origin = rightEdgeOrigin(for: p.frame.size)
             presentation.anchored = false
         }
+        let t0 = ProcessInfo.processInfo.systemUptime
+        let wasVisible = p.isVisible
         p.setFrameOrigin(origin)
-        presentation.visible = true                // 触发 SwiftUI 缩放淡入
-        p.alphaValue = 0
+        // v194（用户「打开和收起的动画十分卡顿」）：入场动画的时钟要等布局跑完再起。
+        //
+        // 旧顺序：presentation.visible = true → makeKeyAndOrderFront。首开没有预热
+        // （v173 因启动崩溃关闭），整棵视图树在 makeKey 里同步布局，弹簧时钟却已经
+        // 开跑——等窗口真正上屏时动画已过半，观感是「顿一下、然后突然出现」。
+        // 新顺序：先以 visible=true 让 SwiftUI 真正布局一次（visible=false 时
+        // SwiftUI 会跳过布局，等于没热），布局完成后把入场态复位，下一帧再启动弹簧，
+        // 此时窗口 alpha 仍为 0，用户看不到复位的那一帧。
+        if !wasVisible {
+            presentation.visible = true            // 触发真布局（窗口还不可见）
+            p.alphaValue = 0
+        }
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
+        p.contentView?.layoutSubtreeIfNeeded()     // 首帧布局在窗口透明时完成
+        p.displayIfNeeded()
         // 统一「点外/失焦收起」：全工程唯一实现（Core/TransientWindows）
         TransientWindowCenter.shared.register(
             window: p,
@@ -211,12 +229,32 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 主面板可见期间按用户间隔采样（与独立窗同一节奏；不含此项时主面板
         // 性能页处于「隐藏态 5s」降频，而独立窗是 1.5s——用户说的两套时间）
         MonitorSampler.shared.setHomePanelActive(true)
-        Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y))")
+        let layoutMs = (ProcessInfo.processInfo.systemUptime - t0) * 1000
+        Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y)) 布局=\(Int(layoutMs))ms")
         RenderProbe.snapshot(p, name: "panel", reason: "show")
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = Personalization.shared.openAnimation.fadeDuration
-            ctx.timingFunction = Theme.Motion.caEaseOut
-            p.animator().alphaValue = 1
+        guard !wasVisible else {
+            // 面板已在屏上（含「收起动画没跑完又被重新打开」）：把内容与窗口
+            // 透明度都拉回可见态，别让上一轮的淡出继续把它藏掉。
+            presentation.visible = true
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = Personalization.shared.openAnimation.fadeDuration
+                ctx.timingFunction = Theme.Motion.caEaseOut
+                p.animator().alphaValue = 1
+            }
+            return
+        }
+        // 布局已完成：把入场态复位到起点（此时窗口 alpha 仍为 0，这一帧不可见），
+        // 下一轮 runloop 再置 visible=true 并同步淡入窗口——
+        // 窗口透明度与内容弹簧从此同起同落（v194，修「打开顿一下」）。
+        presentation.visible = false
+        DispatchQueue.main.async { [weak self, weak p] in
+            guard let self, let p, p.isVisible, p.alphaValue == 0 else { return }
+            self.presentation.visible = true
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = Personalization.shared.openAnimation.fadeDuration
+                ctx.timingFunction = Theme.Motion.caEaseOut
+                p.animator().alphaValue = 1
+            }
         }
     }
 
@@ -250,13 +288,20 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     }
 
     /// hide() 第二段：预览已关闭，执行面板淡出
+    /// v194（用户「打开和收起的动画十分卡顿」）：淡出时长与内容弹簧同为
+    /// fadeDuration（= 弹簧 response）。旧值 0.12s 会在内容还没缩完时就把窗口
+    /// orderOut，弹簧被腰斩，收起看着像「闪一下」。
     private func performHide(_ p: NSWindow) {
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
+            ctx.duration = Personalization.shared.openAnimation.fadeDuration
+            ctx.timingFunction = Theme.Motion.caEaseOut
             p.animator().alphaValue = 0
-        }, completionHandler: { [weak p] in
-            p?.orderOut(nil)
-            p?.alphaValue = 1
+        }, completionHandler: { [weak self, weak p] in
+            // v194：淡出途中被重新打开（presentation.visible 已回 true）时
+            // 不能 orderOut，否则面板会「明明刚打开却又消失」。
+            guard let self, let p, !self.presentation.visible else { return }
+            p.orderOut(nil)
+            p.alphaValue = 1
             MonitorSampler.shared.setHomePanelActive(false)
         })
     }

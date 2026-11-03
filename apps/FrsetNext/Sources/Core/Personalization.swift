@@ -64,12 +64,17 @@ public enum PersonalizationOpenAnimation: String, CaseIterable, Identifiable {
         case .soft: return .spring(response: 0.32, dampingFraction: 0.85)
         }
     }
-    /// 窗口淡入时长
+    /// 窗口淡入/淡出时长 = 弹簧响应时长。
+    ///
+    /// v194（用户「打开和收起的动画十分卡顿」）：v58 只把弹簧和淡入分别调短，
+    /// 两套时钟仍然并存——窗口 0.14s 已完全显示/收完，内容弹簧 0.24s 才走到一半，
+    /// 观感就是「先顿一下再弹」。统一取弹簧的 response，让窗口透明度与内容缩放
+    /// 同起同落；AppKit 侧不要再写字面量时长。
     public var fadeDuration: TimeInterval {
         switch self {
-        case .snappy: return 0.10
-        case .standard: return 0.14
-        case .soft: return 0.20
+        case .snappy: return 0.18
+        case .standard: return 0.24
+        case .soft: return 0.32
         }
     }
 }
@@ -111,6 +116,26 @@ public final class Personalization: ObservableObject {
     @Published public var toastFollowPanel: Bool = false { didSet { persist() } }    // true=跟随主面板；默认屏幕中线偏下
     @Published public var barDividerColorHex: String = "" { didSet { persist() } }  // 空 = 默认
     @Published public var barDividerAlpha: Double = 0.35 { didSet { persist() } }   // 0..1
+
+    // MARK: 玻璃质感（v193）
+    //
+    // 用户：「设置里面添加相关的按钮去调节玻璃的一个通透质感以及相关的参数，
+    // 弄成几个可以滑动的这种类似于音量条的这种。放在个性化里面」。
+    //
+    // 这五个参数就是 v192 那套「三层明度台阶」的可调版本：
+    //   通透度   —— 玻璃面底衬的不透明度（越大越实，越小越透出桌面）
+    //   磨砂     —— 霜感层强度（模拟模糊层的漫反射，越大越"起雾"）
+    //   卡片亮度 —— 内容卡相对窗口底的明度台阶（层与层的距离）
+    //   描边     —— 发丝边可见度（ArcZip 那种 8% 亮边）
+
+    /// 玻璃通透度：0.55（很透）… 1.0（完全不透明）
+    @Published public var glassOpacity: Double = 0.93 { didSet { persist() } }
+    /// 磨砂强度：0（清透）… 1（厚霜）
+    @Published public var glassBlur: Double = 0.35 { didSet { persist() } }
+    /// 卡片亮度台阶：0（卡片贴平）… 1（卡片明显浮起）
+    @Published public var glassCardLift: Double = 0.5 { didSet { persist() } }
+    /// 描边强度：0（无发丝边）… 1（亮边明显）
+    @Published public var glassStroke: Double = 0.4 { didSet { persist() } }
 
     // MARK: P2
 
@@ -167,6 +192,10 @@ public final class Personalization: ObservableObject {
         d.set(midnightHueShift, forKey: Preferences.Keys.uiMidnightHue)
         d.set(backgroundImagePath, forKey: Preferences.Keys.uiBackgroundImage)
         d.set(backgroundImageDim, forKey: Preferences.Keys.uiBackgroundDim)
+        d.set(glassOpacity, forKey: Preferences.Keys.uiGlassOpacity)
+        d.set(glassBlur, forKey: Preferences.Keys.uiGlassBlur)
+        d.set(glassCardLift, forKey: Preferences.Keys.uiGlassCardLift)
+        d.set(glassStroke, forKey: Preferences.Keys.uiGlassStroke)
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
@@ -201,6 +230,20 @@ public final class Personalization: ObservableObject {
         backgroundImagePath = d.string(forKey: Preferences.Keys.uiBackgroundImage) ?? ""
         let dim = d.double(forKey: Preferences.Keys.uiBackgroundDim)
         backgroundImageDim = dim > 0 ? dim : 0.35
+        // 玻璃五参数：没有落盘值时用出厂口径（不覆盖默认值）
+        if d.object(forKey: Preferences.Keys.uiGlassOpacity) != nil {
+            glassOpacity = min(1, max(0.55, d.double(forKey: Preferences.Keys.uiGlassOpacity)))
+        }
+        if d.object(forKey: Preferences.Keys.uiGlassBlur) != nil {
+            glassBlur = min(1, max(0, d.double(forKey: Preferences.Keys.uiGlassBlur)))
+        }
+        if d.object(forKey: Preferences.Keys.uiGlassCardLift) != nil {
+            glassCardLift = min(1, max(0, d.double(forKey: Preferences.Keys.uiGlassCardLift)))
+        }
+        if d.object(forKey: Preferences.Keys.uiGlassStroke) != nil {
+            glassStroke = min(1, max(0, d.double(forKey: Preferences.Keys.uiGlassStroke)))
+        }
+
     }
 
     // MARK: hex 辅助
@@ -263,5 +306,9 @@ public final class Personalization: ObservableObject {
         midnightHueShift = 0
         backgroundImagePath = ""
         backgroundImageDim = 0.35
+        glassOpacity = 0.93
+        glassBlur = 0.35
+        glassCardLift = 0.5
+        glassStroke = 0.4
     }
 }

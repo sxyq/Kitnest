@@ -185,28 +185,99 @@ public enum Theme {
         })
     }
 
+    /// v193：表面令牌全部改为**跟随个性化参数**的计算属性。
+    ///
+    /// 之前四个表面是写死的常量，用户只能接受既定观感；现在
+    /// 「设置 → 个性化 → 玻璃质感」的四个滑块直接改这里的取值：
+    ///   通透度 → windowSurface 的 alpha
+    ///   磨砂   → glassFrost（霜感层）
+    ///   卡片亮度 → cardFill 的 alpha（层与层的明度台阶）
+    ///   描边   → cardStroke 的 alpha
+    ///
+    /// 读取路径：ThemeChromeModifier 观察 Personalization.shared，
+    /// 滑块一动 → objectWillChange → 整棵子树重算 → 新值立刻生效。
+    private static func dynamicSurface(_ build: @escaping (Bool) -> (NSColor, CGFloat)) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let (base, alpha) = build(isDark)
+            return base.withAlphaComponent(alpha)
+        })
+    }
+
+    /// 表面令牌缓存：动态 NSColor 每次新建都要注册 appearance 观察者，
+    /// 面板每秒重算时反复创建会白白堆积。参数没变就复用同一个 Color 实例。
+    private static let surfaceLock = NSLock()
+    private static var surfaceCache: [String: Color] = [:]
+
+    private static func cachedSurface(_ key: String,
+                                      _ build: @escaping (Bool) -> (NSColor, CGFloat)) -> Color {
+        surfaceLock.lock()
+        if let hit = surfaceCache[key] {
+            surfaceLock.unlock()
+            return hit
+        }
+        surfaceLock.unlock()
+        let color = dynamicSurface(build)
+        surfaceLock.lock()
+        surfaceCache[key] = color
+        surfaceLock.unlock()
+        return color
+    }
+
     /// L0 窗口底：铺在真玻璃之上的那层半透明底。
-    /// 0.92 不透明度的意义：既保留玻璃对桌面的色彩透传，又保证正文对比度
+    /// 默认 0.93 不透明度的意义：既保留玻璃对桌面的色彩透传，又保证正文对比度
     /// （纯玻璃在花色壁纸上只有 ~2:1，列表会发灰）。
-    public static let windowSurface = dynamic(
-        light: NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 0.93),
-        dark: NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 0.94))
+    public static var windowSurface: Color {
+        let opacity = Personalization.shared.glassOpacity
+        return cachedSurface("window.\(opacity)") { isDark in
+            let base = isDark
+                ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+                : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
+            return (base, CGFloat(opacity))
+        }
+    }
+
+    /// 霜感层（磨砂强度）：真玻璃/毛玻璃之上的一层漫反射，模拟"起雾"
+    public static var glassFrost: Color {
+        let blur = Personalization.shared.glassBlur
+        return cachedSurface("frost.\(blur)") { isDark in
+            let b = CGFloat(blur)
+            return (NSColor(white: 1, alpha: 1), isDark ? 0.05 * b : 0.12 * b)
+        }
+    }
 
     /// L2 内容卡：比窗口底**亮一档**（浅色近白 / 暗色略亮于窗口）
-    public static let cardFill = dynamic(
-        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.78),
-        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.072))
+    public static var cardFill: Color {
+        let liftValue = Personalization.shared.glassCardLift
+        return cachedSurface("card.\(liftValue)") { isDark in
+            let lift = CGFloat(liftValue)
+            // 浅色 0.55（贴平）…0.98（近实白）；暗色 0.035…0.10 白
+            let alpha = isDark ? (0.035 + 0.065 * lift) : (0.55 + 0.43 * lift)
+            return (NSColor(white: 1, alpha: 1), alpha)
+        }
+    }
 
     /// L1.5 内嵌区（代码块 / 列表槽 / 输入框）：比窗口底**暗一档**，
     /// 用来把「可以滚动的容器」和「卡片面」区分开
-    public static let insetFill = dynamic(
-        light: NSColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.045),
-        dark: NSColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.22))
+    public static var insetFill: Color {
+        let opacity = Personalization.shared.glassOpacity
+        return cachedSurface("inset.\(opacity)") { isDark in
+            // 玻璃越通透，内嵌区压得越浅（否则底衬一透就糊了）
+            let k = 0.6 + 0.4 * CGFloat(opacity)
+            return (NSColor(white: 0, alpha: 1), isDark ? 0.22 * k : 0.045 * k)
+        }
+    }
 
     /// 卡片描边：浅色用 8% 黑，暗色用 9% 白（ArcZip 的发丝边就是这一档）
-    public static let cardStroke = dynamic(
-        light: NSColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.075),
-        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.085))
+    public static var cardStroke: Color {
+        let strokeValue = Personalization.shared.glassStroke
+        return cachedSurface("stroke.\(strokeValue)") { isDark in
+            let s = CGFloat(strokeValue)
+            let base = isDark ? NSColor(white: 1, alpha: 1) : NSColor(white: 0, alpha: 1)
+            let alpha = isDark ? (0.02 + 0.16 * s) : (0.02 + 0.14 * s)
+            return (base, alpha)
+        }
+    }
 
     /// 间距只有 4 的倍数档（外加 6/10 两个半档）
     public enum Space {

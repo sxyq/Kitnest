@@ -286,9 +286,12 @@ struct GlassPlate: ViewModifier {
             .background {
                 ZStack {
                     LiquidGlassBackground(cornerRadius: radius)
-                    // 可读性底衬（v192）：0.93 不透明度的窗口底。
+                    // 霜感层（v193）：磨砂强度 → 模糊层之上的漫反射，越大越"起雾"。
+                    Theme.glassFrost
+                    // 可读性底衬（v192）：窗口底。
                     // 旧值 0.5 让整块界面在壁纸上"糊成一片灰"——层次全被玻璃吃掉了；
                     // ArcZip 的口径是"能透一点点环境色，但层次必须看得见"。
+                    // v193 起不透明度由「个性化 → 玻璃质感 → 通透度」滑块控制。
                     Theme.windowSurface
                 }
             }

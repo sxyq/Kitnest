@@ -74,6 +74,11 @@ public final class Preferences: ObservableObject {
         public static let uiToastDuration = "ui.toast.duration"        // 2 / 3 / 5 秒
         public static let uiToastPosition = "ui.toast.position"        // followPanel / screenCenter
         public static let uiBarDividerColor = "ui.bar.divider.color"   // hex，空 = 默认
+        // 玻璃质感五参数（v193：设置 → 个性化 → 玻璃质感）
+        public static let uiGlassOpacity = "ui.glass.opacity"          // 0.55…1.0 通透度
+        public static let uiGlassBlur = "ui.glass.blur"                // 0…1 磨砂强度
+        public static let uiGlassCardLift = "ui.glass.cardLift"        // 0…1 卡片亮度台阶
+        public static let uiGlassStroke = "ui.glass.stroke"            // 0…1 发丝边强度
         public static let uiBarDividerAlpha = "ui.bar.divider.alpha"   // 0..1
         public static let uiMidnightHue = "ui.midnight.hue"            // -30...30 色相偏移
         public static let uiBackgroundImage = "ui.background.image"    // 面板背景图路径

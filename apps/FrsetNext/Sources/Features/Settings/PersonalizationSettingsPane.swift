@@ -31,6 +31,9 @@ struct PersonalizationSettingsView: View {
             widthRow
             Divider().opacity(0.5)
             materialRow
+            Divider().opacity(0.5)
+            glassRow
+            Divider().opacity(0.5)
             badgeRow
             thumbRow
             toastRow
@@ -364,6 +367,110 @@ struct PersonalizationSettingsView: View {
                     .foregroundStyle(Color(NSColor.tertiaryLabelColor))
             }
         }
+    }
+
+    // MARK: 玻璃质感（v193）
+
+    /// 玻璃质感滑块组
+    ///
+    /// 用户：「设置里面添加相关的按钮去调节玻璃的一个通透质感以及相关的参数，
+    /// 弄成几个可以滑动的这种类似于音量条的这种。放在个性化里面」。
+    ///
+    /// 四个滑块对应 v192 的四层表面口径，全部即改即生效：
+    ///   通透度 → Theme.windowSurface 的 alpha
+    ///   磨砂   → Theme.glassFrost（霜感层）
+    ///   卡片亮度 → Theme.cardFill 的 alpha（卡片与窗口底的明度台阶）
+    ///   描边   → Theme.cardStroke 的 alpha
+    ///
+    /// 生效链路：滑块写 Personalization.shared（@Published）→
+    /// ThemeChromeModifier 观察它 → 整棵子树重算 → Theme 的计算属性取到新值。
+    private var glassRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("玻璃质感")
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Button("恢复默认") { resetGlass() }
+                    .buttonStyle(.link)
+                    .font(.system(size: 11))
+            }
+
+            glassPreview
+
+            glassSlider("通透度", value: $p.glassOpacity, range: 0.55...1.0) {
+                String(format: "%.0f%%", $0 * 100)
+            }
+            glassSlider("磨砂", value: $p.glassBlur, range: 0...1) {
+                String(format: "%.0f%%", $0 * 100)
+            }
+            glassSlider("卡片亮度", value: $p.glassCardLift, range: 0...1) {
+                String(format: "%.0f%%", $0 * 100)
+            }
+            glassSlider("描边", value: $p.glassStroke, range: 0...1) {
+                String(format: "%.0f%%", $0 * 100)
+            }
+
+            Text("通透度决定玻璃面透出多少桌面；磨砂是模糊层之上的霜感；"
+                 + "卡片亮度是卡片与窗口底之间的明度台阶（层与层的距离）；"
+                 + "描边是玻璃边缘那圈发丝亮边。")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 实时预览：一小块玻璃面 + 一张卡，拖滑块时立刻看到层次变化
+    private var glassPreview: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                    .fill(Theme.windowSurface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                            .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+                    )
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.cardFill)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+                    )
+                    .padding(8)
+                    .frame(width: 78)
+            }
+            .frame(width: 96, height: 46)
+
+            Text("玻璃面 → 内容卡（当前层次）")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// 一条滑块（音量条样式：标签 + 滑杆 + 数值）
+    private func glassSlider(_ title: String,
+                             value: Binding<Double>,
+                             range: ClosedRange<Double>,
+                             format: @escaping (Double) -> String) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 11))
+                .frame(width: 54, alignment: .leading)
+                .foregroundStyle(.secondary)
+            Slider(value: value, in: range)
+                .frame(width: 190)
+            Text(format(value.wrappedValue))
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .leading)
+        }
+    }
+
+    private func resetGlass() {
+        p.glassOpacity = 0.93
+        p.glassBlur = 0.35
+        p.glassCardLift = 0.5
+        p.glassStroke = 0.4
     }
 
     // MARK: P2

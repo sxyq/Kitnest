@@ -125,6 +125,18 @@ final class TransientWindowCenter {
 
         for entry in entries.values {
             guard let w = entry.window, w.isVisible, !entry.isPinned() else { continue }
+            // v193（用户：「状态栏点开主面板后，点其他地方它消失不掉」的回归修复）：
+            // 原来先判 `w.frame.contains(point)`。当另一个自家窗口（例如 680×520 的
+            // 悬浮剪贴板工作台）压在面板上时，点在**悬浮窗**上、坐标又落在面板 frame
+            // 内 → 被误判为「点在面板里」，面板永远不收。
+            // 点事件带 window 时以**窗口归属**为准：点的是另一个窗口就是「点外」，
+            // 只有 sheet/预览等明确允许的兄弟窗才放行；坐标兜底只用于无 window 的点击。
+            if let clickWindow = event.window, clickWindow !== w {
+                if entry.allowsClickIn?(clickWindow) == true { continue }
+                Log.info("Transient", "点外收起（落在其他窗口）：\(w.title.isEmpty ? "\(type(of: w))" : w.title)")
+                entry.dismiss()
+                continue
+            }
             if w.frame.contains(point) { continue }
             if let clickWindow = event.window, entry.allowsClickIn?(clickWindow) == true { continue }
             Log.info("Transient", "点外收起：\(w.title.isEmpty ? "\(type(of: w))" : w.title)")

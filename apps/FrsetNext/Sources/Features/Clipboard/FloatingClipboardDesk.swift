@@ -109,6 +109,11 @@ public final class FloatingClipDeskStore: ObservableObject {
     @Published public var cardSize: FloatingClipCardSize = FloatingClipPrefs.cardSize {
         didSet { FloatingClipPrefs.cardSize = cardSize }
     }
+    /// 两栏分隔比例（左栏卡片区占整宽的比例，v193）
+    /// 拖动过程中不落盘（每帧写偏好太吵），松手时才 persistSplitRatio()。
+    @Published public var splitRatio: CGFloat = FloatingClipPrefs.splitRatio
+    /// 右侧预览栏的内容模型（选中项的完整预览）
+    @Published public private(set) var previewModel: PreviewPopoverContentModel?
 
     /// 粘贴后回调（由窗口控制器挂上"收起面板"）
     public var onPaste: (() -> Void)?
@@ -174,6 +179,7 @@ public final class FloatingClipDeskStore: ObservableObject {
                 if self.selectedIndex >= fetched.count {
                     self.selectedIndex = max(0, fetched.count - 1)
                 }
+                self.rebuildPreviewModel()
             }
         }
     }
@@ -195,6 +201,42 @@ public final class FloatingClipDeskStore: ObservableObject {
     public func delete(_ item: ClipboardItem) {
         ClipboardManager.shared.delete(item)
         reload(debounce: true)
+    }
+
+    // MARK: 右侧预览栏（v193）
+
+    /// 当前选中项
+    public var selectedItem: ClipboardItem? {
+        items.indices.contains(selectedIndex) ? items[selectedIndex] : nil
+    }
+
+    /// 重建右侧预览内容。
+    ///
+    /// 全文读取（落盘长文本 / RTF）会碰磁盘，因此放后台队列再回主线程发布；
+    /// 否则选中一条长文本时主线程要同步读一次文件，滑动会顿。
+    public func rebuildPreviewModel() {
+        guard let item = selectedItem else {
+            previewModel = nil
+            return
+        }
+        let session = UUID()
+        queue.async { [weak self] in
+            let text = PreviewPopoverDataBridge.shared.fullText(for: item)
+            let model = PreviewPopoverContentModel(item: item,
+                                                  source: .floatingPreview,
+                                                  entry: .mainList,
+                                                  sessionID: session,
+                                                  inlineText: text)
+            DispatchQueue.main.async {
+                guard let self, self.selectedItem?.id == item.id else { return }
+                self.previewModel = model
+            }
+        }
+    }
+
+    /// 分隔比例落盘（拖动结束时调用一次）
+    public func persistSplitRatio() {
+        FloatingClipPrefs.splitRatio = splitRatio
     }
 
     // MARK: 键盘移动
@@ -226,6 +268,17 @@ public enum FloatingClipPrefs {
     public static var cardSize: FloatingClipCardSize {
         get { FloatingClipCardSize(rawValue: Preferences.shared.value(cardSizeKey, default: "medium")) ?? .medium }
         set { Preferences.shared.set(cardSizeKey, newValue.rawValue) }
+    }
+
+    /// 两栏分隔比例（v193）：左栏卡片区占整宽的比例
+    static let splitRatioKey = "floatingClip.splitRatio"
+    public static var splitRatio: CGFloat {
+        get {
+            // v193：默认 0.52——两侧接近对半，Markdown/代码预览不会只剩一条缝。
+            let v = CGFloat(Preferences.shared.value(splitRatioKey, default: 0.52))
+            return min(0.78, max(0.22, v))
+        }
+        set { Preferences.shared.set(splitRatioKey, Double(min(0.78, max(0.22, newValue)))) }
     }
 }
 
@@ -272,6 +325,10 @@ public struct FloatingClipboardDeskView: View {
         .onChange(of: store.kind) { _ in
             store.selectedIndex = 0
             store.reload(debounce: false)
+        }
+        // 选中项变了 → 右侧预览跟着换
+        .onChange(of: store.selectedIndex) { _ in
+            store.rebuildPreviewModel()
         }
     }
 
@@ -409,10 +466,40 @@ public struct FloatingClipboardDeskView: View {
         .frame(width: 200)
     }
 
-    // MARK: 内容
+    // MARK: 内容（两栏：卡片栏 + 预览栏）
 
-    @ViewBuilder
+    /// v193（用户：「独立打开那个分离剪贴板的…两栏，两个方块，然后可以拖动的交互」）
+    ///
+    /// 左侧「卡片栏」= 可扫读的卡片网格（原来的内容区）；
+    /// 右侧「预览栏」= 当前选中项的完整预览（复用主面板那套渲染器，
+    /// Markdown / JSON / 代码 / 图片 / 富文本都走同一份实现，不另造一套）；
+    /// 中间的分隔条**可以拖动**，比例会记住。
+    ///
+    /// 为什么值得做：原来只能「双击粘贴」，看不到条目到底长什么样——
+    /// 挑一条要粘的代码，得先粘到编辑器才知道对不对。
     private var content: some View {
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                cardsPane
+                    .frame(width: max(220, geo.size.width * store.splitRatio))
+
+                SplitDivider(ratio: $store.splitRatio,
+                             totalWidth: geo.size.width,
+                             onCommit: { store.persistSplitRatio() })
+
+                previewPane
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .coordinateSpace(name: Self.splitSpace)
+        }
+    }
+
+    /// 分隔条用的命名坐标系（拖动起点要换算成整宽比例）
+    private static let splitSpace = "deskSplit"
+
+    /// 左栏：卡片网格 / 列表
+    @ViewBuilder
+    private var cardsPane: some View {
         if store.items.isEmpty {
             emptyState
         } else if store.layout == .grid {
@@ -420,6 +507,39 @@ public struct FloatingClipboardDeskView: View {
         } else {
             listContent
         }
+    }
+
+    /// 右栏：选中项的完整预览
+    @ViewBuilder
+    private var previewPane: some View {
+        ZStack {
+            // 内嵌区底色：比窗口底暗一档，把「预览面板」和「卡片面」分成两块
+            Theme.insetFill
+            if let model = store.previewModel {
+                PreviewPopoverContentView(model: model)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(8)
+                    // v193：内嵌预览栏比原来的弹层窄，代码/OCR 操作条可能比栏宽；
+                    // 不裁切会越过中缝画到卡片栏上（实测截图里就是压线）。
+                    .clipped()
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "rectangle.split.2x1")
+                        .font(.system(size: 22, weight: .light))
+                        .foregroundStyle(.quaternary)
+                    Text(store.items.isEmpty ? "选一条看内容" : "预览栏")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+        )
+        .padding(.trailing, 8)
+        .padding(.bottom, 4)
     }
 
     private var emptyState: some View {
@@ -682,7 +802,13 @@ private struct FloatingClipCard: View {
 
     private var cardBackground: some View {
         RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-            .fill(Color.primary.opacity(isHovering || isSelected ? 0.09 : 0.055))
+            // v193（原版实拍对照）：卡片是「比窗口底亮一档」的实面，
+            // 不再用 primary.opacity(0.055)——在浅色下那是灰砖，卡片之间没有层次。
+            .fill(Theme.cardFill)
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.accent.opacity(isHovering ? 0.06 : (isSelected ? 0.08 : 0)))
+            }
     }
 
     // MARK: 按类型排版（没有标题行，内容直接铺满）
@@ -918,5 +1044,49 @@ private struct FloatingClipListRow: View {
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
+    }
+}
+
+// MARK: - 可拖动的两栏分隔条（v193）
+
+/// 左「卡片栏」与右「预览栏」之间的分隔条。
+///
+/// 拖动换算：DragGesture 的 `startLocation` 取自命名坐标系 `deskSplit`
+/// （= 整个 HStack 的左边缘），加上 `translation` 得到分隔条的绝对 x，
+/// 再除以总宽得到比例——不能用局部坐标，否则拖多少比例都不对。
+private struct SplitDivider: View {
+    @Binding var ratio: CGFloat
+    let totalWidth: CGFloat
+    let onCommit: () -> Void
+    @Stored private var isHovering = false
+
+    var body: some View {
+        Color.clear
+            .frame(width: 11)
+            .contentShape(Rectangle())
+            .overlay(alignment: .center) {
+                ZStack {
+                    Rectangle()
+                        .fill(Color.primary.opacity(isHovering ? 0.22 : 0.11))
+                        .frame(width: 1)
+                    VStack(spacing: 3) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Circle()
+                                .fill(Color.primary.opacity(isHovering ? 0.42 : 0.24))
+                                .frame(width: 3, height: 3)
+                        }
+                    }
+                }
+            }
+            .onHover { isHovering = $0 }
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .named("deskSplit"))
+                    .onChanged { value in
+                        let x = value.startLocation.x + value.translation.width
+                        ratio = min(0.78, max(0.22, x / max(1, totalWidth)))
+                    }
+                    .onEnded { _ in onCommit() }
+            )
+            .help("拖动调整两栏比例")
     }
 }
