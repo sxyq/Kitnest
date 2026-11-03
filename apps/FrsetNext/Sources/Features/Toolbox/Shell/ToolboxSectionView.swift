@@ -212,6 +212,8 @@ public struct ToolRunnerView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
+        // v206：独立窗口（onClose 非空）里顶部要给红绿灯留出 30pt，避免压住工具图标/标题
+        .padding(.top, onClose == nil ? 0 : 30)
         .frame(width: 520, height: 520)
         .onAppear {
             options = tool.defaultOptions()

@@ -14,18 +14,7 @@ public enum PanelModule: AppModule {
         // ServiceLocator.panelPreview 协议调用，不引用 Panel 具体类型（CONTRACT §1.3）
         ServiceLocator.panelPreview = PanelPreviewPresenterAdapter()
 
-        // 排障探针：FRSET_JSON_PROBE=<json 文件路径|clip> 时，启动 2s 后直接打开 JSON 检视器。
-        // 用于无鼠标环境下验证窗口/树表渲染（拖放与点击的最终落点就是这个方法）。
-        if let target = ProcessInfo.processInfo.environment["FRSET_JSON_PROBE"], !target.isEmpty {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                if target == "clip", let text = NSPasteboard.general.string(forType: .string) {
-                    Log.info("Panel", "JSON 探针：用剪贴板内容打开检视器（\(text.count) 字符）")
-                    JSONInspectorWindowController.shared.open(text: text, title: "剪贴板 JSON")
-                } else {
-                    Log.info("Panel", "JSON 探针：打开文件 \(target)")
-                    JSONInspectorWindowController.shared.open(fileURL: URL(fileURLWithPath: target))
-                }
-            }
-        }
+        // v206：JSON 检视器独立窗已删除（JSON 预览改为 hover 预览内联渲染），
+        // 原 FRSET_JSON_PROBE 探针一并移除。
     }
 }

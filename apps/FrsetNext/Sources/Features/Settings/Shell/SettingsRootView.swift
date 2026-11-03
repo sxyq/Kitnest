@@ -22,7 +22,10 @@ struct SettingsRootView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(spacing: 0) {
+        VStack(spacing: 0) {
+            // v206：fullSizeContentView 下红绿灯会压在侧边栏第一项上——顶部留 32pt 标题带
+            Color.clear.frame(height: 32)
+            HStack(spacing: 0) {
             SettingsSidebarView(state: state)
             Rectangle()
                 .fill(Color.primary.opacity(0.08))
@@ -35,6 +38,7 @@ struct SettingsRootView: View {
                 content
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
         }
         // 根视图尺寸必须等于窗口 contentRect（940×620）：NSHostingView 的 fitting size
         // 会被当作窗口内容尺寸请求——设大 32 会让窗口被撑到 684（2026-10-18 实测）。

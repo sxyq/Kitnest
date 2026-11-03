@@ -574,16 +574,11 @@ public final class StatusBarController: NSObject {
         ArchiveProgressWindowController.show()
     }
 
-    /// 代码预览窗（代码美化：换主题/语言 + 复制富文本，可直接粘进 Word）
-    @objc func openCodePreviewAction(_ sender: Any?) {
-        CodePreviewWindowController.shared.openFromPasteboardOrSample()
-    }
-
     /// 悬浮剪贴板工作台（v192）
     ///
     /// 用户反馈「悬浮剪贴板应该怎样查看？」——此前只有 ⇧⌘V 一个入口，
-    /// 不知道快捷键就等于找不到。这里给菜单栏一个**确定性的可见入口**，
-    /// 与「代码预览…」并列；快捷键仍保留（设置 → 快捷键可改）。
+    /// 不知道快捷键就等于找不到。这里给菜单栏一个**确定性的可见入口**；
+    /// 快捷键仍保留（设置 → 快捷键可改）。
     @objc func openFloatingClipboardAction(_ sender: Any?) {
         FloatingClipboardWindowController.shared.show()
     }

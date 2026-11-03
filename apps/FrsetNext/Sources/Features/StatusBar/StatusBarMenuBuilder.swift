@@ -115,9 +115,7 @@ public enum StatusBarMenuBuilder {
         menu.addItem(track(item("归档任务…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openArchiveTasksAction(_:)), target: target)))
 
-        // 代码预览（代码美化）：取剪贴板里的代码，框内换主题/语言，一键复制富文本
-        menu.addItem(track(item("代码预览…", key: "", modifiers: [],
-                                action: #selector(StatusBarController.openCodePreviewAction(_:)), target: target)))
+        // v206：代码预览独立窗已删除（代码预览改为 hover 预览内联渲染）
 
         // 悬浮剪贴板（v192）：给「怎么查看」一个可见入口，不用记快捷键
         menu.addItem(track(item("悬浮剪贴板…", key: "", modifiers: [],

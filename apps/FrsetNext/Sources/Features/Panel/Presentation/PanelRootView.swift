@@ -33,8 +33,6 @@ struct PanelRootView: View {
     @ObservedObject private var monitorPresenter = MonitorCenterPresenter.shared
     /// 个性化（v66：字号缩放 / 强调色 / 打开动画 / 密度——即改即生效）
     @ObservedObject private var personalization = Personalization.shared
-    /// 文件拖入高亮（拖 .json 进面板 → 打开 JSON 检视器）
-    @Stored private var isDropTargeted = false
     /// 底部工具条「标签」→ 标签管理 sheet（官方原版工具条第 3 个图标）
     @Stored private var isShowingTagSheet = false
     /// 底部工具条的搜索框展开态（点击放大镜展开）
@@ -153,13 +151,7 @@ struct PanelRootView: View {
         // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
         .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
-        // 拖放：把 .json 文件拖进面板任意位置 → 打开独立 JSON 检视器（大文件不挤在 popover 里）
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
-            handleFileDrop(providers)
-        }
-        .overlay {
-            if isDropTargeted { dropHintOverlay }
-        }
+        // v206：JSON 检视器独立窗已删除 → 面板不再接收「拖 .json 开窗」的拖放
         .background {
             // v66 个性化背景图（优先）；否则 Midnight 基底
             // v101 性能审计：背景图此前每次 body 求值都读盘解码 → 按路径缓存
@@ -734,49 +726,6 @@ struct PanelRootView: View {
         if let descriptor = PanelSectionRegistry.all.first(where: { $0.id == "search" }) {
             descriptor.build()
         }
-    }
-
-    // MARK: - 文件拖放（JSON 检视器入口）
-
-    /// 拖入提示：整块虚线框 + 图标 + 文案（松手即开检视器）
-    private var dropHintOverlay: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .fill(Theme.accent.opacity(0.06))
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .strokeBorder(Theme.accent.opacity(0.45),
-                              style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-            VStack(spacing: 8) {
-                Image(systemName: "doc.badge.gearshape")
-                    .font(.system(size: 26, weight: .light))
-                    .foregroundStyle(.secondary)
-                Text("松手打开 JSON 检视器")
-                    .font(.system(size: 13, weight: .medium))
-                Text("支持 .json / .txt（≤ 32 MB）")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(10)
-        .allowsHitTesting(false)
-    }
-
-    private func handleFileDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-            var fileURL: URL?
-            if let data = item as? Data {
-                fileURL = URL(dataRepresentation: data, relativeTo: nil)
-            } else if let url = item as? URL {
-                fileURL = url
-            }
-            guard let url = fileURL else { return }
-            DispatchQueue.main.async {
-                onDismiss()
-                JSONInspectorWindowController.shared.open(fileURL: url)
-            }
-        }
-        return true
     }
 
     /// 背景图缓存（v101：路径不变不重读盘）

@@ -125,17 +125,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             if !archives.isEmpty { return }
-
-            // JSON / JSONL：访达双击或「打开方式 → FrsetNext」→ 直接进 JSON 检视器。
-            // 此前这里只认压缩包，其余文件 URL 一路落到下面的 scheme 判断被丢掉，
-            // 等于「装了 App 但双击 .json 没反应」。
-            let jsonExtensions: Set<String> = ["json", "jsonl", "ndjson", "geojson"]
-            if let jsonURL = files.first(where: { jsonExtensions.contains($0.pathExtension.lowercased()) }) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    JSONInspectorWindowController.shared.open(fileURL: jsonURL)
-                }
-                return
-            }
+            // v206（用户：「JSON 文件的那种预览是不是单独窗口……全部删掉」）：
+            // JSON 检视器独立窗已删除，访达双击 JSON 不再开窗；剪贴板里的
+            // JSON 仍旧在 hover 预览里内联展示（JSONInspectorView）。
         }
         guard let url = urls.first, url.scheme == "frsetnext" else { return }
         Log.info("App", "URL 唤起: \(url.absoluteString)")
@@ -186,29 +178,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case "hide": FloatingClipboardWindowController.shared.hide()
                 case "toggle": FloatingClipboardWindowController.shared.toggle()
                 default: FloatingClipboardWindowController.shared.show()
-                }
-            case "code":
-                // 代码预览独立窗：frsetnext://code?file=/tmp/a.swift 或 ?text=<编码后代码>
-                // 不带参数时取剪贴板文本；用于排障/自动化验收（不碰鼠标）
-                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
-                let text = comps?.queryItems?.first(where: { $0.name == "text" })?.value
-                if let file, !file.isEmpty {
-                    CodePreviewWindowController.shared.open(fileURL: URL(fileURLWithPath: file))
-                } else if let text, !text.isEmpty {
-                    CodePreviewWindowController.shared.open(text: text)
-                } else {
-                    CodePreviewWindowController.shared.openFromPasteboardOrSample()
-                }
-            case "json":
-                // JSON 检视器深链（排障/自动化）：frsetnext://json?file=/tmp/a.jsonl&q=关键词
-                // 不带 file 时读剪贴板，等价「拖一份 JSON 进来」
-                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
-                let q = comps?.queryItems?.first(where: { $0.name == "q" })?.value ?? ""
-                if let file, !file.isEmpty {
-                    JSONInspectorWindowController.shared.openQuery = q
-                    JSONInspectorWindowController.shared.open(fileURL: URL(fileURLWithPath: file))
-                } else if let text = NSPasteboard.general.string(forType: .string), !text.isEmpty {
-                    JSONInspectorWindowController.shared.open(text: text, title: "剪贴板 JSON", query: q)
                 }
             case "longshotpreview":
                 // v150 排障：用合成 480×3600 长图打开预览（验等比缩放/初始位置）

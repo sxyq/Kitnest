@@ -683,8 +683,8 @@ final class CodeLineNumberRuler: NSRulerView {
 
 /// 让宿主窗口的 appearance / 底色跟随代码主题。
 ///
-/// 为什么需要：`CodePreviewWindowController.open()` 里只在打开窗口时按当时保存的
-/// 主题设一次 `window.appearance`。用户随后在工具条里换主题时，代码区背景会重画，
+/// 为什么需要：窗口打开时只在当时保存的主题上设一次 `window.appearance`。
+/// 用户随后在工具条里换主题时，代码区背景会重画，
 /// 但窗口外观不会——于是出现「上黑下白」：深色主题打开、切成浅色主题后，
 /// 标题栏还是深色（用户截图 2026-11-03）。
 ///

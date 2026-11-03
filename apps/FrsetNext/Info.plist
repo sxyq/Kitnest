@@ -165,28 +165,7 @@
 				<string>zst</string>
 			</array>
 		</dict>
-		<dict>
-			<!-- JSON / JSONL：访达「打开方式」→ FrsetNext 直接进 JSON 检视器。
-			     Alternate：不抢默认打开程序，只在用户主动选择时出现。 -->
-			<key>CFBundleTypeName</key>
-			<string>JSON 数据</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.json</string>
-				<string>public.geojson</string>
-			</array>
-			<key>CFBundleTypeExtensions</key>
-			<array>
-				<string>json</string>
-				<string>jsonl</string>
-				<string>ndjson</string>
-				<string>geojson</string>
-			</array>
-		</dict>
+		<!-- v206：JSON 检视器独立窗已删除；不再向访达注册 .json 打开方式 -->
 	</array>
 </dict>
 </plist>
