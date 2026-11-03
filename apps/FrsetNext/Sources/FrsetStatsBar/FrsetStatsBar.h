@@ -52,6 +52,9 @@ void FSBarSetScreenGap(double gap);
 // v30 排障：合并条状态项访问器（坐标探针用；引擎未建项时为 nil）
 NSStatusItem *FSBarMergedItem(void);
 
+// v203：设置里关掉「菜单栏性能部件」时立即拆除（合并条 + 独立项全部移除）
+void FSBarTeardown(void);
+
 // 最近一次点击的菜单栏锚点（屏幕坐标；引擎记录，注入版同源）
 NSRect FSBarLastAnchorScreenRect(void);
 

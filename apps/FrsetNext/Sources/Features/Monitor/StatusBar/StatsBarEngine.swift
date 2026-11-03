@@ -36,6 +36,10 @@ public enum StatsBarEngine {
     private static var isStarted = false
 
     public static func start() {
+        // v203：先挂开关观察者，再判断当前值——原先只在启动时判断一次，
+        // 用户在设置里打开「菜单栏性能部件（STATS）」后必须重启 App 才出现，
+        // 体感就是「打开了但没显示」。
+        observeGlobalEntryToggle()
         // v192：设置 → 个性化 → 功能入口 可关掉菜单栏性能部件
         guard GlobalEntries.isEnabled(GlobalEntries.statsBarKey) else {
             Log.info("Monitor", "菜单栏性能部件已在设置里关闭，跳过启动")
@@ -148,12 +152,35 @@ public enum StatsBarEngine {
         }
     }
 
-    /// 停止（App 退出前）
+    /// 停止（App 退出前 / 设置里关掉菜单栏部件时）
     public static func stop() {
         FSStatsTickStop()
+        // v203：只停 timer 会留下冻结的合并条（显示旧值），必须把状态项一起拆掉
+        FSBarTeardown()
         screenGapTimer?.invalidate()
         screenGapTimer = nil
         isStarted = false
+    }
+
+    // MARK: - v203：功能入口开关即时生效
+
+    private static var toggleObserver: NSObjectProtocol?
+
+    /// 设置 → 个性化 → 功能入口 的「菜单栏性能部件（STATS）」开关：
+    /// 打开立即建条、关闭立即拆条，不再要求重启 App。
+    private static func observeGlobalEntryToggle() {
+        guard toggleObserver == nil else { return }
+        toggleObserver = NotificationCenter.default.addObserver(
+            forName: GlobalEntries.didChangeNotification, object: nil, queue: .main
+        ) { _ in
+            if GlobalEntries.isEnabled(GlobalEntries.statsBarKey) {
+                Log.info("Monitor", "功能入口：菜单栏性能部件已开启，立即启动引擎")
+                start()
+            } else if isStarted {
+                Log.info("Monitor", "功能入口：菜单栏性能部件已关闭，立即停止并拆除")
+                stop()
+            }
+        }
     }
 
     /// v30：屏幕口径空隙下发器（每 0.5s）。

@@ -2336,6 +2336,25 @@ static void FSBarRemoveMergedItem(void) {
     FSBarLog(@"合并显示项已移除");
 }
 
+// v203：设置里关掉「菜单栏性能部件（STATS）」时立即拆除。
+// 旧 FSStatsTickStop 只停采样 timer，合并条状态项会留在菜单栏上显示旧值，
+// 用户以为「关了没生效 / 开了没显示」，只能重启 App——这里做完整回收。
+void FSBarTeardown(void) {
+    for (NSString *key in [g_ownItems allKeys]) {
+        NSStatusItem *it = g_ownItems[key];
+        FSBarPositionSave(it.autosaveName);
+        [[NSStatusBar systemStatusBar] removeStatusItem:it];
+    }
+    [g_ownItems removeAllObjects];
+    for (NSString *key in [g_views allKeys]) {
+        FSBarWidgetView *v = g_views[key];
+        [v removeFromSuperview];
+    }
+    [g_views removeAllObjects];
+    FSBarRemoveMergedItem();
+    NSLog(@"[FrsetStats] 部件引擎已拆除（合并条/独立项全部移除）");
+}
+
 // ============ v17：菜单位置——合并项紧贴 Frset 主图标 ============
 // 用户的期望：监测条与主图标相邻，中间不插其他 App 图标。
 // 机制：系统按键 "NSStatusItem Preferred Position <autosaveName>" 排序（创建时读取）；

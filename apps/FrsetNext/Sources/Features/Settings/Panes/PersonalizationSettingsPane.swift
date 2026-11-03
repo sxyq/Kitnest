@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - 个性化设置（v66：设置 → 常规 →「个性化」分组）
@@ -15,6 +16,9 @@ struct PersonalizationSettingsView: View {
     @AppStorage(PanelSegments.castKey) private var segmentCast = false
     /// 背景图选择器呈现
     @Stored private var isPickingImage = false
+    /// v203：玻璃实时预览用的真实桌面壁纸（首次出现时读取，失败回退渐变）
+    /// 注：本机工具链缺 SwiftUIMacros，`@State` 无法展开，统一用工程兼容层 `@Stored`
+    @Stored private var previewWallpaper: NSImage? = nil
     /// v181：分段顺序（本地镜像 → 拖拽时即时重排 → onChange 落盘）
     @Stored private var pageOrder: [PanelCenterPage] = PanelSegments.order
     /// 正在拖的分段（nil = 没在拖）
@@ -419,43 +423,155 @@ struct PersonalizationSettingsView: View {
         }
     }
 
-    /// 实时预览：模拟桌面 + 统一玻璃面 + 一张卡，拖滑块时立刻看到层次变化
+    /// 实时预览：真实桌面壁纸 + 悬浮剪贴板窗口缩略图
     ///
-    /// v203（用户：「这两个改了无效」）：预览里必须放一块"桌面"底色——
-    /// 之前只在灰底上铺半透明面，"通透度"变化几乎看不出来，"磨砂"更是完全没有入画。
+    /// v203（用户：「在上方添加一个背景图，然后放上我们的一个这个窗口的一个实际效果，
+    /// 可以进行实时预览」）：窗口里的通透度底衬 / 霜感 / 卡片亮度 / 描边
+    /// 全部读同一批 Theme 令牌，拖滑块当场就能看到最终效果。
     private var glassPreview: some View {
-        HStack(spacing: 8) {
-            ZStack {
-                // 模拟桌面（渐变壁纸）：通透度拖小 → 桌面透出更多
-                LinearGradient(colors: [Color.blue.opacity(0.55),
-                                        Color.purple.opacity(0.40),
-                                        Color.orange.opacity(0.45)],
-                               startPoint: .topLeading,
-                               endPoint: .bottomTrailing)
-                // 与全局 GlassSurface 同序：通透度底衬 → 磨砂霜感 → 卡片
-                Theme.windowSurface
-                Theme.glassFrost
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(Theme.cardFill)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
-                    )
-                    .padding(8)
-                    .frame(width: 78)
-            }
-            .frame(width: 96, height: 46)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                    .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
-            )
+        ZStack {
+            previewWallpaperBackground
+            mockClipboardWindow
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 176)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+        )
+        .overlay(alignment: .bottomTrailing) {
+            Text("实时预览 · 悬浮剪贴板")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule(style: .continuous).fill(Color.black.opacity(0.38)))
+                .padding(8)
+        }
+        .onAppear {
+            // 用户真实桌面壁纸：通透度「透出多少桌面」可直接对照
+            if previewWallpaper == nil { previewWallpaper = Self.currentDesktopImage() }
+        }
+    }
 
-            Text("玻璃面 → 内容卡（当前层次）")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
+    @ViewBuilder private var previewWallpaperBackground: some View {
+        if let image = previewWallpaper {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFill()
+        } else {
+            LinearGradient(colors: [Color(red: 0.16, green: 0.24, blue: 0.45),
+                                    Color(red: 0.42, green: 0.28, blue: 0.55),
+                                    Color(red: 0.86, green: 0.52, blue: 0.30)],
+                           startPoint: .topLeading,
+                           endPoint: .bottomTrailing)
+        }
+    }
+
+    /// 悬浮剪贴板窗口缩略图：交通灯 + 搜索 + 分类 + 两张卡（尺寸按 1:1 缩小）
+    private var mockClipboardWindow: some View {
+        VStack(spacing: 7) {
+            HStack(spacing: 4) {
+                trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
+                trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
+                trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
+                Spacer(minLength: 0)
+                Text("剪贴板")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Color.clear.frame(width: 23)   // 与红绿灯等宽，标题居中
+            }
+            .frame(height: 14)
+
+            HStack(spacing: 4) {
+                Image(systemName: "magnifyingglass").font(.system(size: 8))
+                Text("搜索剪贴板").font(.system(size: 9))
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 7)
+            .frame(height: 20)
+            .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
+
+            HStack(spacing: 5) {
+                mockChip("全部", selected: true)
+                mockChip("文本")
+                mockChip("图片")
+                mockChip("链接")
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 6) {
+                mockCard(lineWidths: [1.0, 0.72, 0.45])
+                mockCard(lineWidths: [0.82, 0.60, 0.30])
+            }
             Spacer(minLength: 0)
         }
+        .padding(9)
+        .frame(width: 336, height: 150)
+        .background {
+            // 与 App 内同一套语义：纯色卡片 = 不透明底；毛玻璃 = 模糊壁纸 + 底衬 + 霜感
+            ZStack {
+                if p.material == .solid {
+                    Rectangle().fill(Color(nsColor: .windowBackgroundColor))
+                } else {
+                    Rectangle().fill(.ultraThinMaterial)
+                }
+                Theme.windowSurface
+                Theme.glassFrost
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.30), radius: 18, x: 0, y: 9)
+    }
+
+    private func trafficLight(_ color: Color) -> some View {
+        Circle().fill(color).frame(width: 7, height: 7)
+    }
+
+    private func mockChip(_ text: String, selected: Bool = false) -> some View {
+        Text(text)
+            .font(.system(size: 8, weight: selected ? .semibold : .regular))
+            .foregroundStyle(selected ? Theme.accent : Color.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(selected ? Theme.accent.opacity(0.16) : Color.primary.opacity(0.05))
+            )
+    }
+
+    private func mockCard(lineWidths: [CGFloat]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(lineWidths.indices, id: \.self) { i in
+                GeometryReader { geo in
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(Color.primary.opacity(0.16))
+                        .frame(width: geo.size.width * lineWidths[i], height: 4)
+                }
+                .frame(height: 4)
+            }
+        }
+        .padding(7)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.cardFill))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: 0.5)
+        )
+    }
+
+    /// 当前桌面壁纸（取不到时返回 nil，由调用方回退到渐变色）
+    private static func currentDesktopImage() -> NSImage? {
+        guard let screen = NSScreen.main,
+              let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return nil }
+        return NSImage(contentsOf: url)
     }
 
     /// 一条滑块（音量条样式：标签 + 滑杆 + 数值）
