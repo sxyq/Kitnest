@@ -73,9 +73,11 @@ public final class ClipboardPasteboardReader {
 
         if let r = readImage(types: types, source: source) { return r }
         if let r = readFiles(types: types, source: source) { return r }
+        // v202：URL 优先于纯文本——复制链接时粘贴板几乎同时带 .string，
+        // 旧顺序（文本 > URL）会把链接全部存成 text，「链接」分类永远空。
+        if let r = readURL(types: types, source: source) { return r }
         if let r = readRichText(types: types, source: source) { return r }
         if let r = readText(types: types, source: source) { return r }
-        if let r = readURL(types: types, source: source) { return r }
         return nil
     }
 
@@ -163,11 +165,32 @@ public final class ClipboardPasteboardReader {
         guard types.contains(.string), let text = pasteboard.string(forType: .string) else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
+        // v202：地址栏/聊天窗复制来的链接常常只有 .string（没有 .URL 类型）。
+        // 整段就是一个链接时按 url 入库，避免「链接」分类漏收。
+        if let url = Self.singleURL(from: trimmed) {
+            return ClipboardReadResult(type: .url,
+                                       content: trimmed,
+                                       title: trimmed.firstLineBrief,
+                                       subtitle: url.host,
+                                       sourceApp: source)
+        }
         return ClipboardReadResult(type: .text,
                                    content: text,
                                    title: trimmed.firstLineBrief,
                                    subtitle: source.map { "文本 · \($0)" } ?? "文本",
                                    sourceApp: source)
+    }
+
+    /// 整段文本是否恰好是一个 http(s)/www 链接（首尾无其他字符）
+    private static func singleURL(from text: String) -> URL? {
+        guard !text.contains("\n") else { return nil }
+        let lowered = text.lowercased()
+        guard lowered.hasPrefix("http://") || lowered.hasPrefix("https://") || lowered.hasPrefix("www.") else {
+            return nil
+        }
+        let normalized = lowered.hasPrefix("www.") ? "https://" + text : text
+        guard let url = URL(string: normalized), url.host != nil else { return nil }
+        return url
     }
 
     // MARK: 优先级 5：URL

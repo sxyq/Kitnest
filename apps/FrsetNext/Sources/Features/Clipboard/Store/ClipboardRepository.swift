@@ -13,6 +13,10 @@ public struct ClipboardQuery {
     public var generatedSourceKeyword: String? = nil
     /// 代码特征启发式（过滤项 .code；原作为内容特征分类，specs/14 §7 规则未探明，此为 SQL 级近似）
     public var codeLikeOnly: Bool = false
+    /// 链接特征：同时命中 type='url' 与「纯文本但内容是链接」的历史条目
+    /// （v202：复制链接时系统粘贴板同时带 .string，旧读取逻辑把它存成了 text，
+    /// 「链接」分类因此漏掉绝大多数历史数据）
+    public var urlLikeOnly: Bool = false
     public var tagID: String? = nil
     public var limit: Int = ClipboardRepository.defaultPageSize
     public var offset: Int = 0
@@ -23,6 +27,7 @@ public struct ClipboardQuery {
                 toolGeneratedOnly: Bool = false,
                 generatedSourceKeyword: String? = nil,
                 codeLikeOnly: Bool = false,
+                urlLikeOnly: Bool = false,
                 tagID: String? = nil,
                 limit: Int = ClipboardRepository.defaultPageSize,
                 offset: Int = 0) {
@@ -32,6 +37,7 @@ public struct ClipboardQuery {
         self.toolGeneratedOnly = toolGeneratedOnly
         self.generatedSourceKeyword = generatedSourceKeyword
         self.codeLikeOnly = codeLikeOnly
+        self.urlLikeOnly = urlLikeOnly
         self.tagID = tagID
         self.limit = limit
         self.offset = offset
@@ -68,19 +74,36 @@ public final class ClipboardRepository: @unchecked Sendable {
             clauses.append("source_tool_keyword = ?")
             values.append(.text(keyword))
         }
-        if query.codeLikeOnly {
-            // 代码过滤启发式（specs/14 §7：原作内容特征分类规则未探明）：
-            // 多行 + 常见代码符号/关键字，作为 SQL 级近似
+        if query.urlLikeOnly {
+            // v202：链接分类 = 原始 .url 条目 + 内容本身是链接的文本条目
             clauses.append("""
-                (content LIKE '%{%'
-                 OR content LIKE '%;%'
-                 OR content LIKE '%func %'
-                 OR content LIKE '%def %'
-                 OR content LIKE '%class %'
-                 OR content LIKE '%import %'
-                 OR content LIKE '%const %'
-                 OR content LIKE '%<?php%'
-                 OR content LIKE '%<!DOCTYPE%')
+                (type = 'url'
+                 OR content LIKE 'http://%'
+                 OR content LIKE 'https://%'
+                 OR content LIKE 'www.%')
+                """)
+        }
+        if query.codeLikeOnly {
+            // v202：代码过滤收紧——必须多行，且命中代码特征；
+            // 旧规则只要出现 `;` 或 `{` 就把整段文案算代码，误判太多。
+            // 单行极短代码（如 `let a = 1`）不再进代码分类，优先保证准确率。
+            clauses.append("""
+                (instr(content, char(10)) > 0
+                 AND (content LIKE '%func %'
+                      OR content LIKE '%class %'
+                      OR content LIKE '%struct %'
+                      OR content LIKE '%import %'
+                      OR content LIKE '%def %'
+                      OR content LIKE '%const %'
+                      OR content LIKE '%let %'
+                      OR content LIKE '%var %'
+                      OR content LIKE '%function %'
+                      OR content LIKE '%=>%'
+                      OR content LIKE '%</%'
+                      OR content LIKE '%<?php%'
+                      OR content LIKE '%#include%'
+                      OR content LIKE '%SELECT %'
+                      OR content LIKE '%{%'))
                 """)
         }
         if let tagID = query.tagID {

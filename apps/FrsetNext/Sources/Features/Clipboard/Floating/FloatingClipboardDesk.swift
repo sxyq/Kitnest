@@ -158,6 +158,7 @@ public final class FloatingClipDeskStore: ObservableObject {
         query.toolGeneratedOnly = mapping.toolGeneratedOnly
         query.generatedSourceKeyword = mapping.generatedSourceKeyword
         query.codeLikeOnly = mapping.codeLikeOnly
+        query.urlLikeOnly = (kind == .link)   // v202：链接分类兼容历史 text 条目
         query.search = search
         query.tagID = tagFilterID
         query.limit = 120          // 屏幕一屏装不下这么多，够滚动两屏

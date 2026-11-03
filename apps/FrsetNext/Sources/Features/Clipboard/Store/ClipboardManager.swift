@@ -67,7 +67,7 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .all:       return (nil, false, false, nil, false)
         case .text:      return (.text, false, false, nil, false)
         case .image:     return (.image, false, false, nil, false)
-        case .link:      return (.url, false, false, nil, false)   // 原作 .link ↔ SQL type='url'
+        case .link:      return (nil, false, false, nil, false)   // v202：type 不限定，由 urlLikeOnly 同时覆盖 url/text 链接
         case .file:      return (.file, false, false, nil, false)
         case .code:      return (.text, false, false, nil, true)
         case .color:     return (nil, false, true, "colorpicker", false)
@@ -434,6 +434,7 @@ public final class ClipboardManager: ObservableObject {
                               toolGeneratedOnly: mapping.toolGeneratedOnly,
                               generatedSourceKeyword: mapping.generatedSourceKeyword,
                               codeLikeOnly: mapping.codeLikeOnly,
+                              urlLikeOnly: filter == .link,
                               tagID: tagFilterID,
                               // v128（内存优化）：limit 钳到驻留上限，SQL 层就只出 800 行
                               limit: min(limit, Self.maxResidentItems),
