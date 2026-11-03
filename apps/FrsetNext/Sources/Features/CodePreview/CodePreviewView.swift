@@ -41,6 +41,9 @@ public struct CodePreviewView: View {
     @Stored private var wraps: Bool
     @Stored private var copiedFlash = false
     @Stored private var cached: NSAttributedString
+    /// cached 对应的渲染键（v192.2）。用于在渲染入口做兜底校验：
+    /// onChange 万一没送达，也不会把上一个主题的配色继续画出来。
+    @Stored private var cachedKey: String = ""
 
     public init(code: String, fileName: String? = nil) {
         self.code = code
@@ -79,6 +82,11 @@ public struct CodePreviewView: View {
         return languageID
     }
 
+    /// 影响高亮结果的输入组合。值一变就必须重新着色（见 body 里的 onChange）。
+    private var renderKey: String {
+        "\(themeID)|\(fontSize)|\(languageID)|\(showsLineNumbers)"
+    }
+
     private var options: CodeRenderOptions {
         CodeRenderOptions(language: resolvedLanguage,
                           theme: theme,
@@ -101,11 +109,21 @@ public struct CodePreviewView: View {
             statusBar
         }
         .background(bg)
+        // 切主题时让宿主窗口的 appearance / 底色跟着变（否则标题栏停在旧主题的明暗上）
+        .background {
+            WindowThemeSync(isDark: theme.isDark, background: theme.background)
+                .allowsHitTesting(false)
+        }
         .onAppear { rebuild() }
-        .onChange(of: themeID) { _ in persist(); rebuild() }
-        .onChange(of: fontSize) { _ in persist(); rebuild() }
-        .onChange(of: languageID) { _ in rebuild() }
-        .onChange(of: showsLineNumbers) { _ in persist() }
+        // v192.2（用户：「改变颜色之后，它的颜色没有跟着改变」）：
+        // 原来拆成 4 个 onChange（theme/font/language/lineNumbers），实测换主题时
+        // 背景跟着变了、语法颜色却还是旧主题的——说明 rebuild() 没被调用。
+        // 改成监听**一个渲染键**：任何影响高亮结果的输入变化都会命中，
+        // 不再依赖某个具体属性的事件是否送达。
+        .onChange(of: renderKey) { _ in
+            rebuild()
+            persist()
+        }
         .onChange(of: wraps) { _ in persist() }
     }
 
@@ -307,6 +325,16 @@ public struct CodePreviewView: View {
         }
     }
 
+    /// 渲染入口的兜底取值（v192.2）
+    ///
+    /// 正常路径：onChange(renderKey) → rebuild() → cached/cachedKey 同步更新，这里直接命中缓存。
+    /// 异常路径：若某次主题切换没触发 onChange，cachedKey 会对不上 renderKey，
+    /// 此时**现算一次**保证颜色正确（宁可多算一帧，也不能显示上一个主题的配色）。
+    private var currentAttributed: NSAttributedString {
+        guard cachedKey != renderKey else { return cached }
+        return CodeHighlighter.attributed(code, options: options)
+    }
+
     // MARK: 代码区
 
     private var codeArea: some View {
@@ -317,7 +345,7 @@ public struct CodePreviewView: View {
                     .foregroundStyle(muted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                CodeTextViewRepresentable(attributed: cached,
+                CodeTextViewRepresentable(attributed: currentAttributed,
                                           theme: theme,
                                           fontSize: CGFloat(fontSize),
                                           showsLineNumbers: showsLineNumbers,
@@ -349,6 +377,7 @@ public struct CodePreviewView: View {
 
     private func rebuild() {
         cached = CodeHighlighter.attributed(code, options: options)
+        cachedKey = renderKey
     }
 
     private func persist() {
@@ -436,10 +465,11 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
         let scrollView = NSScrollView()
         scrollView.documentView = textView
         scrollView.drawsBackground = true
-        // v192（用户）：「代码预渲染的背景是纯黑的，要和玻璃质感贴近，只是它是彩色的」。
-        // 主题底色降到 66% 不透明度铺在窗口玻璃上：仍是该主题的色调（彩色文字有依托），
-        // 但能透出下层的玻璃与环境色，不再是一块死黑。
-        scrollView.backgroundColor = theme.background.withAlphaComponent(0.90)
+        // v192.1：**必须用 100% 主题色**。
+        // 上一版为了"玻璃感"降到 90%，结果浅色主题的纯白被窗口底污染成 #F5F5F7，
+        // 深色主题也被抬灰——切主题时"背景变了、颜色却不对"就是这么来的。
+        // 玻璃感由窗口圆角 + 阴影 + 工具条/行号槽的层次承担，不靠代码区透光。
+        scrollView.backgroundColor = theme.background
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = !wraps
         scrollView.autohidesScrollers = true
@@ -456,7 +486,7 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
-        scrollView.backgroundColor = theme.background.withAlphaComponent(0.90)
+        scrollView.backgroundColor = theme.background
         scrollView.hasHorizontalScroller = !wraps
         scrollView.hasVerticalRuler = showsLineNumbers
         scrollView.rulersVisible = showsLineNumbers
@@ -597,7 +627,7 @@ final class CodeLineNumberRuler: NSRulerView {
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        theme.gutter.withAlphaComponent(0.92).setFill()
+        theme.gutter.setFill()
         bounds.fill()
 
         // 右侧分隔线
@@ -645,6 +675,44 @@ final class CodeLineNumberRuler: NSRulerView {
             label.draw(in: NSRect(x: 6, y: y, width: ruleThickness - 14, height: fragment.height))
             lineNumber += 1
             charIndex = NSMaxRange(lineRange)
+        }
+    }
+}
+
+// MARK: - 窗口外观跟随主题（v192.1）
+
+/// 让宿主窗口的 appearance / 底色跟随代码主题。
+///
+/// 为什么需要：`CodePreviewWindowController.open()` 里只在打开窗口时按当时保存的
+/// 主题设一次 `window.appearance`。用户随后在工具条里换主题时，代码区背景会重画，
+/// 但窗口外观不会——于是出现「上黑下白」：深色主题打开、切成浅色主题后，
+/// 标题栏还是深色（用户截图 2026-11-03）。
+///
+/// 这里把同步挂到视图树上：themeID 变化 → body 重算 → updateNSView → 改窗口外观。
+/// 用 alphaValue=0 而不是 isHidden，保证视图确实在层级里（能拿到 window）。
+private struct WindowThemeSync: NSViewRepresentable {
+    let isDark: Bool
+    let background: NSColor
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        view.alphaValue = 0
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            guard let window = nsView.window else { return }
+            let name: NSAppearance.Name = isDark ? .darkAqua : .aqua
+            if window.appearance?.name != name {
+                window.appearance = NSAppearance(named: name)
+            }
+            // 窗口必须是"不透明"的：主题底色是完整色值，半透明会让标题栏与内容区
+            // 采样到不同底衬，出现上下色差
+            if window.isOpaque == false { window.isOpaque = true }
+            if window.backgroundColor != background {
+                window.backgroundColor = background
+            }
         }
     }
 }
