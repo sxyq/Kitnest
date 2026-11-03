@@ -300,7 +300,7 @@ private struct CaptureActionToolbarView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-            .fill(Color(nsColor: OfficialChrome.windowBackground).opacity(0.98)))
+            .fill(Color(nsColor: OfficialChrome.windowTint).opacity(0.98)))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
             .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
     }

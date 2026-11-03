@@ -359,7 +359,8 @@ struct FileHoverPreviewView: View {
             Divider().opacity(0.5)
             footer
         }
-        .background(LiquidGlassBackground(cornerRadius: Theme.Radius.window))
+        // v204：改走统一结构面（玻璃 → 通透度底衬 → 磨砂霜感），跟随四个滑块
+        .background(GlassSurface(cornerRadius: Theme.Radius.window))
         // 标题栏是透明的（拖动条）：内容要垫到它底下，否则顶部留一条空带
         .ignoresSafeArea()
         .task(id: url.path) {

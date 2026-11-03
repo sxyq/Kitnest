@@ -231,7 +231,9 @@ final class LongScreenshotEditorWindow: NSWindow {
         // v202（用户：「左上角还有个叉号，那部分需要删掉，后面只需要保留最下面的三个按钮」）：
         // 不再挂自绘圆钮，也隐藏系统红绿灯；关闭只走底部工具条的「关闭」。
         // applyOfficialChrome 会自动 attach 圆钮，所以这里只手工套灰底 + 透明标题栏。
-        backgroundColor = OfficialChrome.windowBackground
+        // v204：长截图编辑器同属内容窗——透明窗 + 统一玻璃底
+        isOpaque = false
+        backgroundColor = .clear
         titlebarAppearsTransparent = true
         for button in [NSWindow.ButtonType.closeButton,
                        .miniaturizeButton, .zoomButton] {
@@ -240,6 +242,7 @@ final class LongScreenshotEditorWindow: NSWindow {
         minSize = NSSize(width: 760, height: 560)
         isReleasedWhenClosed = false
         contentView = container
+        installUnifiedGlassBackground()
         center()
     }
 }

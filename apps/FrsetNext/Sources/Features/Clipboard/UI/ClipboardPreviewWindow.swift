@@ -607,7 +607,9 @@ private struct HoverClipModifier: ViewModifier {
         } else {
             ZStack {
                 Rectangle().fill(.ultraThinMaterial)
-                Color(nsColor: .windowBackgroundColor).opacity(0.55)
+                // v204：跟随「通透度 / 磨砂」滑块（此前是写死的 55% 窗色）
+                Theme.windowSurface
+                Theme.glassFrost
             }
         }
     }

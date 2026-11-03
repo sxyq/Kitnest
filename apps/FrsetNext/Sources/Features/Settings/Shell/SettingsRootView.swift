@@ -53,7 +53,10 @@ struct SettingsRootView: View {
 
     private var backgroundColor: Color {
         if appearance.isMidnight { return MidnightTheme.baseBackground }
-        return colorScheme == .light ? Color(white: 222.0 / 255.0) : Color(NSColor.windowBackgroundColor)
+        // v204（用户：「需要覆盖所有界面」）：设置窗也铺统一玻璃底——
+        // 根视图不再画不透明灰，玻璃/通透度/磨砂滑块在设置窗内同样可见。
+        // 窗口背后的玻璃底由 SettingsWindowController 的 applyOfficialChrome 提供。
+        return Color.clear
     }
 
     // MARK: - 头部（当前分类标题）

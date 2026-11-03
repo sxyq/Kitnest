@@ -374,7 +374,8 @@ struct CloudLinkCenterView: View {
             footer
         }
         .frame(minWidth: 560, minHeight: 620)
-        .background(Color(nsColor: .windowBackgroundColor))
+        // v204：不再自绘不透明窗底——统一玻璃底由窗口背后提供（跟随通透度/磨砂）
+        .background(Color.clear)
         .onAppear { tester.run(link: link) }
     }
 
@@ -778,6 +779,11 @@ final class CloudLinkCenterController {
                               backing: .buffered, defer: false)
         window.title = "网盘解析 · \(link.provider.displayName)"
         window.contentView = hosting
+        // v204：解析中心也铺统一玻璃底（此前是系统默认不透明白窗）
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.titlebarAppearsTransparent = true
+        window.installUnifiedGlassBackground()
         window.isReleasedWhenClosed = false
         window.center()
         window.makeKeyAndOrderFront(nil)

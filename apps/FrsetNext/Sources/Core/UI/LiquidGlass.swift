@@ -173,6 +173,124 @@ struct GlassSurface: View {
     }
 }
 
+// MARK: - 全窗口玻璃底衬（v204）
+//
+// 用户：「需要覆盖所有界面」。官方灰底内容窗（设置/预览/检视/归档/截图结果/欢迎页…
+// 共 20 余个）此前各自把窗口设成不透明灰，四个玻璃滑块只覆盖到主面板/悬浮剪贴板等。
+// 这里给任意 NSWindow 在 contentView 背后插一层统一玻璃底
+// （毛玻璃 → 通透度底衬 → 磨砂霜感），并订阅个性化通知实时刷新。
+// 内容窗只需 isOpaque=false + 内容背景透明——applyOfficialChrome 已统一处理。
+
+/// 「通透度底衬 + 磨砂霜感」两层（NSView 版）：毛玻璃之上、内容之下。
+/// 订阅个性化通知实时刷新——所有窗口的玻璃底都用它，保证与四个滑块一致。
+final class GlassTintOverlayView: NSView {
+
+    private let surfaceView = NSView()
+    private let frostView = NSView()
+    private var observer: NSObjectProtocol?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        surfaceView.wantsLayer = true
+        frostView.wantsLayer = true
+        addSubview(surfaceView)
+        addSubview(frostView)
+        refreshColors()
+        observer = NotificationCenter.default.addObserver(
+            forName: Personalization.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in self?.refreshColors() }
+    }
+
+    required init?(coder: NSCoder) { fatalError("GlassTintOverlayView 不支持 NSCoder") }
+
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    override func layout() {
+        super.layout()
+        surfaceView.frame = bounds
+        frostView.frame = bounds
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        refreshColors()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refreshColors()
+    }
+
+    private func refreshColors() {
+        let appearance = window?.effectiveAppearance ?? effectiveAppearance
+        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let base = isDark
+            ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+            : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
+        surfaceView.layer?.backgroundColor = base
+            .withAlphaComponent(CGFloat(Personalization.shared.glassOpacity)).cgColor
+        let blur = CGFloat(Personalization.shared.glassBlur)
+        frostView.layer?.backgroundColor = NSColor(white: 1,
+                                                   alpha: isDark ? 0.11 * blur : 0.20 * blur).cgColor
+    }
+}
+
+final class UnifiedGlassBackingView: NSView {
+
+    private let glassView: NSView
+    private let tintView = GlassTintOverlayView()
+
+    init(cornerRadius: CGFloat) {
+        glassView = LiquidGlass.makeView(cornerRadius: cornerRadius, material: .hudWindow)
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = cornerRadius
+        layer?.cornerCurve = .continuous
+        layer?.masksToBounds = true
+        addSubview(glassView)
+        addSubview(tintView)
+    }
+
+    required init?(coder: NSCoder) { fatalError("UnifiedGlassBackingView 不支持 NSCoder") }
+
+    override func layout() {
+        super.layout()
+        glassView.frame = bounds
+        tintView.frame = bounds
+    }
+}
+
+private var unifiedGlassAssocKey: UInt8 = 0
+
+public extension NSWindow {
+    /// 在 contentView 背后铺统一玻璃底（幂等）。调用后窗口变透明，
+    /// 内容视图必须不画不透明整窗底色，否则会盖住玻璃。
+    func installUnifiedGlassBackground(cornerRadius: CGFloat = Theme.Radius.window) {
+        guard let content = contentView, let host = content.superview else { return }
+        isOpaque = false
+        backgroundColor = .clear
+        let backing: UnifiedGlassBackingView
+        if let existing = objc_getAssociatedObject(self, &unifiedGlassAssocKey) as? UnifiedGlassBackingView {
+            backing = existing
+        } else {
+            backing = UnifiedGlassBackingView(cornerRadius: cornerRadius)
+            objc_setAssociatedObject(self, &unifiedGlassAssocKey, backing, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+        // 幂等重挂：contentView 可能被替换过，保证玻璃始终在内容之下
+        backing.removeFromSuperview()
+        backing.frame = host.bounds
+        backing.autoresizingMask = [.width, .height]
+        host.addSubview(backing, positioned: .below, relativeTo: content)
+        if UserDefaults.standard.bool(forKey: "probe.glassCoverage") {
+            Log.info("Glass", "统一玻璃底：window=\(type(of: self)) content=\(type(of: content)) "
+                     + "backing=\(Int(backing.frame.width))x\(Int(backing.frame.height))")
+        }
+    }
+}
+
 // MARK: - 卡片「玻璃镀边」样式
 //
 // 不叠真玻璃：只加斜向高光 + 细亮边 + 内阴影。玻璃感来自分层与高光，
@@ -405,6 +523,10 @@ public extension NSWindow {
         let glass = LiquidGlass.makeView(cornerRadius: radius, material: material)
         glass.frame = host.frame
         LiquidGlass.embed(host, in: glass)
+        // v204：毛玻璃之上补「通透度底衬 + 磨砂霜感」，与所有窗口的玻璃配方一致
+        let tint = GlassTintOverlayView(frame: glass.bounds)
+        tint.autoresizingMask = [.width, .height]
+        glass.addSubview(tint, positioned: .below, relativeTo: host)
         contentView = glass
 
         isOpaque = false

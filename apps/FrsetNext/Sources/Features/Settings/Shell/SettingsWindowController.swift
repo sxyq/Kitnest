@@ -185,6 +185,8 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             win.contentView = hostingView
+            // v204：contentView 换新后重挂玻璃底，保证它仍在内容之下（幂等）
+            win.installUnifiedGlassBackground()
             // 内容视图换新 → 重挂官方圆形关闭钮（旧占位视图上的钮已移除）
             win.attachOfficialRoundCloseButton()
         }

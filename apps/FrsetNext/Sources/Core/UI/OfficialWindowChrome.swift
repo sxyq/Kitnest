@@ -13,21 +13,29 @@ import AppKit
 // 仅影响窗口"露底"区域（标题栏/内容未铺满处），内容视图自绘背景不受影响。
 
 public enum OfficialChrome {
-    /// 官方窗口背景色：浅色取官方实测 (221,223,223)；深色按等效明度。
-    public static let windowBackground = NSColor(name: nil) { appearance in
+    /// v204（用户：「需要覆盖所有界面」）：内容窗不再自己画不透明灰底。
+    /// 统一玻璃底由窗口背后提供（`installUnifiedGlassBackground`）——
+    /// 通透度 / 磨砂 / 卡片亮度 / 描边四个滑块从此作用于所有内容窗。
+    /// 仍然引用本常量的视图会自动变透明，露出玻璃底。
+    public static let windowBackground = NSColor.clear
+
+    /// v204 前的官方灰（浅色 #DDDFDF / 深色 #252727）。
+    /// 仍需要实色的局部（如截图工具条）继续用它，窗口整体不再用。
+    public static let windowTint = NSColor(name: nil) { appearance in
         let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         return isDark
             ? NSColor(srgbRed: 0.145, green: 0.153, blue: 0.153, alpha: 1)   // 深色 ≈ #252727
             : NSColor(srgbRed: 0.867, green: 0.875, blue: 0.875, alpha: 1)   // #DDDFDF
     }
-
 }
 
 public extension NSWindow {
-    /// 应用官方原版窗口外观（灰底 + 透明标题栏 → 消除上下白条）
+    /// 应用统一窗口外观（v204）：透明窗 + 背后统一玻璃底 + 透明标题栏 + 自绘圆形关闭钮。
     func applyOfficialChrome() {
-        backgroundColor = OfficialChrome.windowBackground
+        isOpaque = false
+        backgroundColor = .clear
         titlebarAppearsTransparent = true
+        installUnifiedGlassBackground()
         // 官方左上角为灰色圆形关闭钮（无系统红绿灯）——自绘挂载（2026-10-18）
         attachOfficialRoundCloseButton()
     }
