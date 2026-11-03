@@ -99,7 +99,8 @@ final class DelayedCountdownWindow: NSWindow {
         container.wantsLayer = true
         container.layer?.cornerRadius = 24
         container.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
-        container.layer?.backgroundColor = NSColor(calibratedWhite: 0.08, alpha: 0.86).cgColor
+        // v205：全界面统一玻璃（此处是深色玻璃罩，保留白色大数字的可读性）
+        container.layer?.backgroundColor = NSColor(calibratedWhite: 0.08, alpha: 0.48).cgColor
 
         label.frame = NSRect(x: 0, y: 0, width: size.width, height: size.height)
         label.font = NSFont.monospacedDigitSystemFont(ofSize: 88, weight: .bold)
@@ -117,6 +118,8 @@ final class DelayedCountdownWindow: NSWindow {
         container.addSubview(label)
         container.addSubview(hint)
         contentView = container
+        // v205：倒计时 HUD 也铺统一玻璃底（无边框窗，显式 24pt 圆角）
+        installUnifiedGlassBackground(cornerRadius: 24)
     }
 
     override var canBecomeKey: Bool { true }

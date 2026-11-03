@@ -65,10 +65,16 @@ enum LiquidGlass {
         return effect
     }
 
-    /// 是否使用 macOS 26 真玻璃。默认关闭：真玻璃随焦点态变化，无法统一观感。
-    /// 需要真玻璃时可用 `defaults write com.sxyq.frsetnext uiUseSystemGlass -bool YES` 打开。
+    /// 是否使用 macOS 26 真玻璃（v205）。
+    ///
+    /// 用户：「玻璃质感需要跟 MacOS 自带的天气它这种玻璃质感一致，初始默认的」。
+    /// 天气 App 用的是系统 Liquid Glass（NSGlassEffectView）；默认改为开启，
+    /// 保持系统原生的折射/霜感。需要退回旧毛玻璃时：
+    ///   `defaults write com.sxyq.frsetnext uiUseSystemGlass -bool NO`
     private static var prefersSystemGlass: Bool {
-        UserDefaults.standard.bool(forKey: "uiUseSystemGlass")
+        let d = UserDefaults.standard
+        guard d.object(forKey: "uiUseSystemGlass") != nil else { return true }
+        return d.bool(forKey: "uiUseSystemGlass")
     }
 
     /// 已存在的玻璃容器在「材质/圆角/着色」变更后重新套样式（个性化即改即生效）
@@ -268,7 +274,12 @@ private var unifiedGlassAssocKey: UInt8 = 0
 public extension NSWindow {
     /// 在 contentView 背后铺统一玻璃底（幂等）。调用后窗口变透明，
     /// 内容视图必须不画不透明整窗底色，否则会盖住玻璃。
-    func installUnifiedGlassBackground(cornerRadius: CGFloat = Theme.Radius.window) {
+    ///
+    /// - Parameter cornerRadius: 默认 0 = 不自己画圆角，交给系统窗口自身的
+    ///   原生圆角裁切（v205：用户要求窗口圆角恢复成今天早上那种系统原生形态，
+    ///   自绘 12pt 会在系统圆角里再套一层，看起来"圆角变小/变尖"）。
+    ///   只有无边框浮窗才需要显式传 12。
+    func installUnifiedGlassBackground(cornerRadius: CGFloat = 0) {
         guard let content = contentView, let host = content.superview else { return }
         isOpaque = false
         backgroundColor = .clear

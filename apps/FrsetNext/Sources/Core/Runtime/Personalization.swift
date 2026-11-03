@@ -121,13 +121,21 @@ public final class Personalization: ObservableObject {
     //   描边     —— 发丝边可见度（ArcZip 那种 8% 亮边）
 
     /// 玻璃通透度：0.55（很透）… 1.0（完全不透明）
-    @Published public var glassOpacity: Double = 0.93 { didSet { persist() } }
+    ///
+    /// v205：默认值对齐 macOS 天气 App 的玻璃观感（系统 Liquid Glass 之上
+    /// 只压一层 60% 的底衬，比旧的 93% 更透、更接近系统面板）。
+    @Published public var glassOpacity: Double = 0.60 { didSet { persist() } }
     /// 磨砂强度：0（清透）… 1（厚霜）
-    @Published public var glassBlur: Double = 0.35 { didSet { persist() } }
+    @Published public var glassBlur: Double = 0.30 { didSet { persist() } }
     /// 卡片亮度台阶：0（卡片贴平）… 1（卡片明显浮起）
-    @Published public var glassCardLift: Double = 0.5 { didSet { persist() } }
+    @Published public var glassCardLift: Double = 0.55 { didSet { persist() } }
     /// 描边强度：0（无发丝边）… 1（亮边明显）
-    @Published public var glassStroke: Double = 0.4 { didSet { persist() } }
+    @Published public var glassStroke: Double = 0.30 { didSet { persist() } }
+
+    /// 玻璃观感版本：v205 起默认改成「天气 App 同款」。
+    /// 旧版本存过的 0.93/0.35/0.5/0.4 会覆盖新默认 → 一次性迁移到新口径。
+    private static let glassLookVersionKey = "ui.glassLookVersion"
+    private static let currentGlassLookVersion = 2
 
     // MARK: P2
 
@@ -188,6 +196,7 @@ public final class Personalization: ObservableObject {
         d.set(glassBlur, forKey: Preferences.Keys.uiGlassBlur)
         d.set(glassCardLift, forKey: Preferences.Keys.uiGlassCardLift)
         d.set(glassStroke, forKey: Preferences.Keys.uiGlassStroke)
+        d.set(Self.currentGlassLookVersion, forKey: Self.glassLookVersionKey)
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
@@ -222,7 +231,7 @@ public final class Personalization: ObservableObject {
         backgroundImagePath = d.string(forKey: Preferences.Keys.uiBackgroundImage) ?? ""
         let dim = d.double(forKey: Preferences.Keys.uiBackgroundDim)
         backgroundImageDim = dim > 0 ? dim : 0.35
-        // 玻璃五参数：没有落盘值时用出厂口径（不覆盖默认值）
+        // 玻璃四参数：没有落盘值时用出厂口径（不覆盖默认值）
         if d.object(forKey: Preferences.Keys.uiGlassOpacity) != nil {
             glassOpacity = min(1, max(0.55, d.double(forKey: Preferences.Keys.uiGlassOpacity)))
         }
@@ -234,6 +243,20 @@ public final class Personalization: ObservableObject {
         }
         if d.object(forKey: Preferences.Keys.uiGlassStroke) != nil {
             glassStroke = min(1, max(0, d.double(forKey: Preferences.Keys.uiGlassStroke)))
+        }
+        // v205：旧观感一次迁移到「天气 App 同款」默认（用户改过也先归位，之后可再调）
+        if d.integer(forKey: Self.glassLookVersionKey) < Self.currentGlassLookVersion {
+            glassOpacity = 0.60
+            glassBlur = 0.30
+            glassCardLift = 0.55
+            glassStroke = 0.30
+            // load 期间 didSet 不落盘，这里直接写入，避免每次启动都重新迁移
+            d.set(glassOpacity, forKey: Preferences.Keys.uiGlassOpacity)
+            d.set(glassBlur, forKey: Preferences.Keys.uiGlassBlur)
+            d.set(glassCardLift, forKey: Preferences.Keys.uiGlassCardLift)
+            d.set(glassStroke, forKey: Preferences.Keys.uiGlassStroke)
+            d.set(Self.currentGlassLookVersion, forKey: Self.glassLookVersionKey)
+            Log.info("personalization", "玻璃观感迁移：v2 天气 App 口径 0.60/0.30/0.55/0.30")
         }
 
     }
@@ -298,9 +321,9 @@ public final class Personalization: ObservableObject {
         midnightHueShift = 0
         backgroundImagePath = ""
         backgroundImageDim = 0.35
-        glassOpacity = 0.93
-        glassBlur = 0.35
-        glassCardLift = 0.5
-        glassStroke = 0.4
+        glassOpacity = 0.60
+        glassBlur = 0.30
+        glassCardLift = 0.55
+        glassStroke = 0.30
     }
 }

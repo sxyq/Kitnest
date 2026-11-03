@@ -1250,8 +1250,10 @@ final class AnnotationEditorWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "标注截图  ·  \(image.width) × \(image.height)"
-        // 灰色画布 + 透明标题栏：标题栏与画布同底，不再出现上下两条异色
-        backgroundColor = EditorBackdrop.color
+        // v205：窗口底改统一玻璃（画布自身仍是不透明灰底，保证看图校色；
+        // 玻璃只出现在画布外的工具区/边缘）
+        isOpaque = false
+        backgroundColor = .clear
         // v182（用户：「标题栏是空白的，只有三个按钮」）：
         // titlebarAppearsTransparent = true 在本 App 的外观链路下会把标题文字一并吞掉
         // （同样的配置在独立小程序里正常，故不再纠缠根因）。改用标准标题栏 + 去分隔线，
@@ -1305,6 +1307,8 @@ final class AnnotationEditorWindow: NSWindow {
         toolbar.autoresizingMask = [.width, .maxYMargin]
         container.addSubview(toolbar)
         contentView = container
+        // v205：全界面玻璃覆盖（标注编辑器窗口底，画布保持不透明）
+        installUnifiedGlassBackground()
 
         refreshActions()
     }

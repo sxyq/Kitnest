@@ -299,8 +299,8 @@ private struct CaptureActionToolbarView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-            .fill(Color(nsColor: OfficialChrome.windowTint).opacity(0.98)))
+        // v205：截图工具条也走统一玻璃面（此前是写死的官方灰）
+        .background(GlassSurface(cornerRadius: Theme.Radius.window))
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
             .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
     }

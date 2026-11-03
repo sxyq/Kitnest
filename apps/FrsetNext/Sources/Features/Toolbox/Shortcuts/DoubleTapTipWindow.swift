@@ -40,9 +40,10 @@ final class DoubleTapTipWindowController {
 
         let card = NSView(frame: NSRect(origin: .zero, size: size))
         card.wantsLayer = true
-        card.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        card.layer?.cornerRadius = Theme.Radius.window   // v179：16 → 窗口档 12（全工程统一）
-        card.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
+        // v205：统一玻璃底（无边框窗，显式 12pt 圆角）
+        card.layer?.backgroundColor = NSColor.clear.cgColor
+        card.layer?.cornerRadius = Theme.Radius.window
+        card.layer?.cornerCurve = .continuous
         card.layer?.masksToBounds = true
         card.layer?.borderWidth = 0.5
         card.layer?.borderColor = NSColor.separatorColor.cgColor
@@ -71,6 +72,8 @@ final class DoubleTapTipWindowController {
         card.addSubview(button)
 
         panel.contentView = card
+        // v205：统一玻璃底（无边框窗，显式 12pt 圆角）
+        panel.installUnifiedGlassBackground(cornerRadius: Theme.Radius.window)
         position(panel)
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel

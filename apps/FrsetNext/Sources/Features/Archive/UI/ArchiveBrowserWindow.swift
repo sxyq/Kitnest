@@ -732,6 +732,11 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
         win.setContentSize(NSSize(width: 860, height: 560))
         win.minSize = NSSize(width: 640, height: 420)
         win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        // v205：归档浏览器也铺统一玻璃底（跟随通透度/磨砂）
+        win.isOpaque = false
+        win.backgroundColor = .clear
+        win.titlebarAppearsTransparent = true
+        win.installUnifiedGlassBackground()
         win.isReleasedWhenClosed = false
         super.init(window: win)
         win.delegate = self

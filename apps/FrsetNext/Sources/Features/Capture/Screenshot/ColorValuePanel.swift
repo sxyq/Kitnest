@@ -93,6 +93,13 @@ struct ColorValueView: View {
         }
         .padding(12)
         .frame(width: 240)
+        // v205：取色结果面板也走统一玻璃面（无边框浮窗，12pt 圆角）
+        .background(GlassSurface(cornerRadius: Theme.Radius.window))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+        )
     }
 
     private func formatRow(title: String, value: String) -> some View {

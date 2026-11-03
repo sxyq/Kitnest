@@ -434,7 +434,7 @@ struct PersonalizationSettingsView: View {
             mockClipboardWindow
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 176)
+        .frame(height: 210)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
@@ -450,8 +450,8 @@ struct PersonalizationSettingsView: View {
                 .padding(8)
         }
         .onAppear {
-            // 用户真实桌面壁纸：通透度「透出多少桌面」可直接对照
-            if previewWallpaper == nil { previewWallpaper = Self.currentDesktopImage() }
+            // 真实背景优先：应用自己选的背景图 → 当前桌面壁纸 → 渐变兜底
+            if previewWallpaper == nil { previewWallpaper = Self.currentPreviewBackground() }
         }
     }
 
@@ -469,21 +469,21 @@ struct PersonalizationSettingsView: View {
         }
     }
 
-    /// 悬浮剪贴板窗口缩略图：交通灯 + 搜索 + 分类 + 两张卡（尺寸按 1:1 缩小）
+    /// 悬浮剪贴板窗口缩略图：交通灯 + 搜索 + 分类 + 两张卡（按真实窗口结构缩小）
     private var mockClipboardWindow: some View {
         VStack(spacing: 7) {
-            HStack(spacing: 4) {
+            HStack(spacing: 5) {
                 trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
                 trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
                 trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
                 Spacer(minLength: 0)
                 Text("剪贴板")
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Color.clear.frame(width: 23)   // 与红绿灯等宽，标题居中
+                Color.clear.frame(width: 27)   // 与红绿灯等宽，标题居中
             }
-            .frame(height: 14)
+            .frame(height: 26)
 
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass").font(.system(size: 8))
@@ -509,8 +509,8 @@ struct PersonalizationSettingsView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(9)
-        .frame(width: 336, height: 150)
+        .padding(10)
+        .frame(width: 360, height: 174)
         .background {
             // 与 App 内同一套语义：纯色卡片 = 不透明底；毛玻璃 = 模糊壁纸 + 底衬 + 霜感
             ZStack {
@@ -532,7 +532,7 @@ struct PersonalizationSettingsView: View {
     }
 
     private func trafficLight(_ color: Color) -> some View {
-        Circle().fill(color).frame(width: 7, height: 7)
+        Circle().fill(color).frame(width: 8, height: 8)
     }
 
     private func mockChip(_ text: String, selected: Bool = false) -> some View {
@@ -567,8 +567,10 @@ struct PersonalizationSettingsView: View {
         )
     }
 
-    /// 当前桌面壁纸（取不到时返回 nil，由调用方回退到渐变色）
-    private static func currentDesktopImage() -> NSImage? {
+    /// 真实预览背景：应用自己选的背景图优先，其次当前桌面壁纸（取不到回退渐变）
+    private static func currentPreviewBackground() -> NSImage? {
+        let path = Personalization.shared.backgroundImagePath
+        if !path.isEmpty, let image = NSImage(contentsOfFile: path) { return image }
         guard let screen = NSScreen.main,
               let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return nil }
         return NSImage(contentsOf: url)
@@ -594,10 +596,11 @@ struct PersonalizationSettingsView: View {
     }
 
     private func resetGlass() {
-        p.glassOpacity = 0.93
-        p.glassBlur = 0.35
-        p.glassCardLift = 0.5
-        p.glassStroke = 0.4
+        // v205：恢复默认 = 天气 App 同款玻璃观感
+        p.glassOpacity = 0.60
+        p.glassBlur = 0.30
+        p.glassCardLift = 0.55
+        p.glassStroke = 0.30
     }
 
     // MARK: P2
