@@ -226,15 +226,16 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
                 return id == "frset.clipboardPreview" || id == "frset.panelPreviewPopover"
             },
             onDismiss: { [weak self] in self?.hide() })
-        // 主面板可见期间按用户间隔采样（与独立窗同一节奏；不含此项时主面板
-        // 性能页处于「隐藏态 5s」降频，而独立窗是 1.5s——用户说的两套时间）
-        MonitorSampler.shared.setHomePanelActive(true)
+        // v195（GSAP 口径「减少同时进行的工作」）：采样器不要在过渡期间启动。
+        // 采样回调会把 @Published 数据推进 SwiftUI，恰好与开合的第一批帧重叠——
+        // 动画只该做合成，不该夹带整页重排。改为动画结束后再起（延迟 = 过渡时长）。
         let layoutMs = (ProcessInfo.processInfo.systemUptime - t0) * 1000
         Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y)) 布局=\(Int(layoutMs))ms")
         RenderProbe.snapshot(p, name: "panel", reason: "show")
         guard !wasVisible else {
             // 面板已在屏上（含「收起动画没跑完又被重新打开」）：把内容与窗口
             // 透明度都拉回可见态，别让上一轮的淡出继续把它藏掉。
+            MonitorSampler.shared.setHomePanelActive(true)
             presentation.visible = true
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = Personalization.shared.openAnimation.fadeDuration
@@ -245,15 +246,21 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
         // 布局已完成：把入场态复位到起点（此时窗口 alpha 仍为 0，这一帧不可见），
         // 下一轮 runloop 再置 visible=true 并同步淡入窗口——
-        // 窗口透明度与内容弹簧从此同起同落（v194，修「打开顿一下」）。
+        // 窗口透明度与内容过渡从此同一时钟、同一曲线（v194/v195）。
         presentation.visible = false
         DispatchQueue.main.async { [weak self, weak p] in
             guard let self, let p, p.isVisible, p.alphaValue == 0 else { return }
             self.presentation.visible = true
+            let duration = Personalization.shared.openAnimation.duration
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = Personalization.shared.openAnimation.fadeDuration
-                ctx.timingFunction = Theme.Motion.caEaseOut
+                ctx.duration = duration
+                ctx.timingFunction = Theme.Motion.caEaseOut  // 与 SwiftUI timingCurve 同一条 (0.22,0,0,1)
                 p.animator().alphaValue = 1
+            }
+            // 采样放到过渡结束之后：动画期间只做合成，不夹带 SwiftUI 重排
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.02) { [weak self] in
+                guard let self, self.panel?.isVisible == true else { return }
+                MonitorSampler.shared.setHomePanelActive(true)
             }
         }
     }
