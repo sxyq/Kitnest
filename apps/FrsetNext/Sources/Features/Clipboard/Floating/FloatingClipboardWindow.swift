@@ -98,29 +98,26 @@ public final class FloatingClipboardPinState: ObservableObject {
 public final class FloatingClipboardPanel: NSPanel {
 
     public init(contentRect: NSRect) {
-        // v191：新版是"看起来不像窗口"的浮层——**没有标题栏、没有红绿灯**。
-        // 之前用 .titled + .closable，窗口左上角会摆三个圆钮、顶上还留一条
-        // 系统标题栏（截图实测约 50pt 空白），和参照产品完全不同。
+        // v200（用户：要传统 Mac 窗口、可拖动、红绿灯在左上）：
+        // 从 borderless 浮层改成标准 titled 窗口——原生标题栏可拖动，
+        // 红/黄/绿三颗按钮由系统提供；关闭走 windowWillClose → 只 orderOut 不销毁。
         super.init(contentRect: contentRect,
-                   styleMask: [.nonactivatingPanel, .resizable, .fullSizeContentView],
+                   styleMask: [.titled, .closable, .miniaturizable, .resizable, .nonactivatingPanel],
                    backing: .buffered,
                    defer: false)
+        title = "悬浮剪贴板"
         isFloatingPanel = true
         level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .participatesInCycle]
-        isMovableByWindowBackground = true
+        isMovableByWindowBackground = false      // 只允许拖标题栏，避免拖卡片时误移窗口
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
-        titleVisibility = .hidden
-        titlebarAppearsTransparent = true
-        isOpaque = false
-        backgroundColor = .clear
+        titleVisibility = .visible
+        titlebarAppearsTransparent = false
+        isOpaque = true
+        backgroundColor = .windowBackgroundColor
         hasShadow = true
         minSize = NSSize(width: 520, height: 380)
-        // 无标题栏样式下这三个按钮本来就不存在，保险起见再关一遍
-        standardWindowButton(.closeButton)?.isHidden = true
-        standardWindowButton(.miniaturizeButton)?.isHidden = true
-        standardWindowButton(.zoomButton)?.isHidden = true
     }
 
     /// 面板不夺取键盘焦点，保证复制/粘贴目标仍是原来的前台应用

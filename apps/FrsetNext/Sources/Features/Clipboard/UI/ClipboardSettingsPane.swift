@@ -17,6 +17,17 @@ public struct ClipboardSettingsPane: View {
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
     @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
+
+    /// v200：当前生效的悬浮剪贴板呼出方式（组合键或双击修饰键），显示在「浮动窗」区。
+    private var floatingShortcutSummary: String {
+        if let m = AppBootstrap.doubleTapModifier(for: "floatingClipboard") {
+            return "双击 \(m.symbol)（可在快捷键页修改）"
+        }
+        if let b = AppBootstrap.shortcutBinding(for: "floatingClipboard") {
+            return "\(ShortcutManager.display(keyCode: b.keyCode, modifiers: b.modifiers))（可在快捷键页修改）"
+        }
+        return "未设置（可在快捷键页配置）"
+    }
     /// 权限状态（v111：自动粘贴行的「去授权」入口按授权态显隐）
     @ObservedObject private var permissions = PermissionCenter.shared
 
@@ -112,6 +123,16 @@ public struct ClipboardSettingsPane: View {
                                 if newValue { FloatingClipboardWindowController.shared.show() }
                                 else { FloatingClipboardWindowController.shared.hide() }
                             }
+                    }
+                    SettingsDivider()
+                    // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
+                    // 硬编码「双击 ⌘」已删；这里给出当前生效键，并直达快捷键页修改
+                    // （该页支持组合键录入，也支持 2× 双击修饰键开关）。
+                    SettingsRow(title: "呼出快捷键", subtitle: floatingShortcutSummary) {
+                        Button("修改") {
+                            ServiceLocator.settings?.open(pane: "shortcuts")
+                        }
+                        .controlSize(.small)
                     }
                     SettingsDivider()
                     SettingsRow(title: "浮动窗位置", subtitle: "重置为当前屏幕中央") {

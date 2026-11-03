@@ -671,16 +671,8 @@ public struct FloatingClipboardDeskView: View {
                 .help(item.label)
             }
 
-            Button {
-                FloatingClipboardWindowController.shared.hide()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20, height: 18)
-            }
-            .buttonStyle(.plain)
-            .help("收起（Esc）")
+            // v200：底部不再放关闭 ✕——改用系统标题栏左上角红绿灯；
+            // Esc 仍可收起（窗口键盘监听在，见 FloatingClipboardWindowController）。
         }
         .padding(.horizontal, 12)
         .frame(height: 30)
