@@ -48,10 +48,10 @@ private struct PopoutRootView: View {
                 VStack(spacing: 0) {
                     Color.clear.frame(height: 0).id("top")   // 滚动锚点
                     // v75：与主面板性能页**共用 MonitorPerformanceContent**（唯一实现）。
-                    // 唯一差异 = 顶部 22pt，让出左上角自绘关闭钮（borderless 窗无标题栏）。
-                    // 选中态共用 MonitorCenterPresenter.shared.monitorSelection，
-                    // 两个入口永远显示同一个模块、同一份数据、同一个刷新节奏。
-                    MonitorPerformanceContent(topInset: 22)
+                    // v196（用户「上面有个叉那部分需要删掉，那块区域也需要释放出来」）：
+                    // 独立窗不再挂左上角关闭钮，topInset 22 → 0——模块切换条上移到
+                    // 窗口内边距（10pt）处，原来让位给 ✕ 的那条空白全部还给内容。
+                    MonitorPerformanceContent(topInset: 0)
                         .background(GeometryReader { geo in
                             Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
                         })
@@ -129,7 +129,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         window.hasShadow = true
         window.isMovableByWindowBackground = true
         window.contentView = glass
-        window.attachOfficialRoundCloseButton()
+        // v196（用户「上面有个叉那部分需要删掉」）：不再挂自绘圆角关闭钮。
+        // 收起仍走点外/失焦（TransientWindowCenter）与 ⌥M 切换，不需要 ✕。
         window.delegate = self
         self.window = window
         // 点外/失焦收起统一由 TransientWindowCenter 仲裁（本文件不再单写监听）

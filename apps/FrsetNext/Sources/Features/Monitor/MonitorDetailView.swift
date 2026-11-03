@@ -10,8 +10,8 @@ public final class MonitorDetailSelection: ObservableObject {
 }
 
 /// 性能页正文容器：**主面板性能页与状态栏独立窗共用唯一实现**。
-/// 两处只允许在「顶部让位」上有差异（独立窗左上角自绘关闭钮 → topInset 22），
-/// 其余内外边距/滚动策略/模块选中态/数据源必须完全一致——任何一侧单独改版式
+/// v196 起两处 topInset 都是 0（独立窗已去掉左上角关闭钮，不再需要让位），
+/// 内外边距/滚动策略/模块选中态/数据源必须完全一致——任何一侧单独改版式
 /// 都会造成用户看到的「两套 UI」。
 public struct MonitorPerformanceContent: View {
     @ObservedObject private var presenter = MonitorCenterPresenter.shared
