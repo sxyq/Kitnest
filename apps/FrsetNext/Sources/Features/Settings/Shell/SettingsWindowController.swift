@@ -90,6 +90,9 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
 
     /// 打开设置窗口；pane 传旧页签 id（如 "general"/"shortcuts"/"monitor"），
     /// nil 保持当前位置。v41：所有 id 映射到侧边栏二级项（见 SettingsUIState）。
+    /// v202（审查 finding-2）：关闭动画代际——open 期间递增，旧收尾自动失效
+    private var closeGeneration = 0
+
     public func open(pane: String?) {
         Log.info("settings", "open(pane:\(pane ?? "nil")) called, window=\(window == nil ? "nil" : "exists")")
         // v84：设置窗打开埋点（齿轮菜单 / ⌘, / 各处「设置」入口共用）
@@ -100,6 +103,14 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             uiState.selectPane(pane)
         }
         NSApp.activate(ignoringOtherApps: true)
+        // v202：取消在途 close——复位动画/图层与 isClosing，
+        // 否则旧 close 的 completion 会把刚重开的窗口 orderOut（审查 finding-2）
+        closeGeneration += 1
+        isClosing = false
+        if let w = window {
+            w.contentView?.layer?.removeAllAnimations()
+            WindowReveal.reset(w)
+        }
         let wasVisible = window?.isVisible == true
         window?.makeKeyAndOrderFront(nil)
         // v198：首次打开从触发点（齿轮/快捷键/菜单）展开整块设置窗
@@ -113,10 +124,12 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         RenderProbe.snapshot(window, name: "settings", reason: "close")
         guard let w = window, w.isVisible, !isClosing else { return }
         isClosing = true
+        let token = closeGeneration
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
+            guard let self, token == self.closeGeneration else { return }
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
-            self?.isClosing = false
+            self.isClosing = false
         }
     }
 

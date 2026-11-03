@@ -244,7 +244,14 @@ public final class CommandPaletteController: NSObject, NSWindowDelegate {
     }
 
     public func show(slash: Bool = false) {
-        if let panel, panel.isVisible { panel.makeKeyAndOrderFront(nil); return }
+        if let panel, panel.isVisible {
+            // v202（审查 finding-5）：面板已可见且要求斜杠模式 → 按 slash 重建，
+            // 保留旧行为；普通打开只前置，不打断正在输入的内容。
+            if !slash { panel.makeKeyAndOrderFront(nil); return }
+            panel.close()
+            self.panel = nil
+            isClosing = false
+        }
         panel?.close()
         let p = CommandPalettePanel(initialQuery: slash ? "/" : "")
         panel = p

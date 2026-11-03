@@ -111,7 +111,9 @@ public final class FloatingClipboardPanel: NSPanel {
         isFloatingPanel = true
         level = .floating
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .participatesInCycle]
-        isMovableByWindowBackground = false      // 只允许拖标题栏，避免拖卡片时误移窗口
+        // fullSizeContentView 下 hosting 盖住标题栏，窗口拖动改由「空白背景拖动」承担
+        // （卡片/搜索框有自己的手势，不会误拖整个窗口）
+        isMovableByWindowBackground = true
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         titleVisibility = .hidden
@@ -201,7 +203,30 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         // 主题统一入口：强调色（个性化）+ Midnight 注入（注入器与 EnvironmentKey 在共享层）
         let root = FloatingClipboardDeskView()
             .frsetThemeChrome()
-        panel.contentView = NSHostingView(rootView: root)
+        // v201 修正（用户截图：红绿灯仍与白色内容分离、悬在透明区域上方）：
+        // fullSizeContentView 下 NSHostingView 默认会把标题栏算进 safe area，
+        // 内容（连同背景）整体下移 28pt，顶部只剩透明窗 + 红绿灯。
+        // 关掉 safeArea 后背景铺到窗顶，红绿灯压在同一块玻璃上。
+        let host = NSHostingView(rootView: root)
+        host.sizingOptions = []
+        if #available(macOS 13.3, *) { host.safeAreaRegions = [] }
+        // v201 修正2（启动崩溃 SIGABRT：_postWindowNeedsLayout / NSHostingView.setFrameSize）：
+        // 直接拿 hosting 当 contentView，窗口首帧 placement 时会同步 resize 它并抛
+        // NSInternalInconsistencyException（与 v173 预热崩溃同族）。
+        // 与主面板 FloatingPanel 同构：普通 NSView 容器 + Auto Layout 约束装 hosting，
+        // 窗口改尺寸时由约束系统消化，不再在 display cycle 里同步 setFrameSize。
+        let container = NSView(frame: NSRect(origin: .zero, size: panel.frame.size))
+        container.wantsLayer = true
+        container.autoresizingMask = [.width, .height]
+        host.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(host)
+        NSLayoutConstraint.activate([
+            host.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            host.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            host.topAnchor.constraint(equalTo: container.topAnchor),
+            host.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        panel.contentView = container
         // 粘完即走：面板立刻收起，焦点回到原来的 App
         FloatingClipDeskStore.shared.onPaste = { [weak self] in self?.hide() }
         installKeyMonitor()
@@ -209,11 +234,19 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（浮动窗走代码构建）") }
 
+    /// v202（审查 finding-1）：收起动画的兜底计时器无法取消——用代际 token 让旧收尾失效
+    private var revealGeneration = 0
+
     public func show() {
         Log.info("Clipboard", "悬浮工作台 show（visible -> true）")
+        revealGeneration += 1          // 让上一轮收起的 completion/计时器失效
+        isHiding = false
         store.setVisible(true)
         store.refresh()
-        window?.setFrame(state.clampedFrame(), display: true)
+        // v201：只在尺寸真的变化时才 setFrame——启动恢复时窗口已按同一 frame 创建，
+        // 重复 setFrame 会在首帧 placement 里同步重排 hosting（崩溃诱因）。
+        let target = state.clampedFrame()
+        if window?.frame != target { window?.setFrame(target, display: true) }
         window?.orderFrontRegardless()
         // v198：从触发点（鼠标/工具栏按钮）展开成整块工作台
         if let w = window { WindowReveal.playInFromMouse(on: w) }
@@ -223,10 +256,12 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
         guard let w = window, w.isVisible else { return }
+        let token = revealGeneration
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
+            guard let self, token == self.revealGeneration else { return }
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
-            self?.isHiding = false
+            self.isHiding = false
         }
         isHiding = true
     }
@@ -243,6 +278,8 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     /// 双击修饰键呼出（原版 AppKitDoubleTapMonitor 语义）：把窗口挪到鼠标附近再显示。
     public func showNearMouse() {
+        revealGeneration += 1
+        isHiding = false
         let mouse = NSEvent.mouseLocation
         var frame = state.clampedFrame()
         frame.origin = CGPoint(x: mouse.x - frame.width / 2, y: mouse.y - frame.height / 2)

@@ -181,7 +181,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ArchiveProgressWindowController.show()
             case "clipdesk":
                 // 悬浮剪贴板工作台（v191）：快捷键之外的确定性入口，排障/截图用
-                FloatingClipboardWindowController.shared.show()
+                // v202：支持 ?action=hide|toggle，便于验证「收起动画中重开」竞态
+                switch comps?.queryItems?.first(where: { $0.name == "action" })?.value {
+                case "hide": FloatingClipboardWindowController.shared.hide()
+                case "toggle": FloatingClipboardWindowController.shared.toggle()
+                default: FloatingClipboardWindowController.shared.show()
+                }
             case "code":
                 // 代码预览独立窗：frsetnext://code?file=/tmp/a.swift 或 ?text=<编码后代码>
                 // 不带参数时取剪贴板文本；用于排障/自动化验收（不碰鼠标）

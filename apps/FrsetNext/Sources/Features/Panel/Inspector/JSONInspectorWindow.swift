@@ -20,6 +20,15 @@ public final class JSONInspectorWindowController: NSWindowController {
 
     /// 视图状态（窗口单例复用，换内容只改这里）
     private var state: JSONInspectorState?
+    /// v202（审查 finding-3）：关闭动画代际，open 时递增让旧收尾失效
+    private var closeGeneration = 0
+
+    /// 打开前取消在途 close：复位图层与透明度，避免旧 completion 把新窗口 orderOut
+    private func prepareForOpen(_ w: NSWindow) {
+        closeGeneration += 1
+        w.contentView?.layer?.removeAllAnimations()
+        WindowReveal.reset(w)
+    }
 
     private override init(window: NSWindow?) {
         super.init(window: window)
@@ -38,6 +47,7 @@ public final class JSONInspectorWindowController: NSWindowController {
         controller.state?.load(text: text, title: title,
                               subtitle: "\(text.utf8.count) 字节", query: query)
         controller.window?.title = title
+        if let w = controller.window { controller.prepareForOpen(w) }
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -81,6 +91,7 @@ public final class JSONInspectorWindowController: NSWindowController {
                    title: fileURL.lastPathComponent,
                    subtitle: ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file),
                    query: openQuery)
+        if let w = controller.window { controller.prepareForOpen(w) }
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -90,7 +101,9 @@ public final class JSONInspectorWindowController: NSWindowController {
 
     override public func close() {
         guard let w = window, w.isVisible else { return }
-        WindowReveal.playOutToLastAnchor(on: w) { [weak w] in
+        let token = closeGeneration
+        WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
+            guard let self, token == self.closeGeneration else { return }
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
         }

@@ -23,6 +23,8 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
 
     private var window: NSWindow?
     private var currentToolID: String?
+    /// v202（审查 finding-4）：关闭动画代际，show 时递增让旧收尾失效
+    private var closeGeneration = 0
 
     /// 打开工具（幂等：同工具置前，换工具原地替换内容）
     func show(toolID: String, autoRun: Bool = false) {
@@ -31,9 +33,12 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
             return
         }
         currentToolID = toolID
+        closeGeneration += 1
 
         if let window {
             window.title = tool.name
+            window.contentView?.layer?.removeAllAnimations()
+            WindowReveal.reset(window)
             installContent(tool: tool, autoRun: autoRun, in: window)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -64,7 +69,9 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
 
     func close() {
         guard let w = window, w.isVisible else { return }
-        WindowReveal.playOutToLastAnchor(on: w) { [weak w] in
+        let token = closeGeneration
+        WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
+            guard let self, token == self.closeGeneration else { return }
             w?.close()
             if let w { WindowReveal.reset(w) }
         }
