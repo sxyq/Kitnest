@@ -11,7 +11,7 @@ FrsetNext：macOS 菜单栏效率工具（arm64，macOS 13+），对原版 Frset
 - 源码：`apps/FrsetNext/Sources/`（SwiftUI + AppKit 混合；FrsetStatsBar/ 为 C/ObjC 引擎）
 - 构建：`apps/FrsetNext/build.sh`（约 3 分钟，产物部署到 `/Applications/FrsetNext.app`）
 - 打包：`apps/FrsetNext/package_dmg.sh` → `~/Desktop/FrsetNext-1.0.0.dmg`
-- 详细工作流：`docs/开发工作流.md`（Git 规范 / 打包 / 安装测试 / 排障速查）
+- 详细工作流：`docs/00-总览/开发工作流.md`（Git 规范 / 打包 / 安装测试 / 排障速查）
 
 ## 铁律（每次改动必走）
 

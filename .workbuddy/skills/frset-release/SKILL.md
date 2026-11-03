@@ -47,5 +47,5 @@ FrsetNext（macOS 菜单栏工具）每次更改的固定收尾流程。顺序�
 
 ## 参考
 
-- 完整规范与排障：仓库 `docs/开发工作流.md`、`AGENTS.md`
+- 完整规范与排障：仓库 `docs/00-总览/开发工作流.md`、`AGENTS.md`
 - 提交纪律：数值改动写进 message（如 6pt→10pt）；type 用 fix/feat/chore/docs

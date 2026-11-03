@@ -26,9 +26,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "Sources")
-# 表放在**仓库根** docs/（与 codegraph 索引同级）；apps/FrsetNext/docs/ 只是应用内文档区
+# 表统一放在仓库根 docs/40-审计与核对/数据表/（文档中心分类）；apps/FrsetNext/docs/ 只是应用内文档区
 REPO = os.path.dirname(os.path.dirname(ROOT))
-OUT = os.path.join(REPO, "docs", "FrsetNext-函数清单.csv")
+OUT = os.path.join(REPO, "docs", "40-审计与核对", "数据表", "FrsetNext-函数清单.csv")
 
 # 类型声明（用于 owner 归属）
 TYPE_RE = re.compile(

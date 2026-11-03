@@ -33,7 +33,7 @@ def main():
 
     by_file = defaultdict(list)
     for r in rows:
-        by_file[r['path']].append(r)
+        by_file[r.get('path') or r.get('file')].append(r)
 
     by_module = defaultdict(list)
     for rel in sorted(files):
@@ -79,12 +79,15 @@ def main():
                 continue
             lines.append('| 行 | 类型 | 名称 | 所属 | 体行数 |')
             lines.append('|---|---|---|---|---|')
-            kind_cn = {'func': '函数', 'init': '初始化', 'struct': '结构体', 'class': '类',
+            kind_cn = {'func': '函数', 'init': '初始化', 'subscript': '下标',
+                       'let': '属性', 'var': '属性',
+                       'struct': '结构体', 'class': '类',
                        'enum': '枚举', 'protocol': '协议', 'extension': '扩展', 'actor': 'actor'}
             for r in decls:
-                start = r['start']
-                name = r['name'] if r['kind'] in ('func', 'init') else f"**{r['name']}**"
-                lines.append(f"| {start} | {kind_cn.get(r['kind'], r['kind'])} | {name} | {r['container'] or '—'} | {r['lines'] or '—'} |")
+                start = r.get('start') or r.get('line')
+                container = r.get('container') or r.get('owner')
+                name = r['name'] if r['kind'] in ('func', 'init', 'subscript') else f"**{r['name']}**"
+                lines.append(f"| {start} | {kind_cn.get(r['kind'], r['kind'])} | {name} | {container or '—'} | {r['lines'] or '—'} |")
             lines.append('')
 
     with open(out, 'w', encoding='utf-8') as f:
