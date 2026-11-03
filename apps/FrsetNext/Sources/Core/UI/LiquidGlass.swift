@@ -36,7 +36,11 @@ enum LiquidGlass {
                          material: NSVisualEffectView.Material = .hudWindow,
                          tint: NSColor? = nil) -> NSView {
         let solid = prefersSolid || reduceTransparency
-        if #available(macOS 26.0, *), !solid {
+        // v202（用户：「焦点在不在这个 App 里玻璃效果完全两套，需要合并成唯一一种」）：
+        // NSGlassEffectView 会随窗口 key/inactive 改变观感，无法固定。
+        // 全工程统一改为 NSVisualEffectView + 固定 .inactive 状态——
+        // 无论窗口是否 key、App 是否前台，玻璃浓淡完全一致（取用户要的「失焦态」）。
+        if #available(macOS 26.0, *), !solid, prefersSystemGlass {
             let glass = NSGlassEffectView(frame: frame)
             glass.style = .regular
             glass.cornerRadius = cornerRadius
@@ -51,7 +55,7 @@ enum LiquidGlass {
         let effect = NSVisualEffectView(frame: frame)
         effect.material = solid ? .windowBackground : material
         effect.blendingMode = solid ? .withinWindow : .behindWindow
-        effect.state = .active
+        effect.state = .inactive        // 固定失焦态：不随 key window 改变
         effect.wantsLayer = true
         if effect.layer == nil { effect.layer = CALayer() }
         effect.layer?.cornerRadius = cornerRadius
@@ -59,6 +63,12 @@ enum LiquidGlass {
         effect.layer?.masksToBounds = true
         effect.autoresizingMask = [.width, .height]
         return effect
+    }
+
+    /// 是否使用 macOS 26 真玻璃。默认关闭：真玻璃随焦点态变化，无法统一观感。
+    /// 需要真玻璃时可用 `defaults write com.sxyq.frsetnext uiUseSystemGlass -bool YES` 打开。
+    private static var prefersSystemGlass: Bool {
+        UserDefaults.standard.bool(forKey: "uiUseSystemGlass")
     }
 
     /// 已存在的玻璃容器在「材质/圆角/着色」变更后重新套样式（个性化即改即生效）
@@ -76,6 +86,7 @@ enum LiquidGlass {
         let solid = prefersSolid || reduceTransparency
         effect.material = solid ? .windowBackground : .hudWindow
         effect.blendingMode = solid ? .withinWindow : .behindWindow
+        effect.state = .inactive        // 与 makeView 一致：固定失焦态
         effect.layer?.cornerRadius = cornerRadius
         effect.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
     }

@@ -1062,7 +1062,7 @@ private struct SplitDivider: View {
             .overlay(alignment: .center) {
                 ZStack {
                     Rectangle()
-                        .fill(Color.primary.opacity(isHovering ? 0.22 : 0.11))
+                        .fill(Color.primary.opacity(isHovering ? 0.5 : 0.28))
                         .frame(width: 1)
                     VStack(spacing: 3) {
                         ForEach(0..<3, id: \.self) { _ in

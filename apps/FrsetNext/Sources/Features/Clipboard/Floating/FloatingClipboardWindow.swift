@@ -203,6 +203,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         // 主题统一入口：强调色（个性化）+ Midnight 注入（注入器与 EnvironmentKey 在共享层）
         let root = FloatingClipboardDeskView()
             .frsetThemeChrome()
+            .ignoresSafeArea()   // v202：强制内容铺到标题栏区域（否则顶部仍留一条透明带）
         // v201 修正（用户截图：红绿灯仍与白色内容分离、悬在透明区域上方）：
         // fullSizeContentView 下 NSHostingView 默认会把标题栏算进 safe area，
         // 内容（连同背景）整体下移 28pt，顶部只剩透明窗 + 红绿灯。
