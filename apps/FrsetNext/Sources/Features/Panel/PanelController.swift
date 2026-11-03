@@ -196,6 +196,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
         let t0 = ProcessInfo.processInfo.systemUptime
         let wasVisible = p.isVisible
+        isHiding = false
         p.setFrameOrigin(origin)
         // v194/v197：入场动画等布局跑完再起，并且挪到**窗口内容层**（整块面板，
         // 含玻璃底）。旧实现只对 SwiftUI 内容做 scaleEffect，玻璃窗口始终原尺寸铺在
@@ -285,8 +286,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     public var panelWindowForProbe: NSWindow? { panel }
 
 
+    /// v199：收起流程进行中（预览窗关闭回调丢失时靠超时兜底强制收，避免「点了别处面板不消失」）
+    private var isHiding = false
+
     public func hide() {
-        guard let p = panel, p.isVisible else { return }
+        guard let p = panel, p.isVisible, !isHiding else { return }
+        isHiding = true
         TransientWindowCenter.shared.unregister(window: p)
         Log.info("Panel", "hide: 开始收起")
         RenderProbe.snapshot(p, name: "panel", reason: "hideStart")
@@ -295,6 +300,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 原作行为（12 号 P8 waitsForPreviewClose）：面板收起前先等预览 popover 关闭
         MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse) { [weak self] in
             self?.performHide(p)
+        }
+        // 兜底：预览窗收回动画被系统跳过 / 完成回调丢失时，0.6s 后强制进第二段
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self, weak p] in
+            guard let self, let p, p.isVisible, self.isHiding else { return }
+            Log.warn("Panel", "收起超时（预览未关完），强制执行")
+            self.performHide(p)
         }
     }
 
@@ -318,6 +329,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             p.contentView?.layer?.opacity = 1
             p.orderOut(nil)
             MonitorSampler.shared.setHomePanelActive(false)
+            self.isHiding = false
         }
         WindowReveal.playOut(on: p, to: presentation.originUnit, scale: 0.90,
                              duration: duration, completion: finish)

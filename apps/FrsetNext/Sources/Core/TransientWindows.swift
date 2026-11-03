@@ -30,6 +30,9 @@ final class TransientWindowCenter {
     private var localMonitor: Any?
     private var globalMonitor: Any?
     private var resignObserver: NSObjectProtocol?
+    /// v199：前台应用切换兜底。LSUIElement + 非激活面板的极端情况下
+    /// didResignActive 可能不发，但「点别的 app」一定会换前台应用。
+    private var appActivateObserver: NSObjectProtocol?
 
     private init() {}
 
@@ -96,15 +99,28 @@ final class TransientWindowCenter {
                 self?.dismissAll()
             }
         }
+        if appActivateObserver == nil {
+            appActivateObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                      app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+                Log.info("Transient", "点外收起（前台应用切换 → \(app.localizedName ?? "?"))")
+                self?.dismissAll()
+            }
+        }
     }
 
     private func stopMonitoring() {
         if let m = localMonitor { NSEvent.removeMonitor(m) }
         if let m = globalMonitor { NSEvent.removeMonitor(m) }
         if let o = resignObserver { NotificationCenter.default.removeObserver(o) }
+        if let o = appActivateObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
         localMonitor = nil
         globalMonitor = nil
         resignObserver = nil
+        appActivateObserver = nil
     }
 
     // MARK: - 判定
@@ -113,9 +129,19 @@ final class TransientWindowCenter {
         guard !entries.isEmpty else { return }
         let point = NSEvent.mouseLocation
 
-        // 菜单栏区域（状态项 / 系统图标）：交给各自 action（toggle / 切换模块），
-        // 这里抢跑会导致「先关后开」或「打开即关」。
-        if isInMenuBar(point) { return }
+        // 菜单栏区域（状态项 / 系统图标）：
+        //   · 点**自家**状态项：交给各自 action（toggle / 切换模块），这里抢跑会导致
+        //     「先关后开」——放行；
+        //   · 点系统菜单栏别处（时钟 / WiFi / 输入法…）：这些点击不会让 app 失活，
+        //     旧实现整条菜单栏一律放行 → 浮层一直挂着（用户「点其他地方又不收缩」）。
+        if isInMenuBar(point) {
+            if StatusBarController.shared.statusItemFrames.contains(where: { $0.contains(point) }) {
+                return
+            }
+            Log.info("Transient", "点外收起（菜单栏非自家项）")
+            dismissAll()
+            return
+        }
 
         // 菜单、弹层：不算点外
         if let win = event.window {

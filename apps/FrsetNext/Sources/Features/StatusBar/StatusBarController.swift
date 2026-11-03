@@ -165,6 +165,20 @@ public final class StatusBarController: NSObject {
     /// v30：主图标状态项（STATS 引擎保邻修正的参照物；只读）
     public var mainStatusItem: NSStatusItem? { mainItem }
 
+    /// v199：所有自家状态项在屏幕上的 frame（主图标 + 动态项 + 溢出项）。
+    /// TransientWindowCenter 用它区分「点自家图标（交给 action toggle）」与
+    /// 「点系统菜单栏别处（应当收起浮层）」——原来整条菜单栏一律放行，
+    /// 点时钟/WiFi 时 app 不失活，面板就一直挂着。
+    public var statusItemFrames: [NSRect] {
+        var frames: [NSRect] = []
+        if let f = mainItem?.button?.window?.frame { frames.append(f) }
+        for entry in entries {
+            if let f = entry.item.button?.window?.frame { frames.append(f) }
+        }
+        if let f = overflowItem?.button?.window?.frame { frames.append(f) }
+        return frames
+    }
+
     /// 调整主图标状态项宽度（MenuBarIconStyleApplier 的 fan 样式需要固定宽度容纳旋转视图；
     /// 传 NSStatusItem.variableLength 恢复自适应）。2026-10-16：fan 的 18pt 子视图
     /// 在可变长度按钮里被裁剪成「<<」状扇叶，故 fan 期间固定 30pt 并居中。
