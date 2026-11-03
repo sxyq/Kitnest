@@ -26,7 +26,9 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "Sources")
-OUT = os.path.join(ROOT, "docs", "FrsetNext-函数清单.csv")
+# 表放在**仓库根** docs/（与 codegraph 索引同级）；apps/FrsetNext/docs/ 只是应用内文档区
+REPO = os.path.dirname(os.path.dirname(ROOT))
+OUT = os.path.join(REPO, "docs", "FrsetNext-函数清单.csv")
 
 # 类型声明（用于 owner 归属）
 TYPE_RE = re.compile(
@@ -143,7 +145,7 @@ def main():
         w = csv.writer(f)
         w.writerow(["module", "file", "owner", "kind", "name", "line", "lines", "complexity"])
         w.writerows(rows)
-    print(f"已写入 {os.path.relpath(OUT, ROOT)}")
+    print(f"已写入 {os.path.relpath(OUT, REPO)}")
 
 
 if __name__ == "__main__":
