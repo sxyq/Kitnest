@@ -81,8 +81,7 @@ public final class WelcomeWindowController: NSObject {
         // Update Constraints 循环（2026-10-16 实测崩溃，见 SettingsWindowController 头注）
         win.contentMinSize = NSSize(width: 760, height: 620)
         win.contentMaxSize = NSSize(width: 760, height: 620)
-        win.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        win.standardWindowButton(.zoomButton)?.isHidden = true
+        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         win.center()
         win.contentView = NSView()
         window = win

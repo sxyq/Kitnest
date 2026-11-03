@@ -158,8 +158,7 @@ public final class WhatsNewWindowController: NSObject {
         win.isReleasedWhenClosed = false
         win.contentMinSize = NSSize(width: 400, height: 500)
         win.contentMaxSize = NSSize(width: 400, height: 500)
-        win.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        win.standardWindowButton(.zoomButton)?.isHidden = true
+        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         win.center()
         win.contentView = NSView()
         window = win

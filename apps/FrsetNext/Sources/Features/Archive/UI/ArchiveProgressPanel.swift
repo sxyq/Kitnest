@@ -289,9 +289,8 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         guard !mode.isEmpty else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             guard let win = self?.window,
-                  let host = win.standardWindowButton(.closeButton)?.superview,
-                  let btn = host.subviews.compactMap({ $0 as? RoundCloseButton }).first else {
-                Log.warn("Archive", "任务窗探针：找不到自绘圆钮")
+                  let btn = win.standardWindowButton(.closeButton) else {
+                Log.warn("Archive", "任务窗探针：找不到标准关闭钮")
                 return
             }
             let p = btn.convert(NSPoint(x: btn.bounds.midX, y: btn.bounds.midY), to: nil)

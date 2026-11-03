@@ -60,8 +60,7 @@ public final class PermissionGuideWindowController: NSObject {
         win.isReleasedWhenClosed = false
         win.contentMinSize = NSSize(width: 660, height: 600)
         win.contentMaxSize = NSSize(width: 660, height: 600)
-        win.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        win.standardWindowButton(.zoomButton)?.isHidden = true
+        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         win.center()
         win.contentView = NSView()
         window = win

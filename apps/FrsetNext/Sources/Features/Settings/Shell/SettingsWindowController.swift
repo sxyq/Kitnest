@@ -166,8 +166,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         // 会在首次 layout cycle 内请求窗口尺寸变更，同样触发该异常族。
         win.contentMinSize = NSSize(width: 940, height: 620)
         win.contentMaxSize = NSSize(width: 940, height: 620)
-        win.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        win.standardWindowButton(.zoomButton)?.isHidden = true
+        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         win.center()
         // SwiftUI 内容**延后一个 runloop** 装载：窗口创建与 NSHostingView 首次布局
         // 若落在同一 display cycle，AppKit 在 updateConstraints observer 内收到

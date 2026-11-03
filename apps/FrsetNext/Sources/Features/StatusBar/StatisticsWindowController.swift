@@ -27,10 +27,7 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         if #available(macOS 11.0, *) { window.titlebarSeparatorStyle = .none }
-        window.standardWindowButton(.closeButton)?.isHidden = false
-        for button in [NSWindow.ButtonType.miniaturizeButton, .zoomButton] {
-            window.standardWindowButton(button)?.isHidden = true
-        }
+        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         window.isMovableByWindowBackground = true
         window.hasShadow = true
         window.isOpaque = true

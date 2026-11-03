@@ -328,9 +328,8 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
         if UserDefaults.standard.bool(forKey: "probe.longshotClose") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 guard let win = self?.window,
-                      let host = win.standardWindowButton(.closeButton)?.superview,
-                      let btn = host.subviews.compactMap({ $0 as? RoundCloseButton }).first else {
-                    Log.warn("Capture", "关闭钮探针：没找到自绘圆钮")
+                      let btn = win.standardWindowButton(.closeButton) else {
+                    Log.warn("Capture", "关闭钮探针：没找到标准关闭钮")
                     return
                 }
                 btn.performClick(nil)

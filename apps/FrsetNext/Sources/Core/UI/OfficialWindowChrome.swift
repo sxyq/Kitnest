@@ -36,7 +36,7 @@ public extension NSWindow {
         backgroundColor = .clear
         titlebarAppearsTransparent = true
         installUnifiedGlassBackground()
-        // 官方左上角为灰色圆形关闭钮（无系统红绿灯）——自绘挂载（2026-10-18）
-        attachOfficialRoundCloseButton()
+        // v205：统一为标准红黄绿三钮（不再用自绘灰圆钮）
+        restoreStandardTrafficLights()
     }
 }
