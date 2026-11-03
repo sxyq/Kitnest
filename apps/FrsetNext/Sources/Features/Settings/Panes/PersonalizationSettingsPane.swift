@@ -14,6 +14,8 @@ struct PersonalizationSettingsView: View {
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
     @AppStorage(PanelSegments.transferKey) private var segmentTransfer = false
     @AppStorage(PanelSegments.castKey) private var segmentCast = false
+    /// v206：外观预览要跟「面板宽度」实时联动（写入偏好 → 预览窗宽度同步）
+    @AppStorage(Preferences.Keys.panelWidth) private var previewPanelWidth: Double = 400
     /// 背景图选择器呈现
     @Stored private var isPickingImage = false
     /// v203：玻璃实时预览用的真实桌面壁纸（首次出现时读取，失败回退渐变）
@@ -51,6 +53,10 @@ struct PersonalizationSettingsView: View {
             globalEntriesRow
             Divider().opacity(0.5)
             resetRow
+            Divider().opacity(0.5)
+            // v206（用户：「把上面那个玻璃质感的预览图放到最底上来，这些调节之后
+            // 也要去实时展现」）：预览移到整页最底部，上面的所有外观调节都即时反映
+            appearancePreviewRow
         }
         .padding(.vertical, 4)
         // 拖完顺序落盘（PanelRootView 用 @AppStorage 观察同一个键，面板立即重排）
@@ -399,8 +405,6 @@ struct PersonalizationSettingsView: View {
                     .font(.system(size: 11))
             }
 
-            glassPreview
-
             glassSlider("通透度", value: $p.glassOpacity, range: 0.55...1.0) {
                 String(format: "%.0f%%", $0 * 100)
             }
@@ -420,6 +424,25 @@ struct PersonalizationSettingsView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// v206：整页最底部的「外观预览」——强调色 / 字号 / 列表密度 / 面板圆角 /
+    /// 面板宽度 / 背景材质 / 玻璃四参数全部实时反映在这一扇缩略窗上。
+    private var appearancePreviewRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("外观预览")
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Text("实时")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.14)))
+            }
+            glassPreview
         }
     }
 
@@ -478,7 +501,7 @@ struct PersonalizationSettingsView: View {
                 trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
                 Spacer(minLength: 0)
                 Text("剪贴板")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 10 * p.fontScale, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 Color.clear.frame(width: 27)   // 与红绿灯等宽，标题居中
@@ -486,8 +509,8 @@ struct PersonalizationSettingsView: View {
             .frame(height: 26)
 
             HStack(spacing: 4) {
-                Image(systemName: "magnifyingglass").font(.system(size: 8))
-                Text("搜索剪贴板").font(.system(size: 9))
+                Image(systemName: "magnifyingglass").font(.system(size: 8 * p.fontScale))
+                Text("搜索剪贴板").font(.system(size: 9 * p.fontScale))
                 Spacer(minLength: 0)
             }
             .foregroundStyle(.secondary)
@@ -510,7 +533,8 @@ struct PersonalizationSettingsView: View {
             Spacer(minLength: 0)
         }
         .padding(10)
-        .frame(width: 360, height: 174)
+        // v206：宽度跟随「面板宽度」档位；圆角跟随「面板圆角」档位
+        .frame(width: max(300, min(420, CGFloat(previewPanelWidth) * 0.85)), height: 174)
         .background {
             // 与 App 内同一套语义：纯色卡片 = 不透明底；毛玻璃 = 模糊壁纸 + 底衬 + 霜感
             ZStack {
@@ -523,9 +547,9 @@ struct PersonalizationSettingsView: View {
                 Theme.glassFrost
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous)
                 .strokeBorder(Theme.cardStroke, lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.30), radius: 18, x: 0, y: 9)
@@ -537,7 +561,7 @@ struct PersonalizationSettingsView: View {
 
     private func mockChip(_ text: String, selected: Bool = false) -> some View {
         Text(text)
-            .font(.system(size: 8, weight: selected ? .semibold : .regular))
+            .font(.system(size: 8 * p.fontScale, weight: selected ? .semibold : .regular))
             .foregroundStyle(selected ? Theme.accent : Color.secondary)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -559,7 +583,10 @@ struct PersonalizationSettingsView: View {
             }
         }
         .padding(7)
-        .frame(maxWidth: .infinity, minHeight: 52, alignment: .topLeading)
+        // v206：卡片高度跟随「列表密度」档位（紧凑/标准/宽松）
+        .frame(maxWidth: .infinity,
+               minHeight: p.density.statsRowHeight * 0.62,
+               alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.cardFill))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
