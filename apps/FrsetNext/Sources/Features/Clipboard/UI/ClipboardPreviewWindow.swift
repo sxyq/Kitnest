@@ -3,13 +3,10 @@ import SwiftUI
 
 // MARK: - 统一预览窗（v71，用户需求 2026-10-19「两种预览要一致，不能两套实现」）
 //
-// hover 与点击统一为**同一个窗口实现**（NSPopover 退役）：
-//   · hover 触发  → .hover      模式：无边框轻量态，鼠标移出自动关（移出判定由
-//                  MainPanelPreviewPopoverCoordinator 统一仲裁，含实测位置兜底）
-//   · 单击触发    → .persistent 模式：标题栏常态，可拖动缩放、失焦即关
-// 两者共用同一内容视图 ClipboardPreviewWindowView（头部：类型图标 + 标题 + 时间/字数 +
-// 预览|编辑分段 + 📌 固定 + 复制 + 关闭叉号；正文：PreviewPopoverContentView 同款渲染），
-// 仅「窗口外壳」与「自动关闭策略」随触发方式不同。
+// v206（用户：「JSON 文件的那种预览是不是单独窗口……全部删掉」）：
+// 预览**只保留 hover 无边框窗**（无标题栏/无红绿灯）；persistent 标题栏窗代码已删除。
+// 内容视图 ClipboardPreviewWindowView（类型图标 + 标题 + 时间/字数 + 预览|编辑分段 +
+// 📌 固定 + 复制 + 关闭叉号）与 PreviewPopoverContentView 渲染保持一致。
 //
 // 📌 固定语义（两模式一致）：开 = 自动关闭全禁（移出不关、失焦不关），
 //    只有 Esc / 叉号 / 条目删除 / 滚动出视口 / 程序化关闭会生效。
@@ -19,10 +16,7 @@ import SwiftUI
 
 public final class ClipboardPreviewWindowController: NSWindowController, NSWindowDelegate {
 
-    public enum Mode { case hover, persistent }
-
     private var item: ClipboardItem
-    private(set) var mode: Mode
     /// 一次性空格预览提示（hover 态首帧显示）
     private let showsHint: Bool
     /// 编辑态变化上报（协调器据此暂停 hover 自动关闭）
@@ -36,35 +30,22 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     /// 收回动画进行中（防止 closeSlot 重入时重复 close）
     private var isClosing = false
 
-    public init(item: ClipboardItem, mode: Mode, showsHint: Bool = false) {
+    public init(item: ClipboardItem, showsHint: Bool = false) {
         self.item = item
-        self.mode = mode
         self.showsHint = showsHint
-        let initial = Self.initialSize(for: mode, item: item)
-        let window: NSWindow
-        switch mode {
-        case .persistent:
-            window = NSWindow(contentRect: NSRect(origin: .zero, size: initial),
-                              styleMask: [.titled, .closable, .resizable, .miniaturizable],
-                              backing: .buffered, defer: false)
-            window.title = "预览"
-        case .hover:
-            window = HoverPreviewWindow(contentRect: NSRect(origin: .zero, size: initial),
+        let initial = Self.initialSize(item: item)
+        // v206：只允许 hover 无边框预览窗；任何独立标题栏预览窗都不再创建
+        let window = HoverPreviewWindow(contentRect: NSRect(origin: .zero, size: initial),
                                         styleMask: [.borderless],
                                         backing: .buffered, defer: false)
-        }
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.minSize = NSSize(width: 420, height: 320)
         window.identifier = NSUserInterfaceItemIdentifier("frset.clipboardPreview")
         super.init(window: window)
         window.delegate = self
+        configureHoverChrome(window: window)
         installContent()
-        if mode == .persistent {
-            window.applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏 + 圆形关闭钮
-        } else {
-            configureHoverChrome(window: window)
-        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（预览窗走代码构建）") }
@@ -80,7 +61,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     ///   · 文件：560×420（真正高度由后面的 fittingSize 收缩逻辑收口）；
     ///   · 文本/代码/链接：按「最长行 × 每字宽」估宽（440–820），按行数估高（320–760）；
     ///     上限之外一律进入内部滚动，不无限拉高窗口。
-    private static func initialSize(for mode: Mode, item: ClipboardItem) -> NSSize {
+    private static func initialSize(item: ClipboardItem) -> NSSize {
         switch item.type {
         case .image:
             if let path = item.imagePath ?? item.thumbnailPath,
@@ -118,12 +99,12 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     private func installContent() {
         guard let window else { return }
         let view = ClipboardPreviewWindowView(item: item, showsHint: showsHint,
-                                              hoverStyle: mode == .hover,
+                                              hoverStyle: true,
                                               onEditingChanged: { [weak self] editing in
                                                   self?.onEditingChanged?(editing)
                                               })
         let host = NSHostingView(rootView: view)
-        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(for: mode, item: item))
+        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(item: item))
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         window.contentView = host
@@ -132,15 +113,12 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         if item.type == .file {
             host.layoutSubtreeIfNeeded()
             let fit = host.fittingSize
-            if fit.height > 40, fit.height < Self.initialSize(for: mode, item: item).height {
+            if fit.height > 40, fit.height < Self.initialSize(item: item).height {
                 var f = window.frame
                 f.size.height = max(window.minSize.height, fit.height)
                 window.setFrame(f, display: false)
                 Log.info("Preview", "文件态高度自适应：内容 \(Int(fit.height)) → 窗口 \(Int(f.size.height))")
             }
-        }
-        if mode == .persistent {
-            window.applyOfficialChrome()   // contentView 已替换 → 圆形关闭钮重新挂上
         }
     }
 
@@ -166,14 +144,8 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         place(anchorRectInScreen: anchorRectInScreen,
               panelFrame: panelFrame, visibleFrame: visibleFrame)
         isClosing = false
-        switch mode {
-        case .hover:
-            // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
-            window?.orderFront(nil)
-        case .persistent:
-            window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
+        window?.orderFront(nil)
         // v197：只有换条目时播入场（同条目反复 hover 不重播，避免跟随鼠标一路「呼吸」）
         if let w = window {
             w.contentView?.layer?.removeAllAnimations()
@@ -185,12 +157,6 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                                     duration: Personalization.shared.openAnimation.duration)
             }
         }
-    }
-
-    /// persistent 同条目重复点击：仅前置
-    func focusFront() {
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     /// 位置：贴主面板左侧（顶边对齐锚条目），放不下则右侧，最后夹在可见区内
@@ -241,20 +207,12 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
 
     // MARK: NSWindowDelegate
 
-    /// 失焦策略（两模式同一 📌 语义：固定中失焦不关）：
-    ///   · persistent：焦点去其他 App → 关；焦点在本 App 内其他窗口 → 保持「边看边换」
-    ///   · hover：焦点去任何别处 → 关（轻量态不驻留；点条目会立刻由协调器换 persistent 窗）
+    /// 失焦策略（📌 固定中失焦不关）：hover 轻量态焦点去别处即关
     public func windowDidResignKey(_ notification: Notification) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
             guard let self, let w = self.window, w.isVisible, !w.isKeyWindow else { return }
             if MainPanelPreviewPopoverCoordinator.shared.previewPinned { return }
-            switch self.mode {
-            case .hover:
-                w.performClose(nil)
-            case .persistent:
-                if NSApp.isActive, NSApp.keyWindow != nil { return }
-                w.performClose(nil)
-            }
+            w.performClose(nil)
         }
     }
 

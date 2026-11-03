@@ -5,10 +5,10 @@ import SwiftUI
 
 // MARK: - 主面板预览协调器（specs/12 §4.2，MainPanelPreviewPopoverCoordinator）
 //
-// v71（用户需求「两种预览要一致，不能两套实现」）：NSPopover 底座退役，
-// hover 与单击统一承载于 ClipboardPreviewWindowController（同一窗口实现）：
-//   · hover / 空格键   → .hover      模式（无边框轻量态，移出自动关）
-//   · 单击（Record 转）→ .persistent 模式（标题栏常态，可缩放、失焦即关）
+// v71：NSPopover 底座退役，预览统一承载于 ClipboardPreviewWindowController。
+// v206（用户：「JSON 文件的那种预览是不是单独窗口……全部删掉」）：
+// 只保留 hover 无边框轻量窗（无标题栏/无红绿灯，移出自动关）；
+// persistent 标题栏预览窗已经彻底删除，本类不再提供任何「单独预览窗」入口。
 // 本类名与公开接口保持不变（Registry 协议 / PanelRootView / PanelController 零改动）。
 //
 // 三路触发：悬停（开/关 DispatchWorkItem + hover-intent 阈值 + 总开关）、单击、空格键。
@@ -48,11 +48,11 @@ public final class MainPanelPreviewPopoverSlot {
     /// 编辑中（暂停 hover 自动关闭，防草稿丢失）
     var isEditing = false
 
-    init(contentModel: PreviewPopoverContentModel, mode: ClipboardPreviewWindowController.Mode,
-         showsHint: Bool) {
+    init(contentModel: PreviewPopoverContentModel, showsHint: Bool) {
         self.contentModel = contentModel
+        // v206：预览只剩 hover 无边框窗（独立标题栏预览窗已删除）
         self.windowController = ClipboardPreviewWindowController(item: contentModel.item,
-                                                                 mode: mode, showsHint: showsHint)
+                                                                 showsHint: showsHint)
         windowController.onWindowClosed = { [weak self] in
             MainPanelPreviewPopoverCoordinator.shared.handlePreviewWindowDidClose(self)
         }
@@ -159,23 +159,20 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     ///   - source: mainPreview / floatingPreview
     ///   - entry: 入口多态（F19）
     ///   - showsKeyboardHint: 是否显示一次性键盘预览提示（F6，仅空格触发时 true）
-    ///   - mode: hover（默认）/ persistent
     @discardableResult
     public func present(for item: ClipboardItem,
                         anchorRectInWindow: CGRect? = nil,
                         anchorView: NSView? = nil,
                         source: PreviewPopoverContentModel.Source = .mainPreview,
                         entry: PreviewPopoverContentModel.Entry = .mainList,
-                        showsKeyboardHint: Bool = false,
-                        mode: ClipboardPreviewWindowController.Mode = .hover) -> Bool {
+                        showsKeyboardHint: Bool = false) -> Bool {
         cancelHoverWorkItems()
         cancelKeyboardPreview()
         activeSource = source
 
-        // 同条目同模式已呈现 → 前置即可（重复触发不闪烁；persistent 保留缩放与草稿）
+        // 同条目已呈现 → 前置即可（重复触发不闪烁）
         if let slot, slot.state == .presenting || slot.state == .presented,
-           slot.contentModel?.item.id == item.id, slot.windowController.mode == mode {
-            if mode == .persistent { slot.windowController.focusFront() }
+           slot.contentModel?.item.id == item.id {
             return true
         }
         // 旧预览窗先程序化关闭（didClose 回调里只做清理，不触发 completion 流程）
@@ -201,7 +198,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                                                inlineText: text,
                                                showsKeyboardHint: showsKeyboardHint)
 
-        let slot = MainPanelPreviewPopoverSlot(contentModel: model, mode: mode, showsHint: showsKeyboardHint)
+        let slot = MainPanelPreviewPopoverSlot(contentModel: model, showsHint: showsKeyboardHint)
         self.slot = slot
         slot.state = .presenting
         slot.windowController.show(item: item,
@@ -211,20 +208,15 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         slot.state = .presented
 
         activeItemID = item.id
-        // v71：点外关闭监听仅 hover 态安装——persistent 态保留「失焦关 + 本 App 内
-        // 边看边换」协议（点面板换条目不该关窗，2026-10-19 回归自查修正）。
-        if mode == .hover {
-            installOutsideClickMonitor()
-        } else {
-            removeOutsideClickMonitor()
-        }
+        // v206：预览只剩 hover 态 → 始终安装点外关闭监听
+        installOutsideClickMonitor()
         installEscapeMonitor()
         track("main_panel_preview", "exposed", model)
         return true
     }
 
     // v182（用户）：「点开后常驻、带两个叉」的持久预览窗已删除；
-    // 单击与悬停共用 present(...mode: .hover)，不再提供 persistent 入口。
+    // v206：单击与悬停共用同一个 hover 预览，独立 persistent 预览窗已删除。
 
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
