@@ -27,7 +27,7 @@ frset-rebuild/
 │   ├── 90-历史归档/          接手清单等只读历史
 │   └── assets/screenshots/   实机截图（按版本命名）
 ├── apps/FrsetNext/           主工程（Swift 源码 + 构建/打包脚本 + 契约）
-│   ├── Sources/              全部源码（Core/Features/App）
+│   ├── Sources/              全部源码（Core/{Runtime,UI}、Features/<模块>/<子职责>、App）
 │   ├── Resources/            本地化与资源
 │   ├── build.sh              一键构建（原子部署到 /Applications）
 │   ├── check.sh               typecheck + 跨模块耦合自检

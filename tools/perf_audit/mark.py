@@ -2,7 +2,7 @@
 """函数级审计标记工具：一次标记一个函数，立即落盘 + 写审计流水。
 
 用法：
-  python3 tools/perf_audit/mark.py --file Features/Monitor/MonitorSampler.swift \
+  python3 tools/perf_audit/mark.py --file Features/Monitor/Sampling/MonitorSampler.swift \
       --name sampleOnce --status manual --verdict optimize --cost medium \
       --note "实测 refresh 126ms/次，SMC 占 103ms；已加 UI 门控"
 

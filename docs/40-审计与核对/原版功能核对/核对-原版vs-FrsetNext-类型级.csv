@@ -8,7 +8,7 @@ AICredentialJournalStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 AICredentialStore,struct,Swift描述符,FrsetNext:AICredentialJournalEntry/AICredentialJournalStore/AICredentialCommitCoordinator,待确认,名称部分匹配，需人工确认
 AICredentialStoring,protocol,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 AICredentialTransaction,struct,Swift描述符,FrsetNext:AICredentialJournalEntry/AICredentialJournalStore/AICredentialCommitCoordinator,待确认,名称部分匹配，需人工确认
-AIProviderConnectionController,class,Swift描述符,Features/AI/AIConnectionService.swift,已覆盖-迁移,
+AIProviderConnectionController,class,Swift描述符,Features/AI/Services/AIConnectionService.swift,已覆盖-迁移,
 AIProviderConnectionService,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 AIProviderDefinition,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AIProviderInstance,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -24,7 +24,7 @@ AIProviderProtocol,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型�
 AIProviderReorderList,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AIProviderRowFramePreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AIProviderSelectionResolution,struct,Swift描述符,FrsetNext:AIProviderSettingsViewModel,待确认,名称部分匹配，需人工确认
-AIProviderStore,class,Swift描述符,Features/AI/CredentialStore.swift,已覆盖-迁移,
+AIProviderStore,class,Swift描述符,Features/AI/Services/CredentialStore.swift,已覆盖-迁移,
 AIProviderType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AIProviderURLSessionDelegate,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 AIProvidersSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -33,7 +33,7 @@ AIToolExecutionSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应�
 AIToolModelOption,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AIToolStreamingPhase,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AIToolStreamingPreviewView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-AIToolStreamingSession,class,Swift描述符,Features/AI/TranslationToolSession.swift,已覆盖-迁移,
+AIToolStreamingSession,class,Swift描述符,Features/AI/Translation/TranslationToolSession.swift,已覆盖-迁移,
 ANRTrackerBuilder,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 AXUIElement,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 AboutDebugSettingsSheet,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -63,7 +63,7 @@ AnnotationTypeCase,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型�
 AnthropicAuthenticationMode,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AnthropicContentBlock,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AnthropicError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-AnthropicLLMAdapter,class,Swift描述符,Features/AI/AnthropicService.swift,已覆盖-迁移,
+AnthropicLLMAdapter,class,Swift描述符,Features/AI/Services/AnthropicService.swift,已覆盖-迁移,
 AnthropicMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AnthropicMessageRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AnthropicModelsEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -78,7 +78,7 @@ AppActivationPolicyReason,enum,Swift描述符,—,未匹配,FrsetNext 无对应�
 AppDelegate,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 AppHangTrackerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AppKitDoubleTapEvent,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-AppKitDoubleTapMonitor,class,Swift描述符,Features/Toolbox/DoubleTapShortcut.swift,已覆盖-迁移,
+AppKitDoubleTapMonitor,class,Swift描述符,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,已覆盖-迁移,
 AppLanguage,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AppLaunchCoordinator,class,Swift描述符,App/AppBootstrap.swift,已覆盖-迁移,
 AppLifecyclePublishing,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -89,7 +89,7 @@ AppWindowBackground,struct,Swift描述符,—,未匹配,FrsetNext 无对应类�
 AppearanceManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 AppearanceMode,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
 ApplicationIconKey,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-ApplicationIconProvider,class,Swift描述符,Features/Clipboard/ClipboardAppIconCache.swift,已覆盖-迁移,
+ApplicationIconProvider,class,Swift描述符,Features/Clipboard/Store/ClipboardAppIconCache.swift,已覆盖-迁移,
 ApplicationLifecyclePublisher,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
 ApplicationProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ApplicationScreenViewPublisher,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
@@ -98,10 +98,10 @@ ArbitraryData,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引�
 AsyncThumbnailView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AuthenticatedRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AuthorizationState,enum,Swift描述符,FrsetNext:ClientAuthorization,待确认,名称部分匹配，需人工确认
-AutoPasteEligibilityManager,class,Swift描述符,Features/Clipboard/ClipboardManager.swift,已覆盖-迁移,
+AutoPasteEligibilityManager,class,Swift描述符,Features/Clipboard/Store/ClipboardManager.swift,已覆盖-迁移,
 AutoPastePromptAttempt,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AutoPastePromptCard,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-AutoPastePromptCoordinator,class,Swift描述符,Features/Clipboard/ClipboardManager.swift,已覆盖-迁移,
+AutoPastePromptCoordinator,class,Swift描述符,Features/Clipboard/Store/ClipboardManager.swift,已覆盖-迁移,
 AutoPastePromptPersistedState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AutoPastePromptSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 AutoSessionTrackingProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -146,7 +146,7 @@ CGRect,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由�
 CGSize,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 CPUFanMetricRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CPUUsageCalculator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-CalendarAuthorizationService,class,Swift描述符,Features/Toolbox/CalendarService.swift,已覆盖-迁移,
+CalendarAuthorizationService,class,Swift描述符,Features/Toolbox/Calendar/CalendarService.swift,已覆盖-迁移,
 CalendarAuthorizationStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CalendarDay,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 CalendarDayEvent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -164,17 +164,17 @@ CalendarEventDetailPopoverView,struct,Swift描述符,FrsetNext:CalendarEvent,待
 CalendarEventLinkKind,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
 CalendarEventNotesLinkStyler,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
 CalendarEventRecurrenceKind,enum,Swift描述符,FrsetNext:CalendarEvent,待确认,名称部分匹配，需人工确认
-CalendarEventService,class,Swift描述符,Features/Toolbox/CalendarService.swift,已覆盖-迁移,
+CalendarEventService,class,Swift描述符,Features/Toolbox/Calendar/CalendarService.swift,已覆盖-迁移,
 CalendarExternalOpenTarget,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CalendarFoldedWeekScrollMonitor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-CalendarFoldedWeekScrollMonitorView,class,Swift描述符,Features/Toolbox/CalendarSectionView.swift,已覆盖-迁移,
+CalendarFoldedWeekScrollMonitorView,class,Swift描述符,Features/Toolbox/Calendar/CalendarSectionView.swift,已覆盖-迁移,
 CalendarHeaderView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CalendarHoverTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-CalendarPanelState,class,Swift描述符,Features/Toolbox/CalendarSectionView.swift,已覆盖-迁移,
+CalendarPanelState,class,Swift描述符,Features/Toolbox/Calendar/CalendarSectionView.swift,已覆盖-迁移,
 CalendarPermissionHoverTooltip,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CalendarRSVPStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CalendarScrollDismissObserver,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-CalendarScrollDismissObserverView,class,Swift描述符,Features/Toolbox/CalendarSectionView.swift,已覆盖-迁移,
+CalendarScrollDismissObserverView,class,Swift描述符,Features/Toolbox/Calendar/CalendarSectionView.swift,已覆盖-迁移,
 CalendarSectionView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 CalendarSessionPageView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CalendarSummaryEvent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -240,12 +240,12 @@ ClipboardPaywallPresentation,struct,Swift描述符,—,未匹配,FrsetNext 无�
 ClipboardPaywallSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ClipboardRichTextPayload,struct,Swift描述符,FrsetNext:ClipboardRichTextStorage,待确认,名称部分匹配，需人工确认
 ClipboardRichTextStorage,class,Swift描述符,FrsetNext:enum,已覆盖-同名,
-ClipboardRowContextMenuActivationTrackerNSView,class,Swift描述符,Features/Clipboard/ClipboardTableHostView.swift,已覆盖-迁移,
+ClipboardRowContextMenuActivationTrackerNSView,class,Swift描述符,Features/Clipboard/UI/ClipboardTableHostView.swift,已覆盖-迁移,
 ClipboardRowContextMenuActivationTrackerView,struct,Swift描述符,FrsetNext:ClipboardRowMenuContent/ClipboardRow/ClipboardRowHoverSuppressionController,待确认,名称部分匹配，需人工确认
 ClipboardRowHoverSuppressionController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 ClipboardSearchInputField,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ClipboardSearchInputKeyboardCommand,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-ClipboardSearchTextField,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,已覆盖-迁移,
+ClipboardSearchTextField,class,Swift描述符,Features/Toolbox/Search/SearchSectionView.swift,已覆盖-迁移,
 ClipboardSectionContext,enum,Swift描述符,FrsetNext:ClipboardSectionView,待确认,名称部分匹配，需人工确认
 ClipboardSectionView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 ClipboardStorageLimitMode,enum,Swift描述符,FrsetNext:ClipboardStorageUsageProvider/ClipboardStoragePruneScheduler/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
@@ -271,19 +271,19 @@ CodableColor,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引
 CodeBlockFragment,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CodeHighlightSpan,struct,Swift描述符,FrsetNext:CodeHighlighter,待确认,名称部分匹配，需人工确认
 CodeLineIndex,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-CodeLineNumberRulerView,class,Swift描述符,Features/Panel/JSONInspectorView.swift,已覆盖-迁移,
-CodePreviewScrollAxisLockNSView,class,Swift描述符,Features/Panel/JSONInspectorView.swift,待确认,
+CodeLineNumberRulerView,class,Swift描述符,Features/Panel/Inspector/JSONInspectorView.swift,已覆盖-迁移,
+CodePreviewScrollAxisLockNSView,class,Swift描述符,Features/Panel/Inspector/JSONInspectorView.swift,待确认,
 CodePreviewScrollAxisLockView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-CodePreviewScrollView,class,Swift描述符,Features/Panel/JSONInspectorView.swift,已覆盖-迁移,
+CodePreviewScrollView,class,Swift描述符,Features/Panel/Inspector/JSONInspectorView.swift,已覆盖-迁移,
 CodeSyntaxHighlighting,enum,Swift描述符,FrsetNext:MarkdownCodeSyntaxHighlighter,待确认,名称部分匹配，需人工确认
 CodeTokenKind,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CodingKeys,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
 CollapsibleSearchBarSidebar,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-ColorPickerMagnifierView,class,Swift描述符,Features/Capture/EyedropperBridge.swift,已覆盖-迁移,
-ColorPickerManager,class,Swift描述符,Features/Capture/Eyedropper.swift,已覆盖-迁移,
-ColorPickerOverlayView,class,Swift描述符,Features/Capture/EyedropperBridge.swift,已覆盖-迁移,
+ColorPickerMagnifierView,class,Swift描述符,Features/Capture/Screenshot/EyedropperBridge.swift,已覆盖-迁移,
+ColorPickerManager,class,Swift描述符,Features/Capture/Screenshot/Eyedropper.swift,已覆盖-迁移,
+ColorPickerOverlayView,class,Swift描述符,Features/Capture/Screenshot/EyedropperBridge.swift,已覆盖-迁移,
 ColorPickerSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-ColorPickerWindow,class,Swift描述符,Features/Capture/Eyedropper.swift,已覆盖-迁移,
+ColorPickerWindow,class,Swift描述符,Features/Capture/Screenshot/Eyedropper.swift,已覆盖-迁移,
 ComparisonRowModel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ComparisonValue,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 CompletionPageView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -345,7 +345,7 @@ Detail,struct,Swift描述符,FrsetNext:MonitorDetailSelection/MonitorDetailView,
 DetectedLink,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 DirectError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 DiscoveredModel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-DiskActivityLampsLayerView,class,Swift描述符,Features/Monitor/MonitorStatusItems.swift,已覆盖-迁移,
+DiskActivityLampsLayerView,class,Swift描述符,Features/Monitor/StatusBar/MonitorStatusItems.swift,已覆盖-迁移,
 DiskActivityLampsOverlay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 DispatchFactoryProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 DispatchQueueWrapperProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
@@ -372,8 +372,8 @@ EvaluatedFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或�
 EvaluationResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 Event,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 EventHotKeyID,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
-EventMonitor,class,Swift描述符,App/AppBootstrap.swift + Features/Clipboard/ClipboardManager.swift,已覆盖-迁移,
-EventTapContext,class,Swift描述符,Features/Toolbox/DoubleTapShortcut.swift,已覆盖-迁移,
+EventMonitor,class,Swift描述符,App/AppBootstrap.swift + Features/Clipboard/Store/ClipboardManager.swift,已覆盖-迁移,
+EventTapContext,class,Swift描述符,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,已覆盖-迁移,
 EventTypeMask,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ExceptionDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ExpandingTextView,class,Swift描述符,—,待确认,
@@ -387,9 +387,9 @@ FileIOTrackerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应�
 FileManagerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 FileTypeIconCacheRecord,struct,Swift描述符,FrsetNext:FileTypeIconProvider/FileTypeIcon,待确认,名称部分匹配，需人工确认
 FileTypeIconProvider,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-FloatingClipboardActiveHoverTrackerNSView,class,Swift描述符,Features/Clipboard/FloatingClipboardWindow.swift,已覆盖-迁移,
+FloatingClipboardActiveHoverTrackerNSView,class,Swift描述符,Features/Clipboard/Floating/FloatingClipboardWindow.swift,已覆盖-迁移,
 FloatingClipboardActiveHoverTrackerView,struct,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
-FloatingClipboardHostingView,class,Swift描述符,Features/Clipboard/FloatingClipboardWindow.swift,已覆盖-迁移,
+FloatingClipboardHostingView,class,Swift描述符,Features/Clipboard/Floating/FloatingClipboardWindow.swift,已覆盖-迁移,
 FloatingClipboardInteractionMode,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
 FloatingClipboardKeyboardCommand,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
 FloatingClipboardKeyboardStateResetBehavior,enum,Swift描述符,FrsetNext:FloatingClipboardPinState/FloatingClipboardPanel/FloatingClipboardStore,待确认,名称部分匹配，需人工确认
@@ -423,7 +423,7 @@ GeminiContent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或�
 GeminiDiscoveredModel,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 GeminiErrorEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 GeminiGenerationConfig,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-GeminiLLMAdapter,class,Swift描述符,Features/AI/GeminiService.swift,已覆盖-迁移,
+GeminiLLMAdapter,class,Swift描述符,Features/AI/Services/GeminiService.swift,已覆盖-迁移,
 GeminiModelsEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 GeminiPart,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 GeminiRequestPayload,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -450,10 +450,10 @@ HttpDateParser,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或�
 HttpHeaderCollectionOptions,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 Hub,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 HubProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-IPAddressTool,struct,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
-IPAddressToolAnchorView,struct,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
-IPAddressToolPresentationState,class,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
-IPAddressToolUsageTracker,class,Swift描述符,Features/Toolbox/IPAddressService.swift,已覆盖-迁移,
+IPAddressTool,struct,Swift描述符,Features/Toolbox/Tools/IPAddressService.swift,已覆盖-迁移,
+IPAddressToolAnchorView,struct,Swift描述符,Features/Toolbox/Tools/IPAddressService.swift,已覆盖-迁移,
+IPAddressToolPresentationState,class,Swift描述符,Features/Toolbox/Tools/IPAddressService.swift,已覆盖-迁移,
+IPAddressToolUsageTracker,class,Swift描述符,Features/Toolbox/Tools/IPAddressService.swift,已覆盖-迁移,
 IPResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 IgnoredAppManagementSheet,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 IgnoredAppPreviewIconStack,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -508,7 +508,7 @@ LanguageMenuItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型�
 LanguageSelectionMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 LargeTextPreviewContainerView,class,Swift描述符,FrsetNext:struct,已覆盖-同名,
 LargeTextPreviewView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
-LaunchAtLoginManager,class,Swift描述符,Features/Settings/SettingsPanes.swift（SMAppService）,已覆盖-迁移,
+LaunchAtLoginManager,class,Swift描述符,Features/Settings/Shell/SettingsPanes.swift（SMAppService）,已覆盖-迁移,
 LaunchSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 LegacyGeminiMigrationLedger,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 LegacyGeminiMigrator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
@@ -527,13 +527,13 @@ LongScreenshotContinuityController,struct,Swift描述符,FrsetNext:LongScreensho
 LongScreenshotCoordinator,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 LongScreenshotEditorContainerView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 LongScreenshotEditorDocumentView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-LongScreenshotEditorScrollView,class,Swift描述符,Features/Capture/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
+LongScreenshotEditorScrollView,class,Swift描述符,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
 LongScreenshotEditorWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-LongScreenshotEditorWindowController,class,Swift描述符,Features/Capture/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
+LongScreenshotEditorWindowController,class,Swift描述符,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
 LongScreenshotFixedBands,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotFloatingOverlayDetector,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotGrayFrame,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
-LongScreenshotImageDocumentView,class,Swift描述符,Features/Capture/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
+LongScreenshotImageDocumentView,class,Swift描述符,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,已覆盖-迁移,
 LongScreenshotImageScrollView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 LongScreenshotMatchScope,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotMotionEstimator,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
@@ -541,7 +541,7 @@ LongScreenshotMovementCoverage,enum,Swift描述符,FrsetNext:LongScreenshotCaptu
 LongScreenshotNormalizedHorizontalRange,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotPendingScrollInput,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotPreviewController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-LongScreenshotPreviewModel,class,Swift描述符,Features/Capture/LongScreenshotCoordinator.swift,已覆盖-迁移,
+LongScreenshotPreviewModel,class,Swift描述符,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,已覆盖-迁移,
 LongScreenshotPreviewView,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotRegionalMatch,struct,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
 LongScreenshotRegionalMotionEstimator,enum,Swift描述符,FrsetNext:LongScreenshotCaptureStream/LongScreenshotCoordinator/LongScreenshotSelectionBorderWindow,待确认,名称部分匹配，需人工确认
@@ -558,7 +558,7 @@ LunarDate,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 MXFrame,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MXSample,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MacEditorView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-MainPanelHostingView,class,Swift描述符,Features/Panel/PanelRootView.swift,已覆盖-迁移,
+MainPanelHostingView,class,Swift描述符,Features/Panel/Presentation/PanelRootView.swift,已覆盖-迁移,
 MainPanelKeyboardCommand,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MainPanelPreviewContent,enum,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
 MainPanelPreviewContentSizePreferenceKey,struct,Swift描述符,FrsetNext:MainPanelPreviewPopoverCloseReason/MainPanelPreviewPopoverSlot/MainPanelPreviewPopoverCoordinator,待确认,名称部分匹配，需人工确认
@@ -608,7 +608,7 @@ MatchingFlags,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或�
 Material,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 MechanismContextDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MechanismDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-MemoryIconPinsLayerView,class,Swift描述符,Features/Monitor/MonitorStatusItems.swift,已覆盖-迁移,
+MemoryIconPinsLayerView,class,Swift描述符,Features/Monitor/StatusBar/MonitorStatusItems.swift,已覆盖-迁移,
 MemoryIconPinsOverlay,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MenuBarAnimatedToastWrapper,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MenuBarButtonContextSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -618,8 +618,8 @@ MenuBarIconType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或�
 MenuBarMetric,enum,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 MenuBarMetricContent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MenuBarMetricDisplayState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-MenuBarMetricsHostingView,class,Swift描述符,Features/Monitor/StatsBarEngine.swift（合并条）,已覆盖-迁移,
-MenuBarMetricsStatusBarController,class,Swift描述符,Features/Monitor/StatsBarEngine.swift（合并条取代 4 独立项）,已覆盖-迁移,
+MenuBarMetricsHostingView,class,Swift描述符,Features/Monitor/StatusBar/StatsBarEngine.swift（合并条）,已覆盖-迁移,
+MenuBarMetricsStatusBarController,class,Swift描述符,Features/Monitor/StatusBar/StatsBarEngine.swift（合并条取代 4 独立项）,已覆盖-迁移,
 MenuBarNetworkView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MenuBarToastAnimationState,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 MenuBarToastManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
@@ -630,10 +630,10 @@ MicrosoftTranslation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类�
 Mode,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
 Model,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 ModelDiscoveryMenuButton,struct,Swift描述符,FrsetNext:AIProviderModelDiscoveryCache,待确认,名称部分匹配，需人工确认
-ModelDiscoveryMenuButtonView,class,Swift描述符,Features/AI/AISettingsPane.swift,已覆盖-迁移,
+ModelDiscoveryMenuButtonView,class,Swift描述符,Features/AI/Views/AISettingsPane.swift,已覆盖-迁移,
 ModifierFlags,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 MoreMenuButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-MoreMenuPopover,struct,Swift描述符,Features/StatusBar/StatusBarMenuBuilder.swift + Features/Panel/PanelRootView.swift,已覆盖-迁移,
+MoreMenuPopover,struct,Swift描述符,Features/StatusBar/StatusBarMenuBuilder.swift + Features/Panel/Presentation/PanelRootView.swift,已覆盖-迁移,
 MoreMenuPopoverArrowCover,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MoreMenuPopoverArrowShape,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 MosaicIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -656,15 +656,15 @@ NetworkInfoContentHeightKey,struct,Swift描述符,—,不适用-系统类型,App
 NetworkInfoDiscoveryTip,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NetworkInfoEntrySource,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NetworkInfoLocalAddress,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-NetworkInfoPopoverController,class,Swift描述符,Features/Monitor/NetworkDiagnostics.swift,已覆盖-迁移,
+NetworkInfoPopoverController,class,Swift描述符,Features/Monitor/Views/NetworkDiagnostics.swift,已覆盖-迁移,
 NetworkInfoPopoverView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NetworkInfoPublicIPQuery,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-NetworkInfoService,class,Swift描述符,Features/Monitor/NetworkDiagnostics.swift,已覆盖-迁移,
-NetworkMonitor,class,Swift描述符,Features/Monitor/MonitorSampler.swift,已覆盖-迁移,
+NetworkInfoService,class,Swift描述符,Features/Monitor/Views/NetworkDiagnostics.swift,已覆盖-迁移,
+NetworkMonitor,class,Swift描述符,Features/Monitor/Sampling/MonitorSampler.swift,已覆盖-迁移,
 NetworkSpeedButtonStyle,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NetworkSpeedChart,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NetworkSpeedChartLayerRepresentable,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-NetworkSpeedChartLayerView,class,Swift描述符,Features/Monitor/MonitorCharts.swift,已覆盖-迁移,
+NetworkSpeedChartLayerView,class,Swift描述符,Features/Monitor/Views/MonitorCharts.swift,已覆盖-迁移,
 NetworkSpeedRow,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NetworkTrackerProvider,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 NotificationCenterProvider,protocol,Swift描述符,FrsetNext:Notification,待确认,名称部分匹配，需人工确认
@@ -705,7 +705,7 @@ OpenAIChatMessage,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型�
 OpenAIChatRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 OpenAIChatResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 OpenAIChoice,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-OpenAICompatibleLLMAdapter,class,Swift描述符,Features/AI/OpenAICompatibleService.swift,已覆盖-迁移,
+OpenAICompatibleLLMAdapter,class,Swift描述符,Features/AI/Services/OpenAICompatibleService.swift,已覆盖-迁移,
 OpenAIError,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 OpenAIErrorResponse,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 OpenAIModelsEnvelope,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -769,7 +769,7 @@ PinnedScreenshotPresentationMode,enum,Swift描述符,FrsetNext:PinnedScreenshotS
 PinnedScreenshotScaleHUD,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 PinnedScreenshotSmallCloseButton,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 PinnedScreenshotSmallModeTipWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-PinnedScreenshotTipHostingView,class,Swift描述符,Features/Capture/PinWindow.swift,已覆盖-迁移,
+PinnedScreenshotTipHostingView,class,Swift描述符,Features/Capture/Pin/PinWindow.swift,已覆盖-迁移,
 PinnedScreenshotWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 PinnedToolButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 PlaceholderProcessInfoClass,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -849,7 +849,7 @@ PreviewMarkdownPreferenceStore,class,Swift描述符,FrsetNext:class,已覆盖-�
 PreviewNavigationCommand,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 PreviewNavigationDirection,enum,Swift描述符,FrsetNext:PreviewNavigationCommand,待确认,名称部分匹配，需人工确认
 PreviewPopoverContentModel,class,Swift描述符,FrsetNext:struct,已覆盖-同名,
-PreviewPopoverView,struct,Swift描述符,Features/Panel/PreviewPopoverContentView.swift,已覆盖-迁移,
+PreviewPopoverView,struct,Swift描述符,Features/Panel/Preview/PreviewPopoverContentView.swift,已覆盖-迁移,
 PreviewScreenFrameReporter,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 PrivateSentrySDKOnly,class,ObjC类(Sentry(第三方)),—,未匹配,FrsetNext 无对应类型或引用
 ProEntitlementObservation,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -918,7 +918,7 @@ SCStreamFrameInfo,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类
 SSEEvent,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SSEParserError,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SavePreparation,class,Swift描述符,—,待确认,
-ScaleMenuButton,class,Swift描述符,Features/Capture/AnnotationEditorWindow.swift,待确认,
+ScaleMenuButton,class,Swift描述符,Features/Capture/Annotation/AnnotationEditorWindow.swift,待确认,
 ScreenImageCaptureFailure,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ScreenImageCaptureFailureStage,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ScreenImageCaptureResult,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -931,15 +931,15 @@ ScreenshotMagnifierContainerView,class,Swift描述符,FrsetNext:class,已覆盖-
 ScreenshotMagnifierView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 ScreenshotManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 ScreenshotOCRDirectImageStore,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-ScreenshotOCRDirectVisionClient,class,Swift描述符,Features/Capture/OCRService.swift,已覆盖-迁移,
+ScreenshotOCRDirectVisionClient,class,Swift描述符,Features/Capture/OCR/OCRService.swift,已覆盖-迁移,
 ScreenshotOCRMode,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRPanelInitialMode,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRPanelState,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
-ScreenshotOCRPanelView,struct,Swift描述符,Features/Capture/ScreenshotOCRWindow.swift,已覆盖-迁移,
+ScreenshotOCRPanelView,struct,Swift描述符,Features/Capture/OCR/ScreenshotOCRWindow.swift,已覆盖-迁移,
 ScreenshotOCRRecognitionStrategy,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRResultWindow,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-ScreenshotOCRResultWindowDelegate,class,Swift描述符,Features/Capture/ScreenshotOCRWindow.swift,已覆盖-迁移,
-ScreenshotOCRSourceNSTextView,class,Swift描述符,Features/Capture/ScreenshotOCRWindow.swift,已覆盖-迁移,
+ScreenshotOCRResultWindowDelegate,class,Swift描述符,Features/Capture/OCR/ScreenshotOCRWindow.swift,已覆盖-迁移,
+ScreenshotOCRSourceNSTextView,class,Swift描述符,Features/Capture/OCR/ScreenshotOCRWindow.swift,已覆盖-迁移,
 ScreenshotOCRSourcePane,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRSourcePanePresentation,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRSourceScrollView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
@@ -949,7 +949,7 @@ ScreenshotOCRTextAssembler,enum,Swift描述符,FrsetNext:ScreenshotOCRDirectImag
 ScreenshotOCRTextAssemblyBlock,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRTextBlock,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
-ScreenshotOCRWorkerClient,class,Swift描述符,Features/Capture/OCRService.swift,已覆盖-迁移,
+ScreenshotOCRWorkerClient,class,Swift描述符,Features/Capture/OCR/OCRService.swift,已覆盖-迁移,
 ScreenshotOCRWorkerRequest,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOCRWorkerResponse,struct,Swift描述符,FrsetNext:ScreenshotOCRDirectImageStore/ScreenshotOCRSourceScrollView/ScreenshotOCRResultWindow,待确认,名称部分匹配，需人工确认
 ScreenshotOverlayView,class,Swift描述符,FrsetNext:class,已覆盖-同名,
@@ -968,14 +968,14 @@ SearchActiveToolSwitchMenuOverlay,struct,Swift描述符,—,未匹配,FrsetNext 
 SearchBarAdjustButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SearchBarItem,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SearchBarKeyboardNavigationState,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-SearchBarMouseWheelController,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,待确认,
+SearchBarMouseWheelController,class,Swift描述符,Features/Toolbox/Search/SearchSectionView.swift,待确认,
 SearchBarMouseWheelHorizontalBridge,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SearchBarOrderingTipAnchorPreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SearchBarTabHandling,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SearchEngine,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 SearchEngineButton,struct,Swift描述符,FrsetNext:SearchEngine,待确认,名称部分匹配，需人工确认
-SearchInputScrollController,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,待确认,
-SearchInteractionGeometry,class,Swift描述符,Features/Toolbox/SearchSectionView.swift,已覆盖-迁移,
+SearchInputScrollController,class,Swift描述符,Features/Toolbox/Search/SearchSectionView.swift,待确认,
+SearchInteractionGeometry,class,Swift描述符,Features/Toolbox/Search/SearchSectionView.swift,已覆盖-迁移,
 SearchLoadingView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SearchSectionView,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 SearchServiceManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
@@ -1274,27 +1274,27 @@ SettingsLabelWithProBadge,struct,Swift描述符,—,未匹配,FrsetNext 无对�
 SettingsLoadResult,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SettingsNavBar,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SettingsRoute,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-SettingsRouter,class,Swift描述符,Features/Settings/SettingsModule.swift,已覆盖-迁移,
+SettingsRouter,class,Swift描述符,Features/Settings/Shell/SettingsModule.swift,已覆盖-迁移,
 SettingsSectionDivider,struct,Swift描述符,FrsetNext:SettingsSection,待确认,名称部分匹配，需人工确认
-SettingsStore,class,Swift描述符,Core/Preferences.swift,已覆盖-迁移,
+SettingsStore,class,Swift描述符,Core/Runtime/Preferences.swift,已覆盖-迁移,
 SettingsTab,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SettingsTabItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SettingsTextActionButton,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-SettingsToastManager,class,Swift描述符,Core/Toast.swift,已覆盖-迁移,
+SettingsToastManager,class,Swift描述符,Core/UI/Toast.swift,已覆盖-迁移,
 SettingsView,struct,Swift描述符,FrsetNext:AIProviderSettingsViewModel/PersonalizationSettingsView,待确认,名称部分匹配，需人工确认
 SettingsWindowController,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 ShortcutAction,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 ShortcutBadgeView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 ShortcutBindingConfiguration,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-ShortcutCaptureNSView,class,Swift描述符,Features/Toolbox/ShortcutRecorder.swift,已覆盖-迁移,
+ShortcutCaptureNSView,class,Swift描述符,Features/Toolbox/Shortcuts/ShortcutRecorder.swift,已覆盖-迁移,
 ShortcutGridItemView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 ShortcutInputView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-ShortcutKeyView,class,Swift描述符,Features/Toolbox/ShortcutRecorder.swift,已覆盖-迁移,
+ShortcutKeyView,class,Swift描述符,Features/Toolbox/Shortcuts/ShortcutRecorder.swift,已覆盖-迁移,
 ShortcutManager,class,Swift描述符,FrsetNext:class,已覆盖-同名,
 ShortcutModeInputView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 ShortcutPreferredMode,enum,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 ShortcutRecorderNSView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
-ShortcutRuntimeCoordinator,class,Swift描述符,Features/Toolbox/ShortcutManager.swift,已覆盖-迁移,
+ShortcutRuntimeCoordinator,class,Swift描述符,Features/Toolbox/Shortcuts/ShortcutManager.swift,已覆盖-迁移,
 ShortcutSettings,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 ShortcutsSettingsView,struct,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 SizeLabelSource,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -1333,7 +1333,7 @@ StorageTooltipBubbleShape,struct,Swift描述符,—,未匹配,FrsetNext 无对�
 StreamingPopoverWindowBackgroundConfigurator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 StreamingTextScrollBehavior,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 StreamingTextScrollView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-StreamingTextScrollViewContainer,class,Swift描述符,Features/AI/AISummaryView.swift,已覆盖-迁移,
+StreamingTextScrollViewContainer,class,Swift描述符,Features/AI/Views/AISummaryView.swift,已覆盖-迁移,
 StringInterpolation,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SummaryDetailLevel,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SummaryDetailMenu,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -1351,12 +1351,12 @@ SwiftDescriptor,class,Swift描述符,—,不适用-系统类型,Apple SDK 类型
 SwiftIntegration,protocol,Swift描述符,—,不适用-系统类型,Apple SDK 类型，由系统提供
 SystemMetricRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SystemMetricSample,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-SystemMetricsCollector,class,Swift描述符,Features/Monitor/MonitorSampler.swift,已覆盖-迁移,
+SystemMetricsCollector,class,Swift描述符,Features/Monitor/Sampling/MonitorSampler.swift,已覆盖-迁移,
 SystemMonitoringDemand,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SystemOCRTranslationTaskView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SystemStatusHeightPreferenceKey,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-SystemStatusInteractionGeometry,class,Swift描述符,Features/Monitor/StatsModulePanels.swift,已覆盖-迁移,
-SystemStatusSectionView,struct,Swift描述符,Features/Monitor/StatsModulePanels.swift,已覆盖-迁移,
+SystemStatusInteractionGeometry,class,Swift描述符,Features/Monitor/StatusBar/StatsModulePanels.swift,已覆盖-迁移,
+SystemStatusSectionView,struct,Swift描述符,Features/Monitor/StatusBar/StatsModulePanels.swift,已覆盖-迁移,
 SystemUsageButtonStyle,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SystemUsageButtonView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 SystemUsageHeaderRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -1389,15 +1389,15 @@ TimeAgoTemplates,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型�
 TimeAgoTemplatesCache,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TimeBasedEpochGenerator,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
 TimestampConverter,enum,Swift描述符,FrsetNext:enum,已覆盖-同名,
-TimestampOutputType,enum,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
-TimestampPrecision,enum,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
-TimestampSettings,class,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
-TimestampSettingsView,struct,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
-TimestampTool,struct,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
-TimestampToolError,enum,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
-TimestampToolSettings,struct,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+TimestampOutputType,enum,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
+TimestampPrecision,enum,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
+TimestampSettings,class,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
+TimestampSettingsView,struct,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
+TimestampTool,struct,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
+TimestampToolError,enum,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
+TimestampToolSettings,struct,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
 TinyPNGDisplayState,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-TinyPNGOutputDirectoryStore,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGOutputDirectoryStore,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift,已覆盖-迁移,
 TinyPNGQueueRow,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGRestoredDirectory,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -1406,48 +1406,48 @@ TinyPNGSpinner,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或�
 TinyPNGStatusIcon,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGTaskFile,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGTaskStatus,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-TinyPNGTaskViewModel,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
-TinyPNGThumbnailCache,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGTaskViewModel,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift,已覆盖-迁移,
+TinyPNGThumbnailCache,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift,已覆盖-迁移,
 TinyPNGThumbnailView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-TinyPNGWindowController,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
-TinyPNGWindowDelegate,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGWindowController,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift,已覆盖-迁移,
+TinyPNGWindowDelegate,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift,已覆盖-迁移,
 TinyPNGWindowView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-TinyPNGWorkerClient,class,Swift描述符,Features/Toolbox/MediaTools.swift,已覆盖-迁移,
+TinyPNGWorkerClient,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift,已覆盖-迁移,
 TinyPNGWorkerEvent,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGWorkerEventType,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGWorkerItem,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGWorkerRequest,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 TinyPNGWorkerSummary,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-ToastAnimationState,class,Swift描述符,Core/Toast.swift,已覆盖-迁移,
+ToastAnimationState,class,Swift描述符,Core/UI/Toast.swift,已覆盖-迁移,
 ToastView,struct,Swift描述符,FrsetNext 源码中出现同名标识符,已覆盖-源码引用,概念存在，实现方式可能不同（内联/改名）
 TodayDateIconView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 Tool,protocol,Swift描述符,FrsetNext:CustomAITool/CustomAIToolStore/TranslationToolError,待确认,名称部分匹配，需人工确认
-ToolButtonPositionKey,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
-ToolCommandDescriptor,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
-ToolConfigError,enum,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
-ToolCustomConfig,struct,Swift描述符,Features/Toolbox/ToolSettingsPane.swift,已覆盖-迁移,
-ToolEditSheet,struct,Swift描述符,Features/Toolbox/ToolSettingsPane.swift,已覆盖-迁移,
+ToolButtonPositionKey,struct,Swift描述符,Features/Toolbox/Tools/ToolRegistry.swift,已覆盖-迁移,
+ToolCommandDescriptor,struct,Swift描述符,Features/Toolbox/Tools/ToolRegistry.swift,已覆盖-迁移,
+ToolConfigError,enum,Swift描述符,Features/Toolbox/Tools/ToolRegistry.swift,已覆盖-迁移,
+ToolCustomConfig,struct,Swift描述符,Features/Toolbox/Tools/ToolSettingsPane.swift,已覆盖-迁移,
+ToolEditSheet,struct,Swift描述符,Features/Toolbox/Tools/ToolSettingsPane.swift,已覆盖-迁移,
 ToolError,enum,Swift描述符,FrsetNext:TranslationToolError,待确认,名称部分匹配，需人工确认
-ToolExecutionSource,enum,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolManagementRow,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
-ToolManagementView,struct,Swift描述符,Features/Toolbox/ToolRegistry.swift + ToolSettingsPane.swift,已覆盖-迁移,
-ToolManager,class,Swift描述符,Features/Toolbox/ToolRegistry.swift,已覆盖-迁移,
-ToolModeSession,class,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolOperationMode,enum,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolSettings,struct,Swift描述符,Features/Toolbox/ToolSettingsPane.swift,已覆盖-迁移,
-ToolShortcutBehavior,enum,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
-ToolShortcutConfiguration,struct,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
-ToolShortcutEnablePromptCard,struct,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolShortcutEnablePromptOverlayView,struct,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolShortcutEnablePromptPresenter,class,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolShortcutExecutionCoordinator,class,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolShortcutExecutionRequest,struct,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
-ToolShortcutInputView,struct,Swift描述符,Features/Toolbox/ToolRunnerWindow.swift,已覆盖-迁移,
-ToolShortcutInvocation,enum,Swift描述符,Features/Toolbox/ToolShortcutStore.swift,已覆盖-迁移,
-ToolShortcutManager,class,Swift描述符,Features/Toolbox/ShortcutManager.swift + ToolShortcutStore.swift,已覆盖-迁移,
+ToolExecutionSource,enum,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolManagementRow,struct,Swift描述符,Features/Toolbox/Tools/ToolRegistry.swift,已覆盖-迁移,
+ToolManagementView,struct,Swift描述符,Features/Toolbox/Tools/ToolRegistry.swift + ToolSettingsPane.swift,已覆盖-迁移,
+ToolManager,class,Swift描述符,Features/Toolbox/Tools/ToolRegistry.swift,已覆盖-迁移,
+ToolModeSession,class,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolOperationMode,enum,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolSettings,struct,Swift描述符,Features/Toolbox/Tools/ToolSettingsPane.swift,已覆盖-迁移,
+ToolShortcutBehavior,enum,Swift描述符,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutConfiguration,struct,Swift描述符,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutEnablePromptCard,struct,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutEnablePromptOverlayView,struct,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutEnablePromptPresenter,class,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutExecutionCoordinator,class,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutExecutionRequest,struct,Swift描述符,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutInputView,struct,Swift描述符,Features/Toolbox/Tools/ToolRunnerWindow.swift,已覆盖-迁移,
+ToolShortcutInvocation,enum,Swift描述符,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,已覆盖-迁移,
+ToolShortcutManager,class,Swift描述符,Features/Toolbox/Shortcuts/ShortcutManager.swift + ToolShortcutStore.swift,已覆盖-迁移,
 ToolShortcutRuntimeStatus,enum,Swift描述符,FrsetNext:ToolShortcutStore,待确认,名称部分匹配，需人工确认
-ToolUsageQuotaManager,class,Swift描述符,Features/Toolbox/MediaTools.swift（纯本地实现，无配额）,不适用,
+ToolUsageQuotaManager,class,Swift描述符,Features/Toolbox/Tools/MediaTools.swift（纯本地实现，无配额）,不适用,
 ToolUsageQuotaPermit,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ToolUsageQuotaSnapshot,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ToolUsageQuotaSurface,enum,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
@@ -1486,13 +1486,13 @@ UserDecodable,class,Swift描述符,—,未匹配,FrsetNext 无对应类型或引
 UserDeserializer,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 UserDeserializerProvider,protocol,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 VNImageOption,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
-VarNameSettings,class,Swift描述符,Features/Toolbox/ToolConverters.swift,已覆盖-迁移,
+VarNameSettings,class,Swift描述符,Features/Toolbox/Tools/ToolConverters.swift,已覆盖-迁移,
 VarNameSettingsView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 VariableNameTool,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 VariableNameToolSettings,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 VerticalBarIndicator,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用
 ViewTreeSnapshotStatus,class,ObjC类(PostHog(第三方)),—,未匹配,FrsetNext 无对应类型或引用
-VisionGate,class,Swift描述符,Features/AI/AISettings.swift,待确认,
+VisionGate,class,Swift描述符,Features/AI/Views/AISettings.swift,待确认,
 VisualEffectBackground,struct,Swift描述符,FrsetNext:struct,已覆盖-同名,
 VisualEffectView,struct,Swift描述符,FrsetNext:VisualEffectBackground,待确认,名称部分匹配，需人工确认
 WeekdayHeaderView,struct,Swift描述符,—,未匹配,FrsetNext 无对应类型或引用

@@ -89,7 +89,7 @@
 - **协议**：`FrsetOCRHelper <lib> <model> <dict> <raw> <boxes.json>`；raw = `"FOCR1"` + LE u32 width + LE u32 height + BGRA；boxes = `{"boxes":[[x,y,w,h],...]}`（像素、左上原点）。
 - **输出**：stdout 一行 `{"results":[{"text":..,"confidence":..}|null,...]}`；stderr 一行 `recognised n/m`。
 - **为什么是独立进程**（注释原文结论）：ONNX Runtime 在进程内**卸载不掉**（`ReleaseSession` + `dlclose` 后 dyld 镜像还在，RSS 不降），只有进程退出才能整块回收。
-- **坑**：`boxes` 为空时**不加载模型**直接返回（省 100ms）；`PPOCROCR.shared` 来自 `Features/Capture/PPOCROCR.swift`，与主 App 共用同一份实现（`LogStub` 顶掉 App 的 `Log`）。
+- **坑**：`boxes` 为空时**不加载模型**直接返回（省 100ms）；`PPOCROCR.shared` 来自 `Features/Capture/OCR/PPOCROCR.swift`，与主 App 共用同一份实现（`LogStub` 顶掉 App 的 `Log`）。
 
 ---
 

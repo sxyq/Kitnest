@@ -33,7 +33,7 @@ BASELINE = os.path.join(ROOT, "tools", "ui-lint-baseline.txt")
 # 微元素圆角（圆点、格子、发丝条）与文档登记的 HUD 例外
 ALLOWED_CORNER_LITERALS = {"1", "1.5", "2", "3"}
 # 这些文件是「玻璃基础设施」本身，允许直接出现 material / NSVisualEffectView
-GLASS_INFRA = {"Core/LiquidGlass.swift", "Core/OfficialWindowChrome.swift"}
+GLASS_INFRA = {"Core/UI/LiquidGlass.swift", "Core/UI/OfficialWindowChrome.swift"}
 
 R_EDGE = re.compile(r"cornerRadius:\s*([0-9]+(?:\.[0-9]+)?)\s*[,)]")
 R_MATERIAL = re.compile(r"\.regularMaterial\b")

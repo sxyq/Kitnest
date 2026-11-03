@@ -12,7 +12,7 @@ import SwiftUI
 // - Pro 门控（midnight_appearance feature flag）不移植：Midnight 免费放开。
 //
 // 分层（契约 §1.3 依赖方向）：
-//   本文件（业务模块 Settings）→ Core/AppearanceTheme.swift（共享层）单向依赖。
+//   本文件（业务模块 Settings）→ Core/UI/AppearanceTheme.swift（共享层）单向依赖。
 //   AppearanceMode / MidnightTheme / 四个 EnvironmentKey / AppearanceState /
 //   frsetAppearanceTheme() 均已下沉至共享层，故主面板与悬浮剪贴板可在
 //   per-module 编译子集里取到它们；反向依赖（共享层持有本文件的类型）不存在。

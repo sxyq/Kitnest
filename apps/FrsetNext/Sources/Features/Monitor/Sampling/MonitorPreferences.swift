@@ -60,7 +60,7 @@ public enum MonitorPreferences {
     /// 偏好变更后发出的通知（状态栏模块可据此重建状态项）
     public static let didChangeNotification = Notification.Name("MonitorPreferencesDidChange")
 
-    // 键名（在原 Keys 基础上扩展，避免修改 Core/Preferences.swift）
+    // 键名（在原 Keys 基础上扩展，避免修改 Core/Runtime/Preferences.swift）
     public static let keyEnabled = "monitor.enabled"
     public static let keyRefreshInterval = "monitor.refreshInterval"
     public static let keyCombinedMode = "monitor.combinedMode"

@@ -209,7 +209,7 @@ if [ -f "$OCR_H_DIR/main.swift" ]; then
   if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
        -o "$OCR_H_OUT" \
        "$OCR_H_DIR/main.swift" "$OCR_H_DIR/LogStub.swift" \
-       "$SRC/Features/Capture/PPOCROCR.swift" \
+       "$SRC/Features/Capture/OCR/PPOCROCR.swift" \
        "$OCR_OBJ_DIR/frset_ocr_onnx.o" \
        -import-objc-header "$OCR_H_DIR/ocr_bridge.h" \
        -framework AppKit -framework CoreGraphics 2>&1 | tail -10; then

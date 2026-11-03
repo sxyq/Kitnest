@@ -80,7 +80,7 @@ public struct OCRTextObservation: Sendable {
 }
 
 public enum ServiceLocator {
-    /// internal（供 Core/Registry.swift 的 extension 复用同一把锁）
+    /// internal（供 Core/Runtime/Registry.swift 的 extension 复用同一把锁）
     static let lock = NSLock()
     private static var llm: LLMServiceProtocol?
     private static var ocr: OCRServiceProtocol?

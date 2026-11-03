@@ -44,7 +44,7 @@ docs/
 ## 维护规则
 
 - 新增文档：先定分类再落盘；文件名用中文短名，不加日期前缀（一次性报告除外）。
-- 引用路径一律写**仓库相对路径**（如 `apps/FrsetNext/Sources/Core/Support.swift`）。
+- 引用路径一律写**仓库相对路径**（如 `apps/FrsetNext/Sources/Core/UI/Support.swift`）。
 - 结论必须可验证：函数/文件/数量要能被 `00-总览/符号索引.md`、
   `40-审计与核对/数据表/FrsetNext-函数清单.csv` 或源码直接对上。
 - 机器产物（函数清单、符号索引、审计 CSV）不要手工改；改源码后用

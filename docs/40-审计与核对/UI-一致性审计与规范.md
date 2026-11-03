@@ -14,7 +14,7 @@
 | 卡片底 | 三种写法：`Color.primary.opacity(0.03)`、`.regularMaterial`、`Theme.cardBackground` | 同一层级的卡片在不同模块观感不同 |
 | 描边 | 0.5pt 为主，另有 1pt、0.15/0.12/0.10 三种透明度混用 | 需要统一发丝线 |
 
-## 二、规范（实现于 `Core/Support.swift` 的 Theme 与 `Core/LiquidGlass.swift`）
+## 二、规范（实现于 `Core/UI/Support.swift` 的 Theme 与 `Core/UI/LiquidGlass.swift`）
 
 ### 1. 圆角只有五档
 

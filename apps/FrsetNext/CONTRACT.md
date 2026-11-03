@@ -38,7 +38,7 @@ public enum MonitorModule: AppModule {          // 名字换成你的模块名
 }
 ```
 
-## 3. 跨模块交互的三个注册表（Core/Registry.swift 已定义，直接调用）
+## 3. 跨模块交互的三个注册表（Core/Runtime/Registry.swift 已定义，直接调用）
 
 ```swift
 // ① 主面板区段（供 04 面板模块渲染）
@@ -102,7 +102,7 @@ swiftc -typecheck -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
 总装阶段发现并已修复的跨模块问题，以下为最终裁决，后续任何代理不得回退：
 
 ### 7.1 快捷键体系归属
-- `ShortcutRegistry` / `ShortcutManager` / `ShortcutDefinition`（Carbon 全局热键 + 冲突检测）**唯一实现在 `Features/Toolbox/ShortcutManager.swift`**。
+- `ShortcutRegistry` / `ShortcutManager` / `ShortcutDefinition`（Carbon 全局热键 + 冲突检测）**唯一实现在 `Features/Toolbox/Shortcuts/ShortcutManager.swift`**。
 - 设置页签「快捷键」（id `"shortcuts"`）由 **ToolboxModule** 注册（`ShortcutSettingsPane`）；设置模块只保留 `general` / `about`。原 Settings 内的展示用简化版 `ShortcutRegistry`/`ShortcutEntry` 已删除，**禁止恢复或改名重加**。
 - 页签 id 归属表：`general`/`about`→Settings，`tools`/`shortcuts`→Toolbox，`monitor`→Monitor，`clipboard`→Clipboard，`capture`→Capture，`ai`→AI。同一 id 只允许注册一次。
 
@@ -605,7 +605,7 @@ swiftc -typecheck … Sources/Core/*.swift … Sources/Features/<模块>/*.swift
 必须改写成可复现命令（`sed` 剥注释后检索 / 结构化查询 / AST），并把命令写进交付物。
 
 > 证据：fix-visual 把「Core 不反向依赖 Settings」从目测改为机械证明——
-> `sed 's://.*::' Sources/Core/AppearanceTheme.swift | grep -n -e "AppearanceManager" -e "Features/" -e "Settings"`
+> `sed 's://.*::' Sources/Core/UI/AppearanceTheme.swift | grep -n -e "AppearanceManager" -e "Features/" -e "Settings"`
 > → 剥注释后零命中。本轮多个「我核过了」若换成机械命令，本可一次定案。
 
 **自检问句：**「这条结论，别人能用一条命令复现吗？——不能，就还不是结论，是印象。」

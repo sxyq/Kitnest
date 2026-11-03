@@ -4,7 +4,7 @@ import Foundation
 // MARK: - PanelPreviewPresenting 适配器（specs/12 契约面）
 //
 // Clipboard 模块禁止直接引用 Panel 模块的 MainPanelPreviewPopoverCoordinator
-// （CONTRACT §1.3）。本适配器在 Panel 侧实现 Core/Registry.swift 的
+// （CONTRACT §1.3）。本适配器在 Panel 侧实现 Core/Runtime/Registry.swift 的
 // PanelPreviewPresenting 协议，逐方法转调协调器；Clipboard 侧一律经
 // ServiceLocator.panelPreview 协议调用（注册点：PanelModule.start()）。
 

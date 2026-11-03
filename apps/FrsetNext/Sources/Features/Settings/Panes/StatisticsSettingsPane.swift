@@ -499,7 +499,7 @@ struct StatisticsSettingsPane: View {
     /// 剪贴板历史、标签、一次性引导标记（`has*`/`*Consumed` 类）。
     ///
     /// 键名来源标注：
-    /// - `Preferences.Keys.*` = Core/Preferences.swift 声明的键；
+    /// - `Preferences.Keys.*` = Core/Runtime/Preferences.swift 声明的键；
     /// - `AppearanceManager` / `LanguageManager` 的键为各自文件内私有常量，此处按字面量写死；
     /// - 跨模块扩展键（Clipboard / Panel 的 `public extension Preferences.Keys`）在本模块
     ///   typecheck（Core+Models+Storage+本目录）下不可见，故同样写字面量并在此注释说明。

@@ -331,7 +331,7 @@
 | `CodeHighlighter.color(for:)` | 538 | token 配色 |
 | `CodeHighlighter.cardImage` | 549 | 离屏渲染代码卡片图 |
 
-**散文**：`HashGenerator.sha256`（268–312）是**手写 SHA-256**。注意 `Core/Support.swift` 的 `String.sha256` 曾因手写实现的消息调度字被掩成 32 位而在 32KB 输入上崩溃（注释有崩溃报告名），最终改用 CommonCrypto。这里是另一份独立实现，**未被剪贴板指纹路径使用**，但同样的位运算风险存在——若将来复用它算大文件指纹，必须先与 `shasum -a 256` 对照三组向量。
+**散文**：`HashGenerator.sha256`（268–312）是**手写 SHA-256**。注意 `Core/UI/Support.swift` 的 `String.sha256` 曾因手写实现的消息调度字被掩成 32 位而在 32KB 输入上崩溃（注释有崩溃报告名），最终改用 CommonCrypto。这里是另一份独立实现，**未被剪贴板指纹路径使用**，但同样的位运算风险存在——若将来复用它算大文件指纹，必须先与 `shasum -a 256` 对照三组向量。
 
 ### 3.9 `Toolbox/MediaTools.swift` / `IPAddressService.swift` / `FuzzyMatcher.swift`
 

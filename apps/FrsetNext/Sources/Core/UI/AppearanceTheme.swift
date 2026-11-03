@@ -11,7 +11,7 @@ import SwiftUI
 //
 // 归属说明（契约 §1.3 依赖方向）：
 // 本文件只依赖 Foundation/SwiftUI，**不引用任何 Features/* 类型**。
-// NSAppearance 应用与 defaults 读写留在 Features/Settings/AppearanceManager.swift，
+// NSAppearance 应用与 defaults 读写留在 Features/Settings/Panes/AppearanceManager.swift，
 // 它单向依赖本文件的 `AppearanceState` 并负责同步；方向是「业务模块 → 共享层」，
 // 绝不反向（共享层不得持有业务模块类型）。
 
@@ -162,9 +162,9 @@ public extension View {
     /// Midnight 主题覆盖注入（设置窗/主面板/悬浮剪贴板三个根视图各挂一次）
     ///
     /// 消费点（契约 §10.4：基建注入器零挂载 ≡ 未实现）：
-    /// - Features/Panel/PanelRootView.swift
-    /// - Features/Settings/SettingsRootView.swift
-    /// - Features/Clipboard/FloatingClipboardWindow.swift
+    /// - Features/Panel/Presentation/PanelRootView.swift
+    /// - Features/Settings/Shell/SettingsRootView.swift
+    /// - Features/Clipboard/Floating/FloatingClipboardWindow.swift
     func frsetAppearanceTheme(_ state: AppearanceState = .shared) -> some View {
         modifier(AppearanceThemeModifier(state: state))
     }

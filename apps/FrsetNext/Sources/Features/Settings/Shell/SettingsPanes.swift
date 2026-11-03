@@ -567,7 +567,7 @@ struct TagManagementSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var store = TagStore.shared
     @Stored private var l10nVersion: Int = 0
-    // @Stored 替代 @State：本机工具链缺 SwiftUIMacros 插件（见 Core/StateCompat.swift）
+    // @Stored 替代 @State：本机工具链缺 SwiftUIMacros 插件（见 Core/Runtime/StateCompat.swift）
     @Stored private var newTagName = ""
     @Stored private var isAdding = false
 

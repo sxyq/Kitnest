@@ -14,7 +14,7 @@ public final class PanelPresentationState: ObservableObject {
 }
 
 /// 主面板控制器（原作由 StatusBarController 协作开合面板，此处统一收敛为单例）。
-/// 实现 Core/Registry.swift 的 PanelControlling 协议，经 ServiceLocator.panel 供状态栏/热键模块调用。
+/// 实现 Core/Runtime/Registry.swift 的 PanelControlling 协议，经 ServiceLocator.panel 供状态栏/热键模块调用。
 public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     public static let shared = PanelController()
 

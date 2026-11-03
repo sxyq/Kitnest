@@ -11,24 +11,24 @@
 
 | 路径 | 行数 | 一句话职责 |
 |---|---:|---|
-| `Core/Support.swift` | 273 | 全局底座：`Log`（唯一日志出口）、`AppModule`+`ModuleRegistry`、`ServiceLocator`（LLM/OCR 协议槽）、`Theme` 设计令牌（尺寸/字号/圆角/动效）、`Date/String/Data` 扩展（sha256）、`AppDirectories` |
-| `Core/Registry.swift` | 182 | 跨模块注册表：面板区段 / 设置页签 / 状态栏项三个 Registry + `PanelControlling`/`SettingsWindowControlling`/`PanelPreviewPresenting` 三个协议槽 |
-| `Core/StateCompat.swift` | 36 | `@Stored` — 本机缺 SwiftUIMacros、`@State` 不可用时的等价属性包装器（底层 `@StateObject` 承载） |
-| `Core/Preferences.swift` | 105 | `Preferences.shared`：UserDefaults 薄封装 + 全工程键名常量表 `Keys` |
-| `Core/Personalization.swift` | 267 | 个性化单例（15 个 `@Published` + 150ms 防抖落盘 + `didChangeNotification` 广播） |
-| `Core/LogArchive.swift` | 308 | 分天日志（`logs/YYYY-MM-DD.log`，3 天/4MB）、主线程心跳 + 卡死看门狗、60s 状态快照、6h 清理 |
-| `Core/LiquidGlass.swift` | 261 | 玻璃材质工厂（macOS 26 `NSGlassEffectView` / 回退 `NSVisualEffectView`）、三级玻璃的卡片样式、按压/悬停样式 |
-| `Core/AppearanceTheme.swift` | 193 | 外观模式枚举、Midnight 色板（含色相偏移）、Environment 注入器、`frsetThemeChrome()` 统一主题入口 |
-| `Core/L10n.swift` | 134 | 键面=英文句的轻量 L10n（22 语言），`LanguageManager` 持久化 + `languageDidChange` 广播 |
-| `Core/Toast.swift` | 301 | 屏幕中间偏下的胶囊通知卡：复用单窗口 + 代际防串台 + 层级 `CGWindowLevelKey(14)` |
-| `Core/TransientWindows.swift` | 140 | 唯一的「点外/失焦自动收起」仲裁器（本地/全局鼠标监视器 + 失活通知） |
-| `Core/ContinuousCorner.swift` | 57 | `NSBezierPath.continuousRoundedRect`：取 SwiftUI `.continuous` 同一几何路径，供 AppKit 手绘 |
-| `Core/FlowLayout.swift` | 46 | `FlowHStack` 流式换行 Layout（全工程唯一实现，v62 收敛） |
-| `Core/OfficialWindowChrome.swift` | 34 | 官方灰窗口底色 + 透明标题栏 + 自动挂圆形关闭钮 |
-| `Core/RoundCloseButton.swift` | 107 | 14pt 自绘圆形关闭钮（hover 显 × ），用 objc associated object 挂在窗口上 |
-| `Core/PointingHandCursor.swift` | 76 | 悬停手型光标（v132 改为 `resetCursorRects`+`activeAlways` tracking，`hitTest` 恒 nil） |
-| `Core/RenderProbe.swift` | 117 | 渲染健康探针（默认关闭，`FRSET_RENDER_PROBE=1` 开启），dump 窗口 frame/alpha/layer |
-| `Core/AppUpdateChecker.swift` | 255 | 更新检查：可配置 feed、语义化版本比较、整包 zip 下载校验后 shell 替换 `/Applications` |
+| `Core/UI/Support.swift` | 273 | 全局底座：`Log`（唯一日志出口）、`AppModule`+`ModuleRegistry`、`ServiceLocator`（LLM/OCR 协议槽）、`Theme` 设计令牌（尺寸/字号/圆角/动效）、`Date/String/Data` 扩展（sha256）、`AppDirectories` |
+| `Core/Runtime/Registry.swift` | 182 | 跨模块注册表：面板区段 / 设置页签 / 状态栏项三个 Registry + `PanelControlling`/`SettingsWindowControlling`/`PanelPreviewPresenting` 三个协议槽 |
+| `Core/Runtime/StateCompat.swift` | 36 | `@Stored` — 本机缺 SwiftUIMacros、`@State` 不可用时的等价属性包装器（底层 `@StateObject` 承载） |
+| `Core/Runtime/Preferences.swift` | 105 | `Preferences.shared`：UserDefaults 薄封装 + 全工程键名常量表 `Keys` |
+| `Core/Runtime/Personalization.swift` | 267 | 个性化单例（15 个 `@Published` + 150ms 防抖落盘 + `didChangeNotification` 广播） |
+| `Core/Runtime/LogArchive.swift` | 308 | 分天日志（`logs/YYYY-MM-DD.log`，3 天/4MB）、主线程心跳 + 卡死看门狗、60s 状态快照、6h 清理 |
+| `Core/UI/LiquidGlass.swift` | 261 | 玻璃材质工厂（macOS 26 `NSGlassEffectView` / 回退 `NSVisualEffectView`）、三级玻璃的卡片样式、按压/悬停样式 |
+| `Core/UI/AppearanceTheme.swift` | 193 | 外观模式枚举、Midnight 色板（含色相偏移）、Environment 注入器、`frsetThemeChrome()` 统一主题入口 |
+| `Core/Runtime/L10n.swift` | 134 | 键面=英文句的轻量 L10n（22 语言），`LanguageManager` 持久化 + `languageDidChange` 广播 |
+| `Core/UI/Toast.swift` | 301 | 屏幕中间偏下的胶囊通知卡：复用单窗口 + 代际防串台 + 层级 `CGWindowLevelKey(14)` |
+| `Core/Runtime/TransientWindows.swift` | 140 | 唯一的「点外/失焦自动收起」仲裁器（本地/全局鼠标监视器 + 失活通知） |
+| `Core/UI/ContinuousCorner.swift` | 57 | `NSBezierPath.continuousRoundedRect`：取 SwiftUI `.continuous` 同一几何路径，供 AppKit 手绘 |
+| `Core/UI/FlowLayout.swift` | 46 | `FlowHStack` 流式换行 Layout（全工程唯一实现，v62 收敛） |
+| `Core/UI/OfficialWindowChrome.swift` | 34 | 官方灰窗口底色 + 透明标题栏 + 自动挂圆形关闭钮 |
+| `Core/UI/RoundCloseButton.swift` | 107 | 14pt 自绘圆形关闭钮（hover 显 × ），用 objc associated object 挂在窗口上 |
+| `Core/UI/PointingHandCursor.swift` | 76 | 悬停手型光标（v132 改为 `resetCursorRects`+`activeAlways` tracking，`hitTest` 恒 nil） |
+| `Core/Runtime/RenderProbe.swift` | 117 | 渲染健康探针（默认关闭，`FRSET_RENDER_PROBE=1` 开启），dump 窗口 frame/alpha/layer |
+| `Core/Runtime/AppUpdateChecker.swift` | 255 | 更新检查：可配置 feed、语义化版本比较、整包 zip 下载校验后 shell 替换 `/Applications` |
 | `App/FrsetNextApp.swift` | 279 | `@main` App + `AppDelegate`：单实例护栏、`frsetnext://` 深链路由（20+ host）、退出前 flush |
 | `App/AppBootstrap.swift` | 571 | 启动装配总控：8 模块注册启动、事件总线接线、15 条默认热键、双击快捷键、截图翻译会话 |
 | `Storage/Database.swift` | 621 | SQLite 薄封装（WAL/journal_size_limit）+ 两库 schema 迁移 + `StatisticsManager` 窄表埋点与 8 个查询 |
@@ -137,7 +137,7 @@
 ### 2.13 `AppearanceState` / `MidnightTheme` / `EnvironmentValues` 四键 / `AppearanceThemeModifier` / `ThemeChromeModifier`（AppearanceTheme.swift）
 
 - **职责**：Midnight 不是自定义 `NSAppearance`，而是 **DarkAqua 之上的 SwiftUI 覆盖层**（对齐原作反射字段 `midnightBaseBackgroundOverride` / `usesMidnightTextColor`）。
-- **状态**：`AppearanceState.shared.isMidnight: Bool`（`@Published`）。真正的 `NSAppearance` 应用在 `Features/Settings/AppearanceManager.swift`（不在本范围）。
+- **状态**：`AppearanceState.shared.isMidnight: Bool`（`@Published`）。真正的 `NSAppearance` 应用在 `Features/Settings/Panes/AppearanceManager.swift`（不在本范围）。
 - **注入**：`frsetAppearanceTheme()` 注入 4 个 environment 键；`frsetThemeChrome()` = `.tint(Theme.accent)` + 上面那个（观察 `Personalization` + `AppearanceState`）。
 - **消费点（注释明确）**：`PanelRootView`、`SettingsRootView`、`FloatingClipboardWindow` 三个根视图各挂一次。**漏挂 = 主题不生效**。
 - **`MidnightTheme.h()`**：手写 RGB→HSB→旋转 hue→Color，因为 `Color.hueRotation` 返回 View 不能当 Color 用。
@@ -221,7 +221,7 @@
 
 > 行号为声明起始行。`CSV` 列标注该符号是否在 `/tmp/frset_symbols.csv` 中（Y=有）。共 196 条 CSV 可调用符号全部在表内，另有 24 条 computed property / 私有辅助未入索引，单列在每张表末尾的「属性」行。
 
-### 3.1 `Core/Support.swift`（14 func + 1 init = 15，CSV 15）
+### 3.1 `Core/UI/Support.swift`（14 func + 1 init = 15，CSV 15）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -242,7 +242,7 @@
 - `Log.write`（16–21）：唯一出口。两级过滤（debug + isVerbose）后**同步**写 stderr 再同步进 `LogArchive`（内部 `NSLock`）。因为 `appendRaw` 在锁内做 `seekToEnd`+`write`，主线程每打一条日志都可能等后台线程的整次写盘；这也是为什么全工程在热路径上（每帧/每行）都避免 `Log.info`。
 - `Data.sha256Hex`（246–253 注释）：历史坑——曾手写纯 Swift SHA-256，消息调度字被 `& 0xffffffff` 掩成 32 位，32KB 输入（剪贴板指纹）崩溃（`FrsetNext-2026-10-15-111300.ips`）。现统一 `CC_SHA256`。**改这里必须用 `shasum -a 256` 对照空串/abc/1MB 三组向量**。
 
-### 3.2 `Core/Registry.swift`（7，CSV 7）
+### 3.2 `Core/Runtime/Registry.swift`（7，CSV 7）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -255,7 +255,7 @@
 
 > 属性：`PanelSectionRegistry.all`、`SettingsPaneRegistry.all/order`、`StatusItemRegistry.all`、`ServiceLocator.panel/settings/panelPreview`（6 个访问器）。
 
-### 3.3 `Core/StateCompat.swift`（2，CSV 2）
+### 3.3 `Core/Runtime/StateCompat.swift`（2，CSV 2）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -264,7 +264,7 @@
 
 > 属性：`Stored.wrappedValue`（nonmutating set）、`Stored.projectedValue`（现造 Binding）。
 
-### 3.4 `Core/Preferences.swift`（4，CSV 4）
+### 3.4 `Core/Runtime/Preferences.swift`（4，CSV 4）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -273,7 +273,7 @@
 | `Preferences.set` | 20 | 直写，nil 即 remove。 |
 | `Preferences.binding(_:default:)` | 101 | SwiftUI Binding 适配。 |
 
-### 3.5 `Core/Personalization.swift`（8，CSV 8）
+### 3.5 `Core/Runtime/Personalization.swift`（8，CSV 8）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -293,7 +293,7 @@
 - `persist`/`flushPersist`（136–171）：v84 之前每个属性 didSet 都立刻写 15 个键 + 发通知，拖滑块时每帧一轮（15 写 + N 个状态栏监听者重建）淹掉主线程。现在防抖 150ms。**代价**：进程被 `kill -9` / 崩溃时最后 150ms 的个性化改动会丢；正常退出走 `flushPendingPersist()` 兜底。
 - `load`（173–204）：`isLoading` 是关键。没有它时，按属性逐个赋值会让先赋值的属性触发 `persist()`，把还没读到的属性用默认值反写回盘（注释里的真实事故：`accentColor` 先赋值 → persist 把 `fontScale=1.0` 写盘 → 用户字号设置永远失效）。
 
-### 3.6 `Core/LogArchive.swift`（12，CSV 12）
+### 3.6 `Core/Runtime/LogArchive.swift`（12，CSV 12）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -317,7 +317,7 @@
 - `appendRaw`（246–277）：**在锁内做完整文件 IO**（close/open/seek/write）。日志量突增时（例如异常循环里 `Log.info`）会把所有调用线程（含主线程）串行堵在磁盘上。另外 `handle` 跨天切换时先 close 再重开，若 `FileHandle(forWritingTo:)` 失败，`handle` 为 nil，此后**所有日志静默丢弃**直到下一天。
 - `tail()`（300–307）：读的是 `currentDay` 对应的文件；若跨过 00:00 且还没有新日志写入，`currentDay` 仍是昨天，读到的是旧文件——语义可接受。
 
-### 3.7 `Core/LiquidGlass.swift`（9，CSV 9）
+### 3.7 `Core/UI/LiquidGlass.swift`（9，CSV 9）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -332,7 +332,7 @@
 
 > 属性：`isSupported`、`reduceTransparency`、`prefersSolid`、`makeView`（无 `self` 的 static func 被索引漏收）。
 
-### 3.8 `Core/AppearanceTheme.swift`（7，CSV 7）
+### 3.8 `Core/UI/AppearanceTheme.swift`（7，CSV 7）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -346,7 +346,7 @@
 
 > 属性：`AppearanceMode.title/systemImage`、`MidnightTheme.baseBackground/cardBackground/textColor`、`EnvironmentValues` 4 个键、`AppearanceState.isMidnight`。
 
-### 3.9 `Core/L10n.swift`（6，CSV 6）
+### 3.9 `Core/Runtime/L10n.swift`（6，CSV 6）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -358,7 +358,7 @@
 
 > 属性：`L10n.isRightToLeft`、`resolvedLanguageCode`、`availableLanguages`、`displayNames`。
 
-### 3.10 `Core/Toast.swift`（12，CSV 12）
+### 3.10 `Core/UI/Toast.swift`（12，CSV 12）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -380,7 +380,7 @@
 - `ensureWindow`（194–219）：`level` 用 `CGWindowLevelKey(rawValue: 14)` 而非 `.utilityWindow`（实测后者 bridge 成 19）。`sharingType = .none` 是"提示卡永不进截图"的唯一手段——`SCK.excludingApplications` 对高 level 覆盖窗无效。
 - `positionOnTargetScreen`（264–290）：两个分支都要对 `x/y` 做 `min/max` clamp，且用 `visibleFrame`（不含菜单栏/Dock）。`toastFollowPanel` 分支的 `y = max(visible.minY+8, panelFrame.minY - height - 8)`——面板贴着屏幕上沿时 Toast 会被 clamp 到屏幕底部而不是面板下方（视觉上"跳走"）。
 
-### 3.11 `Core/TransientWindows.swift`（7，CSV 7）
+### 3.11 `Core/Runtime/TransientWindows.swift`（7，CSV 7）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -398,7 +398,7 @@
 - `handleLocalClick`（112–133）：用 `NSEvent.mouseLocation`（屏幕坐标）而不是 `event.locationInWindow`，所以必须用 `w.frame.contains(point)` 判定。菜单栏白名单用 `NSStatusBar.system.thickness` 推算，**多屏且菜单栏只在主屏**时会误判副屏顶部 22pt 也是"菜单栏"（副屏顶部其实是可用区域）→ 在副屏顶部点击不会收起浮层。这是已知的小偏差。
 - 全局监视器分支（83–89）无条件 `dismissAll()`：点任何其它 app 都收起，包括"拖动窗口时松手"等鼠标按下事件。
 
-### 3.12 `Core/ContinuousCorner.swift` / `FlowLayout.swift` / `OfficialWindowChrome.swift` / `PointingHandCursor.swift` / `RoundCloseButton.swift` / `RenderProbe.swift`（CSV 1 / 2 / 1 / 10 / 7 / 6）
+### 3.12 `Core/UI/ContinuousCorner.swift` / `FlowLayout.swift` / `OfficialWindowChrome.swift` / `PointingHandCursor.swift` / `RoundCloseButton.swift` / `RenderProbe.swift`（CSV 1 / 2 / 1 / 10 / 7 / 6）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -433,7 +433,7 @@
 - `continuousRoundedRect`（20–56）：`NSBezierPath(cgPath:)` 要 macOS 14+，部署目标是 13，所以手工搬 `CGPathElement`。quad 分支用标准 2/3 控制点升阶——如果系统改算法也不会丢段。
 - `RenderProbe.emit`（85–110）：字符串拼 `flags` 后做 `flags.joined(...).contains("alpha0|cvZero|noSubviews")` —— 这是**把 `|` 当分隔符用的字符串字面量**，实际永远匹配不到（`joined` 用 `,` 连接）。`<<<< 异常` 标记从未出现。死逻辑。
 
-### 3.13 `Core/AppUpdateChecker.swift`（6，CSV 6）
+### 3.13 `Core/Runtime/AppUpdateChecker.swift`（6，CSV 6）
 
 | 函数 | 行 | 说明 |
 |---|---:|---|
@@ -591,7 +591,7 @@ NSApplication 启动
     ├ NSApp.setActivationPolicy(.accessory)
     ├ AppBootstrap.start()                                                   [App/AppBootstrap.swift:10]
     │   ├ ProcessInfo.disableAutomaticTermination
-    │   ├ LogArchive.shared.start()  → 3 timer + runloop observer            [Core/LogArchive.swift:60]
+    │   ├ LogArchive.shared.start()  → 3 timer + runloop observer            [Core/Runtime/LogArchive.swift:60]
     │   ├ ModuleRegistry.register × 8 → startAll()  ── 跨模块边界：Panel/Settings/
     │   │      StatusBar/Monitor/Clipboard/Capture/AI/Toolbox 各自注入 ServiceLocator
     │   ├ PreviewPopoverDataBridge 5 个 provider（Panel ← Clipboard 数据桥）
@@ -633,7 +633,7 @@ NSApplication 启动
 ### 4.4 Toast
 
 ```
-Toast.show(msg, icon, isWarning)   [Core/Toast.swift:298]
+Toast.show(msg, icon, isWarning)   [Core/UI/Toast.swift:298]
  └ MenuBarToastManager.show → 非主线程则 async 主线程 [:127]
     └ present()  → 代际+1 → ensureWindow（首次建 level-14 透明窗）
        → layoutContent（fittingSize）→ positionOnTargetScreen（面板屏/鼠标屏）
@@ -705,7 +705,7 @@ Apple Event → AppDelegate.application(_:open:)  [App/FrsetNextApp.swift:112]
 
 ## 6. 不变量与陷阱
 
-1. **`@State` 不可用**（缺 `SwiftUIMacros` 插件）。任何新视图状态必须 `@Stored`（`Core/StateCompat.swift`）；`@StateObject/@Binding/@Environment/@AppStorage/@FocusState` 可用。写成 `@State` 直接编译失败。
+1. **`@State` 不可用**（缺 `SwiftUIMacros` 插件）。任何新视图状态必须 `@Stored`（`Core/Runtime/StateCompat.swift`）；`@StateObject/@Binding/@Environment/@AppStorage/@FocusState` 可用。写成 `@State` 直接编译失败。
 2. **`Settings` scene 只能是 `EmptyView()`**。v85 事故：SwiftUI `Settings` 空窗 + 自管 `NSHostingView` 窗**同时布局** → `NSHostingView.layout → GeometryReader → layout` 主线程死循环（sample 栈可复现）。⌘, 必须走 `commands` 转发到自管窗。
 3. **Apple Event 上下文不能建窗口**。`application(_:open:)` 里所有窗口创建必须包 `DispatchQueue.main.async`，否则 `_postWindowNeedsUpdateConstraints` 异常（最小视图也复现）。
 4. **transient 面板打开前必须 `NSApp.activate`**。否则面板成为 key 后立即 resign → `TransientWindowCenter`/`windowDidResignKey` 把它关掉（"打开即关"）。

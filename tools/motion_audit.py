@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """动效曲线统一守卫（v155）。
 
-规则（见 Core/Support.swift 的 Theme.Motion 注释）：
+规则（见 Core/UI/Support.swift 的 Theme.Motion 注释）：
   · 连续循环（旋转/扫描/进度）→ 线性
   · 单次交互动画 → ease-out 三档
   · 收放类 → 弹簧四档
