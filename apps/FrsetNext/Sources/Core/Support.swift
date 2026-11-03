@@ -164,8 +164,49 @@ public enum Theme {
 
     /// 发丝线颜色：跟随明暗的 10% 前景色（浅色=黑 10%，深色=白 10%）
     public static let hairlineColor = Color.primary.opacity(0.10)
-    /// 卡片底：比窗口底亮一档的极淡填充（深色下自动反相）
-    public static let cardFill = Color.primary.opacity(0.045)
+
+    // MARK: 表面分层（v192，对标 ArcZip 的三层明度）
+    //
+    // 旧口径 `cardFill = primary 4.5%` 的问题（2026-11-03 截图对比 ArcZip）：
+    // 窗口底、区块、卡片全都叠在同一个明度带上，层与层只差 4.5% 明度，
+    // 在壁纸上看起来就是"一整片灰"——既不玻璃也不清晰，正文对比度还被拖低。
+    //
+    // ArcZip 的层次（浅色 #F2F2F4 窗口 / #FFFFFF 卡片 / #EDEDEF 内嵌；
+    // 暗色 #1C1C1E / #2C2C2E / #242426）靠的是**明确 8-12% 的明度台阶 + 发丝边**，
+    // 不是更大的模糊。这里照同一套口径定义四种表面，全局只许用它们。
+    //
+    // 全部写成 NSColor 动态色：同一份代码自动跟随浅色/深色，不用到处判 colorScheme。
+
+    /// 动态色工厂：按外观返回不同 NSColor
+    private static func dynamic(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark ? dark : light
+        })
+    }
+
+    /// L0 窗口底：铺在真玻璃之上的那层半透明底。
+    /// 0.92 不透明度的意义：既保留玻璃对桌面的色彩透传，又保证正文对比度
+    /// （纯玻璃在花色壁纸上只有 ~2:1，列表会发灰）。
+    public static let windowSurface = dynamic(
+        light: NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 0.93),
+        dark: NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 0.94))
+
+    /// L2 内容卡：比窗口底**亮一档**（浅色近白 / 暗色略亮于窗口）
+    public static let cardFill = dynamic(
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.78),
+        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.072))
+
+    /// L1.5 内嵌区（代码块 / 列表槽 / 输入框）：比窗口底**暗一档**，
+    /// 用来把「可以滚动的容器」和「卡片面」区分开
+    public static let insetFill = dynamic(
+        light: NSColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.045),
+        dark: NSColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.22))
+
+    /// 卡片描边：浅色用 8% 黑，暗色用 9% 白（ArcZip 的发丝边就是这一档）
+    public static let cardStroke = dynamic(
+        light: NSColor(srgbRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.075),
+        dark: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 0.085))
 
     /// 间距只有 4 的倍数档（外加 6/10 两个半档）
     public enum Space {

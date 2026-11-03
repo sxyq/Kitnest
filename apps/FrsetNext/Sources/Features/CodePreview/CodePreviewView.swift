@@ -436,7 +436,10 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
         let scrollView = NSScrollView()
         scrollView.documentView = textView
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = theme.background
+        // v192（用户）：「代码预渲染的背景是纯黑的，要和玻璃质感贴近，只是它是彩色的」。
+        // 主题底色降到 66% 不透明度铺在窗口玻璃上：仍是该主题的色调（彩色文字有依托），
+        // 但能透出下层的玻璃与环境色，不再是一块死黑。
+        scrollView.backgroundColor = theme.background.withAlphaComponent(0.90)
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = !wraps
         scrollView.autohidesScrollers = true
@@ -453,7 +456,7 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
-        scrollView.backgroundColor = theme.background
+        scrollView.backgroundColor = theme.background.withAlphaComponent(0.90)
         scrollView.hasHorizontalScroller = !wraps
         scrollView.hasVerticalRuler = showsLineNumbers
         scrollView.rulersVisible = showsLineNumbers
@@ -594,7 +597,7 @@ final class CodeLineNumberRuler: NSRulerView {
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        theme.gutter.setFill()
+        theme.gutter.withAlphaComponent(0.92).setFill()
         bounds.fill()
 
         // 右侧分隔线

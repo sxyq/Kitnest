@@ -36,6 +36,11 @@ public enum StatsBarEngine {
     private static var isStarted = false
 
     public static func start() {
+        // v192：设置 → 个性化 → 功能入口 可关掉菜单栏性能部件
+        guard GlobalEntries.isEnabled(GlobalEntries.statsBarKey) else {
+            Log.info("Monitor", "菜单栏性能部件已在设置里关闭，跳过启动")
+            return
+        }
         guard !isStarted else {
             Log.info("Monitor", "STATS 引擎已在运行，忽略重复启动（菜单栏只允许一套合并条）")
             return

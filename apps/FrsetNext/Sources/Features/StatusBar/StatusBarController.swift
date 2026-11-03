@@ -565,6 +565,15 @@ public final class StatusBarController: NSObject {
         CodePreviewWindowController.shared.openFromPasteboardOrSample()
     }
 
+    /// 悬浮剪贴板工作台（v192）
+    ///
+    /// 用户反馈「悬浮剪贴板应该怎样查看？」——此前只有 ⇧⌘V 一个入口，
+    /// 不知道快捷键就等于找不到。这里给菜单栏一个**确定性的可见入口**，
+    /// 与「代码预览…」并列；快捷键仍保留（设置 → 快捷键可改）。
+    @objc func openFloatingClipboardAction(_ sender: Any?) {
+        FloatingClipboardWindowController.shared.show()
+    }
+
     /// 欢迎与权限引导（重建版 onboarding：欢迎窗 + 权限引导窗手动入口）
     @objc func showOnboardingAction(_ sender: Any?) {
         WelcomeWindowController.shared.show()

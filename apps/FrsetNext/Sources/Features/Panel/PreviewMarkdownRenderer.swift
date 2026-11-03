@@ -703,76 +703,62 @@ enum PreviewMarkdownRenderer {
     }
 
     private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
-        guard let first = rows.first else { return NSAttributedString() }
+        // v192（用户：「Markdown 文档里面的那个表格展现是有问题的，没有经过正确的渲染」）：
+        // 旧实现是「等宽字符画」——算显示宽度（CJK 记 2）后自己折行，再用 │ ─ 拼边框。
+        // 列宽靠字符数估算，中英混排一定对不齐；长单元格折行后整个网格塌成几段文本，
+        // 看上去就是「表格没渲染」。
+        //
+        // 现在改用 AppKit 的 NSTextTable + NSTextTableBlock 生成**真正的表格块**：
+        //   · 自动列宽（.automatic），按内容实测排版，不再靠字符数猜；
+        //   · 表头行加粗 + 淡底，单元格 0.5pt 分隔线（跟随明暗的 separatorColor）；
+        //   · 每格 7pt 内边距，长内容由文本系统自己折行，同行自动等高；
+        //   · 单元格内仍走 inlineAttributed，粗体/行内代码保留。
+        guard let first = rows.first, !rows.isEmpty else { return NSAttributedString() }
         let cols = rows.map(\.count).max() ?? first.count
+        guard cols > 0 else { return NSAttributedString() }
 
-        // v182（用户：「Markdown 里的表格没有正确渲染」）：原实现把表格当等宽字符画，
-        // 一格文字长了就整行折行 → 网格塌掉（中文长表格必现）。这里改成**真表格**：
-        //   ① 每格 inline 渲染（粗体/链接保留，等宽字体下宽度不变）；
-        //   ② 列宽按「显示宽度」（CJK 记 2）算，总宽超预算时按比例压缩、每列最窄 6；
-        //   ③ 每格按列宽**自行折行**，同行所有格拉到同一行数，逐行拼接 → 永不越界折行。
-        var cells: [[NSAttributedString]] = rows.map { row in
-            (0..<cols).map { c in
-                let raw = c < row.count ? row[c] : ""
-                let attr = NSMutableAttributedString(attributedString: inlineAttributed(raw))
-                if attr.length > 0 {
-                    attr.addAttribute(.font, value: monoFont,
-                                      range: NSRange(location: 0, length: attr.length))
-                }
-                return attr
-            }
-        }
-        // 各格纯文本宽度（inline 渲染后的 string 已去掉 **/` 等标记）
-        let cellWidths: [[Int]] = cells.map { row in row.map { displayWidth($0.string) } }
-
-        // 预算：11pt 等宽 ≈ 6.6pt/列，预览正文宽约 440pt → 60 列；加上分隔符余量
-        let budget = 58
-        var widths = Array(repeating: 6, count: cols)
-        for ws in cellWidths {
-            for (c, w) in ws.enumerated() where c < cols {
-                widths[c] = max(widths[c], w)
-            }
-        }
-        var total = widths.reduce(0, +) + 3 * max(0, cols - 1)   // " │ " 占 3
-        if total > budget {
-            let spare = Double(total - budget)
-            let share = spare / Double(cols)
-            for c in 0..<cols {
-                widths[c] = max(6, Int(Double(widths[c]) - share.rounded()))
-            }
-            total = widths.reduce(0, +) + 3 * max(0, cols - 1)
-        }
-
-        // 每格按列宽折行（显示宽度口径，CJK=2；优先在空格断）
-        var wrapped: [[[NSAttributedString]]] = cells.map { row in
-            (0..<cols).map { c in wrapDisplayWidth(row[c], width: widths[c]) }
-        }
+        let table = NSTextTable()
+        table.numberOfColumns = cols
+        table.layoutAlgorithm = .automatic
+        table.collapsesBorders = true
+        table.hidesEmptyCells = false
 
         let out = NSMutableAttributedString()
-        for (r, rowCells) in wrapped.enumerated() {
-            let lines = rowCells.map(\.count).max() ?? 1
-            var rendered = ""
-            for k in 0..<lines {
-                var parts: [String] = []
-                for c in 0..<cols {
-                    let piece = k < rowCells[c].count ? rowCells[c][k].string : ""
-                    let pad = max(0, widths[c] - displayWidth(piece))
-                    parts.append(piece + String(repeating: " ", count: pad))
-                    if c < cols - 1 { parts.append(" │ ") }
+        for (r, row) in rows.enumerated() {
+            let isHeader = (r == 0)
+            for c in 0..<cols {
+                let raw = c < row.count ? row[c] : ""
+                let block = NSTextTableBlock(table: table,
+                                             startingRow: r, rowSpan: 1,
+                                             startingColumn: c, columnSpan: 1)
+                block.setBorderColor(NSColor.separatorColor.withAlphaComponent(0.6))
+                block.setWidth(Theme.Stroke.hairline, type: .absoluteValueType, for: .border)
+                block.setWidth(7, type: .absoluteValueType, for: .padding)
+                if isHeader {
+                    // 表头底色用「前景色 7%」而不是 controlBackgroundColor —
+                    // 后者在浅色下就是纯白，和卡片底同色，表头等于没有区分。
+                    block.backgroundColor = NSColor.labelColor.withAlphaComponent(0.07)
                 }
-                rendered += parts.joined() + "\n"
-            }
-            let attr = NSMutableAttributedString(string: rendered, attributes: [
-                .font: monoFont,
-                .foregroundColor: r == 0 ? NSColor.labelColor : NSColor.secondaryLabelColor,
-                .paragraphStyle: paragraphStyle(lineSpacing: 1.2, after: 1, headIndent: 4)
-            ])
-            out.append(attr)
-            if r == 0 {
-                let ruleCount = min(widths.reduce(0, +) + 3 * max(0, cols - 1), 200)
-                out.append(NSAttributedString(string: String(repeating: "─", count: ruleCount) + "\n",
-                                              attributes: [.font: NSFont.systemFont(ofSize: s(8)),
-                                                           .foregroundColor: NSColor.tertiaryLabelColor]))
+
+                let ps = NSMutableParagraphStyle()
+                ps.textBlocks = [block]
+                ps.lineSpacing = 1.5
+                // 关键：默认按字符断开会把 "Markdown" 拆成 "Markdo / wn"。
+                // 改成按词断行，长单词才整体换到下一行。
+                ps.lineBreakMode = .byWordWrapping
+
+                let cell = NSMutableAttributedString(attributedString: inlineAttributed(raw))
+                if cell.length == 0 { cell.append(NSAttributedString(string: " ")) }
+                let font = isHeader
+                    ? NSFont.systemFont(ofSize: s(10.5), weight: .semibold)
+                    : NSFont.systemFont(ofSize: s(10.5))
+                cell.addAttributes([
+                    .font: font,
+                    .paragraphStyle: ps,
+                    .foregroundColor: NSColor.labelColor,
+                ], range: NSRange(location: 0, length: cell.length))
+                out.append(cell)
+                out.append(NSAttributedString(string: "\n"))
             }
         }
         return out

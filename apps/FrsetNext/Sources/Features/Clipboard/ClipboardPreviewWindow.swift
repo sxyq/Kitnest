@@ -34,7 +34,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         self.item = item
         self.mode = mode
         self.showsHint = showsHint
-        let initial = Self.initialSize(for: mode)
+        let initial = Self.initialSize(for: mode, item: item)
         let window: NSWindow
         switch mode {
         case .persistent:
@@ -63,9 +63,50 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（预览窗走代码构建）") }
 
-    /// 两种模式同一初始尺寸（一致性优先；persistent 可缩放，hover 跟随 place 钳制）
-    private static func initialSize(for mode: Mode) -> NSSize {
-        NSSize(width: 720, height: 620)
+    /// 按内容自适应初始尺寸（v192）
+    ///
+    /// 用户原话：「当前主页点开的那个剪贴板预览，它的框都一样，看有其他好的方法去解决吗」
+    /// —— 旧实现无论图片/文本/代码/文件，一律 720×620，短文本周围一圈空白，
+    /// 长文档又要立刻滚动。
+    ///
+    /// 现在的口径：
+    ///   · 图片：按原图像素等比装进 900×760，小图不放大（超过就缩），再留 56pt 给标题/工具条；
+    ///   · 文件：560×420（真正高度由后面的 fittingSize 收缩逻辑收口）；
+    ///   · 文本/代码/链接：按「最长行 × 每字宽」估宽（440–820），按行数估高（320–760）；
+    ///     上限之外一律进入内部滚动，不无限拉高窗口。
+    private static func initialSize(for mode: Mode, item: ClipboardItem) -> NSSize {
+        switch item.type {
+        case .image:
+            if let path = item.imagePath ?? item.thumbnailPath,
+               let image = NSImage(contentsOf: ClipboardFileStore.url(forRelativePath: path)),
+               image.size.width > 1, image.size.height > 1 {
+                let maxW: CGFloat = 900, maxH: CGFloat = 760
+                let scale = min(1, min(maxW / image.size.width, maxH / image.size.height))
+                return NSSize(width: max(420, image.size.width * scale),
+                              height: max(320, image.size.height * scale + 56))
+            }
+            return NSSize(width: 720, height: 620)
+
+        case .file:
+            return NSSize(width: 560, height: 420)
+
+        default:
+            let text = item.content ?? item.title ?? ""
+            let lines = text.components(separatedBy: "\n")
+            let longest = lines.map(\.count).max() ?? 0
+            // 等宽 12pt ≈ 7.2pt/字；中文按 12pt 计，取 8.0 做保守估计
+            var width = min(820, max(440, CGFloat(min(longest, 96)) * 8.0))
+            // Markdown 表格：源行的 | 分隔符让"最长行"失真（表格正文其实很窄），
+            // 但真表格每列至少要有 ~130pt 才不把英文单词拆断。
+            // 这里按列数补足宽度，3 列表格 → 3×132 + 170（目录栏+内边距）≈ 570。
+            let tableLines = lines.filter { $0.trimmingCharacters(in: .whitespaces).hasPrefix("|") }
+            if let maxCols = tableLines.map({ $0.components(separatedBy: "|").count }).max(), maxCols > 3 {
+                let needed = CGFloat(maxCols) * 132 + 170
+                width = max(width, min(980, needed))
+            }
+            let height = min(760, max(320, CGFloat(min(lines.count, 42)) * 17.5 + 150))
+            return NSSize(width: width, height: height)
+        }
     }
 
     private func installContent() {
@@ -76,7 +117,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                                                   self?.onEditingChanged?(editing)
                                               })
         let host = NSHostingView(rootView: view)
-        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(for: mode))
+        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(for: mode, item: item))
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         window.contentView = host
@@ -85,7 +126,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         if item.type == .file {
             host.layoutSubtreeIfNeeded()
             let fit = host.fittingSize
-            if fit.height > 40, fit.height < Self.initialSize(for: mode).height {
+            if fit.height > 40, fit.height < Self.initialSize(for: mode, item: item).height {
                 var f = window.frame
                 f.size.height = max(window.minSize.height, fit.height)
                 window.setFrame(f, display: false)

@@ -34,6 +34,13 @@ public final class CodePreviewWindowController: NSWindowController {
         let view = CodePreviewView(code: text, fileName: fileName)
         controller.contentViewController = NSHostingController(rootView: view)
         controller.window?.setContentSize(size)
+        // v192：窗口外观跟随代码主题的明暗。
+        // 之前系统是浅色，窗口标题栏就是浅灰白，而代码区是深色主题 →
+        // 上半截浅、下半截深，像两个窗口拼在一起（用户截图里很明显）。
+        let theme = CodePreviewPreferences.themeID
+            .map { CodeThemeCatalog.theme(id: $0) } ?? CodeThemeCatalog.systemDefault
+        controller.window?.appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
+        controller.window?.backgroundColor = theme.background.withAlphaComponent(0.92)
         controller.window?.title = title ?? (fileName.map { "代码预览 · \($0)" } ?? "代码预览")
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)

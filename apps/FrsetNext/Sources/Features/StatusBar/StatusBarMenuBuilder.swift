@@ -33,6 +33,9 @@ public enum StatusBarMenuBuilder {
     private struct MenuCache {
         let menu: NSMenu
         let revealed: Bool
+        /// 三个全局入口开关的位图（v192）。开关变化后菜单要多/少项，
+        /// 只刷勾选态不够——必须重建结构。
+        let entriesSignature: Int
         /// target 为传入 responder 的菜单项（target 变更时只重设引用，不重建）
         let targetItems: [NSMenuItem]
         /// 「显示状态项」勾选态 ← Preferences.shared.menuBarIconsVisible
@@ -46,10 +49,20 @@ public enum StatusBarMenuBuilder {
     private static var cachedMenu: MenuCache?
 
     /// 主图标右键菜单：打开面板 / 设置 / 监测项开关 / 退出
+    /// 入口开关位图：home=1, monitorPopout=2, statsBar=4
+    private static func entriesSignature() -> Int {
+        var sig = 0
+        if GlobalEntries.isEnabled(GlobalEntries.homeKey) { sig |= 1 }
+        if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) { sig |= 2 }
+        if GlobalEntries.isEnabled(GlobalEntries.statsBarKey) { sig |= 4 }
+        return sig
+    }
+
     public static func mainMenu(target: AnyObject) -> NSMenu {
         let revealed = MenuBarIconStyleStore.revealsCustomOption
+        let signature = entriesSignature()
         // v128（流畅度）：命中缓存 → 只刷新勾选态/target，零 alloc
-        if let cache = cachedMenu, cache.revealed == revealed {
+        if let cache = cachedMenu, cache.revealed == revealed, cache.entriesSignature == signature {
             for item in cache.targetItems { item.target = target }
             cache.toggleItem.state = Preferences.shared.menuBarIconsVisible ? .on : .off
             for (module, item) in cache.moduleItems {
@@ -61,13 +74,13 @@ public enum StatusBarMenuBuilder {
             }
             return cache.menu
         }
-        let cache = buildMenu(target: target, revealed: revealed)
+        let cache = buildMenu(target: target, revealed: revealed, signature: signature)
         cachedMenu = cache
         return cache.menu
     }
 
     /// v128（流畅度）：全量构造（仅缓存未命中 / revealed 翻转时走），并登记需刷新的项
-    private static func buildMenu(target: AnyObject, revealed: Bool) -> MenuCache {
+    private static func buildMenu(target: AnyObject, revealed: Bool, signature: Int) -> MenuCache {
         let menu = NSMenu()
         var targetItems: [NSMenuItem] = []
         var moduleItems: [MonitorModuleID: NSMenuItem] = [:]
@@ -77,11 +90,14 @@ public enum StatusBarMenuBuilder {
             return m
         }
 
-        menu.addItem(track(item("打开面板",
-                                key: " ",
-                                modifiers: [.option],
-                                action: #selector(StatusBarController.openPanelAction(_:)),
-                                target: target)))
+        // v192：入口项可关（设置 → 个性化 → 功能入口），关掉后菜单里不再出现
+        if GlobalEntries.isEnabled(GlobalEntries.homeKey) {
+            menu.addItem(track(item("打开面板",
+                                    key: " ",
+                                    modifiers: [.option],
+                                    action: #selector(StatusBarController.openPanelAction(_:)),
+                                    target: target)))
+        }
 
         menu.addItem(track(item("设置…",
                                 key: ",",
@@ -89,8 +105,10 @@ public enum StatusBarMenuBuilder {
                                 action: #selector(StatusBarController.openSettingsAction(_:)),
                                 target: target)))
 
-        menu.addItem(track(item("性能监测…", key: "", modifiers: [],
-                                action: #selector(StatusBarController.openMonitorSettingsAction(_:)), target: target)))
+        if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) {
+            menu.addItem(track(item("性能监测…", key: "", modifiers: [],
+                                    action: #selector(StatusBarController.openMonitorSettingsAction(_:)), target: target)))
+        }
 
         // v180：归档任务——压缩/解压可能在没有归档窗口时发起（访达服务、文件盒），
         // 这里给一个全局入口；任务进行中 HUD 会自动出现，这个入口用于重新打开详情。
@@ -100,6 +118,10 @@ public enum StatusBarMenuBuilder {
         // 代码预览（代码美化）：取剪贴板里的代码，框内换主题/语言，一键复制富文本
         menu.addItem(track(item("代码预览…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openCodePreviewAction(_:)), target: target)))
+
+        // 悬浮剪贴板（v192）：给「怎么查看」一个可见入口，不用记快捷键
+        menu.addItem(track(item("悬浮剪贴板…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.openFloatingClipboardAction(_:)), target: target)))
 
         // 欢迎与权限引导（重建版 onboarding；首启自动弹，此处提供手动入口）
         let onboardingItem = track(item("欢迎与权限…", key: "", modifiers: [],
@@ -165,6 +187,7 @@ public enum StatusBarMenuBuilder {
 
         return MenuCache(menu: menu,
                          revealed: revealed,
+                         entriesSignature: signature,
                          targetItems: targetItems,
                          toggleItem: toggle,
                          moduleItems: moduleItems,

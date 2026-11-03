@@ -286,10 +286,10 @@ struct GlassPlate: ViewModifier {
             .background {
                 ZStack {
                     LiquidGlassBackground(cornerRadius: radius)
-                    // 可读性底衬：纯真玻璃在浅色壁纸上对比度只有 ~2:1，
-                    // 列表正文会发灰（命令面板截图实测）。压一层 50% 窗口色后
-                    // 仍是半透明，但正文回到 AA 可读区间。
-                    Color(nsColor: .windowBackgroundColor).opacity(0.5)
+                    // 可读性底衬（v192）：0.93 不透明度的窗口底。
+                    // 旧值 0.5 让整块界面在壁纸上"糊成一片灰"——层次全被玻璃吃掉了；
+                    // ArcZip 的口径是"能透一点点环境色，但层次必须看得见"。
+                    Theme.windowSurface
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
@@ -337,7 +337,7 @@ struct GlassCard: ViewModifier {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                    .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
                     .allowsHitTesting(false)
             }
     }

@@ -128,3 +128,36 @@ public enum PanelSegments {
         pages.filter { isEnabled($0) }
     }
 }
+
+// MARK: - 全局入口开关（v192）
+//
+// 用户（2026-11-03）：「状态栏里面的那两个性能监测界面和那个主页，都是在设置中
+// 也能够添加进行关闭，跟那个中转和投屏一样」。
+//
+// 与 `PanelSegments` 的分工：
+//   · PanelSegments 管**主面板顶部的分段按钮**（主页/监测/中转/投屏）；
+//   · 这里管**菜单栏（状态栏）里的入口项**与两个独立窗口是否可达：
+//       - entry.home          菜单栏「打开面板」+ ⌥A 热键
+//       - entry.monitorPopout 菜单栏「性能监测…」+ ⌥P 热键
+//       - entry.statsBar      菜单栏 STATS 合并条（性能部件本身）
+// 两者独立：关掉顶部「监测」分段不影响独立监测窗，反之亦然。
+
+public enum GlobalEntries {
+
+    public static let homeKey = "entry.home"
+    public static let monitorPopoutKey = "entry.monitorPopout"
+    public static let statsBarKey = "entry.statsBar"
+
+    /// 出厂默认：三个都开（性能监测是本产品的核心卖点，用户明确要求默认打开）
+    public static func isEnabled(_ key: String) -> Bool {
+        Preferences.shared.value(key, default: true)
+    }
+
+    public static func setEnabled(_ key: String, _ on: Bool) {
+        Preferences.shared.set(key, on)
+        NotificationCenter.default.post(name: didChangeNotification, object: nil)
+    }
+
+    /// 菜单栏菜单在这三个开关变化后要重建（缓存的是 NSMenu 结构，不是勾选态）
+    public static let didChangeNotification = Notification.Name("FrsetNext.GlobalEntries.didChange")
+}

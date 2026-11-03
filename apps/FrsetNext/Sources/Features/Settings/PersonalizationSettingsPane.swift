@@ -41,6 +41,8 @@ struct PersonalizationSettingsView: View {
             Divider().opacity(0.5)
             panelPagesRow
             Divider().opacity(0.5)
+            globalEntriesRow
+            Divider().opacity(0.5)
             resetRow
         }
         .padding(.vertical, 4)
@@ -73,6 +75,40 @@ struct PersonalizationSettingsView: View {
             Text("拖动左侧「≡」调整顶部顺序；勾掉的分段不出现，也不会创建对应视图——不占内存。"
                  + "全部关闭时面板只显示一句提示。中转/投屏的显隐只看这里的勾选，"
                  + "与「文件中转」功能开关无关。")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 全局入口（v192）：菜单栏（状态栏）里的入口项与两个独立窗口的开关。
+    /// 用户要求「跟中转和投屏一样」——所以放在同一页、同样的勾选交互；
+    /// 但它管的是**菜单栏入口**，不是主面板顶部的分段按钮（那是上面那一组）。
+    private var globalEntriesRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            settingRow("功能入口") {
+                VStack(alignment: .trailing, spacing: 6) {
+                    Toggle("主页（打开面板）", isOn: Binding(
+                        get: { GlobalEntries.isEnabled(GlobalEntries.homeKey) },
+                        set: { GlobalEntries.setEnabled(GlobalEntries.homeKey, $0) }))
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12))
+                    Toggle("性能监测独立窗", isOn: Binding(
+                        get: { GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) },
+                        set: { GlobalEntries.setEnabled(GlobalEntries.monitorPopoutKey, $0) }))
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12))
+                    Toggle("菜单栏性能部件（STATS）", isOn: Binding(
+                        get: { GlobalEntries.isEnabled(GlobalEntries.statsBarKey) },
+                        set: { GlobalEntries.setEnabled(GlobalEntries.statsBarKey, $0) }))
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12))
+                }
+                .frame(width: 210)
+            }
+            Text("控制菜单栏图标下拉菜单里的「打开面板 / 性能监测…」两项，以及菜单栏上的性能合并条。"
+                 + "关掉只是收起入口，数据和历史都还在，随时可以再打开；"
+                 + "全部关掉时主面板仍可用 ⌥A 打开，不会把界面锁死。")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
