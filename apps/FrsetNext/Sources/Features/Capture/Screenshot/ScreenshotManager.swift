@@ -509,7 +509,10 @@ public final class ScreenshotManager: ObservableObject {
         pendingFlow = flow
         currentModeTag = "area"      // v130②：历史库模式标签
         isCapturing = true
-        NSApp.activate(ignoringOtherApps: true)
+        // v207（用户：「按快捷键截图应该立刻定格当前屏幕，不能先跳转界面/打断预览」）：
+        // 这里绝对不能先 NSApp.activate —— 激活会让主面板/preview hover 窗先收起，
+        // 等到真正抓帧时画面已经变了（鼠标停在预览上，预览消失）。
+        // 顺序改为：先冻结抓帧（此时不改任何窗口状态）→ 再激活 App 并铺覆盖层。
 
         // v161（2026-10-29 修「⌘1 快捷截屏必定卡死」）：快照抓取移出主线程。
         // 根因（真机采样实锤）：macOS 27 上 legacy CGWindowListCreateImage 已被系统
@@ -518,8 +521,13 @@ public final class ScreenshotManager: ObservableObject {
         // 信号量——主线程同步等待它 = 永久死锁（覆盖层都来不及建，整个 App 无响应）。
         // 修复：快照统一异步获取（SCK 优先），完成后再回主线程建覆盖层。
         Task { @MainActor in
+            let t0 = DispatchTime.now().uptimeNanoseconds
             let snapshots = await Self.acquireScreenSnapshots()
+            let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
+            Log.info("Capture", String(format: "区域截图快照冻结完成 %.0fms（抓帧前未改窗口状态）", ms))
             guard self.isCapturing else { return }   // 等待期间已被取消（如再次触发）
+            // 画面已冻结，这时才激活 App 铺覆盖层；此后的窗口收起不会影响已抓到的帧
+            if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
                 let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
                 window.overlayView.onCommit = { [weak self, weak window] rect in
@@ -679,12 +687,13 @@ public final class ScreenshotManager: ObservableObject {
         pendingFlow = .toolbar          // 截取后与区域截图同一套动作工具条
         currentModeTag = "window"       // v130②：历史库模式标签
         isCapturing = true
-        NSApp.activate(ignoringOtherApps: true)
+        // v207：与区域截图同修——先冻结帧，再激活；否则预览窗会先收起
 
         // v161：与 beginRegionCapture 同修——快照异步获取，legacy 同步调用禁止主线程（macOS 27 死锁）
         Task { @MainActor in
             let snapshots = await Self.acquireScreenSnapshots()
             guard self.isCapturing else { return }
+            if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
                 let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot, pickMode: .window)
                 window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
