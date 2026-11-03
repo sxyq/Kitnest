@@ -228,8 +228,7 @@ struct MonitorWidgetsPane: View {
                 .padding(.bottom, 12)
             }
         }
-        .background(Theme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .glassCard(radius: Theme.cornerRadius)
     }
 
     private func formChip(module: String, form: String, active: Bool,

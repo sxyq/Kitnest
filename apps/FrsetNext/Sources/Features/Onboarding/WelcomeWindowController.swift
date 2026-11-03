@@ -16,7 +16,8 @@ public final class WelcomeWindowController: NSObject {
     public static let shared = WelcomeWindowController()
 
     /// 当前引导版本：功能地图发生较大变化时 +1，老用户会重新看到欢迎窗
-    public static let onboardingVersion = 1
+    /// v183：补上文件归档、监测三页拆分、剪贴板就地预览等新能力 → 2
+    public static let onboardingVersion = 2
 
     private var window: WelcomeWindow?
 

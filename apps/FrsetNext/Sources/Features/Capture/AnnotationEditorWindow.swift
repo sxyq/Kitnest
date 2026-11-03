@@ -100,12 +100,21 @@ final class AnnotationCanvasView: NSView {
     // MARK: 坐标换算
 
     /// 底图在视图内的等比居中矩形
+    /// v181：左侧给竖排工具栏让出的宽度（图像区域从这里开始）。
+    /// 竖栏是「浮在画布上」的，如果图像铺满整幅，左缘 44pt 会被竖栏压住没法标注；
+    /// 让出这一条后工具永远不盖内容，代价是图像略缩、左边多一条灰底。
+    var leadingInset: CGFloat = 0 {
+        didSet { if leadingInset != oldValue { needsDisplay = true } }
+    }
+
     private var fitRect: CGRect {
         let iw = CGFloat(image.width), ih = CGFloat(image.height)
         guard iw > 0, ih > 0, bounds.width > 0, bounds.height > 0 else { return .zero }
-        let scale = min(bounds.width / iw, bounds.height / ih)
+        let availW = max(1, bounds.width - leadingInset)
+        let scale = min(availW / iw, bounds.height / ih)
         let w = iw * scale, h = ih * scale
-        return CGRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
+        return CGRect(x: leadingInset + (availW - w) / 2, y: (bounds.height - h) / 2,
+                      width: w, height: h)
     }
 
     /// 成图圆角（视图坐标点）。0 = 直角。
@@ -646,16 +655,30 @@ final class AnnotationCanvasView: NSView {
         }
         guard let mask = mctx.makeImage() else { return }
 
-        let old = image
-        guard let cleaned = ObjectRemovalEngine.inpaint(image: image, mask: mask) else {
-            Log.warn("Capture", "抹除：修复引擎返回空")
-            return
+        // v182（用户：「最底部那个工具选中后没有正确使用」）：
+        // 修复是秒级 CPU 活，原实现同步跑在主线程且失败只写日志——
+        // 表现就是「涂了没反应」。现在后台算 + 全程给反馈。
+        let base = image
+        Toast.show("正在抹除…", icon: "wand.and.rays.inverse")
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let cleaned = ObjectRemovalEngine.inpaint(image: base, mask: mask)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard let cleaned else {
+                    Log.warn("Capture", "抹除：修复引擎返回空")
+                    Toast.show("抹除失败：修复引擎返回空", icon: "exclamationmark.triangle")
+                    return
+                }
+                let old = self.image
+                self.image = cleaned
+                self.mosaicPixelCache.removeAll(); self.mosaicCacheBase = nil
+                self.record(.imageSnapshot(old: old, new: cleaned))
+                self.onChange?()
+                self.needsDisplay = true
+                Toast.show("已抹除", icon: "wand.and.rays.inverse")
+                Log.info("Capture", "抹除：修复完成（轨迹 \(stroke.count) 点，笔刷直径 \(Int(r * 2))px）")
+            }
         }
-        image = cleaned
-        mosaicPixelCache.removeAll(); mosaicCacheBase = nil
-        record(.imageSnapshot(old: old, new: cleaned))
-        onChange?()
-        Log.info("Capture", "抹除：修复完成（轨迹 \(stroke.count) 点，笔刷直径 \(Int(r * 2))px）")
     }
 
     /// 过滤误点产生的过小标注
@@ -1153,11 +1176,54 @@ extension AnnotationCanvasView: NSTextFieldDelegate {
     }
 }
 
+// MARK: - 竖排工具栏落位容器
+
+/// 竖栏要「贴着画布左缘、垂直居中，且只有胶囊本身吃鼠标」：
+/// - 用一个铺满内容区的透明容器负责定位，窗口缩放时重新居中（居中基准是画布区，不含底部工具条）；
+/// - 容器的 `hitTest` 只放行胶囊矩形，其余返回 nil → 点击直接落到下面的画布。
+///   少了这条，覆盖全窗口的透明层会把画布的绘制/拖拽事件全挡住（最容易踩的坑）。
+private final class ToolRailHost: NSView {
+    /// 竖栏距内容区左缘（画布左侧留白由它推出来，见 `canvas.leadingInset`）
+    static let railLeft: CGFloat = 16
+
+    private let host: NSView
+    /// 底部工具条占的高度（这截不属于画布，居中时扣掉）
+    var bottomInset: CGFloat = 0
+
+    init(host: NSView) {
+        self.host = host
+        super.init(frame: .zero)
+        addSubview(host)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
+
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        super.resizeSubviews(withOldSize: oldSize)
+        placeRail()
+    }
+
+    /// 贴左缘 + 垂直居中；画布太矮时收一点高度，避免压到上下沿
+    func placeRail() {
+        let canvasH = max(0, bounds.height - bottomInset)
+        let h = min(ToolRailMetrics.height, max(120, canvasH - 24))
+        let y = bottomInset + max(6, (canvasH - h) / 2)
+        host.frame = NSRect(x: Self.railLeft, y: y, width: ToolRailMetrics.width, height: h)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let p = convert(point, from: superview)
+        guard host.frame.insetBy(dx: -2, dy: -2).contains(p) else { return nil }
+        return super.hitTest(point)
+    }
+}
+
 // MARK: - 标注编辑器窗口
 
-/// 标注编辑器窗口：上方画布 + 下方浮动工具条。
+/// 标注编辑器窗口：画布 + 左缘竖排工具栏 + 底部悬浮工具条（样式/操作）。
 /// 工具条 2026-10-20 全面重做：图标工具分组 + 上下文样式（颜色/笔刷/马赛克块大小）
 /// + 撤销/重做 + 主次操作；配套快捷键（R/O/A/P/H/M/T/E/D、⌘Z/⇧⌘Z/⌘C/⌘S、Esc）。
+/// v181：9 个工具移到画布左边竖栏（方案 B），底部只留样式 + 操作共 9 项。
 final class AnnotationEditorWindow: NSWindow {
     let canvas: AnnotationCanvasView
     /// 工具条状态（v71 SwiftUI 化后由本模型驱动选中态与撤销可用态）
@@ -1168,12 +1234,15 @@ final class AnnotationEditorWindow: NSWindow {
 
     /// 工具条高度（画布下方悬浮胶囊的容纳区）
     private static let toolbarHeight: CGFloat = 84
+    /// 画布最小高度：必须容得下左侧竖排工具条（竖栏 + 上下各 14pt 留白），
+    /// 否则小图（如 200×120）打开时竖栏会贴到窗口上下沿。
+    private static var minCanvasHeight: CGFloat { max(300, ToolRailMetrics.height + 28) }
 
     init(image: CGImage) {
         let maxW: CGFloat = 960, maxH: CGFloat = 720
         let scale = min(1, min(maxW / CGFloat(image.width), maxH / CGFloat(image.height)))
         let canvasW = max(880, CGFloat(image.width) * scale)
-        let canvasH = max(300, CGFloat(image.height) * scale)
+        let canvasH = max(Self.minCanvasHeight, CGFloat(image.height) * scale)
         let size = NSSize(width: canvasW, height: canvasH + Self.toolbarHeight)
 
         canvas = AnnotationCanvasView(image: image)
@@ -1183,11 +1252,18 @@ final class AnnotationEditorWindow: NSWindow {
         title = "标注截图  ·  \(image.width) × \(image.height)"
         // 灰色画布 + 透明标题栏：标题栏与画布同底，不再出现上下两条异色
         backgroundColor = EditorBackdrop.color
-        titlebarAppearsTransparent = true
-        minSize = NSSize(width: 880, height: 300 + Self.toolbarHeight)
+        // v182（用户：「标题栏是空白的，只有三个按钮」）：
+        // titlebarAppearsTransparent = true 在本 App 的外观链路下会把标题文字一并吞掉
+        // （同样的配置在独立小程序里正常，故不再纠缠根因）。改用标准标题栏 + 去分隔线，
+        // 内容底色仍是 EditorBackdrop，观感差一档但标题一定可见、可拖。
+        titlebarAppearsTransparent = false
+        titlebarSeparatorStyle = .none
+        minSize = NSSize(width: 880, height: Self.minCanvasHeight + Self.toolbarHeight)
         isReleasedWhenClosed = false
         canvas.frame = NSRect(x: 0, y: Self.toolbarHeight, width: canvasW, height: canvasH)
         canvas.autoresizingMask = [.width, .height]
+        // 竖栏占的那条留给灰底：图像从竖栏右侧开始，标注时不会被工具条挡住在左缘画不了
+        canvas.leadingInset = ToolRailHost.railLeft + ToolRailMetrics.width + 12
         canvas.onChange = { [weak self] in self?.refreshActions() }
         canvas.onKey = { [weak self] event in self?.handleKey(event) ?? false }
         canvas.onSizeDelta = { [weak self] delta in self?.adjustSize(by: delta) }
@@ -1215,6 +1291,15 @@ final class AnnotationEditorWindow: NSWindow {
         container.wantsLayer = true
         container.addSubview(canvas)
 
+        // v181（方案 B）：9 个工具竖排浮在画布左缘，底部胶囊只留样式与操作。
+        // 必须加在 canvas 之后（同层里后加的在上），否则被画布盖住点不到。
+        let rail = ToolRailHost(host: buildToolRail())
+        rail.bottomInset = Self.toolbarHeight
+        rail.frame = container.bounds
+        rail.autoresizingMask = [.width, .height]
+        container.addSubview(rail)
+        rail.placeRail()
+
         let toolbar = buildToolbar(width: canvasW)
         toolbar.frame = NSRect(x: 0, y: 0, width: canvasW, height: Self.toolbarHeight)
         toolbar.autoresizingMask = [.width, .maxYMargin]
@@ -1224,6 +1309,22 @@ final class AnnotationEditorWindow: NSWindow {
         refreshActions()
     }
 
+    // MARK: 竖排工具栏
+
+    /// 画布左缘的 9 个工具（竖排胶囊）。窗口只负责给它一个贴边居中的框，
+    /// 内部布局全在 SwiftUI 侧（`AnnotationToolRailView`），尺寸取自 `ToolRailMetrics`。
+    private func buildToolRail() -> NSView {
+        let root = AnnotationToolRailView(
+            model: toolbarModel,
+            onTool: { [weak self] index in self?.toolbarDidSelectTool(index) }
+        )
+        .frsetThemeChrome()
+
+        let host = NSHostingView(rootView: root)
+        host.sizingOptions = []
+        return host
+    }
+
     // MARK: 工具条
 
     private func buildToolbar(width: CGFloat) -> NSView {
@@ -1231,7 +1332,6 @@ final class AnnotationEditorWindow: NSWindow {
             Spacer(minLength: 0)
             AnnotationToolbarView(
                 model: toolbarModel,
-                onTool: { [weak self] index in self?.toolbarDidSelectTool(index) },
                 onColor: { [weak self] color in self?.toolbarDidChangeColor(NSColor(color)) },
                 onSize: { [weak self] value in self?.toolbarDidChangeSize(CGFloat(value)) },
                 onBlock: { [weak self] value in self?.toolbarDidChangeBlock(value) },
@@ -1461,6 +1561,49 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
                 try? data.write(to: URL(fileURLWithPath: "/tmp/annot_round.png"))
                 Log.info("Capture", "排障：圆角成图已写 /tmp/annot_round.png（\(out.width)×\(out.height)）")
             }
+        }
+    }
+
+    /// 仅用于验收 v181「工具竖排到画布左侧」：打开一张接近真实截图尺寸的图，
+    /// 并把两个关键点的 hitTest 结果写 /tmp/rail_probe.txt（无辅助功能权限时可脚本验收）。
+    public func debugRailProbe() {
+        let size = NSSize(width: 1200, height: 800)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSColor(calibratedRed: 0.97, green: 0.96, blue: 0.94, alpha: 1).setFill()
+        NSRect(origin: .zero, size: size).fill()
+        NSColor(calibratedRed: 0.20, green: 0.45, blue: 0.90, alpha: 1).setFill()
+        NSRect(x: 0, y: 120, width: 1200, height: 220).fill()
+        ("左侧竖排工具栏验收" as NSString).draw(at: NSPoint(x: 60, y: 620),
+            withAttributes: [.font: NSFont.systemFont(ofSize: 44, weight: .bold),
+                             .foregroundColor: NSColor.black])
+        image.unlockFocus()
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+
+        open(image: cg)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard let editor = self?.window, let content = editor.contentView else { return }
+            func who(_ p: NSPoint) -> String {
+                guard let v = content.hitTest(p) else { return "nil(穿透)" }
+                var chain: [String] = []
+                var cur: NSView? = v
+                while let c = cur, c !== content {
+                    chain.append(String(describing: type(of: c)))
+                    cur = c.superview
+                }
+                return chain.joined(separator: " < ")
+            }
+            let railPoint = NSPoint(x: 24, y: content.bounds.midY)
+            let canvasPoint = NSPoint(x: content.bounds.midX, y: content.bounds.midY)
+            let report = """
+            content = \(Int(content.bounds.width))×\(Int(content.bounds.height))
+            rail    = \(Int(ToolRailMetrics.width))×\(Int(ToolRailMetrics.height))
+            railPoint(24, midY)   -> \(who(railPoint))
+            canvasPoint(midX,midY) -> \(who(canvasPoint))
+
+            """
+            try? report.write(toFile: "/tmp/rail_probe.txt", atomically: true, encoding: .utf8)
+            Log.info("Capture", "rail 探针：\(report.replacingOccurrences(of: "\n", with: " | "))")
         }
     }
 

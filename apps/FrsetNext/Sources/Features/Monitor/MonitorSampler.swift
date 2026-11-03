@@ -16,8 +16,10 @@ public final class MonitorSampler: ObservableObject {
     @Published public private(set) var history: History = History()
     /// 是否正在采样
     @Published public private(set) var isRunning: Bool = false
-    /// 单调递增的采样序号（视图可用它触发重绘）
-    @Published public private(set) var tick: UInt64 = 0
+    /// 单调递增的采样序号（仅用于设置页显示「已采样 N 次」）。
+    /// v183：不再 @Published——它原本每 tick 额外触发一次全量重绘，
+    /// 而同一 tick 里 sample/history 已经各发一次，这一个纯属多余。
+    public private(set) var tick: UInt64 = 0
 
     /// 历史缓冲（公开只读属性，供图表组件直接取用）
     public struct History {
@@ -308,9 +310,9 @@ public final class MonitorSampler: ObservableObject {
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
+            self.tick &+= 1          // 先自增：随后 sample 发布时设置页读到的是新值
             self.sample = sample
             self.history = snapshot
-            self.tick &+= 1
         }
     }
 

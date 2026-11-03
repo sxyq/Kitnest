@@ -243,8 +243,12 @@ public final class StatsDataProvider {
         let heavyDue = uiActive || slowDue
         // v128（CPU 优化）：后台采样线程可见性开关。conn（1 包/秒 ICMP）与
         // nettop（每 5s popen 子进程实测 ~1s）只被面板消费，隐藏即暂停。
+        //
+        // v191（用户：「应该就一直放在那，只是它会变化它显示的那个 App」）：
+        // nettop 默认改常驻——不打开面板也在累计 10 分钟窗口，打开即有数据。
+        // 代价是每 5s 一个 nettop 子进程；设置 → 监测 → 网络 可关掉。
         frset_conn_set_active(uiActive ? 1 : 0)
-        frset_net_top_set_active(uiActive ? 1 : 0)
+        frset_net_top_set_active((uiActive || MonitorPreferences.networkKeepAlive) ? 1 : 0)
         // 性能探针（FRSET_PERF_PROBE=1）：分段计时，定位阻塞段；生产零日志
         let probe = Self.perfProbe
         var tPrev = DispatchTime.now().uptimeNanoseconds
@@ -436,6 +440,8 @@ public final class StatsDataProvider {
 
             // 网络 Top 进程（nettop 差分；C 层后台 5s 一轮，此处读缓存）
             snap.procNet = StatsDataProvider.readProcList(kind: 3, max: 8)
+            // 10 分钟窗口累计（用户需求：分流按「过去 10 分钟」而不是最近 5 秒）
+            NetworkFlowTracker.shared.ingestApps(snap.procNet)
 
             // v128：本地 IP / 主接口（原每帧 getifaddrs + SCDynamicStore）
             let ipBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 64)
@@ -550,7 +556,10 @@ public final class StatsDataProvider {
     ///   · 无 .app 的守护进程/CLI = 按可执行路径独立成行，图标取该可执行文件图标
     /// 采样上限 640：C 层本来就要遍历全部 pid（瓶颈在 proc_pid_rusage），
     /// 抬高输出上限不增加扫描成本，却能保证「聚合后的排名」完整（大 App 不再被 64 截断）。
-    private static func readProcList(kind: Int, max: Int) -> [StatsProcItem] {
+    ///
+    /// v191：`private` → 模块内可见。网络常驻统计（NetworkFlowTracker 的后台节拍）
+    /// 需要在不打开监测页时也读 nettop 缓存；procBuffer 本身有锁，两个调用方串行安全。
+    static func readProcList(kind: Int, max: Int) -> [StatsProcItem] {
         // v129（内存）：sampleMax 640→512——C 层 FRSET_PROC_CAP=512（v128 起），
         // 640 的输出缓冲纯浪费：每次调用 640×612B≈392KB → 313KB，且每周期
         // 3 kind + 1 net 共 4 次调用（峰值 152MB 的 churn 源之一）。

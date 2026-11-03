@@ -40,7 +40,11 @@ final class LongScreenshotEditorDocumentView: NSView {
     func fitCentered(in containerSize: NSSize) {
         let iw = CGFloat(image.width), ih = CGFloat(image.height)
         guard iw > 0, ih > 0, containerSize.width > 0, containerSize.height > 0 else { return }
-        let scale = min(1, containerSize.width / iw)
+        // v181（用户：「预览框看不清」）：原来 scale 上限锁死 1，窄图（1x 截的 480 宽长图）
+        // 在大窗里只占中间一条，两侧全是黑边。现在允许按宽度放大（最多 2 倍，
+        // 再大就糊成马赛克）；Retina 长图仍然是缩小到适合宽度。
+        let fill = containerSize.width / iw
+        let scale = min(max(fill, 0.02), 2.0)
         let drawW = max(1, (iw * scale).rounded())
         let drawH = max(1, (ih * scale).rounded())
         let docW = max(containerSize.width, drawW)
@@ -185,14 +189,19 @@ final class LongScreenshotEditorWindow: NSWindow {
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let docW = CGFloat(img.width)
         let docH = CGFloat(img.height)
-        let wantW = min(max(docW + 48, 760), screen.width * 0.85)
-        let wantH = min(max(docH + 48 + 56, 560), screen.height * 0.85)
+        // v181（用户：「预览框可以扩大一点，看不清」）：上限 85% → 92%，
+        // 下限 760×560 → 920×700。长截图本来就是「窄而长」，宽度不放大时正文
+        // 被压成一条细缝，根本看不清内容；高度贴满可视区也让「这是张长图」直观。
+        let capW = screen.width * 0.92
+        let capH = screen.height * 0.92
+        let wantW = min(max(docW + 48, 920), capW)
+        let wantH = min(max(docH + 48 + 56, 700), capH)
         super.init(contentRect: NSRect(origin: .zero, size: NSSize(width: wantW, height: wantH)),
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "长截图"
         applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
-        minSize = NSSize(width: 640, height: 460)
+        minSize = NSSize(width: 760, height: 560)
         isReleasedWhenClosed = false
         contentView = container
         // v166.8：同 ScreenshotOCRResultWindow —— 换 contentView 后重挂自绘关闭钮
@@ -232,6 +241,24 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
         window = editor
         editor.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // 排障（v181）：`probe.longshotClose=YES` → 1.5s 后**按一下自绘关闭钮**
+        // （performClick 等价真点击），2s 后记录窗口是否真的关了。
+        // 无人值守环境下点不到按钮，靠它验收「关闭钮无效」的修复。
+        if UserDefaults.standard.bool(forKey: "probe.longshotClose") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let win = self?.window,
+                      let host = win.standardWindowButton(.closeButton)?.superview,
+                      let btn = host.subviews.compactMap({ $0 as? RoundCloseButton }).first else {
+                    Log.warn("Capture", "关闭钮探针：没找到自绘圆钮")
+                    return
+                }
+                btn.performClick(nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    Log.info("Capture", "关闭钮探针：点击后 isVisible=\(win.isVisible)")
+                }
+            }
+        }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -248,8 +275,10 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
 ///
 /// 实现要点：
 /// - 面板 `ignoresMouseEvents`，不挡滚动、不抢焦点；
-/// - 放在选区外侧（右优先，放不下放左），**不会**被截进画面；
-/// - 只显示画布**顶部**一段（按宽度缩放后裁到 288pt 高），长图不会缩成细条。
+/// - 放在选区外侧（右 → 左 → 上 → 下），**永远不会**压在采集区里；
+/// - `sharingType = .none`：连系统捕获都取不到它（SCK 的 app 级排除对覆盖窗不生效）；
+/// - 只显示画布**顶部**一段（按宽度缩放后最多裁到 288pt 高），长图不会缩成细条；
+///   选区太宽导致左右都没位置时，缩略图高度跟着可用空间缩，卡片不消失。
 final class LongScreenshotLivePreviewPanel: NSPanel {
 
     private final class FlippedCard: NSView {
@@ -264,6 +293,10 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
     private let footerH: CGFloat = 18
     private let contentW: CGFloat = 156
 
+    /// 位置算下来无论如何都会压在选区上时（选区几乎占满整屏宽），宁可不显示——
+    /// 这张卡的意义是「让你看见画布」，压住内容反而坏事。
+    private var suppressed = false
+
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 172, height: 200),
                    styleMask: [.borderless, .nonactivatingPanel],
@@ -275,6 +308,12 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         ignoresMouseEvents = true
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        // v181（复查）：HUD/选区边框踩过的同一个坑——SCK 的 excludingApplications 对
+        // 覆盖层级窗口不生效，只有 sharingType = .none 是系统级开关。
+        // 少了这行，一旦卡片因为翻边/贴边压进选区，就会被逐帧截进长截图里。
+        // 排障开关 probe.cardCapture=1：临时放回可捕获，用于截图核对卡片样式与位置
+        // （默认 .none 时连 screencapture 都拍不到它，验收时注意）。
+        sharingType = UserDefaults.standard.bool(forKey: "probe.cardCapture") ? .readOnly : .none
 
         card.wantsLayer = true
         card.layer?.cornerRadius = 10
@@ -303,18 +342,39 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
 
     private var captionLabel: NSTextField!
 
+    /// 可用槽位：位置 + 该位置允许的最大卡片高度。
+    /// 先算槽位再裁缩略图——这样「选区几乎占满屏宽」时卡片不会因为长高了放不下就整体消失，
+    /// 而是缩略图跟着变矮，始终留在屏幕上（这才是「实时预览」该有的样子）。
+    private enum Slot {
+        /// 选区左右两侧：顶边与选区顶对齐
+        case side(x: CGFloat, top: CGFloat, maxHeight: CGFloat)
+        /// 选区上方：卡片底边贴 `top`
+        case above(x: CGFloat, top: CGFloat, maxHeight: CGFloat)
+        /// 选区下方：卡片顶边在 `top`
+        case below(x: CGFloat, top: CGFloat, maxHeight: CGFloat)
+    }
+
     /// 更新预览（`selection` 是 AppKit 坐标下的选区，用来定位）
     func update(image: CGImage, near selection: NSRect) {
+        guard let slot = resolveSlot(near: selection) else {
+            if !suppressed {
+                suppressed = true
+                orderOut(nil)
+            }
+            return
+        }
+
+        // 缩略图高度上限：既不能超过 288pt（长图不缩成细条），也要塞得进槽位
+        let maxDisplayH = max(24, slotMaxHeight(slot) - footerH - padding * 2)
         let scale = contentW / CGFloat(max(1, image.width))
-        let maxImageH: CGFloat = 288
-        let visibleSrcH = max(1, min(CGFloat(image.height),
-                                     (maxImageH / max(scale, 0.0001)).rounded()))
+        let limit = min(288, maxDisplayH)
+        let visibleSrcH = max(1, min(CGFloat(image.height), (limit / max(scale, 0.0001)).rounded()))
         let cropRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: visibleSrcH)
         let cropped = image.cropping(to: cropRect) ?? image
         imageView.image = NSImage(cgImage: cropped,
                                   size: NSSize(width: cropRect.width, height: cropRect.height))
 
-        let displayH = max(24, (visibleSrcH * scale).rounded())
+        let displayH = max(20, (visibleSrcH * scale).rounded())
         let cardW = contentW + padding * 2
         let cardH = displayH + footerH + padding * 2
 
@@ -326,8 +386,23 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
                                  width: 90, height: 13)
         sizeLabel.stringValue = "\(image.width)×\(image.height)"
 
-        place(near: selection)
+        setFrameOrigin(slotOrigin(slot, size: NSSize(width: cardW, height: cardH)))
+        if suppressed { suppressed = false }
         if !isVisible { orderFrontRegardless() }
+    }
+
+    private func slotMaxHeight(_ slot: Slot) -> CGFloat {
+        switch slot {
+        case .side(_, _, let h), .above(_, _, let h), .below(_, _, let h): return h
+        }
+    }
+
+    private func slotOrigin(_ slot: Slot, size: NSSize) -> NSPoint {
+        switch slot {
+        case .side(let x, let top, _):   return NSPoint(x: x, y: top - size.height)
+        case .above(let x, let top, _):  return NSPoint(x: x, y: top)
+        case .below(let x, let top, _):  return NSPoint(x: x, y: top - size.height)
+        }
     }
 
     /// 排障（v176）：不跑真实会话，直接渲染一张长图到预览卡上，用来核对样式与位置
@@ -340,17 +415,57 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         Log.info("Capture", "排障：长截图预览卡已显示（\(image.width)×\(image.height)）")
     }
 
-    /// 选区外侧（右优先），顶边与选区对齐；放不下就翻到左侧
-    private func place(near selection: NSRect) {
-        guard let screen = NSScreen.main else { return }
+    /// 选一处**不与选区相交**的位置：右侧 → 左侧 → 上方 → 下方；都给不出可用高度就返回 nil（收起）。
+    /// 「不与选区相交」是硬约束：压进采集区会被逐帧截进长截图，也会挡住用户正要看的内容。
+    private func resolveSlot(near selection: NSRect) -> Slot? {
+        guard let screen = screen(containing: selection) else { return nil }
         let vf = screen.visibleFrame
-        let size = frame.size
-        var x = selection.maxX + 16
-        if x + size.width > vf.maxX - 8 { x = selection.minX - size.width - 16 }
-        if x < vf.minX + 8 { x = vf.minX + 8 }
-        var y = selection.maxY - size.height
-        if y < vf.minY + 8 { y = vf.minY + 8 }
-        if y + size.height > vf.maxY - 8 { y = vf.maxY - size.height - 8 }
-        setFrameOrigin(NSPoint(x: x, y: y))
+        let gap: CGFloat = 16
+        let margin: CGFloat = 8
+        let w = frame.width
+        let vfMinY = vf.minY + margin
+        let vfMaxY = vf.maxY - margin
+        let fullH = max(0, vfMaxY - vfMinY)
+        /// 卡片最矮也要放得下「一截缩略图 + 页脚」，低于这个值不如不显示
+        let minUseful: CGFloat = footerH + padding * 2 + 24
+
+        // ① 右侧（顶边与选区顶对齐）
+        if selection.maxX + gap + w <= vf.maxX - margin {
+            return .side(x: selection.maxX + gap, top: min(selection.maxY, vfMaxY), maxHeight: fullH)
+        }
+        // ② 翻到左侧
+        if selection.minX - gap - w >= vf.minX + margin {
+            return .side(x: selection.minX - gap - w, top: min(selection.maxY, vfMaxY), maxHeight: fullH)
+        }
+        // ③ 选区上方（底边贴选区顶）——超宽选区时左右都没地方
+        let aboveSpace = vfMaxY - (selection.maxY + gap)
+        if aboveSpace >= minUseful {
+            let x = clampX(selection.minX, width: w, vf: vf, margin: margin)
+            return .above(x: x, top: selection.maxY + gap, maxHeight: aboveSpace)
+        }
+        // ④ 选区下方（顶边贴选区底）
+        let belowSpace = (selection.minY - gap) - vfMinY
+        if belowSpace >= minUseful {
+            let x = clampX(selection.minX, width: w, vf: vf, margin: margin)
+            return .below(x: x, top: selection.minY - gap, maxHeight: belowSpace)
+        }
+        Log.warn("Capture", "长截图预览卡：选区几乎占满屏幕，找不到不重叠的位置，已收起")
+        return nil
+    }
+
+    private func clampX(_ x: CGFloat, width w: CGFloat, vf: NSRect, margin: CGFloat) -> CGFloat {
+        min(max(vf.minX + margin, x), max(vf.minX + margin, vf.maxX - w - margin))
+    }
+
+    /// 选区所在的屏幕（不能只用 NSScreen.main：副屏上框选时会跑到主屏去）
+    private func screen(containing rect: NSRect) -> NSScreen? {
+        var best: (NSScreen, CGFloat)?
+        for screen in NSScreen.screens {
+            let overlap = screen.frame.intersection(rect)
+            guard !overlap.isNull, !overlap.isEmpty else { continue }
+            let area = overlap.width * overlap.height
+            if best == nil || area > best!.1 { best = (screen, area) }
+        }
+        return best?.0 ?? NSScreen.main ?? NSScreen.screens.first
     }
 }

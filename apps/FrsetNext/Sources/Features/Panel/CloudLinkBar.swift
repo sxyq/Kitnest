@@ -107,11 +107,11 @@ public struct CloudLinkBar: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                 .fill(Color.primary.opacity(0.045))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                 .strokeBorder(Color(nsColor: link.provider.tint).opacity(0.22), lineWidth: 0.8)
         )
     }
@@ -175,7 +175,7 @@ public struct CloudLinkPreviewAction: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(Color.primary.opacity(0.04))
+        .background(Theme.cardFill)
     }
 }
 

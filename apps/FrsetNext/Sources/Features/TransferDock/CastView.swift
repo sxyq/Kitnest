@@ -556,9 +556,7 @@ struct CastView: View {
                         }
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
-                        .background(Color.primary.opacity(0.03),
-                                    in: RoundedRectangle(cornerRadius: Theme.Radius.chip,
-                                                        style: .continuous))
+                        .glassCard(radius: Theme.Radius.chip)
                         .contextMenu {
                             Button("复制正文") {
                                 NSPasteboard.general.clearContents()
@@ -662,7 +660,7 @@ struct CastView: View {
                     Image(nsImage: img).resizable().interpolation(.high)
                 } else {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                             .fill(notifTint(app.id).gradient)
                         Text(String(app.label.prefix(1)))
                             .font(.system(size: 15, weight: .semibold))
@@ -671,7 +669,7 @@ struct CastView: View {
                 }
             }
             .frame(width: 38, height: 38)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
 
             Text(app.label)
                 .font(.system(size: 10.5))

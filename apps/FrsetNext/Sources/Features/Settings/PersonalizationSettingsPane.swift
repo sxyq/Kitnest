@@ -11,10 +11,14 @@ struct PersonalizationSettingsView: View {
     // v177：主面板顶部页面开关（与 PanelRootView 共用同一批键）
     @AppStorage(PanelSegments.homeKey) private var segmentHome = true
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
-    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = true
-    @AppStorage(PanelSegments.castKey) private var segmentCast = true
+    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = false
+    @AppStorage(PanelSegments.castKey) private var segmentCast = false
     /// 背景图选择器呈现
     @Stored private var isPickingImage = false
+    /// v181：分段顺序（本地镜像 → 拖拽时即时重排 → onChange 落盘）
+    @Stored private var pageOrder: [PanelCenterPage] = PanelSegments.order
+    /// 正在拖的分段（nil = 没在拖）
+    @Stored private var draggingSegment: PanelCenterPage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -40,29 +44,82 @@ struct PersonalizationSettingsView: View {
             resetRow
         }
         .padding(.vertical, 4)
+        // 拖完顺序落盘（PanelRootView 用 @AppStorage 观察同一个键，面板立即重排）
+        .onChange(of: pageOrder) { newOrder in
+            PanelSegments.order = newOrder
+        }
     }
 
     /// 主面板顶部页面（v177）：勾掉的分段不出现，对应视图也不会创建。
+    /// v181：同一块里拖拽排序——顶部顺序 = 这里的顺序，第一项是当前页被关掉时的回退页。
     private var panelPagesRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             settingRow("主面板页面") {
-                HStack(spacing: 14) {
-                    Toggle("主页", isOn: $segmentHome)
-                        .toggleStyle(.checkbox)
-                    Toggle("监测", isOn: $segmentMonitor)
-                        .toggleStyle(.checkbox)
-                    Toggle("中转", isOn: $segmentTransfer)
-                        .toggleStyle(.checkbox)
-                    Toggle("投屏", isOn: $segmentCast)
-                        .toggleStyle(.checkbox)
+                VStack(alignment: .trailing, spacing: 6) {
+                    ForEach(Array(pageOrder.enumerated()), id: \.element) { index, page in
+                        segmentOrderRow(page, index: index)
+                    }
+                    Button {
+                        pageOrder = PanelSegments.defaultOrder
+                    } label: {
+                        Text("恢复默认顺序")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.link)
+                    .disabled(pageOrder == PanelSegments.defaultOrder)
                 }
-                .font(.system(size: 12))
+                .frame(width: 210)
             }
-            Text("关掉的页面不会出现在面板顶部，也不会创建对应视图——不占内存。"
-                 + "全部关闭时面板只显示一句提示。「中转 / 投屏」还受「文件中转」总开关约束。")
+            Text("拖动左侧「≡」调整顶部顺序；勾掉的分段不出现，也不会创建对应视图——不占内存。"
+                 + "全部关闭时面板只显示一句提示。中转/投屏的显隐只看这里的勾选，"
+                 + "与「文件中转」功能开关无关。")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 一行：拖拽把手 + 勾选 + 名称 +（第一项标「回退页」）
+    private func segmentOrderRow(_ page: PanelCenterPage, index: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.tertiaryText)
+                .frame(width: 12, height: 18)
+                .contentShape(Rectangle())
+                .onDrag {
+                    draggingSegment = page
+                    return NSItemProvider(object: page.rawValue as NSString)
+                }
+                .help("拖动调整顺序")
+            Toggle(PanelSegments.fullTitle(page), isOn: binding(for: page))
+                .toggleStyle(.checkbox)
+                .font(.system(size: 12))
+            Spacer(minLength: 4)
+            if index == 0 {
+                Text("回退页")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiaryText)
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 26)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                .fill(draggingSegment == page ? Theme.accent.opacity(0.10)
+                                               : Theme.cardFill)
+        )
+        .opacity(draggingSegment == page ? 0.6 : 1)
+        .onDrop(of: [.text], delegate: SegmentDropDelegate(
+            target: page, order: $pageOrder, dragging: $draggingSegment))
+    }
+
+    private func binding(for page: PanelCenterPage) -> Binding<Bool> {
+        switch page {
+        case .home:        return $segmentHome
+        case .performance: return $segmentMonitor
+        case .transfer:    return $segmentTransfer
+        case .cast:        return $segmentCast
         }
     }
 
@@ -347,5 +404,32 @@ struct PersonalizationSettingsView: View {
             guard response == .OK, let url = panel.url else { return }
             p.backgroundImagePath = url.path
         }
+    }
+}
+
+// MARK: - 主面板分段拖拽落位（v181）
+//
+// 只在「拖到某一行上」时把被拖项挪到该行的位置；松手前就能看到实时重排。
+private struct SegmentDropDelegate: DropDelegate {
+    let target: PanelCenterPage
+    @Binding var order: [PanelCenterPage]
+    @Binding var dragging: PanelCenterPage?
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging, dragging != target,
+              let from = order.firstIndex(of: dragging),
+              let to = order.firstIndex(of: target) else { return }
+        withAnimation(.easeInOut(duration: 0.16)) {
+            order.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
     }
 }

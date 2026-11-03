@@ -1,0 +1,4 @@
+# UI 一致性检查基线（v181）
+# 格式：相对 Sources 的路径 <TAB> 规则 <TAB> 允许条数
+# 只允许「减少」，新增一条就会让 check.sh 失败；确属例外请写清理由再改这里。
+Features/Panel/PreviewPopoverContentView.swift	R2	1

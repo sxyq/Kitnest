@@ -85,7 +85,7 @@ public struct ToolboxSectionView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.cardBackground))
+                    .glassCard(radius: 8)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -142,7 +142,7 @@ public struct ToolRunnerView: View {
                     .font(.system(size: 12))
                     .frame(minHeight: 70, maxHeight: 110)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                             .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                     )
                     .overlay(alignment: .topLeading) {
@@ -232,7 +232,7 @@ public struct ToolRunnerView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxHeight: 220)
-                        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(NSColor.windowBackgroundColor)))
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Color(NSColor.windowBackgroundColor)))
                         .contextMenu {
                             Button("复制图片") { copyImage(image) }
                         }

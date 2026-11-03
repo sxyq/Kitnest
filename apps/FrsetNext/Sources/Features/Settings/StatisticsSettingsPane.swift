@@ -181,9 +181,9 @@ struct StatisticsSettingsPane: View {
                 .id(chartsEpoch)
                 .padding(12)
                 .background(Color(NSColor.textBackgroundColor).opacity(0.5),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
                 )
         }

@@ -30,7 +30,7 @@ final class LongScreenshotSelectionBorderWindow: NSWindow {
         // 不进屏幕捕获——SCK 的 excludingApplications 对 .statusBar 层级的覆盖窗
         // 不生效（实证：帧流帧里一直有边框）。sharingType = .none 是系统级开关，
         // 任何捕获 API 都取不到该窗。
-        sharingType = .none
+        sharingType = UserDefaults.standard.bool(forKey: "probe.cardCapture") ? .readOnly : .none
         contentView = BorderView(frame: NSRect(origin: .zero, size: rect.size))
     }
 }
@@ -117,16 +117,14 @@ final class LongScreenshotHUDController {
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         p.isReleasedWhenClosed = false
         // HUD 不进捕获（它在选区附近，SCK 的 app 级排除对高 level 窗无效）
-        p.sharingType = .none
+        p.sharingType = UserDefaults.standard.bool(forKey: "probe.cardCapture") ? .readOnly : .none
 
-        let glass = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        glass.material = .popover
-        glass.blendingMode = .behindWindow
-        glass.state = .active
-        glass.wantsLayer = true
-        glass.layer?.cornerRadius = 12
-        glass.layer?.cornerCurve = .continuous
-        glass.layer?.masksToBounds = true
+        // v181（UI 一致性检查 R2）：不再自拼 NSVisualEffectView。
+        // 走 LiquidGlass 工厂 → macOS 26+ 拿到真 NSGlassEffectView，
+        // 旧系统无回归；「个性化 → 背景材质：纯色 / 降低透明度」也一并生效。
+        let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: size),
+                                         cornerRadius: Theme.Radius.window,
+                                         material: .popover)
 
         // 红点（录制中）——呼吸脉冲
         let dot = NSView(frame: NSRect(x: 14, y: (size.height - 8) / 2, width: 8, height: 8))

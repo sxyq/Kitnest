@@ -383,6 +383,16 @@ public enum ArchiveCore {
             ArchiveTaskQueue.shared.unregisterProcess(task, for: taskID)
 
             let errText = String(data: errBox.data, encoding: .utf8) ?? ""
+            // v181：失败时留一行可诊断的日志（此前压缩报「Break signaled」时，
+            // 日志里什么都没有，只能靠猜是哪个信号/哪一步）
+            if task.terminationStatus != 0 {
+                // v181：失败留一行可诊断日志（此前压缩报「Break signaled」时日志里什么都没有，
+                // 只能靠猜；这次就是靠它定位到裸 `-p` 让 7zz 去等密码）
+                Log.warn("Archive", "7zz \(fullArgs.joined(separator: " ")) "
+                         + "exit=\(task.terminationStatus)"
+                         + "（\(task.terminationReason == .uncaughtSignal ? "被信号终止" : "正常退出")）"
+                         + " cwd=\(cwd?.path ?? "-") err=\(errText.prefix(160))")
+            }
             DispatchQueue.main.async {
                 completion(task.terminationStatus, outBox.data, errText)
             }
@@ -440,8 +450,14 @@ public enum ArchiveCore {
         }
     }
 
+    /// 密码开关。
+    /// v181（P1 修复）：原来「没密码」返回的是**裸 `-p`**——对 7zz 来说 `-p` 的含义是
+    /// 「交互式询问密码」，它会在 stdin 上等用户输入；App 里子进程没有终端，
+    /// 于是立刻以 255 + `Break signaled` 退出——表现就是**不带密码的压缩必失败**
+    /// （小文件、大文件都一样，解压却正常，因为 `x/l` 遇到不加密的包不会真去问）。
+    /// 现在没有密码就**完全不加**这个参数；要密码时由调用方显式传值（UI 已先弹密码框）。
     private static func passwordArg(_ password: String?) -> [String] {
-        guard let password, !password.isEmpty else { return ["-p"] }
+        guard let password, !password.isEmpty else { return [] }
         return ["-p\(password)"]
     }
 
@@ -548,7 +564,7 @@ public enum ArchiveCore {
                                includeAuxiliary: Bool = false,
                                completion: @escaping (Bool, String) -> Void) -> UUID? {
         let title = entry.map { "解压 \($0)" } ?? "解压 \(url.lastPathComponent)"
-        return ArchiveTaskQueue.shared.enqueue(kind: .extract, title: title) { taskID, done in
+        return ArchiveTaskQueue.shared.enqueue(kind: .extract, title: title, output: dir) { taskID, done in
             // 队列记账 + 原调用方回调（一次 work 只收尾一次）
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -875,7 +891,8 @@ public enum ArchiveCore {
             return nil
         }
         return ArchiveTaskQueue.shared.enqueue(kind: .compress,
-                                               title: "创建 \(archiveURL.lastPathComponent)") {
+                                               title: "创建 \(archiveURL.lastPathComponent)",
+                                               output: archiveURL) {
             taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，

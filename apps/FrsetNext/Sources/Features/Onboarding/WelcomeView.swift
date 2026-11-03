@@ -2,14 +2,12 @@ import SwiftUI
 
 // MARK: - 欢迎窗内容（重建版自研，非原版复刻）
 //
-// 与原版 WelcomeWindow 的关系：原版欢迎窗只介绍原版自己的 5 页签设置 + 基础功能
-// （逆向审计中的未实现项）。重建版功能面已数倍于原版（见 docs/audit-原版功能核对/
-// 的核对结论：功能型类 171/190 已覆盖 + 反超项），因此这里**按当前实际功能重写**：
-//   · 内容来源：FrsetNext 当前源码功能清单（AppBootstrap 默认热键表、CaptureMode、
-//     AnnotationTool 9 种、TransferDock 三通道、AI 四服务商、Monitor 7 模块等）；
-//   · 结构：Hero → 核心工作区 4 卡 → 效率与互联 4 卡 → 快捷键速览 → 权限引导卡 →
-//     开始使用；
-//   · 不逐项罗列设置项（设置窗侧边栏已覆盖），只做「能力地图 + 入口」。
+// v183（用户：「新手引导也要优化，把新功能全都加上去」）：
+//   · 新增「30 秒上手」三步条——第一次打开先知道「点哪、按什么、去哪找」；
+//   · 功能卡补上这一版新增的能力：文件归档（解压/压缩/任务队列）、
+//     监测的充电/电池/功耗三页拆分、带宽流向、温度热区、剪贴板就地预览；
+//   · 新卡片用 NEW 角标标出来，老用户也能一眼看到变化；
+//   · 快捷键表补齐到 16 条（窗口截图 / 取色 / 划词翻译 / 监测独立窗）。
 //
 // 窗口尺寸 760×620 固定（防 NSHostingView 约束循环，见 WelcomeWindowController）。
 
@@ -22,19 +20,20 @@ struct WelcomeView: View {
             hero
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    quickStart
                     featureSection("核心工作区", items: [
                         FeatureItem(symbol: "square.stack.3d.up", title: "主面板", tint: .blue, lines: [
                             "搜索框：网页 / 剪贴板历史 / 本地文件三合一",
-                            "日历卡片、剪贴板列表、文件中转同屏协作",
+                            "日历、剪贴板、文件中转同屏；顶部页面可自定义增删与排序",
                         ]),
                         FeatureItem(symbol: "camera.viewfinder", title: "截图工具箱", tint: .indigo, lines: [
-                            "区域 / 全屏 / 长截图，截图后 9 种标注工具",
+                            "区域 / 窗口 / 长截图，9 种标注工具，可直接美化导出",
                             "OCR 识字、截图翻译、取色、钉图、AI 抹除",
                         ]),
                         FeatureItem(symbol: "chart.xyaxis.line", title: "性能监测", tint: .green, lines: [
-                            "菜单栏 STATS 合并条：12 种部件形态随需组合",
-                            "独立监测窗：CPU / 内存 / 磁盘 / 网络 / 传感器 / 进程 / 端口",
-                        ]),
+                            "独立监测窗 + 菜单栏 STATS 合并条（12 种部件形态）",
+                            "电池 / 功耗两页分工（充电状态已并入电池），带宽流向、温度热区",
+                        ], badge: "新"),
                         FeatureItem(symbol: "record.circle", title: "屏幕录制", tint: .red, lines: [
                             "区域录制，系统音 + 麦克风混音，可导出 GIF",
                         ]),
@@ -45,16 +44,26 @@ struct WelcomeView: View {
                             "对话、摘要、划词翻译、截图翻译一站式",
                         ]),
                         FeatureItem(symbol: "wrench.and.screwdriver", title: "工具箱", tint: .orange, lines: [
-                            "时间戳转换、IP 查询、二维码、图片压缩、单位换算",
+                            "时间戳、IP、二维码、图片压缩、单位换算等",
                             "命令面板（⌥K）统一检索全部功能",
                         ]),
                         FeatureItem(symbol: "arrow.left.arrow.right", title: "文件传输 · 投屏", tint: .teal, lines: [
-                            "文件中转页：隔空投送收发、扫码直传、ADB 文件互传",
-                            "投屏页：Android 无线配对 + 镜像投屏（零安装）",
+                            "隔空投送收发、扫码直传、ADB 文件互传",
+                            "Android 无线配对 + 镜像投屏（零安装）",
                         ]),
                         FeatureItem(symbol: "clipboard", title: "剪贴板增强", tint: .cyan, lines: [
-                            "历史记录、悬浮窗、标签管理、复制后自动粘贴",
-                            "复制文件自动进中转站，悬停即可预览",
+                            "历史记录、悬浮窗、标签、复制后自动粘贴",
+                            "鼠标停在条目上就地展开预览，不再弹独立窗",
+                        ], badge: "新"),
+                    ])
+                    featureSection("新增能力与隐私", items: [
+                        FeatureItem(symbol: "archivebox", title: "文件归档", tint: .brown, lines: [
+                            "zip / 7z 解压与压缩、密码归档、解压前路径核对",
+                            "长任务转后台，任务队列可查进度、一键在访达中显示",
+                        ], badge: "新"),
+                        FeatureItem(symbol: "lock.shield", title: "隐私与本地", tint: .gray, lines: [
+                            "截图、OCR、剪贴板全部在本机处理，不上传",
+                            "AI 只调用你自己配置的服务商；归档在本地完成",
                         ]),
                     ])
                     hotkeySection
@@ -84,12 +93,49 @@ struct WelcomeView: View {
                 .symbolRenderingMode(.hierarchical)
             Text("欢迎使用 FrsetNext")
                 .font(.system(size: 22, weight: .semibold))
-            Text("菜单栏效率工具 · 剪贴板 / 截图 / 监测 / 传输 一站合一")
+            Text("菜单栏效率工具 · 剪贴板 / 截图 / 监测 / 传输 / 归档 一站合一")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 20)
         .padding(.bottom, 12)
+    }
+
+    // MARK: - 30 秒上手
+
+    private var quickStart: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("30 秒上手")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                step(1, "点菜单栏图标", "打开主面板：搜索、剪贴板、日历")
+                step(2, "按 ⌥S 截图", "框选后直接标注 / 识字 / 翻译")
+                step(3, "按 ⌥K 找功能", "命令面板搜一切，不用记路径")
+            }
+        }
+    }
+
+    private func step(_ index: Int, _ title: String, _ detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text("\(index)")
+                    .font(.system(size: 9, weight: .bold).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .frame(width: 15, height: 15)
+                    .background(Circle().fill(Color.accentColor))
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+            }
+            Text(detail)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard(radius: Theme.Radius.card)
     }
 
     // MARK: - 功能区
@@ -99,6 +145,8 @@ struct WelcomeView: View {
         let title: String
         let tint: Color
         let lines: [String]
+        /// 新功能角标（如「新」）
+        var badge: String? = nil
     }
 
     private func featureSection(_ title: String, items: [FeatureItem]) -> some View {
@@ -122,9 +170,19 @@ struct WelcomeView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(item.tint)
                     .frame(width: 24, height: 24)
-                    .background(item.tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .background(item.tint.opacity(0.13),
+                                in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                 Text(item.title)
                     .font(.system(size: 13, weight: .semibold))
+                if let badge = item.badge {
+                    Text(badge)
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Capsule(style: .continuous).fill(Color.accentColor))
+                }
+                Spacer(minLength: 0)
             }
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(item.lines, id: \.self) { line in
@@ -142,7 +200,7 @@ struct WelcomeView: View {
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .glassCard(radius: Theme.Radius.card)
     }
 
     // MARK: - 快捷键速览
@@ -156,15 +214,19 @@ struct WelcomeView: View {
                 hotkeyRow("⌥Space", "打开 / 收起主面板")
                 hotkeyRow("⌥F", "打开并聚焦搜索框")
                 hotkeyRow("⌥S", "区域截图")
+                hotkeyRow("⇧⌥W", "窗口截图")
                 hotkeyRow("⇧⌥S", "截图并识字")
                 hotkeyRow("⇧⌥T", "截图翻译")
                 hotkeyRow("⇧⌥L", "长截图")
                 hotkeyRow("⇧⌥P", "截图并贴图")
+                hotkeyRow("⇧⌥D", "划词翻译")
+                hotkeyRow("⌥C", "取色")
                 hotkeyRow("⇧⌘9", "悬浮剪贴板")
+                hotkeyRow("⇧⌥R", "暂停 / 恢复剪贴板")
                 hotkeyRow("⌥P", "性能监测")
+                hotkeyRow("⌥M", "监测独立窗口")
                 hotkeyRow("⌥T", "文件中转")
                 hotkeyRow("⌥K", "命令面板")
-                hotkeyRow("⇧⌥R", "暂停 / 恢复剪贴板")
             }
             Text("全部可在 设置 → 快捷键 中自定义。")
                 .font(.system(size: 11))
@@ -178,7 +240,8 @@ struct WelcomeView: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2.5)
-                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
+                .background(.quaternary.opacity(0.6),
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                 .frame(width: 64, alignment: .leading)
             Text(desc)
                 .font(.system(size: 11))
@@ -211,7 +274,7 @@ struct WelcomeView: View {
             .controlSize(.small)
         }
         .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .glassCard(radius: Theme.Radius.card)
     }
 
     // MARK: - 底部

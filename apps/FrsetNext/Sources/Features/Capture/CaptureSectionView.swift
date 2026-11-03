@@ -90,8 +90,7 @@ public struct CaptureSectionView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                .glassCard(radius: Theme.smallRadius)
             }
             .buttonStyle(.plain)
             // v116：录屏提为截图区一级入口（原在 STATS 合并条/设置里）
@@ -108,8 +107,7 @@ public struct CaptureSectionView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                .glassCard(radius: Theme.smallRadius)
             }
             .buttonStyle(.plain)
         }
@@ -126,8 +124,7 @@ public struct CaptureSectionView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+            .glassCard(radius: Theme.smallRadius)
         }
         .buttonStyle(.plain)
     }
@@ -159,8 +156,7 @@ public struct CaptureSectionView: View {
                 .font(.system(size: 12))
                 .frame(minHeight: 80, maxHeight: 160)
                 .padding(6)
-                .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                .glassCard(radius: Theme.smallRadius)
         }
     }
 

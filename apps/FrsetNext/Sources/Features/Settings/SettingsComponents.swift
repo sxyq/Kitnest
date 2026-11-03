@@ -80,8 +80,7 @@ struct SettingsGroupBox<Content: View>: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .glassCard(radius: Theme.cornerRadius)
     }
 }
 

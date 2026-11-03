@@ -119,17 +119,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let files = urls.filter { $0.isFileURL }
         if !files.isEmpty {
             let archives = files.filter { ArchiveCore.isArchive($0) }
-            // 窗口创建延后到「下一轮 runloop + 150ms」。
-            // 只 async 一跳仍偶发崩溃（2026-11-01 实测 3 次冷启动崩 1 次）：
-            // Apple Event 处理完紧接着就是 display cycle flush，窗口在这期间建起来，
-            // AppKit 会在更新结构区域时抛 NSWindow._postWindowNeedsUpdateConstraints。
-            // 给一个明确的延后，让首次 display cycle 先结算完。
             for (idx, url) in archives.enumerated() {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15 + Double(idx) * 0.05) {
                     ArchiveBrowserWindowController.show(url: url)
                 }
             }
             if !archives.isEmpty { return }
+
+            // JSON / JSONL：访达双击或「打开方式 → FrsetNext」→ 直接进 JSON 检视器。
+            // 此前这里只认压缩包，其余文件 URL 一路落到下面的 scheme 判断被丢掉，
+            // 等于「装了 App 但双击 .json 没反应」。
+            let jsonExtensions: Set<String> = ["json", "jsonl", "ndjson", "geojson"]
+            if let jsonURL = files.first(where: { jsonExtensions.contains($0.pathExtension.lowercased()) }) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    JSONInspectorWindowController.shared.open(fileURL: jsonURL)
+                }
+                return
+            }
         }
         guard let url = urls.first, url.scheme == "frsetnext" else { return }
         Log.info("App", "URL 唤起: \(url.absoluteString)")
@@ -166,6 +172,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 LongScreenshotCoordinator.shared.finishCurrentSession()
             case "longshotcancel":
                 LongScreenshotCoordinator.shared.cancelCurrentSession()
+            case "longshotcard":
+                // v181 排查：采集期实时预览卡（右侧/翻左/超宽三档），结果写 /tmp/livecard.txt
+                let anchor = comps?.queryItems?.first(where: { $0.name == "anchor" })?.value ?? "center"
+                LongScreenshotCoordinator.shared.runLiveCardCheck(anchor: anchor)
+            case "tasks":
+                // v181：压缩/解压任务队列（等于归档窗工具栏的「任务」按钮）
+                ArchiveProgressWindowController.show()
+            case "clipdesk":
+                // 悬浮剪贴板工作台（v191）：快捷键之外的确定性入口，排障/截图用
+                FloatingClipboardWindowController.shared.show()
+            case "code":
+                // 代码预览独立窗：frsetnext://code?file=/tmp/a.swift 或 ?text=<编码后代码>
+                // 不带参数时取剪贴板文本；用于排障/自动化验收（不碰鼠标）
+                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                let text = comps?.queryItems?.first(where: { $0.name == "text" })?.value
+                if let file, !file.isEmpty {
+                    CodePreviewWindowController.shared.open(fileURL: URL(fileURLWithPath: file))
+                } else if let text, !text.isEmpty {
+                    CodePreviewWindowController.shared.open(text: text)
+                } else {
+                    CodePreviewWindowController.shared.openFromPasteboardOrSample()
+                }
+            case "json":
+                // JSON 检视器深链（排障/自动化）：frsetnext://json?file=/tmp/a.jsonl&q=关键词
+                // 不带 file 时读剪贴板，等价「拖一份 JSON 进来」
+                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                let q = comps?.queryItems?.first(where: { $0.name == "q" })?.value ?? ""
+                if let file, !file.isEmpty {
+                    JSONInspectorWindowController.shared.openQuery = q
+                    JSONInspectorWindowController.shared.open(fileURL: URL(fileURLWithPath: file))
+                } else if let text = NSPasteboard.general.string(forType: .string), !text.isEmpty {
+                    JSONInspectorWindowController.shared.open(text: text, title: "剪贴板 JSON", query: q)
+                }
             case "longshotpreview":
                 // v150 排障：用合成 480×3600 长图打开预览（验等比缩放/初始位置）
                 LongScreenshotDiagnostics.showPreviewDemo()
@@ -279,8 +318,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ArchiveMiniWindowController.show(url: fileURL)
                 default:
                     // ?select=first → 排障：打开即选中第一条（本机合成点击点不中列表）
+                    // ?entry=NAME → 排障：打开即选中指定条目（核对某类文件的预览）
                     let sel = comps?.queryItems?.first(where: { $0.name == "select" })?.value == "first"
-                    ArchiveBrowserWindowController.show(url: fileURL, selectFirst: sel)
+                    let entry = comps?.queryItems?.first(where: { $0.name == "entry" })?.value
+                    ArchiveBrowserWindowController.show(url: fileURL, selectFirst: sel, selectPath: entry)
                 }
             case "cloudlink":
                 // 排障深链：frsetnext://cloudlink?url=<网盘链接>

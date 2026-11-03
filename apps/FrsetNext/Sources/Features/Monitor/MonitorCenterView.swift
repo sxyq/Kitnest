@@ -8,7 +8,7 @@ import SwiftUI
 //
 // v114（2026-10-25 用户需求）：投屏从「文件中转」拆成独立第四页——
 // 顶部四段：主页 │ 性能监测 │ 文件中转 │ 投屏（左右切换）。
-public enum PanelCenterPage {
+public enum PanelCenterPage: String, CaseIterable {
     case home, performance, transfer, cast
 }
 

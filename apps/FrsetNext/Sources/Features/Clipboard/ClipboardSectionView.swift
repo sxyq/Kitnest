@@ -322,9 +322,6 @@ public struct ClipboardRowMenuContent: View {
             },
             ClipboardMenuActionItem(id: "note", title: item.isNote ? "取消笔记标记" : "标记为笔记",
                                     systemImage: "note.text") { manager.setNote(item, isNote: !item.isNote) },
-            ClipboardMenuActionItem(id: "preview", title: "大文本预览", systemImage: "doc.text.magnifyingglass") {
-                ClipboardPreviewWindow.open(item: item)
-            },
             ClipboardMenuActionItem(id: "summary", title: "AI 摘要", systemImage: "sparkles",
                                     isEnabled: canSummarize) {
                 Task { _ = try? await ClipboardSummaryExecutionCoordinator.shared.summarizeAndWriteBack(item) }
@@ -349,8 +346,6 @@ public struct ClipboardRow: View {
     public let isHighlighted: Bool
     public let onCopy: () -> Void
     public let onEdit: () -> Void
-    /// 打开大文本预览独立窗口（hover 图标）
-    public let onPreviewWindow: () -> Void
     public let onSummarize: () -> Void
 
     @ObservedObject private var tagStore = TagStore.shared
@@ -359,12 +354,11 @@ public struct ClipboardRow: View {
                 isHighlighted: Bool,
                 onCopy: @escaping () -> Void,
                 onEdit: @escaping () -> Void,
-                onPreviewWindow: @escaping () -> Void,
                 onSummarize: @escaping () -> Void) {
         self.item = item
         self.isHighlighted = isHighlighted
         self.onCopy = onCopy; self.onEdit = onEdit
-        self.onPreviewWindow = onPreviewWindow; self.onSummarize = onSummarize
+        self.onSummarize = onSummarize
     }
 
     public var body: some View {
@@ -380,9 +374,9 @@ public struct ClipboardRow: View {
                             .resizable()
                             .interpolation(.high)
                             .frame(width: 16, height: 16)
-                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
                                     .strokeBorder(Color.white.opacity(0.85), lineWidth: 0.75)
                             )
                             .shadow(color: .black.opacity(0.18), radius: 1.5, y: 0.5)
@@ -559,13 +553,8 @@ public struct ClipboardThumbnailView: View {
             }
         }
         .frame(width: size, height: size)
-        .background(
-            RoundedRectangle(cornerRadius: corner, style: .continuous)
-                .fill(Theme.cardBackground)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: corner, style: .continuous)
-            .strokeBorder(Theme.separator, lineWidth: 0.5))
+        // v181/v182：缩略图卡统一玻璃卡（自带裁切 + 发丝边）
+        .glassCard(radius: corner)
     }
 
     private var image: NSImage? {
@@ -612,65 +601,6 @@ public struct ClipboardThumbnailView: View {
         case .file: return "doc"
         }
     }
-}
-
-// MARK: - 预览独立窗口
-
-/// 菜单里的"大文本预览"：从 AppKit 菜单条件出 window 更稳，避免 menu 内 sheet 不响应
-public enum ClipboardPreviewWindow {
-    private static var controllers: [String: NSWindowController] = [:]
-
-    public static func open(item: ClipboardItem) {
-        if let existing = controllers[item.dedupeKey] {
-            existing.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-        let controller = make(item: item)
-        controllers[item.dedupeKey] = controller
-        controller.window?.center()
-        controller.showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    private static func make(item: ClipboardItem) -> NSWindowController {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
-                              styleMask: [.titled, .closable, .resizable, .miniaturizable],
-                              backing: .buffered, defer: false)
-        window.title = item.displayTitle
-        window.applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏（消除露白）
-        window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: LargeTextPreviewContainerView(item: item))
-        // v166.8：换 contentView 后重挂自绘关闭钮（否则窗口关不掉）
-        window.attachOfficialRoundCloseButton()
-        window.delegate = PreviewWindowCleaner.shared
-        PreviewWindowCleaner.shared.bind(key: item.dedupeKey, window: window)
-        return NSWindowController(window: window)
-    }
-}
-
-/// 预览窗关闭时清理登记表（NSWindowDelegate）
-private final class PreviewWindowCleaner: NSObject, NSWindowDelegate {
-    static let shared = PreviewWindowCleaner()
-    private let lock = NSLock()
-    private var keyedWindows: [NSWindow: String] = [:]
-
-    func bind(key: String, window: NSWindow) {
-        lock.lock(); keyedWindows[window] = key; lock.unlock()
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else { return }
-        lock.lock()
-        let key = keyedWindows.removeValue(forKey: window)
-        lock.unlock()
-        guard let key else { return }
-        ClipboardPreviewWindow.release(dedupeKey: key)
-    }
-}
-
-public extension ClipboardPreviewWindow {
-    static func release(dedupeKey: String) { controllers.removeValue(forKey: dedupeKey) }
 }
 
 // MARK: - 颜色扩展

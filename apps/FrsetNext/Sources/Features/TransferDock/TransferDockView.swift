@@ -29,6 +29,10 @@ struct TransferDockView: View {
 
     @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
     @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
+    /// v181：「文件中转」功能总开关（设置 → 通用 → 功能 / 设置 → 文件中转）。
+    /// 与「面板顶部是否出现中转分段」已经解耦：分段开着但这个开关关着时，
+    /// 这里显示一句「已关闭」的说明，而不是整页空白或消失。
+    @AppStorage(TransferDockPref.panelVisible) private var featureEnabled = true
 
     @Stored private var showsLogin = false
     @Stored private var bridgeAvailable = TransferDockPath.isAvailable
@@ -50,6 +54,35 @@ struct TransferDockView: View {
     private var showsCloud: Bool { cloudEnabled && bridgeAvailable }
 
     var body: some View {
+        if featureEnabled {
+            dockContent
+        } else {
+            featureDisabledNotice
+        }
+    }
+
+    /// v181：功能总开关关掉时中转页的说明（分段仍可保留在顶部，只是里面不能用了）
+    private var featureDisabledNotice: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "arrow.left.arrow.right.square")
+                .font(.system(size: 26, weight: .light))
+                .foregroundStyle(Theme.tertiaryText)
+            Text("文件中转已关闭")
+                .font(.system(size: 13, weight: .semibold))
+            Text("在「设置 → 文件中转」里重新启用；\n顶部是否出现这一页由「设置 → 个性化 → 主面板页面」决定。")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("打开设置") { SettingsWindowController.shared.open(pane: "transfer") }
+                .controlSize(.small)
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+
+    private var dockContent: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
@@ -249,12 +282,7 @@ struct TransferDockView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 7)
-            .background(Color.primary.opacity(0.05),
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-            )
+            .glassCard(radius: Theme.Radius.control)
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -393,7 +421,7 @@ struct TransferDockView: View {
                                             @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: 7) {
             ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                     .fill(tint.opacity(0.16))
                     .frame(width: 22, height: 22)
                 Image(systemName: icon)
@@ -1163,14 +1191,8 @@ struct TransferDockView: View {
             }
             .padding(14)
             .frame(width: 230)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12))
-            }
+            // v181：统一玻璃面（结构浮层走 glassPlate，不再自己配 material + 描边）
+            .glassPlate(radius: 12)
             .shadow(radius: 18)
         }
         .ignoresSafeArea()
@@ -1257,9 +1279,9 @@ struct TransferDockView: View {
 
     private func dropHint(_ text: String) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .fill(Theme.accent.opacity(0.07))
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .strokeBorder(Theme.accent.opacity(0.45),
                               style: StrokeStyle(lineWidth: 1.2, dash: [5, 3]))
             Text(text)
@@ -1382,7 +1404,7 @@ private struct CloudRowView: View, Equatable {
         .padding(.vertical, 3)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                 .fill(hovered ? Color.primary.opacity(0.07) : Color.clear)
         )
         .contentShape(Rectangle())
@@ -1467,20 +1489,20 @@ private struct LocalCardRowView: View, Equatable {
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .fill(selected
                       ? Theme.accent.opacity(0.10)
                       : Color.primary.opacity(hovered ? 0.06 : 0.035))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .strokeBorder(selected ? Theme.accent.opacity(0.55)
                                        : Color.primary.opacity(0.06),
                               lineWidth: 1)
         )
         .scaleEffect(hovered ? 1.02 : 1.0)
         .animation(Theme.Motion.springSnappy, value: hovered)
-        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .onHover { inside in
             hovered = inside
             if inside {

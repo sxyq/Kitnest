@@ -4,24 +4,24 @@ import Foundation
 
 public enum MonitorModuleID: String, CaseIterable, Sendable {
     case power
+    case battery
     case cpu
     case memory
     case network
     case disk
     case sensors
-    case battery
     case gpu
 
     /// 显示名（设置页签 / 详情标题）
     public var displayName: String {
         switch self {
         case .power: return "功耗"
+        case .battery: return "电池"
         case .cpu: return "CPU"
         case .memory: return "内存"
         case .network: return "网络"
         case .disk: return "磁盘"
         case .sensors: return "温度"
-        case .battery: return "电池"
         case .gpu: return "GPU"
         }
     }
@@ -30,12 +30,12 @@ public enum MonitorModuleID: String, CaseIterable, Sendable {
     public var systemImage: String {
         switch self {
         case .power: return "bolt.fill"
+        case .battery: return "battery.100"
         case .cpu: return "cpu"
         case .memory: return "memorychip"
         case .network: return "arrow.up.arrow.down"
         case .disk: return "internaldrive"
         case .sensors: return "thermometer"
-        case .battery: return "battery.100"
         case .gpu: return "cube.transparent"
         }
     }
@@ -47,7 +47,11 @@ public enum MonitorModuleID: String, CaseIterable, Sendable {
     public var enabledByDefault: Bool {
         switch self {
         case .memory, .network, .disk: return true
-        case .power, .cpu, .sensors, .battery, .gpu: return false
+        // v190：充电页已并入电池页；电源流向图只剩「功耗」页一处，
+        // 所以功耗改为默认显示（原来它关着是因为充电页替它展示了流向图）。
+        // 台式机没有电池，电池页会被 availableModules 过滤掉。
+        case .battery, .power: return true
+        case .cpu, .sensors, .gpu: return false
         }
     }
 }
@@ -61,6 +65,10 @@ public enum MonitorPreferences {
     public static let keyRefreshInterval = "monitor.refreshInterval"
     public static let keyCombinedMode = "monitor.combinedMode"
     public static let keyShowTemperatures = "monitor.showTemperatures"
+    /// 网络页「流量去哪了」显示多少个 App（3…8，默认 4）
+    public static let keyFlowTopN = "monitor.flow.topN"
+    /// 网络统计常驻（v191，默认开）
+    public static let keyNetworkKeepAlive = "monitor.net.keepAlive"
 
     // 兼容 Core/Preferences.Keys 里已定义的键
     private static let legacyEnabledModules = Preferences.Keys.monitorEnabledModules
@@ -101,6 +109,35 @@ public enum MonitorPreferences {
         set { Preferences.shared.set(keyShowTemperatures, newValue); notify() }
     }
 
+    /// 网络分流显示条数（含「其他」之前的分支数）
+    public static var flowTopN: Int {
+        get {
+            let raw = Preferences.shared.value(keyFlowTopN, default: 4)
+            return min(8, max(3, raw))
+        }
+        set {
+            Preferences.shared.set(keyFlowTopN, min(8, max(3, newValue)))
+            notify()
+        }
+    }
+
+    /// 网络统计常驻（v191）
+    ///
+    /// 用户原话（2026-11-03）：「这个每次打开它都会隔一会才跳得出来。不对，应该是就跟
+    /// 其他的组件一样，就一直放在那，只是它会变化它的一个显示的 APP」
+    ///
+    /// 旧实现把 nettop 采样绑在「监测页可见」上（v128 的 CPU 优化）：页面一关就停，
+    /// 所以每次都从 0 开始累计，打开后要等 5s 采样 + 几分钟窗口才有像样的数字。
+    /// 现在改为默认常驻：后台每 5s 读一轮 nettop 缓存并积分进 10 分钟窗口，
+    /// 打开页面立刻就是「过去 10 分钟」的现成结果，只是上榜的 App 会随流量变化。
+    ///
+    /// 代价：常驻每 5s 一个 nettop 子进程（实测单轮约 1s、CPU < 0.5%）。
+    /// 需要极致省电时可关掉（回到旧的"打开才采"行为）。
+    public static var networkKeepAlive: Bool {
+        get { Preferences.shared.value(keyNetworkKeepAlive, default: true) }
+        set { Preferences.shared.set(keyNetworkKeepAlive, newValue); notify() }
+    }
+
     /// 单模块开关
     public static func isModuleEnabled(_ module: MonitorModuleID) -> Bool {
         Preferences.shared.value(keyEnabled(for: module), default: module.enabledByDefault)
@@ -128,6 +165,7 @@ public enum MonitorPreferences {
         Preferences.shared.set(legacyRefreshInterval, 2.0)
         Preferences.shared.set(legacyCombinedMode, false)
         Preferences.shared.set(keyShowTemperatures, true)
+        Preferences.shared.set(keyFlowTopN, 4)
         for module in MonitorModuleID.allCases {
             Preferences.shared.set(keyEnabled(for: module), module.enabledByDefault)
         }

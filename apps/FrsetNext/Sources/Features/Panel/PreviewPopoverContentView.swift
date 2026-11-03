@@ -14,6 +14,8 @@ import SwiftUI
 
 public struct PreviewPopoverContentView: View {
     let model: PreviewPopoverContentModel
+    /// 「按代码看」：用户手动把 Markdown / JSON / 纯文本强制切到代码视图
+    var forceCode: Bool = false
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -29,23 +31,35 @@ public struct PreviewPopoverContentView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch model.kind {
-        case .text:
-            PreviewTextContentView(text: model.inlineText)
-        case .fileBackedText:
-            PreviewFileBackedTextView(model: model)
-        case .markdown:
-            PreviewMarkdownTextView(model: model)
-        case .json:
-            PreviewJSONTextView(model: model)
-        case .code:
+        if forceCode, isTextual {
             PreviewCodeTextView(model: model)
-        case .image:
-            PreviewImageView(model: model)
-        case .file:
-            PreviewFileView(model: model)
-        case .richText:
-            PreviewRichTextView(model: model)
+        } else {
+            switch model.kind {
+            case .text:
+                PreviewTextContentView(text: model.inlineText)
+            case .fileBackedText:
+                PreviewFileBackedTextView(model: model)
+            case .markdown:
+                PreviewMarkdownTextView(model: model)
+            case .json:
+                PreviewJSONTextView(model: model)
+            case .code:
+                PreviewCodeTextView(model: model)
+            case .image:
+                PreviewImageView(model: model)
+            case .file:
+                PreviewFileView(model: model)
+            case .richText:
+                PreviewRichTextView(model: model)
+            }
+        }
+    }
+
+    /// 能切到代码视图的内容（图片/文件/富文本不参与）
+    private var isTextual: Bool {
+        switch model.kind {
+        case .text, .fileBackedText, .markdown, .json, .code: return true
+        case .image, .file, .richText: return false
         }
     }
 }
@@ -130,6 +144,8 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
     /// ⌘C 时按「渲染区间 ↔ 源区间」映射回源文本，与纯文本预览的复制口径统一
     var sourceText: String? = nil
     var sourceSegments: [(rendered: NSRange, source: NSRange)]? = nil
+    /// 整块底色（代码态用；nil = 透明，跟随外层）
+    var background: NSColor? = nil
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = PreviewSourceTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
@@ -160,7 +176,13 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
-        scrollView.drawsBackground = false
+        if let background {
+            scrollView.drawsBackground = true
+            scrollView.backgroundColor = background
+            textView.drawsBackground = false
+        } else {
+            scrollView.drawsBackground = false
+        }
         if showsLineNumbers {
             let ruler = PreviewLineNumberRulerView(textView: textView)
             scrollView.verticalRulerView = ruler
@@ -352,15 +374,18 @@ struct PreviewTextContentView: View {
 struct MarkdownFilePreviewBody: View {
     let text: String
     let restoreKey: String
+    /// v181：窄容器（归档窗口右栏）关掉左侧目录，把宽度让给正文
+    var showsTOC: Bool = true
     @Stored private var rendered: NSAttributedString
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
     @Stored private var activeHeading: Int? = nil
 
-    init(text: String, restoreKey: String) {
+    init(text: String, restoreKey: String, showsTOC: Bool = true) {
         self.text = text
         self.restoreKey = restoreKey
+        self.showsTOC = showsTOC
         let parsed = PreviewMarkdownRenderer.renderBody(text)
         self._rendered = Stored(wrappedValue: parsed.body)
         self._headings = Stored(wrappedValue: parsed.headings)
@@ -375,7 +400,8 @@ struct MarkdownFilePreviewBody: View {
             headings: headings,
             sourceSegments: sourceSegments,
             scrollRequest: $scrollRequest,
-            activeHeading: $activeHeading)
+            activeHeading: $activeHeading,
+            showsTOC: showsTOC)
     }
 }
 
@@ -512,10 +538,13 @@ struct MarkdownPreviewBody: View {
     let sourceSegments: [(rendered: NSRange, source: NSRange)]
     @Binding var scrollRequest: Int?
     @Binding var activeHeading: Int?
+    /// v181：是否显示左侧目录。窄容器（如归档窗口右栏被挤窄时）关掉，
+    /// 否则 180pt 目录会把正文压成一条细缝。默认 true = 弹层里的原行为不变。
+    var showsTOC: Bool = true
 
     var body: some View {
         HStack(spacing: 0) {
-            if headings.count >= 1 {
+            if showsTOC, headings.count >= 1 {
                 PreviewTOCSidebar(headings: headings, activeLocation: activeHeading) { heading in
                     activeHeading = heading.location
                     scrollRequest = heading.location
@@ -579,7 +608,7 @@ struct PreviewTOCSidebar: View {
                                 .background {
                                     RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                         .fill(isActive ? Color.primary.opacity(0.09)
-                                                       : (hovered == heading.location ? Color.primary.opacity(0.05) : Color.clear))
+                                                       : (hovered == heading.location ? Theme.cardFill : Color.clear))
                                 }
                                 .contentShape(Rectangle())
                         }
@@ -630,19 +659,28 @@ struct PreviewJSONTextView: View {
     }
 }
 
-// MARK: - 态 5：代码（F14 尺寸阶梯 + 行号标尺）
+// MARK: - 态 5：代码（可换主题/语言 + 富文本复制）
 
 struct PreviewCodeTextView: View {
     let model: PreviewPopoverContentModel
 
     var body: some View {
-        // 代码态此前是纯等宽文本——语法高亮只在 Markdown 代码块里生效，用户看不出「代码预览」。
-        // 这里复用同一套高亮器，并按内容自动识别语言（Swift/Python/JS/Go/Rust/SQL/Shell…）。
-        let lang = PreviewMarkdownRenderer.detectLanguage(model.inlineText)
-        PreviewTextViewRepresentable(
-            attributedText: PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: model.inlineText),
-            monospaced: true,
-            showsLineNumbers: true)
+        // 统一走 CodePreviewView：语言/主题/行号/换行/字号都在这一个框里调，
+        // 复制默认给富文本（Word 可直接粘）。自动识别失败时可在语言菜单里手动指定。
+        CodePreviewView(code: model.inlineText, fileName: sourceFileName)
+    }
+
+    /// 条目带文件名（如 a.swift）时按扩展名锁定语言
+    private var sourceFileName: String? {
+        guard let title = model.item.title, !title.isEmpty else { return nil }
+        let lower = title.lowercased()
+        let known = ["swift", "py", "js", "ts", "jsx", "tsx", "java", "kt", "go", "rs",
+                     "c", "cpp", "cc", "h", "hpp", "cs", "m", "mm", "rb", "php", "sql",
+                     "sh", "bash", "zsh", "json", "yml", "yaml", "toml", "xml", "html",
+                     "css", "scss", "md", "lua", "r", "pl", "dart", "ps1", "diff", "patch"]
+        guard let dot = lower.lastIndex(of: ".") else { return nil }
+        let ext = String(lower[lower.index(after: dot)...])
+        return known.contains(ext) ? title : nil
     }
 }
 
@@ -978,9 +1016,9 @@ struct PreviewFileView: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 430)
                             .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                     .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
                             )
                         fileInfo(path)
@@ -1172,11 +1210,7 @@ private struct PreviewFileThumb: View {
             }
         }
         .frame(width: size, height: size)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .glassCard(radius: 6)
         .onAppear { if !inlineDocument { load() } }
     }
 

@@ -26,49 +26,132 @@ import SwiftUI
 
 struct BatteryStatsPanel: View {
     @ObservedObject private var sampler = MonitorSampler.shared
-    @ObservedObject private var energy = BatteryEnergySampler.shared
     @ObservedObject private var lowPower = LowPowerModeController.shared
 
     var body: some View {
         let stats = StatsDataProvider.shared.current
         let battery = stats.battery
-        let flow = BatteryFlowModel(battery: battery)
 
         return VStack(alignment: .leading, spacing: 12) {
             if battery?.present != true && (sampler.sample.batteryLevel ?? -1) < 0 {
                 noBatteryNotice
             } else {
-                header(battery)
-                BatteryPowerFlowCard(input: flow.input, branches: flow.branches)
-                detailRows(battery, stats)
-                footnote(battery)
-                energySection(stats)
+                // v190（用户：「充电不需要单开这个界面，功能并到功耗和电池」）：
+                // 电量环 / 充放电状态 / 预计时间 / 适配器规格都并到本页；
+                // 电源流向图与整机功率仍在「功耗」页，不再各画一张。
+                hero(battery, stats)
+                healthCard(battery, stats)
+                electricalCard(battery, stats)
+                if battery?.externalConnected == true {
+                    adapterRow(battery)
+                }
                 lowPowerRow
-                chargeRow(battery, stats)
+                hint(battery)
                 linksRow
             }
         }
-        .onAppear { energy.start() }
-        .onDisappear { energy.stop() }
     }
 
-    // MARK: 标题
+    // MARK: 顶部：电量环 + 充放电状态
 
-    private func header(_ battery: StatsBattery?) -> some View {
-        let percent = battery?.percent ?? Int(((sampler.sample.batteryLevel ?? 0) * 100).rounded())
-        let color = levelColor(battery)
-        return HStack(spacing: 9) {
-            Image(systemName: batterySymbol(battery))
-                .font(.system(size: 17))
-                .foregroundStyle(color)
-            Text("电池 · \(percent)%")
-                .font(.system(size: 15, weight: .semibold))
-                .monospacedDigit()
-            Spacer(minLength: 6)
-            Text(statusText(battery))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+    private func hero(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
+        let percent = battery?.percent
+            ?? Int(((sampler.sample.batteryLevel ?? 0) * 100).rounded())
+        let charging = battery?.isCharging == true
+        let connected = battery?.externalConnected == true
+        let color = charging ? BatteryFlowPalette.charge
+            : (connected ? MonitorColors.download : BatteryFlowPalette.discharge)
+
+        return HStack(spacing: 14) {
+            ZStack {
+                MonitorRing(value: min(1, max(0, Double(percent) / 100)),
+                            lineWidth: 8, color: color)
+                    .frame(width: 74, height: 74)
+                VStack(spacing: 0) {
+                    Text("\(percent)%")
+                        .font(.system(size: 20, weight: .semibold).monospacedDigit())
+                    Text(charging ? "充电中" : "电量")
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(headline(battery))
+                    .font(.system(size: 14, weight: .semibold))
+                Text(subline(battery, stats))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
+    }
+
+    private func headline(_ battery: StatsBattery?) -> String {
+        guard let battery else { return "状态未知" }
+        if battery.isCharging { return "正在充电" }
+        if battery.fullyCharged && battery.externalConnected { return "已充满" }
+        if battery.externalConnected { return "已接电源（未充电）" }
+        return "电池供电"
+    }
+
+    private func subline(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> String {
+        let remain = StatsFormat.remaining(stats.batteryRemainSec)
+        if battery?.isCharging == true {
+            return remain == "—" ? "系统正在供电并充电" : "预计 \(remain) 充满"
+        }
+        if battery?.externalConnected == true { return "电量已满或系统暂缓充电" }
+        return remain == "—" ? "未接电源" : "预计还可使用 \(remain)"
+    }
+
+    /// 适配器规格（只在接电时出现）：额定功率 / 充电电压 / 充电电流
+    private func adapterRow(_ battery: StatsBattery?) -> some View {
+        let volts = battery?.chargingVoltageV ?? 0
+        let amps = (battery?.chargingCurrentMa ?? 0) / 1000
+        return HStack(spacing: 12) {
+            if let rated = battery?.adapterWatts, rated > 0 {
+                spec("适配器额定", String(format: "%.0f W", rated))
+            }
+            if volts > 0 {
+                spec("充电电压", String(format: "%.2f V", volts))
+            }
+            if amps > 0 {
+                spec("充电电流", String(format: "%.2f A", amps))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func spec(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.system(size: 9.5))
+                .foregroundStyle(Theme.tertiaryText)
+            Text(value)
+                .font(.system(size: 12, weight: .medium).monospacedDigit())
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 与当前充放电状态相关的提示（原来在充电页）
+    private func hint(_ battery: StatsBattery?) -> some View {
+        let text: String
+        if battery?.isCharging == true, (battery?.percent ?? 0) >= 80 {
+            text = "电量已接近满，系统会自动降低充电功率（涓流充电）以保护电池寿命。"
+        } else if battery?.isCharging == true {
+            text = "充电过程中电池温度会略高于平时，属正常现象；温度过高时系统会暂缓充电。"
+        } else if battery?.externalConnected == true {
+            text = "已接电源但当前没有充电：可能是电量已满，或系统为保护电池暂缓充电。"
+        } else {
+            text = "使用电池时，降低屏幕亮度、关闭后台高耗电 App 可以延长续航。"
+        }
+        return Text(text)
+            .font(.system(size: 10.5))
+            .foregroundStyle(Theme.tertiaryText)
+            .lineSpacing(1.6)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var noBatteryNotice: some View {
@@ -80,7 +163,7 @@ struct BatteryStatsPanel: View {
                 Text("本机没有电池")
                     .font(.system(size: 15, weight: .semibold))
             }
-            Text("台式机（Mac mini / Studio / Pro）没有内置电池，因此不显示功耗流向与能耗明细。")
+            Text("台式机（Mac mini / Studio / Pro）没有内置电池，因此没有电量、健康度与电气参数可显示。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -89,121 +172,92 @@ struct BatteryStatsPanel: View {
 
     // MARK: 明细
 
-    private func detailRows(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
-        VStack(spacing: 7) {
-            BatteryDetailRow(label: "整机读取时间", value: Self.timeFormatter.string(from: stats.updatedAt))
-            if let battery, battery.present {
-                BatteryDetailRow(label: "电池电压",
-                                 value: String(format: "%.2f V", battery.voltageMv / 1000))
-                BatteryDetailRow(label: "电池电流",
-                                 value: String(format: "%.2f A", battery.amperageMa / 1000))
-                if battery.adapterWatts > 0 {
-                    BatteryDetailRow(label: "适配器额定功率",
-                                     value: String(format: "%.0f W", battery.adapterWatts))
-                }
-                BatteryDetailRow(label: "循环次数", value: "\(battery.cycleCount)")
-                if battery.designCapacity > 0 {
-                    let health = min(1.2, Double(battery.maxCapacity) / Double(battery.designCapacity))
-                    BatteryDetailRow(label: "电池健康度", value: String(format: "%.0f%%", health * 100))
-                }
-                if battery.designCapacity > 0 {
-                    BatteryDetailRow(label: "当前容量",
-                                     value: "\(StatsFormat.capacity(battery.currentCapacity)) / \(StatsFormat.capacity(battery.designCapacity))")
-                }
-            }
-            BatteryDetailRow(label: "低电量模式", value: lowPower.enabled ? "开启" : "关闭")
-        }
+    // MARK: 健康（容量 / 循环）
+
+    /// 健康度 = 当前最大容量 / 设计容量（>100% 属正常新电池，钳到 100 显示）
+    private func healthRatio(_ battery: StatsBattery?) -> Double? {
+        guard let battery, battery.present, battery.designCapacity > 0 else { return nil }
+        let ratio = Double(battery.maxCapacity) / Double(battery.designCapacity)
+        guard ratio.isFinite, ratio > 0 else { return nil }
+        return min(1.2, ratio)
     }
 
-    private func footnote(_ battery: StatsBattery?) -> some View {
-        let text = (battery?.externalConnected ?? false)
-            ? "功率为估算值，各传感器读数可能延迟或存在差异，三项功率不一定完全相加。额定功率并非实际输入。"
-            : "功率为估算值，各传感器读数可能延迟或存在差异。拔电后显示的是电池放电功率；部分机型的电池数据可能延迟约一分钟。"
-        return Text(text)
-            .font(.system(size: 10.5))
-            .foregroundStyle(Theme.tertiaryText)
-            .lineSpacing(1.8)
-            .fixedSize(horizontal: false, vertical: true)
+    private func healthColor(_ ratio: Double?) -> Color {
+        guard let ratio else { return .secondary }
+        if ratio < 0.80 { return Color(red: 0.90, green: 0.25, blue: 0.28) }
+        if ratio < 0.90 { return Color(red: 0.95, green: 0.62, blue: 0.18) }
+        return BatteryFlowPalette.charge
     }
 
-    // MARK: CPU 能耗影响
-
-    @ViewBuilder
-    private func energySection(_ stats: StatsSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("CPU 能耗影响")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 4)
-                if energy.phase == .sampling {
-                    Text("正在建立基线…")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.tertiaryText)
-                } else if energy.phase == .ready, energy.window > 0 {
-                    Text(String(format: "近 %.0f 秒", energy.window))
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.tertiaryText)
-                }
-            }
-
-            switch energy.phase {
-            case .unavailable:
-                // 量纲回退：绝不在同一个表里混排 mW 与 %，整块换口径并说明
-                ForEach(Array(stats.procCPU.prefix(5))) { item in
-                    HStack(spacing: 7) {
-                        Image(nsImage: BatteryEnergyIconCache.icon(for: item.iconPath, pid: item.pid))
-                            .resizable()
-                            .frame(width: 15, height: 15)
-                        Text(item.name)
-                            .font(.system(size: 11.5))
-                            .lineLimit(1)
-                        Spacer(minLength: 6)
-                        Text(String(format: "%.0f%%", item.cpu))
-                            .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Text("当前系统不支持能耗计数，改按 CPU 活跃度显示（百分比与 mW 不是同一量纲，故不混排）。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            case .idle, .sampling:
-                if energy.items.isEmpty {
-                    Text("正在采样…（约 1–2 秒）")
+    private func healthCard(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
+        let health = healthRatio(battery)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 9) {
+                Image(systemName: "heart.text.square")
+                    .font(.system(size: 15))
+                    .foregroundStyle(healthColor(health))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("电池健康")
                         .font(.system(size: 11))
-                        .foregroundStyle(Theme.tertiaryText)
-                } else {
-                    energyRows
+                        .foregroundStyle(.secondary)
+                    Text(health.map { String(format: "%.0f%%", $0 * 100) } ?? "—")
+                        .font(.system(size: 18, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(healthColor(health))
                 }
-            case .ready:
-                energyRows
+                Spacer(minLength: 6)
+                if let battery, battery.present {
+                    Text("循环 \(battery.cycleCount) 次")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
-
-            if energy.phase == .ready || !energy.items.isEmpty {
-                Text("按当前用户可见进程的 CPU 能耗计数排序，不等同于活动监视器的综合能耗影响（后者还含磁盘、网络等因素）。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .lineSpacing(1.4)
-                    .fixedSize(horizontal: false, vertical: true)
+            if let health {
+                MonitorStackedBar(segments: [
+                    .init(id: "health", value: health * 100, color: healthColor(health)),
+                    .init(id: "wear", value: max(0, 100 - health * 100),
+                          color: Color.primary.opacity(0.10))
+                ], height: 8)
             }
+            if let battery, battery.present {
+                if battery.designCapacity > 0 {
+                    BatteryDetailRow(label: "当前最大容量",
+                                     value: "\(StatsFormat.capacity(battery.maxCapacity)) / \(StatsFormat.capacity(battery.designCapacity))")
+                }
+                BatteryDetailRow(label: "当前电量容量",
+                                 value: StatsFormat.capacity(battery.currentCapacity))
+            }
+            BatteryDetailRow(label: "数据更新",
+                             value: Self.timeFormatter.string(from: stats.updatedAt))
         }
     }
 
-    private var energyRows: some View {
-        ForEach(Array(energy.items.prefix(5))) { item in
-            HStack(spacing: 7) {
-                Image(nsImage: BatteryEnergyIconCache.icon(for: item.iconPath, pid: item.pid))
-                    .resizable()
-                    .frame(width: 15, height: 15)
-                Text(item.name)
-                    .font(.system(size: 11.5))
-                    .lineLimit(1)
-                Spacer(minLength: 6)
-                Text(BatteryEnergySampler.wattsText(item.watts))
-                    .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                    .foregroundStyle(.secondary)
+    // MARK: 电气（电压 / 电流 / 功率 / 温度）
+
+    private func electricalCard(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
+        let flow = BatteryFlowModel(battery: battery)
+        let batteryPower = flow.branches.first(where: { $0.id == "charge" })?.watts
+            ?? (battery?.externalConnected == false ? flow.input.watts : nil)
+        return VStack(alignment: .leading, spacing: 8) {
+            MonitorSectionTitle("电池状态")
+            if let battery, battery.present {
+                BatteryDetailRow(label: "电压",
+                                 value: String(format: "%.2f V", battery.voltageMv / 1000))
+                BatteryDetailRow(label: "电流",
+                                 value: String(format: "%.2f A", battery.amperageMa / 1000))
+                if let batteryPower, batteryPower > 0 {
+                    BatteryDetailRow(label: battery.externalConnected ? "充入功率" : "放电功率",
+                                     value: BatteryEnergySampler.wattsText(batteryPower))
+                }
+                if battery.temperature > 0 {
+                    BatteryDetailRow(label: "电池温度",
+                                     value: String(format: "%.1f °C", battery.temperature))
+                }
             }
+            Text("电量、充放电状态、适配器规格已并入本页；整机功率、电源流向图与能耗排行在「功耗」页。")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+                .lineSpacing(1.5)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -238,16 +292,7 @@ struct BatteryStatsPanel: View {
         }
     }
 
-    // MARK: 充电状态 + 入口
-
-    private func chargeRow(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
-        HStack(spacing: 6) {
-            Text(chargeText(battery, stats))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 4)
-        }
-    }
+    // MARK: 入口
 
     private var linksRow: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -269,49 +314,6 @@ struct BatteryStatsPanel: View {
             }
             .buttonStyle(.link)
         }
-    }
-
-    // MARK: 文案
-
-    private func chargeText(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> String {
-        guard let battery, battery.present else { return "电源：未检测到电池" }
-        if battery.fullyCharged { return "已充满 · 已接电源" }
-        if battery.isCharging {
-            let remain = StatsFormat.remaining(stats.batteryRemainSec)
-            return remain == "—" ? "正在充电" : "正在充电 · 预计 \(remain) 充满"
-        }
-        if battery.externalConnected { return "已接电源（未在充电）" }
-        let remain = StatsFormat.remaining(stats.batteryRemainSec)
-        return remain == "—" ? "电池供电中" : "电池供电 · 剩余 \(remain)"
-    }
-
-    private func statusText(_ battery: StatsBattery?) -> String {
-        guard let battery else { return "—" }
-        if !battery.present { return "无电池" }
-        if battery.isCharging { return "充电中" }
-        if battery.fullyCharged && battery.externalConnected { return "已充满" }
-        if battery.externalConnected { return "已接电源" }
-        return "放电中"
-    }
-
-    private func batterySymbol(_ battery: StatsBattery?) -> String {
-        let percent = battery?.percent ?? Int(((sampler.sample.batteryLevel ?? 0) * 100).rounded())
-        if battery?.isCharging == true { return "battery.100percent.bolt" }
-        switch percent {
-        case ..<13: return "battery.0percent"
-        case ..<38: return "battery.25percent"
-        case ..<63: return "battery.50percent"
-        case ..<88: return "battery.75percent"
-        default:    return "battery.100percent"
-        }
-    }
-
-    private func levelColor(_ battery: StatsBattery?) -> Color {
-        if battery?.isCharging == true { return BatteryFlowPalette.charge }
-        let percent = battery?.percent ?? 100
-        if percent <= 10 { return Color(red: 0.95, green: 0.27, blue: 0.30) }
-        if percent <= 20 { return Color(red: 0.95, green: 0.62, blue: 0.18) }
-        return BatteryFlowPalette.system
     }
 
     private static let timeFormatter: DateFormatter = {
@@ -371,7 +373,11 @@ struct BatteryFlowModel {
                                     available: inputW > 0)
 
             var list: [BatteryFlowNode] = []
-            if chargeW > 0.05 {
+            // v183（用户：「输入和支出要分开看，要有分流图」）：接电时**始终**画出
+            // 「充入电池」这条分支，充满/暂缓充电时它就是 0 W——不画的话整张图只剩
+            // 一条直线，看不出「输入被分成两份」的结构。
+            // 只有在连电压读数都没有（电气数据缺失）时才不画，避免把「读不到」说成 0。
+            if battery.voltageMv > 0 {
                 list.append(BatteryFlowNode(id: "charge", title: "充入电池", watts: chargeW,
                                             systemImage: "battery.75percent",
                                             color: BatteryFlowPalette.charge, available: true))
@@ -402,157 +408,29 @@ struct BatteryPowerFlowCard: View {
     let input: BatteryFlowNode
     let branches: [BatteryFlowNode]
 
-    private let innerHeight: CGFloat = 116
-    private let tileSpacing: CGFloat = 6
-    private let maxBand: CGFloat = 34
-
-    private var maxWatts: Double {
-        max(0.001, max(input.watts, branches.reduce(0) { $0 + $1.watts }))
-    }
-
-    private func thickness(_ watts: Double) -> CGFloat {
-        guard watts > 0 else { return 0 }
-        return max(2, CGFloat(watts / maxWatts) * maxBand)
-    }
-
-    private var tileHeight: CGFloat {
-        let n = max(1, branches.count)
-        return (innerHeight - CGFloat(n - 1) * tileSpacing) / CGFloat(n)
-    }
-
+    // v181：流向图的几何抽到 MonitorFlow.swift 的 `MonitorFlowCard`，
+    // 网络页的「带宽去哪了」与功耗页用的是同一张图（只是量纲不同）。
+    // 电池页保留自己那块**带坐标网格的纹理底板**（plate: .gridded），别处用标准玻璃卡。
     var body: some View {
-        HStack(spacing: 0) {
-            inputTile
-                .frame(width: 86)
-            ribbonArea
-                .frame(maxWidth: .infinity)
-            VStack(spacing: tileSpacing) {
-                ForEach(branches) { node in
-                    branchTile(node)
-                }
-            }
-            .frame(width: 132)
-        }
-        .frame(height: innerHeight)
-        .padding(8)
-        .background(cardBackground)
-    }
-
-    // 左侧：供电来源
-    private var inputTile: some View {
-        VStack(spacing: 2) {
-            Image(systemName: input.systemImage)
-                .font(.system(size: 11))
-                .foregroundStyle(input.color)
-                .padding(.bottom, 2)
-            Text(input.available ? BatteryEnergySampler.wattsText(input.watts) : "—")
-                .font(.system(size: 15, weight: .semibold).monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-            Text(input.title)
-                .font(.system(size: 9.5))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
-        .padding(.trailing, 6)
-    }
-
-    private func branchTile(_ node: BatteryFlowNode) -> some View {
-        VStack(spacing: 1) {
-            Image(systemName: node.systemImage)
-                .font(.system(size: 10))
-                .foregroundStyle(node.color)
-            Text(node.available ? BatteryEnergySampler.wattsText(node.watts) : "—")
-                .font(.system(size: 13.5, weight: .semibold).monospacedDigit())
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-            Text(node.title)
-                .font(.system(size: 9.5))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(node.color.opacity(0.10))
-        )
-    }
-
-    // 中间的流带：宽度按瓦数比例
-    private var ribbonArea: some View {
-        GeometryReader { geo in
-            let h = geo.size.height
-            let gap: CGFloat = 2
-            let widths = branches.map { thickness($0.watts) }
-            let total = widths.reduce(0, +) + gap * CGFloat(max(0, branches.count - 1))
-
-            let bands: [(node: BatteryFlowNode, start: CGFloat, end: CGFloat, width: CGFloat)] = {
-                var out: [(BatteryFlowNode, CGFloat, CGFloat, CGFloat)] = []
-                var cursor = h / 2 - total / 2
-                for (index, node) in branches.enumerated() {
-                    let w = widths[index]
-                    let endCenter = CGFloat(index) * (tileHeight + tileSpacing) + tileHeight / 2
-                    out.append((node, cursor + w / 2, endCenter, w))
-                    cursor += w + gap
-                }
-                return out
-            }()
-
-            ZStack {
-                ForEach(bands.indices, id: \.self) { i in
-                    let band = bands[i]
-                    let bend: CGFloat = branches.count == 1
-                        ? 6
-                        : (i == 0 ? -4 : 4)
-                    let shape = FlowRibbon(startCenter: band.start,
-                                           endCenter: band.end,
-                                           startThickness: band.width,
-                                           endThickness: max(2, band.width * 0.88),
-                                           bend: bend)
-                    shape
-                        .fill(LinearGradient(colors: [band.node.color.opacity(0.72),
-                                                      band.node.color.opacity(0.42)],
-                                             startPoint: .leading, endPoint: .trailing))
-                        .overlay(
-                            shape.stroke(band.node.color.opacity(0.22), lineWidth: 0.5)
-                        )
-                }
-            }
-        }
-        .padding(.horizontal, 2)
-    }
-
-    private var cardBackground: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(LinearGradient(colors: [Color.primary.opacity(0.055),
-                                              Color.primary.opacity(0.015)],
-                                     startPoint: .top, endPoint: .bottom))
-            // 参考图里那张极淡的坐标网格：只做背景纹理，不表达数据
-            GeometryReader { geo in
-                Path { p in
-                    for i in 1...3 {
-                        let y = geo.size.height * CGFloat(i) / 4
-                        p.move(to: CGPoint(x: 10, y: y))
-                        p.addLine(to: CGPoint(x: geo.size.width - 10, y: y))
-                    }
-                }
-                .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
-            }
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-        }
+        MonitorFlowCard(input: input.monitorNode,
+                        branches: branches.map(\.monitorNode),
+                        plate: .gridded)
     }
 }
 
-/// 两条贝塞尔边围成的流带（宽度从 startThickness 渐变到 endThickness）。
-/// `bend` 是控制点的纵向偏移：起点终点等高时（单分支）也能画出柔和的弧形，
-/// 否则就是一整条直线方块，看起来像占位图而不是「能量在流」。
+private extension BatteryFlowNode {
+    /// 电池流向节点 → 通用流向节点（数值文本沿用 BatteryEnergySampler 的瓦特格式）
+    @MainActor var monitorNode: MonitorFlowNode {
+        MonitorFlowNode(id: id,
+                        title: title,
+                        value: watts,
+                        valueText: available ? BatteryEnergySampler.wattsText(watts) : "—",
+                        systemImage: systemImage,
+                        color: color,
+                        available: available)
+    }
+}
+
 struct FlowRibbon: Shape {
     var startCenter: CGFloat
     var endCenter: CGFloat

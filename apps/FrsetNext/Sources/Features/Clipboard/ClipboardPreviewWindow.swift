@@ -186,22 +186,6 @@ public final class HoverPreviewWindow: NSWindow {
 
 // MARK: - 打开中的预览窗登记（兼容壳；窗口单例由协调器统一持有）
 
-public final class ClipboardPreviewWindowRecord {
-
-    public static let shared = ClipboardPreviewWindowRecord()
-
-    private init() {}
-
-    /// 单击路径入口：统一转调协调器（persistent 模式）
-    public static func open(for item: ClipboardItem, anchorView: NSView?) {
-        MainPanelPreviewPopoverCoordinator.shared.presentPersistent(for: item, anchorView: anchorView)
-    }
-
-    /// Esc 关闭入口
-    public static func closeActive() {
-        MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .escape)
-    }
-}
 
 // MARK: - 窗口内容
 
@@ -221,6 +205,8 @@ struct ClipboardPreviewWindowView: View {
     @Stored private var pinned = MainPanelPreviewPopoverCoordinator.shared.previewPinned
     /// 关闭钮悬停态（红底白叉反馈）
     @Stored private var closeHover = false
+    /// 「按代码看」：把 Markdown / JSON / 纯文本强制切到代码视图（代码预览对所有文本可达）
+    @Stored private var forceCode = false
     /// v106：液态玻璃入场态（easeOut 0.18s）
     @Stored private var glassAppeared = false
 
@@ -288,7 +274,7 @@ struct ClipboardPreviewWindowView: View {
     // MARK: 预览态
 
     private var preview: some View {
-        PreviewPopoverContentView(model: model)
+        PreviewPopoverContentView(model: model, forceCode: forceCode)
             .id(model.sessionID)          // 编辑保存后换会话 → 视图重建、滚动位置归零
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -309,6 +295,23 @@ struct ClipboardPreviewWindowView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 12)
+            // 「按代码看」：任何文本都能切到代码视图（自动识别语言 + 换主题 + 富文本复制）
+            if canToggleCode {
+                Button {
+                    forceCode.toggle()
+                } label: {
+                    Image(systemName: "chevron.left.forwardslash.chevron.right")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(forceCode ? Color.white : Color.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                                .fill(forceCode ? Color.accentColor : Color.primary.opacity(0.06))
+                        )
+                }
+                .buttonStyle(.borderless)
+                .help(forceCode ? "退出代码视图" : "按代码查看（换主题 / 选语言 / 复制富文本）")
+            }
             // v71：图片/文件条目没有可编辑的文本内容（content 是 @image#N: 文件名
             // 之类的引用串），对齐原版交互——隐藏「预览|编辑」分段，只保留预览
             if item.type != .image && item.type != .file {
@@ -436,6 +439,14 @@ struct ClipboardPreviewWindowView: View {
                                           inlineText: full,
                                           showsKeyboardHint: false,
                                           kindOverride: kind)
+    }
+
+    /// 只有「短文本」内容能切代码视图：落盘长文只有前缀在内存里，切过去会看成残缺代码
+    private var canToggleCode: Bool {
+        switch model.kind {
+        case .text, .markdown, .json: return true
+        case .code, .fileBackedText, .image, .file, .richText: return false
+        }
     }
 
     private var typeSymbol: String {

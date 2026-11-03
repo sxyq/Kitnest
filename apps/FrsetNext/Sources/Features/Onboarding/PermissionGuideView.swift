@@ -164,9 +164,9 @@ private struct PermissionCard: View {
             }
         }
         .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .glassCard(radius: 10)
         .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .strokeBorder(kind.isCore && !status.isGranted ? Color.accentColor.opacity(0.35) : .clear, lineWidth: 1)
         )
     }

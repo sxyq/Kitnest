@@ -275,8 +275,14 @@ void frset_net_sample(frset_net_t *out) {
     if (prev_t > 0 && now > prev_t) {
         double dt = now - prev_t;
         if (dt > 0.1) {
-            out->down_bps = (uint64_t)((double)(in - prev_in) / dt);
-            out->up_bps = (uint64_t)((double)(o - prev_out) / dt);
+            /* v183（真机实测的「16384 PB/s」）：网卡集合会变（插拔网卡/唤醒重建
+               utun/bridge 之外的新接口、驱动计数器重置），总数一旦变小，
+               `in - prev_in` 作为 uint64 会下溢成接近 2^64 —— 曲线量程当场被毁。
+               计数器回退一律按 0 处理，绝不让下溢变成天文数字。 */
+            uint64_t d_in  = in >= prev_in  ? (in - prev_in)  : 0;
+            uint64_t d_out = o  >= prev_out ? (o  - prev_out) : 0;
+            out->down_bps = (uint64_t)((double)d_in / dt);
+            out->up_bps   = (uint64_t)((double)d_out / dt);
         }
     }
     out->total_up = o; out->total_down = in;
@@ -313,8 +319,12 @@ void frset_disk_sample(frset_disk_t *out) {
     if (prev_t > 0 && now > prev_t) {
         double dt = now - prev_t;
         if (dt > 0.1) {
-            out->read_bps = (uint64_t)((double)(r - prev_r) / dt);
-            out->write_bps = (uint64_t)((double)(w - prev_w) / dt);
+            /* v183：同网络——磁盘计数回退（热插拔/IOKit 重枚举）时 uint64 下溢
+               会给出天文数字，钳到 0。 */
+            uint64_t d_r = r >= prev_r ? (r - prev_r) : 0;
+            uint64_t d_w = w >= prev_w ? (w - prev_w) : 0;
+            out->read_bps  = (uint64_t)((double)d_r / dt);
+            out->write_bps = (uint64_t)((double)d_w / dt);
         }
     }
     prev_r = r; prev_w = w; prev_t = now;

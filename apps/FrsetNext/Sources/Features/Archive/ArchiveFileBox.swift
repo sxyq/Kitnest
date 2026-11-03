@@ -238,7 +238,7 @@ struct ArchiveFileBoxView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
+        .glassCard(radius: Theme.Radius.chip)
         .help(item.url.path)
     }
 

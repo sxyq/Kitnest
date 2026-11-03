@@ -575,7 +575,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                     isHighlighted: hovered,
                     onCopy: { self.owner.onCopy(item) },
                     onEdit: { self.owner.onEdit(item) },
-                    onPreviewWindow: { ClipboardPreviewWindow.open(item: item) },
                     onSummarize: { self.owner.onSummarize(item) }
                 ))
             }
@@ -811,8 +810,15 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             if consumeOneTimeHint(Self.singleClickPreviewHintKey) {
                 Toast.show("单击条目打开预览窗", icon: "eye")
             }
-            ClipboardPreviewWindowRecord.open(for: item,
-                                              anchorView: rowView(forItemID: item.id))
+            // v182（用户：「不要点开后常驻、带两个叉的框」）：
+            // 单击改走与 hover 同一条轻量预览路径（无标题栏、移出即关）。
+            // 常驻窗（.persistent）不再从这里产生。
+            let row = rowView(forItemID: item.id)
+            _ = ServiceLocator.panelPreview?.presentPreview(
+                for: item,
+                anchorRectInWindow: row.map { $0.convert($0.bounds, to: nil) },
+                anchorView: row,
+                isFloatingSource: false)
         }
 
         private func handleDoubleClick(_ item: ClipboardItem) {
@@ -965,7 +971,6 @@ public final class ClipboardNativeMenuPresenter: NSObject {
         addItem(item.isNote ? "取消笔记标记" : "标记为笔记", systemImage: "note.text") {
             manager.setNote(item, isNote: !item.isNote)
         }
-        addItem("大文本预览", systemImage: "doc.text.magnifyingglass") { ClipboardPreviewWindow.open(item: item) }
         addItem("AI 摘要", systemImage: "sparkles", enabled: canSummarize) {
             Task { _ = try? await ClipboardSummaryExecutionCoordinator.shared.summarizeAndWriteBack(item) }
         }

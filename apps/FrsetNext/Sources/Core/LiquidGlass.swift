@@ -312,16 +312,34 @@ public extension View {
     }
 
     /// 内容卡片：极淡填充 + 发丝边（**不叠模糊**，避免 GPU 与糊内容）。
+    /// 同时裁切内容到同一圆角——旧写法里 `.background(x).clipShape(r)` 的裁切语义
+    /// 由这里一次到位，换过来时不会再漏一层圆角。
+    /// - Parameter fill: 留空 = 自动（Midnight 主题卡片色 ?? `Theme.cardFill`）。
     func glassCard(radius: CGFloat = Theme.Radius.card,
-                   fill: Color = Theme.cardFill) -> some View {
-        self.background(
-            RoundedRectangle(cornerRadius: radius, style: .continuous).fill(fill)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
-                .allowsHitTesting(false)
-        }
+                   fill: Color? = nil) -> some View {
+        modifier(GlassCard(radius: radius, fill: fill))
+    }
+}
+
+/// 内容卡片修饰符（v181：从 View 扩展里抽出来，才能读 environment ——
+/// Midnight 主题的卡片覆盖色由 `AppearanceThemeModifier` 注入，这里自动跟随）。
+struct GlassCard: ViewModifier {
+    var radius: CGFloat = Theme.Radius.card
+    var fill: Color? = nil
+    @Environment(\.midnightCardBackgroundOverride) private var midnightCard
+
+    func body(content: Content) -> some View {
+        let color = fill ?? midnightCard ?? Theme.cardFill
+        content
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous).fill(color)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                    .allowsHitTesting(false)
+            }
     }
 }
 

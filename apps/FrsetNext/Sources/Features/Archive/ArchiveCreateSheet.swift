@@ -152,10 +152,15 @@ public struct ArchiveCreateView: View {
     @ObservedObject public var model: ArchiveCreateModel
     /// 创建成功后回调（关闭窗口/刷新）
     public var onDone: (Bool, String) -> Void
+    /// v181「转到后台」：关掉面板但**不取消**任务，交给任务中心（HUD / 任务窗）接管
+    public var onBackground: () -> Void
 
-    public init(model: ArchiveCreateModel, onDone: @escaping (Bool, String) -> Void) {
+    public init(model: ArchiveCreateModel,
+                onDone: @escaping (Bool, String) -> Void,
+                onBackground: @escaping () -> Void = {}) {
         self.model = model
         self.onDone = onDone
+        self.onBackground = onBackground
     }
 
     public var body: some View {
@@ -328,16 +333,25 @@ public struct ArchiveCreateView: View {
                 .truncationMode(.middle)
             Spacer()
             if model.busy { ProgressView().controlSize(.small) }
-            Button("取消") {
+            Button(model.busy ? "取消任务" : "取消") {
                 // v127：压缩进行中关掉 = 取消任务（取消传播会 terminate 7zz）
                 model.cancelCreate()
                 onDone(false, "已取消")
             }
             .keyboardShortcut(.cancelAction)
-            Button("开始压缩") { model.create(completion: onDone) }
-                .keyboardShortcut(.defaultAction)
-                .disabled(model.busy)
-                .buttonStyle(.borderedProminent)
+            if model.busy {
+                // v181（用户：「压缩是长任务，别把人锁在面板前」）：
+                // 原来「开始压缩」一变灰，用户只剩「取消」一条路；关窗还等于取消任务。
+                // 现在给一个明确的出口：面板关掉，任务继续在后台跑。
+                Button("转到后台") { onBackground() }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .help("关掉面板，压缩继续在后台跑；进度在「归档任务」窗和右下角进度条里")
+            } else {
+                Button("开始压缩") { model.create(completion: onDone) }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+            }
         }
     }
 }
@@ -379,9 +393,15 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
         win.title = "创建压缩包"
         win.isReleasedWhenClosed = false
+        // v181（UI 一致性检查 R3）：这是文档级窗口（.titled + .closable），
+        // 之前没上统一外观 → 标题栏/内容露系统白底。统一走 applyOfficialChrome。
+        // 关窗仍会先问 windowShouldClose（压缩中弹「转到后台 / 取消」），圆钮动作已尊重 delegate。
+        win.applyOfficialChrome()
+        // 面板自己有一行「创建压缩包」标题，标题栏就别再重复一遍
+        win.titleVisibility = .hidden
         super.init(window: win)
         win.delegate = self
-        let view = ArchiveCreateView(model: model) { [weak self] ok, msg in
+        let view = ArchiveCreateView(model: model, onDone: { [weak self] ok, msg in
             if ok {
                 Toast.show(msg, icon: "archivebox")
                 self?.close()
@@ -390,28 +410,50 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
             } else {
                 self?.close()
             }
-        }
+        }, onBackground: { [weak self] in
+            // 只关面板，不动任务：关掉后 ArchiveTaskCenter 会让 HUD 接管
+            self?.close()
+        })
         hosting = NSHostingController(rootView: view)
         win.contentViewController = hosting
         win.center()
+
+        // 排障（v181）：`probe.archiveCreate=auto` → 打开 1.2s 后自动开始压缩，
+        // 再过 2.5s 自动关面板（等价于点「转到后台」）。用来验收「busy 态的两个按钮」
+        // 和「面板关掉后任务照跑、HUD 接管」——真机点按钮在无人值守环境点不到。
+        if UserDefaults.standard.string(forKey: "probe.archiveCreate") == "auto" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let self else { return }
+                self.model.create { _, _ in }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { self.close() }
+            }
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    /// v127（ArcZip P2）：压缩进行中关窗先确认，确认则取消任务（退出等待保护的窗口侧）
+    /// v127（ArcZip P2）：压缩进行中关窗先确认。
+    /// v181：确认框默认「转到后台」——关窗不再等于取消任务（原来只有「取消/继续」两条路，
+    /// 用户想一边压缩一边干别的就只剩取消）。取消仍在第三项，语义没变。
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard model.busy else { return true }
         let alert = NSAlert()
         alert.messageText = "压缩仍在进行"
-        alert.informativeText = "关闭窗口将取消当前压缩任务（7zz 子进程会被终止）。"
+        alert.informativeText = "「转到后台」会关掉这个面板，压缩继续跑；"
+            + "进度可以在「归档任务」窗或右下角的进度条里看。"
+        alert.addButton(withTitle: "转到后台")
+        alert.addButton(withTitle: "继续等待")
         alert.addButton(withTitle: "取消任务并关闭")
-        alert.addButton(withTitle: "继续压缩")
         NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return true                      // 关面板，任务照跑
+        case .alertThirdButtonReturn:
             model.cancelCreate()
             return true
+        default:
+            return false
         }
-        return false
     }
 
     public func windowWillClose(_ notification: Notification) {

@@ -235,28 +235,47 @@ public enum BuiltinTools {
             }))
     }
 
-    // MARK: 7. 代码预览
+    // MARK: 7. 代码预览（统一走 CodePreview 引擎：30+ 语言 / 14 套主题 / 富文本）
 
     private static func registerCodePreviewTool() {
+        // 选项里放常用语言（全量 30+ 太长）；默认自动识别
+        let common: [String] = ["自动识别", "Swift", "Objective-C", "C", "C++", "C#",
+                                "Java", "Kotlin", "Go", "Rust", "Python", "Ruby", "PHP",
+                                "JavaScript", "TypeScript", "Dart", "SQL", "Shell",
+                                "PowerShell", "HTML", "CSS", "JSON", "YAML", "Markdown"]
         ToolRegistry.register(ToolDescriptor(
             identifier: "codepreview",
             kind: .codePreview,
             name: "代码预览",
             systemImage: "chevron.left.slash.chevron.right",
             category: .format,
-            placeholder: "粘贴代码片段（Swift / Python / JavaScript / JSON）",
+            placeholder: "粘贴任意代码片段（30+ 语言自动识别；输出为带配色的卡片图）",
             options: [
-                ToolOption(id: "language", title: "语言", choices: CodeLanguage.titles)
+                ToolOption(id: "language", title: "语言", choices: common)
             ],
             execute: { input, options in
                 let raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !raw.isEmpty else { return ToolOutput.error("请输入代码片段") }
-                let language = CodeLanguage(rawValue: (options["language"] ?? "swift").lowercased()) ?? .plain
-                let image = CodeHighlighter.cardImage(code: raw, language: language)
-                let lines = raw.split(separator: "\n", omittingEmptySubsequences: false).count
+
+                let choice = options["language"] ?? "自动识别"
+                let languageID: String
+                if choice == "自动识别" {
+                    languageID = CodeLanguageCatalog.detect(raw)
+                } else {
+                    languageID = CodeLanguageCatalog.all.first { $0.name == choice }?.id ?? "plain"
+                }
+                let theme = CodePreviewPreferences.themeID.map { CodeThemeCatalog.theme(id: $0) }
+                    ?? CodeThemeCatalog.systemDefault
+                let renderOptions = CodeRenderOptions(language: languageID,
+                                                      theme: theme,
+                                                      fontSize: 13,
+                                                      showsLineNumbers: true)
+                let image = CodeCardImage.render(code: raw, options: renderOptions)
+                let lines = CodeHighlighter.statistics(raw).lines
+                let name = CodeLanguageCatalog.displayName(languageID)
                 return ToolOutput(text: raw,
                                   image: image,
-                                  note: "已按 \(language.rawValue) 关键字着色，共 \(lines) 行；输出为卡片图，可另存为图片")
+                                  note: "已按 \(name) 着色（\(theme.name) 风格），共 \(lines) 行；输出为卡片图，可另存或直接粘贴。")
             }))
     }
 

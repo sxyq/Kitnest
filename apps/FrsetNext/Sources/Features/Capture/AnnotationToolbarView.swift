@@ -121,16 +121,123 @@ final class EditorToolbarModel: ObservableObject {
     }
 }
 
-// MARK: - 工具条视图
+// MARK: - 竖排工具栏尺寸（SwiftUI 与 AppKit 共用一套数值）
+//
+// v181（方案 B）：9 个工具竖排浮在画布左缘，画布底部的胶囊只留样式与操作。
+// 竖栏高度必须能被 AppKit 侧算出来（用于居中和最小高度校验），所以数值集中在这里，
+// 两边都读同一份常量，避免「改了 SwiftUI 忘了改 NSHostingView frame」。
+enum ToolRailMetrics {
+    /// 单个工具按钮的命中区边长
+    static let button: CGFloat = 28
+    /// 胶囊左右内边距（= 按钮右缘到胶囊边）
+    static let hPadding: CGFloat = 8
+    /// 胶囊上下内边距
+    static let vPadding: CGFloat = 7
+    /// 组间分割线的上下留白
+    static let groupGap: CGFloat = 5
+    /// 分割线长度
+    static let separatorWidth: CGFloat = 18
+    /// 分组断点：第 3、6 个工具之后（形状 / 绘制 / 修复 各 3 个）
+    static let groupBreaks: Set<Int> = [2, 5]
+    /// 胶囊宽度
+    static let width: CGFloat = button + hPadding * 2
+    /// 胶囊高度（9 个按钮 + 2 条分割线 + 内边距）
+    static var height: CGFloat {
+        let n = CGFloat(AnnotationTool.allCases.count)
+        let seps = CGFloat(groupBreaks.count)
+        return n * button + seps * (groupGap * 2 + 1) + vPadding * 2
+    }
+}
+
+// MARK: - 竖排工具栏
+//
+// 9 个工具竖着浮在画布左缘：不跟底部的样式/操作抢位置，画布底部更干净；
+// 代价是多一条竖栏，与 macOS 原生截图工具（横向一条）的习惯不同。
+struct AnnotationToolRailView: View {
+    @ObservedObject var model: EditorToolbarModel
+    var onTool: (Int) -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            toolHint
+            railCapsule
+        }
+    }
+
+    /// v182（用户：「当前选中后没有对应的提示」）：
+    /// 选中工具后在竖栏上方给一条小提示：工具名 · 快捷键 + 一句用法。
+    private var toolHint: some View {
+        let tool = AnnotationTool.allCases[max(0, min(model.toolIndex, AnnotationTool.allCases.count - 1))]
+        return VStack(spacing: 1) {
+            Text("\(tool.title) · \(tool.shortcut)")
+                .font(.system(size: 10, weight: .semibold))
+            Text(AnnotationToolRailView.usageTip(tool))
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .frame(width: ToolRailMetrics.width + 28)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .fixedSize()
+    }
+
+    static func usageTip(_ tool: AnnotationTool) -> String {
+        switch tool {
+        case .rectangle: return "拖动画矩形框"
+        case .ellipse:   return "拖动画椭圆"
+        case .arrow:     return "拖动画箭头"
+        case .pen:       return "自由画线"
+        case .text:      return "点画面输入文字"
+        case .highlighter: return "半透明划重点"
+        case .mosaic:    return "涂抹打码"
+        case .eraser:    return "擦掉已画的标注"
+        case .removal:   return "涂抹物体，松手自动抹除"
+        }
+    }
+
+    private var railCapsule: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(AnnotationTool.allCases.enumerated()), id: \.offset) { index, tool in
+                ToolIconButton(symbol: tool.systemImage,
+                               selected: model.toolIndex == index,
+                               dimension: ToolRailMetrics.button,
+                               help: "\(tool.title)  \(tool.shortcut)") {
+                    onTool(index)
+                }
+                if ToolRailMetrics.groupBreaks.contains(index) {
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.13))
+                        .frame(width: ToolRailMetrics.separatorWidth, height: 1)
+                        .padding(.vertical, ToolRailMetrics.groupGap)
+                }
+            }
+        }
+        .padding(.horizontal, ToolRailMetrics.hPadding)
+        .padding(.vertical, ToolRailMetrics.vPadding)
+        .frame(width: ToolRailMetrics.width)
+        // v181：统一玻璃面（glassPlate）——原「material + 0.88 窗口色 + 自绘描边」
+        // 与命令面板/云链接弹窗是同一种结构面，视觉配方不再各写一份
+        .glassPlate()
+        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 3)
+        .fixedSize()
+    }
+}
+
+// MARK: - 底部工具条（样式 + 操作）
 //
 // 设计取向（对齐 CleanShot / Snipaste / Flameshot 的共同做法）：
 // - 图片是主角：控件收进一条悬浮胶囊，浮在画布底部而不是压成一条通栏工具带；
-// - 工具按「形状 / 绘制 / 内容 / 修复」分组，组间留细分割线；
-// - 常用参数（颜色、粗细）就地可调，低频参数（马赛克块）走紧凑弹层；
+// - 工具交给左侧竖栏，这里只留「改当前工具的样子」和「对成图做什么」；
+// - 常用参数（颜色、粗细、圆角）就地可调，低频参数（马赛克块）走紧凑弹层；
 // - 主操作只有一个（复制），保存/更多/关闭降级为图标，避免一排同权重按钮。
 struct AnnotationToolbarView: View {
     @ObservedObject var model: EditorToolbarModel
-    var onTool: (Int) -> Void
     var onColor: (Color) -> Void
     var onSize: (Double) -> Void
     var onBlock: (Int) -> Void
@@ -153,8 +260,6 @@ struct AnnotationToolbarView: View {
 
     var body: some View {
         HStack(spacing: 9) {
-            toolCluster
-            separator
             styleCluster
             separator
             historyCluster
@@ -162,44 +267,15 @@ struct AnnotationToolbarView: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 44)
-        .background(
-            // 材质 + 一层窗口色：浅色下接近吸顶白卡，深色下压成石墨色，避免「灰上灰」看不见
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .fill(.regularMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                        .fill(Color(nsColor: .windowBackgroundColor).opacity(0.88))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.13), lineWidth: 0.5)
-        )
+        .glassPlate()
         .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 3)
         .fixedSize()
     }
 
-    // MARK: 工具组
-
-    private var toolCluster: some View {
-        HStack(spacing: 1) {
-            ForEach(Array(AnnotationTool.allCases.enumerated()), id: \.offset) { index, tool in
-                ToolIconButton(symbol: tool.systemImage,
-                               selected: model.toolIndex == index,
-                               help: "\(tool.title)  \(tool.shortcut)") {
-                    model.toolIndex = index
-                    onTool(index)
-                }
-                if index == 2 || index == 5 || index == 6 {
-                    separator.frame(height: 16)
-                        .padding(.horizontal, 3)
-                }
-            }
-        }
-    }
-
     // MARK: 样式组
 
+    /// 样式组：颜色 / 粗细 / 圆角（+ 马赛克块），都作用在「当前工具」或「成图」上。
+    /// 工具选择已移到左侧竖栏，这条胶囊只剩 3–4 个样式控件 + 撤销重做 + 4 个操作。
     private var styleCluster: some View {
         HStack(spacing: 7) {
             colorChip
@@ -266,7 +342,7 @@ struct AnnotationToolbarView: View {
                             .frame(minWidth: 30)
                             .padding(.vertical, 3)
                             .background(
-                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                     .fill(selected ? Theme.accent.opacity(0.20)
                                                    : Color.primary.opacity(0.06))
                             )
@@ -423,43 +499,39 @@ struct AnnotationToolbarView: View {
         onSize(value)
     }
 
-    /// 马赛克块大小：固定槽位（非马赛克工具时留空），避免切换工具时整条工具条左右跳
+    /// 马赛克块大小：只在马赛克工具下出现（底部胶囊已经很轻，不需要再为它预留固定槽位）
+    @ViewBuilder
     private var blockSlot: some View {
-        Group {
-            if model.activeTool == .mosaic {
-                Button {
-                    showBlock.toggle()
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "squareshape.split.3x3")
-                            .font(.system(size: 11))
-                        Text("\(model.mosaicBlock)")
-                            .font(.system(size: 11, weight: .medium).monospacedDigit())
-                            .fixedSize()
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 7, weight: .semibold))
-                    }
-                    .foregroundStyle(Color.primary.opacity(0.75))
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(Color.primary.opacity(showBlock ? 0.09 : 0.05))
-                    )
-                    .contentShape(Rectangle())
+        if model.activeTool == .mosaic {
+            Button {
+                showBlock.toggle()
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "squareshape.split.3x3")
+                        .font(.system(size: 11))
+                    Text("\(model.mosaicBlock)")
+                        .font(.system(size: 11, weight: .medium).monospacedDigit())
+                        .fixedSize()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 7, weight: .semibold))
                 }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .help("马赛克块大小")
-                .accessibilityLabel("马赛克块大小")
-                .popover(isPresented: $showBlock, arrowEdge: .bottom) {
-                    blockPopover
-                }
-            } else {
-                Color.clear.frame(width: 1)
+                .foregroundStyle(Color.primary.opacity(0.75))
+                .padding(.horizontal, 8)
+                .frame(height: 24)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                        .fill(Color.primary.opacity(showBlock ? 0.09 : 0.05))
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .focusable(false)
+            .help("马赛克块大小")
+            .accessibilityLabel("马赛克块大小")
+            .popover(isPresented: $showBlock, arrowEdge: .bottom) {
+                blockPopover
             }
         }
-        .frame(width: 58, alignment: .leading)
     }
 
     private var blockPopover: some View {
@@ -562,11 +634,13 @@ struct AnnotationToolbarView: View {
 
 // MARK: - 工具条图标按钮
 
-/// 图标按钮：选中态强调色、悬停浅底、禁用降透明度；统一 28×28 命中区。
+/// 图标按钮：选中态强调色、悬停浅底、禁用降透明度；默认 28×28 命中区，
+/// 竖排工具栏按 `dimension` 传入自己的边长。
 struct ToolIconButton: View {
     let symbol: String
     var selected: Bool = false
     var enabled: Bool = true
+    var dimension: CGFloat = 28
     let help: String
     let action: () -> Void
 
@@ -576,7 +650,7 @@ struct ToolIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12.5, weight: .medium))
-                .frame(width: 28, height: 28)
+                .frame(width: dimension, height: dimension)
                 .foregroundStyle(selected ? Theme.accent
                                  : Color.primary.opacity(enabled ? 0.82 : 0.30))
                 .background(

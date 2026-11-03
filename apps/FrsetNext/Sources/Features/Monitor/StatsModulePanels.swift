@@ -190,14 +190,11 @@ struct StatsHistoryChart: View {
     var height: CGFloat = 74
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-            MonitorAreaSparkline(values: values, color: color, upperBound: upperBound)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 6)
-        }
-        .frame(height: height)
+        MonitorAreaSparkline(values: values, color: color, upperBound: upperBound)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+            .glassCard(radius: 6)
+            .frame(height: height)
     }
 }
 
@@ -211,16 +208,13 @@ struct StatsHistoryDualChart: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-            ZStack {
-                MonitorAreaSparkline(values: primaryValues, color: primaryColor)
-                MonitorSparkline(values: secondaryValues)
-                    .stroke(secondaryColor, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 6)
+            MonitorAreaSparkline(values: primaryValues, color: primaryColor)
+            MonitorSparkline(values: secondaryValues)
+                .stroke(secondaryColor, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
         }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
+        .glassCard(radius: 6)
         .frame(height: height)
     }
 }
@@ -903,9 +897,9 @@ private struct DiskStatsPanel: View {
                 // 容量条
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
                             .fill(Color.primary.opacity(0.12))
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
                             .fill(Color(red: 0.20, green: 0.52, blue: 0.98))
                             .frame(width: geo.size.width * ratio)
                     }

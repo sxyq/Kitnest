@@ -1,16 +1,16 @@
 # FrsetNext 模块依赖与规模
 
-> 自动生成，重算：`python3 tools/swift_catalog.py`　共 19 个模块 / 241 文件 / 75,652 行 / 11,719 个成员
+> 自动生成，重算：`python3 tools/swift_catalog.py`　共 19 个模块 / 238 文件 / 74,671 行 / 11,562 个成员
 
 ## 模块规模
 
 | 模块 | 文件 | 行数 | 成员 |
 |---|---:|---:|---:|
 | Capture | 39 | 13,328 | 2397 |
-| TransferDock | 26 | 9,876 | 1369 |
-| Panel | 20 | 7,970 | 1185 |
+| TransferDock | 23 | 8,867 | 1208 |
+| Panel | 20 | 7,985 | 1187 |
 | Monitor | 23 | 7,666 | 1277 |
-| Toolbox | 23 | 6,010 | 860 |
+| Toolbox | 23 | 6,023 | 862 |
 | Clipboard | 16 | 5,989 | 972 |
 | Archive | 14 | 5,663 | 744 |
 | AI | 25 | 4,500 | 807 |
@@ -50,16 +50,16 @@ flowchart LR
   M17["Toolbox"]
   M18["TransferDock"]
   M4 -->|112| M6
-  M18 -->|84| M6
   M13 -->|81| M6
   M17 -->|78| M6
+  M18 -->|77| M6
   M14 -->|69| M6
   M0 -->|69| M6
   M5 -->|68| M6
   M10 -->|65| M6
   M2 -->|44| M6
   M15 -->|33| M6
-  M13 -->|25| M5
+  M13 -->|26| M5
   M12 -->|23| M6
   M1 -->|16| M4
   M1 -->|15| M6
@@ -77,8 +77,8 @@ flowchart LR
   M5 -->|9| M11
   M5 -->|9| M16
   M1 -->|8| M18
-  M14 -->|8| M4
   M14 -->|8| M11
+  M14 -->|8| M4
   M14 -->|8| M17
   M4 -->|8| M17
   M10 -->|8| M11
@@ -109,7 +109,6 @@ flowchart LR
 | 14 | 220 | TransferDockSettingsPane.body | `Features/TransferDock/TransferDockSettingsPane.swift:30` |
 | 14 | 16 | PermissionCenter.quickStatus | `Features/Onboarding/PermissionCenter.swift:172` |
 | 13 | 110 | NetworkStatsPanel.diagnosticsSection | `Features/Monitor/StatsModulePanels.swift:1054` |
-| 13 | 76 | AdbPairingView.body | `Features/TransferDock/AdbPairingView.swift:33` |
 | 13 | 14 | Phase.text | `Features/TransferDock/AdbQrPairing.swift:69` |
 | 13 | 73 | TransferDockView.lanCard | `Features/TransferDock/TransferDockView.swift:545` |
 | 13 | 16 | SearchEngine.logoAssetName | `Models/SearchEngine.swift:27` |
@@ -125,3 +124,4 @@ flowchart LR
 | 11 | 12 | CaptureMode.title | `Features/Capture/CaptureEventBus.swift:40` |
 | 11 | 13 | CaptureMode.systemImage | `Features/Capture/CaptureEventBus.swift:55` |
 | 11 | 8 | MonitorPopoutWindowController.cancelDismiss | `Features/Monitor/MonitorPopoutWindow.swift:240` |
+| 11 | 9 | CloudLinkPromptController.handle | `Features/Panel/CloudLinkPrompt.swift:66` |

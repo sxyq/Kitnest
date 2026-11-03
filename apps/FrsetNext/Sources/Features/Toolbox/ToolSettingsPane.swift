@@ -62,8 +62,7 @@ public struct ToolSettingsPane: View {
         .font(.system(size: 12))
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Theme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous))
+        .glassCard(radius: Theme.cornerRadius)
         .id(revision)
         .confirmationDialog("恢复工具默认设置？", isPresented: $confirmReset) {
             Button("恢复默认设置") {

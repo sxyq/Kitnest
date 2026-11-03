@@ -169,9 +169,101 @@ public final class BatteryEnergySampler: ObservableObject {
 
     /// 功耗文案：< 1 W 用 mW（与原版一致），否则用 W
     public static func wattsText(_ watts: Double) -> String {
+        // v183：分流图里有「充入电池 0 W」这种真实零值分支——原来会显示成
+        // 「0.0 mW」，像传感器坏了；零就是零，直接写 0 W。
+        if watts <= 0.0005 { return "0 W" }
         if watts < 0.9999 {
             return String(format: "%.1f mW", max(0, watts) * 1000)
         }
         return String(format: "%.2f W", watts)
+    }
+}
+
+// MARK: - CPU 能耗影响（v183：从电池页迁到功耗页）
+
+/// 「谁在耗电」——按 App 归类的能耗排名。
+/// 归属：**功耗页**（整机功率账本的应用级视角），电池页只保留电池硬件本身。
+struct CPUEnergyImpactSection: View {
+    let stats: StatsSnapshot
+    @ObservedObject private var energy = BatteryEnergySampler.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("CPU 能耗影响")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                if energy.phase == .sampling {
+                    Text("正在建立基线…")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiaryText)
+                } else if energy.phase == .ready, energy.window > 0 {
+                    Text(String(format: "近 %.0f 秒", energy.window))
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiaryText)
+                }
+            }
+
+            switch energy.phase {
+            case .unavailable:
+                // 量纲回退：绝不在同一个表里混排 mW 与 %，整块换口径并说明
+                ForEach(Array(stats.procCPU.prefix(5))) { item in
+                    HStack(spacing: 7) {
+                        Image(nsImage: BatteryEnergyIconCache.icon(for: item.iconPath, pid: item.pid))
+                            .resizable()
+                            .frame(width: 15, height: 15)
+                        Text(item.name)
+                            .font(.system(size: 11.5))
+                            .lineLimit(1)
+                        Spacer(minLength: 6)
+                        Text(String(format: "%.0f%%", item.cpu))
+                            .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Text("当前系统不支持能耗计数，改按 CPU 活跃度显示（百分比与 mW 不是同一量纲，故不混排）。")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .idle, .sampling:
+                if energy.items.isEmpty {
+                    Text("正在采样…（约 1–2 秒）")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                } else {
+                    rows
+                }
+            case .ready:
+                rows
+            }
+
+            if energy.phase == .ready || !energy.items.isEmpty {
+                Text("按当前用户可见进程的 CPU 能耗计数排序，不等同于活动监视器的综合能耗影响（后者还含磁盘、网络等因素）。")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .lineSpacing(1.4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear { energy.start() }
+        .onDisappear { energy.stop() }
+    }
+
+    private var rows: some View {
+        ForEach(Array(energy.items.prefix(5))) { item in
+            HStack(spacing: 7) {
+                Image(nsImage: BatteryEnergyIconCache.icon(for: item.iconPath, pid: item.pid))
+                    .resizable()
+                    .frame(width: 15, height: 15)
+                Text(item.name)
+                    .font(.system(size: 11.5))
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Text(BatteryEnergySampler.wattsText(item.watts))
+                    .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }

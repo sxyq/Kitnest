@@ -31,7 +31,7 @@ struct TransferDockSettingsPane: View {
         VStack(spacing: 20) {
             SettingsSection("显示") {
                 SettingsGroupBox {
-                    row("面板入口", subtitle: "主面板顶部出现「文件中转」分段") {
+                    row("启用文件中转", subtitle: "关掉后中转页显示「已关闭」；顶部是否出现该分段见「个性化 → 主面板页面」") {
                         Toggle("", isOn: $panelVisible)
                             .labelsHidden().toggleStyle(.switch).controlSize(.small)
                     }

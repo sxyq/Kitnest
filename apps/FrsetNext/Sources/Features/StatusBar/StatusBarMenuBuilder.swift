@@ -18,7 +18,10 @@ public enum StatusBarMenuBuilder {
                                             accessibilityDescription: "使用统计")
     private static let customRootImage = NSImage(systemSymbolName: MenuBarIconStyle.custom.systemImage,
                                                  accessibilityDescription: "自定义菜单栏图标")
-    private static let monitorModules: [MonitorModuleID] = MonitorModuleID.allCases.filter { $0 != .battery }
+    // v183：电池与充电不在这份「显示项」清单里——它们没有独立的状态栏部件，
+    // 开关统一在「设置 → 监测」里，避免菜单里出现一个勾了也没效果的项。
+    private static let monitorModules: [MonitorModuleID] = MonitorModuleID.allCases
+        .filter { $0 != .battery }
     private static let styleCases: [MenuBarIconStyle] = MenuBarIconStyle.allCases
     private static let styleCasesWithoutCustom: [MenuBarIconStyle] = MenuBarIconStyle.allCases.filter { $0 != .custom }
 
@@ -93,6 +96,10 @@ public enum StatusBarMenuBuilder {
         // 这里给一个全局入口；任务进行中 HUD 会自动出现，这个入口用于重新打开详情。
         menu.addItem(track(item("归档任务…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openArchiveTasksAction(_:)), target: target)))
+
+        // 代码预览（代码美化）：取剪贴板里的代码，框内换主题/语言，一键复制富文本
+        menu.addItem(track(item("代码预览…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.openCodePreviewAction(_:)), target: target)))
 
         // 欢迎与权限引导（重建版 onboarding；首启自动弹，此处提供手动入口）
         let onboardingItem = track(item("欢迎与权限…", key: "", modifiers: [],

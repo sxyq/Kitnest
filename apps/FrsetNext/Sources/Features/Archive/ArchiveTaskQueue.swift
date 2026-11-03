@@ -70,6 +70,9 @@ public final class ArchiveTaskQueue: ObservableObject {
         public var progress: Double
         /// 阶段/结果说明（排队中 / 核对路径… / 解压中… / 已跳过 N 个不安全路径…）
         public var message: String
+        /// v181：产物位置（压缩包路径 / 解压目标目录）。完成后任务行给「在访达中显示」，
+        /// 解决「压完了东西在哪」——原来任务窗只有一句「完成」，用户还得自己去找。
+        public var outputURL: URL?
 
         public var isFinished: Bool {
             state == .done || state == .failed || state == .cancelled
@@ -102,12 +105,15 @@ public final class ArchiveTaskQueue: ObservableObject {
     // MARK: 入队 / 完成
 
     /// 排队一个任务，立刻返回 taskID（可拿去 cancel）
+    /// - Parameter output: 产物位置（压缩包 / 解压目录），任务窗据此提供「在访达中显示」
     @discardableResult
-    public func enqueue(kind: Kind, title: String, work: @escaping Work) -> UUID {
+    public func enqueue(kind: Kind, title: String, output: URL? = nil,
+                        work: @escaping Work) -> UUID {
         let id = UUID()
         onMain {
             self.tasks.append(ArchiveTask(id: id, kind: kind, title: title,
-                                          state: .waiting, progress: -1, message: "排队中"))
+                                          state: .waiting, progress: -1, message: "排队中",
+                                          outputURL: output))
             self.pending.append((id, work))
             self.pump()
         }

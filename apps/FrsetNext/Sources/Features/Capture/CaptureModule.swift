@@ -24,6 +24,12 @@ public enum CaptureModule: AppModule {
                 AnnotationEditorController.shared.debugCornerDemo()
             }
         }
+        // 排障探针（v181）：左侧竖排工具条——真实图幅下的观感 + 命中区（竖栏吃点击、画布其余部分穿透）
+        if UserDefaults.standard.bool(forKey: "probe.annotationRail") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                AnnotationEditorController.shared.debugRailProbe()
+            }
+        }
         if UserDefaults.standard.bool(forKey: "probe.longPreview") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
                 let w = 900, h = 2600

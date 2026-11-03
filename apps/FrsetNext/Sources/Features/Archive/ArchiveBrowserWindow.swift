@@ -663,19 +663,40 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
 
     private static var open: [String: ArchiveBrowserWindowController] = [:]
 
-    public static func show(url: URL, selectFirst: Bool = false) {
+    public static func show(url: URL, selectFirst: Bool = false, selectPath: String? = nil) {
         let key = url.standardizedFileURL.path
         if let existing = open[key] {
             existing.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            if selectFirst { existing.selectFirstEntry() }
+            if let selectPath { existing.selectEntry(path: selectPath) }
+            else if selectFirst { existing.selectFirstEntry() }
             return
         }
         let controller = ArchiveBrowserWindowController(url: url)
         open[key] = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
-        if selectFirst { controller.selectFirstEntry() }
+        if let selectPath { controller.selectEntry(path: selectPath) }
+        else if selectFirst { controller.selectFirstEntry() }
+    }
+
+    /// 排障用（v181）：按路径/文件名选中某一条并加载预览。
+    /// 本机合成点击在系统权限弹窗挡住列表时点不中，靠深链把要核对的那一条稳定选中。
+    func selectEntry(path: String, attempt: Int = 0) {
+        let delay: TimeInterval = attempt == 0 ? 1.2 : 0.9
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            if let entry = self.model.visibleEntries.first(where: {
+                $0.path == path || $0.name == path
+            }) {
+                self.model.selection = [entry.path]
+                self.model.loadPreview(for: entry)
+                Log.info("Archive", "排障：已选中 \(entry.path)")
+                return
+            }
+            if attempt < 6 { self.selectEntry(path: path, attempt: attempt + 1) }
+            else { Log.warn("Archive", "排障：找不到条目 \(path)") }
+        }
     }
 
     /// 排障用（v171）：选中第一条并加载预览。
@@ -804,6 +825,13 @@ struct ArchiveBrowserView: View {
     }
 
     // MARK: 工具栏
+    //
+    // v181（用户：「按钮太多太杂，没有有效分类，太挤」）：照截图编辑器的做法重排——
+    //   · 一条 46pt 的工具条，控件按「标题 │ 搜索 │ 视图 │ 历史 │ 主操作 │ 更多」分组，组间竖线；
+    //   · 图标按钮统一 28×28 圆角命中区（复用 Capture 的 `ToolIconButton`，与标注工具栏同一形状）；
+    //   · 只剩一个主操作（解压，强调色胶囊，menu 里带「解压全部 / 所选 / 解压到…」）；
+    //   · 低频动作（添加文件 / 重命名 / 删除 / 另存加密 / 辅助文件 / 归档任务）收进「⋯」；
+    //   · 「保存」只在有未保存修改时出现，不占常驻位置。
 
     private var undoTitle: String {
         model.undoStack.canUndo ? "撤销 \(model.undoStack.undoLabel)" : "撤销"
@@ -823,87 +851,235 @@ struct ArchiveBrowserView: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
+            archiveTitle
+            Spacer(minLength: 6)
+            searchField
+            barSeparator
+            viewModeGroup
+            barSeparator
+            historyGroup
+            if model.dirty && editableSelection {
+                saveButton
+            }
+            barSeparator
+            extractButton
+            moreMenu
+            taskButton
+            if let err = model.errorText {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .help(err)
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 46)
+    }
+
+    /// 左：归档名 + 摘要
+    private var archiveTitle: some View {
+        HStack(spacing: 9) {
             Image(systemName: "archivebox.fill")
+                .font(.system(size: 15))
                 .foregroundStyle(Theme.accent)
             VStack(alignment: .leading, spacing: 0) {
                 Text(model.url.lastPathComponent)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
+                    .truncationMode(.middle)
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(.system(size: 10.5))
                     .foregroundStyle(.secondary)
-            }
-            Spacer()
-            // v127（ArcZip P1）：列表 ↔ 图标视图切换
-            Picker("", selection: $iconView) {
-                Image(systemName: "list.bullet").tag(false).help("列表视图")
-                Image(systemName: "square.grid.2x2").tag(true).help("图标视图")
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 76)
-            // v124：辅助文件显隐开关（ArcZip「显示辅助文件开关」）
-            Toggle("辅助文件", isOn: $model.showAuxiliary)
-                .toggleStyle(.checkbox)
-                .font(.system(size: 11))
-                .help("__MACOSX / .DS_Store / Thumbs.db / desktop.ini / ._* ")
-            TextField("搜索条目", text: $model.searchText)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 150)
-            // v127（ArcZip P0）：撤销/重做（⌘Z / ⇧⌘Z），标题即「撤销 %@」
-            Button(undoTitle) { model.undoStack.undo() }
-                .disabled(!model.undoStack.canUndo)
-                .keyboardShortcut("z", modifiers: .command)
-                .help("撤销上一次修改（⌘Z）")
-            Button(redoTitle) { model.undoStack.redo() }
-                .disabled(!model.undoStack.canRedo)
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-                .help("重做（⇧⌘Z）")
-            Button("解压全部") { model.extractAll() }
-            Button("添加文件") { model.pickAndAddFiles() }
-            Button("重命名") { model.renameSelected() }
-                .disabled(model.selection.isEmpty)
-                .help("多选时只重命名第一个")
-            Button("删除") { model.deleteSelected() }
-                .disabled(model.selection.isEmpty)
-                .help("删除所有选中项（可撤销）")
-            Button("保存到归档") { model.saveDraft() }
-                .disabled(!model.dirty || !editableSelection)
-                .keyboardShortcut("s", modifiers: .command)
-            if model.editable {
-                Button("另存加密…") { model.saveEncryptedCopy() }
-                    .help("把整个归档另存为带密码的新归档（v124）")
-            }
-            // v127 接线（arch-engine P2-1）：归档任务进度窗（解压/压缩队列）
-            // v180：加角标——原来只有一个图标，用户根本不知道有任务在跑
-            Button {
-                ArchiveProgressWindowController.toggle()
-            } label: {
-                Image(systemName: "list.bullet.rectangle.portrait")
-                    .overlay(alignment: .topTrailing) {
-                        if activeTaskCount > 0 {
-                            Text("\(activeTaskCount)")
-                                .font(.system(size: 9, weight: .bold).monospacedDigit())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 0.5)
-                                .background(Capsule().fill(Color.red))
-                                .offset(x: 7, y: -6)
-                        }
-                    }
-            }
-            .help(taskQueue.tasks.isEmpty
-                  ? "归档任务（解压/压缩队列）"
-                  : "归档任务：\(taskQueue.summaryText)")
-            if let err = model.errorText {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .help(err)
+                    .lineLimit(1)
             }
         }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .frame(maxWidth: 240, alignment: .leading)
+    }
+
+    /// 搜索：胶囊底 + 放大镜，宽度弹性（窗口窄时先压它）
+    private var searchField: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Theme.tertiaryText)
+            TextField("搜索条目", text: $model.searchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 11.5))
+            if !model.searchText.isEmpty {
+                Button {
+                    model.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiaryText)
+                }
+                .buttonStyle(.plain)
+                .help("清空搜索")
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 26)
+        .frame(minWidth: 130, idealWidth: 170, maxWidth: 220)
+        .glassCard(radius: Theme.Radius.control)
+    }
+
+    /// 视图切换：列表 / 图标（两个 28pt 图标按钮，选中浅底，与标注工具栏一致）
+    private var viewModeGroup: some View {
+        HStack(spacing: 1) {
+            ToolIconButton(symbol: "list.bullet", selected: !iconView,
+                           help: "列表视图") {
+                iconView = false
+            }
+            ToolIconButton(symbol: "square.grid.2x2", selected: iconView,
+                           help: "图标视图") {
+                iconView = true
+            }
+        }
+    }
+
+    /// 撤销 / 重做（不可用时自动禁用置灰）
+    private var historyGroup: some View {
+        HStack(spacing: 1) {
+            ToolIconButton(symbol: "arrow.uturn.backward", enabled: model.undoStack.canUndo,
+                           help: "\(undoTitle)  ⌘Z") {
+                model.undoStack.undo()
+            }
+            ToolIconButton(symbol: "arrow.uturn.forward", enabled: model.undoStack.canRedo,
+                           help: "\(redoTitle)  ⇧⌘Z") {
+                model.undoStack.redo()
+            }
+        }
+    }
+
+    /// 保存（只在有未保存修改时出现，⌘S 仍然可用）
+    private var saveButton: some View {
+        Button {
+            model.saveDraft()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "square.and.arrow.down")
+                    .font(.system(size: 10.5, weight: .semibold))
+                Text("保存")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .background(Capsule().fill(Color.orange))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .keyboardShortcut("s", modifiers: .command)
+        .help("把修改写回归档（⌘S）")
+    }
+
+    /// 主操作：解压。有选中项就解压所选，否则解压全部；长按/点箭头出更多解压方式。
+    private var extractButton: some View {
+        Menu {
+            Button("解压全部") { model.extractAll() }
+            if !model.selection.isEmpty {
+                Button("解压所选（\(model.selection.count) 项）") { model.extractSelected() }
+            }
+            Divider()
+            Button("保存到归档") { model.saveDraft() }
+                .disabled(!model.dirty || !editableSelection)
+            if model.editable {
+                Button("另存加密…") { model.saveEncryptedCopy() }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.down.doc")
+                    .font(.system(size: 10.5, weight: .semibold))
+                Text(model.selection.isEmpty ? "解压" : "解压 \(model.selection.count) 项")
+                    .font(.system(size: 11, weight: .semibold))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 7, weight: .bold))
+                    .opacity(0.85)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .background(Capsule().fill(Theme.accent))
+            .contentShape(Capsule())
+        } primaryAction: {
+            if model.selection.isEmpty { model.extractAll() } else { model.extractSelected() }
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("解压（有选中项时解压所选）")
+    }
+
+    /// 更多：低频动作集中在这里，避免工具条被按钮填满
+    private var moreMenu: some View {
+        Menu {
+            Button("添加文件…") { model.pickAndAddFiles() }
+            Button("重命名…") { model.renameSelected() }
+                .disabled(model.selection.isEmpty)
+            Button("删除选中") { model.deleteSelected() }
+                .disabled(model.selection.isEmpty)
+            Divider()
+            Toggle("显示辅助文件", isOn: $model.showAuxiliary)
+            Button("隐藏的辅助文件：__MACOSX / .DS_Store / Thumbs.db") {}
+                .disabled(true)
+            Divider()
+            Button("任务队列…") { ArchiveProgressWindowController.toggle() }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 12.5, weight: .medium))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(Color.primary.opacity(0.8))
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("更多操作")
+    }
+
+    /// 任务队列入口（v181）：压缩/解压的长任务从这里看。
+    /// 有任务在跑时图标转强调色 + 数字角标（角标是「运行中+等待」），
+    /// 没任务时保持中性——不要为了一个空队列常驻一个红点。
+    private var taskButton: some View {
+        let active = activeTaskCount > 0
+        return Button {
+            ArchiveProgressWindowController.toggle()
+        } label: {
+            Image(systemName: "list.bullet.rectangle.portrait")
+                .font(.system(size: 12.5, weight: .medium))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(active ? Theme.accent : Color.primary.opacity(0.8))
+                .background {
+                    if active {
+                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                            .fill(Theme.accent.opacity(0.12))
+                    }
+                }
+                .contentShape(Rectangle())
+                .overlay(alignment: .topTrailing) {
+                    if active {
+                        Text("\(activeTaskCount)")
+                            .font(.system(size: 9, weight: .bold).monospacedDigit())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 0.5)
+                            .background(Capsule().fill(Theme.accent))
+                            .offset(x: 6, y: -5)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help(taskQueue.tasks.isEmpty
+              ? "任务队列（压缩/解压）：暂时没有任务"
+              : "任务队列：\(taskQueue.summaryText)")
+    }
+
+    private var barSeparator: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.12))
+            .frame(width: 0.5, height: 18)
     }
 
     /// 运行中 + 等待中（失败的不算，避免角标一直挂着）
@@ -1021,7 +1197,7 @@ struct ArchiveBrowserView: View {
                     ArchiveEntryTile(entry: entry, archivePath: model.url.path, size: 64)
                         .padding(6)
                         .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .fill(model.selection.contains(entry.path)
                                       ? Theme.accent.opacity(0.18)
                                       : Color.clear)
@@ -1059,26 +1235,17 @@ struct ArchiveBrowserView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .text(let text):
-                VStack(spacing: 0) {
-                    HStack {
-                        Text("文本 · \(model.previewEntry?.name ?? "")")
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
-                        Spacer()
-                        if model.editable {
-                            Text(model.dirty ? "未保存" : "已同步")
-                                .font(.system(size: 11))
-                                .foregroundStyle(model.dirty ? .orange : .secondary)
-                        }
-                    }
-                    .padding(.horizontal, 10).padding(.vertical, 4)
-                    Divider()
-                    TextEditor(text: $model.draftText)
-                        .font(.system(size: 11.5, design: .monospaced))
-                        .padding(6)
-                        .onChange(of: model.draftText) { new in
-                            model.dirty = (new != text)
-                        }
-                }
+                // v181：文本预览与剪贴板预览同口径（Markdown 排版 / JSON 检视器 / 代码行号 / 纯文本）；
+                // 可编辑的归档额外提供「预览 ↔ 编辑」开关，编辑态沿用原来的纯文本编辑器。
+                ArchiveTextPreview(
+                    text: text,
+                    entryName: model.previewEntry?.name ?? "",
+                    editable: model.editable,
+                    draft: $model.draftText,
+                    dirty: model.dirty,
+                    restoreKey: model.previewEntry?.path ?? model.url.lastPathComponent,
+                    onEdit: { new in model.dirty = (new != text) })
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .image(let img):
                 VStack(spacing: 8) {
                     Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).padding(12)
@@ -1244,6 +1411,6 @@ struct ArchiveInspectorBar: View {
                 .padding(.bottom, 8)
             }
         }
-        .background(Color.primary.opacity(0.03))
+        .background(Theme.cardFill)
     }
 }

@@ -34,10 +34,14 @@ public struct MonitorDetailView: View {
     @ObservedObject private var sampler = MonitorSampler.shared
     @ObservedObject private var selection: MonitorDetailSelection
     @ObservedObject private var memoryOptimizer = MemoryOptimizer.shared
+    /// v183：网络页的 1 秒实时脉冲（与通用采样节奏解耦）
+    @ObservedObject private var netPulse = NetworkPulse.shared
     /// 页面模式：只渲染模块内容，标签行与底栏由 StatsPageView 提供（宽度撑满、无固定 292 限宽）
     private let pageMode: Bool
     /// 固定宽度（nil = 撑满容器；独立窗 v71 传 nil 消除两侧留白，菜单栏 popover 保留 292）
     private let fixedWidth: CGFloat?
+    /// 温度页：原始传感器列表默认折叠（v181 起主视图换成 4 条热区）
+    @Stored private var showsAllTemperatures = false
 
     public init(module: MonitorModuleID = .cpu, pageMode: Bool = false) {
         self.selection = MonitorDetailSelection(module)
@@ -117,6 +121,8 @@ public struct MonitorDetailView: View {
                     .contentShape(Capsule(style: .continuous))
                 }
                 .buttonStyle(.plain)
+                // v183：深链/键盘切换后第一个胶囊会吃焦点环，看着像「两个都选中」
+                .focusable(false)
             }
         }
     }
@@ -136,7 +142,7 @@ public struct MonitorDetailView: View {
             case .sensors:
                 if MonitorPreferences.showTemperatures { modules.append(module) }
             case .battery:
-                if sampler.sample.batteryLevel != nil || selection.module == .battery { modules.append(module) }
+                if sampler.sample.batteryLevel != nil || selection.module == module { modules.append(module) }
             case .gpu:
                 // 有 GPU 数据（IOAccelerator 可读）才显示
                 if stats.gpuUsage >= 0 || selection.module == .gpu { modules.append(module) }
@@ -168,6 +174,12 @@ public struct MonitorDetailView: View {
 
     private var powerPanel: some View {
         let sample = sampler.sample
+        let stats = StatsDataProvider.shared.current
+        // v183：大数字与流向图**必须同源**。原来大数字取 MonitorReader 的 powerWatts、
+        // 流向图取电池适配器读数，同一时刻能显示 19.7W / 20.17W 两个值——
+        // 用户看到的就是「一个页面两个数」。现在以流向图的输入为准，读不到才回退。
+        let flow = BatteryFlowModel(battery: stats.battery)
+        let headlineWatts = flow.input.available ? flow.input.watts : sample.powerWatts
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
                 Image(systemName: sample.powerIsInput ? "bolt.fill" : "bolt.slash.fill")
@@ -180,15 +192,26 @@ public struct MonitorDetailView: View {
                          : "输出（电池供电）")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text(sample.powerWatts.map { MonitorFormat.power($0) } ?? "—")
+                    Text(headlineWatts.map { MonitorFormat.power($0) } ?? "—")
                         .font(.system(size: 24, weight: .semibold).monospacedDigit())
                 }
             }
 
-            if let level = sampler.sample.batteryLevel {
-                MonitorRow(label: "电池电量", value: MonitorFormat.percent(level), color: MonitorColors.battery)
+            // v181：复用电池页那张流向图（来源 → 流带 → 分支），两个页面口径统一。
+            // 分支只画真拿到读数的：机型不给显示器/USB 功率就没有这两条，绝不补 0 W。
+            let powerBranches = flow.branches + powerExtraBranches(stats.sensors)
+            if !powerBranches.isEmpty {
+                MonitorSectionTitle("电源流向")
+                MonitorFlowCard(input: flowNode(flow.input),
+                                branches: powerBranches.map(flowNode))
+                Text("流带粗细 = 功率占比。显示器 / USB 这类分支需要机型提供对应功率传感器，读不到就不画。")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            MonitorRow(label: "电源", value: sample.externalPower ? "已连接适配器" : "电池供电")
+            // v183：应用级能耗（原来在电池页，属于「电被谁用了」→ 功耗页）
+            CPUEnergyImpactSection(stats: stats)
+
             Text("数据源：AppleSmartBattery PowerTelemetryData（接电取 SystemPowerIn / 充入电池功率；放电取电池放电功率绝对值）")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -201,6 +224,13 @@ public struct MonitorDetailView: View {
     private var cpuPanel: some View {
         let sample = sampler.sample
         let stats = StatsDataProvider.shared.current
+        let history = sampler.history.cpu
+        let average = history.isEmpty
+            ? sample.cpuUsage
+            : history.reduce(0, +) / Double(history.count)
+        let peak = history.max() ?? sample.cpuUsage
+        let cores = Double(max(1, CPUHardware.logicalCores))
+
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
                 // 温度环（原版 v56 布局：橙色环 + "81°"，总占用环左侧）
@@ -233,26 +263,62 @@ public struct MonitorDetailView: View {
                 }
             }
 
+            // v183：芯片规格 + 热压力。原页面顶部只有两个环和四行数字，
+            // 读不到温度传感器时还会空出半个环位——这里用一行把「这台机器是什么」补上。
+            chipStrip(stats)
+
             MonitorSectionTitle("使用历史")
-            MonitorAreaSparkline(
-                values: sampler.history.cpu,
-                color: MonitorColors.user,
-                upperBound: 1
-            )
-            .frame(height: 46)
+            HStack(spacing: 6) {
+                Text("当前 \(MonitorFormat.percent(sample.cpuUsage))")
+                    .foregroundStyle(MonitorColors.user)
+                Spacer(minLength: 4)
+                Text("均值 \(MonitorFormat.percent(average)) · 峰值 \(MonitorFormat.percent(peak))")
+                    .foregroundStyle(Theme.tertiaryText)
+            }
+            .font(.system(size: 9.5, weight: .medium).monospacedDigit())
+            ZStack(alignment: .bottomLeading) {
+                historyGrid
+                MonitorAreaSparkline(
+                    values: history,
+                    color: MonitorColors.user,
+                    upperBound: 1,
+                    slots: MonitorSampler.historyCapacity,
+                    lineWidth: 1.6
+                )
+                if history.count < 10 {
+                    // 刚启动时历史只有几个点，曲线是贴在右边的一小截——
+                    // 不说明的话看起来就像「图没画出来」
+                    Text("采样中 \(history.count)/\(MonitorSampler.historyCapacity) · 约 1 分钟后曲线完整")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .padding(.leading, 4)
+                        .padding(.bottom, 2)
+                }
+            }
+            .frame(height: 52)
 
-            MonitorSectionTitle("每核心（\(max(sample.perCore.count, 0)) 核）")
-            MonitorBarChart(values: sample.perCore, color: MonitorColors.user)
-                .frame(height: 40)
-
-            // CPU 集群（Apple Silicon：E/P/S 分簇占用行；Intel 不显示）
-            if stats.cpuSuperCores >= 0 {
-                MonitorSectionTitle("集群占用（S\(stats.cpuSuperCores) / E\(stats.cpuEffCores)\(stats.cpuMedCores >= 0 ? " / M\(stats.cpuMedCores)" : "")）")
-                VStack(spacing: 3) {
-                    MonitorRow(label: "性能核（P/S）", value: MonitorFormat.percent(stats.clusterSuperUsage), color: MonitorColors.user)
-                    MonitorRow(label: "能效核（E）", value: MonitorFormat.percent(stats.clusterEffUsage), color: MonitorColors.download)
-                    if stats.cpuMedCores >= 0 {
-                        MonitorRow(label: "中核（M）", value: MonitorFormat.percent(stats.clusterMedUsage), color: MonitorColors.memory)
+            // v183：每核心从小蓝块换成带刻度的迷你柱（核编号 + 百分比），
+            // 集群占用从三行文字改成胶囊——原来「M0」还会凭空多出一行 0%。
+            MonitorSectionTitle("核心占用（\(max(sample.perCore.count, 0)) 核）")
+            if sample.perCore.isEmpty {
+                Text("等待核心采样…")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
+            } else {
+                MonitorCoreGrid(values: sample.perCore)
+            }
+            if stats.cpuSuperCores > 0 {
+                HStack(spacing: 6) {
+                    MonitorClusterPill(title: "性能核 P\(stats.cpuSuperCores)",
+                                       value: stats.clusterSuperUsage,
+                                       color: MonitorColors.user)
+                    MonitorClusterPill(title: "能效核 E\(stats.cpuEffCores)",
+                                       value: stats.clusterEffUsage,
+                                       color: MonitorColors.download)
+                    if stats.cpuMedCores > 0 {
+                        MonitorClusterPill(title: "中核 M\(stats.cpuMedCores)",
+                                           value: stats.clusterMedUsage,
+                                           color: MonitorColors.memory)
                     }
                 }
             }
@@ -263,6 +329,15 @@ public struct MonitorDetailView: View {
                 loadCell("5 分钟", value: sample.loadAverage5m)
                 loadCell("15 分钟", value: sample.loadAverage15m)
             }
+            // 负载是「排队任务数」不是百分比：不给核心数做分母，7.6 是高是低没人知道
+            let perCore1 = sample.loadAverage1m / cores
+            Text("每核负载 \(MonitorFormat.load(perCore1))"
+                 + " · \(MonitorFormat.load(sample.loadAverage5m / cores))"
+                 + " · \(MonitorFormat.load(sample.loadAverage15m / cores))"
+                 + "（> 1 表示有任务在排队）")
+                .font(.system(size: 10))
+                .foregroundStyle(perCore1 > 1 ? MonitorColors.compressed : Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
             // v84（用户需求「归类 + 展开 + 图标 + 退出」）：高占用进程改用统一进程表——
             // 按 App 归类（Helper/Renderer 合并）、真实图标、点击展开组内明细、右键退出。
@@ -276,7 +351,57 @@ public struct MonitorDetailView: View {
         }
     }
 
-    /// 启动时长文案（原版 v56："4 天 19 小时"）
+    /// 历史曲线的参考网格（25% / 50% / 75%），空图时也不至于是一块空白
+    private var historyGrid: some View {
+        GeometryReader { geo in
+            Path { path in
+                for index in 1...3 {
+                    let y = geo.size.height * CGFloat(index) / 4
+                    path.move(to: CGPoint(x: 0, y: y))
+                    path.addLine(to: CGPoint(x: geo.size.width, y: y))
+                }
+            }
+            .stroke(Color.primary.opacity(0.06),
+                    style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+        }
+    }
+
+    /// 芯片规格 + 热压力（一行，不占高度）
+    private func chipStrip(_ stats: StatsSnapshot) -> some View {
+        let thermal = CPUHardware.thermal
+        var chip = "\(CPUHardware.brand) · \(CPUHardware.logicalCores) 核"
+        if stats.cpuSuperCores > 0 && stats.cpuEffCores > 0 {
+            chip += "（P\(stats.cpuSuperCores) + E\(stats.cpuEffCores)）"
+        }
+        chip += " · macOS \(CPUHardware.osVersion)"
+
+        return HStack(spacing: 7) {
+            Image(systemName: "cpu")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+            Text(chip)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(chip)
+            Spacer(minLength: 6)
+            HStack(spacing: 4) {
+                Circle().fill(thermal.color).frame(width: 5, height: 5)
+                Text(thermal.text)
+                    .font(.system(size: 9.5, weight: .medium))
+                    .foregroundStyle(thermal.color)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule(style: .continuous).fill(thermal.color.opacity(0.10)))
+            // 不被左侧芯片名挤扁（原来会被压到只剩半个字）
+            .fixedSize()
+            .help("热压力：\(thermal.text.replacingOccurrences(of: "热压力 ", with: ""))")
+        }
+    }
+
     private static func uptimeText() -> String {
         let up = ProcessInfo.processInfo.systemUptime
         let days = Int(up) / 86400
@@ -302,16 +427,25 @@ public struct MonitorDetailView: View {
         for key in ["CPU 包温", "CPU 二极管", "CPU 邻近"] {
             if let value = temperatures[key] { return value }
         }
-        return temperatures.values.first
+        if let any = temperatures.values.first { return any }
+        // v183：温度采样受「采集温度」开关/传感器扫描节流影响，可能这一帧为空——
+        // 兜底用温度页同一套热区（CPU 区最热那颗），避免顶部平白空出半个环位。
+        return MonitorThermalZones
+            .build(from: StatsDataProvider.shared.current.sensors)
+            .first(where: { $0.id == "cpu" })?
+            .celsius
     }
 
     // MARK: - 内存
 
     private var memoryPanel: some View {
         let sample = sampler.sample
-        let compressed = sample.compressedMemory
-        let app = Double(sample.memoryUsed) - Double(min(compressed, sample.memoryUsed))
-        let rest = Double(sample.memoryTotal) - Double(sample.memoryUsed)
+        let stats = StatsDataProvider.shared.current
+        let compressed = stats.memCompressed > 0 ? stats.memCompressed : sample.compressedMemory
+        let wired = stats.memWired
+        let app = max(0, Double(sample.memoryUsed) - Double(compressed) - Double(wired))
+        let freeMemory = Double(sample.memoryTotal > sample.memoryUsed
+                                ? sample.memoryTotal - sample.memoryUsed : 0)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
                 ZStack {
@@ -335,18 +469,27 @@ public struct MonitorDetailView: View {
 
             MemoryOptimizeSection(optimizer: memoryOptimizer)
 
+            // v181：四段构成（应用 / 压缩 / 联动 / 空闲）。
+            // 原实现把「总量 − 已用」当成「联动/空闲」一段，把 wired 和 free 混在一起，
+            // 看图分不出「被系统锁住的」和「真的还能用」的——现在拆开，并单独标可回收量。
             MonitorSectionTitle("内存构成")
             MonitorStackedBar(segments: [
                 .init(id: "app", value: app, color: MonitorColors.memory),
                 .init(id: "compressed", value: Double(compressed), color: MonitorColors.compressed),
-                .init(id: "wired", value: max(0, rest), color: MonitorColors.wired)
+                .init(id: "wired", value: Double(stats.memWired), color: MonitorColors.wired),
+                .init(id: "free", value: freeMemory, color: Color.primary.opacity(0.12))
             ], height: 10)
             HStack(spacing: 10) {
                 legendItem("应用", color: MonitorColors.memory)
                 legendItem("压缩", color: MonitorColors.compressed)
-                legendItem("联动/空闲", color: MonitorColors.wired)
+                legendItem("联动", color: MonitorColors.wired)
+                legendItem("空闲", color: .secondary)
             }
             .font(.system(size: 11))
+            Text("可回收 ≈ \(MonitorFormat.bytes(MonitorFormat.u64(Double(compressed))))"
+                 + "（压缩内存可被系统丢弃后重新换出）")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
 
             MonitorSectionTitle("使用历史")
             MonitorAreaSparkline(values: sampler.history.memory, color: MonitorColors.memory, upperBound: 1)
@@ -373,48 +516,169 @@ public struct MonitorDetailView: View {
         }
     }
 
+    // MARK: - 可视化数据整形（v181）
+
+    /// 各 App 的带宽分支（v183）：Top 4 + 其余聚合成「其他 N 个」。
+    /// 阈值 512 B/s：低于此的进程是连接保活噪声，画成流带只会闪。
+    /// 网络分流分支：按「最近 10 分钟窗口累计字节」排序，取设置的条数
+    /// （设置 → 监测 → 网络 → 分流显示条数，默认 4）。
+    /// 数值单位是**窗口内累计字节**，不是瞬时速率——用户要的是「这十分钟谁吃掉了带宽」。
+    private func networkFlowNodes(_ snapshot: NetworkFlowTracker.Snapshot,
+                                  limit: Int) -> [MonitorFlowNode] {
+        let colors: [Color] = [MonitorColors.download, MonitorColors.upload,
+                               MonitorColors.compressed, MonitorColors.wired,
+                               MonitorColors.battery, MonitorColors.system,
+                               MonitorColors.read, MonitorColors.write]
+        guard !snapshot.entries.isEmpty else { return [] }
+
+        var nodes = snapshot.entries.prefix(limit).enumerated().map { index, entry -> MonitorFlowNode in
+            let detail = "10 分钟 \(MonitorFormat.bytes(MonitorFormat.u64(entry.totalBytes)))" +
+                " · 当前 ↓\(MonitorFormat.rate(MonitorFormat.u64(entry.liveDown)))" +
+                " ↑\(MonitorFormat.rate(MonitorFormat.u64(entry.liveUp)))"
+            return MonitorFlowNode(id: entry.key,
+                                   title: entry.name,
+                                   value: entry.totalBytes,
+                                   valueText: MonitorFormat.bytes(MonitorFormat.u64(entry.totalBytes)),
+                                   systemImage: "app",
+                                   color: colors[index % colors.count],
+                                   available: true,
+                                   compactValue: true,
+                                   iconImage: NetworkFlowIcon.icon(forPath: entry.iconPath),
+                                   detail: detail,
+                                   isActive: entry.liveTotal > 1024)
+        }
+
+        // 「其他」= 整机窗口总量 − 已列出的 App（不把看不见的进程算成 0）。
+        // nettop 只给快照前 8 个进程，短时突发（几秒内下完的大文件）可能整段没被采样到，
+        // 这部分记作「未采集」——标题如实区分，不能把没归因的流量说成某几个 App 用的。
+        let listed = snapshot.entries.prefix(limit).reduce(0) { $0 + $1.totalBytes }
+        let knownTotal = snapshot.entries.reduce(0) { $0 + $1.totalBytes }
+        let restBytes = max(0, snapshot.nicTotalBytes - listed)
+        let restCount = max(0, snapshot.entries.count - limit)
+        let knownRest = max(0, knownTotal - listed)
+        let unattributed = max(0, snapshot.nicTotalBytes - knownTotal)
+        if restBytes > 64 * 1024 {
+            let title: String
+            if unattributed > knownRest {
+                title = restCount > 0 ? "其他 \(restCount) 个 / 未采集" : "未采集"
+            } else {
+                title = restCount > 0 ? "其他 \(restCount) 个" : "其他"
+            }
+            nodes.append(MonitorFlowNode(
+                id: "net-other",
+                title: title,
+                value: restBytes,
+                valueText: MonitorFormat.bytes(MonitorFormat.u64(restBytes)),
+                systemImage: "ellipsis",
+                color: Color.primary.opacity(0.35),
+                available: true,
+                compactValue: true,
+                detail: "整机窗口总量减去已列出的 App（其中未采集 \(MonitorFormat.bytes(MonitorFormat.u64(unattributed)))：nettop 只采前 8 个进程，且在两次采样之间退出的进程（如命令行下载）其流量无法归属）"))
+        }
+        return nodes
+    }
+
+    /// 窗口覆盖说明：不足 10 分钟如实写「已统计 X 分钟」，不假装满窗
+    private func flowCoverageText(_ coverage: TimeInterval) -> String {
+        if coverage < 60 { return "刚开始统计 · 已 \(Int(max(0, coverage))) 秒" }
+        let minutes = Int(coverage / 60)
+        if minutes >= 10 { return "最近 10 分钟 · 按窗口流量排序" }
+        return "最近 \(minutes) 分钟（已统计时长，满 10 分钟后固定）· 按窗口流量排序"
+    }
+
+    /// 电池流向节点 → 通用流向节点
+    private func flowNode(_ node: BatteryFlowNode) -> MonitorFlowNode {
+        MonitorFlowNode(id: node.id,
+                        title: node.title,
+                        value: node.watts,
+                        valueText: node.available ? BatteryEnergySampler.wattsText(node.watts) : "—",
+                        systemImage: node.systemImage,
+                        color: node.color,
+                        available: node.available)
+    }
+
+    /// 机型提供的额外功耗分支（显示器 / USB）。
+    /// 只在 SMC 真有对应功率传感器（category = 4 功率）时出现——没读数不补 0。
+    private func powerExtraBranches(_ sensors: [StatsSensorItem]) -> [BatteryFlowNode] {
+        let powerSensors = sensors.filter { $0.category == 4 && $0.value > 0.05 && $0.value < 500 }
+        let specs: [(id: String, title: String, icon: String,
+                     keys: [String], color: Color)] = [
+            ("display", "显示器", "display",
+             ["pdb", "display", "backlight", "panel"], MonitorColors.compressed),
+            ("usb", "USB", "cable.connector",
+             ["usb", "d1", "d2", "d3", "d4"], MonitorColors.wired),
+        ]
+        return specs.compactMap { spec in
+            let hits = powerSensors.filter { item in
+                let key = item.key.lowercased(), name = item.name.lowercased()
+                return spec.keys.contains { key.hasPrefix($0) || name.contains($0) }
+            }
+            guard let worst = hits.max(by: { $0.value < $1.value }) else { return nil }
+            return BatteryFlowNode(id: spec.id, title: spec.title, watts: worst.value,
+                                   systemImage: spec.icon, color: spec.color, available: true)
+        }
+    }
+
     // MARK: - 网络
 
     private var networkPanel: some View {
         let sample = sampler.sample
         let stats = StatsDataProvider.shared.current
-        return VStack(alignment: .leading, spacing: 10) {
-            // v93 布局（逆向版同款）：左列上下两行速率 + 右侧曲线，曲线独立右半区
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.down").font(.system(size: 11))
-                            Text("下载").font(.system(size: 11))
-                        }
-                        .foregroundStyle(MonitorColors.download)
-                        Text(MonitorFormat.rate(sample.netDownload))
-                            .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up").font(.system(size: 11))
-                            Text("上传").font(.system(size: 11))
-                        }
-                        .foregroundStyle(MonitorColors.upload)
-                        Text(MonitorFormat.rate(sample.netUpload))
-                            .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                    }
-                }
-                .frame(width: 112, alignment: .leading)
+        // v183：优先用 1 秒脉冲（C 引擎的 1s 网络速率），保证数字与曲线是「活的」；
+        // 脉冲还没起来（刚打开 / g_snap 无效）时退回通用采样，绝不显示空白。
+        let liveDown = netPulse.down.isEmpty ? Double(sample.netDownload) : netPulse.currentDown
+        let liveUp = netPulse.up.isEmpty ? Double(sample.netUpload) : netPulse.currentUp
+        let downHistory = netPulse.down.isEmpty ? sampler.history.netDownload : netPulse.down
+        let upHistory = netPulse.up.isEmpty ? sampler.history.netUpload : netPulse.up
+        let flowSnapshot = NetworkFlowTracker.shared.snapshot()
+        let netBranches = networkFlowNodes(flowSnapshot, limit: MonitorPreferences.flowTopN)
 
-                ZStack {
-                    MonitorAreaSparkline(values: sampler.history.netDownload, color: MonitorColors.download)
-                    MonitorSparkline(values: sampler.history.netUpload)
-                        .stroke(MonitorColors.upload, style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+        return VStack(alignment: .leading, spacing: 10) {
+            MonitorNetworkThroughputCard(down: liveDown, up: liveUp,
+                                         downHistory: downHistory, upHistory: upHistory)
+                .onAppear { netPulse.activate() }
+                .onDisappear { netPulse.deactivate() }
+
+            // v183「带宽去哪了」：与充电/电池页**同一张流向图**（用户明确要求：
+            // 「要的是跟充电那边类似的分流图，不是条形状的」）。
+            // 之前的溢出根因在流向卡本身（固定 116pt 高 + 四格硬塞），已在
+            // MonitorFlowCard 里改成按分支数反推高度、图标与数值同行、名字中间省略。
+            //
+            // v191（用户：「就跟其他的组件一样，就一直放在那，只是会变化它显示的那个 App」）：
+            // 区块**不再**因为窗口里没数据就整块消失——没流量时给等高的空态，
+            // 保证这个卡片的位置固定，用户打开永远看到它在那儿。
+            MonitorSectionTitle("流量去哪了")
+            if netBranches.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.tertiaryText)
+                    Text("最近 10 分钟没有 App 传输数据")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 12)
                 .frame(height: 56)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.cardFill, in: RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            } else {
+                // 左侧总数 = 分支之和（含「其他 N 个」），保证「流带加起来 = 左边」
+                let branchSum = netBranches.reduce(0) { $0 + $1.value }
+                MonitorFlowCard(
+                    input: MonitorFlowNode(
+                        id: "net-in", title: "合计",
+                        value: branchSum,
+                        valueText: MonitorFormat.bytes(MonitorFormat.u64(branchSum)),
+                        systemImage: "arrow.up.arrow.down",
+                        color: MonitorColors.download,
+                        available: true, compactValue: true),
+                    branches: netBranches)
             }
+            Text(flowCoverageText(flowSnapshot.coverage))
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
             MonitorRow(label: "峰值下载", value: MonitorFormat.rate(MonitorExtra.current.netPeakDownload), color: MonitorColors.download)
             MonitorRow(label: "峰值上传", value: MonitorFormat.rate(MonitorExtra.current.netPeakUpload), color: MonitorColors.upload)
@@ -436,12 +700,19 @@ public struct MonitorDetailView: View {
                 if !stats.connHistory.isEmpty {
                     let columns = 30
                     let rows = 3
+                    let totalSlots = columns * rows
+                    // v183：右对齐——历史不足 90 个时，空格子留**左上**，
+                    // 最新一格永远在右下。原来从左上开始填，刚启动会看到「第一行全空、
+                    // 第二行半截有颜色」，像网格坏了。
+                    let offset = max(0, totalSlots - stats.connHistory.count)
                     Grid(horizontalSpacing: 1.5, verticalSpacing: 1.5) {
                         ForEach(0..<rows, id: \.self) { row in
                             GridRow {
                                 ForEach(0..<columns, id: \.self) { col in
-                                    let index = row * columns + col
-                                    let value = index < stats.connHistory.count ? stats.connHistory[index] : -1
+                                    let slot = row * columns + col
+                                    let index = slot - offset
+                                    let value = index >= 0 && index < stats.connHistory.count
+                                        ? stats.connHistory[index] : -1
                                     RoundedRectangle(cornerRadius: 1, style: .continuous)
                                         .fill(connCellColor(value))
                                         .frame(height: 5)
@@ -450,6 +721,7 @@ public struct MonitorDetailView: View {
                         }
                     }
                     .font(.system(size: 5))
+                    .help("最近 90 次连通性探测，最新的在右下")
                 }
                 MonitorRow(label: "延迟", value: StatsFormat.ms(stats.connAvgLatencyMs))
                 MonitorRow(label: "抖动", value: StatsFormat.ms(stats.connAvgJitterMs))
@@ -469,13 +741,25 @@ public struct MonitorDetailView: View {
             // 网络高占用进程（官方 nettop -P -L 1 -n 差分；C 层 down/up 复用 disk_r/disk_w）
             // v84：统一进程表（归类 + 图标 + 展开 + 右键退出）
             if !stats.procNet.isEmpty {
-                StatsProcTable(title: "网络占用进程",
-                               columns: [.init(title: "下行"), .init(title: "上行")],
-                               items: Array(stats.procNet.prefix(8)),
-                               values: { item in
-                                   [MonitorFormat.rate(MonitorFormat.u64(item.diskRead)),
-                                    MonitorFormat.rate(MonitorFormat.u64(item.diskWrite))]
-                               })
+                // 分流卡已经按 10 分钟窗口回答了「谁在吃带宽」，这张表只保留实时速率明细，
+                // 默认折叠——两处并排展示同一批 App 是之前的冗余来源。
+                DisclosureGroup {
+                    StatsProcTable(title: "",
+                                   columns: [.init(title: "下行"), .init(title: "上行")],
+                                   items: Array(stats.procNet.prefix(8)),
+                                   values: { item in
+                                       [MonitorFormat.rate(MonitorFormat.u64(item.diskRead)),
+                                        MonitorFormat.rate(MonitorFormat.u64(item.diskWrite))]
+                                   })
+                    .padding(.top, 4)
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("进程明细（实时速率）")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                    }
+                }
+                .animation(Theme.Motion.fast, value: stats.procNet.count)
             }
 
             // 端口占用（2026-10-20）：本机监听端口 + 进程归属 + 是否对外暴露。
@@ -499,7 +783,7 @@ public struct MonitorDetailView: View {
         let sample = sampler.sample
         let stats = StatsDataProvider.shared.current
         let used = stats.diskTotalBytes > stats.diskFreeBytes ? stats.diskTotalBytes - stats.diskFreeBytes : 0
-        let usedRatio = stats.diskTotalBytes > 0 ? Double(used) / Double(stats.diskTotalBytes) : 0
+        let purgeable = MonitorDiskSpace.purgeableBytes(freeBytes: stats.diskFreeBytes)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -517,10 +801,20 @@ public struct MonitorDetailView: View {
             }
 
             MonitorSectionTitle("读写历史")
+            // v183：读写**共享同一 Y 轴量程**。原来两条线各自归一化，
+            // 写入量只有读取的 1/10 时也会画成一样高——图不可信。
+            let diskPeak = MonitorChartScale.niceCeiling(
+                max(sampler.history.diskRead.max() ?? 0, sampler.history.diskWrite.max() ?? 0))
             ZStack {
-                MonitorAreaSparkline(values: sampler.history.diskRead, color: MonitorColors.read)
-                MonitorSparkline(values: sampler.history.diskWrite)
-                    .stroke(MonitorColors.write, style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                MonitorAreaSparkline(values: sampler.history.diskRead,
+                                     color: MonitorColors.read,
+                                     upperBound: diskPeak,
+                                     slots: MonitorSampler.historyCapacity)
+                MonitorSparkline(values: sampler.history.diskWrite,
+                                 upperBound: diskPeak,
+                                 slots: MonitorSampler.historyCapacity)
+                    .stroke(MonitorColors.write, style: StrokeStyle(lineWidth: 1.5,
+                                                                    lineCap: .round, lineJoin: .round))
             }
             .frame(height: 52)
 
@@ -529,24 +823,34 @@ public struct MonitorDetailView: View {
 
             // 容量（官方 Disk 卡片：名称行/图表盒/容量条/图例/详情行）
             if stats.diskTotalBytes > 0 {
-                MonitorSectionTitle("容量")
-                VStack(spacing: 4) {
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(Color.primary.opacity(0.1))
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(MonitorColors.read)
-                                .frame(width: geo.size.width * usedRatio)
-                        }
-                    }
-                    .frame(height: 10)
+                // v181（用户：「磁盘容量构成：可清除 / 已用 / 空闲」）：
+                // 原来只有「已用 vs 可用」两段——macOS 的「可用」其实还藏着一块
+                // 系统按需回收的空间（快照/缓存/废纸篓），不画出来会让人以为盘要满了。
+                MonitorSectionTitle("容量构成")
+                VStack(spacing: 6) {
+                    MonitorStackedBar(segments: [
+                        .init(id: "used", value: Double(used - min(used, purgeable)),
+                              color: MonitorColors.read),
+                        .init(id: "purgeable", value: Double(min(used, purgeable)),
+                              color: MonitorColors.compressed),
+                        .init(id: "free", value: Double(stats.diskFreeBytes),
+                              color: Color.primary.opacity(0.12))
+                    ], height: 10)
                     HStack(spacing: 10) {
                         legendItem("已用 \(MonitorFormat.bytes(used))", color: MonitorColors.read)
-                        legendItem("可用 \(MonitorFormat.bytes(stats.diskFreeBytes))", color: .secondary)
+                        if purgeable > 0 {
+                            legendItem("可清除 \(MonitorFormat.bytes(purgeable))", color: MonitorColors.compressed)
+                        }
+                        legendItem("空闲 \(MonitorFormat.bytes(stats.diskFreeBytes))", color: .secondary)
                     }
                     .font(.system(size: 11))
                     MonitorRow(label: "总量", value: MonitorFormat.bytes(stats.diskTotalBytes))
+                    if purgeable > 0 {
+                        Text("「可清除」是系统按需腾出的空间（本地快照 / 缓存 / 废纸篓），已算在「已用」里。")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
 
@@ -620,24 +924,13 @@ public struct MonitorDetailView: View {
             } else if hasDeep {
                 // 计算项（官方 initCalculatedSensors：Average/Hottest CPU/GPU）
                 // v74：与温度行同标尺（20~110°C）加可视化条
-                if stats.calcAverageCPU != nil || stats.calcAverageGPU != nil {
-                    MonitorSectionTitle("计算项")
-                    if let v = stats.calcAverageCPU {
-                        sensorBarRow(name: "CPU 平均温度", valueText: MonitorFormat.temperature(v),
-                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
-                    }
-                    if let v = stats.calcHottestCPU {
-                        sensorBarRow(name: "CPU 最热核心", valueText: MonitorFormat.temperature(v),
-                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
-                    }
-                    if let v = stats.calcAverageGPU {
-                        sensorBarRow(name: "GPU 平均温度", valueText: MonitorFormat.temperature(v),
-                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
-                    }
-                    if let v = stats.calcHottestGPU {
-                        sensorBarRow(name: "GPU 最热核心", valueText: MonitorFormat.temperature(v),
-                                     ratio: min(1, max(0, (v - 20) / 90)), color: MonitorColors.temperature)
-                    }
+                // v181（用户：「温度分区热区条（CPU/GPU/电池/SSD）+ 阈值色，替掉长列表」）：
+                // 原来「计算项 4 行 + 温度 6 行 + 电压/电流/功率/能耗各 3 行」一屏全是数字条，
+                // 现在先给 4 条按阈值着色的热区，原始传感器列表折叠在下面按需展开。
+                let zones = MonitorThermalZones.build(from: stats.sensors)
+                if !zones.isEmpty {
+                    MonitorSectionTitle("热区")
+                    MonitorZoneHeatStrip(zones: zones)
                 }
 
                 // 风扇（官方顺序：风扇节在最前）
@@ -666,7 +959,7 @@ public struct MonitorDetailView: View {
                 }
 
                 // 按类型分节（官方 Sensors 页顺序：温度 → 电压 → 电流 → 功率）
-                sensorCategorySection(title: "温度", category: 0, unit: .celsius, items: stats.sensors)
+                temperatureDetailSection(items: stats.sensors)
                 sensorCategorySection(title: "电压", category: 2, unit: .voltage, items: stats.sensors)
                 sensorCategorySection(title: "电流", category: 3, unit: .ampere, items: stats.sensors)
                 sensorCategorySection(title: "功率", category: 4, unit: .watt, items: stats.sensors)
@@ -739,6 +1032,30 @@ public struct MonitorDetailView: View {
         }
     }
 
+    /// 温度明细（折叠）：热区条之外想看「具体哪颗传感器」时才展开。
+    /// 排序按温度降序，前 30 颗足够定位热点——200 多行全铺出来没人看。
+    @ViewBuilder
+    private func temperatureDetailSection(items: [StatsSensorItem]) -> some View {
+        let filtered = items
+            .filter { $0.category == 0 && $0.value > 0 && $0.value < 110 }
+            .sorted { $0.value > $1.value }
+        if !filtered.isEmpty {
+            DisclosureGroup(isExpanded: $showsAllTemperatures) {
+                ForEach(filtered.prefix(30), id: \.name) { item in
+                    sensorBarRow(name: item.name,
+                                 valueText: MonitorFormat.temperature(item.value),
+                                 ratio: min(1, max(0, item.value / 110)),
+                                 color: MonitorThermalZones.color(for: item.value))
+                }
+            } label: {
+                Text("全部温度传感器（\(filtered.count)）")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 2)
+        }
+    }
+
     /// 温度行：名称 + 进度条 + 数值（Bar 规格对齐注入版 FSPUSensorRow）
     private func sensorBarRow(name: String, valueText: String, ratio: Double, color: Color) -> some View {
         HStack(spacing: 8) {
@@ -764,6 +1081,10 @@ public struct MonitorDetailView: View {
     }
 
     // MARK: - 电池（官方 Battery 页：Dashboard + Health + 适配器段）
+
+    /// 电池页：v190 起「充电」不再单开一页（用户：「充电不需要单开这个界面」）——
+    /// 充放电状态 / 进度 / 功率 / 适配器规格并入本页；
+    /// 整机能量流向留在「功耗」页，不再各画一张。
 
     private var batteryPanel: some View {
         // v178（用户：电池展示界面按 Status Trio 改）：整页重做——
@@ -843,6 +1164,7 @@ public struct MonitorDetailView: View {
                     .font(.system(size: 11))
             }
             .buttonStyle(.plain)
+            .focusable(false)
             .help("立即刷新")
             Button {
                 StatsBarEngine.openSettings()
@@ -851,6 +1173,7 @@ public struct MonitorDetailView: View {
                     .font(.system(size: 11))
             }
             .buttonStyle(.plain)
+            .focusable(false)
             .help("菜单栏部件设置（Stats 风格：形态 / 间距 / 分隔线）")
             Button {
                 ServiceLocator.settings?.open(pane: "monitor")
@@ -859,6 +1182,7 @@ public struct MonitorDetailView: View {
                     .font(.system(size: 11))
             }
             .buttonStyle(.plain)
+            .focusable(false)
             .help("打开监测设置")
         }
     }

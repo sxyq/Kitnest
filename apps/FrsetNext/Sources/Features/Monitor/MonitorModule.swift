@@ -9,6 +9,10 @@ public enum MonitorModule: AppModule {
         // 1) 启动采样（间隔/开关由 MonitorPreferences 决定，可在设置里随时改）
         MonitorSampler.shared.start()
 
+        // 1.5) v191：网络统计常驻——不打开监测页也在累计最近 10 分钟，
+        //      打开网络页立刻有数据（用户：「应该就一直放在那，只是会变化显示的 App」）
+        NetworkFlowTracker.shared.startBackgroundUpdates()
+
         // 2) 设置窗口「监测」页签
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "monitor",

@@ -15,6 +15,12 @@ public final class JSONInspectorWindowController: NSWindowController {
 
     private let maxFileBytes = 32 * 1024 * 1024
 
+    /// 下一次 open(fileURL:) 预填的搜索词（深链排障用）
+    public var openQuery: String = ""
+
+    /// 视图状态（窗口单例复用，换内容只改这里）
+    private var state: JSONInspectorState?
+
     private override init(window: NSWindow?) {
         super.init(window: window)
     }
@@ -26,10 +32,12 @@ public final class JSONInspectorWindowController: NSWindowController {
     // MARK: - 打开入口
 
     /// 用一段 JSON 文本打开（剪贴板条目 / 已读入内存的内容）
-    public func open(text: String, title: String = "JSON 检视器") {
+    /// - Parameter query: 打开时预填的搜索词（深链/自动化验收用，正常调用传空）
+    public func open(text: String, title: String = "JSON 检视器", query: String = "") {
         let controller = makeWindowIfNeeded()
-        let host = controller.contentViewController as? JSONInspectorHostController
-        host?.load(text: text, title: title, subtitle: "\(text.utf8.count) 字节")
+        controller.state?.load(text: text, title: title,
+                              subtitle: "\(text.utf8.count) 字节", query: query)
+        controller.window?.title = title
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -58,16 +66,19 @@ public final class JSONInspectorWindowController: NSWindowController {
             return
         }
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix("{") || trimmed.hasPrefix("[") else {
+        // 按扩展名放行：.jsonl / .ndjson 每行一条记录，首字符不一定能代表整份内容
+        let ext = fileURL.pathExtension.lowercased()
+        let jsonish = ["json", "jsonl", "ndjson", "geojson", "ipynb"].contains(ext)
+        guard jsonish || trimmed.hasPrefix("{") || trimmed.hasPrefix("[") else {
             presentAlert(title: "不是 JSON 文件", message: fileURL.lastPathComponent)
             return
         }
 
         let controller = makeWindowIfNeeded()
-        let host = controller.contentViewController as? JSONInspectorHostController
-        host?.load(text: trimmed,
+        controller.state?.load(text: trimmed,
                    title: fileURL.lastPathComponent,
-                   subtitle: ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+                   subtitle: ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file),
+                   query: openQuery)
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -82,17 +93,29 @@ public final class JSONInspectorWindowController: NSWindowController {
     /// 单例复用：窗口只在第一次 open 时创建，之后换内容即可
     private func makeWindowIfNeeded() -> JSONInspectorWindowController {
         if window == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 640),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 680),
                                   styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                   backing: .buffered, defer: false)
-            window.minSize = NSSize(width: 640, height: 420)
+            // 640 太窄：视图工具条 + 表格列一挤就出现左侧被裁（实测截图）
+            window.minSize = NSSize(width: 720, height: 440)
+            window.title = "JSON 检视器"
             window.isReleasedWhenClosed = false
             // v179：原来只设了底色，标题栏仍是系统样式（与其它文档窗不一致）
             window.applyOfficialChrome()
             // 普通窗口语义：点击别处只是失焦，**不会**自动关闭（不像预览 popover
             // 那样一点外面就消失）——大文件要看半天，不能点一下就没了。
             // 这里刻意不注册 windowDidResignKey / resignFirstResponder 关闭逻辑。
-            window.contentViewController = JSONInspectorHostController()
+            // 朴素 NSView 当 contentView + NSHostingView 铺满：
+            // contentViewController 会把窗口撑成 SwiftUI fittingSize，超宽时内容居中溢出被裁
+            let state = JSONInspectorState()
+            let host = NSHostingView(rootView: JSONInspectorRootView(state: state))
+            let container = NSView(frame: NSRect(x: 0, y: 0, width: 980, height: 680))
+            host.frame = container.bounds
+            host.autoresizingMask = [.width, .height]
+            container.addSubview(host)
+            window.contentView = container
+            window.setContentSize(NSSize(width: 980, height: 680))
+            self.state = state
             self.window = window
             shouldCascadeWindows = true
         }
@@ -108,29 +131,6 @@ public final class JSONInspectorWindowController: NSWindowController {
     }
 }
 
-// MARK: - 内容宿主（工具栏 + 树/表 + 状态条）
-
-private final class JSONInspectorHostController: NSHostingController<JSONInspectorRootView> {
-
-    /// 与 rootView 共享同一个状态实例（否则 load() 写进去的内容视图看不到）
-    private var state: JSONInspectorState { rootView.state }
-
-    init() {
-        let state = JSONInspectorState()
-        super.init(rootView: JSONInspectorRootView(state: state))
-    }
-
-    @MainActor @objc required dynamic init?(coder: NSCoder) {
-        fatalError("JSONInspectorHostController 不走 coder")
-    }
-
-    func load(text: String, title: String, subtitle: String) {
-        state.title = title
-        state.subtitle = subtitle
-        state.text = text
-    }
-}
-
 /// 宿主视图状态（NSHostingController 的 rootView 需要值类型快照，用 ObservableObject 驱动）
 final class JSONInspectorState: ObservableObject {
     @Published var title: String = "JSON 检视器"
@@ -140,6 +140,18 @@ final class JSONInspectorState: ObservableObject {
     /// 解析结果（ObservableObject 持有：闭包里也要能改，@State 在闭包里写不了）
     @Published var document: JSONDocument?
     @Published var parseFailed = false
+    /// 预填搜索词（空 = 不搜索）
+    @Published var searchSeed: String = ""
+    /// 每次打开新内容换一个 id：让内部视图按新文档重算默认视图（记录表 → 表格，其余 → 树形）
+    @Published var sessionID = UUID()
+
+    func load(text: String, title: String, subtitle: String, query: String = "") {
+        sessionID = UUID()
+        self.title = title
+        self.subtitle = subtitle
+        self.text = text
+        self.searchSeed = query
+    }
 }
 
 struct JSONInspectorRootView: View {
@@ -187,8 +199,11 @@ struct JSONInspectorRootView: View {
                         .font(.system(size: 13, weight: .medium))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let document = state.document {
+                JSONInspectorView(document: document, compact: false, initialQuery: state.searchSeed)
+                    .id(ObjectIdentifier(document))
             } else {
-                JSONInspectorView(text: state.text, compact: false)
+                JSONInspectorView(text: state.text, compact: false, initialQuery: state.searchSeed)
             }
 
             Divider()
@@ -202,8 +217,9 @@ struct JSONInspectorRootView: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 22)
-            .background(Color.primary.opacity(0.03))
+            .background(Theme.cardFill)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear(perform: parse)
         .onChange(of: state.text) { _ in parse() }
         // 主题统一入口：JSON 检视器的强调色 + Midnight（此前两者都没接）
@@ -222,8 +238,14 @@ struct JSONInspectorRootView: View {
             if let document = JSONDocument(text: text) {
                 state.document = document
                 state.parseFailed = false
-                state.nodeCountText = "\(document.totalNodeCount) 个节点" +
-                    (document.isTruncated ? " · 已截断" : "")
+                if document.isJSONL {
+                    state.nodeCountText = "JSONL · 有效 \(document.validLineCount) 行" +
+                        (document.errorLines.isEmpty ? "" : " · 错误 \(document.errorLines.count) 行") +
+                        " · \(document.totalNodeCount) 个节点"
+                } else {
+                    state.nodeCountText = "\(document.totalNodeCount) 个节点" +
+                        (document.isTruncated ? " · 已截断" : "")
+                }
             } else {
                 state.document = nil
                 state.parseFailed = true
@@ -232,8 +254,21 @@ struct JSONInspectorRootView: View {
         }
     }
 
+    /// 复制「格式化后」的 JSON（原来是复制原文，跟按钮名字对不上）
     private func copyFormatted() {
+        let payload: String
+        if let document = state.document, !document.isJSONL,
+           let data = document.sourceText.data(using: .utf8),
+           let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
+           let pretty = try? JSONSerialization.data(withJSONObject: object,
+                                                    options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed]),
+           let text = String(data: pretty, encoding: .utf8) {
+            payload = text
+        } else {
+            payload = state.document?.sourceText ?? state.text
+        }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(state.text, forType: .string)
+        NSPasteboard.general.setString(payload, forType: .string)
+        Toast.show("已复制格式化 JSON", icon: "doc.on.doc")
     }
 }

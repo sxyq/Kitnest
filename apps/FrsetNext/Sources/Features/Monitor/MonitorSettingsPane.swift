@@ -24,6 +24,8 @@ public struct MonitorSettingsPane: View {
                 Divider()
                 modulesSection
                 Divider()
+                networkSection
+                Divider()
                 advancedSection
             }
             .padding(16)
@@ -126,6 +128,47 @@ public struct MonitorSettingsPane: View {
         }
     }
 
+    // MARK: - 网络
+
+    private var networkSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Theme.sectionHeader("网络")
+            Toggle("后台持续统计（打开即有数据）", isOn: Binding(
+                get: { MonitorPreferences.networkKeepAlive },
+                set: {
+                    MonitorPreferences.networkKeepAlive = $0
+                    NetworkFlowTracker.shared.applyKeepAlivePreference()
+                    bump()
+                }
+            ))
+            .font(.system(size: 13))
+            Text("开启：不打开监测页也在后台累计最近 10 分钟的流量，随时打开都是现成结果（每 5 秒一轮采样）。关闭：只在本页可见时统计，更省电，但每次打开要从零开始累计。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                Text("分流显示条数")
+                    .font(.system(size: 13))
+                Spacer()
+                Picker("", selection: Binding(
+                    get: { MonitorPreferences.flowTopN },
+                    set: { MonitorPreferences.flowTopN = $0; bump() })) {
+                    ForEach([3, 4, 5, 6, 8], id: \.self) { n in
+                        Text("\(n) 个").tag(n)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 250)
+            }
+            Text("「流量去哪了」按最近 10 分钟的累计流量排序；这里决定列出多少个 App，其余归入「其他」。窗口内的数字是累计字节，不是瞬时速率。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     // MARK: - 高级
 
     private var advancedSection: some View {
@@ -144,6 +187,8 @@ public struct MonitorSettingsPane: View {
             HStack(spacing: 10) {
                 Button("清空历史与峰值") {
                     sampler.resetHistory()
+                    // 网络分流窗口也要一起清，否则「清空」后分流卡还是旧数据
+                    NetworkFlowTracker.shared.reset()
                 }
                 Button("恢复默认设置") {
                     MonitorPreferences.resetToDefaults()
@@ -184,6 +229,10 @@ public struct MonitorSettingsPane: View {
             if let value = sample.temperatures.values.max() { return MonitorFormat.temperature(value) }
             return "无数据"
         case .battery:
+            // v190：电池页合并了充电状态——状态行直接说「在干什么 + 多少电」
+            let battery = StatsDataProvider.shared.current.battery
+            if let battery, battery.present, battery.isCharging { return "充电中" }
+            if let battery, battery.present, battery.fullyCharged, battery.externalConnected { return "已充满" }
             if let level = sample.batteryLevel { return MonitorFormat.percent(level) }
             return "无电池"
         case .gpu:

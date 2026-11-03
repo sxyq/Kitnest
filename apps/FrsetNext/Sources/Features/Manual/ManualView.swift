@@ -70,10 +70,7 @@ public struct ManualPaneView: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.primary.opacity(0.05))
-            )
+            .glassCard(radius: 6)
             .padding(.horizontal, 10)
             .padding(.top, 12)
             .padding(.bottom, 6)
@@ -177,7 +174,7 @@ public struct ManualPaneView: View {
             FlowLinks(nodes: node.children) { n in selection = n.id }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
             .fill(Color.primary.opacity(0.035)))
     }
 
@@ -385,8 +382,7 @@ private struct FlowLinks: View {
                         Spacer(minLength: 0)
                     }
                     .padding(.horizontal, 7).padding(.vertical, 4)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                        .fill(Color.primary.opacity(0.05)))
+                    .glassCard(radius: Theme.Radius.chip)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -463,8 +459,7 @@ private struct ManualBlockView: View {
                 .textSelection(.enabled)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(Color.primary.opacity(0.05)))
+                .glassCard(radius: Theme.Radius.control)
 
         case .divider:
             Divider().opacity(0.5)
@@ -508,8 +503,8 @@ private struct ManualImageView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(maxWidth: 560, maxHeight: 420, alignment: .leading)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
                     .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
                     .onTapGesture(perform: onTap)
@@ -602,7 +597,7 @@ private struct ManualTableView: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .background(isHeader ? Color.primary.opacity(0.05) : Color.clear)
+        .background(isHeader ? Theme.cardFill : Color.clear)
     }
 
     private func inlineCell(_ s: String) -> AttributedString {

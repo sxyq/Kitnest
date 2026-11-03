@@ -98,14 +98,21 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         //   · 玻璃 = NSVisualEffectView(.popover)，12pt 连续圆角，圆角裁剪
         //   · canBecomeKey = true（点外/失焦收起依赖 key 状态）
         //   · isMovableByWindowBackground = true（可拖动）
-        let glass = NSVisualEffectView()
-        glass.material = .popover
-        glass.blendingMode = .behindWindow
-        glass.state = .active
-        glass.wantsLayer = true
-        glass.layer?.cornerRadius = 12
-        glass.layer?.cornerCurve = .continuous
-        glass.layer?.masksToBounds = true
+        // v181（UI 一致性检查 R2）：改走 LiquidGlass 工厂（26+ 真玻璃，旧系统回退），
+        // 与主面板/命令面板同一套；纯色偏好与「降低透明度」也自动跟随。
+        // v181（UI 一致性检查 R2）：改走 LiquidGlass 工厂（26+ 真玻璃，旧系统回退）。
+        // 纯玻璃直接压在壁纸上对比度只有 ~2:1，正文会发灰 —— 与 .glassPlate() 同一配方，
+        // 加一层 50% 窗口色底衬（放在最底层，不参与命中测试）。
+        let glass = LiquidGlass.makeView(frame: NSRect(x: 0, y: 0, width: 380, height: 640),
+                                         cornerRadius: Theme.Radius.window,
+                                         material: .popover)
+        let backing = NSView(frame: glass.bounds)
+        backing.autoresizingMask = [.width, .height]
+        backing.wantsLayer = true
+        backing.layer?.backgroundColor = NSColor.windowBackgroundColor
+            .withAlphaComponent(0.5).cgColor
+        glass.addSubview(backing)
+
         host.frame = glass.bounds
         host.autoresizingMask = [.width, .height]
         glass.addSubview(host)

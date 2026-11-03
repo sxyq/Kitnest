@@ -9,9 +9,10 @@ public final class FloatingClipboardPinState: ObservableObject {
 
     public static let shared = FloatingClipboardPinState()
 
-    /// 实测尺寸：240×290
-    public static let defaultWidth: CGFloat = 240
-    public static let defaultHeight: CGFloat = 290
+    /// v191：悬浮剪贴板改成"能独立用完全程"的工作台——默认 680×520，可缩放
+    /// （旧版 240×290 只是主面板列表的缩小版，装不下卡片网格与分类行）
+    public static let defaultWidth: CGFloat = 680
+    public static let defaultHeight: CGFloat = 520
 
     private let preferences = Preferences.shared
 
@@ -32,6 +33,21 @@ public final class FloatingClipboardPinState: ObservableObject {
     public var height: CGFloat {
         let v = preferences.value(Preferences.Keys.floatingHeight, default: Double(Self.defaultHeight))
         return v > 0 ? v : Self.defaultHeight
+    }
+
+    /// v191：工作台版式迁移。
+    /// 旧版是 240×290 的单列小列表，用户还可能拖到过很怪的高度（实测存过 478×1074，
+    /// 那是 SwiftUI fitting-size 把窗口撑大的历史产物）。升到工作台后旧值一律作废，
+    /// 一次性重置成 680×520；之后用户自己缩放的尺寸正常保留。
+    private static let layoutVersionKey = "floatingClipboard.layoutVersion"
+    private static let currentLayoutVersion = 2
+
+    public func migrateLayoutIfNeeded() {
+        let saved: Int = preferences.value(Self.layoutVersionKey, default: 0)
+        guard saved < Self.currentLayoutVersion else { return }
+        preferences.set(Preferences.Keys.floatingWidth, Double(Self.defaultWidth))
+        preferences.set(Preferences.Keys.floatingHeight, Double(Self.defaultHeight))
+        preferences.set(Self.layoutVersionKey, Self.currentLayoutVersion)
     }
 
     /// 是否可见（持久化，下次启动自动恢复）
@@ -82,8 +98,11 @@ public final class FloatingClipboardPinState: ObservableObject {
 public final class FloatingClipboardPanel: NSPanel {
 
     public init(contentRect: NSRect) {
+        // v191：新版是"看起来不像窗口"的浮层——**没有标题栏、没有红绿灯**。
+        // 之前用 .titled + .closable，窗口左上角会摆三个圆钮、顶上还留一条
+        // 系统标题栏（截图实测约 50pt 空白），和参照产品完全不同。
         super.init(contentRect: contentRect,
-                   styleMask: [.nonactivatingPanel, .titled, .closable, .resizable, .fullSizeContentView],
+                   styleMask: [.nonactivatingPanel, .resizable, .fullSizeContentView],
                    backing: .buffered,
                    defer: false)
         isFloatingPanel = true
@@ -96,8 +115,12 @@ public final class FloatingClipboardPanel: NSPanel {
         titlebarAppearsTransparent = true
         isOpaque = false
         backgroundColor = .clear
-        minSize = NSSize(width: 200, height: 220)
-        standardWindowButton(.closeButton)?.isHidden = false
+        hasShadow = true
+        minSize = NSSize(width: 520, height: 380)
+        // 无标题栏样式下这三个按钮本来就不存在，保险起见再关一遍
+        standardWindowButton(.closeButton)?.isHidden = true
+        standardWindowButton(.miniaturizeButton)?.isHidden = true
+        standardWindowButton(.zoomButton)?.isHidden = true
     }
 
     /// 面板不夺取键盘焦点，保证复制/粘贴目标仍是原来的前台应用
@@ -170,19 +193,23 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     private var didRestoreVisibility = false
 
     private init() {
+        FloatingClipboardPinState.shared.migrateLayoutIfNeeded()
         let panel = FloatingClipboardPanel(contentRect: FloatingClipboardPinState.shared.clampedFrame())
         super.init(window: panel)
         panel.delegate = self
         // 主题统一入口：强调色（个性化）+ Midnight 注入（注入器与 EnvironmentKey 在共享层）
-        let root = FloatingClipboardContentView()
-            .environmentObject(store)
+        let root = FloatingClipboardDeskView()
             .frsetThemeChrome()
         panel.contentView = NSHostingView(rootView: root)
+        // 粘完即走：面板立刻收起，焦点回到原来的 App
+        FloatingClipDeskStore.shared.onPaste = { [weak self] in self?.hide() }
+        installKeyMonitor()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（浮动窗走代码构建）") }
 
     public func show() {
+        Log.info("Clipboard", "悬浮工作台 show（visible -> true）")
         store.setVisible(true)
         store.refresh()
         window?.setFrame(state.clampedFrame(), display: true)
@@ -190,11 +217,13 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     }
 
     public func hide() {
+        Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
         window?.orderOut(nil)
     }
 
     public func toggle() {
+        Log.info("Clipboard", "悬浮工作台 toggle（当前 isVisible=\(window?.isVisible == true)，window=\(window == nil ? "nil" : "ok")）")
         if window?.isVisible == true {
             hide()
         } else {
@@ -235,6 +264,99 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     public func windowWillClose(_ notification: Notification) {
         store.setVisible(false)
+    }
+
+    // MARK: - 键盘闭环（v191）
+    //
+    // 设计要点：**搜索框永远持有焦点**，网格光标只是一个索引状态。
+    // 这样避免了「焦点在卡片上就打不了字」的老问题；方向键由本地监听器接管，
+    // 只有在搜索框为空时才用来移动卡片光标（有字时留给文本光标）。
+    //
+    // 键位：↑↓←→ 移动 · Enter 粘贴 · ⌥Enter 纯文本 · 空格 预览 · ⌘1–9 直贴 ·
+    //       ⌘⌫ 删除 · Esc 两级（先清搜索词，再收起）
+
+    private var keyMonitor: Any?
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, let panel = self.window, panel.isKeyWindow else { return event }
+            // 中文输入法正在组字：一律放行，别把候选词吃成快捷键
+            if let editor = panel.firstResponder as? NSTextView, editor.hasMarkedText() { return event }
+
+            let store = FloatingClipDeskStore.shared
+            let columns = store.layout == .grid ? store.cardSize.columns : 1
+            let command = event.modifierFlags.contains(.command)
+            let option = event.modifierFlags.contains(.option)
+
+            // ⌘1–9：直接粘贴第 N 个
+            if command, !option,
+               let chars = event.charactersIgnoringModifiers,
+               let digit = Int(chars), (1...9).contains(digit) {
+                let index = digit - 1
+                if store.items.indices.contains(index) { store.paste(store.items[index]) }
+                return nil
+            }
+            // ⌘⌫：删除当前光标项
+            if command, event.keyCode == 51 {
+                if store.items.indices.contains(store.selectedIndex) {
+                    store.delete(store.items[store.selectedIndex])
+                }
+                return nil
+            }
+
+            switch event.keyCode {
+            case 53:                       // Esc：两级
+                if !store.search.isEmpty {
+                    store.search = ""
+                } else {
+                    self.hide()
+                }
+                return nil
+            case 36, 76:                   // Enter：粘贴（⌥ = 纯文本）
+                guard store.items.indices.contains(store.selectedIndex) else { return nil }
+                let item = store.items[store.selectedIndex]
+                if option {
+                    ClipboardManager.shared.copy(item, autoPaste: false)
+                    Toast.show("已复制纯文本", icon: "doc.on.doc")
+                    self.hide()
+                } else {
+                    store.paste(item)
+                }
+                return nil
+            case 49:                       // 空格：预览（不粘贴）
+                guard store.items.indices.contains(store.selectedIndex) else { return nil }
+                ServiceLocator.panelPreview?.presentPreview(for: store.items[store.selectedIndex],
+                                                            anchorRectInWindow: .zero,
+                                                            anchorView: nil,
+                                                            isFloatingSource: true)
+                return nil
+            case 126:                      // ↑
+                store.moveSelection(0, -1, columns: columns)
+                return nil
+            case 125:                      // ↓
+                store.moveSelection(0, 1, columns: columns)
+                return nil
+            case 123:                      // ←
+                if store.search.isEmpty {
+                    store.moveSelection(-1, 0, columns: columns)
+                    return nil
+                }
+                return event
+            case 124:                      // →
+                if store.search.isEmpty {
+                    store.moveSelection(1, 0, columns: columns)
+                    return nil
+                }
+                return event
+            default:
+                return event
+            }
+        }
+    }
+
+    deinit {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
     }
 }
 
@@ -439,7 +561,7 @@ private struct FloatingRow: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                 .fill(isHovering ? Theme.accent.opacity(0.12) : Color.clear)
         )
         .contentShape(Rectangle())

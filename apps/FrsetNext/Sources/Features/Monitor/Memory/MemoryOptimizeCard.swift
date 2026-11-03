@@ -113,10 +113,7 @@ struct MemoryOptimizeSection: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Color.primary.opacity(0.05))
-        )
+        .glassCard(radius: 6)
     }
 
     private func deltaRow(_ title: String, _ delta: Int64) -> some View {

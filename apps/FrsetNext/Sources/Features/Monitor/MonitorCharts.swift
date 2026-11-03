@@ -3,30 +3,73 @@ import SwiftUI
 // MARK: - 迷你折线（状态栏 / 卡片用）
 
 /// 由数值数组绘制的折线（自适应归一化，支持固定上限）
+///
+/// v183（用户：「线条十分的差劲」）：原实现是逐点 `addLine` 的折线——
+/// 60 个采样点在 300pt 宽里每段只有 5pt，锯齿、拐角生硬。现在改成
+/// **Catmull-Rom 转三次贝塞尔**的平滑曲线（控制点做上下钳制，不会冲出色带），
+/// 并支持 `slots`：按固定时间窗口右对齐，新点从右边进、旧点向左移，
+/// 不再「点少时把整条线拉伸铺满」（那会让曲线每来一个点就整体抖一下）。
 public struct MonitorSparkline: Shape {
     public var values: [Double]
     /// 归一化上限；nil 时取数组最大值
     public var upperBound: Double?
+    /// 固定槽位数（时间窗口）；nil = 按实际点数铺满（旧行为）
+    public var slots: Int?
 
-    public init(values: [Double], upperBound: Double? = nil) {
+    public init(values: [Double], upperBound: Double? = nil, slots: Int? = nil) {
         self.values = values
         self.upperBound = upperBound
+        self.slots = slots
     }
 
     public func path(in rect: CGRect) -> Path {
-        guard values.count > 1 else { return Path() }
+        let points = MonitorSparkline.points(values: values, upperBound: upperBound,
+                                             slots: slots, in: rect)
+        guard points.count > 1 else { return Path() }
+        return MonitorSparkline.smoothPath(points, in: rect)
+    }
+
+    /// 采样点 → 坐标（Y 轴共享同一 upperBound；X 轴按槽位右对齐）
+    static func points(values: [Double], upperBound: Double?, slots: Int?,
+                       in rect: CGRect) -> [CGPoint] {
+        guard !values.isEmpty, rect.width > 0, rect.height > 0 else { return [] }
         let maxValue: Double = {
             if let bound = upperBound, bound > 0 { return bound }
             return max(values.max() ?? 0, 0.0001)
         }()
+        let slotCount = max(slots ?? values.count, values.count)
+        let step = rect.width / CGFloat(max(1, slotCount - 1))
+        let offset = slotCount - values.count
+        return values.enumerated().map { index, raw in
+            let value = min(max(raw.isFinite ? raw : 0, 0), maxValue)
+            let x = rect.minX + step * CGFloat(offset + index)
+            let y = rect.maxY - CGFloat(value / maxValue) * rect.height
+            return CGPoint(x: x, y: y)
+        }
+    }
+
+    /// 平滑路径：Catmull-Rom（张力 1/6）→ 三次贝塞尔
+    static func smoothPath(_ points: [CGPoint], in rect: CGRect) -> Path {
         var path = Path()
-        let stepX = rect.width / Double(values.count - 1)
-        for (index, raw) in values.enumerated() {
-            let value = min(max(raw, 0), maxValue)
-            let x = rect.minX + stepX * Double(index)
-            let y = rect.maxY - (value / maxValue) * rect.height
-            if index == 0 { path.move(to: CGPoint(x: x, y: y)) }
-            else { path.addLine(to: CGPoint(x: x, y: y)) }
+        guard let first = points.first else { return path }
+        path.move(to: first)
+        guard points.count > 2 else {
+            for point in points.dropFirst() { path.addLine(to: point) }
+            return path
+        }
+        for index in 0..<(points.count - 1) {
+            let p0 = points[max(0, index - 1)]
+            let p1 = points[index]
+            let p2 = points[index + 1]
+            let p3 = points[min(points.count - 1, index + 2)]
+            var c1 = CGPoint(x: p1.x + (p2.x - p0.x) / 6.0,
+                             y: p1.y + (p2.y - p0.y) / 6.0)
+            var c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6.0,
+                             y: p2.y - (p3.y - p1.y) / 6.0)
+            // 只钳制 Y：峰值/谷值处的三次曲线会向外冲，冲出色带就会「画出负数」
+            c1.y = min(max(c1.y, rect.minY), rect.maxY)
+            c2.y = min(max(c2.y, rect.minY), rect.maxY)
+            path.addCurve(to: p2, control1: c1, control2: c2)
         }
         return path
     }
@@ -36,19 +79,23 @@ public struct MonitorSparkline: Shape {
 public struct MonitorAreaShape: Shape {
     public var values: [Double]
     public var upperBound: Double?
+    public var slots: Int?
 
-    public init(values: [Double], upperBound: Double? = nil) {
+    public init(values: [Double], upperBound: Double? = nil, slots: Int? = nil) {
         self.values = values
         self.upperBound = upperBound
+        self.slots = slots
     }
 
     public func path(in rect: CGRect) -> Path {
-        var path = MonitorSparkline(values: values, upperBound: upperBound).path(in: rect)
-        guard values.count > 1 else { return path }
-        let startX = rect.minX
-        let endX = rect.maxX
-        path.addLine(to: CGPoint(x: endX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: startX, y: rect.maxY))
+        let points = MonitorSparkline.points(values: values, upperBound: upperBound,
+                                             slots: slots, in: rect)
+        guard let first = points.first, let last = points.last, points.count > 1 else {
+            return Path()
+        }
+        var path = MonitorSparkline.smoothPath(points, in: rect)
+        path.addLine(to: CGPoint(x: last.x, y: rect.maxY))
+        path.addLine(to: CGPoint(x: first.x, y: rect.maxY))
         path.closeSubpath()
         return path
     }
@@ -59,27 +106,34 @@ public struct MonitorAreaSparkline: View {
     public let values: [Double]
     public let color: Color
     public let upperBound: Double?
+    public var slots: Int?
+    public var lineWidth: CGFloat
 
-    public init(values: [Double], color: Color, upperBound: Double? = nil) {
+    public init(values: [Double], color: Color, upperBound: Double? = nil,
+                slots: Int? = nil, lineWidth: CGFloat = 1.6) {
         self.values = values
         self.color = color
         self.upperBound = upperBound
+        self.slots = slots
+        self.lineWidth = lineWidth
     }
 
     public var body: some View {
-        MonitorAreaShape(values: values, upperBound: upperBound)
+        MonitorAreaShape(values: values, upperBound: upperBound, slots: slots)
             .fill(
                 LinearGradient(
-                    colors: [color.opacity(0.30), color.opacity(0.04)],
+                    colors: [color.opacity(0.28), color.opacity(0.03)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
             )
             .overlay(
-                MonitorSparkline(values: values, upperBound: upperBound)
-                    .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                MonitorSparkline(values: values, upperBound: upperBound, slots: slots)
+                    .stroke(color, style: StrokeStyle(lineWidth: lineWidth,
+                                                      lineCap: .round, lineJoin: .round))
             )
-            .drawingGroup()
+            // v183：去掉 drawingGroup()——它把整条曲线离屏栅格化，
+            // 细线在非整数倍缩放下会发灰发糊，正是「线条差劲」的来源之一。
     }
 }
 

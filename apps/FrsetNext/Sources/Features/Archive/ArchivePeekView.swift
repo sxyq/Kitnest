@@ -125,9 +125,9 @@ struct ArchiveEntryTile: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size)
                     .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
                             .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
                     )
                     .shadow(color: .black.opacity(0.08), radius: 1, y: 0.5)

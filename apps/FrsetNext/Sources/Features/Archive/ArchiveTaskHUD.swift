@@ -316,7 +316,8 @@ enum ArchiveTaskDemo {
     static func startIfRequested() {
         guard UserDefaults.standard.bool(forKey: "probe.archiveTask") else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            ArchiveTaskQueue.shared.enqueue(kind: .compress, title: "演示压缩 · Photos-2026.zip") { taskID, done in
+            ArchiveTaskQueue.shared.enqueue(kind: .compress, title: "演示压缩 · Photos-2026.zip",
+                                            output: URL(fileURLWithPath: "/tmp")) { taskID, done in
                 let total = 24
                 var step = 0
                 func tick() {

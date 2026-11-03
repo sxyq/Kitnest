@@ -1,18 +1,22 @@
 import Foundation
 
-// MARK: - 主面板顶部页面开关（v177）
+// MARK: - 主面板顶部页面开关 + 顺序（v177 / v181）
 //
 // 用户需求：「设置里可以自定义顶部的中转 / 首页 / 监测 / 投屏这些按钮的展现与显示，
-// 并且动态加载；如果全关闭了，就不占内存」。
+// 并且动态加载；如果全关闭了，就不占内存」；v181 追加「开关与「文件中转」总开关解耦，
+// 并且可以拖拽调整顺序」。
 //
-// 这里只负责「哪些页面启用」这一份事实。真正的懒加载在 `PanelRootView`：
-// 内容用 if/else 分支，未选中的分支不会被创建；关掉的页面更不会被创建，
-// 因此 `TransferDockView` / `CastView` 这类重型视图连 init 都不会跑。
+// 这里只负责两件事：
+//   ① 哪些页面启用（`panel.segment.*`）；
+//   ② 它们的左右顺序（`panel.segment.order`，CSV）。
+// 真正的懒加载在 `PanelRootView`：内容用 if/else 分支，未选中的分支不会被创建；
+// 关掉的页面更不会被创建，因此 `TransferDockView` / `CastView` 这类重型视图连 init 都不会跑。
 //
-// 与旧开关 `panel.transferDock` 的关系：
-// - 旧开关是「是否启用文件中转这个功能」（还会影响别的模块），语义更重；
-// - 新开关只决定「顶部要不要出现这个分段」。
-// 两者是**与**关系：功能没启用时，分段即使勾了也不出现。
+// 与旧开关 `panel.transferDock` 的关系（v181 拆分）：
+// - 旧开关**不再**决定分段是否出现，它只表示「文件中转这个功能启用与否」；
+// - 分段显隐只由 `panel.segment.*` 决定；
+// - 功能关着但分段开着时，中转页显示一句「已关闭」的说明（不再整页消失），
+//   这样两个开关各自可解释，也不会出现「勾了却不出现」的困惑。
 
 public enum PanelSegments {
 
@@ -20,6 +24,11 @@ public enum PanelSegments {
     public static let monitorKey = "panel.segment.monitor"
     public static let transferKey = "panel.segment.transfer"
     public static let castKey = "panel.segment.cast"
+    /// 顺序：逗号分隔的 `PanelCenterPage.rawValue`，如 "home,performance,transfer,cast"
+    public static let orderKey = "panel.segment.order"
+
+    /// 出厂顺序（也是「恢复默认」用的顺序）
+    public static let defaultOrder: [PanelCenterPage] = [.home, .performance, .transfer, .cast]
 
     public static func key(for page: PanelCenterPage) -> String {
         switch page {
@@ -39,22 +48,83 @@ public enum PanelSegments {
         }
     }
 
+    /// 设置里的完整称呼（分段按钮上放不下，设置列表里用这个）
+    public static func fullTitle(_ page: PanelCenterPage) -> String {
+        switch page {
+        case .home:        return "主页"
+        case .performance: return "性能监测"
+        case .transfer:    return "文件中转"
+        case .cast:        return "投屏"
+        }
+    }
+
+    /// 出厂默认：只开「主页 / 监测」。
+    /// v183（用户）：「中转和投屏这两个按钮默认关闭，要用再去设置里开」——
+    /// 这两个功能分别依赖局域网/ADB 与投屏配对，绝大多数人不需要，
+    /// 默认摆一个空页只会让面板顶栏看起来更挤。
+    public static func defaultEnabled(_ page: PanelCenterPage) -> Bool {
+        switch page {
+        case .home, .performance: return true
+        case .transfer, .cast:    return false
+        }
+    }
+
     public static func isEnabled(_ page: PanelCenterPage) -> Bool {
-        Preferences.shared.value(key(for: page), default: true)
+        Preferences.shared.value(key(for: page), default: defaultEnabled(page))
     }
 
     public static func setEnabled(_ page: PanelCenterPage, _ on: Bool) {
         Preferences.shared.set(key(for: page), on)
     }
 
-    /// 按声明顺序返回启用项（中转/投屏还受旧的总开关约束）
-    public static func enabledPages() -> [PanelCenterPage] {
-        let transferFeature = Preferences.shared.value(Preferences.Keys.panelTransferDock, default: true)
+    // MARK: 顺序
+
+    /// 当前顺序（**总是**包含四个页面，缺的按默认顺序补在后面——
+    /// 这样以后加第五页时，老用户的顺序串不会把它吃掉）
+    public static var order: [PanelCenterPage] {
+        get { decode(Preferences.shared.value(orderKey, default: "")) }
+        set { Preferences.shared.set(orderKey, encode(newValue)) }
+    }
+
+    public static func decode(_ raw: String) -> [PanelCenterPage] {
         var pages: [PanelCenterPage] = []
-        if isEnabled(.home) { pages.append(.home) }
-        if isEnabled(.performance) { pages.append(.performance) }
-        if transferFeature, isEnabled(.transfer) { pages.append(.transfer) }
-        if transferFeature, isEnabled(.cast) { pages.append(.cast) }
+        for token in raw.split(separator: ",") {
+            let trimmed = token.trimmingCharacters(in: .whitespaces)
+            guard let page = PanelCenterPage(rawValue: trimmed), !pages.contains(page) else { continue }
+            pages.append(page)
+        }
+        for page in defaultOrder where !pages.contains(page) { pages.append(page) }
         return pages
+    }
+
+    public static func encode(_ pages: [PanelCenterPage]) -> String {
+        // 去重 + 补全：写盘的一定是完整的四页
+        var normalized = pages
+        for page in defaultOrder where !normalized.contains(page) { normalized.append(page) }
+        var seen = Set<PanelCenterPage>()
+        return normalized.filter { seen.insert($0).inserted }.map(\.rawValue).joined(separator: ",")
+    }
+
+    /// 把 `page` 插到 `target` 位置（拖拽落点语义）
+    public static func move(_ page: PanelCenterPage, toIndex target: Int,
+                            in pages: [PanelCenterPage]) -> [PanelCenterPage] {
+        guard let from = pages.firstIndex(of: page) else { return pages }
+        var result = pages
+        result.remove(at: from)
+        result.insert(page, at: max(0, min(target, result.count)))
+        return result
+    }
+
+    // MARK: 生效顺序
+
+    /// 顶部实际出现的页面：按用户顺序过滤掉关掉的。
+    /// v181 起**不再**受「文件中转」总开关约束（总开关只影响中转页里的功能）。
+    public static func enabledPages() -> [PanelCenterPage] {
+        enabledPages(order: order)
+    }
+
+    /// 同上，但顺序由调用方给（SwiftUI 侧用 @AppStorage 的值，保证即时刷新）
+    public static func enabledPages(order pages: [PanelCenterPage]) -> [PanelCenterPage] {
+        pages.filter { isEnabled($0) }
     }
 }

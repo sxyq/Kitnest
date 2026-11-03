@@ -29,20 +29,41 @@ public struct ArchiveProgressPanel: View {
             header
             if expanded {
                 if queue.tasks.isEmpty {
-                    Text("暂无任务")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .padding(.vertical, 2)
-                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("暂无任务")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
+                        if !compact {
+                            Text("压缩、解压、加密另存都会汇到这里。开始压缩后点「转到后台」，"
+                                 + "面板关掉任务照跑，右下角的进度条会接住它。")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                } else if compact {
+                    // 内嵌在创建面板里：只显示最近几条，不滚动（面板本身高度由 sheet 决定）
                     ForEach(queue.tasks) { task in
                         ArchiveTaskRow(task: task)
                     }
+                } else {
+                    // v182：独立窗里任务会越攒越多，之前没有滚动容器 —— 超出的行直接被窗口裁掉。
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(spacing: 0) {
+                            ForEach(queue.tasks) { task in
+                                ArchiveTaskRow(task: task)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: .infinity, alignment: .top)
                 }
             }
         }
         .padding(compact ? 8 : 10)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .fill(compact ? Color.clear : Color(nsColor: .controlBackgroundColor))
         )
     }
@@ -129,6 +150,21 @@ struct ArchiveTaskRow: View {
                 .font(.system(size: 11))
                 .foregroundStyle(stateColor)
 
+            // v181：完成后能直接跳到产物（压缩包 / 解压目录）——
+            // 原来任务行只写「完成」，用户还得自己回想「压到哪儿去了」
+            if task.isFinished, let output = task.outputURL,
+               FileManager.default.fileExists(atPath: output.path) {
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([output])
+                } label: {
+                    Image(systemName: "folder")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("在访达中显示：\(output.lastPathComponent)")
+            }
+
             if !task.isFinished {
                 Button {
                     queue.cancel(taskID: task.id)
@@ -183,6 +219,7 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         current = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+        controller.probeCloseIfNeeded()
     }
 
     public static func toggle() {
@@ -197,21 +234,125 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
                            styleMask: [.titled, .closable, .resizable],
                            backing: .buffered, defer: false)
-        win.title = "归档任务"
+        win.title = "任务队列"
         win.isReleasedWhenClosed = false
         // v179：这是全工程唯一一个「裸 NSWindow」——默认浅灰底 + 系统三钮，
         // 与设置/OCR 等文档窗不是一套。统一官方外观（灰底 + 透明标题栏 + 圆钮）。
         win.applyOfficialChrome()
         super.init(window: win)
         win.delegate = self
-        win.contentViewController = NSHostingController(rootView: ArchiveProgressPanel())
-        win.minSize = NSSize(width: 320, height: 160)
-        // v180：记住上次位置（原来是每次 center，用户挪到角落下次又回中间）
-        win.setFrameAutosaveName("archive.task.window")
-        if win.frame.origin == .zero { win.center() }
+        // v181：`NSHostingController` 默认会用 SwiftUI 的 fittingSize 反向压窗口——
+        // 任务行是「图标 + 文本 + Spacer」，理想宽度只有 ~190pt，窗口一开就被压窄、
+        // 标题被截成「任务…」、按钮挤在一起。这里禁掉反推并显式给内容尺寸。
+        // v182：用 NSHostingView 直接当 contentView，不走 contentViewController ——
+        // NSWindowController 在 showWindow 时会把窗口高度压回 SwiftUI 的 fittingSize
+        // （实测 400×260 → 400×122，内容被裁）。这样窗口尺寸完全由我们说了算。
+        // 外面再套一个朴素 NSView 当 contentView：NSHostingView 直接当 contentView 时，
+        // 窗口会把高度对齐到 SwiftUI 的 fittingHeight（400×260 → 400×90+32），
+        // 说明文字照样被裁。普通 NSView 没有 intrinsicContentSize，窗口才不会自动缩。
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: 170))
+        container.autoresizingMask = [.width, .height]
+        // 顶端/左对齐：否则窗口一拉高，整块内容会垂直居中，上方留一大片灰
+        // 铺满 + 同色底：否则内容卡片下面会露出一大片灰（窗口底色），像界面没画完
+        let host = NSHostingView(rootView: ArchiveProgressPanel()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color(nsColor: .controlBackgroundColor)))
+        host.frame = container.bounds
+        host.autoresizingMask = [.width, .height]
+        container.addSubview(host)
+        win.contentView = container
+        // v182（用户：「关不掉」截图里内容被裁掉一半）：窗口高度只有 122pt 时，
+        // 底下的说明文字既被横向裁切又被纵向裁切，看起来像界面坏了。
+        // 这里给一个能装下空态文案的最小尺寸，并且**不信任旧的自动保存尺寸**——
+        // 之前被压成 189pt 那次留下的 320×122 会被原样恢复，setContentSize 完全没用。
+        win.minSize = NSSize(width: 380, height: 160)
+        win.setContentSize(NSSize(width: 400, height: 170))
+        // v180：记住上次位置（原来是每次 center，用户挪到角落下次又回中间）。
+        // v182：只存**位置**，不存尺寸。`setFrameAutosaveName` 会把旧版本压出来的
+        // 320×122 原样恢复（宽度被 minSize 夹回 380，高度却仍是 122，内容照样被裁），
+        // 而且恢复发生在 setContentSize 之后，怎么设都没用。
+        if let saved = UserDefaults.standard.string(forKey: "archive.task.window.origin") {
+            win.setFrameOrigin(NSPointFromString(saved))
+        } else {
+            win.center()
+        }
+        clampToScreen(win)
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    /// 排障（v182）：`probe.taskClose=YES` → 1s 后对自绘圆钮做一次**合成鼠标点击**
+    /// （构造 NSEvent 交给 window.sendEvent，走完整 hitTest + 事件派发，不动系统光标），
+    /// 并记录 hitTest 命中的视图。用来区分「按钮没接住点击」和「按钮动作没生效」。
+    func probeCloseIfNeeded() {
+        let mode = UserDefaults.standard.string(forKey: "probe.taskClose") ?? ""
+        guard !mode.isEmpty else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let win = self?.window,
+                  let host = win.standardWindowButton(.closeButton)?.superview,
+                  let btn = host.subviews.compactMap({ $0 as? RoundCloseButton }).first else {
+                Log.warn("Archive", "任务窗探针：找不到自绘圆钮")
+                return
+            }
+            let p = btn.convert(NSPoint(x: btn.bounds.midX, y: btn.bounds.midY), to: nil)
+            let hit = win.contentView?.superview?.hitTest(p)
+            Log.info("Archive", "任务窗探针：content=\(win.contentView?.frame ?? .zero) "
+                     + "fitting=\(win.contentView?.fittingSize ?? .zero) ")
+            Log.info("Archive", "任务窗探针：frame=\(win.frame) btnFrame=\(btn.frame) "
+                     + "enabled=\(btn.isEnabled) hasTarget=\(btn.target != nil) "
+                     + "action=\(btn.action.map(NSStringFromSelector) ?? "nil") "
+                     + "hit=\(hit.map { String(describing: type(of: $0)) } ?? "nil") "
+                     + "isKey=\(win.isKeyWindow) appActive=\(NSApp.isActive)")
+            if mode == "key" {
+                let std = win.standardWindowButton(.closeButton)
+                Log.info("Archive", "任务窗探针：stdClose exists=\(std != nil) "
+                         + "enabled=\(std?.isEnabled ?? false) alpha=\(std?.alphaValue ?? -1) "
+                         + "closable=\(win.styleMask.contains(.closable)) "
+                         + "delegate=\(String(describing: win.delegate.map { type(of: $0) }))")
+                // ⌘W / 菜单「关闭」走的就是 performClose
+                win.performClose(nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    Log.info("Archive", "任务窗探针：performClose 后 isVisible=\(win.isVisible)")
+                    if win.isVisible {
+                        win.close()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            Log.info("Archive", "任务窗探针：close() 后 isVisible=\(win.isVisible)")
+                        }
+                    }
+                }
+                return
+            }
+            let now = ProcessInfo.processInfo.systemUptime
+            if let down = NSEvent.mouseEvent(with: .leftMouseDown, location: p,
+                                             modifierFlags: [], timestamp: now,
+                                             windowNumber: win.windowNumber, context: nil,
+                                             eventNumber: 0, clickCount: 1, pressure: 1),
+               let up = NSEvent.mouseEvent(with: .leftMouseUp, location: p,
+                                           modifierFlags: [], timestamp: now + 0.05,
+                                           windowNumber: win.windowNumber, context: nil,
+                                           eventNumber: 1, clickCount: 1, pressure: 0) {
+                win.sendEvent(down)
+                win.sendEvent(up)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                Log.info("Archive", "任务窗探针：合成点击后 isVisible=\(win.isVisible)")
+            }
+        }
+    }
+
+    public func windowDidMove(_ notification: Notification) {
+        guard let win = window else { return }
+        UserDefaults.standard.set(NSStringFromPoint(win.frame.origin),
+                                  forKey: "archive.task.window.origin")
+    }
+
+    /// 记住的位置可能来自另一块屏幕 / 分辨率变了 —— 落到屏幕外就回中间
+    private func clampToScreen(_ win: NSWindow) {
+        let visible = (win.screen ?? NSScreen.main)?.visibleFrame ?? .zero
+        if !visible.isEmpty && !visible.intersects(win.frame) {
+            win.center()
+        }
+    }
 
     public func windowWillClose(_ notification: Notification) {
         Self.current = nil

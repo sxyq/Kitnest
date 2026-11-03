@@ -68,24 +68,51 @@
 | 投放应用库 | 补 `applyOfficialChrome()` |
 | JSON 检查器 | 只设底色 → `applyOfficialChrome()` |
 | 圆角归一 | 44 处 `5/7/9/11/14/16` → 令牌；取值从 **17 种降到 12 种**（剩余 1/1.5/2/3 是微元素，19/24 是 HUD 与截图圆角，属有意例外） |
-| 关闭钮 | 静置时只有一颗灰圆点（截图里像"脏点"）→ × 常驻（0.55），悬停加深到 0.95 |
+| 关闭钮 | 静置时只有一颗灰圆点（截图里像"脏点"）→ × 常驻（0.55），悬停加深到 0.95；**v181**：× 提到 0.8/粗 1.35 + 发丝描边 + 直径 13pt（无标题栏窗内缩 16pt），一眼认得出是关闭键 |
 
 ## 四、仍未统一（下一批，按收益排序）
 
 | 项 | 现状 | 建议 |
 |---|---|---|
-| 卡片底三套写法 | 约 60 处 `Color.primary.opacity(0.03)` / `.regularMaterial` / `Theme.cardBackground` | 逐步换成 `.glassCard()` |
+| ~~卡片底三套写法~~ | **v181 已清零**：卡片/分组块/行卡 → `.glassCard()`（含裁切与发丝线）；小控件/条/胶囊 → 统一 `Theme.cardFill`；结构浮层（标注工具条/竖栏、中转二维码浮层）→ `.glassPlate()`。唯一有意例外 = 电池能量图的纹理卡底（渐变 + 网格，属设计件，不是普通卡片） | ~~逐步换成 `.glassCard()`~~ |
 | 字号游离值 | 26 处 5–10.5（多为图标尺寸） | 图标不算文本，可保留；文本类统一到 10/11 |
+| 圆角字面量 | **v181 已清零**（57 处 4/6/8/10/12 → `Theme.Radius.*`，像素完全等价） | — |
 | Toast | 自绘胶囊（深色 0.135 / 浅色 0.99）+ 阴影 | 与浮层玻璃统一，或明确作为「HUD 例外」 |
 | 投放控制条 | 固定黑 55%（视频上必须高对比） | 记为 HUD 例外，不参与玻璃统一 |
 | 主面板圆角 | 走个性化 6/10/14 | 默认值建议改成 12，与窗口档一致 |
 | 长截图 HUD / 延迟 HUD | 24pt 大圆角圆形 | HUD 例外，保留 |
 | 归档浏览窗 | 保留系统红绿灯（主文档窗需要缩放/全屏） | 有意例外，已在文档注明 |
 
-## 五、防复发
+## 五、防复发（已落地为可执行检查）
 
-- 新代码**不许**再写圆角字面量，从 `Theme.Radius` 取。
-- 新浮层**不许**自己拼 `clear + RoundedRectangle.fill(...)`，用 `.glassPlate()`。
-- 新文档窗必须调 `applyOfficialChrome()`。
-- 建议下一步把这三条做成 `check.sh` 的静态检查（正则：`cornerRadius: \d`、`\.regularMaterial`、`NSVisualEffectView(`），
-  出现即告警——目前 12 种圆角里还剩 4 处历史值，靠人盯不住。
+三条规则已做成静态检查，随 `./check.sh` 一起跑，**新增一条即失败**（退出码 1）：
+
+| 规则 | 检查什么 | 当前存量 | 通过条件 |
+|---|---|---|---|
+| R1 圆角字面量 | `cornerRadius: 7` 这类硬编码 | **0**（零容忍） | 取 `Theme.Radius.*`；微元素 1/1.5/2/3 放行 |
+| R2 自拼浮层背景 | `.regularMaterial` / `NSVisualEffectView(` | **1**（豁免） | 走 `.glassPlate()` / `.glassCard()` / `LiquidGlass.makeView()` |
+| R3 文档窗缺统一外观 | 建了 `.titled/.closable/.resizable` 窗口却既没 `applyOfficialChrome()`、也没显式 `backgroundColor` | **0** | 两者其一 |
+
+- 脚本：`tools/ui_lint.py`；基线：`tools/ui-lint-baseline.txt`（按「文件 + 规则 + 条数」记账，只允许减少）。
+- 确属例外（例如浮在照片上的 material 胶囊）→ 在基线里保留并写明理由，不要图省事跑 `--update-baseline` 一把刷掉。
+- 单独跑：`python3 tools/ui_lint.py`（`--report` 只打印不改退出码）。
+
+### 仍然靠人盯的部分
+
+- 新浮层别自己拼 `clear + RoundedRectangle.fill(...)`：这条正则判不准，靠评审。
+- 新文档窗**除** `applyOfficialChrome()` 外，窗口尺寸别再交给 SwiftUI 反推：
+  `NSHostingController` 会把窗口压成 fittingSize（任务队列窗被压到 189pt 宽、122pt 高过）。
+  独立小窗的正确姿势是「朴素 NSView 当 contentView + NSHostingView 铺满」，
+  尺寸由 `setContentSize` 说了算。
+- 记住窗口位置**只存 origin**，不要 `setFrameAutosaveName`：它连尺寸一起恢复，
+  旧版本压出来的坏尺寸会被继承，而且恢复发生在 `setContentSize` 之后（设了也没用）。
+
+### 自绘圆钮（v182 补）
+
+- **热区 24pt、视觉 13pt**。13pt 的圆差 2px 就落到标题栏、变成拖窗口，
+  用户读作「关不掉」（任务队列窗的实测反馈）。要放大只改热区，别改视觉直径。
+- `acceptsFirstMouse = true`：App 在后台时首击直接生效，不再先「激活」一次。
+- **别指望 `performClose`**：红绿灯是用 `alphaValue = 0` 隐藏的，而 alpha=0 会让
+  AppKit 把 `isEnabled` 置回 false —— 此时 `performClose(_:)` 静默变空操作
+  （实测 `isVisible` 仍为 true）。自绘圆钮就是这些窗口唯一的关闭出口，
+  它的 action 走 `frsetRoundCloseTapped`（先问 `windowShouldClose`，再 `close()`）。

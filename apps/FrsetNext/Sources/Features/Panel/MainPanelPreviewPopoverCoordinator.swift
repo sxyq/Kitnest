@@ -223,15 +223,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         return true
     }
 
-    /// 单击路径入口（ClipboardPreviewWindowRecord.open 转调；persistent 模式）
-    public func presentPersistent(for item: ClipboardItem, anchorView: NSView?) {
-        present(for: item,
-                anchorRectInWindow: anchorView?.bounds,
-                anchorView: anchorView,
-                source: .mainPreview,
-                entry: .mainList,
-                mode: .persistent)
-    }
+    // v182（用户）：「点开后常驻、带两个叉」的持久预览窗已删除；
+    // 单击与悬停共用 present(...mode: .hover)，不再提供 persistent 入口。
 
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,

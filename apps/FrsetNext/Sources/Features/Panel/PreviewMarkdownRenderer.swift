@@ -226,22 +226,19 @@ enum PreviewMarkdownRenderer {
                     continue
                 }
 
-                // 表格（连续 | 行）
-                if line.hasPrefix("|") && line.hasSuffix("|") {
+                // 表格（GFM）：表头行 + `|---|` 分隔行。v182 放宽——
+                // 原来要求首尾都有竖线，`问题 | 后果` / `---|---` 这种省略写法整段被当段落。
+                if i + 1 < lines.count,
+                   line.contains("|"),
+                   Self.isTableSeparator(lines[i + 1]) {
                     flushParagraph()
                     let tableStart = i
                     var rows: [[String]] = []
                     while i < lines.count {
                         let l = lines[i].trimmingCharacters(in: .whitespaces)
-                        guard l.hasPrefix("|"), l.hasSuffix("|") else { break }
-                        // v126（性能审计 F1077）：分隔行判定走 cachedRe，避免逐行隐式编译正则
-                        if Self.firstMatchRange(#"^\|[\s:|-]+\|$"#, in: l) != nil {
-                            i += 1; continue   // 分隔行
-                        }
-                        let cells = l.dropFirst().dropLast()
-                            .components(separatedBy: "|")
-                            .map { $0.trimmingCharacters(in: .whitespaces) }
-                        rows.append(cells)
+                        guard l.contains("|") else { break }
+                        if Self.isTableSeparator(l) { i += 1; continue }   // 分隔行
+                        rows.append(Self.splitTableRow(l))
                         i += 1
                     }
                     if !rows.isEmpty { blocks.append((.table(rows: rows), span(tableStart, i))) }
@@ -489,13 +486,15 @@ enum PreviewMarkdownRenderer {
             ]))
         }
 
+        // v182：不再给每行贴 `.backgroundColor` —— NSTextView 按**字形宽度**画背景，
+        // 长短不一的行就是一条条「被选中」的灰底（用户反馈像坏掉了）。
+        // 代码块底色改由容器（PreviewCodeTextView 的 background 参数）整块铺。
         let ps = paragraphStyle(lineSpacing: 1.5, before: 1, after: 5, headIndent: 6)
-        let bg = NSColor.labelColor.withAlphaComponent(0.06)
         let lines = code.components(separatedBy: "\n")
         for (idx, line) in lines.enumerated() {
             let highlighted = highlight(line: line, lang: lang, font: monoFont)
-            highlighted.addAttributes([.paragraphStyle: ps, .backgroundColor: bg],
-                                      range: NSRange(location: 0, length: highlighted.length))
+            highlighted.addAttribute(.paragraphStyle, value: ps,
+                                     range: NSRange(location: 0, length: highlighted.length))
             out.append(highlighted)
             if idx < lines.count - 1 { out.append(NSAttributedString(string: "\n", attributes: [.font: monoFont])) }
         }
@@ -658,6 +657,38 @@ enum PreviewMarkdownRenderer {
     /// 显示宽度：东亚宽字符按 2 列计算。
     /// 旧实现用 `String.count` 补空格——每行中文都算 1，等宽字体实际占 2 列，
     /// 于是表格的行与行、列与列全部错位（用户看到的「表格没格式化」）。
+    /// 表格分隔行：`|---|:--:|` / `--- | ---`（只含 - : | 空白，且至少一个 -）
+    static func isTableSeparator(_ line: String) -> Bool {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        guard t.contains("-") else { return false }
+        let rest = t.trimmingCharacters(in: CharacterSet(charactersIn: "|-: \t"))
+        return rest.isEmpty
+    }
+
+    /// 表格行拆格：兼容带/不带首尾竖线；`\\|` 转义不切
+    static func splitTableRow(_ line: String) -> [String] {
+        var t = line.trimmingCharacters(in: .whitespaces)
+        if t.hasPrefix("|") { t.removeFirst() }
+        if t.hasSuffix("|"), !t.hasSuffix("\\|") { t.removeLast() }
+        var cells: [String] = []
+        var cur = ""
+        var chars = Array(t)
+        var idx = 0
+        while idx < chars.count {
+            let ch = chars[idx]
+            if ch == "\\", idx + 1 < chars.count {
+                cur.append(ch); cur.append(chars[idx + 1]); idx += 2; continue
+            }
+            if ch == "|" {
+                cells.append(cur.trimmingCharacters(in: .whitespaces)); cur = ""
+                idx += 1; continue
+            }
+            cur.append(ch); idx += 1
+        }
+        cells.append(cur.trimmingCharacters(in: .whitespaces))
+        return cells
+    }
+
     static func displayWidth(_ text: String) -> Int {
         var width = 0
         for scalar in text.unicodeScalars {
@@ -674,50 +705,126 @@ enum PreviewMarkdownRenderer {
     private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
         guard let first = rows.first else { return NSAttributedString() }
         let cols = rows.map(\.count).max() ?? first.count
-        // v126（性能审计 F1088）：每格显示宽度只算一遍（原实现 widths 遍历算一次、
-        // pad() 内又算一次，且逐格 String += 拼接）——一次算好宽度，
-        // 行串改 Array join。
-        var widths = Array(repeating: 4, count: cols)
-        let cellWidths: [[Int]] = rows.map { row in
-            row.map { cell in
-                let w = displayWidth(cell)
-                return w
+
+        // v182（用户：「Markdown 里的表格没有正确渲染」）：原实现把表格当等宽字符画，
+        // 一格文字长了就整行折行 → 网格塌掉（中文长表格必现）。这里改成**真表格**：
+        //   ① 每格 inline 渲染（粗体/链接保留，等宽字体下宽度不变）；
+        //   ② 列宽按「显示宽度」（CJK 记 2）算，总宽超预算时按比例压缩、每列最窄 6；
+        //   ③ 每格按列宽**自行折行**，同行所有格拉到同一行数，逐行拼接 → 永不越界折行。
+        var cells: [[NSAttributedString]] = rows.map { row in
+            (0..<cols).map { c in
+                let raw = c < row.count ? row[c] : ""
+                let attr = NSMutableAttributedString(attributedString: inlineAttributed(raw))
+                if attr.length > 0 {
+                    attr.addAttribute(.font, value: monoFont,
+                                      range: NSRange(location: 0, length: attr.length))
+                }
+                return attr
             }
         }
+        // 各格纯文本宽度（inline 渲染后的 string 已去掉 **/` 等标记）
+        let cellWidths: [[Int]] = cells.map { row in row.map { displayWidth($0.string) } }
+
+        // 预算：11pt 等宽 ≈ 6.6pt/列，预览正文宽约 440pt → 60 列；加上分隔符余量
+        let budget = 58
+        var widths = Array(repeating: 6, count: cols)
         for ws in cellWidths {
             for (c, w) in ws.enumerated() where c < cols {
                 widths[c] = max(widths[c], w)
             }
         }
-        func pad(_ text: String, _ w: Int, _ width: Int) -> String {
-            width >= w ? text : text + String(repeating: " ", count: w - width)
-        }
-        let out = NSMutableAttributedString()
-        for (r, row) in rows.enumerated() {
-            var parts: [String] = []
-            parts.reserveCapacity(cols * 2)
+        var total = widths.reduce(0, +) + 3 * max(0, cols - 1)   // " │ " 占 3
+        if total > budget {
+            let spare = Double(total - budget)
+            let share = spare / Double(cols)
             for c in 0..<cols {
-                let cell = c < row.count ? row[c] : ""
-                let cw = c < cellWidths[r].count ? cellWidths[r][c] : displayWidth(cell)
-                parts.append(pad(cell, widths[c], cw))
-                if c < cols - 1 { parts.append(" │ ") }
+                widths[c] = max(6, Int(Double(widths[c]) - share.rounded()))
             }
-            let line = parts.joined()
-            let attr = NSMutableAttributedString(string: line, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: s(11), weight: r == 0 ? .semibold : .regular),
+            total = widths.reduce(0, +) + 3 * max(0, cols - 1)
+        }
+
+        // 每格按列宽折行（显示宽度口径，CJK=2；优先在空格断）
+        var wrapped: [[[NSAttributedString]]] = cells.map { row in
+            (0..<cols).map { c in wrapDisplayWidth(row[c], width: widths[c]) }
+        }
+
+        let out = NSMutableAttributedString()
+        for (r, rowCells) in wrapped.enumerated() {
+            let lines = rowCells.map(\.count).max() ?? 1
+            var rendered = ""
+            for k in 0..<lines {
+                var parts: [String] = []
+                for c in 0..<cols {
+                    let piece = k < rowCells[c].count ? rowCells[c][k].string : ""
+                    let pad = max(0, widths[c] - displayWidth(piece))
+                    parts.append(piece + String(repeating: " ", count: pad))
+                    if c < cols - 1 { parts.append(" │ ") }
+                }
+                rendered += parts.joined() + "\n"
+            }
+            let attr = NSMutableAttributedString(string: rendered, attributes: [
+                .font: monoFont,
                 .foregroundColor: r == 0 ? NSColor.labelColor : NSColor.secondaryLabelColor,
-                .paragraphStyle: paragraphStyle(lineSpacing: 1.5, after: 1, headIndent: 4)
+                .paragraphStyle: paragraphStyle(lineSpacing: 1.2, after: 1, headIndent: 4)
             ])
             out.append(attr)
             if r == 0 {
-                out.append(NSAttributedString(string: String(repeating: "─", count: min(line.count, 60)) + "\n",
+                let ruleCount = min(widths.reduce(0, +) + 3 * max(0, cols - 1), 200)
+                out.append(NSAttributedString(string: String(repeating: "─", count: ruleCount) + "\n",
                                               attributes: [.font: NSFont.systemFont(ofSize: s(8)),
                                                            .foregroundColor: NSColor.tertiaryLabelColor]))
-            } else if r < rows.count - 1 {
-                out.append(NSAttributedString(string: "\n", attributes: [.font: monoFont]))
             }
         }
         return out
+    }
+
+    /// 按「显示宽度」折行（CJK 记 2 列）；拉丁文尽量在空格处断，避免把单词劈开。
+    /// 逐 Character 走（含 emoji 代理对），用 UTF-16 偏移切 NSAttributedString。
+    private static func wrapDisplayWidth(_ attr: NSAttributedString, width: Int) -> [NSAttributedString] {
+        guard width > 0 else { return [attr] }
+        let text = attr.string
+        guard !text.isEmpty else { return [NSAttributedString()] }
+
+        struct Piece { let range: NSRange; let width: Int; let isSpace: Bool }
+        var pieces: [Piece] = []
+        var offset = 0
+        for ch in text {
+            let str = String(ch)
+            let len = (str as NSString).length
+            pieces.append(Piece(range: NSRange(location: offset, length: len),
+                                width: displayWidth(str),
+                                isSpace: ch == " " || ch == "\t"))
+            offset += len
+        }
+
+        var result: [NSAttributedString] = []
+        var lineStart = 0          // pieces 下标
+        var lineWidth = 0
+        var lastBreak = -1         // 可断点（空白之后的第一个 piece 下标）
+        var i = 0
+        while i < pieces.count {
+            let p = pieces[i]
+            if lineWidth + p.width > width, i > lineStart {
+                let cut = lastBreak > lineStart ? lastBreak : i
+                let r = NSRange(location: pieces[lineStart].range.location,
+                                length: pieces[cut - 1].range.location + pieces[cut - 1].range.length
+                                        - pieces[lineStart].range.location)
+                result.append(attr.attributedSubstring(from: r))
+                lineStart = cut
+                lineWidth = (cut..<i).reduce(0) { $0 + pieces[$1].width }
+                lastBreak = -1
+                continue
+            }
+            if p.isSpace { lastBreak = i + 1 }
+            lineWidth += p.width
+            i += 1
+        }
+        if lineStart < pieces.count {
+            let r = NSRange(location: pieces[lineStart].range.location,
+                            length: offset - pieces[lineStart].range.location)
+            result.append(attr.attributedSubstring(from: r))
+        }
+        return result.isEmpty ? [attr] : result
     }
 
     // MARK: 目录

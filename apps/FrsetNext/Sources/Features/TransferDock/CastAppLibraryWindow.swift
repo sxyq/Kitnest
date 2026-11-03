@@ -133,8 +133,7 @@ private struct CastAppLibraryView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 6)
-        .background(Color.primary.opacity(0.03),
-                    in: RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+        .glassCard(radius: Theme.Radius.control)
     }
 
     private func open(_ app: DeviceAppCatalog.App) {

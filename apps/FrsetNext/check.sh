@@ -56,6 +56,28 @@ module_lines=()
   echo "================================================================"
 } >> "$REPORT"
 
+# ---------------------------------------------------------------- UI 一致性
+# v181：把《UI-一致性审计与规范》第五节的防复发三条做成可执行检查
+# （圆角字面量 / 自拼浮层背景 / 文档窗没上统一外观）。
+# 按「文件+规则+条数」跟 tools/ui-lint-baseline.txt 比对：只允许减少，新增即失败。
+ui_line="SKIP    UI 一致性（python3 不可用）"
+if command -v python3 >/dev/null 2>&1; then
+  ui_out="$(python3 "$ROOT/tools/ui_lint.py" 2>&1)"
+  ui_rc=$?
+  echo "$ui_out"
+  {
+    echo "[UI 一致性]"
+    echo "$ui_out"
+    echo
+  } >> "$REPORT"
+  if [ "$ui_rc" -eq 0 ]; then
+    ui_line="PASS    UI 一致性"
+  else
+    ui_line="FAIL    UI 一致性（新增违规，见上方明细）"
+    overall=1
+  fi
+fi
+
 run_typecheck() {
   # $@ = 参与编译的文件；完整输出写入 $LOG_OUT，退出码写到标准输出首行
   local tmp attempt code=1
@@ -201,6 +223,7 @@ fi
   echo "汇总"
   for line in "${module_lines[@]}"; do echo "  $line"; done
   echo "  $full_line"
+  echo "  $ui_line"
   echo
   if [ "$overall" -eq 0 ]; then
     echo "结论：全部通过 ✅"
@@ -213,6 +236,7 @@ echo
 echo "================ 汇总 ================"
 for line in "${module_lines[@]}"; do echo "  $line"; done
 echo "  $full_line"
+echo "  $ui_line"
 echo "======================================"
 echo "报告已写入: $REPORT"
 

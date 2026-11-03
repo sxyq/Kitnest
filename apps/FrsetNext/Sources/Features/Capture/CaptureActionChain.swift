@@ -287,9 +287,9 @@ private struct CaptureActionToolbarView: View {
                             .font(.system(size: 11))
                     }
                     .frame(width: 46, height: 38)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(tool.id == defaultToolID ? Theme.accent.opacity(0.16) : Color.clear))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .strokeBorder(tool.id == defaultToolID ? Theme.accent.opacity(0.55) : Color.clear, lineWidth: 1))
                     .contentShape(Rectangle())
                 }
@@ -299,9 +299,9 @@ private struct CaptureActionToolbarView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
             .fill(Color(nsColor: OfficialChrome.windowBackground).opacity(0.98)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
             .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
     }
 }

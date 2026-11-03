@@ -320,6 +320,103 @@ final class LongScreenshotCoordinator: NSObject {
         session?.cancel()
     }
 
+    // MARK: 排障：采集期实时预览卡（v181 复查）
+
+    /// 不用滚鼠标也能验收预览卡：走**真实建会话路径**（startSession 同时建 HUD / 选区边框 / 预览卡），
+    /// 之后按真实「追加一段」的节奏把合成画布喂给预览卡，最后自动收尾，验证卡片随之关闭。
+    ///
+    /// 入口：`frsetnext://longshotcard?anchor=right|left|wide`，结果写 /tmp/livecard.txt
+    func runLiveCardCheck(anchor: String, growTo: Int = 5200) {
+        guard session == nil else {
+            Log.warn("Capture", "预览卡自检：已有会话在跑，先结束它")
+            return
+        }
+        let vf = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let width: CGFloat = 600
+        let height: CGFloat = 480
+        var rect = NSRect(x: vf.midX - width / 2, y: vf.midY - height / 2, width: width, height: height)
+        switch anchor {
+        case "right":   // 贴着右边缘 → 右边放不下，必须翻到左侧
+            rect.origin.x = vf.maxX - width - 24
+        case "wide":    // 几乎占满屏宽 → 左右都放不下，必须移到选区上下方或收起
+            rect = NSRect(x: vf.minX + 12, y: vf.midY - height / 2,
+                          width: vf.width - 24, height: height)
+        default: break  // 屏幕中间 → 正常放右侧
+        }
+        let displayID = NSScreen.main.flatMap { ScreenSnapshot.displayID(of: $0) } ?? CGMainDisplayID()
+        startSession(appKit: rect, displayID: displayID)
+
+        let src = Self.makeLiveCardSource(width: Int(rect.width), height: growTo)
+        var report = ["selection = \(Int(rect.width))×\(Int(rect.height)) @ (\(Int(rect.minX)),\(Int(rect.minY))) anchor=\(anchor)"]
+
+        var step = 1
+        func feed() {
+            guard let panel = self.livePreview, let src else { return }
+            let order = [0.28, 0.45, 0.62, 0.80, 1.0]
+            if step > order.count {
+                // 全部喂完 → 1.6s 后走真实的取消收尾，验证「采集中止时卡片自动关掉」
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                    self.cancelCurrentSession()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        let still = self.livePreview != nil
+                        report.append("after cancel: livePreview=\(still ? "仍在（异常）" : "已释放 ✓")")
+                        try? report.joined(separator: "\n").write(toFile: "/tmp/livecard.txt",
+                                                                 atomically: true, encoding: .utf8)
+                        Log.info("Capture", "预览卡自检完成：\(report.suffix(3).joined(separator: " | "))")
+                    }
+                }
+                return
+            }
+            let h = max(240, Int(CGFloat(growTo) * order[step - 1]))
+            if let img = src.cropping(to: CGRect(x: 0, y: 0, width: src.width, height: h)) {
+                panel.update(image: img, near: rect)
+                let f = panel.frame
+                let overlap = f.intersects(rect)
+                report.append("step\(step) 画布 \(img.width)×\(img.height) → card \(Int(f.width))×\(Int(f.height))"
+                              + " @ (\(Int(f.minX)),\(Int(f.minY)))"
+                              + " 右侧差 \(Int(f.minX - rect.maxX))"
+                              + " 重叠=\(overlap && panel.isVisible ? "是（异常）" : "否 ✓")"
+                              + " 可见=\(panel.isVisible) 穿透=\(panel.ignoresMouseEvents)"
+                              + " sharing=\(panel.sharingType == .none ? "none ✓" : "\(panel.sharingType.rawValue)（会被截进去）")")
+            }
+            step += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55, execute: feed)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            feed()
+        }
+        _ = width
+        Log.info("Capture", "预览卡自检开始（anchor=\(anchor)，选区 \(Int(rect.width))×\(Int(rect.height))）")
+    }
+
+    /// 合成一张「像网页」的长图（顶部有标题条，正文是分段色块 + 行号），用于预览卡验收
+    private static func makeLiveCardSource(width: Int, height: Int) -> CGImage? {
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height,
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = NSSize(width: width, height: height)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSColor(calibratedRed: 0.97, green: 0.96, blue: 0.94, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: width, height: height).fill()
+        NSColor(calibratedRed: 0.20, green: 0.45, blue: 0.90, alpha: 1).setFill()
+        NSRect(x: 0, y: height - 44, width: width, height: 44).fill()
+        var y = 64
+        var i = 1
+        while y < height - 40 {
+            NSColor.white.setFill()
+            NSRect(x: 18, y: height - y - 56, width: width - 36, height: 56).fill()
+            let text = String(format: "%04d  长截图采集期预览 · 追加到这一行", i)
+            (text as NSString).draw(at: NSPoint(x: 34, y: height - y - 34),
+                withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular),
+                                 .foregroundColor: NSColor(calibratedWhite: 0.25, alpha: 1)])
+            y += 72
+            i += 1
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.cgImage
+    }
+
     /// 是否有会话进行中（供 UI 状态提示）
     var isRunning: Bool { session?.state.isActive ?? false }
 }

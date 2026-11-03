@@ -171,7 +171,7 @@ struct CaptureHistoryView: View {
                         .aspectRatio(contentMode: .fill)
                 } else {
                     Rectangle()
-                        .fill(Theme.cardBackground)
+                        .fill(Theme.cardFill)
                     Image(systemName: "photo")
                         .foregroundStyle(.secondary)
                 }

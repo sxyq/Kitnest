@@ -5,12 +5,21 @@ import ObjectiveC
 //
 // 官方原版内容型窗口左上角是一个灰色圆形关闭钮（无系统红绿灯三钮）。
 // 重建版此前沿用系统红绿灯（key 时红/黄/绿），与官方观感不一致。
-// 这里自绘 14pt 圆钮：静态灰圆，hover 显示 ×；点击 performClose。
+// 这里自绘 13pt 圆钮：静态灰圆 + 发丝描边 + 常驻 ×（v181 起不再像「脏点」）；点击 performClose。
 // 由 `NSWindow.applyOfficialChrome()` 自动挂载（隐藏系统三钮）。
 
 private var roundCloseButtonKey: UInt8 = 0
+private var roundCloseResizeObserverKey: UInt8 = 0
 
 final class RoundCloseButton: NSButton {
+
+    /// 视觉直径（画出来的圆）
+    static let visualSize: CGFloat = 13
+    /// 命中直径（v182：13pt 的圆太小，差 2px 就点到标题栏开始拖窗口，
+    /// 用户读作「关不掉」。视觉仍是 13pt，热区放大到 24pt）
+    static let hitSize: CGFloat = 24
+    /// 视觉圆相对命中框的内缩
+    static var hitPadding: CGFloat { (hitSize - visualSize) / 2 }
 
     private var isHovering = false
 
@@ -21,12 +30,24 @@ final class RoundCloseButton: NSButton {
         title = ""
         setButtonType(.momentaryChange)
         focusRingType = .none
+        toolTip = "关闭"
+    }
+
+    /// 应用在后台时，第一次点击也要直接生效。
+    /// 默认 NSButton 返回 false → 首击只激活 App、把点击吞掉，用户会以为按钮坏了。
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// 视觉圆的矩形（居中）
+    private var circleRect: NSRect {
+        let d = Self.visualSize
+        return NSRect(x: (bounds.width - d) / 2, y: (bounds.height - d) / 2,
+                      width: d, height: d)
     }
 
     required init?(coder: NSCoder) { fatalError("RoundCloseButton 不支持 NSCoder") }
 
     override func draw(_ dirtyRect: NSRect) {
-        let circle = NSBezierPath(ovalIn: bounds.insetBy(dx: 0.5, dy: 0.5))
+        let circle = NSBezierPath(ovalIn: circleRect.insetBy(dx: 0.5, dy: 0.5))
         let base: NSColor = NSColor(name: nil) { appearance in
             let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             // v166.8（用户：「这个弹窗没有方式去关闭」）：
@@ -39,20 +60,30 @@ final class RoundCloseButton: NSButton {
         base.setFill()
         circle.fill()
 
-        // v179：× 常驻显示（不再只在 hover 时出现）。
-        // 审计时发现：静置状态下这个按钮就是一颗纯灰圆点，用户根本认不出是关闭键，
-        // 多个窗口的截图里都像「界面上的脏点」。改成淡 ×（0.55）+ 悬停加深（0.95）。
-        let cross = NSBezierPath()
-        cross.lineWidth = 1.1
-        let inset: CGFloat = 4.2
-        cross.move(to: NSPoint(x: inset, y: inset))
-        cross.line(to: NSPoint(x: bounds.width - inset, y: bounds.height - inset))
-        cross.move(to: NSPoint(x: bounds.width - inset, y: inset))
-        cross.line(to: NSPoint(x: inset, y: bounds.height - inset))
+        // v181（用户：「监测窗左侧仍有一处灰色圆点」）：来源就是这颗自绘关闭钮——
+        // 灰圆 + 0.55 的淡 × 在 12pt 尺寸下读不出「这是个按钮」，看着像界面上的脏点。
+        // 现在补一道发丝描边 + 把 × 画实（粗细/透明度都提上来），
+        // 静置时是一颗「看得出是关闭键」的小圆钮，hover 再压深。
         (NSColor(name: nil) { appearance in
             let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            let alpha: CGFloat = self.isHovering ? 0.95 : 0.55
-            return dark ? NSColor(white: 0.92, alpha: alpha) : NSColor(white: 0.25, alpha: alpha)
+            return dark ? NSColor(white: 0, alpha: 0.35) : NSColor(white: 0, alpha: 0.16)
+        }).setStroke()
+        circle.lineWidth = 1
+        circle.stroke()
+
+        let cross = NSBezierPath()
+        cross.lineWidth = 1.35
+        let r = circleRect
+        let inset: CGFloat = r.width * 0.30
+        cross.move(to: NSPoint(x: r.minX + inset, y: r.minY + inset))
+        cross.line(to: NSPoint(x: r.maxX - inset, y: r.maxY - inset))
+        cross.move(to: NSPoint(x: r.maxX - inset, y: r.minY + inset))
+        cross.line(to: NSPoint(x: r.minX + inset, y: r.maxY - inset))
+        cross.lineCapStyle = .round
+        (NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let alpha: CGFloat = self.isHovering ? 1.0 : 0.8
+            return dark ? NSColor(white: 0.96, alpha: alpha) : NSColor(white: 0.16, alpha: alpha)
         }).setStroke()
         cross.stroke()
     }
@@ -70,6 +101,14 @@ final class RoundCloseButton: NSButton {
 }
 
 extension NSWindow {
+    /// 自绘圆钮的关闭动作：不依赖标准关闭钮状态（见 attach 里的注释）。
+    /// 先问 delegate，保留 `windowShouldClose` 的否决权（例如「还有任务在跑」的确认框），
+    /// 放行后再直接关闭。
+    @objc public func frsetRoundCloseTapped(_ sender: Any?) {
+        if let delegate, delegate.windowShouldClose?(self) == false { return }
+        close()
+    }
+
     /// 挂载官方圆形关闭钮（幂等；隐藏系统红绿灯）。
     ///
     /// v166.9（用户：「这个弹窗没有方式去关闭」）——两处修正：
@@ -88,10 +127,16 @@ extension NSWindow {
                        standardWindowButton(.miniaturizeButton),
                        standardWindowButton(.zoomButton)] {
             button?.alphaValue = 0
-            button?.isEnabled = false
+            // v182（用户：「关不掉」）：**不要** isEnabled = false。
+            // 标准关闭钮一旦被禁用，`performClose(_:)` 会静默变成空操作 ——
+            // ⌘W、菜单「关闭」、Esc 兜底全部失效，自绘圆钮就成了唯一出口。
+            // 只置 alpha = 0 就能隐藏，还保留 performClose 的语义；
+            // 圆钮叠在它上面（后添加 → 命中优先），正常点击仍走自绘按钮。
         }
 
-        let size: CGFloat = 12
+        let size = RoundCloseButton.visualSize
+        let hit = RoundCloseButton.hitSize
+        let pad = RoundCloseButton.hitPadding
         let stdHost = standardWindowButton(.closeButton)?.superview
         guard let host = stdHost ?? contentView else { return }
 
@@ -100,13 +145,19 @@ extension NSWindow {
             if let std = standardWindowButton(.closeButton),
                std.superview === host, std.frame.width > 0 {
                 let f = std.frame
-                // x 固定 10 + 12pt 直径：隐藏三钮后 AppKit 把标题左移到 x≈27，
-                // 这个尺寸刚好留出 5pt 间隙，不再压住标题首字
-                btn.frame = NSRect(x: 10, y: f.midY - size / 2,
-                                   width: size, height: size)
+                // 视觉圆左边缘固定 x = 7（系统关闭钮原位）；命中框向左扩 5.5pt，
+                // 视觉位置不变，但点起来不用「瞄准」。
+                btn.frame = NSRect(x: 7 - pad, y: f.midY - hit / 2,
+                                   width: hit, height: hit)
             } else {
-                let y = host.isFlipped ? 14 : host.bounds.height - size - 14
-                btn.frame = NSRect(x: 14, y: y, width: size, height: size)
+                // 无标题栏窗口（监测独立窗这类）：贴内容左上角，内缩 16pt。
+                // v181（真身就是那颗「左侧灰点」）：监测独立窗是**内容驱动高度**，会自己长高；
+                // 而这里原来只在挂载时算一次 y → 窗口一变高，圆钮就卡在画面中间乱飘。
+                // 现在给它「距顶固定」的弹性边距（non-flipped 用 minYMargin、flipped 用 maxYMargin），
+                // 窗口缩放时 AppKit 自己把它按在标题上；下面再加 didResize 观察做兜底。
+                btn.autoresizingMask = host.isFlipped ? [.maxYMargin] : [.minYMargin]
+                let y = host.isFlipped ? 16 - pad : host.bounds.height - size - 16 - pad
+                btn.frame = NSRect(x: 16 - pad, y: y, width: hit, height: hit)
             }
         }
 
@@ -130,7 +181,12 @@ extension NSWindow {
 
         let btn = RoundCloseButton(frame: .zero)
         btn.target = self
-        btn.action = #selector(NSWindow.performClose(_:))
+        // v181（用户：「长截图的框 关闭按钮无效」）：原来接的是 `performClose(_:)`。
+        // 标准关闭钮被本函数禁用（isEnabled = false）后，performClose 会**什么都不做**
+        // ——实测：禁用后调 performClose，window.isVisible 仍为 true。
+        // 于是所有用自绘圆钮的窗口，关闭键其实一直是死的。
+        // 改为走自定义 action：保留 delegate 的 windowShouldClose 否决权，然后直接 close()。
+        btn.action = #selector(NSWindow.frsetRoundCloseTapped(_:))
         host.addSubview(btn)
         place(btn)
         DispatchQueue.main.async { [weak self] in
@@ -142,5 +198,27 @@ extension NSWindow {
             place(btn)
         }
         objc_setAssociatedObject(self, &roundCloseButtonKey, btn, .OBJC_ASSOCIATION_RETAIN)
+        observeResizeForRoundClose(button: btn, host: host, size: size)
+    }
+
+    /// 窗口尺寸变化 → 重新贴边（监测独立窗、长截图预览都会动画改高）。
+    /// autorezingMask 在「整块换 contentView」后可能失效，这里用通知兜一层。
+    private func observeResizeForRoundClose(button: RoundCloseButton,
+                                            host: NSView,
+                                            size: CGFloat) {
+        guard objc_getAssociatedObject(self, &roundCloseResizeObserverKey) == nil else { return }
+        let token = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResizeNotification, object: self, queue: .main
+        ) { [weak self, weak button, weak host] _ in
+            guard let self, let button, let host, button.superview === host else { return }
+            let pad = RoundCloseButton.hitPadding
+            if host.isFlipped {
+                button.frame.origin.y = 16 - pad
+            } else {
+                button.frame.origin.y = host.bounds.height - size - 16 - pad
+            }
+        }
+        objc_setAssociatedObject(self, &roundCloseResizeObserverKey, token,
+                                 .OBJC_ASSOCIATION_RETAIN)
     }
 }

@@ -386,8 +386,7 @@ public struct ArchiveFlowBar: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.primary.opacity(0.05),
-                                    in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .glassCard(radius: 6)
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
@@ -399,29 +398,28 @@ public struct ArchiveFlowBar: View {
         .frame(height: 32)
     }
 
+    /// 单行小胶囊（v181）：原来每个推荐是「图标 + 两行文字」的大卡，一行放 4 个显得很挤；
+    /// 标题留在胶囊上、说明进 tooltip，顶部这一条轻下来了。
     private func chip(_ rec: ArchiveFlowRecommendation) -> some View {
         Button {
             rec.action()
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 5) {
                 Image(systemName: rec.systemImage)
-                    .font(.system(size: 11))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(rec.title)
-                        .font(.system(size: 11, weight: .medium))
-                        .lineLimit(1)
-                    Text(rec.subtitle)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .lineLimit(1)
-                }
+                    .font(.system(size: 10.5))
+                Text(rec.title)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 9)
+            .frame(height: 24)
             .background(Theme.accent.opacity(0.10),
-                        in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        in: Capsule(style: .continuous))
+            .contentShape(Capsule(style: .continuous))
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .help(rec.subtitle)
     }
 

@@ -45,26 +45,32 @@ struct PanelRootView: View {
     @FocusState private var bottomSearchFocused: Bool
     /// 剪贴板列表当前选中项（编辑/上传按钮按选中态启用，2026-10-18）
     @Stored private var selectedClipboardItem: ClipboardItem?
-    /// 「文件中转」分段显隐（设置 → 常规 → 功能）
-    @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
-    // v177（用户：设置里自定义顶部页面的展现，关掉的不占内存）
+    /// 「文件中转」**功能**开关（v181：不再影响分段显隐，只影响中转页里的功能是否启用）
+    @AppStorage(Preferences.Keys.panelTransferDock) private var transferFeatureEnabled = true
+    // v177（用户：设置里自定义顶部页面的展现，关掉的不占内存）；v181 增加可拖拽顺序
     @AppStorage(PanelSegments.homeKey) private var segmentHome = true
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
-    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = true
-    @AppStorage(PanelSegments.castKey) private var segmentCast = true
+    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = false
+    @AppStorage(PanelSegments.castKey) private var segmentCast = false
+    /// 顺序串（CSV）——单独观察它，设置里拖完顺序面板立刻重排
+    @AppStorage(PanelSegments.orderKey) private var segmentOrderRaw = ""
     /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
     @ObservedObject private var clipboard = ClipboardManager.shared
 
     private var page: PanelCenterPage { monitorPresenter.activePage }
 
-    /// 顶部实际出现的页面（顺序固定：主页 → 监测 → 中转 → 投屏）
+    /// 顶部实际出现的页面（顺序 = 设置里拖拽的顺序，过滤掉关掉的）
     private var enabledPages: [PanelCenterPage] {
-        var pages: [PanelCenterPage] = []
-        if segmentHome { pages.append(.home) }
-        if segmentMonitor { pages.append(.performance) }
-        if transferDockEnabled && segmentTransfer { pages.append(.transfer) }
-        if transferDockEnabled && segmentCast { pages.append(.cast) }
-        return pages
+        PanelSegments.decode(segmentOrderRaw).filter { isSegmentOn($0) }
+    }
+
+    private func isSegmentOn(_ page: PanelCenterPage) -> Bool {
+        switch page {
+        case .home:        return segmentHome
+        case .performance: return segmentMonitor
+        case .transfer:    return segmentTransfer
+        case .cast:        return segmentCast
+        }
     }
 
     /// 当前应渲染的页面：选中页被关掉时落到第一个启用页；全关时回主页占位
@@ -135,11 +141,9 @@ struct PanelRootView: View {
             // 切到中转页**不再**自动起直传服务（2026-10-20 用户需求）：
             // 服务按需启动——勾选文件后点「扫码直传」才拉起并生成二维码。
         }
-        // 文件中转开关关闭时：若正停在该页则回主页（v41）
-        .onChange(of: transferDockEnabled) { enabled in
-            if !enabled && (page == .transfer || page == .cast) {
-                monitorPresenter.selectHome()
-            }
+        // v181：中转功能开关只影响中转页内部（页面会自己显示「已关闭」提示），
+        // 不再把用户踢回主页，也不影响分段显隐。
+        .onChange(of: transferFeatureEnabled) { _ in
             normalizeSegmentSelection()
         }
         // v177：分段开关变化 → 若当前页被关掉，切到第一个还开着的页面
@@ -147,6 +151,8 @@ struct PanelRootView: View {
         .onChange(of: segmentMonitor) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentTransfer) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentCast) { _ in normalizeSegmentSelection() }
+        // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
+        .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
         // 拖放：把 .json 文件拖进面板任意位置 → 打开独立 JSON 检视器（大文件不挤在 popover 里）
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
@@ -348,47 +354,56 @@ struct PanelRootView: View {
     /// v41：文件中转由设置开关控制显隐。
     /// v71：性能监测段恢复（用户需求「顶部加回三页面的切换」）——内容复用
     /// MonitorDetailView 同一套组件（与独立窗一致，不多一套实现）。
-    /// v114（2026-10-25 用户需求）：投屏从文件中转拆出，新增第四段「投屏」，
-    /// 四段左右切换；投屏页与文件中转同受传输功能开关控制。
+    /// v114（2026-10-25 用户需求）：投屏从文件中转拆出，新增第四段「投屏」。
+    /// v181：顺序与显隐全部由设置里的「主面板页面」决定（可拖拽排序），
+    /// 这里只按 `enabledPages` 依次画，不再写死四段。
     private var pageSegments: some View {
         HStack(spacing: 0) {
-            if segmentHome {
-                segmentItem("主页", selected: page == .home) {
-                    monitorPresenter.selectHome()
-                }
-            }
-            if segmentMonitor {
-                segmentItem("监测", selected: page == .performance) {
-                    monitorPresenter.selectPerformance()
-                }
-                .help("性能监测")
-            }
-            if transferDockEnabled && segmentTransfer {
-                segmentItem("中转", selected: page == .transfer) {
-                    monitorPresenter.selectTransferDock()
-                }
-                // 拖文件到「文件中转」分段 = 存进本地中转（硬链接，不复制数据）
-                .onDrop(of: [.fileURL], isTargeted: $transferTabTargeted) { providers in
-                    dropToLocalTransfer(providers)
-                }
-                .overlay {
-                    if transferTabTargeted {
-                        Capsule(style: .continuous)
-                            .strokeBorder(Theme.accent.opacity(0.7),
-                                          style: StrokeStyle(lineWidth: 1.2, dash: [3, 2]))
-                            .padding(-2)
+            ForEach(enabledPages, id: \.self) { item in
+                if item == .transfer {
+                    segmentItem(PanelSegments.title(item), selected: page == item) {
+                        selectPage(item)
                     }
+                    // 拖文件到「文件中转」分段 = 存进本地中转（硬链接，不复制数据）
+                    .onDrop(of: [.fileURL], isTargeted: $transferTabTargeted) { providers in
+                        dropToLocalTransfer(providers)
+                    }
+                    .overlay {
+                        if transferTabTargeted {
+                            Capsule(style: .continuous)
+                                .strokeBorder(Theme.accent.opacity(0.7),
+                                              style: StrokeStyle(lineWidth: 1.2, dash: [3, 2]))
+                                .padding(-2)
+                        }
+                    }
+                    .help("文件中转：拖文件到这里存进本地中转（硬链接）")
+                } else {
+                    segmentItem(PanelSegments.title(item), selected: page == item) {
+                        selectPage(item)
+                    }
+                    .help(segmentHelp(item))
                 }
-                .help("文件中转：拖文件到这里存进本地中转（硬链接）")
-            }
-            if transferDockEnabled && segmentCast {
-                segmentItem("投屏", selected: page == .cast) {
-                    monitorPresenter.selectCast()
-                }
-                .help("投屏：Android 无线配对与镜像")
             }
         }
         .padding(2)
+    }
+
+    private func segmentHelp(_ page: PanelCenterPage) -> String {
+        switch page {
+        case .home:        return "主页"
+        case .performance: return "性能监测"
+        case .transfer:    return "文件中转"
+        case .cast:        return "投屏：Android 无线配对与镜像"
+        }
+    }
+
+    private func selectPage(_ page: PanelCenterPage) {
+        switch page {
+        case .home:        monitorPresenter.selectHome()
+        case .performance: monitorPresenter.selectPerformance()
+        case .transfer:    monitorPresenter.selectTransferDock()
+        case .cast:        monitorPresenter.selectCast()
+        }
     }
 
     /// 文件拖到「文件中转」分段：进本地中转 + 切到中转页 + 轻提示
@@ -413,7 +428,8 @@ struct PanelRootView: View {
             guard !urls.isEmpty else { return }
             let count = LocalTransferStore.shared.add(urls: urls)
             if count > 0 {
-                monitorPresenter.selectTransferDock()
+                // v181：分段被关掉时不要「偷偷切到一个不存在的页」，只提示文件已进中转
+                if enabledPages.contains(.transfer) { monitorPresenter.selectTransferDock() }
                 Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
             }
         }
@@ -440,6 +456,9 @@ struct PanelRootView: View {
                 .contentShape(Capsule(style: .continuous))
         }
         .buttonStyle(.plain)
+        // v181：分段可重排后第一个分段不一定还是「主页」，键盘焦点环会随机落在首个分段上，
+        // 看着像「同时选中了两个」——统一关掉焦点环（窗口里靠鼠标/快捷键操作）
+        .focusable(false)
     }
 
     /// 截图按钮（原版注入层的「截图按钮 → 功能菜单」）：

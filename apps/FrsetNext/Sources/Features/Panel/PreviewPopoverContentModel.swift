@@ -65,11 +65,72 @@ public struct PreviewPopoverContentModel: Identifiable {
     }
 
     /// v53：纯文本内容分态（不看条目的 textPath）——编辑保存后的即时预览用
+    ///
+    /// v182（用户：「剪贴栏里复制的 Python 代码没有正确展现」）：
+    /// 原顺序是 Markdown → 代码，而 Python 的 `__init__` / `__future__` 命中
+    /// 「__ 加粗」弱信号（两行即够阈值），整个 .py 文件被当文档渲染。
+    /// 现在先看代码强度：**代码感强且 Markdown 强信号 ≤1 条**就按代码渲染。
     public static func classifyRawText(_ text: String) -> Kind {
         if isJSONPreviewEligible(text) { return .json }
+        let strength = codeStrength(text)
+        if strength.ratio >= 0.55 && strength.lines >= 3 && markdownStrongCount(text) <= 1 {
+            return .code
+        }
         if looksLikeMarkdown(text) { return .markdown }
+        if strength.ratio >= 0.45 && strength.lines >= 3 { return .code }
         if looksLikeCode(text) { return .code }
         return .text
+    }
+
+    /// 命中的 Markdown 强信号条数（标题/围栏/列表/引用/表格/粗体/行内码/链接/分隔线）
+    public static func markdownStrongCount(_ text: String) -> Int {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return 0 }
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        var hits = 0
+        for re in markdownStrongRegexes where re.firstMatch(in: trimmed, options: [], range: range) != nil {
+            hits += 1
+        }
+        return hits
+    }
+
+    /// 代码强度：前 80 行非空行里「像代码」的比例（0…1）与样本行数
+    public static func codeStrength(_ text: String) -> (ratio: Double, lines: Int) {
+        let sample = text
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .prefix(80)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        guard !sample.isEmpty else { return (0, 0) }
+        var codey = 0
+        for t in sample {
+            // Markdown 结构行不算代码（`# 注释` 除外：`#!` / `#include` 走代码）
+            if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ")
+                || t.hasPrefix("> ") || t.hasPrefix("|")
+                || (t.hasPrefix("#") && !t.hasPrefix("#!")) {
+                continue
+            }
+            if isCodeLine(t) { codey += 1 }
+        }
+        return (Double(codey) / Double(sample.count), sample.count)
+    }
+
+    private static func isCodeLine(_ t: String) -> Bool {
+        let prefixes = [
+            "def ", "class ", "import ", "from ", "return ", "if ", "elif ", "else:",
+            "for ", "while ", "try:", "except", "finally:", "with ", "lambda ", "async ",
+            "await ", "yield ", "pass", "raise ", "assert ", "global ", "nonlocal ",
+            "func ", "struct ", "enum ", "extension ", "guard ", "switch ", "case ",
+            "public ", "private ", "internal ", "static ", "let ", "var ", "const ",
+            "function ", "=>", "console.", "SELECT ", "INSERT ", "UPDATE ", "DELETE ",
+            "CREATE ", "package ", "using ", "namespace ", "fn ", "impl ", "pub ",
+            "#include", "#import", "#!", "@", "self.", "this.", "do ", "then", "end "
+        ]
+        for p in prefixes where t.hasPrefix(p) { return true }
+        if t.hasSuffix(":") || t.hasSuffix("{") || t.hasSuffix("}") || t.hasSuffix(";")
+            || t.hasSuffix(",") || t.hasSuffix(")") || t.hasSuffix("*/") { return true }
+        if t.hasPrefix("    ") || t.hasPrefix("\t") { return true }
+        if t.contains(" = ") || t.contains("==") || t.contains("->") || t.contains("=>") { return true }
+        return false
     }
 
     // MARK: 分态判定
@@ -114,17 +175,23 @@ public struct PreviewPopoverContentModel: Identifiable {
            (try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])) != nil {
             return true
         }
-        // JSONL：每行独立可解析且为对象/数组
+        // JSONL：每行独立可解析且为对象/数组。
+        // 2026-11-03：允许少量坏行（有效行 ≥ 坏行即可）——检视器已经能跳过坏行并
+        // 标出行号，这里再"全有或全无"就会把带一两行脏数据的 JSONL 又踢回纯文本。
         var good = 0
+        var bad = 0
         for line in trimmed.components(separatedBy: "\n") {
             let t = line.trimmingCharacters(in: .whitespaces)
             if t.isEmpty { continue }
-            guard let d = t.data(using: .utf8),
-                  let o = try? JSONSerialization.jsonObject(with: d, options: [.fragmentsAllowed]),
-                  o is [String: Any] || o is [Any] else { return false }
-            good += 1
+            if let d = t.data(using: .utf8),
+               let o = try? JSONSerialization.jsonObject(with: d, options: [.fragmentsAllowed]),
+               o is [String: Any] || o is [Any] {
+                good += 1
+            } else {
+                bad += 1
+            }
         }
-        return good >= 2
+        return good >= 2 && good >= bad
     }
 
     /// Markdown 强信号正则（v126 性能审计 F1094：静态预编译，避免每次调用隐式编译 10 条）
@@ -165,9 +232,16 @@ public struct PreviewPopoverContentModel: Identifiable {
 
         // ② 弱信号：短文本（≤ 240 字）里两条即判定；长文本维持原来的累计口径
         var score = 0
+        // v182：`__` 只有在**内容含空格/CJK**时才算加粗（`__强调文本__`）。
+        // 原来是 `contains("__")` —— Python 的 `__init__` / `__future__` 每行都算一分，
+        // 两行就够阈值，于是 .py 文件被判成 Markdown。
+        let boldUnderscore = try? NSRegularExpression(pattern: "__[^_\\n]*[ \\t\\u4e00-\\u9fff][^_\\n]*__")
         for line in trimmed.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(40) {
-            let t = line.drop(while: { $0 == " " || $0 == "\t" })
-            if t.contains("__") { score += 1 }
+            let t = String(line.drop(while: { $0 == " " || $0 == "\t" }))
+            if let re = boldUnderscore {
+                let r = NSRange(t.startIndex..., in: t)
+                if re.firstMatch(in: t, options: [], range: r) != nil { score += 1 }
+            }
             if t.contains("~~") { score += 1 }
             if score >= 2 { return true }
         }

@@ -280,7 +280,7 @@ struct GeneralSettingsPane: View {
             .help(L10n.t("Automatically recognize text in screenshots so you can find them by text search."))
         Toggle("文件中转", isOn: $transferDockEnabled)
             .toggleStyle(.checkbox)
-            .help("在主面板顶部显示「文件中转」分段（完整的开关/端口/二维码见「设置 → 文件中转」）")
+            .help("启用文件中转功能。面板顶部是否显示「中转」分段，由「个性化 → 主面板页面」单独控制（v181 起两者解耦）")
     }
 
     private func formRow<Content: View>(_ title: String, height: CGFloat = 40,
@@ -673,7 +673,7 @@ struct IgnoredAppsEditor: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .overlay {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .strokeBorder(Color.primary.opacity(0.18))
                         }
                 }
@@ -692,7 +692,7 @@ struct IgnoredAppsEditor: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .overlay {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .strokeBorder(Color.primary.opacity(0.18))
                         }
                 }

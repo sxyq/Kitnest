@@ -443,7 +443,7 @@ struct CloudLinkCenterView: View {
                     if check.id != tester.checks.last?.id { Divider().opacity(0.4) }
                 }
             }
-            .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .glassCard(radius: 8)
 
             if !tester.summary.isEmpty {
                 Text(tester.summary)
@@ -704,9 +704,9 @@ struct CloudLinkCenterView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                             .fill(active ? Color(nsColor: provider.tint).opacity(0.10)
-                                  : Color.primary.opacity(0.03))
+                                  : Theme.cardFill)
                     )
                 }
             }

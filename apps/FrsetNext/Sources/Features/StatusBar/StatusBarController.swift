@@ -560,6 +560,11 @@ public final class StatusBarController: NSObject {
         ArchiveProgressWindowController.show()
     }
 
+    /// 代码预览窗（代码美化：换主题/语言 + 复制富文本，可直接粘进 Word）
+    @objc func openCodePreviewAction(_ sender: Any?) {
+        CodePreviewWindowController.shared.openFromPasteboardOrSample()
+    }
+
     /// 欢迎与权限引导（重建版 onboarding：欢迎窗 + 权限引导窗手动入口）
     @objc func showOnboardingAction(_ sender: Any?) {
         WelcomeWindowController.shared.show()

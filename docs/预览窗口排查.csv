@@ -1,0 +1,15 @@
+﻿文件,窗口类,触发方式,点开后是否常驻,关闭入口,判定,说明/处理
+Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController (.hover),鼠标悬停行 / 单击（改后）,否（移出即关）,头部 1 个 ✕,保留,你要的左右弹出的预览框
+Features/Clipboard/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController (.persistent),单击行（原路径）,是（一直挂着）,标题栏圆钮 ⊗ + 头部 ✕ = 两个叉,删除,单击改走 .hover，不再生成常驻窗
+Features/Clipboard/ClipboardPreviewWindow.swift,HoverPreviewWindow,hover 模式的窗口壳,否,无（无边框）,保留,hover 预览的载体
+Features/Clipboard/ClipboardSectionView.swift,ClipboardPreviewWindow 枚举（大文本预览窗）,右键菜单「大文本预览」,是（640×480 独立窗）,标题栏圆钮 ⊗,删除,菜单项与开窗代码一并移除
+Features/Clipboard/LargeTextPreviewView.swift,LargeTextPreviewContainerView,同上（窗内容）,是,—,删除,只留 AttributedTextView/PreviewTextView（富文本预览地基）
+Features/Panel/JSONInspectorWindow.swift,JSONInspectorWindowController,拖文件到面板 / 菜单,是（检视器工具窗）,标题栏 3 钮,保留,不是预览弹窗，是 JSON 检视器
+Features/Clipboard/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,右键「编辑/重命名」,是（编辑窗）,标题栏 3 钮,保留,编辑入口，非预览
+Features/Clipboard/FloatingClipboardWindow.swift,FloatingClipboardPanel,工具栏「浮动窗」,是（可钉住）,标题栏 3 钮,保留,独立剪贴板面板，非预览
+Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotEditorWindow,长截图拍完,是（结果编辑器）,自绘圆钮,保留,长截图结果窗（你之前让修的关闭钮就是它）
+Features/Capture/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,采集期实时预览卡,否（松手即关）,无,保留,采集过程的临时卡
+Features/Capture/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,截图识字,是（结果窗）,标题栏 3 钮,保留,OCR 结果，非预览
+Features/Capture/BeautifyPanel.swift,BeautifyWindow,截图美化,是,标题栏 3 钮,保留,编辑器
+Features/Monitor/MonitorPopoutWindow.swift,MonitorPopoutPanel,性能监测独立窗,是,自绘圆钮,保留,你明确要的独立监测窗
+Features/Panel/FloatingPanel.swift,FloatingPanel,状态栏图标 → 主面板,否（失焦收起）,无,保留,主面板本体
