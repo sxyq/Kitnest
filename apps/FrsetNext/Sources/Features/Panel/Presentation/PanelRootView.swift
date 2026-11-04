@@ -589,9 +589,10 @@ struct PanelRootView: View {
         // 白卡片（实底白玻璃）都不同的第三种质感；亮边 + 浮起投影。
         .background(
             ZStack {
-                Capsule(style: .continuous).fill(.ultraThinMaterial)
-                Capsule(style: .continuous)
-                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.55))
+                // v207：工具条胶囊不再叠第二层 ultraThinMaterial（面板本身已是统一玻璃），
+                // 只用同一套底衬/霜感，保证四个玻璃滑块对这里同样生效。
+                Capsule(style: .continuous).fill(Theme.windowSurface)
+                Capsule(style: .continuous).fill(Theme.glassFrost)
             }
             .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         )

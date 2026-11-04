@@ -563,12 +563,8 @@ private struct HoverClipModifier: ViewModifier {
         if reduceTransparency {
             Color(nsColor: .windowBackgroundColor)
         } else {
-            ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                // v204：跟随「通透度 / 磨砂」滑块（此前是写死的 55% 窗色）
-                Theme.windowSurface
-                Theme.glassFrost
-            }
+            // v207：hover 预览也走统一玻璃面（系统 Liquid Glass + 通透度/磨砂滑块）
+            GlassSurface(cornerRadius: radius)
         }
     }
 }

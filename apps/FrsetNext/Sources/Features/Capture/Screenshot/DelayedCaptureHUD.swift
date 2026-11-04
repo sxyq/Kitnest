@@ -97,7 +97,8 @@ final class DelayedCountdownWindow: NSWindow {
 
         let container = NSView(frame: NSRect(origin: .zero, size: size))
         container.wantsLayer = true
-        container.layer?.cornerRadius = 24
+        // v207：全工程窗口圆角统一 12pt（原 24pt）
+        container.layer?.cornerRadius = Theme.Radius.window
         container.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         // v205：全界面统一玻璃（此处是深色玻璃罩，保留白色大数字的可读性）
         container.layer?.backgroundColor = NSColor(calibratedWhite: 0.08, alpha: 0.48).cgColor
@@ -118,8 +119,8 @@ final class DelayedCountdownWindow: NSWindow {
         container.addSubview(label)
         container.addSubview(hint)
         contentView = container
-        // v205：倒计时 HUD 也铺统一玻璃底（无边框窗，显式 24pt 圆角）
-        installUnifiedGlassBackground(cornerRadius: 24)
+        // v207：倒计时 HUD 也铺统一玻璃底（无边框窗，12pt 圆角与全工程一致）
+        installUnifiedGlassBackground(cornerRadius: Theme.Radius.window)
     }
 
     override var canBecomeKey: Bool { true }

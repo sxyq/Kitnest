@@ -395,7 +395,7 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         sharingType = UserDefaults.standard.bool(forKey: "probe.cardCapture") ? .readOnly : .none
 
         card.wantsLayer = true
-        card.layer?.cornerRadius = 10
+        card.layer?.cornerRadius = Theme.Radius.window
         card.layer?.cornerCurve = .continuous
         // v205：实时预览卡不再用固定白底——统一玻璃底（通透度/磨砂跟随个性化）
         card.layer?.backgroundColor = NSColor.clear.cgColor
@@ -403,7 +403,7 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         card.layer?.borderColor = NSColor.black.withAlphaComponent(0.16).cgColor
         card.layer?.masksToBounds = true
         contentView = card
-        installUnifiedGlassBackground(cornerRadius: 10)
+        installUnifiedGlassBackground(cornerRadius: Theme.Radius.window)
 
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.wantsLayer = true

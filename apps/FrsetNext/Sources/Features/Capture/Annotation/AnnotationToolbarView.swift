@@ -181,8 +181,8 @@ struct AnnotationToolRailView: View {
         .padding(.vertical, 4)
         .frame(width: ToolRailMetrics.width + 28)
         .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                .fill(.ultraThinMaterial)
+            // v207：标注工具提示浮在画布上，需要自己带玻璃底——统一用 GlassSurface
+            GlassSurface(cornerRadius: Theme.Radius.chip)
         )
         .fixedSize()
     }
