@@ -368,7 +368,7 @@ public final class LanTransferServer: ObservableObject {
 
         guard sub.hasPrefix(prefix) else {
             respond(context, status: 403, html: Self.errorPage("链接已失效",
-                                                               detail: "请重新扫描 Frset 上的二维码。"))
+                                                               detail: "请重新扫描 Kitnest 上的二维码。"))
             return
         }
         var rest = String(sub.dropFirst(prefix.count))

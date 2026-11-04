@@ -132,7 +132,7 @@ struct SettingsSidebarView: View {
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(accent)
                 .frame(width: 20)
-            Text(verbatim: "Frset")
+            Text(verbatim: "Kitnest")
                 .font(.system(size: 13, weight: .semibold))
             Spacer(minLength: 0)
         }
@@ -212,7 +212,7 @@ struct SettingsSidebarView: View {
                     .font(.system(size: 11))
                     .frame(width: 16)
                     .foregroundStyle(Theme.tertiaryText)
-                Text(verbatim: "Frset v1.0.0")
+                Text(verbatim: "Kitnest v1.0.0")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
                 Spacer(minLength: 0)

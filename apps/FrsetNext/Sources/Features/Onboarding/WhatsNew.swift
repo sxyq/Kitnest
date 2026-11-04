@@ -223,7 +223,7 @@ struct WhatsNewView: View {
                 .symbolRenderingMode(.hierarchical)
             Text("本次更新了什么")
                 .font(.system(size: 18, weight: .semibold))
-            Text("FrsetNext 近期批次更新一览")
+            Text("Kitnest 近期批次更新一览")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }

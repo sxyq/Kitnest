@@ -21,7 +21,7 @@ import SwiftUI
 // 权限 URL 形如 x-apple.systempreferences:com.apple.preference.security?Privacy_XXX，
 // 老系统（<13）打不开时回退 Toast（与原版 Unable to Open Link 行为对齐）。
 
-/// FrsetNext 涉及的权限种类（与欢迎窗「权限引导卡」、权限引导窗共用同一份定义）
+/// Kitnest 涉及的权限种类（与欢迎窗「权限引导卡」、权限引导窗共用同一份定义）
 public enum PermissionKind: String, CaseIterable, Identifiable {
     case screenRecording
     case accessibility

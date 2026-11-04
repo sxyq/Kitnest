@@ -1,18 +1,18 @@
 #!/bin/bash
-# FrsetNext 授权修复：去隔离 + 必要时本机 ad-hoc 重签
-# 用法：把 FrsetNext.app 拖到本文件图标上；或直接双击（自动找 /Applications）
+# Kitnest 授权修复：去隔离 + 必要时本机 ad-hoc 重签
+# 用法：把 Kitnest.app 拖到本文件图标上；或直接双击（自动找 /Applications）
 APP_ARG="$1"
 CANDIDATES=()
 [ -n "$APP_ARG" ] && CANDIDATES+=("$APP_ARG")
-CANDIDATES+=("/Applications/FrsetNext.app" "$HOME/Applications/FrsetNext.app" "$PWD/FrsetNext.app")
+CANDIDATES+=("/Applications/Kitnest.app" "$HOME/Applications/Kitnest.app" "$PWD/Kitnest.app")
 
-echo "== FrsetNext 授权修复 =="
+echo "== Kitnest 授权修复 =="
 APP=""
 for c in "${CANDIDATES[@]}"; do
   if [ -d "$c" ]; then APP="$c"; break; fi
 done
 if [ -z "$APP" ]; then
-  echo "没找到 FrsetNext.app。"
+  echo "没找到 Kitnest.app。"
   echo "请把 App 拖到本脚本图标上，或先安装到 /Applications。"
   if [ -t 0 ] && [ -z "${FRSET_FIX_NONINTERACTIVE:-}" ]; then read -n1 -r -p "按任意键关闭…"; fi
   exit 1
@@ -41,7 +41,7 @@ fi
 
 echo
 echo "== 完成 =="
-echo "现在双击 FrsetNext.app 即可。如果系统仍提示「无法验证」："
+echo "现在双击 Kitnest.app 即可。如果系统仍提示「无法验证」："
 echo "  · 右键 App → 打开（只需一次）"
 echo "  · 或 系统设置 → 隐私与安全性 → 仍要打开"
 echo

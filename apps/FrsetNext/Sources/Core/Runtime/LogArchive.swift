@@ -260,7 +260,7 @@ public final class LogArchive {
             if !FileManager.default.fileExists(atPath: url.path) {
                 FileManager.default.createFile(atPath: url.path, contents: nil)
                 // 新文件首行写保留策略，便于用户自查
-                let header = "# FrsetNext 运行日志（保留 \(keepDays) 天，自动清理）\n"
+                let header = "# Kitnest 运行日志（保留 \(keepDays) 天，自动清理）\n"
                 if let h = try? FileHandle(forWritingTo: url) {
                     h.write(Data(header.utf8))
                     try? h.close()

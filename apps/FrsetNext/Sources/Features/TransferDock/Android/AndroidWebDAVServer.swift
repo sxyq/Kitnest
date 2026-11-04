@@ -294,7 +294,7 @@ public final class AndroidWebDAVServer {
 
     private func send(_ conn: NWConnection, status: String, headers: [String: String], body: Data) {
         var head = "HTTP/1.1 \(status)\r\n"
-        head += "Server: FrsetNext-WebDAV\r\n"
+        head += "Server: Kitnest-WebDAV\r\n"
         head += "Connection: close\r\n"
         for (k, v) in headers { head += "\(k): \(v)\r\n" }
         if headers["Content-Length"] == nil { head += "Content-Length: \(body.count)\r\n" }

@@ -124,7 +124,7 @@ final class ScrcpyControlBarController {
         }
     }
 
-    /// 兼容两种进程名：改名后的「FrsetNext 投屏」与旧版直接跑的 `scrcpy`
+    /// 兼容两种进程名：改名后的「Kitnest 投屏」与旧版直接跑的 `scrcpy`
     private static func isCastOwner(_ name: String) -> Bool {
         let n = name.lowercased()
         return n == ScreenCastEngine.castAppName.lowercased() || n == "scrcpy"

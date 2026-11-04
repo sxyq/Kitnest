@@ -16,7 +16,7 @@ public enum DiagnosticsExporter {
     public static func export() {
         let panel = NSSavePanel()
         panel.title = "导出使用记录"
-        panel.nameFieldStringValue = "FrsetNext-诊断-\(stamp()).zip"
+        panel.nameFieldStringValue = "Kitnest-诊断-\(stamp()).zip"
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let dest = panel.url else { return }
 
@@ -91,7 +91,7 @@ public enum DiagnosticsExporter {
         try zip.run()
         zip.waitUntilExit()
         guard zip.terminationStatus == 0 else {
-            throw NSError(domain: "FrsetNext.Diagnostics", code: 1,
+            throw NSError(domain: "Kitnest.Diagnostics", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "打包失败（ditto \(zip.terminationStatus)）"])
         }
     }

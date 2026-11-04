@@ -471,7 +471,7 @@ App,App/FrsetNextApp.swift,AppDelegate,func,enforceSingleMenubarOwner,68,21,3
 App,App/FrsetNextApp.swift,AppDelegate,func,applicationShouldTerminate,92,4,1
 App,App/FrsetNextApp.swift,AppDelegate,func,applicationWillTerminate,97,6,1
 App,App/FrsetNextApp.swift,AppDelegate,func,applicationShouldHandleReopen,104,4,1
-App,App/FrsetNextApp.swift,AppDelegate,func,application,115,222,45
+App,App/FrsetNextApp.swift,AppDelegate,func,application,115,223,46
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveEntry,let,path,13,0,1
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveEntry,let,name,14,0,1
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveEntry,let,size,15,0,1

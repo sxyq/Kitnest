@@ -113,7 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Swift renamed import 为 application(_:open:)，参数 [URL]。
     /// 满足 NSApplicationDelegate 该 optional 要求即自动生成 ObjC 入口（有 To 符号）。
     func application(_ application: NSApplication, open urls: [URL]) {
-        // v167：访达双击 / 右键「用 FrsetNext 打开」送来的是**文件 URL**（无 scheme 或 file），
+        // v167：访达双击 / 右键「用 Kitnest 打开」送来的是**文件 URL**（无 scheme 或 file），
         // 原实现第一行就 `guard url.scheme == "frsetnext"` 把它们全丢了 —— 所以此前
         // 双击压缩包只会唤起面板、不会进归档窗。这里先分流文件，再走深链。
         let files = urls.filter { $0.isFileURL }
@@ -129,7 +129,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // JSON 检视器独立窗已删除，访达双击 JSON 不再开窗；剪贴板里的
             // JSON 仍旧在 hover 预览里内联展示（JSONInspectorView）。
         }
-        guard let url = urls.first, url.scheme == "frsetnext" else { return }
+        guard let url = urls.first,
+              url.scheme == "kitnest" || url.scheme == "frsetnext" else { return }
         Log.info("App", "URL 唤起: \(url.absoluteString)")
         // 窗口创建延后到下一 runloop：Apple Event 处理上下文内创建 NSWindow +
         // NSHostingView 会在 display cycle layout observer 中触发次级约束更新，

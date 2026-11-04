@@ -1,12 +1,12 @@
 ---
 name: frset-release
-description: FrsetNext 完整发布闭环。当用户在 FrsetNext 项目里完成一次代码/功能更改、要求"发布/更新/改完/出包/看效果"时使用。执行固定顺序：构建部署 → 验证 → git 提交（需求+文件）→ 重打 DMG（版本固定 1.0.0）→ 本地重启 App。每步的命令、提交格式与验收标准见正文。
+description: Kitnest 完整发布闭环。当用户在 Kitnest 项目里完成一次代码/功能更改、要求"发布/更新/改完/出包/看效果"时使用。执行固定顺序：构建部署 → 验证 → git 提交（需求+文件）→ 重打 DMG（版本固定 1.0.0）→ 本地重启 App。每步的命令、提交格式与验收标准见正文。
 agent_created: true
 ---
 
-# FrsetNext 发布闭环
+# Kitnest 发布闭环
 
-FrsetNext（macOS 菜单栏工具）每次更改的固定收尾流程。顺序不可省：**改代码 → 构建部署 → 验证 → git 提交 → 重打 DMG → 本地重启 App**。
+Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾流程。顺序不可省：**改代码 → 构建部署 → 验证 → git 提交 → 重打 DMG → 本地重启 App**。
 
 ## 执行步骤
 
@@ -38,9 +38,9 @@ FrsetNext（macOS 菜单栏工具）每次更改的固定收尾流程。顺序�
 
 5. **重启 App**（用户要求：更新后本地重启供随时查看）：
    ```bash
-   pkill -f "FrsetNext.app/Contents/MacOS/FrsetNext" 2>/dev/null; sleep 2
-   open -a /Applications/FrsetNext.app; sleep 5
-   open "frsetnext://panel?page=home"
+   pkill -f "Kitnest.app/Contents/MacOS/Kitnest" 2>/dev/null; sleep 2
+   open -a /Applications/Kitnest.app; sleep 5
+   open "kitnest://panel?page=home"
    ```
 
 6. **收尾报备**：简述 改动文件 / 对应需求 / DMG 路径，并附验证截图。

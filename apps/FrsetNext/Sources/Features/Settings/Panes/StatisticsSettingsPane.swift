@@ -602,7 +602,7 @@ struct StatisticsSettingsPane: View {
         UTType(filenameExtension: "frsetconfig", conformingTo: .json) ?? .json
 
     static func defaultExportFileName(now: Date = Date()) -> String {
-        "FrsetNext-配置-\(Self.dayStamp(now)).frsetconfig"
+        "Kitnest-配置-\(Self.dayStamp(now)).frsetconfig"
     }
 
     // v126（性能审计 F1188/F1190）：DateFormatter 复用——导出/导入各 new 一个

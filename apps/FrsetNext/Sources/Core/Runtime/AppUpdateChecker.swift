@@ -4,7 +4,7 @@ import CryptoKit
 // MARK: - 更新检查（v112；对标报告第二批「自动更新」缺口）
 //
 // 设计：**零第三方依赖**（Sparkle 2 需要 SPM/包依赖，与 build.sh 无包管理器的
-// 构建方式不合；而 FrsetNext 尚未定分发渠道）。做成「可配置 feed + 手动检查」：
+// 构建方式不合；而 Kitnest 尚未定分发渠道）。做成「可配置 feed + 手动检查」：
 //   · feed 默认空 = 功能关闭（无渠道时零开销、零打扰）；
 //   · feed 指向 GitHub API `releases/latest`（或任何返回
 //     {"tag_name": "...", "html_url": "..."} 的 JSON 端点）；
@@ -147,7 +147,7 @@ public final class AppUpdateChecker {
     //   ③ ditto 解压，找到 .app
     //   ④ 写一个替换脚本（备份旧版 → 覆盖 → 去隔离属性 → 重开），脱离进程执行
     //   ⑤ 本应用退出，脚本接管
-    // 风险控制：旧版本一定先备份成 /Applications/FrsetNext.app.bak，失败可手动回滚。
+    // 风险控制：旧版本一定先备份成 /Applications/Kitnest.app.bak，失败可手动回滚。
 
     public func installUpdate(zipURL: URL, expectedSHA256: String?) {
         Toast.show("开始下载更新…", icon: "arrow.down.circle")

@@ -1,16 +1,16 @@
-# AGENTS.md — FrsetNext 项目指南
+# AGENTS.md — Kitnest 项目指南
 
 > 给在本仓库工作的 Agent / 开发者的操作手册。**先读本文再动手。**
 
 ## 项目是什么
 
-FrsetNext：macOS 菜单栏效率工具（arm64，macOS 13+），对原版 Frset 的重建 +
+Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+），对原版 Frset 的重建 +
 功能增强。模块：剪贴板、文件中转、搜索与 AI、工具箱、网盘下载助手、
 性能监测（STATS 引擎）、标注、使用统计等。
 
 - 源码：`apps/FrsetNext/Sources/`（SwiftUI + AppKit 混合；FrsetStatsBar/ 为 C/ObjC 引擎）
-- 构建：`apps/FrsetNext/build.sh`（约 3 分钟，产物部署到 `/Applications/FrsetNext.app`）
-- 打包：`apps/FrsetNext/package_dmg.sh` → `~/Desktop/FrsetNext-1.0.0.dmg`
+- 构建：`apps/FrsetNext/build.sh`（约 3 分钟，产物部署到 `/Applications/Kitnest.app`）
+- 打包：`apps/FrsetNext/package_dmg.sh` → `~/Desktop/Kitnest-1.0.0.dmg`
 - 详细工作流：`docs/00-总览/开发工作流.md`（Git 规范 / 打包 / 安装测试 / 排障速查）
 
 ## 铁律（每次改动必走）
@@ -18,7 +18,7 @@ FrsetNext：macOS 菜单栏效率工具（arm64，macOS 13+），对原版 Frset
 1. **改 → 构建 → 验证 → git 提交 → 重打 DMG → 重启 App**，一步不省
 2. commit 写清楚：**需求原话 + 改动文件 + 具体改动**（含数值）+ 实测方式
 3. DMG 版本号**固定 1.0.0 不变**；每次改动后重打（用户分发用）
-4. 更新后**本地重启 App**（`pkill … ; open -a /Applications/FrsetNext.app`），
+4. 更新后**本地重启 App**（`pkill … ; open -a /Applications/Kitnest.app`），
    供用户随时查看效果
 5. 全仓库收尾时 `git status --short` 必须为空
 

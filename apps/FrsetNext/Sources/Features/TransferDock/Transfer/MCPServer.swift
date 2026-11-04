@@ -132,7 +132,7 @@ public final class MCPServer {
         let firstLine = request.components(separatedBy: "\r\n").first ?? ""
         // GET /health
         if firstLine.hasPrefix("GET ") {
-            send(conn, status: "200 OK", json: ["ok": true, "server": "FrsetNext MCP", "endpoint": endpoint])
+            send(conn, status: "200 OK", json: ["ok": true, "server": "Kitnest MCP", "endpoint": endpoint])
             return
         }
         guard let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
@@ -240,7 +240,7 @@ public final class MCPServer {
                 completion(out, !ok)
             }
         case "adb_screencap":
-            let remote = "/sdcard/Download/FrsetNext/screencap.png"
+            let remote = "/sdcard/Download/Kitnest/screencap.png"
             let local = NSTemporaryDirectory() + "frset-screencap-\(Int(Date().timeIntervalSince1970)).png"
             ADBExtrasEngine.run(["shell", "screencap", "-p", remote]) { _ in
                 ADBExtrasEngine.run(["pull", remote, local], timeout: 60) { out in

@@ -61,7 +61,7 @@ struct PermissionGuideView: View {
                 Spacer()
                 progressPill
             }
-            Text("FrsetNext 需要以下几项系统权限才能完整工作。所有处理都在本机完成，不上传任何数据。")
+            Text("Kitnest 需要以下几项系统权限才能完整工作。所有处理都在本机完成，不上传任何数据。")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -147,11 +147,11 @@ public final class StatusBarController: NSObject {
         UserDefaults.standard.removeObject(forKey: "NSStatusItem Preferred Position \(Self.statusItemName("main"))")
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = Self.statusItemName("main")   // 固定 autosaveName（带前缀），位置持久化稳定
-        let symbol = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "Frset")
+        let symbol = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: "Kitnest")
         symbol?.isTemplate = true                 // 模板图：随菜单栏明暗自动变色
         item.button?.image = symbol
         item.button?.imagePosition = .imageOnly
-        item.button?.toolTip = "Frset（右键查看更多）"
+        item.button?.toolTip = "Kitnest（右键查看更多）"
         item.button?.target = self
         item.button?.action = #selector(mainItemClicked(_:))
         // 左键开面板，右键弹菜单

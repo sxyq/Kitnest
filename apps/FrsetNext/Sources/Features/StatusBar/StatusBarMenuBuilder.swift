@@ -177,7 +177,7 @@ public enum StatusBarMenuBuilder {
 
         menu.addItem(NSMenuItem.separator())
 
-        menu.addItem(track(item("退出 Frset",
+        menu.addItem(track(item("退出 Kitnest",
                                 key: "q",
                                 modifiers: [.command],
                                 action: #selector(StatusBarController.quitAction(_:)),

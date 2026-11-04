@@ -113,7 +113,7 @@ public enum AISettings {
     // MARK: 系统提示词
 
     public static let fallbackSystemPrompt =
-        "你是 Frset 内置的中文助手。回答请简洁、结构化，优先使用中文；除非用户明确要求，不要输出冗长免责声明。"
+        "你是 Kitnest 内置的中文助手。回答请简洁、结构化，优先使用中文；除非用户明确要求，不要输出冗长免责声明。"
 
     public static var systemPrompt: String {
         let v = prefs.value(keySystemPrompt, default: "") as String

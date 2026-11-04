@@ -199,7 +199,7 @@ enum AppBootstrap {
     private static func wireEventBuses() {
         // 截图完成 → 写入剪贴板历史（若剪贴板模块可用）
         CaptureEventBus.onImageCaptured = { url, data in
-            ClipboardManager.shared.insertImage(data: data, fileURL: url, sourceApp: "FrsetNext")
+            ClipboardManager.shared.insertImage(data: data, fileURL: url, sourceApp: "Kitnest")
             DatabaseManager.shared.bumpStat("screenshot_count")
         }
 
@@ -216,7 +216,7 @@ enum AppBootstrap {
         // OCR 完成 → 写入剪贴板历史（文本条目）
         CaptureEventBus.onTextRecognized = { text in
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            ClipboardManager.shared.insertText(text, sourceApp: "FrsetNext.OCR", subtitle: "截图 OCR")
+            ClipboardManager.shared.insertText(text, sourceApp: "Kitnest.OCR", subtitle: "截图 OCR")
             DatabaseManager.shared.bumpStat("ocr_count")
 
             // 截图翻译会话（specs/19 screenshotTranslate 默认热键）：OCR 文本产出后交给划词翻译会话，
@@ -227,7 +227,7 @@ enum AppBootstrap {
         }
 
         CaptureEventBus.onColorPicked = { hex in
-            ClipboardManager.shared.insertText(hex, sourceApp: "FrsetNext.Color", subtitle: "取色")
+            ClipboardManager.shared.insertText(hex, sourceApp: "Kitnest.Color", subtitle: "取色")
             StatisticsManager.shared.record(.colorPickSuccess)
         }
 
@@ -289,7 +289,7 @@ enum AppBootstrap {
     /// 冲突时默认条目失败并计入 ShortcutManager.failureReason，用户绑定胜出）。
     /// handler 只做懒分发：触发时才经 ServiceLocator / 各模块公开 API 执行。
     static let defaultHotkeys: [DefaultHotkeyEntry] = [
-        DefaultHotkeyEntry(id: "openFrset", title: "打开 Frset",
+        DefaultHotkeyEntry(id: "openFrset", title: "打开 Kitnest",
                            keyCode: 0x00, modifiers: UInt32(optionKey)) {
             ServiceLocator.panel?.toggle()
         },

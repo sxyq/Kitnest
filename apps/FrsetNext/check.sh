@@ -1,5 +1,5 @@
 #!/bin/bash
-# FrsetNext 自检脚本：逐模块 typecheck + 全量 typecheck，并输出报告。
+# Kitnest 自检脚本：逐模块 typecheck + 全量 typecheck，并输出报告。
 #
 # 用法：
 #   ./check.sh              # 全量检查（逐模块 + 全量）
@@ -49,7 +49,7 @@ module_lines=()
 # 清空报告
 : > "$REPORT"
 {
-  echo "FrsetNext typecheck 报告"
+  echo "Kitnest typecheck 报告"
   echo "生成时间: $(date '+%Y-%m-%d %H:%M:%S')"
   echo "SDK: $SDK"
   echo "target: $TARGET   swift-version: $SWIFT_VERSION"

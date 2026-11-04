@@ -417,16 +417,16 @@ final class MenuBarIconStyleApplier {
         switch style {
         case .logo, .custom:
             let symbol = style == .logo ? MenuBarIconStyle.logo.systemImage : customSymbol!
-            let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Frset")
+            let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Kitnest")
             image?.isTemplate = true
             button.image = image
             button.title = ""
-            button.toolTip = "Frset（右键查看更多）"
+            button.toolTip = "Kitnest（右键查看更多）"
             StatusBarController.shared.setMainItemLength(NSStatusItem.variableLength)
         case .date:
             button.image = nil
             button.title = Self.dateFormatter.string(from: Date())
-            button.toolTip = "Frset（右键查看更多）"
+            button.toolTip = "Kitnest（右键查看更多）"
             StatusBarController.shared.setMainItemLength(NSStatusItem.variableLength)
             startDateTimer()
         case .fan:
@@ -434,7 +434,7 @@ final class MenuBarIconStyleApplier {
             // 2026-10-16 之前此处设 nil，导致旋转视图整个不渲染、主图标不可见
             button.image = NSImage()
             button.title = ""
-            button.toolTip = "Frset（动态风扇）"
+            button.toolTip = "Kitnest（动态风扇）"
             // 固定宽度容纳 18pt 旋转视图（variableLength 会把按钮压到只剩几个点，
             // 子视图被裁剪成「<<」状残影，2026-10-16 实证）
             StatusBarController.shared.setMainItemLength(Self.fanItemLength)

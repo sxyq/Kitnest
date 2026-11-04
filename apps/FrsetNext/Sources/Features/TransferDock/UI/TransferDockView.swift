@@ -382,7 +382,7 @@ struct TransferDockView: View {
             }
             receiveRow(icon: "internaldrive", tint: Color(red: 0.2, green: 0.65, blue: 0.5),
                        title: "从手机拉取",
-                       detail: "ADB · Download/FrsetNext/ 全部文件") {
+                       detail: "ADB · Download/Kitnest/ 全部文件") {
                 smallAction(adbPushing ? "拉取中…" : "拉取", icon: "arrow.down.circle") {
                     pullFromPhone()
                 }
@@ -738,7 +738,7 @@ struct TransferDockView: View {
                 smallAction("安装 APK", icon: "plus.app") {
                     installAPK()
                 }
-                Text("需先在「投屏」页连接设备（USB 或无线）；推送目标 Download/FrsetNext/，拉取同目录入暂存。")
+                Text("需先在「投屏」页连接设备（USB 或无线）；推送目标 Download/Kitnest/，拉取同目录入暂存。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

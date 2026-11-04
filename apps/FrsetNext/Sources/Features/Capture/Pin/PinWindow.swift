@@ -7,7 +7,7 @@ import Foundation
 /// 贴图 UI 文案走 L10n（spec 16：键面用原作英文键，中文值由 Localizable.strings 提供；
 /// 本工程 L10n 基建（specs/18）未落地前，NSLocalizedString 回退到英文键面）
 private func pinL10n(_ key: String) -> String {
-    NSLocalizedString(key, comment: "Frset pinned screenshot")
+    NSLocalizedString(key, comment: "Kitnest pinned screenshot")
 }
 
 // MARK: - 缩放 HUD

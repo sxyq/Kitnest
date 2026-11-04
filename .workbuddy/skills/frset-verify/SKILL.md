@@ -1,10 +1,10 @@
 ---
 name: frset-verify
-description: FrsetNext 改动验证方法集。当需要确认 FrsetNext 的 UI/行为改动是否生效时使用——包含窗口截图、defaults 探针、深链唤起、日志核对四类手段与已知坑（玻璃窗捕获发黑、环境变量探针不生效等）。配合 frset-release 发布闭环的验证步骤使用。
+description: Kitnest 改动验证方法集。当需要确认 Kitnest 的 UI/行为改动是否生效时使用——包含窗口截图、defaults 探针、深链唤起、日志核对四类手段与已知坑（玻璃窗捕获发黑、环境变量探针不生效等）。配合 frset-release 发布闭环的验证步骤使用。
 agent_created: true
 ---
 
-# FrsetNext 验证方法
+# Kitnest 验证方法
 
 确认改动生效的四类手段。UI 改动用截图，行为改动用深链/探针+日志。
 
@@ -26,7 +26,7 @@ screencapture -x -o -l<窗id> /tmp/shot.png
 ```bash
 defaults write com.sxyq.frsetnext probe.preview -string "text"     # 启动3s后预览首条文本
 defaults write com.sxyq.frsetnext probe.openTool -string "qrcode"  # 启动3.5s后打开工具窗
-pkill -f "FrsetNext.app/Contents/MacOS/FrsetNext"; sleep 2; open -a /Applications/FrsetNext.app
+pkill -f "Kitnest.app/Contents/MacOS/Kitnest"; sleep 2; open -a /Applications/Kitnest.app
 # 用完删除：defaults delete com.sxyq.frsetnext probe.preview
 ```
 注意：`launchctl setenv` 环境变量探针对 `open` 启动的 App **不生效**，一律用 defaults 探针。
@@ -34,11 +34,11 @@ pkill -f "FrsetNext.app/Contents/MacOS/FrsetNext"; sleep 2; open -a /Application
 ## 3. 深链唤起（打开页面/驱动功能）
 
 ```
-frsetnext://panel?page=home                 主面板
-frsetnext://settings?pane=monitor           设置页（monitor / monitor.widgets / about）
-frsetnext://statistics                      使用统计
-frsetnext://cloudlink?url=<URL>&action=download   直驱网盘解析下载（测试矩阵用）
-frsetnext://toast?text=测试                 全局提示
+kitnest://panel?page=home                 主面板
+kitnest://settings?pane=monitor           设置页（monitor / monitor.widgets / about）
+kitnest://statistics                      使用统计
+kitnest://cloudlink?url=<URL>&action=download   直驱网盘解析下载（测试矩阵用）
+kitnest://toast?text=测试                 全局提示
 ```
 
 ## 4. 日志核对
@@ -53,6 +53,6 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 
 ## 常见坑
 
-- 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（必要时 `osascript` 把 FrsetNext 设为 frontmost 再全屏截）
+- 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（必要时 `osascript` 把 Kitnest 设为 frontmost 再全屏截）
 - 设置类"没生效"：先分清「链路没接」还是「没生效反馈」——后者补 UI 反馈（如关闭项显示「已停用」）
 - 网盘下载测试后记得删 ~/Downloads 里的测试文件

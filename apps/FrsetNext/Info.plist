@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>FrsetNext</string>
+	<string>Kitnest</string>
 	<key>CFBundleDisplayName</key>
-	<string>FrsetNext</string>
+	<string>Kitnest</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.sxyq.frsetnext</string>
 	<key>CFBundleExecutable</key>
-	<string>FrsetNext</string>
+	<string>Kitnest</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleIconFile</key>
@@ -25,13 +25,13 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>FrsetNext 需要屏幕录制权限以执行截图与 OCR 文字识别。</string>
+	<string>Kitnest 需要屏幕录制权限以执行截图与 OCR 文字识别。</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>FrsetNext 录屏时可选择录入麦克风声音。</string>
+	<string>Kitnest 录屏时可选择录入麦克风声音。</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>FrsetNext 需要辅助功能权限以执行自动粘贴。</string>
+	<string>Kitnest 需要辅助功能权限以执行自动粘贴。</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>FrsetNext 需要日历权限以在面板中显示今日日程。</string>
+	<string>Kitnest 需要日历权限以在面板中显示今日日程。</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>CFBundleURLTypes</key>
@@ -41,6 +41,7 @@
 			<string>com.sxyq.frsetnext</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>kitnest</string>
 				<string>frsetnext</string>
 			</array>
 		</dict>
@@ -51,12 +52,12 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>用 FrsetNext 打开</string>
+				<string>用 Kitnest 打开</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>openArchive</string>
 			<key>NSPortName</key>
-			<string>FrsetNext</string>
+			<string>Kitnest</string>
 			<key>NSSendTypes</key>
 			<array>
 				<string>public.file-url</string>
@@ -71,7 +72,7 @@
 			<key>NSMessage</key>
 			<string>extractHere</string>
 			<key>NSPortName</key>
-			<string>FrsetNext</string>
+			<string>Kitnest</string>
 			<key>NSSendTypes</key>
 			<array>
 				<string>public.file-url</string>
@@ -86,7 +87,7 @@
 			<key>NSMessage</key>
 			<string>extractTo</string>
 			<key>NSPortName</key>
-			<string>FrsetNext</string>
+			<string>Kitnest</string>
 			<key>NSSendTypes</key>
 			<array>
 				<string>public.file-url</string>
@@ -101,7 +102,7 @@
 			<key>NSMessage</key>
 			<string>compress</string>
 			<key>NSPortName</key>
-			<string>FrsetNext</string>
+			<string>Kitnest</string>
 			<key>NSSendTypes</key>
 			<array>
 				<string>public.file-url</string>
@@ -117,7 +118,7 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
-			<!-- v129（用户反馈：右键「打开方式」里看不到 FrsetNext）：
+			<!-- v129（用户反馈：右键「打开方式」里看不到 Kitnest）：
 			     原来这里写了 LSItemContentTypes = public.archive / public.data，
 			     LaunchServices 会**优先用 UTI 并忽略下面的 CFBundleTypeExtensions**，
 			     结果只认了「任意 public.data」，.zip 的具体 UTI（public.zip-archive）

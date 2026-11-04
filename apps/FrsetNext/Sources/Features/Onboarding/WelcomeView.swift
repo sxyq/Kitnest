@@ -92,7 +92,7 @@ struct WelcomeView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(Color.accentColor)
                 .symbolRenderingMode(.hierarchical)
-            Text("欢迎使用 FrsetNext")
+            Text("欢迎使用 Kitnest")
                 .font(.system(size: 22, weight: .semibold))
             Text("菜单栏效率工具 · 剪贴板 / 截图 / 监测 / 传输 / 归档 一站合一")
                 .font(.system(size: 12))

@@ -1,18 +1,18 @@
 #!/bin/bash
-# FrsetNext 一键构建：编译全部 Swift 源码 → 打包 .app → ad-hoc 签名
+# Kitnest 一键构建：编译全部 Swift 源码 → 打包 .app → ad-hoc 签名
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SRC="$ROOT/Sources"
 # v31（2026-10-18）：构建产物与部署全程原子化。
-# 病灶：原先「rm -rf build/FrsetNext.app → 原地编译」，且部署用 ditto 覆盖合并——
+# 病灶：原先「rm -rf build/Kitnest.app → 原地编译」，且部署用 ditto 覆盖合并——
 #   构建/复制的几秒窗口期内，Finder 双击拿到的是半成品 bundle，Gatekeeper 直接报
 #   「已损坏，无法打开」（用户实障：连续多次把 app 拖进废纸篓，Trash 里留有
-#    `FrsetNext.app 13-41-17-539.app` 这类 Finder 重命名副本为证）。
+#    `Kitnest.app 13-41-17-539.app` 这类 Finder 重命名副本为证）。
 # 方案：编译/签名/校验全在 build/.staging/ 的暂存 bundle 内完成，最后 rename 换位
-#   （同卷 rename 是原子操作）。对外可见的 build/FrsetNext.app 与 /Applications 副本
+#   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
-APP_FINAL="$ROOT/build.noindex/FrsetNext.app"          # 对外可见的构建产物（始终完整可启动）
-APP="$ROOT/build.noindex/.staging/FrsetNext.app"       # 编译暂存（构建期间对外不可见）
+APP_FINAL="$ROOT/build.noindex/Kitnest.app"          # 对外可见的构建产物（始终完整可启动）
+APP="$ROOT/build.noindex/.staging/Kitnest.app"       # 编译暂存（构建期间对外不可见）
 SDK="$(xcrun --show-sdk-path)"
 
 # 优化档位：默认 `-O` + **关闭全模块优化（no-WMO）**。
@@ -66,7 +66,7 @@ echo "  优化档位: $OPT_FLAGS"
 echo "== 编译 =="
 # 产物目录先清空：若 swiftc 被中途杀死（SIGKILL），可能留下上一次构建的半成品可执行文件，
 # 使"产物存在"被误读成"构建成功"。清空后产物在= 本次真编译出了二进制。
-rm -f "$APP/Contents/MacOS/FrsetNext"
+rm -f "$APP/Contents/MacOS/Kitnest"
 
 # ---- ObjC/C 部件引擎（FrsetStatsBar）：clang 编译为 .o，供 swiftc 链接 ----
 # 来源：stats-recon/inject/（注入版同款代码，原样移植；注入入口/hook 已由
@@ -105,7 +105,7 @@ rm -f "$STAMP"; touch "$STAMP"
 
 swiftc $OPT_FLAGS -parse-as-library \
   -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
-  -o "$APP/Contents/MacOS/FrsetNext" $FILES $OBJ_FILES \
+  -o "$APP/Contents/MacOS/Kitnest" $FILES $OBJ_FILES \
   -import-objc-header "$BRIDGE" \
   -lsqlite3 \
   -framework AppKit -framework SwiftUI -framework Combine \
@@ -131,7 +131,7 @@ LOG_BYTES=$(wc -c < /tmp/frsetnext_build.log | tr -d ' ')
 # 该情形的判据见上方 $STAMP 标记残留 —— 别把「没输出」读成「不知道发生了什么」。
 if [ "$BUILD_RC" -eq 137 ]; then
   echo "⚠ swiftc 被系统终止（退出码 137 = SIGKILL）：资源竞争，非代码问题"
-  echo "  日志 ${LOG_BYTES} 字节 / 产物$( [ -f "$APP/Contents/MacOS/FrsetNext" ] && echo存在 || echo缺失)"
+  echo "  日志 ${LOG_BYTES} 字节 / 产物$( [ -f "$APP/Contents/MacOS/Kitnest" ] && echo存在 || echo缺失)"
   echo "  处置：等空闲后重跑（串行更稳），**不要改代码**"
   exit 137
 elif [ "$BUILD_RC" -ne 0 ]; then
@@ -139,7 +139,7 @@ elif [ "$BUILD_RC" -ne 0 ]; then
   exit 1
 fi
 
-if [ ! -f "$APP/Contents/MacOS/FrsetNext" ]; then
+if [ ! -f "$APP/Contents/MacOS/Kitnest" ]; then
   echo "✗ 编译返回 0 但产物缺失，日志 ${LOG_BYTES} 字节，详见 /tmp/frsetnext_build.log"
   exit 1
 fi
@@ -276,14 +276,14 @@ else
 fi
 
 echo "== 完成 =="
-ls -la "$APP/Contents/MacOS/FrsetNext"
+ls -la "$APP/Contents/MacOS/Kitnest"
 echo "  签名: $SIGN_STATE"
 # 资源落地验证：确认 .lproj 进了 bundle
 if [ -d "$APP/Contents/Resources" ]; then
   echo "  bundle 内 lproj:"; find "$APP/Contents/Resources" -maxdepth 1 -name '*.lproj' | sort | sed 's/^/    /'
 fi
 # 收尾自检：把「存在 ≠ 通过」的判据显式化
-if [ ! -s "$APP/Contents/MacOS/FrsetNext" ]; then
+if [ ! -s "$APP/Contents/MacOS/Kitnest" ]; then
   echo "  ⚠ 可执行文件缺失或为空 —— 本次构建未真正产出，**不要**把 build/ 目录存在当作成功"
   exit 1
 fi
@@ -292,7 +292,7 @@ if [ "$SIGN_STATE" != "已签名 ✓" ]; then
   exit 1
 fi
 # ============================================================================
-# 原子换位：暂存 → build/FrsetNext.app（2026-10-18 v31）
+# 原子换位：暂存 → build/Kitnest.app（2026-10-18 v31）
 # 同上：rename 同卷原子，任何时刻 build/ 下的 app 都是完整可启动的；
 # 用户在构建期间双击也只会启动**上一个可用版本**，不会看到"已损坏"。
 # ============================================================================
@@ -321,7 +321,7 @@ echo "应用包: $APP"
 # 为什么必须：用户在 Finder 里双击 build/ 下的 app 会踩两个坑——
 #   ① 构建过程（二进制重建 + 重签名）的几秒窗口期双击 → 系统报"已损坏"；
 #   ② build/ 每次重建后目录项 inode 全变，Finder 旧窗口/旧引用双击报"打不开"。
-# /Applications/FrsetNext.app 路径稳定，LaunchServices 引用不会失效；
+# /Applications/Kitnest.app 路径稳定，LaunchServices 引用不会失效；
 # TCC 授权按 bundle ID + 证书（FrsetDev）记录，与路径无关，部署后保留。
 #
 # v31 关键：不再直接 ditto 覆盖现有部署（那会在复制期间留下"半成品 bundle"，
@@ -331,12 +331,12 @@ echo "应用包: $APP"
 # 任一步失败都保留旧版不动，绝不把坏包放到用户双击的路径上。
 # app 正在运行时换位仍可完成（进程持旧 inode），下次启动即新版。
 # ============================================================================
-DEPLOY=/Applications/FrsetNext.app
-DEPLOY_STAGE=/Applications/.FrsetNext.app.staging.$$
-DEPLOY_OLD=/Applications/.FrsetNext.app.old.$$
+DEPLOY=/Applications/Kitnest.app
+DEPLOY_STAGE=/Applications/.Kitnest.app.staging.$$
+DEPLOY_OLD=/Applications/.Kitnest.app.old.$$
 LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
-if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/FrsetNext" >/dev/null 2>&1; then
+if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/Kitnest" >/dev/null 2>&1; then
   echo "  ℹ️ 旧版本正在运行——部署完成后退出并重新打开即新版"
 fi
 

@@ -59,7 +59,7 @@ struct GeneralSettingsPane: View {
             SettingsSection("通用") {
                 SettingsGroupBox {
                     formRow(L10n.t("Start"), height: 40) {
-                        Toggle(L10n.t("Launch Frset at login"), isOn: launchAtLoginBinding)
+                        Toggle(L10n.t("Launch Kitnest at login"), isOn: launchAtLoginBinding)
                             .toggleStyle(.checkbox)
                     }
                     SettingsDivider()
@@ -469,12 +469,12 @@ struct GeneralSettingsPane: View {
 // MARK: - 关于页
 //
 // 对齐原版截图（original-settings-tabs/关于.png，1600×1124 = 800×562pt @2x）：
-//   居中布局：App 图标(≈64pt) → "Frset"(≈20pt semibold) → "v1.3.12 · 更新日志"(12pt) →
+//   居中布局：App 图标(≈64pt) → "Kitnest"(≈20pt semibold) → "v1.3.12 · 更新日志"(12pt) →
 //   双蓝按钮「给我们评分」「帮助与反馈」→「隐私政策 · 使用条款」(12pt) →
 //   "Copyright © 2026, All rights reserved."(11pt tertiary)
 // 文案全部走 L10n.t() 原版键面（Rate us / Help & Feedback / Privacy Policy /
 // Terms of Service / Changelog），语言切换随 languageDidChange 重绘（同通用页机制）。
-// 显示名固定 "Frset"、版本行固定 "v1.3.12" —— 像素级 1:1 验收要求与原版一致；
+// 显示名固定 "Kitnest"、版本行固定 "v1.3.12" —— 像素级 1:1 验收要求与原版一致；
 // Bundle 真实版本（1.0.0）不参与此页显示，避免双开 diff 出现可见差异。
 
 struct AboutSettingsPane: View {
@@ -490,7 +490,7 @@ struct AboutSettingsPane: View {
                 .frame(width: 64, height: 64)
                 .cornerRadius(14.5)
 
-            Text(L10n.t("Frset"))
+            Text("Kitnest")
                 .font(.system(size: 21, weight: .semibold))
                 .padding(.top, 18)
 

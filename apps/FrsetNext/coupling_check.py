@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-FrsetNext 合规扫描（只报告，绝不修改任何源码）
+Kitnest 合规扫描（只报告，绝不修改任何源码）
 
 检查四项：
   A. 跨模块耦合：Features/<模块A>/ 下的文件是否直接引用了 Features/<模块B>/ 里定义的类型
@@ -233,7 +233,7 @@ def main() -> int:
                 bus_defs.append(f"      ↳ {m.group(1)}: {m.group(2).strip()}")
 
     # ---------- 报告 ----------
-    L.append("FrsetNext 合规扫描报告（只检查，不修改源码）")
+    L.append("Kitnest 合规扫描报告（只检查，不修改源码）")
     L.append(f"生成时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     L.append(f"扫描范围: {os.path.relpath(FEATURES, ROOT)}（{len(modules)} 个模块）")
     L.append("=" * 74)

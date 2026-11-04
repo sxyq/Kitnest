@@ -1,4 +1,4 @@
-# frset-rebuild — Frset 重建工程（FrsetNext）
+# frset-rebuild — Frset 重建工程（Kitnest，原名 FrsetNext）
 
 > 2026-10-14 创建。目标：用**正向 Swift 工程**重建 Frset 的核心体验 + 原生集成 Stats 监测，
 > 终止"每个新功能都要逆向注入"的边际成本上升。
@@ -6,7 +6,7 @@
 
 ## 现状
 
-**FrsetNext 已是日常主力**（`/Applications/FrsetNext.app`，菜单栏常驻）：
+**Kitnest 已是日常主力**（`/Applications/Kitnest.app`，菜单栏常驻）：
 主面板（搜索/日历/剪贴板/中转站）、STATS 部件合并条（12 形态 × 8 模块）、
 性能监测独立窗、截图/OCR/长截图/取色、工具箱、悬浮剪贴板、JSON 检视器等。
 构建/验收/打包链路齐备（见下）。版本演进与剩余工作见 `docs/90-历史归档/接手清单-剩余工作.md`。

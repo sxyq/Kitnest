@@ -71,7 +71,7 @@ public final class ArchiveServicesProvider: NSObject {
         }
     }
 
-    /// 「用 FrsetNext 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
+    /// 「用 Kitnest 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
     ///
     /// 与「双击压缩包」「拖进面板」走同一个入口 `ArchiveBrowserWindowController.show`，
     /// 不另开一套窗口。多选时逐个打开（同包已开则系统侧前置，由 controller 去重）。

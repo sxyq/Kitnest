@@ -226,13 +226,13 @@ public enum ScreenCastEngine {
     }
 
     /// 投屏窗口的对外名字（用户要求：不出现 scrcpy 字样）
-    public static let castAppName = "FrsetNext 投屏"
+    public static let castAppName = "Kitnest 投屏"
 
     /// 把 scrcpy 复制成「我们自己的可执行名」再启动。
     ///
     /// 用户要求（2026-10-30）：「不能写出 SCRCPY 这种字样，应该是使用我们的名字命名的窗口」。
     /// macOS 的菜单栏 / 任务栏 / 活动监视器显示的是**可执行文件名**，直接跑 scrcpy 就一定是
-    /// "scrcpy"。所以把它（连同 server jar）复制到 App 数据目录下、改名为 `FrsetNext 投屏`，
+    /// "scrcpy"。所以把它（连同 server jar）复制到 App 数据目录下、改名为 `Kitnest 投屏`，
     /// 再设置 `SCRCPY_SERVER_PATH` 指向同一份 jar，避免它按可执行文件目录找不到 server。
     static func brandedLauncher() -> (exe: String, server: String?) {
         guard let real = findScrcpy() else { return ("scrcpy", nil) }
@@ -584,10 +584,10 @@ public enum ADBWirelessEngine {
 
 public enum ADBFileBridge {
 
-    /// 推送文件到手机（默认 /sdcard/Download/FrsetNext/）
+    /// 推送文件到手机（默认 /sdcard/Download/Kitnest/）
     /// - completion: (成功数, 输出文本)
     public static func push(urls: [URL],
-                            remoteDir: String = "/sdcard/Download/FrsetNext",
+                            remoteDir: String = "/sdcard/Download/Kitnest",
                             completion: @escaping (Int, String) -> Void) {
         guard !urls.isEmpty else {
             DispatchQueue.main.async { completion(0, "没有要推送的文件") }
@@ -642,7 +642,7 @@ public enum ADBFileBridge {
 
     /// 带进度推送：`adb push -p` 会在 stderr 打 `[ 42%] /path`，逐块解析换算成整体进度与速率
     public static func push(urls: [URL],
-                            remoteDir: String = "/sdcard/Download/FrsetNext",
+                            remoteDir: String = "/sdcard/Download/Kitnest",
                             progress: @escaping (PushProgress) -> Void,
                             completion: @escaping (Int, String) -> Void) {
         guard !urls.isEmpty else {
@@ -793,7 +793,7 @@ public enum ADBFileBridge {
 
     /// 拉取手机目录下全部文件到本地暂存目录（先清空暂存目录，避免重复堆积）
     /// - completion: (成功数, 输出文本)
-    public static func pull(remoteDir: String = "/sdcard/Download/FrsetNext",
+    public static func pull(remoteDir: String = "/sdcard/Download/Kitnest",
                             into stagingDir: URL,
                             completion: @escaping (Int, String) -> Void) -> Void {
         let fm = FileManager.default

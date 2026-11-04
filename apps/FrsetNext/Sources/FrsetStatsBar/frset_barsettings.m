@@ -919,7 +919,7 @@ static NSView *FSBuildSettingsPage(void) {
     icon.image = [NSApp applicationIconImage];
     [icon.widthAnchor constraintEqualToConstant:96].active = YES;
     [icon.heightAnchor constraintEqualToConstant:96].active = YES;
-    NSTextField *name = FSText(@"Frset 监测", 20, NSFontWeightRegular, [NSColor labelColor]);
+    NSTextField *name = FSText(@"Kitnest 监测", 20, NSFontWeightRegular, [NSColor labelColor]);
     name.alignment = NSTextAlignmentCenter;
     NSString *ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"";
     NSTextField *verField = FSText([NSString stringWithFormat:@"%@ %@", FSL(@"Version"), ver], 12, NSFontWeightRegular, [NSColor labelColor]);

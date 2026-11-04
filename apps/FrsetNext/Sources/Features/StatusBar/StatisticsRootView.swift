@@ -69,7 +69,7 @@ struct StatisticsRootView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "Frset")
+                Text(verbatim: "Kitnest")
                     .font(.custom("AvenirNextCondensed-DemiBold", size: 30))
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill").font(.system(size: 11))
