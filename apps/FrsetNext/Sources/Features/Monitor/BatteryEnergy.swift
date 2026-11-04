@@ -222,10 +222,7 @@ struct CPUEnergyImpactSection: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text("当前系统不支持能耗计数，改按 CPU 活跃度显示（百分比与 mW 不是同一量纲，故不混排）。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                // v216：删掉「当前系统不支持能耗计数…」口径说明。
             case .idle, .sampling:
                 if energy.items.isEmpty {
                     Text("正在采样…（约 1–2 秒）")
@@ -238,13 +235,7 @@ struct CPUEnergyImpactSection: View {
                 rows
             }
 
-            if energy.phase == .ready || !energy.items.isEmpty {
-                Text("按当前用户可见进程的 CPU 能耗计数排序，不等同于活动监视器的综合能耗影响（后者还含磁盘、网络等因素）。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .lineSpacing(1.4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            // v216：删掉「按当前用户可见进程的 CPU 能耗计数排序…」口径说明。
         }
         .onAppear { energy.start() }
         .onDisappear { energy.stop() }

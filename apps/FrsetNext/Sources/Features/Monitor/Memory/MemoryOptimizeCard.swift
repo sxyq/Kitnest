@@ -47,10 +47,7 @@ struct MemoryOptimizeSection: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                Text("先向所有应用广播内存压力（让它们自行回收缓存），再清理文件缓存。Wired 内存无法释放。")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                // v216：删掉「先向所有应用广播内存压力…Wired 内存无法释放」原理说明。
             }
         }
     }
@@ -81,10 +78,10 @@ struct MemoryOptimizeSection: View {
                     if report.swapDelta != 0 { deltaRow("Swap", report.swapDelta) }
                 }
             } else {
-                Text("这次没有可回收的缓存。压缩内存属于正在运行的应用，只有它们自己响应压力时才会释放。")
+                // v216：删掉「这次没有可回收的缓存。压缩内存属于正在运行的应用…」解释句。
+                Text("没有可回收的缓存")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if !report.releases.isEmpty {

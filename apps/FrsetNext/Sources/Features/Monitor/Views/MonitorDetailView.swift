@@ -204,18 +204,12 @@ public struct MonitorDetailView: View {
                 MonitorSectionTitle("电源流向")
                 MonitorFlowCard(input: flowNode(flow.input),
                                 branches: powerBranches.map(flowNode))
-                Text("流带粗细 = 功率占比。显示器 / USB 这类分支需要机型提供对应功率传感器，读不到就不画。")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                // v216（用户：「其他界面的这种说明性文字全部都删掉」）：删掉流带口径说明。
             }
             // v183：应用级能耗（原来在电池页，属于「电被谁用了」→ 功耗页）
             CPUEnergyImpactSection(stats: stats)
 
-            Text("数据源：AppleSmartBattery PowerTelemetryData（接电取 SystemPowerIn / 充入电池功率；放电取电池放电功率绝对值）")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            // v216：删掉「数据源：AppleSmartBattery PowerTelemetryData…」脚注。
         }
     }
 
@@ -486,8 +480,8 @@ public struct MonitorDetailView: View {
                 legendItem("空闲", color: .secondary)
             }
             .font(.system(size: 11))
-            Text("可回收 ≈ \(MonitorFormat.bytes(MonitorFormat.u64(Double(compressed))))"
-                 + "（压缩内存可被系统丢弃后重新换出）")
+            // v216：只留数字，删掉「（压缩内存可被系统丢弃后重新换出）」解释。
+            Text("可回收 ≈ \(MonitorFormat.bytes(MonitorFormat.u64(Double(compressed))))")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiaryText)
 
@@ -580,10 +574,11 @@ public struct MonitorDetailView: View {
 
     /// 窗口覆盖说明：不足 10 分钟如实写「已统计 X 分钟」，不假装满窗
     private func flowCoverageText(_ coverage: TimeInterval) -> String {
+        // v216：删掉「按窗口流量排序」这类操作解释，只留统计时长本身。
         if coverage < 60 { return "刚开始统计 · 已 \(Int(max(0, coverage))) 秒" }
         let minutes = Int(coverage / 60)
-        if minutes >= 10 { return "最近 10 分钟 · 按窗口流量排序" }
-        return "最近 \(minutes) 分钟（已统计时长，满 10 分钟后固定）· 按窗口流量排序"
+        if minutes >= 10 { return "最近 10 分钟" }
+        return "最近 \(minutes) 分钟"
     }
 
     /// 电池流向节点 → 通用流向节点
@@ -885,9 +880,7 @@ public struct MonitorDetailView: View {
                                })
             }
 
-            Text("统计来源：IOKit IOBlockStorageDriver + NVMe SMART 插件接口（官方同源）")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            // v216（用户：「磁盘占用进程下面的那句统计来源删掉」）：删除整行脚注。
 
             // v211（用户：「把这个存储详情移到最后」）：文件系统/连接类型/型号
             // 从容量构成下方挪到整页末尾，先看动态数据，静态规格收尾。
@@ -957,10 +950,8 @@ public struct MonitorDetailView: View {
                         .foregroundStyle(.secondary)
                     Text("未获取到传感器数据")
                         .font(.system(size: 12, weight: .medium))
-                    Text("本机 SMC 不可读（常见于未授权或非 Apple 芯片环境），已优雅降级，不影响其他指标。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // v216：删掉「本机 SMC 不可读…已优雅降级…」技术说明，
+                    // 空状态只留一句结论。
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 6)
@@ -1182,9 +1173,7 @@ public struct MonitorDetailView: View {
             MonitorAreaSparkline(values: sampler.history.gpu, color: MonitorColors.user, upperBound: 1)
                 .frame(height: 46)
 
-            Text("数据来源：IOAccelerator PerformanceStatistics（Apple Silicon）")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            // v216：删掉「数据来源：IOAccelerator PerformanceStatistics」脚注。
         }
     }
 

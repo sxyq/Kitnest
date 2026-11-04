@@ -165,9 +165,7 @@ struct PortOccupancySection: View {
 
     private var footer: some View {
         HStack(spacing: 6) {
-            Text("对外 = 同一局域网可访问")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
+            // v216：删掉「对外 = 同一局域网可访问」图例说明。
             Spacer(minLength: 4)
             if filtered.count > 6 {
                 Button {

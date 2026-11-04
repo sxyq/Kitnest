@@ -163,10 +163,7 @@ struct BatteryStatsPanel: View {
                 Text("本机没有电池")
                     .font(.system(size: 15, weight: .semibold))
             }
-            Text("台式机（Mac mini / Studio / Pro）没有内置电池，因此没有电量、健康度与电气参数可显示。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            // v216：删掉「台式机（Mac mini / Studio / Pro）没有内置电池…」解释句。
         }
     }
 
@@ -253,11 +250,7 @@ struct BatteryStatsPanel: View {
                                      value: String(format: "%.1f °C", battery.temperature))
                 }
             }
-            Text("电量、充放电状态、适配器规格已并入本页；整机功率、电源流向图与能耗排行在「功耗」页。")
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.tertiaryText)
-                .lineSpacing(1.5)
-                .fixedSize(horizontal: false, vertical: true)
+            // v216：删掉「电量、充放电状态…已并入本页…」导航说明。
         }
     }
 
