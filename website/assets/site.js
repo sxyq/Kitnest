@@ -111,28 +111,247 @@
   /* ---------------- 菜单栏模拟 ---------------- */
 
   var mbIcon = $("#mbIcon");
-  var panelDrop = $("#panelDrop");
+  var panelMock = $("#panelMock");
 
   function setPanel(open) {
-    if (!panelDrop || !mbIcon) return;
-    panelDrop.classList.toggle("open", open);
+    if (!panelMock || !mbIcon) return;
+    panelMock.hidden = !open;
     mbIcon.setAttribute("aria-expanded", open ? "true" : "false");
     mbIcon.setAttribute("aria-label", open ? "收起主面板" : "展开主面板");
   }
 
-  if (mbIcon && panelDrop) {
-    mbIcon.addEventListener("click", function () {
-      setPanel(!panelDrop.classList.contains("open"));
+  if (mbIcon && panelMock) {
+    mbIcon.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setPanel(panelMock.hidden);
     });
     document.addEventListener("click", function (e) {
-      if (!panelDrop.contains(e.target) && !mbIcon.contains(e.target) && panelDrop.classList.contains("open")) {
-        setPanel(false);
-      }
+      if (panelMock.contains(e.target) || (mbIcon && mbIcon.contains(e.target))) return;
+      if (!panelMock.hidden) setPanel(false);
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") setPanel(false);
     });
   }
+
+  /* ---------------- 部件浮窗（演示数据） ---------------- */
+
+  var WIDGETS = {
+    cpu: {
+      title: "CPU",
+      value: "23%",
+      html: '<div class="mb-corebars">' +
+        [22, 31, 18, 46, 25, 19, 12, 9].map(function (v, i) {
+          return '<i class="' + (v > 40 ? "hot" : "") + '" style="height:' + (v * 1.8) + '%"></i>';
+        }).join("") +
+        '</div><div class="mb-kv"><span>系统 <b>12%</b></span><span>用户 <b>9%</b></span><span>空闲 <b>79%</b></span></div>'
+    },
+    net: {
+      title: "网络",
+      value: "↓ 1.2 MB/s",
+      html: '<svg class="mb-spark" viewBox="0 0 200 46" preserveAspectRatio="none" aria-hidden="true">' +
+        '<polyline points="0,34 18,30 36,33 54,24 72,27 90,18 108,22 126,12 144,17 162,9 180,14 200,7" ' +
+        'fill="none" stroke="#2F6BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '<div class="mb-kv"><span>上行 <b>86 KB/s</b></span><span>延迟 <b>24 ms</b></span><span>连接 <b>Wi-Fi</b></span></div>'
+    },
+    batt: {
+      title: "电池",
+      value: "87%",
+      html: '<div class="mb-ring">' +
+        '<svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="#EDEDF2" stroke-width="7"/>' +
+        '<circle cx="30" cy="30" r="24" fill="none" stroke="#1F9D63" stroke-width="7" stroke-linecap="round" ' +
+        'stroke-dasharray="131 151" transform="rotate(-90 30 30)"/></svg>' +
+        '<div><div style="font-size:12px;color:#8A8A94">预计剩余</div>' +
+        '<div style="font-size:14px;color:#0B0B0D;font-weight:600">4 小时 12 分</div>' +
+        '<div style="font-size:11px;color:#8A8A94;margin-top:2px">适配器 45W · 循环 128 次</div></div></div>'
+    }
+  };
+
+  var mbPop = $("#mbPop");
+
+  function closeWidgetPop() {
+    if (!mbPop) return;
+    mbPop.hidden = true;
+    $$(".mb-widget").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
+  }
+
+  if (mbPop) {
+    $$(".mb-widget").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var key = btn.getAttribute("data-widget");
+        var w = WIDGETS[key];
+        if (!w) return;
+        var open = !mbPop.hidden && btn.getAttribute("aria-expanded") === "true";
+        if (open) { closeWidgetPop(); return; }
+        $("#mbPopTitle").textContent = w.title;
+        $("#mbPopValue").textContent = w.value;
+        $("#mbPopBody").innerHTML = w.html;
+        mbPop.hidden = false;
+        $$(".mb-widget").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
+        btn.setAttribute("aria-expanded", "true");
+      });
+    });
+    document.addEventListener("click", function (e) {
+      if (!mbPop.contains(e.target)) closeWidgetPop();
+    });
+  }
+
+  /* ---------------- 可交互主面板（演示数据） ---------------- */
+
+  var FAKE_CLIP = [
+    { kind: "文字", cls: "", title: "周报草稿：第三部分待补充数据", meta: "2 分钟前 · 148 个字符 · 备忘录",
+      preview: "周报草稿：第三部分待补充数据。<br>演示内容，用于展示剪贴板条目的<b>预览气泡</b>。" },
+    { kind: "链接", cls: "link", title: "https://example.com/kitnest/demo", meta: "5 分钟前 · 32 个字符 · Safari",
+      preview: "<code>https://example.com/kitnest/demo</code><br>演示链接，真实场景下点开即在浏览器中打开。" },
+    { kind: "图片", cls: "img", title: "示例截图 2026-11-05.png", meta: "12 分钟前 · 1024×1024 pt",
+      preview: "示例图片占位 —— 真实运行时这里显示图片本身。" },
+    { kind: "文字", cls: "", title: "会议室 A-203 / 14:30", meta: "20 分钟前 · 18 个字符 · 日历",
+      preview: "会议室 A-203 / 14:30<br>演示条目。" },
+    { kind: "文件", cls: "file", title: "发布流程-checklist.md", meta: "1 小时前 · 2.1 KB · 访达",
+      preview: "演示文件条目：真实运行时支持预览包内条目，并按类型显示图标。" },
+    { kind: "文字", cls: "", title: "测试用示例文案，仅供演示", meta: "3 小时前 · 12 个字符",
+      preview: "演示内容。" },
+    { kind: "链接", cls: "link", title: "https://example.org/docs?q=demo", meta: "昨天 · 28 个字符",
+      preview: "<code>https://example.org/docs?q=demo</code>" },
+    { kind: "文字", cls: "", title: "TODO：把安装包校验写进发版脚本", meta: "昨天 · 34 个字符 · 编辑器",
+      preview: "演示内容。" }
+  ];
+
+  var FAKE_TOOLS = [
+    ["/hash", "MD5 / SHA 哈希"], ["/qr", "二维码生成与识别"], ["/ip", "本机 IP 与网络信息"],
+    ["/calendar", "日历 / 农历 / 节假日"], ["/base64", "Base64 编解码"], ["/convert", "媒体格式转换"]
+  ];
+
+  var pmList = $("#pmList");
+  var pmTools = $("#pmTools");
+  var pmSearch = $("#pmSearch");
+  var pmCount = $("#pmCount");
+
+  function showPage(name) {
+    $$(".pm-page").forEach(function (p) { p.hidden = p.getAttribute("data-page") !== name; });
+    $$(".pm-tab").forEach(function (t) {
+      t.classList.toggle("on", t.getAttribute("data-page") === name);
+    });
+  }
+
+  function renderClip(items) {
+    if (!pmList) return;
+    pmList.innerHTML = items.map(function (item, i) {
+      return '<li class="pm-item" data-index="' + i + '" tabindex="0">' +
+        '<span class="pm-ico ' + item.cls + '">' + item.kind + '</span>' +
+        '<span class="pm-main">' +
+          '<span class="pm-title">' + escapeHtml(item.title) + "</span>" +
+          '<span class="pm-meta">' + escapeHtml(item.meta) + "</span>" +
+        "</span></li>";
+    }).join("") || '<li class="pm-meta" style="padding:14px 8px">没有匹配的记录</li>';
+  }
+
+  function renderTools(items) {
+    if (!pmTools) return;
+    pmTools.innerHTML = items.map(function (t) {
+      return '<li data-tool="' + t[0] + '"><code>' + t[0] + "</code><span>" + t[1] + "</span></li>";
+    }).join("");
+  }
+
+  function expandItem(li) {
+    var wasOpen = li.classList.contains("open");
+    $$(".pm-item.open").forEach(function (x) { x.classList.remove("open"); });
+    var preview = li.querySelector(".pm-preview");
+    if (preview) preview.remove();
+    if (wasOpen) return;
+
+    var item = FAKE_CLIP[Number(li.getAttribute("data-index"))];
+    if (!item) return;
+    li.classList.add("open");
+    var box = document.createElement("div");
+    box.className = "pm-preview";
+    box.innerHTML = item.preview +
+      '<div class="pm-actions">' +
+      '<button type="button" data-act="paste">双击回贴</button>' +
+      '<button type="button" data-act="pin">置顶</button>' +
+      '<button type="button" data-act="del">删除</button>' +
+      "</div>";
+    li.appendChild(box);
+  }
+
+  if (pmList) {
+    pmList.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-act]");
+      if (btn) {
+        e.stopPropagation();
+        var act = btn.getAttribute("data-act");
+        toast(act === "paste" ? "已粘贴到前台应用（演示）"
+          : act === "pin" ? "已置顶（演示）" : "已删除（演示）");
+        return;
+      }
+      var li = e.target.closest(".pm-item");
+      if (li) expandItem(li);
+    });
+    pmList.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      var li = e.target.closest(".pm-item");
+      if (!li) return;
+      e.preventDefault();
+      expandItem(li);
+    });
+  }
+
+  if (pmTools) {
+    pmTools.addEventListener("click", function (e) {
+      var li = e.target.closest("[data-tool]");
+      if (!li) return;
+      toast("演示：执行 " + li.getAttribute("data-tool"));
+    });
+  }
+
+  if (pmSearch) {
+    pmSearch.addEventListener("input", function () {
+      var v = pmSearch.value.trim();
+      if (v.charAt(0) === "/") {
+        var q = v.slice(1).toLowerCase();
+        var list = FAKE_TOOLS.filter(function (t) {
+          return !q || t[0].slice(1).indexOf(q) !== -1 || t[1].indexOf(q) !== -1;
+        });
+        renderTools(list);
+        showPage("tools");
+        if (pmCount) pmCount.textContent = list.length + " 个工具";
+        return;
+      }
+      var items = v
+        ? FAKE_CLIP.filter(function (it) {
+            return (it.title + " " + it.meta).toLowerCase().indexOf(v.toLowerCase()) !== -1;
+          })
+        : FAKE_CLIP;
+      renderClip(items);
+      showPage("home");
+      if (pmCount) pmCount.textContent = items.length + " 条记录";
+    });
+    pmSearch.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      var first = $(".pm-item, .pm-tools li");
+      if (first) first.click();
+    });
+  }
+
+  $$(".pm-tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      showPage(tab.getAttribute("data-page"));
+      if (pmSearch) { pmSearch.value = ""; }
+      if (pmCount) {
+        pmCount.textContent = tab.getAttribute("data-page") === "home" ? FAKE_CLIP.length + " 条记录" : "演示数据";
+      }
+    });
+  });
+
+  $$("[data-toast]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      toast(el.getAttribute("data-toast") + "（演示）");
+    });
+  });
+
+  if (pmList) renderClip(FAKE_CLIP);
+  if (pmTools) renderTools(FAKE_TOOLS);
 
   /* ---------------- 截图切换 ---------------- */
 

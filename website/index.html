@@ -75,9 +75,9 @@
             </div>
           </div>
 
-          <!-- 菜单栏模拟：点小猫展开真实面板截图 -->
+          <!-- 菜单栏模拟：部件与图标都可点，下面是真实可交互的主面板 -->
           <div class="hero-stage">
-            <div class="stage-label">Menu bar · 点击小猫试试</div>
+            <div class="stage-label">Menu bar · 点部件看详情，点小猫收起面板</div>
 
             <div class="menubar-mock">
               <div class="mb-left">
@@ -88,13 +88,13 @@
                 <span class="mb-menu">显示</span>
               </div>
               <div class="mb-right">
-                <span class="mb-widget">
+                <button class="mb-widget" type="button" data-widget="cpu" aria-expanded="false">
                   <span class="bars"><i></i><i></i><i></i><i></i></span>
                   CPU 23%
-                </span>
-                <span class="mb-widget net">↓ 1.2 MB/s</span>
-                <span class="mb-widget batt"><b>87%</b></span>
-                <button class="mb-icon" id="mbIcon" aria-label="收起主面板" aria-expanded="true" aria-controls="panelDrop">
+                </button>
+                <button class="mb-widget net" type="button" data-widget="net" aria-expanded="false">↓ 1.2 MB/s</button>
+                <button class="mb-widget batt" type="button" data-widget="batt" aria-expanded="false"><b>87%</b></button>
+                <button class="mb-icon" id="mbIcon" aria-label="收起主面板" aria-expanded="true" aria-controls="panelMock">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M7.5 6.5 6 3.4l3.6 1.8M16.5 6.5 18 3.4l-3.6 1.8"/>
                     <path d="M12 5.6c-3.7 0-6 2.7-6 6.4 0 3.5 2.7 5.8 6 5.8s6-2.3 6-5.8c0-3.7-2.3-6.4-6-6.4Z" fill="#FFFFFF" stroke="none"/>
@@ -103,13 +103,134 @@
               </div>
             </div>
 
-            <div class="panel-drop open" id="panelDrop">
-              <div class="panel-drop-inner">
-                <img src="assets/shots/panel.png" alt="Kitnest 主面板：搜索框、日历、剪贴板历史与底部工具条" data-shot-file="assets/shots/panel.png">
+            <!-- 部件详情浮窗（演示数据） -->
+            <div class="mb-pop" id="mbPop" hidden>
+              <div class="mb-pop-head">
+                <span id="mbPopTitle">CPU</span>
+                <span id="mbPopValue" class="mb-pop-value">23%</span>
+              </div>
+              <div id="mbPopBody"></div>
+              <p class="mb-pop-note">演示数据 · 点空白处关闭</p>
+            </div>
+
+            <!-- 可交互的主面板 -->
+            <div class="panel-mock" id="panelMock">
+              <div class="pm-tabs">
+                <button class="pm-tab on" type="button" data-page="home">主页</button>
+                <button class="pm-tab" type="button" data-page="monitor">性能监测</button>
+                <button class="pm-tab" type="button" data-page="transfer">文件中转</button>
+                <button class="pm-tab" type="button" data-page="cast">投屏</button>
+                <span class="pm-gear" title="设置">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-3-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-3l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+                </span>
+              </div>
+
+              <div class="pm-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="pmSearch" type="text" placeholder="搜索或输入 / 使用工具" autocomplete="off" aria-label="搜索剪贴板">
+              </div>
+
+              <div class="pm-body">
+                <!-- 主页 -->
+                <div class="pm-page" data-page="home">
+                  <div class="pm-cal">
+                    <div class="pm-cal-head">
+                      <span>2026 年 11 月</span>
+                      <span class="pm-cal-nav">‹ &nbsp; ›</span>
+                    </div>
+                    <div class="pm-cal-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+                    <div class="pm-cal-grid">
+                      <span class="muted">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+                      <span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span>
+                      <span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span>
+                      <span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span>
+                      <span>29</span><span>30</span><span class="muted">1</span><span class="muted">2</span><span class="muted">3</span>
+                    </div>
+                  </div>
+                  <ul class="pm-list" id="pmList"></ul>
+                </div>
+
+                <!-- 性能监测 -->
+                <div class="pm-page" data-page="monitor" hidden>
+                  <div class="pm-modbar">
+                    <span class="on">温度</span><span>CPU</span><span>内存</span><span>网络</span><span>磁盘</span><span>电池</span>
+                  </div>
+                  <div class="pm-metrics">
+                    <div><b>Average</b><span>41.2 °C</span></div>
+                    <div><b>Hottest</b><span>58.4 °C</span></div>
+                    <div><b>DC In</b><span>17.2 V</span></div>
+                  </div>
+                  <div class="pm-bars">
+                    <div class="pm-bar"><span>CPU 0</span><i style="width:38%"></i><em>39°</em></div>
+                    <div class="pm-bar"><span>CPU 1</span><i style="width:44%"></i><em>41°</em></div>
+                    <div class="pm-bar"><span>CPU 2</span><i style="width:57%"></i><em>46°</em></div>
+                    <div class="pm-bar"><span>GPU</span><i style="width:72%"></i><em>58°</em></div>
+                    <div class="pm-bar"><span>NVMe</span><i style="width:29%"></i><em>35°</em></div>
+                  </div>
+                  <p class="pm-note">演示数据 · 真实运行时会每 1.5 秒刷新</p>
+                </div>
+
+                <!-- 文件中转 -->
+                <div class="pm-page" data-page="transfer" hidden>
+                  <div class="pm-sect-title">发送</div>
+                  <div class="pm-exits">
+                    <button class="pm-exit" type="button" data-toast="弹出系统隔空投送面板"><b>苹果设备</b><span>iPhone / iPad / Mac</span></button>
+                    <button class="pm-exit" type="button" data-toast="生成二维码，对方扫码即可接收"><b>安卓 / 其他</b><span>扫码直传</span></button>
+                    <button class="pm-exit" type="button" data-toast="USB 3.0 直连，实测可跑满 100 MB/s"><b>ADB 直传</b><span>需先连一次设备</span></button>
+                  </div>
+                  <div class="pm-sect-title">本地暂存</div>
+                  <div class="pm-files">
+                    <div class="pm-file"><span class="pm-file-ico">ZIP</span><div><b>发布包.zip</b><span>2.1 MB</span></div></div>
+                    <div class="pm-file"><span class="pm-file-ico">MD</span><div><b>发布流程.md</b><span>18 KB</span></div></div>
+                  </div>
+                </div>
+
+                <!-- 投屏 -->
+                <div class="pm-page" data-page="cast" hidden>
+                  <div class="pm-device">
+                    <div class="pm-device-top">
+                      <span class="pm-dot"></span>
+                      <div><b>示例设备 · 已连接</b><span>USB · 1920p / 16 Mbps / 60 fps</span></div>
+                    </div>
+                    <div class="pm-navkeys">
+                      <button type="button" data-toast="发送返回键">‹</button>
+                      <button type="button" data-toast="回到桌面">⌂</button>
+                      <button type="button" data-toast="打开多任务">▢</button>
+                      <button type="button" data-toast="展开通知栏">▤</button>
+                    </div>
+                  </div>
+                  <div class="pm-sect-title">手机通知</div>
+                  <ul class="pm-notify">
+                    <li><b>示例通知</b><span>这是一条用于演示的通知内容</span></li>
+                    <li><b>示例通知 2</b><span>演示数据，真实运行时来自手机</span></li>
+                  </ul>
+                </div>
+
+                <!-- 工具模式（输入 / 出现） -->
+                <div class="pm-page" data-page="tools" hidden>
+                  <div class="pm-sect-title">工具</div>
+                  <ul class="pm-tools" id="pmTools"></ul>
+                </div>
+              </div>
+
+              <div class="pm-toolbar">
+                <button type="button" data-toast="按应用名过滤剪贴板历史" title="筛选">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                </button>
+                <button type="button" data-toast="按标签分组查看" title="标签">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16l-6.5 8v5l-3 2v-7z"/></svg>
+                </button>
+                <button type="button" data-toast="批量编辑（置顶 / 标签 / 删除）" title="编辑">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20h14M6 16l9-9 3 3-9 9H6z"/></svg>
+                </button>
+                <button type="button" data-toast="上传所选文件到云端中转" title="上传">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6m0 0-4 4m4-4 4 4M5 19h14"/></svg>
+                </button>
+                <span class="pm-count" id="pmCount">8 条记录</span>
               </div>
             </div>
 
-            <p class="stage-hint">真实界面截图 · 再点一次小猫可以收起</p>
+            <p class="stage-hint">面板内容全部是<strong>演示样例</strong>，可以真的点：搜索过滤、展开预览、切页签</p>
           </div>
         </div>
       </div>
@@ -476,6 +597,21 @@
               <figcaption>面板就是贴着菜单栏图标展开的，再点一次或按 Esc 收起。</figcaption>
             </figure>
           </div>
+        </div>
+      </div>
+
+      <div class="section soft">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="kicker">Motion</span>
+            <h2>截图这件事，<br>一屏讲完。</h2>
+            <p class="lede">下面是完整交互流程的演示动图：<b>⌥S 框选 → 截取 → 动作条 → 标注（矩形 / 箭头 / 马赛克）→ 复制</b>。画面为模拟内容，不含任何真实数据。</p>
+          </div>
+
+          <figure class="gif-figure">
+            <img src="assets/gifs/capture-flow.gif" alt="Kitnest 截图与标注流程演示动图：区域框选、动作条、矩形与箭头标注、马赛克遮盖、复制到剪贴板" loading="lazy">
+            <figcaption><b>截图与标注全流程</b> · ⌥S 区域截图 / ⇧⌥W 窗口截图 / ⇧⌥L 长截图；截完可复制、贴图、识字、翻译、编辑、美化、空投。演示动图由 <code>website/tools/make_gifs.py</code> 生成，内容全部虚构。</figcaption>
+          </figure>
         </div>
       </div>
 
