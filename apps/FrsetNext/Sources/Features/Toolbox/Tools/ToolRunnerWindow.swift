@@ -53,7 +53,7 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
             defer: false)
         window.title = tool.name
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
+        window.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         window.isReleasedWhenClosed = false
         // v181（UI 一致性检查 R3）：统一灰底 + 自绘圆钮，别再露系统白底
         window.applyOfficialChrome()

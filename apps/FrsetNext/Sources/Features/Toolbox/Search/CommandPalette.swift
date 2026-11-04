@@ -293,7 +293,7 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
         backgroundColor = .clear
         isReleasedWhenClosed = false
         // v206：统一标准红黄绿三钮（不再单独隐藏关闭钮）
-        titlebarAppearsTransparent = true
+        titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
 
         let controller = CommandPaletteState(initialQuery: initialQuery)
         controller.onDismiss = { [weak self] in self?.close() }
@@ -437,8 +437,8 @@ struct CommandPaletteView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // v206：标题栏分层带 + 内容下移，避免红绿灯压住搜索栏
-            WindowTitleBand()
+            // v208：原生标题栏占据顶部；这里留 32pt 净空，避免红绿灯压住搜索栏
+            Color.clear.frame(height: 32)
             HStack(spacing: 8) {
                 Image(systemName: state.isSlashMode ? "terminal" : "magnifyingglass")
                     .font(.system(size: 13))

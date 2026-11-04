@@ -269,8 +269,7 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
         win.isReleasedWhenClosed = false
         win.delegate = self
         win.contentView = NSHostingView(rootView: CaptureHistoryView(vm: vm))
-        // v166.8：换 contentView 后重挂自绘关闭钮（挂到标题栏后已不受替换影响，这里保持幂等）
-        win.attachOfficialRoundCloseButton()
+        // v208：标题栏使用原生红绿灯（不随 contentView 替换消失）
         win.center()
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

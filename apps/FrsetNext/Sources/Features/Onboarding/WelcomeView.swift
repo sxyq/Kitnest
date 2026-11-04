@@ -76,8 +76,7 @@ struct WelcomeView: View {
         }
         .frame(width: 760, height: 620)
         .background(Color(OfficialChrome.windowBackground))
-        // v206：标题栏独立分层（红绿灯不再是一条白条）
-        .background(alignment: .top) { WindowTitleBand() }
+        // v208：原生标题栏由窗口负责
         .onAppear { permissions.refreshAll() }
         .onReceive(NotificationCenter.default.publisher(
             for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -99,7 +98,7 @@ struct WelcomeView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
-        .padding(.top, 20)
+        .padding(.top, 36)   // v208：让出 macOS 原生标题栏高度
         .padding(.bottom, 12)
     }
 

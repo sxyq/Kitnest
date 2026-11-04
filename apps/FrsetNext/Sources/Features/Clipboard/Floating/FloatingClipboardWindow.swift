@@ -127,7 +127,7 @@ public final class FloatingClipboardPanel: NSPanel {
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         titleVisibility = .hidden
-        titlebarAppearsTransparent = true
+        titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true

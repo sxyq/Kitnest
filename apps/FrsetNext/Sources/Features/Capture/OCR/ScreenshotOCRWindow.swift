@@ -311,10 +311,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
         contentView = container
         // v166.8（用户：「这个弹窗没有方式去关闭」）：
         // 上面 `applyOfficialChrome()` 是在**替换 contentView 之前**调用的，
-        // 圆形关闭钮被挂到了旧的默认 contentView 上，第 237 行换掉 contentView 后
-        // 它就跟着旧视图消失了 —— 系统红绿灯又已被隐藏，于是窗口看起来完全没法关。
-        // 换成自定义 contentView 之后必须重挂一次。
-        attachOfficialRoundCloseButton()
+        // v208：标题栏使用原生红绿灯（属于窗口标题栏，不随 contentView 替换消失）
     }
 
     /// Esc 关闭（结果窗没有系统红绿灯，键盘是最快的退出方式）

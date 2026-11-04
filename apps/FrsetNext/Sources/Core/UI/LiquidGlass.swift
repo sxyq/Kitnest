@@ -302,40 +302,6 @@ public extension NSWindow {
     }
 }
 
-// MARK: - 标题栏分层带（v206）
-//
-// 用户：「所有界面，红绿灯上面只有个白条，没有正确做到分层」。
-// 原因：fullSizeContentView 下红绿灯区域就是裸玻璃底（浅色下接近纯白），
-// 与下面的内容层没有边界，看起来只是一条白条。
-// 这里给所有带红绿灯的全尺寸窗口铺一条真正的标题栏层：
-//   同款玻璃底 + 更厚的霜感 + 极淡前景压色（浅色压暗/深色提亮）+ 底部发丝分隔线。
-// 内容在带子下方，红绿灯浮在这一层上——形成「标题栏层 / 内容层」的明确层次。
-
-struct WindowTitleBand: View {
-    var height: CGFloat = 32
-    @ObservedObject private var personalization = Personalization.shared
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            ZStack {
-                Theme.windowSurface
-                Theme.glassFrost
-                // 前景 3% 压色：浅色下比内容略深、深色下略亮，形成独立层级
-                Color.primary.opacity(0.03)
-                // 顶部玻璃高光
-                LinearGradient(colors: [Color.white.opacity(0.06), .clear],
-                               startPoint: .top, endPoint: .bottom)
-            }
-            Rectangle()
-                .fill(Color.primary.opacity(0.08))
-                .frame(height: 0.5)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
-        .allowsHitTesting(false)
-    }
-}
-
 // MARK: - 卡片「玻璃镀边」样式
 //
 // 不叠真玻璃：只加斜向高光 + 细亮边 + 内阴影。玻璃感来自分层与高光，

@@ -735,7 +735,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
         // v205：归档浏览器也铺统一玻璃底（跟随通透度/磨砂）
         win.isOpaque = false
         win.backgroundColor = .clear
-        win.titlebarAppearsTransparent = true
+        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         win.installUnifiedGlassBackground()
         win.isReleasedWhenClosed = false
         super.init(window: win)

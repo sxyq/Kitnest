@@ -54,7 +54,7 @@ public final class PermissionGuideWindowController: NSObject {
         )
         win.title = "权限引导"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
+        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         win.applyOfficialChrome()
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
@@ -70,7 +70,6 @@ public final class PermissionGuideWindowController: NSObject {
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             win.contentView = hostingView
-            win.attachOfficialRoundCloseButton()
         }
         Log.info("Onboarding", "权限引导窗已创建")
     }

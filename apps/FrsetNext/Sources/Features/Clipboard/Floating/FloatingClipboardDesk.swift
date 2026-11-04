@@ -302,8 +302,8 @@ public struct FloatingClipboardDeskView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // v206：红绿灯带做成独立分层（玻璃底 + 霜感 + 底部发丝线），不再是一条白条
-            WindowTitleBand()
+            // v208：使用 macOS 原生标题栏（红绿灯 + 系统材质），这里只留 32pt 净空
+            Color.clear.frame(height: 32)
             searchBar
             categoryBar
             Divider().opacity(0.45)

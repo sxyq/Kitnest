@@ -23,8 +23,9 @@ struct SettingsRootView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // v206：标题栏独立分层（玻璃底 + 霜感 + 分隔线），红绿灯浮在这一层上
-            WindowTitleBand()
+            // v208：交还 macOS 原生标题栏（原生材质 + 红绿灯 + 分隔线，唯一实现）；
+            // 这里只留 32pt 净空，避免内容压到红绿灯
+            Color.clear.frame(height: 32)
             HStack(spacing: 0) {
             SettingsSidebarView(state: state)
             Rectangle()

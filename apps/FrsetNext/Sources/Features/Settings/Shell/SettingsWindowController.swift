@@ -151,7 +151,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         )
         win.title = "设置"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
+        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         // 官方外观：统一灰底（根视图固定 530 而内容区 562，上下露底必须是官方灰，
         // 否则露出系统默认白 → 上下白条，2026-10-18 用户实测）
         win.applyOfficialChrome()
@@ -186,8 +186,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             win.contentView = hostingView
             // v204：contentView 换新后重挂玻璃底，保证它仍在内容之下（幂等）
             win.installUnifiedGlassBackground()
-            // 内容视图换新 → 重挂官方圆形关闭钮（旧占位视图上的钮已移除）
-            win.attachOfficialRoundCloseButton()
+
         }
         Log.info("Settings", "设置窗口已创建")
     }

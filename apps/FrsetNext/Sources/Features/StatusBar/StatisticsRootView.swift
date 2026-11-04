@@ -57,10 +57,6 @@ struct StatisticsRootView: View {
                 Color.clear
             }
         }
-        .background(alignment: .top) {
-            // v206：标题栏独立分层（红绿灯不再是一条白条）
-            if !appearance.isMidnight { WindowTitleBand() }
-        }
         // 强调色跟随个性化（统计页内的按钮/焦点环）
         // 强调色 + Midnight 统一主题入口（统计窗同源；个性化改色即生效）
         .frsetThemeChrome()

@@ -73,7 +73,7 @@ public final class WelcomeWindowController: NSObject {
         )
         win.title = "欢迎"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
+        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         win.applyOfficialChrome()
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
@@ -91,7 +91,6 @@ public final class WelcomeWindowController: NSObject {
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             win.contentView = hostingView
-            win.attachOfficialRoundCloseButton()
         }
         Log.info("Onboarding", "欢迎窗已创建")
     }

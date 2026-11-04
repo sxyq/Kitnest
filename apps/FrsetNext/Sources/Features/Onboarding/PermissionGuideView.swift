@@ -67,7 +67,7 @@ struct PermissionGuideView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 18)
+        .padding(.top, 36)   // v208：让出 macOS 原生标题栏高度
         .padding(.bottom, 10)
     }
 
@@ -115,7 +115,6 @@ struct PermissionGuideView: View {
 
     private var backdrop: some View {
         Color(OfficialChrome.windowBackground)
-            .overlay(alignment: .top) { WindowTitleBand() }
     }
 }
 

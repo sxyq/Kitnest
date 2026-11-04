@@ -30,8 +30,4 @@ extension NSWindow {
         }
     }
 
-    /// 历史入口：v205 起行为等价于标准红绿灯（旧调用点保留，避免大范围改名）
-    func attachOfficialRoundCloseButton() {
-        restoreStandardTrafficLights()
-    }
 }

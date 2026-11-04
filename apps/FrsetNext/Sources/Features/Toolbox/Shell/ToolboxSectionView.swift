@@ -215,10 +215,6 @@ public struct ToolRunnerView: View {
         // v206：独立窗口（onClose 非空）里顶部要给红绿灯留出 30pt，避免压住工具图标/标题
         .padding(.top, onClose == nil ? 0 : 30)
         .frame(width: 520, height: 520)
-        // v206：独立的标题栏分层带（仅窗口模式；sheet 模式不需要）
-        .background(alignment: .top) {
-            if onClose != nil { WindowTitleBand() }
-        }
         .onAppear {
             options = tool.defaultOptions()
             // 斜杠命令落地即执行（只跑一次；无输入类工具靠它给结果）

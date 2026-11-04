@@ -152,7 +152,7 @@ public final class WhatsNewWindowController: NSObject {
         )
         win.title = "本次更新"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = true
+        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         win.applyOfficialChrome()
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
@@ -168,7 +168,6 @@ public final class WhatsNewWindowController: NSObject {
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             win.contentView = hostingView
-            win.attachOfficialRoundCloseButton()
         }
         Log.info("WhatsNew", "浮层窗口已创建")
     }
@@ -213,8 +212,7 @@ struct WhatsNewView: View {
         }
         .frame(width: 400, height: 500)
         .background(Color(OfficialChrome.windowBackground))
-        // v206：标题栏独立分层（红绿灯不再是一条白条）
-        .background(alignment: .top) { WindowTitleBand() }
+        // v208：原生标题栏由窗口负责
     }
 
     private var header: some View {
@@ -229,7 +227,7 @@ struct WhatsNewView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
-        .padding(.top, 22)
+        .padding(.top, 36)   // v208：让出 macOS 原生标题栏高度
         .padding(.bottom, 10)
     }
 

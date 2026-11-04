@@ -234,7 +234,7 @@ final class LongScreenshotEditorWindow: NSWindow {
         // v204：长截图编辑器同属内容窗——透明窗 + 统一玻璃底
         isOpaque = false
         backgroundColor = .clear
-        titlebarAppearsTransparent = true
+        titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         for button in [NSWindow.ButtonType.closeButton,
                        .miniaturizeButton, .zoomButton] {
             standardWindowButton(button)?.isHidden = true

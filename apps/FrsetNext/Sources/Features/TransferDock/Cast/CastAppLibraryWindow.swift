@@ -23,7 +23,7 @@ public final class CastAppLibraryWindowController {
                          styleMask: [.titled, .closable, .fullSizeContentView],
                          backing: .buffered, defer: false)
         w.title = "全部应用"
-        w.titlebarAppearsTransparent = true
+        w.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         w.isReleasedWhenClosed = false
         w.contentMinSize = NSSize(width: 720, height: 560)
         w.contentMaxSize = NSSize(width: 720, height: 560)
@@ -105,8 +105,7 @@ private struct CastAppLibraryView: View {
             }
         }
         .frame(width: 720, height: 560)
-        // v206：标题栏独立分层（红绿灯不再是一条白条）
-        .background(alignment: .top) { WindowTitleBand() }
+        // v208：原生标题栏由窗口负责；内容顶部已经留出 34pt
         .onAppear { reload() }
     }
 

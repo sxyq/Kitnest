@@ -34,9 +34,10 @@ public extension NSWindow {
     func applyOfficialChrome() {
         isOpaque = false
         backgroundColor = .clear
-        // v206：只有 fullSizeContentView 窗口才需要透明标题栏 + 自绘标题带；
-        // 普通标题栏窗口交还给系统材质（系统自带标题栏层与分隔线）
-        titlebarAppearsTransparent = styleMask.contains(.fullSizeContentView)
+        // v208（用户：「确保应用于全局，并且只有这一处实现」）：
+        // 全部交还 macOS 原生标题栏——原生材质 + 原生红绿灯 + 原生分隔线，
+        // 不再自绘任何标题带。fullSize 窗口靠内容顶部 32pt 净空避让红绿灯。
+        titlebarAppearsTransparent = false
         installUnifiedGlassBackground()
         // v205：统一为标准红黄绿三钮（不再用自绘灰圆钮）
         restoreStandardTrafficLights()

@@ -25,8 +25,9 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         self.init(window: window)
         window.title = ""                                   // 原作 setTitle: 传空串
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        if #available(macOS 11.0, *) { window.titlebarSeparatorStyle = .none }
+        window.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
+        // v208：原生标题栏分隔线（自动），不再手动去掉
+        if #available(macOS 11.0, *) { window.titlebarSeparatorStyle = .automatic }
         // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         window.isMovableByWindowBackground = true
         window.hasShadow = true
@@ -54,8 +55,7 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
             window.contentView = hostingView
-            // 内容视图换新 → 重挂官方圆形关闭钮
-            window.attachOfficialRoundCloseButton()
+
         }
     }
 
