@@ -152,6 +152,8 @@ public enum Theme {
         public static let chip: CGFloat = 6
         /// 进度条端点、极小色块
         public static let micro: CGFloat = 4
+        /// 通知条胶囊半高（GlassSurface 需要数值，不能直接用 Capsule()）
+        public static let pill: CGFloat = 30
         /// 旧名兼容（历史代码还在用 container）
         public static let container: CGFloat = window
     }

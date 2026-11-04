@@ -103,7 +103,10 @@ public final class CaptureHistoryStore {
         do {
             db = try SQLiteDatabase(path: path)
         } catch {
-            fatalError("CaptureHistoryStore init failed: \(error)")
+            // v200（2026-11-04，修工程全图 P0-5）：截图历史库损坏/磁盘满不应让 App 启动即崩。
+            // 降级为内存库；后续 record/prune 都是 try?，功能不可用但主流程继续。
+            Log.error("CaptureHistory", "历史库打开失败，已降级为内存库：\(error)")
+            db = SQLiteDatabase.fallback()
         }
         try? db.exec("""
         CREATE TABLE IF NOT EXISTS capture_history (

@@ -164,7 +164,7 @@ final class LongScreenshotEditorContainerView: NSView {
 
     /// 排障探针：按钮中心的命中视图 + 该屏幕点上是否还有别的窗口压在编辑器上。
     /// 入口：`defaults write com.sxyq.frsetnext probe.longshotHit -bool true` +
-    /// `frsetnext://longshotpreview`。
+    /// `kitnest://longshotpreview`。
     func debugHitReport(window: NSWindow) -> [String] {
         [("保存", saveButton), ("复制", copyButton), ("关闭", closeButton)].map { name, btn in
             let p = btn.convert(NSPoint(x: btn.bounds.midX, y: btn.bounds.midY), to: self)

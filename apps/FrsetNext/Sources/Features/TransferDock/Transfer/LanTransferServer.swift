@@ -121,6 +121,9 @@ public final class LanTransferServer: ObservableObject {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         params.includePeerToPeer = false
+        // 刻意监听所有接口：本服务就是给同一 Wi-Fi 的手机扫码用的，
+        // 不要按「HTTP 服务应绑 127.0.0.1」给它加 requiredLocalEndpoint——
+        // 那样二维码会立刻失效。本机专用的 MCP / WebDAV 已在各自文件里绑回环。
 
         let listener: NWListener
         do {
@@ -189,9 +192,12 @@ public final class LanTransferServer: ObservableObject {
     // 全工程无外部写入方（Grep 验证 lanToken 仅 loadToken 读 / regenerateToken 写），
     // 失效器从未被调用。cache 只在「首次读」和「重新生成」两个时点被赋值，无需失效。
 
+    /// v200（2026-11-04）：4 位 token 只有约 100 万种组合，局域网内可枚举；
+    /// 升到 8 位（约 1.1 万亿）。旧的 4 位 token 会在此判为无效并自动重生成，
+    /// 已发出的旧二维码随之失效——这是本次安全升级的预期代价。
     private static func loadToken() -> String {
         let key = TransferDockPref.lanToken
-        if let saved = UserDefaults.standard.string(forKey: key), saved.count >= 4 { return saved }
+        if let saved = UserDefaults.standard.string(forKey: key), saved.count >= 8 { return saved }
         let fresh = regenerateToken()
         return fresh
     }
@@ -199,7 +205,7 @@ public final class LanTransferServer: ObservableObject {
     @discardableResult
     static func regenerateToken() -> String {
         let alphabet = Array("abcdefghijkmnpqrstuvwxyz23456789")
-        let value = String((0..<4).map { _ in alphabet.randomElement()! })
+        let value = String((0..<8).map { _ in alphabet.randomElement()! })
         UserDefaults.standard.set(value, forKey: TransferDockPref.lanToken)
         _tokenCache = value
         return value

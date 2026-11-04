@@ -44,6 +44,19 @@ public final class SQLiteDatabase {
         try exec("PRAGMA wal_checkpoint(TRUNCATE);")
     }
 
+    /// v200（2026-11-04，修工程全图 P0-5）：磁盘满 / 库文件损坏时不再 fatalError。
+    /// 两级降级：① ":memory:" 内存库，功能照常可用、仅重启后不持久化；
+    /// ② 连内存库都建不起来时给一个 handle=nil 的空实例，exec/run/query 已有的
+    ///    `guard let h` 会抛 DatabaseError，调用方多为 try?，App 继续运行而不是启动即崩。
+    public static func fallback() -> SQLiteDatabase {
+        (try? SQLiteDatabase(path: ":memory:")) ?? SQLiteDatabase(unavailable: ())
+    }
+
+    private init(unavailable: ()) {
+        self.path = ":unavailable:"
+        self.handle = nil
+    }
+
     deinit { if let h = handle { sqlite3_close(h) } }
 
     public func exec(_ sql: String) throws {
@@ -168,12 +181,28 @@ public final class DatabaseManager {
 
     private init() {
         let base = AppDirectories.base
+        // 每个库独立降级：一个打不开不该连累另一个。用立即执行闭包保证 let 只初始化一次
+        // （Swift 不允许 do/catch 两个分支各自给同一个 let 赋值）。
+        let clip: SQLiteDatabase = {
+            do { return try SQLiteDatabase(path: base.appendingPathComponent("clipboard.sqlite").path) }
+            catch {
+                Log.error("Database", "剪贴板库打开失败，已降级（本次运行不落盘）：\(error)")
+                return SQLiteDatabase.fallback()
+            }
+        }()
+        let stat: SQLiteDatabase = {
+            do { return try SQLiteDatabase(path: base.appendingPathComponent("statistics.sqlite").path) }
+            catch {
+                Log.error("Database", "统计库打开失败，已降级（本次运行不落盘）：\(error)")
+                return SQLiteDatabase.fallback()
+            }
+        }()
+        clipboard = clip
+        statistics = stat
         do {
-            clipboard = try SQLiteDatabase(path: base.appendingPathComponent("clipboard.sqlite").path)
-            statistics = try SQLiteDatabase(path: base.appendingPathComponent("statistics.sqlite").path)
             try migrate()
         } catch {
-            fatalError("DatabaseManager init failed: \(error)")
+            Log.error("Database", "schema 迁移失败，已降级继续运行：\(error)")
         }
     }
 

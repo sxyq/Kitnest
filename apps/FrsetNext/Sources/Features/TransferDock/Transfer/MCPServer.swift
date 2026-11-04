@@ -16,7 +16,14 @@ import Network
 //   list_apps         第三方应用
 //   launch_app_window 给单个 App 开独立窗口（scrcpy 虚拟屏）
 //
-// 安全：只绑 127.0.0.1（不对外），且默认关闭——需在投屏页手动开启。
+// 安全（v200 / 2026-11-04，修工程全图 P0-1 / P0-2）：
+//   ① 显式 requiredLocalEndpoint 绑定 127.0.0.1——NWListener(using:on:) 默认监听所有接口，
+//      实测 lsof 为 `TCP *:port (LISTEN)`，指定后为 `TCP 127.0.0.1:port (LISTEN)`；
+//   ② 每次进程启动生成访问 token，所有 JSON-RPC 请求必须携带（URL ?token= 或请求头），
+//      GET /health 例外且不回显 token；
+//   ③ 拒绝一切带 Origin 的请求与 OPTIONS 预检，去掉 Access-Control-Allow-Origin: *，
+//      本机任意网页不再能静默调用 adb_shell；
+//   ④ 服务仍默认关闭，需在投屏页手动开启；完整带 token 的地址在投屏页复制。
 
 public final class MCPServer {
 
@@ -29,8 +36,14 @@ public final class MCPServer {
     private var _running = false
     private var _port: UInt16 = MCPServer.defaultPort
 
+    /// 进程级访问令牌：每次启动重新生成，旧客户端配置需重新复制投屏页地址
+    private let accessToken = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+
     public var isRunning: Bool { lock.lock(); defer { lock.unlock() }; return _running }
-    public var endpoint: String { "http://127.0.0.1:\(_port)/mcp" }
+    /// 不含 token 的基础地址（日志用，避免令牌落到日志文件）
+    public var baseEndpoint: String { "http://127.0.0.1:\(_port)/mcp" }
+    /// 供投屏页展示/复制的完整地址（含 token）
+    public var endpoint: String { "\(baseEndpoint)?token=\(accessToken)" }
 
     private init() {}
 
@@ -51,7 +64,11 @@ public final class MCPServer {
         do {
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
-            let l = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
+            // 只绑回环：requiredLocalEndpoint 已含端口，此处用 NWListener(using:) 而非 (using:on:)，
+            // 两者同时指定同一端口会 EINVAL（2026-11-04 本机实测）。
+            let nwPort = NWEndpoint.Port(rawValue: port)!
+            params.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
+            let l = try NWListener(using: params)
             let sem = DispatchSemaphore(value: 0)
             var ok = false
             l.stateUpdateHandler = { state in
@@ -70,7 +87,7 @@ public final class MCPServer {
             listener = l
             _port = port
             lock.lock(); _running = true; lock.unlock()
-            Log.info("MCP", "已启动 \(endpoint)")
+            Log.info("MCP", "已启动 \(baseEndpoint)（需 token，完整地址见投屏页）")
             return true
         } catch {
             return false
@@ -123,16 +140,53 @@ public final class MCPServer {
 
     private func send(_ conn: NWConnection, status: String, json: [String: Any]) {
         let data = (try? JSONSerialization.data(withJSONObject: json)) ?? Data("{}".utf8)
-        let head = "HTTP/1.1 \(status)\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: \(data.count)\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
+        let head = "HTTP/1.1 \(status)\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: \(data.count)\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n"
         var out = Data(head.utf8); out.append(data)
         conn.send(content: out, completion: .contentProcessed { _ in conn.cancel() })
     }
 
+    /// token 可来自 URL query（投屏页复制的完整地址）或两种请求头，三者取一即可
+    private static func authorized(firstLine: String, headers: [String], token: String) -> Bool {
+        let target = firstLine.split(separator: " ").dropFirst(1).first.map(String.init) ?? ""
+        if let q = target.firstIndex(of: "?") {
+            for item in target[target.index(after: q)...].split(separator: "&") {
+                if item.hasPrefix("token="), String(item.dropFirst("token=".count)) == token { return true }
+            }
+        }
+        for line in headers {
+            let lower = line.lowercased()
+            if lower.hasPrefix("authorization:") {
+                let v = String(line.dropFirst("authorization:".count)).trimmingCharacters(in: .whitespaces)
+                if v == "Bearer \(token)" { return true }
+            }
+            if lower.hasPrefix("x-kitnest-token:") {
+                let v = String(line.dropFirst("x-kitnest-token:".count)).trimmingCharacters(in: .whitespaces)
+                if v == token { return true }
+            }
+        }
+        return false
+    }
+
     private func respond(_ conn: NWConnection, request: String, body: Data) {
-        let firstLine = request.components(separatedBy: "\r\n").first ?? ""
-        // GET /health
+        let lines = request.components(separatedBy: "\r\n")
+        let firstLine = lines.first ?? ""
+
+        // 浏览器发起的请求一律拒绝（含 CORS 预检）：绑回环只能挡外部主机，
+        // 本机任意网页仍能对本机端口发请求，所以必须在服务端再挡一层。
+        if firstLine.hasPrefix("OPTIONS ") || lines.contains(where: { $0.lowercased().hasPrefix("origin:") }) {
+            send(conn, status: "403 Forbidden", json: ["error": "browser origin is not allowed"])
+            return
+        }
+        // GET /health 只探活，不回显 token
         if firstLine.hasPrefix("GET ") {
-            send(conn, status: "200 OK", json: ["ok": true, "server": "Kitnest MCP", "endpoint": endpoint])
+            send(conn, status: "200 OK", json: ["ok": true, "server": "Kitnest MCP", "endpoint": baseEndpoint])
+            return
+        }
+        guard Self.authorized(firstLine: firstLine, headers: lines, token: accessToken) else {
+            send(conn, status: "401 Unauthorized", json: [
+                "jsonrpc": "2.0",
+                "error": ["code": -32001, "message": "missing or invalid token; copy the full URL from Kitnest's Cast page"]
+            ])
             return
         }
         guard let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
@@ -149,7 +203,7 @@ public final class MCPServer {
                 "result": [
                     "protocolVersion": "2024-11-05",
                     "capabilities": ["tools": [:]],
-                    "serverInfo": ["name": "frsetnext-android", "version": "1.0.0"]
+                    "serverInfo": ["name": "kitnest-android", "version": "1.0.0"]
                 ]
             ])
         case "notifications/initialized", "initialized":

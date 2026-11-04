@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 //        剪贴板添加（读 NSPasteboard 文件 URL）/ 来源权限提示（不可读文件标注）/
 //        压缩全部 → ArchiveCreateWindowController.show(files:)（只读调用既有创建面板）。
 //
-// 入口：深链 frsetnext://archive?action=filebox（FrsetNextApp 分流）。
+// 入口：深链 kitnest://archive?action=filebox（FrsetNextApp 分流）。
 // v127（ArcZip P3）：全局快捷键未做——本工程快捷键集中在 Shortcuts 模块的注册表中，
 // 为避免与既有注册点冲突，仅提供深链入口（任务允许的简化项）。
 // 不是状态栏项：避免与既有 StatusBarController 的 STATS 合并条冲突（独立 NSPanel）。

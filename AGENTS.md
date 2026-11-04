@@ -35,9 +35,9 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 - **代码修复/功能**：按模块改 Sources → build.sh → 验证 → 提交
 - **UI 观感**：间距/圆角/卡片/宽度——改后截图对比（screencapture -l<窗id>，
   玻璃窗发黑就全屏裁剪）
-- **行为验证**：深链 `frsetnext://…` + defaults 探针（probe.preview /
+- **行为验证**：深链 `kitnest://…` + defaults 探针（probe.preview /
   probe.openTool，用完删）+ 日志（`~/Library/Application Support/FrsetNext/logs/`）
-- **网盘测试**：`frsetnext://cloudlink?url=<URL>&action=download` 直驱解析下载，
+- **网盘测试**：`kitnest://cloudlink?url=<URL>&action=download` 直驱解析下载，
   测完删下载文件
 - **设置项生效**：改 Preferences 键后看消费点（采样器/过滤/联动），补「生效反馈」
 - **统计埋点**：`StatisticsManager.shared.record(.事件)`（AnalyticsEvent 枚举在
@@ -51,3 +51,6 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 - 主题色：涨=红 跌=绿（中式）；强调色 Theme.accent
 - 排障用注释写「为什么」（vNN + 日期 + 用户原话），方便回溯
 - 版本显示：About 页 displayVersion = 1.0.0；别再改回 1.3.12
+- 深链一律写 `kitnest://`（`frsetnext://` 仍在 Info.plist 注册，仅作旧链接兼容；历史归档里的原文不改写）
+- 安全基线（v200）：MCP 需 token 且拒绝浏览器 Origin；MCP / WebDAV 只绑 127.0.0.1；
+  `LanTransferServer` 刻意对 LAN 开放（手机扫码），**不要**给它加回环绑定；LAN token 为 8 位

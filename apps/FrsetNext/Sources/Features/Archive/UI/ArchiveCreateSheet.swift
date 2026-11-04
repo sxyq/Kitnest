@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - 创建压缩包面板（v124；ArcZip「压缩用途预设」5 种 + 强度 6 档 + 密码 + 分卷）
 //
-// 入口：面板「压缩…」按钮 / frsetnext://archive?action=compress&path=…
+// 入口：面板「压缩…」按钮 / kitnest://archive?action=compress&path=…
 // 预设决定推荐格式与强度，用户仍可手动改格式/强度——预设是建议不是枷锁。
 
 public final class ArchiveCreateModel: ObservableObject {

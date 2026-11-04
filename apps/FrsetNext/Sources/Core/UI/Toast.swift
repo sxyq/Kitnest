@@ -82,7 +82,7 @@ struct MenuBarToastContentView: View {
         // Toast 也是窗口级浮层——固定白/黑实底胶囊改为全 App 统一玻璃面，
         // 通透度 / 磨砂 / 材质 / 降低透明度跟随个性化，不再是一套单独视觉。
         .background {
-            GlassSurface(cornerRadius: 30, appliesWindowShadow: false)
+            GlassSurface(cornerRadius: Theme.Radius.pill, appliesWindowShadow: false)
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.18),
                         radius: 12, y: 4)
         }

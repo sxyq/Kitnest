@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 // MARK: - ArcZip Mini 独立小窗（v127（ArcZip P3）：P3-1）
 //
-// 从深链 `frsetnext://archive?path=xxx&action=mini` 打开时用 Mini 小窗浏览压缩包，
+// 从深链 `kitnest://archive?path=xxx&action=mini` 打开时用 Mini 小窗浏览压缩包，
 // 不打断主窗口。能力：条目网格浏览、置顶图钉、拖出即解压、一键切换完整界面。
 //
 // v127（ArcZip P3）：入口现状说明——FinderSync 扩展 / QuickLook 扩展在本构建系统下

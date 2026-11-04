@@ -179,6 +179,6 @@ Flameshot 滚轮调当前工具厚度；js-screenshot 的 pixelate 用 blockSize
 
 - 合成探针（`AnnotationCompositor.composite` 直出 PNG）：弯曲笔触呈连续圆头粗带，
   马赛克块内容与底图同向，笔刷宽度生效（对比图 `/tmp/anno_probe/mosaic_brush.png`）；
-- 实机（`frsetnext://annotate?file=…&tool=m`）：拖拽 → 日志
+- 实机（`kitnest://annotate?file=…&tool=m`）：拖拽 → 日志
   `马赛克笔触：80 点，直径 36px，块 10px`；⌘S 落盘后在保存图里可见沿轨迹的马赛克；
 - 橡皮擦：底图改内存位图 + 环脏矩形重绘后，移动不再触发整画布重绘（慢帧日志阈值 40ms）。

@@ -1199,7 +1199,7 @@ static void FSSelectPage(NSString *page) {
 
 void FSBarSettingsOpen(void) {
     // v54：设置界面并入 App 设置窗口 → 深链跳到「性能监测 → 部件设置」页
-    NSURL *url = [NSURL URLWithString:@"frsetnext://settings?pane=monitor.widgets"];
+    NSURL *url = [NSURL URLWithString:@"kitnest://settings?pane=monitor.widgets"];
     if (url) [[NSWorkspace sharedWorkspace] openURL:url];
 
     // 自检：渲染各页面快照（FRSET_SETTINGSHOT=1）——仅在独立窗口模式可用

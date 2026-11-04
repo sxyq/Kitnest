@@ -587,9 +587,9 @@ struct PersonalizationSettingsView: View {
         .frame(maxWidth: .infinity,
                minHeight: p.density.statsRowHeight * 0.62,
                alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.cardFill))
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.cardFill))
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .strokeBorder(Theme.cardStroke, lineWidth: 0.5)
         )
     }

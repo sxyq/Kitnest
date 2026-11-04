@@ -144,7 +144,7 @@ enum AppBootstrap {
         // v116 探针：MCP / WebDAV（无 UI 自动化环境下用 curl 验证端点）
         if probeMCP {
             _ = MCPServer.shared.start()
-            Log.info("MCP", "探针：MCP 服务器已拉起 \(MCPServer.shared.endpoint)")
+            Log.info("MCP", "探针：MCP 服务器已拉起 \(MCPServer.shared.baseEndpoint)（token 不入日志）")
         }
         if probeWebDAV {
             _ = AndroidWebDAVServer.shared.start()

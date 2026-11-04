@@ -13,7 +13,7 @@ import SwiftUI
 // 合计 45 个可点目标，全部 11pt 字号。在 360pt 面板里既看不清也点不准。
 //
 extension Notification.Name {
-    /// v159：外部请求打开「扫码直连」弹层（深链 frsetnext://panel?page=cast&qr=1）
+    /// v159：外部请求打开「扫码直连」弹层（深链 kitnest://panel?page=cast&qr=1）
     static let frsetOpenCastQR = Notification.Name("frset.openCastQR")
 }
 
@@ -694,7 +694,7 @@ struct CastView: View {
             serviceRow(icon: "brain.head.profile",
                        title: "MCP 服务器",
                        detail: MCPServer.shared.endpoint,
-                       help: "给 AI 客户端用的本机 MCP 接口",
+                       help: "给 AI 客户端用的本机 MCP 接口；点右侧复制按钮取完整地址（含访问令牌），每次启动会换新",
                        on: $mcpOn) { on in
                 if on {
                     if !MCPServer.shared.start() { mcpOn = false }

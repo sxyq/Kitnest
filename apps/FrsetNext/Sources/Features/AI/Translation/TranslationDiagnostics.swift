@@ -3,7 +3,7 @@ import Translation
 
 // MARK: - 翻译链路自检（v147：Provider 化之后）
 //
-// 不依赖鼠标的验收入口（`frsetnext://translate`）：
+// 不依赖鼠标的验收入口（`kitnest://translate`）：
 //   ① 打印当前偏好、注册了哪些 Provider、实际生效的是谁；
 //   ② 逐个 Provider 各翻一次（验证每个实现本身可用）；
 //   ③ 再走 TranslationToolSession（验证自动回落链路）。

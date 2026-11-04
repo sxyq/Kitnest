@@ -107,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 程序化唤起入口：等价原版 `StatusBarController.showSettingsWindow:` 的 @objc
-    /// 可调用能力。用法：open "frsetnext://settings?pane=general"
+    /// 可调用能力。用法：open "kitnest://settings?pane=general"
     /// （pane: general/search/tools/shortcuts/about；缺省 general）
     /// 签名依据 macOS 13 SDK：ObjC 为 application:openURLs:（NSArray，10.13+），
     /// Swift renamed import 为 application(_:open:)，参数 [URL]。
@@ -150,7 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StatisticsWindowController.shared.openStatistics()
             case "monitor":
                 // v74 深链：打开性能监测独立窗（部件点击/⌥P 的等价入口，便于排障）
-                // v86：支持 frsetnext://monitor?module=memory 直达指定模块（排障/截图验证用）
+                // v86：支持 kitnest://monitor?module=memory 直达指定模块（排障/截图验证用）
                 let moduleRaw = comps?
                     .queryItems?.first(where: { $0.name == "module" })?.value
                 let module = moduleRaw.flatMap(MonitorModuleID.init(rawValue:))
@@ -198,22 +198,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // 先激活：主面板 windowDidResignKey → hide（transient 行为），
                 // 不激活时窗口成为 key 后立即 resign 被自动关闭（2026-10-16 实证）
                 NSApp.activate(ignoringOtherApps: true)
-                // v73 排障入口：frsetnext://panel?anchor=icon —— 用主图标实际 frame
+                // v73 排障入口：kitnest://panel?anchor=icon —— 用主图标实际 frame
                 // 走锚点展开（验证「图标正下方 + 顶部三角」，等价左键点击路径）
                 let anchorIcon = comps?
                     .queryItems?.first(where: { $0.name == "anchor" })?.value == "icon"
-                // v74 深链：frsetnext://panel?monitor=sensors——面板打开后直达性能页指定模块
+                // v74 深链：kitnest://panel?monitor=sensors——面板打开后直达性能页指定模块
                 let monitorRaw = comps?
                     .queryItems?.first(where: { $0.name == "monitor" })?.value
                 if let monitorRaw, let module = MonitorModuleID(rawValue: monitorRaw) {
                     MonitorCenterPresenter.shared.selectPerformance(module: module)
                 }
-                // 深链直达页面：frsetnext://panel?page=transfer|cast|performance
+                // 深链直达页面：kitnest://panel?page=transfer|cast|performance
                 switch comps?.queryItems?.first(where: { $0.name == "page" })?.value {
                 case "transfer":   MonitorCenterPresenter.shared.selectTransferDock()
                 case "cast":
                     MonitorCenterPresenter.shared.selectCast()
-                    // v159 排障/自动化入口：frsetnext://panel?page=cast&qr=1 —— 打开扫码弹层。
+                    // v159 排障/自动化入口：kitnest://panel?page=cast&qr=1 —— 打开扫码弹层。
                     // 用途：① 无鼠标环境下验证弹层与重连链路；② 快捷指令一键唤起扫码。
                     if comps?.queryItems?.first(where: { $0.name == "qr" })?.value == "1" {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
@@ -231,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ServiceLocator.panel?.show()
                 }
             case "annotate":
-                // v100 视觉验收/排障深链：frsetnext://annotate?file=/tmp/a.png&tool=m
+                // v100 视觉验收/排障深链：kitnest://annotate?file=/tmp/a.png&tool=m
                 // 不经过截图流程直接打开标注编辑器，便于核对工具条与画笔马赛克。
                 let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value
                 // ?tool=m / ?tool=highlighter / ?tool=mosaic —— 排障与自动化截图时直接落到指定工具
@@ -259,11 +259,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     NotificationCenter.default.post(name: .frsetOpenCastQR, object: nil)
                 }
             case "capture":
-                // v130（SnowShot 对齐）：frsetnext://capture?action=history|delayed[&seconds=N]
+                // v130（SnowShot 对齐）：kitnest://capture?action=history|delayed[&seconds=N]
                 // 历史窗 / 延时截图深链入口（CaptureDeepLink.handle 内部分流）
                 CaptureDeepLink.handle(url: url)
             case "archive":
-                // v118（ArcZip FR-603）：frsetnext://archive?path=/a/b.zip[&action=extract|compress|open]
+                // v118（ArcZip FR-603）：kitnest://archive?path=/a/b.zip[&action=extract|compress|open]
                 let rawPath = comps?.queryItems?.first(where: { $0.name == "path" })?.value ?? ""
                 let action = comps?.queryItems?.first(where: { $0.name == "action" })?.value ?? "open"
                 // v127（ArcZip P3）：action=filebox 开文件盒/暂存架浮窗——不需要压缩包路径，
@@ -299,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     ArchiveBrowserWindowController.show(url: fileURL, selectFirst: sel, selectPath: entry)
                 }
             case "cloudlink":
-                // 排障深链：frsetnext://cloudlink?url=<网盘链接>
+                // 排障深链：kitnest://cloudlink?url=<网盘链接>
                 // 不复制也能直接打开解析中心，验证 8 家网盘的识别与配置页。
                 let raw = comps?.queryItems?.first(where: { $0.name == "url" })?.value
                     ?? "https://pan.quark.cn/s/000000000000"
@@ -323,7 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     Log.warn("App", "cloudlink 深链：无法识别网盘链接 \(raw)")
                 }
             case "toast":
-                // v89 视觉验收/排障深链：frsetnext://toast?text=已复制&icon=checkmark.circle.fill
+                // v89 视觉验收/排障深链：kitnest://toast?text=已复制&icon=checkmark.circle.fill
                 // 用途：不依赖具体业务路径即可复现全局提示，便于核对位置/样式/层级。
                 let text = comps?.queryItems?.first(where: { $0.name == "text" })?.value ?? "已复制"
                 let icon = comps?.queryItems?.first(where: { $0.name == "icon" })?.value

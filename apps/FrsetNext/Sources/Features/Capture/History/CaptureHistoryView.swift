@@ -5,7 +5,7 @@ import AppKit
 //
 // 缩略图网格 + 搜索（OCR 文本 / 日期 / 模式）+ 模式过滤；
 // 双击「继续标注」（恢复未完成标注到编辑器）/ 复制 / 在 Finder 中显示 / 删除。
-// 入口：截图动作工具条「历史」按钮、面板截图区「历史」、深链 frsetnext://capture?action=history。
+// 入口：截图动作工具条「历史」按钮、面板截图区「历史」、深链 kitnest://capture?action=history。
 
 // MARK: - 视图模型
 
@@ -325,9 +325,9 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
 
 // MARK: - 深链入口（v130②）
 
-/// frsetnext://capture?action=history 由 App 层分流到这里（App/ 一行接线，见交付说明）。
+/// kitnest://capture?action=history 由 App 层分流到这里（App/ 一行接线，见交付说明）。
 public enum CaptureDeepLink {
-    /// 处理 frsetnext://capture?...；返回是否已消费
+    /// 处理 kitnest://capture?...；返回是否已消费
     @discardableResult
     public static func handle(url: URL) -> Bool {
         guard url.scheme == "frsetnext", url.host == "capture" else { return false }
@@ -337,7 +337,7 @@ public enum CaptureDeepLink {
         case "history":
             CaptureHistoryWindowController.shared.show()
         case "delayed":
-            // 排障/测试入口：frsetnext://capture?action=delayed&seconds=3
+            // 排障/测试入口：kitnest://capture?action=delayed&seconds=3
             let raw = comps?.queryItems?.first(where: { $0.name == "seconds" })?.value
             let s = raw.flatMap(Int.init) ?? ScreenshotManager.shared.delaySeconds
             DelayedCaptureController.shared.start(seconds: s)
@@ -386,7 +386,7 @@ public enum CaptureDeepLink {
         case "region":
             ScreenshotManager.shared.captureRegion()
         case "ocr":
-            // v166.6 排障入口：frsetnext://capture?action=ocr&file=/tmp/a.png
+            // v166.6 排障入口：kitnest://capture?action=ocr&file=/tmp/a.png
             // 对指定图片走真实「识字」链路（识别 → 写剪贴板 → 弹结果窗），
             // 用来复现「结果窗没出来但剪贴板有记录」而不需要真的手动截图。
             let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value ?? ""

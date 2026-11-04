@@ -9,6 +9,8 @@ import Network
 //
 // 支持：OPTIONS / PROPFIND(Depth 0|1) / GET / HEAD / PUT / MKCOL / DELETE
 // 数据面全部经 adb（exec-out cat 下载、push 上传），零安装。
+// v200（2026-11-04）：此前只写了「127.0.0.1」的地址，NWListener 实际监听所有接口。
+// 现用 requiredLocalEndpoint 显式绑回环，令注释与行为一致（实测 lsof 127.0.0.1:port）。
 
 public final class AndroidWebDAVServer {
 
@@ -39,7 +41,9 @@ public final class AndroidWebDAVServer {
         do {
             let params = NWParameters.tcp
             params.allowLocalEndpointReuse = true
-            let l = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
+            let nwPort = NWEndpoint.Port(rawValue: port)!
+            params.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: nwPort)
+            let l = try NWListener(using: params)
             let sem = DispatchSemaphore(value: 0)
             var ok = false
             l.stateUpdateHandler = { state in

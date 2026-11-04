@@ -325,7 +325,7 @@ final class LongScreenshotCoordinator: NSObject {
     /// 不用滚鼠标也能验收预览卡：走**真实建会话路径**（startSession 同时建 HUD / 选区边框 / 预览卡），
     /// 之后按真实「追加一段」的节奏把合成画布喂给预览卡，最后自动收尾，验证卡片随之关闭。
     ///
-    /// 入口：`frsetnext://longshotcard?anchor=right|left|wide`，结果写 /tmp/livecard.txt
+    /// 入口：`kitnest://longshotcard?anchor=right|left|wide`，结果写 /tmp/livecard.txt
     func runLiveCardCheck(anchor: String, growTo: Int = 5200) {
         guard session == nil else {
             Log.warn("Capture", "预览卡自检：已有会话在跑，先结束它")
