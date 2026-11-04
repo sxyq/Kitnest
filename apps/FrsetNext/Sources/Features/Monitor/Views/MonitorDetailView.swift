@@ -36,6 +36,8 @@ public struct MonitorDetailView: View {
     @ObservedObject private var memoryOptimizer = MemoryOptimizer.shared
     /// v183：网络页的 1 秒实时脉冲（与通用采样节奏解耦）
     @ObservedObject private var netPulse = NetworkPulse.shared
+    /// v217：外置卷（U 盘 / 移动硬盘 / 网络盘）——插拔时由系统通知自动刷新
+    @ObservedObject private var volumeStore = DiskVolumeStore.shared
     /// 页面模式：只渲染模块内容，标签行与底栏由 StatsPageView 提供（宽度撑满、无固定 292 限宽）
     private let pageMode: Bool
     /// 固定宽度（nil = 撑满容器；独立窗 v71 传 nil 消除两侧留白，菜单栏 popover 保留 292）
@@ -855,6 +857,15 @@ public struct MonitorDetailView: View {
                 // v215：入口按钮移到上方「读写历史」图的左上角（不再单独占一行）。
             }
 
+            // v217（用户：「插入 U 盘或其他盘符时自动加载出来」）：
+            // 只在外置/可移动/网络卷存在时出现；内置启动卷已由上面的容量构成覆盖。
+            if !volumeStore.volumes.isEmpty {
+                MonitorSectionTitle("外置磁盘")
+                ForEach(volumeStore.volumes) { volume in
+                    externalVolumeCard(volume)
+                }
+            }
+
             // NVMe SMART（官方 updateSMARTInterval 30s 缓存）
             if let smart = stats.smart, smart.available {
                 MonitorSectionTitle("NVMe SMART")
@@ -898,6 +909,41 @@ public struct MonitorDetailView: View {
                 }
             }
         }
+    }
+
+    /// 外置卷卡片（v217）：名称 + 类型标签 + 容量条 + 已用/可用/总量
+    private func externalVolumeCard(_ v: DiskVolume) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: v.symbolName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 14)
+                Text(v.name)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text(v.isReadOnly ? "\(v.kindText) · 只读" : v.kindText)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiaryText)
+            }
+
+            MonitorStackedBar(segments: [
+                .init(id: "used", value: Double(v.used), color: MonitorColors.read),
+                .init(id: "free", value: Double(max(0, v.free)), color: Color.primary.opacity(0.12))
+            ], height: 6)
+
+            HStack(spacing: 10) {
+                Text("已用 \(MonitorFormat.bytes(UInt64(v.used)))")
+                Text("可用 \(MonitorFormat.bytes(UInt64(max(0, v.free))))")
+                Spacer(minLength: 0)
+                Text("共 \(MonitorFormat.bytes(UInt64(v.total)))")
+            }
+            .font(.system(size: 10.5))
+            .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .glassCard(radius: Theme.Radius.card)
     }
 
     /// 存储管理入口（v215）
