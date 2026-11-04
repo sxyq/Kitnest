@@ -671,8 +671,7 @@ public enum ArchiveCore {
     /// v127：不入队（预览/缩略图不该进任务面板），同样做路径安全校验
     /// v127.1：只拦硬不安全（穿越/绝对路径），设备名类（CON.txt 等）放行——macOS 合法文件
     public static func extractEntryToTemp(url: URL, entry: ArchiveEntry,
-                                          completion: @escaping (URL?, String) -> Void) {
-        guard !isHardUnsafeEntryPath(entry.path) else {
+                                          completion: @escaping (URL?, String) -> Void) {        guard !isHardUnsafeEntryPath(entry.path) else {
             completion(nil, "已拦截不安全路径：\(entry.path)")
             return
         }
@@ -693,6 +692,60 @@ public enum ArchiveCore {
                 completion(dir.appendingPathComponent(found), "")
             } else {
                 completion(nil, "解压后未找到文件")
+            }
+        }
+    }
+
+    // MARK: 网页预览（v210：HTML 按浏览器渲染）
+
+    /// 把 HTML 条目**连同同目录资源**解到临时目录，返回可直接交给 WKWebView 的落地文件。
+    ///
+    /// 为什么不是只解这一个文件：网页的 CSS/JS/图片/子页面都靠相对路径，
+    /// 只解 .html 会得到一张没有样式的裸文本（用户要的正是「像浏览器那样」）。
+    /// 因此按「HTML 所在目录」整目录解出；HTML 在包根时解整包。
+    ///
+    /// 安全与开销：
+    ///   · 只解路径安全的条目（穿越/绝对路径一律跳过），辅助文件不展开；
+    ///   · 解压总量超过 `webPreviewSizeCap`（512MB）时退回「只解文件本身」，
+    ///     宁可丢样式也不让预览把磁盘写满。
+    public static func extractWebPreviewToTemp(url: URL, entry: ArchiveEntry,
+                                               completion: @escaping (URL?, String) -> Void) {
+        guard !isHardUnsafeEntryPath(entry.path) else {
+            completion(nil, "已拦截不安全路径：\(entry.path)")
+            return
+        }
+        let cap: Int64 = 512 * 1024 * 1024
+        let parent = entry.parent
+        list(url: url, password: nil, includeAuxiliary: false) { entries, _ in
+            let siblings: [ArchiveEntry]
+            if parent.isEmpty {
+                siblings = entries
+            } else {
+                let prefix = parent + "/"
+                siblings = entries.filter { $0.path.hasPrefix(prefix) }
+            }
+            let candidates = siblings.filter {
+                !$0.isDirectory && !isHardUnsafeEntryPath($0.path) && !isAuxiliary($0.path)
+            }
+            let total = candidates.reduce(Int64(0)) { $0 + max(0, $1.size) }
+            guard !candidates.isEmpty, total <= cap else {
+                // 超限 / 空目录：只解 HTML 本体
+                extractEntryToTemp(url: url, entry: entry, completion: completion)
+                return
+            }
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("frset-webpreview-\(UUID().uuidString)", isDirectory: true)
+            performExtract(url: url, entry: nil, to: dir, password: nil,
+                           includeAuxiliary: false,
+                           restrictTo: candidates.map { $0.path },
+                           taskID: nil) { ok, msg in
+                guard ok else { completion(nil, msg); return }
+                let landed = dir.appendingPathComponent(entry.path)
+                if FileManager.default.fileExists(atPath: landed.path) {
+                    completion(landed, "")
+                } else {
+                    completion(nil, "解压后未找到网页文件")
+                }
             }
         }
     }

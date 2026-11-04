@@ -62,49 +62,12 @@ public enum SettingsPaneRegistry {
     }
 }
 
-// MARK: 状态栏项（08 号模块消费；监测等模块注册）
-
-public struct StatusItemDescriptor {
-    public let id: String
-    public let priority: Int
-    /// 返回要显示的标题（短文本，如 "12%"、"↑25 KB/s"）
-    public let title: () -> String
-    /// 可选富文本（带颜色/图标）
-    public let attributedTitle: (() -> NSAttributedString)?
-    /// 可选双层标题（状态栏两行紧凑渲染：第一行/第二行）；非 nil 且返回非 nil 时优先于 title，
-    /// 由 StatusBarController 用自绘子视图呈现（省横向空间，2026-10-16）
-    public let twoLineTitle: (() -> (String, String)?)?
-    /// 点击行为
-    public let onTap: (() -> Void)?
-    /// 点击后弹出的 popover 内容（监测模块详情面板）
-    public let popover: (() -> AnyView)?
-    public init(id: String,
-                priority: Int,
-                title: @escaping () -> String,
-                attributedTitle: (() -> NSAttributedString)? = nil,
-                twoLineTitle: (() -> (String, String)?)? = nil,
-                onTap: (() -> Void)? = nil,
-                popover: (() -> AnyView)? = nil) {
-        self.id = id; self.priority = priority; self.title = title
-        self.attributedTitle = attributedTitle; self.twoLineTitle = twoLineTitle
-        self.onTap = onTap; self.popover = popover
-    }
-}
-
-public enum StatusItemRegistry {
-    private static var lock = NSLock()
-    private static var items: [StatusItemDescriptor] = []
-    public static func register(_ d: StatusItemDescriptor) {
-        lock.lock(); defer { lock.unlock() }
-        items.removeAll { $0.id == d.id }
-        items.append(d)
-        items.sort { $0.priority < $1.priority }
-    }
-    public static var all: [StatusItemDescriptor] {
-        lock.lock(); defer { lock.unlock() }
-        return items
-    }
-}
+// MARK: 状态栏项（v210 已删除）
+//
+// 原 `StatusItemDescriptor` / `StatusItemRegistry` 让各模块注册「动态状态项」，
+// 但唯一注册方（MonitorStatusItems.registerAll）在 v128 就被注释掉：菜单栏监测 UI
+// 只允许 STATS 合并条一套（工程全图 §6 不变量 13）。留着它只会让 StatusBarController
+// 每 5s 扫一个永远为空的数组，故整族删除。需要再加状态项时，先确认是否与 STATS 合并条重复。
 
 // MARK: 面板 / 设置窗口控制（08、04 通过 ServiceLocator 调用，避免互相 import）
 

@@ -24,6 +24,9 @@ public final class ClipboardHistoryRetentionPruneScheduler {
     private var timer: Timer?
     private let repository = ClipboardRepository.shared
     private let preferences = Preferences.shared
+    /// v210（修工程全图 P1-9）：清理是批量 SQL 删除 + 落盘文件回收，原先由 RunLoop.main 上的
+    /// Timer 直接驱动 → 上千条时主线程冻结。改为专用串行队列，UI 只收结果。
+    private let queue = DispatchQueue(label: "com.frsetnext.clipboard.prune.retention", qos: .utility)
 
     private init() {}
 
@@ -35,11 +38,11 @@ public final class ClipboardHistoryRetentionPruneScheduler {
     public func start() {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: Self.interval, repeats: true) { [weak self] _ in
-            self?.prune()
+            self?.pruneAsync()
         }
         RunLoop.main.add(timer!, forMode: .common)
         Log.info("clipboard", "保留期清理已启动：\(retentionDays) 天")
-        prune()
+        pruneAsync()
     }
 
     public func stop() {
@@ -47,7 +50,18 @@ public final class ClipboardHistoryRetentionPruneScheduler {
         timer = nil
     }
 
-    /// 单次清理：批量推进直到没有更早的条目
+    /// 后台执行一次清理（主线程调用安全），结果回主线程
+    public func pruneAsync(completion: ((ClipboardPruneResult) -> Void)? = nil) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let result = self.prune()
+            guard let completion else { return }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    /// 单次清理：批量推进直到没有更早的条目。
+    /// **必须在 prune 队列上调用**（或至少不在主线程）；对外请用 `pruneAsync`。
     @discardableResult
     public func prune() -> ClipboardPruneResult {
         let days = retentionDays
@@ -55,7 +69,11 @@ public final class ClipboardHistoryRetentionPruneScheduler {
         let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
         var removed = 0
         var reclaimed: Int64 = 0
-        while true {
+        // v210（修 P1-9 后半）：批数兜底。delete 静默失败（库降级成内存库/句柄失效）时
+        // rowsOlderThan 会一直返回同一批，`while true` 就变成死循环；每轮最多 200 批（4 万条）。
+        var batches = 0
+        while batches < 200 {
+            batches += 1
             let batch = repository.rowsOlderThan(cutoff, limit: 200)
             if batch.isEmpty { break }
             for item in batch {
@@ -64,6 +82,9 @@ public final class ClipboardHistoryRetentionPruneScheduler {
             }
             removed += batch.count
             if batch.count < 200 { break }
+        }
+        if batches >= 200 {
+            Log.warn("clipboard", "保留期清理达到单轮上限（\(removed) 条），余量留待下一轮")
         }
         if removed > 0 {
             Log.info("clipboard", "保留期清理：删除 \(removed) 条（早于 \(cutoff)）")
@@ -90,6 +111,9 @@ public final class ClipboardStoragePruneScheduler {
     private let repository = ClipboardRepository.shared
     private let usage = ClipboardStorageUsageProvider.shared
     private let preferences = Preferences.shared
+    /// v210（修工程全图 P1-9）：同上，容量清理也移出主线程——
+    /// `usage.exceeds` 每轮都做 SQL SUM + 目录树遍历，比保留期清理更重。
+    private let queue = DispatchQueue(label: "com.frsetnext.clipboard.prune.storage", qos: .utility)
 
     private init() {}
 
@@ -101,11 +125,11 @@ public final class ClipboardStoragePruneScheduler {
     public func start() {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: Self.interval, repeats: true) { [weak self] _ in
-            self?.prune()
+            self?.pruneAsync()
         }
         RunLoop.main.add(timer!, forMode: .common)
         Log.info("clipboard", "容量清理已启动：上限 \(limitBytes / 1024 / 1024) MB")
-        prune()
+        pruneAsync()
     }
 
     public func stop() {
@@ -113,7 +137,18 @@ public final class ClipboardStoragePruneScheduler {
         timer = nil
     }
 
-    /// 单次清理：从最旧开始删，直到回落到 90% 水位
+    /// 后台执行一次清理（主线程调用安全），结果回主线程
+    public func pruneAsync(completion: ((ClipboardPruneResult) -> Void)? = nil) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let result = self.prune()
+            guard let completion else { return }
+            DispatchQueue.main.async { completion(result) }
+        }
+    }
+
+    /// 单次清理：从最旧开始删，直到回落到 90% 水位。
+    /// **必须在 prune 队列上调用**；对外请用 `pruneAsync`。
     @discardableResult
     public func prune() -> ClipboardPruneResult {
         let limit = limitBytes

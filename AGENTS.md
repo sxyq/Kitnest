@@ -15,12 +15,16 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 
 ## 铁律（每次改动必走）
 
-1. **改 → 构建 → 验证 → git 提交 → 重打 DMG → 重启 App**，一步不省
-2. commit 写清楚：**需求原话 + 改动文件 + 具体改动**（含数值）+ 实测方式
-3. DMG 版本号**固定 1.0.0 不变**；每次改动后重打（用户分发用）
-4. 更新后**本地重启 App**（`pkill … ; open -a /Applications/Kitnest.app`），
+1. **改 → 构建 → 验证 → 重生成函数表 → CodeGraph 同步 → git 提交 → 重打 DMG → 重启 App**，一步不省
+2. **每次改完必须提交**：不允许把改动留在工作区过夜。收尾时 `git status --short` 必须为空。
+   commit 写清楚：**需求原话 + 改动文件 + 具体改动**（含数值）+ 实测方式
+3. **每次改完必须重生成函数表**：`python3 tools/func_table.py`
+   （带花括号深度跟踪；手工改表会让 owner/行号再次漂移——2026-11-04 实测旧表 26% 归属错误）
+4. **每次改完必须重跑 CodeGraph 索引**：`codegraph sync .`
+   （不 sync 时 `codegraph_explore` 会跳过「索引后已改动」的文件，拿不到源码）
+5. DMG 版本号**固定 1.0.0 不变**；每次改动后重打（用户分发用）
+6. 更新后**本地重启 App**（`pkill … ; open -a /Applications/Kitnest.app`），
    供用户随时查看效果
-5. 全仓库收尾时 `git status --short` 必须为空
 
 ## 项目级 Skill（可复用操作，`.workbuddy/skills/`）
 

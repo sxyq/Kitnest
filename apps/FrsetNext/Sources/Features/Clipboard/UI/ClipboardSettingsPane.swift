@@ -67,16 +67,29 @@ public struct ClipboardSettingsPane: View {
                                 subtitle: "按保留天数与容量上限删除超限条目；清空全部请用主面板底部工具条「清空」") {
                         Button("立即清理") {
                             // v115：无论删没删都给反馈——此前删 0 条时零提示，用户误判按钮失效
-                            let r1 = ClipboardHistoryRetentionPruneScheduler.shared.prune()
-                            let r2 = ClipboardStoragePruneScheduler.shared.prune()
-                            let removed = r1.removed + r2.removed
-                            usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
-                            if removed > 0 {
-                                let reclaimed = Self.bytesText(r1.reclaimedBytes + r2.reclaimedBytes)
-                                Toast.show("已清理 \(removed) 条，回收 \(reclaimed)", icon: "trash")
-                            } else {
-                                Toast.show("没有超过保留期（\(Int(retentionDays)) 天）或容量上限的条目",
-                                           icon: "checkmark.circle")
+                            // v210：清理移到后台队列（批量删除 + 目录遍历不占主线程），
+                            // 两个调度器结果都回来后再统一提示一次。
+                            let group = DispatchGroup()
+                            var r1 = ClipboardPruneResult.none
+                            var r2 = ClipboardPruneResult.none
+                            group.enter()
+                            ClipboardHistoryRetentionPruneScheduler.shared.pruneAsync { r in
+                                r1 = r; group.leave()
+                            }
+                            group.enter()
+                            ClipboardStoragePruneScheduler.shared.pruneAsync { r in
+                                r2 = r; group.leave()
+                            }
+                            group.notify(queue: .main) {
+                                let removed = r1.removed + r2.removed
+                                usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
+                                if removed > 0 {
+                                    let reclaimed = Self.bytesText(r1.reclaimedBytes + r2.reclaimedBytes)
+                                    Toast.show("已清理 \(removed) 条，回收 \(reclaimed)", icon: "trash")
+                                } else {
+                                    Toast.show("没有超过保留期（\(Int(retentionDays)) 天）或容量上限的条目",
+                                               icon: "checkmark.circle")
+                                }
                             }
                         }
                         .controlSize(.small)

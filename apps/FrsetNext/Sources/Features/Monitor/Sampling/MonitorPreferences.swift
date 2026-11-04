@@ -148,16 +148,7 @@ public enum MonitorPreferences {
         notify()
     }
 
-    /// 当前应显示的状态栏项 id 列表（供状态栏模块过滤 StatusItemRegistry.all）
-    public static func visibleStatusItemIDs() -> Set<String> {
-        guard isEnabled else { return [] }
-        if combinedMode { return ["monitor.combined"] }
-        var ids: Set<String> = ["monitor.combined"]
-        for module in MonitorModuleID.allCases where isModuleEnabled(module) {
-            ids.insert("monitor.\(module.rawValue)")
-        }
-        return ids
-    }
+    // v210：`visibleStatusItemIDs()` 随 Swift 动态状态项一并删除（注册表已不存在）。
 
     /// 恢复默认设置
     public static func resetToDefaults() {

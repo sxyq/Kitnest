@@ -47,9 +47,11 @@ public final class LogArchive {
     private let warmupSeconds: CFAbsoluteTime = 10
 
     private init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        directory = base.appendingPathComponent("FrsetNext/logs", isDirectory: true)
+        // v210（修工程全图 P1-8）：原先硬编码 "FrsetNext/logs"，绕开 AppDirectories——
+        // DEBUG 版（FrsetNext-Dev）与正式版会写进同一目录、3 天清理互相删除对方的日志。
+        // 改走 AppDirectories.sub("logs")：正式版仍是 ~/…/FrsetNext/logs（老日志继续可读），
+        // DEBUG 则落到 FrsetNext-Dev/logs，两者彻底隔离。
+        directory = AppDirectories.sub("logs")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         cleanupOldLogs()
     }

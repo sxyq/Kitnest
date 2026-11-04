@@ -220,7 +220,7 @@ public struct MonitorSettingsPane: View {
         guard MonitorPreferences.isModuleEnabled(module) else { return "已停用" }
         let sample = sampler.sample
         switch module {
-        case .power: return MonitorStatusItems.powerDetailText()
+        case .power: return MonitorStatusText.powerDetailText()
         case .cpu: return MonitorFormat.percent(sample.cpuUsage)
         case .memory: return "\(MonitorFormat.bytes(sample.memoryUsed)) / \(MonitorFormat.bytes(sample.memoryTotal))"
         case .network: return MonitorFormat.directionalRate(upload: sample.netUpload, download: sample.netDownload)

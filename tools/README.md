@@ -5,6 +5,9 @@
 | 工具 | 用途 | 用法 |
 |---|---|---|
 | `swift_fieldmd.py` | 解析 Swift `__swift5_fieldmd`/`__swift5_reflstr` 段：还原类型字段名与类型签名 | `python3 swift_fieldmd.py <arm64-slice> <out.json>` |
+| `func_table.py` | 重生成函数清单 CSV（花括号深度跟踪 → owner/行号不漂移） | `python3 tools/func_table.py`（`--check` 只统计） |
+| `symbol_index.py` | 重生成符号索引 Markdown（`docs/00-总览/符号索引.md`） | `python3 tools/symbol_index.py apps/FrsetNext/Sources docs/.../symbols.csv` |
+| `check.sh` | typecheck + 跨模块耦合扫描 | `./tools/check.sh` |
 
 ## 关联工具（在 frset/rea-evidence 内）
 

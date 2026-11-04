@@ -22,6 +22,8 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     public enum PreviewKind {
         case none, text(String), image(NSImage), pdf(PDFDocument), office(URL), unsupported(String)
+        /// v210：网页按浏览器渲染（解压后的落地文件 + 同目录资源根）
+        case html(URL, root: URL)
     }
 
     @Published public private(set) var entries: [ArchiveEntry] = []
@@ -251,6 +253,24 @@ public final class ArchiveBrowserModel: ObservableObject {
             previewKind = .unsupported("文件夹")
             return
         }
+        // v210（用户：「HTML 直接渲染成浏览器里的那种」）：网页不再当代码文本看。
+        // 必须**排在文本分支之前**——html 也在 FilePreviewBuilder.textExtensions 里，
+        // 落在后面就永远走「带行号的源码」（v210 实测：首版顺序错了，页面仍是源码）。
+        // 连同同目录资源一起解到临时目录，交给 WKWebView（CSS/JS/图片/子页面都能生效）。
+        if ["html", "htm", "xhtml", "svg"].contains(ext) {
+            ArchiveCore.extractWebPreviewToTemp(url: url, entry: entry) { [weak self] fileURL, err in
+                guard let self else { return }
+                self.previewLoading = false
+                guard let fileURL else {
+                    self.previewKind = .unsupported(err.isEmpty ? "网页解压失败" : err)
+                    return
+                }
+                let root = fileURL.deletingLastPathComponent()
+                self.rememberWebPreviewTemp(root)
+                self.previewKind = .html(fileURL, root: root)
+            }
+            return
+        }
         // 文本类：直接读内容（可编辑）
         if FilePreviewBuilder.textExtensions.contains(ext) || ext.isEmpty {
             ArchiveCore.readEntry(url: url, entry: entry) { [weak self] data, err in
@@ -316,6 +336,34 @@ public final class ArchiveBrowserModel: ObservableObject {
     }
 
     @Published public var officeThumb: NSImage?
+
+    // MARK: 网页预览的临时解压目录（v210）
+    //
+    // 网页预览要把同目录资源一起解出来才能正确渲染；这些目录不主动回收会
+    // 一直堆在 /tmp（与「extractEntryToTemp 临时目录不清理」同类问题）。
+    // 记在模型上，窗口关闭时统一删。
+    private var webPreviewTemps: [URL] = []
+
+    private func rememberWebPreviewTemp(_ dir: URL) {
+        var top = dir
+        while !top.lastPathComponent.hasPrefix("frset-webpreview-") {
+            let parent = top.deletingLastPathComponent()
+            if parent.path == top.path { break }
+            top = parent
+        }
+        guard top.lastPathComponent.hasPrefix("frset-webpreview-"),
+              !webPreviewTemps.contains(top) else { return }
+        webPreviewTemps.append(top)
+    }
+
+    /// 窗口关闭时调用：删掉本次预览解出来的网页目录
+    public func cleanupWebPreviewTemps() {
+        for dir in webPreviewTemps {
+            try? FileManager.default.removeItem(at: dir)
+            Log.info("Archive", "清理网页预览临时目录 \(dir.lastPathComponent)")
+        }
+        webPreviewTemps.removeAll()
+    }
 
     // MARK: 编辑 / 回写
 
@@ -732,11 +780,14 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
         win.setContentSize(NSSize(width: 860, height: 560))
         win.minSize = NSSize(width: 640, height: 420)
         win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
-        // v205：归档浏览器也铺统一玻璃底（跟随通透度/磨砂）
-        win.isOpaque = false
-        win.backgroundColor = .clear
-        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
-        win.installUnifiedGlassBackground()
+        // v210（用户：「红绿灯被下面那行交互遮住了」）：改用全工程唯一外观入口。
+        // 原因：这里原来手写 4 行（isOpaque/backgroundColor/titlebarAppearsTransparent/
+        // installUnifiedGlassBackground），漏了 `titleVisibility = .hidden` ——
+        // 标题栏透明后 macOS 27 会把窗口标题画到最左侧，正好压在红黄绿三钮下面
+        // （截图实证：「归档 · deck…」与三钮重叠）。归档名在窗内工具栏已有，
+        // 系统标题纯属重复，直接隐藏；红绿灯回归原生三钮、可正常点击。
+        win.titleVisibility = .hidden
+        win.applyOfficialChrome()
         win.isReleasedWhenClosed = false
         super.init(window: win)
         win.delegate = self
@@ -774,6 +825,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
     }
 
     public func windowWillClose(_ notification: Notification) {
+        model.cleanupWebPreviewTemps()
         Self.open.removeValue(forKey: model.url.standardizedFileURL.path)
     }
 
@@ -1259,6 +1311,11 @@ struct ArchiveBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .pdf(let doc):
                 PDFViewRepresentable(document: doc)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .html(let fileURL, let root):
+                // v210：网页用真浏览器内核渲染（相对资源已随同目录解出）
+                ArchiveHTMLPreview(fileURL: fileURL, rootDirectory: root,
+                                   entryName: model.previewEntry?.name ?? "网页")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .office(let tempURL):
                 VStack(spacing: 8) {

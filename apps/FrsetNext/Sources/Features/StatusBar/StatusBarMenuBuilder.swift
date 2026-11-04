@@ -38,8 +38,6 @@ public enum StatusBarMenuBuilder {
         let entriesSignature: Int
         /// target 为传入 responder 的菜单项（target 变更时只重设引用，不重建）
         let targetItems: [NSMenuItem]
-        /// 「显示状态项」勾选态 ← Preferences.shared.menuBarIconsVisible
-        let toggleItem: NSMenuItem
         /// 「显示项」子菜单勾选态 ← MonitorPreferences.isModuleEnabled
         let moduleItems: [MonitorModuleID: NSMenuItem]
         /// 图标样式单选态 ← MenuBarIconStyleStore.current
@@ -64,7 +62,6 @@ public enum StatusBarMenuBuilder {
         // v128（流畅度）：命中缓存 → 只刷新勾选态/target，零 alloc
         if let cache = cachedMenu, cache.revealed == revealed, cache.entriesSignature == signature {
             for item in cache.targetItems { item.target = target }
-            cache.toggleItem.state = Preferences.shared.menuBarIconsVisible ? .on : .off
             for (module, item) in cache.moduleItems {
                 item.state = MonitorPreferences.isModuleEnabled(module) ? .on : .off
             }
@@ -147,15 +144,8 @@ public enum StatusBarMenuBuilder {
 
         menu.addItem(NSMenuItem.separator())
 
-        // 监测项（动态状态项）显示开关
-        let toggle = track(item("显示状态项",
-                                key: "",
-                                modifiers: [],
-                                action: #selector(StatusBarController.toggleIconsAction(_:)),
-                                target: target))
-        toggle.state = Preferences.shared.menuBarIconsVisible ? .on : .off
-        menu.addItem(toggle)
-
+        // 监测模块开关（v210：动态状态项已删除，这里只剩「采样模块开关」语义——
+        // 决定面板/独立窗里显示哪几块，以及 STATS 合并条是否采该类数据）
         let modules = NSMenuItem(title: "显示项", action: nil, keyEquivalent: "")
         let moduleMenu = NSMenu()
         for module in monitorModules {
@@ -190,7 +180,6 @@ public enum StatusBarMenuBuilder {
                          revealed: revealed,
                          entriesSignature: signature,
                          targetItems: targetItems,
-                         toggleItem: toggle,
                          moduleItems: moduleItems,
                          styleItems: styleItems)
     }
