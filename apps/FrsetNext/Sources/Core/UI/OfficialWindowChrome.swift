@@ -30,16 +30,27 @@ public enum OfficialChrome {
 }
 
 public extension NSWindow {
-    /// 应用统一窗口外观（v204）：透明窗 + 背后统一玻璃底 + 透明标题栏 + 自绘圆形关闭钮。
-    func applyOfficialChrome() {
+    /// 全 App 唯一的窗口外观入口（v209）。
+    ///
+    /// 用户：「把他们的玻璃态、圆角全部统一，还有红绿灯」「确保应用于全局，
+    /// 并且只有这一处实现」。所有内容窗只允许调用本方法，不再各写一套：
+    ///   · 玻璃：背后统一玻璃底（毛玻璃 → 通透度底衬 → 磨砂霜感）
+    ///   · 圆角：自绘 0 —— 标准窗交给系统原生圆角，避免系统圆角内再套一层
+    ///   · 标题栏：macOS 原生材质 + 原生分隔线 + 原生红黄绿三钮
+    ///
+    /// - Parameter glassBacking: 窗口内容自己已经是统一玻璃面
+    ///   （主面板 / 玻璃浮层）时传 false，避免叠第二层模糊；其余窗口用默认 true。
+    func applyOfficialChrome(glassBacking: Bool = true) {
         isOpaque = false
         backgroundColor = .clear
-        // v208（用户：「确保应用于全局，并且只有这一处实现」）：
         // 全部交还 macOS 原生标题栏——原生材质 + 原生红绿灯 + 原生分隔线，
         // 不再自绘任何标题带。fullSize 窗口靠内容顶部 32pt 净空避让红绿灯。
         titlebarAppearsTransparent = false
-        installUnifiedGlassBackground()
-        // v205：统一为标准红黄绿三钮（不再用自绘灰圆钮）
+        titlebarSeparatorStyle = .automatic
+        if glassBacking {
+            installUnifiedGlassBackground()
+        }
+        // 统一为标准红黄绿三钮（不再用自绘灰圆钮；曾被隐藏的按钮一并恢复）
         restoreStandardTrafficLights()
     }
 }

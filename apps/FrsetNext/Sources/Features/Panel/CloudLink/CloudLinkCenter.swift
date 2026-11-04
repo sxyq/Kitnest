@@ -779,12 +779,8 @@ final class CloudLinkCenterController {
                               backing: .buffered, defer: false)
         window.title = "网盘解析 · \(link.provider.displayName)"
         window.contentView = hosting
-        // v204：解析中心也铺统一玻璃底（此前是系统默认不透明白窗）
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        // v206：非 fullSize 窗口用系统标题栏材质（自带标题栏层），不强制透明
-        window.titlebarAppearsTransparent = false
-        window.installUnifiedGlassBackground()
+        // v209：统一窗口外观入口（原生标题栏 + 原生红黄绿 + 统一玻璃底 + 系统圆角）
+        window.applyOfficialChrome()
         window.isReleasedWhenClosed = false
         window.center()
         window.makeKeyAndOrderFront(nil)

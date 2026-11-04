@@ -1250,16 +1250,10 @@ final class AnnotationEditorWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "标注截图  ·  \(image.width) × \(image.height)"
-        // v205：窗口底改统一玻璃（画布自身仍是不透明灰底，保证看图校色；
-        // 玻璃只出现在画布外的工具区/边缘）
-        isOpaque = false
-        backgroundColor = .clear
-        // v182（用户：「标题栏是空白的，只有三个按钮」）：
-        // titlebarAppearsTransparent = true 在本 App 的外观链路下会把标题文字一并吞掉
-        // （同样的配置在独立小程序里正常，故不再纠缠根因）。改用标准标题栏 + 去分隔线，
-        // 内容底色仍是 EditorBackdrop，观感差一档但标题一定可见、可拖。
-        titlebarAppearsTransparent = false
-        titlebarSeparatorStyle = .none
+        // v209：统一窗口外观入口（原生标题栏 + 原生红黄绿 + 统一玻璃底 + 系统圆角），
+        // 在 contentView 装配完成后调用。画布自身仍是不透明灰底，保证看图校色；
+        // 玻璃只出现在画布外的工具区/边缘。
+        // 标题文字在标准标题栏下必定可见、可拖（透明标题栏会吞标题，历史踩过）。
         minSize = NSSize(width: 880, height: Self.minCanvasHeight + Self.toolbarHeight)
         isReleasedWhenClosed = false
         canvas.frame = NSRect(x: 0, y: Self.toolbarHeight, width: canvasW, height: canvasH)
@@ -1307,8 +1301,8 @@ final class AnnotationEditorWindow: NSWindow {
         toolbar.autoresizingMask = [.width, .maxYMargin]
         container.addSubview(toolbar)
         contentView = container
-        // v205：全界面玻璃覆盖（标注编辑器窗口底，画布保持不透明）
-        installUnifiedGlassBackground()
+        // v209：全 App 唯一窗口外观入口（原生标题栏 + 原生红黄绿 + 统一玻璃底）
+        applyOfficialChrome()
 
         refreshActions()
     }

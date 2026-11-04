@@ -289,11 +289,10 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
         titleVisibility = .hidden
         isFloatingPanel = true
         level = .floating
-        isOpaque = false
-        backgroundColor = .clear
         isReleasedWhenClosed = false
-        // v206：统一标准红黄绿三钮（不再单独隐藏关闭钮）
-        titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
+        // v209：唯一窗口外观入口。根视图已是 .glassPlate() 统一玻璃面，
+        // 窗口不再叠第二层玻璃底；标题栏/圆角/红绿灯统一由 applyOfficialChrome 处理。
+        applyOfficialChrome(glassBacking: false)
 
         let controller = CommandPaletteState(initialQuery: initialQuery)
         controller.onDismiss = { [weak self] in self?.close() }

@@ -770,7 +770,12 @@ struct PreviewImageView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(.regularMaterial, in: Capsule())
+                    // v209：去掉 .regularMaterial（第二种玻璃实现），
+                    // 内联按钮统一用内容卡样式（与全 App 卡片同一配方）
+                    .background(Capsule().fill(Theme.cardFill))
+                    .overlay {
+                        Capsule().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+                    }
                 }
                 .buttonStyle(.plain)
                 .padding(8)

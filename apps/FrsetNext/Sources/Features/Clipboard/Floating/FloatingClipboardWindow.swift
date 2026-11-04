@@ -127,9 +127,9 @@ public final class FloatingClipboardPanel: NSPanel {
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         titleVisibility = .hidden
-        titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
-        isOpaque = false
-        backgroundColor = .clear
+        // v209：唯一窗口外观入口。内容自身已是统一玻璃面（GlassSurface），
+        // 不再叠第二层窗口玻璃底；标题栏/圆角/红绿灯全部交给 applyOfficialChrome。
+        applyOfficialChrome(glassBacking: false)
         hasShadow = true
         minSize = NSSize(width: 520, height: 380)
     }

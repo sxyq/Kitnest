@@ -26,6 +26,7 @@ extension NSWindow {
         for button in [standardWindowButton(.closeButton),
                        standardWindowButton(.miniaturizeButton),
                        standardWindowButton(.zoomButton)] {
+            button?.isHidden = false
             button?.alphaValue = 1
         }
     }

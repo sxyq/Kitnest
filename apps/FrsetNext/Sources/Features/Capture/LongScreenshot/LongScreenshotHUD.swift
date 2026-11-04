@@ -125,6 +125,11 @@ final class LongScreenshotHUDController {
         let glass = LiquidGlass.makeView(frame: NSRect(origin: .zero, size: size),
                                          cornerRadius: Theme.Radius.window,
                                          material: .popover)
+        // v209：补「通透度底衬 + 磨砂霜感」——此前只做了毛玻璃，
+        // 四个玻璃滑块在这个 HUD 上等于空转；统一成与其它窗口同一配方。
+        let tint = GlassTintOverlayView(frame: glass.bounds)
+        tint.autoresizingMask = [.width, .height]
+        glass.addSubview(tint)
 
         // 红点（录制中）——呼吸脉冲
         let dot = NSView(frame: NSRect(x: 14, y: (size.height - 8) / 2, width: 8, height: 8))
