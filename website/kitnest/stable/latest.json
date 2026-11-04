@@ -1,0 +1,25 @@
+{
+  "build": 1,
+  "versionName": "1.0.0",
+  "minBuild": 1,
+  "force": false,
+  "zipUrl": "https://calorieai.sxyq27.online/kitnest/releases/1/Kitnest-1.zip",
+  "size": 39520237,
+  "sha256": "146614b05ab7862e8a4789646e178a15df1fd68e1c5f22384f6a4565d274f206",
+  "releaseNotes": "在线更新：启动与每 6 小时自动检查新版本，支持整包下载、SHA-256 校验与旧版备份回滚；发现新版时本地通知与状态栏提示，一键完成更新；更新说明改为服务端下发，更新后首次启动自动展示「本次更新了什么」；内部 build 号与显示版本解耦，About 仍显示 1.0.0；修正固定显示版本下更新检查可能反复提示的问题",
+  "whatsNew": {
+    "added": [
+      "在线更新：启动与每 6 小时自动检查新版本，支持整包下载、SHA-256 校验与旧版备份回滚",
+      "发现新版时本地通知与状态栏提示，一键完成更新",
+      "更新说明改为服务端下发，更新后首次启动自动展示「本次更新了什么」"
+    ],
+    "improved": [
+      "内部 build 号与显示版本解耦，About 仍显示 1.0.0"
+    ],
+    "fixed": [
+      "修正固定显示版本下更新检查可能反复提示的问题"
+    ]
+  },
+  "pageUrl": "https://calorieai.sxyq27.online/kitnest-site/",
+  "publishedAt": "2026-11-04T19:16:13+08:00"
+}

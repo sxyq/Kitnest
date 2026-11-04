@@ -34,7 +34,12 @@ frset-rebuild/
 │   ├── package_dmg.sh        DMG 打包（~/Desktop/FrsetNext-1.0.0.dmg）
 │   └── CONTRACT.md           模块间契约
 ├── tests/                    行为对照表（原 App vs FrsetNext，对账标准）
-└── tools/                    测绘/自检工具 + publish_update.sh（在线更新一键发版）
+├── website/                  品牌官网（纯静态，v214 起）
+│   ├── index.html            hash 路由 7 视图（首页/功能/界面/下载/更新/帮助/安全）
+│   ├── assets/               样式、脚本、图标、脱敏后的实机截图
+│   └── kitnest/stable/       版本清单快照（部署时从线上刷新）
+├── deploy/nginx/             官网 nginx 配置（路径挂载片段 + 独立子域 vhost）
+└── tools/                    测绘/自检工具 + publish_update.sh（在线更新一键发版）+ deploy_site.sh（官网部署）
 ```
 
 ## 常用命令
@@ -43,6 +48,8 @@ frset-rebuild/
 cd apps/FrsetNext && bash build.sh          # 构建 + 原子部署（日常从这里打开）
 ./tools/check.sh                            # typecheck + 耦合扫描
 cd apps/FrsetNext && bash make-dmg.sh       # 打 DMG（dist/ 产物，不入 git）
+bash tools/publish_update.sh "更新说明"      # 发版：递增 build → 构建 → 打包 → 上传 124 → 验证
+bash tools/deploy_site.sh                   # 部署品牌官网到 124（并幂等更新 nginx 片段）
 ```
 
 ## 核心原则
