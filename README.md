@@ -34,7 +34,7 @@ frset-rebuild/
 │   ├── package_dmg.sh        DMG 打包（~/Desktop/FrsetNext-1.0.0.dmg）
 │   └── CONTRACT.md           模块间契约
 ├── tests/                    行为对照表（原 App vs FrsetNext，对账标准）
-└── tools/                    测绘/自检工具（配合 docs/10-规格/02）
+└── tools/                    测绘/自检工具 + publish_update.sh（在线更新一键发版）
 ```
 
 ## 常用命令

@@ -506,20 +506,25 @@ struct AboutSettingsPane: View {
 
             aboutButton("检查更新") { AppUpdateChecker.shared.checkNowManual() }
 
-            // v112 更新源（对标报告「自动更新」缺口）：留空 = 关闭。
-            // 指向 GitHub API releases/latest（或任何含 tag_name/html_url 的 JSON）。
-            HStack(spacing: 6) {
-                Text("更新源")
+            // v201 在线更新：默认源内置，留空 = 回到默认（calorieai.sxyq27.online/kitnest/）。
+            // 内部按 CFBundleVersion 的 build 号比较，与显示版本 1.0.0 无关。
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text("更新源")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    TextField(AppUpdateChecker.defaultFeedURL,
+                              text: Binding(
+                                get: { AppUpdateChecker.shared.feedURL },
+                                set: { AppUpdateChecker.shared.feedURL = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .frame(width: 320)
+                        .font(.system(size: 11, design: .monospaced))
+                }
+                Text("当前 build \(AppUpdateChecker.shared.currentBuild) · 启动与每 6 小时自动检查 · 留空恢复默认源")
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                TextField("https://api.github.com/repos/<user>/<repo>/releases/latest",
-                          text: Binding(
-                            get: { AppUpdateChecker.shared.feedURL },
-                            set: { AppUpdateChecker.shared.feedURL = $0 }))
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .frame(width: 320)
-                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.tertiaryText)
             }
 
             Spacer(minLength: 24)

@@ -54,3 +54,8 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 - 深链一律写 `kitnest://`（`frsetnext://` 仍在 Info.plist 注册，仅作旧链接兼容；历史归档里的原文不改写）
 - 安全基线（v200）：MCP 需 token 且拒绝浏览器 Origin；MCP / WebDAV 只绑 127.0.0.1；
   `LanTransferServer` 刻意对 LAN 开放（手机扫码），**不要**给它加回环绑定；LAN token 为 8 位
+- 在线更新（v201）：显示版本 1.0.0 固定，**更新比较只用 `CFBundleVersion` build 号**，每次发版 +1；
+  发版一律走 `tools/publish_update.sh`，不要手改 124 上的 `latest.json`；
+  App 自签无 APNs，「推送」= 轮询 + 本地通知，别去接推送证书
+- 124 上 `/kitnest/` 端点挂在 CalorieAI 官网的 Nginx conf 里：改前先备份，
+  `sudo nginx -t` 通过后用 **reload 而非 restart**，并回归验证官网与旧 `/android/stable/latest.json`

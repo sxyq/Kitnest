@@ -7,10 +7,11 @@ import SwiftUI
 // （按钮 "Got it 知道了"）→ WhatsNewPresenter → WhatsNewStore（键 whatsNewLastSeenVersion，
 // 每个版本只弹一次）；调试入口 onTestWhatsNew。**不是**检查更新（那是 AppUpdateChecker）。
 //
-// 重建版语义：
-//   · 升级/大版本内容更新后第一次启动弹出「本次更新了什么」，看完关闭即记住；
-//   · 内容版本 WhatsNewCatalog.contentVersion 手动 +1（功能批次落地时），
-//     不与 Info.plist 版本绑定（显示版本固定 1.0.0，见 AboutSettingsPane v90 注）；
+// 重建版语义（v201 / 2026-11-04 改为服务端下发）：
+//   · 更新后第一次启动弹出「本次更新了什么」，看完关闭即记住；
+//   · 条目来自更新清单 `whatsNew{added,improved,fixed}`（AppUpdateChecker 缓存，离线回退本地），
+//     不再每批手动改代码；
+//   · 已读按 **CFBundleVersion 内部 build 号** 记账（显示版本固定 1.0.0，不能当版本用）；
 //   · 首启用欢迎窗（onboarding），WhatsNew 让路本次启动、下次启动再弹；
 //   · 排障探针：FRSET_TEST_WHATSNEW=1 或 defaults probe.whatsnew → 无条件弹（对应原版
 //     onTestWhatsNew 调试入口）。
@@ -56,15 +57,38 @@ public struct WhatsNewEntry {
 
 public enum WhatsNewCatalog {
 
-    /// 当前内容版本：每次新增一批条目 +1，老用户升级后重见弹窗
-    public static let contentVersion = 1
+    /// 内容所属发布批次：优先用清单里的 build，取不到时用当前安装 build
+    public static var contentBuild: Int {
+        if let feed = AppUpdateChecker.shared.cachedFeed, let b = feed["build"] as? Int { return b }
+        return AppUpdateChecker.shared.currentBuild
+    }
 
-    /// 当前批次条目（按 Added / Improved / Fixed 分组渲染）
-    public static let entries: [WhatsNewEntry] = [
+    /// 兼容旧调用点（日志/诊断）
+    public static var contentVersion: Int { contentBuild }
+
+    /// 当前批次条目：服务端清单优先，离线或旧清单无 whatsNew 时回退本地
+    public static var entries: [WhatsNewEntry] {
+        let remote = remoteEntries
+        return remote.isEmpty ? localEntries : remote
+    }
+
+    private static var remoteEntries: [WhatsNewEntry] {
+        guard let feed = AppUpdateChecker.shared.cachedFeed,
+              let groups = feed["whatsNew"] as? [String: Any] else { return [] }
+        var result: [WhatsNewEntry] = []
+        for category in WhatsNewCategory.allCases {
+            guard let texts = groups[category.rawValue] as? [String] else { continue }
+            result.append(contentsOf: texts.map { WhatsNewEntry(category: category, text: $0) })
+        }
+        return result
+    }
+
+    /// 离线兜底（首次安装或更新源不可达时仍能看到内容）
+    public static let localEntries: [WhatsNewEntry] = [
+        .init(category: .added, text: "在线更新：自动检查新版本，支持整包下载、校验与一键替换"),
         .init(category: .added, text: "窗口截图 ⇧⌥W：一键截取最前台应用窗口，自动排除遮挡"),
         .init(category: .added, text: "区域截图悬停吸附：窗口自动高亮，单击即整窗截取"),
         .init(category: .added, text: "命令面板 ⌥K：全部功能统一检索直达"),
-        .init(category: .added, text: "欢迎窗与权限引导：四类系统权限状态一目了然"),
         .init(category: .added, text: "传输与投屏：隔空投送收发、Android 无线配对、ADB 文件互传、扫码直传"),
         .init(category: .improved, text: "三级玻璃分层视觉，日历/剪贴板卡统一宽度"),
         .init(category: .improved, text: "启动性能收紧，预览窗高度自适应"),
@@ -90,20 +114,21 @@ public final class WhatsNewStore {
 
     public static let shared = WhatsNewStore()
 
-    /// 原版同款键名（逆向实锤：WhatsNewStore → whatsNewLastSeenVersion）
-    private let key = "whatsNewLastSeenVersion"
+    /// v201：按内部 build 记账（旧键 whatsNewLastSeenVersion 是内容版本口径，不复用）
+    private let key = "whatsNewLastSeenBuild"
 
     private init() {}
 
-    /// 是否需要弹（当前内容版本 > 已看过版本）
+    /// 是否需要弹（当前安装的 build > 已看过的 build）
     public var shouldShow: Bool {
-        UserDefaults.standard.integer(forKey: key) < WhatsNewCatalog.contentVersion
+        UserDefaults.standard.integer(forKey: key) < AppUpdateChecker.shared.currentBuild
     }
 
-    /// 标记已看（任意关闭路径都算「知道了」——每个版本只弹一次）
+    /// 标记已看（任意关闭路径都算「知道了」——每个 build 只弹一次）
     func markSeen() {
-        UserDefaults.standard.set(WhatsNewCatalog.contentVersion, forKey: key)
-        Log.info("WhatsNew", "已标记 seen=\(WhatsNewCatalog.contentVersion)")
+        let build = AppUpdateChecker.shared.currentBuild
+        UserDefaults.standard.set(build, forKey: key)
+        Log.info("WhatsNew", "已标记 seenBuild=\(build)")
     }
 }
 
@@ -114,6 +139,7 @@ public final class WhatsNewWindowController: NSObject {
     public static let shared = WhatsNewWindowController()
 
     private var window: WhatsNewWindow?
+    private var feedObserver: NSObjectProtocol?
 
     private override init() { super.init() }
 
@@ -122,9 +148,25 @@ public final class WhatsNewWindowController: NSObject {
         guard force || WhatsNewStore.shared.shouldShow else { return }
         Log.info("WhatsNew", "浮层 show (force=\(force))")
         ensureWindow()
+        installFeedObserver()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
         RenderProbe.snapshot(window, name: "whatsNew", reason: "show")
+    }
+
+    /// 浮层已显示时清单才到达 → 用远端条目重建内容，避免「先弹窗后拉到内容」显示兜底文案
+    private func installFeedObserver() {
+        guard feedObserver == nil else { return }
+        feedObserver = NotificationCenter.default.addObserver(
+            forName: AppUpdateChecker.feedDidUpdateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self, let win = self.window, win.isVisible else { return }
+            let hosting = NSHostingView(rootView: WhatsNewView())
+            hosting.sizingOptions = []
+            if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
+            win.contentView = hosting
+            Log.info("WhatsNew", "清单到达，已用远端条目刷新浮层")
+        }
     }
 
     /// 「知道了」：标记已看 + 关闭
@@ -223,7 +265,7 @@ struct WhatsNewView: View {
                 .symbolRenderingMode(.hierarchical)
             Text("本次更新了什么")
                 .font(.system(size: 18, weight: .semibold))
-            Text("Kitnest 近期批次更新一览")
+            Text("v\(AppUpdateChecker.shared.currentVersion) · build \(AppUpdateChecker.shared.currentBuild) 更新一览")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }

@@ -127,8 +127,11 @@ public enum StatusBarMenuBuilder {
         onboardingItem.image = onboardingImage
         menu.addItem(onboardingItem)
 
-        // 检查更新（v112：feed 未配置时提示去关于页填写）
-        let updateItem = track(item("检查更新…", key: "", modifiers: [],
+        // 检查更新（v201：清单里有新版时标题直接提示，等价于状态栏红点）
+        let updateTitle = AppUpdateChecker.shared.hasUpdate
+            ? "发现新版本 · build \(AppUpdateChecker.shared.availableBuild)"
+            : "检查更新…"
+        let updateItem = track(item(updateTitle, key: "", modifiers: [],
                                     action: #selector(StatusBarController.checkForUpdatesAction(_:)), target: target))
         updateItem.image = updateImage
         menu.addItem(updateItem)

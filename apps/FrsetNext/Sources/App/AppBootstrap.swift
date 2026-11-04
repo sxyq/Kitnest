@@ -180,7 +180,7 @@ enum AppBootstrap {
         } else if WelcomeWindowController.shouldPresentOnLaunch {
             Log.info("Bootstrap", "首启引导：欢迎窗优先，WhatsNew 留待下次启动")
         } else if WhatsNewStore.shared.shouldShow {
-            Log.info("Bootstrap", "WhatsNew：2.2s 后弹出（seen < \(WhatsNewCatalog.contentVersion)）")
+            Log.info("Bootstrap", "WhatsNew：2.2s 后弹出（seenBuild < \(AppUpdateChecker.shared.currentBuild)）")
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
                 WhatsNewWindowController.shared.show()
             }
