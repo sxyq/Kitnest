@@ -188,6 +188,28 @@ enum AppBootstrap {
 
         // 7) 更新静默检查（v112：feed 为空/24h 内查过则跳过；对标报告第二批）
         AppUpdateChecker.shared.checkOnLaunch()
+
+        // 8) v201 排障探针：probe.updateInstall=1 + probe.updateZip=<zipURL>
+        //    （可选 probe.updateSha=<hex>）——启动 3s 后直接走一次整包更新
+        //    （下载 → sha256 → 解压 → 备份 → 替换 → 重启），用于无 UI 自动化环境
+        //    验证「立即更新」按钮背后的完整链路。三个键**读取后立即自删**，
+        //    避免替换重启后的探针死循环。
+        if UserDefaults.standard.bool(forKey: "probe.updateInstall") {
+            UserDefaults.standard.removeObject(forKey: "probe.updateInstall")
+            if let raw = UserDefaults.standard.string(forKey: "probe.updateZip"), !raw.isEmpty,
+               let url = URL(string: raw) {
+                UserDefaults.standard.removeObject(forKey: "probe.updateZip")
+                let sha = UserDefaults.standard.string(forKey: "probe.updateSha") ?? ""
+                UserDefaults.standard.removeObject(forKey: "probe.updateSha")
+                Log.info("Update", "探针：3s 后走整包更新（zip=\(raw)，sha=\(sha.isEmpty ? "跳过校验" : "已提供")）")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    AppUpdateChecker.shared.installUpdate(zipURL: url,
+                                                          expectedSHA256: sha.isEmpty ? nil : sha)
+                }
+            } else {
+                Log.info("Update", "探针：probe.updateInstall 已设但缺 probe.updateZip，跳过")
+            }
+        }
     }
 
     static func stop() {
