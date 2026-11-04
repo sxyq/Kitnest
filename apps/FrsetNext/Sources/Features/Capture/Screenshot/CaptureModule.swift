@@ -69,6 +69,15 @@ public enum CaptureModule: AppModule {
         // 预热：扫描保存目录，建立最近截图列表
         ScreenshotManager.shared.reloadRecent()
 
+        // v218（用户：「框出来非常缓慢」）：启动 2 秒后预热框选动作面板。
+        // 之前每次框选都要新建 NSPanel + NSHostingView 并跑两次 fittingSize，
+        // SwiftUI 首次渲染 + 玻璃材质初始化就要几百毫秒。预热后只剩更新 model。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            Task { @MainActor in
+                CaptureActionChain.warmUp()
+            }
+        }
+
         PanelSectionRegistry.register(PanelSectionDescriptor(
             id: "capture",
             title: "截图",

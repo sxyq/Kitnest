@@ -158,6 +158,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "longshot":
                 // v74 排障/深链入口：直接进入长截图选区（等价 ⇧⌥L 与面板菜单「长截图」）
                 LongScreenshotCoordinator.shared.beginSelection()
+            case "capturebar":
+                // v218 排障：直接弹出框选动作面板（拿一张主屏截图当预览），
+                // 用来核对「预览在上 / 工具条在下 / 屏幕 1/4 高度居中」的版式。
+                // 抓屏走后台（legacy API 在主线程会死锁，见 ScreenshotManager 头注）。
+                let screenFrame = NSScreen.main?.frame ?? .zero
+                let cgRect = NSScreen.main.map { ScreenSnapshot.cgRect(for: $0) } ?? .zero
+                Task.detached(priority: .utility) {
+                    let image = ScreenSnapshot.cgCapture(rect: cgRect)
+                    await MainActor.run {
+                        guard let image else { return }
+                        let url = URL(fileURLWithPath: NSTemporaryDirectory() + "capturebar-demo.png")
+                        if let data = ImageProcessor.pngData(image) {
+                            try? data.write(to: url)
+                        }
+                        CaptureActionChain.present(image: image, url: url,
+                                                   selectionAppKit: screenFrame)
+                    }
+                }
             case "longshotdemo":
                 // v150 排障：固定选区直接起会话（无人值守验证 HUD / 预览）
                 LongScreenshotCoordinator.shared.beginDemoSession()
