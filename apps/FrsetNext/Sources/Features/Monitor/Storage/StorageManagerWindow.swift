@@ -1,6 +1,49 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    /// v212 排障深链：按名字下钻到某一层（kitnest://storage?drill=Users）
+    static let storageDrillTo = Notification.Name("frsetnext.storage.drillTo")
+    /// v212 排障深链：直接打开「让 Agent 清理」弹窗（kitnest://storage?agent=1）
+    static let storageOpenAgent = Notification.Name("frsetnext.storage.openAgent")
+}
+
+/// v212（用户：「让 Agent 清理这个选项需要询问用户调用 Codex 还是什么，
+/// 复制成一个个提示词，让本地 Agent 根据提示词判断」）
+///
+/// App 自己不替用户做删除决策：只把扫描明细整理成一段结构化提示词，
+/// 用户选目标 Agent → 复制 → 粘过去，由那个 Agent 判断哪些能清。
+enum CleanupAgent: String, CaseIterable, Identifiable {
+    case codex
+    case claudeCode
+    case cursor
+    case generic
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .codex: return "Codex"
+        case .claudeCode: return "Claude Code"
+        case .cursor: return "Cursor"
+        case .generic: return "通用"
+        }
+    }
+
+    var roleLine: String {
+        switch self {
+        case .codex:
+            return "你是 Codex（OpenAI 命令行编码 Agent），正在我的 Mac 上协助清理磁盘。"
+        case .claudeCode:
+            return "你是 Claude Code（Anthropic 命令行 Agent），正在我的 Mac 上协助清理磁盘。"
+        case .cursor:
+            return "你是 Cursor 里的编码 Agent，正在我的 Mac 上协助清理磁盘。"
+        case .generic:
+            return "你是一个运行在我 Mac 上的命令行 AI Agent，协助我清理磁盘。"
+        }
+    }
+}
+
 // MARK: - 存储管理窗口（v211）
 //
 // 布局与交互按截图（Kanso）复刻：
@@ -34,12 +77,24 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
 
     required init?(coder: NSCoder) { fatalError() }
 
-    public func show(autoScan: Bool = false) {
+    public func show(autoScan: Bool = false, drill: String? = nil, openAgent: Bool = false) {
         guard let window else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         // v211 排障：kitnest://storage?scan=1 —— 无人值守触发一次扫描（验证全盘索引/进度/截断提示）
         if autoScan { DiskIndexStore.shared.rescan() }
+        // v212 排障：?drill=Users 下钻一层；?agent=1 直接开「让 Agent 清理」弹窗
+        // （无 UI 自动化环境下点不了按钮，只能靠深链到达）
+        if let drill {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                NotificationCenter.default.post(name: .storageDrillTo, object: drill)
+            }
+        }
+        if openAgent {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                NotificationCenter.default.post(name: .storageOpenAgent, object: nil)
+            }
+        }
     }
 }
 
@@ -56,6 +111,11 @@ struct StorageManagerRootView: View {
     @Stored private var showSettings = false
     @Stored private var confirmTrash = false
     @Stored private var pendingTrash: [String] = []
+    /// 让 Agent 清理：询问目标 Agent + 预览提示词
+    @Stored private var showAgentSheet = false
+    @Stored private var agentKind: CleanupAgent = .generic
+    /// 深链下钻的待办：窗口刚显示时缓存可能还没读完（snapshot 为 nil），先记下来
+    @Stored private var pendingDrill: String?
 
     private var currentNode: DiskNode? {
         stack.last ?? store.snapshot?.root
@@ -101,13 +161,36 @@ struct StorageManagerRootView: View {
             Divider()
             HSplitView {
                 leftPane
-                    .frame(minWidth: 330, idealWidth: 400, maxWidth: 480)
+                    .frame(minWidth: 320, idealWidth: 372, maxWidth: 420)
                 rightPane
                     .frame(minWidth: 420)
             }
         }
         .frame(minWidth: 860, minHeight: 560)
         .onAppear { store.loadIfNeeded() }
+        .onReceive(NotificationCenter.default.publisher(for: .storageDrillTo)) { note in
+            guard let name = note.object as? String else { return }
+            // v213 实测：深链在窗口刚建好时到达，onAppear 里的缓存读取是异步的，
+            // 此时 snapshot 往往还是 nil，直接 return 会导致 drill 静默失效。
+            // 有快照就立刻下钻，没有就挂起，等 snapshot 到位再执行。
+            if let root = store.snapshot?.root,
+               let target = root.children.first(where: { $0.name == name }) {
+                stack = drillChain(to: target)
+                pendingDrill = nil
+            } else {
+                pendingDrill = name
+            }
+        }
+        .onChange(of: store.snapshot?.scannedAt) { _ in
+            guard let name = pendingDrill,
+                  let root = store.snapshot?.root,
+                  let target = root.children.first(where: { $0.name == name }) else { return }
+            stack = drillChain(to: target)
+            pendingDrill = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .storageOpenAgent)) { _ in
+            showAgentSheet = true
+        }
         .onChange(of: store.scope) { _ in
             stack = []
             store.reloadFromCache(autoScanIfMissing: false)
@@ -120,6 +203,7 @@ struct StorageManagerRootView: View {
         }
         .sheet(isPresented: $showRecords) { recordsSheet }
         .sheet(isPresented: $showSettings) { settingsSheet }
+        .sheet(isPresented: $showAgentSheet) { agentSheet }
         .overlay {
             if store.isScanning { scanningOverlay }
         }
@@ -169,6 +253,7 @@ struct StorageManagerRootView: View {
                         .background(Capsule(style: .continuous).fill(Theme.accent))
                     }
                     .buttonStyle(.plain)
+                    .focusable(false)
                 }
                 toolbarButton("arrow.clockwise", "重新扫描") { store.rescan() }
                     .disabled(store.isScanning)
@@ -201,6 +286,8 @@ struct StorageManagerRootView: View {
             .glassCard(radius: Theme.Radius.control)
         }
         .buttonStyle(.plain)
+        // 窗口一打开别把键盘焦点落在工具条上（会画出一圈系统 focus ring，很突兀）
+        .focusable(false)
     }
 
     // MARK: 左栏（可清理清单）
@@ -250,28 +337,58 @@ struct StorageManagerRootView: View {
             }
 
             Divider()
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("已选 \(selectedPaths.count) 项")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text(StorageFormat.bytes(selectedBytes))
-                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("已选 \(selectedPaths.count) 项")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text(StorageFormat.bytes(selectedBytes))
+                            .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    }
+                    Spacer()
                 }
-                Spacer()
-                Button {
-                    pendingTrash = Array(selectedPaths)
-                    confirmTrash = true
-                } label: {
-                    Text("清理所选")
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
+
+                HStack(spacing: 8) {
+                    // v212：不替用户做删除决策——生成提示词交给本地 Agent 判断
+                    Button {
+                        showAgentSheet = true
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "wand.and.stars")
+                                .font(.system(size: 10.5))
+                            Text("让 Agent 清理")
+                                .font(.system(size: 11.5, weight: .medium))
+                        }
+                        .foregroundStyle(Theme.accent)
+                        .frame(maxWidth: .infinity)
                         .frame(height: 28)
-                        .background(Capsule(style: .continuous).fill(Theme.accent))
+                        .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.10)))
+                        .overlay(Capsule(style: .continuous)
+                            .strokeBorder(Theme.accent.opacity(0.22), lineWidth: 0.8))
+                        .contentShape(Capsule(style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    .disabled(store.snapshot == nil)
+                    .help("把本次扫描明细整理成提示词，复制后粘给你本地的 Agent（Codex / Claude Code 等），由它判断怎么清")
+
+                    Button {
+                        pendingTrash = Array(selectedPaths)
+                        confirmTrash = true
+                    } label: {
+                        Text("清理所选")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 28)
+                            .background(Capsule(style: .continuous).fill(Theme.accent))
+                    }
+                    .buttonStyle(.plain)
+                    .focusable(false)
+                    .disabled(selectedPaths.isEmpty)
                 }
-                .buttonStyle(.plain)
-                .disabled(selectedPaths.isEmpty)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
@@ -324,7 +441,28 @@ struct StorageManagerRootView: View {
 
     private var rightPane: some View {
         VStack(spacing: 0) {
+            // 导航条：返回 + 面包屑（v212：下钻后必须一眼看到怎么退回去）
             HStack(spacing: 6) {
+                if !stack.isEmpty {
+                    Button {
+                        stack.removeLast()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("返回")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.10)))
+                        .contentShape(Capsule(style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .help("返回上一级（Esc）")
+                }
+
                 Button {
                     stack.removeAll()
                 } label: {
@@ -333,6 +471,8 @@ struct StorageManagerRootView: View {
                         .foregroundStyle(stack.isEmpty ? .secondary : Theme.accent)
                 }
                 .buttonStyle(.plain)
+                .disabled(stack.isEmpty)
+
                 ForEach(Array(stack.enumerated()), id: \.offset) { entry in
                     let idx = entry.offset
                     let node = entry.element
@@ -349,24 +489,26 @@ struct StorageManagerRootView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                Spacer()
-                if !stack.isEmpty {
-                    Button("返回上级") { stack.removeLast() }
-                        .font(.system(size: 11))
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Theme.accent)
+                Spacer(minLength: 4)
+                if let node = currentNode {
+                    Text(StorageFormat.bytes(node.size))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(Theme.tertiaryText)
+                        .help("本层合计")
                 }
             }
-            .padding(.horizontal, 14)
-            .frame(height: 34)
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .animation(Theme.Motion.fast, value: stack.count)
 
             if let node = currentNode {
-                StorageBubbleMap(node: node,
-                                 onDrill: { child in stack.append(child) },
-                                 onSelect: { detailNode = $0 })
-                    .padding(.horizontal, 12)
+                StorageTreemap(node: node,
+                               onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
+                               onSelect: { detailNode = $0 })
+                    .padding(.horizontal, 10)
                     .padding(.bottom, 8)
                     .id(node.id)
+                    .animation(Theme.Motion.fast, value: node.id)
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")
@@ -407,6 +549,167 @@ struct StorageManagerRootView: View {
                 .frame(height: 46)
             }
         }
+        // Esc = 返回上一级（用户：「点击进入之后无法进行返回」）
+        .onExitCommand {
+            if !stack.isEmpty { stack.removeLast() }
+        }
+    }
+
+    /// 顺着一串「几乎只剩一个子目录」的层级走到底（v212）
+    ///
+    /// 实测：`/Users` 下除了 sunyiyang(30.9G) 还有 Shared 等几个极小目录，
+    /// 所以「只有一个子项」的条件并不成立，但视觉上这一层就是一个整块。
+    /// 改成按占比判定：最大子目录占本层 > 90% 就继续穿透（最多 4 层）。
+    private func drillChain(to node: DiskNode) -> [DiskNode] {
+        var chain = [node]
+        var current = node
+        while chain.count < 4, current.size > 0,
+              let biggest = current.children.filter({ $0.isDirectory }).max(by: { $0.size < $1.size }),
+              biggest.size > 0,
+              Double(biggest.size) / Double(current.size) > 0.9 {
+            chain.append(biggest)
+            current = biggest
+        }
+        return chain
+    }
+
+    // MARK: 让 Agent 清理（v212）
+
+    /// 跨层级取最大的目录：作为「详细占用日志」喂给 Agent（父子会同时出现，属正常）
+    private func topDirectories(limit: Int = 12) -> [DiskNode] {
+        guard let root = store.snapshot?.root else { return [] }
+        var all: [DiskNode] = []
+        func visit(_ n: DiskNode, depth: Int) {
+            guard depth < 4 else { return }
+            for c in n.children where c.isDirectory && c.size > 0 {
+                all.append(c)
+                visit(c, depth: depth + 1)
+            }
+        }
+        visit(root, depth: 0)
+        return all.sorted { $0.size > $1.size }.prefix(limit).map { $0 }
+    }
+
+    /// 结构化提示词：扫描概况 + 可清理候选 + 最大目录 + 明确的执行纪律
+    private func buildAgentPrompt(_ agent: CleanupAgent) -> String {
+        let snap = store.snapshot
+        var lines: [String] = []
+
+        lines.append(agent.roleLine)
+        lines.append("")
+        lines.append("下面是我这台 Mac 刚跑完的一次磁盘占用扫描。请逐项判断：哪些可以安全删除、"
+                     + "哪些需要我确认、哪些绝对不要动，并给出可执行命令。")
+        lines.append("")
+        lines.append("## 扫描概况")
+        lines.append("- 扫描范围：\(store.scope.title)（根路径 \(snap?.rootPath ?? "/")）")
+        lines.append("- 索引总量：\(StorageFormat.bytes(snap?.totalBytes ?? 0))")
+        if let used = volumeUsedText {
+            lines.append("- \(used)")
+        }
+        if let snap {
+            lines.append("- 扫描时间：\(StorageFormat.date(snap.scannedAt))")
+            lines.append("- 节点数：\(snap.nodeCount)（跳过 \(snap.skippedCount) 处不可读路径，含隐藏目录）")
+        }
+        lines.append("")
+        lines.append("## 可清理候选（App 按常见缓存目录名筛出，共 \(candidates.count) 项，按大小降序）")
+        if candidates.isEmpty {
+            lines.append("（本次没有筛出候选，请看下面的目录占用自行判断）")
+        }
+        for (i, c) in candidates.enumerated() {
+            lines.append("\(i + 1). \(c.node.name) — \(StorageFormat.bytes(c.node.size))"
+                         + " — \(c.node.path) — \(c.safe ? "常见缓存" : "需确认")")
+        }
+        lines.append("")
+        let tops = topDirectories()
+        lines.append("## 占用最大的目录（跨层级 Top \(tops.count)）")
+        for (i, n) in tops.enumerated() {
+            lines.append("\(i + 1). \(n.path) — \(StorageFormat.bytes(n.size))")
+        }
+        lines.append("")
+        lines.append("## 请你做的事")
+        lines.append("1. 每一项按「可安全删除 / 需我确认 / 不要动」归类，并说明依据"
+                     + "（是不是缓存、能不能重建、是否含用户数据）。")
+        lines.append("2. 对可删除项给出命令：优先移到废纸篓（如 `mv <路径> ~/.Trash/`），"
+                     + "不要直接 `rm -rf`；一条一行，带注释说明删的是什么。")
+        lines.append("3. 先只给方案，不要执行。等我确认后再逐条执行，每执行一条把结果告诉我。")
+        lines.append("4. 需要先看内容才能判断的，告诉我该跑什么命令（如 `du -sh <路径>`、`ls -la <路径>`）。")
+        return lines.joined(separator: "\n")
+    }
+
+    private func copyAgentPrompt() {
+        let text = buildAgentPrompt(agentKind)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+        showAgentSheet = false
+        Toast.show("提示词已复制，粘给 \(agentKind.title) 即可", icon: "doc.on.doc")
+    }
+
+    private var agentSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("让 Agent 清理")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button("关闭") { showAgentSheet = false }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("App 不替你删。它会生成一段包含本次扫描明细的提示词，"
+                 + "复制后粘给你本地的 Agent，由它判断哪些能清、怎么清。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Picker("", selection: $agentKind) {
+                ForEach(CleanupAgent.allCases) { a in
+                    Text(a.title).tag(a)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            ScrollView {
+                Text(buildAgentPrompt(agentKind))
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(10)
+            .frame(height: 250)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+            )
+
+            HStack {
+                Text("复制后粘到 \(agentKind.title) 里，它会按提示词逐项判断。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.tertiaryText)
+                Spacer()
+                Button {
+                    copyAgentPrompt()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "doc.on.doc").font(.system(size: 10.5))
+                        Text("复制提示词").font(.system(size: 11.5, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 28)
+                    .background(Capsule(style: .continuous).fill(Theme.accent))
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+            }
+        }
+        .padding(16)
+        .frame(width: 580, height: 470)
     }
 
     // MARK: 弹层

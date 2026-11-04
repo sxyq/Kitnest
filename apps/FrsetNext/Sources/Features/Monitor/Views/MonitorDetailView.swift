@@ -838,26 +838,35 @@ public struct MonitorDetailView: View {
 
                 // v211（用户：「添加一个按钮，可以打开存储管理面板」）：
                 // 入口放在容量构成正下方——看完占用就能顺手打开全盘索引。
-                Button {
-                    StorageManagerWindowController.shared.show()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "externaldrive.connected.to.line.below")
-                            .font(.system(size: 11, weight: .medium))
-                        Text("打开存储管理")
-                            .font(.system(size: 11.5, weight: .medium))
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Theme.tertiaryText)
+                // v212（用户：「这个按钮需要进一步优化，它那个圆角不符合我们的设计规范」）：
+                // 原来是一个 30pt 高、8pt 圆角的整行灰卡（glassCard 是「内容卡片」语义，
+                // 用在按钮上像一块面板而不是可点的动作）。改为左对齐胶囊按钮，
+                // 与存储面板里的「建立索引」同一套（accent 淡底 + 描边 + 28pt 高）。
+                HStack {
+                    Button {
+                        StorageManagerWindowController.shared.show()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "externaldrive.connected.to.line.below")
+                                .font(.system(size: 11, weight: .medium))
+                            Text("打开存储管理")
+                                .font(.system(size: 11.5, weight: .semibold))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .opacity(0.65)
+                        }
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.11)))
+                        .overlay(Capsule(style: .continuous)
+                            .strokeBorder(Theme.accent.opacity(0.22), lineWidth: 0.8))
+                        .contentShape(Capsule(style: .continuous))
                     }
-                    .foregroundStyle(Theme.accent)
-                    .padding(.horizontal, 10)
-                    .frame(height: 30)
-                    .glassCard(radius: Theme.Radius.control)
+                    .buttonStyle(.plain)
+                    .help("全盘索引、按堆块下钻、把不需要的文件移到废纸篓")
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.plain)
-                .help("全盘索引、按气泡图下钻、把不需要的文件移到废纸篓")
             }
 
             // NVMe SMART（官方 updateSMARTInterval 30s 缓存）

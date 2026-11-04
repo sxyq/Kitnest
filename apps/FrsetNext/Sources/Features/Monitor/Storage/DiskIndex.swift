@@ -383,12 +383,24 @@ final class DiskIndexStore: ObservableObject {
 
     // MARK: 清理候选
 
+    /// 「可清理」只认真正的缓存/可再生目录。
+    ///
+    /// v213 实测收紧：原来名单里有 `Downloads`、`tmp`、`.rustup`、`.cargo`、`Xcode`、
+    /// `Pods` 等——第一个是用户数据（误删不可恢复），第二个是系统临时目录
+    /// （清空会打断正在运行的构建/进程，实测把构建中间产物整个搬走过一次），
+    /// 后几个是工具链（删了要重装几分钟）。这些都不该出现在「推荐清理」里，
+    /// 用户真要删可以在右侧堆块里点它自己做决定。
     private static let cacheNames: Set<String> = [
         "Caches", "cache", "caches", ".cache", "node_modules", "DerivedData",
-        ".npm", "npm", ".pnpm-store", "pnpm", ".yarn", ".uv", "uv", ".gradle",
-        "__pycache__", ".pytest_cache", ".Trash", "Trash", "Downloads",
-        "Xcode", "Carthage", "Pods", ".cargo", ".rustup", "go-build",
-        "Electron", "Crashpad", "logs", "Logs", "tmp", "Temp",
+        ".npm", "npm", ".pnpm-store", "pnpm", ".yarn", ".uv", "uv",
+        "__pycache__", ".pytest_cache", "go-build",
+        "Electron", "Crashpad",
+        "logs", "Logs", ".Trash", "Trash",
+    ]
+
+    /// 兜底黑名单：任何叫 cache/tmp 的目录只要落在这几个路径上，一律不建议清理
+    private static let protectedCandidatePaths: Set<String> = [
+        "/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp",
     ]
 
     /// 候选清单缓存：SwiftUI 每次 hover/勾选都会重算 body，
@@ -410,6 +422,8 @@ final class DiskIndexStore: ObservableObject {
         let root = snap.root
         var out: [CleanupCandidate] = []
         func visit(_ n: DiskNode, depth: Int) {
+            // 黑名单路径一律跳过（/tmp 清空会打断运行中的进程，实测踩过一次）
+            if Self.protectedCandidatePaths.contains(n.path) { return }
             if n.isDirectory, Self.cacheNames.contains(n.name), n.size > 20 * 1024 * 1024 {
                 let safe = ["Caches", "cache", "caches", ".cache", "node_modules", "DerivedData",
                             ".npm", "npm", ".pnpm-store", "pnpm", ".yarn", ".uv", "uv",

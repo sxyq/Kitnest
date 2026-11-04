@@ -252,9 +252,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "storage":
                 // v211 排障/直达：kitnest://storage —— 直接打开存储管理面板，
                 // 便于无 UI 自动化环境下核对气泡地图、扫描进度与缓存加载。
-                // ?scan=1 额外触发一次扫描（无人值守验证全盘索引用）。
+                // ?scan=1 额外触发一次扫描（无人值守验证全盘索引用）；
+                // ?drill=Users 下钻一层（验证返回按钮 / Esc 回上级）。
                 let autoScan = comps?.queryItems?.first(where: { $0.name == "scan" })?.value == "1"
-                StorageManagerWindowController.shared.show(autoScan: autoScan)
+                let drill = comps?.queryItems?.first(where: { $0.name == "drill" })?.value
+                let openAgent = comps?.queryItems?.first(where: { $0.name == "agent" })?.value == "1"
+                StorageManagerWindowController.shared.show(autoScan: autoScan,
+                                                           drill: drill,
+                                                           openAgent: openAgent)
             case "castpair":
                 // v166.5 排障/直达：打开面板并弹出「连接手机」弹层。
                 // 等一个 runloop 再发通知——面板刚建好时 CastView 还没 onAppear，
