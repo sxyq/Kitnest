@@ -78,10 +78,17 @@ struct MenuBarToastContentView: View {
         }
         .padding(.horizontal, 18)
         .frame(height: 60)
-        .background(
-            Capsule().fill(colorScheme == .dark ? Color(white: 0.135) : Color(white: 0.99))
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.18), radius: 12, y: 4)
-        )
+        // v209（用户：「其他所有外部前端界面组件都需要全部统一」）：
+        // Toast 也是窗口级浮层——固定白/黑实底胶囊改为全 App 统一玻璃面，
+        // 通透度 / 磨砂 / 材质 / 降低透明度跟随个性化，不再是一套单独视觉。
+        .background {
+            GlassSurface(cornerRadius: 30, appliesWindowShadow: false)
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.18),
+                        radius: 12, y: 4)
+        }
+        .overlay {
+            Capsule().strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+        }
         .fixedSize()
         // 阴影留白（2026-10-20 用户反馈「已复制框外面还有一层矩形」根因）：
         // 窗口尺寸原等于胶囊尺寸，radius 12 / y 4 的阴影被窗口边界裁断，

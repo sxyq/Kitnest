@@ -122,6 +122,8 @@ enum LiquidGlass {
 struct LiquidGlassBackground: NSViewRepresentable {
     var cornerRadius: CGFloat = 16
     var tint: Color?
+    /// false = 不接管窗口阴影（调用方自己画内容阴影，窗口带透明留白时避免系统矩形阴影）
+    var appliesWindowShadow: Bool = true
 
     func makeNSView(context: Context) -> NSView {
         let view = LiquidGlass.makeView(cornerRadius: cornerRadius,
@@ -132,7 +134,7 @@ struct LiquidGlassBackground: NSViewRepresentable {
             guard let w = view.window else { return }
             w.isOpaque = false
             w.backgroundColor = .clear
-            w.hasShadow = true
+            w.hasShadow = appliesWindowShadow
         }
         return view
     }
@@ -161,13 +163,17 @@ struct GlassSurface: View {
     var tint: Color? = nil
     /// false = 窗口本身已有毛玻璃（主面板 FloatingPanel），不再叠第二层模糊
     var includesBlur: Bool = true
+    /// false = 阴影由调用方内容层自绘（Toast 窗口有 24pt 透明留白）
+    var appliesWindowShadow: Bool = true
 
     @ObservedObject private var personalization = Personalization.shared
 
     var body: some View {
         ZStack {
             if includesBlur {
-                LiquidGlassBackground(cornerRadius: cornerRadius, tint: tint)
+                LiquidGlassBackground(cornerRadius: cornerRadius,
+                                      tint: tint,
+                                      appliesWindowShadow: appliesWindowShadow)
                     // 「背景材质」（纯色卡片/毛玻璃）切换必须重建 representable：
                     // 只改颜色覆盖层的话，已创建的 NSVisualEffectView material 不会跟着变
                     .id(personalization.material.rawValue)

@@ -29,13 +29,15 @@ static NSView *FSRecMakeGlass(NSRect r, CGFloat radius) {
         g.style = NSGlassEffectViewStyleRegular;
         g.cornerRadius = radius;
         // 弹窗类玻璃要比主面板更实（设置项多、字小，不能让背后文字透上来）
-        g.tintColor = [[NSColor windowBackgroundColor] colorWithAlphaComponent:0.78];
+        g.tintColor = [[NSColor windowBackgroundColor] colorWithAlphaComponent:0.60];
         return g;
     }
     NSVisualEffectView *g = [[NSVisualEffectView alloc] initWithFrame:r];
-    g.material = NSVisualEffectMaterialMenu;
+    // v209：与 Swift 侧 LiquidGlass 同一配方——hudWindow 材质 + 固定失焦态，
+    // 不再用 menu/Active（那会随窗口 key 变化，和其它界面两套观感）。
+    g.material = NSVisualEffectMaterialHUDWindow;
     g.blendingMode = NSVisualEffectBlendingModeBehindWindow;
-    g.state = NSVisualEffectStateActive;
+    g.state = NSVisualEffectStateInactive;
     g.wantsLayer = YES;
     g.layer.cornerRadius = radius;
     g.layer.masksToBounds = YES;
@@ -363,12 +365,8 @@ static dispatch_source_t g_barTick = NULL;
 - (BOOL)acceptsFirstMouse:(NSEvent *)e { return YES; }
 - (void)drawRect:(NSRect)dirty {
     NSRect r = NSInsetRect(self.bounds, 0.5, 0.5);
-    // 毛玻璃底
-    [[[NSColor controlBackgroundColor] colorWithAlphaComponent:0.62] setFill];
-    [[NSBezierPath bezierPathWithRoundedRect:r xRadius:r.size.height / 2.0 yRadius:r.size.height / 2.0] fill];
-    [[[NSColor separatorColor] colorWithAlphaComponent:0.4] setStroke];
-    NSBezierPath *bd = [NSBezierPath bezierPathWithRoundedRect:r xRadius:r.size.height / 2.0 yRadius:r.size.height / 2.0];
-    bd.lineWidth = 1; [bd stroke];
+    // v209：毛玻璃/描边由 FSRecInstallGlass 统一提供，这里只画内容
+    // （原实底 0.62 + 药丸描边会把统一玻璃盖掉，且圆角与其它界面不一致）。
     // 红点
     [[NSColor colorWithSRGBRed:1.0 green:0.28 blue:0.25 alpha:1] setFill];
     [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(13, NSMidY(r) - 3.5, 7, 7)] fill];
@@ -410,7 +408,7 @@ static void FSRecBarShow(void) {
     p.ignoresMouseEvents = NO;
     FSRecBarBox *v = [[FSRecBarBox alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
     p.contentView = v;
-    FSRecInstallGlass(p, h / 2.0);          // v 成为玻璃下的内容子视图
+    FSRecInstallGlass(p, 12);              // v209：计时窗圆角统一 12pt（原为药丸 h/2）
     [p orderFrontRegardless];
     g_barWin = p;
     g_barT0 = CFAbsoluteTimeGetCurrent();
@@ -672,7 +670,7 @@ void FSScreenRecOpenSettings(void) {
     FSRecPanelView *v = [[FSRecPanelView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
     v.panel = p;
     p.contentView = v;
-    FSRecInstallGlass(p, 14);              // v 成为玻璃下的内容子视图
+    FSRecInstallGlass(p, 12);              // v 成为玻璃下的内容子视图（v209：统一 12pt）
     [p makeKeyWindow];
     [p orderFrontRegardless];
     FSBarLog(@"[录屏] 设置小窗 frame=%@ visible=%d level=%ld screen=%@",
@@ -1048,13 +1046,7 @@ static void FSRecShowDonePanel(NSString *path, NSError *err);   // v109 前向�
 }
 
 - (void)drawRect:(NSRect)dirty {
-    NSRect r = NSInsetRect(self.bounds, 0.5, 0.5);
-    [[[NSColor controlBackgroundColor] colorWithAlphaComponent:0.9] setFill];
-    [[NSBezierPath bezierPathWithRoundedRect:r xRadius:12 yRadius:12] fill];
-    [[[NSColor separatorColor] colorWithAlphaComponent:0.5] setStroke];
-    NSBezierPath *bd = [NSBezierPath bezierPathWithRoundedRect:r xRadius:12 yRadius:12];
-    bd.lineWidth = 1; [bd stroke];
-
+    // v209：背景由 FSRecInstallGlass 统一提供（12pt 玻璃），这里只画内容
     // 图标（绿色对勾圆）
     [[NSColor colorWithSRGBRed:0.30 green:0.72 blue:0.38 alpha:1] setFill];
     [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(16, NSHeight(self.bounds) - 40, 18, 18)] fill];
@@ -1146,6 +1138,7 @@ static void FSRecShowDonePanel(NSString *path, NSError *err) {
     p.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces;
     FSRecDoneView *v = [[FSRecDoneView alloc] initWithFrame:NSMakeRect(0, 0, w, h)];
     p.contentView = v;
+    FSRecInstallGlass(p, 12);              // v209：完成提示也走统一玻璃（12pt）
     [p orderFrontRegardless];
     g_donePanel = p;
     // 完成态 5 秒后自动收起；「保存中」态不自动收（等收尾结果来替换）
