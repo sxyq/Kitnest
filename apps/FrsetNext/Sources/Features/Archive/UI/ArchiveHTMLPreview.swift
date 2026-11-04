@@ -29,7 +29,12 @@ final class WebPreviewController: NSObject, ObservableObject {
     private var observers: [NSKeyValueObservation] = []
 
     init(fileURL: URL, rootDirectory: URL) {
-        self.rootDirectory = rootDirectory.standardizedFileURL
+        // v211 实测白屏根因：NSTemporaryDirectory() 给的是 /var/folders/…（/var 是符号链接），
+        // 而 WKWebView 导航时把 URL 规范化成 /private/var/folders/…；两边都按字面比前缀
+        // 必然不匹配 → decidePolicyFor 判为「越界」→ cancel → 纯白页。
+        // 统一在入口解析符号链接，后面所有比较都用真实路径。
+        let realRoot = rootDirectory.resolvingSymlinksInPath().standardizedFileURL
+        self.rootDirectory = realRoot
         super.init()
 
         let config = WKWebViewConfiguration()
@@ -66,7 +71,7 @@ final class WebPreviewController: NSObject, ObservableObject {
     }
 
     func load(_ url: URL) {
-        webView.loadFileURL(url, allowingReadAccessTo: rootDirectory)
+        webView.loadFileURL(url.resolvingSymlinksInPath(), allowingReadAccessTo: rootDirectory)
     }
 
     func goBack() { webView.goBack() }
@@ -83,7 +88,8 @@ final class WebPreviewController: NSObject, ObservableObject {
     /// 该 URL 是否属于本次预览的可读范围（同目录解出来的资源）
     private func isInsideRoot(_ url: URL) -> Bool {
         guard url.isFileURL else { return false }
-        let path = url.standardizedFileURL.path
+        // 必须解析符号链接：/var 与 /private/var 指向同一目录但字面不同（v211 白屏根因）
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
         let root = rootDirectory.path
         return path == root || path.hasPrefix(root + "/")
     }

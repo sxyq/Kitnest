@@ -785,21 +785,9 @@ public struct MonitorDetailView: View {
         let used = stats.diskTotalBytes > stats.diskFreeBytes ? stats.diskTotalBytes - stats.diskFreeBytes : 0
         let purgeable = MonitorDiskSpace.purgeableBytes(freeBytes: stats.diskFreeBytes)
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("读取").font(.system(size: 11)).foregroundStyle(MonitorColors.read)
-                    Text(MonitorFormat.rate(sample.diskRead))
-                        .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("写入").font(.system(size: 11)).foregroundStyle(MonitorColors.write)
-                    Text(MonitorFormat.rate(sample.diskWrite))
-                        .font(.system(size: 14, weight: .semibold).monospacedDigit())
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
+            // v211（用户：「最顶上的读取和写入两个数字要删掉，因为下面有，重复了」）：
+            // 原来页首两个大号实时读写速率与下面「峰值读取 / 峰值写入」及读写历史重复，
+            // 现在直接从「读写历史」开始；实时速率仍可在状态栏部件/STATS 里看。
             MonitorSectionTitle("读写历史")
             // v183：读写**共享同一 Y 轴量程**。原来两条线各自归一化，
             // 写入量只有读取的 1/10 时也会画成一样高——图不可信。
@@ -845,28 +833,31 @@ public struct MonitorDetailView: View {
                     }
                     .font(.system(size: 11))
                     MonitorRow(label: "总量", value: MonitorFormat.bytes(stats.diskTotalBytes))
-                    if purgeable > 0 {
-                        Text("「可清除」是系统按需腾出的空间（本地快照 / 缓存 / 废纸篓），已算在「已用」里。")
+                    // v211（用户：「总容量条下面那一串话需要删掉」）：删掉「可清除」的说明长句。
+                }
+
+                // v211（用户：「添加一个按钮，可以打开存储管理面板」）：
+                // 入口放在容量构成正下方——看完占用就能顺手打开全盘索引。
+                Button {
+                    StorageManagerWindowController.shared.show()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "externaldrive.connected.to.line.below")
+                            .font(.system(size: 11, weight: .medium))
+                        Text("打开存储管理")
+                            .font(.system(size: 11.5, weight: .medium))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
                             .font(.system(size: 10))
                             .foregroundStyle(Theme.tertiaryText)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
+                    .glassCard(radius: Theme.Radius.control)
                 }
-            }
-
-            // 详情（文件系统/连接类型/型号——官方同源）
-            if !stats.diskFileSystem.isEmpty || !stats.diskInterconnect.isEmpty || !stats.diskModel.isEmpty {
-                MonitorSectionTitle("详情")
-                if !stats.diskFileSystem.isEmpty {
-                    MonitorRow(label: "文件系统", value: stats.diskFileSystem)
-                }
-                if !stats.diskInterconnect.isEmpty {
-                    MonitorRow(label: "连接类型", value: stats.diskInterconnect)
-                }
-                if !stats.diskModel.isEmpty {
-                    MonitorRow(label: "型号", value: stats.diskModel)
-                        .lineLimit(1)
-                }
+                .buttonStyle(.plain)
+                .help("全盘索引、按气泡图下钻、把不需要的文件移到废纸篓")
             }
 
             // NVMe SMART（官方 updateSMARTInterval 30s 缓存）
@@ -897,6 +888,22 @@ public struct MonitorDetailView: View {
             Text("统计来源：IOKit IOBlockStorageDriver + NVMe SMART 插件接口（官方同源）")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+
+            // v211（用户：「把这个存储详情移到最后」）：文件系统/连接类型/型号
+            // 从容量构成下方挪到整页末尾，先看动态数据，静态规格收尾。
+            if !stats.diskFileSystem.isEmpty || !stats.diskInterconnect.isEmpty || !stats.diskModel.isEmpty {
+                MonitorSectionTitle("详情")
+                if !stats.diskFileSystem.isEmpty {
+                    MonitorRow(label: "文件系统", value: stats.diskFileSystem)
+                }
+                if !stats.diskInterconnect.isEmpty {
+                    MonitorRow(label: "连接类型", value: stats.diskInterconnect)
+                }
+                if !stats.diskModel.isEmpty {
+                    MonitorRow(label: "型号", value: stats.diskModel)
+                        .lineLimit(1)
+                }
+            }
         }
     }
 
@@ -937,24 +944,10 @@ public struct MonitorDetailView: View {
                 if !stats.fans.isEmpty {
                     MonitorSectionTitle("风扇")
                     ForEach(stats.fans) { fan in
-                        HStack(spacing: 8) {
-                            Text(fan.name)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 92, alignment: .leading)
-                                .lineLimit(1)
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Color.primary.opacity(0.1))
-                                    RoundedRectangle(cornerRadius: 2, style: .continuous).fill(MonitorColors.temperature)
-                                        .frame(width: geo.size.width * fan.percent)
-                                }
-                            }
-                            .frame(height: 6)
-                            Text(StatsFormat.rpm(fan.rpm))
-                                .font(.system(size: 11).monospacedDigit())
-                                .frame(width: 76, alignment: .trailing)
-                        }
+                        sensorBarRow(name: fan.name,
+                                     valueText: StatsFormat.rpm(fan.rpm),
+                                     ratio: fan.percent,
+                                     color: MonitorColors.temperature)
                     }
                 }
 
@@ -1056,27 +1049,37 @@ public struct MonitorDetailView: View {
         }
     }
 
-    /// 温度行：名称 + 进度条 + 数值（Bar 规格对齐注入版 FSPUSensorRow）
+    /// 传感器行：名称 + 进度条 + 数值（Bar 规格对齐注入版 FSPUSensorRow）
+    ///
+    /// v211（用户：「温度相关的具体名称显示不完全，那个条可能太长了，可以缩短一点，
+    /// 让文字显示完整」）：原来名称固定 92pt + lineLimit(1)，像 "CPU Core 3 Performance"
+    /// 这类名字被截成 "CPU Core 3 P…"；进度条却吃掉了整行剩余宽度。
+    /// 现在把条压到 68pt 定宽，名称列放宽到 168pt 且允许两行 + 字号下浮兜底，
+    /// 完整名称始终可读（hover 还有 .help 全文）。风扇行复用同一个函数，两处不再各写一套。
     private func sensorBarRow(name: String, valueText: String, ratio: Double, color: Color) -> some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .center, spacing: 8) {
             Text(name)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .frame(width: 92, alignment: .leading)
-                .lineLimit(1)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 168, alignment: .leading)
+                .help(name)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(Color.primary.opacity(0.1))
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(color)
-                        .frame(width: max(2, geo.size.width * ratio))
+                        .frame(width: max(2, min(geo.size.width, geo.size.width * ratio)))
                 }
             }
-            .frame(height: 6)
+            .frame(width: 68, height: 6)
             Text(valueText)
                 .font(.system(size: 11).monospacedDigit())
-                .frame(width: 70, alignment: .trailing)
+                .frame(width: 62, alignment: .trailing)
+            Spacer(minLength: 0)
         }
     }
 

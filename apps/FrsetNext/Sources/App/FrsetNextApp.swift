@@ -249,6 +249,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()
+            case "storage":
+                // v211 排障/直达：kitnest://storage —— 直接打开存储管理面板，
+                // 便于无 UI 自动化环境下核对气泡地图、扫描进度与缓存加载。
+                // ?scan=1 额外触发一次扫描（无人值守验证全盘索引用）。
+                let autoScan = comps?.queryItems?.first(where: { $0.name == "scan" })?.value == "1"
+                StorageManagerWindowController.shared.show(autoScan: autoScan)
             case "castpair":
                 // v166.5 排障/直达：打开面板并弹出「连接手机」弹层。
                 // 等一个 runloop 再发通知——面板刚建好时 CastView 还没 onAppear，
