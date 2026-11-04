@@ -116,6 +116,8 @@ struct StorageManagerRootView: View {
     @Stored private var agentKind: CleanupAgent = .generic
     /// 深链下钻的待办：窗口刚显示时缓存可能还没读完（snapshot 为 nil），先记下来
     @Stored private var pendingDrill: String?
+    /// 首次进面板是否已经自动落到有内容的一层
+    @Stored private var didAutoLand = false
 
     private var currentNode: DiskNode? {
         stack.last ?? store.snapshot?.root
@@ -182,11 +184,15 @@ struct StorageManagerRootView: View {
             }
         }
         .onChange(of: store.snapshot?.scannedAt) { _ in
-            guard let name = pendingDrill,
-                  let root = store.snapshot?.root,
-                  let target = root.children.first(where: { $0.name == name }) else { return }
-            stack = drillChain(to: target)
-            pendingDrill = nil
+            if let name = pendingDrill,
+               let root = store.snapshot?.root,
+               let target = root.children.first(where: { $0.name == name }) {
+                stack = drillChain(to: target)
+                pendingDrill = nil
+                didAutoLand = true
+                return
+            }
+            autoLandIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .storageOpenAgent)) { _ in
             showAgentSheet = true
@@ -571,6 +577,25 @@ struct StorageManagerRootView: View {
             current = biggest
         }
         return chain
+    }
+
+    /// 首次打开自动落到最大的一层
+    ///
+    /// 根目录只有 5~6 个顶级目录（Users / private / Applications / usr / Library…），
+    /// 堆块图会显得很空，和截图那种十几个块的密度差很远。
+    /// 打开时直接进最大的目录链（通常是 /Users/<name>），首屏就有十几个块；
+    /// 面包屑的「根」随时可以退回全盘。
+    private func autoLandIfNeeded() {
+        guard !didAutoLand, stack.isEmpty, let root = store.snapshot?.root else { return }
+        didAutoLand = true
+        guard let biggest = root.children
+            .filter({ $0.isDirectory && $0.size > 0 })
+            .max(by: { $0.size < $1.size }) else { return }
+        let chain = drillChain(to: biggest)
+        // 只有确实能展开出更多块时才落进去，避免落到一个空目录
+        if chain.count > 1 || (chain.last?.children.count ?? 0) >= 4 {
+            stack = chain
+        }
     }
 
     // MARK: 让 Agent 清理（v212）
