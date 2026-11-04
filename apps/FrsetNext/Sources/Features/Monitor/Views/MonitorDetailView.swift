@@ -793,17 +793,39 @@ public struct MonitorDetailView: View {
             // 写入量只有读取的 1/10 时也会画成一样高——图不可信。
             let diskPeak = MonitorChartScale.niceCeiling(
                 max(sampler.history.diskRead.max() ?? 0, sampler.history.diskWrite.max() ?? 0))
-            ZStack {
-                MonitorAreaSparkline(values: sampler.history.diskRead,
-                                     color: MonitorColors.read,
+            ZStack(alignment: .topLeading) {
+                // 三层顺序（用户：「统计图的线条是可以覆盖在它上面的」）：
+                // ① 面积填充在最底 → ② 按钮压在填充上（文字不会被色块糊住）
+                // → ③ 折线画在最顶，从按钮上面穿过去。
+                ZStack {
+                    MonitorAreaSparkline(values: sampler.history.diskRead,
+                                         color: MonitorColors.read,
+                                         upperBound: diskPeak,
+                                         slots: MonitorSampler.historyCapacity)
+                    MonitorSparkline(values: sampler.history.diskWrite,
                                      upperBound: diskPeak,
                                      slots: MonitorSampler.historyCapacity)
+                        .stroke(MonitorColors.write, style: StrokeStyle(lineWidth: 1.5,
+                                                                        lineCap: .round, lineJoin: .round))
+                }
+                // 让点击穿透到上面的按钮（Shape 的填充区默认会吃掉 hitTest）
+                .allowsHitTesting(false)
+                .frame(height: 52)
+
+                storageEntryButton
+                    .padding(.top, 3)
+                    .padding(.leading, 2)
+
+                // 顶层再画一遍写入折线，盖在按钮上方
                 MonitorSparkline(values: sampler.history.diskWrite,
                                  upperBound: diskPeak,
                                  slots: MonitorSampler.historyCapacity)
                     .stroke(MonitorColors.write, style: StrokeStyle(lineWidth: 1.5,
                                                                     lineCap: .round, lineJoin: .round))
+                    .allowsHitTesting(false)
+                    .frame(height: 52)
             }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .frame(height: 52)
 
             MonitorRow(label: "峰值读取", value: MonitorFormat.rate(MonitorExtra.current.diskPeakRead), color: MonitorColors.read)
@@ -835,38 +857,7 @@ public struct MonitorDetailView: View {
                     MonitorRow(label: "总量", value: MonitorFormat.bytes(stats.diskTotalBytes))
                     // v211（用户：「总容量条下面那一串话需要删掉」）：删掉「可清除」的说明长句。
                 }
-
-                // v211（用户：「添加一个按钮，可以打开存储管理面板」）：
-                // 入口放在容量构成正下方——看完占用就能顺手打开全盘索引。
-                // v212（用户：「这个按钮需要进一步优化，它那个圆角不符合我们的设计规范」）：
-                // 原来是一个 30pt 高、8pt 圆角的整行灰卡（glassCard 是「内容卡片」语义，
-                // 用在按钮上像一块面板而不是可点的动作）。改为左对齐胶囊按钮，
-                // 与存储面板里的「建立索引」同一套（accent 淡底 + 描边 + 28pt 高）。
-                HStack {
-                    Button {
-                        StorageManagerWindowController.shared.show()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "externaldrive.connected.to.line.below")
-                                .font(.system(size: 11, weight: .medium))
-                            Text("打开存储管理")
-                                .font(.system(size: 11.5, weight: .semibold))
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 9, weight: .semibold))
-                                .opacity(0.65)
-                        }
-                        .foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 12)
-                        .frame(height: 28)
-                        .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.11)))
-                        .overlay(Capsule(style: .continuous)
-                            .strokeBorder(Theme.accent.opacity(0.22), lineWidth: 0.8))
-                        .contentShape(Capsule(style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .help("全盘索引、按堆块下钻、把不需要的文件移到废纸篓")
-                    Spacer(minLength: 0)
-                }
+                // v215：入口按钮移到上方「读写历史」图的左上角（不再单独占一行）。
             }
 
             // NVMe SMART（官方 updateSMARTInterval 30s 缓存）
@@ -914,6 +905,42 @@ public struct MonitorDetailView: View {
                 }
             }
         }
+    }
+
+    /// 存储管理入口（v215）
+    ///
+    /// 用户：「圆角不对，在当前比例下的圆角不对，按钮周围有一圈蓝色的框，
+    /// 需要和周围的 UI 一致；不要单独在一行，放在统计图的左上角」。
+    ///   · 20pt 高的小按钮配 `Radius.chip`（6pt）—— 之前 28pt 高配胶囊（半径 14）
+    ///     在监测面板这种紧凑密度里过于「胶囊」，跟周围的方正行不搭；
+    ///   · `focusable(false)` 去掉键盘焦点环（那圈蓝框）；
+    ///   · 由调用方放进 ZStack 底层，折线覆盖在它上面。
+    private var storageEntryButton: some View {
+        Button {
+            StorageManagerWindowController.shared.show()
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "externaldrive")
+                    .font(.system(size: 9.5, weight: .semibold))
+                Text("存储管理")
+                    .font(.system(size: 10.5, weight: .semibold))
+            }
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, 8)
+            .frame(height: 20)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                    .fill(Theme.accent.opacity(0.10))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                    .strokeBorder(Theme.accent.opacity(0.18), lineWidth: 0.6)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help("全盘索引、按堆块下钻、把不需要的文件移到废纸篓")
     }
 
     // MARK: - 温度（传感器：官方名表 + 分类型分节 + 计算项 + 多风扇）
