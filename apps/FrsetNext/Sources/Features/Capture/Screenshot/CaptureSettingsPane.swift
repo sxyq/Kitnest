@@ -21,6 +21,12 @@ public struct CaptureSettingsPane: View {
     @Stored private var wmTile: Bool
     @Stored private var wmOpacity: Double
     @Stored private var wmAngle: Double
+    /// v233：钉图外观（对齐 1Capture 的 DecorateModel）
+    @Stored private var pinBorderWidth: Double
+    @Stored private var pinBorderColor: String
+    @Stored private var pinCorner: Double
+    @Stored private var pinShadow: Bool
+    @Stored private var pinMagnet: Bool
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -43,6 +49,11 @@ public struct CaptureSettingsPane: View {
         _wmTile = Stored(wrappedValue: Watermark.tile)
         _wmOpacity = Stored(wrappedValue: Watermark.opacity)
         _wmAngle = Stored(wrappedValue: Watermark.angle)
+        _pinBorderWidth = Stored(wrappedValue: PinStyle.borderWidth)
+        _pinBorderColor = Stored(wrappedValue: PinStyle.borderColorToken)
+        _pinCorner = Stored(wrappedValue: PinStyle.cornerRadius)
+        _pinShadow = Stored(wrappedValue: PinStyle.shadow)
+        _pinMagnet = Stored(wrappedValue: PinStyle.magnet)
     }
 
     public var body: some View {
@@ -119,6 +130,39 @@ public struct CaptureSettingsPane: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section("钉图") {
+                HStack {
+                    Text("描边")
+                    Slider(value: $pinBorderWidth, in: 0...6, step: 0.5)
+                    Text(pinBorderWidth == 0 ? "无" : String(format: "%.1f pt", pinBorderWidth))
+                        .monospacedDigit()
+                        .frame(width: 52, alignment: .trailing)
+                }
+                .onChange(of: pinBorderWidth) { newValue in PinStyle.borderWidth = newValue }
+                Picker("描边颜色", selection: $pinBorderColor) {
+                    Text("自动（按底色反色）").tag("auto")
+                    Text("白色").tag("white")
+                    Text("黑色").tag("black")
+                    Text("强调色").tag("accent")
+                }
+                .onChange(of: pinBorderColor) { newValue in PinStyle.borderColorToken = newValue }
+                HStack {
+                    Text("圆角")
+                    Slider(value: $pinCorner, in: 0...24, step: 1)
+                    Text("\(Int(pinCorner))")
+                        .monospacedDigit()
+                        .frame(width: 52, alignment: .trailing)
+                }
+                .onChange(of: pinCorner) { newValue in PinStyle.cornerRadius = newValue }
+                Toggle("窗口阴影", isOn: $pinShadow)
+                    .onChange(of: pinShadow) { newValue in PinStyle.shadow = newValue }
+                Toggle("拖动时吸附到屏幕边缘与其它钉图", isOn: $pinMagnet)
+                    .onChange(of: pinMagnet) { newValue in PinStyle.magnet = newValue }
+                Text("钉住后悬停图片，底边会浮出控制条（标注 / 拷贝 / 更多 / 缩放），左上角是关闭。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
 
             Section("文字识别") {

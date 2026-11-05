@@ -211,7 +211,7 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
         // 底部按钮
         let copy = NSButton(title: "复制", target: self, action: #selector(copyTapped))
         let save = NSButton(title: "保存", target: self, action: #selector(saveTapped))
-        let pin = NSButton(title: "贴图", target: self, action: #selector(pinTapped))
+        let pin = NSButton(title: "钉住", target: self, action: #selector(pinTapped))
         for (index, button) in [copy, save, pin].enumerated() {
             button.bezelStyle = .rounded
             button.frame = NSRect(x: 494 + CGFloat(index) * 88, y: 14, width: 80, height: 30)

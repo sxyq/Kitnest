@@ -306,6 +306,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                                                   text: text)
                     }
                 }
+            case "pin":
+                // v233 排障：kitnest://pin?file=… 直接把一张图钉到屏幕，
+                // 用于核对控制条位置、关闭按钮、描边与悬停显隐。
+                // ?probe=annotate|copy|more|zoom|close|grip|menu 直接展示对应气泡/列表
+                // （本机 CGEvent 鼠标移动权限不稳定时靠它做确定性验收）
+                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                let probe = comps?.queryItems?.first(where: { $0.name == "probe" })?.value
+                if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)) {
+                    PinnedScreenshotManager.shared.show(image: img)
+                    Log.info("App", "钉图排障：\(img.width)×\(img.height) probe=\(probe ?? "-")")
+                    if let probe {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                            PinnedScreenshotManager.shared.probeLast(probe)
+                        }
+                    }
+                } else {
+                    Log.warn("App", "pin：需要 ?file= 指定图片")
+                }
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()

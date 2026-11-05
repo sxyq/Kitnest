@@ -85,7 +85,8 @@ public enum CaptureActionChain {
                 Toast.show("已保存", icon: "checkmark.circle.fill")
                 _ = url
             },
-            CaptureActionTool(id: "pin", title: "贴图", systemImage: "pin.fill", key: "p") { image, _ in
+            // v233：按 1Capture 的叫法统一成「钉住」（原来叫「贴图」）
+            CaptureActionTool(id: "pin", title: "钉住", systemImage: "pin.fill", key: "p") { image, _ in
                 PinnedScreenshotManager.shared.show(image: image)
                 Toast.show("已钉在屏幕上", icon: "pin.fill")
             },
