@@ -260,12 +260,23 @@ struct PanelRootView: View {
     // 原实现用 ZStack 把「左图标组 + 齿轮」（下层）与「居中的三段分段」（上层）叠在一起。
     // 面板宽 360~400pt 时，分段总宽 ≈204pt、两侧各只剩 ≈78~98pt，而左侧图标组
     // （3×22 + 2×20 spacing ≈ 106pt）比余量更宽 → 分段整块压在截图/取色/悬浮剪贴板
-    // 图标上（用户实拍重叠）。现改为**单行顺序排布**：图标组 │ 分段（可伸缩）│ 齿轮，
-    // 并收紧图标间距与分段内边距，保证 360pt（fontScale 0.9）下仍有余量。
+    // 图标上（用户实拍重叠）。现改为**三段式自绘布局**（见 PanelToolbarLayout）：
+    // 图标组贴左、齿轮贴右、分段在整条工具条上居中；只有居中会压到两侧时才向外让位。
+    //
+    // v236（2026-11-06 用户：「顶部的主页监测没有居中，它是可以开关部分的，
+    // 开关之后还是要保持正确的居中」）：v84 用的 HStack + 两个 Spacer 只能保证
+    // 「分段居中于左组与齿轮**之间**的剩余空间」——左组 90pt、齿轮 22pt，两者不等，
+    // 于是分段中心恒定右偏 (90-22)/2 = 34pt。实测面板 360pt 时「主页」胶囊中心
+    // 落在 193.8pt（面板正中 180pt），肉眼一眼看出偏右。
+    // 分段本身随「设置 → 主面板页面」开关增删，宽度会变；Layout 的居中规则与宽度无关，
+    // 所以开关之后仍然居中。
     private var toolbar: some View {
-        HStack(spacing: 8) {
+        PanelToolbarLayout(minGap: 6) {
             // 左侧三个动作图标（原版：截图、取色 ⌥C、悬浮剪贴板）
-            HStack(spacing: 12) {
+            // v236.1：分段开到 4 个时图标间距从 12 收到 8——左组宽度直接决定
+            // 「居中带」的宽度（2×(面板半宽 − 左组 − 间距)），四段全开时它是唯一
+            // 卡脖子的量。省下的 8pt 全给分段，居中就不用再拿文字去换。
+            HStack(spacing: enabledPages.count >= 4 ? 8 : 12) {
                 captureAction
                 captureButton("eyedropper", title: "取色 ⌥C", mode: .color)
                 Button {
@@ -282,14 +293,10 @@ struct PanelRootView: View {
                 .help("悬浮剪贴板")
                 .accessibilityLabel("悬浮剪贴板")
             }
-            Spacer(minLength: 2)
             // 中间分段（原版胶囊式：选中项浅蓝底）。
-            // 不设 fixedSize（那会阻止缩字导致溢出）：320pt（最小面板宽）下
-            // 文字按 minimumScaleFactor 0.8 兜底缩放，绝不回落到与左右图标
-            // 重叠的旧 ZStack 行为。
+            // 窄面板下的缩字由 PanelToolbarLayout 按「可用宽度」提案触发
+            // Text 的 minimumScaleFactor 兜底，不会与左右图标重叠。
             pageSegments
-                .layoutPriority(1)
-            Spacer(minLength: 2)
             // 齿轮菜单（官方原版 1:1，2026-10-18 实测截图）：
             // 置顶窗口 ⌘P / 悬浮剪贴板 ⇧⌘V / ─ / 暂停记录剪贴板 /
             // 设置 ⌘, / 使用统计 / ─ / 退出 ⌘Q
@@ -438,12 +445,15 @@ struct PanelRootView: View {
         Button(action: action) {
             // v84：字号 12→11、内边距 12/4→9/3（面板 360pt 宽时与左右图标组共存，
             // 避免三段时间排不下被压缩或压住图标）
+            // v236.1：横向再收到 7——四段全开时理想宽度 148pt，而 360pt 面板
+            // （内容宽 332、左组 82、齿轮 22）留给居中的带宽只有 156pt，
+            // 收窄后「居中」与「不截断文字」可以同时满足，不用二选一。
             Text(title)
                 .font(.system(size: 11, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.accent : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .padding(.horizontal, 9)
+                .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .background {
                     if selected {
@@ -483,7 +493,12 @@ struct PanelRootView: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .fixedSize()
+        // v236.1：此前用 `.fixedSize()`，borderless Menu 会按自身内边距算出
+        // 比图标更大的宽度（实测左组因此涨到 ≈104pt），把「居中带」压到 132pt——
+        // 比四段分段的理想宽度 148pt 还窄，SwiftUI 只能把第一个 Text 截成「…」
+        // （实测截图）。这里用显式 frame 把菜单按钮的真实占位钉回 22pt，
+        // 左组回到 82pt，居中带回到 156pt，四段完整放得下。
+        .frame(width: 22, height: 22)
         .focusable(false)
         .foregroundStyle(.secondary)
         .tint(.secondary)      // Menu 图标默认取 accent 色（截图钮显示为粉红），统一为次级灰
@@ -756,3 +771,98 @@ struct PanelRootView: View {
 
 // MARK: - 页面过渡（v136：改按页实例化后，pageTransition(active:) 已弃用——
 // 常驻层淡入淡出是「每帧合成全部页面」的根源；过渡改由 .transition(.opacity) 承担）
+
+// MARK: - 顶栏三段式布局（v236）
+
+/// 面板顶栏布局：**左图标组贴左、齿轮贴右、中间分段在整条工具条上居中**。
+///
+/// 为什么不用 `HStack + Spacer`：这样 Spacer 均分的只是「左组与齿轮**之后**」的剩余空间，
+/// 左右两组宽度不等时中间那块必然偏移。实测左组 90pt（3×22 图标 + 2×12 间距）、
+/// 齿轮 22pt，于是分段中心恒定右偏 34pt（用户：「顶部的主页监测没有居中」）。
+/// 而分段本身随「设置 → 主面板页面」开关增删，宽度一直在变，所以需要一条
+/// **与分段宽度无关**的居中规则。
+///
+/// 摆放规则：
+/// 1. 中间块的中心 = 工具条中心；
+/// 2. 若居中会压到左右两组，则按 `minGap` 向外让位（只有面板被压到极窄
+///    且四段全开时才会发生）——宁可轻微偏一点，也绝不重叠。
+private struct PanelToolbarLayout: Layout {
+    /// 中间块与左右两组之间至少留出的间距
+    var minGap: CGFloat = 6
+    /// 排障日志配额（只在 probe.toolbarLayout 打开时消耗，避免每帧刷日志）
+    private static var logBudget = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let idealHeight = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 22
+        return CGSize(width: proposal.width ?? 0,
+                      height: proposal.height ?? idealHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
+                       subviews: Subviews, cache: inout ()) {
+        // 正常就是三段（左组 / 分段 / 齿轮）；数量不对时退化为等距排列，不做居中
+        guard subviews.count == 3 else {
+            var x = bounds.minX
+            for view in subviews {
+                let size = view.sizeThatFits(.unspecified)
+                view.place(at: CGPoint(x: x, y: bounds.midY - size.height / 2),
+                           proposal: ProposedViewSize(size))
+                x += size.width + minGap
+            }
+            return
+        }
+
+        let leading = subviews[0], middle = subviews[1], trailing = subviews[2]
+        let leadingSize = leading.sizeThatFits(.unspecified)
+        let trailingSize = trailing.sizeThatFits(.unspecified)
+        // 先按**理想宽度**量中间块。v236.1：此前直接按「居中允许的最大宽度」提方案，
+        // 一旦这个值小于理想宽度，HStack 会把第一个 Text 压到连 0.8 缩字都放不下，
+        // 于是「主页」被截成「…」（实测截图确认）。居中不能以牺牲文字为代价。
+        let middleIdeal = middle.sizeThatFits(.unspecified)
+
+        // 「居中」是硬约束：中间块宽度 W 时，左缘 = 中心 - W/2 必须让开左组，
+        // 所以 W/2 ≤ 左侧到中心的余量，右侧同理。取两侧较小值就是居中允许的最大半宽。
+        let leftHalf = bounds.midX - (bounds.minX + leadingSize.width + minGap)
+        let rightHalf = (bounds.maxX - trailingSize.width - minGap) - bounds.midX
+        let centerHalfMax = max(0, min(leftHalf, rightHalf))
+        let centeredMax = centerHalfMax * 2
+        let sideAvailable = max(0, bounds.width - leadingSize.width - trailingSize.width - 2 * minGap)
+
+        var middleSize = middleIdeal
+        var middleProposal = ProposedViewSize(middleIdeal)
+        if middleIdeal.width > sideAvailable {
+            // 只有「左右两组之间真的塞不下」才收紧——收紧就必然会缩字，
+            // 所以宁可窄面板下轻微让位一两像素，也不为了凑居中把文字截成「…」。
+            let target = max(1, sideAvailable)
+            let fitted = middle.sizeThatFits(ProposedViewSize(width: target, height: bounds.height))
+            middleSize = CGSize(width: min(fitted.width, target), height: fitted.height)
+            middleProposal = ProposedViewSize(middleSize)
+        }
+
+        leading.place(at: CGPoint(x: bounds.minX, y: bounds.midY - leadingSize.height / 2),
+                      proposal: ProposedViewSize(leadingSize))
+        trailing.place(at: CGPoint(x: bounds.maxX - trailingSize.width,
+                                   y: bounds.midY - trailingSize.height / 2),
+                       proposal: ProposedViewSize(trailingSize))
+
+        let centered = bounds.midX - middleSize.width / 2
+        let minX = bounds.minX + leadingSize.width + minGap
+        let maxX = bounds.maxX - trailingSize.width - minGap - middleSize.width
+        // 装得下就绝对居中；两边真的挤到没有余量（minX > maxX）时保持居中，
+        // 让中间块与自己那一侧的图标轻微重叠——视觉上仍是对称的，比整体右移更容易接受。
+        let x = minX <= maxX ? min(max(centered, minX), maxX) : centered
+        middle.place(at: CGPoint(x: x, y: bounds.midY - middleSize.height / 2),
+                     proposal: middleProposal)
+
+        // 排障：`defaults write com.sxyq.frsetnext probe.toolbarLayout -bool YES`
+        // 打开后在日志里看到真实测得的宽度与偏移，便于核对「开关分段后是否还居中」。
+        if UserDefaults.standard.bool(forKey: "probe.toolbarLayout"), Self.logBudget > 0 {
+            Self.logBudget -= 1
+            let offset = (x + middleSize.width / 2) - bounds.midX
+            Log.info("Panel", String(
+                format: "顶栏布局：宽%.0f 左组%.0f 齿轮%.0f 分段(理想%.0f/实际%.0f) 居中带%.0f 偏移%.1fpt",
+                bounds.width, leadingSize.width, trailingSize.width,
+                middleIdeal.width, middleSize.width, centeredMax, offset))
+        }
+    }
+}
