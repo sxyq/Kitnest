@@ -267,47 +267,55 @@
      数据全部是写死的演示条目，对应真机里预灌进剪贴板的那几条
      （JSON / Markdown / Swift / Python / 图片 / 链接 / 文字），不碰用户真实剪贴板。
   */
+  /*
+     剪贴板条目：内容是**真实可渲染的样例**（JSON / Markdown / Swift / Python / 图片 / 链接），
+     预览按真机 PreviewPopoverContentModel.classify 的分态渲染。
+     数据全部虚构，不含任何真实用户内容。
+  */
   var CLIP_ITEMS = [
-    { id: "c1", kind: "url", badge: "chrome", app: "Safari",
+    { id: "c1", kind: "url", badge: "chrome",
       title: "https://example.com/kitnest/release",
       meta: "今天 12:15 · 32 个字符",
-      view: "link",
-      preview: '<span class="pv-kind">链接</span><code>https://example.com/kitnest/release</code><br>双击条目会复制这条链接。' },
-    { id: "c2", kind: "text", badge: "code", app: "备忘录",
+      view: "url",
+      text: "https://example.com/kitnest/release" },
+    { id: "c2", kind: "text", badge: "code",
       title: "周报草稿：第三部分的发布流程还需要补充回滚说明",
       meta: "今天 12:08 · 45 个字符",
       view: "text",
-      preview: '<span class="pv-kind">文字</span>周报草稿：第三部分的发布流程还需要补充回滚说明。' },
-    { id: "c3", kind: "md", badge: "md", app: "备忘录",
+      text: "周报草稿：第三部分的发布流程还需要补充回滚说明。" },
+    { id: "c3", kind: "md", badge: "md",
       title: "# Kitnest 演示仓库（示例内容）",
       meta: "今天 12:08 · 263 个字符",
       view: "markdown",
-      preview: '<span class="pv-kind">Markdown</span><pre># Kitnest 演示仓库（示例内容）\n\n## 功能\n- 剪贴板历史\n- 截图标注\n- 系统监控</pre>' },
-    { id: "c4", kind: "json", badge: "json", app: "访达",
+      text: "# Kitnest 演示仓库\n\n这是一个**用于演示的占位文档**，内容全部虚构。\n\n## 功能\n\n- 剪贴板历史：文字 / 图片 / 文件 / 链接\n- 截图标注：矩形、箭头、马赛克\n- 系统监控：CPU / 内存 / 网络 / 磁盘 / 电池\n\n## 发布流程\n\n1. `bash tools/publish_update.sh`\n2. `bash tools/deploy_site.sh`\n3. 核对 SHA-256 与安装包大小\n\n> 以上为示例内容，不是真实项目文档。\n\n---\n\n相关：[Kitnest 官网](https://example.com/kitnest)" },
+    { id: "c4", kind: "json", badge: "json",
       title: '{ "name": "kitnest-demo.config.json",',
       meta: "今天 12:08 · 647 个字符",
       view: "json",
-      preview: '<span class="pv-kind">JSON</span><pre>{\n  "name": "kitnest-demo.config.json",\n  "app": "kitnest-demo",\n  "version": "1.0.0",\n  "features": {\n    "clipboard": { "keepDays": 30 },\n    "monitor": { "refreshSeconds": 1.5 }\n  }\n}</pre>' },
-    { id: "c5", kind: "code", badge: "code", app: "Xcode",
+      text: '{\n  "name": "kitnest-demo.config.json",\n  "app": "kitnest-demo",\n  "version": "1.0.0",\n  "features": {\n    "clipboard": { "keepDays": 30, "maxSizeMB": 2048 },\n    "monitor": { "refreshSeconds": 1.5, "widgets": ["cpu", "net", "batt"] },\n    "update": { "channel": "stable", "autoCheck": true }\n  },\n  "screenshot": {\n    "hotkeys": { "region": "⌥S", "window": "⇧⌥W", "longshot": "⇧⌥L" },\n    "annotateTools": ["rect", "ellipse", "arrow", "pen", "text", "mosaic"]\n  }\n}' },
+    { id: "c5", kind: "code", badge: "code",
       title: "// Sample.swift —— 演示用代码（假数据）",
       meta: "今天 12:08 · 412 个字符",
       view: "code",
-      preview: '<span class="pv-kind">代码</span><pre>// Sample.swift —— 演示用代码（假数据）\nimport Foundation\n\nstruct ClipItem {\n    let kind: String\n    let title: String\n}</pre>' },
-    { id: "c6", kind: "code", badge: "code", app: "PyCharm",
+      lang: "swift",
+      text: '// Sample.swift —— 演示用代码（假数据）\nimport Foundation\n\n/// 把剪贴板条目按类型分组\nstruct ClipItem {\n    let kind: String\n    let title: String\n}\n\nfunc groupByKind(_ items: [ClipItem]) -> [String: [ClipItem]] {\n    items.reduce(into: [:]) { result, item in\n        result[item.kind, default: []].append(item)\n    }\n}\n\nlet sample = [\n    ClipItem(kind: "text", title: "周报草稿"),\n    ClipItem(kind: "code", title: "Sample.swift"),\n]\nprint(groupByKind(sample))' },
+    { id: "c6", kind: "code", badge: "code",
       title: "# sample.py —— 演示用代码（假数据）",
       meta: "今天 12:08 · 356 个字符",
       view: "code",
-      preview: '<span class="pv-kind">代码</span><pre># sample.py —— 演示用代码（假数据）\nimport hashlib\n\ndef sha256(path: str) -> str:\n    h = hashlib.sha256()\n    with open(path, "rb") as f:\n        for chunk in iter(lambda: f.read(65536), b""):\n            h.update(chunk)\n    return h.hexdigest()</pre>' },
-    { id: "c7", kind: "img", badge: "img", app: "预览",
+      lang: "python",
+      text: '# sample.py —— 演示用代码（假数据）\nimport hashlib\n\n\ndef sha256(path: str) -> str:\n    """计算文件的 SHA-256。""".\n    h = hashlib.sha256()\n    with open(path, "rb") as f:\n        for chunk in iter(lambda: f.read(65536), b""):\n            h.update(chunk)\n    return h.hexdigest()\n\n\nif __name__ == "__main__":\n    print(sha256("demo-config.json"))' },
+    { id: "c7", kind: "img", badge: "img",
       title: "屏幕快照 2026-11-05 14.32.png",
       meta: "今天 11:50 · 1024×1024 pt",
       view: "image",
-      preview: '<span class="pv-kind">图片</span>1024×1024 pt。图片条目会显示缩略图，可以直接贴图或钉在屏幕上。' },
-    { id: "c8", kind: "text", badge: "code", app: "备忘录",
+      text: "1024×1024 pt",
+      ocr: "订单确认\n\n商品：机械键盘 87 键\n数量：1\n金额：¥499.00\n\n客服电话 400-820-8820" },
+    { id: "c8", kind: "text", badge: "code",
       title: "TODO：把安装包校验写进发版脚本",
       meta: "昨天 18:24 · 26 个字符",
       view: "text",
-      preview: '<span class="pv-kind">文字</span>TODO：把安装包校验写进发版脚本。' }
+      text: "TODO：把安装包校验写进发版脚本，顺便把官网的下载页也更新一下。" }
   ];
 
   /*
@@ -456,39 +464,237 @@
 
   var previewAnchorId = null;
 
+  /* ---------------- 预览渲染器（对齐真机 PreviewPopoverContentView） ---------------- */
+
+  function esc(t) {
+    return String(t == null ? "" : t)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  /* JSON：树形视图（真机 JSONInspectorView），键与值分色 */
+  function renderJSONTree(text) {
+    var data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return '<pre class="pv-raw">' + esc(text) + "</pre>";
+    }
+    var out = '<div class="pv-tree">';
+    (function walk(v, depth) {
+      var pad = depth * 10;
+      if (Array.isArray(v)) {
+        out += '<div class="pv-row" style="padding-left:' + pad + 'px"><span class="pv-bracket">[</span></div>';
+        v.forEach(function (item, i) {
+          walk(item, depth + 1);
+          if (i < v.length - 1) out += '<div class="pv-row" style="padding-left:' + (depth + 1) * 12 + 'px"><span class="pv-comma">,</span></div>';
+        });
+        out += '<div class="pv-row" style="padding-left:' + pad + 'px"><span class="pv-bracket">]</span></div>';
+        return;
+      }
+      if (v && typeof v === "object") {
+        out += '<div class="pv-row" style="padding-left:' + pad + 'px"><span class="pv-bracket">{</span></div>';
+        var keys = Object.keys(v);
+        keys.forEach(function (k, i) {
+          out += '<div class="pv-row" style="padding-left:' + (depth + 1) * 12 + 'px">'
+            + '<span class="pv-key">"' + esc(k) + '"</span><span class="pv-colon">:</span>';
+          walk(v[k], depth + 1);
+          if (i < keys.length - 1) out += '<span class="pv-comma">,</span>';
+          out += "</div>";
+        });
+        out += '<div class="pv-row" style="padding-left:' + pad + 'px"><span class="pv-bracket">}</span></div>';
+        return;
+      }
+      var cls = "pv-val";
+      if (typeof v === "string") cls = "pv-str";
+      else if (typeof v === "number") cls = "pv-num";
+      else if (typeof v === "boolean") cls = "pv-bool";
+      else if (v === null) cls = "pv-null";
+      out += '<span class="' + cls + '">' + esc(String(v)) + "</span>";
+    })(data, 0);
+    return out + "</div>";
+  }
+
+  /* 代码：行号 + 语法高亮（真机 CodePreviewView） */
+  var CODE_KW = {
+    swift: ["import", "struct", "func", "let", "var", "return", "for", "in", "if", "else", "print", "default", "class", "enum", "self", "nil", "true", "false", "while", "guard", "init", "static", "public", "private"],
+    python: ["import", "from", "def", "return", "for", "in", "if", "else", "with", "as", "print", "class", "None", "True", "False", "lambda", "try", "except", "while", "break", "continue", "self", "not", "and", "or", "yield", "pass"],
+    json: [], text: [], md: []
+  };
+
+    function highlightLine(line, lang) {
+    var html = esc(line);
+    // 注释（# 与 //）
+    html = html.replace(/(#[^\n]*)$/g, '<span class="c-com">$1</span>');
+    html = html.replace(/(\/\/[^\n]*)$/g, '<span class="c-com">$1</span>');
+    // 字符串
+    html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, '<span class="c-str">$1</span>');
+    // 数字
+    html = html.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="c-num">$1</span>');
+    // 关键字
+    var kws = CODE_KW[lang] || [];
+    kws.forEach(function (k) {
+      html = html.replace(new RegExp("\\b(" + k + ")\\b", "g"), '<span class="c-kw">$1</span>');
+    });
+    return html;
+  }
+
+  function renderCode(text, lang) {
+    var lines = String(text).split("\n");
+    var out = '<div class="pv-code"><table>';
+    lines.forEach(function (ln, i) {
+      out += '<tr><td class="c-ln">' + (i + 1) + '</td><td class="c-src">'
+        + (highlightLine(ln, lang) || "&nbsp;") + "</td></tr>";
+    });
+    return out + "</table></div>";
+  }
+
+  /* Markdown：渲染成正文（真机 MarkdownPreviewBody） */
+  function inlineMD(t) {
+    var html = esc(t);
+    html = html.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    return html;
+  }
+
+    function renderMarkdown(text) {
+    var lines = String(text).split("\n");
+    var out = '<div class="pv-md">';
+    var inList = false, inQuote = false;
+    function closeList() { if (inList) { out += "</ul>"; inList = false; } }
+    function closeQuote() { if (inQuote) { out += "</blockquote>"; inQuote = false; } }
+    lines.forEach(function (ln) {
+      var t = ln.trim();
+      if (!t) { closeList(); closeQuote(); return; }
+      var h = t.match(/^(#{1,4})\s+(.*)$/);
+      if (h) {
+        closeList(); closeQuote();
+        var lvl = Math.min(h[1].length, 4);
+        out += "<h" + lvl + ">" + inlineMD(h[2]) + "</h" + lvl + ">";
+        return;
+      }
+      if (/^(---+|\*\*\*+)$/.test(t)) { closeList(); closeQuote(); out += '<hr class="md-hr">'; return; }
+      if (t.charAt(0) === ">") {
+        closeList();
+        if (!inQuote) { out += "<blockquote>"; inQuote = true; }
+        out += "<p>" + inlineMD(t.replace(/^>\s*/, "")) + "</p>";
+        return;
+      }
+      var li = t.match(/^[-*]\s+(.*)$/);
+      if (li) {
+        closeQuote();
+        if (!inList) { out += "<ul>"; inList = true; }
+        out += "<li>" + inlineMD(li[1]) + "</li>";
+        return;
+      }
+      var oli = t.match(/^\d+\.\s+(.*)$/);
+      if (oli) {
+        closeQuote();
+        if (!inList) { out += "<ol>"; inList = true; }
+        out += "<li>" + inlineMD(oli[1]) + "</li>";
+        return;
+      }
+      closeList(); closeQuote();
+      out += "<p>" + inlineMD(t) + "</p>";
+    });
+    closeList(); closeQuote();
+    return out + "</div>";
+  }
+
+/* 图片：缩略图 + 识别文字 / 翻译（真机 PreviewImageView 的 OCR 按钮） */
+  function renderImage(item) {
+    return '<div class="pv-img">'
+      + '<div class="pv-img-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'
+      + '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.5"/>'
+      + '<path d="m4.5 17.5 4.5-4.5 3.5 3.5 3-3 4 4"/></svg></div>'
+      + '<div class="pv-img-meta">' + esc(item.text || "") + "</div>"
+      + '<div class="pv-img-acts">'
+      + '<button type="button" data-pv-act="ocr">识别文字</button>'
+      + '<button type="button" data-pv-act="translate">翻译</button>'
+      + "</div>"
+      + '<div class="pv-ocr" hidden></div>'
+      + "</div>";
+  }
+
+  /* 预览底部动作行：真机预览可复制，图片可识别 / 翻译 */
+  function renderPreviewFoot(item) {
+    var acts = [];
+    if (item.view === "image") {
+      acts.push('<button type="button" data-pv-act="ocr">识别文字</button>');
+      acts.push('<button type="button" data-pv-act="translate">翻译</button>');
+    }
+    acts.push('<button type="button" data-pv-act="copy">复制</button>');
+    return acts.join("");
+  }
+
+  var PREVIEW_KIND = {
+    text: "文字", url: "链接", markdown: "Markdown", md: "Markdown",
+    json: "JSON", code: "代码", image: "图片", img: "图片", file: "文件"
+  };
+
+  function renderPreviewBody(item) {
+    if (item.view === "json") return renderJSONTree(item.text);
+    if (item.view === "code") return renderCode(item.text, item.lang || "text");
+    if (item.view === "markdown") return renderMarkdown(item.text);
+    if (item.view === "image") return renderImage(item);
+    if (item.view === "url") {
+      return '<div class="pv-text"><span class="pv-url">' + esc(item.text) + "</span></div>";
+    }
+    return '<div class="pv-text">' + esc(item.text || item.title) + "</div>";
+  }
+
   function showPreview(item, anchorEl, pinned) {
     if (!pmPreview || !item) return;
     // 同一行且已显示 → 不重算（真机也有 hover 抑制，避免闪）
     if (previewAnchorId === item.id && !pmPreview.hidden && !pinned) return;
     previewAnchorId = item.id;
     previewPinned = !!pinned;
-    pmPreview.querySelector(".pm-preview-body").innerHTML = item.preview;
+    pmPreview.querySelector(".pm-preview-kind").textContent =
+      PREVIEW_KIND[item.view] || "内容";
+    pmPreview.querySelector(".pm-preview-title").textContent = item.title;
+    pmPreview.querySelector(".pm-preview-body").innerHTML = renderPreviewBody(item);
+    pmPreview.querySelector(".pm-preview-foot").innerHTML = renderPreviewFoot(item);
     pmPreview.hidden = false;
 
-    // 预览在**面板内部**贴着该行向左展开：
-    //   右边缘贴住行的左边缘，向左延伸 width；
-    //   左边越界就贴到内容区左缘（宁可压住列表也不出面板）；
-    //   垂直方向与行对齐，放不下就往上挪。
-    var bodyRect = pmBody.getBoundingClientRect();
-    var bodyH = pmBody.clientHeight;
-    var w = pmPreview.offsetWidth || 178;
-    var h = pmPreview.offsetHeight || 120;
+    // 预览像真机那样飘在**面板左侧**（真机是独立 NSWindow，网页版放在舞台里）：
+    //   右缘贴着面板左缘，向左延伸 width；
+    //   左边越界就贴到舞台左缘（被舞台裁住，不溢出外框）；
+    //   垂直方向与该行对齐。
+    var stage = panelStage();
+    if (!stage) return;
+    var stageRect = stage.getBoundingClientRect();
+    var panelRect = panelMock ? panelMock.getBoundingClientRect() : stageRect;
+    var w = pmPreview.offsetWidth || 214;
+    var h = pmPreview.offsetHeight || 200;
     var rowRect = anchorEl ? anchorEl.getBoundingClientRect() : null;
     if (!rowRect) return;
 
-    var rowTop = rowRect.top - bodyRect.top + pmBody.scrollTop;
-    var rowH = rowRect.height;
-    var rowLeft = rowRect.left - bodyRect.left + pmBody.scrollLeft;
+    // 用 right 定位：面板是 margin-left:auto 靠右，right 定位不受 padding 基准影响。
+    // 预览右缘 = 面板左缘 - gap。
+    var stageCS = getComputedStyle(stage);
+    var padRight = parseFloat(stageCS.paddingRight) || 0;
+    var borderRight = parseFloat(stageCS.borderRightWidth) || 0;
+    var gap = 10;
+    // 预览右缘要落在「面板左缘 - gap」：
+    // 舞台内容宽 = 舞台宽 - padding - border；
+    // 面板左缘距舞台内容右缘 = 舞台内容宽 - (面板左缘 - 内容左缘)
+    // absolute 定位的 containing block 是定位祖先的 **padding box**：
+    // right:0 对应「border 内侧」，padding 不参与。
+    var borderLeft = parseFloat(stageCS.borderLeftWidth) || 0;
+    var contentLeft = stageRect.left + borderLeft;
+    var contentWidth = stageRect.width - borderLeft - borderRight;
+    var panelOffsetInContent = panelRect.left - contentLeft;
+    var right = contentWidth - panelOffsetInContent + gap;
+    pmPreview.style.right = Math.round(right) + "px";
+    pmPreview.style.left = "auto";
 
-    // 向左展开：右缘对齐行的左缘
-    var left = rowLeft - w - 6;
-    if (left < 4) left = 4;
+    // 垂直：与行心对齐，箭头指向行
+    var top = rowRect.top - stageRect.top + rowRect.height / 2 - 22;
+    var maxTop = stageRect.height - h - 6 - padTop(stageCS);
+    if (top + h > maxTop) top = maxTop;
+    if (top < 6) top = 6;
 
-    // 垂直：默认与行顶对齐，太高就往上收
-    var top = rowTop;
-    if (top + h > bodyH - 6) top = Math.max(6, bodyH - h - 6);
-
-    pmPreview.style.left = Math.round(left) + "px";
     pmPreview.style.top = Math.round(top) + "px";
     pmPreview.setAttribute("data-side", "left");
   }
@@ -920,6 +1126,15 @@
     });
   }
 
+  function padTop(cs) {
+    return parseFloat(cs.paddingTop) || 0;
+  }
+
+  function panelStage() {
+    var p = $("#panelMock");
+    return p ? p.parentElement : null;
+  }
+
   function panelHost() {
     var p = $("#panelMock");
     return p || document.body;
@@ -930,6 +1145,31 @@
       if (clipState.items[i].id === id) return clipState.items[i];
     }
     return null;
+  }
+
+  if (pmPreview) {
+    pmPreview.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-pv-act]");
+      if (!btn) return;
+      e.stopPropagation();
+      var act = btn.getAttribute("data-pv-act");
+      if (act === "ocr") {
+        var ocrBox = pmPreview.querySelector(".pv-ocr");
+        var title = pmPreview.querySelector(".pm-preview-title").textContent;
+        var found = null;
+        for (var i = 0; i < clipState.items.length; i++) {
+          if (clipState.items[i].title === title) { found = clipState.items[i]; break; }
+        }
+        if (ocrBox) {
+          ocrBox.hidden = false;
+          ocrBox.innerHTML = '<span class="pv-ocr-title">识别结果</span><pre>'
+            + esc(found && found.ocr ? found.ocr : "未识别到文字") + "</pre>";
+        }
+        return;
+      }
+      if (act === "translate") { toast("翻译已开启"); return; }
+      if (act === "copy") { toast("已复制"); return; }
+    });
   }
 
   if (pmBody) {

@@ -114,7 +114,6 @@
                 <span id="mbPopValue" class="mb-pop-value">23%</span>
               </div>
               <div id="mbPopBody"></div>
-              <p class="mb-pop-note">点空白处关闭</p>
             </div>
 
             <!-- 可交互的主面板（结构按真机 PanelRootView 1:1 还原） -->
@@ -161,11 +160,6 @@
               </div>
 
               <div class="pm-body" id="pmBody">
-                <!-- 剪贴板条目的预览浮层：在面板内部，贴着条目向左展开，不溢出面板 -->
-                <div class="pm-preview" id="pmPreview" hidden>
-                  <div class="pm-preview-body"></div>
-                </div>
-
                 <!-- 主页 -->
                 <div class="pm-page" data-page="home">
                   <!-- 日历卡（真机：白玻璃卡 14 圆角，标题行 + 星期行 + 两周网格） -->
@@ -295,7 +289,17 @@
               </div>
             </div>
 
-            <p class="stage-hint">面板可以直接点：悬停条目出预览，搜索框能过滤，页签能切换</p>
+            <!-- 剪贴板条目的预览浮层：真机是独立 NSWindow 飘在面板左侧，
+                 网页版放在舞台里、贴着面板左缘向左展开，被舞台裁住不溢出 -->
+            <div class="pm-preview" id="pmPreview" hidden>
+              <div class="pm-preview-bar">
+                <span class="pm-preview-kind"></span>
+                <span class="pm-preview-title"></span>
+              </div>
+              <div class="pm-preview-body"></div>
+              <div class="pm-preview-foot"></div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -469,7 +473,7 @@
               <h3>三种截法，截完就能用</h3>
               <p>区域截图 <kbd>⌥S</kbd>、窗口截图 <kbd>⇧⌥W</kbd>（悬停识别窗口，被遮挡的部分也能完整还原）、长截图 <kbd>⇧⌥L</kbd>（自动滚动拼接）。松手后弹出动作条：复制、保存、贴图、识字、翻译、编辑、美化、空投。</p>
 
-              <div class="annotate-mock" aria-label="标注工具条示意">
+              <div class="annotate-mock" aria-label="标注工具条">
                 <span class="am-tool on" title="矩形"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/></svg></span>
                 <span class="am-tool" title="椭圆"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="12" rx="8" ry="6.5"/></svg></span>
                 <span class="am-tool" title="箭头"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5M11 5h8v8"/></svg></span>
@@ -489,7 +493,7 @@
                 <span class="am-sep"></span>
                 <span class="btn" style="padding:5px 12px;font-size:12px;background:#2F6BFF;border-color:#2F6BFF;color:#fff">复制</span>
               </div>
-              <p class="preview-note">标注工具条示意，分成工具区、颜色与粗细、撤销与导出三段。</p>
+              <p class="preview-note">工具区、颜色与粗细、撤销与导出，三段排布。</p>
 
               <ul class="spec-list">
                 <li><span class="k">标注</span><span class="v">矩形、椭圆、箭头、画笔、文字、荧光笔、马赛克、橡皮、抹除</span></li>
@@ -605,8 +609,7 @@
                 <h3>一眼看完今天</h3>
                 <p>顶部四个页签：主页、监测、中转、投屏。搜索框、日历和剪贴板历史依次排下来，底部是搜索和筛选，另外还有标签、编辑和上传。</p>
                 <ul class="shot-points">
-                  <li><b>剪贴板</b>图里是 JSON、Markdown、Swift、Python、图片和链接</li>
-                  <li><b>搜索</b>输入关键词直接过滤，输入 / 变工具启动器</li>
+                  <li><b>剪贴板</b>JSON、Markdown、Swift、Python、图片和链接</li>
                   <li><b>日历</b>公历、农历、节气、节假日同屏</li>
                 </ul>
               </div>
@@ -646,7 +649,6 @@
                 <p>左侧竖排是标注工具，底部是颜色、粗细、撤销和复制。改完直接复制，不用再开别的应用。</p>
                 <ul class="shot-points">
                   <li><b>工具</b>矩形、椭圆、箭头、画笔、文字、荧光、马赛克、橡皮、抹除</li>
-                  <li><b>马赛克</b>按住涂抹即可，圈会跟着光标走</li>
                   <li><b>快捷键</b>R 矩形、O 椭圆、A 箭头、P 画笔、T 文字、H 荧光、M 马赛克</li>
                 </ul>
               </div>
@@ -821,7 +823,7 @@
                   <div class="dl-actions">
                     <button class="btn btn-primary" id="dlButton" type="button">下载安装包</button>
                     <a class="btn" id="dmgLink" href="#" hidden>下载 DMG 安装包</a>
-                    <p class="preview-note" id="dlButtonHint">点击后先检查下载通道，再确认下载须知。</p>
+                    <p class="preview-note" id="dlButtonHint">下载前会先检查通道，再确认下载须知。</p>
                   </div>
                 </div>
               </div>
@@ -892,7 +894,7 @@
             </div>
           </div>
 
-          <p class="preview-note">更早的版本没有公开分发，不在此列出。应用内「检查更新…」看到的条目与这里同源。</p>
+          <p class="preview-note">更早的版本没有公开分发。应用内「检查更新…」与此同源。</p>
         </div>
       </div>
     </section>
