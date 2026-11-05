@@ -69,7 +69,7 @@
               <a class="btn" href="#showcase" data-nav>看看界面</a>
             </div>
             <div class="hero-version" id="heroVersionLine">
-              <strong>当前版本</strong><span id="heroVersionText">v1.0.0 · 安装包约 40 MiB</span>
+              <strong>当前版本</strong><span id="heroVersionText">正在读取版本信息…</span>
               <span>不占 Dock</span>
               <span>数据留在本机</span>
             </div>
@@ -263,6 +263,27 @@
             </div>
 
           </div>
+        </div>
+      </div>
+
+      <!-- v238：首屏与功能区之间的品牌衔接（信任行 + 界面演示入口） -->
+      <div class="hero-bridge" data-reveal>
+        <div class="wrap">
+          <div class="bridge-trust">
+            <span>无账号</span><span>无埋点统计</span><span>数据留在本机</span>
+            <span>SHA-256 校验</span><span>独立分发</span>
+          </div>
+          <a class="bridge-demo" href="#showcase" data-nav>
+            <div class="bridge-demo-copy">
+              <span class="bridge-no">01 / 13</span>
+              <h3>主面板 · 剪贴板历史</h3>
+              <p>复制过的文字、图片、文件和链接，都留在这里。</p>
+              <span class="bridge-go">看全部界面 →</span>
+            </div>
+            <div class="bridge-demo-shot">
+              <img src="assets/gifs/demo-view-panel.gif" alt="主面板 操作演示动图" loading="lazy">
+            </div>
+          </a>
         </div>
       </div>
 
@@ -461,10 +482,9 @@
                 <span class="am-sep"></span>
                 <span class="btn" style="padding:5px 12px;font-size:12px;background:#2F6BFF;border-color:#2F6BFF;color:#fff">复制</span>
               </div>
-              <p class="preview-note">工具区、颜色与粗细、撤销与导出，三段排布。</p>
               <figure class="inline-gif">
                 <img src="assets/gifs/demo-capture.gif" alt="截图与标注操作演示动图" loading="lazy">
-                <figcaption>完整流程动图：⌥S 框选 → 动作条 → 标注 → 复制。画面为模拟内容，不含任何真实数据。</figcaption>
+                <figcaption>⌥S 框选 → 动作条 → 标注 → 复制。</figcaption>
               </figure>
 
               <ul class="spec-list">
@@ -562,7 +582,7 @@
           <div class="section-head">
             <span class="kicker">Demos</span>
             <h2>它长这样。</h2>
-            <p class="lede">六个功能，各有一段真实操作动图。点标签切换。</p>
+            <p class="lede">从主面板、监测页到设置窗口，界面按最新版整理。</p>
           </div>
 
           <div class="shot-tabs" data-stage="shotStage" role="tablist" aria-label="功能演示切换">
@@ -639,100 +659,29 @@
             <a class="btn btn-primary" href="#home" data-nav data-home-demo>打开可交互预览 →</a>
           </p>
 
-          <details class="more-shots">
-            <summary>更多实机截图</summary>
+          <div class="shot-gallery" data-reveal>
+            <div class="gallery-head">
+              <span class="kicker">Interface</span>
+              <h3>界面一览</h3>
+              <p class="lede">主面板、监测页、文件中转、投屏、标注编辑器、CPU 详情窗与设置窗口。</p>
+            </div>
             <div class="more-shots-grid">
           <figure><img src="assets/gifs/demo-view-panel.gif" alt="主面板 操作演示动图" loading="lazy"><figcaption>主面板</figcaption></figure>          <figure><img src="assets/gifs/demo-view-monitor.gif" alt="监测页 操作演示动图" loading="lazy"><figcaption>监测页</figcaption></figure>          <figure><img src="assets/gifs/demo-view-transfer.gif" alt="文件中转 操作演示动图" loading="lazy"><figcaption>文件中转</figcaption></figure>          <figure><img src="assets/gifs/demo-view-cast.gif" alt="投屏 操作演示动图" loading="lazy"><figcaption>投屏</figcaption></figure>          <figure><img src="assets/gifs/demo-view-annotate.gif" alt="标注编辑器 操作演示动图" loading="lazy"><figcaption>标注编辑器</figcaption></figure>          <figure><img src="assets/gifs/demo-view-popout.gif" alt="CPU 详情窗 操作演示动图" loading="lazy"><figcaption>CPU 详情窗</figcaption></figure>
             </div>
-          </details>
+          </div>
 
           <div style="margin-top:26px">
             <figure class="shot-figure">
               <img src="assets/gifs/demo-view-settings.gif" alt="Kitnest 设置窗口 操作演示动图" data-shot-file="assets/gifs/demo-view-settings.gif">
-              <figcaption>设置里能调面板分段（主页 / 监测 / 中转 / 投屏），剪贴板保留期和部件样式也能改，更新源同样在这里。</figcaption>
+              <figcaption>面板分段、剪贴板保留期、部件样式与更新源。</figcaption>
             </figure>
           </div>
         </div>
       </div>
 
-      <div class="section">
-        <div class="wrap">
-          <div class="section-head">
-            <span class="kicker">Download</span>
-            <h2>下载 Kitnest</h2>
-            <p class="lede">版本、体积和校验值都来自官方发布清单，打开页面时实时读取。</p>
-          </div>
-
-          <div class="download-layout">
-            <div class="dl-card">
-              <h3>macOS 安装包</h3>
-              <p class="dl-sub">版本清单 <code>kitnest/stable/latest.json</code></p>
-
-              <div class="manifest-state">
-                <div id="manifestLoading" class="state-loading">
-                  <div class="sl-line" style="width:62%"></div>
-                  <div class="sl-line" style="width:44%"></div>
-                  <div class="sl-line" style="width:78%"></div>
-                  <p class="sl-text">正在读取版本清单…</p>
-                </div>
-
-                <div id="manifestError" class="state-error" hidden>
-                  <b>暂时拿不到版本信息</b>
-                  <p id="manifestErrorDetail">版本清单读取失败。</p>
-                  <button class="btn" id="manifestRetry" type="button">重试</button>
-                </div>
-
-                <div id="manifestReady" hidden>
-                  <ul class="version-table">
-                    <li><span class="k">版本</span><span class="v"><span id="vName">v1.0.0</span> · <span id="vBuild">build 1</span></span></li>
-                    <li><span class="k">安装包大小</span><span class="v" id="vSize">—</span></li>
-                    <li><span class="k">升级条件</span><span class="v dim" id="vMin">—</span></li>
-                    <li><span class="k">发布时间</span><span class="v dim" id="vDate">—</span></li>
-                    <li style="display:block">
-                      <span class="k" style="display:block;margin-bottom:8px">SHA-256 校验值</span>
-                      <span class="sha-box">
-                        <code id="vSha">—</code>
-                        <button class="copy-btn" id="copySha" type="button">复制</button>
-                      </span>
-                    </li>
-                  </ul>
-
-                  <div class="dl-actions">
-                    <button class="btn btn-primary" id="dlButton" type="button">下载安装包</button>
-                    <a class="btn" id="dmgLink" href="#" hidden>下载 DMG 安装包</a>
-                    <p class="preview-note" id="dlButtonHint">下载前会先检查通道，再确认下载须知。</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="dl-card">
-              <h3>装之前，先看三行</h3>
-              <p class="dl-sub">不需要账号，不需要额外运行库。</p>
-              <ol class="steps">
-                <li><b>解压得到 Kitnest.app</b>下载的是 zip 整包，双击解压后把 Kitnest 拖进「应用程序」。</li>
-                <li><b>第一次打开</b>首次启动会弹出欢迎窗，一页看完所有功能；顺手点开「权限引导」，把屏幕录制与辅助功能授了。</li>
-                <li><b>以后自动更新</b>内置官方更新源，启动时静默检查；有新版本会在应用内提示，一键替换并自动重启。</li>
-              </ol>
-
-              <h3 style="margin-top:26px;font-size:15px">运行要求</h3>
-              <ul class="state-list">
-                <li><span class="st-name">系统<small>System</small></span><span class="st-desc">macOS 13 Ventura 或更高版本</span></li>
-                <li><span class="st-name">芯片<small>Chip</small></span><span class="st-desc">Apple Silicon 与 Intel 均可运行</span></li>
-                <li><span class="st-name">安装包<small>Size</small></span><span class="st-desc">当前版本 <span data-pkg-size>约 40 MiB</span></span></li>
-                <li><span class="st-name">分发<small>Distribution</small></span><span class="st-desc">独立分发，不经过 App Store</span></li>
-              </ul>
-
-              <div class="callout warn" style="margin-top:22px">
-                <b>关于「已损坏」提示：</b>如果系统拦截了首次打开，请到「系统设置 → 隐私与安全性」点「仍要打开」。不要用来源不明的第三方重签名版本替换安装包。
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </section>
 
-    <!-- ======================= 更新记录 ======================= -->
+    <!-- ======================= 下载 ======================= -->
     <section class="view" id="view-download">
       <div class="section">
         <div class="wrap">
@@ -779,7 +728,7 @@
                   <div class="dl-actions">
                     <button class="btn btn-primary" id="dlButton" type="button">下载安装包</button>
                     <a class="btn" id="dmgLink" href="#" hidden>下载 DMG 安装包</a>
-                    <p class="preview-note" id="dlButtonHint">下载前会先检查通道，再确认下载须知。</p>
+                    <p class="preview-note" id="dlButtonHint">官方发布源 · SHA-256 校验</p>
                   </div>
                 </div>
               </div>
@@ -863,6 +812,16 @@
             <span class="kicker">Help</span>
             <h2>快捷键与常见问题</h2>
             <p class="lede">快捷键都能在「设置 → 工具与快捷键」里改；下面列的是默认值。</p>
+          </div>
+
+          <div class="onboard" data-reveal>
+            <span class="kicker">Getting started</span>
+            <h3>装好之后的三分钟</h3>
+            <ol class="onboard-steps">
+              <li><b>授权</b><span>欢迎窗里点「权限引导」，勾上屏幕录制与辅助功能。</span></li>
+              <li><b>呼出</b><span>按 <kbd>⌥A</kbd> 打开主面板；复制任意一段文字，它已经在列表里。</span></li>
+              <li><b>按需打开</b><span>在设置里决定哪些分段常驻、菜单栏显示哪几个部件。</span></li>
+            </ol>
           </div>
 
           <div class="help-grid">
@@ -1039,6 +998,13 @@
           <a href="#privacy" data-nav>隐私与安全</a>
           <a href="#download" data-nav>系统要求</a>
         </div>
+      </div>
+      <div class="footer-cta">
+        <div>
+          <h3>一个图标，六件事。</h3>
+          <p>macOS 13+ · Apple Silicon / Intel · 独立分发</p>
+        </div>
+        <a class="btn btn-primary" href="#download" data-nav>下载 for macOS →</a>
       </div>
       <div class="footer-bottom">
         <span>© 2026 Kitnest · 独立开发者作品 · 非 App Store 分发</span>

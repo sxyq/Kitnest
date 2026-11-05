@@ -2059,7 +2059,7 @@
       var hint = $("#dlButtonHint");
       if (hint) {
         hint.textContent = downloadReady
-          ? "点击后先检查下载通道，再确认下载须知。"
+          ? "官方发布源 · SHA-256 校验"
           : "下载链接未通过安全校验，按钮已停用。请通过正式站点访问或稍后重试。";
       }
     }

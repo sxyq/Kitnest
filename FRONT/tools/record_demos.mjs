@@ -119,15 +119,18 @@ await seq('monitor', [
   () => switchMod('cpu'),
 ]);
 
-/* 2b. 主面板界面：真实预览 + 页签切换（静态展示位的 demo-view-panel.gif 用这段） */
+/* 2b. 主面板界面：四个分段真实切换。
+   v238：改成只截 #panelMock。旧版截「面板 + 左侧预览浮层」的并集，
+   中间那片空隙会被一起录进去，放进「界面一览」缩略格就是一大块白；
+   预览浮层的交互已由 demo-clipboard.gif 承担，这里专心展示四个页签。 */
 await seq('view-panel', [
   () => switchPage('home'),
-  () => hoverItem('c3'),
-  () => clickIf('#pmPreview [data-md-target="pv-h-2"]'),
-  () => hoverItem('c5'),
   () => switchPage('monitor'),
+  () => switchPage('transfer'),
+  () => switchPage('cast'),
+  () => hoverItem('c3'),
   () => switchPage('home'),
-], 'stage');
+], 'panel');
 
 /* 3. 文件中转：这三个出口按钮内容不可滚动，用真实 hover + 页签切换产生变化 */
 const hoverNth = (sel, n) => page.locator(sel).nth(n)

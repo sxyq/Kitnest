@@ -341,8 +341,9 @@ check('Toast：springBouncy 弹入 → 3.0s 自动隐藏 → 0.4s 收尾',
   toastFlow.shown && toastFlow.hidden && toastFlow.visibility === 'hidden', toastFlow);
 
 const hints = await page.evaluate(() => {
-  const t = document.body.innerText;
-  const re = /示例|演示用|假数据|占位文档|虚构|测试用例|点击体验|模拟数据|点部件看详情|点小猫收起面板/g;
+  // 遍历全部 .view，而不是只看当前 hash 的可见文本
+  const t = [...document.querySelectorAll('.view')].map(v => v.textContent).join('\n');
+  const re = /示例|演示用|假数据|占位文档|虚构|测试用例|点击体验|模拟数据|点部件看详情|点小猫收起面板|模拟内容|画面为|点标签切换|更多实机截图|点这里|悬停会|演示样本|该演示/g;
   const out = []; let m;
   while ((m = re.exec(t))) out.push(t.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\n/g, ' '));
   return out;
@@ -508,6 +509,40 @@ const toolbarInfo = await page.evaluate(() => {
 });
 check('v236 顶栏分段真居中（不再被左组/齿轮挤偏）',
   Math.abs(toolbarInfo.offset) < 1 && !toolbarInfo.legacy, toolbarInfo);
+
+/* ---------- G2. v238 品牌页结构 ---------- */
+console.log('\nG2. v238 品牌页结构');
+const brandInfo = await page.evaluate(() => {
+  const seen = {}, dup = [];
+  document.querySelectorAll('[id]').forEach(e => {
+    seen[e.id] = (seen[e.id] || 0) + 1;
+  });
+  Object.keys(seen).forEach(id => { if (seen[id] > 1) dup.push(id); });
+  const gallery = document.querySelector('.shot-gallery');
+  return {
+    dupIds: dup,
+    details: document.querySelectorAll('details').length,
+    viewDownload: document.querySelectorAll('#view-download').length,
+    downloadKicker: [...document.querySelectorAll('.kicker')]
+      .filter(e => e.textContent.trim() === 'Download').length,
+    showcaseH2: document.querySelectorAll('#view-showcase h2').length,
+    galleryGif: document.querySelectorAll('.shot-gallery img[src*=".gif"]').length,
+    galleryVisible: !!gallery && getComputedStyle(gallery).display !== 'none',
+    trust: document.querySelectorAll('.bridge-trust span').length,
+    bridgeNo: /01\s*\/\s*13/.test(document.querySelector('.bridge-no')?.textContent || ''),
+    onboard: document.querySelectorAll('.onboard-steps li').length,
+    footerCta: !!document.querySelector('.footer-cta a[href="#download"]'),
+  };
+});
+check('DOM 无重复 id（下载区不再被复制进界面页）',
+  brandInfo.dupIds.length === 0 && brandInfo.viewDownload === 1 &&
+  brandInfo.downloadKicker === 1 && brandInfo.showcaseH2 === 1, brandInfo);
+check('13 段界面动图常驻展示，不再折叠',
+  brandInfo.details === 0 && brandInfo.galleryGif === 6 && brandInfo.galleryVisible, brandInfo);
+check('v238 品牌区块就位（信任行 / 01/13 入口 / 上手指南 / 页脚 CTA）',
+  brandInfo.trust >= 4 && brandInfo.bridgeNo && brandInfo.onboard === 3 &&
+  brandInfo.footerCta, brandInfo);
+
 const homeDemo = await page.evaluate(() => ({
   btn: !!document.querySelector('[data-home-demo]'),
   href: document.querySelector('[data-home-demo]')?.getAttribute('href'),
