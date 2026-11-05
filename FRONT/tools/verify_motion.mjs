@@ -72,6 +72,13 @@ await page.waitForTimeout(300);
 
 /* ---------- A. 令牌与真源 ---------- */
 console.log('A. 动效令牌');
+const initialPreview = await page.evaluate(() => {
+  const e = document.getElementById('pmPreview');
+  const r = e.getBoundingClientRect();
+  return { hidden: e.hidden, w: Math.round(r.width), toc: !!e.querySelector('.pv-md-toc') };
+});
+check('首屏默认展示可交互预览浮层（不必悬停）',
+  !initialPreview.hidden && initialPreview.w > 0 && initialPreview.toc, initialPreview);
 const tokens = await page.evaluate(() => {
   const M = window.KitnestMotion;
   return M ? {
@@ -434,6 +441,11 @@ const gifStatus = await page.evaluate(async urls => {
   return out;
 }, gifURLs);
 check('六段功能动图资源全部 200', gifStatus.every(x => x === 200), gifStatus);
+const homeDemo = await page.evaluate(() => ({
+  btn: !!document.querySelector('[data-home-demo]'),
+  href: document.querySelector('[data-home-demo]')?.getAttribute('href'),
+}));
+check('界面页有「打开可交互预览」入口', homeDemo.btn && homeDemo.href === '#home', homeDemo);
 await page.evaluate(() => { window.scrollTo(0, 0); });
 await page.waitForTimeout(100);
 

@@ -3327,3 +3327,11 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .view.active, .hero-copy h1 em::after { animation: none; }
 }
+
+/* ---------- v230.1 可交互预览 ---------- */
+/* 光晕层压到内容下方，任何浏览器都不会把它盖在可交互面板上 */
+.hero { isolation: isolate; }
+.hero::before { z-index: -1; }
+.hero-inner { position: relative; z-index: 1; }
+.demo-actions { margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.demo-actions .btn { font-size: 13px; }

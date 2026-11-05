@@ -154,6 +154,11 @@
   var panelMock = $("#panelMock");
 
   var panelTimer = null;
+  // 对应 PanelController.hideGeneration：预览收回是异步的，期间用户再点开面板，
+  // 排队的收起必须作废，否则会把刚打开的面板又关掉（v230 实测踩过）。
+  var panelGeneration = 0;
+  var panelVisible = panelMock ? !panelMock.hidden : false;
+  var panelHiding = false;
 
   /* PanelController.swift:247-259 / 323-340 + WindowReveal.swift:43-105
      · 已在屏上重复打开：取消在途收回动画、直接回到可见态，不重播；
@@ -162,12 +167,16 @@
        再缩回同一锚点 + 淡出，动画结束才 hidden。 */
   function setPanel(open) {
     if (!panelMock || !mbIcon) return;
+    panelGeneration += 1;
+    var gen = panelGeneration;
     mbIcon.setAttribute("aria-expanded", open ? "true" : "false");
     mbIcon.setAttribute("aria-label", open ? "收起主面板" : "展开主面板");
     if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
     var unit = Motion.panelAnchor(mbIcon, panelMock);
     if (open) {
-      var wasVisible = !panelMock.hidden;
+      var wasVisible = panelVisible && !panelHiding;
+      panelVisible = true;
+      panelHiding = false;
       panelMock.hidden = false;
       if (wasVisible) {
         // 取消在途收回动画，模型值拉回终态（App 的 removeAllAnimations + reset）
@@ -188,17 +197,20 @@
         timing: "caEaseOut"
       });
     } else {
-      if (panelMock.hidden) return;
+      if (!panelVisible) return;
+      panelVisible = false;
+      panelHiding = true;
       var done = false;
       var collapse = function () {
-        if (done) return;
+        if (done || gen !== panelGeneration) return;
         done = true;
         Motion.revealOut(panelMock, {
           unit: unit,
           scale: Motion.tokens.revealScale.panel,
           duration: Motion.openDuration(),
           timing: "caEaseIn",
-          hide: true
+          hide: true,
+          complete: function () { panelHiding = false; }
         });
       };
       // PanelController.hide() 第一段：先等预览窗收回，再执行面板收回
@@ -209,7 +221,9 @@
   if (mbIcon && panelMock) {
     mbIcon.addEventListener("click", function (e) {
       e.stopPropagation();
-      setPanel(panelMock.hidden);
+      // 用状态位而不是 DOM hidden：收起动画期间 hidden 还是 false，
+      // 连点会把「再打开」误判成「再关一次」。
+      setPanel(!panelVisible);
     });
     document.addEventListener("click", function (e) {
       // 真机语义：面板由菜单栏图标切换开合，「点别处就关」是失焦不是误触。
@@ -2329,6 +2343,25 @@
     } else {
       els.forEach(function (el) { el.classList.add("in"); });
     }
+
+    // 默认展开一条剪贴板预览：预览浮层不再只有悬停才看得见，
+    // 悬停其它条目仍会切换内容（同条目不重播入场，与真机一致）。
+    var firstPreview = $(".pm-item[data-id='c3']");
+    if (firstPreview) {
+      var firstItem = findItem(firstPreview.getAttribute("data-id"));
+      if (firstItem) showPreview(firstItem, firstPreview, false);
+    }
+
+    // 界面页「打开可交互预览」：切回首页并把真实可交互面板滚到视口中间
+    $$("[data-home-demo]").forEach(function (a) {
+      a.addEventListener("click", function () {
+        location.hash = "#home";
+        setTimeout(function () {
+          var st = $(".hero-stage");
+          if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 80);
+      });
+    });
 
     // 六个功能卡片的「看演示」跳到界面页对应动图
     $$("[data-demo-jump]").forEach(function (btn) {

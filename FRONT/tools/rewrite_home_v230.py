@@ -7,6 +7,9 @@
   · 原 capture-flow.gif 是 PIL 手绘 UI（960×600、帧时长 50/360/540/800ms 混用、
     大片白框、假箭头），本轮改由 Playwright 录制真实渲染的交互（见 record_demos.py）；
   · 界面页不再用「静态真机截图 + 模拟界面」混排，改成六个功能各一段动图。
+
+注：v230.1 又补了「首屏默认展开可交互预览、界面页直达入口、setPanel 连点竞态修复」，
+这些属于后续手工修正，最终实现以当前 FRONT/assets/site.js 与 site.css 为准。
 """
 import re
 import sys
@@ -334,6 +337,9 @@ def build_demo_html() -> str:
         '            </div>\n'
         '          </div>\n'
         ''
+        '          <p class="demo-actions">\n'
+        '            <a class="btn btn-primary" href="#home" data-nav data-home-demo>打开可交互预览 →</a>\n'
+        '          </p>\n\n'
         '          <details class="more-shots">\n'
         '            <summary>更多实机截图</summary>\n'
         '            <div class="more-shots-grid">\n' + grid + '\n'
