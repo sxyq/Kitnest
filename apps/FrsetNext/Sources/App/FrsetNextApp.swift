@@ -324,6 +324,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     Log.warn("App", "pin：需要 ?file= 指定图片")
                 }
+            case "stagetest":
+                // v235 排障：验证「截图先暂存、点保存才进下载目录」两条路径。
+                // kitnest://stagetest?file=…            只暂存（等价于截图后点复制）
+                // kitnest://stagetest?file=…&commit=1   再执行一次「保存」
+                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                let commit = comps?.queryItems?.first(where: { $0.name == "commit" })?.value == "1"
+                if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)),
+                   let data = ImageProcessor.pngData(img) {
+                    if let staged = ScreenshotManager.shared.stagePNG(data) {
+                        Log.info("App", "stagetest 暂存 → \(staged.path)")
+                        if commit {
+                            let dest = ScreenshotManager.shared.commitToSaveDirectory(staged: staged)
+                            Log.info("App", "stagetest 保存 → \(dest?.path ?? "失败")")
+                        }
+                    }
+                } else {
+                    Log.warn("App", "stagetest：需要 ?file= 指定图片")
+                }
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()

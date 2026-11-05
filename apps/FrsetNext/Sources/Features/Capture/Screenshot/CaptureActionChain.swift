@@ -81,9 +81,9 @@ public enum CaptureActionChain {
             CaptureActionTool(id: "copyTranslate", title: "复制并翻译", systemImage: "character.book.closed") { image, _ in
                 ScreenshotManager.shared.recognizeAndTranslate(image)
             },
+            // v235：动作条之前的落盘只是暂存（App 私有目录），点「保存」才复制到下载目录
             CaptureActionTool(id: "save", title: "保存", systemImage: "square.and.arrow.down", key: "s") { _, url in
-                Toast.show("已保存", icon: "checkmark.circle.fill")
-                _ = url
+                ScreenshotManager.shared.commitToSaveDirectory(staged: url)
             },
             // v233：按 1Capture 的叫法统一成「钉住」（原来叫「贴图」）
             CaptureActionTool(id: "pin", title: "钉住", systemImage: "pin.fill", key: "p") { image, _ in

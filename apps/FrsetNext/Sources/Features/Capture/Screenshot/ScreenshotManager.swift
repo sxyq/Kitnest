@@ -375,6 +375,14 @@ public final class ScreenshotManager: ObservableObject {
         return URL(fileURLWithPath: (raw as NSString).expandingTildeInPath, isDirectory: true)
     }
 
+    /// 暂存目录（App 私有）：截图一完成先落到这里，**只有用户点「保存」才复制到下载目录**。
+    ///
+    /// v235（用户：「点复制不需要放到下载目录，我点了保存才放」）：
+    /// v228 把默认保存目录改成下载目录后，出动作条前的「先落盘」也写到了下载目录——
+    /// 用户只是点复制/识别，下载目录里也会多一张图。这里把「暂存」和「用户保存」分开，
+    /// 恢复到 v228 之前的行为：先私有暂存，显式保存才进下载目录。
+    public var stagingDirectory: URL { AppDirectories.sub("screenshots") }
+
     // MARK: 权限
 
     /// 刷新权限状态（系统设置里授权后回来调用）
@@ -609,8 +617,8 @@ public final class ScreenshotManager: ObservableObject {
         case .toolbar:
             // 先落盘（动作链各工具都以 URL/已保存文件为前提），再弹动作工具条
             guard let data = ImageProcessor.pngData(cropped),
-                  let url = savePNG(data) else {
-                Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
+                  let url = stagePNG(data) else {
+                Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                 return
             }
             registerCaptured(url: url, data: data, playSound: true)
@@ -746,8 +754,8 @@ public final class ScreenshotManager: ObservableObject {
                 self.handle(image, action: action)
             case .toolbar:
                 guard let data = ImageProcessor.pngData(image),
-                      let url = self.savePNG(data) else {
-                    Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
+                      let url = self.stagePNG(data) else {
+                    Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
@@ -766,7 +774,8 @@ public final class ScreenshotManager: ObservableObject {
             Toast.show("截图失败：图片编码失败", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
-        guard let url = savePNG(data) else {
+        // v235：默认动作不是「保存」时只暂存，不往下载目录写文件
+        guard let url = (action == .save ? savePNG(data) : stagePNG(data)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
             return
@@ -828,10 +837,19 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 落盘 / 剪贴板 / 提示音
 
-    /// 写入 PNG 到保存目录，返回文件 URL
+    /// 写入 PNG 到**用户保存目录**（下载目录 / 设置里的路径）
     @discardableResult
     public func savePNG(_ data: Data) -> URL? {
-        let dir = saveDirectory
+        writePNG(data, to: saveDirectory)
+    }
+
+    /// 写入 PNG 到**私有暂存目录**（动作条各工具都拿到这个 URL，但不算用户保存）
+    @discardableResult
+    public func stagePNG(_ data: Data) -> URL? {
+        writePNG(data, to: stagingDirectory)
+    }
+
+    private func writePNG(_ data: Data, to dir: URL) -> URL? {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let url = dir.appendingPathComponent(Self.newFileName())
@@ -839,6 +857,35 @@ public final class ScreenshotManager: ObservableObject {
             return url
         } catch {
             Log.error("Capture", "保存截图失败: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// 把暂存的截图正式保存到下载目录（动作条「保存」按钮）
+    ///
+    /// 复制而非移动：动作条上保存之后用户还可能点「空投 / 钉住」，那些工具仍要读原 URL。
+    @discardableResult
+    public func commitToSaveDirectory(staged url: URL) -> URL? {
+        let dir = saveDirectory
+        // 已经在保存目录里（默认动作就是「保存到文件夹」的直连路径）→ 不再复制一份
+        if url.deletingLastPathComponent().standardizedFileURL == dir.standardizedFileURL {
+            Toast.show("已保存", icon: "checkmark.circle.fill")
+            return url
+        }
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let dest = dir.appendingPathComponent(Self.newFileName())
+            try FileManager.default.copyItem(at: url, to: dest)
+            recent.removeAll { $0.url == url }
+            recent.insert(CapturedImage(url: dest, createdAt: Date()), at: 0)
+            lastHistoryPath = dest.path
+            Log.info("Capture", "保存到用户目录：\(dest.path)")
+            Toast.show("已保存到 \(dir.lastPathComponent)", icon: "checkmark.circle.fill")
+            statusMessage = "已保存到 \(dest.lastPathComponent)"
+            return dest
+        } catch {
+            Log.error("Capture", "保存到用户目录失败: \(error.localizedDescription)")
+            Toast.show("保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
             return nil
         }
     }
@@ -867,18 +914,27 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 最近截图
 
-    /// 扫描保存目录，刷新最近截图列表
+    /// 扫描「暂存 + 用户保存」两个目录，刷新最近截图列表
+    ///
+    /// v235：截图默认只进私有暂存目录，用户点保存才进下载目录；
+    /// 列表要把两边都算上，否则未保存的截图在面板里看不到。
     public func reloadRecent() {
-        let dir = saveDirectory
         let fm = FileManager.default
-        guard let urls = try? fm.contentsOfDirectory(at: dir,
-                                                     includingPropertiesForKeys: [.contentModificationDateKey],
-                                                     options: [.skipsHiddenFiles]) else { return }
         let allowed: Set<String> = ["png", "jpg", "jpeg", "heic", "tiff"]
-        let items: [CapturedImage] = urls.compactMap { url in
-            guard allowed.contains(url.pathExtension.lowercased()) else { return nil }
-            let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date.distantPast
-            return CapturedImage(url: url, createdAt: date)
+        var seen: Set<String> = []
+        var items: [CapturedImage] = []
+        for dir in [saveDirectory, stagingDirectory] {
+            guard let urls = try? fm.contentsOfDirectory(at: dir,
+                                                         includingPropertiesForKeys: [.contentModificationDateKey],
+                                                         options: [.skipsHiddenFiles]) else { continue }
+            for url in urls {
+                guard allowed.contains(url.pathExtension.lowercased()),
+                      !seen.contains(url.path) else { continue }
+                seen.insert(url.path)
+                let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                    ?? Date.distantPast
+                items.append(CapturedImage(url: url, createdAt: date))
+            }
         }
         recent = Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
     }
