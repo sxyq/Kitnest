@@ -551,52 +551,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
 // v71：NSPopover 箭头退役，几何支撑保留给 SwiftUI .popover() 家族调用方使用。
 
 /// 条目屏几何 + 预览窗内容屏框 → arrowEdge（防越屏翻转）
-public enum PreviewArrowGeometrySupport {
-    /// NSPopover 呈现用的优先边：右侧放得下放右侧，否则左侧，再否则取空间大的一侧
-    public static func preferredNSRectEdge(anchorRectInScreen: CGRect,
-                                           popoverSize: CGSize,
-                                           screenFrame: CGRect) -> NSRectEdge {
-        let leftRoom = anchorRectInScreen.minX - screenFrame.minX
-        let rightRoom = screenFrame.maxX - anchorRectInScreen.maxX
-        if rightRoom >= popoverSize.width { return .maxX }
-        if leftRoom >= popoverSize.width { return .minX }
-        return rightRoom >= leftRoom ? .maxX : .minX
-    }
-
-    /// SwiftUI Edge 映射（供 .popover(arrowEdge:) 使用）
-    public static func swiftUIEdge(for rectEdge: NSRectEdge) -> Edge {
-        switch rectEdge {
-        case .maxX: return .trailing
-        case .minX: return .leading
-        case .maxY: return .top
-        case .minY: return .bottom
-        @unknown default: return .leading
-        }
-    }
-}
 
 /// 箭头几何缓存（按条目 id 记忆最近计算的边；classname 实证 @0x100acce7c）
-public final class PreviewArrowGeometryStore {
-    public static let shared = PreviewArrowGeometryStore()
-    private var cachedEdges: [String: Edge] = [:]
-
-    public func arrowEdge(for anchorItemID: String,
-                          anchorRectInScreen: CGRect,
-                          popoverSize: CGSize,
-                          screenFrame: CGRect) -> Edge {
-        let rectEdge = PreviewArrowGeometrySupport.preferredNSRectEdge(anchorRectInScreen: anchorRectInScreen,
-                                                                       popoverSize: popoverSize,
-                                                                       screenFrame: screenFrame)
-        let edge = PreviewArrowGeometrySupport.swiftUIEdge(for: rectEdge)
-        cachedEdges[anchorItemID] = edge
-        return edge
-    }
-
-
-    public func invalidate() {
-        cachedEdges.removeAll()
-    }
-}
 
 // MARK: - SwiftUI 环境键（specs/12 类清单：isPreviewPopoverHovered / onPreviewPopoverHoverChanged）
 

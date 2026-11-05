@@ -158,11 +158,4 @@ public enum CodeHighlighter {
         return (lines, normalized.count)
     }
 
-    /// 代码里最长一行（字符数），用于决定窗口默认宽度
-    public static func longestLine(_ code: String) -> Int {
-        code.replacingOccurrences(of: "\t", with: "    ")
-            .components(separatedBy: "\n")
-            .map(\.count)
-            .max() ?? 0
-    }
 }

@@ -763,14 +763,6 @@ public enum ADBFileBridge {
         return String(text[r])
     }
 
-    /// 从 adb 的进度块里取百分比（形如 `[ 42%]` 或 `42%`）
-    static func parsePercent(_ text: String) -> Double? {
-        guard let r = text.range(of: #"(\d{1,3})%"#, options: .regularExpression) else { return nil }
-        let num = text[r].dropLast()
-        guard let v = Double(num) else { return nil }
-        return min(1, max(0, v / 100))
-    }
-
     /// 逐个推送（adb push 一次多源在个别 ROM 上行为不一，逐个最稳、还能精确报数）
     private static func runADBPush(urls: [URL], remoteDir: String, index: Int,
                                    sent: Int, log: String,

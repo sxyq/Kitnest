@@ -397,19 +397,6 @@ struct BatteryFlowModel {
 
 // MARK: - 流向图
 
-struct BatteryPowerFlowCard: View {
-    let input: BatteryFlowNode
-    let branches: [BatteryFlowNode]
-
-    // v181：流向图的几何抽到 MonitorFlow.swift 的 `MonitorFlowCard`，
-    // 网络页的「带宽去哪了」与功耗页用的是同一张图（只是量纲不同）。
-    // 电池页保留自己那块**带坐标网格的纹理底板**（plate: .gridded），别处用标准玻璃卡。
-    var body: some View {
-        MonitorFlowCard(input: input.monitorNode,
-                        branches: branches.map(\.monitorNode),
-                        plate: .gridded)
-    }
-}
 
 private extension BatteryFlowNode {
     /// 电池流向节点 → 通用流向节点（数值文本沿用 BatteryEnergySampler 的瓦特格式）

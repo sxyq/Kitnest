@@ -39,11 +39,6 @@ public enum MonitorFormat {
         bytes(value) + "/s"
     }
 
-    /// 菜单栏速率：沿用字节单位与精度，省去单位前的空格。
-    public static func compactRate(_ value: UInt64) -> String {
-        rate(value).replacingOccurrences(of: " ", with: "")
-    }
-
     /// 带方向的速率（↑ 上传 / ↓ 下载）
     public static func directionalRate(upload: UInt64, download: UInt64) -> String {
         "↑\(rate(upload)) ↓\(rate(download))"

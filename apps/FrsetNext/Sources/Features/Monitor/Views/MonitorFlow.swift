@@ -299,11 +299,6 @@ enum MonitorThermalZones {
         return MonitorColors.memory
     }
 
-    static func levelText(_ celsius: Double) -> String {
-        if celsius >= 80 { return "过热" }
-        if celsius >= 60 { return "偏热" }
-        return "正常"
-    }
 }
 
 /// 分区热区条：一行一个区（名称 + 0–110°C 标尺条 + 温度），温度按阈值变色。

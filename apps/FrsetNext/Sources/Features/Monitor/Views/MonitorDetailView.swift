@@ -1265,24 +1265,6 @@ public struct MonitorDetailView: View {
 // MARK: - 深数据共享组件（进程排行行 / 双值列）
 
 /// 进程排行行（名称 + 自定义数值区）
-private struct StatsProcRows: View {    let items: [StatsProcItem]
-    @ViewBuilder let value: (StatsProcItem) -> StatsDualValue
-
-    var body: some View {
-        VStack(spacing: 3) {
-            ForEach(items) { item in
-                HStack(spacing: 8) {
-                    Text(item.name)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    value(item)
-                }
-            }
-        }
-    }
-}
 
 /// 双数值（左/右，等宽右对齐——官方进程表列序用）
 private struct StatsDualValue: View {
