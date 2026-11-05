@@ -10,6 +10,9 @@ public final class PanelPresentationState: ObservableObject {
     /// v197：展开 / 收回的锚点（面板内归一化坐标，0,0 = 左上）。
     /// 由 PanelController 按菜单栏图标的横坐标算出，窗口层动画据此「从图标长出来 / 收回图标」。
     @Published public var originUnit: CGPoint = CGPoint(x: 0.5, y: 0)
+    /// v237：本次展开用的图标屏幕矩形（神灯漏斗的插槽）。收起时复用它，
+    /// 保证「从哪来、回哪去」用的是同一个格子；无锚点路径（快捷键）由控制器兜一个。
+    public var anchorRect: NSRect? = nil
     public init() {}
 }
 
@@ -200,6 +203,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let t0 = ProcessInfo.processInfo.systemUptime
         let wasVisible = p.isVisible
         isHiding = false
+        // 上一轮收起的漏斗还在跑 → 先把窗口 alpha 还原，否则抓到的快照是全透明的
+        if GenieWarp.isRunning { GenieWarp.shared.cancel(restoreWindow: true) }
         p.setFrameOrigin(origin)
         // v194/v197：入场动画等布局跑完再起，并且挪到**窗口内容层**（整块面板，
         // 含玻璃底）。旧实现只对 SwiftUI 内容做 scaleEffect，玻璃窗口始终原尺寸铺在
@@ -209,6 +214,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 布局（v173 关闭预热后首开仍要 ~100ms）→ ③ 布局结束后从锚点展开。
         let anchorUnit = revealUnit(anchor: anchorRect, windowOrigin: origin, size: p.frame.size)
         presentation.originUnit = anchorUnit
+        presentation.anchorRect = anchorRect
         if !wasVisible {
             presentation.visible = true            // 内容态（动画由窗口层负责）
             p.contentView?.layer?.removeAllAnimations()
@@ -254,11 +260,22 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             presentation.visible = true
             return
         }
-        // 布局已完成：从菜单栏图标位置展开整块面板（只动 transform/opacity，GPU 合成）
+        // 布局已完成：从菜单栏图标位置展开整块面板
+        //
+        // v237（用户：「展开和收起都需要同样的」）：改用 Dock 的「神灯」网格——
+        // 整窗按网格从图标那 22pt 的方格里「倒」出来，两侧先弯成漏斗、再落位。
+        // 抓不到窗口快照时（无录屏权限等）退回原有的缩放动画，功能不受影响。
         let duration = Personalization.shared.openAnimation.duration
-        WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration)
+        let slot = anchorRect ?? defaultSlot(for: p)
+        p.contentView?.layer?.removeAllAnimations()
+        p.contentView?.layer?.transform = CATransform3DIdentity
+        p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
+        let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration)
+        if !usedGenie {
+            WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration)
+        }
         // 采样放到过渡结束之后：动画期间只做合成，不夹带 SwiftUI 重排
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.02) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + GenieWarp.duration(for: duration) + 0.02) { [weak self] in
             guard let self, self.panel?.isVisible == true else { return }
             MonitorSampler.shared.setHomePanelActive(true)
         }
@@ -321,6 +338,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private var hideGeneration = 0
 
     private func performHide(_ p: NSWindow) {
+        // 展开的漏斗还没跑完就要收：先取消，把窗口 alpha 还原，再重新抓快照
+        if GenieWarp.isRunning { GenieWarp.shared.cancel(restoreWindow: true) }
         hideGeneration += 1
         let token = hideGeneration
         let duration = Personalization.shared.openAnimation.duration
@@ -334,10 +353,28 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             MonitorSampler.shared.setHomePanelActive(false)
             self.isHiding = false
         }
-        WindowReveal.playOut(on: p, to: presentation.originUnit, scale: 0.90,
-                             duration: duration, completion: finish)
-        // 兜底：动画回调被系统跳过（窗口被遮挡/重复收起）时也一定收尾
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.08, execute: finish)
+        // v237：收起也走神灯——面板吸回同一个图标格子。
+        // 与展开共用 presentation.anchorRect，保证「从哪来、回哪去」是同一个点。
+        let slot = presentation.anchorRect ?? defaultSlot(for: p)
+        p.contentView?.layer?.removeAllAnimations()
+        p.contentView?.layer?.transform = CATransform3DIdentity
+        p.contentView?.layer?.opacity = 1
+        let usedGenie = GenieWarp.shared.playOut(window: p, slot: slot,
+                                                 duration: duration, completion: finish)
+        if !usedGenie {
+            WindowReveal.playOut(on: p, to: presentation.originUnit, scale: 0.90,
+                                 duration: duration, completion: finish)
+        }
+        // 兜底：动画回调被系统跳过（窗口被遮挡/重复收起）时也一定收尾。
+        // 神灯在跑时多等一会儿，别把覆盖窗上的动画提前掐断。
+        DispatchQueue.main.asyncAfter(deadline: .now() + GenieWarp.duration(for: duration) + 0.35, execute: finish)
+    }
+
+    /// 无锚点路径（快捷键 / 深链打开）的兜底插槽：
+    /// 面板上沿右侧的一个 22pt 方块，等价于「从状态栏那一带倒下来」。
+    private func defaultSlot(for window: NSWindow) -> NSRect {
+        let f = window.frame
+        return NSRect(x: f.maxX - 46, y: f.maxY - 1, width: 22, height: 22)
     }
 
     /// 全局唤起预留接口：具体热键注册由 ShortcutManager/状态栏模块接线，
