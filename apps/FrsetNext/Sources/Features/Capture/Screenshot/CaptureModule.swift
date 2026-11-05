@@ -67,7 +67,11 @@ public enum CaptureModule: AppModule {
         ServiceLocator.ocrService = OCRService.shared
 
         // 预热：扫描保存目录，建立最近截图列表
-        ScreenshotManager.shared.reloadRecent()
+        //
+        // v228：默认目录改成 ~/Downloads 后，**不能在启动路径扫**——
+        // 那目录几百个文件，而且首次访问「下载文件夹」要走 TCC 授权，
+        // 主线程会卡在授权对话框上（实测 30s+ 无响应，App 看起来像死了）。
+        // 现在只在真正打开截图面板 / 设置页时扫（CaptureSectionView.onAppear）。
 
         // v218（用户：「框出来非常缓慢」）：启动 2 秒后预热框选动作面板。
         // 之前每次框选都要新建 NSPanel + NSHostingView 并跑两次 fittingSize，

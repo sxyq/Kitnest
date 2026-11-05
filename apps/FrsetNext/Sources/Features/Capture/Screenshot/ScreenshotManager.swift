@@ -361,11 +361,16 @@ public final class ScreenshotManager: ObservableObject {
         set { Preferences.shared.set(Self.keyOCRResultWindow, newValue) }
     }
 
-    /// 保存目录：Preferences.captureSavePath；为空则用 AppDirectories.sub("screenshots")
+    /// 保存目录：Preferences.captureSavePath；为空则用**下载目录**
+    ///
+    /// v228（用户：「保存是默认保存下载目录里面，然后设置里面可以去设置」）：
+    /// 原来默认落到 App 私有目录（`AppDirectories.sub("screenshots")`），
+    /// 用户在访达里根本找不到；改成系统下载目录，找不到再回退私有目录。
     public var saveDirectory: URL {
         let raw: String = Preferences.shared.value(Preferences.Keys.captureSavePath, default: "")
         if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return AppDirectories.sub("screenshots")
+            return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+                ?? AppDirectories.sub("screenshots")
         }
         return URL(fileURLWithPath: (raw as NSString).expandingTildeInPath, isDirectory: true)
     }

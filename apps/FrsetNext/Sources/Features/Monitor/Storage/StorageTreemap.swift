@@ -107,6 +107,8 @@ struct StorageTreemap: View {
     let onDrill: (DiskNode) -> Void
     /// 文件 / 折叠块点击 → 选中（底部详情 + 删除）
     let onSelect: (DiskNode) -> Void
+    /// 点空白处 = 返回上一级（v228：用户「进去之后没有快速返回的方式」）
+    var onBack: (() -> Void)? = nil
 
     @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
@@ -126,6 +128,10 @@ struct StorageTreemap: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ZStack(alignment: .topLeading) {
+                    // 块与块之间的空白：点一下回上一级（气泡本身在上层，优先命中）
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { onBack?() }
                     ForEach(tiles) { tile in
                         tileView(tile)
                     }
@@ -145,6 +151,9 @@ struct StorageTreemap: View {
         let radius = min(t.bbox.width, t.bbox.height) * 0.30
         let isSelected = selectedID == t.id
         let isHovered = hoveredID == t.id
+        // v228：鼠标停在某个块上时，它浮起来、周围的块被挤得缩一点——
+        // 用户要的「跟随鼠标挤压周围气泡」的观感。（真做 Voronoi 重算会跳顶点，没法插值）
+        let anyHovered = hoveredID != nil
         let ink = contentColor(t.ratio)
 
         return ZStack {
@@ -159,9 +168,11 @@ struct StorageTreemap: View {
         // 文字/描边都在多边形内裁切，斜块上不会糊到邻块
         .clipShape(PolygonHitShape(points: local, radius: radius))
         .position(x: t.bbox.midX, y: t.bbox.midY)
-        .shadow(color: .black.opacity(isHovered ? 0.14 : 0.03),
-                radius: isHovered ? 7 : 2, y: 1)
-        .scaleEffect(isHovered ? 1.01 : 1)
+        .shadow(color: .black.opacity(isHovered ? 0.22 : 0.03),
+                radius: isHovered ? 14 : 2,
+                y: isHovered ? 5 : 1)
+        .scaleEffect(isHovered ? 1.055 : (anyHovered ? 0.985 : 1))
+        .zIndex(isHovered ? 10 : 0)
         .contentShape(PolygonHitShape(points: local, radius: radius))
         .onHover { hoveredID = $0 ? t.id : nil }
         .onTapGesture {
@@ -171,7 +182,7 @@ struct StorageTreemap: View {
         .help("\(t.node.name) · \(StorageFormat.bytes(t.node.size))"
               + String(format: " · 占本层 %.1f%%", t.ratio * 100)
               + " · \(t.node.path)")
-        .animation(Theme.Motion.fast, value: hoveredID)
+        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: hoveredID)
     }
 
     /// 块内文字按**内切圆半径**分档（照截图：够圆够大才写字，窄条只留一个点）。

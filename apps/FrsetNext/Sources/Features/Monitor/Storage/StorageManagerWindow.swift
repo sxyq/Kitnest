@@ -508,13 +508,46 @@ struct StorageManagerRootView: View {
             .animation(Theme.Motion.fast, value: stack.count)
 
             if let node = currentNode {
-                StorageTreemap(node: node,
-                               onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
-                               onSelect: { detailNode = $0 })
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
-                    .id(node.id)
-                    .animation(Theme.Motion.fast, value: node.id)
+                ZStack(alignment: .bottomTrailing) {
+                    StorageTreemap(node: node,
+                                   onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
+                                   onSelect: { detailNode = $0 },
+                                   onBack: { if !stack.isEmpty { stack.removeLast() } })
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 8)
+                        .id(node.id)
+                        .animation(Theme.Motion.fast, value: node.id)
+
+                    // v228（用户：「点进去之后没有快速返回的方式」）：
+                    // 除了左上角的小胶囊和 Esc，右下角再给一个常驻的返回按钮——
+                    // 下钻几层后最顺手的动作就是它。
+                    if !stack.isEmpty {
+                        Button {
+                            stack.removeLast()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.uturn.backward")
+                                    .font(.system(size: 10, weight: .semibold))
+                                Text("返回上一级")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundStyle(Theme.accent)
+                            .padding(.horizontal, 11)
+                            .frame(height: 26)
+                            .background(Capsule(style: .continuous).fill(.regularMaterial))
+                            .overlay(Capsule(style: .continuous)
+                                .strokeBorder(Theme.accent.opacity(0.32), lineWidth: 0.8))
+                            .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .focusable(false)
+                        .help("返回上一级（Esc，或点气泡之间的空白）")
+                        .padding(.trailing, 22)
+                        .padding(.bottom, 20)
+                        .transition(.scale(scale: 0.9).combined(with: .opacity))
+                    }
+                }
+                .animation(Theme.Motion.fast, value: stack.count)
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")
@@ -652,12 +685,18 @@ struct StorageManagerRootView: View {
         }
         lines.append("")
         lines.append("## 请你做的事")
-        lines.append("1. 每一项按「可安全删除 / 需我确认 / 不要动」归类，并说明依据"
+        lines.append("1. **先看清每个目录里到底是什么**：对每一项跑 `ls -la <路径>` 和 "
+                     + "`du -sh <路径>/*`，说明这些文件是什么、由哪个工具生成、删了会不会有副作用。")
+        lines.append("2. 逐项给结论并写依据：可安全删除 / 需我确认 / 不要动"
                      + "（是不是缓存、能不能重建、是否含用户数据）。")
-        lines.append("2. 对可删除项给出命令：优先移到废纸篓（如 `mv <路径> ~/.Trash/`），"
-                     + "不要直接 `rm -rf`；一条一行，带注释说明删的是什么。")
-        lines.append("3. 先只给方案，不要执行。等我确认后再逐条执行，每执行一条把结果告诉我。")
-        lines.append("4. 需要先看内容才能判断的，告诉我该跑什么命令（如 `du -sh <路径>`、`ls -la <路径>`）。")
+        lines.append("3. 可删的必须**具体到文件或子目录**，不要只给父目录：")
+        lines.append("   列出完整路径、大小、一句话说明它是什么、为什么可以删。")
+        lines.append("4. 对每一项给出建议命令：优先 `mv <路径> ~/.Trash/`，不要 `rm -rf`；")
+        lines.append("   一条一行，命令后面用注释写明删的是什么。")
+        lines.append("5. 输出一份 Markdown 报告，结构：目录 → 内容构成 → 判定 → 建议命令 → 预计释放空间；")
+        lines.append("   最后给一个合计（能删多少、需确认多少）。")
+        lines.append("6. 先只给方案，不要执行。等我逐条确认后再动手，每执行一条把结果告诉我。")
+        lines.append("7. 遇到需要更多信息才能判断的，直接说「请跑 `du -sh <路径>/*` 把结果贴给我」，不要猜。")
         return lines.joined(separator: "\n")
     }
 
@@ -667,7 +706,7 @@ struct StorageManagerRootView: View {
         pb.clearContents()
         pb.setString(text, forType: .string)
         showAgentSheet = false
-        Toast.show("提示词已复制，粘给 \(agentKind.title) 即可", icon: "doc.on.doc")
+        Toast.show("提示词已复制，粘给 Agent 即可", icon: "doc.on.doc")
     }
 
     private var agentSheet: some View {
@@ -687,14 +726,8 @@ struct StorageManagerRootView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Picker("", selection: $agentKind) {
-                ForEach(CleanupAgent.allCases) { a in
-                    Text(a.title).tag(a)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
+            // v228（用户：「不用分成多个客户端的 Codex，只需要留一个框」）：
+            // 去掉客户端选择器，提示词对所有 Agent 通用，复制走人。
             ScrollView {
                 Text(buildAgentPrompt(agentKind))
                     .font(.system(size: 10.5, design: .monospaced))
@@ -713,7 +746,7 @@ struct StorageManagerRootView: View {
             )
 
             HStack {
-                Text("复制后粘到 \(agentKind.title) 里，它会按提示词逐项判断。")
+                Text("复制后粘到你的 Agent 里，它会按提示词逐项判断。")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
                 Spacer()
