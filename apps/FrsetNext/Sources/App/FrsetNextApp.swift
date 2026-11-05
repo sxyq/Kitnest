@@ -272,6 +272,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else if !AnnotationEditorController.shared.openLatest() {
                     Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
                 }
+            case "copyocr", "copytranslate":
+                // v222 排障：直接跑「复制并识别 / 复制并翻译」，
+                // 用 `pbpaste` 核对剪贴板里落地的是文字还是图片。
+                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)) {
+                    if url.host == "copytranslate" {
+                        ScreenshotManager.shared.recognizeAndCopyTranslation(img)
+                    } else {
+                        ScreenshotManager.shared.recognizeAndCopyText(img)
+                    }
+                } else {
+                    Log.warn("App", "\(url.host ?? "copyocr")：需要 ?file= 指定图片")
+                }
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()
