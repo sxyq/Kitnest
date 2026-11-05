@@ -950,13 +950,15 @@ private struct DiskStatsPanel: View {
         }
     }
 
-    private func legendValue(color: Color, value: String) -> some View {
-        HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 9, height: 9)
-            Text(value)
-                .font(.system(size: 13, weight: .medium).monospacedDigit())
-                .lineLimit(1)
-        }
+}
+
+/// 图例小项（色块 + 等宽数值）：磁盘 / 网络两个面板原本各写了一份逐字相同的实现
+private func legendValue(color: Color, value: String) -> some View {
+    HStack(spacing: 6) {
+        RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 9, height: 9)
+        Text(value)
+            .font(.system(size: 13, weight: .medium).monospacedDigit())
+            .lineLimit(1)
     }
 }
 
@@ -1173,14 +1175,6 @@ private struct NetworkStatsPanel: View {
         }
     }
 
-    private func legendValue(color: Color, value: String) -> some View {
-        HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 2, style: .continuous).fill(color).frame(width: 9, height: 9)
-            Text(value)
-                .font(.system(size: 13, weight: .medium).monospacedDigit())
-                .lineLimit(1)
-        }
-    }
 }
 
 /// 连通性网格（原版 30×3 绿/红方块）
