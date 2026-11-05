@@ -160,6 +160,12 @@ struct StorageManagerRootView: View {
         stack.last ?? store.snapshot?.root
     }
 
+    /// 磁盘可用空间（只查一次——`attributesOfFileSystem` 每次 body 都调会有 I/O 开销）
+    static let diskFreeBytes: Int64? = {
+        let attrs = try? FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory())
+        return (attrs?[.systemFreeSize] as? NSNumber)?.int64Value
+    }()
+
     private var candidates: [CleanupCandidate] { store.candidates() }
 
     private var selectedBytes: Int64 {
@@ -565,8 +571,7 @@ struct StorageManagerRootView: View {
                                onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
                                onSelect: { detailNode = $0 },
                                onBack: { if !stack.isEmpty { stack.removeLast() } },
-                               agentZone: CGSize(width: 196, height: 112),
-                               onAgent: { showAgentSheet = true })
+                               freeSpace: Self.diskFreeBytes)
                     .padding(.horizontal, 10)
                     .padding(.bottom, 8)
                     .id(node.id)
