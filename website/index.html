@@ -59,8 +59,8 @@
             <span class="hero-tag"><span class="dot"></span>macOS 13+ · 菜单栏常驻 · 本地优先</span>
             <h1>复制过的东西，<br>不该<em>再也找不回来</em>。</h1>
             <p class="hero-sub">
-              Kitnest 把剪贴板历史、截图标注、系统监控、文件互传和安卓投屏，
-              收进菜单栏里的一个图标。点一下，或者按 <kbd>⌥A</kbd>。
+              Kitnest 把剪贴板历史和截图标注放在最前面，系统监控、文件互传与安卓投屏也收进菜单栏里的同一个图标。
+              点一下，或者按 <kbd>⌥A</kbd>。
             </p>
             <div class="hero-actions">
               <a class="btn btn-primary" href="#download" data-nav>下载 for macOS
@@ -117,8 +117,8 @@
             <div class="panel-mock" id="panelMock">
               <div class="pm-tabs">
                 <button class="pm-tab on" type="button" data-page="home">主页</button>
-                <button class="pm-tab" type="button" data-page="monitor">性能监测</button>
-                <button class="pm-tab" type="button" data-page="transfer">文件中转</button>
+                <button class="pm-tab" type="button" data-page="monitor">监测</button>
+                <button class="pm-tab" type="button" data-page="transfer">中转</button>
                 <button class="pm-tab" type="button" data-page="cast">投屏</button>
                 <span class="pm-gear" title="设置">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-3-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-3l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -148,11 +148,12 @@
                     </div>
                   </div>
                   <ul class="pm-list" id="pmList"></ul>
+                  <a class="pm-link" href="#features" data-jump="features:ch-clipboard">看「剪贴板」的完整说明 →</a>
                 </div>
 
                 <!-- 性能监测 -->
                 <div class="pm-page" data-page="monitor" hidden>
-                  <div class="pm-modbar">
+                  <div class="pm-modbar" data-jump="features:ch-monitor">
                     <span class="on">温度</span><span>CPU</span><span>内存</span><span>网络</span><span>磁盘</span><span>电池</span>
                   </div>
                   <div class="pm-metrics">
@@ -168,21 +169,23 @@
                     <div class="pm-bar"><span>NVMe</span><i style="width:29%"></i><em>35°</em></div>
                   </div>
                   <p class="pm-note">演示数据 · 真实运行时会每 1.5 秒刷新</p>
+                  <a class="pm-link" href="#features" data-jump="features:ch-monitor">看「系统监控」的完整说明 →</a>
                 </div>
 
                 <!-- 文件中转 -->
                 <div class="pm-page" data-page="transfer" hidden>
                   <div class="pm-sect-title">发送</div>
                   <div class="pm-exits">
-                    <button class="pm-exit" type="button" data-toast="弹出系统隔空投送面板"><b>苹果设备</b><span>iPhone / iPad / Mac</span></button>
-                    <button class="pm-exit" type="button" data-toast="生成二维码，对方扫码即可接收"><b>安卓 / 其他</b><span>扫码直传</span></button>
-                    <button class="pm-exit" type="button" data-toast="USB 3.0 直连，实测可跑满 100 MB/s"><b>ADB 直传</b><span>需先连一次设备</span></button>
+                    <button class="pm-exit" type="button" data-jump="features:ch-transfer" data-toast="弹出系统隔空投送面板"><b>苹果设备</b><span>iPhone / iPad / Mac</span></button>
+                    <button class="pm-exit" type="button" data-jump="features:ch-transfer" data-toast="生成二维码，对方扫码即可接收"><b>安卓 / 其他</b><span>扫码直传</span></button>
+                    <button class="pm-exit" type="button" data-jump="features:ch-transfer" data-toast="USB 3.0 直连，实测可跑满 100 MB/s"><b>ADB 直传</b><span>需先连一次设备</span></button>
                   </div>
                   <div class="pm-sect-title">本地暂存</div>
                   <div class="pm-files">
                     <div class="pm-file"><span class="pm-file-ico">ZIP</span><div><b>发布包.zip</b><span>2.1 MB</span></div></div>
                     <div class="pm-file"><span class="pm-file-ico">MD</span><div><b>发布流程.md</b><span>18 KB</span></div></div>
                   </div>
+                  <a class="pm-link" href="#features" data-jump="features:ch-transfer">看「文件中转」的完整说明 →</a>
                 </div>
 
                 <!-- 投屏 -->
@@ -193,10 +196,10 @@
                       <div><b>示例设备 · 已连接</b><span>USB · 1920p / 16 Mbps / 60 fps</span></div>
                     </div>
                     <div class="pm-navkeys">
-                      <button type="button" data-toast="发送返回键">‹</button>
-                      <button type="button" data-toast="回到桌面">⌂</button>
-                      <button type="button" data-toast="打开多任务">▢</button>
-                      <button type="button" data-toast="展开通知栏">▤</button>
+                      <button type="button" data-jump="features:ch-cast" data-toast="发送返回键">‹</button>
+                      <button type="button" data-jump="features:ch-cast" data-toast="回到桌面">⌂</button>
+                      <button type="button" data-jump="features:ch-cast" data-toast="打开多任务">▢</button>
+                      <button type="button" data-jump="features:ch-cast" data-toast="展开通知栏">▤</button>
                     </div>
                   </div>
                   <div class="pm-sect-title">手机通知</div>
@@ -204,26 +207,28 @@
                     <li><b>示例通知</b><span>这是一条用于演示的通知内容</span></li>
                     <li><b>示例通知 2</b><span>演示数据，真实运行时来自手机</span></li>
                   </ul>
+                  <a class="pm-link" href="#features" data-jump="features:ch-cast">看「安卓投屏」的完整说明 →</a>
                 </div>
 
                 <!-- 工具模式（输入 / 出现） -->
                 <div class="pm-page" data-page="tools" hidden>
                   <div class="pm-sect-title">工具</div>
                   <ul class="pm-tools" id="pmTools"></ul>
+                  <a class="pm-link" href="#features" data-jump="features:ch-toolbox">看「工具箱」的完整说明 →</a>
                 </div>
               </div>
 
               <div class="pm-toolbar">
-                <button type="button" data-toast="按应用名过滤剪贴板历史" title="筛选">
+                <button type="button" data-jump="features:ch-clipboard" data-toast="按应用名过滤剪贴板历史" title="筛选">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
                 </button>
-                <button type="button" data-toast="按标签分组查看" title="标签">
+                <button type="button" data-jump="features:ch-clipboard" data-toast="按标签分组查看" title="标签">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16l-6.5 8v5l-3 2v-7z"/></svg>
                 </button>
-                <button type="button" data-toast="批量编辑（置顶 / 标签 / 删除）" title="编辑">
+                <button type="button" data-jump="features:ch-clipboard" data-toast="批量编辑（置顶 / 标签 / 删除）" title="编辑">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20h14M6 16l9-9 3 3-9 9H6z"/></svg>
                 </button>
-                <button type="button" data-toast="上传所选文件到云端中转" title="上传">
+                <button type="button" data-jump="features:ch-transfer" data-toast="上传所选文件到云端中转" title="上传">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6m0 0-4 4m4-4 4 4M5 19h14"/></svg>
                 </button>
                 <span class="pm-count" id="pmCount">8 条记录</span>
@@ -240,7 +245,7 @@
           <div class="section-head">
             <span class="kicker">One icon, six jobs</span>
             <h2>六个每天都在用的功能，<br>共用一个菜单栏图标。</h2>
-            <p class="lede">不是六个互相独立的 App。剪贴板、截图、监控、传文件、投屏、工具箱共享同一套搜索、快捷键和设置。</p>
+            <p class="lede">这六个功能同属一个 App。剪贴板、截图、监控、传文件、投屏，外加一个工具箱，共用同一套搜索、快捷键和设置。</p>
           </div>
 
           <div class="grid-3">
@@ -249,7 +254,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="12" height="16" rx="2"/><path d="M16 4V3a1 1 0 0 0-1-1H5a2 2 0 0 0-2 2v13a1 1 0 0 0 1 1h2"/><path d="M11 9h6M11 13h6M11 17h4"/></svg>
               </span>
               <h3>剪贴板历史</h3>
-              <p>复制过的文字、图片、文件、链接自动留存，重复复制不会重复占位。</p>
+              <p>复制过的文字、图片、文件和链接自动留存，同一条内容重复复制只占一格。</p>
               <ul>
                 <li>模糊搜索，输入应用名也能筛</li>
                 <li>双击直接回贴到当前窗口</li>
@@ -262,7 +267,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><rect x="8.5" y="8.5" width="7" height="7" rx="1"/></svg>
               </span>
               <h3>截图与标注</h3>
-              <p>区域、窗口、长截图三种入口，截完就地标注、识字、翻译、钉在屏幕上。</p>
+              <p>区域截图、窗口截图、长截图三种入口，截完可以就地标注、识字或翻译，也能钉在屏幕上。</p>
               <ul>
                 <li><kbd>⌥S</kbd> 区域 · <kbd>⇧⌥W</kbd> 窗口 · <kbd>⇧⌥L</kbd> 长截图</li>
                 <li>马赛克、抹除、序号、文字</li>
@@ -301,7 +306,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 5.5h4M11 18.5h2"/></svg>
               </span>
               <h3>安卓投屏</h3>
-              <p>USB 或一键无线连上手机，镜像、通知、存储、应用窗口都在 Mac 上。</p>
+              <p>USB 或一键无线连上手机后，镜像、通知、存储和应用窗口都能在 Mac 上看。</p>
               <ul>
                 <li>镜像期间剪贴板双向同步</li>
                 <li>手机通知每 6 秒同步</li>
@@ -314,7 +319,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0 5 5L13 18l-3.5-3.5 6.5-6.5Z"/><path d="M11 14 5 20M4 17l3 3"/></svg>
               </span>
               <h3>工具箱</h3>
-              <p>搜索框输入 <code>/</code> 就变成启动器。哈希、二维码、日历、媒体转换都在里面。</p>
+              <p>搜索框输入 <code>/</code> 就变成启动器。哈希、二维码这类小工具都在里面，日历和媒体转换也有。</p>
               <ul>
                 <li>即用即走，不堆按钮</li>
                 <li>命令面板 <kbd>⌥K</kbd></li>
@@ -331,7 +336,7 @@
             <div>
               <span class="kicker">Local first</span>
               <h3>它不需要你的账号，<br>也不需要把你的数据传上去。</h3>
-              <p>剪贴板、截图、监控数据都写在本机的 SQLite 里。没有登录，没有云端同步，也没有埋点统计。</p>
+              <p>剪贴板记录、截图和监控数据都写在本机的 SQLite 里。不要求登录，不做云端同步，埋点统计也没有。</p>
             </div>
             <div class="privacy-points">
               <div class="privacy-point">
@@ -377,14 +382,14 @@
             <p class="lede">下面按「你什么时候会用到」来写，不按代码模块写。所有快捷键都可以在设置里改。</p>
           </div>
 
-          <article class="chapter">
+          <article class="chapter" id="ch-clipboard">
             <div class="chapter-no">
               <span class="ch-title">01 · 剪贴板</span>
               <span class="ch-sub">找回复制过的任何东西</span>
             </div>
             <div class="chapter-body">
               <h3>复制完就忘，交给它记着</h3>
-              <p>在任何 App 里复制文字、图片、文件或链接，都会自动进历史，最新的排最上面。重复复制同一条内容不会重复占位；历史默认保留 <strong>30 天</strong>、容量上限 <strong>2GB</strong>，两个数值都能改。</p>
+              <p>复制文字、图片、文件或链接，都会自动进历史，新的排在最上面。重复复制同一条内容不会重复占位；历史默认保留 <strong>30 天</strong>、容量上限 <strong>2GB</strong>，两个数值都能改。</p>
               <ul class="spec-list">
                 <li><span class="k">找回</span><span class="v">打开面板直接看，或在搜索框输入关键词模糊匹配</span></li>
                 <li><span class="k">回贴</span><span class="v">双击一条记录（或按回车）直接粘贴回当前窗口</span></li>
@@ -395,7 +400,7 @@
             </div>
           </article>
 
-          <article class="chapter">
+          <article class="chapter" id="ch-capture">
             <div class="chapter-no">
               <span class="ch-title">02 · 截图</span>
               <span class="ch-sub">截、标、识字、钉住</span>
@@ -424,7 +429,7 @@
                 <span class="am-sep"></span>
                 <span class="btn" style="padding:5px 12px;font-size:12px;background:#2F6BFF;border-color:#2F6BFF;color:#fff">复制</span>
               </div>
-              <p class="preview-note">标注工具条示意：工具区、颜色与粗细、撤销与导出，三段式布局。</p>
+              <p class="preview-note">标注工具条示意，分成工具区、颜色与粗细、撤销与导出三段。</p>
 
               <ul class="spec-list">
                 <li><span class="k">标注</span><span class="v">矩形、椭圆、箭头、画笔、文字、荧光笔、马赛克、橡皮、抹除</span></li>
@@ -437,14 +442,14 @@
             </div>
           </article>
 
-          <article class="chapter">
+          <article class="chapter" id="ch-monitor">
             <div class="chapter-no">
               <span class="ch-title">03 · 系统监控</span>
               <span class="ch-sub">不用开活动监视器</span>
             </div>
             <div class="chapter-body">
               <h3>该看的数据，摆在菜单栏上</h3>
-              <p>八个模块共用一套读取引擎：功耗、CPU、内存、网络、磁盘、传感器、电池、GPU。菜单栏部件支持 <strong>12 种形态</strong>——迷你数值、折线、柱状、饼图、速度、状态点、标签、图标等，按模块分别设置，改完立即生效。</p>
+              <p>八个模块共用一套读取引擎：功耗、CPU、内存、网络、磁盘、传感器、电池、GPU。菜单栏部件支持 <strong>12 种形态</strong>，迷你数值、折线、柱状、饼图、速度、状态点、标签、图标都能选。按模块分别设置，改完立即生效。</p>
               <ul class="spec-list">
                 <li><span class="k">CPU</span><span class="v">总占用、每核心、集群（性能核 / 能效核 / 中核）、平均负载、占用最高的进程</span></li>
                 <li><span class="k">内存</span><span class="v">已用 / 压缩 / 联动 / 可用、交换区、内存压力</span></li>
@@ -457,14 +462,14 @@
             </div>
           </article>
 
-          <article class="chapter">
+          <article class="chapter" id="ch-transfer">
             <div class="chapter-no">
               <span class="ch-title">04 · 文件中转</span>
               <span class="ch-sub">一个池子，三个出口</span>
             </div>
             <div class="chapter-body">
               <h3>先收进暂存，再想发给谁</h3>
-              <p>所有来路的文件——隔空投送收到、从手机拉取、拖进来、从剪贴板复制——都汇进「本地暂存」。勾选文件后，只看对方是什么设备，选一条出口。</p>
+              <p>所有来路的文件都汇进「本地暂存」，不管来自隔空投送、手机拉取、拖入还是剪贴板，都在里面。勾选文件后，只看对方是什么设备，选一条出口。</p>
               <ul class="spec-list">
                 <li><span class="k">苹果设备</span><span class="v">弹出系统隔空投送面板，对端零安装；iPhone / iPad / Mac 都行</span></li>
                 <li><span class="k">安卓 / 其他</span><span class="v">弹出二维码，对方用浏览器扫码接收，也能反向传给你</span></li>
@@ -476,7 +481,7 @@
             </div>
           </article>
 
-          <article class="chapter">
+          <article class="chapter" id="ch-cast">
             <div class="chapter-no">
               <span class="ch-title">05 · 安卓投屏</span>
               <span class="ch-sub">手机在 Mac 上，不只是画面</span>
@@ -486,7 +491,7 @@
               <p>USB 连上手机、打开 USB 调试，点「检测设备」再点「开始投屏」即可。想摆脱线缆就点「一键无线」：它会自动执行 <code>adb tcpip 5555</code> 并连上手机的 Wi-Fi 地址，之后同一网络下直接检测，不用再开无线调试、不用配对码。</p>
               <ul class="spec-list">
                 <li><span class="k">镜像</span><span class="v">默认 1920p / 16 Mbps / 60 fps，可在设置里改分辨率（含「原始」）、码率、帧率</span></li>
-                <li><span class="k">剪贴板</span><span class="v">镜像期间双向同步：电脑复制的手机能粘，手机复制的电脑能粘</span></li>
+                <li><span class="k">剪贴板</span><span class="v">镜像期间双向同步：电脑复制的手机能粘，手机那边复制的电脑也能粘</span></li>
                 <li><span class="k">通知</span><span class="v">零安装同步手机未清除的通知，标题、正文、时间，右键可复制正文</span></li>
                 <li><span class="k">应用窗口</span><span class="v">读取手机第三方应用，点一个就在 Mac 上开一个独立窗口（Android 14+）</span></li>
                 <li><span class="k">导航键</span><span class="v">返回 / 主页 / 多任务 / 通知栏，全面屏手势手机也能直接操作</span></li>
@@ -495,7 +500,7 @@
             </div>
           </article>
 
-          <article class="chapter">
+          <article class="chapter" id="ch-toolbox">
             <div class="chapter-no">
               <span class="ch-title">06 · 工具箱</span>
               <span class="ch-sub">输入 / 就开始用</span>
@@ -526,9 +531,11 @@
 
           <div class="shot-tabs" data-stage="shotStage" role="tablist" aria-label="界面截图切换">
             <button class="shot-tab on" data-shot="panel" role="tab">主面板</button>
-            <button class="shot-tab" data-shot="monitor" role="tab">性能监测</button>
+            <button class="shot-tab" data-shot="monitor" role="tab">监测</button>
+            <button class="shot-tab" data-shot="transfer" role="tab">中转</button>
+            <button class="shot-tab" data-shot="cast" role="tab">投屏</button>
+            <button class="shot-tab" data-shot="annotate" role="tab">标注</button>
             <button class="shot-tab" data-shot="cpu" role="tab">CPU 详情窗</button>
-            <button class="shot-tab" data-shot="sensors" role="tab">传感器</button>
           </div>
 
           <div class="shot-stage" id="shotStage">
@@ -536,65 +543,91 @@
               <div data-shot-panel="panel">
                 <span class="shot-index">01 / PANEL</span>
                 <h3>一眼看完今天</h3>
-                <p>顶部四个页签：主页、性能监测、文件中转、投屏。搜索框、日历、剪贴板历史依次排下来，底部是搜索、筛选、标签、编辑、上传。</p>
+                <p>顶部四个页签：主页、监测、中转、投屏。搜索框、日历、剪贴板历史依次排下来，底部是搜索和筛选，另外还有标签、编辑、上传。</p>
                 <ul class="shot-points">
-                  <li><b>搜索</b>输入关键词直接过滤剪贴板，输入 / 变工具启动器</li>
+                  <li><b>剪贴板</b>图里这些条目是预先灌进去的演示数据：JSON、Markdown、Swift、Python、图片和链接</li>
+                  <li><b>搜索</b>输入关键词直接过滤，输入 / 变工具启动器</li>
                   <li><b>日历</b>公历、农历、节气、节假日同屏</li>
-                  <li><b>历史</b>带来源应用徽章，双击即回贴</li>
                 </ul>
               </div>
               <div data-shot-panel="monitor" hidden>
                 <span class="shot-index">02 / MONITOR</span>
                 <h3>温度这一页，看得最细</h3>
-                <p>八个模块用一排标签切换。温度页先给计算项（平均 / 最高 CPU、GPU），再列每个核心的温度、电压与电流。</p>
+                <p>八个模块用一排标签切换。温度页先给计算项，再列每个核心的温度、电压与电流。</p>
                 <ul class="shot-points">
                   <li><b>计算项</b>Average / Hottest，一眼判断散热是否正常</li>
-                  <li><b>逐项</b>27 个温度传感器逐条列出</li>
+                  <li><b>逐项</b>每个温度传感器逐条列出</li>
                   <li><b>电气</b>DC In 电压、系统总电流、电池电量</li>
                 </ul>
               </div>
+              <div data-shot-panel="transfer" hidden>
+                <span class="shot-index">03 / TRANSFER</span>
+                <h3>先收进暂存，再选出口</h3>
+                <p>发送页分成隔空投送、扫码直传、ADB 直传三条路，接收和云端各占一栏，文件统一进本地暂存。</p>
+                <ul class="shot-points">
+                  <li><b>苹果设备</b>系统隔空投送，对端零安装</li>
+                  <li><b>安卓 / 其他</b>出二维码，浏览器扫码就传</li>
+                  <li><b>ADB</b>USB 直连，批量倒文件更快</li>
+                </ul>
+              </div>
+              <div data-shot-panel="cast" hidden>
+                <span class="shot-index">04 / CAST</span>
+                <h3>手机接上就投</h3>
+                <p>Android 设备中心在这里：连设备、无线配对、镜像投屏，通知、存储、应用窗口都能一起看。</p>
+                <ul class="shot-points">
+                  <li><b>连接</b>USB 调试或一键无线，扫局域网也能配对</li>
+                  <li><b>镜像</b>剪贴板双向同步</li>
+                  <li><b>扩展</b>可选的 MCP 与 WebDAV，只绑回环地址</li>
+                </ul>
+              </div>
+              <div data-shot-panel="annotate" hidden>
+                <span class="shot-index">05 / ANNOTATE</span>
+                <h3>截完就能改</h3>
+                <p>左侧竖排是标注工具，底部是颜色、粗细、撤销和复制。改完直接复制，不用再开别的应用。</p>
+                <ul class="shot-points">
+                  <li><b>工具</b>矩形、椭圆、箭头、画笔、文字、荧光、马赛克、橡皮、抹除</li>
+                  <li><b>马赛克</b>按住涂抹即可，圈会跟着光标走</li>
+                  <li><b>快捷键</b>R 矩形、O 椭圆、A 箭头、P 画笔、T 文字、H 荧光、M 马赛克</li>
+                </ul>
+              </div>
               <div data-shot-panel="cpu" hidden>
-                <span class="shot-index">03 / CPU</span>
-                <h3>谁在吃 CPU，直接点名</h3>
+                <span class="shot-index">06 / CPU</span>
+                <h3>谁在吃 CPU</h3>
                 <p>总占用环、使用历史曲线、每核心方块、集群占用、平均负载，最下面是占用最高的进程。</p>
                 <ul class="shot-points">
                   <li><b>总览</b>系统 / 用户 / 空闲三段拆开算</li>
                   <li><b>集群</b>性能核与能效核分开显示</li>
-                  <li><b>进程</b>按占用排序，刷新间隔 1.5s</li>
-                </ul>
-              </div>
-              <div data-shot-panel="sensors" hidden>
-                <span class="shot-index">04 / SENSORS</span>
-                <h3>风扇、电压、电流</h3>
-                <p>传感器窗把温度、电压、电流、功率、风扇转速放在同一页，适合排查「为什么这么烫」。</p>
-                <ul class="shot-points">
-                  <li><b>温度</b>核心与计算项分组，阈值用颜色标出</li>
-                  <li><b>电压</b>DC In 实时读数</li>
-                  <li><b>电流</b>系统总电流、电池电流</li>
+                  <li><b>刷新</b>1.5 秒一次</li>
                 </ul>
               </div>
             </div>
 
             <div class="shot-frame">
               <div data-shot-slide="panel">
-                <img src="assets/shots/panel.png" alt="Kitnest 主面板实机截图" data-shot-file="assets/shots/panel.png">
+                <img src="assets/shots/panel.png" alt="Kitnest 主面板实机截图，剪贴板里是演示数据" data-shot-file="assets/shots/panel.png">
               </div>
               <div data-shot-slide="monitor" hidden>
-                <img src="assets/shots/panel-performance.png" alt="Kitnest 性能监测页实机截图" data-shot-file="assets/shots/panel-performance.png">
+                <img src="assets/shots/panel-performance.png" alt="Kitnest 监测页实机截图" data-shot-file="assets/shots/panel-performance.png">
+              </div>
+              <div data-shot-slide="transfer" hidden>
+                <img src="assets/shots/panel-transfer.png" alt="Kitnest 文件中转页实机截图" data-shot-file="assets/shots/panel-transfer.png">
+              </div>
+              <div data-shot-slide="cast" hidden>
+                <img src="assets/shots/panel-cast.png" alt="Kitnest 投屏页实机截图" data-shot-file="assets/shots/panel-cast.png">
+              </div>
+              <div data-shot-slide="annotate" hidden>
+                <img src="assets/shots/annotate.png" alt="Kitnest 标注编辑器实机截图" data-shot-file="assets/shots/annotate.png">
               </div>
               <div data-shot-slide="cpu" hidden>
                 <img src="assets/shots/popout-cpu.png" alt="Kitnest CPU 详情窗实机截图" data-shot-file="assets/shots/popout-cpu.png">
-              </div>
-              <div data-shot-slide="sensors" hidden>
-                <img src="assets/shots/popout-sensors.png" alt="Kitnest 传感器详情窗实机截图" data-shot-file="assets/shots/popout-sensors.png">
               </div>
             </div>
           </div>
 
           <div style="margin-top:26px">
             <figure class="shot-figure">
-              <img src="assets/shots/panel-anchored.png" alt="Kitnest 面板贴在菜单栏下方展开的实机截图" data-shot-file="assets/shots/panel-anchored.png">
-              <figcaption>面板就是贴着菜单栏图标展开的，再点一次或按 Esc 收起。</figcaption>
+              <img src="assets/shots/settings.png" alt="Kitnest 设置窗口实机截图" data-shot-file="assets/shots/settings.png">
+              <figcaption>设置里能调面板分段（主页 / 监测 / 中转 / 投屏）、剪贴板保留期、部件样式和更新源。</figcaption>
             </figure>
           </div>
         </div>
@@ -668,7 +701,7 @@
 
             <div>
               <h3 style="font-size:20px;margin-bottom:10px">更新说明跟着版本走</h3>
-              <p style="font-size:14px;color:var(--ink-2);margin-bottom:14px">每次更新完成，首次启动会弹出一张清单，分成新增、改进、修复三组。内容来自版本清单，不是写死在客户端里的文案。</p>
+              <p style="font-size:14px;color:var(--ink-2);margin-bottom:14px">每次更新完成，首次启动会弹出一张清单，分成新增、改进、修复三组。内容来自版本清单，不写死在客户端里。</p>
               <ul class="spec-list">
                 <li><span class="k">检查频率</span><span class="v">启动时一次，之后每 6 小时一次；清单只有几百字节</span></li>
                 <li><span class="k">通知</span><span class="v">系统通知；拒绝了也不影响，改在菜单栏浮提示与状态栏菜单里显示</span></li>
@@ -855,7 +888,7 @@
             <div class="faq-item">
               <button class="faq-q" type="button">隔空投送发不出去怎么办<span class="faq-arrow">＋</span></button>
               <div class="faq-a"><div class="faq-a-inner">
-                <p>先确认双方都开了 Wi-Fi 和蓝牙，隔空投送没有设成「仅限联系人」。安卓和 Windows 收不到空投是正常的——改走「扫码直传」（任何带浏览器的设备），或「ADB 直传」。</p>
+                <p>先确认双方都开了 Wi-Fi 和蓝牙，隔空投送没有设成「仅限联系人」。安卓和 Windows 收不到空投是正常的，改走「扫码直传」（任何带浏览器的设备），或「ADB 直传」。</p>
               </div></div>
             </div>
             <div class="faq-item">
@@ -973,7 +1006,7 @@
             <img src="assets/kitnest-mark.svg" alt="">
             Kitnest
           </div>
-          <p class="footer-desc">一个常驻 macOS 菜单栏的效率工具集。剪贴板、截图、监控、传输、投屏，共用一个图标。</p>
+          <p class="footer-desc">一个常驻 macOS 菜单栏的效率工具集。剪贴板、截图和监控，加上一份文件传输与投屏，都在这一个图标里。</p>
         </div>
         <div class="footer-col">
           <h5>产品</h5>

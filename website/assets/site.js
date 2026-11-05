@@ -47,6 +47,18 @@
     return VIEWS.indexOf(hash) !== -1 ? hash : "home";
   }
 
+  // 从面板里的按钮跳到官网对应章节：先切视图，再滚到锚点
+  var pendingAnchor = null;
+
+  function goTo(view, anchor) {
+    pendingAnchor = anchor || null;
+    if (currentView() === view) {
+      render();
+    } else {
+      location.hash = "#" + view;      // 触发 hashchange → render()
+    }
+  }
+
   function render() {
     var view = currentView();
 
@@ -66,6 +78,17 @@
       : titleFor(view) + " · Kitnest";
 
     window.scrollTo({ top: 0, behavior: "auto" });
+
+    if (pendingAnchor) {
+      var anchor = pendingAnchor;
+      pendingAnchor = null;
+      var el = document.getElementById(anchor);
+      if (el) {
+        setTimeout(function () {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 60);
+      }
+    }
     closeMobileMenu();
   }
 
@@ -341,6 +364,15 @@
       if (pmCount) {
         pmCount.textContent = tab.getAttribute("data-page") === "home" ? FAKE_CLIP.length + " 条记录" : "演示数据";
       }
+    });
+  });
+
+  $$("[data-jump]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      var spec = (el.getAttribute("data-jump") || "").split(":");
+      if (!spec[0]) return;
+      e.preventDefault();
+      goTo(spec[0], spec[1]);
     });
   });
 

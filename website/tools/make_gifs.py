@@ -254,8 +254,8 @@ def frame_annotate(stage):
     wx0, wy0, wx1, wy1 = box
     sx = ox + (wx1 - wx0) // 2
 
-    if stage >= 1:  # 矩形标注（部分画出）
-        p = min(1.0, stage)
+    if stage >= 0.15:  # 矩形标注（部分画出）
+        p = min(1.0, (stage - 0.15) / 0.85)
         rx0, ry0 = ox + 200, oy + 172
         rx1 = rx0 + int(250 * p)
         ry1 = ry0 + int(140 * p)
@@ -264,18 +264,22 @@ def frame_annotate(stage):
         d.ellipse((rx0 - 28, ry0 - 27, rx0 - 8, ry0 - 7), fill=RED + (255,))
         d.text((rx0 - 18, ry0 - 26), "1", font=F_TINY, fill=(255, 255, 255), anchor="ma")
 
-    if stage >= 2:  # 箭头
+    if stage >= 1:  # 箭头（1 → 2 之间画出来）
+        t = min(1.0, stage - 1.0)
         ay0, ay1 = oy + 320, oy + 250
         ax0, ax1 = ox + 470, ox + 430
-        d.line((ax0, ay0, ax1, ay1), fill=RED + (255,), width=3)
-        d.polygon([(ax1, ay1), (ax1 - 14, ay1 - 4), (ax1 - 4, ay1 + 12)], fill=RED + (255,))
+        ex = ax0 + (ax1 - ax0) * t
+        ey = ay0 + (ay1 - ay0) * t
+        d.line((ax0, ay0, ex, ey), fill=RED + (255,), width=3)
+        if t > 0.85:
+            d.polygon([(ax1, ay1), (ax1 - 14, ay1 - 4), (ax1 - 4, ay1 + 12)], fill=RED + (255,))
 
-    if stage >= 3:  # 马赛克遮住手机号
+    if stage >= 2:  # 马赛克遮住手机号
         mb = (ox + 318, oy + 376, ox + 452, oy + 400)
         mosaic(img, mb, cell=6)
         d.rectangle(mb, outline=RED + (110,), width=1)
 
-    annotate_toolbar(d, W // 2, H - 40, active=(2 if stage >= 2 else 0),
+    annotate_toolbar(d, W // 2, H - 40, active=(2 if stage >= 1 else 0),
                      copy_hot=(stage >= 4))
 
     if stage >= 4:  # 复制完成
@@ -289,30 +293,47 @@ def build():
     frames = []
     durations = []
 
-    # 1) 框选 6 帧
-    for i in range(6):
-        frames.append(frame_select((i + 1) / 6.0))
-        durations.append(130)
+    # 1) 框选：12 帧 × 55ms（约 18fps），选区连续长大
+    for i in range(12):
+        frames.append(frame_select((i + 1) / 12.0))
+        durations.append(55)
 
-    # 2) 截取完成 2 帧
-    for _ in range(2):
+    # 2) 截取完成：3 帧 × 180ms
+    for _ in range(3):
         frames.append(frame_captured())
-        durations.append(320)
+        durations.append(180)
 
-    # 3) 标注 4 个阶段（矩形渐进 + 箭头 + 马赛克 + 复制）
-    for st in (1, 1, 2, 3, 4, 4):
-        frames.append(frame_annotate(st))
-        durations.append(320)
+    # 3) 矩形：8 帧 × 55ms，逐帧画出来
+    for i in range(8):
+        frames.append(frame_annotate(0.15 + 0.106 * i))
+        durations.append(55)
+
+    # 4) 箭头：6 帧 × 55ms
+    for i in range(6):
+        frames.append(frame_annotate(1 + 0.17 * i))
+        durations.append(55)
+
+    # 5) 马赛克：4 帧 × 90ms
+    for i in range(4):
+        frames.append(frame_annotate(2 + 0.25 * i))
+        durations.append(90)
+
+    # 6) 复制完成：4 帧 × 200ms
+    for _ in range(4):
+        frames.append(frame_annotate(4))
+        durations.append(200)
 
     # 转 GIF（统一调色板，减小体积）
     # 调色板必须包含标注帧里的红色 —— 用标注完成帧做基准，否则红框会被量化成灰色
-    pal = frames[-1].convert("P", palette=Image.ADAPTIVE, colors=200)
+    pal = frames[-1].convert("P", palette=Image.ADAPTIVE, colors=160)
     out = [f.convert("RGB").quantize(palette=pal) for f in frames]
     path = os.path.join(OUT_DIR, "capture-flow.gif")
     out[0].save(path, save_all=True, append_images=out[1:], loop=0,
                 duration=durations, optimize=True, disposal=2)
-    print("  ✓ %s（%d 帧，%.1f KB）" % (os.path.relpath(path, ROOT), len(out),
-                                        os.path.getsize(path) / 1024))
+    total = sum(durations) / 1000.0
+    print("  ✓ %s（%d 帧 / %.1fs / 平均 %.0f fps / %.1f KB）"
+          % (os.path.relpath(path, ROOT), len(out), total, len(out) / total,
+             os.path.getsize(path) / 1024))
     return path
 
 
