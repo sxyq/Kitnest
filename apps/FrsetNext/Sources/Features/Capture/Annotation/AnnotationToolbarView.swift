@@ -71,7 +71,7 @@ final class EditorToolbarModel: ObservableObject {
 
     var sizeValue: Double {
         switch activeTool {
-        case .text: return textSize
+        case .text, .remark: return textSize
         case .highlighter: return highlighterWidth
         case .mosaic, .blur, .eraser, .removal: return brushWidth
         default: return lineWidth
@@ -81,7 +81,7 @@ final class EditorToolbarModel: ObservableObject {
     var sizeRange: ClosedRange<Double> {
         switch activeTool {
         case .mosaic, .blur, .eraser, .removal: return 8...200
-        case .text: return 1...12
+        case .text, .remark: return 1...12
         case .highlighter: return 1...16
         default: return 1...40
         }
@@ -98,7 +98,7 @@ final class EditorToolbarModel: ObservableObject {
 
     func setSize(_ value: Double) {
         switch activeTool {
-        case .text: textSize = value
+        case .text, .remark: textSize = value
         case .highlighter: highlighterWidth = value
         case .mosaic, .blur, .eraser, .removal: brushWidth = value
         default: lineWidth = value
@@ -148,11 +148,66 @@ struct AnnotationToolRailView: View {
     @ObservedObject var model: EditorToolbarModel
     var onTool: (Int) -> Void
 
+    /// 鼠标正停在哪个工具上（nil = 没停）
+    /// 初值读 `probe.annot.railHover`：没有鼠标模拟权限时靠它把气泡钉在某个工具上截图验收。
+    @Stored private var hoveredTool: Int? = {
+        UserDefaults.standard.object(forKey: "probe.annot.railHover") as? Int
+    }()
+
     var body: some View {
         VStack(spacing: 6) {
             toolHint
             railCapsule
         }
+        // 宿主比胶囊宽（右侧留给气泡），根视图靠左，胶囊才不会被居中推走
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // 气泡要贴着具体按钮，先收集每个按钮在 rail 坐标系里的位置
+        .coordinateSpace(name: Self.railSpace)
+        .overlayPreferenceValue(RailButtonFrameKey.self) { frames in
+            ZStack(alignment: .topLeading) {
+                if let index = hoveredTool, let frame = frames[index],
+                   index < AnnotationTool.allCases.count {
+                    hoverBubble(AnnotationTool.allCases[index])
+                        .offset(x: frame.maxX + 9, y: frame.midY - 21)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.84, anchor: .leading).combined(with: .opacity),
+                            removal: .opacity))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .allowsHitTesting(false)
+        }
+    }
+
+    static let railSpace = "annot.rail"
+
+    /// v221（用户：「鼠标放上去之后要显示一个过渡动画，就是冒泡的那种，
+    /// 显示它是一个什么的功能」）：悬停气泡，替换掉原来只有系统延迟 tooltip 的体验。
+    private func hoverBubble(_ tool: AnnotationTool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(tool.title)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(Color.primary)
+                Text(tool.shortcut)
+                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.08)))
+            }
+            Text(AnnotationToolRailView.usageTip(tool))
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(GlassSurface(cornerRadius: Theme.Radius.chip))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+        )
+        .fixedSize()
     }
 
     /// v182（用户：「当前选中后没有对应的提示」）：
@@ -203,8 +258,25 @@ struct AnnotationToolRailView: View {
                 ToolIconButton(symbol: tool.systemImage,
                                selected: model.toolIndex == index,
                                dimension: ToolRailMetrics.button,
-                               help: "\(tool.title)  \(tool.shortcut)") {
+                               // 系统 tooltip 延迟 1.5s，和外层自绘气泡会打架——这里留空
+                               help: "") {
                     onTool(index)
+                }
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: RailButtonFrameKey.self,
+                            value: [index: proxy.frame(in: .named(AnnotationToolRailView.railSpace))])
+                    }
+                )
+                .onHover { inside in
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.78)) {
+                        if inside {
+                            hoveredTool = index
+                        } else if hoveredTool == index {
+                            hoveredTool = nil
+                        }
+                    }
                 }
                 if ToolRailMetrics.groupBreaks.contains(index) {
                     Rectangle()
@@ -222,6 +294,14 @@ struct AnnotationToolRailView: View {
         .glassPlate()
         .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 3)
         .fixedSize()
+    }
+}
+
+/// 收集竖栏里每个按钮在 rail 坐标系中的位置（悬停气泡跟着按钮走）
+private struct RailButtonFrameKey: PreferenceKey {
+    static var defaultValue: [Int: CGRect] = [:]
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
     }
 }
 
@@ -661,6 +741,6 @@ struct ToolIconButton: View {
         .disabled(!enabled)
         .onHover { hovering = $0 }
         .help(help)
-        .accessibilityLabel(help)
+        .accessibilityLabel(help.isEmpty ? symbol : help)
     }
 }

@@ -18,6 +18,8 @@ final class AnnotationCanvasView: NSView {
         didSet {
             // 换工具即取消文字选中（选中框只属于文字工具）
             if tool != .text, selectedTextID != nil { selectText(nil) }
+            // 备注的起点只属于备注工具：切走就作废，否则切回来点一下会直接弹输入框
+            if tool != .remark { remarkAnchor = nil }
             updateCursor(nil)
             needsDisplay = true
         }
@@ -1342,16 +1344,27 @@ private final class ToolRailHost: NSView {
     }
 
     /// 贴左缘 + 垂直居中；画布太矮时收一点高度，避免压到上下沿
+    ///
+    /// v221：宽度要多留一截给悬停气泡。只给 44pt 的话气泡会被 NSHostingView
+    /// 的边界裁掉（实测右侧气泡完全不出现）。多出来的部分靠 hitTest 挡住，
+    /// 不影响画布点击。
     func placeRail() {
         let canvasH = max(0, bounds.height - bottomInset)
         let h = min(ToolRailMetrics.height, max(120, canvasH - 24))
         let y = bottomInset + max(6, (canvasH - h) / 2)
-        host.frame = NSRect(x: Self.railLeft, y: y, width: ToolRailMetrics.width, height: h)
+        host.frame = NSRect(x: Self.railLeft, y: y,
+                            width: ToolRailMetrics.width + Self.bubbleRoom, height: h)
     }
+
+    /// 气泡预留宽度（够放「备注 N 先点目标，再点空白处写说明」这类最长文案）
+    static let bubbleRoom: CGFloat = 190
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let p = convert(point, from: superview)
-        guard host.frame.insetBy(dx: -2, dy: -2).contains(p) else { return nil }
+        // 只有胶囊本身吃鼠标；右侧让给气泡的空白一律穿透到画布
+        let railRect = NSRect(x: host.frame.minX, y: host.frame.minY,
+                              width: ToolRailMetrics.width, height: host.frame.height)
+        guard railRect.insetBy(dx: -2, dy: -2).contains(p) else { return nil }
         return super.hitTest(point)
     }
 }
@@ -1496,12 +1509,16 @@ final class AnnotationEditorWindow: NSWindow {
     /// 工具条回调 → 画布/窗口动作（集中在一处，SwiftUI 侧不持有 NSWindow）
     func toolbarDidSelectTool(_ index: Int) {
         let tool = AnnotationTool.allCases[index]
+        // v221：切工具前先把未提交的文字落下来。否则输入框还开着，
+        // 用户在新工具下的第一次拖拽会先被「提交文字」吃掉，看起来像点了没反应。
+        canvas.finishTextEditing(commit: true)
         canvas.tool = tool
         // 切到文字/笔刷时把它们各自的尺寸同步给画布
         switch tool {
-        case .text: canvas.textSize = CGFloat(toolbarModel.textSize)
+        case .text, .remark: canvas.textSize = CGFloat(toolbarModel.textSize)
         case .highlighter: canvas.lineWidth = CGFloat(toolbarModel.highlighterWidth)
-        case .eraser, .mosaic, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
+        // v221：blur 也是笔刷类，漏掉它就会拿线宽（3–40）当笔刷直径，涂出来细到看不见
+        case .eraser, .mosaic, .blur, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
         default: canvas.lineWidth = CGFloat(toolbarModel.lineWidth)
         }
         refocusCanvas()
@@ -1518,12 +1535,12 @@ final class AnnotationEditorWindow: NSWindow {
 
     func toolbarDidChangeSize(_ value: CGFloat) {
         switch toolbarModel.activeTool {
-        case .text:
+        case .text, .remark:
             canvas.textSize = value
             // 选中了某段文字：滑杆改的是它，而不是只改「下一个文字的默认字号」
             if canvas.selectedTextID != nil { canvas.applyTextSizeToSelection(value) }
         case .highlighter: canvas.lineWidth = value
-        case .eraser, .mosaic, .removal: canvas.brushWidth = value
+        case .eraser, .mosaic, .blur, .removal: canvas.brushWidth = value
         default: canvas.lineWidth = value
         }
         refocusCanvas()
@@ -1561,9 +1578,10 @@ final class AnnotationEditorWindow: NSWindow {
         toolbarModel.toolIndex = index
         canvas.tool = tool
         switch tool {
-        case .text: canvas.textSize = CGFloat(toolbarModel.textSize)
+        case .text, .remark: canvas.textSize = CGFloat(toolbarModel.textSize)
         case .highlighter: canvas.lineWidth = CGFloat(toolbarModel.highlighterWidth)
-        case .eraser, .mosaic, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
+        // v221：blur 也是笔刷类，漏掉它就会拿线宽（3–40）当笔刷直径，涂出来细到看不见
+        case .eraser, .mosaic, .blur, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
         default: canvas.lineWidth = CGFloat(toolbarModel.lineWidth)
         }
     }
