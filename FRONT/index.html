@@ -493,6 +493,10 @@
                 <span class="btn" style="padding:5px 12px;font-size:12px;background:#2F6BFF;border-color:#2F6BFF;color:#fff">复制</span>
               </div>
               <p class="preview-note">工具区、颜色与粗细、撤销与导出，三段排布。</p>
+              <figure class="inline-gif">
+                <img src="assets/gifs/capture-flow.gif" alt="Kitnest 截图与标注全流程动图" loading="lazy">
+                <figcaption>完整流程动图：⌥S 框选 → 动作条 → 标注 → 复制。画面为模拟内容，不含任何真实数据。</figcaption>
+              </figure>
 
               <ul class="spec-list">
                 <li><span class="k">标注</span><span class="v">矩形、椭圆、箭头、画笔、文字、荧光笔、马赛克、橡皮、抹除</span></li>
@@ -599,6 +603,7 @@
             <button class="shot-tab" data-shot="cast" role="tab">投屏</button>
             <button class="shot-tab" data-shot="annotate" role="tab">标注</button>
             <button class="shot-tab" data-shot="cpu" role="tab">CPU 详情窗</button>
+            <button class="shot-tab" data-shot="motion" role="tab">操作动图</button>
           </div>
 
           <div class="shot-stage" id="shotStage">
@@ -661,6 +666,16 @@
                   <li><b>刷新</b>1.5 秒一次</li>
                 </ul>
               </div>
+              <div data-shot-panel="motion" hidden>
+                <span class="shot-index">07 / MOTION</span>
+                <h3>从框选到复制，一气呵成</h3>
+                <p>录自真机交互流程：区域框选、动作条、矩形与箭头标注、马赛克遮盖，最后复制回剪贴板。</p>
+                <ul class="shot-points">
+                  <li><b>快捷键</b>⌥S 区域 / ⇧⌥W 窗口 / ⇧⌥L 长截图</li>
+                  <li><b>标注</b>矩形、箭头、马赛克逐项上手</li>
+                  <li><b>收尾</b>复制、贴图、识字、翻译都在动作条里</li>
+                </ul>
+              </div>
             </div>
 
             <div class="shot-frame">
@@ -681,6 +696,9 @@
               </div>
               <div data-shot-slide="cpu" hidden>
                 <img src="assets/shots/popout-cpu.png" alt="Kitnest CPU 详情窗实机截图" data-shot-file="assets/shots/popout-cpu.png">
+              </div>
+              <div data-shot-slide="motion" hidden>
+                <img class="gif-slide" src="assets/gifs/capture-flow.gif" alt="Kitnest 截图与标注全流程动图" data-shot-file="assets/gifs/capture-flow.gif">
               </div>
             </div>
           </div>

@@ -297,8 +297,100 @@ const hints = await page.evaluate(() => {
 });
 check('页面无说明性/示例文案', hints.length === 0, hints.slice(0, 5));
 
-/* ---------- F. 健康 ---------- */
-console.log('\nF. 控制台与资源');
+/* ---------- F. v229 预览与三页 ---------- */
+console.log('\nF. v229 预览与三页');
+await page.evaluate(() => { location.hash = '#home'; });
+await page.waitForTimeout(120);
+if (await page.evaluate(() => document.getElementById('panelMock').hidden)) {
+  await page.click('#mbIcon'); await page.waitForTimeout(300);
+}
+
+const mdInfo = await page.evaluate(() => {
+  document.querySelector('.pm-item[data-id="c3"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+  const p = document.getElementById('pmPreview');
+  const toc = p.querySelectorAll('.pv-md-toc a');
+  const before = location.hash;
+  if (toc[1]) toc[1].click();
+  return {
+    count: toc.length,
+    active: p.querySelectorAll('.pv-md-toc a.on').length,
+    headings: p.querySelectorAll('.pv-md-body h1, .pv-md-body h2').length,
+    hash: location.hash, before,
+  };
+});
+await page.waitForTimeout(320);
+const mdStillOpen = await page.evaluate(() => !document.getElementById('pmPreview').hidden);
+check('Markdown 目录出现且可点（不改 hash 路由、不收起预览）',
+  mdInfo.count >= 3 && mdInfo.active === 1 && mdInfo.headings >= 3 &&
+  mdInfo.hash === mdInfo.before && mdStillOpen, mdInfo);
+
+await page.evaluate(() => {
+  document.querySelector('.pm-item[data-id="c7"]').dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+});
+await page.waitForTimeout(250);
+const imgInfo = await page.evaluate(() => {
+  const p = document.getElementById('pmPreview');
+  const im = p.querySelector('.pv-img-shot img');
+  return {
+    src: im && im.getAttribute('src'),
+    natural: im && im.naturalWidth,
+    blocks: p.querySelectorAll('.pv-ocr-block').length,
+    tabs: p.querySelectorAll('[data-pv-tab]').length,
+  };
+});
+check('图片预览是真实会议场景照片（本地素材）',
+  /meeting-room\.jpg/.test(imgInfo.src || '') && imgInfo.natural > 0 && imgInfo.tabs === 2, imgInfo);
+
+await page.evaluate(() => document.querySelector('#pmPreview [data-pv-act="ocr"]').click());
+const ocrInfo = await page.evaluate(() => {
+  const p = document.getElementById('pmPreview');
+  const box = p.querySelector('.pv-ocr');
+  const blocks = [...box.querySelectorAll('[data-pv-pane="text"] .pv-ocr-block')];
+  return { shown: !box.hidden, count: blocks.length, text: blocks.map(b => b.textContent).join(' | ') };
+});
+check('识别文字两段已改写（会议信息 / 结论与待办）',
+  ocrInfo.shown && ocrInfo.count === 2 && /Q4 产品评审会/.test(ocrInfo.text) &&
+  /v1\.0\.0/.test(ocrInfo.text) && !/订单确认|客服电话|机械键盘/.test(ocrInfo.text), ocrInfo);
+
+await page.evaluate(() => document.querySelector('#pmPreview [data-pv-tab="trans"]').click());
+const trInfo = await page.evaluate(() => {
+  const pane = document.querySelector('#pmPreview [data-pv-pane="trans"]');
+  return { hidden: pane.hidden, text: pane.textContent };
+});
+check('翻译分段可交互并显示英文译文', !trInfo.hidden && /Q4 Product Review/.test(trInfo.text), trInfo);
+
+const layout = await page.evaluate(() => {
+  location.hash = '#features';
+  const cols = getComputedStyle(document.querySelector('#view-features .chapter')).gridTemplateColumns;
+  const callout = getComputedStyle(document.querySelector('#view-features .callout')).borderLeftWidth;
+  location.hash = '#showcase';
+  const stage = getComputedStyle(document.querySelector('.shot-stage')).gridTemplateColumns;
+  const tabs = document.querySelectorAll('.shot-tab').length;
+  const gif = document.querySelector('[data-shot-slide="motion"] img');
+  const inlineGif = document.querySelector('#view-features .inline-gif img');
+  location.hash = '#home';
+  return { cols, stage, callout, tabs, gifSrc: gif && gif.getAttribute('src'), inlineGif: !!inlineGif };
+});
+check('三页专属排版生效（章节 / 舞台两栏 + 提示块）',
+  layout.cols !== 'none' && /px/.test(layout.cols) && layout.stage !== 'none' &&
+  /minmax/.test(layout.stage) && parseFloat(layout.callout) >= 2, layout);
+check('GIF 接入界面页标签与功能页章节',
+  layout.tabs >= 7 && /capture-flow\.gif/.test(layout.gifSrc || '') && layout.inlineGif, layout);
+
+await page.evaluate(() => { location.hash = '#showcase'; });
+await page.waitForTimeout(150);
+await page.click('.shot-tab[data-shot="motion"]');
+await page.waitForTimeout(500);
+const gifInfo = await page.evaluate(() => {
+  const i = document.querySelector('[data-shot-slide="motion"] img');
+  return { complete: i.complete, w: i.naturalWidth, hidden: i.closest('[data-shot-slide]').hidden };
+});
+check('操作动图标签可切换且 GIF 加载成功', gifInfo.complete && gifInfo.w > 0 && !gifInfo.hidden, gifInfo);
+await page.evaluate(() => { location.hash = '#home'; });
+await page.waitForTimeout(100);
+
+/* ---------- G. 健康 ---------- */
+console.log('\nG. 控制台与资源');
 check('无 JS 异常 / console error', errors.length === 0, errors.slice(0, 6));
 check('无 4xx/5xx 资源', bad.length === 0, bad.slice(0, 6));
 

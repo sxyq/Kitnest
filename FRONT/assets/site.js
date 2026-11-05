@@ -353,11 +353,21 @@
       lang: "python",
       text: '# verify_sha.py\nimport hashlib\n\n\ndef sha256(path: str) -> str:\n    """计算文件的 SHA-256。""".\n    h = hashlib.sha256()\n    with open(path, "rb") as f:\n        for chunk in iter(lambda: f.read(65536), b""):\n            h.update(chunk)\n    return h.hexdigest()\n\n\nif __name__ == "__main__":\n    print(sha256("Kitnest-1.0.0.dmg"))' },
     { id: "c7", kind: "img", badge: "img",
-      title: "屏幕快照 2026-11-05 14.32.png",
-      meta: "今天 11:50 · 1024×1024 pt",
+      title: "会议室现场 2026-11-05.jpg",
+      meta: "今天 11:50 · 1400×935 px",
       view: "image",
-      text: "1024×1024 pt",
-      ocr: "订单确认\n\n商品：机械键盘 87 键\n数量：1\n金额：¥499.00\n\n客服电话 400-820-8820" },
+      img: "assets/demo/meeting-room.jpg",
+      text: "1400×935 px · JPG",
+      ocr: {
+        text: [
+          { tag: "段落 1 · 会议信息", lines: ["Q4 产品评审会", "11 月 5 日 14:00 · 3 号会议室", "参会：产品、设计、客户端、测试"] },
+          { tag: "段落 2 · 结论与待办", lines: ["结论：v1.0.0 先走稳定通道", "待办：回滚清单与 SHA-256 校验", "官网下载页与更新清单同步"] }
+        ],
+        en: [
+          { tag: "Paragraph 1 · Meeting", lines: ["Q4 Product Review", "Nov 5, 14:00 · Meeting Room 3", "Attendees: PM, Design, Client, QA"] },
+          { tag: "Paragraph 2 · Decision", lines: ["Decision: ship v1.0.0 on the stable channel", "TODO: rollback plan and SHA-256 verification", "Sync the download page and update feed"] }
+        ]
+      } },
     { id: "c8", kind: "text", badge: "code",
       title: "TODO：把安装包校验写进发版脚本",
       meta: "昨天 18:24 · 26 个字符",
@@ -523,7 +533,7 @@
   var previewAnchorId = null;
   var previewRevealUnit = { x: 1, y: 0.5 };
 
-  /* ---------------- 预览渲染器（对齐真机 PreviewPopoverContentView） ---------------- */
+  /* ---------------- 预览渲染器（v229：对齐真机 PreviewPopoverContentView） ---------------- */
 
   function esc(t) {
     return String(t == null ? "" : t)
@@ -608,7 +618,7 @@
     return out + "</table></div>";
   }
 
-  /* Markdown：渲染成正文（真机 MarkdownPreviewBody） */
+  /* v229 Markdown：目录 + 正文（真机 MarkdownPreviewBody，目录可点跳转） */
   function inlineMD(t) {
     var html = esc(t);
     html = html.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
@@ -617,12 +627,13 @@
     return html;
   }
 
-    function renderMarkdown(text) {
+  function renderMarkdown(text) {
     var lines = String(text).split("\n");
-    var out = '<div class="pv-md">';
+    var body = "";
+    var toc = [];
     var inList = false, inQuote = false;
-    function closeList() { if (inList) { out += "</ul>"; inList = false; } }
-    function closeQuote() { if (inQuote) { out += "</blockquote>"; inQuote = false; } }
+    function closeList() { if (inList) { body += "</ul>"; inList = false; } }
+    function closeQuote() { if (inQuote) { body += "</blockquote>"; inQuote = false; } }
     lines.forEach(function (ln) {
       var t = ln.trim();
       if (!t) { closeList(); closeQuote(); return; }
@@ -630,49 +641,75 @@
       if (h) {
         closeList(); closeQuote();
         var lvl = Math.min(h[1].length, 4);
-        out += "<h" + lvl + ">" + inlineMD(h[2]) + "</h" + lvl + ">";
+        var id = "pv-h-" + (toc.length + 1);
+        toc.push({ id: id, lvl: lvl, text: h[2].replace(/[*`\[\]]/g, "") });
+        body += "<h" + lvl + ' id="' + id + '">' + inlineMD(h[2]) + "</h" + lvl + ">";
         return;
       }
-      if (/^(---+|\*\*\*+)$/.test(t)) { closeList(); closeQuote(); out += '<hr class="md-hr">'; return; }
+      if (/^(---+|\*\*\*+)$/.test(t)) { closeList(); closeQuote(); body += '<hr class="md-hr">'; return; }
       if (t.charAt(0) === ">") {
         closeList();
-        if (!inQuote) { out += "<blockquote>"; inQuote = true; }
-        out += "<p>" + inlineMD(t.replace(/^>\s*/, "")) + "</p>";
+        if (!inQuote) { body += "<blockquote>"; inQuote = true; }
+        body += "<p>" + inlineMD(t.replace(/^>\s*/, "")) + "</p>";
         return;
       }
       var li = t.match(/^[-*]\s+(.*)$/);
       if (li) {
         closeQuote();
-        if (!inList) { out += "<ul>"; inList = true; }
-        out += "<li>" + inlineMD(li[1]) + "</li>";
+        if (!inList) { body += "<ul>"; inList = true; }
+        body += "<li>" + inlineMD(li[1]) + "</li>";
         return;
       }
       var oli = t.match(/^\d+\.\s+(.*)$/);
       if (oli) {
         closeQuote();
-        if (!inList) { out += "<ol>"; inList = true; }
-        out += "<li>" + inlineMD(oli[1]) + "</li>";
+        if (!inList) { body += "<ol>"; inList = true; }
+        body += "<li>" + inlineMD(oli[1]) + "</li>";
         return;
       }
       closeList(); closeQuote();
-      out += "<p>" + inlineMD(t) + "</p>";
+      body += "<p>" + inlineMD(t) + "</p>";
     });
     closeList(); closeQuote();
-    return out + "</div>";
+
+    // 目录不走 href="#..." —— hash 是官网的视图路由，点了会跳页
+    var tocHTML = "";
+    if (toc.length > 1) {
+      tocHTML = '<nav class="pv-md-toc"><span>目录 · ' + toc.length + " 节</span><ul>"
+        + toc.map(function (h, i) {
+            return '<li class="lvl-' + h.lvl + '"><a href="#" data-md-target="' + h.id + '"'
+              + (i === 0 ? ' class="on"' : "") + ">" + esc(h.text) + "</a></li>";
+          }).join("")
+        + "</ul></nav>";
+    }
+    return '<div class="pv-md">' + tocHTML
+      + '<div class="pv-md-body">' + body + "</div></div>";
   }
 
-/* 图片：缩略图 + 识别文字 / 翻译（真机 PreviewImageView 的 OCR 按钮） */
+  /* v229 图片：真实照片 + 文件信息 + 真机「识别文本 / 翻译」分段结果 */
+  function ocrBlocks(list) {
+    return (list || []).map(function (b) {
+      return '<section class="pv-ocr-block"><span class="pv-ocr-tag">' + esc(b.tag) + "</span>"
+        + "<p>" + (b.lines || []).map(esc).join("<br>") + "</p></section>";
+    }).join("");
+  }
+
   function renderImage(item) {
+    var o = item.ocr || {};
     return '<div class="pv-img">'
-      + '<div class="pv-img-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'
-      + '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.5"/>'
-      + '<path d="m4.5 17.5 4.5-4.5 3.5 3.5 3-3 4 4"/></svg></div>'
-      + '<div class="pv-img-meta">' + esc(item.text || "") + "</div>"
-      + '<div class="pv-img-acts">'
-      + '<button type="button" data-pv-act="ocr">识别文字</button>'
-      + '<button type="button" data-pv-act="translate">翻译</button>'
+      + '<figure class="pv-img-shot">'
+      +   '<img src="' + esc(item.img || "assets/demo/meeting-room.jpg") + '" alt="会议场景照片">'
+      +   '<figcaption><span class="pv-img-badge">JPG</span>' + esc(item.text || "") + "</figcaption>"
+      + "</figure>"
+      + '<div class="pv-img-file"><b>' + esc(item.title) + "</b><span>照片 · 本机</span></div>"
+      + '<div class="pv-ocr" hidden>'
+      +   '<div class="pv-ocr-tabs">'
+      +     '<button type="button" class="on" data-pv-tab="text">识别文本</button>'
+      +     '<button type="button" data-pv-tab="trans">翻译</button>'
+      +   "</div>"
+      +   '<div class="pv-ocr-pane" data-pv-pane="text">' + ocrBlocks(o.text) + "</div>"
+      +   '<div class="pv-ocr-pane" data-pv-pane="trans" hidden>' + ocrBlocks(o.en) + "</div>"
       + "</div>"
-      + '<div class="pv-ocr" hidden></div>'
       + "</div>";
   }
 
@@ -725,8 +762,8 @@
     if (!stage) return;
     var stageRect = stage.getBoundingClientRect();
     var panelRect = panelMock ? panelMock.getBoundingClientRect() : stageRect;
-    var w = pmPreview.offsetWidth || 214;
-    var h = pmPreview.offsetHeight || 200;
+    var w = pmPreview.offsetWidth || 258;
+    var h = pmPreview.offsetHeight || 240;
     var rowRect = anchorEl ? anchorEl.getBoundingClientRect() : null;
     if (!rowRect) return;
 
@@ -1219,27 +1256,53 @@
     return null;
   }
 
+  /* v229：目录跳转、识别文本 / 翻译分段、复制 */
+  function selectPvTab(root, name) {
+    $$("[data-pv-tab]", root).forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-pv-tab") === name);
+    });
+    $$("[data-pv-pane]", root).forEach(function (p) {
+      p.hidden = p.getAttribute("data-pv-pane") !== name;
+    });
+  }
+
   if (pmPreview) {
     pmPreview.addEventListener("click", function (e) {
+      var md = e.target.closest("[data-md-target]");
+      if (md) {
+        e.preventDefault();
+        e.stopPropagation();
+        var target = pmPreview.querySelector("#" + md.getAttribute("data-md-target"));
+        var body = pmPreview.querySelector(".pm-preview-body");
+        if (target && body) {
+          // 只滚预览自己的内容区：scrollIntoView 会连带滚动面板/页面，
+          // 触发 pmBody 的 scroll 监听把预览收掉（v229 实测踩过）。
+          var delta = target.getBoundingClientRect().top - body.getBoundingClientRect().top;
+          body.scrollTop += delta - 8;
+        }
+        $$("[data-md-target]", pmPreview).forEach(function (a) {
+          a.classList.toggle("on", a === md);
+        });
+        return;
+      }
+      var tab = e.target.closest("[data-pv-tab]");
+      if (tab) {
+        e.stopPropagation();
+        selectPvTab(pmPreview, tab.getAttribute("data-pv-tab"));
+        return;
+      }
       var btn = e.target.closest("[data-pv-act]");
       if (!btn) return;
       e.stopPropagation();
       var act = btn.getAttribute("data-pv-act");
-      if (act === "ocr") {
-        var ocrBox = pmPreview.querySelector(".pv-ocr");
-        var title = pmPreview.querySelector(".pm-preview-title").textContent;
-        var found = null;
-        for (var i = 0; i < clipState.items.length; i++) {
-          if (clipState.items[i].title === title) { found = clipState.items[i]; break; }
-        }
-        if (ocrBox) {
-          ocrBox.hidden = false;
-          ocrBox.innerHTML = '<span class="pv-ocr-title">识别结果</span><pre>'
-            + esc(found && found.ocr ? found.ocr : "未识别到文字") + "</pre>";
+      if (act === "ocr" || act === "translate") {
+        var box = pmPreview.querySelector(".pv-ocr");
+        if (box) {
+          box.hidden = false;
+          selectPvTab(pmPreview, act === "translate" ? "trans" : "text");
         }
         return;
       }
-      if (act === "translate") { toast("翻译已开启"); return; }
       if (act === "copy") { toast("已复制"); return; }
     });
   }
