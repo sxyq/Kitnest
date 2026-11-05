@@ -117,65 +117,78 @@
               <p class="mb-pop-note">点空白处关闭</p>
             </div>
 
-            <!-- 可交互的主面板 -->
+            <!-- 可交互的主面板（结构按真机 PanelRootView 1:1 还原） -->
             <div class="panel-mock lg" id="panelMock">
               <span class="lg__surface" aria-hidden="true"></span>
               <span class="lg__frost" aria-hidden="true"></span>
               <span class="lg__edge" aria-hidden="true"></span>
               <span class="lg__spec" aria-hidden="true"></span>
-              <div class="pm-tabs">
-                <button class="pm-tab on" type="button" data-page="home">主页</button>
-                <button class="pm-tab" type="button" data-page="monitor">监测</button>
-                <button class="pm-tab" type="button" data-page="transfer">中转</button>
-                <button class="pm-tab" type="button" data-page="cast">投屏</button>
-                <span class="pm-gear" title="设置">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-3-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-3l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 3 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-                </span>
+
+              <!-- 顶部工具条：左 3 图标 │ 分段 │ 齿轮（真机 40pt 高、左右 padding 14） -->
+              <div class="pm-bar">
+                <div class="pm-bar-left">
+                  <button class="pm-ico" type="button" data-pm-menu="capture" title="截图" aria-label="截图">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5H6.5A2 2 0 0 0 4.5 6.5V9"/><path d="M15 4.5h2.5a2 2 0 0 1 2 2V9"/><path d="M19.5 15v2.5a2 2 0 0 1-2 2H15"/><path d="M9 19.5H6.5a2 2 0 0 1-2-2V15"/></svg>
+                  </button>
+                  <button class="pm-ico" type="button" data-pm-act="pick" title="取色 ⌥C" aria-label="取色">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m13.5 6.5 4 4"/><path d="m17.5 3.5 3 3-2 2-3-3z"/><path d="M15.5 5.5 5 16l-1.5 4.5L8 19l10.5-10.5"/></svg>
+                  </button>
+                  <button class="pm-ico" type="button" data-pm-act="float" title="悬浮剪贴板" aria-label="悬浮剪贴板">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M7 9h.01M9.5 9h.01M12 9h.01"/></svg>
+                  </button>
+                </div>
+
+                <div class="pm-segs" id="pmSegs">
+                  <button class="pm-seg on" type="button" data-page="home">主页</button>
+                  <button class="pm-seg" type="button" data-page="monitor">监测</button>
+                  <button class="pm-seg" type="button" data-page="transfer">中转</button>
+                  <button class="pm-seg" type="button" data-page="cast">投屏</button>
+                </div>
+
+                <button class="pm-ico" type="button" data-pm-menu="gear" title="设置" aria-label="设置">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M18.9 14.2a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a1.9 1.9 0 1 1-3.8 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1h-.2a1.9 1.9 0 1 1 0-3.8h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5v-.2a1.9 1.9 0 1 1 3.8 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a1.9 1.9 0 1 1 0 3.8h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+                </button>
               </div>
 
-              <div class="pm-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input id="pmSearch" type="text" placeholder="搜索或输入 / 使用工具" autocomplete="off" aria-label="搜索剪贴板">
+              <!-- 搜索区段（真机 placeholder：搜索或输入 / 使用工具） -->
+              <div class="pm-searchwrap">
+                <div class="pm-search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.6"/><path d="m20 20-3.4-3.4"/></svg>
+                  <input id="pmSearch" type="text" placeholder="搜索或输入 / 使用工具" autocomplete="off" aria-label="搜索">
+                  <span class="pm-slash">/</span>
+                </div>
+                <div class="pm-results" id="pmResults" hidden></div>
               </div>
 
-              <div class="pm-body">
-                <!-- 剪贴板条目的预览浮层（悬停或点击条目都会出现） -->
+              <div class="pm-body" id="pmBody">
+                <!-- 剪贴板条目的预览浮层（真机：单击/悬停都出，移出即关） -->
                 <div class="pm-preview" id="pmPreview" hidden>
-                  <div class="pm-preview-head">
-                    <span class="pm-preview-ico">文字</span>
-                    <div class="pm-preview-titles">
-                      <b class="pm-preview-title"></b>
-                      <span class="pm-preview-meta"></span>
-                    </div>
-                  </div>
                   <div class="pm-preview-body"></div>
-                  <div class="pm-preview-foot">
-                    <button type="button" data-act="quick">快速查看</button>
-                    <button type="button" data-act="paste">回贴</button>
-                    <button type="button" data-act="pin">置顶</button>
-                    <button type="button" data-act="del">删除</button>
-                  </div>
-                  <span class="pm-preview-arrow" aria-hidden="true"></span>
                 </div>
 
                 <!-- 主页 -->
                 <div class="pm-page" data-page="home">
+                  <!-- 日历卡（真机：白玻璃卡 14 圆角，标题行 + 星期行 + 两周网格） -->
                   <div class="pm-cal">
                     <div class="pm-cal-head">
-                      <span>2026 年 11 月</span>
-                      <span class="pm-cal-nav">‹ &nbsp; ›</span>
+                      <button class="pm-cal-nav" type="button" data-pm-act="cal-prev" title="上一周" aria-label="上一周">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5.5-6 6.5 6 6.5"/></svg>
+                      </button>
+                      <button class="pm-cal-title" type="button" data-pm-act="cal-today" title="回到今天">2026 年 11 月</button>
+                      <button class="pm-cal-nav" type="button" data-pm-act="cal-next" title="下一周" aria-label="下一周">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5.5 6 6.5-6 6.5"/></svg>
+                      </button>
+                      <button class="pm-cal-collapse" type="button" data-pm-act="cal-fold" title="折叠" aria-label="折叠">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9.5 6 6 6-6"/></svg>
+                      </button>
                     </div>
-                    <div class="pm-cal-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-                    <div class="pm-cal-grid">
-                      <span class="muted">1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span>
-                      <span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span>
-                      <span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span>
-                      <span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span>
-                      <span>29</span><span>30</span><span class="muted">1</span><span class="muted">2</span><span class="muted">3</span>
+                    <div class="pm-cal-week">
+                      <span>周日</span><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span>
                     </div>
+                    <div class="pm-cal-grid" id="pmCalGrid"></div>
                   </div>
+
                   <ul class="pm-list" id="pmList"></ul>
-                  <a class="pm-link" href="#features" data-jump="features:ch-clipboard">看「剪贴板」的完整说明 →</a>
                 </div>
 
                 <!-- 性能监测 -->
@@ -195,8 +208,6 @@
                     <div class="pm-bar"><span>GPU</span><i style="width:72%"></i><em>58°</em></div>
                     <div class="pm-bar"><span>NVMe</span><i style="width:29%"></i><em>35°</em></div>
                   </div>
-                  <p class="pm-note">每 1.5 秒刷新一次</p>
-                  <a class="pm-link" href="#features" data-jump="features:ch-monitor">看「系统监控」的完整说明 →</a>
                 </div>
 
                 <!-- 文件中转 -->
@@ -212,7 +223,6 @@
                     <div class="pm-file"><span class="pm-file-ico">ZIP</span><div><b>发布包.zip</b><span>2.1 MB</span></div></div>
                     <div class="pm-file"><span class="pm-file-ico">MD</span><div><b>发布流程.md</b><span>18 KB</span></div></div>
                   </div>
-                  <a class="pm-link" href="#features" data-jump="features:ch-transfer">看「文件中转」的完整说明 →</a>
                 </div>
 
                 <!-- 投屏 -->
@@ -234,31 +244,39 @@
                     <li><b>手机通知</b><span>来自手机的一条通知</span></li>
                     <li><b>另一条通知</b><span>手机上刚收到的内容</span></li>
                   </ul>
-                  <a class="pm-link" href="#features" data-jump="features:ch-cast">看「安卓投屏」的完整说明 →</a>
-                </div>
-
-                <!-- 工具模式（输入 / 出现） -->
-                <div class="pm-page" data-page="tools" hidden>
-                  <div class="pm-sect-title">工具</div>
-                  <ul class="pm-tools" id="pmTools"></ul>
-                  <a class="pm-link" href="#features" data-jump="features:ch-toolbox">看「工具箱」的完整说明 →</a>
                 </div>
               </div>
 
-              <div class="pm-toolbar">
-                <button type="button" data-jump="features:ch-clipboard" data-toast="按应用名过滤剪贴板历史" title="筛选">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <!-- 底部悬浮工具条（真机：白胶囊浮在列表底部居中） -->
+              <div class="pm-dock" id="pmDock">
+                <button type="button" data-pm-act="dock-search" title="搜索" aria-label="搜索">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.8"/><path d="m20 20-3.5-3.5"/></svg>
                 </button>
-                <button type="button" data-jump="features:ch-clipboard" data-toast="按标签分组查看" title="标签">
+                <button type="button" data-pm-menu="filter" title="分类筛选" aria-label="分类筛选">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M6.6 9.6h10.8M8.6 14.4h6.8"/></svg>
+                </button>
+                <button type="button" data-pm-act="dock-tag" title="标签" aria-label="标签">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7h16l-6.5 8v5l-3 2v-7z"/></svg>
                 </button>
-                <button type="button" data-jump="features:ch-clipboard" data-toast="批量编辑（置顶 / 标签 / 删除）" title="编辑">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20h14M6 16l9-9 3 3-9 9H6z"/></svg>
+                <button type="button" data-pm-act="dock-top" title="回到顶部" aria-label="回到顶部">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6m0 0-5 5m5-5 5 5M5 19h14"/></svg>
                 </button>
-                <button type="button" data-jump="features:ch-transfer" data-toast="上传所选文件到云端中转" title="上传">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6m0 0-4 4m4-4 4 4M5 19h14"/></svg>
-                </button>
-                <span class="pm-count" id="pmCount">8 条记录</span>
+              </div>
+
+              <!-- 悬浮菜单（真机 NSMenu：截图 / 齿轮 / 分类筛选） -->
+              <div class="pm-menu" id="pmMenu" hidden>
+                <ul class="pm-menu-list" id="pmMenuList"></ul>
+              </div>
+
+              <!-- 右键菜单（真机 ClipboardNativeMenuPresenter） -->
+              <div class="pm-ctx" id="pmCtx" hidden>
+                <ul class="pm-ctx-list" id="pmCtxList"></ul>
+              </div>
+
+              <!-- 页面内跳转提示（点页面里的链接时出现） -->
+              <div class="pm-jump-hint" id="pmJumpHint" hidden>
+                <span id="pmJumpText">看「剪贴板」的完整说明</span>
+                <button type="button" id="pmJumpGo">去看</button>
               </div>
             </div>
 

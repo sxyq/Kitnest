@@ -165,7 +165,18 @@
       setPanel(panelMock.hidden);
     });
     document.addEventListener("click", function (e) {
-      if (panelMock.contains(e.target) || (mbIcon && mbIcon.contains(e.target))) return;
+      // 真机语义：面板由菜单栏图标切换开合，「点别处就关」是失焦不是误触。
+      // 所以只有点舞台（.hero-stage）之外的正文才收起，点菜单栏的部件/图标都保持面板可见。
+      //
+      // ⚠️ 必须用 composedPath() 而不是 e.target.closest()：点击剪贴板条目后
+      // renderClipList() 会重建列表，被点的 <li> 已脱离 DOM，closest 沿「当前」
+      // 父链往上找会漏掉 .hero-stage，导致面板被误收起（实测踩过）。
+      // composedPath() 保留事件派发那一刻的原始路径，不受重建影响。
+      var path = e.composedPath ? e.composedPath() : [];
+      for (var i = 0; i < path.length; i++) {
+        var node = path[i];
+        if (node && node.classList && node.classList.contains("hero-stage")) return;
+      }
       if (!panelMock.hidden) setPanel(false);
     });
     document.addEventListener("keydown", function (e) {
@@ -250,241 +261,792 @@
     });
   }
 
-  /* ---------------- 可交互主面板 ---------------- */
+  /* ---------------- 可交互主面板（对齐真机 PanelRootView） ---------------- */
 
-  var FAKE_CLIP = [
-    { kind: "文字", cls: "", title: "周报草稿：第三部分待补充数据", meta: "2 分钟前 · 148 个字符 · 备忘录",
-      preview: "周报草稿：第三部分待补充数据。<br>第三部分还差发布流程和回滚说明，明天上午补齐。",
-      detail: "text" },
-    { kind: "链接", cls: "link", title: "https://example.com/kitnest/release", meta: "5 分钟前 · 32 个字符 · Safari",
-      preview: "<code>https://example.com/kitnest/release</code><br>链接双击会直接回到当前窗口。",
-      detail: "link" },
-    { kind: "图片", cls: "img", title: "屏幕快照 2026-11-05 14.32.png", meta: "12 分钟前 · 1024×1024 pt",
-      preview: "图片条目会显示缩略图，可以直接贴图或钉在屏幕上。",
-      detail: "image" },
-    { kind: "文字", cls: "", title: "会议室 A-203 / 14:30", meta: "20 分钟前 · 18 个字符 · 日历",
-      preview: "会议室 A-203 / 14:30<br>从日历复制过来的日程。",
-      detail: "text" },
-    { kind: "文件", cls: "file", title: "发布流程-checklist.md", meta: "1 小时前 · 2.1 KB · 访达",
-      preview: "Markdown 文档会显示正文和文件图标，点「快速查看」能用系统预览逐页翻。",
-      detail: "file" },
-    { kind: "文字", cls: "", title: "TODO：把安装包校验写进发版脚本", meta: "3 小时前 · 26 个字符 · 编辑器",
-      preview: "TODO：把安装包校验写进发版脚本<br>顺便把官网的下载页也更新一下。",
-      detail: "text" },
-    { kind: "链接", cls: "link", title: "https://example.org/docs/glass", meta: "昨天 · 30 个字符",
-      preview: "<code>https://example.org/docs/glass</code><br>文档链接。",
-      detail: "link" },
-    { kind: "文字", cls: "", title: "临时记一下：下午三点前把 DNS 记录加上", meta: "昨天 · 22 个字符",
-      preview: "临时记一下：下午三点前把 DNS 记录加上<br>加完记得把证书签了。",
-      detail: "text" }
+  /*
+     数据全部是写死的演示条目，对应真机里预灌进剪贴板的那几条
+     （JSON / Markdown / Swift / Python / 图片 / 链接 / 文字），不碰用户真实剪贴板。
+  */
+  var CLIP_ITEMS = [
+    { id: "c1", kind: "url", badge: "chrome", app: "Safari",
+      title: "https://example.com/kitnest/release",
+      meta: "今天 12:15 · 32 个字符",
+      view: "link",
+      preview: '<span class="pv-kind">链接</span><code>https://example.com/kitnest/release</code><br>双击条目会复制这条链接。' },
+    { id: "c2", kind: "text", badge: "code", app: "备忘录",
+      title: "周报草稿：第三部分的发布流程还需要补充回滚说明",
+      meta: "今天 12:08 · 45 个字符",
+      view: "text",
+      preview: '<span class="pv-kind">文字</span>周报草稿：第三部分的发布流程还需要补充回滚说明。' },
+    { id: "c3", kind: "md", badge: "md", app: "备忘录",
+      title: "# Kitnest 演示仓库（示例内容）",
+      meta: "今天 12:08 · 263 个字符",
+      view: "markdown",
+      preview: '<span class="pv-kind">Markdown</span><pre># Kitnest 演示仓库（示例内容）\n\n## 功能\n- 剪贴板历史\n- 截图标注\n- 系统监控</pre>' },
+    { id: "c4", kind: "json", badge: "json", app: "访达",
+      title: '{ "name": "kitnest-demo.config.json",',
+      meta: "今天 12:08 · 647 个字符",
+      view: "json",
+      preview: '<span class="pv-kind">JSON</span><pre>{\n  "name": "kitnest-demo.config.json",\n  "app": "kitnest-demo",\n  "version": "1.0.0",\n  "features": {\n    "clipboard": { "keepDays": 30 },\n    "monitor": { "refreshSeconds": 1.5 }\n  }\n}</pre>' },
+    { id: "c5", kind: "code", badge: "code", app: "Xcode",
+      title: "// Sample.swift —— 演示用代码（假数据）",
+      meta: "今天 12:08 · 412 个字符",
+      view: "code",
+      preview: '<span class="pv-kind">代码</span><pre>// Sample.swift —— 演示用代码（假数据）\nimport Foundation\n\nstruct ClipItem {\n    let kind: String\n    let title: String\n}</pre>' },
+    { id: "c6", kind: "code", badge: "code", app: "PyCharm",
+      title: "# sample.py —— 演示用代码（假数据）",
+      meta: "今天 12:08 · 356 个字符",
+      view: "code",
+      preview: '<span class="pv-kind">代码</span><pre># sample.py —— 演示用代码（假数据）\nimport hashlib\n\ndef sha256(path: str) -> str:\n    h = hashlib.sha256()\n    with open(path, "rb") as f:\n        for chunk in iter(lambda: f.read(65536), b""):\n            h.update(chunk)\n    return h.hexdigest()</pre>' },
+    { id: "c7", kind: "img", badge: "img", app: "预览",
+      title: "屏幕快照 2026-11-05 14.32.png",
+      meta: "今天 11:50 · 1024×1024 pt",
+      view: "image",
+      preview: '<span class="pv-kind">图片</span>1024×1024 pt。图片条目会显示缩略图，可以直接贴图或钉在屏幕上。' },
+    { id: "c8", kind: "text", badge: "code", app: "备忘录",
+      title: "TODO：把安装包校验写进发版脚本",
+      meta: "昨天 18:24 · 26 个字符",
+      view: "text",
+      preview: '<span class="pv-kind">文字</span>TODO：把安装包校验写进发版脚本。' }
   ];
 
-  var FAKE_TOOLS = [
-    ["/hash", "MD5 / SHA 哈希"], ["/qr", "二维码生成与识别"], ["/ip", "本机 IP 与网络信息"],
-    ["/calendar", "日历 / 农历 / 节假日"], ["/base64", "Base64 编解码"], ["/convert", "媒体格式转换"]
+  /* 搜索结果源：真机是网页 / 剪贴板 / 文件 / 工具四类检索源，这里用同样的分类结构 */
+  var SEARCH_SOURCES = [
+    { kind: "tool", label: "工具", items: [
+      { title: "/hash", sub: "计算哈希", act: "hash" },
+      { title: "/qr", sub: "生成二维码", act: "qr" },
+      { title: "/ip", sub: "查看本机 IP", act: "ip" },
+      { title: "/convert", sub: "媒体格式转换", act: "convert" }
+    ] },
+    { kind: "clip", label: "剪贴板", items: [] },
+    { kind: "file", label: "文件", items: [
+      { title: "发布流程-checklist.md", sub: "~/Desktop", act: "file" },
+      { title: "kitnest-demo.config.json", sub: "~/Desktop", act: "file" }
+    ] }
   ];
 
   var pmList = $("#pmList");
-  var pmBody = $(".pm-body");
-  var pmTools = $("#pmTools");
+  var pmBody = $("#pmBody");
+  var pmPreview = $("#pmPreview");
   var pmSearch = $("#pmSearch");
-  var pmCount = $("#pmCount");
+  var pmResults = $("#pmResults");
+  var pmMenu = $("#pmMenu");
+  var pmMenuList = $("#pmMenuList");
+  var pmCtx = $("#pmCtx");
+  var pmCtxList = $("#pmCtxList");
+  var pmDock = $("#pmDock");
+  var pmJumpHint = $("#pmJumpHint");
+  var pmCalGrid = $("#pmCalGrid");
 
-  function showPage(name) {
-    $$(".pm-page").forEach(function (p) { p.hidden = p.getAttribute("data-page") !== name; });
-    $$(".pm-tab").forEach(function (t) {
-      t.classList.toggle("on", t.getAttribute("data-page") === name);
+  var clipState = {
+    items: CLIP_ITEMS.slice(),
+    selected: [],      // ⌘/⇧ 点击多选
+    anchor: -1,
+    query: "",
+    calAnchor: new Date(2026, 10, 1),
+    calFolded: false,
+    calSelected: null,
+    filter: "all",
+    menuOpen: null,
+    ctxItem: null
+  };
+
+  /* ---------------- 图标 ---------------- */
+
+  var PM_ICONS = {
+    text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8L18.5 7v13.5h-12z"/><path d="M14.5 3.5V7h4"/><path d="M9.5 11h5M9.5 14.5h5"/></svg>',
+    url: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M7 9.5h4M7 13h7"/><path d="M15 9.5h2"/></svg>',
+    img: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m4.5 17.5 4.5-4.5 3.5 3.5 3-3 4 4"/></svg>',
+    code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8L18.5 7v13.5h-12z"/><path d="M14.5 3.5V7h4"/><path d="m10 12-2 2 2 2M14 12l2 2-2 2"/></svg>',
+    json: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8L18.5 7v13.5h-12z"/><path d="M14.5 3.5V7h4"/><path d="M10 11.5c-1 0-1.3.7-1.3 1.4v.8c0 .6-.4 1-1 1 .6 0 1 .4 1 1v.8c0 .7.3 1.4 1.3 1.4M14 11.5c1 0 1.3.7 1.3 1.4v.8c0 .6.4 1 1 1-.6 0-1 .4-1 1v.8c0 .7-.3 1.4-1.3 1.4"/></svg>',
+    md: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8L18.5 7v13.5h-12z"/><path d="M14.5 3.5V7h4"/><path d="M9.5 11v4.5M12 11v4.5M14.5 11v4.5"/></svg>',
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h8L18.5 7v13.5h-12z"/><path d="M14.5 3.5V7h4"/></svg>',
+    down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0 4.5-4.5M12 16l-4.5-4.5M5 20h14"/></svg>',
+    paste: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6v2H9z"/><path d="M9 5.5H6.5A1.5 1.5 0 0 0 5 7v12.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H15"/><path d="m9 13 3 3 3-3"/></svg>'
+  };
+
+  /* 来源应用徽章：真机是 16×16 的来源 App 图标，这里用对应的简化图形 */
+  var BADGE_ICONS = {
+    chrome: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#4285F4"/><path d="M12 3a9 9 0 0 1 7.8 4.5H12a4.5 4.5 0 0 0-4 6.2L4.5 8.7A9 9 0 0 1 12 3Z" fill="#EA4335"/><path d="M3.6 9.6 8 14.8a4.5 4.5 0 0 0 6.4 1.9l-3 4.3A9 9 0 0 1 3.6 9.6Z" fill="#34A853"/><path d="M12 21a9 9 0 0 0 7.9-4.6H12.4a4.5 4.5 0 0 1-4-2.6l-3.1 4.5A9 9 0 0 0 12 21Z" fill="#FBBC05"/></svg>',
+    code: '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></svg>',
+    md: '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>',
+    json: '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"><path d="M9.5 5c-1.6 0-2 1-2 2v3c0 1-.5 1.4-1.4 1.4v1.6c.9 0 1.4.4 1.4 1.4v3c0 1 .4 2 2 2"/><path d="M14.5 5c1.6 0 2 1 2 2v3c0 1 .5 1.4 1.4 1.4v1.6c-.9 0-1.4.4-1.4 1.4v3c0 1-.4 2-2 2"/></svg>',
+    img: '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="6" width="15" height="12" rx="1.6"/><circle cx="9.5" cy="10" r="1.2"/><path d="m5.5 16.5 4-4 3 3 2.5-2.5 3.5 3.5"/></svg>',
+    url: '<svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/></svg>'
+  };
+
+  var MENU_ICONS = {
+    viewfinder: PM_ICONS.code,
+    rect: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="14" rx="1.5"/></svg>',
+    text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 6.5h14M12 6.5v11M9 17.5h6"/></svg>',
+    record: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="7.5"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3.5v11m0 0 4-4m-4 4-4-4M5 19.5h14"/></svg>',
+    window: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="5.5" width="17" height="13" rx="1.5"/><path d="M3.5 9.5h17"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 5.5v13M14.5 5.5v13"/></svg>',
+    gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/></svg>',
+    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 19V9M10 19V5M15 19v-7M20 19v-4"/></svg>',
+    quit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 5.5H6.5A1.5 1.5 0 0 0 5 7v10a1.5 1.5 0 0 0 1.5 1.5H10M14.5 8.5 18 12l-3.5 3.5M18 12h-9"/></svg>',
+    doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V6.5A1.5 1.5 0 0 0 14.5 5h-8A1.5 1.5 0 0 0 5 6.5v8A1.5 1.5 0 0 0 6.5 16H8"/></svg>',
+    airdrop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5M12 8a4 4 0 0 1 4 4M12 11.5a1 1 0 0 1 1 1"/><path d="M12 16.5h.01"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 19 1-3.5L16 5.5a1.8 1.8 0 0 1 2.5 2.5L8.5 18 5 19z"/></svg>',
+    cursor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 4.5 17 11l-4.2 1.2L11 17z"/></svg>',
+    note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="M8 9h8M8 13h5"/></svg>',
+    sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 13.4 9l4.6 1.4-4.6 1.4L12 16.5l-1.4-4.7L6 10.4 10.6 9z"/></svg>',
+    tag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 7h16l-6.5 8v5l-3 2v-7z"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4.5 6.5h15M9 6.5V4.8A1.3 1.3 0 0 1 10.3 3.5h3.4A1.3 1.3 0 0 1 15 4.8v1.7M6.5 6.5l.8 13a1.3 1.3 0 0 0 1.3 1.2h6.8a1.3 1.3 0 0 0 1.3-1.2l.8-13"/></svg>'
+  };
+
+  /* ---------------- 剪贴板列表渲染 ---------------- */
+
+  function visibleItems() {
+    var q = clipState.query.trim().toLowerCase();
+    var out = clipState.items.filter(function (it) {
+      if (clipState.filter !== "all" && it.kind !== clipState.filter) return false;
+      if (!q) return true;
+      return (it.title + " " + it.meta).toLowerCase().indexOf(q) >= 0;
+    });
+    return out;
+  }
+
+  function renderClipList() {
+    if (!pmList) return;
+    var items = visibleItems();
+    pmList.innerHTML = "";
+    if (!items.length) {
+      var empty = document.createElement("li");
+      empty.className = "pm-empty";
+      empty.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 10h8M8 14h5"/></svg>' +
+        (clipState.query ? "没有匹配的结果" : "还没有剪贴板记录");
+      pmList.appendChild(empty);
+      return;
+    }
+    items.forEach(function (it) {
+      var li = document.createElement("li");
+      li.className = "pm-item";
+      li.setAttribute("data-id", it.id);
+      if (clipState.selected.indexOf(it.id) >= 0) li.classList.add("sel");
+      li.innerHTML =
+        '<span class="pm-thumb ' + it.kind + '">' + PM_ICONS[it.kind] + (it.badge ?
+          '<span class="pm-badge ' + it.badge + '">' + (BADGE_ICONS[it.badge] || "") + '</span>' : "") +
+        '</span>' +
+        '<span class="pm-main"><span class="pm-title"></span><span class="pm-meta"></span></span>' +
+        '<span class="pm-rowacts">' +
+          '<button type="button" data-row-act="copy" title="复制" aria-label="复制">' + PM_ICONS.down + '</button>' +
+          '<button type="button" data-row-act="paste" title="复制并粘贴" aria-label="复制并粘贴">' + PM_ICONS.paste + '</button>' +
+        '</span>';
+      li.querySelector(".pm-title").textContent = it.title;
+      li.querySelector(".pm-meta").textContent = it.meta;
+      pmList.appendChild(li);
     });
   }
 
-  function renderClip(items) {
-    if (!pmList) return;
-    pmList.innerHTML = items.map(function (item, i) {
-      return '<li class="pm-item" data-index="' + i + '" tabindex="0">' +
-        '<span class="pm-ico ' + item.cls + '">' + item.kind + '</span>' +
-        '<span class="pm-main">' +
-          '<span class="pm-title">' + escapeHtml(item.title) + "</span>" +
-          '<span class="pm-meta">' + escapeHtml(item.meta) + "</span>" +
-        "</span></li>";
-    }).join("") || '<li class="pm-meta" style="padding:14px 8px">没有匹配的记录</li>';
-  }
+  /* ---------------- 预览浮层（真机：单击/悬停出，移出即关） ---------------- */
 
-  function renderTools(items) {
-    if (!pmTools) return;
-    pmTools.innerHTML = items.map(function (t) {
-      return '<li data-tool="' + t[0] + '"><code>' + t[0] + "</code><span>" + t[1] + "</span></li>";
-    }).join("");
-  }
-
-  var pmPreview = $("#pmPreview");
-
-  function previewAction(act) {
-    toast(act === "paste" ? "已粘贴到前台应用"
-      : act === "pin" ? "已置顶"
-      : act === "quick" ? "正在用系统预览打开"
-      : "已删除");
-  }
+  var previewPinned = false;
 
   function closePreview() {
     if (!pmPreview) return;
     pmPreview.hidden = true;
-    $$(".pm-item.open").forEach(function (x) { x.classList.remove("open"); });
+    previewPinned = false;
   }
 
-  function showPreview(li) {
-    if (!pmPreview || !pmBody) return;
-    var item = FAKE_CLIP[Number(li.getAttribute("data-index"))];
-    if (!item) return;
-
-    $$(".pm-item.open").forEach(function (x) { x.classList.remove("open"); });
-    li.classList.add("open");
-
-    var ico = pmPreview.querySelector(".pm-preview-ico");
-    ico.className = "pm-preview-ico " + item.cls;
-    ico.textContent = item.kind;
-    pmPreview.querySelector(".pm-preview-title").textContent = item.title;
-    pmPreview.querySelector(".pm-preview-meta").textContent = item.meta;
+  function showPreview(item, anchorEl, pinned) {
+    if (!pmPreview || !item) return;
+    previewPinned = !!pinned;
     pmPreview.querySelector(".pm-preview-body").innerHTML = item.preview;
-
     pmPreview.hidden = false;
-    pmPreview.classList.remove("pm-preview--above");
-    // 贴着那一行浮出来：下方放得下就放下方，否则翻到上方，且不遮住那一行
+    // 贴着锚行：下方放得下就放下方，否则翻到上方。
+    // 位置基准是内容区（.pm-body），不是列表——li.offsetTop 是相对 .pm-list 的，
+    // 直接用会把预览顶到日历上（实测踩过）。这里用 rect 差值算相对内容区的偏移。
+    var bodyRect = pmBody.getBoundingClientRect();
     var bodyH = pmBody.clientHeight;
-    var h = pmPreview.offsetHeight || 132;
-    var rowTop = li.offsetTop;
-    var rowH = li.offsetHeight;
+    var h = pmPreview.offsetHeight || 140;
+    var rowRect = anchorEl ? anchorEl.getBoundingClientRect() : null;
+    var rowTop = rowRect ? (rowRect.top - bodyRect.top + pmBody.scrollTop) : 0;
+    var rowH = rowRect ? rowRect.height : 0;
     var below = rowTop + rowH + 6;
-    var above = rowTop - h - 8;
+    var above = rowTop - h - 6;
     var top;
     if (below + h <= bodyH - 6) {
       top = below;
     } else if (above >= 6) {
       top = above;
-      pmPreview.classList.add("pm-preview--above");
     } else {
       top = Math.max(6, bodyH - h - 6);
     }
     pmPreview.style.top = top + "px";
   }
 
-  if (pmList) {
-    pmList.addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-act]");
-      if (btn) {
-        e.stopPropagation();
-        var act = btn.getAttribute("data-act");
-        toast(act === "paste" ? "已粘贴到前台应用"
-          : act === "pin" ? "已置顶"
-          : act === "quick" ? "正在用系统预览打开"
-          : "已删除");
-        return;
+  /* ---------------- 日历（真机 CalendarSectionView：两周网格 + 农历） ---------------- */
+
+  var LUNAR = {
+    "2026-11-01": "廿三", "2026-11-02": "廿四", "2026-11-03": "廿五",
+    "2026-11-04": "廿六", "2026-11-05": "廿七", "2026-11-06": "廿八",
+    "2026-11-07": "廿九", "2026-11-08": "三十", "2026-11-09": "初一",
+    "2026-11-10": "初二", "2026-11-11": "初三", "2026-11-12": "初四",
+    "2026-11-13": "初五", "2026-11-14": "初六", "2026-11-15": "初七",
+    "2026-11-16": "初八", "2026-11-17": "初九", "2026-11-18": "初十",
+    "2026-11-19": "十一", "2026-11-20": "十二", "2026-11-21": "十三",
+    "2026-11-22": "十四", "2026-11-23": "十五", "2026-11-24": "十六",
+    "2026-11-25": "十七", "2026-11-26": "十八", "2026-11-27": "十九",
+    "2026-11-28": "二十", "2026-11-29": "廿一", "2026-11-30": "廿二"
+  };
+  var FESTIVAL = { "2026-11-07": "立冬" };
+
+  function pad2(n) { return n < 10 ? "0" + n : String(n); }
+
+  function dayKey(d) {
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  function renderCalendar() {
+    if (!pmCalGrid) return;
+    var anchor = clipState.calAnchor;
+    // 归一化到所在周的周日（真机 shift(±7) 就是按周走）
+    var start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+    start.setDate(start.getDate() - start.getDay());
+    var today = new Date(2026, 10, 5);
+    pmCalGrid.innerHTML = "";
+    // 「今天」高亮只在今天确实落在当前两周窗口里时出现
+    for (var i = 0; i < 14; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var key = dayKey(d);
+      var inMonth = d.getMonth() === anchor.getMonth();
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pm-day";
+      if (!inMonth) btn.classList.add("muted");
+      if (key === dayKey(today)) btn.classList.add("today");
+      if (clipState.calSelected === key) btn.classList.add("sel");
+      var sub = FESTIVAL[key] || LUNAR[key] || "";
+      btn.innerHTML = '<span class="pm-day-in"><b>' + d.getDate() + "</b><span>" + sub + "</span></span>";
+      if (FESTIVAL[key]) btn.classList.add("festival");
+      btn.setAttribute("data-day", key);
+      pmCalGrid.appendChild(btn);
+    }
+    var title = $(".pm-cal-title");
+    if (title) {
+      title.textContent = anchor.getFullYear() + "年" + (anchor.getMonth() + 1) + "月";
+    }
+    var cal = $(".pm-cal");
+    if (cal) cal.classList.toggle("folded", clipState.calFolded);
+  }
+
+  /* ---------------- 悬浮菜单（真机 NSMenu） ---------------- */
+
+  var MENUS = {
+    capture: [
+      { icon: "viewfinder", label: "截图", act: "cap-area" },
+      { icon: "rect", label: "窗口截图", act: "cap-window" },
+      { sep: true },
+      { icon: "text", label: "划词翻译", act: "cap-translate" },
+      { icon: "record", label: "录屏", act: "cap-record" }
+    ],
+    gear: [
+      { icon: "pin", label: "置顶窗口", key: "⌘P", act: "pin" },
+      { icon: "window", label: "悬浮剪贴板", key: "⇧⌘V", act: "float" },
+      { sep: true },
+      { icon: "pause", label: "暂停记录剪贴板", act: "pause" },
+      { icon: "gear", label: "设置", key: "⌘,", act: "settings" },
+      { icon: "chart", label: "使用统计", act: "stats" },
+      { sep: true },
+      { icon: "quit", label: "退出", key: "⌘Q", act: "quit" }
+    ],
+    filter: [
+      { label: "全部", act: "filter:all" },
+      { label: "文字", act: "filter:text" },
+      { label: "链接", act: "filter:url" },
+      { label: "图片", act: "filter:img" },
+      { label: "代码", act: "filter:code" },
+      { label: "JSON", act: "filter:json" },
+      { label: "Markdown", act: "filter:md" }
+    ]
+  };
+
+  function openMenu(kind, anchorEl) {
+    if (!pmMenu || !pmMenuList) return;
+    var items = MENUS[kind];
+    if (!items) return;
+    pmMenuList.innerHTML = "";
+    items.forEach(function (m) {
+      var li = document.createElement("li");
+      if (m.sep) {
+        li.className = "sep";
+      } else {
+        li.innerHTML = (m.icon ? '<span class="mi-ico">' + (MENU_ICONS[m.icon] || "") + "</span>" : "") +
+          "<span>" + m.label + "</span>" +
+          (m.key ? '<span class="mi-key">' + m.key + "</span>" : "");
+        li.setAttribute("data-menu-act", m.act || "");
       }
-      var li = e.target.closest(".pm-item");
-      if (!li) return;
-      if (li.classList.contains("open")) closePreview();
-      else showPreview(li);
+      pmMenuList.appendChild(li);
     });
-    pmList.addEventListener("mouseover", function (e) {
-      var li = e.target.closest(".pm-item");
-      if (li) showPreview(li);
-    });
-    pmList.addEventListener("keydown", function (e) {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      var li = e.target.closest(".pm-item");
-      if (!li) return;
-      e.preventDefault();
-      if (li.classList.contains("open")) closePreview();
-      else showPreview(li);
-    });
+    pmMenu.hidden = false;
+    clipState.menuOpen = kind;
+    // 贴着触发按钮定位（菜单是 panelMock 的绝对定位子元素，基准用 panelMock）
+    var host = pmMenu.offsetParent || panelHost();
+    var hostRect = host.getBoundingClientRect();
+    var r = anchorEl.getBoundingClientRect();
+    var mr = pmMenu.getBoundingClientRect();
+    var left = r.left - hostRect.left;
+    var top = r.bottom - hostRect.top + 4;
+    if (left + mr.width > hostRect.width) left = hostRect.width - mr.width;
+    if (left < 0) left = 0;
+    pmMenu.style.left = left + "px";
+    pmMenu.style.top = top + "px";
   }
 
-  if (pmPreview) {
-    pmPreview.addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-act]");
-      if (btn) {
-        e.stopPropagation();
-        var act = btn.getAttribute("data-act");
-        toast(act === "paste" ? "已粘贴到前台应用"
-          : act === "pin" ? "已置顶"
-          : act === "quick" ? "正在用系统预览打开"
-          : "已删除");
-        return;
+  function closeMenu() {
+    if (pmMenu) pmMenu.hidden = true;
+    clipState.menuOpen = null;
+  }
+
+  function menuAction(act) {
+    if (!act) return;
+    if (act.indexOf("filter:") === 0) {
+      clipState.filter = act.slice(7);
+      renderClipList();
+      var btn = pmDock && pmDock.querySelector('[data-pm-menu="filter"]');
+      if (btn) btn.classList.toggle("active", clipState.filter !== "all");
+      toast(clipState.filter === "all" ? "已显示全部类型" : "只看" + clipState.filter);
+      closeMenu();
+      return;
+    }
+    var map = {
+      "cap-area": "开始区域截图",
+      "cap-window": "开始窗口截图",
+      "cap-translate": "划词翻译已就绪",
+      "cap-record": "开始录屏",
+      "pin": "面板已置顶",
+      "float": "悬浮剪贴板已打开",
+      "pause": "已暂停记录剪贴板",
+      "settings": "打开设置",
+      "stats": "打开使用统计",
+      "quit": "退出 Kitnest"
+    };
+    toast(map[act] || act);
+    closeMenu();
+  }
+
+  /* ---------------- 右键菜单（真机 ClipboardNativeMenuPresenter） ---------------- */
+
+  var CTX_ITEMS = [
+    { icon: "doc", label: "复制", act: "copy" },
+    { icon: "airdrop", label: "隔空投送", act: "airdrop", dis: true },
+    { icon: "pencil", label: "编辑", act: "edit" },
+    { icon: "cursor", label: "重命名", act: "rename" },
+    { icon: "note", label: "标记为笔记", act: "note" },
+    { icon: "sparkles", label: "AI 摘要", act: "summary" },
+    { icon: "tag", label: "标签", act: "tags" },
+    { sep: true },
+    { icon: "trash", label: "删除", act: "delete" }
+  ];
+
+  function openCtx(item, anchorEl, clientX, clientY) {
+    if (!pmCtx || !pmCtxList) return;
+    clipState.ctxItem = item;
+    pmCtxList.innerHTML = "";
+    CTX_ITEMS.forEach(function (m) {
+      var li = document.createElement("li");
+      if (m.sep) {
+        li.className = "sep";
+      } else {
+        li.innerHTML = '<span class="mi-ico">' + (MENU_ICONS[m.icon] || "") + "</span><span>" + m.label + "</span>";
+        if (m.dis) li.classList.add("dis");
+        li.setAttribute("data-ctx-act", m.act);
       }
-      if (e.target === pmPreview) closePreview();
+      pmCtxList.appendChild(li);
     });
+    pmCtx.hidden = false;
+    var host = pmCtx.offsetParent || panelHost();
+    var hostRect = host.getBoundingClientRect();
+    var mr = pmCtx.getBoundingClientRect();
+    var left = clientX - hostRect.left;
+    var top = clientY - hostRect.top;
+    if (left + mr.width > hostRect.width) left = hostRect.width - mr.width;
+    if (top + mr.height > hostRect.height) top = Math.max(0, hostRect.height - mr.height);
+    pmCtx.style.left = Math.max(0, left) + "px";
+    pmCtx.style.top = Math.max(0, top) + "px";
   }
 
-  // 指针离开整块内容区才收起（预览浮层也在内容区里，盖住行时不会误关）
-  if (pmBody) {
-    pmBody.addEventListener("mouseleave", function () {
-      closePreview();
-    });
+  function closeCtx() {
+    if (pmCtx) pmCtx.hidden = true;
+    clipState.ctxItem = null;
   }
 
-  if (pmTools) {
-    pmTools.addEventListener("click", function (e) {
-      var li = e.target.closest("[data-tool]");
-      if (!li) return;
-      toast("已执行 " + li.getAttribute("data-tool"));
-    });
+  function ctxAction(act) {
+    var item = clipState.ctxItem;
+    if (!item) return;
+    if (act === "delete") {
+      clipState.items = clipState.items.filter(function (x) { return x.id !== item.id; });
+      renderClipList();
+      toast("已删除");
+    } else if (act === "copy") {
+      toast("已复制");
+    } else if (act === "note") {
+      toast("已标记为笔记");
+    } else if (act === "summary") {
+      toast("正在生成摘要");
+    } else if (act === "tags") {
+      toast("打开标签管理");
+    } else if (act === "airdrop") {
+      toast("隔空投送");
+    } else {
+      toast("打开编辑窗口");
+    }
+    closeCtx();
   }
+
+  /* ---------------- 搜索区段（真机 SearchSectionView） ---------------- */
+
+  function renderSearchResults() {
+    if (!pmResults) return;
+    var q = clipState.query.trim();
+    if (!q) {
+      pmResults.hidden = true;
+      pmResults.innerHTML = "";
+      return;
+    }
+    var isCommand = q.charAt(0) === "/";
+    var token = isCommand ? q.slice(1).toLowerCase() : q.toLowerCase();
+    var rows = [];
+
+    if (isCommand) {
+      // 命令模式：真机 SlashCommandCatalog —— 每行显示 /token
+      SEARCH_SOURCES[0].items.forEach(function (t) {
+        if (!token || t.title.toLowerCase().indexOf(token) >= 0) {
+          rows.push({ kind: "code", title: t.title, sub: t.sub });
+        }
+      });
+    } else {
+      // 普通关键词：分类 chips + 结果（真机分类 = 网页 / 剪贴板 / 文件 / 工具）
+      clipState.items.forEach(function (it) {
+        if (it.title.toLowerCase().indexOf(token) >= 0) {
+          rows.push({ kind: it.kind === "url" ? "url" : (it.kind === "img" ? "img" : (it.kind === "json" ? "json" : (it.kind === "md" ? "md" : "code"))), title: it.title, sub: it.meta });
+        }
+      });
+      SEARCH_SOURCES[2].items.forEach(function (t) {
+        if (t.title.toLowerCase().indexOf(token) >= 0) {
+          rows.push({ kind: "md", title: t.title, sub: t.sub });
+        }
+      });
+      SEARCH_SOURCES[0].items.forEach(function (t) {
+        if (t.title.toLowerCase().indexOf(token) >= 0) {
+          rows.push({ kind: "code", title: t.title, sub: t.sub });
+        }
+      });
+    }
+
+    if (!rows.length) {
+      pmResults.innerHTML = '<ul><li class="dis">没有匹配的结果</li></ul>';
+      pmResults.hidden = false;
+      return;
+    }
+    var ul = document.createElement("ul");
+    rows.slice(0, 8).forEach(function (r) {
+      var li = document.createElement("li");
+      var kd = document.createElement("span");
+      kd.className = "r-kind " + r.kind;
+      kd.textContent = r.kind === "url" ? "链" : r.kind === "img" ? "图" : r.kind === "json" ? "JS" : r.kind === "md" ? "MD" : "码";
+      var b = document.createElement("b");
+      b.textContent = r.title;
+      var sp = document.createElement("span");
+      sp.textContent = r.sub;
+      li.appendChild(kd); li.appendChild(b); li.appendChild(sp);
+      ul.appendChild(li);
+    });
+    pmResults.innerHTML = "";
+    pmResults.appendChild(ul);
+    pmResults.hidden = false;
+  }
+
+  /* ---------------- 事件绑定 ---------------- */
 
   if (pmSearch) {
     pmSearch.addEventListener("input", function () {
-      var v = pmSearch.value.trim();
-      if (v.charAt(0) === "/") {
-        var q = v.slice(1).toLowerCase();
-        var list = FAKE_TOOLS.filter(function (t) {
-          return !q || t[0].slice(1).indexOf(q) !== -1 || t[1].indexOf(q) !== -1;
-        });
-        renderTools(list);
-        showPage("tools");
-        if (pmCount) pmCount.textContent = list.length + " 个工具";
-        return;
-      }
-      var items = v
-        ? FAKE_CLIP.filter(function (it) {
-            return (it.title + " " + it.meta).toLowerCase().indexOf(v.toLowerCase()) !== -1;
-          })
-        : FAKE_CLIP;
-      renderClip(items);
-      showPage("home");
-      if (pmCount) pmCount.textContent = items.length + " 条记录";
+      clipState.query = pmSearch.value;
+      renderClipList();
+      renderSearchResults();
+    });
+    pmSearch.addEventListener("focus", function () {
+      if (clipState.query) renderSearchResults();
     });
     pmSearch.addEventListener("keydown", function (e) {
-      if (e.key !== "Enter") return;
-      var first = $(".pm-item, .pm-tools li");
-      if (first) first.click();
+      if (e.key === "Escape") {
+        pmSearch.value = "";
+        clipState.query = "";
+        renderClipList();
+        renderSearchResults();
+        pmSearch.blur();
+      }
     });
   }
 
-  $$(".pm-tab").forEach(function (tab) {
-    tab.addEventListener("click", function () {
-      showPage(tab.getAttribute("data-page"));
-      if (pmSearch) { pmSearch.value = ""; }
-      if (pmCount) {
-        pmCount.textContent = tab.getAttribute("data-page") === "home" ? FAKE_CLIP.length + " 条记录" : "实时刷新";
+  if (pmList) {
+    // hover：出预览浮层（真机 hover 是临时 NSPopover，移出即关）
+    pmList.addEventListener("mouseover", function (e) {
+      var li = e.target.closest(".pm-item");
+      if (!li) return;
+      if (previewPinned) return;
+      var item = findItem(li.getAttribute("data-id"));
+      if (item) showPreview(item, li);
+    });
+    pmList.addEventListener("mouseleave", function () {
+      if (previewPinned) return;
+      if (!pmCtx || pmCtx.hidden) closePreview();
+    });
+
+    pmList.addEventListener("click", function (e) {
+      var act = e.target.closest("[data-row-act]");
+      if (act) {
+        e.stopPropagation();
+        var li = act.closest(".pm-item");
+        var item = findItem(li.getAttribute("data-id"));
+        toast(act.getAttribute("data-row-act") === "copy" ? "已复制" : "已复制并粘贴");
+        return;
+      }
+      var li = e.target.closest(".pm-item");
+      if (!li) return;
+      var item = findItem(li.getAttribute("data-id"));
+      if (!item) return;
+
+      // ⌘/⇧ 点击 = 多选（真机 handleModifierClick）
+      if (e.metaKey || e.ctrlKey || e.shiftKey) {
+        e.preventDefault();
+        var idx = clipState.selected.indexOf(item.id);
+        if (e.shiftKey && clipState.anchor >= 0) {
+          clipState.selected = [];
+          var lo = Math.min(clipState.anchor, clipState.items.indexOf(item));
+          var hi = Math.max(clipState.anchor, clipState.items.indexOf(item));
+          for (var k = lo; k <= hi; k++) clipState.selected.push(clipState.items[k].id);
+        } else if (idx >= 0) {
+          clipState.selected.splice(idx, 1);
+        } else {
+          clipState.selected.push(item.id);
+          clipState.anchor = clipState.items.indexOf(item);
+        }
+        renderClipList();
+        toast("已选 " + clipState.selected.length + " 项");
+        return;
+      }
+
+      // 普通单击 = 开预览（真机 v182：单击走轻量预览路径）
+      clipState.selected = [item.id];
+      renderClipList();
+      showPreview(item, li, true);
+    });
+
+    // 键盘：⌘A 全选、Esc 清空选择（真机表格支持的多选语义）
+    pmList.setAttribute("tabindex", "-1");
+    document.addEventListener("keydown", function (e) {
+      if (!pmList || !pmList.contains(document.activeElement) &&
+          document.activeElement !== pmSearch) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        clipState.selected = visibleItems().map(function (it) { return it.id; });
+        renderClipList();
+        toast("已选 " + clipState.selected.length + " 项");
+      } else if (e.key === "Escape") {
+        clipState.selected = [];
+        renderClipList();
       }
     });
+
+    pmList.addEventListener("dblclick", function (e) {
+      var li = e.target.closest(".pm-item");
+      if (!li) return;
+      var item = findItem(li.getAttribute("data-id"));
+      if (item) toast("已复制：" + item.title.slice(0, 18));
+    });
+
+    pmList.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+      var li = e.target.closest(".pm-item");
+      if (!li) return;
+      var item = findItem(li.getAttribute("data-id"));
+      if (item) openCtx(item, li, e.clientX, e.clientY);
+    });
+  }
+
+  function panelHost() {
+    var p = $("#panelMock");
+    return p || document.body;
+  }
+
+  function findItem(id) {
+    for (var i = 0; i < clipState.items.length; i++) {
+      if (clipState.items[i].id === id) return clipState.items[i];
+    }
+    return null;
+  }
+
+  if (pmBody) {
+    pmBody.addEventListener("mouseleave", function () {
+      // 单击打开的预览是「固定」的（真机 v182：单击走轻量预览路径，移出即关；
+      // 但网页里浮层会挡住指针，所以单击后保持到再点空白/切页/点别处）
+      if (!previewPinned) closePreview();
+      if (pmCtx && !pmCtx.hidden) closeCtx();
+    });
+  }
+
+  /* 顶部工具条 / 底部工具条的按钮 */
+  $$("[data-pm-menu]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var kind = el.getAttribute("data-pm-menu");
+      if (clipState.menuOpen === kind) { closeMenu(); return; }
+      closeMenu();
+      openMenu(kind, el);
+    });
   });
+
+  $$("[data-pm-act]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var act = el.getAttribute("data-pm-act");
+      if (act === "cal-prev" || act === "cal-next") {
+        var d = clipState.calAnchor;
+        clipState.calAnchor = new Date(d.getFullYear(), d.getMonth(), d.getDate() + (act === "cal-next" ? 7 : -7));
+        renderCalendar();
+        return;
+      }
+      if (act === "cal-today") {
+        clipState.calAnchor = new Date(2026, 10, 1);
+        clipState.calSelected = null;
+        renderCalendar();
+        return;
+      }
+      if (act === "cal-fold") {
+        clipState.calFolded = !clipState.calFolded;
+        renderCalendar();
+        return;
+      }
+      if (act === "dock-search") {
+        if (pmSearch) { pmSearch.focus(); pmSearch.select(); }
+        return;
+      }
+      if (act === "dock-tag") {
+        toast("打开标签管理");
+        return;
+      }
+      if (act === "dock-top") {
+        if (pmBody) pmBody.scrollTo({ top: 0, behavior: "smooth" });
+        toast("已回到顶部");
+        return;
+      }
+      if (act === "pick") { toast("取色器已就绪"); return; }
+      if (act === "float") { toast("悬浮剪贴板已打开"); return; }
+    });
+  });
+
+  if (pmMenuList) {
+    pmMenuList.addEventListener("click", function (e) {
+      var li = e.target.closest("[data-menu-act]");
+      if (!li) return;
+      menuAction(li.getAttribute("data-menu-act"));
+    });
+  }
+
+  if (pmCtxList) {
+    pmCtxList.addEventListener("click", function (e) {
+      var li = e.target.closest("[data-ctx-act]");
+      if (!li) return;
+      ctxAction(li.getAttribute("data-ctx-act"));
+    });
+  }
+
+  if (pmCalGrid) {
+    pmCalGrid.addEventListener("click", function (e) {
+      var btn = e.target.closest(".pm-day");
+      if (!btn) return;
+      var key = btn.getAttribute("data-day");
+      clipState.calSelected = (clipState.calSelected === key) ? null : key;
+      renderCalendar();
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (pmMenu && !pmMenu.hidden && !pmMenu.contains(e.target)) closeMenu();
+    if (pmCtx && !pmCtx.hidden && !pmCtx.contains(e.target)) closeCtx();
+    // 固定预览：点列表以外的区域才关（点条目是切换，不是关）
+    if (previewPinned && pmPreview && !pmPreview.hidden) {
+      var inList = e.target.closest && e.target.closest(".pm-item");
+      if (!inList) closePreview();
+    }
+  });
+
+  /* ---------------- 分段切换（真机 pageSegments） ---------------- */
+
+  var pmSegs = $("#pmSegs");
+
+  function switchPage(page) {
+    if (!pmSegs) return;
+    $$(".pm-seg", pmSegs).forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-page") === page);
+    });
+    $$(".pm-page", pmBody).forEach(function (p) {
+      p.hidden = p.getAttribute("data-page") !== page;
+    });
+    closePreview();
+    closeMenu();
+    closeCtx();
+    if (pmBody) pmBody.scrollTop = 0;
+  }
+
+  if (pmSegs) {
+    pmSegs.addEventListener("click", function (e) {
+      var b = e.target.closest(".pm-seg");
+      if (!b) return;
+      switchPage(b.getAttribute("data-page"));
+    });
+  }
+
+  /* ---------------- 页内跳转提示 ---------------- */
+
+  var JUMP_TEXT = {
+    "features:ch-clipboard": "看「剪贴板」的完整说明",
+    "features:ch-capture": "看「截图与标注」的完整说明",
+    "features:ch-monitor": "看「系统监控」的完整说明",
+    "features:ch-transfer": "看「文件中转」的完整说明",
+    "features:ch-cast": "看「安卓投屏」的完整说明",
+    "features:ch-toolbox": "看「工具箱」的完整说明"
+  };
+
+  var pendingJump = null;
 
   $$("[data-jump]").forEach(function (el) {
     el.addEventListener("click", function (e) {
-      var spec = (el.getAttribute("data-jump") || "").split(":");
-      if (!spec[0]) return;
       e.preventDefault();
-      goTo(spec[0], spec[1]);
+      var spec = el.getAttribute("data-jump");
+      var parts = spec.split(":");
+      if (parts[0] === "features") {
+        // 面板内点击不直接跳走，先给一条提示，再由用户确认（面板不该把人踢出当前视图）
+        pendingJump = spec;
+        if (pmJumpHint) {
+          $("#pmJumpText").textContent = JUMP_TEXT[spec] || "看完整说明";
+          pmJumpHint.hidden = false;
+        }
+        return;
+      }
+      goTo(parts[0], parts[1]);
     });
   });
 
-  $$("[data-toast]").forEach(function (el) {
-    el.addEventListener("click", function () {
-      toast(el.getAttribute("data-toast"));
+  if (pmJumpHint) {
+    $("#pmJumpGo").addEventListener("click", function () {
+      pmJumpHint.hidden = true;
+      if (pendingJump) {
+        var parts = pendingJump.split(":");
+        goTo(parts[0], parts[1]);
+        pendingJump = null;
+      }
     });
-  });
+  }
 
-  if (pmList) renderClip(FAKE_CLIP);
-  if (pmTools) renderTools(FAKE_TOOLS);
+  /* ---------------- 初始化 ---------------- */
+
+  renderClipList();
+  renderCalendar();
+  renderSearchResults();
 
   /* ---------------- 截图切换 ---------------- */
 
