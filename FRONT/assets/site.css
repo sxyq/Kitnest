@@ -3106,3 +3106,224 @@ kbd {
   .shot-copy h3 { font-size: 21px; }
   .tl-item { grid-template-columns: 1fr; gap: 14px; }
 }
+
+/* ---------- v230 首页基础样式与动效 ---------- */
+/* 六个功能卡片：图标固定 40×40 圆角容器，SVG 固定 20×20，不再被默认尺寸撑爆 */
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 22px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #FFFFFF;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--d-spring) var(--spring),
+    box-shadow var(--m-fast) var(--m-ease-out),
+    border-color var(--m-fast) var(--m-ease-out);
+}
+.feature-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
+}
+.fc-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+  flex: 0 0 auto;
+}
+.fc-icon svg { width: 20px; height: 20px; display: block; }
+.tint-blue { background: #EEF3FF; color: #2F6BFF; }
+.tint-purple { background: #F3EEFF; color: #7A5AF8; }
+.tint-green { background: #EAF8F0; color: #1F9D63; }
+.tint-orange { background: #FFF4E6; color: #D97706; }
+.tint-pink { background: #FFEDF4; color: #DB4C8B; }
+.tint-gray { background: #F1F1F4; color: #4A4A52; }
+.feature-card h3 { font-size: 17px; font-weight: 640; margin: 0 0 8px; letter-spacing: -0.01em; }
+.feature-card p { font-size: 13.5px; line-height: 1.8; color: var(--ink-2); margin: 0 0 14px; }
+.feature-card ul { list-style: none; display: grid; gap: 6px; margin: 0 0 18px; }
+.feature-card li { position: relative; padding-left: 14px; font-size: 12.5px; line-height: 1.7; color: var(--ink-3); }
+.feature-card li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.55;
+}
+.feature-card kbd, .feature-card code { font-size: 11px; }
+.fc-demo-link {
+  margin-top: auto;
+  align-self: flex-start;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color var(--m-fast) var(--m-ease-out);
+}
+.fc-demo-link:hover { color: var(--accent-deep); }
+
+/* 隐私条与系统要求条 */
+.privacy-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 48px;
+  padding: 38px 40px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg-soft);
+}
+.privacy-banner h3 { font-size: 25px; line-height: 1.4; letter-spacing: -0.01em; margin: 12px 0; }
+.privacy-banner > div > p { font-size: 14px; line-height: 1.85; color: var(--ink-2); }
+.privacy-points { display: grid; gap: 16px; align-content: center; }
+.privacy-point { display: flex; align-items: flex-start; gap: 12px; }
+.pp-ico {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  color: var(--accent);
+}
+.pp-ico svg { width: 17px; height: 17px; display: block; }
+.privacy-point b { display: block; font-size: 13.5px; font-weight: 620; margin-bottom: 2px; }
+.privacy-point span { font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+.sysbar { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg-soft); }
+.sysbar-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 18px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 36px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.sysbar-inner b { color: var(--ink-3); font-size: 11px; letter-spacing: 0.08em; font-weight: 600; margin-right: 8px; }
+.hero-copy { display: flex; flex-direction: column; align-items: flex-start; }
+
+/* 「流量去哪了」：原来左侧白块把流线截断，看起来像位置错乱 */
+.mon-flow { gap: 0; padding: 10px; }
+.mon-flow-src { background: transparent; flex: 0 0 76px; }
+.mon-flow-band { min-width: 54px; }
+.mon-flow-dst { flex: 0 0 120px; }
+
+/* 六个功能的动图舞台 */
+.demo-stage-note { font-size: 13px; color: var(--ink-3); margin: 14px 0 0; }
+.shot-frame .gif-slide { width: 100%; max-height: 520px; object-fit: contain; border-radius: 10px; }
+.more-shots {
+  margin-top: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #FFFFFF;
+  padding: 12px 16px;
+}
+.more-shots summary { font-size: 13px; color: var(--ink-2); cursor: pointer; font-weight: 560; }
+.more-shots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.more-shots-grid img { width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+.more-shots-grid figcaption { font-size: 11.5px; color: var(--ink-3); margin-top: 5px; }
+
+/* ---------- 产品宣传页级首页动效（全部取 App 动效令牌） ---------- */
+.hero { position: relative; overflow: hidden; }
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: -30% -12% auto -12%;
+  height: 82%;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 55% at 72% 24%, rgba(47, 107, 255, 0.11), transparent 70%),
+    radial-gradient(48% 48% at 18% 62%, rgba(122, 90, 248, 0.08), transparent 72%);
+  animation: hero-glow calc(var(--m-loop) * 12) var(--m-linear) infinite alternate;
+}
+@keyframes hero-glow {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 0.7; }
+  to { transform: translate3d(0, 2%, 0) scale(1.06); opacity: 1; }
+}
+.hero-copy > * { animation: hero-rise var(--m-slow) var(--m-ease-out) both; }
+.hero-copy > :nth-child(1) { animation-delay: calc(var(--m-tap) * 0); }
+.hero-copy > :nth-child(2) { animation-delay: calc(var(--m-tap) * 1); }
+.hero-copy > :nth-child(3) { animation-delay: calc(var(--m-tap) * 2); }
+.hero-copy > :nth-child(4) { animation-delay: calc(var(--m-tap) * 3); }
+.hero-copy > :nth-child(5) { animation-delay: calc(var(--m-tap) * 4); }
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+/* JS 未启用时内容必须可见；只有挂上 js-motion 才启用滚动揭示 */
+.js-motion [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity var(--m-slow) var(--m-ease-out),
+    transform var(--m-slow) var(--m-ease-out);
+}
+.js-motion [data-reveal].in { opacity: 1; transform: none; }
+.js-motion .feature-card[data-reveal]:nth-child(2) { transition-delay: calc(var(--m-tap) * 0.5); }
+.js-motion .feature-card[data-reveal]:nth-child(3) { transition-delay: calc(var(--m-tap) * 1); }
+@media (prefers-reduced-motion: reduce) {
+  .js-motion [data-reveal] { opacity: 1; transform: none; }
+}
+
+@media (max-width: 1024px) {
+  .privacy-banner { grid-template-columns: 1fr; gap: 26px; padding: 28px; }
+  .more-shots-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .grid-3 { grid-template-columns: 1fr; }
+  .feature-card { padding: 20px; }
+  .privacy-banner { padding: 20px; }
+  .more-shots-grid { grid-template-columns: 1fr; }
+  .sysbar-inner { padding: 16px; gap: 10px 20px; }
+}
+
+/* ---------- v230 转场与细节动效 ---------- */
+/* hash 视图切换：淡入 + 轻微上移，不再是硬切 */
+.view.active { animation: view-in var(--m-fast) var(--m-ease-out) both; }
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+/* 六个卡片依次揭示（同一条曲线，只错开起点） */
+.js-motion .feature-card[data-reveal]:nth-child(2) { transition-delay: calc(var(--m-tap) * 0.5); }
+.js-motion .feature-card[data-reveal]:nth-child(3) { transition-delay: calc(var(--m-tap) * 1); }
+.js-motion .feature-card[data-reveal]:nth-child(4) { transition-delay: calc(var(--m-tap) * 0.5); }
+.js-motion .feature-card[data-reveal]:nth-child(5) { transition-delay: calc(var(--m-tap) * 1); }
+.js-motion .feature-card[data-reveal]:nth-child(6) { transition-delay: calc(var(--m-tap) * 1.5); }
+/* 标题重点词：一条极淡的扫光，循环动画必须线性 */
+/* 重点词原有的淡蓝底纹上跑一道扫光；不动文字颜色，避免把标题刷成透明 */
+.hero-copy h1 em::after {
+  background: linear-gradient(90deg,
+    rgba(47, 107, 255, 0.14) 0%, rgba(47, 107, 255, 0.14) 38%,
+    rgba(122, 90, 248, 0.30) 50%,
+    rgba(47, 107, 255, 0.14) 62%, rgba(47, 107, 255, 0.14) 100%);
+  background-size: 220% 100%;
+  animation: title-sheen calc(var(--m-loop) * 9) var(--m-linear) infinite;
+}
+@keyframes title-sheen {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+/* 卡片 hover 时图标跟着长一点，用标准弹簧 */
+.feature-card .fc-icon { transition: transform var(--d-spring) var(--spring); }
+.feature-card:hover .fc-icon { transform: scale(var(--m-hover-lift)); }
+@media (prefers-reduced-motion: reduce) {
+  .view.active, .hero-copy h1 em::after { animation: none; }
+}

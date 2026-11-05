@@ -1885,7 +1885,12 @@
         t.classList.toggle("on", on);
         t.setAttribute("aria-selected", on ? "true" : "false");
       });
-      slides.forEach(function (s) { s.hidden = s.getAttribute("data-shot-slide") !== name; });
+      slides.forEach(function (s) {
+        var on = s.getAttribute("data-shot-slide") === name;
+        s.hidden = !on;
+        // 切到这个标签才立刻拉对应动图：lazy 会让大 GIF 在切换后还空一拍
+        if (on) $$("img", s).forEach(function (im) { im.removeAttribute("loading"); });
+      });
       panels.forEach(function (p) { p.hidden = p.getAttribute("data-shot-panel") !== name; });
     }
 
@@ -2293,4 +2298,51 @@
 
   render();
   loadManifest();
+
+  /* ---------------- v230 首页动效（参数全部来自 motion.js） ---------------- */
+  (function () {
+    var Motion = window.KitnestMotion;
+    document.documentElement.classList.add("js-motion");
+
+    // 首屏舞台按 WindowReveal 的口径从右上角展开（与真机主面板一致）
+    var stage = $(".hero-stage");
+    if (stage && Motion) {
+      Motion.revealIn(stage, {
+        unit: { x: 1, y: 0 },
+        scale: Motion.tokens.revealScale.preview,
+        duration: Motion.openDuration(),
+        timing: "caEaseOut"
+      });
+    }
+
+    // 滚动揭示：进入视口才播，只播一次
+    var els = $$("[data-reveal]");
+    if ("IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        });
+      }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+      els.forEach(function (el) { io.observe(el); });
+    } else {
+      els.forEach(function (el) { el.classList.add("in"); });
+    }
+
+    // 六个功能卡片的「看演示」跳到界面页对应动图
+    $$("[data-demo-jump]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var name = btn.getAttribute("data-demo-jump");
+        location.hash = "#showcase";
+        setTimeout(function () {
+          var tab = $('.shot-tab[data-shot="' + name + '"]');
+          if (tab) tab.click();
+          var st = $("#shotStage");
+          if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 60);
+      });
+    });
+  })();
+
 })();

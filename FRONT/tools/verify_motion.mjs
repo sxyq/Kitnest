@@ -290,7 +290,7 @@ check('Toast：springBouncy 弹入 → 3.0s 自动隐藏 → 0.4s 收尾',
 
 const hints = await page.evaluate(() => {
   const t = document.body.innerText;
-  const re = /示例|演示|假数据|占位文档|虚构|测试用例|点击体验|模拟数据|点部件看详情|点小猫收起面板/g;
+  const re = /示例|演示用|假数据|占位文档|虚构|测试用例|点击体验|模拟数据|点部件看详情|点小猫收起面板/g;
   const out = []; let m;
   while ((m = re.exec(t))) out.push(t.slice(Math.max(0, m.index - 30), m.index + 30).replace(/\n/g, ' '));
   return out;
@@ -366,7 +366,7 @@ const layout = await page.evaluate(() => {
   location.hash = '#showcase';
   const stage = getComputedStyle(document.querySelector('.shot-stage')).gridTemplateColumns;
   const tabs = document.querySelectorAll('.shot-tab').length;
-  const gif = document.querySelector('[data-shot-slide="motion"] img');
+  const gif = document.querySelector('[data-shot-slide="clipboard"] img');
   const inlineGif = document.querySelector('#view-features .inline-gif img');
   location.hash = '#home';
   return { cols, stage, callout, tabs, gifSrc: gif && gif.getAttribute('src'), inlineGif: !!inlineGif };
@@ -374,23 +374,71 @@ const layout = await page.evaluate(() => {
 check('三页专属排版生效（章节 / 舞台两栏 + 提示块）',
   layout.cols !== 'none' && /px/.test(layout.cols) && layout.stage !== 'none' &&
   /minmax/.test(layout.stage) && parseFloat(layout.callout) >= 2, layout);
-check('GIF 接入界面页标签与功能页章节',
-  layout.tabs >= 7 && /capture-flow\.gif/.test(layout.gifSrc || '') && layout.inlineGif, layout);
+check('六段功能动图接入界面页标签与功能页章节',
+  layout.tabs >= 6 && /demo-clipboard\.gif/.test(layout.gifSrc || '') && layout.inlineGif, layout);
 
 await page.evaluate(() => { location.hash = '#showcase'; });
 await page.waitForTimeout(150);
-await page.click('.shot-tab[data-shot="motion"]');
-await page.waitForTimeout(500);
-const gifInfo = await page.evaluate(() => {
-  const i = document.querySelector('[data-shot-slide="motion"] img');
-  return { complete: i.complete, w: i.naturalWidth, hidden: i.closest('[data-shot-slide]').hidden };
+const gifNames = ['clipboard', 'capture', 'monitor', 'transfer', 'cast', 'toolbox'];
+const gifInfo = [];
+for (const n of gifNames) {
+  await page.click('.shot-tab[data-shot="' + n + '"]');
+  await page.waitForFunction(n => {
+    const i = document.querySelector('[data-shot-slide="' + n + '"] img');
+    return !!i && i.complete && i.naturalWidth > 0;
+  }, n, { timeout: 20000 }).catch(() => {});
+  gifInfo.push(await page.evaluate(n => {
+    const i = document.querySelector('[data-shot-slide="' + n + '"] img');
+    return { name: n, complete: !!i && i.complete, w: i ? i.naturalWidth : 0,
+             hidden: i ? i.closest('[data-shot-slide]').hidden : true };
+  }, n));
+}
+check('六个功能标签都能切到对应动图且加载成功',
+  gifInfo.every(g => g.complete && g.w > 0 && !g.hidden), gifInfo);
+
+/* ---------- G. v230 首页与动图 ---------- */
+console.log('\nG. v230 首页与动图');
+await page.evaluate(() => { location.hash = '#home'; window.scrollTo(0, 0); });
+await page.waitForTimeout(220);
+const homeInfo = await page.evaluate(() => {
+  const icon = document.querySelector('.fc-icon');
+  const svg = icon && icon.querySelector('svg');
+  return {
+    iconW: icon && getComputedStyle(icon).width,
+    iconH: icon && getComputedStyle(icon).height,
+    svgW: svg && getComputedStyle(svg).width,
+    gridCols: getComputedStyle(document.querySelector('.grid-3')).gridTemplateColumns,
+    jsMotion: document.documentElement.classList.contains('js-motion'),
+    cards: document.querySelectorAll('.feature-card').length,
+    demoLinks: document.querySelectorAll('[data-demo-jump]').length,
+    oldGif: document.querySelectorAll('img[src*="capture-flow.gif"]').length,
+  };
 });
-check('操作动图标签可切换且 GIF 加载成功', gifInfo.complete && gifInfo.w > 0 && !gifInfo.hidden, gifInfo);
-await page.evaluate(() => { location.hash = '#home'; });
+check('六个功能图标固定 40×40 / SVG 20px，不再撑爆变形',
+  homeInfo.iconW === '40px' && homeInfo.iconH === '40px' && homeInfo.svgW === '20px', homeInfo);
+check('首页三列网格、动效标记与六个演示入口就位',
+  homeInfo.gridCols.split(' ').length >= 3 && homeInfo.jsMotion &&
+  homeInfo.cards === 6 && homeInfo.demoLinks === 6, homeInfo);
+check('旧手绘 GIF 已从页面移除', homeInfo.oldGif === 0, homeInfo);
+await page.evaluate(() => window.scrollTo(0, 950));
+await page.waitForTimeout(520);
+const revealed = await page.evaluate(() => document.querySelectorAll('[data-reveal].in').length);
+check('滚动揭示动效生效', revealed > 0, revealed);
+const gifURLs = gifNames.map(n => 'assets/gifs/demo-' + n + '.gif');
+const gifStatus = await page.evaluate(async urls => {
+  const out = [];
+  for (const u of urls) {
+    try { out.push((await fetch(u, { method: 'HEAD' })).status); }
+    catch (e) { out.push(0); }
+  }
+  return out;
+}, gifURLs);
+check('六段功能动图资源全部 200', gifStatus.every(x => x === 200), gifStatus);
+await page.evaluate(() => { window.scrollTo(0, 0); });
 await page.waitForTimeout(100);
 
-/* ---------- G. 健康 ---------- */
-console.log('\nG. 控制台与资源');
+/* ---------- H. 健康 ---------- */
+console.log('\nH. 控制台与资源');
 check('无 JS 异常 / console error', errors.length === 0, errors.slice(0, 6));
 check('无 4xx/5xx 资源', bad.length === 0, bad.slice(0, 6));
 
