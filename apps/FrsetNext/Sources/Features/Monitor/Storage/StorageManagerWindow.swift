@@ -579,25 +579,15 @@ struct StorageManagerRootView: View {
             .animation(Theme.Motion.fast, value: stack.count)
 
             if let node = currentNode {
-                // v236（用户：「只是左上角一个区域显示 agent，气泡绕着它排」）：
-                // 用 Voronoi 的 cutout 在左上角挖一块，气泡绕开；agent 卡片浮在缺口上，
-                // 不再是全屏 sheet。
-                ZStack(alignment: .topLeading) {
-                    StorageTreemap(node: node,
-                                   onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
-                                   onSelect: { detailNode = $0 },
-                                   onBack: { if !stack.isEmpty { stack.removeLast() } },
-                                   freeSpace: Self.diskFreeBytes,
-                                   cutout: Self.agentCutout)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 8)
-                        .id(node.id)
-                        .animation(Theme.Motion.fast, value: node.id)
-
-                    agentCard
-                        .frame(width: Self.agentCutout.width, height: Self.agentCutout.height)
-                        .padding(.leading, 10)
-                }
+                StorageTreemap(node: node,
+                               onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
+                               onSelect: { detailNode = $0 },
+                               onBack: { if !stack.isEmpty { stack.removeLast() } },
+                               freeSpace: Self.diskFreeBytes)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
+                    .id(node.id)
+                    .animation(Theme.Motion.fast, value: node.id)
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")
@@ -642,68 +632,6 @@ struct StorageManagerRootView: View {
         .onExitCommand {
             if !stack.isEmpty { stack.removeLast() }
         }
-    }
-
-    /// agent 区在 treemap 容器里的缺口（左上原点）。气泡会绕开这块。
-    private static let agentCutout = CGRect(x: 0, y: 0, width: 268, height: 158)
-
-    /// 左上角的 agent 卡片（替代原来的全屏弹层入口）
-    private var agentCard: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                Text("让 Agent 清理")
-                    .font(.system(size: 12, weight: .semibold))
-                Spacer(minLength: 0)
-            }
-            Text("生成含本次扫描明细的提示词：逐个目录列出文件、判断能不能删、给命令。")
-                .font(.system(size: 10.5))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            HStack(spacing: 6) {
-                Button {
-                    copyAgentPrompt()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.on.doc").font(.system(size: 9.5))
-                        Text("复制提示词").font(.system(size: 11, weight: .semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .frame(height: 24)
-                    .background(Capsule(style: .continuous).fill(Theme.accent))
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-
-                Button {
-                    showAgentSheet = true
-                } label: {
-                    Text("预览")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 10)
-                        .frame(height: 24)
-                        .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
-                }
-                .buttonStyle(.plain)
-                .focusable(false)
-                Spacer(minLength: 0)
-            }
-        }
-        .padding(11)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
-        )
-        .shadow(color: .black.opacity(0.10), radius: 8, y: 2)
     }
 
     /// 顺着一串「几乎只剩一个子目录」的层级走到底（v212）

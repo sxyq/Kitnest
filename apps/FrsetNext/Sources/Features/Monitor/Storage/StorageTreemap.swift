@@ -163,6 +163,8 @@ struct StorageTreemap: View {
 
     @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
+    /// 悬停块跟随鼠标的位移（相对块中心，±7pt）——v237
+    @Stored private var hoverFollow: CGSize = .zero
 
     var body: some View {
         GeometryReader { geo in
@@ -212,16 +214,19 @@ struct StorageTreemap: View {
 
         // v230（用户：「鼠标移动的时候，根据当前鼠标所在那个泡，去挤压周围的」）：
         // 悬停块上浮放大；**邻居按「远离悬停块中心」的方向被推出去**，
-        // 距离越近推得越多（最多 5pt）——这就是气泡被挤开的观感。
+        // 距离越近推得越多——这就是气泡被挤开的观感。
+        // v237：推力 5 → 11pt、邻居再压扁一点，挤开的手感更明确。
         let push: CGSize = {
             guard anyHovered, !isHovered, let c = hoveredCenter else { return .zero }
             let dx = t.bbox.midX - c.x
             let dy = t.bbox.midY - c.y
             let dist = max(1, hypot(dx, dy))
-            let amount = 5 * max(0.15, 1 - dist / 420)
+            let amount = 11 * max(0.15, 1 - dist / 420)
             return CGSize(width: dx / dist * amount, height: dy / dist * amount)
         }()
-        let lift: CGSize = isHovered ? CGSize(width: 0, height: -4) : push
+        // 悬停块追着鼠标走一点点（视差），像被手指按住的软泡
+        let follow: CGSize = isHovered ? hoverFollow : .zero
+        let lift = CGSize(width: push.width + follow.width, height: push.height + follow.height)
 
         return ZStack {
             PolygonHitShape(points: local, radius: radius)
@@ -258,11 +263,24 @@ struct StorageTreemap: View {
         .shadow(color: .black.opacity(isHovered ? 0.30 : 0.03),
                 radius: isHovered ? 22 : 2,
                 y: isHovered ? 9 : 1)
-        .scaleEffect(isHovered ? 1.085 : (anyHovered ? 0.962 : 1))
+        .scaleEffect(isHovered ? 1.085 : (anyHovered ? 0.94 : 1))
         .opacity(anyHovered && !isHovered ? 0.88 : 1)
         .zIndex(isHovered ? 10 : 0)
         .contentShape(PolygonHitShape(points: local, radius: radius))
         .onHover { hoveredID = $0 ? t.id : nil }
+        // v237：鼠标在块内移动时，块朝鼠标方向偏移一点点（最多 7pt），
+        // 配合邻居的推开，形成「按一下软气泡、周围被挤开」的手感
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let p):
+                let dx = p.x - t.bbox.width / 2
+                let dy = p.y - t.bbox.height / 2
+                hoverFollow = CGSize(width: max(-7, min(7, dx * 0.08)),
+                                     height: max(-7, min(7, dy * 0.08)))
+            case .ended:
+                hoverFollow = .zero
+            }
+        }
         .onTapGesture {
             // v236：点「可用空间」那块 = 返回上一级（用户：「点剩余空间能快速返回」）
             if t.isFreeSpace { onBack?(); return }
