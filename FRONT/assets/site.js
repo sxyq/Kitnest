@@ -1340,6 +1340,113 @@
     return '<div class="mon-title"><span>' + text + "</span></div>";
   }
 
+  /* 流向图：与 App 的 MonitorFlowCard 同一套几何
+     apps/FrsetNext/Sources/Features/Monitor/Views/MonitorFlow.swift
+     · 左 88pt 来源格 │ 中间流带 │ 右 134pt 分支格，卡片 padding 8 / radius 10
+     · 高度 = max(116, n*34 + (n-1)*4)，分支格间距 4
+     · 流带厚 = max(2, value/max*34)，零值 1.5；带间距 2；末端厚 = max(2, start*0.88)
+     · FlowRibbon 控制点：x0+0.45w / x1-0.35w，bend 首条 -4、其余 4
+     · 渐变 0.72 → 0.42 + 0.22 发丝描边；分支底色 0.16 → 0.06 + 0.22 发丝边 */
+  var MF_C = {
+    download: "#4DB3E6", upload: "#F28C59", compressed: "#F2B84D",
+    wired: "#9973D9", battery: "#66C773", system: "#E64047",
+    discharge: "#F29E2E", power: "#388CF2"
+  };
+  var mfUid = 0;
+
+  function mfRGBA(hex, a) {
+    var h = hex.replace("#", "");
+    return "rgba(" + parseInt(h.slice(0, 2), 16) + "," + parseInt(h.slice(2, 4), 16)
+      + "," + parseInt(h.slice(4, 6), 16) + "," + a + ")";
+  }
+
+  function mfAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  /* 12pt SF Symbol / 14pt 应用图标（真机网络分支取 NSApplication 图标） */
+  function mfIcon(icon, color) {
+    if (!icon) return "";
+    if (icon.k === "app") {
+      return '<span class="mf-app-ico" style="background:' + icon.bg + '">'
+        + (icon.glyph || "") + "</span>";
+    }
+    var paths = {
+      updown: '<path d="M4 1.5v9M2 4l2-2 2 2M8 10.5v-9M6 8l2 2 2-2"/>',
+      display: '<rect x="1.5" y="2.5" width="9" height="6.5" rx="1"/><path d="M4.5 11h3M6 9v2"/>',
+      connector: '<path d="M2 5h4M2 7h4M6 4.5v3"/><rect x="7" y="3" width="3.5" height="6" rx="1"/>',
+      bolt: '<path d="M7 1 3 7h3l-1 4 4-6H6z"/>',
+      app: '<rect x="2" y="2" width="8" height="8" rx="2"/><path d="M4.5 6h3M6 4.5v3"/>'
+    };
+    return '<svg class="mf-sf" viewBox="0 0 12 12" fill="none" stroke="' + color
+      + '" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">'
+      + (paths[icon.name] || paths.app) + "</svg>";
+  }
+
+  function monFlowCard(cfg) {
+    var branches = cfg.branches || [];
+    var n = Math.max(1, branches.length);
+    var H = Math.max(116, n * 34 + (n - 1) * 4);
+    var tileH = (H - (n - 1) * 4) / n;
+    var maxV = Math.max(0.001, cfg.input.value || 0,
+      branches.reduce(function (s, b) { return s + (b.value || 0); }, 0));
+    var widths = branches.map(function (b) {
+      return b.value > 0 ? Math.max(2, (b.value / maxV) * 34) : 1.5;
+    });
+    var total = widths.reduce(function (s, w) { return s + w; }, 0) + 2 * (n - 1);
+    var cursor = H / 2 - total / 2;
+    var uid = "mf" + (++mfUid);
+    var defs = "", bands = "";
+    branches.forEach(function (b, i) {
+      var w = widths[i];
+      var start = cursor + w / 2;
+      cursor += w + 2;
+      var end = i * (tileH + 4) + tileH / 2;
+      var ew = Math.max(2, w * 0.88);
+      var bend = n === 1 ? 6 : (i === 0 ? -4 : 4);
+      var s0 = start - w / 2, s1 = start + w / 2;
+      var e0 = end - ew / 2, e1 = end + ew / 2;
+      var f = function (v) { return v.toFixed(2); };
+      var d = "M0 " + f(s0) + " C45 " + f(s0 + bend) + " 65 " + f(e0 + bend)
+        + " 100 " + f(e0) + " L100 " + f(e1) + " C65 " + f(e1 + bend)
+        + " 45 " + f(s1 + bend) + " 0 " + f(s1) + " Z";
+      defs += '<linearGradient id="' + uid + "-g" + i + '" x1="0" y1="0" x2="1" y2="0">'
+        + '<stop offset="0" stop-color="' + b.color + '" stop-opacity="0.72"/>'
+        + '<stop offset="1" stop-color="' + b.color + '" stop-opacity="0.42"/></linearGradient>';
+      bands += '<path d="' + d + '" fill="url(#' + uid + "-g" + i + ')" stroke="'
+        + b.color + '" stroke-opacity="0.22" stroke-width="0.5"/>';
+    });
+
+    var src = '<div class="mf-src"><div class="mf-src-in">'
+      + mfIcon(cfg.input.icon || { k: "sf", name: "updown" }, cfg.input.color)
+      + '<b style="color:' + cfg.input.color + '">' + cfg.input.text + "</b>"
+      + "<span>" + cfg.input.title + "</span></div></div>";
+
+    var tiles = branches.map(function (b) {
+      return '<div class="mf-tile" style="background:linear-gradient(135deg,'
+        + mfRGBA(b.color, 0.16) + "," + mfRGBA(b.color, 0.06) + ');border-color:'
+        + mfRGBA(b.color, 0.22) + '"'
+        + (b.detail ? ' title="' + mfAttr(b.detail) + '"' : "") + '>'
+        + '<div class="mf-tile-top">' + mfIcon(b.icon, b.color)
+        + "<b>" + b.text + "</b>"
+        + (b.active ? '<i class="mf-live" style="background:' + b.color
+          + '" title="当前正在传输"></i>' : "")
+        + '</div><span class="mf-tile-name">' + b.name + "</span></div>";
+    }).join("");
+
+    return '<div class="mf-card' + (cfg.compact ? " mf-compact" : "")
+      + (cfg.plate === "gridded" ? " mf-plate-grid" : "")
+      + '" style="--mf-h:' + H + 'px;--mf-rows:' + n + '">'
+      + (cfg.plate === "gridded"
+        ? '<div class="mf-grid-lines"><i></i><i></i><i></i></div>' : "")
+      + src
+      + '<div class="mf-ribbon"><svg viewBox="0 0 100 ' + H
+      + '" preserveAspectRatio="none"><defs>' + defs + "</defs>" + bands + "</svg></div>"
+      + '<div class="mf-dst">' + tiles + "</div></div>"
+      + (cfg.coverage ? '<div class="mf-coverage">' + cfg.coverage + "</div>" : "");
+  }
+
   /* 键值行：左标签右数值（数值可带颜色） */
   function monRows(rows) {
     return '<div class="mon-rows">' + rows.map(function (r) {
@@ -1379,15 +1486,16 @@
         + '<span class="mon-bolt"><svg viewBox="0 0 24 24" fill="none" stroke="#2F6BFF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5.5 13.5H11l-1 7.5L18 10.5h-5.5z"/></svg></span>'
         + '<div><span class="mon-cap">输出（电池供电）</span><b class="mon-big">26.2W</b></div></div>'
         + monTitle("电源流向")
-        + '<div class="mon-flow"><div class="mon-flow-src"><b>26.24 W</b><span>电池放电</span></div>'
-        + '<svg class="mon-flow-band" viewBox="0 0 120 90" preserveAspectRatio="none">'
-        + '<path d="M0 32 C30 32 34 12 60 12 L120 12 L120 52 C60 52 34 34 0 34 Z" fill="#A9C4F7"/>'
-        + '<path d="M0 62 C30 62 34 72 60 72 L120 72 L120 58 C60 58 34 66 0 66 Z" fill="#C9B6F2"/>'
-        + "</svg>"
-        + '<div class="mon-flow-dst">'
-        + '<div class="mon-flow-card blue"><span class="mon-flow-ico">🖥</span><b>26.24 W</b><i>系统供电</i></div>'
-        + '<div class="mon-flow-card purple"><span class="mon-flow-ico">🔌</span><b>1.25 W</b><i>USB</i></div>'
-        + "</div></div>"
+        + monFlowCard({
+          input: { text: "26.24 W", title: "电池放电", value: 26.24,
+            color: MF_C.discharge, icon: { k: "sf", name: "bolt" } },
+          branches: [
+            { name: "系统供电", text: "26.24 W", value: 26.24, color: MF_C.power,
+              icon: { k: "sf", name: "display" } },
+            { name: "USB", text: "1.25 W", value: 1.25, color: MF_C.wired,
+              icon: { k: "sf", name: "connector" } }
+          ]
+        })
         + '<div class="mon-sub">CPU 能耗影响<span class="mon-sub-right">近 2 秒</span></div>'
         + monProcs([
           { n: "wechatwebdevtools", v: "1.01 W", c: "#8A8A8E" },
@@ -1493,19 +1601,26 @@
         + '<div class="mon-net-legend"><span>97.7 KB/s</span><span>60 秒前</span><span>现在</span></div>'
         + "</div>"
         + monTitle("流量去哪了")
-        + '<div class="mon-flow net"><div class="mon-flow-src"><b>239 MB</b><span>合计</span></div>'
-        + '<svg class="mon-flow-band" viewBox="0 0 120 90" preserveAspectRatio="none">'
-        + '<path d="M0 24 C30 24 34 12 60 12 L120 12 L120 40 C60 40 34 28 0 28 Z" fill="#A9C4F7"/>'
-        + '<path d="M0 48 C30 48 34 44 60 44 L120 44 L120 58 C60 58 34 52 0 52 Z" fill="#F5C9A9"/>'
-        + '<path d="M0 66 C30 66 34 62 60 62 L120 62 L120 72 C60 72 34 68 0 68 Z" fill="#F0D79A"/>'
-        + '<path d="M0 80 C30 80 34 78 60 78 L120 78 L120 88 C60 88 34 84 0 84 Z" fill="#C9B6F2"/>'
-        + "</svg>"
-        + '<div class="mon-flow-dst">'
-        + '<div class="mon-flow-card"><span class="mon-flow-ico">📄</span><b>141 MB</b><i>verge-mihomo</i></div>'
-        + '<div class="mon-flow-card"><span class="mon-flow-ico">📱</span><b>50.2 MB</b><i>WorkBuddy</i></div>'
-        + '<div class="mon-flow-card"><span class="mon-flow-ico">🐍</span><b>23.9 MB</b><i>python3.10</i></div>'
-        + '<div class="mon-flow-card"><span class="mon-flow-ico">⬛</span><b>23.9 MB</b><i>adb</i></div>'
-        + "</div></div>"
+        + monFlowCard({
+          compact: true,
+          coverage: "最近 10 分钟",
+          input: { text: "239 MB", title: "合计", value: 239,
+            color: MF_C.download, icon: { k: "sf", name: "updown" } },
+          branches: [
+            { name: "verge-mihomo", text: "141 MB", value: 141, color: MF_C.download,
+              icon: { k: "app", bg: "#5B8DEF", glyph: "V" }, active: true,
+              detail: "10 分钟 141 MB · 当前 ↓1.2 MB/s ↑80 KB/s" },
+            { name: "WorkBuddy", text: "50.2 MB", value: 50.2, color: MF_C.upload,
+              icon: { k: "app", bg: "#1F9D63", glyph: "W" }, active: true,
+              detail: "10 分钟 50.2 MB · 当前 ↓320 KB/s ↑46 KB/s" },
+            { name: "python3.10", text: "23.9 MB", value: 23.9, color: MF_C.compressed,
+              icon: { k: "app", bg: "#3776AB", glyph: "Py" },
+              detail: "10 分钟 23.9 MB · 当前 ↓0 B/s ↑0 B/s" },
+            { name: "adb", text: "23.9 MB", value: 23.9, color: MF_C.wired,
+              icon: { k: "sf", name: "app" },
+              detail: "10 分钟 23.9 MB · 当前 ↓0 B/s ↑0 B/s" }
+          ]
+        })
         + monRows([
           { k: "峰值下载", v: "6.1 MB/s", c: "blue" },
           { k: "峰值上传", v: "4.0 MB/s", c: "orange" },

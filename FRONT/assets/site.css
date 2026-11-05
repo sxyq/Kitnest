@@ -1769,46 +1769,141 @@ button:active {
   justify-content: center;
 }
 .mon-bolt svg { width: 30px; height: 30px; }
-.mon-flow {
+/* ---------- 流向图（MonitorFlowCard 的网页等价实现） ----------
+   真机：卡片 padding 8 / radius 10；左侧 88pt 来源格（内含 radius 8 玻璃卡，
+   上限 136 且垂直居中）；中间按数值比例的流带；右侧 134pt 分支格
+   （radius 8、间距 4、最小格高 34）。分支格图标与数值同行，名字单独一行居中。 */
+.mf-card {
+  position: relative;
+  box-sizing: border-box;
   display: flex;
   align-items: stretch;
-  gap: 6px;
+  height: calc(var(--mf-h) + 16px);
+  padding: 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.62);
   border: 0.5px solid rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
-  padding: 12px;
 }
-.mon-flow-src {
-  flex: 0 0 84px;
+.mf-card.mf-plate-grid {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.055), rgba(0, 0, 0, 0.015));
+}
+.mf-grid-lines { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.mf-grid-lines i {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 0.5px;
+  background: rgba(0, 0, 0, 0.045);
+}
+.mf-grid-lines i:nth-child(1) { top: 25%; }
+.mf-grid-lines i:nth-child(2) { top: 50%; }
+.mf-grid-lines i:nth-child(3) { top: 75%; }
+
+.mf-src, .mf-ribbon, .mf-dst { position: relative; z-index: 1; }
+.mf-src {
+  flex: 0 0 88px;
+  width: 88px;
+  box-sizing: border-box;
+  padding-right: 6px;
+  display: flex;
+  align-items: center;
+}
+.mf-src-in {
+  width: 100%;
+  height: min(var(--mf-h), 136px);
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+  border: 0.5px solid rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: #FFFFFF;
-  border-radius: 10px;
   text-align: center;
+  overflow: hidden;
 }
-.mon-flow-src b { font-size: 15px; font-weight: 650; color: #F5A623; }
-.mon-flow-src span { font-size: 10.5px; color: var(--ink-3); }
-.mon-flow.net .mon-flow-src b { color: #2F6BFF; }
-.mon-flow-band { flex: 1 1 auto; min-width: 40px; height: 90px; }
-.mon-flow-dst { flex: 0 0 118px; display: grid; gap: 6px; }
-.mon-flow-card {
-  border-radius: 9px;
-  padding: 7px 9px;
-  background: rgba(234, 241, 255, 0.75);
+.mf-src-in .mf-sf { width: 12px; height: 12px; margin-bottom: 2px; flex: 0 0 12px; }
+.mf-src-in b {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.mf-src-in span { font-size: 9.5px; color: var(--ink-3); white-space: nowrap; }
+.mf-compact .mf-src-in b { font-size: 12.5px; }
+
+.mf-ribbon {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 2px;
+}
+.mf-ribbon svg { display: block; width: 100%; height: 100%; }
+
+.mf-dst {
+  flex: 0 0 134px;
+  width: 134px;
+  box-sizing: border-box;
   display: grid;
-  grid-template-columns: 16px 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 6px;
-  align-items: center;
+  grid-template-rows: repeat(var(--mf-rows), minmax(0, 1fr));
+  gap: 4px;
 }
-.mon-flow-card.blue { background: rgba(234, 241, 255, 0.85); }
-.mon-flow-card.purple { background: rgba(243, 238, 255, 0.85); }
-.mon-flow-ico { grid-row: 1 / 3; font-size: 12px; }
-.mon-flow-card b { font-size: 13px; font-weight: 620; color: var(--ink); }
-.mon-flow-card i { font-style: normal; font-size: 10px; color: var(--ink-3); }
+.mf-tile {
+  min-height: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 0.5px solid transparent;
+  padding: 2px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+}
+.mf-tile-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.mf-tile-top b {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  white-space: nowrap;
+  line-height: 1.1;
+}
+.mf-compact .mf-tile-top b { font-size: 10.5px; }
+.mf-tile-name {
+  max-width: 100%;
+  font-size: 9.5px;
+  color: var(--ink-3);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+}
+.mf-app-ico {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3.5px;
+  color: #FFFFFF;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+.mf-tile .mf-sf { width: 14px; height: 14px; flex: 0 0 14px; }
+.mf-live { width: 4px; height: 4px; border-radius: 50%; flex: 0 0 4px; }
+.mf-coverage { margin: 6px 0 0; font-size: 10px; color: var(--ink-3); }
 
 /* 电池页 */
 .mon-batt-top { display: flex; align-items: center; gap: 14px; padding-top: 14px; }
@@ -3093,12 +3188,6 @@ kbd {
 }
 .sysbar-inner b { color: var(--ink-3); font-size: 11px; letter-spacing: 0.08em; font-weight: 600; margin-right: 8px; }
 .hero-copy { display: flex; flex-direction: column; align-items: flex-start; }
-
-/* 「流量去哪了」：原来左侧白块把流线截断，看起来像位置错乱 */
-.mon-flow { gap: 0; padding: 10px; }
-.mon-flow-src { background: transparent; flex: 0 0 76px; }
-.mon-flow-band { min-width: 54px; }
-.mon-flow-dst { flex: 0 0 120px; }
 
 /* 六个功能的动图舞台 */
 .demo-stage-note { font-size: 13px; color: var(--ink-3); margin: 14px 0 0; }
