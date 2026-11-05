@@ -161,9 +161,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "capturebar":
                 // v218 排障：直接弹出框选动作面板（拿一张主屏截图当预览），
                 // 用来核对「预览在上 / 工具条在下 / 屏幕 1/4 高度居中」的版式。
+                // v219：?expand=copyGroup 直接把某一组的子项浮层展开——
+                // 悬停靠鼠标事件，无辅助功能授权时脚本点不出来。
                 // 抓屏走后台（legacy API 在主线程会死锁，见 ScreenshotManager 头注）。
                 let screenFrame = NSScreen.main?.frame ?? .zero
                 let cgRect = NSScreen.main.map { ScreenSnapshot.cgRect(for: $0) } ?? .zero
+                CaptureActionChain.debugExpandGroup =
+                    comps?.queryItems?.first(where: { $0.name == "expand" })?.value
                 Task.detached(priority: .utility) {
                     let image = ScreenSnapshot.cgCapture(rect: cgRect)
                     await MainActor.run {

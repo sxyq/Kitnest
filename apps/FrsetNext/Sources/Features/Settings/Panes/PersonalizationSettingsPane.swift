@@ -25,6 +25,9 @@ struct PersonalizationSettingsView: View {
     @Stored private var pageOrder: [PanelCenterPage] = PanelSegments.order
     /// 正在拖的分段（nil = 没在拖）
     @Stored private var draggingSegment: PanelCenterPage?
+    /// v219：框选后动作条的排布样式（Capture 模块读同一个键；此处只存字符串，
+    /// 不引用 Capture 模块类型，遵守跨模块纪律）
+    @AppStorage("capture.toolbar.style") private var toolbarStyle = "pillBar"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -34,6 +37,7 @@ struct PersonalizationSettingsView: View {
             densityRow
             cornerRow
             animationRow
+            toolbarStyleRow
             widthRow
             Divider().opacity(0.5)
             materialRow
@@ -263,6 +267,94 @@ struct PersonalizationSettingsView: View {
             .pickerStyle(.segmented)
             .frame(width: 250)
             .labelsHidden()
+        }
+    }
+
+    /// 框选动作条样式（v219）
+    ///
+    /// 用户：「这三种方案都要。在设置里面……把当前的这个选项放在个性化设置里面」。
+    /// 三张卡片直接画出排布差异（不是纯文字单选），选中的一张用 accent 描边；
+    /// 写 `capture.toolbar.style`，Capture 侧每次 present 重新读——不用重启。
+    private var toolbarStyleRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            settingRow("截图动作条") {
+                HStack(spacing: 8) {
+                    toolbarStyleCard("iconBar", title: "图标条", caption: "最紧凑，悬停显名")
+                    toolbarStyleCard("pillBar", title: "药丸条", caption: "图标加文字，一眼看懂")
+                    toolbarStyleCard("primarySplit", title: "主次分离", caption: "默认动作放大")
+                }
+            }
+            Text("框选完成后弹出的小面板。三种排布的功能完全一样，只是紧凑程度和子项展开方式不同；"
+                 + "切换后下一次框选即生效，不用重启。")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func toolbarStyleCard(_ id: String, title: String, caption: String) -> some View {
+        let on = toolbarStyle == id
+        return Button {
+            toolbarStyle = id
+        } label: {
+            VStack(spacing: 6) {
+                miniToolbar(id)
+                    .frame(height: 12)
+                Text(title)
+                    .font(.system(size: 11, weight: on ? .medium : .regular))
+                    .foregroundStyle(on ? Theme.accent : Color.primary)
+                    .lineLimit(1)
+            }
+            .frame(width: 88, height: 54)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .fill(on ? Theme.accent.opacity(0.08) : Theme.cardFill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .strokeBorder(on ? Theme.accent.opacity(0.55) : Color.primary.opacity(0.10),
+                                  lineWidth: on ? 1 : 0.5)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .help(caption)
+    }
+
+    /// 卡片里的迷你示意：用几何块表达三种排布，不用图标字体（避免和真实含义错位）
+    @ViewBuilder
+    private func miniToolbar(_ id: String) -> some View {
+        if id == "iconBar" {
+            HStack(spacing: 3) {
+                ForEach(0..<5, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                        .fill(i == 0 ? Theme.accent : Color.primary.opacity(0.22))
+                        .frame(width: 9, height: 9)
+                }
+            }
+        } else if id == "pillBar" {
+            HStack(spacing: 2) {
+                ForEach(0..<5, id: \.self) { i in
+                    Capsule(style: .continuous)
+                        .fill(i == 0 ? Theme.accent : Color.primary.opacity(0.16))
+                        .frame(width: i == 2 ? 17 : 13, height: 9)
+                }
+            }
+        } else {
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    .fill(Theme.accent)
+                    .frame(width: 24, height: 10)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.20))
+                    .frame(width: 0.5, height: 8)
+                ForEach(0..<3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                        .fill(Color.primary.opacity(0.22))
+                        .frame(width: 9, height: 9)
+                }
+            }
         }
     }
 

@@ -459,23 +459,19 @@ struct PanelRootView: View {
         .focusable(false)
     }
 
-    /// 截图按钮（原版注入层的「截图按钮 → 功能菜单」）：
-    /// 截图 / 截图并复制 / 截图并贴图 / 截图提取文字 / 截图翻译 / 划词翻译
-    /// ＋分隔线＋ 长截图 / 录屏（长截图是原版能力，录屏是注入层净新增，独立分组）。
-    /// 动作直接调 CaptureModule / StatsBarEngine 公开 API，不经热键——
-    /// 用户改了全局绑定也不会让菜单静默失效（注入层当年就栽在写死热键上）。
+    /// 截图按钮（原版注入层的「截图按钮 → 功能菜单」）
+    ///
+    /// v219（用户：「复制、截图并复制、截图并长截图、截图并 OCR、截图并翻译……
+    /// 这一系列的功能在这里不需要，那个复制那里就可以使用」）：
+    /// 框选后动作面板已经能一步做完 复制/识别/翻译/长截图/贴图/保存，
+    /// 首页菜单里再列「截图并 X」等于同一件事做两遍，还让菜单长得像设置项。
+    /// 现在只留**这一层才能选到的入口**：区域截图、窗口截图、划词翻译（非截图）、录屏（动作面板没有）。
     private var captureAction: some View {
         Menu {
             Button("截图") { runCapture { CaptureModule.capture(.area) } }
-            // v113：窗口截图（原版 CaptureMode.window；入口对齐原版「窗口图标」位置）
             Button("窗口截图") { runCapture { CaptureModule.capture(.window) } }
-            Button("截图并复制") { runCapture { CaptureModule.captureCopy() } }
-            Button("截图并贴图") { runCapture { CaptureModule.capture(.pin) } }
-            Button("截图提取文字") { runCapture { CaptureModule.capture(.ocr) } }
-            Button("截图翻译") { runCapture { CaptureModule.captureTranslate() } }
-            Button("划词翻译") { runCapture { CaptureModule.translateSelection() } }
             Divider()
-            Button("长截图") { runCapture { CaptureModule.capture(.long) } }
+            Button("划词翻译") { runCapture { CaptureModule.translateSelection() } }
             Button("录屏") { runCapture { StatsBarEngine.openRecorder() } }
         } label: {
             Image(systemName: "viewfinder")

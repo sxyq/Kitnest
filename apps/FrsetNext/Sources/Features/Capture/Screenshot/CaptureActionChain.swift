@@ -76,6 +76,12 @@ public enum CaptureActionChain {
                 ScreenshotManager.shared.copyToPasteboard(image)
                 ScreenshotManager.shared.recognize(image)
             },
+            // v219（用户：「还有一个复制并翻译（OCR 加翻译）」）：
+            // 一步完成 复制 → 识别 → 翻译，省掉「先复制再点翻译」两步。
+            CaptureActionTool(id: "copyTranslate", title: "复制并翻译", systemImage: "character.book.closed") { image, _ in
+                ScreenshotManager.shared.copyToPasteboard(image)
+                ScreenshotManager.shared.recognizeAndTranslate(image)
+            },
             CaptureActionTool(id: "save", title: "保存", systemImage: "square.and.arrow.down", key: "s") { _, url in
                 Toast.show("已保存", icon: "checkmark.circle.fill")
                 _ = url
@@ -124,7 +130,7 @@ public enum CaptureActionChain {
     public static var groups: [CaptureActionGroup] {
         [
             CaptureActionGroup(id: "copyGroup", title: "复制", systemImage: "doc.on.doc",
-                               primary: "copy", items: ["copyOCR", "save"]),
+                               primary: "copy", items: ["copyOCR", "copyTranslate", "save"]),
             CaptureActionGroup(id: "ocrGroup", title: "识别", systemImage: "text.viewfinder",
                                primary: "ocr", items: ["qrCode", "ocrTranslate", "screenTranslate"]),
             CaptureActionGroup(id: "longGroup", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal",
@@ -188,6 +194,9 @@ public enum CaptureActionChain {
         Log.info("Capture", "框选动作面板已预热")
     }
 
+    /// 排障：`kitnest://capturebar?expand=copyGroup` 直接展开某一组的子项浮层
+    public static var debugExpandGroup: String?
+
     @MainActor
     static var sharedPanel: CaptureActionToolbarPanel?
 }
@@ -216,6 +225,10 @@ final class CaptureActionToolbarPanel: NSPanel {
         worksWhenModal = true
         isReleasedWhenClosed = false
         animationBehavior = .utilityWindow
+        // NSPanel 默认「App 失活即隐藏」。框选结束那一瞬间 App 可能还没抢回前台
+        // （实测深链 kitnest://capturebar 时窗口直接不出现），这里关掉，
+        // 关闭时机交给点击外部 / Esc / 选中动作。
+        hidesOnDeactivate = false
 
         model.onPick = { [weak self] id in self?.execute(toolID: id) }
         model.onDismiss = { [weak self] in self?.dismiss() }
@@ -232,8 +245,9 @@ final class CaptureActionToolbarPanel: NSPanel {
 
     // MARK: 显示
 
-    /// 预览面板尺寸：预览图按 340×200 内等比缩放，下面留 56pt 给工具条
-    static func panelSize(for image: CGImage) -> NSSize {
+    /// 预览面板尺寸：预览图按 340×200 内等比缩放，下面留 56pt 给工具条。
+    /// 最小宽度随样式走——药丸条要放下 5 个「图标+文字」，图标条只要 5 个 30pt 方块。
+    static func panelSize(for image: CGImage, style: CaptureToolbarStyle) -> NSSize {
         let maxW: CGFloat = 340
         let maxH: CGFloat = 200
         let iw = max(1, CGFloat(image.width))
@@ -241,7 +255,14 @@ final class CaptureActionToolbarPanel: NSPanel {
         let scale = min(maxW / iw, maxH / ih, 1)
         let previewW = max(120, iw * scale)
         let previewH = max(48, ih * scale)
-        return NSSize(width: max(320, previewW + 20), height: previewH + 20 + 56)
+
+        let minWidth: CGFloat
+        switch style {
+        case .iconBar:      minWidth = 252
+        case .pillBar:      minWidth = 336
+        case .primarySplit: minWidth = 326
+        }
+        return NSSize(width: max(minWidth, previewW + 20), height: previewH + 20 + 56)
     }
 
     func present(image: CGImage, url: URL) {
@@ -250,28 +271,65 @@ final class CaptureActionToolbarPanel: NSPanel {
         model.preview = NSImage(cgImage: image,
                                 size: NSSize(width: image.width, height: image.height))
         model.defaultToolID = CaptureActionChain.toolID(for: ScreenshotManager.shared.defaultAction)
+        // v219：样式每次重新读偏好——设置里切换后，下一次框选就是新样式，不用重启
+        model.style = CaptureToolbarStyle.current
+        // 排障开关只对这一次生效，别让普通框选也带着上次的展开状态
+        model.debugExpand = CaptureActionChain.debugExpandGroup
+        CaptureActionChain.debugExpandGroup = nil
+        model.presentToken += 1
 
-        let size = Self.panelSize(for: image)
+        let size = Self.panelSize(for: image, style: model.style)
         setContentSize(size)
-        placeCentered(size: size)
+        let target = placementOrigin(size: size)
+
+        // 只做淡入，不做位移：`animator().setFrameOrigin` 在 borderless NSPanel 上
+        // 实测不执行（窗口停在起点，比特目标位置低 8pt）。位置精度比 8pt 的位移感更重要。
+        // 上一版用 SwiftUI 的 .opacity(isPresented) 驱动则更糟——NSHostingView
+        // 首次合成停在透明态，面板上屏是一块空白。
+        setFrameOrigin(target)
+        alphaValue = 0
+        NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.16
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            self.animator().alphaValue = 1
+        }
     }
 
-    /// 固定位置：水平居中，面板顶边落在可见区顶部往下 1/4 处
-    private func placeCentered(size: NSSize) {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+    /// 目标位置（v219 修正）：水平居中，垂直方向落在**从底部往上 1/4** 处。
+    ///
+    /// 上一版按「距顶部 1/4」算，面板实际飘在屏幕中上部（用户实拍指出：
+    /// 「不能在屏幕的正中间，而应该是从下到上的一个 1/4 的位置」）。
+    /// AppKit 的 y 轴以屏幕底部为原点，所以 minY + height*0.25 就是「从下往上 1/4」。
+    private func placementOrigin(size: NSSize) -> NSPoint {
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return frame.origin }
         let vf = screen.visibleFrame
         let x = vf.midX - size.width / 2
-        let top = vf.maxY - vf.height * 0.25
-        var y = top - size.height
-        y = min(max(y, vf.minY + 8), vf.maxY - size.height - 8)
-        setFrameOrigin(NSPoint(x: x, y: y))
+        let centerY = vf.minY + vf.height * 0.25
+        var y = centerY - size.height / 2
+        y = min(max(y, vf.minY + 12), vf.maxY - size.height - 12)
+        return NSPoint(x: x, y: y)
     }
 
+    /// 关闭：先播 130ms 淡出，再真正下屏（v219）
+    private var isDismissing = false
+
     func dismiss() {
-        orderOut(nil)
-        currentImage = nil
-        currentURL = nil
+        guard !isDismissing else { return }
+        isDismissing = true
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.12
+            self.animator().alphaValue = 0
+        } completionHandler: {
+            self.orderOut(nil)
+            self.alphaValue = 1
+            self.isDismissing = false
+            // 期间又弹了一次就保留，别把新图清掉
+            guard !self.isVisible else { return }
+            self.currentImage = nil
+            self.currentURL = nil
+        }
     }
 
     override func close() { dismiss() }
@@ -327,117 +385,13 @@ final class CaptureActionToolbarPanel: NSPanel {
 final class CaptureToolbarModel: ObservableObject {
     @Published var preview: NSImage?
     @Published var defaultToolID: String?
+    /// 当前动作条样式：present 时重新读偏好，设置里改完下一次框选即生效
+    @Published var style: CaptureToolbarStyle = .pillBar
+    /// 每次 present 自增：视图靠它重置悬停/展开状态（单例面板，上次的状态会残留）
+    @Published var presentToken = 0
+    /// 排障：本次直接展开的组 id（`kitnest://capturebar?expand=copyGroup`）
+    var debugExpand: String?
     var onPick: ((String) -> Void)?
     var onDismiss: (() -> Void)?
 }
 
-// MARK: - 面板内容（预览 + 分组工具条）
-
-struct CaptureActionToolbarView: View {
-
-    @ObservedObject var model: CaptureToolbarModel
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if let image = model.preview {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 340, maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-                    )
-                    .padding(10)
-                    // v218（1capture 对齐）：预览图可直接拖到其他 App / AI 工具
-                    .onDrag { NSItemProvider(object: image) }
-                    .help("拖到其他 App 可直接使用这张图")
-            }
-
-            Divider().opacity(0.4)
-
-            HStack(spacing: 2) {
-                ForEach(CaptureActionChain.groups) { group in
-                    groupControl(group)
-                }
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 56)
-        }
-        .background(GlassSurface(cornerRadius: Theme.Radius.window))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-        )
-    }
-
-    /// 主按钮 +（有子项时）右侧 chevron 菜单
-    @ViewBuilder
-    private func groupControl(_ group: CaptureActionGroup) -> some View {
-        let isDefault = group.primary == model.defaultToolID
-            || group.items.contains(model.defaultToolID ?? "")
-
-        HStack(spacing: 0) {
-            Button {
-                if let primary = group.primary {
-                    model.onPick?(primary)
-                } else if let first = group.items.first {
-                    model.onPick?(first)
-                }
-            } label: {
-                VStack(spacing: 2) {
-                    Image(systemName: group.systemImage)
-                        .font(.system(size: 13, weight: .medium))
-                        .frame(height: 15)
-                    Text(group.title)
-                        .font(.system(size: 10.5))
-                }
-                .frame(width: group.items.isEmpty ? 62 : 46, height: 38)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            // 面板一 show 系统会把键盘焦点落到第一个按钮，画出一圈蓝框
-            .focusable(false)
-            .help(group.primary.flatMap { id in CaptureActionChain.tool(id: id)?.title } ?? group.title)
-
-            if !group.items.isEmpty {
-                Menu {
-                    ForEach(group.items, id: \.self) { id in
-                        if let tool = CaptureActionChain.tool(id: id) {
-                            Button {
-                                model.onPick?(id)
-                            } label: {
-                                Label(tool.title, systemImage: tool.systemImage)
-                            }
-                        }
-                    }
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 16, height: 38)
-                        .contentShape(Rectangle())
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .focusable(false)
-                .fixedSize()
-            }
-        }
-        // 默认动作只标一条底部短线（回车会执行它）。
-        // 之前用「淡底 + 描边」，视觉上跟系统焦点环太像，用户会以为是蓝框。
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .fill(isDefault ? Theme.accent.opacity(0.07) : Color.clear)
-        )
-        .overlay(alignment: .bottom) {
-            if isDefault {
-                Capsule(style: .continuous)
-                    .fill(Theme.accent)
-                    .frame(width: 16, height: 2)
-                    .padding(.bottom, 3)
-            }
-        }
-    }
-}
