@@ -285,6 +285,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     Log.warn("App", "\(url.host ?? "copyocr")：需要 ?file= 指定图片")
                 }
+            case "annotest":
+                // v226：14 个标注工具逐项自检（合成器级，不依赖鼠标），
+                // 结果写 /tmp/annot_selftest.txt + /tmp/annot_selftest.png
+                let results = AnnotationSelfTest.run()
+                let failed = results.filter { !$0.pass }
+                Log.info("App", "标注自检：\(results.count - failed.count)/\(results.count) 通过"
+                         + (failed.isEmpty ? "" : "，失败：\(failed.map(\.tool.rawValue).joined(separator: ","))"))
             case "ocrwin":
                 // v223 排障：直接打开 OCR 结果窗，核对「标题 / 红绿灯 / 内容」的分层
                 let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
