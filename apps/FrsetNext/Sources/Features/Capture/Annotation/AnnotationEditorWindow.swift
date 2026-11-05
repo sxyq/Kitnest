@@ -1360,12 +1360,44 @@ private final class ToolRailHost: NSView {
     static let bubbleRoom: CGFloat = 190
 
     override func hitTest(_ point: NSPoint) -> NSView? {
+        // 标题栏那一条不归内容管——否则红绿灯被盖住点不动（v227）
+        if let window, window.titleBarHeightIfAny() != nil,
+           convert(point, to: nil).y >= window.contentLayoutRect.maxY - 0.5 {
+            return nil
+        }
         let p = convert(point, from: superview)
         // 只有胶囊本身吃鼠标；右侧让给气泡的空白一律穿透到画布
         let railRect = NSRect(x: host.frame.minX, y: host.frame.minY,
                               width: ToolRailMetrics.width, height: host.frame.height)
         guard railRect.insetBy(dx: -2, dy: -2).contains(p) else { return nil }
         return super.hitTest(point)
+    }
+}
+
+// MARK: - 编辑器内容容器
+//
+// v227（用户实拍：标题被红绿灯压住；点关闭按钮没反应、窗口关不掉）：
+// macOS 26 会把窗口内容铺到标题栏下，contentView 一旦覆盖标题栏，
+// 落在红绿灯上的鼠标事件就被 contentView 吃掉——按钮既不发光也不响应。
+// 这里让标题栏区域直接不参与命中（返回 nil），事件回到窗口层级，
+// 红绿灯恢复正常；同时配合 titleVisibility = .hidden 去掉重叠的系统标题。
+final class EditorContainerView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let window, window.titleBarHeightIfAny() != nil {
+            let p = convert(point, to: nil)   // 窗口坐标（左下原点）
+            // 内容区顶边以上那一条 = 标题栏，交给窗口去命中红绿灯
+            if p.y >= window.contentLayoutRect.maxY - 0.5 { return nil }
+        }
+        return super.hitTest(point)
+    }
+}
+
+extension NSWindow {
+    /// 标题栏高度（内容区之外那一条）；非 titled 窗口返回 nil
+    func titleBarHeightIfAny() -> CGFloat? {
+        guard styleMask.contains(.titled) else { return nil }
+        let h = frame.height - contentLayoutRect.height
+        return h > 1 ? h : nil
     }
 }
 
@@ -1401,6 +1433,9 @@ final class AnnotationEditorWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "标注截图  ·  \(image.width) × \(image.height)"
+        // v227：系统标题会和红绿灯叠在一起（用户实拍），直接不画；
+        // 图片尺寸仍写在 window.title 里，Mission Control / 窗口菜单可见。
+        titleVisibility = .hidden
         // v209：统一窗口外观入口（原生标题栏 + 原生红黄绿 + 统一玻璃底 + 系统圆角），
         // 在 contentView 装配完成后调用。画布自身仍是不透明灰底，保证看图校色；
         // 玻璃只出现在画布外的工具区/边缘。
@@ -1433,7 +1468,7 @@ final class AnnotationEditorWindow: NSWindow {
         // 第一响应者负责 keyDown——两者缺一都会表现为「橡皮圈不跟手 / 快捷键无效」。
         acceptsMouseMovedEvents = true
 
-        let container = NSView(frame: NSRect(origin: .zero, size: size))
+        let container = EditorContainerView(frame: NSRect(origin: .zero, size: size))
         container.autoresizesSubviews = true
         container.wantsLayer = true
         container.addSubview(canvas)
