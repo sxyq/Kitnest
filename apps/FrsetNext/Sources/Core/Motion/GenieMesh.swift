@@ -28,6 +28,11 @@ struct GenieRect {
     var maxY: CGFloat { y + height }
     var midX: CGFloat { x + width / 2 }
     var midY: CGFloat { y + height / 2 }
+    var rect: CGRect { CGRect(x: x, y: y, width: width, height: height) }
+
+    func offsetBy(_ dx: CGFloat, _ dy: CGFloat) -> GenieRect {
+        GenieRect(x: x + dx, y: y + dy, width: width, height: height)
+    }
 }
 
 /// 图标在窗口的哪一侧（面板挂在菜单栏下方 → .top）
