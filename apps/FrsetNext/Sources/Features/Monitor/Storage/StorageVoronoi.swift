@@ -26,6 +26,7 @@ enum VoronoiTreemap {
     static func layout(weights: [CGFloat],
                        in rect: CGRect,
                        cutout: CGRect? = nil,
+                       arcFirst: Bool = false,
                        iterations: Int = 60) -> [[CGPoint]] {
         guard !weights.isEmpty, rect.width > 8, rect.height > 8 else { return [] }
         let total = weights.reduce(0, +)
@@ -39,7 +40,10 @@ enum VoronoiTreemap {
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         let base = basePolygon(cutout: cutout, in: rect)
         let baseArea = area(base)
-        var sites = seeds(in: unit, targets: targets)
+        // v232：arcFirst = 参考图那种半弧排布（第一块固定左上，其余沿弧线铺开 + 斥力松弛）
+        var sites = arcFirst
+            ? arcSeeds(targets: targets, in: unit)
+            : seeds(in: unit, targets: targets)
         // 初始站点落在缺口里的，推到缺口右下方——否则它的单元被 L 形切得很小，
         // 前几轮迭代会来回震荡（实测收敛慢一倍）。
         if let c = cutout, c.width > 0, c.height > 0 {
@@ -96,6 +100,66 @@ enum VoronoiTreemap {
         // 顺时针（SwiftUI 的 y 向下）：从缺口右下角起，绕一圈回来
         return [CGPoint(x: uw, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1),
                 CGPoint(x: 0, y: 1), CGPoint(x: 0, y: uh), CGPoint(x: uw, y: uh)]
+    }
+
+    /// 半弧布点（v232，参考图）：第一块（可用空间）固定在左上，
+    /// 其余按「大块靠内、小块靠外」沿一条半弧铺开，再做几轮斥力松弛。
+    ///
+    /// 为什么要松弛：单纯按角度均分会把相邻站点挤在半径接近的位置上，
+    /// Voronoi 收敛后会出现「一条细缝夹在两个大块之间」；斥力把站点推开后，
+    /// 每块都能拿到接近自身权重的面积。
+    private static func arcSeeds(targets: [CGFloat], in rect: CGRect) -> [CGPoint] {
+        var pts = [CGPoint](repeating: CGPoint(x: 0.5, y: 0.5), count: targets.count)
+        guard targets.count > 1 else { return pts }
+        _ = rect
+
+        // ① 第一个（可用空间）放左上
+        pts[0] = CGPoint(x: 0.26, y: 0.24)
+
+        let rest = Array(targets.indices.dropFirst())
+        let cx: CGFloat = 0.55, cy: CGFloat = 0.50
+        let a0 = -58.0 * CGFloat.pi / 180     // 右上
+        let a1 = 196.0 * CGFloat.pi / 180     // 左下（绕过左侧）
+        let n = rest.count
+
+        for (k, i) in rest.enumerated() {
+            let t = n > 1 ? CGFloat(k) / CGFloat(n - 1) : 0.5
+            let angle = a0 + (a1 - a0) * t
+            // 内圈 0.30 → 外圈 0.46：大块在内，小块在外
+            let radius = 0.30 + 0.16 * t
+            pts[i] = CGPoint(x: cx + cos(angle) * radius,
+                             y: cy + sin(angle) * radius)
+        }
+
+        // ② 斥力松弛：站点之间保持最小间距（约等于 sqrt(该块目标面积)）
+        let minGap = rest.map { i -> CGFloat in
+            max(0.045, sqrt(max(0.0004, targets[i])) * 0.85)
+        }
+        for _ in 0..<40 {
+            var moved = false
+            for a in 0..<rest.count {
+                for b in (a + 1)..<rest.count {
+                    let i = rest[a], j = rest[b]
+                    var dx = pts[j].x - pts[i].x
+                    var dy = pts[j].y - pts[i].y
+                    var d = sqrt(dx * dx + dy * dy)
+                    if d < 1e-6 { dx = 0.01; dy = 0.01; d = 0.0141 }
+                    let need = (minGap[a] + minGap[b]) * 0.5
+                    guard d < need else { continue }
+                    let push = (need - d) * 0.5
+                    dx /= d; dy /= d
+                    pts[i].x -= dx * push; pts[i].y -= dy * push
+                    pts[j].x += dx * push; pts[j].y += dy * push
+                    moved = true
+                }
+            }
+            for i in rest {
+                pts[i].x = min(0.97, max(0.03, pts[i].x))
+                pts[i].y = min(0.97, max(0.03, pts[i].y))
+            }
+            if !moved { break }
+        }
+        return pts
     }
 
     // MARK: 初始站点

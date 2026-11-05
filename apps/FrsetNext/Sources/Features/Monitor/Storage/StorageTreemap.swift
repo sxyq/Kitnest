@@ -94,7 +94,8 @@ enum DiskVoronoiLayout {
         guard total > 0 else { return [] }
 
         let polys = VoronoiTreemap.layout(weights: weights,
-                                          in: CGRect(origin: .zero, size: size))
+                                          in: CGRect(origin: .zero, size: size),
+                                          arcFirst: freeNode != nil)
         guard polys.count == list.count else { return [] }
 
         var tiles: [DiskTile] = []
@@ -214,7 +215,7 @@ struct StorageTreemap: View {
             let amount = 5 * max(0.15, 1 - dist / 420)
             return CGSize(width: dx / dist * amount, height: dy / dist * amount)
         }()
-        let lift: CGSize = isHovered ? CGSize(width: 0, height: -3) : push
+        let lift: CGSize = isHovered ? CGSize(width: 0, height: -4) : push
 
         return ZStack {
             PolygonHitShape(points: local, radius: radius)
@@ -229,20 +230,30 @@ struct StorageTreemap: View {
                 }
             }
             PolygonHitShape(points: local, radius: radius)
-                .stroke(isSelected ? Theme.accent : Color.white.opacity(isHovered ? 0.5 : 0.18),
-                        lineWidth: isSelected ? 2 : (isHovered ? 1.2 : 0.5))
+                // 悬停时描边加粗到 4：这圈线有一半会被下面的 clipShape 裁掉，
+                // 剩下 2pt 才看得见（1.6 会被裁成 0.8，实测几乎不可见）
+                .stroke(isSelected ? Theme.accent
+                        : Color.white.opacity(isHovered ? 0.92 : 0.18),
+                        lineWidth: isSelected ? 3 : (isHovered ? 4 : 0.5))
             label(t, ink: t.isFreeSpace ? Color.primary.opacity(0.72) : ink)
         }
         .frame(width: max(2, t.bbox.width), height: max(2, t.bbox.height))
         // 文字/描边都在多边形内裁切，斜块上不会糊到邻块
         .clipShape(PolygonHitShape(points: local, radius: radius))
+        .overlay(
+            // 悬停提亮：描边在 clipShape 下会被裁到看不见（试过 1.6/4 两种线宽都不行），
+            // 改用「整块提亮 + 阴影」表达浮起，比一圈线更稳。
+            PolygonHitShape(points: local, radius: radius)
+                .fill(Color.white.opacity(isHovered ? 0.20 : 0))
+                .allowsHitTesting(false)
+        )
         .position(x: t.bbox.midX, y: t.bbox.midY)
         .offset(lift)
-        .shadow(color: .black.opacity(isHovered ? 0.24 : 0.03),
-                radius: isHovered ? 16 : 2,
-                y: isHovered ? 6 : 1)
-        .scaleEffect(isHovered ? 1.07 : (anyHovered ? 0.968 : 1))
-        .opacity(anyHovered && !isHovered ? 0.9 : 1)
+        .shadow(color: .black.opacity(isHovered ? 0.30 : 0.03),
+                radius: isHovered ? 22 : 2,
+                y: isHovered ? 9 : 1)
+        .scaleEffect(isHovered ? 1.085 : (anyHovered ? 0.962 : 1))
+        .opacity(anyHovered && !isHovered ? 0.88 : 1)
         .zIndex(isHovered ? 10 : 0)
         .contentShape(PolygonHitShape(points: local, radius: radius))
         .onHover { hoveredID = $0 ? t.id : nil }
