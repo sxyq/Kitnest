@@ -34,7 +34,8 @@ enum DiskVoronoiLayout {
     /// - Parameter freeSpace: 磁盘可用空间（字节）。给了就在左上角放一块「可用 N G」，
     ///   参考图里那块是带同心圆纹理的，占约 35% 面积。
     static func make(nodes: [DiskNode], in size: CGSize,
-                     freeSpace: Int64? = nil, maxTiles: Int = 14) -> [DiskTile] {
+                     freeSpace: Int64? = nil, maxTiles: Int = 14,
+                     cutout: CGRect? = nil) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.sorted { $0.size > $1.size }
 
@@ -95,6 +96,7 @@ enum DiskVoronoiLayout {
 
         let polys = VoronoiTreemap.layout(weights: weights,
                                           in: CGRect(origin: .zero, size: size),
+                                          cutout: cutout,
                                           arcFirst: freeNode != nil)
         guard polys.count == list.count else { return [] }
 
@@ -123,12 +125,13 @@ private final class DiskLayoutCache {
     private var key = ""
     private var tiles: [DiskTile] = []
 
-    func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil) -> [DiskTile] {
+    func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
+               cutout: CGRect? = nil) -> [DiskTile] {
         let k = "\(node.id)|\(Int(size.width))×\(Int(size.height))|\(node.children.count)|\(node.size)"
-            + "|\(freeSpace ?? 0)"
+            + "|\(freeSpace ?? 0)|\(cutout.map { "\(Int($0.width))x\(Int($0.height))" } ?? "-")"
         if k == key { return tiles }
         let made = DiskVoronoiLayout.make(nodes: Array(node.children.prefix(28)),
-                                          in: size, freeSpace: freeSpace)
+                                          in: size, freeSpace: freeSpace, cutout: cutout)
         key = k
         tiles = made
         return made
@@ -155,13 +158,16 @@ struct StorageTreemap: View {
     var onBack: (() -> Void)? = nil
     /// 磁盘可用空间（字节）：非 nil 时左上角会有一块带同心圆的「可用空间」
     var freeSpace: Int64? = nil
+    /// 左上角给 agent 留的缺口（容器坐标，左上原点）。气泡会绕着它排。
+    var cutout: CGRect? = nil
 
     @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
 
     var body: some View {
         GeometryReader { geo in
-            let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size, freeSpace: freeSpace)
+            let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
+                                                     freeSpace: freeSpace, cutout: cutout)
             let hoveredCenter = tiles.first(where: { $0.id == hoveredID })
                 .map { CGPoint(x: $0.bbox.midX, y: $0.bbox.midY) }
             if tiles.isEmpty {
@@ -258,6 +264,8 @@ struct StorageTreemap: View {
         .contentShape(PolygonHitShape(points: local, radius: radius))
         .onHover { hoveredID = $0 ? t.id : nil }
         .onTapGesture {
+            // v236：点「可用空间」那块 = 返回上一级（用户：「点剩余空间能快速返回」）
+            if t.isFreeSpace { onBack?(); return }
             selectedID = t.id
             if t.node.canDrill { onDrill(t.node) } else { onSelect(t.node) }
         }

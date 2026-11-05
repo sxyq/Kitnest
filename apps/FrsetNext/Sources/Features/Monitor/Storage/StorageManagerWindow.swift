@@ -525,6 +525,21 @@ struct StorageManagerRootView: View {
         VStack(spacing: 0) {
             // 导航条：面包屑（v229：两个「返回」按钮已删，返回交给两指滑动 / Esc / 点空白）
             HStack(spacing: 6) {
+                // v236（用户：「点进去之后没有快速返回的方式」）：
+                // 面包屑左边加一个明确的返回箭头——比「点空白」可发现得多
+                Button {
+                    if !stack.isEmpty { stack.removeLast() }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(stack.isEmpty ? Theme.tertiaryText : Theme.accent)
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(Color.primary.opacity(stack.isEmpty ? 0.03 : 0.08)))
+                }
+                .buttonStyle(.plain)
+                .disabled(stack.isEmpty)
+                .help("返回上一级（也可按 Esc 或两指右滑）")
+
                 Button {
                     stack.removeAll()
                 } label: {
@@ -564,18 +579,25 @@ struct StorageManagerRootView: View {
             .animation(Theme.Motion.fast, value: stack.count)
 
             if let node = currentNode {
-                // v229（用户：「两个返回上一级按钮全删掉，改用手势」）：
-                // 返回只保留「两指滑动」和 Esc、以及点气泡之间的空白；
-                // 左上角与右下角那两个按钮都去掉了。
-                StorageTreemap(node: node,
-                               onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
-                               onSelect: { detailNode = $0 },
-                               onBack: { if !stack.isEmpty { stack.removeLast() } },
-                               freeSpace: Self.diskFreeBytes)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
-                    .id(node.id)
-                    .animation(Theme.Motion.fast, value: node.id)
+                // v236（用户：「只是左上角一个区域显示 agent，气泡绕着它排」）：
+                // 用 Voronoi 的 cutout 在左上角挖一块，气泡绕开；agent 卡片浮在缺口上，
+                // 不再是全屏 sheet。
+                ZStack(alignment: .topLeading) {
+                    StorageTreemap(node: node,
+                                   onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
+                                   onSelect: { detailNode = $0 },
+                                   onBack: { if !stack.isEmpty { stack.removeLast() } },
+                                   freeSpace: Self.diskFreeBytes,
+                                   cutout: Self.agentCutout)
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 8)
+                        .id(node.id)
+                        .animation(Theme.Motion.fast, value: node.id)
+
+                    agentCard
+                        .frame(width: Self.agentCutout.width, height: Self.agentCutout.height)
+                        .padding(.leading, 10)
+                }
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")
@@ -620,6 +642,68 @@ struct StorageManagerRootView: View {
         .onExitCommand {
             if !stack.isEmpty { stack.removeLast() }
         }
+    }
+
+    /// agent 区在 treemap 容器里的缺口（左上原点）。气泡会绕开这块。
+    private static let agentCutout = CGRect(x: 0, y: 0, width: 268, height: 158)
+
+    /// 左上角的 agent 卡片（替代原来的全屏弹层入口）
+    private var agentCard: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                Text("让 Agent 清理")
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer(minLength: 0)
+            }
+            Text("生成含本次扫描明细的提示词：逐个目录列出文件、判断能不能删、给命令。")
+                .font(.system(size: 10.5))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            HStack(spacing: 6) {
+                Button {
+                    copyAgentPrompt()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.doc").font(.system(size: 9.5))
+                        Text("复制提示词").font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .frame(height: 24)
+                    .background(Capsule(style: .continuous).fill(Theme.accent))
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+
+                Button {
+                    showAgentSheet = true
+                } label: {
+                    Text("预览")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 10)
+                        .frame(height: 24)
+                        .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(11)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+        )
+        .shadow(color: .black.opacity(0.10), radius: 8, y: 2)
     }
 
     /// 顺着一串「几乎只剩一个子目录」的层级走到底（v212）
@@ -713,18 +797,19 @@ struct StorageManagerRootView: View {
         }
         lines.append("")
         lines.append("## 请你做的事")
-        lines.append("1. **先看清每个目录里到底是什么**：对每一项跑 `ls -la <路径>` 和 "
-                     + "`du -sh <路径>/*`，说明这些文件是什么、由哪个工具生成、删了会不会有副作用。")
-        lines.append("2. 逐项给结论并写依据：可安全删除 / 需我确认 / 不要动"
-                     + "（是不是缓存、能不能重建、是否含用户数据）。")
-        lines.append("3. 可删的必须**具体到文件或子目录**，不要只给父目录：")
-        lines.append("   列出完整路径、大小、一句话说明它是什么、为什么可以删。")
-        lines.append("4. 对每一项给出建议命令：优先 `mv <路径> ~/.Trash/`，不要 `rm -rf`；")
-        lines.append("   一条一行，命令后面用注释写明删的是什么。")
-        lines.append("5. 输出一份 Markdown 报告，结构：目录 → 内容构成 → 判定 → 建议命令 → 预计释放空间；")
-        lines.append("   最后给一个合计（能删多少、需确认多少）。")
-        lines.append("6. 先只给方案，不要执行。等我逐条确认后再动手，每执行一条把结果告诉我。")
-        lines.append("7. 遇到需要更多信息才能判断的，直接说「请跑 `du -sh <路径>/*` 把结果贴给我」，不要猜。")
+        lines.append("1. **逐个目录看清里面到底是什么**：对每一项跑 `ls -la <路径>` 和 "
+                     + "`du -sh <路径>/*`，把子项按大小列出来；说明每个文件/子目录是什么、"
+                     + "由哪个工具或 App 生成、能否重建。")
+        lines.append("2. **结论必须具体到文件**，不能只说「这个目录可以清」：")
+        lines.append("   每条给：完整路径、大小、一句话说明它是什么、删了会怎样"
+                     + "（能否重建 / 影响哪个 App / 是否含用户数据/登录态/项目源码）。")
+        lines.append("3. **分三档判定**：✅ 可安全删除 / ⚠️ 需我确认 / ⛔ 不要动，每条都写依据。")
+        lines.append("4. **给可执行命令**：优先 `mv <路径> ~/.Trash/`，不要 `rm -rf`；")
+        lines.append("   一条一行，行尾注释写明删的是什么。")
+        lines.append("5. **报告结构**：先给一张总表（目录 | 大小 | 判定 | 预计释放），再逐目录展开明细；")
+        lines.append("   最后给合计：能删多少、需确认多少、建议保留多少。")
+        lines.append("6. **先只给方案，不要执行**。等我逐条确认后再动手，每执行一条回报结果。")
+        lines.append("7. **信息不足就问**：直接说「请跑 `du -sh <路径>/*` 把结果贴给我」，不要猜。")
         return lines.joined(separator: "\n")
     }
 
