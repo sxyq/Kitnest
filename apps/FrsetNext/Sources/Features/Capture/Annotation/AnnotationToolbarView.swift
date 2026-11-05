@@ -56,20 +56,10 @@ final class EditorToolbarModel: ObservableObject {
     }
 
     /// 当前工具是否用笔刷直径（而不是线宽）
-    var isBrushTool: Bool {
-        switch activeTool {
-        case .mosaic, .eraser, .removal: return true
-        default: return false
-        }
-    }
+    var isBrushTool: Bool { activeTool.isBrush }
 
     /// 当前工具是否需要颜色
-    var usesColor: Bool {
-        switch activeTool {
-        case .mosaic, .eraser, .removal: return false
-        default: return true
-        }
-    }
+    var usesColor: Bool { !activeTool.isBrush }
 
     /// 当前工具是否用线宽/字号（橡皮不需要）
     var usesSize: Bool {
@@ -83,14 +73,14 @@ final class EditorToolbarModel: ObservableObject {
         switch activeTool {
         case .text: return textSize
         case .highlighter: return highlighterWidth
-        case .eraser, .mosaic, .removal: return brushWidth
+        case .mosaic, .blur, .eraser, .removal: return brushWidth
         default: return lineWidth
         }
     }
 
     var sizeRange: ClosedRange<Double> {
         switch activeTool {
-        case .eraser, .mosaic, .removal: return 8...200
+        case .mosaic, .blur, .eraser, .removal: return 8...200
         case .text: return 1...12
         case .highlighter: return 1...16
         default: return 1...40
@@ -100,8 +90,8 @@ final class EditorToolbarModel: ObservableObject {
     /// 尺寸标签：文字叫字号，笔刷叫笔刷，其余叫粗细
     var sizeLabel: String {
         switch activeTool {
-        case .mosaic, .eraser, .removal: return "笔刷"
-        case .text: return "字号"
+        case .mosaic, .blur, .eraser, .removal: return "笔刷"
+        case .text, .remark: return "字号"
         default: return "粗细"
         }
     }
@@ -110,7 +100,7 @@ final class EditorToolbarModel: ObservableObject {
         switch activeTool {
         case .text: textSize = value
         case .highlighter: highlighterWidth = value
-        case .eraser, .mosaic, .removal: brushWidth = value
+        case .mosaic, .blur, .eraser, .removal: brushWidth = value
         default: lineWidth = value
         }
     }
@@ -137,8 +127,9 @@ enum ToolRailMetrics {
     static let groupGap: CGFloat = 5
     /// 分割线长度
     static let separatorWidth: CGFloat = 18
-    /// 分组断点：第 3、6 个工具之后（形状 / 绘制 / 修复 各 3 个）
-    static let groupBreaks: Set<Int> = [2, 5]
+    /// 分组断点（v220）：14 个工具按 形状 / 标注 / 强调 / 遮盖 / 画笔 分五段。
+    /// 断点是「在第几个工具之后画线」——2 形状、6 标注、8 强调、12 遮盖。
+    static let groupBreaks: Set<Int> = [2, 6, 8, 12]
     /// 胶囊宽度
     static let width: CGFloat = button + hPadding * 2
     /// 胶囊高度（9 个按钮 + 2 条分割线 + 内边距）
@@ -194,8 +185,13 @@ struct AnnotationToolRailView: View {
         case .arrow:     return "拖动画箭头"
         case .pen:       return "自由画线"
         case .text:      return "点画面输入文字"
+        case .remark:    return "先点目标，再点空白处写说明"
+        case .counter:   return "点一下落一个序号，连续点连续加"
         case .highlighter: return "半透明划重点"
+        case .spotlight: return "拖出要突出的区域，其余压暗"
+        case .magnifier: return "拖一个圆，圆内放大"
         case .mosaic:    return "涂抹打码"
+        case .blur:      return "涂抹做高斯模糊"
         case .eraser:    return "擦掉已画的标注"
         case .removal:   return "涂抹物体，松手自动抹除"
         }

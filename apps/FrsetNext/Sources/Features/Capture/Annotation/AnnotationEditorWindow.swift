@@ -52,6 +52,8 @@ final class AnnotationCanvasView: NSView {
     private var trackingAreaRef: NSTrackingArea?
     /// 马赛克像素化缓存（按块大小；底图变化时失效）
     private var mosaicPixelCache: [Int: CGImage] = [:]
+    /// 高斯模糊缓存（按半径；底图变化时失效）
+    private var blurImageCache: [Int: CGImage] = [:]
     private var mosaicCacheBase: CGImage?
     /// 抹除工具：正在涂抹的轨迹（图像像素坐标、左上原点）
     private var removalStroke: [CGPoint]?
@@ -59,6 +61,12 @@ final class AnnotationCanvasView: NSView {
     private var isErasing = false
     private var draft: Annotation?
     private var dragStart: CGPoint?
+    /// 备注工具：已点下的起点（等第二次点击放文本框）
+    private var remarkAnchor: CGPoint?
+    /// 备注工具：正在输入的这条备注的起点
+    private var remarkStart: CGPoint?
+    /// 计数点序号（只增不减——撤销后新落的点不会复用旧号码）
+    private var counterSeq = 0
 
     init(image: CGImage) {
         // CGImageSourceCreateImageAtIndex 产出的图像是**惰性解码**的：每次 draw 都可能重新解码。
@@ -202,6 +210,7 @@ final class AnnotationCanvasView: NSView {
         let canvasRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: CGFloat(image.height))
         if mosaicCacheBase !== image {
             mosaicPixelCache.removeAll()
+            blurImageCache.removeAll()
             mosaicCacheBase = image
         }
         let mosaicProvider: (CGFloat) -> CGImage? = { [weak self] block in
@@ -212,9 +221,30 @@ final class AnnotationCanvasView: NSView {
             self.mosaicPixelCache[key] = p
             return p
         }
-        AnnotationCompositor.draw(annotations, in: canvasRect, base: image, mosaicCache: mosaicProvider)
+        let blurProvider: (CGFloat) -> CGImage? = { [weak self] radius in
+            guard let self else { return nil }
+            let key = Int(radius)
+            if let cached = self.blurImageCache[key] { return cached }
+            guard let b = AnnotationCompositor.blurred(self.image, radius: radius) else { return nil }
+            self.blurImageCache[key] = b
+            return b
+        }
+        AnnotationCompositor.draw(annotations, in: canvasRect, base: image,
+                                  mosaicCache: mosaicProvider, blurCache: blurProvider)
         if let draft = draft {
-            AnnotationCompositor.draw([draft], in: canvasRect, base: image, mosaicCache: mosaicProvider)
+            AnnotationCompositor.draw([draft], in: canvasRect, base: image,
+                                      mosaicCache: mosaicProvider, blurCache: blurProvider)
+        }
+
+        // 备注工具：起点已点下、还没放文本框时，画一个准星提示「再点空白处」
+        if let anchor = remarkAnchor {
+            let r = max(5, 8 / max(scale, 0.01))
+            ctx.setStrokeColor(CGColor(gray: 0, alpha: 0.55))
+            ctx.setLineWidth(3 / max(scale, 0.01))
+            ctx.strokeEllipse(in: CGRect(x: anchor.x - r, y: anchor.y - r, width: r * 2, height: r * 2))
+            ctx.setStrokeColor(Theme.accentNS.cgColor)
+            ctx.setLineWidth(1.5 / max(scale, 0.01))
+            ctx.strokeEllipse(in: CGRect(x: anchor.x - r, y: anchor.y - r, width: r * 2, height: r * 2))
         }
         // 笔刷光标环：白描边 + 深色内描边，任何底色上都看得清
         if let p = cursorPoint, let radius = brushRingRadius {
@@ -292,7 +322,7 @@ final class AnnotationCanvasView: NSView {
         case .rectangle, .ellipse:
             guard let r = AnnotationCompositor.rect(of: a) else { return false }
             return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
-        case .mosaic:
+        case .mosaic, .blur:
             // 笔刷型：命中 = 落在笔触覆盖范围内（半径 = 笔刷直径/2 + 容差）
             return distanceToPolyline(point, a.points) <= max(4, a.lineWidth / 2) + 4
         case .arrow:
@@ -301,6 +331,15 @@ final class AnnotationCanvasView: NSView {
             return a.points.contains { hypot($0.x - point.x, $0.y - point.y) <= tolerance * 1.5 }
         case .text:
             guard let r = AnnotationCompositor.textBounds(a) else { return false }
+            return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+        case .counter:
+            guard let p = a.points.first else { return false }
+            return hypot(p.x - point.x, p.y - point.y) <= max(8, a.lineWidth) + 2
+        case .remark:
+            // 起点圆 + 文本框落点都算命中
+            return a.points.contains { hypot($0.x - point.x, $0.y - point.y) <= tolerance * 2 }
+        case .spotlight, .magnifier:
+            guard let r = AnnotationCompositor.rect(of: a) else { return false }
             return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
         case .eraser, .removal:
             return false
@@ -331,6 +370,37 @@ final class AnnotationCanvasView: NSView {
 
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
         updateCursor(ip)
+
+        // 换到别的工具时，未完成的备注起点作废
+        if tool != .remark { remarkAnchor = nil }
+
+        if tool == .counter {
+            // 计数点：点一下落一个序号，连续点连续加（v220）
+            counterSeq = max(counterSeq + 1,
+                             annotations.filter { $0.tool == .counter }.count + 1)
+            let a = Annotation(tool: .counter, points: [ip],
+                               text: "\(counterSeq)",
+                               colorHex: AnnotationCompositor.hex(of: color),
+                               lineWidth: strokeWidth(for: .counter))
+            annotations.append(a)
+            record(.annotation(a))
+            onChange?()
+            needsDisplay = true
+            return
+        }
+
+        if tool == .remark {
+            // 备注：第一次点目标定起点，第二次点空白处放文本框（v220）
+            if let start = remarkAnchor {
+                remarkAnchor = nil
+                remarkStart = start
+                beginTextEditing(at: convert(event.locationInWindow, from: nil))
+            } else {
+                remarkAnchor = ip
+                needsDisplay = true
+            }
+            return
+        }
 
         if tool == .eraser {
             // 橡皮擦的是「标注」而不是像素：v71 支持滑动——按下即擦，拖拽路径连续擦
@@ -421,7 +491,7 @@ final class AnnotationCanvasView: NSView {
         }
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
-        if tool == .pen || tool == .highlighter || tool == .mosaic {
+        if tool == .pen || tool == .highlighter || tool.isBrush {
             if draft == nil {
                 draft = Annotation(tool: tool, points: [start],
                                    colorHex: AnnotationCompositor.hex(of: color),
@@ -477,7 +547,7 @@ final class AnnotationCanvasView: NSView {
         guard let start = dragStart else { return }
         let ip = imagePoint(convert(event.locationInWindow, from: nil))
         let finished: Annotation?
-        if tool == .pen || tool == .highlighter || tool == .mosaic {
+        if tool == .pen || tool == .highlighter || tool.isBrush {
             var a = draft ?? Annotation(tool: tool, points: [start],
                                         colorHex: AnnotationCompositor.hex(of: color),
                                         lineWidth: strokeWidth(for: tool),
@@ -507,8 +577,13 @@ final class AnnotationCanvasView: NSView {
     /// 各工具落笔宽度：马赛克用独立笔刷直径，其余用线宽
     private func strokeWidth(for tool: AnnotationTool) -> CGFloat {
         switch tool {
-        case .mosaic: return max(8, brushWidth)
+        case .mosaic, .blur: return max(8, brushWidth)
         case .highlighter: return max(2, lineWidth)
+        // 聚光灯只用它算边缘描边，放大镜只用它算外圈，都该比线条细
+        case .spotlight: return max(2, lineWidth * 0.3)
+        case .magnifier: return max(2, lineWidth * 0.6)
+        // 计数点直径 = lineWidth * 1.6（见 drawCounter）
+        case .counter: return max(12, lineWidth)
         default: return max(1, lineWidth)
         }
     }
@@ -516,7 +591,7 @@ final class AnnotationCanvasView: NSView {
     /// 笔刷光标环半径（图像像素；非笔刷工具返回 nil，不显示环）
     private var brushRingRadius: CGFloat? {
         switch tool {
-        case .mosaic: return max(8, brushWidth) / 2
+        case .mosaic, .blur: return max(8, brushWidth) / 2
         case .pen: return max(1, lineWidth) / 2
         case .highlighter: return max(2, lineWidth) * 2
         case .eraser, .removal: return brushRadius
@@ -693,9 +768,16 @@ final class AnnotationCanvasView: NSView {
             return (dx * dx + dy * dy).squareRoot() >= 6
         case .pen, .highlighter:
             return a.points.count >= 2
-        case .mosaic:
+        case .mosaic, .blur:
             // 画笔式：单击落一个点、拖动成笔触都算有效
             return !a.points.isEmpty
+        case .spotlight, .magnifier:
+            guard a.points.count >= 2 else { return false }
+            let w = abs(a.points[0].x - a.points[1].x)
+            let h = abs(a.points[0].y - a.points[1].y)
+            return min(w, h) >= 12
+        case .counter, .remark:
+            return true
         case .eraser, .removal:
             return false
         case .text:
@@ -1017,7 +1099,21 @@ final class AnnotationCanvasView: NSView {
         textEditorBox?.removeFromSuperview()
         textEditorBox = nil
         window?.makeFirstResponder(self)
-        guard commit, !raw.isEmpty, let anchor else { needsDisplay = true; return }
+        guard commit, !raw.isEmpty, let anchor else { remarkStart = nil; needsDisplay = true; return }
+
+        // 备注（v220）：起点 + 文本框两个点，走 .remark 标注而不是普通文字
+        if let start = remarkStart {
+            remarkStart = nil
+            let remark = Annotation(tool: .remark, points: [start, anchor], text: raw,
+                                    colorHex: AnnotationCompositor.hex(of: color),
+                                    lineWidth: textSize,
+                                    weight: 1)
+            annotations.append(remark)
+            record(.annotation(remark))
+            needsDisplay = true
+            onChange?()
+            return
+        }
 
         // 存「逻辑文本 + 换行宽度」（图像像素）：绘制时按此宽度软换行，调字号后自动重排
         let wrapWidthImage = textWrapWidth(for: anchor)
@@ -1110,9 +1206,51 @@ final class AnnotationCanvasView: NSView {
         guard let base = AnnotationCompositor.composite(base: image, annotations: annotations) else {
             return nil
         }
-        guard cornerRadius > 0 else { return base }
-        let scale = max(imageScale, 0.0001)
-        return AnnotationCompositor.roundedCorners(base, radius: cornerRadius / scale)
+        let rounded: CGImage
+        if cornerRadius > 0 {
+            let scale = max(imageScale, 0.0001)
+            rounded = AnnotationCompositor.roundedCorners(base, radius: cornerRadius / scale) ?? base
+        } else {
+            rounded = base
+        }
+        // v220：水印只在导出时盖上去，编辑预览不受影响
+        return Watermark.applied(to: rounded)
+    }
+
+    /// 排障：预置一组覆盖五个新工具的示例标注（kitnest://annotate?demo=1）
+    func installDemoNewTools() {
+        // 底图可能是 Retina 2×（NSImage 1000×700 → CGImage 2000×1400）。
+        // 坐标按「设计稿 1000 宽」写，再乘比例，五个工具才不会挤在左上角。
+        let s = CGFloat(image.width) / 1000
+        func P(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * s, y: y * s) }
+
+        var list: [Annotation] = []
+        list.append(Annotation(tool: .counter, points: [P(90, 110)], text: "1",
+                               colorHex: "#FF3B30", lineWidth: 26 * s))
+        list.append(Annotation(tool: .counter, points: [P(90, 205)], text: "2",
+                               colorHex: "#FF3B30", lineWidth: 26 * s))
+        // 备注：起点在标题下方，文本框放到右上空白
+        list.append(Annotation(tool: .remark,
+                               points: [P(260, 150), P(400, 70)],
+                               text: "这里的间距和上面不一致",
+                               colorHex: "#FF3B30", lineWidth: 3 * s, weight: 1))
+        // 聚光灯：框住左侧三色块
+        list.append(Annotation(tool: .spotlight,
+                               points: [P(30, 290), P(350, 530)],
+                               colorHex: "#FF3B30", lineWidth: 8 * s, aux: 0.6))
+        // 放大镜：取正文最上面几行
+        list.append(Annotation(tool: .magnifier,
+                               points: [P(620, 55), P(800, 235)],
+                               colorHex: "#FF3B30", lineWidth: 8 * s, aux: 2.0))
+        // 模糊：横穿正文中段（避开放大镜圆）
+        list.append(Annotation(tool: .blur,
+                               points: (0...12).map { P(580 + CGFloat($0) * 28, 300) },
+                               colorHex: "#FF3B30", lineWidth: 36 * s, blockSize: 20 * s))
+
+        annotations = list
+        counterSeq = 2
+        needsDisplay = true
+        onChange?()
     }
 
     /// 滚轮调粗细：Snipaste / Flameshot 的通用手势（纵向滚轮才生效，避免误触横向滑动）
@@ -1558,6 +1696,46 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
             if let out = editor.canvas.composite(), let data = ImageProcessor.pngData(out) {
                 try? data.write(to: URL(fileURLWithPath: "/tmp/annot_round.png"))
                 Log.info("Capture", "排障：圆角成图已写 /tmp/annot_round.png（\(out.width)×\(out.height)）")
+            }
+        }
+    }
+
+    /// 排障：打开一张演示图并预置覆盖五个新工具的标注（kitnest://annotate?demo=1）
+    /// 同时把合成结果写 /tmp/annot_newtools.png——无鼠标环境也能核对绘制效果。
+    public func debugNewToolsDemo() {
+        let size = NSSize(width: 1000, height: 700)
+        let img = NSImage(size: size)
+        img.lockFocus()
+        NSColor(calibratedRed: 0.97, green: 0.96, blue: 0.94, alpha: 1).setFill()
+        NSRect(origin: .zero, size: size).fill()
+
+        ("新标注工具验收" as NSString).draw(at: NSPoint(x: 60, y: 640),
+            withAttributes: [.font: NSFont.systemFont(ofSize: 36, weight: .bold),
+                             .foregroundColor: NSColor(calibratedWhite: 0.15, alpha: 1)])
+
+        // 正文：放大镜/模糊的取样对象（NSImage 左下原点 → 图上 y 100..600）
+        let body = (1...14).map { "第 \($0) 行：放大镜与模糊的取样区域" }.joined(separator: "\n")
+        (body as NSString).draw(in: NSRect(x: 600, y: 120, width: 380, height: 500),
+            withAttributes: [.font: NSFont.systemFont(ofSize: 15),
+                             .foregroundColor: NSColor(calibratedWhite: 0.2, alpha: 1)])
+
+        // 色块：聚光灯的取样对象（图上 y 300..520）
+        for (i, c) in [NSColor.systemBlue, NSColor.systemOrange, NSColor.systemGreen].enumerated() {
+            c.withAlphaComponent(0.35).setFill()
+            NSRect(x: 40 + i * 110, y: 180, width: 90, height: 220).fill()
+        }
+        img.unlockFocus()
+        guard let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+
+        open(image: cg)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+            guard let editor = self?.window else { return }
+            editor.canvas.installDemoNewTools()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                if let out = editor.canvas.composite(), let data = ImageProcessor.pngData(out) {
+                    try? data.write(to: URL(fileURLWithPath: "/tmp/annot_newtools.png"))
+                    Log.info("Capture", "排障：新工具成图已写 /tmp/annot_newtools.png（\(out.width)×\(out.height)）")
+                }
             }
         }
     }

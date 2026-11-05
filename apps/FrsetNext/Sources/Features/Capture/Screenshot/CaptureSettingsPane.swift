@@ -15,6 +15,12 @@ public struct CaptureSettingsPane: View {
     @Stored private var autoDetect: Bool
     /// v130（SnowShot 对齐）④：延时截图秒数（3 / 5 / 10）
     @Stored private var delaySeconds: Int
+    /// v220：水印（对齐 1Capture 的文字水印）
+    @Stored private var wmEnabled: Bool
+    @Stored private var wmText: String
+    @Stored private var wmTile: Bool
+    @Stored private var wmOpacity: Double
+    @Stored private var wmAngle: Double
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -32,6 +38,11 @@ public struct CaptureSettingsPane: View {
         _showOCRWindow = Stored(wrappedValue: ScreenshotManager.shared.ocrShowResultWindow)
         _autoDetect = Stored(wrappedValue: OCRService.autoDetectLanguages)
         _delaySeconds = Stored(wrappedValue: ScreenshotManager.shared.delaySeconds)
+        _wmEnabled = Stored(wrappedValue: Watermark.isEnabled)
+        _wmText = Stored(wrappedValue: Watermark.text)
+        _wmTile = Stored(wrappedValue: Watermark.tile)
+        _wmOpacity = Stored(wrappedValue: Watermark.opacity)
+        _wmAngle = Stored(wrappedValue: Watermark.angle)
     }
 
     public var body: some View {
@@ -76,6 +87,37 @@ public struct CaptureSettingsPane: View {
                 }
                 .onChange(of: delaySeconds) { newValue in
                     ScreenshotManager.shared.delaySeconds = newValue
+                }
+            }
+
+            Section("水印") {
+                Toggle("导出时加水印", isOn: $wmEnabled)
+                    .onChange(of: wmEnabled) { newValue in Watermark.isEnabled = newValue }
+                if wmEnabled {
+                    TextField("水印文字", text: $wmText)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: wmText) { newValue in Watermark.text = newValue }
+                    Toggle("铺满画面（关闭则只放右下角）", isOn: $wmTile)
+                        .onChange(of: wmTile) { newValue in Watermark.tile = newValue }
+                    HStack {
+                        Text("不透明度")
+                        Slider(value: $wmOpacity, in: 0.03...0.5)
+                        Text("\(Int(wmOpacity * 100))%")
+                            .monospacedDigit()
+                            .frame(width: 44, alignment: .trailing)
+                    }
+                    .onChange(of: wmOpacity) { newValue in Watermark.opacity = newValue }
+                    HStack {
+                        Text("倾斜角")
+                        Slider(value: $wmAngle, in: -60...60)
+                        Text("\(Int(wmAngle))°")
+                            .monospacedDigit()
+                            .frame(width: 44, alignment: .trailing)
+                    }
+                    .onChange(of: wmAngle) { newValue in Watermark.angle = newValue }
+                    Text("只加在复制/保存的成品上，编辑时预览不叠加——不会被水印挡住看不清标注。")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
             }
 

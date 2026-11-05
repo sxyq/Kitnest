@@ -1,26 +1,43 @@
 import AppKit
 import CoreGraphics
+import CoreImage
 
 // MARK: - 标注工具与数据模型
 
 /// 标注工具类型（对应原作截图工具条的箭头 / 矩形 / 文字等）
+///
+/// v220（对齐 1Capture）：按「形状 / 标注 / 强调 / 遮盖 / 画笔」五组排列，
+/// 新增 备注、计数点、聚光灯、放大镜、模糊 五个工具。
 public enum AnnotationTool: String, CaseIterable, Identifiable {
-    // 前 5 个是原版截图标注就有的；后 4 个对齐 ZTools「剪贴板图片涂改」插件 + eSearch removeObj
-    case rectangle, ellipse, arrow, pen, text, highlighter, mosaic, eraser, removal
+    // 形状
+    case rectangle, ellipse, arrow
+    // 标注
+    case text, remark, counter, highlighter
+    // 强调
+    case spotlight, magnifier
+    // 遮盖
+    case mosaic, blur, eraser, removal
+    // 画笔
+    case pen
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
-        case .rectangle: return "矩形"
-        case .ellipse:   return "椭圆"
-        case .arrow:     return "箭头"
-        case .pen:       return "画笔"
-        case .text:      return "文字"
+        case .rectangle:  return "矩形"
+        case .ellipse:    return "椭圆"
+        case .arrow:      return "箭头"
+        case .text:       return "文字"
+        case .remark:     return "备注"
+        case .counter:    return "计数点"
         case .highlighter: return "荧光"
-        case .mosaic:    return "马赛克"
-        case .eraser:    return "橡皮"
-        case .removal:   return "抹除"
+        case .spotlight:  return "聚光灯"
+        case .magnifier:  return "放大镜"
+        case .mosaic:     return "马赛克"
+        case .blur:       return "模糊"
+        case .eraser:     return "橡皮"
+        case .removal:    return "抹除"
+        case .pen:        return "画笔"
         }
     }
 
@@ -30,12 +47,17 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .rectangle: return "R"
         case .ellipse:   return "O"
         case .arrow:     return "A"
-        case .pen:       return "P"
         case .text:      return "T"
+        case .remark:    return "N"
+        case .counter:   return "1"
         case .highlighter: return "H"
+        case .spotlight: return "S"
+        case .magnifier: return "G"
         case .mosaic:    return "M"
+        case .blur:      return "B"
         case .eraser:    return "E"
         case .removal:   return "D"
+        case .pen:       return "P"
         }
     }
 
@@ -44,12 +66,25 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .rectangle: return "rectangle"
         case .ellipse:   return "circle"
         case .arrow:     return "arrow.up.right"
-        case .pen:       return "pencil"            // pencil.tip 部分 SDK 缺失
         case .text:      return "text.cursor"        // textformat 在 mac SDK 不存在，会回退显示「格式」
+        case .remark:    return "text.bubble"
+        case .counter:   return "1.circle"
         case .highlighter: return "highlighter"
+        case .spotlight: return "circle.dashed"
+        case .magnifier: return "magnifyingglass"
         case .mosaic:    return "squareshape.split.3x3"
+        case .blur:      return "circle.dotted"
         case .eraser:    return "eraser"
         case .removal:   return "wand.and.rays.inverse"
+        case .pen:       return "pencil"            // pencil.tip 部分 SDK 缺失
+        }
+    }
+
+    /// 笔刷类工具（沿轨迹涂抹，用 brushWidth 而不是 lineWidth）
+    public var isBrush: Bool {
+        switch self {
+        case .mosaic, .blur, .eraser, .removal: return true
+        default: return false
         }
     }
 }
@@ -72,6 +107,12 @@ public struct Annotation: Identifiable, Hashable {
     /// 存「逻辑文本」+ 换行宽度，绘制时才软换行——调字号后文字会按新字宽**重新排**，
     /// 不会退化成一整条冲出画面（2026-10-20 用户实障：长文提交后截断/溢出）。
     public var wrapWidth: CGFloat
+    /// v220：工具的自有参数（各工具含义不同，0 = 用默认值）
+    /// - spotlight：压暗强度 0–1（默认 0.55）
+    /// - magnifier：放大倍数（默认 2.0）
+    /// - blur：高斯半径（默认 16）
+    /// - counter：无
+    public var aux: CGFloat
 
     public init(id: UUID = UUID(),
                 tool: AnnotationTool,
@@ -81,7 +122,8 @@ public struct Annotation: Identifiable, Hashable {
                 lineWidth: CGFloat = 3,
                 blockSize: CGFloat = 10,
                 weight: Int = 1,
-                wrapWidth: CGFloat = 0) {
+                wrapWidth: CGFloat = 0,
+                aux: CGFloat = 0) {
         self.id = id
         self.tool = tool
         self.points = points
@@ -91,6 +133,7 @@ public struct Annotation: Identifiable, Hashable {
         self.blockSize = blockSize
         self.weight = weight
         self.wrapWidth = wrapWidth
+        self.aux = aux
     }
 }
 
@@ -137,8 +180,17 @@ public enum AnnotationCompositor {
             mosaicCache[key] = img
             return img
         }
+        // 模糊图层同理：CIGaussianBlur 整图一次，按半径缓存
+        var blurCache: [Int: CGImage] = [:]
+        let blurProvider: (CGFloat) -> CGImage? = { radius in
+            let key = Int(radius)
+            if let hit = blurCache[key] { return hit }
+            guard let img = blurred(base, radius: radius) else { return nil }
+            blurCache[key] = img
+            return img
+        }
         draw(annotations, in: CGRect(x: 0, y: 0, width: w, height: h),
-             base: base, mosaicCache: provider)
+             base: base, mosaicCache: provider, blurCache: blurProvider)
         NSGraphicsContext.restoreGraphicsState()
 
         return ctx.makeImage()
@@ -170,16 +222,25 @@ public enum AnnotationCompositor {
     }
 
     public static func draw(_ annotations: [Annotation], in rect: CGRect, base: CGImage? = nil,
-                            mosaicCache: ((CGFloat) -> CGImage?)? = nil) {
+                            mosaicCache: ((CGFloat) -> CGImage?)? = nil,
+                            blurCache: ((CGFloat) -> CGImage?)? = nil) {
         guard let clip = NSGraphicsContext.current else { return }
         clip.saveGraphicsState()
         NSBezierPath(rect: rect).addClip()
-        for annotation in annotations { draw(annotation, base: base, mosaicCache: mosaicCache) }
+        // 聚光灯是「背景压暗层」，必须先画：否则后面画的备注/放大镜/模糊
+        // 会被它一起压暗（实测备注框只剩一条暗红底、文字看不清）。
+        for annotation in annotations where annotation.tool == .spotlight {
+            draw(annotation, base: base, mosaicCache: mosaicCache, blurCache: blurCache)
+        }
+        for annotation in annotations where annotation.tool != .spotlight {
+            draw(annotation, base: base, mosaicCache: mosaicCache, blurCache: blurCache)
+        }
         clip.restoreGraphicsState()
     }
 
     private static func draw(_ a: Annotation, base: CGImage? = nil,
-                             mosaicCache: ((CGFloat) -> CGImage?)? = nil) {
+                             mosaicCache: ((CGFloat) -> CGImage?)? = nil,
+                             blurCache: ((CGFloat) -> CGImage?)? = nil) {
         let color = color(fromHex: a.colorHex)
         switch a.tool {
         case .rectangle:
@@ -213,6 +274,18 @@ public enum AnnotationCompositor {
             // 画笔式马赛克：沿轨迹铺像素化图层（遮罩 = 圆头笔触），支持任意笔刷宽度
             drawMosaicBrush(a, base: base, fallbackColor: color,
                             pixelated: mosaicCache?(a.blockSize))
+        case .blur:
+            // 模糊笔刷：同一套笔触遮罩，把「像素化图层」换成「高斯模糊图层」
+            drawMosaicBrush(a, base: base, fallbackColor: color,
+                            pixelated: blurCache?(blurRadius(a)))
+        case .remark:
+            drawRemark(a, color: color)
+        case .counter:
+            drawCounter(a, color: color)
+        case .spotlight:
+            drawSpotlight(a, base: base)
+        case .magnifier:
+            drawMagnifier(a, base: base)
         case .eraser:
             return   // 橡皮不产生图元（在画布上直接删标注）
         case .removal:
@@ -306,6 +379,179 @@ public enum AnnotationCompositor {
         ctx.draw(pixelated, in: CGRect(origin: .zero, size: size))
 
         ctx.restoreGState()
+    }
+
+    // MARK: v220 新工具（对齐 1Capture）
+
+    /// 备注：起点圆点 + 折线 + 带底色的文本框
+    private static func drawRemark(_ a: Annotation, color: NSColor) {
+        guard a.points.count >= 2, let anchor = a.points.first, let box = a.points.last else { return }
+        let dot = max(4, a.lineWidth * 0.8)
+        color.setFill()
+        NSBezierPath(ovalIn: CGRect(x: anchor.x - dot / 2, y: anchor.y - dot / 2,
+                                    width: dot, height: dot)).fill()
+
+        let font = NSFont.systemFont(ofSize: fontSize(for: a.lineWidth), weight: fontWeight(a.weight))
+        let text = a.text ?? ""
+        let pad: CGFloat = max(6, a.lineWidth * 1.2)
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        let measured = (text as NSString).boundingRect(
+            with: CGSize(width: 600, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attrs)
+        let boxRect = CGRect(x: box.x, y: box.y,
+                             width: max(40, measured.width + pad * 2),
+                             height: max(font.pointSize, measured.height) + pad * 2)
+
+        // 折线：从起点先竖后横接到文本框左缘中点
+        let attach = CGPoint(x: boxRect.minX, y: boxRect.midY)
+        let path = NSBezierPath()
+        path.move(to: anchor)
+        path.line(to: CGPoint(x: anchor.x, y: attach.y))
+        path.line(to: attach)
+        path.lineWidth = max(1, a.lineWidth * 0.35)
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        color.withAlphaComponent(0.75).setStroke()
+        path.stroke()
+
+        // 文本框：白底 + 同色描边，压在深色截图上也能读
+        let plate = NSBezierPath(roundedRect: boxRect, xRadius: pad * 0.6, yRadius: pad * 0.6)
+        NSColor.white.withAlphaComponent(0.94).setFill()
+        plate.fill()
+        color.withAlphaComponent(0.55).setStroke()
+        plate.lineWidth = max(1, a.lineWidth * 0.3)
+        plate.stroke()
+
+        (text as NSString).draw(at: CGPoint(x: boxRect.minX + pad, y: boxRect.minY + pad),
+                                withAttributes: attrs)
+    }
+
+    /// 计数点：实心圆 + 白色序号
+    private static func drawCounter(_ a: Annotation, color: NSColor) {
+        guard let p = a.points.first else { return }
+        let d = max(20, a.lineWidth * 1.6)
+        let r = CGRect(x: p.x - d / 2, y: p.y - d / 2, width: d, height: d)
+        color.setFill()
+        NSBezierPath(ovalIn: r).fill()
+        // 白色描边：同色背景上也浮得起来
+        NSColor.white.withAlphaComponent(0.9).setStroke()
+        let ring = NSBezierPath(ovalIn: r.insetBy(dx: 0.5, dy: 0.5))
+        ring.lineWidth = max(1, d * 0.06)
+        ring.stroke()
+
+        let text = a.text ?? "1"
+        let font = NSFont.systemFont(ofSize: d * 0.52, weight: .bold)
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
+        let size = (text as NSString).size(withAttributes: attrs)
+        (text as NSString).draw(at: CGPoint(x: r.midX - size.width / 2, y: r.midY - size.height / 2),
+                                withAttributes: attrs)
+    }
+
+    /// 聚光灯：整图压暗，按目标区域 even-odd 挖洞
+    private static func drawSpotlight(_ a: Annotation, base: CGImage?) {
+        guard let base, let hole = rect(of: a) else { return }
+        let full = CGRect(x: 0, y: 0, width: CGFloat(base.width), height: CGFloat(base.height))
+        let dim = a.aux > 0 ? min(0.92, max(0.1, a.aux)) : 0.55
+        let radius = min(16, min(hole.width, hole.height) * 0.12)
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+
+        // 走 CGContext 的 evenOdd：NSBezierPath 的 windingRule 在 flipped 上下文里
+        // 实测没生效（整屏压暗、洞不出现），CG 这条路是确定的。
+        ctx.saveGState()
+        let path = CGMutablePath()
+        path.addRect(full)
+        path.addRoundedRect(in: hole, cornerWidth: radius, cornerHeight: radius)
+        ctx.addPath(path)
+        ctx.setFillColor(NSColor.black.withAlphaComponent(dim).cgColor)
+        ctx.fillPath(using: .evenOdd)
+        // 洞的边缘给一圈发丝亮边，暗底上能看清范围
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.5).cgColor)
+        ctx.setLineWidth(max(1, a.lineWidth * 0.25))
+        ctx.addPath(CGPath(roundedRect: hole.insetBy(dx: 0.5, dy: 0.5),
+                           cornerWidth: radius, cornerHeight: radius, transform: nil))
+        ctx.strokePath()
+        ctx.restoreGState()
+    }
+
+    /// 放大镜：把源图局部放大画进圆框
+    private static func drawMagnifier(_ a: Annotation, base: CGImage?) {
+        guard let base, let r = rect(of: a) else { return }
+        let side = min(r.width, r.height)
+        guard side >= 12 else { return }
+        let center = CGPoint(x: r.midX, y: r.midY)
+        let zoom = a.aux > 1 ? a.aux : 2.0
+        let srcSide = side / zoom
+        // CGImage.cropping(to:) 的 rect 是**左上原点**（不是 CG 绘图那套左下原点）——
+        // 按左下算会裁到图像底部，圆里就是空白（实测踩过一次）。
+        let src = CGRect(x: center.x - srcSide / 2,
+                         y: center.y - srcSide / 2,
+                         width: srcSide, height: srcSide)
+        guard let cropped = base.cropping(to: src) else { return }
+
+        let circle = NSBezierPath(ovalIn: CGRect(x: center.x - side / 2, y: center.y - side / 2,
+                                                 width: side, height: side))
+        NSGraphicsContext.saveGraphicsState()
+        circle.addClip()
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            ctx.saveGState()
+            // flipped 上下文里画 CGImage 会上下颠倒，绕框中心再翻一次
+            ctx.translateBy(x: 0, y: center.y * 2)
+            ctx.scaleBy(x: 1, y: -1)
+            ctx.interpolationQuality = .high
+            ctx.draw(cropped, in: CGRect(x: center.x - side / 2, y: center.y - side / 2,
+                                         width: side, height: side))
+            ctx.restoreGState()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+
+        circle.lineWidth = max(2, side * 0.035)
+        NSColor.white.withAlphaComponent(0.95).setStroke()
+        circle.stroke()
+        // 外侧再一圈深色：浅背景上不至于糊掉
+        let outer = NSBezierPath(ovalIn: CGRect(x: center.x - side / 2 - 1, y: center.y - side / 2 - 1,
+                                                width: side + 2, height: side + 2))
+        outer.lineWidth = 1
+        NSColor.black.withAlphaComponent(0.25).setStroke()
+        outer.stroke()
+    }
+
+    /// 模糊笔刷的半径：blockSize 在这里当「强度」用
+    static func blurRadius(_ a: Annotation) -> CGFloat {
+        a.aux > 0 ? max(2, a.aux) : max(6, a.blockSize * 1.2)
+    }
+
+    /// 模糊整图：**降采样 + 高质量插值放大**，纯 CoreGraphics。
+    ///
+    /// 不用 CIGaussianBlur：这台机器上 `CIContext.createCGImage` 对 2× 大图返回的是纯白，
+    /// 笔触遮罩裁出来就是一块白（实测两次）。降采样放大在视觉上就是模糊，
+    /// 且没有色彩空间/预乘的坑，2000×1400 图只要几毫秒。
+    public static func blurred(_ base: CGImage, radius: CGFloat) -> CGImage? {
+        let w = base.width, h = base.height
+        guard radius >= 1, w > 4, h > 4 else { return base }
+        // 半径 → 缩小因子：radius 12 ≈ 3×，radius 60 ≈ 15×
+        let factor = max(2.0, radius / 4.0)
+        let sw = max(2, Int(CGFloat(w) / factor))
+        let sh = max(2, Int(CGFloat(h) / factor))
+
+        guard let small = CGContext(data: nil, width: sw, height: sh,
+                                    bitsPerComponent: 8, bytesPerRow: 0,
+                                    space: CGColorSpaceCreateDeviceRGB(),
+                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return nil
+        }
+        small.interpolationQuality = .high
+        small.draw(base, in: CGRect(x: 0, y: 0, width: sw, height: sh))
+        guard let down = small.makeImage() else { return nil }
+
+        guard let big = CGContext(data: nil, width: w, height: h,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return nil
+        }
+        big.interpolationQuality = .high
+        big.draw(down, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return big.makeImage()
     }
 
     /// 像素化：按 block 尺寸缩小再放大（nearest）。块内取均值，不是模糊滤镜。

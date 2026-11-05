@@ -263,7 +263,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         $0.rawValue == raw || $0.shortcut.lowercased() == raw
                     }
                 }
-                if let path, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
+                let demo = comps?.queryItems?.first(where: { $0.name == "demo" })?.value == "1"
+                if demo {
+                    // v220：五个新标注工具的绘制验收（预置标注 + 写 /tmp/annot_newtools.png）
+                    AnnotationEditorController.shared.debugNewToolsDemo()
+                } else if let path, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
                     AnnotationEditorController.shared.open(image: img, tool: tool)
                 } else if !AnnotationEditorController.shared.openLatest() {
                     Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
