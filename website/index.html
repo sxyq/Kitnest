@@ -370,7 +370,7 @@
                 <span class="pp-ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/><path d="M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>
                 </span>
-                <div><b>数据只落本机</b><span>剪贴板、标签、统计存在 ~/Library/Application Support/Kitnest。</span></div>
+                <div><b>数据只落本机</b><span>剪贴板、标签和统计存在 ~/Library/Application Support/Kitnest。</span></div>
               </div>
               <div class="privacy-point">
                 <span class="pp-ico">
@@ -517,9 +517,9 @@
               <h3>连一次，之后随连随用</h3>
               <p>USB 连上手机、打开 USB 调试，点「检测设备」再点「开始投屏」即可。想摆脱线缆就点「一键无线」：它会自动执行 <code>adb tcpip 5555</code> 并连上手机的 Wi-Fi 地址，之后同一网络下直接检测，不用再开无线调试、不用配对码。</p>
               <ul class="spec-list">
-                <li><span class="k">镜像</span><span class="v">默认 1920p / 16 Mbps / 60 fps，可在设置里改分辨率（含「原始」）、码率、帧率</span></li>
+                <li><span class="k">镜像</span><span class="v">默认 1920p / 16 Mbps / 60 fps，可在设置里改分辨率（含「原始」）、码率和帧率</span></li>
                 <li><span class="k">剪贴板</span><span class="v">镜像期间双向同步：电脑复制的手机能粘，手机那边复制的电脑也能粘</span></li>
-                <li><span class="k">通知</span><span class="v">零安装同步手机未清除的通知，标题、正文、时间，右键可复制正文</span></li>
+                <li><span class="k">通知</span><span class="v">零安装同步手机未清除的通知，标题、正文和时间，右键可复制正文</span></li>
                 <li><span class="k">应用窗口</span><span class="v">读取手机第三方应用，点一个就在 Mac 上开一个独立窗口（Android 14+）</span></li>
                 <li><span class="k">导航键</span><span class="v">返回 / 主页 / 多任务 / 通知栏，全面屏手势手机也能直接操作</span></li>
               </ul>
@@ -570,7 +570,7 @@
               <div data-shot-panel="panel">
                 <span class="shot-index">01 / PANEL</span>
                 <h3>一眼看完今天</h3>
-                <p>顶部四个页签：主页、监测、中转、投屏。搜索框、日历、剪贴板历史依次排下来，底部是搜索和筛选，另外还有标签、编辑和上传。</p>
+                <p>顶部四个页签：主页、监测、中转、投屏。搜索框、日历和剪贴板历史依次排下来，底部是搜索和筛选，另外还有标签、编辑和上传。</p>
                 <ul class="shot-points">
                   <li><b>剪贴板</b>图里是 JSON、Markdown、Swift、Python、图片和链接</li>
                   <li><b>搜索</b>输入关键词直接过滤，输入 / 变工具启动器</li>
@@ -590,7 +590,7 @@
               <div data-shot-panel="transfer" hidden>
                 <span class="shot-index">03 / TRANSFER</span>
                 <h3>先收进暂存，再选出口</h3>
-                <p>发送页分成隔空投送、扫码直传、ADB 直传三条路，接收和云端各占一栏，文件统一进本地暂存。</p>
+                <p>发送页分成隔空投送、扫码直传与 ADB 直传三条路，接收和云端各占一栏，文件统一进本地暂存。</p>
                 <ul class="shot-points">
                   <li><b>苹果设备</b>系统隔空投送，对端零安装</li>
                   <li><b>安卓 / 其他</b>出二维码，浏览器扫码就传</li>
@@ -600,7 +600,7 @@
               <div data-shot-panel="cast" hidden>
                 <span class="shot-index">04 / CAST</span>
                 <h3>手机接上就投</h3>
-                <p>Android 设备中心在这里：连设备、无线配对、镜像投屏，通知、存储、应用窗口都能一起看。</p>
+                <p>Android 设备中心在这里：连设备、无线配对并镜像投屏，通知、存储、应用窗口都能一起看。</p>
                 <ul class="shot-points">
                   <li><b>连接</b>USB 调试或一键无线，扫局域网也能配对</li>
                   <li><b>镜像</b>剪贴板双向同步</li>
@@ -728,7 +728,7 @@
 
             <div>
               <h3 style="font-size:20px;margin-bottom:10px">更新说明跟着版本走</h3>
-              <p style="font-size:14px;color:var(--ink-2);margin-bottom:14px">每次更新完成，首次启动会弹出一张清单，分成新增、改进、修复三组。内容来自版本清单，不写死在客户端里。</p>
+              <p style="font-size:14px;color:var(--ink-2);margin-bottom:14px">每次更新完成，首次启动会弹出一张清单，分成新增、改进和修复三组。内容来自版本清单，不写死在客户端里。</p>
               <ul class="spec-list">
                 <li><span class="k">检查频率</span><span class="v">启动时一次，之后每 6 小时一次；清单只有几百字节</span></li>
                 <li><span class="k">通知</span><span class="v">系统通知；拒绝了也不影响，改在菜单栏浮提示与状态栏菜单里显示</span></li>
@@ -748,7 +748,7 @@
           <div class="section-head">
             <span class="kicker">Download</span>
             <h2>下载 Kitnest</h2>
-            <p class="lede">版本、体积、校验值都来自官方发布清单，打开页面时实时读取。</p>
+            <p class="lede">版本、体积和校验值都来自官方发布清单，打开页面时实时读取。</p>
           </div>
 
           <div class="download-layout">
@@ -961,14 +961,14 @@
           <div class="section-head">
             <span class="kicker">Privacy &amp; Security</span>
             <h2>它能看到很多，<br>但哪儿也不去。</h2>
-            <p class="lede">一个常驻菜单栏、能读剪贴板、能截屏的应用，理应把边界写清楚。</p>
+            <p class="lede">一个常驻菜单栏、能读剪贴板也能截屏的应用，理应把边界写清楚。</p>
           </div>
 
           <article class="chapter">
             <div class="chapter-no"><span class="ch-title">01 · 存储</span><span class="ch-sub">数据在哪个文件里</span></div>
             <div class="chapter-body">
               <h3>本机 SQLite，没有云端账号</h3>
-              <p>剪贴板记录、标签、使用统计都写在 <code>~/Library/Application Support/Kitnest</code> 下的本地数据库。应用不要求登录，也没有服务器侧的账号体系；删除这个目录就等于清空全部记录。</p>
+              <p>剪贴板记录、标签和使用统计都写在 <code>~/Library/Application Support/Kitnest</code> 下的本地数据库。应用不要求登录，也没有服务器侧的账号体系；删除这个目录就等于清空全部记录。</p>
               <ul class="spec-list">
                 <li><span class="k">剪贴板</span><span class="v">默认保留 30 天、上限 2GB，可在设置里改小或关闭记录</span></li>
                 <li><span class="k">截图</span><span class="v">只在你按下快捷键后产生，保存位置由你决定</span></li>
@@ -986,7 +986,7 @@
                 <li><span class="k">文件中转</span><span class="v">隔空投送走系统通道；扫码直传与 ADB 只在你主动点击后启动</span></li>
                 <li><span class="k">AI 请求</span><span class="v">只有你主动使用总结 / 翻译时才发给你配置的服务商，Key 存钥匙串</span></li>
               </ul>
-              <p>没有埋点 SDK，没有崩溃上报，没有「匿名使用数据」。官网本身也不加载第三方统计脚本。</p>
+              <p>没有埋点 SDK，不做崩溃上报，也没有「匿名使用数据」。官网本身也不加载第三方统计脚本。</p>
             </div>
           </article>
 
