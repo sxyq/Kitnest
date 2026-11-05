@@ -219,6 +219,16 @@ final class ScreenshotOverlayView: NSView {
             if event.type == .rightMouseDown { self.onCancel?(); return true }
             // 53 = Esc，51 = Delete
             if event.keyCode == 53 || event.keyCode == 51 { self.onCancel?(); return true }
+            // v231（用户：「没有直接选择整个窗口截图的功能，只有框选」）：
+            // 框选界面上按 W 直接切到窗口模式——鼠标悬停哪个窗口就高亮哪个，
+            // 单击即完成；再按 W（或 R）切回框选。⇧⌥W 的独立快捷键仍然保留。
+            if event.keyCode == 0x0D {   // W
+                self.pickMode = (self.pickMode == .region) ? .window : .region
+                self.startPoint = nil
+                self.currentPoint = nil
+                self.needsDisplay = true
+                return true
+            }
             return false
         }
     }
