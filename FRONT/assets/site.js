@@ -1,7 +1,7 @@
 /* ============================================================
    Kitnest 官网脚本
    · hash 路由（首页 / 功能 / 界面 / 下载 / 更新 / 帮助 / 安全）
-   · 菜单栏模拟：点小猫展开真实面板截图
+   · 可交互主面板：常驻展示，进场播一次 WindowReveal 展开
    · 界面截图切换、FAQ 折叠、移动端菜单
    · 读取 /kitnest/stable/latest.json 渲染版本、SHA-256 与下载
    页面不写入任何密钥、签名信息或用户数据。
@@ -148,100 +148,25 @@
     });
   }
 
-  /* ---------------- 菜单栏模拟 ---------------- */
+  /* ---------------- 可交互主面板（常驻展示） ---------------- */
 
-  var mbIcon = $("#mbIcon");
   var panelMock = $("#panelMock");
 
-  var panelTimer = null;
-  // 对应 PanelController.hideGeneration：预览收回是异步的，期间用户再点开面板，
-  // 排队的收起必须作废，否则会把刚打开的面板又关掉（v230 实测踩过）。
-  var panelGeneration = 0;
-  var panelVisible = panelMock ? !panelMock.hidden : false;
-  var panelHiding = false;
-
-  /* PanelController.swift:247-259 / 323-340 + WindowReveal.swift:43-105
-     · 已在屏上重复打开：取消在途收回动画、直接回到可见态，不重播；
-     · 展开：从菜单栏图标投影的锚点 (u,0) 缩放到 scale .90 → 1 + opacity 0 → 1；
-     · 收起：先等剪贴板预览关闭（hide() 的 dismiss(reason:.panelCollapse)），
-       再缩回同一锚点 + 淡出，动画结束才 hidden。 */
-  function setPanel(open) {
-    if (!panelMock || !mbIcon) return;
-    panelGeneration += 1;
-    var gen = panelGeneration;
-    mbIcon.setAttribute("aria-expanded", open ? "true" : "false");
-    mbIcon.setAttribute("aria-label", open ? "收起主面板" : "展开主面板");
-    if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
-    var unit = Motion.panelAnchor(mbIcon, panelMock);
-    if (open) {
-      var wasVisible = panelVisible && !panelHiding;
-      panelVisible = true;
-      panelHiding = false;
-      panelMock.hidden = false;
-      if (wasVisible) {
-        // 取消在途收回动画，模型值拉回终态（App 的 removeAllAnimations + reset）
-        if (panelMock.getAnimations) {
-          panelMock.getAnimations().forEach(function (a) {
-            if (a.id !== "kitnest-reveal") return;
-            if (a._kitnestCancel) a._kitnestCancel(); else a.cancel();
-          });
-        }
-        panelMock.style.opacity = "1";
-        panelMock.style.transform = "none";
-        return;
-      }
-      Motion.revealIn(panelMock, {
-        unit: unit,
-        scale: Motion.tokens.revealScale.panel,
-        duration: Motion.openDuration(),
-        timing: "caEaseOut"
-      });
-    } else {
-      if (!panelVisible) return;
-      panelVisible = false;
-      panelHiding = true;
-      var done = false;
-      var collapse = function () {
-        if (done || gen !== panelGeneration) return;
-        done = true;
-        Motion.revealOut(panelMock, {
-          unit: unit,
-          scale: Motion.tokens.revealScale.panel,
-          duration: Motion.openDuration(),
-          timing: "caEaseIn",
-          hide: true,
-          complete: function () { panelHiding = false; }
-        });
-      };
-      // PanelController.hide() 第一段：先等预览窗收回，再执行面板收回
-      closePreview(collapse);
-    }
-  }
-
-  if (mbIcon && panelMock) {
-    mbIcon.addEventListener("click", function (e) {
-      e.stopPropagation();
-      // 用状态位而不是 DOM hidden：收起动画期间 hidden 还是 false，
-      // 连点会把「再打开」误判成「再关一次」。
-      setPanel(!panelVisible);
-    });
-    document.addEventListener("click", function (e) {
-      // 真机语义：面板由菜单栏图标切换开合，「点别处就关」是失焦不是误触。
-      // 所以只有点舞台（.hero-stage）之外的正文才收起，点菜单栏的部件/图标都保持面板可见。
-      //
-      // ⚠️ 必须用 composedPath() 而不是 e.target.closest()：点击剪贴板条目后
-      // renderClipList() 会重建列表，被点的 <li> 已脱离 DOM，closest 沿「当前」
-      // 父链往上找会漏掉 .hero-stage，导致面板被误收起（实测踩过）。
-      // composedPath() 保留事件派发那一刻的原始路径，不受重建影响。
-      var path = e.composedPath ? e.composedPath() : [];
-      for (var i = 0; i < path.length; i++) {
-        var node = path[i];
-        if (node && node.classList && node.classList.contains("hero-stage")) return;
-      }
-      if (!panelMock.hidden) setPanel(false);
+  /* 模拟的 Mac 状态栏已整条删除（用户：「需要完全删掉」），
+     所以没有小猫开关、没有 CPU/网络/电池假部件，也没有部件详情浮窗。
+     面板常驻可见；进场时仍播一次 WindowReveal 展开，锚点 (1,0)＝状态栏右侧，
+     与 App 的 PanelController.revealUnit 兜底值一致。
+     收起动画由预览浮层继续复用同一套 revealOut 参数（closePreview）。 */
+  if (panelMock) {
+    panelMock.hidden = false;
+    Motion.revealIn(panelMock, {
+      unit: Motion.panelAnchor(null, panelMock),
+      scale: Motion.tokens.revealScale.panel,
+      duration: Motion.openDuration(),
+      timing: "caEaseOut"
     });
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") setPanel(false);
+      if (e.key === "Escape") closePreview();
     });
   }
 
@@ -258,69 +183,6 @@
       el.style.setProperty("--lg-y", "0%");
     });
   });
-
-  /* ---------------- 部件浮窗 ---------------- */
-
-  var WIDGETS = {
-    cpu: {
-      title: "CPU",
-      value: "23%",
-      html: '<div class="mb-corebars">' +
-        [22, 31, 18, 46, 25, 19, 12, 9].map(function (v, i) {
-          return '<i class="' + (v > 40 ? "hot" : "") + '" style="height:' + (v * 1.8) + '%"></i>';
-        }).join("") +
-        '</div><div class="mb-kv"><span>系统 <b>12%</b></span><span>用户 <b>9%</b></span><span>空闲 <b>79%</b></span></div>'
-    },
-    net: {
-      title: "网络",
-      value: "↓ 1.2 MB/s",
-      html: '<svg class="mb-spark" viewBox="0 0 200 46" preserveAspectRatio="none" aria-hidden="true">' +
-        '<polyline points="0,34 18,30 36,33 54,24 72,27 90,18 108,22 126,12 144,17 162,9 180,14 200,7" ' +
-        'fill="none" stroke="#2F6BFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-        '<div class="mb-kv"><span>上行 <b>86 KB/s</b></span><span>延迟 <b>24 ms</b></span><span>连接 <b>Wi-Fi</b></span></div>'
-    },
-    batt: {
-      title: "电池",
-      value: "87%",
-      html: '<div class="mb-ring">' +
-        '<svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="none" stroke="#EDEDF2" stroke-width="7"/>' +
-        '<circle cx="30" cy="30" r="24" fill="none" stroke="#1F9D63" stroke-width="7" stroke-linecap="round" ' +
-        'stroke-dasharray="131 151" transform="rotate(-90 30 30)"/></svg>' +
-        '<div><div style="font-size:12px;color:#8A8A94">预计剩余</div>' +
-        '<div style="font-size:14px;color:#0B0B0D;font-weight:600">4 小时 12 分</div>' +
-        '<div style="font-size:11px;color:#8A8A94;margin-top:2px">适配器 45W · 循环 128 次</div></div></div>'
-    }
-  };
-
-  var mbPop = $("#mbPop");
-
-  function closeWidgetPop() {
-    if (!mbPop) return;
-    mbPop.hidden = true;
-    $$(".mb-widget").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
-  }
-
-  if (mbPop) {
-    $$(".mb-widget").forEach(function (btn) {
-      btn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        var key = btn.getAttribute("data-widget");
-        var w = WIDGETS[key];
-        if (!w) return;
-        var open = !mbPop.hidden && btn.getAttribute("aria-expanded") === "true";
-        if (open) { closeWidgetPop(); return; }
-        $("#mbPopTitle").textContent = w.title;
-        $("#mbPopValue").textContent = w.value;
-        $("#mbPopBody").innerHTML = w.html;
-        mbPop.hidden = false;
-        $$(".mb-widget").forEach(function (b) { b.setAttribute("aria-expanded", "false"); });
-        btn.setAttribute("aria-expanded", "true");
-      });
-    });
-    document.addEventListener("click", function (e) {
-      if (!mbPop.contains(e.target)) closeWidgetPop();
-    });
-  }
 
   /* ---------------- 可交互主面板（对齐真机 PanelRootView） ---------------- */
 

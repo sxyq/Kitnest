@@ -357,75 +357,6 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
   margin-bottom: 10px;
 }
 
-.menubar-mock {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 1px 2px rgba(11, 11, 13, 0.04);
-  font-size: 11.5px;
-  color: var(--ink-2);
-  user-select: none;
-}
-
-.mb-left { display: flex; align-items: center; gap: 10px; }
-.mb-apple { font-size: 13px; line-height: 1; color: var(--ink); }
-.mb-app { font-weight: 600; color: var(--ink); }
-.mb-menu { color: var(--ink-3); }
-
-.mb-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mb-widget {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  border-radius: 6px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--ink-2);
-  background: var(--bg-mute);
-}
-.mb-widget .bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 9px; }
-.mb-widget .bars i { width: 2px; background: #9AA3B2; border-radius: 1px; }
-.mb-widget .bars i:nth-child(1) { height: 3px; }
-.mb-widget .bars i:nth-child(2) { height: 5px; }
-.mb-widget .bars i:nth-child(3) { height: 7px; }
-.mb-widget .bars i:nth-child(4) { height: 9px; background: var(--accent); }
-.mb-widget.batt b { color: var(--green); font-weight: 600; }
-
-.mb-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #7C9CFF, #C79BFF);
-  box-shadow: 0 1px 2px rgba(80, 70, 160, 0.25);
-  position: relative;
-}
-.mb-icon svg { width: 14px; height: 14px; }
-.mb-icon::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  border-radius: 9px;
-  border: 1px solid rgba(47, 107, 255, 0.28);
-  opacity: 0;
-  transition: opacity var(--m-fast) var(--m-ease-out);
-}
-.mb-icon:hover::after, .mb-icon[aria-expanded="true"]::after { opacity: 1; }
 
 .panel-drop {
   position: relative;
@@ -788,57 +719,6 @@ button:active {
   .lg, .lg__surface, .lg__frost, .lg__edge, .lg__spec { corner-shape: squircle; }
 }
 
-/* ---------- 菜单栏部件浮窗 ---------- */
-
-.mb-widget {
-  border: none;
-  cursor: pointer;
-  font-family: var(--mono);
-  transition: background var(--m-fast) var(--m-ease-out), color var(--m-fast) var(--m-ease-out);
-}
-.mb-widget:hover { background: #EDEDF2; color: var(--ink); }
-.mb-widget[aria-expanded="true"] { background: var(--ink); color: #FFFFFF; }
-.mb-widget[aria-expanded="true"] .bars i { background: #FFFFFF; }
-.mb-widget[aria-expanded="true"] .bars i:nth-child(4) { background: #9CC0FF; }
-.mb-widget.batt[aria-expanded="true"] b { color: #7BE0AE; }
-
-.mb-pop {
-  margin-top: 8px;
-  border-radius: 12px;
-  background: transparent;
-  box-shadow: 0 14px 34px rgba(11, 11, 13, 0.16), 0 2px 6px rgba(11, 11, 13, 0.06);
-  padding: 14px 16px 12px;
-  animation: pop-in var(--m-popout-appear) var(--m-ca-back-out) both;
-  transform-origin: top center;
-}
-@keyframes pop-in {
-  from { opacity: 0; transform: scale(var(--m-reveal-popout-in)); }
-  to { opacity: 1; transform: none; }
-}
-.mb-pop-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  margin-bottom: 10px;
-}
-.mb-pop-value { font-family: var(--mono); font-size: 15px; color: var(--ink); font-weight: 600; }
-.mb-pop-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; }
-
-.mb-corebars { display: flex; align-items: flex-end; gap: 4px; height: 46px; }
-.mb-corebars i {
-  flex: 1;
-  background: linear-gradient(180deg, #7CA0FF, #2F6BFF);
-  border-radius: 3px 3px 1px 1px;
-  min-height: 4px;
-}
-.mb-corebars i.hot { background: linear-gradient(180deg, #FFB25C, #F2994A); }
-.mb-kv { display: flex; gap: 18px; margin-top: 10px; font-size: 11.5px; color: var(--ink-3); }
-.mb-kv b { color: var(--ink-2); font-weight: 550; margin-left: 4px; }
-.mb-spark { width: 100%; height: 46px; display: block; }
-.mb-ring { display: flex; align-items: center; gap: 16px; }
-.mb-ring svg { width: 54px; height: 54px; flex: 0 0 auto; }
 
 /* ---------- 可交互主面板 ---------- */
 
@@ -846,7 +726,7 @@ button:active {
    窗口本身不随内容伸缩。网页版照做：固定高度 + 内部滚动 + overflow hidden，
    这样外部框（.hero-stage）的高度也是稳定的。 */
 .panel-mock {
-  margin-top: 12px;
+  margin-top: 0;
   width: min(340px, 100%);
   height: 632px;              /* 真机 630pt，网页按 1:1 */
   max-height: 632px;
@@ -860,9 +740,11 @@ button:active {
   transform-origin: top right;
 }
 
-/* 开合动画：从菜单栏图标那个锚点展开 / 收回 */
-/* 开合由 assets/motion.js 的 WindowReveal 等价实现驱动（scale .90、
-   锚点 = 菜单栏图标投影、开 caEaseOut / 收 caEaseIn、时长 = openDuration）。 */
+/* 开合动画：从状态栏右侧那个锚点展开 / 收回 */
+/* 由 assets/motion.js 的 WindowReveal 等价实现驱动（scale .90、
+   锚点 = 状态栏右侧 (1,0)、开 caEaseOut / 收 caEaseIn、时长 = openDuration）。
+   模拟 Mac 状态栏已删除，面板常驻可见，进场播一次展开；
+   收回参数仍由预览浮层的 revealOut 复用。 */
 
 /* ---------- 主面板 mock（按真机 PanelRootView 1:1） ---------- */
 /* 尺寸依据真机：面板 400pt 宽（窄屏 320），顶部工具条 40pt，日历卡圆角 14，
@@ -2711,8 +2593,6 @@ kbd {
   .hero h1 { font-size: clamp(30px, 8.4vw, 40px); }
   .hero-sub { font-size: 15px; }
   .hero-stage { padding: 14px; }
-  .mb-menu { display: none; }
-  .mb-widget.net { display: none; }
   .grid-3, .grid-2, .help-grid { grid-template-columns: 1fr; }
   .shot-stage { padding: 18px; border-radius: var(--radius-lg); }
   .shot-frame img { max-height: 460px; }

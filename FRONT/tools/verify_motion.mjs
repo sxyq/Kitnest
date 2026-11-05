@@ -124,17 +124,39 @@ check('弹簧是真实 linear() 采样且保留过冲 >1',
   /^linear\(/.test(vBouncy) && Math.max(...(vBouncy.match(/-?\d+\.?\d*/g) || []).map(Number)) > 1,
   vBouncy.slice(0, 90));
 
-/* ---------- B. 主面板 WindowReveal ---------- */
-console.log('\nB. 主面板开合（WindowReveal）');
-let state = await page.evaluate(() => ({ hidden: document.getElementById('panelMock').hidden, exp: document.getElementById('mbIcon').getAttribute('aria-expanded') }));
-if (state.hidden) { await page.click('#mbIcon'); }
-else { await page.click('#mbIcon'); await page.waitForTimeout(320); await page.click('#mbIcon'); }
+/* ---------- B. 主面板 WindowReveal（模拟 Mac 状态栏已整条删除） ---------- */
+console.log('\nB. 主面板（常驻）与 WindowReveal 参数');
+const panelDefault = await page.evaluate(() => {
+  const el = document.getElementById('panelMock');
+  return {
+    hidden: el.hidden,
+    menubar: !!document.querySelector('.menubar-mock'),
+    mbIcon: !!document.getElementById('mbIcon'),
+    mbPop: !!document.getElementById('mbPop'),
+    widget: !!document.querySelector('.mb-widget'),
+  };
+});
+check('模拟 Mac 状态栏已完全删除（状态栏/小猫开关/部件浮窗/假部件）',
+  !panelDefault.menubar && !panelDefault.mbIcon && !panelDefault.mbPop && !panelDefault.widget, panelDefault);
+check('主面板常驻可见（无开关）', panelDefault.hidden === false, panelDefault);
+
+// 用 motion.js 的同一套 reveal 参数各播一次，核对 WAAPI 落地值
+await page.evaluate(() => {
+  const el = document.getElementById('panelMock');
+  el.hidden = false;
+  window.KitnestMotion.revealIn(el, {
+    unit: window.KitnestMotion.panelAnchor(null, el),
+    scale: window.KitnestMotion.tokens.revealScale.panel,
+    duration: window.KitnestMotion.openDuration(),
+    timing: 'caEaseOut'
+  });
+});
 const pIn = await animInfo('#panelMock');
 check('展开动画存在（WAAPI id=kitnest-reveal）', pIn && pIn.found, pIn);
 check('展开 220ms / caEaseOut', near(pIn.duration, 220) && pIn.easing.replace(/\s/g, '') === 'cubic-bezier(0.22,0,0,1)', { d: pIn.duration, e: pIn.easing });
 check('展开从 scale(0.9) + opacity 0 → 1 / none',
   /scale\(0\.9\)/.test(pIn.frames?.[0]?.transform || '') && pIn.frames?.[0]?.opacity === '0' && pIn.frames?.at(-1)?.opacity === '1', pIn.frames);
-check('展开锚点 y=0（菜单栏图标投影）', /0(?:%|px)/.test((pIn.origin || '').split(' ')[1] || ''), pIn.origin);
+check('展开锚点 y=0（状态栏右侧投影）', /0(?:%|px)/.test((pIn.origin || '').split(' ')[1] || ''), pIn.origin);
 await page.waitForTimeout(330);
 const pAfter = await page.evaluate(() => {
   const el = document.getElementById('panelMock');
@@ -142,14 +164,24 @@ const pAfter = await page.evaluate(() => {
 });
 check('展开结束停在终态且无残留动画', !pAfter.hidden && pAfter.opacity === '1' && pAfter.anims === 0, pAfter);
 
-await page.click('#mbIcon');
+await page.evaluate(() => {
+  const el = document.getElementById('panelMock');
+  window.KitnestMotion.revealOut(el, {
+    unit: window.KitnestMotion.panelAnchor(null, el),
+    scale: window.KitnestMotion.tokens.revealScale.panel,
+    duration: window.KitnestMotion.openDuration(),
+    timing: 'caEaseIn',
+    hide: false
+  });
+});
 const pOut = await animInfo('#panelMock');
 check('收回 220ms / caEaseIn', near(pOut.duration, 220) && pOut.easing.replace(/\s/g, '') === 'cubic-bezier(0.42,0,1,1)', { d: pOut.duration, e: pOut.easing });
 check('收回缩回 scale(0.9) + opacity 1 → 0', /scale\(0\.9\)/.test(pOut.frames?.at(-1)?.transform || ''), pOut.frames);
 await page.waitForTimeout(330);
-check('收回结束后 hidden=true', await page.evaluate(() => document.getElementById('panelMock').hidden));
-await page.click('#mbIcon');
-await page.waitForTimeout(330);
+check('收回动画跑完后面板仍常驻可见', await page.evaluate(() => {
+  const el = document.getElementById('panelMock');
+  return !el.hidden && el.style.opacity === '1';
+}));
 
 /* ---------- C. 预览窗 WindowReveal ---------- */
 console.log('\nC. 剪贴板预览开合（ClipboardPreviewWindow）');
@@ -322,7 +354,8 @@ console.log('\nF. v229 预览与三页');
 await page.evaluate(() => { location.hash = '#home'; });
 await page.waitForTimeout(120);
 if (await page.evaluate(() => document.getElementById('panelMock').hidden)) {
-  await page.click('#mbIcon'); await page.waitForTimeout(300);
+  await page.evaluate(() => { document.getElementById('panelMock').hidden = false; });
+  await page.waitForTimeout(300);
 }
 
 const mdInfo = await page.evaluate(() => {

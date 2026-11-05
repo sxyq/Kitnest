@@ -75,45 +75,8 @@
             </div>
           </div>
 
-          <!-- 菜单栏模拟：部件与图标都可点，下面是真实可交互的主面板 -->
+          <!-- 可交互主面板：不再模拟 Mac 状态栏 -->
           <div class="hero-stage">
-
-            <div class="menubar-mock">
-              <div class="mb-left">
-                <span class="mb-apple">&#63743;</span>
-                <span class="mb-app">Kitnest</span>
-                <span class="mb-menu">文件</span>
-                <span class="mb-menu">编辑</span>
-                <span class="mb-menu">显示</span>
-              </div>
-              <div class="mb-right">
-                <button class="mb-widget" type="button" data-widget="cpu" aria-expanded="false">
-                  <span class="bars"><i></i><i></i><i></i><i></i></span>
-                  CPU 23%
-                </button>
-                <button class="mb-widget net" type="button" data-widget="net" aria-expanded="false">↓ 1.2 MB/s</button>
-                <button class="mb-widget batt" type="button" data-widget="batt" aria-expanded="false"><b>87%</b></button>
-                <button class="mb-icon" id="mbIcon" aria-label="收起主面板" aria-expanded="true" aria-controls="panelMock">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M7.5 6.5 6 3.4l3.6 1.8M16.5 6.5 18 3.4l-3.6 1.8"/>
-                    <path d="M12 5.6c-3.7 0-6 2.7-6 6.4 0 3.5 2.7 5.8 6 5.8s6-2.3 6-5.8c0-3.7-2.3-6.4-6-6.4Z" fill="#FFFFFF" stroke="none"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- 部件详情浮窗 -->
-            <div class="mb-pop lg" id="mbPop" hidden>
-              <span class="lg__surface" aria-hidden="true"></span>
-              <span class="lg__frost" aria-hidden="true"></span>
-              <span class="lg__edge" aria-hidden="true"></span>
-              <span class="lg__spec" aria-hidden="true"></span>
-              <div class="mb-pop-head">
-                <span id="mbPopTitle">CPU</span>
-                <span id="mbPopValue" class="mb-pop-value">23%</span>
-              </div>
-              <div id="mbPopBody"></div>
-            </div>
 
             <!-- 可交互的主面板（结构按真机 PanelRootView 1:1 还原） -->
             <div class="panel-mock lg" id="panelMock">
