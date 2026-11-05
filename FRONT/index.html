@@ -161,6 +161,11 @@
               </div>
 
               <div class="pm-body" id="pmBody">
+                <!-- 剪贴板条目的预览浮层：在面板内部，贴着条目向左展开，不溢出面板 -->
+                <div class="pm-preview" id="pmPreview" hidden>
+                  <div class="pm-preview-body"></div>
+                </div>
+
                 <!-- 主页 -->
                 <div class="pm-page" data-page="home">
                   <!-- 日历卡（真机：白玻璃卡 14 圆角，标题行 + 星期行 + 两周网格） -->
@@ -1102,11 +1107,6 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <!-- 剪贴板条目的预览浮层（真机是独立 NSWindow，能飘到面板外面；网页用 fixed 浮层模拟） -->
-  <div class="pm-preview" id="pmPreview" hidden>
-    <div class="pm-preview-body"></div>
-  </div>
 
   <script src="assets/site.js"></script>
 </body>

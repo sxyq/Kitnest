@@ -310,20 +310,14 @@
       preview: '<span class="pv-kind">文字</span>TODO：把安装包校验写进发版脚本。' }
   ];
 
-  /* 搜索结果源：真机是网页 / 剪贴板 / 文件 / 工具四类检索源，这里用同样的分类结构 */
-  var SEARCH_SOURCES = [
-    { kind: "tool", label: "工具", items: [
-      { title: "/hash", sub: "计算哈希", act: "hash" },
-      { title: "/qr", sub: "生成二维码", act: "qr" },
-      { title: "/ip", sub: "查看本机 IP", act: "ip" },
-      { title: "/convert", sub: "媒体格式转换", act: "convert" }
-    ] },
-    { kind: "clip", label: "剪贴板", items: [] },
-    { kind: "file", label: "文件", items: [
-      { title: "发布流程-checklist.md", sub: "~/Desktop", act: "file" },
-      { title: "kitnest-demo.config.json", sub: "~/Desktop", act: "file" }
-    ] }
-  ];
+  /*
+     搜索：真机有网页 / 剪贴板 / 文件 / 工具四路检索源 + 分类 chips，
+     网页版做个**够用的简化版**——
+       · 输入普通关键词 → 过滤剪贴板列表 + 匹配工具命令（两段结果）
+       · 输入 /        → 只出工具命令（真机 SlashCommandCatalog 的形态）
+     不做网页检索、不做分类 chips，交互一眼看得懂。
+  */
+  /* ---------------- 面板元素引用 ---------------- */
 
   var pmList = $("#pmList");
   var pmBody = $("#pmBody");
@@ -337,6 +331,15 @@
   var pmDock = $("#pmDock");
   var pmJumpHint = $("#pmJumpHint");
   var pmCalGrid = $("#pmCalGrid");
+
+  var TOOL_COMMANDS = [
+    { token: "/hash", title: "计算哈希", sub: "文本 / 文件 → SHA-256" },
+    { token: "/qr", title: "生成二维码", sub: "文本 → 二维码" },
+    { token: "/ip", title: "查看本机 IP", sub: "局域网地址" },
+    { token: "/convert", title: "媒体格式转换", sub: "图片 / 视频 / 音频" },
+    { token: "/time", title: "时间与时区", sub: "世界时钟 / 转换" },
+    { token: "/color", title: "取色", sub: "屏幕取色 ⌥C" }
+  ];
 
   var clipState = {
     items: CLIP_ITEMS.slice(),
@@ -448,68 +451,46 @@
     if (!pmPreview) return;
     pmPreview.hidden = true;
     previewPinned = false;
+    previewAnchorId = null;
   }
+
+  var previewAnchorId = null;
 
   function showPreview(item, anchorEl, pinned) {
     if (!pmPreview || !item) return;
+    // 同一行且已显示 → 不重算（真机也有 hover 抑制，避免闪）
+    if (previewAnchorId === item.id && !pmPreview.hidden && !pinned) return;
+    previewAnchorId = item.id;
     previewPinned = !!pinned;
     pmPreview.querySelector(".pm-preview-body").innerHTML = item.preview;
     pmPreview.hidden = false;
 
-    // 真机 PreviewArrowGeometrySupport.preferredNSRectEdge：
-    //   右侧放得下 → .maxX；否则左侧放得下 → .minX；否则取空间大的一侧。
-    // 网页里把「屏幕」换成视口，把「锚点」换成该行在视口里的位置。
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
-    var w = pmPreview.offsetWidth || 264;
-    var h = pmPreview.offsetHeight || 160;
+    // 预览在**面板内部**贴着该行向左展开：
+    //   右边缘贴住行的左边缘，向左延伸 width；
+    //   左边越界就贴到内容区左缘（宁可压住列表也不出面板）；
+    //   垂直方向与行对齐，放不下就往上挪。
+    var bodyRect = pmBody.getBoundingClientRect();
+    var bodyH = pmBody.clientHeight;
+    var w = pmPreview.offsetWidth || 178;
+    var h = pmPreview.offsetHeight || 120;
     var rowRect = anchorEl ? anchorEl.getBoundingClientRect() : null;
     if (!rowRect) return;
 
-    // 面板在视口里的位置（预览要贴着面板外侧）
-    var panelRect = panelMock ? panelMock.getBoundingClientRect() : rowRect;
-    var gap = 10;
+    var rowTop = rowRect.top - bodyRect.top + pmBody.scrollTop;
+    var rowH = rowRect.height;
+    var rowLeft = rowRect.left - bodyRect.left + pmBody.scrollLeft;
 
-    var rightRoom = vw - panelRect.right;
-    var leftRoom = panelRect.left;
+    // 向左展开：右缘对齐行的左缘
+    var left = rowLeft - w - 6;
+    if (left < 4) left = 4;
 
-    var side, left, top;
-
-    if (rightRoom >= w + gap) {
-      // 右侧放得下 → 弹在面板右边
-      side = "right";
-      left = panelRect.right + gap;
-    } else if (leftRoom >= w + gap) {
-      // 右侧放不下 → 弹在面板左边（面板靠屏幕右边时的常态）
-      side = "left";
-      left = panelRect.left - gap - w;
-    } else {
-      // 两边都放不下 → 退回行内（贴在那一行的下方/上方）
-      side = "inline";
-      var bodyRect = pmBody.getBoundingClientRect();
-      var bodyH = pmBody.clientHeight;
-      var rowTop = rowRect.top - bodyRect.top + pmBody.scrollTop;
-      var below = rowTop + rowRect.height + 6;
-      var above = rowTop - h - 6;
-      var inTop;
-      if (below + h <= bodyH - 6) inTop = below;
-      else if (above >= 6) inTop = above;
-      else inTop = Math.max(6, bodyH - h - 6);
-      pmPreview.style.top = inTop + "px";
-      pmPreview.style.left = "";
-      pmPreview.setAttribute("data-side", side);
-      return;
-    }
-
-    // 垂直：与该行对齐，箭头指向行心；越界就收进视口
-    var arrow = Math.min(Math.max(rowRect.top + rowRect.height / 2 - 18, 12), h - 12);
-    top = rowRect.top + rowRect.height / 2 - arrow - 4;
-    if (top + h > vh - 12) top = vh - h - 12;
-    if (top < 12) top = 12;
+    // 垂直：默认与行顶对齐，太高就往上收
+    var top = rowTop;
+    if (top + h > bodyH - 6) top = Math.max(6, bodyH - h - 6);
 
     pmPreview.style.left = Math.round(left) + "px";
     pmPreview.style.top = Math.round(top) + "px";
-    pmPreview.setAttribute("data-side", side);
+    pmPreview.setAttribute("data-side", "left");
   }
 
   /* ---------------- 日历（真机 CalendarSectionView：两周网格 + 农历） ---------------- */
@@ -565,6 +546,10 @@
     }
     var cal = $(".pm-cal");
     if (cal) cal.classList.toggle("folded", clipState.calFolded);
+    // 格子里依次淡入（真机是整体 transition，这里用 stagger 模拟）
+    $$(".pm-day", pmCalGrid).forEach(function (d, i) {
+      d.style.animationDelay = (i * 10) + "ms";
+    });
   }
 
   /* ---------------- 悬浮菜单（真机 NSMenu） ---------------- */
@@ -741,60 +726,93 @@
       pmResults.innerHTML = "";
       return;
     }
+
     var isCommand = q.charAt(0) === "/";
     var token = isCommand ? q.slice(1).toLowerCase() : q.toLowerCase();
-    var rows = [];
 
-    if (isCommand) {
-      // 命令模式：真机 SlashCommandCatalog —— 每行显示 /token
-      SEARCH_SOURCES[0].items.forEach(function (t) {
-        if (!token || t.title.toLowerCase().indexOf(token) >= 0) {
-          rows.push({ kind: "code", title: t.title, sub: t.sub });
-        }
-      });
-    } else {
-      // 普通关键词：分类 chips + 结果（真机分类 = 网页 / 剪贴板 / 文件 / 工具）
-      clipState.items.forEach(function (it) {
-        if (it.title.toLowerCase().indexOf(token) >= 0) {
-          rows.push({ kind: it.kind === "url" ? "url" : (it.kind === "img" ? "img" : (it.kind === "json" ? "json" : (it.kind === "md" ? "md" : "code"))), title: it.title, sub: it.meta });
-        }
-      });
-      SEARCH_SOURCES[2].items.forEach(function (t) {
-        if (t.title.toLowerCase().indexOf(token) >= 0) {
-          rows.push({ kind: "md", title: t.title, sub: t.sub });
-        }
-      });
-      SEARCH_SOURCES[0].items.forEach(function (t) {
-        if (t.title.toLowerCase().indexOf(token) >= 0) {
-          rows.push({ kind: "code", title: t.title, sub: t.sub });
-        }
+    // 工具命令：/ 开头时只出命令；普通关键词也把匹配的工具带上
+    var cmds = TOOL_COMMANDS.filter(function (c) {
+      if (isCommand) return c.token.toLowerCase().indexOf(token) >= 0;
+      return (c.token + c.title + c.sub).toLowerCase().indexOf(token) >= 0;
+    });
+
+    // 剪贴板匹配（/ 模式下不匹配剪贴板）
+    var clips = [];
+    if (!isCommand) {
+      clips = clipState.items.filter(function (it) {
+        return it.title.toLowerCase().indexOf(token) >= 0;
       });
     }
 
-    if (!rows.length) {
-      pmResults.innerHTML = '<ul><li class="dis">没有匹配的结果</li></ul>';
+    if (!cmds.length && !clips.length) {
+      pmResults.innerHTML = '<div class="pm-result-empty">没有匹配的结果</div>';
       pmResults.hidden = false;
       return;
     }
-    var ul = document.createElement("ul");
-    rows.slice(0, 8).forEach(function (r) {
-      var li = document.createElement("li");
-      var kd = document.createElement("span");
-      kd.className = "r-kind " + r.kind;
-      kd.textContent = r.kind === "url" ? "链" : r.kind === "img" ? "图" : r.kind === "json" ? "JS" : r.kind === "md" ? "MD" : "码";
-      var b = document.createElement("b");
-      b.textContent = r.title;
-      var sp = document.createElement("span");
-      sp.textContent = r.sub;
-      li.appendChild(kd); li.appendChild(b); li.appendChild(sp);
-      ul.appendChild(li);
+
+    var html = "";
+    if (cmds.length) {
+      html += '<div class="pm-result-group">命令</div><ul>';
+      cmds.forEach(function (c) {
+        html += '<li data-result-token="' + c.token + '"><span class="r-kind code">' + c.token.charAt(1) + "</span><b></b><span></span></li>";
+      });
+      html += "</ul>";
+    }
+    if (clips.length) {
+      html += '<div class="pm-result-group">剪贴板</div><ul>';
+      clips.forEach(function (it) {
+        html += '<li data-result-id="' + it.id + '"><span class="r-kind ' + it.kind + '"></span><b></b><span></span></li>';
+      });
+      html += "</ul>";
+    }
+    pmResults.innerHTML = html;
+
+    // 用 textContent 填内容，避免标题里的引号破坏 HTML
+    var lis = pmResults.querySelectorAll("li");
+    var k = 0;
+    cmds.forEach(function (c) {
+      if (!lis[k]) return;
+      lis[k].querySelector("b").textContent = c.token + " " + c.title;
+      lis[k].querySelector("span:last-child").textContent = c.sub;
+      k++;
     });
-    pmResults.innerHTML = "";
-    pmResults.appendChild(ul);
+    clips.forEach(function (it) {
+      if (!lis[k]) return;
+      lis[k].querySelector("b").textContent = it.title;
+      lis[k].querySelector("span:last-child").textContent = it.meta;
+      k++;
+    });
+
     pmResults.hidden = false;
   }
 
   /* ---------------- 事件绑定 ---------------- */
+
+  if (pmResults) {
+    pmResults.addEventListener("click", function (e) {
+      var li = e.target.closest("li");
+      if (!li) return;
+      var token = li.getAttribute("data-result-token");
+      if (token) {
+        toast("已执行 " + token);
+        pmSearch.value = token;
+        clipState.query = token;
+        renderSearchResults();
+        return;
+      }
+      var id = li.getAttribute("data-result-id");
+      if (id) {
+        var item = findItem(id);
+        if (item) {
+          var row = pmList.querySelector('[data-id="' + id + '"]');
+          if (row) {
+            row.scrollIntoView({ behavior: "smooth", block: "center" });
+            showPreview(item, row, true);
+          }
+        }
+      }
+    });
+  }
 
   if (pmSearch) {
     pmSearch.addEventListener("input", function () {
@@ -1363,6 +1381,19 @@
       b.classList.toggle("on", b.getAttribute("data-mod") === mod);
     });
     renderMonitorModule();
+    // 重播入场动效（真机靠 .id(module) 让 transition 重新开始）
+    var body = $("#pmModBody");
+    if (body) {
+      body.style.animation = "none";
+      void body.offsetWidth;
+      body.style.animation = "";
+    }
+    // 日历格也逐个淡入
+    if (pmCalGrid) {
+      $$(".pm-day", pmCalGrid).forEach(function (d, i) {
+        d.style.animationDelay = (i * 12) + "ms";
+      });
+    }
   }
 
   var pmModBar = $("#pmModBar");
@@ -1401,6 +1432,13 @@
       p.hidden = p.getAttribute("data-page") !== page;
     });
     if (page === "monitor") renderMonitorModule();
+    // 页签内容重播淡入（真机 .transition(.opacity)）
+    $$(".pm-page", pmBody).forEach(function (p) {
+      if (p.hidden) return;
+      p.style.animation = "none";
+      void p.offsetWidth;
+      p.style.animation = "";
+    });
     closePreview();
     closeMenu();
     closeCtx();

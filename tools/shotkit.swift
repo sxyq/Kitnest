@@ -48,11 +48,18 @@ var target: SCWindow?
 let deadline = Date().addingTimeInterval(15)
 while Date() < deadline {
     let wins = await ownWindows()
-    // 没给标题关键字时，优先挑「无标题」的窗口（主面板就是无标题的那扇）
+    // 选窗优先级（抓主面板时容易撞上别的窗，比如「存储管理」）：
+    //   ① 标题关键字匹配（指定了才算）
+    //   ② 无标题的窗口 —— 主面板就是无标题的那扇
+    //   ③ 窄窗优先 —— 面板宽 360pt，别的窗（设置 932、存储管理 1080）都更宽
     let sorted = wins.sorted { a, b in
         let ta = (a.title ?? "").isEmpty ? 0 : 1
         let tb = (b.title ?? "").isEmpty ? 0 : 1
-        return ta < tb
+        if ta != tb { return ta < tb }
+        let wa = a.frame.width < 460 ? 0 : 1
+        let wb = b.frame.width < 460 ? 0 : 1
+        if wa != wb { return wa < wb }
+        return a.frame.width < b.frame.width
     }
     for w in sorted {
         if !titleFilter.isEmpty && !(w.title ?? "").contains(titleFilter) { continue }
