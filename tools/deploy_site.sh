@@ -19,7 +19,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SITE_DIR="$ROOT/website"
+SITE_DIR="$ROOT/FRONT"
 SNIPPET="$ROOT/deploy/nginx/kitnest-site-locations.conf"
 REMOTE_HOST="sxyq27-124"
 REMOTE_SITE="/srv/kitnest-site"

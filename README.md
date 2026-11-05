@@ -34,7 +34,7 @@ frset-rebuild/
 │   ├── package_dmg.sh        DMG 打包（~/Desktop/FrsetNext-1.0.0.dmg）
 │   └── CONTRACT.md           模块间契约
 ├── tests/                    行为对照表（原 App vs FrsetNext，对账标准）
-├── website/                  品牌官网（纯静态，v214 起）
+├── FRONT/                   品牌官网（纯静态，v214 起；与 App 源码隔离）
 │   ├── index.html            hash 路由 7 视图（首页/功能/界面/下载/更新/帮助/安全）
 │   ├── assets/               样式、脚本、图标、脱敏后的实机截图
 │   └── kitnest/stable/       版本清单快照（部署时从线上刷新）

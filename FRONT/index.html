@@ -161,11 +161,6 @@
               </div>
 
               <div class="pm-body" id="pmBody">
-                <!-- 剪贴板条目的预览浮层（真机：单击/悬停都出，移出即关） -->
-                <div class="pm-preview" id="pmPreview" hidden>
-                  <div class="pm-preview-body"></div>
-                </div>
-
                 <!-- 主页 -->
                 <div class="pm-page" data-page="home">
                   <!-- 日历卡（真机：白玻璃卡 14 圆角，标题行 + 星期行 + 两周网格） -->
@@ -191,22 +186,37 @@
                   <ul class="pm-list" id="pmList"></ul>
                 </div>
 
-                <!-- 性能监测 -->
+                <!-- 性能监测（按真机 MonitorDetailView 逐模块还原） -->
                 <div class="pm-page" data-page="monitor" hidden>
-                  <div class="pm-modbar" data-jump="features:ch-monitor">
-                    <span class="on">温度</span><span>CPU</span><span>内存</span><span>网络</span><span>磁盘</span><span>电池</span>
+                  <!-- 模块切换：真机 FlowHStack，图标 + 文字，选中 accent 0.18 胶囊 + 描边 -->
+                  <div class="pm-modbar" id="pmModBar">
+                    <button class="on" type="button" data-mod="power"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5.5 13.5H11l-1 7.5L18 10.5h-5.5z"/></svg>功耗</button>
+                    <button type="button" data-mod="battery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.5" y="8" width="16" height="8.5" rx="2.2"/><path d="M20.5 11.5v1.5"/><rect x="5" y="10.5" width="10" height="3.5" rx="1" fill="currentColor" stroke="none"/></svg>电池</button>
+                    <button type="button" data-mod="cpu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="1.6"/><rect x="9.8" y="9.8" width="4.4" height="4.4" rx="0.8"/><path d="M9.5 3v3.5M14.5 3v3.5M9.5 17.5V21M14.5 17.5V21M3 9.5h3.5M3 14.5h3.5M17.5 9.5H21M17.5 14.5H21"/></svg>CPU</button>
+                    <button type="button" data-mod="memory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="9" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/></svg>内存</button>
+                    <button type="button" data-mod="network"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16M8 4 4.5 8M8 4l3.5 4M16 20V4M16 20l-3.5-4M16 20l3.5-4"/></svg>网络</button>
+                    <button type="button" data-mod="disk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><ellipse cx="12" cy="6.5" rx="7.5" ry="3"/><path d="M4.5 6.5v11c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-11"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/></svg>磁盘</button>
+                    <button type="button" data-mod="sensors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0Z"/></svg>温度</button>
+                    <button type="button" data-mod="gpu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3.5 20 8v8l-8 4.5L4 16V8z"/><path d="m4 8 8 4.5L20 8M12 12.5v8"/></svg>GPU</button>
                   </div>
-                  <div class="pm-metrics">
-                    <div><b>Average</b><span>41.2 °C</span></div>
-                    <div><b>Hottest</b><span>58.4 °C</span></div>
-                    <div><b>DC In</b><span>17.2 V</span></div>
-                  </div>
-                  <div class="pm-bars">
-                    <div class="pm-bar"><span>CPU 0</span><i style="width:38%"></i><em>39°</em></div>
-                    <div class="pm-bar"><span>CPU 1</span><i style="width:44%"></i><em>41°</em></div>
-                    <div class="pm-bar"><span>CPU 2</span><i style="width:57%"></i><em>46°</em></div>
-                    <div class="pm-bar"><span>GPU</span><i style="width:72%"></i><em>58°</em></div>
-                    <div class="pm-bar"><span>NVMe</span><i style="width:29%"></i><em>35°</em></div>
+
+                  <!-- 各模块内容由 JS 按真机结构渲染 -->
+                  <div class="pm-mod" id="pmModBody"></div>
+
+                  <!-- 底部栏（真机 footer）：刷新间隔 + 三个图标 -->
+                  <div class="pm-modfoot">
+                    <span>刷新间隔 6.5s</span>
+                    <div class="pm-modfoot-ico">
+                      <button type="button" data-pm-act="mod-refresh" title="立即刷新" aria-label="立即刷新">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4.5V10h-5.5"/></svg>
+                      </button>
+                      <button type="button" data-pm-act="mod-tuner" title="监测设置" aria-label="监测设置">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 8h16M4 16h16"/><circle cx="9" cy="8" r="2.2" fill="#FFFFFF"/><circle cx="15" cy="16" r="2.2" fill="#FFFFFF"/></svg>
+                      </button>
+                      <button type="button" data-pm-act="mod-settings" title="设置" aria-label="设置">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M18.9 14.2a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a1.9 1.9 0 1 1-3.8 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1h-.2a1.9 1.9 0 1 1 0-3.8h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5v-.2a1.9 1.9 0 1 1 3.8 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a1.9 1.9 0 1 1 0 3.8h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -688,7 +698,7 @@
 
           <figure class="gif-figure">
             <img src="assets/gifs/capture-flow.gif" alt="Kitnest 截图与标注流程动图：区域框选、动作条、矩形与箭头标注、马赛克遮盖、复制到剪贴板" loading="lazy">
-            <figcaption><b>截图与标注全流程</b> · ⌥S 区域截图 / ⇧⌥W 窗口截图 / ⇧⌥L 长截图；截完可复制、贴图、识字、翻译、编辑、美化、空投。动图由 <code>website/tools/make_gifs.py</code> 生成，内容全部虚构。</figcaption>
+            <figcaption><b>截图与标注全流程</b> · ⌥S 区域截图 / ⇧⌥W 窗口截图 / ⇧⌥L 长截图；截完可复制、贴图、识字、翻译、编辑、美化、空投。动图由 <code>FRONT/tools/make_gifs.py</code> 生成，内容全部虚构。</figcaption>
           </figure>
         </div>
       </div>
@@ -1092,6 +1102,11 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- 剪贴板条目的预览浮层（真机是独立 NSWindow，能飘到面板外面；网页用 fixed 浮层模拟） -->
+  <div class="pm-preview" id="pmPreview" hidden>
+    <div class="pm-preview-body"></div>
+  </div>
 
   <script src="assets/site.js"></script>
 </body>
