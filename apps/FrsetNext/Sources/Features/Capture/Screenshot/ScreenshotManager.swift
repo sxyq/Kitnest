@@ -907,80 +907,19 @@ public final class ScreenshotManager: ObservableObject {
         recognize(imageData: data, autoTranslate: true)
     }
 
-    // MARK: v222 「复制并识别 / 复制并翻译」——复制的是**文字**，不是图片
+    // MARK: v224 「复制并识别 / 复制并翻译」——打开结果窗，由用户自己选文字复制
 
-    /// 识别后把**识别出的文字**复制到剪贴板（不弹结果窗，只给一条 Toast）
+    /// 识别后**总是**打开结果窗（不受「识别后显示结果窗」偏好影响）
     ///
-    /// 用户：「复制并 OCR 识别，最终复制到剪贴板的，是识别的结果而不是图片」。
-    /// 原来这两个动作都是「先复制图片，再顺便弹个 OCR 窗」，粘出去还是图。
-    public func recognizeAndCopyText(_ image: CGImage) {
+    /// 用户：「不是直接复制到剪贴板，而是应该打开之前那个单独窗口，
+    /// 信息可以让用户手动选择」。所以这两个动作不再自动写剪贴板，
+    /// 窗口里可以框选、可以点复制、可以切翻译页签。
+    public func recognizeShowing(_ image: CGImage) {
         guard let data = ImageProcessor.pngData(image) else { return }
-        isRecognizing = true
-        Task { @MainActor in
-            defer { self.isRecognizing = false }
-            do {
-                let text = try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
-                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else {
-                    Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
-                    return
-                }
-                self.ocrText = text
-                self.copyToPasteboard(text: trimmed)
-                Toast.show("已复制识别文字（\(trimmed.count) 字）", icon: "doc.on.doc.fill")
-                CaptureEventBus.onTextRecognized?(text)
-                if let p = self.lastHistoryPath {
-                    CaptureHistoryStore.shared.updateOCR(path: p, text: text)
-                }
-            } catch {
-                Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")
-                Log.error("Capture", "复制并识别失败: \(error.localizedDescription)")
-            }
-        }
+        recognize(imageData: data, forceWindow: true)
     }
 
-    /// 识别 → 翻译 → 把**译文**复制到剪贴板。
-    /// 翻译失败时退回复制原文（至少不丢东西），并在 Toast 里说清楚。
-    public func recognizeAndCopyTranslation(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { return }
-        isRecognizing = true
-        Toast.show("正在识别并翻译…", icon: "character.book.closed")
-        Task { @MainActor in
-            defer { self.isRecognizing = false }
-            do {
-                let text = try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
-                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else {
-                    Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
-                    return
-                }
-                self.ocrText = text
-                CaptureEventBus.onTextRecognized?(text)
-
-                let parts = try await ScreenTranslator.translateBlocks([text])
-                let translated = (parts.first ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !translated.isEmpty else {
-                    self.copyToPasteboard(text: trimmed)
-                    Toast.show("翻译失败，已复制原文", icon: "exclamationmark.circle")
-                    return
-                }
-                self.copyToPasteboard(text: translated)
-                Toast.show("已复制译文（\(translated.count) 字）", icon: "character.book.closed.fill")
-            } catch {
-                Toast.show("翻译失败", icon: "exclamationmark.circle.fill")
-                Log.error("Capture", "复制并翻译失败: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    /// 纯文本进剪贴板（不写图片数据类型，避免接收方优先取到图）
-    private func copyToPasteboard(text: String) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
-    }
-
-    public func recognize(imageData: Data, autoTranslate: Bool = false) {
+    public func recognize(imageData: Data, autoTranslate: Bool = false, forceWindow: Bool = false) {
         isRecognizing = true
         statusMessage = nil
         Task { @MainActor in
@@ -1000,7 +939,7 @@ public final class ScreenshotManager: ObservableObject {
                         CaptureHistoryStore.shared.updateOCR(path: p, text: text)
                     }
                     // 弹出「原文对照 + 识别文本」结果窗（B5）
-                    if self.ocrShowResultWindow || autoTranslate,
+                    if forceWindow || self.ocrShowResultWindow || autoTranslate,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
                         ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData,
                                                                   text: text, autoTranslate: autoTranslate)

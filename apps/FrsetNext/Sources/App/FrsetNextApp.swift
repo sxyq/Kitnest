@@ -273,14 +273,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     Log.warn("App", "标注深链：没有可打开的图片（可用 ?file= 指定）")
                 }
             case "copyocr", "copytranslate":
-                // v222 排障：直接跑「复制并识别 / 复制并翻译」，
-                // 用 `pbpaste` 核对剪贴板里落地的是文字还是图片。
+                // v224 排障：这两个动作现在打开结果窗（不再自动复制），
+                // 直接触发可以核对窗口内容与页签。
                 let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
                 if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)) {
                     if url.host == "copytranslate" {
-                        ScreenshotManager.shared.recognizeAndCopyTranslation(img)
+                        ScreenshotManager.shared.recognizeAndTranslate(img)
                     } else {
-                        ScreenshotManager.shared.recognizeAndCopyText(img)
+                        ScreenshotManager.shared.recognizeShowing(img)
                     }
                 } else {
                     Log.warn("App", "\(url.host ?? "copyocr")：需要 ?file= 指定图片")

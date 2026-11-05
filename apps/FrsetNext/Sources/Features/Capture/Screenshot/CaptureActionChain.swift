@@ -72,14 +72,14 @@ public enum CaptureActionChain {
             },
             // v218（对齐 1capture / 用户：「复制、复制并 OCR 这种同一类功能」）：
             // 复制的同时把图里的文字识别出来，省掉「先复制再单独点识字」两步。
-            // v222（用户：「最终复制到剪贴板的是识别的结果，而不是图片」）：
-            // 识别/翻译完成后复制**文字**，不再把图先塞进剪贴板。
+            // v224（用户：「不是直接复制到剪贴板，而是打开之前那个单独窗口，
+            // 信息让用户手动选择」）：这两个动作改为「识别 → 开结果窗」，
+            // 不自动写剪贴板；窗口里可框选、可点复制、可切翻译页签。
             CaptureActionTool(id: "copyOCR", title: "复制并识别", systemImage: "doc.text.viewfinder") { image, _ in
-                ScreenshotManager.shared.recognizeAndCopyText(image)
+                ScreenshotManager.shared.recognizeShowing(image)
             },
-            // 一步完成 识别 → 翻译 → 复制译文，省掉「先复制再点翻译」两步。
             CaptureActionTool(id: "copyTranslate", title: "复制并翻译", systemImage: "character.book.closed") { image, _ in
-                ScreenshotManager.shared.recognizeAndCopyTranslation(image)
+                ScreenshotManager.shared.recognizeAndTranslate(image)
             },
             CaptureActionTool(id: "save", title: "保存", systemImage: "square.and.arrow.down", key: "s") { _, url in
                 Toast.show("已保存", icon: "checkmark.circle.fill")
