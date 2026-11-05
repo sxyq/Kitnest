@@ -245,15 +245,33 @@ final class ScreenshotOCRResultWindow: NSWindow {
     init(sourceImage: CGImage, text: String, qrPayloads: [String] = []) {
         let size = NSSize(width: 760, height: 480)
         super.init(contentRect: NSRect(origin: .zero, size: size),
-                   styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                   styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
                    backing: .buffered, defer: false)
         title = "识别结果"
         applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
+        // v223（用户实拍：标题「识别结果」和红绿灯叠在一起）：
+        // 系统标题在窄窗口下会被压到红绿灯上。标题栏透明 + 内容全尺寸，
+        // 自己在红绿灯右侧画标题，红绿灯永远在系统层、内容进不来。
+        titlebarAppearsTransparent = true
+        titleVisibility = .hidden
         minSize = NSSize(width: 480, height: 320)
         isReleasedWhenClosed = false
 
         let container = NSView(frame: NSRect(origin: .zero, size: size))
         container.autoresizingMask = [.width, .height]
+
+        // 顶部标题带：左边 78pt 让给红黄绿三钮（3×14 + 间距 ≈ 68，留 10 余量）
+        let headerH: CGFloat = 40
+        let header = NSView(frame: NSRect(x: 0, y: size.height - headerH,
+                                          width: size.width, height: headerH))
+        header.autoresizingMask = [.width, .minYMargin]
+        let titleLabel = NSTextField(labelWithString: "识别结果")
+        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.textColor = .labelColor
+        titleLabel.frame = NSRect(x: 78, y: (headerH - 18) / 2, width: 260, height: 18)
+        titleLabel.autoresizingMask = [.maxXMargin]
+        header.addSubview(titleLabel)
+        container.addSubview(header)
 
         // 右栏容器：识别文本 / 二维码 两页签同位切换
         setupRightPane()
@@ -261,8 +279,10 @@ final class ScreenshotOCRResultWindow: NSWindow {
         if text.isEmpty { resultScroll.text = text } else { resultScroll.stream(text) }
         setQRPayloads(qrPayloads)
 
-        // 左右分栏
-        let split = NSSplitView(frame: NSRect(x: 0, y: 44, width: size.width, height: size.height - 44))
+        // 左右分栏（顶部再扣掉标题带，避免压住标题）
+        let split = NSSplitView(frame: NSRect(x: 0, y: 44,
+                                              width: size.width,
+                                              height: size.height - 44 - headerH))
         split.isVertical = true
         split.dividerStyle = .thin
         split.arrangesAllSubviews = true

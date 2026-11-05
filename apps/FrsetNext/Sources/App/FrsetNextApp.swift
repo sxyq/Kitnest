@@ -285,6 +285,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     Log.warn("App", "\(url.host ?? "copyocr")：需要 ?file= 指定图片")
                 }
+            case "ocrwin":
+                // v223 排障：直接打开 OCR 结果窗，核对「标题 / 红绿灯 / 内容」的分层
+                let file = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)) {
+                    Task { @MainActor in
+                        let data = ImageProcessor.pngData(img) ?? Data()
+                        let text = (try? await OCRService.shared.recognizeText(imageData: data,
+                                                                               quality: .thorough))
+                            ?? "（未识别到文字）"
+                        ScreenshotOCRWindowController.shared.show(sourceImage: img,
+                                                                  imageData: data,
+                                                                  text: text)
+                    }
+                }
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()
