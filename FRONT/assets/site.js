@@ -10,19 +10,36 @@
 (function () {
   "use strict";
 
+  var Motion = window.KitnestMotion;
+
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
 
   /* ---------------- 反馈 ---------------- */
 
+  /* MenuBarToastManager（Toast.swift:134-195）：代际防串台、3.0s 自动隐藏、
+     隐藏动画收尾 0.4s；scale 0.5→1 + opacity 由 CSS 的 springBouncy 承担。 */
   var toastTimer = null;
+  var toastOrderOut = null;
+  var toastGeneration = 0;
   function toast(message) {
     var el = $("#toast");
     if (!el) return;
+    toastGeneration += 1;
+    if (toastTimer) clearTimeout(toastTimer);
+    if (toastOrderOut) clearTimeout(toastOrderOut);
     el.textContent = message;
     el.classList.add("show");
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2400);
+    var generation = toastGeneration;
+    toastTimer = setTimeout(function () {
+      if (generation !== toastGeneration) return;
+      el.classList.remove("show");
+      toastOrderOut = setTimeout(function () {
+        if (generation !== toastGeneration) return;
+        el.style.visibility = "hidden";
+      }, Motion.tokens.toast.orderOutDelay * 1000);
+    }, Motion.tokens.toast.displayDuration * 1000);
+    el.style.visibility = "";
   }
 
   function formatSize(bytes) {
@@ -138,24 +155,54 @@
 
   var panelTimer = null;
 
+  /* PanelController.swift:247-259 / 323-340 + WindowReveal.swift:43-105
+     · 已在屏上重复打开：取消在途收回动画、直接回到可见态，不重播；
+     · 展开：从菜单栏图标投影的锚点 (u,0) 缩放到 scale .90 → 1 + opacity 0 → 1；
+     · 收起：先等剪贴板预览关闭（hide() 的 dismiss(reason:.panelCollapse)），
+       再缩回同一锚点 + 淡出，动画结束才 hidden。 */
   function setPanel(open) {
     if (!panelMock || !mbIcon) return;
     mbIcon.setAttribute("aria-expanded", open ? "true" : "false");
     mbIcon.setAttribute("aria-label", open ? "收起主面板" : "展开主面板");
     if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+    var unit = Motion.panelAnchor(mbIcon, panelMock);
     if (open) {
+      var wasVisible = !panelMock.hidden;
       panelMock.hidden = false;
-      panelMock.classList.remove("is-closing");
-      // 强制重排，让开合动画每次都重放
-      void panelMock.offsetWidth;
-      panelMock.classList.add("is-open");
+      if (wasVisible) {
+        // 取消在途收回动画，模型值拉回终态（App 的 removeAllAnimations + reset）
+        if (panelMock.getAnimations) {
+          panelMock.getAnimations().forEach(function (a) {
+            if (a.id !== "kitnest-reveal") return;
+            if (a._kitnestCancel) a._kitnestCancel(); else a.cancel();
+          });
+        }
+        panelMock.style.opacity = "1";
+        panelMock.style.transform = "none";
+        return;
+      }
+      Motion.revealIn(panelMock, {
+        unit: unit,
+        scale: Motion.tokens.revealScale.panel,
+        duration: Motion.openDuration(),
+        timing: "caEaseOut"
+      });
     } else {
-      panelMock.classList.remove("is-open");
-      panelMock.classList.add("is-closing");
-      panelTimer = setTimeout(function () {
-        panelMock.hidden = true;
-        panelMock.classList.remove("is-closing");
-      }, 220);
+      if (panelMock.hidden) return;
+      var done = false;
+      var collapse = function () {
+        if (done) return;
+        done = true;
+        Motion.revealOut(panelMock, {
+          unit: unit,
+          scale: Motion.tokens.revealScale.panel,
+          duration: Motion.openDuration(),
+          timing: "caEaseIn",
+          hide: true
+        });
+      };
+      // PanelController.hide() 第一段：先等预览窗收回，再执行面板收回
+      closePreview(collapse);
     }
   }
 
@@ -274,37 +321,37 @@
   */
   var CLIP_ITEMS = [
     { id: "c1", kind: "url", badge: "chrome",
-      title: "https://example.com/kitnest/release",
-      meta: "今天 12:15 · 32 个字符",
+      title: "https://calorieai.sxyq27.online/kitnest-site/",
+      meta: "今天 12:15 · 47 个字符",
       view: "url",
-      text: "https://example.com/kitnest/release" },
+      text: "https://calorieai.sxyq27.online/kitnest-site/" },
     { id: "c2", kind: "text", badge: "code",
       title: "周报草稿：第三部分的发布流程还需要补充回滚说明",
       meta: "今天 12:08 · 45 个字符",
       view: "text",
       text: "周报草稿：第三部分的发布流程还需要补充回滚说明。" },
     { id: "c3", kind: "md", badge: "md",
-      title: "# Kitnest 演示仓库（示例内容）",
-      meta: "今天 12:08 · 263 个字符",
+      title: "# Kitnest 发布检查清单",
+      meta: "今天 12:08 · 224 个字符",
       view: "markdown",
-      text: "# Kitnest 演示仓库\n\n这是一个**用于演示的占位文档**，内容全部虚构。\n\n## 功能\n\n- 剪贴板历史：文字 / 图片 / 文件 / 链接\n- 截图标注：矩形、箭头、马赛克\n- 系统监控：CPU / 内存 / 网络 / 磁盘 / 电池\n\n## 发布流程\n\n1. `bash tools/publish_update.sh`\n2. `bash tools/deploy_site.sh`\n3. 核对 SHA-256 与安装包大小\n\n> 以上为示例内容，不是真实项目文档。\n\n---\n\n相关：[Kitnest 官网](https://example.com/kitnest)" },
+      text: "# Kitnest 发布检查清单\n\n## 发版前\n\n- 跑 `bash tools/check.sh`\n- 构建并签名，记录 build 号与包体大小\n- 计算 SHA-256，写进 stable/latest.json\n\n## 发布\n\n1. `bash tools/publish_update.sh`\n2. `bash tools/deploy_site.sh`\n3. 重启客户端，确认检查更新能读到新清单\n\n## 回滚\n\n保留上一版 zip 与清单快照，回滚时把 latest.json 指回旧 build。" },
     { id: "c4", kind: "json", badge: "json",
-      title: '{ "name": "kitnest-demo.config.json",',
+      title: '{ "name": "kitnest.config.json",',
       meta: "今天 12:08 · 647 个字符",
       view: "json",
-      text: '{\n  "name": "kitnest-demo.config.json",\n  "app": "kitnest-demo",\n  "version": "1.0.0",\n  "features": {\n    "clipboard": { "keepDays": 30, "maxSizeMB": 2048 },\n    "monitor": { "refreshSeconds": 1.5, "widgets": ["cpu", "net", "batt"] },\n    "update": { "channel": "stable", "autoCheck": true }\n  },\n  "screenshot": {\n    "hotkeys": { "region": "⌥S", "window": "⇧⌥W", "longshot": "⇧⌥L" },\n    "annotateTools": ["rect", "ellipse", "arrow", "pen", "text", "mosaic"]\n  }\n}' },
+      text: '{\n  "name": "kitnest.config.json",\n  "app": "kitnest",\n  "version": "1.0.0",\n  "features": {\n    "clipboard": { "keepDays": 30, "maxSizeMB": 2048 },\n    "monitor": { "refreshSeconds": 1.5, "widgets": ["cpu", "net", "batt"] },\n    "update": { "channel": "stable", "autoCheck": true }\n  },\n  "screenshot": {\n    "hotkeys": { "region": "⌥S", "window": "⇧⌥W", "longshot": "⇧⌥L" },\n    "annotateTools": ["rect", "ellipse", "arrow", "pen", "text", "mosaic"]\n  }\n}' },
     { id: "c5", kind: "code", badge: "code",
-      title: "// Sample.swift —— 演示用代码（假数据）",
-      meta: "今天 12:08 · 412 个字符",
+      title: "// ClipGroup.swift —— 按类型分组剪贴板条目",
+      meta: "今天 12:08 · 398 个字符",
       view: "code",
       lang: "swift",
-      text: '// Sample.swift —— 演示用代码（假数据）\nimport Foundation\n\n/// 把剪贴板条目按类型分组\nstruct ClipItem {\n    let kind: String\n    let title: String\n}\n\nfunc groupByKind(_ items: [ClipItem]) -> [String: [ClipItem]] {\n    items.reduce(into: [:]) { result, item in\n        result[item.kind, default: []].append(item)\n    }\n}\n\nlet sample = [\n    ClipItem(kind: "text", title: "周报草稿"),\n    ClipItem(kind: "code", title: "Sample.swift"),\n]\nprint(groupByKind(sample))' },
+      text: '// ClipGroup.swift\nimport Foundation\n\n/// 把剪贴板条目按类型分组\nstruct ClipItem {\n    let kind: String\n    let title: String\n}\n\nfunc groupByKind(_ items: [ClipItem]) -> [String: [ClipItem]] {\n    items.reduce(into: [:]) { result, item in\n        result[item.kind, default: []].append(item)\n    }\n}\n\nlet recent = [\n    ClipItem(kind: "text", title: "周报草稿"),\n    ClipItem(kind: "code", title: "ClipGroup.swift"),\n]\nprint(groupByKind(recent))' },
     { id: "c6", kind: "code", badge: "code",
-      title: "# sample.py —— 演示用代码（假数据）",
-      meta: "今天 12:08 · 356 个字符",
+      title: "# verify_sha.py —— 安装包校验",
+      meta: "今天 12:08 · 341 个字符",
       view: "code",
       lang: "python",
-      text: '# sample.py —— 演示用代码（假数据）\nimport hashlib\n\n\ndef sha256(path: str) -> str:\n    """计算文件的 SHA-256。""".\n    h = hashlib.sha256()\n    with open(path, "rb") as f:\n        for chunk in iter(lambda: f.read(65536), b""):\n            h.update(chunk)\n    return h.hexdigest()\n\n\nif __name__ == "__main__":\n    print(sha256("demo-config.json"))' },
+      text: '# verify_sha.py\nimport hashlib\n\n\ndef sha256(path: str) -> str:\n    """计算文件的 SHA-256。""".\n    h = hashlib.sha256()\n    with open(path, "rb") as f:\n        for chunk in iter(lambda: f.read(65536), b""):\n            h.update(chunk)\n    return h.hexdigest()\n\n\nif __name__ == "__main__":\n    print(sha256("Kitnest-1.0.0.dmg"))' },
     { id: "c7", kind: "img", badge: "img",
       title: "屏幕快照 2026-11-05 14.32.png",
       meta: "今天 11:50 · 1024×1024 pt",
@@ -455,14 +502,26 @@
 
   var previewPinned = false;
 
-  function closePreview() {
-    if (!pmPreview) return;
-    pmPreview.hidden = true;
+  function closePreview(onClosed) {
     previewPinned = false;
     previewAnchorId = null;
+    if (!pmPreview || pmPreview.hidden) {
+      if (onClosed) onClosed();
+      return;
+    }
+    // WindowReveal.playOut：缩回本次展开的锚点并淡出，complete 里才 close()
+    Motion.revealOut(pmPreview, {
+      unit: previewRevealUnit,
+      scale: Motion.tokens.revealScale.preview,
+      duration: Motion.openDuration(),
+      timing: "caEaseIn",
+      hide: true,
+      complete: onClosed
+    });
   }
 
   var previewAnchorId = null;
+  var previewRevealUnit = { x: 1, y: 0.5 };
 
   /* ---------------- 预览渲染器（对齐真机 PreviewPopoverContentView） ---------------- */
 
@@ -648,6 +707,7 @@
     if (!pmPreview || !item) return;
     // 同一行且已显示 → 不重算（真机也有 hover 抑制，避免闪）
     if (previewAnchorId === item.id && !pmPreview.hidden && !pinned) return;
+    var isSameItem = previewAnchorId === item.id && !pmPreview.hidden;
     previewAnchorId = item.id;
     previewPinned = !!pinned;
     pmPreview.querySelector(".pm-preview-kind").textContent =
@@ -697,6 +757,18 @@
 
     pmPreview.style.top = Math.round(top) + "px";
     pmPreview.setAttribute("data-side", "left");
+
+    // ClipboardPreviewWindow.swift:149-158 / 180-188
+    // 同条目反复 hover 不重播入场；换条目才从邻边锚点 (1, v) 以 scale .94 展开。
+    previewRevealUnit = Motion.previewAnchor(rowRect, pmPreview.getBoundingClientRect());
+    if (!isSameItem) {
+      Motion.revealIn(pmPreview, {
+        unit: previewRevealUnit,
+        scale: Motion.tokens.revealScale.preview,
+        duration: Motion.openDuration(),
+        timing: "caEaseOut"
+      });
+    }
   }
 
   /* ---------------- 日历（真机 CalendarSectionView：两周网格 + 农历） ---------------- */
@@ -1627,12 +1699,6 @@
       body.style.animation = "none";
       void body.offsetWidth;
       body.style.animation = "";
-    }
-    // 日历格也逐个淡入
-    if (pmCalGrid) {
-      $$(".pm-day", pmCalGrid).forEach(function (d, i) {
-        d.style.animationDelay = (i * 12) + "ms";
-      });
     }
   }
 

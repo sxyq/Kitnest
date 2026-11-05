@@ -118,7 +118,7 @@ code { font-family: var(--mono); }
   border-radius: 8px;
   font-size: 14px;
   color: var(--ink-2);
-  transition: color 0.16s ease, background 0.16s ease;
+  transition: color var(--m-fast) var(--m-ease-out), background var(--m-fast) var(--m-ease-out);
 }
 
 .nav-links a:hover { color: var(--ink); background: var(--bg-soft); }
@@ -213,7 +213,7 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
   color: var(--ink);
   font-size: 14.5px;
   font-weight: 550;
-  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  transition: border-color var(--m-fast) var(--m-ease-out), background var(--m-fast) var(--m-ease-out), transform var(--m-fast) var(--m-ease-out);
   white-space: nowrap;
 }
 .btn:hover { border-color: #B9B9C4; background: var(--bg-soft); }
@@ -423,7 +423,7 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
   border-radius: 9px;
   border: 1px solid rgba(47, 107, 255, 0.28);
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity var(--m-fast) var(--m-ease-out);
 }
 .mb-icon:hover::after, .mb-icon[aria-expanded="true"]::after { opacity: 1; }
 
@@ -440,7 +440,7 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
   transform: translateY(-6px) scale(0.985);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.22, 0.8, 0.3, 1), visibility 0.2s;
+  transition: opacity var(--m-fast) var(--m-ease-out), transform var(--d-spring) var(--spring), visibility var(--m-fast) var(--m-ease-out);
 }
 .panel-drop.open .panel-drop-inner { opacity: 1; visibility: visible; transform: none; }
 
@@ -454,27 +454,65 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
 
 
 
-/* ---------- 动效体系（参数抄真机 Theme.Motion） ---------- */
-/*
-   tap 0.12 / fast 0.16 / page 0.22 / slow 0.45
-   caEaseOut cubic-bezier(.22,0,0,1)   —— 通用出场
-   caEaseIn  cubic-bezier(.42,0,1,1)   —— 收起
-   caBackOut cubic-bezier(.22,1.05,.36,1) —— 入场「略冲过」
-   springSoft 用 cubic-bezier(.34,1.3,.64,1) 近似 SwiftUI 的 spring(response:.34, damping:.86)
-*/
+/* ---------- 动效体系（App 源码 1:1） ----------
+   唯一真源：assets/motion.js（镜像 Sources/Core/UI/Support.swift 的 Theme.Motion、
+   PersonalizationSwiftUI 打开时长、WindowReveal 的锚点缩放、Toast 的弹簧）。
+   本文件只允许引用 var(--...)，不写死时长/曲线；下面 :root 里的值是同一套真源的
+   静态兜底（JS 注入优先级更高）。守卫：python3 FRONT/tools/front_motion_audit.py
 
+   语义对照（官网 → App 消费点 → 令牌）：
+     通用按钮按压        SpringyIconButtonStyle            springBouncy / scale .88 / opacity .65
+     通用 hover / 底色    Theme.Motion.fast                 .easeOut(0.16)
+     页签切换            PanelRootView:688                 fast + .transition(.opacity)
+     监测模块切换        MonitorDetailView:75,101          springSoft + opacity/.offset(y:8)
+     日历翻页            CalendarSectionView:132-134       fast + opacity
+     搜索结果            SearchSectionView:709             spring(response:.28,damping:.86)
+     循环扫描 / 进度      Theme.Motion.loop / progress       linear(0.9) / linear(0.2)
+     通知卡              MenuBarToastManager               springBouncy + 3.0s 停留 + 0.4s 收尾
+     主面板开合          PanelController:259,337           WindowReveal scale .90 / openDuration
+     剪贴板预览开合      ClipboardPreviewWindow:156,203    WindowReveal scale .94 / 邻边锚点
+     监测独立窗入场      MonitorPopoutWindow:302           scale .90 / 0.28 / caBackOut
+     监测独立窗收起      MonitorPopoutWindow:333           scale .96 / 0.16 / caEaseIn
+   SwiftUI 的 .easeOut = CA 系统 easeOut = cubic-bezier(0,0,.58,1)；
+   caEaseOut(.22,0,0,1) / caEaseIn(.42,0,1,1) / caBackOut(.22,1.05,.36,1)
+   只用于窗口级 WindowReveal，不能混到视图过渡里。
+*/
 :root {
   --m-tap: 0.12s;
   --m-fast: 0.16s;
   --m-page: 0.22s;
   --m-slow: 0.45s;
-  --m-ease: cubic-bezier(0.22, 0, 0, 1);
-  --m-ease-in: cubic-bezier(0.42, 0, 1, 1);
-  --m-back: cubic-bezier(0.22, 1.05, 0.36, 1);
-  --m-spring: cubic-bezier(0.34, 1.28, 0.64, 1);
+  --m-loop: 0.9s;
+  --m-progress: 0.2s;
+  --m-open: 0.22s;
+  --m-ease-out: cubic-bezier(0, 0, 0.58, 1);
+  --m-ca-ease-out: cubic-bezier(0.22, 0, 0, 1);
+  --m-ca-ease-in: cubic-bezier(0.42, 0, 1, 1);
+  --m-ca-back-out: cubic-bezier(0.22, 1.05, 0.36, 1);
+  --m-linear: linear;
+  /* 弹簧收敛时长由 motion.js 的解析解注入；这里是同一公式的静态兜底 */
+  --d-spring-snappy: 0.311s;
+  --spring-snappy: var(--m-ease-out);
+  --d-spring: 0.393s;
+  --spring: var(--m-ease-out);
+  --d-spring-soft: 0.477s;
+  --spring-soft: var(--m-ease-out);
+  --d-spring-bouncy: 0.441s;
+  --spring-bouncy: var(--m-ease-out);
+  --m-pressed-scale: 0.88;
+  --m-pressed-opacity: 0.65;
+  --m-toast-scale: 0.5;
+  --m-hover-lift: 1.02;
+  --m-reveal-panel: 0.90;
+  --m-reveal-preview: 0.94;
+  --m-reveal-popout-in: 0.90;
+  --m-reveal-popout-out: 0.96;
+  --m-popout-appear: 0.28s;
+  --m-popout-dismiss: 0.16s;
 }
 
-/* 通用按钮：按下有轻微回弹（tap 0.12） */
+/* 通用按钮：SpringyIconButtonStyle —— 按下 springBouncy 缩到 .88 / 透明度 .65，
+   抬起同一条弹簧回弹；底色/描边这类单次交互走 fast（.easeOut 0.16）。 */
 .pm-seg,
 .pm-modbar button,
 .pm-ico,
@@ -489,11 +527,11 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
 .pm-searchwrap,
 button {
   transition:
-    transform var(--m-tap) var(--m-ease),
-    background-color var(--m-fast) var(--m-ease),
-    color var(--m-fast) var(--m-ease),
-    opacity var(--m-fast) var(--m-ease),
-    box-shadow var(--m-fast) var(--m-ease);
+    transform var(--d-spring-bouncy) var(--spring-bouncy),
+    opacity var(--d-spring-bouncy) var(--spring-bouncy),
+    background-color var(--m-fast) var(--m-ease-out),
+    color var(--m-fast) var(--m-ease-out),
+    box-shadow var(--m-fast) var(--m-ease-out);
 }
 .pm-seg:active,
 .pm-modbar button:active,
@@ -503,11 +541,11 @@ button {
 .pm-cal-collapse:active,
 .pm-navkeys button:active,
 button:active {
-  transform: scale(0.94);
+  transform: scale(var(--m-pressed-scale));
+  opacity: var(--m-pressed-opacity);
 }
 
-/* 分段切换：真机 pageSegments 选中态是 accent 胶囊 + semibold，
-   切换时底色从中间「洇」开（用伪元素的 scale 模拟） */
+/* 分段选中态：pageSegments 是普通条件填充，无过冲，走 fast */
 .pm-seg { position: relative; }
 .pm-seg::before {
   content: "";
@@ -518,14 +556,13 @@ button:active {
   transform: scaleX(0.4) scaleY(0.6);
   opacity: 0;
   transition:
-    transform var(--m-page) var(--m-back),
-    opacity var(--m-fast) var(--m-ease);
+    transform var(--m-fast) var(--m-ease-out),
+    opacity var(--m-fast) var(--m-ease-out);
   pointer-events: none;
 }
 .pm-seg.on::before { opacity: 1; transform: none; }
 .pm-seg.on { color: var(--accent); font-weight: 600; }
 
-/* 模块切换条（监测页）：真机 FlowHStack，选中胶囊 + 描边 */
 .pm-modbar button { position: relative; }
 .pm-modbar button.on {
   background: rgba(47, 107, 255, 0.18);
@@ -534,147 +571,137 @@ button:active {
   font-weight: 600;
 }
 
-/* 面板内容切换：真机 .transition(.opacity)（页签）/ .opacity + .offset(y:8)（模块） */
+/* 面板页签切换：PanelRootView.swift:688 .animation(Theme.Motion.fast, value: page)
+   + .transition(.opacity) —— 纯淡入，没有位移。 */
 .pm-page {
-  animation: page-fade var(--m-page) var(--m-ease) both;
+  animation: page-fade var(--m-fast) var(--m-ease-out) both;
 }
 @keyframes page-fade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-/* 监测模块切换：真机 offset(y: 8) */
+/* 监测模块切换：MonitorDetailView.swift:75 .transition(.opacity.combined(with:
+   .offset(y: 8))) + :101 withAnimation(Theme.Motion.springSoft) */
 .pm-mod {
-  animation: mod-slide var(--m-page) var(--m-ease) both;
+  animation: mod-slide var(--d-spring-soft) var(--spring-soft) both;
 }
 @keyframes mod-slide {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 
-/* 剪贴板条目：hover 高亮 + 右侧动作图标滑入 */
+/* 剪贴板行：hover 底色 fast；动作条 ClipboardSectionView.swift:188 .transition(.opacity) */
 .pm-item {
-  transition: background-color var(--m-fast) var(--m-ease);
+  transition: background-color var(--m-fast) var(--m-ease-out);
 }
 .pm-rowacts {
   opacity: 0;
-  transform: translateX(6px);
-  transition:
-    opacity var(--m-fast) var(--m-ease),
-    transform var(--m-page) var(--m-back);
+  transition: opacity var(--m-fast) var(--m-ease-out);
 }
-.pm-item:hover .pm-rowacts {
-  opacity: 1;
-  transform: none;
-}
+.pm-item:hover .pm-rowacts { opacity: 1; }
 
-/* 预览浮层：入场「略冲过」（caBackOut） */
-.pm-preview {
-  animation: preview-in var(--m-page) var(--m-back) both;
-}
-@keyframes preview-in {
-  from { opacity: 0; transform: translateX(10px) scale(0.96); }
-  to { opacity: 1; transform: none; }
-}
+/* 预览浮层：真机是独立 NSWindow，开合由 WindowReveal 的锚点缩放 + opacity 承担，
+   网页版由 assets/motion.js 的 revealIn/revealOut 驱动，此处不设 CSS 动画。 */
+.pm-preview { will-change: transform, opacity; }
 
-/* 悬浮菜单 / 右键菜单：真机 NSMenu 弹出是快速淡入 + 轻微放大 */
-.pm-menu {
-  animation: menu-in var(--m-fast) var(--m-back) both;
-}
+/* 悬浮菜单 / 右键菜单：App 侧是 NSMenu 系统弹出，对齐到最快的单次交互 fast */
+.pm-menu,
 .pm-ctx {
-  animation: menu-in var(--m-fast) var(--m-back) both;
+  animation: menu-in var(--m-fast) var(--m-ease-out) both;
 }
 @keyframes menu-in {
-  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .pm-menu-list li,
 .pm-ctx-list li {
-  transition: background-color var(--m-tap) var(--m-ease), color var(--m-tap) var(--m-ease);
+  transition:
+    background-color var(--m-tap) var(--m-ease-out),
+    color var(--m-tap) var(--m-ease-out);
 }
 
-/* 日历翻页：格子里依次淡入 */
+/* 日历翻页：CalendarSectionView.swift:132-134 withAnimation(Theme.Motion.fast)，
+   整块一起淡入（真机没有逐格 stagger）。 */
 .pm-day {
-  animation: day-in var(--m-fast) var(--m-ease) both;
+  animation: day-in var(--m-fast) var(--m-ease-out) both;
 }
 @keyframes day-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* 搜索结果区：展开时从上方落下 */
+/* 搜索结果：SearchSectionView.swift:709 .animation(Theme.Motion.spring,
+   value: listContentHeight) —— 用真实 spring(.28/.86) 采样曲线，不再用贝塞尔近似。 */
 .pm-results {
-  animation: results-in var(--m-page) var(--m-back) both;
-  transform-origin: top center;
+  animation: results-in var(--d-spring) var(--spring) both;
 }
 @keyframes results-in {
-  from { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Toast：从下往上滑入（真机 Toast 是从底部浮起） */
+/* Toast：Toast.swift:98-100 scaleEffect(0.5→1, anchor:.center) + opacity，
+   :117 springBouncy；停留 3.0s、收尾 0.4s 由 site.js 按 :111/:115 控制。 */
 .toast {
   transition:
-    opacity var(--m-page) var(--m-ease),
-    transform var(--m-page) var(--m-back);
-}
-.toast.show {
-  opacity: 1;
-  transform: none;
+    opacity var(--d-spring-bouncy) var(--spring-bouncy),
+    transform var(--d-spring-bouncy) var(--spring-bouncy);
 }
 
-/* 跳转提示条：同上 */
+/* 跳转提示条：单次淡入 */
 .pm-jump-hint {
-  animation: results-in var(--m-page) var(--m-back) both;
+  animation: results-in var(--m-fast) var(--m-ease-out) both;
 }
 
-/* 底部胶囊：hover 时轻微上浮 */
+/* 底部胶囊 hover：LiquidGlass.swift:431-440 HoverLift scale 1.02 + Theme.Motion.spring */
 .pm-dock {
-  transition: transform var(--m-page) var(--m-back), box-shadow var(--m-page) var(--m-ease);
+  transition:
+    transform var(--d-spring) var(--spring),
+    box-shadow var(--m-fast) var(--m-ease-out);
 }
 .pm-dock:hover {
-  transform: translateX(-50%) translateY(-2px);
+  transform: translateX(-50%) scale(var(--m-hover-lift));
   box-shadow:
     0 16px 30px rgba(11, 11, 13, 0.2),
     inset 0 0 0 0.6px rgba(255, 255, 255, 0.6);
 }
 
-/* 环形图的进度：数值变化时平滑过渡 */
+/* 数值/进度：Theme.Motion.progress = linear(0.2)（连续量只能线性），
+   颜色与显隐这类单次交互走 fast / tap。 */
 .mon-ring .ring-fg {
-  transition: stroke-dashoffset var(--m-slow) var(--m-ease), stroke var(--m-page) var(--m-ease);
+  transition:
+    stroke-dashoffset var(--m-progress) var(--m-linear),
+    stroke var(--m-fast) var(--m-ease-out);
 }
-
-/* 曲线与构成条 */
 .mon-spark polygon,
 .mon-spark polyline {
-  transition: opacity var(--m-page) var(--m-ease);
+  transition: opacity var(--m-fast) var(--m-ease-out);
 }
-.mon-segbar i {
-  transition: width var(--m-slow) var(--m-ease), background-color var(--m-page) var(--m-ease);
-}
+.mon-segbar i,
 .mon-zone-bar i {
-  transition: width var(--m-slow) var(--m-ease), background-color var(--m-page) var(--m-ease);
+  transition:
+    width var(--m-fast) var(--m-ease-out),
+    background-color var(--m-fast) var(--m-ease-out);
 }
 .mon-core-box {
-  transition: background-color var(--m-page) var(--m-ease), transform var(--m-page) var(--m-back);
+  transition:
+    background-color var(--m-fast) var(--m-ease-out),
+    transform var(--d-spring) var(--spring);
 }
 .mon-core:hover .mon-core-box { transform: scaleY(1.06); }
 
-/* 进程行的关闭按钮：hover 才显形 */
 .mon-proc-x {
   opacity: 0.35;
-  transition: opacity var(--m-fast) var(--m-ease), transform var(--m-tap) var(--m-ease);
+  transition:
+    opacity var(--m-fast) var(--m-ease-out),
+    transform var(--m-tap) var(--m-ease-out);
 }
 .mon-proc:hover .mon-proc-x { opacity: 0.9; }
-.mon-proc-x:hover { transform: scale(1.15); }
+.mon-proc-x:hover { transform: scale(var(--m-hover-lift)); }
 
-/* 部件浮窗（菜单栏）：真机 popover 是快速淡入 */
-.mb-pop {
-  animation: menu-in var(--m-fast) var(--m-back) both;
-}
-
-/* 展示页截图切换：淡入 */
+/* 展示页截图切换：纯淡入 */
 .shot-frame > div:not([hidden]) {
-  animation: page-fade var(--m-page) var(--m-ease) both;
+  animation: page-fade var(--m-fast) var(--m-ease-out) both;
 }
 
 /* 尊重系统的「减弱动态效果」设置 */
@@ -695,8 +722,8 @@ button:active {
      卡片   0.55 → 卡片白 78.7%
      描边   0.30 → 黑 6.2%
      圆角：window 12 / card 10 / control 8 / chip 6，发丝线 0.5px
-   动效对齐 App：开 0.22s cubic-bezier(.22,0,0,1)（Theme.Motion.caEaseOut），
-   收 0.22s cubic-bezier(.42,0,1,1)（caEaseIn）。
+   动效对齐 App：窗口开合走 WindowReveal（--m-open / --m-ca-ease-out / --m-ca-ease-in），
+   视图内过渡走 SwiftUI 令牌（--m-tap / --m-fast / --m-page / --m-ease-out）。
    App 的玻璃是系统 NSGlassEffectView，网页没有对应 API，这里用
    backdrop-filter + 分层高光 + 指针跟随镜面反射去逼近同一套观感。
 */
@@ -752,7 +779,7 @@ button:active {
   background: radial-gradient(140px circle at var(--lg-x, 50%) var(--lg-y, 0%),
     rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 62%);
   opacity: 0;
-  transition: opacity 0.22s ease;
+  transition: opacity var(--m-fast) var(--m-ease-out);
 }
 .lg:hover .lg__spec { opacity: 1; }
 
@@ -767,7 +794,7 @@ button:active {
   border: none;
   cursor: pointer;
   font-family: var(--mono);
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background var(--m-fast) var(--m-ease-out), color var(--m-fast) var(--m-ease-out);
 }
 .mb-widget:hover { background: #EDEDF2; color: var(--ink); }
 .mb-widget[aria-expanded="true"] { background: var(--ink); color: #FFFFFF; }
@@ -781,10 +808,11 @@ button:active {
   background: transparent;
   box-shadow: 0 14px 34px rgba(11, 11, 13, 0.16), 0 2px 6px rgba(11, 11, 13, 0.06);
   padding: 14px 16px 12px;
-  animation: pop-in 0.18s cubic-bezier(0.22, 0, 0, 1);
+  animation: pop-in var(--m-popout-appear) var(--m-ca-back-out) both;
+  transform-origin: top center;
 }
 @keyframes pop-in {
-  from { opacity: 0; transform: translateY(-4px); }
+  from { opacity: 0; transform: scale(var(--m-reveal-popout-in)); }
   to { opacity: 1; transform: none; }
 }
 .mb-pop-head {
@@ -833,17 +861,8 @@ button:active {
 }
 
 /* 开合动画：从菜单栏图标那个锚点展开 / 收回 */
-.panel-mock.is-open { animation: panel-open 0.22s cubic-bezier(0.22, 0, 0, 1) both; }
-.panel-mock.is-closing { animation: panel-close 0.22s cubic-bezier(0.42, 0, 1, 1) both; }
-
-@keyframes panel-open {
-  from { opacity: 0; transform: translateY(-10px) scale(0.94); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes panel-close {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: translateY(-8px) scale(0.96); }
-}
+/* 开合由 assets/motion.js 的 WindowReveal 等价实现驱动（scale .90、
+   锚点 = 菜单栏图标投影、开 caEaseOut / 收 caEaseIn、时长 = openDuration）。 */
 
 /* ---------- 主面板 mock（按真机 PanelRootView 1:1） ---------- */
 /* 尺寸依据真机：面板 400pt 宽（窄屏 320），顶部工具条 40pt，日历卡圆角 14，
@@ -870,7 +889,7 @@ button:active {
   cursor: pointer;
   color: var(--ink-3);
   border-radius: 6px;
-  transition: color 0.12s ease, background 0.12s ease;
+  transition: color var(--m-tap) var(--m-ease-out), background var(--m-tap) var(--m-ease-out);
 }
 /* 齿轮是真机的 accent 蓝（PanelRootView 齿轮用了 .foregroundStyle(Theme.accent)） */
 .pm-bar > .pm-ico { color: var(--accent); }
@@ -897,7 +916,11 @@ button:active {
   line-height: 1.4;
   color: var(--ink-3);
   white-space: nowrap;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition:
+    transform var(--d-spring-bouncy) var(--spring-bouncy),
+    opacity var(--d-spring-bouncy) var(--spring-bouncy),
+    background var(--m-fast) var(--m-ease-out),
+    color var(--m-fast) var(--m-ease-out);
 }
 .pm-seg:hover { color: var(--ink-2); }
 
@@ -1170,7 +1193,7 @@ button:active {
   cursor: default;
   border-radius: 8px;
   margin: 0 6px;
-  transition: background 0.12s ease;
+  transition: background var(--m-tap) var(--m-ease-out);
 }
 .pm-item:hover { background: rgba(0, 0, 0, 0.035); }
 .pm-item.sel { background: rgba(47, 107, 255, 0.09); }
@@ -1310,7 +1333,7 @@ button:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.12s ease, background 0.12s ease;
+  transition: color var(--m-tap) var(--m-ease-out), background var(--m-tap) var(--m-ease-out);
 }
 .pm-dock button svg { width: 14px; height: 14px; }
 .pm-dock button:hover { color: var(--ink); background: rgba(0, 0, 0, 0.05); }
@@ -1332,13 +1355,8 @@ button:active {
     0 3px 10px rgba(11, 11, 13, 0.12),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.08),
     inset 0 0.5px 0 0 rgba(255, 255, 255, 0.8);
-  animation: preview-in var(--m-page) var(--m-back) both;
   overflow: hidden;
   pointer-events: auto;
-}
-@keyframes preview-in {
-  from { opacity: 0; transform: translateX(10px) scale(0.96); }
-  to { opacity: 1; transform: none; }
 }
 /* 箭头：指向面板那一侧 */
 .pm-preview::after {
@@ -1411,10 +1429,14 @@ button:active {
   color: var(--ink-2);
   cursor: pointer;
   font-family: inherit;
-  transition: background-color var(--m-tap) var(--m-ease), color var(--m-tap) var(--m-ease), transform var(--m-tap) var(--m-ease);
+  transition:
+    background-color var(--m-fast) var(--m-ease-out),
+    color var(--m-fast) var(--m-ease-out),
+    transform var(--d-spring-bouncy) var(--spring-bouncy),
+    opacity var(--d-spring-bouncy) var(--spring-bouncy);
 }
 .pm-preview-foot button:hover { background: #FFFFFF; color: var(--ink); }
-.pm-preview-foot button:active { transform: scale(0.94); }
+.pm-preview-foot button:active { transform: scale(var(--m-pressed-scale)); opacity: var(--m-pressed-opacity); }
 
 /* ---- JSON 树形（真机 JSONInspectorView） ---- */
 .pv-tree { font-family: var(--mono); font-size: 10px; line-height: 1.6; }
@@ -1538,7 +1560,7 @@ button:active {
   box-shadow:
     0 14px 36px rgba(11, 11, 13, 0.2),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
-  animation: preview-in 0.13s cubic-bezier(0.22, 0, 0, 1) both;
+  animation: page-fade var(--m-tap) var(--m-ease-out) both;
 }
 .pm-menu-list, .pm-ctx-list { list-style: none; }
 .pm-menu-list li, .pm-ctx-list li {
@@ -1593,7 +1615,7 @@ button:active {
   box-shadow:
     0 14px 36px rgba(11, 11, 13, 0.2),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
-  animation: preview-in 0.12s cubic-bezier(0.22, 0, 0, 1) both;
+  animation: page-fade var(--m-tap) var(--m-ease-out) both;
 }
 
 /* ---------- 跳转提示 ---------- */
@@ -1616,7 +1638,7 @@ button:active {
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
   font-size: 11.5px;
   color: var(--ink-2);
-  animation: preview-in 0.16s cubic-bezier(0.22, 0, 0, 1) both;
+  animation: page-fade var(--m-fast) var(--m-ease-out) both;
 }
 .pm-jump-hint button {
   margin-left: auto;
@@ -1652,7 +1674,7 @@ button:active {
   font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition: background var(--m-fast) var(--m-ease-out), color var(--m-fast) var(--m-ease-out);
 }
 .pm-modbar button svg { width: 12px; height: 12px; }
 .pm-modbar button:hover { background: rgba(0, 0, 0, 0.04); }
@@ -2181,7 +2203,7 @@ button:active {
   border-radius: 9px;
   padding: 8px 10px;
   cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition: border-color var(--m-tap) var(--m-ease-out), background var(--m-tap) var(--m-ease-out);
 }
 .pm-exit:hover { border-color: var(--accent); background: rgba(47, 107, 255, 0.06); }
 .pm-exit b { display: block; font-size: 12.5px; font-weight: 600; }
@@ -2391,7 +2413,7 @@ button:active {
   border-radius: 6px;
   background: linear-gradient(90deg, #F1F1F4 25%, #F8F8FA 37%, #F1F1F4 63%);
   background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
+  animation: shimmer var(--m-loop) var(--m-linear) infinite;
 }
 .sl-text { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
@@ -2577,8 +2599,8 @@ kbd {
   font-weight: 550;
   color: var(--ink);
 }
-.faq-arrow { color: var(--ink-3); font-size: 15px; transition: transform 0.18s ease; }
-.faq-a { max-height: 0; overflow: hidden; transition: max-height 0.24s ease; }
+.faq-arrow { color: var(--ink-3); font-size: 15px; transition: transform var(--m-fast) var(--m-ease-out); }
+.faq-a { max-height: 0; overflow: hidden; transition: max-height var(--m-page) var(--m-ease-out); }
 .faq-a-inner { padding: 0 0 18px; font-size: 14px; color: var(--ink-2); max-width: 820px; }
 .faq-a-inner p + p { margin-top: 8px; }
 
@@ -2642,7 +2664,8 @@ kbd {
   position: fixed;
   left: 50%;
   bottom: 34px;
-  transform: translate(-50%, 14px);
+  transform: translate(-50%, 0) scale(var(--m-toast-scale));
+  transform-origin: center;
   z-index: 100;
   background: var(--ink);
   color: #FFFFFF;
@@ -2651,11 +2674,13 @@ kbd {
   font-size: 13px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity var(--d-spring-bouncy) var(--spring-bouncy),
+    transform var(--d-spring-bouncy) var(--spring-bouncy);
   max-width: calc(100vw - 40px);
   text-align: center;
 }
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
 
 /* ---------- 响应式 ---------- */
 
