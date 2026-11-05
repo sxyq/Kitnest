@@ -72,13 +72,21 @@ await page.waitForTimeout(300);
 
 /* ---------- A. 令牌与真源 ---------- */
 console.log('A. 动效令牌');
-const initialPreview = await page.evaluate(() => {
+const previewLifecycle = await page.evaluate(async () => {
   const e = document.getElementById('pmPreview');
-  const r = e.getBoundingClientRect();
-  return { hidden: e.hidden, w: Math.round(r.width), toc: !!e.querySelector('.pv-md-toc') };
+  const initialHidden = e.hidden;
+  const li = document.querySelector('.pm-item[data-id="c3"]');
+  li.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 80));
+  const afterHover = !e.hidden && !!e.querySelector('.pv-md-toc');
+  document.getElementById('pmList').dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 360));
+  const afterLeaveHidden = e.hidden;
+  return { initialHidden, afterHover, afterLeaveHidden };
 });
-check('首屏默认展示可交互预览浮层（不必悬停）',
-  !initialPreview.hidden && initialPreview.w > 0 && initialPreview.toc, initialPreview);
+check('预览初始隐藏、悬停出现、移出自动消失',
+  previewLifecycle.initialHidden && previewLifecycle.afterHover && previewLifecycle.afterLeaveHidden,
+  previewLifecycle);
 const tokens = await page.evaluate(() => {
   const M = window.KitnestMotion;
   return M ? {
@@ -158,9 +166,14 @@ const bounds = await page.evaluate(() => {
   const p = document.getElementById('pmPreview').getBoundingClientRect();
   const s = document.querySelector('.hero-stage').getBoundingClientRect();
   const m = document.getElementById('panelMock').getBoundingClientRect();
-  return { pL: p.left, pR: p.right, sL: s.left, sR: s.right, mL: m.left, hidden: document.getElementById('pmPreview').hidden };
+  return { pL: p.left, pR: p.right, sL: s.left, sR: s.right, mL: m.left,
+           stageW: Math.round(s.width), vw: window.innerWidth,
+           hidden: document.getElementById('pmPreview').hidden };
 });
-check('预览在面板左侧且不溢出舞台', !bounds.hidden && bounds.pR <= bounds.mL + 2 && bounds.pL >= bounds.sL - 2, bounds);
+// 桌面舞台只包面板，浮层临时向左浮出到左栏留白；约束是不越出视口、且贴着面板左缘
+check('预览贴面板左缘且不越出视口（舞台 ≤420px）',
+  !bounds.hidden && bounds.pR <= bounds.mL + 2 && bounds.pL >= 0 &&
+  bounds.pR <= bounds.vw + 2 && (bounds.vw <= 1024 || bounds.stageW <= 420), bounds);
 
 // 同条目重复 hover 不重播（App: show() 的 sameItem 分支）
 const again = await page.evaluate(() => {
@@ -446,6 +459,14 @@ const homeDemo = await page.evaluate(() => ({
   href: document.querySelector('[data-home-demo]')?.getAttribute('href'),
 }));
 check('界面页有「打开可交互预览」入口', homeDemo.btn && homeDemo.href === '#home', homeDemo);
+await page.evaluate(() => { location.hash = '#showcase'; });
+await page.waitForTimeout(160);
+await page.click('[data-home-demo]');
+await page.waitForTimeout(420);
+const demoShown = await page.evaluate(() => !document.getElementById('pmPreview').hidden);
+await page.waitForTimeout(3400);
+const demoGone = await page.evaluate(() => document.getElementById('pmPreview').hidden);
+check('「打开可交互预览」演示后会自动消失', demoShown && demoGone, { demoShown, demoGone });
 await page.evaluate(() => { window.scrollTo(0, 0); });
 await page.waitForTimeout(100);
 

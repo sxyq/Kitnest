@@ -3472,3 +3472,22 @@ kbd {
   .feature-card { padding: 16px; }
   .section { padding: 38px 0; }
 }
+
+/* ============================================================
+   v231.1 首屏舞台收窄
+   以前舞台 640px 宽，面板靠右 340px，左边 258px 常驻留给一个「临时」浮层，
+   浮层隐藏时就是一大块空框。现在舞台只包面板（380px），预览浮层需要时
+   才临时向左浮出，落在左栏文案与面板之间的留白里；文案限宽 420px，
+   保证浮层不盖住标题正文。窄屏（≤1024）仍走原来的单栏 / 堆叠规则。
+   ============================================================ */
+@media (min-width: 1025px) {
+  .hero-inner { grid-template-columns: minmax(0, 1fr) 380px; gap: 40px; }
+  .hero-copy { max-width: 420px; }
+  .hero-stage {
+    width: 380px;
+    max-width: 100%;
+    margin-left: auto;
+    overflow: visible;
+  }
+  .panel-mock { width: 340px; max-width: 100%; }
+}

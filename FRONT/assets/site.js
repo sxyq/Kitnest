@@ -2344,22 +2344,23 @@
       els.forEach(function (el) { el.classList.add("in"); });
     }
 
-    // 默认展开一条剪贴板预览：预览浮层不再只有悬停才看得见，
-    // 悬停其它条目仍会切换内容（同条目不重播入场，与真机一致）。
-    var firstPreview = $(".pm-item[data-id='c3']");
-    if (firstPreview) {
-      var firstItem = findItem(firstPreview.getAttribute("data-id"));
-      if (firstItem) showPreview(firstItem, firstPreview, false);
-    }
-
-    // 界面页「打开可交互预览」：切回首页并把真实可交互面板滚到视口中间
+    // 预览不常驻：悬停条目出现、移出列表自动收起（真机 NSPopover 行为）。
+    // 界面页「打开可交互预览」只做一次演示：展开后定时自动消失，不留常驻浮层。
     $$("[data-home-demo]").forEach(function (a) {
       a.addEventListener("click", function () {
         location.hash = "#home";
         setTimeout(function () {
           var st = $(".hero-stage");
           if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 80);
+          var li = $(".pm-item[data-id='c3']");
+          if (!li) return;
+          var item = findItem(li.getAttribute("data-id"));
+          if (!item) return;
+          showPreview(item, li, false);
+          setTimeout(function () {
+            if (previewAnchorId === item.id && !previewPinned) closePreview();
+          }, 3200);
+        }, 100);
       });
     });
 
