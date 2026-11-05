@@ -1508,19 +1508,12 @@ final class AnnotationEditorWindow: NSWindow {
 
     /// 工具条回调 → 画布/窗口动作（集中在一处，SwiftUI 侧不持有 NSWindow）
     func toolbarDidSelectTool(_ index: Int) {
-        let tool = AnnotationTool.allCases[index]
-        // v221：切工具前先把未提交的文字落下来。否则输入框还开着，
-        // 用户在新工具下的第一次拖拽会先被「提交文字」吃掉，看起来像点了没反应。
-        canvas.finishTextEditing(commit: true)
-        canvas.tool = tool
-        // 切到文字/笔刷时把它们各自的尺寸同步给画布
-        switch tool {
-        case .text, .remark: canvas.textSize = CGFloat(toolbarModel.textSize)
-        case .highlighter: canvas.lineWidth = CGFloat(toolbarModel.highlighterWidth)
-        // v221：blur 也是笔刷类，漏掉它就会拿线宽（3–40）当笔刷直径，涂出来细到看不见
-        case .eraser, .mosaic, .blur, .removal: canvas.brushWidth = CGFloat(toolbarModel.brushWidth)
-        default: canvas.lineWidth = CGFloat(toolbarModel.lineWidth)
-        }
+        // v225（用户：「这些工具选中之后它没有对应的提示，蓝色高亮没有，
+        // 顶部一直有马赛克说明」）：原来这条路径只改 canvas.tool，
+        // 漏了 toolbarModel.toolIndex —— 画布换了工具，rail 的高亮和顶部提示
+        // 却一直停在上一个工具。现在统一走 selectTool，两条路径只有一份实现。
+        guard index >= 0, index < AnnotationTool.allCases.count else { return }
+        selectTool(AnnotationTool.allCases[index])
         refocusCanvas()
     }
 
@@ -1575,6 +1568,8 @@ final class AnnotationEditorWindow: NSWindow {
 
     private func selectTool(_ tool: AnnotationTool) {
         guard let index = AnnotationTool.allCases.firstIndex(of: tool) else { return }
+        // v225：切工具前先把未提交的文字落下来（否则新工具下第一次拖拽会被「提交文字」吃掉）
+        canvas.finishTextEditing(commit: true)
         toolbarModel.toolIndex = index
         canvas.tool = tool
         switch tool {
