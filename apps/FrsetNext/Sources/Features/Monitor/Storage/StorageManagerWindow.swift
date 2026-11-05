@@ -4,6 +4,8 @@ import SwiftUI
 extension Notification.Name {
     /// v212 排障深链：按名字下钻到某一层（kitnest://storage?drill=Users）
     static let storageDrillTo = Notification.Name("frsetnext.storage.drillTo")
+    /// v229：两指滑动返回上一级（由窗口 controller 的 scrollWheel 监听发出）
+    static let storageSwipeBack = Notification.Name("frsetnext.storage.swipeBack")
     /// v212 排障深链：直接打开「让 Agent 清理」弹窗（kitnest://storage?agent=1）
     static let storageOpenAgent = Notification.Name("frsetnext.storage.openAgent")
 }
@@ -73,6 +75,36 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
         win.isReleasedWhenClosed = false
         super.init(window: win)
         win.delegate = self
+        installSwipeMonitor(on: win)
+    }
+
+    /// v229（用户：「两个返回按钮全删，改用手势，两指左右滑」）
+    ///
+    /// 用 `scrollWheel` 的横向分量识别两指轻扫：触控板两指左右滑会产生
+    /// `scrollingDeltaX`（纵向滚轮 deltaX 基本为 0），累计到阈值就发一次返回。
+    /// 用 local monitor 而不是 NSView：气泡图整块是 SwiftUI，事件在 hosting 层就被消化了。
+    private var swipeMonitor: Any?
+    private var swipeAccum: CGFloat = 0
+
+    private func installSwipeMonitor(on win: NSWindow) {
+        guard swipeMonitor == nil else { return }
+        swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, event.window === win else { return event }
+            let dx = event.scrollingDeltaX
+            let dy = event.scrollingDeltaY
+            // 只认「横向明显大于纵向」的滑动；纵向滚轮/惯性不参与
+            guard abs(dx) > abs(dy) * 1.2, abs(dx) >= 1 else { return event }
+            self.swipeAccum += dx
+            if abs(self.swipeAccum) >= 42 {
+                self.swipeAccum = 0
+                NotificationCenter.default.post(name: .storageSwipeBack, object: nil)
+            }
+            return nil   // 吃掉横向滚动，避免带着别的视图一起动
+        }
+    }
+
+    deinit {
+        if let m = swipeMonitor { NSEvent.removeMonitor(m) }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -118,6 +150,11 @@ struct StorageManagerRootView: View {
     @Stored private var pendingDrill: String?
     /// 首次进面板是否已经自动落到有内容的一层
     @Stored private var didAutoLand = false
+    /// v229：首次打开时的手势提示（只提示一次）
+    /// 注意：本 target 的 Swift 工具链缺 SwiftUIMacros 插件，`@State` 编译不过，
+    /// 临时状态一律用 @AppStorage / @Stored 承载。
+    @AppStorage("storage.swipeHintShown") private var swipeHintShown = false
+    @AppStorage("storage.swipeHintVisible") private var showSwipeHint = false
 
     private var currentNode: DiskNode? {
         stack.last ?? store.snapshot?.root
@@ -169,7 +206,40 @@ struct StorageManagerRootView: View {
             }
         }
         .frame(minWidth: 860, minHeight: 560)
-        .onAppear { store.loadIfNeeded() }
+        .onAppear {
+            store.loadIfNeeded()
+            // 第一次打开：告诉用户「返回」现在是两指滑动（原来的按钮已经删了）
+            // 注意：onAppear 可能被调用多次，这里用 swipeHintShown 兜住，
+            // 不能在里面先写 showSwipeHint = false——第二次 onAppear 会把提示立刻清掉。
+            guard !swipeHintShown else { return }
+            swipeHintShown = true
+            showSwipeHint = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
+                showSwipeHint = false
+            }
+        }
+        // v229：两指滑动返回上一级
+        .onReceive(NotificationCenter.default.publisher(for: .storageSwipeBack)) { _ in
+            if !stack.isEmpty { stack.removeLast() }
+        }
+        .overlay(alignment: .bottom) {
+            if showSwipeHint {
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.draw")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("两指左右滑动，返回上一级")
+                        .font(.system(size: 11.5, weight: .medium))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .frame(height: 34)
+                .background(Capsule(style: .continuous).fill(Color.black.opacity(0.76)))
+                .padding(.bottom, 26)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .allowsHitTesting(false)
+            }
+        }
+        .animation(Theme.Motion.fast, value: showSwipeHint)
         .onReceive(NotificationCenter.default.publisher(for: .storageDrillTo)) { note in
             guard let name = note.object as? String else { return }
             // v213 实测：深链在窗口刚建好时到达，onAppear 里的缓存读取是异步的，
@@ -447,28 +517,8 @@ struct StorageManagerRootView: View {
 
     private var rightPane: some View {
         VStack(spacing: 0) {
-            // 导航条：返回 + 面包屑（v212：下钻后必须一眼看到怎么退回去）
+            // 导航条：面包屑（v229：两个「返回」按钮已删，返回交给两指滑动 / Esc / 点空白）
             HStack(spacing: 6) {
-                if !stack.isEmpty {
-                    Button {
-                        stack.removeLast()
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 9, weight: .bold))
-                            Text("返回")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                        .foregroundStyle(Theme.accent)
-                        .padding(.horizontal, 8)
-                        .frame(height: 22)
-                        .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.10)))
-                        .contentShape(Capsule(style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .help("返回上一级（Esc）")
-                }
-
                 Button {
                     stack.removeAll()
                 } label: {
@@ -508,46 +558,19 @@ struct StorageManagerRootView: View {
             .animation(Theme.Motion.fast, value: stack.count)
 
             if let node = currentNode {
-                ZStack(alignment: .bottomTrailing) {
-                    StorageTreemap(node: node,
-                                   onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
-                                   onSelect: { detailNode = $0 },
-                                   onBack: { if !stack.isEmpty { stack.removeLast() } })
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 8)
-                        .id(node.id)
-                        .animation(Theme.Motion.fast, value: node.id)
-
-                    // v228（用户：「点进去之后没有快速返回的方式」）：
-                    // 除了左上角的小胶囊和 Esc，右下角再给一个常驻的返回按钮——
-                    // 下钻几层后最顺手的动作就是它。
-                    if !stack.isEmpty {
-                        Button {
-                            stack.removeLast()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.uturn.backward")
-                                    .font(.system(size: 10, weight: .semibold))
-                                Text("返回上一级")
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            .foregroundStyle(Theme.accent)
-                            .padding(.horizontal, 11)
-                            .frame(height: 26)
-                            .background(Capsule(style: .continuous).fill(.regularMaterial))
-                            .overlay(Capsule(style: .continuous)
-                                .strokeBorder(Theme.accent.opacity(0.32), lineWidth: 0.8))
-                            .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .focusable(false)
-                        .help("返回上一级（Esc，或点气泡之间的空白）")
-                        .padding(.trailing, 22)
-                        .padding(.bottom, 20)
-                        .transition(.scale(scale: 0.9).combined(with: .opacity))
-                    }
-                }
-                .animation(Theme.Motion.fast, value: stack.count)
+                // v229（用户：「两个返回上一级按钮全删掉，改用手势」）：
+                // 返回只保留「两指滑动」和 Esc、以及点气泡之间的空白；
+                // 左上角与右下角那两个按钮都去掉了。
+                StorageTreemap(node: node,
+                               onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
+                               onSelect: { detailNode = $0 },
+                               onBack: { if !stack.isEmpty { stack.removeLast() } },
+                               agentZone: CGSize(width: 196, height: 112),
+                               onAgent: { showAgentSheet = true })
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
+                    .id(node.id)
+                    .animation(Theme.Motion.fast, value: node.id)
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")

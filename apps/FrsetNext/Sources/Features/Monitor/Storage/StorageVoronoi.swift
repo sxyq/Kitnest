@@ -20,8 +20,12 @@ import SwiftUI
 enum VoronoiTreemap {
 
     /// 返回与 weights 一一对应的多边形（容器坐标）
+    ///
+    /// - Parameter cutout: 左上角要挖掉的矩形（agent 区）。传 nil 就是普通矩形容器。
+    ///   v229：用户要「异形」——左上角留给 agent，气泡绕着它排。
     static func layout(weights: [CGFloat],
                        in rect: CGRect,
+                       cutout: CGRect? = nil,
                        iterations: Int = 60) -> [[CGPoint]] {
         guard !weights.isEmpty, rect.width > 8, rect.height > 8 else { return [] }
         let total = weights.reduce(0, +)
@@ -33,19 +37,30 @@ enum VoronoiTreemap {
         // 实测同样的增益下最大误差高达 17 个百分点，最大块被压到目标的一半。
         // 归一化后 k=0.3 只要 17 轮就把误差压到 0.3%（实测）。
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let base = basePolygon(cutout: cutout, in: rect)
+        let baseArea = area(base)
         var sites = seeds(in: unit, targets: targets)
+        // 初始站点落在缺口里的，推到缺口右下方——否则它的单元被 L 形切得很小，
+        // 前几轮迭代会来回震荡（实测收敛慢一倍）。
+        if let c = cutout, c.width > 0, c.height > 0 {
+            let uw = c.width / rect.width, uh = c.height / rect.height
+            for i in sites.indices where sites[i].x < uw && sites[i].y < uh {
+                sites[i].x = uw + (1 - uw) * 0.5
+                sites[i].y = uh + (1 - uh) * 0.5
+            }
+        }
         var bias = [CGFloat](repeating: 0, count: weights.count)
         var polygons: [[CGPoint]] = []
         let gain: CGFloat = 0.3
         let relax: CGFloat = 0.08
 
         for _ in 0..<iterations {
-            polygons = cells(sites: sites, bias: bias, in: unit)
+            polygons = cells(sites: sites, bias: bias, in: base)
 
             var maxErr: CGFloat = 0
             for i in polygons.indices {
-                // 单位正方形内，面积就是占比
-                let err = targets[i] - area(polygons[i])
+                // 面积占比（分母是**容器**面积，不是 1——L 形比矩形小）
+                let err = targets[i] - area(polygons[i]) / max(1e-9, baseArea)
                 maxErr = max(maxErr, abs(err))
                 // 面积偏小 → 增大偏置把边界推远；偏大 → 收缩
                 bias[i] += err * gain
@@ -70,12 +85,24 @@ enum VoronoiTreemap {
         }
     }
 
+    /// 容器轮廓（单位坐标）。有 cutout 时是「左上角缺一块」的 L 形。
+    private static func basePolygon(cutout: CGRect?, in rect: CGRect) -> [CGPoint] {
+        guard let c = cutout, c.width > 1, c.height > 1 else {
+            return [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0),
+                    CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 1)]
+        }
+        let uw = min(0.7, max(0, c.width / rect.width))
+        let uh = min(0.6, max(0, c.height / rect.height))
+        // 顺时针（SwiftUI 的 y 向下）：从缺口右下角起，绕一圈回来
+        return [CGPoint(x: uw, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1),
+                CGPoint(x: 0, y: 1), CGPoint(x: 0, y: uh), CGPoint(x: uw, y: uh)]
+    }
+
     // MARK: 初始站点
 
     /// 按权重递归二分容器，取每块中心做初始站点。
     /// 比随机撒点收敛快一个数量级（随机布局往往要 300+ 次迭代）。
-    private static func seeds(in rect: CGRect, targets: [CGFloat]) -> [CGPoint] {
-        var points = [CGPoint](repeating: .zero, count: targets.count)
+    private static func seeds(in rect: CGRect, targets: [CGFloat]) -> [CGPoint] {        var points = [CGPoint](repeating: .zero, count: targets.count)
         func split(_ idx: [Int], _ r: CGRect) {
             guard !idx.isEmpty else { return }
             if idx.count == 1 {
@@ -111,13 +138,7 @@ enum VoronoiTreemap {
 
     // MARK: Voronoi 单元（半平面裁剪）
 
-    private static func cells(sites: [CGPoint], bias: [CGFloat], in rect: CGRect) -> [[CGPoint]] {
-        let base = [
-            CGPoint(x: rect.minX, y: rect.minY),
-            CGPoint(x: rect.maxX, y: rect.minY),
-            CGPoint(x: rect.maxX, y: rect.maxY),
-            CGPoint(x: rect.minX, y: rect.maxY),
-        ]
+    private static func cells(sites: [CGPoint], bias: [CGFloat], in base: [CGPoint]) -> [[CGPoint]] {
         var out: [[CGPoint]] = []
         out.reserveCapacity(sites.count)
 

@@ -29,7 +29,8 @@ struct DiskTile: Identifiable {
 
 enum DiskVoronoiLayout {
 
-    static func make(nodes: [DiskNode], in size: CGSize, maxTiles: Int = 14) -> [DiskTile] {
+    static func make(nodes: [DiskNode], in size: CGSize,
+                     cutout: CGRect? = nil, maxTiles: Int = 14) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.sorted { $0.size > $1.size }
 
@@ -52,23 +53,31 @@ enum DiskVoronoiLayout {
             }
         }
 
-        let weights = list.map { CGFloat(max(1, $0.size)) }
+        // v229（用户：「占用这部分要显示得多一点」）：
+        // 直接用字节数当权重时，极端比例会把小块挤成 1pt 宽的缝
+        // （实测 9.2G 对 539M，后者只剩一条线，点都点不到）。
+        // 开 0.68 次方压缩比例——数值标签仍然显示真实大小，只是面积不再严格线性。
+        let weights = list.map { CGFloat(pow(Double(max(1, $0.size)), 0.68)) }
         let total = weights.reduce(0, +)
         guard total > 0 else { return [] }
 
         let polys = VoronoiTreemap.layout(weights: weights,
-                                          in: CGRect(origin: .zero, size: size))
+                                          in: CGRect(origin: .zero, size: size),
+                                          cutout: cutout)
         guard polys.count == list.count else { return [] }
 
         var tiles: [DiskTile] = []
         tiles.reserveCapacity(list.count)
+        // 展示用的占比必须是**真实字节占比**，不能拿压缩后的权重算——
+        // 否则颜色深浅和「占本层 %」都会失真。
+        let sizeTotal = list.reduce(Int64(0)) { $0 + $1.size }
         for (i, n) in list.enumerated() {
             let poly = polys[i]
             guard poly.count >= 3 else { continue }
             tiles.append(DiskTile(node: n,
                                   polygon: poly,
                                   bbox: VoronoiTreemap.boundingBox(poly),
-                                  ratio: Double(weights[i] / total)))
+                                  ratio: sizeTotal > 0 ? Double(n.size) / Double(sizeTotal) : 0))
         }
         return tiles
     }
@@ -81,10 +90,12 @@ private final class DiskLayoutCache {
     private var key = ""
     private var tiles: [DiskTile] = []
 
-    func tiles(for node: DiskNode, size: CGSize) -> [DiskTile] {
+    func tiles(for node: DiskNode, size: CGSize, cutout: CGRect? = nil) -> [DiskTile] {
         let k = "\(node.id)|\(Int(size.width))×\(Int(size.height))|\(node.children.count)|\(node.size)"
+            + "|\(Int(cutout?.width ?? 0))×\(Int(cutout?.height ?? 0))"
         if k == key { return tiles }
-        let made = DiskVoronoiLayout.make(nodes: Array(node.children.prefix(28)), in: size)
+        let made = DiskVoronoiLayout.make(nodes: Array(node.children.prefix(28)),
+                                          in: size, cutout: cutout)
         key = k
         tiles = made
         return made
@@ -109,13 +120,17 @@ struct StorageTreemap: View {
     let onSelect: (DiskNode) -> Void
     /// 点空白处 = 返回上一级（v228：用户「进去之后没有快速返回的方式」）
     var onBack: (() -> Void)? = nil
+    /// 左上角 agent 区尺寸；非 nil 时容器挖掉这一块（v229 异形布局）
+    var agentZone: CGSize? = nil
+    var onAgent: (() -> Void)? = nil
 
     @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
 
     var body: some View {
         GeometryReader { geo in
-            let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size)
+            let cutout = agentZone.map { CGRect(origin: .zero, size: $0) }
+            let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size, cutout: cutout)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -135,10 +150,43 @@ struct StorageTreemap: View {
                     ForEach(tiles) { tile in
                         tileView(tile)
                     }
+                    // 左上角缺口里放 agent 入口：虚线框表示「这是功能区，不是数据块」
+                    if let cutout, let onAgent {
+                        agentCard(size: cutout.size, action: onAgent)
+                    }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
         }
+    }
+
+    private func agentCard(size: CGSize, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: "wand.and.rays")
+                    .font(.system(size: 15, weight: .medium))
+                Text("让 Agent 清理")
+                    .font(.system(size: 11.5, weight: .semibold))
+                Text("生成分析提示词")
+                    .font(.system(size: 9.5))
+                    .opacity(0.7)
+            }
+            .foregroundStyle(Theme.accent)
+            .frame(width: max(40, size.width - 10), height: max(40, size.height - 10))
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Theme.accent.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Theme.accent.opacity(0.30),
+                                  style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+        .padding(5)
+        .help("让 Agent 分析这个目录里有什么、哪些能清")
     }
 
     private func tileView(_ t: DiskTile) -> some View {
@@ -151,9 +199,10 @@ struct StorageTreemap: View {
         let radius = min(t.bbox.width, t.bbox.height) * 0.30
         let isSelected = selectedID == t.id
         let isHovered = hoveredID == t.id
-        // v228：鼠标停在某个块上时，它浮起来、周围的块被挤得缩一点——
-        // 用户要的「跟随鼠标挤压周围气泡」的观感。（真做 Voronoi 重算会跳顶点，没法插值）
+        // v229：鼠标停在某个块上时，它整体上浮 2.5pt、放大并有回弹，
+        // 周围的块同时被压小、压淡——「挤在一起的气泡」的观感。
         let anyHovered = hoveredID != nil
+        let pull: CGSize = isHovered ? CGSize(width: 0, height: -2.5) : .zero
         let ink = contentColor(t.ratio)
 
         return ZStack {
@@ -168,10 +217,12 @@ struct StorageTreemap: View {
         // 文字/描边都在多边形内裁切，斜块上不会糊到邻块
         .clipShape(PolygonHitShape(points: local, radius: radius))
         .position(x: t.bbox.midX, y: t.bbox.midY)
-        .shadow(color: .black.opacity(isHovered ? 0.22 : 0.03),
-                radius: isHovered ? 14 : 2,
-                y: isHovered ? 5 : 1)
-        .scaleEffect(isHovered ? 1.055 : (anyHovered ? 0.985 : 1))
+        .offset(pull)
+        .shadow(color: .black.opacity(isHovered ? 0.24 : 0.03),
+                radius: isHovered ? 16 : 2,
+                y: isHovered ? 6 : 1)
+        .scaleEffect(isHovered ? 1.06 : (anyHovered ? 0.972 : 1))
+        .opacity(anyHovered && !isHovered ? 0.92 : 1)
         .zIndex(isHovered ? 10 : 0)
         .contentShape(PolygonHitShape(points: local, radius: radius))
         .onHover { hoveredID = $0 ? t.id : nil }
@@ -182,7 +233,8 @@ struct StorageTreemap: View {
         .help("\(t.node.name) · \(StorageFormat.bytes(t.node.size))"
               + String(format: " · 占本层 %.1f%%", t.ratio * 100)
               + " · \(t.node.path)")
-        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: hoveredID)
+        // 弹簧回弹：damping 0.55 会多抖一下，「被按下去又弹回来」的质感
+        .animation(.spring(response: 0.34, dampingFraction: 0.55), value: hoveredID)
     }
 
     /// 块内文字按**内切圆半径**分档（照截图：够圆够大才写字，窄条只留一个点）。
