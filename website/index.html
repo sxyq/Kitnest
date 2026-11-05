@@ -103,18 +103,26 @@
               </div>
             </div>
 
-            <!-- 部件详情浮窗（演示数据） -->
-            <div class="mb-pop" id="mbPop" hidden>
+            <!-- 部件详情浮窗 -->
+            <div class="mb-pop lg" id="mbPop" hidden>
+              <span class="lg__surface" aria-hidden="true"></span>
+              <span class="lg__frost" aria-hidden="true"></span>
+              <span class="lg__edge" aria-hidden="true"></span>
+              <span class="lg__spec" aria-hidden="true"></span>
               <div class="mb-pop-head">
                 <span id="mbPopTitle">CPU</span>
                 <span id="mbPopValue" class="mb-pop-value">23%</span>
               </div>
               <div id="mbPopBody"></div>
-              <p class="mb-pop-note">演示数据 · 点空白处关闭</p>
+              <p class="mb-pop-note">点空白处关闭</p>
             </div>
 
             <!-- 可交互的主面板 -->
-            <div class="panel-mock" id="panelMock">
+            <div class="panel-mock lg" id="panelMock">
+              <span class="lg__surface" aria-hidden="true"></span>
+              <span class="lg__frost" aria-hidden="true"></span>
+              <span class="lg__edge" aria-hidden="true"></span>
+              <span class="lg__spec" aria-hidden="true"></span>
               <div class="pm-tabs">
                 <button class="pm-tab on" type="button" data-page="home">主页</button>
                 <button class="pm-tab" type="button" data-page="monitor">监测</button>
@@ -131,6 +139,25 @@
               </div>
 
               <div class="pm-body">
+                <!-- 剪贴板条目的预览浮层（悬停或点击条目都会出现） -->
+                <div class="pm-preview" id="pmPreview" hidden>
+                  <div class="pm-preview-head">
+                    <span class="pm-preview-ico">文字</span>
+                    <div class="pm-preview-titles">
+                      <b class="pm-preview-title"></b>
+                      <span class="pm-preview-meta"></span>
+                    </div>
+                  </div>
+                  <div class="pm-preview-body"></div>
+                  <div class="pm-preview-foot">
+                    <button type="button" data-act="quick">快速查看</button>
+                    <button type="button" data-act="paste">回贴</button>
+                    <button type="button" data-act="pin">置顶</button>
+                    <button type="button" data-act="del">删除</button>
+                  </div>
+                  <span class="pm-preview-arrow" aria-hidden="true"></span>
+                </div>
+
                 <!-- 主页 -->
                 <div class="pm-page" data-page="home">
                   <div class="pm-cal">
@@ -168,7 +195,7 @@
                     <div class="pm-bar"><span>GPU</span><i style="width:72%"></i><em>58°</em></div>
                     <div class="pm-bar"><span>NVMe</span><i style="width:29%"></i><em>35°</em></div>
                   </div>
-                  <p class="pm-note">演示数据 · 真实运行时会每 1.5 秒刷新</p>
+                  <p class="pm-note">每 1.5 秒刷新一次</p>
                   <a class="pm-link" href="#features" data-jump="features:ch-monitor">看「系统监控」的完整说明 →</a>
                 </div>
 
@@ -193,7 +220,7 @@
                   <div class="pm-device">
                     <div class="pm-device-top">
                       <span class="pm-dot"></span>
-                      <div><b>示例设备 · 已连接</b><span>USB · 1920p / 16 Mbps / 60 fps</span></div>
+                      <div><b>已连接的设备</b><span>USB · 1920p / 16 Mbps / 60 fps</span></div>
                     </div>
                     <div class="pm-navkeys">
                       <button type="button" data-jump="features:ch-cast" data-toast="发送返回键">‹</button>
@@ -204,8 +231,8 @@
                   </div>
                   <div class="pm-sect-title">手机通知</div>
                   <ul class="pm-notify">
-                    <li><b>示例通知</b><span>这是一条用于演示的通知内容</span></li>
-                    <li><b>示例通知 2</b><span>演示数据，真实运行时来自手机</span></li>
+                    <li><b>手机通知</b><span>来自手机的一条通知</span></li>
+                    <li><b>另一条通知</b><span>手机上刚收到的内容</span></li>
                   </ul>
                   <a class="pm-link" href="#features" data-jump="features:ch-cast">看「安卓投屏」的完整说明 →</a>
                 </div>
@@ -235,7 +262,7 @@
               </div>
             </div>
 
-            <p class="stage-hint">面板内容全是<strong>演示样例</strong>，可以真的点：搜索、预览、页签都能试</p>
+            <p class="stage-hint">面板可以直接点：悬停条目出预览，搜索框能过滤，页签能切换</p>
           </div>
         </div>
       </div>
@@ -545,7 +572,7 @@
                 <h3>一眼看完今天</h3>
                 <p>顶部四个页签：主页、监测、中转、投屏。搜索框、日历、剪贴板历史依次排下来，底部是搜索和筛选，另外还有标签、编辑和上传。</p>
                 <ul class="shot-points">
-                  <li><b>剪贴板</b>图里这些条目是预先灌进去的演示数据：JSON、Markdown、Swift、Python、图片和链接</li>
+                  <li><b>剪贴板</b>图里是 JSON、Markdown、Swift、Python、图片和链接</li>
                   <li><b>搜索</b>输入关键词直接过滤，输入 / 变工具启动器</li>
                   <li><b>日历</b>公历、农历、节气、节假日同屏</li>
                 </ul>
@@ -604,7 +631,7 @@
 
             <div class="shot-frame">
               <div data-shot-slide="panel">
-                <img src="assets/shots/panel.png" alt="Kitnest 主面板实机截图，剪贴板里是演示数据" data-shot-file="assets/shots/panel.png">
+                <img src="assets/shots/panel.png" alt="Kitnest 主面板实机截图，剪贴板历史" data-shot-file="assets/shots/panel.png">
               </div>
               <div data-shot-slide="monitor" hidden>
                 <img src="assets/shots/panel-performance.png" alt="Kitnest 监测页实机截图" data-shot-file="assets/shots/panel-performance.png">
@@ -638,12 +665,12 @@
           <div class="section-head">
             <span class="kicker">Motion</span>
             <h2>截图这件事，<br>一屏讲完。</h2>
-            <p class="lede">下面是完整交互流程的演示动图：<b>⌥S 框选 → 截取 → 动作条 → 标注（矩形 / 箭头 / 马赛克）→ 复制</b>。画面为模拟内容，不含任何真实数据。</p>
+            <p class="lede">下面是完整交互流程的动图：<b>⌥S 框选 → 截取 → 动作条 → 标注（矩形 / 箭头 / 马赛克）→ 复制</b>。画面为模拟内容，不含任何真实数据。</p>
           </div>
 
           <figure class="gif-figure">
-            <img src="assets/gifs/capture-flow.gif" alt="Kitnest 截图与标注流程演示动图：区域框选、动作条、矩形与箭头标注、马赛克遮盖、复制到剪贴板" loading="lazy">
-            <figcaption><b>截图与标注全流程</b> · ⌥S 区域截图 / ⇧⌥W 窗口截图 / ⇧⌥L 长截图；截完可复制、贴图、识字、翻译、编辑、美化、空投。演示动图由 <code>website/tools/make_gifs.py</code> 生成，内容全部虚构。</figcaption>
+            <img src="assets/gifs/capture-flow.gif" alt="Kitnest 截图与标注流程动图：区域框选、动作条、矩形与箭头标注、马赛克遮盖、复制到剪贴板" loading="lazy">
+            <figcaption><b>截图与标注全流程</b> · ⌥S 区域截图 / ⇧⌥W 窗口截图 / ⇧⌥L 长截图；截完可复制、贴图、识字、翻译、编辑、美化、空投。动图由 <code>website/tools/make_gifs.py</code> 生成，内容全部虚构。</figcaption>
           </figure>
         </div>
       </div>

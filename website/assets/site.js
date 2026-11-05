@@ -136,11 +136,27 @@
   var mbIcon = $("#mbIcon");
   var panelMock = $("#panelMock");
 
+  var panelTimer = null;
+
   function setPanel(open) {
     if (!panelMock || !mbIcon) return;
-    panelMock.hidden = !open;
     mbIcon.setAttribute("aria-expanded", open ? "true" : "false");
     mbIcon.setAttribute("aria-label", open ? "收起主面板" : "展开主面板");
+    if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+    if (open) {
+      panelMock.hidden = false;
+      panelMock.classList.remove("is-closing");
+      // 强制重排，让开合动画每次都重放
+      void panelMock.offsetWidth;
+      panelMock.classList.add("is-open");
+    } else {
+      panelMock.classList.remove("is-open");
+      panelMock.classList.add("is-closing");
+      panelTimer = setTimeout(function () {
+        panelMock.hidden = true;
+        panelMock.classList.remove("is-closing");
+      }, 220);
+    }
   }
 
   if (mbIcon && panelMock) {
@@ -157,7 +173,21 @@
     });
   }
 
-  /* ---------------- 部件浮窗（演示数据） ---------------- */
+  /* 玻璃高光跟随指针：把指针位置写进 --lg-x / --lg-y，
+     CSS 里用 radial-gradient 画反射光斑（对齐 App 玻璃的镜面感） */
+  $$(".lg").forEach(function (el) {
+    el.addEventListener("pointermove", function (e) {
+      var r = el.getBoundingClientRect();
+      el.style.setProperty("--lg-x", (e.clientX - r.left) + "px");
+      el.style.setProperty("--lg-y", (e.clientY - r.top) + "px");
+    });
+    el.addEventListener("pointerleave", function () {
+      el.style.setProperty("--lg-x", "50%");
+      el.style.setProperty("--lg-y", "0%");
+    });
+  });
+
+  /* ---------------- 部件浮窗 ---------------- */
 
   var WIDGETS = {
     cpu: {
@@ -220,25 +250,33 @@
     });
   }
 
-  /* ---------------- 可交互主面板（演示数据） ---------------- */
+  /* ---------------- 可交互主面板 ---------------- */
 
   var FAKE_CLIP = [
     { kind: "文字", cls: "", title: "周报草稿：第三部分待补充数据", meta: "2 分钟前 · 148 个字符 · 备忘录",
-      preview: "周报草稿：第三部分待补充数据。<br>演示内容，用于展示剪贴板条目的<b>预览气泡</b>。" },
-    { kind: "链接", cls: "link", title: "https://example.com/kitnest/demo", meta: "5 分钟前 · 32 个字符 · Safari",
-      preview: "<code>https://example.com/kitnest/demo</code><br>演示链接，真实场景下点开即在浏览器中打开。" },
-    { kind: "图片", cls: "img", title: "示例截图 2026-11-05.png", meta: "12 分钟前 · 1024×1024 pt",
-      preview: "示例图片占位 —— 真实运行时这里显示图片本身。" },
+      preview: "周报草稿：第三部分待补充数据。<br>第三部分还差发布流程和回滚说明，明天上午补齐。",
+      detail: "text" },
+    { kind: "链接", cls: "link", title: "https://example.com/kitnest/release", meta: "5 分钟前 · 32 个字符 · Safari",
+      preview: "<code>https://example.com/kitnest/release</code><br>链接双击会直接回到当前窗口。",
+      detail: "link" },
+    { kind: "图片", cls: "img", title: "屏幕快照 2026-11-05 14.32.png", meta: "12 分钟前 · 1024×1024 pt",
+      preview: "图片条目会显示缩略图，可以直接贴图或钉在屏幕上。",
+      detail: "image" },
     { kind: "文字", cls: "", title: "会议室 A-203 / 14:30", meta: "20 分钟前 · 18 个字符 · 日历",
-      preview: "会议室 A-203 / 14:30<br>演示条目。" },
+      preview: "会议室 A-203 / 14:30<br>从日历复制过来的日程。",
+      detail: "text" },
     { kind: "文件", cls: "file", title: "发布流程-checklist.md", meta: "1 小时前 · 2.1 KB · 访达",
-      preview: "演示文件条目：真实运行时支持预览包内条目，并按类型显示图标。" },
-    { kind: "文字", cls: "", title: "测试用示例文案，仅供演示", meta: "3 小时前 · 12 个字符",
-      preview: "演示内容。" },
-    { kind: "链接", cls: "link", title: "https://example.org/docs?q=demo", meta: "昨天 · 28 个字符",
-      preview: "<code>https://example.org/docs?q=demo</code>" },
-    { kind: "文字", cls: "", title: "TODO：把安装包校验写进发版脚本", meta: "昨天 · 34 个字符 · 编辑器",
-      preview: "演示内容。" }
+      preview: "Markdown 文档会显示正文和文件图标，点「快速查看」能用系统预览逐页翻。",
+      detail: "file" },
+    { kind: "文字", cls: "", title: "TODO：把安装包校验写进发版脚本", meta: "3 小时前 · 26 个字符 · 编辑器",
+      preview: "TODO：把安装包校验写进发版脚本<br>顺便把官网的下载页也更新一下。",
+      detail: "text" },
+    { kind: "链接", cls: "link", title: "https://example.org/docs/glass", meta: "昨天 · 30 个字符",
+      preview: "<code>https://example.org/docs/glass</code><br>文档链接。",
+      detail: "link" },
+    { kind: "文字", cls: "", title: "临时记一下：下午三点前把 DNS 记录加上", meta: "昨天 · 22 个字符",
+      preview: "临时记一下：下午三点前把 DNS 记录加上<br>加完记得把证书签了。",
+      detail: "text" }
   ];
 
   var FAKE_TOOLS = [
@@ -247,6 +285,7 @@
   ];
 
   var pmList = $("#pmList");
+  var pmBody = $(".pm-body");
   var pmTools = $("#pmTools");
   var pmSearch = $("#pmSearch");
   var pmCount = $("#pmCount");
@@ -277,25 +316,55 @@
     }).join("");
   }
 
-  function expandItem(li) {
-    var wasOpen = li.classList.contains("open");
-    $$(".pm-item.open").forEach(function (x) { x.classList.remove("open"); });
-    var preview = li.querySelector(".pm-preview");
-    if (preview) preview.remove();
-    if (wasOpen) return;
+  var pmPreview = $("#pmPreview");
 
+  function previewAction(act) {
+    toast(act === "paste" ? "已粘贴到前台应用"
+      : act === "pin" ? "已置顶"
+      : act === "quick" ? "正在用系统预览打开"
+      : "已删除");
+  }
+
+  function closePreview() {
+    if (!pmPreview) return;
+    pmPreview.hidden = true;
+    $$(".pm-item.open").forEach(function (x) { x.classList.remove("open"); });
+  }
+
+  function showPreview(li) {
+    if (!pmPreview || !pmBody) return;
     var item = FAKE_CLIP[Number(li.getAttribute("data-index"))];
     if (!item) return;
+
+    $$(".pm-item.open").forEach(function (x) { x.classList.remove("open"); });
     li.classList.add("open");
-    var box = document.createElement("div");
-    box.className = "pm-preview";
-    box.innerHTML = item.preview +
-      '<div class="pm-actions">' +
-      '<button type="button" data-act="paste">双击回贴</button>' +
-      '<button type="button" data-act="pin">置顶</button>' +
-      '<button type="button" data-act="del">删除</button>' +
-      "</div>";
-    li.appendChild(box);
+
+    var ico = pmPreview.querySelector(".pm-preview-ico");
+    ico.className = "pm-preview-ico " + item.cls;
+    ico.textContent = item.kind;
+    pmPreview.querySelector(".pm-preview-title").textContent = item.title;
+    pmPreview.querySelector(".pm-preview-meta").textContent = item.meta;
+    pmPreview.querySelector(".pm-preview-body").innerHTML = item.preview;
+
+    pmPreview.hidden = false;
+    pmPreview.classList.remove("pm-preview--above");
+    // 贴着那一行浮出来：下方放得下就放下方，否则翻到上方，且不遮住那一行
+    var bodyH = pmBody.clientHeight;
+    var h = pmPreview.offsetHeight || 132;
+    var rowTop = li.offsetTop;
+    var rowH = li.offsetHeight;
+    var below = rowTop + rowH + 6;
+    var above = rowTop - h - 8;
+    var top;
+    if (below + h <= bodyH - 6) {
+      top = below;
+    } else if (above >= 6) {
+      top = above;
+      pmPreview.classList.add("pm-preview--above");
+    } else {
+      top = Math.max(6, bodyH - h - 6);
+    }
+    pmPreview.style.top = top + "px";
   }
 
   if (pmList) {
@@ -304,19 +373,51 @@
       if (btn) {
         e.stopPropagation();
         var act = btn.getAttribute("data-act");
-        toast(act === "paste" ? "已粘贴到前台应用（演示）"
-          : act === "pin" ? "已置顶（演示）" : "已删除（演示）");
+        toast(act === "paste" ? "已粘贴到前台应用"
+          : act === "pin" ? "已置顶"
+          : act === "quick" ? "正在用系统预览打开"
+          : "已删除");
         return;
       }
       var li = e.target.closest(".pm-item");
-      if (li) expandItem(li);
+      if (!li) return;
+      if (li.classList.contains("open")) closePreview();
+      else showPreview(li);
+    });
+    pmList.addEventListener("mouseover", function (e) {
+      var li = e.target.closest(".pm-item");
+      if (li) showPreview(li);
     });
     pmList.addEventListener("keydown", function (e) {
       if (e.key !== "Enter" && e.key !== " ") return;
       var li = e.target.closest(".pm-item");
       if (!li) return;
       e.preventDefault();
-      expandItem(li);
+      if (li.classList.contains("open")) closePreview();
+      else showPreview(li);
+    });
+  }
+
+  if (pmPreview) {
+    pmPreview.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-act]");
+      if (btn) {
+        e.stopPropagation();
+        var act = btn.getAttribute("data-act");
+        toast(act === "paste" ? "已粘贴到前台应用"
+          : act === "pin" ? "已置顶"
+          : act === "quick" ? "正在用系统预览打开"
+          : "已删除");
+        return;
+      }
+      if (e.target === pmPreview) closePreview();
+    });
+  }
+
+  // 指针离开整块内容区才收起（预览浮层也在内容区里，盖住行时不会误关）
+  if (pmBody) {
+    pmBody.addEventListener("mouseleave", function () {
+      closePreview();
     });
   }
 
@@ -324,7 +425,7 @@
     pmTools.addEventListener("click", function (e) {
       var li = e.target.closest("[data-tool]");
       if (!li) return;
-      toast("演示：执行 " + li.getAttribute("data-tool"));
+      toast("已执行 " + li.getAttribute("data-tool"));
     });
   }
 
@@ -362,7 +463,7 @@
       showPage(tab.getAttribute("data-page"));
       if (pmSearch) { pmSearch.value = ""; }
       if (pmCount) {
-        pmCount.textContent = tab.getAttribute("data-page") === "home" ? FAKE_CLIP.length + " 条记录" : "演示数据";
+        pmCount.textContent = tab.getAttribute("data-page") === "home" ? FAKE_CLIP.length + " 条记录" : "实时刷新";
       }
     });
   });
@@ -378,7 +479,7 @@
 
   $$("[data-toast]").forEach(function (el) {
     el.addEventListener("click", function () {
-      toast(el.getAttribute("data-toast") + "（演示）");
+      toast(el.getAttribute("data-toast"));
     });
   });
 
