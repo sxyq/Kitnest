@@ -433,6 +433,9 @@ check('六段功能动图接入界面页标签与功能页章节',
 await page.evaluate(() => { location.hash = '#showcase'; });
 await page.waitForTimeout(150);
 const gifNames = ['clipboard', 'capture', 'monitor', 'transfer', 'cast', 'toolbox'];
+// v237：七个静态展示位也统一换成 GIF（主面板是真实 DOM 交互，其余是最新版真机导览）
+const viewGifNames = ['view-panel', 'view-monitor', 'view-transfer', 'view-cast',
+                      'view-annotate', 'view-popout', 'view-settings'];
 const gifInfo = [];
 for (const n of gifNames) {
   await page.click('.shot-tab[data-shot="' + n + '"]');
@@ -477,7 +480,7 @@ await page.evaluate(() => window.scrollTo(0, 950));
 await page.waitForTimeout(520);
 const revealed = await page.evaluate(() => document.querySelectorAll('[data-reveal].in').length);
 check('滚动揭示动效生效', revealed > 0, revealed);
-const gifURLs = gifNames.map(n => 'assets/gifs/demo-' + n + '.gif');
+const gifURLs = [...gifNames, ...viewGifNames].map(n => 'assets/gifs/demo-' + n + '.gif');
 const gifStatus = await page.evaluate(async urls => {
   const out = [];
   for (const u of urls) {
@@ -486,7 +489,25 @@ const gifStatus = await page.evaluate(async urls => {
   }
   return out;
 }, gifURLs);
-check('六段功能动图资源全部 200', gifStatus.every(x => x === 200), gifStatus);
+check('十三段动图资源全部 200', gifStatus.every(x => x === 200), gifStatus);
+const viewInfo = await page.evaluate(() => ({
+  gridGif: document.querySelectorAll('.more-shots-grid img[src*=".gif"]').length,
+  staticLeft: document.querySelectorAll('img[src*="/shots/"]').length,
+  settingsGif: /demo-view-settings\.gif/.test(
+    document.querySelector('img[data-shot-file]')?.getAttribute('src') || ''),
+}));
+check('七张静态界面图已全部换成 GIF', viewInfo.gridGif === 6 &&
+  viewInfo.staticLeft === 0 && viewInfo.settingsGif, viewInfo);
+const toolbarInfo = await page.evaluate(() => {
+  const bar = document.querySelector('.pm-toolbar');
+  const segs = document.getElementById('pmSegs');
+  if (!bar || !segs) return { offset: 999, legacy: true };
+  const b = bar.getBoundingClientRect(), s = segs.getBoundingClientRect();
+  return { offset: +((s.left + s.right) / 2 - (b.left + b.right) / 2).toFixed(2),
+           legacy: !!document.querySelector('.pm-toolbar.pm-bar') };
+});
+check('v236 顶栏分段真居中（不再被左组/齿轮挤偏）',
+  Math.abs(toolbarInfo.offset) < 1 && !toolbarInfo.legacy, toolbarInfo);
 const homeDemo = await page.evaluate(() => ({
   btn: !!document.querySelector('[data-home-demo]'),
   href: document.querySelector('[data-home-demo]')?.getAttribute('href'),

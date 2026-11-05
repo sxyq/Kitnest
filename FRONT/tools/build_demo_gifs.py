@@ -19,7 +19,21 @@ SHOTS = ROOT / 'FRONT/assets/shots'
 FRAME_MS = 400          # 所有帧严格等长，节奏不忽快忽慢
 WIDTH = 760
 COLORS = 192
-NAMES = ['clipboard', 'capture', 'monitor', 'transfer', 'cast', 'toolbox']
+NAMES = ['clipboard', 'capture', 'monitor', 'transfer', 'cast', 'toolbox',
+         'view-panel', 'view-monitor', 'view-transfer', 'view-cast',
+         'view-annotate', 'view-popout', 'view-settings']
+
+# 六段「真机界面导览」：从最新版实机截图（已脱敏）做平移导览。
+# view-panel 不用静态图——它由 record_demos.mjs 录官网可交互主面板的真实 DOM 帧。
+VIEW_FILES = {
+    'view-monitor': 'panel-performance.png',
+    'view-transfer': 'panel-transfer.png',
+    'view-cast': 'panel-cast.png',
+    'view-annotate': 'annotate.png',
+    'view-popout': 'popout-cpu.png',
+    'view-settings': 'settings.png',
+}
+VIEW_H = 560
 
 
 def letterbox_free(im: Image.Image) -> Image.Image:
@@ -75,6 +89,40 @@ def capture_frames() -> list:
     return frames
 
 
+def pan_frames(name: str) -> list:
+    """最新真机界面 → 6 帧镜头平移，每帧铺满 760×560。
+
+    v237.1：旧版首/末帧用 contain + pad 做「全景」，真机窗是竖长条时会变成
+    「中间一条窄图、左右两大片浅色留白」，正是要去掉的无用白框。改成先 cover
+    缩放（缩放后宽高必定 >= 画幅），再沿主轴平移取窗：每一帧都是真实界面本身，
+    不补边、不画假箭头，横向窗则沿横轴平移并轻微推近看细节。
+    """
+    src = letterbox_free(Image.open(SHOTS / VIEW_FILES[name]).convert('RGB'))
+    w, h = src.size
+    ratio = WIDTH / VIEW_H
+    scale = max(WIDTH / w, VIEW_H / h)
+    big = src.resize((max(WIDTH, round(w * scale)),
+                      max(VIEW_H, round(h * scale))), Image.LANCZOS)
+    bw, bh = big.size
+    vertical = (bh / bw) > ratio
+    # (主轴位置 0→1, 裁窗尺寸系数；<1 即镜头推近看细节)
+    stops = [(0.00, 1.00), (0.30, 0.94), (0.60, 1.00),
+             (0.86, 0.88), (1.00, 0.96), (0.00, 1.00)]
+    frames = []
+    for t, zoom in stops:
+        cw = round(WIDTH * zoom)
+        ch = round(VIEW_H * zoom)
+        if vertical:
+            x0 = (bw - cw) // 2
+            y0 = round((bh - ch) * t)
+        else:
+            x0 = round((bw - cw) * t)
+            y0 = (bh - ch) // 2
+        crop = big.crop((x0, y0, x0 + cw, y0 + ch))
+        frames.append(crop.resize((WIDTH, VIEW_H), Image.LANCZOS))
+    return frames
+
+
 def build(name: str) -> dict:
     if name == 'capture':
         frames = [resize(f) for f in capture_frames()]
@@ -83,7 +131,13 @@ def build(name: str) -> dict:
         files = sorted(d.glob('*.png'))
         if not files:
             raise SystemExit('缺少截帧：' + str(d))
-        frames = [resize(letterbox_free(Image.open(p).convert('RGB'))) for p in files]
+        frames = []
+        for p in files:
+            im = Image.open(p).convert('RGB')
+            # 导览帧已经是统一画幅且带浅色留白，再做去白边会把画幅裁歪
+            if not name.startswith('view-'):
+                im = letterbox_free(im)
+            frames.append(resize(im))
         # 统一画幅（不同状态下元素高度可能差几像素）
         w = max(f.width for f in frames)
         h = max(f.height for f in frames)
@@ -136,6 +190,15 @@ def build(name: str) -> dict:
 
 def main() -> int:
     OUTDIR.mkdir(parents=True, exist_ok=True)
+    # 六段真机界面导览帧：直接从最新版 shots/ 生成，不经过浏览器截帧
+    for name in VIEW_FILES:
+        d = FRAMES / name
+        d.mkdir(parents=True, exist_ok=True)
+        for old in d.glob('*.png'):
+            old.unlink()
+        for i, frame in enumerate(pan_frames(name)):
+            frame.save(d / ('%03d.png' % i))
+        print('  frames %-16s %d' % (name, len(list(d.glob('*.png')))))
     results = [build(n) for n in NAMES]
     print('%-12s %7s %7s %10s %8s %8s' %
           ('demo', 'states', 'frames', 'size(px)', 'ms', 'KB'))
@@ -145,7 +208,7 @@ def main() -> int:
                '%dx%d' % r['size'], r['ms'], r['kb']))
     durs = set().union(*(r['durations'] for r in results))
     assert durs == {FRAME_MS}, '帧时长不统一：%s' % durs
-    print('\n✅ 六段动图节奏统一（每帧 %dms），共 %.1f MB' %
+    print('\n✅ 十三段动图节奏统一（每帧 %dms），共 %.1f MB' %
           (FRAME_MS, sum(r['kb'] for r in results) / 1024))
     return 0
 

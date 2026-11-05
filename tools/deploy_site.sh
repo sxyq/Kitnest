@@ -50,8 +50,11 @@ fi
 echo "== 2/4 上传站点文件 =="
 # COPYFILE_DISABLE=1 + 排除 ._*：macOS 的 tar 会写入 AppleDouble（._xxx）与扩展属性，
 # 那些文件在 Linux 上是垃圾数据，必须挡掉。
+# v237：官网所有界面展示位都是 GIF；assets/shots/ 只剩本地重建 GIF 用的真机原图
+# （含剪贴板 / 进程榜等本机信息），整个目录排除，不再推到公网。
 COPYFILE_DISABLE=1 tar -czf - \
-  --exclude='.DS_Store' --exclude='._*' --exclude='.gitkeep' --exclude='./tools' \
+  --exclude='.DS_Store' --exclude='._*' --exclude='.gitkeep' \
+  --exclude='./tools' --exclude='./assets/shots' \
   -C "$SITE_DIR" . | ssh "$REMOTE_HOST" "set -e; \
   sudo -n rm -rf '$REMOTE_SITE.new'; \
   sudo -n install -d -m 0755 '$REMOTE_SITE.new'; \
@@ -83,6 +86,15 @@ echo "== 4/4 验证 =="
 ssh "$REMOTE_HOST" "curl -s -o /dev/null -w '  本机(443)首页 HTTP %{http_code}\n' --resolve calorieai.sxyq27.online:443:127.0.0.1 https://calorieai.sxyq27.online/kitnest-site/ || true"
 curl -s -o /dev/null -w "  公网首页 HTTP %{http_code}\n" "$SITE_URL"
 curl -s -o /dev/null -w "  站点 CSS  HTTP %{http_code}\n" "${SITE_URL}assets/site.css"
-curl -s -o /dev/null -w "  面板截图  HTTP %{http_code}\n" "${SITE_URL}assets/shots/panel.png"
 curl -s -o /dev/null -w "  站点清单  HTTP %{http_code}\n" "${SITE_URL}kitnest/stable/latest.json"
+# 13 段动图逐段验 200；顺便确认真机原图目录没有上线
+BAD=0
+for n in clipboard capture monitor transfer cast toolbox view-panel view-monitor \
+         view-transfer view-cast view-annotate view-popout view-settings; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' "${SITE_URL}assets/gifs/demo-$n.gif")
+  [ "$code" = "200" ] || { echo "  ✗ demo-$n.gif HTTP $code"; BAD=1; }
+done
+if [ "$BAD" -eq 0 ]; then echo "  13 段动图  HTTP 200（全部）"; else exit 1; fi
+shot_code=$(curl -s -o /dev/null -w '%{http_code}' "${SITE_URL}assets/shots/panel.png")
+echo "  真机原图目录  HTTP ${shot_code} (应为 404)"
 echo "✓ 部署完成：$SITE_URL"

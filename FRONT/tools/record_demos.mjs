@@ -119,6 +119,16 @@ await seq('monitor', [
   () => switchMod('cpu'),
 ]);
 
+/* 2b. 主面板界面：真实预览 + 页签切换（静态展示位的 demo-view-panel.gif 用这段） */
+await seq('view-panel', [
+  () => switchPage('home'),
+  () => hoverItem('c3'),
+  () => clickIf('#pmPreview [data-md-target="pv-h-2"]'),
+  () => hoverItem('c5'),
+  () => switchPage('monitor'),
+  () => switchPage('home'),
+], 'stage');
+
 /* 3. 文件中转：这三个出口按钮内容不可滚动，用真实 hover + 页签切换产生变化 */
 const hoverNth = (sel, n) => page.locator(sel).nth(n)
   .hover({ timeout: 3000 }).catch(() => {});
