@@ -18,8 +18,10 @@ final class SettingsUIState: ObservableObject {
     @Published var selection: SettingsSidebarSelection = .category(.general)
     /// 「搜索与 AI」内部分段（0=搜索 1=AI）
     @Published var searchAISub = 0
-    /// 「工具与快捷键」内部分段（0=工具 1=快捷键 2=截图）
+    /// 「工具与快捷键」内部分段（0=工具 1=快捷键）
     @Published var toolingSub = 0
+    /// v234：「截图与钉图」内部分段（0=截图 1=钉图）
+    @Published var captureSub = 0
 
     init(selectedPaneID: String = "general") {
         self.selectedPaneID = selectedPaneID
@@ -44,7 +46,9 @@ final class SettingsUIState: ObservableObject {
         case "ai":                       selection = .category(.searchAI); searchAISub = 1
         case "tools":                    selection = .category(.tooling); toolingSub = 0
         case "shortcuts":                selection = .category(.tooling); toolingSub = 1
-        case "capture":                  selection = .category(.tooling); toolingSub = 2
+        // v234：截图独立成一级分类，钉图是它的第二个页签
+        case "capture":                  selection = .category(.capture); captureSub = 0
+        case "pin", "pinSettings":       selection = .category(.capture); captureSub = 1
         case "statistics":               selection = .category(.statistics)
         case "about":                    selection = .category(.about)
         case "monitor", "monitorSettings": selection = .monitorSettings

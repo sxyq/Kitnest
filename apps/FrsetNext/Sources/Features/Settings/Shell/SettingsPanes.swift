@@ -63,7 +63,7 @@ struct GeneralSettingsPane: View {
                             .toggleStyle(.checkbox)
                     }
                     SettingsDivider()
-                    formRow(L10n.t("Appearance"), height: 40) {
+                    formRow(L10n.t("Appearance"), height: 98) {
                         appearanceChoices
                     }
                     SettingsDivider()
@@ -130,26 +130,19 @@ struct GeneralSettingsPane: View {
     }
 
     /// 外观四选一（系统/浅色/深色/Midnight）
+    /// v234：从「四个圆点」换成预览卡片——和钉图预设共用 VisualOptionCard，
+    /// 用户不用试就知道深色/Midnight 长什么样。
     private var appearanceChoices: some View {
-        HStack(spacing: 22) {
+        HStack(alignment: .top, spacing: 8) {
             ForEach(AppearanceMode.allCases) { mode in
-                Button { appearance.apply(mode) } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(appearance.mode == mode ? Theme.accent : Color.secondary.opacity(0.25))
-                            .overlay {
-                                if appearance.mode == mode {
-                                    Image(systemName: "circle.fill")
-                                        .font(.system(size: 5))
-                                        .foregroundStyle(.white)
-                                }
-                            }
-                        Text(appearanceTitle(mode))
-                    }
+                VisualOptionCard(title: appearanceTitle(mode),
+                                 previewSize: CGSize(width: 86, height: 54),
+                                 selected: appearance.mode == mode,
+                                 action: { appearance.apply(mode) }) {
+                    AppearanceThumb(mode: mode)
                 }
-                .buttonStyle(.plain)
             }
+            Spacer(minLength: 0)
         }
     }
 
@@ -733,5 +726,68 @@ struct IgnoredAppsEditor: View {
                 }
             }
         }
+    }
+}
+
+
+// MARK: - 外观预览缩略图（v234）
+
+/// 浅色 / 深色 / Midnight / 跟随系统 的小窗预览
+struct AppearanceThumb: View {
+    let mode: AppearanceMode
+
+    var body: some View {
+        ZStack {
+            background
+            VStack(alignment: .leading, spacing: 4) {
+                RoundedRectangle(cornerRadius: 1.5).fill(ink.opacity(0.45))
+                    .frame(width: 44, height: 4)
+                RoundedRectangle(cornerRadius: 1.5).fill(ink.opacity(0.18))
+                    .frame(width: 62, height: 4)
+                RoundedRectangle(cornerRadius: 1.5).fill(ink.opacity(0.18))
+                    .frame(width: 50, height: 4)
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    @ViewBuilder private var background: some View {
+        switch mode {
+        case .system:
+            ZStack {
+                Color(white: 0.97)
+                LinearGradient(colors: [Color.clear, Color(white: 0.16)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .mask(DiagonalSplit())
+            }
+        case .light:
+            Color(white: 0.97)
+        case .dark:
+            Color(white: 0.17)
+        case .midnight:
+            Color(red: 0.07, green: 0.09, blue: 0.15)
+        }
+    }
+
+    private var ink: Color {
+        switch mode {
+        case .light: return Color(white: 0.15)
+        case .system: return Color(white: 0.3)
+        default: return Color.white
+        }
+    }
+}
+
+/// 左上到右下的斜切遮罩（「跟随系统」用一半深一半浅表达）
+private struct DiagonalSplit: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.closeSubpath()
+        return p
     }
 }

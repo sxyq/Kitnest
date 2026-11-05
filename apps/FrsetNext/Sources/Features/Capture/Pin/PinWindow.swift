@@ -19,6 +19,7 @@ public enum PinStyle {
     public static let keyShadow      = "pin.window.shadow"
     public static let keyMagnet      = "pin.window.auto.magnet"
     public static let keyOpacity     = "pin.window.opacity"
+    public static let keyAutoHide    = "pin.window.chrome.autohide"
 
     /// 描边宽度（0 = 无描边）。1.5 是「能在任何底图上看出边界」的最小值。
     public static var borderWidth: Double {
@@ -54,6 +55,12 @@ public enum PinStyle {
     public static var opacity: Double {
         get { Preferences.shared.value(keyOpacity, default: 1.0) }
         set { Preferences.shared.set(keyOpacity, max(0.15, min(1, newValue))) }
+    }
+
+    /// 控制条静止多久后自动收起（秒）；0 = 不自动收起（移开鼠标仍会收起）
+    public static var chromeAutoHide: Double {
+        get { Preferences.shared.value(keyAutoHide, default: 2.5) }
+        set { Preferences.shared.set(keyAutoHide, max(0, min(10, newValue))) }
     }
 
     /// auto：按图像四周平均亮度反色。浅色截图配深描边、深色截图配白描边，
@@ -756,10 +763,12 @@ final class PinnedScreenshotContentView: NSView {
         })
     }
 
-    /// 静止 2.4s 后隐藏；鼠标停在控制条上时续命
+    /// 静止 N 秒后隐藏；鼠标停在控制条上时续命。N = 0 表示不自动收起。
     private func scheduleChromeHide() {
         chromeHideTimer?.invalidate()
-        let timer = Timer(timeInterval: 2.4, repeats: false) { [weak self] _ in
+        let interval = PinStyle.chromeAutoHide
+        guard interval > 0 else { return }
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             guard let self else { return }
             if self.toolbarHovered { self.scheduleChromeHide(); return }
             let p = self.convert(NSEvent.mouseLocation, from: nil)

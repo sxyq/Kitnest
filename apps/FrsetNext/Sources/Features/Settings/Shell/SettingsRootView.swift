@@ -98,6 +98,13 @@ struct SettingsRootView: View {
                 panePage { ClipboardSettingsPane() }
             case .transfer:
                 panePage { TransferDockSettingsPane() }
+            case .capture:
+                // v234：截图从「工具与快捷键」拆出来独立成一级，
+                // 钉图有自己一页（可视化预设 + 实时预览）
+                segmentedPage(selection: $state.captureSub, tabs: [
+                    ("截图", AnyView(CaptureSettingsPane())),
+                    ("钉图", AnyView(PinSettingsPane()))
+                ])
             case .searchAI:
                 segmentedPage(selection: $state.searchAISub, tabs: [
                     ("搜索", AnyView(SearchSettingsPane())),
@@ -106,8 +113,7 @@ struct SettingsRootView: View {
             case .tooling:
                 segmentedPage(selection: $state.toolingSub, tabs: [
                     ("工具", AnyView(ToolSettingsPane())),
-                    ("快捷键", AnyView(ShortcutSettingsPane())),
-                    ("截图", AnyView(CaptureSettingsPane()))
+                    ("快捷键", AnyView(ShortcutSettingsPane()))
                 ])
             case .statistics:
                 panePage { StatisticsSettingsPane() }

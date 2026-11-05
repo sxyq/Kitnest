@@ -92,3 +92,55 @@ struct SettingsDivider: View {
             .padding(.leading, 38)
     }
 }
+
+// MARK: - 可视化选项卡片（v234）
+//
+// 对齐 1Capture 设置里的「拖放架」四选一：**预览图 + 文字**，选中用强调色描边。
+// 比下拉框贵一点地方，但外观类设置（钉图描边、主题、布局）用户必须"看见"才能选。
+
+struct VisualOptionCard<Preview: View>: View {
+    let title: String
+    /// 预览尺寸：默认 104×66；四张卡片并排放进「标签列 + 内容」的行里时需要收窄
+    let previewSize: CGSize
+    let selected: Bool
+    let action: () -> Void
+    @ViewBuilder var preview: () -> Preview
+
+    init(title: String,
+         previewSize: CGSize = CGSize(width: 104, height: 66),
+         selected: Bool,
+         action: @escaping () -> Void,
+         @ViewBuilder preview: @escaping () -> Preview) {
+        self.title = title
+        self.previewSize = previewSize
+        self.selected = selected
+        self.action = action
+        self.preview = preview
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 7) {
+                preview()
+                    .frame(width: previewSize.width, height: previewSize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(selected ? Theme.accent : Color.primary.opacity(0.12),
+                                          lineWidth: selected ? 2 : 0.8)
+                    )
+                Text(title)
+                    .font(.system(size: 11.5, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? Theme.accent : Color.primary.opacity(0.82))
+            }
+            .padding(7)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(selected ? Theme.accent.opacity(0.10) : Color.clear)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(title)
+    }
+}
