@@ -1,28 +1,28 @@
 ﻿module,file,owner,name,kind,line,status,evidence
-App,App/AppBootstrap.swift,AppBootstrap,start,func,10,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,stop,func,215,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,221,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,277,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,399,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,432,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,437,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,func,451,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,func,479,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,489,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,496,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,505,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,func,525,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,func,536,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,550,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,558,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,568,UNREVIEWED,
-App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,583,UNREVIEWED,
-App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,UNREVIEWED,
-App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,68,UNREVIEWED,
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,92,UNREVIEWED,
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,97,UNREVIEWED,
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,104,UNREVIEWED,
-App,App/FrsetNextApp.swift,AppDelegate,application,func,115,UNREVIEWED,
+App,App/AppBootstrap.swift,AppBootstrap,start,func,10,KEEP,FrsetNextApp:41 应用启动唯一入口；注册 8 个模块并 startAll
+App,App/AppBootstrap.swift,AppBootstrap,stop,func,215,KEEP,FrsetNextApp:101 applicationWillTerminate 调用
+App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,221,KEEP,start L45 调用；接线截图/OCR/取色/AI/工具箱产出到剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,277,KEEP,start L91 调用；注册取色器工具砖（跨模块）
+App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,399,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
+App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,432,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
+App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,437,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
+App,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,func,451,KEEP,ShortcutSettingsPane:130 切换 2× 模式；内部也会被 setShortcut L509 调用
+App,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,func,479,KEEP,ShortcutSettingsPane:90 更换双击修饰键
+App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,489,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
+App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,496,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
+App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,505,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
+App,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,func,525,KEEP,ShortcutSettingsPane:36「恢复默认快捷键」
+App,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,func,536,KEEP,registerDefaultHotkeys L406 判断是否有用户自定义通道
+App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,550,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
+App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,558,KEEP,onTextRecognized L246 一次性消费挂起标志
+App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,568,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,583,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
+App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
+App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,68,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,92,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,97,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,104,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,application,func,115,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,UNREVIEWED,
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,50,UNREVIEWED,
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,52,UNREVIEWED,
