@@ -181,13 +181,6 @@ public final class ClipboardManager: ObservableObject {
         Log.info("clipboard", "ClipboardManager 已启动（自适应轮询 \(Self.idlePollingInterval)s / 突发 \(Self.burstPollingInterval)s）")
     }
 
-    public func stop() {
-        pollTimer?.invalidate(); pollTimer = nil
-        retryTimer?.invalidate(); retryTimer = nil
-        ClipboardHistoryRetentionPruneScheduler.shared.stop()
-        ClipboardStoragePruneScheduler.shared.stop()
-    }
-
     // MARK: 双速率轮询（specs/14 Q①：无事件驱动捕获，纯自适应 Timer）
 
     private func schedulePoll(interval: TimeInterval) {
@@ -780,21 +773,6 @@ public final class ClipboardManager: ObservableObject {
 }
 
 // MARK: - 全局搜索结果条目
-
-/// 剪贴板模块自有的搜索命中类型。
-/// 主面板搜索 UI 的结果类型（SearchResultItem）属于工具箱模块，模块间不互相引用，
-/// 由总控在接线时做一次性映射。
-public struct ClipboardGlobalSearchHit {
-    public let item: ClipboardItem
-    public let title: String
-    public let subtitle: String?
-
-    public init(item: ClipboardItem) {
-        self.item = item
-        self.title = item.displayTitle
-        self.subtitle = item.subtitle
-    }
-}
 
 // MARK: - 行号统计
 

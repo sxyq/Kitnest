@@ -45,11 +45,6 @@ public final class ClipboardHistoryRetentionPruneScheduler {
         pruneAsync()
     }
 
-    public func stop() {
-        timer?.invalidate()
-        timer = nil
-    }
-
     /// 后台执行一次清理（主线程调用安全），结果回主线程
     public func pruneAsync(completion: ((ClipboardPruneResult) -> Void)? = nil) {
         queue.async { [weak self] in
@@ -130,11 +125,6 @@ public final class ClipboardStoragePruneScheduler {
         RunLoop.main.add(timer!, forMode: .common)
         Log.info("clipboard", "容量清理已启动：上限 \(limitBytes / 1024 / 1024) MB")
         pruneAsync()
-    }
-
-    public func stop() {
-        timer?.invalidate()
-        timer = nil
     }
 
     /// 后台执行一次清理（主线程调用安全），结果回主线程

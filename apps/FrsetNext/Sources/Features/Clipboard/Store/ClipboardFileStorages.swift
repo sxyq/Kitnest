@@ -96,8 +96,6 @@ public enum ClipboardRichTextStorage {
         guard let data = ClipboardFileStore.read(relativePath) else { return nil }
         return NSAttributedString(rtf: data, documentAttributes: nil)
     }
-
-    public static func remove(_ relativePath: String?) { ClipboardFileStore.remove(relativePath) }
 }
 
 // MARK: - OCR 文本落盘（图片条目的可搜索副产品，05 号规格 B11）
@@ -224,13 +222,6 @@ public enum ClipboardImageStorage {
                            thumbnailPath: thumbnailPath,
                            byteCount: imageData.count,
                            pixelSize: Self.pixelSize(of: source))
-    }
-
-    /// ImageIO 缩放：只读解码到目标尺寸，避免整图常驻内存
-    @discardableResult
-    public static func makeThumbnail(from data: Data, toRelativePath path: String) -> Bool {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return false }
-        return makeThumbnail(from: source, toRelativePath: path)
     }
 
     // v126（性能审计 F0578）：source 重载，供 store() 与像素尺寸读取复用同一次头解析

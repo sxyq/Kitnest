@@ -59,13 +59,6 @@ public final class TagStore: ObservableObject {
         lock.unlock()
     }
 
-    public func tags(for dedupeKey: String) -> [Tag] {
-        lock.lock()
-        let ids = Set(mapping[dedupeKey] ?? [])
-        lock.unlock()
-        return tags.filter { ids.contains($0.id) }
-    }
-
     // MARK: 写
 
     @discardableResult
@@ -85,16 +78,6 @@ public final class TagStore: ObservableObject {
             Log.info("clipboard", "标签重名，复用既有: \(trimmed)")
             return tags.first { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
         }
-    }
-
-    public func rename(id: String, name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        do {
-            try db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ?",
-                       [.text(trimmed), .real(Date().timeIntervalSince1970), .text(id)])
-        } catch { Log.warn("clipboard", "标签改名失败: \(error)") }
-        refresh()
     }
 
 
