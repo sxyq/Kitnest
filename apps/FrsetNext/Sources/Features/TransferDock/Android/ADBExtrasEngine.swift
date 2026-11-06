@@ -125,52 +125,6 @@ public enum ADBExtrasEngine {
         }
     }
 
-    // MARK: ① 一键无线
-
-    /// USB 已连接时执行 `adb tcpip 5555`，再取设备 IP 并 `adb connect ip:5555`。
-    /// 之后同一 Wi-Fi 下无需再开无线调试、无需配对码（与原版 scrcpy 工作流一致）。
-    public static func enableWireless(completion: @escaping (Bool, String) -> Void) {
-        deviceIP { ip in
-            guard let ip else {
-                completion(false, "取不到设备 IP（手机需先连同一 Wi-Fi）")
-                return
-            }
-            run(["tcpip", "5555"]) { out1 in
-                // tcpip 生效需要 1-2 秒，稍等再连
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    run(["connect", "\(ip):5555"]) { out2 in
-                        let log = [out1 ?? "", out2 ?? ""].joined(separator: " · ")
-                        let ok = (out2 ?? "").lowercased().contains("connected")
-                        completion(ok, ok ? "已启用无线：\(ip):5555" : log)
-                    }
-                }
-            }
-        }
-    }
-
-    /// 设备 Wi-Fi IP（wlan0 优先）
-    static func deviceIP(completion: @escaping (String?) -> Void) {
-        run(["shell", "ip", "-f", "inet", "addr", "show", "wlan0"]) { out in
-            if let ip = Self.firstIPv4(in: out) { completion(ip); return }
-            run(["shell", "ip", "-f", "inet", "addr", "show"]) { out2 in
-                completion(Self.firstIPv4(in: out2))
-            }
-        }
-    }
-
-    private static func firstIPv4(in text: String?) -> String? {
-        guard let text else { return nil }
-        let pattern = "inet (\\d+\\.\\d+\\.\\d+\\.\\d+)/"
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let ns = text as NSString
-        guard let m = re.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)),
-              m.numberOfRanges > 1 else { return nil }
-        let ip = ns.substring(with: m.range(at: 1))
-        // 排除回环 / 虚拟网卡常见段
-        if ip.hasPrefix("127.") || ip.hasPrefix("0.") { return nil }
-        return ip
-    }
-
     // MARK: ② 打开手机无线调试页
 
     public static func openWirelessDebugging(completion: ((String) -> Void)? = nil) {
@@ -359,20 +313,6 @@ public enum ADBExtrasEngine {
         case power = 26        // KEYCODE_POWER
         case volumeUp = 24
         case volumeDown = 25
-    }
-
-    /// 发送系统按键（走 adb input keyevent，不依赖 scrcpy 窗口焦点）
-    public static func sendKey(_ key: NavKey, completion: ((Bool) -> Void)? = nil) {
-        run(["shell", "input", "keyevent", "\(key.rawValue)"]) { out in
-            completion?(!(out ?? "").lowercased().contains("error"))
-        }
-    }
-
-    /// 展开手机通知栏（全面屏手势机没有下拉区域在投屏窗里时用）
-    public static func expandNotifications(completion: ((Bool) -> Void)? = nil) {
-        run(["shell", "cmd", "statusbar", "expand-notifications"]) { out in
-            completion?(!(out ?? "").lowercased().contains("error"))
-        }
     }
 
     // MARK: ⑦ Meld：虚拟屏 + 单应用窗口

@@ -79,15 +79,6 @@ public enum TransferDockPref {
             set { UserDefaults.standard.set(newValue, forKey: clipboardKey) }
         }
 
-        /// 组装 scrcpy 参数（统一入口：镜像与 Meld 窗口共用同一套画质）
-        public static func arguments() -> [String] {
-            var a: [String] = []
-            if maxSize > 0 { a += ["--max-size", "\(maxSize)"] }
-            a += ["--video-bit-rate", "\(bitrate)M"]
-            if fps > 0 { a += ["--max-fps", "\(fps)"] }
-            return a
-        }
-
         /// 人类可读摘要（设置页/投屏页展示）
         public static var summary: String {
             let size = maxSize == 0 ? "原始分辨率" : "\(maxSize)p"

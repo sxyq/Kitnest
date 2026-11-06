@@ -107,20 +107,6 @@ public final class AdbCastMemory {
         Self.save(list, key: key)
     }
 
-    public func forget(serial: String) {
-        lock.lock()
-        var list = cache ?? Self.load(key: key)
-        list.removeAll { $0.serial == serial }
-        cache = list
-        lock.unlock()
-        Self.save(list, key: key)
-    }
-
-    public func forgetAll() {
-        lock.lock(); cache = []; lock.unlock()
-        UserDefaults.standard.removeObject(forKey: key)
-    }
-
     // MARK: 工具
 
     static func split(_ serial: String) -> (host: String, port: String)? {

@@ -40,7 +40,6 @@ struct TransferDockView: View {
     @Stored private var localDropTargeted = false
     // v128（流畅度）：hoveredCloudID/hoveredLocalID 已下沉到行视图（CloudRowView /
     // LocalCardRowView 各自持有），父视图不再跟踪 hover，避免 hover 触发整表重算。
-    @Stored private var lanCollapsed = false
     /// 本地暂存勾选集合（勾选后可「扫码直传 / 加入云端 / 移出」批量操作）
     @Stored private var selectedIDs = Set<String>()
     /// 「扫码直传」选中文件的二维码链接（带 ?pick=ids，手机只看到这几个）
@@ -568,91 +567,6 @@ struct TransferDockView: View {
         }
     }
 
-    // MARK: 手机扫码直传
-
-    private var lanCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "iphone.and.arrow.forward")
-                    .font(.system(size: 11))
-                    .foregroundStyle(lan.running ? Theme.accent : Color.secondary)
-                Text("手机扫码直传")
-                    .font(.system(size: 11, weight: .semibold))
-                Text(lan.running ? "同一 Wi-Fi" : "未启动")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                Spacer(minLength: 2)
-                Button {
-                    withAnimation(Theme.Motion.fast) { lanCollapsed.toggle() }
-                } label: {
-                    Image(systemName: lanCollapsed ? "chevron.down" : "chevron.up")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .frame(width: 16, height: 16)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(lanCollapsed ? "展开二维码" : "收起二维码")
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 24)
-            .background(Color.primary.opacity(0.02))
-
-            if !lanCollapsed {
-                HStack(alignment: .top, spacing: 10) {
-                    QRCodeView(text: lan.shareURL ?? "frset://lan-pending", size: 74)
-                        .opacity(lan.shareURL == nil ? 0.18 : 1)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let url = lan.shareURL {
-                            Text(url)
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                            HStack(spacing: 8) {
-                                smallAction("复制链接", icon: "doc.on.doc") { copyLink(url) }
-                                smallAction("用浏览器打开", icon: "safari") {
-                                    if let u = URL(string: url) { NSWorkspace.shared.open(u) }
-                                }
-                            }
-                            Text(lan.running
-                                 ? "微信/相机扫一扫 → 浏览器里选文件上传，也能下载 Mac 上的暂存文件"
-                                 : "勾选文件后点「扫码直传」生成二维码；如需手机上传可手动启动")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.tertiaryText)
-                                .fixedSize(horizontal: false, vertical: true)
-                        } else {
-                            Text(lan.statusText.isEmpty ? "服务未启动 · 勾选文件后点「扫码直传」" : lan.statusText)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            smallAction("启动直传", icon: "play.fill") {
-                                lan.start()
-                            }
-                        }
-                        if lan.receivedCount > 0 || lan.sentCount > 0 {
-                            Text("本次已收 \(lan.receivedCount) · 已发 \(lan.sentCount)")
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.tertiaryText)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
-                .padding(.top, 2)
-            }
-        }
-    }
-
-    private func copyLink(_ url: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url, forType: .string)
-        Toast.show("直传链接已复制", icon: "doc.on.doc")
-    }
-
     private func smallAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 3) {
@@ -669,45 +583,6 @@ struct TransferDockView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: 隔空投送（v103 新传输路线：系统级 AirDrop，iPhone 零安装）
-
-    private var airDropSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title: "隔空投送", symbol: "dot.radiowaves.left.and.right",
-                          detail: AirDropSendEngine.isAvailable
-                            ? "系统原生互传 · iPhone 无需安装任何 App"
-                            : "本机隔空投送不可用",
-                          tint: Color(red: 0.15, green: 0.55, blue: 0.95)) {
-                smallAction("发送文件", icon: "paperplane") {
-                    let panel = NSOpenPanel()
-                    panel.allowsMultipleSelection = true
-                    panel.canChooseDirectories = false
-                    if panel.runModal() == .OK {
-                        AirDropSendEngine.send(urls: panel.urls)
-                    }
-                }
-            }
-            HStack(spacing: 8) {
-                smallAction("发送暂存项", icon: "square.and.arrow.up") {
-                    let urls = LocalTransferStore.shared.items
-                        .map { sendableURL($0) }
-                        .filter { FileManager.default.fileExists(atPath: $0.path) }
-                    AirDropSendEngine.send(urls: urls)
-                }
-                smallAction("接收说明", icon: "info.circle") {
-                    Toast.show("iPhone 选中文件 → 隔空投送 → 本机即自动入暂存",
-                               icon: "dot.radiowaves.left.and.right")
-                }
-            }
-            Text("发送：调系统空投面板选 iPhone；接收：iPhone 空投到本机，落盘后自动进入「本地暂存」。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     // MARK: 文件互传 · Android（v112：ADB 文件桥，对标报告第一批 P1）
 
     @Stored private var adbFileStatus = ""
@@ -716,79 +591,6 @@ struct TransferDockView: View {
     @Stored private var pushActive = false
     @Stored private var pushFraction: Double = 0
     @Stored private var pushDetail = ""
-
-    private var adbFileSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(title: "文件互传 · Android", symbol: "internaldrive",
-                          detail: "ADB 通道 · 手机零安装",
-                          tint: Color(red: 0.2, green: 0.65, blue: 0.5)) {
-                // v114：连接设备（USB/无线配对）统一收在「投屏」页，此处直达
-                smallAction("连接设备", icon: "wifi") {
-                    MonitorCenterPresenter.shared.selectCast()
-                }
-                smallAction(adbPushing ? "传输中…" : "拉取手机文件", icon: "square.and.arrow.down") {
-                    pullFromPhone()
-                }
-            }
-            HStack(spacing: 8) {
-                smallAction("推送暂存项到手机", icon: "square.and.arrow.up") {
-                    pushStagedToPhone()
-                }
-                // v116：APK 安装（adb install -r -d）
-                smallAction("安装 APK", icon: "plus.app") {
-                    installAPK()
-                }
-                Text("需先在「投屏」页连接设备（USB 或无线）；推送目标 Download/Kitnest/，拉取同目录入暂存。")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if !adbFileStatus.isEmpty {
-                Text(adbFileStatus)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(4)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// v116：选择 APK → adb install（保留数据 -r、允许降级 -d）
-    private func installAPK() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = []
-        panel.allowedFileTypes = ["apk", "apks", "xapk"]
-        panel.allowsMultipleSelection = false
-        panel.message = "选择要安装到手机的 APK"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        adbFileStatus = "安装中：\(url.lastPathComponent)…"
-        ADBExtrasEngine.installAPK(url: url) { ok, log in
-            adbFileStatus = log
-            Toast.show(ok ? "安装成功：\(url.lastPathComponent)" : "安装失败（见状态行）",
-                       icon: ok ? "checkmark.seal.fill" : "exclamationmark.triangle",
-                       isWarning: !ok)
-        }
-    }
-
-    private func pushStagedToPhone() {
-        guard !adbPushing else { return }
-        let urls = LocalTransferStore.shared.items
-            .map { sendableURL($0) }
-            .filter { FileManager.default.fileExists(atPath: $0.path) }
-        guard !urls.isEmpty else {
-            adbFileStatus = "本地暂存为空——先在下方暂存区添加文件"; return
-        }
-        adbPushing = true
-        adbFileStatus = "推送中（\(urls.count) 个文件）…"
-        ADBFileBridge.push(urls: urls) { sent, log in
-            adbPushing = false
-            adbFileStatus = log
-            Toast.show("已推送 \(sent)/\(urls.count) 个文件到手机", icon: "square.and.arrow.up")
-            Log.info("Transfer", "ADB 推送完成 \(sent)/\(urls.count)")
-        }
-    }
 
     private func pullFromPhone() {
         guard !adbPushing else { return }

@@ -125,12 +125,6 @@ public final class AirDropReceiveWatcher {
         }
     }
 
-    public func stop() {
-        source?.cancel()
-        source = nil
-        started = false
-    }
-
     /// 扫描新落盘的完整文件（跳过 .download 等未完成文件）
     private func scan() {
         let dir = downloadsDir
