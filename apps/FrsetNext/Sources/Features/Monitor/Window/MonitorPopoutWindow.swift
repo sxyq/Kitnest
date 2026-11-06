@@ -77,6 +77,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     private var lastModule: MonitorModuleID = .cpu
     /// v197：最近一次展开的锚点（状态栏部件）。收回时按同一锚点缩回——从哪来回哪去。
     private var lastAnchor: NSRect?
+    /// 本次展开的目标位置（神灯先把窗口停到屏幕外抓快照，抓完移到这里）
+    private var appearDestination: NSPoint?
     /// 滚动复位信号（每次打开回到顶部）
     private let scrollState = PopoutScrollState()
 
@@ -200,11 +202,32 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     /// ⌥M：可见则收起，否则按 module（缺省 = 上次查看的模块）打开
     public func toggle(module: MonitorModuleID? = nil) {
+        // v247：神灯在跑就立刻掉头——展开中→收起、收起中→再展开，
+        // 不再等这一腿跑完（那样连点就是「一顿一顿」）
+        if GenieWarp.isRunning {
+            if GenieWarp.isOpening {
+                dismissPopout()
+            } else {
+                reverseToOpen(module: module)
+            }
+            return
+        }
         if isVisible {
             dismissPopout()
         } else {
             open(module: module)
         }
+    }
+
+    /// 收起途中被要求重新打开：复用已有帧反向播，不重抓快照
+    private func reverseToOpen(module: MonitorModuleID?) {
+        guard let w = window else { return }
+        if let module { sharedSelection.module = module; lastModule = module }
+        appearToken += 1
+        isDismissing = false
+        Log.info("Monitor", "监测独立窗口：掉头重开")
+        playAppearAnimation(anchor: lastAnchor)
+        w.makeKeyAndOrderFront(nil)
     }
 
     /// 打开。anchor = 状态栏部件屏幕坐标（部件点击传入）——窗口在其正下方展开，
@@ -225,13 +248,18 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         w.contentView?.layer?.removeAllAnimations()
         w.contentView?.layer?.transform = CATransform3DIdentity   // 兜底复位（白屏态重开）
         w.contentView?.layer?.opacity = 1
-        w.setFrameOrigin(origin(for: w.frame.size, anchor: anchor))
+        let dest = origin(for: w.frame.size, anchor: anchor)
+        appearDestination = dest
+        // v247：与主面板同一套——神灯展开前先把窗口停到屏幕外抓快照，抓完透明移回
+        let parked = GenieWarp.isEnabled
+        w.setFrameOrigin(parked ? parkOrigin(for: w, dest: dest) : dest)
         w.alphaValue = 1
         lastAnchor = anchor
         // v74 四路冗余：① 激活+key ② 全局监视器 ③ 本 app 内监视器 ④ 按键轮询兜底
         // （LSUIElement 未前台时窗口可能成不了 key → resignKey 永不触发）
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
+        if parked { w.setFrameOrigin(parkOrigin(for: w, dest: dest)) }
         // v197：入场动画挪到 makeKey 之后——先上屏再展开，避免动画时钟在布局期间跑掉
         playAppearAnimation(anchor: anchor)
         // 点外收起：统一注册到 TransientWindowCenter（全工程唯一实现）
@@ -296,11 +324,29 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     // MARK: 动画（v71：contentView.layer CA 动画，GPU 合成不卡顿）
 
-    /// 入场：以状态栏部件为锚点，整块内容层缩放展开（WindowReveal，只动 transform/opacity）
+    /// 入场：与主面板共用神灯（可打断、从哪来回哪去）；神灯起不来时退回缩放
     private func playAppearAnimation(anchor: NSRect?) {
         guard let w = window else { return }
+        let dest = appearDestination ?? w.frame.origin
+        let slot = anchor ?? defaultSlot(for: w)
+        if GenieWarp.shared.playIn(window: w, slot: slot, duration: 0.42, destination: dest) {
+            return
+        }
+        if w.frame.origin != dest { w.setFrameOrigin(dest) }
+        w.alphaValue = 1
         WindowReveal.playIn(on: w, from: anchorUnit(anchor), scale: 0.90,
                             duration: 0.28, timing: Theme.Motion.caBackOut)
+    }
+
+    /// 神灯展开前的临时停靠位（屏幕上方之外，AppKit 不会拉回）
+    private func parkOrigin(for w: NSWindow, dest: NSPoint) -> NSPoint {
+        let screen = w.screen ?? NSScreen.main
+        return NSPoint(x: dest.x, y: (screen?.frame.maxY ?? 0) + w.frame.height + 200)
+    }
+
+    /// 无锚点时的兜底插槽：窗口上沿右侧 22pt 方块
+    private func defaultSlot(for w: NSWindow) -> NSRect {
+        NSRect(x: w.frame.maxX - 46, y: w.frame.maxY - 1, width: 22, height: 22)
     }
 
     /// 状态栏部件在窗口内的归一化锚点（x = 部件中心，y = 0 顶边）
@@ -330,12 +376,20 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         Log.info("Monitor", "监测独立窗口：dismiss")
         RenderProbe.snapshot(w, name: "monitorPopout", reason: "dismiss")
         // v197：整块内容层缩回状态栏部件位置（WindowReveal，只动 transform/opacity）
-        WindowReveal.playOut(on: w, to: anchorUnit(lastAnchor), scale: 0.96,
-                             duration: Theme.Motion.dFast, timing: Theme.Motion.caEaseIn) { [weak self] in
+        // v247：优先走神灯——与展开同一套网格，可被打断、从哪来回哪去
+        let slot = lastAnchor ?? defaultSlot(for: w)
+        let usedGenie = GenieWarp.shared.playOut(window: w, slot: slot, duration: 0.42) { [weak self] in
             self?.finishDismiss(token: token)
         }
-        // 硬兜底：无论动画回调是否执行，0.2s 后一定收尾（幂等）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        if !usedGenie {
+            WindowReveal.playOut(on: w, to: anchorUnit(lastAnchor), scale: 0.96,
+                                 duration: Theme.Motion.dFast, timing: Theme.Motion.caEaseIn) { [weak self] in
+                self?.finishDismiss(token: token)
+            }
+        }
+        // 硬兜底：无论动画回调是否执行，一定收尾（幂等）。神灯要 0.42s，兜底得放宽，
+        // 否则 0.2s 就把动画掐断（v247 之前的「僵硬」部分来自这里）
+        DispatchQueue.main.asyncAfter(deadline: .now() + (usedGenie ? 0.62 : 0.2)) { [weak self] in
             self?.finishDismiss(token: token)
         }
     }
