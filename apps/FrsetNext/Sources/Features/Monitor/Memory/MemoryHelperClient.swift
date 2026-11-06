@@ -89,23 +89,6 @@ public enum MemoryHelperClient {
     }
 
     @MainActor
-    public static func uninstall() async -> (Bool, String) {
-        let quote = AdministratorShell.quote
-        let commands = [
-            "(/bin/launchctl bootout system \(quote(installedPlistPath)) >/dev/null 2>&1 || true)",
-            "/bin/rm -f \(quote(installedPlistPath))",
-            "/bin/rm -f \(quote(installedHelperPath))",
-            "/bin/rm -f \(quote(clientAuthorizationPath))",
-            "/bin/rm -f \(quote(socketPath))"
-        ]
-        switch AdministratorShell.run(commands.joined(separator: " && ")) {
-        case .success:
-            return (true, "内存服务已卸载")
-        case let .failure(failure):
-            return (false, failure.isCancelled ? "已取消管理员授权" : failure.message)
-        }
-    }
-
     public static func optimize() async -> Reply {
         await Task.detached(priority: .userInitiated) {
             send("optimize-memory", timeoutSeconds: 45)

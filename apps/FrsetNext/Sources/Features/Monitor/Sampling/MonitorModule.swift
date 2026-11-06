@@ -45,9 +45,4 @@ public enum MonitorModule: AppModule {
         Log.info("Monitor", "监测模块已启动")
     }
 
-    /// 停止采样（总开关关闭 / App 退出前可调用）
-    public static func stop() {
-        MonitorSampler.shared.stop()
-        StatsBarEngine.stop()
-    }
 }

@@ -139,36 +139,6 @@ public struct MonitorAreaSparkline: View {
 
 // MARK: - 迷你柱状（每核 CPU）
 
-/// 一组 0..1 数值的柱状条
-public struct MonitorBarChart: View {
-    public let values: [Double]
-    public let color: Color
-    public var spacing: CGFloat = 2
-
-    public init(values: [Double], color: Color, spacing: CGFloat = 2) {
-        self.values = values
-        self.color = color
-        self.spacing = spacing
-    }
-
-    public var body: some View {
-        GeometryReader { proxy in
-            let count = max(1, values.count)
-            let width = max(1, (proxy.size.width - spacing * CGFloat(count - 1)) / CGFloat(count))
-            HStack(alignment: .bottom, spacing: spacing) {
-                ForEach(0..<count, id: \.self) { index in
-                    let raw = index < values.count ? values[index] : 0
-                    let ratio = min(1, max(0, raw.isFinite ? raw : 0))
-                    RoundedRectangle(cornerRadius: min(2, width / 3), style: .continuous)
-                        .fill(color.opacity(0.35 + 0.65 * ratio))
-                        .frame(width: width, height: max(1, proxy.size.height * CGFloat(ratio)))
-                }
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .bottom)
-        }
-    }
-}
-
 // MARK: - 环形图（CPU / 内存占比）
 
 /// 单值环形进度（Stats 语义色）

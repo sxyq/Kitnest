@@ -45,12 +45,6 @@ public struct MonitorDetailView: View {
     /// 温度页：原始传感器列表默认折叠（v181 起主视图换成 4 条热区）
     @Stored private var showsAllTemperatures = false
 
-    public init(module: MonitorModuleID = .cpu, pageMode: Bool = false) {
-        self.selection = MonitorDetailSelection(module)
-        self.pageMode = pageMode
-        self.fixedWidth = 292
-    }
-
     public init(selection: MonitorDetailSelection, pageMode: Bool = false, fixedWidth: CGFloat? = 292) {
         self.selection = selection
         self.pageMode = pageMode

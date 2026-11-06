@@ -276,15 +276,8 @@ public final class MonitorReader {
         result.used = min(result.total, rawUsed > purgeable ? rawUsed - purgeable : rawUsed)
         result.compressed = compressed
         result.pressure = result.total > 0 ? clamp(Double(result.used) / Double(result.total)) : 0
-        result.swapUsed = readSwapUsage()
+        result.swapUsed = MemoryBreakdownReader.readSwapUsed()
         return result
-    }
-
-    private func readSwapUsage() -> UInt64 {
-        var usage = xsw_usage()
-        var size = MemoryLayout<xsw_usage>.size
-        guard sysctlbyname("vm.swapusage", &usage, &size, nil, 0) == 0 else { return 0 }
-        return UInt64(usage.xsu_used)
     }
 
     private func readLoadAverages() -> [Double] {
