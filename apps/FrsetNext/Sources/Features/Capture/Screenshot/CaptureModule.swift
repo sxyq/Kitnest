@@ -207,18 +207,6 @@ public enum CaptureModule: AppModule {
     // 截图提取文字 / 长截图 / 截图翻译 / 划词翻译——见 specs/20 与
     // docs/逆向版新需求对照-v74-v124.md R7）
 
-    /// 截图并复制（区域截图 + 直接进剪贴板）
-    /// 注：不在此埋 screenshotCapture——onImageCaptured 完成回调已计入，避免双计。
-    public static func captureCopy() {
-        ScreenshotManager.shared.captureAndCopy()
-    }
-
-    /// 截图翻译：截取区域 → OCR → 交 App 层翻译会话（通知跨模块派发）
-    public static func captureTranslate() {
-        StatisticsManager.shared.record(.translationUse)
-        NotificationCenter.default.post(name: .frsetScreenshotTranslate, object: nil)
-    }
-
     /// 划词翻译：读取选中文本 → 翻译（通知跨模块派发）
     public static func translateSelection() {
         StatisticsManager.shared.record(.translationUse)

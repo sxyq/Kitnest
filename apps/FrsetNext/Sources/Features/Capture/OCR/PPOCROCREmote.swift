@@ -127,36 +127,6 @@ enum PPOCROCREmote {
 
     /// 自检（排障深链用）：起一个子进程、识别一行小程序生成的文字，验证整条链路
     @discardableResult
-    static func selfCheck() -> Bool {
-        guard isAvailable else {
-            Log.warn("Capture", "本地 OCR 自检：资源缺失（helper/模型/运行库）")
-            return false
-        }
-        let size = NSSize(width: 240, height: 40)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        NSColor.white.setFill()
-        NSRect(origin: .zero, size: size).fill()
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 20),
-            .foregroundColor: NSColor.black
-        ]
-        ("自检 OCR 123" as NSString).draw(at: NSPoint(x: 8, y: 8), withAttributes: attrs)
-        image.unlockFocus()
-        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            Log.warn("Capture", "本地 OCR 自检：无法生成样张")
-            return false
-        }
-        let started = CFAbsoluteTimeGetCurrent()
-        let results = recognize(image: cg, boxes: [CGRect(x: 0, y: 0, width: cg.width, height: cg.height)])
-        let ms = (CFAbsoluteTimeGetCurrent() - started) * 1000
-        let text = results.first??.text ?? ""
-        let ok = !text.isEmpty
-        Log.info("Capture", "本地 OCR 自检：\(ok ? "可用" : "不可用")"
-                 + "（子进程往返 \(Int(ms)) ms，识别「\(text)」）")
-        return ok
-    }
-
     // MARK: - 像素编码（BGRA，紧凑；比 PNG 编码快一个量级）
 
     private static func writeRaw(_ image: CGImage, to url: URL) -> Bool {

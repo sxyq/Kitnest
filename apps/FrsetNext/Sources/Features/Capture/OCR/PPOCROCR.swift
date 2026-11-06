@@ -57,11 +57,6 @@ public final class PPOCROCR {
         ensureSession() != nil
     }
 
-    /// 预热（App 启动空闲时调用，把加载成本挪出用户操作路径）
-    public func prepare() {
-        _ = ensureSession()
-    }
-
     /// 不可用时的原因（供设置页/日志展示）
     public var unavailableReason: String? {
         lock.lock()
@@ -140,11 +135,6 @@ public final class PPOCROCR {
         let dict = dictionary
         lock.unlock()
         return Self.decode(raw: raw, t: Int(t), c: Int(c), dictionary: dict)
-    }
-
-    /// 批量识别（同一张图里的多行）
-    public func recognize(lines images: [CGImage]) -> [Result?] {
-        images.map { recognize(line: $0) }
     }
 
     // MARK: - 预处理

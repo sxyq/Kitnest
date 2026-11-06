@@ -637,15 +637,6 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
         show(sourceImage: cg, imageData: data, text: sample)
     }
 
-    public func close() {
-        if let resignObserver {
-            NotificationCenter.default.removeObserver(resignObserver)
-            self.resignObserver = nil
-        }
-        window?.close()
-        window = nil
-    }
-
     // MARK: 动作
 
     private func copyResult() {

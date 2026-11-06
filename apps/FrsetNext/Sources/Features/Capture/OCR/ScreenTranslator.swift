@@ -137,23 +137,6 @@ public enum ScreenTranslator {
         return out
     }
 
-    /// 解析「1. 译文」格式；行数不齐或编号缺失时返回空数组（由调用方回退）
-    static func parseNumberedLines(_ reply: String, expected: Int) -> [String] {
-        guard let regex = numberedLineRegex else { return [] }
-        var map: [Int: String] = [:]
-        for line in reply.split(separator: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let ns = trimmed as NSString
-            if let m = regex.firstMatch(in: trimmed, range: NSRange(location: 0, length: ns.length)),
-               m.numberOfRanges >= 3,
-               let idx = Int(ns.substring(with: m.range(at: 1))) {
-                map[idx] = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespaces)
-            }
-        }
-        guard map.count == expected, (1...expected).allSatisfy({ map[$0]?.isEmpty == false }) else { return [] }
-        return (1...expected).compactMap { map[$0] }
-    }
-
     // MARK: 画回渲染
 
     /// 把译文按 OCR 坐标画回原图（返回新图；失败返回 nil）。
