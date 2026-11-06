@@ -322,14 +322,63 @@ final class TransferDockService: ObservableObject {
                                                     withIntermediateDirectories: true)
             let data = try JSONSerialization.data(withJSONObject: payload,
                                                   options: [.prettyPrinted, .sortedKeys])
+            // v249（用户：「登录之后没有成功显示」）：写之前把上一份 cookie 存成证据，便于回溯
+            Self.archiveCookieEvidence()
             try data.write(to: TransferDockPath.cookieFile, options: .atomic)
-            loggedIn = true
-            statusMessage = "登录态已保存（\(relevant.count) 条 cookie）"
+            // v249：不能只看 cookie 条数就宣布登录成功——必须让桥回验一次。
+            // 原来这里直接 loggedIn = true，服务端其实回 1003，界面显示已登录但列表永远空。
+            statusMessage = "登录态已保存，正在校验…"
             errorMessage = nil
-            startKeepAlive()
+            Self.verifySession { [weak self] ok, reason in
+                guard let self else { return }
+                DispatchQueue.main.async {
+                    if ok {
+                        self.loggedIn = true
+                        self.statusMessage = "登录态有效，已开始续约"
+                        self.errorMessage = nil
+                        self.startKeepAlive()
+                    } else {
+                        self.loggedIn = false
+                        self.statusMessage = ""
+                        self.errorMessage = reason ?? "会话无效，请重新登录"
+                    }
+                }
+            }
         } catch {
             errorMessage = "写入登录态失败：\(error.localizedDescription)"
         }
+    }
+
+    // MARK: 登录态校验与留证
+
+    /// v249：让桥回验登录态。写 cookie 成功 ≠ 会话有效（服务端可能回 1003）。
+    private static func verifySession(_ done: @escaping (Bool, String?) -> Void) {
+        DispatchQueue.global(qos: .utility).async {
+            let result = runBridge(["status"])
+            let data = result["data"] as? [String: Any]
+            let ok = (data?["loggedIn"] as? Bool) ?? false
+            let reason = (data?["reason"] as? String) ?? (result["error"] as? String)
+            done(ok, reason)
+        }
+    }
+
+    /// v249（用户：「本地的浏览器 Cookie 需要保存证据」）：每次覆盖前把上一份存进
+    /// credentials/evidence/cookies-时间戳.json，最多留 20 份，便于事后回溯是哪一份失效。
+    private static func archiveCookieEvidence() {
+        let fm = FileManager.default
+        let src = TransferDockPath.cookieFile
+        guard fm.fileExists(atPath: src.path) else { return }
+        let dir = src.deletingLastPathComponent().appendingPathComponent("evidence", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyyMMdd-HHmmss"
+        let dst = dir.appendingPathComponent("cookies-\(fmt.string(from: Date())).json")
+        try? fm.copyItem(at: src, to: dst)
+        // 只留最近 20 份
+        let olds = (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.contentModificationDateKey]))?
+            .filter { $0.lastPathComponent.hasPrefix("cookies-") }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent } ?? []
+        for old in olds.dropFirst(20) { try? fm.removeItem(at: old) }
     }
 
     // MARK: 调桥接脚本
