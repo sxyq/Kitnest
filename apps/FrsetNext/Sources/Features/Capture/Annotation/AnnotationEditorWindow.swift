@@ -971,7 +971,7 @@ final class AnnotationCanvasView: NSView {
     private func beginTextEditing(at viewPoint: CGPoint) {
         closeFontPopover()
         let anchor = imagePoint(viewPoint)
-        let fontPx = AnnotationCompositor.textFontSize(scale: textSize)
+        let fontPx = AnnotationCompositor.fontSize(for: textSize)
         let displayFont = max(13, fontPx * imageScale)
         let font = NSFont.systemFont(ofSize: displayFont,
                                      weight: AnnotationCompositor.fontWeight(1))

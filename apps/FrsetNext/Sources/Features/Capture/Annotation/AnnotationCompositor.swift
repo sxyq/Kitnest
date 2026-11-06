@@ -606,11 +606,6 @@ public enum AnnotationCompositor {
         max(12, min(lineWidth * 6, 72))
     }
 
-    /// 文字标注的字号（图像像素）——画布内联输入框、命中框、合成共用同一个口径
-    static func textFontSize(scale: CGFloat) -> CGFloat {
-        fontSize(for: scale)
-    }
-
     /// 字重映射（0 常规 / 1 中粗 / 2 加粗）
     static func fontWeight(_ value: Int) -> NSFont.Weight {
         switch value {
