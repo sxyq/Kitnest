@@ -272,7 +272,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
         let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration)
         if !usedGenie {
-            WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration)
+            if PanelMotion.fallbackAnimationDisabled {
+                // v243：调神灯手感期不叠第二套缩放动画，直接落位（alpha 上面已还原）
+                p.alphaValue = 1
+            } else {
+                WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration)
+            }
         }
         // 采样放到过渡结束之后：动画期间只做合成，不夹带 SwiftUI 重排
         DispatchQueue.main.asyncAfter(deadline: .now() + GenieWarp.duration(for: duration) + 0.02) { [weak self] in
@@ -362,8 +367,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let usedGenie = GenieWarp.shared.playOut(window: p, slot: slot,
                                                  duration: duration, completion: finish)
         if !usedGenie {
-            WindowReveal.playOut(on: p, to: presentation.originUnit, scale: 0.90,
-                                 duration: duration, completion: finish)
+            if PanelMotion.fallbackAnimationDisabled {
+                // v243：同上——神灯没跑起来就直收，别再播一遍缩放
+                finish()
+            } else {
+                WindowReveal.playOut(on: p, to: presentation.originUnit, scale: 0.90,
+                                     duration: duration, completion: finish)
+            }
         }
         // 兜底：动画回调被系统跳过（窗口被遮挡/重复收起）时也一定收尾。
         // 神灯在跑时多等一会儿，别把覆盖窗上的动画提前掐断。

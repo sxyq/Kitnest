@@ -295,8 +295,12 @@ final class GenieWarp {
         let showsMesh = UserDefaults.standard.bool(forKey: "probe.genieMesh")
         let showsGuides = UserDefaults.standard.bool(forKey: "probe.genieDebug")
 
-        // ---- 预算帧数：60fps 为目标，太多吃内存 ----
-        let target = max(12, min(30, Int((self.duration * 60).rounded())))
+        // ---- 预算帧数：跟屏幕刷新率走 ----
+        // v243：原来按 60fps 算（0.46s → 27 帧），在 120Hz 屏上等于每帧重复两次，
+        // 漏斗会「一顿一顿」。改为按 screen.maximumFramesPerSecond 采样，上限 48 帧
+        // （pixelScale 会把总内存压在 64MB 内，1x 下 48 帧 ≈ 62MB）。
+        let refresh = max(60, min(120, screen.maximumFramesPerSecond))
+        let target = max(12, min(48, Int((self.duration * Double(refresh)).rounded())))
         let pixelScale = Self.pixelScale(bbox: bbox.size, frames: target)
         let t0 = CFAbsoluteTimeGetCurrent()
         var frames: [CGImage] = []
@@ -312,15 +316,23 @@ final class GenieWarp {
                 Log.info("Motion", String(format: "genie 定格在 %.2f（probe.genieHold）", hold))
             }
         } else {
-            for i in 0..<target {
-                let t = CGFloat(i) / CGFloat(max(1, target - 1))
-                let p = opening ? (1 - t) : t     // 展开 1→0，收起 0→1
-                guard let img = GenieFrameRenderer.render(
-                    progress: p, snapshot: renderShot, windowRect: viewWindow, slotRect: viewSlot,
-                    clipY: clipY, size: bbox.size, scale: pixelScale,
-                    showsMesh: showsMesh, showsGuides: showsGuides) else { continue }
-                frames.append(img)
+            // 整体缓动指数：展开 ease-out（冲出去再落位）、收起 ease-in（先慢后被吸走）。
+            // 可用 `defaults write com.frset.frsetnext probe.genieEase -float 2.4` 现调。
+            let eased = Self.easeExponent()
+            // 逐帧渲染彼此独立（各自一块 bitmap、genieMesh 是纯函数），并行铺满核
+            var slots = [CGImage?](repeating: nil, count: target)
+            slots.withUnsafeMutableBufferPointer { buf in
+                DispatchQueue.concurrentPerform(iterations: target) { i in
+                    let t = CGFloat(i) / CGFloat(max(1, target - 1))
+                    let e = opening ? 1 - pow(1 - t, eased) : pow(t, eased)
+                    let p = opening ? (1 - e) : e     // 展开 1→0，收起 0→1
+                    buf[i] = GenieFrameRenderer.render(
+                        progress: p, snapshot: renderShot, windowRect: viewWindow, slotRect: viewSlot,
+                        clipY: clipY, size: bbox.size, scale: pixelScale,
+                        showsMesh: showsMesh, showsGuides: showsGuides)
+                }
             }
+            frames = slots.compactMap { $0 }
         }
         let buildMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         guard !frames.isEmpty else {
@@ -375,8 +387,9 @@ final class GenieWarp {
                                   viewSlot.width, viewSlot.height,
                                   abs(viewWindow.maxY - viewSlot.midY),
                                   phases.bendLength, phases.slideLength, phases.settled * 100))
-        Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms",
-                                  frames.count, bbox.width, bbox.height, pixelScale, buildMs))
+        Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
+                                  frames.count, bbox.width, bbox.height, pixelScale, buildMs,
+                                  refresh, Double(Self.easeExponent())))
 
         // 排障：定格模式停在第一张，交给截图核对
         if hold != nil { return true }
@@ -434,6 +447,13 @@ final class GenieWarp {
     }
 
     // MARK: 工具
+
+    /// 逐帧进度采样的缓动指数（1 = 线性）。默认 2.0。
+    private static func easeExponent() -> CGFloat {
+        let key = "probe.genieEase"
+        guard UserDefaults.standard.object(forKey: key) != nil else { return 2.0 }
+        return max(1.0, min(4.0, CGFloat(UserDefaults.standard.double(forKey: key))))
+    }
 
     /// 帧数固定后按内存预算挑像素倍率：总占用压在 64MB 以内，最高 2x
     private static func pixelScale(bbox: CGSize, frames: Int) -> CGFloat {

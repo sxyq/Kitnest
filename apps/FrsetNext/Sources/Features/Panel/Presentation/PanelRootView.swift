@@ -685,22 +685,23 @@ struct PanelRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onAppear { Log.info("Panel", "四个页面全部关闭：未创建任何页面视图") }
             } else if activePage == .home {
-                homePage.transition(.opacity)
+                homePage.transition(PanelMotion.transition(.opacity))
             } else if activePage == .performance {
                 // 第二页：性能监测——与独立窗**同一个容器**（MonitorPerformanceContent：
                 // 同一选中态、同一内外边距、同一滚动策略）。v82（2026-10-19）：外层
                 // ScrollView 移除——双层嵌套曾导致模块切换按钮点击被吞。
-                MonitorPerformanceContent().transition(.opacity)
+                MonitorPerformanceContent().transition(PanelMotion.transition(.opacity))
             } else if activePage == .transfer {
                 // 第三页：文件中转（隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）
-                TransferDockView().transition(.opacity)
+                TransferDockView().transition(PanelMotion.transition(.opacity))
             } else {
                 // 第四页：投屏（v114 从文件中转拆出；v136 起不再常驻合成）
-                CastView().transition(.opacity)
+                CastView().transition(PanelMotion.transition(.opacity))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(Theme.Motion.fast, value: page)
+        // v243：调神灯手感期间先停掉首挂载淡入（见 PanelMotion：会和漏斗抢同一段过渡）
+        .animation(PanelMotion.animation(Theme.Motion.fast), value: page)
     }
 
     // MARK: - 主页：搜索区段 → 日历 → 剪贴板
@@ -729,7 +730,9 @@ struct PanelRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // v74（用户澄清）：复制网盘链接 → 链接条自动弹出，日历与下方列表**平滑下移**；
         // 链接消失（关闭/换新）同样回弹。key 变化驱动整个首页纵向布局动画。
-        .animation(Theme.Motion.springSoft,
+        // v243：神灯调手感期闸掉——开面板后剪贴板条目恰好加载完，这段挤压会改内容、
+        // 让预渲染帧与真窗对不上（交接跳一下）。
+        .animation(PanelMotion.animation(Theme.Motion.springSoft),
                    value: CloudLinkBar.detectionKey(items: clipboard.items))
     }
 

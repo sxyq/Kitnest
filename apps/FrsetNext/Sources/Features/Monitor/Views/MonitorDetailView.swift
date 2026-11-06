@@ -72,7 +72,7 @@ public struct MonitorDetailView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     content
                         .id(selection.module)
-                        .transition(.opacity.combined(with: .offset(y: 8)))
+                        .transition(PanelMotion.transition(.opacity.combined(with: .offset(y: 8))))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Divider().opacity(0.5)
@@ -98,7 +98,7 @@ public struct MonitorDetailView: View {
             ForEach(availableModules(), id: \.self) { module in
                 Button {
                     Log.info("Monitor", "切换模块: \(module.displayName)（原 \(selection.module.displayName)）")
-                    withAnimation(Theme.Motion.springSoft) {
+                    withAnimation(PanelMotion.animation(Theme.Motion.springSoft)) {
                         selection.module = module
                     }
                 } label: {
