@@ -206,6 +206,11 @@ final class GenieWarp {
     private var frameLayer: CALayer?
     private var legStart: CFTimeInterval = 0
     private var legDuration: TimeInterval = 0
+    /// v248：时间反演所需的三个量——腿起点位置、方向（+1 正放 / -1 倒放）、动画本体。
+    /// 掉头时不再重排帧、不重挂第二段动画，只把 speed 取反并从当前位置续上。
+    private var legPos: TimeInterval = 0
+    private var legSpeed: Float = 1
+    private var legAnim: CAKeyframeAnimation?
 
     /// 神灯需要的时长。设置里的三档（0.18 / 0.22 / 0.28）是给缩放动画的，
     /// 漏斗在这个尺度下 0.2s 只会「闪一下」——Dock 自己是 500ms。
@@ -253,6 +258,9 @@ final class GenieWarp {
         running = false
         frames = []
         frameLayer = nil
+        legAnim = nil
+        legPos = 0
+        legSpeed = 1
         legDuration = 0
     }
 
@@ -449,71 +457,73 @@ final class GenieWarp {
         // 把这一腿的帧序列留给「反向播放」用（见 switchDirection）
         self.frames = frames
         self.frameLayer = frameLayer
-        startLeg(from: 0, duration: self.duration)
+        startLeg(at: 0, speed: 1, duration: self.duration)
         return true
     }
 
-    // MARK: - 播放腿（可被打断）
+    // MARK: - 播放（同一段动画，可时间反演）
 
-    /// 当前这一腿已经播到第几帧（按这一腿的播放顺序）。
-    private func currentPlaybackIndex() -> Int {
-        guard legDuration > 0, frames.count > 1 else { return 0 }
-        let f = (CACurrentMediaTime() - legStart) / legDuration
-        let clamped = min(1, max(0, f))
-        return Int((clamped * Double(frames.count - 1)).rounded())
+    /// 当前播放位置（0…总时长）。正放时 = 已播时长；倒放时从当前位置往回减。
+    private func currentPosition() -> TimeInterval {
+        guard legDuration > 0 else { return 0 }
+        let elapsed = CACurrentMediaTime() - legStart
+        let pos = legPos + elapsed * Double(legSpeed)
+        return min(max(0, pos), legDuration)
     }
 
-    /// 从某一帧开始播到（新方向的）终点。调用前 frames 必须已经是新方向的顺序。
-    private func startLeg(from index: Int, duration: TimeInterval) {
+    /// 起一段播放。帧序列固定不变，进度与方向全部由 timeOffset / speed 表达。
+    private func startLeg(at position: TimeInterval, speed: Float, duration: TimeInterval) {
         guard let layer = frameLayer, frames.count > 1 else { finish(); return }
-        let start = min(max(0, index), frames.count - 1)
-        let seq = Array(frames[start...])
-        guard seq.count > 1 else { finish(); return }
-
         stopWatchdog()
         layer.removeAnimation(forKey: "genie.frames")
+
         let anim = CAKeyframeAnimation(keyPath: "contents")
-        anim.values = seq
-        anim.keyTimes = (0..<seq.count).map { NSNumber(value: Double($0) / Double(seq.count)) }
+        anim.values = frames
+        anim.keyTimes = (0..<frames.count).map { NSNumber(value: Double($0) / Double(frames.count)) }
         anim.calculationMode = .discrete
         anim.duration = duration
-        anim.fillMode = .forwards
+        anim.fillMode = .both
         anim.isRemovedOnCompletion = false
         anim.beginTime = CACurrentMediaTime()
-        // 模型值先落终态，动画从第一帧放起；结束后停在终态，不会闪回第一帧
-        layer.contents = seq[seq.count - 1]
+        anim.timeOffset = position
+        anim.speed = speed
+        // 模型值落终态，动画移除后不会闪回第一帧
+        layer.contents = frames[frames.count - 1]
         layer.add(anim, forKey: "genie.frames")
 
-        self.duration = duration
+        legAnim = anim
         legStart = anim.beginTime
+        legPos = position
+        legSpeed = speed
+        self.duration = duration
         legDuration = duration
 
-        let timer = Timer(timeInterval: duration + 0.02, repeats: false) { [weak self] _ in
+        let remain = speed >= 0 ? max(0.02, duration - position) : max(0.02, position)
+        let timer = Timer(timeInterval: remain + 0.02, repeats: false) { [weak self] _ in
             self?.finish()
         }
         RunLoop.main.add(timer, forMode: .common)
         watchdog = timer
     }
 
-    /// 掉头：把帧序列整体反转，从当前正在显示的那一帧接着往反方向播。
-    /// 画面停在原地、立刻反向，这就是「随点随停」。
+    /// 掉头：同一个动画把 speed 取反，从当前位置原速倒回去。
+    /// 不重排帧、不重算曲线——位置、速度、帧全部连续，只是时间反演。
+    /// 这就是「随点随停」在物理上该有的样子：不是停住重来，而是当场往回走。
     private func switchDirection(to newOpening: Bool, duration: TimeInterval,
                                  completion: (() -> Void)?) -> Bool {
-        guard running, frames.count > 1, let layer = frameLayer else { return running }
-        let played = currentPlaybackIndex()
-        let at = max(0, frames.count - 1 - played)     // 反转后，同一画面落在哪个下标
-        frames.reverse()
+        guard running, frames.count > 1, frameLayer != nil, legAnim != nil else { return running }
+        let pos = currentPosition()
+        // 已经贴在两端就没什么可倒的，交给原本的收尾
+        guard pos > 0.02, pos < legDuration - 0.02 else { return running }
+
+        stopWatchdog()
+        frameLayer?.removeAnimation(forKey: "genie.frames")
         opening = newOpening
         self.completion = completion
-        layer.removeAnimation(forKey: "genie.frames")
-
-        // 剩余路程按帧数折算时长，保持「剩下的路也要走完」的观感；
-        // 至少给 80ms，避免临到终点才掉头时短到看不见。
-        let total = Double(frames.count - 1)
-        let remain = total > 0 ? max(0.08, duration * Double(frames.count - 1 - at) / total) : duration
-        Log.info("Motion", String(format: "genie 掉头 → %@：从第 %d/%d 帧起，剩余 %.0fms",
-                                  newOpening ? "展开" : "收起", at, frames.count - 1, remain * 1000))
-        startLeg(from: at, duration: remain)
+        let newSpeed: Float = legSpeed >= 0 ? -1 : 1
+        Log.info("Motion", String(format: "genie 掉头 → %@：位置 %.0f/%.0fms，原速反演",
+                                  newOpening ? "展开" : "收起", pos * 1000, legDuration * 1000))
+        startLeg(at: pos, speed: newSpeed, duration: legDuration)
         return true
     }
 
@@ -548,6 +558,9 @@ final class GenieWarp {
         running = false
         frames = []
         frameLayer = nil
+        legAnim = nil
+        legPos = 0
+        legSpeed = 1
         legDuration = 0
         done?()
     }
