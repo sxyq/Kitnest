@@ -26,13 +26,6 @@ public enum MainPanelPreviewPopoverCloseReason: String {
     case systemInterruption    // 被系统/失焦关闭
 }
 
-/// 预览导航命令（F7 clipboardPreviewNavigate；⬜ 键位未探明，由热键模块映射后调用）
-public struct PreviewNavigationCommand {
-    public enum Direction: String { case previous, next }
-    public let direction: Direction
-    public init(direction: Direction) { self.direction = direction }
-}
-
 // MARK: - Slot（specs/12 §4.3）
 
 /// 单个预览窗实例（槽位）。状态机 case 集⬜（原作仅存类型名 @0x10096a420，禁当实证）。
@@ -231,11 +224,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             pendingCloseCompletion = { previous?(); completion() }
         }
         closeSlot(reason: reason)
-    }
-
-    /// closeAll 别名（语义化入口：面板收起/全局清理）
-    public func closeAll(reason: MainPanelPreviewPopoverCloseReason, completion: (() -> Void)? = nil) {
-        dismiss(reason: reason, completion: completion)
     }
 
     // MARK: 触发路 1：悬停（F1）

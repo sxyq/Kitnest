@@ -47,42 +47,12 @@ enum PreviewMarkdownRenderer {
     // MARK: 缩放（2026-10-18 用户需求：整体文本部分 = 原来的 1.5 倍）
     //
     // 所有字号 / 行距 / 段距统一乘此系数；调用方无需改任何数值。
-    // 注意：estimatedPopoverHeight 里的测高渲染也读同一系数（见 PreviewPopoverContentModel），
-    // 保证"估算高度"与"实际渲染"一致，否则 popover 会裁切。
     static var scale: CGFloat = 1.5
 
     /// 字号/间距缩放辅助
     private static func s(_ value: CGFloat) -> CGFloat { value * scale }
 
     // MARK: 入口
-
-    /// 把 markdown 文本渲染为带块级样式的富文本（含内联目录）。
-    /// 注：预览弹层改用左侧目录侧栏，正文请走 `renderBody(_:)`；本方法保留给
-    /// 需要「目录就在文首」的场景（导出/独立窗口）。
-    static func render(_ text: String) -> NSAttributedString {
-        let (body, headings, _) = renderBody(text)
-        guard headings.count >= 2 else { return body }
-
-        let offsetCandidate = renderTOC(headings.map { ($0.level, $0.title, $0.location) })
-        let result = NSMutableAttributedString()
-        result.append(offsetCandidate)
-        let offset = result.length
-        result.append(body)
-
-        // 目录里的 loc 是正文内偏移——加上目录段长度才是整串位置
-        result.enumerateAttribute(.link, in: NSRange(location: 0, length: offset)) { value, range, _ in
-            guard let url = value as? URL, url.scheme == tocScheme,
-                  let comp = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                  let locText = comp.queryItems?.first(where: { $0.name == "loc" })?.value,
-                  let loc = Int(locText) else { return }
-            var fixed = comp
-            fixed.queryItems = [URLQueryItem(name: "loc", value: String(loc + offset))]
-            if let newURL = fixed.url {
-                result.addAttribute(.link, value: newURL, range: range)
-            }
-        }
-        return result
-    }
 
     /// 只渲染正文（不含内联目录），同时返回标题锚点与「渲染区间 ↔ 源文本区间」映射——
     /// 目录侧栏用标题锚点；⌘C 复制用映射段回源（v87：复制所选文本与纯文本口径统一，
@@ -113,10 +83,6 @@ enum PreviewMarkdownRenderer {
     }
 
     // MARK: 解析
-
-    static func parse(_ text: String) -> [MarkdownBlock] {
-        parseSourced(text).map { $0.block }
-    }
 
     /// 解析并记录每块的源文本区间（UTF-16；⌘C 回源复制用，v87）
     static func parseSourced(_ text: String) -> [(block: MarkdownBlock, source: NSRange)] {
@@ -654,9 +620,6 @@ enum PreviewMarkdownRenderer {
 
     // MARK: 表格
 
-    /// 显示宽度：东亚宽字符按 2 列计算。
-    /// 旧实现用 `String.count` 补空格——每行中文都算 1，等宽字体实际占 2 列，
-    /// 于是表格的行与行、列与列全部错位（用户看到的「表格没格式化」）。
     /// 表格分隔行：`|---|:--:|` / `--- | ---`（只含 - : | 空白，且至少一个 -）
     static func isTableSeparator(_ line: String) -> Bool {
         let t = line.trimmingCharacters(in: .whitespaces)
@@ -687,19 +650,6 @@ enum PreviewMarkdownRenderer {
         }
         cells.append(cur.trimmingCharacters(in: .whitespaces))
         return cells
-    }
-
-    static func displayWidth(_ text: String) -> Int {
-        var width = 0
-        for scalar in text.unicodeScalars {
-            let v = scalar.value
-            let wide = (0x1100...0x115F).contains(v) || (0x2E80...0xA4CF).contains(v)
-                || (0xAC00...0xD7A3).contains(v) || (0xF900...0xFAFF).contains(v)
-                || (0xFE30...0xFE4F).contains(v) || (0xFF00...0xFF60).contains(v)
-                || (0xFFE0...0xFFE6).contains(v) || (0x1F300...0x1FAFF).contains(v)
-            width += wide ? 2 : 1
-        }
-        return width
     }
 
     private static func renderTable(_ rows: [[String]]) -> NSAttributedString {
@@ -761,89 +711,6 @@ enum PreviewMarkdownRenderer {
                 out.append(NSAttributedString(string: "\n"))
             }
         }
-        return out
-    }
-
-    /// 按「显示宽度」折行（CJK 记 2 列）；拉丁文尽量在空格处断，避免把单词劈开。
-    /// 逐 Character 走（含 emoji 代理对），用 UTF-16 偏移切 NSAttributedString。
-    private static func wrapDisplayWidth(_ attr: NSAttributedString, width: Int) -> [NSAttributedString] {
-        guard width > 0 else { return [attr] }
-        let text = attr.string
-        guard !text.isEmpty else { return [NSAttributedString()] }
-
-        struct Piece { let range: NSRange; let width: Int; let isSpace: Bool }
-        var pieces: [Piece] = []
-        var offset = 0
-        for ch in text {
-            let str = String(ch)
-            let len = (str as NSString).length
-            pieces.append(Piece(range: NSRange(location: offset, length: len),
-                                width: displayWidth(str),
-                                isSpace: ch == " " || ch == "\t"))
-            offset += len
-        }
-
-        var result: [NSAttributedString] = []
-        var lineStart = 0          // pieces 下标
-        var lineWidth = 0
-        var lastBreak = -1         // 可断点（空白之后的第一个 piece 下标）
-        var i = 0
-        while i < pieces.count {
-            let p = pieces[i]
-            if lineWidth + p.width > width, i > lineStart {
-                let cut = lastBreak > lineStart ? lastBreak : i
-                let r = NSRange(location: pieces[lineStart].range.location,
-                                length: pieces[cut - 1].range.location + pieces[cut - 1].range.length
-                                        - pieces[lineStart].range.location)
-                result.append(attr.attributedSubstring(from: r))
-                lineStart = cut
-                lineWidth = (cut..<i).reduce(0) { $0 + pieces[$1].width }
-                lastBreak = -1
-                continue
-            }
-            if p.isSpace { lastBreak = i + 1 }
-            lineWidth += p.width
-            i += 1
-        }
-        if lineStart < pieces.count {
-            let r = NSRange(location: pieces[lineStart].range.location,
-                            length: offset - pieces[lineStart].range.location)
-            result.append(attr.attributedSubstring(from: r))
-        }
-        return result.isEmpty ? [attr] : result
-    }
-
-    // MARK: 目录
-
-    private static func renderTOC(_ anchors: [(level: Int, title: String, location: Int)]) -> NSAttributedString {
-        let out = NSMutableAttributedString()
-        out.append(NSAttributedString(string: "目录\n", attributes: [
-            .font: NSFont.systemFont(ofSize: s(10.5), weight: .semibold),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: paragraphStyle(lineSpacing: 2, after: 2)
-        ]))
-        for a in anchors {
-            let indent = String(repeating: "  ", count: max(0, min(a.level - 1, 2)))
-            let line = indent + "• " + a.title + "\n"
-            var comp = URLComponents()
-            comp.scheme = tocScheme
-            comp.queryItems = [URLQueryItem(name: "loc", value: String(a.location))]
-            var attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: s(11.5)),
-                .paragraphStyle: paragraphStyle(lineSpacing: 1.5, after: 0.5, headIndent: 4)
-            ]
-            if let url = comp.url {
-                attrs[.link] = url
-                attrs[.foregroundColor] = NSColor.labelColor
-                attrs[.underlineStyle] = 0
-            }
-            out.append(NSAttributedString(string: line, attributes: attrs))
-        }
-        out.append(NSAttributedString(string: String(repeating: "─", count: 48) + "\n", attributes: [
-            .font: NSFont.systemFont(ofSize: s(9)),
-            .foregroundColor: NSColor.tertiaryLabelColor,
-            .paragraphStyle: paragraphStyle(lineSpacing: 0, before: 3, after: 5)
-        ]))
         return out
     }
 }
