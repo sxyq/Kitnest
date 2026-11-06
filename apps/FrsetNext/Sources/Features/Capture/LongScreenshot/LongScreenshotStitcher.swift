@@ -49,9 +49,6 @@ struct LongShotRGBA {
         self.bytes = Self.drawToBuffer(image, w: w, h: h)
     }
 
-    init(w: Int, h: Int, bytes: [UInt8]) {
-        self.w = w; self.h = h; self.bytes = bytes
-    }
 }
 
 final class LongScreenshotStitcher {

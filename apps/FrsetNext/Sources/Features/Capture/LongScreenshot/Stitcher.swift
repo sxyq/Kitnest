@@ -134,7 +134,7 @@ public enum Stitcher {
             // 分数相同时保留更大的重叠（滚屏步长通常偏大），故用严格小于
             if let a = sig(top, rows: overlap, fromTop: false),
                let b = sig(bottom, rows: overlap, fromTop: true) {
-                let score = meanAbsDiff(a, b)
+                let score = LongScreenshotStitcher.meanAbsDiff(a, b)
                 if score < bestScore {
                     bestScore = score
                     bestOverlap = overlap
@@ -145,10 +145,5 @@ public enum Stitcher {
 
         // 差异过大 → 判定两张图不连续，不重叠
         return bestScore <= diffThreshold ? bestOverlap : 0
-    }
-
-    /// 两份灰度签名的平均绝对差（行、列均步长 2 抽稀，对齐原作 0x100456650）
-    static func meanAbsDiff(_ a: GraySignature, _ b: GraySignature) -> Double {
-        LongScreenshotStitcher.meanAbsDiff(a, b)
     }
 }

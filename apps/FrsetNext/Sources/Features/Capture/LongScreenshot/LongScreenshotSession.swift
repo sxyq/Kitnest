@@ -426,19 +426,6 @@ final class LongScreenshotSession {
 
     // MARK: 捕获原语
 
-    /// 采捕一帧：优先取连续帧流的最新帧（帧龄 ≤maxFrameAge）；流未就绪/过期时回退同步抓屏
-    func captureFrame() -> CGImage? {
-        if #available(macOS 14.0, *), let fs = frameStream as? LongScreenshotFrameStream,
-           let img = fs.latestFrame(maxAge: Self.maxFrameAge) {
-            let rect = captureRectCG
-            contentScale = max(0.01, Double(img.width) / max(rect.width, 1))
-            if contentScale > captureScaleClamp.upperBound { contentScale = captureScaleClamp.upperBound }
-            if contentScale < captureScaleClamp.lowerBound { contentScale = captureScaleClamp.lowerBound }
-            return img
-        }
-        return captureFrameSync()
-    }
-
     /// 同步抓屏回退路径（帧流启动失败/卡死时的兜底）
     /// v162：通道次序按系统自适应——legacy 被运行时证实已废（macOS 26/27 返回 nil）时直接走 SCK；
     /// ≤15 的系统 legacy 仍可用（实测），保持低成本优先。首次 nil 会记账（legacyCaptureProbed）。
