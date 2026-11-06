@@ -31,11 +31,6 @@ public final class ClipboardSummaryExecutionCoordinator {
 
     public var isAvailable: Bool { ServiceLocator.llmService != nil }
 
-    public func isRunning(dedupeKey: String) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        return running.contains(dedupeKey)
-    }
-
     // NSLock.lock()/unlock() 在 async 上下文中被标记为不可用（Swift 6 下是 error）。
     // 这里把加解锁收进同步私有方法，async 函数只调用它们，既保留串行去重语义又消除警告。
     private func beginRun(dedupeKey: String) -> Bool {

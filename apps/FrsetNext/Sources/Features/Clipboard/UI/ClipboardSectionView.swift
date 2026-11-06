@@ -133,64 +133,6 @@ private struct SummaryState {
 
 // MARK: - 过滤栏（05 号规格 1.3 + specs/14 §3.6：九类型项 + 回顶按钮）
 
-public struct ClipboardFilterBarView: View {
-
-    @Binding public var selection: ClipboardFilterKind
-    /// 首条目滚出顶部 → 显示回顶按钮（FilterBar_ScrollToTop，specs/14 §3.4/C6）
-    public var showsScrollToTop: Bool
-    public var onScrollToTop: (() -> Void)?
-
-    public init(selection: Binding<ClipboardFilterKind>,
-                showsScrollToTop: Bool = false,
-                onScrollToTop: (() -> Void)? = nil) {
-        self._selection = selection
-        self.showsScrollToTop = showsScrollToTop
-        self.onScrollToTop = onScrollToTop
-    }
-
-    public var body: some View {
-        HStack(spacing: 6) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(ClipboardFilterKind.allCases) { kind in
-                        Button {
-                            selection = kind
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: kind.systemImage)
-                                    .font(.system(size: 11))
-                                Text(kind.label)
-                                    .font(.system(size: 11))
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule(style: .continuous)
-                                    .fill(selection == kind ? Theme.accent.opacity(0.18) : Color.clear)
-                            )
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-            }
-            .frame(height: 24)
-            if showsScrollToTop {
-                // 回顶按钮（icon/标识实证：FilterBar_ScrollToTop + arrow.up.to.line）
-                Button {
-                    onScrollToTop?()
-                } label: {
-                    Image(systemName: "arrow.up.to.line")
-                        .font(.system(size: 12))
-                }
-                .buttonStyle(.borderless)
-                .accessibilityIdentifier("FilterBar_ScrollToTop")
-                .help("回到顶部")
-                .transition(.opacity)
-            }
-        }
-    }
-}
-
 // MARK: - 标签过滤入口（05 号规格 B6：按标签过滤）
 
 /// 头部标签下拉：选中某个标签后，列表只显示该标签下的条目；再选一次取消。
