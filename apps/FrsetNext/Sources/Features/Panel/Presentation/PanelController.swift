@@ -203,9 +203,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let t0 = ProcessInfo.processInfo.systemUptime
         let wasVisible = p.isVisible
         isHiding = false
-        // 上一轮收起的漏斗还在跑 → 先把窗口 alpha 还原，否则抓到的快照是全透明的
-        if GenieWarp.isRunning { GenieWarp.shared.cancel(restoreWindow: true) }
-        p.setFrameOrigin(origin)
+        // v244：不再在开面板前 cancel 在途动画——那会把真窗 alpha 拉回 1，
+        // 面板整块亮出来再重播一遍漏斗。掉头交给 GenieWarp 自己处理。
+        // v244：神灯展开时先把窗口**停在屏幕外**再上屏做首次布局。
+        // 抓快照必须让窗口「已渲染且不透明」，可窗口停在屏内就会先闪一整块面板，
+        // 用户看到的就是「先展开一次、再重放一遍漏斗」。实测窗口可以停在屏外
+        // 不被 AppKit 拉回，抓图仍然有效，抓完再「先透明、后移回原位」。
+        let parked = GenieWarp.isEnabled && !wasVisible
+        p.setFrameOrigin(parked ? parkOrigin(for: p, origin: origin) : origin)
         // v194/v197：入场动画等布局跑完再起，并且挪到**窗口内容层**（整块面板，
         // 含玻璃底）。旧实现只对 SwiftUI 内容做 scaleEffect，玻璃窗口始终原尺寸铺在
         // 屏上，看上去只是「内容缩放」，不是用户要的「从一个点扩散成一个面」。
@@ -225,6 +230,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
         NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
         p.makeKeyAndOrderFront(nil)
+        // makeKey 有可能把「key 窗口」约束回屏幕内，抓图前再钉一次停靠位
+        if parked { p.setFrameOrigin(parkOrigin(for: p, origin: origin)) }
         p.contentView?.layoutSubtreeIfNeeded()     // 首帧布局在窗口透明时完成
         p.displayIfNeeded()
         // 统一「点外/失焦收起」：全工程唯一实现（Core/TransientWindows）
@@ -258,6 +265,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             p.contentView?.layer?.opacity = 1
             MonitorSampler.shared.setHomePanelActive(true)
             presentation.visible = true
+            // v244：漏斗正往回抽（或刚抽到一半）时又被打开 → 直接掉头，
+            // 复用已有帧序列反向播，不重抓快照、不重渲染。
+            if GenieWarp.isRunning {
+                let d = Personalization.shared.openAnimation.duration
+                _ = GenieWarp.shared.playIn(window: p,
+                                            slot: anchorRect ?? defaultSlot(for: p),
+                                            duration: d)
+            }
             return
         }
         // 布局已完成：从菜单栏图标位置展开整块面板
@@ -270,8 +285,11 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.contentView?.layer?.removeAllAnimations()
         p.contentView?.layer?.transform = CATransform3DIdentity
         p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
-        let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration)
+        let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration,
+                                                destination: origin)
         if !usedGenie {
+            // 没走成神灯：先把窗口从屏外挪回原位再显示，否则会看不见面板
+            if p.frame.origin != origin { p.setFrameOrigin(origin) }
             if PanelMotion.fallbackAnimationDisabled {
                 // v243：调神灯手感期不叠第二套缩放动画，直接落位（alpha 上面已还原）
                 p.alphaValue = 1
@@ -343,8 +361,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private var hideGeneration = 0
 
     private func performHide(_ p: NSWindow) {
-        // 展开的漏斗还没跑完就要收：先取消，把窗口 alpha 还原，再重新抓快照
-        if GenieWarp.isRunning { GenieWarp.shared.cancel(restoreWindow: true) }
+        // v244：展开的漏斗还没跑完就要收 → 不 cancel（cancel 会把 alpha 拉回 1，
+        // 面板先整块闪一下再抽走）。改成让 playOut 自己掉头，画面停在当前帧继续收。
         hideGeneration += 1
         let token = hideGeneration
         let duration = Personalization.shared.openAnimation.duration
@@ -378,6 +396,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 兜底：动画回调被系统跳过（窗口被遮挡/重复收起）时也一定收尾。
         // 神灯在跑时多等一会儿，别把覆盖窗上的动画提前掐断。
         DispatchQueue.main.asyncAfter(deadline: .now() + GenieWarp.duration(for: duration) + 0.35, execute: finish)
+    }
+
+    /// 神灯展开前的临时停靠位：屏幕上方之外（完全不可见，AppKit 不会拉回）。
+    /// 只用于「抓快照」，抓完立刻透明并移回 origin。
+    private func parkOrigin(for window: NSWindow, origin: NSPoint) -> NSPoint {
+        let screen = window.screen ?? NSScreen.main
+        let top = (screen?.frame.maxY ?? 0) + window.frame.height + 200
+        return NSPoint(x: origin.x, y: top)
     }
 
     /// 无锚点路径（快捷键 / 深链打开）的兜底插槽：
