@@ -50,8 +50,52 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// ⇧ 连选锚点（图标视图手动多选用；表格由 NSTableView 自己管）
     public var selectionAnchor: String?
 
+    /// v256（ArcZip `archive.save.source_changed` 同款保护）：
+    /// 打开/上次成功写入时记录的源压缩包指纹（mtime + 字节数）。
+    /// 每次写回归档前比对——外部程序改过就停下来问，不再用 `7zz a -y` 静默覆盖别人的改动。
+    private var sourceStamp: String?
+
+    static func stamp(of url: URL) -> String? {
+        guard let a = try? FileManager.default.attributesOfItem(atPath: url.path) else { return nil }
+        let m = (a[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let s = (a[.size] as? NSNumber)?.int64Value ?? 0
+        return "\(Int(m))-\(s)"
+    }
+
+    /// 写操作前的一致性校验。返回 true = 可以继续写。
+    /// 源包被外部改过时三选：仍然保存 / 重新载入（丢弃当前修改）/ 取消。
+    func confirmOverwriteIfSourceChanged() -> Bool {
+        guard let recorded = sourceStamp, let now = Self.stamp(of: url), recorded != now else {
+            return true
+        }
+        let alert = NSAlert()
+        alert.messageText = "「\(url.lastPathComponent)」已被其他程序修改"
+        alert.informativeText = "继续保存会覆盖磁盘上的最新内容。可以重新载入（丢弃当前未保存的修改），或者仍然保存。"
+        alert.addButton(withTitle: "仍然保存")
+        alert.addButton(withTitle: "重新载入")
+        alert.addButton(withTitle: "取消")
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            Log.warn("Archive", "源包被外部修改，用户选择仍然保存：\(url.lastPathComponent)")
+            return true
+        case .alertSecondButtonReturn:
+            Log.info("Archive", "源包被外部修改，用户选择重新载入：\(url.lastPathComponent)")
+            reload()
+            return false
+        default:
+            return false
+        }
+    }
+
+    /// 写入成功后刷新指纹基线，避免下一次保存被自己刚写的内容判成「外部修改」
+    func refreshSourceStamp() {
+        sourceStamp = Self.stamp(of: url)
+    }
+
     public init(url: URL) {
         self.url = url
+        self.sourceStamp = Self.stamp(of: url)
         self.undoStack = ArchiveUndoStack(url: url)
         self.undoStack.onApplied = { [weak self] in
             guard let self else { return }
@@ -318,24 +362,14 @@ public final class ArchiveBrowserModel: ObservableObject {
                 self.previewKind = .pdf(doc)
                 return
             }
-            // Office：QL 缩略图（首页）+ 保留临时文件供「用默认应用打开」
-            let req = QLThumbnailGenerator.Request(fileAt: tempURL,
-                                                   size: CGSize(width: 900, height: 900),
-                                                   scale: 2,
-                                                   representationTypes: .all)
-            QLThumbnailGenerator.shared.generateBestRepresentation(for: req) { rep, _ in
-                DispatchQueue.main.async {
-                    self.previewLoading = false
-                    self.previewKind = .office(tempURL)
-                    if let img = rep?.nsImage {
-                        self.officeThumb = img
-                    }
-                }
-            }
+            // Office：v256 改用 QLPreviewView（preview 通道）渲染正文——
+            // 原来走 QLThumbnailGenerator 只拿到首屏缩略图/图标，用户看到的是「一张封面」，
+            // 和面板 v167 修掉的是同一个坑（缩略图通道对 docx/pptx/xlsx 只给图标，
+            // 预览通道才有真实排版，且可翻页）。临时文件保留，供「用默认应用打开」。
+            self.previewLoading = false
+            self.previewKind = .office(tempURL)
         }
     }
-
-    @Published public var officeThumb: NSImage?
 
     // MARK: 网页预览的临时解压目录（v210）
     //
@@ -372,6 +406,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// `7zz a -y` 本身就是打开原包原地更新，路径不变、不产生新文件。
     /// v127（ArcZip P0）：保存前的旧文本进撤销栈（undo=写回旧文本）。
     public func saveDraft(completion: ((Bool) -> Void)? = nil) {
+        guard confirmOverwriteIfSourceChanged() else { completion?(false); return }
         guard let entry = previewEntry, case .text(let oldText) = previewKind else {
             completion?(false)
             return
@@ -397,6 +432,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                 }
                 self.previewKind = .text(newText)
                 self.dirty = false
+                self.refreshSourceStamp()
                 Toast.show("已写回归档", icon: "archivebox")
                 self.reload()
                 completion?(true)
@@ -411,6 +447,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// v127 接线（arch-engine P2-2）：添加前扫 Windows 文件名问题 → 对话框三选一
     public func addFiles(_ files: [URL]) {
         guard !files.isEmpty else { return }
+        guard confirmOverwriteIfSourceChanged() else { return }
         let issues = ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
         guard !issues.isEmpty else {
             performAddFiles(files)
@@ -486,6 +523,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                         self.undoStack.push(.add(items: snaps))
                     }
                 }
+                self.refreshSourceStamp()
                 Toast.show(msg, icon: "plus.circle")
                 self.reload()
             } else {
@@ -506,6 +544,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     public func deleteSelected() {
         let targets = selectedEntries
         guard !targets.isEmpty else { return }
+        guard confirmOverwriteIfSourceChanged() else { return }
         // v127（ArcZip P0）：删除前先备份内容 → 可撤销（undo=按原路径写回）
         captureSnapshots(of: targets) { [weak self] snaps in
             guard let self else { return }
@@ -521,6 +560,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                     self.selection = []
                     self.selectionAnchor = nil
                     self.clearPreview()
+                    self.refreshSourceStamp()
                     self.reload()
                 } else {
                     self.errorText = msg
@@ -533,6 +573,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// v127（ArcZip P1）：多选时只重命名第一个（ArcZip 也是单个重命名）
     public func renameSelected() {
         guard let entry = selectedEntries.first else { return }
+        guard confirmOverwriteIfSourceChanged() else { return }
         let alert = NSAlert()
         alert.messageText = "重命名归档内条目"
         alert.informativeText = entry.path
@@ -553,6 +594,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                 let dir = (oldPath as NSString).deletingLastPathComponent
                 let newPath = dir.isEmpty ? newName : dir + "/" + newName
                 self.undoStack.push(.rename(from: oldPath, to: newPath))
+                self.refreshSourceStamp()
                 Toast.show(msg, icon: "pencil")
                 self.reload()
             } else {
@@ -561,10 +603,72 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
+    // MARK: 解压冲突（v256，ArcZip `dialog.extraction_conflict` 同款）
+
+    enum ExtractConflictDecision { case overwrite, skipExisting, cancel }
+
+    /// 解压前扫目标目录的**顶层**同名项。返回用户的决定。
+    /// 顶层才算冲突：条目 `a/b.txt` 落到 `dir/a/b.txt`，只可能撞到 `dir/a`。
+    private func decideExtractConflicts(_ paths: [String], in dir: URL) -> ExtractConflictDecision {
+        var files: [String] = []
+        var folders: [String] = []
+        var seen = Set<String>()
+        for path in paths {
+            guard let top = path.split(separator: "/").first.map(String.init), !top.isEmpty else { continue }
+            guard seen.insert(top).inserted else { continue }
+            var isDir: ObjCBool = false
+            let full = dir.appendingPathComponent(top).path
+            guard FileManager.default.fileExists(atPath: full, isDirectory: &isDir) else { continue }
+            if isDir.boolValue { folders.append(top) } else { files.append(top) }
+        }
+        guard !files.isEmpty || !folders.isEmpty else { return .overwrite }
+
+        var lines: [String] = []
+        if !files.isEmpty {
+            lines.append("同名文件 \(files.count) 个：" + files.prefix(5).joined(separator: "、")
+                         + (files.count > 5 ? " 等" : ""))
+        }
+        if !folders.isEmpty {
+            lines.append("同名文件夹 \(folders.count) 个（会合并）："
+                         + folders.prefix(5).joined(separator: "、")
+                         + (folders.count > 5 ? " 等" : ""))
+        }
+
+        let alert = NSAlert()
+        alert.messageText = files.isEmpty ? "目标位置已有同名文件夹" : "目标位置已有同名文件"
+        NSApp.activate(ignoringOtherApps: true)
+        if files.isEmpty {
+            // 只有文件夹：7zz 的合并是默认行为，给「合并 / 取消」即可（-aos 对目录不生效）
+            lines.append("继续会把这些文件夹合并到现有目录，同路径文件仍会被覆盖。")
+            alert.informativeText = lines.joined(separator: "\n")
+            alert.addButton(withTitle: "合并")
+            alert.addButton(withTitle: "取消")
+            return alert.runModal() == .alertFirstButtonReturn ? .overwrite : .cancel
+        }
+        lines.append("「跳过已存在」会保留目标里已有的同名文件，只解出缺失的部分；「覆盖」会替换它们。")
+        alert.informativeText = lines.joined(separator: "\n")
+        alert.addButton(withTitle: "跳过已存在")
+        alert.addButton(withTitle: "覆盖")
+        alert.addButton(withTitle: "取消")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            Log.info("Archive", "解压冲突：用户选择跳过已存在（\(files.count) 个同名文件）")
+            return .skipExisting
+        case .alertSecondButtonReturn:
+            Log.warn("Archive", "解压冲突：用户选择覆盖（\(files.count) 个同名文件）")
+            return .overwrite
+        default:
+            return .cancel
+        }
+    }
+
     /// 解压全部（含辅助文件过滤按 ArchiveCore 默认）
     public func extractAll() {
         guard let dir = pickExtractDirectory() else { return }
-        ArchiveCore.extract(url: url, entry: nil, to: dir) { ok, msg in
+        let decision = decideExtractConflicts(entries.map { $0.path }, in: dir)
+        guard decision != .cancel else { return }
+        ArchiveCore.extract(url: url, entry: nil, to: dir,
+                            skipExisting: decision == .skipExisting) { ok, msg in
             Toast.show(ok ? "已解压" : "解压失败：\(msg)",
                        icon: ok ? "archivebox" : "exclamationmark.triangle", isWarning: !ok)
         }
@@ -575,11 +679,14 @@ public final class ArchiveBrowserModel: ObservableObject {
         let targets = selectedEntries
         guard !targets.isEmpty else { return }
         guard let dir = pickExtractDirectory() else { return }
-        extractSequential(targets, 0, to: dir, failures: [])
+        let decision = decideExtractConflicts(targets.map { $0.path }, in: dir)
+        guard decision != .cancel else { return }
+        extractSequential(targets, 0, to: dir, failures: [],
+                          skipExisting: decision == .skipExisting)
     }
 
     private func extractSequential(_ targets: [ArchiveEntry], _ index: Int,
-                                   to dir: URL, failures: [String]) {
+                                   to dir: URL, failures: [String], skipExisting: Bool) {
         guard index < targets.count else {
             if failures.isEmpty {
                 Toast.show(targets.count == 1 ? "已解压" : "已解压 \(targets.count) 项", icon: "archivebox")
@@ -589,10 +696,12 @@ public final class ArchiveBrowserModel: ObservableObject {
             }
             return
         }
-        ArchiveCore.extract(url: url, entry: targets[index].path, to: dir) { ok, msg in
+        ArchiveCore.extract(url: url, entry: targets[index].path, to: dir,
+                            skipExisting: skipExisting) { ok, msg in
             var fails = failures
             if !ok { fails.append(msg) }
-            self.extractSequential(targets, index + 1, to: dir, failures: fails)
+            self.extractSequential(targets, index + 1, to: dir, failures: fails,
+                                   skipExisting: skipExisting)
         }
     }
 
@@ -1318,18 +1427,21 @@ struct ArchiveBrowserView: View {
                                    entryName: model.previewEntry?.name ?? "网页")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .office(let tempURL):
-                VStack(spacing: 8) {
-                    if let thumb = model.officeThumb {
-                        Image(nsImage: thumb).resizable().aspectRatio(contentMode: .fit).padding(12)
-                    } else {
-                        ProgressView().padding()
-                    }
+                // v256：QLPreviewView 的 preview 通道——docx/pptx/xlsx/pages/key 可翻页看正文，
+                // 与面板内联文档预览（DocumentInlinePreview）共用同一实现。
+                VStack(spacing: 0) {
+                    DocumentInlinePreview(url: tempURL)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     HStack(spacing: 8) {
-                        Text("Office 文档不做框内编辑（与原版一致）")
+                        Text("Office 不做框内编辑（与原版一致）· 可翻页查看全文")
                             .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
+                        Spacer(minLength: 6)
                         Button("用默认应用打开") { NSWorkspace.shared.open(tempURL) }
                             .controlSize(.small)
                     }
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .background(.bar)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .unsupported(let msg):

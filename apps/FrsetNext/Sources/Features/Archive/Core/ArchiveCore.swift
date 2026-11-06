@@ -562,6 +562,7 @@ public enum ArchiveCore {
     public static func extract(url: URL, entry: String? = nil, to dir: URL,
                                password: String? = nil,
                                includeAuxiliary: Bool = false,
+                               skipExisting: Bool = false,
                                completion: @escaping (Bool, String) -> Void) -> UUID? {
         let title = entry.map { "解压 \($0)" } ?? "解压 \(url.lastPathComponent)"
         return ArchiveTaskQueue.shared.enqueue(kind: .extract, title: title, output: dir) { taskID, done in
@@ -590,7 +591,8 @@ public enum ArchiveCore {
                     }
                     performExtract(url: url, entry: entry, to: dir, password: pw,
                                    includeAuxiliary: includeAuxiliary,
-                                   restrictTo: nil, taskID: taskID, completion: both)
+                                   restrictTo: nil, skipExisting: skipExisting,
+                                   taskID: taskID, completion: both)
                     return
                 }
                 // 全量解压：挑出硬不安全条目（穿越/绝对路径；设备名类不跳，仅 UI 警告）
@@ -612,7 +614,8 @@ public enum ArchiveCore {
                 }
                 performExtract(url: url, entry: nil, to: dir, password: pw,
                                includeAuxiliary: includeAuxiliary,
-                               restrictTo: restrict, taskID: taskID) { ok, msg in
+                               restrictTo: restrict, skipExisting: skipExisting,
+                               taskID: taskID) { ok, msg in
                     both(ok, ok && !unsafe.isEmpty
                          ? msg + "（已跳过 \(unsafe.count) 个不安全路径）"
                          : msg)
@@ -626,6 +629,7 @@ public enum ArchiveCore {
     private static func performExtract(url: URL, entry: String?, to dir: URL,
                                        password: String?, includeAuxiliary: Bool,
                                        restrictTo: [String]?,
+                                       skipExisting: Bool = false,
                                        taskID: UUID?,
                                        completion: @escaping (Bool, String) -> Void) {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -635,6 +639,10 @@ public enum ArchiveCore {
             return
         }
         var args = ["x", "-y", "-o\(dir.path)"]
+        // v256（ArcZip dialog.extraction_conflict 同款）：`-aos` = skip existing files。
+        // 默认行为（不带本参数）是 7zz x -y 无条件覆盖同名文件——用户已有文件会被静默替换，
+        // 且不可恢复。浏览窗在检测到同名冲突时会让用户选「跳过已存在」，走这条分支。
+        if skipExisting { args.append("-aos") }
         args += passwordArg(password)
         args += auxExcludeArgs(includeAuxiliary)
         args += [url.path]
