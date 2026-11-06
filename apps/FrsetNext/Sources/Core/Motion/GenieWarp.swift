@@ -216,6 +216,9 @@ final class GenieWarp {
 
     static var isRunning: Bool { shared.running }
 
+    /// 是否正处在「展开」这一腿（用于「正在打开就被要求收起」时立刻掉头）
+    static var isOpening: Bool { shared.running && shared.opening }
+
     /// 总开关（`motion.genie`，缺省开）。PanelController 用它决定要不要先把
     /// 窗口停到屏外再抓快照。
     static var isEnabled: Bool {

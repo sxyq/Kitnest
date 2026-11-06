@@ -161,11 +161,18 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     // MARK: - PanelControlling
 
     public func toggle() {
-        if panel?.isVisible == true { hide() } else { show() }
+        toggle(atAnchor: nil)
     }
 
     /// 锚点开合（状态栏主图标点击）：展开时停到图标正下方并显示三角指示器
     public func toggle(atAnchor anchorRect: NSRect?) {
+        // v247：收起动画进行中再点 → 直接掉头重开。
+        // 原来这里会走 hide()，而 hide() 被 isHiding 挡住直接 return，
+        // 用户连点时第二下、第三下全被吞掉——这就是「连续点击鬼畜」的来源。
+        if isHiding, GenieWarp.isRunning, !GenieWarp.isOpening {
+            show(atAnchor: anchorRect)
+            return
+        }
         if panel?.isVisible == true { hide() } else { show(atAnchor: anchorRect) }
     }
 
@@ -340,6 +347,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         RenderProbe.snapshot(p, name: "panel", reason: "hideStart")
         persistSize(p)
         presentation.visible = false
+        // v247：正在展开就被要求收起 → 立刻掉头，不等预览关闭。
+        // 原来这里要先等 dismiss 回调（最长 0.6s 兜底），展开动画照跑，
+        // 用户看到的就是「点了没反应，然后突然抽走」。
+        if GenieWarp.isOpening {
+            performHide(p)
+            return
+        }
         // 原作行为（12 号 P8 waitsForPreviewClose）：面板收起前先等预览 popover 关闭
         MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse) { [weak self] in
             self?.performHide(p)
