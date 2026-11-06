@@ -275,6 +275,13 @@ final class GenieWarp {
             return true
         }
 
+        // v246（实测）：调用方会把 contentView.layer.opacity 从 0 还原成 1 再抓图，
+        // 但这一步在同一轮 runloop 里还没提交到窗口服务器——直接抓会拿到**整张单色空白帧**，
+        // 于是整条漏斗动画都是纯色块。抓之前必须走一次显示 + 提交。
+        window.contentView?.layoutSubtreeIfNeeded()
+        window.displayIfNeeded()
+        CATransaction.flush()
+
         var shot = Self.snapshot(of: window)
         if shot == nil {
             // 刚 orderFront 的窗口有时还没登记进窗口服务器，抓回来是 nil。
@@ -284,6 +291,11 @@ final class GenieWarp {
         }
         guard let shot else {
             Log.warn("Motion", "genie：窗口快照失败（windowNumber=\(window.windowNumber)），退回缩放动画")
+            return false
+        }
+        // 兜底：万一还是拿到空白帧（权限/合成异常），宁可不播，也不要糊一整块纯色
+        if Self.isBlank(shot) {
+            Log.warn("Motion", "genie：快照为单色空白帧，跳过动画直接落位")
             return false
         }
 
@@ -536,6 +548,25 @@ final class GenieWarp {
     }
 
     // MARK: 工具
+
+    /// 快照是不是「整张单色」（空白帧）。抽 24×24 个点看颜色种类，>1 即认为有内容。
+    private static func isBlank(_ image: CGImage) -> Bool {
+        let w = 24, h = 24
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &pixels, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return false
+        }
+        ctx.interpolationQuality = .none
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var seen = Set<UInt32>()
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            seen.insert(UInt32(pixels[i]) << 16 | UInt32(pixels[i + 1]) << 8 | UInt32(pixels[i + 2]))
+            if seen.count > 1 { return false }
+        }
+        return true
+    }
 
     /// 逐帧进度采样的缓动指数（1 = 线性）。默认 2.0。
     private static func easeExponent() -> CGFloat {
