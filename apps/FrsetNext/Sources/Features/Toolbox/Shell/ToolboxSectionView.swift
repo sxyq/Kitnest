@@ -17,10 +17,6 @@ public final class ToolboxUIState: ObservableObject {
         activeToolID = id
         ToolRunnerWindowController.shared.show(toolID: id)
     }
-    public func close() {
-        activeToolID = nil
-        ToolRunnerWindowController.shared.close()
-    }
 }
 
 private struct ToolSheetItem: Identifiable { let id: String }

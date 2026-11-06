@@ -197,7 +197,7 @@ struct StatisticsSettingsPane: View {
     // MARK: 关键指标（Q6 total(event:) 出口）
 
     private var metricsSection: some View {
-        SettingsSection(title: "使用统计") {
+        SettingsSection("使用统计") {
             SettingsGroupBox {
                 SettingsRow(icon: "doc.on.clipboard", title: "剪贴板捕获",
                             subtitle: "累计捕获次数（clipboard_capture）") {
@@ -273,7 +273,7 @@ struct StatisticsSettingsPane: View {
     ]
 
     private var featureSection: some View {
-        SettingsSection(title: "功能明细") {
+        SettingsSection("功能明细") {
             SettingsGroupBox {
                 ForEach(Array(Self.featureMetrics.enumerated()), id: \.offset) { idx, m in
                     if idx > 0 { SettingsDivider() }
@@ -290,7 +290,7 @@ struct StatisticsSettingsPane: View {
     // MARK: 评分请求口径（Q7 reviewRequestUsage 出口）
 
     private var reviewSection: some View {
-        SettingsSection(title: "评分") {
+        SettingsSection("评分") {
             SettingsGroupBox {
                 SettingsRow(icon: "star", title: "评分请求口径",
                             subtitle: "history_copy + screenshot_capture 累计次数，原作据此决定何时请求评分") {
@@ -305,7 +305,7 @@ struct StatisticsSettingsPane: View {
     // MARK: 导出 / 导入（Q8 exportAll / importMerge 出口）
 
     private var transferSection: some View {
-        SettingsSection(title: "配置导出与导入") {
+        SettingsSection("配置导出与导入") {
             SettingsGroupBox {
                 SettingsRow(icon: "square.and.arrow.up", title: "导出配置",
                             subtitle: "将偏好设置与统计数据写入 .frsetconfig 文件") {
@@ -331,7 +331,7 @@ struct StatisticsSettingsPane: View {
     }
 
     private var infoSection: some View {
-        SettingsSection(title: "说明") {
+        SettingsSection("说明") {
             SettingsGroupBox {
                 SettingsRow(icon: "info.circle", title: "导出内容",
                             subtitle: "仅包含偏好设置与统计数据，不含剪贴板历史、标签与 AI 凭证") {}

@@ -101,7 +101,7 @@ struct MonitorWidgetsPane: View {
     // MARK: - 一级：布局
 
     private var layoutSection: some View {
-        SettingsSection(title: "布局") {
+        SettingsSection("布局") {
             SettingsGroupBox {
                 SettingsRow(title: "合并模块",
                            subtitle: "拆分模式部件间隙由系统固定（每项 16pt）无法收紧；要更紧密的间距请开启合并") {
@@ -142,7 +142,7 @@ struct MonitorWidgetsPane: View {
     // MARK: - 一级：模块（二级 = 模块名，三级 = 形态/选项组）
 
     private var modulesSection: some View {
-        SettingsSection(title: "模块") {
+        SettingsSection("模块") {
             VStack(spacing: 10) {
                 ForEach(modules, id: \.self) { module in
                     moduleCard(module)
@@ -333,7 +333,7 @@ struct MonitorWidgetsPane: View {
     // MARK: - 一级：维护
 
     private var maintenanceSection: some View {
-        SettingsSection(title: "维护") {
+        SettingsSection("维护") {
             SettingsGroupBox {
                 SettingsRow(title: "重新导入 Stats 配置",
                            subtitle: "用 Stats 的偏好覆盖当前部件配置") {

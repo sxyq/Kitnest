@@ -60,30 +60,7 @@ public final class CalendarService: ObservableObject {
         objectWillChange.send()
     }
 
-    /// 手动刷新（授权状态可能已在系统设置中改变）
-    public func refresh() {
-        let authorized = isGranted(rawValue: authorizationStatus.rawValue)
-        update(authorized: authorized, hint: authorized ? nil : authorizationHint)
-    }
-
     // MARK: 事件读取
-
-    /// 某一天的事件（按开始时间排序）
-    public func events(on date: Date) -> [CalendarEvent] {
-        let start = Calendar.current.startOfDay(for: date)
-        guard let end = Calendar.current.date(byAdding: .day, value: 1, to: start) else { return [] }
-        return events(from: start, to: end)
-    }
-
-    public var todayEvents: [CalendarEvent] { events(on: Date()) }
-
-    /// 本周事件（周一 ~ 周日）
-    public var weekEvents: [CalendarEvent] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.firstWeekday = 2
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: Date()) else { return [] }
-        return events(from: interval.start, to: interval.end)
-    }
 
     public func events(from start: Date, to end: Date) -> [CalendarEvent] {
         guard isAuthorized else { return [] }

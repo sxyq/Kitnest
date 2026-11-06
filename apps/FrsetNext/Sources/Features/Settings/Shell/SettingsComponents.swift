@@ -53,12 +53,6 @@ struct SettingsSection<Content: View>: View {
         self.content = content
     }
 
-    /// 兼容既有 `SettingsSection(title:)` 调用（数据页等）
-    init(title: String, @ViewBuilder content: @escaping () -> Content) {
-        self.title = title
-        self.content = content
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
