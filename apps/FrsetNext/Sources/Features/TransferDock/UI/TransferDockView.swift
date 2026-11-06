@@ -38,6 +38,8 @@ struct TransferDockView: View {
     @Stored private var bridgeAvailable = TransferDockPath.isAvailable
     @Stored private var cloudDropTargeted = false
     @Stored private var localDropTargeted = false
+    /// v250：拖到图标 / 点「转入」的文件，等用户选云端还是本地
+    @Stored private var intake: TransferIntakeRequest?
     // v128（流畅度）：hoveredCloudID/hoveredLocalID 已下沉到行视图（CloudRowView /
     // LocalCardRowView 各自持有），父视图不再跟踪 hover，避免 hover 触发整表重算。
     /// 本地暂存勾选集合（勾选后可「扫码直传 / 加入云端 / 移出」批量操作）
@@ -151,6 +153,26 @@ struct TransferDockView: View {
                     showsLogin = false
                     service.refresh()
                 })
+        }
+        // v250：转入弹框——拖文件到菜单栏图标后，先问「云端还是本地」
+        .onReceive(NotificationCenter.default.publisher(for: .frsetTransferIntake)) { note in
+            guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
+            intake = TransferIntakeRequest(urls: urls)
+        }
+        .sheet(item: $intake) { req in
+            TransferIntakeDialog(
+                request: req,
+                onConfirm: { choice in
+                    intake = nil
+                    switch choice {
+                    case .cloud:
+                        guard service.loggedIn else { showsLogin = true; return }
+                        service.uploadBatch(req.urls)
+                    case .local:
+                        _ = local.add(urls: req.urls)
+                    }
+                },
+                onCancel: { intake = nil })
         }
         // 「扫码直传」选中文件的二维码弹层
         .overlay {
