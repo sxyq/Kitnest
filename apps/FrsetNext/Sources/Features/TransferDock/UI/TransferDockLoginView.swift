@@ -60,8 +60,12 @@ private struct TransferDockWebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        // v253（用户：「点了登录无法进行」）：OPPO 登录是 window.open 弹层，
+        // WKWebView 没有 WKUIDelegate 时会把弹层直接丢掉——点登录毫无反应。
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
         // 直接用桌面 UA，避免被引导去下载 App
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         if let url = URL(string: "https://cloud.heytap.com/owork/mapp/transfer-dock") {
@@ -81,7 +85,18 @@ private struct TransferDockWebView: NSViewRepresentable {
         Coordinator(onCookiesDetected: onCookiesDetected, onProgress: onProgress)
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+
+        /// 弹层登录：target=_blank / window.open 一律在同一个 webView 里就地打开
+        func webView(_ webView: WKWebView,
+                     createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction,
+                     windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if navigationAction.targetFrame == nil {
+                webView.load(navigationAction.request)
+            }
+            return nil
+        }
         private let onCookiesDetected: ([HTTPCookie]) -> Void
         private let onProgress: (String) -> Void
         private var timer: Timer?
