@@ -28,16 +28,6 @@ public struct ArchiveFlowRecommendation: Identifiable {
     /// 优先级（小者靠前；由规则枚举顺序决定）
     let priority: Int
 
-    public init(id: String, title: String, subtitle: String, systemImage: String,
-                action: @escaping () -> Void) {
-        self.id = id
-        self.title = title
-        self.subtitle = subtitle
-        self.systemImage = systemImage
-        self.action = action
-        self.priority = 0
-    }
-
     init(id: String, title: String, subtitle: String, systemImage: String,
          priority: Int, action: @escaping () -> Void) {
         self.id = id
@@ -58,16 +48,10 @@ public enum ArchiveFlowRecommender {
     ]
     private static let fontExtensions: Set<String> = ["otf", "ttf", "ttc"]
 
-    /// v127（ArcZip P3）：按压缩包内容推荐此刻最合适的操作。
+    /// v127（ArcZip P3）：带选中条目的推荐（「解压所选 Flow」置顶）。
     ///
     /// 返回**按优先级排序的完整列表**；UI 层取前 3-5 个展示，其余计「另有 N 个备选」
-    /// （见 ArchiveFlowBar.displayLimit）。调用方如需「解压所选」，用重载
-    /// `recommend(for:url:selected:)` 传入勾选条目，会插到最前。
-    public static func recommend(for entries: [ArchiveEntry], url: URL) -> [ArchiveFlowRecommendation] {
-        recommend(for: entries, url: url, selected: nil)
-    }
-
-    /// v127（ArcZip P3）：带选中条目的推荐（「解压所选 Flow」置顶）。
+    /// （见 ArchiveFlowBar.displayLimit）。如需「解压所选」，用 `selected:` 传入勾选条目，会插到最前。
     public static func recommend(for entries: [ArchiveEntry], url: URL,
                                  selected: [ArchiveEntry]?) -> [ArchiveFlowRecommendation] {
         var result: [ArchiveFlowRecommendation] = []
@@ -353,13 +337,6 @@ public struct ArchiveFlowBar: View {
         self.more = Array(all.dropFirst(Self.displayLimit))
     }
 
-    /// 由调用方给定推荐列表
-    public init(recommendations: [ArchiveFlowRecommendation]) {
-        self.recommendations = Array(recommendations.prefix(Self.displayLimit))
-        self.moreCount = max(0, recommendations.count - Self.displayLimit)
-        self.more = Array(recommendations.dropFirst(Self.displayLimit))
-    }
-
     private let more: [ArchiveFlowRecommendation]
 
     public var body: some View {
@@ -423,33 +400,4 @@ public struct ArchiveFlowBar: View {
         .help(rec.subtitle)
     }
 
-    // MARK: 用法演示（v127（ArcZip P3））
-    //
-    // 浏览窗顶部接入（由后续主代理在 ArchiveBrowserView 里加一行即可，本文件不动浏览窗）：
-    //
-    //     ArchiveFlowBar(entries: model.entries, url: model.url)
-    //
-    // 有勾选条目时（「解压所选 Flow」置顶）：
-    //
-    //     ArchiveFlowBar(entries: model.entries, url: model.url, selected: model.selectedEntries)
-    //
-    // 自定义列表（自己过滤/排序后传入）：
-    //
-    //     ArchiveFlowBar(recommendations: ArchiveFlowRecommender.recommend(for: entries, url: url))
-    //
-    // 下面的 demo() 返回一个带假数据的推荐条，仅供界面预览/排障深链引用，业务代码勿调。
-    public static func demo() -> ArchiveFlowBar {
-        let sample = [
-            ArchiveFlowRecommendation(id: "demo-1", title: "解压到…",
-                                      subtitle: "整个压缩包解出到指定目录",
-                                      systemImage: "archivebox") {},
-            ArchiveFlowRecommendation(id: "demo-2", title: "安装应用到 /Applications",
-                                      subtitle: "解出 Demo.app 并放入应用程序文件夹",
-                                      systemImage: "app.badge.checkmark") {},
-            ArchiveFlowRecommendation(id: "demo-3", title: "浏览内容",
-                                      subtitle: "打开完整归档浏览窗口",
-                                      systemImage: "list.bullet.rectangle") {},
-        ]
-        return ArchiveFlowBar(recommendations: sample)
-    }
 }
