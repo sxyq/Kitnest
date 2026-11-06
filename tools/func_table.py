@@ -59,7 +59,9 @@ FUNC_RE = re.compile(
     r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*"
     r"(?:(?:public|private|internal|fileprivate|open|static|class|final|mutating|"
     r"nonmutating|override|required|convenience|@discardableResult)\s+)*"
-    r"(func|init|deinit|subscript)\s*!?\s*([A-Za-z_][A-Za-z0-9_]*)?"
+    # v241：`\b` 必须加——否则 "function" 会被 `func` 命中、把 "tion" 当成函数名
+    #（CodeTheme.swift 的 "function" 键曾凭空生成 14 条假函数行）
+    r"(func|init|deinit|subscript)\b\s*!?\s*([A-Za-z_][A-Za-z0-9_]*)?"
 )
 PROP_RE = re.compile(
     r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*"
