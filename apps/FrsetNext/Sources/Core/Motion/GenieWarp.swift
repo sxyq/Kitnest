@@ -531,9 +531,17 @@ final class GenieWarp {
         teardownOverlay()
 
         if let win, win.isVisible {
-            win.alphaValue = 1
-            if !wasOpening { win.orderOut(nil) }
+            if wasOpening {
+                win.alphaValue = 1
+            } else {
+                // v240（用户：「收纳动画重复播放，还有闪回」）：
+                // 收起时**不能**先把 alpha 拉回 1 再 orderOut——那一下窗口会完整
+                // 亮回来一帧，看起来就是「吸进去了又闪出来」。直接退场，alpha 留 0，
+                // 由 PanelController.show 在下次展开前重置。
+                win.orderOut(nil)
+            }
         }
+        // 快照定格模式（probe.genieHold）不跑 finish，这里不额外处理
 
         targetWindow = nil
         completion = nil

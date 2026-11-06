@@ -287,6 +287,9 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // v237（用户：「展开和收起都需要同样的」）：改用 Dock 的「神灯」网格——
         // 整窗按网格从图标那 22pt 的方格里「倒」出来，两侧先弯成漏斗、再落位。
         // 抓不到窗口快照时（无录屏权限等）退回原有的缩放动画，功能不受影响。
+        // v240：上一轮神灯收尾是「直接 orderOut、alpha 保持 0」（为了不闪回），
+        // 这里必须先还原，否则面板会以全透明状态出现。
+        p.alphaValue = 1
         let duration = Personalization.shared.openAnimation.duration
         let slot = anchorRect ?? defaultSlot(for: p)
         p.contentView?.layer?.removeAllAnimations()
@@ -359,8 +362,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             self?.performHide(p)
         }
         // 兜底：预览窗收回动画被系统跳过 / 完成回调丢失时，0.6s 后强制进第二段
+        let gen = hideGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self, weak p] in
             guard let self, let p, p.isVisible, self.isHiding else { return }
+            // v240（用户：「收纳动画重复播放，还有闪回」）：
+            // 预览正常关闭时 performHide 早已开始，这个 0.6s 兜底若再调一次，
+            // 会把收纳动画**重播一遍**；更糟的是第二次抓快照时窗口 alpha 已经是 0，
+            // 抓到的是透明窗，播出来就是「动画中间整块消失一下」。
+            guard self.hideGeneration == gen else { return }
             Log.warn("Panel", "收起超时（预览未关完），强制执行")
             self.performHide(p)
         }
@@ -381,8 +390,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let token = hideGeneration
         let duration = Personalization.shared.openAnimation.duration
         let finish: () -> Void = { [weak self, weak p] in
-            guard let self, let p, p.isVisible else { return }
-            guard token == self.hideGeneration, !self.presentation.visible else { return }
+            guard let self, let p else { return }
+            guard token == self.hideGeneration, !self.presentation.visible else {
+                // v240：这次收起已被作废（收起途中面板又被打开，或又发起了一次收起）。
+                // 必须把 isHiding 清掉——否则 hide() 的 `!isHiding` 会永远卡住，
+                // 之后面板再也收不起来。
+                self.isHiding = false
+                return
+            }
             p.contentView?.layer?.removeAllAnimations()
             p.contentView?.layer?.transform = CATransform3DIdentity
             p.contentView?.layer?.opacity = 1
