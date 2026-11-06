@@ -487,8 +487,12 @@ final class GenieWarp {
         anim.beginTime = CACurrentMediaTime()
         anim.timeOffset = position
         anim.speed = speed
-        // 模型值落终态，动画移除后不会闪回第一帧
-        layer.contents = frames[frames.count - 1]
+        // v252：模型值必须落在**当前位置那一帧**，不能落终态。
+        // 掉头要 removeAnimation + 重挂，这一瞬间图层显示的是模型值；
+        // 落终态就会在每次点击时闪到末帧再跳回来——连点看起来就是抽搐。
+        let denom = max(0.0001, duration)
+        let idx = Int((position / denom) * Double(frames.count - 1))
+        layer.contents = frames[min(max(0, idx), frames.count - 1)]
         layer.add(anim, forKey: "genie.frames")
 
         legAnim = anim
