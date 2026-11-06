@@ -11,12 +11,11 @@ import SwiftUI
 // 「每 5s 扫注册表 → 重建 6 个状态项 + 溢出菜单」成为永远扫空数组的空转代码，
 // 连带 600 行双层视图/位置持久化/溢出菜单全是死路径。
 //
-// 现在只保留真正在跑的两件事：
-//   1) 主图标（左键开面板、右键弹菜单、可切换图标样式与固定宽度）；
-//   2) 监测详情的 popover 呈现（STATS 合并条部件点击 → presentStatsPopover）。
+// 现在只保留真正在跑的一件事：
+//   1) 主图标（左键开面板、右键弹菜单、可切换图标样式与固定宽度）。
 // 菜单栏监测 UI 的唯一归属仍是 C 引擎的 STATS 合并条。
 
-/// StatusBarController：菜单栏主图标 + 弹层呈现。
+/// StatusBarController：菜单栏主图标。
 public final class StatusBarController: NSObject {
 
     public static let shared = StatusBarController()
@@ -47,15 +46,6 @@ public final class StatusBarController: NSObject {
             forName: Notification.Name("frset.openStatistics"), object: nil, queue: .main
         ) { [weak self] _ in self?.showStatisticsAction(nil) }
         Log.info("StatusBar", "installed")
-    }
-
-    /// 卸载主图标（退出或调试用）
-    public func uninstall() {
-        guard Thread.isMainThread else { DispatchQueue.main.async { self.uninstall() }; return }
-        if let obs = statisticsObservation { NotificationCenter.default.removeObserver(obs); statisticsObservation = nil }
-        currentPopover?.close(); currentPopover = nil
-        if let main = mainItem { NSStatusBar.system.removeStatusItem(main); mainItem = nil }
-        didInstall = false
     }
 
     private func installMainItem() {
@@ -122,34 +112,6 @@ public final class StatusBarController: NSObject {
             // v73：主图标左键 → 锚点展开（面板停到图标正下方 + 三角指示器 + 长出来动画）
             ServiceLocator.panel?.toggle(atAnchor: button.window?.frame)
         }
-    }
-
-    /// STATS 部件引擎的部件点击 → 监测详情 popover（锚点 = 合并条按钮）。
-    /// 与主面板同一套呈现（transient + 主面板同宽）；深数据页较长，
-    /// 按内容实际高度自适应（上限 = 屏幕可用高度 - 边距）。
-    public func presentStatsPopover(_ view: AnyView, anchor button: NSStatusBarButton) {
-        guard Thread.isMainThread else {
-            DispatchQueue.main.async { self.presentStatsPopover(view, anchor: button) }
-            return
-        }
-        currentPopover?.close()
-        let popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = true
-        popover.delegate = self
-        let host = NSHostingController(rootView: view)
-        host.view.layoutSubtreeIfNeeded()
-        let fitting = host.view.fittingSize
-        let maxHeight = (button.window?.screen?.visibleFrame.height ?? 800) - 36
-        popover.contentSize = NSSize(
-            width: max(Theme.panelWidth, fitting.width),
-            height: min(max(fitting.height, 200), maxHeight)
-        )
-        popover.contentViewController = host
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        currentPopover = popover
-        // popover 打开期间提升采样频率（隐藏态默认 ≥5s 会让数值显得"不走"）
-        MonitorSampler.shared.setSettingsActive(true)
     }
 
     // MARK: 菜单动作（StatusBarMenuBuilder 组装的菜单目标）
