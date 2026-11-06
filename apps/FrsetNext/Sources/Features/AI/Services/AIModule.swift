@@ -33,9 +33,4 @@ public enum AIModule: AppModule {
 
         Log.info("AI", "AI 模块已启动（厂商：\(AISettings.providerKind.displayName) 模型：\(LLMService.shared.currentModel)）")
     }
-
-    /// 供偏好变更后手动刷新（例如设置窗口关闭时）
-    public static func reload() {
-        LLMService.shared.reload()
-    }
 }

@@ -138,22 +138,6 @@ public final class LLMSessionStore {
         renameSession(id: sessionID, title: shortened)
     }
 
-    // MARK: - 全局搜索（供总控在 App 层注册检索源）
-
-
-    /// 截取命中词前后的一段上下文作为摘要
-    private static func snippet(from content: String, around query: String, radius: Int = 30) -> String {
-        let flat = content.replacingOccurrences(of: "\n", with: " ")
-        guard let range = flat.range(of: query, options: .caseInsensitive) else {
-            return flat.count > radius * 2 ? String(flat.prefix(radius * 2)) + "…" : flat
-        }
-        let start = flat.index(range.lowerBound, offsetBy: -radius, limitedBy: flat.startIndex) ?? flat.startIndex
-        let end = flat.index(range.upperBound, offsetBy: radius, limitedBy: flat.endIndex) ?? flat.endIndex
-        var text = String(flat[start..<end])
-        if start != flat.startIndex { text = "…" + text }
-        if end != flat.endIndex { text += "…" }
-        return text
-    }
 }
 
 // MARK: - 搜索结果（AI 侧中立类型）
