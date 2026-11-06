@@ -298,13 +298,4 @@ public final class LogArchive {
 
     // MARK: 卡死取证辅助（供排障时输出最近日志摘要）
 
-    /// 返回最近 N 行日志（当前文件尾部），供设置页「导出诊断」使用
-    public func tail(lines: Int = 200) -> String {
-        fileLock.lock()
-        defer { fileLock.unlock() }
-        let url = directory.appendingPathComponent("\(currentDay).log")
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return "" }
-        let all = text.split(separator: "\n", omittingEmptySubsequences: false)
-        return all.suffix(lines).joined(separator: "\n")
-    }
 }

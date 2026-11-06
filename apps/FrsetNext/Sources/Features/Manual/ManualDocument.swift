@@ -37,12 +37,6 @@ final class ManualNode: Identifiable {
         searchText = parts.joined(separator: " ")
     }
 
-    /// 子树内全部节点（含自身），先序
-    func flatten() -> [ManualNode] {
-        var out: [ManualNode] = [self]
-        for c in children { out.append(contentsOf: c.flatten()) }
-        return out
-    }
 }
 
 /// 内容块 + 稳定 id（解析时按节内序号分配；分隔线等无自然标识的块也能稳定 ForEach）

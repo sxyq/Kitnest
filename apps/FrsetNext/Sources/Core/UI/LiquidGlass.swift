@@ -428,17 +428,6 @@ struct SpringyIconButtonStyle: ButtonStyle {
 
 // MARK: - 悬停微浮起（卡片）
 
-struct HoverLift: ViewModifier {
-    var scale: CGFloat = 1.02
-    @Stored private var hovered = false
-
-    func body(content: Content) -> some View {
-        content
-            .scaleEffect(hovered ? scale : 1)
-            .animation(Theme.Motion.spring, value: hovered)
-            .onHover { hovered = $0 }
-    }
-}
 
 extension View {
 }

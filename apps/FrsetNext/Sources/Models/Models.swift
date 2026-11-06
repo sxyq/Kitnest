@@ -101,17 +101,6 @@ public struct Tag: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-public struct FileTypeIcon: Codable, Hashable, Sendable {
-    public let iconKey: String
-    public let handlerBundleId: String?
-    public let iconPath: String?
-    public let updatedAt: Date
-    public init(iconKey: String, handlerBundleId: String? = nil, iconPath: String? = nil, updatedAt: Date = Date()) {
-        self.iconKey = iconKey; self.handlerBundleId = handlerBundleId
-        self.iconPath = iconPath; self.updatedAt = updatedAt
-    }
-}
-
 // MARK: - 工具箱（10 号规格）
 
 public enum ToolKind: String, Codable, CaseIterable, Sendable {

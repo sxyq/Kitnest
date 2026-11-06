@@ -49,11 +49,6 @@ public final class WelcomeWindowController: NSObject {
         close()
     }
 
-    /// 供权限引导窗「完成」按钮复用：不标记欢迎窗已看（用户可能从菜单直接开的权限窗）
-    public static func dismissWelcome() {
-        shared.close()
-    }
-
     public func close() {
         RenderProbe.snapshot(window, name: "welcome", reason: "close")
         window?.orderOut(nil)

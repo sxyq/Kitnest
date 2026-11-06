@@ -179,14 +179,6 @@ public enum Theme {
     //
     // 全部写成 NSColor 动态色：同一份代码自动跟随浅色/深色，不用到处判 colorScheme。
 
-    /// 动态色工厂：按外观返回不同 NSColor
-    private static func dynamic(light: NSColor, dark: NSColor) -> Color {
-        Color(nsColor: NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark ? dark : light
-        })
-    }
-
     /// v193：表面令牌全部改为**跟随个性化参数**的计算属性。
     ///
     /// 之前四个表面是写死的常量，用户只能接受既定观感；现在

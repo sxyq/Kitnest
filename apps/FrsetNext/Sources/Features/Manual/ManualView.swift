@@ -466,15 +466,8 @@ private struct ManualBlockView: View {
         }
     }
 
-    /// 行内 Markdown → AttributedString（失败回退纯文本）
-    private func inline(_ s: String) -> AttributedString {
-        if let attr = try? AttributedString(
-            markdown: s,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            return attr
-        }
-        return AttributedString(s)
-    }
+    /// 行内 Markdown → AttributedString（与文件级 inlineMarkdown 同一实现）
+    private func inline(_ s: String) -> AttributedString { inlineMarkdown(s) }
 }
 
 // MARK: - 图片
@@ -587,7 +580,7 @@ private struct ManualTableView: View {
     private func row(_ cells: [String], isHeader: Bool) -> some View {
         HStack(alignment: .top, spacing: 8) {
             ForEach(Array(cells.enumerated()), id: \.offset) { i, c in
-                Text(inlineCell(c))
+                Text(inlineMarkdown(c))
                     .font(.system(size: 11, weight: isHeader ? .semibold : .regular))
                     .foregroundStyle(isHeader ? .secondary : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -600,14 +593,18 @@ private struct ManualTableView: View {
         .background(isHeader ? Theme.cardFill : Color.clear)
     }
 
-    private func inlineCell(_ s: String) -> AttributedString {
-        if let a = try? AttributedString(markdown: s,
-                                         options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            return a
-        }
-        return AttributedString(s)
-    }
 }
 
 // v128（流畅度）：ManualBlock.plainText 移至 ManualDocument.swift——
 // ManualNode.finalizeSearchText 在解析期一次性调用（原每次搜索命中判定都重算 join）。
+
+/// 行内 Markdown → AttributedString（失败回退纯文本）。
+/// v245：原本 ManualBlockView.inline 与 ManualTableView.inlineCell 各一份，合并到这里。
+private func inlineMarkdown(_ s: String) -> AttributedString {
+    if let a = try? AttributedString(
+        markdown: s,
+        options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+        return a
+    }
+    return AttributedString(s)
+}
