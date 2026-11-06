@@ -430,6 +430,13 @@ final class GenieWarp {
         frameLayer.magnificationFilter = .linear
         frameLayer.minificationFilter = .linear
         frameLayer.isOpaque = false
+        // v257（用户：「连续点击之后，收缩的时候还是会抽搐」）：
+        // frameLayer 是手动建的**子 layer**，不是 NSView 的 backing layer，
+        // 所以给 contents 赋值会走 CALayer 默认的**隐式淡变（0.25s crossfade）**。
+        // 每次掉头 startLeg 都在改 contents，这个淡变就和离散帧动画叠加：
+        // 动画按 timeOffset/speed 走帧，同时模型层在做淡入淡出 → 收缩时看起来就是抽搐。
+        // 显式声明 contents 无动作，彻底关掉隐式动画。
+        frameLayer.actions = ["contents": NSNull()]
         frameLayer.contents = frames[0]
         host.layer?.addSublayer(frameLayer)
 
@@ -487,12 +494,19 @@ final class GenieWarp {
         anim.beginTime = CACurrentMediaTime()
         anim.timeOffset = position
         anim.speed = speed
-        // v252：模型值必须落在**当前位置那一帧**，不能落终态。
-        // 掉头要 removeAnimation + 重挂，这一瞬间图层显示的是模型值；
-        // 落终态就会在每次点击时闪到末帧再跳回来——连点看起来就是抽搐。
-        let denom = max(0.0001, duration)
-        let idx = Int((position / denom) * Double(frames.count - 1))
-        layer.contents = frames[min(max(0, idx), frames.count - 1)]
+        // v252/v257：模型值必须落在**动画此刻正在显示的那一帧**。
+        // 1) 掉头时 add(_:forKey:) 会原子替换，但同一事务里改 contents 仍可能起隐式动画，
+        //    这里用 CATransaction 显式禁用（frameLayer.actions 已设 NSNull，双保险）。
+        // 2) 索引公式必须和 keyTimes 一致：动画第 k 帧覆盖 [k/n, (k+1)/n)，
+        //    所以显示帧是 floor(t·n)（clamp 到 n-1）；原来用 t·(n-1) 会差一帧，
+        //    连点掉头时就是「闪一帧别的画面」。
+        let t = min(max(0, position / max(0.0001, duration)), 1)
+        let rawIdx = Int(floor(t * Double(frames.count)))
+        let idx = min(max(0, rawIdx), frames.count - 1)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer.contents = frames[idx]
+        CATransaction.commit()
         layer.add(anim, forKey: "genie.frames")
 
         legAnim = anim
@@ -517,8 +531,18 @@ final class GenieWarp {
                                  completion: (() -> Void)?) -> Bool {
         guard running, frames.count > 1, frameLayer != nil, legAnim != nil else { return running }
         let pos = currentPosition()
-        // 已经贴在两端就没什么可倒的，交给原本的收尾
-        guard pos > 0.02, pos < legDuration - 0.02 else { return running }
+
+        // v257：pos≈0 只出现在**这一腿刚起步**的时候。此刻反向的终点就是当前位置，
+        // 没有可倒的余量。原来这里 `return running` 假装掉头成功、实际什么都没做，
+        // 调用方以为动画在跑（于是不再 fallback），面板 alpha 停在 0、状态和画面脱节，
+        // 下一次点击就会「抽」一下。改为按新方向直接收尾。
+        if pos <= 0.02 {
+            opening = newOpening
+            self.completion = completion
+            Log.info("Motion", "genie 贴边掉头 → \(newOpening ? "展开" : "收起")：已在终点，直接收尾")
+            finish()
+            return true
+        }
 
         stopWatchdog()
         opening = newOpening
