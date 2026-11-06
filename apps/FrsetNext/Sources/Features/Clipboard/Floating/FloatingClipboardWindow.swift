@@ -185,13 +185,6 @@ public final class FloatingClipboardStore: ObservableObject {
         isVisible = visible
         FloatingClipboardPinState.shared.isVisible = visible
     }
-
-    public func setPinned(_ pinned: Bool) {
-        isPinned = pinned
-        FloatingClipboardPinState.shared.isPinned = pinned
-        // v205：📌 开关即时改变窗口层级（未钉住 = 普通窗口，点别的窗口就沉下去）
-        FloatingClipboardWindowController.shared.applyPinLevel()
-    }
 }
 
 // MARK: - 浮动窗控制器（05 号规格 1.4：FloatingClipboardWindowController）
@@ -309,21 +302,6 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             ? [.canJoinAllSpaces, .fullScreenAuxiliary, .participatesInCycle]
             : [.managed, .participatesInCycle]
         Log.info("Clipboard", "悬浮工作台层级：pinned=\(pinned) level=\(panel.level.rawValue)（0=普通窗口，3=置顶）")
-    }
-
-    /// 双击修饰键呼出（原版 AppKitDoubleTapMonitor 语义）：把窗口挪到鼠标附近再显示。
-    public func showNearMouse() {
-        revealGeneration += 1
-        isHiding = false
-        let mouse = NSEvent.mouseLocation
-        var frame = state.clampedFrame()
-        frame.origin = CGPoint(x: mouse.x - frame.width / 2, y: mouse.y - frame.height / 2)
-        store.setVisible(true)
-        store.refresh()
-        window?.setFrame(frame, display: true)
-        applyPinLevel()
-        window?.orderFrontRegardless()
-        if let w = window { WindowReveal.playInFromMouse(on: w) }
     }
 
     /// App 启动时调用：恢复上次的可见状态

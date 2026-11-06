@@ -752,25 +752,6 @@ public struct FloatingClipboardDeskView: View {
     }
 }
 
-// MARK: - 缩略图缓存（同一张图在滚动时反复渲染，不能每次都读盘）
-
-private enum FloatingClipThumbCache {
-    private static let cache: NSCache<NSString, NSImage> = {
-        let c = NSCache<NSString, NSImage>()
-        c.countLimit = 128
-        return c
-    }()
-
-    static func image(for path: String) -> NSImage? {
-        guard !path.isEmpty else { return nil }
-        let key = path as NSString
-        if let hit = cache.object(forKey: key) { return hit }
-        guard let image = NSImage(contentsOf: ClipboardFileStore.url(forRelativePath: path)) else { return nil }
-        cache.setObject(image, forKey: key)
-        return image
-    }
-}
-
 // MARK: - 网格卡片
 
 private struct FloatingClipCard: View {
@@ -836,7 +817,7 @@ private struct FloatingClipCard: View {
     private var imageBody: some View {
         Group {
             if let path = item.imagePath ?? item.thumbnailPath,
-               let image = FloatingClipThumbCache.image(for: path) {
+               let image = ClipboardImageStorage.image(relativePath: path) {
                 Image(nsImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
