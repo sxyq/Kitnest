@@ -86,18 +86,6 @@ public final class LLMSessionStore {
     }
 
 
-    /// 清空全部会话
-    public func clearAll() {
-        do {
-            try db.transaction { database in
-                try database.run("DELETE FROM llm_messages;")
-                try database.run("DELETE FROM llm_sessions;")
-            }
-        } catch {
-            Log.error("AI", "清空会话失败：\(error.localizedDescription)")
-        }
-    }
-
     // MARK: 消息
 
     @discardableResult

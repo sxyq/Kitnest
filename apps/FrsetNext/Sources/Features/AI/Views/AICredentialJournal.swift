@@ -63,20 +63,6 @@ public final class AICredentialJournalStore {
         record(action: action, providerRaw: "*", secret: nil)
     }
 
-    /// 读取最近 n 条（时间升序返回）
-    public func entries(limit: Int = 200) -> [AICredentialJournalEntry] {
-        lock.lock(); defer { lock.unlock() }
-        let all = Self.loadAll(fileURL: fileURL)
-        guard limit < all.count else { return all }
-        return Array(all.suffix(limit))
-    }
-
-    public func clear() {
-        lock.lock()
-        try? FileManager.default.removeItem(at: fileURL)
-        lock.unlock()
-    }
-
     // MARK: - 私有
 
     private func record(action: AICredentialJournalEntry.Action,
@@ -173,8 +159,4 @@ public final class AICredentialCommitCoordinator {
         journal.record(action: .remove, provider: provider)
     }
 
-    public func clearAll() {
-        store.clear()
-        journal.recordGlobal(action: .clear)
-    }
 }
