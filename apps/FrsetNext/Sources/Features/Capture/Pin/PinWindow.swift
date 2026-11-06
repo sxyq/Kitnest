@@ -1435,11 +1435,6 @@ public final class PinnedScreenshotManager: NSObject {
     }
 
     @discardableResult
-    public func show(url: URL) -> Bool {
-        guard let image = ImageProcessor.cgImage(from: url) else { return false }
-        return show(image: image)
-    }
-
     // MARK: 批量
 
     public func closeAll() {

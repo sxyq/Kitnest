@@ -211,13 +211,6 @@ public final class CaptureHistoryStore {
         }
     }
 
-    public func item(id: String) -> CaptureHistoryItem? {
-        queue.sync {
-            let rows = (try? self.db.query("SELECT * FROM capture_history WHERE id = ?", [.text(id)])) ?? []
-            return rows.first.map { Self.item(from: $0) }
-        }
-    }
-
     // MARK: 淘汰与清理
 
     /// 超过 500 条淘汰最旧 + 清理孤儿缩略图（磁盘上有、库里没有的）
