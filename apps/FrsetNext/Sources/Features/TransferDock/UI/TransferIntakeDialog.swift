@@ -16,6 +16,8 @@ struct TransferIntakeRequest: Identifiable {
 extension Notification.Name {
     /// userInfo: ["urls": [URL]]
     static let frsetTransferIntake = Notification.Name("frset.transfer.intake")
+    /// 转入选了云端但未登录 → 让中转页把登录弹出来
+    static let frsetOpenTransferLogin = Notification.Name("frset.transfer.login")
 }
 
 // MARK: - 弹框

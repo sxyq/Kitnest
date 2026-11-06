@@ -65,6 +65,12 @@ public final class StatusBarController: NSObject {
         item.button?.action = #selector(mainItemClicked(_:))
         // 左键开面板，右键弹菜单
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        // v250：拖文件到图标 → 转入（云端 / 本地二选一）
+        if let b = item.button {
+            let proxy = StatusItemDropProxy(frame: b.bounds)
+            proxy.autoresizingMask = [.width, .height]
+            b.addSubview(proxy)
+        }
         ToastAnchor.button = item.button       // 通知条定位锚点（spec 13 §3，主状态项图标）
         mainItem = item
         // v30：把主图标项注册给 STATS 引擎（位置校准/保邻的参照物）

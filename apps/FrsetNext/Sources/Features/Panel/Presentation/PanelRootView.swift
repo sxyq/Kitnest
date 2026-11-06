@@ -55,6 +55,9 @@ struct PanelRootView: View {
     /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
     @ObservedObject private var clipboard = ClipboardManager.shared
 
+    /// v250：拖文件到图标后的转入弹框（挂在面板根上，任意页面都能弹）
+    @Stored private var intake: TransferIntakeRequest?
+
     private var page: PanelCenterPage { monitorPresenter.activePage }
 
     /// 顶部实际出现的页面（顺序 = 设置里拖拽的顺序，过滤掉关掉的）
@@ -229,6 +232,28 @@ struct PanelRootView: View {
             normalizeSegmentSelection()
         }
         // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
+        .onReceive(NotificationCenter.default.publisher(for: .frsetTransferIntake)) { note in
+            guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
+            intake = TransferIntakeRequest(urls: urls)
+        }
+        .sheet(item: $intake) { req in
+            TransferIntakeDialog(
+                request: req,
+                onConfirm: { choice in
+                    intake = nil
+                    switch choice {
+                    case .cloud:
+                        guard TransferDockService.shared.loggedIn else {
+                            NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil)
+                            return
+                        }
+                        TransferDockService.shared.uploadBatch(req.urls)
+                    case .local:
+                        _ = LocalTransferStore.shared.add(urls: req.urls)
+                    }
+                },
+                onCancel: { intake = nil })
+        }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
             if page != .home { monitorPresenter.selectHome() }
         }
