@@ -475,8 +475,8 @@ final class GenieWarp {
     private func startLeg(at position: TimeInterval, speed: Float, duration: TimeInterval) {
         guard let layer = frameLayer, frames.count > 1 else { finish(); return }
         stopWatchdog()
-        layer.removeAnimation(forKey: "genie.frames")
-
+        // v254：不要先 removeAnimation。add(_:forKey:) 用同一个 key 会**原子替换**，
+        // 先摘再挂中间会露出一帧模型值——收缩时就是那一下抽搐。
         let anim = CAKeyframeAnimation(keyPath: "contents")
         anim.values = frames
         anim.keyTimes = (0..<frames.count).map { NSNumber(value: Double($0) / Double(frames.count)) }
@@ -521,7 +521,6 @@ final class GenieWarp {
         guard pos > 0.02, pos < legDuration - 0.02 else { return running }
 
         stopWatchdog()
-        frameLayer?.removeAnimation(forKey: "genie.frames")
         opening = newOpening
         self.completion = completion
         let newSpeed: Float = legSpeed >= 0 ? -1 : 1

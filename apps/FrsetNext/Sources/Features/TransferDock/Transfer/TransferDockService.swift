@@ -297,13 +297,16 @@ final class TransferDockService: ObservableObject {
     // MARK: 登录态写回（WKWebView 抓到的 cookie → credentials/cookies.json）
 
     /// 把浏览器 cookie 写成中转站工程认识的格式（数组，含 domain/expires/httpOnly/name/path/secure/value）
-    func saveCookies(_ cookies: [HTTPCookie]) {
+    /// - Parameter completion: v255 起必传的逻辑：登录页要等**服务端回验通过**才关窗。
+    ///   `ok == false` 时 `reason` 是服务端原话（例如 1003 用户信息获取失败）。
+    func saveCookies(_ cookies: [HTTPCookie], completion: ((Bool, String?) -> Void)? = nil) {
         let keepDomains = ["heytap.com", "oppo.com"]
         let relevant = cookies.filter { cookie in
             keepDomains.contains { cookie.domain.hasSuffix($0) }
         }
         guard !relevant.isEmpty else {
             errorMessage = "登录页没有产生有效 cookie，请确认已登录成功"
+            completion?(false, "登录页没有产生有效 cookie")
             return
         }
         let payload: [[String: Any]] = relevant.map { cookie in
@@ -325,12 +328,15 @@ final class TransferDockService: ObservableObject {
             // v249（用户：「登录之后没有成功显示」）：写之前把上一份 cookie 存成证据，便于回溯
             Self.archiveCookieEvidence()
             try data.write(to: TransferDockPath.cookieFile, options: .atomic)
+            Log.info("TransferDock", "登录态落盘 \(relevant.count) 条: "
+                     + relevant.map { "\($0.domain)/\($0.name)" }.sorted().joined(separator: ", "))
             // v249：不能只看 cookie 条数就宣布登录成功——必须让桥回验一次。
             // 原来这里直接 loggedIn = true，服务端其实回 1003，界面显示已登录但列表永远空。
             statusMessage = "登录态已保存，正在校验…"
             errorMessage = nil
             Self.verifySession { [weak self] ok, reason in
                 guard let self else { return }
+                Log.info("TransferDock", "回验结果 ok=\(ok) reason=\(reason ?? "-")")
                 DispatchQueue.main.async {
                     if ok {
                         self.loggedIn = true
@@ -342,10 +348,12 @@ final class TransferDockService: ObservableObject {
                         self.statusMessage = ""
                         self.errorMessage = reason ?? "会话无效，请重新登录"
                     }
+                    completion?(ok, reason)
                 }
             }
         } catch {
             errorMessage = "写入登录态失败：\(error.localizedDescription)"
+            completion?(false, "写入登录态失败：\(error.localizedDescription)")
         }
     }
 
