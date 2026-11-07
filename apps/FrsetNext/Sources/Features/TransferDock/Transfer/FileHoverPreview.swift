@@ -170,8 +170,10 @@ public final class FileHoverPreviewController: NSResponder {
 
     // MARK: 对外接口
 
-    /// 悬停进入一行：0.4s 后弹预览（同一文件不重复重建内容）
-    public func scheduleShow(url: URL) {
+    /// 悬停进入一行：默认 0.4s 后弹预览（同一文件不重复重建内容）。
+    /// `after` 供归档表格用——那边要的是「悬停 1 秒」才弹，且延迟由调用方自己等
+    /// （它还要先把条目解到临时文件），所以解完直接 showNow，不再叠一次延迟。
+    public func scheduleShow(url: URL, after delay: TimeInterval = 0.4) {
         hideWork?.cancel()
         hideWork = nil
         showWork?.cancel()
@@ -179,7 +181,16 @@ public final class FileHoverPreviewController: NSResponder {
             self?.show(url: url)
         }
         showWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, delay), execute: work)
+    }
+
+    /// 立即显示（调用方已经等过延迟、也把文件准备好了）
+    public func showNow(url: URL) {
+        showWork?.cancel()
+        showWork = nil
+        hideWork?.cancel()
+        hideWork = nil
+        show(url: url)
     }
 
     /// 悬停离开：0.35s 后关（鼠标若已移进面板内则不关）

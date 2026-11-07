@@ -13,6 +13,36 @@ import AppKit
 final class ArchiveEntryTableView: NSTableView {
     weak var host: ArchiveEntryTableHost?
 
+    /// v258（用户：「悬浮 1 秒预览」）：表格自己装跟踪区——行视图会被 reload 复用，
+    /// 装在行上每次重载都要重挂；装在表上只需跟着可见区域走。
+    private var hoverTracking: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
+            owner: self,
+            userInfo: nil)
+        addTrackingArea(area)
+        hoverTracking = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        host?.hoverChanged(to: row(at: convert(event.locationInWindow, from: nil)))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        host?.hoverChanged(to: -1)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        // 滚动时行会从指针底下滑过，不收起会连弹好几个
+        host?.hoverChanged(to: -1)
+        super.scrollWheel(with: event)
+    }
+
     /// v127：右键先选中命中行（不在选中集里才换选），再弹共用条目菜单
     override func rightMouseDown(with event: NSEvent) {
         let row = self.row(at: convert(event.locationInWindow, from: nil))
@@ -36,6 +66,8 @@ final class ArchiveEntryTableHost: NSView {
     var lastSignature = ""
     /// 回填选中时置位，避免 selectionDidChange 反写 model 造成循环
     var applyingSelection = false
+    /// v258：当前悬停行（-1 = 不在任何行上），用于「悬浮 1 秒预览」
+    private var hoverRow = -1
     lazy var menuActions = ArchiveMenuActions(model: model)
 
     init() {
@@ -76,6 +108,23 @@ final class ArchiveEntryTableHost: NSView {
         scrollView.frame = bounds
     }
 
+    /// v258：表格离开窗口（归档窗关闭）→ 清掉悬停预览的临时解压目录
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window == nil { ArchiveHoverPreview.shared.cleanup() }
+    }
+
+    /// 悬停行变化：换行走「先收旧、再等 1 秒」，离开表格直接取消
+    func hoverChanged(to row: Int) {
+        guard row != hoverRow else { return }
+        hoverRow = row
+        guard row >= 0, let model, row < model.visibleEntries.count else {
+            ArchiveHoverPreview.shared.cancel()
+            return
+        }
+        ArchiveHoverPreview.shared.schedule(archive: model.url, entry: model.visibleEntries[row])
+    }
+
     @objc private func doubleClicked(_ sender: Any?) {
         let row = tableView.clickedRow
         guard row >= 0, let model else { return }
@@ -96,6 +145,9 @@ final class ArchiveEntryTableHost: NSView {
         let signature = list.map { $0.path }.joined(separator: "\u{1}")
         if signature != lastSignature {
             lastSignature = signature
+            // v258：列表内容换了，旧行的悬停预览已经没有意义
+            hoverRow = -1
+            ArchiveHoverPreview.shared.cancel()
             tableView.reloadData()
         }
         var indexes = IndexSet()
