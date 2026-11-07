@@ -47,12 +47,15 @@ public enum StatusBarMenuBuilder {
     private static var cachedMenu: MenuCache?
 
     /// 主图标右键菜单：打开面板 / 设置 / 监测项开关 / 退出
-    /// 入口开关位图：home=1, monitorPopout=2, statsBar=4
+    /// 入口开关位图：home=1, monitorPopout=2, statsBar=4, shelf=8
     private static func entriesSignature() -> Int {
         var sig = 0
         if GlobalEntries.isEnabled(GlobalEntries.homeKey) { sig |= 1 }
         if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) { sig |= 2 }
         if GlobalEntries.isEnabled(GlobalEntries.statsBarKey) { sig |= 4 }
+        // v261：悬挂架开关会决定菜单里有没有「截图悬挂架」这一项。
+        // 不纳入签名的话，用户在设置里开关完再点菜单，看到的还是旧缓存。
+        if ShelfPref.enabled { sig |= 8 }
         return sig
     }
 
