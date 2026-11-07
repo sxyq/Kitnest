@@ -58,28 +58,44 @@ def key(r):
     return (r["file"], r["owner"], r["kind"], r["name"], int(r["line"]))
 
 
+def name_key(k):
+    """去掉行号的键：用来区分「行号漂移」与「函数真的不在」。"""
+    return k[:4]
+
+
 def main() -> int:
     problems = []
 
     fresh, files = scan_source()
-    fresh.sort(key=lambda r: (r["file"], int(r["line"])))
     csv_rows = list(csv.DictReader(open(CSV, encoding="utf-8-sig")))
-    csv_rows.sort(key=lambda r: (r["file"], int(r["line"])))
 
     # 1) CSV ↔ 源码
-    if len(fresh) != len(csv_rows):
+    #
+    # v261：原来用 zip 逐行比，中间插一条就整体错位，报「8126 行不一致」——
+    # 真实差异只有几十条，报告的人得自己再排一遍。改成按主键集合比：
+    # 先看谁多谁少，再看共有项的字段差异，各报各的。
+    csv_map = {key(r): r for r in csv_rows}
+    src_map = {key(r): r for r in fresh}
+    only_csv = sorted(set(csv_map) - set(src_map))
+    only_src = sorted(set(src_map) - set(csv_map))
+    if len(csv_rows) != len(fresh):
         problems.append(f"CSV 条数 {len(csv_rows)} ≠ 源码 {len(fresh)}（改了码没重跑 func_table.py？）")
-    diff = 0
-    for a, b in zip(csv_rows, fresh):
-        for f in ("module", "file", "owner", "kind", "name", "line", "lines", "complexity"):
-            if str(a.get(f)) != str(b.get(f)):
-                diff += 1
-                if diff <= 5:
-                    problems.append(f"CSV 行不一致 {a.get('file')}:{a.get('line')} 字段 {f}: "
-                                    f"表={a.get(f)} 源码={b.get(f)}")
+    if only_csv:
+        problems.append(f"CSV 有 {len(only_csv)} 条源码已不存在（真删或改名），"
+                        f"例：{only_csv[:3]}")
+    if only_src:
+        problems.append(f"CSV 缺 {len(only_src)} 条源码声明（新函数/漏扫），"
+                        f"例：{only_src[:3]}")
+    field_diff = []
+    for k in set(csv_map) & set(src_map):
+        for f in ("module", "lines", "complexity"):
+            if str(csv_map[k].get(f)) != str(src_map[k].get(f)):
+                field_diff.append((k, f, csv_map[k].get(f), src_map[k].get(f)))
                 break
-    if diff:
-        problems.append(f"CSV 与源码共有 {diff} 行不一致")
+    if field_diff:
+        k, f, a, b = field_diff[0]
+        problems.append(f"CSV 有 {len(field_diff)} 条字段不一致，例：{k[0]}:{k[4]} "
+                        f"字段 {f} 表={a} 源码={b}")
 
     # 2) 台账覆盖率与行号
     led = list(csv.DictReader(open(LEDGER, encoding="utf-8-sig")))
@@ -87,10 +103,17 @@ def main() -> int:
     need = {key(r) for r in fresh if r["kind"] in FUNC_KINDS}
     missing = need - have
     extra = have - {key(r) for r in fresh}
-    if missing:
-        problems.append(f"台账缺 {len(missing)} 个函数，例：{sorted(missing)[:3]}")
-    if extra:
-        problems.append(f"台账有 {len(extra)} 条在清单里不存在，例：{sorted(extra)[:3]}")
+    if missing or extra:
+        have_n = {name_key(k) for k in have}
+        need_n = {name_key(k) for k in need}
+        real_missing = need_n - have_n
+        real_extra = have_n - need_n
+        if real_missing or real_extra:
+            problems.append(f"台账真缺 {len(real_missing)} 个函数 / 多 {len(real_extra)} 个"
+                            f"（不只是行号漂移），例：{sorted(real_missing)[:3]}")
+        elif missing or extra:
+            problems.append(f"台账行号漂移 {len(missing)} 条（函数都在，坐标过期）"
+                            f"→ 跑 tools/rebuild_ledger.py")
 
     # 3) 符号索引头部
     decls = len(fresh)
@@ -130,10 +153,12 @@ def main() -> int:
         print("✗ 对账不通过：")
         for p in problems:
             print("  -", p)
-        print("\n修法：python3 tools/func_table.py && "
-              "python3 tools/symbol_index_md.py apps/FrsetNext/Sources "
-              "docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md && "
-              "python3 tools/swift_catalog.py")
+        print("\n修法（按顺序）：")
+        print("  1) python3 tools/func_table.py")
+        print("  2) python3 tools/rebuild_ledger.py --strict    # 行号重锚 + 补新函数证据")
+        print("  3) python3 tools/symbol_index_md.py apps/FrsetNext/Sources "
+              "docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md")
+        print("  4) python3 tools/swift_catalog.py")
         return 1
 
     print(f"✓ 全绿：{files} 文件 / {decls:,} 声明（函数 {funcs:,}）/ 台账 {len(led):,} 条，"

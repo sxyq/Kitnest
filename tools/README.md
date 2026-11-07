@@ -5,11 +5,12 @@
 | 工具 | 用途 | 用法 |
 |---|---|---|
 | `swift_fieldmd.py` | 解析 Swift `__swift5_fieldmd`/`__swift5_reflstr` 段：还原类型字段名与类型签名 | `python3 swift_fieldmd.py <arm64-slice> <out.json>` |
-| `func_table.py` | **唯一解析器**：重生成函数清单 CSV（跨行字符串/块注释按状态剥离 + 属性访问器跳体 → owner/行号/成员口径不漂移） | `python3 tools/func_table.py`（`--check` 只统计） |
+| `func_table.py` | **唯一解析器**：重生成函数清单 CSV（跨行字符串/块注释按状态剥离 + 属性访问器跳体 + 声明修饰符白名单 → owner/行号/成员口径不漂移） | `python3 tools/func_table.py`（`--check` 只统计） |
+| `rebuild_ledger.py` | **台账重建**：行号重锚 + 重命名 + 补新增函数（证据从 `EVIDENCE` 取，占位文案可回填）+ 移除源码已删函数；不自动编证据，`--strict` 下缺证据直接失败 | `python3 tools/rebuild_ledger.py --strict` |
 | `symbol_index_md.py` | 把函数清单 CSV 渲染成 `docs/00-总览/符号索引.md` | `python3 tools/symbol_index_md.py apps/FrsetNext/Sources <csv> docs/00-总览/符号索引.md` |
 | `swift_catalog.py` | 重生成 `docs/00-总览/模块依赖图.md`（模块规模 + 跨模块顶层类型引用边；成员口径复用 `func_table`） | `python3 tools/swift_catalog.py` |
 | `symbol_index.py` | 逐声明 CSV（含结束行/体行数，供深读对账；口径同 `func_table`） | `python3 tools/symbol_index.py apps/FrsetNext/Sources <out.csv>` |
-| `reconcile.py` | **三方对账闸门**：CSV ↔ 审阅台账 ↔ 索引/依赖图头部数字，任一处过期立刻报红 | `python3 tools/reconcile.py`（0=全绿） |
+| `reconcile.py` | **三方对账闸门**：CSV ↔ 审阅台账 ↔ 索引/依赖图头部数字。v261 起按主键集合比（不再 zip 逐行，插一条不会误报几千行），并区分「台账行号漂移」与「真缺函数」 | `python3 tools/reconcile.py`（0=全绿） |
 | `ui_arch_audit.py` | 全量 UI 组件 / 交互 / 分层画像：生成 `数据表/源文件分层与组件画像.csv`（每文件 31 列），并打印设计令牌采用率等度量；与 `func_table` 同源扫描 | `python3 tools/ui_arch_audit.py`（`--check` 只打印） |
 | `check.sh` | typecheck + 跨模块耦合扫描 | `./tools/check.sh` |
 

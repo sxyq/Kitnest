@@ -50,23 +50,34 @@ MODULE_DIRS = {
     "MemoryHelper": "MemoryHelper", "OCRHelper": "OCRHelper",
 }
 
+# 声明前缀修饰符（三个正则共用）。
+#
+# v261：漏一个修饰符就会**整类声明静默漏记**，且不报错、只能靠台账对账发现。
+# 实测：`nonisolated private static func` 里的 nonisolated 不在旧白名单，
+# ProcessFreezer.visibleWindowPIDs / collectCandidates / isProtected 三个函数
+# 从 v260 起一直不在表里，台账重建时才暴露（表现为「源码已无此函数」的误判）。
+# 所以这里抽成共享常量：新修饰符只改一处，三个正则同时生效。
+_DECL_MODIFIER = (
+    r"(?:public|private|internal|fileprivate|open|package|final|indirect|static|"
+    r"dynamic|distributed|optional|mutating|nonmutating|override|required|"
+    r"convenience|lazy|weak|unowned|readonly|nonisolated(?:\([^)]*\))?)"
+)
+_MODS = rf"(?:(?:@\w+(?:\([^)]*\))?|{_DECL_MODIFIER})\s+)*"
+# `class func` 的 class 是修饰符，但它在 TYPE_RE 里是关键字——只能给 FUNC_RE 单独补。
+_MODS_FUNC = rf"(?:(?:@\w+(?:\([^)]*\))?|{_DECL_MODIFIER}|class)\s+)*"
+
 TYPE_RE = re.compile(
-    r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*"
-    r"(?:(?:public|private|internal|fileprivate|open|final|indirect|static)\s+)*"
+    rf"^\s*{_MODS}"
     r"(class|struct|enum|extension|protocol|actor)\s+([A-Za-z_][A-Za-z0-9_]*)"
 )
 FUNC_RE = re.compile(
-    r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*"
-    r"(?:(?:public|private|internal|fileprivate|open|static|class|final|mutating|"
-    r"nonmutating|override|required|convenience|@discardableResult)\s+)*"
+    rf"^\s*{_MODS_FUNC}"
     # v241：`\b` 必须加——否则 "function" 会被 `func` 命中、把 "tion" 当成函数名
     #（CodeTheme.swift 的 "function" 键曾凭空生成 14 条假函数行）
     r"(func|init|deinit|subscript)\b\s*!?\s*([A-Za-z_][A-Za-z0-9_]*)?"
 )
 PROP_RE = re.compile(
-    r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*"
-    r"(?:(?:public|private|internal|fileprivate|open|static|class|final|lazy|weak|"
-    r"unowned|override|readonly)\s+)*"
+    rf"^\s*{_MODS}"
     r"(let|var)\s+([A-Za-z_][A-Za-z0-9_]*)"
 )
 
