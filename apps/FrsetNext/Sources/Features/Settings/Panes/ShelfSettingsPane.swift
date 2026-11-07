@@ -39,7 +39,7 @@ public struct ShelfSettingsPane: View {
                 behaviorSection
             }
             .disabled(!enabled)
-            .opacity(enabled ? 1 : 0.45)
+            .opacity(enabled ? 1 : 0.62)
 
             footer
         }
@@ -240,7 +240,7 @@ private struct ShelfPreview: View {
 
     var body: some View {
         GeometryReader { geo in
-            let scale = min(1, (geo.size.width - 40) / (cardWidth * 2 + 13 + 32))
+            let scale = min(1, (geo.size.width - 40) / (cardWidth * 2 + 16 + 32))
             let cw = max(64, cardWidth * scale)
             let ch = cw * 0.62
 
@@ -252,9 +252,9 @@ private struct ShelfPreview: View {
                     Spacer(minLength: 0)
                     ZStack(alignment: .top) {
                         ShelfRopeSample(style: style)
-                            .frame(width: cw * 2 + 13 + 44, height: 20)
+                            .frame(width: cw * 2 + 16 + 44, height: 20)
                             .offset(y: 6)
-                        HStack(spacing: 13) {
+                        HStack(spacing: 16) {
                             ShelfCardMock(width: cw, height: ch)
                             ShelfCardMock(width: cw, height: ch)
                         }
@@ -276,7 +276,7 @@ private struct ShelfCardMock: View {
     var body: some View {
         VStack(spacing: 0) {
             ShelfClip()
-                .frame(width: 9, height: 11)
+                .frame(width: 10, height: 13)
             ZStack {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(Color(white: 0.97))
@@ -376,7 +376,7 @@ private struct ShelfRopeSample: View {
     }
 
     private var strokeColor: Color {
-        style == .snow ? Color.white.opacity(0.55) : Color.white.opacity(0.42)
+        style == .snow ? Color.white.opacity(0.80) : Color.white.opacity(0.74)
     }
 
     private var lineWidth: CGFloat {
