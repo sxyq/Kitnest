@@ -38,6 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 不显示 Dock 图标（菜单栏应用）
         NSApp.setActivationPolicy(.accessory)
+        // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
+        ProcessFreezer.shared.thawOrphans()
         AppBootstrap.start()
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
         // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
@@ -95,6 +97,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // v259：退出前必须唤醒所有被暂停的应用，否则它们会一直挂着
+        ProcessFreezer.shared.thawAll(reason: "退出")
         // v84：退出前把个性化防抖窗口内的改动立即落盘（否则 150ms 内退出会丢设置）
         Personalization.shared.flushPendingPersist()
         LogArchive.shared.stop()
@@ -194,6 +198,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "tasks":
                 // v181：压缩/解压任务队列（等于归档窗工具栏的「任务」按钮）
                 ArchiveProgressWindowController.show()
+            case "memcheck":
+                // v259 排障入口：完整跑一次「深度释放」（暂停闲置 + 压力广播 + purge）。
+                // ?freeze=0 只清缓存不冻结。结果写日志，不移动鼠标、不激活任何窗口。
+                let freeze = comps?.queryItems?.first(where: { $0.name == "freeze" })?.value != "0"
+                Task { await MemoryOptimizer.shared.optimize(freezeIdle: freeze) }
+            case "memthaw":
+                ProcessFreezer.shared.thawAll(reason: "排障入口")
             case "clipdesk":
                 // 悬浮剪贴板工作台（v191）：快捷键之外的确定性入口，排障/截图用
                 // v202：支持 ?action=hide|toggle，便于验证「收起动画中重开」竞态
