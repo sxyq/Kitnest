@@ -19,7 +19,10 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 2. **每次改完必须提交**：不允许把改动留在工作区过夜。收尾时 `git status --short` 必须为空。
    commit 写清楚：**需求原话 + 改动文件 + 具体改动**（含数值）+ 实测方式
 3. **每次改完必须重生成函数表**：`python3 tools/func_table.py`
-   （带花括号深度跟踪；手工改表会让 owner/行号再次漂移——2026-11-04 实测旧表 26% 归属错误）
+   （唯一解析器：跨行字符串/块注释按状态剥离，属性访问器体跳读；手工改表会让 owner/行号再次漂移）
+   再 `python3 tools/symbol_index_md.py apps/FrsetNext/Sources docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md`
+   与 `python3 tools/swift_catalog.py`，最后 `python3 tools/reconcile.py` 必须全绿
+   （CSV ↔ 审阅台账 ↔ 两份索引文档三方对账；v259 起新增函数要同步补台账）
 4. **每次改完必须重跑 CodeGraph 索引**：`codegraph sync .`
    （不 sync 时 `codegraph_explore` 会跳过「索引后已改动」的文件，拿不到源码）
 5. DMG 版本号**固定 1.0.0 不变**；每次改动后重打（用户分发用）

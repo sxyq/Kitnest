@@ -5,8 +5,11 @@
 | 工具 | 用途 | 用法 |
 |---|---|---|
 | `swift_fieldmd.py` | 解析 Swift `__swift5_fieldmd`/`__swift5_reflstr` 段：还原类型字段名与类型签名 | `python3 swift_fieldmd.py <arm64-slice> <out.json>` |
-| `func_table.py` | 重生成函数清单 CSV（花括号深度跟踪 → owner/行号不漂移） | `python3 tools/func_table.py`（`--check` 只统计） |
-| `symbol_index.py` | 重生成符号索引 Markdown（`docs/00-总览/符号索引.md`） | `python3 tools/symbol_index.py apps/FrsetNext/Sources docs/.../symbols.csv` |
+| `func_table.py` | **唯一解析器**：重生成函数清单 CSV（跨行字符串/块注释按状态剥离 + 属性访问器跳体 → owner/行号/成员口径不漂移） | `python3 tools/func_table.py`（`--check` 只统计） |
+| `symbol_index_md.py` | 把函数清单 CSV 渲染成 `docs/00-总览/符号索引.md` | `python3 tools/symbol_index_md.py apps/FrsetNext/Sources <csv> docs/00-总览/符号索引.md` |
+| `swift_catalog.py` | 重生成 `docs/00-总览/模块依赖图.md`（模块规模 + 跨模块顶层类型引用边；成员口径复用 `func_table`） | `python3 tools/swift_catalog.py` |
+| `symbol_index.py` | 逐声明 CSV（含结束行/体行数，供深读对账；口径同 `func_table`） | `python3 tools/symbol_index.py apps/FrsetNext/Sources <out.csv>` |
+| `reconcile.py` | **三方对账闸门**：CSV ↔ 审阅台账 ↔ 索引/依赖图头部数字，任一处过期立刻报红 | `python3 tools/reconcile.py`（0=全绿） |
 | `check.sh` | typecheck + 跨模块耦合扫描 | `./tools/check.sh` |
 
 ## 关联工具（在 frset/rea-evidence 内）

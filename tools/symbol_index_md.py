@@ -42,18 +42,25 @@ def main():
     total_files = len(files)
     total_lines = sum(files.values())
     total_decls = len(rows)
-    total_funcs = sum(1 for r in rows if r['kind'] == 'func')
+    FUNC_KINDS = ('func', 'init', 'deinit', 'subscript')
+    total_funcs = sum(1 for r in rows if r['kind'] in FUNC_KINDS)
+    total_types = sum(1 for r in rows if r['kind'] not in FUNC_KINDS + ('let', 'var'))
 
     lines = []
-    lines.append('# FrsetNext 符号索引（自动生成，逐函数）')
+    lines.append('# FrsetNext 符号索引（自动生成，逐声明）')
     lines.append('')
-    lines.append('> 由 `tools/symbol_index.py` 扫描 `apps/FrsetNext/Sources` 生成，**用于反查与对账，不手工编辑**。')
-    lines.append(f'> 覆盖 {total_files} 个 Swift 文件、{total_lines} 行、{total_decls} 个声明（其中函数 {total_funcs} 个）。')
-    lines.append('> 「行数」= 函数体占用行数（含签名行与右花括号），用于判断复杂度，不是 LOC 统计。')
+    lines.append('> 由 `tools/func_table.py` 产出 CSV 后交本脚本渲染，**不手工编辑**。')
+    lines.append(f'> 覆盖 {total_files} 个 Swift 文件、{total_lines} 行、{total_decls} 个声明'
+                 f'（函数 {total_funcs} 个，含 init/deinit/subscript；属性 '
+                 f'{total_decls - total_funcs - total_types} 个）。')
+    lines.append('> 「体行数」= 声明占用行数（含签名行与右花括号），用于判断复杂度，不是 LOC 统计。')
     lines.append('>')
-    lines.append('> **口径（下界，不是全量）**：① 只扫 `.swift`，`FrsetStatsBar/` 的 C/ObjC 约 1 万行不在其中；')
-    lines.append('> ② 正则要求"声明行自身开启大括号"，**多行签名的函数会漏约 50 个**。')
-    lines.append('> 逐行级细节以 `docs/deepread/` 的 11 份测绘报告为准（报告逐文件标注了 CSV 对账数）。')
+    lines.append('> **口径**：① 只扫 `.swift`，`FrsetStatsBar/` 的 1 万行 C/ObjC 不在其中（见 A2-statsbar.md）；')
+    lines.append('> ② 属性访问器 / 闭包初始化器的**体已被跳过**，getter 内的局部 `let` 不再记成成员'
+                 '（v259 修，旧表 470 条误记）；')
+    lines.append('> ③ 多行字符串与块注释按跨行状态剥离，SQL 里的 `{` 不再污染括号深度'
+                 '（v259 修，旧表漏了 ClipboardRepository 16 条）。')
+    lines.append('> 逐行级细节以 `docs/40-审计与核对/深度阅读/` 的 11 份测绘报告为准。')
     lines.append('')
     lines.append('## 总量分布')
     lines.append('')
@@ -62,7 +69,7 @@ def main():
     for mod in sorted(by_module, key=lambda m: -sum(files[f] for f in by_module[m])):
         fs = by_module[mod]
         decls = sum(len(by_file[f]) for f in fs)
-        funcs = sum(1 for f in fs for r in by_file[f] if r['kind'] == 'func')
+        funcs = sum(1 for f in fs for r in by_file[f] if r['kind'] in FUNC_KINDS)
         lines.append(f'| {mod} | {len(fs)} | {sum(files[f] for f in fs)} | {decls} | {funcs} |')
     lines.append('')
 

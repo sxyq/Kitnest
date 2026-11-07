@@ -73,11 +73,72 @@ PROP_RE = re.compile(
 BRANCH_WORDS = ("if ", "guard ", "for ", "while ", "repeat ", "case ", "catch ", "&&", "||", " ? ")
 
 
-def strip_code(line: str) -> str:
-    """去掉字符串与行注释，只保留参与括号/关键字统计的代码部分。"""
-    line = re.sub(r'"(\\.|[^"\\])*"', '""', line)
-    line = re.sub(r"//.*$", "", line)
-    return line
+def strip_line(line: str, state: dict) -> tuple[str, dict]:
+    """去掉注释与字符串字面量，返回 (可计大括号的代码, 跨行状态)。
+
+    v259（2026-11-07）：旧版是**逐行无状态**正则，两个硬伤都出在这里——
+      1) 三引号多行字符串不识别，里面的内容被当代码计括号。实测
+         `ClipboardRepository.columns` 的 SQL 里有一行 `OR content LIKE '%{%'`，
+         那个 `{` 让 `appendClauses` 的括号深度永久 +1，体扫描一路吞到文件尾
+         （记成 319 行，实际 59 行），把后面 fetch/count/insert/delete 等
+         16 条声明整体漏掉。
+      2) 块注释 `/* … */` 不识别，注释里的括号同样污染深度。
+    现在按字符扫描并携带状态：块注释、多行字符串跨行续用，单行字符串整体折叠。
+    """
+    out = []
+    i, n = 0, len(line)
+    while i < n:
+        if state["block"]:
+            j = line.find("*/", i)
+            if j < 0:
+                return "".join(out), state
+            state["block"] = False
+            i = j + 2
+            continue
+        if state["str3"]:
+            j = line.find('"""', i)
+            if j < 0:
+                return "".join(out), state
+            state["str3"] = False
+            i = j + 3
+            continue
+        ch = line[i]
+        if ch == "/" and line.startswith("//", i):
+            break
+        if ch == "/" and line.startswith("/*", i):
+            state["block"] = True
+            i += 2
+            continue
+        if line.startswith('"""', i):
+            state["str3"] = True
+            i += 3
+            continue
+        if ch == '"':
+            # 单行字符串（含 #"…"# 原始串）：整体折叠，内部括号不计
+            i += 1
+            while i < n:
+                if line[i] == "\\":
+                    i += 2
+                    continue
+                if line[i] == '"':
+                    i += 1
+                    break
+                i += 1
+            out.append('""')
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out), state
+
+
+def strip_codes(lines: list[str]) -> list[str]:
+    """把整份文件按 strip_line 预处理成「可计括号」的代码行。"""
+    state = {"block": False, "str3": False}
+    codes = []
+    for raw in lines:
+        code, state = strip_line(raw, state)
+        codes.append(code)
+    return codes
 
 
 def module_of(rel: str) -> str:
@@ -91,6 +152,7 @@ def scan_file(path: str, rel: str):
     with open(path, encoding="utf-8", errors="replace") as fh:
         lines = fh.read().splitlines()
 
+    codes = strip_codes(lines)   # v259：整份文件先做带状态剥离，跨行字符串/块注释不在括号上留残渣
     rows = []
     # 栈元素：(类型名, 进入时的深度)
     stack: list[tuple[str, int]] = []
@@ -99,8 +161,7 @@ def scan_file(path: str, rel: str):
     n = len(lines)
 
     while i < n:
-        raw = lines[i]
-        code = strip_code(raw)
+        code = codes[i]
 
         mtype = TYPE_RE.match(code)
         if mtype:
@@ -122,7 +183,7 @@ def scan_file(path: str, rel: str):
             j = i
             body_depth = None
             while j < n:
-                c = strip_code(lines[j])
+                c = codes[j]
                 opens, closes = c.count("{"), c.count("}")
                 if body_depth is None:
                     if opens > 0:
@@ -137,10 +198,9 @@ def scan_file(path: str, rel: str):
                     if body_depth <= 0:
                         break
                 j += 1
-            body_lines = lines[start:j + 1]
+            body_lines = codes[start:j + 1]
             complexity = 1
-            for bl in body_lines:
-                bc = strip_code(bl)
+            for bc in body_lines:
                 complexity += sum(bc.count(w) for w in BRANCH_WORDS)
             rows.append({
                 "module": module_of(rel), "file": rel, "owner": stack[-1][0] if stack else "-",
@@ -149,7 +209,7 @@ def scan_file(path: str, rel: str):
             })
             # 跳过函数体，避免把体内嵌套闭包/局部声明记成成员
             if body_depth is not None and j > start:
-                depth += sum(strip_code(lines[k]).count("{") - strip_code(lines[k]).count("}")
+                depth += sum(codes[k].count("{") - codes[k].count("}")
                              for k in range(start, j + 1))
                 while stack and depth <= stack[-1][1]:
                     stack.pop()
@@ -160,11 +220,31 @@ def scan_file(path: str, rel: str):
 
         mprop = PROP_RE.match(code)
         if mprop and not code.rstrip().endswith("("):
+            start = i
             rows.append({
                 "module": module_of(rel), "file": rel, "owner": stack[-1][0] if stack else "-",
                 "kind": mprop.group(1), "name": mprop.group(2),
                 "line": i + 1, "lines": 0, "complexity": 1,
             })
+            # v259：计算属性 / 观察器 / `= { … }()` 初始化闭包也要跳体。
+            # 旧版只记属性、不跳体，于是 getter 里的 `let opacity` / 闭包里的
+            # `let df` 全被当成类型成员记了一行（实测 478 条，占属性行 8.6%，
+            # 例：Theme.opacity 实际是 windowSurface 的局部量）。
+            opens, closes = code.count("{"), code.count("}")
+            if opens > closes:
+                body_depth = opens - closes
+                j = i + 1
+                while j < n:
+                    body_depth += codes[j].count("{") - codes[j].count("}")
+                    if body_depth <= 0:
+                        break
+                    j += 1
+                depth += sum(codes[k].count("{") - codes[k].count("}")
+                             for k in range(start, j + 1))
+                while stack and depth <= stack[-1][1]:
+                    stack.pop()
+                i = j + 1
+                continue
 
         depth += code.count("{") - code.count("}")
         while stack and depth <= stack[-1][1]:

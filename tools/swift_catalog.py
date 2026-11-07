@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 """
-FrsetNext 函数清单 / 调用关系导出（v171）
+模块依赖与规模（v259 重写）
 
-扫描 Swift 源码，产出：
-  docs/FrsetNext-函数清单.csv     逐成员一行（模块/类型/成员/行号/规模/复杂度）
-  docs/FrsetNext-模块依赖图.md     模块级 import 依赖（Mermaid）+ 统计摘要
+历史问题：本脚本原来是**第三套**独立解析器（缩进 + 关键字猜测），产出的成员数与
+`tools/func_table.py` 的函数清单一南一北（269 文件/8,679 vs 273 文件/8,762），
+还顺带往 `docs/` 写一份同名 CSV，造成"一套代码三个数"。
 
-用法：
-  python3 tools/swift_catalog.py            # 默认扫描 apps/FrsetNext/Sources
-  python3 tools/swift_catalog.py --root DIR
+现在：成员表直接复用 `func_table.scan_file`（唯一解析口径），本脚本只负责两件
+func_table 不做的事——
+  1) 每模块的文件数 / 行数 / 成员数；
+  2) 模块间的**顶层类型引用**边（import 在单 target 工程里恒为空，不可用）。
 
-设计取舍：不追求完整语法树（没有 SwiftSyntax 依赖），用缩进 + 关键字做
-**保守**解析——只统计能确定归属的成员，宁可少算也不瞎猜。
+产出：`docs/00-总览/模块依赖图.md`
+用法：`python3 tools/swift_catalog.py`
 """
 
 import argparse
-import csv
 import os
 import re
 import sys
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import func_table  # noqa: E402
 
 DECL_RE = re.compile(
     r"^(?P<indent>\s*)"
@@ -27,26 +30,7 @@ DECL_RE = re.compile(
     r"(?:(?:public|internal|private|fileprivate|open|final|static|class|mutating|nonmutating|override|convenience|required|lazy|weak|unowned)\s+)*"
     r"(?P<kind>class|struct|enum|protocol|actor|extension)\s+(?P<name>[\w.]+)"
 )
-FUNC_RE = re.compile(
-    r"^(?P<indent>\s*)"
-    r"(?:@\w+(?:\([^)]*\))?\s+)*"
-    r"(?:(?:public|internal|private|fileprivate|open|final|static|class|mutating|nonmutating|override|convenience|required|dynamic|@objc)\s+)*"
-    r"func\s+(?P<name>\w+)"
-)
-INIT_RE = re.compile(
-    r"^(?P<indent>\s*)"
-    r"(?:(?:public|internal|private|fileprivate|open|required|convenience|override)\s+)*"
-    r"(?P<kind>init|deinit)\b"
-)
-PROP_RE = re.compile(
-    r"^(?P<indent>\s*)"
-    r"(?:(?:public|internal|private|fileprivate|open|final|static|class|override|lazy|weak|unowned)\s+)*"
-    r"(?:var|let)\s+(?P<name>\w+)"
-)
-IMPORT_RE = re.compile(r"^import\s+(\w+)")
-
-# 复杂度粗算：控制流关键字出现次数 + 1
-BRANCH_RE = re.compile(r"\b(if|guard|for|while|switch|case|catch|&&|\|\||\?\.)\b|\?\s*[^:]*:|&&|\|\|")
+IDENT_RE = re.compile(r"\b([A-Z][A-Za-z0-9_]{2,})\b")
 
 
 def module_of(rel_path: str) -> str:
@@ -57,127 +41,18 @@ def module_of(rel_path: str) -> str:
     return parts[0]
 
 
-def scan_file(path: str, rel: str):
-    """返回 (members, imports)"""
-    try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            lines = fh.read().split("\n")
-    except OSError:
-        return [], []
-
-    imports = []
-    for line in lines:
-        m = IMPORT_RE.match(line.strip())
-        if m:
-            imports.append(m.group(1))
-
-    members = []
-    module = module_of(rel)
-    # 作用域栈：(indent, declKind, declName)
-    stack = []
-
-    def owner_at(indent: int):
-        owner = ""
-        for ind, _k, name in stack:
-            if ind < indent:
-                owner = name
-        return owner
-
-    # 记录每个成员（func/prop/init）的起始行，结尾用「下一个同级或更外层声明」来定
-    pending = []  # (start_idx, indent, row)
-
-    def close_pending(upto_idx: int):
-        while pending:
-            start, indent, row = pending.pop()
-            body = lines[start + 1: upto_idx]
-            # 只统计比它更深缩进的行，避免把后面的兄弟成员算进来
-            depth = indent
-            counted = 0
-            branches = 0
-            for bl in body:
-                if not bl.strip():
-                    continue
-                bind = len(bl) - len(bl.lstrip())
-                if bind <= depth and not bl.strip().startswith(("}", ")")):
-                    break
-                counted += 1
-                branches += len(BRANCH_RE.findall(bl))
-            row["lines"] = counted
-            row["complexity"] = branches + 1
-            members.append(row)
-
-    for idx, line in enumerate(lines):
-        stripped = line.strip()
-        if not stripped or stripped.startswith("//") or stripped.startswith("///"):
-            continue
-
-        indent = len(line) - len(line.lstrip())
-
-        dm = DECL_RE.match(line)
-        fm = FUNC_RE.match(line)
-        im = INIT_RE.match(line)
-        pm = PROP_RE.match(line) if not (dm or fm or im) else None
-
-        if dm:
-            close_pending(idx)
-            while stack and stack[-1][0] >= indent:
-                stack.pop()
-            stack.append((indent, dm.group("kind"), dm.group("name")))
-            continue
-
-        if fm:
-            close_pending(idx)
-            pending.append((idx, indent, {
-                "module": module,
-                "file": rel,
-                "owner": owner_at(indent),
-                "kind": "func",
-                "name": fm.group("name"),
-                "line": idx + 1,
-                "lines": 0,
-                "complexity": 0,
-            }))
-            continue
-
-        if im:
-            close_pending(idx)
-            pending.append((idx, indent, {
-                "module": module,
-                "file": rel,
-                "owner": owner_at(indent),
-                "kind": im.group("kind"),
-                "name": im.group("kind"),
-                "line": idx + 1,
-                "lines": 0,
-                "complexity": 0,
-            }))
-            continue
-
-        if pm:
-            close_pending(idx)
-            pending.append((idx, indent, {
-                "module": module,
-                "file": rel,
-                "owner": owner_at(indent),
-                "kind": "var" if " var " in f" {line} " else "let",
-                "name": pm.group("name"),
-                "line": idx + 1,
-                "lines": 0,
-                "complexity": 0,
-            }))
-            continue
-
-    close_pending(len(lines))
-
-    # pending 里剩下的（函数体到文件末尾）已在 close_pending 中落到 members?
-    # close_pending 只改 row，不回填，这里统一补
-    return members, imports
+def walk_swift(root: str):
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for fn in sorted(filenames):
+            if fn.endswith(".swift"):
+                full = os.path.join(dirpath, fn)
+                yield full, os.path.relpath(full, root)
 
 
-def main():
+def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="apps/FrsetNext/Sources")
-    ap.add_argument("--outdir", default="docs")
+    ap.add_argument("--out", default="docs/00-总览/模块依赖图.md")
     args = ap.parse_args()
 
     root = os.path.abspath(args.root)
@@ -186,109 +61,61 @@ def main():
         return 1
 
     all_members = []
-    module_imports = defaultdict(set)
     module_files = Counter()
     module_lines = Counter()
+    decl_types = {}          # 顶层类型名 → 所属模块（模块出口）
 
-    for dirpath, _dirnames, filenames in os.walk(root):
-        for fn in sorted(filenames):
-            if not fn.endswith(".swift"):
-                continue
-            full = os.path.join(dirpath, fn)
-            rel = os.path.relpath(full, root)
-            mod = module_of(rel)
-            try:
-                with open(full, encoding="utf-8", errors="replace") as fh:
-                    content = fh.read()
-            except OSError:
-                continue
-            module_files[mod] += 1
-            module_lines[mod] += content.count("\n") + 1
+    for full, rel in walk_swift(root):
+        mod = module_of(rel)
+        try:
+            content = open(full, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        module_files[mod] += 1
+        module_lines[mod] += len(content.splitlines())
+        all_members.extend(func_table.scan_file(full, rel))
+        for line in content.split("\n"):
+            dm = DECL_RE.match(line)
+            if dm and not dm.group("indent"):     # 只认顶层声明作为模块出口
+                decl_types.setdefault(dm.group("name"), mod)
 
-            members, imports = scan_file(full, rel)
-            all_members.extend(members)
-            for imp in imports:
-                if imp[0].isupper():          # 只记模块级依赖，忽略 Foundation/AppKit
-                    module_imports[mod].add(imp)
-
-    os.makedirs(args.outdir, exist_ok=True)
-    csv_path = os.path.join(args.outdir, "FrsetNext-函数清单.csv")
-    fields = ["module", "file", "owner", "kind", "name", "line", "lines", "complexity"]
-    with open(csv_path, "w", newline="", encoding="utf-8-sig") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
-        w.writeheader()
-        for row in sorted(all_members, key=lambda r: (r["module"], r["file"], r["line"])):
-            w.writerow({k: row.get(k, "") for k in fields})
-
-    # ── 类型引用依赖（单 module 工程没有内部 import，改用「谁引用了谁的顶层类型」）──
-    decl_types = {}
-    for dirpath, _dn, filenames in os.walk(root):
-        for fn in filenames:
-            if not fn.endswith(".swift"):
-                continue
-            full = os.path.join(dirpath, fn)
-            rel = os.path.relpath(full, root)
-            try:
-                content = open(full, encoding="utf-8", errors="replace").read()
-            except OSError:
-                continue
-            for line in content.split("\n"):
-                dm = DECL_RE.match(line)
-                if dm:
-                    # 只认顶层声明（缩进 0）作为模块出口
-                    if not dm.group("indent"):
-                        decl_types.setdefault(dm.group("name"), module_of(rel))
-
-    ident_re = re.compile(r"\b([A-Z][A-Za-z0-9_]{2,})\b")
+    # ── 模块依赖：谁引用了谁的顶层类型（边权 = 引用到的类型数）──
     edge_weight = Counter()
-    for dirpath, _dn, filenames in os.walk(root):
-        for fn in filenames:
-            if not fn.endswith(".swift"):
-                continue
-            full = os.path.join(dirpath, fn)
-            rel = os.path.relpath(full, root)
-            src_mod = module_of(rel)
-            try:
-                content = open(full, encoding="utf-8", errors="replace").read()
-            except OSError:
-                continue
-            idents = set(ident_re.findall(content))
-            for ident in idents & decl_types.keys():
-                target_mod = decl_types[ident]
-                if target_mod != src_mod:
-                    edge_weight[(src_mod, target_mod)] += 1
-
-    # 只留权重 ≥3 的边，去掉偶然提及
+    for full, rel in walk_swift(root):
+        src = module_of(rel)
+        try:
+            content = open(full, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        for ident in set(IDENT_RE.findall(content)) & decl_types.keys():
+            target = decl_types[ident]
+            if target != src:
+                edge_weight[(src, target)] += 1
     strong = {k: v for k, v in edge_weight.items() if v >= 3}
-    edges = list(strong.keys())
-
-    # ── 模块依赖图 ──
-    internal = set(module_files)
-    edges = []
-    for mod, imps in module_imports.items():
-        for imp in imps:
-            if imp in internal and imp != mod:
-                edges.append((mod, imp))
 
     md = ["# FrsetNext 模块依赖与规模", ""]
     md.append(f"> 自动生成，重算：`python3 tools/swift_catalog.py`　"
               f"共 {len(module_files)} 个模块 / {sum(module_files.values())} 文件 / "
-              f"{sum(module_lines.values()):,} 行 / {len(all_members):,} 个成员")
+              f"{sum(module_lines.values()):,} 行 / {len(all_members):,} 个声明 / "
+              f"{len(strong)} 条模块引用边")
+    md.append(">")
+    md.append("> 成员口径复用 `tools/func_table.py`（唯一解析器）；"
+              "跨模块边 = 引用到的对方顶层类型数（≥3 才画），import 在单 target 工程里恒为空。")
     md.append("")
     md.append("## 模块规模")
     md.append("")
-    md.append("| 模块 | 文件 | 行数 | 成员 |")
+    md.append("| 模块 | 文件 | 行数 | 声明 |")
     md.append("|---|---:|---:|---:|")
-    per_mod_members = Counter(m["module"] for m in all_members)
+    per_mod = Counter(m["module"] for m in all_members)
     for mod, _ in sorted(module_files.items(), key=lambda kv: -module_lines[kv[0]]):
-        md.append(f"| {mod} | {module_files[mod]} | {module_lines[mod]:,} | {per_mod_members.get(mod, 0)} |")
+        md.append(f"| {mod} | {module_files[mod]} | {module_lines[mod]:,} | {per_mod.get(mod, 0)} |")
     md.append("")
     md.append("## 模块依赖（顶层类型被跨模块引用，边权=引用到的类型数）")
     md.append("")
     md.append("```mermaid")
     md.append("flowchart LR")
     node_ids = {}
-    for i, mod in enumerate(sorted(internal)):
+    for i, mod in enumerate(sorted(module_files)):
         node_ids[mod] = f"M{i}"
         md.append(f'  {node_ids[mod]}["{mod}"]')
     for (a, b), w in sorted(strong.items(), key=lambda kv: -kv[1])[:40]:
@@ -299,20 +126,19 @@ def main():
     md.append("")
     md.append("| 复杂度 | 行数 | 成员 | 位置 |")
     md.append("|---:|---:|---|---|")
-    top = sorted(all_members, key=lambda m: -m["complexity"])[:30]
-    for m in top:
-        owner = f'{m["owner"]}.' if m["owner"] else ""
+    for m in sorted(all_members, key=lambda x: -int(x["complexity"]))[:30]:
+        owner = f'{m["owner"]}.' if m["owner"] and m["owner"] != "-" else ""
         md.append(f'| {m["complexity"]} | {m["lines"]} | {owner}{m["name"]} | '
                   f'`{m["file"]}:{m["line"]}` |')
     md.append("")
 
-    md_path = os.path.join(args.outdir, "FrsetNext-模块依赖图.md")
-    with open(md_path, "w", encoding="utf-8") as fh:
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as fh:
         fh.write("\n".join(md))
 
-    print(f"CSV  : {csv_path}  ({len(all_members):,} 行)")
-    print(f"依赖图: {md_path}  ({len(strong)} 条模块引用边, 阈值>=3)")
-    print(f"规模  : {sum(module_files.values())} 文件 / {sum(module_lines.values()):,} 行 / {len(module_files)} 模块")
+    print(f"依赖图: {args.out}  ({len(strong)} 条模块引用边, 阈值>=3)")
+    print(f"规模  : {sum(module_files.values())} 文件 / {sum(module_lines.values()):,} 行 / "
+          f"{len(module_files)} 模块 / {len(all_members):,} 声明")
     return 0
 
 

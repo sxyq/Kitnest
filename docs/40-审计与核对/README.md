@@ -7,7 +7,8 @@
 | `UI-一致性审计与规范.md` | 主题令牌、玻璃分层、圆角/字号规范 | 手写，改 UI 前先读 |
 | `2026-10-19-重复实现扫描.md` | 重复实现/死代码/设置双轨扫描 | 一次性报告（历史证据） |
 | `2026-10-19-处置方案.md` | 上述问题的分期处置方案 + UI 组件审核 | 一次性报告（历史证据） |
-| `数据表/FrsetNext-函数清单.csv` | 全仓函数/属性清单（module,file,owner,kind,name,line,lines,complexity） | `apps/FrsetNext/tools/update_function_csv.py` |
+| `数据表/FrsetNext-函数清单.csv` | 全仓函数/属性清单（module,file,owner,kind,name,line,lines,complexity） | `python3 tools/func_table.py`（唯一解析器） |
+| `数据表/函数审阅台账.csv` | 逐函数审阅结论（KEEP/UNSURE + 调用点证据），覆盖全部 3,246 个函数 | 人工审阅后维护；行号随 `func_table.py` 重跑重锚 |
 | `数据表/2026-10-20-个性化覆盖核对.csv` | 个性化设置项接入核对 | 一次性 |
 | `数据表/预览窗口排查.csv` | 预览窗历史问题台账 | 一次性 |
 | `原版功能核对/` | 原版 vs 重建的 CSV/JSON/报告与解析脚本 | `parse_frset_binary.py` / `crosscheck.py` |
@@ -16,8 +17,11 @@
 
 ## 对账口径
 
-- 函数清单以 `apps/FrsetNext/Sources/**/*.swift` 为准，正则只认「声明行开大括号」，
-  多行签名会漏；因此它是下界，不是全量。
+- 函数清单以 `apps/FrsetNext/Sources/**/*.swift` 为准，由 `tools/func_table.py` 唯一解析：
+  多行字符串 / 块注释按状态剥离，属性访问器与闭包初始化器的体跳读，因此
+  **getter 内局部 `let` 不计入成员、SQL 字面量里的 `{}` 不污染括号深度**（v259 修）。
+- 口径仍有两个已知边界：① 只收 `.swift`，`FrsetStatsBar/` 的 C/ObjC 不在表内；
+  ② 函数体内的嵌套函数（如 `func both(...)`）按设计不入表，只算所属的外层函数。
 - 符号索引 `docs/00-总览/符号索引.md` 由
   `python3 tools/symbol_index_md.py apps/FrsetNext/Sources <csv> <out>` 生成，
   改代码后与 CSV 一起重跑。

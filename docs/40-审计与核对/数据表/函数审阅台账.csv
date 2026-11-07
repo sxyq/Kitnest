@@ -36,24 +36,24 @@ Core,Core/Motion/GenieMesh.swift,-,genieMesh,func,275,KEEP,GenieWarp.swift:64 �
 Core,Core/Motion/GenieMesh.swift,-,geniePhases,func,336,KEEP,GenieWarp.swift:371 时序日志
 Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,render,func,29,KEEP,"play:307,318 逐帧预渲染"
 Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,drawTriangle,func,129,KEEP,"render:116,119 拆两三角形"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,213,KEEP,"play:269 / PanelController:278,370"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,229,KEEP,PanelController.swift:273 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,237,KEEP,PanelController.swift:362 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,242,KEEP,"PanelController:207,342 / play:258"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,258,KEEP,playIn:215 / playOut:221 唯一实现
-Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,452,KEEP,v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,218,KEEP,"play:269 / PanelController:278,370"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,237,KEEP,PanelController.swift:273 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,245,KEEP,PanelController.swift:362 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,250,KEEP,"PanelController:207,342 / play:258"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,269,KEEP,playIn:215 / playOut:221 唯一实现
 Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,474,KEEP,v244 反向播放：当前播放位置
-Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,485,KEEP,v244 新增：反向复用帧序列；play() 打断分支调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,505,KEEP,cancel:227 / finish:413
-Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,510,KEEP,watchdog Timer:399 回调
-Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,532,KEEP,cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,541,KEEP,v244 新增：缓动指数读取，帧采样循环外调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,548,KEEP,"play:291,300 帧内存预算"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,557,KEEP,play:293 快照降采样
-Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,571,KEEP,play:305 probe.genieHold 定格
-Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,577,KEEP,"play:246,251 抓窗口快照"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,603,KEEP,"play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,482,KEEP,v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,530,KEEP,v244 新增：反向复用帧序列；play() 打断分支调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,557,KEEP,cancel:227 / finish:413
+Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,562,KEEP,watchdog Timer:399 回调
+Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,595,KEEP,cancel:228 / finish:417
 Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,604,KEEP,v246 空白帧兜底
+Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,623,KEEP,v244 新增：缓动指数读取，帧采样循环外调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,630,KEEP,"play:291,300 帧内存预算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,639,KEEP,play:293 快照降采样
+Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,653,KEEP,play:305 probe.genieHold 定格
+Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,659,KEEP,"play:246,251 抓窗口快照"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,685,KEEP,"play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,private init；static shared:23 唯一构造
@@ -492,15 +492,15 @@ Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,list,func,468,KEEP,B
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseListOutput,func,489,KEEP,Core:480 解析 7zz -slt 输出
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readEntry,func,536,KEEP,BrowserWindow:276/295 文本与图片预览
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extract,func,562,KEEP,BrowserWindow:567/592、Services:37/65、Drag:50
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,626,KEEP,Core:591/613/680/738/1088 实际解压
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,673,KEEP,BrowserWindow:309/611/676、Flow:220、Mini:123
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,711,KEEP,BrowserWindow:261 HTML 预览解同目录资源
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,759,KEEP,BrowserWindow:389、UndoStack:166/195 写回
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,809,KEEP,BrowserWindow:549、UndoStack:149 包内改名
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,845,KEEP,BrowserWindow:480 添加文件
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,904,KEEP,BrowserWindow:512、UndoStack:180 删除条目
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,create,func,938,KEEP,CreateSheet:134 创建压缩包
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,saveEncryptedCopy,func,1072,KEEP,BrowserWindow:646 另存加密归档
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,629,KEEP,Core:591/613/680/738/1088 实际解压
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,681,KEEP,BrowserWindow:309/611/676、Flow:220、Mini:123
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,719,KEEP,BrowserWindow:261 HTML 预览解同目录资源
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,767,KEEP,BrowserWindow:389、UndoStack:166/195 写回
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,817,KEEP,BrowserWindow:549、UndoStack:149 包内改名
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,853,KEEP,BrowserWindow:480 添加文件
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,912,KEEP,BrowserWindow:512、UndoStack:180 删除条目
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,create,func,946,KEEP,CreateSheet:134 创建压缩包
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,saveEncryptedCopy,func,1080,KEEP,BrowserWindow:646 另存加密归档
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommendation,init,init,31,KEEP,同名重载错挂：该 init 带 priority，recommend 七处在用；无 priority 的那个此前已删
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,recommend,func,55,KEEP,同名重载错挂：此行为仍在使用的实现（values(into:)/recommend 3 参/events(from:to:)），非死代码
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,extractAll,func,163,KEEP,recommend:162 闭包捕获（解压到…）
@@ -573,25 +573,25 @@ Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteractionView
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteractionView,draggingSession,func,230,KEEP,NSDraggingSource 协议回调
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteraction,makeNSView,func,241,KEEP,BrowserWindow:1263 构造 ArchiveTileInteraction
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteraction,updateNSView,func,248,KEEP,NSViewRepresentable；BrowserWindow:1263 复用
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,rightMouseDown,func,17,KEEP,NSResponder 覆写；:33 实例化 ArchiveEntryTableView
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,updateTrackingAreas,func,20,KEEP,v258 悬停跟踪区
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,mouseMoved,func,32,KEEP,v258 行悬停
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,mouseExited,func,36,KEEP,v258 离开取消
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,scrollWheel,func,40,KEEP,v258 滚动取消
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,init,init,41,KEEP,BrowserWindow:1357 makeNSView 构造
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,init,init,70,KEEP,NSView required 初始化，AppKit 调用
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,layout,func,74,KEEP,NSView 覆写，布局时 AppKit 调用
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,doubleClicked,func,79,KEEP,@objc + :54 #selector(doubleAction)
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,syncFromModel,func,89,KEEP,BrowserWindow:1365 updateNSView 调用
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,viewDidMoveToWindow,func,112,KEEP,v258 离开窗口清理
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,numberOfRows,func,113,KEEP,NSTableViewDataSource 协议回调
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,117,KEEP,NSTableViewDelegate 协议回调
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,hoverChanged,func,118,KEEP,v258 行变化派发
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableViewSelectionDidChange,func,126,KEEP,NSTableViewDelegate 选择变更回调
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,136,KEEP,NSTableViewDataSource 每行一个拖出承诺
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,mouseMoved,func,35,KEEP,v258 行悬停
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,mouseExited,func,39,KEEP,v258 离开取消
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,scrollWheel,func,43,KEEP,v258 滚动取消
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,rightMouseDown,func,50,KEEP,NSResponder 覆写；:33 实例化 ArchiveEntryTableView
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,init,init,76,KEEP,BrowserWindow:1357 makeNSView 构造
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,init,init,105,KEEP,NSView required 初始化，AppKit 调用
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,layout,func,109,KEEP,NSView 覆写，布局时 AppKit 调用
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,viewDidMoveToWindow,func,115,KEEP,v258 离开窗口清理
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,hoverChanged,func,121,KEEP,v258 行变化派发
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,startHoverProbeIfNeeded,func,138,KEEP,probe.archiveHover 排障入口（真机合成鼠标点不中列表时用）
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,164,KEEP,EntryTable:122 每行构造行视图
-Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,221,KEEP,NSView required 初始化，AppKit 调用
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,doubleClicked,func,154,KEEP,@objc + :54 #selector(doubleAction)
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,syncFromModel,func,164,KEEP,BrowserWindow:1365 updateNSView 调用
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,numberOfRows,func,192,KEEP,NSTableViewDataSource 协议回调
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,196,KEEP,NSTableViewDelegate 协议回调
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableViewSelectionDidChange,func,205,KEEP,NSTableViewDelegate 选择变更回调
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,215,KEEP,NSTableViewDataSource 每行一个拖出承诺
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,243,KEEP,EntryTable:122 每行构造行视图
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,300,KEEP,NSView required 初始化，AppKit 调用
 Archive,Features/Archive/Table/ArchiveEntryThumbnail.swift,ArchiveEntryThumbnail,canRender,func,47,KEEP,Thumb:56 与 PeekView:169 判断可否出图
 Archive,Features/Archive/Table/ArchiveEntryThumbnail.swift,ArchiveEntryThumbnail,load,func,54,KEEP,PeekView:170 磁贴缩略图
 Archive,Features/Archive/Table/ArchiveEntryThumbnail.swift,ArchiveEntryThumbnail,render,func,90,KEEP,load:74 按类型分派解码
@@ -627,50 +627,54 @@ Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cle
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,key,func,91,KEEP,缓存 key = 归档 mtime + 条目
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cached,func,100,KEEP,LRU 命中
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,store,func,113,KEEP,LRU 写入/淘汰删目录
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,init,init,53,KEEP,BrowserWindow:772 构造模型
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,children,func,80,KEEP,visibleEntries:75 按层级过滤
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,navigateTo,func,115,KEEP,enter:126、goBack:132、面包屑:1176
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,enter,func,124,KEEP,activate:138、Drag.swift:110 menuEnter
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,goBack,func,130,KEEP,工具栏:1158、空态:1239
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,activate,func,136,KEEP,Drag.swift:185 双击、EntryTable:85
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clickSelect,func,155,KEEP,Drag.swift:191 mouseUp 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,contextualSelect,func,177,KEEP,Drag.swift:217 rightMouseDown 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,reload,func,186,KEEP,init:794、saveDraft:401、delete:524 后刷新
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clearPreview,func,215,KEEP,navigateTo:120、reload:210、body:879
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,promptPassword,func,224,KEEP,reload:197 判定缺密码时
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,loadPreview,func,243,KEEP,activate:145、selectEntry:741、body:877
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,rememberWebPreviewTemp,func,347,KEEP,loadPreview:269 记录网页预览临时目录
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,cleanupWebPreviewTemps,func,360,KEEP,windowWillClose:828 关窗清理
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveDraft,func,374,KEEP,windowShouldClose:816、工具栏:1014/1042
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,addFiles,func,412,KEEP,pickAndAddFiles:502 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,withSuggestedNames,func,444,KEEP,addFiles:434「用建议名继续」
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,performAddFiles,func,473,KEEP,addFiles:416/434/436 三条路径
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickAndAddFiles,func,498,KEEP,moreMenu:1074、Drag.swift:127 menuAddHere
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,deleteSelected,func,506,KEEP,moreMenu:1077、Drag.swift:131 menuDelete
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,renameSelected,func,534,KEEP,moreMenu:1075、Drag.swift:114 menuRename
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractAll,func,565,KEEP,extractButton:1037/1063
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSelected,func,574,KEEP,extractButton:1039/1063、Drag.swift:118
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSequential,func,581,KEEP,extractSelected:578，递归 595
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickExtractDirectory,func,599,KEEP,extractAll:566、extractSelected:577
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,openExternally,func,610,KEEP,previewPane:1340、Drag.swift:123
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveEncryptedCopy,func,621,KEEP,extractButton:1045「另存加密…」
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureSnapshots,func,655,KEEP,deleteSelected:510 删除前备份
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureAddeds,func,687,KEEP,performAddFiles:484 添加后备份
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,show,func,714,KEEP,FrsetNextApp:124/406、Services:86、TransferDock:1517
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectEntry,func,733,KEEP,show:719/727 深链 selectPath
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectFirstEntry,func,753,KEEP,show:720/728 selectFirst 排障深链
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,771,KEEP,show:723 构造控制器
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,797,KEEP,NSWindowController required 初始化
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowShouldClose,func,803,KEEP,NSWindowDelegate 协议回调
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowWillClose,func,827,KEEP,NSWindowDelegate 协议回调
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,undo,func,833,KEEP,@objc，Edit 菜单 undo: 动作派发
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,redo,func,834,KEEP,@objc，Edit 菜单 redo: 动作派发
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,makeNSView,func,1356,KEEP,body:1213 构造 ArchiveEntryTableRepresentable
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,updateNSView,func,1362,KEEP,NSViewRepresentable 更新，调 syncFromModel:1365
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,makeNSView,func,1373,KEEP,previewPane:1313 构造 PDFViewRepresentable
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,updateNSView,func,1380,KEEP,NSViewRepresentable 协议回调
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,sizeText,func,1404,KEEP,body:1460/1463 详情行文本
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,row,func,1408,KEEP,body:1456-1469 六条详情行
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,stamp,func,58,KEEP,v256 源包指纹（mtime+字节数）；init/confirmOverwriteIfSourceChanged/refreshSourceStamp 三处调用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,confirmOverwriteIfSourceChanged,func,67,KEEP,v256 写回前三选确认（仍然保存/重新载入/取消）；addFiles/updateEntry/renameEntry/removeEntries 写操作前调用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,refreshSourceStamp,func,92,KEEP,v256 写入成功后刷新指纹基线，避免自写内容被判成外部修改
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,init,init,96,KEEP,BrowserWindow:772 构造模型
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,children,func,124,KEEP,visibleEntries:75 按层级过滤
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,navigateTo,func,159,KEEP,enter:126、goBack:132、面包屑:1176
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,enter,func,168,KEEP,activate:138、Drag.swift:110 menuEnter
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,goBack,func,174,KEEP,工具栏:1158、空态:1239
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,activate,func,180,KEEP,Drag.swift:185 双击、EntryTable:85
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clickSelect,func,199,KEEP,Drag.swift:191 mouseUp 调用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,contextualSelect,func,221,KEEP,Drag.swift:217 rightMouseDown 调用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,reload,func,230,KEEP,init:794、saveDraft:401、delete:524 后刷新
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clearPreview,func,259,KEEP,navigateTo:120、reload:210、body:879
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,promptPassword,func,268,KEEP,reload:197 判定缺密码时
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,loadPreview,func,287,KEEP,activate:145、selectEntry:741、body:877
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,rememberWebPreviewTemp,func,381,KEEP,loadPreview:269 记录网页预览临时目录
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,cleanupWebPreviewTemps,func,394,KEEP,windowWillClose:828 关窗清理
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveDraft,func,408,KEEP,windowShouldClose:816、工具栏:1014/1042
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,addFiles,func,448,KEEP,pickAndAddFiles:502 调用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,withSuggestedNames,func,481,KEEP,addFiles:434「用建议名继续」
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,performAddFiles,func,510,KEEP,addFiles:416/434/436 三条路径
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickAndAddFiles,func,536,KEEP,moreMenu:1074、Drag.swift:127 menuAddHere
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,deleteSelected,func,544,KEEP,moreMenu:1077、Drag.swift:131 menuDelete
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,renameSelected,func,574,KEEP,moreMenu:1075、Drag.swift:114 menuRename
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,decideExtractConflicts,func,612,KEEP,v256 解压前扫目标顶层同名项，返回 覆盖/跳过已存在/取消；extractAll 与 extractSelected 调用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractAll,func,666,KEEP,extractButton:1037/1063
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSelected,func,678,KEEP,extractButton:1039/1063、Drag.swift:118
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSequential,func,688,KEEP,extractSelected:578，递归 595
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickExtractDirectory,func,708,KEEP,extractAll:566、extractSelected:577
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,openExternally,func,719,KEEP,previewPane:1340、Drag.swift:123
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveEncryptedCopy,func,730,KEEP,extractButton:1045「另存加密…」
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureSnapshots,func,764,KEEP,deleteSelected:510 删除前备份
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureAddeds,func,796,KEEP,performAddFiles:484 添加后备份
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,show,func,823,KEEP,FrsetNextApp:124/406、Services:86、TransferDock:1517
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectEntry,func,842,KEEP,show:719/727 深链 selectPath
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectFirstEntry,func,862,KEEP,show:720/728 selectFirst 排障深链
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,880,KEEP,show:723 构造控制器
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,906,KEEP,NSWindowController required 初始化
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowShouldClose,func,912,KEEP,NSWindowDelegate 协议回调
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowWillClose,func,936,KEEP,NSWindowDelegate 协议回调
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,undo,func,942,KEEP,@objc，Edit 菜单 undo: 动作派发
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,redo,func,943,KEEP,@objc，Edit 菜单 redo: 动作派发
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,makeNSView,func,1478,KEEP,body:1213 构造 ArchiveEntryTableRepresentable
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,updateNSView,func,1484,KEEP,NSViewRepresentable 更新，调 syncFromModel:1365
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,makeNSView,func,1495,KEEP,previewPane:1313 构造 PDFViewRepresentable
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,updateNSView,func,1502,KEEP,NSViewRepresentable 协议回调
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,sizeText,func,1526,KEEP,body:1460/1463 详情行文本
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,row,func,1530,KEEP,body:1456-1469 六条详情行
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,init,init,40,KEEP,CreateSheet:389 构造模型
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,applyPreset,func,52,KEEP,init:48 默认预设、presetPicker:218
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,syncOutputExtension,func,62,KEEP,applyPreset:58、格式 onChange:263
@@ -679,9 +683,9 @@ Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,create,f
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateView,init,init,158,KEEP,CreateSheet:404 构造视图
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,show,func,371,KEEP,Services:98、FrsetNextApp:397、Preview:1071
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,388,KEEP,show:379 构造控制器
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,433,KEEP,NSWindowController required 初始化
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowShouldClose,func,438,KEEP,NSWindowDelegate 协议回调
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowWillClose,func,459,KEEP,NSWindowDelegate 协议回调
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,442,KEEP,NSWindowController required 初始化
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowShouldClose,func,447,KEEP,NSWindowDelegate 协议回调
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowWillClose,func,468,KEEP,NSWindowDelegate 协议回调
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,init,init,31,KEEP,HTMLPreview:169 StateObject 构造
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,load,func,73,KEEP,init:70 加载首页
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,goBack,func,77,KEEP,bar:203 后退按钮
@@ -1580,6 +1584,22 @@ Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStora
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStoragePruneScheduler,prune,func,143,KEEP,pruneAsync:144 调用
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardQuery,init,init,24,KEEP,Desk:155、Manager:431/:491
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,appendClauses,func,66,KEEP,fetch:134、count:154 调用
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,fetch,func,130,KEEP,读：拼 WHERE（appendClauses）+ ORDER BY timestamp DESC LIMIT/OFFSET，查完挂标签；ClipboardManager.reload 调用
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,count,func,150,KEEP,计数：同一套 appendClauses 条件，分页总数用
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,item,func,160,KEEP,按 dedupe_key 取单条（去重命中 / 编辑前刷新），取完挂标签
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,exists,func,169,KEEP,去重判定：COUNT>0；ClipboardManager.writeToDatabase 入库前唯一调用点
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,insert,func,176,KEEP,写：24 列 INSERT；UNIQUE(dedupe_key) 冲突按「已存在」返回 false，上层退化为置顶
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,touch,func,196,KEEP,去重置顶：UPDATE timestamp
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateContent,func,202,KEEP,编辑保存：回写 content/text_path/字行数/占用，title 同步为 content.firstLineBrief
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateAliasTitle,func,223,KEEP,重命名：写 alias_title；空串按清除处理（写 NULL）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateFields,func,233,KEEP,工具回流与 OCR 回填：rich_text_path/image_path/thumbnail_path/storage_bytes/is_note 各自按需单条 UPDATE
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,delete,func,261,KEEP,删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,rowsOlderThan,func,285,KEEP,时间保留期清理：早于 cutoff 的条目（ClipboardPruneSchedulers 调用）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,oldestRows,func,293,KEEP,容量超限清理：最旧 N 条
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,totalStorageBytes,func,300,KEEP,SUM(storage_bytes)：存储占用统计（设置页配额）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,makeItem,func,307,KEEP,SQL 行 → ClipboardItem（24 列；tagIDs 留空由 TagStore 回填）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,bindings,func,338,KEEP,ClipboardItem → 24 个 SQLiteValue 绑定值（insert 唯一消费者）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,escapeLike,func,371,KEEP,LIKE 转义 \ % _；v126 改 Array+join，避免字符串拼接 O(n²)
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,init,init,19,KEEP,单例 :10 初始化
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,refresh,func,23,KEEP,SectionView:38、Manager:177、Desk:397
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,attachTags,func,49,KEEP,Repository:142/:165 调用
@@ -2118,23 +2138,26 @@ Monitor,Features/Monitor/Views/PortOccupancySection.swift,PortOccupancySection,c
 Monitor,Features/Monitor/Views/PortOccupancySection.swift,PortOccupancySection,row,func,102,KEEP,同文件:44 ForEach 调用
 Monitor,Features/Monitor/Views/PortOccupancySection.swift,PortOccupancySection,copy,func,202,KEEP,同文件:104 Button action 调用
 Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,ContentHeightKey,reduce,func,20,KEEP,PreferenceKey 协议要求；:56/63 使用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,88,KEEP,同文件:74 shared 单例构造
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,146,KEEP,同文件:89 self.init(window: nil) 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,150,KEEP,NSCoder 协议要求 required init
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,wasJustDismissed,func,175,KEEP,StatsBarEngine.swift:283 去抖判断调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,scheduleWarmup,func,185,KEEP,MonitorModule.swift:43 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,toggle,func,202,KEEP,AppBootstrap:368/388、CommandPalette:114
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,open,func,212,KEEP,FrsetNextApp.swift:157 深链、MonitorModule:38
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,cancelDismiss,func,254,KEEP,同文件:267 showModule 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,func,265,KEEP,StatsBarEngine.swift:277 部件切换调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,resize,func,281,KEEP,同文件:91 高度偏好闭包调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,func,300,KEEP,同文件:236 open 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorUnit,func,307,KEEP,同文件:302、333 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,func,319,KEEP,StatsBarEngine:274、PanelController:190、同文件:204
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,func,344,KEEP,同文件:335、339 两路调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,func,367,KEEP,同文件:228 open 定位调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,func,389,KEEP,同文件:283、368 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,func,403,KEEP,NSWindowDelegate 协议回调（:141 设 delegate）
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,90,KEEP,同文件:74 shared 单例构造
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,148,KEEP,同文件:89 self.init(window: nil) 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,152,KEEP,NSCoder 协议要求 required init
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,wasJustDismissed,func,177,KEEP,StatsBarEngine.swift:283 去抖判断调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,scheduleWarmup,func,187,KEEP,MonitorModule.swift:43 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,toggle,func,204,KEEP,AppBootstrap:368/388、CommandPalette:114
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,reverseToOpen,func,223,KEEP,v257 收起途中被要求重开：复用已有帧反向播，不重抓快照
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,open,func,235,KEEP,FrsetNextApp.swift:157 深链、MonitorModule:38
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,cancelDismiss,func,282,KEEP,同文件:267 showModule 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,func,293,KEEP,StatsBarEngine.swift:277 部件切换调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,resize,func,309,KEEP,同文件:91 高度偏好闭包调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,func,328,KEEP,同文件:236 open 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,parkOrigin,func,342,KEEP,神灯展开前停靠屏幕上方之外（抓快照临时位，抓完移回）
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,defaultSlot,func,348,KEEP,无锚点路径兜底插槽（窗口上沿右侧 22pt 方块）
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorUnit,func,353,KEEP,同文件:302、333 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,func,365,KEEP,StatsBarEngine:274、PanelController:190、同文件:204
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,func,398,KEEP,同文件:335、339 两路调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,func,421,KEEP,同文件:228 open 定位调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,func,443,KEEP,同文件:283、368 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,func,457,KEEP,NSWindowDelegate 协议回调（:141 设 delegate）
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,init,init,9,KEEP,同文件:16 默认参构造；SettingsRootView:132
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsPane,init,init,16,KEEP,SettingsRootView.swift:132、MonitorModule:21
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsPane,applyIntervalToBarWidgets,func,209,KEEP,同文件:69 刷新间隔滑杆 set 调用
@@ -2258,20 +2281,20 @@ Panel,Features/Panel/Presentation/PanelController.swift,PanelController,schedule
 Panel,Features/Panel/Presentation/PanelController.swift,PanelController,warmupPanel,func,129,KEEP,scheduleWarmup :125 延时闭包（probe.warmup=YES）
 Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,163,KEEP,PanelControlling 协议；StatusBar/热键经 ServiceLocator.panel
 Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,168,KEEP,StatusBarController.swift:123 主图标点击
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,172,KEEP,协议方法；ToolShortcutStore:74、CommandPalette:122 等
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,182,KEEP,FrsetNextApp.swift:251、StatusBarController.swift:159
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,revealUnit,func,310,KEEP,show :215 计算动画锚点
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,335,KEEP,onDismiss 闭包 :50、toggle :164、TransientWindowCenter:246
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,performHide,func,363,KEEP,hide 完成回调 :322 与 0.6s 超时兜底 :328
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,parkOrigin,func,403,KEEP,v244 新增：show() 计算屏外停靠位，两处调用
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,defaultSlot,func,411,KEEP,show :269 与 performHide :358 神灯插槽
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,handleGlobalShortcut,func,418,KEEP,项目 tools/perf_audit/remove_dead.py KEEP 名单：预留热键接线公开接口
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,rightEdgeOrigin,func,425,KEEP,show :200 与 anchorOrigin :399
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,anchorOrigin,func,434,KEEP,show :197 锚点定位
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,persistSize,func,446,KEEP,hide :318 与 windowDidResize :485
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResignKey,func,482,KEEP,NSWindowDelegate 回调（prepare :56 设 delegate）
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResize,func,519,KEEP,NSWindowDelegate 协议回调
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowWillClose,func,524,KEEP,NSWindowDelegate 协议回调
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,179,KEEP,协议方法；ToolShortcutStore:74、CommandPalette:122 等
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,189,KEEP,FrsetNextApp.swift:251、StatusBarController.swift:159
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,revealUnit,func,320,KEEP,show :215 计算动画锚点
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,345,KEEP,onDismiss 闭包 :50、toggle :164、TransientWindowCenter:246
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,performHide,func,386,KEEP,hide 完成回调 :322 与 0.6s 超时兜底 :328
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,parkOrigin,func,432,KEEP,v244 新增：show() 计算屏外停靠位，两处调用
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,defaultSlot,func,440,KEEP,show :269 与 performHide :358 神灯插槽
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,handleGlobalShortcut,func,447,KEEP,项目 tools/perf_audit/remove_dead.py KEEP 名单：预留热键接线公开接口
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,rightEdgeOrigin,func,454,KEEP,show :200 与 anchorOrigin :399
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,anchorOrigin,func,463,KEEP,show :197 锚点定位
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,persistSize,func,475,KEEP,hide :318 与 windowDidResize :485
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResignKey,func,511,KEEP,NSWindowDelegate 回调（prepare :56 设 delegate）
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResize,func,548,KEEP,NSWindowDelegate 协议回调
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowWillClose,func,553,KEEP,NSWindowDelegate 协议回调
 Panel,Features/Panel/Presentation/PanelModule.swift,PanelModule,start,func,8,KEEP,AppBootstrap.swift:23 ModuleRegistry.register + startAll 派发
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,presentPreview,func,16,KEEP,PanelPreviewPresenting 协议；ClipboardTableHostView:817
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,dismissPreview,func,28,KEEP,协议方法；ClipboardTableHostView:809/826/904/909
@@ -2281,20 +2304,20 @@ Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPrevie
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,prepareForPanelAppear,func,56,KEEP,协议方法；ClipboardSectionView:36
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,setPreviewOrder,func,61,KEEP,协议方法；ClipboardTableHostView:679
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,notifyItemRemoved,func,66,KEEP,协议方法；ClipboardSectionView:96、ClipboardTableHostView:1002
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,65,KEEP,enabledPages :62 过滤调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,82,KEEP,onAppear :229 与 5 处 onChange :144-152
-Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,247,KEEP,Shape 协议要求（SwiftUI 绘制调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,func,396,KEEP,pageSegments :389 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,405,KEEP,segmentItem 动作 :370/:387 回调
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,dropToLocalTransfer,func,415,KEEP,分段 onDrop :374 回调
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,444,KEEP,pageSegments :369/386 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,510,KEEP,captureAction 四个菜单项 :481-485
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,622,KEEP,onSubmit :536 与收起按钮 :538
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,630,KEEP,bottomToolbar :551/587/593 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,645,KEEP,toolbar :281 取色按钮
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,748,KEEP,body 背景 :159 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,798,KEEP,Layout 协议要求（SwiftUI 布局调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,804,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,68,KEEP,enabledPages :62 过滤调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,85,KEEP,onAppear :229 与 5 处 onChange :144-152
+Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,272,KEEP,Shape 协议要求（SwiftUI 绘制调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,func,421,KEEP,pageSegments :389 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,430,KEEP,segmentItem 动作 :370/:387 回调
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,dropToLocalTransfer,func,440,KEEP,分段 onDrop :374 回调
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,469,KEEP,pageSegments :369/386 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,535,KEEP,captureAction 四个菜单项 :481-485
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,647,KEEP,onSubmit :536 与收起按钮 :538
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,655,KEEP,bottomToolbar :551/587/593 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,670,KEEP,toolbar :281 取色按钮
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,773,KEEP,body 背景 :159 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,823,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,829,KEEP,Layout 协议要求（SwiftUI 布局调用）
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,33,KEEP,PanelRootView.swift:227/228/369/386
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,43,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,decode,func,61,KEEP,PanelRootView.swift:62 解顺序串；order getter :85
@@ -2614,26 +2637,36 @@ StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,init,
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,install,func,33,KEEP,调用方 StatusBarModule.swift:11
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,performInstall,func,41,KEEP,调用方 install:36/38
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,installMainItem,func,51,KEEP,调用方 performInstall:45
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,setMainItemLength,func,86,KEEP,调用方 MenuBarIconStyle.swift:425/430/440
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statusItemName,func,99,KEEP,调用方 installMainItem:66/68
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,103,KEEP,@objc；#selector installMainItem:75（左/右键 action）
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,119,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,124,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,126,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,131,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,140,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,145,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,150,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,156,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,164,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,168,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,174,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,setMainItemLength,func,92,KEEP,调用方 MenuBarIconStyle.swift:425/430/440
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statusItemName,func,105,KEEP,调用方 installMainItem:66/68
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,109,KEEP,@objc；#selector installMainItem:75（左/右键 action）
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,125,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,130,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,132,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,137,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,146,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,151,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,156,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,162,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,170,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,174,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,180,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,51,KEEP,调用方 mainMenu:61（私有）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,59,KEEP,调用方 StatusBarController.swift:117（右键点击）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,80,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconSubmenu,func,190,KEEP,调用方 buildMenu:167
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,233,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
 StatusBar,Features/StatusBar/StatusBarModule.swift,StatusBarModule,start,func,10,KEEP,AppModule 协议；AppBootstrap.swift:25 注册，startAll:34 派发
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,init,init,14,KEEP,在状态栏按钮上加透明覆盖层并注册 fileURL 拖放（按钮不可子类化）
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,init,init,21,KEEP,在状态栏按钮上加透明覆盖层并注册 fileURL 拖放（按钮不可子类化）
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,hitTest,func,24,KEEP,恒返回 nil：拖放靠 registerForDraggedTypes 派发，点击仍落到 NSStatusBarButton
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,draggingEntered,func,26,KEEP,有文件才给 .copy 并高亮
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,draggingUpdated,func,32,KEEP,拖动中维持 .copy
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,draggingExited,func,36,KEEP,拖出取消高亮
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,draggingEnded,func,37,KEEP,拖放结束取消高亮
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,performDragOperation,func,39,KEEP,先 ServiceLocator.panel?.show() 再发 .frsetTransferIntake（转入弹框挂在面板内容树）
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,hasFiles,func,53,KEEP,pasteboard 是否含文件 URL
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,setActive,func,59,KEEP,强调色底 22% alpha；仅状态变化时改 layer
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,init,init,36,KEEP,ToolboxModule.swift:22 经 PanelSectionRegistry.build 构造
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,177,KEEP,weeksGrid:170 ForEach 内调用
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,func,230,KEEP,body onAppear:62 调用
@@ -2999,16 +3032,16 @@ TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,build,func,42,KEEP,FileHoverPreview.swift:378 reload
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,requestThumbnail,func,115,KEEP,"FileHoverPreview.swift:91,99"
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,kindLabel,func,128,KEEP,FileHoverPreview.swift:56
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,174,KEEP,"TransferDockView.swift:554,1509 悬停"
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleHide,func,186,KEEP,TransferDockView.swift:1511；本文件:333
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,176,KEEP,"TransferDockView.swift:554,1509 悬停"
 Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,188,KEEP,v258 归档悬停复用：已就绪文件立即显示
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,hide,func,198,KEEP,FileHoverPreview.swift:192 延迟任务
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,show,func,225,KEEP,FileHoverPreview.swift:179 延迟任务
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,ensurePanel,func,243,KEEP,FileHoverPreview.swift:233
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,position,func,304,KEEP,"FileHoverPreview.swift:228,238"
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,mouseEntered,func,325,KEEP,NSResponder 覆写 + NSTrackingArea :283
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,mouseExited,func,331,KEEP,NSResponder 覆写 + NSTrackingArea :283
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewView,reload,func,374,KEEP,FileHoverPreview.swift:370 .task(id:)
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleHide,func,197,KEEP,TransferDockView.swift:1511；本文件:333
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,hide,func,209,KEEP,FileHoverPreview.swift:192 延迟任务
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,show,func,236,KEEP,FileHoverPreview.swift:179 延迟任务
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,ensurePanel,func,254,KEEP,FileHoverPreview.swift:233
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,position,func,315,KEEP,"FileHoverPreview.swift:228,238"
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,mouseEntered,func,336,KEEP,NSResponder 覆写 + NSTrackingArea :283
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,mouseExited,func,342,KEEP,NSResponder 覆写 + NSTrackingArea :283
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewView,reload,func,385,KEEP,FileHoverPreview.swift:370 .task(id:)
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,init,init,49,KEEP,LanTransferServer.swift:32 shared
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,start,func,56,KEEP,TransferDockView.swift:632；AppBootstrap.swift:141
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startIfEnabled,func,62,KEEP,"TransferDockView.swift:443,1104"
@@ -3082,57 +3115,67 @@ TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDo
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,uploadBatch,func,224,KEEP,TransferDockView.swift:1139 批量上传
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,download,func,257,KEEP,"TransferDockView.swift:1395,1412,1414"
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,delete,func,279,KEEP,"TransferDockView.swift:1398,1415"
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,saveCookies,func,300,KEEP,TransferDockLoginView.swift:42 登录页写回
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,runBridge,func,338,KEEP,"TransferDockService.swift:120,152,175,207,234,262,284"
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeNSView,func,60,KEEP,NSViewRepresentable 协议要求；body:40 构造由 SwiftUI 派发
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,updateNSView,func,74,KEEP,NSViewRepresentable 协议要求；空实现也须提供
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,func,76,KEEP,NSViewRepresentable 协议回调；调 stopPolling:77
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeCoordinator,func,80,KEEP,NSViewRepresentable 协议回调；SwiftUI 建 coordinator 时调
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,init,init,91,KEEP,makeCoordinator:81 调用
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,startPolling,func,97,KEEP,makeNSView:70 调用；内部起 Timer:104
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,stopPolling,func,110,KEEP,dismantleNSView:77 与 checkCookies:123 调用
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,checkCookies,func,115,KEEP,Timer 闭包唯一入口 TransferDockLoginView.swift:105
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,129,KEEP,WKNavigationDelegate 回调；navigationDelegate 于 :64 设置
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,133,KEEP,WKNavigationDelegate 回调；经 :64 的 delegate 派发
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,saveCookies,func,302,KEEP,TransferDockLoginView.swift:42 登录页写回
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,verifySession,func,363,KEEP,v249 桥回验 status：写 cookie 成功≠会话有效（服务端可回 1003）
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,archiveCookieEvidence,func,375,KEEP,v249 覆盖前留证 credentials/evidence/cookies-时间戳.json，只留最近 20 份
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,runBridge,func,395,KEEP,"TransferDockService.swift:120,152,175,207,234,262,284"
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeNSView,func,104,KEEP,NSViewRepresentable 协议要求；body:40 构造由 SwiftUI 派发
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,updateNSView,func,127,KEEP,NSViewRepresentable 协议要求；空实现也须提供
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,func,131,KEEP,NSViewRepresentable 协议回调；调 stopPolling:77
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeCoordinator,func,135,KEEP,NSViewRepresentable 协议回调；SwiftUI 建 coordinator 时调
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,userContentController,func,145,KEEP,探针消息回调：记 path/cookie 长度/localStorage 键（同签名去重）
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,installProbe,func,159,KEEP,每次页面落地重注入 setInterval 探针（跨页导航会清掉上一页）
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,detach,func,177,KEEP,摘 frsetProbe handler + 清 interval + 停轮询
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,185,KEEP,WKNavigationDelegate 回调；navigationDelegate 于 :64 设置
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,init,init,208,KEEP,makeCoordinator:81 调用
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,startPolling,func,214,KEEP,makeNSView:70 调用；内部起 Timer:104
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,dumpCookieNames,func,228,KEEP,排障：打印全部 cookie 的 domain/name
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,stopPolling,func,236,KEEP,dismantleNSView:77 与 checkCookies:123 调用
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,applyForceTick,func,242,KEEP,「重新检测」按钮：tick 变化才执行，走 check(force: true)
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,check,func,250,KEEP,Timer 闭包唯一入口 TransferDockLoginView.swift:105
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,295,KEEP,WKNavigationDelegate 回调；经 :64 的 delegate 派发
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,302,KEEP,WKNavigationDelegate：didFinish 落页面 → 重装探针 + 立刻 check；didFail / didFailProvisional 只回进度文案
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,306,KEEP,WKNavigationDelegate：didFinish 落页面 → 重装探针 + 立刻 check；didFail / didFailProvisional 只回进度文案
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,isOn,func,37,KEEP,AppBootstrap.swift:71 与 LanTransferServer.swift:63 调用
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,row,func,258,KEEP,body 内 12 处调用（34/43/56/69/83/90/104/115/128/158/179/188）
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,applyPort,func,287,KEEP,端口行 onSubmit:121 与「应用」按钮:122
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,chooseBridgeFolder,func,300,KEEP,「选择…」按钮 :198 调用
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,copy,func,317,KEEP,「复制」按钮 :139 调用
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,notifyChange,func,323,KEEP,9 处调用（46/59/72/86/95/111/184/297/314）
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,segmentPill,func,175,KEEP,transferSegments:168-170 三处调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendChip,func,271,KEEP,sendSection:220/223/226 三处闭包
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendableURL,func,296,KEEP,stagedSelection:307 与 :693 :778 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,stagedSelection,func,303,KEEP,sendViaAirDrop:324 与 sendViaADB:334 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,addFilesToStaging,func,310,KEEP,「添加文件」smallAction 闭包 :210
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendViaAirDrop,func,322,KEEP,sendChip 闭包 :221
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendViaADB,func,331,KEEP,sendChip 闭包 :227
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendViaBrowser,func,360,KEEP,sendChip 闭包 :224
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,receiveRow,func,418,KEEP,receiveSection:373/383/390 三处调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,openUploadQR,func,440,KEEP,receiveSection「出码」:393；receiveSection 经 :99 渲染
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,openSettings,func,537,KEEP,cloudTab:478 与 header 菜单 :519
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,runTransferProbe,func,543,KEEP,onAppear :122 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,smallAction,func,570,KEEP,全文件 10+ 处调用（210/386/393/615/631/681/691…）
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pullFromPhone,func,595,KEEP,receiveSection:387 仍在渲染路径（:99 分支）
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,refreshCloudLogin,func,617,KEEP,cloudSection:860「刷新登录」；cloudTab:466 渲染
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,toggleSelect,func,892,KEEP,localCard 闭包 :1246 onToggleSelect
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,showPickQR,func,902,KEEP,366/559/1078/1249 四处调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,stopServiceIfStartedForTransfer,func,925,KEEP,onChange(selectedIDs) :141 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pushSelectedToCloud,func,932,KEEP,selectionBar:1080 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,removeSelected,func,945,KEEP,selectionBar:1082 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pickOverlay,func,952,KEEP,dockContent overlay :159 渲染
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,localCard,func,1043,KEEP,localList:1228 ForEach 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sectionHeader,func,1062,KEEP,676/722/855/1002 四处调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,dropHint,func,1082,KEEP,cloudSection:912 与 localSection:1067
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,urls,func,1099,KEEP,handleLocalDrop:1320 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,handleLocalDrop,func,1121,KEEP,localSection onDrop :1065
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,handleCloudDrop,func,1129,KEEP,cloudSection onDrop :910
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pickAndUpload,func,1144,KEEP,cloudSection「上传」按钮 :896
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,CloudRowView,func,func,1173,KEEP,Equatable 协议要求；cloudList:945 .equatable() 触发
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,LocalCardRowView,func,func,1235,KEEP,Equatable 协议要求；localCard:1255 .equatable() 触发
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,iconName,func,1361,KEEP,CloudRowView:1377 与 LocalCardRowView:1449
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,fileTint,func,1374,KEEP,LocalCardRowView:1440 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,miniButton,func,1390,KEEP,1394/1397/1476/1479 四处调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,segmentPill,func,178,KEEP,transferSegments:168-170 三处调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendChip,func,274,KEEP,sendSection:220/223/226 三处闭包
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendableURL,func,299,KEEP,stagedSelection:307 与 :693 :778 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,stagedSelection,func,306,KEEP,sendViaAirDrop:324 与 sendViaADB:334 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,addFilesToStaging,func,313,KEEP,「添加文件」smallAction 闭包 :210
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendViaAirDrop,func,325,KEEP,sendChip 闭包 :221
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendViaADB,func,334,KEEP,sendChip 闭包 :227
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sendViaBrowser,func,363,KEEP,sendChip 闭包 :224
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,receiveRow,func,421,KEEP,receiveSection:373/383/390 三处调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,openUploadQR,func,443,KEEP,receiveSection「出码」:393；receiveSection 经 :99 渲染
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,openSettings,func,540,KEEP,cloudTab:478 与 header 菜单 :519
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,runTransferProbe,func,546,KEEP,onAppear :122 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,smallAction,func,573,KEEP,全文件 10+ 处调用（210/386/393/615/631/681/691…）
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pullFromPhone,func,598,KEEP,receiveSection:387 仍在渲染路径（:99 分支）
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,refreshCloudLogin,func,620,KEEP,cloudSection:860「刷新登录」；cloudTab:466 渲染
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,toggleSelect,func,895,KEEP,localCard 闭包 :1246 onToggleSelect
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,showPickQR,func,905,KEEP,366/559/1078/1249 四处调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,stopServiceIfStartedForTransfer,func,928,KEEP,onChange(selectedIDs) :141 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pushSelectedToCloud,func,935,KEEP,selectionBar:1080 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,removeSelected,func,948,KEEP,selectionBar:1082 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pickOverlay,func,955,KEEP,dockContent overlay :159 渲染
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,localCard,func,1046,KEEP,localList:1228 ForEach 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,sectionHeader,func,1065,KEEP,676/722/855/1002 四处调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,dropHint,func,1085,KEEP,cloudSection:912 与 localSection:1067
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,urls,func,1102,KEEP,handleLocalDrop:1320 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,handleLocalDrop,func,1124,KEEP,localSection onDrop :1065
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,handleCloudDrop,func,1132,KEEP,cloudSection onDrop :910
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockView,pickAndUpload,func,1147,KEEP,cloudSection「上传」按钮 :896
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,CloudRowView,func,func,1176,KEEP,Equatable 协议要求；cloudList:945 .equatable() 触发
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,LocalCardRowView,func,func,1238,KEEP,Equatable 协议要求；localCard:1255 .equatable() 触发
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,iconName,func,1364,KEEP,CloudRowView:1377 与 LocalCardRowView:1449
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,fileTint,func,1377,KEEP,LocalCardRowView:1440 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,miniButton,func,1393,KEEP,1394/1397/1476/1479 四处调用
+TransferDock,Features/TransferDock/UI/TransferIntakeDialog.swift,TransferIntakeDialog,card,func,98,KEEP,转入弹框单选卡片（hover 高亮 + 描边，点击 onConfirm）
 MemoryHelper,MemoryHelper/main.swift,-,fail,func,24,KEEP,独立可执行入口；:113/122/128/139/144/184 调用
 MemoryHelper,MemoryHelper/main.swift,-,runTool,func,29,KEEP,optimizeMemory:70 调用 purge
 MemoryHelper,MemoryHelper/main.swift,SimulatedMemoryPressure,set,func,55,KEEP,optimizeMemory:64 触发与 :66 defer 复位

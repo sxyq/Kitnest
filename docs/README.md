@@ -47,8 +47,9 @@ docs/
 - 引用路径一律写**仓库相对路径**（如 `apps/FrsetNext/Sources/Core/UI/Support.swift`）。
 - 结论必须可验证：函数/文件/数量要能被 `00-总览/符号索引.md`、
   `40-审计与核对/数据表/FrsetNext-函数清单.csv` 或源码直接对上。
-- 机器产物（函数清单、符号索引、审计 CSV）不要手工改；改源码后用
-  `apps/FrsetNext/tools/update_function_csv.py` / `tools/symbol_index_md.py` 重新生成。
+- 机器产物（函数清单、符号索引、审计 CSV）不要手工改；改源码后按顺序重跑
+  `python3 tools/func_table.py` → `python3 tools/symbol_index_md.py apps/FrsetNext/Sources docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md`
+  → `python3 tools/swift_catalog.py`。`apps/FrsetNext/tools/update_function_csv.py` 已废弃，仅转发到 `tools/func_table.py`。
 - 同一主题只保留一份主文档；旧版本移到 `90-历史归档/` 并在文首注明「已被谁取代」。
 
 ## 本仓文档校验
@@ -68,8 +69,10 @@ for p in list(root.glob('docs/**/*.md')) + [root/'AGENTS.md', root/'README.md']:
 print(bad or 'OK')
 PY
 
-# 2) 函数清单与源码对齐（改代码后重跑）
-python3 apps/FrsetNext/tools/update_function_csv.py
+# 2) 函数清单与源码对齐（改代码后重跑；唯一解析器在仓库根 tools/）
+python3 tools/func_table.py
+python3 tools/symbol_index_md.py apps/FrsetNext/Sources docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md
+python3 tools/swift_catalog.py
 ```
 
 ## 本次整理（2026-11-03）
