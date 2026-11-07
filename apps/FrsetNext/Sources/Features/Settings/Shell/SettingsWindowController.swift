@@ -49,6 +49,8 @@ final class SettingsUIState: ObservableObject {
         // v234：截图独立成一级分类，钉图是它的第二个页签
         case "capture":                  selection = .category(.capture); captureSub = 0
         case "pin", "pinSettings":       selection = .category(.capture); captureSub = 1
+        // v261：悬挂架（截图后的临时暂存区，默认关闭）
+        case "shelf", "shelfSettings":   selection = .category(.capture); captureSub = 2
         case "statistics":               selection = .category(.statistics)
         case "about":                    selection = .category(.about)
         case "monitor", "monitorSettings": selection = .monitorSettings

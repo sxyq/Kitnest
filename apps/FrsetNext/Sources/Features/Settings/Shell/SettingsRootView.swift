@@ -111,9 +111,11 @@ struct SettingsRootView: View {
             case .capture:
                 // v234：截图从「工具与快捷键」拆出来独立成一级，
                 // 钉图有自己一页（可视化预设 + 实时预览）
+                // v261：新增「悬挂架」——截图后的临时暂存区，默认关闭
                 segmentedPage(selection: $state.captureSub, tabs: [
                     ("截图", AnyView(CaptureSettingsPane())),
-                    ("钉图", AnyView(PinSettingsPane()))
+                    ("钉图", AnyView(PinSettingsPane())),
+                    ("悬挂架", AnyView(ShelfSettingsPane()))
                 ])
             case .searchAI:
                 segmentedPage(selection: $state.searchAISub, tabs: [

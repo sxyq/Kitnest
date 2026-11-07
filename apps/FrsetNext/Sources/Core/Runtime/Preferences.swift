@@ -63,6 +63,15 @@ public final class Preferences: ObservableObject {
         public static let captureSound = "capture.soundEnabled"
         public static let captureSavePath = "capture.savePath"
         public static let ocrLanguages = "ocr.languages"
+        // 截图悬挂架（对标 1Capture 的 DDShelf → 悬挂样式）
+        /// 总开关：默认关。关着的时候不建窗口、不挂任何东西（用户要求「不是常驻的」）
+        public static let shelfEnabled = "shelf.enabled"
+        public static let shelfRopeStyle = "shelf.ropeStyle"
+        /// 展示时长（秒）；0 = 永不自动收起
+        public static let shelfDisplayDuration = "shelf.displayDuration"
+        public static let shelfMaxCards = "shelf.maxCards"
+        public static let shelfAttachOnCapture = "shelf.attachOnCapture"
+        public static let shelfCardWidth = "shelf.cardWidth"
         // AI（09）
         public static let aiProvider = "ai.provider"
         public static let aiModel = "ai.model"

@@ -147,6 +147,12 @@ public final class StatusBarController: NSObject {
         FloatingClipboardWindowController.shared.show()
     }
 
+    /// v261：截图悬挂架——显示 / 收起。走通知而不是直接引用控制器，
+    /// 让状态栏这一层不需要知道 Capture 模块的类型（CONTRACT §1.3）。
+    @objc func toggleShelfAction(_ sender: Any?) {
+        NotificationCenter.default.post(name: .shelfToggleRequested, object: nil)
+    }
+
     /// 欢迎与权限引导（重建版 onboarding：欢迎窗 + 权限引导窗手动入口）
     @objc func showOnboardingAction(_ sender: Any?) {
         WelcomeWindowController.shared.show()

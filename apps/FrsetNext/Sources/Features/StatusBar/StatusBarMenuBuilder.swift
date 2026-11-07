@@ -118,6 +118,15 @@ public enum StatusBarMenuBuilder {
         menu.addItem(track(item("悬浮剪贴板…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openFloatingClipboardAction(_:)), target: target)))
 
+        // v261：截图悬挂架（设置 → 截图 → 悬挂架）。默认关闭时菜单里不出现，
+        // 免得给一个用不上的入口；开着的时候它就是「把架子叫回来」的唯一途径
+        // （架子到时会自动收起，但内容还在）。
+        if ShelfPref.enabled {
+            menu.addItem(track(item("截图悬挂架", key: "", modifiers: [],
+                                    action: #selector(StatusBarController.toggleShelfAction(_:)),
+                                    target: target)))
+        }
+
         // 欢迎与权限引导（重建版 onboarding；首启自动弹，此处提供手动入口）
         let onboardingItem = track(item("欢迎与权限…", key: "", modifiers: [],
                                         action: #selector(StatusBarController.showOnboardingAction(_:)), target: target))

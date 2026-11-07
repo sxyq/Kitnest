@@ -205,6 +205,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Task { await MemoryOptimizer.shared.optimize(freezeIdle: freeze) }
             case "memthaw":
                 ProcessFreezer.shared.thawAll(reason: "排障入口")
+            case "shelfprobe":
+                // v261 排障：合成 N 张测试截图挂上悬挂架，打印窗口尺寸后自动清理。
+                // 截图链路要人手框选，验收没法自动化，这个入口补上「排布/缩略图/自动收起」。
+                // ?shot=1 时临时允许被抓屏（仅本次自检），用来肉眼验收渲染。
+                let n = Int(comps?.queryItems?.first(where: { $0.name == "count" })?.value ?? "3") ?? 3
+                let shot = comps?.queryItems?.first(where: { $0.name == "shot" })?.value == "1"
+                Task { @MainActor in
+                    ScreenshotShelfController.shared.runProbe(count: n, capturable: shot)
+                }
             case "clipdesk":
                 // 悬浮剪贴板工作台（v191）：快捷键之外的确定性入口，排障/截图用
                 // v202：支持 ?action=hide|toggle，便于验证「收起动画中重开」竞态

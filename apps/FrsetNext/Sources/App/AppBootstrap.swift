@@ -223,6 +223,11 @@ enum AppBootstrap {
         CaptureEventBus.onImageCaptured = { url, data in
             ClipboardManager.shared.insertImage(data: data, fileURL: url, sourceApp: "Kitnest")
             DatabaseManager.shared.bumpStat("screenshot_count")
+            // v261：截图悬挂架（设置 → 截图 → 悬挂架，默认关闭）。
+            // 关着的时候 attach 内部第一行就 return，不会有任何窗口/内存开销。
+            Task { @MainActor in
+                ScreenshotShelfController.shared.attach(url: url)
+            }
         }
 
         // 面板截图功能菜单 → 截图翻译 / 划词翻译（Capture 模块发通知，App 层持有会话）
