@@ -1853,6 +1853,26 @@ Monitor,Features/Monitor/Memory/MemoryOptimizer.swift,MemoryOptimizationReport,r
 Monitor,Features/Monitor/Memory/MemoryOptimizer.swift,MemoryOptimizationReport,delta,func,64,KEEP,38-42 五个 delta 派生属性
 Monitor,Features/Monitor/Memory/MemoryOptimizer.swift,MemoryOptimizer,init,init,78,KEEP,私有 init，shared:71
 Monitor,Features/Monitor/Memory/MemoryOptimizer.swift,MemoryOptimizer,optimize,func,81,KEEP,MemoryOptimizeCard.swift:27 按钮 Task 调用
+Monitor,Features/Monitor/Memory/MemoryOptimizer.swift,MemoryOptimizer,summary,func,165,KEEP,v259 新增：排障日志用的四分项摘要（不把暂停量算成释放量）
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,freezeIdle,func,76,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,thawAll,func,125,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,thaw,func,137,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,thawOrphans,func,153,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,resume,func,174,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,visibleWindowPIDs,func,198,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,collectCandidates,func,218,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,isProtected,func,289,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,cpuSeconds,func,331,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,pidAlive,func,339,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,startTime,func,343,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,isSameProcess,func,347,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,startExpiry,func,353,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,stopExpiry,func,367,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,startObservingActivation,func,374,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,startWatchdog,func,398,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,stopWatchdog,func,423,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,writePidFile,func,446,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,clearPidFile,func,454,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,topConsumers,func,30,KEEP,MemoryOptimizer.swift:101、109
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,resourceUsage,func,65,KEEP,topConsumers:34
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,applicationBundlePath,func,76,KEEP,topConsumers:36
