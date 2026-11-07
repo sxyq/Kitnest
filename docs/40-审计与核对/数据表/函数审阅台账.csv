@@ -589,6 +589,7 @@ Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tab
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,hoverChanged,func,118,KEEP,v258 行变化派发
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableViewSelectionDidChange,func,126,KEEP,NSTableViewDelegate 选择变更回调
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,136,KEEP,NSTableViewDataSource 每行一个拖出承诺
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,startHoverProbeIfNeeded,func,138,KEEP,probe.archiveHover 排障入口（真机合成鼠标点不中列表时用）
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,164,KEEP,EntryTable:122 每行构造行视图
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,221,KEEP,NSView required 初始化，AppKit 调用
 Archive,Features/Archive/Table/ArchiveEntryThumbnail.swift,ArchiveEntryThumbnail,canRender,func,47,KEEP,Thumb:56 与 PeekView:169 判断可否出图
