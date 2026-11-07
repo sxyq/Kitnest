@@ -273,12 +273,15 @@ private struct ShelfCardMock: View {
     var width: CGFloat
     var height: CGFloat
 
+    /// 与 `ShelfMetrics.cornerRadius(for:)` 同一公式，预览才不会和真卡片长得不一样
+    private var mockRadius: CGFloat { min(max(width * 0.09, 8), 18) }
+
     var body: some View {
         VStack(spacing: 0) {
             ShelfClip()
                 .frame(width: 10, height: 13)
             ZStack {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: mockRadius, style: .continuous)
                     .fill(Color(white: 0.97))
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(0..<4, id: \.self) { i in
@@ -291,7 +294,7 @@ private struct ShelfCardMock: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(width: width, height: height)
-            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .overlay(RoundedRectangle(cornerRadius: mockRadius, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5))
             .shadow(color: .black.opacity(0.4), radius: 5, y: 2)
         }
@@ -323,7 +326,7 @@ private struct ShelfRopeThumb: View {
         ZStack {
             Color(white: 0.22)
             VStack(spacing: 0) {
-                ShelfRopeSample(style: style, sag: 5)
+                ShelfRopeSample(style: style, sag: 7)
                     .frame(height: 14)
                     .padding(.horizontal, 10)
                 Spacer(minLength: 0)
@@ -345,11 +348,12 @@ private struct ShelfRopeSample: View {
                 ShelfRopeShape(sag: sag)
                     .stroke(strokeColor, style: strokeStyle)
 
-                if style == .twine {
+                if style == .candyCane {
+                    // 红白相间：白底上叠红色虚线，跟窗口里同一套画法
                     ShelfRopeShape(sag: sag)
-                        .stroke(strokeColor.opacity(0.9),
+                        .stroke(Color(red: 0.86, green: 0.03, blue: 0.16),
                                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round,
-                                                   dash: [1.4, 2.0]))
+                                                   dash: [3.2, 3.2]))
                 }
                 if style == .lights {
                     ForEach(0..<8, id: \.self) { i in
@@ -381,10 +385,10 @@ private struct ShelfRopeSample: View {
 
     private var lineWidth: CGFloat {
         switch style {
-        case .classic: return 1.2
-        case .twine:   return 2.4
-        case .lights:  return 1.4
-        case .snow:    return 2.0
+        case .classic:   return 2.0
+        case .candyCane: return 3.0
+        case .lights:    return 1.4
+        case .snow:      return 2.0
         }
     }
 
@@ -396,10 +400,10 @@ private struct ShelfRopeSample: View {
         [.yellow, .pink, .teal, .orange]
     }
 
-    /// 二次贝塞尔取点：y = 3 + 4·sag·t·(1−t)
+    /// 三次贝塞尔取点：y = y0 + 3·sag·t·(1−t)
     private func point(at t: CGFloat, size: CGSize) -> CGPoint {
         let y0: CGFloat = 3
-        let y = y0 + 4 * sag * t * (1 - t)
+        let y = y0 + 3 * sag * t * (1 - t)
         return CGPoint(x: 2 + (size.width - 4) * t, y: y)
     }
 }
@@ -407,12 +411,16 @@ private struct ShelfRopeSample: View {
 private struct ShelfRopeShape: Shape {
     var sag: CGFloat
 
+    /// 与窗口里的绘制同源：三次贝塞尔、控制点在 1/3 与 2/3。
+    /// 用二次贝塞尔会在中间顶出一个尖，跟真绳差得远。
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let y0: CGFloat = 3
+        let w = rect.width - 4
         path.move(to: CGPoint(x: 2, y: y0))
-        path.addQuadCurve(to: CGPoint(x: rect.width - 2, y: y0),
-                          control: CGPoint(x: rect.midX, y: y0 + sag * 2))
+        path.addCurve(to: CGPoint(x: 2 + w, y: y0),
+                      control1: CGPoint(x: 2 + w / 3, y: y0 + sag),
+                      control2: CGPoint(x: 2 + w * 2 / 3, y: y0 + sag))
         return path
     }
 }

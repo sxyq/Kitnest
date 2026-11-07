@@ -40,34 +40,46 @@ public struct ShelfItem: Identifiable, Equatable, Sendable {
 
 // MARK: - 绳子样式
 
+/// 绳子样式。
+///
+/// 命名对齐 1Capture 的 `HangingShelfRopeStyle`（CLASSIC / CANDY_CANE /
+/// CHRISTMAS_LIGHTS / SNOW），中文沿用它的官方措辞——用户在两边设置里
+/// 看到的是同一套词。
 public enum ShelfRopeStyle: String, CaseIterable, Identifiable {
-    /// 原版：一根细线
+    /// 原版：一根半透明白绳 + 细芯，带投影
     case classic
-    /// 麻绳：粗一点 + 斜纹
-    case twine
-    /// 彩灯：线上挂一圈小灯
+    /// 拐杖糖：白底 + 红色斜纹（1Capture 的 CANDY_CANE）
+    case candyCane
+    /// 圣诞彩灯：细绳 + 等距小灯
     case lights
-    /// 积雪：线上积一层白
+    /// 积雪：绳上堆一层白
     case snow
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
-        case .classic: return "原版"
-        case .twine:   return "麻绳"
-        case .lights:  return "彩灯"
-        case .snow:    return "积雪"
+        case .classic:   return "原版"
+        case .candyCane: return "拐杖糖"
+        case .lights:    return "圣诞彩灯"
+        case .snow:      return "积雪"
         }
     }
 
     public var subtitle: String {
         switch self {
-        case .classic: return "一根细线，最不抢眼"
-        case .twine:   return "粗绳带斜纹，最像晾衣绳"
-        case .lights:  return "沿线小灯，深色桌面更明显"
-        case .snow:    return "线上积雪，冬天用"
+        case .classic:   return "一根半透明白绳，任何桌面都不抢眼"
+        case .candyCane: return "白绳缠红条纹，最像晾衣绳"
+        case .lights:    return "沿线等距小灯，深色桌面最好看"
+        case .snow:      return "线上积雪，冬天用"
         }
+    }
+
+    /// 旧版本存过 "twine"（麻绳），归一化到拐杖糖。
+    /// 不做这一步，升级后读不出值会静默退回 classic。
+    public static func normalized(_ raw: String) -> ShelfRopeStyle {
+        if raw == "twine" { return .candyCane }
+        return ShelfRopeStyle(rawValue: raw) ?? .classic
     }
 }
 
@@ -92,8 +104,8 @@ public enum ShelfPref {
     public static var ropeStyle: ShelfRopeStyle {
         get {
             let raw: String = Preferences.shared.value(Preferences.Keys.shelfRopeStyle,
-                                                       default: ShelfRopeStyle.twine.rawValue)
-            return ShelfRopeStyle(rawValue: raw) ?? .twine
+                                                       default: ShelfRopeStyle.classic.rawValue)
+            return ShelfRopeStyle.normalized(raw)
         }
         set {
             Preferences.shared.set(Preferences.Keys.shelfRopeStyle, newValue.rawValue)
