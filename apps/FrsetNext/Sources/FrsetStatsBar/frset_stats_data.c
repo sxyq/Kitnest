@@ -384,15 +384,18 @@ void frset_battery_sample(frset_battery_t *out) {
         } else if (bdd) {
             cv = CFDictionaryGetValue(bdd, CFSTR("FullChargeCapacity"));
             if (cv && CFNumberGetValue(cv, kCFNumberIntType, &rawMax) && rawMax > 0) out->max_capacity = rawMax;
-            if (out->max_capacity <= 0) {
-                cv = CFDictionaryGetValue(bdd, CFSTR("NominalChargeCapacity"));
-                if (cv && CFNumberGetValue(cv, kCFNumberIntType, &rawMax) && rawMax > 0) out->max_capacity = rawMax;
-            }
+            // v260：不要用 NominalChargeCapacity 兜底满充容量。它同时是健康度的
+            // 分母，兜底后两者相等、健康度会恒等于 100% —— 制造新的假数据。
             int rawCur = 0;
             cv = CFDictionaryGetValue(bdd, CFSTR("RemainingCapacity"));
             if (cv && CFNumberGetValue(cv, kCFNumberIntType, &rawCur) && rawCur > 0) out->current_capacity = rawCur;
         } else {
-            cv = CFDictionaryGetValue(props, CFSTR("MaxCapacity")); if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv)) out->max_capacity = iv;
+            // v260：Apple Silicon 的根 MaxCapacity 常是百分比 100 而不是 mAh；
+            // 直接当容量会算出「最大容量 100 mAh / 健康度 2%」这种假数据。
+            // 值小于 200 一律判为百分比并丢弃，宁可让 UI 显示「不可用」。
+            cv = CFDictionaryGetValue(props, CFSTR("MaxCapacity"));
+            if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv) && iv > 200)
+                out->max_capacity = iv;
         }
         // 设计容量：根节点 → BatteryData（官方同路径；本机仅 BatteryData 有）
         cv = CFDictionaryGetValue(props, CFSTR("DesignCapacity"));
@@ -400,6 +403,14 @@ void frset_battery_sample(frset_battery_t *out) {
         if (out->design_capacity <= 0 && bdd) {
             cv = CFDictionaryGetValue(bdd, CFSTR("DesignCapacity"));
             if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv) && iv > 0) out->design_capacity = iv;
+        }
+        // v260：标称（额定）容量。健康度有两个口径，差得不少（本机 4056/4629=88%
+        // 对 4056/4183=97%），只报一个必然被用户当成「不准」——两个都读出来并列显示。
+        cv = CFDictionaryGetValue(props, CFSTR("NominalChargeCapacity"));
+        if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv) && iv > 0) out->nominal_capacity = iv;
+        if (out->nominal_capacity <= 0 && bdd) {
+            cv = CFDictionaryGetValue(bdd, CFSTR("NominalChargeCapacity"));
+            if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv) && iv > 0) out->nominal_capacity = iv;
         }
         cv = CFDictionaryGetValue(props, CFSTR("CycleCount")); if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv)) out->cycle_count = iv;
         cv = CFDictionaryGetValue(props, CFSTR("Temperature")); if (cv && CFNumberGetValue(cv, kCFNumberDoubleType, &dv)) {
@@ -463,8 +474,19 @@ void frset_battery_sample(frset_battery_t *out) {
         // 百分比：优先 CurrentCapacity（本身就是百分比），回退到容量比值
         //   ⚠️ max_capacity 现在可能是 mAh，直接比值会算错，故必须优先用 CurrentCapacity。
         cv = CFDictionaryGetValue(props, CFSTR("CurrentCapacity"));
-        if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv) && iv >= 0) out->percent = iv;
-        else if (out->max_capacity > 0) out->percent = (int)(100.0 * out->current_capacity / out->max_capacity + 0.5);
+        if (cv && CFNumberGetValue(cv, kCFNumberIntType, &iv) && iv >= 0) {
+            // v260：Apple Silicon 这里是 0...100 的 SoC 百分比；Intel 机型可能给
+            // mAh（>100），此时改走容量比值，否则界面会显示「4000%」。
+            if (iv <= 100) out->percent = iv;
+            else if (out->max_capacity > 0)
+                out->percent = (int)(100.0 * (double)out->current_capacity
+                                     / (double)out->max_capacity + 0.5);
+        } else if (out->max_capacity > 0) {
+            out->percent = (int)(100.0 * (double)out->current_capacity
+                                 / (double)out->max_capacity + 0.5);
+        }
+        if (out->percent > 100) out->percent = 100;
+        if (out->percent < 0) out->percent = 0;
         out->present = 1;
         CFRelease(props);
     }

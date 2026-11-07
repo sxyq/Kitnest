@@ -35,6 +35,12 @@ public final class Preferences: ObservableObject {
         public static let panelPinned = "panel.pinned"
         /// 主面板是否显示「文件中转」入口（v40 侧边栏，设置→常规→功能）
         public static let panelTransferDock = "panel.transferDock"
+        /// 「设置 → 文件中转 → 启用文件中转」独占的功能总开关（v260）。
+        ///
+        /// 之前它和 `panel.transferDock`（常规→功能里的勾选）共用一个键，
+        /// 两个 UI 互相覆盖，用户在任一处切换都会把另一处带偏——
+        /// 关掉功能后连入口一起消失，而不是像文案承诺的那样「只提示已关闭」。
+        public static let transferFeatureEnabled = "transfer.featureEnabled"
         /// 主面板宽度（v40 大侧边栏版式；旧版 panel.width=400 不复用）
         public static let panelWidthV2 = "panel.width.v2"
         /// v47 首页搜索分类开关（分类展现：网页 / 剪贴板历史 / 本地文件）

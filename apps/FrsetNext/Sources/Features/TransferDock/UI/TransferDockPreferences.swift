@@ -10,6 +10,25 @@ public enum TransferDockPref {
     /// 主面板「文件中转」入口显隐（沿用既有键）
     public static let panelVisible = Preferences.Keys.panelTransferDock
 
+    /// 中转**功能**总开关（v260，与入口显隐解耦）
+    ///
+    /// 关掉它时：中转页显示一句「文件中转已关闭」，且主面板顶部的「中转 / 投屏」
+    /// 分段一起隐藏（v260 用户要求「按钮也要消失」）；设置侧栏入口保留，方便重新开启。
+    /// 之前它和 panelVisible 共用同一个键，两处 UI 互相覆盖。
+    public static let featureEnabled = Preferences.Keys.transferFeatureEnabled
+
+    /// v260：旧键 → 新键一次性迁移。
+    ///
+    /// 老版本里「常规→功能→文件中转」和「设置→文件中转→启用文件中转」
+    /// 共用 `panel.transferDock`，语义已经被 v181 改过一次，这里再拆一次。
+    /// 老用户的开关状态不能因为换键而丢失。
+    public static func migrateLegacyFeatureFlag() {
+        let d = UserDefaults.standard
+        guard d.object(forKey: featureEnabled) == nil else { return }
+        let legacy = d.object(forKey: panelVisible) as? Bool ?? true
+        d.set(legacy, forKey: featureEnabled)
+    }
+
     /// OPPO 云端中转通道（关掉后 UI 完全不出现「云端」分区）
     public static let cloudEnabled = "transferDock.cloud.enabled"
 

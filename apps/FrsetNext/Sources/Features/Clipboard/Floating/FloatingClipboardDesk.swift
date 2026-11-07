@@ -99,6 +99,20 @@ public final class FloatingClipDeskStore: ObservableObject {
     /// 键盘光标（网格里的序号）
     @Published public var selectedIndex: Int = 0
 
+    /// v260（滚动掉帧）：当前选中条目的 id。
+    /// 列表改成按 `item.id` 直接遍历后就不需要 index 了，判选中走这个。
+    public var selectedItemID: String? {
+        items.indices.contains(selectedIndex) ? items[selectedIndex].id : nil
+    }
+
+    /// v260：按条目选中（列表按 id 遍历后不再有 index 可用）。
+    /// 查找是 O(n)，但只在点击时走一次，不在滚动热路径上。
+    public func select(_ item: ClipboardItem) {
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            selectedIndex = index
+        }
+    }
+
     /// 布局（网格 / 列表）
     @Published public var layout: FloatingClipLayout = FloatingClipPrefs.layout {
         didSet { FloatingClipPrefs.layout = layout }
@@ -316,8 +330,11 @@ public struct FloatingClipboardDeskView: View {
         .background(panelBackground)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
         .overlay(
+            // v260：描边强度下调。深色下 primary 就是白色，8% 的白描边会在
+            // 窗口外圈画出一道明显「线框」（用户反馈的「四周曲线 + 外部线框」）。
+            // 边缘交给阴影表达就够了，这里只留一丝极淡的界线。
             RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
         )
         .onAppear {
             store.reload(debounce: false)
@@ -343,12 +360,12 @@ public struct FloatingClipboardDeskView: View {
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 12, weight: .medium))
+                .font(.scaledSystem(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
 
             TextField("搜索剪贴板", text: $store.search)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.scaledSystem(size: 13))
                 .focused($searchFocused)
                 .onSubmit { store.pasteSelected() }
 
@@ -358,7 +375,7 @@ public struct FloatingClipboardDeskView: View {
                     searchFocused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
@@ -368,7 +385,7 @@ public struct FloatingClipboardDeskView: View {
             Spacer(minLength: 4)
 
             Text("\(store.items.count)")
-                .font(.system(size: 10).monospacedDigit())
+                .font(.scaledSystem(size: 10).monospacedDigit())
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 14)
@@ -385,7 +402,7 @@ public struct FloatingClipboardDeskView: View {
                     searchFocused = true
                 } label: {
                     Text(kind.label)
-                        .font(.system(size: 12, weight: store.kind == kind ? .semibold : .regular))
+                        .font(.scaledSystem(size: 12, weight: store.kind == kind ? .semibold : .regular))
                         .foregroundStyle(store.kind == kind ? Theme.accent : Color.secondary)
                         .contentShape(Rectangle())
                 }
@@ -397,7 +414,7 @@ public struct FloatingClipboardDeskView: View {
                 if showsTags { TagStore.shared.refresh() }
             } label: {
                 Image(systemName: store.tagFilterID == nil ? "tag" : "tag.fill")
-                    .font(.system(size: 11))
+                    .font(.scaledSystem(size: 11))
                     .foregroundStyle(store.tagFilterID == nil ? Color.secondary : Theme.accent)
             }
             .buttonStyle(.plain)
@@ -416,7 +433,7 @@ public struct FloatingClipboardDeskView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("按标签筛选")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.scaledSystem(size: 11, weight: .semibold))
                 Spacer()
                 if store.tagFilterID != nil {
                     Button("清除") {
@@ -424,7 +441,7 @@ public struct FloatingClipboardDeskView: View {
                         store.reload(debounce: false)
                         showsTags = false
                     }
-                    .font(.system(size: 10))
+                    .font(.scaledSystem(size: 10))
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.accent)
                 }
@@ -432,7 +449,7 @@ public struct FloatingClipboardDeskView: View {
             Divider()
             if TagStore.shared.tags.isEmpty {
                 Text("还没有标签")
-                    .font(.system(size: 11))
+                    .font(.scaledSystem(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 6)
             } else {
@@ -449,12 +466,12 @@ public struct FloatingClipboardDeskView: View {
                                         .fill(floatingClipColor(from: tag.colorHex))
                                         .frame(width: 8, height: 8)
                                     Text(tag.name)
-                                        .font(.system(size: 11))
+                                        .font(.scaledSystem(size: 11))
                                         .lineLimit(1)
                                     Spacer(minLength: 0)
                                     if store.tagFilterID == tag.id {
                                         Image(systemName: "checkmark")
-                                            .font(.system(size: 9, weight: .bold))
+                                            .font(.scaledSystem(size: 9, weight: .bold))
                                             .foregroundStyle(Theme.accent)
                                     }
                                 }
@@ -531,10 +548,10 @@ public struct FloatingClipboardDeskView: View {
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "rectangle.split.2x1")
-                        .font(.system(size: 22, weight: .light))
+                        .font(.scaledSystem(size: 22, weight: .light))
                         .foregroundStyle(.quaternary)
                     Text(store.items.isEmpty ? "选一条看内容" : "预览栏")
-                        .font(.system(size: 12))
+                        .font(.scaledSystem(size: 12))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -551,10 +568,10 @@ public struct FloatingClipboardDeskView: View {
     private var emptyState: some View {
         VStack(spacing: 10) {
             Image(systemName: store.search.isEmpty ? "clipboard" : "magnifyingglass")
-                .font(.system(size: 28, weight: .light))
+                .font(.scaledSystem(size: 28, weight: .light))
                 .foregroundStyle(.quaternary)
             Text(store.search.isEmpty ? "这个分类还没有记录" : "没有匹配「\(store.search)」的条目")
-                .font(.system(size: 12))
+                .font(.scaledSystem(size: 12))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -608,10 +625,14 @@ public struct FloatingClipboardDeskView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
-                    ForEach(Array(store.items.enumerated()), id: \.element.id) { index, item in
-                        FloatingClipListRow(item: item, isSelected: index == store.selectedIndex)
+                    // v260（滚动掉帧）：原来每次 body 求值都构造一份
+                    // Array(items.enumerated())（n 个元组 + 一堆 ARC 释放），
+                    // 滚动时每帧一次。改成直接遍历 items、按稳定的 item.id 认行，
+                    // 判选中用 selectedItemID，零临时分配。
+                    ForEach(store.items, id: \.id) { item in
+                        FloatingClipListRow(item: item, isSelected: store.selectedItemID == item.id)
                             .onTapGesture(count: 2) { store.paste(item) }
-                            .onTapGesture { store.selectedIndex = index }
+                            .onTapGesture { store.select(item) }
                             .contextMenu { ClipboardRowMenuContent(item: item) }
                             .onDrag { dragProvider(for: item) }
                             .id(item.id)
@@ -634,7 +655,7 @@ public struct FloatingClipboardDeskView: View {
     private var footer: some View {
         HStack(spacing: 10) {
             Text(statusText)
-                .font(.system(size: 10))
+                .font(.scaledSystem(size: 10))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
@@ -648,7 +669,7 @@ public struct FloatingClipboardDeskView: View {
                             store.cardSize = size
                         } label: {
                             Text(size.label)
-                                .font(.system(size: 10, weight: store.cardSize == size ? .semibold : .regular))
+                                .font(.scaledSystem(size: 10, weight: store.cardSize == size ? .semibold : .regular))
                                 .foregroundStyle(store.cardSize == size ? Theme.accent : Color.secondary)
                                 .frame(width: 18, height: 18)
                                 .background {
@@ -669,7 +690,7 @@ public struct FloatingClipboardDeskView: View {
                     store.layout = item
                 } label: {
                     Image(systemName: item.systemImage)
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundStyle(store.layout == item ? Theme.accent : Color.secondary)
                         .frame(width: 20, height: 18)
                 }
@@ -835,16 +856,16 @@ private struct FloatingClipCard: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 Image(systemName: "link")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.scaledSystem(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.accent)
                 if !host.isEmpty {
                     Text(host)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.scaledSystem(size: 11, weight: .medium))
                         .lineLimit(1)
                 }
             }
             Text(pathText)
-                .font(.system(size: 10))
+                .font(.scaledSystem(size: 10))
                 .foregroundStyle(.secondary)
                 .lineLimit(size.textLines)
                 .multilineTextAlignment(.leading)
@@ -859,12 +880,12 @@ private struct FloatingClipCard: View {
                     .resizable()
                     .frame(width: 22, height: 22)
                 Text(firstFilePath.isEmpty ? item.displayTitle : (firstFilePath as NSString).lastPathComponent)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.scaledSystem(size: 11, weight: .medium))
                     .lineLimit(2)
             }
             if fileCount > 1 {
                 Text("等 \(fileCount) 个文件")
-                    .font(.system(size: 10))
+                    .font(.scaledSystem(size: 10))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -873,7 +894,7 @@ private struct FloatingClipCard: View {
 
     private func textBody(isNote: Bool) -> some View {
         Text(bodyText)
-            .font(.system(size: isNote ? 12 : 11.5))
+            .font(.scaledSystem(size: isNote ? 12 : 11.5))
             .lineLimit(size.textLines)
             .multilineTextAlignment(.leading)
             .foregroundStyle(.primary)
@@ -882,7 +903,7 @@ private struct FloatingClipCard: View {
 
     private var codeBody: some View {
         Text(bodyText)
-            .font(.system(size: 10.5, design: .monospaced))
+            .font(.scaledSystem(size: 10.5, design: .monospaced))
             .lineLimit(size.textLines)
             .multilineTextAlignment(.leading)
             .foregroundStyle(.primary.opacity(0.92))
@@ -895,7 +916,7 @@ private struct FloatingClipCard: View {
                 .fill(hexColor ?? .gray)
                 .frame(height: size.minHeight - 52)
             Text(hexText)
-                .font(.system(size: 10, design: .monospaced))
+                .font(.scaledSystem(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
     }
@@ -911,12 +932,12 @@ private struct FloatingClipCard: View {
                     .frame(width: 12, height: 12)
             } else if item.isNote {
                 Image(systemName: "note.text")
-                    .font(.system(size: 9))
+                    .font(.scaledSystem(size: 9))
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 2)
             Text(item.timestamp.relativeText)
-                .font(.system(size: 9))
+                .font(.scaledSystem(size: 9))
                 .foregroundStyle(.tertiary)
         }
         .padding(.top, 6)
@@ -980,10 +1001,10 @@ private struct FloatingClipCard: View {
     private func placeholder(symbol: String, text: String) -> some View {
         VStack(spacing: 5) {
             Image(systemName: symbol)
-                .font(.system(size: 18, weight: .light))
+                .font(.scaledSystem(size: 18, weight: .light))
                 .foregroundStyle(.tertiary)
             Text(text)
-                .font(.system(size: 10))
+                .font(.scaledSystem(size: 10))
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, minHeight: size.minHeight - 34)
@@ -1002,10 +1023,10 @@ private struct FloatingClipListRow: View {
             ClipboardThumbnailView(item: item, size: 26, corner: 5)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.displayTitle)
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .lineLimit(1)
                 Text(item.timestamp.relativeText)
-                    .font(.system(size: 10))
+                    .font(.scaledSystem(size: 10))
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)

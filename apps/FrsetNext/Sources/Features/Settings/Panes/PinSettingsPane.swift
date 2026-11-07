@@ -109,10 +109,10 @@ public struct PinSettingsPane: View {
                                     .padding(.horizontal, 9)
                                     .frame(height: 26)
                                     .background {
-                                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                                             .fill(borderColor == item.token ? Theme.accent.opacity(0.12) : Color.primary.opacity(0.04))
                                     }
-                                    .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -243,7 +243,7 @@ public struct PinSettingsPane: View {
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .padding(.horizontal, 5)
                 .padding(.vertical, 1.5)
-                .background(RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
                     .fill(Color.primary.opacity(0.08)))
             Text(title)
                 .font(.system(size: 11.5))
@@ -341,7 +341,7 @@ struct PinLivePreview: View {
             let width = min(maxW, maxH / 0.60)
             let height = width * 0.60
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(LinearGradient(colors: [Color(white: 0.34), Color(white: 0.20)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
 

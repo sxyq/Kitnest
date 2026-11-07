@@ -19,15 +19,22 @@ public struct ShortcutSettingsPane: View {
             Divider().padding(.vertical, 8)
             // 面板内快捷键（官方原版第四组，静态展示不可改）：粘贴 ↩ / 搜索剪贴板 ⌘F
             // / 预览 ⎋ / 新建笔记 ⌘N（2026-10-18 逐项对照官方快捷键页补齐）
-            HStack(spacing: 30) {
+            // v260：原来第二行三列固定宽（3×252 + 2×30 = 816pt），内容区只有
+            // 约 625pt，HStack 把父容器撑开、反过来把左侧导航栏压断。
+            // 改成两列 + 弹性列宽，总宽自然收回内容区。
+            HStack(spacing: 20) {
                 staticRow("粘贴", key: "↩")
                 staticRow("搜索剪贴板", key: "⌘ F")
             }
             .frame(height: 37)
-            HStack(spacing: 30) {
+            HStack(spacing: 20) {
                 staticRow("搜索（面板内）", key: "⌘ K")
                 staticRow("预览", key: "⎋")
+            }
+            .frame(height: 37)
+            HStack(spacing: 20) {
                 staticRow("新建笔记", key: "⌘ N")
+                Color.clear.frame(maxWidth: .infinity)
             }
             .frame(height: 37)
             Divider().padding(.top, 8)
@@ -42,7 +49,7 @@ public struct ShortcutSettingsPane: View {
             .buttonStyle(.link)
             .frame(height: 42)
         }
-        .padding(.horizontal, 30)
+        .padding(.horizontal, 20)
         .font(.system(size: 12))
         .id(revision)
     }
@@ -61,11 +68,11 @@ public struct ShortcutSettingsPane: View {
         HStack(spacing: 10) {
             Text(title)
                 .foregroundStyle(.secondary)
-                .frame(width: 92, alignment: .trailing)
+                .frame(minWidth: 64, idealWidth: 92, maxWidth: 110, alignment: .trailing)
             Text(key)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .frame(width: 150, height: 24)
+                .frame(minWidth: 84, maxWidth: .infinity, minHeight: 24)
                 .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Color.primary.opacity(0.025)))
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).stroke(Color.primary.opacity(0.09), lineWidth: 1))
         }
@@ -80,7 +87,7 @@ public struct ShortcutSettingsPane: View {
         return HStack(spacing: 10) {
             Text(entry.title)
                 .foregroundStyle(.secondary)
-                .frame(width: 92, alignment: .trailing)
+                .frame(minWidth: 64, idealWidth: 92, maxWidth: 110, alignment: .trailing)
 
             if let modifier = doubleTap {
                 // 双击模式：原组合键位置换成「双击修饰键」下拉（原版 ⌘ ⌘ / ⌥ ⌥ / ⌃ ⌃ / ⇧ ⇧）
@@ -103,13 +110,13 @@ public struct ShortcutSettingsPane: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 9)
-                    .frame(width: 150, height: 24)
+                    .frame(minWidth: 96, maxWidth: 160, minHeight: 24)
                     .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Color.primary.opacity(0.025)))
                     .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).stroke(Color.primary.opacity(0.09), lineWidth: 1))
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                .frame(width: 150)
+                .frame(minWidth: 96, maxWidth: 160)
                 .help("双击 \(modifier.symbol) 触发「\(entry.title)」")
             } else {
                 ShortcutRecorderButton(
@@ -122,7 +129,7 @@ public struct ShortcutSettingsPane: View {
                         _ = AppBootstrap.setShortcut(id, keyCode: nil)
                         revision += 1
                     })
-                    .frame(width: 150)
+                    .frame(minWidth: 96, maxWidth: 160)
                     .help(ShortcutManager.shared.failureReason(id: id) ?? "点击录入快捷键；右键可清除")
             }
 

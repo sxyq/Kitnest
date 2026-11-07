@@ -123,11 +123,11 @@ struct TransferIntakeDialog: View {
             .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(active ? Theme.accent.opacity(0.10) : Color.primary.opacity(0.04))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .strokeBorder(active ? Theme.accent.opacity(0.55) : Color.primary.opacity(0.08),
                                   lineWidth: 0.5)
             )

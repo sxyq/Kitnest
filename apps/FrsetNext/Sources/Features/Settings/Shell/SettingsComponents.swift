@@ -117,9 +117,9 @@ struct VisualOptionCard<Preview: View>: View {
             VStack(spacing: 7) {
                 preview()
                     .frame(width: previewSize.width, height: previewSize.height)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                             .strokeBorder(selected ? Theme.accent : Color.primary.opacity(0.12),
                                           lineWidth: selected ? 2 : 0.8)
                     )
@@ -129,10 +129,10 @@ struct VisualOptionCard<Preview: View>: View {
             }
             .padding(7)
             .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(selected ? Theme.accent.opacity(0.10) : Color.clear)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
         .help(title)

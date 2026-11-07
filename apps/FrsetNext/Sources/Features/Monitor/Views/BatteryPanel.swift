@@ -101,7 +101,8 @@ struct BatteryStatsPanel: View {
         if battery?.isCharging == true {
             return remain == "—" ? "系统正在供电并充电" : "预计 \(remain) 充满"
         }
-        if battery?.externalConnected == true { return "电量已满或系统暂缓充电" }
+        if battery?.fullyCharged == true, battery?.externalConnected == true { return "已充满，系统已停止充电" }
+        if battery?.externalConnected == true { return "已接电源，系统暂缓充电或已到充电上限" }
         return remain == "—" ? "未接电源" : "预计还可使用 \(remain)"
     }
 
@@ -171,9 +172,25 @@ struct BatteryStatsPanel: View {
 
     // MARK: 健康（容量 / 循环）
 
-    /// 健康度 = 当前最大容量 / 设计容量（>100% 属正常新电池，钳到 100 显示）
+    /// 健康度 = 满充容量 / 标称（额定）容量——与 macOS「系统设置 → 电池 → 电池健康」同口径。
+    ///
+    /// v260 修正：旧版除以**设计容量**（DesignCapacity 含保留裕量，通常比标称大 10%），
+    /// 同一块电池这里显示 88%、系统显示 97%，用户一对照就认定「检测不准」。
+    /// 标称容量拿不到时才回退设计容量，并在下面的明细里写明两个口径。
     private func healthRatio(_ battery: StatsBattery?) -> Double? {
-        guard let battery, battery.present, battery.designCapacity > 0 else { return nil }
+        guard let battery, battery.present, battery.maxCapacity > 0 else { return nil }
+        let denominator = battery.nominalCapacity > 0
+            ? battery.nominalCapacity : battery.designCapacity
+        guard denominator > 0 else { return nil }
+        let ratio = Double(battery.maxCapacity) / Double(denominator)
+        guard ratio.isFinite, ratio > 0 else { return nil }
+        return min(1.2, ratio)
+    }
+
+    /// 副口径：满充容量 / 设计容量（coconutBattery 等第三方工具的算法）
+    private func designHealthRatio(_ battery: StatsBattery?) -> Double? {
+        guard let battery, battery.present, battery.designCapacity > 0,
+              battery.maxCapacity > 0 else { return nil }
         let ratio = Double(battery.maxCapacity) / Double(battery.designCapacity)
         guard ratio.isFinite, ratio > 0 else { return nil }
         return min(1.2, ratio)
@@ -197,12 +214,13 @@ struct BatteryStatsPanel: View {
                     Text("电池健康")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                    Text(health.map { String(format: "%.0f%%", $0 * 100) } ?? "—")
+                    Text(health.map { "\(Int(($0 * 100).rounded()))%" } ?? "—")
                         .font(.system(size: 18, weight: .semibold).monospacedDigit())
                         .foregroundStyle(healthColor(health))
                 }
                 Spacer(minLength: 6)
-                if let battery, battery.present {
+                // v260：键缺失时 C 层填 0，旧版会显示「循环 0 次」这种假数据
+                if let battery, battery.present, battery.cycleCount > 0 {
                     Text("循环 \(battery.cycleCount) 次")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -216,14 +234,42 @@ struct BatteryStatsPanel: View {
                 ], height: 8)
             }
             if let battery, battery.present {
-                if battery.designCapacity > 0 {
-                    BatteryDetailRow(label: "当前最大容量",
-                                     value: "\(StatsFormat.capacity(battery.maxCapacity)) / \(StatsFormat.capacity(battery.designCapacity))")
+                // v260：三个容量各占一行并写清名称——原来一行写
+                // 「当前最大容量 4056 mAh / 4629 mAh」，第二个数是设计容量，
+                // 没有任何标签，用户只能自己猜，也没法判断哪个才是「最大容量」。
+                if battery.maxCapacity > 0 {
+                    BatteryDetailRow(label: "满充容量",
+                                     value: StatsFormat.capacity(battery.maxCapacity))
                 }
-                BatteryDetailRow(label: "当前电量容量",
-                                 value: StatsFormat.capacity(battery.currentCapacity))
+                if battery.nominalCapacity > 0 {
+                    BatteryDetailRow(label: "标称容量（健康度分母）",
+                                     value: StatsFormat.capacity(battery.nominalCapacity))
+                }
+                if battery.designCapacity > 0 {
+                    BatteryDetailRow(label: "设计容量",
+                                     value: StatsFormat.capacity(battery.designCapacity))
+                }
+                // v260：库仑计剩余电荷与系统 SoC 百分比不是同一口径，
+                // 并排写「100% / 3965 mAh」会让人一除就觉得数据错。
+                if battery.currentCapacity > 0 {
+                    BatteryDetailRow(label: "剩余电荷（库仑计）",
+                                     value: StatsFormat.capacity(battery.currentCapacity))
+                }
+                // 两个口径差得多时并列给出，取整方式与大字号统一为四舍五入，
+                // 不再出现「大字号 88%、小字 87%」「97% 被截成 96%」的自相矛盾。
+                if let nominal = healthRatio(battery),
+                   let design = designHealthRatio(battery),
+                   abs(nominal - design) > 0.005 {
+                    Text("按标称容量计 \(Int((nominal * 100).rounded()))%（系统设置口径）；"
+                         + "按设计容量计 \(Int((design * 100).rounded()))%（第三方工具口径）。"
+                         + "剩余电荷为库仑计原始读数，不能直接除以满充容量当电量百分比。")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            BatteryDetailRow(label: "数据更新",
+            // 这是 UI 刷新时刻，不是电池数据的时间戳
+            BatteryDetailRow(label: "最近刷新",
                              value: Self.timeFormatter.string(from: stats.updatedAt))
         }
     }
@@ -454,6 +500,7 @@ private struct BatteryDetailRow: View {
             Text(value)
                 .font(.system(size: 11.5, weight: .medium).monospacedDigit())
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
     }
 }

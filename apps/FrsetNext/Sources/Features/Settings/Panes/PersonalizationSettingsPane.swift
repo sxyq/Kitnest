@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 // MARK: - 个性化设置（v66：设置 → 常规 →「个性化」分组）
@@ -14,13 +15,12 @@ struct PersonalizationSettingsView: View {
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
     @AppStorage(PanelSegments.transferKey) private var segmentTransfer = false
     @AppStorage(PanelSegments.castKey) private var segmentCast = false
-    /// v206：外观预览要跟「面板宽度」实时联动（写入偏好 → 预览窗宽度同步）
-    @AppStorage(Preferences.Keys.panelWidth) private var previewPanelWidth: Double = 400
+    /// v260：面板宽度改成真正的 SwiftUI 状态驱动。
+    /// 原来 widthRow 用手写 Binding，getter 直接读 UserDefaults、setter 不写任何 state，
+    /// segmented 选中态会弹回，看起来就是「点了没反应」。
+    @AppStorage(Preferences.Keys.panelWidth) private var panelWidthValue: Double = 400
     /// 背景图选择器呈现
     @Stored private var isPickingImage = false
-    /// v203：玻璃实时预览用的真实桌面壁纸（首次出现时读取，失败回退渐变）
-    /// 注：本机工具链缺 SwiftUIMacros，`@State` 无法展开，统一用工程兼容层 `@Stored`
-    @Stored private var previewWallpaper: NSImage? = nil
     /// v181：分段顺序（本地镜像 → 拖拽时即时重排 → onChange 落盘）
     @Stored private var pageOrder: [PanelCenterPage] = PanelSegments.order
     /// 正在拖的分段（nil = 没在拖）
@@ -57,10 +57,6 @@ struct PersonalizationSettingsView: View {
             globalEntriesRow
             Divider().opacity(0.5)
             resetRow
-            Divider().opacity(0.5)
-            // v206（用户：「把上面那个玻璃质感的预览图放到最底上来，这些调节之后
-            // 也要去实时展现」）：预览移到整页最底部，上面的所有外观调节都即时反映
-            appearancePreviewRow
         }
         .padding(.vertical, 4)
         // 拖完顺序落盘（PanelRootView 用 @AppStorage 观察同一个键，面板立即重排）
@@ -90,8 +86,8 @@ struct PersonalizationSettingsView: View {
                 .frame(width: 210)
             }
             Text("拖动左侧「≡」调整顶部顺序；勾掉的分段不出现，也不会创建对应视图——不占内存。"
-                 + "全部关闭时面板只显示一句提示。中转/投屏的显隐只看这里的勾选，"
-                 + "与「文件中转」功能开关无关。")
+                 + "全部关闭时面板只显示一句提示。中转/投屏还要「常规 → 功能 → 文件中转」"
+                 + "与「设置 → 文件中转 → 启用文件中转」都开启才会出现。")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -258,15 +254,21 @@ struct PersonalizationSettingsView: View {
 
     /// 打开动画
     private var animationRow: some View {
-        settingRow("打开动画") {
-            Picker("", selection: $p.openAnimation) {
-                ForEach(PersonalizationOpenAnimation.allCases) { a in
-                    Text(a.title).tag(a)
+        VStack(alignment: .leading, spacing: 3) {
+            settingRow("打开动画") {
+                Picker("", selection: $p.openAnimation) {
+                    ForEach(PersonalizationOpenAnimation.allCases) { a in
+                        Text(a.title).tag(a)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .frame(width: 250)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
-            .frame(width: 250)
-            .labelsHidden()
+            Text("下一次打开面板时生效（动画只在开窗/关窗那一刻读取），不在上方静态预览里变化。")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -328,7 +330,7 @@ struct PersonalizationSettingsView: View {
         if id == "iconBar" {
             HStack(spacing: 3) {
                 ForEach(0..<5, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(i == 0 ? Theme.accent : Color.primary.opacity(0.22))
                         .frame(width: 9, height: 9)
                 }
@@ -343,14 +345,14 @@ struct PersonalizationSettingsView: View {
             }
         } else {
             HStack(spacing: 4) {
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
                     .fill(Theme.accent)
                     .frame(width: 24, height: 10)
                 Rectangle()
                     .fill(Color.primary.opacity(0.20))
                     .frame(width: 0.5, height: 8)
                 ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 2.5, style: .continuous)
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(Color.primary.opacity(0.22))
                         .frame(width: 9, height: 9)
                 }
@@ -362,28 +364,23 @@ struct PersonalizationSettingsView: View {
     private var widthRow: some View {
         settingRow("面板宽度") {
             HStack(spacing: 8) {
-                Picker("", selection: Binding(
-                    get: { CGFloat(UserDefaults.standard.double(forKey: Preferences.Keys.panelWidth)) },
-                    set: { applyPanelWidth($0) }
-                )) {
-                    Text("360").tag(CGFloat(360))
-                    Text("400").tag(CGFloat(400))
-                    Text("440").tag(CGFloat(440))
+                Picker("", selection: $panelWidthValue) {
+                    Text("360").tag(Double(360))
+                    Text("400").tag(Double(400))
+                    Text("440").tag(Double(440))
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 190)
                 .labelsHidden()
-                Button("重置") { applyPanelWidth(400) }
+                Button("重置") { panelWidthValue = 400 }
                     .buttonStyle(.link)
                     .font(.system(size: 11))
             }
         }
-    }
-
-    /// 写宽度偏好并对可见面板即时生效（顶边不动）
-    private func applyPanelWidth(_ width: CGFloat) {
-        UserDefaults.standard.set(Double(width), forKey: Preferences.Keys.panelWidth)
-        NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
+        // 已打开的面板靠通知即时 setFrame（顶边不动）；选中态由 @AppStorage 自己保持
+        .onChange(of: panelWidthValue) { _ in
+            NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
+        }
     }
 
     // MARK: P1
@@ -519,182 +516,6 @@ struct PersonalizationSettingsView: View {
         }
     }
 
-    /// v206：整页最底部的「外观预览」——强调色 / 字号 / 列表密度 / 面板圆角 /
-    /// 面板宽度 / 背景材质 / 玻璃四参数全部实时反映在这一扇缩略窗上。
-    private var appearancePreviewRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("外观预览")
-                    .font(.system(size: 12, weight: .semibold))
-                Spacer()
-                Text("实时")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.14)))
-            }
-            glassPreview
-        }
-    }
-
-    /// 实时预览：真实桌面壁纸 + 悬浮剪贴板窗口缩略图
-    ///
-    /// v203（用户：「在上方添加一个背景图，然后放上我们的一个这个窗口的一个实际效果，
-    /// 可以进行实时预览」）：窗口里的通透度底衬 / 霜感 / 卡片亮度 / 描边
-    /// 全部读同一批 Theme 令牌，拖滑块当场就能看到最终效果。
-    private var glassPreview: some View {
-        ZStack {
-            previewWallpaperBackground
-            mockClipboardWindow
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 210)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
-        )
-        .overlay(alignment: .bottomTrailing) {
-            Text("实时预览 · 悬浮剪贴板")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule(style: .continuous).fill(Color.black.opacity(0.38)))
-                .padding(8)
-        }
-        .onAppear {
-            // 真实背景优先：应用自己选的背景图 → 当前桌面壁纸 → 渐变兜底
-            if previewWallpaper == nil { previewWallpaper = Self.currentPreviewBackground() }
-        }
-    }
-
-    @ViewBuilder private var previewWallpaperBackground: some View {
-        if let image = previewWallpaper {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFill()
-        } else {
-            LinearGradient(colors: [Color(red: 0.16, green: 0.24, blue: 0.45),
-                                    Color(red: 0.42, green: 0.28, blue: 0.55),
-                                    Color(red: 0.86, green: 0.52, blue: 0.30)],
-                           startPoint: .topLeading,
-                           endPoint: .bottomTrailing)
-        }
-    }
-
-    /// 悬浮剪贴板窗口缩略图：交通灯 + 搜索 + 分类 + 两张卡（按真实窗口结构缩小）
-    private var mockClipboardWindow: some View {
-        VStack(spacing: 7) {
-            HStack(spacing: 5) {
-                trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
-                trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
-                trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
-                Spacer(minLength: 0)
-                Text("剪贴板")
-                    .font(.system(size: 10 * p.fontScale, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                Color.clear.frame(width: 27)   // 与红绿灯等宽，标题居中
-            }
-            .frame(height: 26)
-
-            HStack(spacing: 4) {
-                Image(systemName: "magnifyingglass").font(.system(size: 8 * p.fontScale))
-                Text("搜索剪贴板").font(.system(size: 9 * p.fontScale))
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 7)
-            .frame(height: 20)
-            .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.06)))
-
-            HStack(spacing: 5) {
-                mockChip("全部", selected: true)
-                mockChip("文本")
-                mockChip("图片")
-                mockChip("链接")
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: 6) {
-                mockCard(lineWidths: [1.0, 0.72, 0.45])
-                mockCard(lineWidths: [0.82, 0.60, 0.30])
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(10)
-        // v206：宽度跟随「面板宽度」档位；圆角跟随「面板圆角」档位
-        .frame(width: max(300, min(420, CGFloat(previewPanelWidth) * 0.85)), height: 174)
-        .background {
-            // 与 App 内同一套语义：纯色卡片 = 不透明底；毛玻璃 = 模糊壁纸 + 底衬 + 霜感
-            ZStack {
-                if p.material == .solid {
-                    Rectangle().fill(Color(nsColor: .windowBackgroundColor))
-                } else {
-                    Rectangle().fill(.ultraThinMaterial)
-                }
-                Theme.windowSurface
-                Theme.glassFrost
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous)
-                .strokeBorder(Theme.cardStroke, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.30), radius: 18, x: 0, y: 9)
-    }
-
-    private func trafficLight(_ color: Color) -> some View {
-        Circle().fill(color).frame(width: 8, height: 8)
-    }
-
-    private func mockChip(_ text: String, selected: Bool = false) -> some View {
-        Text(text)
-            .font(.system(size: 8 * p.fontScale, weight: selected ? .semibold : .regular))
-            .foregroundStyle(selected ? Theme.accent : Color.secondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(selected ? Theme.accent.opacity(0.16) : Color.primary.opacity(0.05))
-            )
-    }
-
-    private func mockCard(lineWidths: [CGFloat]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(lineWidths.indices, id: \.self) { i in
-                GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(Color.primary.opacity(0.16))
-                        .frame(width: geo.size.width * lineWidths[i], height: 4)
-                }
-                .frame(height: 4)
-            }
-        }
-        .padding(7)
-        // v206：卡片高度跟随「列表密度」档位（紧凑/标准/宽松）
-        .frame(maxWidth: .infinity,
-               minHeight: p.density.statsRowHeight * 0.62,
-               alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.cardFill))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .strokeBorder(Theme.cardStroke, lineWidth: 0.5)
-        )
-    }
-
-    /// 真实预览背景：应用自己选的背景图优先，其次当前桌面壁纸（取不到回退渐变）
-    private static func currentPreviewBackground() -> NSImage? {
-        let path = Personalization.shared.backgroundImagePath
-        if !path.isEmpty, let image = NSImage(contentsOfFile: path) { return image }
-        guard let screen = NSScreen.main,
-              let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return nil }
-        return NSImage(contentsOf: url)
-    }
-
     /// 一条滑块（音量条样式：标签 + 滑杆 + 数值）
     private func glassSlider(_ title: String,
                              value: Binding<Double>,
@@ -823,5 +644,244 @@ private struct SegmentDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         dragging = nil
         return true
+    }
+}
+
+// MARK: - 实时预览（v260 独立区块，按生效对象拆分）
+//
+// 用户原话：「把下面的那个实时预览拆分一下，因为它的一个最终设置生效项是不同的，
+// 需要拆分预览，包括把实时预览放在它的一个上面，下面才是这个分开的一个这种个性化」。
+//
+// 旧版一张「悬浮剪贴板」缩略窗被拿来验证主面板的字号/密度/圆角/宽度/动画，
+// 生效对象不同却共用一张图；再叠加「预览在整页最底部滚不到」「壁纸只在首次
+// onAppear 加载一次」「宽度 segmented 没有 SwiftUI 状态支撑」，用户的主观感受
+// 就是「调节之后这边没有实时更新」。
+// 现在：① 独立区块置顶（GeneralSettingsPane 里在「个性化」之前）；
+//       ② 按生效对象拆成「主面板」「独立窗口」两张缩略窗并标注各自作用域；
+//       ③ 自带 @ObservedObject + 通知订阅 + 壁纸缓存失效。
+struct AppearancePreviewBlock: View {
+    @ObservedObject private var p = Personalization.shared
+    @AppStorage(Preferences.Keys.panelWidth) private var panelWidth: Double = 400
+    @AppStorage("capture.toolbar.style") private var toolbarStyle = "pillBar"
+    @Stored private var wallpaper: NSImage?
+    /// AppKit 侧玻璃底靠 150ms 防抖通知刷新；这里收到后自增一次让 body 重算
+    @Stored private var revision = 0
+
+    var body: some View {
+        let _ = revision
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("外观预览")
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Text("实时")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.14)))
+            }
+            previewCanvas
+            Text("打开动画「\(p.openAnimation.title)」与截图动作条「\(toolbarTitle)」"
+                 + "只在下一次打开面板 / 下一次框选时生效，不在这两张静态缩略窗里变化。")
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear { reloadWallpaper() }
+        // v260：旧版 `if previewWallpaper == nil` 只加载一次，换背景图/换桌面壁纸
+        // 后预览底图永远停在首次那张 —— 改成路径变化即重载。
+        .onChange(of: p.backgroundImagePath) { _ in reloadWallpaper() }
+        .onReceive(NotificationCenter.default.publisher(for: Personalization.didChangeNotification)) { _ in
+            revision &+= 1
+        }
+    }
+
+    private var previewCanvas: some View {
+        ZStack {
+            wallpaperBackground
+            HStack(alignment: .top, spacing: 14) {
+                previewItem(title: "主面板", scope: "字号 · 密度 · 圆角 · 宽度 · 材质") {
+                    mainPanelMock
+                }
+                previewItem(title: "独立窗口", scope: "强调色 · 通透度 · 磨砂 · 描边") {
+                    floatingWindowMock
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 208)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+        )
+    }
+
+    private func previewItem<Content: View>(title: String, scope: String,
+                                            @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            content()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text(scope)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.white.opacity(0.80))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.38)))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 生效对象 = 主面板：宽度 / 圆角 / 密度 / 字号 / 材质都在这里体现
+    private var mainPanelMock: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 4) {
+                trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
+                trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
+                trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
+                Spacer(minLength: 0)
+                Text("主页  监测  中转")
+                    .font(.system(size: 8 * p.fontScale))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.primary.opacity(0.16))
+                        .frame(width: 26, height: 5)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.primary.opacity(0.10))
+                        .frame(width: 54, height: 4)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 7)
+                .frame(height: max(15, p.density.statsRowHeight * 0.40))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .fill(Theme.cardFill))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .frame(width: max(150, min(230, CGFloat(panelWidth) * 0.46)), height: 130)
+        .background {
+            ZStack {
+                if p.material == .solid {
+                    Rectangle().fill(Color(nsColor: .windowBackgroundColor))
+                } else {
+                    Rectangle().fill(.ultraThinMaterial)
+                }
+                Theme.windowSurface
+                Theme.glassFrost
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous)
+            .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 6)
+    }
+
+    /// 生效对象 = 独立窗口 / 悬浮剪贴板：强调色与玻璃四参数
+    private var floatingWindowMock: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
+                trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
+                trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
+                trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
+                Spacer(minLength: 0)
+                Text("剪贴板")
+                    .font(.system(size: 8 * p.fontScale))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 4) {
+                Text("全部")
+                    .font(.system(size: 8 * p.fontScale, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.16)))
+                Text("文本")
+                    .font(.system(size: 8 * p.fontScale))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(0..<2, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.primary.opacity(0.16))
+                        .frame(width: 88, height: 4)
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.primary.opacity(0.10))
+                        .frame(width: 62, height: 4)
+                }
+            }
+            .padding(7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                .fill(Theme.cardFill))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .frame(width: 176, height: 130)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Theme.windowSurface
+                Theme.glassFrost
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous)
+            .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 6)
+    }
+
+    private func trafficLight(_ color: Color) -> some View {
+        Circle().fill(color).frame(width: 7, height: 7)
+    }
+
+    @ViewBuilder private var wallpaperBackground: some View {
+        if let image = wallpaper {
+            Image(nsImage: image).resizable().scaledToFill()
+        } else {
+            LinearGradient(colors: [Color(red: 0.16, green: 0.24, blue: 0.45),
+                                    Color(red: 0.42, green: 0.28, blue: 0.55),
+                                    Color(red: 0.86, green: 0.52, blue: 0.30)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
+    }
+
+    private func reloadWallpaper() {
+        let path = p.backgroundImagePath
+        if !path.isEmpty, let image = NSImage(contentsOfFile: path) {
+            wallpaper = image
+            return
+        }
+        guard let screen = NSScreen.main,
+              let url = NSWorkspace.shared.desktopImageURL(for: screen) else {
+            wallpaper = nil
+            return
+        }
+        wallpaper = NSImage(contentsOf: url)
+    }
+
+    private var toolbarTitle: String {
+        switch toolbarStyle {
+        case "iconBar": return "图标条"
+        case "primarySplit": return "主次分离"
+        default: return "药丸条"
+        }
     }
 }

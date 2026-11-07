@@ -80,6 +80,19 @@ struct GeneralSettingsPane: View {
                 }
             }
 
+            // v260（用户：「把下面的实时预览拆分一下，最终设置生效项是不同的，
+            // 需要拆分预览，把实时预览放在上面，下面才是分开的个性化」）：
+            // 预览原本塞在个性化页最底部，滚过整页才看得到；更关键的是它画的是
+            // 悬浮剪贴板，而上面的字号/密度/宽度/动画大多作用于主面板——
+            // 生效对象不同却共用一张图，用户拿它验证设置自然「怎么调都不对」。
+            // 现在独立成区块置顶，并在区块内按生效对象拆成两张缩略窗。
+            SettingsSection("实时预览") {
+                SettingsGroupBox {
+                    AppearancePreviewBlock()
+                        .padding(.vertical, 6)
+                }
+            }
+
             SettingsSection("个性化") {
                 SettingsGroupBox {
                     PersonalizationSettingsView()
@@ -263,17 +276,21 @@ struct GeneralSettingsPane: View {
     /// 功能开关组（面板功能显隐）：系统监控 / 日历 / 截图检索 / 文件中转。
     /// v40 新增「文件中转」——控制主面板侧边栏一级入口是否出现。
     @ViewBuilder private var featuresChoices: some View {
+        // v260：这四个勾选框此前三个半没有读取方，用户勾掉也看不到变化。
+        // 现在 PanelRootView 用它们门控分段/日历卡；help 写清各自真正影响什么。
         Toggle(L10n.t("System Monitor"), isOn: $showSystemStatus)
             .toggleStyle(.checkbox)
-            .help(L10n.t("System Monitor in Main Panel"))
+            .help("关掉后主面板顶部不再出现「性能监测」分段；与「个性化 → 主面板页面」的勾选同时生效")
         Toggle(L10n.t("Calendar"), isOn: $showCalendar)
             .toggleStyle(.checkbox)
+            .help("关掉后首页不再显示日历卡")
         Toggle(L10n.t("Screenshot Search"), isOn: $automaticScreenshotOCR)
             .toggleStyle(.checkbox)
-            .help(L10n.t("Automatically recognize text in screenshots so you can find them by text search."))
+            .help("自动识别新截图里的文字，供内容搜索使用；已识别的历史记录不受影响")
         Toggle("文件中转", isOn: $transferDockEnabled)
             .toggleStyle(.checkbox)
-            .help("启用文件中转功能。面板顶部是否显示「中转」分段，由「个性化 → 主面板页面」单独控制（v181 起两者解耦）")
+            .help("启用文件中转。关掉后顶部的「中转 / 投屏」分段一起隐藏；" 
+                  + "功能开启后是否显示分段，由「个性化 → 主面板页面」单独决定")
     }
 
     private func formRow<Content: View>(_ title: String, height: CGFloat = 40,
@@ -495,14 +512,19 @@ struct AboutSettingsPane: View {
 
             Spacer(minLength: 24)
 
-            aboutButton("导出使用记录") { DiagnosticsExporter.export() }
-
-            aboutButton("检查更新") { AppUpdateChecker.shared.checkNowManual() }
+            // v260（关于页重做）：原来两个按钮直接上下堆在 spacing: 0 的 VStack 里，
+            // 视觉上贴成一块（用户截图里看着像重叠）；更新源那一行又写死 320 宽，
+            // 内容区稍窄就溢出到窗口外。改成：按钮并排 + 更新源收进自适应宽度的卡片。
+            HStack(spacing: 10) {
+                aboutButton("导出使用记录") { DiagnosticsExporter.export() }
+                aboutButton("检查更新") { AppUpdateChecker.shared.checkNowManual() }
+            }
+            .padding(.bottom, 18)
 
             // v201 在线更新：默认源内置，留空 = 回到默认（calorieai.sxyq27.online/kitnest/）。
             // 内部按 CFBundleVersion 的 build 号比较，与显示版本 1.0.0 无关。
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
                     Text("更新源")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -512,13 +534,21 @@ struct AboutSettingsPane: View {
                                 set: { AppUpdateChecker.shared.feedURL = $0 }))
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
-                        .frame(width: 320)
+                        .frame(maxWidth: 300)
                         .font(.system(size: 11, design: .monospaced))
+                    Spacer(minLength: 0)
                 }
                 Text("当前 build \(AppUpdateChecker.shared.currentBuild) · 启动与每 6 小时自动检查 · 留空恢复默认源")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(12)
+            .frame(maxWidth: 460)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(Theme.cardFill)
+            )
 
             Spacer(minLength: 24)
 

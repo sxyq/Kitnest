@@ -194,7 +194,7 @@ struct StorageTreemap: View {
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
                 // 参考图整体是圆角异形：气泡铺满但外缘被裁成圆角
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.hud, style: .continuous))
             }
         }
     }

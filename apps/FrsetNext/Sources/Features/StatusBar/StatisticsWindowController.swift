@@ -25,13 +25,10 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         self.init(window: window)
         window.title = ""                                   // 原作 setTitle: 传空串
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
-        // v208：原生标题栏分隔线（自动），不再手动去掉
-        if #available(macOS 11.0, *) { window.titlebarSeparatorStyle = .automatic }
-        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
+        // v260：标题栏/分隔线/isOpaque 全部由 applyOfficialChrome() 唯一入口决定，
+        // 这里不再各写一套（v208 的 .automatic 分隔线正是深色下红绿灯下方那条色带）。
         window.isMovableByWindowBackground = true
         window.hasShadow = true
-        window.isOpaque = true
         // 官方外观：统一灰底（同设置窗——fullSizeContentView + 透明标题栏下
         // 根视图固定 530 而内容区 562，露底必须是官方灰，否则上下白条）
         window.applyOfficialChrome()

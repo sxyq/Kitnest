@@ -8,9 +8,11 @@ import AppKit
 // 而内容区 562）→ 上下各露 32pt 白条（用户实测截图确认）。
 //
 // 修复：所有内容型窗口创建处调用 `applyOfficialChrome()`：
-//   · backgroundColor = 官方灰（深色模式自适应）
-//   · titlebarAppearsTransparent = true（标题栏透出同一底色）
-// 仅影响窗口"露底"区域（标题栏/内容未铺满处），内容视图自绘背景不受影响。
+//   · backgroundColor 透明，玻璃底铺在 contentView 之下
+//   · 标题栏保留系统原生材质（v209 起），红绿灯为标准三钮
+// v260：系统标题栏材质 + 全窗半透明玻璃底曾在同一区域叠出两层颜色，
+// 红绿灯那一带最明显（用户「颜色分层」）；现去掉自动分隔线，并让玻璃底
+// 避开标题栏区（见 LiquidGlass.installUnifiedGlassBackground）。
 
 public enum OfficialChrome {
     /// v204（用户：「需要覆盖所有界面」）：内容窗不再自己画不透明灰底。
@@ -46,7 +48,9 @@ public extension NSWindow {
         // 全部交还 macOS 原生标题栏——原生材质 + 原生红绿灯 + 原生分隔线，
         // 不再自绘任何标题带。fullSize 窗口靠内容顶部 32pt 净空避让红绿灯。
         titlebarAppearsTransparent = false
-        titlebarSeparatorStyle = .automatic
+        // v260：.automatic 会在深色下压一条系统分隔线，正好横在红绿灯下方，
+        // 与玻璃底的发丝描边叠成「两条边」；统一去掉，边缘交给窗口圆角与阴影。
+        titlebarSeparatorStyle = .none
         if glassBacking {
             installUnifiedGlassBackground()
         }

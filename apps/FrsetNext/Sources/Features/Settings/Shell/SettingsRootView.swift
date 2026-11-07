@@ -27,7 +27,14 @@ struct SettingsRootView: View {
             // 这里只留 32pt 净空，避免内容压到红绿灯
             Color.clear.frame(height: 32)
             HStack(spacing: 0) {
+            // v260（左侧导航被挤压截断）：侧边栏原来**没有宽度约束**，宽度全靠内容撑。
+            // 「工具与快捷键 → 快捷键」那页内容比较宽，SwiftUI 就把可压缩的侧边栏
+            // 压扁（用户截图：左侧只剩半截字）。这里钉死宽度，并让内容区可压缩。
             SettingsSidebarView(state: state)
+                .frame(width: Theme.settingsSidebarWidth)
+                // v260：.frame(width:) 只是「提议尺寸」，兄弟视图更刚性时 SwiftUI
+                // 仍会压扁侧栏（截图里只剩半截字）。钉成不可压缩才是真约束。
+                .fixedSize(horizontal: true, vertical: false)
             Rectangle()
                 .fill(Color.primary.opacity(0.08))
                 .frame(width: 0.5)
@@ -39,6 +46,9 @@ struct SettingsRootView: View {
                 content
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .frame(minWidth: 0)
+            // v260：横向溢出裁在内容区内，不再回压兄弟视图
+            .clipped()
             }
         }
         // 根视图尺寸必须等于窗口 contentRect（940×620）：NSHostingView 的 fitting size

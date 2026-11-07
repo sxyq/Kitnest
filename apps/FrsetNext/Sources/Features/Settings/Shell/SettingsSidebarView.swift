@@ -191,7 +191,7 @@ struct SettingsSidebarView: View {
         .padding(.horizontal, 8)
         .frame(height: 26)
         .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                 .fill(Color.primary.opacity(colorScheme == .dark ? 0.10 : 0.06))
         )
         .padding(.horizontal, 12)
@@ -225,7 +225,7 @@ struct SettingsSidebarView: View {
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 6)

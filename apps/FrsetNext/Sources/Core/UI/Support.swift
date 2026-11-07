@@ -100,12 +100,35 @@ public enum ServiceLocator {
 // v66：布局尺寸与强调色全部动态化——读 Personalization（设置 → 常规 →「个性化」），
 // 即改即生效；引用点（全工程 ~40 处）同名访问零改动。
 
+public extension Font {
+    /// 个性化「界面字号」的全局缩放入口（v260）。
+    ///
+    /// 背景：字号档位此前**只**改窗口高度，文字一个都没变——
+    /// v73 的注释里写着「字号缩放档位只影响字号（待接入全局字体缩放）」，
+    /// 那一半至今没接，所以「界面字号」这一排设置看起来完全无效。
+    ///
+    /// SwiftUI 没有全局改 `.system(size:)` 的机制（macOS 上 dynamicType
+    /// 对固定字号无效），所以只能提供一个统一入口把硬编码字号换成它。
+    static func scaledSystem(size: CGFloat,
+                             weight: Font.Weight? = nil,
+                             design: Font.Design? = nil) -> Font {
+        .system(size: size * Personalization.shared.fontScale, weight: weight, design: design)
+    }
+}
+
 public enum Theme {
     /// 面板圆角（个性化：6 / 10 / 14）
     public static var cornerRadius: CGFloat { Personalization.shared.cornerRadius }
     public static let smallRadius: CGFloat = 6
     /// 主面板宽度（官方原版 400pt；v41 起大侧边栏只用于设置窗口，面板版式不动）
-    public static var panelWidth: CGFloat { 400 * Personalization.shared.fontScale }
+    ///
+    /// v260：原来这里是 `400 * fontScale`——和「个性化 → 面板宽度」档位
+    /// （360/400/440，写在 panelWidth 键里）**各算各的**，两个设置项互相覆盖。
+    /// 现在以档位值为准，没设过才回退到 400。
+    public static var panelWidth: CGFloat {
+        let stored = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0)
+        return max(CGFloat(stored), 320)
+    }
     /// 设置窗口侧边栏宽度（v41：设置窗改左侧大侧边栏 + 内容区）
     public static let settingsSidebarWidth: CGFloat = 186
     /// 面板最大高度（随字号缩放联动：内容 scaleEffect 后视觉高度 = 700 × scale）
@@ -143,9 +166,17 @@ public enum Theme {
     /// 让相邻卡片对不齐）。胶囊一律用 `Capsule()`，不写数值。
     public enum Radius {
         /// 窗口 / 悬浮面板
-        public static let window: CGFloat = 12
+        ///
+        /// v260：**跟随「个性化 → 面板圆角」**。原来这里写死 12，而外层玻璃面
+        /// 用的是 Personalization.cornerRadius（默认 10）——两层圆角不一致，
+        /// 深色下窗口边缘就会出现一圈与内容不同心的「双曲线」。
+        /// 统一成同一个来源后曲线只有一道，而且这个设置项终于真的生效了。
+        public static var window: CGFloat { Personalization.shared.cornerRadius }
         /// 内容卡片（设置分组、统计卡、流向图卡）
         public static let card: CGFloat = 10
+        /// HUD 级大圆角（存储 Treemap 的块；v260 从 26pt 字面量收编，
+        /// 不参与窗口/卡片分档，避免为了过 lint 把视觉半径改小）
+        public static let hud: CGFloat = 26
         /// 控件（按钮底、输入框、缩略图容器）
         public static let control: CGFloat = 8
         /// 小标签 / 徽标底
@@ -155,7 +186,7 @@ public enum Theme {
         /// 通知条胶囊半高（GlassSurface 需要数值，不能直接用 Capsule()）
         public static let pill: CGFloat = 30
         /// 旧名兼容（历史代码还在用 container）
-        public static let container: CGFloat = window
+        public static var container: CGFloat { window }
     }
 
     /// 描边只有两档：发丝线 0.5pt（卡片/窗口边）与 1pt（选中态强调）
@@ -361,15 +392,19 @@ public extension Date {
     /// 相对时间文案（"刚刚" / "3分钟前" / 昨天具体时间）
     var relativeText: String {
         // v101 性能审计：DateFormatter 每次新建（0.5-2ms）→ 静态复用（两枚）
-        let fmt = Self.relativeFormatter(today: Calendar.current.isDateInToday(self))
-        fmt.dateFormat = Calendar.current.isDateInToday(self) ? "今天 HH:mm" : "M月d日 HH:mm"
-        return fmt.string(from: self)
+        // v260（滚动掉帧）：原来复用后**每次调用还在改 dateFormat**——
+        // 那个 setter 每次都会让 formatter 丢掉已解析的格式缓存并重新解析格式串，
+        // 等于把 v101 省下的开销又吐回去；剪贴板列表每行每帧都要调它一次。
+        // 现在格式在创建时固定，两枚 formatter 各司其职，运行期只改不改设。
+        (Calendar.current.isDateInToday(self) ? Self.fmtToday : Self.fmtOther).string(from: self)
     }
 
-    private static let fmtToday: DateFormatter = { let f = DateFormatter(); return f }()
-    private static let fmtOther: DateFormatter = { let f = DateFormatter(); return f }()
-
-    private static func relativeFormatter(today: Bool) -> DateFormatter { today ? fmtToday : fmtOther }
+    private static let fmtToday: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "今天 HH:mm"; return f
+    }()
+    private static let fmtOther: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "M月d日 HH:mm"; return f
+    }()
 }
 
 public extension String {

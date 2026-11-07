@@ -29,10 +29,11 @@ struct TransferDockView: View {
 
     @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
     @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
-    /// v181：「文件中转」功能总开关（设置 → 通用 → 功能 / 设置 → 文件中转）。
-    /// 与「面板顶部是否出现中转分段」已经解耦：分段开着但这个开关关着时，
-    /// 这里显示一句「已关闭」的说明，而不是整页空白或消失。
-    @AppStorage(TransferDockPref.panelVisible) private var featureEnabled = true
+    /// v181/v260：「文件中转」功能总开关（设置 → 文件中转）。
+    /// 与「面板顶部是否出现中转分段」彻底解耦（v260 拆成独立键）：
+    /// 分段开着但这个开关关着时，这里显示一句「已关闭」的说明，
+    /// 而不是整页空白或消失。
+    @AppStorage(TransferDockPref.featureEnabled) private var featureEnabled = true
 
     @Stored private var showsLogin = false
     @Stored private var bridgeAvailable = TransferDockPath.isAvailable
@@ -68,7 +69,7 @@ struct TransferDockView: View {
                 .foregroundStyle(Theme.tertiaryText)
             Text("文件中转已关闭")
                 .font(.system(size: 13, weight: .semibold))
-            Text("在「设置 → 文件中转」里重新启用；\n顶部是否出现这一页由「设置 → 个性化 → 主面板页面」决定。")
+            Text("在「设置 → 文件中转」里重新启用；\n顶部的中转/投屏分段已随功能一起隐藏。")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
                 .multilineTextAlignment(.center)

@@ -43,13 +43,19 @@ struct PanelRootView: View {
     @FocusState private var bottomSearchFocused: Bool
     /// 剪贴板列表当前选中项（编辑/上传按钮按选中态启用，2026-10-18）
     @Stored private var selectedClipboardItem: ClipboardItem?
-    /// 「文件中转」**功能**开关（v181：不再影响分段显隐，只影响中转页里的功能是否启用）
-    @AppStorage(Preferences.Keys.panelTransferDock) private var transferFeatureEnabled = true
     // v177（用户：设置里自定义顶部页面的展现，关掉的不占内存）；v181 增加可拖拽顺序
     @AppStorage(PanelSegments.homeKey) private var segmentHome = true
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
     @AppStorage(PanelSegments.transferKey) private var segmentTransfer = false
     @AppStorage(PanelSegments.castKey) private var segmentCast = false
+    /// v260：「常规 → 功能」里四个勾选框的门控状态。
+    /// 之前 showSystemStatus / showCalendar / panel.transferDock 全仓没有读取方，
+    /// 用户勾掉也看不到变化（「这个设置之后无效」）。这里作为分段/卡片显隐的前置条件，
+    /// 与「个性化 → 主面板页面」的勾选是 AND 关系：两处都开才出现。
+    @AppStorage("showSystemStatus") private var featureSystemMonitor = true
+    @AppStorage("showCalendar") private var featureCalendar = true
+    @AppStorage(Preferences.Keys.panelTransferDock) private var transferEntryEnabled = true
+    @AppStorage(Preferences.Keys.transferFeatureEnabled) private var transferFeatureEnabled = true
     /// 顺序串（CSV）——单独观察它，设置里拖完顺序面板立刻重排
     @AppStorage(PanelSegments.orderKey) private var segmentOrderRaw = ""
     /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
@@ -68,9 +74,12 @@ struct PanelRootView: View {
     private func isSegmentOn(_ page: PanelCenterPage) -> Bool {
         switch page {
         case .home:        return segmentHome
-        case .performance: return segmentMonitor
-        case .transfer:    return segmentTransfer
-        case .cast:        return segmentCast
+        case .performance: return segmentMonitor && featureSystemMonitor
+        // v260：关掉「启用文件中转」或「常规 → 功能 → 文件中转」时，
+        // 顶部的中转/投屏按钮一起消失，不再留一个只能显示「已关闭」的空壳按钮。
+        // 「个性化 → 主面板页面」仍决定功能开启后是否显示该分段（两者 AND）。
+        case .transfer:    return segmentTransfer && transferEntryEnabled && transferFeatureEnabled
+        case .cast:        return segmentCast && transferEntryEnabled && transferFeatureEnabled
         }
     }
 
@@ -141,16 +150,17 @@ struct PanelRootView: View {
             // 切到中转页**不再**自动起直传服务（2026-10-20 用户需求）：
             // 服务按需启动——勾选文件后点「扫码直传」才拉起并生成二维码。
         }
-        // v181：中转功能开关只影响中转页内部（页面会自己显示「已关闭」提示），
-        // 不再把用户踢回主页，也不影响分段显隐。
-        .onChange(of: transferFeatureEnabled) { _ in
-            normalizeSegmentSelection()
-        }
+        // v260：中转功能开关关掉时，顶部分段一起隐藏（isSegmentOn 里做了门控），
+        // 并通过下面的 onChange 把当前页收回到可用页，不留空壳按钮。
         // v177：分段开关变化 → 若当前页被关掉，切到第一个还开着的页面
         .onChange(of: segmentHome) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentMonitor) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentTransfer) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentCast) { _ in normalizeSegmentSelection() }
+        // v260：功能总开关 / 常规页勾选变化也要立刻收掉当前页，否则停留在已隐藏的分段上
+        .onChange(of: featureSystemMonitor) { _ in normalizeSegmentSelection() }
+        .onChange(of: transferEntryEnabled) { _ in normalizeSegmentSelection() }
+        .onChange(of: transferFeatureEnabled) { _ in normalizeSegmentSelection() }
         // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
         .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
@@ -309,7 +319,7 @@ struct PanelRootView: View {
                     FloatingClipboardWindowController.shared.toggle()
                 } label: {
                     Image(systemName: "macwindow")
-                        .font(.system(size: 14))
+                        .font(.scaledSystem(size: 14))
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(SpringyIconButtonStyle())
@@ -365,7 +375,7 @@ struct PanelRootView: View {
                     .keyboardShortcut("q", modifiers: .command)
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 14))
+                    .font(.scaledSystem(size: 14))
                     .frame(width: 22, height: 22)
                     .foregroundStyle(Color.secondary)   // 同截图钮：显式灰，避免落 accent
             }
@@ -474,7 +484,7 @@ struct PanelRootView: View {
             // （内容宽 332、左组 82、齿轮 22）留给居中的带宽只有 156pt，
             // 收窄后「居中」与「不截断文字」可以同时满足，不用二选一。
             Text(title)
-                .font(.system(size: 11, weight: selected ? .semibold : .regular))
+                .font(.scaledSystem(size: 11, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? Theme.accent : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -510,7 +520,7 @@ struct PanelRootView: View {
             Button("录屏") { runCapture { StatsBarEngine.openRecorder() } }
         } label: {
             Image(systemName: "viewfinder")
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .frame(width: 22, height: 22)
                 // Menu 的 label 不走外层 foregroundStyle（会落到 accent 色），
                 // 显式着色，与右侧 Button 图标（取色/悬浮剪贴板）保持同一灰阶
@@ -551,11 +561,11 @@ struct PanelRootView: View {
                 // 展开态：胶囊内直接搜索剪贴板（用户需求：底部要有搜索框，而不只是图标）
                 HStack(spacing: 5) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundStyle(.secondary)
                     TextField("搜索剪贴板", text: $clipboard.searchText)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 12))
+                        .font(.scaledSystem(size: 12))
                         .frame(width: 168)
                         .focused($bottomSearchFocused)
                         .onSubmit { closeBottomSearch() }
@@ -563,7 +573,7 @@ struct PanelRootView: View {
                         closeBottomSearch(clear: false)
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.scaledSystem(size: 11, weight: .bold))
                             .foregroundStyle(.secondary)
                             .frame(width: 16, height: 16)
                             .contentShape(Rectangle())
@@ -595,7 +605,7 @@ struct PanelRootView: View {
                 }
             } label: {
                 Image(systemName: "line.3.horizontal.circle")
-                    .font(.system(size: 14))
+                    .font(.scaledSystem(size: 14))
                     .frame(width: 26, height: 26)
                     // v153：只有「筛选生效」时才用强调色。旧版无条件染蓝，
                     // 让用户以为一直有个筛选在起作用（状态色被当成装饰色）。
@@ -656,7 +666,7 @@ struct PanelRootView: View {
                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
         }
@@ -673,7 +683,7 @@ struct PanelRootView: View {
             CaptureModule.capture(mode)
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 14))
+                .font(.scaledSystem(size: 14))
                 .frame(width: 22, height: 22)
         }
         .buttonStyle(SpringyIconButtonStyle())
@@ -698,13 +708,13 @@ struct PanelRootView: View {
                 // v177：四个页面全关 —— 一个内容视图都不创建（不占内存），只留提示
                 VStack(spacing: 8) {
                     Image(systemName: "rectangle.dashed")
-                        .font(.system(size: 22))
+                        .font(.scaledSystem(size: 22))
                         .foregroundStyle(.tertiary)
                     Text("未启用任何页面")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.scaledSystem(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                     Text("到「设置 → 个性化 → 主面板页面」里开启")
-                        .font(.system(size: 11))
+                        .font(.scaledSystem(size: 11))
                         .foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -782,7 +792,9 @@ struct PanelRootView: View {
 
     /// 日历卡（由 Toolbox 模块经 PanelSectionRegistry 注入；无区段标题，原版是一张独立卡片）
     @ViewBuilder private var calendarCard: some View {
-        if let descriptor = PanelSectionRegistry.all.first(where: { $0.id == "calendar" }) {
+        // v260：「常规 → 功能 → 日历」勾掉后首页不再渲染日历卡（此前该键零读取方）
+        if featureCalendar,
+           let descriptor = PanelSectionRegistry.all.first(where: { $0.id == "calendar" }) {
             descriptor.build()
                 .padding(.horizontal, homeSectionInset)
         }

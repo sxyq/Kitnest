@@ -23,12 +23,19 @@ extension NSWindow {
             legacy.removeFromSuperview()
             objc_setAssociatedObject(self, &roundCloseButtonKey, nil, .OBJC_ASSOCIATION_RETAIN)
         }
+        // v260（红绿灯「颜色分层」根因）：旧版把三颗灯 alpha 置 0，这里无条件
+        // `alphaValue = 1` 恢复。但 layer-backed 视图上赋值会重建 CALayer，
+        // 三颗灯因此脱离窗口统一渲染通道、被单独合成，边缘出现错位/分层。
+        // v260 补：只有确实被置过 0 时才赋值；正常窗口一次都不碰 CALayer。
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         for button in [standardWindowButton(.closeButton),
                        standardWindowButton(.miniaturizeButton),
                        standardWindowButton(.zoomButton)] {
             button?.isHidden = false
-            button?.alphaValue = 1
+            if let b = button, b.alphaValue != 1 { b.alphaValue = 1 }
         }
+        CATransaction.commit()
     }
 
 }

@@ -39,8 +39,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // （360/400/440）即最终视觉宽度；此前「宽度 × 字号缩放」与内容
         // scaleEffect 三重叠加，360×0.9=324 是用户所见「比例怪/按钮挤一堆」
         // 的直接来源。字号缩放档位只影响字号（待接入全局字体缩放），不参与窗口宽。
+        // v260（面板宽度设置无效的根因）：这里原来写 `default: 400`（Int 字面量），
+        // 而 Preferences.value 是 `defaults.object(forKey:) as? T` —— 存进去的是
+        // **Double**（applyPanelWidth 写的是 Double(width)），as? Int 必然失败，
+        // 于是每次都读回默认值 400，用户在设置里选 360/440 完全不起作用。
+        // 改成 Double 字面量，as? Double 才命中。
         let baseWidth = max(CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
-                                                         default: 400)), 320)
+                                                         default: 400.0)), 320)
         let width = baseWidth
         let height = Theme.panelMaxHeight
 
@@ -77,7 +82,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let f = p.frame
         var target = f
         let baseWidth = max(CGFloat(Preferences.shared.value(Preferences.Keys.panelWidth,
-                                                         default: 400)), 320)
+                                                         default: 400.0)), 320)
         target.size.width = baseWidth     // v73：宽度即选值，不乘 fontScale（见 prepare 注释）
         target.size.height = Theme.panelMaxHeight
         target.origin.y = f.maxY - target.height

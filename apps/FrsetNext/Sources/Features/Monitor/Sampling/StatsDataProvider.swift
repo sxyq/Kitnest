@@ -85,6 +85,8 @@ public struct StatsBattery: Sendable {
     public var fullyCharged: Bool
     public var cycleCount: Int
     public var designCapacity: Int    // mAh
+    /// 标称（额定）容量 mAh（v260）：健康度第二个口径的分子分母
+    public var nominalCapacity: Int   // mAh
     public var maxCapacity: Int       // mAh
     public var currentCapacity: Int   // mAh
     public var temperature: Double    // °C
@@ -340,6 +342,7 @@ public final class StatsDataProvider {
                 fullyCharged: batt.fully_charged != 0,
                 cycleCount: Int(batt.cycle_count),
                 designCapacity: Int(batt.design_capacity),
+                nominalCapacity: Int(batt.nominal_capacity),
                 maxCapacity: Int(batt.max_capacity),
                 currentCapacity: Int(batt.current_capacity),
                 temperature: batt.temperature,

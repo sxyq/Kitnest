@@ -298,7 +298,20 @@ public extension NSWindow {
         }
         // 幂等重挂：contentView 可能被替换过，保证玻璃始终在内容之下
         backing.removeFromSuperview()
-        backing.frame = host.bounds
+        // v260（独立窗口红绿灯「颜色分层」）：系统原生标题栏由 AppKit 在 theme frame
+        // 上绘制不透明材质；玻璃底若铺满 host.bounds，就会在红绿灯那一带与系统材质
+        // 叠成两层不同着色，深色尤其明显。只铺 contentLayoutRect 覆盖的内容区，
+        // 标题栏完全交给系统。差值很小时（无标题栏/透明标题栏窗口）保持原行为。
+        let layout = contentLayoutRect
+        // 透明标题栏窗口（OCR 结果窗 / borderless 浮层）系统不画材质，
+        // 玻璃底必须铺满，否则顶部会露出桌面；只有原生标题栏才需要避让。
+        if !titlebarAppearsTransparent, !layout.isEmpty,
+           host.bounds.height - layout.maxY > 20 {
+            backing.frame = NSRect(x: 0, y: 0,
+                                   width: host.bounds.width, height: layout.maxY)
+        } else {
+            backing.frame = host.bounds
+        }
         backing.autoresizingMask = [.width, .height]
         host.addSubview(backing, positioned: .below, relativeTo: content)
         if UserDefaults.standard.bool(forKey: "probe.glassCoverage") {
@@ -460,8 +473,11 @@ struct GlassPlate: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 if bordered {
+                    // v260：深色下 `Theme.hairlineColor` 是 10% 白线，套在整窗外圈
+                    // 会变成一道显眼「线框」（用户反馈的四周曲线 + 外部线框）。
+                    // 改用跟随「玻璃质感 → 描边」滑块的 cardStroke，深浅一致且可调。
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                        .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
                         .allowsHitTesting(false)
                 }
             }

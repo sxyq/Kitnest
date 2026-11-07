@@ -68,6 +68,7 @@ typedef struct {
     int fully_charged;      // 是否充满
     int cycle_count;        // 循环次数
     int design_capacity;    // 设计容量 mAh
+    int nominal_capacity;   // 标称（额定）容量 mAh —— v260 追加
     int max_capacity;       // 当前最大容量 mAh
     int current_capacity;   // 当前电量 mAh
     double temperature;     // 电池温度 °C（可能无效）

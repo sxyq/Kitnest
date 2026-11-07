@@ -80,10 +80,26 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
         }
     }
 
+    /// v260（滚动掉帧）：结果按「内容指纹 + 条目 id」缓存。
+    ///
+    /// `truncatedForDisplay` 会对**整段内容**做一次全量字符串替换，
+    /// 长文本（几千字符的代码/日志）时每行每帧一遍，滚动直接掉帧。
+    /// dedupeKey 是内容指纹，内容一改 key 就变，不会拿到过期标题；
+    /// aliasTitle / title 非空时走上面的分支，根本不进缓存。
+    private static let displayTitleCache: NSCache<NSString, NSString> = {
+        let c = NSCache<NSString, NSString>()
+        c.countLimit = 512
+        return c
+    }()
+
     public var displayTitle: String {
         if let a = aliasTitle, !a.isEmpty { return a }
         if let t = title, !t.isEmpty { return t }
-        return (content ?? "").truncatedForDisplay
+        let key = (dedupeKey + "|" + id) as NSString
+        if let hit = Self.displayTitleCache.object(forKey: key) { return hit as String }
+        let value = (content ?? "").truncatedForDisplay
+        Self.displayTitleCache.setObject(value as NSString, forKey: key)
+        return value
     }
 }
 

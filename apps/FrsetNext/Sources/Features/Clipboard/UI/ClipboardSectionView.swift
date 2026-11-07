@@ -76,10 +76,10 @@ public struct ClipboardSectionView: View {
             if manager.items.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "clipboard")
-                        .font(.system(size: 22))
+                        .font(.scaledSystem(size: 22))
                         .foregroundStyle(.secondary)
                     Text(manager.searchText.isEmpty ? "还没有剪贴板记录" : "没有匹配的结果")
-                        .font(.system(size: 12))
+                        .font(.scaledSystem(size: 12))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 96)
@@ -184,19 +184,30 @@ public struct ClipboardMenuActionItem: Identifiable {
 /// 剪贴板条目 → 可投递文件（v112 空投联动；两个菜单实现共用）
 /// 图片 → 图片文件；文件 → 原文件；文本/富文本/URL → 文本文件。磁盘上不存在则 nil。
 extension ClipboardItem {
-    public var airDropFileURL: URL? {
-        let fm = FileManager.default
+    /// v260（滚动掉帧修复）：**不碰磁盘**的候选路径。
+    ///
+    /// 原来 `airDropFileURL` 每行、每次 body 求值都要 `FileManager.fileExists`
+    /// 打一次磁盘（最多两次 stat）。右键菜单内容是随行 body 一起展开的，
+    /// 滚动时每帧几十行 × 同步 stat —— 这是悬浮剪贴板滚动掉帧的主因。
+    /// 这里只按路径拼 URL（纯字符串），存在性交由点击时再判断。
+    public var airDropFileURLCandidate: URL? {
         switch type {
         case .image:
-            if let p = imagePath, fm.fileExists(atPath: p) { return URL(fileURLWithPath: p) }
+            if let p = imagePath, !p.isEmpty { return URL(fileURLWithPath: p) }
             return nil
         case .file:
-            if let c = content, fm.fileExists(atPath: c) { return URL(fileURLWithPath: c) }
+            if let c = content, !c.isEmpty { return URL(fileURLWithPath: c) }
             return nil
         case .text, .richtext, .url:
-            if let p = textPath, fm.fileExists(atPath: p) { return URL(fileURLWithPath: p) }
+            if let p = textPath, !p.isEmpty { return URL(fileURLWithPath: p) }
             return nil
         }
+    }
+
+    /// 真正投递用：确认文件还在磁盘上（低频路径，允许 stat）
+    public var airDropFileURL: URL? {
+        guard let url = airDropFileURLCandidate else { return nil }
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 }
 
@@ -249,12 +260,16 @@ public struct ClipboardRowMenuContent: View {
         return [
             ClipboardMenuActionItem(id: "copy", title: "复制", systemImage: "doc.on.doc") { manager.copy(item) },
             // v112 空投联动：条目文件 → 系统空投面板（经通知走 App 层接线）
+            // v260：构造菜单时不再 stat 磁盘（airDropFileURLCandidate 只拼路径），
+            // 真正投递前才确认文件还在——滚动时每行少两次同步 IO。
             ClipboardMenuActionItem(id: "airDrop", title: "隔空投送", systemImage: "dot.radiowaves.left.and.right",
-                                    isEnabled: item.airDropFileURL != nil) {
-                if let url = item.airDropFileURL {
-                    NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
-                                                    userInfo: ["urls": [url]])
+                                    isEnabled: item.airDropFileURLCandidate != nil) {
+                guard let url = item.airDropFileURL else {
+                    Toast.show("文件已不在原位置，无法隔空投送", icon: "exclamationmark.triangle")
+                    return
                 }
+                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                                userInfo: ["urls": [url]])
             },
             ClipboardMenuActionItem(id: "edit", title: "编辑", systemImage: "pencil") {
                 ClipboardItemEditWindowRecord.open(for: item)
@@ -327,12 +342,12 @@ public struct ClipboardRow: View {
                 }
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle)
-                    .font(.system(size: 13))
+                    .font(.scaledSystem(size: 13))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(subline)
-                    .font(.system(size: 11))
+                    .font(.scaledSystem(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -454,7 +469,7 @@ public struct ClipboardRow: View {
     private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: name)
-                .font(.system(size: 12))
+                .font(.scaledSystem(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
@@ -490,7 +505,7 @@ public struct ClipboardThumbnailView: View {
                     .padding(3)
             } else {
                 Image(systemName: symbolName)
-                    .font(.system(size: size * 0.36))
+                    .font(.scaledSystem(size: size * 0.36))
                     .foregroundStyle(.secondary)
             }
         }

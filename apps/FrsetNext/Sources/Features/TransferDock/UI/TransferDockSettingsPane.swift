@@ -14,6 +14,7 @@ import SwiftUI
 // 面板中转页据此重新判可见性并重启/停止直传服务。
 
 struct TransferDockSettingsPane: View {
+    @AppStorage(TransferDockPref.featureEnabled) private var featureEnabled = true
     @AppStorage(TransferDockPref.panelVisible) private var panelVisible = true
     @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
     @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
@@ -31,9 +32,10 @@ struct TransferDockSettingsPane: View {
         VStack(spacing: 20) {
             SettingsSection("显示") {
                 SettingsGroupBox {
-                    row("启用文件中转", subtitle: "关掉后中转页显示「已关闭」；顶部是否出现该分段见「个性化 → 主面板页面」") {
-                        Toggle("", isOn: $panelVisible)
+                    row("启用文件中转", subtitle: "关掉后中转功能整体下线，面板顶部的「中转 / 投屏」分段一起隐藏；功能开启后是否显示分段，由「个性化 → 主面板页面」决定") {
+                        Toggle("", isOn: $featureEnabled)
                             .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                            .onChange(of: featureEnabled) { _ in notifyChange() }
                     }
                 }
             }
@@ -87,7 +89,7 @@ struct TransferDockSettingsPane: View {
                             .labelsHidden().toggleStyle(.switch).controlSize(.small)
                     }
                     SettingsDivider()
-                    row("当前参数", subtitle: TransferDockPref.CastQuality.summary) {
+                    row("当前参数", subtitle: TransferDockPref.CastQuality.summary + "（下次启动投屏时生效）") {
                         Button("恢复推荐") {
                             TransferDockPref.CastQuality.maxSize = 1920
                             TransferDockPref.CastQuality.bitrate = 16
@@ -95,7 +97,7 @@ struct TransferDockSettingsPane: View {
                             notifyChange()
                         }
                         .controlSize(.small)
-                    }
+                    }.id(revision)   // v260：无发布者 Binding 改完不刷新「当前参数」摘要
                 }
             }
 
@@ -321,6 +323,8 @@ struct TransferDockSettingsPane: View {
     }
 
     private func notifyChange() {
+        // v260：本页自己也要重绘，否则「当前参数」摘要停在旧值
+        revision += 1
         NotificationCenter.default.post(name: .transferDockSettingsDidChange, object: nil)
     }
 }

@@ -81,9 +81,9 @@ struct CaptureActionToolbarView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: 340, maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                             .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
                     )
                     .padding(10)
@@ -143,10 +143,10 @@ struct CaptureActionToolbarView: View {
                     .padding(.horizontal, 13)
                     .frame(height: 30)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                             .fill(Theme.accent)
                     )
-                    .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
@@ -183,7 +183,7 @@ struct CaptureActionToolbarView: View {
             activate(group)
         } label: {
             ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                     .fill(on ? Theme.accent
                           : (active ? Color.primary.opacity(0.08) : Color.clear))
                 Image(systemName: primaryTool(group)?.systemImage ?? group.systemImage)
@@ -200,7 +200,7 @@ struct CaptureActionToolbarView: View {
                 }
             }
             .scaleEffect(active ? 1.05 : 1)
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
         .focusable(false)
@@ -226,15 +226,15 @@ struct CaptureActionToolbarView: View {
             .padding(.horizontal, 7)
             .frame(height: 26)
             .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .fill(on ? Theme.accent
                           : Color.primary.opacity(active ? 0.10 : 0.045))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                     .strokeBorder(on ? Color.clear : Color.primary.opacity(0.10), lineWidth: 0.5)
             )
-            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .focusable(false)
@@ -262,10 +262,10 @@ struct CaptureActionToolbarView: View {
                         .padding(.horizontal, 8)
                         .frame(height: 24)
                         .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .fill(Color.primary.opacity(0.06))
                         )
-                        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .focusable(false)
@@ -274,11 +274,11 @@ struct CaptureActionToolbarView: View {
         }
         .padding(5)
         .background(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
