@@ -2103,28 +2103,28 @@ Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,NetworkStatsPanel,lat
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsConnGrid,color,func,1210,KEEP,StatsConnGrid.body:1204
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,SensorsStatsPanel,orderedTemperatures,func,1265,KEEP,1232 温度分组
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,SensorGroup,fraction,func,1332,KEEP,SensorGroup.body:1320
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,176,KEEP,DiskIndexStore.cancelScan:353
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,179,KEEP,DiskIndexStore.rescan:334
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,215,KEEP,文件物理占用 = st_blocks×512（APFS 透明压缩下 st_size 会虚高，/System 差 17GB）
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,233,KEEP,scan:147 + 递归:228
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,361,KEEP,309、359、380
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,366,KEEP,私有 init，shared:275
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,372,KEEP,StorageManagerWindow.swift:216 onAppear
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,378,KEEP,loadIfNeeded:305、StorageManagerWindow:278
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,400,KEEP,缓存格式迁移：先按二进制 plist 解，失败回落旧 JSON，升级后老缓存仍能读
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,408,KEEP,StorageManagerWindow:326/340/601、show:117
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,434,KEEP,StorageManagerWindow.swift:828 取消按钮
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,440,KEEP,rescan:348、trash:475
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,451,KEEP,trash:482
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,461,KEEP,StorageManagerWindow.swift:897
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,495,KEEP,clearCache:379、trash:474
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,501,KEEP,StorageManagerWindow.swift:169
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,535,KEEP,StorageManagerWindow.swift:922 performTrash
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,572,KEEP,trash:454、StorageManagerWindow:914
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,580,KEEP,trash:471 + 递归:500
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,594,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,597,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,603,KEEP,StorageManagerWindow 311/708/855
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,184,KEEP,DiskIndexStore.cancelScan:353
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,187,KEEP,DiskIndexStore.rescan:334
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,229,KEEP,文件物理占用 = st_blocks×512（APFS 透明压缩下 st_size 会虚高，/System 差 17GB）
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,247,KEEP,scan:147 + 递归:228
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,377,KEEP,309、359、380
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,382,KEEP,私有 init，shared:275
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,388,KEEP,StorageManagerWindow.swift:216 onAppear
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,394,KEEP,loadIfNeeded:305、StorageManagerWindow:278
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,416,KEEP,缓存格式迁移：先按二进制 plist 解，失败回落旧 JSON，升级后老缓存仍能读
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,433,KEEP,StorageManagerWindow:326/340/601、show:117
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,459,KEEP,StorageManagerWindow.swift:828 取消按钮
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,465,KEEP,rescan:348、trash:475
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,476,KEEP,trash:482
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,486,KEEP,StorageManagerWindow.swift:897
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,520,KEEP,clearCache:379、trash:474
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,526,KEEP,StorageManagerWindow.swift:169
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,560,KEEP,StorageManagerWindow.swift:922 performTrash
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,597,KEEP,trash:454、StorageManagerWindow:914
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,605,KEEP,trash:471 + 递归:500
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,619,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,622,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,628,KEEP,StorageManagerWindow 311/708/855
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,65,KEEP,私有 init，shared:63
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,installSwipeMonitor,func,89,KEEP,init:78
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,deinit,deinit,106,KEEP,移除 :107 注册的 NSEvent monitor

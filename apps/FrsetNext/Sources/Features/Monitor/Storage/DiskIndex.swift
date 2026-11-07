@@ -52,6 +52,12 @@ struct DiskIndexSnapshot: Codable {
     var root: DiskNode
     /// 是否因节点上限提前收尾（v211 新增；Optional 以兼容旧缓存 JSON）
     var truncated: Bool? = nil
+    /// 索引结构版本（v264 新增）。
+    ///
+    /// v264 把深度上限从 6 放到 64、大小口径改成 st_blocks —— 旧缓存（无此字段）
+    /// 的节点数只有真实量的 1/16、总量只有 1/4，继续拿来展示等于骗人。
+    /// 版本不符就当作「没有索引」，让用户重新扫一次。
+    var schema: Int? = nil
 }
 
 struct CleanupRecord: Codable, Identifiable {
@@ -162,6 +168,8 @@ final class DiskIndexScanner {
     /// 400 万覆盖整块启动卷；折叠后实际节点 ~40 万，内存峰值 ~150MB，
     /// 且只存在于「存储管理窗口打开 + 手动点扫描」的这几十秒里。
     static let maxNodes = 4_000_000
+    /// 索引结构版本：深度/大小口径一变就 +1，旧缓存自动失效
+    static let schemaVersion = 4
     /// 每层保留的最大子项。24 太少了：`~` 下有 30+ 个目录，
     /// `.workbuddy` 这种中等大小的会被折进「其余 N 项」，再也点不进去。
     static let childrenPerDirectory = 60
@@ -207,7 +215,8 @@ final class DiskIndexScanner {
                                              nodeCount: counter,
                                              skippedCount: skipped,
                                              root: root,
-                                             truncated: counter >= Self.maxNodes)
+                                             truncated: counter >= Self.maxNodes,
+                                             schema: Self.schemaVersion)
             DispatchQueue.main.async { completion(snapshot) }
         }
     }
@@ -405,10 +414,19 @@ final class DiskIndexStore: ObservableObject {
     /// 二进制 plist 小一半、解码快 3 倍。旧缓存是 JSON，先试 plist 再回落 JSON，
     /// 升级后第一次打开仍能读出来（只是慢一次）。
     private static func decodeSnapshot(_ data: Data) -> DiskIndexSnapshot? {
+        let snap: DiskIndexSnapshot?
         if let s = try? PropertyListDecoder().decode(DiskIndexSnapshot.self, from: data) {
-            return s
+            snap = s
+        } else {
+            snap = try? JSONDecoder().decode(DiskIndexSnapshot.self, from: data)
         }
-        return try? JSONDecoder().decode(DiskIndexSnapshot.self, from: data)
+        guard let snap else { return nil }
+        // v264：旧版本（深度 6 时代）的索引节点数只有真实量的 1/16，直接作废
+        guard snap.schema == DiskIndexScanner.schemaVersion else {
+            Log.info("DiskIndex", "旧版索引缓存（schema=\(snap.schema.map(String.init) ?? "无")），已作废，请重新扫描")
+            return nil
+        }
+        return snap
     }
 
     /// 重新扫描（可取消）
