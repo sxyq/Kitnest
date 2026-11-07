@@ -241,7 +241,17 @@ struct SettingsSidebarView: View {
             switch category {
             case .searchAI: state.searchAISub = entry.subTab
             case .tooling:  state.toolingSub = entry.subTab
-            case .capture:  state.captureSub = entry.subTab
+            case .capture:
+                // v262：截图那三块不再分页签，`captureSub` 变成「滚到哪一块」。
+                // 它是指令不是状态——重复搜同一个词时值没变，onChange 不会触发，
+                // 页面就不会滚过去。所以值相同时先归零再设回去。
+                let target = entry.subTab
+                if state.captureSub == target {
+                    state.captureSub = -1
+                    DispatchQueue.main.async { state.captureSub = target }
+                } else {
+                    state.captureSub = target
+                }
             default: break
             }
         }

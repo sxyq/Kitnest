@@ -37,6 +37,17 @@ final class SettingsUIState: ObservableObject {
         applyPaneMapping(pane)
     }
 
+    /// 滚到「截图与钉图」里的某一块（0 截图 / 1 钉图 / 2 悬挂架）。
+    /// 值没变时先归零再设回：`captureSub` 现在是指令，重复深链也要能重新定位。
+    private func jumpCapture(_ index: Int) {
+        if captureSub == index {
+            captureSub = -1
+            DispatchQueue.main.async { self.captureSub = index }
+        } else {
+            captureSub = index
+        }
+    }
+
     private func applyPaneMapping(_ pane: String) {
         switch pane {
         case "general":                  selection = .category(.general)
@@ -46,11 +57,12 @@ final class SettingsUIState: ObservableObject {
         case "ai":                       selection = .category(.searchAI); searchAISub = 1
         case "tools":                    selection = .category(.tooling); toolingSub = 0
         case "shortcuts":                selection = .category(.tooling); toolingSub = 1
-        // v234：截图独立成一级分类，钉图是它的第二个页签
-        case "capture":                  selection = .category(.capture); captureSub = 0
-        case "pin", "pinSettings":       selection = .category(.capture); captureSub = 1
+        // v234：截图独立成一级分类
+        // v262：截图 / 钉图 / 悬挂架合并成一页，这里的下标改成「滚到哪一块」
+        case "capture":                  selection = .category(.capture); jumpCapture(0)
+        case "pin", "pinSettings":       selection = .category(.capture); jumpCapture(1)
         // v261：悬挂架（截图后的临时暂存区，默认关闭）
-        case "shelf", "shelfSettings":   selection = .category(.capture); captureSub = 2
+        case "shelf", "shelfSettings":   selection = .category(.capture); jumpCapture(2)
         case "statistics":               selection = .category(.statistics)
         case "about":                    selection = .category(.about)
         case "monitor", "monitorSettings": selection = .monitorSettings

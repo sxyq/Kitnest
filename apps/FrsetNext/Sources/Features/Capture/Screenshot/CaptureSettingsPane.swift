@@ -1,9 +1,13 @@
 import SwiftUI
 import AppKit
 
-// MARK: - 设置「截图」页签
+// MARK: - 设置「截图」
+//
+// v262：原来这一页是独立的 `Form` 页签，和「钉图」「悬挂架」三页各占一个 tab。
+// 用户要求「截图、钉图、悬挂架的设置全都放在同一个设置栏里」，于是三页合并成
+// 一个滚动页（`CaptureHubPane`）。这一页因此从 `Form` 改成 `VStack +
+// SettingsSection`——视觉上和钉图页、悬挂架页同一套，滚动起来才像一页。
 
-/// 截图设置：保存路径 / 提示音 / OCR 语言 / 截图后默认动作
 public struct CaptureSettingsPane: View {
     @ObservedObject private var manager = ScreenshotManager.shared
     @Stored private var savePath: String
@@ -46,124 +50,262 @@ public struct CaptureSettingsPane: View {
     }
 
     public var body: some View {
-        Form {
-            Section("保存") {
-                HStack {
-                    TextField("默认：\(ScreenshotManager.shared.saveDirectory.path)", text: $savePath)
+        VStack(spacing: 18) {
+            saveSection
+            behaviorSection
+            watermarkSection
+            ocrSection
+            permissionSection
+        }
+        .font(.system(size: 12))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: 保存
+
+    private var saveSection: some View {
+        SettingsSection("保存") {
+            SettingsGroupBox {
+                HStack(spacing: 12) {
+                    Text("保存到")
+                        .font(.system(size: 12.5))
+                        .frame(width: 92, alignment: .leading)
+                    TextField(ScreenshotManager.shared.saveDirectory.path, text: $savePath)
                         .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 11.5, design: .monospaced))
+                        .frame(maxWidth: 340)
                     Button("选择…") { chooseDirectory() }
+                        .controlSize(.small)
                     Button("恢复默认") {
                         savePath = ""
                         Preferences.shared.set(Preferences.Keys.captureSavePath, "")
                         ScreenshotManager.shared.reloadRecent()
                     }
+                    .controlSize(.small)
+                    Spacer(minLength: 0)
                 }
-                Text("留空则保存到 \(ScreenshotManager.shared.saveDirectory.path)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Button("在访达中打开截图目录") {
-                    NSWorkspace.shared.open(ScreenshotManager.shared.saveDirectory)
-                }
-            }
+                .padding(.vertical, 7)
 
-            Section("行为") {
-                Toggle("截图后播放提示音", isOn: $soundEnabled)
-                    .onChange(of: soundEnabled) { newValue in
-                        Preferences.shared.set(Preferences.Keys.captureSound, newValue)
-                    }
-                Picker("截图后默认执行", selection: $action) {
-                    ForEach(CaptureDefaultAction.allCases) { item in
-                        Text(item.title).tag(item)
-                    }
-                }
-                .onChange(of: action) { newValue in
-                    ScreenshotManager.shared.defaultAction = newValue
-                }
-                // v130（SnowShot 对齐）④：延时截图秒数（倒计时 5→4→3→2→1，Esc 可取消）
-                Picker("延时截图秒数", selection: $delaySeconds) {
-                    Text("3 秒").tag(3)
-                    Text("5 秒").tag(5)
-                    Text("10 秒").tag(10)
-                }
-                .onChange(of: delaySeconds) { newValue in
-                    ScreenshotManager.shared.delaySeconds = newValue
-                }
-            }
+                SettingsDivider()
 
-            Section("水印") {
-                Toggle("导出时加水印", isOn: $wmEnabled)
-                    .onChange(of: wmEnabled) { newValue in Watermark.isEnabled = newValue }
-                if wmEnabled {
-                    TextField("水印文字", text: $wmText)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: wmText) { newValue in Watermark.text = newValue }
-                    Toggle("铺满画面（关闭则只放右下角）", isOn: $wmTile)
-                        .onChange(of: wmTile) { newValue in Watermark.tile = newValue }
-                    HStack {
-                        Text("不透明度")
-                        Slider(value: $wmOpacity, in: 0.03...0.5)
-                        Text("\(Int(wmOpacity * 100))%")
-                            .monospacedDigit()
-                            .frame(width: 44, alignment: .trailing)
+                HStack(spacing: 10) {
+                    Text("留空则保存到 \(ScreenshotManager.shared.saveDirectory.path)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    Button("在访达中打开") {
+                        NSWorkspace.shared.open(ScreenshotManager.shared.saveDirectory)
                     }
-                    .onChange(of: wmOpacity) { newValue in Watermark.opacity = newValue }
-                    HStack {
-                        Text("倾斜角")
-                        Slider(value: $wmAngle, in: -60...60)
-                        Text("\(Int(wmAngle))°")
-                            .monospacedDigit()
-                            .frame(width: 44, alignment: .trailing)
+                    .controlSize(.small)
+                }
+                .padding(.vertical, 8)
+            }
+        }
+    }
+
+    // MARK: 行为
+
+    private var behaviorSection: some View {
+        SettingsSection("行为") {
+            SettingsGroupBox {
+                row("提示音") {
+                    Toggle("", isOn: $soundEnabled)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .onChange(of: soundEnabled) { newValue in
+                            Preferences.shared.set(Preferences.Keys.captureSound, newValue)
+                        }
+                    Text("截图瞬间播放系统快门声")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                SettingsDivider()
+
+                row("截图后") {
+                    Picker("", selection: $action) {
+                        ForEach(CaptureDefaultAction.allCases) { item in
+                            Text(item.title).tag(item)
+                        }
                     }
-                    .onChange(of: wmAngle) { newValue in Watermark.angle = newValue }
-                    Text("只加在复制/保存的成品上，编辑时预览不叠加——不会被水印挡住看不清标注。")
+                    .labelsHidden()
+                    .frame(width: 150)
+                    .onChange(of: action) { newValue in
+                        ScreenshotManager.shared.defaultAction = newValue
+                    }
+                }
+
+                SettingsDivider()
+
+                row("延时截图") {
+                    Picker("", selection: $delaySeconds) {
+                        Text("3 秒").tag(3)
+                        Text("5 秒").tag(5)
+                        Text("10 秒").tag(10)
+                    }
+                    .labelsHidden()
+                    .frame(width: 100)
+                    .onChange(of: delaySeconds) { newValue in
+                        ScreenshotManager.shared.delaySeconds = newValue
+                    }
+                    Text("倒计时 5→4→3→2→1，按 Esc 取消")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
 
-            Section("文字识别") {
-                Text("识别引擎：Apple Vision（本机）")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
+    // MARK: 水印
 
-                Picker("识别语言", selection: $languageIndex) {
-                    ForEach(0..<Self.languageOptions.count, id: \.self) { index in
-                        Text(Self.languageOptions[index].title).tag(index)
-                    }
+    private var watermarkSection: some View {
+        SettingsSection("水印") {
+            SettingsGroupBox {
+                row("导出时加水印") {
+                    Toggle("", isOn: $wmEnabled)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .onChange(of: wmEnabled) { newValue in Watermark.isEnabled = newValue }
                 }
-                .disabled(autoDetect)
-                .onChange(of: languageIndex) { newValue in
-                    OCRService.setLanguages(Self.languageOptions[newValue].codes)
+
+                if wmEnabled {
+                    SettingsDivider()
+
+                    row("水印文字") {
+                        TextField("例如：内部资料", text: $wmText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 220)
+                            .onChange(of: wmText) { newValue in Watermark.text = newValue }
+                        Toggle("铺满画面", isOn: $wmTile)
+                            .toggleStyle(.checkbox)
+                            .controlSize(.small)
+                            .onChange(of: wmTile) { newValue in Watermark.tile = newValue }
+                    }
+
+                    SettingsDivider()
+
+                    row("不透明度") {
+                        Slider(value: $wmOpacity, in: 0.03...0.5)
+                            .frame(width: 180)
+                            .onChange(of: wmOpacity) { newValue in Watermark.opacity = newValue }
+                        Text("\(Int(wmOpacity * 100))%")
+                            .font(.system(size: 11.5).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, alignment: .trailing)
+                    }
+
+                    SettingsDivider()
+
+                    row("倾斜角") {
+                        Slider(value: $wmAngle, in: -60...60)
+                            .frame(width: 180)
+                            .onChange(of: wmAngle) { newValue in Watermark.angle = newValue }
+                        Text("\(Int(wmAngle))°")
+                            .font(.system(size: 11.5).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, alignment: .trailing)
+                    }
+
+                    Text("只加在复制/保存的成品上，编辑时预览不叠加——不会被水印挡住看不清标注。")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 8)
                 }
-                Toggle("自动检测语言", isOn: $autoDetect)
-                    .onChange(of: autoDetect) { newValue in
-                        OCRService.autoDetectLanguages = newValue
+            }
+        }
+    }
+
+    // MARK: 文字识别
+
+    private var ocrSection: some View {
+        SettingsSection("文字识别") {
+            SettingsGroupBox {
+                row("识别引擎") {
+                    Text("Apple Vision（本机）")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                SettingsDivider()
+
+                row("识别语言") {
+                    Picker("", selection: $languageIndex) {
+                        ForEach(0..<Self.languageOptions.count, id: \.self) { index in
+                            Text(Self.languageOptions[index].title).tag(index)
+                        }
                     }
-                Toggle("识别后弹出结果窗", isOn: $showOCRWindow)
-                    .onChange(of: showOCRWindow) { newValue in
-                        ScreenshotManager.shared.ocrShowResultWindow = newValue
+                    .labelsHidden()
+                    .frame(width: 160)
+                    .disabled(autoDetect)
+                    .onChange(of: languageIndex) { newValue in
+                        OCRService.setLanguages(Self.languageOptions[newValue].codes)
                     }
+                    Toggle("自动检测语言", isOn: $autoDetect)
+                        .toggleStyle(.checkbox)
+                        .controlSize(.small)
+                        .onChange(of: autoDetect) { newValue in
+                            OCRService.autoDetectLanguages = newValue
+                        }
+                }
+
+                SettingsDivider()
+
+                row("结果窗") {
+                    Toggle("", isOn: $showOCRWindow)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .onChange(of: showOCRWindow) { newValue in
+                            ScreenshotManager.shared.ocrShowResultWindow = newValue
+                        }
+                    Text("识别后弹出结果窗；关掉则只把文字放进剪贴板")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
                 Text("识别在本机完成（Apple Vision），不联网、不上传图片。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
             }
+        }
+    }
 
-            Section("权限") {
-                HStack {
+    // MARK: 权限
+
+    private var permissionSection: some View {
+        SettingsSection("权限") {
+            SettingsGroupBox {
+                HStack(spacing: 10) {
+                    Image(systemName: manager.hasPermission ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(manager.hasPermission ? Color.green : Color.orange)
+                        .font(.system(size: 12))
                     Text(manager.hasPermission ? "已获得屏幕录制权限" : "尚未获得屏幕录制权限")
-                    Spacer()
+                        .font(.system(size: 12.5))
+                    Spacer(minLength: 8)
                     Button("检查 / 申请") {
                         Task { _ = await ScreenshotManager.shared.ensureScreenRecordingPermission() }
                     }
+                    .controlSize(.small)
                 }
+                .padding(.vertical, 9)
             }
         }
-        .formStyle(.grouped)
-        .frame(minWidth: 420)
-        .onChange(of: savePath) { newValue in
-            Preferences.shared.set(Preferences.Keys.captureSavePath, newValue)
-            ScreenshotManager.shared.reloadRecent()
+    }
+
+    // MARK: 工具
+
+    private func row<Content: View>(_ title: String,
+                                    @ViewBuilder _ content: () -> Content) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 12.5))
+                .lineLimit(1)
+                // 92 是「导出时加水印」六个字在 12.5pt 下的实测宽度；
+                // 74 会把它挤成两行，那一行就比别的行高出一截
+                .frame(width: 92, alignment: .leading)
+            content()
+            Spacer(minLength: 0)
         }
+        .padding(.vertical, 7)
     }
 
     private func chooseDirectory() {
