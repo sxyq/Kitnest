@@ -3271,3 +3271,26 @@ Storage,Storage/Database.swift,StatisticsManager,exportAll,func,582,KEEP,Statist
 Storage,Storage/Database.swift,StatisticsManager,importMerge,func,594,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
 Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,611,KEEP,init:466 调用
 Storage,Storage/Database.swift,StatisticsManager,dayString,func,640,KEEP,bumpStat:363、record:476、StatisticsRootView:272
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfMetrics,cornerRadius,func,43,KEEP,v262 绳子/卡片尺寸常量：cornerRadius
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeGeometry,y,func,77,KEEP,v262 绳线几何：卡片按切线倾斜的唯一来源：y
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeGeometry,slope,func,83,KEEP,v262 绳线几何：卡片按切线倾斜的唯一来源：slope
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeGeometry,tilt,func,91,KEEP,v262 绳线几何：卡片按切线倾斜的唯一来源：tilt
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,draw,func,157,KEEP,v262 卡片：倾斜、微摆、拖出：draw
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,startSway,func,317,KEEP,v262 卡片：倾斜、微摆、拖出：startSway
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,stopSway,func,334,KEEP,v262 卡片：倾斜、微摆、拖出：stopSway
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,viewDidMoveToWindow,func,338,KEEP,v262 卡片：倾斜、微摆、拖出：viewDidMoveToWindow
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,draw,func,494,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：draw
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,ropePath,func,548,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：ropePath
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,drawKnots,func,561,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：drawKnots
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,clearShadow,func,575,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：clearShadow
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,stroke,func,579,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：stroke
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,dashed,func,588,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：dashed
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,drawLights,func,603,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：drawLights
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,drawSnow,func,627,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：drawSnow
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,samplePoints,func,639,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：samplePoints
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCanvasView,reload,func,680,KEEP,v262 排版与落入动画：reload
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCanvasView,animateDrop,func,728,KEEP,v262 排版与落入动画：animateDrop
+Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCanvasView,topPivot,func,771,KEEP,v262 排版与落入动画：topPivot
+Settings,Features/Settings/Shell/CaptureHubPane.swift,CaptureHubPane,jump,func,47,KEEP,v262 截图/钉图/悬挂架合并成一个滚动页：jump
+Settings,Features/Settings/Shell/CaptureHubPane.swift,CaptureHubPane,block,func,60,KEEP,v262 截图/钉图/悬挂架合并成一个滚动页：block
+Capture,Features/Capture/Shelf/ShelfModel.swift,ShelfRopeStyle,normalized,func,80,KEEP,v262 四样式对齐 1Capture 命名（含 twine 兼容）：normalized
