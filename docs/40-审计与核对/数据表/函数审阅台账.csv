@@ -41,8 +41,8 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,229,KEEP,PanelController.
 Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,237,KEEP,PanelController.swift:362 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,242,KEEP,"PanelController:207,342 / play:258"
 Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,258,KEEP,playIn:215 / playOut:221 唯一实现
-Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPlaybackIndex,func,444,KEEP,v244 新增：掉头时按已播时长换算当前帧，switchDirection 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,452,KEEP,v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,474,KEEP,v244 反向播放：当前播放位置
 Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,485,KEEP,v244 新增：反向复用帧序列；play() 打断分支调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,505,KEEP,cancel:227 / finish:413
 Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,510,KEEP,watchdog Timer:399 回调
@@ -53,6 +53,7 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,557,KEEP,play:293 快�
 Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,571,KEEP,play:305 probe.genieHold 定格
 Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,577,KEEP,"play:246,251 抓窗口快照"
 Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,603,KEEP,"play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,604,KEEP,v246 空白帧兜底
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,private init；static shared:23 唯一构造
@@ -516,6 +517,10 @@ Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,open
 Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,compress,func,91,KEEP,Info.plist NSServices compress，@objc 服务入口
 Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,fileURLs,func,104,KEEP,Services:93/112 解析粘贴板文件 URL
 Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,archives,func,111,KEEP,Services:28/49/80 供三个服务入口过滤
+Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,offerCleanup,func,28,KEEP,ArchiveCreateSheet onDone 调用
+Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,ask,func,47,KEEP,压缩完成后询问
+Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,recycle,func,68,KEEP,NSWorkspace.recycle
+Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,isDirectory,func,84,KEEP,输出是否落在源目录内
 Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,init,init,103,KEEP,ArchiveTaskQueue:19 shared 单例构造
 Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,enqueue,func,110,KEEP,Core:567/762/812/848/910/946/1075 入队
 Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,finish,func,124,KEEP,pump:264 回调收尾
@@ -569,13 +574,19 @@ Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteractionView
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteraction,makeNSView,func,241,KEEP,BrowserWindow:1263 构造 ArchiveTileInteraction
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveTileInteraction,updateNSView,func,248,KEEP,NSViewRepresentable；BrowserWindow:1263 复用
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,rightMouseDown,func,17,KEEP,NSResponder 覆写；:33 实例化 ArchiveEntryTableView
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,updateTrackingAreas,func,20,KEEP,v258 悬停跟踪区
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,mouseMoved,func,32,KEEP,v258 行悬停
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,mouseExited,func,36,KEEP,v258 离开取消
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableView,scrollWheel,func,40,KEEP,v258 滚动取消
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,init,init,41,KEEP,BrowserWindow:1357 makeNSView 构造
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,init,init,70,KEEP,NSView required 初始化，AppKit 调用
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,layout,func,74,KEEP,NSView 覆写，布局时 AppKit 调用
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,doubleClicked,func,79,KEEP,@objc + :54 #selector(doubleAction)
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,syncFromModel,func,89,KEEP,BrowserWindow:1365 updateNSView 调用
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,viewDidMoveToWindow,func,112,KEEP,v258 离开窗口清理
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,numberOfRows,func,113,KEEP,NSTableViewDataSource 协议回调
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,117,KEEP,NSTableViewDelegate 协议回调
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,hoverChanged,func,118,KEEP,v258 行变化派发
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableViewSelectionDidChange,func,126,KEEP,NSTableViewDelegate 选择变更回调
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryTableHost,tableView,func,136,KEEP,NSTableViewDataSource 每行一个拖出承诺
 Archive,Features/Archive/Table/ArchiveEntryTable.swift,ArchiveEntryRowView,init,init,164,KEEP,EntryTable:122 每行构造行视图
@@ -609,6 +620,12 @@ Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggin
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,prepareForDragOperation,func,430,KEEP,NSDraggingDestination 协议回调
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,performDragOperation,func,432,KEEP,NSDraggingDestination 协议回调，收取文件
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,close,func,443,KEEP,NSWindow 覆写；FileBox:194 关窗调用
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,schedule,func,34,KEEP,Panel 归档表格悬停入口
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cancel,func,75,KEEP,鼠标离开/换行/滚动
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cleanup,func,83,KEEP,归档窗关闭清理临时目录
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,key,func,91,KEEP,缓存 key = 归档 mtime + 条目
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cached,func,100,KEEP,LRU 命中
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,store,func,113,KEEP,LRU 写入/淘汰删目录
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,init,init,53,KEEP,BrowserWindow:772 构造模型
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,children,func,80,KEEP,visibleEntries:75 按层级过滤
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,navigateTo,func,115,KEEP,enter:126、goBack:132、面包屑:1176
@@ -2983,6 +3000,7 @@ TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBu
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,kindLabel,func,128,KEEP,FileHoverPreview.swift:56
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,174,KEEP,"TransferDockView.swift:554,1509 悬停"
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleHide,func,186,KEEP,TransferDockView.swift:1511；本文件:333
+Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,188,KEEP,v258 归档悬停复用：已就绪文件立即显示
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,hide,func,198,KEEP,FileHoverPreview.swift:192 延迟任务
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,show,func,225,KEEP,FileHoverPreview.swift:179 延迟任务
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,ensurePanel,func,243,KEEP,FileHoverPreview.swift:233
