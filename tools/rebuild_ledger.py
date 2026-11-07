@@ -162,6 +162,242 @@ EVIDENCE = {
         "nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏",
 }
 
+# ── v263：图帘（原悬挂架）整族函数 + 钉住多形态 ─────────────────────────
+# 键是 (file, name)，同名函数（不同 owner）共用一条证据，所以文案写成合并描述。
+EVIDENCE.update({
+    # Controller
+    ("Features/Capture/Curtain/CurtainController.swift", "init"):
+        "单例私有 init：订阅 curtainPreferencesChanged / curtainToggleRequested",
+    ("Features/Capture/Curtain/CurtainController.swift", "attach"):
+        "截图落盘后挂载；manual=true 供动作条「挂到图帘」；缩略图按当前卡片宽解码",
+    ("Features/Capture/Curtain/CurtainController.swift", "insert"):
+        "新图插最左；超过 maxCards 从最旧挤掉（只出帘不删文件）",
+    ("Features/Capture/Curtain/CurtainController.swift", "show"):
+        "唤出入口：开关校验 + 空帘不显示 + 无动画重建后上屏",
+    ("Features/Capture/Curtain/CurtainController.swift", "hide"):
+        "只 orderOut，不动 items；下次唤出内容还在",
+    ("Features/Capture/Curtain/CurtainController.swift", "dismissAll"):
+        "关功能时销毁窗口并清空 items/缩略图/临时宽度",
+    ("Features/Capture/Curtain/CurtainController.swift", "remove"):
+        "移除单张；帘空则销毁窗口，否则原地重排并续计时",
+    ("Features/Capture/Curtain/CurtainController.swift", "toggle"):
+        "显示/收起切换（快捷键、菜单栏、设置页共用）",
+    ("Features/Capture/Curtain/CurtainController.swift", "showPanel"):
+        "上屏：重建 + orderFrontRegardless + 启动自动收起计时",
+    ("Features/Capture/Curtain/CurtainController.swift", "ensurePanel"):
+        "首次创建 Panel/Canvas，接移除/保存/钉图与 ⌘ 缩放回调",
+    ("Features/Capture/Curtain/CurtainController.swift", "railScale"):
+        "帘线缩放：卡片宽/140 夹 0.8…3；关掉「帘线缩放」恒 1",
+    ("Features/Capture/Curtain/CurtainController.swift", "layoutMetrics"):
+        "按屏幕宽反算能放下的卡片宽（张数多自动收窄）+ 卡片高度上限",
+    ("Features/Capture/Curtain/CurtainController.swift", "contentSize"):
+        "按实际卡片宽/缩放/间距算内容尺寸（帘线 + 最高卡 + 投影余量）",
+    ("Features/Capture/Curtain/CurtainController.swift", "rebuild"):
+        "统一重排：live 走 updateLayout（原地），否则 reload（可重播落入）",
+    ("Features/Capture/Curtain/CurtainController.swift", "resizeStep"):
+        "⌘ 拖动/滚轮每格：只改 liveCardWidth 并原地重排，不写偏好不发通知",
+    ("Features/Capture/Curtain/CurtainController.swift", "resizeEnd"):
+        "松手：临时宽度写回偏好、Toast 报数值、按需重解高清缩略图",
+    ("Features/Capture/Curtain/CurtainController.swift", "upgradeThumbnailsIfNeeded"):
+        "卡片 >220pt 后对不够清晰的缩略图后台重解一次",
+    ("Features/Capture/Curtain/CurtainController.swift", "windowFrame"):
+        "贴鼠标所在屏顶部居中；宽度夹进屏幕，避免大卡片时 x 为负",
+    ("Features/Capture/Curtain/CurtainController.swift", "activeScreen"):
+        "以鼠标所在屏为准（多显示器）",
+    ("Features/Capture/Curtain/CurtainController.swift", "scheduleAutoHide"):
+        "展示时长到点只收起，不清内容；0 = 永不收起",
+    ("Features/Capture/Curtain/CurtainController.swift", "toggleRequested"):
+        "curtainToggleRequested 通知入口（菜单栏/设置页）",
+    ("Features/Capture/Curtain/CurtainController.swift", "preferencesChanged"):
+        "开关关掉 → dismissAll；开着且可见 → 原地重排（不重播落入）",
+    ("Features/Capture/Curtain/CurtainController.swift", "saveAs"):
+        "卡片保存：NSSavePanel 另存，不移动暂存文件",
+    ("Features/Capture/Curtain/CurtainController.swift", "pin"):
+        "卡片钉住：从原文件解码后交给 PinnedScreenshotManager",
+    ("Features/Capture/Curtain/CurtainController.swift", "runProbe"):
+        "深链 curtainprobe：合成 N 张图挂帘，可指定宽度/允许抓屏/跑压测",
+    ("Features/Capture/Curtain/CurtainController.swift", "runResizeSweep"):
+        "缩放压测：140→420→140 共 30 帧，每帧真实 rebuild(live:) + displayIfNeeded，记录单帧最大耗时",
+    ("Features/Capture/Curtain/CurtainController.swift", "probeImage"):
+        "自检合成图：渐变底 + 标题/内容条 + 序号块",
+    ("Features/Capture/Curtain/CurtainController.swift", "writePNG"):
+        "自检图落盘到临时目录，返回 URL 供 attach",
+
+    # Model
+    ("Features/Capture/Curtain/CurtainModel.swift", "init"):
+        "CurtainItem 值类型初始化（id/fileURL/createdAt/pixelSize）",
+    ("Features/Capture/Curtain/CurtainModel.swift", "cardSize"):
+        "卡片宽高：宽度按偏好，高度按原图比例并受 railScale 与屏幕高度上限双重约束",
+    ("Features/Capture/Curtain/CurtainModel.swift", "normalized"):
+        "旧值 twine（麻绳）归一化到 candyCane，升级后不会退回 classic",
+    ("Features/Capture/Curtain/CurtainModel.swift", "make"):
+        "按目标像素解码缩略图（ThumbnailFromImageAlways），避免整张大图常驻",
+    ("Features/Capture/Curtain/CurtainModel.swift", "pixelSize"):
+        "只读元数据像素尺寸，不解码整图（卡片长宽比用）",
+
+    # Window / metrics
+    ("Features/Capture/Curtain/CurtainWindow.swift", "ropeHeight"):
+        "帘线区域高度 × 缩放（28pt @1×）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "ropeInset"):
+        "线端距顶 12pt × 缩放（1Capture 反汇编 y = height - 12）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "sagMax"):
+        "下垂上限 28pt × 缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "ropeEndInset"):
+        "两端绳结留白 5pt × 缩放，最小 3pt",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "gap"):
+        "卡片间距 16pt × 缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "padding"):
+        "左右留白 22pt × 缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "clipHeight"):
+        "夹子高度 20pt × 缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "bottomInset"):
+        "窗口底部投影余量 12pt × 缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "cornerRadius"):
+        "卡片圆角：宽×0.16 夹 8…25 再乘缩放（1Capture 写死 25，我们宽度可变）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "init"):
+        "图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "t"):
+        "按 x 反解贝塞尔参数 t（控制点在 1/3、2/3，x(t) 精确线性）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "y"):
+        "曲线上某点 y = y0 + 3·sag·t(1-t)",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "slope"):
+        "切线斜率 dy/dx = 3·sag·(1-2t)/width，卡片倾斜用",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "tilt"):
+        "卡片沿帘线切线倾斜，限幅 ±4°",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "update"):
+        "⌘ 缩放时原地更新卡片尺寸/按钮位置并重绘，不重建视图、不重挂动画",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "draw"):
+        "绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "placeholderGradient"):
+        "缩略图未解码时的占位渐变（1Capture 四段灰度 0.62/0.94/0.80/0.61，水平）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "drawClip"):
+        "夹子：小梯形 + 投影 + 夹口暗线；尺寸乘 railScale",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "updateTrackingAreas"):
+        "重建 .inVisibleRect 悬停追踪区（卡片尺寸变化后仍覆盖全卡）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "mouseEntered"):
+        "悬停：停摆、显示保存/钉图/移除、上浮 2pt",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "mouseExited"):
+        "移出：收起按钮、复位、恢复微摆",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "startSway"):
+        "常驻微摆用 CABasicAnimation 改 transform（不重绘、render server）；已在摆则不重挂",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "stopSway"):
+        "停止微摆（悬停/缩放/窗口收起时）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "viewDidMoveToWindow"):
+        "窗口收起时撤动画，避免不可见图层空转",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "setupButtons"):
+        "创建关闭/保存/钉图三个悬停按钮",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "layoutButtons"):
+        "按钮位置/圆角随卡片尺寸与 railScale 走（⌘ 缩放每帧调用）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "configure"):
+        "悬停按钮样式：无边框、白色图标、半透明黑底、圆角随缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "setButtonsHidden"):
+        "统一显隐三个悬停按钮",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "removeTapped"):
+        "关闭按钮 → 从图帘移除",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "saveTapped"):
+        "保存按钮 → 控制器 saveAs",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "pinTapped"):
+        "钉图按钮 → 控制器 pin 到屏幕",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "acceptsFirstMouse"):
+        "首击即响应（图帘是非激活面板）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "mouseDown"):
+        "卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "mouseDragged"):
+        "⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "mouseUp"):
+        "⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "scrollWheel"):
+        "⌘ + 滚轮缩放图帘；非 ⌘ 交给系统",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "copyToPasteboard"):
+        "复制：同时给 PNG 数据与文件 URL（粘聊天窗是图、粘 Finder 是文件）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "beginDrag"):
+        "拖出：NSDraggingItem 用文件 URL，拖到 Finder/聊天窗即得文件",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "snapshot"):
+        "拖拽缩略图：优先用已解码 CGImage，避免再读原图",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "menu"):
+        "右键菜单：复制/保存/在 Finder 显示/钉住/放大缩小图帘/移除",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "zoomIn"):
+        "右键放大 40pt（走与 ⌘ 拖动同一条 resizeStep/resizeEnd）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "zoomOut"):
+        "右键缩小 40pt（同 resizeStep/resizeEnd）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "copyFromMenu"):
+        "右键「复制图片」→ copyToPasteboard",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "revealInFinder"):
+        "在 Finder 中选中原暂存文件",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "draggingSession"):
+        "拖出操作固定 .copy，不移动原文件",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "ropePath"):
+        "帘线三次贝塞尔路径，两端留绳结位；inset 随 scale",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "drawKnots"):
+        "两端绳结（实心圆 + 暗描边），半径/描边随 scale",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "clearShadow"):
+        "清掉 CG 阴影，避免细芯/装饰重复投影",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "stroke"):
+        "圆头描边封装（宽度/灰度/透明度）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "dashed"):
+        "圆头虚线描边封装（拐杖糖红条纹）",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "drawLights"):
+        "圣诞彩灯：沿帘线等距、四色循环、低透明外圈当光晕",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "drawSnow"):
+        "积雪：确定性伪随机球径 1.3–3.2pt，间距 6.5pt，随 scale",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "samplePoints"):
+        "按 x 均匀取样再用贝塞尔求 y，间距随 scale",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "reload"):
+        "重建卡片视图并排版；animate=false 用于缩放后的高质量重绘",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "updateLayout"):
+        "⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "layoutCards"):
+        "统一排版：总宽居中、逐张定位、设 ropeTilt/swayPhase、按需播落入动画",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "animateDrop"):
+        "落入：位移 + 淡入 + 绕顶部衰减回弹，结束后接常驻微摆；只对新增卡片播",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "topPivot"):
+        "把 CA 旋转中心从图层中心挪到顶部中心",
+
+    # Pin appearance / action bar
+    ("Features/Capture/Pin/PinWindow.swift", "init"):
+        "PinAppearance 值类型初始化（单张钉图的外观快照）",
+    ("Features/Capture/Pin/PinWindow.swift", "preset"):
+        "动作条四形态：经典/无边框/卡片/强调，数值与设置页预设一致，只影响这一张",
+    ("Features/Capture/Screenshot/CaptureActionChain.swift", "pin"):
+        "按形态钉住：PinAppearance.preset → show(appearance:) + Toast",
+    ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "row"):
+        "截图设置页统一行（标题 + 控件 + 说明），与钉图/图帘页同构",
+
+    # Settings / status bar
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "init"):
+        "从 CurtainPref 读初值（开关/样式/时长/张数/宽度/帘线缩放/自动上架）",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "row"):
+        "图帘设置页统一行（74pt 标题列 + 控件 + 说明）",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "point"):
+        "设置页预览绳线按三次贝塞尔取点，与窗口绘制同参数",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "path"):
+        "设置页预览绳线路径：三次贝塞尔控制点在 1/3、2/3",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "jumpCapture"):
+        "截图与钉图页内跳转：同值时先归零再设回，重复深链也能重新定位",
+    ("Features/StatusBar/StatusBarController.swift", "toggleCurtainAction"):
+        "菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口",
+})
+
+# ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
+# 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。
+_PATH_ALIASES = {
+    "Features/Capture/Shelf/ShelfModel.swift": "Features/Capture/Curtain/CurtainModel.swift",
+    "Features/Capture/Shelf/ShelfWindow.swift": "Features/Capture/Curtain/CurtainWindow.swift",
+    "Features/Capture/Shelf/ShelfController.swift": "Features/Capture/Curtain/CurtainController.swift",
+    "Features/Settings/Panes/ShelfSettingsPane.swift": "Features/Settings/Panes/CurtainSettingsPane.swift",
+}
+_NAME_ALIASES = [
+    ("ScreenshotShelfController", "ImageCurtainController"),
+    ("Shelf", "Curtain"),
+]
+for (_old_file, _old_name), _ev in list(EVIDENCE.items()):
+    _new_file = _PATH_ALIASES.get(_old_file, _old_file)
+    _new_name = _old_name
+    for _a, _b in _NAME_ALIASES:
+        _new_name = _new_name.replace(_a, _b)
+    if (_new_file, _new_name) != (_old_file, _old_name):
+        EVIDENCE.setdefault((_new_file, _new_name), _ev)
+
 
 def main() -> int:
     strict = "--strict" in sys.argv
@@ -181,6 +417,12 @@ def main() -> int:
     for idx, r in enumerate(led):
         name = r["name"]
         key = (r["file"], r["owner"], r["kind"], name)
+        # v263：文件 / 类型改名后，旧台账行要按新键归组，否则整段被当成
+        # 「源码已无此函数」丢掉，再以占位证据重新加入。
+        key = (_PATH_ALIASES.get(key[0], key[0]), key[1], key[2],
+               _NAME_ALIASES[0][1] if False else key[3])
+        key = (key[0], key[1], key[2],
+               key[3].replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain"))
         if (r["file"], r["owner"], name) in RENAMES:
             name = RENAMES[(r["file"], r["owner"], name)]
             key = (r["file"], r["owner"], r["kind"], name)
@@ -207,7 +449,8 @@ def main() -> int:
                 new_line = min(cand, key=lambda x: abs(x - old_line))
             if new_line != old_line:
                 reanchored += 1
-            r["name"] = name
+            r["name"] = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
+            r["file"] = _PATH_ALIASES.get(r["file"], r["file"])
             r["line"] = str(new_line)
             out.append(r)
 

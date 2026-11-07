@@ -37,7 +37,7 @@ final class SettingsUIState: ObservableObject {
         applyPaneMapping(pane)
     }
 
-    /// 滚到「截图与钉图」里的某一块（0 截图 / 1 钉图 / 2 悬挂架）。
+    /// 滚到「截图与钉图」里的某一块（0 截图 / 1 钉图 / 2 图帘）。
     /// 值没变时先归零再设回：`captureSub` 现在是指令，重复深链也要能重新定位。
     private func jumpCapture(_ index: Int) {
         if captureSub == index {
@@ -58,11 +58,13 @@ final class SettingsUIState: ObservableObject {
         case "tools":                    selection = .category(.tooling); toolingSub = 0
         case "shortcuts":                selection = .category(.tooling); toolingSub = 1
         // v234：截图独立成一级分类
-        // v262：截图 / 钉图 / 悬挂架合并成一页，这里的下标改成「滚到哪一块」
+        // v262：截图 / 钉图 / 图帘合并成一页，这里的下标改成「滚到哪一块」
         case "capture":                  selection = .category(.capture); jumpCapture(0)
         case "pin", "pinSettings":       selection = .category(.capture); jumpCapture(1)
-        // v261：悬挂架（截图后的临时暂存区，默认关闭）
-        case "shelf", "shelfSettings":   selection = .category(.capture); jumpCapture(2)
+        // v261：图帘（截图后的临时暂存区，默认关闭）。
+        // v263 改名：新深链用 curtain，旧 shelf 继续兼容。
+        case "shelf", "shelfSettings", "curtain", "curtainSettings":
+            selection = .category(.capture); jumpCapture(2)
         case "statistics":               selection = .category(.statistics)
         case "about":                    selection = .category(.about)
         case "monitor", "monitorSettings": selection = .monitorSettings
@@ -161,8 +163,15 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
 
         // v41：设置窗改「左侧大侧边栏（186）+ 内容区（754）」→ 940×620。
         // 内容区宽度与原 800×530 版的可用宽度（约 700）基本一致，设置页表单版式无需重排。
+        // 排障探针：`defaults write com.sxyq.frsetnext probe.settingsHeight -float 1000`
+        // 可临时把设置窗拉高，用来一次截完长页面（例如合并后的「截图与钉图」）。
+        // 默认仍是原版的 620，不影响正常使用。
+        // 注意类型：UserDefaults 里存的是 Double，写成 `CGFloat(value(default: 620.0))`
+        // 会让泛型推断成 CGFloat，`as? CGFloat` 失败后静默退回 620（v263 实测踩过）。
+        let probeHeight: Double = Preferences.shared.value("probe.settingsHeight", default: 620.0)
+        let windowHeight = min(max(CGFloat(probeHeight), 620), 1040)
         let win = SettingsWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 940, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 940, height: windowHeight),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -182,8 +191,11 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         // 固定窗口尺寸上下限（原版设置窗 800×562 不可 resize）：
         // 不设时 SwiftUI 的 NSHostingView.updateWindowContentSizeExtremaIfNecessary
         // 会在首次 layout cycle 内请求窗口尺寸变更，同样触发该异常族。
-        win.contentMinSize = NSSize(width: 940, height: 620)
-        win.contentMaxSize = NSSize(width: 940, height: 620)
+        win.contentMinSize = NSSize(width: 940, height: windowHeight)
+        win.contentMaxSize = NSSize(width: 940, height: windowHeight)
+        if windowHeight != 620 {
+            Log.info("settings", "窗口尺寸探针：probe=\(probeHeight) 采用=\(windowHeight)")
+        }
         // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
         win.center()
         // SwiftUI 内容**延后一个 runloop** 装载：窗口创建与 NSHostingView 首次布局

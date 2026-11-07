@@ -14,6 +14,12 @@ import SwiftUI
 // NSGenericException。各页内部滚动由 ScrollView 承担。
 
 struct SettingsRootView: View {
+
+    /// 与 SettingsWindowController 保持一致的窗口高度（默认 620，排障时可拉高）
+    static let probeHeight: CGFloat = {
+        let value: Double = Preferences.shared.value("probe.settingsHeight", default: 620.0)
+        return min(max(CGFloat(value), 620), 1040)
+    }()
     @ObservedObject var state: SettingsUIState
     @ObservedObject private var appearance = AppearanceState.shared
     /// v71：个性化强调色作用于设置窗子树（此前只在主面板生效——用户点强调色
@@ -54,7 +60,9 @@ struct SettingsRootView: View {
         // 根视图尺寸必须等于窗口 contentRect（940×620）：NSHostingView 的 fitting size
         // 会被当作窗口内容尺寸请求——设大 32 会让窗口被撑到 684（2026-10-18 实测）。
         // fullSizeContentView 下 contentView 已含标题栏区域，620 正好铺满。
-        .frame(width: 940, height: 620)
+        // v263：排障探针 `probe.settingsHeight` 与 SettingsWindowController 用同一个值，
+        // 拉高窗口时根视图同步变高，否则 SwiftUI 的固定 620 会把窗口又拽回去。
+        .frame(width: 940, height: Self.probeHeight)
         .background(backgroundColor)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         // 强调色 + Midnight 统一主题入口（个性化改色即生效）
@@ -110,9 +118,9 @@ struct SettingsRootView: View {
                 panePage { TransferDockSettingsPane() }
             case .capture:
                 // v234：截图从「工具与快捷键」拆出来独立成一级。
-                // v261：钉图 / 悬挂架各占一个页签。
+                // v261：钉图 / 图帘各占一个页签。
                 // v262：三页签合并成一个滚动页——用户要的是「截图、钉图、
-                // 悬挂架的设置全都放在同一个设置栏里」，来回切页签找不到东西。
+                // 图帘的设置全都放在同一个设置栏里」，来回切页签找不到东西。
                 CaptureHubPane(scrollTarget: $state.captureSub)
             case .searchAI:
                 segmentedPage(selection: $state.searchAISub, tabs: [

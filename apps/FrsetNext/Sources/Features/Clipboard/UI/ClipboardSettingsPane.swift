@@ -17,6 +17,8 @@ public struct ClipboardSettingsPane: View {
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
     @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
+    /// 快捷键录入后刷新显示（v263）
+    @Stored private var shortcutRevision = 0
 
     /// v200：当前生效的悬浮剪贴板呼出方式（组合键或双击修饰键），显示在「浮动窗」区。
     private var floatingShortcutSummary: String {
@@ -139,13 +141,36 @@ public struct ClipboardSettingsPane: View {
                     }
                     SettingsDivider()
                     // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
-                    // 硬编码「双击 ⌘」已删；这里给出当前生效键，并直达快捷键页修改
-                    // （该页支持组合键录入，也支持 2× 双击修饰键开关）。
+                    // 硬编码「双击 ⌘」已删。
+                    // v263：用户要求「剪贴板也要能像截图一样单独设置快捷键」——
+                    // 这里直接放录入控件，不用再跳去快捷键页（2× 双击模式仍去那页开关）。
                     SettingsRow(title: "呼出快捷键", subtitle: floatingShortcutSummary) {
-                        Button("修改") {
-                            ServiceLocator.settings?.open(pane: "shortcuts")
+                        if AppBootstrap.doubleTapModifier(for: "floatingClipboard") != nil {
+                            Button("修改") {
+                                ServiceLocator.settings?.open(pane: "shortcuts")
+                            }
+                            .controlSize(.small)
+                        } else {
+                            HStack(spacing: 8) {
+                                ShortcutRecorderButton(
+                                    display: AppBootstrap.shortcutBinding(for: "floatingClipboard").map {
+                                        ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
+                                    },
+                                    onCapture: { code, modifiers in
+                                        _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: code, modifiers: modifiers)
+                                        shortcutRevision += 1
+                                    },
+                                    onClear: {
+                                        _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: nil)
+                                        shortcutRevision += 1
+                                    })
+                                    .frame(width: 132)
+                                Button("全部…") {
+                                    ServiceLocator.settings?.open(pane: "shortcuts")
+                                }
+                                .controlSize(.small)
+                            }
                         }
-                        .controlSize(.small)
                     }
                     SettingsDivider()
                     SettingsRow(title: "浮动窗位置", subtitle: "重置为当前屏幕中央") {

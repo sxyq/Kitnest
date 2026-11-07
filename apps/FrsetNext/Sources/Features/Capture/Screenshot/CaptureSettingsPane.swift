@@ -3,10 +3,10 @@ import AppKit
 
 // MARK: - 设置「截图」
 //
-// v262：原来这一页是独立的 `Form` 页签，和「钉图」「悬挂架」三页各占一个 tab。
-// 用户要求「截图、钉图、悬挂架的设置全都放在同一个设置栏里」，于是三页合并成
+// v262：原来这一页是独立的 `Form` 页签，和「钉图」「图帘」三页各占一个 tab。
+// 用户要求「截图、钉图、图帘的设置全都放在同一个设置栏里」，于是三页合并成
 // 一个滚动页（`CaptureHubPane`）。这一页因此从 `Form` 改成 `VStack +
-// SettingsSection`——视觉上和钉图页、悬挂架页同一套，滚动起来才像一页。
+// SettingsSection`——视觉上和钉图页、图帘页同一套，滚动起来才像一页。
 
 public struct CaptureSettingsPane: View {
     @ObservedObject private var manager = ScreenshotManager.shared

@@ -1,30 +1,38 @@
 import SwiftUI
 import AppKit
 
-// MARK: - 截图悬挂架设置（对标 1Capture「拖放架 → 悬挂」）
+// MARK: - 图帘设置（对标 1Capture「拖放架 → 悬挂」）
+//
+// 「图帘」是 v263 起对用户露出的名字：截图后挂在屏幕顶边帘线上的一条临时暂存区。
+// 之前叫「截图悬挂架」，代码里也顺手把 Shelf* 改成 Curtain*（偏好键仍是 shelf.*，
+// 改了会丢老用户设置）。
 //
 // 这一页的第一行必须是**总开关**，而且默认是关的：
 // 关着的时候不会创建任何窗口、不会在后台留任何东西——用户要的是
 // 「可以开、可以关，不是常驻」。其余选项在关闭时置灰，但仍然可见，
 // 让人先看清楚能调什么再决定开不开。
 
-public struct ShelfSettingsPane: View {
+public struct CurtainSettingsPane: View {
 
     @Stored private var enabled: Bool
-    @Stored private var style: ShelfRopeStyle
+    @Stored private var style: CurtainRopeStyle
     @Stored private var duration: Double
     @Stored private var maxCards: Double
     @Stored private var cardWidth: Double
+    @Stored private var railScales: Bool
     @Stored private var attachOnCapture: Bool
     @Stored private var showing: Bool
+    /// 快捷键录入后 self 不会自动刷新，用 revision 抖一下
+    @Stored private var revision = 0
 
     public init() {
-        _enabled = Stored(wrappedValue: ShelfPref.enabled)
-        _style = Stored(wrappedValue: ShelfPref.ropeStyle)
-        _duration = Stored(wrappedValue: ShelfPref.displayDuration)
-        _maxCards = Stored(wrappedValue: Double(ShelfPref.maxCards))
-        _cardWidth = Stored(wrappedValue: Double(ShelfPref.cardWidth))
-        _attachOnCapture = Stored(wrappedValue: ShelfPref.attachOnCapture)
+        _enabled = Stored(wrappedValue: CurtainPref.enabled)
+        _style = Stored(wrappedValue: CurtainPref.ropeStyle)
+        _duration = Stored(wrappedValue: CurtainPref.displayDuration)
+        _maxCards = Stored(wrappedValue: Double(CurtainPref.maxCards))
+        _cardWidth = Stored(wrappedValue: Double(CurtainPref.cardWidth))
+        _railScales = Stored(wrappedValue: CurtainPref.railScalesWithCards)
+        _attachOnCapture = Stored(wrappedValue: CurtainPref.attachOnCapture)
         // 不能在 View.init 里碰 @MainActor 单例，先给 false，onAppear 再同步真值
         _showing = Stored(wrappedValue: false)
     }
@@ -45,17 +53,18 @@ public struct ShelfSettingsPane: View {
         }
         .font(.system(size: 12))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear { showing = ScreenshotShelfController.shared.isShowing }
+        .onAppear { showing = ImageCurtainController.shared.isShowing }
     }
 
     // MARK: 总开关
 
     private var masterSwitch: some View {
-        SettingsSection("悬挂架") {
+        // 外层 CaptureHubPane 已有「图帘」大标题，这里不再重复一次
+        SettingsSection("启用") {
             SettingsGroupBox {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("截图完成后，把图挂到屏幕顶边暫存")
+                        Text("截图完成后，把图挂在屏幕顶边的帘线上暂存")
                             .font(.system(size: 12.5, weight: .medium))
                         Text("关掉时不创建窗口、不占用任何内存；开着也要等第一张截图才会出现。")
                             .font(.system(size: 11))
@@ -67,7 +76,7 @@ public struct ShelfSettingsPane: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: enabled) { ShelfPref.enabled = $0 }
+                        .onChange(of: enabled) { CurtainPref.enabled = $0 }
                 }
                 .padding(.vertical, 8)
 
@@ -80,15 +89,15 @@ public struct ShelfSettingsPane: View {
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                         Spacer(minLength: 8)
-                        Button(showing ? "收起架子" : "试一下") {
-                            ScreenshotShelfController.shared.toggle()
-                            showing = ScreenshotShelfController.shared.isShowing
+                        Button(showing ? "收起图帘" : "试一下") {
+                            ImageCurtainController.shared.toggle()
+                            showing = ImageCurtainController.shared.isShowing
                         }
                         .controlSize(.small)
-                        .disabled(ScreenshotShelfController.shared.items.isEmpty && !showing)
-                        .help(ScreenshotShelfController.shared.items.isEmpty
+                        .disabled(ImageCurtainController.shared.items.isEmpty && !showing)
+                        .help(ImageCurtainController.shared.items.isEmpty
                               ? "先截一张图，架子上有东西才能显示"
-                              : "显示或收起当前的悬挂架")
+                              : "显示或收起当前的图帘")
                     }
                     .padding(.vertical, 7)
                 }
@@ -101,10 +110,10 @@ public struct ShelfSettingsPane: View {
     private var previewSection: some View {
         SettingsSection("预览") {
             SettingsGroupBox {
-                ShelfPreview(style: style, cardWidth: CGFloat(cardWidth))
+                CurtainPreview(style: style, cardWidth: CGFloat(cardWidth))
                     .frame(height: 168)
                     .padding(.vertical, 4)
-                Text("卡片上方是夹子，踩着绳子；鼠标移上去会浮出保存 / 钉图 / 移除。")
+                Text("卡片上方是夹子，踩着帘线；鼠标移上去会浮出保存 / 钉图 / 移除。按住 ⌘ 左右拖可以整条放大。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
@@ -116,18 +125,18 @@ public struct ShelfSettingsPane: View {
     // MARK: 样式
 
     private var ropeSection: some View {
-        SettingsSection("绳子样式") {
+        SettingsSection("帘线样式") {
             SettingsGroupBox {
                 HStack(alignment: .top, spacing: 10) {
-                    ForEach(ShelfRopeStyle.allCases) { option in
+                    ForEach(CurtainRopeStyle.allCases) { option in
                         VisualOptionCard(title: option.title,
                                          previewSize: CGSize(width: 96, height: 58),
                                          selected: style == option,
                                          action: {
                                              style = option
-                                             ShelfPref.ropeStyle = option
+                                             CurtainPref.ropeStyle = option
                                          }) {
-                            ShelfRopeThumb(style: option)
+                            CurtainRopeThumb(style: option)
                         }
                     }
                     Spacer(minLength: 0)
@@ -158,7 +167,7 @@ public struct ShelfSettingsPane: View {
                     }
                     .labelsHidden()
                     .frame(width: 130)
-                    .onChange(of: duration) { ShelfPref.displayDuration = $0 }
+                    .onChange(of: duration) { CurtainPref.displayDuration = $0 }
                     Text("到时只是收起，内容还在")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -173,7 +182,7 @@ public struct ShelfSettingsPane: View {
                     }
                     .labelsHidden()
                     .frame(width: 110)
-                    .onChange(of: maxCards) { ShelfPref.maxCards = Int($0) }
+                    .onChange(of: maxCards) { CurtainPref.maxCards = Int($0) }
                     Text("超出时从最旧的开始挤掉（不删文件）")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -181,13 +190,49 @@ public struct ShelfSettingsPane: View {
 
                 SettingsDivider()
                 row("卡片宽度") {
-                    Slider(value: $cardWidth, in: 72...168, step: 4)
+                    Slider(value: $cardWidth, in: 72...420, step: 4)
                         .frame(width: 200)
-                        .onChange(of: cardWidth) { ShelfPref.cardWidth = CGFloat($0) }
+                        .onChange(of: cardWidth) { CurtainPref.cardWidth = CGFloat($0) }
                     Text("\(Int(cardWidth)) pt")
                         .font(.system(size: 11.5).monospacedDigit())
                         .foregroundStyle(.secondary)
                         .frame(width: 48, alignment: .trailing)
+                }
+                Text("也可以在图帘上按住 ⌘ 左右拖（或 ⌘ + 滚轮）直接放大缩小；屏幕上放不下时会自动收窄。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 6)
+
+                SettingsDivider()
+                row("帘线缩放") {
+                    Toggle("", isOn: $railScales)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .onChange(of: railScales) { CurtainPref.railScalesWithCards = $0 }
+                    Text("开着时卡片变大、帘线/夹子/绳结一起变粗；关掉只放大图片")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                SettingsDivider()
+                row("快捷键") {
+                    ShortcutRecorderButton(
+                        display: AppBootstrap.shortcutBinding(for: "curtainToggle").map {
+                            ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
+                        },
+                        onCapture: { code, modifiers in
+                            _ = AppBootstrap.setShortcut("curtainToggle", keyCode: code, modifiers: modifiers)
+                            revision += 1
+                        },
+                        onClear: {
+                            _ = AppBootstrap.setShortcut("curtainToggle", keyCode: nil)
+                            revision += 1
+                        })
+                        .frame(width: 160)
+                    Text("随时展开 / 收起图帘")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
 
                 SettingsDivider()
@@ -196,8 +241,8 @@ public struct ShelfSettingsPane: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: attachOnCapture) { ShelfPref.attachOnCapture = $0 }
-                    Text("关掉后只能用菜单「显示截图悬挂架」手动唤出")
+                        .onChange(of: attachOnCapture) { CurtainPref.attachOnCapture = $0 }
+                    Text("关掉后只能用菜单「显示图帘」或快捷键手动唤出")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -213,7 +258,7 @@ public struct ShelfSettingsPane: View {
     }
 
     private var footer: some View {
-        Text("悬挂架是一次性暂存区：截图先挂这儿，需要时拖进聊天窗口或编辑器，不需要就等它自己收起。它不替代剪贴板历史和截图文件夹——原文件一直在原处。")
+        Text("图帘是一次性暂存区：截图先挂这儿，需要时拖进聊天窗口或编辑器，不需要就等它自己收起。它不替代剪贴板历史和截图文件夹——原文件一直在原处。")
             .font(.system(size: 11))
             .foregroundStyle(Theme.tertiaryText)
             .fixedSize(horizontal: false, vertical: true)
@@ -234,8 +279,8 @@ public struct ShelfSettingsPane: View {
 
 // MARK: - 预览（绳子 + 两张卡）
 
-private struct ShelfPreview: View {
-    var style: ShelfRopeStyle
+private struct CurtainPreview: View {
+    var style: CurtainRopeStyle
     var cardWidth: CGFloat
 
     var body: some View {
@@ -251,12 +296,12 @@ private struct ShelfPreview: View {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     ZStack(alignment: .top) {
-                        ShelfRopeSample(style: style)
+                        CurtainRopeSample(style: style)
                             .frame(width: cw * 2 + 16 + 44, height: 20)
                             .offset(y: 6)
                         HStack(spacing: 16) {
-                            ShelfCardMock(width: cw, height: ch)
-                            ShelfCardMock(width: cw, height: ch)
+                            CurtainCardMock(width: cw, height: ch)
+                            CurtainCardMock(width: cw, height: ch)
                         }
                         .padding(.top, 2)
                     }
@@ -269,16 +314,16 @@ private struct ShelfPreview: View {
     }
 }
 
-private struct ShelfCardMock: View {
+private struct CurtainCardMock: View {
     var width: CGFloat
     var height: CGFloat
 
-    /// 与 `ShelfMetrics.cornerRadius(for:)` 同一公式，预览才不会和真卡片长得不一样
+    /// 与 `CurtainMetrics.cornerRadius(for:)` 同一公式，预览才不会和真卡片长得不一样
     private var mockRadius: CGFloat { min(max(width * 0.09, 8), 18) }
 
     var body: some View {
         VStack(spacing: 0) {
-            ShelfClip()
+            CurtainClip()
                 .frame(width: 10, height: 13)
             ZStack {
                 RoundedRectangle(cornerRadius: mockRadius, style: .continuous)
@@ -301,7 +346,7 @@ private struct ShelfCardMock: View {
     }
 }
 
-private struct ShelfClip: View {
+private struct CurtainClip: View {
     var body: some View {
         GeometryReader { geo in
             Path { p in
@@ -319,14 +364,14 @@ private struct ShelfClip: View {
 
 // MARK: - 单个绳子样式缩略
 
-private struct ShelfRopeThumb: View {
-    var style: ShelfRopeStyle
+private struct CurtainRopeThumb: View {
+    var style: CurtainRopeStyle
 
     var body: some View {
         ZStack {
             Color(white: 0.22)
             VStack(spacing: 0) {
-                ShelfRopeSample(style: style, sag: 7)
+                CurtainRopeSample(style: style, sag: 7)
                     .frame(height: 14)
                     .padding(.horizontal, 10)
                 Spacer(minLength: 0)
@@ -338,19 +383,19 @@ private struct ShelfRopeThumb: View {
 
 // MARK: - 绳子（设置页里的矢量预览，和窗口里的绘制同源同参数）
 
-private struct ShelfRopeSample: View {
-    var style: ShelfRopeStyle
+private struct CurtainRopeSample: View {
+    var style: CurtainRopeStyle
     var sag: CGFloat = 8
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                ShelfRopeShape(sag: sag)
+                CurtainRopeShape(sag: sag)
                     .stroke(strokeColor, style: strokeStyle)
 
                 if style == .candyCane {
                     // 红白相间：白底上叠红色虚线，跟窗口里同一套画法
-                    ShelfRopeShape(sag: sag)
+                    CurtainRopeShape(sag: sag)
                         .stroke(Color(red: 0.86, green: 0.03, blue: 0.16),
                                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round,
                                                    dash: [3.2, 3.2]))
@@ -408,7 +453,7 @@ private struct ShelfRopeSample: View {
     }
 }
 
-private struct ShelfRopeShape: Shape {
+private struct CurtainRopeShape: Shape {
     var sag: CGFloat
 
     /// 与窗口里的绘制同源：三次贝塞尔、控制点在 1/3 与 2/3。

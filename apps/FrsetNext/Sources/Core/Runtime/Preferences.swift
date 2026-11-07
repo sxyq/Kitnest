@@ -63,15 +63,18 @@ public final class Preferences: ObservableObject {
         public static let captureSound = "capture.soundEnabled"
         public static let captureSavePath = "capture.savePath"
         public static let ocrLanguages = "ocr.languages"
-        // 截图悬挂架（对标 1Capture 的 DDShelf → 悬挂样式）
+        // 图帘（v263 前叫「截图悬挂架」，对标 1Capture 的 DDShelf → 悬挂样式）。
+        // 键名保留 `shelf.*`：改名不能把老用户已经调好的样式/宽度清零。
         /// 总开关：默认关。关着的时候不建窗口、不挂任何东西（用户要求「不是常驻的」）
-        public static let shelfEnabled = "shelf.enabled"
-        public static let shelfRopeStyle = "shelf.ropeStyle"
+        public static let curtainEnabled = "shelf.enabled"
+        public static let curtainRopeStyle = "shelf.ropeStyle"
         /// 展示时长（秒）；0 = 永不自动收起
-        public static let shelfDisplayDuration = "shelf.displayDuration"
-        public static let shelfMaxCards = "shelf.maxCards"
-        public static let shelfAttachOnCapture = "shelf.attachOnCapture"
-        public static let shelfCardWidth = "shelf.cardWidth"
+        public static let curtainDisplayDuration = "shelf.displayDuration"
+        public static let curtainMaxCards = "shelf.maxCards"
+        public static let curtainAttachOnCapture = "shelf.attachOnCapture"
+        public static let curtainCardWidth = "shelf.cardWidth"
+        /// 帘线是否跟随卡片等比放大（v263，默认开）
+        public static let curtainRailScales = "shelf.railScales"
         // AI（09）
         public static let aiProvider = "ai.provider"
         public static let aiModel = "ai.model"

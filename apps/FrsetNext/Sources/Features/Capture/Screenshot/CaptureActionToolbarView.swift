@@ -25,6 +25,8 @@ struct CaptureActionToolbarView: View {
     @Stored private var hovered: String? = nil
     /// 当前展开子项的组（nil = 未展开）
     @Stored private var expanded: String? = nil
+    /// 子项列表内悬停的项（与 hovered 分开：hovered 只表示「哪个组被悬停」）
+    @Stored private var hoveredItem: String? = nil
 
     private let barHeight: CGFloat = 56
 
@@ -44,6 +46,8 @@ struct CaptureActionToolbarView: View {
             if let group = expandedGroup {
                 submenu(group)
                     .padding(.bottom, barHeight + 8)
+                    .padding(.trailing, 12)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
                         removal: .opacity))
@@ -68,6 +72,7 @@ struct CaptureActionToolbarView: View {
         // 面板是单例，上一次的悬停/展开会残留到下一次框选——每次 present 清一次
         .onChange(of: model.presentToken) { _ in
             hovered = nil
+            hoveredItem = nil
             expanded = model.debugExpand
         }
     }
@@ -245,34 +250,58 @@ struct CaptureActionToolbarView: View {
     // MARK: 子项浮层
 
     private func submenu(_ group: CaptureActionGroup) -> some View {
-        HStack(spacing: 4) {
+        // v263：从横排小胶囊改成竖排列表。
+        // 钉住一组有 5 个选项（经典 / 无边框 / 卡片 / 强调 / 挂到图帘），
+        // 横排会超出面板宽度被裁掉；竖排一行一个形态，也正好对上
+        // 用户说的「一个形态一个选项」。
+        VStack(spacing: 0) {
+            // 组名做小标题：竖排列表离触发图标有一段距离，没有标题会分不清是谁的子项
+            Text(group.title)
+                .font(.system(size: 10.5, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 9)
+                .padding(.top, 2)
+                .padding(.bottom, 4)
             ForEach(menuItems(group), id: \.self) { id in
                 if let tool = CaptureActionChain.tool(id: id) {
+                    if id == "pinClassic" || id == "curtain" {
+                        Rectangle()
+                            .fill(Color.primary.opacity(0.08))
+                            .frame(height: 0.5)
+                            .padding(.vertical, 3)
+                    }
                     Button {
                         model.onPick?(id)
                     } label: {
-                        HStack(spacing: 5) {
+                        HStack(spacing: 7) {
                             Image(systemName: tool.systemImage)
                                 .font(.system(size: 11))
+                                .frame(width: 16)
                             Text(tool.title)
                                 .font(.system(size: 11.5))
                                 .lineLimit(1)
+                            Spacer(minLength: 0)
                         }
                         .foregroundStyle(Color.primary.opacity(0.82))
                         .padding(.horizontal, 8)
                         .frame(height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                .fill(Color.primary.opacity(0.06))
+                                .fill(hoveredItem == id ? Color.primary.opacity(0.07) : Color.clear)
                         )
                         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .focusable(false)
+                    .onHover { inside in
+                        hoveredItem = inside ? id : (hoveredItem == id ? nil : hoveredItem)
+                    }
                 }
             }
         }
         .padding(5)
+        .frame(width: 168)
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))

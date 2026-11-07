@@ -1,50 +1,64 @@
 import AppKit
 import QuartzCore
 
-// MARK: - 截图悬挂架 · 视图与窗口
+// MARK: - 图帘 · 视图与窗口
 //
 // 结构（自下而上）：
-//   ShelfPanel（无边框、nonactivating、不抢焦点、不进截图）
-//     └ ShelfCanvasView（flipped，负责排版）
-//         ├ ShelfRopeView（整条绳子，纯 CoreGraphics 画，四种样式）
-//         └ ShelfCardView × N（夹子 + 缩略图 + 悬停工具条 + 拖出）
+//   CurtainPanel（无边框、nonactivating、不抢焦点、不进截图）
+//     └ CurtainCanvasView（flipped，负责排版）
+//         ├ CurtainRopeView（整条绳子，纯 CoreGraphics 画，四种样式）
+//         └ CurtainCardView × N（夹子 + 缩略图 + 悬停工具条 + 拖出）
 //
 // 之所以不用 NSCollectionView / SwiftUI List：卡片最多十几张、尺寸各异、
 // 还要自己做夹子和摆动，用 NSView 直接摆位比套一层布局系统更省，也更好控帧率。
 
 // MARK: - 尺寸常量
+//
+// v263：全部尺寸从「写死」改成「按 railScale 缩放」。
+// 用户要求「放大的时候，它需要不止放大图片，那个窗帘的线也需要可以放大」——
+// 卡片宽度是主变量，railScale = 卡片宽 / 140，帘线、夹子、绳结、间距一起变。
+// 关掉「帘线跟随缩放」时 railScale 恒为 1，只有卡片变大。
 
-enum ShelfMetrics {
-    /// 绳子区域高度（也是夹子能露出来的高度）
-    static let ropeHeight: CGFloat = 28
-    /// 绳端距视图顶的距离。1Capture 反汇编：`y = height - 12`
-    static let ropeInset: CGFloat = 12
+enum CurtainMetrics {
+    /// 帘线区域高度（也是夹子能露出来的高度）
+    static let ropeHeightBase: CGFloat = 28
+    /// 线端距视图顶的距离。1Capture 反汇编：`y = height - 12`
+    static let ropeInsetBase: CGFloat = 12
     /// 下垂量系数。1Capture：`sag = min(width * 0.018, 28)`
     static let sagRatio: CGFloat = 0.018
-    /// 下垂量上限
-    static let sagMax: CGFloat = 28
-    /// 绳子两端留给绳结的距离
-    static let ropeEndInset: CGFloat = 5
+    /// 下垂量上限（1× 时）
+    static let sagMaxBase: CGFloat = 28
+    /// 线两端留给绳结的距离
+    static let ropeEndInsetBase: CGFloat = 5
     /// 卡片之间的水平间距
-    static let gap: CGFloat = 16
+    static let gapBase: CGFloat = 16
     /// 左右留白
-    static let padding: CGFloat = 22
+    static let paddingBase: CGFloat = 22
     /// 夹子高度
-    static let clipHeight: CGFloat = 20
-    /// 卡片圆角（按卡片宽度自适应，见 `cornerRadius(for:)`）
+    static let clipHeightBase: CGFloat = 20
+    /// 卡片圆角（按卡片宽度自适应，见 `cornerRadius(for:scale:)`）
     static let cardRadiusMin: CGFloat = 8
     static let cardRadiusMax: CGFloat = 25
     /// 窗口底部余量（给投影）
-    static let bottomInset: CGFloat = 12
+    static let bottomInsetBase: CGFloat = 12
+
+    static func ropeHeight(_ scale: CGFloat) -> CGFloat { ropeHeightBase * scale }
+    static func ropeInset(_ scale: CGFloat) -> CGFloat { ropeInsetBase * scale }
+    static func sagMax(_ scale: CGFloat) -> CGFloat { sagMaxBase * scale }
+    static func ropeEndInset(_ scale: CGFloat) -> CGFloat { max(ropeEndInsetBase * scale, 3) }
+    static func gap(_ scale: CGFloat) -> CGFloat { gapBase * scale }
+    static func padding(_ scale: CGFloat) -> CGFloat { paddingBase * scale }
+    static func clipHeight(_ scale: CGFloat) -> CGFloat { clipHeightBase * scale }
+    static func bottomInset(_ scale: CGFloat) -> CGFloat { bottomInsetBase * scale }
 
     /// 卡片圆角。
     ///
     /// 1Capture 在 `CGPathCreateWithRoundedRect(rect, 25, 25, nil)` 里写死 25pt，
     /// 并且用 `kCACornerCurveContinuous`（连续曲率，不是圆弧）。
-    /// 我们的卡片宽度可调（72–168），直接照抄 25 在 72pt 宽时会把角吃掉一半，
-    /// 所以按比例取：宽度 × 0.22，上限 25、下限 8。
-    static func cornerRadius(for cardWidth: CGFloat) -> CGFloat {
-        min(max(cardWidth * 0.22, cardRadiusMin), cardRadiusMax)
+    /// 我们的卡片宽度可调（72–420），直接照抄 25 在 72pt 宽时会把角吃掉一半，
+    /// 所以按比例取：宽度 × 0.16，下限 8、上限 25，再乘缩放系数。
+    static func cornerRadius(for cardWidth: CGFloat, scale: CGFloat) -> CGFloat {
+        min(max(cardWidth * 0.16, cardRadiusMin * scale), cardRadiusMax * scale)
     }
 }
 
@@ -60,16 +74,20 @@ enum ShelfMetrics {
 /// ```
 /// 控制点落在 1/3 与 2/3，所以 x(t) = width · t 是**精确线性**的，
 /// 这让「按 x 反解 t」不需要解三次方程。
-struct ShelfRopeGeometry {
+struct CurtainRopeGeometry {
     let width: CGFloat
-    /// 绳端 y（视图坐标，已翻转为向下为正）
+    /// 线端 y（视图坐标，已翻转为向下为正）
     let y: CGFloat
     let sag: CGFloat
+    /// 帘线缩放系数（与卡片宽度联动，见 `CurtainPref.railScale`）
+    let scale: CGFloat
 
-    init(width: CGFloat, ropeTop: CGFloat) {
+    init(width: CGFloat, ropeTop: CGFloat, scale: CGFloat = 1) {
         self.width = max(width, 1)
         self.y = ropeTop
-        self.sag = min(max(width, 1) * ShelfMetrics.sagRatio, ShelfMetrics.sagMax)
+        self.scale = max(scale, 0.5)
+        self.sag = min(max(width, 1) * CurtainMetrics.sagRatio,
+                       CurtainMetrics.sagMax(self.scale))
     }
 
     private func t(atX x: CGFloat) -> CGFloat {
@@ -100,25 +118,35 @@ struct ShelfRopeGeometry {
 
 // MARK: - 卡片
 
-/// 一张挂在绳上的截图。
+/// 一张挂在帘线上的截图。
 ///
 /// 交互：
 /// - 单击 → 复制图片到剪贴板（最常用，所以给左键）
 /// - 拖 → 拖出成文件（可以拖进 Finder / 聊天窗口 / 编辑器）
+/// - **按住 ⌘ 左右拖 → 放大 / 缩小整条图帘**（v263，连同帘线一起缩放）
 /// - 悬停 → 右上角出现关闭，底部出现「保存 / 编辑」两个小按钮
 /// - 右键 → 菜单（复制 / 保存到… / 在 Finder 中显示 / 钉在屏幕上 / 移除）
-final class ShelfCardView: NSView {
+final class CurtainCardView: NSView {
 
-    let item: ShelfItem
-    /// 卡片本体尺寸（不含夹子）
-    let cardSize: CGSize
+    let item: CurtainItem
+    /// 卡片本体尺寸（不含夹子）。v263 起可变——⌘ 拖动缩放时原地更新，不重建视图。
+    private(set) var cardSize: CGSize
+    private(set) var railScale: CGFloat
     private let thumbnail: CGImage?
     private var tracking: NSTrackingArea?
     private var hovered = false
     private var mouseDownPoint: NSPoint?
     private var didStartDrag = false
+    /// 本次按下时是否按着 ⌘（= 缩放模式，不拖出文件）
+    private var resizeMode = false
+    /// 用**屏幕坐标**记上一次的 x，不能用视图坐标：
+    /// 窗口会随着放大整体变宽、卡片左边缘跟着左移，同一个屏幕点换算到视图里
+    /// x 会越变越大，形成「越拖越快」的正反馈（v263 实测一拖就冲到 420 上限）。
+    private var lastResizeScreenX: CGFloat = 0
+    /// 缩放过程中用低插值，减少大图重绘成本；结束再恢复高质量
+    private(set) var isLiveResizing = false
     /// 这张卡挂在绳子上应该歪多少（弧度，正 = 顺时针）。
-    /// 由 `ShelfCanvasView` 按绳线在该 x 处的斜率算出来。
+    /// 由 `CurtainCanvasView` 按帘线在该 x 处的斜率算出来。
     var ropeTilt: CGFloat = 0 {
         didSet { if abs(oldValue - ropeTilt) > 0.0001 { needsDisplay = true } }
     }
@@ -129,17 +157,24 @@ final class ShelfCardView: NSView {
     private let saveButton = NSButton(frame: .zero)
     private let pinButton = NSButton(frame: .zero)
 
-    var onRemove: ((ShelfItem) -> Void)?
-    var onSave: ((ShelfItem) -> Void)?
-    var onPin: ((ShelfItem) -> Void)?
+    var onRemove: ((CurtainItem) -> Void)?
+    var onSave: ((CurtainItem) -> Void)?
+    var onPin: ((CurtainItem) -> Void)?
+    /// ⌘ 拖动缩放：每次鼠标事件回调「相对上一次的 x 位移」
+    var onResizeStep: ((CGFloat) -> Void)?
+    /// 缩放结束（鼠标抬起 / 滚轮停下）
+    var onResizeEnd: (() -> Void)?
 
-    init(item: ShelfItem, cardSize: CGSize, thumbnail: CGImage?) {
+    private var clipHeight: CGFloat { CurtainMetrics.clipHeight(railScale) }
+
+    init(item: CurtainItem, cardSize: CGSize, railScale: CGFloat, thumbnail: CGImage?) {
         self.item = item
         self.cardSize = cardSize
+        self.railScale = railScale
         self.thumbnail = thumbnail
         super.init(frame: NSRect(x: 0, y: 0,
                                  width: cardSize.width,
-                                 height: ShelfMetrics.clipHeight + cardSize.height))
+                                 height: CurtainMetrics.clipHeight(railScale) + cardSize.height))
         wantsLayer = true
         layer?.masksToBounds = false
         // 卡片投影。参数取自 1Capture HangingShelfCard.initWithFrame 的指令：
@@ -158,6 +193,17 @@ final class ShelfCardView: NSView {
 
     override var isFlipped: Bool { true }
 
+    /// 原地改尺寸：只改 frame / 按钮位置并重绘，不重建视图、不重挂动画。
+    /// ⌘ 拖动时每帧都会走这里，所以这里**不能**碰缩略图解码或窗口层级。
+    func update(cardSize: CGSize, railScale: CGFloat, live: Bool) {
+        self.cardSize = cardSize
+        self.railScale = railScale
+        self.isLiveResizing = live
+        setFrameSize(NSSize(width: cardSize.width, height: CurtainMetrics.clipHeight(railScale) + cardSize.height))
+        layoutButtons()
+        needsDisplay = true
+    }
+
     // MARK: 绘制
 
     override func draw(_ dirtyRect: NSRect) {
@@ -166,7 +212,7 @@ final class ShelfCardView: NSView {
         // 整张卡（含夹子）绕**夹子**旋转：它挂在绳上是跟着绳子的切线歪的。
         // 锚点取夹子中心，不取卡片中心——只有夹子被绳子约束住，卡片是垂下来的。
         if abs(ropeTilt) > 0.0001 {
-            let anchor = CGPoint(x: bounds.midX, y: ShelfMetrics.clipHeight / 2)
+            let anchor = CGPoint(x: bounds.midX, y: clipHeight / 2)
             ctx.saveGState()
             ctx.translateBy(x: anchor.x, y: anchor.y)
             ctx.rotate(by: ropeTilt)
@@ -176,9 +222,9 @@ final class ShelfCardView: NSView {
             if abs(ropeTilt) > 0.0001 { ctx.restoreGState() }
         }
 
-        let radius = ShelfMetrics.cornerRadius(for: cardSize.width)
+        let radius = CurtainMetrics.cornerRadius(for: cardSize.width, scale: railScale)
         let cardRect = NSRect(x: 0,
-                              y: ShelfMetrics.clipHeight,
+                              y: clipHeight,
                               width: cardSize.width,
                               height: cardSize.height)
         let path = CGPath(roundedRect: cardRect,
@@ -208,6 +254,9 @@ final class ShelfCardView: NSView {
                                   y: cardRect.midY - drawH / 2,
                                   width: drawW, height: drawH)
             ctx.saveGState()
+            // 缩放过程中用低插值：420pt 宽 × 8 张卡时，高质量重采样会吃掉主线程；
+            // 松手后 `isLiveResizing=false` 再按高质量重绘一次。
+            ctx.interpolationQuality = isLiveResizing ? .low : .high
             ctx.translateBy(x: 0, y: cardRect.minY + cardRect.maxY)
             ctx.scaleBy(x: 1, y: -1)
             ctx.draw(thumbnail, in: drawRect)
@@ -234,7 +283,7 @@ final class ShelfCardView: NSView {
 
         // 描边：双色（外深内浅），保证在任何桌面背景上都有边界
         ctx.addPath(path)
-        ctx.setLineWidth(hovered ? 1.5 : 0.8)
+        ctx.setLineWidth((hovered ? 1.5 : 0.8) * railScale)
         if hovered {
             ctx.setStrokeColor(Theme.accentNS.withAlphaComponent(0.9).cgColor)
         } else {
@@ -244,12 +293,13 @@ final class ShelfCardView: NSView {
 
         if !hovered {
             // 内侧一道极淡的白边，深色桌面上能把卡片从背景里「托」起来
-            let inner = CGPath(roundedRect: cardRect.insetBy(dx: 0.6, dy: 0.6),
+            let inset = 0.6 * railScale
+            let inner = CGPath(roundedRect: cardRect.insetBy(dx: inset, dy: inset),
                                cornerWidth: radius,
                                cornerHeight: radius,
                                transform: nil)
             ctx.addPath(inner)
-            ctx.setLineWidth(0.6)
+            ctx.setLineWidth(0.6 * railScale)
             ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.22))
             ctx.strokePath()
         }
@@ -268,24 +318,25 @@ final class ShelfCardView: NSView {
                           locations: locations)
     }
 
-    /// 夹子：一个小梯形压在绳子与卡片之间，让人相信「这张是挂在绳上的」
+    /// 夹子：一个小梯形压在帘线与卡片之间，让人相信「这张是挂在帘线上的」
     private func drawClip(_ ctx: CGContext, isDark: Bool) {
-        let w: CGFloat = 12
+        let s = railScale
+        let w: CGFloat = 12 * s
         let x = bounds.midX - w / 2
-        let top: CGFloat = 4
-        let bottom = ShelfMetrics.clipHeight + 2
+        let top: CGFloat = 4 * s
+        let bottom = clipHeight + 2 * s
 
         let clip = CGMutablePath()
-        clip.move(to: CGPoint(x: x + 1.5, y: top))
-        clip.addLine(to: CGPoint(x: x + w - 1.5, y: top))
+        clip.move(to: CGPoint(x: x + 1.5 * s, y: top))
+        clip.addLine(to: CGPoint(x: x + w - 1.5 * s, y: top))
         clip.addLine(to: CGPoint(x: x + w, y: bottom))
         clip.addLine(to: CGPoint(x: x, y: bottom))
         clip.closeSubpath()
 
         ctx.saveGState()
         // 夹子投影，让它和卡片有前后关系
-        ctx.setShadow(offset: CGSize(width: 0, height: 1),
-                      blur: 2.5,
+        ctx.setShadow(offset: CGSize(width: 0, height: 1 * s),
+                      blur: 2.5 * s,
                       color: CGColor(gray: 0, alpha: 0.28))
         ctx.addPath(clip)
         ctx.setFillColor(isDark
@@ -296,9 +347,9 @@ final class ShelfCardView: NSView {
 
         // 夹口的一道暗线
         ctx.setStrokeColor(CGColor(gray: 0, alpha: 0.22))
-        ctx.setLineWidth(1)
-        ctx.move(to: CGPoint(x: x + 2.5, y: top + 3.5))
-        ctx.addLine(to: CGPoint(x: x + w - 2.5, y: top + 3.5))
+        ctx.setLineWidth(1 * s)
+        ctx.move(to: CGPoint(x: x + 2.5 * s, y: top + 3.5 * s))
+        ctx.addLine(to: CGPoint(x: x + w - 2.5 * s, y: top + 3.5 * s))
         ctx.strokePath()
     }
 
@@ -346,12 +397,14 @@ final class ShelfCardView: NSView {
     /// 这里再加一次会变成双倍倾角。
     func startSway() {
         guard let layer, !hovered, window != nil else { return }
+        // 已经在摆就别重挂：设置页拖滑块会频繁 rebuild，重挂会让整排卡片「跳」一下
+        if layer.animation(forKey: Self.swayKey) != nil { return }
         layer.removeAnimation(forKey: Self.swayKey)
         let amplitude = 0.7 * Double.pi / 180
         let h = bounds.height
         let swing = CABasicAnimation(keyPath: "transform")
-        swing.fromValue = NSValue(caTransform3D: ShelfCanvasView.topPivot(angle: -amplitude, height: h))
-        swing.toValue = NSValue(caTransform3D: ShelfCanvasView.topPivot(angle: amplitude, height: h))
+        swing.fromValue = NSValue(caTransform3D: CurtainCanvasView.topPivot(angle: -amplitude, height: h))
+        swing.toValue = NSValue(caTransform3D: CurtainCanvasView.topPivot(angle: amplitude, height: h))
         swing.duration = 3.4 + (swayPhase * 0.37).truncatingRemainder(dividingBy: 0.9)
         swing.autoreverses = true
         swing.repeatCount = .infinity
@@ -372,7 +425,7 @@ final class ShelfCardView: NSView {
         if window == nil { stopSway() } else { startSway() }
     }
 
-    private static let swayKey = "shelf.sway"
+    private static let swayKey = "curtain.sway"
 
     // MARK: 按钮
 
@@ -380,15 +433,29 @@ final class ShelfCardView: NSView {
         configure(closeButton, symbol: "xmark", action: #selector(removeTapped))
         configure(saveButton, symbol: "square.and.arrow.down", action: #selector(saveTapped))
         configure(pinButton, symbol: "pin", action: #selector(pinTapped))
-
-        closeButton.frame = NSRect(x: cardSize.width - 22, y: ShelfMetrics.clipHeight + 5,
-                                   width: 17, height: 17)
-        saveButton.frame = NSRect(x: 6, y: ShelfMetrics.clipHeight + cardSize.height - 23,
-                                  width: 17, height: 17)
-        pinButton.frame = NSRect(x: 27, y: ShelfMetrics.clipHeight + cardSize.height - 23,
-                                 width: 17, height: 17)
-
+        layoutButtons()
         setButtonsHidden(true)
+    }
+
+    /// 按钮位置跟着卡片尺寸走（⌘ 缩放时每帧调用）
+    private func layoutButtons() {
+        let s = railScale
+        let side = 17 * s
+        let inset = 5 * s
+        let left = 6 * s
+        closeButton.frame = NSRect(x: cardSize.width - side - inset,
+                                   y: clipHeight + inset,
+                                   width: side, height: side)
+        saveButton.frame = NSRect(x: left,
+                                  y: clipHeight + cardSize.height - side - inset,
+                                  width: side, height: side)
+        pinButton.frame = NSRect(x: left + side + 4 * s,
+                                 y: clipHeight + cardSize.height - side - inset,
+                                 width: side, height: side)
+        for button in [closeButton, saveButton, pinButton] {
+            button.layer?.cornerRadius = 8.5 * s
+            button.imageScaling = .scaleProportionallyDown
+        }
     }
 
     private func configure(_ button: NSButton, symbol: String, action: Selector) {
@@ -413,27 +480,62 @@ final class ShelfCardView: NSView {
     @objc private func saveTapped()   { onSave?(item) }
     @objc private func pinTapped()    { onPin?(item) }
 
-    // MARK: 点击 / 拖拽
+    // MARK: 点击 / 拖拽 / ⌘ 缩放
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
         mouseDownPoint = convert(event.locationInWindow, from: nil)
         didStartDrag = false
+        // ⌘ + 拖动 = 调图帘大小。这个组合不能和「拖出文件」共用：
+        // 拖出是用户最常用的动作，缩放必须显式按住修饰键才进入。
+        resizeMode = event.modifierFlags.contains(.command)
+        lastResizeScreenX = NSEvent.mouseLocation.x
+        if resizeMode {
+            stopSway()
+            NSCursor.resizeLeftRight.push()
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let origin = mouseDownPoint, !didStartDrag else { return }
         let p = convert(event.locationInWindow, from: nil)
+        if resizeMode {
+            let x = NSEvent.mouseLocation.x
+            let delta = x - lastResizeScreenX
+            lastResizeScreenX = x
+            if abs(delta) > 0.01 { onResizeStep?(delta) }
+            return
+        }
+        guard let origin = mouseDownPoint, !didStartDrag else { return }
         guard hypot(p.x - origin.x, p.y - origin.y) > 4 else { return }
         didStartDrag = true
         beginDrag(with: event)
     }
 
     override func mouseUp(with event: NSEvent) {
-        defer { mouseDownPoint = nil }
+        defer {
+            mouseDownPoint = nil
+            if resizeMode { NSCursor.pop(); resizeMode = false }
+        }
+        if resizeMode {
+            onResizeEnd?()
+            startSway()
+            return
+        }
         guard !didStartDrag else { return }
         copyToPasteboard()
+    }
+
+    /// ⌘ + 滚轮也能缩放（触控板双指 + ⌘ 比按住拖动更省力）
+    override func scrollWheel(with event: NSEvent) {
+        guard event.modifierFlags.contains(.command) else {
+            super.scrollWheel(with: event)
+            return
+        }
+        let delta = event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.6 : 2.0)
+        guard abs(delta) > 0.01 else { return }
+        onResizeStep?(delta)
+        onResizeEnd?()
     }
 
     /// 复制 = 同时给 PNG 和文件 URL，粘贴到聊天窗口是图片，粘到 Finder 是文件
@@ -471,8 +573,24 @@ final class ShelfCardView: NSView {
         menu.addItem(withTitle: "在 Finder 中显示", action: #selector(revealInFinder), keyEquivalent: "").target = self
         menu.addItem(withTitle: "钉在屏幕上", action: #selector(pinTapped), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "从架上移除", action: #selector(removeTapped), keyEquivalent: "").target = self
+        // v263：不按住 ⌘ 也能改大小——右键给两个确定性的档位
+        let bigger = menu.addItem(withTitle: "放大图帘", action: #selector(zoomIn), keyEquivalent: "")
+        bigger.target = self
+        let smaller = menu.addItem(withTitle: "缩小图帘", action: #selector(zoomOut), keyEquivalent: "")
+        smaller.target = self
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "从图帘移除", action: #selector(removeTapped), keyEquivalent: "").target = self
         return menu
+    }
+
+    @objc private func zoomIn() {
+        onResizeStep?(40)
+        onResizeEnd?()
+    }
+
+    @objc private func zoomOut() {
+        onResizeStep?(-40)
+        onResizeEnd?()
     }
 
     @objc private func copyFromMenu() { copyToPasteboard() }
@@ -484,26 +602,29 @@ final class ShelfCardView: NSView {
 
 // MARK: - 拖拽源
 
-extension ShelfCardView: NSDraggingSource {
+extension CurtainCardView: NSDraggingSource {
     func draggingSession(_ session: NSDraggingSession,
                          sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
     }
 }
 
-// MARK: - 绳子
+// MARK: - 帘线
 
-/// 整条绳子。四种样式全部用 CoreGraphics 画，不引入 CAEmitterLayer。
+/// 整条帘线。四种样式全部用 CoreGraphics 画，不引入 CAEmitterLayer。
 ///
 /// 几何与描边参数来自 1Capture `HangingShelfRopeView` 的反汇编：
 /// - 三次贝塞尔，控制点在 1/3 与 2/3（不是二次贝塞尔的单控制点）
 /// - 下垂量按**宽度**算：`min(width * 0.018, 28)`，与挂了几张无关
-/// - 绳端距视图顶 12pt
+/// - 线端距视图顶 12pt
 /// - 每道描边都带 `shadow(黑 28%, offset(0,1), blur 2)`——靠阴影勾轮廓，
-///   而不是靠双色描边。双色看起来是两条平行线，不像一根绳。
-final class ShelfRopeView: NSView {
+///   而不是靠双色描边。双色看起来是两条平行线，不像一根线。
+///
+/// v263：所有数值再乘 `geometry.scale`。卡片放大时线也变粗、下垂更深，
+/// 否则 420pt 的卡片挂在一根 2pt 细线上，视觉上像贴纸而不是挂件。
+final class CurtainRopeView: NSView {
 
-    var style: ShelfRopeStyle = .classic {
+    var style: CurtainRopeStyle = .classic {
         didSet { needsDisplay = true }
     }
     /// 卡片中心的 x 坐标（保留给命中/调试；几何本身按宽度算，与张数无关）
@@ -511,54 +632,57 @@ final class ShelfRopeView: NSView {
         didSet { needsDisplay = true }
     }
     /// 由画布注入，保证卡片算倾斜用的曲线和这里画的是同一条
-    var geometry: ShelfRopeGeometry? {
+    var geometry: CurtainRopeGeometry? {
         didSet { needsDisplay = true }
     }
 
     override var isFlipped: Bool { true }
 
-    private var currentGeometry: ShelfRopeGeometry {
-        geometry ?? ShelfRopeGeometry(width: bounds.width, ropeTop: ShelfMetrics.ropeInset)
+    private var currentGeometry: CurtainRopeGeometry {
+        geometry ?? CurtainRopeGeometry(width: bounds.width,
+                                        ropeTop: CurtainMetrics.ropeInset(1),
+                                        scale: 1)
     }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext, bounds.width > 4 else { return }
         let g = currentGeometry
         let path = ropePath(g)
+        let s = g.scale
 
         ctx.saveGState()
         // 主绳的投影：这是「任何桌面都看得见」的真正保障。
         // flipped 坐标里 +y 是向下，所以把阴影压到绳子下方。
         // 实测 0.28/2pt 在浅色桌面上几乎看不见（白线叠白底），
         // 加深到 0.46/2.5pt，浅底靠暗晕勾边、深底靠白线本身。
-        ctx.setShadow(offset: CGSize(width: 0, height: 1),
-                      blur: 2.5,
+        ctx.setShadow(offset: CGSize(width: 0, height: 1 * s),
+                      blur: 2.5 * s,
                       color: CGColor(gray: 0, alpha: 0.46))
 
         switch style {
         case .classic:
-            stroke(ctx, path, width: 2.0, gray: 0.72, alpha: 0.95)
+            stroke(ctx, path, width: 2.0 * s, gray: 0.72, alpha: 0.95)
             // 细芯：1Capture 用 0.45pt 的同色半透明线叠在中间，
             // 让绳子有「芯」，不是一根均匀的带子。
             // 实测单靠 0.62 白的单道线，在浅色桌面上会整条糊掉。
             clearShadow(ctx)
-            stroke(ctx, path, width: 0.45, gray: 0.85, alpha: 0.55)
+            stroke(ctx, path, width: 0.45 * s, gray: 0.85, alpha: 0.55)
 
         case .candyCane:
-            stroke(ctx, path, width: 3.0, gray: 0.997, alpha: 1.0)
+            stroke(ctx, path, width: 3.0 * s, gray: 0.997, alpha: 1.0)
             clearShadow(ctx)
             // 红白相间 = 白底上叠红色虚线，圆头线帽让红段变成糖果条纹
-            dashed(ctx, path, width: 3.0,
+            dashed(ctx, path, width: 3.0 * s,
                    color: CGColor(red: 0.86, green: 0.03, blue: 0.16, alpha: 1),
-                   pattern: [3.2, 3.2])
+                   pattern: [3.2 * s, 3.2 * s])
 
         case .lights:
-            stroke(ctx, path, width: 1.4, gray: 0.72, alpha: 0.95)
+            stroke(ctx, path, width: 1.4 * s, gray: 0.72, alpha: 0.95)
             clearShadow(ctx)
             drawLights(ctx, g)
 
         case .snow:
-            stroke(ctx, path, width: 2.0, gray: 0.72, alpha: 0.95)
+            stroke(ctx, path, width: 2.0 * s, gray: 0.72, alpha: 0.95)
             clearShadow(ctx)
             drawSnow(ctx, g)
         }
@@ -571,12 +695,12 @@ final class ShelfRopeView: NSView {
 
     /// 三次贝塞尔：起点 (inset, y)，终点 (w-inset, y)，
     /// 控制点落在 1/3 与 2/3，所以 x(t) 仍是线性——
-    /// `ShelfRopeGeometry` 正是靠这一点直接按 x 反解 t。
+    /// `CurtainRopeGeometry` 正是靠这一点直接按 x 反解 t。
     ///
     /// 两端各留 5pt 是给绳结的：原来绳子直接顶到窗口边缘，视觉上是
     /// 「一根线被窗口切断」，而不是「一段绳子的两端」。
-    private func ropePath(_ g: ShelfRopeGeometry) -> CGPath {
-        let inset = ShelfMetrics.ropeEndInset
+    private func ropePath(_ g: CurtainRopeGeometry) -> CGPath {
+        let inset = CurtainMetrics.ropeEndInset(g.scale)
         let w = max(g.width - inset * 2, 1)
         let path = CGMutablePath()
         path.move(to: CGPoint(x: inset, y: g.y))
@@ -588,14 +712,15 @@ final class ShelfRopeView: NSView {
 
     /// 两端的绳结：一个实心小圆 + 一圈暗描边。
     /// 它的作用不是装饰，是把「线断了」读成「绳系住了」。
-    private func drawKnots(_ ctx: CGContext, _ g: ShelfRopeGeometry) {
-        let r: CGFloat = 2.8
-        for cx in [ShelfMetrics.ropeEndInset, g.width - ShelfMetrics.ropeEndInset] {
+    private func drawKnots(_ ctx: CGContext, _ g: CurtainRopeGeometry) {
+        let r: CGFloat = 2.8 * g.scale
+        let inset = CurtainMetrics.ropeEndInset(g.scale)
+        for cx in [inset, g.width - inset] {
             let rect = CGRect(x: cx - r, y: g.y - r, width: r * 2, height: r * 2)
             ctx.setFillColor(CGColor(gray: 0.78, alpha: 0.98))
             ctx.fillEllipse(in: rect)
             ctx.setStrokeColor(CGColor(gray: 0, alpha: 0.34))
-            ctx.setLineWidth(0.6)
+            ctx.setLineWidth(0.6 * g.scale)
             ctx.strokeEllipse(in: rect)
         }
     }
@@ -628,19 +753,19 @@ final class ShelfRopeView: NSView {
 
     // MARK: 装饰
 
-    /// 圣诞彩灯：沿绳线每 24pt 一颗，四色循环。
+    /// 圣诞彩灯：沿帘线每 24pt 一颗，四色循环。
     /// 外圈用低透明度圆做光晕——比真 shadow 便宜得多，也够像。
-    private func drawLights(_ ctx: CGContext, _ g: ShelfRopeGeometry) {
+    private func drawLights(_ ctx: CGContext, _ g: CurtainRopeGeometry) {
         let palette: [CGColor] = [
             NSColor.systemYellow.cgColor,
             NSColor.systemPink.cgColor,
             NSColor.systemTeal.cgColor,
             NSColor.systemOrange.cgColor,
         ]
-        for (i, point) in samplePoints(g, spacing: 24).enumerated() {
-            let r: CGFloat = 2.1
-            // 灯是「垂下来」的：沿绳子再往下 2pt，挂在绳下而不是压在绳上
-            let c = CGPoint(x: point.x, y: point.y + 2.2)
+        for (i, point) in samplePoints(g, spacing: 24 * g.scale).enumerated() {
+            let r: CGFloat = 2.1 * g.scale
+            // 灯是「垂下来」的：沿帘线再往下 2pt，挂在绳下而不是压在绳上
+            let c = CGPoint(x: point.x, y: point.y + 2.2 * g.scale)
             ctx.setFillColor(palette[i % palette.count].copy(alpha: 0.20) ?? palette[i % palette.count])
             ctx.fillEllipse(in: CGRect(x: c.x - r * 2.4, y: c.y - r * 2.4,
                                        width: r * 4.8, height: r * 4.8))
@@ -654,10 +779,10 @@ final class ShelfRopeView: NSView {
     ///
     /// 球径 1.3–3.2pt、间距 6.5pt：间距比球径稍大一点才看得出是「一坨一坨的雪」，
     /// 5pt 间距配 1–2.5pt 球径会连成一条珠子，像霜不像雪。
-    private func drawSnow(_ ctx: CGContext, _ g: ShelfRopeGeometry) {
-        for (i, point) in samplePoints(g, spacing: 6.5).enumerated() {
+    private func drawSnow(_ ctx: CGContext, _ g: CurtainRopeGeometry) {
+        for (i, point) in samplePoints(g, spacing: 6.5 * g.scale).enumerated() {
             let n = CGFloat((i &* 2654435761) % 100) / 100
-            let r = 1.3 + n * 1.9
+            let r = (1.3 + n * 1.9) * g.scale
             ctx.setFillColor(CGColor(gray: 1, alpha: 0.90))
             // flipped 坐标里「上沿」是 y 更小
             ctx.fillEllipse(in: CGRect(x: point.x - r, y: point.y - r * 1.9,
@@ -665,8 +790,8 @@ final class ShelfRopeView: NSView {
         }
     }
 
-    /// 沿绳线按近似等距取样（按 x 均匀取样，再用三次贝塞尔求 y）
-    private func samplePoints(_ g: ShelfRopeGeometry, spacing: CGFloat) -> [CGPoint] {
+    /// 沿帘线按近似等距取样（按 x 均匀取样，再用三次贝塞尔求 y）
+    private func samplePoints(_ g: CurtainRopeGeometry, spacing: CGFloat) -> [CGPoint] {
         let steps = max(Int(g.width / spacing), 1)
         var result: [CGPoint] = []
         result.reserveCapacity(steps + 1)
@@ -681,19 +806,22 @@ final class ShelfRopeView: NSView {
 // MARK: - 画布
 
 /// 窗口的宿主视图：翻转坐标（y 向下），让画布从顶部对齐。
-final class ShelfHostView: NSView {
+final class CurtainHostView: NSView {
     override var isFlipped: Bool { true }
 }
 
 /// 排版容器：绳子在上，卡片按顺序挂着，整体水平居中。
-final class ShelfCanvasView: NSView {
+final class CurtainCanvasView: NSView {
 
-    private let rope = ShelfRopeView()
-    private var cardViews: [ShelfCardView] = []
+    private let rope = CurtainRopeView()
+    private var cardViews: [CurtainCardView] = []
 
-    var onRemove: ((ShelfItem) -> Void)?
-    var onSave: ((ShelfItem) -> Void)?
-    var onPin: ((ShelfItem) -> Void)?
+    var onRemove: ((CurtainItem) -> Void)?
+    var onSave: ((CurtainItem) -> Void)?
+    var onPin: ((CurtainItem) -> Void)?
+    /// ⌘ 拖动 / ⌘ 滚轮缩放（卡片把自己的事件转上来，帘线空白处也接）
+    var onResizeStep: ((CGFloat) -> Void)?
+    var onResizeEnd: (() -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -707,46 +835,150 @@ final class ShelfCanvasView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     /// 重排。`size` 是宿主给画布分配的尺寸（窗口内区）。
-    func reload(items: [(ShelfItem, CGImage?)],
+    ///
+    /// v263：卡片尺寸不再固定，`railScale`（帘线缩放）与 `maxCardHeight`
+    /// （按屏幕高度兜底）一并传进来；`animate=false` 用于缩放结束后的高质量重绘，
+    /// 避免每改一次宽度就重播一遍落入动画。
+    func reload(items: [(CurtainItem, CGImage?)],
                 cardWidth: CGFloat,
-                style: ShelfRopeStyle,
-                size: CGSize) {
+                railScale: CGFloat,
+                maxCardHeight: CGFloat,
+                style: CurtainRopeStyle,
+                size: CGSize,
+                animate: Bool = true) {
         cardViews.forEach { $0.removeFromSuperview() }
         cardViews = []
-
         rope.style = style
-        rope.frame = NSRect(x: 0, y: 0, width: size.width, height: ShelfMetrics.ropeHeight)
+        layoutCards(items: items, cardWidth: cardWidth, railScale: railScale,
+                    maxCardHeight: maxCardHeight, size: size, live: false, animate: animate)
+    }
 
-        let sizes = items.map { $0.0.cardSize(cardWidth: cardWidth) }
+    /// ⌘ 拖动缩放：**原地改尺寸**，不重建卡片视图。
+    ///
+    /// 为什么必须单独一条路径：`reload` 会 remove + add 所有子视图，
+    /// 每帧都做等于每帧重挂图层、重播落入动画，拖动时必然掉帧。
+    /// 这里只改 frame / 重绘，卡片对象与动画都留着。
+    func updateLayout(items: [(CurtainItem, CGImage?)],
+                      cardWidth: CGFloat,
+                      railScale: CGFloat,
+                      maxCardHeight: CGFloat,
+                      size: CGSize) {
+        guard cardViews.count == items.count,
+              zip(cardViews, items).allSatisfy({ $0.0.item.id == $0.1.0.id }) else {
+            reload(items: items, cardWidth: cardWidth, railScale: railScale,
+                   maxCardHeight: maxCardHeight, style: rope.style, size: size, animate: false)
+            return
+        }
+        layoutCards(items: items, cardWidth: cardWidth, railScale: railScale,
+                    maxCardHeight: maxCardHeight, size: size, live: true, animate: false)
+    }
+
+    private func layoutCards(items: [(CurtainItem, CGImage?)],
+                             cardWidth: CGFloat,
+                             railScale: CGFloat,
+                             maxCardHeight: CGFloat,
+                             size: CGSize,
+                             live: Bool,
+                             animate: Bool) {
+        let gap = CurtainMetrics.gap(railScale)
+        let padding = CurtainMetrics.padding(railScale)
+        let clipH = CurtainMetrics.clipHeight(railScale)
+        let sizes = items.map {
+            $0.0.cardSize(cardWidth: cardWidth, railScale: railScale, maxHeight: maxCardHeight)
+        }
         let totalW = sizes.reduce(0) { $0 + $1.width }
-            + CGFloat(max(items.count - 1, 0)) * ShelfMetrics.gap
-            + ShelfMetrics.padding * 2
+            + CGFloat(max(items.count - 1, 0)) * gap
+            + padding * 2
         // 内容比窗口窄时居中，宽时从左边开始（超出部分由窗口宽度裁掉，但正常不会发生）
-        var x = max(ShelfMetrics.padding, (size.width - totalW) / 2 + ShelfMetrics.padding)
+        var x = max(padding, (size.width - totalW) / 2 + padding)
         var centers: [CGFloat] = []
-
-        let geometry = ShelfRopeGeometry(width: size.width, ropeTop: ShelfMetrics.ropeInset)
+        let geometry = CurtainRopeGeometry(width: size.width,
+                                           ropeTop: CurtainMetrics.ropeInset(railScale),
+                                           scale: railScale)
+        rope.frame = NSRect(x: 0, y: 0, width: size.width,
+                            height: CurtainMetrics.ropeHeight(railScale))
+        rope.geometry = geometry
 
         for (index, entry) in items.enumerated() {
             let cardSize = sizes[index]
-            let card = ShelfCardView(item: entry.0, cardSize: cardSize, thumbnail: entry.1)
-            card.onRemove = { [weak self] in self?.onRemove?($0) }
-            card.onSave = { [weak self] in self?.onSave?($0) }
-            card.onPin = { [weak self] in self?.onPin?($0) }
+            let card: CurtainCardView
+            let isNew = index >= cardViews.count
+            if isNew {
+                card = CurtainCardView(item: entry.0, cardSize: cardSize,
+                                       railScale: railScale, thumbnail: entry.1)
+                card.onRemove = { [weak self] in self?.onRemove?($0) }
+                card.onSave = { [weak self] in self?.onSave?($0) }
+                card.onPin = { [weak self] in self?.onPin?($0) }
+                card.onResizeStep = { [weak self] delta in self?.onResizeStep?(delta) }
+                card.onResizeEnd = { [weak self] in self?.onResizeEnd?() }
+                card.swayPhase = Double(index) * 0.618
+                addSubview(card)
+                cardViews.append(card)
+            } else {
+                card = cardViews[index]
+                card.update(cardSize: cardSize, railScale: railScale, live: live)
+            }
             card.frame = NSRect(x: x, y: 0,
                                 width: cardSize.width,
-                                height: ShelfMetrics.clipHeight + cardSize.height)
-            // 卡片跟着绳线歪：挂在一根下垂的绳上还笔直垂着，是「假」的最大来源
+                                height: clipH + cardSize.height)
+            // 卡片跟着帘线歪：挂在一根下垂的帘线上还笔直垂着，是「假」的最大来源
             card.ropeTilt = geometry.tilt(atX: card.frame.midX)
-            card.swayPhase = Double(index) * 0.618
-            addSubview(card)
-            cardViews.append(card)
             centers.append(card.frame.midX)
-            x += cardSize.width + ShelfMetrics.gap
-            animateDrop(card, index: index, geometry: geometry)
+            x += cardSize.width + gap
+            if animate && isNew {
+                animateDrop(card, index: index, geometry: geometry)
+            } else if live {
+                card.stopSway()
+            } else {
+                card.startSway()
+            }
         }
         rope.loadPoints = centers
-        rope.geometry = geometry
+    }
+
+    // MARK: ⌘ 缩放（空白处 / 帘线上）
+
+    private var canvasResizeLastScreenX: CGFloat?
+
+    override func mouseDown(with event: NSEvent) {
+        guard event.modifierFlags.contains(.command) else {
+            super.mouseDown(with: event)
+            return
+        }
+        canvasResizeLastScreenX = NSEvent.mouseLocation.x
+        NSCursor.resizeLeftRight.push()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let last = canvasResizeLastScreenX else {
+            super.mouseDragged(with: event)
+            return
+        }
+        let x = NSEvent.mouseLocation.x
+        let delta = x - last
+        canvasResizeLastScreenX = x
+        if abs(delta) > 0.01 { onResizeStep?(delta) }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard canvasResizeLastScreenX != nil else {
+            super.mouseUp(with: event)
+            return
+        }
+        canvasResizeLastScreenX = nil
+        NSCursor.pop()
+        onResizeEnd?()
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard event.modifierFlags.contains(.command) else {
+            super.scrollWheel(with: event)
+            return
+        }
+        let delta = event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.6 : 2.0)
+        guard abs(delta) > 0.01 else { return }
+        onResizeStep?(delta)
+        onResizeEnd?()
     }
 
     /// 落入动画：从上方 10pt 落下 + 淡入 + 绕顶部摆一次衰减，
@@ -755,7 +987,7 @@ final class ShelfCanvasView: NSView {
     /// 为什么可以常驻：微摆只改 `transform`，**不重绘内容**，动画跑在
     /// render server 上，主线程和 GPU 的代价与「静止」几乎一样。
     /// 之前担心的掉帧来自「定时器 + needsDisplay」那条路，不是这条路。
-    private func animateDrop(_ card: ShelfCardView, index: Int, geometry: ShelfRopeGeometry) {
+    private func animateDrop(_ card: CurtainCardView, index: Int, geometry: CurtainRopeGeometry) {
         guard let layer = card.layer else { return }
         let h = card.bounds.height
 
@@ -780,7 +1012,7 @@ final class ShelfCanvasView: NSView {
         let base = card.ropeTilt
         let offsets: [CGFloat] = [0, -0.032, 0.024, -0.015, 0.008, -0.003, 0]
         let values = offsets.map {
-            NSValue(caTransform3D: ShelfCanvasView.topPivot(angle: base + $0, height: h))
+            NSValue(caTransform3D: CurtainCanvasView.topPivot(angle: base + $0, height: h))
         }
         let bounce = CAKeyframeAnimation(keyPath: "transform")
         bounce.values = values
@@ -798,8 +1030,7 @@ final class ShelfCanvasView: NSView {
     }
 
     /// 把旋转中心从图层中心挪到顶部中心
-    static func topPivot(angle: CGFloat, height: CGFloat) -> CATransform3D {
-        var t = CATransform3DIdentity
+    static func topPivot(angle: CGFloat, height: CGFloat) -> CATransform3D {        var t = CATransform3DIdentity
         t = CATransform3DTranslate(t, 0, -height / 2, 0)
         t = CATransform3DRotate(t, angle, 0, 0, 1)
         t = CATransform3DTranslate(t, 0, height / 2, 0)
@@ -809,8 +1040,8 @@ final class ShelfCanvasView: NSView {
 
 // MARK: - 窗口
 
-/// 悬挂架窗口：贴在菜单栏下方的一条，无边框、不激活、不进截图。
-final class ShelfPanel: NSPanel {
+/// 图帘窗口：贴在菜单栏下方的一条，无边框、不激活、不进截图。
+final class CurtainPanel: NSPanel {
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 400, height: 180),

@@ -53,9 +53,9 @@ public enum StatusBarMenuBuilder {
         if GlobalEntries.isEnabled(GlobalEntries.homeKey) { sig |= 1 }
         if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) { sig |= 2 }
         if GlobalEntries.isEnabled(GlobalEntries.statsBarKey) { sig |= 4 }
-        // v261：悬挂架开关会决定菜单里有没有「截图悬挂架」这一项。
+        // v261：图帘开关会决定菜单里有没有「图帘」这一项。
         // 不纳入签名的话，用户在设置里开关完再点菜单，看到的还是旧缓存。
-        if ShelfPref.enabled { sig |= 8 }
+        if CurtainPref.enabled { sig |= 8 }
         return sig
     }
 
@@ -121,12 +121,12 @@ public enum StatusBarMenuBuilder {
         menu.addItem(track(item("悬浮剪贴板…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openFloatingClipboardAction(_:)), target: target)))
 
-        // v261：截图悬挂架（设置 → 截图 → 悬挂架）。默认关闭时菜单里不出现，
-        // 免得给一个用不上的入口；开着的时候它就是「把架子叫回来」的唯一途径
-        // （架子到时会自动收起，但内容还在）。
-        if ShelfPref.enabled {
-            menu.addItem(track(item("截图悬挂架", key: "", modifiers: [],
-                                    action: #selector(StatusBarController.toggleShelfAction(_:)),
+        // v261：图帘（设置 → 截图与钉图 → 图帘）。默认关闭时菜单里不出现，
+        // 免得给一个用不上的入口；开着的时候它是「把图帘叫回来」的可见途径
+        // （图帘到时会自动收起，但内容还在）。快捷键见设置页。
+        if CurtainPref.enabled {
+            menu.addItem(track(item("图帘", key: "", modifiers: [],
+                                    action: #selector(StatusBarController.toggleCurtainAction(_:)),
                                     target: target)))
         }
 

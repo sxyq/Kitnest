@@ -2,21 +2,21 @@
 App,App/AppBootstrap.swift,AppBootstrap,start,func,10,KEEP,FrsetNextApp:41 应用启动唯一入口；注册 8 个模块并 startAll
 App,App/AppBootstrap.swift,AppBootstrap,stop,func,215,KEEP,FrsetNextApp:101 applicationWillTerminate 调用
 App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,221,KEEP,start L45 调用；接线截图/OCR/取色/AI/工具箱产出到剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,277,KEEP,start L91 调用；注册取色器工具砖（跨模块）
-App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,399,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
-App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,432,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
-App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,437,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
-App,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,func,451,KEEP,ShortcutSettingsPane:130 切换 2× 模式；内部也会被 setShortcut L509 调用
-App,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,func,479,KEEP,ShortcutSettingsPane:90 更换双击修饰键
-App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,489,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
-App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,496,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
-App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,505,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
-App,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,func,525,KEEP,ShortcutSettingsPane:36「恢复默认快捷键」
-App,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,func,536,KEEP,registerDefaultHotkeys L406 判断是否有用户自定义通道
-App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,550,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
-App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,558,KEEP,onTextRecognized L246 一次性消费挂起标志
-App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,568,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,583,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
+App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,282,KEEP,start L91 调用；注册取色器工具砖（跨模块）
+App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,426,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
+App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,459,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
+App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,464,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
+App,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,func,478,KEEP,ShortcutSettingsPane:130 切换 2× 模式；内部也会被 setShortcut L509 调用
+App,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,func,506,KEEP,ShortcutSettingsPane:90 更换双击修饰键
+App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,516,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
+App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,523,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
+App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,532,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
+App,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,func,552,KEEP,ShortcutSettingsPane:36「恢复默认快捷键」
+App,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,func,563,KEEP,registerDefaultHotkeys L406 判断是否有用户自定义通道
+App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,577,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
+App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,585,KEEP,onTextRecognized L246 一次性消费挂起标志
+App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,595,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,610,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
 App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,70,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,94,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
@@ -93,7 +93,7 @@ Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,308,KEEP,P
 Core,Core/Runtime/Preferences.swift,Preferences,init,init,10,KEEP,static shared:6 构造
 Core,Core/Runtime/Preferences.swift,Preferences,value,func,16,KEEP,binding:107 / 计算属性:91
 Core,Core/Runtime/Preferences.swift,Preferences,set,func,20,KEEP,binding:108 / 计算属性 setter:92
-Core,Core/Runtime/Preferences.swift,Preferences,binding,func,114,KEEP,SettingsPanes.swift:97 Toggle 绑定
+Core,Core/Runtime/Preferences.swift,Preferences,binding,func,126,KEEP,SettingsPanes.swift:97 Toggle 绑定
 Core,Core/Runtime/Registry.swift,PanelSectionDescriptor,init,init,16,KEEP,ClipboardModule:24 / AIModule:22 / CaptureModule:85
 Core,Core/Runtime/Registry.swift,PanelSectionRegistry,register,func,24,KEEP,"同上 + ToolboxModule:14,17,20 注册"
 Core,Core/Runtime/Registry.swift,SettingsPaneDescriptor,init,init,43,KEEP,AppBootstrap:95 等 12 处注册
@@ -926,6 +926,107 @@ Capture,Features/Capture/Annotation/ObjectRemovalEngine.swift,DiffusionInpainter
 Capture,Features/Capture/Annotation/ObjectRemovalEngine.swift,DiffusionInpainter,featherMask,func,324,KEEP,本文件 :83 羽化贴回
 Capture,Features/Capture/Annotation/ObjectRemovalEngine.swift,DiffusionInpainter,boxBlurGray,func,339,KEEP,本文件 :328 两次盒模糊
 Capture,Features/Capture/Annotation/Watermark.swift,Watermark,applied,func,61,KEEP,调用方 AnnotationEditorWindow.swift:1219 导出
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,init,init,36,KEEP,单例私有 init：订阅 curtainPreferencesChanged / curtainToggleRequested
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,attach,func,54,KEEP,截图落盘后挂载；manual=true 供动作条「挂到图帘」；缩略图按当前卡片宽解码
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,insert,func,79,KEEP,新图插最左；超过 maxCards 从最旧挤掉（只出帘不删文件）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,show,func,97,KEEP,唤出入口：开关校验 + 空帘不显示 + 无动画重建后上屏
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,hide,func,105,KEEP,只 orderOut，不动 items；下次唤出内容还在
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,dismissAll,func,112,KEEP,关功能时销毁窗口并清空 items/缩略图/临时宽度
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,remove,func,123,KEEP,移除单张；帘空则销毁窗口，否则原地重排并续计时
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,toggle,func,136,KEEP,显示/收起切换（快捷键、菜单栏、设置页共用）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,showPanel,func,142,KEEP,上屏：重建 + orderFrontRegardless + 启动自动收起计时
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,ensurePanel,func,150,KEEP,首次创建 Panel/Canvas，接移除/保存/钉图与 ⌘ 缩放回调
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,railScale,func,173,KEEP,帘线缩放：卡片宽/140 夹 0.8…3；关掉「帘线缩放」恒 1
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,layoutMetrics,func,183,KEEP,按屏幕宽反算能放下的卡片宽（张数多自动收窄）+ 卡片高度上限
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,contentSize,func,204,KEEP,按实际卡片宽/缩放/间距算内容尺寸（帘线 + 最高卡 + 投影余量）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,rebuild,func,219,KEEP,统一重排：live 走 updateLayout（原地），否则 reload（可重播落入）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,resizeStep,func,251,KEEP,⌘ 拖动/滚轮每格：只改 liveCardWidth 并原地重排，不写偏好不发通知
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,resizeEnd,func,261,KEEP,松手：临时宽度写回偏好、Toast 报数值、按需重解高清缩略图
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,upgradeThumbnailsIfNeeded,func,271,KEEP,卡片 >220pt 后对不够清晰的缩略图后台重解一次
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,windowFrame,func,295,KEEP,贴鼠标所在屏顶部居中；宽度夹进屏幕，避免大卡片时 x 为负
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,activeScreen,func,306,KEEP,以鼠标所在屏为准（多显示器）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,scheduleAutoHide,func,316,KEEP,展示时长到点只收起，不清内容；0 = 永不收起
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,toggleRequested,func,329,KEEP,curtainToggleRequested 通知入口（菜单栏/设置页）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,preferencesChanged,func,331,KEEP,开关关掉 → dismissAll；开着且可见 → 原地重排（不重播落入）
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,saveAs,func,352,KEEP,卡片保存：NSSavePanel 另存，不移动暂存文件
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,pin,func,363,KEEP,卡片钉住：从原文件解码后交给 PinnedScreenshotManager
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runProbe,func,377,KEEP,深链 curtainprobe：合成 N 张图挂帘，可指定宽度/允许抓屏/跑压测
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runResizeSweep,func,425,KEEP,缩放压测：140→420→140 共 30 帧，每帧真实 rebuild(live:) + displayIfNeeded，记录单帧最大耗时
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,probeImage,func,451,KEEP,自检合成图：渐变底 + 标题/内容条 + 序号块
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,writePNG,func,488,KEEP,自检图落盘到临时目录，返回 URL 供 attach
+Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainItem,init,init,31,KEEP,CurtainItem 值类型初始化（id/fileURL/createdAt/pixelSize）
+Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainItem,cardSize,func,43,KEEP,卡片宽高：宽度按偏好，高度按原图比例并受 railScale 与屏幕高度上限双重约束
+Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainRopeStyle,normalized,func,91,KEEP,旧值 twine（麻绳）归一化到 candyCane，升级后不会退回 classic
+Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainThumbnail,make,func,211,KEEP,按目标像素解码缩略图（ThumbnailFromImageAlways），避免整张大图常驻
+Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainThumbnail,pixelSize,func,223,KEEP,只读元数据像素尺寸，不解码整图（卡片长宽比用）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeHeight,func,45,KEEP,帘线区域高度 × 缩放（28pt @1×）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeInset,func,46,KEEP,线端距顶 12pt × 缩放（1Capture 反汇编 y = height - 12）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,sagMax,func,47,KEEP,下垂上限 28pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeEndInset,func,48,KEEP,两端绳结留白 5pt × 缩放，最小 3pt
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,gap,func,49,KEEP,卡片间距 16pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,padding,func,50,KEEP,左右留白 22pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,clipHeight,func,51,KEEP,夹子高度 20pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,bottomInset,func,52,KEEP,窗口底部投影余量 12pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,cornerRadius,func,60,KEEP,卡片圆角：宽×0.16 夹 8…25 再乘缩放（1Capture 写死 25，我们宽度可变）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,init,init,85,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,t,func,93,KEEP,按 x 反解贝塞尔参数 t（控制点在 1/3、2/3，x(t) 精确线性）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,y,func,98,KEEP,曲线上某点 y = y0 + 3·sag·t(1-t)
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,slope,func,104,KEEP,切线斜率 dy/dx = 3·sag·(1-2t)/width，卡片倾斜用
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,tilt,func,112,KEEP,卡片沿帘线切线倾斜，限幅 ±4°
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,init,init,170,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,init,init,192,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,update,func,198,KEEP,⌘ 缩放时原地更新卡片尺寸/按钮位置并重绘，不重建视图、不重挂动画
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draw,func,209,KEEP,绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,placeholderGradient,func,312,KEEP,缩略图未解码时的占位渐变（1Capture 四段灰度 0.62/0.94/0.80/0.61，水平）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,drawClip,func,322,KEEP,夹子：小梯形 + 投影 + 夹口暗线；尺寸乘 railScale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,updateTrackingAreas,func,358,KEEP,重建 .inVisibleRect 悬停追踪区（卡片尺寸变化后仍覆盖全卡）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseEntered,func,368,KEEP,悬停：停摆、显示保存/钉图/移除、上浮 2pt
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseExited,func,379,KEEP,移出：收起按钮、复位、恢复微摆
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,startSway,func,398,KEEP,常驻微摆用 CABasicAnimation 改 transform（不重绘、render server）；已在摆则不重挂
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,stopSway,func,417,KEEP,停止微摆（悬停/缩放/窗口收起时）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,viewDidMoveToWindow,func,421,KEEP,窗口收起时撤动画，避免不可见图层空转
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,setupButtons,func,432,KEEP,创建关闭/保存/钉图三个悬停按钮
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,layoutButtons,func,441,KEEP,按钮位置/圆角随卡片尺寸与 railScale 走（⌘ 缩放每帧调用）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,configure,func,461,KEEP,悬停按钮样式：无边框、白色图标、半透明黑底、圆角随缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,setButtonsHidden,func,475,KEEP,统一显隐三个悬停按钮
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,removeTapped,func,479,KEEP,关闭按钮 → 从图帘移除
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,saveTapped,func,480,KEEP,保存按钮 → 控制器 saveAs
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,pinTapped,func,481,KEEP,钉图按钮 → 控制器 pin 到屏幕
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,acceptsFirstMouse,func,485,KEEP,首击即响应（图帘是非激活面板）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDown,func,487,KEEP,卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDragged,func,500,KEEP,⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseUp,func,515,KEEP,⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,scrollWheel,func,530,KEEP,⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyToPasteboard,func,542,KEEP,复制：同时给 PNG 数据与文件 URL（粘聊天窗是图、粘 Finder 是文件）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,beginDrag,func,552,KEEP,拖出：NSDraggingItem 用文件 URL，拖到 Finder/聊天窗即得文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,snapshot,func,559,KEEP,拖拽缩略图：优先用已解码 CGImage，避免再读原图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,menu,func,569,KEEP,右键菜单：复制/保存/在 Finder 显示/钉住/放大缩小图帘/移除
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomIn,func,586,KEEP,右键放大 40pt（走与 ⌘ 拖动同一条 resizeStep/resizeEnd）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomOut,func,591,KEEP,右键缩小 40pt（同 resizeStep/resizeEnd）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyFromMenu,func,596,KEEP,右键「复制图片」→ copyToPasteboard
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,revealInFinder,func,598,KEEP,在 Finder 中选中原暂存文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draggingSession,func,606,KEEP,拖出操作固定 .copy，不移动原文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,draw,func,647,KEEP,绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,ropePath,func,702,KEEP,帘线三次贝塞尔路径，两端留绳结位；inset 随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawKnots,func,715,KEEP,两端绳结（实心圆 + 暗描边），半径/描边随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,clearShadow,func,730,KEEP,清掉 CG 阴影，避免细芯/装饰重复投影
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,stroke,func,734,KEEP,圆头描边封装（宽度/灰度/透明度）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,dashed,func,743,KEEP,圆头虚线描边封装（拐杖糖红条纹）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawLights,func,758,KEEP,圣诞彩灯：沿帘线等距、四色循环、低透明外圈当光晕
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawSnow,func,782,KEEP,积雪：确定性伪随机球径 1.3–3.2pt，间距 6.5pt，随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,samplePoints,func,794,KEEP,按 x 均匀取样再用贝塞尔求 y，间距随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,828,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,835,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,reload,func,842,KEEP,重建卡片视图并排版；animate=false 用于缩放后的高质量重绘
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,updateLayout,func,861,KEEP,⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,layoutCards,func,876,KEEP,统一排版：总宽居中、逐张定位、设 ropeTilt/swayPhase、按需播落入动画
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDown,func,943,KEEP,卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDragged,func,952,KEEP,⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseUp,func,963,KEEP,⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,scrollWheel,func,973,KEEP,⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,animateDrop,func,990,KEEP,落入：位移 + 淡入 + 绕顶部衰减回弹，结束后接常驻微摆；只对新增卡片播
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,topPivot,func,1033,KEEP,把 CA 旋转中心从图层中心挪到顶部中心
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainPanel,init,init,1046,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
 Capture,Features/Capture/History/CaptureHistoryStore.swift,AnnotationStateSnapshot,encode,func,51,KEEP,调用方 AnnotationEditorWindow.swift:1875 关窗快照
 Capture,Features/Capture/History/CaptureHistoryStore.swift,AnnotationStateSnapshot,decode,func,65,KEEP,调用方 AnnotationEditorWindow.swift:1717 恢复
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,init,init,101,KEEP,本文件 :89 shared 单例构造
@@ -1187,133 +1288,136 @@ Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,dismiss,func,454,KEEP,
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,reload,func,466,KEEP,本文件:412/417/435
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,layoutPanel,func,487,KEEP,present 内 本文件:436
 Capture,Features/Capture/Pin/PinWindow.swift,PinStyle,sampledBorderColor,func,68,KEEP,PinWindow.swift:590 init 内调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,resetCursorRects,func,111,KEEP,NSView 覆写，AppKit 光标区派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,updateTrackingAreas,func,115,KEEP,NSView 覆写，布局时由 AppKit 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseEntered,func,125,KEEP,NSView 覆写，NSTrackingArea 事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseExited,func,126,KEEP,NSView 覆写，NSTrackingArea 事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseDown,func,128,KEEP,NSView 覆写，鼠标按下派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseDragged,func,129,KEEP,NSView 覆写，鼠标拖动派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,draw,func,131,KEEP,NSView 覆写，绘制派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,updateTrackingAreas,func,158,KEEP,NSView 覆写，布局时由 AppKit 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,mouseEntered,func,168,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,mouseExited,func,174,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,draw,func,180,KEEP,NSView 覆写，绘制派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,init,init,232,KEEP,PinWindow.swift:576 构造 PinToolbarView()
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,zoomTitle,func,304,KEEP,"PinWindow.swift:300,360 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,init,init,310,KEEP,required init?(coder:)，NSCoding 必需
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,layout,func,315,KEEP,NSView 覆写，布局派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,updateTrackingAreas,func,333,KEEP,NSView 覆写，布局时由 AppKit 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,mouseEntered,func,343,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,mouseExited,func,344,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,draw,func,346,KEEP,NSView 覆写，绘制胶囊底
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,updateZoom,func,358,KEEP,"PinWindow.swift:972,1045,1069 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,probeBubble,func,364,KEEP,:1272 调用 ← probe ← 深链 pin?probe
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,annotateTapped,func,386,KEEP,#selector(PinWindow.swift:253) 派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,copyTapped,func,387,KEEP,#selector(PinWindow.swift:254) 派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,moreTapped,func,388,KEEP,#selector(PinWindow.swift:255) 派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,zoomTapped,func,389,KEEP,#selector(PinWindow.swift:291) 派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,updateTrackingAreas,func,398,KEEP,NSView 覆写，布局时由 AppKit 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,mouseEntered,func,408,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,mouseExited,func,414,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,draw,func,420,KEEP,NSView 覆写，悬停底色绘制
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,init,init,437,KEEP,PinWindow.swift:577 构造
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,init,init,443,KEEP,required init?(coder:)，NSCoding 必需
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,updateTrackingAreas,func,445,KEEP,NSView 覆写，布局时由 AppKit 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseEntered,func,455,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseExited,func,461,KEEP,NSView 覆写，悬停事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseDown,func,466,KEEP,NSView 覆写，空实现吞掉按下
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseUp,func,467,KEEP,NSView 覆写，命中后 onClick 回调
-Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,draw,func,469,KEEP,NSView 覆写，绘制圆底与叉号
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,init,init,508,KEEP,PinWindow.swift:578 构造
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,init,init,512,KEEP,required init?(coder:)，NSCoding 必需
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,update,func,514,KEEP,PinWindow.swift:795 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,hitTest,func,520,KEEP,NSView 覆写，恒返回 nil 让 HUD 穿透
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,draw,func,523,KEEP,NSView 覆写，绘制百分比
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,init,init,587,KEEP,PinWindow.swift:1346 构造
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,init,init,631,KEEP,required init?(coder:)，NSCoding 必需
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,acceptsFirstMouse,func,634,KEEP,NSView 覆写，首击接收派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,draw,func,663,KEEP,NSView 覆写，绘制图像与描边
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,layout,func,702,KEEP,NSView 覆写，布局派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,layoutChrome,func,714,KEEP,"PinWindow.swift:704,735 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showChrome,func,731,KEEP,":891,894,920,1027 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hideChrome,func,750,KEEP,":779,902,1302,1307 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scheduleChromeHide,func,767,KEEP,":747,773,982 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,repositionHUD,func,787,KEEP,":705,794 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showHUD,func,793,KEEP,":880,883,1026,1071 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,makeCursor,func,808,KEEP,:805-806 静态属性初始化调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,updateCursor,func,821,KEEP,PinWindow.swift:893 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hitZone,func,831,KEEP,":822,913 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,keyDown,func,852,KEEP,NSView 覆写，键盘事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseEntered,func,891,KEEP,NSView 覆写，进入即显示控制条
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseMoved,func,892,KEEP,NSView 覆写，moved 事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseExited,func,896,KEEP,NSView 覆写，离开收控制条
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDown,func,906,KEEP,NSView 覆写，拖动/双击复位
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,beginWindowDrag,func,917,KEEP,":604 闭包, :912 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDragged,func,923,KEEP,NSView 覆写，拖动事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,continueWindowDrag,func,928,KEEP,":605 闭包, :925 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseUp,func,978,KEEP,NSView 覆写，结束拖动
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnetSnapped,func,986,KEEP,PinWindow.swift:942 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scrollWheel,func,1009,KEEP,NSView 覆写，滚轮缩放派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnify,func,1010,KEEP,NSView 覆写，捏合缩放派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,zoomCore,func,1012,KEEP,":1009,1010 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,applyZoom,func,1030,KEEP,":879,882,1025 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,setScale,func,1050,KEEP,":603,877,909,1196 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rotate,func,1076,KEEP,"PinWindow.swift:1198,1200 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showBubble,func,1096,KEEP,":610,621,1269,1273 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,anchorInScreen,func,1106,KEEP,PinWindow.swift:1115 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showMoreMenuFromToolbar,func,1111,KEEP,":602 闭包, :875 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rightMouseDown,func,1118,KEEP,NSView 覆写，右键弹更多菜单
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,menuEntries,func,1126,KEEP,":1114,1122 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,handleMenuPick,func,1193,KEEP,PinWindow.swift:628 menuPanel.onPick
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,resetOrientation,func,1242,KEEP,PinWindow.swift:1208 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,probe,func,1260,KEEP,:1470 调用 ← probeLast ← 深链
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,flattenedImage,func,1279,KEEP,":1303,1308 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,annotateClicked,func,1301,KEEP,:600 闭包 + :867 键位
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,copyClicked,func,1306,KEEP,:601 闭包 + :872 键位
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,closeClicked,func,1317,KEEP,":616 闭包, :856 Esc, :1224 菜单"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,init,init,1329,KEEP,PinWindow.swift:1426 构造
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,initialSize,func,1361,KEEP,PinWindow.swift:1330 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,becomeKey,func,1374,KEEP,NSWindow 覆写，成为 key 时派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,constrainFrameRect,func,1380,KEEP,NSWindow 覆写（仅调 super，无附加逻辑）
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,init,init,1399,KEEP,PinWindow.swift:1390 shared 单例构造
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,deinit,deinit,1415,KEEP,运行时析构钩子（单例常驻实际不触发）
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,show,func,1423,KEEP,CaptureActionChain:90 等 4 处调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeAll,func,1440,KEEP,:1404 Esc 监视器 + CommandPalette:98
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,hideAll,func,1446,KEEP,PinWindow.swift:1221 更多菜单调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,showAll,func,1451,KEEP,PinWindow.swift:1219 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,otherFrames,func,1457,KEEP,PinWindow.swift:996 吸附调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,probeLast,func,1462,KEEP,FrsetNextApp.swift:321 深链 kitnest://pin?probe
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeActive,func,1468,KEEP,PinWindow.swift:1407 Delete 监视器调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBecomeKey,func,1475,KEEP,PinWindow.swift:1377 becomeKey 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1480,KEEP,NotificationCenter selector :1431 注册
+Capture,Features/Capture/Pin/PinWindow.swift,PinAppearance,init,init,114,KEEP,PinAppearance 值类型初始化（单张钉图的外观快照）
+Capture,Features/Capture/Pin/PinWindow.swift,PinAppearance,preset,func,137,KEEP,动作条四形态：经典/无边框/卡片/强调，数值与设置页预设一致，只影响这一张
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,resetCursorRects,func,181,KEEP,NSView 覆写，AppKit 光标区派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,updateTrackingAreas,func,185,KEEP,NSView 覆写，布局时由 AppKit 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseEntered,func,195,KEEP,NSView 覆写，NSTrackingArea 事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseExited,func,196,KEEP,NSView 覆写，NSTrackingArea 事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseDown,func,198,KEEP,NSView 覆写，鼠标按下派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,mouseDragged,func,199,KEEP,NSView 覆写，鼠标拖动派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinDragGripView,draw,func,201,KEEP,NSView 覆写，绘制派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,updateTrackingAreas,func,228,KEEP,NSView 覆写，布局时由 AppKit 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,mouseEntered,func,238,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,mouseExited,func,244,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinIconButton,draw,func,250,KEEP,NSView 覆写，绘制派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,init,init,302,KEEP,PinWindow.swift:576 构造 PinToolbarView()
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,zoomTitle,func,374,KEEP,"PinWindow.swift:300,360 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,init,init,380,KEEP,required init?(coder:)，NSCoding 必需
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,layout,func,385,KEEP,NSView 覆写，布局派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,updateTrackingAreas,func,403,KEEP,NSView 覆写，布局时由 AppKit 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,mouseEntered,func,413,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,mouseExited,func,414,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,draw,func,416,KEEP,NSView 覆写，绘制胶囊底
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,updateZoom,func,428,KEEP,"PinWindow.swift:972,1045,1069 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,probeBubble,func,434,KEEP,:1272 调用 ← probe ← 深链 pin?probe
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,annotateTapped,func,456,KEEP,#selector(PinWindow.swift:253) 派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,copyTapped,func,457,KEEP,#selector(PinWindow.swift:254) 派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,moreTapped,func,458,KEEP,#selector(PinWindow.swift:255) 派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinToolbarView,zoomTapped,func,459,KEEP,#selector(PinWindow.swift:291) 派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,updateTrackingAreas,func,468,KEEP,NSView 覆写，布局时由 AppKit 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,mouseEntered,func,478,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,mouseExited,func,484,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinTextButton,draw,func,490,KEEP,NSView 覆写，悬停底色绘制
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,init,init,507,KEEP,PinWindow.swift:577 构造
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,init,init,513,KEEP,required init?(coder:)，NSCoding 必需
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,updateTrackingAreas,func,515,KEEP,NSView 覆写，布局时由 AppKit 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseEntered,func,525,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseExited,func,531,KEEP,NSView 覆写，悬停事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseDown,func,536,KEEP,NSView 覆写，空实现吞掉按下
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,mouseUp,func,537,KEEP,NSView 覆写，命中后 onClick 回调
+Capture,Features/Capture/Pin/PinWindow.swift,PinCloseButton,draw,func,539,KEEP,NSView 覆写，绘制圆底与叉号
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,init,init,578,KEEP,PinWindow.swift:578 构造
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,init,init,582,KEEP,required init?(coder:)，NSCoding 必需
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,update,func,584,KEEP,PinWindow.swift:795 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,hitTest,func,590,KEEP,NSView 覆写，恒返回 nil 让 HUD 穿透
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotScaleHUD,draw,func,593,KEEP,NSView 覆写，绘制百分比
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,init,init,659,KEEP,PinWindow.swift:1346 构造
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,init,init,704,KEEP,required init?(coder:)，NSCoding 必需
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,acceptsFirstMouse,func,707,KEEP,NSView 覆写，首击接收派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,draw,func,736,KEEP,NSView 覆写，绘制图像与描边
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,layout,func,775,KEEP,NSView 覆写，布局派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,layoutChrome,func,787,KEEP,"PinWindow.swift:704,735 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showChrome,func,804,KEEP,":891,894,920,1027 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hideChrome,func,823,KEEP,":779,902,1302,1307 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scheduleChromeHide,func,840,KEEP,":747,773,982 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,repositionHUD,func,860,KEEP,":705,794 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showHUD,func,866,KEEP,":880,883,1026,1071 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,makeCursor,func,881,KEEP,:805-806 静态属性初始化调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,updateCursor,func,894,KEEP,PinWindow.swift:893 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hitZone,func,904,KEEP,":822,913 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,keyDown,func,925,KEEP,NSView 覆写，键盘事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseEntered,func,964,KEEP,NSView 覆写，进入即显示控制条
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseMoved,func,965,KEEP,NSView 覆写，moved 事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseExited,func,969,KEEP,NSView 覆写，离开收控制条
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDown,func,979,KEEP,NSView 覆写，拖动/双击复位
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,beginWindowDrag,func,990,KEEP,":604 闭包, :912 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDragged,func,996,KEEP,NSView 覆写，拖动事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,continueWindowDrag,func,1001,KEEP,":605 闭包, :925 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseUp,func,1051,KEEP,NSView 覆写，结束拖动
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnetSnapped,func,1059,KEEP,PinWindow.swift:942 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scrollWheel,func,1082,KEEP,NSView 覆写，滚轮缩放派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnify,func,1083,KEEP,NSView 覆写，捏合缩放派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,zoomCore,func,1085,KEEP,":1009,1010 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,applyZoom,func,1103,KEEP,":879,882,1025 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,setScale,func,1123,KEEP,":603,877,909,1196 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rotate,func,1149,KEEP,"PinWindow.swift:1198,1200 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showBubble,func,1169,KEEP,":610,621,1269,1273 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,anchorInScreen,func,1179,KEEP,PinWindow.swift:1115 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showMoreMenuFromToolbar,func,1184,KEEP,":602 闭包, :875 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rightMouseDown,func,1191,KEEP,NSView 覆写，右键弹更多菜单
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,menuEntries,func,1199,KEEP,":1114,1122 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,handleMenuPick,func,1266,KEEP,PinWindow.swift:628 menuPanel.onPick
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,resetOrientation,func,1321,KEEP,PinWindow.swift:1208 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,probe,func,1339,KEEP,:1470 调用 ← probeLast ← 深链
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,flattenedImage,func,1358,KEEP,":1303,1308 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,annotateClicked,func,1380,KEEP,:600 闭包 + :867 键位
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,copyClicked,func,1385,KEEP,:601 闭包 + :872 键位
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,closeClicked,func,1396,KEEP,":616 闭包, :856 Esc, :1224 菜单"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,init,init,1408,KEEP,PinWindow.swift:1426 构造
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,initialSize,func,1442,KEEP,PinWindow.swift:1330 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,becomeKey,func,1455,KEEP,NSWindow 覆写，成为 key 时派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,constrainFrameRect,func,1461,KEEP,NSWindow 覆写（仅调 super，无附加逻辑）
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,init,init,1480,KEEP,PinWindow.swift:1390 shared 单例构造
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,deinit,deinit,1496,KEEP,运行时析构钩子（单例常驻实际不触发）
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,show,func,1507,KEEP,CaptureActionChain:90 等 4 处调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeAll,func,1525,KEEP,:1404 Esc 监视器 + CommandPalette:98
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,hideAll,func,1531,KEEP,PinWindow.swift:1221 更多菜单调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,showAll,func,1536,KEEP,PinWindow.swift:1219 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,otherFrames,func,1542,KEEP,PinWindow.swift:996 吸附调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,probeLast,func,1547,KEEP,FrsetNextApp.swift:321 深链 kitnest://pin?probe
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeActive,func,1553,KEEP,PinWindow.swift:1407 Delete 监视器调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBecomeKey,func,1560,KEEP,PinWindow.swift:1377 becomeKey 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1565,KEEP,NotificationCenter selector :1431 注册
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionTool,init,init,30,KEEP,本文件 69-120 构造 14 个工具条目
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionGroup,init,init,47,KEEP,本文件 132-141 构造 5 个分组
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,145,KEEP,":164 perform 与视图 :250,:331 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,150,KEEP,"CaptureActionChain.swift:273,349 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,163,KEEP,CaptureActionChain.swift:379 execute 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,171,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,178,KEEP,CaptureActionChain.swift:173 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,191,KEEP,CaptureModule.swift:81 启动预热调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,216,KEEP,:183 present 与 :193 warmUp 构造
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,250,KEEP,CaptureActionChain.swift:281 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,268,KEEP,CaptureActionChain.swift:185 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,305,KEEP,CaptureActionChain.swift:283 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,318,KEEP,":234,338,346,368,372 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,335,KEEP,NSWindow 覆写，转发 dismiss
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,338,KEEP,NSResponder 覆写，Esc 兜底派发
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,342,KEEP,CaptureActionChain.swift:241 init 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,376,KEEP,":233 onPick 闭包 + :351,358 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,iconCell,func,179,KEEP,"本类型 :112,:167 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,pillCell,func,211,KEEP,本类型 :122 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,submenu,func,247,KEEP,本类型 :45 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,activate,func,290,KEEP,"本类型 :183,:215 按钮闭包"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,toggle,func,298,KEEP,本类型 :294 activate 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,handleHover,func,305,KEEP,"本类型 :157,:208,:242 onHover 回调"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryID,func,341,KEEP,"本类型 :291,:346 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryTool,func,345,KEEP,"本类型 :189,:220,:374 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,menuItems,func,350,KEEP,"本类型 :195,:249,:375 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,isDefault,func,366,KEEP,"本类型 :180,:212 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,helpText,func,373,KEEP,"本类型 :207,:241 .help 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,178,KEEP,按形态钉住：PinAppearance.preset → show(appearance:) + Toast
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,185,KEEP,":164 perform 与视图 :250,:331 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,190,KEEP,"CaptureActionChain.swift:273,349 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,203,KEEP,CaptureActionChain.swift:379 execute 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,211,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,218,KEEP,CaptureActionChain.swift:173 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,231,KEEP,CaptureModule.swift:81 启动预热调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,256,KEEP,:183 present 与 :193 warmUp 构造
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,291,KEEP,CaptureActionChain.swift:281 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,311,KEEP,CaptureActionChain.swift:185 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,348,KEEP,CaptureActionChain.swift:283 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,361,KEEP,":234,338,346,368,372 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,378,KEEP,NSWindow 覆写，转发 dismiss
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,381,KEEP,NSResponder 覆写，Esc 兜底派发
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,385,KEEP,CaptureActionChain.swift:241 init 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,419,KEEP,":233 onPick 闭包 + :351,358 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,iconCell,func,184,KEEP,"本类型 :112,:167 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,pillCell,func,216,KEEP,本类型 :122 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,submenu,func,252,KEEP,本类型 :45 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,activate,func,319,KEEP,"本类型 :183,:215 按钮闭包"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,toggle,func,327,KEEP,本类型 :294 activate 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,handleHover,func,334,KEEP,"本类型 :157,:208,:242 onHover 回调"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryID,func,370,KEEP,"本类型 :291,:346 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryTool,func,374,KEEP,"本类型 :189,:220,:374 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,menuItems,func,379,KEEP,"本类型 :195,:249,:375 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,isDefault,func,395,KEEP,"本类型 :180,:212 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,helpText,func,402,KEEP,"本类型 :207,:241 .help 调用"
 Capture,Features/Capture/Screenshot/CaptureEventBus.swift,CapturedImage,init,init,95,KEEP,"ScreenshotManager:792,880,936 构造"
 Capture,Features/Capture/Screenshot/CaptureModule.swift,CaptureModule,start,func,12,KEEP,AppModule 协议，ModuleRegistry.startAll 派发
 Capture,Features/Capture/Screenshot/CaptureModule.swift,CaptureModule,runCaptureProbe,func,114,KEEP,CaptureModule.swift:107 探针 env 调用
@@ -1328,8 +1432,9 @@ Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pinLatest,func,240,KEEP,CaptureSectionView.swift:75 调用
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,annotateLatest,func,249,KEEP,CaptureSectionView.swift:76 调用
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,chooseSingleImage,func,255,KEEP,"CaptureSectionView.swift:243,250 调用"
-Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,init,init,31,KEEP,CaptureModule:95 SettingsPaneRegistry 闭包构造
-Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,chooseDirectory,func,169,KEEP,CaptureSettingsPane.swift:54 调用
+Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,init,init,35,KEEP,CaptureModule:95 SettingsPaneRegistry 闭包构造
+Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,row,func,296,KEEP,截图设置页统一行（标题 + 控件 + 说明），与钉图/图帘页同构
+Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,chooseDirectory,func,311,KEEP,CaptureSettingsPane.swift:54 调用
 Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,hex,func,15,KEEP,ColorValuePanel.swift:65 调用
 Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,rgb,func,18,KEEP,ColorValuePanel.swift:66 调用
 Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,hsb,func,21,KEEP,ColorValuePanel.swift:67 调用
@@ -1663,9 +1768,9 @@ Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSiz
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,469,KEEP,:400/:401 悬停按钮
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,491,KEEP,:370、Desk:1021
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,567,KEEP,SettingsPanes:586 标签色
-Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,init,init,36,KEEP,ClipboardModule:31 build 闭包
-Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,sliderRow,func,167,KEEP,:42/:50 滑块行调用
-Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,bytesText,func,191,KEEP,:61/:87 占用文案
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,init,init,38,KEEP,ClipboardModule:31 build 闭包
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,sliderRow,func,192,KEEP,:42/:50 滑块行调用
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,bytesText,func,216,KEEP,:61/:87 占用文案
 Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,init,init,30,KEEP,单例 :25 初始化
 Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,beginRun,func,36,KEEP,:59 调用
 Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,endRun,func,43,KEEP,:60 defer 调用
@@ -2475,6 +2580,10 @@ Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,init,
 Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,apply,func,39,KEEP,SettingsPanes.swift:141 外观卡 action 调用
 Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,applyCurrent,func,52,KEEP,SettingsModule.swift:35 启动时调用
 Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,applyNSAppearance,func,58,KEEP,本文件:46/53 两处调用
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsPane,init,init,28,KEEP,从 CurtainPref 读初值（开关/样式/时长/张数/宽度/帘线缩放/自动上架）
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsPane,row,func,267,KEEP,图帘设置页统一行（74pt 标题列 + 控件 + 说明）
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeSample,point,func,449,KEEP,设置页预览绳线按三次贝塞尔取点，与窗口绘制同参数
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeShape,path,func,461,KEEP,设置页预览绳线路径：三次贝塞尔控制点在 1/3、2/3
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,export,func,16,KEEP,SettingsPanes.swift:498 关于页按钮
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,writeBundle,func,47,KEEP,本文件:28 后台队列调用
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,usageRows,func,101,KEEP,本文件:67 写 usage.csv
@@ -2579,6 +2688,8 @@ Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelf
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,restore,func,274,KEEP,本文件:69 结束还原配置
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,diffKeys,func,295,KEEP,本文件:292 失败差异键
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,report,func,306,KEEP,本文件:70 输出报告
+Settings,Features/Settings/Shell/CaptureHubPane.swift,CaptureHubPane,jump,func,47,KEEP,v262 截图/钉图/悬挂架合并成一个滚动页：jump
+Settings,Features/Settings/Shell/CaptureHubPane.swift,CaptureHubPane,block,func,60,KEEP,v262 截图/钉图/悬挂架合并成一个滚动页：block
 Settings,Features/Settings/Shell/SettingsComponents.swift,SettingsRow,init,init,13,KEEP,ClipboardSettingsPane.swift:60 等调用
 Settings,Features/Settings/Shell/SettingsComponents.swift,SettingsSection,init,init,51,KEEP,ClipboardSettingsPane.swift:40 等调用
 Settings,Features/Settings/Shell/SettingsComponents.swift,VisualOptionCard,init,init,103,KEEP,PinSettingsPane.swift:66；SettingsPanes.swift:138
@@ -2592,22 +2703,23 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButt
 Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,665,KEEP,本文件:608 onSubmit/609 按钮
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,688,KEEP,本文件:686/715 增删名单
 Settings,Features/Settings/Shell/SettingsPanes.swift,DiagonalSplit,path,func,815,KEEP,Shape 协议；本文件:763 mask 使用
-Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,153,KEEP,本文件:96/98/119 单页包装
-Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,segmentedPage,func,163,KEEP,本文件:104/109/114 分段页
+Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,160,KEEP,本文件:96/98/119 单页包装
+Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,segmentedPage,func,170,KEEP,本文件:104/109/114 分段页
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSearchEntry,matches,func,78,KEEP,本文件:203 搜索过滤
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,162,KEEP,本文件:127-136 分类行
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,238,KEEP,本文件:213 搜索结果点击
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupTitle,func,313,KEEP,本文件:126/131/134/138 分组
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,322,KEEP,本文件:163 调用 + 140-155
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerRow,func,351,KEEP,本文件:382-384 页脚入口
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupTitle,func,323,KEEP,本文件:126/131/134/138 分组
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,332,KEEP,本文件:163 调用 + 140-155
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerRow,func,361,KEEP,本文件:382-384 页脚入口
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,init,init,26,KEEP,本文件:87 uiState 初始化
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,selectPane,func,32,KEEP,本文件:107 open(pane:) 调用
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,40,KEEP,本文件:28/37 私有映射
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,69,KEEP,NSWindow override；AppKit 派发 Esc
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,89,KEEP,本文件:80 shared 单例
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,100,KEEP,FrsetNextApp.swift:24/148 等 22 处
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,126,KEEP,SettingsWindowControlling 协议 Registry.swift:92
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,145,KEEP,本文件:104 open 内调用
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,jumpCapture,func,42,KEEP,截图与钉图页内跳转：同值时先归零再设回，重复深链也能重新定位
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,51,KEEP,本文件:28/37 私有映射
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,85,KEEP,NSWindow override；AppKit 派发 Esc
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,105,KEEP,本文件:80 shared 单例
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,116,KEEP,FrsetNextApp.swift:24/148 等 22 处
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,142,KEEP,SettingsWindowControlling 协议 Registry.swift:92
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,161,KEEP,本文件:104 open 内调用
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,select,func,83,KEEP,调用方 MenuBarIconStyle.swift:260（@objc selectIconStyle）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,setRevealsCustomOption,func,99,KEEP,调用方同文件 :272/:282（@objc hide/restoreIconOption）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,init,init,133,KEEP,调用方 startFan:471 实例化旋转视图
@@ -2666,17 +2778,18 @@ StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openS
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,132,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,137,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,146,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,151,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,156,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,162,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,170,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,174,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,180,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,152,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,157,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,162,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,168,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,176,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,180,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,186,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,51,KEEP,调用方 mainMenu:61（私有）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,59,KEEP,调用方 StatusBarController.swift:117（右键点击）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,80,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconSubmenu,func,190,KEEP,调用方 buildMenu:167
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,233,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,62,KEEP,调用方 StatusBarController.swift:117（右键点击）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,83,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconSubmenu,func,202,KEEP,调用方 buildMenu:167
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,245,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
 StatusBar,Features/StatusBar/StatusBarModule.swift,StatusBarModule,start,func,10,KEEP,AppModule 协议；AppBootstrap.swift:25 注册，startAll:34 派发
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,init,init,14,KEEP,在状态栏按钮上加透明覆盖层并注册 fileURL 拖放（按钮不可子类化）
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,init,init,21,KEEP,在状态栏按钮上加透明覆盖层并注册 fileURL 拖放（按钮不可子类化）
@@ -2830,9 +2943,9 @@ Toolbox,Features/Toolbox/Shortcuts/ShortcutRecorder.swift,ShortcutCapture,stop,f
 Toolbox,Features/Toolbox/Shortcuts/ShortcutRecorder.swift,ShortcutCapture,deinit,deinit,46,KEEP,deinit 生命周期，移除本地 monitor
 Toolbox,Features/Toolbox/Shortcuts/ShortcutRecorder.swift,ShortcutRecorderButton,init,init,56,KEEP,ShortcutSettingsPane:115、ToolSettingsPane:90 构造
 Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,init,init,7,KEEP,ToolboxModule.swift:30 经 SettingsPaneRegistry.build 构造
-Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,pair,func,57,KEEP,body:11-18 调用
-Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,staticRow,func,67,KEEP,body:23-30 调用
-Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,shortcutRow,func,82,KEEP,pair:52/53 调用
+Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,pair,func,60,KEEP,body:11-18 调用
+Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,staticRow,func,70,KEEP,body:23-30 调用
+Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,shortcutRow,func,85,KEEP,pair:52/53 调用
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,registrationID,func,27,KEEP,set:68/90、ToolSettingsPane:129 调用
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,title,func,29,KEEP,set:70 调用（构造 ShortcutDefinition）
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,loadRaw,func,35,KEEP,binding:45、all:51、set:78、clear:91 调用
@@ -3271,26 +3384,3 @@ Storage,Storage/Database.swift,StatisticsManager,exportAll,func,582,KEEP,Statist
 Storage,Storage/Database.swift,StatisticsManager,importMerge,func,594,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
 Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,611,KEEP,init:466 调用
 Storage,Storage/Database.swift,StatisticsManager,dayString,func,640,KEEP,bumpStat:363、record:476、StatisticsRootView:272
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfMetrics,cornerRadius,func,43,KEEP,v262 绳子/卡片尺寸常量：cornerRadius
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeGeometry,y,func,77,KEEP,v262 绳线几何：卡片按切线倾斜的唯一来源：y
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeGeometry,slope,func,83,KEEP,v262 绳线几何：卡片按切线倾斜的唯一来源：slope
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeGeometry,tilt,func,91,KEEP,v262 绳线几何：卡片按切线倾斜的唯一来源：tilt
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,draw,func,157,KEEP,v262 卡片：倾斜、微摆、拖出：draw
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,startSway,func,317,KEEP,v262 卡片：倾斜、微摆、拖出：startSway
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,stopSway,func,334,KEEP,v262 卡片：倾斜、微摆、拖出：stopSway
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCardView,viewDidMoveToWindow,func,338,KEEP,v262 卡片：倾斜、微摆、拖出：viewDidMoveToWindow
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,draw,func,494,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：draw
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,ropePath,func,548,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：ropePath
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,drawKnots,func,561,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：drawKnots
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,clearShadow,func,575,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：clearShadow
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,stroke,func,579,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：stroke
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,dashed,func,588,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：dashed
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,drawLights,func,603,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：drawLights
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,drawSnow,func,627,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：drawSnow
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfRopeView,samplePoints,func,639,KEEP,v262 绳子绘制（四样式 + 阴影描边 + 绳结）：samplePoints
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCanvasView,reload,func,680,KEEP,v262 排版与落入动画：reload
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCanvasView,animateDrop,func,728,KEEP,v262 排版与落入动画：animateDrop
-Capture,Features/Capture/Shelf/ShelfWindow.swift,ShelfCanvasView,topPivot,func,771,KEEP,v262 排版与落入动画：topPivot
-Settings,Features/Settings/Shell/CaptureHubPane.swift,CaptureHubPane,jump,func,47,KEEP,v262 截图/钉图/悬挂架合并成一个滚动页：jump
-Settings,Features/Settings/Shell/CaptureHubPane.swift,CaptureHubPane,block,func,60,KEEP,v262 截图/钉图/悬挂架合并成一个滚动页：block
-Capture,Features/Capture/Shelf/ShelfModel.swift,ShelfRopeStyle,normalized,func,80,KEEP,v262 四样式对齐 1Capture 命名（含 twine 兼容）：normalized

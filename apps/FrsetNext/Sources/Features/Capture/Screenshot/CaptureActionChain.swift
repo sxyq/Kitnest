@@ -90,6 +90,32 @@ public enum CaptureActionChain {
                 PinnedScreenshotManager.shared.show(image: image)
                 Toast.show("已钉在屏幕上", icon: "pin.fill")
             },
+            // v263（用户：「钉住就变成一个图标，然后选择钉住或者是这种多形态的，
+            // 一个形态一个选项」）：四个外观形态各占一个选项，选中即按该形态钉住。
+            CaptureActionTool(id: "pinClassic", title: "经典", systemImage: "rectangle.portrait") { image, _ in
+                Self.pin(image, preset: "classic")
+            },
+            CaptureActionTool(id: "pinBorderless", title: "无边框", systemImage: "rectangle.dashed") { image, _ in
+                Self.pin(image, preset: "borderless")
+            },
+            CaptureActionTool(id: "pinCard", title: "卡片", systemImage: "rectangle.on.rectangle") { image, _ in
+                Self.pin(image, preset: "card")
+            },
+            CaptureActionTool(id: "pinAccent", title: "强调", systemImage: "rectangle.inset.filled") { image, _ in
+                Self.pin(image, preset: "accent")
+            },
+            // 图帘（原悬挂架）：把这张直接挂到屏幕顶边，不落到截图文件夹
+            CaptureActionTool(id: "curtain", title: "挂到图帘", systemImage: "rectangle.stack.badge.plus", key: "g") { _, url in
+                // 控制器是 @MainActor：动作条 handler 是同步非隔离闭包，这里显式切回主线程
+                Task { @MainActor in
+                    if ImageCurtainController.shared.attach(url: url, manual: true) {
+                        Toast.show("已挂到图帘", icon: "rectangle.stack")
+                    } else {
+                        Toast.show("图帘未开启：设置 → 截图与钉图 → 图帘",
+                                   icon: "exclamationmark.triangle", isWarning: true)
+                    }
+                }
+            },
             CaptureActionTool(id: "ocr", title: "识字", systemImage: "text.viewfinder", key: "o") { image, _ in
                 ScreenshotManager.shared.recognize(image)
             },
@@ -133,13 +159,27 @@ public enum CaptureActionChain {
                                primary: "copy", items: ["copyOCR", "copyTranslate", "save"]),
             CaptureActionGroup(id: "ocrGroup", title: "识别", systemImage: "text.viewfinder",
                                primary: "ocr", items: ["qrCode", "ocrTranslate", "screenTranslate"]),
+            // v263：钉住从「更多」里提出来单独成组。点图标 = 用当前外观钉住，
+            // 悬停展开四个形态 + 「挂到图帘」，一个形态一个选项。
+            CaptureActionGroup(id: "pinGroup", title: "钉住", systemImage: "pin.fill",
+                               primary: "pin",
+                               items: ["pin", "pinClassic", "pinBorderless", "pinCard", "pinAccent", "curtain"]),
+            // 长截图保持独立一组（v263 用户明确要求「长截图单独一下」）
             CaptureActionGroup(id: "longGroup", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal",
                                primary: "longShot", items: []),
             CaptureActionGroup(id: "editGroup", title: "编辑", systemImage: "pencil.and.outline",
                                primary: "annotate", items: ["beautify"]),
             CaptureActionGroup(id: "moreGroup", title: "更多", systemImage: "ellipsis",
-                               primary: nil, items: ["pin", "airDrop", "history"]),
+                               primary: nil, items: ["airDrop", "history"]),
         ]
+    }
+
+    /// 按指定形态钉住（动作条四个形态选项共用）
+    private static func pin(_ image: CGImage, preset: String) {
+        let appearance = PinAppearance.preset(preset) ?? .current
+        PinnedScreenshotManager.shared.show(image: image, appearance: appearance)
+        let title = appearance.presetTitle ?? "自定义"
+        Toast.show("已钉住 · \(title)", icon: "pin.fill")
     }
 
     static func tool(id: String) -> CaptureActionTool? {
@@ -246,7 +286,8 @@ final class CaptureActionToolbarPanel: NSPanel {
     // MARK: 显示
 
     /// 预览面板尺寸：预览图按 340×200 内等比缩放，下面留 56pt 给工具条。
-    /// 最小宽度随样式走——药丸条要放下 5 个「图标+文字」，图标条只要 5 个 30pt 方块。
+    /// 最小宽度随样式走——v263 起了「钉住」一组后有 6 个入口，
+    /// 药丸条要放下 6 个「图标+文字」（约 430pt），图标条只要 6 个 30pt 方块。
     static func panelSize(for image: CGImage, style: CaptureToolbarStyle) -> NSSize {
         let maxW: CGFloat = 340
         let maxH: CGFloat = 200
@@ -254,13 +295,15 @@ final class CaptureActionToolbarPanel: NSPanel {
         let ih = max(1, CGFloat(image.height))
         let scale = min(maxW / iw, maxH / ih, 1)
         let previewW = max(120, iw * scale)
-        let previewH = max(48, ih * scale)
+        // v263：子项改成竖排列表后需要更高的面板（钉住组 6 行 + 标题 ≈ 181pt）。
+        // 预览区保底 210，任何一组的列表都不会被窗口上沿裁掉；大图仍按比例最多 200。
+        let previewH = max(210, ih * scale)
 
         let minWidth: CGFloat
         switch style {
-        case .iconBar:      minWidth = 252
-        case .pillBar:      minWidth = 336
-        case .primarySplit: minWidth = 326
+        case .iconBar:      minWidth = 268
+        case .pillBar:      minWidth = 430
+        case .primarySplit: minWidth = 412
         }
         return NSSize(width: max(minWidth, previewW + 20), height: previewH + 20 + 56)
     }

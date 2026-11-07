@@ -2,18 +2,18 @@ import SwiftUI
 
 // MARK: - 「截图与钉图」总页
 //
-// v262 之前这里是三个页签：截图 / 钉图 / 悬挂架。用户的要求是
-// 「截图设置、钉图设置、悬挂架的效果全都放在当前这个设置栏里面」——
+// v262 之前这里是三个页签：截图 / 钉图 / 图帘（原名悬挂架）。用户的要求是
+// 「截图设置、钉图设置、图帘的效果全都放在当前这个设置栏里面」——
 // 三页签每次只能看到一部分，调完钉图描边想再调截图水印得来回切。
 //
 // 合并成一页之后：一路滚下来就能看到所有截图相关设置，
 // 侧边栏搜索和深链仍然能定位（用 `scrollTo` 锚点，不再切页签）。
 
 struct CaptureHubPane: View {
-    /// 0 = 截图，1 = 钉图，2 = 悬挂架。由深链/搜索写入，本页只负责滚过去。
+    /// 0 = 截图，1 = 钉图，2 = 图帘。由深链/搜索写入，本页只负责滚过去。
     @Binding var scrollTarget: Int
 
-    private let anchors = ["capture.block.capture", "capture.block.pin", "capture.block.shelf"]
+    private let anchors = ["capture.block.capture", "capture.block.pin", "capture.block.curtain"]
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -29,10 +29,10 @@ struct CaptureHubPane: View {
                           anchor: anchors[1]) {
                         PinSettingsPane()
                     }
-                    block(title: "悬挂架",
-                          subtitle: "截图后挂到屏幕顶边的临时暂存区",
+                    block(title: "图帘",
+                          subtitle: "截图后挂到屏幕顶边的帘线上，临时暂存",
                           anchor: anchors[2]) {
-                        ShelfSettingsPane()
+                        CurtainSettingsPane()
                     }
                 }
                 .padding(.horizontal, 34)

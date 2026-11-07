@@ -15,6 +15,9 @@ public struct ShortcutSettingsPane: View {
             pair("screenshotCopy", "colorPicker")
             pair("screenshotPin", nil)
             Divider().padding(.vertical, 8)
+            // v263：剪贴板与图帘也要能像截图一样单独设置快捷键
+            pair("clipboardPanel", "curtainToggle")
+            Divider().padding(.vertical, 8)
             pair("screenshotTranslate", "translateSelection")
             Divider().padding(.vertical, 8)
             // 面板内快捷键（官方原版第四组，静态展示不可改）：粘贴 ↩ / 搜索剪贴板 ⌘F

@@ -223,10 +223,10 @@ enum AppBootstrap {
         CaptureEventBus.onImageCaptured = { url, data in
             ClipboardManager.shared.insertImage(data: data, fileURL: url, sourceApp: "Kitnest")
             DatabaseManager.shared.bumpStat("screenshot_count")
-            // v261：截图悬挂架（设置 → 截图 → 悬挂架，默认关闭）。
+            // v261：图帘（设置 → 截图与钉图 → 图帘，默认关闭）。
             // 关着的时候 attach 内部第一行就 return，不会有任何窗口/内存开销。
             Task { @MainActor in
-                ScreenshotShelfController.shared.attach(url: url)
+                ImageCurtainController.shared.attach(url: url)
             }
         }
 
@@ -360,6 +360,28 @@ enum AppBootstrap {
         DefaultHotkeyEntry(id: "screenshotPin", title: "截图并贴图",
                            keyCode: 0x23, modifiers: UInt32(shiftKey | optionKey)) {
             ScreenshotManager.shared.captureAndPin()
+        },
+        // v263：图帘（截图后的临时暂存区）。默认 ⇧⌥G——G 取「挂」，
+        // 与截图系 ⇧⌥ 家族一致，且不与现有条目冲突。
+        DefaultHotkeyEntry(id: "curtainToggle", title: "图帘",
+                           keyCode: 0x05, modifiers: UInt32(shiftKey | optionKey)) {
+            // 控制器与 Toast 都在主线程；热键 handler 是非隔离闭包，显式切回
+            Task { @MainActor in
+                guard !ImageCurtainController.shared.items.isEmpty else {
+                    Toast.show("图帘里还没有截图", icon: "rectangle.stack")
+                    return
+                }
+                ImageCurtainController.shared.toggle()
+            }
+        },
+        // v263：剪贴板面板。默认 ⌥V（V = 粘贴，直觉上就是「把剪贴板叫出来」）。
+        // 主面板首页就是剪贴板，这里给一个语义明确的独立入口，可单独改键/清除。
+        DefaultHotkeyEntry(id: "clipboardPanel", title: "剪贴板",
+                           keyCode: 0x09, modifiers: UInt32(optionKey)) {   // ⌥V
+            NSApp.activate(ignoringOtherApps: true)
+            ServiceLocator.panel?.show()
+            // 面板可能停在中转/监测页；明确切回首页（= 剪贴板历史）
+            MonitorCenterPresenter.shared.selectHome()
         },
         DefaultHotkeyEntry(id: "translateSelection", title: "划词翻译",
                            keyCode: 0x02, modifiers: UInt32(shiftKey | optionKey)) {

@@ -94,6 +94,76 @@ public enum PinStyle {
     }
 }
 
+// MARK: - 单张钉图的外观快照（v263）
+
+/// 一张钉图自己的外观参数。
+///
+/// 为什么不是直接读 `PinStyle`：截图动作条里现在有「钉住 · 经典 / 无边框 / 卡片 / 强调」
+/// 四个形态选项（用户原话：「一个形态一个选项」）。如果选完直接改全局偏好，
+/// 用户下次随手钉一张就会莫名其妙变成上次选的形态；这里把参数**随窗口**带一份，
+/// 只影响这一张。菜单里再改外观时同时写回全局，保持「新钉图沿用上次设置」的老行为。
+public struct PinAppearance: Equatable {
+    public var borderWidth: Double
+    public var borderColorToken: String
+    public var cornerRadius: Double
+    public var shadow: Bool
+    public var magnet: Bool
+    public var opacity: Double
+    public var chromeAutoHide: Double
+
+    public init(borderWidth: Double, borderColorToken: String, cornerRadius: Double,
+                shadow: Bool, magnet: Bool, opacity: Double, chromeAutoHide: Double) {
+        self.borderWidth = borderWidth
+        self.borderColorToken = borderColorToken
+        self.cornerRadius = cornerRadius
+        self.shadow = shadow
+        self.magnet = magnet
+        self.opacity = opacity
+        self.chromeAutoHide = chromeAutoHide
+    }
+
+    /// 当前全局设置（普通「钉住」用这个）
+    public static var current: PinAppearance {
+        PinAppearance(borderWidth: PinStyle.borderWidth,
+                      borderColorToken: PinStyle.borderColorToken,
+                      cornerRadius: PinStyle.cornerRadius,
+                      shadow: PinStyle.shadow,
+                      magnet: PinStyle.magnet,
+                      opacity: PinStyle.opacity,
+                      chromeAutoHide: PinStyle.chromeAutoHide)
+    }
+
+    /// 动作条里的四个形态。数值与设置页「外观预设」一致，两处不会各说各话。
+    public static func preset(_ id: String) -> PinAppearance? {
+        var p = current
+        switch id {
+        case "classic":
+            p.borderWidth = 1.5; p.borderColorToken = "auto"; p.cornerRadius = 10; p.shadow = true
+        case "borderless":
+            p.borderWidth = 0; p.borderColorToken = "auto"; p.cornerRadius = 0; p.shadow = false
+        case "card":
+            p.borderWidth = 2; p.borderColorToken = "white"; p.cornerRadius = 16; p.shadow = true
+        case "accent":
+            p.borderWidth = 2; p.borderColorToken = "accent"; p.cornerRadius = 12; p.shadow = true
+        default:
+            return nil
+        }
+        return p
+    }
+
+    public var presetTitle: String? {
+        for (id, title) in [("classic", "经典"), ("borderless", "无边框"),
+                            ("card", "卡片"), ("accent", "强调")] {
+            if let p = PinAppearance.preset(id), p.borderWidth == borderWidth,
+               p.borderColorToken == borderColorToken,
+               abs(p.cornerRadius - cornerRadius) < 0.01, p.shadow == shadow {
+                return title
+            }
+        }
+        return nil
+    }
+}
+
 // MARK: - 工具条（图片内底边居中）
 //
 // 对照 1Capture 的 `SnipPinToolbarWC` 与资源清单：
@@ -564,6 +634,8 @@ final class PinnedScreenshotContentView: NSView {
 
     /// auto 描边的取样结果（按图缓存一次）
     private let autoBorderColor: NSColor
+    /// 这一张钉图自己的外观（v263，见 PinAppearance）
+    var pinAppearance: PinAppearance
 
     var onClose: (() -> Void)?
 
@@ -584,9 +656,10 @@ final class PinnedScreenshotContentView: NSView {
     private var chromeVisible = false
     private var toolbarHovered = false
 
-    init(image: CGImage, frame frameRect: NSRect) {
+    init(image: CGImage, frame frameRect: NSRect, appearance: PinAppearance = .current) {
         self.image = image
         self.baseSize = frameRect.size
+        self.pinAppearance = appearance
         self.autoBorderColor = PinStyle.sampledBorderColor(for: image)
         super.init(frame: frameRect)
 
@@ -652,7 +725,7 @@ final class PinnedScreenshotContentView: NSView {
     // MARK: 绘制
 
     private var borderColor: NSColor {
-        switch PinStyle.borderColorToken {
+        switch pinAppearance.borderColorToken {
         case "white":  return NSColor(white: 1, alpha: 0.86)
         case "black":  return NSColor(white: 0, alpha: 0.55)
         case "accent": return NSColor.controlAccentColor.withAlphaComponent(0.95)
@@ -664,8 +737,8 @@ final class PinnedScreenshotContentView: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.clear(bounds)
 
-        let radius = CGFloat(PinStyle.cornerRadius)
-        let borderWidth = CGFloat(PinStyle.borderWidth)
+        let radius = CGFloat(pinAppearance.cornerRadius)
+        let borderWidth = CGFloat(pinAppearance.borderWidth)
         let outer = CGPath(roundedRect: bounds, cornerWidth: radius, cornerHeight: radius, transform: nil)
 
         // 1. 图像（裁进圆角；按旋转/翻转绘制）
@@ -679,7 +752,7 @@ final class PinnedScreenshotContentView: NSView {
         let swapped = rotationQuarter % 2 == 1
         let drawW = swapped ? bounds.height : bounds.width
         let drawH = swapped ? bounds.width : bounds.height
-        ctx.setAlpha(CGFloat(PinStyle.opacity))
+        ctx.setAlpha(CGFloat(pinAppearance.opacity))
         ctx.draw(image, in: CGRect(x: -drawW / 2, y: -drawH / 2, width: drawW, height: drawH))
         ctx.setAlpha(1)
         ctx.restoreGState()
@@ -766,7 +839,7 @@ final class PinnedScreenshotContentView: NSView {
     /// 静止 N 秒后隐藏；鼠标停在控制条上时续命。N = 0 表示不自动收起。
     private func scheduleChromeHide() {
         chromeHideTimer?.invalidate()
-        let interval = PinStyle.chromeAutoHide
+        let interval = pinAppearance.chromeAutoHide
         guard interval > 0 else { return }
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             guard let self else { return }
@@ -938,7 +1011,7 @@ final class PinnedScreenshotContentView: NSView {
         if zone == .body {
             frame.origin.x += dx
             frame.origin.y += dy
-            if PinStyle.magnet {
+            if pinAppearance.magnet {
                 frame.origin = magnetSnapped(origin: frame.origin,
                                              size: frame.size,
                                              window: window)
@@ -1133,7 +1206,7 @@ final class PinnedScreenshotContentView: NSView {
                                     symbol: "", selected: percent == $0)
             } + [.action(id: "zoom.original", title: "切换原始大小", symbol: "1.square", detail: nil)])
 
-        let alphaPercent = Int((PinStyle.opacity * 100).rounded())
+        let alphaPercent = Int((pinAppearance.opacity * 100).rounded())
         let alpha = PinMenuEntry.submenu(
             id: "alpha", title: "不透明度", symbol: "circle.lefthalf.filled",
             detail: "\(alphaPercent)%",
@@ -1152,24 +1225,24 @@ final class PinnedScreenshotContentView: NSView {
                 .action(id: "orientation.reset", title: "重置朝向", symbol: "arrow.counterclockwise", detail: nil),
             ])
 
-        let borderDetail = PinStyle.borderWidth == 0
-            ? "无" : String(format: "%.1f pt", PinStyle.borderWidth)
+        let borderDetail = pinAppearance.borderWidth == 0
+            ? "无" : String(format: "%.1f pt", pinAppearance.borderWidth)
         let border = PinMenuEntry.submenu(
             id: "border", title: "边框", symbol: "square.dashed", detail: borderDetail,
             children: [0.0, 1.0, 1.5, 2.0, 3.0, 5.0].map {
                 PinMenuEntry.choice(id: "border.\($0)",
                                     title: $0 == 0 ? "无" : String(format: "%.1f pt", $0),
                                     symbol: "",
-                                    selected: abs(PinStyle.borderWidth - $0) < 0.01)
+                                    selected: abs(pinAppearance.borderWidth - $0) < 0.01)
             } + [
                 .choice(id: "bordercolor.auto", title: "自动（按底色反色）", symbol: "",
-                        selected: PinStyle.borderColorToken == "auto"),
+                        selected: pinAppearance.borderColorToken == "auto"),
                 .choice(id: "bordercolor.white", title: "白色", symbol: "",
-                        selected: PinStyle.borderColorToken == "white"),
+                        selected: pinAppearance.borderColorToken == "white"),
                 .choice(id: "bordercolor.black", title: "黑色", symbol: "",
-                        selected: PinStyle.borderColorToken == "black"),
+                        selected: pinAppearance.borderColorToken == "black"),
                 .choice(id: "bordercolor.accent", title: "强调色", symbol: "",
-                        selected: PinStyle.borderColorToken == "accent"),
+                        selected: pinAppearance.borderColorToken == "accent"),
             ])
 
         return [
@@ -1177,11 +1250,11 @@ final class PinnedScreenshotContentView: NSView {
             alpha,
             orientation,
             .toggle(id: "corner", title: "窗口圆角", symbol: "rectangle.roundedtop",
-                    on: PinStyle.cornerRadius > 0),
+                    on: pinAppearance.cornerRadius > 0),
             .toggle(id: "shadow", title: "窗口阴影", symbol: "square.stack.3d.down.right",
-                    on: PinStyle.shadow),
+                    on: pinAppearance.shadow),
             .toggle(id: "magnet", title: "自动吸附", symbol: "square.grid.2x2",
-                    on: PinStyle.magnet),
+                    on: pinAppearance.magnet),
             border,
             .action(id: "hideall",
                     title: PinnedScreenshotManager.shared.hasHidden ? "显示全部" : "隐藏全部",
@@ -1207,13 +1280,16 @@ final class PinnedScreenshotContentView: NSView {
         case "orientation.reset":
             resetOrientation()
         case "corner":
-            PinStyle.cornerRadius = PinStyle.cornerRadius > 0 ? 0 : 10
+            pinAppearance.cornerRadius = pinAppearance.cornerRadius > 0 ? 0 : 10
+            PinStyle.cornerRadius = pinAppearance.cornerRadius
             needsDisplay = true
         case "shadow":
-            PinStyle.shadow.toggle()
-            window?.hasShadow = PinStyle.shadow
+            pinAppearance.shadow.toggle()
+            PinStyle.shadow = pinAppearance.shadow
+            window?.hasShadow = pinAppearance.shadow
         case "magnet":
-            PinStyle.magnet.toggle()
+            pinAppearance.magnet.toggle()
+            PinStyle.magnet = pinAppearance.magnet
         case "hideall":
             if PinnedScreenshotManager.shared.hasHidden {
                 PinnedScreenshotManager.shared.showAll()
@@ -1226,13 +1302,16 @@ final class PinnedScreenshotContentView: NSView {
             if id.hasPrefix("zoom."), let n = Int(id.dropFirst(5)) {
                 setScale(CGFloat(n) / 100)
             } else if id.hasPrefix("alpha."), let n = Int(id.dropFirst(6)) {
-                PinStyle.opacity = Double(n) / 100
+                pinAppearance.opacity = Double(n) / 100
+                PinStyle.opacity = pinAppearance.opacity
                 needsDisplay = true
             } else if id.hasPrefix("border."), let d = Double(id.dropFirst(7)) {
+                pinAppearance.borderWidth = d
                 PinStyle.borderWidth = d
                 needsDisplay = true
             } else if id.hasPrefix("bordercolor.") {
-                PinStyle.borderColorToken = String(id.dropFirst("bordercolor.".count))
+                pinAppearance.borderColorToken = String(id.dropFirst("bordercolor.".count))
+                PinStyle.borderColorToken = pinAppearance.borderColorToken
                 needsDisplay = true
             }
         }
@@ -1326,7 +1405,7 @@ final class PinnedScreenshotContentView: NSView {
 /// 钉图窗：浮动层级 3、无标题栏、随内容 alpha 生成投影
 final class PinnedScreenshotWindow: NSPanel {
 
-    init(image: CGImage, origin: NSPoint) {
+    init(image: CGImage, origin: NSPoint, appearance: PinAppearance = .current) {
         let size = Self.initialSize(for: image)
         super.init(contentRect: NSRect(origin: origin, size: size),
                    styleMask: [.borderless, .nonactivatingPanel],
@@ -1338,12 +1417,14 @@ final class PinnedScreenshotWindow: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = PinStyle.shadow
+        hasShadow = appearance.shadow
         ignoresMouseEvents = false
         acceptsMouseMovedEvents = true
         hidesOnDeactivate = false
 
-        let view = PinnedScreenshotContentView(image: image, frame: NSRect(origin: .zero, size: size))
+        let view = PinnedScreenshotContentView(image: image,
+                                               frame: NSRect(origin: .zero, size: size),
+                                               appearance: appearance)
         view.onClose = { [weak self] in self?.close() }
         contentView = view
         // v233：初始位置可能被调用方给到屏幕外（实测 y=160 时窗底落到屏幕下方，
@@ -1419,11 +1500,15 @@ public final class PinnedScreenshotManager: NSObject {
     // MARK: 钉图入口
 
     /// 把一张图钉到屏幕（错位平铺避免完全重叠）
+    ///
+    /// - Parameter appearance: 这一张的外观形态；默认沿用全局设置。
+    ///   动作条里的「钉住 · 经典/无边框/卡片/强调」就是靠它做到「一个形态一个选项」。
     @discardableResult
-    public func show(image: CGImage, at origin: NSPoint? = nil) -> Bool {
+    public func show(image: CGImage, at origin: NSPoint? = nil,
+                     appearance: PinAppearance = .current) -> Bool {
         let offset = CGFloat(windows.count % 6) * 24
         let position = origin ?? NSPoint(x: 160 + offset, y: 160 + offset)
-        let window = PinnedScreenshotWindow(image: image, origin: position)
+        let window = PinnedScreenshotWindow(image: image, origin: position, appearance: appearance)
         windows.append(window)
         lastImage = image
         hasHidden = false
