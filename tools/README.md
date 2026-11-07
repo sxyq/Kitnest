@@ -10,7 +10,12 @@
 | `swift_catalog.py` | 重生成 `docs/00-总览/模块依赖图.md`（模块规模 + 跨模块顶层类型引用边；成员口径复用 `func_table`） | `python3 tools/swift_catalog.py` |
 | `symbol_index.py` | 逐声明 CSV（含结束行/体行数，供深读对账；口径同 `func_table`） | `python3 tools/symbol_index.py apps/FrsetNext/Sources <out.csv>` |
 | `reconcile.py` | **三方对账闸门**：CSV ↔ 审阅台账 ↔ 索引/依赖图头部数字，任一处过期立刻报红 | `python3 tools/reconcile.py`（0=全绿） |
+| `ui_arch_audit.py` | 全量 UI 组件 / 交互 / 分层画像：生成 `数据表/源文件分层与组件画像.csv`（每文件 31 列），并打印设计令牌采用率等度量；与 `func_table` 同源扫描 | `python3 tools/ui_arch_audit.py`（`--check` 只打印） |
 | `check.sh` | typecheck + 跨模块耦合扫描 | `./tools/check.sh` |
+
+> UI / 架构审计的三件产物：`docs/40-审计与核对/全量UI交互与DDD架构审计报告.md`（详细报告）、
+> `docs/40-审计与核对/数据表/UI与架构审计清单.csv`（51 条整改 backlog）、
+> `docs/40-审计与核对/数据表/源文件分层与组件画像.csv`（生成器产物，勿手改）。
 
 ## 关联工具（在 frset/rea-evidence 内）
 

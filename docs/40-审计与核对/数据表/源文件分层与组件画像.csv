@@ -1,0 +1,275 @@
+﻿module,file,loc,claimed_layer,actual_layer,target_layer,decls,funcs,inline_views,view_marks,font_literals,font_sizes,font_values,font_token,corner_literals,radius_token,space_token,stroke_token,motion_token,token_hits,shared_hits,shared_detail,button_calls,button_styles,singleton_refs,probe_hooks,sql_stmts,db_access,domain_in_view,issues,priority
+App,App/AppBootstrap.swift,593,应用·装配,基础设施/工具,Infrastructure（保持）,30,18,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=5,0,0,34,10,0,0,0,,-
+App,App/FrsetNextApp.swift,456,应用·装配,基础设施/工具,Infrastructure（保持）,8,6,0,6,0,0,,0,0,0,0,0,0,0,0,Toast=4,1,0,26,0,0,0,0,,-
+Core,Core/Motion/GenieMesh.swift,341,基础设施·动效,基础设施/工具,Infrastructure（保持）,40,11,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/Motion/GenieWarp.swift,691,基础设施·动效,基础设施/工具,Infrastructure（保持）,40,20,0,10,0,0,,0,0,1,0,0,0,1,0,,0,0,0,6,0,0,0,,-
+Core,Core/Motion/PanelMotion.swift,47,基础设施·动效,基础设施/工具,Infrastructure（保持）,4,2,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/AppUpdateChecker.swift,341,基础设施·运行时,基础设施/工具,Infrastructure（保持）,26,10,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=13,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/L10n.swift,134,基础设施·运行时,应用/领域服务,Application / Domain（按是否为业务规则再拆）,14,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Core,Core/Runtime/LogArchive.swift,301,基础设施·运行时,基础设施/工具,Infrastructure（保持）,32,11,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/Personalization.swift,329,基础设施·运行时,基础设施/工具,Infrastructure（保持）,46,8,0,0,0,0,,0,0,0,0,0,1,1,0,,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/Preferences.swift,112,基础设施·运行时,基础设施/工具,Infrastructure（保持）,58,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/Registry.swift,145,基础设施·运行时,基础设施/工具,Infrastructure（保持）,42,21,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/RenderProbe.swift,117,基础设施·运行时,基础设施/工具,Infrastructure（保持）,11,6,0,3,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Core,Core/Runtime/StateCompat.swift,36,基础设施·运行时,应用/领域服务,Application / Domain（按是否为业务规则再拆）,6,2,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/Runtime/TransientWindows.swift,178,基础设施·运行时,基础设施/工具,Infrastructure（保持）,19,9,0,7,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+Core,Core/Runtime/WindowReveal.swift,187,基础设施·运行时,基础设施/工具,Infrastructure（保持）,12,10,0,6,0,0,,0,0,0,0,0,3,3,0,,0,0,0,2,0,0,0,,-
+Core,Core/UI/AppearanceTheme.swift,193,基础设施·设计系统,界面层,Interface（仅渲染 + 交互转发）,28,8,2,4,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/UI/ContinuousCorner.swift,57,基础设施·设计系统,基础设施/工具,Infrastructure（保持）,1,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/UI/FlowLayout.swift,46,基础设施·设计系统,基础设施/工具,Infrastructure（保持）,4,2,0,0,0,0,,0,0,0,0,0,0,0,1,FlowLayout=1,0,0,0,0,0,0,0,,-
+Core,Core/UI/LiquidGlass.swift,543,基础设施·设计系统,界面层,Interface（仅渲染 + 交互转发）,58,24,7,15,0,0,,0,0,6,0,3,1,10,0,,0,0,0,1,0,0,1,视图内含调试钩子,P1
+Core,Core/UI/OfficialWindowChrome.swift,56,基础设施·设计系统,基础设施/工具,Infrastructure（保持）,3,1,0,1,0,0,,0,0,0,0,0,0,0,2,applyOfficialChrome=2,0,0,0,0,0,0,0,,-
+Core,Core/UI/PointingHandCursor.swift,76,基础设施·设计系统,界面层,Interface（仅渲染 + 交互转发）,11,11,1,4,0,0,,0,0,0,0,0,0,0,2,PointingHandCursor=2,0,0,0,0,0,0,0,,-
+Core,Core/UI/RoundCloseButton.swift,34,基础设施·设计系统,基础设施/工具,Infrastructure（保持）,2,1,0,1,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Core,Core/UI/Support.swift,423,基础设施·设计系统,界面层,Interface（仅渲染 + 交互转发）,100,19,0,1,1,1,11.0,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,3,,-
+Core,Core/UI/Toast.swift,308,基础设施·设计系统,界面层,Interface（仅渲染 + 交互转发）,32,11,1,6,2,2,13.0;15.0,0,0,1,0,1,1,3,0,Toast=2,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/AIConnectionService.swift,107,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,10,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Services/AIEventBus.swift,21,领域/服务,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/AIModule.swift,36,领域/服务,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,3,0,0,0,0,,-
+AI,Features/AI/Services/AnthropicService.swift,126,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,15,9,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/CredentialStore.swift,292,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,37,21,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Services/CustomAIToolStore.swift,93,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,17,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Services/GeminiService.swift,130,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,14,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/LLMProtocols.swift,302,领域/服务,领域模型,Application / Domain（按是否为业务规则再拆）,41,22,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Services/LLMResolver.swift,120,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,20,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/LLMService.swift,105,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,16,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/LLMSessionStore.swift,151,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,17,9,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,8,1,0,,-
+AI,Features/AI/Services/LLMTransport.swift,199,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,24,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,128,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,23,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/OllamaService.swift,126,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,15,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Services/OpenAICompatibleService.swift,137,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,14,9,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Translation/AppleTranslationProvider.swift,218,领域/服务,界面层,Interface（仅渲染 + 交互转发）,23,10,1,4,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,领域目录混入视图,P0
+AI,Features/AI/Translation/QNWTranslator.swift,197,领域/服务,基础设施/工具,Infrastructure（保持）,16,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Translation/TranslationDiagnostics.swift,73,领域/服务,基础设施/工具,Infrastructure（保持）,4,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+AI,Features/AI/Translation/TranslationProvider.swift,175,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,35,16,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Translation/TranslationToolSession.swift,196,领域/服务,基础设施/工具,Infrastructure（保持）,16,10,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=2,0,0,1,0,0,0,0,,-
+AI,Features/AI/Views/AIChatView.swift,437,界面层,界面层,Interface（仅渲染 + 交互转发）,44,16,5,12,14,5,11.0;12.0;13.0;20.0;26.0,0,0,0,0,0,1,1,0,,6,1,11,0,0,0,0,字号全部硬编码；视图重依赖单例,P2
+AI,Features/AI/Views/AICredentialJournal.swift,162,界面层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,23,11,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+AI,Features/AI/Views/AISettings.swift,122,界面层,基础设施/工具,Infrastructure（保持）,20,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+AI,Features/AI/Views/AISettingsPane.swift,431,界面层,界面层,Interface（仅渲染 + 交互转发）,32,13,0,2,16,3,11.0;12.0;13.0,0,0,0,0,0,0,0,14,SettingsSection=6;SettingsRow=2;SettingsGroupBox=6,6,0,13,0,0,0,0,字号全部硬编码；视图重依赖单例,P2
+AI,Features/AI/Views/AISummaryView.swift,340,界面层,界面层,Interface（仅渲染 + 交互转发）,33,13,3,5,13,3,11.0;12.0;13.0,0,0,0,0,0,0,0,0,Toast=1,3,1,4,0,0,0,0,字号全部硬编码,P2
+Archive,Features/Archive/Core/ArchiveCore.swift,1133,领域/服务,基础设施/工具,Infrastructure（保持）,65,36,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,403,领域/服务,界面层,Interface（仅渲染 + 交互转发）,23,10,1,3,3,2,10.5;11.0,0,0,0,0,0,0,0,1,glassCard=1;Toast=13,0,1,0,0,0,0,17,领域目录混入视图,P0
+Archive,Features/Archive/Core/ArchiveServices.swift,123,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,7,6,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=4,0,0,0,0,0,0,0,,-
+Archive,Features/Archive/Core/ArchiveSourceHandling.swift,88,领域/服务,基础设施/工具,Infrastructure（保持）,6,4,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=3,0,0,0,0,0,0,0,,-
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,288,领域/服务,基础设施/工具,Infrastructure（保持）,39,16,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,200,领域/服务,基础设施/工具,Infrastructure（保持）,18,10,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=4,0,0,0,0,0,0,0,,-
+Archive,Features/Archive/Table/ArchiveEntryDrag.swift,252,混合层,界面层,Interface（仅渲染 + 交互转发）,37,26,0,2,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,2,,-
+Archive,Features/Archive/Table/ArchiveEntryTable.swift,303,混合层,基础设施/工具,Infrastructure（保持）,38,19,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,1,0,0,0,,-
+Archive,Features/Archive/Table/ArchiveEntryThumbnail.swift,249,混合层,基础设施/工具,Infrastructure（保持）,16,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Archive,Features/Archive/Table/ArchiveFileBox.swift,453,混合层,界面层,Interface（仅渲染 + 交互转发）,52,19,8,14,12,2,11.0;22.0,0,0,1,0,0,0,1,1,glassCard=1;Toast=3,2,2,0,0,0,0,3,字号全部硬编码,P2
+Archive,Features/Archive/Table/ArchiveHoverPreview.swift,128,混合层,基础设施/工具,Infrastructure（保持）,16,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,4,0,0,0,0,,-
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,1600,界面层,界面层,Interface（仅渲染 + 交互转发）,98,48,19,25,36,12,7.0;8.0;9.0;10.0;10.5;11.0;11.5;12.0;12.5;15.0;24.0;30.0,0,0,3,0,0,0,3,2,glassCard=1;applyOfficialChrome=1;Toast=9,13,2,0,0,0,0,13,字号全部硬编码,P2
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,473,界面层,界面层,Interface（仅渲染 + 交互转发）,45,11,4,8,18,2,11.0;13.0,0,0,0,0,0,0,0,1,applyOfficialChrome=1;Toast=1,3,3,0,1,0,0,1,字号全部硬编码；视图内含调试钩子；单文件多套按钮样式,P1
+Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,225,界面层,界面层,Interface（仅渲染 + 交互转发）,24,15,2,5,5,2,10.5;11.0,0,0,0,0,0,0,0,0,,1,1,0,0,0,0,3,,-
+Archive,Features/Archive/UI/ArchiveMiniWindow.swift,289,界面层,界面层,Interface（仅渲染 + 交互转发）,33,10,5,9,6,2,11.0;20.0,0,0,0,0,0,0,0,1,applyOfficialChrome=1;Toast=2,2,1,0,0,0,0,4,,-
+Archive,Features/Archive/UI/ArchivePeekView.swift,215,界面层,界面层,Interface（仅渲染 + 交互转发）,21,4,2,4,9,1,11.0,0,0,3,0,0,0,3,0,,0,0,0,0,0,0,3,,-
+Archive,Features/Archive/UI/ArchiveProgressPanel.swift,361,界面层,界面层,Interface（仅渲染 + 交互转发）,21,9,2,11,12,1,11.0,0,0,1,0,0,1,2,1,applyOfficialChrome=1,2,1,0,1,0,0,2,字号全部硬编码；视图内含调试钩子,P1
+Archive,Features/Archive/UI/ArchiveTaskHUD.swift,338,界面层,界面层,Interface（仅渲染 + 交互转发）,34,13,1,7,6,3,10.0;12.0;13.0,0,0,1,0,0,2,3,1,glassPlate=1,2,1,6,1,0,0,0,视图内含调试钩子,P1
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,202,界面层,界面层,Interface（仅渲染 + 交互转发）,19,3,6,7,6,3,10.5;11.0;11.5,0,0,0,0,0,0,0,0,,1,1,0,0,0,0,0,,-
+Audio,Features/Audio/AudioMixer.swift,329,混合层,界面层,Interface（仅渲染 + 交互转发）,37,17,0,2,6,2,11.0;12.0,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,683,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,39,24,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,1881,混合层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,151,89,0,7,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1;Toast=3,0,0,5,1,0,0,0,视图内含调试钩子,P1
+Capture,Features/Capture/Annotation/AnnotationSelfTest.swift,305,混合层,基础设施/工具,Infrastructure（保持）,17,7,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,746,混合层,界面层,Interface（仅渲染 + 交互转发）,82,8,17,21,22,8,7.0;9.0;9.5;10.0;11.0;11.5;12.0;12.5,0,1,8,0,0,0,8,2,glassPlate=2,4,1,0,1,0,0,0,字号全部硬编码；视图内含调试钩子,P1
+Capture,Features/Capture/Annotation/BeautifyPanel.swift,304,混合层,界面层,Interface（仅渲染 + 交互转发）,33,14,2,5,4,1,11.0,0,0,0,0,0,0,0,1,applyOfficialChrome=1;Toast=3,0,0,4,0,0,0,0,,-
+Capture,Features/Capture/Annotation/ImageProcessor.swift,128,混合层,基础设施/工具,Infrastructure（保持）,13,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Annotation/ObjectRemovalEngine.swift,359,混合层,基础设施/工具,Infrastructure（保持）,21,16,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Annotation/TextFontPopover.swift,140,混合层,界面层,Interface（仅渲染 + 交互转发）,12,0,1,2,7,1,11.0,0,0,0,0,0,0,0,0,,1,2,0,0,0,0,0,,-
+Capture,Features/Capture/Annotation/Watermark.swift,127,混合层,基础设施/工具,Infrastructure（保持）,14,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/History/CaptureHistoryStore.swift,293,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,41,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,13,2,0,,-
+Capture,Features/Capture/History/CaptureHistoryView.swift,409,混合层,界面层,Interface（仅渲染 + 交互转发）,33,18,4,9,8,3,11.0;12.0;28.0,0,0,0,0,0,0,0,1,applyOfficialChrome=1;Toast=3,4,2,11,0,0,0,3,视图重依赖单例,P2
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,422,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,31,18,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=5,0,0,5,0,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,161,混合层,基础设施/工具,Infrastructure（保持）,4,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,143,混合层,基础设施/工具,Infrastructure（保持）,11,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,221,混合层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,13,7,0,3,0,0,,0,0,1,0,0,1,2,0,,0,0,0,2,0,0,0,视图内含调试钩子,P1
+Capture,Features/Capture/LongScreenshot/LongScreenshotMotionCrop.swift,153,混合层,基础设施/工具,Infrastructure（保持）,4,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,543,混合层,基础设施/工具,Infrastructure（保持）,54,28,0,4,0,0,,0,0,2,0,0,0,2,1,applyOfficialChrome=1,0,0,3,4,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,476,混合层,基础设施/工具,Infrastructure（保持）,47,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,730,混合层,基础设施/工具,Infrastructure（保持）,48,13,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/LongScreenshot/Stitcher.swift,149,混合层,基础设施/工具,Infrastructure（保持）,11,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/OCR/OCRDiagnostics.swift,157,混合层,基础设施/工具,Infrastructure（保持）,10,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,3,0,0,0,0,,-
+Capture,Features/Capture/OCR/OCRRefiner.swift,78,混合层,基础设施/工具,Infrastructure（保持）,24,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/OCR/OCRService.swift,613,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,44,29,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,3,0,0,0,0,,-
+Capture,Features/Capture/OCR/PPOCROCR.swift,219,混合层,基础设施/工具,Infrastructure（保持）,22,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/OCR/PPOCROCREmote.swift,155,混合层,基础设施/工具,Infrastructure（保持）,9,2,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/OCR/QRCodeRecognizer.swift,54,混合层,基础设施/工具,Infrastructure（保持）,2,2,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=2,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/OCR/ScreenTranslator.swift,296,混合层,基础设施/工具,Infrastructure（保持）,16,9,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=6,0,0,4,0,0,0,0,,-
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,683,混合层,基础设施/工具,Infrastructure（保持）,71,40,0,1,0,0,,0,0,0,0,0,0,0,2,applyOfficialChrome=2;Toast=6,0,0,1,0,0,0,0,,-
+Capture,Features/Capture/Pin/PinChrome.swift,501,混合层,基础设施/工具,Infrastructure（保持）,57,27,0,7,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Pin/PinWindow.swift,1485,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,199,100,0,6,0,0,,0,0,0,0,0,0,0,0,Toast=1,0,0,7,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,397,混合层,基础设施/工具,Infrastructure（保持）,49,17,0,8,0,0,,0,0,0,0,0,0,0,0,Toast=3,0,0,15,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,377,混合层,界面层,Interface（仅渲染 + 交互转发）,25,11,9,11,7,6,10.5;11.0;11.5;12.0;12.5;14.0,0,13,2,0,0,0,2,0,,0,1,0,0,0,0,0,大视图零共享组件,P2
+Capture,Features/Capture/Screenshot/CaptureEventBus.swift,119,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,15,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/CaptureModule.swift,215,混合层,基础设施/工具,Infrastructure（保持）,7,6,0,2,0,0,,0,0,0,0,0,0,0,0,,0,0,15,4,0,0,0,,-
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,262,混合层,界面层,Interface（仅渲染 + 交互转发）,15,7,6,8,13,3,11.0;12.0;16.0,0,0,0,0,0,0,0,4,glassCard=4;Toast=1,8,2,3,0,0,0,2,字号全部硬编码,P2
+Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,178,混合层,界面层,Interface（仅渲染 + 交互转发）,17,2,0,2,4,1,11.0,0,0,0,0,0,0,0,0,,4,0,13,0,0,0,1,视图重依赖单例,P2
+Capture,Features/Capture/Screenshot/CaptureToolbarStyle.swift,48,混合层,基础设施/工具,Infrastructure（保持）,5,0,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,221,混合层,界面层,Interface（仅渲染 + 交互转发）,17,8,2,6,6,1,11.0,0,0,7,0,1,0,8,1,glassCard=1;Toast=2,0,1,0,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/DelayedCaptureHUD.swift,132,混合层,基础设施/工具,Infrastructure（保持）,15,7,0,1,0,0,,0,0,2,0,0,0,2,0,Toast=1,0,0,1,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/ElementSnap.swift,152,混合层,基础设施/工具,Infrastructure（保持）,14,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/Eyedropper.swift,356,混合层,基础设施/工具,Infrastructure（保持）,41,23,0,1,0,0,,0,0,0,0,0,0,0,0,Toast=1,0,0,3,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/EyedropperBridge.swift,34,混合层,基础设施/工具,Infrastructure（保持）,1,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,1095,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,86,60,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=19,0,0,15,0,0,0,0,,-
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,607,混合层,基础设施/工具,Infrastructure（保持）,62,28,0,1,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,1073,混合层,界面层,Interface（仅渲染 + 交互转发）,94,17,26,32,31,9,9.0;10.0;10.5;11.0;12.0;13.0;18.0;22.0;28.0,0,0,14,0,1,0,15,0,,1,1,8,0,1,0,1,字号全部硬编码；大视图零共享组件；视图重依赖单例,P1
+Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,432,混合层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,50,21,0,6,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1;Toast=1,0,0,5,1,0,0,0,视图内含调试钩子,P1
+Clipboard,Features/Clipboard/Store/ClipboardAppIconCache.swift,64,混合层,基础设施/工具,Infrastructure（保持）,4,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,315,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,42,24,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,791,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,76,31,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=8,0,0,6,0,0,0,0,,-
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,281,混合层,基础设施/工具,Infrastructure（保持）,29,15,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,170,混合层,基础设施/工具,Infrastructure（保持）,27,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,3,0,0,0,0,,-
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,396,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,33,18,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,3,0,22,4,0,,-
+Clipboard,Features/Clipboard/Store/TagStore.swift,134,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,12,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,5,1,0,,-
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,272,界面层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,37,24,0,3,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1,0,0,2,0,0,0,0,,-
+Clipboard,Features/Clipboard/UI/ClipboardModule.swift,36,界面层,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,570,界面层,界面层,Interface（仅渲染 + 交互转发）,46,15,7,11,11,2,11.0;13.0,0,0,1,0,0,0,1,0,Toast=2,2,1,1,0,0,0,0,字号全部硬编码,P2
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,563,界面层,界面层,Interface（仅渲染 + 交互转发）,61,14,4,14,5,4,11.0;12.0;13.0;22.0,0,0,3,0,0,0,3,1,glassCard=1,4,2,9,0,0,0,4,视图重依赖单例,P2
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,196,界面层,界面层,Interface（仅渲染 + 交互转发）,12,3,0,3,5,3,11.0;12.0;13.0,0,0,0,0,0,0,0,13,SettingsSection=3;SettingsRow=6;SettingsGroupBox=4;Toast=2,4,1,6,0,0,0,0,,-
+Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,73,界面层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,10,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,1020,界面层,界面层,Interface（仅渲染 + 交互转发）,118,60,0,6,0,0,,0,0,0,0,0,2,2,0,Toast=1,0,0,5,0,0,0,0,,-
+Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,115,界面层,界面层,Interface（仅渲染 + 交互转发）,9,6,0,1,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+CodePreview,Features/CodePreview/CodeCardImage.swift,81,混合层,基础设施/工具,Infrastructure（保持）,1,1,0,0,0,0,,0,0,1,0,0,0,1,0,,0,0,0,0,0,0,0,,-
+CodePreview,Features/CodePreview/CodeHighlighter.swift,161,混合层,基础设施/工具,Infrastructure（保持）,13,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+CodePreview,Features/CodePreview/CodeLanguage.swift,141,混合层,基础设施/工具,Infrastructure（保持）,13,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+CodePreview,Features/CodePreview/CodeLexer.swift,581,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,35,16,0,1,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+CodePreview,Features/CodePreview/CodePreviewView.swift,718,混合层,界面层,Interface（仅渲染 + 交互转发）,76,21,8,14,14,5,8.0;9.0;10.0;11.0;12.0,0,0,3,5,0,0,8,0,Toast=4,5,1,0,0,0,0,0,字号全部硬编码；大视图零共享组件,P2
+CodePreview,Features/CodePreview/CodeRichCopy.swift,172,混合层,基础设施/工具,Infrastructure（保持）,12,9,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+CodePreview,Features/CodePreview/CodeTheme.swift,346,混合层,基础设施/工具,Infrastructure（保持）,26,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Manual,Features/Manual/ManualDocument.swift,364,混合层,基础设施/工具,Infrastructure（保持）,29,11,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Manual,Features/Manual/ManualView.swift,610,混合层,界面层,Interface（仅渲染 + 交互转发）,55,12,14,22,28,7,7.5;11.0;11.5;12.0;12.5;15.0;19.0,0,1,10,0,0,1,11,3,glassCard=3,3,1,0,0,0,0,0,字号全部硬编码,P2
+Monitor,Features/Monitor/BatteryEnergy.swift,260,混合层,界面层,Interface（仅渲染 + 交互转发）,23,6,2,3,8,3,10.0;11.0;11.5,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/DiskVolumes.swift,117,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,18,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Memory/MemoryBreakdown.swift,88,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,15,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,207,混合层,基础设施/工具,Infrastructure（保持）,20,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Memory/MemoryOptimizeCard.swift,198,混合层,界面层,Interface（仅渲染 + 交互转发）,7,3,4,5,19,2,10.0;11.0,0,0,0,0,0,0,0,2,glassCard=2,1,2,0,0,0,0,0,字号全部硬编码,P2
+Monitor,Features/Monitor/Memory/MemoryOptimizer.swift,174,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,23,7,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,333,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,46,16,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,101,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,13,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/MonitorHistory.swift,38,领域/服务,基础设施/工具,Infrastructure（保持）,9,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/MonitorModule.swift,48,领域/服务,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,1,0,0,0,,-
+Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,169,领域/服务,基础设施/工具,Infrastructure（保持）,24,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,627,领域/服务,基础设施/工具,Infrastructure（保持）,87,24,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,329,领域/服务,基础设施/工具,Infrastructure（保持）,43,13,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,312,领域/服务,领域模型,Application / Domain（按是否为业务规则再拆）,52,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/NetworkPulse.swift,100,领域/服务,基础设施/工具,Infrastructure（保持）,14,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,866,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,136,20,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+Monitor,Features/Monitor/StatusBar/MonitorStatusItems.swift,21,混合层,基础设施/工具,Infrastructure（保持）,1,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,317,混合层,基础设施/工具,Infrastructure（保持）,16,10,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=2,0,0,6,0,0,0,0,,-
+Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,1341,混合层,界面层,Interface（仅渲染 + 交互转发）,104,23,23,42,41,8,11.0;11.5;12.0;12.5;13.0;14.0;16.0;19.0,0,6,2,0,0,1,3,2,glassCard=2;Toast=2,1,1,8,0,0,0,4,字号全部硬编码；视图重依赖单例,P2
+Monitor,Features/Monitor/Storage/DiskIndex.swift,524,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,72,20,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,935,混合层,界面层,Interface（仅渲染 + 交互转发）,54,15,10,13,51,10,9.0;10.0;10.5;11.0;11.5;12.0;13.0;24.0;28.0;40.0,0,0,5,0,0,3,8,3,glassCard=2;applyOfficialChrome=1;Toast=3,11,1,2,0,0,0,2,字号全部硬编码,P2
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,366,混合层,界面层,Interface（仅渲染 + 交互转发）,29,8,3,4,5,4,10.0;11.0;11.5;22.0,0,1,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,320,混合层,基础设施/工具,Infrastructure（保持）,11,11,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/BatteryPanel.swift,574,界面层,界面层,Interface（仅渲染 + 交互转发）,48,17,11,13,19,11,9.5;10.0;10.5;11.0;11.5;12.0;14.0;15.0;17.0;18.0;20.0,0,0,0,0,0,0,0,0,,0,1,3,0,0,0,8,字号全部硬编码；大视图零共享组件,P2
+Monitor,Features/Monitor/Views/MonitorCPUViews.swift,141,界面层,界面层,Interface（仅渲染 + 交互转发）,16,3,3,5,4,4,8.0;9.0;10.0;11.0,0,2,2,0,0,0,2,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/MonitorCenterView.swift,59,界面层,基础设施/工具,Infrastructure（保持）,10,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,4,0,0,0,0,,-
+Monitor,Features/Monitor/Views/MonitorCharts.swift,305,界面层,界面层,Interface（仅渲染 + 交互转发）,56,13,1,14,3,3,11.0;12.0;13.0,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,1276,界面层,界面层,Interface（仅渲染 + 交互转发）,48,19,21,26,48,13,5.0;9.0;9.5;10.0;10.5;11.0;11.5;12.0;16.0;17.0;20.0;24.0;30.0,0,3,5,0,0,2,7,1,glassCard=1,0,1,14,0,0,0,0,字号全部硬编码；视图重依赖单例,P2
+Monitor,Features/Monitor/Views/MonitorFlow.swift,385,界面层,界面层,Interface（仅渲染 + 交互转发）,43,8,10,12,6,4,9.5;10.0;11.0;12.0,0,0,5,0,0,1,6,2,glassCard=2,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/MonitorFormat.swift,79,界面层,基础设施/工具,Infrastructure（保持）,11,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,179,界面层,界面层,Interface（仅渲染 + 交互转发）,12,5,5,6,7,4,9.0;10.0;10.5;18.0,0,0,4,0,1,0,5,1,glassCard=1,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,441,界面层,基础设施/工具,Infrastructure（保持）,33,18,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/PortInspector.swift,251,界面层,基础设施/工具,Infrastructure（保持）,23,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Monitor,Features/Monitor/Views/PortOccupancySection.swift,208,界面层,界面层,Interface（仅渲染 + 交互转发）,16,3,7,8,9,3,11.0;11.5;12.5,0,0,0,0,0,1,1,0,Toast=1,1,1,0,0,0,0,0,,-
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,478,混合层,界面层,Interface（仅渲染 + 交互转发）,39,21,1,7,0,0,,0,0,1,0,0,5,6,1,glassPlate=1,0,0,2,0,0,0,0,,-
+Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,245,混合层,界面层,Interface（仅渲染 + 交互转发）,13,5,4,6,18,3,11.0;12.0;13.0,0,0,0,0,0,0,0,0,,3,0,3,0,0,0,0,字号全部硬编码,P2
+Onboarding,Features/Onboarding/PermissionCenter.swift,292,混合层,基础设施/工具,Infrastructure（保持）,23,7,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=2,0,0,0,0,0,0,0,,-
+Onboarding,Features/Onboarding/PermissionGuideView.swift,220,混合层,界面层,Interface（仅渲染 + 交互转发）,15,0,9,11,13,6,11.0;12.0;14.0;15.0;20.0;26.0,0,0,1,0,0,0,1,1,glassCard=1,5,2,2,0,0,0,0,字号全部硬编码,P2
+Onboarding,Features/Onboarding/PermissionGuideWindowController.swift,88,混合层,基础设施/工具,Infrastructure（保持）,8,5,0,3,0,0,,0,0,0,0,0,0,0,2,applyOfficialChrome=2,0,0,0,0,0,0,0,,-
+Onboarding,Features/Onboarding/WelcomeView.swift,300,混合层,界面层,Interface（仅渲染 + 交互转发）,16,4,10,12,19,9,8.5;9.0;10.5;11.0;12.0;13.0;20.0;22.0;44.0,0,0,5,0,0,0,5,3,glassCard=3,3,1,2,0,0,0,0,字号全部硬编码,P2
+Onboarding,Features/Onboarding/WelcomeWindowController.swift,104,混合层,基础设施/工具,Infrastructure（保持）,11,6,0,3,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1,0,0,0,0,0,0,0,,-
+Onboarding,Features/Onboarding/WhatsNew.swift,323,混合层,界面层,Interface（仅渲染 + 交互转发）,34,12,4,8,7,5,11.0;12.0;12.5;18.0;30.0,0,0,0,0,0,0,0,1,applyOfficialChrome=1,0,1,5,0,0,0,0,,-
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,200,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,19,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/CloudLink/CloudLinkBar.swift,192,混合层,界面层,Interface（仅渲染 + 交互转发）,14,7,2,6,11,3,11.0;12.0;13.0,0,0,3,0,0,4,7,0,Toast=1,3,1,2,0,0,0,2,字号全部硬编码,P2
+Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,793,混合层,界面层,Interface（仅渲染 + 交互转发）,77,11,7,13,32,5,11.0;11.5;12.0;14.0;15.0,0,0,1,0,0,0,1,2,glassCard=1;applyOfficialChrome=1;Toast=1,9,1,0,0,0,0,9,字号全部硬编码,P2
+Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,460,混合层,基础设施/工具,Infrastructure（保持）,41,21,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=8,0,0,1,0,0,0,0,,-
+Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,91,混合层,基础设施/工具,Infrastructure（保持）,10,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,5,0,0,0,0,,-
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,1191,界面层,界面层,Interface（仅渲染 + 交互转发）,110,18,14,20,27,3,9.0;10.0;11.0,0,0,3,0,0,1,4,0,Toast=1,3,1,0,0,0,0,0,字号全部硬编码；大视图零共享组件,P2
+Panel,Features/Panel/Presentation/FloatingPanel.swift,105,界面层,基础设施/工具,Infrastructure（保持）,5,3,0,4,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Presentation/PanelChildWindow.swift,49,界面层,界面层,Interface（仅渲染 + 交互转发）,7,5,1,4,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Presentation/PanelController.swift,556,界面层,基础设施/工具,Infrastructure（保持）,37,22,0,8,0,0,,0,0,0,0,0,0,0,0,,0,0,3,1,0,0,0,,-
+Panel,Features/Panel/Presentation/PanelModule.swift,20,界面层,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,69,界面层,基础设施/工具,Infrastructure（保持）,9,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Presentation/PanelRootView.swift,896,界面层,界面层,Interface（仅渲染 + 交互转发）,55,14,12,14,13,4,11.0;12.0;14.0;22.0,0,0,0,0,0,4,4,0,Toast=2,10,2,18,2,0,0,0,字号全部硬编码；大视图零共享组件；视图内含调试钩子；视图重依赖单例,P1
+Panel,Features/Panel/Presentation/PanelSegments.swift,112,界面层,基础设施/工具,Infrastructure（保持）,17,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,587,界面层,界面层,Interface（仅渲染 + 交互转发）,84,29,2,7,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Preview/MermaidRenderer.swift,497,界面层,基础设施/工具,Infrastructure（保持）,30,10,0,1,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,99,界面层,基础设施/工具,Infrastructure（保持）,16,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,114,界面层,基础设施/工具,Infrastructure（保持）,13,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,716,界面层,领域模型,Application / Domain（按是否为业务规则再拆）,32,19,0,0,0,0,,0,0,0,0,1,0,1,0,,0,0,3,0,1,0,0,,-
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,305,界面层,基础设施/工具,Infrastructure（保持）,24,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,1,0,0,,-
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,1438,界面层,界面层,Interface（仅渲染 + 交互转发）,146,45,15,32,15,4,11.0;11.5;12.0;22.0,0,0,3,0,1,0,4,1,glassCard=1;Toast=2,5,1,1,0,0,0,6,字号全部硬编码,P2
+Settings,Features/Settings/Panes/AppearanceManager.swift,77,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,8,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,189,混合层,基础设施/工具,Infrastructure（保持）,9,9,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=2,0,0,2,0,0,0,0,,-
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,866,混合层,界面层,Interface（仅渲染 + 交互转发）,66,28,8,13,13,3,11.0;12.0;13.0,0,0,0,0,0,0,0,11,SettingsSection=3;SettingsRow=5;SettingsGroupBox=2;glassCard=1,7,1,0,0,0,0,0,字号全部硬编码,P2
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,827,混合层,界面层,Interface（仅渲染 + 交互转发）,54,17,30,33,33,5,8.0;9.0;10.0;11.0;12.0,0,4,8,0,1,0,9,0,,6,2,0,0,0,0,1,字号全部硬编码；大视图零共享组件,P2
+Settings,Features/Settings/Panes/PinSettingsPane.swift,426,混合层,界面层,Interface（仅渲染 + 交互转发）,40,7,5,11,17,6,9.0;10.0;11.0;11.5;12.0;12.5,0,7,0,0,0,0,0,10,SettingsSection=5;SettingsGroupBox=5,0,1,0,0,0,0,0,字号全部硬编码；圆角字面量未收敛,P2
+Settings,Features/Settings/Panes/SearchSettingsPane.swift,506,混合层,界面层,Interface（仅渲染 + 交互转发）,51,21,7,9,13,4,11.0;12.0;13.0;14.0,0,0,0,0,0,0,0,4,glassCard=4;Toast=8,13,2,11,0,0,0,0,字号全部硬编码；视图重依赖单例,P2
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,633,混合层,界面层,Interface（仅渲染 + 交互转发）,50,12,7,8,9,3,11.0;13.0;15.0,0,0,2,0,0,0,2,23,SettingsSection=5;SettingsRow=13;SettingsGroupBox=5;Toast=4,6,0,7,0,1,2,0,视图直连数据库,P0
+Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,318,混合层,基础设施/工具,Infrastructure（保持）,17,12,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Settings,Features/Settings/Shell/SettingsComponents.swift,140,界面层,界面层,Interface（仅渲染 + 交互转发）,20,3,5,14,5,4,11.0;11.5;12.0;13.0,0,4,0,0,0,0,0,2,SettingsGroupBox=1;glassCard=1,1,1,0,0,0,0,0,圆角字面量未收敛,P2
+Settings,Features/Settings/Shell/SettingsModule.swift,39,界面层,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Settings,Features/Settings/Shell/SettingsPanes.swift,793,界面层,界面层,Interface（仅渲染 + 交互转发）,78,9,13,21,16,6,11.0;11.5;12.0;13.0;18.0;21.0,0,3,4,0,0,0,4,9,SettingsSection=4;SettingsGroupBox=5,4,3,6,1,0,0,1,字号全部硬编码；视图内含调试钩子；单文件多套按钮样式,P1
+Settings,Features/Settings/Shell/SettingsRootView.swift,196,界面层,界面层,Interface（仅渲染 + 交互转发）,11,2,4,9,2,2,12.0;16.0,0,0,0,0,0,1,1,0,,0,1,0,0,0,0,0,,-
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,399,界面层,界面层,Interface（仅渲染 + 交互转发）,28,6,8,11,15,8,10.0;10.5;11.0;11.5;12.0;12.5;13.0;15.0,0,2,2,0,0,0,2,0,,1,1,0,1,0,0,0,字号全部硬编码；大视图零共享组件；视图内含调试钩子,P1
+Settings,Features/Settings/Shell/SettingsWindowController.swift,197,界面层,基础设施/工具,Infrastructure（保持）,20,8,0,8,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1,0,0,1,0,0,0,0,,-
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,544,混合层,基础设施/工具,Infrastructure（保持）,56,26,0,0,0,0,,0,0,0,0,0,1,1,0,Toast=2,0,0,4,0,0,0,0,,-
+StatusBar,Features/StatusBar/StatisticsRootView.swift,786,混合层,界面层,Interface（仅渲染 + 交互转发）,109,16,15,22,9,3,11.0;12.0;13.0,0,4,1,0,0,1,2,0,,0,0,2,0,1,2,0,大视图零共享组件；视图直连数据库,P0
+StatusBar,Features/StatusBar/StatisticsWindowController.swift,85,混合层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,6,4,0,6,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1,0,0,1,0,0,0,0,,-
+StatusBar,Features/StatusBar/StatusBarController.swift,185,混合层,基础设施/工具,Infrastructure（保持）,26,18,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,3,0,0,0,0,,-
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,243,混合层,基础设施/工具,Infrastructure（保持）,19,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+StatusBar,Features/StatusBar/StatusBarModule.swift,16,混合层,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+StatusBar,Features/StatusBar/StatusItemDropProxy.swift,66,混合层,基础设施/工具,Infrastructure（保持）,11,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,340,混合层,界面层,Interface（仅渲染 + 交互转发）,27,8,5,8,10,2,11.0;14.0,0,0,2,0,0,1,3,0,,1,2,2,0,0,0,0,字号全部硬编码,P2
+Toolbox,Features/Toolbox/Calendar/CalendarService.swift,154,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,10,7,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,74,混合层,基础设施/工具,Infrastructure（保持）,11,3,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,220,混合层,基础设施/工具,Infrastructure（保持）,28,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,643,混合层,界面层,Interface（仅渲染 + 交互转发）,53,23,3,8,10,4,11.0;12.0;13.0;15.0,0,0,2,0,0,0,2,3,glassPlate=2;applyOfficialChrome=1;Toast=1,0,1,9,0,0,0,0,字号全部硬编码；视图重依赖单例,P2
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,123,混合层,基础设施/工具,Infrastructure（保持）,7,4,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,1612,混合层,界面层,Interface（仅渲染 + 交互转发）,117,37,12,17,45,4,7.5;11.0;12.0;13.0,0,0,11,0,0,1,12,1,glassCard=1;Toast=1,0,1,11,4,0,0,7,字号全部硬编码；视图内含调试钩子；视图重依赖单例,P1
+Toolbox,Features/Toolbox/Search/SlashCommands.swift,132,混合层,基础设施/工具,Infrastructure（保持）,12,2,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,6,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,43,界面层,基础设施/工具,Infrastructure（保持）,2,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,326,界面层,界面层,Interface（仅渲染 + 交互转发）,28,12,2,6,16,4,11.0;12.0;14.0;15.0,0,0,2,0,0,0,2,1,glassCard=1,5,1,1,0,0,0,0,字号全部硬编码,P2
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,180,混合层,基础设施/工具,Infrastructure（保持）,24,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapTipWindow.swift,96,混合层,基础设施/工具,Infrastructure（保持）,8,3,0,3,0,0,,0,0,2,0,0,0,2,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shortcuts/ShortcutManager.swift,323,混合层,应用/领域服务,Application / Domain（按是否为业务规则再拆）,33,17,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,4,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shortcuts/ShortcutRecorder.swift,84,混合层,界面层,Interface（仅渲染 + 交互转发）,13,6,0,2,1,1,11.0,0,0,2,0,0,0,2,0,,1,1,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,163,混合层,界面层,Interface（仅渲染 + 交互转发）,9,4,4,7,4,2,11.0;12.0,0,0,4,0,0,0,4,0,Toast=1,1,2,1,0,0,0,0,,-
+Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,102,混合层,基础设施/工具,Infrastructure（保持）,11,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,380,混合层,基础设施/工具,Infrastructure（保持）,16,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/IPAddressService.swift,125,混合层,基础设施/工具,Infrastructure（保持）,12,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/MediaTools.swift,147,混合层,基础设施/工具,Infrastructure（保持）,13,5,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/ToolConverters.swift,401,混合层,基础设施/工具,Infrastructure（保持）,21,18,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,206,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,40,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,1,1,0,,-
+Toolbox,Features/Toolbox/Tools/ToolRunnerWindow.swift,98,混合层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,8,4,0,5,0,0,,0,0,0,0,0,0,0,1,applyOfficialChrome=1,0,0,0,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,143,混合层,界面层,Interface（仅渲染 + 交互转发）,6,2,1,3,3,2,11.0;12.0,0,0,0,0,0,0,0,1,glassCard=1,3,2,1,0,0,0,0,,-
+Toolbox,Features/Toolbox/Tools/WindowManager.swift,10,混合层,基础设施/工具,Infrastructure（保持）,0,0,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,367,混合层,基础设施/工具,Infrastructure（保持）,30,15,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=3,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,123,混合层,基础设施/工具,Infrastructure（保持）,17,7,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,130,混合层,领域模型,Application / Domain（按是否为业务规则再拆）,22,6,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,505,混合层,基础设施/工具,Infrastructure（保持）,36,21,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,310,混合层,基础设施/工具,Infrastructure（保持）,26,17,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,153,混合层,界面层,Interface（仅渲染 + 交互转发）,12,5,2,6,7,5,11.0;11.5;12.0;12.5;18.0,0,0,3,0,0,0,3,2,glassCard=1;applyOfficialChrome=1,0,1,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,281,混合层,界面层·窗口宿主,Interface（仅渲染 + 交互转发）,25,16,0,3,0,0,,0,0,0,0,0,1,1,0,Toast=1,0,0,0,0,0,0,1,,-
+TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,99,混合层,基础设施/工具,Infrastructure（保持）,12,7,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Cast/CastView.swift,923,混合层,界面层,Interface（仅渲染 + 交互转发）,58,18,17,24,49,9,9.5;10.5;11.0;11.5;12.0;12.5;13.0;15.0;30.0,0,0,13,0,0,2,15,1,glassCard=1;Toast=7,9,1,4,0,0,0,0,字号全部硬编码,P2
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,200,混合层,基础设施/工具,Infrastructure（保持）,23,10,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,836,混合层,基础设施/工具,Infrastructure（保持）,65,27,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=5,0,0,2,0,0,0,0,,-
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,510,领域/服务,界面层,Interface（仅渲染 + 交互转发）,41,13,4,13,9,4,11.0;11.5;13.0;26.0,0,0,1,0,0,0,1,0,,0,1,0,0,0,0,3,领域目录混入视图,P0
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,866,领域/服务,基础设施/工具,Infrastructure（保持）,57,37,0,0,0,0,,0,0,0,0,0,0,0,0,Toast=2,0,0,6,0,0,0,0,,-
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,328,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,34,14,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,0,0,0,,-
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,317,领域/服务,基础设施/工具,Infrastructure（保持）,24,12,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,61,领域/服务,界面层,Interface（仅渲染 + 交互转发）,4,1,1,2,0,0,,0,0,2,0,0,0,2,0,,0,0,0,0,0,0,0,领域目录混入视图,P0
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,436,领域/服务,应用/领域服务,Application / Domain（按是否为业务规则再拆）,34,13,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,310,界面层,界面层,Interface（仅渲染 + 交互转发）,37,17,1,3,5,4,11.0;12.0;13.0;14.0,0,0,0,0,0,0,0,0,,2,1,1,0,0,0,0,,-
+TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,105,界面层,基础设施/工具,Infrastructure（保持）,23,1,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,326,界面层,界面层,Interface（仅渲染 + 交互转发）,17,5,1,4,6,3,11.0;11.5;12.0,0,0,0,0,0,0,0,10,SettingsSection=5;SettingsGroupBox=5;Toast=5,11,0,1,0,0,0,2,,-
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,1404,界面层,界面层,Interface（仅渲染 + 交互转发）,83,33,23,32,63,8,7.5;11.0;12.0;13.0;14.0;18.0;20.0;26.0,0,0,11,0,0,2,13,2,glassCard=1;glassPlate=1;Toast=18,18,3,18,1,0,0,6,字号全部硬编码；视图内含调试钩子；视图重依赖单例；单文件多套按钮样式,P1
+TransferDock,Features/TransferDock/UI/TransferIntakeDialog.swift,140,界面层,界面层,Interface（仅渲染 + 交互转发）,13,1,1,3,8,6,9.0;10.0;11.0;12.0;13.0;14.0,0,2,0,0,0,0,0,0,,0,1,0,0,0,0,1,,-
+MemoryHelper,MemoryHelper/main.swift,184,未分类,基础设施/工具,Infrastructure（保持）,18,8,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Models,Models/Models.swift,230,领域·共享模型,领域模型,Application / Domain（按是否为业务规则再拆）,87,9,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Models,Models/SearchEngine.swift,279,领域·共享模型,应用/领域服务,Application / Domain（按是否为业务规则再拆）,37,17,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,1,0,0,0,0,,-
+OCRHelper,OCRHelper/LogStub.swift,10,未分类,基础设施/工具,Infrastructure（保持）,2,2,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+OCRHelper,OCRHelper/main.swift,114,未分类,基础设施/工具,Infrastructure（保持）,23,2,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,0,0,0,0,0,,-
+Storage,Storage/Database.swift,650,基础设施·持久化,应用/领域服务,Application / Domain（按是否为业务规则再拆）,54,33,0,0,0,0,,0,0,0,0,0,0,0,0,,0,0,2,0,23,8,0,,-
