@@ -20,9 +20,12 @@ final class ArchiveEntryTableView: NSTableView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let hoverTracking { removeTrackingArea(hoverTracking) }
+        // v258 实测：归档窗被深链打开时主面板可能抢走 key，`.activeInKeyWindow`
+        // 会让列表的悬停完全不触发（图标视图的 onHover 没这个限制，所以只坏一半）。
+        // 改成 `.activeAlways`：只要窗口在屏幕上能看见鼠标，就跟踪。
         let area = NSTrackingArea(
             rect: .zero,
-            options: [.activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
+            options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
             owner: self,
             userInfo: nil)
         addTrackingArea(area)
@@ -125,6 +128,29 @@ final class ArchiveEntryTableHost: NSView {
         ArchiveHoverPreview.shared.schedule(archive: model.url, entry: model.visibleEntries[row])
     }
 
+    // MARK: 排障
+
+    /// v258：`probe.archiveHover=1` → 列表就绪后自动依次悬停前 4 行。
+    /// 用途与 `?select=first` 同源：真机合成鼠标点不中列表（窗口可能在别的 Space、
+    /// 或被系统权限弹窗挡住），用进程内调用把「1 秒预览」整条链路跑一遍。
+    private var hoverProbeStarted = false
+
+    func startHoverProbeIfNeeded() {
+        guard !hoverProbeStarted, UserDefaults.standard.bool(forKey: "probe.archiveHover"),
+              let model, !model.visibleEntries.isEmpty else { return }
+        hoverProbeStarted = true
+        let rows = min(4, model.visibleEntries.count)
+        Log.info("Archive", "probe.archiveHover：依次悬停 \(rows) 行")
+        for i in 0..<rows {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 + Double(i) * 2.2) { [weak self] in
+                self?.hoverChanged(to: i)
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 + Double(rows) * 2.2) { [weak self] in
+            self?.hoverChanged(to: -1)
+        }
+    }
+
     @objc private func doubleClicked(_ sender: Any?) {
         let row = tableView.clickedRow
         guard row >= 0, let model else { return }
@@ -157,6 +183,7 @@ final class ArchiveEntryTableHost: NSView {
         if tableView.selectedRowIndexes != indexes {
             tableView.selectRowIndexes(indexes, byExtendingSelection: false)
         }
+        startHoverProbeIfNeeded()
     }
 }
 

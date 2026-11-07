@@ -1371,6 +1371,16 @@ struct ArchiveBrowserView: View {
                         .overlay {
                             ArchiveTileInteraction(model: model, entry: entry)
                         }
+                        // v258：图标视图也要「悬停 1 秒预览」——列表走 NSTableView 的
+                        // NSTrackingArea，图标走 SwiftUI onHover，两条入口共用同一个
+                        // ArchiveHoverPreview（1.0s 延迟 / LRU 缓存 / 关窗清理都在那边）。
+                        .onHover { hovering in
+                            if hovering {
+                                ArchiveHoverPreview.shared.schedule(archive: model.url, entry: entry)
+                            } else {
+                                ArchiveHoverPreview.shared.cancel()
+                            }
+                        }
                         .help(entry.path)
                 }
             }
