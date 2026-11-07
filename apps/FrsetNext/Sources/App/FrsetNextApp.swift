@@ -218,6 +218,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                                            cardWidth: w.map { CGFloat($0) },
                                                            sweep: sweep)
                 }
+            case "fileindex":
+                // v264 排障：建立 / 查询全盘文件名索引，结果写日志。
+                //   kitnest://fileindex?q=image%20html%20deck&build=1
+                // build=1 强制重建（默认只加载缓存，没有才建）。
+                let q = comps?.queryItems?.first(where: { $0.name == "q" })?.value ?? "image html deck"
+                let force = comps?.queryItems?.first(where: { $0.name == "build" })?.value == "1"
+                Task { @MainActor in
+                    if force { FileNameIndex.shared.rebuild() } else { FileNameIndex.shared.ensureReady() }
+                    var waited = 0
+                    while waited < 300 {
+                        switch FileNameIndex.shared.state {
+                        case .ready(let count, _):
+                            let t0 = CFAbsoluteTimeGetCurrent()
+                            let hits = FileNameIndex.shared.search(q, limit: 8)
+                            let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                            Log.info("FileIndex", String(format: "探针就绪：%d 条 · 占用 %@ · q=「%@」命中 %d 条 · 耗时 %.1f ms",
+                                                         count,
+                                                         ByteCountFormatter.string(fromByteCount: FileNameIndex.shared.diskBytes, countStyle: .file),
+                                                         q, hits.count, ms))
+                            for h in hits { Log.info("FileIndex", "  → \(h)") }
+                            return
+                        case .failed(let m):
+                            Log.info("FileIndex", "探针失败：\(m)")
+                            return
+                        default:
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            waited += 1
+                        }
+                    }
+                    Log.info("FileIndex", "探针超时（5 分钟）")
+                }
             case "clipdesk":
                 // 悬浮剪贴板工作台（v191）：快捷键之外的确定性入口，排障/截图用
                 // v202：支持 ?action=hide|toggle，便于验证「收起动画中重开」竞态

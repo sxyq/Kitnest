@@ -2103,41 +2103,45 @@ Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,NetworkStatsPanel,lat
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsConnGrid,color,func,1210,KEEP,StatsConnGrid.body:1204
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,SensorsStatsPanel,orderedTemperatures,func,1265,KEEP,1232 温度分组
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,SensorGroup,fraction,func,1332,KEEP,SensorGroup.body:1320
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,135,KEEP,DiskIndexStore.cancelScan:353
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,138,KEEP,DiskIndexStore.rescan:334
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,179,KEEP,scan:147 + 递归:228
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,291,KEEP,309、359、380
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,296,KEEP,私有 init，shared:275
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,302,KEEP,StorageManagerWindow.swift:216 onAppear
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,308,KEEP,loadIfNeeded:305、StorageManagerWindow:278
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,326,KEEP,StorageManagerWindow:326/340/601、show:117
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,352,KEEP,StorageManagerWindow.swift:828 取消按钮
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,358,KEEP,rescan:348、trash:475
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,367,KEEP,trash:482
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,377,KEEP,StorageManagerWindow.swift:897
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,411,KEEP,clearCache:379、trash:474
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,417,KEEP,StorageManagerWindow.swift:169
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,451,KEEP,StorageManagerWindow.swift:922 performTrash
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,488,KEEP,trash:454、StorageManagerWindow:914
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,496,KEEP,trash:471 + 递归:500
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,510,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,513,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,519,KEEP,StorageManagerWindow 311/708/855
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,176,KEEP,DiskIndexStore.cancelScan:353
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,179,KEEP,DiskIndexStore.rescan:334
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,215,KEEP,文件物理占用 = st_blocks×512（APFS 透明压缩下 st_size 会虚高，/System 差 17GB）
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,233,KEEP,scan:147 + 递归:228
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,361,KEEP,309、359、380
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,366,KEEP,私有 init，shared:275
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,372,KEEP,StorageManagerWindow.swift:216 onAppear
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,378,KEEP,loadIfNeeded:305、StorageManagerWindow:278
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,400,KEEP,缓存格式迁移：先按二进制 plist 解，失败回落旧 JSON，升级后老缓存仍能读
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,408,KEEP,StorageManagerWindow:326/340/601、show:117
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,434,KEEP,StorageManagerWindow.swift:828 取消按钮
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,440,KEEP,rescan:348、trash:475
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,451,KEEP,trash:482
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,461,KEEP,StorageManagerWindow.swift:897
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,495,KEEP,clearCache:379、trash:474
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,501,KEEP,StorageManagerWindow.swift:169
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,535,KEEP,StorageManagerWindow.swift:922 performTrash
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,572,KEEP,trash:454、StorageManagerWindow:914
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,580,KEEP,trash:471 + 递归:500
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,594,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,597,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,603,KEEP,StorageManagerWindow 311/708/855
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,65,KEEP,私有 init，shared:63
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,installSwipeMonitor,func,89,KEEP,init:78
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,deinit,deinit,106,KEEP,移除 :107 注册的 NSEvent monitor
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,110,KEEP,NSWindowController 的 NSCoding 必需构造器，编译期强制
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,112,KEEP,FrsetNextApp.swift:356 深链、MonitorDetailView:959
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,displayPath,func,196,KEEP,candidateRow:501
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,360,KEEP,340/342/343
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateRow,func,480,KEEP,leftPane:413
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,drillChain,func,642,KEEP,583、autoLandIfNeeded:667、深链:256/266
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,autoLandIfNeeded,func,661,KEEP,onChange(scannedAt):271
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,677,KEEP,buildAgentPrompt:721
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,692,KEEP,copyAgentPrompt:745、agentSheet:773
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,744,KEEP,agentSheet 复制按钮:795
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,912,KEEP,确认框文案:284
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,918,KEEP,alert 确定按钮:282
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,218,KEEP,「已索引 X / 整盘已用 Y」+ 节点数 + 截断提示，把覆盖率摊开给用户看
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,250,KEEP,跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,displayPath,func,256,KEEP,candidateRow:501
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,431,KEEP,340/342/343
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateRow,func,551,KEEP,leftPane:413
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,drillChain,func,713,KEEP,583、autoLandIfNeeded:667、深链:256/266
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,autoLandIfNeeded,func,732,KEEP,onChange(scannedAt):271
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,748,KEEP,buildAgentPrompt:721
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,763,KEEP,copyAgentPrompt:745、agentSheet:773
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,815,KEEP,agentSheet 复制按钮:795
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,996,KEEP,确认框文案:284
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1002,KEEP,alert 确定按钮:282
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,36,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,128,KEEP,StorageTreemap.body:171
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonHitShape,path,func,145,KEEP,Shape 协议要求；PolygonHitShape 用于 232/238/243/253/257/269
@@ -2848,6 +2852,26 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSVie
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,619,KEEP,NSView override（框架回调）
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,632,KEEP,deinit 生命周期，移除本地 monitor
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,640,KEEP,CommandPalette.swift:507 items[safe:] 调用
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,72,KEEP,单例私有 init（零常驻：App 启动、面板打开都不会走到这里）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,83,KEEP,有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,95,KEEP,面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,101,KEEP,用户点「重建」：释放旧映射、删缓存文件、后台重扫
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,118,KEEP,多针候选（连字符拼接 → 末词）→ BMH 扫池 → 字节级 AND 过滤 → 短路径优先排序
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,199,KEEP,路径深度（/ 的个数），用于「浅层优先」重排
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,220,KEEP,校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,254,KEEP,重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,266,KEEP,后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,339,KEEP,只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,370,KEEP,POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,414,KEEP,查询按空白分词并做 ASCII 小写折叠
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,needles,func,427,KEEP,多词先试 image-html-deck 这种拼接写法，拼不上退回最后一个词（最具体）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,asciiLower,func,444,KEEP,只折叠 ASCII 大小写，保证折叠前后字节数一致（池内偏移才能不变）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,regionContains,func,461,KEEP,命中点所在路径内的字节级子串检查，替代 String.lowercased()（省 100ms+）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,bmh,func,488,KEEP,大小写不敏感的 Boyer-Moore-Horspool；165MB 池单次扫描约 75ms
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,521,KEEP,索引头小端 UInt32 解码
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,525,KEEP,索引头小端 Double 解码（建立时间）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,531,KEEP,索引头小端 UInt32 编码
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,538,KEEP,索引头小端 Double 编码
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,match:45/71 构造
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,CommandPalette:375/398、SearchSectionView:110/197/1132 调用
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,81,KEEP,SearchSectionView.swift:112/1131 调用
@@ -2857,40 +2881,41 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,regis
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,search,func,69,KEEP,scheduleSearch:1551 调用
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ToolboxSearchSource,register,func,90,KEEP,ToolboxModule.swift:33 调用
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ToolboxSearchSource,item,func,118,KEEP,register 闭包:113 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,search,func,187,KEEP,本文件:510/1554 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,fuzzySpotlightPattern,func,221,KEEP,search:191 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,runMdfind,func,229,KEEP,search:191 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,supportsResultList,func,287,KEEP,本文件:859/871/888/901/1565 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,searchURL,func,292,KEEP,fetchResults:313 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,ensureWebView,func,301,KEEP,fetchResults:314 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchResults,func,312,KEEP,本文件:1511/1519 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,373,KEEP,fetchResults:342 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,393,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,401,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,488,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,689,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,778,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,841,KEEP,listContent:732/734 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,899,KEEP,webCategory:849 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1081,KEEP,filteredClipboardMatches:1127 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1143,KEEP,clipboardCategory:1176、filesCategory:1302 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1165,KEEP,listContent:731/736 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1249,KEEP,clipboardCategory:1195/1215 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1270,KEEP,filesCategory:1318/1340 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1295,KEEP,listContent:729/738 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1379,KEEP,listContent:730/747 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1442,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1477,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1491,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1505,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1535,KEEP,body onChange(query):502 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1579,KEEP,WKNavigationDelegate 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1582,KEEP,WKNavigationDelegate 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1585,KEEP,WKNavigationDelegate 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1590,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1592,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1603,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1609,KEEP,NSViewRepresentable 静态协议方法
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,search,func,192,KEEP,本文件:510/1554 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,fuzzySpotlightPattern,func,262,KEEP,search:191 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,runMdfind,func,270,KEEP,search:191 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,supportsResultList,func,328,KEEP,本文件:859/871/888/901/1565 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,searchURL,func,333,KEEP,fetchResults:313 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,ensureWebView,func,342,KEEP,fetchResults:314 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchResults,func,353,KEEP,本文件:1511/1519 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,414,KEEP,fetchResults:342 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,434,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,442,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,531,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,748,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,837,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,900,KEEP,listContent:732/734 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,958,KEEP,webCategory:849 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1140,KEEP,filteredClipboardMatches:1127 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1202,KEEP,clipboardCategory:1176、filesCategory:1302 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1224,KEEP,listContent:731/736 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1308,KEEP,clipboardCategory:1195/1215 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1329,KEEP,filesCategory:1318/1340 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1407,KEEP,「22 分钟前建立」相对时间文案
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1415,KEEP,listContent:729/738 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1504,KEEP,listContent:730/747 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1567,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1602,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1616,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1630,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1660,KEEP,body onChange(query):502 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1708,KEEP,WKNavigationDelegate 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1711,KEEP,WKNavigationDelegate 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1714,KEEP,WKNavigationDelegate 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1719,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1721,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1732,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1738,KEEP,NSViewRepresentable 静态协议方法
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,111,KEEP,SearchSectionView.swift:97 调用
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发

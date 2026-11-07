@@ -378,6 +378,60 @@ EVIDENCE.update({
         "菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口",
 })
 
+# ── v264：存储索引扫全盘 + 自建全盘文件名索引 ────────────────────────────
+EVIDENCE.update({
+    ("Features/Monitor/Storage/DiskIndex.swift", "physicalSize"):
+        "文件物理占用 = st_blocks×512（APFS 透明压缩下 st_size 会虚高，/System 差 17GB）",
+    ("Features/Monitor/Storage/DiskIndex.swift", "decodeSnapshot"):
+        "缓存格式迁移：先按二进制 plist 解，失败回落旧 JSON，升级后老缓存仍能读",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "statusLine"):
+        "「已索引 X / 整盘已用 Y」+ 节点数 + 截断提示，把覆盖率摊开给用户看",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "openFullDiskAccessSettings"):
+        "跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "init"):
+        "单例私有 init（零常驻：App 启动、面板打开都不会走到这里）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "preloadIfCached"):
+        "面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "rebuild"):
+        "用户点「重建」：释放旧映射、删缓存文件、后台重扫",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "ensureReady"):
+        "有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "loadFromDisk"):
+        "校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "unmap"):
+        "重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "build"):
+        "后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "walk"):
+        "POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "roots"):
+        "只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "search"):
+        "多针候选（连字符拼接 → 末词）→ BMH 扫池 → 字节级 AND 过滤 → 短路径优先排序",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "needles"):
+        "多词先试 image-html-deck 这种拼接写法，拼不上退回最后一个词（最具体）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "terms"):
+        "查询按空白分词并做 ASCII 小写折叠",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "asciiLower"):
+        "只折叠 ASCII 大小写，保证折叠前后字节数一致（池内偏移才能不变）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "bmh"):
+        "大小写不敏感的 Boyer-Moore-Horspool；165MB 池单次扫描约 75ms",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "regionContains"):
+        "命中点所在路径内的字节级子串检查，替代 String.lowercased()（省 100ms+）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "depth"):
+        "路径深度（/ 的个数），用于「浅层优先」重排",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "u32"):
+        "索引头小端 UInt32 解码",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "f64"):
+        "索引头小端 Double 解码（建立时间）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "appendU32"):
+        "索引头小端 UInt32 编码",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "appendF64"):
+        "索引头小端 Double 编码",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "ago"):
+        "「22 分钟前建立」相对时间文案",
+})
+
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。
 _PATH_ALIASES = {

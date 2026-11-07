@@ -159,6 +159,10 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 - **顶部截图菜单**（`PanelRootView.runCapture`）：截图、截图并复制、截图并贴图、截图提取文字、截图翻译、划词翻译、长截图、录屏——直接调用对应模块能力，改了全局热键也不影响菜单可用。
 - **搜索区段**（Toolbox 注入）：输入关键词 → 显示搜索引擎栏，点击或回车打开网页搜索；输入 `/` → 切换为工具列表（详见第八章）。
+  - **文件搜索覆盖全盘**（v264）：Spotlight 只索引可见目录，**不索引** `~/Library`、以 `.` 开头的隐藏目录（`.workbuddy` / `.cursor` / `.npm`…）、`.app` 包内部与 `/usr/local`，所以此前搜 `~/.workbuddy/skills/image-html-deck` 一条都搜不到（`mdfind` 连 `-onlyin` 都返回空）。v264 起自建一份**全盘文件名索引**：本机 124 万条 / 164MB，mmap 加载（不占堆内存），首次搜索时后台建立（实测 14 秒），之后每次查询 30–220ms。
+  - 索引状态就显示在「文件」分组下方：多少条、什么时候建的、重建按钮。搜不到时可先看是不是索引还没建完。
+  - 排序按「路径越浅越前」，空格能匹配连字符（`image html deck` → `image-html-deck`）、也能跨目录名匹配（`workbuddy skill` → `~/.workbuddy/skills`）。
+  - 系统垃圾文件（`.DS_Store` / `.localized` 等）不参与结果。
 - **日历卡**：显示当月月历、今天高亮，并叠加系统日程与节假日/农历信息（Toolbox 的 `CalendarSectionView` / `CalendarService`）。
 - **剪贴板列表**：一条条陈列历史记录，图标按来源应用与内容类型区分（`ClipboardAppIconCache`）。
 - **悬停预览气泡**：鼠标悬停条目即弹出内容预览——文本自动判别 Markdown / 代码 / JSON 并高亮渲染，图片显示缩略图并识别二维码（`MainPanelPreviewPopoverCoordinator.present` / `PreviewPopoverContentModel.classify` / `PreviewImageLoader.detectQRCode`）。

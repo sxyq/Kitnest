@@ -183,21 +183,62 @@ enum FileSearchSource {
     /// 单字符查询时 mdfind 命中海量文件：输出读到 512KB 即够 200 条候选，随即终止
     private static let readCapBytes = 512 * 1024
 
+    /// 系统/metadata 垃圾文件，不参与结果（「workbuddy skill」会带出 `.DS_Store`）
+    private static let junkNames: Set<String> = [
+        ".DS_Store", ".localized", ".gitkeep", ".keep", "Icon\r",
+    ]
+
     /// FSearch 式模糊搜索（子序列模糊匹配 + 评分排序 + 命中区间）
     static func search(_ query: String, limit: Int = 8, kind: Kind = .all) -> [FuzzyFileResult] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
-        let candidates = runMdfind(fuzzySpotlightPattern(trimmed), kind: kind)
+        // v264：空格归一化。
+        // 用户敲「image html deck」，文件名叫 image-html-deck —— 子序列匹配要求
+        // query 的每个字符都出现在目标里，空格不在目标里，所以**必然不命中**。
+        // 实测：修之前「文件」分组永远显示"没有匹配的文件"，哪怕索引里明明有。
+        // 去掉空格后 "imagehtmldeck" 能跨过连字符命中（mdfind 的通配符版同理）。
+        let compact = trimmed.replacingOccurrences(of: " ", with: "")
+        let key = compact.isEmpty ? trimmed : compact
+
+        var candidates = runMdfind(fuzzySpotlightPattern(key), kind: kind)
+
+        // v264（用户：「搜索的文件也不是全盘」）：
+        // mdfind 走的是 Spotlight 库，而 Spotlight **不索引** ~/Library、隐藏目录
+        // （.workbuddy / .cursor / .npm…）、.app 包内部、/usr/local。
+        // 这几处恰好是开发者文件最密集的地方，所以补一层自建的全盘文件名索引。
+        // 索引是 mmap 的，查询只是顺序扫一遍字节池，几十毫秒。
+        if kind == .all || kind == .folder {
+            let extra = FileNameIndex.shared.search(trimmed, limit: candidateLimit)
+            if !extra.isEmpty {
+                var seen = Set(candidates.map { $0.standardizedFileURL.path })
+                for p in extra {
+                    let url = URL(fileURLWithPath: p)
+                    guard seen.insert(url.standardizedFileURL.path).inserted else { continue }
+                    candidates.append(url)
+                }
+            }
+            if kind == .folder {
+                candidates = candidates.filter { url in
+                    var isDir: ObjCBool = false
+                    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                        && isDir.boolValue
+                }
+            }
+        }
+
         guard !candidates.isEmpty else { return [] }
 
         var scored: [FuzzyFileResult] = []
         scored.reserveCapacity(candidates.count)
         for url in candidates {
-            let nameMatch = FuzzyMatcher.match(trimmed, in: url.lastPathComponent)
-            // 文件名未命中（query 跨越目录名）时对父目录兜底匹配
+            if Self.junkNames.contains(url.lastPathComponent) { continue }
+            let nameMatch = FuzzyMatcher.match(key, in: url.lastPathComponent)
+            // 文件名未命中时对**完整路径**兜底：搜「workbuddy skill」要能命中
+            // `~/.workbuddy/skills` 这个目录本身——它的文件名是 skills、
+            // 父目录是 .workbuddy，任取一半都凑不齐两个词，只有整条路径凑得齐。
             let pathMatch = (nameMatch == nil)
-                ? FuzzyMatcher.match(trimmed, in: url.deletingLastPathComponent().path)
+                ? FuzzyMatcher.match(key, in: url.path)
                 : nil
             guard nameMatch != nil || pathMatch != nil else { continue }
             let combined = (nameMatch?.score ?? 0) * 2 + (pathMatch?.score ?? 0)
@@ -479,6 +520,8 @@ public struct SearchSectionView: View {
     @Stored private var fetchingEngineID: String?
     /// 搜索框焦点（「打开并搜索」热键经通知程序化聚焦）
     @FocusState private var searchFieldFocused: Bool
+    /// v264：自建的全盘文件名索引状态（补 Spotlight 盲区，见 FileNameIndex.swift）
+    @ObservedObject private var fileIndex = FileNameIndex.shared
 
     // 分类开关（分类头部眼睛按钮与设置页共用同一批键）
     @AppStorage(Preferences.Keys.searchCategoryWeb) private var showWeb = true
@@ -518,11 +561,27 @@ public struct SearchSectionView: View {
                 searchFieldFocused = true
             }
         }
+        .onChange(of: fileIndex.state) { value in
+            // 索引第一次建完 → 自动重跑当前查询。
+            // 否则用户搜「image html deck」时索引还在建、只看到"没有匹配的文件"就走了，
+            // 下次再搜才有结果——他只会觉得"这功能坏了"。
+            if case .ready = value,
+               !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                scheduleSearch()
+            }
+        }
         .onAppear {
-            // 排障探针：FRSET_SEARCH_PROBE=<关键词> 启动 3s 后自动填入并触发搜索
-            // （自动化截图验证用：非激活面板收不到合成键盘事件，无法脚本注入输入）
-            if let probe = ProcessInfo.processInfo.environment["FRSET_SEARCH_PROBE"],
-               !probe.isEmpty {
+            // v264：面板一出现就把已有索引 mmap 进来（毫秒级），这样状态行能直接
+            // 显示「全盘索引 124 万项」而不是每次都问用户要不要建。
+            // 只读缓存，不会在这里触发建索引。
+            fileIndex.preloadIfCached()
+            // 排障探针：FRSET_SEARCH_PROBE=<关键词>（或 defaults write … probe.searchQuery）
+            // 启动 3s 后自动填入并触发搜索。
+            // 用 UserDefaults 兜底是因为 `open --env` 在本机没把变量传给 App（实测）；
+            // 自动化截图验证只能靠这个入口——非激活面板收不到合成键盘事件。
+            let probeEnv = ProcessInfo.processInfo.environment["FRSET_SEARCH_PROBE"]
+            let probeDefault = UserDefaults.standard.string(forKey: "probe.searchQuery")
+            if let probe = probeEnv ?? probeDefault, !probe.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     query = probe
                 }
@@ -1292,6 +1351,67 @@ public struct SearchSectionView: View {
         .background(Capsule().fill(Theme.accent.opacity(0.12)))
     }
 
+    private var isIndexBuilding: Bool {
+        if case .building = fileIndex.state { return true }
+        return false
+    }
+
+    /// 索引状态行（v264）。
+    ///
+    /// 用户搜不到 `~/.workbuddy/skills/image-html-deck`，根因是 Spotlight 压根没索引那片，
+    /// 但界面上只写「没有匹配的文件」看不出是"没有"还是"没搜"。这里把索引状态摊开：
+    /// 建到哪一步、覆盖哪些目录、什么时候建的、要不要重建。
+    @ViewBuilder
+    private var fileIndexStatus: some View {
+        HStack(spacing: 6) {
+            switch fileIndex.state {
+            case .absent:
+                Text("Spotlight 不索引 ~/Library、隐藏目录（.workbuddy / .cursor…）与 .app 内部")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+                Button("建立全盘索引") { fileIndex.ensureReady() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+            case .building(let scanned):
+                ProgressView()
+                    .controlSize(.mini)
+                    .scaleEffect(0.7)
+                Text("正在建立全盘索引 · 已收录 \(scanned.formatted()) 项（首次约 1 分钟，之后秒出）")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+            case .ready(let count, let at):
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Theme.tertiaryText)
+                Text("全盘索引 \(count.formatted()) 项 · \(Self.ago(at)) · 含隐藏目录 / ~/Library / .app 内部")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+                Button("重建") { fileIndex.rebuild() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+            case .failed(let msg):
+                Text("全盘索引不可用：\(msg)")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+                Button("重试") { fileIndex.rebuild() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+        .padding(.leading, 4)
+    }
+
+    private static func ago(_ date: Date) -> String {
+        let s = Int(Date().timeIntervalSince(date))
+        if s < 60 { return "刚刚建立" }
+        if s < 3600 { return "\(s / 60) 分钟前建立" }
+        if s < 86_400 { return "\(s / 3600) 小时前建立" }
+        return "\(s / 86_400) 天前建立"
+    }
+
     private func filesCategory(maxRows: Int, compact: Bool) -> some View {
         let rows = Array(fileResults.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
@@ -1302,11 +1422,16 @@ public struct SearchSectionView: View {
                 filterChips(FileSearchSource.Kind.allCases, selection: $fileKind) { $0.title }
             }
             if rows.isEmpty {
-                Text(hasSearched ? "没有匹配的文件（FSearch 模糊引擎 · Spotlight 索引范围）" : "输入文件名搜索全盘文件（支持乱序模糊匹配）")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                    .padding(.leading, 4)
-                    .padding(.bottom, 2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(hasSearched
+                         ? (isIndexBuilding ? "正在建立全盘索引，先看上面几组结果…" : "没有匹配的文件")
+                         : "输入文件名搜索全盘文件（支持乱序模糊匹配）")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .padding(.leading, 4)
+                    fileIndexStatus
+                }
+                .padding(.bottom, 2)
             } else {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, result in
                     Button {
@@ -1550,7 +1675,11 @@ public struct SearchSectionView: View {
             guard current == generation else { return }
             let items = await SearchHookRegistry.search(text)
             let kind = fileKind
-            let files: [FuzzyFileResult] = (showFiles || selectedCategory == .files)
+            let wantsFiles = showFiles || selectedCategory == .files
+            // 第一次搜文件时才把索引准备好（有缓存就 mmap，没有就后台建）；
+            // 平时不搜文件的话这里一次都不会执行，零常驻。
+            if wantsFiles { FileNameIndex.shared.ensureReady() }
+            let files: [FuzzyFileResult] = wantsFiles
                 ? await Task.detached(priority: .utility) { FileSearchSource.search(trimmed, kind: kind) }.value
                 : []
             guard current == generation else { return }

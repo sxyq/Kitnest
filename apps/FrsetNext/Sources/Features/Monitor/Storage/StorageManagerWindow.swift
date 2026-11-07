@@ -184,12 +184,72 @@ struct StorageManagerRootView: View {
     }
 
     /// 磁盘整体已用（对比索引量用：两者差额来自系统卷 / TCC 保护目录 / APFS 快照）
+    /// 磁盘「已用」字节数。
+    ///
+    /// 必须走数据卷 + `f_bfree`，两个坑（v264 实测）：
+    /// 1. `attributesOfFileSystem(forPath: "/")` 的 systemSize−systemFreeSize
+    ///    用的是 `f_bavail`，会把 33GB 系统保留空间算成已用，导致覆盖率凭空少 14%；
+    /// 2. `/` 是只读系统卷（13GB），用户文件全在 `/System/Volumes/Data`。
+    private var volumeUsedBytes: Int64? {
+        var s = statfs()
+        guard statfs("/System/Volumes/Data", &s) == 0 else {
+            // 老系统没有独立数据卷时退回 dome 口径
+            guard let a = try? FileManager.default.attributesOfFileSystem(forPath: "/"),
+                  let total = (a[.systemSize] as? NSNumber)?.int64Value,
+                  let free = (a[.systemFreeSize] as? NSNumber)?.int64Value,
+                  total > free else { return nil }
+            return total - free
+        }
+        let total = Int64(s.f_blocks) * Int64(s.f_bsize)
+        let free = Int64(s.f_bfree) * Int64(s.f_bsize)
+        guard total > free else { return nil }
+        return total - free
+    }
+
     private var volumeUsedText: String? {
-        guard let a = try? FileManager.default.attributesOfFileSystem(forPath: "/"),
-              let total = (a[.systemSize] as? NSNumber)?.int64Value,
-              let free = (a[.systemFreeSize] as? NSNumber)?.int64Value,
-              total > free else { return nil }
-        return "磁盘已用 \(StorageFormat.shortBytes(total - free))"
+        volumeUsedBytes.map { "磁盘已用 \(StorageFormat.shortBytes($0))" }
+    }
+
+    /// 覆盖度状态行（v264）。
+    ///
+    /// 用户原话：「它的那个清理的索引是不完整，就是没有索引到全盘，整个盘」。
+    /// 光写「跳过 N 处不可读路径」看不出差多少，所以这里直接把
+    /// **索引量 / 整盘已用** 并排摊开——差多少一眼就知道。
+    private func statusLine(_ snap: DiskIndexSnapshot) -> String {
+        var s = "\(store.scope.title) · \(StorageFormat.date(snap.scannedAt)) 扫描 · "
+        s += snap.nodeCount >= 10_000
+            ? "\(snap.nodeCount / 10_000) 万节点"
+            : "\(snap.nodeCount) 个节点"
+        if let used = volumeUsedBytes, used > 0 {
+            s += " · 已索引 \(StorageFormat.shortBytes(snap.totalBytes))"
+                + " / 整盘已用 \(StorageFormat.shortBytes(used))"
+        }
+        if snap.truncated == true {
+            s += " · 已达 \(DiskIndexScanner.maxNodes) 节点上限"
+        }
+        return s
+    }
+
+    private var coverageHelp: String {
+        var lines = [
+            "索引口径（v264 实测对照）：",
+            "· 不限深度。/Applications 索引 22.4G，du -sh 实测 22G —— 对上了",
+            "· 含隐藏目录（.workbuddy 17.2G、.cursor、.npm …）与全部 ~/Library",
+            "· 含系统只读卷；不含 /System/Volumes（那是 /Users 的另一张脸，算了会翻倍）",
+            "· 大小按磁盘实际块计（st_blocks），与 df/du 同一口径",
+        ]
+        if !DiskScanScope.hasFullDiskAccess {
+            lines.append("· 缺口的最大一块是 ~/Library/Containers（沙盒容器，本机 du 实测 33G）、"
+                         + "邮件/照片/信息——系统不让读，不是漏扫")
+        }
+        lines.append("· 整盘已用还含 APFS 本地快照、交换文件与文件系统元数据，"
+                     + "它们不在任何目录里，索引天然覆盖不到")
+        return lines.joined(separator: "\n")
+    }
+
+    private func openFullDiskAccessSettings() {
+        let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
+        if let url { NSWorkspace.shared.open(url) }
     }
 
     /// 清单副行显示相对 home 的短路径：同名 Caches/cache 靠路径才能区分开
@@ -308,15 +368,26 @@ struct StorageManagerRootView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 if let snap = store.snapshot {
-                    Text("\(store.scope.title) · 上次扫描 \(StorageFormat.date(snap.scannedAt)) · \(snap.nodeCount) 个节点"
-                         + " · 跳过 \(snap.skippedCount) 处不可读路径 · 含隐藏目录"
-                         + (volumeUsedText.map { " · \($0)" } ?? "")
-                         + (snap.truncated == true ? " · 已达节点上限，结果不完整" : ""))
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .lineLimit(2)
-                        .help("索引只统计可读目录；系统只读卷、TCC 保护目录（照片/音乐/邮件/钥匙串…）"
-                              + "与 APFS 本地快照不计入，因此索引量会小于磁盘已用。")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(statusLine(snap))
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .lineLimit(1)
+                            .help(coverageHelp)
+                        if !DiskScanScope.hasFullDiskAccess {
+                            HStack(spacing: 6) {
+                                Text("未获完全磁盘访问权限：沙盒容器 / 邮件 / 照片 / 信息未计入")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.tertiaryText)
+                                Button("去授权") { openFullDiskAccessSettings() }
+                                    .buttonStyle(.plain)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Theme.accent)
+                                    .help("在「系统设置 → 隐私与安全性 → 完全磁盘访问权限」里勾上 Kitnest，"
+                                          + "回来点「重新扫描」即可补全")
+                            }
+                        }
+                    }
                 }
             }
             Spacer(minLength: 8)
@@ -886,12 +957,25 @@ struct StorageManagerRootView: View {
                 }
             }
             .pickerStyle(.radioGroup)
-            Text("扫描包含以「.」开头的隐藏目录与其他所有目录；符号链接不跟随。"
-                 + "受系统 TCC 保护的目录（音乐/照片/邮件/钥匙串等）会自动跳过，避免弹授权框卡住扫描；"
-                 + "需要它们请先在「系统设置 → 隐私与安全性 → 完全磁盘访问权限」里授权再重扫。")
+            Text("扫描包含以「.」开头的隐藏目录与所有子目录，不限深度（v264 起不再在第 6 层截断）；"
+                 + "符号链接不跟随，APFS 本地快照与交换文件不计入。"
+                 + "受系统 TCC 保护的目录（音乐/照片/邮件/信息/钥匙串/沙盒容器）在没有「完全磁盘访问权限」时会被跳过——"
+                 + "不是漏扫，是系统不让读；授权后重扫即完整。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if !DiskScanScope.hasFullDiskAccess {
+                Button {
+                    openFullDiskAccessSettings()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "lock.open").font(.system(size: 10.5))
+                        Text("打开「完全磁盘访问权限」设置").font(.system(size: 11))
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+            }
             Divider()
             HStack {
                 Button("清除索引缓存") { store.clearCache() }
