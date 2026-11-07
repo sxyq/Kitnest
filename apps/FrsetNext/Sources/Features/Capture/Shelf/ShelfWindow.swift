@@ -33,15 +33,18 @@ enum ShelfMetrics {
     static let clipHeight: CGFloat = 20
     /// 卡片圆角（按卡片宽度自适应，见 `cornerRadius(for:)`）
     static let cardRadiusMin: CGFloat = 8
-    static let cardRadiusMax: CGFloat = 18
+    static let cardRadiusMax: CGFloat = 25
     /// 窗口底部余量（给投影）
     static let bottomInset: CGFloat = 12
 
-    /// 卡片圆角 = 宽度 × 0.09，钳到 8…18。
-    /// 1Capture 反汇编里是写死的 25pt，但它的卡片比我们宽；
-    /// 按宽度比例算，小卡片不会被圆角吃掉内容。
+    /// 卡片圆角。
+    ///
+    /// 1Capture 在 `CGPathCreateWithRoundedRect(rect, 25, 25, nil)` 里写死 25pt，
+    /// 并且用 `kCACornerCurveContinuous`（连续曲率，不是圆弧）。
+    /// 我们的卡片宽度可调（72–168），直接照抄 25 在 72pt 宽时会把角吃掉一半，
+    /// 所以按比例取：宽度 × 0.22，上限 25、下限 8。
     static func cornerRadius(for cardWidth: CGFloat) -> CGFloat {
-        min(max(cardWidth * 0.09, cardRadiusMin), cardRadiusMax)
+        min(max(cardWidth * 0.22, cardRadiusMin), cardRadiusMax)
     }
 }
 
@@ -139,11 +142,14 @@ final class ShelfCardView: NSView {
                                  height: ShelfMetrics.clipHeight + cardSize.height))
         wantsLayer = true
         layer?.masksToBounds = false
-        // 卡片投影：让卡片从桌面上「浮」起来。数量最多十几张，用 layer 自带阴影够用
+        // 卡片投影。参数取自 1Capture HangingShelfCard.initWithFrame 的指令：
+        //   shadowOpacity 0x3E6B851F ≈ 0.23、shadowRadius 9、shadowOffset (0, -5)
+        // 比我们原来那套（0.34 / 7 / (0,-3)）更淡、更散、更往下——
+        // 光从上方来，卡片又挂在绳上，影子自然压在下面。
         layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.34
-        layer?.shadowRadius = 7
-        layer?.shadowOffset = CGSize(width: 0, height: -3)
+        layer?.shadowOpacity = 0.23
+        layer?.shadowRadius = 9
+        layer?.shadowOffset = CGSize(width: 0, height: -5)
         setupButtons()
     }
 
@@ -207,9 +213,22 @@ final class ShelfCardView: NSView {
             ctx.draw(thumbnail, in: drawRect)
             ctx.restoreGState()
         } else {
-            // 还没解码出来：先给一个占位，避免空白闪一下
-            ctx.setFillColor(CGColor(gray: isDark ? 0.22 : 0.94, alpha: 1))
-            ctx.fill(cardRect)
+            // 缩略图还没解码出来：用 1Capture 那个「玻璃渐变」占位。
+            //
+            // 反汇编 HangingShelfCard.initWithFrame 里它建了一个 CAGradientLayer：
+            //   colors    = [white 0.62, white 0.94, white 0.80, white 0.61]
+            //   locations = [0, 0.36, 0.68, 1]
+            //   startPoint (0,0.5) → endPoint (1,0.5)   ← 水平
+            //   圆角 3、边框 0.5
+            // 四个颜色的 alpha 都是 1，所以它只能在「没有图」的时候露出来，
+            // 一旦有缩略图就会被盖住——也就是占位底色，不是叠加高光。
+            // 之前我们这里是一块纯色，闪一下很明显；换成同参数的横向渐变。
+            if let gradient = Self.placeholderGradient(isDark: isDark) {
+                ctx.drawLinearGradient(gradient,
+                                       start: CGPoint(x: cardRect.minX, y: cardRect.midY),
+                                       end: CGPoint(x: cardRect.maxX, y: cardRect.midY),
+                                       options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            }
         }
         ctx.restoreGState()
 
@@ -236,6 +255,17 @@ final class ShelfCardView: NSView {
         }
 
         drawClip(ctx, isDark: isDark)
+    }
+
+    /// 1Capture 的占位渐变（反汇编值）：四段灰度、位置 0 / 0.36 / 0.68 / 1、水平方向。
+    /// 深色模式取补色，否则 0.94 的白在深色桌面上会糊成一块亮斑。
+    private static func placeholderGradient(isDark: Bool) -> CGGradient? {
+        let grays: [CGFloat] = [0.62, 0.94, 0.80, 0.61]
+        let locations: [CGFloat] = [0, 0.36, 0.68, 1]
+        let colors = grays.map { CGColor(gray: isDark ? (1 - $0) : $0, alpha: 1) }
+        return CGGradient(colorsSpace: CGColorSpaceCreateDeviceGray(),
+                          colors: colors as CFArray,
+                          locations: locations)
     }
 
     /// 夹子：一个小梯形压在绳子与卡片之间，让人相信「这张是挂在绳上的」
