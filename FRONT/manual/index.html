@@ -1066,14 +1066,21 @@ defaults delete com.sxyq.frsetnext KitnestDataDir</code></pre>
 <div class="table-wrap"><table><thead><tr><th>内容</th><th>出现位置</th><th>处理</th></tr></thead><tbody><tr><td><code>~/Movies</code>、<code>~/Downloads</code> 等绝对路径</td><td>录屏设置、网盘解析、工作流设置</td><td>打码</td></tr><tr><td>磁盘索引里的真实文件名</td><td>文件中转</td><td>打码</td></tr><tr><td>本机进程名</td><td>性能监测的「占用流量」</td><td>打码</td></tr></tbody></table></div>
 <p>打码用<strong>马赛克</strong>而不是高斯模糊：模糊会留下低频轮廓，缩到 1/12 再放大才真的读不出。 实现是 <code>h.redact(frames, boxes, pixel=12)</code>，每章在 <code>scenes.py</code> 里配一个区域。</p>
 <blockquote>录完自查：<code>tools/gifdoc/</code> 里有一套 OCR 探针（<code>ocrbox</code>），把每段 GIF 抽 5 帧跑一遍， 搜 <code>sunyiyang</code> / <code>/Users/</code> / <code>192.168.</code> / <code>sxyq27</code> / 邮箱与手机号，命中就重录。</blockquote>
+<h3 id="演示数据的完整性第-13-18-22-章">演示数据的完整性（第 13 / 18 / 22 章）</h3>
+<p>隔离目录最初只有剪贴板、截图历史和统计，三个窗口因此是空态：存储管理提示 「需要先建立索引」、归档浏览是空列表、截图历史只有一串 UUID。<code>make_demo_data.py</code> 现已补齐三份 App 能直接读取的数据：</p>
+<div class="table-wrap"><table><thead><tr><th>数据</th><th>位置</th><th>演示效果</th></tr></thead><tbody><tr><td>截图历史 6 条</td><td><code>capture-history.sqlite</code> + 样张 / 缩略图</td><td>按 <code>Screenshot-yyyy-MM-dd-HHmmss-….png</code> 真实命名，带模式、尺寸、OCR 摘要；敲 <code>2026-11</code> 能看到列表从 6 张过滤到 4 张</td></tr><tr><td>磁盘索引</td><td><code>disk-index/index-fullDisk.json</code>（schema 4）</td><td>虚构目录树 <code>/Users/demo/...</code>，存储窗出 45.3 G 可清理、气泡图与候选清单，可勾选</td></tr><tr><td>素材包</td><td><code>downloads/素材包.zip</code>（6 个 UTF-8 条目）</td><td>归档窗能列文件、点选预览、看详情</td></tr></tbody></table></div>
+<p>这三段重录后画面里全是虚构内容，<strong>没有新增任何遮罩或打码</strong>——空态是靠把数据造完整解决的， 不是靠糊住画面。</p>
+<h3 id="录制画质的四项修正">录制画质的四项修正</h3>
+<div class="table-wrap"><table><thead><tr><th>问题</th><th>原因</th><th>处理</th></tr></thead><tbody><tr><td>玻璃面板透出别的 App 文字、桌面小组件</td><td>窗口是半透明材质</td><td>录制时铺一块纯色渐变背景板（<code>backdrop.swift</code>），录完关掉</td></tr><tr><td>首帧就放大、窗口边缘被切</td><td>镜头双向平滑把后面的推近值「回传」到了开头</td><td><code>camera.render(intro=0.35)</code>：开场锁全景，再用 3 帧软接回</td></tr><tr><td>缩略图上出现白色方块残影</td><td>增量帧只贴差异像素，列表重排后旧像素擦不掉</td><td>关键帧间隔 12 → 6 帧，并关掉抖动</td></tr><tr><td>搜索框打字全丢</td><td>键盘事件是全局 <code>CGEvent</code>，深链打开窗口并不保证 App 在前台</td><td>开镜前显式 <code>activate</code> Kitnest</td></tr></tbody></table></div>
+<p>另外把镜头目标减掉裁切原点再换算（<code>camera.py</code>），修掉了小窗口推近时焦点整体偏右下的问题； 并给三个小窗口单独压了放大上限（<code>zmax</code>），避免推到只剩三列卡片。</p>
 <h3 id="体积控制">体积控制</h3>
 <div class="table-wrap"><table><thead><tr><th>手段</th><th>效果</th></tr></thead><tbody><tr><td>静止帧合并（<code>--merge-th 4</code>）</td><td>镜头停住时把连续同帧并成一帧、时长累加，帧数常砍一半</td></tr><tr><td>增量帧（透明索引）</td><td>只贴变化像素</td></tr><tr><td>调色板阶梯</td><td>176 → 160 → 128 → 96 → 64，按单条上限自动降</td></tr><tr><td>输出宽度自适应</td><td><code>crop宽 × 2 ÷ 缩放上限</code>，保证放大后不插值</td></tr><tr><td>少数场景关镜头</td><td>长截图（滚动本身在动）、框选覆盖层（镜头一推选区就看不清）</td></tr></tbody></table></div>
-<p>实测：37 段合计 <strong>41.8 MB</strong>（平均 1.13 MB/段，最小 0.16 MB、最大 2.3 MB）。<strong>App 包不受影响</strong>——GIF 只在文档目录， DMG 里打包的仍是 45 MB 左右（手册正文以文字形式内嵌，不含位图）。</p>
+<p>实测：37 段合计 <strong>44.3 MB</strong>（平均 1.20 MB/段，最小 0.16 MB、最大 2.3 MB）。三段演示数据补齐后 重录、关键帧加密使总量比上一版多约 2.5 MB。<strong>App 包不受影响</strong>——GIF 只在文档目录与官网， DMG 里打包的仍是 45 MB 左右（手册正文以文字形式内嵌，不含位图）。</p>
 <h3 id="复现">复现</h3>
 <pre><code>python3 tools/gifdoc/run.py ch16 --probe     # 只出构图截图到 /tmp/gifprobe
 python3 tools/gifdoc/run.py ch16 --record    # 录 + 加镜头 → /tmp/gifs_out/ch16.gif
 GIF_CAMERA=0 python3 tools/gifdoc/run.py ch16 --record   # 关镜头出平铺版</code></pre>
-<blockquote><strong>两处没上镜头</strong>：① 第 7 章框选覆盖层（镜头推近会和选区打架）；② 第 25 章命令面板 （<code>⌥K</code> 在本机被前台 App 抢走，无法确定性重录，沿用旧片）。其余 35 章全部带推拉。  <strong>拍不到的两处</strong>：钉图窗 <code>sharingType = .none</code>（第 11 章拍设置页）； 归档窗打开普通目录列表为空（第 22 章改用直接打开 zip）。</blockquote>
+<blockquote><strong>三处没上镜头</strong>：① 第 1 章（菜单栏图标位置每次重启会漂，改用探测定位，镜头坐标换算不稳定）； ② 第 7 章框选覆盖层（镜头推近会和选区打架）；③ 第 25 章命令面板 （<code>⌥K</code> 在本机被前台 App 抢走，无法确定性重录，沿用旧片）。其余 34 章全部带推拉。  <strong>拍不到的一处</strong>：钉图窗 <code>sharingType = .none</code>（第 11 章拍设置页代替）。 归档窗打开普通目录原本是空列表，改用演示素材包后（第 22 章）已能完整演示文件列表、预览与详情。</blockquote>
   </main>
 </div>
 

@@ -41,7 +41,7 @@ def at(rect, fx, fy):
 
 def play(name, rect, beats, pad=10, fps=10, colors=176, hold=5, width=0, ms=100,
          tail=0.7, head=0.15, badge="", crop_override=None, max_kb=2400,
-         merge_th=4, cam=True, redact=None):
+         merge_th=4, cam=True, redact=None, zmax_override=None):
     """执行节拍表：探针模式只截图，录制模式真录 + 出 GIF。"""
     if not rect:
         raise LookupError("窗口不存在，无法开镜")
@@ -78,6 +78,10 @@ def play(name, rect, beats, pad=10, fps=10, colors=176, hold=5, width=0, ms=100,
     # 宽窗（设置 940pt）可以到 2.0×。输出宽度再按「放大后仍不插值」反算。
     _cw, _ch = (crop_override[2], crop_override[3]) if crop_override else (rect[2], rect[3])
     zmax = max(1.45, min(2.0, min(_cw, _ch) / 200))
+    # 小窗口（620×452 这类）推到 2× 等于只剩三列卡片，用户要看的是「重点」不是
+    # 「放大镜」，所以允许分镜单独压一档。
+    if zmax_override:
+        zmax = min(zmax, zmax_override)
     w = int(max(420, min(880, _cw * 2 / zmax * 1.06)))
     if width:
         w = min(w, width)
@@ -277,24 +281,26 @@ BEATS["ch12"] = spec(
 # ---------------------------------------------------------------- 第十三章
 BEATS["ch13"] = spec(
     open="capture?history=1", title="截图历史", place=(560, 180, 620, 452),
-    pad=12, fps=10, colors=160, hold=5,
+    pad=12, fps=10, colors=160, hold=5, zmax=1.30,
     beats=[
-        dict(move=(0.30, 0.22), hold=0.6, mark="list"),
-        dict(move=(0.30, 0.40), hold=0.6),
-        dict(move=(0.30, 0.58), hold=0.6),
-        dict(move=(0.72, 0.90), hold=0.8, mark="actions"),
+        dict(move=(0.12, 0.27), hold=0.6, mark="list"),
+        dict(move=(0.33, 0.27), hold=0.5),
+        # 搜索框按文件名/OCR/日期过滤：敲 2026-11 回车，只剩 11 月这几张。
+        # 坐标取自 AXTextField (808,232,425,16)，不是目测的窗口上沿——
+        # 早先写 (0.32,0.097) 点在了框外，打字全丢，画面里一直显示占位提示。
+        dict(click=(0.55, 0.133), hold=0.4),
+        dict(type="2026-11", hold=0.6),
+        # 回车前把光标移回搜索框：镜头段落跟着焦点走，否则推近后顶部被裁，
+        # 观众只看到「列表少了两张」，看不到过滤条件是什么。
+        dict(move=(0.55, 0.133), hold=0.5),
+        dict(key=(h.RET,), hold=1.6, mark="search"),
+        dict(move=(0.45, 0.30), hold=0.9),
     ])
 
 
 # ---------------------------------------------------------------- 第二十二章
-BEATS["ch22"] = spec(
-    open="archive?action=mini", title="Mini", place=(700, 120, 360, 452),
-    pad=12, fps=10, colors=160, hold=5,
-    beats=[
-        dict(move=(0.5, 0.25), hold=0.7, mark="head"),
-        dict(move=(0.5, 0.55), hold=0.8, mark="body"),
-        dict(move=(0.5, 0.88), hold=0.8),
-    ])
+# 注：早期这里还写过一版 `action=mini` 的 ch22，被下面同名 key 覆盖成了死代码，
+# 已删——同名两处定义只会让人以为改上面那处生效。
 
 
 # ---------------------------------------------------------------- 第三十三章
@@ -421,14 +427,17 @@ BEATS["ch21"] = spec(
 
 # ---------------------------------------------------------------- 第二十二章
 BEATS["ch22"] = spec(
-    open="archive?path=/tmp/kitnest-archive/素材包.zip", title="归档 · 素材包.zip",
+    open="archive?path=/tmp/kitnest-demo/downloads/素材包.zip", title="归档 · 素材包.zip",
     place=(560, 60, 860, 592),
-    pad=12, fps=10, colors=160, hold=6, width=900,
+    pad=12, fps=10, colors=160, hold=6, width=900, zmax=1.55,
     beats=[
-        dict(move=(0.09, 0.22), hold=0.9, mark="list"),
-        dict(click=(0.09, 0.22), hold=1.4, mark="preview"),
-        dict(move=(0.06, 0.13), hold=1.0, mark="unzip"),
-        dict(move=(0.86, 0.06), hold=1.0, mark="tools"),
+        # 悬停久了会弹「文件预览」浮卡挡住列表，所以点完立刻把鼠标移到右侧，
+        # 并多等一会儿让浮卡淡出，否则截到的是浮卡不是预览区。
+        dict(move=(0.066, 0.294), hold=0.15, mark="list", ms=140),
+        dict(click=(0.066, 0.294), hold=0.15, click_ms=90),
+        dict(move=(0.62, 0.80), hold=3.0, mark="preview", ms=150),
+        dict(move=(0.10, 0.199), hold=1.0, mark="unzip"),
+        dict(move=(0.868, 0.081), hold=1.0, mark="tools"),
     ])
 
 
@@ -681,13 +690,18 @@ def ch08():
 # ---------------------------------------------------------------- 第十八章
 BEATS["ch18"] = spec(
     open="storage", title="存储管理", place=(560, 50, 1080, 752),
-    pad=12, fps=10, colors=160, hold=6, width=980,
+    pad=12, fps=10, colors=160, hold=6, width=980, zmax=1.7,
     beats=[
-        dict(move=(0.25, 0.35), hold=0.8, mark="chart"),
-        dict(move=(0.25, 0.55), hold=0.8),
-        dict(click=(0.25, 0.55), hold=1.3, mark="drill"),
-        dict(move=(0.60, 0.30), hold=0.8),
-        dict(move=(0.85, 0.95), hold=1.0, mark="action"),
+        # 顶部大数字：可清理总量 + 索引覆盖情况
+        dict(move=(0.22, 0.115), hold=0.9, mark="total"),
+        # 逐项勾选候选：底部「已选 N 项 / 合计」实时累加
+        dict(move=(0.026, 0.281), hold=0.6),
+        dict(click=(0.026, 0.281), hold=1.2, mark="check"),
+        dict(move=(0.026, 0.340), hold=0.5),
+        dict(click=(0.026, 0.340), hold=1.3, mark="check2"),
+        # 右侧气泡堆块：同一份体积数据的可视化
+        dict(move=(0.55, 0.42), hold=1.0, mark="chart"),
+        dict(move=(0.29, 0.965), hold=1.0, mark="action"),
     ])
 
 
@@ -713,10 +727,20 @@ def build(name):
 
     def run():
         h.clear_stage()
-        if sp.get("open"):
-            open_url(sp["open"])
-            h.sleep(1.8)
         title = sp.get("title", "")
+        # 重启后 App 还在启动时深链会被吞掉（实测 ch13 偶发：「没有窗口」），
+        # 这里等窗口出现，最多补发一次深链。
+        for attempt in range(2):
+            if sp.get("open"):
+                open_url(sp["open"])
+            for _ in range(12):
+                h.sleep(0.35)
+                if not title or title in h.windows():
+                    break
+            if not title or title in h.windows():
+                break
+            if attempt == 0:
+                print(f"  {name}: 窗口没出现，补发一次深链")
         rect = h.windows().get(title)
         if rect is None and title:
             raise LookupError(f"{name}: 没有窗口 {title!r}，现有 {list(h.windows())}")
@@ -724,13 +748,17 @@ def build(name):
             h.setframe(title, *sp["place"])
             h.sleep(0.5)
             rect = h.windows().get(title, rect)
+        # ev 的打字是全局 CGEvent，只有前台 App 能收到。深链只是「打开窗口」，
+        # 不保证 Kitnest 是 key App（实测 WorkBuddy 在前台时 typing 全丢）。
+        h.sh("osascript", "-e", 'tell application "Kitnest" to activate')
+        h.sleep(0.35)
         play(name, rect, sp["beats"], pad=sp.get("pad", 10),
              fps=sp.get("fps", 10), colors=sp.get("colors", 176),
              hold=sp.get("hold", 5), width=sp.get("width", 0),
              ms=sp.get("ms", 100), badge=sp.get("badge", ""),
              crop_override=sp.get("crop"), max_kb=sp.get("max_kb", 2400),
              merge_th=sp.get("merge_th", 4), cam=sp.get("cam", True),
-             redact=sp.get("redact"))
+             redact=sp.get("redact"), zmax_override=sp.get("zmax"))
 
     run.__doc__ = sp.get("doc", name)
     return run

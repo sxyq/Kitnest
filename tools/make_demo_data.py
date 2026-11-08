@@ -21,13 +21,16 @@
 
 from __future__ import annotations
 
+import datetime
 import hashlib
+import json
 import os
 import random
 import shutil
 import sqlite3
 import subprocess
 import time
+import zipfile
 from pathlib import Path
 
 REAL = Path.home() / "Library/Application Support/FrsetNext"
@@ -78,6 +81,53 @@ TEXTS = [
 ]
 
 FILE_PATHS = ["/Users/demo/Documents", "/Users/demo/Desktop"]
+
+# 截图历史：时间偏移 / 模式 / 尺寸 / 底色 / 画面标题 / 卡片上那行 OCR 摘要。
+#
+# 文件名以前是 `9A000000-1111-4222-8333-…` 这种 UUID，列表里一列 UUID 看着就像
+# 测试数据；App 真实落盘走 CaptureFileName 的默认模板
+# `Screenshot-{yyyy}-{MM}-{dd}-{HH}{mm}{ss}-{random:3}.png`，这里照着造。
+SHOTS = [
+    (2 * 3600 + 640, "area", 1280, 800, "#FFFFFF", "Release checklist",
+     "发布前检查：版本号 / 签名 / 更新说明"),
+    (26 * 3600, "full", 1440, 900, "#F6F8FC", "Weekly usage",
+     "Weekly usage · Mon … Sun"),
+    (3 * 86400 + 1800, "window", 1100, 640, "#1E1E24", "parse_demo.py",
+     "def parse(raw: str) -> list[str]"),
+    (5 * 86400, "long", 900, 1400, "#FFFFFF", "Release checklist",
+     "发布前检查清单 · 共 12 项"),
+    (8 * 86400, "area", 1280, 800, "#FFFFFF", "Release checklist",
+     "Item 1 — sample row for the manual"),
+    (12 * 86400, "window", 1200, 760, "#F6F8FC", "Weekly usage",
+     "Kitnest 演示样张 · sample content"),
+]
+
+# 存储管理的磁盘索引：App 只在用户点「建立索引」时扫描，平常读
+# `App Support/…/disk-index/index-<scope>.json` 缓存。录制环境是隔离目录，
+# 里面没有缓存 → 窗口只能显示空态。真实扫描这台机器又会把真实目录名拍进去，
+# 所以这里直接造一份**虚构的**索引缓存（schema 必须与 DiskIndexScanner 一致。
+GB = 1024 ** 3
+
+
+def _node(path: str, name: str, own: int = 0, children: list | None = None,
+          folded: int = 0) -> dict:
+    """造一个 DiskNode：size = 自身文件 + 子项之和（UI 的气泡面积全看这个）。"""
+    kids = children or []
+    return {
+        "path": path,
+        "name": name,
+        "isDirectory": True,
+        "size": own + sum(k["size"] for k in kids),
+        "ownSize": own,
+        "foldedCount": folded,
+        "children": kids,
+    }
+
+
+def _file(path: str, name: str, size: int) -> dict:
+    return {"path": path, "name": name, "isDirectory": False, "size": size,
+            "ownSize": size, "foldedCount": 0, "children": []}
+
 
 
 def font(size: int):
@@ -152,12 +202,16 @@ def make_image(path: Path, title: str, w: int, h: int, bg: str) -> None:
                font=font(14), fill=muted)
     else:
         # 列表
-        for i in range(6):
+        # 长截图（900×1600）要铺满整页，只画 6 行的话中间一大片白，
+        # 列表卡片按 center-crop 一裁就是张空白图。
+        i = 0
+        while y + 52 < h - 36 and i < 40:
             d.rounded_rectangle([44, y, w - 44, y + 52], radius=8,
                                 fill=("#26262E" if dark else "#FAFAFB"))
             d.text((62, y + 16), f"Item {i + 1} — sample row for the manual",
                    font=font(15), fill=muted)
             y += 64
+            i += 1
 
     im.save(path, quality=92)
 
@@ -179,6 +233,146 @@ def new_db(name: str, schema_src: Path) -> sqlite3.Connection:
     con = sqlite3.connect(p)
     con.executescript(schema_of(schema_src))
     return con
+
+
+# ---------------------------------------------------------------- 存储管理索引
+
+def demo_disk_tree() -> dict:
+    """虚构的整盘目录树（根 = Macintosh HD）。
+
+    形状照着真机的样子搭：/ 下面是 Applications / Library / System / Users…，
+    个人目录里放几个 >20MB 的缓存目录（Caches、DerivedData、node_modules、.npm、
+    .Trash、Logs），这样左侧「可清理清单」有 6~7 条、右侧气泡图也不空。
+    所有名字都是通用的系统目录名，没有一个来自这台机器。
+    """
+    home = "/Users/demo"
+
+    caches = _node(f"{home}/Library/Caches", "Caches", own=19 * GB,
+                   children=[
+                       _file(f"{home}/Library/Caches/cover-art.db", "cover-art.db", 2_400_000_000),
+                       _file(f"{home}/Library/Caches/thumbs.cache", "thumbs.cache", 6_100_000_000),
+                       _file(f"{home}/Library/Caches/index.db", "index.db", 3_800_000_000),
+                   ], folded=14)
+    derived = _node(f"{home}/Library/Developer/Xcode/DerivedData", "DerivedData",
+                    own=6 * GB, children=[
+                        _node(f"{home}/Library/Developer/Xcode/DerivedData/Kit-demo-abcdef",
+                              "Kit-demo-abcdef", own=3_200_000_000, folded=6),
+                    ], folded=9)
+    developer = _node(f"{home}/Library/Developer", "Developer",
+                      children=[derived, _node(f"{home}/Library/Developer/CoreSimulator",
+                                               "CoreSimulator", own=1_400_000_000)])
+    library = _node(f"{home}/Library", "Library", own=420_000_000, children=[
+        caches,
+        developer,
+        _node(f"{home}/Library/Containers", "Containers", own=11 * GB, folded=21),
+        _node(f"{home}/Library/Application Support", "Application Support",
+              own=8 * GB, folded=32),
+        _node(f"{home}/Library/Logs", "Logs", own=430_000_000, folded=18),
+        _node(f"{home}/Library/Preferences", "Preferences", own=92_000_000, folded=40),
+    ], folded=26)
+
+    node_modules = _node(f"{home}/Documents/Projects/kit-demo/node_modules",
+                         "node_modules", own=6 * 100_000_000,
+                         children=[], folded=184)
+    projects = _node(f"{home}/Documents/Projects", "Projects", children=[
+        _node(f"{home}/Documents/Projects/kit-demo", "kit-demo", own=118_000_000,
+              children=[node_modules]),
+        _node(f"{home}/Documents/Projects/site-demo", "site-demo", own=540_000_000),
+    ])
+    documents = _node(f"{home}/Documents", "Documents", own=210_000_000, children=[
+        projects,
+        _node(f"{home}/Documents/设计稿", "设计稿", own=430_000_000, folded=22),
+        _node(f"{home}/Documents/报表", "报表", own=220_000_000, folded=9),
+        _node(f"{home}/Documents/笔记", "笔记", own=86_000_000, folded=31),
+    ])
+
+    demo_home = _node(home, "demo", own=1_100_000_000, children=[
+        library,
+        _node(f"{home}/Movies", "Movies", own=13 * GB, folded=12),
+        _node(f"{home}/Pictures", "Pictures", own=9 * GB, folded=31),
+        _node(f"{home}/Downloads", "Downloads", own=5 * GB, folded=48),
+        documents,
+        _node(f"{home}/Desktop", "Desktop", own=980_000_000, folded=17),
+        _node(f"{home}/Music", "Music", own=760_000_000, folded=8),
+        _node(f"{home}/.npm", ".npm", own=1_240_000_000, folded=5),
+        _node(f"{home}/.cache", ".cache", own=680_000_000, folded=7),
+        _node(f"{home}/.Trash", ".Trash", own=3_300_000_000, folded=11),
+    ])
+
+    return _node("/", "Macintosh HD", own=0, children=[
+        _node("/Applications", "Applications", own=21 * GB, folded=64),
+        _node("/Library", "Library", own=30 * GB, folded=52),
+        _node("/System", "System", own=12 * GB, folded=71),
+        _node("/Users", "Users", children=[demo_home], folded=2),
+        _node("/private", "private", own=8 * GB, folded=24),
+        _node("/opt", "opt", own=2 * GB, folded=6),
+        _node("/usr", "usr", own=1 * GB, folded=14),
+    ])
+
+
+def write_disk_index(now: float) -> dict:
+    """把虚构索引写成 App 认识的缓存文件（schema 必须对，否则会被当旧缓存作废）。
+
+    scope 用 fullDisk：窗口默认读的就是这一份，状态行显示「整块启动卷」。
+    """
+    root = demo_disk_tree()
+    snap = {
+        "scope": "fullDisk",
+        "rootPath": "/",
+        "scannedAt": now - 3900,
+        "totalBytes": root["size"],
+        "nodeCount": 118_640,
+        "skippedCount": 1_204,
+        "root": root,
+        "truncated": False,
+        "schema": 4,
+    }
+    out = DEMO / "disk-index"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index-fullDisk.json").write_text(
+        json.dumps(snap, ensure_ascii=False), encoding="utf-8")
+    return snap
+
+
+# ---------------------------------------------------------------- 归档演示包
+
+def write_archive_zip(now: float) -> Path:
+    """造一个「素材包.zip」：三张样张 + 说明/清单，用来演示归档浏览。
+
+    条目名必须是 UTF-8（Python zipfile 会自动置语言标志位）；用 shell 的 zip
+    打包中文名不置位，App 按 cp437 解码就成乱码/列不出来 —— 上一版 ch22 就是
+    空列表。
+    """
+    src = DEMO / "archive-src"
+    src.mkdir(parents=True, exist_ok=True)
+    make_image(src / "封面.png", "Palette", 1280, 800, "#FFFFFF")
+    make_image(src / "主图.png", "Weekly usage", 1100, 640, "#F6F8FC")
+    make_image(src / "图标.png", "Release checklist", 512, 512, "#1E1E24")
+
+    out = DEMO / "downloads"
+    out.mkdir(parents=True, exist_ok=True)
+    zp = out / "素材包.zip"
+
+    readme = ("# 素材包\n\n"
+              "演示用压缩包：三张样张 + 一份清单。\n\n"
+              "- 封面.png  文章头图\n"
+              "- 主图.png  正文配图\n"
+              "- 图标.png  应用图标\n")
+    manifest = ("文件名,尺寸,用途\n"
+                "封面.png,1280×800,文章头图\n"
+                "主图.png,1100×640,正文配图\n"
+                "图标.png,512×512,应用图标\n")
+    note = "解压后按 清单.csv 对号入座；样张可直接替换成自己的图。\n"
+
+    with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("README.md", readme)
+        z.writestr("清单.csv", manifest)
+        z.writestr("说明.txt", note)
+        for name in ("封面.png", "主图.png", "图标.png"):
+            z.write(src / name, name)
+    shutil.rmtree(src, ignore_errors=True)
+    return zp
+
 
 
 def main() -> None:
@@ -225,7 +419,7 @@ def main() -> None:
         make_image(DEMO / rel, title, w, h, bg)
         im = __import__("PIL.Image", fromlist=["Image"]).open(DEMO / rel)
         im.thumbnail((360, 360))
-        im.save(thumb)
+        im.save(DEMO / thumb)
         rows.append(dict(
             id=uuid, type="image", content=None, title="图片",
             subtitle=f"{w}×{h} 图片", timestamp=now - (2 + n * 3) * 700,
@@ -259,23 +453,25 @@ def main() -> None:
     # ---------------- 截图历史
     con = new_db("capture-history.sqlite", REAL / "capture-history.sqlite")
     (DEMO / "capture-history").mkdir(parents=True, exist_ok=True)
-    for n in range(6):
+    for n, (ago, mode, w, h, bg, title, ocr) in enumerate(SHOTS):
+        when = datetime.datetime.fromtimestamp(now - ago)
+        rnd = f"{abs(hash(title + str(n))) % 4096:03x}"
+        # 与 CaptureFileName 的默认模板完全同形，列表里一眼就是「自己截的图」
+        fname = f"Screenshot-{when:%Y-%m-%d}-{when:%H%M%S}-{rnd}.png"
         uid = f"9A{n:02X}0000-1111-4222-8333-{n:012X}"
-        name, w, h, bg, title = IMAGES[n % len(IMAGES)]
-        rel = f"capture-history/{uid}.png"
-        tw, th = (w // 2, h // 2) if n % 2 else (640, 420)
-        make_image(DEMO / rel, f"{title} #{n + 1}", tw, th, bg)
+        rel = f"capture-history/{fname}"
+        make_image(DEMO / rel, title, w, h, bg)
         # 表里存的是**绝对路径**（真实记录就是 /tmp/shots/xxx.png），
-        # 写相对路径 App 找不到文件，列表里只会显示一串 UUID。
+        # 写相对路径 App 找不到文件，缩略图那一格会是空的。
         rel = str(DEMO / rel)
-        thumb = str(DEMO / f"capture-history/{uid}-thumb.png")
-        im = __import__("PIL.Image", fromlist=["Image"]).open(DEMO / rel)
+        thumb = str(DEMO / f"capture-history/{Path(fname).stem}-thumb.png")
+        im = __import__("PIL.Image", fromlist=["Image"]).open(rel)
         im.thumbnail((320, 320))
         im.save(thumb)
         con.execute(
             "insert into capture_history (id,path,thumb_path,created_at,mode,width,height,ocr_text,annotation_state)"
-            " values (?,?,?,?,?,?,?,'','')",
-            (uid, rel, thumb, now - (n + 1) * 900, "region", tw, th))
+            " values (?,?,?,?,?,?,?,?,'')",
+            (uid, rel, thumb, now - ago, mode, w, h, ocr))
     con.commit()
     con.close()
 
@@ -295,9 +491,15 @@ def main() -> None:
     con.commit()
     con.close()
 
+    # ---------------- 存储管理索引（虚构整盘树）+ 归档演示包
+    snap = write_disk_index(now)
+    zp = write_archive_zip(now)
+
     total = sum(f.stat().st_size for f in DEMO.rglob("*") if f.is_file())
     print(f"演示数据 → {DEMO}")
-    print(f"  剪贴板 {len(rows)} 条 / 截图 {6} 条 / 统计 30 天")
+    print(f"  剪贴板 {len(rows)} 条 / 截图 {len(SHOTS)} 条 / 统计 30 天")
+    print(f"  存储索引 节点 {snap['nodeCount']} / 合计 {snap['totalBytes'] / GB:.1f} GB")
+    print(f"  归档演示包 {zp}（{zp.stat().st_size / 1024:.0f} KB）")
     print(f"  体积 {total / 1024 / 1024:.1f} MB")
 
 

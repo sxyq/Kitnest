@@ -213,7 +213,8 @@ def smooth(vals, fps, tau):
     return list(reversed(out2))
 
 
-def render(frames_dir, meta_path, out_dir, width=0, max_zoom=2.0, ripple=True):
+def render(frames_dir, meta_path, out_dir, width=0, max_zoom=2.0,
+           ripple=True, intro=0.35):
     meta = json.loads(Path(meta_path).read_text())
     frames = sorted(Path(frames_dir).glob("*.png"))
     if not frames:
@@ -228,6 +229,23 @@ def render(frames_dir, meta_path, out_dir, width=0, max_zoom=2.0, ripple=True):
     S, C = targets(n, start, fps, segs, rect)
     S = [min(s, max_zoom) for s in smooth(S, fps, SIGMA_TAU_S)]
     C = smooth(C, fps, SIGMA_TAU_C)
+
+    # 开场先给全景：双向 EMA 会把后面的推近值「回传」到开头，结果第一帧就
+    # 已经放大，窗口左右边缘被切掉（标题缺字）。锁住开头 intro 秒，再用 3 帧
+    # 软接回原来的镜头曲线，观众先看清整个窗口，随后才推到重点上。
+    if intro > 0:
+        k0 = min(n, max(1, int(round(intro * fps))))
+        cx0, cy0 = rect[0] + rect[2] / 2, rect[1] + rect[3] / 2
+        for i in range(k0):
+            S[i] = 1.0
+            C[i] = (cx0, cy0)
+        for j in range(1, 4):
+            i = k0 + j - 1
+            if i >= n:
+                break
+            a = j / 4.0
+            S[i] = 1.0 + (S[i] - 1.0) * a
+            C[i] = (cx0 + (C[i][0] - cx0) * a, cy0 + (C[i][1] - cy0) * a)
 
     first = Image.open(frames[0])
     W2, H2 = first.size
@@ -251,7 +269,10 @@ def render(frames_dir, meta_path, out_dir, width=0, max_zoom=2.0, ripple=True):
                 C[i] = prev_c
         prev_s, prev_c = s, C[i]
         vw, vh = W2 / s, H2 / s
-        cx, cy = C[i][0] * 2, C[i][1] * 2      # 点 → 2x 像素
+        # 镜头目标是**屏幕坐标**（点），而喂进来的是已经裁好的帧：
+        # 先减掉裁切原点再 ×2，否则焦点会整体偏到右下（ch13 曾把窗口推出画面）。
+        cx = (C[i][0] - rect[0]) * 2
+        cy = (C[i][1] - rect[1]) * 2
         bx = clamp(cx - vw / 2, 0, W2 - vw)
         by = clamp(cy - vh / 2, 0, H2 - vh)
         view = im.crop((int(bx), int(by), int(bx + vw), int(by + vh)))
@@ -269,8 +290,8 @@ def render(frames_dir, meta_path, out_dir, width=0, max_zoom=2.0, ripple=True):
                     if not (0 <= dt <= 0.52):
                         continue
                     p = dt / 0.52
-                    px = (e["x"] * 2 - bx) * k
-                    py = (e["y"] * 2 - by) * k
+                    px = ((e["x"] - rect[0]) * 2 - bx) * k
+                    py = ((e["y"] - rect[1]) * 2 - by) * k
                     if not (-40 < px < out_w + 40 and -40 < py < out_h + 40):
                         continue
                     a = int(210 * (1 - p) ** 1.5)
@@ -283,8 +304,8 @@ def render(frames_dir, meta_path, out_dir, width=0, max_zoom=2.0, ripple=True):
             if s > 1.2:
                 pos = cursor_at(events, t)
                 if pos:
-                    px = (pos[0] * 2 - bx) * k
-                    py = (pos[1] * 2 - by) * k
+                    px = ((pos[0] - rect[0]) * 2 - bx) * k
+                    py = ((pos[1] - rect[1]) * 2 - by) * k
                     if 0 < px < out_w and 0 < py < out_h:
                         rr = 15
                         d.ellipse((px - rr, py - rr, px + rr, py + rr),

@@ -78,17 +78,23 @@ def merge_still(frames, th, ms):
     return keep, durs
 
 
-def encode(frames, colors, dst, ms, delta_th, durs=None):
-    """增量帧：只有和上一帧不同的地方贴像素，其余填透明索引，体积可降一个数量级。"""
+def encode(frames, colors, dst, ms, delta_th, durs=None, keyframe=6):
+    """增量帧：只有和上一帧不同的地方贴像素，其余填透明索引，体积可降一个数量级。
+
+    `keyframe`：每隔 N 帧重贴一整帧。不设关键帧时，低于阈值的细微渐变永远更新
+    不到，镜头一平移，文字/控件走过的地方就留下一层「残影」——半透明玻璃上最明显。
+    """
     pal = global_palette(frames, colors)
     base = pal.getpalette() or []
     idx = max(1, min(255, len(base) // 3))      # 透明索引紧接调色板末尾
     full = base + [0, 0, 0] * (max(0, 768 - len(base)) // 3)
     qs = []
     prev = None
-    for f in frames:
-        q = f.quantize(palette=pal)
-        if prev is not None and delta_th >= 0:
+    for i, f in enumerate(frames):
+        # 关掉抖动：半透明玻璃是平滑渐变，抖点在增量帧里会拼成脏纹理
+        q = f.quantize(palette=pal, dither=Image.Dither.NONE)
+        is_key = keyframe > 0 and i % keyframe == 0
+        if prev is not None and delta_th >= 0 and not is_key:
             m = ImageChops.difference(f, prev).convert("L") \
                 .point(lambda v, t=delta_th: 255 if v > t else 0)
             out = Image.new("P", q.size, idx)

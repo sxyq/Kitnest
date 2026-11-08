@@ -432,6 +432,25 @@ EVIDENCE.update({
         "「22 分钟前建立」相对时间文案",
 })
 
+# ── v265：在线手册动图的加载与播放（上次提交漏补的证据）────────────────────
+# 37 段 GIF 不入 App 包（DMG 会从 43 MB 涨到 81 MB），改成按需下载 + 落盘缓存；
+# SwiftUI Image 只画首帧，必须落 NSImageView 才会动。
+EVIDENCE.update({
+    ("Features/Manual/ManualView.swift", "cachedFile"):
+        "v265 把 gifs/xxx.gif 映射到 ~/Library/Caches/Kitnest/manual-gifs/xxx.gif；load/fetch 共用同一路径，下载落盘与下次读缓存必须一致",
+    ("Features/Manual/ManualView.swift", "fetch"):
+        "v265 从官网 remoteBase 拉单段 GIF，仅 HTTP 200 且能解码成 NSImage 才原子落盘并入内存缓存，回调回主线程；失败返回 nil，由视图给出在线手册入口",
+    ("Features/Manual/ManualView.swift", "makeNSView"):
+        "v265 SwiftUI Image(nsImage:) 只画 GIF 首帧，改用 NSImageView 并开 animates=true 才能真正播放动图；缩放用 scaleProportionallyUpOrDown",
+    ("Features/Manual/ManualView.swift", "updateNSView"):
+        "v265 复用视图时按对象身份比对换图，重设 image 与 animates，避免翻章后停在上一章的静帧",
+    ("Features/Manual/ManualView.swift", "sizeThatFits"):
+        "v265 NSViewRepresentable 无固有尺寸，按图片宽高比回报（上限 520pt），否则会撑满正文区把 4:3 录屏拉成竖条并裁掉右侧",
+    ("Features/Manual/ManualView.swift", "start"):
+        "v265 onAppear 触发三级取图（内存→随包→磁盘缓存），都没有才联网补；失败计数置位后显示在线手册按钮，不伪装成有内容",
+})
+
+
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。
 _PATH_ALIASES = {

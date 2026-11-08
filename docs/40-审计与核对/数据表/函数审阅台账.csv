@@ -208,7 +208,7 @@ Core,Core/UI/Support.swift,Font,scaledSystem,func,112,KEEP,v260 全局字号缩�
 Core,Core/UI/Support.swift,Theme,dynamicSurface,func,224,KEEP,cachedSurface:222 唯一调用点
 Core,Core/UI/Support.swift,Theme,cachedSurface,func,237,KEEP,windowSurface:234 等 5 个表面令牌
 Core,Core/UI/Support.swift,Theme,sectionHeader,func,381,KEEP,ClipboardSectionView:51 等 9 处
-Core,Core/UI/Support.swift,AppDirectories,sub,func,453,KEEP,LogArchive:54 / ScreenshotManager:373 等
+Core,Core/UI/Support.swift,AppDirectories,sub,func,474,KEEP,LogArchive:54 / ScreenshotManager:373 等
 Core,Core/UI/Toast.swift,MenuBarToastManager,init,init,129,KEEP,static shared:109 构造
 Core,Core/UI/Toast.swift,MenuBarToastManager,show,func,134,KEEP,Toast.show:306 转调
 Core,Core/UI/Toast.swift,MenuBarToastManager,present,func,142,KEEP,"show:136,138 调用"
@@ -2011,9 +2011,15 @@ Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,218,KEE
 Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,228,KEEP,ancestorPath:221 调用
 Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,343,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
 Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,470,KEEP,ManualBlockView.body :403/413/430/442 调用
-Manual,Features/Manual/ManualView.swift,ManualImageLoader,load,func,476,KEEP,detail:130 与 ManualImageView:501 调用
-Manual,Features/Manual/ManualView.swift,ManualTableView,row,func,580,KEEP,ManualTableView.body :574/:577 调用
-Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,603,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
+Manual,Features/Manual/ManualView.swift,ManualImageLoader,cachedFile,func,497,KEEP,v265 把 gifs/xxx.gif 映射到 ~/Library/Caches/Kitnest/manual-gifs/xxx.gif；load/fetch 共用同一路径，下载落盘与下次读缓存必须一致
+Manual,Features/Manual/ManualView.swift,ManualImageLoader,load,func,502,KEEP,detail:130 与 ManualImageView:501 调用
+Manual,Features/Manual/ManualView.swift,ManualImageLoader,fetch,func,524,KEEP,v265 从官网 remoteBase 拉单段 GIF，仅 HTTP 200 且能解码成 NSImage 才原子落盘并入内存缓存，回调回主线程；失败返回 nil，由视图给出在线手册入口
+Manual,Features/Manual/ManualView.swift,ManualAnimatedImage,makeNSView,func,555,KEEP,v265 SwiftUI Image(nsImage:) 只画 GIF 首帧，改用 NSImageView 并开 animates=true 才能真正播放动图；缩放用 scaleProportionallyUpOrDown
+Manual,Features/Manual/ManualView.swift,ManualAnimatedImage,updateNSView,func,563,KEEP,v265 复用视图时按对象身份比对换图，重设 image 与 animates，避免翻章后停在上一章的静帧
+Manual,Features/Manual/ManualView.swift,ManualAnimatedImage,sizeThatFits,func,572,KEEP,v265 NSViewRepresentable 无固有尺寸，按图片宽高比回报（上限 520pt），否则会撑满正文区把 4:3 录屏拉成竖条并裁掉右侧
+Manual,Features/Manual/ManualView.swift,ManualImageView,start,func,638,KEEP,v265 onAppear 触发三级取图（内存→随包→磁盘缓存），都没有才联网补；失败计数置位后显示在线手册按钮，不伪装成有内容
+Manual,Features/Manual/ManualView.swift,ManualTableView,row,func,706,KEEP,ManualTableView.body :574/:577 调用
+Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,729,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,72,KEEP,onAppear :240；CPUEnergyImpactSection 在 MonitorDetailView:212
@@ -2062,8 +2068,8 @@ Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,stopExpiry,f
 Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,startObservingActivation,func,374,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
 Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,startWatchdog,func,398,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
 Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,stopWatchdog,func,423,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
-Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,writePidFile,func,446,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
-Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,clearPidFile,func,454,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,writePidFile,func,444,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
+Monitor,Features/Monitor/Memory/ProcessFreezer.swift,ProcessFreezer,clearPidFile,func,452,KEEP,v259 新增：第二档暂停闲置应用（SIGSTOP），四路恢复
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,topConsumers,func,30,KEEP,MemoryOptimizer.swift:101、109
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,resourceUsage,func,65,KEEP,topConsumers:34
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,applicationBundlePath,func,76,KEEP,topConsumers:36
@@ -3347,7 +3353,7 @@ TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,755,KEEP,TransferCastEngines.swift:734 日志速率
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,runADBPush,func,761,KEEP,"TransferCastEngines.swift:597,781"
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,782,KEEP,TransferDockView.swift:798 拉取入库
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,runADB,func,808,KEEP,"TransferCastEngines.swift:596,661,775,794"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,runADB,func,807,KEEP,"TransferCastEngines.swift:596,661,775,794"
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,build,func,42,KEEP,FileHoverPreview.swift:378 reload
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,requestThumbnail,func,115,KEEP,"FileHoverPreview.swift:91,99"
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,kindLabel,func,128,KEEP,FileHoverPreview.swift:56
