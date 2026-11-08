@@ -3,10 +3,10 @@ import AppKit
 
 // MARK: - 截图设置 · 补充段（v264）
 //
-// 三段都是「原来没有、B 档补的」：
+// 原来没有、B 档补的：
 //   ① 固定比例（可增删多组）—— 选一组之后框选就锁死这个比例；
 //   ② 文件命名模板 —— 时间戳/序号/随机/尺寸，占位符替换，带实时预览；
-//   ③ 拖拽角标 + 静默识别 + 仅文本马赛克。
+//   ③ 静默识别 + 仅文本马赛克（v267 移除了同批加入的「拖拽角标」）。
 
 struct CaptureRatioSettingsView: View {
     @Stored private var selectedID: String = CaptureRatioStore.selectedID
@@ -181,11 +181,12 @@ private struct FlowTokens: View {
     }
 }
 
-// MARK: - 角标 / 静默识别 / 仅文本马赛克
+// MARK: - 静默识别 / 仅文本马赛克
+//
+// v267：原本这里还有「拖拽角标」（截图后右下角缩略图）开关，整套功能已按用户要求
+// 删除，设置里不再留一个能把它开回来的入口。
 
 struct CaptureExtraSettingsView: View {
-    @Stored private var badgeEnabled = CaptureDragBadgeController.isEnabled
-    @Stored private var badgeSeconds = CaptureDragBadgeController.seconds
     @Stored private var silent = CaptureOCRNotify.isSilent
     @Stored private var notifySeconds = CaptureOCRNotify.seconds
     @Stored private var textOnlyMosaic = MosaicTextOnly.isEnabled
@@ -193,27 +194,6 @@ struct CaptureExtraSettingsView: View {
     var body: some View {
         SettingsSection("截完即用") {
             SettingsGroupBox {
-                ExtraSettingRow(title: "拖拽角标") {
-                    Toggle("", isOn: $badgeEnabled)
-                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: badgeEnabled) { value in
-                            CaptureDragBadgeController.isEnabled = value
-                        }
-                    Stepper(value: $badgeSeconds, in: 2...15) {
-                        Text("\(badgeSeconds) 秒")
-                            .font(.system(size: 11.5).monospacedDigit())
-                    }
-                    .disabled(!badgeEnabled)
-                    .onChange(of: badgeSeconds) { value in
-                        CaptureDragBadgeController.seconds = value
-                    }
-                    Text("右下角留一个缩略图，直接拖进别的 App")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-
-                SettingsDivider()
-
                 ExtraSettingRow(title: "静默识别") {
                     Toggle("", isOn: $silent)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)

@@ -27,7 +27,7 @@ public enum CaptureModule: AppModule {
         }
 
         // 排障探针（v264）：真实走一次「全屏截图 → 保存」链路，
-        // 验证模板命名 / 落盘 / 拖拽角标三件事（不需要人手框选）。
+        // 验证模板命名 / 落盘两件事（不需要人手框选）。
         if ProcessInfo.processInfo.environment["FRSET_CAPTURE_AUTOSHOT"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                 ScreenshotManager.shared.captureFullScreen()

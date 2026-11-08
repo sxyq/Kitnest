@@ -289,7 +289,6 @@ struct SettingsSidebarView: View {
         // v264 新增：固定比例 / 文件命名 / 图帘 / 录屏 / 工作流
         .init(title: "固定比例", area: "截图", keywords: "16:9 4:3 方形 竖版 比例锁 自定义", selection: .category(.capture), subTab: 0),
         .init(title: "文件命名模板", area: "截图", keywords: "文件名 时间戳 序号 随机 占位符", selection: .category(.capture), subTab: 0),
-        .init(title: "拖拽角标", area: "截图", keywords: "拖出去 缩略图 直接拖 存图", selection: .category(.capture), subTab: 0),
         .init(title: "静默识别", area: "截图", keywords: "OCR 不弹窗 通知 时长", selection: .category(.capture), subTab: 0),
         .init(title: "仅文本马赛克", area: "截图", keywords: "标注 打码 文本 隐私", selection: .category(.capture), subTab: 0),
         .init(title: "图帘", area: "图帘", keywords: "悬挂架 帘线 悬停 唤出 快捷键 缩放", selection: .category(.capture), subTab: 2),

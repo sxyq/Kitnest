@@ -2340,8 +2340,9 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 
 ### 功能是什么
 
-这一版把 1Capture 的「微操」补齐了六件事，全部在 **设置 → 截图与钉图 → 截图** 里：
-固定比例、文件命名模板、拖拽角标、静默识别、仅文本马赛克，以及框选时的窗口多选。
+这一版把 1Capture 的「微操」补齐了五件事，全部在 **设置 → 截图与钉图 → 截图** 里：
+固定比例、文件命名模板、静默识别、仅文本马赛克，以及框选时的窗口多选。
+（v267 起移除了曾在右下角自动弹出的截图预览角标，设置里也不再有对应开关。）
 
 ### 用户怎么用
 
@@ -2352,9 +2353,9 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 **文件命名**：在「文件命名」里改模板，占位符点一下追加，下面实时预览。默认模板与旧版输出一致：
 `Screenshot-2026-11-08-132707-775.png`。
 
-**拖拽角标（v266 起默认关闭）**：截完图不再自动弹右下角的预览缩略图。
-需要「截完直接拖进 Slack / 编辑器 / 访达」时在「截完即用」里打开，
-可设停留 2–15 秒；单击复制、双击在访达中显示。
+**截完不弹浮窗**：截图完成后右下角不会出现任何预览窗或缩略图卡片；
+需要继续处理时，用屏幕下方居中的**动作工具条**（复制 / 识别 / 钉住 / 标注等 19 个动作），
+点外部或按 `Esc` 即收起。想直接把图拖进别的 App，可以用图帘或截图历史。
 
 **静默识别**：打开后识别完不再弹结果窗，只在屏幕顶部显示一条 2–12 秒的提示，
 文字已经进剪贴板。需要逐字挑选时仍可用动作条里的「复制并识别」（那条路径总是开结果窗）。
@@ -2372,7 +2373,9 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 
 ### 演示
 
-![设置区块「截图」：固定比例（自由 / 预设）、文件名模板（16 个占位符）、拖拽角标延迟、静默识别、仅文本马赛克。](gifs/ch35-capture-plus.gif)
+![设置区块「截图」：固定比例（自由 / 预设）、文件名模板（16 个占位符）、静默识别、仅文本马赛克。](gifs/ch35-capture-plus.gif)
+
+> 这段演示摄于 v264，画面里那一行「拖拽角标」已于 v267 删除；现版本的设置页只剩上面四项。
 
 ### 关键能力点
 
@@ -2383,7 +2386,6 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 | 模板占位符 | `{yyyy}` `{MM}` `{dd}` `{HH}` `{mm}` `{ss}` `{date}` `{time}` `{timestamp}` `{seq}` `{seq:4}` `{random:3}` `{w}` `{h}` `{mode}` `{app}` |
 | 序号 | `{seq}` 每天从 1 重置；`{seq:4}` 补零 |
 | 文件名清洗 | `/ : \ ? * | " < >` 替换或删除，去掉开头的点，长度上限 180 |
-| 角标拖拽 | 写 `public.file-url`，跨 App 复制不移动 |
 | 静默提示 | 不抢焦点、不打断连续识别 |
 | 文本行识别 | Vision 本机；按底图缓存，同一次编辑只算一次 |
 
@@ -2392,7 +2394,7 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 - 比例锁定时，如果拖到屏幕边缘，矩形会整体缩小以保持比例——不会为了填满屏幕破比例。
 - `{w}` `{h}` 在截图、标注保存、美化、长截图、屏幕翻译、暂存测试六条链路都有真实值；
   其它模块保存图片时按 0 处理，所以模板里用了 `{w}{h}` 就尽量走这几条链路。
-- 角标只保留**最新一张**，新截图会替换旧角标（历史仍在截图文件夹与历史库里）。
+- 截图完成后右下角不留任何浮窗；动作工具条在屏幕下方居中，点外部或 `Esc` 收起。
 - 仅文本马赛克首笔会有约 0.2 秒识别停顿；手写体、艺术字可能漏识别。
 - 多选窗口若跨屏且系统窗口抓取失败，会退回快照裁剪，可能错位。
 
@@ -2402,7 +2404,6 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 |---|---|
 | `CaptureAspectRatio` / `CaptureRatioStore.constrain` | `Capture/Screenshot/CaptureAspectRatio.swift` |
 | `CaptureFileName.make` / `replacePattern` / `sanitize` | `Capture/Screenshot/CaptureFileName.swift` |
-| `CaptureDragBadgeController.show` / `DragBadgeView` | `Capture/Screenshot/CaptureDragBadge.swift` |
 | `CaptureOCRNotify.show` / `OCRNotePanel` | `Capture/Screenshot/CaptureOCRNotify.swift` |
 | `CaptureRatioSettingsView` / `CaptureNamingSettingsView` / `CaptureExtraSettingsView` | `Capture/Screenshot/CaptureExtraSettings.swift` |
 | `ScreenshotOverlayView.mouseDragged`（比例）/ `commitMultiWindows` | `Capture/Screenshot/ScreenshotOverlay.swift` |
@@ -2656,6 +2657,8 @@ awk -F, '$2=="Features/Capture/Curtain/CurtainWindow.swift"' \
 | v263 | 「悬挂架」改名**图帘**；⌘ 拖动缩放；图帘/剪贴板独立快捷键；钉住四形态 |
 | v264 | 存储索引真正扫全盘（248 万条目 / 185GB）；自建全盘文件名索引；搜索覆盖 `~/Library` / 隐藏目录 |
 | v264（B/C 档） | 固定比例 / 文件命名模板 / 拖拽角标 / 静默识别 / 仅文本马赛克 / 窗口多选 / 图帘悬停唤出；录屏（画中画·按键·点击·忽略 App·裁剪导出）；自定义工作流 + GitHub/Linear |
+| v266 | 截图默认窗口自动识别 + 同一次截图可直接拖拽拉自定义框；模式开关避开刘海 |
+| v267 | **移除截图后右下角预览角标**（组件、4 条弹出路径、设置开关与偏好键全部删除）；截完只剩动作工具条 |
 
 ---
 

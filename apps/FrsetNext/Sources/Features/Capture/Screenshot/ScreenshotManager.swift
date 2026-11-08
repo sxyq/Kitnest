@@ -648,8 +648,8 @@ public final class ScreenshotManager: ObservableObject {
             }
             registerCaptured(url: url, data: data, playSound: true)
             autoDetectQR(in: cropped)   // v130⑤：自动检测二维码
-            // v264：轻量拖拽角标（不需要图帘也能直接拖进别的 App）
-            CaptureDragBadgeController.shared.show(image: cropped, url: url)
+            // v267：右下角拖拽角标整套移除（用户：「之前不是没让你加」）。
+            // 截图完成后只保留动作工具条，不再有任何自动浮在右下角的预览窗。
             CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global)
         }
     }
@@ -757,7 +757,6 @@ public final class ScreenshotManager: ObservableObject {
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
-                CaptureDragBadgeController.shared.show(image: image, url: url)
                 CaptureActionChain.present(image: image, url: url, selectionAppKit: global)
             }
         }
@@ -812,7 +811,6 @@ public final class ScreenshotManager: ObservableObject {
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
-                CaptureDragBadgeController.shared.show(image: composed, url: url)
                 CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero)
             }
         }
@@ -878,10 +876,6 @@ public final class ScreenshotManager: ObservableObject {
         }
         registerCaptured(url: url, data: data, playSound: true)
         autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
-        // v264：轻量拖拽角标（只有「保存 / 复制」这两种「我要拿去用」的动作才给）
-        if action == .save || action == .clipboard {
-            CaptureDragBadgeController.shared.show(image: image, url: url)
-        }
         apply(action, to: image, url: url)
     }
 
