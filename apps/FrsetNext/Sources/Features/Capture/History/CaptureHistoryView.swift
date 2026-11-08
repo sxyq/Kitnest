@@ -330,7 +330,10 @@ public enum CaptureDeepLink {
     /// 处理 kitnest://capture?...；返回是否已消费
     @discardableResult
     public static func handle(url: URL) -> Bool {
-        guard url.scheme == "frsetnext", url.host == "capture" else { return false }
+        // v264：scheme 从 frsetnext 改名 kitnest 后这里漏改，导致
+        // kitnest://capture?action=history 静默失败（日志只留下「URL 唤起」一行）。
+        guard url.scheme == "frsetnext" || url.scheme == "kitnest",
+              url.host == "capture" else { return false }
         let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let action = comps?.queryItems?.first(where: { $0.name == "action" })?.value ?? "history"
         switch action {

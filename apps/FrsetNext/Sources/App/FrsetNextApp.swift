@@ -223,6 +223,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                                            cardWidth: w.map { CGFloat($0) },
                                                            sweep: sweep)
                 }
+            case "demo":
+                // v264：手册配图专用直达入口。这些界面平时只能从按钮/菜单进，
+                // 录屏脚本没法稳定点中（右键菜单不参与抓屏、欢迎窗只在首启弹），
+                // 给一个确定性入口，录完即关。
+                //   kitnest://demo?scene=welcome|beautify|recorder[&file=/tmp/x.png]
+                let scene = comps?.queryItems?.first(where: { $0.name == "scene" })?.value ?? ""
+                switch scene {
+                case "welcome":
+                    WelcomeWindowController.shared.show()
+                case "beautify":
+                    let path = comps?.queryItems?.first(where: { $0.name == "file" })?.value
+                        ?? "/tmp/kitnest-demo.png"
+                    if let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
+                        BeautifyController.shared.show(image: img)
+                    } else {
+                        Log.warn("App", "demo beautify：图片不存在 \(path)")
+                    }
+                case "recorder":
+                    StatsBarEngine.openRecorder()
+                default:
+                    Log.warn("App", "demo：未知场景 \(scene)")
+                }
             case "manual":
                 // v264：内置用户手册直达（设置 → 使用手册 的深链形式）
                 ServiceLocator.settings?.open(pane: "manual")
