@@ -241,7 +241,7 @@ final class ScreenshotOverlayView: NSView {
                 self.needsDisplay = true
                 return true
             }
-            // v264：窗口模式多选 —— 回车一次截完；Delete 清空已选
+            // v264：窗口模式多选 —— 回车一次截完（Delete 仍由上面的通用分支取消整次截图）
             if self.pickMode == .window {
                 if event.keyCode == 0x24 {          // Return
                     self.commitMultiWindows()

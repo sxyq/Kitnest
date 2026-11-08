@@ -26,6 +26,14 @@ public enum CaptureModule: AppModule {
             Log.info("Capture", "比例探针：16:9 拖到 (500,200) → 终点 (\(Int(end.x)),\(Int(end.y))) 实际 \(String(format: "%.3f", actual))")
         }
 
+        // 排障探针（v264）：真实走一次「全屏截图 → 保存」链路，
+        // 验证模板命名 / 落盘 / 拖拽角标三件事（不需要人手框选）。
+        if ProcessInfo.processInfo.environment["FRSET_CAPTURE_AUTOSHOT"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                ScreenshotManager.shared.captureFullScreen()
+            }
+        }
+
         // 排障探针（v264）：仅文本马赛克 —— 对最近一张截图跑一遍 Vision 文本行检测，
         // 验证「识别 → 行矩形」这条链路（不需要真的进编辑器刷一笔）。
         if ProcessInfo.processInfo.environment["FRSET_MOSAIC_PROBE"] == "1" {

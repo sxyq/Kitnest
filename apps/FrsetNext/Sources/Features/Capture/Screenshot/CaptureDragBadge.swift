@@ -158,6 +158,10 @@ private final class DragBadgeView: NSView, NSDraggingSource {
     var thumbnail: CGImage? { didSet { needsDisplay = true } }
     var fileName: String = ""
     private var isDragging = false
+    /// 刚拖过一次：紧跟着的 mouseUp 不能再当单击（否则拖完顺手复制一张）
+    private var didDrag = false
+    /// 单击延迟执行，给双击留判定窗口
+    private var pendingCopy: DispatchWorkItem?
 
     override var isFlipped: Bool { true }
 
@@ -195,19 +199,33 @@ private final class DragBadgeView: NSView, NSDraggingSource {
     }
 
     override func mouseDown(with event: NSEvent) {
-        // 单击 = 复制（拖拽由 mouseDragged 接管，NSPanel 不会自己起拖）
         if event.clickCount >= 2 {
+            // 双击：取消待执行的单击复制，改为在访达中显示
+            pendingCopy?.cancel()
+            pendingCopy = nil
             controller?.revealInFinder()
-            return
         }
     }
 
     override func mouseUp(with event: NSEvent) {
+        if didDrag {
+            // 拖拽结束后的 mouseUp 不是单击
+            didDrag = false
+            return
+        }
         guard event.clickCount == 1 else { return }
-        controller?.copyToPasteboard()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.didDrag else { return }
+            self.controller?.copyToPasteboard()
+        }
+        pendingCopy = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28, execute: work)
     }
 
     override func mouseDragged(with event: NSEvent) {
+        didDrag = true
+        pendingCopy?.cancel()
+        pendingCopy = nil
         guard !isDragging, let item = controller?.beginDrag() else { return }
         isDragging = true
         controller?.dragStarted()
