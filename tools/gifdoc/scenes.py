@@ -13,12 +13,14 @@ AX `find` 报的点和 `dump` 报的点能差 18pt，但相对比例永远是稳
 
 只有少数镜头（点菜单栏图标、框选覆盖层）需要手写函数。
 """
+import os
 import sys
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import h
+import camera
 
 SCENES = {}
 BEATS = {}
@@ -38,7 +40,8 @@ def at(rect, fx, fy):
 
 
 def play(name, rect, beats, pad=10, fps=10, colors=176, hold=5, width=0, ms=100,
-         tail=0.7, head=0.15, badge="", crop_override=None):
+         tail=0.7, head=0.15, badge="", crop_override=None, max_kb=2400,
+         merge_th=4, cam=True):
     """执行节拍表：探针模式只截图，录制模式真录 + 出 GIF。"""
     if not rect:
         raise LookupError("窗口不存在，无法开镜")
@@ -70,14 +73,42 @@ def play(name, rect, beats, pad=10, fps=10, colors=176, hold=5, width=0, ms=100,
             h.sleep(b.get("hold", 0.5))
             if b.get("mark"):
                 h.mark(b["mark"])
-    w = width or min(int(rect[2] * 2.2), 1000)
-    r.frames_out(crop, w, start=head, end=secs - tail, fps=fps)
-    h.gif(name, r.frames, ms=ms, colors=colors, hold=hold, badge=badge)
+    want_cam = os.environ.get("GIF_CAMERA", "1") != "0" and cam
+    # 缩放上限跟窗口尺寸走：窄窗（面板 360pt）推到 1.65× 就够，推狠了只会糊；
+    # 宽窗（设置 940pt）可以到 2.0×。输出宽度再按「放大后仍不插值」反算。
+    _cw, _ch = (crop_override[2], crop_override[3]) if crop_override else (rect[2], rect[3])
+    zmax = max(1.45, min(2.0, min(_cw, _ch) / 200))
+    w = int(max(420, min(880, _cw * 2 / zmax * 1.06)))
+    if width:
+        w = min(w, width)
+    r.frames_out(crop, w, start=head, end=secs - tail, fps=fps, native=want_cam)
+    frames = r.frames
+    if want_cam and not h.PROBING:
+        frames = camera.render(r.frames, h.WORK / f"{name}.json",
+                               h.WORK / f"{name}-cam", width=w, max_zoom=zmax)
+    h.gif(name, frames, ms=ms, colors=colors, hold=hold, badge=badge,
+          max_kb=max_kb, merge_th=merge_th)
     return r
 
 
 def spec(**kw):
     return kw
+
+
+def custom(name, crop, secs, body, width=900, zmax=1.9, head=0.25, tail=0.6,
+           colors=176, hold=5, max_kb=1200, cam=True):
+    """手写镜头：覆盖层/浮层这类没有稳定窗口的场景用。"""
+    h.CROP = crop
+    h.mark("stage")
+    with h.Rec(name, secs) as r:
+        body()
+    r.frames_out(crop, width, start=head, end=secs - tail, fps=10, native=cam)
+    frames = r.frames
+    if cam:
+        frames = camera.render(r.frames, h.WORK / f"{name}.json",
+                               h.WORK / f"{name}-cam", width=width, max_zoom=zmax)
+    h.gif(name, frames, ms=100, colors=colors, hold=hold,
+          max_kb=max_kb, merge_th=4)
 
 
 # ---------------------------------------------------------------- 第一章
@@ -86,24 +117,23 @@ def ch01():
     """菜单栏与图标：点图标 → 面板展开 → 顶栏动作行。"""
     h.clear_stage()
     h.CROP = (1120, 0, 430, 330)
-    h.mark("stage")
-    with h.Rec("ch01", 6.6) as r:
+
+    def body():
         h.move(1230, 12, 500)
         h.sleep(0.4)
         h.move(1325, 19, 420)
         h.sleep(0.5)
         h.click(1325, 19, 120)
         h.sleep(1.0)
-        h.mark("open")
         for x in (1365, 1396, 1425, 1466, 1502, 1538, 1574, 1675):
             h.move(x, 60, 300)
             h.sleep(0.18)
         h.sleep(0.5)
-        h.mark("row")
         h.key(h.ESC)
         h.sleep(0.6)
-    r.frames_out(h.CROP, 900, start=0.2, end=5.8, fps=10)
-    h.gif("ch01-menubar", r.frames, ms=100, colors=176, hold=5)
+
+    custom("ch01-menubar", (1120, 0, 430, 330), 6.8, body,
+           width=820, zmax=1.75, colors=176, hold=5)
 
 
 # ---------------------------------------------------------------- 第二章
@@ -257,7 +287,7 @@ BEATS["ch33"] = spec(
 # ---------------------------------------------------------------- 第十章
 BEATS["ch10"] = spec(
     open="longshotpreview", title="长截图", place=(400, 44, 920, 1000),
-    pad=12, fps=10, colors=160, hold=6, width=760,
+    pad=12, fps=10, colors=160, hold=6, width=620, cam=False,
     beats=[
         dict(move=(0.50, 0.40), hold=0.9, mark="top"),
         dict(scroll=-8, hold=1.3, mark="mid"),
@@ -549,6 +579,95 @@ BEATS["ch33"] = spec(
     ])
 
 
+# ---------------------------------------------------------------- 第七章
+@scene
+def ch07():
+    """截图主流程：⌥S 框选 → 动作条 → 悬停钉住组。"""
+    h.clear_stage()
+    h.prep_settings("manual")
+    h.setframe("设置", 400, 180, 940, 652)
+    h.sleep(0.5)
+    h.minimize("hide")
+    h.sleep(0.8)
+    h.move(640, 420, 400)
+    h.sleep(0.4)
+
+    def body():
+        h.move(700, 420, 500)
+        h.sleep(0.2)
+        h.key("1", "opt")          # ⌥S
+        h.sleep(1.0)
+        h.move(520, 360, 450)
+        h.sleep(0.3)
+        h.drag(520, 360, 1260, 600, 2200)
+        h.sleep(1.0)
+        h.move(880, 960, 700)      # 钉住组
+        h.sleep(1.7)
+        h.move(1010, 905, 450)
+        h.sleep(1.0)
+
+    # 框选覆盖层不做推拉：镜头一推，选区跟着放大，反而看不清框到哪
+    custom("ch07", (388, 168, 980, 922), 10.6, body, width=720, zmax=1.0,
+           max_kb=2600, cam=False)
+    h.minimize("restore")
+
+
+# ---------------------------------------------------------------- 第八章
+@scene
+def ch08():
+    """标注编辑器：拖箭头 → 换马赛克 → 涂掉金额。"""
+    h.clear_stage()
+    h.minimize("hide")
+    h.sleep(0.4)
+    h.sh("open", "kitnest://annotate?file=/tmp/annot-demo.png")
+    h.sleep(2.2)
+    h.move(700, 300, 400)
+    h.sleep(0.3)
+
+    def body():
+        h.drag(700, 300, 1000, 430, 950)
+        h.sleep(0.7)
+        h.move(465, 563, 650)
+        h.sleep(0.5)
+        h.click(465, 563, 100)
+        h.sleep(0.7)
+        h.drag(852, 318, 1006, 348, 800)
+        h.sleep(0.8)
+        h.move(993, 814, 600)
+        h.sleep(1.2)
+
+    custom("ch08", (405, 118, 976, 742), 10.4, body, width=820, zmax=1.9,
+           max_kb=2400)
+    h.minimize("restore")
+
+
+# ---------------------------------------------------------------- 第十八章
+BEATS["ch18"] = spec(
+    open="storage", title="存储管理", place=(560, 50, 1080, 752),
+    pad=12, fps=10, colors=160, hold=6, width=980,
+    beats=[
+        dict(move=(0.25, 0.35), hold=0.8, mark="chart"),
+        dict(move=(0.25, 0.55), hold=0.8),
+        dict(click=(0.25, 0.55), hold=1.3, mark="drill"),
+        dict(move=(0.60, 0.30), hold=0.8),
+        dict(move=(0.85, 0.95), hold=1.0, mark="action"),
+    ])
+
+
+# ---------------------------------------------------------------- 第二十四章
+BEATS["ch24"] = spec(
+    open="panel", title="", place=None,
+    pad=10, fps=10, colors=160, hold=6, crop=(1330, 30, 380, 800),
+    beats=[
+        dict(click=(0.45, 0.12), hold=0.5),
+        dict(type="image-html-deck", hold=2.2, mark="typing"),
+        dict(move=(0.40, 0.30), hold=0.9, mark="group"),
+        dict(move=(0.40, 0.45), hold=0.9),
+        dict(move=(0.40, 0.60), hold=0.9, mark="file"),
+        dict(key=(h.ESC,), hold=0.5),
+    ])
+
+
 # =================================================================== 执行
 def build(name):
     sp = BEATS[name]
@@ -570,7 +689,8 @@ def build(name):
              fps=sp.get("fps", 10), colors=sp.get("colors", 176),
              hold=sp.get("hold", 5), width=sp.get("width", 0),
              ms=sp.get("ms", 100), badge=sp.get("badge", ""),
-             crop_override=sp.get("crop"))
+             crop_override=sp.get("crop"), max_kb=sp.get("max_kb", 2400),
+             merge_th=sp.get("merge_th", 4), cam=sp.get("cam", True))
 
     run.__doc__ = sp.get("doc", name)
     return run

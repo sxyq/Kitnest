@@ -45,31 +45,53 @@ def ax(*args, timeout=20):
     return sh(TOOL / "ax", *args, timeout=timeout).stdout
 
 
+# 事件日志：录制时同步记下每一次输入，后期据此生成镜头关键帧
+# （Screenize / OpenScreen 那条 two-pass 路子：先采鼠标数据，再算 zoom/pan）。
+EVENTS = []
+LAST_POS = [0, 0]
+
+
 def ev(*args):
     sh(TOOL / "ev", *args)
 
 
+def _log(kind, **kw):
+    kw.update(kind=kind, t=time.time())
+    EVENTS.append(kw)
+
+
 def move(x, y, ms=320):
-    ev("move", int(x), int(y), ms)
+    x, y = int(x), int(y)
+    _log("move", x=x, y=y, ms=ms, fx=LAST_POS[0], fy=LAST_POS[1])
+    ev("move", x, y, ms)
+    LAST_POS[0], LAST_POS[1] = x, y
 
 
 def click(x, y, ms=260, kind="left"):
-    ev("click", int(x), int(y), kind, ms)
+    x, y = int(x), int(y)
+    _log("click", x=x, y=y, button=kind)
+    ev("click", x, y, kind, ms)
+    LAST_POS[0], LAST_POS[1] = x, y
 
 
 def drag(x1, y1, x2, y2, ms=800):
+    _log("drag", x=int(x1), y=int(y1), x2=int(x2), y2=int(y2), ms=ms)
     ev("drag", int(x1), int(y1), int(x2), int(y2), ms)
+    LAST_POS[0], LAST_POS[1] = int(x2), int(y2)
 
 
 def scroll(x, y, dy):
+    _log("scroll", x=int(x), y=int(y), dy=int(dy))
     ev("scroll", int(x), int(y), int(dy))
 
 
 def key(code, *mods):
+    _log("key", code=code, mods=list(mods))
     ev("key", code, *mods)
 
 
 def typ(text):
+    _log("type", text=text)
     ev("type", text)
 
 
@@ -213,23 +235,29 @@ class Rec:
         self.proc.wait(timeout=self.secs + 15)
         return False
 
-    def frames_out(self, crop, width, start=0.0, end=0.0, fps=12):
+    def frames_out(self, crop, width, start=0.0, end=0.0, fps=12, native=False):
         if PROBING:
             return self.frames
         if self.frames.exists():
             shutil.rmtree(self.frames)
+        w = int(crop[2] * 2) if native else width
         args = [TOOL / "rec2gif", self.mov, "/tmp/ignore.gif",
                 "--crop", ",".join(str(int(v)) for v in crop),
-                "--width", width, "--fps", fps, "--start", f"{start:.2f}",
+                "--width", w, "--fps", fps, "--start", f"{start:.2f}",
                 "--frames", self.frames]
         if end:
             args += ["--end", f"{end:.2f}"]
         r = sh(*args)
         print(r.stdout.strip().splitlines()[-1] if r.stdout else r.stderr[-300:])
+        meta = dict(t0=self.t0, crop=list(crop), fps=fps,
+                    start=start, end=end or self.secs,
+                    events=[dict(e, t=e["t"] - self.t0) for e in EVENTS])
+        (WORK / f"{self.mov.stem}.json").write_text(
+            __import__("json").dumps(meta, ensure_ascii=False))
         return self.frames
 
 
-def gif(name, frames, ms=83, colors=192, badge="", hold=0, max_kb=0):
+def gif(name, frames, ms=83, colors=192, badge="", hold=0, max_kb=0, merge_th=4):
     out = Path("/tmp/gifs_out")
     if not out.exists():
         out.mkdir(parents=True)
@@ -242,6 +270,8 @@ def gif(name, frames, ms=83, colors=192, badge="", hold=0, max_kb=0):
         args += ["--hold", hold]
     if max_kb:
         args += ["--max-kb", max_kb]
+    if merge_th:
+        args += ["--merge-th", merge_th]
     print(sh(*args).stdout.strip())
     return dst
 
