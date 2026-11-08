@@ -21,9 +21,11 @@ public final class CaptureDragBadgeController: NSObject {
     static let keyEnabled = "capture.dragBadge.enabled"
     static let keySeconds = "capture.dragBadge.seconds"
 
-    /// 默认开：截完给一个可拖的载体是这条功能的核心，默认关等于没做
+    /// v266（用户：「截图完成之后，它在右下角会出现一个预览窗，这个也需要删掉」）：
+    /// 默认关。截完图不再自动弹缩略图挡住右下角；想要「拖进别的 App」的用户
+    /// 仍可在 设置 → 截图与钉图 → 截图 → 截完即用 → 拖拽角标 里打开。
     public static var isEnabled: Bool {
-        get { Preferences.shared.value(keyEnabled, default: true) }
+        get { Preferences.shared.value(keyEnabled, default: false) }
         set { Preferences.shared.set(keyEnabled, newValue) }
     }
 

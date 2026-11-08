@@ -494,33 +494,35 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 区域截图
 
-    /// 区域截图（框选后弹动作工具条；关闭工具条开关则直接执行默认动作）
-    public func captureRegion() { startRegionCapture(flow: .toolbar) }
+    /// 截图主入口。默认拾取方式由 CapturePickModeStore 决定（默认「窗口自动识别」），
+    /// 覆盖层上可随时切到手动框选；⇧⌥W 走 captureWindow() 强制窗口模式。
+    public func captureRegion() { startCapture(flow: .toolbar, mode: CapturePickModeStore.mode) }
 
     /// 截图后直接走 OCR（对应原作「截图并 OCR」入口）
-    public func captureAndOCR() { startRegionCapture(flow: .direct(.ocr)) }
+    public func captureAndOCR() { startCapture(flow: .direct(.ocr), mode: CapturePickModeStore.mode) }
 
     /// 截图后直接钉图
-    public func captureAndPin() { startRegionCapture(flow: .direct(.pin)) }
+    public func captureAndPin() { startCapture(flow: .direct(.pin), mode: CapturePickModeStore.mode) }
 
     /// 截图后直接复制到剪贴板（specs/19 默认热键 screenshotCopy 用；与 captureAndOCR/captureAndPin 同型）
-    public func captureAndCopy() { startRegionCapture(flow: .direct(.clipboard)) }
+    public func captureAndCopy() { startCapture(flow: .direct(.clipboard), mode: CapturePickModeStore.mode) }
 
     /// 截图后直接屏幕翻译（OCR→翻译→按坐标画回→钉回原位）
-    public func captureAndScreenTranslate() { startRegionCapture(flow: .direct(.screenTranslate)) }
+    public func captureAndScreenTranslate() { startCapture(flow: .direct(.screenTranslate), mode: CapturePickModeStore.mode) }
 
-    private func startRegionCapture(flow: PendingFlow) {
+    private func startCapture(flow: PendingFlow, mode: ScreenshotOverlayView.OverlayPickMode) {
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else { return }
-            self.beginRegionCapture(flow: flow)
+            self.beginCapture(flow: flow, initialMode: mode)
         }
     }
 
     @MainActor
-    private func beginRegionCapture(flow: PendingFlow) {
+    private func beginCapture(flow: PendingFlow, initialMode: ScreenshotOverlayView.OverlayPickMode) {
         closeOverlays()
         pendingFlow = flow
-        currentModeTag = "area"      // v130②：历史库模式标签
+        // v266：历史库模式标签要跟着实际拾取方式走，且用户在覆盖层上切换时同步更新。
+        currentModeTag = initialMode == .window ? "window" : "area"
         isCapturing = true
         // v207（用户：「按快捷键截图应该立刻定格当前屏幕，不能先跳转界面/打断预览」）：
         // 这里绝对不能先 NSApp.activate —— 激活会让主面板/preview hover 窗先收起，
@@ -537,12 +539,13 @@ public final class ScreenshotManager: ObservableObject {
             let t0 = DispatchTime.now().uptimeNanoseconds
             let snapshots = await Self.acquireScreenSnapshots()
             let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
-            Log.info("Capture", String(format: "区域截图快照冻结完成 %.0fms（抓帧前未改窗口状态）", ms))
+            Log.info("Capture", String(format: "截图快照冻结完成 %.0fms（抓帧前未改窗口状态）", ms))
             guard self.isCapturing else { return }   // 等待期间已被取消（如再次触发）
             // 画面已冻结，这时才激活 App 铺覆盖层；此后的窗口收起不会影响已抓到的帧
             if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
-                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
+                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot,
+                                                     pickMode: initialMode)
                 // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
                 if let ratio = CaptureRatioStore.selected {
                     window.overlayView.lockedRatio = CGSize(width: ratio.width, height: ratio.height)
@@ -551,6 +554,22 @@ public final class ScreenshotManager: ObservableObject {
                 window.overlayView.onCommit = { [weak self, weak window] rect in
                     guard let self = self, let window = window else { return }
                     self.commitRegion(rect: rect, window: window)
+                }
+                // v266：同一个覆盖层两种模式都能用，窗口模式的提交回调必须同时接上，
+                // 否则默认「窗口自动识别」时点窗口不会有任何反应。
+                window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
+                    guard let self = self, let window = window else { return }
+                    self.commitWindow(rect: rect, windowID: windowID, window: window)
+                }
+                window.overlayView.onWindowsCommit = { [weak self, weak window] items in
+                    guard let self = self, let window = window else { return }
+                    self.commitWindows(items: items, window: window)
+                }
+                window.overlayView.onModeChange = { [weak self] mode in
+                    // 只同步历史标签：覆盖层上的切换是「本次临时改」，
+                    // 不写默认偏好。否则误按一次 W 就把以后每次截图都变成手动框选，
+                    // 「默认自动识别窗口」名存实亡。要改默认请去设置页。
+                    self?.currentModeTag = mode == .window ? "window" : "area"
                 }
                 window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
                 self.overlays.append(window)
@@ -694,48 +713,12 @@ public final class ScreenshotManager: ObservableObject {
     // 与原版交互对齐；v112 的「直接抓最前台窗口」与「区域模式悬停吸附」已移除
     // （前者偏离原版交互，后者是自研发明）。
 
-    /// 进入窗口截图：覆盖层窗口选择（悬停识别 → 单击截取）
+    // v266：截图主入口默认就用这个模式；这里保留 ⇧⌥W 作为「强制窗口识别」的直达键。
+    // 建窗逻辑统一到 beginCapture(flow:initialMode:)，不再维护第二套覆盖层代码。
+
+    /// ⇧⌥W：直接进入窗口自动识别（不受默认偏好影响）
     public func captureWindow() {
-        Task { @MainActor in
-            guard await ensureScreenRecordingPermission() else { return }
-            self.beginWindowCapture()
-        }
-    }
-
-    @MainActor
-    private func beginWindowCapture() {
-        closeOverlays()
-        pendingFlow = .toolbar          // 截取后与区域截图同一套动作工具条
-        currentModeTag = "window"       // v130②：历史库模式标签
-        isCapturing = true
-        // v207：与区域截图同修——先冻结帧，再激活；否则预览窗会先收起
-
-        // v161：与 beginRegionCapture 同修——快照异步获取，legacy 同步调用禁止主线程（macOS 27 死锁）
-        Task { @MainActor in
-            let snapshots = await Self.acquireScreenSnapshots()
-            guard self.isCapturing else { return }
-            if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
-            for (screen, snapshot) in snapshots {
-                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot, pickMode: .window)
-                window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
-                    guard let self = self, let window = window else { return }
-                    self.commitWindow(rect: rect, windowID: windowID, window: window)
-                }
-                // v264：⌘ 多选窗口 → 一次截完，按顺序纵向拼成一张图
-                window.overlayView.onWindowsCommit = { [weak self, weak window] items in
-                    guard let self = self, let window = window else { return }
-                    self.commitWindows(items: items, window: window)
-                }
-                window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
-                self.overlays.append(window)
-                NSApp.activate(ignoringOtherApps: true)
-                window.makeKeyAndOrderFront(nil)
-            }
-            if self.overlays.isEmpty {
-                self.isCapturing = false
-                Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
-            }
-        }
+        startCapture(flow: .toolbar, mode: .window)
     }
 
     /// 提交窗口选择：优先 SCK 窗口级抓取（排除遮挡窗口），回退覆盖层快照裁剪

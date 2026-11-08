@@ -339,6 +339,11 @@ public enum CaptureDeepLink {
         switch action {
         case "history":
             CaptureHistoryWindowController.shared.show()
+        // v266：不依赖全局热键也能打开覆盖层，用于验证默认拾取方式。
+        case "region":
+            ScreenshotManager.shared.captureRegion()
+        case "window":
+            ScreenshotManager.shared.captureWindow()
         case "delayed":
             // 排障/测试入口：kitnest://capture?action=delayed&seconds=3
             let raw = comps?.queryItems?.first(where: { $0.name == "seconds" })?.value

@@ -450,6 +450,22 @@ EVIDENCE.update({
         "v265 onAppear 触发三级取图（内存→随包→磁盘缓存），都没有才联网补；失败计数置位后显示在线手册按钮，不伪装成有内容",
 })
 
+# ── v266：截图默认窗口自动识别 + 同一次截图里可直接拖拽拉自定义框 ──────────
+EVIDENCE.update({
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "startCapture"):
+        "v266 统一截图入口：先异步校验屏幕录制权限，再带 flow 与初始拾取方式建覆盖层；区域/窗口/直接 OCR/钉图/复制/翻译六条链路共用",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "beginCapture"):
+        "v266 合并 beginRegionCapture/beginWindowCapture：按 initialMode 建窗，区域/单窗/多窗/模式切换四类回调一次接齐，历史模式标签随实际模式走",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "setPickMode"):
+        "v266 W 键与顶部开关共用的切换入口：清选区/高亮/多选状态、同步控件并回调；切换只对本次生效，不写默认偏好",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "modeControlChanged"):
+        "v266 顶部 NSSegmentedControl 的 action：把选中段映射成 .window / .region",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "syncModeControl"):
+        "v266 pickMode didSet 时回写分段控件选中态，保证键盘 W 切换与开关显示始终一致",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "positionModeControl"):
+        "v266 把开关与不透明底板固定在距顶 64pt，避开刘海与菜单栏；draw 每帧调用，frame 不变时无副作用",
+})
+
 
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。
