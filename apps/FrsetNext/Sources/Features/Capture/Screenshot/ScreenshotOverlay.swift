@@ -162,6 +162,18 @@ final class ScreenshotOverlayView: NSView {
     var pickMode: OverlayPickMode = .region
     /// 窗口模式单击提交（rect=视图坐标，windowID=CG 窗口号）
     var onWindowCommit: ((CGRect, CGWindowID) -> Void)?
+    /// 窗口模式多选提交（v264：⌘ 点选多个窗口 → 回车一次截完）
+    var onWindowsCommit: (([(rect: CGRect, windowID: CGWindowID)]) -> Void)?
+
+    /// 固定比例（v264）：nil = 自由框选。单位是「宽:高」的原始比例值。
+    var lockedRatio: CGSize?
+    /// 比例标签（尺寸气泡里显示，如 "16:9"）
+    var lockedRatioLabel: String?
+
+    /// 窗口模式已勾选的窗口（⌘ 单击切换）
+    private var multiSelected: [WindowHit] = []
+    /// ⌘ 点选后紧跟的那次 mouseUp 不要当成交付
+    private var suppressWindowCommit = false
 
     private struct WindowHit {
         let globalRect: CGRect   // cocoa 全局坐标（左下原点）
@@ -229,8 +241,23 @@ final class ScreenshotOverlayView: NSView {
                 self.needsDisplay = true
                 return true
             }
+            // v264：窗口模式多选 —— 回车一次截完；Delete 清空已选
+            if self.pickMode == .window {
+                if event.keyCode == 0x24 {          // Return
+                    self.commitMultiWindows()
+                    return true
+                }
+            }
             return false
         }
+    }
+
+    /// 窗口模式多选提交（回车 / 单击已选窗口）
+    private func commitMultiWindows() {
+        guard !multiSelected.isEmpty else { return }
+        let items = multiSelected.map { (rect: viewRect(of: $0.globalRect), windowID: $0.windowID) }
+        multiSelected.removeAll()
+        onWindowsCommit?(items)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
@@ -248,6 +275,12 @@ final class ScreenshotOverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         guard pickMode == .region else {
+            // v264：⌘ 单击 = 勾选/取消勾选一个窗口（多选），不立即截
+            if event.modifierFlags.contains(.command), let hit = highlightedWindow {
+                toggleMultiSelection(hit)
+                suppressWindowCommit = true
+                return
+            }
             // 窗口模式：单击只记录当前高亮，不做拖拽选区
             highlightedAtMouseDown = highlightedWindow
             return
@@ -255,6 +288,16 @@ final class ScreenshotOverlayView: NSView {
         startPoint = convert(event.locationInWindow, from: nil)
         currentPoint = startPoint
         magnifier.isHidden = snapshot == nil
+        needsDisplay = true
+    }
+
+    /// ⌘ 点选：同一窗口再次点击即取消
+    private func toggleMultiSelection(_ hit: WindowHit) {
+        if let index = multiSelected.firstIndex(where: { $0.windowID == hit.windowID }) {
+            multiSelected.remove(at: index)
+        } else {
+            multiSelected.append(hit)
+        }
         needsDisplay = true
     }
 
@@ -266,10 +309,27 @@ final class ScreenshotOverlayView: NSView {
             refreshSnap(at: p)
             currentPoint = snappedPoint(p)
         }
+        // v264：固定比例 / ⇧ 正方形（比例优先）
+        if let start = startPoint, let p = currentPoint {
+            currentPoint = constrained(p, from: start, event: event)
+        }
         needsDisplay = true
         if let p = currentPoint {
             magnifier.follow(pointInView: p, viewSize: bounds.size, snapshot: snapshot)
         }
+    }
+
+    /// 固定比例（v264）：设置里选了比例就锁死；否则按住 ⇧ 出正方形
+    private func constrained(_ point: NSPoint, from start: NSPoint, event: NSEvent) -> NSPoint {
+        if let ratio = lockedRatio, ratio.height > 0 {
+            return CaptureRatioStore.constrain(from: start, to: point,
+                                               ratio: ratio.width / ratio.height,
+                                               bounds: bounds)
+        }
+        if event.modifierFlags.contains(.shift) {
+            return CaptureRatioStore.square(from: start, to: point)
+        }
+        return point
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -304,6 +364,16 @@ final class ScreenshotOverlayView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         if pickMode == .window {
+            if suppressWindowCommit {
+                suppressWindowCommit = false
+                return
+            }
+            // 已勾选多个窗口：这一次单击 = 确认（回车同义）
+            if !multiSelected.isEmpty {
+                highlightedAtMouseDown = nil
+                commitMultiWindows()
+                return
+            }
             // 窗口模式：单击（几乎无位移）且有高亮 → 提交该窗口
             // 优先截到更细的 AX 元素（windowID 传 0 → 上层按快照裁剪）
             if let el = highlightedElement, let hit = highlightedAtMouseDown,
@@ -319,6 +389,9 @@ final class ScreenshotOverlayView: NSView {
             return
         }
         currentPoint = convert(event.locationInWindow, from: nil)
+        if let start = startPoint, let p = currentPoint {
+            currentPoint = constrained(p, from: start, event: event)
+        }
         magnifier.isHidden = true
         // v130①：单击（无拖拽位移）且命中吸附元素 → 直接截取该元素
         if let rect = selectionRect, rect.width < 4, rect.height < 4, let snap = snapHighlight {
@@ -407,15 +480,20 @@ final class ScreenshotOverlayView: NSView {
             dim.setFill()
             bounds.fill()
             if pickMode == .window {
-                // 窗口模式：高亮识别 + 顶部操作提示（无十字准线）
+                // v264：已勾选的多选窗口先画（带序号），悬停高亮叠在上面
+                for (index, hit) in multiSelected.enumerated() {
+                    drawWindowSelection(hit, index: index)
+                }
                 if let hit = highlightedWindow {
                     drawWindowHighlight(hit)
                 }
                 if let el = highlightedElement {
                     drawElementHighlight(el)
                 }
-                if highlightedWindow == nil && highlightedElement == nil {
+                if highlightedWindow == nil && highlightedElement == nil && multiSelected.isEmpty {
                     drawWindowModeHint()
+                } else if !multiSelected.isEmpty {
+                    drawWindowMultiHint()
                 }
                 return
             }
@@ -480,7 +558,17 @@ final class ScreenshotOverlayView: NSView {
 
     /// 窗口模式空态提示（覆盖层顶部居中）
     private func drawWindowModeHint() {
-        let text = "悬停窗口以识别 · 单击截取 · Esc 取消" as NSString
+        drawHint("悬停窗口以识别 · 单击截取 · ⌘ 点击可多选 · W 切框选 · Esc 取消")
+    }
+
+    /// 多选进行中的提示（v264）
+    private func drawWindowMultiHint() {
+        drawHint("已选 \(multiSelected.count) 个窗口 · 回车截取 · ⌘ 点击增删 · Esc 取消")
+    }
+
+    /// 顶部居中胶囊提示（两种文案共用一套排版）
+    private func drawHint(_ string: String) {
+        let text = string as NSString
         // v126（性能审计 F0553）：复用静态缓存属性字典
         let attrs = Self.labelAttrs
         let size = text.size(withAttributes: attrs)
@@ -490,6 +578,30 @@ final class ScreenshotOverlayView: NSView {
         NSColor(calibratedWhite: 0.1, alpha: 0.78).setFill()
         NSBezierPath.continuousRoundedRect(box, radius: 13).fill()
         text.draw(at: NSPoint(x: box.minX + 12, y: box.minY + 7), withAttributes: attrs)
+    }
+
+    /// 已勾选窗口的高亮 + 序号（v264）
+    private func drawWindowSelection(_ hit: WindowHit, index: Int) {
+        let rect = viewRect(of: hit.globalRect).intersection(bounds)
+        guard rect.width > 1, rect.height > 1 else { return }
+        NSColor.controlAccentColor.withAlphaComponent(0.18).setFill()
+        rect.fill()
+        let stroke = NSBezierPath(rect: rect.insetBy(dx: 1.5, dy: 1.5))
+        stroke.lineWidth = 2.5
+        NSColor.controlAccentColor.setStroke()
+        stroke.stroke()
+
+        let badge = NSRect(x: rect.minX + 6, y: rect.maxY - 26, width: 20, height: 20)
+        NSColor.controlAccentColor.setFill()
+        NSBezierPath(ovalIn: badge).fill()
+        let label = "\(index + 1)" as NSString
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11, weight: .bold),
+            .foregroundColor: NSColor.white,
+        ]
+        let size = label.size(withAttributes: attrs)
+        label.draw(at: NSPoint(x: badge.midX - size.width / 2, y: badge.midY - size.height / 2),
+                   withAttributes: attrs)
     }
 
     /// 窗口吸附高亮：半透明提亮 + 强调色描边 + 窗口标签
@@ -541,7 +653,14 @@ final class ScreenshotOverlayView: NSView {
         let scale = window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         let w = Int((rect.width * scale).rounded())
         let h = Int((rect.height * scale).rounded())
-        let text = "\(w) × \(h)" as NSString
+        // v264：锁定比例 / 按住 ⇧ 时把比例也写进气泡，用户一眼知道现在锁的是什么
+        var title = "\(w) × \(h)"
+        if let label = lockedRatioLabel {
+            title += " · \(label)"
+        } else if NSEvent.modifierFlags.contains(.shift) {
+            title += " · 1:1"
+        }
+        let text = title as NSString
         // v126（性能审计 F0553）：复用静态缓存属性字典
         let attrs = Self.labelAttrs
         let size = text.size(withAttributes: attrs)

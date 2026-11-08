@@ -53,6 +53,10 @@ public struct CaptureSettingsPane: View {
         VStack(spacing: 18) {
             saveSection
             behaviorSection
+            // v264（B 档）：固定比例 / 文件命名 / 截完即用（角标、静默识别、仅文本马赛克）
+            CaptureRatioSettingsView()
+            CaptureNamingSettingsView()
+            CaptureExtraSettingsView()
             watermarkSection
             ocrSection
             permissionSection

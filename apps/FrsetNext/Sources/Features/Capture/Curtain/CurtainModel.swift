@@ -190,6 +190,20 @@ public enum CurtainPref {
         }
     }
 
+    /// 鼠标移到屏幕顶边时自动唤出图帘（v264，对齐 1Capture 的
+    /// `SETTINGS_DDSHELF_HANGING_REVEAL_ON_HOVER`）。
+    ///
+    /// 热区放在**菜单栏下沿的 5pt 窄条**上，而不是真的顶到 0——顶边属于菜单栏，
+    /// 抢了它的点击会让用户点不到状态栏图标（v261 当时就是因此没做）。
+    /// 默认关：它会在屏幕最上方多一条 5pt 的「鼠标陷阱」，必须是用户主动选的。
+    public static var revealOnHover: Bool {
+        get { Preferences.shared.value(Preferences.Keys.curtainRevealOnHover, default: false) }
+        set {
+            Preferences.shared.set(Preferences.Keys.curtainRevealOnHover, newValue)
+            NotificationCenter.default.post(name: .curtainPreferencesChanged, object: nil)
+        }
+    }
+
 }
 
 public extension Notification.Name {

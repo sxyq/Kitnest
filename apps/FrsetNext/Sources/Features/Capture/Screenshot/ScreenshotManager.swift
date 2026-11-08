@@ -543,6 +543,11 @@ public final class ScreenshotManager: ObservableObject {
             if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
                 let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
+                // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
+                if let ratio = CaptureRatioStore.selected {
+                    window.overlayView.lockedRatio = CGSize(width: ratio.width, height: ratio.height)
+                    window.overlayView.lockedRatioLabel = ratio.label
+                }
                 window.overlayView.onCommit = { [weak self, weak window] rect in
                     guard let self = self, let window = window else { return }
                     self.commitRegion(rect: rect, window: window)
@@ -616,13 +621,16 @@ public final class ScreenshotManager: ObservableObject {
             handle(cropped, action: action)
         case .toolbar:
             // 先落盘（动作链各工具都以 URL/已保存文件为前提），再弹动作工具条
+            let pixel = CGSize(width: cropped.width, height: cropped.height)
             guard let data = ImageProcessor.pngData(cropped),
-                  let url = stagePNG(data) else {
+                  let url = stagePNG(data, pixelSize: pixel) else {
                 Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                 return
             }
             registerCaptured(url: url, data: data, playSound: true)
             autoDetectQR(in: cropped)   // v130⑤：自动检测二维码
+            // v264：轻量拖拽角标（不需要图帘也能直接拖进别的 App）
+            CaptureDragBadgeController.shared.show(image: cropped, url: url)
             CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global)
         }
     }
@@ -713,6 +721,11 @@ public final class ScreenshotManager: ObservableObject {
                     guard let self = self, let window = window else { return }
                     self.commitWindow(rect: rect, windowID: windowID, window: window)
                 }
+                // v264：⌘ 多选窗口 → 一次截完，按顺序纵向拼成一张图
+                window.overlayView.onWindowsCommit = { [weak self, weak window] items in
+                    guard let self = self, let window = window else { return }
+                    self.commitWindows(items: items, window: window)
+                }
                 window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
                 self.overlays.append(window)
                 NSApp.activate(ignoringOtherApps: true)
@@ -753,16 +766,114 @@ public final class ScreenshotManager: ObservableObject {
             case .direct(let action):
                 self.handle(image, action: action)
             case .toolbar:
+                let pixel = CGSize(width: image.width, height: image.height)
                 guard let data = ImageProcessor.pngData(image),
-                      let url = self.stagePNG(data) else {
+                      let url = self.stagePNG(data, pixelSize: pixel) else {
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
+                CaptureDragBadgeController.shared.show(image: image, url: url)
                 CaptureActionChain.present(image: image, url: url, selectionAppKit: global)
             }
         }
+    }
+
+    // MARK: 窗口多选（v264）
+
+    /// 一次截多个窗口：按勾选顺序**纵向拼成一张图**（16pt 间隔、24pt 留白）。
+    ///
+    /// 为什么拼成一张而不是存多个文件：多选的用途基本是「写文档 / 发群里对比」，
+    /// 存成 5 个文件用户还得再拼一次；一张图直接能拖走。
+    /// 需要单独文件时，单窗口截图本来就还在。
+    private func commitWindows(items: [(rect: CGRect, windowID: CGWindowID)],
+                               window: ScreenshotOverlayWindow) {
+        let screenFrame = window.frame
+        let snapshot = window.overlayView.snapshot
+        closeOverlays()
+        isCapturing = false
+        guard !items.isEmpty else { return }
+
+        Task { @MainActor in
+            var images: [CGImage] = []
+            for item in items {
+                var image: CGImage?
+                if item.windowID != 0, #available(macOS 14.0, *) {
+                    image = try? await ScreenSnapshot.sckCapture(windowID: item.windowID)
+                }
+                if image == nil, let snapshot {
+                    let global = item.rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
+                    image = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame)
+                }
+                if let image { images.append(image) }
+            }
+            guard !images.isEmpty else {
+                Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            guard let composed = Self.composeVertically(images) else {
+                Toast.show("窗口图片合成失败", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            Log.info("Capture", "窗口多选：\(images.count) 个窗口 → \(composed.width)×\(composed.height)px")
+            self.lastSelectionAppKit = .zero
+            switch self.pendingFlow {
+            case .direct(let action):
+                self.handle(composed, action: action)
+            case .toolbar:
+                guard let data = ImageProcessor.pngData(composed),
+                      let url = self.stagePNG(data, pixelSize: CGSize(width: composed.width,
+                                                                      height: composed.height)) else {
+                    Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
+                self.registerCaptured(url: url, data: data, playSound: true)
+                CaptureDragBadgeController.shared.show(image: composed, url: url)
+                CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero)
+            }
+        }
+    }
+
+    /// 纵向拼接（深/浅色背景跟随系统外观，避免白底图和暗色界面打架）
+    static func composeVertically(_ images: [CGImage]) -> CGImage? {
+        guard !images.isEmpty else { return nil }
+        let gap: CGFloat = 16
+        let pad: CGFloat = 24
+        var maxW = images.map { CGFloat($0.width) }.max() ?? 0
+        var totalH = images.reduce(0) { $0 + CGFloat($1.height) }
+            + gap * CGFloat(max(0, images.count - 1)) + pad * 2
+        guard maxW > 0, totalH > 0 else { return nil }
+
+        // 内存闸门：超过 120MP 等比缩（一张 6K 竖拼十张会到 300MP）
+        let maxPixels: CGFloat = 120_000_000
+        let scale = min(1, sqrt(maxPixels / (maxW * totalH)))
+        maxW *= scale
+        totalH *= scale
+
+        let width = Int(maxW.rounded()), height = Int(totalH.rounded())
+        guard width > 0, height > 0,
+              let ctx = CGContext(data: nil, width: width, height: height,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return nil
+        }
+        let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let bg = dark ? CGColor(gray: 0.13, alpha: 1) : CGColor(gray: 0.96, alpha: 1)
+        ctx.setFillColor(bg)
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        ctx.interpolationQuality = .high
+
+        var y = CGFloat(height) - pad
+        for image in images {
+            let w = CGFloat(image.width) * scale
+            let h = CGFloat(image.height) * scale
+            let x = (CGFloat(width) - w) / 2
+            ctx.draw(image, in: CGRect(x: x, y: y - h, width: w, height: h))
+            y -= h + gap * scale
+        }
+        return ctx.makeImage()
     }
 
     // MARK: 产出分流
@@ -775,13 +886,19 @@ public final class ScreenshotManager: ObservableObject {
             return
         }
         // v235：默认动作不是「保存」时只暂存，不往下载目录写文件
-        guard let url = (action == .save ? savePNG(data) : stagePNG(data)) else {
+        let pixel = CGSize(width: image.width, height: image.height)
+        guard let url = (action == .save ? savePNG(data, pixelSize: pixel)
+                                        : stagePNG(data, pixelSize: pixel)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
         registerCaptured(url: url, data: data, playSound: true)
         autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
+        // v264：轻量拖拽角标（只有「保存 / 复制」这两种「我要拿去用」的动作才给）
+        if action == .save || action == .clipboard {
+            CaptureDragBadgeController.shared.show(image: image, url: url)
+        }
         apply(action, to: image, url: url)
     }
 
@@ -839,20 +956,20 @@ public final class ScreenshotManager: ObservableObject {
 
     /// 写入 PNG 到**用户保存目录**（下载目录 / 设置里的路径）
     @discardableResult
-    public func savePNG(_ data: Data) -> URL? {
-        writePNG(data, to: saveDirectory)
+    public func savePNG(_ data: Data, pixelSize: CGSize = .zero) -> URL? {
+        writePNG(data, to: saveDirectory, pixelSize: pixelSize)
     }
 
     /// 写入 PNG 到**私有暂存目录**（动作条各工具都拿到这个 URL，但不算用户保存）
     @discardableResult
-    public func stagePNG(_ data: Data) -> URL? {
-        writePNG(data, to: stagingDirectory)
+    public func stagePNG(_ data: Data, pixelSize: CGSize = .zero) -> URL? {
+        writePNG(data, to: stagingDirectory, pixelSize: pixelSize)
     }
 
-    private func writePNG(_ data: Data, to dir: URL) -> URL? {
+    private func writePNG(_ data: Data, to dir: URL, pixelSize: CGSize = .zero) -> URL? {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent(Self.newFileName())
+            let url = dir.appendingPathComponent(Self.newFileName(pixelSize: pixelSize))
             try data.write(to: url)
             return url
         } catch {
@@ -890,13 +1007,10 @@ public final class ScreenshotManager: ObservableObject {
         }
     }
 
-    private static func newFileName() -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd-HHmmss"
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        let stamp = fmt.string(from: Date())
-        let tail = String(format: "%03d", Int.random(in: 0...999))
-        return "Screenshot-\(stamp)-\(tail).png"
+    /// v264：文件名交给模板引擎（设置 → 截图 → 文件命名）。
+    /// 默认模板与旧版输出完全一致，老用户不会发现名字变了。
+    private static func newFileName(pixelSize: CGSize = .zero) -> String {
+        CaptureFileName.make(pixelSize: pixelSize, mode: shared.currentModeTag)
     }
 
     public func copyToPasteboard(_ image: CGImage) {
@@ -1000,6 +1114,13 @@ public final class ScreenshotManager: ObservableObject {
                         CaptureHistoryStore.shared.updateOCR(path: p, text: text)
                     }
                     // 弹出「原文对照 + 识别文本」结果窗（B5）
+                    // v264：静默模式 —— 只弹一条 N 秒的提示，不打断连续识别；
+                    // 文本同时写进剪贴板，用户可以直接粘贴。
+                    if CaptureOCRNotify.isSilent, !forceWindow, !autoTranslate {
+                        self.copyOCRText()
+                        CaptureOCRNotify.show(text: text)
+                        return
+                    }
                     if forceWindow || self.ocrShowResultWindow || autoTranslate,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
                         ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData,
@@ -1053,7 +1174,7 @@ public final class ScreenshotManager: ObservableObject {
             statusMessage = CaptureError.saveFailed.errorDescription
             return nil
         }
-        guard let url = savePNG(data) else {
+        guard let url = savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             return nil
         }

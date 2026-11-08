@@ -75,6 +75,8 @@ public final class Preferences: ObservableObject {
         public static let curtainCardWidth = "shelf.cardWidth"
         /// 帘线是否跟随卡片等比放大（v263，默认开）
         public static let curtainRailScales = "shelf.railScales"
+        /// 鼠标移到屏幕顶边时唤出图帘（v264，默认关；热区在菜单栏下沿 5pt）
+        public static let curtainRevealOnHover = "shelf.revealOnHover"
         // AI（09）
         public static let aiProvider = "ai.provider"
         public static let aiModel = "ai.model"

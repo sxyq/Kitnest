@@ -89,7 +89,7 @@ public enum ScreenTranslator {
         // v235：这里只是翻译结果的中间产物，用户没点保存 → 只进私有暂存目录，
         // 不往下载目录写文件（和截图「复制不落下载目录」同一条规则）。
         guard let data = ImageProcessor.pngData(rendered),
-              let url = ScreenshotManager.shared.stagePNG(data) else {
+              let url = ScreenshotManager.shared.stagePNG(data, pixelSize: CGSize(width: rendered.width, height: rendered.height)) else {
             Toast.show("屏幕翻译结果保存失败", icon: "exclamationmark.triangle", isWarning: true)
             return
         }

@@ -26,6 +26,7 @@ enum AppBootstrap {
         ModuleRegistry.register(MonitorModule.self)
         ModuleRegistry.register(ClipboardModule.self)
         ModuleRegistry.register(CaptureModule.self)
+        ModuleRegistry.register(RecordingModule.self)
         ModuleRegistry.register(AIModule.self)
         ModuleRegistry.register(ToolboxModule.self)
 
@@ -228,6 +229,8 @@ enum AppBootstrap {
             Task { @MainActor in
                 ImageCurtainController.shared.attach(url: url)
             }
+            // v264：自定义工作流（默认没有启用项，等于零开销）
+            CaptureWorkflowRunner.shared.imageCaptured(url: url, data: data)
         }
 
         // 面板截图功能菜单 → 截图翻译 / 划词翻译（Capture 模块发通知，App 层持有会话）
@@ -383,8 +386,25 @@ enum AppBootstrap {
             // 面板可能停在中转/监测页；明确切回首页（= 剪贴板历史）
             MonitorCenterPresenter.shared.selectHome()
         },
-        DefaultHotkeyEntry(id: "translateSelection", title: "划词翻译",
-                           keyCode: 0x02, modifiers: UInt32(shiftKey | optionKey)) {
+        // v264：重新钉住上一张（⌃⌥P）——「全部隐藏」之后一键找回
+        DefaultHotkeyEntry(id: "pinLast", title: "重新钉住上一张",
+                           keyCode: 0x23, modifiers: UInt32(controlKey | optionKey)) {
+            if !PinnedScreenshotManager.shared.repinLast() {
+                Toast.show("还没有钉过图", icon: "pin.slash")
+            }
+        },
+        // v264：录屏（整屏 / 区域）。⇧⌥ 家族已被截图与图帘占满，录屏用 ⌃⌥：
+        // ⌃⌥R = Record，⌃⌥E = 区域（选取框）。
+        DefaultHotkeyEntry(id: "recordingToggle", title: "开始/停止录屏",
+                           keyCode: 0x0F, modifiers: UInt32(controlKey | optionKey)) {
+            // 录屏器是 @MainActor：热键 handler 是非隔离闭包，显式切回主线程
+            Task { @MainActor in ScreenRecorder.toggleRecording() }
+        },
+        DefaultHotkeyEntry(id: "recordingRegion", title: "录制区域",
+                           keyCode: 0x0E, modifiers: UInt32(controlKey | optionKey)) {
+            Task { @MainActor in ScreenRecorder.shared.startRegionRecording() }
+        },
+        DefaultHotkeyEntry(id: "translateSelection", title: "划词翻译",                           keyCode: 0x02, modifiers: UInt32(shiftKey | optionKey)) {
             runTranslateSelection()
         },
         // v59 新增（用户要求：补齐功能快捷键）；v60 ⌥P 改为直达监测独立窗口

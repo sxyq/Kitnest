@@ -57,6 +57,8 @@ final class AnnotationCanvasView: NSView {
     /// 高斯模糊缓存（按半径；底图变化时失效）
     private var blurImageCache: [Int: CGImage] = [:]
     private var mosaicCacheBase: CGImage?
+    /// v264：仅文本马赛克的文本行缓存（底图变化时与马赛克缓存一起失效）
+    private var textLineCache: [CGRect]?
     /// 抹除工具：正在涂抹的轨迹（图像像素坐标、左上原点）
     private var removalStroke: [CGPoint]?
     /// 橡皮正在滑动擦除（v71：拖拽路径连续删除命中标注，与画笔滑动一致）
@@ -213,6 +215,7 @@ final class AnnotationCanvasView: NSView {
         if mosaicCacheBase !== image {
             mosaicPixelCache.removeAll()
             blurImageCache.removeAll()
+            textLineCache = nil
             mosaicCacheBase = image
         }
         let mosaicProvider: (CGFloat) -> CGImage? = { [weak self] block in
@@ -561,6 +564,29 @@ final class AnnotationCanvasView: NSView {
                                   colorHex: AnnotationCompositor.hex(of: color),
                                   lineWidth: strokeWidth(for: tool))
         }
+        // v264：仅文本马赛克 —— 笔触只用来指定范围，实际糊的是与之相交的文本行
+        if let a = finished, a.tool == .mosaic, MosaicTextOnly.isEnabled {
+            let lines = textLines()
+            let hits = lines.filter {
+                MosaicTextOnly.stroke(a.points, hits: $0, radius: a.lineWidth / 2)
+            }
+            if !hits.isEmpty {
+                for rect in hits {
+                    let line = Annotation(tool: .mosaic,
+                                          points: [CGPoint(x: rect.minX - 2, y: rect.midY),
+                                                   CGPoint(x: rect.maxX + 2, y: rect.midY)],
+                                          colorHex: a.colorHex,
+                                          lineWidth: rect.height + 6,
+                                          blockSize: a.blockSize)
+                    annotations.append(line)
+                    record(.annotation(line))
+                }
+                onChange?()
+                Log.info("Capture", "仅文本马赛克：命中 \(hits.count) 行（共 \(lines.count) 行文本）")
+                return
+            }
+            Log.info("Capture", "仅文本马赛克：笔触未碰到文本行，按普通马赛克处理")
+        }
         if let a = finished, isValid(a) {
             annotations.append(a)
             record(.annotation(a))
@@ -575,6 +601,15 @@ final class AnnotationCanvasView: NSView {
 
     /// 抹除笔刷半径（细/中/粗 → 16/32/64 直径）
     var brushRadius: CGFloat { max(8, brushWidth) / 2 }
+
+    /// v264：文本行矩形（懒识别 + 缓存；同一次编辑里反复刷不会重跑 Vision）
+    private func textLines() -> [CGRect] {
+        if let cache = textLineCache { return cache }
+        let lines = MosaicTextOnly.textLineRects(in: image)
+        textLineCache = lines
+        Log.info("Capture", "仅文本马赛克：识别到 \(lines.count) 行文本")
+        return lines
+    }
 
     /// 各工具落笔宽度：马赛克用独立笔刷直径，其余用线宽
     private func strokeWidth(for tool: AnnotationTool) -> CGFloat {
@@ -1848,7 +1883,7 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         }
         editor.onSave = { image in
             guard let data = ImageProcessor.pngData(image),
-                  let url = ScreenshotManager.shared.savePNG(data) else { return }
+                  let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else { return }
             ScreenshotManager.shared.registerCaptured(url: url, data: data, mode: "annotate")   // v130②
         }
         window = editor

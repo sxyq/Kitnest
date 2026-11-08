@@ -21,6 +21,7 @@ public struct CurtainSettingsPane: View {
     @Stored private var cardWidth: Double
     @Stored private var railScales: Bool
     @Stored private var attachOnCapture: Bool
+    @Stored private var revealOnHover: Bool
     @Stored private var showing: Bool
     /// 快捷键录入后 self 不会自动刷新，用 revision 抖一下
     @Stored private var revision = 0
@@ -33,6 +34,7 @@ public struct CurtainSettingsPane: View {
         _cardWidth = Stored(wrappedValue: Double(CurtainPref.cardWidth))
         _railScales = Stored(wrappedValue: CurtainPref.railScalesWithCards)
         _attachOnCapture = Stored(wrappedValue: CurtainPref.attachOnCapture)
+        _revealOnHover = Stored(wrappedValue: CurtainPref.revealOnHover)
         // 不能在 View.init 里碰 @MainActor 单例，先给 false，onAppear 再同步真值
         _showing = Stored(wrappedValue: false)
     }
@@ -243,6 +245,18 @@ public struct CurtainSettingsPane: View {
                         .controlSize(.small)
                         .onChange(of: attachOnCapture) { CurtainPref.attachOnCapture = $0 }
                     Text("关掉后只能用菜单「显示图帘」或快捷键手动唤出")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                SettingsDivider()
+                row("悬停唤出") {
+                    Toggle("", isOn: $revealOnHover)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .onChange(of: revealOnHover) { CurtainPref.revealOnHover = $0 }
+                    Text("鼠标移到屏幕顶边（菜单栏下沿 5pt）自动展开，移开 0.8 秒后收起")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

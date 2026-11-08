@@ -265,7 +265,7 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
                     Log.warn("Capture", "长截图保存：PNG 编码失败")
                     return
                 }
-                guard let url = ScreenshotManager.shared.savePNG(data) else {
+                guard let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
                     Log.warn("Capture", "长截图保存：savePNG 返回 nil")
                     return
                 }

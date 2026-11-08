@@ -1,7 +1,7 @@
 # Kitnest 用户手册
 
 > **版本**：v1.0.0（对应源码 v264，2026-11-08）
-> **覆盖范围**：32 个功能域 / 280 个 Swift 源文件 / 3,410 个函数 / 49,454 行代码（另有 6,785 行 ObjC/C 原生模块）
+> **覆盖范围**：34 个功能域 / 298 个 Swift 源文件（v264 B/C 档新增 18 个 / 3,795 行）
 > **怎么写出来的**：逐文件读源码 + 对照 `FrsetNext-函数清单.csv`（8,693 条声明）+ CodeGraph 调用关系，
 > 每一章末尾的「实现索引」列出该功能的关键函数与文件行号——不是装饰，是排查问题时的定位入口。
 
@@ -10,7 +10,7 @@
 ## 怎么用这本手册
 
 - **想知道某个功能怎么用**：看目录，每章开头都有「功能是什么 / 用户怎么用」。
-- **想确认某个快捷键**：直接翻附录 A，19 条默认热键全在表里，都能改绑。
+- **想确认某个快捷键**：直接翻附录 A，22 条默认热键全在表里，都能改绑。
 - **想确认「这个功能到底有没有」**：每章末尾的实现索引就是答案——有函数名、有文件、有行号。
 - **遇到问题**：先看该章「注意事项」，再看附录 D「已知限制」。
 - **想看某个版本改了什么**：附录 E。
@@ -31,6 +31,7 @@ Kitnest 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在�
 | **截图** | 区域 / 窗口 / 长截图，截完直接标注、识字、翻译、钉在屏幕上 |
 | **图帘** | 截图后不落地，先挂在屏幕顶边那条帘线上，需要时再拖走 |
 | **录屏** | 整屏或选区录制，可选帧率、分辨率、声音来源 |
+| **工作流** | 截图后自动保存、识别、上传图床、建 GitHub / Linear issue |
 | **钉图** | 把一张图钉在桌面最上层当参考，四种外观形态 |
 | **系统监测** | CPU、内存、GPU、磁盘、网络、温度、电池、功耗，菜单栏一眼可见 |
 | **内存维护** | 「深度释放」一键清缓存 + 暂停闲置应用，报告分项写清楚释放了什么 |
@@ -2182,6 +2183,183 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 
 # 附录
 
+## 第三十五章 截图增强（v264）
+
+### 功能是什么
+
+这一版把 1Capture 的「微操」补齐了六件事，全部在 **设置 → 截图与钉图 → 截图** 里：
+固定比例、文件命名模板、拖拽角标、静默识别、仅文本马赛克，以及框选时的窗口多选。
+
+### 用户怎么用
+
+**固定比例**：在「固定比例」里选一组（1:1 / 4:3 / 3:2 / 16:9 / 3:4 / 9:16 或自定义），
+之后每次框选都锁死这个比例；选「自由框选」恢复手动。临时想要正方形，框选时按住 `⇧`。
+自定义：填名称 + 比例（`5:4`、`1600×900` 都行，会自动约分去重）。
+
+**文件命名**：在「文件命名」里改模板，占位符点一下追加，下面实时预览。默认模板与旧版输出一致：
+`Screenshot-2026-11-08-132707-775.png`。
+
+**拖拽角标**：截完图右下角出现 88pt 缩略图——直接拖进 Slack / 编辑器 / 访达就是文件；
+单击复制、双击在访达中显示。停留 2–15 秒可配，「截完即用」里可整体关掉。
+
+**静默识别**：打开后识别完不再弹结果窗，只在屏幕顶部显示一条 2–12 秒的提示，
+文字已经进剪贴板。需要逐字挑选时仍可用动作条里的「复制并识别」（那条路径总是开结果窗）。
+
+**仅文本马赛克**：标注编辑器里打开后，马赛克刷子只负责**圈范围**，
+实际被糊的是与笔触相交的文本行；没碰到文字时按普通马赛克处理。
+
+**窗口多选**：窗口截图模式下按住 `⌘` 单击勾选多个窗口（带序号），回车一次性截完，
+按勾选顺序纵向拼成一张图。
+
+### 关键能力点
+
+| 能力 | 说明 |
+|---|---|
+| 比例约束 | 起点为锚点，四个方向都正确；超出屏幕时整体收缩、不破比例 |
+| 比例提示 | 尺寸气泡显示 `2560 × 1440 · 16:9` |
+| 模板占位符 | `{yyyy}` `{MM}` `{dd}` `{HH}` `{mm}` `{ss}` `{date}` `{time}` `{timestamp}` `{seq}` `{seq:4}` `{random:3}` `{w}` `{h}` `{mode}` `{app}` |
+| 序号 | `{seq}` 每天从 1 重置；`{seq:4}` 补零 |
+| 文件名清洗 | `/ : \ ? * | " < >` 替换或删除，去掉开头的点，长度上限 180 |
+| 角标拖拽 | 写 `public.file-url`，跨 App 复制不移动 |
+| 静默提示 | 不抢焦点、不打断连续识别 |
+| 文本行识别 | Vision 本机；按底图缓存，同一次编辑只算一次 |
+
+### 注意事项
+
+- 比例锁定时，如果拖到屏幕边缘，矩形会整体缩小以保持比例——不会为了填满屏幕破比例。
+- `{w}` `{h}` 在截图、标注保存、美化、长截图、屏幕翻译、暂存测试六条链路都有真实值；
+  其它模块保存图片时按 0 处理，所以模板里用了 `{w}{h}` 就尽量走这几条链路。
+- 角标只保留**最新一张**，新截图会替换旧角标（历史仍在截图文件夹与历史库里）。
+- 仅文本马赛克首笔会有约 0.2 秒识别停顿；手写体、艺术字可能漏识别。
+- 多选窗口若跨屏且系统窗口抓取失败，会退回快照裁剪，可能错位。
+
+### 实现索引
+
+| 函数 / 类型 | 文件 |
+|---|---|
+| `CaptureAspectRatio` / `CaptureRatioStore.constrain` | `Capture/Screenshot/CaptureAspectRatio.swift` |
+| `CaptureFileName.make` / `replacePattern` / `sanitize` | `Capture/Screenshot/CaptureFileName.swift` |
+| `CaptureDragBadgeController.show` / `DragBadgeView` | `Capture/Screenshot/CaptureDragBadge.swift` |
+| `CaptureOCRNotify.show` / `OCRNotePanel` | `Capture/Screenshot/CaptureOCRNotify.swift` |
+| `CaptureRatioSettingsView` / `CaptureNamingSettingsView` / `CaptureExtraSettingsView` | `Capture/Screenshot/CaptureExtraSettings.swift` |
+| `ScreenshotOverlayView.mouseDragged`（比例）/ `commitMultiWindows` | `Capture/Screenshot/ScreenshotOverlay.swift` |
+| `ScreenshotManager.commitWindows` / `composeVertically` | `Capture/Screenshot/ScreenshotManager.swift` |
+| `MosaicTextOnly.textLineRects` / `stroke(_:hits:radius:)` | `Capture/Annotation/MosaicTextOnly.swift` |
+
+---
+
+## 第三十六章 录屏
+
+### 功能是什么
+
+整屏或区域录制，输出 H.264 MP4。可选叠加摄像头画中画、按键显示、点击动画，
+并可按 App 排除窗口；停止后自动打开裁剪窗口，剪头剪尾、静音、导出。
+
+### 用户怎么用
+
+- **开始**：主面板「录屏」区段点「录整屏」/「录区域…」；或按 `⌃⌥R`（整屏开始/停止）、
+  `⌃⌥E`（框选区域）。
+- **录制中**：屏幕顶部一条控制条（红点 + 计时 + 暂停 + 停止）。控制条**不会被录进画面**。
+  暂停后画面停住、时间轴继续，继续即接着录。
+- **停止**：点停止 → 自动弹出「录屏编辑」窗口：预览、拖两条滑块选保留区间、
+  勾「导出时静音」、点「导出…」。
+- **设置**（设置 → 截图与钉图 → 录屏）：
+  - 帧率 15 / 30 / 60；
+  - 声音：不录音 / 系统声音 / 麦克风（二选一）；
+  - 鼠标指针开关；
+  - 摄像头画中画：设备、四角位置、宽度 10–35%（4:3 竖版）；
+  - 显示按键、点击动画；
+  - 忽略的 App：选 `.app`，该 App 的所有窗口不进画面；
+  - 保存目录（默认下载目录）。
+
+### 关键能力点
+
+| 能力 | 说明 |
+|---|---|
+| 采集 | ScreenCaptureKit `SCStream` → `AVAssetWriter`，H.264 MP4 |
+| 码率 | 按分辨率自动：`w×h×0.12`，钳在 4–24 Mbps |
+| 区域 | `SCStreamConfiguration.sourceRect`（显示器本地坐标） |
+| 忽略 App | `SCContentFilter(display:excludingApplications:)` |
+| 画中画 | `AVCaptureVideoDataOutput` 取最新帧 → Core Image 合成 |
+| 按键 | `CGEventTap` listenOnly，键帽条 4 个、1.6s TTL |
+| 点击 | 左键橙 / 右键蓝，0.65s 双环扩散 |
+| 零开销直通 | 没开任何叠加时原始帧直接 append，不做合成 |
+| 编辑器 | AVPlayerLayer 预览 + 入出点 + 静音 + `AVAssetExportSession` |
+
+### 注意事项
+
+- 需要「屏幕录制」权限；按键显示还需要「辅助功能 / 输入监控」——没授权时**只关闭按键与点击**，
+  录制本身照常，不会弹窗打断。
+- 摄像头、麦克风首次使用会弹系统授权；拒绝后该项静默跳过。
+- 录制分辨率跟随系统给 SCK 的源（这台机器是 1710×1112）；写 2 倍只会插值放大，所以保持 1:1。
+- 系统声音与麦克风**只能二选一**：两条音轨在多数播放器里只播第一条，混音没有做。
+- 忽略是「按 App」，不是按窗口。
+- 暂停 = 丢帧但时间轴继续，播放时表现为画面停住。
+
+### 实现索引
+
+| 函数 / 类型 | 文件 |
+|---|---|
+| `ScreenRecorder.start(options:)` / `stop` / `pause` | `Recording/ScreenRecorder.swift` |
+| `RecordingPipeline.handleVideo` / `prepareWriter` | 同上 |
+| `RecordingInputMonitor.runTap` / `describe(event:)` | `Recording/RecordingInputMonitor.swift` |
+| `RecordingCompositor.keyOverlay` / `clickOverlay` / `cameraRect` | `Recording/RecordingCompositor.swift` |
+| `RecordingHUDController` / `RecordingRegionPicker` | `Recording/RecordingHUD.swift` |
+| `RecordingEditorController.performExport` | `Recording/RecordingEditorWindow.swift` |
+| `RecordingOptions` 偏好键 | `Recording/RecordingConfig.swift` |
+| `RecordingSettingsPane` | `Recording/RecordingSettingsPane.swift` |
+
+---
+
+## 第三十七章 工作流
+
+### 功能是什么
+
+截图落盘之后自动执行一串动作：保存到指定目录、复制、识别文字、钉住、上传图床、
+新建 GitHub / Linear issue。步骤按顺序跑，后面的步骤能用到前面的产物。
+
+### 用户怎么用
+
+1. 设置 → 截图与钉图 → 工作流 → 「新建工作流」。
+2. 打开开关，改名字。
+3. 「添加步骤」，按需选类型并填参数：
+   - 保存到文件夹：目标路径；
+   - 识别文字：无参数，结果进 `{text}`；
+   - 上传图片：上传地址 + 文件字段名（默认 `file`），响应里的 `url` 进 `{url}`；
+   - GitHub Issue：`owner/repo` + Token；
+   - Linear Issue：Team ID + API Key。
+4. 截图后自动执行。默认只有一条**禁用**的示例（保存 + 识别 + 复制）。
+
+### 关键能力点
+
+| 能力 | 说明 |
+|---|---|
+| 上下文 | `{name}` 文件名、`{text}` OCR 全文、`{url}` 图片链接、`{date}` 时间 |
+| 容错 | 任一步失败只记日志并继续下一步 |
+| 串行 | 上一轮没跑完时，新截图跳过（避免并发写同一图床） |
+| 存储 | `~/Library/Application Support/Kitnest/workflows/workflows.json`，权限 0600 |
+| GitHub | `POST /repos/{owner}/{repo}/issues` |
+| Linear | GraphQL `issueCreate` |
+
+### 注意事项
+
+- Token 存在本地 JSON 里（0600），不是钥匙串；共享这台机器账号的人能读到。
+- 上传端点必须返回 JSON，且含 `url` / `data.url` / `data[0].url` 之一——否则 `{url}` 为空。
+- GitHub 的 issue 正文不能直接附图，需要先配图床拿到 URL，再在正文里引用。
+- 工作流跑在后台队列；截图本身不等它，落盘成功即完成。
+
+### 实现索引
+
+| 函数 / 类型 | 文件 |
+|---|---|
+| `CaptureWorkflow` / `WorkflowStep` | `Capture/Workflow/CaptureWorkflow.swift` |
+| `CaptureWorkflowRunner.imageCaptured` / `perform` | 同上 |
+| `upload` / `createGitHubIssue` / `createLinearIssue` | 同上 |
+| `WorkflowStore.load` / `save` | 同上 |
+| `WorkflowSettingsPane` | `Capture/Workflow/WorkflowSettingsPane.swift` |
+
+---
+
 ## 附录 A · 默认快捷键
 
 > 全部可在「设置 → 工具与快捷键」改绑；「2×」列表示可切换为双击修饰键模式。
@@ -2207,6 +2385,9 @@ Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库�
 | 暂停/恢复剪贴板记录 | `⇧⌥R` | 是 | 处理敏感内容时用 |
 | 监测独立窗口 | `⌥M` | 是 | 与 ⌥P 同一窗口 |
 | 命令面板 | `⌥K` | 是 | 全功能目录 |
+| 开始/停止录屏 | `⌃⌥R` | 是 | 整屏录制；录制中按下即停止 |
+| 录制区域 | `⌃⌥E` | 是 | 先框选，再开始 |
+| 重新钉住上一张 | `⌃⌥P` | 是 | 「全部隐藏」之后一键找回 |
 
 面板内：`⌘P` 置顶、`Esc` 关闭、`⌘,` 设置、`⌘Q` 退出。
 
@@ -2244,6 +2425,7 @@ Scheme 为 `kitnest://`（旧 `frsetnext://` 仍然兼容）。42 个入口：
 | **剪贴板** | `kitnest://clipdesk` / `?action=toggle` | 悬浮剪贴板 |
 | **内存** | `kitnest://memcheck` / `kitnest://memthaw` | 深度释放 / 全部解冻 |
 | **手册** | `kitnest://manual` | 内置用户手册 |
+| **设置区块** | `kitnest://settingsprobe?block=recording` | 单独打开某块设置（recording / workflow / capture，排障用） |
 | **诊断** | `kitnest://annotest` / `kitnest://stagetest` / `kitnest://toast` | 各类自检 |
 
 ## 附录 C · 函数索引怎么查
@@ -2282,6 +2464,10 @@ awk -F, '$2=="Features/Capture/Curtain/CurtainWindow.swift"' \
 | 隔空投送只通苹果设备 | 安卓用扫码/ADB | AWDL 是苹果私有协议 |
 | 手写体 OCR 识别率低 | — | 模型能力边界 |
 | 中文输入法组词未上屏不搜索 | 250ms 防抖 | 避免打一个字搜一次 |
+| 录屏分辨率跟随系统 1x 源 | 本机 1710×1112 | 写 2 倍只是插值放大，宁小勿糊 |
+| 录屏音频二选一 | 系统声音或麦克风 | 双音轨在多数播放器只播第一条 |
+| 录屏按键需输入监控权限 | 无权限只关闭按键/点击 | 录制本身不受影响 |
+| 工作流 Token 存本地 JSON | 同机用户可读 | 未接钥匙串 |
 
 ## 附录 E · 版本演进（关键节点）
 
@@ -2295,6 +2481,7 @@ awk -F, '$2=="Features/Capture/Curtain/CurtainWindow.swift"' \
 | v262 | 图帘按 1Capture 反汇编重做几何；截图/钉图/图帘三页合并 |
 | v263 | 「悬挂架」改名**图帘**；⌘ 拖动缩放；图帘/剪贴板独立快捷键；钉住四形态 |
 | v264 | 存储索引真正扫全盘（248 万条目 / 185GB）；自建全盘文件名索引；搜索覆盖 `~/Library` / 隐藏目录 |
+| v264（B/C 档） | 固定比例 / 文件命名模板 / 拖拽角标 / 静默识别 / 仅文本马赛克 / 窗口多选 / 图帘悬停唤出；录屏（画中画·按键·点击·忽略 App·裁剪导出）；自定义工作流 + GitHub/Linear |
 
 ---
 

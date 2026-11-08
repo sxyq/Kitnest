@@ -1538,6 +1538,13 @@ public final class PinnedScreenshotManager: NSObject {
         hasHidden = false
     }
 
+    /// v264：重新钉住上一张（「全部隐藏」之后一键找回；不用回历史里翻）
+    @discardableResult
+    public func repinLast() -> Bool {
+        guard let image = lastImage else { return false }
+        return show(image: image)
+    }
+
     /// 吸附用：其它钉图的 frame
     func otherFrames(excluding window: NSWindow) -> [NSRect] {
         windows.filter { $0 !== window }.map(\.frame)

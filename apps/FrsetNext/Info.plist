@@ -28,6 +28,8 @@
 	<string>Kitnest 需要屏幕录制权限以执行截图与 OCR 文字识别。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Kitnest 录屏时可选择录入麦克风声音。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kitnest 录屏时可把摄像头画面叠加成画中画。</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Kitnest 需要辅助功能权限以执行自动粘贴。</string>
 	<key>NSCalendarsUsageDescription</key>

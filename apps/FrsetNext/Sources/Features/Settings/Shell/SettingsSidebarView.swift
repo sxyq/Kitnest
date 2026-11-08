@@ -286,6 +286,16 @@ struct SettingsSidebarView: View {
         .init(title: "钉图自动吸附", area: "钉图", keywords: "对齐 边缘 磁吸 magnet", selection: .category(.capture), subTab: 1),
         .init(title: "钉图控制条自动收起", area: "钉图", keywords: "工具条 悬停 收起 隐藏", selection: .category(.capture), subTab: 1),
         .init(title: "钉图快捷键", area: "钉图", keywords: "标注 拷贝 关闭 Esc A C M", selection: .category(.capture), subTab: 1),
+        // v264 新增：固定比例 / 文件命名 / 图帘 / 录屏 / 工作流
+        .init(title: "固定比例", area: "截图", keywords: "16:9 4:3 方形 竖版 比例锁 自定义", selection: .category(.capture), subTab: 0),
+        .init(title: "文件命名模板", area: "截图", keywords: "文件名 时间戳 序号 随机 占位符", selection: .category(.capture), subTab: 0),
+        .init(title: "拖拽角标", area: "截图", keywords: "拖出去 缩略图 直接拖 存图", selection: .category(.capture), subTab: 0),
+        .init(title: "静默识别", area: "截图", keywords: "OCR 不弹窗 通知 时长", selection: .category(.capture), subTab: 0),
+        .init(title: "仅文本马赛克", area: "截图", keywords: "标注 打码 文本 隐私", selection: .category(.capture), subTab: 0),
+        .init(title: "图帘", area: "图帘", keywords: "悬挂架 帘线 悬停 唤出 快捷键 缩放", selection: .category(.capture), subTab: 2),
+        .init(title: "录屏", area: "录屏", keywords: "录制 摄像头 画中画 按键 点击 忽略 App", selection: .category(.capture), subTab: 3),
+        .init(title: "录屏保存位置", area: "录屏", keywords: "mp4 视频 目录", selection: .category(.capture), subTab: 3),
+        .init(title: "工作流", area: "工作流", keywords: "自动化 GitHub Linear 图床 上传 issue", selection: .category(.capture), subTab: 4),
         // 工具
         .init(title: "搜索", area: "搜索", keywords: "全局搜索 命令 面板", selection: .category(.searchAI), subTab: 0),
         .init(title: "AI 服务", area: "AI", keywords: "模型 key 接口 翻译", selection: .category(.searchAI), subTab: 1),

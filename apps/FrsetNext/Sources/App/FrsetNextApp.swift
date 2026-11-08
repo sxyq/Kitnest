@@ -150,6 +150,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value
                 ServiceLocator.settings?.open(pane: pane)
+            case "settingsprobe":
+                // v264 排障：单独打开某个设置区块（?block=recording|workflow|capture）
+                let block = comps?
+                    .queryItems?.first(where: { $0.name == "block" })?.value ?? "recording"
+                SettingsBlockProbeWindowController.shared.open(block: block)
             case "statistics":
                 StatisticsWindowController.shared.openStatistics()
             case "monitor":
@@ -390,7 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let commit = comps?.queryItems?.first(where: { $0.name == "commit" })?.value == "1"
                 if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)),
                    let data = ImageProcessor.pngData(img) {
-                    if let staged = ScreenshotManager.shared.stagePNG(data) {
+                    if let staged = ScreenshotManager.shared.stagePNG(data, pixelSize: CGSize(width: img.width, height: img.height)) {
                         Log.info("App", "stagetest 暂存 → \(staged.path)")
                         if commit {
                             let dest = ScreenshotManager.shared.commitToSaveDirectory(staged: staged)

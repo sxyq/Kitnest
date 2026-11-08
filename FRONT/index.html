@@ -291,8 +291,8 @@
         <div class="wrap">
           <div class="section-head" data-reveal>
             <span class="kicker">One icon, six jobs</span>
-            <h2>六个每天都在用的功能，<br>共用一个菜单栏图标。</h2>
-            <p class="lede">这六个功能同属一个 App。剪贴板、截图、监控、传文件、投屏，外加一个工具箱，共用同一套搜索、快捷键和设置。</p>
+            <h2>日常这些事，<br>共用一个菜单栏图标。</h2>
+            <p class="lede">剪贴板、截图与录屏、监控、传文件、投屏，外加归档、AI 与自动化，共用同一套搜索、快捷键和设置。</p>
           </div>
 
           <div class="grid-3">
@@ -612,6 +612,45 @@
               <div class="callout warn"><b>不联网也能用：</b>本地 Ollama 不需要任何 Key；翻译在没有 AI 服务商时会退回系统翻译，仍然可用。</div>
             </div>
           </article>
+
+          <article class="chapter" id="ch-recording">
+            <div class="chapter-no">
+              <span class="ch-title">09 · 录屏</span>
+              <span class="ch-sub">录完就能发，不用再进剪辑软件</span>
+            </div>
+            <div class="chapter-body">
+              <h3>该叠的都叠上，该挡的都挡掉</h3>
+              <p>整屏或框选区域录制，输出 H.264 MP4。摄像头画中画、按键显示、点击动画三个叠加层各自独立开关；还能按 App 排除窗口——录教程时把聊天工具和密码管理器挡在画面外。</p>
+              <ul class="spec-list">
+                <li><span class="k">开始</span><span class="v"><kbd>⌃⌥R</kbd> 整屏开始/停止，<kbd>⌃⌥E</kbd> 框选区域</span></li>
+                <li><span class="k">控制条</span><span class="v">顶部计时 + 暂停 + 停止；控制条本身不会被录进画面</span></li>
+                <li><span class="k">画中画</span><span class="v">摄像头四角可选，宽度 10–35%，4:3 竖版</span></li>
+                <li><span class="k">按键</span><span class="v">底部键帽条显示最近按下的组合键（⌘⇧K 这种）</span></li>
+                <li><span class="k">点击</span><span class="v">左键橙 / 右键蓝，0.65 秒扩散圆环</span></li>
+                <li><span class="k">忽略 App</span><span class="v">按 App 排除，被排除 App 的所有窗口都不进画面</span></li>
+                <li><span class="k">裁剪</span><span class="v">停止后自动开编辑窗：入点/出点、静音、导出，一条龙</span></li>
+              </ul>
+              <div class="callout"><b>性能取舍：</b>不开任何叠加时原始帧直通，不做合成；开了才走 Core Image，只画键帽条和点击环的小画布，不按 4K 全画布重绘。</div>
+            </div>
+          </article>
+
+          <article class="chapter" id="ch-workflow">
+            <div class="chapter-no">
+              <span class="ch-title">10 · 自动化工作流</span>
+              <span class="ch-sub">截完图，剩下的交给它</span>
+            </div>
+            <div class="chapter-body">
+              <h3>七种步骤，串成你自己的流水线</h3>
+              <p>截图落盘后按顺序执行：保存到指定目录、复制、识别文字、钉住、上传图床、新建 GitHub Issue、新建 Linear Issue。后面的步骤能用前面的产物——识别出的文字、上传得到的图片链接。</p>
+              <ul class="spec-list">
+                <li><span class="k">上下文</span><span class="v"><code>{name}</code> 文件名 · <code>{text}</code> OCR 全文 · <code>{url}</code> 图片链接 · <code>{date}</code> 时间</span></li>
+                <li><span class="k">容错</span><span class="v">任一步失败只记日志并继续，不会因为图床挂了就不保存截图</span></li>
+                <li><span class="k">默认</span><span class="v">只有一条禁用的示例；不开就没有任何开销</span></li>
+                <li><span class="k">凭据</span><span class="v">存在本机 JSON（权限 600），不写明文偏好文件</span></li>
+              </ul>
+              <div class="callout warn"><b>先配图床：</b>GitHub / Linear 的 issue 正文不能直接附图，上传步骤拿到 <code>url</code> 后再在正文里引用。</div>
+            </div>
+          </article>
         </div>
       </div>
     </section>
@@ -897,6 +936,9 @@
                 <tr><td>文件中转</td><td><kbd>⌥T</kbd></td></tr>
                 <tr><td>命令面板</td><td><kbd>⌥K</kbd></td></tr>
                 <tr><td>暂停 / 恢复剪贴板记录</td><td><kbd>⇧⌥R</kbd></td></tr>
+                <tr><td>开始 / 停止录屏</td><td><kbd>⌃⌥R</kbd></td></tr>
+                <tr><td>录制区域</td><td><kbd>⌃⌥E</kbd></td></tr>
+                <tr><td>重新钉住上一张</td><td><kbd>⌃⌥P</kbd></td></tr>
                 <tr><td>打开设置</td><td><kbd>⌘,</kbd></td></tr>
               </tbody>
             </table>
@@ -991,6 +1033,8 @@
                 <li><span class="k">通知</span><span class="v">发现新版本时提醒；拒绝后改用菜单栏浮提示</span></li>
                 <li><span class="k">日历</span><span class="v">在面板里显示今日日程，仅读取</span></li>
                 <li><span class="k">麦克风</span><span class="v">仅录屏时可选录入，平时不调用</span></li>
+                <li><span class="k">摄像头</span><span class="v">仅录制画中画时使用，不录就不开</span></li>
+                <li><span class="k">输入监控</span><span class="v">录屏时显示按键；拒绝后只关闭按键与点击动画</span></li>
               </ul>
               <div class="callout safe"><b>随时可撤：</b>权限都在「系统设置 → 隐私与安全性」里，撤回后对应功能会提示不可用，其余功能不受影响。</div>
             </div>

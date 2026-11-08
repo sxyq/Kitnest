@@ -10,6 +10,42 @@ public enum CaptureModule: AppModule {
     public static let identifier = "capture"
 
     public static func start() {
+        // 排障探针（v264）：文件命名模板 / 固定比例的纯函数自检。
+        // 这两条不依赖鼠标，直接用环境变量跑一遍并打日志，验收时不用手动框选。
+        if ProcessInfo.processInfo.environment["FRSET_CAPTURE_NAMEPROBE"] == "1" {
+            let sample = CaptureFileName.preview(
+                template: "截图-{yyyy}{MM}{dd}-{HH}{mm}{ss}-{seq:3}-{random:2}-{w}x{h}-{mode}")
+            Log.info("Capture", "命名探针：自定义模板 → \(sample)")
+            Log.info("Capture", "命名探针：默认模板 → \(CaptureFileName.make(pixelSize: CGSize(width: 2560, height: 1664), mode: "area"))")
+            let start = CGPoint(x: 100, y: 100)
+            let end = CaptureRatioStore.constrain(from: start,
+                                                  to: CGPoint(x: 500, y: 200),
+                                                  ratio: 16.0 / 9.0,
+                                                  bounds: CGRect(x: 0, y: 0, width: 1440, height: 900))
+            let actual = (end.x - start.x) / max(end.y - start.y, 0.001)
+            Log.info("Capture", "比例探针：16:9 拖到 (500,200) → 终点 (\(Int(end.x)),\(Int(end.y))) 实际 \(String(format: "%.3f", actual))")
+        }
+
+        // 排障探针（v264）：仅文本马赛克 —— 对最近一张截图跑一遍 Vision 文本行检测，
+        // 验证「识别 → 行矩形」这条链路（不需要真的进编辑器刷一笔）。
+        if ProcessInfo.processInfo.environment["FRSET_MOSAIC_PROBE"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                let url = ScreenshotManager.shared.recent.first?.url
+                    ?? (try? FileManager.default.contentsOfDirectory(at: ScreenshotManager.shared.stagingDirectory,
+                                                                     includingPropertiesForKeys: nil))?
+                        .first { $0.pathExtension.lowercased() == "png" }
+                guard let url, let image = ImageProcessor.cgImage(from: url) else {
+                    Log.warn("Capture", "马赛克探针：没有可用的截图样本")
+                    return
+                }
+                let started = CFAbsoluteTimeGetCurrent()
+                let rects = MosaicTextOnly.textLineRects(in: image)
+                let ms = (CFAbsoluteTimeGetCurrent() - started) * 1000
+                Log.info("Capture", String(format: "马赛克探针：%@ %d×%d 识别 %d 行文本，耗时 %.0fms",
+                                           url.lastPathComponent, image.width, image.height, rects.count, ms))
+            }
+        }
+
         // 排障探针（v175）：probe.ocrDemo=YES → 启动 4s 后开一次 OCR 结果窗，
         // 用来核对流式输出（结果窗能截图，主面板窗在别的 Space 截不到）
         if UserDefaults.standard.bool(forKey: "probe.ocrDemo") {
@@ -93,6 +129,11 @@ public enum CaptureModule: AppModule {
             title: "截图",
             systemImage: "camera",
             build: { AnyView(CaptureSettingsPane()) }))
+
+        // v264：图帘「悬停顶边唤出」的热区（默认关，开关打开才建窗口）
+        Task { @MainActor in
+            CurtainRevealController.shared.sync()
+        }
 
         Log.info("Capture", "截图模块已启动")
 

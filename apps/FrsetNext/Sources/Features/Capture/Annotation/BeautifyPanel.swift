@@ -132,7 +132,7 @@ public final class BeautifyController: NSObject, NSWindowDelegate {
         }
         win.onSave = { rendered in
             guard let data = ImageProcessor.pngData(rendered),
-                  let url = ScreenshotManager.shared.savePNG(data) else { return }
+                  let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: rendered.width, height: rendered.height)) else { return }
             ScreenshotManager.shared.registerCaptured(url: url, data: data)
             Toast.show("美化图已保存", icon: "checkmark.circle.fill")
         }

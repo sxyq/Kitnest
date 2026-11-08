@@ -24,6 +24,9 @@ public final class ImageCurtainController: NSObject {
     /// 窗口是否正在显示（设置页用它决定「试一试」按钮要不要变成「收起」）
     public var isShowing: Bool { panel?.isVisible == true }
 
+    /// 帘子窗口当前的屏幕坐标（v264：顶边悬停唤出的「鼠标是否还在帘子里」判定用）
+    public var panelFrame: CGRect { panel?.frame ?? .zero }
+
     private var panel: CurtainPanel?
     private var canvas: CurtainCanvasView?
     private var thumbnails: [UUID: CGImage] = [:]
