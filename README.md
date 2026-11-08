@@ -47,7 +47,7 @@ frset-rebuild/
 ```bash
 cd apps/FrsetNext && bash build.sh          # 构建 + 原子部署（日常从这里打开）
 ./tools/check.sh                            # typecheck + 耦合扫描
-cd apps/FrsetNext && bash make-dmg.sh       # 打 DMG（dist/ 产物，不入 git）
+cd apps/FrsetNext && bash package_dmg.sh    # 重打 ~/Desktop/Kitnest-1.0.0.dmg（版本号固定）
 bash tools/publish_update.sh "更新说明"      # 发版：递增 build → 构建 → 打包 → 上传 124 → 验证
 bash tools/deploy_site.sh                   # 部署品牌官网到 124（并幂等更新 nginx 片段）
 ```

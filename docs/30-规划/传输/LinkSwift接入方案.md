@@ -47,7 +47,8 @@
    - **交互形态（2026-10-19 用户澄清，已实现）**：复制网盘链接 → 1s 轮询命中 → 链接条**自动弹出**（顶部滑入 + 淡入 + 一次轻脉冲），日历与下方列表**弹簧平滑下移**；平时完全不占位（无链接零高度）
    - 只认**最近 3 条**剪贴板（避免旧链接长期占位，突出刚复制的那条）
    - 右侧按钮：`[打开]`（浏览器）`[解析下载]`（P1 解析器）`[×]`（同链接不再弹，换新链接才重现）
-   - 实测对比：`docs/40-审计与核对/性能审计/shots/cloudlink-before.png` / `cloudlink-after.png`
+   - 实测对比：`apps/FrsetNext/Resources/Manual/shots/cloudlink-before.png` / `cloudlink-after.png`
+     （v268 去重后真机截图只保留 App 资源目录这一份）
 2. **剪贴板自动识别**：`ClipboardManager` 入库时对 text 类型跑 `CloudDriveLinkDetector.detect`，结果缓存（不改 DB schema，运行时派生）
 3. **预览中可点击**：`PreviewPopoverContentView` 文本预览改用 `AttributedString` 链接化；网盘链接点击 → `CloudLinkResolver.present(url)`；普通链接 → `NSWorkspace.open`
 4. **下载进度**：CloudLinkBar 展开态显示进度条（复用 TransitDock 的下载卡片样式）
@@ -86,7 +87,7 @@ pan.quark.cn / drive.uc.cn / *.123pan.com / *.123pan.cn
 
 | 期 | 内容 | 交付 |
 |---|---|---|
-| **P0（先做，纯原生）** | ✅ **已完成（2026-10-19）**：`CloudDriveLink.swift` 检测器（17 域名/8 网盘/分享页判定）+ `CloudLinkBar.swift` 首页条（搜索框正下方）+ 预览底部 `CloudLinkPreviewAction`（复制/打开/解析）+ `CloudLinkActions.resolve` 入口桩 | 实测截图 `docs/40-审计与核对/性能审计/shots/panel-cloudlink-p0.png` |
+| **P0（先做，纯原生）** | ✅ **已完成（2026-10-19）**：`CloudDriveLink.swift` 检测器（17 域名/8 网盘/分享页判定）+ `CloudLinkBar.swift` 首页条（搜索框正下方）+ 预览底部 `CloudLinkPreviewAction`（复制/打开/解析）+ `CloudLinkActions.resolve` 入口桩 | 实测截图 `apps/FrsetNext/Resources/Manual/shots/panel-cloudlink-p0.png` |
 | **P1（核心）** | WKWebView 解析器 + Bridge 抓链 + 原生下载（UA/进度/保存） | 端到端：分享链接 → 直链 → 本地文件 |
 | **P2** | 登录态管理（各网盘首次登录引导）、脚本在线更新、失败回退、多链接队列 | 稳定可用 |
 
