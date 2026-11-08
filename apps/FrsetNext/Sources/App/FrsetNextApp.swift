@@ -218,6 +218,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                                            cardWidth: w.map { CGFloat($0) },
                                                            sweep: sweep)
                 }
+            case "manual":
+                // v264：内置用户手册直达（设置 → 使用手册 的深链形式）
+                ServiceLocator.settings?.open(pane: "manual")
             case "fileindex":
                 // v264 排障：建立 / 查询全盘文件名索引，结果写日志。
                 //   kitnest://fileindex?q=image%20html%20deck&build=1

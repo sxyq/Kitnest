@@ -36,7 +36,7 @@ App,App/FrsetNextApp.swift,AppDelegate,func,enforceSingleMenubarOwner,70,21,4
 App,App/FrsetNextApp.swift,AppDelegate,func,applicationShouldTerminate,94,4,2
 App,App/FrsetNextApp.swift,AppDelegate,func,applicationWillTerminate,99,8,1
 App,App/FrsetNextApp.swift,AppDelegate,func,applicationShouldHandleReopen,108,4,1
-App,App/FrsetNextApp.swift,AppDelegate,func,application,119,381,76
+App,App/FrsetNextApp.swift,AppDelegate,func,application,119,384,77
 Core,Core/Motion/GenieMesh.swift,GenieRect,var,x,22,0,1
 Core,Core/Motion/GenieMesh.swift,GenieRect,var,y,23,0,1
 Core,Core/Motion/GenieMesh.swift,GenieRect,var,width,24,0,1
