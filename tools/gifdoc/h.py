@@ -164,6 +164,63 @@ def windows() -> dict:
     return out
 
 
+def panel_frame():
+    """主面板窗口的 (x, y, w, h)；没开返回 None。
+
+    走 CGWindowList 而不是 AX：主面板是 NSPanel，AX 里看不见（windows() 返回空），
+    但 CGWindowList 能看到它 360×700 的窗口和 alpha。
+    """
+    out = sh(TOOL / "winlist").stdout
+    for line in out.splitlines():
+        if '"Width": 360' in line and '"Height": 700' in line:
+            m = re.search(r"alpha=([\d.]+)", line)
+            if not m or float(m.group(1)) <= 0.9:
+                return None
+            x = re.search(r'"X": (-?\d+)', line)
+            y = re.search(r'"Y": (-?\d+)', line)
+            return (int(x.group(1)), int(y.group(1)), 360, 700)
+    return None
+
+
+def try_icon(x):
+    """点一下某个候选位置，返回打开的主面板 frame（没开则 None）。"""
+    for _ in range(2):
+        key(ESC)
+        time.sleep(0.18)
+    move(x, 19, 90)
+    time.sleep(0.12)
+    click(x, 19, 90)
+    time.sleep(0.9)
+    pf = panel_frame()
+    if pf and abs(pf[0] - x) < 260 and pf[1] < 200:
+        return pf
+    return None
+
+
+def status_icon(preferred=1363, span=6):
+    """找出菜单栏主图标当前的 x，返回 (x, 面板 frame)。
+
+    菜单栏图标位置不固定：装的 App 一变或重启一次，Kitnest 的图标就被挤到别处，
+    写死会点到邻居（实测点开过 1Capture 的菜单）。
+
+    但也不能盲目大范围扫描：连续点几十次会把 App 的窗口状态搅乱，之后再也点不开。
+    所以先试首选位置，只在失败时向两侧各试几个。
+    """
+    pf = try_icon(preferred)
+    if pf:
+        key(ESC)
+        time.sleep(0.4)
+        return preferred, pf
+    for d in range(1, 5):
+        for x in (preferred - d * span, preferred + d * span):
+            pf = try_icon(x)
+            if pf:
+                key(ESC)
+                time.sleep(0.4)
+                return x, pf
+    return None, None
+
+
 def setframe(title, x, y, w, h):
     sh(TOOL / "setf", PID(), title, int(x), int(y), int(w), int(h))
 
@@ -177,6 +234,48 @@ def minimize(mode, apps=(EDGE, QQ)):
         if not pid:
             continue
         ax("minimize", pid[0], "--on", flag)
+
+
+_HIDDEN: list[str] = []
+
+
+def hide_others():
+    """把所有前台应用（Kitnest / Finder 除外）隐藏起来。
+
+    分镜只框应用自己，但面板是半透明玻璃、覆盖层又是全屏——后面开着浏览器，
+    标签页标题就会透出来（实测 ch01 拍进过 Safari 的「手册-Frset...」）。
+    录完用 restore_others() 还原。返回被隐藏的应用名。
+    """
+    global _HIDDEN
+    script = (
+        'tell application "System Events"\n'
+        '  set names to {}\n'
+        '  repeat with p in (every process whose background only is false)\n'
+        '    set n to name of p\n'
+        '    if n is not "Kitnest" and n is not "Finder" and n is not "Dock" '
+        'and n is not "SystemUIServer" and n is not "ControlCenter" '
+        'and n is not "WorkBuddy" then\n'
+        '      try\n'
+        '        if visible of p is true then\n'
+        '          set visible of p to false\n'
+        '          set end of names to n\n'
+        '        end if\n'
+        '      end try\n'
+        '    end if\n'
+        '  end repeat\n'
+        '  return names\n'
+        'end tell'
+    )
+    out = sh("osascript", "-e", script, timeout=30).stdout.strip()
+    _HIDDEN = [s.strip() for s in out.split(",") if s.strip()]
+    return _HIDDEN
+
+
+def restore_others():
+    for n in _HIDDEN:
+        sh("osascript", "-e",
+           f'tell application "System Events" to set visible of process "{n}" to true',
+           timeout=15)
 
 
 def screen(path, rect=None):
@@ -347,3 +446,85 @@ def place(title, x, y, w=None, h=None):
 
 def frame_of(title):
     return windows().get(title)
+
+
+def redact(frames, boxes, radius=9, pixel=0):
+    """对画面里的指定区域做模糊。
+
+    有些内容是换不掉的：磁盘索引里的真实文件名、系统监测的进程名、
+    `~/Movies` 这类系统路径——它们来自 App 运行环境而不是数据目录。
+    演示数据覆盖不到，就在出图前糊掉，别让它们进公开文档。
+
+    boxes 用**画面比例** (x, y, w, h)，0~1：各章输出分辨率不同，写像素会错位。
+    """
+    from PIL import Image, ImageFilter
+    paths = sorted(Path(frames).glob("*.png")) if isinstance(frames, (str, Path)) else frames
+    for p in paths:
+        im = Image.open(p).convert("RGB")
+        W, H = im.size
+        dirty = False
+        for (fx, fy, fw, fh) in boxes:
+            box = (int(fx * W), int(fy * H),
+                   int((fx + fw) * W), int((fy + fh) * H))
+            if box[2] - box[0] < 2 or box[3] - box[1] < 2:
+                continue
+            piece = im.crop(box)
+            if pixel:
+                # 马赛克比模糊可靠：模糊留低频信息，缩到 1/12 再放大就什么都读不出
+                small = piece.resize((max(1, piece.width // pixel),
+                                      max(1, piece.height // pixel)), Image.BILINEAR)
+                piece = small.resize(piece.size, Image.NEAREST)
+            else:
+                piece = piece.filter(ImageFilter.GaussianBlur(radius))
+            im.paste(piece, box)
+            dirty = True
+        if dirty:
+            im.save(p)
+    return frames
+
+
+def auto_redact(frames, mode="all", ymin=0.0, ymax=1.0, radius=9):
+    """用 OCR 找文字位置再模糊——比手写比例准。
+
+    手量区域试过，误差能有 5%：路径那行没盖住、下面的按钮倒被糊了。
+    这里读取中间帧的文字框，按规则挑出要处理的块：
+
+      mode="all"    区域内所有文字（整块内容都不该公开时用）
+      mode="paths"  只处理含本机路径 / 用户名的行
+      mode="names"  只处理区域内的短行（进程名、文件名，通常没有空格）
+    """
+    from PIL import Image, ImageFilter
+    import re as _re
+
+    paths = sorted(Path(frames).glob("*.png")) if isinstance(frames, (str, Path)) else list(frames)
+    if not paths:
+        return frames
+    probe = str(paths[len(paths) // 2])
+    out = sh(TOOL / "ocrbox", probe, timeout=60).stdout
+
+    boxes = []
+    for line in out.splitlines():
+        parts = line.split("\t")
+        if len(parts) < 5:
+            continue
+        try:
+            x, y, w, hh = (float(v) for v in parts[:4])
+        except ValueError:
+            continue
+        text = parts[4]
+        if not (ymin <= y + hh / 2 <= ymax):
+            continue
+        if mode == "paths":
+            if not _re.search(r"/Users/|sunyiyang|/home/|~/\w", text):
+                continue
+        elif mode == "names":
+            if len(text) > 44 or " " in text.strip():
+                continue
+        # 留一点余量，别把字形边缘露出来
+        boxes.append((max(0.0, x - 0.004), max(0.0, y - 0.004),
+                      w + 0.008, hh + 0.010))
+
+    if boxes:
+        redact(paths, boxes, radius=radius)
+        print(f"  自动打码 {len(boxes)} 处（{mode}）")
+    return frames

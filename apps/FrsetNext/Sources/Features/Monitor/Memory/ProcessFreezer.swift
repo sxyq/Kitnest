@@ -436,11 +436,9 @@ public final class ProcessFreezer: ObservableObject {
     }
 
     private static var pidFileURL: URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let dir = base.appendingPathComponent("FrsetNext", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("frozen-pids.json")
+        // 走 AppDirectories：录制演示时 KITNEST_DATA_DIR 会把它指到隔离目录，
+        // 否则演示用的冻结记录会写进真实数据。
+        AppDirectories.base.appendingPathComponent("frozen-pids.json")
     }
 
     private func writePidFile() {

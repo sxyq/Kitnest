@@ -31,6 +31,13 @@ SKIP_NGINX=0
 
 [ -f "$SITE_DIR/index.html" ] || { echo "✗ 找不到站点文件：$SITE_DIR/index.html"; exit 1; }
 
+# 在线手册：Markdown 是源，HTML + 动图是产物。缺了就先生成，避免线上出现半套页面
+# （手册页引用了 37 段 GIF，只传 HTML 不传动图 = 全是碎图）。
+if [ ! -f "$SITE_DIR/manual/index.html" ] || [ ! -d "$SITE_DIR/manual/gifs" ]; then
+  echo "== 0/4 生成在线手册 =="
+  python3 "$ROOT/tools/make_manual_site.py" | sed 's/^/  /'
+fi
+
 echo "== 1/4 刷新版本清单快照 =="
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -97,4 +104,9 @@ done
 if [ "$BAD" -eq 0 ]; then echo "  13 段动图  HTTP 200（全部）"; else exit 1; fi
 shot_code=$(curl -s -o /dev/null -w '%{http_code}' "${SITE_URL}assets/shots/panel.png")
 echo "  真机原图目录  HTTP ${shot_code} (应为 404)"
+man_code=$(curl -s -o /dev/null -w '%{http_code}' "${SITE_URL}manual/")
+man_gif=$(curl -s -o /dev/null -w '%{http_code} %{size_download}' "${SITE_URL}manual/gifs/ch16-monitor.gif")
+echo "  在线手册      HTTP ${man_code}"
+echo "  手册动图      HTTP ${man_gif} bytes"
+[ "$man_code" = "200" ] || { echo "  ✗ 在线手册没上去"; exit 1; }
 echo "✓ 部署完成：$SITE_URL"

@@ -29,6 +29,10 @@ def main():
         return
     h.PROBING = probe
     os.environ["GIF_PROBE"] = "1" if probe else "0"
+    # 录之前把别人的窗口收起来：面板是半透明玻璃，后面开着浏览器就会透出来。
+    hidden = [] if probe else h.hide_others()
+    if hidden:
+        print(f"已隐藏 {len(hidden)} 个前台应用：{', '.join(hidden[:6])}")
     failed = []
     for n in names:
         fn = scenes.SCENES.get(n)
@@ -46,6 +50,8 @@ def main():
             traceback.print_exc()
             failed.append(n)
         print(f"--- {n} {time.time() - t0:.1f}s")
+    if hidden:
+        h.restore_others()
     if failed:
         print("\n失败：", failed)
         sys.exit(1)

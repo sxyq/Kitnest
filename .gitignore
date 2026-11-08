@@ -19,3 +19,7 @@ apps/FrsetNext/.codegraph/
 # 编译产物不入库
 apps/FrsetNext/tools/**/amd_inject
 apps/FrsetNext/tools/**/amd_mcpui
+
+# 在线手册的演示动图：源文件在 docs/.../gifs/，部署时由 tools/make_manual_site.py 拷过来。
+# 38 MB 已在仓库里存了一份，官网这份不再入库（避免翻倍）。
+FRONT/manual/gifs/

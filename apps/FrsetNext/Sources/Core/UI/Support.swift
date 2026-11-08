@@ -440,7 +440,28 @@ public extension Data {
 // MARK: - 文件与目录
 
 public enum AppDirectories {
+    /// 数据根目录。
+    ///
+    /// 支持 `KITNEST_DATA_DIR` 覆盖：手册演示 GIF 不能带真实剪贴板内容（里面有
+    /// VPN 订阅 token、服务器地址之类），录制时用隔离目录跑，录完删掉即可，
+    /// 个人数据一条都不用动。
     public static var base: URL {
+        // 优先级：环境变量 > user defaults > 默认目录。
+        // user defaults 这条路是给录制用的：`open` 走 LaunchServices 启动的进程拿不到
+        // 环境变量，只能用 `defaults write com.sxyq.frsetnext KitnestDataDir <dir>`
+        // 让它在任何启动方式下都读演示目录。
+        if let custom = ProcessInfo.processInfo.environment["KITNEST_DATA_DIR"],
+           !custom.isEmpty {
+            let dir = URL(fileURLWithPath: custom, isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }
+        if let custom = UserDefaults.standard.string(forKey: "KitnestDataDir"),
+           !custom.isEmpty {
+            let dir = URL(fileURLWithPath: custom, isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            return dir
+        }
         let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         #if DEBUG
         let dir = root.appendingPathComponent("FrsetNext-Dev", isDirectory: true)

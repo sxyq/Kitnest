@@ -3630,3 +3630,34 @@ kbd {
   .bridge-demo-shot img { height: 150px; }
   .footer-cta .btn { width: 100%; justify-content: center; }
 }
+
+/* 帮助页 → 在线手册入口（v265）
+   手册是独立页面（manual/），不是 SPA 视图：它有自己的侧栏与搜索，
+   放进单页路由反而要复制一套滚动逻辑。 */
+.manual-cta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  justify-content: space-between;
+  margin-top: 36px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--bg-soft) 100%);
+  text-decoration: none;
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.manual-cta:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.manual-cta h4 { font-size: 17px; margin: 4px 0 5px; color: var(--ink); }
+.manual-cta p { font-size: 13.5px; color: var(--ink-2); margin: 0; line-height: 1.6; }
+.manual-cta-arrow {
+  flex: none;
+  font-size: 20px;
+  color: var(--accent);
+  transition: transform .18s ease;
+}
+.manual-cta:hover .manual-cta-arrow { transform: translateX(4px); }

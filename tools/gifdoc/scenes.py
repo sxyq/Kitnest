@@ -41,7 +41,7 @@ def at(rect, fx, fy):
 
 def play(name, rect, beats, pad=10, fps=10, colors=176, hold=5, width=0, ms=100,
          tail=0.7, head=0.15, badge="", crop_override=None, max_kb=2400,
-         merge_th=4, cam=True):
+         merge_th=4, cam=True, redact=None):
     """执行节拍表：探针模式只截图，录制模式真录 + 出 GIF。"""
     if not rect:
         raise LookupError("窗口不存在，无法开镜")
@@ -86,6 +86,14 @@ def play(name, rect, beats, pad=10, fps=10, colors=176, hold=5, width=0, ms=100,
     if want_cam and not h.PROBING:
         frames = camera.render(r.frames, h.WORK / f"{name}.json",
                                h.WORK / f"{name}-cam", width=w, max_zoom=zmax)
+    if redact:
+        if isinstance(redact, dict):
+            h.auto_redact(frames, **redact)
+        else:
+            # (boxes, pixel)：给马赛克块大小，0 表示用高斯模糊
+            boxes = redact[0] if isinstance(redact, tuple) else redact
+            px = redact[1] if isinstance(redact, tuple) and len(redact) > 1 else 12
+            h.redact(frames, boxes, pixel=px)
     h.gif(name, frames, ms=ms, colors=colors, hold=hold, badge=badge,
           max_kb=max_kb, merge_th=merge_th)
     return r
@@ -96,7 +104,7 @@ def spec(**kw):
 
 
 def custom(name, crop, secs, body, width=900, zmax=1.9, head=0.25, tail=0.6,
-           colors=176, hold=5, max_kb=1200, cam=True):
+           colors=176, hold=5, max_kb=1200, cam=True, redact=None):
     """手写镜头：覆盖层/浮层这类没有稳定窗口的场景用。"""
     h.CROP = crop
     h.mark("stage")
@@ -104,9 +112,17 @@ def custom(name, crop, secs, body, width=900, zmax=1.9, head=0.25, tail=0.6,
         body()
     r.frames_out(crop, width, start=head, end=secs - tail, fps=10, native=cam)
     frames = r.frames
-    if cam:
+    if cam and not h.PROBING:
         frames = camera.render(r.frames, h.WORK / f"{name}.json",
                                h.WORK / f"{name}-cam", width=width, max_zoom=zmax)
+    if redact:
+        if isinstance(redact, dict):
+            h.auto_redact(frames, **redact)
+        else:
+            # (boxes, pixel)：给马赛克块大小，0 表示用高斯模糊
+            boxes = redact[0] if isinstance(redact, tuple) else redact
+            px = redact[1] if isinstance(redact, tuple) and len(redact) > 1 else 12
+            h.redact(frames, boxes, pixel=px)
     h.gif(name, frames, ms=100, colors=colors, hold=hold,
           max_kb=max_kb, merge_th=4)
 
@@ -114,26 +130,37 @@ def custom(name, crop, secs, body, width=900, zmax=1.9, head=0.25, tail=0.6,
 # ---------------------------------------------------------------- 第一章
 @scene
 def ch01():
-    """菜单栏与图标：点图标 → 面板展开 → 顶栏动作行。"""
+    """菜单栏与图标：点图标 → 面板展开 → 顶栏动作行。
+
+    图标位置不能写死：这台机器的菜单栏装了很多别的 App，重启一次位置就漂，
+    写死会点到邻居（实测点开过 1Capture 的菜单）。所以先探测再开镜。
+    """
     h.clear_stage()
-    h.CROP = (1120, 0, 430, 330)
+    icon_x, pf = h.status_icon()
+    if icon_x is None:
+        raise LookupError("没找到菜单栏主图标")
+
+    # 裁切紧贴面板：多留一像素就会把桌面图标带进画面
+    crop = (pf[0] - 6, 0, 372, 432)
+    h.CROP = crop
+    h.sleep(0.4)
 
     def body():
-        h.move(1230, 12, 500)
+        h.move(1180, 14, 400)
+        h.sleep(0.25)
+        h.move(icon_x, 19, 420)
         h.sleep(0.4)
-        h.move(1325, 19, 420)
-        h.sleep(0.5)
-        h.click(1325, 19, 120)
-        h.sleep(1.0)
-        for x in (1365, 1396, 1425, 1466, 1502, 1538, 1574, 1675):
-            h.move(x, 60, 300)
+        h.click(icon_x, 19, 120)
+        h.sleep(1.2)
+        for k in range(8):
+            h.move(pf[0] + 34 + k * 38, 62, 300)
             h.sleep(0.18)
         h.sleep(0.5)
         h.key(h.ESC)
         h.sleep(0.6)
 
-    custom("ch01-menubar", (1120, 0, 430, 330), 6.8, body,
-           width=820, zmax=1.75, colors=176, hold=5)
+    custom("ch01-menubar", crop, 6.8, body,
+           width=800, zmax=1.6, colors=176, hold=5, cam=False)
 
 
 # ---------------------------------------------------------------- 第二章
@@ -314,6 +341,8 @@ BEATS["ch11"] = spec(
 BEATS["ch15"] = spec(
     open="demo?scene=recorder", title="", place=None,
     pad=12, fps=10, colors=144, hold=5, width=640,
+    # 保存位置显示的是 /Users/<真名>/Movies，换不掉，糊掉
+    redact=dict(mode="paths"),
     beats=[
         dict(move=(0.30, 0.20), hold=0.8, mark="panel"),
         dict(move=(0.30, 0.45), hold=0.8),
@@ -325,6 +354,8 @@ BEATS["ch15"] = spec(
 BEATS["ch16"] = spec(
     open="monitor?module=cpu", title="性能监测", place=(1300, 40, 380, 880),
     pad=12, fps=10, colors=160, hold=6, width=560,
+    # 底部「占用进程」列的是本机真实进程
+    redact=([(0.0, 0.690, 1.0, 0.31)], 12),
     beats=[
         dict(move=(0.50, 0.035), hold=0.7, mark="chips"),
         dict(click=(0.655, 0.035), hold=1.4, mark="memory"),
@@ -351,6 +382,8 @@ BEATS["ch17"] = spec(
 BEATS["ch19"] = spec(
     open="monitor?module=network", title="性能监测", place=(1300, 40, 380, 880),
     pad=12, fps=10, colors=160, hold=6, width=560,
+    # 「流量去哪了」按进程列出本机真实应用
+    redact=([(0.0, 0.40, 1.0, 0.42)], 14),
     beats=[
         dict(move=(0.32, 0.075), hold=1.0, mark="net"),
         dict(move=(0.50, 0.35), hold=1.2, mark="graph"),
@@ -363,6 +396,8 @@ BEATS["ch19"] = spec(
 BEATS["ch20"] = spec(
     open="panel", title="", place=None,
     pad=10, fps=10, colors=176, hold=6, crop=(1330, 30, 380, 800),
+    # 文件列表来自磁盘索引，是本机真实文件名
+    redact=([(0.0, 0.470, 1.0, 0.53)], 14),
     beats=[
         dict(click=(0.55, 0.03), hold=1.4, mark="page"),
         dict(move=(0.30, 0.20), hold=0.9),
@@ -441,6 +476,7 @@ BEATS["ch27"] = spec(
 BEATS["ch29"] = spec(
     open="cloudlink", title="网盘解析 · 夸克网盘", place=(560, 120, 600, 692),
     pad=12, fps=10, colors=160, hold=6, width=760,
+    redact=([(0.0, 0.17, 1.0, 0.24)], 10),
     beats=[
         dict(move=(0.40, 0.18), hold=0.9, mark="head"),
         dict(move=(0.40, 0.42), hold=1.0, mark="list"),
@@ -530,6 +566,7 @@ BEATS["ch36"] = spec(
 BEATS["ch37"] = spec(
     open="settingsprobe?block=workflow", title="设置区块预览 · 工作流",
     place=(500, 46, 760, 1000), crop=(500, 46, 760, 350),
+    redact=([(0.0, 0.13, 1.0, 0.16), (0.0, 0.56, 1.0, 0.22)], 10),
     pad=12, fps=10, colors=176, hold=6, width=700,
     beats=[
         dict(move=(0.35, 0.30), hold=1.0, mark="list"),
@@ -658,6 +695,8 @@ BEATS["ch18"] = spec(
 BEATS["ch24"] = spec(
     open="panel", title="", place=None,
     pad=10, fps=10, colors=160, hold=6, crop=(1330, 30, 380, 800),
+    # 搜索会带出本机历史与索引条目
+    redact=dict(mode="all", ymin=0.26),
     beats=[
         dict(click=(0.45, 0.12), hold=0.5),
         dict(type="image-html-deck", hold=2.2, mark="typing"),
@@ -690,7 +729,8 @@ def build(name):
              hold=sp.get("hold", 5), width=sp.get("width", 0),
              ms=sp.get("ms", 100), badge=sp.get("badge", ""),
              crop_override=sp.get("crop"), max_kb=sp.get("max_kb", 2400),
-             merge_th=sp.get("merge_th", 4), cam=sp.get("cam", True))
+             merge_th=sp.get("merge_th", 4), cam=sp.get("cam", True),
+             redact=sp.get("redact"))
 
     run.__doc__ = sp.get("doc", name)
     return run

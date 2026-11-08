@@ -472,15 +472,109 @@ private struct ManualBlockView: View {
 
 // MARK: - 图片
 
+// 手册配图三级来源：随包资源 → 本地缓存 → 官网。
+//
+// 为什么演示动图不随包：37 段 GIF 合计 38 MB，DMG 会从 43 MB 涨到 81 MB，
+// 而多数人只看两三章。这里改成按需取——第一次翻到某章时下载并落盘，
+// 之后离线也能看。缓存目录 ~/Library/Caches/Kitnest/manual-gifs。
 enum ManualImageLoader {
+    /// 官网静态目录，由 tools/deploy_site.sh 一并发布
+    static let remoteBase = "https://calorieai.sxyq27.online/kitnest-site/manual/gifs/"
+    /// 在线手册首页（下载失败时的兜底入口）
+    static let manualPage = "https://calorieai.sxyq27.online/kitnest-site/manual/"
+
+    private static let memory = NSCache<NSString, NSImage>()
+
+    static var cacheDir: URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let dir = base.appendingPathComponent("Kitnest/manual-gifs", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        return dir
+    }
+
+    static func cachedFile(_ ref: String) -> URL {
+        cacheDir.appendingPathComponent((ref as NSString).lastPathComponent)
+    }
+
+    /// 同步取：内存 → 随包 → 磁盘。都没有返回 nil，由调用方决定是否联网。
     static func load(_ ref: String) -> NSImage? {
         let name = (ref as NSString).lastPathComponent
+        let key = name as NSString
+        if let hit = memory.object(forKey: key) { return hit }
+
         let base = (name as NSString).deletingPathExtension
         let ext = (name as NSString).pathExtension.isEmpty ? "png" : (name as NSString).pathExtension
-        if let url = Bundle.main.url(forResource: base, withExtension: ext, subdirectory: "Manual/shots") {
-            return NSImage(contentsOf: url)
+        if let url = Bundle.main.url(forResource: base, withExtension: ext, subdirectory: "Manual/shots"),
+           let img = NSImage(contentsOf: url) {
+            memory.setObject(img, forKey: key)
+            return img
+        }
+        let cached = cachedFile(ref)
+        if FileManager.default.fileExists(atPath: cached.path),
+           let img = NSImage(contentsOf: cached) {
+            memory.setObject(img, forKey: key)
+            return img
         }
         return nil
+    }
+
+    /// 异步补：从官网拉一段，成功后落盘。回调在主线程。
+    static func fetch(_ ref: String, done: @escaping (NSImage?) -> Void) {
+        let name = (ref as NSString).lastPathComponent
+        guard let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: remoteBase + encoded) else {
+            done(nil)
+            return
+        }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 20
+        URLSession.shared.dataTask(with: req) { data, resp, _ in
+            guard let data, (resp as? HTTPURLResponse)?.statusCode == 200,
+                  let img = NSImage(data: data) else {
+                DispatchQueue.main.async { done(nil) }
+                return
+            }
+            // 先落盘再回调：下次开同一章不再联网
+            try? data.write(to: cachedFile(ref), options: .atomic)
+            memory.setObject(img, forKey: name as NSString)
+            DispatchQueue.main.async { done(img) }
+        }.resume()
+    }
+}
+
+// MARK: - 动图播放
+//
+// SwiftUI 的 Image(nsImage:) 只画第一帧，GIF 会变成静图；必须落到 NSImageView
+// 并打开 animates，才会真的动。
+
+private struct ManualAnimatedImage: NSViewRepresentable {
+    let image: NSImage
+
+    func makeNSView(context: Context) -> NSImageView {
+        let v = NSImageView()
+        v.imageScaling = .scaleProportionallyUpOrDown
+        v.animates = true
+        v.image = image
+        return v
+    }
+
+    func updateNSView(_ v: NSImageView, context: Context) {
+        if v.image !== image {
+            v.image = image
+            v.animates = true
+        }
+    }
+
+    // NSViewRepresentable 没有固有尺寸：不给 sizeThatFits 的话它会撑满正文区，
+    // 4:3 的录屏被拉成竖条、右边还被窗口裁掉。这里按图片比例回报尺寸。
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSImageView,
+                      context: Context) -> CGSize? {
+        let s = image.size
+        guard s.width > 1, s.height > 1 else { return nil }
+        let limit = min(proposal.width ?? 520, 520)
+        return CGSize(width: limit, height: (limit * s.height / s.width).rounded())
     }
 }
 
@@ -489,37 +583,66 @@ private struct ManualImageView: View {
     let caption: String?
     let onTap: () -> Void
 
+    @Stored private var img: NSImage? = nil
+    @Stored private var misses = 0
+
+    private var failed: Bool { misses >= 1 && img == nil }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            if let img = ManualImageLoader.load(ref) {
-                Image(nsImage: img)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 560, maxHeight: 420, alignment: .leading)
+            if let img {
+                ManualAnimatedImage(image: img)
+                    .frame(maxWidth: 520, alignment: .leading)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
                     .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
                     .onTapGesture(perform: onTap)
                     .help("点击查看大图")
-            } else {
-                // 缺失截图占位：也为「一一截图补齐」提供清单线索
-                HStack(spacing: 6) {
-                    Image(systemName: "photo.badge.exclamationmark")
-                        .font(.system(size: 12))
-                    Text("截图待补：\(ref)")
-                        .font(.system(size: 11))
+            } else if failed {
+                // 离线或取不到：不装作有内容，直接给在线入口
+                Button {
+                    if let url = URL(string: ManualImageLoader.manualPage) {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.rectangle").font(.system(size: 12))
+                        Text("演示动图未下载 · 点此在浏览器查看")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .fill(Theme.accent.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .strokeBorder(Theme.accent.opacity(0.25), style: StrokeStyle(lineWidth: 0.7, dash: [3, 2])))
                 }
-                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+            } else {
+                HStack(spacing: 7) {
+                    ProgressView().controlSize(.small)
+                    Text("正在取演示动图…").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
                 .padding(.horizontal, 12).padding(.vertical, 10)
                 .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(Color.orange.opacity(0.08)))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .strokeBorder(Color.orange.opacity(0.3), style: StrokeStyle(lineWidth: 0.7, dash: [3, 2])))
+                    .fill(Color.primary.opacity(0.03)))
             }
             if let caption, !caption.isEmpty {
                 Text(caption).font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
             }
+        }
+        .onAppear(perform: start)
+    }
+
+    private func start() {
+        if img != nil { return }
+        if let hit = ManualImageLoader.load(ref) {
+            img = hit
+            return
+        }
+        ManualImageLoader.fetch(ref) { got in
+            if let got { img = got } else { misses += 1 }
         }
     }
 }
@@ -546,8 +669,11 @@ private struct ZoomSheet: View {
                 }.buttonStyle(.plain)
             }
             ScrollView([.horizontal, .vertical]) {
-                Image(nsImage: image).resizable().scaledToFit()
-                    .frame(maxWidth: 940, maxHeight: 620)
+                // 大图也要能播：动图放大后仍是动图，不是冻在第一帧
+                let s = image.size
+                let k = min(940 / max(s.width, 1), 620 / max(s.height, 1), 1)
+                ManualAnimatedImage(image: image)
+                    .frame(width: (s.width * k).rounded(), height: (s.height * k).rounded())
             }
         }
         .padding(14)

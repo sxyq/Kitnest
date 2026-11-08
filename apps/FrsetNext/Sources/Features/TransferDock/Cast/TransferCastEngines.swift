@@ -798,8 +798,7 @@ public enum ADBFileBridge {
 
     /// 暂存目录（与 LocalTransferStore 的本地暂存同源——拉取文件直接入暂存索引）
     public static var stagingDirectory: URL {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("FrsetNext", isDirectory: true)
+        let dir = AppDirectories.base
             .appendingPathComponent("TransferStaging", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
