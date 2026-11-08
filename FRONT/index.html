@@ -59,7 +59,7 @@
             <span class="hero-tag"><span class="dot"></span>macOS 13+ · 菜单栏常驻 · 本地优先</span>
             <h1>复制过的东西，<br>不该<em>再也找不回来</em>。</h1>
             <p class="hero-sub">
-              Kitnest 把剪贴板历史和截图标注放在最前面，系统监控、文件互传与安卓投屏也收进菜单栏里的同一个图标。
+              Kitnest 把剪贴板历史和截图标注放在最前面，系统监控、文件中转、安卓投屏、归档压缩与 AI 也收进菜单栏里的同一个图标。
               点一下，或者按 <kbd>⌥A</kbd>。
             </p>
             <div class="hero-actions">
@@ -491,7 +491,8 @@
                 <li><span class="k">标注</span><span class="v">矩形、椭圆、箭头、画笔、文字、荧光笔、马赛克、橡皮、抹除</span></li>
                 <li><span class="k">识字</span><span class="v">本地 OCR 引擎，框选区域直接转成可复制文本，图片不出本机</span></li>
                 <li><span class="k">翻译</span><span class="v">选中外文一键翻译；也可对屏幕划词翻译</span></li>
-                <li><span class="k">钉图</span><span class="v">把截图钉在屏幕上当参考，可缩放、可调透明度</span></li>
+                <li><span class="k">钉图</span><span class="v">把截图钉在桌面最上层当参考，可缩放、调透明度、直接标注；经典 / 无边框 / 卡片 / 强调四种形态，一个形态一个选项</span></li>
+                <li><span class="k">图帘</span><span class="v">截完先挂在屏幕顶边那条帘线上，需要时再拖进聊天窗；四种帘线（原版 / 拐杖糖 / 彩灯 / 积雪），按住 <kbd>⌘</kbd> 左右拖可整条放大</span></li>
                 <li><span class="k">取色</span><span class="v"><kbd>⌥C</kbd> 吸取屏幕任意位置的颜色值</span></li>
               </ul>
               <div class="callout warn"><b>两个系统权限：</b>截图与识字需要「屏幕录制」，全局快捷键与自动粘贴需要「辅助功能」。首次启动的欢迎窗里有「权限引导」，两项大约 30 秒。</div>
@@ -513,6 +514,8 @@
                 <li><span class="k">磁盘</span><span class="v">读写速度、容量、SMART 健康度、高占用进程</span></li>
                 <li><span class="k">传感器</span><span class="v">温度、电压、电流、功率、风扇转速（无对应硬件则不显示）</span></li>
                 <li><span class="k">电池</span><span class="v">电量、健康度、循环次数、适配器功率</span></li>
+                <li><span class="k">存储</span><span class="v">全盘 248 万个条目、185GB 级别的可视化堆块，点哪儿钻哪儿；一键把缓存移到废纸篓</span></li>
+                <li><span class="k">内存</span><span class="v">「深度释放」清缓存 + 暂停闲置应用，给一份分项报告（应用 / 压缩 / 缓存 / 空闲），不玩话术</span></li>
               </ul>
               <div class="callout"><b>两种看法：</b>鼠标悬停部件看简述，左键部件打开模块详情窗；也可以 <kbd>⌥P</kbd> 直接开性能监测窗，窗口高度会随内容自适应。</div>
             </div>
@@ -563,12 +566,50 @@
             </div>
             <div class="chapter-body">
               <h3>用完就走，不占界面</h3>
-              <p>搜索框输入 <code>/</code> 进入工具模式，敲名字回车即可：IP 与本机信息、日历与农历、哈希（MD5 / SHA）、Base64、二维码生成与识别、媒体格式转换、模糊搜索文件。命令面板 <kbd>⌥K</kbd> 可以搜索并执行应用内的任何动作。</p>
+              <p>搜索框输入 <code>/</code> 进入工具模式，敲名字回车即可：IP 与本机信息、日历与农历、哈希（MD5 / SHA）、Base64、二维码生成与识别、时间戳与变量命名、图片压缩、代码预览。命令面板 <kbd>⌥K</kbd> 可以搜索并执行应用内的任何动作。</p>
               <ul class="spec-list">
-                <li><span class="k">AI</span><span class="v">总结长文、中英互译、把常用提示词存成小工具</span></li>
-                <li><span class="k">密钥</span><span class="v">支持主流服务商与本地模型，API Key 只存本机钥匙串</span></li>
-                <li><span class="k">归档</span><span class="v">压缩包可预览包内条目、按类型显示图标，支持解压到此处 / 编辑归档</span></li>
+                <li><span class="k">全盘搜索</span><span class="v">Spotlight 不索引的 <code>~/Library</code>、隐藏目录（<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code>…）、<code>.app</code> 包内部也搜得到；124 万条索引，查一次几十毫秒</span></li>
+                <li><span class="k">代码预览</span><span class="v">20+ 语言高亮、主题切换，一键导出带圆角的卡片图，或连格式一起粘进聊天窗</span></li>
+                <li><span class="k">命令面板</span><span class="v"><kbd>⌥K</kbd> 一个入口列出全部功能，输入即过滤，回车执行</span></li>
               </ul>
+            </div>
+          </article>
+
+          <article class="chapter" id="ch-archive">
+            <div class="chapter-no">
+              <span class="ch-title">07 · 归档压缩</span>
+              <span class="ch-sub">能看、能改、能拖出来</span>
+            </div>
+            <div class="chapter-body">
+              <h3>不是只能解压的黑盒</h3>
+              <p>打开压缩包先看到里面长什么样：左列条目树，右侧直接预览——文本带高亮、图片出缩略图、<strong>HTML 直接渲染成网页</strong>而不是显示源码。文本类条目可以改完直接写回原包，改坏了能撤销。</p>
+              <ul class="spec-list">
+                <li><span class="k">格式</span><span class="v">7z / zip / rar / tar / gz / bz2 / xz / iso / dmg 等 40+ 种（RAR 只解不压）</span></li>
+                <li><span class="k">拖出</span><span class="v">把条目拖到 Finder，落盘时才真正解压——不会拖一下先解出几百 MB</span></li>
+                <li><span class="k">压缩</span><span class="v">选格式、级别、密码、分卷；多个任务排队跑，关窗口不中断</span></li>
+                <li><span class="k">Flow 推荐</span><span class="v">按包内容推荐此刻最合适的操作：全是图片就解到图片文件夹，只有一个文件夹就直接解压</span></li>
+                <li><span class="k">Mini 小窗</span><span class="v">只想确认「里面是什么」，用小浮窗看一眼就够，不用开大窗口</span></li>
+              </ul>
+              <div class="callout"><b>顺手用法：</b>把散落在桌面的一堆文件拖到菜单栏图标上，进「暂存浮窗」，勾选后一次「压缩全部」。</div>
+            </div>
+          </article>
+
+          <article class="chapter" id="ch-ai">
+            <div class="chapter-no">
+              <span class="ch-title">08 · AI 助手</span>
+              <span class="ch-sub">用哪家都行，Key 只在本机</span>
+            </div>
+            <div class="chapter-body">
+              <h3>接自己的模型，不绑定任何一家</h3>
+              <p>四类服务商随你选：Anthropic、Gemini、任意 OpenAI 兼容网关（DeepSeek / 月之暗面 / 智谱 / Groq…）、以及本地 Ollama。配好之后，聊天、总结、翻译都在应用里完成，不用来回切窗口。</p>
+              <ul class="spec-list">
+                <li><span class="k">聊天</span><span class="v">多轮对话、流式输出、随时停止；会话可新建 / 重命名 / 搜索</span></li>
+                <li><span class="k">总结</span><span class="v">对剪贴板当前内容一键摘要，结果可复制或写回历史</span></li>
+                <li><span class="k">翻译</span><span class="v"><kbd>⇧⌥T</kbd> 截图翻译、<kbd>⇧⌥D</kbd> 划词翻译，译文自动进剪贴板</span></li>
+                <li><span class="k">自定义工具</span><span class="v">名称 + 系统提示词 + <code>{input}</code> 模板，存成小工具后和内置动作并列</span></li>
+                <li><span class="k">密钥</span><span class="v">加密信封存本地，主密钥由系统钥匙串派生；导出偏好数据时不带密钥</span></li>
+              </ul>
+              <div class="callout warn"><b>不联网也能用：</b>本地 Ollama 不需要任何 Key；翻译在没有 AI 服务商时会退回系统翻译，仍然可用。</div>
             </div>
           </article>
         </div>
@@ -1001,7 +1042,7 @@
       </div>
       <div class="footer-cta">
         <div>
-          <h3>一个图标，六件事。</h3>
+          <h3>一个图标，八件事。</h3>
           <p>macOS 13+ · Apple Silicon / Intel · 独立分发</p>
         </div>
         <a class="btn btn-primary" href="#download" data-nav>下载 for macOS →</a>

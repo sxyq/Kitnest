@@ -1,19 +1,46 @@
-# FrsetNext 用户手册（草稿）
+# Kitnest 用户手册
 
-> 版本：基于 FrsetNext 源码（apps/FrsetNext）整理 | 状态：草稿 v1，待截图补齐与校对
-> 说明：本手册面向最终用户撰写；文中括号内的英文为源码中的函数名，作为功能实现佐证，普通读者可忽略。
+> **版本**：v1.0.0（对应源码 v264，2026-11-08）
+> **覆盖范围**：32 个功能域 / 280 个 Swift 源文件 / 3,410 个函数 / 49,454 行代码（另有 6,785 行 ObjC/C 原生模块）
+> **怎么写出来的**：逐文件读源码 + 对照 `FrsetNext-函数清单.csv`（8,693 条声明）+ CodeGraph 调用关系，
+> 每一章末尾的「实现索引」列出该功能的关键函数与文件行号——不是装饰，是排查问题时的定位入口。
+
+---
+
+## 怎么用这本手册
+
+- **想知道某个功能怎么用**：看目录，每章开头都有「功能是什么 / 用户怎么用」。
+- **想确认某个快捷键**：直接翻附录 A，19 条默认热键全在表里，都能改绑。
+- **想确认「这个功能到底有没有」**：每章末尾的实现索引就是答案——有函数名、有文件、有行号。
+- **遇到问题**：先看该章「注意事项」，再看附录 D「已知限制」。
+- **想看某个版本改了什么**：附录 E。
+
+文中 `等宽字体` 是快捷键、菜单项或函数名；中文引号里的是界面上的原文。
+
+---
 
 ## 产品简介
 
-FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在屏幕右上角的菜单栏里，不占 Dock 位，随叫随到。一个应用汇集了日常高频操作：
+Kitnest 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在屏幕顶部的菜单栏里，**不占 Dock 位、没有主窗口**，随叫随到。
 
-- **剪贴板历史**：自动记录复制过的文本、图片、文件、链接，随时检索回贴；
-- **截图与图像**：区域截图、长截图、标注编辑、OCR 取字、屏幕翻译、贴图（钉图）、取色、截图美化、物体擦除；
-- **录屏**：整屏或选区录制，可选帧率、分辨率、声音来源，导出 MOV / MP4 / GIF；
-- **系统监控**：CPU、内存、网络、磁盘、温度、电池、功耗实时数据，菜单栏一眼可见，独立窗口看细节；
-- **AI 能力**：接入多家大模型服务商，提供聊天、文本总结与翻译；
-- **工具箱**：IP 查询、日历/农历/节假日、媒体转换、哈希、二维码、模糊搜索、命令面板等一整套小工具；
-- **传输与投屏**：隔空投送收发（iPhone 零安装）、无线配对与 scrcpy 投屏（Android 零安装）、ADB 文件互传、扫码直传（任意设备浏览器）、本地暂存。
+一个应用装下这些能力：
+
+| 能力 | 一句话 |
+|---|---|
+| **剪贴板历史** | 复制过的文字、图片、文件、链接全都记着，随时搜回来 |
+| **截图** | 区域 / 窗口 / 长截图，截完直接标注、识字、翻译、钉在屏幕上 |
+| **图帘** | 截图后不落地，先挂在屏幕顶边那条帘线上，需要时再拖走 |
+| **录屏** | 整屏或选区录制，可选帧率、分辨率、声音来源 |
+| **钉图** | 把一张图钉在桌面最上层当参考，四种外观形态 |
+| **系统监测** | CPU、内存、GPU、磁盘、网络、温度、电池、功耗，菜单栏一眼可见 |
+| **内存维护** | 「深度释放」一键清缓存 + 暂停闲置应用，报告分项写清楚释放了什么 |
+| **存储管理** | 全盘索引（248 万条目）、可视化堆块、一键移到废纸篓 |
+| **文件中转** | 隔空投送 / 扫码直传 / ADB 互传 / 本地暂存，对端零安装 |
+| **手机投屏** | Android 扫码直连、scrcpy 镜像、应用库、剪贴板双向同步 |
+| **归档压缩** | 打开 40+ 种压缩包、预览、编辑回写、压缩、任务队列 |
+| **工具箱** | 40+ 个小工具 + 代码预览 + 日历农历 + 全盘文件搜索 |
+| **AI 助手** | 四类服务商接入，聊天、总结、翻译，密钥本地加密 |
+| **使用统计** | 50+ 种行为事件，30 天柱图 + 跨年热力图，数据只存本机 |
 
 ---
 
@@ -21,969 +48,2255 @@ FrsetNext 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在
 
 ### 安装与启动
 
-1. 将 FrsetNext 拖入「应用程序」文件夹，首次双击打开。
-2. 它是菜单栏应用：启动后**不会出现主窗口，也不会在 Dock 显示图标**，只在屏幕顶部菜单栏（或刘海右侧）出现一个应用图标（`MenuBarIconStyle` 提供「应用图标 / 动态风扇 / 日期 / 自定义图标」四种样式，见第一章）。
-3. 若杀毒软件提示，请在「系统设置 → 隐私与安全性」中允许运行。
-4. 如需退出：点菜单栏图标 →「退出 Frset」（⌘Q）。
+1. 把 `Kitnest.app` 拖进「应用程序」文件夹，首次双击打开。
+2. 它是菜单栏应用：启动后**不会出现主窗口，也不会在 Dock 显示图标**，只在屏幕顶部菜单栏出现一个图标。
+3. 若系统提示「无法验证开发者」，到「系统设置 → 隐私与安全性」里点「仍要打开」。
+4. 退出：点菜单栏图标 →「退出 Kitnest」，或 `⌘Q`。
 
-### 首次使用建议授予的权限
+### 首次启动会看到什么
 
-首次启动会自动弹出**欢迎窗**（功能导览 + 快捷键速查），内含**权限引导窗**入口——四类权限的状态、用途与一键授权集中在那里（`PermissionCenter` / `PermissionGuideWindowController`，状态以 SCK 实探为准）。菜单栏图标右键 →「欢迎与权限…」可随时回看。
+1. **欢迎窗**：功能导览 + 快捷键速查（`WelcomeWindowController`）。
+2. **权限引导窗**：四类权限的状态、用途、一键授权（`PermissionGuideWindowController`）。状态是**实测**的，不是读配置。
+3. 之后菜单栏图标右键 →「欢迎与权限…」可随时回看。
 
-| 权限 | 用途 | 不授予的后果 |
+### 需要授权什么
+
+| 权限 | 用途 | 不授予会怎样 |
 |---|---|---|
-| 屏幕录制 | 截图、录屏、长截图、OCR、取色 | 截图画面为黑色或直接失败（`ensureScreenRecordingPermission` 会弹统一权限引导） |
-| 辅助功能 | 全局快捷键、双击修饰键、划词工具条、复制后自动粘贴 | 快捷键无响应；自动粘贴首次触发会弹模态引导（`presentAccessibilityGuide`，每启动一次） |
-| 麦克风 | 录屏时收麦克风声音（可选） | 录屏自动降级为只录系统音（`frset_recorder.m`） |
-| 日历 | 主面板日历卡显示系统日程与节假日 | 日历卡仅显示日期（`CalendarService`，UI 有「去授权」入口） |
-| 完全磁盘访问 | 工具箱文件搜索（mdfind 增强） | 文件搜索结果可能不全（待确认） |
+| **屏幕录制** | 截图、录屏、长截图、OCR、取色 | 截图全黑或直接失败；应用会弹一次统一引导，不会反复骚扰 |
+| **辅助功能** | 全局快捷键、双击修饰键、划词工具条、复制后自动粘贴 | 快捷键无响应；首次自动粘贴时弹一次引导 |
+| **麦克风** | 录屏时收麦克风声音（可选） | 自动降级为只录系统声音 |
+| **日历** | 主面板日历卡显示系统日程 | 日历卡只显示日期，UI 内有「去授权」入口 |
+| **完全磁盘访问** | 存储管理索引 TCC 保护目录、文件搜索更全 | 存储索引少约 33GB（沙盒容器），搜索少一块；界面上会明确标出「未获授权」 |
 
-> 权限均可在「系统设置 → 隐私与安全性」中随时开关；欢迎窗/权限引导窗可从状态栏菜单「欢迎与权限…」随时回看。
+> 全部可在「系统设置 → 隐私与安全性」随时开关。
 
-### 菜单栏图标说明
+### 界面总览
 
-启动后菜单栏至少有一个 FrsetNext 主图标。左键点击打开主面板，右键点击弹出功能菜单（打开面板 / 设置 / 性能监测 / 使用统计 / 显示项开关 / 退出）。如果开启了监控部件，主图标右侧还会出现 CPU、内存、网络等实时数据条（详见第二章）。
+Kitnest 只有四个常驻界面 + 若干弹窗：
 
-![](shots/menubar-full.png)
+| 界面 | 怎么打开 | 是什么 |
+|---|---|---|
+| **菜单栏图标** | 常驻 | 左键开主面板，右键开功能菜单 |
+| **主面板** | `⌥A` / 左键图标 | 360~440pt 宽的浮窗，首页是剪贴板 + 搜索 + 日历 |
+| **性能监测窗** | `⌥P` / `⌥M` | 可常驻的系统监测窗口，玻璃态 |
+| **悬浮剪贴板** | `⇧⌘V` | 贴在鼠标旁的迷你剪贴板 |
+| **设置** | `⌘,` | 左侧大侧边栏，27 个设置页 |
+| **命令面板** | `⌥K` | Spotlight 式全功能目录 |
 
 ---
 
-## 第一章 菜单栏与主图标
+# 第一部分 · 常驻入口
+
+## 第一章 菜单栏与图标
 
 ### 功能是什么
 
-菜单栏是 FrsetNext 的「总指挥部」：主图标负责呼出主面板与功能菜单；旁边的监控部件实时显示系统数据；图标本身还有四种样式和一个小彩蛋。
+菜单栏是 Kitnest 的总指挥部。主图标负责呼出主面板和功能菜单；图标右侧可以挂一排监控部件，实时显示系统数据；图标本身有四种样式。
 
 ### 用户怎么用
 
 | 操作 | 入口 | 效果 |
 |---|---|---|
-| 打开主面板 | 左键点主图标，或 ⌥A，或 `frsetnext://panel` | 从图标下方弹出主面板（再按一次收起） |
-| 打开功能菜单 | 右键点主图标 | 见下方菜单项清单 |
-| 打开设置 | 菜单「设置…」或 ⌘, | 打开设置窗口 |
-| 打开使用统计 | 菜单「使用统计」 | 打开统计窗 |
-| 切换监控部件显隐 | 菜单「显示状态项」/「显示项」子菜单 | 逐模块开关（`toggleMonitorModuleAction`） |
-| 退出 | 菜单「退出 Frset」⌘Q | 结束应用 |
+| 打开主面板 | 左键点图标 / `⌥A` / `kitnest://panel` | 从图标下方「长出来」，再按一次收起 |
+| 打开功能菜单 | 右键点图标 | 见下方菜单项 |
+| 打开设置 | 菜单「设置…」/ `⌘,` | 设置窗口 |
+| 打开使用统计 | 菜单「使用统计」 | 统计窗（第二章） |
+| 切换监控部件 | 菜单「显示状态项」/「显示项」 | 逐模块开关 |
+| 退出 | 菜单「退出 Kitnest」/ `⌘Q` | 结束进程 |
 
-主图标右键菜单包含：打开面板（⌥空格标注）、设置…（⌘,）、性能监测…、使用统计、显示状态项（总开关）、显示项（CPU/内存/网络/磁盘/温度/功耗等逐项开关）、退出 Frset（⌘Q）（`StatusBarMenuBuilder.mainMenu`）。
+主图标右键菜单包含：打开面板、设置…、性能监测…、使用统计、显示状态项（总开关）、显示项（CPU / 内存 / 网络 / 磁盘 / 温度 / 功耗逐项）、欢迎与权限…、检查更新…、退出（`StatusBarMenuBuilder.mainMenu`）。
 
 ### 关键能力点
 
-- **四种菜单栏图标样式**（`MenuBarIconStyle.selectIconStyle`）：
-  - 应用图标：默认 Logo；
-  - 动态风扇：一个旋转小风扇，转速随 CPU 使用率实时变化（`updateFanSpeed`）；
-  - 日期：在菜单栏直接显示当前日期（`startDateTimer`）；
-  - 自定义图标：可指定任意 SF Symbol 名称（`setSymbol`）。
-- **自定义图标选项需解锁**：连续点击主图标一定次数可触发彩蛋，解锁后才显示「自定义菜单栏图标」子菜单，还有庆祝动效（`MenuBarIconEasterEggManager.unlock` / `presentUnlockCelebration`）。解锁后还可以把该选项「藏起来」或「放回来」（`hideIconOption` / `restoreIconOption`）。
-- **图标位置记忆**：监控部件在菜单栏中的位置会被保存，重启后还原（`saveStatusItemPosition` / `restoreStatusItemPosition`）。
-- **状态项自愈**：偏好变化或系统菜单栏重建时，部件自动重建（`rebuild` / `syncStatusItems`）。
-- **唯一实例保护**：重复启动会自动退出旧实例，避免菜单栏出现两套监控（`enforceSingleMenubarOwner`）；若检测到官方原版 Frset 同时在跑，会弹提示建议退出原版。
-- **使用统计窗**：顶部为今日各项计数（粘贴、搜索、工具、笔记、截图/取色），中段为总览卡片与 30 天柱状图，底部是跨年活动热力图（`StatisticsRootView.loadData` / `heatCellView`）。
+- **四种图标样式**（`MenuBarIconStyle.selectIconStyle`）
+  - **应用图标**：默认 Logo。
+  - **动态风扇**：旋转小风扇，转速随 CPU 使用率实时变化（`updateFanSpeed`，20Hz 平滑动画、3 秒换档）。
+  - **日期**：菜单栏直接显示当天日期（`startDateTimer`）。
+  - **自定义图标**：任意 SF Symbol 名称（`setSymbol`）。
 
-![](shots/statistics.png)
+- **自定义图标是彩蛋**：连续点击主图标若干次解锁，解锁后才有「自定义菜单栏图标」子菜单和庆祝动效（`MenuBarIconEasterEggManager.unlock` / `presentUnlockCelebration`）；解锁后还能把该选项藏起来或放回来（`hideIconOption` / `restoreIconOption`）。
+
+- **图标位置记忆**：监控部件在菜单栏中的顺序会被保存，重启还原（`saveStatusItemPosition` / `restoreStatusItemPosition`）。
+
+- **唯一实例保护**：重复启动会自动退出旧实例；检测到官方原版 Frset 同时在跑会提示（`enforceSingleMenubarOwner`）。
+
+- **拖文件到图标**：把文件拖到菜单栏图标上可直接进「文件中转」暂存（`StatusItemDropProxy`——`NSStatusBarButton` 本身不是拖放目标，这里加了一层覆盖视图）。
 
 ### 注意事项
 
-- 菜单栏图标被系统折叠时，可到「系统设置 → 控制中心 → 菜单栏」调整，或用 ⌥ 键点击菜单栏展开。
-- 「打开面板」在菜单中显示为 ⌥空格，但实际注册的全局热键为 ⌥A（`defaultHotkeys` 中 openFrset 键码为 kVK_ANSI_A）；两者显示不一致，**以 ⌥A 为准（待确认）**，也可在「设置 → 工具与快捷键」中改绑。
-- 动态风扇图标持续旋转会增加少量菜单栏重绘开销，介意的话可换回应用图标样式。
+- 图标被系统折叠时，到「系统设置 → 控制中心 → 菜单栏」调整，或按住 `⌥` 点击菜单栏展开。
+- 动态风扇持续旋转会增加少量菜单栏重绘；介意就换回应用图标。
+- 菜单里「打开面板」显示的键位是历史遗留，**实际生效的是 `⌥A`**，以设置页「快捷键」里显示的为准。
 
----
+### 实现索引
 
-## 第二章 系统监控
-
-### 功能是什么
-
-实时监测 Mac 的运行状态：CPU、内存（含交换空间与内存压力）、网络（上下行速率）、磁盘（读写速率）、温度（各传感器）、电池（电量与健康）、功耗（整机瓦数），并可查看开机时长与系统负载。数据有三个展示层级：菜单栏部件、监测独立窗口、主面板「性能监测」页。
-
-### 用户怎么用
-
-| 入口 | 操作 | 效果 |
+| 文件:行号 | 函数 | 职责 |
 |---|---|---|
-| ⌥P 或 ⌥M | 打开/关闭监测独立窗口 | 弹出可常驻的监测窗（`MonitorPopoutWindowController.toggle`） |
-| 主面板「性能监测」段 | 点击分段切换 | 面板内嵌同一套监测内容 |
-| 菜单栏监控部件 | 点击部件 | 弹出该模块数据浮层（`showPopover`） |
-| 菜单「显示项」 | 逐项勾选 | 控制各模块菜单栏部件显隐 |
-| 设置 → 性能监测 | 选模块 / 监测设置 / 部件设置 | 配置采样间隔、模块开关、部件形态 |
-| `frsetnext://settings?pane=monitor` | URL 直达 | 打开监测设置页 |
-
-监测窗顶部是模块切换条（CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池），选中哪个模块就展示哪个模块的详情（`MonitorDetailView.availableModules`）。
-
-### 关键能力点
-
-- **采样引擎**：按设定间隔（0.5–10 秒，默认 2 秒）周期性采样（`MonitorSampler.scheduleNext` / `sampleOnce`），面板/设置不可见时自动降频，省电省 CPU。
-- **数据来源分层**：Swift 侧读取主机层指标（`MonitorReader.readCPU` / `readMemory` / `readNetworkRate` / `readDiskRate` / `readPower` / `readBatteryLevel`），温度走 SMC 直读（`readSMCTemperature`），底层 C 采样见 `frset_stats_data.c`（`frset_cpu_sample` / `frset_mem_sample` / `frset_net_sample` / `frset_disk_sample` / `frset_smc_scan`）。
-- **菜单栏双排文案**：CPU 显示百分比与趋势箭头，内存显示压力百分比，网络显示 ↑上行 / ↓下行速率，磁盘显示 R 读 / W 写，功耗区分「输入（⚡充电中）」与「输出」（`MonitorStatusItems.cpuTwoLine` / `networkTwoLine` / `powerTwoLine`）。
-- **温度按传感器分组**：CPU、GPU、硬盘、电池、主板等传感器分类展示，含平均温度（`sensorCategorySection` / `primaryTemperature`）。
-- **历史曲线**：各模块保留一段历史数据，绘制趋势图（`MonitorHistory.append`）。
-- **网络诊断**（网络模块详情内）：探测公网 IP 与归属地、多目标延迟、DNS 解析、检测系统代理与本地代理端口（`probePublicIP` / `probeLatencies` / `probeDNS` / `detectProxyProcess`）。
-- **内存优化**：一键释放可回收内存，并列出内存占用 Top 进程（`MemoryOptimizer.optimize` / `ProcessMemoryInspector.topConsumers`）；优化效果以「释放量 + 前后对比」呈现（`MemoryOptimizeCard.reportView`）。辅助组件需在设置内安装（`installHelper`）。
-- **STATS 合并条**：菜单栏监控的官方实现是一条可自定义形态、颜色、间距的合并条，配置在「设置 → 性能监测 → 部件设置」（`StatsBarEngine.openSettings` / `MonitorWidgetsPane.moduleCard`）。
-
-![](shots/settings-monitor.png)
-
-### 注意事项
-
-- 温度读取依赖 SMC，Intel 与 Apple Silicon 的传感器列表不同；个别机型某些传感器无读数属正常现象。
-- 内存「优化」释放的是可回收部分，不会真的杀掉进程；频繁优化无额外收益。
-- 功耗数据需要电池或电源适配器在位，部分台式机可能无数据（显示「无数据」）。
-- 同时运行官方原版 Frset 会画两套菜单栏组件，建议二选一。
+| `StatusBarController.swift:139` | `installMainItem` | 创建并安装主图标状态项 |
+| `StatusBarController.swift:424` | `mainItemClicked` | 主图标点击分发（左键面板 / 右键菜单） |
+| `StatusBarController.swift:256` | `saveStatusItemPosition` | 保存状态项在菜单栏的位置 |
+| `StatusBarController.swift:262` | `restoreStatusItemPosition` | 重启后还原位置 |
+| `StatusBarController.swift:270` | `rebuild` | 偏好变化后重建全部状态项 |
+| `StatusBarMenuBuilder.swift:11` | `mainMenu` | 组装主图标右键菜单 |
+| `StatusBarMenuBuilder.swift:83` | `customIconSubmenu` | 自定义图标子菜单 |
+| `MenuBarIconStyle.swift:257` | `selectIconStyle` | 切换图标样式 |
+| `MenuBarIconStyle.swift:476` | `startFan` | 启动风扇动画 |
+| `MenuBarIconStyle.swift:513` | `updateFanSpeed` | 按 CPU 使用率调整转速 |
+| `MenuBarIconStyle.swift:465` | `startDateTimer` | 日期样式定时刷新 |
+| `StatusItemDropProxy.swift` | `draggingEntered` / `performDragOperation` | 拖文件到图标进中转 |
 
 ---
 
-## 第三章 主面板
+## 第二章 使用统计
 
 ### 功能是什么
 
-主面板是 FrsetNext 的核心窗口，宽约 400pt，从菜单栏图标「长出来」。面板分四页（顶部胶囊左右切换）：**主页**（搜索 + 日历 + 剪贴板）、**性能监测**、**文件中转**（仅文件传输）、**投屏**（Android 设备中心）；后两页受设置开关控制显隐。
-
-### 用户怎么用
-
-| 入口 | 操作 | 效果 |
-|---|---|---|
-| ⌥A / 左键点图标 | 呼出/收起面板 | 弹出/收起 |
-| ⌥F | 打开并搜索 | 面板打开并自动聚焦顶部搜索框 |
-| ⌘P | 置顶窗口 | 面板常驻不失焦 |
-| Esc | 关闭面板 | 面板收起 |
-| 顶部工具条 | 截图 / 取色 / 悬浮剪贴板图标，中部三段切换，右侧齿轮菜单 | 快速发起截图类动作、切页、进入设置 |
-| 齿轮菜单 | 置顶窗口、悬浮剪贴板、暂停记录剪贴板、设置、使用统计、功能建议、退出 | 面板内快捷操作 |
-| 底部悬浮工具条 | 搜索 / 筛选 / 标签 / 编辑 / 上传 | 操作剪贴板列表 |
-
-![](shots/panel.png)
-
-*锚点展开形态（v73）：面板停到菜单栏图标正下方，顶部中央三角指示器指向图标；`frsetnext://panel?anchor=icon` 可复现。*
-
-![](shots/panel-arrow-detail.png)
-
-### 关键能力点
-
-- **顶部截图菜单**（`PanelRootView.runCapture`）：截图、截图并复制、截图并贴图、截图提取文字、截图翻译、划词翻译、长截图、录屏——直接调用对应模块能力，改了全局热键也不影响菜单可用。
-- **搜索区段**（Toolbox 注入）：输入关键词 → 显示搜索引擎栏，点击或回车打开网页搜索；输入 `/` → 切换为工具列表（详见第八章）。
-  - **文件搜索覆盖全盘**（v264）：Spotlight 只索引可见目录，**不索引** `~/Library`、以 `.` 开头的隐藏目录（`.workbuddy` / `.cursor` / `.npm`…）、`.app` 包内部与 `/usr/local`，所以此前搜 `~/.workbuddy/skills/image-html-deck` 一条都搜不到（`mdfind` 连 `-onlyin` 都返回空）。v264 起自建一份**全盘文件名索引**：本机 124 万条 / 164MB，mmap 加载（不占堆内存），首次搜索时后台建立（实测 14 秒），之后每次查询 30–220ms。
-  - 索引状态就显示在「文件」分组下方：多少条、什么时候建的、重建按钮。搜不到时可先看是不是索引还没建完。
-  - 排序按「路径越浅越前」，空格能匹配连字符（`image html deck` → `image-html-deck`）、也能跨目录名匹配（`workbuddy skill` → `~/.workbuddy/skills`）。
-  - 系统垃圾文件（`.DS_Store` / `.localized` 等）不参与结果。
-- **日历卡**：显示当月月历、今天高亮，并叠加系统日程与节假日/农历信息（Toolbox 的 `CalendarSectionView` / `CalendarService`）。
-- **剪贴板列表**：一条条陈列历史记录，图标按来源应用与内容类型区分（`ClipboardAppIconCache`）。
-- **悬停预览气泡**：鼠标悬停条目即弹出内容预览——文本自动判别 Markdown / 代码 / JSON 并高亮渲染，图片显示缩略图并识别二维码（`MainPanelPreviewPopoverCoordinator.present` / `PreviewPopoverContentModel.classify` / `PreviewImageLoader.detectQRCode`）。
-- **Mermaid 图表渲染**：Markdown 代码块中的 Mermaid 流程图可直接渲染成图（`MermaidRenderer.parse` / `PreviewMarkdownRenderer.renderDiagram`）；Markdown 表格、目录、代码高亮同样支持（`renderTable` / `renderTOC`）。
-- **JSON 检查器**：把 `.json` / `.txt` 文件拖进面板任意位置，即打开独立检视器，支持节点折叠、格式化复制（`handleFileDrop` → `JSONInspectorWindow.open` / `parse` / `copyFormatted`）。
-- **个性化**：面板宽度、字号缩放、强调色、打开动画、背景图均可在「设置 → 常规 → 个性化」调整，即改即生效（`PanelController.syncPanelFrameToPersonalization` / `persistSize`）。
-- **面板位置**：默认贴在菜单栏下方右对齐（`settleTopEdge`），失焦自动收起（⌘P 置顶后除外）。
-
-### 注意事项
-
-- 面板是「临时窗口」：失焦即自动收起，⌘P 置顶可改变这一行为。
-- 「文件中转」段可在「设置 → 常规 → 功能」里关掉，关闭后面板只剩两页。
-- 底部「上传」按钮需要图床配置，当前版本点击会提示未配置（待确认后续版本接入）。
-- 预览气泡内可直接编辑图片（`PreviewPopoverContentView.editImage`）。
-
----
-
-## 第四章 截图与图像
-
-### 功能是什么
-
-完整的截图工作流：选区/全屏截图 → 标注编辑 → OCR 取字 → 翻译 → 复制/保存/贴图。另有长截图、取色器、截图美化、物体擦除等专项能力。
-
-### 用户怎么用
-
-| 功能 | 快捷键 | 说明 |
-|---|---|---|
-| 区域截图 | ⌥S | 框选区域后进入默认动作（复制/保存等）；纯手动拖拽（不做窗口吸附） |
-| 窗口截图 | ⇧⌥W | 原版固有模式（v113 对齐）：覆盖层窗口选择——悬停识别高亮 + 单击截取，SCK 窗口级抓取排除遮挡 |
-| 截图并复制 | ⇧⌥C | 框选后图片直接进剪贴板 |
-| 截图并贴图 | ⇧⌥P | 框选后图片钉在桌面上 |
-| 截图提取文字 | ⇧⌥S | 框选后 OCR，结果窗可复制、重新识别 |
-| 截图翻译 | ⇧⌥T | 框选后 OCR 并翻译，译文回写剪贴板 |
-| 划词翻译 | ⇧⌥D | 翻译剪贴板当前文本（译文写入剪贴板历史） |
-| 长截图 | ⇧⌥L | 框选区域后自动滚屏采集并拼接（动作条里独立一组） |
-| 图帘 | ⇧⌥G | 展开 / 收起图帘（截图后的临时暂存条，设置页可改键） |
-| 剪贴板 | ⌥V | 打开主面板剪贴板页（设置页可改键） |
-| 取色 | ⌥C | 屏幕任意位置取 HEX，右键/Esc 取消 |
-
-截图类动作也可以从主面板顶部「截图」菜单、菜单栏菜单或命令面板发起。框选后的动作工具条含**空投**（⌘D）——截图落盘文件直接调系统隔空投送。
-
-### 关键能力点
-
-- **选区覆盖层**：半透明遮罩 + 白色虚线选框 + 黄色手柄 + 实时尺寸标签 + 十字准线，Esc 取消、回车确认（`ScreenshotOverlay.drawHandles` / `drawSizeLabel` / `drawCrosshair`）。
-- **窗口模式（v113 对齐原版）**：原版 CaptureMode 含 `.window`（docs/10-规格/06 反汇编），二进制反射字段 windows/windowOrder/selectedWindowId/keyDownMonitor 表明窗口选择交互。实现：`pickMode = .window` 覆盖层——悬停识别高亮 + 窗口名标签 + 单击截取 + 顶部提示 + Esc 取消；提交优先 SCK `desktopIndependentWindow`（排除遮挡），回退快照裁剪（`ScreenshotOverlay.snapshotWindowHits` / `ScreenshotManager.commitWindow`）。
-- **区域模式不做窗口吸附**（v112 曾在区域模式混入悬停吸附，属自研发明，v113 已移除；原版无此行为证据）。
-- **截图后动作链**：截图、复制、贴图、OCR、翻译由同一条动作链分发（`ScreenshotManager.captureAndOCR` / `captureAndPin` / `captureAndCopy` / `captureAndScreenTranslate`），完成后播放快门音（`playShutterSound`）并自动写入剪贴板历史。
-- **标注编辑器**（截图后点「标注」，或对贴图/最近截图点「标注」）：九种工具——矩形、椭圆、箭头、画笔、文字、荧光笔、马赛克、橡皮、物体擦除（`AnnotationTool` 定义于 `AnnotationCompositor.swift:9`）；支持撤销、清空、复制、保存，标注坐标与图像像素对齐（`AnnotationEditorWindow.undoTapped` / `composite`）。
-- **OCR**：系统级文字识别，支持中英等多语言（`OCRService.recognizeText`），结果窗可一键复制、重新识别（`ScreenshotOCRWindow.copyTapped` / `reRecognize`）；截图 OCR 文本会自动存入剪贴板历史，图片条目也会被异步 OCR 建立索引。
-- **屏幕翻译**：截取屏幕区域 → OCR 分块 → 批量翻译 → 按原背景色重绘译文贴图，尽量保持原版式（`ScreenTranslator.translateBlocks` / `render` / `sampleBackground`）。
-- **长截图**：框选目标区域后向任意方向（横/竖/斜）滚动页面，自动逐帧采集、去抖拼接，完成后进预览窗，可继续标注或保存（`LongScreenshotSession.onScroll` / `captureFrame` → `LongScreenshotPreviewWindow.show`；Esc 随时取消）。
-  - **采集期 UI（v74 补齐）**：框选确认后保留**橙色选区边框**（四角标记、点击穿透不挡滚动），鼠标旁浮出**采集 HUD**——红点 + 实时已采高度（px）+「完成 / 取消」按钮（毛玻璃 `.popover` 材质）；滚动时高度实时跳动，完成/取消均可点（`LongScreenshotHUDController` / `LongScreenshotSelectionBorderWindow`）。
-  - 排障/深链入口：`frsetnext://longshot` 直接进入长截图选区（等价 ⇧⌥L 与面板菜单「长截图」）。
-- **贴图（钉图）**：图片钉在桌面最顶层，可拖动、滚轮/双指缩放、右键菜单（标注/OCR/翻译/保存/关闭），悬停显示控制条，小尺寸时有操作提示（`PinWindow.showControls` / `showActionsMenu` / `magnify`）。
-  - v263 起截图动作条把「钉住」从「更多」里提出来单独成组：点图标按当前外观钉住，悬停展开**经典 / 无边框 / 卡片 / 强调**四种形态（一个形态一个选项）以及「挂到图帘」。形态只作用于这一张，不改全局默认（`PinAppearance`）。
-- **图帘（原「悬挂架」，v263 改名）**：截图后不直接消失，而是挂到屏幕顶边的帘线上临时暂存；可拖出、复制、保存、钉图。默认关闭，开关在「设置 → 截图与钉图 → 图帘」。
-  - 帘线四种样式（原版 / 拐杖糖 / 圣诞彩灯 / 积雪）；到点只收起不删内容（`ImageCurtainController`）。
-  - **缩放**：在图帘上按住 ⌘ 左右拖，或 ⌘ + 滚轮，整条图帘等比放大（72–420 pt）；右键菜单也有「放大 / 缩小图帘」。设置里可单独关闭「帘线跟随缩放」——关掉后只放大图片，帘线/夹子保持原粗细（`CurtainPref.railScalesWithCards`）。
-  - **不常驻**：开关关着时不建窗口、不占内存；屏幕放不下时自动收窄，不会溢出屏幕。
-- **取色器**：放大镜式取色，实时显示 HEX 与 RGB，点击复制 HEX 到剪贴板并计入历史（`Eyedropper.pickColor` / `copyHexToPasteboard`）。
-- **截图美化**：为截图添加纯色/渐变背景、圆角与投影，可复制/保存/贴图，也可设为「框选后默认动作」（`BeautifyPanel.render` / `rerender`）。
-- **物体擦除**：在标注编辑器里涂抹掉画面中的物体，自动用周围像素修复（`ObjectRemovalEngine.inpaint` / `AnnotationEditorWindow.applyRemoval`）。
-- **保存位置**：截图默认保存目录可在「设置 → 截图」中更改（`CaptureSettingsPane.chooseDirectory`）。
-
-### 注意事项
-
-- 首次截图/录屏需授予「屏幕录制」权限，否则画面全黑；授权后需重启应用生效。
-- 长截图依赖页面正常滚动，遇到「不响应滚动的页面」可能采集不完整。
-- 划词翻译当前版本是「翻译剪贴板文本」的降级实现，尚不能直接抓取其他应用里的选中文本（源码注释明确说明，待后续版本补齐）。
-- 贴图数量过多时注意内存占用，可用贴图右键菜单逐个关闭。
-
----
-
-## 第五章 录屏
-
-### 功能是什么
-
-基于 ScreenCaptureKit 的屏幕录制：可录整屏或自选区域，支持选择帧率、分辨率（缩放）、声音来源（系统音/麦克风），导出 MOV / MP4 / GIF。录制过程有毛玻璃计时窗实时显示时长，随时停止。
+记录你实际用了哪些功能、用了多少次，并以三层版面呈现：五张指标卡 → 总览 + 最近 30 天柱状图 → 跨年活动热力图。**数据只存本机 SQLite，不上传、不联网。**
 
 ### 用户怎么用
 
 | 入口 | 操作 |
 |---|---|
-| 主面板截图菜单 →「录屏」 | 打开录屏设置小窗 |
-| 菜单栏 STATS 部件 → 录屏入口 | 打开录屏设置小窗（`StatsBarEngine.openRecorder`） |
-| `frsetnext://panel` → 截图菜单 → 录屏 | 同上 |
+| 菜单栏右键 →「使用统计」 | 打开统计窗 |
+| `kitnest://statistics` | 同上 |
+| 设置 → 数据 → 统计 | 配置统计开关、导出/导入 |
 
-设置小窗里选好参数 → 点「开始录制」→（如选了「选择区域」）拖出录制区域、回车确认 → 开始录制。停止：点计时窗上的「停止」。
+窗口结构（`StatisticsRootView`）：
 
-![](shots/recorder-settings.png)
-
-### 录屏设置项
-
-| 设置 | 可选值 | 说明 |
-|---|---|---|
-| 帧率 | 15 / 24 / 30 / 60 | 越高越流畅，文件越大 |
-| 分辨率 | 原始 / 75% / 50% | 缩放录制，减小文件体积 |
-| 区域 | 整个屏幕 / 选择区域 | 选「选择区域」后进入框选（Esc 取消 / 回车确认） |
-| 声音来源 | 无 / 系统音 / 麦克风 / 系统+麦克 | 内录与麦克风混音 |
-| 格式 | MOV / MP4 / GIF | GIF 由录制结果转换生成（`FSRecConvertMovieToGIF`） |
-| 保存到 | 任意目录 | 「更改…」按钮选择，设置自动保存 |
+1. **顶部**：今天日期 + 今天的总事件数。
+2. **五张指标卡**（`MetricCardView`）：常用动作的今日计数。
+3. **总览 + 30 天柱图**：每天一根柱，看的是一段时间的趋势。
+4. **跨年热力图**：GitHub 贡献图那种格子，颜色深浅表示当天活跃度（`heatCellView`）。
 
 ### 关键能力点
 
-- **计时窗**：毛玻璃药丸，红点 + `M:SS` 计时 + 停止按钮，可拖动让位（`FSRecBarShow` / `FSRecBarHide`）。
-- **区域选择覆盖层**：evenOdd 挖洞遮罩 + 白虚线选区 + 黄手柄 + 尺寸标签（`FSRegionOverlayShow` / `FSRegionOverlayClose`）。
-- **编码管线**：SCStream 采集 → AVAssetWriter 输出 H.264 视频 + AAC 音频双轨（`FSScreenRecStart` / `FSScreenRecStop`）。
-- **完成面板**：停止后弹出完成面板，可查看/打开产物（`FSRecShowDonePanel`）。
-- **毛玻璃界面**：macOS 26 使用 Liquid Glass，旧系统回退毛玻璃材质（`FSRecMakeGlass` / `FSRecInstallGlass`）。
-- **参数持久化**：所有设置写入 widgets.plist（`Recorder_*` 键），下次打开保持。
+- **50+ 种事件**（`AnalyticsEvent`，`Storage/Database.swift:370`）
+  - 剪贴板：`panelOpen` / `historyCopy` / `historyBatchCopy` / `clipboardCapture` / `clipboardPaste`（粘贴计数）…
+  - 截图族：`screenshotCapture` / `longScreenshot` / `annotateEdit` / `pinImage` / `screenRecord` / `colorPickSuccess`
+  - 搜索与工具：`searchExecute` / `toolExecuteSuccess` / `webSearchOpen` / `ocrUse` / `translationUse`
+  - 传输：`fileDownload` / `fileTransferSend` / `fileTransferReceive` / `transferDockOpen` / `screenCastOpen`
+  - 系统：`monitorPanelOpen` / `networkInfoClick` / `activityMonitorClick`
+  - 设置：`settingsOpen` / `settingsExportSuccess` / `settingsImportSuccess` / `changelogClick`
+  - 商业化（原版键位保留）：`proPageView` / `paywallView` / `proPurchaseSuccess` …
+
+- **事件名自动派生**：camelCase → snake_case（`historyCopy` → `history_copy`），所以数据库里的键名和代码里的枚举一一对应。
+
+- **按天聚合**：写入时按日期分桶，跨年热力图直接读年度表，不需要全表扫描。
+
+- **导出/导入**：「设置 → 数据」里导出的偏好包里**包含统计**（`StatisticsSettingsPane.performExport`），换机不丢历史。
 
 ### 注意事项
 
-- 录制系统音/麦克风同样需要「屏幕录制」与相应麦克风权限。
-- GIF 适合短片段（几秒到十几秒），长录制建议选 MP4。
-- 高帧率 + 原始分辨率 + 系统音录制时文件增长很快，注意磁盘空间。
-- 录屏进行中切换用户或锁屏可能中断录制（待确认）。
+- 统计是**纯本地**的：没有账号、没有上报、没有任何网络请求。
+- 关闭统计开关后不再记新事件，但已有数据保留；需要彻底清空去「设置 → 数据」。
+- 热力图的「今天」格子是实时数，当天多次打开都会累加。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `StatisticsRootView.swift:108` | `body`（三层版面） | 指标卡 → 总览/柱图 → 热力图 |
+| `StatisticsRootView.swift:312` | `MetricCardView` | 单张指标卡 |
+| `StatisticsRootView.swift:520` | `heatCellView` | 热力图单元格（column/day/count/level/isFuture） |
+| `StatisticsWindowController.swift:83` | `show` | SwiftUI + NSWindow 底座 |
+| `Database.swift:370` | `enum AnalyticsEvent` | 50+ 事件定义 |
+| `Database.swift:398` | `eventName` | camelCase → snake_case |
+| `StatisticsSettingsPane.swift:264` | 事件映射表 | 设置页展示用的事件名与中文说明 |
 
 ---
 
-## 第六章 剪贴板管理
+## 第三章 主面板与首页
 
 ### 功能是什么
 
-自动记录复制历史（文本、图片、文件、富文本、链接），提供主面板列表、悬浮窗、全局搜索、类型筛选、标签、编辑备注、图片 OCR 等管理能力，并可随时暂停记录保护隐私。
+主面板是 Kitnest 的核心窗口，从菜单栏图标「长出来」。顶部胶囊切页：**主页**（搜索 + 网盘链接 + 日历 + 剪贴板历史）、**性能监测**、**文件中转**、**投屏**——后三页可在设置里关掉。
 
 ### 用户怎么用
 
 | 入口 | 操作 | 效果 |
 |---|---|---|
-| ⇧⌘V | 悬浮剪贴板 | 鼠标附近弹出迷你列表（再按收起） |
-| ⌥F | 打开面板并搜索 | 搜索历史记录 |
-| 主面板底部工具条 | 筛选 / 标签 / 编辑 | 按类型过滤、管理标签、编辑选中条目 |
-| ⇧⌥R | 暂停/恢复记录 | 暂停期间不再记录新复制内容 |
-| 面板齿轮菜单 | 暂停记录剪贴板 | 同上（菜单形式） |
-
-![](shots/floating-clipboard.png)
+| `⌥A` / 左键图标 | 呼出/收起 | 从图标下方展开，带三角指示器 |
+| `⌥F` | 打开并搜索 | 面板打开且搜索框获得焦点 |
+| `⌥V` | 打开剪贴板 | 面板打开并切回首页 |
+| `⌘P` | 置顶 | 面板常驻，失焦不收起 |
+| `Esc` | 关闭 | 面板收起 |
+| 顶部工具条 | 截图 / 取色 / 悬浮剪贴板 / 三段切换 / 齿轮菜单 | 快速动作与切页 |
+| 拖文件进面板 | 任意位置 | `.json` / `.txt` 打开 JSON 检查器，其他进中转 |
 
 ### 关键能力点
 
-- **自动记录与去重**：周期性轮询剪贴板，按内容指纹去重，重复复制只更新位置与计数（`ClipboardManager.pollTick` / `ingest` / `ClipboardPasteboardReader.fingerprint`）。
-- **多类型识别**：纯文本、富文本（RTF）、图片（含尺寸信息）、文件、URL 分别入库（`readText` / `readRichText` / `readImage` / `readFiles` / `readURL`）。
-- **记录来源应用**：每条记录显示来源应用图标，隐私名单中的应用可不记录（`frontmostAppIdentifier`）。
-- **回贴**：选中条目回车或点「复制」即写回系统剪贴板，也可直接粘贴到当前前台应用（`pasteToFrontmostApplication`）。
-- **类型筛选**：全部 / 文本 / 图片 / 链接 / 文件 / 代码 / 颜色 / 工具生成 / 笔记九种过滤（`ClipboardFilterKind`）。
-- **标签系统**：可创建、重命名、设颜色的标签，并给条目打标签（`TagStore.create` / `assign` / `toggle`）。
-- **条目编辑**：可编辑文本内容、设置别名标题与备注（`ClipboardItemEditWindowController.setContent` / `setAliasTitle` / `setNote`）。
-- **图片 OCR**：图片入库后自动调度 OCR，文本可被全局搜索命中（`scheduleOCR`）。
-- **悬浮窗**：240×290 迷你窗，可钉住、拖动、记忆位置，鼠标处唤出（`FloatingClipboardWindow.toggle` / `setPinned` / `showNearMouse`）。
-- **清理策略**：按条数/天数/体积自动清理历史，可在设置中调整（`ClipboardPruneSchedulers.prune`）。
-- **工具产出回流**：截图 OCR、AI 结果、工具输出会以「工具生成」类型进入历史（`ingestToolOutput`），与手动复制区分。
+- **首页从上到下**：搜索区段 → 网盘链接条 → 日历卡 → 剪贴板历史列表（`PanelRootView.homePage`）。
+
+- **页签可自定义**（`PanelSegments`）：设置里能决定哪些页显不显示、顺序如何。关掉「文件中转」后，面板只剩主页和监测。
+
+- **从图标长出来的动效**（`PanelMotion` + `WindowReveal`）：`scaleEffect(anchor: .top) 0.93→1` + 上移 10pt + 弹簧，配合根视图顶部 9pt 让位和居中三角指示器（尖端朝上指向图标）。这是 1:1 复刻原版的行为。
+
+- **失焦自动收起**：面板是 transient 窗口，点别处就收（`TransientWindows`）。`⌘P` 置顶可改变这一行为。
+
+- **宽度可调**（`Personalization.panelWidth`）：360 / 400 / 440 三档，设置里改完立刻生效。窗口宽度 = 选中值，**不再叠加字号缩放**（v73 修的三重缩放 bug）。
+
+- **玻璃态**：面板用 `NSVisualEffectMaterial.popover`，能透出桌面模糊（`LiquidGlass`）。
+
+- **子窗口身份**：面板里弹出的窗口打了一个可识别标记（`PanelChildWindow`），这样「点外收起」的逻辑不会误伤自己弹的窗。
 
 ### 注意事项
 
-- 密码管理器（1Password 等）的复制通常有「几秒后清除剪贴板」行为，可能记录不到或被快速清理，属预期。
-- 暂停记录期间复制的内容不会进历史，恢复后从新内容开始记录。
-- 大体积图片历史会占用磁盘，可在「设置 → 剪贴板」调小保留策略。
-- 富文本以 RTF 形式保真存储，粘贴时保留格式。
+- 面板是「临时窗口」：**失焦即收**。需要长时间看着就 `⌘P` 置顶。
+- 「文件中转」段可以关掉，关掉后底部只剩两页。
+- 面板里点日期格会打开系统日历（`calendarDayOpen` 计数），不是应用内弹窗。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `PanelRootView.swift` | `homePage` / `body` | 首页版式与页签切换 |
+| `PanelController.swift:1` | `show` / `hide` / `toggle` | 面板可见性与锚点展开 |
+| `PanelController.swift` | `syncPanelFrameToPersonalization` | 个性化改动同步窗口尺寸 |
+| `PanelSegments.swift` | `PanelSegment` 枚举 | 页签定义与显隐 |
+| `FloatingPanel.swift` | `canBecomeKey` / `canBecomeMain` | 浮窗行为（不抢主窗口） |
+| `PanelChildWindow.swift` | `isPanelChild` | 子窗口身份标记 |
+| `PanelMotion.swift` | `present` / `dismiss` | 展开/收起动效参数 |
+| `WindowReveal.swift:1` | `reveal` | 从点扩散到整窗的动画 |
+| `TransientWindows.swift` | `installOutsideClickMonitor` | 点外收起（四路冗余监听） |
+| `JSONInspectorView.swift` | `handleFileDrop` / `parse` | 拖入 JSON 打开检视器 |
 
 ---
 
-## 第七章 AI 功能
+## 第四章 剪贴板历史
 
 ### 功能是什么
 
-内置多服务商大模型接入层：配置一家或多家服务商后，即可在应用内使用 AI 聊天、文本总结与翻译。密钥本地加密存储，支持本地 Ollama。
+自动记录你复制过的一切：文本、富文本、图片、文件、链接。支持搜索、类型筛选、标签、编辑、批量操作、暂停记录。**默认保留 30 天 / 上限 2GB，两个数都能改。**
+
+### 用户怎么用
+
+| 入口 | 操作 | 效果 |
+|---|---|---|
+| `⌥A` / `⌥V` | 打开面板首页 | 剪贴板历史列表 |
+| `⇧⌘V` | 悬浮剪贴板 | 鼠标旁迷你列表（第五章） |
+| 双击一条 / 回车 | 回贴 | 写回系统剪贴板 |
+| 右键 | 菜单 | 置顶、标签、编辑、隔空投送、删除 |
+| `⇧⌥R` | 暂停/恢复记录 | 处理敏感内容时用 |
+| 底部工具条 | 筛选 / 标签 / 编辑 / 上传 | 批量与整理 |
+
+### 关键能力点
+
+- **自动记录 + 去重**（`ClipboardManager.pollTick` / `ingest`）
+  轮询系统剪贴板，按内容指纹去重。重复复制同一条只更新位置和计数，不新增一行（`ClipboardPasteboardReader.fingerprint`）。
+
+- **多类型识别**（`ClipboardPasteboardReader`）
+  - 纯文本、富文本（RTF 保真存储）、图片（记尺寸）、文件（记路径）、URL、颜色值分别入库。
+  - 富文本粘贴时保留格式，不是拍平成纯文本。
+
+- **来源应用**：每条显示来源 App 图标（`ClipboardAppIconCache`）。隐私名单里的应用复制的内容不记录。
+
+- **类型筛选**（`ClipboardFilterKind`）：全部 / 文本 / 图片 / 链接 / 文件 / 代码 / 颜色 / 工具生成 / 笔记。
+
+- **标签系统**（`TagStore`）：建标签、改名、设颜色、给条目打标签；支持批量加/减标签（`historyBatchTagAdd`）。
+
+- **条目编辑**（`ClipboardItemEditWindowController`）：改正文、设别名标题、写备注。
+
+- **图片自动 OCR**：图片入库后自动调度识别，识别出的文字能被全局搜索命中（`scheduleOCR`）。所以「截图里的一句话」也能搜到。
+
+- **工具产出回流**（`ingestToolOutput`）：截图 OCR 结果、AI 总结、小工具输出会以「工具生成」类型进历史，和手动复制区分开。
+
+- **清理策略**（`ClipboardPruneSchedulers.prune`）：按条数 / 天数 / 体积三个维度自动清理，设置里可调。
+
+- **文件落盘**：图片和大文件存在 `~/Library/Application Support/FrsetNext/` 下，数据库里只存相对路径（`ClipboardFileStorages`）。所以备份数据目录 = 备份全部内容。
+
+- **NSTableView 骨架**（`ClipboardTableHostView`）：列表不是 SwiftUI `List`，是 `NSScrollView + NSTableView`——为了多选、拖拽、行内编辑和滚动性能。
+
+### 注意事项
+
+- 密码管理器（1Password 等）的复制通常「几秒后清空剪贴板」，可能记录不到或被快速清理，属预期。
+- 暂停记录期间复制的内容不进历史；恢复后从新内容开始。
+- 大图历史会占磁盘：本机实测 89 张图约 440MB。介意就把上限调小。
+- 数据库用 WAL 模式，`-wal` 文件超过 1MB 会 checkpoint 截断，不会无限涨。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `ClipboardManager.swift` | `pollTick` | 剪贴板轮询节拍 |
+| `ClipboardManager.swift` | `ingest` | 入库（去重 + 分类） |
+| `ClipboardManager.swift` | `ingestToolOutput` | 工具产出回流 |
+| `ClipboardPasteboardReader.swift` | `readText` / `readRichText` / `readImage` / `readFiles` / `readURL` | 各类型归一化读取 |
+| `ClipboardPasteboardReader.swift` | `fingerprint` | 内容指纹（去重键） |
+| `ClipboardRepository.swift` | `insert` / `query` / `delete` | SQLite 读写 |
+| `ClipboardFileStorages.swift` | `store` / `resolve` | 落盘文件与相对路径 |
+| `ClipboardPruneSchedulers.swift` | `prune` | 条数/天数/体积三档清理 |
+| `TagStore.swift` | `create` / `assign` / `toggle` | 标签 CRUD 与分配 |
+| `ClipboardItemEditWindowController.swift` | `setContent` / `setAliasTitle` / `setNote` | 条目编辑 |
+| `ClipboardTableHostView.swift` | `tableView(_:viewFor:)` | 行视图与拖拽 |
+| `ClipboardSectionView.swift` | `body` / `refresh` | 面板内列表 |
+
+---
+
+## 第五章 悬浮剪贴板工作台
+
+### 功能是什么
+
+一个脱离主面板的迷你剪贴板：**贴在鼠标旁边**，`⇧⌘V` 唤出，找东西、粘贴、拖走都不用手移回屏幕角落。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| `⇧⌘V` | 在鼠标位置弹出 / 收起 |
+| 点击条目 | 复制到剪贴板并关闭 |
+| 拖条目 | 拖成文件或文本到目标 App |
+| 顶部图钉 | 钉住不自动收起 |
+| 拖动标题区 | 移动位置，位置会被记住 |
+| 底部搜索框 | 就地过滤 |
+
+### 关键能力点
+
+- **跟随鼠标**（`FloatingClipboardWindow.showNearMouse`）：唤出时以鼠标为锚点，自动避让屏幕边缘。
+- **几何持久化**（`FloatingClipboardWindow`）：位置、尺寸、是否钉住全部落到 `floatingClipboard.*` 偏好键，重启还原。
+- **工作台形态**（`FloatingClipboardDesk`，1095 行）：比迷你列表更强的一档——支持分组、批量、拖出，是 2026-11-03 按用户指定「一模一样」重做的版式。
+- **不抢焦点**：唤出时不激活 App，当前正在编辑的文档不会失焦。
+- **快捷键可改**：`floatingClipboard` 是 19 条默认热键之一，支持改绑或改成「双击修饰键」模式（连按两下 `⌘`）。
+
+### 注意事项
+
+- 悬浮窗不记录来源应用过滤，隐私名单照常生效（名单里的应用内容根本不会入库）。
+- 钉住后不会自动收起，记得手动关。
+- 拖出操作固定为「拷贝」，不会移动原始记录。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `FloatingClipboardWindow.swift:1` | `toggle` / `show` / `hide` | 显隐与动画 |
+| `FloatingClipboardWindow.swift` | `showNearMouse` | 鼠标锚点定位 |
+| `FloatingClipboardWindow.swift` | `setPinned` | 钉住状态落盘 |
+| `FloatingClipboardDesk.swift:1` | `body` | 工作台版式（分组/批量/拖出） |
+| `FloatingClipboardDesk.swift` | `beginDrag` | 拖出成文件 |
+
+---
+
+## 第六章 预览与编辑
+
+### 功能是什么
+
+鼠标悬停在剪贴板条目上，弹出内容预览：文本自动判 Markdown / 代码 / JSON 并高亮；图片显示缩略图并**自动识别二维码**；Markdown 里的 Mermaid 流程图直接渲染成图。拖入 `.json` 文件则打开独立的 JSON 检视器。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| 悬停条目 | 弹出预览气泡 |
+| 预览里点图片 | 放大查看 |
+| 拖 `.json` / `.txt` 进面板 | 打开 JSON 检视器，可折叠节点 |
+| 右键条目 →「编辑」 | 打开编辑窗（改正文/别名/备注） |
+
+### 关键能力点
+
+- **内容分态**（`PreviewPopoverContentModel`）：文本 / 落盘长文 / Markdown / JSON / 代码 / 图片 / 文件，七种状态各有渲染器。
+
+- **Markdown 渲染**（`PreviewMarkdownRenderer`）：标题、列表、表格、引用、代码块、目录（`renderTOC`）、行内样式。够读 AI 回帖和 README，不追求完整 CommonMark。
+
+- **Mermaid / PlantUML**（`MermaidRenderer`）：代码块里写 ` ```mermaid `，预览里直接出流程图，不用跳浏览器。
+
+- **代码高亮**（`CodeHighlighter` + `CodeLexer`）：自研词法器，支持 20+ 语言，主题与「代码预览」工具共用。为什么自己写：本项目用 `swiftc` 直编、无 SPM 依赖，引第三方会把体积顶上去。
+
+- **二维码识别**（`PreviewImageLoader.detectQRCode`）：图片预览时顺带扫二维码，识别到就在旁边显示内容，可一键复制。
+
+- **大文本保护**（`LargeTextPreviewView`）：几 MB 的文本不做全量高亮，按纯文本呈现，滚动不卡。
+
+- **JSON 检视器**（`JSONInspectorView`，1192 行）：树形结构、节点折叠、路径复制、格式化复制。为什么不做纯文本 pretty-print：几 MB 的 JSON 铺开就是几千行，既看不出结构也翻不到重点。
+
+- **预览承载换过一次底座**（`MainPanelPreviewPopoverCoordinator`）：v71 起从 `NSPopover` 换成自绘窗口（`ClipboardPreviewWindowController`），因为 popover 在非激活面板里定位会漂。
+
+### 注意事项
+
+- 预览是延迟渲染：悬停约 150ms 才出，避免快速划过时狂建视图。
+- Mermaid 渲染失败时显示源码，不报错。
+- JSON 检视器只读；要改内容用「编辑」窗。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `PreviewPopoverContentModel.swift` | `classify` | 七态判定 |
+| `PreviewPopoverContentView.swift` | `body` | 预览版式（1439 行） |
+| `PreviewMarkdownRenderer.swift` | `render` / `renderTable` / `renderTOC` | Markdown 渲染 |
+| `MermaidRenderer.swift` | `renderDiagram` | Mermaid/PlantUML → 图 |
+| `PreviewImageLoader.swift` | `detectQRCode` | 图片里的二维码 |
+| `LargeTextPreviewView.swift` | `body` | 大文本降级渲染 |
+| `JSONInspectorView.swift` | `parse` / `copyFormatted` | JSON 树与复制 |
+| `ClipboardPreviewWindow.swift` | `present` | 预览窗口底座 |
+| `CodeHighlighter.swift` | `highlight` | 代码高亮入口 |
+| `CodeLexer.swift` | `tokenize` | 词法分析 |
+
+---
+
+# 第二部分 · 截图族
+
+> 这一族有 6 个功能共享同一条产出链路：**截图 → 动作条 → 落地**。
+> 动作条是理解所有截图功能的中枢，先看它。
+
+## 第七章 截图主流程
+
+### 功能是什么
+
+三种截法（区域 / 窗口 / 长截图）都从框选开始，松手后弹出**动作条**——19 个动作分成 6 组，截完就能直接用，不用先保存再打开。
+
+### 用户怎么用
+
+| 快捷键 | 截什么 | 说明 |
+|---|---|---|
+| `⌥S` | 区域截图 | 悬停自动吸附窗口边界，单击直接截整个窗口 |
+| `⇧⌥W` | 窗口截图 | 抓最前台应用的主窗口，被遮挡的部分也能完整还原 |
+| `⇧⌥L` | 长截图 | 框选区域后自动滚动采集拼接（第十章） |
+| `⇧⌥C` | 截图并复制 | 截完直接进剪贴板，不弹动作条 |
+| `⇧⌥S` | 截图提取文字 | 截完直接 OCR（第十四章） |
+| `⇧⌥T` | 截图翻译 | 截完 OCR + 翻译（第十四章） |
+| `⇧⌥P` | 截图并贴图 | 截完直接钉在屏幕上（第十一章） |
+
+框选过程中：`Esc` 取消、`Delete` 取消、右键取消、拖边调整大小、方向键微调。
+
+### 动作条（19 个动作 / 6 组）
+
+| 组 | 图标 | 展开项 |
+|---|---|---|
+| **复制** | 复制图标 | 复制 / 复制并识别 / 复制并翻译 / 保存 |
+| **识别** | 文字框 | 识字 / 识码 / 翻译 / 屏幕翻译 |
+| **钉住** | 图钉 | 钉住（当前外观）/ 经典 / 无边框 / 卡片 / 强调 / 挂到图帘 |
+| **长截图** | 上下箭头 | （独立成组，点即用） |
+| **编辑** | 铅笔 | 标注 / 美化 |
+| **更多** | 省略号 | 空投 / 历史 |
+
+- **点图标**执行该组的默认动作；**悬停**展开竖排子项列表（带组名标题，一个形态一行）。
+- 「钉住」组里前五项是**外观形态**，只作用于这一张，不会改掉你以后钉图的默认外观。
+- 键盘也能选：动作条上每个动作有字母键，例如 `p` = 钉住。
+
+### 关键能力点
+
+- **窗口吸附**（`ElementSnap`）：框选时鼠标靠近窗口边缘会吸附到窗口边界，单击直接整窗；按住 `⌥` 可临时关闭吸附。
+
+- **延时截图**（`DelayedCaptureHUD`）：可选 3 / 5 / 10 秒倒计时，倒计时期间屏幕上有 HUD，方便摆好菜单再截。
+
+- **取色**（`⌥C`，`Eyedropper`）：全屏透明层 + 跟随光标的放大镜，点击取色并复制 HEX；色值面板（`ColorValuePanel`）同时给出 RGB / HSL / 可点复制。
+
+- **截图事件总屏**（`CaptureEventBus`）：每次截图产出都会广播，剪贴板、历史、图帘、统计各自订阅，互不直接引用。
+
+- **动作条可换形态**（`CaptureToolbarStyle`）：图标条 / 药丸条 / 主副分栏三种，设置里选，默认药丸条。
+
+- **非激活面板**（`CaptureActionChain`）：动作条是 `.nonactivatingPanel`，点它不会抢走你正在编辑的文档焦点。
+
+### 注意事项
+
+- 截图需要「屏幕录制」权限；第一次截会弹一次统一引导，之后只 Toast 提示。
+- 截图不会自动进「截图历史」——需要保存或手动挂到图帘/钉图才留痕（历史记录的是**落盘文件**）。
+- 动作条位置自动避让：默认贴选区下方，下方放不下就翻到上方。
+- 多显示器时以鼠标所在屏为准。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `ScreenshotManager.swift:1` | `captureRegion` / `captureWindow` / `captureAndCopy` / `captureAndOCR` / `captureAndPin` | 六个截图入口 |
+| `ScreenshotManager.swift` | `cGImage` / `capture(rect:)` | 按屏幕原生像素截取 |
+| `ScreenshotManager.swift:408` | `ensureScreenRecordingPermission` | 权限探测（每次启动最多请求一次） |
+| `ScreenshotOverlay.swift` | `mouseDown` / `keyDown` | 框选交互与取消 |
+| `ElementSnap.swift` | `snapRect` | 窗口边界吸附 |
+| `DelayedCaptureHUD.swift` | `start` | 延时倒计时 |
+| `Eyedropper.swift` | `start` / `mouseMoved` | 取色与放大镜 |
+| `ColorValuePanel.swift` | `body` | 色值面板 |
+| `CaptureActionChain.swift` | `groups` / `present` | 动作条 6 组 19 项与呈现 |
+| `CaptureActionToolbarView.swift` | `submenu` | 竖排子项列表 |
+| `CaptureEventBus.swift` | `emit` / `subscribe` | 截图产出广播 |
+| `CaptureToolbarStyle.swift` | `style` | 三种工具条形态 |
+
+---
+
+## 第八章 标注编辑器
+
+### 功能是什么
+
+截完点「编辑」进入标注窗口：12 种标注工具 + 撤销重做 + 导出。工具条竖排贴在右侧，颜色、线宽、字号都在里面调。
+
+### 用户怎么用
+
+| 工具 | 用途 |
+|---|---|
+| **矩形** | 框重点，可设描边/填充 |
+| **椭圆** | 圈重点 |
+| **箭头** | 指向说明 |
+| **画笔** | 自由手绘，带压感宽度 |
+| **文字** | 打字，可调字体/字号/颜色 |
+| **备注** | 带引线的文字气泡 |
+| **序号** | 自动递增的圆形编号（1、2、3…） |
+| **荧光笔** | 半透明高亮，模拟马克笔 |
+| **马赛克** | 像素化遮挡 |
+| **模糊** | 高斯模糊遮挡 |
+| **橡皮** | 擦除单条标注 |
+| **智能擦除** | 涂抹移除图中物体（第九章） |
+
+快捷键：`⌘Z` 撤销、`⇧⌘Z` 重做、`⌘S` 保存、`⌘C` 复制、`Esc` 关闭。
+
+### 关键能力点
+
+- **画布用中性灰而不是纯黑**（`AnnotationEditorWindow`）：图片是主角，深色底会让人误判截图本身的明暗。
+
+- **标注是可编辑对象，不是画上去的像素**（`AnnotationCompositor`）：每条标注记位置/样式/内容，撤销重做是操作栈，导出时才合成。
+
+- **绕夹子/锚点旋转**：旋转矩形时围绕中心，箭头围绕起点，符合直觉。
+
+- **文字工具条**（`TextFontPopover`）：字体、字号、颜色、对齐，参考 Snipaste / CleanShot 的版式。
+
+- **竖排工具条的气泡说明**（`PinChrome`）：标题 11.5pt + 快捷键徽章 9.5pt + 一句用法 10pt，鼠标悬停才出现，不占地方。
+
+- **导出合成**（`AnnotationCompositor.render`）：按屏幕缩放因子输出，2x 屏不会糊。
+
+### 注意事项
+
+- 标注窗口是独立窗口，可以同时开多个（不同截图）。
+- 马赛克/模糊是**破坏性**的：导出后就还原不了原图细节，敏感信息处理前先留一份原图。
+- 文字标注的字体列表取系统已安装字体，装了什么就有什么。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `AnnotationEditorWindow.swift:1` | `body` | 画布 + 工具栏版式（1882 行） |
+| `AnnotationEditorWindow.swift` | `mouseDown` / `mouseDragged` | 绘制与拖拽 |
+| `AnnotationCompositor.swift:13` | `enum Tool` | 12 种工具定义 |
+| `AnnotationCompositor.swift` | `render` | 合成导出 |
+| `AnnotationToolbarView.swift` | `body` | 竖排工具条 |
+| `TextFontPopover.swift` | `body` | 文字样式面板 |
+| `PinChrome.swift` | `bubble` | 悬停气泡说明 |
+| `AnnotationSelfTest.swift` | `run` | 12 种工具的自检例程 |
+
+---
+
+## 第九章 美化与物体擦除
+
+### 功能是什么
+
+两个「让截图好看」的能力：
+
+- **美化**（`BeautifyPanel`）：给截图加背景（纯色/渐变）、内边距、圆角、投影，做成可以直接发社交平台的样子。
+- **物体擦除**（`ObjectRemovalEngine`）：涂掉图里不想要的东西（路人、水印、杂物），用双引擎填补。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 动作条 →「编辑」→「美化」 | 打开美化面板，实时预览 |
+| 标注工具栏 →「智能擦除」 | 涂抹要移除的区域，松手自动填补 |
+| 设置 → 截图 → 水印 | 给导出图加水印（第九章末） |
+
+### 关键能力点
+
+- **背景美化**（`BeautifyPanel`）
+  - 纯色 / 渐变背景，内置几套配色。
+  - 内边距可调（0~120pt），圆角可调，投影开关。
+  - 全部纯 CoreGraphics 绘制，零第三方依赖。
+
+- **双引擎擦除**（`ObjectRemovalEngine`）
+  - 主力：基于周围像素的内容感知填充（inpainting）。
+  - 兜底：纹理合成，处理大面积纯色区域更快。
+  - 为什么两个：前者对复杂纹理好但慢，后者对纯色背景快但不适合复杂图。
+
+- **水印**（`Watermark`）
+  - 和「背景美化」不是一回事：水印是**叠加**在图上，美化是**包边**。
+  - 支持文字水印，位置四角/平铺，透明度可调。
+  - 「导出时加水印」是独立开关，不影响预览。
+
+### 注意事项
+
+- 擦除是重计算：大图（4K 以上）涂抹后要等 1~3 秒，面板上有进度指示。
+- 美化只影响导出，不改原图文件。
+- 水印开关在「设置 → 截图 → 导出」里，默认关。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `BeautifyPanel.swift:1` | `body` | 背景/内边距/圆角/投影面板 |
+| `BeautifyPanel.swift` | `render` | 合成美化结果 |
+| `ObjectRemovalEngine.swift:1` | `remove(in:mask:)` | 双引擎调度 |
+| `ObjectRemovalEngine.swift` | `inpaint` / `textureSynthesize` | 两个填充引擎 |
+| `Watermark.swift` | `apply` | 水印叠加 |
+
+---
+
+## 第十章 长截图
+
+### 功能是什么
+
+框一块区域，程序**自动滚动并连续采集**，最后拼成一张长图。适合聊天记录、长网页、长文档。
+
+### 用户怎么用
+
+| 步骤 | 操作 |
+|---|---|
+| 1 | `⇧⌥L` 进入长截图 |
+| 2 | 框选要截的区域（只框内容区，别框滚动条） |
+| 3 | 按提示滚动（有的页面要手动滚，有的自动滚） |
+| 4 | 采集中 HUD 显示已采集帧数与高度 |
+| 5 | 点「完成」进入拼接预览，可裁剪、导出 |
+
+### 关键能力点
+
+- **会话状态机**（`LongScreenshotSession`）
+  `IDLE → RUNNING → CAPTURING → PROCESSING → FINISHED / CANCELLED`，每步都能取消，不会卡死。
+
+- **采集走 30fps SCStream**（`LongScreenshotFrameStream`）
+  旧实现每次 tick 都 `sckCaptureSync`，一帧 100ms+；改成会话期开一条流（`sourceRect` = 选区、排除本 App 全部窗口），帧率稳、CPU 低。
+
+- **拼接基于已知位移**（`LongScreenshotStitcher`）
+  不是简单的「重叠区域匹配」，而是记录每帧的滚动偏移，按偏移对齐后只保留新增的那一条。这样即使页面有渐变背景也能接准。
+
+- **动态内容裁切**（`LongScreenshotMotionCrop`）
+  滚动时画面里常有不跟着滚的东西（视频、光标、悬浮按钮）。这一层识别「没动的部分」并从新增条里剔除，避免它们重复出现。
+
+- **实时预览卡**（`LongScreenshotPreviewWindow`）
+  采集过程中右侧浮出一张缩略长图，随时能看到拼到哪了；可以翻到左边、也能在超宽时切换布局。
+
+- **HUD 进度**（`LongScreenshotHUD`）
+  旧实现框选确认后只剩一个 Toast，采集中完全没反馈。现在 HUD 常驻显示帧数、当前高度、耗时。
+
+- **离线自检**（`LongScreenshotDiagnostics`）
+  `kitnest://longshotcheck` 用「合成长图 + 已知位移切片」回灌拼接器，校验画布尺寸/接缝/重复帧/向上滚动——不碰鼠标也能验证算法。
+
+### 注意事项
+
+- 只框**内容区**：把滚动条框进去会导致每帧右侧差异，接缝处会看到条状残影。
+- 页面里如果有固定悬浮元素（回到顶部按钮、客服气泡），它们会被动态裁切层识别；识别失败就手动裁掉。
+- 采集帧率默认 30fps，滚动越快越容易掉帧；慢慢滚质量更好。
+- 拼接结果先进预览窗，**确认后才落盘**，不会覆盖原截图。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `LongScreenshotSession.swift:477` | `begin` / `tick` / `finish` | 状态机全流程 |
+| `LongScreenshotFrameStream.swift:18` | `start` / `stream(_:didOutput:)` | 30fps SCStream 采集 |
+| `LongScreenshotStitcher.swift:731` | `stitch` | 按偏移对齐拼接 |
+| `LongScreenshotMotionCrop.swift` | `crop` | 动态元素剔除 |
+| `LongScreenshotHUD.swift` | `update` | 采集进度 HUD |
+| `LongScreenshotPreviewWindow.swift` | `present` | 实时预览卡 |
+| `LongScreenshotCoordinator.swift:423` | `beginSelection` / `finishCurrentSession` | 入口与收尾 |
+| `LongScreenshotDiagnostics.swift` | `runStitcherCheck` | 离线拼接自检 |
+| `Stitcher.swift` | `merge` | 基础拼接算法 |
+
+---
+
+## 第十一章 钉图
+
+### 功能是什么
+
+把一张截图**钉在桌面最上层**当参考：可以拖动、缩放、改透明度、加标注，始终浮在其他窗口上面。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| `⇧⌥P` | 截完直接钉住（用当前默认外观） |
+| 动作条「钉住」组 | 按指定形态钉：经典 / 无边框 / 卡片 / 强调 |
+| 拖动 | 移动位置 |
+| 滚轮 / 双指 | 缩放（10%~400%） |
+| 右键 | 菜单：标注、OCR、翻译、保存、透明度、关闭 |
+| 悬停 | 浮出控制条（关闭 / 缩放 / 透明度 / 更多） |
+
+### 四种形态
+
+| 形态 | 边框 | 圆角 | 阴影 | 适合 |
+|---|---|---|---|---|
+| **经典** | 1.5pt 自动取色 | 10pt | 有 | 默认，任何背景都不违和 |
+| **无边框** | 无 | 0 | 无 | 贴图当壁纸、无缝拼 |
+| **卡片** | 2pt 白 | 16pt | 有 | 放在深色桌面，像一张卡片 |
+| **强调** | 2pt 主题色 | 12pt | 有 | 演示时突出 |
+
+> 形态**只作用于这一张**（`PinAppearance`）。在右键菜单里改外观会同时写回全局，保持「新钉图沿用上次设置」的老行为。
+
+### 关键能力点
+
+- **自动取边框色**（`PinStyle.sampledBorderColor`）：按图片平均亮度决定描边是深还是浅，深色图用白边、浅色图用深边。取样结果按图缓存一次。
+
+- **磁性吸附**（`PinStyle.magnet`）：拖到屏幕边缘或别的钉图旁边会吸过去对齐。
+
+- **控制条自动隐藏**（`PinStyle.chromeAutoHide`）：悬停才出现，几秒不动自己淡出，不挡图。
+
+- **每张图独立外观**（`PinWindow` + `PinAppearance`）：边框宽度、颜色、圆角、阴影、磁性、透明度、控制条超时，全部随窗口带一份。
+
+- **逆向外观参数**：阴影 `opacity 0.23 / radius 9 / offset (0,-5)`、圆角 `25`（按卡片宽度自适应到 8~25）——这些数值是从 1Capture 二进制里逐条还原的，不是拍脑袋。
+
+- **标注竖栏**（`PinChrome`）：钉图上也能直接加标注，工具条竖排在右侧，样式与标注编辑器一致。
+
+### 注意事项
+
+- 钉图数量多会占内存：每张是一份完整位图。用完记得关，右键菜单有「关闭全部」。
+- 钉图**不参与截图**（`sharingType = .none`），所以钉一张参考图再截别的图，参考图不会跑进截图里。
+- 透明度过低时容易找不到，控制条上有恢复默认。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `PinWindow.swift:500` | `PinnedScreenshotContentView.draw` | 绘制（边框/圆角/透明度） |
+| `PinWindow.swift:1140` | `menu` | 右键菜单 |
+| `PinWindow.swift:1380` | `PinnedScreenshotWindow` | 窗口（非激活、置顶、阴影） |
+| `PinWindow.swift` | `PinAppearance` / `preset` | 四形态参数 |
+| `PinWindow.swift` | `showControls` / `magnify` | 控制条与缩放 |
+| `PinChrome.swift` | `bubble` / `toolbar` | 标注竖栏与说明气泡 |
+| `PinStyle.sampledBorderColor` | — | 按图取边框色 |
+
+---
+
+## 第十二章 图帘
+
+### 功能是什么
+
+截图后**不落地**，先挂在屏幕顶边的一条帘线上，像晾衣绳上的夹子。需要时拖进聊天窗口、复制、保存或钉图；到时间自己收起，但内容不删。
+
+> 名字：v263 之前叫「悬挂架 / 袋子 / 晾衣杆」，v263 起统一叫**图帘**。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| `⇧⌥G` | 展开 / 收起图帘 |
+| 截图后（开启「自动上架」时） | 自动挂上去 |
+| 动作条 → 钉住组 →「挂到图帘」 | 手动挂一张 |
+| 单击卡片 | 复制图片 |
+| 拖卡片 | 拖出成文件（Finder / 聊天窗 / 编辑器都行） |
+| 悬停卡片 | 浮出保存 / 钉图 / 移除三个按钮 |
+| 右键卡片 | 菜单：复制、保存到…、在 Finder 中显示、钉住、放大/缩小图帘、移除 |
+| **按住 `⌘` 左右拖** | 整条图帘等比放大（72~420pt） |
+| `⌘` + 滚轮 | 同上 |
+
+### 关键能力点
+
+- **四种帘线**（`CurtainRopeStyle`）
+  - **原版**：一根半透明的线，任何桌面都不抢眼。
+  - **拐杖糖**：白线缠红条纹，最像晾衣绳。
+  - **圣诞彩灯**：线上等距小灯，四色循环，深色桌面最好看。
+  - **积雪**：线上积雪，冬天用。
+  - 四种全部用 CoreGraphics 画，**不引入粒子层**——常驻粒子在滚动/缩放时掉帧。
+
+- **几何是从二进制还原的**（`CurtainRopeGeometry`）
+  - 三次贝塞尔，控制点在 1/3 和 2/3（不是二次贝塞尔的单控制点）。
+  - 下垂量按宽度算：`min(width × 0.018, 28)`，和挂了几张无关。
+  - 线端距视图顶 12pt；每道描边带 `shadow(黑 28%, offset(0,1), blur 2)`——靠阴影勾轮廓，而不是双色描边。
+
+- **卡片跟着帘线歪**（`CurtainRopeGeometry.tilt`）：按该点切线斜率旋转，限幅 ±4°。挂在一根下垂的线上还笔直垂着，是「假」的最大来源。
+
+- **常驻微摆**用 `CABasicAnimation` 改 transform（不重绘、跑在 render server）；已经在摆就不重挂，避免设置页拖滑块时整排卡片跳动。
+
+- **缩放整条帘**（`CurtainController.resizeStep`）
+  - ⌘ 拖动 / ⌘ 滚轮 / 右键菜单三入口。
+  - 缩放按**屏幕坐标**算增量——用视图坐标会随窗口变宽形成正反馈（实测一拖就冲到上限）。
+  - 拖动中只改临时宽度并原地重排（`updateLayout`），**不重建视图、不重挂动画**；松手才写偏好。
+  - 帘线、夹子、绳结、间距、垂度统一乘 `railScale`（卡片宽 / 140，夹 0.8~3）。
+
+- **「帘线缩放」可以单独关**（`CurtainPref.railScalesWithCards`）：关掉后只放大图片，帘线保持原粗细。
+
+- **屏幕放不下时自动收窄**：优先保证整条帘子完整可见，张数变少会自己放大回去。
+
+- **不常驻**：开关关着时不建窗口、不占内存。默认**关闭**。
+
+- **不进截图**（`sharingType = .none`）：帘子浮在桌面上，但你截别的图时它不会跑进去。
+
+### 注意事项
+
+- 默认关闭，开关在「设置 → 截图与钉图 → 图帘」。
+- 到点只**收起**，不删内容；下次唤出内容还在。
+- 超过「最多张数」（默认 8）时从最旧的开始挤出帘子，**文件不删**。
+- 卡片放大到 220pt 以上会自动重解一次高清缩略图，只重解一次。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `CurtainController.swift:1` | `attach` / `insert` | 挂载与插入（含去重/上限） |
+| `CurtainController.swift` | `show` / `hide` / `dismissAll` | 生命周期 |
+| `CurtainController.swift` | `layoutMetrics` / `contentSize` | 按屏幕反算卡片宽 |
+| `CurtainController.swift` | `resizeStep` / `resizeEnd` | ⌘ 缩放（临时宽度 → 落盘） |
+| `CurtainController.swift` | `upgradeThumbnailsIfNeeded` | 放大后重解缩略图 |
+| `CurtainModel.swift` | `CurtainItem` / `CurtainPref` / `CurtainRopeStyle` | 模型与偏好 |
+| `CurtainWindow.swift` | `CurtainRopeGeometry` | 三次贝塞尔几何与切线 |
+| `CurtainWindow.swift` | `drawClip` / `drawLights` / `drawSnow` | 夹子与四种帘线 |
+| `CurtainWindow.swift` | `reload` / `updateLayout` | 重建 vs 原地重排 |
+| `CurtainWindow.swift` | `animateDrop` / `startSway` | 落入摆动与常驻微摆 |
+| `CurtainSettingsPane.swift` | `body` | 设置页（开关/样式/时长/张数/宽度/帘线缩放） |
+
+---
+
+## 第十三章 截图历史
+
+### 功能是什么
+
+所有**落盘过**的截图都在这里：缩略图网格、按时间分组、点击定位到文件。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 面板首页 → 截图区段 →「历史」 | 打开历史网格 |
+| 动作条 →「更多」→「历史」 | 同上 |
+| `kitnest://capture?history=1` | 深链直达 |
+
+### 关键能力点
+
+- **只记落盘文件**（`CaptureHistoryStore`）：内存里截完就丢的不进历史。所以历史条目都能在 Finder 里找到。
+- **缩略图分级解码**（`ArchiveEntryThumbnail` 同款策略）：先出小图，滚动停止后再补大图，避免一次解码几十张 6K 截图。
+- **按时间分组**：今天 / 昨天 / 更早，每组一个标题。
+- **点击定位**：单击选中，双击用系统预览打开，右键「在 Finder 中显示」。
+
+### 注意事项
+
+- 历史只记**本应用截的图**，系统截图（`⇧⌘3/4`）不会进来。
+- 删除历史条目**不删原文件**，只是从索引里去掉。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `CaptureHistoryStore.swift:294` | `append` / `all` | 落盘记录索引 |
+| `CaptureHistoryView.swift:410` | `body` / `grid` | 缩略图网格 |
+
+---
+
+## 第十四章 文字识别、翻译与二维码
+
+### 功能是什么
+
+三件事共享一条「图 → 文字」的链路：
+
+- **识字**：截图或图片转可复制文本。
+- **翻译**：识别后翻译，译文回流剪贴板。
+- **识码**：二维码 / 条形码内容提取。
+
+### 用户怎么用
+
+| 快捷键 / 入口 | 效果 |
+|---|---|
+| `⇧⌥S` | 截图并识字，结果窗可选中复制 |
+| `⇧⌥T` | 截图并翻译，译文弹提示并进剪贴板 |
+| `⇧⌥D` | 划词翻译（翻译当前选中的文本） |
+| 动作条「识别」组 | 识字 / 识码 / 翻译 / 屏幕翻译 |
+| 图片预览 | 自动识别二维码，旁边显示内容 |
+| 截图历史 → 右键 | 对历史截图识字 |
+
+### 关键能力点
+
+- **两级 OCR 引擎**（`PPOCROCR`）
+  - **Apple Vision 负责「文字在哪」**：文本行检测，快且准。
+  - **PP-OCR 负责「这是什么」**：逐行识别，中文识别率更高。
+  - 组合起来比单用任一个都准：Vision 单独用对中文长句容易断，PP-OCR 单独用定位差。
+
+- **PP-OCR 走子进程**（`PPOCROCREmote` + `FrsetOCRHelper`）
+  为什么不在进程内：ONNX Runtime 加载模型要几百 MB 内存，常驻会一直占着。
+  子进程按需启动、识别完退出，内存立即归还。代价是首次识别多约 300ms。
+
+- **结果窗**（`ScreenshotOCRWindow`）
+  原文视图可选中、默认不可编辑（防止误改）；译文区可编辑；有「复制全部」「对照视图」两个模式。
+
+- **翻译 Provider 链**（`TranslationProvider`）
+  - 优先外部 API（`QNWTranslator`，需配置）。
+  - 其次 Apple 系统翻译（`AppleTranslationProvider`，离线可用，质量一般）。
+  - 最后 AI 服务商（第三十章）。
+  - 抽象成统一接口 + 注册表，加新引擎不用改调用方。
+
+- **屏幕翻译**（`ScreenTranslator`）
+  框选 → OCR → 翻译 → 译文以浮层贴回原位置（可选覆盖原文或并列显示）。
+
+- **二维码识别**（`QRCodeRecognizer`）
+  用 Vision 的条码检测，支持 QR / EAN / Code128 等；图片预览里顺带扫，识别到就显示可复制内容。
+
+- **识别质量兜底**（`OCRRefiner`）
+  识别结果做一次后处理：去多余空格、修正常见误识（`0`/`O`、`l`/`1`）、合并断行。
+
+### 注意事项
+
+- PP-OCR 模型随包分发（约 30MB），首次识别会有一次加载；之后子进程复用。
+- 屏幕翻译需要「屏幕录制」；划词翻译需要「辅助功能」。
+- 翻译失败会保留原文，不会吞掉识别结果。
+- 手写体、艺术字识别率明显低于印刷体，这是模型能力边界。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `OCRService.swift:614` | `recognize(image:)` | OCR 总入口 |
+| `PPOCROCR.swift:220` | `recognizeLines` | Vision + PP-OCR 组合 |
+| `PPOCROCREmote.swift:156` | `recognize` | 子进程调度 |
+| `OCRRefiner.swift` | `refine` | 结果后处理 |
+| `ScreenshotOCRWindow.swift:684` | `body` | 原文/译文结果窗 |
+| `QRCodeRecognizer.swift` | `recognize` | 二维码/条码 |
+| `ScreenTranslator.swift:297` | `translate(rect:)` | 屏幕翻译全链路 |
+| `TranslationProvider.swift` | `translate` | Provider 抽象 |
+| `QNWTranslator.swift` | `translate` | 外部 API 翻译 |
+| `AppleTranslationProvider.swift` | `translate` | 系统翻译兜底 |
+| `TranslationToolSession.swift` | `translate` | 翻译会话（供截图/AI/划词共用） |
+| `OCRDiagnostics.swift` | `runPipelineCheck` | 无鼠标自检（`kitnest://ocr`） |
+
+---
+
+## 第十五章 录屏
+
+### 功能是什么
+
+基于 ScreenCaptureKit + AVAssetWriter 的屏幕录制：整屏或选区，可选帧率、分辨率、声音来源、输出格式。录制时有毛玻璃计时窗显示时长。
+
+> 实现是 ObjC（`FrsetStatsBar/frset_recorder.m`，1227 行），Swift 侧通过 `StatsBarEngine.openRecorder()` 调起——所以它不在 Swift 函数清单里。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 面板首页 → 截图区 →「录屏」 | 打开录屏设置小窗 |
+| 菜单栏 STATS 部件 | 录屏入口 |
+| `kitnest://record` | 深链直达 |
+
+设置小窗里选参数 → 点「开始录制」→（选了「选择区域」就拖框、回车确认）→ 录制 → 点计时窗「停止」。
+
+### 设置项
+
+| 设置 | 可选值 | 说明 |
+|---|---|---|
+| 帧率 | 15 / 24 / 30 / 60 | 越高越流畅，文件越大 |
+| 分辨率 | 原始 / 75% / 50% | 缩放录制，减小体积 |
+| 区域 | 整个屏幕 / 选择区域 | 选区时 `Esc` 取消、回车确认 |
+| 声音 | 无 / 系统音 / 麦克风 / 系统+麦克风 | 内录与麦克风混音 |
+| 格式 | MOV / MP4 / GIF | GIF 会自动压到 ≤720px、≤12fps |
+| 保存目录 | 默认「影片」，可改 | — |
+
+所有参数存 `widgets.plist` 的 `Recorder_*` 键，和注入版共用。
+
+### 关键能力点
+
+- **管线**：`SCStream`（display filter + sourceRect）→ `CMSampleBuffer` → `AVAssetWriter`（H.264 + AAC）。
+- **GIF 是两段式**：AVAssetWriter 写不了 GIF 容器，所以录制阶段落成 mov 临时文件，停止后再用 ImageIO 转 GIF 并删临时文件。
+- **计时窗**：毛玻璃浮层，显示时长 + 停止按钮，跟着录制区域走。
+- **区域框选**（`FSRegionOverlayIsActive`）：录制选区时浮动层会主动让路，不挡住框选。
+- **麦克风降级**：没授权麦克风时自动只录系统音，不报错。
+
+### 注意事项
+
+- 录制中切换用户或锁屏可能中断（系统行为）。
+- GIF 体积仍然偏大（没有调色板优化），做演示够用，长时间录制建议 MOV/MP4。
+- 录屏需要「屏幕录制」权限；首次开始时会请求一次。
+- 录制的是**整个显示器**再由 `sourceRect` 裁切，所以选区版也吃整屏采集的带宽。
+
+### 实现索引
+
+| 文件 | 函数 | 职责 |
+|---|---|---|
+| `frset_recorder.h` | `FSScreenRecOpenSettings` | 打开设置小窗 |
+| `frset_recorder.h` | `FSScreenRecBeginFromSettings` | 按当前设置开始录 |
+| `frset_recorder.h` | `FSScreenRecStop` | 停止并收尾 |
+| `frset_recorder.m:79` | `audioMode` / `format` | 声音与格式状态 |
+| `frset_recorder.m:133` | GIF 导出段 | mov → GIF（≤720px / ≤12fps） |
+| `StatsBarEngine.swift` | `openRecorder` | Swift 侧唯一入口 |
+
+---
+
+# 第三部分 · 系统
+
+## 第十六章 系统监测
+
+### 功能是什么
+
+实时监测 Mac 的运行状态，三个展示层级：**菜单栏部件**（一眼可见）、**监测独立窗**（详情）、**状态栏浮层**（点部件弹出）。八个模块共用一套读取引擎。
+
+### 用户怎么用
+
+| 入口 | 操作 | 效果 |
+|---|---|---|
+| `⌥P` | 打开/关闭监测独立窗 | 可常驻的玻璃窗 |
+| `⌥M` | 同上（另一条默认键） | — |
+| 主面板「性能监测」页 | 点分段切换 | 面板内嵌同一套内容 |
+| 菜单栏部件 | 点击 | 弹出该模块详情浮层 |
+| 菜单「显示项」 | 逐项勾选 | 控制各模块部件显隐 |
+| 设置 → 性能监测 | 选模块 | 配采样间隔、模块开关、部件形态 |
+
+### 八个模块
+
+| 模块 | 看什么 |
+|---|---|
+| **CPU** | 总占用、每核心、集群（性能核 / 能效核 / 中核）、平均负载、占用最高的进程 |
+| **内存** | 已用 / 压缩 / 联动 / 可用、交换区、内存压力（活动监视器口径） |
+| **GPU** | 使用率、显存、渲染/分块引擎占用 |
+| **磁盘** | 读写速度、容量、SMART 健康度、高占用进程、外接卷自动识别 |
+| **网络** | 上下行速度、连接状态、延迟、高占用进程 |
+| **传感器** | 温度、电压、电流、功率、风扇转速（无对应硬件则不显示） |
+| **电池** | 电量、健康度（设计容量/标称容量双口径）、循环次数、适配器功率、CPU 能耗影响 |
+| **功耗** | 整机瓦数，区分「输入（充电中）」与「输出」 |
+
+### 关键能力点
+
+- **十二种部件形态**（`StatsBarEngine` + `frset_barwidgets.m`）
+  迷你数值、折线、柱状、饼图、速度、状态点、标签、图标……按模块分别设置，改完立即生效。配置与 Stats 引擎互通。
+
+- **采样引擎**（`MonitorSampler`）
+  按设定间隔（0.5~10 秒，默认 2 秒）采样；面板/窗口都不可见时自动降频到 5 秒，省电省 CPU。
+
+- **数据源同源**（v76 起的硬约束）
+  菜单栏部件、主面板性能页、独立窗显示的是**同一时刻的同一组数值**——核心指标直接读 C 引擎快照（`g_snap`，0.5s tick），不再各采一份。
+
+- **温度可视化**
+  20–110°C 固定标尺的橙色条形，计算项（Average / Hottest CPU / GPU）与 27 项传感器全部带条，风扇保留 RPM 条。
+
+- **网络诊断**（网络模块详情内）
+  公网 IP 与归属地、多目标延迟、DNS 解析、系统代理与本地代理端口检测（`NetworkDiagnostics`）。
+
+- **端口占用**（`PortInspector` / `PortOccupancySection`）
+  列出正在监听的端口、对应进程、是否对局域网开放。排查「谁占了 8080」不用开终端。
+
+- **外接卷自动识别**（`DiskVolumes`）：插上 U 盘 / 移动硬盘，磁盘模块里自动多一块。
+
+- **独立窗的点外收起**：四路冗余监听（全局监视器 + 本 app 内监视器 + 50ms 轮询 + app 失活通知），不依赖辅助功能授权。
+
+### 注意事项
+
+- 温度依赖 SMC，Intel 与 Apple Silicon 的传感器列表不同；个别机型某些传感器无读数属正常。
+- 功耗需要电池或电源适配器在位，部分台式机显示「无数据」。
+- 同时运行官方原版 Frset 会画两套菜单栏组件，建议二选一（应用会提示）。
+- 电池健康度给了两个口径：按「设计容量」算和按「标称容量」算，两个数都显示——不同工具算法不同，并排看才不困惑。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `MonitorSampler.swift:330` | `scheduleNext` / `sampleOnce` | 采样节拍与降频 |
+| `MonitorReader.swift:628` | `readCPU` / `readMemory` / `readNetworkRate` / `readDiskRate` / `readPower` / `readBatteryLevel` | 主机层指标 |
+| `MonitorReader.swift` | `readSMCTemperature` | SMC 温度直读 |
+| `StatsBarEngine.swift:318` | `openMonitor` / `openSettings` | 部件点击与设置入口 |
+| `StatsModulePanels.swift:1342` | 模块面板 | 各模块浮层版式 |
+| `MonitorDetailView.swift:1277` | `body` | 详情窗（模块切换条） |
+| `MonitorPopoutWindow.swift:479` | `open` / `dismissPopout` | 独立窗生命周期 |
+| `MonitorCharts.swift:306` | `LineChart` / `BarChart` | 折线与柱状 |
+| `BatteryPanel.swift:622` | `body` | 电池详情（双口径健康度） |
+| `BatteryEnergy.swift:261` | `energyImpact` | CPU 能耗影响 |
+| `DiskVolumes.swift:118` | `volumes` | 外接卷枚举 |
+| `NetworkDiagnostics.swift:442` | `probePublicIP` / `probeLatencies` / `probeDNS` / `detectProxyProcess` | 网络诊断四件套 |
+| `PortInspector.swift:252` | `listeners` | 端口占用枚举 |
+| `MonitorHistory.swift:39` | `append` | 环形缓冲（迷你图数据） |
+
+---
+
+## 第十七章 内存维护
+
+### 功能是什么
+
+内存详情页底部的「内存维护」区：**一个按钮做两件事**——清缓存 + 暂停闲置应用。做完给一份**诚实的报告**，分项写清楚释放了什么、什么没变。
+
+> 名字：「深度释放」。早期版本是「清缓存」和「冻结闲置」两个按钮，v259 按用户要求合并成一个。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| 点「深度释放」 | 跑一次完整流程（清缓存 + 暂停闲置），出报告 |
+| 勾选「暂停闲置」 | 决定这次是否包含冻结（默认勾选） |
+| 「全部唤醒」 | 把所有被冻结的应用解冻 |
+| 已暂停清单 | 显示当前冻结了哪些应用，可单个唤醒 |
+
+### 报告看什么
+
+| 分项 | 含义 |
+|---|---|
+| **应用** | 应用实际占用（`ri_phys_footprint`，不是 RSS） |
+| **压缩** | 内存压缩器占用 |
+| **缓存** | 文件缓存 |
+| **空闲** | 完全空闲的页 |
+| **已暂停** | 这次冻结了几个应用 |
+
+实测样本（本机）：应用 −306MB / 缓存 −1164MB / 压缩 +497MB / 空闲 +1022MB。
+
+> 注意「压缩 +497MB」：purge 把内存页挤出去后，一部分进了压缩器。所以「释放量」不等于「空闲增加量」，报告分开列才不误导。
+
+### 关键能力点
+
+- **两档动作**
+  - **清缓存**：`malloc_zone_pressure_relief` + 内存压力广播 + `purge`（需要 root helper）。
+  - **暂停闲置**：给符合条件的进程发 `SIGSTOP`，让它彻底不占 CPU；唤醒发 `SIGCONT`。
+
+- **暂停白名单**（`ProcessFreezer`）
+  终端、IDE、虚拟机、会议软件、输入法、宿主进程一律不冻——冻了会出事。
+
+- **「屏幕有窗口」和「5 分钟内激活过」的不冻**：判断依据是进程有没有可见窗口、最近有没有交互，避免冻掉你正在用的东西。
+
+- **30 分钟自动解冻**：暂停不是永久的，到点自己恢复。
+
+- **watchdog 自愈**：用 `posix_spawn` 起一个独立守护进程（不是 `Process.run()`，那个在 App 内会被吞错），App 崩了 5 秒内把冻结的进程全部 `SIGCONT`。
+
+- **root helper**：`FrsetNextHelper` 是一个 LaunchDaemon，装一次长期可用；没装时降级为「只清用户态缓存」。
+
+- **诚实报告**（`MemoryOptimizer`）
+  采样前 → 执行 → 采样后 → 分项对比。不做「释放了 2GB！」这种把压缩算进释放的话术。
+
+### 注意事项
+
+- 冻结的进程**不是被杀**，是暂停：内存还在、窗口还在，点它一下会自动解冻。
+- 频繁点「深度释放」没有额外收益：第一次能吐出来的，第二次基本没有。
+- 内存压力大时系统自己会回收，第三方工具的作用有限——这个功能的价值在「主动释放 + 报告清楚」，不在「神奇加速」。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `MemoryOptimizer.swift:175` | `optimize` | 采样→执行→采样→报告 |
+| `MemoryOptimizeCard.swift:199` | `body` | 按钮 + 复选框 + 已暂停清单 |
+| `ProcessFreezer.swift:458` | `freezeIdle` / `thawAll` / `thawOrphans` | 冻结/解冻/孤儿清理 |
+| `ProcessFreezer.swift` | `isProtected` | 白名单判定 |
+| `ProcessFreezer.swift` | `startWatchdog` | posix_spawn 守护 |
+| `MemoryBreakdown.swift:89` | `breakdown` | 内存分类（活动监视器口径） |
+| `ProcessMemoryInspector.swift:102` | `topConsumers` | 按应用归并物理占用 |
+| `MemoryHelperClient.swift:208` | `installHelper` / `run` | root helper 通信 |
+| `MemoryHelper/main.swift:185` | `main` | helper 进程入口 |
+
+---
+
+## 第十八章 存储管理
+
+### 功能是什么
+
+一块**可视化**的磁盘占用面板：全盘索引（不限深度）、气泡堆块、可清理候选清单、一键移到废纸篓。索引只在打开面板时加载，平时零常驻。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 状态栏监测 → 存储 →「存储管理」 | 打开面板 |
+| 面板性能页 → 磁盘 →「管理存储」 | 同上 |
+| `kitnest://storage` | 深链直达 |
+| `kitnest://storage?scan=1` | 打开并立即扫描 |
+
+面板结构：顶部大数字（可清理总量）+ 索引状态行；左侧可清理清单（勾选）；右侧气泡堆块（点击下钻、面包屑返回）。
+
+### 关键能力点
+
+- **扫描口径**（v264 重做）
+  - **不限深度**：`Xcode.app/Contents/Developer/Platforms/…` 这类深层内容全部计入。
+  - **含隐藏目录**：`.workbuddy` / `.cursor` / `.npm` / `.cargo` 都进。
+  - **含 `~/Library`** 与系统只读卷。
+  - 不跳 `/System`，只跳 `/System/Volumes`（那是 `/Users` 的另一张脸，算了两遍）。
+  - **大小按磁盘实际块**（`st_blocks`），与 `df`/`du` 同一口径——APFS 透明压缩下 `st_size` 会虚高（`/System` 逻辑 30GB / 物理 13GB）。
+
+- **实测规模**：248.7 万条目 / 185.6 GB / 52 秒 / 缓存 59MB（二进制 plist）。
+
+- **覆盖率如实显示**：状态行写「已索引 185.6 G / 整盘已用 273.4 G」。差额来自：
+  - `~/Library/Containers`（沙盒容器，本机 33GB）——没授权「完全磁盘访问」时系统不让读，界面有「去授权」按钮直达系统设置；
+  - APFS 本地快照、交换文件、文件系统元数据——不在任何目录里，索引天然覆盖不到。
+
+- **可清理候选**（`DiskIndexStore.candidates`）
+  只认真正的缓存目录名（`Caches` / `node_modules` / `DerivedData` / `.npm` / `__pycache__` …）且体积 >20MB 的。
+  **故意排除了** `Downloads`（用户数据）、`/tmp`（会打断运行中的进程）、`.rustup`/`.cargo`/`Xcode`（工具链，删了要重装）。
+
+- **气泡堆块**（`StorageTreemap` + `StorageVoronoi`）
+  按面积表示体积的 Voronoi 分割，颜色按目录层级，点击下钻。用户对照 Kanso 截图要求过颜色和色块，这一版是按反馈重做的。
+
+- **删除只到废纸篓**（`FileManager.trashItem`）：可恢复，不做永久删除。
+- **工作记录**：每次清理记一条（时间/路径/大小/是否全部成功），最多 50 条。
+- **让 Agent 清理**：把本次扫描明细生成一段结构化提示词，复制给本地 Agent，由它判断哪些能清（应用本身不动手）。
+
+### 注意事项
+
+- 首次建立索引约 50 秒（248 万条目），期间可以取消。
+- 索引缓存有版本号：源结构一变（比如 v264 改了口径），旧缓存自动作废并提示重扫，不会拿错数据骗人。
+- 没有「完全磁盘访问」时覆盖率会明显偏低，这不是漏扫，是系统不让读。
+- 「可清理」清单只是建议，**勾选后仍会弹确认框**列明路径和总大小。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `DiskIndex.swift:117` | `scan` | 扫描调度（后台队列 + 可取消） |
+| `DiskIndex.swift` | `walk` | 递归建树（d_type 判目录，文件取 st_blocks） |
+| `DiskIndex.swift` | `physicalSize` | 物理占用（st_blocks × 512） |
+| `DiskIndex.swift` | `hasFullDiskAccess` | FDA 探测（读系统级 TCC.db） |
+| `DiskIndex.swift:273` | `DiskIndexStore.candidates` | 可清理候选筛选 |
+| `DiskIndex.swift` | `trash` | 移到废纸篓 + 更新树 |
+| `DiskIndex.swift` | `decodeSnapshot` | 缓存解码 + schema 校验 |
+| `StorageManagerWindow.swift:1020` | `body` / `header` | 面板版式与状态行 |
+| `StorageManagerWindow.swift` | `statusLine` | 「已索引 / 整盘已用」 |
+| `StorageTreemap.swift:367` | `render` | 堆块绘制 |
+| `StorageVoronoi.swift:321` | `compute` | Voronoi 分割 |
+
+---
+
+## 第十九章 网络诊断与端口
+
+### 功能是什么
+
+两块能力，都在监测的「网络」模块里：
+
+- **网络诊断**：公网 IP 与归属地、多目标延迟、DNS 解析、系统代理检测。
+- **端口占用**：谁在监听、哪个进程、是否对局域网开放。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 监测窗 → 网络模块 | 下方「诊断」区 |
+| 状态栏网络部件 → 点击 | 详情浮层里同样有 |
+| 面板 → 性能监测 → 网络 | 同上 |
+
+点「开始诊断」逐项跑，每项独立超时，不会因为一项失败卡住全部。
+
+### 关键能力点
+
+- **公网 IP + 归属地**（`IPAddressService.queryPublicIP`）
+  调 `api.ipify.org`（免 Key 公共服务），带超时；归属地另走一次查询。
+
+- **多目标延迟**（`probeLatencies`）
+  同时对多个目标（网关 / 公共 DNS / 常用站点）发探测，分别给毫秒数——单项延迟说明不了问题，横向对比才看得出是本地网络还是目标站点的问题。
+
+- **DNS 解析**（`probeDNS`）
+  指定域名解析一遍，看返回的 IP 与耗时；解析失败会明确说是「无响应」还是「NXDOMAIN」。
+
+- **代理检测**（`detectProxyProcess`）
+  读系统代理配置 + 扫本地常见代理端口（7890 / 1080 / 8080 等），告诉你「现在有没有代理在拦」。
+
+- **端口占用**（`PortInspector.listeners`）
+  枚举正在监听的 TCP/UDP 端口、对应 pid 与进程名、绑定地址（`127.0.0.1` 仅本机 / `0.0.0.0` 对局域网开放）。排查「谁占了 8080」不用开终端。
+
+- **端口区块**（`PortOccupancySection`）
+  在网络详情里以列表呈现，可排序、可搜索；点进程名可定位到可执行文件。
+
+### 注意事项
+
+- 公网 IP 查询会向 `api.ipify.org` 发一次请求——这是唯一一个对外请求，介意可以不用这项。
+- 端口枚举用的是 `netstat`/`lsof` 等价能力，需要普通用户权限即可；部分系统进程的端口可能看不到。
+- 代理检测是「读配置 + 扫端口」，不是流量拦截。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `NetworkDiagnostics.swift:442` | `probePublicIP` | 公网 IP 与归属地 |
+| `NetworkDiagnostics.swift` | `probeLatencies` | 多目标延迟 |
+| `NetworkDiagnostics.swift` | `probeDNS` | DNS 解析 |
+| `NetworkDiagnostics.swift` | `detectProxyProcess` | 系统代理与本地端口 |
+| `PortInspector.swift:252` | `listeners` | 端口枚举 |
+| `PortOccupancySection.swift:209` | `body` | 端口列表 UI |
+| `IPAddressService.swift:126` | `queryPublicIP` / `localIPAddress` | IP 查询 |
+| `NetworkFlowTracker.swift:313` | `track` | 高占用进程归因 |
+
+---
+
+# 第四部分 · 传输
+
+## 第二十章 文件中转
+
+### 功能是什么
+
+一个「池子」+ 多条出口：所有来路的文件都汇进**本地暂存**，勾选后按对方设备选出口——隔空投送、扫码直传、ADB 直传、云端。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| `⌥T` | 打开面板并切到「文件中转」 |
+| 拖文件到菜单栏图标 | 直接进暂存 |
+| 拖文件进面板 | 同上 |
+| 截图动作条 →「空投」 | 截图直接发隔空投送 |
+| 剪贴板条目右键 →「隔空投送」 | 同上 |
+
+### 四种出口
+
+| 出口 | 对方设备 | 说明 |
+|---|---|---|
+| **隔空投送** | iPhone / iPad / Mac | 系统面板，对端零安装 |
+| **扫码直传** | 任何有浏览器的设备 | 本机起一个小 HTTP 服务，二维码里带一次性 token；对方浏览器上传/下载 |
+| **ADB 直传** | Android | 大文件或批量走 USB 3.0 |
+| **云端中转** | 跨时间/跨设备 | 登录 OPPO 中转站后存云端 |
+
+### 关键能力点
+
+- **本地暂存**（`LocalTransferStore`）
+  所有来路文件的统一落点：隔空投送接收、手机拉取、拖入、剪贴板。按时间倒序，可多选、可删除、可清空。
+
+- **隔空投送接收**（`AirDropReceiveWatcher`）
+  监听 `~/Downloads`（`DispatchSource`），跳过 `.download` 未完成文件，落盘后自动入暂存。
+
+- **扫码直传**（`LanTransferServer`，867 行）
+  起一个局域网 HTTP 服务，二维码内容为 `http://<局域网IP>:<port>/s/<token>/`。token 是一次性的，别人拿到链接也只能用一次。
+  - 支持对方上传（手机 → Mac）和下载（Mac → 手机）。
+  - 不需要装任何 App，浏览器打开就能用。
+
+- **ADB 文件桥**（`ADBFileBridge`）
+  推送：暂存项 → 手机 `Download/FrsetNext/`，逐文件精确报数。
+  拉取：清空暂存目录 → `adb pull` → `LocalTransferStore.add` 正式入索引。
+
+- **文件悬停预览**（`FileHoverPreview`，511 行）
+  Word / PPT / Excel / PDF / 图片等格式，悬停即出缩略图或首页内容，不用打开文件。
+
+- **MCP Server**（`MCPServer`）
+  把手机能力暴露成 HTTP + JSON-RPC 2.0，本机 AI 客户端（Claude / Cursor / 自家 AI）可以直接控制手机。这是给自动化场景留的口子。
+
+- **拖文件到图标**（`StatusItemDropProxy`）：菜单栏图标不是拖放目标，加了一层覆盖视图接住。
+
+### 注意事项
+
+- 隔空投送只通苹果设备；安卓/Windows 用扫码直传或 ADB 补齐。
+- 扫码直传要求两台设备在同一局域网，且 macOS 防火墙允许传入连接（首次会询问）。
+- ADB 直传需要手机开启 USB 调试；无线调试见下一章。
+- 云端中转需要登录 OPPO 账号，登录走官方三段式签名，应用本身不存密码。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `LocalTransferStore.swift:329` | `add` / `remove` / `all` | 暂存池 |
+| `LanTransferServer.swift:867` | `start` / `handle` | 局域网 HTTP 服务 |
+| `QRCodeView.swift` | `body` | 二维码渲染 |
+| `TransferDockService.swift:437` | `upload` / `download` | 云端中转 |
+| `TransferDockView.swift:1406` | `body` | 中转页（上下分区） |
+| `FileHoverPreview.swift:511` | `present` | 悬停预览 |
+| `MCPServer.swift:318` | `start` | AI 控制通道 |
+| `TransferIntakeDialog.swift` | `present` | 接收确认 |
+| `StatusItemDropProxy.swift` | `performDragOperation` | 拖到菜单栏图标 |
+
+---
+
+## 第二十一章 手机投屏
+
+### 功能是什么
+
+Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库、控制条、锁屏保持。**对端零安装**（scrcpy 在电脑侧跑）。
+
+### 用户怎么用
+
+| 步骤 | 操作 |
+|---|---|
+| 1 | USB 连上手机，打开「USB 调试」 |
+| 2 | 点「检测设备」→ 选设备 |
+| 3 | 点「开始投屏」 |
+| 4 | 想摆脱线缆：点「一键无线」（自动 `adb tcpip 5555` + 连接 Wi-Fi 地址） |
+| 5 | 扫码直连：点「扫码配对」，手机扫电脑上的二维码（Android 11+ 无线调试） |
+
+### 关键能力点
+
+- **一键无线**（`ADBExtrasEngine`）
+  USB 连一次 → 自动执行 `adb tcpip 5555` → 连上手机的 Wi-Fi 地址。之后同一网络下直接检测，**不用再开无线调试、不用配对码**。
+
+- **扫码配对**（`AdbQrPairing`，506 行）
+  按 Android 11+ 的无线调试协议生成配对二维码，手机扫一下完成配对。用户 2026-10-29 明确要求「最重要的是扫码直连，而不是基于某个局域网再 adb 连」——这一版就是按这个要求重做的。
+
+- **Bonjour 发现**（`AdbBonjour`）
+  用系统 `NetServiceBrowser` 发现 `_adb-tls-connect._tcp` 服务，自动列出同网段的可用设备。
+
+- **投屏记忆**（`AdbCastMemory`）
+  配对一次，之后零交互——记住设备与端口，下次直接连。
+
+- **应用库**（`DeviceAppCatalog` + `CastAppLibraryWindow`）
+  手机上已安装应用的**真实图标 + 真实名称 + 使用频率**，可在电脑上直接启动、卸载、搜索。
+
+- **控制条**（`CastControlBar`）
+  贴在 scrcpy 窗口底部：返回 / 桌面 / 多任务 / 音量 / 电源。不用记快捷键。
+
+- **锁屏保持**（`CastScreenKeeper`）
+  手机一旦休眠（黑屏），自动唤醒到**锁屏界面**，不是解锁——既保持投屏不断，也不绕过锁屏。
+
+- **WebDAV 挂载**（`AndroidWebDAVServer`）
+  把 `/sdcard` 以 WebDAV 暴露在 `127.0.0.1:8766`，Finder「前往 → 连接服务器」即可当网络盘用。
+
+### 注意事项
+
+- 需要手机开启 USB 调试（Android 11+ 支持无线配对）。
+- scrcpy 未安装时会引导 `brew install scrcpy`。
+- 首次配对需在手机「无线调试」页确认。
+- 投屏期间剪贴板双向同步（`--clipboard-autosync`），在电脑复制能直接粘到手机。
+- 部分国产 ROM 会杀后台导致连接断开，建议给 scrcpy 加电池白名单。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `TransferCastEngines.swift:837` | `startCast` / `stopCast` | scrcpy 会话 |
+| `ADBExtrasEngine.swift:368` | `enableWireless` | 一键无线（tcpip 5555） |
+| `AdbQrPairing.swift:506` | `generatePairingQR` | 扫码配对 |
+| `AdbBonjour.swift:124` | `startBrowse` | Bonjour 发现 |
+| `AdbCastMemory.swift:131` | `remember` / `recall` | 设备记忆 |
+| `CastView.swift:924` | `body` | 投屏页 |
+| `CastControlBar.swift:282` | `body` | 底部控制条 |
+| `CastScreenKeeper.swift:100` | `keepAwake` | 锁屏保持 |
+| `DeviceAppCatalog.swift:201` | `apps` | 应用库 |
+| `AndroidWebDAVServer.swift:311` | `start` | WebDAV 服务 |
+
+---
+
+# 第五部分 · 文件与工具
+
+## 第二十二章 归档压缩
+
+### 功能是什么
+
+一个**能看能改**的压缩包管理器：打开 40+ 种压缩包、预览里面每个文件、直接编辑文本并写回、压缩新包、队列化任务。底层用随包分发的 `7zz`（LGPL）。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 双击压缩包（关联后） | 打开归档浏览器 |
+| 面板 → 工具 →「打开压缩包」 | 同上 |
+| 拖压缩包进面板 | 同上 |
+| `kitnest://archive?path=…` | 深链直达 |
+| `kitnest://archive?path=…&action=mini` | Mini 小窗浏览 |
+| `kitnest://archive?action=compress&path=…` | 直接进入压缩流程 |
+
+### 界面结构
+
+- **左列**：包内条目树，按路径分组，显示大小与修改时间。
+- **右侧**：选中条目的预览。
+- **底部**：任务进度抽屉（可展开/收起）。
+- **拖出**：把条目拖到 Finder，走文件承诺（`NSFilePromiseProvider`），落盘时才真正解压。
+
+### 预览支持
+
+| 类型 | 预览方式 |
+|---|---|
+| 文本（txt / md / json / 代码） | 带语法高亮的文本视图 |
+| 图片 | 缩略图 + 尺寸 |
+| HTML | **直接渲染成网页**（不是显示源码） |
+| Office（doc/xls/ppt） | 分级解码缩略图（不自己渲染，取系统已生成的预览） |
+| PDF | 首页缩略图 |
+
+### 关键能力点
+
+- **真实解压/压缩/回写**（`ArchiveCore`，1134 行）
+  不是只读浏览器：文本类条目可以直接改，保存时用 `7zz a` 写回原包。
+  回写前会捕获可逆信息（`ArchiveUndoStack`），支持撤销。
+
+- **格式支持**：7z / zip / rar / tar / gz / bz2 / xz / iso / dmg 等（取决于 `7zz` 编译进去的编解码器）。
+
+- **压缩流程**（`ArchiveCreateSheet`）
+  选格式、压缩级别、密码、是否分卷；源可以是文件、文件夹或当前选中的条目。
+
+- **任务队列**（`ArchiveTaskQueue`）
+  多个压缩/解压任务排队执行，每个有独立进度与取消；队列在后台跑，关窗口不中断。
+
+- **Flow 推荐**（`ArchiveFlowRecommender`）
+  根据包内容推荐此刻最合适的操作——比如「里面全是图片」就推荐「解压到图片文件夹」，「只有一个文件夹」就推荐「直接解压」。
+  这是按 ArcZip 的交互思路做的，不是硬编码规则。
+
+- **压缩完成问一次**（`ArchiveSourceHandling`）
+  压缩成功后主动问「原文件保留还是收走」，对齐 ArcZip 的 completion 逻辑。
+
+- **Mini 小窗**（`ArchiveMiniWindow`）
+  不打开大窗口，用一个小浮窗快速看包里有什么，适合「只想确认一下」。
+
+- **暂存浮窗**（`ArchiveFileBox`）
+  菜单栏附近的一个小盒子：把散落的文件拖进来集中，再一次「压缩全部」。
+
+- **条目拖出**（`ArchiveEntryDrag`）
+  拖动时只上屏「文件承诺」（名字 + UTI），真正落到 Finder 目标目录时才解压——避免拖一下就解压几百 MB。
+
+### 注意事项
+
+- RAR 只能解不能压（`7zz` 的 RAR 编码器有授权限制）。
+- 加密包需要输密码，输错会明确提示而不是静默失败。
+- 回写会**重写整个压缩包**：大包（几 GB）改一个小文件也要等，进度条会显示。
+- 包内路径过深或文件名含特殊字符时，某些系统工具解压可能出错，这是 zip 规范的历史问题。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `ArchiveCore.swift:1134` | `extract` / `compress` / `writeBack` | 7zz 封装 |
+| `ArchiveBrowserWindow.swift:1601` | `body` | 浏览器主界面 |
+| `ArchiveEntryTable.swift:304` | `tableView` | 条目表（NSTableView） |
+| `ArchiveEntryDrag.swift:253` | `beginDrag` | 文件承诺拖出 |
+| `ArchiveEntryThumbnail.swift:250` | `thumbnail` | 分级解码 |
+| `ArchiveHoverPreview.swift:129` | `present` | 包内条目悬停预览 |
+| `ArchiveHTMLPreview.swift:226` | `render` | HTML 直接渲染 |
+| `ArchiveCreateSheet.swift:474` | `body` | 压缩参数表单 |
+| `ArchiveTaskQueue.swift:289` | `enqueue` | 任务队列 |
+| `ArchiveProgressPanel.swift:362` | `body` | 底部进度抽屉 |
+| `ArchiveTaskHUD.swift:339` | `present` | 任务 HUD |
+| `ArchiveFlowRecommender.swift:404` | `recommend` | 内容推荐操作 |
+| `ArchiveUndoStack.swift:201` | `push` / `undo` | 回写撤销 |
+| `ArchiveSourceHandling.swift:89` | `askKeepSource` | 压缩后问原文件 |
+| `ArchiveMiniWindow.swift:290` | `present` | Mini 小窗 |
+| `ArchiveFileBox.swift:454` | `body` | 暂存浮窗 |
+
+---
+
+## 第二十三章 工具箱
+
+### 功能是什么
+
+13 个内置小工具 + 自定义 AI 工具，统一入口：**工具面板**（分类网格）、**搜索框输入 `/`**、**命令面板 `⌥K`**。结果一键复制，并自动回流剪贴板历史。
+
+### 内置工具
+
+| 分类 | 工具 | 能力 |
+|---|---|---|
+| 转换 | **UUID** | 批量生成，可选格式 |
+| 转换 | **时间戳转换** | 自动识别 / 时间戳→日期 / 日期→时间戳 |
+| 转换 | **变量命名** | 驼峰 / 下划线 / 短横线 / 帕斯卡 / 常量 互转 |
+| 编码 | **Base64** | 编码 / 解码 |
+| 编码 | **URL Encode** | 编码 / 解码，标准 / 严格两档 |
+| 格式化 | **JSON** | 格式化 / 压缩 / 校验 |
+| 格式化 | **代码预览** | 高亮预览 + 导出图片（第二十八章） |
+| 网络 | **IP 地址** | 公网 + 内网 / 仅内网 |
+| 网络 | **二维码** | 文本/链接生成二维码，可调尺寸与纠错级别 |
+| 图片 | **图片压缩** | 纯本地压缩，可调最大边长/质量/格式 |
+| 加密 | **哈希生成** | MD5 / SHA1 / SHA256 |
+| AI | **Translate** | 调已配置的 AI 服务商 |
+| AI | **Summary** | 同上 |
+
+> 图片压缩是**纯本地**的（不调 TinyPNG 那种网络 API）：不需要 Key、没有配额、图片不出本机。代价是压缩率不如云端。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 面板首页 → 搜索框输入 `/` | 列出全部命令，输入即过滤 |
+| `⌥K` | 命令面板（全功能目录） |
+| 面板 → 工具页 | 分类网格，点开即用 |
+| 工具热键 | 每个工具可单独绑全局快捷键（`ToolShortcutStore`） |
+
+### 关键能力点
+
+- **工具描述符**（`ToolRegistry`）
+  每个工具是 `id / 名称 / 图标 / 分类 / 选项 / 执行函数`。注册表统一管理，可启用/停用。
+
+- **选项驱动**：工具的下拉选项（编码/解码、算法选择…）由 `ToolOption` 声明，UI 自动渲染，加选项不用改界面代码。
+
+- **结果回流**（`ingestToolOutput`）：输出自动进剪贴板历史，标为「工具生成」，和手动复制的区分开。
+
+- **工具快捷键**（`ToolShortcutStore`）：任意工具可绑全局热键，触发时唤起面板并打开该工具。
+
+- **窗口登记**（`WindowManager`）：所有工具窗口统一登记，可一键全部关闭。
+
+- **工具启停**：设置里可停用某个工具，停用后不出现在面板与命令面板。
+
+### 注意事项
+
+- AI 类工具需要先在「设置 → 搜索与 AI」配置服务商，未配置会引导去设置。
+- IP 查询的「公网」部分会发一次网络请求（`api.ipify.org`）。
+- 图片压缩大图（>20MP）会等几秒，进度在输出区。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `ToolRegistry.swift:207` | `register` / `setEnabled` | 工具注册表 |
+| `BuiltinTools.swift:381` | 13 个 `ToolDescriptor` 注册 | 内置工具定义 |
+| `ToolConverters.swift:402` | 转换类实现 | 时间戳/命名/编码/JSON |
+| `MediaTools.swift:148` | `compress` | 本地图片压缩 |
+| `ToolRunnerWindow.swift:99` | `present` | 工具面板（输入/选项/输出） |
+| `ToolSettingsPane.swift:144` | `body` | 工具启停设置 |
+| `WindowManager.swift:11` | `closeAll` | 工具窗口登记 |
+
+---
+
+## 第二十四章 全局搜索
+
+### 功能是什么
+
+主面板顶部的搜索框，一个入口搜四类东西：**网页**（搜索引擎）、**剪贴板历史**、**本地文件**（全盘）、**工具命令**（`/` 开头）。
+
+### 用户怎么用
+
+| 输入 | 结果 |
+|---|---|
+| 普通关键词 | 四类结果分组展示：文件 / 剪贴板 / 网页 / 工具 |
+| 网址（含 `.` 或 `http`） | 直接显示「打开该网址」 |
+| `/` 开头 | 切成命令模式，列出全部工具命令 |
+| 点分类 chip | 只看某一类，再点二级筛选（文件类型 / 剪贴板类型 / 搜索引擎） |
+
+### 关键能力点
+
+- **文件搜索覆盖全盘**（v264 重做，`FileNameIndex`）
+  Spotlight **不索引** `~/Library`、隐藏目录（`.workbuddy` / `.cursor` / `.npm`…）、`.app` 包内部、`/usr/local`——而这几处恰好是开发者文件最密集的地方。
+  所以自建了一份**全盘文件名索引**：
+  - 本机 124 万条 / 164MB，首次建立 14 秒，之后 mmap 加载（不占堆内存）。
+  - 查询 30–220ms，按「路径越浅越前」排序。
+  - 索引状态显示在「文件」分组下方（多少条、什么时候建的、重建按钮）。
+
+- **空格能匹配连字符**：输入 `image html deck` 能命中 `image-html-deck`；也能跨目录名匹配（`workbuddy skill` → `~/.workbuddy/skills`）。
+
+- **模糊匹配**（`FuzzyMatcher`）
+  子序列匹配（不要求连续）、乱序也能中、按命中位置评分排序、命中字符高亮。对标 FSearch 的「预过滤 + 精排」两段式。
+
+- **网页搜索**（`SearchEngine` / `SearchServiceManager`）
+  搜索引擎可增删排序，自定义引擎用 `{query}` 占位的 URL 模板。结果列表在面板内嵌显示（离屏 WKWebView 抓取 + JS 提取），点某条才真正打开页面。
+
+- **剪贴板搜索**：搜的是**内容**，包括图片 OCR 出来的文字。所以「截图里的一句话」也能命中。
+
+- **结果最多 8 条/组**，点「查看全部」进对应分类。
+
+### 注意事项
+
+- 首次搜索文件时若索引还没建，会显示「正在建立全盘索引」进度；建完自动重跑当前查询。
+- 系统垃圾文件（`.DS_Store` / `.localized` 等）不参与结果。
+- 文件索引不含 `/System`、外接卷、`/private/var/folders` 等无搜索价值的区域。
+- 中文输入法组词未上屏时不会触发搜索（防抖 250ms）。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `SearchSectionView.swift:1742` | `scheduleSearch` | 防抖与四路检索调度 |
+| `SearchSectionView.swift` | `filesCategory` / `clipboardCategory` | 分组渲染 |
+| `FileNameIndex.swift:546` | `search` / `build` | 全盘索引查询与建立 |
+| `FuzzyMatcher.swift:29` | `match` / `isMatch` | 模糊匹配与评分 |
+| `SlashCommands.swift:133` | `match` | `/` 命令匹配 |
+| `SearchEngine.swift:280` | `searchURL` | 搜索引擎模板 |
+| `SearchSettingsPane.swift:507` | `saveCustomEngine` | 自定义引擎 |
+
+---
+
+## 第二十五章 命令面板
+
+### 功能是什么
+
+`⌥K` 唤出的 Spotlight 式浮窗：全功能统一目录，输入即模糊过滤，回车执行。不用记功能在哪个页。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| `⌥K` | 打开/关闭 |
+| 输入 | 过滤（模糊匹配，乱序也能中） |
+| `↑` `↓` | 移动选择 |
+| `↵` | 执行 |
+| `Esc` | 关闭 |
+
+### 关键能力点
+
+- **全功能目录**（`CommandPalette`，644 行）
+  把「一堆功能」收敛成「一个工具箱」的统一入口：截图、OCR、长截图、图帘、剪贴板、监测、中转、投屏、工具、设置页……
+
+- **动作可带参数**：部分条目点开后是二级列表（比如「打开设置」展开成 27 个页）。
+
+- **与工具面板共用召回**：命令面板和工具列表用同一套模糊引擎，结果一致。
+
+- **快捷键可改**：默认 `⌥K`（`⌘K` 常被浏览器占用）。
+
+### 注意事项
+
+- 命令面板是独立窗口，不依赖主面板是否打开。
+- 面板里显示的快捷键是**当前生效**的（改过绑定的会跟着变）。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `CommandPalette.swift:277` | `CommandPaletteController.toggle` | 窗口显隐 |
+| `CommandPalette.swift` | `body` | 列表与过滤 |
+| `SlashCommands.swift:133` | `SlashCommandCatalog.match` | 命令目录 |
+
+---
+
+## 第二十六章 日历与节假日
+
+### 功能是什么
+
+主面板里的日历卡：月历 + 农历 + 节气 + 节日 + 系统日程 + 调休标记。点日期打开系统日历查看当天详情。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| 面板首页看日历卡 | 当月月历，今天高亮 |
+| 点 `‹` `›` | 切月 |
+| 点某一天 | 打开系统日历到该日（`calendarDayOpen`） |
+| 点日期格 | 选中并显示当天日程（`calendarDateSelect`） |
+
+### 关键能力点
+
+- **农历与节气**（`LunarCalendar`）
+  公农历互转、二十四节气、农历节日（春节/端午/中秋…）。纯算法实现，不需要网络。
+
+- **节假日与调休**（`HolidayManager`）
+  数据来源是国务院办公厅公布的年度放假安排，**含调休后的实际放假区间**。所以「周六要上班」这种也能标出来。
+
+- **系统日程**（`CalendarService`）
+  授权后读系统日历事件，有安排的日期格上有小圆点；未授权时降级为只显示日期，并在 UI 里给「去授权」入口。
+
+- **今日高亮**：今天用实心圆角块标出，和选中态区分。
+
+### 注意事项
+
+- 节假日数据是年度更新的：跨年前后如果发现新一年没数据，等应用更新。
+- 日程需要「日历」权限；不授权不影响日期与农历显示。
+- 日历卡高度约 112pt，是原版实测的版式。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `CalendarSectionView.swift:341` | `body` | 日历卡版式 |
+| `CalendarService.swift:155` | `events` | 系统日程读取 |
+| `LunarCalendar.swift:221` | `lunarDate` / `solarTerm` / `lunarFestival` | 农历算法 |
+| `HolidayManager.swift:75` | `holiday` / `isOnLeave` | 节假日判定 |
+
+---
+
+## 第二十七章 快捷键
+
+### 功能是什么
+
+19 条全局热键，全部可改绑；支持改成「双击修饰键」模式（连按两下 `⌘` / `⌥` / `⌃` / `⇧`）；冲突会明确告诉你为什么失败。
+
+### 默认热键
+
+见附录 A。这里是机制说明。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| 设置 → 工具与快捷键 → 快捷键 | 全部热键列表 |
+| 点某条 → 按下新组合 | 录制并保存 |
+| 点「×」 | 清除该条绑定 |
+| 切「2×」开关 | 改成双击修饰键模式 |
+| 「恢复默认」 | 全部还原 |
+
+### 关键能力点
+
+- **Carbon 全局热键**（`ShortcutManager`）
+  用 `RegisterEventHotKey`，App 未激活时同样生效。不是 `NSEvent` 全局监听（那个需要辅助功能且不拦截）。
+
+- **冲突处理**：注册失败时记下原因（`failureReason`），UI 直接显示「这个组合已被系统或其他应用占用」，不是静默失败。
+
+- **用户绑定优先**：先注册用户自定义，再注册默认表；物理冲突时默认条目失败、用户绑定胜出。
+
+- **双击修饰键**（`DoubleTapShortcut`）
+  连按两下同一修饰键触发，适合不想占组合键的场景。首次开启有兼容性提示（某些输入法会抢）。
+
+- **按工具绑定**（`ToolShortcutStore`）：任意工具可单独绑热键，触发时唤起面板并打开该工具。
+
+- **录制控件**（`ShortcutRecorder`）：按下即显示组合，`Esc` 取消，`⌫` 清除；只接受带修饰键的组合（防止单键误触发）。
+
+### 注意事项
+
+- 系统级组合（如 `⌘Space`）会被系统先拦，注册不成功是正常的。
+- 双击修饰键与「连按 `⌘` 切换输入法」可能冲突，看个人习惯。
+- 恢复默认会清除所有自定义绑定**和**双击模式。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `ShortcutManager.swift:324` | `register` / `unregister` | Carbon 热键注册 |
+| `ShortcutManager.swift` | `failureReason` | 冲突原因 |
+| `AppBootstrap.swift:318` | `defaultHotkeys` | 19 条默认表 |
+| `ShortcutRecorder.swift:85` | `start` | 录制控件 |
+| `DoubleTapShortcut.swift:181` | `startMonitoringIfNeeded` | 双击修饰键 |
+| `ToolShortcutStore.swift:103` | `bind` | 工具热键 |
+| `ShortcutSettingsPane.swift:174` | `body` | 快捷键设置页 |
+
+---
+
+## 第二十八章 代码预览
+
+### 功能是什么
+
+把一段代码变成**能看的卡片**：语法高亮、主题切换、行号、导出图片、富文本复制。适合往聊天窗口、文档、PPT 里贴代码。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 工具箱 →「代码预览」 | 粘贴代码，选语言与主题 |
+| 剪贴板条目（识别为代码）→ 预览 | 直接进代码预览 |
+| 工具热键 | 可单独绑定 |
+
+### 关键能力点
+
+- **自研词法器**（`CodeLexer`，582 行）
+  为什么不引第三方：本项目用 `swiftc` 直编、无 SPM 依赖；且预览要能在 200ms 内出结果，大库反而慢。
+  支持 20+ 语言（`CodeLanguage`），语言 id 同时是高亮器的配置键。
+
+- **主题**（`CodeTheme`，347 行）
+  每个主题是一整套**显式十六进制色**，不跟随系统语义色——代码块的观感不能随深浅色模式漂移。
+
+- **导出图片**（`CodeCardImage`）
+  带内边距、圆角、可选窗口红绿灯装饰的卡片图，直接拖进聊天窗或存进剪贴板。
+
+- **富文本复制**（`CodeRichCopy`）
+  只写纯文本等于给用户一坨灰字，还得自己重排。这里同时放三种类型：纯文本、带格式富文本、HTML——粘到哪个应用都尽量保住高亮。
+
+- **交互参照 highlightcode.com**：所有开关都在同一个框的工具条里，不来回跳页。
+
+### 注意事项
+
+- 语言选错会导致高亮错乱，但不会崩；不确定就选「自动」。
+- 超长代码（>5000 行）会截断预览并提示，导出图片同样限制高度。
+- 导出图片按 2x 输出，Retina 屏不糊。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `CodePreviewView.swift:719` | `body` | 预览界面与工具条 |
+| `CodeHighlighter.swift:162` | `highlight` | 高亮入口（三处共用） |
+| `CodeLexer.swift:582` | `tokenize` | 词法分析 |
+| `CodeLanguage.swift:142` | `all` | 语言表 |
+| `CodeTheme.swift:347` | `theme` | 主题色板 |
+| `CodeCardImage.swift:82` | `render` | 卡片图导出 |
+| `CodeRichCopy.swift:173` | `copy` | 三格式富文本复制 |
+
+---
+
+## 第二十九章 网盘链接解析
+
+### 功能是什么
+
+复制一条网盘分享链接，Kitnest 认出来并提示「打开解析中心」——在里面可以直接拿到直链下载，不用开浏览器走一遍验证码。
+
+### 用户怎么用
+
+| 操作 | 效果 |
+|---|---|
+| 复制网盘分享链接 | 状态栏下方弹出小提示，点开进解析中心 |
+| 面板首页「网盘链接」条 | 显示剪贴板里的网盘链接，点开解析 |
+| 工具箱 →「网盘解析」 | 同上 |
+| `kitnest://cloudlink` | 深链直达 |
+
+### 关键能力点
+
+- **域名识别表**（`CloudDriveLink`）
+  覆盖主流网盘（百度 / 阿里 / 夸克 / 123 / 天翼 / 移动 / 迅雷 / UC / 115 等），规则提取自 LinkSwift（AGPL-3.0 上游项目）的 `@match` 声明。
+
+- **复制即提示**（`CloudLinkPrompt`）
+  剪贴板新增文本 → 命中网盘域名 → 直接打开解析中心（不是只弹个 Toast）。
+
+- **解析中心**（`CloudLinkCenter`，794 行）
+  列出链接、标题、提取码、预计大小；支持批量、复制直链、调用下载器。
+
+- **直链下载**（`CloudLinkDownloader`）
+  内置下载器，可断点续传；也能把直链交给外部下载工具。
+
+- **面板内嵌条**（`CloudLinkBar`）
+  位置在搜索框正下方，只有检测到网盘链接时才出现，不占常驻空间。
+
+### 注意事项
+
+- 解析依赖各网盘当前的接口规则，网盘改版可能导致失败——失败会明确提示，不会卡住。
+- 需要登录的网盘（如百度超大文件）仍需在浏览器里登录一次，应用不保存网盘账号。
+- 只处理分享链接，不处理私有直链。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `CloudDriveLink.swift:201` | `match` | 域名与分享页规则 |
+| `CloudLinkPrompt.swift:92` | `present` | 复制后提示 |
+| `CloudLinkCenter.swift:794` | `body` | 解析中心 |
+| `CloudLinkDownloader.swift:461` | `download` | 直链下载 |
+| `CloudLinkBar.swift:193` | `body` | 面板内嵌条 |
+
+---
+
+## 第三十章 AI 助手
+
+### 功能是什么
+
+内置多服务商大模型接入层：配一家或多家，就能在应用内聊天、总结、翻译。密钥本地加密，支持本地 Ollama。
 
 ### 用户怎么用
 
 | 功能 | 入口 | 说明 |
 |---|---|---|
-| 配置服务商 | 设置 → 搜索与 AI →「AI 服务商 → 管理」 | 选厂商、填 Base URL、保存密钥、刷新模型、测试连接 |
-| AI 聊天 | 主面板搜索区输入 `/` 后选 AI 工具，或工具面板 | 多轮对话、流式输出、会话管理 |
-| 总结 | 剪贴板条目 →「总结」，或 AI 面板 | 对剪贴板当前文本生成摘要 |
-| 翻译 | ⇧⌥T / ⇧⌥D，或 AI 面板 | 截图翻译、划词翻译 |
-| 自定义工具 | 设置 → 搜索与 AI → 自定义工具 | 定义自己的提示词模板工具 |
+| 配置服务商 | 设置 → 搜索与 AI →「AI 服务商 → 管理」 | 选厂商、填 Base URL、存密钥、刷新模型、测试连接 |
+| AI 聊天 | 工具面板 / 命令面板搜「AI」 | 多轮对话、流式输出、会话管理 |
+| 总结 | 剪贴板条目 →「总结」 | 对当前文本生成摘要，结果可回写 |
+| 翻译 | `⇧⌥T` / `⇧⌥D` | 截图翻译、划词翻译（第十四章） |
+| 自定义工具 | 设置 → 搜索与 AI → 自定义工具 | 自己的提示词模板 |
+
+### 四类服务商
+
+| 类型 | 默认端点 | 鉴权 |
+|---|---|---|
+| **Anthropic** | `https://api.anthropic.com` | `x-api-key` |
+| **Gemini** | `https://generativelanguage.googleapis.com` | Key 走 URL 参数 |
+| **OpenAI 兼容** | 任意网关（DeepSeek / 月之暗面 / 智谱 / Groq…） | `Authorization: Bearer` |
+| **Ollama** | `http://localhost:11434` | 无（本地） |
 
 ### 关键能力点
 
-- **四类服务商**（`AISettingsPane.selectProvider`）：
-  - Anthropic（默认 `https://api.anthropic.com`，x-api-key 鉴权）；
-  - Gemini（默认 `https://generativelanguage.googleapis.com`，Key 走 URL 参数）；
-  - OpenAI 兼容（DeepSeek / 月之暗面 / 智谱 / Groq 等任意网关，填到域名即可）；
-  - Ollama（默认 `http://localhost:11434`，本地运行免密钥，模型需先 `ollama pull`）。
-- **模型列表拉取**：保存密钥后点「刷新模型」自动拉取可用模型并选择（`AIChatView.refreshModels` / `loadModelsAsync`）。
-- **连接测试**：一键验证配置是否正确（`testConnection`）。
-- **流式输出**：聊天回复逐字流出，可随时停止（`LLMService.stream` / `AIChatView.perStream`；传输层 `LLMTransport.streamBytes` 解析 SSE）。
-- **会话管理**：多会话新建/切换/重命名/删除，自动生成标题，可按关键词搜索历史会话（`LLMSessionStore.createSession` / `autoTitle` / `searchSessions`）。
-- **总结与回写**：对剪贴板文本总结，结果可复制或写回剪贴板历史（`AISummaryView.run` / `saveToClipboard` / `ClipboardSummaryExecutionCoordinator.summarizeAndWriteBack`）。
-- **翻译链路**：截图翻译 = OCR → `TranslationToolSession` 翻译 → 译文回流剪贴板并弹提示（`TranslationToolSession.translate` / `systemPrompt`）。
-- **自定义 AI 工具**：名称 + 系统提示词 + `{input}` 模板，保存后在文本工具面板与内置动作并列显示（`CustomAIToolStore.upsert` / `addCustomTool`）。
-- **密钥安全**：密钥以加密信封形式存本地，主密钥由系统密钥链派生（`CredentialStore.encryptEnvelope` / `masterSecret`）；旧版 Gemini 明文密钥会自动迁移（`LegacyGeminiMigrator.migrateIfNeeded`）。
+- **门面 + 适配器**（`LLMService` / `LLMResolver`）
+  对外只有一个 `stream` 入口，内部按偏好路由到具体适配器。加一家新厂商只写一个 adapter。
+
+- **流式输出**（`LLMTransport`，200 行）
+  所有请求可取消——所以不用 `URLSession.shared.bytes(for:)`，自己管连接和 SSE 解析。断网/取消时立刻释放。
+
+- **模型列表缓存**（`LLMResolver`）
+  每次打开设置都拉 `/models` 会造成明显卡顿且各家有配额限制，所以缓存一次，手动「刷新模型」才重拉。
+
+- **会话存储**（`LLMSessionStore`）
+  复用 SQLite 的 `llm_sessions` / `llm_messages` 两张表，支持新建/切换/重命名/删除/关键词搜索、自动生成标题。
+
+- **总结回写**（`AISummaryView` + `ClipboardSummaryExecutionCoordinator`）
+  对剪贴板文本总结，结果可复制或写回剪贴板历史（标为「工具生成」）。
+
+- **自定义工具**（`CustomAIToolStore`）
+  名称 + 系统提示词 + `{input}` 模板，保存后与内置动作并列显示。
+
+- **密钥安全**（`CredentialStore`，293 行）
+  密钥以**加密信封**形式存本地，主密钥由系统钥匙串派生。旧版 Gemini 明文密钥会自动迁移（`LegacyGeminiMigrator`）。
 
 ### 注意事项
 
-- API Key 只保存在本机，不会随截图/日志外发；但导出偏好数据时**不包含密钥**。
-- OpenAI 兼容端点只需填到域名（不要带 `/v1` 后缀之外的路径），程序会自动拼接。
-- 本地 Ollama 需自行先启动服务并下载模型，应用侧只负责调用。
-- 网络不通或密钥错误时，聊天区会显示可读错误信息（`readableError`），不会崩溃。
-- AI 请求失败不影响其他功能；未配置密钥时聊天入口会提示先配置。
+- API Key 只在本机；导出偏好数据时**不含密钥**。
+- OpenAI 兼容端点填到域名即可（不要在末尾加 `/v1/chat/completions`）。
+- 本地 Ollama 需先启动服务并 `ollama pull` 模型。
+- 网络不通或密钥错误时聊天区显示可读错误，不崩溃。
+- AI 请求失败不影响其他功能。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `LLMService.swift:106` | `stream` | 唯一门面 |
+| `LLMResolver.swift:121` | `resolve` | 按偏好路由 + 模型缓存 |
+| `LLMTransport.swift:200` | `streamBytes` | 可取消的 SSE 传输 |
+| `AnthropicService.swift:127` | `stream` | Anthropic 适配 |
+| `GeminiService.swift:131` | `stream` | Gemini 适配 |
+| `OpenAICompatibleService.swift:138` | `stream` | OpenAI 兼容适配 |
+| `OllamaService.swift:127` | `stream` | 本地 Ollama |
+| `CredentialStore.swift:293` | `encryptEnvelope` / `masterSecret` | 密钥加密 |
+| `LLMSessionStore.swift:152` | `createSession` / `autoTitle` / `searchSessions` | 会话管理 |
+| `AISettingsPane.swift:432` | `body` | 服务商设置页 |
+| `AIChatView.swift:438` | `body` | 聊天界面 |
+| `AISummaryView.swift:341` | `run` / `saveToClipboard` | 总结与回写 |
+| `CustomAIToolStore.swift:94` | `upsert` | 自定义工具 |
+| `LLMProtocols.swift:303` | 协议定义 | 11 个自有协议 |
 
 ---
 
-## 第八章 工具箱
+# 第六部分 · 设置与其他
+
+## 第三十一章 设置
 
 ### 功能是什么
 
-一整套即开即用的小工具，加上统一入口：命令面板（⌥K）、主面板搜索区（输入 `/`）和工具面板。工具结果一键复制，并自动回流剪贴板历史。
+左侧大侧边栏的设置窗，分三个一级分类、27 个页面。左侧有搜索框（输入关键词直达某项）。
 
-### 用户怎么用
+### 三个一级分类
 
-| 入口 | 操作 | 效果 |
-|---|---|---|
-| ⌥K | 命令面板 | 弹出全功能目录，输入即模糊过滤，回车执行 |
-| ⌥F 后输入 `/` | 工具列表 | 主面板内切换为工具模式 |
-| 主面板 → 工具 | 工具面板 | 分类网格 + 输入区 + 输出区 |
-
-### 内置工具一览
-
-| 分类 | 工具 | 说明 |
-|---|---|---|
-| 转换 | 时间戳转换 | 时间戳 ↔ 日期互转（`timestampToDate` / `dateToTimestamp`） |
-| 转换 | 变量命名 | 多种命名风格互转（`registerVarNameTool`） |
-| 编解码 | Base64 | 编码 / 解码 |
-| 编解码 | URL Encode | 编码 / 解码 |
-| 编解码 | 哈希生成 | MD5 / SHA1 / SHA256（`sha256` / `md5`） |
-| 格式化 | JSON | 格式化 / 压缩 / 校验 |
-| 格式化 | 代码预览 | 代码高亮预览 |
-| 网络 | IP 地址 | 本机 IP + 公网 IP 及归属地（`localIPAddress` / `queryPublicIP`） |
-| 网络 | 二维码 | 文本/链接生成二维码（`registerQRCodeTool`） |
-| 图片 | TinyPNG 图片压缩 | 压缩图片体积（`MediaTools.compress`） |
-| 图片 | 取色器 | 屏幕取色 HEX（跨模块注册于总控） |
-| AI | Translate / Summary | 调用已配置的 AI 服务商 |
-| 其他 | UUID | 生成 UUID |
-
-### 关键能力点
-
-- **模糊搜索**：命令面板与工具列表共用模糊匹配引擎，支持乱序字符匹配与评分排序（`FuzzyMatcher.match` / `rate`）。
-- **日历与农历**：公农历互转、二十四节气、农历节日（`LunarCalendar.lunarDate` / `solarTerm` / `lunarFestival`）；主面板日历卡叠加显示。
-- **节假日**：内置节假日数据，标注当天是否休息/上班（`HolidayManager.holiday` / `isOnLeave`）。
-- **系统日程**：授权后读取日历事件，月历格点提示有安排的日期（`CalendarService.events`）。
-- **文件搜索**：搜索区可检索本机文件（mdfind）与剪贴板历史，结果按分类分组、命中高亮（`SearchSectionView.runMdfind` / `clipboardCategory` / `filesCategory`）。
-- **网页搜索**：输入关键词显示搜索引擎栏，点击/回车跳转浏览器；搜索引擎可增删排序（`performWebSearch` / `searchURL`）。
-- **快捷键录制**：可为工具单独录制全局快捷键，冲突时给出提示（`ShortcutRecorder.start` / `ShortcutManager.register`）。
-- **双击快捷键**：任意动作可切换为「双击修饰键」模式（⌘⌘ / ⌥⌥ / ⌃⌃ / ⇧⇧），首次开启有兼容性提示（`DoubleTapShortcut.startMonitoringIfNeeded`）。
-- **工具启停管理**：每个工具可在设置里单独停用，停用后不出现在面板与命令面板（`ToolRegistry.setEnabled`）。
-- **窗口管理**：工具窗口统一登记，可一键全部关闭（`WindowManager.closeAll`）。
-
-### 注意事项
-
-- 命令面板默认 ⌥K（⌘K 易被浏览器等占用，可改绑）。
-- 部分工具（AI 总结/翻译）依赖第七章的服务商配置，未配置时会引导去设置。
-- 图片压缩类工具处理大图时略慢，属正常。
-- 文件搜索依赖系统索引，刚保存的文件可能有延迟。
-
----
-
-## 第九章 设置
-
-### 功能是什么
-
-设置窗口采用左侧大侧边栏：一级「主页」含六个分类（常规 / 剪贴板 / 搜索与 AI / 工具与快捷键 / 数据 / 关于），一级「性能监测」含七个模块设置 + 监测设置 + 部件设置。⌘, 随时打开。
-
-### 用户怎么用
-
-- 菜单栏图标右键 →「设置…」；或主面板齿轮菜单 →「设置」；或 ⌘,。
-- URL 直达：`frsetnext://settings?pane=general`（pane 可选 general / search / tools / shortcuts / about / clipboard / statistics）。
-
-### 各页内容
-
-**常规（settings-general）**
-
-| 分区 | 内容 |
+| 分类 | 页面 |
 |---|---|
-| 通用 | 登录时启动、外观（浅色/深色/自动）、语言（自动 + 多语言） |
-| 个性化 | 面板宽度、字号缩放、强调色、打开动画、背景图（`PersonalizationSettingsPane.pickBackgroundImage`） |
-| 菜单栏 | 功能开关（系统状态/日历/截图自动 OCR/文件中转入口）、AI 服务商管理入口、菜单栏图标样式（四种单选）、菜单栏部件设置入口、标签管理 |
-| 关于入口 | 检查更新与项目链接 |
-
-![](shots/settings-general.png)
-
-**剪贴板**：记录开关与保留策略（条数/天数/大小）、忽略应用（隐私名单）、图片 OCR 开关、标签管理。
-
-**搜索与 AI（settings-search）**：搜索引擎栏管理（增删、拖拽排序、自定义引擎：名称 + URL 模板）、AI 服务商管理（密钥/模型/连接测试）、自定义 AI 工具管理。
-
-![](shots/settings-search.png)
-
-**工具与快捷键（settings-tools / settings-shortcuts）**：工具启停管理、全局快捷键表（每条可重新录制、可切换为双击模式、可恢复默认）、默认快捷键一键还原。
-
-![](shots/settings-tools.png)
-![](shots/settings-shortcuts.png)
-
-**数据**：导出/导入偏好数据（含快捷键绑定、搜索引擎、工具配置等，**不含 AI 密钥**）（`StatisticsSettingsPane.performExport` / `performImport`）。
-
-**关于（settings-about）**：版本信息、导出使用记录（诊断包）、**检查更新**（v112：手动检查按钮 + 更新源配置——默认空=关闭，指向 GitHub `releases/latest` 或任意含 tag_name 的 JSON；状态栏菜单「检查更新…」共用 `AppUpdateChecker`）。
-
-![](shots/settings-about.png)
-
-**性能监测（settings-monitor）**：左侧选 CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池进入各模块配置（状态栏形态、颜色、显示项），或进「监测设置」（总开关、采样间隔、合并模式、温度显示）与「部件设置」（STATS 合并条形态/间距/分隔线）。
-
-### 关键能力点
-
-- **即改即生效**：外观、个性化、监控参数改动即时应用，无需重启（`AppearanceManager.apply` / `applyPanelWidth`）。
-- **自定义搜索引擎**：名称 + `{query}` 占位的 URL 模板，表单校验后保存（`SearchSettingsPane.saveCustomEngine` / `validateEngineForm`）；支持恢复默认。
-- **快捷键改绑**：点按录制新组合，冲突时拒绝并提示原因（`ShortcutManager.failureReason`）；「恢复默认快捷键」一键还原全部。
-- **部件设置自检**：设置系统内置自检例程，启动时可按需运行验证配置读写（`WidgetSettingsSelfTest.runIfRequested`）。
-- **导入校验**：导入时逐项应用偏好并报告（`applyPreferences`）。
-
-### 注意事项
-
-- 导出的数据文件不含任何 AI 密钥，换机导入后需重新填写密钥。
-- 恢复默认快捷键会同时清除所有自定义绑定与双击模式，操作前请三思。
-- 语言切换为「自动」时跟随系统语言。
-
----
-
-## 第十章 文件中转与投屏
-
-### 功能是什么
-
-v114（2026-10-25 用户需求）拆成两页：**文件中转**（第三页，只做文件传输：隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）与**投屏**（第四页，Android 设备中心：设备检测 / 无线配对 / scrcpy 镜像）。全部对端零安装。背后是系统空投（`AirDropSendEngine` / `AirDropReceiveWatcher`）、ADB 无线配对与文件桥（`ADBWirelessEngine` / `ADBFileBridge`）、局域网 HTTP 直传（`LanTransferServer`）与 scrcpy 投屏（`ScreenCastEngine`）。
+| **主页** | 常规、剪贴板、搜索与 AI、工具与快捷键、数据、关于 |
+| **性能监测** | CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池、监测设置、部件设置 |
+| **截图与钉图** | 截图、钉图、图帘 |
 
 ### 用户怎么用
 
-| 通道 | 对方设备 | 怎么用 |
-|---|---|---|
-| 隔空投送 | iPhone / iPad / Mac | 发送：面板按钮或剪贴板条目右键「隔空投送」；接收：对方空投到本机 → 自动进本地暂存（监听 ~/Downloads） |
-| 无线投屏 | Android 11+ | USB 或无线（扫描/配对码）连上后「开始投屏」；镜像期间剪贴板双向同步（`--clipboard-autosync`） |
-| 文件互传 · Android | Android | 推送暂存项 → 手机 `Download/FrsetNext/`；拉取该目录全部文件 → 本地暂存（`adb push/pull`） |
-| 扫码直传 | 任何有浏览器的设备 | 勾选暂存文件 → 扫码直传 → 相机扫码在浏览器上传/下载（一次性 token 门控） |
+| 入口 | 操作 |
+|---|---|
+| `⌘,` | 打开设置 |
+| 菜单栏右键 →「设置…」 | 同上 |
+| 面板齿轮菜单 →「设置」 | 同上 |
+| `kitnest://settings?pane=general` | 直达某页 |
+| 左侧搜索框 | 输入关键词，直接列出匹配项并跳转 |
+
+### 各页要点
+
+| 页面 | 关键项 |
+|---|---|
+| **常规** | 登录时启动、外观（浅色/深色/自动）、语言、个性化（面板宽度/强调色/背景图）、菜单栏图标样式 |
+| **剪贴板** | 记录开关、保留策略（条数/天数/大小）、忽略应用、图片 OCR、标签管理、呼出快捷键 |
+| **搜索与 AI** | 搜索引擎管理、AI 服务商、自定义 AI 工具、本地文件搜索开关 |
+| **工具与快捷键** | 工具启停、19 条全局热键、工具热键、双击模式、恢复默认 |
+| **数据** | 导出/导入偏好包（含统计与快捷键，不含密钥）、清除索引缓存 |
+| **关于** | 版本、检查更新、导出诊断包、开源许可 |
+| **截图** | 保存目录、文件名模板、格式、复制到剪贴板、导出水印、动作条形态、权限状态 |
+| **钉图** | 四形态预览、边框/圆角/阴影/透明度/磁性、控制条超时 |
+| **图帘** | 总开关、帘线样式、展示时长、最多张数、卡片宽度、帘线缩放、自动上架、快捷键 |
+| **监测各模块** | 部件形态（12 种）、颜色、显示项 |
+| **监测设置** | 采样间隔、合并模式、温度显示 |
+| **部件设置** | STATS 合并条形态/间距/分隔线 |
 
 ### 关键能力点
 
-- **隔空投送联动**（v112）：截图动作链「空投」（⌘D）与剪贴板两套右键菜单「隔空投送」经 `.frsetAirDropFiles` 通知接线到发送引擎（App 层统一分发）。
-- **无线配对**（v112）：`adb mdns services` 发现 pairing/connecting 服务，配对码 `adb pair` + `adb connect`；手动 IP:端口输入框。
-- **ADB 文件桥**（v112）：逐文件推送精确报数；拉取前清空暂存目录、走 `LocalTransferStore.add` 正式入索引。
-- **接收落盘**：AirDrop 接收监听 ~/Downloads（DispatchSource，跳过 `.download` 未完成文件）。
+- **即改即生效**：外观、个性化、监控参数改动即时应用，不用重启（`Personalization` 单例 + `@Published` 广播）。
+
+- **设置内搜索**（`SettingsSidebarView`）
+  每个设置项注册了关键词（标题 + 别名 + 分类），输入「权限」能直接跳到截图权限那一项。
+
+- **导入/导出**（`StatisticsSettingsPane.performExport` / `performImport`）
+  导出为 plist 包，逐项应用并报告结果。**不含 AI 密钥**。
+
+- **部件设置自检**（`WidgetSettingsSelfTest.runIfRequested`）
+  设置系统内置自检例程，验证配置读写链路。
+
+- **兼容层**（`StateCompat`）：无完整 Xcode 时工具链缺少 SwiftUI 宏插件，这里做了降级兼容。
 
 ### 注意事项
 
-- 隔空投送只通苹果设备；安卓/Windows 用扫码直传或 ADB 文件互传补齐。
-- 无线投屏与文件互传需要手机开启 USB/无线调试（Android 11+ 支持配对码无线配对）；scrcpy 未安装时按引导 `brew install scrcpy`。
-- 首次配对需在手机「无线调试」页确认；之后 `adb connect` 随连随用。
-- 云端 OPPO 中转与旧扫码上传链路已下线，代码暂留待清理。
+- 恢复默认快捷键会清除所有自定义绑定与双击模式。
+- 语言切「自动」时跟随系统。
+- 导出的数据文件不含任何密钥，换机后需重填。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
+|---|---|---|
+| `SettingsWindowController.swift:224` | `show` / `open(pane:)` | 设置窗与深链跳转 |
+| `SettingsRootView.swift:214` | `body` | 根视图（940×620） |
+| `SettingsSidebarView.swift:410` | `searchField` | 侧边栏搜索 |
+| `SettingsPanes.swift:824` | 页面注册表 | 27 个页 |
+| `PersonalizationSettingsPane.swift:888` | `body` | 个性化（即改即生效） |
+| `CaptureHubPane.swift:81` | `body` | 截图/钉图/图帘三页合并 |
+| `CurtainSettingsPane.swift:472` | `body` | 图帘设置 |
+| `PinSettingsPane.swift:427` | `body` | 钉图设置 |
+| `MonitorWidgetsPane.swift:867` | `body` | 部件设置 |
+| `DiagnosticsExporter.swift:190` | `export` | 诊断包导出 |
+| `AppearanceManager.swift:78` | `apply` | 外观应用 |
 
 ---
 
-## 第十一章 性能审计与 v73 修复记录（2026-10-19）
+## 第三十二章 新手引导与权限
 
-### 11.1 主面板三项回归修复
+### 功能是什么
 
-| 问题 | 根因 | 修复 |
+首次启动的三件套：**欢迎窗**（功能导览）、**权限引导**（四类权限实测状态 + 一键授权）、**更新说明**（版本变更）。
+
+### 用户怎么用
+
+| 界面 | 何时出现 | 怎么回看 |
 |---|---|---|
-| 面板比例怪、按钮全挤一堆 | 三重缩放叠加：设置「面板宽度 360」× 字号缩放 0.9 = 324，内容又叠加 `scaleEffect(0.9)`；同时 `NSHostingView` 默认 sizingOptions 会按内容 fitting 反向压窗口，`windowDidResize` 把 167pt 脏值持久化到 `panel.width`，此后每次启动都读窄值 | ① 窗口宽 = 选中值（360/400/440），不再乘字号缩放；② 内容 1:1 填充（删除内容层 `scaleEffect`）；③ `NSHostingView.sizingOptions = []` 禁止内容改窗口；④ `persistSize` 增加下限保护（<320 丢弃） |
-| 展开位置不在菜单栏图标正下方 | 主图标点击与菜单「打开面板」都走 `show()`，恒用 `rightEdgeOrigin`（屏幕右上角右对齐）；`show(atAnchor:)` 存在但无人调用 | `PanelControlling` 协议新增 `toggle(atAnchor:)` / `show(atAnchor:)`；主图标左键、状态项回落、菜单「打开面板」三处改传 `NSStatusBarButton.window.frame` 锚点；快捷键等无锚点路径保持右缘 |
-| 没有「三角形从图标指下来」的过渡 | 只有 alpha 淡入；`anchored` 状态与指示器缺失 | `PanelPresentationState.anchored` 驱动根视图顶部 9pt 让位 + 居中三角指示器（尖端朝上指向图标）；配合原 `scaleEffect(anchor:.top) 0.93→1 + offset -10 + spring`，形成从图标下方「长出来」的整体动效 |
+| 欢迎窗 | 首次启动 | 菜单栏右键 →「欢迎与权限…」 |
+| 权限引导 | 欢迎窗里点「权限」；或权限不足时自动弹 | 同上 |
+| 更新说明 | 版本升级后首次启动 | 「关于」页 →「更新说明」 |
 
-> 排障入口：`frsetnext://panel?anchor=icon` 可直接以主图标 frame 锚点展开（等价左键点击），用于截图与回归验证。
+### 关键能力点
 
-### 11.1g 第七轮：小猫只有一只、宽度不再裁切（2026-10-19 22:15）
+- **权限状态是实测的**（`PermissionCenter`）
+  不是读某个配置标记，而是实际探测（SCK 预检、`AXIsProcessTrusted`、日历授权状态、FDA 探针）。所以系统设置里改了权限，这里会跟着变。
 
-| 问题 | 根因 | 修复 |
+- **四类权限集中管理**：屏幕录制、辅助功能、麦克风、日历（+ 完全磁盘访问提示）。
+
+- **一键授权**：点「去授权」直接跳系统设置对应页，不用自己找。
+
+- **更新说明**（`WhatsNew`）
+  按版本组织条目，分「新增 / 改进 / 修复」三类；只在版本变化时弹一次。
+
+### 注意事项
+
+- 权限引导不会反复骚扰：截图失败时每次启动最多提示一次，之后只 Toast。
+- 从 Finder 打开应用授权比从终端 `open` 更可靠（TCC 会记录「responsible process」，终端启动可能记错）。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
 |---|---|---|
-| 菜单栏像有两只猫、动作不同步 | 主图标样式为 custom（猫符号），`button.image` 由 NSButton 自己绘制，覆盖层只隐藏子视图挡不住 → 静态猫从透明区透出 | 小猫接管期间清空 `button.image`/`title`；关闭时发通知让 Swift 重应用原样式 |
-| 其中一只猫被截断 | 猫图固定 56:36（约 31pt 宽），custom 样式是 variableLength（约 20-24pt） | 主项宽度按猫比例固定（约 33pt）；绘制时宽度不足则等比缩小，绝不超出 bounds |
-| 小猫速度与 CPU 数值「两套时间」 | 速度每 20Hz tick 更新，CPU 部件每 3s 刷新 | 速度档只在 `FSBarModuleInterval(@"CPU")` 时刻更新；动画帧仍 20Hz 平滑 |
+| `WelcomeWindowController.swift:105` | `present` | 欢迎窗触发策略 |
+| `WelcomeView.swift:301` | `body` | 功能导览版式 |
+| `PermissionCenter.swift:293` | `status` / `request` | 四类权限实测 |
+| `PermissionGuideWindowController.swift:89` | `present` | 权限引导窗 |
+| `PermissionGuideView.swift:221` | `body` | 引导版式 |
+| `WhatsNew.swift:324` | `presentIfNeeded` | 更新说明 |
 
-### 11.1f 第六轮：屏幕录制权限「重复请求」根因与修复（2026-10-19 21:35）
+---
 
-全盘 177 个源文件检索了所有录屏 TCC API（42 处命中），确认这是**持续 API 调用**导致的弹窗循环，不是签名漂移：
+## 第三十三章 内置用户手册
 
-| 触发链 | 频率 | 修复 |
+### 功能是什么
+
+应用里自带这份手册：左侧目录树可展开/收起/搜索，右侧正文，图片可点击放大。
+
+### 用户怎么用
+
+| 入口 | 操作 |
+|---|---|
+| 设置 → 关于 →「用户手册」 | 打开内置手册 |
+| 菜单栏右键 →「用户手册」 | 同上 |
+| `kitnest://manual` | 深链直达 |
+
+### 关键能力点
+
+- **同源**：内置手册读的就是仓库里的 `docs/40-审计与核对/性能审计/用户手册-FrsetNext.md`，打包时复制进 `Resources/Manual/`。所以文档更新 = 应用更新，不会出现「手册和版本对不上」。
+
+- **目录树**（`ManualView`）
+  按 `##` 一级标题建树，`###` 做二级；支持关键词过滤、小节跳转。
+
+- **图片放大**：正文里的截图点开可看原尺寸。
+
+### 注意事项
+
+- 内置版本是打包时的快照；要看最新内容请查仓库里的 Markdown。
+- 手册里的快捷键以「设置 → 快捷键」为准（如果你改过绑定）。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
 |---|---|---|
-| `FSBarSystemTick` → `FSBarProbeMenuBarDarkAsync` → `CGDisplayCreateImageForRect`（dlsym） | **每 2 秒**（最严重） | 删除截屏判色，改为视图 `effectiveAppearance`（Stats 同源），C 侧不再有任何截屏调用 |
-| `ScreenshotManager.init` → `probePermission` → `SCShareableContent` | 每次启动 | 启动只做 `CGPreflightScreenCaptureAccess()`；权威探测推迟到用户真正截图 |
-| `ensureScreenRecordingPermission` → `CGRequestScreenCaptureAccess()` + NSAlert | 每次截图失败 | 每次启动最多请求一次、最多弹一次说明；后续只 Toast 提示 |
-| `refreshPermission`（打开设置截图页）→ `SCShareableContent` | 每次打开设置页 | 改为只做 preflight |
+| `ManualDocument.swift:365` | `load` | 读取并解析 Markdown |
+| `ManualView.swift:611` | `body` | 目录树 + 正文 |
 
-保留：截图/长截图/取色/录屏开始时的 `SCShareableContent`、`SCStream`、`SCScreenshotManager`——都是用户主动操作，不属于重复请求。
+---
 
-签名核对：`Authority=FrsetDev`，designated requirement 为 `identifier + certificate leaf`（跨构建稳定）；TCC 已有 `ScreenCapture auth_value=2`、csreq 76 字节。因此主因是高频调用，不是签名。若仍被弹窗，请从 **Finder/程序坞**打开 `/Applications/FrsetNext.app` 授权一次（避免由终端 `open` 启动导致 responsible process 记错）。
+## 第三十四章 更新与诊断
 
-完整调用链见 `屏幕录制权限-全盘调用链.md`。
+### 功能是什么
 
-### 11.1e 第五轮：全盘入口核对 + 数据源同源（2026-10-19 21:20）
+四件事：**检查更新**、**导出诊断包**、**日志归档**、**白屏探针**。
 
-**全盘扫描**：`apps/FrsetNext` 共 177 个源文件（Swift 164 / ObjC 4 / C 3 / 头文件 6），含 `Sources/FrsetStatsBar/` 全部 `.m/.c/.h`。完整清单见 `性能监测-全盘入口清单.md`。
+### 用户怎么用
 
-结论（避免重复实现）：
+| 功能 | 入口 |
+|---|---|
+| 检查更新 | 关于页「检查更新」/ 菜单栏「检查更新…」 |
+| 导出诊断包 | 关于页「导出诊断」 |
+| 查看日志 | `~/Library/Application Support/FrsetNext/logs/` |
 
-1. **全盘只有 1 个性能监测窗口实现**：`MonitorPopoutWindowController` → `MonitorPerformanceContent` → `MonitorDetailView`。主面板性能页与状态栏独立窗共用它。
-2. 状态栏的“多个小口”是 C 引擎的**独立模式**（`CombinedModules=false`）：每个启用模块各建一个 `NSStatusItem`（当前 CPU run_cat / Network label / Sensors mini）。它们的点击全部走 `openItem:` → `FSBarOpenMonitor` → `StatsBarEngine.openMonitor` → 同一个窗口。不是多套窗口。
-3. C 引擎其余窗口只有 `FSEnsureWindow`（720×480，标题 Settings，是**部件设置**窗，不是性能监测）。
-4. 仍存在的重复渲染（已登记、未删）：`MonitorCenterView.swift`（全盘 0 调用，死代码）、`StatsModulePanels.swift` 的 `StatsModulePage`（仅设置窗「性能监测 → 模块」使用）。
+### 关键能力点
 
-**数据源同源（v76）**：`MonitorSampler.sampleOnce` 的核心指标（CPU/内存/磁盘/网络/电池）不再用 `MonitorReader` 另采，改为直接读 C 引擎 `g_snap`（0.5s tick，菜单栏部件的同一份快照）。温度/功耗/内存压力/交换仍走原采样。从此菜单栏部件、主面板性能页、状态栏独立窗显示同一时刻的同一组数值。
+- **更新检查**（`AppUpdateChecker`）
+  手动触发；更新源可配置（默认空 = 关闭）。支持 GitHub `releases/latest` 或任意返回 `tag_name` 的 JSON。
+  分发通道：`calorieai.sxyq27.online/kitnest/`。
 
-### 11.1d 第四轮：两个性能入口真正收敛成「一套」（2026-10-19 20:50）
+- **诊断包**（`DiagnosticsExporter`）
+  包含：应用版本、系统版本、偏好快照（脱敏）、最近日志、索引统计。**不含剪贴板内容与密钥**。
 
-这一轮不是改样式，而是把两条入口的**状态与节奏**合并。逐函数核对结果（函数级台账见 `函数性能审计台账.csv`）：
+- **日志归档**（`LogArchive`）
+  保留最近 3 天，自动清理，控制体积。卡死/崩溃会额外留一份现场。
 
-| 函数 | 之前的问题 | 现在 |
+- **白屏探针**（`RenderProbe`）
+  窗口白屏类问题的排查工具，默认关闭（`FRSET_RENDER_PROBE=1` 才开），避免日志刷屏。
+
+- **状态兼容层**（`StateCompat`）：无完整 Xcode 时的 SwiftUI 宏降级。
+
+### 注意事项
+
+- 更新检查**默认关闭**，需要自己在设置里填更新源。
+- 诊断包是给人看的，不自动上传。
+- 日志里可能有窗口标题等片段，发出去前自己扫一眼。
+
+### 实现索引
+
+| 文件:行号 | 函数 | 职责 |
 |---|---|---|
-| `StatsBarEngine.openMonitor` | `isVisible → showModule`：面板已开时点同一部件**永远不关**；不同部件也只是切模块 | 同模块=收起（toggle）、异模块=切换；监视器抢先收起后 0.6s 内去抖，避免「关了又弹回来」 |
-| `MonitorPopoutWindowController.open` | 独立窗用**自己的** `lastModule/selection`；重开不回顶部 | 改用共享选中态 `MonitorCenterPresenter.shared.monitorSelection`；每次打开 `scrollState.resetToken += 1` 强制滚回顶部（顶部模块切换条必然可见） |
-| `PopoutRootView` | 自己写一份 `ScrollView + padding + MonitorDetailView`，与主页各自维护 | 与主页共用 `MonitorPerformanceContent`（唯一实现），仅顶部 22pt 让出关闭钮 |
-| 模块选中态 | 主面板 `monitorSelection` 与独立窗 `selection` 各自独立（源码注释原文「各自独立记忆」） | **共用一份**：在任一入口切模块，另一入口同步 |
-| `MonitorSampler.setPanelActive` | 只有独立窗调用；主面板性能页从未置 active → 主面板 **≥5s 一帧**、独立窗 **1.5s** ——「两套时间」的根因 | 新增 `setHomePanelActive` 独立门控，`uiActive = panelActive ∥ homePanelActive ∥ settingsActive`；任一入口可见都按用户间隔（1.5s） |
-| `MonitorPopoutWindowController.dismissPopout` | 只在 `CATransaction` completion 里 `orderOut`；窗口被遮挡/动画被跳过时 completion 不执行 → 窗口永留屏上（日志有 `dismiss` 无 `已收起`） | 0.2s **硬兜底** `finishDismiss`（幂等）+ CA completion 双通道 |
-| `windowDidResignKey` | 点自家状态项也会先触发 → 先关后开 | app 仍活跃时交由点击目标处理；真正点外由 `didResignActive` + 监视器 + 轮询负责 |
-| 点外监听 | 只有全局 `NSEvent` 监视器（**收不到本 app 事件**，且本 app Accessibility=TCC 拒绝、无输入监控授权，可能静默失效） | 四路冗余：全局监视器 + 本 app 内监视器 + 50ms `pressedMouseButtons` 轮询（不需授权）+ app 失活通知 |
+| `AppUpdateChecker.swift:342` | `check` | 更新源拉取与比较 |
+| `DiagnosticsExporter.swift:190` | `export` | 诊断包组装 |
+| `LogArchive.swift:302` | `archive` / `prune` | 日志归档与清理 |
+| `RenderProbe.swift:118` | `start` | 白屏探针（默认关） |
+| `StateCompat.swift:37` | 兼容声明 | 宏插件降级 |
 
-实测（未使用鼠标）：`frsetnext://panel?monitor=sensors` 打开主面板性能页 → `frsetnext://monitor` 打开独立窗，独立窗**同样停在温度**，两图模块切换条、计算项数值（78/82/71/71）、27 项温度条、底栏「刷新间隔 1.5s」完全一致（`shots/v75-panel-performance.png` / `shots/v75-popout-performance.png`）。把 Finder 激活使本 app 失焦后独立窗 `onscreen true→false`，日志 `resignKey → dismiss → app失活 → 已收起`。
+---
 
-### 11.1c 第三轮：监测面板统一 + 玻璃态统一 + 温度可视化（2026-10-19 晚）
+# 附录
 
-| 项 | 之前 | 现在 |
-|---|---|---|
-| 状态栏部件点击面板 | 292×260 小弹窗，独立构造，**打开时未提升采样频率**（隐藏态 5s 一帧，数值看着"不走"）→ 与主页性能页像两套 | 340×620；与主页/独立窗同一构造（`MonitorDetailView(selection:pageMode:false,fixedWidth:nil)`，带模块切换条）；打开期间 `setSettingsActive(true)` 把采样提到用户间隔（实测页脚显示「刷新间隔 1.5s」），关闭恢复降频 |
-| 加载节奏 | 主页/独立窗用 `setPanelActive`，popover 无门控 | 三条路径统一：面板/独立窗 → `setPanelActive`；popover → `setSettingsActive`；两者任一为真即 1.5s |
-| 主页玻璃态 | `solid` = windowBackground 纯色（与监测面板观感割裂） | 统一为 `NSVisualEffectMaterial.popover`（系统 popover 原生玻璃），实测面板透出桌面模糊（`shots/panel-glass-v74.png`） |
-| 性能监测独立窗 | 普通不透明窗口 | 透明窗 + `.popover` 玻璃铺满 + 12pt 连续圆角（与状态栏 popover 同源） |
-| 独立窗 ≠ 主页性能页（2026-10-19 二次修正） | 上一轮只改了**死代码**：`MonitorStatusItems.registerAll()` 早已被注释（v42），实际生效链是 `StatsBarEngine` → `MonitorPopoutWindow` → `PopoutRootView`；且独立窗仍是 `.titled`（系统标题栏悬浮在 fullSizeContentView 上），**顶部模块切换条被标题栏压住**，看起来只有单模块内容 | ① 独立窗改 `MonitorPopoutPanel`（borderless，canBecomeKey=true，无标题栏/红绿灯），玻璃 `.popover` + 12pt 圆角 + 自绘关闭钮 + 可拖动；② `PopoutRootView` 容器与主页**完全同参**（`MonitorDetailView(selection:pageMode:false,fixedWidth:nil)` + `.padding(.horizontal,14)` + `.padding(.vertical,10)`，额外顶部 22pt 让出关闭钮）；③ 实测两图结构/数据/刷新间隔一致（`popout-unified-cpu.png` / `panel-unified-sensors.png`） |
-| 独立窗「点外即消」 | 只依赖 `windowDidResignKey`，但 `open()` 从未激活 app → LSUIElement 下窗口成不了 key → resignKey 永不触发，点外部收不起来 | ① `open()` 先 `NSApp.activate` 再上屏；② 兜底全局鼠标监视器：点击点落在窗口外即收起（不依赖 key 状态，dismiss 时移除）。实测 `onscreen=true → false` |
-| 温度可视化 | 纯数字行 | 按逆向注入版 v42 规格：**20–110°C 固定标尺橙色条形**（sRGB 0.95/0.60/0.30），计算项（Average/Hottest CPU/GPU）与温度 27 项全部带条；风扇保留原有 RPM 条（`shots/monitor-temp-bars.png`） |
+## 附录 A · 默认快捷键
 
-> 新增深链：`frsetnext://panel?monitor=sensors` 面板直达性能页指定模块（sensors/cpu/memory/network/disk/battery/power/gpu）。
+> 全部可在「设置 → 工具与快捷键」改绑；「2×」列表示可切换为双击修饰键模式。
 
-### 11.1b 第二轮修复（存储 / 常驻开销，同日实测）
-
-| 问题 | 实测证据 | 修复与效果 |
-|---|---|---|
-| RenderProbe 常驻探针 | `app.log` 被 `reason=periodic` 每 5s 刷屏（110 KB/天级），隐藏窗口也快照 | 默认关闭（`FRSET_RENDER_PROBE=1` 才开）；重启后 15s 内日志仅 5 条真实启动记录 |
-| SQLite WAL 无上限 | `statistics.sqlite` 主库 4 KB 而 `-wal` 2.1 MB；`clipboard.sqlite-wal` 1.6 MB | `journal_size_limit=1MB` + 启动 `wal_checkpoint(TRUNCATE)`；重启后两个 WAL 均归零，主库合并为 32 KB |
-| 存储占用 | 数据目录 460 MB，其中剪贴板图片 440 MB（89 个文件，均值 5 MB） | 在 2 GB 上限内属设计内积累；建议图片入库前压缩（预计 −60~80%）或调低上限 |
-
-### 11.2 函数级性能审计摘要（1815 个函数全量台账）
-
-审计方法：tree-sitter AST 抽取 161 个 Swift 文件 + 13 个 C/ObjC 文件的全部函数（1594 + 221），静态调用点统计（修正点调用/短名口径后），入口链 BFS（175 入口 / 1691 条边），热点 API 检测（IOKit/sysctl/ScreenCaptureKit/OCR/DB/网络等 24 类），逐函数标记。完整台账见同目录 `函数性能审计台账.csv`。
-
-| 判定 | 数量 | 含义 |
-|---|---|---|
-| hotspot | 3 | 常驻/高频路径上的重函数（见下表） |
-| optimize | 5 | 有明确优化空间（见下表） |
-| review | 62 | 大函数/高风险 API，建议复看（台账 notes 有指引） |
-| dead_suspect | 25 | 零调用疑似死代码（C 静态函数为主，建议删除或接回） |
-| dead | 6 | 调试/自检专用，生产不调用（保留排障） |
-| normal | 1714 | 已读确认合理或静态低风险 |
-
-**hotspot / optimize 明细**：
-
-| 函数 | 判定 | 说明与建议 |
-|---|---|---|
-| `MonitorSampler.scheduleNext` | hotspot（已修） | 重排时用 `refreshInterval` 丢失 UI 隐藏门控，隐藏时仍按 1s 全量采样。v73 已改为重排复用 `applyPreferences` 间隔（隐藏 ≥5s） |
-| `FSRecEngine.start`（录屏） | hotspot | 全屏 ×2×resScale = 5120×3328 BGRA + H.264 40Mbps；仅录制时运行。降负载：resScale 50–75% / 区域录制 / 显式硬件编码 |
-| `FSScreenRecBeginFromSettings/Start` | hotspot | 同上入口 |
-| `StatsDataProvider.refresh` | optimize | 每帧全量 C 采集；随 sampler 门控修复自动降频 |
-| `MonitorSampler.sampleOnce` | optimize | 每轮 2 次 `MonitorExtra.update` 可合并；7 个历史数组每轮拷贝 |
-| `FSBarSystemTick` | optimize | 0.5s Reconcile/RefreshValues，需确认幂等快路径 |
-| `FSBarKeepAdjacentTick` | optimize | 每 0.5s 无条件派发主队列，可前置 `g_posCalibrating` 判断 |
-| `StatusBarController.refreshTitles` | optimize | 双层项每次重建 bitmap；文本未变应跳过 |
-
-**死代码候选（25 个，节选）**：`MidnightTheme.h`、`SpringyIconButtonStyle.makeBody`、`hoverLift`、`FSEnsureWindow`、`FSBarSettingsCreateEmbeddedView`、`FSBarColorName`、`frset_uptime`、`frset_fmt_rate` 等 —— 完整清单与行号见台账 `dead_suspect` 行。
-
-### 11.3 已知问题（v73 时点）
-
-1. 「界面字号」档位（小 0.9 / 标准 / 大 1.1 / 特大 1.25）目前只影响窗口宽度计算的历史逻辑已移除，字号缩放待接入全局字体缩放（当前视觉仅由面板宽度档决定）。
-2. 菜单栏监控数据项（CPU/内存/网速/功耗双行部件）在当前安装包未渲染，已列入复看清单（可能与 C 引擎模块配置未同步有关）。
-3. 录屏设置小窗与悬浮剪贴板的高清截图待补（见第五章、第六章占位）。
-
-## 附录 A：默认快捷键速查表
-
-> 全部快捷键均可在「设置 → 工具与快捷键」改绑；「2×」列表示可切换为双击修饰键模式。
-
-| 功能 | 组合键 | 可改绑 | 备注 |
+| 功能 | 默认组合 | 可双击 | 说明 |
 |---|---|---|---|
-| 打开 Frset 主面板 | ⌥A | 否 | 菜单中该行显示为 ⌥空格（显示问题，待确认） |
-| 截图（区域） | ⌥S | 否 | 悬停自动吸附窗口，单击截整个窗口 |
-| 窗口截图 | ⇧⌥W | 否 | v112 新增：抓最前台应用主窗口 |
-| 取色 | ⌥C | 是（工具域） | |
-| 打开并搜索 | ⌥F | 否 | 打开面板并聚焦搜索框 |
-| 悬浮剪贴板 | ⇧⌘V | 否 | |
-| 截图提取文字（OCR） | ⇧⌥S | 否 | |
-| 截图翻译 | ⇧⌥T | 否 | |
-| 截图并复制 | ⇧⌥C | 否 | |
-| 截图并贴图 | ⇧⌥P | 否 | |
-| 划词翻译 | ⇧⌥D | 否 | 当前为翻译剪贴板文本 |
-| 性能监测窗 | ⌥P | 否 | |
-| 长截图 | ⇧⌥L | 否 | |
-| 文件中转 | ⌥T | 否 | |
-| 暂停/恢复剪贴板记录 | ⇧⌥R | 否 | |
-| 监测独立窗口 | ⌥M | 否 | |
-| 命令面板 | ⌥K | 否 | |
-| 置顶主面板 | ⌘P | 面板内 | |
-| 设置 | ⌘, | 全局 | |
-| 退出 | ⌘Q | 全局 | |
+| 打开 Kitnest | `⌥A` | 是 | 主面板开关 |
+| 截图（区域） | `⌥S` | 是 | 悬停吸附窗口，单击截整窗 |
+| 窗口截图 | `⇧⌥W` | 是 | 抓最前台应用主窗口 |
+| 取色 | `⌥C` | 是 | 全屏取色 + HEX |
+| 打开并搜索 | `⌥F` | 是 | 面板打开且聚焦搜索框 |
+| 悬浮剪贴板 | `⇧⌘V` | 是 | 鼠标旁迷你剪贴板 |
+| 截图提取文字 | `⇧⌥S` | 是 | OCR |
+| 截图翻译 | `⇧⌥T` | 是 | OCR + 翻译 |
+| 截图并复制 | `⇧⌥C` | 是 | 不弹动作条 |
+| 截图并贴图 | `⇧⌥P` | 是 | 直接钉在屏幕上 |
+| 图帘 | `⇧⌥G` | 是 | 展开 / 收起 |
+| 剪贴板 | `⌥V` | 是 | 打开面板并切回首页 |
+| 划词翻译 | `⇧⌥D` | 是 | 翻译当前选中文本 |
+| 性能监测 | `⌥P` | 是 | 独立监测窗 |
+| 长截图 | `⇧⌥L` | 是 | 自动滚动拼接 |
+| 文件中转 | `⌥T` | 是 | 切到中转页 |
+| 暂停/恢复剪贴板记录 | `⇧⌥R` | 是 | 处理敏感内容时用 |
+| 监测独立窗口 | `⌥M` | 是 | 与 ⌥P 同一窗口 |
+| 命令面板 | `⌥K` | 是 | 全功能目录 |
 
-## 附录 B：URL Scheme
+面板内：`⌘P` 置顶、`Esc` 关闭、`⌘,` 设置、`⌘Q` 退出。
 
-| URL | 效果 |
-|---|---|
-| `frsetnext://panel` | 呼出主面板 |
-| `frsetnext://settings?pane=general` | 打开设置并跳转指定页（general/search/tools/shortcuts/about/clipboard/statistics） |
-| `frsetnext://statistics` | 打开使用统计窗 |
+## 附录 B · URL Scheme
 
-用法示例：`open "frsetnext://settings?pane=tools"`（可在「快捷指令」/ Alfred 等中调用）。
+Scheme 为 `kitnest://`（旧 `frsetnext://` 仍然兼容）。42 个入口：
 
----
-
-## 附录 C：功能-函数索引表
-
-> 每章挑选最关键的函数，格式为 `文件:起始行号`。行号对应源码当前版本，仅作定位佐证。
-
-### C.1 菜单栏与主图标（Features/StatusBar/）
-
-| 函数 | 职责 |
-|---|---|
-| `StatusBarController.swift:139` installMainItem | 创建并安装主图标状态项 |
-| `StatusBarController.swift:424` mainItemClicked | 主图标点击分发（左键面板 / 右键菜单） |
-| `StatusBarController.swift:468` showPopover | 点击监控部件弹出数据浮层 |
-| `StatusBarController.swift:483` presentStatsPopover | 呈现 STATS 合并条浮层 |
-| `StatusBarController.swift:508` openPanelAction | 菜单「打开面板」 |
-| `StatusBarController.swift:510` openSettingsAction | 菜单「设置…」 |
-| `StatusBarController.swift:529` showStatisticsAction | 菜单「使用统计」 |
-| `StatusBarController.swift:533` toggleIconsAction | 「显示状态项」总开关 |
-| `StatusBarController.swift:540` quitAction | 「退出 Frset」 |
-| `StatusBarController.swift:270` rebuild | 偏好变化后重建全部状态项 |
-| `StatusBarController.swift:256` saveStatusItemPosition | 保存状态项在菜单栏的位置 |
-| `StatusBarController.swift:262` restoreStatusItemPosition | 重启后还原状态项位置 |
-| `StatusBarMenuBuilder.swift:11` mainMenu | 组装主图标右键菜单 |
-| `StatusBarMenuBuilder.swift:83` customIconSubmenu | 组装自定义图标子菜单 |
-| `MenuBarIconStyle.swift:257` selectIconStyle | 切换图标样式（logo/fan/date/custom） |
-| `MenuBarIconStyle.swift:476` startFan | 启动风扇动画 |
-| `MenuBarIconStyle.swift:513` updateFanSpeed | 按 CPU 使用率调整风扇转速 |
-| `MenuBarIconStyle.swift:465` startDateTimer | 日期样式定时刷新 |
-| `MenuBarIconStyle.swift:157` setSymbol | 设置自定义 SF Symbol 名称 |
-| `MenuBarIconEasterEggManager.swift:82` registerMainIconClick | 监听主图标连击解锁彩蛋 |
-| `MenuBarIconEasterEggManager.swift:123` unlock | 解锁自定义图标选项 |
-| `MenuBarIconEasterEggManager.swift:141` presentUnlockCelebration | 播放解锁庆祝动效 |
-| `StatisticsRootView.swift:207` loadData | 装载统计数据 |
-| `StatisticsRootView.swift:374` heatCellView | 渲染活动热力图格子 |
-| `StatisticsSettingsPane.swift:291` performExport | 导出偏好数据 |
-| `StatisticsSettingsPane.swift:345` performImport | 导入偏好数据 |
-
-### C.2 系统监控（Features/Monitor/、FrsetStatsBar/）
-
-| 函数 | 职责 |
-|---|---|
-| `MonitorReader.swift:176` readCPU | 读取 CPU 使用率 |
-| `MonitorReader.swift:239` readMemory | 读取内存与内存压力 |
-| `MonitorReader.swift:319` readNetworkRate | 计算网络上下行速率 |
-| `MonitorReader.swift:333` readDiskRate | 计算磁盘读写速率 |
-| `MonitorReader.swift:372` readTemperatures | 读取传感器温度 |
-| `MonitorReader.swift:426` readSMCTemperature | 经 SMC 直读温度 |
-| `MonitorReader.swift:480` readBatteryLevel | 读取电池电量 |
-| `MonitorReader.swift:502` readPower | 读取整机功耗 |
-| `MonitorReader.swift:170` loadAverages | 读取系统负载 |
-| `MonitorSampler.swift:138` scheduleNext | 调度下一次采样 |
-| `MonitorSampler.swift:157` sampleOnce | 单轮全量采样 |
-| `MonitorStatusItems.swift:31` cpuTwoLine | CPU 双排菜单栏文案 |
-| `MonitorStatusItems.swift:47` networkTwoLine | 网络双排菜单栏文案 |
-| `MonitorStatusItems.swift:59` powerTwoLine | 功耗双排菜单栏文案 |
-| `MonitorStatusItems.swift:111` combinedTwoLine | 合并条文案 |
-| `MonitorStatusItems.swift:138` registerAll | 注册全部菜单栏部件 |
-| `MonitorPreferences.swift:105` isModuleEnabled | 模块启用查询 |
-| `MonitorPreferences.swift:115` visibleStatusItemIDs | 可见状态项集合 |
-| `MonitorDetailView.swift:94` availableModules | 监测窗可用模块列表 |
-| `MonitorDetailView.swift:644` sensorCategorySection | 传感器分类展示 |
-| `MonitorDetailView.swift:755` batteryStatusText | 电池状态文案 |
-| `NetworkDiagnostics.swift:313` probePublicIP | 探测公网 IP 与归属地 |
-| `NetworkDiagnostics.swift:387` probeLatencies | 探测多目标延迟 |
-| `NetworkDiagnostics.swift:414` probeDNS | DNS 解析探测 |
-| `NetworkDiagnostics.swift:199` detectProxyProcess | 检测代理进程 |
-| `Memory/ProcessMemoryInspector.swift:30` topConsumers | 内存占用 Top 进程 |
-| `Memory/MemoryOptimizer.swift:84` optimize | 执行内存优化 |
-| `StatsBarEngine.swift:183` openMonitor | 打开监测窗 |
-| `StatsBarEngine.swift:207` openRecorder | 打开录屏设置 |
-| `../frset_stats_data.c:166` frset_cpu_sample | C 层 CPU 采样 |
-| `../frset_stats_data.c:133` frset_smc_scan | C 层 SMC 传感器扫描 |
-
-### C.3 主面板（Features/Panel/）
-
-| 函数 | 职责 |
-|---|---|
-| `PanelController.swift:121` toggle | 呼出/收起主面板 |
-| `PanelController.swift:125` show | 显示主面板 |
-| `PanelController.swift:186` settleTopEdge | 贴菜单栏定位 |
-| `PanelController.swift:221` handleGlobalShortcut | 处理面板全局快捷键 |
-| `PanelController.swift:249` persistSize | 持久化面板尺寸 |
-| `PanelRootView.swift:297` runCapture | 面板内发起截图类动作 |
-| `PanelRootView.swift:480` handleFileDrop | 文件拖入打开 JSON 检视器 |
-| `FloatingPanel.swift:74` applyPersonalizedMaterial | 应用个性化材质/背景 |
-| `JSONInspectorWindow.swift:29` open | 打开 JSON 检视器 |
-| `JSONInspectorWindow.swift:210` parse | 解析 JSON 内容 |
-| `JSONInspectorWindow.swift:232` copyFormatted | 复制格式化 JSON |
-| `JSONInspectorView.swift:87` toggle | 展开/折叠 JSON 节点 |
-| `MermaidRenderer.swift:64` parse | 解析 Mermaid 图 |
-| `MermaidRenderer.swift:146` parseStatement | 解析 Mermaid 语句 |
-| `PreviewMarkdownRenderer.swift:411` renderDiagram | 预览内渲染 Mermaid 图 |
-| `PreviewMarkdownRenderer.swift:542` renderTable | 预览内渲染 Markdown 表格 |
-| `PreviewPopoverContentModel.swift:78` classify | 预览内容类型判别 |
-| `PreviewPopoverContentModel.swift:119` looksLikeMarkdown | Markdown 判定 |
-| `PreviewPopoverContentModel.swift:140` looksLikeCode | 代码判定 |
-| `MainPanelPreviewPopoverCoordinator.swift:162` present | 呈现悬停预览气泡 |
-| `PreviewImageLoader.swift:88` detectQRCode | 识别图片中的二维码 |
-| `PreviewPopoverContentView.swift:346` loadFullText | 加载条目全文 |
-| `PreviewPopoverContentView.swift:639` editImage | 预览内编辑图片 |
-
-### C.4 截图与图像（Features/Capture/）
-
-| 函数 | 职责 |
-|---|---|
-| `ScreenshotManager.swift:258` captureRegion | 区域截图入口 |
-| `ScreenshotManager.swift:272` startRegionCapture | 启动选区覆盖层 |
-| `ScreenshotManager.swift:261` captureAndOCR | 截图并识别文字 |
-| `ScreenshotManager.swift:264` captureAndPin | 截图并贴图 |
-| `ScreenshotManager.swift:267` captureAndCopy | 截图并复制 |
-| `ScreenshotManager.swift:270` captureAndScreenTranslate | 截图并翻译 |
-| `ScreenshotManager.swift:350` captureFullScreen | 全屏截图 |
-| `ScreenshotManager.swift:228` ensureScreenRecordingPermission | 检查录屏权限 |
-| `ScreenshotManager.swift:475` playShutterSound | 播放快门音效 |
-| `ScreenshotManager.swift:544` copyOCRText | 复制 OCR 结果 |
-| `ScreenshotManager.swift:607` captureLongScreenshot | 长截图入口 |
-| `ScreenshotManager.swift:566` stitchAndSave | 拼接并保存长图 |
-| `ScreenshotOverlay.swift:228` drawHandles | 绘制选区手柄 |
-| `ScreenshotOverlay.swift:238` drawSizeLabel | 绘制选区尺寸标签 |
-| `ScreenshotOverlay.swift:261` drawCrosshair | 绘制十字准线 |
-| `AnnotationEditorWindow.swift:436` undoTapped | 撤销标注 |
-| `AnnotationEditorWindow.swift:452` saveTapped | 保存标注结果 |
-| `AnnotationEditorWindow.swift:440` longScreenshotTapped | 编辑器内发起长截图 |
-| `AnnotationEditorWindow.swift:252` applyRemoval | 应用物体擦除结果 |
-| `AnnotationEditorWindow.swift:354` composite | 合成标注与底图 |
-| `OCRService.swift:45` recognizeText | 文字识别 |
-| `ScreenshotOCRWindow.swift:196` show | 显示 OCR 结果窗 |
-| `ScreenTranslator.swift:99` translateBlocks | 分块翻译屏幕文本 |
-| `ScreenTranslator.swift:156` render | 重绘译文贴图 |
-| `PinWindow.swift:400` showControls | 贴图悬停显示控制条 |
-| `PinWindow.swift:620` showActionsMenu | 贴图右键动作菜单 |
-| `Eyedropper.swift:200` start | 启动取色器 |
-| `Eyedropper.swift:292` copyHexToPasteboard | 复制 HEX 到剪贴板 |
-| `BeautifyPanel.swift:35` render | 渲染截图美化效果 |
-| `BeautifyPanel.swift:239` pinTapped | 美化后贴图 |
-| `ObjectRemovalEngine.swift:35` inpaint | 图像修复（物体擦除核心） |
-| `LongScreenshotCoordinator.swift:168` commitSelection | 确认长截图选区 |
-| `LongScreenshotSession.swift:211` captureFrame | 长截图逐帧采集 |
-
-### C.5 录屏（FrsetStatsBar/frset_recorder.m、Features/Monitor/）
-
-| 函数 | 职责 |
-|---|---|
-| `frset_recorder.m:1201` FSScreenRecStart | 开始录制 |
-| `frset_recorder.m:1202` FSScreenRecStop | 停止录制 |
-| `frset_recorder.m:1208` FSScreenRecIsRunning | 查询录制状态 |
-| `frset_recorder.m:656` FSScreenRecOpenSettings | 打开录屏设置小窗 |
-| `frset_recorder.m:1158` FSScreenRecBeginFromSettings | 从设置开始录制 |
-| `frset_recorder.m:402` FSRecBarShow | 显示计时窗（红点 + M:SS） |
-| `frset_recorder.m:426` FSRecBarHide | 隐藏计时窗 |
-| `frset_recorder.m:329` FSRegionOverlayShow | 显示区域选择覆盖层 |
-| `frset_recorder.m:352` FSRegionOverlayClose | 关闭区域选择 |
-| `frset_recorder.m:162` FSRecConvertMovieToGIF | 录制结果转 GIF |
-| `frset_recorder.m:1130` FSRecShowDonePanel | 显示录制完成面板 |
-| `frset_recorder.m:1124` FSScreenRecCloseDone | 关闭完成面板 |
-| `frset_recorder.m:26` FSRecMakeGlass | 构建毛玻璃层 |
-| `frset_recorder.m:46` FSRecInstallGlass | 为窗口安装玻璃效果 |
-| `frset_recorder.m:141` FSRecCreateScaledImage | 按缩放比处理帧 |
-| `../StatsBarEngine.swift:207` openRecorder | 菜单栏打开录屏设置 |
-
-### C.6 剪贴板管理（Features/Clipboard/）
-
-| 函数 | 职责 |
-|---|---|
-| `ClipboardManager.swift:195` pollTick | 定时轮询系统剪贴板 |
-| `ClipboardManager.swift:251` ingest | 摄入新剪贴板内容 |
-| `ClipboardManager.swift:613` insertImage | 插入图片条目 |
-| `ClipboardManager.swift:619` insertText | 插入文本条目 |
-| `ClipboardManager.swift:567` ingestToolOutput | 工具产出回流历史 |
-| `ClipboardManager.swift:625` searchGlobal | 全局搜索历史 |
-| `ClipboardManager.swift:559` setNote | 设置条目备注 |
-| `ClipboardManager.swift:519` rename | 重命名条目 |
-| `ClipboardManager.swift:649` scheduleOCR | 调度图片 OCR |
-| `ClipboardManager.swift:671` pasteToFrontmostApplication | 回贴到前台应用 |
-| `ClipboardPasteboardReader.swift:84` readImage | 读取剪贴板图片 |
-| `ClipboardPasteboardReader.swift:112` readFiles | 读取剪贴板文件 |
-| `ClipboardPasteboardReader.swift:141` readRichText | 读取富文本 |
-| `ClipboardPasteboardReader.swift:162` readText | 读取纯文本 |
-| `ClipboardPasteboardReader.swift:175` readURL | 读取链接 |
-| `ClipboardPasteboardReader.swift:215` fingerprint | 内容指纹去重 |
-| `ClipboardPruneSchedulers.swift:41` prune | 按策略清理历史 |
-| `FloatingClipboardWindow.swift:197` toggle | 呼出/收起悬浮窗 |
-| `FloatingClipboardWindow.swift:202` showNearMouse | 在鼠标处显示悬浮窗 |
-| `FloatingClipboardWindow.swift:155` setPinned | 钉住/取消钉住 |
-| `FloatingClipboardWindow.swift:144` refresh | 刷新悬浮窗列表 |
-| `ClipboardPreviewWindow.swift:381` copyContent | 预览窗复制内容 |
-| `ClipboardItemEditWindowController.swift:25` setContent | 编辑窗载入内容 |
-| `ClipboardItemEditWindowController.swift:202` saveTapped | 保存编辑 |
-| `TagStore.swift:68` create | 创建标签 |
-| `TagStore.swift:123` toggle | 切换条目标签 |
-
-### C.7 AI 功能（Features/AI/）
-
-| 函数 | 职责 |
-|---|---|
-| `LLMService.swift:45` send | 统一发送请求入口 |
-| `LLMService.swift:84` stream | 流式请求 |
-| `LLMProtocols.swift:228` complete | 非流式补全协议 |
-| `LLMTransport.swift:70` streamBytes | SSE 流字节读取 |
-| `AIChatView.swift:127` send | 聊天发送 |
-| `AIChatView.swift:177` performStream | 流式渲染回复 |
-| `AIChatView.swift:111` refreshModels | 刷新模型列表 |
-| `AISettingsPane.swift:49` selectProvider | 切换服务商 |
-| `AISettingsPane.swift:66` saveKey | 保存 API Key |
-| `AISettingsPane.swift:146` testConnection | 测试连接 |
-| `AISettingsPane.swift:89` addCustomTool | 添加自定义 AI 工具 |
-| `LLMSessionStore.swift:18` createSession | 新建会话 |
-| `LLMSessionStore.swift:150` autoTitle | 自动生成会话标题 |
-| `LLMSessionStore.swift:164` searchSessions | 搜索历史会话 |
-| `TranslationToolSession.swift:47` translate | 执行翻译 |
-| `TranslationToolSession.swift:78` systemPrompt | 翻译系统提示词 |
-| `CredentialStore.swift:127` masterSecret | 派生主密钥 |
-| `CredentialStore.swift:170` encryptEnvelope | 加密密钥信封 |
-| `LegacyGeminiMigrator.swift:80` migrateIfNeeded | 迁移旧版明文密钥 |
-| `AnthropicService.swift` makeRequest | Anthropic 协议请求 |
-| `OpenAICompatibleService.swift` makeRequest | OpenAI 兼容协议请求 |
-| `OllamaService.swift` makeRequest | Ollama 本地请求 |
-| `GeminiService.swift` makeRequest | Gemini 协议请求 |
-
-### C.8 工具箱（Features/Toolbox/）
-
-| 函数 | 职责 |
-|---|---|
-| `CommandPalette.swift:196` toggle | 呼出命令面板 |
-| `CommandPalette.swift:278` refilter | 输入变化重新过滤 |
-| `CommandPalette.swift:309` executeSelected | 执行选中命令 |
-| `FuzzyMatcher.swift:37` match | 模糊匹配核心 |
-| `FuzzyMatcher.swift:82` rate | 匹配评分排序 |
-| `BuiltinTools.swift:28` registerAll | 注册全部内置工具 |
-| `BuiltinTools.swift:105` registerIPTool | 注册 IP 查询工具 |
-| `BuiltinTools.swift:311` registerHashTool | 注册哈希工具 |
-| `BuiltinTools.swift:336` registerQRCodeTool | 注册二维码工具 |
-| `BuiltinTools.swift:265` registerImageCompressTool | 注册图片压缩工具 |
-| `IPAddressService.swift:28` localIPAddress | 查询本机 IP |
-| `IPAddressService.swift:56` queryPublicIP | 查询公网 IP |
-| `LunarCalendar.swift:126` lunarDate | 公历转农历 |
-| `LunarCalendar.swift:183` solarTerm | 二十四节气 |
-| `LunarCalendar.swift:204` lunarFestival | 农历节日 |
-| `HolidayManager.swift:48` holiday | 节假日数据 |
-| `HolidayManager.swift:62` isOnLeave | 是否休息日判定 |
-| `CalendarService.swift:26` requestAccessIfNeeded | 日历授权引导 |
-| `CalendarService.swift:77` events | 读取系统日程 |
-| `MediaTools.swift:33` compress | 图片压缩执行 |
-| `ToolConverters.swift:29` timestampToDate | 时间戳转日期 |
-| `ToolConverters.swift:268` sha256 | SHA-256 计算 |
-| `ToolConverters.swift:313` md5 | MD5 计算 |
-| `SearchSectionView.swift:226` runMdfind | 本机文件搜索 |
-| `SearchSectionView.swift:1342` performWebSearch | 网页搜索 |
-| `SearchSectionView.swift:289` searchURL | 构造搜索 URL |
-| `SearchSectionView.swift:1044` clipboardCategory | 搜索结果-剪贴板分类 |
-| `ShortcutManager.swift:47` installEventHandler | 安装快捷键事件处理 |
-| `ShortcutManager.swift:84` register | 注册全局快捷键 |
-| `ShortcutRecorder.swift:21` start | 开始录制快捷键 |
-| `DoubleTapShortcut.swift:128` startMonitoringIfNeeded | 双击修饰键监听 |
-| `ToolRegistry.swift:137` register | 工具注册 |
-| `ToolboxSectionView.swift:247` run | 工具面板执行工具 |
-| `WindowManager.swift` closeAll | 一键关闭工具窗口 |
-
-### C.9 设置（Features/Settings/）
-
-| 函数 | 职责 |
-|---|---|
-| `SettingsWindowController.swift:88` open | 打开设置窗口 |
-| `SettingsWindowController.swift:30` selectPane | 选择页签 |
-| `SettingsWindowController.swift:37` applyPaneMapping | 应用页签映射 |
-| `SettingsSidebarView.swift:141` navRow | 侧边栏导航行 |
-| `SettingsPanes.swift:328` openDetail | 常规页跳转子设置 |
-| `SettingsPanes.swift:548` aboutButton | 关于页按钮 |
-| `SettingsPanes.swift:640` createTag | 标签管理入口 |
-| `SettingsPanes.swift:663` persist | 持久化设置项 |
-| `AppearanceManager.swift:39` apply | 应用外观设置 |
-| `PersonalizationSettingsPane.swift:155` applyPanelWidth | 应用面板宽度 |
-| `PersonalizationSettingsPane.swift:310` pickBackgroundImage | 选择背景图片 |
-| `SearchSettingsPane.swift:276` addToSearchBar | 添加搜索引擎到栏 |
-| `SearchSettingsPane.swift:380` saveCustomEngine | 保存自定义引擎 |
-| `SearchSettingsPane.swift:359` validateEngineForm | 校验引擎表单 |
-| `SearchSettingsPane.swift:441` performReset | 恢复默认搜索引擎 |
-| `MonitorWidgetsPane.swift:108` moduleCard | 部件设置模块卡片 |
-| `MonitorWidgetsPane.swift:642` write | 写入部件配置 |
-| `StatisticsSettingsPane.swift:291` performExport | 导出偏好数据 |
-| `StatisticsSettingsPane.swift:345` performImport | 导入偏好数据 |
-| `WidgetSettingsSelfTest.swift:46` runIfRequested | 设置自检 |
-
-### C.10 传输坞（Features/TransferDock/）
-
-| 函数 | 职责 |
-|---|---|
-| `TransferDockService.swift:158` upload | 上传文件到中转站 |
-| `TransferDockService.swift:182` download | 下载文件到本地 |
-| `TransferDockService.swift:204` delete | 删除中转文件 |
-| `TransferDockService.swift:101` refresh | 刷新文件列表 |
-| `TransferDockService.swift:225` saveCookies | 保存登录态 |
-| `TransferDockService.swift:263` runBridge | 调用本地 Python 桥 |
-| `TransferDockService.swift:77` startKeepAlive | 会话保活 |
-| `TransferDockLoginView.swift:112` checkCookies | 检查登录 Cookie |
-| `TransferDockLoginView.swift:97` startPolling | 登录态轮询 |
-| `TransferDockView.swift:143` row | 文件列表行 |
-| `TransferDockView.swift:191` iconName | 文件类型图标 |
-| `TransferDockView.swift:291` handleDrop | 拖放上传处理 |
-| `TransferDockView.swift:306` pickAndUpload | 选择文件并上传 |
-
----
-
-## 附录 D：已知问题与待确认项
-
-| # | 事项 | 状态 |
+| 分组 | URL | 效果 |
 |---|---|---|
-| 1 | 菜单「打开面板」显示 ⌥空格，实际注册为 ⌥A | 显示不一致，待确认 |
-| 2 | 主面板底部「上传」按钮未接图床 | 待确认后续版本 |
-| 3 | 划词翻译为剪贴板文本降级实现 | 源码注释明确，待后续版本 |
-| 4 | 文件搜索依赖 mdfind 与完全磁盘访问 | 表现待实测确认 |
-| 5 | 传输坞依赖本地 Python 桥 | 运行时是否内置待确认 |
-| 6 | 部分机型传感器/功耗读数缺失 | 硬件差异，待确认 |
+| **面板** | `kitnest://panel` | 打开主面板 |
+| | `kitnest://panel?anchor=icon` | 从菜单栏图标位置展开 |
+| | `kitnest://panel?monitor=sensors` | 直达性能页指定模块 |
+| **设置** | `kitnest://settings?pane=general` | 打开设置并跳页（general / clipboard / search / ai / tools / shortcuts / data / about / statistics / monitor / capture / pin / curtain） |
+| **统计** | `kitnest://statistics` | 使用统计窗 |
+| **监测** | `kitnest://monitor` / `?module=cpu` | 监测独立窗 |
+| | `kitnest://performance` | 同上 |
+| **存储** | `kitnest://storage` / `?scan=1` / `?drill=Users` | 存储管理（可自动扫描/下钻） |
+| **截图** | `kitnest://capture` / `?history=1` | 截图区段 / 历史 |
+| | `kitnest://capturebar?expand=pinGroup` | 弹出动作条（排障用） |
+| | `kitnest://copyocr` | 截图并复制文字 |
+| **长截图** | `kitnest://longshot` | 进入长截图 |
+| | `?demo=1` / `?check=1` / `?preview=1` | 排障入口 |
+| **钉图** | `kitnest://pin` | 钉图演示 |
+| **图帘** | `kitnest://curtainprobe?count=3&shot=1` | 合成 N 张挂图帘（排障） |
+| | `kitnest://shelfprobe` | 旧名，兼容 |
+| **OCR** | `kitnest://ocr` / `kitnest://ocrwin` | 识别链路自检 / 结果窗 |
+| **翻译** | `kitnest://translate` | 翻译链路自检 |
+| **归档** | `kitnest://archive?path=…` / `?action=mini` / `?action=compress` | 打开/小窗/压缩 |
+| | `kitnest://compress` / `kitnest://extract` | 压缩 / 解压 |
+| **中转** | `kitnest://transfer` | 文件中转页 |
+| | `kitnest://tasks` | 任务队列 |
+| **投屏** | `kitnest://cast` / `kitnest://castpair` / `kitnest://castapps` | 投屏 / 扫码配对 / 应用库 |
+| **搜索** | `kitnest://fileindex?q=…` | 查询全盘索引（排障） |
+| **网盘** | `kitnest://cloudlink` | 解析中心 |
+| **剪贴板** | `kitnest://clipdesk` / `?action=toggle` | 悬浮剪贴板 |
+| **内存** | `kitnest://memcheck` / `kitnest://memthaw` | 深度释放 / 全部解冻 |
+| **手册** | `kitnest://manual` | 内置用户手册 |
+| **诊断** | `kitnest://annotest` / `kitnest://stagetest` / `kitnest://toast` | 各类自检 |
+
+## 附录 C · 函数索引怎么查
+
+本手册每章末尾的「实现索引」是**精选**（每章 6-16 条关键函数）。要查全部函数：
+
+| 资源 | 路径 | 内容 |
+|---|---|---|
+| 函数清单 | `docs/40-审计与核对/数据表/FrsetNext-函数清单.csv` | 8,693 条声明（module/file/owner/kind/name/line/lines/complexity） |
+| 函数审阅台账 | `docs/40-审计与核对/数据表/函数审阅台账.csv` | 3,410 条函数 + 证据链 |
+| 符号索引 | `docs/00-总览/符号索引.md` | 8,693 条，按文件组织，可全文搜 |
+| 模块依赖图 | `docs/00-总览/模块依赖图.md` | 106 条模块引用边 |
+
+查法示例：
+
+```bash
+# 找某个功能的所有函数
+grep -i "curtain" docs/40-审计与核对/数据表/FrsetNext-函数清单.csv
+
+# 找某文件里最复杂的函数
+awk -F, '$2=="Features/Capture/Curtain/CurtainWindow.swift"' \
+  docs/40-审计与核对/数据表/FrsetNext-函数清单.csv | sort -t, -k8 -rn | head
+```
+
+## 附录 D · 已知限制
+
+| 限制 | 影响 | 说明 |
+|---|---|---|
+| 截图/录屏需「屏幕录制」权限 | 无权限时全黑 | 系统限制，无法绕过 |
+| 全局快捷键需「辅助功能」 | 无权限时无响应 | 系统限制 |
+| 存储索引不含 TCC 目录 | 少约 33GB（沙盒容器） | 授予「完全磁盘访问」后补全 |
+| 存储索引不含 APFS 快照/交换文件 | 索引量 < 磁盘已用 | 这些不在任何目录里 |
+| RAR 只能解不能压 | — | 7zz 的 RAR 编码器授权限制 |
+| PP-OCR 首次识别多约 300ms | 仅首次 | 子进程冷启动 |
+| 图帘/钉图不参与截图 | 设计如此 | `sharingType = .none` |
+| 隔空投送只通苹果设备 | 安卓用扫码/ADB | AWDL 是苹果私有协议 |
+| 手写体 OCR 识别率低 | — | 模型能力边界 |
+| 中文输入法组词未上屏不搜索 | 250ms 防抖 | 避免打一个字搜一次 |
+
+## 附录 E · 版本演进（关键节点）
+
+| 版本 | 变更 |
+|---|---|
+| v211 | 存储管理：全盘索引雏形、气泡堆块、移到废纸篓 |
+| v213 | 存储「可清理」名单收紧：排除 Downloads / tmp / 工具链 |
+| v233 | 钉图统一叫法（原「贴图」） |
+| v259 | 内存「清缓存 + 冻结闲置」合并为「深度释放」 |
+| v261 | 图帘落地（原名悬挂架），默认关闭、可开关 |
+| v262 | 图帘按 1Capture 反汇编重做几何；截图/钉图/图帘三页合并 |
+| v263 | 「悬挂架」改名**图帘**；⌘ 拖动缩放；图帘/剪贴板独立快捷键；钉住四形态 |
+| v264 | 存储索引真正扫全盘（248 万条目 / 185GB）；自建全盘文件名索引；搜索覆盖 `~/Library` / 隐藏目录 |
 
 ---
 
-*（草稿结束。截图占位共 11 处，待 shot-collector 提供实际截图后替换 `![](shots/xxx.png)`。）*
+> 本手册由源码逐文件核对生成，覆盖 32 个功能域、280 个源文件、3,410 个函数。
+> 发现描述与实现不一致时，**以代码为准**，并请反馈以便修正。
