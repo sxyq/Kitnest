@@ -16,26 +16,40 @@ import AppKit
 
 private var roundCloseButtonKey: UInt8 = 0
 
+/// v272：红绿灯策略。`enabled` = 三颗可见可用；`hidden` = 瞬时面板不摆假按钮。
+enum TrafficLightPolicy {
+    case enabled
+    case hidden
+}
+
 extension NSWindow {
     /// 恢复系统红黄绿三钮（幂等；可重复调用）
-    func restoreStandardTrafficLights() {
+    ///
+    /// v272：能力位（.closable/.miniaturizable/.resizable）由
+    /// `applyOfficialChrome(lights:)` 统一补齐——缺能力位时 AppKit 会把按钮判为
+    /// 禁用，macOS 27 画成空心灰圈，这是「一颗粉红实心 + 两颗空心」的根因。
+    func restoreStandardTrafficLights(policy: TrafficLightPolicy = .enabled) {
         if let legacy = objc_getAssociatedObject(self, &roundCloseButtonKey) as? NSButton {
             legacy.removeFromSuperview()
             objc_setAssociatedObject(self, &roundCloseButtonKey, nil, .OBJC_ASSOCIATION_RETAIN)
         }
-        // v260（红绿灯「颜色分层」根因）：旧版把三颗灯 alpha 置 0，这里无条件
-        // `alphaValue = 1` 恢复。但 layer-backed 视图上赋值会重建 CALayer，
-        // 三颗灯因此脱离窗口统一渲染通道、被单独合成，边缘出现错位/分层。
-        // v260 补：只有确实被置过 0 时才赋值；正常窗口一次都不碰 CALayer。
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for button in [standardWindowButton(.closeButton),
                        standardWindowButton(.miniaturizeButton),
                        standardWindowButton(.zoomButton)] {
-            button?.isHidden = false
-            if let b = button, b.alphaValue != 1 { b.alphaValue = 1 }
+            guard let b = button else { continue }
+            switch policy {
+            case .hidden:
+                if !b.isHidden { b.isHidden = true }
+            case .enabled:
+                // 只在「确实被改过」时才写：对已是可见、alpha=1 的按钮再赋一次值，
+                // AppKit 会重建它的图层，红绿灯会退回旧式「空心环」画法（v269 排障）。
+                if b.isHidden { b.isHidden = false }
+                if b.alphaValue < 1 { b.alphaValue = 1 }
+                if !b.isEnabled { b.isEnabled = true }
+            }
         }
         CATransaction.commit()
     }
-
 }

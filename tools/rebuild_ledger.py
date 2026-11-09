@@ -476,6 +476,22 @@ EVIDENCE.update({
         "v266 把开关与不透明底板固定在距顶 64pt，避开刘海与菜单栏；draw 每帧调用，frame 不变时无副作用",
 })
 
+# ── v272：统一窗口内容挂载与设置二级导航 ───────────────────────────────
+EVIDENCE.update({
+    ("Core/UI/OfficialWindowChrome.swift", "setOfficialContent"):
+        "替换 NSView/NSViewController 内容后重挂统一玻璃底，避免底层仍附着在旧 contentView",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "tagCountText"):
+        "按标签数量选择本地化单复数格式，供剪贴板标签行显示计数",
+    ("Features/Settings/Shell/SettingsNavigation.swift", "group"):
+        "由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属",
+    ("Features/Settings/Shell/SettingsSidebarView.swift", "init"):
+        "将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位",
+    ("Features/Settings/Shell/SettingsSidebarView.swift", "groupHeader"):
+        "渲染一级目录并把点击映射到该组首个二级页",
+    ("Features/Settings/Shell/SettingsSidebarView.swift", "footerChip"):
+        "渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页",
+})
+
 
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。

@@ -213,9 +213,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             Log.info("settings", "hosting view mounted, sizing=\(hostingView.fittingSize)")
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
-            win.contentView = hostingView
-            // v204：contentView 换新后重挂玻璃底，保证它仍在内容之下（幂等）
-            win.installUnifiedGlassBackground()
+            win.setOfficialContent(hostingView)
 
         }
         Log.info("Settings", "设置窗口已创建")

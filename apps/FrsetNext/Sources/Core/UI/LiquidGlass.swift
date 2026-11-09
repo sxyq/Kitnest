@@ -205,7 +205,9 @@ final class GlassTintOverlayView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         surfaceView.wantsLayer = true
+        surfaceView.autoresizingMask = [.width, .height]
         frostView.wantsLayer = true
+        frostView.autoresizingMask = [.width, .height]
         addSubview(surfaceView)
         addSubview(frostView)
         refreshColors()
@@ -262,6 +264,7 @@ final class UnifiedGlassBackingView: NSView {
         layer?.cornerRadius = cornerRadius
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = true
+        tintView.autoresizingMask = [.width, .height]
         addSubview(glassView)
         addSubview(tintView)
     }
@@ -272,6 +275,7 @@ final class UnifiedGlassBackingView: NSView {
         super.layout()
         glassView.frame = bounds
         tintView.frame = bounds
+        tintView.layout()
     }
 }
 
@@ -303,17 +307,50 @@ public extension NSWindow {
         // 叠成两层不同着色，深色尤其明显。只铺 contentLayoutRect 覆盖的内容区，
         // 标题栏完全交给系统。差值很小时（无标题栏/透明标题栏窗口）保持原行为。
         let layout = contentLayoutRect
-        // 透明标题栏窗口（OCR 结果窗 / borderless 浮层）系统不画材质，
-        // 玻璃底必须铺满，否则顶部会露出桌面；只有原生标题栏才需要避让。
-        if !titlebarAppearsTransparent, !layout.isEmpty,
-           host.bounds.height - layout.maxY > 20 {
-            backing.frame = NSRect(x: 0, y: 0,
-                                   width: host.bounds.width, height: layout.maxY)
+        // v272（用户：「红绿灯还是会出现问题，所有页面一个一个统一」）：
+        // 旧写法把玻璃底插进 `content.superview`（NSThemeFrame，AppKit 私有视图层级）。
+        // 最小样例实测：**只要往主题框架里加子视图**，非 fullSizeContentView 窗口的
+        // 标题栏就整体左移——标题被左边缘裁掉、三颗红绿灯只剩一颗（截图证据：
+        // Probe A 正常 / Probe B 加玻璃后错位）。这正是「有的窗口红绿灯怪怪的」根因。
+        // 现在按窗口类型分流：
+        //   · fullSizeContentView（设置/统计/OCR…）：标题栏透明或已被内容盖住，仍插在
+        //     主题框架里铺满（保持 v260 的「避开原生标题栏」判断）；
+        //   · NSHostingView 内容窗：放进普通容器，与玻璃底成为兄弟视图。直接把玻璃
+        //     加到 NSHostingView 里时，它落在 SwiftUI 宿主自身图层之后，背景实际不可见。
+        //   · 原生 AppKit 内容窗：保留原 contentView 身份，玻璃放在其子视图最底层。
+        let isHostingView = String(describing: type(of: content)).hasPrefix("NSHostingView<")
+        if styleMask.contains(.fullSizeContentView) {
+            if !titlebarAppearsTransparent, !layout.isEmpty,
+               host.bounds.height - layout.maxY > 20 {
+                backing.frame = NSRect(x: 0, y: 0,
+                                       width: host.bounds.width, height: layout.maxY)
+            } else {
+                backing.frame = host.bounds
+            }
+            backing.autoresizingMask = [.width, .height]
+            host.addSubview(backing, positioned: .below, relativeTo: content)
+        } else if isHostingView {
+            let container = NSView(frame: content.frame)
+            content.autoresizingMask.formUnion([.width, .height])
+            backing.autoresizingMask.formUnion([.width, .height])
+            content.frame = container.bounds
+            backing.frame = container.bounds
+            container.addSubview(backing, positioned: .below, relativeTo: nil)
+            container.addSubview(content)
+            if let controller = contentViewController, controller.view === content {
+                let wrapper = NSViewController()
+                wrapper.addChild(controller)
+                wrapper.view = container
+                contentViewController = wrapper
+            } else {
+                contentView = container
+            }
         } else {
-            backing.frame = host.bounds
+            backing.frame = content.bounds
+            backing.autoresizingMask = [.width, .height]
+            content.addSubview(backing, positioned: .below, relativeTo: nil)
         }
-        backing.autoresizingMask = [.width, .height]
-        host.addSubview(backing, positioned: .below, relativeTo: content)
+        backing.layout()
         if UserDefaults.standard.bool(forKey: "probe.glassCoverage") {
             Log.info("Glass", "统一玻璃底：window=\(type(of: self)) content=\(type(of: content)) "
                      + "backing=\(Int(backing.frame.width))x\(Int(backing.frame.height))")

@@ -391,12 +391,15 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
         let hosting: NSHostingController<ArchiveCreateView>
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
                            styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        // v272：固定尺寸文档窗——补齐三能力位避免黄/绿空心，min/max 锁死
+        win.contentMinSize = NSSize(width: 460, height: 520)
+        win.contentMaxSize = NSSize(width: 460, height: 520)
         win.title = "创建压缩包"
         win.isReleasedWhenClosed = false
         // v181（UI 一致性检查 R3）：这是文档级窗口（.titled + .closable），
         // 之前没上统一外观 → 标题栏/内容露系统白底。统一走 applyOfficialChrome。
         // 关窗仍会先问 windowShouldClose（压缩中弹「转到后台 / 取消」），圆钮动作已尊重 delegate。
-        win.applyOfficialChrome()
+        win.applyOfficialChrome(lights: .fixed)
         // 面板自己有一行「创建压缩包」标题，标题栏就别再重复一遍
         win.titleVisibility = .hidden
         super.init(window: win)
@@ -424,7 +427,7 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
             self?.close()
         })
         hosting = NSHostingController(rootView: view)
-        win.contentViewController = hosting
+        win.setOfficialContent(hosting)
         win.center()
 
         // 排障（v181）：`probe.archiveCreate=auto` → 打开 1.2s 后自动开始压缩，
