@@ -86,8 +86,8 @@ public enum WhatsNewCatalog {
     /// 离线兜底（首次安装或更新源不可达时仍能看到内容）
     public static let localEntries: [WhatsNewEntry] = [
         .init(category: .added, text: "在线更新：自动检查新版本，支持整包下载、校验与一键替换"),
-        .init(category: .added, text: "窗口截图 ⇧⌥W：一键截取最前台应用窗口，自动排除遮挡"),
-        .init(category: .added, text: "区域截图悬停吸附：窗口自动高亮，单击即整窗截取"),
+        // v267：截图只有一套自适应行为，不再分「区域 / 窗口」两档
+        .init(category: .added, text: "截图自适应：悬停窗口单击截整窗、直接拖拽截自定义范围、点空白处截全屏"),
         .init(category: .added, text: "命令面板 ⌥K：全部功能统一检索直达"),
         .init(category: .added, text: "传输与投屏：隔空投送收发、Android 无线配对、ADB 文件互传、扫码直传"),
         .init(category: .improved, text: "三级玻璃分层视觉，日历/剪贴板卡统一宽度"),
