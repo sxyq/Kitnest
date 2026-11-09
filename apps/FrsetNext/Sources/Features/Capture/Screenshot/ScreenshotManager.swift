@@ -494,35 +494,36 @@ public final class ScreenshotManager: ObservableObject {
 
     // MARK: 区域截图
 
-    /// 截图主入口。默认拾取方式由 CapturePickModeStore 决定（默认「窗口自动识别」），
-    /// 覆盖层上可随时切到手动框选；⇧⌥W 走 captureWindow() 强制窗口模式。
-    public func captureRegion() { startCapture(flow: .toolbar, mode: CapturePickModeStore.mode) }
+    /// 截图主入口（v267：唯一的拾取方式就是「自适应」——悬停窗口单击截整窗、
+    /// 直接拖拽截自定义范围、单击空白桌面截全屏，不再需要先选模式）。
+    public func captureRegion() { startCapture(flow: .toolbar) }
 
     /// 截图后直接走 OCR（对应原作「截图并 OCR」入口）
-    public func captureAndOCR() { startCapture(flow: .direct(.ocr), mode: CapturePickModeStore.mode) }
+    public func captureAndOCR() { startCapture(flow: .direct(.ocr)) }
 
     /// 截图后直接钉图
-    public func captureAndPin() { startCapture(flow: .direct(.pin), mode: CapturePickModeStore.mode) }
+    public func captureAndPin() { startCapture(flow: .direct(.pin)) }
 
     /// 截图后直接复制到剪贴板（specs/19 默认热键 screenshotCopy 用；与 captureAndOCR/captureAndPin 同型）
-    public func captureAndCopy() { startCapture(flow: .direct(.clipboard), mode: CapturePickModeStore.mode) }
+    public func captureAndCopy() { startCapture(flow: .direct(.clipboard)) }
 
     /// 截图后直接屏幕翻译（OCR→翻译→按坐标画回→钉回原位）
-    public func captureAndScreenTranslate() { startCapture(flow: .direct(.screenTranslate), mode: CapturePickModeStore.mode) }
+    public func captureAndScreenTranslate() { startCapture(flow: .direct(.screenTranslate)) }
 
-    private func startCapture(flow: PendingFlow, mode: ScreenshotOverlayView.OverlayPickMode) {
+    private func startCapture(flow: PendingFlow) {
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else { return }
-            self.beginCapture(flow: flow, initialMode: mode)
+            self.beginCapture(flow: flow)
         }
     }
 
     @MainActor
-    private func beginCapture(flow: PendingFlow, initialMode: ScreenshotOverlayView.OverlayPickMode) {
+    private func beginCapture(flow: PendingFlow) {
         closeOverlays()
         pendingFlow = flow
-        // v266：历史库模式标签要跟着实际拾取方式走，且用户在覆盖层上切换时同步更新。
-        currentModeTag = initialMode == .window ? "window" : "area"
+        // v267：历史库模式标签在**提交时**按真实结果写（窗口 / 选区 / 全屏），
+        // 不再在打开覆盖层时就猜一个。
+        currentModeTag = "area"
         isCapturing = true
         // v207（用户：「按快捷键截图应该立刻定格当前屏幕，不能先跳转界面/打断预览」）：
         // 这里绝对不能先 NSApp.activate —— 激活会让主面板/preview hover 窗先收起，
@@ -544,8 +545,7 @@ public final class ScreenshotManager: ObservableObject {
             // 画面已冻结，这时才激活 App 铺覆盖层；此后的窗口收起不会影响已抓到的帧
             if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
-                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot,
-                                                     pickMode: initialMode)
+                let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
                 // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
                 if let ratio = CaptureRatioStore.selected {
                     window.overlayView.lockedRatio = CGSize(width: ratio.width, height: ratio.height)
@@ -565,11 +565,10 @@ public final class ScreenshotManager: ObservableObject {
                     guard let self = self, let window = window else { return }
                     self.commitWindows(items: items, window: window)
                 }
-                window.overlayView.onModeChange = { [weak self] mode in
-                    // 只同步历史标签：覆盖层上的切换是「本次临时改」，
-                    // 不写默认偏好。否则误按一次 W 就把以后每次截图都变成手动框选，
-                    // 「默认自动识别窗口」名存实亡。要改默认请去设置页。
-                    self?.currentModeTag = mode == .window ? "window" : "area"
+                // 单击空白桌面 = 全屏（自适应的一条，不需要单独的模式）
+                window.overlayView.onDesktopCommit = { [weak self, weak window] in
+                    guard let self, let window else { return }
+                    self.commitFullScreen(screen: window.screen ?? screen)
                 }
                 window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
                 self.overlays.append(window)
@@ -601,6 +600,7 @@ public final class ScreenshotManager: ObservableObject {
         let snapshot = window.overlayView.snapshot
         closeOverlays()
         isCapturing = false
+        currentModeTag = "area"      // v267：历史库标签按真实结果写
 
         // 视图坐标 → 屏幕全局坐标
         let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
@@ -702,23 +702,55 @@ public final class ScreenshotManager: ObservableObject {
         return NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main ?? NSScreen.screens.first
     }
 
-    // MARK: 窗口截图（v113 对齐原版窗口模式）
+    // MARK: 空白桌面单击 = 整屏（v267）
+
+    /// 覆盖层上单击空白处（没有窗口）→ 截这个屏幕。
+    ///
+    /// 走原生像素通道（screencapture，后台），失败再回退 SCK/legacy 快照；
+    /// 拿到图后交给 `finishRegion`，与拖框截图共用一条收尾路径（落盘 + 动作条 + 历史）。
+    private func commitFullScreen(screen: NSScreen) {
+        let flow = pendingFlow
+        closeOverlays()
+        isCapturing = false
+        currentModeTag = "full"
+        let global = screen.frame
+        lastSelectionAppKit = global
+        Task { @MainActor in
+            var image = await Task.detached(priority: .userInitiated) {
+                NativeRegionCapture.captureScreen(screen)
+            }.value
+            if image == nil {
+                image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
+            }
+            guard let image else {
+                self.statusMessage = CaptureError.captureFailed.errorDescription
+                Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            Log.info("Capture", "空白单击全屏：\(image.width)×\(image.height)px")
+            self.finishRegion(image, flow: flow, global: global)
+        }
+    }
+
+    // MARK: 窗口截图（v267：并入自适应，不再是一个独立模式）
     //
     // 证据（docs/窗口识别与传输功能-既有实现彻查.md）：
     //   · 原版 CaptureMode 含 `.window`（specs/06 反汇编还原）；
     //   · 原版二进制反射字段 windows / windowOrder / selectedWindowId /
-    //     keyDownMonitor / isClosingWindow → 窗口模式自带「识别 + 选择」交互。
+    //     keyDownMonitor / isClosingWindow → 窗口识别是它选择交互的一部分。
     //
-    // 因此本实现走「覆盖层窗口选择」：悬停高亮 + 单击截取（Esc 取消），
-    // 与原版交互对齐；v112 的「直接抓最前台窗口」与「区域模式悬停吸附」已移除
-    // （前者偏离原版交互，后者是自研发明）。
+    // v113 我们把它做成了「模式」，v266 又把开关顶到覆盖层上——用户要先选一次
+    // 才能动手，v267 按用户要求（「不用自己选择」）合并回一条自适应路径：
+    // 窗口识别、拖框、点空白截全屏都在同一个覆盖层里由动作决定。
+    // 建窗逻辑仍然只有 beginCapture(flow:) 一处。
 
-    // v266：截图主入口默认就用这个模式；这里保留 ⇧⌥W 作为「强制窗口识别」的直达键。
-    // 建窗逻辑统一到 beginCapture(flow:initialMode:)，不再维护第二套覆盖层代码。
-
-    /// ⇧⌥W：直接进入窗口自动识别（不受默认偏好影响）
+    /// ⇧⌥W / 面板「窗口截图」/ 命令面板：v267 起与主截图完全一致。
+    ///
+    /// 自适应覆盖层本身就会「悬停哪个窗口单击就截哪个」，单独再留一个「强制窗口
+    /// 模式」已经没有意义（用户原话：「不用自己选择」）。保留这个方法只为不打断
+    /// 既有的热键与调用点，行为等价于 `captureRegion()`。
     public func captureWindow() {
-        startCapture(flow: .toolbar, mode: .window)
+        startCapture(flow: .toolbar)
     }
 
     /// 提交窗口选择：优先 SCK 窗口级抓取（排除遮挡窗口），回退覆盖层快照裁剪
@@ -727,9 +759,11 @@ public final class ScreenshotManager: ObservableObject {
         let snapshot = window.overlayView.snapshot
         closeOverlays()
         isCapturing = false
+        currentModeTag = "window"
 
         let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
         lastSelectionAppKit = global
+        Log.info("Capture", "窗口截图：windowID=\(windowID) rect=\(Int(global.width))×\(Int(global.height))pt @\(Int(global.minX)),\(Int(global.minY))")
 
         Task { @MainActor in
             var image: CGImage?
@@ -775,6 +809,7 @@ public final class ScreenshotManager: ObservableObject {
         let snapshot = window.overlayView.snapshot
         closeOverlays()
         isCapturing = false
+        currentModeTag = "window"
         guard !items.isEmpty else { return }
 
         Task { @MainActor in

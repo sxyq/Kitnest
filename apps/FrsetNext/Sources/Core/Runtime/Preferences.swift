@@ -62,9 +62,9 @@ public final class Preferences: ObservableObject {
         // 截图（06）
         public static let captureSound = "capture.soundEnabled"
         public static let captureSavePath = "capture.savePath"
-        /// 截图覆盖层默认拾取方式："window" = 鼠标进窗口即自动识别并高亮，单击截取；
-        /// "region" = 手动拖拽框选。默认 window（v266 用户要求「不用自己手动划窗口」）。
-        public static let captureDefaultPickMode = "capture.defaultPickMode"
+        // v267：`capture.defaultPickMode` 已废弃——截图覆盖层只剩「自适应」一种行为
+        // （悬停窗口单击截整窗 / 拖拽截范围 / 点空白截全屏），不再需要默认档位。
+        // 键本身留在 UserDefaults 里不影响任何逻辑，这里不再声明以免有人误用。
         public static let ocrLanguages = "ocr.languages"
         // 图帘（v263 前叫「截图悬挂架」，对标 1Capture 的 DDShelf → 悬挂样式）。
         // 键名保留 `shelf.*`：改名不能把老用户已经调好的样式/宽度清零。

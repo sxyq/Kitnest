@@ -115,27 +115,19 @@ final class ScreenshotMagnifierContainerView: NSView {
     }
 }
 
-// MARK: - 默认拾取方式
+// MARK: - 拾取方式（只有一种：自适应）
 
-/// 截图时默认用哪种拾取方式。
+/// v267（用户：「改为自适应，不用自己选择，可以自适应做屏幕窗口或者自己选范围」）：
+/// 「窗口模式 / 区域模式」这一档被删掉了，覆盖层只保留一套行为，按**动作**判意图：
 ///
-/// v266（用户：「鼠标在窗口里面，它会自动去识别，也可以去手动改成手动这种拉」）：
-/// 原来默认 .region，自动识别窗口只能靠覆盖层里隐藏的 W 键或 ⇧⌥W 到达，
-/// 等于没做。现在默认改成 .window，并在覆盖层顶部放一个可见的分段控件，
-/// 用户随时能切回手动框选；切换结果写回偏好，下次沿用。
-enum CapturePickModeStore {
-    static var mode: ScreenshotOverlayView.OverlayPickMode {
-        get {
-            let raw: String = Preferences.shared.value(
-                Preferences.Keys.captureDefaultPickMode, default: "window")
-            return raw == "region" ? .region : .window
-        }
-        set {
-            Preferences.shared.set(Preferences.Keys.captureDefaultPickMode,
-                                   newValue == .window ? "window" : "region")
-        }
-    }
-}
+/// - 悬停到窗口上 → 高亮整窗，单击截该窗口（SCK 窗口级抓取，被遮挡部分也能还原）
+/// - 按住拖出 4pt 以上 → 截自定义矩形（⇧ 正方形 / 设置里锁的比例 / ⌥ 关吸附）
+/// - 单击空白桌面 → 截整个屏幕
+/// - ⌘ 单击窗口 → 多选，回车纵向拼成一张
+///
+/// 于是 `OverlayPickMode` / `CapturePickModeStore` / 顶部「窗口自动识别 · 手动框选」
+/// 分段控件全部移除：用户不用先选，动作本身就在表达意图。
+/// 旧偏好键 `capture.defaultPickMode` 也随之失效（不再读取）。
 
 // MARK: - 覆盖层视图
 
@@ -155,64 +147,35 @@ final class ScreenshotOverlayView: NSView {
     /// 该屏幕的快照（用于放大镜与最终裁剪，可为 nil → 放大镜隐藏）
     var snapshot: CGImage?
 
-    // MARK: 覆盖层两种拾取模式（v113 对齐原版）
+    // MARK: 覆盖层（v267：单一自适应行为，不再分模式）
     //
     // 原版 Frset 的 CaptureMode 含 `.window`（规格 06 反汇编还原：
-    // `capture(_ mode:) // .area/.window/.full/.ocr/.pin/.long`），窗口模式自带
-    // 窗口识别与选择（二进制反射字段：windows / windowOrder / selectedWindowId /
+    // `capture(_ mode:) // .area/.window/.full/.ocr/.pin/.long`），窗口识别是
+    // 那套交互的一部分（二进制反射字段：windows / windowOrder / selectedWindowId /
     // keyDownMonitor / isClosingWindow）。
     //
-    // 窗口模式：悬停高亮窗口、单击截取。
-    // v130（SnowShot 对齐）①：区域模式**重新引入元素吸附**（对标 Snow Shot
-    // 「框选自动识别元素边界并吸附高亮」）——与 v112 的区别：
-    //   · 只吸附、不劫持框选：拖拽仍是自由矩形，吸附仅在光标贴近元素边缘（8pt）时对齐；
-    //   · 单击（无拖拽）且命中元素 → 直接截取该元素；
-    //   · 按住 ⌥ 临时关闭吸附（精确手动框选）；
-    //   · 无辅助功能权限时 ElementSnapEngine 全部返回 nil，自动退化纯手动（不报错）。
-
-    enum OverlayPickMode: Equatable {
-        case region   // 区域截图：拖拽框选
-        case window   // 窗口截图：悬停识别 + 单击截取
-    }
+    // 我们 v113 起把它做成了一个「模式」，v266 又把模式开关摆到覆盖层顶部——
+    // 用户要先选一次才能动手，这与 macOS 自带截图（对着窗口单击就截窗、
+    // 直接拖就截范围）的直觉相反。v267 起两者合并：
+    //   · 悬停 → 整窗高亮（附带 AX 元素级更细高亮）
+    //   · 单击 → 截高亮的窗口；没有窗口 → 截整屏
+    //   · 拖拽 → 截自定义矩形（v130 的元素吸附保留，但会跳过「整窗大小」的命中，
+    //     否则一拉就吸回整窗，等于又变回只能截窗口）
+    //   · ⌥ 按住 → 临时关吸附（精确到像素的手动框选）
+    //   · 无辅助功能权限时 ElementSnapEngine 全部返回 nil，自动退化为纯拖拽
 
     private var startPoint: NSPoint?
     private var currentPoint: NSPoint?
     private let magnifier = ScreenshotMagnifierContainerView(frame: NSRect(x: 0, y: 0, width: 120, height: 120))
     private var keyMonitor: DeleteKeyMonitor?
 
-    /// 拾取模式。didSet 只同步可见控件；清状态统一走 setPickMode(_:)。
-    var pickMode: OverlayPickMode = .region {
-        didSet { syncModeControl(); needsDisplay = true }
-    }
-    /// 用户切换拾取方式时回调（更新历史模式标签 + 记住偏好）
-    var onModeChange: ((OverlayPickMode) -> Void)?
-
-    /// 覆盖层顶部可见的模式开关：把「自动识别窗口」摆进主流程，不再只靠隐藏的 W 键。
-    private lazy var modeControl: NSSegmentedControl = {
-        let c = NSSegmentedControl(frame: .zero)
-        c.segmentCount = 2
-        c.setLabel("窗口自动识别", forSegment: 0)
-        c.setLabel("手动框选", forSegment: 1)
-        c.segmentStyle = .rounded
-        c.trackingMode = .selectOne
-        c.target = self
-        c.action = #selector(modeControlChanged(_:))
-        c.font = NSFont.systemFont(ofSize: 12, weight: .medium)
-        return c
-    }()
-
-    /// 开关底下垫一层不透明底：覆盖层只压暗 35%，背后的浏览器地址栏文字会透上来
-    private lazy var modeBackdrop: NSView = {
-        let v = NSView(frame: .zero)
-        v.wantsLayer = true
-        v.layer?.backgroundColor = NSColor(calibratedWhite: 0.12, alpha: 0.94).cgColor
-        v.layer?.cornerRadius = 10
-        return v
-    }()
-
-    /// v266：按下后一旦拖动超过死区，本次操作就临时变成「手动拉框」。
-    /// 窗口自动识别只负责「悬停 + 单击」；拖拽永远能拉出自定义矩形，不必先切模式。
+    /// 按下后一旦拖动超过死区，本次操作就是「自定义框选」；没拖动就是「单击」。
+    /// 只看鼠标位移，不看任何模式开关。
     private var draggingRegion = false
+
+    /// 单击空白桌面（没命中任何窗口）→ 截整个屏幕。
+    /// 空白处直接拖框那条路优先走 `draggingRegion`，两者不会打架。
+    var onDesktopCommit: (() -> Void)?
 
     /// 窗口模式单击提交（rect=视图坐标，windowID=CG 窗口号）
     var onWindowCommit: ((CGRect, CGWindowID) -> Void)?
@@ -279,71 +242,19 @@ final class ScreenshotOverlayView: NSView {
         super.init(frame: frameRect)
         magnifier.isHidden = true
         addSubview(magnifier)
-        addSubview(modeBackdrop)
-        addSubview(modeControl)
-        syncModeControl()
         windowHits = Self.snapshotWindowHits()
         keyMonitor = DeleteKeyMonitor { [weak self] event in
             guard let self = self else { return false }
             if event.type == .rightMouseDown { self.onCancel?(); return true }
             // 53 = Esc，51 = Delete
             if event.keyCode == 53 || event.keyCode == 51 { self.onCancel?(); return true }
-            // v231（用户：「没有直接选择整个窗口截图的功能，只有框选」）：
-            // 框选界面上按 W 直接切到窗口模式——鼠标悬停哪个窗口就高亮哪个，
-            // 单击即完成；再按 W（或 R）切回框选。⇧⌥W 的独立快捷键仍然保留。
-            // W 只在「裸按」时切模式：⇧⌥W 是打开窗口截图的全局热键，
-            // 它同样会产生 W 的 keyDown，若一并消费就会把刚打开的窗口识别切回框选。
-            if event.keyCode == 0x0D,
-               event.modifierFlags.intersection([.command, .shift, .option, .control]).isEmpty {
-                self.setPickMode(self.pickMode == .region ? .window : .region)
+            // v264：多选窗口时回车一次截完（Delete 仍由上面的通用分支取消整次截图）
+            if event.keyCode == 0x24 {              // Return
+                self.commitMultiWindows()
                 return true
-            }
-            // v264：窗口模式多选 —— 回车一次截完（Delete 仍由上面的通用分支取消整次截图）
-            if self.pickMode == .window {
-                if event.keyCode == 0x24 {          // Return
-                    self.commitMultiWindows()
-                    return true
-                }
             }
             return false
         }
-    }
-
-    /// 统一的模式切换入口：W 键、顶部开关都走这里，保证状态与控件同步。
-    func setPickMode(_ mode: OverlayPickMode, notify: Bool = true) {
-        guard pickMode != mode else { return }
-        pickMode = mode
-        startPoint = nil
-        currentPoint = nil
-        draggingRegion = false
-        highlightedWindow = nil
-        highlightedElement = nil
-        highlightedAtMouseDown = nil
-        multiSelected.removeAll()
-        suppressWindowCommit = false
-        magnifier.isHidden = true
-        needsDisplay = true
-        if notify { onModeChange?(mode) }
-    }
-
-    @objc private func modeControlChanged(_ sender: NSSegmentedControl) {
-        setPickMode(sender.selectedSegment == 0 ? .window : .region)
-    }
-
-    private func syncModeControl() {
-        modeControl.selectedSegment = (pickMode == .window) ? 0 : 1
-    }
-
-    /// 开关固定在屏幕顶部居中，但必须避开刘海：带摄像头凹槽的 MacBook 顶部中央
-    /// 约 37pt 被遮挡，加上菜单栏，贴着上沿放开关会看不见也点不到（v266 实机反馈）。
-    /// 下移到距顶 64pt，提示胶囊再往下排一行。draw 每帧调用；frame 不变时无副作用。
-    private func positionModeControl() {
-        let w: CGFloat = 252, h: CGFloat = 30
-        let r = NSRect(x: (bounds.width - w) / 2,
-                       y: bounds.height - h - 64,
-                       width: w, height: h)
-        modeBackdrop.frame = r.insetBy(dx: -4, dy: -4)
-        modeControl.frame = r
     }
 
     /// 窗口模式多选提交（回车 / 单击已选窗口）
@@ -358,6 +269,13 @@ final class ScreenshotOverlayView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// 第一次点击就要生效。
+    ///
+    /// 覆盖层是 App 刚激活时铺出来的，窗口往往还不是 key；AppKit 默认会把
+    /// 「激活用的第一下点击」吞掉，用户看到的是「点了没反应，要再点一次」
+    /// （v267 实机复现：合成点击只激活、不触发 mouseDown）。
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
     /// 当前选区（拖拽过程中实时计算）
     private var selectionRect: CGRect? {
         guard let a = startPoint, let b = currentPoint else { return nil }
@@ -369,21 +287,18 @@ final class ScreenshotOverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        if pickMode == .window {
-            // v264：⌘ 单击 = 勾选/取消勾选一个窗口（多选），不立即截
-            if event.modifierFlags.contains(.command), let hit = highlightedWindow {
-                toggleMultiSelection(hit)
-                suppressWindowCommit = true
-                return
-            }
-            highlightedAtMouseDown = highlightedWindow
+        // ⌘ 单击 = 勾选/取消勾选一个窗口（多选），不立即截
+        if event.modifierFlags.contains(.command), let hit = highlightedWindow {
+            toggleMultiSelection(hit)
+            suppressWindowCommit = true
+            return
         }
-        // v266：两种模式都记起点。窗口识别只吃「单击」；按下后一拖就临时进入
-        // 手动框选，用户不用先切开关也能拉出自定义矩形。
+        // 记下按下瞬间高亮的窗口：单击提交时以它为准（拖拽会把它清掉）
+        highlightedAtMouseDown = highlightedWindow
         startPoint = p
         currentPoint = p
         draggingRegion = false
-        if pickMode == .region { magnifier.isHidden = snapshot == nil }
+        magnifier.isHidden = snapshot == nil
         needsDisplay = true
     }
 
@@ -411,12 +326,10 @@ final class ScreenshotOverlayView: NSView {
             magnifier.isHidden = snapshot == nil
         }
         currentPoint = p
-        // 吸附只在「手动框选」模式下生效：窗口识别模式下用户要的是自由自定义框，
-        // 一吸附到窗口边界就又变回整窗了。
-        if pickMode == .region {
-            refreshSnap(at: p)
-            currentPoint = snappedPoint(p)
-        }
+        // 拖拽 = 用户要自定义范围，吸附只帮忙对齐元素边缘（8pt 内），
+        // 但必须跳过「整窗大小」的命中，否则一拉就吸回整窗。
+        refreshSnap(at: p, excludingWindow: windowRect(at: p))
+        currentPoint = snappedPoint(p)
         // v264：固定比例 / ⇧ 正方形（比例优先）
         if let s = startPoint, let q = currentPoint {
             currentPoint = constrained(q, from: s, event: event)
@@ -441,35 +354,26 @@ final class ScreenshotOverlayView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard !draggingRegion else { return }
-        currentPoint = convert(event.locationInWindow, from: nil)
-        if pickMode == .window {
-            // 窗口模式：悬停识别（缓存的 rects，零 CG 调用）
-            let p = currentPoint ?? .zero
-            highlightedWindow = windowHits.first { viewRect(of: $0.globalRect).contains(p) }
-            // v116：AX 元素探测（节流 90ms；只对本进程外的窗口生效）
-            let now = Date().timeIntervalSince1970
-            if now - lastAXQuery > 0.09 {
-                lastAXQuery = now
-                highlightedElement = elementHit(atViewPoint: p)
-            }
-            needsDisplay = true
-            return
+        guard !draggingRegion, startPoint == nil else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        currentPoint = p
+        // 悬停永远做整窗识别（用缓存的 rects，零 CG 调用）：单击就是截这个窗口
+        highlightedWindow = windowHits.first { viewRect(of: $0.globalRect).contains(p) }
+        // AX 元素探测（节流 90ms）：比窗口更细，单击可以只截某个控件 / 文本块
+        let now = Date().timeIntervalSince1970
+        if now - lastAXQuery > 0.09 {
+            lastAXQuery = now
+            highlightedElement = elementHit(atViewPoint: p)
         }
-        // 区域模式：十字准线 + 放大镜 + v130① 元素吸附
-        guard startPoint == nil else { return }
-        if let p = currentPoint {
-            refreshSnap(at: p)
-            magnifier.isHidden = snapshot == nil
-            magnifier.follow(pointInView: p, viewSize: bounds.size, snapshot: snapshot)
-        }
+        // 放大镜只在拖拽时出现，悬停时不挡窗口内容
+        magnifier.isHidden = true
         needsDisplay = true
     }
 
     /// v130①：⌥ 按下/松开即刷新（吸附加锁态要立即反馈，不等鼠标移动）
     override func flagsChanged(with event: NSEvent) {
-        // 拖拽中的 ⇧ 正方形 / ⌥ 关吸附要立刻反馈，窗口模式临时拉框时同样适用
-        if pickMode == .region || draggingRegion { needsDisplay = true }
+        // 拖拽中的 ⇧ 正方形 / ⌥ 关吸附要立刻反馈
+        if draggingRegion { needsDisplay = true }
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -490,7 +394,11 @@ final class ScreenshotOverlayView: NSView {
             needsDisplay = true
         }
 
-        // v266：拉出来的自定义框优先，与当前选中的模式无关。
+        // 没收到 mouseDown 就抬起（第一次点击只用于把 App 激活到前台）→ 什么都不做。
+        // 否则一次「激活点击」会意外截掉一整屏，这是自适应最容易踩的坑。
+        guard startPoint != nil else { return }
+
+        // ① 拖出来的自定义框优先：用户已经明确画了范围，与悬停到什么都无关
         if didDrag {
             guard let rect = selectionRect, rect.width >= 4, rect.height >= 4 else {
                 onCancel?()
@@ -500,48 +408,48 @@ final class ScreenshotOverlayView: NSView {
             return
         }
 
-        if pickMode == .window {
-            if suppress { return }
-            // 已勾选多个窗口：这一次单击 = 确认（回车同义）
-            if !multiSelected.isEmpty { commitMultiWindows(); return }
-            // 单击（几乎无位移）且有高亮 → 提交该窗口；优先更细的 AX 元素
-            if let el = highlightedElement, let hit = highlightedAtMouseDown,
-               el.rect.width < viewRect(of: hit.globalRect).width - 8 {
+        if suppress { return }
+        // ② 已勾选多个窗口：这一次单击 = 确认（回车同义）
+        if !multiSelected.isEmpty { commitMultiWindows(); return }
+        // ③ 单击命中窗口：优先更细的 AX 元素（比整窗小一截才算，否则就是整窗）。
+        //    按下瞬间没记到高亮（鼠标没动过 / 移动事件没送到）时，用抬起点现算，
+        //    避免「明明点在窗口上却截了整屏」。
+        let clicked = highlightedAtMouseDown
+            ?? windowHits.first { viewRect(of: $0.globalRect).contains(p) }
+        if let hit = clicked {
+            let windowViewRect = viewRect(of: hit.globalRect)
+            if let el = highlightedElement, el.rect.contains(p),
+               el.rect.width < windowViewRect.width - 8 {
                 onWindowCommit?(el.rect, 0)
-                return
-            }
-            if let hit = highlightedAtMouseDown {
-                onWindowCommit?(viewRect(of: hit.globalRect), hit.windowID)
+            } else {
+                onWindowCommit?(windowViewRect, hit.windowID)
             }
             return
         }
-
-        // v130①：单击（无拖拽位移）且命中吸附元素 → 直接截取该元素
-        if let rect = selectionRect, rect.width < 4, rect.height < 4, let snap = snapHighlight {
-            onCommit?(snap.rect)
-            return
-        }
-        guard let rect = selectionRect else {
-            onCancel?()
-            return
-        }
-        // 太小的选区视为误点，直接放弃
-        guard rect.width >= 4, rect.height >= 4 else {
-            onCancel?()
-            return
-        }
-        onCommit?(rect)
+        // ④ 单击空白桌面 → 截整个屏幕（不用再单独给「全屏」留一个模式）
+        onDesktopCommit?()
     }
 
     // MARK: v130（SnowShot 对齐）① 元素吸附
 
     /// 按住 ⌥ = 临时关闭吸附（精确手动框选）
     private var snapActive: Bool {
-        pickMode == .region && !NSEvent.modifierFlags.contains(.option)
+        !NSEvent.modifierFlags.contains(.option)
     }
 
-    /// 节流查询光标下的可吸附元素（AX 调用；90ms 与窗口模式同阈值）
-    private func refreshSnap(at viewPoint: NSPoint) {
+    /// 光标所在窗口的视图矩形（没命中窗口时 nil）
+    private func windowRect(at viewPoint: NSPoint) -> CGRect? {
+        guard let hit = windowHits.first(where: { viewRect(of: $0.globalRect).contains(viewPoint) })
+        else { return nil }
+        return viewRect(of: hit.globalRect)
+    }
+
+    /// 节流查询光标下的可吸附元素（AX 调用，90ms 一次）
+    ///
+    /// - Parameter excludingWindow: 该矩形内的命中不算吸附。AX 在拿不到子元素时
+    ///   会回退到「整窗」，那种命中一旦吸附，用户刚拉出来的自定义框就会被整窗
+    ///   边界吃掉——等于偷偷变回「只能截整窗」。
+    private func refreshSnap(at viewPoint: NSPoint, excludingWindow windowRect: CGRect?) {
         guard snapActive else {
             snapHighlight = nil
             return
@@ -549,7 +457,12 @@ final class ScreenshotOverlayView: NSView {
         let now = Date().timeIntervalSince1970
         guard now - lastAXQuery > 0.09 else { return }
         lastAXQuery = now
-        snapHighlight = elementHit(atViewPoint: viewPoint)
+        var hit = elementHit(atViewPoint: viewPoint)
+        if let windowRect, let h = hit,
+           windowRect.insetBy(dx: -3, dy: -3).contains(h.rect) {
+            hit = nil
+        }
+        snapHighlight = hit
     }
 
     /// 拖拽点吸附：贴近吸附矩形边缘（8pt 内）时对齐该边缘
@@ -575,11 +488,10 @@ final class ScreenshotOverlayView: NSView {
     // MARK: 绘制
 
     override func draw(_ dirtyRect: NSRect) {
-        positionModeControl()
         let dim = NSColor(calibratedWhite: 0, alpha: 0.35)
 
-        // 只有真正拖起来（draggingRegion）才画选区；窗口识别模式下按下未拖动时
-        // selectionRect 是 0×0，不能把它当成框，否则会盖掉窗口高亮。
+        // 只有真正拖起来（draggingRegion）才画选区；按下未拖动时 selectionRect 是
+        // 0×0，不能把它当成框，否则会盖掉窗口高亮。
         if draggingRegion, let rect = selectionRect, rect.width >= 1, rect.height >= 1 {
             // v109（2026-10-21 用户：「第一次拉伸十分卡顿、没反应要第二次」）：
             // 全屏 evenOdd 路径填充在每次拖拽重绘都遍历 7.6M 像素——
@@ -602,40 +514,28 @@ final class ScreenshotOverlayView: NSView {
 
             drawHandles(rect)
             drawSizeLabel(rect)
-        } else {
-            dim.setFill()
-            bounds.fill()
-            if pickMode == .window {
-                // v264：已勾选的多选窗口先画（带序号），悬停高亮叠在上面
-                for (index, hit) in multiSelected.enumerated() {
-                    drawWindowSelection(hit, index: index)
-                }
-                if let hit = highlightedWindow {
-                    drawWindowHighlight(hit)
-                }
-                if let el = highlightedElement {
-                    drawElementHighlight(el)
-                }
-                // v266：有高亮时也保留操作提示。否则用户只看到窗口被框住，
-                // 不知道「单击截整窗、直接拖拽还能拉自定义框」这两条路都在。
-                if !multiSelected.isEmpty {
-                    drawWindowMultiHint()
-                } else {
-                    drawWindowModeHint()
-                }
-                return
-            }
+            return
         }
 
-        // 区域模式也要把「可以切到窗口自动识别」摆在眼前，否则用户只能手动拉框，
-        // 永远发现不了不用拖拽的那一档（v231 的 W 键就是这么被埋没的）。
-        if startPoint == nil {
-            drawHint("拖拽框选 · 点上方「窗口自动识别」可免拖拽截整窗 · W 切换 · Esc 取消")
+        // 未拖拽：整屏压暗 + 窗口/元素高亮 + 十字准线 + 操作提示
+        dim.setFill()
+        bounds.fill()
+        // 已勾选的多选窗口先画（带序号），悬停高亮叠在上面
+        for (index, hit) in multiSelected.enumerated() {
+            drawWindowSelection(hit, index: index)
+        }
+        if let hit = highlightedWindow {
+            drawWindowHighlight(hit)
+        }
+        if let el = highlightedElement {
+            drawElementHighlight(el)
         }
         if let p = currentPoint { drawCrosshair(p) }
-        // v130（SnowShot 对齐）①：元素吸附高亮（橙色描边 + 半透明填充，⌥ 按住不显示）
-        if pickMode == .region, snapActive, let snap = snapHighlight {
-            drawSnapHighlight(snap)
+        if !multiSelected.isEmpty {
+            drawWindowMultiHint()
+        } else {
+            // 一句话把三条路都写清楚：不用先选模式，动作就是模式
+            drawHint("单击截取高亮的窗口 · 拖拽截自定义范围 · 点空白处截全屏 · ⌘ 多选 · Esc 取消")
         }
     }
 
@@ -689,11 +589,6 @@ final class ScreenshotOverlayView: NSView {
         (el.label as NSString).draw(at: NSPoint(x: box.minX + 4, y: box.minY + 3), withAttributes: attrs)
     }
 
-    /// 窗口模式空态提示（覆盖层顶部居中）
-    private func drawWindowModeHint() {
-        drawHint("鼠标进窗自动高亮 · 单击截整窗 / 直接拖拽拉自定义框 · ⌘ 多选 · 点上方切手动 · Esc 取消")
-    }
-
     /// 多选进行中的提示（v264）
     private func drawWindowMultiHint() {
         drawHint("已选 \(multiSelected.count) 个窗口 · 回车截取 · ⌘ 点击增删 · Esc 取消")
@@ -705,9 +600,10 @@ final class ScreenshotOverlayView: NSView {
         // v126（性能审计 F0553）：复用静态缓存属性字典
         let attrs = Self.labelAttrs
         let size = text.size(withAttributes: attrs)
-        // 开关在距顶 64…94pt（避开刘海），胶囊排在它下方 8pt
+        // v267：顶部的模式开关删掉后，胶囊可以直接占它原来那一行。
+        // 距顶 56pt 起（刘海约 37pt + 菜单栏 24pt，留一点呼吸），不再留空档。
         let box = NSRect(x: (bounds.width - size.width - 24) / 2,
-                         y: bounds.height - 128,
+                         y: bounds.height - 56 - 26,
                          width: size.width + 24, height: 26)
         NSColor(calibratedWhite: 0.1, alpha: 0.78).setFill()
         NSBezierPath.continuousRoundedRect(box, radius: 13).fill()
@@ -836,9 +732,8 @@ final class ScreenshotOverlayView: NSView {
 final class ScreenshotOverlayWindow: NSWindow {
     let overlayView: ScreenshotOverlayView
 
-    init(screen: NSScreen, snapshot: CGImage?, pickMode: ScreenshotOverlayView.OverlayPickMode = .region) {
+    init(screen: NSScreen, snapshot: CGImage?) {
         self.overlayView = ScreenshotOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
-        self.overlayView.pickMode = pickMode
         super.init(contentRect: screen.frame,
                    styleMask: .borderless,
                    backing: .buffered,

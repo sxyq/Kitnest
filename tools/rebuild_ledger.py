@@ -378,6 +378,16 @@ EVIDENCE.update({
         "菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口",
 })
 
+# ── v267：截图覆盖层合并为「自适应」（取消窗口/区域模式选择）──────────────
+EVIDENCE.update({
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "commitFullScreen"):
+        "自适应覆盖层单击空白桌面：原生像素抓整屏（失败回退 SCK/legacy）→ finishRegion 统一收尾，历史标签 full",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "acceptsFirstMouse"):
+        "首击即生效：App 未激活时 AppKit 会吞掉激活点击，覆盖层必须返回 true，否则要点第二次",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "windowRect"):
+        "光标所在窗口的视图矩形，供拖框吸附丢弃「整窗大小」的 AX 命中（否则一拉就吸回整窗）",
+})
+
 # ── v264：存储索引扫全盘 + 自建全盘文件名索引 ────────────────────────────
 EVIDENCE.update({
     ("Features/Monitor/Storage/DiskIndex.swift", "physicalSize"):

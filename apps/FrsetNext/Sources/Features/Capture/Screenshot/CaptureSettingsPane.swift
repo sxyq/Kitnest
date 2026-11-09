@@ -26,7 +26,6 @@ public struct CaptureSettingsPane: View {
     @Stored private var wmOpacity: Double
     @Stored private var wmAngle: Double
     /// v266：截图时默认拾取方式（"window" / "region"），与覆盖层上的开关共用同一个键
-    @Stored private var defaultPickMode: String
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -49,8 +48,6 @@ public struct CaptureSettingsPane: View {
         _wmTile = Stored(wrappedValue: Watermark.tile)
         _wmOpacity = Stored(wrappedValue: Watermark.opacity)
         _wmAngle = Stored(wrappedValue: Watermark.angle)
-        _defaultPickMode = Stored(wrappedValue:
-            CapturePickModeStore.mode == .window ? "window" : "region")
     }
 
     public var body: some View {
@@ -118,20 +115,16 @@ public struct CaptureSettingsPane: View {
     private var behaviorSection: some View {
         SettingsSection("行为") {
             SettingsGroupBox {
-                // v266：默认「窗口自动识别」，允许改回手动拉框；覆盖层上也能随时切。
-                row("截图时") {
-                    Picker("", selection: $defaultPickMode) {
-                        Text("自动识别窗口").tag("window")
-                        Text("手动框选").tag("region")
-                    }
-                    .labelsHidden()
-                    .frame(width: 150)
-                    .onChange(of: defaultPickMode) { newValue in
-                        CapturePickModeStore.mode = newValue == "region" ? .region : .window
-                    }
-                    Text("鼠标移到窗口内即自动高亮整窗、单击截取；覆盖层顶部可随时切换")
+                // v267（用户：「改为自适应，不用自己选择」）：
+                // 这里原来是一个「自动识别窗口 / 手动框选」的下拉。既然覆盖层已经按
+                // 动作判意图，让用户先选一次反而是负担，于是改成只读说明。
+                row("截图方式") {
+                    Text("自适应")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("悬停窗口单击截整窗 · 拖拽截自定义范围 · 点空白处截全屏（⌘ 单击多选）")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
 
                 SettingsDivider()
