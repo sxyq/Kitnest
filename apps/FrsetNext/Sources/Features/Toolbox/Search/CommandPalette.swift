@@ -74,7 +74,8 @@ public enum CommandCatalog {
         items.reserveCapacity(48)
 
         // ① 动作：截图全家桶
-        for mode in CaptureMode.allCases {
+        // v267：`.window` 与 `.area` 现在是同一套自适应行为，只留一条。
+        for mode in CaptureMode.allCases where mode != .window {
             items.append(CommandItem(id: "capture.\(mode.rawValue)",
                                      title: mode.title,
                                      subtitle: "截图",

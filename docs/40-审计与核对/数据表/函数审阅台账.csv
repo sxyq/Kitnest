@@ -1446,7 +1446,7 @@ Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,s
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,greatestCommonDivisor,func,131,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,constrain,func,143,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,square,func,169,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Capture,Features/Capture/Screenshot/CaptureEventBus.swift,CapturedImage,init,init,95,KEEP,"ScreenshotManager:792,880,936 构造"
+Capture,Features/Capture/Screenshot/CaptureEventBus.swift,CapturedImage,init,init,97,KEEP,"ScreenshotManager:792,880,936 构造"
 Capture,Features/Capture/Screenshot/CaptureExtraSettings.swift,CaptureRatioSettingsView,addRatio,func,86,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureExtraSettings.swift,ExtraSettingRow,init,init,240,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureFileName.swift,CaptureFileName,make,func,47,KEEP,待补证据：新增函数，尚未逐个读源码填写
@@ -1466,12 +1466,12 @@ Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,init,ini
 Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,show,func,89,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,fadeOut,func,113,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,init,init,14,KEEP,CaptureModule:89 PanelSectionRegistry 闭包构造
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,entryButton,func,116,KEEP,CaptureSectionView.swift:70-79 调用
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,thumbnailView,func,174,KEEP,CaptureSectionView.swift:169 调用
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pickAndStitch,func,207,KEEP,CaptureSectionView.swift:74 调用
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pinLatest,func,240,KEEP,CaptureSectionView.swift:75 调用
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,annotateLatest,func,249,KEEP,CaptureSectionView.swift:76 调用
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,chooseSingleImage,func,255,KEEP,"CaptureSectionView.swift:243,250 调用"
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,entryButton,func,117,KEEP,CaptureSectionView.swift:70-79 调用
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,thumbnailView,func,175,KEEP,CaptureSectionView.swift:169 调用
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pickAndStitch,func,208,KEEP,CaptureSectionView.swift:74 调用
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pinLatest,func,241,KEEP,CaptureSectionView.swift:75 调用
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,annotateLatest,func,250,KEEP,CaptureSectionView.swift:76 调用
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,chooseSingleImage,func,256,KEEP,"CaptureSectionView.swift:243,250 调用"
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,init,init,36,KEEP,CaptureModule:95 SettingsPaneRegistry 闭包构造
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,row,func,315,KEEP,截图设置页统一行（标题 + 控件 + 说明），与钉图/图帘页同构
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,chooseDirectory,func,330,KEEP,CaptureSettingsPane.swift:54 调用
@@ -2519,13 +2519,13 @@ Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,440,KEEP,segmentItem 动作 :370/:387 回调
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,dropToLocalTransfer,func,450,KEEP,分段 onDrop :374 回调
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,479,KEEP,pageSegments :369/386 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,545,KEEP,captureAction 四个菜单项 :481-485
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,657,KEEP,onSubmit :536 与收起按钮 :538
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,665,KEEP,bottomToolbar :551/587/593 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,680,KEEP,toolbar :281 取色按钮
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,783,KEEP,body 背景 :159 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,835,KEEP,Layout 协议要求（SwiftUI 布局调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,841,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,546,KEEP,captureAction 四个菜单项 :481-485
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,658,KEEP,onSubmit :536 与收起按钮 :538
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,666,KEEP,bottomToolbar :551/587/593 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,681,KEEP,toolbar :281 取色按钮
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,784,KEEP,body 背景 :159 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,836,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,842,KEEP,Layout 协议要求（SwiftUI 布局调用）
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,33,KEEP,PanelRootView.swift:227/228/369/386
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,43,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,decode,func,61,KEEP,PanelRootView.swift:62 解顺序串；order getter :85
@@ -2982,26 +2982,26 @@ Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,lunarFestiva
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandItem,init,init,39,KEEP,CommandCatalog.build:78 起、buildSlash:60 等 20+ 处构造
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,buildSlash,func,57,KEEP,CommandPaletteState.init:341 调用
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,build,func,72,KEEP,CommandPaletteState.init:340 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,init,init,225,KEEP,单例 shared:219（private override init）
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,toggle,func,227,KEEP,AppBootstrap.swift:393 热键闭包调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,closeAnimated,func,236,KEEP,toggle:229 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,show,func,246,KEEP,toggle:231 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,dismissForCommand,func,266,KEEP,SlashCommands.swift:70/87/101 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,windowWillClose,func,272,KEEP,NSWindowDelegate 协议实现，按规程保留
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,init,init,282,KEEP,CommandPaletteController.show:256 构造
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,centerInScreen,func,307,KEEP,show:258 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,windowWillClose,func,315,KEEP,NSWindowDelegate（init:302 delegate = self）
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,init,init,339,KEEP,CommandPalettePanel.init:297 构造
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,toggleSlashMode,func,347,KEEP,CommandPaletteView:459 按钮调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refilter,func,358,KEEP,onChange:454、onAppear:535、toggleSlashMode:354 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,407,KEEP,refilter:365/382/387/403 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,418,KEEP,keyHandler:546/547 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,423,KEEP,onSubmit:453、行 onTapGesture:501 调用
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,604,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSView,func,610,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,619,KEEP,NSView override（框架回调）
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,632,KEEP,deinit 生命周期，移除本地 monitor
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,640,KEEP,CommandPalette.swift:507 items[safe:] 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,init,init,226,KEEP,单例 shared:219（private override init）
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,toggle,func,228,KEEP,AppBootstrap.swift:393 热键闭包调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,closeAnimated,func,237,KEEP,toggle:229 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,show,func,247,KEEP,toggle:231 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,dismissForCommand,func,267,KEEP,SlashCommands.swift:70/87/101 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,windowWillClose,func,273,KEEP,NSWindowDelegate 协议实现，按规程保留
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,init,init,283,KEEP,CommandPaletteController.show:256 构造
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,centerInScreen,func,308,KEEP,show:258 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,windowWillClose,func,316,KEEP,NSWindowDelegate（init:302 delegate = self）
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,init,init,340,KEEP,CommandPalettePanel.init:297 构造
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,toggleSlashMode,func,348,KEEP,CommandPaletteView:459 按钮调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refilter,func,359,KEEP,onChange:454、onAppear:535、toggleSlashMode:354 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,408,KEEP,refilter:365/382/387/403 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,419,KEEP,keyHandler:546/547 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,424,KEEP,onSubmit:453、行 onTapGesture:501 调用
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,605,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSView,func,611,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,620,KEEP,NSView override（框架回调）
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,633,KEEP,deinit 生命周期，移除本地 monitor
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,641,KEEP,CommandPalette.swift:507 items[safe:] 调用
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,72,KEEP,单例私有 init（零常驻：App 启动、面板打开都不会走到这里）
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,83,KEEP,有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,95,KEEP,面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引

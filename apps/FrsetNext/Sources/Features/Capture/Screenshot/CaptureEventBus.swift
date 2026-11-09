@@ -39,7 +39,9 @@ public enum CaptureMode: String, CaseIterable, Identifiable {
     /// 面板入口标题
     public var title: String {
         switch self {
-        case .area:     return "区域截图"
+        // v267：自适应之后「区域」这个限定已经不成立（悬停窗口单击就截窗），
+        // 入口就叫「截图」；.window 保留给历史库标签与 ⇧⌥W 的兼容。
+        case .area:     return "截图"
         case .full:     return "全屏截图"
         case .window:   return "窗口截图"
         case .ocr:      return "截图识字"

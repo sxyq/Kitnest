@@ -69,7 +69,8 @@ public struct CaptureSectionView: View {
         return LazyVGrid(columns: columns, spacing: 8) {
             entryButton(mode: .area)     { manager.captureRegion() }
             entryButton(mode: .full)     { manager.captureFullScreen() }
-            entryButton(mode: .window)   { manager.captureWindow() }
+            // v267：单独的「窗口截图」卡片已删——自适应截图本身就包含窗口识别，
+            // 两张卡片做同一件事，用户还得猜差别。⇧⌥W 仍保留为习惯键。
             entryButton(mode: .ocr)      { manager.captureAndOCR() }
             entryButton(mode: .long)     { pickAndStitch() }
             entryButton(mode: .pin)      { pinLatest() }

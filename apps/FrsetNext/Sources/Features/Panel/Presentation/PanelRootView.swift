@@ -510,11 +510,12 @@ struct PanelRootView: View {
     /// 这一系列的功能在这里不需要，那个复制那里就可以使用」）：
     /// 框选后动作面板已经能一步做完 复制/识别/翻译/长截图/贴图/保存，
     /// 首页菜单里再列「截图并 X」等于同一件事做两遍，还让菜单长得像设置项。
-    /// 现在只留**这一层才能选到的入口**：区域截图、窗口截图、划词翻译（非截图）、录屏（动作面板没有）。
+    /// 现在只留**这一层才能选到的入口**：截图、划词翻译（非截图）、录屏（动作面板没有）。
+    /// v267：截图本身已自适应（悬停窗口单击截整窗 / 拖拽截范围 / 点空白截全屏），
+    /// 所以「窗口截图」这一项删除，避免两个入口做同一件事。
     private var captureAction: some View {
         Menu {
             Button("截图") { runCapture { CaptureModule.capture(.area) } }
-            Button("窗口截图") { runCapture { CaptureModule.capture(.window) } }
             Divider()
             Button("划词翻译") { runCapture { CaptureModule.translateSelection() } }
             Button("录屏") { runCapture { StatsBarEngine.openRecorder() } }
