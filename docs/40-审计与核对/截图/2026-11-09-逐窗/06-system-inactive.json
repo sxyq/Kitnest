@@ -1,0 +1,28 @@
+{
+  "mode": "system",
+  "number": 6,
+  "label": "归档浏览",
+  "active": false,
+  "reason": "目标不在当前桌面",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/06-system-inactive",
+  "snapshot": {
+    "foreground": "Token Monitor",
+    "missing": "归档 ·",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "windows": []
+  },
+  "link": "kitnest://archive?path=%2FUsers%2Fsunyiyang%2FDownloads%2Fdeck_bundle.zip"
+}

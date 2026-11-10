@@ -1,0 +1,182 @@
+{
+  "mode": "system",
+  "number": 4,
+  "label": "任务队列",
+  "active": false,
+  "reason": "目标被其他窗口遮挡",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/04-system-inactive",
+  "snapshot": {
+    "AX": [
+      {
+        "AXFocused": "0",
+        "AXMain": "1",
+        "AXPosition": "<AXValue 0x7cb6d3c9c0> {value = x:693.000000 y:607.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7cb6d3c9c0> {value = w:400.000000 h:202.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "任务队列",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cb6d3c9c0> {value = x:701.000000 y:615.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cb6d3c9c0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cb6d3c9f0> {value = x:724.000000 y:615.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cb6d3c9f0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cb6d3c9f0> {value = x:747.000000 y:615.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cb6d3c9f0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      },
+      {
+        "AXFocused": "0",
+        "AXMain": "0",
+        "AXPosition": "<AXValue 0x7cb6d3c9c0> {value = x:923.000000 y:250.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7cb6d3c9c0> {value = w:800.000000 h:530.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "使用统计",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cb6d3c9c0> {value = x:931.000000 y:258.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cb6d3c9c0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cb6d3c9f0> {value = x:954.000000 y:258.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cb6d3c9f0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cb6d3c9f0> {value = x:977.000000 y:258.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cb6d3c9f0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      }
+    ],
+    "covering": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 915,
+          "Width": 1500,
+          "X": 1059,
+          "Y": 523
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "QQ",
+        "kCGWindowNumber": 209,
+        "kCGWindowOwnerName": "QQ",
+        "kCGWindowOwnerPID": 1348,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 630,
+          "Width": 1131,
+          "X": 423,
+          "Y": 470
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "⁨桌面⁩ — 本地",
+        "kCGWindowNumber": 25142,
+        "kCGWindowOwnerName": "访达",
+        "kCGWindowOwnerPID": 25000,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ],
+    "foreground": "QQ",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "target": {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 202,
+        "Width": 400,
+        "X": 693,
+        "Y": 607
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowName": "任务队列",
+      "kCGWindowNumber": 25160,
+      "kCGWindowOwnerName": "Kitnest",
+      "kCGWindowOwnerPID": 97261,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    },
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 202,
+          "Width": 400,
+          "X": 693,
+          "Y": 607
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "任务队列",
+        "kCGWindowNumber": 25160,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 530,
+          "Width": 800,
+          "X": 923,
+          "Y": 250
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "使用统计",
+        "kCGWindowNumber": 25136,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://tasks"
+}

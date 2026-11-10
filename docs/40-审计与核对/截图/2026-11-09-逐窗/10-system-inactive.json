@@ -1,0 +1,145 @@
+{
+  "mode": "system",
+  "number": 10,
+  "label": "工具运行窗",
+  "active": false,
+  "reason": "",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/10-system-inactive",
+  "snapshot": {
+    "AX": [
+      {
+        "AXFocused": "1",
+        "AXMain": "1",
+        "AXPosition": "<AXValue 0x79d0d4c7b0> {value = x:1083.000000 y:243.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x79d0d4c7b0> {value = w:480.000000 h:560.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "UUID",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x79d0d4c780> {value = x:1091.000000 y:251.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x79d0d4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x79d0d4c7b0> {value = x:1114.000000 y:251.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x79d0d4c7b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x79d0d4c780> {value = x:1137.000000 y:251.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x79d0d4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      },
+      {
+        "AXFocused": "0",
+        "AXMain": "0",
+        "AXPosition": "<AXValue 0x79d0d4c7b0> {value = x:1322.000000 y:30.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x79d0d4c7b0> {value = w:360.000000 h:452.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "Mini · deck_bundle.zip",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x79d0d4c780> {value = x:1330.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x79d0d4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x79d0d4c7b0> {value = x:1353.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x79d0d4c7b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x79d0d4c780> {value = x:1376.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x79d0d4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      }
+    ],
+    "covering": [],
+    "foreground": "访达",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "target": {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 560,
+        "Width": 480,
+        "X": 1083,
+        "Y": 243
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowName": "UUID",
+      "kCGWindowNumber": 25308,
+      "kCGWindowOwnerName": "Kitnest",
+      "kCGWindowOwnerPID": 97261,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    },
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 560,
+          "Width": 480,
+          "X": 1083,
+          "Y": 243
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "UUID",
+        "kCGWindowNumber": 25308,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 452,
+          "Width": 360,
+          "X": 1322,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "Mini · deck_bundle.zip",
+        "kCGWindowNumber": 25223,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://tool?id=uuid"
+}

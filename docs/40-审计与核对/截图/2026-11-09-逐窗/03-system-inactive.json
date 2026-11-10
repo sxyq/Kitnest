@@ -1,0 +1,47 @@
+{
+  "mode": "system",
+  "number": 3,
+  "label": "截图历史",
+  "active": false,
+  "reason": "目标不在当前桌面",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/03-system-inactive",
+  "snapshot": {
+    "foreground": "Microsoft Edge",
+    "missing": "截图历史",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 530,
+          "Width": 800,
+          "X": 923,
+          "Y": 250
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "使用统计",
+        "kCGWindowNumber": 25136,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://capture?action=history"
+}

@@ -1,0 +1,116 @@
+{
+  "mode": "system",
+  "number": 7,
+  "label": "归档 Mini",
+  "active": true,
+  "reason": "目标被其他窗口遮挡",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/07-system-active",
+  "snapshot": {
+    "AX": [
+      {
+        "AXFocused": "0",
+        "AXMain": "1",
+        "AXPosition": "<AXValue 0x7906d349c0> {value = x:1322.000000 y:30.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7906d349c0> {value = w:360.000000 h:452.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "Mini · deck_bundle.zip",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7906d349c0> {value = x:1330.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7906d349c0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7906d349f0> {value = x:1353.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7906d349f0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7906d349f0> {value = x:1376.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7906d349f0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      }
+    ],
+    "covering": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 1387,
+          "Width": 2226,
+          "X": 91,
+          "Y": 49
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "请独立、彻底地排查并修复 Kitn…，并提供逐窗截图证据。 项目位…",
+        "kCGWindowNumber": 315,
+        "kCGWindowOwnerName": "ChatGPT",
+        "kCGWindowOwnerPID": 5157,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ],
+    "foreground": "ChatGPT",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "target": {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 452,
+        "Width": 360,
+        "X": 1322,
+        "Y": 30
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowName": "Mini · deck_bundle.zip",
+      "kCGWindowNumber": 25223,
+      "kCGWindowOwnerName": "Kitnest",
+      "kCGWindowOwnerPID": 97261,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    },
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 452,
+          "Width": 360,
+          "X": 1322,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "Mini · deck_bundle.zip",
+        "kCGWindowNumber": 25223,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://archive?path=%2FUsers%2Fsunyiyang%2FDownloads%2Fdeck_bundle.zip&action=mini"
+}

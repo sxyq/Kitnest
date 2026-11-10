@@ -1,0 +1,65 @@
+{
+  "mode": "system",
+  "number": 5,
+  "label": "创建压缩包",
+  "active": true,
+  "reason": "目标不在当前桌面",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/05-system-active",
+  "snapshot": {
+    "foreground": "Microsoft Edge",
+    "missing": "创建压缩包",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 202,
+          "Width": 400,
+          "X": 693,
+          "Y": 607
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "任务队列",
+        "kCGWindowNumber": 25160,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 530,
+          "Width": 800,
+          "X": 923,
+          "Y": 250
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "使用统计",
+        "kCGWindowNumber": 25136,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://archive?path=%2FUsers%2Fsunyiyang%2FLibrary%2FApplication+Support%2FFrsetNext%2Fscreenshots%2FScreenshot-2026-11-09-204352-273.png&action=compress"
+}

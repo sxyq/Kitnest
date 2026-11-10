@@ -1,0 +1,241 @@
+{
+  "mode": "system",
+  "number": 8,
+  "label": "存储管理",
+  "active": true,
+  "reason": "",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/08-system-active",
+  "snapshot": {
+    "AX": [
+      {
+        "AXFocused": "1",
+        "AXMain": "1",
+        "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:1322.000000 y:30.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7cead4c7b0> {value = w:1080.000000 h:752.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "存储管理",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:1330.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:1353.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c7b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:1376.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      },
+      {
+        "AXFocused": "0",
+        "AXMain": "0",
+        "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:1322.000000 y:30.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7cead4c7b0> {value = w:860.000000 h:592.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "归档 · deck_bundle.zip",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:1330.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:1353.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c7b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:1376.000000 y:38.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      },
+      {
+        "AXFocused": "0",
+        "AXMain": "0",
+        "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:693.000000 y:607.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7cead4c7b0> {value = w:400.000000 h:202.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "任务队列",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:701.000000 y:615.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:724.000000 y:615.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c7b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:747.000000 y:615.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      },
+      {
+        "AXFocused": "0",
+        "AXMain": "0",
+        "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:923.000000 y:250.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7cead4c7b0> {value = w:800.000000 h:530.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "使用统计",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:931.000000 y:258.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c7b0> {value = x:954.000000 y:258.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c7b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7cead4c780> {value = x:977.000000 y:258.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7cead4c780> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      }
+    ],
+    "covering": [],
+    "foreground": "Kitnest",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "target": {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 752,
+        "Width": 1080,
+        "X": 1322,
+        "Y": 30
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowName": "存储管理",
+      "kCGWindowNumber": 25257,
+      "kCGWindowOwnerName": "Kitnest",
+      "kCGWindowOwnerPID": 97261,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    },
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 752,
+          "Width": 1080,
+          "X": 1322,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "存储管理",
+        "kCGWindowNumber": 25257,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 592,
+          "Width": 860,
+          "X": 1322,
+          "Y": 30
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "归档 · deck_bundle.zip",
+        "kCGWindowNumber": 25183,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 202,
+          "Width": 400,
+          "X": 693,
+          "Y": 607
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "任务队列",
+        "kCGWindowNumber": 25160,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 530,
+          "Width": 800,
+          "X": 923,
+          "Y": 250
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "使用统计",
+        "kCGWindowNumber": 25136,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 97261,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://storage"
+}

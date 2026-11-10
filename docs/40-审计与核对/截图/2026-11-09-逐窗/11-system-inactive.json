@@ -1,0 +1,97 @@
+{
+  "mode": "system",
+  "number": 11,
+  "label": "全部应用库",
+  "active": false,
+  "reason": "",
+  "path": "/Users/sunyiyang/Desktop/Project/frset-rebuild/docs/40-审计与核对/截图/2026-11-09-逐窗/11-system-inactive",
+  "snapshot": {
+    "AX": [
+      {
+        "AXFocused": "1",
+        "AXMain": "1",
+        "AXPosition": "<AXValue 0x7bded447e0> {value = x:963.000000 y:243.000000 type = kAXValueCGPointType}",
+        "AXSize": "<AXValue 0x7bded447e0> {value = w:720.000000 h:560.000000 type = kAXValueCGSizeType}",
+        "AXTitle": "全部应用",
+        "controls": [
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7bded447b0> {value = x:971.000000 y:251.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7bded447b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXCloseButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7bded447e0> {value = x:994.000000 y:251.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7bded447e0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXMinimizeButton"
+          },
+          {
+            "AXEnabled": "1",
+            "AXPosition": "<AXValue 0x7bded447b0> {value = x:1017.000000 y:251.000000 type = kAXValueCGPointType}",
+            "AXRole": "AXButton",
+            "AXSize": "<AXValue 0x7bded447b0> {value = w:16.000000 h:16.000000 type = kAXValueCGSizeType}",
+            "control": "AXZoomButton"
+          }
+        ]
+      }
+    ],
+    "covering": [],
+    "foreground": "访达",
+    "screens": [
+      {
+        "frame": "{{0, 0}, {2560, 1440}}",
+        "id": 2,
+        "scale": 1,
+        "visible": "{{86, 0}, {2474, 1410}}"
+      },
+      {
+        "frame": "{{0, -956}, {1470, 956}}",
+        "id": 1,
+        "scale": 2,
+        "visible": "{{0, -956}, {1470, 924}}"
+      }
+    ],
+    "target": {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 560,
+        "Width": 720,
+        "X": 963,
+        "Y": 243
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowName": "全部应用",
+      "kCGWindowNumber": 25331,
+      "kCGWindowOwnerName": "Kitnest",
+      "kCGWindowOwnerPID": 624,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    },
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 560,
+          "Width": 720,
+          "X": 963,
+          "Y": 243
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "全部应用",
+        "kCGWindowNumber": 25331,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 624,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "link": "kitnest://castapps"
+}

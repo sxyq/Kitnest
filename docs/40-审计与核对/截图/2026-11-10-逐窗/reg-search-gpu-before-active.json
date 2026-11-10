@@ -1,0 +1,391 @@
+{
+  "active": true,
+  "bounds": {
+    "y": 360,
+    "x": 810,
+    "width": 940,
+    "height": 720
+  },
+  "lights": [
+    {
+      "y": 369,
+      "enabled": true,
+      "x": 819,
+      "width": 14,
+      "height": 14
+    },
+    {
+      "y": 369,
+      "enabled": true,
+      "x": 842,
+      "width": 14,
+      "height": 14
+    },
+    {
+      "y": 369,
+      "enabled": true,
+      "x": 865,
+      "width": 14,
+      "height": 14
+    }
+  ],
+  "id": 27319,
+  "title": "设置",
+  "key": true,
+  "capturedAt": 1794245518.16394,
+  "pid": 30296,
+  "screenState": {
+    "appActive": true,
+    "frontmost": "com.sxyq.frsetnext",
+    "windows": [
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 28,
+          "Width": 28,
+          "X": 1443,
+          "Y": 1441
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 2147483630,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "StatusIndicator",
+        "kCGWindowNumber": 25588,
+        "kCGWindowOwnerName": "Window Server",
+        "kCGWindowOwnerPID": 609,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 28,
+          "Width": 28,
+          "X": 1443,
+          "Y": 1441
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 2147483630,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "StatusIndicator",
+        "kCGWindowNumber": 25587,
+        "kCGWindowOwnerName": "Window Server",
+        "kCGWindowOwnerPID": 609,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 28,
+          "Width": 28,
+          "X": 2536,
+          "Y": 1
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 2147483630,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "StatusIndicator",
+        "kCGWindowNumber": 25586,
+        "kCGWindowOwnerName": "Window Server",
+        "kCGWindowOwnerPID": 609,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 28,
+          "Width": 28,
+          "X": 2536,
+          "Y": 1
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 2147483630,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "StatusIndicator",
+        "kCGWindowNumber": 25585,
+        "kCGWindowOwnerName": "Window Server",
+        "kCGWindowOwnerPID": 609,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 30,
+          "Width": 2560,
+          "X": 0,
+          "Y": 0
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 24,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "Menubar",
+        "kCGWindowNumber": 17172,
+        "kCGWindowOwnerName": "Window Server",
+        "kCGWindowOwnerPID": 609,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 33,
+          "Width": 1470,
+          "X": 0,
+          "Y": 1440
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 24,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "Menubar",
+        "kCGWindowNumber": 17071,
+        "kCGWindowOwnerName": "Window Server",
+        "kCGWindowOwnerPID": 609,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 1440,
+          "Width": 2560,
+          "X": 0,
+          "Y": 0
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 20,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "Dock",
+        "kCGWindowNumber": 15093,
+        "kCGWindowOwnerName": "程序坞",
+        "kCGWindowOwnerPID": 94459,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 88,
+          "Width": 10,
+          "X": 1460,
+          "Y": 1627
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 3,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "Token Monitor Dock",
+        "kCGWindowNumber": 101,
+        "kCGWindowOwnerName": "Token Monitor",
+        "kCGWindowOwnerPID": 1346,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 720,
+          "Width": 940,
+          "X": 810,
+          "Y": 360
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "设置",
+        "kCGWindowNumber": 27319,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 30296,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 1321,
+          "Width": 2287,
+          "X": 266,
+          "Y": 98
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "查看米盒设计对话并保存资产",
+        "kCGWindowNumber": 18039,
+        "kCGWindowOwnerName": "ChatGPT",
+        "kCGWindowOwnerPID": 19790,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 1387,
+          "Width": 2226,
+          "X": 91,
+          "Y": 49
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "优化水流与船只动态效果",
+        "kCGWindowNumber": 315,
+        "kCGWindowOwnerName": "ChatGPT",
+        "kCGWindowOwnerPID": 5157,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 560,
+          "Width": 480,
+          "X": 1040,
+          "Y": 440
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "二维码",
+        "kCGWindowNumber": 27235,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 30296,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 500,
+          "Width": 400,
+          "X": 1080,
+          "Y": 470
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": 0,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "本次更新",
+        "kCGWindowNumber": 27232,
+        "kCGWindowOwnerName": "Kitnest",
+        "kCGWindowOwnerPID": 30296,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 180,
+          "Width": 180,
+          "X": 1513,
+          "Y": 785
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": -2147483601,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "月",
+        "kCGWindowNumber": 43,
+        "kCGWindowOwnerName": "通知中心",
+        "kCGWindowOwnerPID": 1111,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 180,
+          "Width": 180,
+          "X": 368,
+          "Y": 218
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": -2147483601,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "列表",
+        "kCGWindowNumber": 44,
+        "kCGWindowOwnerName": "通知中心",
+        "kCGWindowOwnerPID": 1111,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 180,
+          "Width": 360,
+          "X": 368,
+          "Y": 38
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": -2147483601,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "每日使用情况",
+        "kCGWindowNumber": 42,
+        "kCGWindowOwnerName": "通知中心",
+        "kCGWindowOwnerPID": 1111,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 180,
+          "Width": 180,
+          "X": 8,
+          "Y": 38
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": -2147483601,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "数字时钟",
+        "kCGWindowNumber": 41,
+        "kCGWindowOwnerName": "通知中心",
+        "kCGWindowOwnerPID": 1111,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 180,
+          "Width": 180,
+          "X": 8,
+          "Y": 218
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": -2147483601,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "状态",
+        "kCGWindowNumber": 40,
+        "kCGWindowOwnerName": "通知中心",
+        "kCGWindowOwnerPID": 1111,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      },
+      {
+        "kCGWindowAlpha": 1,
+        "kCGWindowBounds": {
+          "Height": 180,
+          "Width": 180,
+          "X": 188,
+          "Y": 38
+        },
+        "kCGWindowIsOnscreen": true,
+        "kCGWindowLayer": -2147483601,
+        "kCGWindowMemoryUsage": 2432,
+        "kCGWindowName": "每日天气预报",
+        "kCGWindowNumber": 39,
+        "kCGWindowOwnerName": "通知中心",
+        "kCGWindowOwnerPID": 1111,
+        "kCGWindowSharingState": 1,
+        "kCGWindowStoreType": 1
+      }
+    ]
+  },
+  "compositeBounds": {
+    "x": 810,
+    "y": 360,
+    "width": 940,
+    "height": 720
+  }
+}

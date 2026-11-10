@@ -1,0 +1,143 @@
+{
+  "appActive": true,
+  "cgWindows": [
+    {
+      "kCGWindowAlpha": 1,
+      "kCGWindowBounds": {
+        "Height": 530,
+        "Width": 800,
+        "X": 880,
+        "Y": 455
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 0,
+      "kCGWindowMemoryUsage": 2432,
+      "kCGWindowName": "使用统计",
+      "kCGWindowNumber": 26644,
+      "kCGWindowOwnerName": "Kitnest",
+      "kCGWindowOwnerPID": 5462,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    }
+  ],
+  "displays": [
+    {
+      "appKit": {
+        "height": 1440,
+        "width": 2560,
+        "x": 0,
+        "y": 0
+      },
+      "cgBounds": {
+        "height": 1440,
+        "width": 2560,
+        "x": 0,
+        "y": 0
+      },
+      "displayID": 2,
+      "name": "F27G32Q Pro",
+      "scale": 1,
+      "visible": {
+        "height": 1410,
+        "width": 2474,
+        "x": 86,
+        "y": 0
+      }
+    },
+    {
+      "appKit": {
+        "height": 956,
+        "width": 1470,
+        "x": 0,
+        "y": -956
+      },
+      "cgBounds": {
+        "height": 956,
+        "width": 1470,
+        "x": 0,
+        "y": 1440
+      },
+      "displayID": 1,
+      "name": "Built-in Retina Display",
+      "scale": 2,
+      "visible": {
+        "height": 924,
+        "width": 1470,
+        "x": 0,
+        "y": -956
+      }
+    }
+  ],
+  "frontmost": "com.sxyq.frsetnext",
+  "pid": 5462,
+  "windows": [
+    {
+      "aboveIntersecting": [
+        {
+          "bounds": {
+            "Height": 1440,
+            "Width": 2560,
+            "X": 0,
+            "Y": 0
+          },
+          "id": 15093,
+          "name": "Dock",
+          "owner": "程序坞"
+        }
+      ],
+      "AXFocused": true,
+      "AXMain": true,
+      "AXRole": "AXWindow",
+      "AXSubrole": "AXStandardWindow",
+      "AXTitle": "使用统计",
+      "bounds": {
+        "height": 530,
+        "width": 800,
+        "x": 880,
+        "y": 455
+      },
+      "id": 26644,
+      "lights": [
+        {
+          "AXEnabled": true,
+          "AXFocused": false,
+          "AXRole": "AXButton",
+          "AXSubrole": "AXCloseButton",
+          "bounds": {
+            "height": 16,
+            "width": 16,
+            "x": 888,
+            "y": 463
+          },
+          "kind": "AXCloseButton"
+        },
+        {
+          "AXEnabled": true,
+          "AXFocused": false,
+          "AXRole": "AXButton",
+          "AXSubrole": "AXMinimizeButton",
+          "bounds": {
+            "height": 16,
+            "width": 16,
+            "x": 911,
+            "y": 463
+          },
+          "kind": "AXMinimizeButton"
+        },
+        {
+          "AXEnabled": true,
+          "AXFocused": false,
+          "AXRole": "AXButton",
+          "AXSubrole": "AXZoomButton",
+          "bounds": {
+            "height": 16,
+            "width": 16,
+            "x": 934,
+            "y": 463
+          },
+          "kind": "AXZoomButton"
+        }
+      ]
+    }
+  ]
+}
