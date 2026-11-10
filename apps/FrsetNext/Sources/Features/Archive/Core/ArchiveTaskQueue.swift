@@ -94,7 +94,7 @@ public final class ArchiveTaskQueue: ObservableObject {
 
     // MARK: 私有状态（除 cancelFlags 外只在主线程碰）
 
-    private var pending: [(id: UUID, work: Work)] = []
+    private var pending: [(id: UUID, work: Work, onCancel: (() -> Void)?)] = []
     private var runningIDs: Set<UUID> = []
     private var processes: [UUID: Process] = [:]
     private let cancelLock = NSLock()
@@ -108,13 +108,14 @@ public final class ArchiveTaskQueue: ObservableObject {
     /// - Parameter output: 产物位置（压缩包 / 解压目录），任务窗据此提供「在访达中显示」
     @discardableResult
     public func enqueue(kind: Kind, title: String, output: URL? = nil,
+                        onCancel: (() -> Void)? = nil,
                         work: @escaping Work) -> UUID {
         let id = UUID()
         onMain {
             self.tasks.append(ArchiveTask(id: id, kind: kind, title: title,
                                           state: .waiting, progress: -1, message: "排队中",
                                           outputURL: output))
-            self.pending.append((id, work))
+            self.pending.append((id, work, onCancel))
             self.pump()
         }
         return id
@@ -148,12 +149,13 @@ public final class ArchiveTaskQueue: ObservableObject {
         onMain {
             // 还在排队：直接出队
             if let idx = self.pending.firstIndex(where: { $0.id == taskID }) {
-                self.pending.remove(at: idx)
+                let item = self.pending.remove(at: idx)
                 _ = self.takeCancelFlag(taskID)
                 self.mutate(taskID) { t in
                     t.state = .cancelled
                     t.message = "已取消"
                 }
+                item.onCancel?()
                 return
             }
             guard self.runningIDs.contains(taskID) else { return }

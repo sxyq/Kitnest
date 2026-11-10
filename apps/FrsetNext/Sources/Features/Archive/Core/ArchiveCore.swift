@@ -565,7 +565,8 @@ public enum ArchiveCore {
                                skipExisting: Bool = false,
                                completion: @escaping (Bool, String) -> Void) -> UUID? {
         let title = entry.map { "解压 \($0)" } ?? "解压 \(url.lastPathComponent)"
-        return ArchiveTaskQueue.shared.enqueue(kind: .extract, title: title, output: dir) { taskID, done in
+        return ArchiveTaskQueue.shared.enqueue(kind: .extract, title: title, output: dir,
+                                               onCancel: { completion(false, "已取消") }) { taskID, done in
             // 队列记账 + 原调用方回调（一次 work 只收尾一次）
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -685,7 +686,7 @@ public enum ArchiveCore {
         }
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("frset-archive-\(UUID().uuidString)", isDirectory: true)
-        performExtract(url: url, entry: entry.path, to: dir, password: nil,
+        performExtract(url: url, entry: entry.path, to: dir, password: ArchivePasswords.get(url),
                        includeAuxiliary: false, restrictTo: nil, taskID: nil) { ok, msg in
             guard ok else { completion(nil, msg); return }
             // 7zz x 会保留目录结构；在 dir 下找同名文件
@@ -743,7 +744,7 @@ public enum ArchiveCore {
             }
             let dir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-webpreview-\(UUID().uuidString)", isDirectory: true)
-            performExtract(url: url, entry: nil, to: dir, password: nil,
+            performExtract(url: url, entry: nil, to: dir, password: ArchivePasswords.get(url),
                            includeAuxiliary: false,
                            restrictTo: candidates.map { $0.path },
                            taskID: nil) { ok, msg in
@@ -768,7 +769,8 @@ public enum ArchiveCore {
                                    password: String? = nil,
                                    completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .add,
-                                               title: "写回 \(entryPath)") { taskID, done in
+                                               title: "写回 \(entryPath)",
+                                               onCancel: { completion(false, "已取消") }) { taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
                 // 对外一律回「已取消」，别把取消显示成失败
@@ -801,7 +803,7 @@ public enum ArchiveCore {
                 return
             }
             var args = ["a", "-y"]
-            args += passwordArg(password)
+            args += passwordArg(password ?? ArchivePasswords.get(url))
             args += [url.path, entryPath]   // 相对路径 + cwd=staging → 包内路径保持不变
             runIn(args, cwd: staging, taskID: taskID,
                   onProgress: progressCallback(taskID, phase: "写回中…")) { code, _, err in
@@ -818,7 +820,8 @@ public enum ArchiveCore {
                                    password: String? = nil,
                                    completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .rename,
-                                               title: "重命名为 \(newName)") { taskID, done in
+                                               title: "重命名为 \(newName)",
+                                               onCancel: { completion(false, "已取消") }) { taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
                 // 对外一律回「已取消」，别把取消显示成失败
@@ -839,7 +842,7 @@ public enum ArchiveCore {
                 return
             }
             var args = ["rn"]
-            args += passwordArg(password)
+            args += passwordArg(password ?? ArchivePasswords.get(url))
             args += [url.path, entryPath, target]
             run(args, taskID: taskID) { code, _, err in
                 both(code == 0, code == 0 ? "已重命名为 \(newName)" : err)
@@ -854,7 +857,8 @@ public enum ArchiveCore {
                                 password: String? = nil,
                                 completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .add,
-                                               title: "添加 \(files.count) 个文件到 \(url.lastPathComponent)") {
+                                               title: "添加 \(files.count) 个文件到 \(url.lastPathComponent)",
+                                               onCancel: { completion(false, "已取消") }) {
             taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -893,7 +897,7 @@ public enum ArchiveCore {
                     return
                 }
                 var args = ["a", "-y"]
-                args += passwordArg(password)
+                args += passwordArg(password ?? ArchivePasswords.get(url))
                 args += [url.path] + rel
                 runIn(args, cwd: staging, taskID: taskID,
                       onProgress: progressCallback(taskID, phase: "添加中…")) { code, _, err in
@@ -916,7 +920,8 @@ public enum ArchiveCore {
             return nil
         }
         return ArchiveTaskQueue.shared.enqueue(kind: .remove,
-                                               title: "删除 \(entryPaths.count) 项") { taskID, done in
+                                               title: "删除 \(entryPaths.count) 项",
+                                               onCancel: { completion(false, "已取消") }) { taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
                 // 对外一律回「已取消」，别把取消显示成失败
@@ -926,7 +931,7 @@ public enum ArchiveCore {
                 DispatchQueue.main.async { completion(ok, cancelled ? "已取消" : msg) }
             }
             var args = ["d", "-y"]
-            args += passwordArg(password)
+            args += passwordArg(password ?? ArchivePasswords.get(url))
             args += [url.path] + entryPaths
             run(args, taskID: taskID) { code, _, err in
                 both(code == 0, code == 0 ? "已删除 \(entryPaths.count) 项" : err)
@@ -953,7 +958,8 @@ public enum ArchiveCore {
         }
         return ArchiveTaskQueue.shared.enqueue(kind: .compress,
                                                title: "创建 \(archiveURL.lastPathComponent)",
-                                               output: archiveURL) {
+                                               output: archiveURL,
+                                               onCancel: { completion(false, "已取消") }) {
             taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -981,28 +987,27 @@ public enum ArchiveCore {
                 return
             }
 
-            // v127（ArcZip P2）：Windows 文件名修正——包内名用建议名，磁盘原名不动
-            if useWindowsSafeNames {
-                let sanitized = uniqueWindowsNames(names.map { sanitizeWindowsName($0) })
-                if sanitized != names {
-                    let dir = FileManager.default.temporaryDirectory
-                        .appendingPathComponent("frset-archive-create-\(UUID().uuidString)",
-                                                isDirectory: true)
-                    do {
-                        try FileManager.default.createDirectory(at: dir,
-                                                                withIntermediateDirectories: true)
-                        for (f, newName) in zip(files, sanitized) {
-                            try FileManager.default.copyItem(at: f,
-                                                             to: dir.appendingPathComponent(newName))
-                        }
-                        base = dir
-                        names = sanitized
-                        staging = dir
-                    } catch {
-                        try? FileManager.default.removeItem(at: dir)
-                        both(false, "准备改名失败：\(error.localizedDescription)")
-                        return
+            // 跨目录选择也使用已有 staging，避免在首文件目录错读同名文件或漏项。
+            let stagedNames = uniqueWindowsNames(useWindowsSafeNames
+                                                ? names.map { sanitizeWindowsName($0) } : names)
+            if stagedNames != names || files.contains(where: { $0.deletingLastPathComponent() != base }) {
+                let dir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("frset-archive-create-\(UUID().uuidString)",
+                                            isDirectory: true)
+                do {
+                    try FileManager.default.createDirectory(at: dir,
+                                                            withIntermediateDirectories: true)
+                    for (f, newName) in zip(files, stagedNames) {
+                        try FileManager.default.copyItem(at: f,
+                                                         to: dir.appendingPathComponent(newName))
                     }
+                    base = dir
+                    names = stagedNames
+                    staging = dir
+                } catch {
+                    try? FileManager.default.removeItem(at: dir)
+                    both(false, "准备压缩文件失败：\(error.localizedDescription)")
+                    return
                 }
             }
 
@@ -1029,7 +1034,14 @@ public enum ArchiveCore {
 
             // tar.gz：先 tar 再 gzip（7zz 不能一趟出 tar.gz）
             if name.hasSuffix(".tar.gz") || name.hasSuffix(".tgz") {
-                let dir = archiveURL.deletingLastPathComponent()
+                let dir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("frset-tar-\(UUID().uuidString)", isDirectory: true)
+                do {
+                    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                } catch {
+                    finalize(-1, "准备 TAR 失败：\(error.localizedDescription)")
+                    return
+                }
                 let stem = name.hasSuffix(".tar.gz")
                     ? String(archiveURL.lastPathComponent.dropLast(7))
                     : String(archiveURL.lastPathComponent.dropLast(4))
@@ -1040,12 +1052,13 @@ public enum ArchiveCore {
                 tarArgs += [tarURL.path] + names
                 runIn(tarArgs, cwd: base, taskID: taskID, onProgress: progress) { code, _, err in
                     guard code == 0 else {
+                        try? FileManager.default.removeItem(at: dir)
                         finalize(code, err)
                         return
                     }
                     // 分卷 + tar.gz 的组合已在入口拒绝 → 走到这里必然是单卷，直接 gzip
                     if ArchiveTaskQueue.shared.isCancelled(taskID) {
-                        try? FileManager.default.removeItem(at: tarURL)
+                        try? FileManager.default.removeItem(at: dir)
                         finalize(-1, "已取消")
                         return
                     }
@@ -1054,7 +1067,7 @@ public enum ArchiveCore {
                     gzArgs += [archiveURL.path, tarURL.lastPathComponent]
                     runIn(gzArgs, cwd: dir, taskID: taskID, onProgress: progress) {
                         code2, _, err2 in
-                        try? FileManager.default.removeItem(at: tarURL)
+                        try? FileManager.default.removeItem(at: dir)
                         finalize(code2, err2)
                     }
                 }
@@ -1081,7 +1094,8 @@ public enum ArchiveCore {
                                          level: Int = 5,
                                          completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .encrypt,
-                                               title: "加密另存 \(dest.lastPathComponent)") {
+                                               title: "加密另存 \(dest.lastPathComponent)",
+                                               onCancel: { completion(false, "已取消") }) {
             taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -1093,7 +1107,7 @@ public enum ArchiveCore {
             }
             let staging = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-enc-\(UUID().uuidString)", isDirectory: true)
-            performExtract(url: url, entry: nil, to: staging, password: nil,
+            performExtract(url: url, entry: nil, to: staging, password: ArchivePasswords.get(url),
                            includeAuxiliary: true, restrictTo: nil, taskID: taskID) { ok, msg in
                 guard ok else {
                     try? FileManager.default.removeItem(at: staging)

@@ -236,16 +236,15 @@ public enum ArchiveFlowRecommender {
                 .appendingPathComponent(appURL.lastPathComponent)
             do {
                 if FileManager.default.fileExists(atPath: installed.path) {
-                    try FileManager.default.removeItem(at: installed)
+                    _ = try FileManager.default.replaceItemAt(installed, withItemAt: appURL)
+                } else {
+                    try FileManager.default.copyItem(at: appURL, to: installed)
                 }
-                try FileManager.default.copyItem(at: appURL, to: installed)
                 NSWorkspace.shared.open(installed)
                 Toast.show("已安装 \(installed.lastPathComponent) 到 /Applications",
                            icon: "app.badge.checkmark")
             } catch {
-                // /Applications 不可写（非管理员/受管设备）→ 从临时目录直接打开
-                NSWorkspace.shared.open(appURL)
-                Toast.show("无权限写入 /Applications，已从临时目录打开",
+                Toast.show("安装应用失败：\(error.localizedDescription)",
                            icon: "exclamationmark.triangle", isWarning: true)
             }
         }
@@ -264,9 +263,16 @@ public enum ArchiveFlowRecommender {
                 defer { group.leave() }
                 guard let tempURL else { return }
                 let dest = fontsDir.appendingPathComponent(tempURL.lastPathComponent)
-                try? FileManager.default.removeItem(at: dest)
-                if (try? FileManager.default.copyItem(at: tempURL, to: dest)) != nil {
+                do {
+                    if FileManager.default.fileExists(atPath: dest.path) {
+                        _ = try FileManager.default.replaceItemAt(dest, withItemAt: tempURL)
+                    } else {
+                        try FileManager.default.copyItem(at: tempURL, to: dest)
+                    }
                     done += 1
+                } catch {
+                    Toast.show("安装字体失败：\(error.localizedDescription)",
+                               icon: "exclamationmark.triangle", isWarning: true)
                 }
             }
         }

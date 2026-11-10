@@ -62,9 +62,7 @@ final class ArchiveHoverPreview {
                 }
                 guard let tmp else { return }
                 self.store(key: key, file: tmp)
-                DispatchQueue.main.async {
-                    FileHoverPreviewController.shared.showNow(url: tmp)
-                }
+                FileHoverPreviewController.shared.showNow(url: tmp)
             }
         }
         pending = work

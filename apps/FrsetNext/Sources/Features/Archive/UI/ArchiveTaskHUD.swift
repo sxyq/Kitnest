@@ -120,6 +120,7 @@ final class ArchiveTaskHUDController {
     static let shared = ArchiveTaskHUDController()
 
     private var panel: NSPanel?
+    private var hideGeneration = 0
     private let model = ArchiveTaskHUDModel()
 
     var isVisible: Bool { panel?.isVisible == true }
@@ -161,16 +162,20 @@ final class ArchiveTaskHUDController {
 
     func hide() {
         guard let panel else { return }
+        hideGeneration += 1
+        let generation = hideGeneration
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = Theme.Motion.dFast
             panel.animator().alphaValue = 0
-        } completionHandler: { [weak panel] in
+        } completionHandler: { [weak self, weak panel] in
+            guard self?.hideGeneration == generation else { return }
             panel?.orderOut(nil)
             panel?.alphaValue = 1
         }
     }
 
     private func present() {
+        hideGeneration += 1
         let panel = ensurePanel()
         position(panel)
         if !panel.isVisible {
@@ -180,6 +185,8 @@ final class ArchiveTaskHUDController {
                 ctx.duration = Theme.Motion.dPage
                 panel.animator().alphaValue = 1
             }
+        } else {
+            panel.animator().alphaValue = 1
         }
     }
 

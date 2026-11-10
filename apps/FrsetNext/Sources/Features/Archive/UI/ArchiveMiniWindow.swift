@@ -96,6 +96,7 @@ final class ArchiveMiniModel: ObservableObject {
     let url: URL
     @Published var entries: [ArchiveEntry] = []
     @Published var listError: String?
+    @Published var loading = true
     /// v127（ArcZip P3）：置顶图钉状态； didSet 直接作用到窗口层级
     @Published var isPinned = false {
         didSet {
@@ -111,7 +112,9 @@ final class ArchiveMiniModel: ObservableObject {
     var title: String { url.lastPathComponent }
 
     func reload() {
+        loading = true
         ArchiveCore.list(url: url) { [weak self] entries, err in
+            self?.loading = false
             self?.entries = entries
             self?.listError = err
         }
@@ -211,9 +214,14 @@ struct ArchiveMiniView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(12)
-        } else if model.entries.isEmpty {
+        } else if model.loading {
             ProgressView()
                 .controlSize(.small)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if model.entries.isEmpty {
+            Text("归档为空")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {

@@ -59,9 +59,10 @@ final class ArchiveFilePromiseDelegate: NSObject, NSFilePromiseProviderDelegate 
                 try fm.createDirectory(at: url.deletingLastPathComponent(),
                                        withIntermediateDirectories: true)
                 if fm.fileExists(atPath: url.path) {
-                    try fm.removeItem(at: url)      // 目标名已由 Finder 定好，直接就位
+                    _ = try fm.replaceItemAt(url, withItemAt: produced)
+                } else {
+                    try fm.moveItem(at: produced, to: url)
                 }
-                try fm.moveItem(at: produced, to: url)
                 try? fm.removeItem(at: tempDir)
                 completionHandler(nil)
             } catch {

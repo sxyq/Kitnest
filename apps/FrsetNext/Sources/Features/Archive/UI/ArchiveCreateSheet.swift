@@ -168,8 +168,10 @@ public struct ArchiveCreateView: View {
             header
             Divider()
             presetPicker
+                .disabled(model.busy)
             Divider()
             options
+                .disabled(model.busy)
             if let warn = model.windowsNameWarning {
                 Label(warn, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
@@ -404,18 +406,17 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
         win.titleVisibility = .hidden
         super.init(window: win)
         win.delegate = self
+        let model = self.model
         let view = ArchiveCreateView(model: model, onDone: { [weak self] ok, msg in
             if ok {
                 Toast.show(msg, icon: "archivebox")
                 // v258（用户：「压缩时主动提示是否保留原文件」）：
                 // 先把源/输出记下来，关窗之后再问——弹窗不能挂在一个正在消失的窗口上。
-                let sources = self?.model.files ?? []
-                let output = self?.model.outputURL
+                let sources = model.files
+                let output = model.outputURL
                 self?.close()
-                if let output {
-                    DispatchQueue.main.async {
-                        ArchiveSourceHandling.offerCleanup(sources: sources, output: output)
-                    }
+                DispatchQueue.main.async {
+                    ArchiveSourceHandling.offerCleanup(sources: sources, output: output)
                 }
             } else if msg != "已取消" {
                 // 错误已内联显示，这里不重复弹

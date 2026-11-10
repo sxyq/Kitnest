@@ -33,6 +33,8 @@ public final class ArchiveBrowserModel: ObservableObject {
     @Published public var selection: Set<String> = []
     @Published public private(set) var previewKind: PreviewKind = .none
     @Published public private(set) var previewLoading = false
+    @Published public private(set) var saving = false
+    private var previewGeneration = 0
     /// v127：当前预览/编辑中的条目（多选时也明确在编辑哪一个）
     @Published public private(set) var previewEntry: ArchiveEntry?
     @Published public var draftText: String = ""
@@ -81,6 +83,9 @@ public final class ArchiveBrowserModel: ObservableObject {
             return true
         case .alertSecondButtonReturn:
             Log.info("Archive", "源包被外部修改，用户选择重新载入：\(url.lastPathComponent)")
+            dirty = false
+            clearPreview()
+            refreshSourceStamp()
             reload()
             return false
         default:
@@ -99,9 +104,11 @@ public final class ArchiveBrowserModel: ObservableObject {
         self.undoStack = ArchiveUndoStack(url: url)
         self.undoStack.onApplied = { [weak self] in
             guard let self else { return }
+            self.refreshSourceStamp()
             self.reload()
             // 编辑类撤销后预览内容要跟着回退
-            if let entry = self.previewEntry {
+            if !self.dirty, let entry = self.previewEntry {
+                self.clearPreview()
                 self.loadPreview(for: entry)
             }
         }
@@ -257,6 +264,8 @@ public final class ArchiveBrowserModel: ObservableObject {
     }
 
     public func clearPreview() {
+        guard !dirty else { return }
+        previewGeneration += 1
         previewKind = .none
         previewEntry = nil
         previewLoading = false
@@ -285,6 +294,10 @@ public final class ArchiveBrowserModel: ObservableObject {
     // MARK: 预览
 
     public func loadPreview(for entry: ArchiveEntry) {
+        // 保留尚未写回的编辑；重复选择同一条目不重新读取并清空草稿。
+        guard !dirty, previewEntry?.path != entry.path else { return }
+        previewGeneration += 1
+        let generation = previewGeneration
         previewLoading = true
         previewKind = .none
         previewEntry = entry
@@ -303,7 +316,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         // 连同同目录资源一起解到临时目录，交给 WKWebView（CSS/JS/图片/子页面都能生效）。
         if ["html", "htm", "xhtml", "svg"].contains(ext) {
             ArchiveCore.extractWebPreviewToTemp(url: url, entry: entry) { [weak self] fileURL, err in
-                guard let self else { return }
+                guard let self, self.previewGeneration == generation else { return }
                 self.previewLoading = false
                 guard let fileURL else {
                     self.previewKind = .unsupported(err.isEmpty ? "网页解压失败" : err)
@@ -318,7 +331,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         // 文本类：直接读内容（可编辑）
         if FilePreviewBuilder.textExtensions.contains(ext) || ext.isEmpty {
             ArchiveCore.readEntry(url: url, entry: entry) { [weak self] data, err in
-                guard let self else { return }
+                guard let self, self.previewGeneration == generation else { return }
                 self.previewLoading = false
                 guard let data, let text = String(data: data, encoding: .utf8) else {
                     self.previewKind = .unsupported(err ?? "无法以文本方式读取")
@@ -338,7 +351,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         if ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "bmp", "tiff"].contains(ext) {
             ArchiveCore.readEntry(url: url, entry: entry,
                                   limit: 128 * 1024 * 1024) { [weak self] data, err in
-                guard let self else { return }
+                guard let self, self.previewGeneration == generation else { return }
                 self.previewLoading = false
                 if let data, let img = ArchiveEntryThumbnail.downsample(data: data, maxPixel: 2600)
                                         ?? NSImage(data: data) {
@@ -351,7 +364,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
         // 其余（PDF / Office / 任意）：解压到临时目录再渲染
         ArchiveCore.extractEntryToTemp(url: url, entry: entry) { [weak self] tempURL, err in
-            guard let self else { return }
+            guard let self, self.previewGeneration == generation else { return }
             guard let tempURL else {
                 self.previewLoading = false
                 self.previewKind = .unsupported(err)
@@ -392,6 +405,7 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     /// 窗口关闭时调用：删掉本次预览解出来的网页目录
     public func cleanupWebPreviewTemps() {
+        previewGeneration += 1
         for dir in webPreviewTemps {
             try? FileManager.default.removeItem(at: dir)
             Log.info("Archive", "清理网页预览临时目录 \(dir.lastPathComponent)")
@@ -406,6 +420,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// `7zz a -y` 本身就是打开原包原地更新，路径不变、不产生新文件。
     /// v127（ArcZip P0）：保存前的旧文本进撤销栈（undo=写回旧文本）。
     public func saveDraft(completion: ((Bool) -> Void)? = nil) {
+        guard !saving else { completion?(false); return }
         guard confirmOverwriteIfSourceChanged() else { completion?(false); return }
         guard let entry = previewEntry, case .text(let oldText) = previewKind else {
             completion?(false)
@@ -421,17 +436,22 @@ public final class ArchiveBrowserModel: ObservableObject {
             return
         }
         let newText = draftText
+        let generation = previewGeneration
+        saving = true
         ArchiveCore.updateEntry(url: url, entryPath: entry.path, localFile: tmp) { [weak self] ok, msg in
             try? FileManager.default.removeItem(at: tmp)
             guard let self else { return }
+            self.saving = false
             if ok {
                 // v127（ArcZip P0）：可撤销；同时把预览基线挪到新文本（连续两次保存的
                 // 旧文本才不会记错）
                 if newText != oldText {
                     self.undoStack.push(.editText(path: entry.path, oldText: oldText, newText: newText))
                 }
-                self.previewKind = .text(newText)
-                self.dirty = false
+                if self.previewGeneration == generation {
+                    self.previewKind = .text(newText)
+                    self.dirty = self.draftText != newText
+                }
                 self.refreshSourceStamp()
                 Toast.show("已写回归档", icon: "archivebox")
                 self.reload()
@@ -559,6 +579,9 @@ public final class ArchiveBrowserModel: ObservableObject {
                                : "已删除 \(targets.count) 项", icon: "trash")
                     self.selection = []
                     self.selectionAnchor = nil
+                    if let preview = self.previewEntry, targets.contains(where: {
+                        preview.path == $0.path || ($0.isDirectory && preview.path.hasPrefix($0.path + "/"))
+                    }) { self.dirty = false }
                     self.clearPreview()
                     self.refreshSourceStamp()
                     self.reload()
@@ -698,6 +721,10 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
         ArchiveCore.extract(url: url, entry: targets[index].path, to: dir,
                             skipExisting: skipExisting) { ok, msg in
+            if !ok, msg == "已取消" {
+                Toast.show("已取消解压", icon: "archivebox")
+                return
+            }
             var fails = failures
             if !ok { fails.append(msg) }
             self.extractSequential(targets, index + 1, to: dir, failures: fails,
@@ -908,9 +935,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
     /// v127（ArcZip P0）：草稿未保存关窗 → 「是否保存对 ×× 的修改？」
     /// 保存 → 写回归档后再关（updateEntry 异步）；不保存 → 直接关；取消 → 不关。
     /// 关窗清理仍只在 windowWillClose（Self.open 一处，不重复移除）。
-    /// v127 接线（arch-engine P2-1）：先过未完成归档任务的退出保护，再查草稿。
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard ArchiveTaskQueue.shared.confirmQuitIfNeeded() else { return false }
         guard model.dirty else { return true }
         let name = model.previewEntry?.name ?? model.url.lastPathComponent
         let alert = NSAlert()
@@ -923,7 +948,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             model.saveDraft { [weak self] ok in
-                if ok { self?.window?.close() }
+                if ok, self?.model.dirty == false { self?.window?.close() }
             }
             return false
         case .alertSecondButtonReturn:
@@ -1137,6 +1162,7 @@ struct ArchiveBrowserView: View {
         .buttonStyle(.plain)
         .focusable(false)
         .keyboardShortcut("s", modifiers: .command)
+        .disabled(model.saving)
         .help("把修改写回归档（⌘S）")
     }
 
@@ -1149,7 +1175,7 @@ struct ArchiveBrowserView: View {
             }
             Divider()
             Button("保存到归档") { model.saveDraft() }
-                .disabled(!model.dirty || !editableSelection)
+                .disabled(model.saving || !model.dirty || !editableSelection)
             if model.editable {
                 Button("另存加密…") { model.saveEncryptedCopy() }
             }
@@ -1435,6 +1461,7 @@ struct ArchiveBrowserView: View {
                 // v210：网页用真浏览器内核渲染（相对资源已随同目录解出）
                 ArchiveHTMLPreview(fileURL: fileURL, rootDirectory: root,
                                    entryName: model.previewEntry?.name ?? "网页")
+                    .id(fileURL)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .office(let tempURL):
                 // v256：QLPreviewView 的 preview 通道——docx/pptx/xlsx/pages/key 可翻页看正文，

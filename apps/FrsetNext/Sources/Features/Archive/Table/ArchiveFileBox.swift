@@ -87,10 +87,6 @@ struct ArchiveFileBoxItem: Identifiable, Equatable {
 final class ArchiveFileBoxModel: ObservableObject {
     @Published var items: [ArchiveFileBoxItem] = []
 
-    // v128（内存优化）：暂存盒上限 64 项——拖入/粘贴无上限时数组只涨不落，
-    // 超出丢弃最旧（盒是「待压缩暂存」语义，旧项价值随时间递减）。
-    static let maxItems = 64
-
     /// 追加（按标准化路径去重）
     func add(urls: [URL]) {
         for url in urls {
@@ -103,10 +99,6 @@ final class ArchiveFileBoxModel: ObservableObject {
                 id: key, url: std, name: std.lastPathComponent,
                 sizeText: ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                 isReadable: FileManager.default.isReadableFile(atPath: std.path)))
-            // v128（内存优化）：超上限丢弃最旧
-            if items.count > Self.maxItems {
-                items.removeFirst(items.count - Self.maxItems)
-            }
         }
     }
 
@@ -152,6 +144,7 @@ struct ArchiveFileBoxView: View {
     @Stored private var tint: ArchiveFileBoxTint = FileBoxPrefs.tint
     @Stored private var opacity: Double = FileBoxPrefs.opacity
     @Stored private var idleClose: Bool = FileBoxPrefs.idleClose
+    var onClose: () -> Void
     /// 任意交互回调（重置闲置计时）
     var onActivity: () -> Void = {}
 
@@ -191,7 +184,7 @@ struct ArchiveFileBoxView: View {
             miniButton("plus", help: "从剪贴板添加") { model.addFromPasteboard() }
             miniButton("trash", help: "清空") { model.clear() }
             miniButton("xmark", help: "关闭") {
-                NSApp.keyWindow?.close()
+                onClose()
             }
         }
         .padding(.horizontal, 8)
@@ -373,7 +366,7 @@ public final class ArchiveFileBoxWindow: NSPanel, NSDraggingDestination {
     private func buildContent() {
         let model = self.model
         let view = VStack(spacing: 0) {
-            ArchiveFileBoxView(model: model) { [weak self] in
+            ArchiveFileBoxView(model: model, onClose: { [weak self] in self?.close() }) { [weak self] in
                 self?.restartIdleTimer()
             }
             Divider()
