@@ -168,11 +168,17 @@ public final class PermissionCenter: ObservableObject {
         statuses = next
     }
 
+    /// 是否已向系统申请过屏幕录制权限（区分「没问过」与「问过被拒」）
+    private var screenRecordingRequested = false
+
     /// 快速状态：屏幕录制用 CGPreflight（可能假阴性，权威值走 probeScreenRecording）
     private func quickStatus(_ kind: PermissionKind) -> PermissionStatus {
         switch kind {
         case .screenRecording:
-            return CGPreflightScreenCaptureAccess() ? .granted : .notDetermined
+            if CGPreflightScreenCaptureAccess() { return .granted }
+            // v274：旧版一律返回 .notDetermined，被拒后「去设置开启」分支永不可达，
+            // 只剩「授权」按钮；二次 CGRequest 系统不再弹窗 → 点了毫无反应。
+            return screenRecordingRequested ? .denied : .notDetermined
         case .accessibility:
             return AXIsProcessTrusted() ? .granted : .notDetermined
         case .microphone:
@@ -211,10 +217,11 @@ public final class PermissionCenter: ObservableObject {
         if #available(macOS 14.0, *) {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                statuses[.screenRecording] = content.displays.isEmpty ? .notDetermined : .granted
+                statuses[.screenRecording] = content.displays.isEmpty
+                    ? (screenRecordingRequested ? .denied : .notDetermined) : .granted
                 Log.info("Onboarding", "权限实探：屏幕录制 SCK=\(content.displays.isEmpty ? "不可用" : "可用")")
             } catch {
-                statuses[.screenRecording] = .notDetermined
+                statuses[.screenRecording] = screenRecordingRequested ? .denied : .notDetermined
                 Log.info("Onboarding", "权限实探：屏幕录制 SCK 失败 \(error.localizedDescription)")
             }
         } else {
@@ -229,6 +236,7 @@ public final class PermissionCenter: ObservableObject {
     public func request(_ kind: PermissionKind, completion: ((PermissionStatus) -> Void)? = nil) {
         switch kind {
         case .screenRecording:
+            screenRecordingRequested = true
             CGRequestScreenCaptureAccess()
             // 授权后面板不会回调，延迟后刷新（用户切出去再切回来通常 >1s）
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in

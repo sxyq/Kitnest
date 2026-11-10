@@ -61,13 +61,13 @@ struct PermissionGuideView: View {
                 Spacer()
                 progressPill
             }
-            Text("Kitnest 需要以下几项系统权限才能完整工作。所有处理都在本机完成，不上传任何数据。")
+            Text("屏幕录制权限用于截图、识字和录屏，辅助功能权限用于自动粘贴和全局快捷键。")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 36)   // v208：让出 macOS 原生标题栏高度
+        .padding(.top, OfficialChrome.titlebarInset)   // v272：统一标题栏净空
         .padding(.bottom, 10)
     }
 
@@ -90,10 +90,12 @@ struct PermissionGuideView: View {
 
     private var footer: some View {
         VStack(spacing: 10) {
-            if !center.allCoreGranted {
-                Label("核心权限未全部授权：截图与全局快捷键暂不可用", systemImage: "exclamationmark.triangle")
+            ForEach(PermissionKind.allCases.filter { $0.isCore && !center.status($0).isGranted }) { kind in
+                Label("\(kind.title)\(center.status(kind).label)：\(kind.features.joined(separator: "、"))暂不可用", systemImage: "exclamationmark.triangle")
                     .font(.system(size: 11))
                     .foregroundStyle(Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(spacing: 12) {
                 Button("稍后再说") {

@@ -65,9 +65,14 @@ public final class ClipboardSummaryExecutionCoordinator {
     /// 摘要结果以工具生成条目的形式回流到剪贴板历史（与原作行为一致）
     @discardableResult
     public func summarizeAndWriteBack(_ item: ClipboardItem) async throws -> ClipboardItem {
-        let summary = try await summarize(item)
-        return ClipboardManager.shared.ingestToolOutput(text: summary,
-                                                        sourceToolKeyword: "AI摘要",
-                                                        analyticsId: item.dedupeKey)
+        do {
+            let summary = try await summarize(item)
+            return ClipboardManager.shared.ingestToolOutput(text: summary,
+                                                            sourceToolKeyword: "AI摘要",
+                                                            analyticsId: item.dedupeKey)
+        } catch {
+            Toast.show("摘要失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+            throw error
+        }
     }
 }

@@ -29,6 +29,12 @@ enum NativeRegionCapture {
 
     /// 抓指定屏幕的整屏原生像素图（screencapture，同步 ~200ms，**禁止主线程调用**）
     static func captureScreen(_ screen: NSScreen) -> CGImage? {
+        // 连续截图时保留屏幕上的提示，仅让支持窗口排除的采集通道取图。
+        if #available(macOS 14.0, *),
+           DispatchQueue.main.sync(execute: { MenuBarToastManager.shared.captureExcludedWindowID != nil }),
+           let displayID = ScreenSnapshot.displayID(of: screen) {
+            return ScreenSnapshot.sckCaptureSync(displayID: displayID)
+        }
         let idx = (NSScreen.screens.firstIndex(of: screen) ?? 0) + 1
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("frset-capture-\(UUID().uuidString).png")
@@ -231,7 +237,17 @@ enum ScreenSnapshot {
         guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first else {
             throw CaptureError.captureFailed
         }
-        let filter = SCContentFilter(display: display, excludingWindows: [])
+        let toastID = await MainActor.run { MenuBarToastManager.shared.captureExcludedWindowID }
+        let excluded = content.windows.filter { $0.windowID == toastID }
+        let filter = SCContentFilter(display: display, excludingWindows: excluded)
+        if #available(macOS 26.0, *), toastID != nil {
+            let config = SCScreenshotConfiguration()
+            config.showsCursor = false
+            config.displayIntent = .local
+            let output = try await SCScreenshotManager.captureScreenshot(contentFilter: filter, configuration: config)
+            guard let image = output.sdrImage else { throw CaptureError.captureFailed }
+            return image
+        }
         let config = SCStreamConfiguration()
         config.width = display.width
         config.height = display.height
@@ -684,6 +700,9 @@ public final class ScreenshotManager: ObservableObject {
             guard let image = image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 Log.error("Capture", "全屏截图失败")
+                // v274：面板此刻没开，只写 statusMessage 用户什么也看不到；
+                // 与 commitFullScreen / commitWindow 的失败分支保持一致给 Toast。
+                Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
                 return
             }
             self.handle(image, action: action)

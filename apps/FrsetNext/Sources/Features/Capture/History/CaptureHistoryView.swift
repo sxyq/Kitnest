@@ -164,20 +164,22 @@ struct CaptureHistoryView: View {
 
     private func cell(_ item: CaptureHistoryItem) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            ZStack {
-                if let img = thumbnail(item) {
-                    Image(nsImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    Rectangle()
-                        .fill(Theme.cardFill)
-                    Image(systemName: "photo")
-                        .foregroundStyle(.secondary)
+            GeometryReader { geometry in
+                ZStack {
+                    if let img = thumbnail(item) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        Rectangle()
+                            .fill(Theme.cardFill)
+                        Image(systemName: "photo")
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .frame(width: geometry.size.width, height: 88)
             }
             .frame(height: 88)
-            .frame(maxWidth: .infinity)
             .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
@@ -203,6 +205,8 @@ struct CaptureHistoryView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
             if !item.ocrText.isEmpty {
                 Text(item.ocrText.replacingOccurrences(of: "\n", with: " "))
                     .font(.system(size: 11))
@@ -264,11 +268,11 @@ final class CaptureHistoryWindowController: NSObject, NSWindowDelegate {
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered, defer: false)
         win.title = "截图历史"
-        win.applyOfficialChrome()
         win.minSize = NSSize(width: 480, height: 300)
         win.isReleasedWhenClosed = false
         win.delegate = self
-        win.contentView = NSHostingView(rootView: CaptureHistoryView(vm: vm))
+        win.setOfficialContent(NSHostingView(rootView: CaptureHistoryView(vm: vm)))
+        win.applyOfficialChrome()   // v272：内容就位后再统一外观（玻璃底不会挂到旧视图上）
         // v208：标题栏使用原生红绿灯（不随 contentView 替换消失）
         win.center()
         win.makeKeyAndOrderFront(nil)

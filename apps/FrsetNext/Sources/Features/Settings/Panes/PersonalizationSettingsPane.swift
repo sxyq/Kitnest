@@ -8,7 +8,18 @@ import SwiftUI
 // 视图侧（主面板/剪贴板表格/窗口尺寸）经 objectWillChange 与
 // Personalization.didChangeNotification 即时响应。恢复默认一键回滚。
 
+/// v270（用户：「这个预览也要拆开 不要放在一起 同时这部分设置也进行拆分」）：
+/// 个性化页按**生效对象**拆成三段，每段各带一张只画自己的预览——
+/// 一张图同时画两个窗口时，用户拿它验证设置永远对不上号。
+enum PersonalizationSettingsPart {
+    case mainPanel        // 主面板：字号 / 圆角 / 宽度 / 材质 / 页面顺序
+    case floatingWindow   // 独立窗口与浮层：玻璃四参数 / 密度 / 缩略图 / 徽章 / 通知条
+    case shared           // 两边都管：强调色 / 打开动画 / 动作条 / 背景图 / 入口 / 恢复默认
+}
+
 struct PersonalizationSettingsView: View {
+    /// 只渲染本段的行（默认 .shared，兼容旧调用）
+    var part: PersonalizationSettingsPart = .shared
     @ObservedObject private var p = Personalization.shared
     // v177：主面板顶部页面开关（与 PanelRootView 共用同一批键）
     @AppStorage(PanelSegments.homeKey) private var segmentHome = true
@@ -30,38 +41,61 @@ struct PersonalizationSettingsView: View {
     @AppStorage("capture.toolbar.style") private var toolbarStyle = "pillBar"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            accentRow
-            Divider().opacity(0.5)
-            fontScaleRow
-            densityRow
-            cornerRow
-            animationRow
-            toolbarStyleRow
-            widthRow
-            Divider().opacity(0.5)
-            materialRow
-            Divider().opacity(0.5)
-            glassRow
-            Divider().opacity(0.5)
-            badgeRow
-            thumbRow
-            toastRow
-            dividerRow
-            Divider().opacity(0.5)
-            midnightHueRow
-            backgroundImageRow
-            Divider().opacity(0.5)
-            panelPagesRow
-            Divider().opacity(0.5)
-            globalEntriesRow
-            Divider().opacity(0.5)
-            resetRow
+        Group {
+            switch part {
+            case .mainPanel:      mainPanelRows
+            case .floatingWindow: floatingWindowRows
+            case .shared:         sharedRows
+            }
         }
         .padding(.vertical, 4)
         // 拖完顺序落盘（PanelRootView 用 @AppStorage 观察同一个键，面板立即重排）
         .onChange(of: pageOrder) { newOrder in
             PanelSegments.order = newOrder
+        }
+    }
+
+    /// 主面板：字号 / 圆角 / 宽度 / 材质 / 页面顺序
+    private var mainPanelRows: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            fontScaleRow
+            cornerRow
+            widthRow
+            Divider().opacity(0.5)
+            materialRow
+            Divider().opacity(0.5)
+            panelPagesRow
+        }
+    }
+
+    /// 独立窗口与浮层：玻璃四参数 / 列表密度 / 缩略图 / 来源徽章 / 通知条
+    private var floatingWindowRows: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            glassRow
+            Divider().opacity(0.5)
+            densityRow
+            thumbRow
+            badgeRow
+            Divider().opacity(0.5)
+            toastRow
+        }
+    }
+
+    /// 两边都管：强调色 / 打开动画 / 截图动作条 / Midnight 色相 / 背景图 / 功能入口 / 恢复默认
+    private var sharedRows: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            accentRow
+            Divider().opacity(0.5)
+            animationRow
+            toolbarStyleRow
+            Divider().opacity(0.5)
+            midnightHueRow
+            backgroundImageRow
+            Divider().opacity(0.5)
+            dividerRow
+            globalEntriesRow
+            Divider().opacity(0.5)
+            resetRow
         }
     }
 
@@ -583,7 +617,16 @@ struct PersonalizationSettingsView: View {
     private var resetRow: some View {
         settingRow("") {
             Button("恢复全部默认") {
+                // v274：一键清空背景图路径与玻璃四参数且不可逆，先问一次。
+                let alert = NSAlert()
+                alert.messageText = "恢复全部个性化设置？"
+                alert.informativeText = "将清空背景图片、玻璃效果与所有外观参数，此操作无法撤销。"
+                alert.addButton(withTitle: "恢复默认")
+                alert.addButton(withTitle: "取消")
+                alert.alertStyle = .warning
+                guard alert.runModal() == .alertFirstButtonReturn else { return }
                 Personalization.shared.resetAll()
+                Toast.show("已恢复默认外观", icon: "arrow.clockwise")
             }
             .buttonStyle(.link)
             .font(.system(size: 11))
@@ -647,22 +690,20 @@ private struct SegmentDropDelegate: DropDelegate {
     }
 }
 
-// MARK: - 实时预览（v260 独立区块，按生效对象拆分）
+// MARK: - 实时预览（v270：一张预览只画一个生效对象，跟着各自设置组走）
 //
-// 用户原话：「把下面的那个实时预览拆分一下，因为它的一个最终设置生效项是不同的，
-// 需要拆分预览，包括把实时预览放在它的一个上面，下面才是这个分开的一个这种个性化」。
-//
-// 旧版一张「悬浮剪贴板」缩略窗被拿来验证主面板的字号/密度/圆角/宽度/动画，
-// 生效对象不同却共用一张图；再叠加「预览在整页最底部滚不到」「壁纸只在首次
-// onAppear 加载一次」「宽度 segmented 没有 SwiftUI 状态支撑」，用户的主观感受
-// 就是「调节之后这边没有实时更新」。
-// 现在：① 独立区块置顶（GeneralSettingsPane 里在「个性化」之前）；
-//       ② 按生效对象拆成「主面板」「独立窗口」两张缩略窗并标注各自作用域；
-//       ③ 自带 @ObservedObject + 通知订阅 + 壁纸缓存失效。
+// v260 曾把「主面板」「独立窗口」并排画在同一张壁纸画布上，仍属「放在一起」：
+// 主面板那一组调字号，眼睛却会扫到右边那张剪贴板；两张图共享一块底，也让人
+// 以为它们是同一套生效项。v270 按用户要求彻底拆开：
+//   · 预览组件带 scope，只画一个 mock；
+//   · 两张预览分别放进「主面板」「独立窗口与浮层」两个设置组，预览在上面、
+//     对应设置紧随其下——所见即所调。
 struct AppearancePreviewBlock: View {
+    enum Scope { case mainPanel, floatingWindow }
+    var scope: Scope = .mainPanel
+
     @ObservedObject private var p = Personalization.shared
     @AppStorage(Preferences.Keys.panelWidth) private var panelWidth: Double = 400
-    @AppStorage("capture.toolbar.style") private var toolbarStyle = "pillBar"
     @Stored private var wallpaper: NSImage?
     /// AppKit 侧玻璃底靠 150ms 防抖通知刷新；这里收到后自增一次让 body 重算
     @Stored private var revision = 0
@@ -671,7 +712,7 @@ struct AppearancePreviewBlock: View {
         let _ = revision
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("外观预览")
+                Text(scope == .mainPanel ? "主面板预览" : "独立窗口预览")
                     .font(.system(size: 12, weight: .semibold))
                 Spacer()
                 Text("实时")
@@ -682,8 +723,7 @@ struct AppearancePreviewBlock: View {
                     .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.14)))
             }
             previewCanvas
-            Text("打开动画「\(p.openAnimation.title)」与截图动作条「\(toolbarTitle)」"
-                 + "只在下一次打开面板 / 下一次框选时生效，不在这两张静态缩略窗里变化。")
+            Text(caption)
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -697,22 +737,34 @@ struct AppearancePreviewBlock: View {
         }
     }
 
+    private var caption: String {
+        switch scope {
+        case .mainPanel:
+            return "只反映主面板：界面字号 · 面板圆角 · 面板宽度 · 背景材质，以及下方「主面板页面」的取舍与顺序。"
+                 + "强调色和玻璃四参数不在这张图里体现。"
+        case .floatingWindow:
+            return "只反映独立窗口与浮层（悬浮剪贴板 / 性能独立窗 / 本设置窗的玻璃底）："
+                 + "强调色 · 通透度 · 磨砂 · 卡片亮度 · 描边，以及列表密度、缩略图、来源徽章。"
+        }
+    }
+
     private var previewCanvas: some View {
         ZStack {
             wallpaperBackground
-            HStack(alignment: .top, spacing: 14) {
-                previewItem(title: "主面板", scope: "字号 · 密度 · 圆角 · 宽度 · 材质") {
+            VStack(alignment: .leading, spacing: 6) {
+                if scope == .mainPanel {
                     mainPanelMock
-                }
-                previewItem(title: "独立窗口", scope: "强调色 · 通透度 · 磨砂 · 描边") {
+                } else {
                     floatingWindowMock
                 }
+                scopeLabel
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 208)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 200)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
@@ -720,25 +772,22 @@ struct AppearancePreviewBlock: View {
         )
     }
 
-    private func previewItem<Content: View>(title: String, scope: String,
-                                            @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            content()
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text(scope)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.white.opacity(0.80))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.38)))
+    private var scopeLabel: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(scope == .mainPanel ? "主面板" : "独立窗口")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white)
+            Text(scope == .mainPanel
+                 ? "字号 · 圆角 · 宽度 · 材质"
+                 : "强调色 · 通透度 · 磨砂 · 描边")
+                .font(.system(size: 9))
+                .foregroundStyle(.white.opacity(0.80))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(Capsule(style: .continuous).fill(Color.black.opacity(0.38)))
     }
 
     /// 生效对象 = 主面板：宽度 / 圆角 / 密度 / 字号 / 材质都在这里体现
@@ -774,7 +823,7 @@ struct AppearancePreviewBlock: View {
             Spacer(minLength: 0)
         }
         .padding(8)
-        .frame(width: max(150, min(230, CGFloat(panelWidth) * 0.46)), height: 130)
+        .frame(width: max(200, min(320, CGFloat(panelWidth) * 0.66)), height: 130)
         .background {
             ZStack {
                 if p.material == .solid {
@@ -834,7 +883,7 @@ struct AppearancePreviewBlock: View {
             Spacer(minLength: 0)
         }
         .padding(8)
-        .frame(width: 176, height: 130)
+        .frame(width: 240, height: 130)
         .background {
             ZStack {
                 Rectangle().fill(.ultraThinMaterial)
@@ -875,13 +924,5 @@ struct AppearancePreviewBlock: View {
             return
         }
         wallpaper = NSImage(contentsOf: url)
-    }
-
-    private var toolbarTitle: String {
-        switch toolbarStyle {
-        case "iconBar": return "图标条"
-        case "primarySplit": return "主次分离"
-        default: return "药丸条"
-        }
     }
 }

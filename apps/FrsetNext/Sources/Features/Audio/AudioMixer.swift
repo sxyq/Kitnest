@@ -189,7 +189,8 @@ public final class AudioMixerController: ObservableObject {
                                                         mElement: kAudioObjectPropertyElementMain)
             var sSize: UInt32 = 0
             guard AudioObjectGetPropertyDataSize(id, &streamAddr, 0, nil, &sSize) == 0, sSize > 0 else { continue }
-            var nameAddr = addr(cc("name"))
+            // 'name' 返回 C 字符串；'lnam' 才返回供下方桥接的 CFString。
+            var nameAddr = addr(kAudioObjectPropertyName)
             var name: CFString = "" as CFString
             var nSize = UInt32(MemoryLayout<CFString>.stride)
             AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nSize, &name)

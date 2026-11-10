@@ -48,14 +48,13 @@ public final class PermissionGuideWindowController: NSObject {
         guard window == nil else { return }
         let win = PermissionGuideWindow(
             contentRect: NSRect(x: 0, y: 0, width: 660, height: 600),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         win.title = "权限引导"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
-        win.applyOfficialChrome()
+        win.applyOfficialChrome(lights: .fixed)
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
         win.contentMinSize = NSSize(width: 660, height: 600)
@@ -69,7 +68,7 @@ public final class PermissionGuideWindowController: NSObject {
             let hostingView = NSHostingView(rootView: PermissionGuideView())
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
-            win.contentView = hostingView
+            win.setOfficialContent(hostingView)
         }
         Log.info("Onboarding", "权限引导窗已创建")
     }

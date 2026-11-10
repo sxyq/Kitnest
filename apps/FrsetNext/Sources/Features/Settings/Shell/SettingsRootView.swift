@@ -17,8 +17,8 @@ struct SettingsRootView: View {
 
     /// 与 SettingsWindowController 保持一致的窗口高度（默认 620，排障时可拉高）
     static let probeHeight: CGFloat = {
-        let value: Double = Preferences.shared.value("probe.settingsHeight", default: 620.0)
-        return min(max(CGFloat(value), 620), 1040)
+        let value: Double = Preferences.shared.value("probe.settingsHeight", default: 720.0)
+        return min(max(CGFloat(value), 720), 1040)
     }()
     @ObservedObject var state: SettingsUIState
     @ObservedObject private var appearance = AppearanceState.shared
@@ -57,13 +57,12 @@ struct SettingsRootView: View {
             .clipped()
             }
         }
-        // 根视图尺寸必须等于窗口 contentRect（940×620）：NSHostingView 的 fitting size
+        // 根视图尺寸必须等于窗口 contentRect（940×720）：NSHostingView 的 fitting size
         // 会被当作窗口内容尺寸请求——设大 32 会让窗口被撑到 684（2026-10-18 实测）。
         // fullSizeContentView 下 contentView 已含标题栏区域，620 正好铺满。
         // v263：排障探针 `probe.settingsHeight` 与 SettingsWindowController 用同一个值，
         // 拉高窗口时根视图同步变高，否则 SwiftUI 的固定 620 会把窗口又拽回去。
         .frame(width: 940, height: Self.probeHeight)
-        .background(backgroundColor)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         // 强调色 + Midnight 统一主题入口（个性化改色即生效）
         .frsetThemeChrome()
@@ -74,70 +73,90 @@ struct SettingsRootView: View {
         .ignoresSafeArea()
     }
 
-    private var backgroundColor: Color {
-        if appearance.isMidnight { return MidnightTheme.baseBackground }
-        // v204（用户：「需要覆盖所有界面」）：设置窗也铺统一玻璃底——
-        // 根视图不再画不透明灰，玻璃/通透度/磨砂滑块在设置窗内同样可见。
-        // 窗口背后的玻璃底由 SettingsWindowController 的 applyOfficialChrome 提供。
-        return Color.clear
-    }
-
     // MARK: - 头部（当前分类标题）
 
-    private var currentTitle: String {
-        switch state.selection {
-        case .category(let category): return category.title
-        case .monitorModule(let module): return module == .sensors ? "传感器" : module.displayName
-        case .monitorSettings: return "监测设置"
-        case .monitorWidgets: return "部件设置"
-        case .manual: return "使用手册"
-        }
-    }
+    private var currentTitle: String { state.selection.title }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        // v273：标题下方统一挂一行「打开方式」。用户改完设置却不知道按哪个键把功能
+        // 叫出来，是这次反馈的核心；提示来自 `SettingsPage.openHint`，每个二级页必答，
+        // 所以不会再漏页。没有入口的页（关于 / 使用手册）返回 nil，自动不占位。
+        VStack(alignment: .leading, spacing: 3) {
             Text(currentTitle)
                 .font(.system(size: 16, weight: .semibold))
-            Spacer(minLength: 0)
+            if let hint = state.selection.openHint {
+                HStack(spacing: 5) {
+                    Image(systemName: "command")
+                        .font(.system(size: 9.5, weight: .semibold))
+                    Text(hint)
+                        .font(.system(size: 11.5))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .foregroundStyle(Theme.tertiaryText)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 34)
-        .frame(height: 56)
+        .frame(height: 66)
     }
 
-    // MARK: - 内容分发
+    // MARK: - 内容分发（v272：一个二级页 = 一个 View）
 
     @ViewBuilder private var content: some View {
         switch state.selection {
-        case .category(let category):
-            switch category {
-            case .general:
-                panePage { GeneralSettingsPane() }
-            case .clipboard:
-                panePage { ClipboardSettingsPane() }
-            case .transfer:
-                panePage { TransferDockSettingsPane() }
-            case .capture:
-                // v234：截图从「工具与快捷键」拆出来独立成一级。
-                // v261：钉图 / 图帘各占一个页签。
-                // v262：三页签合并成一个滚动页——用户要的是「截图、钉图、
-                // 图帘的设置全都放在同一个设置栏里」，来回切页签找不到东西。
-                CaptureHubPane(scrollTarget: $state.captureSub)
-            case .searchAI:
-                segmentedPage(selection: $state.searchAISub, tabs: [
-                    ("搜索", AnyView(SearchSettingsPane())),
-                    ("AI", AnyView(AISettingsPane()))
-                ])
-            case .tooling:
-                segmentedPage(selection: $state.toolingSub, tabs: [
-                    ("工具", AnyView(ToolSettingsPane())),
-                    ("快捷键", AnyView(ShortcutSettingsPane()))
-                ])
-            case .statistics:
-                panePage { StatisticsSettingsPane() }
-            case .about:
-                AboutSettingsPane()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        // 常规（5 个二级页）
+        case .generalStart:
+            panePage { GeneralSettingsPane(section: .startup) }
+        case .generalPanel:
+            panePage { GeneralSettingsPane(section: .mainPanel) }
+        case .generalWindows:
+            panePage { GeneralSettingsPane(section: .floating) }
+        case .generalPersonal:
+            panePage { GeneralSettingsPane(section: .personalization) }
+        case .generalMenuBar:
+            panePage { GeneralSettingsPane(section: .menuBar) }
+
+        case .audio:
+            AudioMixerPane()
+
+        // 剪贴板（3）
+        case .clipboardHistory:
+            panePage { ClipboardSettingsPane(section: .history) }
+        case .clipboardCapture:
+            panePage { ClipboardSettingsPane(section: .capture) }
+        case .clipboardFloating:
+            panePage { ClipboardSettingsPane(section: .floating) }
+
+        // 文件中转（5）
+        case .transferDisplay:
+            panePage { TransferDockSettingsPane(section: .display) }
+        case .transferCast:
+            panePage { TransferDockSettingsPane(section: .cast) }
+        case .transferScan:
+            panePage { TransferDockSettingsPane(section: .scan) }
+        case .transferCloud:
+            panePage { TransferDockSettingsPane(section: .cloud) }
+        case .transferLocal:
+            panePage { TransferDockSettingsPane(section: .local) }
+
+        // 截图（5，v271 已拆）
+        case .capture(let block):
+            CaptureBlockPage(block: block)
+
+        // 工具（2）
+        case .tools:
+            panePage { ToolSettingsPane() }
+        case .shortcuts:
+            panePage { ShortcutSettingsPane() }
+
+        // 搜索与 AI（2）
+        case .search:
+            panePage { SearchSettingsPane() }
+        case .ai:
+            panePage { AISettingsPane() }
+
+        // 性能监测（9）
         case .monitorModule(let module):
             ScrollView(.vertical, showsIndicators: true) {
                 StatsModulePage(module: module)
@@ -148,15 +167,19 @@ struct SettingsRootView: View {
         case .monitorSettings:
             panePage { MonitorSettingsPane() }
         case .monitorWidgets:
-            // v55：用本项目设置组件重写的部件设置页（功能覆盖 STATS，不嵌入其界面）
             MonitorWidgetsPane()
+
+        // 页脚常驻
+        case .statistics:
+            panePage { StatisticsSettingsPane() }
+        case .about:
+            AboutSettingsPane()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .manual:
-            // v88：交互式树形使用手册（左树 + 右内容；图片/表格/搜索/上下一节）
             ManualPaneView()
         }
     }
 
-    /// 单页设置：整页纵向滚动
     private func panePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         ScrollView(.vertical, showsIndicators: true) {
             content()
@@ -166,48 +189,4 @@ struct SettingsRootView: View {
         }
     }
 
-    /// 多合一分类（搜索与 AI / 工具与快捷键）：顶部分段 + 内容滚动
-    private func segmentedPage(selection: Binding<Int>,
-                               tabs: [(String, AnyView)]) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 2) {
-                ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
-                    let selected = selection.wrappedValue == index
-                    Button {
-                        withAnimation(Theme.Motion.spring) {
-                            selection.wrappedValue = index
-                        }
-                    } label: {
-                        Text(tab.0)
-                            .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                            .foregroundStyle(selected ? MonitorColors.user : Color.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background {
-                                if selected {
-                                    Capsule(style: .continuous)
-                                        .fill(MonitorColors.user.opacity(0.15))
-                                }
-                            }
-                            .contentShape(Capsule(style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 30)
-            .frame(height: 40)
-
-            Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 0.5)
-
-            ScrollView(.vertical, showsIndicators: true) {
-                if tabs.indices.contains(selection.wrappedValue) {
-                    tabs[selection.wrappedValue].1
-                        .padding(.horizontal, 34)
-                        .padding(.vertical, 18)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-    }
 }

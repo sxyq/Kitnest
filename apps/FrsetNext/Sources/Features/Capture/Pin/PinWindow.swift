@@ -1482,7 +1482,14 @@ public final class PinnedScreenshotManager: NSObject {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             switch event.keyCode {
             case 53:            // Esc
-                self?.closeAll()
+                // v274：旧版是 App 级监视器，任何窗口按 Esc 都 closeAll() 并吞掉事件：
+                // 在标注编辑器 / OCR 结果窗按 Esc，钉图被无提示全删，编辑器反而关不掉。
+                // 现在只在「当前 key window 就是一张钉图」时处理，且只关当前这一张。
+                guard let key = NSApp.keyWindow,
+                      self?.windows.contains(where: { $0 === key }) == true else {
+                    return event
+                }
+                self?.closeActive()
                 return nil
             case 51, 117:       // Delete / Forward Delete
                 self?.closeActive()

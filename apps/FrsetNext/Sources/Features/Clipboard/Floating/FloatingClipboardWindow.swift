@@ -360,6 +360,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             }
             // ⌘⌫：删除当前光标项
             if command, event.keyCode == 51 {
+                if let editor = panel.firstResponder as? NSTextView, !editor.string.isEmpty { return event }
                 if store.items.indices.contains(store.selectedIndex) {
                     store.delete(store.items[store.selectedIndex])
                 }
@@ -378,14 +379,14 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
                 guard store.items.indices.contains(store.selectedIndex) else { return nil }
                 let item = store.items[store.selectedIndex]
                 if option {
-                    ClipboardManager.shared.copy(item, autoPaste: false)
-                    Toast.show("已复制纯文本", icon: "doc.on.doc")
+                    ClipboardManager.shared.copy(item, autoPaste: false, asPlainText: true)
                     self.hide()
                 } else {
                     store.paste(item)
                 }
                 return nil
             case 49:                       // 空格：预览（不粘贴）
+                if let editor = panel.firstResponder as? NSTextView, !editor.string.isEmpty { return event }
                 guard store.items.indices.contains(store.selectedIndex) else { return nil }
                 ServiceLocator.panelPreview?.presentPreview(for: store.items[store.selectedIndex],
                                                             anchorRectInWindow: .zero,

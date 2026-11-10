@@ -14,14 +14,10 @@ import SwiftUI
 final class SettingsUIState: ObservableObject {
     @Published var selectedPaneID: String
     @Published var detailPaneID: String?
-    /// 侧边栏选中项
-    @Published var selection: SettingsSidebarSelection = .category(.general)
-    /// 「搜索与 AI」内部分段（0=搜索 1=AI）
-    @Published var searchAISub = 0
-    /// 「工具与快捷键」内部分段（0=工具 1=快捷键）
-    @Published var toolingSub = 0
-    /// v234：「截图与钉图」内部分段（0=截图 1=钉图）
-    @Published var captureSub = 0
+    /// 侧边栏选中项 = 二级页（v272：常规/剪贴板/文件中转也各自拆成多页）
+    @Published var selection: SettingsPage = .generalStart
+    /// 搜索框与外部切页共用；保留已有搜索探针初值。
+    @Published var query: String = UserDefaults.standard.string(forKey: "probe.settingsSearch") ?? ""
 
     init(selectedPaneID: String = "general") {
         self.selectedPaneID = selectedPaneID
@@ -34,42 +30,54 @@ final class SettingsUIState: ObservableObject {
         Log.breadcrumb("Settings", "切页 \(pane)")   // v84：卡死定位面包屑
         selectedPaneID = pane
         detailPaneID = nil
+        query = ""
         applyPaneMapping(pane)
-    }
-
-    /// 滚到「截图与钉图」里的某一块（0 截图 / 1 钉图 / 2 图帘）。
-    /// 值没变时先归零再设回：`captureSub` 现在是指令，重复深链也要能重新定位。
-    private func jumpCapture(_ index: Int) {
-        if captureSub == index {
-            captureSub = -1
-            DispatchQueue.main.async { self.captureSub = index }
-        } else {
-            captureSub = index
-        }
     }
 
     private func applyPaneMapping(_ pane: String) {
         switch pane {
-        case "general":                  selection = .category(.general)
-        case "clipboard":                selection = .category(.clipboard)
-        case "transfer":                 selection = .category(.transfer)
-        case "search":                   selection = .category(.searchAI); searchAISub = 0
-        case "ai":                       selection = .category(.searchAI); searchAISub = 1
-        case "tools":                    selection = .category(.tooling); toolingSub = 0
-        case "shortcuts":                selection = .category(.tooling); toolingSub = 1
-        // v234：截图独立成一级分类
-        // v262：截图 / 钉图 / 图帘合并成一页，这里的下标改成「滚到哪一块」
-        case "capture":                  selection = .category(.capture); jumpCapture(0)
-        case "pin", "pinSettings":       selection = .category(.capture); jumpCapture(1)
-        // v261：图帘（截图后的临时暂存区，默认关闭）。
-        // v263 改名：新深链用 curtain，旧 shelf 继续兼容。
+        // 常规（v272 拆成五页；旧 id "general" 落到第一页）
+        case "general", "startup", "general.startup":
+            selection = .generalStart
+        case "panel", "general.panel", "appearance.panel":
+            selection = .generalPanel
+        case "windows", "general.windows", "floating", "appearance.windows":
+            selection = .generalWindows
+        case "personalization", "general.personalization", "appearance":
+            selection = .generalPersonal
+        case "menubar", "general.menubar", "menuBar":
+            selection = .generalMenuBar
+        case "audio":                            selection = .audio
+        // 剪贴板
+        case "clipboard", "clipboard.history":   selection = .clipboardHistory
+        case "clipboard.capture":                selection = .clipboardCapture
+        case "clipboard.floating", "floatingClipboard": selection = .clipboardFloating
+        // 文件中转
+        case "transfer", "transfer.display":     selection = .transferDisplay
+        case "transfer.cast", "cast":            selection = .transferCast
+        case "transfer.scan", "scan":            selection = .transferScan
+        case "transfer.cloud", "cloud":          selection = .transferCloud
+        case "transfer.local", "local":          selection = .transferLocal
+        // 搜索与 AI
+        case "search":                           selection = .search
+        case "ai":                               selection = .ai
+        // 工具与快捷键
+        case "tools":                            selection = .tools
+        case "shortcuts":                        selection = .shortcuts
+        // 截图（v234 独立成一级；v271 拆成五块，深链各自直达）
+        case "capture":                          selection = .capture(.capture)
+        case "pin", "pinSettings":               selection = .capture(.pin)
         case "shelf", "shelfSettings", "curtain", "curtainSettings":
-            selection = .category(.capture); jumpCapture(2)
-        case "statistics":               selection = .category(.statistics)
-        case "about":                    selection = .category(.about)
-        case "monitor", "monitorSettings": selection = .monitorSettings
+            selection = .capture(.curtain)
+        case "recording", "record":              selection = .capture(.recording)
+        case "workflow":                         selection = .capture(.workflow)
+        // 页脚常驻
+        case "statistics":                       selection = .statistics
+        case "about":                            selection = .about
+        case "manual", "help":                   selection = .manual
+        // 性能监测
+        case "monitor", "monitorSettings":       selection = .monitorSettings
         case "monitor.widgets", "widgets", "barSettings": selection = .monitorWidgets
-        case "manual", "help":           selection = .manual
         default:
             // 排障/直达：pane = "monitor.cpu" / "monitor.memory" … → 性能监测模块页
             if pane.hasPrefix("monitor."),
@@ -121,6 +129,10 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         Log.info("settings", "ensureWindow done, window=\(window != nil ? "exists" : "nil")")
         if let pane {
             uiState.selectPane(pane)
+        } else {
+            // v272（2026-11-11）：复用窗口重开时显示选中行，保留页面和搜索输入。
+            let currentPage = uiState.selection
+            uiState.selection = currentPage
         }
         NSApp.activate(ignoringOtherApps: true)
         // v202：取消在途 close——复位动画/图层与 isClosing，
@@ -161,18 +173,19 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
     private func ensureWindow() {
         guard window == nil else { return }
 
-        // v41：设置窗改「左侧大侧边栏（186）+ 内容区（754）」→ 940×620。
+        // v41：设置窗改「左侧大侧边栏（186）+ 内容区（754）」→ 940×620；
+        // v271：截图拆成五个侧边栏项后导航变长，默认高度提到 720（屏幕 ≥ 800pt 均放得下）。
         // 内容区宽度与原 800×530 版的可用宽度（约 700）基本一致，设置页表单版式无需重排。
         // 排障探针：`defaults write com.sxyq.frsetnext probe.settingsHeight -float 1000`
         // 可临时把设置窗拉高，用来一次截完长页面（例如合并后的「截图与钉图」）。
-        // 默认仍是原版的 620，不影响正常使用。
+        // 默认 720（v271 起），探针可拉到 1040。
         // 注意类型：UserDefaults 里存的是 Double，写成 `CGFloat(value(default: 620.0))`
         // 会让泛型推断成 CGFloat，`as? CGFloat` 失败后静默退回 620（v263 实测踩过）。
-        let probeHeight: Double = Preferences.shared.value("probe.settingsHeight", default: 620.0)
-        let windowHeight = min(max(CGFloat(probeHeight), 620), 1040)
+        let probeHeight: Double = Preferences.shared.value("probe.settingsHeight", default: 720.0)
+        let windowHeight = min(max(CGFloat(probeHeight), 720), 1040)
         let win = SettingsWindow(
             contentRect: NSRect(x: 0, y: 0, width: 940, height: windowHeight),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -196,7 +209,12 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         if windowHeight != 620 {
             Log.info("settings", "窗口尺寸探针：probe=\(probeHeight) 采用=\(windowHeight)")
         }
-        // v205：红黄绿三钮统一显示（固定尺寸窗口的黄/绿由系统置灰）
+        // v270（红绿灯「空心环」定论，日志实证）：styleMask 必须同时含
+        // .miniaturizable 与 .resizable。缺任一个，AppKit 会把对应按钮判为**禁用**，
+        // macOS 27 对禁用态的画法就是「空心灰圈」——红点仍实心，于是呈现
+        // 「一个粉红实心 + 两个空心灰圈」的分层假象（14:31 前 style=32771，
+        // 补上后 style=32783，三颗灯恢复实心）。窗口仍是固定尺寸（min=max），
+        // 绿钮点了不会变尺寸，但外观/点击态与系统一致。
         win.center()
         // SwiftUI 内容**延后一个 runloop** 装载：窗口创建与 NSHostingView 首次布局
         // 若落在同一 display cycle，AppKit 在 updateConstraints observer 内收到

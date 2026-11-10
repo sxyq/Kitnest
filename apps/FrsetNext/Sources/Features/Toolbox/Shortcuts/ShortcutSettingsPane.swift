@@ -43,6 +43,14 @@ public struct ShortcutSettingsPane: View {
             Divider().padding(.top, 8)
             // 原版行为（2026-10-18 AX 实测）：点击即重置、无二次确认，随后弹「已重置」通知条。
             Button {
+                // v274：一键清空全部自定义绑定与双击模式，先确认。
+                let alert = NSAlert()
+                alert.messageText = "恢复默认快捷键？"
+                alert.informativeText = "你自定义的组合键与双击模式都会被清除，无法撤销。"
+                alert.addButton(withTitle: "恢复默认")
+                alert.addButton(withTitle: "取消")
+                alert.alertStyle = .warning
+                guard alert.runModal() == .alertFirstButtonReturn else { return }
                 AppBootstrap.restoreDefaultShortcuts()
                 revision += 1
                 Toast.show("已重置", icon: "arrow.clockwise")
@@ -125,8 +133,14 @@ public struct ShortcutSettingsPane: View {
                 ShortcutRecorderButton(
                     display: binding.map { ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers) },
                     onCapture: { code, modifiers in
-                        _ = AppBootstrap.setShortcut(id, keyCode: code, modifiers: modifiers)
+                        let ok = AppBootstrap.setShortcut(id, keyCode: code, modifiers: modifiers)
                         revision += 1
+                        // v274：冲突时 setShortcut 返回 false 且保留旧绑定，
+                        // 旧版丢弃返回值 → 按钮看起来「改了没反应」。
+                        if !ok {
+                            Toast.show(ShortcutManager.shared.failureReason(id: id) ?? "组合键冲突，未保存",
+                                       icon: "exclamationmark.triangle", isWarning: true)
+                        }
                     },
                     onClear: {
                         _ = AppBootstrap.setShortcut(id, keyCode: nil)

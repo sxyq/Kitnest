@@ -1,94 +1,50 @@
 import SwiftUI
 
-// MARK: - 「截图与钉图」总页
+// MARK: - 「截图」分类的单块设置页（v271）
 //
-// v262 之前这里是三个页签：截图 / 钉图 / 图帘（原名悬挂架）。用户的要求是
-// 「截图设置、钉图设置、图帘的效果全都放在当前这个设置栏里面」——
-// 三页签每次只能看到一部分，调完钉图描边想再调截图水印得来回切。
+// 演进：v234 截图独立成一级 → v261 截图/钉图/图帘各占一个页签 →
+// v262 三页签合并成一页长滚动（用户当时要「全都放在同一个设置栏里」）→
+// v271 用户对着「截图」段说「这些选项都进行拆分」，并选择「拆回侧边栏独立项」。
 //
-// 合并成一页之后：一路滚下来就能看到所有截图相关设置，
-// 侧边栏搜索和深链仍然能定位（用 `scrollTo` 锚点，不再切页签）。
+// 现在：截图 / 钉图 / 图帘 / 录屏 / 工作流 各自是侧边栏的一项，
+// 本视图只渲染其中一块——标题、副标题与 `CaptureSettingsBlock` 共用一份口径，
+// 不再有「滚到第几段」的锚点逻辑（`captureSub` 已删除）。
 
-struct CaptureHubPane: View {
-    /// 0 = 截图，1 = 钉图，2 = 图帘，3 = 录屏，4 = 工作流
-    @Binding var scrollTarget: Int
-
-    private let anchors = ["capture.block.capture", "capture.block.pin",
-                           "capture.block.curtain", "capture.block.recording",
-                           "capture.block.workflow"]
+struct CaptureBlockPage: View {
+    let block: CaptureSettingsBlock
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 30) {
-                    block(title: "截图",
-                          subtitle: "保存位置、截图后动作、水印、文字识别",
-                          anchor: anchors[0]) {
-                        CaptureSettingsPane()
-                    }
-                    block(title: "钉图",
-                          subtitle: "钉住之后的边框、圆角、投影与工具条",
-                          anchor: anchors[1]) {
-                        PinSettingsPane()
-                    }
-                    block(title: "图帘",
-                          subtitle: "截图后挂到屏幕顶边的帘线上，临时暂存",
-                          anchor: anchors[2]) {
-                        CurtainSettingsPane()
-                    }
-                    // v264：录屏（摄像头画中画 / 按键 / 点击动画 / 忽略 App）
-                    block(title: "录屏",
-                          subtitle: "整屏或区域录制，可叠加摄像头、按键与点击动画",
-                          anchor: anchors[3]) {
-                        RecordingSettingsPane()
-                    }
-                    // v264：截图后的自动化（保存/识别/上传/建 issue）
-                    block(title: "工作流",
-                          subtitle: "截图后自动保存、识别、上传、建 GitHub / Linear issue",
-                          anchor: anchors[4]) {
-                        WorkflowSettingsPane()
-                    }
-                }
-                .padding(.horizontal, 34)
-                .padding(.vertical, 20)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(alignment: .leading, spacing: 18) {
+                header
+                content
             }
-            .onAppear { jump(proxy, animated: false) }
-            .onChange(of: scrollTarget) { _ in jump(proxy, animated: true) }
+            .padding(.horizontal, 34)
+            .padding(.vertical, 18)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func jump(_ proxy: ScrollViewProxy, animated: Bool) {
-        guard anchors.indices.contains(scrollTarget) else { return }
-        let anchor = anchors[scrollTarget]
-        let action = { proxy.scrollTo(anchor, anchor: .top) }
-        if animated {
-            withAnimation(Theme.Motion.spring) { action() }
-        } else {
-            // 首次进入时视图还没布局完，scrollTo 会打到空处，延一帧
-            DispatchQueue.main.async { action() }
+    /// 页头（标题在 SettingsRootView.header，这里只补一句作用域说明 + 发丝分隔）
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(block.subtitle)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Rectangle()
+                .fill(Color.primary.opacity(0.07))
+                .frame(height: 0.5)
         }
     }
 
     @ViewBuilder
-    private func block<Content: View>(title: String,
-                                      subtitle: String,
-                                      anchor: String,
-                                      @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            Rectangle()
-                .fill(Color.primary.opacity(0.07))
-                .frame(height: 0.5)
-            content()
+    private var content: some View {
+        switch block {
+        case .capture:   CaptureSettingsPane()
+        case .pin:       PinSettingsPane()
+        case .curtain:   CurtainSettingsPane()
+        case .recording: RecordingSettingsPane()
+        case .workflow:  WorkflowSettingsPane()
         }
-        .id(anchor)
     }
 }

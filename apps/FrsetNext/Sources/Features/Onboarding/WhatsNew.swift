@@ -164,7 +164,7 @@ public final class WhatsNewWindowController: NSObject {
             let hosting = NSHostingView(rootView: WhatsNewView())
             hosting.sizingOptions = []
             if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
-            win.contentView = hosting
+            win.setOfficialContent(hosting)
             Log.info("WhatsNew", "清单到达，已用远端条目刷新浮层")
         }
     }
@@ -188,14 +188,13 @@ public final class WhatsNewWindowController: NSObject {
         guard window == nil else { return }
         let win = WhatsNewWindow(
             contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         win.title = "本次更新"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
-        win.applyOfficialChrome()
+        win.applyOfficialChrome(lights: .fixed)
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
         win.contentMinSize = NSSize(width: 400, height: 500)
@@ -209,7 +208,7 @@ public final class WhatsNewWindowController: NSObject {
             let hostingView = NSHostingView(rootView: WhatsNewView())
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
-            win.contentView = hostingView
+            win.setOfficialContent(hostingView)
         }
         Log.info("WhatsNew", "浮层窗口已创建")
     }
@@ -269,7 +268,7 @@ struct WhatsNewView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
-        .padding(.top, 36)   // v208：让出 macOS 原生标题栏高度
+        .padding(.top, OfficialChrome.titlebarInset)   // v272：统一标题栏净空
         .padding(.bottom, 10)
     }
 

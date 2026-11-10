@@ -174,7 +174,7 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable],
                    backing: .buffered, defer: false)
         title = "截图美化"
-        applyOfficialChrome()
+        // v272：延后到 contentView 就位后再调（见下）
         isReleasedWhenClosed = false
         minSize = NSSize(width: 620, height: 440)
         buildUI()
@@ -219,7 +219,8 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
             container.addSubview(button)
         }
 
-        contentView = container
+        setOfficialContent(container)
+        applyOfficialChrome()
         // v208：标题栏使用原生红绿灯（不随 contentView 替换消失）
     }
 

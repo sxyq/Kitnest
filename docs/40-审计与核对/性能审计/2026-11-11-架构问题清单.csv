@@ -1,0 +1,15 @@
+﻿架构类别,说明,命中函数数,其中P0,代表函数,涉及模块
+repeated_work,同一份计算每次重做（每帧解析/重建、每次重读盘、每次重新度量）,184,11,draw(AnnotationCompositor.swift:240) / render(ScreenTranslator.swift:139) / drawHashMarksAndLabels(PreviewPopoverContentView.swift:310),AI、App、Archive、Audio、Capture、Clipboard、CodePreview、Core、Manual、Monitor、Panel、Recording、Settings、StatusBar、Toolbox、TransferDock
+main_thread_io,主线程做磁盘 IO / 图片解码 / 进程启动 / IPC,124,9,installApp(ArchiveFlowRecommender.swift:212) / thumbnailView(CaptureSectionView.swift:174) / startMirror(TransferCastEngines.swift:275),AI、App、Archive、Capture、Clipboard、CodePreview、Core、Manual、Monitor、Panel、Recording、Settings、Storage、Toolbox、TransferDock
+sync_wait,同步等待（semaphore / IPC / RunLoop.run / NSAppleScript）阻塞调用线程,84,8,startMirror(TransferCastEngines.swift:275) / bind(AndroidWebDAVServer.swift:39) / bind(MCPServer.swift:62),App、Archive、Capture、Clipboard、CodePreview、Core、MemoryHelper、Monitor、Onboarding、Recording、Storage、Toolbox、TransferDock
+per_frame_alloc,绘制路径每帧新建字体/属性串/图片,52,4,draw(AnnotationCompositor.swift:240) / layout(ScreenTranslator.swift:268) / tick(CastControlBar.swift:90),Archive、Capture、Clipboard、CodePreview、Core、Monitor、Panel、Recording、Toolbox、TransferDock
+duplicate_impl,同一能力存在两份以上实现,18,1,renderBody(PreviewMarkdownRenderer.swift:54) / looksLikeMarkdown(PreviewPopoverContentModel.swift:210) / translate(TranslationToolSession.swift:27),AI、Archive、Capture、Core、Panel、Settings、Toolbox
+unbounded_growth,集合/缓存无上限,14,0,installUpdate(AppUpdateChecker.swift:227) / run(CastScreenKeeper.swift:82) / download(AndroidWebDAVServer.swift:252),Archive、Core、Panel、Storage、Toolbox、TransferDock
+notification_storm,通知或 @Published 高频广播,11,0,body(AppearanceTheme.swift:155) / removeSelected(TransferDockView.swift:948) / browse(AdbBonjour.swift:29),Capture、Clipboard、Core、Monitor、StatusBar、Toolbox、TransferDock
+copybig,大图/大数组每次拷贝,8,1,render(ScreenTranslator.swift:139) / recognize(PPOCROCREmote.swift:52) / download(AndroidWebDAVServer.swift:252),Capture、TransferDock
+retain_risk,闭包/观察者未弱引用或未取消,4,0,fetchResults(SearchSectionView.swift:351) / probe(CloudLinkCenter.swift:249) / makeNSView(ClipboardTableHostView.swift:426),Clipboard、Panel、Toolbox
+lock,lock,4,0,cachedSurface(Support.swift:236) / register(ToolRegistry.swift:135) / breadcrumb(Support.swift:26),Core、Toolbox
+layering_violation,UI 层直接读存储/服务,2,0,application(FrsetNextApp.swift:112) / installUnifiedGlassBackground(LiquidGlass.swift:293),App、Core
+未发现明确开销（NSWorkspace.open 由系统异步拉起）,未发现明确开销（NSWorkspace.open 由系统异步拉起）,1,0,open(LocalTransferStore.swift:316),TransferDock
+diskio,diskio,1,0,key(ArchiveHoverPreview.swift:88),Archive
+singleton_abuse,单例同时承担状态与重活,1,0,ensureWebView(SearchSectionView.swift:341),Toolbox

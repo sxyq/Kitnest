@@ -248,7 +248,8 @@ final class ScreenshotOCRResultWindow: NSWindow {
                    styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
                    backing: .buffered, defer: false)
         title = "识别结果"
-        applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
+        // v272：标题栏透明（自绘标题），显式告知 chrome 入口，玻璃底才会铺满
+        applyOfficialChrome(titlebar: .custom)
         // v223（用户实拍：标题「识别结果」和红绿灯叠在一起）：
         // 系统标题在窄窗口下会被压到红绿灯上。标题栏透明 + 内容全尺寸，
         // 自己在红绿灯右侧画标题，红绿灯永远在系统层、内容进不来。
@@ -328,7 +329,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
         bottom.addSubview(closeButton)
         container.addSubview(bottom)
 
-        contentView = container
+        setOfficialContent(container)
         // v166.8（用户：「这个弹窗没有方式去关闭」）：
         // 上面 `applyOfficialChrome()` 是在**替换 contentView 之前**调用的，
         // v208：标题栏使用原生红绿灯（属于窗口标题栏，不随 contentView 替换消失）

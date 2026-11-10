@@ -317,6 +317,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 // 深链直达页面：kitnest://panel?page=transfer|cast|performance
                 switch comps?.queryItems?.first(where: { $0.name == "page" })?.value {
+                case "home":       MonitorCenterPresenter.shared.selectHome()
                 case "transfer":   MonitorCenterPresenter.shared.selectTransferDock()
                 case "cast":
                     MonitorCenterPresenter.shared.selectCast()

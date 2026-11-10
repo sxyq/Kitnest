@@ -3,10 +3,12 @@ import AppKit
 
 // MARK: - 设置「截图」
 //
-// v262：原来这一页是独立的 `Form` 页签，和「钉图」「图帘」三页各占一个 tab。
-// 用户要求「截图、钉图、图帘的设置全都放在同一个设置栏里」，于是三页合并成
-// 一个滚动页（`CaptureHubPane`）。这一页因此从 `Form` 改成 `VStack +
-// SettingsSection`——视觉上和钉图页、图帘页同一套，滚动起来才像一页。
+// v262：原来这一页是独立的 `Form` 页签，和「钉图」「图帘」三页各占一个 tab；
+// 三页合并成一个滚动页（`CaptureHubPane`）。这一页因此从 `Form` 改成
+// `VStack + SettingsSection`——视觉上和钉图页、图帘页同一套。
+//
+// v271：用户要求「这些选项都进行拆分」并选择「拆回侧边栏独立项」，
+// 五块改由 `CaptureBlockPage` 分别承载；本页只负责「截图」这一块，内部结构不变。
 
 public struct CaptureSettingsPane: View {
     @ObservedObject private var manager = ScreenshotManager.shared
@@ -64,6 +66,12 @@ public struct CaptureSettingsPane: View {
         }
         .font(.system(size: 12))
         .frame(maxWidth: .infinity, alignment: .leading)
+        // v274：「保存到」此前只写 @Stored（等价 @State，进程内临时值），
+        // 而 ScreenshotManager 读的是 Preferences → 改完仍存到下载目录。
+        // 输入 / 「选择…」/「恢复默认」三条路径统一在这里落盘。
+        .onChange(of: savePath) { value in
+            Preferences.shared.set(Preferences.Keys.captureSavePath, value)
+        }
     }
 
     // MARK: 保存
@@ -335,5 +343,6 @@ public struct CaptureSettingsPane: View {
         panel.prompt = "选择"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         savePath = url.path
+        ScreenshotManager.shared.reloadRecent()
     }
 }

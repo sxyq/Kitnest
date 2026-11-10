@@ -62,10 +62,6 @@ public struct ArchiveProgressPanel: View {
             }
         }
         .padding(compact ? 8 : 10)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .fill(compact ? Color.clear : Color(nsColor: .controlBackgroundColor))
-        )
     }
 
     private var header: some View {
@@ -232,7 +228,7 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
 
     private init() {
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
-                           styleMask: [.titled, .closable, .resizable],
+                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                            backing: .buffered, defer: false)
         win.title = "任务队列"
         win.isReleasedWhenClosed = false
@@ -253,14 +249,12 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: 170))
         container.autoresizingMask = [.width, .height]
         // 顶端/左对齐：否则窗口一拉高，整块内容会垂直居中，上方留一大片灰
-        // 铺满 + 同色底：否则内容卡片下面会露出一大片灰（窗口底色），像界面没画完
         let host = NSHostingView(rootView: ArchiveProgressPanel()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color(nsColor: .controlBackgroundColor)))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading))
         host.frame = container.bounds
         host.autoresizingMask = [.width, .height]
         container.addSubview(host)
-        win.contentView = container
+        win.setOfficialContent(container)   // v272：换内容后重挂玻璃底
         // v182（用户：「关不掉」截图里内容被裁掉一半）：窗口高度只有 122pt 时，
         // 底下的说明文字既被横向裁切又被纵向裁切，看起来像界面坏了。
         // 这里给一个能装下空态文案的最小尺寸，并且**不信任旧的自动保存尺寸**——

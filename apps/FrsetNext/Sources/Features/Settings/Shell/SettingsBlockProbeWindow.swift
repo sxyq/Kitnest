@@ -33,6 +33,29 @@ final class SettingsBlockProbeWindowController {
         case "capture":
             content = AnyView(CaptureSettingsPane())
             title = "设置区块预览 · 截图"
+        // v270：个性化拆成「主面板 / 独立窗口 / 通用」三段后，后两段在整页里要滚动才看得到。
+        // 这两个区块用于单独验收：预览是否只画自己的对象、设置行是否跟在预览下面。
+        case "personalization-main":
+            content = AnyView(
+                VStack(alignment: .leading, spacing: 12) {
+                    AppearancePreviewBlock(scope: .mainPanel)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .mainPanel)
+                }
+            )
+            title = "设置区块预览 · 主面板"
+        case "personalization-floating":
+            content = AnyView(
+                VStack(alignment: .leading, spacing: 12) {
+                    AppearancePreviewBlock(scope: .floatingWindow)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .floatingWindow)
+                }
+            )
+            title = "设置区块预览 · 独立窗口与浮层"
+        case "personalization-shared":
+            content = AnyView(PersonalizationSettingsView(part: .shared))
+            title = "设置区块预览 · 个性化（通用）"
         default:
             content = AnyView(RecordingSettingsPane())
             title = "设置区块预览"
@@ -41,11 +64,14 @@ final class SettingsBlockProbeWindowController {
         let host = NSHostingView(rootView: ScrollView { content.padding(24) })
         host.frame = NSRect(x: 0, y: 0, width: 760, height: 980)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 980),
-                              styleMask: [.titled, .closable, .resizable],
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.title = title
         window.isReleasedWhenClosed = false
-        window.contentView = host
+        // v272：先补外观（能力位/标题栏/玻璃），再换内容重挂——只调 setOfficialContent
+        // 时窗口仍是「全透明标题栏」，标题会浮在桌面上、截图里只剩一条黑带。
+        window.applyOfficialChrome(lights: .standard)
+        window.setOfficialContent(host)
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

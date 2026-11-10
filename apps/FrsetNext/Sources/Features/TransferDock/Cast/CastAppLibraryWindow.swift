@@ -20,20 +20,20 @@ public final class CastAppLibraryWindowController {
             return
         }
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 560),
-                         styleMask: [.titled, .closable, .fullSizeContentView],
+                         styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                          backing: .buffered, defer: false)
         w.title = "全部应用"
         w.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         w.isReleasedWhenClosed = false
         w.contentMinSize = NSSize(width: 720, height: 560)
         w.contentMaxSize = NSSize(width: 720, height: 560)
-        w.applyOfficialChrome()   // v179：统一灰底 + 圆钮（此前是裸窗口默认样式）
+        w.applyOfficialChrome(lights: .fixed)   // v272：补齐三能力位，避免黄/绿空心
         w.center()
 
         let host = NSHostingView(rootView: CastAppLibraryView())
         host.frame = NSRect(x: 0, y: 0, width: 720, height: 560)
         host.sizingOptions = []                  // 固定尺寸窗，禁止 SwiftUI 反压（工程铁律）
-        w.contentView = host
+        w.setOfficialContent(host)
         window = w
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -71,7 +71,7 @@ private struct CastAppLibraryView: View {
                     .foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 14)
-            .padding(.top, 34)
+            .padding(.top, OfficialChrome.titlebarInset)   // v272：统一标题栏净空
             .padding(.bottom, 10)
 
             Divider().opacity(0.4)

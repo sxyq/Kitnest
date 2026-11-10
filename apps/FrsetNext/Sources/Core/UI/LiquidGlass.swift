@@ -132,8 +132,7 @@ struct LiquidGlassBackground: NSViewRepresentable {
         // 看起来就是一块白板（2026-10-17 实测）。
         DispatchQueue.main.async {
             guard let w = view.window else { return }
-            w.isOpaque = false
-            w.backgroundColor = .clear
+            w.applyOfficialBackground()
             w.hasShadow = appliesWindowShadow
         }
         return view
@@ -167,6 +166,7 @@ struct GlassSurface: View {
     var appliesWindowShadow: Bool = true
 
     @ObservedObject private var personalization = Personalization.shared
+    @ObservedObject private var appearance = AppearanceState.shared
 
     var body: some View {
         ZStack {
@@ -240,15 +240,10 @@ final class GlassTintOverlayView: NSView {
 
     private func refreshColors() {
         let appearance = window?.effectiveAppearance ?? effectiveAppearance
-        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let base = isDark
-            ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
-            : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
-        surfaceView.layer?.backgroundColor = base
-            .withAlphaComponent(CGFloat(Personalization.shared.glassOpacity)).cgColor
-        let blur = CGFloat(Personalization.shared.glassBlur)
-        frostView.layer?.backgroundColor = NSColor(white: 1,
-                                                   alpha: isDark ? 0.11 * blur : 0.20 * blur).cgColor
+        appearance.performAsCurrentDrawingAppearance {
+            surfaceView.layer?.backgroundColor = NSColor(Theme.windowSurface).cgColor
+            frostView.layer?.backgroundColor = NSColor(Theme.glassFrost).cgColor
+        }
     }
 }
 
@@ -256,8 +251,11 @@ final class UnifiedGlassBackingView: NSView {
 
     private let glassView: NSView
     private let tintView = GlassTintOverlayView()
+    private var content: NSView?
+    private let topInset: CGFloat
 
-    init(cornerRadius: CGFloat) {
+    init(cornerRadius: CGFloat, topInset: CGFloat) {
+        self.topInset = topInset
         glassView = LiquidGlass.makeView(cornerRadius: cornerRadius, material: .hudWindow)
         super.init(frame: .zero)
         wantsLayer = true
@@ -271,11 +269,21 @@ final class UnifiedGlassBackingView: NSView {
 
     required init?(coder: NSCoder) { fatalError("UnifiedGlassBackingView 不支持 NSCoder") }
 
+    func setContent(_ view: NSView) {
+        content?.removeFromSuperview()
+        content = view
+        view.autoresizingMask = [.width, .height]
+        addSubview(view)
+        layout()
+    }
+
     override func layout() {
         super.layout()
         glassView.frame = bounds
         tintView.frame = bounds
         tintView.layout()
+        content?.frame = NSRect(x: 0, y: 0, width: bounds.width,
+                                height: bounds.height - topInset)
     }
 }
 
@@ -290,65 +298,30 @@ public extension NSWindow {
     ///   自绘 12pt 会在系统圆角里再套一层，看起来"圆角变小/变尖"）。
     ///   只有无边框浮窗才需要显式传 12。
     func installUnifiedGlassBackground(cornerRadius: CGFloat = 0) {
-        guard let content = contentView, let host = content.superview else { return }
-        isOpaque = false
-        backgroundColor = .clear
+        guard let content = contentView else { return }
+        applyOfficialBackground()
         let backing: UnifiedGlassBackingView
         if let existing = objc_getAssociatedObject(self, &unifiedGlassAssocKey) as? UnifiedGlassBackingView {
             backing = existing
         } else {
-            backing = UnifiedGlassBackingView(cornerRadius: cornerRadius)
+            let inset: CGFloat = styleMask.contains(.titled) && !styleMask.contains(.fullSizeContentView)
+                ? OfficialChrome.titlebarInset : 0
+            backing = UnifiedGlassBackingView(cornerRadius: cornerRadius, topInset: inset)
             objc_setAssociatedObject(self, &unifiedGlassAssocKey, backing, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
-        // 幂等重挂：contentView 可能被替换过，保证玻璃始终在内容之下
+        if content === backing { return }
+        // 背景贯穿原生标题区。原来非 fullSize 的内容仍保留 32pt 标题净空。
+        if styleMask.contains(.titled) { styleMask.insert(.fullSizeContentView) }
         backing.removeFromSuperview()
-        // v260（独立窗口红绿灯「颜色分层」）：系统原生标题栏由 AppKit 在 theme frame
-        // 上绘制不透明材质；玻璃底若铺满 host.bounds，就会在红绿灯那一带与系统材质
-        // 叠成两层不同着色，深色尤其明显。只铺 contentLayoutRect 覆盖的内容区，
-        // 标题栏完全交给系统。差值很小时（无标题栏/透明标题栏窗口）保持原行为。
-        let layout = contentLayoutRect
-        // v272（用户：「红绿灯还是会出现问题，所有页面一个一个统一」）：
-        // 旧写法把玻璃底插进 `content.superview`（NSThemeFrame，AppKit 私有视图层级）。
-        // 最小样例实测：**只要往主题框架里加子视图**，非 fullSizeContentView 窗口的
-        // 标题栏就整体左移——标题被左边缘裁掉、三颗红绿灯只剩一颗（截图证据：
-        // Probe A 正常 / Probe B 加玻璃后错位）。这正是「有的窗口红绿灯怪怪的」根因。
-        // 现在按窗口类型分流：
-        //   · fullSizeContentView（设置/统计/OCR…）：标题栏透明或已被内容盖住，仍插在
-        //     主题框架里铺满（保持 v260 的「避开原生标题栏」判断）；
-        //   · NSHostingView 内容窗：放进普通容器，与玻璃底成为兄弟视图。直接把玻璃
-        //     加到 NSHostingView 里时，它落在 SwiftUI 宿主自身图层之后，背景实际不可见。
-        //   · 原生 AppKit 内容窗：保留原 contentView 身份，玻璃放在其子视图最底层。
-        let isHostingView = String(describing: type(of: content)).hasPrefix("NSHostingView<")
-        if styleMask.contains(.fullSizeContentView) {
-            if !titlebarAppearsTransparent, !layout.isEmpty,
-               host.bounds.height - layout.maxY > 20 {
-                backing.frame = NSRect(x: 0, y: 0,
-                                       width: host.bounds.width, height: layout.maxY)
-            } else {
-                backing.frame = host.bounds
-            }
-            backing.autoresizingMask = [.width, .height]
-            host.addSubview(backing, positioned: .below, relativeTo: content)
-        } else if isHostingView {
-            let container = NSView(frame: content.frame)
-            content.autoresizingMask.formUnion([.width, .height])
-            backing.autoresizingMask.formUnion([.width, .height])
-            content.frame = container.bounds
-            backing.frame = container.bounds
-            container.addSubview(backing, positioned: .below, relativeTo: nil)
-            container.addSubview(content)
-            if let controller = contentViewController, controller.view === content {
-                let wrapper = NSViewController()
-                wrapper.addChild(controller)
-                wrapper.view = container
-                contentViewController = wrapper
-            } else {
-                contentView = container
-            }
+        backing.frame = NSRect(origin: .zero, size: frame.size)
+        backing.setContent(content)
+        if let controller = contentViewController, controller.view === content {
+            let wrapper = NSViewController()
+            wrapper.addChild(controller)
+            wrapper.view = backing
+            contentViewController = wrapper
         } else {
-            backing.frame = content.bounds
-            backing.autoresizingMask = [.width, .height]
-            content.addSubview(backing, positioned: .below, relativeTo: nil)
+            contentView = backing
         }
         backing.layout()
         if UserDefaults.standard.bool(forKey: "probe.glassCoverage") {
@@ -548,6 +521,7 @@ struct GlassCard: ViewModifier {
     /// v203：卡片亮度/描边两个滑块要即时生效——卡片修饰器自己观察个性化，
     /// 不能只依赖父视图（父视图不一定因 Theme 计算属性重绘）。
     @ObservedObject private var personalization = Personalization.shared
+    @ObservedObject private var appearance = AppearanceState.shared
 
     func body(content: Content) -> some View {
         let color = fill ?? midnightCard ?? Theme.cardFill
@@ -588,8 +562,7 @@ public extension NSWindow {
         glass.addSubview(tint, positioned: .below, relativeTo: host)
         contentView = glass
 
-        isOpaque = false
-        backgroundColor = .clear
+        applyOfficialBackground()
         glass.layer?.borderWidth = Theme.Stroke.hairline
         glass.layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.10).cgColor
     }

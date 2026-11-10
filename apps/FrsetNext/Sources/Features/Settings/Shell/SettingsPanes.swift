@@ -9,6 +9,16 @@ import SwiftUI
 // MARK: - 通用页
 
 struct GeneralSettingsPane: View {
+    /// v272（用户：「常规也需要拆分，个性化这些设置全都要拆」）：常规拆成五个二级页，
+    /// 一个二级页只渲染自己那一段，侧边栏一项对一页，不再一页滚到底。
+    enum Section: Hashable {
+        case startup          // 启动与外观
+        case mainPanel        // 主面板
+        case floating         // 独立窗口与浮层
+        case personalization  // 个性化（通用）
+        case menuBar          // 菜单栏
+    }
+    var section: Section = .startup
     /// v40 面板内嵌模式（主面板「主页 → 常规」）：左侧标题列收窄、宽行改分行布局——
     /// 面板内容区约 576pt，原 800pt 窗口版式（190pt 标题列 + 4 图标横排）放不下。
     var compact: Bool = false
@@ -27,11 +37,9 @@ struct GeneralSettingsPane: View {
     /// 语言版本号：languageDidChange 到达时自增，驱动本视图重绘（契约 §10.3；
     /// 用 @Stored 而非 @State，见 CONTRACT §7.4）
     @Stored private var l10nVersion: Int = 0
-    /// 标签管理 sheet 呈现（原版「标签管理 [编辑]」行入口）
-    @Stored private var isManagingTags = false
-    /// 标签总管（复用现有 TagStore，不新建计数链路）
-    @ObservedObject private var tagStore = TagStore.shared
-    /// 忽略应用（隐私名单）修订号：Preferences 无观察者，用自增驱动重绘
+    /// 忽略应用（隐私名单）修订号：Preferences 无观察者，用自增驱动重绘。
+    /// v272：标签/忽略应用两行已并入「剪贴板 → 历史 / 捕获」，这里保留状态仅为
+    /// 兼容面板内嵌的 compact 版（若有引用）。
     @Stored private var ignoredAppsRevision = 0
 
     // MARK: 菜单栏图标样式（spec 13 §6：logo / fan / date / custom）
@@ -49,96 +57,89 @@ struct GeneralSettingsPane: View {
     @AppStorage(Self.revealCustomIconOptionKey) private var revealCustomIconOption = true
 
     var body: some View {
-        // v71（用户：各设置界面版式不一致，需统一组件）：灰底全宽行 → 卡片分组
-        // （SettingsSection + SettingsGroupBox，与剪贴板/数据页同一套组件）。
-        // 外层滚动由 SettingsRootView.panePage 提供。
+        // v71（用户：各设置界面版式不一致，需统一组件）：统一 SettingsSection + SettingsGroupBox。
+        // 外层滚动由 SettingsRootView.panePage 提供；v272 起按二级页只渲染一段。
         VStack(spacing: 20) {
-            // 排障探针（2026-10-20）：probe.settingsMenuBarFirst=1 时把「菜单栏」区
-            // 临时置顶（正常顺序不变），便于截屏核对菜单栏图标行；默认不生效。
-            if probeMenuBarFirst { menuBarSection }
-            SettingsSection("通用") {
-                SettingsGroupBox {
-                    formRow(L10n.t("Start"), height: 40) {
-                        Toggle(L10n.t("Launch Kitnest at login"), isOn: launchAtLoginBinding)
-                            .toggleStyle(.checkbox)
-                    }
-                    SettingsDivider()
-                    formRow(L10n.t("Appearance"), height: 98) {
-                        appearanceChoices
-                    }
-                    SettingsDivider()
-                    formRow(L10n.t("Language"), height: 48) {
-                        Picker("", selection: languageBinding) {
-                            Text(L10n.t("Auto")).tag("auto")
-                            ForEach(LanguageManager.availableLanguages, id: \.self) { code in
-                                Text(LanguageManager.displayNames[code] ?? code).tag(code)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: 157)
-                    }
-                }
-            }
-
-            // v260（用户：「把下面的实时预览拆分一下，最终设置生效项是不同的，
-            // 需要拆分预览，把实时预览放在上面，下面才是分开的个性化」）：
-            // 预览原本塞在个性化页最底部，滚过整页才看得到；更关键的是它画的是
-            // 悬浮剪贴板，而上面的字号/密度/宽度/动画大多作用于主面板——
-            // 生效对象不同却共用一张图，用户拿它验证设置自然「怎么调都不对」。
-            // 现在独立成区块置顶，并在区块内按生效对象拆成两张缩略窗。
-            SettingsSection("实时预览") {
-                SettingsGroupBox {
-                    AppearancePreviewBlock()
-                        .padding(.vertical, 6)
-                }
-            }
-
-            SettingsSection("个性化") {
-                SettingsGroupBox {
-                    PersonalizationSettingsView()
-                        .padding(.vertical, 6)
-                }
-            }
-
-            if !probeMenuBarFirst {
-                menuBarSection
-            }
-
-            SettingsSection("剪贴板") {
-                SettingsGroupBox {
-                    formRow(L10n.t("Auto Paste")) {
-                        Toggle("", isOn: Preferences.shared.binding("clipboard.autoPaste", default: false))
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                    }
-                    SettingsDivider()
-                    formRow(L10n.t("Tag Management")) {
-                        HStack(spacing: 12) {
-                            actionButton(L10n.t("Edit")) { isManagingTags = true }
-                            Text(tagCountText)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    SettingsDivider()
-                    formRow(L10n.t("Ignored Apps"), height: 40) {
-                        IgnoredAppsEditor(revision: $ignoredAppsRevision)
-                    }
-                }
+            switch section {
+            case .startup:         startupSection
+            case .mainPanel:       mainPanelSection
+            case .floating:        floatingSection
+            case .personalization: personalizationSection
+            case .menuBar:         menuBarSection
             }
         }
-        // 外层 SettingsRootView.panePage 已统一提供 34/18 内边距，此处不再重复
         .frame(maxWidth: .infinity, alignment: .leading)
         .font(.system(size: 12))
-        .sheet(isPresented: $isManagingTags) {
-            TagManagementSheet()
-        }
-        .onAppear { tagStore.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: MonitorPreferences.didChangeNotification)) { _ in
             monitorRevision += 1
         }
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
+        }
+    }
+
+    // MARK: - 二级页内容
+
+    /// 启动与外观：登录启动 / 外观四选一 / 语言
+    private var startupSection: some View {
+        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
+            SettingsGroupBox {
+                formRow(L10n.t("Start"), height: 40) {
+                    Toggle(L10n.t("Launch Kitnest at login"), isOn: launchAtLoginBinding)
+                        .toggleStyle(.checkbox)
+                }
+                SettingsDivider()
+                formRow(L10n.t("Appearance"), height: 98) {
+                    appearanceChoices
+                }
+                SettingsDivider()
+                formRow(L10n.t("Language"), height: 48) {
+                    Picker("", selection: languageBinding) {
+                        Text(L10n.t("Auto")).tag("auto")
+                        ForEach(LanguageManager.availableLanguages, id: \.self) { code in
+                            Text(LanguageManager.displayNames[code] ?? code).tag(code)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 157)
+                }
+            }
+        }
+    }
+
+    /// 主面板：预览 + 只作用于主面板的字号/圆角/宽度/材质/页面顺序
+    private var mainPanelSection: some View {
+        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
+            SettingsGroupBox {
+                AppearancePreviewBlock(scope: .mainPanel)
+                    .padding(.vertical, 6)
+                SettingsDivider()
+                PersonalizationSettingsView(part: .mainPanel)
+                    .padding(.vertical, 6)
+            }
+        }
+    }
+
+    /// 独立窗口与浮层：预览 + 玻璃四参数/密度/缩略图/徽章/通知条
+    private var floatingSection: some View {
+        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
+            SettingsGroupBox {
+                AppearancePreviewBlock(scope: .floatingWindow)
+                    .padding(.vertical, 6)
+                SettingsDivider()
+                PersonalizationSettingsView(part: .floatingWindow)
+                    .padding(.vertical, 6)
+            }
+        }
+    }
+
+    /// 个性化（通用）：两边都生效的强调色/动画/动作条/背景图/入口
+    private var personalizationSection: some View {
+        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
+            SettingsGroupBox {
+                PersonalizationSettingsView(part: .shared)
+                    .padding(.vertical, 6)
+            }
         }
     }
 
@@ -159,14 +160,9 @@ struct GeneralSettingsPane: View {
         }
     }
 
-    /// 排障探针：把「菜单栏」区置顶便于截屏（见 body 顶注释）
-    private var probeMenuBarFirst: Bool {
-        UserDefaults.standard.bool(forKey: "probe.settingsMenuBarFirst")
-    }
-
     /// 「菜单栏」设置区（功能 / AI 服务商 / 菜单栏图标 / 菜单栏部件）
     private var menuBarSection: some View {
-        SettingsSection("菜单栏") {
+        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
             SettingsGroupBox {
                 formRow(L10n.t("Features")) {
                     Group {
@@ -262,12 +258,6 @@ struct GeneralSettingsPane: View {
         return String(format: L10n.t(count == 1 ? "%d Provider" : "%d Providers"), count)
     }
 
-    /// 标签计数（复用现有 TagStore.tags）
-    private var tagCountText: String {
-        let count = tagStore.tags.count
-        return String(format: L10n.t(count == 1 ? "%d Tag" : "%d Tags"), count)
-    }
-
     /// 日期图标上的当日角标（原版日期按钮显示当天日期数）
     static var todayDayNumber: String {
         String(Calendar.current.component(.day, from: Date()))
@@ -293,15 +283,19 @@ struct GeneralSettingsPane: View {
                   + "功能开启后是否显示分段，由「个性化 → 主面板页面」单独决定")
     }
 
+    /// v272（用户：「所有页面一个一个统一」）：行样式统一成 SettingsRow 的
+    /// 「左标题 + 右控件」。此前这里是「右对齐 190pt 标题列」，与剪贴板/数据页的
+    /// 左标题行同窗并存，两种版式一眼可见。
     private func formRow<Content: View>(_ title: String, height: CGFloat = 40,
                                       @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: compact ? 14 : 24) {
+        HStack(spacing: compact ? 10 : 14) {
             Text(title)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
-                .frame(width: compact ? 104 : 190, alignment: .trailing)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .fixedSize()
+            Spacer(minLength: compact ? 8 : 16)
             content()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(minHeight: height)
     }

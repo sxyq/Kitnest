@@ -203,6 +203,8 @@ final class ClosureButtonAction: NSObject {
 
 /// 编辑窗（原作 LongScreenshotEditorWindow + LongScreenshotEditorWindowController）
 final class LongScreenshotEditorWindow: NSWindow {
+    let editorContent: LongScreenshotEditorContainerView
+
     init(document: LongScreenshotEditorDocumentView,
          onSave: @escaping () -> Void,
          onCopy: @escaping () -> Void,
@@ -211,6 +213,7 @@ final class LongScreenshotEditorWindow: NSWindow {
                                                           onSave: onSave,
                                                           onCopy: onCopy,
                                                           onClose: onClose)
+        editorContent = container
         // 窗口按图像像素宽自适应（旧实现固定 ÷2 假设 Retina，1x 屏上会显得很小），
         // 钳制到屏幕可视区 85%；内容区再按宽度等比缩放（见 fitCentered）。
         let img = document.image
@@ -253,8 +256,8 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
         let editor = LongScreenshotEditorWindow(
             document: document,
             onSave: { [weak self] in
-                guard let self = self, let doc = self.window?.contentView as? LongScreenshotEditorContainerView else {
-                    Log.warn("Capture", "长截图保存：内容视图不是编辑器容器（contentView=\(String(describing: self?.window?.contentView))）")
+                guard let doc = self?.window?.editorContent else {
+                    Log.warn("Capture", "长截图保存：编辑器窗口不可用")
                     return
                 }
                 guard let image = doc.scrollView.document?.image else {
@@ -273,7 +276,7 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
                 Log.info("Capture", "长截图保存：\(url.path)")
             },
             onCopy: { [weak self] in
-                guard let self = self, let doc = self.window?.contentView as? LongScreenshotEditorContainerView,
+                guard let doc = self?.window?.editorContent,
                       let image = doc.scrollView.document?.image else {
                     Log.warn("Capture", "长截图复制：内容视图/文档图不可用")
                     return
@@ -296,15 +299,14 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
         editor.makeKeyAndOrderFront(nil)
         if UserDefaults.standard.bool(forKey: "probe.longshotHit") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-                guard let w = self?.window,
-                      let c = w.contentView as? LongScreenshotEditorContainerView else { return }
+                guard let w = self?.window else { return }
                 Log.info("Capture", "长截图探针：active=\(NSApp.isActive) key=\(w.isKeyWindow) "
-                         + "level=\(w.level.rawValue) " + c.debugHitReport(window: w).joined(separator: " | "))
+                         + "level=\(w.level.rawValue) " + w.editorContent.debugHitReport(window: w).joined(separator: " | "))
             }
         }
         if UserDefaults.standard.bool(forKey: "probe.longshotClick") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
-                guard let c = self?.window?.contentView as? LongScreenshotEditorContainerView else { return }
+                guard let c = self?.window?.editorContent else { return }
                 Log.info("Capture", "长截图探针：开始 performClick")
                 c.debugPerformButtons()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

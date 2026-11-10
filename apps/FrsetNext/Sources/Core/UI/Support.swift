@@ -250,10 +250,12 @@ public enum Theme {
     }
 
     /// L0 窗口底：铺在真玻璃之上的那层半透明底。
-    /// 默认 0.93 不透明度的意义：既保留玻璃对桌面的色彩透传，又保证正文对比度
-    /// （纯玻璃在花色壁纸上只有 ~2:1，列表会发灰）。
+    /// Midnight 只更换基色，通透度仍由同一个参数决定。
     public static var windowSurface: Color {
         let opacity = Personalization.shared.glassOpacity
+        if AppearanceState.shared.isMidnight {
+            return MidnightTheme.baseBackground.opacity(opacity)
+        }
         return cachedSurface("window.\(opacity)") { isDark in
             let base = isDark
                 ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
@@ -277,6 +279,7 @@ public enum Theme {
 
     /// L2 内容卡：比窗口底**亮一档**（浅色近白 / 暗色略亮于窗口）
     public static var cardFill: Color {
+        if AppearanceState.shared.isMidnight { return MidnightTheme.cardBackground }
         let liftValue = Personalization.shared.glassCardLift
         return cachedSurface("card.\(liftValue)") { isDark in
             let lift = CGFloat(liftValue)

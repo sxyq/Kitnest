@@ -192,7 +192,7 @@ final class RowHostingView: NSHostingView<AnyView> {
     private var renderedHovered: Bool?
 
     func setItem(_ item: ClipboardItem, hovered: Bool) {
-        let same = (self.item?.id == item.id) && renderedHovered == hovered
+        let same = self.item == item && renderedHovered == hovered
         self.item = item
         guard !same, let contentBuilder else { return }
         renderedHovered = hovered
@@ -492,18 +492,17 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
     public final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
 
-        /// v101 脏检查：上次渲染的 items 身份与行高
-        private var lastItemsSignature: Int = 0
+        /// 上次显示的条目用于刷新内容，并在重排时保留选中项。
+        private var displayedItems: [ClipboardItem] = []
         private var lastRowHeight: CGFloat = 0
 
-        /// 仅当 items 身份或行高变化时才全表 reload
+        /// 条目内容或行高变化时刷新。
         func reloadTableIfNeeded() {
-            var h = 5381
-            for it in owner.manager.items { for b in it.id.utf8 { h = (h &* 33) &+ Int(b) } }
             let height = Theme.statsRowHeight
-            guard h != lastItemsSignature || height != lastRowHeight else { return }
-            lastItemsSignature = h; lastRowHeight = height
+            guard owner.manager.items != displayedItems || height != lastRowHeight else { return }
             reloadTable()
+            displayedItems = owner.manager.items
+            lastRowHeight = height
         }
 
         fileprivate var owner: ClipboardTableHostView
@@ -632,6 +631,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             //  - reloadData：捕获到新内容会重建选中态，若在此取消，用户刚按下的空格
             //    预览会被静默吞掉（0.30s 延时窗口内），且无任何提示。
             guard table?.isKeyboardNavigating == true else { return }
+            multiAnchor = table?.selectedRow ?? -1
             ServiceLocator.panelPreview?.cancelKeyboardPreview()
         }
 
@@ -640,14 +640,26 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         func reloadTable() {
             guard let table, let scrollView else { return }
             let items = owner.manager.items
+            let previousSelection = table.selectedRowIndexes
+            let selectedIDs = Set(previousSelection.compactMap { row in
+                displayedItems.indices.contains(row) ? displayedItems[row].id : nil
+            })
+            let anchorID = displayedItems.indices.contains(multiAnchor) ? displayedItems[multiAnchor].id : nil
             let previousFirstVisibleRow = table.row(at: NSPoint(x: 0, y: scrollView.contentView.documentVisibleRect.minY + 1))
-            let previousAnchorID: String? = (previousFirstVisibleRow >= 0 && previousFirstVisibleRow < owner.manager.items.count)
-                ? owner.manager.items[previousFirstVisibleRow].id : nil
+            let previousAnchorID: String? = displayedItems.indices.contains(previousFirstVisibleRow)
+                ? displayedItems[previousFirstVisibleRow].id : nil
             let previousTopGap: CGFloat = previousFirstVisibleRow >= 0
                 ? table.rect(ofRow: previousFirstVisibleRow).minY - scrollView.contentView.documentVisibleRect.minY
                 : 0
 
             table.reloadData()
+            let selection = IndexSet(items.indices.filter { selectedIDs.contains(items[$0].id) })
+            table.selectRowIndexes(selection, byExtendingSelection: false)
+            // 行号未变时 AppKit 不发送选择变化，工具条仍需收到更新后的条目。
+            if selection == previousSelection {
+                tableViewSelectionDidChange(Notification(name: NSTableView.selectionDidChangeNotification, object: table))
+            }
+            multiAnchor = items.firstIndex(where: { $0.id == anchorID }) ?? -1
             // reloadData 后按行号裁剪侧表，**不做整体清空**。
             // 原因：reloadData() 可能同步触发可见行的 tableView(_:viewFor:row:) 重新登记，
             // 整体 removeAll() 会把刚登记好的新映射一并抹掉 → 预览锚点退化 + hover 高亮失效，
@@ -760,13 +772,13 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         /// 这里一次做完两件事，使空格/↩ 真正可用：
         /// ① 显式选中 → table.selectedRow 成立（handleSpaceKey/handleReturnKey 的门槛）；
         /// ② 把表格设为 first responder → 空格/↩ 能路由到 ClipboardTableView.keyDown。
-        /// 本期仅保证单选（allowsMultipleSelection = false）；按住 ⇧ 时退化为单选。
         private func handlePlainMouseDown(row: Int, event: NSEvent) {
             guard let table, row >= 0, row < table.numberOfRows else { return }
-            if table.selectedRow != row {
+            if event.modifierFlags.intersection([.command, .shift]).isEmpty {
                 // 注：老的 selectRow(_:byExtendingSelection:) 在 Swift 中已 unavailable，
                 // 用官方替代 API selectRowIndexes(_:byExtendingSelection:)。
                 table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                multiAnchor = row
                 // 点击的行必然已在视口内（用户刚点到它），此处不调scrollRowToVisible，
                 // 避免在点击时产生额外跳动。
             }
@@ -800,7 +812,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleSingleClick(_ item: ClipboardItem) {
-            multiSelected.removeAll()   // 普通点击回到单选，清掉多选集
             // 工具条操作目标 = 最后点击项（单击走预览路径不产生标准选中，
             // 2026-10-18：编辑/上传按钮据此启用）
             NotificationCenter.default.post(name: .clipboardSelectionChanged, object: item)
@@ -841,37 +852,28 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 + "firstResponder=\(String(describing: table?.window?.firstResponder)) "
                 + "rowView=\(rowView(forItemID: rowID) != nil)")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
-            multiSelected.removeAll()
             let item = owner.manager.items[table.selectedRow]
             let view = rowView(forItemID: item.id)
             ServiceLocator.panelPreview?.requestKeyboardPreview(item: item,
                                                                 anchorRectProvider: anchorProvider(for: view))
         }
 
-        /// 多选状态（⌘/⇧ 点击维护；普通点击/键盘导航清空）
-        private var multiSelected = IndexSet()
+        /// 范围选择的起点；选中集合由表格统一持有。
         private var multiAnchor: Int = -1
 
         /// ⌘=toggle 该行加选；⇧=从锚点范围加选。同步 table.selectedRowIndexes 供键盘/复制用。
         private func handleModifierClick(row: Int, shift: Bool) {
-            guard row >= 0, row < owner.manager.items.count else { return }
+            guard let table, row >= 0, row < owner.manager.items.count else { return }
+            var selectedRows = table.selectedRowIndexes
             if shift, multiAnchor >= 0 {
                 let lo = min(multiAnchor, row), hi = max(multiAnchor, row)
-                multiSelected.formUnion(IndexSet(integersIn: lo...hi))
+                selectedRows.formUnion(IndexSet(integersIn: lo...hi))
             } else {
-                if multiSelected.contains(row) { multiSelected.remove(row) }
-                else { multiSelected.insert(row) }
+                if selectedRows.contains(row) { selectedRows.remove(row) }
+                else { selectedRows.insert(row) }
                 multiAnchor = row
             }
-            // 表格选中态与多选集合同步（selectedRow 取最小选中行，键盘 ↩ 仍走批量复制）
-            if let table {
-                let anchor = multiSelected.min() ?? row
-                table.selectRowIndexes(multiSelected.isEmpty
-                                       ? IndexSet(integer: row)
-                                       : multiSelected,
-                                       byExtendingSelection: false)
-                _ = anchor
-            }
+            table.selectRowIndexes(selectedRows, byExtendingSelection: false)
             hoverSuppression.suppressUntilMouseMove()   // 多选期间不弹 hover 预览
             clearHoverHighlight()
         }
@@ -884,12 +886,12 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 + "firstResponder=\(String(describing: table?.window?.firstResponder))")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             // 多选批量复制（原版「已复制 %d 项」）：⌘/⇧ 点击 ≥2 条后按 ↩ 一次性写入剪贴板
-            if multiSelected.count > 1 {
-                let items = multiSelected.sorted().compactMap { idx in
+            if table.selectedRowIndexes.count > 1 {
+                let items = table.selectedRowIndexes.compactMap { idx in
                     idx < owner.manager.items.count ? owner.manager.items[idx] : nil
                 }
                 let text = items.compactMap { item -> String? in
-                    let content = item.content ?? ""
+                    let content = owner.manager.fullText(for: item)
                     return content.isEmpty ? item.title : content
                 }.joined(separator: "\n")
                 if !text.isEmpty {
@@ -900,11 +902,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                     StatisticsManager.shared.record(.historyBatchCopy)
                     Log.info("clipboard", "批量复制 \(items.count) 项")
                 }
-                multiSelected.removeAll()
                 ServiceLocator.panelPreview?.dismissPreview()
                 return
             }
-            multiSelected.removeAll()
             let item = owner.manager.items[table.selectedRow]
             ServiceLocator.panelPreview?.dismissPreview()
             owner.onCopy(item)

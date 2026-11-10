@@ -74,32 +74,33 @@ public enum SlashCommandCatalog {
             })
         }
 
-        // ② 日历（原版 /calendar）：打开主面板，日历代办卡就在主页上
+        // ② 日历（原版 /calendar）：先选主页；主页与日历仍遵循用户启停设置
         out.append(SlashCommand(
             id: "panel.calendar",
             token: "calendar",
             title: "/calendar",
-            subtitle: "打开日历，查看日程、节假日与农历",
+            subtitle: "打开主页日历（需启用主页与日历）",
             systemImage: "calendar",
             aliases: ["cal", "日程"],
             autoRun: false
         ) {
             CommandPaletteController.shared.dismissForCommand()
+            MonitorCenterPresenter.shared.selectHome()
             PanelController.shared.show()
         })
 
-        // ③ 工具面板（无参数直达）
+        // ③ 工具入口：复用命令面板的斜杠列表，不依赖主页工具区段
         out.append(SlashCommand(
             id: "panel.tools",
             token: "tools",
             title: "/tools",
-            subtitle: "打开工具箱（全部工具的九宫格）",
+            subtitle: "打开命令面板，列出已启用工具与导航命令",
             systemImage: "wrench.and.screwdriver",
             aliases: ["toolbox", "工具"],
             autoRun: false
         ) {
             CommandPaletteController.shared.dismissForCommand()
-            PanelController.shared.show()
+            CommandPaletteController.shared.show(slash: true)
         })
 
         return out

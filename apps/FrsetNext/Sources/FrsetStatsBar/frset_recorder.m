@@ -1156,7 +1156,7 @@ void FSScreenRecBeginFromSettings(void) {
         if (![[AVCaptureDevice class] respondsToSelector:@selector(requestAccessForMediaType:completionHandler:)]) {
             FSBarLog(@"[录屏] 麦克风不可用（系统过老），降级为无音频");
             s.audioMode = 0; [s save];
-        } else {
+        } else if ([AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio] != AVAuthorizationStatusAuthorized) {
             [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     if (!granted) { FSBarLog(@"[录屏] 麦克风权限被拒绝，按「系统音」继续"); [FSRecSettings shared].audioMode = (s.needSys ? 1 : 0); [[FSRecSettings shared] save]; }

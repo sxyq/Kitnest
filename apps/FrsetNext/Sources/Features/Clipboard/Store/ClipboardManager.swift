@@ -505,10 +505,13 @@ public final class ClipboardManager: ObservableObject {
     // MARK: 操作
 
     /// 写回系统粘贴板；可选自动粘贴（需辅助功能权限，默认关闭）
-    public func copy(_ item: ClipboardItem, autoPaste: Bool? = nil) {
+    public func copy(_ item: ClipboardItem, autoPaste: Bool? = nil, asPlainText: Bool = false) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
 
+        if asPlainText {
+            pasteboard.setString(fullText(for: item), forType: .string)
+        } else {
         switch item.type {
         case .image:
             if let path = item.imagePath, let data = ClipboardFileStore.read(path) {
@@ -525,6 +528,7 @@ public final class ClipboardManager: ObservableObject {
         case .text, .url:
             pasteboard.setString(fullText(for: item), forType: .string)
         }
+        }
 
         // 自写回声抑制（specs/14 F3）：写回粘贴板时打 selfwrite-token 标记 + 记录 token/TTL，
         // 捕获循环据此跳过自写内容（TTL 过期前）
@@ -537,7 +541,7 @@ public final class ClipboardManager: ObservableObject {
         lastChangeCount = pasteboard.changeCount
         // v84：单条复制埋点（面板列表 / 悬浮剪贴板 / 预览窗复制共用同一收口）
         StatisticsManager.shared.record(.historyCopy)
-        Toast.show("已复制", icon: "checkmark.circle.fill")   // spec 13 §4：复制成功场景
+        Toast.show(asPlainText ? "已复制纯文本" : "已复制", icon: "checkmark.circle.fill")
 
         let shouldPaste = autoPaste ?? preferences.value(Preferences.Keys.clipboardAutoPaste, default: false)
         if shouldPaste {
@@ -579,25 +583,39 @@ public final class ClipboardManager: ObservableObject {
         }
     }
 
-    /// 编辑窗保存：回写正文（超阈值重新落盘）与标题
-    public func saveContent(dedupeKey: String, newContent: String) {
+    /// 编辑窗保存：回写正文与标题。aliasTitle 为 nil 时保留标题，空字符串清除标题。
+    public func saveContent(dedupeKey: String, newContent: String, aliasTitle: String? = nil,
+                            completion: ((ClipboardItem?) -> Void)? = nil) {
         queue.async { [weak self] in
             guard let self else { return }
+            var savedItem: ClipboardItem?
+            defer {
+                let result = savedItem
+                DispatchQueue.main.async {
+                    self.reload(reset: false)
+                    completion?(result)
+                }
+            }
             guard let existing = self.repository.item(dedupeKey: dedupeKey) else { return }
             let length = (newContent as NSString).length
+            // 正文改变才更新 RTF；仅重命名时保留原格式。
+            if let richTextPath = existing.richTextPath, newContent != self.fullText(for: existing) {
+                let richText = NSAttributedString(string: newContent)
+                guard let data = richText.rtf(from: NSRange(location: 0, length: richText.length),
+                                             documentAttributes: [:]),
+                      ClipboardFileStore.write(data, toRelativePath: richTextPath) else { return }
+            }
             let auxiliary = self.auxiliaryBytes(item: existing)
             if length > Self.inlineTextByteLimit {
-                // 旧的落盘文件先标记，写入成功后再删除，避免中途失败丢数据
-                if let stored = ClipboardTextStorage.write(newContent) {
-                    if let old = existing.textPath, old != stored.path { ClipboardTextStorage.remove(old) }
-                    let previewBytes = String(newContent.prefix(Self.inlinePreviewLength)).utf8.count
-                    self.repository.updateContent(dedupeKey: dedupeKey,
-                                                  content: String(newContent.prefix(Self.inlinePreviewLength)),
-                                                  textPath: stored.path,
-                                                  charCount: length,
-                                                  lineCount: newContent.lineCount,
-                                                  storageBytes: stored.bytes + previewBytes + auxiliary)
-                }
+                guard let stored = ClipboardTextStorage.write(newContent) else { return }
+                if let old = existing.textPath, old != stored.path { ClipboardTextStorage.remove(old) }
+                let previewBytes = String(newContent.prefix(Self.inlinePreviewLength)).utf8.count
+                self.repository.updateContent(dedupeKey: dedupeKey,
+                                              content: String(newContent.prefix(Self.inlinePreviewLength)),
+                                              textPath: stored.path,
+                                              charCount: length,
+                                              lineCount: newContent.lineCount,
+                                              storageBytes: stored.bytes + previewBytes + auxiliary)
             } else {
                 if let old = existing.textPath { ClipboardTextStorage.remove(old) }
                 self.repository.updateContent(dedupeKey: dedupeKey,
@@ -607,7 +625,10 @@ public final class ClipboardManager: ObservableObject {
                                               lineCount: nil,
                                               storageBytes: newContent.utf8.count + auxiliary)
             }
-            DispatchQueue.main.async { self.reload(reset: false) }
+            if let aliasTitle {
+                self.repository.updateAliasTitle(dedupeKey: dedupeKey, aliasTitle: aliasTitle)
+            }
+            savedItem = self.repository.item(dedupeKey: dedupeKey)
         }
     }
 

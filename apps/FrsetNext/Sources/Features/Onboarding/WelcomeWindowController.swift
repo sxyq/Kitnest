@@ -62,14 +62,13 @@ public final class WelcomeWindowController: NSObject {
         guard window == nil else { return }
         let win = WelcomeWindow(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         win.title = "欢迎"
         win.titleVisibility = .hidden
-        win.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
-        win.applyOfficialChrome()
+        win.applyOfficialChrome(lights: .fixed)
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
         // 固定尺寸：NSHostingView 会把 fitting size 折成窗口尺寸请求，不固定会触发
@@ -85,7 +84,7 @@ public final class WelcomeWindowController: NSObject {
             let hostingView = NSHostingView(rootView: WelcomeView())
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
-            win.contentView = hostingView
+            win.setOfficialContent(hostingView)
         }
         Log.info("Onboarding", "欢迎窗已创建")
     }

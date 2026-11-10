@@ -47,7 +47,7 @@ extension NSWindow {
                 // AppKit 会重建它的图层，红绿灯会退回旧式「空心环」画法（v269 排障）。
                 if b.isHidden { b.isHidden = false }
                 if b.alphaValue < 1 { b.alphaValue = 1 }
-                if !b.isEnabled { b.isEnabled = true }
+                // 启用状态交给 AppKit：固定尺寸窗的缩放能力和失焦配色使用系统行为。
             }
         }
         CATransaction.commit()

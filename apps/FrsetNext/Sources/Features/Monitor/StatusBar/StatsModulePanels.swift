@@ -26,7 +26,8 @@ public struct StatsModulePage: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             switch module {
-            case .cpu, .power: CPUStatsPanel()
+            case .cpu: CPUStatsPanel()
+            case .power: MonitorDetailView(selection: MonitorDetailSelection(.power), pageMode: true)
             case .memory: MemoryStatsPanel()
             case .gpu: GPUStatsPanel()
             case .disk: DiskStatsPanel()

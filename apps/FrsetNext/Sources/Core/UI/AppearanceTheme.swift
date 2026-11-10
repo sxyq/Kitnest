@@ -75,8 +75,13 @@ public enum MidnightTheme {
     }
     /// 基础背景覆盖色
     public static var baseBackground: Color { h(Color(red: 0.055, green: 0.067, blue: 0.105)) }
-    /// 卡片背景（略提亮）
-    public static var cardBackground: Color { h(Color(red: 0.09, green: 0.10, blue: 0.15)) }
+    /// 卡片亮度从基色递增，55% 保留原来的 Midnight 卡片色。
+    public static var cardBackground: Color {
+        let lift = Personalization.shared.glassCardLift / 0.55
+        return h(Color(red: 0.055 + 0.035 * lift,
+                       green: 0.067 + 0.033 * lift,
+                       blue: 0.105 + 0.045 * lift))
+    }
     /// 文本主色（冷白偏蓝）
     public static var textColor: Color { h(Color(red: 0.88, green: 0.91, blue: 1.0)) }
 }
@@ -142,6 +147,7 @@ public extension EnvironmentValues {
 /// 根视图注入器：Midnight 时注入背景覆盖与文本用色开关（对齐原作两反射字段语义）
 public struct AppearanceThemeModifier: ViewModifier {
     @ObservedObject var state: AppearanceState
+    @ObservedObject private var personalization = Personalization.shared
 
     public init(state: AppearanceState = .shared) {
         self.state = state

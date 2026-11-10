@@ -47,6 +47,7 @@ final class MenuBarToastAnimationState: ObservableObject {
 /// 通知卡内容（internal：仅本文件装配使用）
 struct MenuBarToastContentView: View {
     @ObservedObject var state: MenuBarToastAnimationState
+    @ObservedObject private var personalization = Personalization.shared
     @Environment(\.colorScheme) private var colorScheme
 
     /// 实际展示的图标：调用方未指定时按警告分态回落
@@ -87,7 +88,7 @@ struct MenuBarToastContentView: View {
                         radius: 12, y: 4)
         }
         .overlay {
-            Capsule().strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+            Capsule().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
         }
         .fixedSize()
         // 阴影留白（2026-10-20 用户反馈「已复制框外面还有一层矩形」根因）：
@@ -118,6 +119,10 @@ final class MenuBarToastManager: NSObject {
 
     /// 复用窗口（不销毁）
     private var toastWindow: NSWindow?
+    @MainActor var captureExcludedWindowID: CGWindowID? {
+        guard let window = toastWindow, window.isVisible else { return nil }
+        return CGWindowID(window.windowNumber)
+    }
     private var hosting: NSHostingController<MenuBarToastContentView>?
     /// 自动隐藏任务（连续 show 时取消旧的）
     private var hideWorkItem: DispatchWorkItem?
@@ -215,9 +220,7 @@ final class MenuBarToastManager: NSObject {
         window.ignoresMouseEvents = true           // 不挡点击（点击穿透）
         window.hidesOnDeactivate = false           // 失活不隐藏
         window.isMovable = false
-        // 提示卡永不进屏幕捕获：它的层级是 statusBar，SCK 的 excludingApplications
-        // 对高 level 覆盖窗不生效（实测：长截图把「长截图：直接滚动目标窗口…」整条截了进去）。
-        // sharingType = .none 是系统级开关，普通截图/录屏/长截图都取不到它。
+        // 旧采集通道使用 sharingType；ScreenCaptureKit 另按窗口 ID 排除提示卡。
         window.sharingType = .none
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.contentView = makeContentView()

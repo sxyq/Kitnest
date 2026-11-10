@@ -169,7 +169,7 @@ public struct ToolRunnerView: View {
                                 ForEach(option.choices, id: \.self) { Text($0).tag($0) }
                             }
                             .labelsHidden()
-                            .pickerStyle(.segmented)
+                            .pickerStyle(.menu)
                             .font(.system(size: 11))
                         }
                     }
@@ -208,9 +208,9 @@ public struct ToolRunnerView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        // v206：独立窗口（onClose 非空）里顶部要给红绿灯留出 30pt，避免压住工具图标/标题
-        .padding(.top, onClose == nil ? 0 : 30)
-        .frame(width: 520, height: 520)
+        // 独立窗口（onClose 非空）里使用统一标题栏净空，不把工具标题压到红绿灯下。
+        .padding(.top, onClose == nil ? 0 : OfficialChrome.titlebarInset)
+        .frame(width: onClose == nil ? 520 : nil, height: onClose == nil ? 520 : nil)
         .onAppear {
             options = tool.defaultOptions()
             // 斜杠命令落地即执行（只跑一次；无输入类工具靠它给结果）
@@ -282,10 +282,8 @@ public struct ToolRunnerView: View {
         switch BuiltinTools.defaultAction {
         case .copy:
             copyText(result.text)
-            statusText = "已复制到剪贴板"
         case .save:
-            ToolboxEventBus.emitResult(result.text, kind: tool.kind)
-            statusText = "已存为剪贴板条目"
+            saveToClipboard(result)
         }
     }
 
@@ -293,17 +291,19 @@ public struct ToolRunnerView: View {
         guard !text.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-        statusText = "已复制到剪贴板"
+        statusText = pasteboard.setString(text, forType: .string)
+            ? "已复制到剪贴板" : "复制失败：无法写入剪贴板"
     }
 
     private func copyImage(_ image: NSImage) {
+        guard let tiff = image.tiffRepresentation else {
+            statusText = "复制失败：无法生成图片数据"
+            return
+        }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        if let tiff = image.tiffRepresentation {
-            pasteboard.setData(tiff, forType: .tiff)
-            statusText = "图片已复制"
-        }
+        statusText = pasteboard.setData(tiff, forType: .tiff)
+            ? "图片已复制" : "复制失败：无法写入剪贴板"
     }
 
     /// 不直接引用剪贴板模块：通过 ToolboxEventBus 回调交给总控

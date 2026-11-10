@@ -57,7 +57,8 @@ struct RecordingSettingsPane: View {
                             Task { await recorder.stop() }
                         }
                         .controlSize(.small)
-                        .keyboardShortcut(.defaultAction)
+                        // v274：去掉 .defaultAction —— 录制中在设置页误按回车
+                        // 会「停止并编辑」，把素材截断（U03-003）。
                     } else {
                         Button("录整屏") { recorder.startDisplayRecording() }
                             .controlSize(.small)

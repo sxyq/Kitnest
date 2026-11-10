@@ -48,15 +48,14 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 560),
-            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false)
         window.title = tool.name
         window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = false   // v208：原生标题栏（唯一实现）
         window.isReleasedWhenClosed = false
         // v181（UI 一致性检查 R3）：统一灰底 + 自绘圆钮，别再露系统白底
-        window.applyOfficialChrome()
+        window.applyOfficialChrome(lights: .standard)
         window.center()
         window.delegate = self
         installContent(tool: tool, autoRun: autoRun, in: window)
@@ -93,6 +92,6 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
         let host = NSHostingView(rootView: AnyView(root))
         host.sizingOptions = []
         if #available(macOS 13.3, *) { host.safeAreaRegions = [] }
-        window.contentView = host
+        window.setOfficialContent(host)
     }
 }

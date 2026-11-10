@@ -30,9 +30,6 @@ struct StatisticsRootView: View {
     private static let hoverDelay: TimeInterval = 0.4
 
     @Environment(\.colorScheme) private var colorScheme
-    // v84（2026-10-20 用户需求「个性化覆盖全局」）：统计窗此前不读个性化——
-    // 强调色不生效、Midnight 主题下背景不跟随（仍用固定灰/深灰）。现接入两者。
-    @ObservedObject private var appearance = AppearanceState.shared
     /// 语言变更后继续刷新现有视图。
     @Stored private var l10nVersion: Int = 0
 
@@ -46,17 +43,10 @@ struct StatisticsRootView: View {
         }
         .frame(width: 660, alignment: .leading)
         .padding(.horizontal, 70)
-        .padding(.top, 58)
+        // v272：32 让开红绿灯 + 26 页面呼吸（原写死 58，已与统一口径对齐）
+        .padding(.top, OfficialChrome.titlebarInset + 26)
         .frame(width: 800, height: 530)
         .foregroundStyle(colorScheme == .dark ? Color.primary : StatisticsPalette.text)
-        .background {
-            if appearance.isMidnight {
-                MidnightTheme.baseBackground
-            } else {
-                // v206：去掉不透明底色，露出统一玻璃底（通透度/磨砂跟随个性化）
-                Color.clear
-            }
-        }
         // 强调色跟随个性化（统计页内的按钮/焦点环）
         // 强调色 + Midnight 统一主题入口（统计窗同源；个性化改色即生效）
         .frsetThemeChrome()

@@ -62,6 +62,9 @@ final class RecordingEditorController {
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        // v272：录屏编辑窗此前完全没走统一外观（裸窗口 + 自绘控件），
+        // 是「所有界面都修过但还漏一个」的最后一处。
+        window.applyOfficialChrome(lights: .standard)
         window.center()
         window.minSize = NSSize(width: 560, height: 420)
 
@@ -122,7 +125,7 @@ final class RecordingEditorController {
         reveal.autoresizingMask = [.minXMargin]
         host.addSubview(reveal)
 
-        window.contentView = host
+        window.setOfficialContent(host)
         return window
     }
 

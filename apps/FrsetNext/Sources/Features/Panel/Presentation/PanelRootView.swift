@@ -99,7 +99,6 @@ struct PanelRootView: View {
     }
 
     // Midnight 主题覆盖（由 .frsetAppearanceTheme() 注入；非 Midnight 时全为 nil/false）
-    @Environment(\.midnightBaseBackgroundOverride) private var midnightBaseBackground
     @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
     @Environment(\.usesMidnightTextColor) private var usesMidnightTextColor
     @Environment(\.midnightTextColorOverride) private var midnightTextColor
@@ -166,7 +165,7 @@ struct PanelRootView: View {
         .onExitCommand { onDismiss() }             // Esc 关闭面板
         // v206：JSON 检视器独立窗已删除 → 面板不再接收「拖 .json 开窗」的拖放
         .background {
-            // v66 个性化背景图（优先）；否则 Midnight 基底
+            // 背景图保留原图；所有外观都继续叠同一通透度底衬与霜感。
             // v101 性能审计：背景图此前每次 body 求值都读盘解码 → 按路径缓存
             if !personalization.backgroundImagePath.isEmpty,
                let image = Self.cachedBackgroundImage(path: personalization.backgroundImagePath) {
@@ -179,10 +178,10 @@ struct PanelRootView: View {
                             .clipped()
                         Color(nsColor: .windowBackgroundColor)
                             .opacity(personalization.backgroundImageDim)
+                        GlassSurface(includesBlur: false)
                     }
                 }
-            } else if let base = midnightBaseBackground { base }
-            else {
+            } else {
                 // v203（用户：「通透度/磨砂改了无效」）：主面板原本只有窗口里那层
                 // NSVisualEffectView，两个滑块完全读不到。这里叠统一结构面的
                 // 「通透度底衬 + 磨砂霜感」（includesBlur=false，不叠第二层模糊，

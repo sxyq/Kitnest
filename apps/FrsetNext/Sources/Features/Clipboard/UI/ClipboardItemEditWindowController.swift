@@ -107,12 +107,12 @@ public final class ClipboardItemEditWindowController: NSWindowController, NSWind
                              backing: .buffered,
                              defer: false)
         panel.title = "编辑条目"
-        panel.applyOfficialChrome()   // 官方外观：灰底 + 透明标题栏
         panel.level = .floating
         panel.isReleasedWhenClosed = false
         super.init(window: panel)
         panel.delegate = self
         buildLayout(initialContent: initialContent)
+        panel.applyOfficialChrome()
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（编辑窗走代码构建）") }
@@ -202,20 +202,23 @@ public final class ClipboardItemEditWindowController: NSWindowController, NSWind
     }
 
     @objc private func saveTapped(_ sender: NSButton) {
+        aliasDidChange(aliasField)
         let snapshot = session.snapshot()
         let alias = snapshot.aliasTitle
         let content = textView.string
-        storage.saveContent(dedupeKey: item.dedupeKey, newContent: content)
-        storage.rename(item, aliasTitle: alias)
-        session.markSaved(aliasTitle: alias)
-
-        var updated = item
-        updated.aliasTitle = alias
-        if (content as NSString).length <= ClipboardManager.inlineTextByteLimit { updated.content = content }
-        item = updated
-
-        delegate?.editWindow(self, didSave: updated)
-        close()
+        let aliasText = aliasField.stringValue
+        storage.saveContent(dedupeKey: item.dedupeKey, newContent: content, aliasTitle: alias ?? "") { [self] updated in
+            guard let updated else {
+                Toast.show("保存失败", icon: "exclamationmark.triangle")
+                return
+            }
+            item = updated
+            delegate?.editWindow(self, didSave: updated)
+            if textView.string == content, aliasField.stringValue == aliasText {
+                session.markSaved(aliasTitle: alias)
+                close()
+            }
+        }
     }
 
     @objc private func cancelTapped(_ sender: NSButton) {

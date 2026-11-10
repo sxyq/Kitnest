@@ -202,17 +202,11 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     /// ⌥M：可见则收起，否则按 module（缺省 = 上次查看的模块）打开
     public func toggle(module: MonitorModuleID? = nil) {
-        // v247：神灯在跑就立刻掉头——展开中→收起、收起中→再展开，
-        // 不再等这一腿跑完（那样连点就是「一顿一顿」）
-        if GenieWarp.isRunning {
-            if GenieWarp.isOpening {
-                dismissPopout()
-            } else {
-                reverseToOpen(module: module)
-            }
-            return
-        }
-        if isVisible {
+        // 2026-11-11「点外不能收起」：只对本窗在途收起掉头。
+        // 主面板收起时，隐藏监测窗必须走 open，才能注册点外监听。
+        if isVisible, isDismissing {
+            reverseToOpen(module: module)
+        } else if isVisible {
             dismissPopout()
         } else {
             open(module: module)
@@ -260,12 +254,12 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
         if parked { w.setFrameOrigin(parkOrigin(for: w, dest: dest)) }
-        // v197：入场动画挪到 makeKey 之后——先上屏再展开，避免动画时钟在布局期间跑掉
-        playAppearAnimation(anchor: anchor)
         // 点外收起：统一注册到 TransientWindowCenter（全工程唯一实现）
         TransientWindowCenter.shared.register(
             window: w,
             onDismiss: { [weak self] in self?.dismissPopout() })
+        // 先让注册收起旧窗口，再播放本窗，避免旧窗口收起抢走共享神灯。
+        playAppearAnimation(anchor: anchor)
         // 采样门控：窗口可见期间用用户刷新间隔
         MonitorSampler.shared.setPanelActive(true)
         Log.info("Monitor", "监测独立窗口：打开（\(target.displayName)）")

@@ -45,6 +45,7 @@ public final class AppearanceManager: ObservableObject {
         }
         applyNSAppearance()
         AppearanceState.shared.isMidnight = isMidnight        // 同步给共享层的视图注入器
+        NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
         Log.info("Appearance", "外观已切换: \(newMode.rawValue)")
     }
 
@@ -52,6 +53,7 @@ public final class AppearanceManager: ObservableObject {
     public func applyCurrent() {
         applyNSAppearance()
         AppearanceState.shared.isMidnight = isMidnight        // 同步给共享层的视图注入器
+        NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
     }
 
     /// NSAppearance 通道（仅系统 Aqua/DarkAqua，对齐原作 @0x10021a020 函数族）

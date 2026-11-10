@@ -54,10 +54,14 @@ struct SettingsSection<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+        // v273：title 为空时不画标题行——二级页的页头已经有大标题，
+        // 段内再写一遍同名的会形成「标题下又一个同名标题」的重复。
+        VStack(alignment: .leading, spacing: title.isEmpty ? 0 : 8) {
+            if !title.isEmpty {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
             content()
         }
     }

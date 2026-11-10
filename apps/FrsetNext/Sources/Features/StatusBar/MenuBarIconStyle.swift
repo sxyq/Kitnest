@@ -264,7 +264,7 @@ final class MenuBarIconStyleMenuActions: NSObject {
     /// 打开设置页的「通用」页签（图标样式区在菜单栏分节内）
     @objc func openCustomIconSettings(_ sender: Any?) {
         MenuBarIconStyleApplier.shared.refresh()
-        ServiceLocator.settings?.open(pane: "general")
+        ServiceLocator.settings?.open(pane: "menubar")
     }
 
     /// 隐藏自定义图标选项（v83：原彩蛋 hide 对话框随彩蛋机制一并移除，直接执行）

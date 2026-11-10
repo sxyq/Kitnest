@@ -61,7 +61,7 @@ public struct CurtainSettingsPane: View {
     // MARK: 总开关
 
     private var masterSwitch: some View {
-        // 外层 CaptureHubPane 已有「图帘」大标题，这里不再重复一次
+        // 外层 CaptureBlockPage 已有「图帘」页标题，这里不再重复一次
         SettingsSection("启用") {
             SettingsGroupBox {
                 HStack(alignment: .top, spacing: 12) {

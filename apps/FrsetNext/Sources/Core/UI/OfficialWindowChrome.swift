@@ -8,11 +8,9 @@ import AppKit
 // 而内容区 562）→ 上下各露 32pt 白条（用户实测截图确认）。
 //
 // 修复：所有内容型窗口创建处调用 `applyOfficialChrome()`：
-//   · backgroundColor 透明，玻璃底铺在 contentView 之下
-//   · 标题栏保留系统原生材质（v209 起），红绿灯为标准三钮
-// v260：系统标题栏材质 + 全窗半透明玻璃底曾在同一区域叠出两层颜色，
-// 红绿灯那一带最明显（用户「颜色分层」）；现去掉自动分隔线，并让玻璃底
-// 避开标题栏区（见 LiquidGlass.installUnifiedGlassBackground）。
+//   · 内容玻璃贯穿标题栏与正文，两处不再叠不同颜色的底带
+//   · 标题与红绿灯仍使用 AppKit 标准控件
+// 内容与标题栏背景均通过公开视图和窗口属性设置，不向 NSThemeFrame 插入视图。
 //
 // v272（用户：「红绿灯还是会出现问题，所有页面一个一个统一」）：
 //   · 空心灰圈的根因是 styleMask 缺 .miniaturizable / .resizable —— macOS 27
@@ -34,7 +32,7 @@ public enum OfficialChromeLights {
 
 /// 标题栏策略
 public enum OfficialChromeTitlebar {
-    /// 系统原生不透明标题栏（默认）
+    /// 系统原生标题与按钮；背景由贯穿整窗的玻璃承托
     case native
     /// 透明标题栏 + 内容自绘标题（OCR 结果窗这类左边要固定让位的窗口）
     case custom
@@ -68,19 +66,16 @@ public extension NSWindow {
     /// 并且只有这一处实现」。所有内容窗只允许调用本方法，不再各写一套：
     ///   · 玻璃：背后统一玻璃底（毛玻璃 → 通透度底衬 → 磨砂霜感）
     ///   · 圆角：自绘 0 —— 标准窗交给系统原生圆角，避免系统圆角内再套一层
-    ///   · 标题栏：macOS 原生材质 + 无分隔线 + 原生红黄绿三钮（三颗均可用）
+    ///   · 标题栏：无分隔线 + 原生红黄绿三钮，启用状态由 AppKit 决定
     ///
     /// - Parameters:
     ///   - glassBacking: 窗口内容自己已经是统一玻璃面（主面板 / 玻璃浮层）时传 false。
     ///   - lights: 红绿灯策略；`.standard/.fixed` 会补齐 styleMask 能力位，
     ///     `.hidden` 用于瞬时面板。
-    ///   - titlebar: `.native` 原生标题栏；`.custom` 透明标题栏（内容自绘标题）。
+    ///   - titlebar: `.native` 原生标题；`.custom` 内容自绘标题；背景统一透明。
     func applyOfficialChrome(glassBacking: Bool = true,
                              lights: OfficialChromeLights = .standard,
                              titlebar: OfficialChromeTitlebar = .native) {
-        isOpaque = false
-        backgroundColor = .clear
-
         // v272：能力位统一在这里补。缺 .miniaturizable / .resizable 时 AppKit 会把
         // 对应按钮判为禁用，macOS 27 对禁用态的的画法就是「空心灰圈」。
         switch lights {
@@ -90,8 +85,10 @@ public extension NSWindow {
             break
         }
 
-        // 全部交还 macOS 原生标题栏——原生材质 + 原生红绿灯，不再自绘标题带。
-        titlebarAppearsTransparent = (titlebar == .custom)
+        // 标题栏只保留原生按钮/标题，不再单独绘制白色材质带。
+        // 背景由同一个 fullSizeContentView 玻璃容器贯穿标题栏与正文。
+        titlebarAppearsTransparent = true
+        applyOfficialBackground()
         // v272：v260 曾统一去掉分隔线，中途为排障改回 .automatic 后忘了还原，
         // 红绿灯下方因此多出一条系统线，与玻璃发丝边叠成「双层」。这里固定 .none。
         titlebarSeparatorStyle = .none
@@ -101,6 +98,12 @@ public extension NSWindow {
         }
         // 统一红黄绿三钮（不再用自绘灰圆钮；曾被隐藏的按钮一并恢复）
         restoreStandardTrafficLights(policy: lights == .hidden ? .hidden : .enabled)
+    }
+
+    /// 窗口底透明，实际背景由统一玻璃容器承托，不叠另一层窗口填色。
+    func applyOfficialBackground() {
+        isOpaque = false
+        backgroundColor = .clear
     }
 
     /// 替换内容视图并保持统一外观（v272）。

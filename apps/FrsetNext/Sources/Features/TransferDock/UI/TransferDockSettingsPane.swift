@@ -14,6 +14,11 @@ import SwiftUI
 // 面板中转页据此重新判可见性并重启/停止直传服务。
 
 struct TransferDockSettingsPane: View {
+    /// v272：文件中转拆成五个二级页（显示 / 投屏画质 / 手机扫码直传 / 云端中转 / 本地暂存），
+    /// 侧边栏一项对一页；状态仍由本视图持有，一页只渲染一段。
+    enum Section: Hashable { case display, cast, scan, cloud, local }
+    var section: Section = .display
+
     @AppStorage(TransferDockPref.featureEnabled) private var featureEnabled = true
     @AppStorage(TransferDockPref.panelVisible) private var panelVisible = true
     @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
@@ -30,215 +35,12 @@ struct TransferDockSettingsPane: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            SettingsSection("显示") {
-                SettingsGroupBox {
-                    row("启用文件中转", subtitle: "关掉后中转功能整体下线，面板顶部的「中转 / 投屏」分段一起隐藏；功能开启后是否显示分段，由「个性化 → 主面板页面」决定") {
-                        Toggle("", isOn: $featureEnabled)
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                            .onChange(of: featureEnabled) { _ in notifyChange() }
-                    }
-                }
-            }
-
-            SettingsSection("投屏画质") {
-                SettingsGroupBox {
-                    row("分辨率", subtitle: "短边上限；「原始」= 设备原生分辨率（更清晰、更吃带宽）") {
-                        Picker("", selection: Binding(
-                            get: { TransferDockPref.CastQuality.maxSize },
-                            set: { TransferDockPref.CastQuality.maxSize = $0; notifyChange() })) {
-                            ForEach(TransferDockPref.CastQuality.sizeOptions, id: \.1) { opt in
-                                Text(opt.1 == 0 ? "原始" : "\(opt.0)p").tag(opt.1)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 110)
-                    }
-                    SettingsDivider()
-                    row("码率", subtitle: "越高越清晰；Wi-Fi 不稳时降到 8-16") {
-                        Picker("", selection: Binding(
-                            get: { TransferDockPref.CastQuality.bitrate },
-                            set: { TransferDockPref.CastQuality.bitrate = $0; notifyChange() })) {
-                            ForEach(TransferDockPref.CastQuality.bitrateOptions, id: \.self) { b in
-                                Text("\(b) Mbps").tag(b)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 110)
-                    }
-                    SettingsDivider()
-                    row("帧率", subtitle: "30 省电；60 顺滑；90 高刷屏") {
-                        Picker("", selection: Binding(
-                            get: { TransferDockPref.CastQuality.fps },
-                            set: { TransferDockPref.CastQuality.fps = $0; notifyChange() })) {
-                            ForEach(TransferDockPref.CastQuality.fpsOptions, id: \.self) { f in
-                                Text(f == 0 ? "默认" : "\(f) fps").tag(f)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 110)
-                    }
-                    SettingsDivider()
-                    // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
-                    row("双向剪贴板", subtitle: "Mac↔手机剪贴板自动同步；关闭后投屏/Meld 窗口不再同步剪贴板") {
-                        Toggle("", isOn: Binding(
-                            get: { TransferDockPref.CastQuality.clipboardAutoSync },
-                            set: { TransferDockPref.CastQuality.clipboardAutoSync = $0; notifyChange() }))
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    }
-                    SettingsDivider()
-                    row("当前参数", subtitle: TransferDockPref.CastQuality.summary + "（下次启动投屏时生效）") {
-                        Button("恢复推荐") {
-                            TransferDockPref.CastQuality.maxSize = 1920
-                            TransferDockPref.CastQuality.bitrate = 16
-                            TransferDockPref.CastQuality.fps = 60
-                            notifyChange()
-                        }
-                        .controlSize(.small)
-                    }.id(revision)   // v260：无发布者 Binding 改完不刷新「当前参数」摘要
-                }
-            }
-
-            SettingsSection("手机扫码直传") {
-                SettingsGroupBox {
-                    row("启用", subtitle: "手机与本机在同一 Wi-Fi，扫码即可在浏览器里上传/下载") {
-                        Toggle("", isOn: $lanEnabled)
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                            .onChange(of: lanEnabled) { on in
-                                // 只在关闭时停服务；开启不自动启动（2026-10-20 用户需求）：
-                                // 服务按需启动——中转页勾选文件点「扫码直传」，或点下方「启动」。
-                                if !on { lan.stop() }
-                                notifyChange()
-                            }
-                    }
-                    SettingsDivider()
-                    row("端口", subtitle: portSubtitle) {
-                        HStack(spacing: 10) {
-                            TextField("8787", text: $portText)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 76)
-                                .disabled(!lanEnabled)
-                                .onSubmit { applyPort() }
-                            Button("应用") { applyPort() }
-                                .controlSize(.small)
-                                .disabled(!lanEnabled)
-                        }
-                    }
-                    SettingsDivider()
-                    row("访问地址", subtitle: lan.running
-                        ? "手机浏览器打开即可上传/下载"
-                        : "服务未启动 · 勾选文件后点「扫码直传」，或手动启动") {
-                        HStack(spacing: 10) {
-                            Text(lan.shareURL ?? "—")
-                                .font(.system(size: 11.5, design: .monospaced))
-                                .foregroundStyle(lan.shareURL == nil ? .tertiary : .secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .textSelection(.enabled)
-                            if let url = lan.shareURL {
-                                Button("复制") { copy(url) }.controlSize(.small)
-                                Button("打开") {
-                                    if let u = URL(string: url) { NSWorkspace.shared.open(u) }
-                                }
-                                .controlSize(.small)
-                                Button("停止") { lan.stop(); revision += 1 }
-                                    .controlSize(.small)
-                            } else {
-                                Button("启动") {
-                                    lan.startIfEnabled()
-                                    revision += 1
-                                }
-                                .controlSize(.small)
-                                .disabled(!lanEnabled)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    SettingsDivider()
-                    row("二维码", subtitle: "重新生成后，之前扫过的链接立即失效") {
-                        HStack(spacing: 14) {
-                            if let url = lan.shareURL {
-                                QRCodeView(text: url, size: 84)
-                            }
-                            VStack(alignment: .leading, spacing: 8) {
-                                Button("重新生成") { lan.rotateToken(); revision += 1 }
-                                    .controlSize(.small)
-                                    .disabled(!lanEnabled)
-                                Text("手机相机 / 微信扫一扫 → 打开直传页")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    }
-                }
-            }
-
-            SettingsSection("云端中转（OPPO）") {
-                SettingsGroupBox {
-                    row("启用云端通道", subtitle: "关闭后主面板不再显示云端分区，只剩本地暂存") {
-                        Toggle("", isOn: $cloudEnabled)
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                            .onChange(of: cloudEnabled) { _ in
-                                bridgeAvailable = TransferDockPath.isAvailable
-                                notifyChange()
-                            }
-                    }
-                    SettingsDivider()
-                    row("桥接工程", subtitle: bridgeAvailable
-                        ? "已找到 frset_bridge.py／登录态文件"
-                        : "未找到工程：云端分区会自动隐藏") {
-                        HStack(spacing: 10) {
-                            Text(bridgePath)
-                                .font(.system(size: 11.5, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .frame(maxWidth: 300, alignment: .leading)
-                            Button("选择…") { chooseBridgeFolder() }
-                                .controlSize(.small)
-                            Button("在 Finder 中显示") {
-                                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: bridgePath)])
-                            }
-                            .controlSize(.small)
-                            Spacer(minLength: 0)
-                        }
-                    }
-                }
-            }
-
-            SettingsSection("本地暂存") {
-                SettingsGroupBox {
-                    row("剪贴板文件自动暂存", subtitle: "复制 Word / PPT / Excel / PDF / 压缩包等文件时，自动进本地暂存") {
-                        Toggle("", isOn: $autoStageClipboard)
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    }
-                    SettingsDivider()
-                    row("暂存目录", subtitle: "手机上传的文件落在同一处") {
-                        HStack(spacing: 10) {
-                            Text(LocalTransferPaths.root.path)
-                                .font(.system(size: 11.5, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .frame(maxWidth: 300, alignment: .leading)
-                            Button("打开") { local.openStagingFolder() }
-                                .controlSize(.small)
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    SettingsDivider()
-                    row("清空暂存", subtitle: "共 \(local.items.count) 项；只删中转里的链接/副本，不动原文件") {
-                        Button("清空") {
-                            local.clearAll()
-                            Toast.show("已清空本地中转", icon: "trash")
-                        }
-                        .controlSize(.small)
-                        .disabled(local.items.isEmpty)
-                    }
-                }
+            switch section {
+            case .display: displaySection
+            case .cast:    castSection
+            case .scan:    scanSection
+            case .cloud:   cloudSection
+            case .local:   localSection
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -255,26 +57,255 @@ struct TransferDockSettingsPane: View {
         }
     }
 
+    // MARK: - 二级页内容
+
+    /// 二级页：显示
+    private var displaySection: some View {
+        SettingsSection("显示") {
+            SettingsGroupBox {
+                row("启用文件中转", subtitle: "关掉后中转功能整体下线，面板顶部的「中转 / 投屏」分段一起隐藏；功能开启后是否显示分段，由「个性化 → 主面板页面」决定") {
+                    Toggle("", isOn: $featureEnabled)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .onChange(of: featureEnabled) { _ in notifyChange() }
+                }
+            }
+        }
+    }
+
+    /// 二级页：投屏画质
+    private var castSection: some View {
+        SettingsSection("投屏画质") {
+            SettingsGroupBox {
+                row("分辨率", subtitle: "短边上限；「原始」= 设备原生分辨率（更清晰、更吃带宽）") {
+                    Picker("", selection: Binding(
+                        get: { TransferDockPref.CastQuality.maxSize },
+                        set: { TransferDockPref.CastQuality.maxSize = $0; notifyChange() })) {
+                        ForEach(TransferDockPref.CastQuality.sizeOptions, id: \.1) { opt in
+                            Text(opt.1 == 0 ? "原始" : "\(opt.0)p").tag(opt.1)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 110)
+                }
+                SettingsDivider()
+                row("码率", subtitle: "越高越清晰；Wi-Fi 不稳时降到 8-16") {
+                    Picker("", selection: Binding(
+                        get: { TransferDockPref.CastQuality.bitrate },
+                        set: { TransferDockPref.CastQuality.bitrate = $0; notifyChange() })) {
+                        ForEach(TransferDockPref.CastQuality.bitrateOptions, id: \.self) { b in
+                            Text("\(b) Mbps").tag(b)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 110)
+                }
+                SettingsDivider()
+                row("帧率", subtitle: "30 省电；60 顺滑；90 高刷屏") {
+                    Picker("", selection: Binding(
+                        get: { TransferDockPref.CastQuality.fps },
+                        set: { TransferDockPref.CastQuality.fps = $0; notifyChange() })) {
+                        ForEach(TransferDockPref.CastQuality.fpsOptions, id: \.self) { f in
+                            Text(f == 0 ? "默认" : "\(f) fps").tag(f)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 110)
+                }
+                SettingsDivider()
+                // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
+                row("双向剪贴板", subtitle: "Mac↔手机剪贴板自动同步；关闭后投屏/Meld 窗口不再同步剪贴板") {
+                    Toggle("", isOn: Binding(
+                        get: { TransferDockPref.CastQuality.clipboardAutoSync },
+                        set: { TransferDockPref.CastQuality.clipboardAutoSync = $0; notifyChange() }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                SettingsDivider()
+                row("当前参数", subtitle: TransferDockPref.CastQuality.summary + "（下次启动投屏时生效）") {
+                    Button("恢复推荐") {
+                        TransferDockPref.CastQuality.maxSize = 1920
+                        TransferDockPref.CastQuality.bitrate = 16
+                        TransferDockPref.CastQuality.fps = 60
+                        notifyChange()
+                    }
+                    .controlSize(.small)
+                }.id(revision)   // v260：无发布者 Binding 改完不刷新「当前参数」摘要
+            }
+        }
+    }
+
+    /// 二级页：手机扫码直传
+    private var scanSection: some View {
+        SettingsSection("手机扫码直传") {
+            SettingsGroupBox {
+                row("启用", subtitle: "手机与本机在同一 Wi-Fi，扫码即可在浏览器里上传/下载") {
+                    Toggle("", isOn: $lanEnabled)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .onChange(of: lanEnabled) { on in
+                            // 只在关闭时停服务；开启不自动启动（2026-10-20 用户需求）：
+                            // 服务按需启动——中转页勾选文件点「扫码直传」，或点下方「启动」。
+                            if !on { lan.stop() }
+                            notifyChange()
+                        }
+                }
+                SettingsDivider()
+                row("端口", subtitle: portSubtitle) {
+                    HStack(spacing: 10) {
+                        TextField("8787", text: $portText)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 76)
+                            .disabled(!lanEnabled)
+                            .onSubmit { applyPort() }
+                        Button("应用") { applyPort() }
+                            .controlSize(.small)
+                            .disabled(!lanEnabled)
+                    }
+                }
+                SettingsDivider()
+                row("访问地址", subtitle: lan.running
+                    ? "手机浏览器打开即可上传/下载"
+                    : "服务未启动 · 勾选文件后点「扫码直传」，或手动启动") {
+                    HStack(spacing: 10) {
+                        Text(lan.shareURL ?? "—")
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .foregroundStyle(lan.shareURL == nil ? .tertiary : .secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                        if let url = lan.shareURL {
+                            Button("复制") { copy(url) }.controlSize(.small)
+                            Button("打开") {
+                                if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+                            }
+                            .controlSize(.small)
+                            Button("停止") { lan.stop(); revision += 1 }
+                                .controlSize(.small)
+                        } else {
+                            Button("启动") {
+                                lan.startIfEnabled()
+                                revision += 1
+                            }
+                            .controlSize(.small)
+                            .disabled(!lanEnabled)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+                SettingsDivider()
+                row("二维码", subtitle: "重新生成后，之前扫过的链接立即失效") {
+                    HStack(spacing: 14) {
+                        if let url = lan.shareURL {
+                            QRCodeView(text: url, size: 84)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Button("重新生成") { lan.rotateToken(); revision += 1 }
+                                .controlSize(.small)
+                                .disabled(!lanEnabled)
+                            Text("手机相机 / 微信扫一扫 → 打开直传页")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+    }
+
+    /// 二级页：云端中转
+    private var cloudSection: some View {
+        SettingsSection("云端中转（OPPO）") {
+            SettingsGroupBox {
+                row("启用云端通道", subtitle: "关闭后主面板不再显示云端分区，只剩本地暂存") {
+                    Toggle("", isOn: $cloudEnabled)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                        .onChange(of: cloudEnabled) { _ in
+                            bridgeAvailable = TransferDockPath.isAvailable
+                            notifyChange()
+                        }
+                }
+                SettingsDivider()
+                row("桥接工程", subtitle: bridgeAvailable
+                    ? "已找到 frset_bridge.py／登录态文件"
+                    : "未找到工程：云端分区会自动隐藏") {
+                    HStack(spacing: 10) {
+                        Text(bridgePath)
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 300, alignment: .leading)
+                        Button("选择…") { chooseBridgeFolder() }
+                            .controlSize(.small)
+                        Button("在 Finder 中显示") {
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: bridgePath)])
+                        }
+                        .controlSize(.small)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+    }
+
+    /// 二级页：本地暂存
+    private var localSection: some View {
+        SettingsSection("本地暂存") {
+            SettingsGroupBox {
+                row("剪贴板文件自动暂存", subtitle: "复制 Word / PPT / Excel / PDF / 压缩包等文件时，自动进本地暂存") {
+                    Toggle("", isOn: $autoStageClipboard)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                SettingsDivider()
+                row("暂存目录", subtitle: "手机上传的文件落在同一处") {
+                    HStack(spacing: 10) {
+                        Text(LocalTransferPaths.root.path)
+                            .font(.system(size: 11.5, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 300, alignment: .leading)
+                        Button("打开") { local.openStagingFolder() }
+                            .controlSize(.small)
+                        Spacer(minLength: 0)
+                    }
+                }
+                SettingsDivider()
+                row("清空暂存", subtitle: "共 \(local.items.count) 项；只删中转里的链接/副本，不动原文件") {
+                    Button("清空") {
+                        local.clearAll()
+                        Toast.show("已清空本地中转", icon: "trash")
+                    }
+                    .controlSize(.small)
+                    .disabled(local.items.isEmpty)
+                }
+            }
+        }
+    }
+
     // MARK: - 行样式（与通用页一致：190pt 标题列 + 右侧控件）
 
     private func row<Content: View>(_ title: String, subtitle: String? = nil,
                                     @ViewBuilder content: () -> Content) -> some View {
-        HStack(alignment: .center, spacing: 24) {
-            VStack(alignment: .trailing, spacing: 2) {
+        // v272：与 SettingsRow 同构（左标题 / 副标题，右控件），
+        // 不再用 190pt 右对齐标题列——同一窗口两种版式是「不统一」的主要来源
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12, weight: .medium))
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: 11))
                         .foregroundStyle(Theme.tertiaryText)
-                        .multilineTextAlignment(.trailing)
+                        .multilineTextAlignment(.leading)
                         .lineLimit(2)
                 }
             }
-            .frame(width: 190, alignment: .trailing)
+            Spacer(minLength: 16)
             content()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(minHeight: 44)
     }

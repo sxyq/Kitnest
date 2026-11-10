@@ -5,7 +5,7 @@ import SwiftUI
 
 /// StatisticsWindowController：SwiftUI + NSWindow 底座
 /// 采用同机原版使用统计.png 的整窗 800×562 pt，保留现有单例和窗口标识。
-/// 空标题与透明标题栏，仅显示关闭按钮。
+/// 标题栏不重复绘制内容标题，保留系统三颗窗口按钮。
 public final class StatisticsWindowController: NSWindowController, NSWindowDelegate {
 
     public static let shared = StatisticsWindowController()
@@ -19,11 +19,12 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         // 统计窗无 setFrameAutosaveName，不存在旧帧覆盖问题。
         let contentRect = NSRect(x: 0, y: 0, width: 800, height: 530)
         let window = NSWindow(contentRect: contentRect,
-                              styleMask: [.titled, .closable, .fullSizeContentView],
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable,
+                                          .fullSizeContentView],
                               backing: .buffered,
                               defer: false)
         self.init(window: window)
-        window.title = ""                                   // 原作 setTitle: 传空串
+        window.title = "使用统计"
         window.titleVisibility = .hidden
         // v260：标题栏/分隔线/isOpaque 全部由 applyOfficialChrome() 唯一入口决定，
         // 这里不再各写一套（v208 的 .automatic 分隔线正是深色下红绿灯下方那条色带）。
@@ -31,7 +32,8 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
         window.hasShadow = true
         // 官方外观：统一灰底（同设置窗——fullSizeContentView + 透明标题栏下
         // 根视图固定 530 而内容区 562，露底必须是官方灰，否则上下白条）
-        window.applyOfficialChrome()
+        // v272：固定尺寸窗也补齐三能力位（min=max），否则黄/绿会被判为禁用 → 空心灰圈。
+        window.applyOfficialChrome(lights: .fixed)
         window.isReleasedWhenClosed = false                 // setReleasedWhenClosed:（控制器复用同一窗）
         window.hidesOnDeactivate = false                    // setHidesOnDeactivate: 调用存在，取值 ⬜（统计窗取不隐藏）
         window.delegate = self
@@ -51,7 +53,8 @@ public final class StatisticsWindowController: NSWindowController, NSWindowDeleg
             let hostingView = NSHostingView(rootView: StatisticsRootView())
             hostingView.sizingOptions = []
             if #available(macOS 13.3, *) { hostingView.safeAreaRegions = [] }
-            window.contentView = hostingView
+            // v272：换内容后重挂玻璃底（旧写法 apply 早于这里，玻璃会压在旧内容层级下）
+            window.setOfficialContent(hostingView)
 
         }
     }

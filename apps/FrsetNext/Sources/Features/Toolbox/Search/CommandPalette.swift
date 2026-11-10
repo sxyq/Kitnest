@@ -293,7 +293,8 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
         isReleasedWhenClosed = false
         // v209：唯一窗口外观入口。根视图已是 .glassPlate() 统一玻璃面，
         // 窗口不再叠第二层玻璃底；标题栏/圆角/红绿灯统一由 applyOfficialChrome 处理。
-        applyOfficialChrome(glassBacking: false)
+        // v272：瞬时命令面板不摆三颗假按钮（它们永远不是 key，会一直是空心灰圈）
+        applyOfficialChrome(glassBacking: false, lights: .hidden)
 
         let controller = CommandPaletteState(initialQuery: initialQuery)
         controller.onDismiss = { [weak self] in self?.close() }
@@ -351,12 +352,13 @@ final class CommandPaletteState: ObservableObject {
         } else {
             query = "/"
         }
-        selectedIndex = 0
         refilter()
     }
 
     /// FuzzyMatcher 过滤 + 评分排序
     func refilter() {
+        // 查询变化后从最佳匹配开始，即使结果顺序未变也不沿用旧序号。
+        selectedIndex = 0
         let q = query.trimmingCharacters(in: .whitespaces)
 
         // ── 命令模式：只列工具命令，按 token / 别名命中 ──
@@ -408,11 +410,6 @@ final class CommandPaletteState: ObservableObject {
     private func publish(_ next: [CommandItem]) {
         if next.map(\.id) != items.map(\.id) {
             items = next
-        }
-        if !items.isEmpty {
-            selectedIndex = min(max(selectedIndex, 0), items.count - 1)
-        } else {
-            selectedIndex = 0
         }
     }
 
@@ -499,7 +496,10 @@ struct CommandPaletteView: View {
                                 .onHover { hovering in
                                     if hovering { state.selectedIndex = index }
                                 }
-                                .onTapGesture { state.executeSelected() }
+                                .onTapGesture {
+                                    state.selectedIndex = index
+                                    state.executeSelected()
+                                }
                         }
                     }
                     .padding(.vertical, 4)
@@ -544,8 +544,8 @@ struct CommandPaletteView: View {
             .background(
                 KeyEventCatcher { event in
                     switch event.keyCode {
-                    case 0x7D: state.move(-1); return true     // ↓
-                    case 0x7E: state.move(1); return true      // ↑
+                    case 0x7D: state.move(1); return true      // ↓ 下移（v274 修正接反）
+                    case 0x7E: state.move(-1); return true     // ↑ 上移
                     case 0x35: state.onDismiss?(); return true // Esc
                     default: return false
                     }

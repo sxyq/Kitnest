@@ -98,7 +98,7 @@ struct WelcomeView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
-        .padding(.top, 36)   // v208：让出 macOS 原生标题栏高度
+        .padding(.top, OfficialChrome.titlebarInset)   // v272：统一标题栏净空
         .padding(.bottom, 12)
     }
 
@@ -212,7 +212,8 @@ struct WelcomeView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
-                hotkeyRow("⌥Space", "打开 / 收起主面板")
+                hotkeyRow("⌥A", "打开 / 收起主面板")
+                hotkeyRow("⌥V", "打开剪贴板面板")
                 hotkeyRow("⌥F", "打开并聚焦搜索框")
                 hotkeyRow("⌥S", "区域截图")
                 hotkeyRow("⇧⌥W", "窗口截图")
@@ -222,7 +223,7 @@ struct WelcomeView: View {
                 hotkeyRow("⇧⌥P", "截图并贴图")
                 hotkeyRow("⇧⌥D", "划词翻译")
                 hotkeyRow("⌥C", "取色")
-                hotkeyRow("⇧⌘9", "悬浮剪贴板")
+                hotkeyRow("⇧⌘V", "悬浮剪贴板")
                 hotkeyRow("⇧⌥R", "暂停 / 恢复剪贴板")
                 hotkeyRow("⌥P", "性能监测")
                 hotkeyRow("⌥M", "监测独立窗口")
@@ -259,11 +260,18 @@ struct WelcomeView: View {
                 .font(.system(size: 20))
                 .foregroundStyle(permissions.allCoreGranted ? Color(nsColor: .systemGreen) : Color.orange)
             VStack(alignment: .leading, spacing: 2) {
-                Text(permissions.allCoreGranted ? "核心权限已就绪" : "还差一步：完成权限引导")
+                Text(permissions.allCoreGranted ? "核心权限已就绪" : "核心权限尚未就绪")
                     .font(.system(size: 13, weight: .semibold))
-                Text(permissions.allCoreGranted
-                     ? "屏幕录制与辅助功能均已授权，全部功能可用。"
-                     : "截图、自动粘贴、全局快捷键需要系统授权，约 30 秒完成。")
+                Group {
+                    if permissions.allCoreGranted {
+                        Text("屏幕录制与辅助功能均已授权。")
+                    } else {
+                        ForEach(PermissionKind.allCases.filter { $0.isCore && !permissions.status($0).isGranted }) { kind in
+                            Text("\(kind.title)\(permissions.status(kind).label)：\(kind.features.joined(separator: "、"))暂不可用")
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
