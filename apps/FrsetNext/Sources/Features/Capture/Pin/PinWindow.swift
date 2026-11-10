@@ -1385,12 +1385,8 @@ final class PinnedScreenshotContentView: NSView {
     @objc func copyClicked() {
         hideChrome()
         let flat = flattenedImage()
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        if let data = ImageProcessor.pngData(flat) {
-            pb.setData(data, forType: .png)
-            Toast.show("已拷贝钉图", icon: "doc.on.doc.fill")
-        }
+        guard ScreenshotManager.shared.copyToPasteboard(flat) else { return }
+        Toast.show("已拷贝钉图", icon: "doc.on.doc.fill")
     }
 
     @objc func closeClicked() {
@@ -1492,8 +1488,12 @@ public final class PinnedScreenshotManager: NSObject {
                 self?.closeActive()
                 return nil
             case 51, 117:       // Delete / Forward Delete
+                guard let key = NSApp.keyWindow,
+                      self?.windows.contains(where: { $0 === key }) == true else {
+                    return event
+                }
                 self?.closeActive()
-                return event
+                return nil
             default:
                 return event
             }

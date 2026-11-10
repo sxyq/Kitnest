@@ -11,11 +11,11 @@ import Foundation
 
 public enum AIEventBus {
     /// AI 产出的文本（已结束 streaming，参数为最终全文）
-    public static var onResultProduced: ((String) -> Void)?
+    public static var onResultProduced: ((String) -> Bool)?
 
     /// 便捷调用
-    public static func emitResult(_ text: String) {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        onResultProduced?(text)
+    public static func emitResult(_ text: String) -> Bool {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        return onResultProduced?(text) ?? false
     }
 }

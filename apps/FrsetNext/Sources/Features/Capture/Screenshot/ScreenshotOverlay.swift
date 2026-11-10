@@ -133,6 +133,7 @@ final class ScreenshotMagnifierContainerView: NSView {
 
 /// 全屏覆盖层：拖拽选区 + 尺寸标签 + 十字准星 + 放大镜
 final class ScreenshotOverlayView: NSView {
+    var recentClipboardHint: String?
     /// v126（性能审计 F0553）：缓存标签字体与属性字典，避免 drawSizeLabel 每帧重建
     private static let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
     private static let labelAttrs: [NSAttributedString.Key: Any] = [
@@ -596,18 +597,22 @@ final class ScreenshotOverlayView: NSView {
 
     /// 顶部居中胶囊提示（两种文案共用一套排版）
     private func drawHint(_ string: String) {
-        let text = string as NSString
+        let text = (string + (recentClipboardHint.map { "\n" + $0 } ?? "")) as NSString
         // v126（性能审计 F0553）：复用静态缓存属性字典
-        let attrs = Self.labelAttrs
+        var attrs = Self.labelAttrs
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        attrs[.paragraphStyle] = paragraph
         let size = text.size(withAttributes: attrs)
         // v267：顶部的模式开关删掉后，胶囊可以直接占它原来那一行。
         // 距顶 56pt 起（刘海约 37pt + 菜单栏 24pt，留一点呼吸），不再留空档。
+        let height = max(26, size.height + 14)
         let box = NSRect(x: (bounds.width - size.width - 24) / 2,
-                         y: bounds.height - 56 - 26,
-                         width: size.width + 24, height: 26)
+                         y: bounds.height - 56 - height,
+                         width: size.width + 24, height: height)
         NSColor(calibratedWhite: 0.1, alpha: 0.78).setFill()
         NSBezierPath.continuousRoundedRect(box, radius: 13).fill()
-        text.draw(at: NSPoint(x: box.minX + 12, y: box.minY + 7), withAttributes: attrs)
+        text.draw(in: box.insetBy(dx: 12, dy: 6), withAttributes: attrs)
     }
 
     /// 已勾选窗口的高亮 + 序号（v264）

@@ -540,12 +540,21 @@ final class CurtainCardView: NSView {
 
     /// 复制 = 同时给 PNG 和文件 URL，粘贴到聊天窗口是图片，粘到 Finder 是文件
     private func copyToPasteboard() {
+        let data: Data
+        do { data = try Data(contentsOf: item.fileURL) }
+        catch {
+            Toast.show("复制失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        let contents = NSPasteboardItem()
+        contents.setData(data, forType: .png)
+        contents.setString(item.fileURL.absoluteString, forType: .fileURL)
         let pb = NSPasteboard.general
         pb.clearContents()
-        if let data = try? Data(contentsOf: item.fileURL) {
-            pb.setData(data, forType: .png)
+        guard pb.writeObjects([contents]) else {
+            Toast.show("复制失败：未能写入剪贴板", icon: "exclamationmark.triangle", isWarning: true)
+            return
         }
-        pb.writeObjects([item.fileURL as NSURL])
         Toast.show("已拷贝到剪贴板", icon: "doc.on.doc")
     }
 

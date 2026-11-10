@@ -242,7 +242,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             }
         }
         // 粘完即走：面板立刻收起，焦点回到原来的 App
-        FloatingClipDeskStore.shared.onPaste = { [weak self] in self?.hide() }
+        FloatingClipDeskStore.shared.onPaste = { [weak self] completion in self?.hide(completion: completion) }
         installKeyMonitor()
     }
 
@@ -267,7 +267,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         if let w = window { WindowReveal.playInFromMouse(on: w) }
     }
 
-    public func hide() {
+    public func hide(completion: (() -> Void)? = nil) {
         Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
         guard let w = window, w.isVisible else { return }
@@ -277,6 +277,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
             self.isHiding = false
+            completion?()
         }
         isHiding = true
     }
@@ -378,12 +379,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             case 36, 76:                   // Enter：粘贴（⌥ = 纯文本）
                 guard store.items.indices.contains(store.selectedIndex) else { return nil }
                 let item = store.items[store.selectedIndex]
-                if option {
-                    ClipboardManager.shared.copy(item, autoPaste: false, asPlainText: true)
-                    self.hide()
-                } else {
-                    store.paste(item)
-                }
+                store.paste(item, asPlainText: option)
                 return nil
             case 49:                       // 空格：预览（不粘贴）
                 if let editor = panel.firstResponder as? NSTextView, !editor.string.isEmpty { return event }

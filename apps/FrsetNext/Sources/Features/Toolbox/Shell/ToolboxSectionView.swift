@@ -99,6 +99,7 @@ public struct ToolRunnerView: View {
     var onClose: (() -> Void)? = nil
     /// 打开即执行（斜杠命令用：/uuid 这种不需要输入的，落地就有结果）
     var autoRun: Bool = false
+    @ObservedObject private var windowController = ToolRunnerWindowController.shared
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
     @Stored private var output: ToolOutput?
@@ -219,6 +220,9 @@ public struct ToolRunnerView: View {
                 Task { await run() }
             }
         }
+        .onChange(of: windowController.autoRunSequence) { _ in
+            Task { await run() }
+        }
     }
 
     @ViewBuilder
@@ -308,8 +312,8 @@ public struct ToolRunnerView: View {
 
     /// 不直接引用剪贴板模块：通过 ToolboxEventBus 回调交给总控
     private func saveToClipboard(_ result: ToolOutput) {
-        ToolboxEventBus.emitResult(result.text, kind: tool.kind)
-        statusText = "已存为剪贴板条目"
+        statusText = ToolboxEventBus.emitResult(result.text, kind: tool.kind)
+            ? "已存为剪贴板条目" : "保存失败：无法写入剪贴板历史"
     }
 
     private func chooseFile() {

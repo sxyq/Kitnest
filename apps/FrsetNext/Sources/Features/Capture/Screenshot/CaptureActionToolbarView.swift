@@ -27,6 +27,8 @@ struct CaptureActionToolbarView: View {
     @Stored private var expanded: String? = nil
     /// 子项列表内悬停的项（与 hovered 分开：hovered 只表示「哪个组被悬停」）
     @Stored private var hoveredItem: String? = nil
+    @Stored private var recentHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let barHeight: CGFloat = 56
 
@@ -37,6 +39,12 @@ struct CaptureActionToolbarView: View {
                 // VStack 会整体居中，工具条悬在半空
                 previewSection
                     .frame(maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hovered = nil
+                        hoveredItem = nil
+                        withAnimation(.easeOut(duration: 0.12)) { expanded = nil }
+                    }
                 Divider().opacity(0.4)
                 bar.frame(height: barHeight)
             }
@@ -62,12 +70,7 @@ struct CaptureActionToolbarView: View {
         // 出现/消失动画放在窗口层（alphaValue + 位置），不在视图层做 opacity——
         // 视图层一旦以 opacity 0 安装，NSHostingView 首次合成会停在透明态。
         .onHover { inside in
-            guard !inside else { return }
-            hovered = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                guard hovered == nil else { return }
-                withAnimation(.easeOut(duration: 0.12)) { expanded = nil }
-            }
+            if !inside { handleHover(false, group: nil) }
         }
         // 面板是单例，上一次的悬停/展开会残留到下一次框选——每次 present 清一次
         .onChange(of: model.presentToken) { _ in
@@ -115,6 +118,7 @@ struct CaptureActionToolbarView: View {
         HStack(spacing: 10) {
             ForEach(CaptureActionChain.groups) { group in
                 iconCell(group)
+                if group.id == "copyGroup" { recentCopyButton }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -122,9 +126,10 @@ struct CaptureActionToolbarView: View {
 
     /// B · 药丸条：图标 + 文字，默认动作实心
     private var pillBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(CaptureActionChain.groups) { group in
                 pillCell(group)
+                if group.id == "copyGroup" { recentCopyButton }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -163,6 +168,8 @@ struct CaptureActionToolbarView: View {
                 }
             }
 
+            recentCopyButton
+
             Rectangle()
                 .fill(Color.primary.opacity(0.12))
                 .frame(width: 0.5, height: 20)
@@ -180,6 +187,24 @@ struct CaptureActionToolbarView: View {
     }
 
     // MARK: 单元
+
+    private var recentCopyButton: some View {
+        Button { model.onPick?("recentCopy") } label: {
+            Label("近期复制", systemImage: "list.bullet.clipboard")
+                .font(.system(size: 12, weight: .medium))
+                .fixedSize()
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .background(Theme.accent.opacity(recentHovered ? 0.18 : 0.09),
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+        }
+        .buttonStyle(SpringyIconButtonStyle(pressedScale: reduceMotion ? 1 : 0.94))
+        .transaction { if reduceMotion { $0.animation = nil } }
+        .focusable(false)
+        .help("选择近期记录，一次复制")
+        .onHover { recentHovered = $0; if $0 { handleHover(false, group: nil) } }
+    }
 
     private func iconCell(_ group: CaptureActionGroup) -> some View {
         let on = isDefault(group)
@@ -311,6 +336,7 @@ struct CaptureActionToolbarView: View {
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+        .onHover { handleHover($0, group: group) }
     }
 
     // MARK: 动作
@@ -331,9 +357,13 @@ struct CaptureActionToolbarView: View {
         }
     }
 
-    private func handleHover(_ inside: Bool, group: CaptureActionGroup) {
-        guard inside else {
-            if hovered == group.id { hovered = nil }
+    private func handleHover(_ inside: Bool, group: CaptureActionGroup?) {
+        guard inside, let group else {
+            hovered = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+                guard hovered == nil else { return }
+                withAnimation(.easeOut(duration: 0.12)) { expanded = nil }
+            }
             return
         }
         hovered = group.id

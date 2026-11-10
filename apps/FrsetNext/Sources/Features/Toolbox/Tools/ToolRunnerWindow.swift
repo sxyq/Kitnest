@@ -17,12 +17,14 @@ import SwiftUI
 //
 // 视觉沿用 frsetThemeChrome（强调色 + Midnight），与其它独立窗一致。
 
-final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
+final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDelegate {
 
     static let shared = ToolRunnerWindowController()
 
     private var window: NSWindow?
     private var currentToolID: String?
+    /// 同一可见工具窗的重复自动执行请求；新会话仍由 onAppear 执行。
+    @Published private(set) var autoRunSequence = 0
     /// v202（审查 finding-4）：关闭动画代际，show 时递增让旧收尾失效
     private var closeGeneration = 0
 
@@ -32,8 +34,16 @@ final class ToolRunnerWindowController: NSObject, NSWindowDelegate {
             Log.warn("Toolbox", "打开工具失败：未注册 id=\(toolID)")
             return
         }
-        currentToolID = toolID
         closeGeneration += 1
+        if let window, window.isVisible, currentToolID == toolID {
+            window.contentView?.layer?.removeAllAnimations()
+            WindowReveal.reset(window)
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            if autoRun { autoRunSequence += 1 }
+            return
+        }
+        currentToolID = toolID
 
         if let window {
             window.title = tool.name

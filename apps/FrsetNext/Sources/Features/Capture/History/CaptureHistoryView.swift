@@ -59,7 +59,7 @@ final class CaptureHistoryVM: ObservableObject {
             Toast.show("无法读取图片", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
-        ScreenshotManager.shared.copyToPasteboard(image)
+        guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
         Toast.show("截图已复制", icon: "checkmark.circle.fill")
     }
 

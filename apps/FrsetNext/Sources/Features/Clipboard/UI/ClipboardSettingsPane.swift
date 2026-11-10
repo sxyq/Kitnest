@@ -25,7 +25,7 @@ public struct ClipboardSettingsPane: View {
     @Stored private var retentionDays: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardRetentionDays, default: 30))
     @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
     @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
-    @Stored private var floatingVisible: Bool = Preferences.shared.value(Preferences.Keys.floatingVisible, default: false)
+    @ObservedObject private var floatingStore = FloatingClipboardWindowController.shared.store
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
     @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
@@ -183,14 +183,15 @@ public struct ClipboardSettingsPane: View {
         SettingsSection("浮动窗") {
             SettingsGroupBox {
                 SettingsRow(title: "显示浮动窗") {
-                    Toggle("", isOn: $floatingVisible)
+                    Toggle("", isOn: Binding(
+                        get: { floatingStore.isVisible },
+                        set: { visible in
+                            if visible { FloatingClipboardWindowController.shared.show() }
+                            else { FloatingClipboardWindowController.shared.hide() }
+                        }))
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: floatingVisible) { newValue in
-                            if newValue { FloatingClipboardWindowController.shared.show() }
-                            else { FloatingClipboardWindowController.shared.hide() }
-                        }
                 }
                 SettingsDivider()
                 // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
@@ -228,8 +229,13 @@ public struct ClipboardSettingsPane: View {
                 SettingsDivider()
                 SettingsRow(title: "浮动窗位置", subtitle: "重置为当前屏幕中央") {
                     Button("重置位置") {
-                        let centered = FloatingClipboardPinState.shared.clampedFrame()
-                        FloatingClipboardWindowController.shared.window?.setFrame(centered, display: true)
+                        let state = FloatingClipboardPinState.shared
+                        guard let visible = NSScreen.main?.visibleFrame else { return }
+                        var frame = state.clampedFrame()
+                        frame.origin = NSPoint(x: visible.midX - frame.width / 2,
+                                               y: visible.midY - frame.height / 2)
+                        FloatingClipboardWindowController.shared.window?.setFrame(frame, display: true)
+                        state.save(frame: frame)
                     }
                     .controlSize(.small)
                 }

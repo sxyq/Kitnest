@@ -260,6 +260,27 @@ final class WeakRowBox {
 
 final class ClipboardTableView: NSTableView {
 
+    /// 近期选择窗只勾选，不触发主列表的预览或双击复制。
+    var onSelectionClick: ((Int, NSEvent.ModifierFlags) -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        guard let onSelectionClick else { super.mouseDown(with: event); return }
+        let row = row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0 { onSelectionClick(row, event.modifierFlags) }
+        window?.makeFirstResponder(self)
+    }
+
+    func toggleRowSelection(row: Int, shift: Bool, anchor: inout Int) {
+        var rows = selectedRowIndexes
+        if shift, anchor >= 0 {
+            rows.formUnion(IndexSet(integersIn: min(anchor, row)...max(anchor, row)))
+        } else {
+            if rows.contains(row) { rows.remove(row) } else { rows.insert(row) }
+            anchor = row
+        }
+        selectRowIndexes(rows, byExtendingSelection: false)
+    }
+
     /// 空格 → 键盘预览（specs/12 F6 requestKeyboardPreview）
     var onSpaceKey: (() -> Void)?
     /// ↩ → 复制
@@ -864,16 +885,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         /// ⌘=toggle 该行加选；⇧=从锚点范围加选。同步 table.selectedRowIndexes 供键盘/复制用。
         private func handleModifierClick(row: Int, shift: Bool) {
             guard let table, row >= 0, row < owner.manager.items.count else { return }
-            var selectedRows = table.selectedRowIndexes
-            if shift, multiAnchor >= 0 {
-                let lo = min(multiAnchor, row), hi = max(multiAnchor, row)
-                selectedRows.formUnion(IndexSet(integersIn: lo...hi))
-            } else {
-                if selectedRows.contains(row) { selectedRows.remove(row) }
-                else { selectedRows.insert(row) }
-                multiAnchor = row
-            }
-            table.selectRowIndexes(selectedRows, byExtendingSelection: false)
+            table.toggleRowSelection(row: row, shift: shift, anchor: &multiAnchor)
             hoverSuppression.suppressUntilMouseMove()   // 多选期间不弹 hover 预览
             clearHoverHighlight()
         }
@@ -890,17 +902,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 let items = table.selectedRowIndexes.compactMap { idx in
                     idx < owner.manager.items.count ? owner.manager.items[idx] : nil
                 }
-                let text = items.compactMap { item -> String? in
-                    let content = owner.manager.fullText(for: item)
-                    return content.isEmpty ? item.title : content
-                }.joined(separator: "\n")
-                if !text.isEmpty {
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.setString(text, forType: .string)
-                    // 统计口径与单条复制一致（StatisticsManager）
-                    StatisticsManager.shared.record(.historyBatchCopy)
-                    Log.info("clipboard", "批量复制 \(items.count) 项")
+                if let reason = owner.manager.copy(items) {
+                    Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
                 }
                 ServiceLocator.panelPreview?.dismissPreview()
                 return

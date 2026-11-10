@@ -67,8 +67,11 @@ public enum CaptureActionChain {
     public static var tools: [CaptureActionTool] {
         [
             CaptureActionTool(id: "copy", title: "复制", systemImage: "doc.on.doc", key: "c") { image, _ in
-                ScreenshotManager.shared.copyToPasteboard(image)
+                guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
                 Toast.show("截图已复制", icon: "checkmark.circle.fill")
+            },
+            CaptureActionTool(id: "recentCopy", title: "近期复制", systemImage: "list.bullet.clipboard") { _, _ in
+                Task { @MainActor in ScreenshotManager.shared.openRecentClipboard() }
             },
             // v218（对齐 1capture / 用户：「复制、复制并 OCR 这种同一类功能」）：
             // 复制的同时把图里的文字识别出来，省掉「先复制再单独点识字」两步。
@@ -250,8 +253,6 @@ final class CaptureActionToolbarPanel: NSPanel {
     private var currentImage: CGImage?
     private var currentURL: URL?
     private var keyMonitor: Any?
-    private var outsideLocalMonitor: Any?
-    private var outsideGlobalMonitor: Any?
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 340, height: 260),
@@ -301,14 +302,15 @@ final class CaptureActionToolbarPanel: NSPanel {
 
         let minWidth: CGFloat
         switch style {
-        case .iconBar:      minWidth = 268
-        case .pillBar:      minWidth = 430
-        case .primarySplit: minWidth = 412
+        case .iconBar:      minWidth = 400
+        case .pillBar:      minWidth = 556
+        case .primarySplit: minWidth = 520
         }
         return NSSize(width: max(minWidth, previewW + 20), height: previewH + 20 + 56)
     }
 
     func present(image: CGImage, url: URL) {
+        isDismissing = false
         currentImage = image
         currentURL = url
         model.preview = NSImage(cgImage: image,
@@ -321,7 +323,8 @@ final class CaptureActionToolbarPanel: NSPanel {
         CaptureActionChain.debugExpandGroup = nil
         model.presentToken += 1
 
-        let size = Self.panelSize(for: image, style: model.style)
+        var size = Self.panelSize(for: image, style: model.style)
+        if let screen = NSScreen.main { size.width = min(size.width, screen.visibleFrame.width - 24) }
         setContentSize(size)
         let target = placementOrigin(size: size)
 
@@ -333,8 +336,9 @@ final class CaptureActionToolbarPanel: NSPanel {
         alphaValue = 0
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
+        TransientWindowCenter.shared.register(window: self, onDismiss: { [weak self] in self?.dismiss() })
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.16
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.16
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             self.animator().alphaValue = 1
         }
@@ -348,7 +352,7 @@ final class CaptureActionToolbarPanel: NSPanel {
     private func placementOrigin(size: NSSize) -> NSPoint {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return frame.origin }
         let vf = screen.visibleFrame
-        let x = vf.midX - size.width / 2
+        let x = min(max(vf.midX - size.width / 2, vf.minX + 12), vf.maxX - size.width - 12)
         let centerY = vf.minY + vf.height * 0.25
         var y = centerY - size.height / 2
         y = min(max(y, vf.minY + 12), vf.maxY - size.height - 12)
@@ -358,20 +362,22 @@ final class CaptureActionToolbarPanel: NSPanel {
     /// 关闭：先播 130ms 淡出，再真正下屏（v219）
     private var isDismissing = false
 
-    func dismiss() {
+    func dismiss(completion: (() -> Void)? = nil) {
         guard !isDismissing else { return }
         isDismissing = true
+        let token = model.presentToken
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.12
+            ctx.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.12
             self.animator().alphaValue = 0
         } completionHandler: {
+            guard token == self.model.presentToken else { return }
             self.orderOut(nil)
+            TransientWindowCenter.shared.unregister(window: self)
             self.alphaValue = 1
             self.isDismissing = false
-            // 期间又弹了一次就保留，别把新图清掉
-            guard !self.isVisible else { return }
             self.currentImage = nil
             self.currentURL = nil
+            completion?()
         }
     }
 
@@ -405,21 +411,13 @@ final class CaptureActionToolbarPanel: NSPanel {
             return event
         }
 
-        // 点面板外部即关闭（本 App 内 local，其他 App global；global 需辅助功能授权）
-        outsideLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self, event.window !== self else { return event }
-            self.dismiss()
-            return event
-        }
-        outsideGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.dismiss()
-        }
     }
 
     private func execute(toolID: String) {
         guard let image = currentImage, let url = currentURL else { return }
-        dismiss()
-        CaptureActionChain.perform(id: toolID, image: image, url: url)
+        dismiss {
+            CaptureActionChain.perform(id: toolID, image: image, url: url)
+        }
     }
 }
 

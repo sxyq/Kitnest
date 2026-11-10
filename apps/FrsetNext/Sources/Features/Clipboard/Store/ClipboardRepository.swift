@@ -204,8 +204,9 @@ public final class ClipboardRepository: @unchecked Sendable {
                               textPath: String?,
                               charCount: Int?,
                               lineCount: Int?,
-                              storageBytes: Int) {
-        try? db.run("""
+                              storageBytes: Int) -> Bool {
+        do {
+            try db.run("""
             UPDATE clipboard_items
                SET content = ?, text_path = ?, full_text_char_count = ?,
                    full_text_line_count = ?, storage_bytes = ?, title = ?
@@ -217,15 +218,26 @@ public final class ClipboardRepository: @unchecked Sendable {
                   .int(Int64(storageBytes)),
                   .text(content.firstLineBrief),
                   .text(dedupeKey)])
+            return true
+        } catch {
+            Log.error("clipboard", "保存正文失败: \(error)")
+            return false
+        }
     }
 
     /// 重命名（alias_title）
-    public func updateAliasTitle(dedupeKey: String, aliasTitle: String?) {
-        if let alias = aliasTitle, !alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            try? db.run("UPDATE clipboard_items SET alias_title = ? WHERE dedupe_key = ?",
+    public func updateAliasTitle(dedupeKey: String, aliasTitle: String?) -> Bool {
+        do {
+            if let alias = aliasTitle, !alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                try db.run("UPDATE clipboard_items SET alias_title = ? WHERE dedupe_key = ?",
                         [.text(alias), .text(dedupeKey)])
-        } else {
-            try? db.run("UPDATE clipboard_items SET alias_title = NULL WHERE dedupe_key = ?", [.text(dedupeKey)])
+            } else {
+                try db.run("UPDATE clipboard_items SET alias_title = NULL WHERE dedupe_key = ?", [.text(dedupeKey)])
+            }
+            return true
+        } catch {
+            Log.error("clipboard", "保存标题失败: \(error)")
+            return false
         }
     }
 

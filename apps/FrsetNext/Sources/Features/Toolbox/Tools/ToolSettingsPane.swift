@@ -4,8 +4,6 @@ import AppKit
 public struct ToolSettingsPane: View {
     @Stored private var revision = 0
     @Stored private var confirmReset = false
-    /// 划词运行（官方工具页底部「划词运行 ⓘ [开关]」，2026-10-18 补齐）
-    @AppStorage("tools.selectionRun") private var selectionRun = false
 
     public init() {}
 
@@ -41,19 +39,6 @@ public struct ToolSettingsPane: View {
                     Label("重置工具", systemImage: "arrow.clockwise")
                 }
                 Spacer()
-                // 官方工具页底部右侧：划词运行 ⓘ [开关]
-                HStack(spacing: 6) {
-                    Text("划词运行")
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .help("选中文本后显示划词工具栏（需辅助功能权限）")
-                    Toggle("", isOn: $selectionRun)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                }
             }
             .buttonStyle(.link)
             .frame(height: 32)

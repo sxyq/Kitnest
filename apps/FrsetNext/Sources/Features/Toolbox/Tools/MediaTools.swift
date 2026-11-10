@@ -35,10 +35,8 @@ public enum ImageCompressor {
                                 quality: Double,
                                 asPNG: Bool) throws -> Result {
         let url = URL(fileURLWithPath: path)
-        guard FileManager.default.fileExists(atPath: path) else {
-            throw CompressError(message: "文件不存在：\(path)")
-        }
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+        let imageData = try Data(contentsOf: url)
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
             throw CompressError(message: "无法读取图片：\(url.lastPathComponent)（可能不是支持的图片格式）")
         }
         let cgImage: CGImage?
@@ -59,13 +57,13 @@ public enum ImageCompressor {
             throw CompressError(message: "图片解码失败：\(url.lastPathComponent)")
         }
 
-        let originalBytes = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? NSNumber)?.intValue ?? 0
+        let originalBytes = imageData.count
         let data = try encode(cgImage, quality: quality, asPNG: asPNG)
         let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
 
         let ext = asPNG ? "png" : "jpg"
         let outDir = AppDirectories.sub("toolbox")
-        let outURL = outDir.appendingPathComponent("compressed-\(Int(Date().timeIntervalSince1970)).\(ext)")
+        let outURL = outDir.appendingPathComponent("compressed-\(UUID().uuidString).\(ext)")
         do {
             try data.write(to: outURL)
         } catch {

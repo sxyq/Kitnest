@@ -1879,12 +1879,17 @@ public final class AnnotationEditorController: NSObject, NSWindowDelegate {
         }
         editor.delegate = self
         editor.onCopy = { image in
-            ScreenshotManager.shared.copyToPasteboard(image)
+            guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
+            Toast.show("标注图已复制", icon: "checkmark.circle.fill")
         }
         editor.onSave = { image in
             guard let data = ImageProcessor.pngData(image),
-                  let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else { return }
+                  let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
+                Toast.show("标注图保存失败", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
             ScreenshotManager.shared.registerCaptured(url: url, data: data, mode: "annotate")   // v130②
+            Toast.show("标注图已保存", icon: "checkmark.circle.fill")
         }
         window = editor
         editor.center()

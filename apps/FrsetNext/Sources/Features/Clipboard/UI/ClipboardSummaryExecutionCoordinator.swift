@@ -8,12 +8,14 @@ public enum ClipboardSummaryError: LocalizedError {
     case llmUnavailable
     case emptyContent
     case alreadyRunning
+    case saveFailed
 
     public var errorDescription: String? {
         switch self {
         case .llmUnavailable: return "未注入 LLM 服务（AI 模块未启用）"
         case .emptyContent: return "条目内容为空"
         case .alreadyRunning: return "摘要任务正在进行"
+        case .saveFailed: return "无法写入剪贴板历史"
         }
     }
 }
@@ -67,9 +69,12 @@ public final class ClipboardSummaryExecutionCoordinator {
     public func summarizeAndWriteBack(_ item: ClipboardItem) async throws -> ClipboardItem {
         do {
             let summary = try await summarize(item)
-            return ClipboardManager.shared.ingestToolOutput(text: summary,
-                                                            sourceToolKeyword: "AI摘要",
-                                                            analyticsId: item.dedupeKey)
+            guard let saved = ClipboardManager.shared.ingestToolOutput(text: summary,
+                                                                       sourceToolKeyword: "AI摘要",
+                                                                       analyticsId: item.dedupeKey) else {
+                throw ClipboardSummaryError.saveFailed
+            }
+            return saved
         } catch {
             Toast.show("摘要失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
             throw error

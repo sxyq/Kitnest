@@ -130,10 +130,16 @@ struct ColorValueView: View {
 
 // MARK: - 色值浮窗
 
+private final class ColorValuePanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    var onClose: (() -> Void)?
+
+    override func cancelOperation(_ sender: Any?) { onClose?() }
+}
+
 final class ColorValuePanelController: NSObject, NSWindowDelegate {
     public static let shared = ColorValuePanelController()
     private var panel: NSPanel?
-    private var outsideMonitor: Any?
 
     private override init() { super.init() }
 
@@ -146,13 +152,19 @@ final class ColorValuePanelController: NSObject, NSWindowDelegate {
             onCopy: { text in
                 let pb = NSPasteboard.general
                 pb.clearContents()
-                pb.setString(text, forType: .string)
+                guard pb.setString(text, forType: .string) else {
+                    Toast.show("复制失败：未能写入色值", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
                 Toast.show("已复制 \(text)", icon: "checkmark.circle.fill")
             },
             onPickRecent: { hex in
                 let pb = NSPasteboard.general
                 pb.clearContents()
-                pb.setString(hex, forType: .string)
+                guard pb.setString(hex, forType: .string) else {
+                    Toast.show("复制失败：未能写入色值", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
                 Toast.show("已复制 \(hex)", icon: "checkmark.circle.fill")
             },
             onClose: { [weak self] in self?.close() })
@@ -167,7 +179,7 @@ final class ColorValuePanelController: NSObject, NSWindowDelegate {
             origin.y = min(max(origin.y, vf.minY + 8), vf.maxY - size.height - 8)
         }
 
-        let panel = NSPanel(contentRect: NSRect(origin: origin, size: size),
+        let panel = ColorValuePanel(contentRect: NSRect(origin: origin, size: size),
                             styleMask: [.borderless, .nonactivatingPanel],
                             backing: .buffered, defer: false)
         panel.level = .floating
@@ -177,27 +189,34 @@ final class ColorValuePanelController: NSObject, NSWindowDelegate {
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         panel.contentView = host
+        panel.onClose = { [weak self] in self?.close() }
+        panel.delegate = self
         self.panel = panel
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         // v198：从取色点展开
         WindowReveal.playInFromMouse(on: panel, scale: 0.94)
 
-        // 点击面板外部即关闭（global 需辅助功能授权，未授权时静默失效）
-        outsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.close()
+        TransientWindowCenter.shared.register(window: panel) { [weak self, weak panel] in
+            guard let self, self.panel === panel else { return }
+            self.close()
+        }
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        if let window = notification.object as? NSWindow {
+            TransientWindowCenter.shared.requestDismiss(window: window)
         }
     }
 
     func close() {
-        if let monitor = outsideMonitor { NSEvent.removeMonitor(monitor) }
-        outsideMonitor = nil
         guard let p = panel else { return }
         panel = nil
         // v198：缩回取色点再 orderOut
-        WindowReveal.playOutToLastAnchor(on: p, scale: 0.94) { [weak p] in
-            p?.orderOut(nil)
-            if let p { WindowReveal.reset(p) }
+        WindowReveal.playOutToLastAnchor(on: p, scale: 0.94) {
+            p.orderOut(nil)
+            WindowReveal.reset(p)
+            TransientWindowCenter.shared.unregister(window: p)
         }
     }
 }

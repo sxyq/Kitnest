@@ -267,13 +267,13 @@ enum AppBootstrap {
         // AI 产出 → 写入剪贴板历史（标记为工具生成：is_generated_by_tool=1）
         // 注：ai_request_count 由 LLMService.send 统一计数（每次请求一处），此处不重复 bump
         AIEventBus.onResultProduced = { text in
-            ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: "ai")
+            ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: "ai") != nil
         }
 
         // 工具箱产出 → 写入剪贴板历史（标记为工具生成）
         // 注：tool_count 由 ToolRegistry.run → recordInvocation 统一计数（每次运行一处），此处不重复 bump
         ToolboxEventBus.onResultProduced = { text, kind in
-            ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: kind.rawValue)
+            ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: kind.rawValue) != nil
         }
 
         // v60 移除「剪贴板条目 → 搜索结果」hook：剪贴板内容已由搜索区独立的
@@ -328,7 +328,7 @@ enum AppBootstrap {
         },
         DefaultHotkeyEntry(id: "screenshot", title: "截图",
                            keyCode: 0x01, modifiers: UInt32(optionKey)) {
-            ScreenshotManager.shared.captureRegion()
+            Task { @MainActor in ScreenshotManager.shared.handleScreenshotShortcut() }
         },
         // v112：窗口截图（对标报告第二批「焦点窗」；⇧⌥W 不与既有 ⇧⌥ 系冲突）
         DefaultHotkeyEntry(id: "screenshotWindow", title: "窗口截图",
@@ -344,8 +344,11 @@ enum AppBootstrap {
             // 必须先激活：主面板是 transient（resignKey 即 hide），不激活时面板
             // 打开后立即失焦自关（2026-10-18 ⌥F 实测修缺，同 URL scheme panel 分支）
             NSApp.activate(ignoringOtherApps: true)
+            MonitorCenterPresenter.shared.selectHome()
             ServiceLocator.panel?.show()
-            NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+            }
         },
         DefaultHotkeyEntry(id: "floatingClipboard", title: "悬浮剪贴板",
                            keyCode: 0x09, modifiers: UInt32(shiftKey | cmdKey)) {
@@ -619,7 +622,10 @@ enum AppBootstrap {
         Task { @MainActor in
             do {
                 let result = try await TranslationToolSession.shared.complete(text)
-                ClipboardManager.shared.ingestToolOutput(text: result, sourceToolKeyword: "AI翻译")
+                guard ClipboardManager.shared.ingestToolOutput(text: result, sourceToolKeyword: "AI翻译") != nil else {
+                    Toast.show("翻译已完成，但写入剪贴板历史失败", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
                 Toast.show(successTip, icon: "character.book.closed")
             } catch {
                 Toast.show(error.localizedDescription, icon: "exclamationmark.triangle", isWarning: true)

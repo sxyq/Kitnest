@@ -12,17 +12,19 @@ public final class GeminiService: LLMProviderAdapting {
 
     public let kind: LLMProviderKind = .gemini
     public let credentialStore: LLMCredentialStoring
+    private let baseURLOverride: URL?
     public let defaultModel: String = "gemini-2.0-flash"
 
     private static let apiVersion = "v1beta"
 
     public var baseURL: URL {
-        get { AISettings.baseURL(for: .gemini) }
+        get { baseURLOverride ?? AISettings.baseURL(for: .gemini) }
         set { AISettings.setBaseURL(newValue.absoluteString, for: .gemini) }
     }
 
-    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared) {
+    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared, baseURL: URL? = nil) {
         self.credentialStore = credentialStore
+        self.baseURLOverride = baseURL
     }
 
     // MARK: - 请求构造

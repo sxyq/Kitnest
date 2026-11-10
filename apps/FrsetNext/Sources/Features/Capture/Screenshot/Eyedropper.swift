@@ -217,6 +217,7 @@ public final class Eyedropper: ObservableObject {
     @Published public private(set) var recentColors: [String] = []
 
     private var window: EyedropperWindow?
+    private var sessionGeneration = 0
     /// 程序化取色的挂起回调（同一时刻至多一个）
     private var pendingPick: ((String?) -> Void)?
     /// v130⑥：手动取色（start）完成后弹色值面板；程序化取色（pickColor）不弹
@@ -231,15 +232,18 @@ public final class Eyedropper: ObservableObject {
     /// 开始取色（鼠标所在屏幕）
     public func start() {
         // 手动取色会顶掉可能挂起的程序化请求，先以 nil 收尾，避免 continuation 悬挂
-        resolvePending(nil)
+        finish(nil)
         wantsValuePanel = true
+        let generation = sessionGeneration
         Task { @MainActor in
             // v32：权限以真实抓屏能力为准（preflight 会假阴性，见 ScreenshotManager.probePermission）
-            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
+            let allowed = await ScreenshotManager.shared.ensureScreenRecordingPermission()
+            guard generation == self.sessionGeneration else { return }
+            guard allowed else {
                 self.message = "需要「屏幕录制」权限才能取色"
                 return
             }
-            self.beginSession()
+            self.beginSession(generation: generation)
         }
     }
 
@@ -247,28 +251,26 @@ public final class Eyedropper: ObservableObject {
     /// 无论用户取色、取消，还是无权限 / 无可用屏幕，`completion` 都**恰好被调用一次**。
     public func pickColor(completion: @escaping (String?) -> Void) {
         // 上一个请求若仍挂起，先以 nil 结束（不能让它悬挂）
-        resolvePending(nil)
+        finish(nil)
         wantsValuePanel = false   // v130⑥：程序化取色不弹色值面板
+        pendingPick = completion
+        let generation = sessionGeneration
 
         Task { @MainActor in
-            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
+            let allowed = await ScreenshotManager.shared.ensureScreenRecordingPermission()
+            guard generation == self.sessionGeneration else { return }
+            guard allowed else {
                 self.message = "需要「屏幕录制」权限才能取色"
-                completion(nil)
+                self.finish(nil)
                 return
             }
-            guard let screen = self.screenUnderMouse() else {
-                completion(nil)
-                return
-            }
-            self.finish(nil)                 // 关闭可能残留的旧窗口（内部 resolvePending 此时为 no-op）
-            self.pendingPick = completion    // 必须在 finish 之后登记，避免被 finish 误清
-            NSApp.activate(ignoringOtherApps: true)
-            self.presentPicker(on: screen)
+            self.beginSession(generation: generation)
         }
     }
 
     /// 结束取色（传 nil 表示只是关闭窗口）
     public func finish(_ color: NSColor?) {
+        sessionGeneration += 1
         window?.orderOut(nil)
         window = nil
         isPicking = false
@@ -278,11 +280,10 @@ public final class Eyedropper: ObservableObject {
 
     // MARK: 会话（手动 / 程序化共用同一套 UI 与取色逻辑）
 
-    private func beginSession() {
-        guard let screen = screenUnderMouse() else { return }
-        finish(nil)
+    private func beginSession(generation: Int) {
+        guard let screen = screenUnderMouse() else { finish(nil); return }
         NSApp.activate(ignoringOtherApps: true)
-        presentPicker(on: screen)
+        presentPicker(on: screen, generation: generation)
     }
 
     private func screenUnderMouse() -> NSScreen? {
@@ -290,11 +291,18 @@ public final class Eyedropper: ObservableObject {
         return NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main ?? NSScreen.screens.first
     }
 
-    private func presentPicker(on screen: NSScreen) {
+    private func presentPicker(on screen: NSScreen, generation: Int) {
         // v162：统一走自适应通道（按系统版本选 SCK/legacy，legacy 恒在后台，防 macOS 27 主线程死锁）
         isPicking = true
         Task { @MainActor in
             let snapshot = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
+            guard generation == self.sessionGeneration else { return }
+            guard let snapshot else {
+                self.message = "屏幕快照失败，无法取色"
+                self.finish(nil)
+                Toast.show("屏幕快照失败，无法取色", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
             self.buildPickerWindow(on: screen, snapshot: snapshot)
         }
     }
@@ -304,25 +312,31 @@ public final class Eyedropper: ObservableObject {
         window.pickerView.onPick = { [weak self] color in
             guard let self = self else { return }
             let hex = color.map { EyedropperView.hex(of: $0) }
+            let showValuePanel = self.wantsValuePanel
             if let color = color, let hex = hex {
                 self.hex = hex
                 self.rgbText = EyedropperView.rgbText(of: color)
-                self.copyHexToPasteboard(hex)
+                let copied = self.copyHexToPasteboard(hex)
                 CaptureEventBus.onColorPicked?(hex)
-                Toast.show("颜色已复制 \(hex)", icon: "checkmark.circle.fill")   // spec 13 §4：取色成功场景
-                self.message = "已复制 \(hex)"
+                if copied {
+                    Toast.show("颜色已复制 \(hex)", icon: "checkmark.circle.fill")
+                    self.message = "已复制 \(hex)"
+                } else {
+                    Toast.show("复制失败：未能写入色值", icon: "exclamationmark.triangle", isWarning: true)
+                    self.message = "颜色已选取，复制失败"
+                }
                 // v130（SnowShot 对齐）⑥：入取色历史（最近 10 个）+ 弹色值面板
                 self.pushRecentColor(hex)
-                if self.wantsValuePanel {
-                    ColorValuePanelController.shared.show(color: color,
-                                                          recentColors: self.recentColors)
-                }
             } else {
                 self.message = nil
             }
             // 先恢复等待者（取消 → nil），再关闭窗口（finish 内的兜底此时为 no-op）
             self.resolvePending(hex)
             self.finish(nil)
+            if showValuePanel, let color {
+                ColorValuePanelController.shared.show(color: color,
+                                                      recentColors: self.recentColors)
+            }
         }
         self.window = window
         isPicking = true
@@ -346,11 +360,11 @@ public final class Eyedropper: ObservableObject {
     }
 
     /// 复制 HEX 到剪贴板
-    public func copyHexToPasteboard(_ hex: String? = nil) {
+    public func copyHexToPasteboard(_ hex: String? = nil) -> Bool {
         let text = hex ?? self.hex
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else { return false }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        return pasteboard.setString(text, forType: .string)
     }
 }

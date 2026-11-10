@@ -91,11 +91,16 @@ public final class FloatingClipDeskStore: ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public private(set) var loadedKind: ClipboardFilterKind = .all
     @Published public private(set) var loadedSearch: String = ""
+    private var loadedTagFilterID: String?
 
     /// 当前分类（切换后立刻重新查询）
-    @Published public var kind: ClipboardFilterKind = .all
+    @Published public var kind: ClipboardFilterKind = .all {
+        didSet { selectedIndex = 0; reload(debounce: false) }
+    }
     /// 搜索词（输入即筛，内部 60ms 防抖）
-    @Published public var search: String = ""
+    @Published public var search: String = "" {
+        didSet { selectedIndex = 0; reload(debounce: true) }
+    }
     /// 键盘光标（网格里的序号）
     @Published public var selectedIndex: Int = 0
 
@@ -118,7 +123,9 @@ public final class FloatingClipDeskStore: ObservableObject {
         didSet { FloatingClipPrefs.layout = layout }
     }
     /// 标签筛选（nil = 不筛）
-    @Published public var tagFilterID: String? = nil
+    @Published public var tagFilterID: String? = nil {
+        didSet { selectedIndex = 0; reload(debounce: false) }
+    }
     /// 卡片档位（决定网格列数，键盘上下移动按列数跳）
     @Published public var cardSize: FloatingClipCardSize = FloatingClipPrefs.cardSize {
         didSet { FloatingClipPrefs.cardSize = cardSize }
@@ -130,7 +137,7 @@ public final class FloatingClipDeskStore: ObservableObject {
     @Published public private(set) var previewModel: PreviewPopoverContentModel?
 
     /// 粘贴后回调（由窗口控制器挂上"收起面板"）
-    public var onPaste: (() -> Void)?
+    public var onPaste: ((@escaping () -> Void) -> Void)?
 
     private var pending: DispatchWorkItem?
     private let queue = DispatchQueue(label: "frset.clipdesk.query", qos: .userInitiated)
@@ -185,13 +192,20 @@ public final class FloatingClipDeskStore: ObservableObject {
                 guard let self else { return }
                 // 查询期间用户又改了条件：丢弃这次结果，避免列表和分类/搜索不一致
                 guard kind == self.kind,
-                      search == self.search.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+                      search == self.search.trimmingCharacters(in: .whitespacesAndNewlines),
+                      query.tagID == self.tagFilterID else { return }
+                let selectedID = self.selectedItemID
+                let queryChanged = kind != self.loadedKind || search != self.loadedSearch
+                    || query.tagID != self.loadedTagFilterID
                 self.items = fetched
                 self.totalInKind = fetched.count
                 self.loadedKind = kind
                 self.loadedSearch = search
+                self.loadedTagFilterID = query.tagID
                 self.isLoading = false
-                if self.selectedIndex >= fetched.count {
+                if !queryChanged, let selectedID, let index = fetched.firstIndex(where: { $0.id == selectedID }) {
+                    self.selectedIndex = index
+                } else if self.selectedIndex >= fetched.count {
                     self.selectedIndex = max(0, fetched.count - 1)
                 }
                 self.rebuildPreviewModel()
@@ -201,10 +215,11 @@ public final class FloatingClipDeskStore: ObservableObject {
 
     // MARK: 操作
 
-    /// 粘贴（写剪贴板 + 自动粘到前台 App），然后收起面板
-    public func paste(_ item: ClipboardItem) {
-        ClipboardManager.shared.copy(item)
-        onPaste?()
+    /// 先收起非激活面板、归还键盘焦点，再写剪贴板并粘贴。
+    public func paste(_ item: ClipboardItem, asPlainText: Bool = false) {
+        onPaste? {
+            ClipboardManager.shared.copy(item, autoPaste: true, asPlainText: asPlainText)
+        }
     }
 
     public func pasteSelected() {
@@ -341,14 +356,6 @@ public struct FloatingClipboardDeskView: View {
             // 打开即可打字：不等用户点搜索框
             DispatchQueue.main.async { searchFocused = true }
         }
-        .onChange(of: store.search) { _ in
-            store.selectedIndex = 0
-            store.reload(debounce: true)
-        }
-        .onChange(of: store.kind) { _ in
-            store.selectedIndex = 0
-            store.reload(debounce: false)
-        }
         // 选中项变了 → 右侧预览跟着换
         .onChange(of: store.selectedIndex) { _ in
             store.rebuildPreviewModel()
@@ -438,7 +445,6 @@ public struct FloatingClipboardDeskView: View {
                 if store.tagFilterID != nil {
                     Button("清除") {
                         store.tagFilterID = nil
-                        store.reload(debounce: false)
                         showsTags = false
                     }
                     .font(.scaledSystem(size: 10))
@@ -458,7 +464,6 @@ public struct FloatingClipboardDeskView: View {
                         ForEach(TagStore.shared.tags) { tag in
                             Button {
                                 store.tagFilterID = (store.tagFilterID == tag.id) ? nil : tag.id
-                                store.reload(debounce: false)
                                 showsTags = false
                             } label: {
                                 HStack(spacing: 6) {

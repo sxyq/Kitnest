@@ -142,7 +142,7 @@ public final class ClipboardStoragePruneScheduler {
     @discardableResult
     public func prune() -> ClipboardPruneResult {
         let limit = limitBytes
-        guard limit > 0 else { return .none }
+        guard limit > 0, usage.exceeds(limit) else { return .none }
         let target = Int64(Double(limit) * Self.hysteresis)
         var removed = 0
         var reclaimed: Int64 = 0

@@ -299,6 +299,8 @@ public final class ScreenshotManager: ObservableObject {
     // MARK: 私有
 
     private var overlays: [ScreenshotOverlayWindow] = []
+    private var captureGeneration = 0
+    private var returnApplication: NSRunningApplication?
     // v128（内存优化）：原缩略图缓存无界，截图目录大时长期驻留只涨不落。
     // 加 countLimit=48 + totalCostLimit=20MB，写入按像素字节记账（w*h*4）。
     private let thumbCache: NSCache<NSURL, NSImage> = {
@@ -514,6 +516,33 @@ public final class ScreenshotManager: ObservableObject {
     /// 直接拖拽截自定义范围、单击空白桌面截全屏，不再需要先选模式）。
     public func captureRegion() { startCapture(flow: .toolbar) }
 
+    @MainActor
+    func handleScreenshotShortcut() {
+        if RecentClipboardWindowController.isPresented {
+            RecentClipboardWindowController.shared.show()
+        } else if isCapturing, !overlays.isEmpty {
+            cancelCapture()
+            openRecentClipboard()
+        } else {
+            captureRegion()
+        }
+    }
+
+    @MainActor
+    func openRecentClipboard() {
+        RecentClipboardWindowController.shared.show(returnTo: returnApplication)
+    }
+
+    private var recentClipboardHint: String? {
+        let display: String
+        if let modifier = DoubleTapShortcutCenter.shared.modifier(for: "screenshot") {
+            display = modifier.display
+        } else if let binding = AppBootstrap.shortcutBinding(for: "screenshot") {
+            display = ShortcutManager.display(keyCode: binding.keyCode, modifiers: binding.modifiers)
+        } else { return nil }
+        return "再按一次〔\(display)〕，复制近期内容"
+    }
+
     /// 截图后直接走 OCR（对应原作「截图并 OCR」入口）
     public func captureAndOCR() { startCapture(flow: .direct(.ocr)) }
 
@@ -527,14 +556,18 @@ public final class ScreenshotManager: ObservableObject {
     public func captureAndScreenTranslate() { startCapture(flow: .direct(.screenTranslate)) }
 
     private func startCapture(flow: PendingFlow) {
+        captureGeneration += 1
+        let generation = captureGeneration
+        returnApplication = NSWorkspace.shared.frontmostApplication
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else { return }
-            self.beginCapture(flow: flow)
+            guard generation == self.captureGeneration else { return }
+            self.beginCapture(flow: flow, generation: generation)
         }
     }
 
     @MainActor
-    private func beginCapture(flow: PendingFlow) {
+    private func beginCapture(flow: PendingFlow, generation: Int) {
         closeOverlays()
         pendingFlow = flow
         // v267：历史库模式标签在**提交时**按真实结果写（窗口 / 选区 / 全屏），
@@ -557,11 +590,12 @@ public final class ScreenshotManager: ObservableObject {
             let snapshots = await Self.acquireScreenSnapshots()
             let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
             Log.info("Capture", String(format: "截图快照冻结完成 %.0fms（抓帧前未改窗口状态）", ms))
-            guard self.isCapturing else { return }   // 等待期间已被取消（如再次触发）
+            guard self.isCapturing, generation == self.captureGeneration else { return }
             // 画面已冻结，这时才激活 App 铺覆盖层；此后的窗口收起不会影响已抓到的帧
             if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
                 let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
+                if case .toolbar = flow { window.overlayView.recentClipboardHint = self.recentClipboardHint }
                 // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
                 if let ratio = CaptureRatioStore.selected {
                     window.overlayView.lockedRatio = CGSize(width: ratio.width, height: ratio.height)
@@ -671,6 +705,7 @@ public final class ScreenshotManager: ObservableObject {
     }
 
     private func cancelCapture() {
+        captureGeneration += 1
         closeOverlays()
         isCapturing = false
     }
@@ -958,7 +993,7 @@ public final class ScreenshotManager: ObservableObject {
             Toast.show("已保存", icon: "checkmark.circle.fill")
             statusMessage = "已保存到 \(url.lastPathComponent)"
         case .clipboard:
-            copyToPasteboard(image)
+            guard copyToPasteboard(image) else { return }
             Toast.show("截图已复制", icon: "checkmark.circle.fill")   // spec 13 §4：截图复制场景
             statusMessage = "已复制到剪贴板"
         case .ocr:
@@ -1044,13 +1079,17 @@ public final class ScreenshotManager: ObservableObject {
         CaptureFileName.make(pixelSize: pixelSize, mode: shared.currentModeTag)
     }
 
-    public func copyToPasteboard(_ image: CGImage) {
+    public func copyToPasteboard(_ image: CGImage) -> Bool {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         if let data = ImageProcessor.pngData(image) {
             pasteboard.setData(data, forType: NSPasteboard.PasteboardType("public.png"))
         }
-        pasteboard.writeObjects([ImageProcessor.nsImage(image)])
+        let copied = pasteboard.writeObjects([ImageProcessor.nsImage(image)])
+        if !copied {
+            Toast.show("复制失败：未能写入截图", icon: "exclamationmark.triangle", isWarning: true)
+        }
+        return copied
     }
 
     private func playShutterSound() {
@@ -1171,7 +1210,11 @@ public final class ScreenshotManager: ObservableObject {
         guard !ocrText.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(ocrText, forType: .string)
+        guard pasteboard.setString(ocrText, forType: .string) else {
+            statusMessage = "复制失败：未能写入识别结果"
+            Toast.show(statusMessage!, icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
         CaptureEventBus.onTextRecognized?(ocrText)
         statusMessage = "识别结果已复制"
     }

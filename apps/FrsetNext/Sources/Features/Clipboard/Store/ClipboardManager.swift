@@ -492,9 +492,17 @@ public final class ClipboardManager: ObservableObject {
     // MARK: 读取全文
 
     /// 完整文本：长文本走落盘文件，短文本直接返回内联 content
-    public func fullText(for item: ClipboardItem) -> String {
-        if let path = item.textPath, let text = ClipboardTextStorage.read(path) { return text }
-        if let rich = item.richTextPath, let attributed = ClipboardRichTextStorage.read(rich) { return attributed.string }
+    public func fullText(for item: ClipboardItem, onReadFailure: ((String) -> Void)? = nil) -> String {
+        // content 只有写入 textPath 时才截短；短正文不依赖富文本格式解析。
+        if item.textPath == nil, let content = item.content { return content }
+        if let path = item.textPath {
+            if let text = ClipboardTextStorage.read(path) { return text }
+            if let onReadFailure { onReadFailure("无法读取完整正文：\(path)"); return "" }
+        }
+        if let rich = item.richTextPath {
+            if let attributed = ClipboardRichTextStorage.read(rich) { return attributed.string }
+            if let onReadFailure { onReadFailure("无法读取富文本正文：\(rich)"); return "" }
+        }
         return item.content ?? ""
     }
 
@@ -505,31 +513,81 @@ public final class ClipboardManager: ObservableObject {
     // MARK: 操作
 
     /// 写回系统粘贴板；可选自动粘贴（需辅助功能权限，默认关闭）
-    public func copy(_ item: ClipboardItem, autoPaste: Bool? = nil, asPlainText: Bool = false) {
+    @discardableResult
+    public func copy(_ item: ClipboardItem, autoPaste: Bool? = nil, asPlainText: Bool = false,
+                     successMessage: String? = nil) -> String? {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+        var didWrite = false
 
         if asPlainText {
-            pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
         } else {
         switch item.type {
         case .image:
             if let path = item.imagePath, let data = ClipboardFileStore.read(path) {
                 let type: NSPasteboard.PasteboardType = path.hasSuffix(".png") ? .png : .tiff
-                pasteboard.setData(data, forType: type)
+                didWrite = pasteboard.setData(data, forType: type)
             }
         case .file:
             let urls = (item.content ?? "").split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
-            if !urls.isEmpty { pasteboard.writeObjects(urls as [NSURL]) }
+            if !urls.isEmpty { didWrite = pasteboard.writeObjects(urls as [NSURL]) }
         case .richtext:
             let richData = item.richTextPath.flatMap { ClipboardFileStore.read($0) }
             if let richData { pasteboard.setData(richData, forType: .rtf) }
-            pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
         case .text, .url:
-            pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
         }
         }
 
+        guard didWrite else {
+            let reason = item.type == .image
+                ? "复制失败：图片原文件不可读取或未能写入剪贴板（\(item.imagePath ?? "无原图路径")）"
+                : "复制失败：未能写入剪贴板内容"
+            Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
+            return reason
+        }
+        finishCopy(message: successMessage ?? (asPlainText ? "已复制纯文本" : "已复制"), event: .historyCopy)
+        let shouldPaste = autoPaste ?? preferences.value(Preferences.Keys.clipboardAutoPaste, default: false)
+        if shouldPaste {
+            StatisticsManager.shared.record(.clipboardPaste)
+            pasteToFrontmostApplication()
+        }
+        return nil
+    }
+
+    /// 主列表多选复制：与单条复制共用自写标记，避免合并正文再次进入历史。
+    @discardableResult
+    public func copy(_ items: [ClipboardItem], successMessage: String? = nil) -> String? {
+        if items.count == 1, let item = items.first, item.type == .image || item.type == .file {
+            return copy(item, autoPaste: false, successMessage: successMessage ?? "已复制 1 项")
+        }
+        if items.contains(where: { $0.type == .image }) {
+            return "文字与图片需分别复制；图片请逐张复制。"
+        }
+        var texts: [String] = []
+        for item in items {
+            var failure: String?
+            let text = fullText(for: item) { failure = $0 }
+            if let failure { return failure }
+            texts.append(text)
+        }
+        let text = texts.joined(separator: "\n")
+        guard !text.isEmpty else { return "所选记录没有可复制的正文" }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.setString(text, forType: .string) else {
+            Toast.show("复制失败：未能写入剪贴板内容", icon: "exclamationmark.triangle", isWarning: true)
+            return "复制失败：未能写入剪贴板内容"
+        }
+        finishCopy(message: successMessage ?? "已复制 \(items.count) 项", event: .historyBatchCopy)
+        Log.info("clipboard", "批量复制 \(items.count) 项")
+        return nil
+    }
+
+    private func finishCopy(message: String, event: AnalyticsEvent) {
+        let pasteboard = NSPasteboard.general
         // 自写回声抑制（specs/14 F3）：写回粘贴板时打 selfwrite-token 标记 + 记录 token/TTL，
         // 捕获循环据此跳过自写内容（TTL 过期前）
         let token = UUID().uuidString
@@ -539,15 +597,8 @@ public final class ClipboardManager: ObservableObject {
         lastSelfWriteChangeCount = pasteboard.changeCount
         // 自己写回的粘贴板不应被再次捕获 → 同步 changeCount
         lastChangeCount = pasteboard.changeCount
-        // v84：单条复制埋点（面板列表 / 悬浮剪贴板 / 预览窗复制共用同一收口）
-        StatisticsManager.shared.record(.historyCopy)
-        Toast.show(asPlainText ? "已复制纯文本" : "已复制", icon: "checkmark.circle.fill")
-
-        let shouldPaste = autoPaste ?? preferences.value(Preferences.Keys.clipboardAutoPaste, default: false)
-        if shouldPaste {
-            StatisticsManager.shared.record(.clipboardPaste)
-            pasteToFrontmostApplication()
-        }
+        StatisticsManager.shared.record(event)
+        Toast.show(message, icon: "checkmark.circle.fill")
     }
 
     // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）
@@ -578,8 +629,11 @@ public final class ClipboardManager: ObservableObject {
     /// 重命名（写入 alias_title）
     public func rename(_ item: ClipboardItem, aliasTitle: String?) {
         queue.async { [weak self] in
-            self?.repository.updateAliasTitle(dedupeKey: item.dedupeKey, aliasTitle: aliasTitle)
-            DispatchQueue.main.async { self?.reload(reset: false) }
+            let saved = self?.repository.updateAliasTitle(dedupeKey: item.dedupeKey, aliasTitle: aliasTitle)
+            DispatchQueue.main.async {
+                self?.reload(reset: false)
+                if saved == false { Toast.show("重命名失败", icon: "exclamationmark.triangle", isWarning: true) }
+            }
         }
     }
 
@@ -608,25 +662,28 @@ public final class ClipboardManager: ObservableObject {
             let auxiliary = self.auxiliaryBytes(item: existing)
             if length > Self.inlineTextByteLimit {
                 guard let stored = ClipboardTextStorage.write(newContent) else { return }
-                if let old = existing.textPath, old != stored.path { ClipboardTextStorage.remove(old) }
                 let previewBytes = String(newContent.prefix(Self.inlinePreviewLength)).utf8.count
-                self.repository.updateContent(dedupeKey: dedupeKey,
+                guard self.repository.updateContent(dedupeKey: dedupeKey,
                                               content: String(newContent.prefix(Self.inlinePreviewLength)),
                                               textPath: stored.path,
                                               charCount: length,
                                               lineCount: newContent.lineCount,
-                                              storageBytes: stored.bytes + previewBytes + auxiliary)
+                                              storageBytes: stored.bytes + previewBytes + auxiliary) else {
+                    ClipboardTextStorage.remove(stored.path)
+                    return
+                }
+                if let old = existing.textPath, old != stored.path { ClipboardTextStorage.remove(old) }
             } else {
-                if let old = existing.textPath { ClipboardTextStorage.remove(old) }
-                self.repository.updateContent(dedupeKey: dedupeKey,
+                guard self.repository.updateContent(dedupeKey: dedupeKey,
                                               content: newContent,
                                               textPath: nil,
                                               charCount: nil,
                                               lineCount: nil,
-                                              storageBytes: newContent.utf8.count + auxiliary)
+                                              storageBytes: newContent.utf8.count + auxiliary) else { return }
+                if let old = existing.textPath { ClipboardTextStorage.remove(old) }
             }
             if let aliasTitle {
-                self.repository.updateAliasTitle(dedupeKey: dedupeKey, aliasTitle: aliasTitle)
+                guard self.repository.updateAliasTitle(dedupeKey: dedupeKey, aliasTitle: aliasTitle) else { return }
             }
             savedItem = self.repository.item(dedupeKey: dedupeKey)
         }
@@ -642,7 +699,7 @@ public final class ClipboardManager: ObservableObject {
 
     /// 工具回流：工具箱产物以 is_generated_by_tool=1 进历史（05 号规格 B10），供 10 号模块复用
     @discardableResult
-    public func ingestToolOutput(text: String, sourceToolKeyword: String, analyticsId: String? = nil) -> ClipboardItem {
+    public func ingestToolOutput(text: String, sourceToolKeyword: String, analyticsId: String? = nil) -> ClipboardItem? {
         let key = "tool:" + text.sha256
         if repository.exists(dedupeKey: key) {
             repository.touch(dedupeKey: key)
@@ -652,8 +709,8 @@ public final class ClipboardManager: ObservableObject {
             var charCount: Int? = nil
             var lineCount: Int? = nil
             var bytes = text.utf8.count
-            if (text as NSString).length > Self.inlineTextByteLimit,
-               let stored = ClipboardTextStorage.write(text) {
+            if (text as NSString).length > Self.inlineTextByteLimit {
+                guard let stored = ClipboardTextStorage.write(text) else { return nil }
                 textPath = stored.path
                 charCount = (text as NSString).length
                 lineCount = text.lineCount
@@ -672,10 +729,13 @@ public final class ClipboardManager: ObservableObject {
                                      fullTextLineCount: lineCount,
                                      storageBytes: bytes,
                                      dedupeKey: key)
-            _ = repository.insert(item)
+            guard repository.insert(item) else {
+                ClipboardTextStorage.remove(textPath)
+                return nil
+            }
         }
         reload(reset: true)
-        return ClipboardItem(type: .text, content: text, dedupeKey: key)
+        return repository.item(dedupeKey: key)
     }
 
     // MARK: 跨模块写入（App 总控事件接线：截图 / OCR 等外部产出）
@@ -759,7 +819,7 @@ public final class ClipboardManager: ObservableObject {
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
         // spec 13 §4：粘贴完成场景（原作 Pasted completed）
-        Toast.show("粘贴完成", icon: "checkmark.circle.fill")
+        Toast.show("已发送粘贴", icon: "checkmark.circle.fill")
     }
 
     /// 本次启动是否已弹过辅助功能授权引导（自动粘贴是复制即触发的高频路径，

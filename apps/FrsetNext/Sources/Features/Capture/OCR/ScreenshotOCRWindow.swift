@@ -504,7 +504,10 @@ final class ScreenshotOCRResultWindow: NSWindow {
         guard sender.tag >= 0, sender.tag < qrPayloads.count else { return }
         let pb = NSPasteboard.general
         pb.clearContents()
-        pb.setString(qrPayloads[sender.tag], forType: .string)
+        guard pb.setString(qrPayloads[sender.tag], forType: .string) else {
+            Toast.show("复制失败：未能写入二维码内容", icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
         Toast.show("二维码内容已复制", icon: "checkmark.circle.fill")
     }
 
@@ -644,7 +647,11 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
         guard let text = window?.resultText, !text.isEmpty else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
+        guard pasteboard.setString(text, forType: .string) else {
+            Toast.show("复制失败：未能写入识别文字", icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        Toast.show("文本已复制", icon: "checkmark.circle.fill")
         CaptureEventBus.onTextRecognized?(text)
     }
 

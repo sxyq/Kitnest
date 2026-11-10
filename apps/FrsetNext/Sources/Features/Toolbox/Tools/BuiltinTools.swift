@@ -137,7 +137,7 @@ public enum BuiltinTools {
             kind: .varNameConverter,
             name: L10n.t("Variable Naming"),
             keyword: "var",
-            toolDescription: L10n.t("Generate variable names via AI"),
+            toolDescription: "转换变量命名格式（本地执行）",
             systemImage: "chevron.left.forwardslash.chevron.right",
             category: .convert,
             placeholder: "输入变量名，如 user_name / UserName / user-name",
@@ -275,7 +275,7 @@ public enum BuiltinTools {
                 let name = CodeLanguageCatalog.displayName(languageID)
                 return ToolOutput(text: raw,
                                   image: image,
-                                  note: "已按 \(name) 着色（\(theme.name) 风格），共 \(lines) 行；输出为卡片图，可另存或直接粘贴。")
+                                  note: "已按 \(name) 着色（\(theme.name) 风格），共 \(lines) 行；右键复制卡片图，复制结果按钮复制代码。")
             }))
     }
 
@@ -374,7 +374,7 @@ public enum BuiltinTools {
                 guard let image = QRCodeGenerator.image(from: raw, size: size, correction: correction) else {
                     return ToolOutput.error("二维码生成失败：内容可能过长或包含不受支持的字符")
                 }
-                return ToolOutput(text: raw, image: image, note: "纠错等级 \(correction)，输出 \(Int(size)) pt；可在预览图上右键存储")
+                return ToolOutput(text: raw, image: image, note: "纠错等级 \(correction)，输出 \(Int(size)) pt；可在预览图上右键复制图片")
             }))
     }
 }

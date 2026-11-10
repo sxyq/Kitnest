@@ -11,15 +11,17 @@ public final class OllamaService: LLMProviderAdapting {
 
     public let kind: LLMProviderKind = .ollama
     public let credentialStore: LLMCredentialStoring
+    private let baseURLOverride: URL?
     public let defaultModel: String = "llama3.2"
 
     public var baseURL: URL {
-        get { AISettings.baseURL(for: .ollama) }
+        get { baseURLOverride ?? AISettings.baseURL(for: .ollama) }
         set { AISettings.setBaseURL(newValue.absoluteString, for: .ollama) }
     }
 
-    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared) {
+    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared, baseURL: URL? = nil) {
         self.credentialStore = credentialStore
+        self.baseURLOverride = baseURL
     }
 
     /// 本地服务无需凭证

@@ -26,6 +26,7 @@ public final class AIProviderSettingsViewModel: ObservableObject {
 
     private let connectionService: AIProviderConnectionService
     private let credentialCoordinator: AICredentialCommitCoordinator
+    private var configurationGeneration = 0
 
     public init(connectionService: AIProviderConnectionService = .shared,
                 credentialCoordinator: AICredentialCommitCoordinator = .shared) {
@@ -36,6 +37,10 @@ public final class AIProviderSettingsViewModel: ObservableObject {
 
 
     public func reload() {
+        configurationGeneration += 1
+        isTesting = false
+        isLoadingModels = false
+        infoMessage = nil
         provider = AISettings.providerKind
         baseURLText = AISettings.baseURL(for: provider).absoluteString
         modelText = AISettings.selectedModel
@@ -116,23 +121,23 @@ public final class AIProviderSettingsViewModel: ObservableObject {
 
     public func refreshModels() {
         isLoadingModels = true
+        let kind = provider
+        let generation = configurationGeneration
         Task { [self] in
-            await loadModelsAsync()
-        }
-    }
-
-    private func loadModelsAsync() async {
-        do {
-            let list = try await LLMResolver.shared.availableModels(for: provider, forceRefresh: true)
-            await MainActor.run {
-                self.models = list
-                self.isLoadingModels = false
-                self.infoMessage = "已拉取 \(list.count) 个模型。"
-            }
-        } catch {
-            await MainActor.run {
-                self.isLoadingModels = false
-                self.infoMessage = "拉取模型列表失败：\(error.localizedDescription)"
+            do {
+                let list = try await LLMResolver.shared.availableModels(for: kind, forceRefresh: true)
+                await MainActor.run {
+                    guard generation == self.configurationGeneration else { return }
+                    self.models = list
+                    self.isLoadingModels = false
+                    self.infoMessage = "已拉取 \(list.count) 个模型。"
+                }
+            } catch {
+                await MainActor.run {
+                    guard generation == self.configurationGeneration else { return }
+                    self.isLoadingModels = false
+                    self.infoMessage = "拉取模型列表失败：\(error.localizedDescription)"
+                }
             }
         }
     }
@@ -156,12 +161,14 @@ public final class AIProviderSettingsViewModel: ObservableObject {
         let candidateURL = baseURLText
         let candidateModel = modelText
         let kind = provider
+        let generation = configurationGeneration
         Task { [self] in
             let result = await connectionService.test(provider: kind,
                                                       baseURL: candidateURL,
                                                       model: candidateModel,
                                                       apiKey: candidateKey)
             await MainActor.run {
+                guard generation == self.configurationGeneration else { return }
                 self.testResult = result
                 self.isTesting = false
                 if result.ok, !result.models.isEmpty {

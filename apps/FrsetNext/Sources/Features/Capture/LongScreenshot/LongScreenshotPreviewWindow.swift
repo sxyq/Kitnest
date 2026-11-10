@@ -281,7 +281,8 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
                     Log.warn("Capture", "长截图复制：内容视图/文档图不可用")
                     return
                 }
-                ScreenshotManager.shared.copyToPasteboard(image)
+                guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
+                Toast.show("长截图已复制", icon: "checkmark.circle.fill")
                 Log.info("Capture", "长截图复制：已写入剪贴板")
             },
             onClose: { [weak self] in

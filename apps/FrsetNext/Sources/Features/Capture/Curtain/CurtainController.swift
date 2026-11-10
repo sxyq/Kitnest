@@ -358,8 +358,12 @@ public final class ImageCurtainController: NSObject {
         panel.canCreateDirectories = true
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            try? FileManager.default.copyItem(at: item.fileURL, to: url)
-            Toast.show("已保存", icon: "checkmark.circle")
+            do {
+                try Data(contentsOf: item.fileURL).write(to: url, options: .atomic)
+                Toast.show("已保存", icon: "checkmark.circle")
+            } catch {
+                Toast.show("保存失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+            }
         }
     }
 

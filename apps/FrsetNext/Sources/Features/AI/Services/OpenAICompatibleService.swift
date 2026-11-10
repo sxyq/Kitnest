@@ -12,15 +12,17 @@ public final class OpenAICompatibleService: LLMProviderAdapting {
 
     public let kind: LLMProviderKind = .openAICompatible
     public let credentialStore: LLMCredentialStoring
+    private let baseURLOverride: URL?
     public let defaultModel: String = "gpt-4o-mini"
 
     public var baseURL: URL {
-        get { AISettings.baseURL(for: .openAICompatible) }
+        get { baseURLOverride ?? AISettings.baseURL(for: .openAICompatible) }
         set { AISettings.setBaseURL(newValue.absoluteString, for: .openAICompatible) }
     }
 
-    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared) {
+    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared, baseURL: URL? = nil) {
         self.credentialStore = credentialStore
+        self.baseURLOverride = baseURL
     }
 
     // MARK: - 请求构造

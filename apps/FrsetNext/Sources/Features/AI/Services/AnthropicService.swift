@@ -11,18 +11,20 @@ public final class AnthropicService: LLMProviderAdapting {
 
     public let kind: LLMProviderKind = .anthropic
     public let credentialStore: LLMCredentialStoring
+    private let baseURLOverride: URL?
     public let defaultModel: String = "claude-3-5-sonnet-latest"
 
     /// 版本号固定（官方推荐的最低可用版本，缺失会返回 400）
     private static let apiVersion = "2023-06-01"
 
     public var baseURL: URL {
-        get { AISettings.baseURL(for: .anthropic) }
+        get { baseURLOverride ?? AISettings.baseURL(for: .anthropic) }
         set { AISettings.setBaseURL(newValue.absoluteString, for: .anthropic) }
     }
 
-    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared) {
+    public init(credentialStore: LLMCredentialStoring = CredentialStore.shared, baseURL: URL? = nil) {
         self.credentialStore = credentialStore
+        self.baseURLOverride = baseURL
     }
 
     // MARK: - 请求构造

@@ -280,14 +280,16 @@ final class LongScreenshotCoordinator: NSObject {
             }
             // v137（用户反馈「点击完成没有正确复制到剪贴板」）：收尾即复制——
             // 与普通截图"完成即可粘贴"的心智一致；编辑器里仍可再复制/保存
-            ScreenshotManager.shared.copyToPasteboard(image)
+            let copied = ScreenshotManager.shared.copyToPasteboard(image)
             LongScreenshotPreviewController.shared.show(image: image)
-            if dropped {
-                Toast.show("长截图完成（有一段因滚动过快跳过），已复制到剪贴板", icon: "checkmark.circle.fill")
-            } else {
-                Toast.show("长截图完成，已复制到剪贴板", icon: "checkmark.circle.fill")
+            if copied {
+                if dropped {
+                    Toast.show("长截图完成（有一段因滚动过快跳过），已复制到剪贴板", icon: "checkmark.circle.fill")
+                } else {
+                    Toast.show("长截图完成，已复制到剪贴板", icon: "checkmark.circle.fill")
+                }
             }
-            Log.info("Capture", "长截图完成：\(image.width)×\(image.height)，已复制到剪贴板\(dropped ? "（有跳过段）" : "")")
+            Log.info("Capture", "长截图完成：\(image.width)×\(image.height)，\(copied ? "已复制到剪贴板" : "复制失败")\(dropped ? "（有跳过段）" : "")")
         case .cancelled:
             Log.info("Capture", "长截图已取消")
         case .failed:

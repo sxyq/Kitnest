@@ -127,12 +127,15 @@ public final class BeautifyController: NSObject, NSWindowDelegate {
         let win = BeautifyWindow(image: image)
         win.delegate = self
         win.onCopy = { rendered in
-            ScreenshotManager.shared.copyToPasteboard(rendered)
+            guard ScreenshotManager.shared.copyToPasteboard(rendered) else { return }
             Toast.show("美化图已复制", icon: "checkmark.circle.fill")
         }
         win.onSave = { rendered in
             guard let data = ImageProcessor.pngData(rendered),
-                  let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: rendered.width, height: rendered.height)) else { return }
+                  let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: rendered.width, height: rendered.height)) else {
+                Toast.show("美化图保存失败", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
             ScreenshotManager.shared.registerCaptured(url: url, data: data)
             Toast.show("美化图已保存", icon: "checkmark.circle.fill")
         }

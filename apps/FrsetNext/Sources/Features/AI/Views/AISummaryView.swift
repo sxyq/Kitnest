@@ -123,7 +123,12 @@ public final class AISummaryViewModel: ObservableObject {
         let text = outputText
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        guard NSPasteboard.general.setString(text, forType: .string) else {
+            didCopy = false
+            errorMessage = "复制失败：无法写入剪贴板"
+            return
+        }
+        errorMessage = nil
         didCopy = true
         // spec 13 §4：文本已复制场景（0x100412774，翻译/摘要结果复制）
         Toast.show("文本已复制", icon: "checkmark.circle.fill")
@@ -134,9 +139,12 @@ public final class AISummaryViewModel: ObservableObject {
     public func saveToClipboard() {
         let text = outputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        AIEventBus.emitResult(text)
-        didCopy = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.didCopy = false }
+        guard AIEventBus.emitResult(text) else {
+            errorMessage = "保存失败：无法写入剪贴板历史"
+            return
+        }
+        errorMessage = nil
+        Toast.show("已存为剪贴板条目", icon: "checkmark.circle.fill")
     }
 
     // MARK: 私有

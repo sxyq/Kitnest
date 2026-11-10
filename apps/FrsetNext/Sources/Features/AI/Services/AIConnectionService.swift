@@ -36,30 +36,37 @@ public final class AIProviderConnectionService {
 
         // 1) 用临时凭证构造实例，避免把测试用的半成品写进 CredentialStore
         var staging: [LLMProviderKind: String] = [:]
-        if let apiKey, !apiKey.isEmpty { staging[provider] = apiKey }
+        staging[provider] = apiKey ?? CredentialStore.shared.credential(for: provider)
         let ephemeralStore = InMemoryCredentialStore(staging)
+
+        let candidateURL: URL
+        if let baseURL {
+            let raw = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            if raw.isEmpty {
+                candidateURL = provider.defaultBaseURL
+            } else {
+                guard let url = URL(string: raw), url.scheme != nil else {
+                    return AIConnectionTestResult(ok: false, message: "服务地址无效：\(raw)")
+                }
+                candidateURL = url
+            }
+        } else {
+            candidateURL = AISettings.baseURL(for: provider)
+        }
 
         let adapter: any LLMProviderAdapting
         switch provider {
-        case .anthropic:        adapter = AnthropicService(credentialStore: ephemeralStore)
-        case .gemini:           adapter = GeminiService(credentialStore: ephemeralStore)
-        case .openAICompatible: adapter = OpenAICompatibleService(credentialStore: ephemeralStore)
-        case .ollama:           adapter = OllamaService(credentialStore: ephemeralStore)
+        case .anthropic:        adapter = AnthropicService(credentialStore: ephemeralStore, baseURL: candidateURL)
+        case .gemini:           adapter = GeminiService(credentialStore: ephemeralStore, baseURL: candidateURL)
+        case .openAICompatible: adapter = OpenAICompatibleService(credentialStore: ephemeralStore, baseURL: candidateURL)
+        case .ollama:           adapter = OllamaService(credentialStore: ephemeralStore, baseURL: candidateURL)
         }
-
-        // 2) 候选地址临时写入偏好，测完还原（适配器统一从 AISettings 读地址）
-        let previousURL = rawStoredBaseURL(provider)
-        if let baseURL, !baseURL.trimmingCharacters(in: .whitespaces).isEmpty {
-            AISettings.setBaseURL(baseURL, for: provider)
-        }
-        defer { restoreBaseURL(previousURL, provider) }
 
         let chosenModel = (model?.isEmpty == false) ? model! : adapter.defaultModel
 
         // 3) 优先做目录探测（不消耗 token）
         do {
             let models = try await adapter.availableModels
-            AIProviderModelDiscoveryCache.shared.store(models, for: provider)
             let head = models.prefix(3).joined(separator: "、")
             let elapsed = Date().timeIntervalSince(started)
             if models.contains(chosenModel) {
@@ -95,13 +102,4 @@ public final class AIProviderConnectionService {
         }
     }
 
-    // MARK: - 私有
-
-    private func rawStoredBaseURL(_ provider: LLMProviderKind) -> String {
-        Preferences.shared.value(AISettings.baseURLKey(for: provider), default: "") as String
-    }
-
-    private func restoreBaseURL(_ value: String, _ provider: LLMProviderKind) {
-        AISettings.setBaseURL(value, for: provider)
-    }
 }
