@@ -488,10 +488,12 @@ struct PersonalizationSettingsView: View {
         settingRow("合并条分隔线") {
             HStack(spacing: 10) {
                 Toggle("模块间画 1pt 竖线", isOn: Binding(
-                    get: { UserDefaults.standard.object(forKey: "CombinedModules_separator") == nil
-                        ? true
-                        : UserDefaults.standard.bool(forKey: "CombinedModules_separator") },
-                    set: { UserDefaults.standard.set($0, forKey: "CombinedModules_separator") }
+                    get: { FSBarMergedSeparator() },
+                    set: {
+                        FSBarGlobalSet("CombinedModules_separator", NSNumber(value: $0))
+                        FSBarReloadFromStore()
+                        p.objectWillChange.send()
+                    }
                 ))
                 .toggleStyle(.checkbox)
                 .font(.system(size: 12))

@@ -65,6 +65,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private let cameraLock = NSLock()
 
     private(set) var isRunning = false
+    var onStopped: ((Error) -> Void)?
 
     init(options: RecordingOptions, videoSize: CGSize, regionOrigin: CGPoint,
          pixelScale: CGFloat, outputURL: URL) {
@@ -165,8 +166,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
 
     // MARK: 设备（摄像头 / 麦克风）
 
-    func startCamera() {
-        guard options.cameraEnabled else { return }
+    func startCamera() -> Bool {
+        guard options.cameraEnabled else { return true }
         let session = AVCaptureSession()
         session.beginConfiguration()
         session.sessionPreset = .high
@@ -175,36 +176,41 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         guard let device, let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input) else {
             Log.warn("Recording", "摄像头不可用，跳过画中画")
-            return
+            return false
         }
         session.addInput(input)
         let output = AVCaptureVideoDataOutput()
         output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         output.alwaysDiscardsLateVideoFrames = true
         output.setSampleBufferDelegate(self, queue: cameraQueue)
-        if session.canAddOutput(output) { session.addOutput(output) }
+        guard session.canAddOutput(output) else { return false }
+        session.addOutput(output)
         session.commitConfiguration()
         session.startRunning()
         cameraSession = session
         Log.info("Recording", "摄像头画中画：\(device.localizedName)")
+        return session.isRunning
     }
 
-    func startMicrophone() {
-        guard options.audio == .microphone else { return }
+    func startMicrophone() -> Bool {
+        guard options.audio == .microphone else { return true }
         let session = AVCaptureSession()
         session.beginConfiguration()
         guard let device = AVCaptureDevice.default(for: .audio),
-              let input = try? AVCaptureDeviceInput(device: device) else {
+              let input = try? AVCaptureDeviceInput(device: device),
+              session.canAddInput(input) else {
             Log.warn("Recording", "麦克风不可用")
-            return
+            return false
         }
         session.addInput(input)
         let output = AVCaptureAudioDataOutput()
         output.setSampleBufferDelegate(self, queue: audioQueue)
-        if session.canAddOutput(output) { session.addOutput(output) }
+        guard session.canAddOutput(output) else { return false }
+        session.addOutput(output)
         session.commitConfiguration()
         session.startRunning()
         micSession = session
+        return session.isRunning
     }
 
     private func stopDevices() {
@@ -231,6 +237,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         Log.error("Recording", "SCStream 中止：\(error.localizedDescription)")
         isRunning = false
+        onStopped?(error)
     }
 
     // MARK: 视频
@@ -362,6 +369,7 @@ public final class ScreenRecorder: ObservableObject {
     @Published public private(set) var elapsed: TimeInterval = 0
     @Published public private(set) var outputURL: URL?
     @Published public private(set) var errorText: String?
+    @Published public private(set) var unavailableFeatures: [String] = []
 
     private var stream: SCStream?
     private var pipeline: RecordingPipeline?
@@ -395,27 +403,50 @@ public final class ScreenRecorder: ObservableObject {
         }
         state = .preparing
         errorText = nil
-        currentOptions = options
+        unavailableFeatures = []
+        var options = options
 
         guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
             state = .idle
             return
         }
+        guard state == .preparing else { state = .idle; return }
         if options.audio == .microphone {
             let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            guard state == .preparing else { state = .idle; return }
             if !granted {
                 Log.warn("Recording", "麦克风未授权，本次不录音")
+                options.audio = .none
+                unavailableFeatures.append("麦克风未授权，本次无麦克风音轨")
             }
         }
         if options.cameraEnabled {
             let granted = await AVCaptureDevice.requestAccess(for: .video)
+            guard state == .preparing else { state = .idle; return }
             if !granted {
                 Log.warn("Recording", "摄像头未授权，本次不启用画中画")
+                options.cameraEnabled = false
+                unavailableFeatures.append("摄像头未授权，本次无画中画")
             }
         }
+        if options.showKeys || options.showClicks {
+            if RecordingInputMonitor.shared.start() {
+                RecordingInputMonitor.shared.reset()
+            } else {
+                options.showKeys = false
+                options.showClicks = false
+                unavailableFeatures.append("输入监听未授权，本次无按键与点击叠加")
+            }
+        }
+        currentOptions = options
 
         do {
             let setup = try await makeStream(options: options)
+            guard state == .preparing else {
+                RecordingInputMonitor.shared.stop()
+                state = .idle
+                return
+            }
             let url = uniqueOutputURL()
             let pipeline = RecordingPipeline(options: options,
                                              videoSize: setup.videoSize,
@@ -428,18 +459,32 @@ public final class ScreenRecorder: ObservableObject {
             if options.audio == .system {
                 try stream.addStreamOutput(pipeline, type: .audio, sampleHandlerQueue: setup.queue)
             }
-            pipeline.startCamera()
-            pipeline.startMicrophone()
-            try await stream.startCapture()
-
             self.pipeline = pipeline
             self.stream = stream
-            outputURL = url
-
-            if options.showKeys || options.showClicks {
-                _ = RecordingInputMonitor.shared.start()
-                RecordingInputMonitor.shared.reset()
+            pipeline.onStopped = { [weak self, weak pipeline] error in
+                Task { @MainActor in
+                    guard let self, let pipeline, self.pipeline === pipeline,
+                          self.state != .finishing else { return }
+                    self.errorText = "录制中断：\(error.localizedDescription)"
+                    await self.stop()
+                }
             }
+            if !pipeline.startCamera() {
+                unavailableFeatures.append("摄像头不可用，本次无画中画")
+            }
+            if !pipeline.startMicrophone() {
+                unavailableFeatures.append("麦克风不可用，本次无麦克风音轨")
+            }
+            try await stream.startCapture()
+            guard state == .preparing else {
+                try? await stream.stopCapture()
+                _ = await pipeline.finish()
+                self.stream = nil
+                self.pipeline = nil
+                state = .idle
+                return
+            }
+            outputURL = url
 
             startedAt = Date()
             accumulated = 0
@@ -447,6 +492,9 @@ public final class ScreenRecorder: ObservableObject {
             state = .recording
             startTimer()
             RecordingHUDController.shared.show()
+            if !unavailableFeatures.isEmpty {
+                Toast.show(unavailableFeatures.joined(separator: "；"), icon: "exclamationmark.triangle", isWarning: true)
+            }
 
             // 排障：注入样例按键/点击，验证叠加合成路径（不需要辅助功能权限）
             if ProcessInfo.processInfo.environment["FRSET_RECORD_OVERLAY_PROBE"] == "1" {
@@ -459,6 +507,10 @@ public final class ScreenRecorder: ObservableObject {
             }
             Log.info("Recording", "开始录制 \(Int(setup.videoSize.width))×\(Int(setup.videoSize.height)) → \(url.lastPathComponent)")
         } catch {
+            RecordingInputMonitor.shared.stop()
+            _ = await pipeline?.finish()
+            pipeline = nil
+            stream = nil
             state = .idle
             errorText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             Log.error("Recording", "启动失败：\(error.localizedDescription)")
@@ -495,10 +547,15 @@ public final class ScreenRecorder: ObservableObject {
     @discardableResult
     public func stop() async -> URL? {
         guard state.isActive, state != .finishing else { return nil }
+        let preparing = state == .preparing
         state = .finishing
         stopTimer()
         RecordingHUDController.shared.hide()
         RecordingInputMonitor.shared.stop()
+        if preparing {
+            Toast.show(errorText ?? "已取消录屏准备", icon: "xmark.circle", isWarning: errorText != nil)
+            return nil
+        }
 
         if let stream {
             try? await stream.stopCapture()
@@ -510,13 +567,17 @@ public final class ScreenRecorder: ObservableObject {
         startedAt = nil
 
         guard let file else {
-            errorText = "录制文件写入失败"
-            Toast.show("录制失败：文件没有写出来", icon: "exclamationmark.triangle", isWarning: true)
+            errorText = errorText ?? "录制文件写入失败"
+            Toast.show(errorText!, icon: "exclamationmark.triangle", isWarning: true)
             return nil
         }
         outputURL = file
         let seconds = max(1, Int(elapsed.rounded()))
-        Toast.show("录制完成 · \(seconds / 60):\(String(format: "%02d", seconds % 60))", icon: "checkmark.circle.fill")
+        if let errorText {
+            Toast.show("\(errorText)；已保存中断前视频", icon: "exclamationmark.triangle", isWarning: true)
+        } else {
+            Toast.show("录制完成 · \(seconds / 60):\(String(format: "%02d", seconds % 60))", icon: "checkmark.circle.fill")
+        }
         // 录制完成 → 打开编辑器（用户可直接裁剪 / 导出）
         RecordingEditorController.shared.open(url: file)
         return file

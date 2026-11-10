@@ -204,8 +204,9 @@ final class RecordingEditorController {
             return
         }
         exporting = true
-        try? FileManager.default.removeItem(at: dest)
-        session.outputURL = dest
+        let temporary = dest.deletingLastPathComponent()
+            .appendingPathComponent("Recording-export-\(UUID().uuidString).mp4")
+        session.outputURL = temporary
         session.outputFileType = .mp4
         session.timeRange = range
         session.shouldOptimizeForNetworkUse = true
@@ -225,8 +226,17 @@ final class RecordingEditorController {
                 self?.exporting = false
                 switch session.status {
                 case .completed:
-                    Toast.show("已导出 \(dest.lastPathComponent)", icon: "checkmark.circle.fill")
-                    NSWorkspace.shared.activateFileViewerSelecting([dest])
+                    do {
+                        if FileManager.default.fileExists(atPath: dest.path) {
+                            _ = try FileManager.default.replaceItemAt(dest, withItemAt: temporary)
+                        } else {
+                            try FileManager.default.moveItem(at: temporary, to: dest)
+                        }
+                        Toast.show("已导出 \(dest.lastPathComponent)", icon: "checkmark.circle.fill")
+                        NSWorkspace.shared.activateFileViewerSelecting([dest])
+                    } catch {
+                        Toast.show("导出保存失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+                    }
                 case .cancelled:
                     Toast.show("导出已取消", icon: "xmark.circle")
                 default:
@@ -234,6 +244,7 @@ final class RecordingEditorController {
                     Log.error("Recording", "导出失败：\(message)")
                     Toast.show("导出失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
                 }
+                try? FileManager.default.removeItem(at: temporary)
             }
         }
     }

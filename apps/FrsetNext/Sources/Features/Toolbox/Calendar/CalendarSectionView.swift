@@ -21,8 +21,8 @@ public struct CalendarSectionView: View {
     @Stored private var collapsed = false
     /// 缓存 42 天数据（含农历/节气/事件），避免每帧查 EventKit
     @Stored private var cachedDays: [CalendarDay] = []
-    /// 卡片在窗口内的 frame（横滑手势命中区判定）
-    // v129（内存）：删除 cardFrame（v112 宽度实证埋点专用，全仓零读取）
+    /// 横滑只由展开且悬停中的日历卡消费。
+    @Stored private var isHovered = false
     /// 横向滚动累积量（两指左右滑切周）
     @Stored private var scrollAccum: CGFloat = 0
     /// 滚动监听 token（窗口内 local monitor）
@@ -55,8 +55,10 @@ public struct CalendarSectionView: View {
         .padding(.vertical, 10)
         // v111：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
         .whiteGlassCard(14)
-        // v129（内存）：移除 v112「宽度实证」GeometryReader 埋点——onAppear/onChange
-        // 各打一条 Log（字符串格式化+落盘），且 cardFrame 全仓零读取，属纯调试残留。
+        .onHover { hovering in
+            isHovered = hovering
+            if !hovering { scrollAccum = 0 }
+        }
         .onAppear {
             reload()
             installScrollMonitor()
@@ -230,11 +232,8 @@ public struct CalendarSectionView: View {
     private func installScrollMonitor() {
         guard scrollMonitor == nil else { return }
         scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
-            // 面板是 key window 时，面板内唯一的横向滚动区域就是日历卡，
-            // 因此不再做像素级命中判定（SwiftUI .global 与 AppKit 视坐标系不一致，
-            // 逐次换算反而易错）：横向为主的滚动即切周。
-            guard let win = event.window ?? NSApp.keyWindow,
-                  win == NSApp.keyWindow else { return event }
+            guard !collapsed, isHovered, let win = event.window,
+                  win === activeWindow else { return event }
             let dx = event.scrollingDeltaX
             let dy = event.scrollingDeltaY
             guard abs(dx) > abs(dy), abs(dx) > 0.3 else { return event }
@@ -255,7 +254,7 @@ public struct CalendarSectionView: View {
 
     /// 面板窗口（日历只在主面板里出现）
     private var activeWindow: NSWindow? {
-        NSApp.keyWindow ?? NSApp.mainWindow
+        PanelController.shared.panelWindowForProbe
     }
 
     // MARK: 数据

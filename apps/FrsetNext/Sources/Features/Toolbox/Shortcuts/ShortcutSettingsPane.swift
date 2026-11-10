@@ -8,15 +8,20 @@ public struct ShortcutSettingsPane: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            pair("openFrset", nil)
+            pair("openFrset", "commandPalette")
             pair("floatingClipboard", "openAndSearch")
             Divider().padding(.vertical, 8)
             pair("screenshot", "screenshotOCR")
             pair("screenshotCopy", "colorPicker")
-            pair("screenshotPin", nil)
+            pair("screenshotPin", "pinLast")
+            pair("screenshotWindow", "longScreenshot")
             Divider().padding(.vertical, 8)
             // v263：剪贴板与图帘也要能像截图一样单独设置快捷键
             pair("clipboardPanel", "curtainToggle")
+            Divider().padding(.vertical, 8)
+            pair("recordingToggle", "recordingRegion")
+            pair("openPerformance", "monitorPopout")
+            pair("openTransferDock", "toggleClipboardRecording")
             Divider().padding(.vertical, 8)
             pair("screenshotTranslate", "translateSelection")
             Divider().padding(.vertical, 8)

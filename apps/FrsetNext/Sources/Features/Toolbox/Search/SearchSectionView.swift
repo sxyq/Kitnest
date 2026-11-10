@@ -545,15 +545,7 @@ public struct SearchSectionView: View {
         .onChange(of: query) { _ in scheduleSearch() }
         // v50：文件类型筛选变化 → 重跑文件检索（仅关键词非空时）
         .onChange(of: fileKind) { _ in
-            guard !trimmedQuery.isEmpty else { return }
-            let kind = fileKind
-            let text = trimmedQuery
-            Task {
-                let files = await Task.detached(priority: .utility) {
-                    FileSearchSource.search(text, kind: kind)
-                }.value
-                fileResults = files
-            }
+            scheduleSearch()
         }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
             // 面板可能刚被 show()，稍等一拍让 TextField 挂到窗口后再聚焦
@@ -1648,7 +1640,7 @@ public struct SearchSectionView: View {
                 }
             }
 
-            guard current == generation else { return }
+            guard current == generation, engineID == previewEngine?.id else { return }
             webResults = results
             webFetchFailed = results.isEmpty
             webFallbackName = fallbackName

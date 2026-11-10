@@ -147,8 +147,6 @@ public final class PermissionCenter: ObservableObject {
     /// 屏幕录制权威探测是否进行中（SCK 实探需要一瞬）
     @Published public private(set) var probingScreenRecording = false
 
-    private let eventStore = EKEventStore()
-
     private init() {
         refreshAll()
     }
@@ -166,6 +164,7 @@ public final class PermissionCenter: ObservableObject {
             next[kind] = quickStatus(kind)
         }
         statuses = next
+        CalendarService.shared.refreshAuthorization()
     }
 
     /// 是否已向系统申请过屏幕录制权限（区分「没问过」与「问过被拒」）
@@ -189,17 +188,10 @@ public final class PermissionCenter: ObservableObject {
             @unknown default:    return .unsupported
             }
         case .calendar:
-            // 用 rawValue 判定而非 switch 枚举：兼容 macOS 14 引入的 .fullAccess/.writeOnly
-            // （notDetermined=0, restricted=1, denied=2, authorized=3, fullAccess=4, writeOnly=5，
-            //   见 CalendarService 同款处理）
-            let raw = EKEventStore.authorizationStatus(for: .event).rawValue
-            switch raw {
-            case EKAuthorizationStatus.notDetermined.rawValue: return .notDetermined
-            case EKAuthorizationStatus.restricted.rawValue,
-                 EKAuthorizationStatus.denied.rawValue:        return .denied
-            default:
-                return raw >= EKAuthorizationStatus.authorized.rawValue ? .granted : .notDetermined
-            }
+            let status = EKEventStore.authorizationStatus(for: .event)
+            if status == .authorized { return .granted }
+            if status == .denied || status == .restricted { return .denied }
+            return .notDetermined
         }
     }
 
@@ -260,13 +252,9 @@ public final class PermissionCenter: ObservableObject {
                 }
             }
         case .calendar:
-            // 统一走旧版 requestAccess（全版本可用；macOS 14 的 requestFullAccess
-            // 只是更细粒度，读权限两者等价，CalendarService 亦用此路径）
-            eventStore.requestAccess(to: .event) { [weak self] _, _ in
-                DispatchQueue.main.async {
-                    self?.refreshAll()
-                    completion?(self?.status(kind) ?? .notDetermined)
-                }
+            CalendarService.shared.requestAccess { [weak self] in
+                self?.refreshAll()
+                completion?(self?.status(kind) ?? .notDetermined)
             }
         }
     }

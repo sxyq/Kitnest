@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -435,6 +436,7 @@ struct StatisticsSettingsPane: View {
         pendingImportURL = nil
         guard let url else { return }
 
+        let previousLaunchAtLogin = Preferences.shared.launchAtLogin
         isBusy = true
         DispatchQueue.global(qos: .userInitiated).async {
             do {
@@ -450,20 +452,86 @@ struct StatisticsSettingsPane: View {
                 // 统计数据走 MAX 合并事务（不覆盖较新数据）
                 StatisticsManager.shared.importMerge(
                     file.statistics.map { ($0.day, $0.event, $0.count) })   // Q8
-                StatisticsManager.shared.record(AnalyticsEvent.settingsImportSuccess)
                 Log.info("Settings", "导入配置完成：偏好 \(file.preferences.count) 项 / 统计 \(file.statistics.count) 条")
                 DispatchQueue.main.async {
+                    let incoming = file.preferences
+                    let defaults = UserDefaults.standard
+                    var launchError: String?
+                    if case .string(let raw)? = incoming["appearance"], let mode = AppearanceMode(rawValue: raw) {
+                        AppearanceManager.shared.apply(mode)
+                    }
+                    if case .string(let language)? = incoming["language"] {
+                        LanguageManager.shared.apply(language)
+                    }
+                    if case .bool(let enabled)? = incoming[Preferences.Keys.launchAtLogin] {
+                        do {
+                            if enabled { try SMAppService.mainApp.register() }
+                            else { try SMAppService.mainApp.unregister() }
+                        } catch {
+                            Preferences.shared.launchAtLogin = previousLaunchAtLogin
+                            launchError = "开机启动未应用：\(error.localizedDescription)"
+                        }
+                    }
+                    if incoming[Preferences.Keys.panelWidth] != nil || incoming[Preferences.Keys.panelHeight] != nil {
+                        NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
+                    }
+                    if incoming[Preferences.Keys.floatingOriginX] != nil || incoming[Preferences.Keys.floatingOriginY] != nil
+                        || incoming[Preferences.Keys.floatingWidth] != nil || incoming[Preferences.Keys.floatingHeight] != nil {
+                        let controller = FloatingClipboardWindowController.shared
+                        controller.window?.setFrame(controller.state.clampedFrame(), display: true)
+                    }
+                    if case .bool(let pinned)? = incoming["floatingClipboard.pinned"] {
+                        let controller = FloatingClipboardWindowController.shared
+                        controller.store.isPinned = pinned
+                        controller.applyPinLevel()
+                    }
+                    if case .bool(let visible)? = incoming["floatingClipboard.visible"] {
+                        if visible { FloatingClipboardWindowController.shared.show() }
+                        else { FloatingClipboardWindowController.shared.hide() }
+                    }
+                    if incoming[Preferences.Keys.aiBaseURL] != nil {
+                        for provider in LLMProviderKind.allCases {
+                            AIProviderModelDiscoveryCache.shared.invalidate(provider)
+                        }
+                    }
+                    if incoming[Preferences.Keys.aiProvider] != nil || incoming[Preferences.Keys.aiModel] != nil
+                        || incoming[Preferences.Keys.aiBaseURL] != nil {
+                        LLMService.shared.reload()
+                    }
+                    if incoming[Preferences.Keys.monitorRefreshInterval] != nil {
+                        let seconds = MonitorPreferences.refreshInterval
+                        MonitorPreferences.refreshInterval = seconds
+                        if let modules = FSBarAllModules() as? [String] {
+                            for module in modules {
+                                FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: Int(max(1, seconds.rounded()))))
+                            }
+                        }
+                        FSBarReloadFromStore()
+                    }
+                    if incoming[Preferences.Keys.monitorCombinedMode] != nil {
+                        MonitorPreferences.combinedMode = defaults.bool(forKey: Preferences.Keys.monitorCombinedMode)
+                    }
+                    if incoming[Preferences.Keys.calendarShowLunar] != nil {
+                        CalendarService.shared.refreshAuthorization()
+                    }
+                    if incoming[Preferences.Keys.captureSavePath] != nil {
+                        ScreenshotManager.shared.reloadRecent()
+                    }
                     // v126（性能审计 F1190）：搜索设置重载回主线程——SearchServiceManager 是
                     // ObservableObject，load() 会写 @Published；原来在后台队列调用会触发
                     // SwiftUI「后台线程发布变更」未定义行为。放在状态刷新之前，页面仍能立即反映导入结果。
                     SearchServiceManager.shared.reloadFromDefaults()
                     self.isBusy = false
-                    self.lastActionFailed = !invalid.isEmpty
-                    self.lastActionResult = invalid.isEmpty
+                    self.lastActionFailed = !invalid.isEmpty || launchError != nil
+                    let result = invalid.isEmpty
                         ? "已导入 \(file.preferences.count) 项偏好，\(file.statistics.count) 条统计数据按较大值合并"
                         : "已导入，但有 \(invalid.count) 个键被忽略（不属于可导入的偏好键）"
+                    self.lastActionResult = result + (launchError.map { "；" + $0 } ?? "")
                     self.refresh()
-                    Toast.show("导入成功", icon: "checkmark.circle.fill")
+                    if !self.lastActionFailed { StatisticsManager.shared.record(AnalyticsEvent.settingsImportSuccess) }
+                    Toast.show(self.lastActionFailed ? "导入未完全成功" : "导入成功",
+                               icon: self.lastActionFailed ? "exclamationmark.triangle" : "checkmark.circle.fill",
+                               isWarning: self.lastActionFailed)
                 }
             } catch {
                 Log.error("Settings", "导入配置失败: \(error.localizedDescription)")

@@ -1220,6 +1220,8 @@ private struct StatsConnGrid: View {
 // MARK: - 传感器（温度 / 电压 / 电流 / 功率）
 
 private struct SensorsStatsPanel: View {
+    @ObservedObject private var sampler = MonitorSampler.shared
+
     var body: some View {
         let stats = StatsDataProvider.shared.current
         let temperatures = stats.sensors.filter { $0.category == 0 }

@@ -74,6 +74,12 @@ struct RecordingPanelSection: View {
             Text("摄像头画中画、按键显示、点击动画、忽略 App 都在 设置 → 截图与钉图 → 录屏 里。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+            ForEach(recorder.unavailableFeatures, id: \.self) { message in
+                Text(message).font(.system(size: 11)).foregroundStyle(.orange)
+            }
+            if let error = recorder.errorText {
+                Text(error).font(.system(size: 11)).foregroundStyle(.red)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

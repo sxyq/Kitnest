@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - 设置模块自带的基础页签（通用 / 快捷键 / 关于）
 // 其他模块（监测/剪贴板/搜索/AI/工具）的页签由各自模块注册，此处不引用。
@@ -702,14 +703,21 @@ struct IgnoredAppsEditor: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    guard let bundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-                          bundle != Bundle.main.bundleIdentifier else { return }
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = false
+                    panel.allowsMultipleSelection = true
+                    panel.allowedContentTypes = [.application]
+                    panel.directoryURL = URL(fileURLWithPath: "/Applications")
+                    panel.prompt = "添加"
+                    guard panel.runModal() == .OK else { return }
                     var list = apps
-                    guard !list.contains(bundle) else { return }
-                    list.append(bundle)
+                    for url in panel.urls {
+                        guard let bundle = Bundle(url: url)?.bundleIdentifier else { continue }
+                        if !list.contains(bundle) { list.append(bundle) }
+                    }
                     persist(list)
                 } label: {
-                    Text("+ 添加当前前台应用")
+                    Text("+ 添加应用…")
                         .font(.system(size: 11.5, weight: .medium))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -719,7 +727,7 @@ struct IgnoredAppsEditor: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .help("把最前面那个应用加入忽略名单，它复制的内容将不再被采集")
+                .help("选择不采集剪贴板内容的应用")
             }
 
             if expanded {

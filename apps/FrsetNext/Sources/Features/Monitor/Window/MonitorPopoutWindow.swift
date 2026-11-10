@@ -271,22 +271,13 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         RenderProbe.snapshot(w, name: "monitorPopout", reason: "open")
     }
 
-    /// 取消在途收起（点外监视器先于 statusItem 的 mouseUp 触发时，
-    /// 用户其实是在「切换模块」，不能让窗口在 0.2s 后照旧收起）
-    private func cancelDismiss() {
-        guard isDismissing else { return }
-        isDismissing = false
-        appearToken += 1
-        window?.contentView?.layer?.removeAllAnimations()
-        window?.contentView?.layer?.transform = CATransform3DIdentity
-        window?.contentView?.layer?.opacity = 1
-        Log.info("Monitor", "取消在途收起（切换模块/重开）")
-    }
-
     /// 窗口已开时部件再点：只切模块，不挪窗口位置
     public func showModule(_ module: MonitorModuleID) {
         guard isVisible else { open(module: module); return }
-        cancelDismiss()                        // 若点外监视器已抢先触发收起，先撤销
+        if isDismissing {
+            reverseToOpen(module: module)
+            return
+        }
         lastModule = module
         sharedSelection.module = module
         Log.info("Monitor", "监测独立窗口：切换模块（\(module.displayName)）")
@@ -392,9 +383,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     private func finishDismiss(token: Int) {
         guard isDismissing else { return }
         guard let w = window else { isDismissing = false; return }
-        // 期间 open()/cancelDismiss 递增过 token = 已重开 → 放弃本次收起
+        // open()/reverseToOpen 已递增序号，旧收尾不能清掉新一轮收起状态。
         guard appearToken == token else {
-            isDismissing = false
             Log.info("Monitor", "dismiss 被重开打断，跳过收起")
             return
         }

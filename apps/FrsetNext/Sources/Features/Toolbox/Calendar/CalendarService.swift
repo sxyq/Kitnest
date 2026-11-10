@@ -24,32 +24,33 @@ public final class CalendarService: ObservableObject {
 
     /// 启动时调用：已授权直接用；未决定则请求；被拒绝则给出提示
     public func requestAccessIfNeeded() {
-        // 说明：用 rawValue 判定而非 switch，兼容 macOS 14 引入的 .fullAccess / .writeOnly
-        // （EKAuthorizationStatus: notDetermined=0, restricted=1, denied=2, authorized=3, fullAccess=4, writeOnly=5）
-        let raw = authorizationStatus.rawValue
-        if isGranted(rawValue: raw) {
-            update(authorized: true, hint: nil)
-        } else if raw == EKAuthorizationStatus.notDetermined.rawValue {
-            store.requestAccess(to: .event) { [weak self] granted, error in
-                DispatchQueue.main.async {
-                    if granted {
-                        self?.update(authorized: true, hint: nil)
-                    } else {
-                        let detail = error?.localizedDescription ?? "用户未授权"
-                        self?.update(authorized: false,
-                                     hint: "日历授权未开启（\(detail)），事件列表将为空。可在「系统设置 → 隐私与安全性 → 日历」中开启。")
-                    }
-                }
-            }
-        } else {
-            update(authorized: false,
-                   hint: "日历访问被拒绝或受限，事件列表将为空。可在「系统设置 → 隐私与安全性 → 日历」中开启。")
+        refreshAuthorization()
+        if authorizationStatus == .notDetermined {
+            requestAccess()
         }
     }
 
-    /// 是否已获得读权限（authorized / fullAccess / writeOnly 均视为可读）
-    private func isGranted(rawValue: Int) -> Bool {
-        rawValue >= EKAuthorizationStatus.authorized.rawValue
+    /// authorized 是 fullAccess 的别名；writeOnly 不允许读取日程。
+    public func refreshAuthorization() {
+        let granted = authorizationStatus == .authorized
+        update(authorized: granted,
+               hint: granted ? nil : "日历未获得读权限，事件列表将为空。可在「系统设置 → 隐私与安全性 → 日历」中开启完整访问。")
+    }
+
+    /// 启动与权限引导共用同一 EventKit Store，完成后同步日历视图。
+    public func requestAccess(completion: (() -> Void)? = nil) {
+        let handler: EKEventStoreRequestAccessCompletionHandler = { [weak self] _, error in
+            DispatchQueue.main.async {
+                self?.refreshAuthorization()
+                if let error { Log.warn("Calendar", "日历授权失败：\(error.localizedDescription)") }
+                completion?()
+            }
+        }
+        if #available(macOS 14.0, *) {
+            store.requestFullAccessToEvents(completion: handler)
+        } else {
+            store.requestAccess(to: .event, completion: handler)
+        }
     }
 
 

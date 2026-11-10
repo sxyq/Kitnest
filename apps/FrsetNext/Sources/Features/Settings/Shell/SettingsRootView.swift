@@ -164,6 +164,8 @@ struct SettingsRootView: View {
                     .padding(.vertical, 18)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .onAppear { MonitorSampler.shared.setSettingsActive(true) }
+            .onDisappear { MonitorSampler.shared.setSettingsActive(false) }
         case .monitorSettings:
             panePage { MonitorSettingsPane() }
         case .monitorWidgets:
