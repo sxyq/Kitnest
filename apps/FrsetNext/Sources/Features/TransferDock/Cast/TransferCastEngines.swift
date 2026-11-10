@@ -322,8 +322,12 @@ public enum ScreenCastEngine {
             let text = String(data: data, encoding: .utf8) ?? ""
             let tail = text.split(separator: "\n").suffix(6).joined(separator: " | ")
             Log.info("Transfer", "scrcpy 退出 status=\(proc.terminationStatus) err=\(tail)")
-            CastScreenKeeper.shared.stop()
-            ScrcpyControlBarController.shared.detach()
+            DispatchQueue.main.async {
+                if ScrcpyControlBarController.shared.isAttached(to: proc.processIdentifier) {
+                    CastScreenKeeper.shared.stop()
+                    ScrcpyControlBarController.shared.detach()
+                }
+            }
         }
         do {
             try task.run()
@@ -335,7 +339,7 @@ public enum ScreenCastEngine {
             }
             Log.info("Transfer", "投屏启动：scrcpy \(args.joined(separator: " "))")
             // v165（用户要求）：按钮要贴在 **scrcpy 外部窗口** 底部，不在我们面板里
-            ScrcpyControlBarController.shared.attach(serial: serial)
+            ScrcpyControlBarController.shared.attach(serial: serial, processID: task.processIdentifier)
             // v166.3：手机熄屏后 scrcpy 只能拿黑帧——检测休眠就唤醒到锁屏，保证镜像可用
             CastScreenKeeper.shared.start(serial: serial)
             Toast.show(TransferDockPref.CastQuality.clipboardAutoSync

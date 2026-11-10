@@ -214,6 +214,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
         let t0 = ProcessInfo.processInfo.systemUptime
         let wasVisible = p.isVisible
+        hideGeneration += 1                 // 重开使旧预览完成回调与收尾失效。
         isHiding = false
         // v244：不再在开面板前 cancel 在途动画——那会把真窗 alpha 拉回 1，
         // 面板整块亮出来再重播一遍漏斗。掉头交给 GenieWarp 自己处理。
@@ -348,8 +349,16 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private var isHiding = false
 
     public func hide() {
-        guard let p = panel, p.isVisible, !isHiding else { return }
+        hide(completion: nil)
+    }
+
+    /// 截图等动作在本轮面板真实隐藏后执行；已经隐藏则立即执行。
+    func hide(completion: (() -> Void)?) {
+        guard let p = panel, p.isVisible else { completion?(); return }
+        guard !isHiding else { return }
         isHiding = true
+        hideGeneration += 1
+        let gen = hideGeneration            // 本轮预览等待；进入动画后序号继续递增。
         TransientWindowCenter.shared.unregister(window: p)
         Log.info("Panel", "hide: 开始收起")
         RenderProbe.snapshot(p, name: "panel", reason: "hideStart")
@@ -359,15 +368,15 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 原来这里要先等 dismiss 回调（最长 0.6s 兜底），展开动画照跑，
         // 用户看到的就是「点了没反应，然后突然抽走」。
         if GenieWarp.isOpening {
-            performHide(p)
+            performHide(p, completion: completion)
             return
         }
         // 原作行为（12 号 P8 waitsForPreviewClose）：面板收起前先等预览 popover 关闭
         MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse) { [weak self] in
-            self?.performHide(p)
+            guard let self, self.hideGeneration == gen else { return }
+            self.performHide(p, completion: completion)
         }
         // 兜底：预览窗收回动画被系统跳过 / 完成回调丢失时，0.6s 后强制进第二段
-        let gen = hideGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self, weak p] in
             guard let self, let p, p.isVisible, self.isHiding else { return }
             // v240（用户：「收纳动画重复播放，还有闪回」）：
@@ -376,7 +385,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             // 抓到的是透明窗，播出来就是「动画中间整块消失一下」。
             guard self.hideGeneration == gen else { return }
             Log.warn("Panel", "收起超时（预览未关完），强制执行")
-            self.performHide(p)
+            self.performHide(p, completion: completion)
         }
     }
 
@@ -388,27 +397,21 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 「CATransaction completion 不执行 → 窗口永远留在屏上」。
     private var hideGeneration = 0
 
-    private func performHide(_ p: NSWindow) {
+    private func performHide(_ p: NSWindow, completion: (() -> Void)?) {
         // v244：展开的漏斗还没跑完就要收 → 不 cancel（cancel 会把 alpha 拉回 1，
         // 面板先整块闪一下再抽走）。改成让 playOut 自己掉头，画面停在当前帧继续收。
         hideGeneration += 1
         let token = hideGeneration
         let duration = Personalization.shared.openAnimation.duration
         let finish: () -> Void = { [weak self, weak p] in
-            guard let self, let p else { return }
-            guard token == self.hideGeneration, !self.presentation.visible else {
-                // v240：这次收起已被作废（收起途中面板又被打开，或又发起了一次收起）。
-                // 必须把 isHiding 清掉——否则 hide() 的 `!isHiding` 会永远卡住，
-                // 之后面板再也收不起来。
-                self.isHiding = false
-                return
-            }
+            guard let self, let p, token == self.hideGeneration, self.isHiding else { return }
             p.contentView?.layer?.removeAllAnimations()
             p.contentView?.layer?.transform = CATransform3DIdentity
             p.contentView?.layer?.opacity = 1
             p.orderOut(nil)
             MonitorSampler.shared.setHomePanelActive(false)
             self.isHiding = false
+            completion?()
         }
         // v237：收起也走神灯——面板吸回同一个图标格子。
         // 与展开共用 presentation.anchorRect，保证「从哪来、回哪去」是同一个点。

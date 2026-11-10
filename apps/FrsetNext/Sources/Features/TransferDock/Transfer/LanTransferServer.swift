@@ -45,6 +45,7 @@ public final class LanTransferServer: ObservableObject {
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "frset.transfer.lan", qos: .userInitiated)
+    private var selection: (token: String, ids: Set<String>)?
 
     private init() {
         _ = Self.tokenCache   // 首次访问时生成/读取 token
@@ -70,6 +71,7 @@ public final class LanTransferServer: ObservableObject {
             guard let self else { return }
             self.listener?.cancel()
             self.listener = nil
+            self.selection = nil
             DispatchQueue.main.async {
                 self.running = false
                 self.shareURL = nil
@@ -105,9 +107,21 @@ public final class LanTransferServer: ObservableObject {
         listener = nil
         Self.regenerateToken()
         queue.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.selection = nil
             self?.startLocked(preferred: TransferDockPref.lanPort)
         }
         Toast.show("已生成新二维码，旧链接失效", icon: "qrcode")
+    }
+
+    func selectionURL(ids: [String], completion: @escaping (String) -> Void) {
+        guard let base = shareURL else { return }
+        queue.async {
+            let token = UUID().uuidString
+            self.selection = (token, Set(ids))
+            let url = base.replacingOccurrences(of: "/s/\(Self.tokenCache)/", with: "/s/\(token)/")
+                + "?pick=" + ids.joined(separator: ",")
+            DispatchQueue.main.async { completion(url) }
+        }
     }
 
     private func startLocked(preferred: UInt16) {
@@ -357,7 +371,6 @@ public final class LanTransferServer: ObservableObject {
     // MARK: - 路由
 
     private func route(_ context: ConnectionContext) {
-        let prefix = "/s/\(Self.tokenCache)"
         var sub = context.path
         var query: [String: String] = [:]
 
@@ -372,19 +385,34 @@ public final class LanTransferServer: ObservableObject {
             }
         }
 
-        guard sub.hasPrefix(prefix) else {
+        let pathParts = sub.split(separator: "/")
+        guard pathParts.count >= 2, pathParts[0] == "s" else {
+            respond(context, status: 403, text: "链接已失效")
+            return
+        }
+        let token = String(pathParts[1])
+        let selectedIDs: Set<String>?
+        if token == Self.tokenCache {
+            selectedIDs = nil
+        } else if let selection, token == selection.token {
+            selectedIDs = selection.ids
+        } else {
             respond(context, status: 403, html: Self.errorPage("链接已失效",
                                                                detail: "请重新扫描 Kitnest 上的二维码。"))
             return
         }
-        var rest = String(sub.dropFirst(prefix.count))
-        if rest.hasPrefix("/") { rest.removeFirst() }
+        let rest = pathParts.dropFirst(2).joined(separator: "/")
+        if selectedIDs != nil, context.method != "GET" {
+            cleanupBody(context)
+            respond(context, status: 403, json: ["error": "此分享链接只允许下载选中文件"])
+            return
+        }
 
         switch (context.method, rest) {
         case ("GET", ""), ("GET", "index.html"):
             respond(context, status: 200, html: Self.indexHTML)
         case ("GET", "api/list"):
-            respond(context, status: 200, data: Self.listPayload(),
+            respond(context, status: 200, data: Self.listPayload(selectedIDs: selectedIDs),
                     contentType: "application/json; charset=utf-8")
         case ("POST", "api/upload"):
             handleUpload(context)
@@ -394,7 +422,12 @@ public final class LanTransferServer: ObservableObject {
             respond(context, status: 204, text: "")
         default:
             if context.method == "GET", rest.hasPrefix("dl/") {
-                handleDownload(context, id: String(rest.dropFirst(3)))
+                let id = String(rest.dropFirst(3))
+                if let selectedIDs, !selectedIDs.contains(id) {
+                    respond(context, status: 403, text: "此文件不在分享范围内")
+                    return
+                }
+                handleDownload(context, id: id)
             } else {
                 respond(context, status: 404, text: "Not Found")
             }
@@ -410,8 +443,8 @@ public final class LanTransferServer: ObservableObject {
         return DispatchQueue.main.sync(execute: body)
     }
 
-    private static func listPayload() -> Data {
-        let items = onMain { LocalTransferStore.shared.items }
+    private static func listPayload(selectedIDs: Set<String>?) -> Data {
+        let items = onMain { LocalTransferStore.shared.items }.filter { selectedIDs?.contains($0.id) ?? true }
         let payload: [[String: Any]] = items.map { item in
             [
                 "id": item.id,
@@ -449,6 +482,8 @@ public final class LanTransferServer: ObservableObject {
             let dest = dir.appendingPathComponent(file.name)
             if MultipartParser.write(file, from: bodyFile, to: dest) {
                 staged.append((file.name, dest))
+            } else {
+                try? FileManager.default.removeItem(at: dir)
             }
         }
         guard !staged.isEmpty else {
@@ -457,14 +492,25 @@ public final class LanTransferServer: ObservableObject {
         }
 
         DispatchQueue.main.async {
-            let count = LocalTransferStore.shared.addUploads(staged, source: "手机")
-            self.receivedCount += count
-            if count > 0 {
-                Toast.show("手机上传了 \(count) 个文件", icon: "iphone.and.arrow.forward")
+            LocalTransferStore.shared.addUploads(staged, source: "手机") { count in
+                self.receivedCount += count
+                let error = LocalTransferStore.shared.lastError
+                if let error {
+                    Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                } else if count > 0 {
+                    Toast.show("手机上传了 \(count) 个文件", icon: "iphone.and.arrow.forward")
+                }
+                Log.info("TransferDock", "手机上传 \(count) 个文件")
+                self.queue.async {
+                    for entry in staged {
+                        try? FileManager.default.removeItem(at: entry.tempURL.deletingLastPathComponent())
+                    }
+                    var result: [String: Any] = ["count": count]
+                    if let error { result["error"] = error }
+                    self.respond(context, status: count > 0 ? 200 : 500, json: result)
+                }
             }
-            Log.info("TransferDock", "手机上传 \(count) 个文件")
         }
-        respond(context, status: 200, json: ["count": staged.count])
     }
 
     private func handleDownload(_ context: ConnectionContext, id: String) {
@@ -708,10 +754,11 @@ public final class LanTransferServer: ObservableObject {
         }
       };
       xhr.onload = () => {
-        let ok = false, count = 0;
-        try { const j = JSON.parse(xhr.responseText); ok = xhr.status === 200; count = j.count || 0; }
+        let ok = false, count = 0, error = '';
+        try { const j = JSON.parse(xhr.responseText); ok = xhr.status === 200; count = j.count || 0; error = j.error || ''; }
         catch (_) { }
-        setStatus(ok ? ('已上传 ' + count + ' 个文件') : '上传失败（' + xhr.status + '）', ok ? 100 : 0);
+        setStatus(error ? ('已上传 ' + count + ' 个；失败：' + error) :
+          (ok ? ('已上传 ' + count + ' 个文件') : '上传失败（' + xhr.status + '）'), ok ? 100 : 0);
         loadList();
       };
       xhr.onerror = () => setStatus('网络中断，请确认和 Mac 在同一个 Wi-Fi', 0);

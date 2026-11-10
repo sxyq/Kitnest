@@ -95,7 +95,7 @@ final class TransferDockService: ObservableObject {
         // 不再等 runloop 排空；周期 30s 与启停时机（中转页 onAppear/onDisappear）不变。
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
             guard let self, self.loggedIn, !self.isLoading, !self.isUploading else { return }
-            autoreleasepool { self.refresh() }
+            autoreleasepool { self.refresh(clearError: false) }
         }
         RunLoop.main.add(timer, forMode: .common)
         liveSyncTimer = timer
@@ -136,13 +136,13 @@ final class TransferDockService: ObservableObject {
 
     // MARK: 刷新（登录态 + 空间 + 列表一次拿）
 
-    func refresh() {
+    func refresh(clearError: Bool = true) {
         guard TransferDockPath.isAvailable else {
             errorMessage = "未找到中转站工程：\n\(TransferDockPath.root.path)"
             return
         }
         isLoading = true
-        errorMessage = nil
+        if clearError { errorMessage = nil }
         queue.async { [weak self] in
             guard let self else { return }
             // v128（流畅度）：桥接 JSON 解析块进 autoreleasepool——status/list 两次
@@ -190,7 +190,6 @@ final class TransferDockService: ObservableObject {
                             createdAt: (item["createdAt"] as? NSNumber)?.doubleValue ?? 0,
                             type: (item["type"] as? String) ?? "")
                     }
-                    self.errorMessage = nil
                 }
             }
         }
@@ -215,8 +214,8 @@ final class TransferDockService: ObservableObject {
                     self.statusMessage = ""
                     self.errorMessage = (result["error"] as? String) ?? "上传失败"
                 }
+                self.refresh(clearError: false)
             }
-            self.refresh()
         }
     }
 
@@ -247,8 +246,8 @@ final class TransferDockService: ObservableObject {
                     self.statusMessage = ok > 0 ? "已上传 \(ok) 个，失败 \(failed.count) 个" : ""
                     self.errorMessage = "上传失败：" + failed.joined(separator: "、")
                 }
+                self.refresh(clearError: false)
             }
-            self.refresh()
         }
     }
 
@@ -289,8 +288,8 @@ final class TransferDockService: ObservableObject {
                     self.statusMessage = ""
                     self.errorMessage = (result["error"] as? String) ?? "删除失败"
                 }
+                self.refresh(clearError: false)
             }
-            self.refresh()
         }
     }
 

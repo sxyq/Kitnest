@@ -35,7 +35,6 @@ struct TransferDockView: View {
     /// 而不是整页空白或消失。
     @AppStorage(TransferDockPref.featureEnabled) private var featureEnabled = true
 
-    @Stored private var showsLogin = false
     @Stored private var bridgeAvailable = TransferDockPath.isAvailable
     @Stored private var cloudDropTargeted = false
     @Stored private var localDropTargeted = false
@@ -113,8 +112,13 @@ struct TransferDockView: View {
             bridgeAvailable = TransferDockPath.isAvailable
             // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
             AirDropReceiveWatcher.shared.onFileReceived = { url in
-                let n = LocalTransferStore.shared.add(urls: [url])
-                if n > 0 { Toast.show("空投已接收：\(url.lastPathComponent)", icon: "dot.radiowaves.left.and.right") }
+                LocalTransferStore.shared.add(urls: [url]) { n in
+                    if let error = LocalTransferStore.shared.lastError {
+                        Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                    } else if n > 0 {
+                        Toast.show("空投已接收：\(url.lastPathComponent)", icon: "dot.radiowaves.left.and.right")
+                    }
+                }
             }
             AirDropReceiveWatcher.shared.start()
             // v120：预热隔空投送服务（首次实例化会同步初始化 AWDL，1~3s）
@@ -141,20 +145,9 @@ struct TransferDockView: View {
                 stopServiceIfStartedForTransfer()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .frsetOpenTransferLogin)) { _ in
-            showsLogin = true
-        }
         .onReceive(NotificationCenter.default.publisher(for: .transferDockSettingsDidChange)) { _ in
             bridgeAvailable = TransferDockPath.isAvailable
             if showsCloud { service.refresh() }
-        }
-        .sheet(isPresented: $showsLogin) {
-            TransferDockLoginView(
-                onCancel: { showsLogin = false },
-                onLoggedIn: {
-                    showsLogin = false
-                    service.refresh()
-                })
         }
         // 「扫码直传」选中文件的二维码弹层
         .overlay {
@@ -317,10 +310,15 @@ struct TransferDockView: View {
         panel.canChooseDirectories = true
         panel.message = "添加到本地暂存"
         guard panel.runModal() == .OK else { return }
-        let n = local.add(urls: panel.urls)
-        Toast.show(n > 0 ? "已添加 \(n) 个文件到暂存" : "没有可添加的文件",
-                   icon: n > 0 ? "tray.and.arrow.down" : "exclamationmark.triangle",
-                   isWarning: n == 0)
+        local.add(urls: panel.urls) { n in
+            if let error = local.lastError {
+                Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+            } else {
+                Toast.show(n > 0 ? "已添加 \(n) 个文件到暂存" : "没有可添加的文件",
+                           icon: n > 0 ? "tray.and.arrow.down" : "exclamationmark.triangle",
+                           isWarning: n == 0)
+            }
+        }
     }
 
     private func sendViaAirDrop() {
@@ -510,7 +508,7 @@ struct TransferDockView: View {
 
                 if showsCloud {
                     Button {
-                        showsLogin = true
+                        NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil)
                     } label: {
                         Label(service.loggedIn ? "重新登录云端" : "登录云端中转",
                               systemImage: service.loggedIn ? "person.crop.circle" : "person.crop.circle.badge.plus")
@@ -602,16 +600,22 @@ struct TransferDockView: View {
         adbFileStatus = "拉取中…"
         let staging = ADBFileBridge.stagingDirectory
         ADBFileBridge.pull(into: staging) { count, log in
-            adbPushing = false
             adbFileStatus = log
             // 拉取落盘的文件 → 走 add() 正式入暂存索引（硬链接语义，不重复占空间）
             let pulled = (try? FileManager.default.contentsOfDirectory(
                 at: staging, includingPropertiesForKeys: nil))?
                 .filter { $0.lastPathComponent != ".DS_Store" } ?? []
-            let n = pulled.isEmpty ? 0 : LocalTransferStore.shared.add(urls: pulled)
-            Toast.show(n > 0 ? "已拉取 \(n) 个文件入暂存" : "手机目录为空或未连接",
-                       icon: n > 0 ? "square.and.arrow.down" : "tray",
-                       isWarning: n == 0)
+            LocalTransferStore.shared.add(urls: pulled) { n in
+                adbPushing = false
+                if let error = LocalTransferStore.shared.lastError {
+                    adbFileStatus = error
+                    Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                } else {
+                    Toast.show(n > 0 ? "已拉取 \(n) 个文件入暂存" : "手机目录为空或未连接",
+                               icon: n > 0 ? "square.and.arrow.down" : "tray",
+                               isWarning: n == 0)
+                }
+            }
         }
     }
 
@@ -772,7 +776,7 @@ struct TransferDockView: View {
             Text("登录后可跨设备取回")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Button("登录") { showsLogin = true }
+            Button("登录") { NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil) }
                 .font(.system(size: 11, weight: .medium))
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
@@ -911,11 +915,11 @@ struct TransferDockView: View {
             lanStartedForTransfer = true
         }
         let build: () -> Void = {
-            guard let base = lan.shareURL else {
+            guard lan.shareURL != nil else {
                 Toast.show("直传服务未启动，无法生成二维码", icon: "exclamationmark.triangle", isWarning: true)
                 return
             }
-            pickShareURL = base + "?pick=" + ids.joined(separator: ",")
+            lan.selectionURL(ids: ids) { pickShareURL = $0 }
         }
         if lan.shareURL != nil {
             build()
@@ -1125,22 +1129,21 @@ struct TransferDockView: View {
     private func handleLocalDrop(_ providers: [NSItemProvider]) -> Bool {
         urls(from: providers) { urls in
             guard !urls.isEmpty else { return }
-            local.add(urls: urls)
+            local.add(urls: urls) { n in
+                if let error = local.lastError {
+                    Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                } else {
+                    Toast.show("已暂存 \(n) 个文件", icon: "tray.and.arrow.down")
+                }
+            }
         }
         return true
     }
 
     private func handleCloudDrop(_ providers: [NSItemProvider]) -> Bool {
-        guard let provider = providers.first else { return false }
-        provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-            var url: URL?
-            if let data = item as? Data {
-                url = URL(dataRepresentation: data, relativeTo: nil)
-            } else if let direct = item as? URL {
-                url = direct
-            }
-            guard let fileURL = url else { return }
-            DispatchQueue.main.async { service.upload(url: fileURL) }
+        guard !providers.isEmpty else { return false }
+        urls(from: providers) { urls in
+            service.uploadBatch(urls)
         }
         return true
     }

@@ -147,13 +147,13 @@ public final class AndroidWebDAVServer {
         case "PUT":
             upload(conn, path: path, data: body)
         case "MKCOL":
-            ADBExtrasEngine.run(["shell", "mkdir", "-p", path]) { out in
-                let ok = !(out ?? "").lowercased().contains("error")
+            ADBExtrasEngine.run(["shell", "mkdir", "-p", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]) { _, status in
+                let ok = status == 0
                 self.send(conn, status: ok ? "201 Created" : "409 Conflict", headers: [:], body: Data())
             }
         case "DELETE":
-            ADBExtrasEngine.run(["shell", "rm", "-rf", path]) { _ in
-                self.send(conn, status: "204 No Content", headers: [:], body: Data())
+            ADBExtrasEngine.run(["shell", "rm", "-rf", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]) { _, status in
+                self.send(conn, status: status == 0 ? "204 No Content" : "500 Internal Server Error", headers: [:], body: Data())
             }
         default:
             send(conn, status: "405 Method Not Allowed", headers: [:], body: Data())
@@ -230,7 +230,7 @@ public final class AndroidWebDAVServer {
     }
 
     private func listRemote(_ path: String, completion: @escaping ([Entry]?) -> Void) {
-        ADBExtrasEngine.run(["shell", "ls", "-l", "'" + path + "'"], timeout: 20) { out in
+        ADBExtrasEngine.run(["shell", "ls", "-l", "'" + path + "'"], timeout: 20) { out, _ in
             guard let out, !out.lowercased().contains("no such file") else { completion(nil); return }
             var list: [Entry] = []
             for line in out.components(separatedBy: .newlines) {
@@ -270,7 +270,7 @@ public final class AndroidWebDAVServer {
             }
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             task.waitUntilExit()
-            if data.isEmpty {
+            if task.terminationStatus != 0 {
                 self.send(conn, status: "404 Not Found", headers: [:], body: Data())
                 return
             }
@@ -286,10 +286,15 @@ public final class AndroidWebDAVServer {
 
     private func upload(_ conn: NWConnection, path: String, data: Data) {
         let tmp = NSTemporaryDirectory() + "frset-webdav-\(UUID().uuidString)"
-        try? data.write(to: URL(fileURLWithPath: tmp))
-        ADBExtrasEngine.run(["push", tmp, path], timeout: 120) { out in
+        do {
+            try data.write(to: URL(fileURLWithPath: tmp))
+        } catch {
+            send(conn, status: "500 Internal Server Error", headers: [:], body: Data())
+            return
+        }
+        ADBExtrasEngine.run(["push", tmp, path], timeout: 120) { _, status in
             try? FileManager.default.removeItem(atPath: tmp)
-            let ok = !(out ?? "").lowercased().contains("error")
+            let ok = status == 0
             self.send(conn, status: ok ? "201 Created" : "500 Internal Server Error", headers: [:], body: Data())
         }
     }

@@ -6,7 +6,7 @@ import SwiftUI
 // 用户复制网盘链接后：状态栏下方弹出小提示 → 点开这个窗口。
 // 窗口负责三件事：
 //   1. 把「这条链接能不能解析」讲清楚（识别 / 脚本 / 页面可达性 / 下载目录 / UA）；
-//   2. 给出可修改的下载配置（解析脚本、保存目录、超时、UA、自动更新）；
+//   2. 给出可修改的下载配置（解析脚本、保存目录、超时、UA）；
 //   3. 列出 8 家网盘的支持情况，当前链接命中哪家一眼可见。
 
 // MARK: 配置
@@ -15,7 +15,6 @@ enum CloudLinkSettings {
     private static let scriptKey = "cloudlink.scriptPath"
     private static let dirKey = "cloudlink.downloadDirectory"
     private static let timeoutKey = "cloudlink.timeout"
-    private static let autoUpdateKey = "cloudlink.autoUpdate"
     private static let uaKey = "cloudlink.uaOverride"
 
     static var scriptPath: String {
@@ -37,14 +36,6 @@ enum CloudLinkSettings {
             return value > 0 ? value : 20
         }
         set { UserDefaults.standard.set(newValue, forKey: timeoutKey) }
-    }
-
-    static var autoUpdate: Bool {
-        get {
-            if UserDefaults.standard.object(forKey: autoUpdateKey) == nil { return true }
-            return UserDefaults.standard.bool(forKey: autoUpdateKey)
-        }
-        set { UserDefaults.standard.set(newValue, forKey: autoUpdateKey) }
     }
 
     static var uaOverride: String {
@@ -88,7 +79,6 @@ enum CloudLinkSettings {
     private static let revealKey = "cloudlink.revealAfterDownload"
     private static let aria2EndpointKey = "cloudlink.aria2.endpoint"
     private static let aria2TokenKey = "cloudlink.aria2.token"
-    private static let scriptURLKey = "cloudlink.scriptUpdateURL"
 
     static var engine: Engine {
         get { Engine(rawValue: UserDefaults.standard.string(forKey: engineKey) ?? "") ?? .builtin }
@@ -144,17 +134,6 @@ enum CloudLinkSettings {
     static var aria2Token: String {
         get { UserDefaults.standard.string(forKey: aria2TokenKey) ?? "" }
         set { UserDefaults.standard.set(newValue, forKey: aria2TokenKey) }
-    }
-
-    /// LinkSwift 脚本在线更新源（.user.js 原始地址）
-    static var scriptUpdateURL: String {
-        get {
-            let value = UserDefaults.standard.string(forKey: scriptURLKey) ?? ""
-            return value.isEmpty
-                ? "https://raw.githubusercontent.com/hmjz100/LinkSwift/main/LinkSwift.user.js"
-                : value
-        }
-        set { UserDefaults.standard.set(newValue, forKey: scriptURLKey) }
     }
 
     /// 各家网盘下载时要求/建议的 UA（LinkSwift config.ua 的实测结论）
@@ -342,7 +321,6 @@ struct CloudLinkCenterView: View {
     @Stored private var scriptPath = CloudLinkSettings.scriptPath
     @Stored private var downloadDir = CloudLinkSettings.downloadDirectory
     @Stored private var timeout = CloudLinkSettings.timeout
-    @Stored private var autoUpdate = CloudLinkSettings.autoUpdate
     @Stored private var uaOverride = CloudLinkSettings.uaOverride
     @Stored private var engineRaw = CloudLinkSettings.engine.rawValue
     @Stored private var maxConcurrent = CloudLinkSettings.maxConcurrent
@@ -354,7 +332,6 @@ struct CloudLinkCenterView: View {
     @Stored private var revealAfter = CloudLinkSettings.revealAfterDownload
     @Stored private var aria2Endpoint = CloudLinkSettings.aria2Endpoint
     @Stored private var aria2Token = CloudLinkSettings.aria2Token
-    @Stored private var scriptUpdateURL = CloudLinkSettings.scriptUpdateURL
 
     private var tint: Color { Color(nsColor: link.provider.tint) }
 
@@ -614,21 +591,6 @@ struct CloudLinkCenterView: View {
                     }
                 }
             }
-
-            configRow(title: "更新源", hint: "自动更新时拉取的 .user.js 地址") {
-                TextField("https://raw.githubusercontent.com/…/LinkSwift.user.js", text: Binding(
-                    get: { scriptUpdateURL },
-                    set: { scriptUpdateURL = $0; CloudLinkSettings.scriptUpdateURL = $0 }))
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 11, design: .monospaced))
-            }
-
-            Toggle("脚本自动更新（启动时对比 @version）", isOn: Binding(
-                get: { autoUpdate },
-                set: { autoUpdate = $0; CloudLinkSettings.autoUpdate = $0 }))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .font(.system(size: 11))
 
             configRow(title: "保存目录", hint: "下载完成落盘位置") {
                 HStack(spacing: 6) {

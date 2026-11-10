@@ -269,23 +269,23 @@ public final class MCPServer {
         func arg(_ k: String) -> String { args[k] as? String ?? "" }
         switch name {
         case "adb_devices":
-            ADBExtrasEngine.run(["devices", "-l"]) { out in
+            ADBExtrasEngine.run(["devices", "-l"]) { out, _ in
                 completion(out ?? "adb 不可用（未安装 android-platform-tools）", out == nil)
             }
         case "adb_shell":
             let cmd = arg("command")
             guard !cmd.isEmpty else { completion("缺少 command 参数", true); return }
             // shell 命令按空格拆参数（避免注入引号问题：整体交给 shell -c）
-            ADBExtrasEngine.run(["shell", cmd]) { out in
+            ADBExtrasEngine.run(["shell", cmd]) { out, _ in
                 completion(out ?? "无输出", false)
             }
         case "adb_push":
-            ADBExtrasEngine.run(["push", arg("local"), arg("remote")]) { out in
+            ADBExtrasEngine.run(["push", arg("local"), arg("remote")]) { out, _ in
                 let t = out ?? "无输出"
                 completion(t, t.lowercased().contains("error"))
             }
         case "adb_pull":
-            ADBExtrasEngine.run(["pull", arg("remote"), arg("local")], timeout: 120) { out in
+            ADBExtrasEngine.run(["pull", arg("remote"), arg("local")], timeout: 120) { out, _ in
                 let t = out ?? "无输出"
                 completion(t, t.lowercased().contains("error"))
             }
@@ -296,8 +296,8 @@ public final class MCPServer {
         case "adb_screencap":
             let remote = "/sdcard/Download/Kitnest/screencap.png"
             let local = NSTemporaryDirectory() + "frset-screencap-\(Int(Date().timeIntervalSince1970)).png"
-            ADBExtrasEngine.run(["shell", "screencap", "-p", remote]) { _ in
-                ADBExtrasEngine.run(["pull", remote, local], timeout: 60) { out in
+            ADBExtrasEngine.run(["shell", "screencap", "-p", remote]) { _, _ in
+                ADBExtrasEngine.run(["pull", remote, local], timeout: 60) { out, _ in
                     completion("已保存：\(local)\n\(out ?? "")", false)
                 }
             }

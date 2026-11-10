@@ -71,9 +71,12 @@ enum AppBootstrap {
             queue: .main) { note in
                 guard TransferDockPref.isOn(TransferDockPref.autoStageClipboard),
                       let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
-                let count = LocalTransferStore.shared.autoStage(urls: urls)
-                if count > 0 {
-                    Toast.show("已自动暂存 \(count) 个文件到中转", icon: "arrow.down.doc")
+                LocalTransferStore.shared.autoStage(urls: urls) { count, error in
+                    if let error {
+                        Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                    } else if count > 0 {
+                        Toast.show("已自动暂存 \(count) 个文件到中转", icon: "arrow.down.doc")
+                    }
                 }
             }
 

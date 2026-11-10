@@ -90,9 +90,9 @@ public enum ADBExtrasEngine {
 
     /// 运行 adb（后台；自动 -s 目标设备；返回合并输出）
     static func run(_ args: [String], timeout: TimeInterval = 25,
-                    completion: @escaping (String?) -> Void) {
+                    completion: @escaping (String?, Int32?) -> Void) {
         guard let adb = ScreenCastEngine.findADB() else {
-            DispatchQueue.main.async { completion(nil) }
+            DispatchQueue.main.async { completion(nil, nil) }
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -108,7 +108,7 @@ public enum ADBExtrasEngine {
             let out = Pipe(); let err = Pipe()
             task.standardOutput = out; task.standardError = err
             do { try task.run() } catch {
-                DispatchQueue.main.async { completion(nil) }
+                DispatchQueue.main.async { completion(nil, nil) }
                 return
             }
             let deadline = DispatchTime.now() + timeout
@@ -118,10 +118,11 @@ public enum ADBExtrasEngine {
             if task.isRunning { task.terminate() }
             let data = out.fileHandleForReading.readDataToEndOfFile()
             let errData = err.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
             var text = String(data: data, encoding: .utf8) ?? ""
             let e = String(data: errData, encoding: .utf8) ?? ""
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
-            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), task.terminationStatus) }
         }
     }
 
@@ -139,7 +140,7 @@ public enum ADBExtrasEngine {
                 completion?("未找到无线调试页，请手动打开「开发者选项 → 无线调试」")
                 return
             }
-            run(["shell", "am", "start", "-n", candidates[i]]) { out in
+            run(["shell", "am", "start", "-n", candidates[i]]) { out, _ in
                 if (out ?? "").lowercased().contains("error") {
                     attempt(i + 1)
                 } else {
@@ -154,7 +155,7 @@ public enum ADBExtrasEngine {
 
     /// `dumpsys notification --noredact` → 解析 NotificationRecord 块
     public static func notifications(completion: @escaping ([PhoneNotification]) -> Void) {
-        run(["shell", "dumpsys", "notification", "--noredact"], timeout: 20) { out in
+        run(["shell", "dumpsys", "notification", "--noredact"], timeout: 20) { out, _ in
             completion(parseNotifications(out ?? ""))
         }
     }
@@ -244,12 +245,12 @@ public enum ADBExtrasEngine {
 
     /// 返回（总览文本, 顶层目录占用 Top N）
     public static func storage(completion: @escaping (String, [StorageItem]) -> Void) {
-        run(["shell", "df", "-h", "/sdcard"], timeout: 15) { dfOut in
+        run(["shell", "df", "-h", "/sdcard"], timeout: 15) { dfOut, _ in
             let summary = dfOut?
                 .components(separatedBy: .newlines)
                 .last?
                 .trimmingCharacters(in: .whitespaces) ?? ""
-            run(["shell", "du", "-sh", "/sdcard/*/", "2>/dev/null"], timeout: 40) { duOut in
+            run(["shell", "du", "-sh", "/sdcard/*/", "2>/dev/null"], timeout: 40) { duOut, _ in
                 var items: [StorageItem] = []
                 for line in (duOut ?? "").components(separatedBy: .newlines) {
                     let parts = line.split(separator: "\t", maxSplits: 1).map(String.init)
@@ -283,7 +284,7 @@ public enum ADBExtrasEngine {
     // MARK: ⑤ APK 安装
 
     public static func installAPK(url: URL, completion: @escaping (Bool, String) -> Void) {
-        run(["install", "-r", "-d", url.path], timeout: 180) { out in
+        run(["install", "-r", "-d", url.path], timeout: 180) { out, _ in
             let text = out ?? "安装无输出"
             let ok = text.contains("Success")
             completion(ok, text)
@@ -293,7 +294,7 @@ public enum ADBExtrasEngine {
     // MARK: ⑥ 第三方应用
 
     public static func thirdPartyApps(completion: @escaping ([AppItem]) -> Void) {
-        run(["shell", "pm", "list", "packages", "-3"], timeout: 20) { out in
+        run(["shell", "pm", "list", "packages", "-3"], timeout: 20) { out, _ in
             let apps = (out ?? "").components(separatedBy: .newlines).compactMap { line -> AppItem? in
                 guard line.hasPrefix("package:") else { return nil }
                 let pkg = String(line.dropFirst("package:".count)).trimmingCharacters(in: .whitespaces)

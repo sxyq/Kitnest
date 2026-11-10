@@ -138,63 +138,62 @@ public final class LocalTransferStore: ObservableObject {
 
     // MARK: 加入
 
-    /// 把一批文件/目录加入本地中转；返回成功条数。
-    @discardableResult
-    public func add(urls: [URL]) -> Int {
+    /// 文件 I/O 在暂存队列执行，主线程发布后回传实际成功条数。
+    public func add(urls: [URL], completion: @escaping (Int) -> Void) {
         StatisticsManager.shared.record(.fileTransferSend)
-        var added: [LocalTransferItem] = []
-        var failures: [String] = []
-        let fm = FileManager.default
+        queue.async {
+            var added: [LocalTransferItem] = []
+            var failures: [String] = []
+            let fm = FileManager.default
 
-        for url in urls {
-            let normalized = url.standardizedFileURL
-            guard fm.fileExists(atPath: normalized.path) else {
-                failures.append("\(url.lastPathComponent)：文件不存在")
-                continue
+            for url in urls {
+                let normalized = url.standardizedFileURL
+                guard fm.fileExists(atPath: normalized.path) else {
+                    failures.append("\(url.lastPathComponent)：文件不存在")
+                    continue
+                }
+
+                let id = UUID().uuidString
+                let dir = self.stagingRoot.appendingPathComponent(id, isDirectory: true)
+                do {
+                    try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+                    let dest = dir.appendingPathComponent(normalized.lastPathComponent)
+                    let mode = try self.stage(from: normalized, to: dest)
+                    let size = Self.sizeOf(normalized)
+                    let item = LocalTransferItem(id: id,
+                                                 name: normalized.lastPathComponent,
+                                                 relativePath: "\(id)/\(normalized.lastPathComponent)",
+                                                 originalPath: normalized.path,
+                                                 size: size,
+                                                 addedAt: Date().timeIntervalSince1970,
+                                                 mode: mode)
+                    added.append(item)
+                } catch {
+                    try? fm.removeItem(at: dir)
+                    failures.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                }
             }
 
-            let id = UUID().uuidString
-            let dir = stagingRoot.appendingPathComponent(id, isDirectory: true)
-            do {
-                try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-                let dest = dir.appendingPathComponent(normalized.lastPathComponent)
-                let mode = try stage(from: normalized, to: dest)
-                let size = Self.sizeOf(normalized)
-                let item = LocalTransferItem(id: id,
-                                             name: normalized.lastPathComponent,
-                                             relativePath: "\(id)/\(normalized.lastPathComponent)",
-                                             originalPath: normalized.path,
-                                             size: size,
-                                             addedAt: Date().timeIntervalSince1970,
-                                             mode: mode)
-                added.append(item)
-            } catch {
-                try? fm.removeItem(at: dir)
-                failures.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.lastError = failures.isEmpty ? nil : failures.joined(separator: "\n")
+                if !added.isEmpty {
+                    self.items.insert(contentsOf: added.reversed(), at: 0)
+                    self.persist()
+                    self.lastMessage = added.count == 1
+                        ? "已暂存 \(added[0].name)（\(added[0].mode.label)）"
+                        : "已暂存 \(added.count) 个文件"
+                    NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
+                }
+                completion(added.count)
             }
         }
-
-        if !added.isEmpty {
-            items.insert(contentsOf: added.reversed(), at: 0)
-            persist()
-            lastMessage = added.count == 1
-                ? "已暂存 \(added[0].name)（\(added[0].mode.label)）"
-                : "已暂存 \(added.count) 个文件"
-            lastError = nil
-            NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
-        }
-        if !failures.isEmpty {
-            lastError = failures.joined(separator: "\n")
-        }
-        return added.count
     }
 
     /// 剪贴板自动暂存（2026-10-20 用户需求）：复制「zip / Word / PPT / Excel 等」文件时
     /// 自动进本地中转（硬链接暂存版——不复制数据）。只对文档/压缩包类扩展名生效，
     /// 且同一原路径已在列表里就跳过（避免同一次复制反复入库）。
     /// 需要在主线程调用（改 @Published）。
-    @discardableResult
-    public func autoStage(urls: [URL]) -> Int {
+    public func autoStage(urls: [URL], completion: @escaping (Int, String?) -> Void) {
         let allowed = TransferDockPref.autoStageExtensions
         var candidates: [URL] = []
         for url in urls {
@@ -204,56 +203,64 @@ public final class LocalTransferStore: ObservableObject {
             if items.contains(where: { $0.originalPath == normalized.path }) { continue }
             candidates.append(normalized)
         }
-        guard !candidates.isEmpty else { return 0 }
-        let count = add(urls: candidates)
-        if count > 0 {
-            Log.info("TransferDock", "剪贴板文件自动暂存 \(count) 个")
+        guard !candidates.isEmpty else { completion(0, nil); return }
+        add(urls: candidates) { count in
+            if count > 0 {
+                Log.info("TransferDock", "剪贴板文件自动暂存 \(count) 个")
+            }
+            completion(count, self.lastError)
         }
-        return count
     }
 
     /// 手机扫码上传进来的文件：数据已经落在临时目录，直接**移入**暂存（不是链接、不留副本）。
     /// 需要在主线程调用（改 @Published + 发通知）。
-    @discardableResult
-    public func addUploads(_ entries: [(name: String, tempURL: URL)], source: String = "手机") -> Int {
-        var added: [LocalTransferItem] = []
-        let fm = FileManager.default
+    public func addUploads(_ entries: [(name: String, tempURL: URL)], source: String = "手机",
+                           completion: @escaping (Int) -> Void) {
+        queue.async {
+            var added: [LocalTransferItem] = []
+            var failures: [String] = []
+            let fm = FileManager.default
 
-        for entry in entries {
-            let id = UUID().uuidString
-            let dir = stagingRoot.appendingPathComponent(id, isDirectory: true)
-            do {
-                try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-                let dest = dir.appendingPathComponent(entry.name)
+            for entry in entries {
+                let id = UUID().uuidString
+                let dir = self.stagingRoot.appendingPathComponent(id, isDirectory: true)
                 do {
-                    try fm.moveItem(at: entry.tempURL, to: dest)
+                    try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+                    let dest = dir.appendingPathComponent(entry.name)
+                    do {
+                        try fm.moveItem(at: entry.tempURL, to: dest)
+                    } catch {
+                        // 临时目录与 Application Support 不同卷时 move 会失败 → 拷贝后删源
+                        try fm.copyItem(at: entry.tempURL, to: dest)
+                        try? fm.removeItem(at: entry.tempURL)
+                    }
+                    let size = Self.sizeOf(dest)
+                    added.append(LocalTransferItem(id: id,
+                                                   name: entry.name,
+                                                   relativePath: "\(id)/\(entry.name)",
+                                                   originalPath: entry.tempURL.path,
+                                                   size: size,
+                                                   addedAt: Date().timeIntervalSince1970,
+                                                   mode: .upload))
                 } catch {
-                    // 临时目录与 Application Support 不同卷时 move 会失败 → 拷贝后删源
-                    try fm.copyItem(at: entry.tempURL, to: dest)
-                    try? fm.removeItem(at: entry.tempURL)
+                    try? fm.removeItem(at: dir)
+                    failures.append("\(entry.name)：\(error.localizedDescription)")
                 }
-                let size = Self.sizeOf(dest)
-                added.append(LocalTransferItem(id: id,
-                                               name: entry.name,
-                                               relativePath: "\(id)/\(entry.name)",
-                                               originalPath: entry.tempURL.path,
-                                               size: size,
-                                               addedAt: Date().timeIntervalSince1970,
-                                               mode: .upload))
-            } catch {
-                try? fm.removeItem(at: dir)
-                lastError = "\(entry.name)：\(error.localizedDescription)"
+            }
+
+            DispatchQueue.main.async {
+                self.lastError = failures.isEmpty ? nil : failures.joined(separator: "\n")
+                if !added.isEmpty {
+                    self.items.insert(contentsOf: added.reversed(), at: 0)
+                    self.persist()
+                    self.lastMessage = added.count == 1
+                        ? "\(source)上传了 \(added[0].name)"
+                        : "\(source)上传了 \(added.count) 个文件"
+                    NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
+                }
+                completion(added.count)
             }
         }
-
-        guard !added.isEmpty else { return 0 }
-        items.insert(contentsOf: added.reversed(), at: 0)
-        persist()
-        lastMessage = added.count == 1
-            ? "\(source)上传了 \(added[0].name)"
-            : "\(source)上传了 \(added.count) 个文件"
-        NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
-        return added.count
     }
 
     /// 建链：硬链接优先；目录走符号链接；跨卷/不支持时降级拷贝。

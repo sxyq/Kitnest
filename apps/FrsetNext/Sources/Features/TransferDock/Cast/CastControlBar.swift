@@ -35,46 +35,56 @@ final class ScrcpyControlBarController {
 
     // MARK: - 挂载 / 卸载
 
-    /// scrcpy 启动后调用。`serial` 为空时会在后台用 `adb devices` 兜底解析。
-    func attach(serial: String?) {
+    /// 控制条只跟随实际启动的进程及目标设备。
+    func attach(serial: String?, processID: pid_t) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.serial = serial
-            self.scrcpyPID = nil
-            if self.serial == nil { self.resolveSerialIfNeeded() }
+            self.scrcpyPID = processID
             self.startTracking()
             self.tick()
             Log.info("Transfer", "投屏控制条：已挂载（serial=\(serial ?? "自动")）")
         }
     }
 
-    /// scrcpy 已在跑（App 重启/页面重建）时补挂一次，不启动新进程
+    /// 页面重建或 App 重启后，按运行进程的实际 --serial 恢复设备绑定。
     func attachIfScrcpyRunning() {
-        guard Self.scrcpyWindow() != nil else { return }
-        attach(serial: nil)
+        if let pid = scrcpyPID, kill(pid, 0) == 0 {
+            startTracking()
+            tick()
+            return
+        }
+        guard let window = Self.scrcpyWindow() else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/ps")
+            task.arguments = ["-p", "\(window.pid)", "-o", "args="]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            guard (try? task.run()) != nil else { return }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+            let args = String(decoding: data, as: UTF8.self).split(whereSeparator: \.isWhitespace)
+            guard task.terminationStatus == 0,
+                  let index = args.firstIndex(of: "--serial"), index + 1 < args.count else { return }
+            let serial = String(args[index + 1])
+            DispatchQueue.main.async {
+                guard self.scrcpyPID == nil else { return }
+                self.attach(serial: serial, processID: window.pid)
+            }
+        }
     }
+
+    func isAttached(to processID: pid_t) -> Bool { scrcpyPID == processID }
 
     /// scrcpy 退出时调用
     func detach() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.timer?.invalidate()
-            self.timer = nil
-            self.panel?.orderOut(nil)
-            self.panel = nil
-            self.serial = nil
-            self.scrcpyPID = nil
-        }
-    }
-
-    private func resolveSerialIfNeeded() {
-        ScreenCastEngine.connectedDevices { [weak self] list in
-            guard let self, self.serial == nil else { return }
-            // 优先无线（含 ":"）：多设备并存时 5555/随机端口那条才是投屏用的
-            let pick = list?.first(where: { $0.state == "device" && $0.serial.contains(":") })
-                ?? list?.first(where: { $0.state == "device" })
-            self.serial = pick?.serial
-        }
+        timer?.invalidate()
+        timer = nil
+        panel?.orderOut(nil)
+        panel = nil
+        serial = nil
+        scrcpyPID = nil
     }
 
     // MARK: - 跟踪窗口
@@ -89,7 +99,7 @@ final class ScrcpyControlBarController {
     }
 
     private func tick() {
-        guard let win = Self.scrcpyWindow() else {
+        guard let pid = scrcpyPID, let win = Self.scrcpyWindow(processID: pid) else {
             panel?.orderOut(nil)
             // v166.1：**不能因为「这一会儿没找到窗口」就停跟踪** —— 用户切到别的 Space、
             // 或窗口被完全遮住时都会查不到；以前 20s 后 detach，切回来条就再也不出现。
@@ -130,13 +140,13 @@ final class ScrcpyControlBarController {
         return n == ScreenCastEngine.castAppName.lowercased() || n == "scrcpy"
     }
 
-    /// 找到投屏窗口（多开时取面积最大的那个）
+    /// 找到指定进程的投屏窗口
     /// 返回窗口矩形、窗口号（用于同级排序）、进程 pid（用于判定前台）
     ///
     /// v166.1：**不能只用 `.optionOnScreenOnly`** —— 实测它会间歇性把 scrcpy 窗口
     /// 判成「不在屏」（同一时刻截图里明明可见），导致控制条被误收起。
     /// 改成取全量列表，再用 `kCGWindowIsOnscreen` + alpha 自己判定。
-    private static func scrcpyWindow() -> (bounds: CGRect, number: Int, pid: pid_t)? {
+    private static func scrcpyWindow(processID: pid_t? = nil) -> (bounds: CGRect, number: Int, pid: pid_t)? {
         let opts: CGWindowListOption = [.excludeDesktopElements]
         guard let list = CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] else {
             return nil
@@ -154,6 +164,7 @@ final class ScrcpyControlBarController {
             guard (w[kCGWindowIsOnscreen as String] as? Bool) ?? false else { continue }
             let num = w[kCGWindowNumber as String] as? Int ?? 0
             let pid = pid_t(w[kCGWindowOwnerPID as String] as? Int ?? 0)
+            if let processID, pid != processID { continue }
             if best == nil || r.width * r.height > best!.0.width * best!.0.height {
                 best = (r, num, pid)
             }

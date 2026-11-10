@@ -105,7 +105,7 @@ struct CastView: View {
             showQrPair = true
         }
         .onAppear {
-            // v166.1：App 重启后 scrcpy 可能还在跑（我们只负责它的窗口），重新贴回控制条
+            // 页面重建时继续跟随已绑定的投屏进程。
             ScrcpyControlBarController.shared.attachIfScrcpyRunning()
             // v166.3：进页面就后台预热应用目录（真图标首次要跑一次设备端渲染，别等展开才转圈）
             if catalogApps.isEmpty { loadApps() }
@@ -481,13 +481,14 @@ struct CastView: View {
                     set: { v in
                         TransferDockPref.CastQuality.clipboardAutoSync = v
                         clipboardSyncOn = v
+                        Toast.show("新投屏的双向剪贴板：\(v ? "开启" : "关闭")；当前窗口保持原设置", icon: "doc.on.doc")
                     }))
                     .labelsHidden()
                     .controlSize(.mini)
                     .toggleStyle(.switch)
             }
-            .help("双向剪贴板（\(clipboardSyncOn ? "已开启" : "已关闭")）：关掉则投屏窗口不做 Mac↔手机同步")
-            .accessibilityLabel("双向剪贴板")
+            .help("下次启动投屏的双向剪贴板：\(clipboardSyncOn ? "开启" : "关闭")。当前窗口保持启动时设置。")
+            .accessibilityLabel("新投屏的双向剪贴板")
         }
     }
 

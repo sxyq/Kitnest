@@ -134,8 +134,10 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
     }
 
     private func release() {
-        active = max(0, active - 1)
-        pump()
+        DispatchQueue.main.async {
+            self.active -= 1
+            self.pump()
+        }
     }
 
     private func run(_ job: Job) {
@@ -173,6 +175,11 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 self.handleFailure(job, reason: error.localizedDescription)
                 return
             }
+            if let response = response as? HTTPURLResponse,
+               !(200..<300).contains(response.statusCode) {
+                self.handleFailure(job, reason: "服务器返回 HTTP \(response.statusCode)")
+                return
+            }
             guard let tempURL else {
                 self.handleFailure(job, reason: "服务器没有返回文件内容")
                 return
@@ -188,6 +195,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                     try FileManager.default.moveItem(at: tempURL, to: dest)
                     self.finish(id: job.id, localURL: dest)
                 }
+                self.release()
             } catch {
                 self.handleFailure(job, reason: error.localizedDescription)
             }
@@ -249,16 +257,25 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         request.timeoutInterval = 8
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self else { return }
             if let error {
                 self.handleFailure(job, reason: "aria2 连接失败：\(error.localizedDescription)")
                 return
             }
-            if let data,
-               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let err = object["error"] as? [String: Any] {
+            guard let response = response as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode),
+                  let data,
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                self.handleFailure(job, reason: "aria2 返回无效响应")
+                return
+            }
+            if let err = object["error"] as? [String: Any] {
                 self.handleFailure(job, reason: "aria2：\(err["message"] as? String ?? "未知错误")")
+                return
+            }
+            guard let gid = object["result"] as? String, !gid.isEmpty else {
+                self.handleFailure(job, reason: "aria2 未返回下载任务 ID")
                 return
             }
             self.finish(id: job.id, note: "已交给 aria2（\(connections) 连接）")
@@ -365,9 +382,19 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
     private var completion: ((Result) -> Void)?
     private var timeoutWork: DispatchWorkItem?
+    private var selectedScript: String?
 
     func resolve(pageURL: URL, completion: @escaping (Result) -> Void) {
         self.completion = completion
+        let path = CloudLinkSettings.scriptPath
+        if !path.isEmpty {
+            do {
+                selectedScript = try String(contentsOfFile: path, encoding: .utf8)
+            } catch {
+                finish(.failure("无法读取解析脚本：\(error.localizedDescription)"))
+                return
+            }
+        }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()   // 复用登录态（与浏览器同源 cookie 不共享，但同 app 内多次解析可复用）
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 900), configuration: config)
@@ -385,6 +412,18 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if let selectedScript {
+            webView.evaluateJavaScript(selectedScript) { [weak self] _, error in
+                if let error {
+                    self?.finish(.failure("所选脚本执行失败：\(error.localizedDescription)"))
+                    return
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    self?.extractLinks(from: webView)
+                }
+            }
+            return
+        }
         // 首屏渲染后再等 1.2s，给 SPA 初始化/接口回填留时间
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             self?.extractLinks(from: webView)
@@ -432,7 +471,7 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     }
 
     /// 把 WKWebView 的 cookie 同步给 URLSession（很多直链校验登录态）
-    private func syncCookiesFrom(_ webView: WKWebView) {
+    private func syncCookiesFrom(_ webView: WKWebView, completion: @escaping () -> Void) {
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             for cookie in cookies where cookie.domain.hasSuffix(".baidu.com")
                 || cookie.domain.hasSuffix(".aliyundrive.com")
@@ -443,18 +482,22 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
                 || cookie.domain.hasSuffix(".xunlei.com") {
                 HTTPCookieStorage.shared.setCookie(cookie)
             }
+            completion()
         }
     }
 
     private func finish(_ result: Result, syncCookiesFrom webView: WKWebView? = nil) {
         timeoutWork?.cancel()
         timeoutWork = nil
-        if let webView { syncCookiesFrom(webView) }
         let callback = completion
         completion = nil
         self.webView?.stopLoading()
         self.webView?.navigationDelegate = nil
         self.webView = nil
-        callback?(result)
+        if let webView {
+            syncCookiesFrom(webView) { callback?(result) }
+        } else {
+            callback?(result)
+        }
     }
 }

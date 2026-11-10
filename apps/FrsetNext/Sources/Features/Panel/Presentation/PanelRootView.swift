@@ -63,6 +63,8 @@ struct PanelRootView: View {
 
     /// v250：拖文件到图标后的转入弹框（挂在面板根上，任意页面都能弹）
     @Stored private var intake: TransferIntakeRequest?
+    @Stored private var showsTransferLogin = false
+    @Stored private var pendingCloudURLs: [URL] = []
 
     private var page: PanelCenterPage { monitorPresenter.activePage }
 
@@ -245,7 +247,9 @@ struct PanelRootView: View {
             guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
             intake = TransferIntakeRequest(urls: urls)
         }
-        .sheet(item: $intake) { req in
+        .sheet(item: $intake, onDismiss: {
+            if !pendingCloudURLs.isEmpty { showsTransferLogin = true }
+        }) { req in
             TransferIntakeDialog(
                 request: req,
                 onConfirm: { choice in
@@ -253,15 +257,41 @@ struct PanelRootView: View {
                     switch choice {
                     case .cloud:
                         guard TransferDockService.shared.loggedIn else {
-                            NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil)
+                            pendingCloudURLs = req.urls
                             return
                         }
                         TransferDockService.shared.uploadBatch(req.urls)
                     case .local:
-                        _ = LocalTransferStore.shared.add(urls: req.urls)
+                        LocalTransferStore.shared.add(urls: req.urls) { count in
+                            if let error = LocalTransferStore.shared.lastError {
+                                Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                            } else {
+                                Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
+                            }
+                        }
                     }
                 },
                 onCancel: { intake = nil })
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .frsetOpenTransferLogin)) { _ in
+            showsTransferLogin = true
+        }
+        .sheet(isPresented: $showsTransferLogin, onDismiss: { pendingCloudURLs = [] }) {
+            TransferDockLoginView(
+                onCancel: {
+                    pendingCloudURLs = []
+                    showsTransferLogin = false
+                },
+                onLoggedIn: {
+                    let urls = pendingCloudURLs
+                    pendingCloudURLs = []
+                    showsTransferLogin = false
+                    if urls.isEmpty {
+                        TransferDockService.shared.refresh()
+                    } else {
+                        TransferDockService.shared.uploadBatch(urls)
+                    }
+                })
         }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
             if page != .home { monitorPresenter.selectHome() }
@@ -465,11 +495,16 @@ struct PanelRootView: View {
         }
         group.notify(queue: .main) {
             guard !urls.isEmpty else { return }
-            let count = LocalTransferStore.shared.add(urls: urls)
-            if count > 0 {
-                // v181：分段被关掉时不要「偷偷切到一个不存在的页」，只提示文件已进中转
-                if enabledPages.contains(.transfer) { monitorPresenter.selectTransferDock() }
-                Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
+            LocalTransferStore.shared.add(urls: urls) { count in
+                if count > 0 {
+                    // 分段未启用时仅提示，不切换页面。
+                    if enabledPages.contains(.transfer) { monitorPresenter.selectTransferDock() }
+                }
+                if let error = LocalTransferStore.shared.lastError {
+                    Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                } else if count > 0 {
+                    Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
+                }
             }
         }
         return true
@@ -543,8 +578,7 @@ struct PanelRootView: View {
 
     /// 统一「先收面板再执行」——截图/录屏类动作需要面板让位给选区覆盖层
     private func runCapture(_ action: @escaping () -> Void) {
-        onDismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: action)
+        PanelController.shared.hide(completion: action)
     }
 
     // MARK: - 底部悬浮工具条（官方原版主页，2026-10-18 补齐）
