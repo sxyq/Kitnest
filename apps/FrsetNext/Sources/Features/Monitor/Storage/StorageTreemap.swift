@@ -123,10 +123,62 @@ private final class DiskLayoutCache {
 
 /// 命中区域 = 多边形本身（相邻块的 bbox 会重叠，不能用矩形命中）
 private struct PolygonHitShape: Shape {
-    let points: [CGPoint]
+    var points: [CGPoint]
     let radius: CGFloat
+
+    var animatableData: PolygonAnimatableVector {
+        get { PolygonAnimatableVector(values: points.flatMap { [$0.x, $0.y] }) }
+        set {
+            guard newValue.values.count >= 6 else { return }
+            points = stride(from: 0, to: newValue.values.count, by: 2).map {
+                CGPoint(x: newValue.values[$0], y: newValue.values[$0 + 1])
+            }
+        }
+    }
+
     func path(in rect: CGRect) -> Path {
         VoronoiTreemap.roundedPath(points, radius: radius)
+    }
+}
+
+private struct PolygonAnimatableVector: VectorArithmetic {
+    var values: [CGFloat]
+
+    static var zero: Self { Self(values: []) }
+    var magnitudeSquared: Double { values.reduce(0) { $0 + Double($1 * $1) } }
+
+    mutating func scale(by rhs: Double) {
+        values = values.map { $0 * CGFloat(rhs) }
+    }
+
+    static func + (lhs: Self, rhs: Self) -> Self {
+        if lhs.values.isEmpty { return rhs }
+        if rhs.values.isEmpty { return lhs }
+        return Self(values: zip(lhs.values, rhs.values).map { $0.0 + $0.1 })
+    }
+
+    static func - (lhs: Self, rhs: Self) -> Self {
+        if lhs.values.isEmpty { return Self(values: rhs.values.map { -$0 }) }
+        if rhs.values.isEmpty { return lhs }
+        return Self(values: zip(lhs.values, rhs.values).map { $0.0 - $0.1 })
+    }
+}
+
+struct StorageMapShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let point: (CGFloat, CGFloat) -> CGPoint = {
+            CGPoint(x: rect.minX + $0 * rect.width, y: rect.minY + $1 * rect.height)
+        }
+        path.move(to: point(0.25, 0))
+        path.addLine(to: point(0.91, 0))
+        path.addCurve(to: point(1, 0.09), control1: point(0.96, 0), control2: point(1, 0.04))
+        path.addLine(to: point(1, 0.91))
+        path.addCurve(to: point(0.91, 1), control1: point(1, 0.96), control2: point(0.96, 1))
+        path.addLine(to: point(0, 1))
+        path.addCurve(to: point(0.25, 0), control1: point(0.035, 0.86), control2: point(0.04, 0.37))
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -148,13 +200,12 @@ struct StorageTreemap: View {
 
     @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
+    @Stored private var hoverPoint: CGPoint?
 
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
                                                      freeSpace: freeSpace, cutout: cutout)
-            let hoveredCenter = tiles.first(where: { $0.id == hoveredID })
-                .map { CGPoint(x: $0.bbox.midX, y: $0.bbox.midY) }
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -172,38 +223,32 @@ struct StorageTreemap: View {
                         .contentShape(Rectangle())
                         .onTapGesture { onBack?() }
                     ForEach(tiles) { tile in
-                        tileView(tile, hoveredCenter: hoveredCenter)
+                        tileView(tile, in: geo.size)
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-                // 参考图整体是圆角异形：气泡铺满但外缘被裁成圆角
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.hud, style: .continuous))
             }
         }
     }
 
-    private func tileView(_ t: DiskTile, hoveredCenter: CGPoint?) -> some View {
-        let insetted = VoronoiTreemap.inset(t.polygon, factor: 0.976)
-        let local = insetted.map { CGPoint(x: $0.x - t.bbox.minX, y: $0.y - t.bbox.minY) }
-        let radius = min(t.bbox.width, t.bbox.height) * 0.20
+    private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
+        let tileFrame = t.bbox.insetBy(dx: -12, dy: -12)
+        let hitPolygon = VoronoiTreemap.inset(t.polygon, factor: 0.976)
+        let deformed = liquidPoints(t.polygon, around: hoverPoint, in: size)
+        let insetted = VoronoiTreemap.inset(deformed, factor: 0.976)
+        let hitLocal = hitPolygon.map { CGPoint(x: $0.x - tileFrame.minX, y: $0.y - tileFrame.minY) }
+        let local = insetted.map { CGPoint(x: $0.x - tileFrame.minX, y: $0.y - tileFrame.minY) }
+        let radius = min(t.bbox.width, t.bbox.height) * 0.30
         let center = VoronoiTreemap.centroid(insetted)
         let isSelected = selectedID == t.id
         let isHovered = hoveredID == t.id
         let ink = contentColor(t.ratio)
-        let push: CGSize = {
-            guard !reduceMotion, !isHovered, let c = hoveredCenter else { return .zero }
-            let dx = t.bbox.midX - c.x, dy = t.bbox.midY - c.y
-            let distance = max(1, hypot(dx, dy))
-            let amount = 3 * max(0, 1 - distance / 420)
-            return CGSize(width: dx / distance * amount, height: dy / distance * amount)
-        }()
-
         return Button {
             if t.isFreeSpace { onBack?(); return }
             selectedID = t.id
             if t.node.canDrill { onDrill(t.node) } else { onSelect(t.node) }
         } label: {
-            // 只移动绘制层；按钮的多边形热区不随悬停移动，避免反复进入/离开。
+            // 只变形绘制层；热区保持静止，避免气泡推开指针后反复进出。
             ZStack {
                 ZStack {
                     PolygonHitShape(points: local, radius: radius)
@@ -217,28 +262,35 @@ struct StorageTreemap: View {
                         }
                     }
                     label(t, ink: t.isFreeSpace ? .primary : ink)
-                        .position(x: center.x - t.bbox.minX, y: center.y - t.bbox.minY)
+                        .position(x: center.x - tileFrame.minX, y: center.y - tileFrame.minY)
                 }
-                .frame(width: t.bbox.width, height: t.bbox.height)
+                .frame(width: tileFrame.width, height: tileFrame.height)
                 .clipShape(PolygonHitShape(points: local, radius: radius))
                 .overlay {
                     PolygonHitShape(points: local, radius: radius)
                         .stroke(isSelected || isHovered ? Theme.accent : Color.primary.opacity(0.10),
                                 lineWidth: isSelected || isHovered ? 2 : 0.5)
                 }
-                .offset(push)
-                .scaleEffect(!reduceMotion && isHovered ? 1.025 : 1)
                 .allowsHitTesting(false)
             }
-            .frame(width: t.bbox.width, height: t.bbox.height)
-            .contentShape(PolygonHitShape(points: local, radius: radius))
+            .frame(width: tileFrame.width, height: tileFrame.height)
+            .contentShape(PolygonHitShape(points: hitLocal, radius: radius))
         }
         .buttonStyle(.plain)
-        .position(x: t.bbox.midX, y: t.bbox.midY)
+        .position(x: tileFrame.midX, y: tileFrame.midY)
         .zIndex(isHovered ? 10 : 0)
-        .onHover { inside in
-            if inside { hoveredID = t.id }
-            else if hoveredID == t.id { hoveredID = nil }
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location):
+                hoveredID = t.id
+                hoverPoint = CGPoint(x: tileFrame.minX + location.x,
+                                     y: tileFrame.minY + location.y)
+            case .ended:
+                if hoveredID == t.id {
+                    hoveredID = nil
+                    hoverPoint = nil
+                }
+            }
         }
         .accessibilityLabel("\(t.node.name)，\(StorageFormat.bytes(t.node.size))")
         .accessibilityHint(t.isFreeSpace ? "返回上一级" : t.node.canDrill ? "进入查看子项" : "显示文件详情")
@@ -246,7 +298,22 @@ struct StorageTreemap: View {
               : "\(t.node.name) · \(StorageFormat.bytes(t.node.size))"
                 + String(format: " · 占当前图 %.1f%%", t.ratio * 100)
                 + (t.node.path.contains("/__rest") ? " · 点击查看全部子项" : " · \(t.node.path)"))
-        .animation(reduceMotion ? nil : Theme.Motion.springSnappy, value: hoveredID)
+        .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.72),
+                   value: hoverPoint)
+    }
+
+    private func liquidPoints(_ polygon: [CGPoint], around point: CGPoint?, in size: CGSize) -> [CGPoint] {
+        guard !reduceMotion, let point else { return polygon }
+        let reach = max(140, min(260, min(size.width, size.height) * 0.42))
+        return polygon.map { vertex in
+            let dx = vertex.x - point.x
+            let dy = vertex.y - point.y
+            let distance = hypot(dx, dy)
+            guard distance > 0 else { return vertex }
+            let pressure = 10 * exp(-pow(distance / reach, 2) * 1.45)
+            return CGPoint(x: vertex.x + dx / distance * pressure,
+                           y: vertex.y + dy / distance * pressure)
+        }
     }
 
     /// 块内文字按**内切圆半径**分档（照截图：够圆够大才写字，窄条只留一个点）。

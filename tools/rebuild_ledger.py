@@ -604,6 +604,14 @@ EVIDENCE.update({
         "仅为键盘当前行绘制强调色焦点描边",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "refreshDiskSpace"):
         "从当前用户主目录所在文件系统读取可用空间，供打开、重扫和清理后更新",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "scale"):
+        "PolygonHitShape.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "func"):
+        "PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "path"):
+        "StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "liquidPoints"):
+        "tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeNSView"):
         "在设置预览中挂载 AppKit 原生关闭、最小化和缩放按钮",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "updateNSView"):

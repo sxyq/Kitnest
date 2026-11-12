@@ -636,7 +636,8 @@ struct StorageManagerRootView: View {
     // MARK: 右栏（面包屑 + 气泡地图 + 详情）
 
     private var rightPane: some View {
-        VStack(spacing: 0) {
+        GeometryReader { pane in
+            VStack(spacing: 0) {
             // 导航条：面包屑（v229：两个「返回」按钮已删，返回交给两指滑动 / Esc / 点空白）
             HStack(spacing: 6) {
                 // v236（用户：「点进去之后没有快速返回的方式」）：
@@ -689,7 +690,8 @@ struct StorageManagerRootView: View {
                         .help("本层合计")
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.leading, pane.size.width * 0.30 + 12)
+            .padding(.trailing, 12)
             .frame(height: 36)
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: stack.count)
 
@@ -700,7 +702,8 @@ struct StorageManagerRootView: View {
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 14)
+            .padding(.leading, pane.size.width * 0.25 + 14)
+            .padding(.trailing, 14)
             .padding(.bottom, 6)
 
             if let node = currentNode {
@@ -762,9 +765,11 @@ struct StorageManagerRootView: View {
                 .padding(.horizontal, 14)
                 .frame(height: 46)
             }
+            }
+            .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
+            .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
+            .clipShape(StorageMapShape())
         }
-        .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
-        .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
     }
 
     /// 顺着一串「几乎只剩一个子目录」的层级走到底（v212）

@@ -2263,21 +2263,26 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootVi
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,displayPath,func,265,KEEP,candidateRow:501
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,455,KEEP,340/342/343
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateRow,func,577,KEEP,leftPane:413
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,drillChain,func,775,KEEP,583、autoLandIfNeeded:667、深链:256/266
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,autoLandIfNeeded,func,794,KEEP,onChange(scannedAt):271
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,810,KEEP,buildAgentPrompt:721
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,825,KEEP,copyAgentPrompt:745、agentSheet:773
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,877,KEEP,agentSheet 复制按钮:795
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1058,KEEP,确认框文案:284
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1064,KEEP,alert 确定按钮:282
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,drillChain,func,780,KEEP,583、autoLandIfNeeded:667、深链:256/266
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,autoLandIfNeeded,func,799,KEEP,onChange(scannedAt):271
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,815,KEEP,buildAgentPrompt:721
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,830,KEEP,copyAgentPrompt:745、agentSheet:773
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,882,KEEP,agentSheet 复制按钮:795
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1063,KEEP,确认框文案:284
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1069,KEEP,alert 确定按钮:282
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,35,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,111,KEEP,StorageTreemap.body:171
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonHitShape,path,func,128,KEEP,Shape 协议要求；PolygonHitShape 用于 232/238/243/253/257/269
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,185,KEEP,body:192
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,257,KEEP,tileView:249
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,inradius,func,288,KEEP,label:303
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,305,KEEP,tileView:233
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,318,KEEP,tileView:213
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonHitShape,path,func,139,KEEP,Shape 协议要求；PolygonHitShape 用于 232/238/243/253/257/269
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,scale,func,150,KEEP,PolygonHitShape.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,func,func,154,KEEP,PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,func,func,160,KEEP,PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,168,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,234,KEEP,body:192
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,liquidPoints,func,305,KEEP,tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,324,KEEP,tileView:249
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,inradius,func,355,KEEP,label:303
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,372,KEEP,tileView:233
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,385,KEEP,tileView:213
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,26,KEEP,StorageTreemap.swift:97
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,basePolygon,func,93,KEEP,layout:41
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,111,KEEP,layout:45（arcFirst 分支）
