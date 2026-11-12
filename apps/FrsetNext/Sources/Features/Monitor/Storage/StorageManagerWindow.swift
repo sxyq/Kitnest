@@ -4,8 +4,6 @@ import SwiftUI
 extension Notification.Name {
     /// v212 排障深链：按名字下钻到某一层（kitnest://storage?drill=Users）
     static let storageDrillTo = Notification.Name("frsetnext.storage.drillTo")
-    /// v229：两指滑动返回上一级（由窗口 controller 的 scrollWheel 监听发出）
-    static let storageSwipeBack = Notification.Name("frsetnext.storage.swipeBack")
     /// v212 排障深链：直接打开「让 Agent 清理」弹窗（kitnest://storage?agent=1）
     static let storageOpenAgent = Notification.Name("frsetnext.storage.openAgent")
 }
@@ -75,42 +73,6 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
         win.isReleasedWhenClosed = false
         super.init(window: win)
         win.delegate = self
-        installSwipeMonitor(on: win)
-    }
-
-    /// v229（用户：「两个返回按钮全删，改用手势，两指左右滑」）
-    ///
-    /// 用 `scrollWheel` 的横向分量识别两指轻扫：触控板两指左右滑会产生
-    /// `scrollingDeltaX`（纵向滚轮 deltaX 基本为 0），累计到阈值就发一次返回。
-    /// 用 local monitor 而不是 NSView：气泡图整块是 SwiftUI，事件在 hosting 层就被消化了。
-    private var swipeMonitor: Any?
-    private var swipeAccum: CGFloat = 0
-    private var swipeDidNavigate = false
-
-    private func installSwipeMonitor(on win: NSWindow) {
-        guard swipeMonitor == nil else { return }
-        swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            guard let self, event.window === win else { return event }
-            if event.phase == .began {
-                self.swipeAccum = 0
-                self.swipeDidNavigate = false
-            }
-            if !event.momentumPhase.isEmpty { return event }
-            let dx = event.scrollingDeltaX
-            let dy = event.scrollingDeltaY
-            // 只认「横向明显大于纵向」的滑动；纵向滚轮/惯性不参与
-            guard abs(dx) > abs(dy) * 1.2, abs(dx) >= 1 else { return event }
-            self.swipeAccum += dx
-            if abs(self.swipeAccum) >= 42, !self.swipeDidNavigate {
-                self.swipeDidNavigate = true
-                NotificationCenter.default.post(name: .storageSwipeBack, object: nil)
-            }
-            return nil   // 吃掉横向滚动，避免带着别的视图一起动
-        }
-    }
-
-    deinit {
-        if let m = swipeMonitor { NSEvent.removeMonitor(m) }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -136,6 +98,74 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
     }
 }
 
+/// SwiftUI 按钮会消化滚动事件，保留原 local monitor，只把范围收到图形轮廓。
+private struct StorageSwipeRegion: NSViewRepresentable {
+    let onNavigate: (Int) -> Void
+
+    func makeNSView(context: Context) -> SwipeView {
+        SwipeView(onNavigate: onNavigate)
+    }
+
+    func updateNSView(_ nsView: SwipeView, context: Context) {
+        nsView.onNavigate = onNavigate
+    }
+
+    final class SwipeView: NSView {
+        var onNavigate: (Int) -> Void
+        private var swipeMonitor: Any?
+        private var swipeAccum: CGFloat = 0
+        private var swipeDidNavigate = false
+
+        init(onNavigate: @escaping (Int) -> Void) {
+            self.onNavigate = onNavigate
+            super.init(frame: .zero)
+        }
+
+        required init?(coder: NSCoder) { fatalError() }
+        override var isFlipped: Bool { true }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let swipeMonitor {
+                NSEvent.removeMonitor(swipeMonitor)
+                self.swipeMonitor = nil
+            }
+            if window != nil { installSwipeMonitor() }
+        }
+
+        private func installSwipeMonitor() {
+            swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self, let window = self.window, event.window === window else { return event }
+                if event.phase.contains(.began) {
+                    self.swipeAccum = 0
+                    self.swipeDidNavigate = false
+                }
+                guard event.hasPreciseScrollingDeltas, !event.phase.isEmpty,
+                      event.momentumPhase.isEmpty else { return event }
+                let location = self.convert(event.locationInWindow, from: nil)
+                guard StorageMapShape().path(in: self.bounds).contains(location) else {
+                    self.swipeAccum = 0
+                    return event
+                }
+                // 还原手指方向，系统自然滚动设置不改变「左退右进」。
+                let dx = event.scrollingDeltaX * (event.isDirectionInvertedFromDevice ? 1 : -1)
+                guard abs(dx) > abs(event.scrollingDeltaY) * 1.2 else { return event }
+                self.swipeAccum += dx
+                if abs(self.swipeAccum) >= 42, !self.swipeDidNavigate {
+                    self.swipeDidNavigate = true
+                    self.onNavigate(self.swipeAccum < 0 ? -1 : 1)
+                }
+                return nil
+            }
+        }
+
+        deinit {
+            if let swipeMonitor { NSEvent.removeMonitor(swipeMonitor) }
+        }
+    }
+}
+
 // MARK: - 根视图
 
 struct StorageManagerRootView: View {
@@ -143,8 +173,10 @@ struct StorageManagerRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var store = DiskIndexStore.shared
     @Stored private var hoveredCandidatePath: String?
-    /// 下钻路径栈；空 = 索引根
-    @Stored private var stack: [DiskNode] = []
+    /// 每次实际进入的目录路径；游标两侧分别是返回、前进记录。
+    @Stored private var directoryHistory: [[DiskNode]] = [[]]
+    @Stored private var historyIndex = 0
+    private var stack: [DiskNode] { directoryHistory[historyIndex] }
     @Stored private var selectedPaths: Set<String> = []
     @Stored private var detailNode: DiskNode?
     @Stored private var showRecords = false
@@ -285,7 +317,7 @@ struct StorageManagerRootView: View {
             refreshDiskSpace()
             store.loadIfNeeded()
             autoLandIfNeeded()
-            // 第一次打开：告诉用户「返回」现在是两指滑动（原来的按钮已经删了）
+            // 第一次打开时提示图形内的目录手势。
             // 注意：onAppear 可能被调用多次，这里用 swipeHintShown 兜住，
             // 不能在里面先写 showSwipeHint = false——第二次 onAppear 会把提示立刻清掉。
             guard !swipeHintShown else { return }
@@ -295,16 +327,12 @@ struct StorageManagerRootView: View {
                 showSwipeHint = false
             }
         }
-        // v229：两指滑动返回上一级
-        .onReceive(NotificationCenter.default.publisher(for: .storageSwipeBack)) { _ in
-            if !stack.isEmpty { stack.removeLast() }
-        }
         .overlay(alignment: .bottom) {
             if showSwipeHint {
                 HStack(spacing: 8) {
                     Image(systemName: "hand.draw")
                         .font(.system(size: 13, weight: .medium))
-                    Text("两指左右滑动，返回上一级")
+                    Text("图形内两指左滑返回，右滑前进")
                         .font(.system(size: 11.5, weight: .medium))
                 }
                 .foregroundStyle(.white)
@@ -324,7 +352,7 @@ struct StorageManagerRootView: View {
             // 有快照就立刻下钻，没有就挂起，等 snapshot 到位再执行。
             if let root = store.snapshot?.root,
                let target = root.children.first(where: { $0.name == name }) {
-                stack = drillChain(to: target)
+                navigate(to: drillChain(to: target))
                 pendingDrill = nil
             } else {
                 pendingDrill = name
@@ -332,13 +360,15 @@ struct StorageManagerRootView: View {
         }
         .onChange(of: store.snapshot?.scannedAt) { _ in
             refreshDiskSpace()
-            stack = stack.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+            directoryHistory = directoryHistory.map { path in
+                path.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+            }
             selectedPaths.formIntersection(Set(candidates.map { $0.id }))
             detailNode = nil
             if let name = pendingDrill,
                let root = store.snapshot?.root,
                let target = root.children.first(where: { $0.name == name }) {
-                stack = drillChain(to: target)
+                navigate(to: drillChain(to: target))
                 pendingDrill = nil
                 didAutoLand = true
                 return
@@ -349,7 +379,8 @@ struct StorageManagerRootView: View {
             showAgentSheet = true
         }
         .onChange(of: store.scope) { _ in
-            stack = []
+            directoryHistory = [[]]
+            historyIndex = 0
             store.reloadFromCache(autoScanIfMissing: false)
         }
         .onChange(of: currentNode?.id) { _ in detailNode = nil }
@@ -358,7 +389,7 @@ struct StorageManagerRootView: View {
             else if showAgentSheet { showAgentSheet = false }
             else if showSettings { showSettings = false }
             else if showRecords { showRecords = false }
-            else if !stack.isEmpty { stack.removeLast() }
+            else if historyIndex > 0 { navigateHistory(by: -1) }
             else { StorageManagerWindowController.shared.close() }
         }
         .alert("移到废纸篓？", isPresented: $confirmTrash) {
@@ -571,6 +602,7 @@ struct StorageManagerRootView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .background(Color.primary.opacity(0.03))
         }
     }
 
@@ -638,26 +670,27 @@ struct StorageManagerRootView: View {
     private var rightPane: some View {
         GeometryReader { pane in
             VStack(spacing: 0) {
-            // 导航条：面包屑（v229：两个「返回」按钮已删，返回交给两指滑动 / Esc / 点空白）
+            // 目录按钮、快捷键、图形手势共用同一访问历史。
             HStack(spacing: 6) {
-                // v236（用户：「点进去之后没有快速返回的方式」）：
-                // 面包屑左边加一个明确的返回箭头——比「点空白」可发现得多
-                Button {
-                    if !stack.isEmpty { stack.removeLast() }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(stack.isEmpty ? Theme.tertiaryText : Theme.accent)
-                        .frame(width: 28, height: 28)
-                        .background(Circle().fill(Color.primary.opacity(stack.isEmpty ? 0.03 : 0.08)))
+                ForEach([-1, 1], id: \.self) { direction in
+                    let enabled = directoryHistory.indices.contains(historyIndex + direction)
+                    Button {
+                        navigateHistory(by: direction)
+                    } label: {
+                        Image(systemName: direction < 0 ? "chevron.left" : "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(enabled ? Theme.accent : Theme.tertiaryText)
+                            .frame(width: 28, height: 28)
+                            .background(Circle().fill(Color.primary.opacity(enabled ? 0.08 : 0.03)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!enabled)
+                    .help(direction < 0 ? "返回上一目录（Esc / 两指左滑）" : "前进到下一目录（两指右滑）")
+                    .keyboardShortcut(direction < 0 ? "[" : "]", modifiers: .command)
                 }
-                .buttonStyle(.plain)
-                .disabled(stack.isEmpty)
-                .help("返回上一级（也可按 Esc 或两指横滑）")
-                .keyboardShortcut("[", modifiers: .command)
 
                 Button {
-                    stack.removeAll()
+                    navigate(to: [])
                 } label: {
                     Text("根")
                         .font(.system(size: 11, weight: .medium))
@@ -673,7 +706,7 @@ struct StorageManagerRootView: View {
                         .font(.system(size: 9))
                         .foregroundStyle(Theme.tertiaryText)
                     Button {
-                        stack = Array(stack.prefix(idx + 1))
+                        navigate(to: Array(stack.prefix(idx + 1)))
                     } label: {
                         Text(node.name)
                             .font(.system(size: 11, weight: idx == stack.count - 1 ? .medium : .regular))
@@ -698,7 +731,7 @@ struct StorageManagerRootView: View {
             HStack(spacing: 6) {
                 Text(stack.isEmpty ? "面积 = 已索引占用与磁盘可用空间" : "面积 = 本层各项占用")
                 Spacer()
-                Text("点击目录进入 · Esc 返回")
+                Text("左滑返回 · 右滑前进")
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
@@ -708,14 +741,13 @@ struct StorageManagerRootView: View {
 
             if let node = currentNode {
                 StorageTreemap(node: node,
-                               onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
+                               onDrill: { child in navigate(to: stack + drillChain(to: child)) },
                                onSelect: { detailNode = $0 },
-                               onBack: { if !stack.isEmpty { stack.removeLast() } },
+                               onBack: { navigateHistory(by: -1) },
                                freeSpace: stack.isEmpty ? diskFreeBytes : nil)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
                     .id(node.id)
                     .transition(.opacity)
+                    .background(StorageSwipeRegion(onNavigate: { navigateHistory(by: $0) }))
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")
@@ -768,8 +800,19 @@ struct StorageManagerRootView: View {
             }
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
-            .clipShape(StorageMapShape())
         }
+    }
+
+    private func navigate(to path: [DiskNode]) {
+        guard path.last?.id != stack.last?.id else { return }
+        directoryHistory = Array(directoryHistory.prefix(historyIndex + 1)) + [path]
+        historyIndex += 1
+    }
+
+    private func navigateHistory(by direction: Int) {
+        let next = historyIndex + direction
+        guard directoryHistory.indices.contains(next) else { return }
+        historyIndex = next
     }
 
     /// 顺着一串「几乎只剩一个子目录」的层级走到底（v212）
@@ -805,7 +848,7 @@ struct StorageManagerRootView: View {
         let chain = drillChain(to: biggest)
         // 只有确实能展开出更多块时才落进去，避免落到一个空目录
         if chain.count > 1 || (chain.last?.children.count ?? 0) >= 4 {
-            stack = chain
+            navigate(to: chain)
         }
     }
 
@@ -1074,7 +1117,9 @@ struct StorageManagerRootView: View {
             refreshDiskSpace()
             selectedPaths.formIntersection(Set(candidates.map { $0.id }))
             if let d = detailNode { detailNode = DiskIndexStore.findNode(store.snapshot?.root, path: d.path) }
-            stack = stack.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+            directoryHistory = directoryHistory.map { path in
+                path.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+            }
             if let error = store.lastError {
                 Toast.show("已移动 \(ok) 项；\(error)",
                            icon: "exclamationmark.triangle", isWarning: true)

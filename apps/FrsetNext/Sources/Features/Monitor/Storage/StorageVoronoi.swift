@@ -21,11 +21,8 @@ enum VoronoiTreemap {
 
     /// 返回与 weights 一一对应的多边形（容器坐标）
     ///
-    /// - Parameter cutout: 左上角要挖掉的矩形（agent 区）。传 nil 就是普通矩形容器。
-    ///   v229：用户要「异形」——左上角留给 agent，气泡绕着它排。
     static func layout(weights: [CGFloat],
                        in rect: CGRect,
-                       cutout: CGRect? = nil,
                        arcFirst: Bool = false,
                        iterations: Int = 60) -> [[CGPoint]] {
         guard !weights.isEmpty, rect.width > 8, rect.height > 8 else { return [] }
@@ -38,19 +35,19 @@ enum VoronoiTreemap {
         // 实测同样的增益下最大误差高达 17 个百分点，最大块被压到目标的一半。
         // 归一化后 k=0.3 只要 17 轮就把误差压到 0.3%（实测）。
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let base = basePolygon(cutout: cutout, in: rect)
+        let base = basePolygon()
         let baseArea = area(base)
         // v232：arcFirst = 参考图那种半弧排布（第一块固定左上，其余沿弧线铺开 + 斥力松弛）
         var sites = arcFirst
             ? arcSeeds(targets: targets, in: unit)
             : seeds(in: unit, targets: targets)
-        // 初始站点落在缺口里的，推到缺口右下方——否则它的单元被 L 形切得很小，
-        // 前几轮迭代会来回震荡（实测收敛慢一倍）。
-        if let c = cutout, c.width > 0, c.height > 0 {
-            let uw = c.width / rect.width, uh = c.height / rect.height
-            for i in sites.indices where sites[i].x < uw && sites[i].y < uh {
-                sites[i].x = uw + (1 - uw) * 0.5
-                sites[i].y = uh + (1 - uh) * 0.5
+        // 矩形二分的种子可能落在弧边外，沿容器中心方向收进实际轮廓。
+        let outline = StorageMapShape().path(in: unit)
+        let center = centroid(base)
+        for i in sites.indices {
+            while !outline.contains(sites[i]) {
+                sites[i].x = (sites[i].x + center.x) * 0.5
+                sites[i].y = (sites[i].y + center.y) * 0.5
             }
         }
         var bias = [CGFloat](repeating: 0, count: weights.count)
@@ -63,7 +60,7 @@ enum VoronoiTreemap {
 
             var maxErr: CGFloat = 0
             for i in polygons.indices {
-                // 面积占比（分母是**容器**面积，不是 1——L 形比矩形小）
+                // 面积占比使用实际异形容器面积。
                 let err = targets[i] - area(polygons[i]) / max(1e-9, baseArea)
                 maxErr = max(maxErr, abs(err))
                 // 面积偏小 → 增大偏置把边界推远；偏大 → 收缩
@@ -89,17 +86,10 @@ enum VoronoiTreemap {
         }
     }
 
-    /// 容器轮廓（单位坐标）。有 cutout 时是「左上角缺一块」的 L 形。
-    private static func basePolygon(cutout: CGRect?, in rect: CGRect) -> [CGPoint] {
-        guard let c = cutout, c.width > 1, c.height > 1 else {
-            return [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0),
-                    CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 1)]
-        }
-        let uw = min(0.7, max(0, c.width / rect.width))
-        let uh = min(0.6, max(0, c.height / rect.height))
-        // 顺时针（SwiftUI 的 y 向下）：从缺口右下角起，绕一圈回来
-        return [CGPoint(x: uw, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1),
-                CGPoint(x: 0, y: 1), CGPoint(x: 0, y: uh), CGPoint(x: uw, y: uh)]
+    /// 布局与裁切复用同一异形轮廓，避免矩形布局的面积被曲边裁掉。
+    private static func basePolygon() -> [CGPoint] {
+        sampledPoints(StorageMapShape().path(in: CGRect(x: 0, y: 0, width: 1, height: 1)),
+                      spacing: 0.035)
     }
 
     /// 半弧布点（v232，参考图）：第一块（可用空间）固定在左上，
@@ -291,6 +281,59 @@ enum VoronoiTreemap {
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
+    /// 采样静态路径；布局轮廓与液态绘制共用，动画期间不再生成采样点。
+    static func sampledPoints(_ path: Path, spacing: CGFloat) -> [CGPoint] {
+        var points: [CGPoint] = []
+        var current = CGPoint.zero
+        var first = CGPoint.zero
+        path.forEach { element in
+            let start = current
+            let end: CGPoint
+            let c1: CGPoint
+            let c2: CGPoint
+            switch element {
+            case .move(to: let point):
+                current = point
+                first = point
+                return
+            case .line(to: let point):
+                end = point
+                c1 = CGPoint(x: start.x + (end.x - start.x) / 3,
+                             y: start.y + (end.y - start.y) / 3)
+                c2 = CGPoint(x: start.x + (end.x - start.x) * 2 / 3,
+                             y: start.y + (end.y - start.y) * 2 / 3)
+            case .quadCurve(to: let point, control: let control):
+                end = point
+                c1 = CGPoint(x: start.x + (control.x - start.x) * 2 / 3,
+                             y: start.y + (control.y - start.y) * 2 / 3)
+                c2 = CGPoint(x: end.x + (control.x - end.x) * 2 / 3,
+                             y: end.y + (control.y - end.y) * 2 / 3)
+            case .curve(to: let point, control1: let control1, control2: let control2):
+                end = point
+                c1 = control1
+                c2 = control2
+            case .closeSubpath:
+                end = first
+                c1 = CGPoint(x: start.x + (end.x - start.x) / 3,
+                             y: start.y + (end.y - start.y) / 3)
+                c2 = CGPoint(x: start.x + (end.x - start.x) * 2 / 3,
+                             y: start.y + (end.y - start.y) * 2 / 3)
+            }
+            let length = hypot(c1.x - start.x, c1.y - start.y)
+                + hypot(c2.x - c1.x, c2.y - c1.y) + hypot(end.x - c2.x, end.y - c2.y)
+            let steps = Int(ceil(length / spacing))
+            for i in 0..<steps {
+                let t = CGFloat(i) / CGFloat(steps), u = 1 - t
+                points.append(CGPoint(x: u * u * u * start.x + 3 * u * u * t * c1.x
+                                      + 3 * u * t * t * c2.x + t * t * t * end.x,
+                                      y: u * u * u * start.y + 3 * u * u * t * c1.y
+                                      + 3 * u * t * t * c2.y + t * t * t * end.y))
+            }
+            current = end
+        }
+        return points
+    }
+
     /// 多边形圆角路径：每个顶点用 tangent 圆弧过渡。
     ///
     /// 半径必须**逐角**按相邻两条边钳制：之前用全局最短边做上限，
@@ -300,6 +343,22 @@ enum VoronoiTreemap {
         var path = Path()
         let n = points.count
         guard n >= 3 else { return path }
+
+        if radius == 0 {
+            // 采样后的圆角轮廓用连续三次曲线连接，保留水珠弯边。
+            path.move(to: points[0])
+            for i in 0..<n {
+                let p0 = points[(i + n - 1) % n], p1 = points[i]
+                let p2 = points[(i + 1) % n], p3 = points[(i + 2) % n]
+                path.addCurve(to: p2,
+                              control1: CGPoint(x: p1.x + (p2.x - p0.x) / 6,
+                                                y: p1.y + (p2.y - p0.y) / 6),
+                              control2: CGPoint(x: p2.x - (p3.x - p1.x) / 6,
+                                                y: p2.y - (p3.y - p1.y) / 6))
+            }
+            path.closeSubpath()
+            return path
+        }
 
         let first = points[0], second = points[1]
         path.move(to: CGPoint(x: (first.x + second.x) / 2, y: (first.y + second.y) / 2))
