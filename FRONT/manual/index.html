@@ -565,10 +565,11 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>一块<strong>可视化</strong>的磁盘占用面板：全盘索引（不限深度）、气泡堆块、可清理候选清单、一键移到废纸篓。索引只在打开面板时加载，平时零常驻。</p>
 <h3 id="用户怎么用-17">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>状态栏监测 → 存储 →「存储管理」</td><td>打开面板</td></tr><tr><td>面板性能页 → 磁盘 →「管理存储」</td><td>同上</td></tr><tr><td><code>kitnest://storage</code></td><td>深链直达</td></tr><tr><td><code>kitnest://storage?scan=1</code></td><td>打开并立即扫描</td></tr></tbody></table></div>
-<p>面板结构：顶部大数字（可清理总量）+ 索引状态行；左侧可清理清单（勾选）；右侧气泡堆块（点击下钻、面包屑返回）。</p>
-<p>在右侧图形区域用触控板<strong>两指左滑</strong>，退回上一个目录；<strong>两指右滑</strong>，前进到历史中访问过的目录。图形保留现有目录配色，带液态形变动效；开启 macOS「系统设置 → 辅助功能 → 显示 → 减少动态效果」后取消形变。</p>
+<p>存储图用当前磁盘数据绘制，画布覆盖整个窗口，包括头部背景。图形边界是一条从窗口上方中部延伸到最左下方的连续弧线。导航与目录详情浮在图形上，点击图块下钻，点面包屑返回。</p>
+<p>左侧候选列表沿同一弧线延伸到左下方，列出全部真实可清理候选，可独立滚动；每行按弧线的可用宽度逐渐缩窄。已选项数、合计大小及「让 Agent 清理」「移到废纸篓」位于列表上方。</p>
+<p>在图形区域用触控板<strong>两指左滑</strong>，退回上一个目录；<strong>两指右滑</strong>，前进到历史中访问过的目录。图形保留现有目录配色，悬停时带液态形变动效；开启 macOS「系统设置 → 辅助功能 → 显示 → 减少动态效果」后取消形变。</p>
 <h3 id="演示-17">演示</h3>
-<figure><img src="gifs/ch18-storage.gif" alt="左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。" loading="lazy" decoding="async"><figcaption>左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。</figcaption></figure>
+<figure><img src="gifs/ch18-storage.gif" alt="演示录于旧版左右分栏布局：左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。" loading="lazy" decoding="async"><figcaption>演示录于旧版左右分栏布局：左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。</figcaption></figure>
 <h3 id="关键能力点-17">关键能力点</h3>
 <ul><li><strong>扫描口径</strong>（v264 重做）</li><li><strong>不限深度</strong>：<code>Xcode.app/Contents/Developer/Platforms/…</code> 这类深层内容全部计入。</li><li><strong>含隐藏目录</strong>：<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code> / <code>.cargo</code> 都进。</li><li><strong>含 <code>~/Library</code></strong> 与系统只读卷。</li><li>扫描遍历 <code>/System</code>，跳过 <code>/System/Volumes</code>（避免重复统计挂载的 <code>/Users</code> 等卷）。</li><li><strong>大小按磁盘实际块</strong>（<code>st_blocks</code>），与 <code>df</code>/<code>du</code> 同一口径——APFS 透明压缩下 <code>st_size</code> 会虚高（<code>/System</code> 逻辑 30GB / 物理 13GB）。</li></ul>
 <ul><li><strong>实测规模</strong>：248.7 万条目 / 185.6 GB / 52 秒 / 缓存 59MB（二进制 plist）。</li></ul>
