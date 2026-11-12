@@ -34,7 +34,13 @@ struct PanelRootView: View {
     /// 当前页与选中模块（nil = 主页；非 nil = 性能监测页 + 该模块）
     @ObservedObject private var monitorPresenter = MonitorCenterPresenter.shared
     /// 个性化（v66：字号缩放 / 强调色 / 打开动画 / 密度——即改即生效）
-    @ObservedObject private var personalization = Personalization.shared
+    @ObservedObject var personalization: Personalization = .shared
+    var previewPages: [PanelCenterPage]? = nil
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    private var theme: ThemeAppearance {
+        ThemeAppearance(personalization: personalization,
+                        isMidnight: previewIsMidnight ?? AppearanceState.shared.isMidnight)
+    }
     /// 底部工具条「标签」→ 标签管理 sheet（官方原版工具条第 3 个图标）
     @Stored private var isShowingTagSheet = false
     /// 底部工具条的搜索框展开态（点击放大镜展开）
@@ -75,7 +81,8 @@ struct PanelRootView: View {
 
     /// 顶部实际出现的页面（顺序 = 设置里拖拽的顺序，过滤掉关掉的）
     private var enabledPages: [PanelCenterPage] {
-        PanelSegments.decode(segmentOrderRaw).filter { isSegmentOn($0) }
+        if isSettingsPreview, let previewPages { return previewPages }
+        return PanelSegments.decode(segmentOrderRaw).filter { isSegmentOn($0) }
     }
 
     private func isSegmentOn(_ page: PanelCenterPage) -> Bool {
@@ -127,7 +134,7 @@ struct PanelRootView: View {
         // 表现为内容只占窗口 90%（右侧空条）+ hosting 反向压窗（324pt）拉锯。
         // 纪律：缩放只发生一处（窗口尺寸），内容始终 1:1 填充窗口。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        // 强调色 + Midnight 统一主题入口（个性化改色即生效；覆盖子树全部 Theme.accent）
+        // 强调色 + Midnight 统一主题入口（个性化改色即生效；覆盖子树全部 theme.accent）
         .frsetThemeChrome()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // 底部悬浮工具条（官方原版主页，2026-10-18 补齐）：仅主页显示
@@ -359,7 +366,7 @@ struct PanelRootView: View {
                     FloatingClipboardWindowController.shared.toggle()
                 } label: {
                     Image(systemName: "macwindow")
-                        .font(.scaledSystem(size: 14))
+                        .font(.scaledSystem(size: 14, scale: personalization.fontScale))
                         .frame(width: 22, height: 22)
                 }
                 .buttonStyle(SpringyIconButtonStyle())
@@ -404,7 +411,7 @@ struct PanelRootView: View {
                     .keyboardShortcut("q", modifiers: .command)
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.scaledSystem(size: 14))
+                    .font(.scaledSystem(size: 14, scale: personalization.fontScale))
                     .frame(width: 22, height: 22)
                     .foregroundStyle(Color.secondary)   // 同截图钮：显式灰，避免落 accent
             }
@@ -440,7 +447,7 @@ struct PanelRootView: View {
                     .overlay {
                         if transferTabTargeted {
                             Capsule(style: .continuous)
-                                .strokeBorder(Theme.accent.opacity(0.7),
+                                .strokeBorder(theme.accent.opacity(0.7),
                                               style: StrokeStyle(lineWidth: 1.2, dash: [3, 2]))
                                 .padding(-2)
                         }
@@ -518,8 +525,8 @@ struct PanelRootView: View {
             // （内容宽 332、左组 82、齿轮 22）留给居中的带宽只有 156pt，
             // 收窄后「居中」与「不截断文字」可以同时满足，不用二选一。
             Text(title)
-                .font(.scaledSystem(size: 11, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? Theme.accent : Color.secondary)
+                .font(.scaledSystem(size: 11, weight: selected ? .semibold : .regular, scale: personalization.fontScale))
+                .foregroundStyle(selected ? theme.accent : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .padding(.horizontal, 7)
@@ -527,7 +534,7 @@ struct PanelRootView: View {
                 .background {
                     if selected {
                         Capsule(style: .continuous)
-                            .fill(Theme.accent.opacity(0.16))
+                            .fill(theme.accent.opacity(0.16))
                     }
                 }
                 .contentShape(Capsule(style: .continuous))
@@ -555,7 +562,7 @@ struct PanelRootView: View {
             Button("录屏") { runCapture { StatsBarEngine.openRecorder() } }
         } label: {
             Image(systemName: "viewfinder")
-                .font(.scaledSystem(size: 14))
+                .font(.scaledSystem(size: 14, scale: personalization.fontScale))
                 .frame(width: 22, height: 22)
                 // Menu 的 label 不走外层 foregroundStyle（会落到 accent 色），
                 // 显式着色，与右侧 Button 图标（取色/悬浮剪贴板）保持同一灰阶
@@ -595,11 +602,11 @@ struct PanelRootView: View {
                 // 展开态：胶囊内直接搜索剪贴板（用户需求：底部要有搜索框，而不只是图标）
                 HStack(spacing: 5) {
                     Image(systemName: "magnifyingglass")
-                        .font(.scaledSystem(size: 11))
+                        .font(.scaledSystem(size: 11, scale: personalization.fontScale))
                         .foregroundStyle(.secondary)
                     TextField("搜索剪贴板", text: $clipboard.searchText)
                         .textFieldStyle(.plain)
-                        .font(.scaledSystem(size: 12))
+                        .font(.scaledSystem(size: 12, scale: personalization.fontScale))
                         .frame(width: 168)
                         .focused($bottomSearchFocused)
                         .onSubmit { closeBottomSearch() }
@@ -607,7 +614,7 @@ struct PanelRootView: View {
                         closeBottomSearch(clear: false)
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.scaledSystem(size: 11, weight: .bold))
+                            .font(.scaledSystem(size: 11, weight: .bold, scale: personalization.fontScale))
                             .foregroundStyle(.secondary)
                             .frame(width: 16, height: 16)
                             .contentShape(Rectangle())
@@ -639,12 +646,12 @@ struct PanelRootView: View {
                 }
             } label: {
                 Image(systemName: "line.3.horizontal.circle")
-                    .font(.scaledSystem(size: 14))
+                    .font(.scaledSystem(size: 14, scale: personalization.fontScale))
                     .frame(width: 26, height: 26)
                     // v153：只有「筛选生效」时才用强调色。旧版无条件染蓝，
                     // 让用户以为一直有个筛选在起作用（状态色被当成装饰色）。
                     .foregroundStyle(ClipboardManager.shared.filter == .all
-                                     ? Color.secondary : Theme.accent)
+                                     ? Color.secondary : theme.accent)
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
@@ -671,8 +678,8 @@ struct PanelRootView: View {
             ZStack {
                 // v207：工具条胶囊不再叠第二层 ultraThinMaterial（面板本身已是统一玻璃），
                 // 只用同一套底衬/霜感，保证四个玻璃滑块对这里同样生效。
-                Capsule(style: .continuous).fill(Theme.windowSurface)
-                Capsule(style: .continuous).fill(Theme.glassFrost)
+                Capsule(style: .continuous).fill(theme.windowSurface)
+                Capsule(style: .continuous).fill(theme.glassFrost)
             }
             .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         )
@@ -700,7 +707,7 @@ struct PanelRootView: View {
                              action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.scaledSystem(size: 14))
+                .font(.scaledSystem(size: 14, scale: personalization.fontScale))
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
         }
@@ -717,7 +724,7 @@ struct PanelRootView: View {
             CaptureModule.capture(mode)
         } label: {
             Image(systemName: symbol)
-                .font(.scaledSystem(size: 14))
+                .font(.scaledSystem(size: 14, scale: personalization.fontScale))
                 .frame(width: 22, height: 22)
         }
         .buttonStyle(SpringyIconButtonStyle())
@@ -742,13 +749,13 @@ struct PanelRootView: View {
                 // v177：四个页面全关 —— 一个内容视图都不创建（不占内存），只留提示
                 VStack(spacing: 8) {
                     Image(systemName: "rectangle.dashed")
-                        .font(.scaledSystem(size: 22))
+                        .font(.scaledSystem(size: 22, scale: personalization.fontScale))
                         .foregroundStyle(.tertiary)
                     Text("未启用任何页面")
-                        .font(.scaledSystem(size: 12, weight: .medium))
+                        .font(.scaledSystem(size: 12, weight: .medium, scale: personalization.fontScale))
                         .foregroundStyle(.secondary)
                     Text("到「设置 → 个性化 → 主面板页面」里开启")
-                        .font(.scaledSystem(size: 11))
+                        .font(.scaledSystem(size: 11, scale: personalization.fontScale))
                         .foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

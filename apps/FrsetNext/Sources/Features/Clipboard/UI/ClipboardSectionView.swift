@@ -9,6 +9,10 @@ import UniformTypeIdentifiers
 public struct ClipboardSectionView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.settingsPreviewClipboardItems) private var previewItems
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    @ObservedObject private var appearanceState = AppearanceState.shared
+    @ObservedObject private var personalization: Personalization
 
     @ObservedObject private var manager = ClipboardManager.shared
     @ObservedObject private var tagStore = TagStore.shared
@@ -23,7 +27,16 @@ public struct ClipboardSectionView: View {
 
     private var isPageActive: Bool { pagePresenter.activePage == .home }
 
-    public init() {}
+    public init(personalization: Personalization = .shared) {
+        self.personalization = personalization
+    }
+
+    private var effectivePersonalization: Personalization { previewPersonalization ?? personalization }
+
+    private var appearance: ThemeAppearance {
+        ThemeAppearance(personalization: effectivePersonalization,
+                        isMidnight: previewIsMidnight ?? appearanceState.isMidnight)
+    }
 
     public var body: some View {
         // 原版主页的剪贴板**没有**区段标题、搜索框和过滤栏——就是一条条的行；
@@ -35,12 +48,13 @@ public struct ClipboardSectionView: View {
                     Text(manager.pauseStatus).font(.system(size: 12))
                     Spacer()
                     Button("恢复") { manager.resumeRecording() }.buttonStyle(.borderless)
-                }.padding(8).background(Theme.accent.opacity(0.08)).transition(.opacity)
+                }.padding(8).background(appearance.accent.opacity(0.08)).transition(.opacity)
             }
             list
         }
         .animation(.easeOut(duration: 0.14), value: manager.isRecordingPaused)
         .frame(maxHeight: .infinity, alignment: .top)
+        .tint(appearance.accent)
         .onAppear {
             if isSettingsPreview { return }
             // 面板复用：清理预览协调器的抑制/未决 WorkItem（specs/12 prepareForPanelAppear）
@@ -89,18 +103,19 @@ public struct ClipboardSectionView: View {
                 VStack(spacing: 2) {
                     ForEach(previewItems) { item in
                         ClipboardRow(item: item, isHighlighted: item.id == previewItems.first?.id,
-                                     onCopy: {}, onEdit: {}, onSummarize: {})
-                            .frame(height: Theme.statsRowHeight)
+                                     onCopy: {}, onEdit: {}, onSummarize: {},
+                                     personalization: effectivePersonalization)
+                            .frame(height: appearance.statsRowHeight)
                     }
                 }
                 .clipped()
             } else if manager.items.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "clipboard")
-                        .font(.scaledSystem(size: 22))
+                        .font(.scaledSystem(size: 22, scale: appearance.fontScale))
                         .foregroundStyle(.secondary)
                     Text(manager.searchText.isEmpty ? "还没有剪贴板记录" : "没有匹配的结果")
-                        .font(.scaledSystem(size: 12))
+                        .font(.scaledSystem(size: 12, scale: appearance.fontScale))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 96)
@@ -116,7 +131,7 @@ public struct ClipboardSectionView: View {
                                        onDelete: { item in
                                            ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
                                            manager.delete(item)
-                                       })
+                                       }, personalization: effectivePersonalization)
                     // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
                     // 此前只锁高度，NSScrollView 的固有宽度参与布局 → 表格比
                     // 日历卡（maxWidth: .infinity）窄约 6pt。锁满宽后行卡与日历卡同宽。
@@ -318,7 +333,9 @@ public struct ClipboardRowMenuContent: View {
 public struct ClipboardRow: View {
 
     /// v66 个性化（徽章显隐/缩略图档位变更 → 行即时刷新）
-    @ObservedObject private var personalization = Personalization.shared
+    @ObservedObject private var personalization: Personalization
+    @ObservedObject private var appearanceState = AppearanceState.shared
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
 
     public let item: ClipboardItem
     /// 是否处于 hover 高亮态（由表格宿主设置）
@@ -333,11 +350,18 @@ public struct ClipboardRow: View {
                 isHighlighted: Bool,
                 onCopy: @escaping () -> Void,
                 onEdit: @escaping () -> Void,
-                onSummarize: @escaping () -> Void) {
+                onSummarize: @escaping () -> Void,
+                personalization: Personalization = .shared) {
         self.item = item
         self.isHighlighted = isHighlighted
         self.onCopy = onCopy; self.onEdit = onEdit
         self.onSummarize = onSummarize
+        self.personalization = personalization
+    }
+
+    private var appearance: ThemeAppearance {
+        ThemeAppearance(personalization: personalization,
+                        isMidnight: previewIsMidnight ?? appearanceState.isMidnight)
     }
 
     public var body: some View {
@@ -346,9 +370,10 @@ public struct ClipboardRow: View {
         // 2026-10-18 补齐官方「来源应用徽章」：缩略图右下角小图标（bundleId → icon）。
         // v66：徽章显隐走「个性化」（默认开）；缩略图边长走密度/覆盖档位。
         HStack(spacing: 12) {
-            ClipboardThumbnailView(item: item, size: Personalization.shared.effectiveThumbSize, corner: 8)
+            ClipboardThumbnailView(item: item, size: appearance.thumbSize, corner: 8,
+                                   personalization: personalization)
                 .overlay(alignment: .bottomTrailing) {
-                    if Personalization.shared.showSourceBadge, let badge = sourceAppBadge {
+                    if personalization.showSourceBadge, let badge = sourceAppBadge {
                         Image(nsImage: badge)
                             .resizable()
                             .interpolation(.high)
@@ -364,12 +389,12 @@ public struct ClipboardRow: View {
                 }
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.displayTitle)
-                    .font(.scaledSystem(size: 13))
+                    .font(.scaledSystem(size: 13, scale: appearance.fontScale))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Text(subline)
-                    .font(.scaledSystem(size: 11))
+                    .font(.scaledSystem(size: 11, scale: appearance.fontScale))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -391,7 +416,8 @@ public struct ClipboardRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: appearance.statsRowHeight, alignment: .leading)
+        .tint(appearance.accent)
         // v156（用户：「这些色彩需要回退，当前版本非常鲜艳…中间没有什么间距，
         // 蓝色框会直接填满」）：
         // v153 把行做成「整行铺强调色 + 无行距」，hover 时就是一条贴边的蓝砖。
@@ -407,7 +433,7 @@ public struct ClipboardRow: View {
         // 分隔线内缩到文字左缘（跟随缩略图），两端留白——满宽横线会让行看起来像表格而不是列表
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Theme.separator.opacity(0.5))
+                .fill(appearance.cardStroke)
                 .frame(height: 0.5)
                 .padding(.leading, 14)
                 .padding(.trailing, 10)
@@ -497,7 +523,7 @@ public struct ClipboardRow: View {
     private func iconButton(_ name: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: name)
-                .font(.scaledSystem(size: 12))
+                .font(.scaledSystem(size: 12, scale: appearance.fontScale))
                 .foregroundStyle(.secondary)
                 .frame(width: 20, height: 20)
                 .contentShape(Rectangle())
@@ -591,9 +617,19 @@ public struct ClipboardThumbnailView: View {
     public let item: ClipboardItem
     public let size: CGFloat
     public let corner: CGFloat
+    @ObservedObject private var personalization: Personalization
+    @ObservedObject private var appearanceState = AppearanceState.shared
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
 
-    public init(item: ClipboardItem, size: CGFloat = Theme.thumbSize, corner: CGFloat = 6) {
+    public init(item: ClipboardItem, size: CGFloat = Theme.thumbSize, corner: CGFloat = 6,
+                personalization: Personalization = .shared) {
         self.item = item; self.size = size; self.corner = corner
+        self.personalization = personalization
+    }
+
+    private var appearance: ThemeAppearance {
+        ThemeAppearance(personalization: personalization,
+                        isMidnight: previewIsMidnight ?? appearanceState.isMidnight)
     }
 
     public var body: some View {
@@ -609,13 +645,14 @@ public struct ClipboardThumbnailView: View {
                     .padding(3)
             } else {
                 Image(systemName: symbolName)
-                    .font(.scaledSystem(size: size * 0.36))
+                    .font(.scaledSystem(size: size * 0.36, scale: appearance.fontScale))
                     .foregroundStyle(.secondary)
             }
         }
         .frame(width: size, height: size)
         // v181/v182：缩略图卡统一玻璃卡（自带裁切 + 发丝边）
-        .glassCard(radius: corner)
+        .glassCard(radius: corner, fill: appearance.cardFill)
+        .environment(\.settingsPreviewPersonalization, personalization)
     }
 
     private var image: NSImage? {

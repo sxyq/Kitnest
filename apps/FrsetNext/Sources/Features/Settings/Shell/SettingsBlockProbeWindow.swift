@@ -37,24 +37,30 @@ final class SettingsBlockProbeWindowController {
         // 这两个区块用于单独验收：预览是否只画自己的对象、设置行是否跟在预览下面。
         case "personalization-main":
             content = AnyView(
-                VStack(alignment: .leading, spacing: 12) {
-                    AppearancePreviewBlock(scope: .mainPanel)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .mainPanel)
+                AppearanceSettingsEditor { draft in
+                    VStack(alignment: .leading, spacing: 12) {
+                        AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                        SettingsDivider()
+                        PersonalizationSettingsView(part: .mainPanel, draft: draft)
+                    }
                 }
             )
             title = "设置区块预览 · 主面板"
         case "personalization-floating":
             content = AnyView(
-                VStack(alignment: .leading, spacing: 12) {
-                    AppearancePreviewBlock(scope: .floatingWindow)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .floatingWindow)
+                AppearanceSettingsEditor { draft in
+                    VStack(alignment: .leading, spacing: 12) {
+                        AppearancePreviewBlock(scope: .floatingWindow, draft: draft)
+                        SettingsDivider()
+                        PersonalizationSettingsView(part: .floatingWindow, draft: draft)
+                    }
                 }
             )
             title = "设置区块预览 · 独立窗口与浮层"
         case "personalization-shared":
-            content = AnyView(PersonalizationSettingsView(part: .shared))
+            content = AnyView(AppearanceSettingsEditor { draft in
+                PersonalizationSettingsView(part: .shared, draft: draft)
+            })
             title = "设置区块预览 · 个性化（通用）"
         default:
             content = AnyView(RecordingSettingsPane())

@@ -26,7 +26,6 @@ public struct ClipboardSettingsPane: View {
     @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
     @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
     @ObservedObject private var floatingStore = FloatingClipboardWindowController.shared.store
-    @ObservedObject private var deskStore = FloatingClipDeskStore.shared
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
     @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
@@ -59,10 +58,12 @@ public struct ClipboardSettingsPane: View {
             case .capture:  captureSection
             case .floating: floatingSection
             case .appearance:
-                SettingsGroupBox {
-                    AppearancePreviewBlock(scope: .clipboardList)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .clipboardAppearance)
+                AppearanceSettingsEditor { draft in
+                    SettingsGroupBox {
+                        AppearancePreviewBlock(scope: .clipboardList, draft: draft)
+                        SettingsDivider()
+                        PersonalizationSettingsView(part: .clipboardAppearance, draft: draft)
+                    }
                 }
             }
         }
@@ -187,88 +188,94 @@ public struct ClipboardSettingsPane: View {
     // MARK: - 浮动窗
 
     private var floatingSection: some View {
-        SettingsSection("浮动窗") {
-            SettingsGroupBox {
-                AppearancePreviewBlock(scope: .clipboard)
-                SettingsDivider()
-                SettingsRow(title: "布局") {
-                    Picker("", selection: $deskStore.layout) {
-                        ForEach(FloatingClipLayout.allCases, id: \.self) { layout in
-                            Text(layout.label).tag(layout)
+        AppearanceSettingsEditor { draft in
+            SettingsSection("浮动窗") {
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .clipboard, draft: draft)
+                    SettingsDivider()
+                    SettingsRow(title: "布局") {
+                        Picker("", selection: Binding(
+                            get: { draft.floating.layout },
+                            set: { draft.floating.layout = $0 })) {
+                            ForEach(FloatingClipLayout.allCases, id: \.self) { layout in
+                                Text(layout.label).tag(layout)
+                            }
                         }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 180)
-                }
-                SettingsDivider()
-                SettingsRow(title: "卡片档位") {
-                    Picker("", selection: $deskStore.cardSize) {
-                        ForEach(FloatingClipCardSize.allCases, id: \.self) { size in
-                            Text(size.label).tag(size)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 180)
-                }
-                SettingsDivider()
-                SettingsRow(title: "显示浮动窗") {
-                    Toggle("", isOn: Binding(
-                        get: { floatingStore.isVisible },
-                        set: { visible in
-                            if visible { FloatingClipboardWindowController.shared.show() }
-                            else { FloatingClipboardWindowController.shared.hide() }
-                        }))
+                        .pickerStyle(.segmented)
                         .labelsHidden()
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                }
-                SettingsDivider()
-                // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
-                // 硬编码「双击 ⌘」已删。
-                // v263：用户要求「剪贴板也要能像截图一样单独设置快捷键」——
-                // 这里直接放录入控件，不用再跳去快捷键页（2× 双击模式仍去那页开关）。
-                SettingsRow(title: "呼出快捷键", subtitle: floatingShortcutSummary) {
-                    if AppBootstrap.doubleTapModifier(for: "floatingClipboard") != nil {
-                        Button("修改") {
-                            ServiceLocator.settings?.open(pane: "shortcuts")
+                        .frame(width: 180)
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "卡片档位") {
+                        Picker("", selection: Binding(
+                            get: { draft.floating.cardSize },
+                            set: { draft.floating.cardSize = $0 })) {
+                            ForEach(FloatingClipCardSize.allCases, id: \.self) { size in
+                                Text(size.label).tag(size)
+                            }
                         }
-                        .controlSize(.small)
-                    } else {
-                        HStack(spacing: 8) {
-                            ShortcutRecorderButton(
-                                display: AppBootstrap.shortcutBinding(for: "floatingClipboard").map {
-                                    ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
-                                },
-                                onCapture: { code, modifiers in
-                                    _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: code, modifiers: modifiers)
-                                    shortcutRevision += 1
-                                },
-                                onClear: {
-                                    _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: nil)
-                                    shortcutRevision += 1
-                                })
-                                .frame(width: 132)
-                            Button("全部…") {
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 180)
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "显示浮动窗") {
+                        Toggle("", isOn: Binding(
+                            get: { floatingStore.isVisible },
+                            set: { visible in
+                                if visible { FloatingClipboardWindowController.shared.show() }
+                                else { FloatingClipboardWindowController.shared.hide() }
+                            }))
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                    SettingsDivider()
+                    // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
+                    // 硬编码「双击 ⌘」已删。
+                    // v263：用户要求「剪贴板也要能像截图一样单独设置快捷键」——
+                    // 这里直接放录入控件，不用再跳去快捷键页（2× 双击模式仍去那页开关）。
+                    SettingsRow(title: "呼出快捷键", subtitle: floatingShortcutSummary) {
+                        if AppBootstrap.doubleTapModifier(for: "floatingClipboard") != nil {
+                            Button("修改") {
                                 ServiceLocator.settings?.open(pane: "shortcuts")
                             }
                             .controlSize(.small)
+                        } else {
+                            HStack(spacing: 8) {
+                                ShortcutRecorderButton(
+                                    display: AppBootstrap.shortcutBinding(for: "floatingClipboard").map {
+                                        ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
+                                    },
+                                    onCapture: { code, modifiers in
+                                        _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: code, modifiers: modifiers)
+                                        shortcutRevision += 1
+                                    },
+                                    onClear: {
+                                        _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: nil)
+                                        shortcutRevision += 1
+                                    })
+                                    .frame(width: 132)
+                                Button("全部…") {
+                                    ServiceLocator.settings?.open(pane: "shortcuts")
+                                }
+                                .controlSize(.small)
+                            }
                         }
                     }
-                }
-                SettingsDivider()
-                SettingsRow(title: "浮动窗位置", subtitle: "重置为当前屏幕中央") {
-                    Button("重置位置") {
-                        let state = FloatingClipboardPinState.shared
-                        guard let visible = NSScreen.main?.visibleFrame else { return }
-                        var frame = state.clampedFrame()
-                        frame.origin = NSPoint(x: visible.midX - frame.width / 2,
-                                               y: visible.midY - frame.height / 2)
-                        FloatingClipboardWindowController.shared.window?.setFrame(frame, display: true)
-                        state.save(frame: frame)
+                    SettingsDivider()
+                    SettingsRow(title: "浮动窗位置", subtitle: "重置为当前屏幕中央") {
+                        Button("重置位置") {
+                            let state = FloatingClipboardPinState.shared
+                            guard let visible = NSScreen.main?.visibleFrame else { return }
+                            var frame = state.clampedFrame()
+                            frame.origin = NSPoint(x: visible.midX - frame.width / 2,
+                                                   y: visible.midY - frame.height / 2)
+                            FloatingClipboardWindowController.shared.window?.setFrame(frame, display: true)
+                            state.save(frame: frame)
+                        }
+                        .controlSize(.small)
                     }
-                    .controlSize(.small)
                 }
             }
         }

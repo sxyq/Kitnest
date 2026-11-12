@@ -143,7 +143,47 @@ public final class Personalization: ObservableObject {
     @Published public var backgroundImagePath: String = "" { didSet { persist() } }  // 空 = 无
     @Published public var backgroundImageDim: Double = 0.35 { didSet { persist() } } // 0...0.8
 
-    private init() { load() }
+    private let persistsChanges: Bool
+
+    private init(persistsChanges: Bool = true) {
+        self.persistsChanges = persistsChanges
+        if persistsChanges { load() }
+    }
+
+    public func makeDraft() -> Personalization {
+        let draft = Personalization(persistsChanges: false)
+        draft.copyValues(from: self)
+        return draft
+    }
+
+    public func applyDraft(_ draft: Personalization) {
+        isLoading = true
+        copyValues(from: draft)
+        isLoading = false
+        flushPendingPersist()
+    }
+
+    private func copyValues(from source: Personalization) {
+        accentColor = source.accentColor
+        fontScale = source.fontScale
+        density = source.density
+        cornerRadius = source.cornerRadius
+        openAnimation = source.openAnimation
+        material = source.material
+        showSourceBadge = source.showSourceBadge
+        thumbOverride = source.thumbOverride
+        toastDuration = source.toastDuration
+        toastFollowPanel = source.toastFollowPanel
+        barDividerColorHex = source.barDividerColorHex
+        barDividerAlpha = source.barDividerAlpha
+        midnightHueShift = source.midnightHueShift
+        backgroundImagePath = source.backgroundImagePath
+        backgroundImageDim = source.backgroundImageDim
+        glassOpacity = source.glassOpacity
+        glassBlur = source.glassBlur
+        glassCardLift = source.glassCardLift
+        glassStroke = source.glassStroke
+    }
 
     // MARK: 持久化
 
@@ -159,7 +199,7 @@ public final class Personalization: ObservableObject {
     private var persistWork: DispatchWorkItem?
 
     private func persist() {
-        guard !isLoading else { return }
+        guard persistsChanges, !isLoading else { return }
         persistWork?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.flushPersist() }
         persistWork = work

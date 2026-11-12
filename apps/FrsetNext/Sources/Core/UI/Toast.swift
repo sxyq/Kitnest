@@ -49,6 +49,12 @@ struct MenuBarToastContentView: View {
     @ObservedObject var state: MenuBarToastAnimationState
     @ObservedObject private var personalization = Personalization.shared
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    private var appearance: ThemeAppearance {
+        ThemeAppearance(personalization: previewPersonalization ?? personalization,
+                        isMidnight: previewIsMidnight ?? AppearanceState.shared.isMidnight)
+    }
 
     /// 实际展示的图标：调用方未指定时按警告分态回落
     private var resolvedIcon: String? {
@@ -88,7 +94,7 @@ struct MenuBarToastContentView: View {
                         radius: 12, y: 4)
         }
         .overlay {
-            Capsule().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+            Capsule().strokeBorder(appearance.cardStroke, lineWidth: Theme.Stroke.hairline)
         }
         .fixedSize()
         // 阴影留白（2026-10-20 用户反馈「已复制框外面还有一层矩形」根因）：

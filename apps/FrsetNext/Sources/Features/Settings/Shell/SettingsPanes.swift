@@ -35,7 +35,6 @@ struct GeneralSettingsPane: View {
     @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
     @Stored private var monitorRevision = 0
     // 外观四选一 / 语言切换（specs/18 §5/§6）
-    @ObservedObject private var appearance = AppearanceManager.shared
     @ObservedObject private var language = LanguageManager.shared
     /// 语言版本号：languageDidChange 到达时自增，驱动本视图重绘（契约 §10.3；
     /// 用 @Stored 而非 @State，见 CONTRACT §7.4）
@@ -70,16 +69,20 @@ struct GeneralSettingsPane: View {
             case .personalization: personalizationSection
             case .menuBar:         menuBarSection
             case .notifications:
-                SettingsGroupBox {
-                    AppearancePreviewBlock(scope: .notification)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .notification)
+                AppearanceSettingsEditor { draft in
+                    SettingsGroupBox {
+                        AppearancePreviewBlock(scope: .notification, draft: draft)
+                        SettingsDivider()
+                        PersonalizationSettingsView(part: .notification, draft: draft)
+                    }
                 }
             case .captureToolbar:
-                SettingsGroupBox {
-                    AppearancePreviewBlock(scope: .captureToolbar)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .captureToolbar)
+                AppearanceSettingsEditor { draft in
+                    SettingsGroupBox {
+                        AppearancePreviewBlock(scope: .captureToolbar, draft: draft)
+                        SettingsDivider()
+                        PersonalizationSettingsView(part: .captureToolbar, draft: draft)
+                    }
                 }
             }
         }
@@ -123,40 +126,46 @@ struct GeneralSettingsPane: View {
 
     /// 主面板：预览 + 只作用于主面板的字号/圆角/宽度/材质/页面顺序
     private var mainPanelSection: some View {
-        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
-            SettingsGroupBox {
-                AppearancePreviewBlock(scope: .mainPanel)
-                    .padding(.vertical, 6)
-                SettingsDivider()
-                PersonalizationSettingsView(part: .mainPanel)
-                    .padding(.vertical, 6)
+        AppearanceSettingsEditor { draft in
+            SettingsSection("") {
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                        .padding(.vertical, 6)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .mainPanel, draft: draft)
+                        .padding(.vertical, 6)
+                }
             }
         }
     }
 
     /// 独立窗口与浮层：预览 + 玻璃四参数/密度/缩略图/徽章/通知条
     private var floatingSection: some View {
-        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
-            SettingsGroupBox {
-                AppearancePreviewBlock(scope: .floatingWindow)
-                    .padding(.vertical, 6)
-                SettingsDivider()
-                PersonalizationSettingsView(part: .floatingWindow)
-                    .padding(.vertical, 6)
+        AppearanceSettingsEditor { draft in
+            SettingsSection("") {
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .floatingWindow, draft: draft)
+                        .padding(.vertical, 6)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .floatingWindow, draft: draft)
+                        .padding(.vertical, 6)
+                }
             }
         }
     }
 
     /// 个性化（通用）：两边都生效的强调色/动画/动作条/背景图/入口
     private var personalizationSection: some View {
-        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
-            SettingsGroupBox {
-                AppearancePreviewBlock(scope: .mainPanel)
-                SettingsDivider()
-                formRow(L10n.t("Appearance"), height: 48) { appearanceChoices }
-                SettingsDivider()
-                PersonalizationSettingsView(part: .shared)
-                    .padding(.vertical, 6)
+        AppearanceSettingsEditor { draft in
+            SettingsSection("") {
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                    SettingsDivider()
+                    formRow(L10n.t("Appearance"), height: 48) { appearanceChoices(draft) }
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .shared, draft: draft)
+                        .padding(.vertical, 6)
+                }
             }
         }
     }
@@ -164,8 +173,8 @@ struct GeneralSettingsPane: View {
     /// 外观四选一（系统/浅色/深色/Midnight）
     /// v234：从「四个圆点」换成预览卡片——和钉图预设共用 VisualOptionCard，
     /// 用户不用试就知道深色/Midnight 长什么样。
-    private var appearanceChoices: some View {
-        Picker("", selection: Binding(get: { appearance.mode }, set: { appearance.apply($0) })) {
+    private func appearanceChoices(_ draft: AppearanceSettingsDraft) -> some View {
+        Picker("", selection: Binding(get: { draft.appearance }, set: { draft.appearance = $0 })) {
             ForEach(AppearanceMode.allCases) { mode in
                 Text(appearanceTitle(mode)).tag(mode)
             }
@@ -216,8 +225,63 @@ struct GeneralSettingsPane: View {
                     }
                 }
                 SettingsDivider()
-                PersonalizationSettingsView(part: .menuBar)
+                VStack(spacing: 10) { dividerRow; globalEntriesRow }
             }
+        }
+    }
+
+    /// 合并条分隔线（v66：显隐快捷开关写引擎既有键；颜色档位接引擎渲染链后开放）
+    private var dividerRow: some View {
+        formRow("合并条分隔线") {
+            HStack(spacing: 10) {
+                Toggle("模块间画 1pt 竖线", isOn: Binding(
+                    get: { FSBarMergedSeparator() },
+                    set: {
+                        FSBarGlobalSet("CombinedModules_separator", NSNumber(value: $0))
+                        FSBarReloadFromStore()
+                        monitorRevision += 1
+                    }
+                ))
+                .toggleStyle(.checkbox)
+                .font(.system(size: 12))
+                Text("颜色自定义将随引擎渲染链开放")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(NSColor.tertiaryLabelColor))
+            }
+        }
+    }
+
+    /// 全局入口（v192）：菜单栏（状态栏）里的入口项与两个独立窗口的开关。
+    /// 用户要求「跟中转和投屏一样」——所以放在同一页、同样的勾选交互；
+    /// 但它管的是**菜单栏入口**，不是主面板顶部的分段按钮（那是上面那一组）。
+    private var globalEntriesRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            formRow("功能入口") {
+                VStack(alignment: .trailing, spacing: 6) {
+                    Toggle("主页（打开面板）", isOn: Binding(
+                        get: { GlobalEntries.isEnabled(GlobalEntries.homeKey) },
+                        set: { GlobalEntries.setEnabled(GlobalEntries.homeKey, $0) }))
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12))
+                    Toggle("性能监测独立窗", isOn: Binding(
+                        get: { GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) },
+                        set: { GlobalEntries.setEnabled(GlobalEntries.monitorPopoutKey, $0) }))
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12))
+                    Toggle("菜单栏性能部件（STATS）", isOn: Binding(
+                        get: { GlobalEntries.isEnabled(GlobalEntries.statsBarKey) },
+                        set: { GlobalEntries.setEnabled(GlobalEntries.statsBarKey, $0) }))
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12))
+                }
+                .frame(width: 210)
+            }
+            Text("控制菜单栏图标下拉菜单里的「打开面板 / 性能监测…」两项，以及菜单栏上的性能合并条。"
+                 + "关掉只是收起入口，数据和历史都还在，随时可以再打开；"
+                 + "全部关掉时主面板仍可用 ⌥A 打开，不会把界面锁死。")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

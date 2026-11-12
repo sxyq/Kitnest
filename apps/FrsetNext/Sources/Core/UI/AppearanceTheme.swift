@@ -52,9 +52,8 @@ public enum AppearanceMode: String, CaseIterable, Identifiable {
 /// Midnight 色板（深色基底 + 冷黑蓝调；视觉近似原作 Midnight）
 /// v66：三色支持个性化色相偏移（-30...30，SwiftUI hueRotation 矢量旋转）
 public enum MidnightTheme {
-    private static var hueShift: Double { Personalization.shared.midnightHueShift }
     /// HSB 色相真旋转（SwiftUI Color.hueRotation 返回 View 不能再当 Color 用）
-    private static func h(_ color: Color) -> Color {
+    private static func h(_ color: Color, hueShift: Double) -> Color {
         guard hueShift != 0 else { return color }
         let ns = NSColor(color).usingColorSpace(.deviceRGB) ?? NSColor(color)
         let r = Double(ns.redComponent), g = Double(ns.greenComponent), b = Double(ns.blueComponent)
@@ -74,16 +73,25 @@ public enum MidnightTheme {
         return Color(hue: shifted / 360, saturation: sat, brightness: mx)
     }
     /// 基础背景覆盖色
-    public static var baseBackground: Color { h(Color(red: 0.055, green: 0.067, blue: 0.105)) }
+    public static var baseBackground: Color { baseBackground(for: .shared) }
+    public static func baseBackground(for p: Personalization) -> Color {
+        h(Color(red: 0.055, green: 0.067, blue: 0.105), hueShift: p.midnightHueShift)
+    }
     /// 卡片亮度从基色递增，55% 保留原来的 Midnight 卡片色。
     public static var cardBackground: Color {
-        let lift = Personalization.shared.glassCardLift / 0.55
+        cardBackground(for: .shared)
+    }
+    public static func cardBackground(for p: Personalization) -> Color {
+        let lift = p.glassCardLift / 0.55
         return h(Color(red: 0.055 + 0.035 * lift,
                        green: 0.067 + 0.033 * lift,
-                       blue: 0.105 + 0.045 * lift))
+                       blue: 0.105 + 0.045 * lift), hueShift: p.midnightHueShift)
     }
     /// 文本主色（冷白偏蓝）
-    public static var textColor: Color { h(Color(red: 0.88, green: 0.91, blue: 1.0)) }
+    public static var textColor: Color { textColor(for: .shared) }
+    public static func textColor(for p: Personalization) -> Color {
+        h(Color(red: 0.88, green: 0.91, blue: 1.0), hueShift: p.midnightHueShift)
+    }
 }
 
 // MARK: 主题状态（视图侧唯一数据源）
@@ -148,19 +156,22 @@ public extension EnvironmentValues {
 public struct AppearanceThemeModifier: ViewModifier {
     @ObservedObject var state: AppearanceState
     @ObservedObject private var personalization = Personalization.shared
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
 
     public init(state: AppearanceState = .shared) {
         self.state = state
     }
 
     public func body(content: Content) -> some View {
-        let midnight = state.isMidnight
+        let p = previewPersonalization ?? personalization
+        let midnight = previewIsMidnight ?? state.isMidnight
         return content
-            .environment(\.midnightBaseBackgroundOverride, midnight ? MidnightTheme.baseBackground : nil)
+            .environment(\.midnightBaseBackgroundOverride, midnight ? MidnightTheme.baseBackground(for: p) : nil)
             .environment(\.usesMidnightTextColor, midnight)
             // 卡片/正文色一并注入：各模块根视图只读 environment，不直接引用 MidnightTheme
-            .environment(\.midnightCardBackgroundOverride, midnight ? MidnightTheme.cardBackground : nil)
-            .environment(\.midnightTextColorOverride, midnight ? MidnightTheme.textColor : nil)
+            .environment(\.midnightCardBackgroundOverride, midnight ? MidnightTheme.cardBackground(for: p) : nil)
+            .environment(\.midnightTextColorOverride, midnight ? MidnightTheme.textColor(for: p) : nil)
     }
 }
 
@@ -188,12 +199,13 @@ public extension View {
 public struct ThemeChromeModifier: ViewModifier {
     @ObservedObject private var personalization = Personalization.shared
     @ObservedObject private var appearance = AppearanceState.shared
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
 
     public init() {}
 
     public func body(content: Content) -> some View {
         content
-            .tint(Theme.accent)
+            .tint((previewPersonalization ?? personalization).accentColor ?? .accentColor)
             .frsetAppearanceTheme(appearance)
     }
 }

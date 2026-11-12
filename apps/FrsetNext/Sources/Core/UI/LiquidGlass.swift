@@ -9,6 +9,13 @@ private struct SettingsPreviewClipboardKey: EnvironmentKey {
     static let defaultValue: [ClipboardItem] = []
 }
 
+private struct SettingsPreviewPersonalizationKey: EnvironmentKey {
+    static let defaultValue: Personalization? = nil
+}
+private struct SettingsPreviewMidnightKey: EnvironmentKey {
+    static let defaultValue: Bool? = nil
+}
+
 extension EnvironmentValues {
     var isSettingsPreview: Bool {
         get { self[SettingsPreviewKey.self] }
@@ -17,6 +24,14 @@ extension EnvironmentValues {
     var settingsPreviewClipboardItems: [ClipboardItem] {
         get { self[SettingsPreviewClipboardKey.self] }
         set { self[SettingsPreviewClipboardKey.self] = newValue }
+    }
+    var settingsPreviewPersonalization: Personalization? {
+        get { self[SettingsPreviewPersonalizationKey.self] }
+        set { self[SettingsPreviewPersonalizationKey.self] = newValue }
+    }
+    var settingsPreviewIsMidnight: Bool? {
+        get { self[SettingsPreviewMidnightKey.self] }
+        set { self[SettingsPreviewMidnightKey.self] = newValue }
     }
 }
 
@@ -53,8 +68,9 @@ enum LiquidGlass {
     static func makeView(frame: NSRect = .zero,
                          cornerRadius: CGFloat,
                          material: NSVisualEffectView.Material = .hudWindow,
-                         tint: NSColor? = nil) -> NSView {
-        let solid = prefersSolid || reduceTransparency
+                         tint: NSColor? = nil,
+                         personalization: Personalization = .shared) -> NSView {
+        let solid = personalization.material == .solid || reduceTransparency
         // v202（用户：「焦点在不在这个 App 里玻璃效果完全两套，需要合并成唯一一种」）：
         // NSGlassEffectView 会随窗口 key/inactive 改变观感，无法固定。
         // 全工程统一改为 NSVisualEffectView + 固定 .inactive 状态——
@@ -97,7 +113,8 @@ enum LiquidGlass {
     }
 
     /// 已存在的玻璃容器在「材质/圆角/着色」变更后重新套样式（个性化即改即生效）
-    static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?) {
+    static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?,
+                             personalization: Personalization = .shared) {
         if #available(macOS 26.0, *), let glass = view as? NSGlassEffectView {
             glass.cornerRadius = cornerRadius
             glass.tintColor = tint
@@ -108,7 +125,7 @@ enum LiquidGlass {
             view.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
             return
         }
-        let solid = prefersSolid || reduceTransparency
+        let solid = personalization.material == .solid || reduceTransparency
         effect.material = solid ? .windowBackground : .hudWindow
         effect.blendingMode = solid ? .withinWindow : .behindWindow
         effect.state = .inactive        // 与 makeView 一致：固定失焦态
@@ -140,6 +157,8 @@ enum LiquidGlass {
 
 struct LiquidGlassBackground: NSViewRepresentable {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.colorScheme) private var colorScheme
     var cornerRadius: CGFloat = 16
     var tint: Color?
     /// false = 不接管窗口阴影（调用方自己画内容阴影，窗口带透明留白时避免系统矩形阴影）
@@ -147,11 +166,12 @@ struct LiquidGlassBackground: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = LiquidGlass.makeView(cornerRadius: cornerRadius,
-                                        tint: tint.map { NSColor($0) })
+                                        tint: tint.map { NSColor($0) },
+                                        personalization: previewPersonalization ?? .shared)
         // SwiftUI 的 sheet 窗口默认不透明；不置透明的话玻璃只能采样到纯白底，
         // 看起来就是一块白板（2026-10-17 实测）。
         if isSettingsPreview {
-            (view as? NSVisualEffectView)?.blendingMode = .withinWindow
+            applyPreviewStyle(to: view)
         } else {
             DispatchQueue.main.async {
                 guard let w = view.window else { return }
@@ -166,9 +186,18 @@ struct LiquidGlassBackground: NSViewRepresentable {
         // 个性化「背景材质 / 圆角 / 着色」变更后重套样式（否则切「纯色卡片」不生效）
         LiquidGlass.reapplyStyle(on: nsView,
                                  cornerRadius: cornerRadius,
-                                 tint: tint.map { NSColor($0) })
+                                 tint: tint.map { NSColor($0) },
+                                 personalization: previewPersonalization ?? .shared)
         if isSettingsPreview {
-            (nsView as? NSVisualEffectView)?.blendingMode = .withinWindow
+            applyPreviewStyle(to: nsView)
+        }
+    }
+
+    private func applyPreviewStyle(to view: NSView) {
+        view.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+        if let effect = view as? NSVisualEffectView {
+            effect.material = previewPersonalization?.material == .vibrancy ? .hudWindow : .windowBackground
+            effect.blendingMode = .withinWindow
         }
     }
 }
@@ -194,8 +223,12 @@ struct GlassSurface: View {
 
     @ObservedObject private var personalization = Personalization.shared
     @ObservedObject private var appearance = AppearanceState.shared
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
 
     var body: some View {
+        let p = previewPersonalization ?? personalization
+        let colors = ThemeAppearance(personalization: p, isMidnight: previewIsMidnight ?? appearance.isMidnight)
         ZStack {
             if includesBlur {
                 LiquidGlassBackground(cornerRadius: cornerRadius,
@@ -203,10 +236,10 @@ struct GlassSurface: View {
                                       appliesWindowShadow: appliesWindowShadow)
                     // 「背景材质」（纯色卡片/毛玻璃）切换必须重建 representable：
                     // 只改颜色覆盖层的话，已创建的 NSVisualEffectView material 不会跟着变
-                    .id(personalization.material.rawValue)
+                    .id(p.material.rawValue)
             }
-            Theme.windowSurface
-            Theme.glassFrost
+            colors.windowSurface
+            colors.glassFrost
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
@@ -549,9 +582,13 @@ struct GlassCard: ViewModifier {
     /// 不能只依赖父视图（父视图不一定因 Theme 计算属性重绘）。
     @ObservedObject private var personalization = Personalization.shared
     @ObservedObject private var appearance = AppearanceState.shared
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
 
     func body(content: Content) -> some View {
-        let color = fill ?? midnightCard ?? Theme.cardFill
+        let colors = ThemeAppearance(personalization: previewPersonalization ?? personalization,
+                                     isMidnight: previewIsMidnight ?? appearance.isMidnight)
+        let color = fill ?? midnightCard ?? colors.cardFill
         content
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .background(
@@ -559,7 +596,7 @@ struct GlassCard: ViewModifier {
             )
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+                    .strokeBorder(colors.cardStroke, lineWidth: Theme.Stroke.hairline)
                     .allowsHitTesting(false)
             }
     }

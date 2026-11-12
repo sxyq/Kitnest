@@ -127,13 +127,15 @@ public final class ClipboardListTopScrollTracker {
 ///   · 与 hover 同款内缩（左右 6pt / 上下 1.5pt）+ G2 圆角（半径 9）
 ///   · 强调色只上 12%（非活动窗口 8%），选中是「淡底」而不是「实心」
 final class ClipboardRowChromeView: NSTableRowView {
+    var personalization: Personalization = .shared
 
     override func drawSelection(in dirtyRect: NSRect) {
         guard selectionHighlightStyle != .none else { return }
         let inset = bounds.insetBy(dx: 6, dy: 1.5)
         guard inset.width > 8, inset.height > 8 else { return }
         let alpha: CGFloat = isEmphasized ? 0.12 : 0.08
-        Theme.accentNS.withAlphaComponent(alpha).setFill()
+        let color = ThemeAppearance(personalization: personalization, isMidnight: false).accent
+        NSColor(color).withAlphaComponent(alpha).setFill()
         NSBezierPath.continuousRoundedRect(inset, radius: 9).fill()
     }
 
@@ -428,7 +430,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
     @ObservedObject var manager: ClipboardManager
     /// v66 个性化（密度/徽章/缩略图变更 → updateNSView 即时生效）
-    @ObservedObject var personalization = Personalization.shared
+    @ObservedObject var personalization: Personalization
     var scrollProxy: ClipboardTableScrollProxy
     /// 页面是否激活（非主页 = 面板切到性能监测/中转站时禁用 hover 追踪，防幽灵预览）
     var isActive: Bool = true
@@ -443,7 +445,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 onCopy: @escaping (ClipboardItem) -> Void,
                 onEdit: @escaping (ClipboardItem) -> Void,
                 onSummarize: @escaping (ClipboardItem) -> Void,
-                onDelete: @escaping (ClipboardItem) -> Void) {
+                onDelete: @escaping (ClipboardItem) -> Void,
+                personalization: Personalization = .shared) {
         self.manager = manager
         self.scrollProxy = scrollProxy
         self.isActive = isActive
@@ -451,6 +454,11 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         self.onEdit = onEdit
         self.onSummarize = onSummarize
         self.onDelete = onDelete
+        self.personalization = personalization
+    }
+
+    private var rowHeight: CGFloat {
+        ThemeAppearance(personalization: personalization, isMidnight: false).statsRowHeight
     }
 
     public func makeCoordinator() -> Coordinator {
@@ -479,7 +487,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         let table = ClipboardTableView()
         table.isActive = isActive && !context.environment.isSettingsPreview
         table.headerView = nil
-        table.rowHeight = Theme.statsRowHeight
+        table.rowHeight = rowHeight
         table.usesAutomaticRowHeights = false
         table.allowsMultipleSelection = true
         table.allowsEmptySelection = true
@@ -517,7 +525,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         (nsView.documentView as? ClipboardTableView)?.isActive = isActive && !context.environment.isSettingsPreview
         // v66 个性化：密度档位变更 → 行高/间距即时生效
         let table = nsView.documentView as? ClipboardTableView
-        let newHeight = Theme.statsRowHeight
+        let newHeight = rowHeight
         if table?.rowHeight != newHeight {
             table?.rowHeight = newHeight
             table?.intercellSpacing = NSSize(width: 0, height: Self.rowGap)
@@ -525,6 +533,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         // v91：宽度随表走（行卡与日历卡同宽的最后一环）
         // v101 性能审计：updateNSView 此前无条件全表 reload（滑动卡顿总放大器）
         table?.sizeLastColumnToFit()
+        table?.needsDisplay = true
         context.coordinator.reloadTableIfNeeded()
     }
 
@@ -538,7 +547,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
         /// 条目内容或行高变化时刷新。
         func reloadTableIfNeeded() {
-            let height = Theme.statsRowHeight
+            let height = owner.rowHeight
             guard owner.manager.items != displayedItems || height != lastRowHeight else { return }
             reloadTable()
             displayedItems = owner.manager.items
@@ -603,7 +612,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             let identifier = NSUserInterfaceItemIdentifier("row.\(item.type.rawValue)")
             let host = tableView.makeView(withIdentifier: identifier, owner: nil) as? RowHostingView
                 ?? RowHostingView(reuseIdentifier: identifier,
-                                  frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: Theme.statsRowHeight))
+                                  frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: owner.rowHeight))
             host.identifier = identifier
             host.row = row
 
@@ -614,7 +623,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                     isHighlighted: hovered,
                     onCopy: { self.owner.onCopy(item) },
                     onEdit: { self.owner.onEdit(item) },
-                    onSummarize: { self.owner.onSummarize(item) }
+                    onSummarize: { self.owner.onSummarize(item) },
+                    personalization: self.owner.personalization
                 ))
             }
             host.onSingleClick = { [weak self] item in self?.handleSingleClick(item) }
@@ -639,12 +649,14 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
         public func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
             // 行高（原版实测 400 宽面板）：缩略图 50 + 上下留白 ≈ 68pt 行内容 + 8pt 行距
-            Theme.statsRowHeight
+            owner.rowHeight
         }
 
         /// 行容器：接管系统选中绘制（见 ClipboardRowChromeView 注释）
         public func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-            ClipboardRowChromeView()
+            let view = ClipboardRowChromeView()
+            view.personalization = owner.personalization
+            return view
         }
 
         public func tableView(_ tableView: NSTableView, didAdd rowView: NSTableRowView, forRow row: Int) {

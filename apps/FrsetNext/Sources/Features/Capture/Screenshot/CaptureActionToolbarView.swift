@@ -28,6 +28,8 @@ private struct CaptureButtonAnchorKey: PreferenceKey {
 struct CaptureActionToolbarView: View {
 
     @ObservedObject var model: CaptureToolbarModel
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    private var windowRadius: CGFloat { (previewPersonalization ?? .shared).cornerRadius }
 
     /// 鼠标当前停留的组（延迟展开时用它判断鼠标是否还在原处）
     @Stored private var hovered: String? = nil
@@ -73,9 +75,9 @@ struct CaptureActionToolbarView: View {
                 }
             }
         }
-        .background(GlassSurface(cornerRadius: Theme.Radius.window))
+        .background(GlassSurface(cornerRadius: windowRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
+            RoundedRectangle(cornerRadius: windowRadius, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
         // 出现/消失动画放在窗口层（alphaValue + 位置），不在视图层做 opacity——

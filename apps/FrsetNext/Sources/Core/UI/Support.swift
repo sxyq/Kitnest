@@ -111,9 +111,31 @@ public extension Font {
     /// 对固定字号无效），所以只能提供一个统一入口把硬编码字号换成它。
     static func scaledSystem(size: CGFloat,
                              weight: Font.Weight? = nil,
-                             design: Font.Design? = nil) -> Font {
-        .system(size: size * Personalization.shared.fontScale, weight: weight, design: design)
+                             design: Font.Design? = nil,
+                             scale: CGFloat = Personalization.shared.fontScale) -> Font {
+        .system(size: size * scale, weight: weight, design: design)
     }
+}
+
+public struct ThemeAppearance {
+    public let personalization: Personalization
+    public let isMidnight: Bool
+    public init(personalization: Personalization, isMidnight: Bool) {
+        self.personalization = personalization
+        self.isMidnight = isMidnight
+    }
+    public var accent: Color { personalization.accentColor ?? .accentColor }
+    public var cornerRadius: CGFloat { personalization.cornerRadius }
+    public var fontScale: CGFloat { personalization.fontScale }
+    public var thumbSize: CGFloat { personalization.effectiveThumbSize }
+    public var statsRowHeight: CGFloat {
+        thumbSize + personalization.density.statsRowHeight - personalization.density.thumbSize
+    }
+    public var windowSurface: Color { Theme.windowSurface(for: personalization, midnight: isMidnight) }
+    public var glassFrost: Color { Theme.glassFrost(for: personalization) }
+    public var cardFill: Color { Theme.cardFill(for: personalization, midnight: isMidnight) }
+    public var cardStroke: Color { Theme.cardStroke(for: personalization) }
+    public var insetFill: Color { Theme.insetFill(for: personalization) }
 }
 
 public enum Theme {
@@ -137,8 +159,7 @@ public enum Theme {
     public static var rowHeight: CGFloat { Personalization.shared.density.rowHeight }
     /// 剪贴板行高随实际缩略图调整，保留各密度的留白，避免大图挤入相邻行。
     public static var statsRowHeight: CGFloat {
-        let p = Personalization.shared
-        return p.effectiveThumbSize + p.density.statsRowHeight - p.density.thumbSize
+        ThemeAppearance(personalization: .shared, isMidnight: AppearanceState.shared.isMidnight).statsRowHeight
     }
     /// 缩略图边长（密度联动 / 覆盖档位优先）
     public static var thumbSize: CGFloat { Personalization.shared.effectiveThumbSize }
@@ -255,9 +276,12 @@ public enum Theme {
     /// L0 窗口底：铺在真玻璃之上的那层半透明底。
     /// Midnight 只更换基色，通透度仍由同一个参数决定。
     public static var windowSurface: Color {
-        let opacity = Personalization.shared.glassOpacity
-        if AppearanceState.shared.isMidnight {
-            return MidnightTheme.baseBackground.opacity(opacity)
+        windowSurface(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func windowSurface(for p: Personalization, midnight: Bool) -> Color {
+        let opacity = p.glassOpacity
+        if midnight {
+            return MidnightTheme.baseBackground(for: p).opacity(opacity)
         }
         return cachedSurface("window.\(opacity)") { isDark in
             let base = isDark
@@ -273,7 +297,10 @@ public enum Theme {
     /// （顺序见 GlassSurface）；夹在 93% 底衬之下时最大只剩 ~0.8% 可见度，滑块等于空转。
     /// 强度同时上调一档（浅色 0.12→0.20、深色 0.05→0.11），否则浅色主题下几乎看不出。
     public static var glassFrost: Color {
-        let blur = Personalization.shared.glassBlur
+        glassFrost(for: .shared)
+    }
+    public static func glassFrost(for p: Personalization) -> Color {
+        let blur = p.glassBlur
         return cachedSurface("frost.\(blur)") { isDark in
             let b = CGFloat(blur)
             return (NSColor(white: 1, alpha: 1), isDark ? 0.11 * b : 0.20 * b)
@@ -282,8 +309,11 @@ public enum Theme {
 
     /// L2 内容卡：比窗口底**亮一档**（浅色近白 / 暗色略亮于窗口）
     public static var cardFill: Color {
-        if AppearanceState.shared.isMidnight { return MidnightTheme.cardBackground }
-        let liftValue = Personalization.shared.glassCardLift
+        cardFill(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func cardFill(for p: Personalization, midnight: Bool) -> Color {
+        if midnight { return MidnightTheme.cardBackground(for: p) }
+        let liftValue = p.glassCardLift
         return cachedSurface("card.\(liftValue)") { isDark in
             let lift = CGFloat(liftValue)
             // 浅色 0.55（贴平）…0.98（近实白）；暗色 0.035…0.10 白
@@ -295,7 +325,10 @@ public enum Theme {
     /// L1.5 内嵌区（代码块 / 列表槽 / 输入框）：比窗口底**暗一档**，
     /// 用来把「可以滚动的容器」和「卡片面」区分开
     public static var insetFill: Color {
-        let opacity = Personalization.shared.glassOpacity
+        insetFill(for: .shared)
+    }
+    public static func insetFill(for p: Personalization) -> Color {
+        let opacity = p.glassOpacity
         return cachedSurface("inset.\(opacity)") { isDark in
             // 玻璃越通透，内嵌区压得越浅（否则底衬一透就糊了）
             let k = 0.6 + 0.4 * CGFloat(opacity)
@@ -305,7 +338,10 @@ public enum Theme {
 
     /// 卡片描边：浅色用 8% 黑，暗色用 9% 白（ArcZip 的发丝边就是这一档）
     public static var cardStroke: Color {
-        let strokeValue = Personalization.shared.glassStroke
+        cardStroke(for: .shared)
+    }
+    public static func cardStroke(for p: Personalization) -> Color {
+        let strokeValue = p.glassStroke
         return cachedSurface("stroke.\(strokeValue)") { isDark in
             let s = CGFloat(strokeValue)
             let base = isDark ? NSColor(white: 1, alpha: 1) : NSColor(white: 0, alpha: 1)

@@ -486,6 +486,12 @@ enum SearchCategory: String, CaseIterable, Identifiable {
 // MARK: UI
 
 public struct SearchSectionView: View {
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    private var theme: ThemeAppearance {
+        ThemeAppearance(personalization: previewPersonalization ?? .shared,
+                        isMidnight: previewIsMidnight ?? AppearanceState.shared.isMidnight)
+    }
     @Stored private var query: String = ""
 
     /// 命令模式：输入以 `/` 开头（v172）
@@ -666,11 +672,11 @@ public struct SearchSectionView: View {
             } label: {
                 Text("/")
                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(isSlashMode ? Theme.accent : Color.secondary)
+                    .foregroundStyle(isSlashMode ? theme.accent : Color.secondary)
                     .frame(width: 20, height: 18)
                     .background(
                         RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
-                            .fill(isSlashMode ? Theme.accent.opacity(0.18)
+                            .fill(isSlashMode ? theme.accent.opacity(0.18)
                                               : Color.primary.opacity(0.06))
                     )
                     .contentShape(Rectangle())
@@ -721,10 +727,10 @@ public struct SearchSectionView: View {
                         .padding(.vertical, 3.5)
                         .background(
                             Capsule().fill(selectedCategory == category
-                                           ? Theme.accent.opacity(0.16)
-                                           : Theme.cardFill)
+                                           ? theme.accent.opacity(0.16)
+                                           : theme.cardFill)
                         )
-                        .foregroundStyle(selectedCategory == category ? Theme.accent : Color.secondary)
+                        .foregroundStyle(selectedCategory == category ? theme.accent : Color.secondary)
                         .opacity(enabled ? 1 : 0.35)
                         .contentShape(Capsule())
                     }
@@ -934,8 +940,8 @@ public struct SearchSectionView: View {
                         .background(
                             RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
                                 .fill(previewEngineID == engine.id
-                                      ? Theme.accent.opacity(0.14)
-                                      : Theme.cardFill)
+                                      ? theme.accent.opacity(0.14)
+                                      : theme.cardFill)
                         )
                         .contentShape(Rectangle())
                     }
@@ -1207,9 +1213,9 @@ public struct SearchSectionView: View {
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2.5)
                         .background(Capsule().fill(selection.wrappedValue == kind
-                                                   ? Theme.accent.opacity(0.15)
-                                                   : Theme.cardFill))
-                        .foregroundStyle(selection.wrappedValue == kind ? Theme.accent : Color.secondary)
+                                                   ? theme.accent.opacity(0.15)
+                                                   : theme.cardFill))
+                        .foregroundStyle(selection.wrappedValue == kind ? theme.accent : Color.secondary)
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -1341,10 +1347,10 @@ public struct SearchSectionView: View {
             Text("最佳")
                 .font(.system(size: 11, weight: .semibold))
         }
-        .foregroundStyle(Theme.accent)
+        .foregroundStyle(theme.accent)
         .padding(.horizontal, 5)
         .padding(.vertical, 2)
-        .background(Capsule().fill(Theme.accent.opacity(0.12)))
+        .background(Capsule().fill(theme.accent.opacity(0.12)))
     }
 
     private var isIndexBuilding: Bool {
@@ -1368,7 +1374,7 @@ public struct SearchSectionView: View {
                 Button("建立全盘索引") { fileIndex.ensureReady() }
                     .buttonStyle(.plain)
                     .font(.system(size: 10.5, weight: .medium))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(theme.accent)
             case .building(let scanned):
                 ProgressView()
                     .controlSize(.mini)
@@ -1394,7 +1400,7 @@ public struct SearchSectionView: View {
                 Button("重试") { fileIndex.rebuild() }
                     .buttonStyle(.plain)
                     .font(.system(size: 10.5))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(theme.accent)
             }
         }
         .padding(.leading, 4)
@@ -1581,7 +1587,7 @@ public struct SearchSectionView: View {
         for segment in segments {
             let piece = Text(segment.str)
                 .font(segment.hit ? font.weight(.semibold) : font)
-                .foregroundColor(segment.hit ? Theme.accent : color)
+                .foregroundColor(segment.hit ? theme.accent : color)
             output = output + piece
         }
         return output

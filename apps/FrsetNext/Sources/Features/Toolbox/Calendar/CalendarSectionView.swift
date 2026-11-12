@@ -15,6 +15,8 @@ import AppKit
 // 今天 = 蓝底白字圆角块；节气/节日 = 橙色文字。
 
 public struct CalendarSectionView: View {
+    @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    private var accent: Color { (previewPersonalization ?? .shared).accentColor ?? .accentColor }
     @ObservedObject private var service = CalendarService.shared
     /// 当前两周期间的锚点（渲染时归一化到所在周的周日）
     @Stored private var anchor: Date = Date()
@@ -206,12 +208,12 @@ public struct CalendarSectionView: View {
             if isToday {
                 // 今天：胶囊底固定 30×30，居中——不再按列宽撑满（旧版块面过大）
                 RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(Theme.accent)
+                    .fill(accent)
                     .frame(width: 32, height: 32)
             } else if isSelected {
                 // 选中日：描边环（与今天胶囊同心，点击的即时反馈）
                 RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .strokeBorder(Theme.accent.opacity(0.55), lineWidth: 1.5)
+                    .strokeBorder(accent.opacity(0.55), lineWidth: 1.5)
                     .frame(width: 32, height: 32)
             }
         }
