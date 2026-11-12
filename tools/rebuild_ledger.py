@@ -633,9 +633,13 @@ EVIDENCE.update({
     ("Features/Clipboard/UI/RecentClipboardWindow.swift", "draw"):
         "仅为键盘当前行绘制强调色焦点描边",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "refreshDiskSpace"):
-        "从当前用户主目录所在文件系统读取可用空间，供打开、重扫和清理后更新",
+        "首开、快照变化、清理后及应用回到前台时读取可用空间、数据卷已用字节和完全磁盘访问状态；视图刷新复用展示值",
     ("Features/Monitor/Storage/StorageTreemap.swift", "scale"):
-        "PolygonHitShape.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放",
+        "LiquidTileDrawing.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放，单次插值共用填色、裁切、同心线和描边",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "inradius"):
+        "DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "displayPath"):
+        "StorageCandidateRow 显示当前用户目录的短路径，唯一实现从根视图迁入候选行，悬停只更新当前行",
     ("Features/Monitor/Storage/StorageTreemap.swift", "func"):
         "PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量",
     ("Features/Monitor/Storage/StorageTreemap.swift", "path"):
