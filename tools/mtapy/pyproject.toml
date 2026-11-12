@@ -42,7 +42,6 @@ all = [
 ]
 dev = [
     "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
 ]
 
 [project.urls]
@@ -53,5 +52,4 @@ Repository = "https://github.com/est/mtapy"
 packages = ["src/mtapy"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
