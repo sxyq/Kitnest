@@ -520,6 +520,7 @@ public struct SearchSectionView: View {
     @Stored private var fetchingEngineID: String?
     /// 搜索框焦点（「打开并搜索」热键经通知程序化聚焦）
     @FocusState private var searchFieldFocused: Bool
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     /// v264：自建的全盘文件名索引状态（补 Spotlight 盲区，见 FileNameIndex.swift）
     @ObservedObject private var fileIndex = FileNameIndex.shared
 
@@ -548,6 +549,7 @@ public struct SearchSectionView: View {
             scheduleSearch()
         }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
+            if isSettingsPreview { return }
             // 面板可能刚被 show()，稍等一拍让 TextField 挂到窗口后再聚焦
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
                 searchFieldFocused = true
@@ -563,6 +565,7 @@ public struct SearchSectionView: View {
             }
         }
         .onAppear {
+            if isSettingsPreview { return }
             // v264：面板一出现就把已有索引 mmap 进来（毫秒级），这样状态行能直接
             // 显示「全盘索引 124 万项」而不是每次都问用户要不要建。
             // 只读缓存，不会在这里触发建索引。

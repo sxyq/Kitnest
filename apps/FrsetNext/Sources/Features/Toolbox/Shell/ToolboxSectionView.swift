@@ -99,6 +99,7 @@ public struct ToolRunnerView: View {
     var onClose: (() -> Void)? = nil
     /// 打开即执行（斜杠命令用：/uuid 这种不需要输入的，落地就有结果）
     var autoRun: Bool = false
+    private let intent: ToolInvocationIntent
     @ObservedObject private var windowController = ToolRunnerWindowController.shared
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
@@ -106,12 +107,21 @@ public struct ToolRunnerView: View {
     @Stored private var isRunning = false
     @Stored private var statusText: String = ""
     @Stored private var didAutoRun = false
+    @Stored private var outputDraft = ""
+    @Stored private var showOriginal = false
+    @Stored private var copied = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
 
-    public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil, autoRun: Bool = false) {
+    public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil, autoRun: Bool = false,
+                initialInput: String = "", intent: ToolInvocationIntent = .standard) {
         self.tool = tool
         self.onClose = onClose
         self.autoRun = autoRun
+        self.intent = intent
+        self._input = Stored(wrappedValue: initialInput)
+        self._outputDraft = Stored(wrappedValue: initialInput)
+        self._showOriginal = Stored(wrappedValue: initialInput.isEmpty)
     }
 
     public var body: some View {
@@ -134,6 +144,22 @@ public struct ToolRunnerView: View {
                         .font(.system(size: 12))
                     Button("选择图片") { chooseFile() }
                 }
+            } else if tool.identifier == "deduplicate" {
+                Picker("文本版本", selection: $showOriginal) {
+                    Text("原文").tag(true)
+                    Text("去重后").tag(false)
+                }.pickerStyle(.segmented)
+                TextEditor(text: Binding(get: { showOriginal ? input : outputDraft },
+                    set: { if showOriginal { input = $0 } else { outputDraft = $0 } }))
+                    .font(.system(size: 13, design: .monospaced))
+                    .frame(minHeight: 180, maxHeight: .infinity)
+                DisclosureGroup("选项") {
+                    Toggle("忽略大小写", isOn: Binding(get: { options["ignoreCase"] == "true" },
+                        set: { options["ignoreCase"] = String($0); Task { await run() } }))
+                    Toggle("忽略行首尾空格", isOn: Binding(get: { options["trim"] == "true" },
+                        set: { options["trim"] = String($0); Task { await run() } }))
+                }.font(.system(size: 12))
+                if let note = output?.note { Text(note).font(.system(size: 11)).foregroundStyle(.secondary) }
             } else {
                 TextEditor(text: $input)
                     .font(.system(size: 12))
@@ -152,6 +178,10 @@ public struct ToolRunnerView: View {
                                 .allowsHitTesting(false)
                         }
                     }
+            }
+
+            if output?.isError == true {
+                Text(output?.text ?? "").font(.system(size: 12)).foregroundStyle(.red)
             }
 
             // 选项区
@@ -197,7 +227,16 @@ public struct ToolRunnerView: View {
             Divider()
 
             // 输出区
-            if let output {
+            if tool.identifier == "deduplicate" {
+                HStack {
+                    Button("取消") { onClose?() }
+                    Spacer()
+                    Button(copied ? "✓ 已复制" : "复制结果") { copyText(outputDraft) }
+                        .keyboardShortcut(.return, modifiers: [.command])
+                        .disabled(output == nil || output?.isError == true)
+                        .frame(minWidth: 100)
+                }
+            } else if let output, !output.isError {
                 outputArea(output)
             } else {
                 Text("执行结果将显示在这里")
@@ -259,10 +298,18 @@ public struct ToolRunnerView: View {
         .frame(maxHeight: 220)
 
         HStack(spacing: 10) {
-            Button("复制结果") { copyText(output.text) }
+            Button(copied ? "✓ 已复制" : (intent == .preview && tool.identifier == "qrcode" ? "复制二维码" : "复制结果")) {
+                if intent == .preview, tool.identifier == "qrcode", let image = output.image { copyImage(image) }
+                else { copyText(output.text) }
+            }
+                .keyboardShortcut(.return, modifiers: [.command])
                 .disabled(output.text.isEmpty)
-            Button("存为剪贴板条目") { saveToClipboard(output) }
-                .disabled(output.text.isEmpty)
+                .frame(minWidth: 100)
+            if intent == .preview, tool.identifier == "qrcode" {
+                Button("复制链接") { copyText(input) }
+            } else if intent == .standard {
+                Button("存为剪贴板条目") { saveToClipboard(output) }.disabled(output.text.isEmpty)
+            }
             Spacer()
         }
     }
@@ -270,13 +317,16 @@ public struct ToolRunnerView: View {
     // MARK: 行为
 
     private func run() async {
+        guard !isRunning else { return }
         isRunning = true
         statusText = ""
         let result = await ToolRegistry.run(tool, input: input, options: options)
         await MainActor.run {
-            output = result
+            withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.12)) { output = result }
+            outputDraft = result.text
+            if tool.identifier == "deduplicate" { showOriginal = false }
             isRunning = false
-            applyDefaultAction(result)
+            if intent == .standard, tool.identifier != "deduplicate" { applyDefaultAction(result) }
         }
     }
 
@@ -293,10 +343,18 @@ public struct ToolRunnerView: View {
 
     private func copyText(_ text: String) {
         guard !text.isEmpty else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        statusText = pasteboard.setString(text, forType: .string)
-            ? "已复制到剪贴板" : "复制失败：无法写入剪贴板"
+        if intent == .standard {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            if pasteboard.setString(text, forType: .string) { completed("已复制到剪贴板") }
+            else { statusText = "复制失败：无法写入剪贴板" }
+            return
+        }
+        let removed = ClipboardTextTransforms.deduplicate(input, ignoreCase: options["ignoreCase"] == "true",
+                                                        trim: options["trim"] == "true").removed
+        let message = tool.identifier == "deduplicate" ? "已复制，移除 \(removed) 条重复行" : "已复制到剪贴板"
+        if let reason = ClipboardManager.shared.copyText(text, successMessage: message) { statusText = reason }
+        else { completed(message) }
     }
 
     private func copyImage(_ image: NSImage) {
@@ -306,8 +364,14 @@ public struct ToolRunnerView: View {
         }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        statusText = pasteboard.setData(tiff, forType: .tiff)
-            ? "图片已复制" : "复制失败：无法写入剪贴板"
+        if pasteboard.setData(tiff, forType: .tiff) { completed("已复制二维码") }
+        else { statusText = "复制失败：无法写入剪贴板" }
+    }
+
+    private func completed(_ message: String) {
+        statusText = message
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
     }
 
     /// 不直接引用剪贴板模块：通过 ToolboxEventBus 回调交给总控

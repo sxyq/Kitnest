@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+public enum ToolInvocationIntent { case standard, preview }
+
 // MARK: - 工具运行窗（全局，任何入口可开）
 //
 // 2026-10-20 修复（用户：「首页搜索 / 后的工具无法使用——点击与展开都没有反应」）：
@@ -23,19 +25,23 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
 
     private var window: NSWindow?
     private var currentToolID: String?
+    private var currentIntent: ToolInvocationIntent = .standard
+    private var keyMonitor: Any?
     /// 同一可见工具窗的重复自动执行请求；新会话仍由 onAppear 执行。
     @Published private(set) var autoRunSequence = 0
     /// v202（审查 finding-4）：关闭动画代际，show 时递增让旧收尾失效
     private var closeGeneration = 0
 
     /// 打开工具（幂等：同工具置前，换工具原地替换内容）
-    func show(toolID: String, autoRun: Bool = false) {
+    func show(toolID: String, autoRun: Bool = false, input: String? = nil,
+              intent requestedIntent: ToolInvocationIntent = .standard) {
+        let intent: ToolInvocationIntent = toolID == "deduplicate" ? .preview : requestedIntent
         guard let tool = ToolRegistry.tool(id: toolID) else {
             Log.warn("Toolbox", "打开工具失败：未注册 id=\(toolID)")
             return
         }
         closeGeneration += 1
-        if let window, window.isVisible, currentToolID == toolID {
+        if let window, window.isVisible, currentToolID == toolID, input == nil, currentIntent == intent {
             window.contentView?.layer?.removeAllAnimations()
             WindowReveal.reset(window)
             window.makeKeyAndOrderFront(nil)
@@ -44,15 +50,16 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
             return
         }
         currentToolID = toolID
+        currentIntent = intent
 
         if let window {
             window.title = tool.name
             window.contentView?.layer?.removeAllAnimations()
             WindowReveal.reset(window)
-            installContent(tool: tool, autoRun: autoRun, in: window)
+            installContent(tool: tool, autoRun: autoRun, input: input, intent: intent, in: window)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            WindowReveal.playInFromMouse(on: window)
+            reveal(window, intent: intent)
             return
         }
 
@@ -68,17 +75,32 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
         window.applyOfficialChrome(lights: .standard)
         window.center()
         window.delegate = self
-        installContent(tool: tool, autoRun: autoRun, in: window)
+        installContent(tool: tool, autoRun: autoRun, input: input, intent: intent, in: window)
         self.window = window
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        WindowReveal.playInFromMouse(on: window)
+        reveal(window, intent: intent)
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            if event.keyCode == 53 || (event.keyCode == 13 && event.modifierFlags.contains(.command)) {
+                self.close(); return nil
+            }
+            return event
+        }
         Log.info("Toolbox", "工具窗已打开：\(tool.name)")
     }
 
     func close() {
         guard let w = window, w.isVisible else { return }
         let token = closeGeneration
+        if currentIntent == .preview {
+            NSAnimationContext.runAnimationGroup { context in context.duration = 0.12; w.animator().alphaValue = 0 }
+                completionHandler: { [weak self, weak w] in
+                    guard self?.closeGeneration == token else { return }
+                    w?.close(); w?.alphaValue = 1
+                }
+            return
+        }
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
             guard let self, token == self.closeGeneration else { return }
             w?.close()
@@ -94,10 +116,20 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
         }
     }
 
-    private func installContent(tool: ToolDescriptor, autoRun: Bool, in window: NSWindow) {
+    private func reveal(_ window: NSWindow, intent: ToolInvocationIntent) {
+        if intent == .standard { WindowReveal.playInFromMouse(on: window); return }
+        window.alphaValue = 0
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.16
+            window.animator().alphaValue = 1
+        }
+    }
+
+    private func installContent(tool: ToolDescriptor, autoRun: Bool, input: String?,
+                                intent: ToolInvocationIntent, in window: NSWindow) {
         let root = ToolRunnerView(tool: tool, onClose: { [weak self] in
             self?.close()
-        }, autoRun: autoRun)
+        }, autoRun: autoRun, initialInput: input ?? "", intent: intent)
         .frsetThemeChrome()
         let host = NSHostingView(rootView: AnyView(root))
         host.sizingOptions = []

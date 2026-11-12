@@ -34,6 +34,7 @@ public enum BuiltinTools {
         registerUUIDTool()
         registerTimestampTool()
         registerJSONTool()
+        registerDeduplicateTool()
         registerImageCompressTool()
         registerIPTool()
         registerVarNameTool()
@@ -232,6 +233,18 @@ public enum BuiltinTools {
                 let (text, error) = JSONFormatterTool.process(input, pretty: pretty)
                 if let error { return ToolOutput.error(error) }
                 return ToolOutput(text: text)
+            }))
+    }
+
+    private static func registerDeduplicateTool() {
+        ToolRegistry.register(ToolDescriptor(identifier: "deduplicate", kind: .jsonFormat,
+            name: "文本去重行", keyword: "deduplicate", toolDescription: "按整行去重，保留首次出现与空白行",
+            systemImage: "line.3.horizontal.decrease", category: .format, placeholder: "粘贴要去重的全文",
+            execute: { text, options in
+                let result = ClipboardTextTransforms.deduplicate(text,
+                    ignoreCase: options["ignoreCase"] == "true", trim: options["trim"] == "true")
+                let note = "原文 \(result.total) 行 · 移除 \(result.removed) 条重复行 · 保留 \(result.total - result.removed) 行" + (result.removed == 0 ? " · 未发现重复行" : "")
+                return ToolOutput(text: result.text, note: note)
             }))
     }
 

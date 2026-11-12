@@ -11,6 +11,20 @@ import UniformTypeIdentifiers
 // 压缩率略低（尤其对已优化过的 PNG），但零隐私外发。详见 ToolOutput.note。
 
 public enum ImageCompressor {
+    public struct InputInfo {
+        var isPNG: Bool
+        var hasAlpha: Bool
+        var format: String
+    }
+    public static func inputInfo(path: String) throws -> InputInfo {
+        guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+              let type = CGImageSourceGetType(source) else { throw CompressError(message: "无法读取图片：\((path as NSString).lastPathComponent)") }
+        guard CGImageSourceGetCount(source) == 1 else { throw CompressError(message: "动图不参与静态图片压缩") }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        return InputInfo(isPNG: (type as String) == UTType.png.identifier,
+                         hasAlpha: (properties?[kCGImagePropertyHasAlpha] as? Bool) == true,
+                         format: UTType(type as String)?.preferredFilenameExtension?.uppercased() ?? "图片")
+    }
     public struct Result {
         public var originalBytes: Int
         public var compressedBytes: Int
@@ -59,15 +73,18 @@ public enum ImageCompressor {
 
         let originalBytes = imageData.count
         let data = try encode(cgImage, quality: quality, asPNG: asPNG)
-        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
 
         let ext = asPNG ? "png" : "jpg"
         let outDir = AppDirectories.sub("toolbox")
-        let outURL = outDir.appendingPathComponent("compressed-\(UUID().uuidString).\(ext)")
+        let name = url.deletingPathExtension().lastPathComponent
+        let outURL = outDir.appendingPathComponent("\(name)-压缩-\(UUID().uuidString.prefix(8)).\(ext)")
         do {
             try data.write(to: outURL)
         } catch {
             throw CompressError(message: "写出失败：\(error.localizedDescription)")
+        }
+        guard let image = NSImage(contentsOf: outURL) else {
+            throw CompressError(message: "压缩结果解码失败：\(outURL.lastPathComponent)")
         }
 
         return Result(originalBytes: originalBytes,
