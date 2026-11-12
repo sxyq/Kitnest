@@ -219,7 +219,7 @@ enum VoronoiTreemap {
     }
 
     /// 保留 a·x + b·y ≤ c 的部分（Sutherland–Hodgman）
-    private static func clipHalfPlane(_ poly: [CGPoint], a: CGFloat, b: CGFloat, c: CGFloat) -> [CGPoint] {
+    static func clipHalfPlane(_ poly: [CGPoint], a: CGFloat, b: CGFloat, c: CGFloat) -> [CGPoint] {
         guard poly.count >= 3 else { return [] }
         var out: [CGPoint] = []
         out.reserveCapacity(poly.count + 2)

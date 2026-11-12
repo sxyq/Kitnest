@@ -502,6 +502,12 @@ EVIDENCE.update({
         "按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigate"):
         "进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "header"):
+        "按窗口宽度将统计说明放在弧线外的左上区域，保留右上方扫描、记录与设置操作",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "leftPane"):
+        "在连续弧线外展示全部真实清理记录，顶部保留选择与清理操作，列表独立滚动填满左侧区域",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "candidateWidth"):
+        "从同一存储图轮廓求记录所在高度的可用宽度，使行内容跟随弧线缩窄而不被曲边截断",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigateHistory"):
         "按访问历史游标向前或向后一步，供按钮、快捷键及双指手势共用",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "makeNSView"):

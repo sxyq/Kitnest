@@ -302,16 +302,34 @@ struct StorageManagerRootView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            HSplitView {
-                leftPane
-                    .frame(minWidth: 320, idealWidth: 372, maxWidth: 420)
+        GeometryReader { viewport in
+            ZStack(alignment: .topLeading) {
                 rightPane
-                    .frame(minWidth: 420)
+                VStack(alignment: .leading, spacing: 8) {
+                    header(width: viewport.size.width)
+                    GeometryReader { region in
+                        let top = region.frame(in: .named("storageCanvas")).minY
+                        leftPane(canvas: viewport.size)
+                            .frame(width: viewport.size.width * 0.48,
+                                   height: viewport.size.height * 0.84 - top)
+                            .glassCard(radius: Theme.Radius.card)
+                            .mask {
+                                GeometryReader { local in
+                                    let origin = local.frame(in: .named("storageCanvas")).origin
+                                    Path { path in
+                                        path.addRect(CGRect(origin: .zero, size: local.size))
+                                        path.addPath(StorageMapShape().path(in: CGRect(origin: .zero, size: viewport.size))
+                                            .offsetBy(dx: -origin.x, dy: -origin.y))
+                                    }
+                                    .fill(style: FillStyle(eoFill: true))
+                                }
+                            }
+                            .padding(.leading, 12)
+                    }
+                }
             }
         }
+        .coordinateSpace(name: "storageCanvas")
         .frame(minWidth: 860, minHeight: 560)
         .onAppear {
             refreshDiskSpace()
@@ -408,7 +426,7 @@ struct StorageManagerRootView: View {
 
     // MARK: 顶部（大数字 + 说明 + 工具条）
 
-    private var header: some View {
+    private func header(width: CGFloat) -> some View {
         HStack(alignment: .top, spacing: 18) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -434,6 +452,7 @@ struct StorageManagerRootView: View {
                                 Text("未获完全磁盘访问权限：沙盒容器 / 邮件 / 照片 / 信息未计入")
                                     .font(.system(size: 11))
                                     .foregroundStyle(Theme.tertiaryText)
+                                    .lineLimit(2)
                                 Button("去授权") { openFullDiskAccessSettings() }
                                     .buttonStyle(.plain)
                                     .font(.system(size: 11, weight: .medium))
@@ -445,6 +464,7 @@ struct StorageManagerRootView: View {
                     }
                 }
             }
+            .frame(width: width * 0.44 - 20, alignment: .leading)
             Spacer(minLength: 8)
             HStack(spacing: 6) {
                 if store.snapshot == nil, !store.isScanning {
@@ -501,8 +521,10 @@ struct StorageManagerRootView: View {
 
     // MARK: 左栏（可清理清单）
 
-    private var leftPane: some View {
-        VStack(alignment: .leading, spacing: 0) {
+    private func leftPane(canvas: CGSize) -> some View {
+        let outline = VoronoiTreemap.sampledPoints(
+            StorageMapShape().path(in: CGRect(origin: .zero, size: canvas)), spacing: 12)
+        return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Text("清理候选 · \(candidates.count) 项")
                     .font(.system(size: 12, weight: .semibold))
@@ -520,42 +542,17 @@ struct StorageManagerRootView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .frame(width: canvas.width * 0.40 - 24)
 
-            Divider()
-
-            if candidates.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 24))
-                        .foregroundStyle(Theme.tertiaryText)
-                    Text(store.snapshot == nil ? "尚未建立索引" : "没有发现明显的缓存目录")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(candidates) { c in
-                            candidateRow(c)
-                        }
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                }
-            }
-
-            Divider()
+            Divider().frame(width: canvas.width * 0.40 - 24)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("已选 \(selectedPaths.count) 项")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text(StorageFormat.bytes(selectedBytes))
-                            .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                    }
+                    Text("已选 \(selectedPaths.count) 项")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                     Spacer()
+                    Text(StorageFormat.bytes(selectedBytes))
+                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
                 }
 
                 HStack(spacing: 8) {
@@ -603,10 +600,50 @@ struct StorageManagerRootView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(Color.primary.opacity(0.03))
+            .frame(width: canvas.width * 0.40 - 24)
+
+            Divider().frame(width: canvas.width * 0.40 - 24)
+            if candidates.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Theme.tertiaryText)
+                    Text(store.snapshot == nil ? "尚未建立索引" : "没有发现明显的缓存目录")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 2) {
+                        ForEach(candidates) { c in
+                            GeometryReader { row in
+                                let frame = row.frame(in: .named("storageCanvas"))
+                                let width = max(0, candidateWidth(at: frame.midY, outline: outline) - frame.minX - 12)
+                                candidateRow(c, compact: width < 180)
+                                    .frame(width: width, alignment: .leading)
+                                    .clipped()
+                            }
+                            .frame(height: 44)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                }
+            }
         }
     }
 
-    private func candidateRow(_ c: CleanupCandidate) -> some View {
+    private func candidateWidth(at y: CGFloat, outline: [CGPoint]) -> CGFloat {
+        zip(outline, outline.dropFirst() + [outline[0]]).compactMap { a, b -> CGFloat? in
+            if (a.y <= y && b.y > y) || (b.y <= y && a.y > y) {
+                return a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y)
+            }
+            return nil
+        }.min() ?? 0
+    }
+
+    private func candidateRow(_ c: CleanupCandidate, compact: Bool) -> some View {
         Button {
             if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
             else { selectedPaths.insert(c.id) }
@@ -620,12 +657,19 @@ struct StorageManagerRootView: View {
                         Text(c.node.name)
                             .font(.system(size: 11.5, weight: .medium))
                             .lineLimit(1)
-                        Text(c.safe ? "缓存" : "需确认")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
+                        if !compact {
+                            Text(c.safe ? "缓存" : "需确认")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .fixedSize()
+                        }
                     }
-                    HStack(spacing: 4) {
+                    if compact {
+                        Text(StorageFormat.shortBytes(c.node.size))
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack(spacing: 4) {
                         Circle()
                             .fill(c.safe ? Theme.accent.opacity(0.7) : Color.orange)
                             .frame(width: 4, height: 4)
@@ -634,12 +678,15 @@ struct StorageManagerRootView: View {
                             .foregroundStyle(Theme.tertiaryText)
                             .lineLimit(1)
                             .truncationMode(.head)
+                        }
                     }
                 }
                 Spacer(minLength: 4)
-                Text(StorageFormat.shortBytes(c.node.size))
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                if !compact {
+                    Text(StorageFormat.shortBytes(c.node.size))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -657,7 +704,7 @@ struct StorageManagerRootView: View {
         }
         .accessibilityValue(selectedPaths.contains(c.id) ? "已选择" : "未选择")
         .animation(reduceMotion ? nil : Theme.Motion.tap, value: selectedPaths.contains(c.id))
-        .help("\(c.reason) · \(c.node.path)")
+        .help("\(c.reason) · \(StorageFormat.bytes(c.node.size)) · \(c.node.path)")
         .contextMenu {
             Button("在 Finder 显示") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: c.node.path)])
@@ -665,10 +712,38 @@ struct StorageManagerRootView: View {
         }
     }
 
-    // MARK: 右栏（面包屑 + 气泡地图 + 详情）
+    // MARK: 全窗口画布（面包屑与详情浮在图形上）
 
     private var rightPane: some View {
         GeometryReader { pane in
+            ZStack(alignment: .topLeading) {
+                if let node = currentNode {
+                    StorageTreemap(node: node,
+                                   onDrill: { child in navigate(to: stack + drillChain(to: child)) },
+                                   onSelect: { detailNode = $0 },
+                                   onBack: { navigateHistory(by: -1) },
+                                   freeSpace: stack.isEmpty ? diskFreeBytes : nil)
+                        .id(node.id)
+                        .transition(.opacity)
+                        .background(StorageSwipeRegion(onNavigate: { navigateHistory(by: $0) }))
+                } else {
+                    VStack(spacing: 10) {
+                        Image(systemName: "externaldrive")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Theme.tertiaryText)
+                        Text("索引不会在后台偷偷跑")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("点下面的按钮才开始扫描；结果会写进本地缓存，下次打开直接读。")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Button("建立索引") { store.rescan() }
+                            .controlSize(.small)
+                            .disabled(store.isScanning)
+                    }
+                    .padding(.leading, pane.size.width * 0.5)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
+                }
             VStack(spacing: 0) {
             // 目录按钮、快捷键、图形手势共用同一访问历史。
             HStack(spacing: 6) {
@@ -723,9 +798,12 @@ struct StorageManagerRootView: View {
                         .help("本层合计")
                 }
             }
-            .padding(.leading, pane.size.width * 0.30 + 12)
-            .padding(.trailing, 12)
+            .padding(.horizontal, 10)
             .frame(height: 36)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+            .padding(.leading, pane.size.width * 0.52)
+            .padding(.trailing, 12)
+            .padding(.top, 64)
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: stack.count)
 
             HStack(spacing: 6) {
@@ -735,38 +813,16 @@ struct StorageManagerRootView: View {
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
-            .padding(.leading, pane.size.width * 0.25 + 14)
-            .padding(.trailing, 14)
-            .padding(.bottom, 6)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+            .padding(.leading, pane.size.width * 0.52)
+            .padding(.trailing, 12)
+            .padding(.top, 6)
 
-            if let node = currentNode {
-                StorageTreemap(node: node,
-                               onDrill: { child in navigate(to: stack + drillChain(to: child)) },
-                               onSelect: { detailNode = $0 },
-                               onBack: { navigateHistory(by: -1) },
-                               freeSpace: stack.isEmpty ? diskFreeBytes : nil)
-                    .id(node.id)
-                    .transition(.opacity)
-                    .background(StorageSwipeRegion(onNavigate: { navigateHistory(by: $0) }))
-            } else {
-                VStack(spacing: 10) {
-                    Image(systemName: "externaldrive")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Theme.tertiaryText)
-                    Text("索引不会在后台偷偷跑")
-                        .font(.system(size: 12, weight: .medium))
-                    Text("点下面的按钮才开始扫描；结果会写进本地缓存，下次打开直接读。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Button("建立索引") { store.rescan() }
-                        .controlSize(.small)
-                        .disabled(store.isScanning)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            Spacer(minLength: 8)
 
             if let d = detailNode {
-                Divider()
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(d.name).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
@@ -796,10 +852,15 @@ struct StorageManagerRootView: View {
                 }
                 .padding(.horizontal, 14)
                 .frame(height: 46)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .padding(.leading, pane.size.width * 0.32 + 12)
+                .padding(.trailing, 12)
+                .padding(.bottom, 12)
             }
             }
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
+            }
         }
     }
 
