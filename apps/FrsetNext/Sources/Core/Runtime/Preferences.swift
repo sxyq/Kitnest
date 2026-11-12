@@ -24,6 +24,8 @@ public final class Preferences: ObservableObject {
     public struct Keys {
         // 通用
         public static let launchAtLogin = "launchAtLogin"
+        /// 用户开启 ZIP 关联前的默认应用；关闭时恢复，不在启动时设置关联。
+        public static let archivePreviousZIPApplication = "archive.previousZIPApplication"
         /// 深度释放时顺带暂停闲置应用（v259 第二档；默认开，内存卡上可临时关掉）
         public static let memoryFreezeIdle = "memory.freezeIdleOnRelease"
         /// 已看过的欢迎窗版本（onboardingVersion；空=没看过。见 WelcomeWindowController）

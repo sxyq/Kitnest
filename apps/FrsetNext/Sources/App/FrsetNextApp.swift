@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
         // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
         NSApp.servicesProvider = ArchiveServicesProvider.shared
+        NSUpdateDynamicServices()
         // v180：归档任务中心——任务开始时自动浮出右下角任务条（访达服务/创建面板/
         // 归档窗解压都走同一个队列，所以只在这里接一次）
         ArchiveTaskCenter.shared.start()

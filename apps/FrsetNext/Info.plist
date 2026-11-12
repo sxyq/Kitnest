@@ -99,7 +99,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>压缩</string>
+				<string>用 Kitnest 压缩</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>compress</string>

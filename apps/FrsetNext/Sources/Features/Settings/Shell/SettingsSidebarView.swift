@@ -276,6 +276,7 @@ struct SettingsSidebarView: View {
     private static let searchIndex: [SettingsSearchEntry] = [
         // 常规 · 启动与外观
         .init(title: "开机启动", area: "常规 › 启动与外观", keywords: "登录 自启 启动项", selection: .generalStart),
+        .init(title: "ZIP 默认打开方式", area: "常规 › 启动与语言", keywords: "ZIP 压缩 解压 默认应用 关联 访达 服务", selection: .generalStart),
         .init(title: "外观（浅色 / 深色 / Midnight）", area: "常规 › 主题外观", keywords: "主题 配色 暗色 深色模式 午夜", selection: .generalPersonal),
         .init(title: "语言", area: "常规 › 启动与外观", keywords: "中文 英文 language", selection: .generalStart),
         // 常规 · 主面板

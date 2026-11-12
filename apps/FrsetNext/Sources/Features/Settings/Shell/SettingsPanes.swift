@@ -114,6 +114,9 @@ struct GeneralSettingsPane: View {
                     .labelsHidden()
                     .frame(width: 157)
                 }
+                SettingsDivider()
+                ArchiveDefaultApplicationOption()
+                    .padding(.vertical, 10)
             }
         }
     }

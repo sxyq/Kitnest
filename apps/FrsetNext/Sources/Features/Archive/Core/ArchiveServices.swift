@@ -1,5 +1,97 @@
 import AppKit
 import Foundation
+import SwiftUI
+import UniformTypeIdentifiers
+
+/// 2026-11-12：只在用户切换开关时修改 ZIP 关联，启动与安装不重设。
+final class ArchiveDefaultApplication: ObservableObject {
+    static let shared = ArchiveDefaultApplication()
+    @Published private(set) var enabled = false
+    @Published private(set) var changing = false
+    @Published private(set) var applicationName = ""
+    @Published private(set) var errorMessage: String?
+
+    func refresh() {
+        let application = NSWorkspace.shared.urlForApplication(toOpen: .zip)
+        enabled = application.flatMap { Bundle(url: $0)?.bundleIdentifier } == Bundle.main.bundleIdentifier
+        applicationName = application.map { FileManager.default.displayName(atPath: $0.path) } ?? "尚未设置"
+    }
+
+    func setEnabled(_ value: Bool) {
+        refresh()
+        guard value != enabled else { return }
+        errorMessage = nil
+        let defaults = UserDefaults.standard
+        let key = Preferences.Keys.archivePreviousZIPApplication
+        let target: URL
+        if value {
+            if let current = NSWorkspace.shared.urlForApplication(toOpen: .zip),
+               let identifier = Bundle(url: current)?.bundleIdentifier {
+                defaults.set(identifier, forKey: key)
+            }
+            target = Bundle.main.bundleURL
+        } else {
+            // 已手动关联 Kitnest 的用户没有历史记录，关闭时交回系统归档工具。
+            let identifier = defaults.string(forKey: key) ?? "com.apple.archiveutility"
+            guard let previous = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) else {
+                errorMessage = "原来的 ZIP 应用已不在这台 Mac 上。请在访达的「显示简介 → 打开方式」中重新选择。"
+                return
+            }
+            target = previous
+        }
+        changing = true
+        NSWorkspace.shared.setDefaultApplication(at: target, toOpen: .zip) { error in
+            DispatchQueue.main.async {
+                self.changing = false
+                self.refresh()
+                if let error {
+                    self.errorMessage = "未能更改 ZIP 默认应用：\(error.localizedDescription)"
+                } else if self.enabled != value {
+                    self.errorMessage = "ZIP 默认应用仍为\(self.applicationName)，请完成系统的更改确认。"
+                } else {
+                    if !value { defaults.removeObject(forKey: key) }
+                    Toast.show(value ? "ZIP 将用 Kitnest 打开" : "已恢复 ZIP 打开方式", icon: "archivebox")
+                }
+            }
+        }
+    }
+}
+
+/// 教程与设置复用同一开关，显示系统关联而非本地布尔值。
+struct ArchiveDefaultApplicationOption: View {
+    @ObservedObject private var association = ArchiveDefaultApplication.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("用 Kitnest 默认打开 ZIP", isOn: Binding(
+                get: { association.enabled }, set: { association.setEnabled($0) }))
+                .toggleStyle(.switch)
+                .disabled(association.changing)
+            Text("开启后，双击 ZIP 在 Kitnest 中查看并解压；关闭后恢复此前的打开方式。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(association.changing ? "正在更改…" : "当前默认：\(association.applicationName)")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Text("压缩：访达选中文件 → 右键 → 服务 → 用 Kitnest 压缩。访达原有的「压缩」保持不变。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let error = association.errorMessage {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { association.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            association.refresh()
+        }
+    }
+}
 
 // MARK: - NSServices 访达集成就地部分（v127（ArcZip P3）：P3-4）
 //

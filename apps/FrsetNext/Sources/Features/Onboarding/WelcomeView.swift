@@ -21,6 +21,9 @@ struct WelcomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     quickStart
+                    ArchiveDefaultApplicationOption()
+                        .padding(12)
+                        .glassCard(radius: Theme.Radius.card)
                     featureSection("核心工作区", items: [
                         FeatureItem(symbol: "square.stack.3d.up", title: "主面板", tint: .blue, lines: [
                             "搜索框：网页 / 剪贴板历史 / 本地文件三合一",
