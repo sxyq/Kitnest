@@ -168,9 +168,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
            slot.contentModel?.item.id == item.id {
             return true
         }
-        // 旧预览窗先程序化关闭（didClose 回调里只做清理，不触发 completion 流程）
-        if slot != nil { closeSlot(reason: .programmatic) }
-
         guard let (anchorHostView, anchorRect) = resolveAnchor(preferredView: anchorView,
                                                                rectInWindow: anchorRectInWindow) else {
             return false
@@ -191,13 +188,22 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                                                inlineText: text,
                                                showsKeyboardHint: showsKeyboardHint)
 
-        let slot = MainPanelPreviewPopoverSlot(contentModel: model, showsHint: showsKeyboardHint)
+        // 切换记录复用当前窗，让尺寸连续变化，避免旧窗收回时新窗同时跳出。
+        let slot: MainPanelPreviewPopoverSlot
+        if let current = self.slot, current.state != .closing {
+            current.contentModel = model
+            current.isEditing = false
+            slot = current
+        } else {
+            slot = MainPanelPreviewPopoverSlot(contentModel: model, showsHint: showsKeyboardHint)
+        }
         self.slot = slot
         slot.state = .presenting
         slot.windowController.show(item: item,
                                    anchorRectInScreen: anchorInScreen,
                                    panelFrame: panelFrame,
-                                   visibleFrame: visibleFrame)
+                                   visibleFrame: visibleFrame,
+                                   showsHint: showsKeyboardHint)
         slot.state = .presented
 
         activeItemID = item.id
@@ -349,6 +355,14 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             if let previewWindow = slot.windowController.window,
                event.window === previewWindow {
                 return event
+            }
+            // 列表行的单击交给 present() 切换内容，不先关闭正在复用的窗。
+            if event.type == .leftMouseDown, let content = event.window?.contentView {
+                var view = content.hitTest(content.convert(event.locationInWindow, from: nil))
+                while let candidate = view {
+                    if candidate is RowHostingView { return event }
+                    view = candidate.superview
+                }
             }
             self.dismiss(reason: .programmatic)
             return event

@@ -714,10 +714,24 @@ struct PreviewImageView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let image = displayImage {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
+                GeometryReader { geo in
+                    let tall = image.size.height > image.size.width * 1.6
+                    let scale = min(1, min((geo.size.width - 24) / image.size.width,
+                                          tall ? 1 : geo.size.height / image.size.height))
+                    let width = image.size.width * scale
+                    let height = image.size.height * scale
+                    if tall {
+                        ScrollView(.vertical) {
+                            Image(nsImage: image).resizable()
+                                .frame(width: width, height: height)
+                                .frame(maxWidth: .infinity)
+                        }
+                    } else {
+                        Image(nsImage: image).resizable()
+                            .frame(width: width, height: height)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                    }
+                }
             } else if didFailToLoad {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.08))
