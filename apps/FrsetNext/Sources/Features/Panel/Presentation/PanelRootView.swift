@@ -26,6 +26,7 @@ import UniformTypeIdentifiers
 /// 本面板唯一新增：顶部「文件中转」分段受「设置 → 常规 → 功能」开关控制显隐。
 struct PanelRootView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewClipboardItems) private var previewClipboardItems
     @ObservedObject var presentation: PanelPresentationState
     var onDismiss: () -> Void
     var onOpenSettings: () -> Void
@@ -61,6 +62,9 @@ struct PanelRootView: View {
     @AppStorage(PanelSegments.orderKey) private var segmentOrderRaw = ""
     /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
     @ObservedObject private var clipboard = ClipboardManager.shared
+    private var homeClipboardItems: [ClipboardItem] {
+        isSettingsPreview ? previewClipboardItems : clipboard.items
+    }
 
     /// v250：拖文件到图标后的转入弹框（挂在面板根上，任意页面都能弹）
     @Stored private var intake: TransferIntakeRequest?
@@ -798,7 +802,7 @@ struct PanelRootView: View {
         // v243：神灯调手感期闸掉——开面板后剪贴板条目恰好加载完，这段挤压会改内容、
         // 让预渲染帧与真窗对不上（交接跳一下）。
         .animation(PanelMotion.animation(Theme.Motion.springSoft),
-                   value: CloudLinkBar.detectionKey(items: clipboard.items))
+                   value: CloudLinkBar.detectionKey(items: homeClipboardItems))
     }
 
     /// 搜索区段（Toolbox 模块经 PanelSectionRegistry 注入）

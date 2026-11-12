@@ -674,7 +674,7 @@ struct AppearancePreviewBlock: View {
                 if scope == .notification {
                     Button("重播") { toastReplay &+= 1 }.buttonStyle(.link)
                 }
-                Text("示例内容 · 实时更新").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("模拟数据 · 外观实时更新").font(.system(size: 11)).foregroundStyle(.secondary)
             }
             GeometryReader { geo in
                 let size = previewSize
@@ -732,10 +732,10 @@ struct AppearancePreviewBlock: View {
 
     private var caption: String {
         switch scope {
-        case .mainPanel: return "正式主面板组件；示例记录不会写入剪贴板。"
+        case .mainPanel: return "固定模拟记录，不读取或写入真实剪贴板。"
         case .floatingWindow: return "窗口共用这套材质，使用性能监测界面展示效果。"
         case .clipboard: return "显示当前浮动窗的布局、卡片和详情。"
-        case .clipboardList: return "主面板里的剪贴板列表；密度、缩略图和徽章在这里体现。"
+        case .clipboardList: return "固定模拟记录；密度、缩略图和徽章按真实界面展示。"
         case .captureToolbar: return "正式动作条组件；这里只演示外观，不执行截图操作。"
         case .notification: return "显示 \(Int(p.toastDuration)) 秒 · \(p.toastFollowPanel ? "跟随主面板" : "屏幕中线偏下")"
         }

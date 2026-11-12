@@ -492,6 +492,170 @@ EVIDENCE.update({
         "渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页",
 })
 
+# ── 2026-11-12：截图、剪贴板与界面交互更新 ─────────────────────────────
+EVIDENCE.update({
+    ("Core/UI/LiquidGlass.swift", "setContent"):
+        "替换统一玻璃容器的内容视图并按 topInset 重排内部区域",
+    ("Core/UI/OfficialWindowChrome.swift", "applyOfficialBackground"):
+        "窗口设为透明底色，由统一玻璃容器提供可见背景",
+    ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "replacePreservingScroll"):
+        "替换 OCR 文本后恢复滚动坐标并刷新 clip view",
+    ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "organizeText"):
+        "调用 ClipboardTextTransforms.organizeOCR 生成整理稿并切换版本控件",
+    ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "versionChanged"):
+        "在识别原文与整理稿间切换，保持滚动位置并同步编辑状态",
+    ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "updateTextInfo"):
+        "同步复制按钮标题、识别字数、换行整理反馈和按钮可用状态",
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "makeBody"):
+        "近期复制按钮按下时显示强调色底，使用 0.08 秒淡变",
+    ("Features/Capture/Screenshot/ColorValuePanel.swift", "cancelOperation"):
+        "把 Escape 取消动作转发到色值面板关闭回调",
+    ("Features/Capture/Screenshot/ColorValuePanel.swift", "windowDidResignKey"):
+        "色值窗失去键盘焦点后请求 TransientWindowCenter 收起",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "handleScreenshotShortcut"):
+        "快捷键在选择窗前重复时保持窗口；截图进行中再次触发则取消并打开近期选择窗",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "openRecentClipboard"):
+        "通过共享 RecentClipboardWindowController 打开选择窗并记录返回应用",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "commitWindows"):
+        "逐窗调用 ScreenSnapshot，失败时从覆盖层快照裁切，再按 pendingFlow 交付合成图",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "composeVertically"):
+        "按 16pt 间隔、24pt 留白纵向拼图，并把输出控制在 120MP 内",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "commitMultiWindows"):
+        "按用户勾选顺序生成窗口矩形列表并提交给 ScreenshotManager",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "toggleMultiSelection"):
+        "按 windowID 添加或移除窗口，并重绘已选状态",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "constrained"):
+        "优先应用已设定比例，否则按住 Shift 生成正方形选区",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "drawWindowMultiHint"):
+        "展示已选窗口数、回车提交、Command 点选增删与 Escape 取消提示",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "drawHint"):
+        "顶部居中绘制截图说明，并附当前截图快捷键对应的近期复制提示",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "drawWindowSelection"):
+        "给已选窗口绘制强调色蒙层、描边和顺序编号",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "pauseRecording"):
+        "设置可选恢复时限、刷新剩余分钟并发布暂停通知与提示",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "resumeRecording"):
+        "清除剪贴板暂停状态并按调用选项显示恢复提示",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "refreshPauseDeadline"):
+        "根据截止时间更新剩余分钟并在到期时恢复记录；无截止时间时清空分钟数",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "copyText"):
+        "写入纯文本剪贴板，失败返回原因，成功统一调用 finishCopy",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "copyFiles"):
+        "将文件 URL 写入系统剪贴板并统一记录复制成功状态",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "copyImageFile"):
+        "确认图片持久文件可读后沿用 copyFiles 复制图片文件 URL",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "finishCopy"):
+        "写入自有剪贴板标记与变更计数、登记统计事件并显示成功 Toast",
+    ("Features/Clipboard/Store/ClipboardTextTransforms.swift", "combine"):
+        "按选定格式将多段原文以换行或缩进编号合并",
+    ("Features/Clipboard/Store/ClipboardTextTransforms.swift", "deduplicate"):
+        "按行去重，可选忽略大小写或首尾空白，并返回移除数量",
+    ("Features/Clipboard/Store/ClipboardTextTransforms.swift", "cleanLink"):
+        "移除常见跟踪参数，签名链接保持原样并回报移除项数",
+    ("Features/Clipboard/Store/ClipboardTextTransforms.swift", "organizeOCR"):
+        "合并符合中英文续行条件的 OCR 断行，保留列表、缩进和结构行",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "quickActions"):
+        "按 JSON、链接和富文本类型提供对应的剪贴板快捷动作",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "items"):
+        "按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "body"):
+        "读取记录完整正文；读取失败时将原因显示为提示并终止动作",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "tool"):
+        "把正文交给工具窗执行，并先关闭预览和主面板",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "plainText"):
+        "通过 ClipboardManager.copyText 复制富文本记录的纯文本",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "cleanLink"):
+        "清除可移除的链接追踪参数，并明确保留签名参数时的结果提示",
+    ("Features/Clipboard/UI/ClipboardTableHostView.swift", "mouseDown"):
+        "整行支持单击预览、双击复制及 Command/Shift 多选，并把键盘焦点交给列表",
+    ("Features/Clipboard/UI/ClipboardTableHostView.swift", "toggleRowSelection"):
+        "切换指定行的选择状态，Shift 将锚点至当前行合并为连续范围",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "init"):
+        "创建 380pt 紧凑选择窗；列表行由复选框、类型图标、摘要和相对时间构成，底栏提供计数、取消和复制",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "show"):
+        "复用单例窗口；空入口默认不选，读取最新记录并按不超过五行调整窗高",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "numberOfRows"):
+        "向 NSTableView 返回当前可见记录数",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "tableView"):
+        "构建带复选框、类型图标、内容摘要、时间和键盘焦点的列表行",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "tableViewSelectionDidChange"):
+        "列表选择变化时更新行内复选框和键盘焦点外观",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "select"):
+        "单击切换单行，Shift 扩展连续范围，并即时刷新已选数量",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "updateSelection"):
+        "同步已选计数、复制按钮和文字与媒体混选说明",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "isText"):
+        "区分文字、链接、富文本与图片、文件以呈现混选原因",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "refreshCells"):
+        "刷新可见行复选框和当前键盘焦点描边",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "checkTapped"):
+        "复选框动作复用整行选择逻辑并传递当前修饰键",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "cancelTapped"):
+        "取消按钮关闭选择窗并返回触发前的应用",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "copyTapped"):
+        "底栏复制按钮转发到统一的选中记录复制方法",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "copySelected"):
+        "按最新到最旧的列表顺序调用 ClipboardManager 批量复制，失败保留勾选并显示原因",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "close"):
+        "短淡出后收起窗口、复位动画状态并激活原应用；尊重减少动态效果",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "windowWillClose"):
+        "原生关闭按钮关闭时使异步加载作废并返回触发前的应用",
+    ("Features/Clipboard/UI/RecentClipboardWindow.swift", "draw"):
+        "仅为键盘当前行绘制强调色焦点描边",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "refreshDiskSpace"):
+        "从当前用户主目录所在文件系统读取可用空间，供打开、重扫和清理后更新",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeNSView"):
+        "在设置预览中挂载 AppKit 原生关闭、最小化和缩放按钮",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "updateNSView"):
+        "保留设置预览的原生窗口按钮视图，不重复创建装饰控件",
+    ("Features/StatusBar/StatisticsRootView.swift", "moveFocus"):
+        "按左右每周七天、上下逐日移动活动矩阵键盘焦点",
+    ("Features/StatusBar/StatisticsRootView.swift", "showKeyboardCell"):
+        "忽略未来日期并同步高亮日期及提示框锚点",
+    ("Features/StatusBar/StatisticsRootView.swift", "sizeThatFits"):
+        "提示框布局占用矩阵全宽，不额外撑高父级布局",
+    ("Features/StatusBar/StatisticsRootView.swift", "placeSubviews"):
+        "将日期提示框定位在对应日期格上方，并限制在矩阵宽度内",
+    ("Features/StatusBar/StatusBarController.swift", "updatePauseBadge"):
+        "按剪贴板暂停状态更新菜单栏徽标和图标提示文字",
+    ("Features/StatusBar/StatusBarController.swift", "pauseRecordingAction"):
+        "根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复",
+    ("Features/StatusBar/StatusBarMenuBuilder.swift", "refreshPauseMenu"):
+        "刷新暂停菜单状态，提供立即恢复及 5、15、30 分钟和手动暂停选项",
+    ("Features/Toolbox/Calendar/CalendarService.swift", "refreshAuthorization"):
+        "读取 EventKit 完整日历访问状态并同步未授权说明",
+    ("Features/Toolbox/Calendar/CalendarService.swift", "requestAccess"):
+        "macOS 14 请求完整事件访问，旧系统沿用 EventKit 事件授权接口",
+    ("Features/Toolbox/Shell/ToolboxSectionView.swift", "completed"):
+        "更新工具结果提示并短暂显示复制完成状态",
+    ("Features/Toolbox/Tools/BuiltinTools.swift", "registerDeduplicateTool"):
+        "注册按整行去重工具，并将行数与移除数量写入输出说明",
+    ("Features/Toolbox/Tools/MediaTools.swift", "inputInfo"):
+        "读取图片格式、透明通道和帧数；拒绝无法解码或含多帧的动图",
+    ("Features/Toolbox/Tools/ToolRunnerWindow.swift", "reveal"):
+        "标准调用使用窗口锚点动画，预览调用使用 0.16 秒淡入",
+    ("Features/TransferDock/Cast/CastControlBar.swift", "isAttached"):
+        "通过进程 PID 判断 scrcpy 控制条是否附着到当前投屏窗口",
+    ("Features/TransferDock/Transfer/LanTransferServer.swift", "selectionURL"):
+        "为选中文件生成独立令牌和带 pick 参数的局域网分享链接",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "init"):
+        "建立共享压缩窗口、绑定原生内容和 Return/Escape 键行为",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "show"):
+        "复用可见窗口；重置图片队列、压缩选项和状态后淡入显示",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "startCompression"):
+        "按队列调用 ImageCompressor，逐项更新结果与失败状态并登记成功文件",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "copyResults"):
+        "将压缩结果文件 URL 一次写入剪贴板并显示成功状态",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "viewInTransferDock"):
+        "关闭压缩窗并打开文件中转面板中的中转页",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "cancelOrClose"):
+        "压缩期间请求停止；空闲时关闭窗口",
+    ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "windowShouldClose"):
+        "关闭窗口时先请求停止压缩并阻止任务运行中的窗口销毁",
+    ("Features/TransferDock/UI/TransferDockView.swift", "copySelectedMetadata"):
+        "按当前选择复制文件名或可用路径，并提示不可用文件数量",
+})
+
 
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。

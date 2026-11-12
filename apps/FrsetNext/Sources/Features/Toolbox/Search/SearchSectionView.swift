@@ -521,6 +521,7 @@ public struct SearchSectionView: View {
     /// 搜索框焦点（「打开并搜索」热键经通知程序化聚焦）
     @FocusState private var searchFieldFocused: Bool
     @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewClipboardItems) private var settingsPreviewClipboardItems
     /// v264：自建的全盘文件名索引状态（补 Spotlight 盲区，见 FileNameIndex.swift）
     @ObservedObject private var fileIndex = FileNameIndex.shared
 
@@ -1164,7 +1165,7 @@ public struct SearchSectionView: View {
     private var filteredClipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] {
         let keyword = trimmedQuery
         guard !keyword.isEmpty else { return [] }
-        let items = ClipboardManager.shared.items
+        let items = isSettingsPreview ? settingsPreviewClipboardItems : ClipboardManager.shared.items
         // 轻量失效签名：剪贴板条目只增删不改，count + 首末 id 即可识别变化
         var sig = Hasher()
         sig.combine(items.count)

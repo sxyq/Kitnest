@@ -12,6 +12,8 @@ import SwiftUI
 //   · 可手动关闭（×）——关闭后同一链接不再自动弹出，换新链接才重新出现。
 
 public struct CloudLinkBar: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewClipboardItems) private var previewItems
     @ObservedObject private var clipboard = ClipboardManager.shared
 
     /// 用户手动关掉的链接（absoluteString）——同链接不再弹，新链接照常
@@ -29,7 +31,8 @@ public struct CloudLinkBar: View {
 
     /// 只扫最近 3 条（复制即识别，不做历史考古）
     private var link: CloudDriveLink? {
-        guard let l = CloudDriveLinkDetector.recentLink(in: clipboard.items, scanLimit: 20) else { return nil }
+        let items = isSettingsPreview ? previewItems : clipboard.items
+        guard let l = CloudDriveLinkDetector.recentLink(in: items, scanLimit: 20) else { return nil }
         if let dismissedURL, dismissedURL == l.url.absoluteString { return nil }
         return l
     }
