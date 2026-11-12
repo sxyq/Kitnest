@@ -494,6 +494,30 @@ EVIDENCE.update({
 
 # ── 2026-11-12：截图、剪贴板与界面交互更新 ─────────────────────────────
 EVIDENCE.update({
+    ("Features/Archive/Core/ArchiveServices.swift", "refresh"):
+        "从 NSWorkspace 读取 ZIP 实际默认应用，供教程与设置共用开关显示状态和应用名称",
+    ("Features/Archive/Core/ArchiveServices.swift", "setEnabled"):
+        "用户切换开关时设置 ZIP 默认应用或恢复此前应用，系统操作完成后显示实际关联与失败原因",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "sampledPoints"):
+        "按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigate"):
+        "进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigateHistory"):
+        "按访问历史游标向前或向后一步，供按钮、快捷键及双指手势共用",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "makeNSView"):
+        "创建只负责图形区域双指导航的 AppKit 视图，将方向传回现有根视图",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "updateNSView"):
+        "同步 SwiftUI 最新导航回调到现有手势视图，不重建事件监听器",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "init"):
+        "手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "hitTest"):
+        "手势背景视图不承接点击，让前景的目录块保持原有命中与点击行为",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "viewDidMoveToWindow"):
+        "视图进入窗口后挂载滚动事件监听，离开原窗口时移除旧监听",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "installSwipeMonitor"):
+        "只在异形图区域累计真实触控板横向滚动，42pt 后按实际手指方向执行一次左退右进",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "deinit"):
+        "图形手势视图销毁时移除 AppKit 本地事件监听，释放该区域的滚动处理",
     ("Core/UI/LiquidGlass.swift", "setContent"):
         "替换统一玻璃容器的内容视图并按 topInset 重排内部区域",
     ("Core/UI/OfficialWindowChrome.swift", "applyOfficialBackground"):

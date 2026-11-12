@@ -18,11 +18,11 @@ App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,610,
 App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,620,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
 App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,638,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
-App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,70,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,94,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,99,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,108,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
-App,App/FrsetNextApp.swift,AppDelegate,application,func,119,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
+App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,71,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,95,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,100,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,109,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,application,func,120,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,50,KEEP,"GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,52,KEEP,"GenieWarp.swift:70,83,84 调用"
@@ -93,7 +93,7 @@ Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,308,KEEP,P
 Core,Core/Runtime/Preferences.swift,Preferences,init,init,10,KEEP,static shared:6 构造
 Core,Core/Runtime/Preferences.swift,Preferences,value,func,16,KEEP,binding:107 / 计算属性:91
 Core,Core/Runtime/Preferences.swift,Preferences,set,func,20,KEEP,binding:108 / 计算属性 setter:92
-Core,Core/Runtime/Preferences.swift,Preferences,binding,func,131,KEEP,SettingsPanes.swift:97 Toggle 绑定
+Core,Core/Runtime/Preferences.swift,Preferences,binding,func,133,KEEP,SettingsPanes.swift:97 Toggle 绑定
 Core,Core/Runtime/Registry.swift,PanelSectionDescriptor,init,init,16,KEEP,ClipboardModule:24 / AIModule:22 / CaptureModule:85
 Core,Core/Runtime/Registry.swift,PanelSectionRegistry,register,func,24,KEEP,"同上 + ToolboxModule:14,17,20 注册"
 Core,Core/Runtime/Registry.swift,SettingsPaneDescriptor,init,init,43,KEEP,AppBootstrap:95 等 12 处注册
@@ -512,12 +512,14 @@ Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommende
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,mountDMG,func,291,KEEP,recommend:112 闭包捕获（含 .dmg）
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowBar,init,init,339,KEEP,BrowserWindow:854 构造 FlowBar
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowBar,chip,func,386,KEEP,body:369 渲染每个推荐胶囊
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractHere,func,26,KEEP,Info.plist NSServices extractHere → 系统 selector 回调
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractTo,func,47,KEEP,Info.plist NSServices extractTo，@objc 服务入口
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,openArchive,func,78,KEEP,Info.plist NSServices openArchive，@objc 服务入口
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,compress,func,91,KEEP,Info.plist NSServices compress，@objc 服务入口
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,fileURLs,func,104,KEEP,Services:93/112 解析粘贴板文件 URL
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,archives,func,111,KEEP,Services:28/49/80 供三个服务入口过滤
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveDefaultApplication,refresh,func,14,KEEP,从 NSWorkspace 读取 ZIP 实际默认应用，供教程与设置共用开关显示状态和应用名称
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveDefaultApplication,setEnabled,func,20,KEEP,用户切换开关时设置 ZIP 默认应用或恢复此前应用，系统操作完成后显示实际关联与失败原因
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractHere,func,118,KEEP,Info.plist NSServices extractHere → 系统 selector 回调
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractTo,func,139,KEEP,Info.plist NSServices extractTo，@objc 服务入口
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,openArchive,func,170,KEEP,Info.plist NSServices openArchive，@objc 服务入口
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,compress,func,183,KEEP,Info.plist NSServices compress，@objc 服务入口
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,fileURLs,func,196,KEEP,Services:93/112 解析粘贴板文件 URL
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,archives,func,203,KEEP,Services:28/49/80 供三个服务入口过滤
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,offerCleanup,func,28,KEEP,ArchiveCreateSheet onDone 调用
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,ask,func,47,KEEP,压缩完成后询问
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,recycle,func,68,KEEP,NSWorkspace.recycle
@@ -2252,48 +2254,57 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,610,
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,624,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,627,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,634,KEEP,StorageManagerWindow 311/708/855
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,65,KEEP,私有 init，shared:63
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,installSwipeMonitor,func,90,KEEP,init:78
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,deinit,deinit,112,KEEP,移除 :107 注册的 NSEvent monitor
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,116,KEEP,NSWindowController 的 NSCoding 必需构造器，编译期强制
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,118,KEEP,FrsetNextApp.swift:356 深链、MonitorDetailView:959
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,173,KEEP,从当前用户主目录所在文件系统读取可用空间，供打开、重扫和清理后更新
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,227,KEEP,「已索引 X / 整盘已用 Y」+ 节点数 + 截断提示，把覆盖率摊开给用户看
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,259,KEEP,跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,displayPath,func,265,KEEP,candidateRow:501
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,455,KEEP,340/342/343
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateRow,func,577,KEEP,leftPane:413
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,drillChain,func,780,KEEP,583、autoLandIfNeeded:667、深链:256/266
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,autoLandIfNeeded,func,799,KEEP,onChange(scannedAt):271
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,815,KEEP,buildAgentPrompt:721
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,830,KEEP,copyAgentPrompt:745、agentSheet:773
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,882,KEEP,agentSheet 复制按钮:795
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1063,KEEP,确认框文案:284
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1069,KEEP,alert 确定按钮:282
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,35,KEEP,DiskLayoutCache.tiles:133
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,111,KEEP,StorageTreemap.body:171
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonHitShape,path,func,139,KEEP,Shape 协议要求；PolygonHitShape 用于 232/238/243/253/257/269
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,scale,func,150,KEEP,PolygonHitShape.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,func,func,154,KEEP,PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,func,func,160,KEEP,PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,168,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,234,KEEP,body:192
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,liquidPoints,func,305,KEEP,tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,324,KEEP,tileView:249
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,inradius,func,355,KEEP,label:303
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,372,KEEP,tileView:233
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,385,KEEP,tileView:213
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,26,KEEP,StorageTreemap.swift:97
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,basePolygon,func,93,KEEP,layout:41
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,111,KEEP,layout:45（arcFirst 分支）
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,169,KEEP,layout:46
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cells,func,205,KEEP,layout:62 每轮迭代
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clipHalfPlane,func,232,KEEP,cells:223
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,253,KEEP,layout:42、67
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,263,KEEP,layout:77、inset:279
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,inset,func,278,KEEP,StorageTreemap:203、238
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,boundingBox,func,284,KEEP,StorageTreemap:113
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,roundedPath,func,299,KEEP,PolygonHitShape.path:146
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,63,KEEP,私有 init，shared:63
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,78,KEEP,NSWindowController 的 NSCoding 必需构造器，编译期强制
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,80,KEEP,FrsetNextApp.swift:356 深链、MonitorDetailView:959
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,105,KEEP,创建只负责图形区域双指导航的 AppKit 视图，将方向传回现有根视图
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,109,KEEP,同步 SwiftUI 最新导航回调到现有手势视图，不重建事件监听器
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,119,KEEP,手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,124,KEEP,手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,126,KEEP,手势背景视图不承接点击，让前景的目录块保持原有命中与点击行为
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,128,KEEP,视图进入窗口后挂载滚动事件监听，离开原窗口时移除旧监听
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,137,KEEP,只在异形图区域累计真实触控板横向滚动，42pt 后按实际手指方向执行一次左退右进
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,163,KEEP,图形手势视图销毁时移除 AppKit 本地事件监听，释放该区域的滚动处理
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,205,KEEP,从当前用户主目录所在文件系统读取可用空间，供打开、重扫和清理后更新
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,259,KEEP,「已索引 X / 整盘已用 Y」+ 节点数 + 截断提示，把覆盖率摊开给用户看
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,291,KEEP,跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,displayPath,func,297,KEEP,candidateRow:501
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,486,KEEP,340/342/343
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateRow,func,609,KEEP,leftPane:413
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,806,KEEP,进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,812,KEEP,按访问历史游标向前或向后一步，供按钮、快捷键及双指手势共用
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,drillChain,func,823,KEEP,583、autoLandIfNeeded:667、深链:256/266
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,autoLandIfNeeded,func,842,KEEP,onChange(scannedAt):271
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,858,KEEP,buildAgentPrompt:721
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,873,KEEP,copyAgentPrompt:745、agentSheet:773
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,925,KEEP,agentSheet 复制按钮:795
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1106,KEEP,确认框文案:284
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1112,KEEP,alert 确定按钮:282
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,37,KEEP,DiskLayoutCache.tiles:133
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,117,KEEP,StorageTreemap.body:171
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonHitShape,path,func,144,KEEP,Shape 协议要求；PolygonHitShape 用于 232/238/243/253/257/269
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,scale,func,155,KEEP,PolygonHitShape.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,func,func,159,KEEP,PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,PolygonAnimatableVector,func,func,165,KEEP,PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,173,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,260,KEEP,body:192
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,liquidPoints,func,314,KEEP,tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,332,KEEP,tileView:249
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,inradius,func,363,KEEP,label:303
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,380,KEEP,tileView:233
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,393,KEEP,tileView:213
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,24,KEEP,StorageTreemap.swift:97
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,basePolygon,func,90,KEEP,layout:41
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,101,KEEP,layout:45（arcFirst 分支）
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,159,KEEP,layout:46
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cells,func,195,KEEP,layout:62 每轮迭代
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clipHalfPlane,func,222,KEEP,cells:223
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,243,KEEP,layout:42、67
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,253,KEEP,layout:77、inset:279
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,inset,func,268,KEEP,StorageTreemap:203、238
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,boundingBox,func,274,KEEP,StorageTreemap:113
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledPoints,func,285,KEEP,按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,roundedPath,func,342,KEEP,PolygonHitShape.path:146
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsPanel,hero,func,57,KEEP,body:42
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsPanel,headline,func,91,KEEP,hero:80
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsPanel,subline,func,99,KEEP,hero:82
@@ -2439,10 +2450,10 @@ Onboarding,Features/Onboarding/PermissionGuideWindowController.swift,PermissionG
 Onboarding,Features/Onboarding/PermissionGuideWindowController.swift,PermissionGuideWindowController,close,func,37,KEEP,PermissionGuideView.swift:100/105 按钮调用
 Onboarding,Features/Onboarding/PermissionGuideWindowController.swift,PermissionGuideWindowController,ensureWindow,func,47,KEEP,show:29 调用
 Onboarding,Features/Onboarding/PermissionGuideWindowController.swift,PermissionGuideWindow,performKeyEquivalent,func,80,KEEP,NSWindow override；AppKit Esc 键派发到该方法
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,step,func,120,KEEP,quickStart:113-115 调用
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureSection,func,153,KEEP,body:24/41/59 调用
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureCard,func,167,KEEP,featureSection:161 调用
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,hotkeyRow,func,239,KEEP,hotkeySection:215-230 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,step,func,123,KEEP,quickStart:113-115 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureSection,func,156,KEEP,body:24/41/59 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureCard,func,170,KEEP,featureSection:161 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,hotkeyRow,func,242,KEEP,hotkeySection:215-230 调用
 Onboarding,Features/Onboarding/WelcomeWindowController.swift,WelcomeWindowController,init,init,24,KEEP,shared 单例 :16 调用
 Onboarding,Features/Onboarding/WelcomeWindowController.swift,WelcomeWindowController,show,func,36,KEEP,AppBootstrap:163、StatusBarController:184 调用
 Onboarding,Features/Onboarding/WelcomeWindowController.swift,WelcomeWindowController,finishOnboarding,func,45,KEEP,WelcomeView.swift:291「开始使用」按钮调用
@@ -2902,14 +2913,14 @@ Settings,Features/Settings/Shell/SettingsComponents.swift,SettingsSection,init,i
 Settings,Features/Settings/Shell/SettingsComponents.swift,VisualOptionCard,init,init,107,KEEP,PinSettingsPane.swift:66；SettingsPanes.swift:138
 Settings,Features/Settings/Shell/SettingsModule.swift,SettingsModule,start,func,14,KEEP,AppModule 协议；ModuleRegistry.startAll 派发
 Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,87,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,303,KEEP,本文件:61/66/70 等行布局
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,actionButton,func,318,KEEP,本文件:105/175/187 按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,iconChoice,func,326,KEEP,本文件:204-213 图标四选一
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,openDetail,func,358,KEEP,本文件:175 管理按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,442,KEEP,本文件:138 卡片标题
-Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,586,KEEP,本文件:498/500 双按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,673,KEEP,本文件:608 onSubmit/609 按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,696,KEEP,本文件:686/715 增删名单
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,306,KEEP,本文件:61/66/70 等行布局
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,actionButton,func,321,KEEP,本文件:105/175/187 按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,iconChoice,func,329,KEEP,本文件:204-213 图标四选一
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,openDetail,func,361,KEEP,本文件:175 管理按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,445,KEEP,本文件:138 卡片标题
+Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,589,KEEP,本文件:498/500 双按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,676,KEEP,本文件:608 onSubmit/609 按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,699,KEEP,本文件:686/715 增删名单
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,191,KEEP,本文件:96/98/119 单页包装
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSearchEntry,matches,func,73,KEEP,本文件:203 搜索过滤
@@ -2917,7 +2928,7 @@ Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,g
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,169,KEEP,本文件:127-136 分类行
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,169,KEEP,本文件:163 调用 + 140-155
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,268,KEEP,本文件:213 搜索结果点击
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,405,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,406,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,init,init,22,KEEP,本文件:87 uiState 初始化
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,selectPane,func,28,KEEP,本文件:107 open(pane:) 调用
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,37,KEEP,本文件:28/37 私有映射
