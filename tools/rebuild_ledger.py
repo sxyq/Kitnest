@@ -530,8 +530,6 @@ EVIDENCE.update({
         "在识别原文与整理稿间切换，保持滚动位置并同步编辑状态",
     ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "updateTextInfo"):
         "同步复制按钮标题、识别字数、换行整理反馈和按钮可用状态",
-    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "makeBody"):
-        "近期复制按钮按下时显示强调色底，使用 0.08 秒淡变",
     ("Features/Capture/Screenshot/ColorValuePanel.swift", "cancelOperation"):
         "把 Escape 取消动作转发到色值面板关闭回调",
     ("Features/Capture/Screenshot/ColorValuePanel.swift", "windowDidResignKey"):

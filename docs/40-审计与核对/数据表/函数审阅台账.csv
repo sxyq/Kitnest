@@ -1417,34 +1417,33 @@ Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBe
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1579,KEEP,NotificationCenter selector :1431 注册
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionTool,init,init,30,KEEP,本文件 69-120 构造 14 个工具条目
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionGroup,init,init,47,KEEP,本文件 132-141 构造 5 个分组
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,181,KEEP,按形态钉住：PinAppearance.preset → show(appearance:) + Toast
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,188,KEEP,":164 perform 与视图 :250,:331 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,193,KEEP,"CaptureActionChain.swift:273,349 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,206,KEEP,CaptureActionChain.swift:379 execute 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,214,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,221,KEEP,CaptureActionChain.swift:173 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,234,KEEP,CaptureModule.swift:81 启动预热调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,257,KEEP,:183 present 与 :193 warmUp 构造
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,292,KEEP,CaptureActionChain.swift:281 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,313,KEEP,CaptureActionChain.swift:185 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,353,KEEP,CaptureActionChain.swift:283 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,366,KEEP,":234,338,346,368,372 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,385,KEEP,NSWindow 覆写，转发 dismiss
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,388,KEEP,NSResponder 覆写，Esc 兜底派发
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,392,KEEP,CaptureActionChain.swift:241 init 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,417,KEEP,":233 onPick 闭包 + :351,358 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,RecentCopyPressStyle,makeBody,func,5,KEEP,近期复制按钮按下时显示强调色底，使用 0.08 秒淡变
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,iconCell,func,218,KEEP,"本类型 :112,:167 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,pillCell,func,250,KEEP,本类型 :122 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,submenu,func,286,KEEP,本类型 :45 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,activate,func,354,KEEP,"本类型 :183,:215 按钮闭包"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,toggle,func,362,KEEP,本类型 :294 activate 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,handleHover,func,369,KEEP,"本类型 :157,:208,:242 onHover 回调"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryID,func,409,KEEP,"本类型 :291,:346 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryTool,func,413,KEEP,"本类型 :189,:220,:374 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,menuItems,func,418,KEEP,"本类型 :195,:249,:375 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,isDefault,func,434,KEEP,"本类型 :180,:212 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,helpText,func,441,KEEP,"本类型 :207,:241 .help 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,183,KEEP,按形态钉住：PinAppearance.preset → show(appearance:) + Toast
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,190,KEEP,":164 perform 与视图 :250,:331 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,195,KEEP,"CaptureActionChain.swift:273,349 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,208,KEEP,CaptureActionChain.swift:379 execute 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,216,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,223,KEEP,CaptureActionChain.swift:173 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,236,KEEP,CaptureModule.swift:81 启动预热调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,259,KEEP,:183 present 与 :193 warmUp 构造
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,293,KEEP,CaptureActionChain.swift:281 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,314,KEEP,CaptureActionChain.swift:185 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,354,KEEP,CaptureActionChain.swift:283 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,367,KEEP,":234,338,346,368,372 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,386,KEEP,NSWindow 覆写，转发 dismiss
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,389,KEEP,NSResponder 覆写，Esc 兜底派发
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,393,KEEP,CaptureActionChain.swift:241 init 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,418,KEEP,":233 onPick 闭包 + :351,358 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,iconCell,func,186,KEEP,"本类型 :112,:167 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,pillCell,func,219,KEEP,本类型 :122 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,submenu,func,255,KEEP,本类型 :45 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,activate,func,323,KEEP,"本类型 :183,:215 按钮闭包"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,toggle,func,331,KEEP,本类型 :294 activate 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,handleHover,func,338,KEEP,"本类型 :157,:208,:242 onHover 回调"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryID,func,382,KEEP,"本类型 :291,:346 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryTool,func,386,KEEP,"本类型 :189,:220,:374 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,menuItems,func,391,KEEP,"本类型 :195,:249,:375 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,isDefault,func,407,KEEP,"本类型 :180,:212 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,helpText,func,414,KEEP,"本类型 :207,:241 .help 调用"
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureAspectRatio,init,init,23,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureAspectRatio,parse,func,49,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureAspectRatio,gcd,func,64,KEEP,待补证据：新增函数，尚未逐个读源码填写

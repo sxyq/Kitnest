@@ -160,6 +160,8 @@ public enum CaptureActionChain {
         [
             CaptureActionGroup(id: "copyGroup", title: "复制", systemImage: "doc.on.doc",
                                primary: "copy", items: ["copyOCR", "copyTranslate", "save"]),
+            CaptureActionGroup(id: "recentCopyGroup", title: "近期复制", systemImage: "list.bullet.clipboard",
+                               primary: "recentCopy", items: []),
             CaptureActionGroup(id: "ocrGroup", title: "识别", systemImage: "text.viewfinder",
                                primary: "ocr", items: ["qrCode", "ocrTranslate", "screenTranslate"]),
             // v263：钉住从「更多」里提出来单独成组。点图标 = 用当前外观钉住，
@@ -287,14 +289,13 @@ final class CaptureActionToolbarPanel: NSPanel {
     // MARK: 显示
 
     /// 预览面板尺寸：预览图按 340×200 内等比缩放，下面留 56pt 给工具条。
-    /// 最小宽度随样式走——v263 起了「钉住」一组后有 6 个入口，
-    /// 药丸条要放下 6 个「图标+文字」（约 430pt），图标条只要 6 个 30pt 方块。
+    /// 七个入口共用标准按钮，最小宽度按各样式的间距与文字布局分配。
     static func panelSize(for image: CGImage?, style: CaptureToolbarStyle) -> NSSize {
         let minWidth: CGFloat
         switch style {
-        case .iconBar:      minWidth = 492
-        case .pillBar:      minWidth = 590
-        case .primarySplit: minWidth = 554
+        case .iconBar:      minWidth = 300
+        case .pillBar:      minWidth = 450
+        case .primarySplit: minWidth = 360
         }
         guard let image else { return NSSize(width: minWidth, height: 286) }
         let maxW: CGFloat = 340

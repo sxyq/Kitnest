@@ -1,14 +1,6 @@
 import AppKit
 import SwiftUI
 
-private struct RecentCopyPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.background(Theme.accent.opacity(configuration.isPressed ? 0.16 : 0),
-            in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
-    }
-}
-
 // MARK: - 框选动作面板内容（v219 三样式）
 //
 // 上一版的问题（用户实拍指出）：
@@ -35,7 +27,6 @@ struct CaptureActionToolbarView: View {
     @Stored private var expanded: String? = nil
     /// 子项列表内悬停的项（与 hovered 分开：hovered 只表示「哪个组被悬停」）
     @Stored private var hoveredItem: String? = nil
-    @Stored private var recentHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let barHeight: CGFloat = 56
@@ -126,7 +117,6 @@ struct CaptureActionToolbarView: View {
         HStack(spacing: 10) {
             ForEach(CaptureActionChain.groups) { group in
                 iconCell(group)
-                if group.id == "copyGroup" { recentCopyButton }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -137,7 +127,6 @@ struct CaptureActionToolbarView: View {
         HStack(spacing: 6) {
             ForEach(CaptureActionChain.groups) { group in
                 pillCell(group)
-                if group.id == "copyGroup" { recentCopyButton }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -176,8 +165,6 @@ struct CaptureActionToolbarView: View {
                 }
             }
 
-            recentCopyButton
-
             Rectangle()
                 .fill(Color.primary.opacity(0.12))
                 .frame(width: 0.5, height: 20)
@@ -195,25 +182,6 @@ struct CaptureActionToolbarView: View {
     }
 
     // MARK: 单元
-
-    private var recentCopyButton: some View {
-        Button { model.onPick?("recentCopy") } label: {
-            Label("近期复制", systemImage: "list.bullet.clipboard")
-                .font(.system(size: 12, weight: .medium))
-                .fixedSize()
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .background(Theme.accent.opacity(recentHovered ? 0.18 : 0.09),
-                            in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-                .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
-        }
-        .buttonStyle(RecentCopyPressStyle())
-        .transaction { if reduceMotion { $0.animation = nil } }
-        .focusable(false)
-        .help("选择近期记录，一次复制")
-        .onHover { recentHovered = $0; if $0 { handleHover(false, group: nil) } }
-        .animation(.easeOut(duration: 0.1), value: recentHovered)
-    }
 
     private func iconCell(_ group: CaptureActionGroup) -> some View {
         let on = isDefault(group)
@@ -243,6 +211,7 @@ struct CaptureActionToolbarView: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
+        .accessibilityLabel(primaryTool(group)?.title ?? group.title)
         .help(helpText(group))
         .onHover { handleHover($0, group: group) }
     }
@@ -376,7 +345,11 @@ struct CaptureActionToolbarView: View {
             return
         }
         hovered = group.id
-        guard !group.items.isEmpty, expanded != group.id else { return }
+        guard !group.items.isEmpty else {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
+            return
+        }
+        guard expanded != group.id else { return }
         let id = group.id
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
             // 鼠标已移走 / 已经展开过就别再弹
@@ -439,6 +412,7 @@ struct CaptureActionToolbarView: View {
     }
 
     private func helpText(_ group: CaptureActionGroup) -> String {
+        if group.primary == "recentCopy" { return "选择近期记录，一次复制" }
         let title = primaryTool(group)?.title ?? group.title
         return menuItems(group).isEmpty ? title : "\(title)（悬停看更多）"
     }
