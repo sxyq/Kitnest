@@ -1,0 +1,4 @@
+interface:
+  display_name: "Lieflat Charts"
+  short_description: "Template-driven HTML charts, reports and HTML/PDF decks"
+  default_prompt: "Use $lieflat-charts and read its complete SKILL.md. Generate HTML charts by default; use Report Mode only for an explicitly requested full report and Presentation Mode only for an explicitly requested HTML/PDF deck or Lieflat presentation. Reuse the real catalog templates, supplied data, sources and time ranges with one coherent color system. Keep editable PPTX requests with the presentation-authoring skill and do not redesign an outer app when only its chart module is requested."
