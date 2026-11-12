@@ -23,12 +23,13 @@ struct MonitorNetworkThroughputCard: View {
     let up: Double
     let downHistory: [Double]
     let upHistory: [Double]
+    let timeSpan: TimeInterval
     var slots: Int = NetworkPulse.capacity
 
     var body: some View {
-        // 量程按 98 分位取：单个尖峰（计数器抖动/一次性大包）不该把整张图压成平的
+        // 两系列共用真实最大值量程，保留孤立峰值。
         let peak = MonitorChartScale.niceCeiling(
-            MonitorChartScale.robustPeak([downHistory, upHistory]))
+            max(downHistory.max() ?? 0, upHistory.max() ?? 0))
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 0) {
                 stat(title: "下载", icon: "arrow.down", value: down,
@@ -37,54 +38,53 @@ struct MonitorNetworkThroughputCard: View {
                      color: MonitorColors.upload)
             }
 
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(Color.primary.opacity(0.035))
-
-                grid
-                    .padding(.horizontal, 1)
-
-                if downHistory.count > 1 || upHistory.count > 1 {
-                    MonitorAreaSparkline(values: downHistory,
-                                         color: MonitorColors.download,
-                                         upperBound: peak,
-                                         slots: slots,
-                                         lineWidth: 1.7)
-                    MonitorSparkline(values: upHistory, upperBound: peak, slots: slots)
-                        .stroke(MonitorColors.upload,
-                                style: StrokeStyle(lineWidth: 1.7,
-                                                   lineCap: .round, lineJoin: .round))
-                    endpointDots(peak: peak)
-                } else {
-                    Text("等待采样…")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-
-                // 量程角标：告诉用户这张图的顶在哪，不然「线贴顶」没法判断是多大
-                Text(MonitorFormat.rate(MonitorFormat.u64(peak)))
-                    .font(.system(size: 9, weight: .medium).monospacedDigit())
+            VStack(alignment: .leading, spacing: 4) {
+                Text("量程 0 – \(MonitorFormat.rate(MonitorFormat.u64(peak)))")
+                    .font(.system(size: 11, weight: .medium).monospacedDigit())
                     .foregroundStyle(Theme.tertiaryText)
-                    .padding(.leading, 6)
-                    .padding(.top, 4)
-            }
-            .frame(height: 92)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
-            )
-            .overlay(alignment: .bottom) {
-                HStack {
-                    Text("60 秒前").font(.system(size: 9))
-                    Spacer()
-                    Text("现在").font(.system(size: 9))
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .fill(Color.primary.opacity(0.035))
+
+                    ZStack {
+                        grid
+                            .padding(.horizontal, 1)
+
+                        if downHistory.count > 1 || upHistory.count > 1 {
+                            MonitorAreaSparkline(values: downHistory,
+                                                 color: MonitorColors.download,
+                                                 upperBound: peak,
+                                                 slots: slots,
+                                                 lineWidth: 1.7)
+                            MonitorSparkline(values: upHistory, upperBound: peak, slots: slots)
+                                .stroke(MonitorColors.upload,
+                                        style: StrokeStyle(lineWidth: 1.7,
+                                                           lineCap: .round, lineJoin: .round))
+                            endpointDots(peak: peak)
+                        } else {
+                            Text("等待采样…")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .padding(3)
                 }
+                .frame(height: 92)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                )
+
+                HStack {
+                    Text("\(timeSpan, specifier: "%g") 秒前")
+                    Spacer()
+                    Text("现在")
+                }
+                .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
-                .padding(.horizontal, 6)
-                .padding(.bottom, 3)
-                .allowsHitTesting(false)
             }
         }
         .padding(12)
@@ -136,10 +136,8 @@ struct MonitorNetworkThroughputCard: View {
 
     @ViewBuilder
     private func dot(values: [Double], peak: Double, size: CGSize, color: Color) -> some View {
-        if let last = values.last {
-            let ratio = min(max(last.isFinite ? last : 0, 0) / max(peak, 0.0001), 1)
-            let point = CGPoint(x: size.width - 2.5,
-                                y: size.height - 8 - CGFloat(ratio) * (size.height - 12))
+        if let point = MonitorSparkline.points(values: values, upperBound: peak, slots: slots,
+                                              in: CGRect(origin: .zero, size: size)).last {
             Circle()
                 .fill(color)
                 .frame(width: 5, height: 5)

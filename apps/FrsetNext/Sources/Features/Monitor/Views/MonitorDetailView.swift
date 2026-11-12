@@ -621,12 +621,16 @@ public struct MonitorDetailView: View {
         let liveUp = netPulse.up.isEmpty ? Double(sample.netUpload) : netPulse.currentUp
         let downHistory = netPulse.down.isEmpty ? sampler.history.netDownload : netPulse.down
         let upHistory = netPulse.up.isEmpty ? sampler.history.netUpload : netPulse.up
+        let historySlots = netPulse.down.isEmpty ? MonitorSampler.historyCapacity : NetworkPulse.capacity
+        let sampleInterval = netPulse.down.isEmpty ? MonitorPreferences.refreshInterval : 1.0
         let flowSnapshot = NetworkFlowTracker.shared.snapshot()
         let netBranches = networkFlowNodes(flowSnapshot, limit: MonitorPreferences.flowTopN)
 
         return VStack(alignment: .leading, spacing: 10) {
             MonitorNetworkThroughputCard(down: liveDown, up: liveUp,
-                                         downHistory: downHistory, upHistory: upHistory)
+                                         downHistory: downHistory, upHistory: upHistory,
+                                         timeSpan: Double(historySlots - 1) * sampleInterval,
+                                         slots: historySlots)
                 .onAppear { netPulse.activate() }
                 .onDisappear { netPulse.deactivate() }
 
@@ -678,15 +682,16 @@ public struct MonitorDetailView: View {
 
             // 连通性（官方 ConnectivityReader：ICMP → 1.1.1.1，1s/包）
             if stats.connStatus != .unknown {
-                MonitorSectionTitle("网络连接")
+                MonitorSectionTitle("连通性探测")
                 HStack(spacing: 6) {
                     Circle()
                         .fill(stats.connStatus == .online ? MonitorColors.battery : MonitorColors.system)
                         .frame(width: 8, height: 8)
-                    Text(stats.connStatus == .online ? "已连接" : "未连接")
+                    Text(stats.connStatus == .online ? "目标可达" : "目标未响应")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                .help("探测 1.1.1.1 的响应；目标未响应时，本机仍可能正常联网。")
                 // 连通性历史网格（30×3=90 格，最新在右下，官方同布局）
                 if !stats.connHistory.isEmpty {
                     let columns = 30

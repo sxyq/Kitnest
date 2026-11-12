@@ -533,8 +533,10 @@ final class DiskIndexStore: ObservableObject {
         func visit(_ n: DiskNode, depth: Int) {
             // 黑名单路径一律跳过（/tmp 清空会打断运行中的进程，实测踩过一次）
             if Self.protectedCandidatePaths.contains(n.path) { return }
+            // 安装版实见 App 内的 node_modules 被推荐删除；它们是应用资源，不能按缓存归类。
+            if n.name.hasSuffix(".app") { return }
             if n.isDirectory, Self.cacheNames.contains(n.name), n.size > 20 * 1024 * 1024 {
-                let safe = ["Caches", "cache", "caches", ".cache", "node_modules", "DerivedData",
+                let safe = ["Caches", "cache", "caches", ".cache", "DerivedData",
                             ".npm", "npm", ".pnpm-store", "pnpm", ".yarn", ".uv", "uv",
                             "__pycache__", ".pytest_cache", "go-build"].contains(n.name)
                 out.append(CleanupCandidate(node: n,
@@ -548,7 +550,7 @@ final class DiskIndexStore: ObservableObject {
             for c in n.children where c.isDirectory { visit(c, depth: depth + 1) }
         }
         visit(root, depth: 0)
-        let result = out.sorted { $0.node.size > $1.node.size }.prefix(24).map { $0 }
+        let result = out.sorted { $0.node.size > $1.node.size }
         candidateCache = result
         candidateCacheStamp = snap.scannedAt
         return result
@@ -559,25 +561,28 @@ final class DiskIndexStore: ObservableObject {
     /// 返回成功移入废纸篓的路径数；同时更新内存树与缓存。
     func trash(paths: [String], completion: @escaping (Int, Int64) -> Void) {
         let unique = Array(Set(paths))
-        let bytes = unique.reduce(Int64(0)) { sum, p in
-            sum + (Self.findNode(snapshot?.root, path: p)?.size ?? 0)
-        }
+        let root = snapshot?.root
         queue.async { [weak self] in
-            var ok = 0
+            var moved = Set<String>()
+            var errors: [String] = []
             for p in unique {
                 var resulting: NSURL?
                 do {
                     try FileManager.default.trashItem(at: URL(fileURLWithPath: p),
                                                       resultingItemURL: &resulting)
-                    ok += 1
+                    moved.insert(p)
                 } catch {
-                    // 权限不足 / 文件已不存在：跳过，不中断其它项
+                    errors.append("\(URL(fileURLWithPath: p).lastPathComponent)：\(error.localizedDescription)")
                 }
+            }
+            let bytes = moved.reduce(Int64(0)) { sum, p in
+                sum + (Self.findNode(root, path: p)?.size ?? 0)
             }
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
                 if var s = self.snapshot {
-                    s.root = Self.pruned(s.root, removing: Set(unique))
+                    s.root = Self.pruned(s.root, removing: moved)
                     s.totalBytes = s.root.size
                     self.snapshot = s
                     self.invalidateCandidates()
@@ -585,11 +590,11 @@ final class DiskIndexStore: ObservableObject {
                 }
                 let record = CleanupRecord(at: Date().timeIntervalSince1970,
                                            paths: unique, bytes: bytes,
-                                           succeeded: ok == unique.count)
+                                           succeeded: moved.count == unique.count)
                 self.records.insert(record, at: 0)
                 self.records = Array(self.records.prefix(50))
                 self.persistRecords()
-                completion(ok, bytes)
+                completion(moved.count, bytes)
             }
         }
     }
@@ -621,9 +626,10 @@ enum StorageFormat {
     }
     static func shortBytes(_ v: Int64) -> String {
         let d = Double(max(0, v))
-        if d >= 1024 * 1024 * 1024 { return String(format: "%.1f G", d / 1024 / 1024 / 1024) }
-        if d >= 1024 * 1024 { return String(format: "%.1f M", d / 1024 / 1024) }
-        return String(format: "%.0f K", d / 1024)
+        // 与 Finder、bytes() 的十进制文件单位一致，避免同一项出现 7.6 G / 8.2 GB。
+        if d >= 1_000_000_000 { return String(format: "%.1f GB", d / 1_000_000_000) }
+        if d >= 1_000_000 { return String(format: "%.1f MB", d / 1_000_000) }
+        return String(format: "%.0f KB", d / 1_000)
     }
     static func date(_ t: TimeInterval) -> String {
         let f = DateFormatter()

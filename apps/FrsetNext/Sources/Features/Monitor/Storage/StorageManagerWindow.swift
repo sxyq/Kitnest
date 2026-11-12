@@ -85,18 +85,24 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
     /// 用 local monitor 而不是 NSView：气泡图整块是 SwiftUI，事件在 hosting 层就被消化了。
     private var swipeMonitor: Any?
     private var swipeAccum: CGFloat = 0
+    private var swipeDidNavigate = false
 
     private func installSwipeMonitor(on win: NSWindow) {
         guard swipeMonitor == nil else { return }
         swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
             guard let self, event.window === win else { return event }
+            if event.phase == .began {
+                self.swipeAccum = 0
+                self.swipeDidNavigate = false
+            }
+            if !event.momentumPhase.isEmpty { return event }
             let dx = event.scrollingDeltaX
             let dy = event.scrollingDeltaY
             // 只认「横向明显大于纵向」的滑动；纵向滚轮/惯性不参与
             guard abs(dx) > abs(dy) * 1.2, abs(dx) >= 1 else { return event }
             self.swipeAccum += dx
-            if abs(self.swipeAccum) >= 42 {
-                self.swipeAccum = 0
+            if abs(self.swipeAccum) >= 42, !self.swipeDidNavigate {
+                self.swipeDidNavigate = true
                 NotificationCenter.default.post(name: .storageSwipeBack, object: nil)
             }
             return nil   // 吃掉横向滚动，避免带着别的视图一起动
@@ -134,7 +140,9 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
 
 struct StorageManagerRootView: View {
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var store = DiskIndexStore.shared
+    @Stored private var hoveredCandidatePath: String?
     /// 下钻路径栈；空 = 索引根
     @Stored private var stack: [DiskNode] = []
     @Stored private var selectedPaths: Set<String> = []
@@ -160,11 +168,12 @@ struct StorageManagerRootView: View {
         stack.last ?? store.snapshot?.root
     }
 
-    /// 磁盘可用空间（只查一次——`attributesOfFileSystem` 每次 body 都调会有 I/O 开销）
-    static let diskFreeBytes: Int64? = {
+    @Stored private var diskFreeBytes: Int64?
+
+    private func refreshDiskSpace() {
         let attrs = try? FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory())
-        return (attrs?[.systemFreeSize] as? NSNumber)?.int64Value
-    }()
+        diskFreeBytes = (attrs?[.systemFreeSize] as? NSNumber)?.int64Value
+    }
 
     private var candidates: [CleanupCandidate] { store.candidates() }
 
@@ -273,7 +282,9 @@ struct StorageManagerRootView: View {
         }
         .frame(minWidth: 860, minHeight: 560)
         .onAppear {
+            refreshDiskSpace()
             store.loadIfNeeded()
+            autoLandIfNeeded()
             // 第一次打开：告诉用户「返回」现在是两指滑动（原来的按钮已经删了）
             // 注意：onAppear 可能被调用多次，这里用 swipeHintShown 兜住，
             // 不能在里面先写 showSwipeHint = false——第二次 onAppear 会把提示立刻清掉。
@@ -305,7 +316,7 @@ struct StorageManagerRootView: View {
                 .allowsHitTesting(false)
             }
         }
-        .animation(Theme.Motion.fast, value: showSwipeHint)
+        .animation(reduceMotion ? nil : Theme.Motion.fast, value: showSwipeHint)
         .onReceive(NotificationCenter.default.publisher(for: .storageDrillTo)) { note in
             guard let name = note.object as? String else { return }
             // v213 实测：深链在窗口刚建好时到达，onAppear 里的缓存读取是异步的，
@@ -320,6 +331,10 @@ struct StorageManagerRootView: View {
             }
         }
         .onChange(of: store.snapshot?.scannedAt) { _ in
+            refreshDiskSpace()
+            stack = stack.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+            selectedPaths.formIntersection(Set(candidates.map { $0.id }))
+            detailNode = nil
             if let name = pendingDrill,
                let root = store.snapshot?.root,
                let target = root.children.first(where: { $0.name == name }) {
@@ -336,6 +351,15 @@ struct StorageManagerRootView: View {
         .onChange(of: store.scope) { _ in
             stack = []
             store.reloadFromCache(autoScanIfMissing: false)
+        }
+        .onChange(of: currentNode?.id) { _ in detailNode = nil }
+        .onExitCommand {
+            if store.isScanning { store.cancelScan() }
+            else if showAgentSheet { showAgentSheet = false }
+            else if showSettings { showSettings = false }
+            else if showRecords { showRecords = false }
+            else if !stack.isEmpty { stack.removeLast() }
+            else { StorageManagerWindowController.shared.close() }
         }
         .alert("移到废纸篓？", isPresented: $confirmTrash) {
             Button("取消", role: .cancel) { pendingTrash = [] }
@@ -359,14 +383,14 @@ struct StorageManagerRootView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(StorageFormat.shortBytes(cleanableBytes))
                         .font(.system(size: 40, weight: .light).monospacedDigit())
-                    Text("可清理")
+                    Text("清理候选")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
                 Text(headline)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 if let snap = store.snapshot {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(statusLine(snap))
@@ -397,7 +421,7 @@ struct StorageManagerRootView: View {
                         store.rescan()
                     } label: {
                         HStack(spacing: 5) {
-                            Image(systemName: "magnifyingglass").font(.system(size: 11))
+                            Image(systemName: "externaldrive").font(.system(size: 12))
                             Text("建立索引").font(.system(size: 11.5, weight: .semibold))
                         }
                         .foregroundStyle(.white)
@@ -431,16 +455,17 @@ struct StorageManagerRootView: View {
     private func toolbarButton(_ symbol: String, _ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 5) {
-                Image(systemName: symbol).font(.system(size: 11))
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 14)
                 Text(title).font(.system(size: 11.5, weight: .medium))
             }
             .padding(.horizontal, 10)
-            .frame(height: 26)
+            .frame(height: 30)
             .glassCard(radius: Theme.Radius.control)
         }
-        .buttonStyle(.plain)
-        // 窗口一打开别把键盘焦点落在工具条上（会画出一圈系统 focus ring，很突兀）
-        .focusable(false)
+        .buttonStyle(.borderless)
+        .help(title)
     }
 
     // MARK: 左栏（可清理清单）
@@ -448,7 +473,7 @@ struct StorageManagerRootView: View {
     private var leftPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Text("可清理")
+                Text("清理候选 · \(candidates.count) 项")
                     .font(.system(size: 12, weight: .semibold))
                 Spacer()
                 // 空清单不显示全选（否则一个 0 项也会显示「取消全选」，像是已选中了东西）
@@ -508,7 +533,7 @@ struct StorageManagerRootView: View {
                         showAgentSheet = true
                     } label: {
                         HStack(spacing: 5) {
-                            Image(systemName: "wand.and.stars")
+                            Image(systemName: "text.bubble")
                                 .font(.system(size: 10.5))
                             Text("让 Agent 清理")
                                 .font(.system(size: 11.5, weight: .medium))
@@ -530,7 +555,7 @@ struct StorageManagerRootView: View {
                         pendingTrash = Array(selectedPaths)
                         confirmTrash = true
                     } label: {
-                        Text("清理所选")
+                        Text("移到废纸篓")
                             .font(.system(size: 11.5, weight: .semibold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 14)
@@ -541,6 +566,7 @@ struct StorageManagerRootView: View {
                     .buttonStyle(.plain)
                     .focusable(false)
                     .disabled(selectedPaths.isEmpty)
+                    .opacity(selectedPaths.isEmpty ? 0.45 : 1)
                 }
             }
             .padding(.horizontal, 14)
@@ -549,45 +575,62 @@ struct StorageManagerRootView: View {
     }
 
     private func candidateRow(_ c: CleanupCandidate) -> some View {
-        HStack(spacing: 8) {
-            Button {
-                if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
-                else { selectedPaths.insert(c.id) }
-            } label: {
+        Button {
+            if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
+            else { selectedPaths.insert(c.id) }
+        } label: {
+            HStack(spacing: 8) {
                 Image(systemName: selectedPaths.contains(c.id) ? "checkmark.square.fill" : "square")
                     .font(.system(size: 13))
                     .foregroundStyle(selectedPaths.contains(c.id) ? Theme.accent : Theme.tertiaryText)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(c.node.name)
-                    .font(.system(size: 11.5, weight: .medium))
-                    .lineLimit(1)
-                // 副行给「路径」而不是解释文案：Caches/cache 这类同名目录只有路径能区分
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(c.safe ? Theme.accent.opacity(0.7) : Color.orange)
-                        .frame(width: 4, height: 4)
-                    Text(displayPath(c.node.path))
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .lineLimit(1)
-                        .truncationMode(.head)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text(c.node.name)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .lineLimit(1)
+                        Text(c.safe ? "缓存" : "需确认")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize()
+                    }
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(c.safe ? Theme.accent.opacity(0.7) : Color.orange)
+                            .frame(width: 4, height: 4)
+                        Text(displayPath(c.node.path))
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                    }
                 }
+                Spacer(minLength: 4)
+                Text(StorageFormat.shortBytes(c.node.size))
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 4)
-            Text(StorageFormat.shortBytes(c.node.size))
-                .font(.system(size: 11).monospacedDigit())
-                .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .fill(selectedPaths.contains(c.id) ? Theme.accent.opacity(0.09)
+                          : hoveredCandidatePath == c.id ? Color.primary.opacity(0.04) : Color.clear)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .fill(selectedPaths.contains(c.id) ? Theme.accent.opacity(0.09) : Color.clear)
-        )
+        .buttonStyle(.plain)
+        .onHover { inside in
+            if inside { hoveredCandidatePath = c.id }
+            else if hoveredCandidatePath == c.id { hoveredCandidatePath = nil }
+        }
+        .accessibilityValue(selectedPaths.contains(c.id) ? "已选择" : "未选择")
+        .animation(reduceMotion ? nil : Theme.Motion.tap, value: selectedPaths.contains(c.id))
         .help("\(c.reason) · \(c.node.path)")
+        .contextMenu {
+            Button("在 Finder 显示") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: c.node.path)])
+            }
+        }
     }
 
     // MARK: 右栏（面包屑 + 气泡地图 + 详情）
@@ -604,12 +647,13 @@ struct StorageManagerRootView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(stack.isEmpty ? Theme.tertiaryText : Theme.accent)
-                        .frame(width: 20, height: 20)
+                        .frame(width: 28, height: 28)
                         .background(Circle().fill(Color.primary.opacity(stack.isEmpty ? 0.03 : 0.08)))
                 }
                 .buttonStyle(.plain)
                 .disabled(stack.isEmpty)
-                .help("返回上一级（也可按 Esc 或两指右滑）")
+                .help("返回上一级（也可按 Esc 或两指横滑）")
+                .keyboardShortcut("[", modifiers: .command)
 
                 Button {
                     stack.removeAll()
@@ -647,18 +691,28 @@ struct StorageManagerRootView: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 36)
-            .animation(Theme.Motion.fast, value: stack.count)
+            .animation(reduceMotion ? nil : Theme.Motion.fast, value: stack.count)
+
+            HStack(spacing: 6) {
+                Text(stack.isEmpty ? "面积 = 已索引占用与磁盘可用空间" : "面积 = 本层各项占用")
+                Spacer()
+                Text("点击目录进入 · Esc 返回")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 6)
 
             if let node = currentNode {
                 StorageTreemap(node: node,
                                onDrill: { child in stack.append(contentsOf: drillChain(to: child)) },
                                onSelect: { detailNode = $0 },
                                onBack: { if !stack.isEmpty { stack.removeLast() } },
-                               freeSpace: Self.diskFreeBytes)
+                               freeSpace: stack.isEmpty ? diskFreeBytes : nil)
                     .padding(.horizontal, 10)
                     .padding(.bottom, 8)
                     .id(node.id)
-                    .animation(Theme.Motion.fast, value: node.id)
+                    .transition(.opacity)
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "externaldrive")
@@ -687,6 +741,10 @@ struct StorageManagerRootView: View {
                     Spacer()
                     Text(StorageFormat.bytes(d.size))
                         .font(.system(size: 11).monospacedDigit())
+                    Button("在 Finder 显示") {
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: d.path)])
+                    }
+                    .controlSize(.small)
                     Button("移到废纸篓") {
                         pendingTrash = [d.path]
                         confirmTrash = true
@@ -694,15 +752,19 @@ struct StorageManagerRootView: View {
                     .font(.system(size: 11))
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.accent)
+                    Button { detailNode = nil } label: {
+                        Image(systemName: "xmark")
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(.plain)
+                    .help("关闭文件详情")
                 }
                 .padding(.horizontal, 14)
                 .frame(height: 46)
             }
         }
-        // Esc = 返回上一级（用户：「点击进入之后无法进行返回」）
-        .onExitCommand {
-            if !stack.isEmpty { stack.removeLast() }
-        }
+        .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
+        .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
     }
 
     /// 顺着一串「几乎只剩一个子目录」的层级走到底（v212）
@@ -1004,15 +1066,16 @@ struct StorageManagerRootView: View {
         pendingTrash = []
         guard !paths.isEmpty else { return }
         store.trash(paths: paths) { ok, bytes in
-            selectedPaths.subtract(paths)
-            if detailNode.map({ paths.contains($0.path) }) == true { detailNode = nil }
-            stack.removeAll { node in paths.contains(where: { node.path.hasPrefix($0 + "/") }) }
-            if ok > 0 {
+            refreshDiskSpace()
+            selectedPaths.formIntersection(Set(candidates.map { $0.id }))
+            if let d = detailNode { detailNode = DiskIndexStore.findNode(store.snapshot?.root, path: d.path) }
+            stack = stack.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+            if let error = store.lastError {
+                Toast.show("已移动 \(ok) 项；\(error)",
+                           icon: "exclamationmark.triangle", isWarning: true)
+            } else {
                 Toast.show("已将 \(ok) 项移到废纸篓 · \(StorageFormat.bytes(bytes))",
                            icon: "trash")
-            } else {
-                Toast.show("没有可移动的项（可能权限不足或已不存在）",
-                           icon: "exclamationmark.triangle", isWarning: true)
             }
         }
     }

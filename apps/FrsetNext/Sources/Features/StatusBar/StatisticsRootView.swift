@@ -99,6 +99,7 @@ struct StatisticsRootView: View {
 // 数据装载（Q1/Q2/Q3/Q4/Q5）随视图自带：onAppear 即拉取，Settings 页嵌入零额外接线。
 
 struct StatisticsChartsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // 原版图：60 列、7 行，格子 8 pt、间隔 3 pt。
     private static let activityColumnCount = 60
     private static let activityRowCount = 7
@@ -290,7 +291,7 @@ struct StatisticsChartsView: View {
                 storedItemsCount = Int(result.stored)
                 // 保留原有一次性数字动画。
                 if !metricNumbersAnimatedIn {
-                    withAnimation(Theme.Motion.slow) { metricNumbersAnimatedIn = true }
+                    withAnimation(reduceMotion ? nil : Theme.Motion.slow) { metricNumbersAnimatedIn = true }
                 }
             }
         }
@@ -300,6 +301,7 @@ struct StatisticsChartsView: View {
 // MARK: - 指标卡（S5：数字入场动画；S8 字体：DINAlternate-Bold / AvenirNextCondensed-DemiBold）
 
 private struct MetricCardView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let config: MetricConfig
     let value: Int
     let animatedIn: Bool
@@ -331,8 +333,8 @@ private struct MetricCardView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 // S5：数字入场动画一次
-                .scaleEffect(animatedIn ? 1 : 0.6)
-                .opacity(animatedIn ? 1 : 0)
+                .scaleEffect(reduceMotion || animatedIn ? 1 : 0.6)
+                .opacity(reduceMotion || animatedIn ? 1 : 0)
                 .padding(.leading, 20)
         }
         .frame(width: 136, alignment: .leading)
@@ -354,15 +356,18 @@ private struct ActivityHeatmapView: View {
     @Stored private var pendingHoveredCellID: String?
     @Stored private var hoverDelayWork: DispatchWorkItem?
     @Stored private var tooltipFrame: CGRect = .zero
+    @FocusState private var isFocused: Bool
 
     // S10：外观自适应（亮/暗双色板）
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(verbatim: "活动矩阵")
                     .font(.system(size: 12, design: .monospaced))
+                    .help("Tab 聚焦，左右切换周，上下切换日期，Esc 退出")
                 Spacer()
                 Text(verbatim: "少")
                 HStack(spacing: 3) {
@@ -378,6 +383,27 @@ private struct ActivityHeatmapView: View {
             .foregroundStyle(StatisticsPalette.secondary)
             .frame(height: 18)
             heatmapGrid
+                .focusable()
+                .focused($isFocused)
+                .onAppear { isFocused = true }
+                .onTapGesture { isFocused = true }
+                .onChange(of: isFocused) { focused in
+                    if focused {
+                        showKeyboardCell(highlightedCellID ?? StatisticsManager.dayString())
+                    } else {
+                        hoverDelayWork?.cancel()
+                        highlightedCellID = nil
+                        pendingHoveredCellID = nil
+                    }
+                }
+                .onMoveCommand(perform: moveFocus)
+                .onExitCommand { isFocused = false }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("活动矩阵")
+                .accessibilityValue(highlightedCellID.flatMap { cellsByID[$0] }.map {
+                    "\(prettyDate($0.day))，\($0.count) 次"
+                } ?? "按方向键选择日期")
+                .accessibilityHint("左右切换周，上下切换日期，Esc 退出")
             // v128（流畅度）：月份标签同为纯数据视图——hover 态变更时一并跳过 body
             MonthLabelsView(totals: totals,
                             cellSize: cellSize,
@@ -386,6 +412,12 @@ private struct ActivityHeatmapView: View {
                             colorScheme: colorScheme)
                 .equatable()
                 .padding(.top, 3)
+        }
+        .onDisappear {
+            hoverDelayWork?.cancel()
+            hoverDelayWork = nil
+            highlightedCellID = nil
+            pendingHoveredCellID = nil
         }
     }
 
@@ -402,6 +434,13 @@ private struct ActivityHeatmapView: View {
                             colorScheme: colorScheme,
                             onHoverCell: handleHover)
                 .equatable()
+            if highlightedCellID != nil {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .strokeBorder(Theme.accent, lineWidth: 1.5)
+                    .frame(width: cellSize + spacing, height: cellSize + spacing)
+                    .position(x: tooltipFrame.midX, y: tooltipFrame.midY)
+                    .allowsHitTesting(false)
+            }
             tooltipBubble
         }
     }
@@ -422,16 +461,18 @@ private struct ActivityHeatmapView: View {
     // MARK: hover 延时 tooltip（S6）
 
     private func handleHover(_ cell: HeatmapGridView.HeatCell, frame: CGRect, inside: Bool) {
-        hoverDelayWork?.cancel()
-        hoverDelayWork = nil
         guard inside, !cell.isFuture else {
             // 移出：立即清除高亮与 tooltip
             if highlightedCellID == cell.id || pendingHoveredCellID == cell.id {
+                hoverDelayWork?.cancel()
+                hoverDelayWork = nil
                 highlightedCellID = nil
                 pendingHoveredCellID = nil
             }
             return
         }
+        hoverDelayWork?.cancel()
+        highlightedCellID = nil
         pendingHoveredCellID = cell.id
         let work = DispatchWorkItem {
             highlightedCellID = cell.id
@@ -440,6 +481,34 @@ private struct ActivityHeatmapView: View {
         }
         hoverDelayWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + hoverDelay, execute: work)
+    }
+
+    private func moveFocus(_ direction: MoveCommandDirection) {
+        let offset: Int
+        switch direction {
+        case .left: offset = -7
+        case .right: offset = 7
+        case .up: offset = -1
+        case .down: offset = 1
+        default: return
+        }
+        if let cell = cellsByID[highlightedCellID ?? StatisticsManager.dayString()],
+           let day = Calendar.current.date(byAdding: .day, value: offset, to: cell.day) {
+            showKeyboardCell(StatisticsManager.dayString(from: day))
+        }
+    }
+
+    private func showKeyboardCell(_ id: String) {
+        if let cell = cellsByID[id], !cell.isFuture {
+            hoverDelayWork?.cancel()
+            hoverDelayWork = nil
+            pendingHoveredCellID = nil
+            highlightedCellID = id
+            let step = cellSize + spacing
+            tooltipFrame = CGRect(x: CGFloat(cell.column) * step,
+                                  y: CGFloat(Calendar.current.component(.weekday, from: cell.day) - 1) * step,
+                                  width: step, height: step)
+        }
     }
 
     private var cellsByID: [String: HeatmapGridView.HeatCell] {
@@ -451,36 +520,55 @@ private struct ActivityHeatmapView: View {
     private var tooltipBubble: some View {
         Group {
             if let id = highlightedCellID, let cell = cellsByID[id] {
-                VStack(spacing: 2) {
-                    Text("\(cell.count) 次")   // TODO 待本地化：原作无该句式键面
-                        .font(Font.custom("PingFangSC-Semibold", size: 12))
-                        .foregroundStyle(.primary)
-                    Text(prettyDate(cell.day))
-                        .font(Font.custom("PingFangSC-Regular", size: 11))
-                        .foregroundStyle(.secondary)
+                HeatmapTooltipLayout(cellFrame: tooltipFrame, gridWidth: gridWidth) {
+                    VStack(spacing: 2) {
+                        Text("\(cell.count) 次")   // TODO 待本地化：原作无该句式键面
+                            .font(Font.custom("PingFangSC-Semibold", size: 12))
+                            .foregroundStyle(.primary)
+                        Text(prettyDate(cell.day))
+                            .font(Font.custom("PingFangSC-Regular", size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                        .shadow(color: .black.opacity(0.18), radius: 3, y: 1))
                 }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                    .fill(Color(NSColor.controlBackgroundColor))
-                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1))
-                .position(x: min(max(tooltipFrame.midX, 44), gridWidth - 44),
-                          y: tooltipFrame.minY - 24)
-                .transition(.opacity)
+                .transition(reduceMotion ? .identity : .opacity)
             }
         }
+        .allowsHitTesting(false)
     }
 
     // v126（性能审计 F1275）：DateFormatter 复用——tooltip 文案每次悬停都 new 一个。
     private static let prettyDateFormatter: DateFormatter = {
         let fmt = DateFormatter()
-        fmt.dateFormat = "M月d日"
+        fmt.dateFormat = "yyyy年M月d日"
         fmt.timeZone = TimeZone.current
         return fmt
     }()
 
     private func prettyDate(_ day: Date) -> String {
         Self.prettyDateFormatter.string(from: day)
+    }
+}
+
+private struct HeatmapTooltipLayout: Layout {
+    let cellFrame: CGRect
+    let gridWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: gridWidth, height: 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let tooltip = subviews[0]
+        let size = tooltip.sizeThatFits(.unspecified)
+        let x = min(max(cellFrame.midX - size.width / 2, 0), gridWidth - size.width)
+        tooltip.place(at: CGPoint(x: bounds.minX + x,
+                                 y: bounds.minY + cellFrame.minY - size.height - 4),
+                      anchor: .topLeading, proposal: .unspecified)
     }
 }
 
@@ -620,15 +708,17 @@ private struct HeatmapGridView: View, Equatable {
                         .frame(width: 22, height: cellSize, alignment: .leading)
                 }
             }
-            HStack(alignment: .top, spacing: spacing) {
+            HStack(alignment: .top, spacing: 0) {
                 ForEach(columns) { column in
-                    VStack(alignment: .leading, spacing: spacing) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(column.cells) { cell in
                             heatCellView(cell)
                         }
                     }
                 }
             }
+            .padding(.trailing, -spacing)
+            .padding(.bottom, -spacing)
         }
         .fixedSize(horizontal: true, vertical: false)
         .offset(x: -30)
@@ -640,6 +730,7 @@ private struct HeatmapGridView: View, Equatable {
         RoundedRectangle(cornerRadius: 2, style: .continuous)
             .fill(cellColor(for: cell))
             .frame(width: cellSize, height: cellSize)
+            .frame(width: cellSize + spacing, height: cellSize + spacing, alignment: .topLeading)
             .overlay(
                 GeometryReader { g in
                     Color.clear
