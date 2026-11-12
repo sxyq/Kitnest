@@ -37,6 +37,7 @@ public final class ShortcutManager {
     private var hotKeyRefs: [String: EventHotKeyRef] = [:]
     private var hotKeyIDToDefinitionID: [UInt32: String] = [:]
     private var nextHotKeyID: UInt32 = 1
+    private var pressedHotKeys = Set<UInt32>()
     /// 注册失败原因（如与系统快捷键冲突）
     private var failures: [String: String] = [:]
 
@@ -45,13 +46,13 @@ public final class ShortcutManager {
     // MARK: Carbon 事件处理器
 
     private func installEventHandler() {
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
-                                 eventKind: UInt32(kEventHotKeyPressed))
+        var specs = [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+                     EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))]
         // 闭包无捕获，可安全转换为 C 函数指针
         InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
             ShortcutManager.shared.handleCarbonEvent(event)
             return OSStatus(noErr)
-        }, 1, &spec, nil, nil)
+        }, 2, &specs, nil, nil)
     }
 
     private func handleCarbonEvent(_ event: EventRef?) {
@@ -68,7 +69,16 @@ public final class ShortcutManager {
         guard hotKeyID.signature == ShortcutManager.signature else { return }
 
         lock.lock()
+        if GetEventKind(event) == UInt32(kEventHotKeyReleased) {
+            pressedHotKeys.remove(hotKeyID.id)
+            lock.unlock()
+            return
+        }
         let definitionID = hotKeyIDToDefinitionID[hotKeyID.id]
+        if definitionID == "screenshot", !pressedHotKeys.insert(hotKeyID.id).inserted {
+            lock.unlock()
+            return
+        }
         let definition = definitionID.flatMap { definitions[$0] }
         lock.unlock()
 

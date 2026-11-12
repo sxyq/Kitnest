@@ -1,6 +1,14 @@
 import AppKit
 import SwiftUI
 
+private struct RecentCopyPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.background(Theme.accent.opacity(configuration.isPressed ? 0.16 : 0),
+            in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
 // MARK: - 框选动作面板内容（v219 三样式）
 //
 // 上一版的问题（用户实拍指出）：
@@ -199,11 +207,12 @@ struct CaptureActionToolbarView: View {
                             in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                 .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
         }
-        .buttonStyle(SpringyIconButtonStyle(pressedScale: reduceMotion ? 1 : 0.94))
+        .buttonStyle(RecentCopyPressStyle())
         .transaction { if reduceMotion { $0.animation = nil } }
         .focusable(false)
         .help("选择近期记录，一次复制")
         .onHover { recentHovered = $0; if $0 { handleHover(false, group: nil) } }
+        .animation(.easeOut(duration: 0.1), value: recentHovered)
     }
 
     private func iconCell(_ group: CaptureActionGroup) -> some View {

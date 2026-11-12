@@ -165,6 +165,13 @@ final class OCRReadOnlyScrollView: NSScrollView {
         streamTimer = nil
     }
 
+    func replacePreservingScroll(_ text: String) {
+        let origin = contentView.bounds.origin
+        self.text = text
+        contentView.scroll(to: origin)
+        reflectScrolledClipView(contentView)
+    }
+
     private func finishStream() {
         cancelStream()
         applyLinks()          // 打完了才做一次链接识别
@@ -236,6 +243,15 @@ final class ScreenshotOCRResultWindow: NSWindow {
                                                 trackingMode: .selectOne, target: nil, action: nil)
     private let rightPane = NSView()
     private let rightPaneLabel = NSTextField(labelWithString: "识别文本")
+    private let organizeButton = NSButton(title: "整理换行", target: nil, action: nil)
+    private let versionControl = NSSegmentedControl(labels: ["原文", "整理后"], trackingMode: .selectOne, target: nil, action: nil)
+    private let textInfo = NSTextField(labelWithString: "")
+    private let copyButton = NSButton(title: "复制全文", target: nil, action: nil)
+    private var originalText = ""
+    private var organizedDraft: String?
+    private var mergedBreaks = 0
+    private var selectionObserver: NSObjectProtocol?
+    var isOrganizedVersion: Bool { versionControl.selectedSegment == 1 && organizedDraft != nil }
 
     var onCopy: (() -> Void)?
     var onReRecognize: (() -> Void)?
@@ -255,7 +271,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
         // 自己在红绿灯右侧画标题，红绿灯永远在系统层、内容进不来。
         titlebarAppearsTransparent = true
         titleVisibility = .hidden
-        minSize = NSSize(width: 480, height: 320)
+        minSize = NSSize(width: 600, height: 360)
         isReleasedWhenClosed = false
 
         let container = NSView(frame: NSRect(origin: .zero, size: size))
@@ -276,6 +292,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
 
         // 右栏容器：识别文本 / 二维码 两页签同位切换
         setupRightPane()
+        originalText = text
         // v175：首次展示也走流式（短文本 0.3s 内打完，不会有"卡一下"的观感）
         if text.isEmpty { resultScroll.text = text } else { resultScroll.stream(text) }
         setQRPayloads(qrPayloads)
@@ -314,9 +331,12 @@ final class ScreenshotOCRResultWindow: NSWindow {
         closeButton.frame = NSRect(x: size.width - 76, y: 8, width: 64, height: 28)
         closeButton.autoresizingMask = [.minXMargin]
 
-        let copyButton = NSButton(title: "复制", target: self, action: #selector(copyTapped))
+        copyButton.target = self
+        copyButton.action = #selector(copyTapped)
+        copyButton.keyEquivalent = "\r"
+        copyButton.keyEquivalentModifierMask = [.command]
         copyButton.bezelStyle = .rounded
-        copyButton.frame = NSRect(x: size.width - 240, y: 8, width: 64, height: 28)
+        copyButton.frame = NSRect(x: size.width - 315, y: 8, width: 140, height: 28)
         copyButton.autoresizingMask = [.minXMargin]
 
         let redoButton = NSButton(title: "重新识别", target: self, action: #selector(redoWrapped))
@@ -330,6 +350,9 @@ final class ScreenshotOCRResultWindow: NSWindow {
         container.addSubview(bottom)
 
         setOfficialContent(container)
+        selectionObserver = NotificationCenter.default.addObserver(forName: NSTextView.didChangeSelectionNotification,
+            object: resultScroll.textView, queue: .main) { [weak self] _ in self?.updateTextInfo() }
+        updateTextInfo()
         // v166.8（用户：「这个弹窗没有方式去关闭」）：
         // 上面 `applyOfficialChrome()` 是在**替换 contentView 之前**调用的，
         // v208：标题栏使用原生红绿灯（属于窗口标题栏，不随 contentView 替换消失）
@@ -342,7 +365,7 @@ final class ScreenshotOCRResultWindow: NSWindow {
 
     /// 右栏页签内容布局（识别文本 / 二维码 重叠切换）
     private func setupRightPane() {
-        resultScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
+        resultScroll.frame = NSRect(x: 0, y: 28, width: 380, height: 310)
         resultScroll.autoresizingMask = [.width, .height]
         translatedScroll.frame = NSRect(x: 0, y: 0, width: 380, height: 374)
         translatedScroll.autoresizingMask = [.width, .height]
@@ -371,6 +394,23 @@ final class ScreenshotOCRResultWindow: NSWindow {
         rightPane.addSubview(resultScroll)
         rightPane.addSubview(qrScroll)
         rightPane.addSubview(translatedScroll)
+        organizeButton.target = self
+        organizeButton.action = #selector(organizeText)
+        organizeButton.bezelStyle = .rounded
+        organizeButton.frame = NSRect(x: 8, y: 340, width: 90, height: 28)
+        organizeButton.autoresizingMask = [.minYMargin]
+        versionControl.target = self
+        versionControl.action = #selector(versionChanged)
+        versionControl.frame = NSRect(x: 104, y: 342, width: 156, height: 24)
+        versionControl.autoresizingMask = [.minYMargin]
+        versionControl.isHidden = true
+        textInfo.frame = NSRect(x: 8, y: 4, width: 364, height: 20)
+        textInfo.font = .systemFont(ofSize: 11)
+        textInfo.textColor = .secondaryLabelColor
+        textInfo.autoresizingMask = [.width]
+        rightPane.addSubview(organizeButton)
+        rightPane.addSubview(versionControl)
+        rightPane.addSubview(textInfo)
     }
 
     /// 右栏容器套标题（标题随页签切换改名）
@@ -405,10 +445,49 @@ final class ScreenshotOCRResultWindow: NSWindow {
     // MARK: 状态
 
     /// 当前（可能被用户就地修改过的）识别文本
-    var resultText: String { resultScroll.text }
+    var resultText: String {
+        let range = resultScroll.textView.selectedRange()
+        if range.length > 0 { return (resultScroll.textView.string as NSString).substring(with: range) }
+        return resultScroll.text
+    }
     func setResultText(_ text: String) {
+        originalText = text
+        organizedDraft = nil
+        versionControl.selectedSegment = 0
+        versionControl.isHidden = true
+        resultScroll.textView.isEditable = false
         // v175：重新识别／增量更新同样用流式，保持一致的观感
         if text.isEmpty { resultScroll.text = text } else { resultScroll.stream(text) }
+        updateTextInfo()
+    }
+
+    @objc private func organizeText() {
+        if isOrganizedVersion { organizedDraft = resultScroll.text }
+        if organizedDraft == nil {
+            let result = ClipboardTextTransforms.organizeOCR(originalText)
+            organizedDraft = result.text; mergedBreaks = result.merged
+        }
+        versionControl.isHidden = false
+        versionControl.selectedSegment = 1
+        versionChanged()
+    }
+
+    @objc private func versionChanged() {
+        if !resultScroll.textView.isEditable || versionControl.selectedSegment == 1 {
+            resultScroll.replacePreservingScroll(isOrganizedVersion ? organizedDraft! : originalText)
+        } else {
+            organizedDraft = resultScroll.text
+            resultScroll.replacePreservingScroll(originalText)
+        }
+        resultScroll.textView.isEditable = isOrganizedVersion
+        updateTextInfo()
+    }
+
+    private func updateTextInfo() {
+        copyButton.title = resultScroll.textView.selectedRange().length > 0 ? "复制选中内容" : "复制全文"
+        let detail = organizedDraft == nil ? "" : mergedBreaks == 0 ? " · 无需整理换行" : " · 合并 \(mergedBreaks) 处换行"
+        textInfo.stringValue = "\(resultScroll.text.count) 字" + detail
+        organizeButton.isEnabled = !originalText.isEmpty
     }
 
     // MARK: v130（SnowShot 对齐）⑤：二维码页签
@@ -431,6 +510,9 @@ final class ScreenshotOCRResultWindow: NSWindow {
         resultScroll.isHidden = index != 0
         qrScroll.isHidden = index != 1
         translatedScroll.isHidden = index != 2
+        organizeButton.isHidden = index != 0
+        versionControl.isHidden = index != 0 || organizedDraft == nil
+        textInfo.isHidden = index != 0
         rightPaneLabel.stringValue = index == 1 ? "二维码" : (index == 2 ? "翻译" : "识别文本")
         if index == 2 { onTranslate?() }
     }
@@ -538,7 +620,7 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
     private var imageData: Data?
     private var isRecognizing = false
     // v139：翻译状态 + 失焦自动关闭
-    private var translated: String?
+    private var translated: (source: String, result: String)?
     private var isTranslating = false
     private var resignObserver: NSObjectProtocol?
 
@@ -592,8 +674,8 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
             Toast.show("没有可翻译的文字", icon: "exclamationmark.circle.fill")
             return
         }
-        if let cached = translated, !cached.isEmpty {
-            win.setTranslatedText(cached)   // 已有译文，直接复用
+        if let cached = translated, cached.source == text, !cached.result.isEmpty {
+            win.setTranslatedText(cached.result)   // 相同源文本复用译文
             return
         }
         isTranslating = true
@@ -602,7 +684,7 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
             defer { self.isTranslating = false }
             do {
                 let result = try await TranslationToolSession.shared.translateDocument(text)
-                self.translated = result
+                self.translated = (source: text, result: result)
                 self.window?.setTranslatedText(result)
                 Log.info("Capture", "截图翻译完成：\(text.count) 字符 → \(result.count) 字符")
             } catch {
@@ -645,14 +727,9 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
 
     private func copyResult() {
         guard let text = window?.resultText, !text.isEmpty else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        guard pasteboard.setString(text, forType: .string) else {
-            Toast.show("复制失败：未能写入识别文字", icon: "exclamationmark.triangle", isWarning: true)
-            return
+        if let error = ClipboardManager.shared.copyText(text, successMessage: "文本已复制") {
+            Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
         }
-        Toast.show("文本已复制", icon: "checkmark.circle.fill")
-        CaptureEventBus.onTextRecognized?(text)
     }
 
     private func reRecognize() {

@@ -289,7 +289,14 @@ final class CaptureActionToolbarPanel: NSPanel {
     /// 预览面板尺寸：预览图按 340×200 内等比缩放，下面留 56pt 给工具条。
     /// 最小宽度随样式走——v263 起了「钉住」一组后有 6 个入口，
     /// 药丸条要放下 6 个「图标+文字」（约 430pt），图标条只要 6 个 30pt 方块。
-    static func panelSize(for image: CGImage, style: CaptureToolbarStyle) -> NSSize {
+    static func panelSize(for image: CGImage?, style: CaptureToolbarStyle) -> NSSize {
+        let minWidth: CGFloat
+        switch style {
+        case .iconBar:      minWidth = 492
+        case .pillBar:      minWidth = 590
+        case .primarySplit: minWidth = 554
+        }
+        guard let image else { return NSSize(width: minWidth, height: 286) }
         let maxW: CGFloat = 340
         let maxH: CGFloat = 200
         let iw = max(1, CGFloat(image.width))
@@ -300,12 +307,6 @@ final class CaptureActionToolbarPanel: NSPanel {
         // 预览区保底 210，任何一组的列表都不会被窗口上沿裁掉；大图仍按比例最多 200。
         let previewH = max(210, ih * scale)
 
-        let minWidth: CGFloat
-        switch style {
-        case .iconBar:      minWidth = 400
-        case .pillBar:      minWidth = 556
-        case .primarySplit: minWidth = 520
-        }
         return NSSize(width: max(minWidth, previewW + 20), height: previewH + 20 + 56)
     }
 

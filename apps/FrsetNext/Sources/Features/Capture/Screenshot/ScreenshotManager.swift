@@ -520,7 +520,7 @@ public final class ScreenshotManager: ObservableObject {
     func handleScreenshotShortcut() {
         if RecentClipboardWindowController.isPresented {
             RecentClipboardWindowController.shared.show()
-        } else if isCapturing, !overlays.isEmpty {
+        } else if isCapturing {
             cancelCapture()
             openRecentClipboard()
         } else {

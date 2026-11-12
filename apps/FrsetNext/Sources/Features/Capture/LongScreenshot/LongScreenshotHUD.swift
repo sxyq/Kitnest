@@ -137,14 +137,16 @@ final class LongScreenshotHUDController {
         dot.layer?.backgroundColor = NSColor.systemRed.cgColor
         dot.layer?.cornerRadius = 4
         dot.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.25
-        pulse.duration = 0.7
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = Theme.Motion.caEaseInEaseOut
-        dot.layer?.add(pulse, forKey: "recording.pulse")
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            let pulse = CABasicAnimation(keyPath: "opacity")
+            pulse.fromValue = 1.0
+            pulse.toValue = 0.25
+            pulse.duration = 0.7
+            pulse.autoreverses = true
+            pulse.repeatCount = .infinity
+            pulse.timingFunction = Theme.Motion.caEaseInEaseOut
+            dot.layer?.add(pulse, forKey: "recording.pulse")
+        }
         glass.addSubview(dot)
 
         let title = NSTextField(labelWithString: "长截图采集中")
@@ -153,8 +155,8 @@ final class LongScreenshotHUDController {
         glass.addSubview(title)
 
         // v150：提示改成「怎么做 + 怎么结束」，不再是 "Return 完成"（全局 Return 已移除）
-        let status = NSTextField(labelWithString: "慢一点滚（每屏约 2 秒），结束后点「完成」")
-        status.font = .systemFont(ofSize: 9.5)
+        let status = NSTextField(labelWithString: "慢慢滚动 · 点「完成」结束")
+        status.font = .systemFont(ofSize: 11)
         status.textColor = .secondaryLabelColor
         status.frame = NSRect(x: 30, y: 12, width: 215, height: 14)
         glass.addSubview(status)
@@ -197,7 +199,7 @@ final class LongScreenshotHUDController {
             statusLabel?.stringValue = "正在采集 · 慢点滚更稳"
             statusLabel?.textColor = .secondaryLabelColor
         case .idle:
-            statusLabel?.stringValue = "没有新内容（可能已到底）· 点「完成」结束"
+            statusLabel?.stringValue = "没有新内容 · 点「完成」结束"
             statusLabel?.textColor = .secondaryLabelColor
         case .unstable:
             // 明确「怎么放慢」：给出可执行的速度参考，而不是只说「放慢一点」
