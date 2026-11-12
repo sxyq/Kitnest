@@ -262,6 +262,9 @@ final class ClipboardTableView: NSTableView {
 
     /// 近期选择窗只勾选，不触发主列表的预览或双击复制。
     var onSelectionClick: ((Int, NSEvent.ModifierFlags) -> Void)?
+    var onSelectAll: (() -> Void)?
+    var onSelectionCursorMove: (() -> Void)?
+    var selectionCursor = -1
 
     override func mouseDown(with event: NSEvent) {
         guard let onSelectionClick else { super.mouseDown(with: event); return }
@@ -311,6 +314,7 @@ final class ClipboardTableView: NSTableView {
     }
 
     private var hoverTrackingArea: NSTrackingArea?
+    override var acceptsFirstResponder: Bool { isActive || onSelectionClick != nil }
 
     // v112（2026-10-21 宽度实证：日历卡 344.0 vs 行卡 332.06，两侧各缩 6pt）：
     // 列宽此前只在 updateNSView 修一次——SwiftUI 后续布局变化不再触发 →
@@ -365,6 +369,20 @@ final class ClipboardTableView: NSTableView {
     // 键盘语义（specs/14 §3.7）：空格=预览、↩=复制；↑/↓ 走 NSTableView 默认选择移动
     override func keyDown(with event: NSEvent) {
         let characters = event.charactersIgnoringModifiers ?? ""
+        if let onSelectionClick {
+            if event.modifierFlags.contains(.command), characters == "a" { onSelectAll?(); return }
+            if event.keyCode == 125 || event.keyCode == 126 {
+                selectionCursor = min(max(selectionCursor + (event.keyCode == 125 ? 1 : -1), 0), numberOfRows - 1)
+                if selectionCursor >= 0 { scrollRowToVisible(selectionCursor) }
+                onSelectionCursorMove?()
+                return
+            }
+            if characters == " " {
+                if selectionCursor >= 0 { onSelectionClick(selectionCursor, event.modifierFlags) }
+                return
+            }
+            if characters == "\r" { onReturnKey?(); return }
+        }
         // 诊断（临时）：键盘入口打状态。handleSpaceKey/handleReturnKey 的入口日志
         // 只在本函数真正分派过去后才才会执行；若这里完全没有日志 → 说明本表格
         // 不是 first responder（焦点被搜索框等抢占），keyDown 压根没被调用。
@@ -406,6 +424,7 @@ final class ClipboardListScrollView: NSScrollView {
 // MARK: - Representable
 
 public struct ClipboardTableHostView: NSViewRepresentable {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     @ObservedObject var manager: ClipboardManager
     /// v66 个性化（密度/徽章/缩略图变更 → updateNSView 即时生效）
@@ -458,7 +477,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         scrollView.contentInsets = NSEdgeInsets(top: 4, left: 0, bottom: 52, right: 0)
 
         let table = ClipboardTableView()
-        table.isActive = isActive
+        table.isActive = isActive && !context.environment.isSettingsPreview
         table.headerView = nil
         table.rowHeight = Theme.statsRowHeight
         table.usesAutomaticRowHeights = false
@@ -495,7 +514,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     public func updateNSView(_ nsView: NSScrollView, context: Context) {
         context.coordinator.owner = self
         // 页面激活状态同步（非主页时表格移除 hover 追踪，防幽灵预览）
-        (nsView.documentView as? ClipboardTableView)?.isActive = isActive
+        (nsView.documentView as? ClipboardTableView)?.isActive = isActive && !context.environment.isSettingsPreview
         // v66 个性化：密度档位变更 → 行高/间距即时生效
         let table = nsView.documentView as? ClipboardTableView
         let newHeight = Theme.statsRowHeight
@@ -605,7 +624,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             host.onRightMouseDown = { [weak self] item, location, sourceView in
                 // 右键按下即弹菜单（specs/14 §3.2/C4）；菜单打开期间抑制 hover
                 self?.hoverSuppression.suppressUntilMouseMove()
-                ClipboardNativeMenuPresenter.shared.presentMenu(for: item, at: location, in: sourceView)
+                let selection = self?.table?.selectedRowIndexes.compactMap { self?.owner.manager.items[$0] } ?? []
+                ClipboardNativeMenuPresenter.shared.presentMenu(for: item, at: location, in: sourceView, selectedItems: selection)
             }
             host.setItem(item, hovered: (item.id == hoveredItemID))
             // v129（内存）：移除 WidthAudit 调试日志（v112 宽度实证残留）——
@@ -637,6 +657,12 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         public func tableViewSelectionDidChange(_ notification: Notification) {
+            if owner.isSettingsPreview { return }
+            if let table {
+                for (row, box) in rowViewsByRow {
+                    box.view?.setHovered(table.selectedRowIndexes.contains(row) || (owner.manager.items.indices.contains(row) && owner.manager.items[row].id == hoveredItemID))
+                }
+            }
             // 选中项广播（工具条编辑/上传按钮消费；键盘/鼠标/重载都会经过这里）
             if let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count {
                 NotificationCenter.default.post(name: .clipboardSelectionChanged,
@@ -836,9 +862,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             // 工具条操作目标 = 最后点击项（单击走预览路径不产生标准选中，
             // 2026-10-18：编辑/上传按钮据此启用）
             NotificationCenter.default.post(name: .clipboardSelectionChanged, object: item)
-            // v53（用户需求 2026-10-19）：单击 → 常驻预览窗（可缩放、可编辑）；
-            // hover 仍是临时 NSPopover。先关掉 hover 预览，避免叠在常驻窗下面。
-            ServiceLocator.panelPreview?.dismissPreview()
+            // 单击与悬停共用当前预览窗；换条目由呈现入口连续调整尺寸。
             if consumeOneTimeHint(Self.singleClickPreviewHintKey) {
                 Toast.show("单击条目打开预览窗", icon: "eye")
             }
@@ -944,7 +968,8 @@ public final class ClipboardNativeMenuPresenter: NSObject {
         return image
     }
 
-    public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView) {
+    public func presentMenu(for item: ClipboardItem, at location: CGPoint, in view: NSView,
+                            selectedItems: [ClipboardItem] = []) {
         let menu = NSMenu()
         let manager = ClipboardManager.shared
         let tagStore = TagStore.shared
@@ -962,6 +987,17 @@ public final class ClipboardNativeMenuPresenter: NSObject {
         }
 
         addItem("复制", systemImage: "doc.on.doc") { manager.copy(item) }
+        for action in ClipboardContentActions.items(for: item) {
+            addItem(action.title, systemImage: action.systemImage, action.action)
+        }
+        if !selectedItems.isEmpty {
+            addItem("复制为编号清单…", systemImage: "list.number") {
+                ServiceLocator.panelPreview?.dismissPreview()
+                PanelController.shared.hide {
+                    Task { @MainActor in RecentClipboardWindowController.shared.show(items: selectedItems, format: .numbered) }
+                }
+            }
+        }
         // v112 空投联动（与 ClipboardRowMenuContent 的 SwiftUI 菜单同款）
         addItem("隔空投送", systemImage: "dot.radiowaves.left.and.right", enabled: item.airDropFileURL != nil) {
             if let url = item.airDropFileURL {

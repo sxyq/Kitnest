@@ -155,12 +155,11 @@ public final class ClipboardManager: ObservableObject {
     /// 暂停记录剪贴板（官方菜单项「暂停记录剪贴板」，原版 0x1000e9e34 处 Toggle）。
     /// 暂停期间轮询仍跑（保持 changeCount 同步），但跳过 ingest——恢复后
     /// **不回补**暂停期间的最后一次内容（与原版一致）。
-    public var isRecordingPaused: Bool = false {
+    @Published public var isRecordingPaused: Bool = false {
         didSet {
             guard oldValue != isRecordingPaused else { return }
-            if isRecordingPaused {
-                lastChangeCount = NSPasteboard.general.changeCount
-            }
+            lastChangeCount = NSPasteboard.general.changeCount
+            if !isRecordingPaused { pauseDeadline = nil; pauseTimer?.invalidate(); pauseTimer = nil; remainingPauseMinutes = nil }
             NotificationCenter.default.post(name: Self.recordingPausedDidChangeNotification,
                                             object: self)
             Log.info("clipboard", isRecordingPaused ? "已暂停记录剪贴板" : "已恢复剪贴板记录")
@@ -170,8 +169,47 @@ public final class ClipboardManager: ObservableObject {
     /// 暂停状态变化广播（齿轮菜单勾选态刷新用）
     public static let recordingPausedDidChangeNotification =
         Notification.Name("ClipboardManager.recordingPausedDidChange")
+    @Published public private(set) var pauseDeadline: Date?
+    @Published public private(set) var remainingPauseMinutes: Int?
+    private var pauseTimer: Timer?
+    private var wakeObserver: NSObjectProtocol?
+
+    public var pauseStatus: String {
+        if let remainingPauseMinutes { return "记录已暂停 · \(remainingPauseMinutes) 分钟后恢复" }
+        return "记录已暂停 · 至手动恢复"
+    }
+
+    public func pauseRecording(minutes: Int?) {
+        pauseTimer?.invalidate()
+        pauseDeadline = minutes.map { Date().addingTimeInterval(Double($0) * 60) }
+        isRecordingPaused = true
+        refreshPauseDeadline()
+        if let deadline = pauseDeadline {
+            let timer = Timer(fire: deadline, interval: 0, repeats: false) { [weak self] _ in self?.refreshPauseDeadline() }
+            RunLoop.main.add(timer, forMode: .common)
+            pauseTimer = timer
+        }
+        NotificationCenter.default.post(name: Self.recordingPausedDidChangeNotification, object: self)
+        Toast.show(minutes.map { "已暂停记录 \($0) 分钟" } ?? "已暂停记录，至手动恢复", icon: "pause.fill")
+    }
+
+    public func resumeRecording(showToast: Bool = true) {
+        isRecordingPaused = false
+        if showToast { Toast.show("已恢复记录", icon: "play.fill") }
+    }
+
+    private func refreshPauseDeadline() {
+        guard isRecordingPaused else { return }
+        if let deadline = pauseDeadline {
+            if deadline <= Date() { resumeRecording(showToast: false); return }
+            let minutes = Int(ceil(deadline.timeIntervalSinceNow / 60))
+            if remainingPauseMinutes != minutes { remainingPauseMinutes = minutes }
+        } else { remainingPauseMinutes = nil }
+    }
 
     public func start() {
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification,
+            object: nil, queue: .main) { [weak self] _ in self?.refreshPauseDeadline() }
         lastChangeCount = reader.currentChangeCount
         schedulePoll(interval: Self.idlePollingInterval)
         tagStore.refresh()
@@ -193,6 +231,7 @@ public final class ClipboardManager: ObservableObject {
     }
 
     private func pollTick() {
+        refreshPauseDeadline()
         // 速率切换：突发窗口内 0.5s，窗口过期回 1.0s（仅在切换瞬间重建 Timer）
         let effective = (burstUntil ?? .distantPast) > Date()
             ? Self.burstPollingInterval : Self.idlePollingInterval
@@ -559,12 +598,13 @@ public final class ClipboardManager: ObservableObject {
 
     /// 主列表多选复制：与单条复制共用自写标记，避免合并正文再次进入历史。
     @discardableResult
-    public func copy(_ items: [ClipboardItem], successMessage: String? = nil) -> String? {
+    public func copy(_ items: [ClipboardItem], successMessage: String? = nil,
+              format: ClipboardOutputFormat = .merged) -> String? {
         if items.count == 1, let item = items.first, item.type == .image || item.type == .file {
             return copy(item, autoPaste: false, successMessage: successMessage ?? "已复制 1 项")
         }
-        if items.contains(where: { $0.type == .image }) {
-            return "文字与图片需分别复制；图片请逐张复制。"
+        if items.contains(where: { $0.type == .image || $0.type == .file }) {
+            return "文字与图片或文件需分别复制，请使用对应文件复制动作。"
         }
         var texts: [String] = []
         for item in items {
@@ -573,17 +613,39 @@ public final class ClipboardManager: ObservableObject {
             if let failure { return failure }
             texts.append(text)
         }
-        let text = texts.joined(separator: "\n")
+        let text = ClipboardTextTransforms.combine(texts, format: format)
         guard !text.isEmpty else { return "所选记录没有可复制的正文" }
+        return copyText(text, successMessage: successMessage ?? "已复制 \(items.count) 项", event: .historyBatchCopy)
+    }
+
+    @discardableResult
+    func copyText(_ text: String, successMessage: String, event: AnalyticsEvent = .historyCopy) -> String? {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         guard pasteboard.setString(text, forType: .string) else {
             Toast.show("复制失败：未能写入剪贴板内容", icon: "exclamationmark.triangle", isWarning: true)
             return "复制失败：未能写入剪贴板内容"
         }
-        finishCopy(message: successMessage ?? "已复制 \(items.count) 项", event: .historyBatchCopy)
-        Log.info("clipboard", "批量复制 \(items.count) 项")
+        finishCopy(message: successMessage, event: event)
         return nil
+    }
+
+    @discardableResult
+    func copyFiles(_ urls: [URL], successMessage: String) -> String? {
+        guard !urls.isEmpty else { return "没有可复制的文件" }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects(urls as [NSURL]) else { return "复制失败：无法写入文件 URL" }
+        finishCopy(message: successMessage, event: .historyCopy)
+        return nil
+    }
+
+    @discardableResult
+    func copyImageFile(_ item: ClipboardItem) -> String? {
+        guard let path = item.imagePath else { return "图片没有持久化原文件" }
+        let url = ClipboardFileStore.url(forRelativePath: path)
+        guard FileManager.default.isReadableFile(atPath: url.path) else { return "图片原文件不可读取：\(url.lastPathComponent)" }
+        return copyFiles([url], successMessage: "已复制图片文件")
     }
 
     private func finishCopy(message: String, event: AnalyticsEvent) {

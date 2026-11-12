@@ -72,11 +72,31 @@ public enum StatusBarMenuBuilder {
             for (style, item) in cache.styleItems {
                 item.state = (style == current) ? .on : .off
             }
+            refreshPauseMenu(cache.menu)
             return cache.menu
         }
         let cache = buildMenu(target: target, revealed: revealed, signature: signature)
         cachedMenu = cache
+        refreshPauseMenu(cache.menu)
         return cache.menu
+    }
+
+    private static func refreshPauseMenu(_ menu: NSMenu) {
+        let identifier = NSUserInterfaceItemIdentifier("clipboard.pause")
+        if let previous = menu.items.first(where: { $0.identifier == identifier }) { menu.removeItem(previous) }
+        let manager = ClipboardManager.shared
+        let root = NSMenuItem(title: manager.isRecordingPaused ? manager.pauseStatus : "暂停记录剪贴板", action: nil, keyEquivalent: "")
+        root.identifier = identifier
+        let submenu = NSMenu()
+        func action(_ title: String, minutes: Int) {
+            let item = NSMenuItem(title: title, action: #selector(StatusBarController.pauseRecordingAction(_:)), keyEquivalent: "")
+            item.target = StatusBarController.shared; item.tag = minutes; submenu.addItem(item)
+        }
+        if manager.isRecordingPaused { action("立即恢复", minutes: 0); submenu.addItem(.separator()) }
+        for minutes in [5, 15, 30] { action("暂停 \(minutes) 分钟", minutes: minutes) }
+        action("暂停至手动恢复", minutes: -1)
+        root.submenu = submenu
+        menu.insertItem(root, at: 2)
     }
 
     /// v128（流畅度）：全量构造（仅缓存未命中 / revealed 翻转时走），并登记需刷新的项

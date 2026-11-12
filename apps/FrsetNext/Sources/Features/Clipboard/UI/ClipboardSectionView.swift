@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 /// 剪贴板区段：搜索框 + 过滤栏 + 行列表。
 /// 数据来源直接观察 `ClipboardManager`（ObservableObject），避免中间 store 带来的双重真相。
 public struct ClipboardSectionView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewClipboardItems) private var previewItems
 
     @ObservedObject private var manager = ClipboardManager.shared
     @ObservedObject private var tagStore = TagStore.shared
@@ -27,10 +29,20 @@ public struct ClipboardSectionView: View {
         // 原版主页的剪贴板**没有**区段标题、搜索框和过滤栏——就是一条条的行；
         // 搜索走面板顶部搜索框（Toolbox 的 SearchSectionView），标签过滤/浮动窗/刷新收进右键菜单与状态栏菜单。
         VStack(spacing: 0) {
+            if !isSettingsPreview, manager.isRecordingPaused {
+                HStack(spacing: 8) {
+                    Image(systemName: "pause.fill")
+                    Text(manager.pauseStatus).font(.system(size: 12))
+                    Spacer()
+                    Button("恢复") { manager.resumeRecording() }.buttonStyle(.borderless)
+                }.padding(8).background(Theme.accent.opacity(0.08)).transition(.opacity)
+            }
             list
         }
+        .animation(.easeOut(duration: 0.14), value: manager.isRecordingPaused)
         .frame(maxHeight: .infinity, alignment: .top)
         .onAppear {
+            if isSettingsPreview { return }
             // 面板复用：清理预览协调器的抑制/未决 WorkItem（specs/12 prepareForPanelAppear）
             // 经 ServiceLocator.panelPreview 协议调用，不引用 Panel 具体类型（CONTRACT §1.3）
             ServiceLocator.panelPreview?.prepareForPanelAppear()
@@ -73,7 +85,16 @@ public struct ClipboardSectionView: View {
 
     private var list: some View {
         Group {
-            if manager.items.isEmpty {
+            if isSettingsPreview {
+                VStack(spacing: 2) {
+                    ForEach(previewItems) { item in
+                        ClipboardRow(item: item, isHighlighted: item.id == previewItems.first?.id,
+                                     onCopy: {}, onEdit: {}, onSummarize: {})
+                            .frame(height: Theme.statsRowHeight)
+                    }
+                }
+                .clipped()
+            } else if manager.items.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "clipboard")
                         .font(.scaledSystem(size: 22))
@@ -257,7 +278,7 @@ public struct ClipboardRowMenuContent: View {
     private var actions: [ClipboardMenuActionItem] {
         let manager = ClipboardManager.shared
         let canSummarize = ClipboardSummaryExecutionCoordinator.shared.isAvailable
-        return [
+        let existing = [
             ClipboardMenuActionItem(id: "copy", title: "复制", systemImage: "doc.on.doc") { manager.copy(item) },
             // v112 空投联动：条目文件 → 系统空投面板（经通知走 App 层接线）
             // v260：构造菜单时不再 stat 磁盘（airDropFileURLCandidate 只拼路径），
@@ -285,6 +306,7 @@ public struct ClipboardRowMenuContent: View {
             },
             ClipboardMenuActionItem(id: "delete", title: "删除", systemImage: "trash") { manager.delete(item) }
         ]
+        return Array(existing.prefix(1)) + ClipboardContentActions.items(for: item) + Array(existing.dropFirst())
     }
 }
 
@@ -354,9 +376,15 @@ public struct ClipboardRow: View {
             Spacer(minLength: 6)
             if isHighlighted {
                 HStack(spacing: 10) {
-                    iconButton("arrow.down", help: "复制") { onCopy() }
-                    iconButton("return.left", help: "复制并粘贴") {
-                        ClipboardManager.shared.copy(item, autoPaste: true)
+                    let related = ClipboardContentActions.quickActions(for: item)
+                    if related.isEmpty {
+                        iconButton("arrow.down", help: "复制") { onCopy() }
+                        iconButton("return.left", help: "复制并粘贴") { ClipboardManager.shared.copy(item, autoPaste: true) }
+                    } else {
+                        ForEach(related) { action in
+                            iconButton(action.systemImage, help: action.title, action: action.action)
+                        }
+                        if related.count == 1 { iconButton("arrow.down", help: "复制") { onCopy() } }
                     }
                 }
             }
@@ -476,6 +504,82 @@ public struct ClipboardRow: View {
         }
         .buttonStyle(.plain)
         .help(help)
+    }
+}
+
+/// 行快捷动作与两种原有菜单共用；只有执行复制才写剪贴板。
+struct ClipboardRecordingMenu: View {
+    @ObservedObject private var manager = ClipboardManager.shared
+    var body: some View {
+        Menu {
+            if manager.isRecordingPaused {
+                Text(manager.pauseStatus)
+                Button("立即恢复") { manager.resumeRecording() }
+                Divider()
+            }
+            ForEach([5, 15, 30], id: \.self) { minutes in
+                Button("暂停 \(minutes) 分钟") { manager.pauseRecording(minutes: minutes) }
+            }
+            Button("暂停至手动恢复") { manager.pauseRecording(minutes: nil) }
+        } label: {
+            Label(manager.isRecordingPaused ? manager.pauseStatus : "暂停记录剪贴板", systemImage: "pause.fill")
+        }
+    }
+}
+
+enum ClipboardContentActions {
+    static func quickActions(for item: ClipboardItem) -> [ClipboardMenuActionItem] {
+        let text = (item.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasPrefix("{") || text.hasPrefix("[") { return [tool(item, id: "json", title: "格式化 JSON", icon: "curlybraces")] }
+        if item.type == .url {
+            var result = [tool(item, id: "qrcode", title: "生成二维码", icon: "qrcode")]
+            if ClipboardTextTransforms.cleanLink(text).removed > 0 { result.append(cleanLink(item)) }
+            return result
+        }
+        if item.type == .richtext { return [plainText(item)] }
+        return []
+    }
+
+    static func items(for item: ClipboardItem) -> [ClipboardMenuActionItem] {
+        if item.type == .image {
+            return [ClipboardMenuActionItem(id: "copyImageFile", title: "复制为文件", systemImage: "doc") {
+                if let reason = ClipboardManager.shared.copyImageFile(item) { Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true) }
+            }]
+        }
+        guard item.type != .file else { return [] }
+        var actions = [tool(item, id: "json", title: "格式化 JSON", icon: "curlybraces"),
+                       tool(item, id: "qrcode", title: "生成二维码", icon: "qrcode"),
+                       plainText(item), tool(item, id: "deduplicate", title: "去重行…", icon: "line.3.horizontal.decrease")]
+        if item.type == .url { actions.insert(cleanLink(item), at: 0) }
+        return actions
+    }
+
+    private static func body(_ item: ClipboardItem) -> String? {
+        var error: String?
+        let text = ClipboardManager.shared.fullText(for: item) { error = $0 }
+        if let error { Toast.show(error, icon: "exclamationmark.triangle", isWarning: true); return nil }
+        return text
+    }
+    private static func tool(_ item: ClipboardItem, id: String, title: String, icon: String) -> ClipboardMenuActionItem {
+        ClipboardMenuActionItem(id: id, title: title, systemImage: icon) {
+            guard let text = body(item) else { return }
+            ServiceLocator.panelPreview?.dismissPreview()
+            PanelController.shared.hide { ToolRunnerWindowController.shared.show(toolID: id, autoRun: true, input: text, intent: .preview) }
+        }
+    }
+    private static func plainText(_ item: ClipboardItem) -> ClipboardMenuActionItem {
+        ClipboardMenuActionItem(id: "plainText", title: "复制纯文本", systemImage: "doc.plaintext") {
+            guard let text = body(item) else { return }
+            ClipboardManager.shared.copyText(text, successMessage: "已复制纯文本")
+        }
+    }
+    private static func cleanLink(_ item: ClipboardItem) -> ClipboardMenuActionItem {
+        ClipboardMenuActionItem(id: "cleanLink", title: "复制干净链接", systemImage: "link") {
+            guard let text = body(item) else { return }
+            let result = ClipboardTextTransforms.cleanLink(text)
+            let message = result.signed ? "已复制原链接，保留签名参数" : result.removed == 0 ? "已复制原链接，无跟踪参数" : "已复制，移除 \(result.removed) 个跟踪参数"
+            ClipboardManager.shared.copyText(result.text, successMessage: message)
+        }
     }
 }
 

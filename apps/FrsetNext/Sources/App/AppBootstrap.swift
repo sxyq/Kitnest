@@ -432,9 +432,8 @@ enum AppBootstrap {
         },
         DefaultHotkeyEntry(id: "toggleClipboardRecording", title: "暂停/恢复剪贴板记录",
                            keyCode: 0x0F, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥R（⇧⌥P 已被原版「截图并贴图」占用）
-            let paused = !ClipboardManager.shared.isRecordingPaused
-            ClipboardManager.shared.isRecordingPaused = paused
-            Toast.show(paused ? "已暂停记录剪贴板" : "已恢复剪贴板记录", icon: paused ? "pause.fill" : "play.fill")
+            if ClipboardManager.shared.isRecordingPaused { ClipboardManager.shared.resumeRecording() }
+            else { ClipboardManager.shared.pauseRecording(minutes: nil) }
         },
         DefaultHotkeyEntry(id: "monitorPopout", title: "监测独立窗口",
                            keyCode: 0x2E, modifiers: UInt32(optionKey)) {   // ⌥M

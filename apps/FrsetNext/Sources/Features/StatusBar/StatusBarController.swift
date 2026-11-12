@@ -24,6 +24,8 @@ public final class StatusBarController: NSObject {
     private var currentPopover: NSPopover?
     private var statisticsObservation: NSObjectProtocol?
     private var didInstall = false
+    private let pauseBadge = NSImageView()
+    private var pauseObservation: NSObjectProtocol?
 
     private override init() { super.init() }
 
@@ -42,6 +44,8 @@ public final class StatusBarController: NSObject {
         guard !didInstall else { return }
         didInstall = true
         installMainItem()
+        pauseObservation = NotificationCenter.default.addObserver(forName: ClipboardManager.recordingPausedDidChangeNotification,
+            object: nil, queue: .main) { [weak self] _ in self?.updatePauseBadge() }
         statisticsObservation = NotificationCenter.default.addObserver(
             forName: Notification.Name("frset.openStatistics"), object: nil, queue: .main
         ) { [weak self] _ in self?.showStatisticsAction(nil) }
@@ -70,6 +74,11 @@ public final class StatusBarController: NSObject {
             let proxy = StatusItemDropProxy(frame: b.bounds)
             proxy.autoresizingMask = [.width, .height]
             b.addSubview(proxy)
+            pauseBadge.image = NSImage(systemSymbolName: "pause.fill", accessibilityDescription: "剪贴板记录已暂停")
+            pauseBadge.frame = NSRect(x: b.bounds.maxX - 8, y: b.bounds.maxY - 8, width: 7, height: 7)
+            pauseBadge.autoresizingMask = [.minXMargin, .minYMargin]
+            pauseBadge.isHidden = true
+            b.addSubview(pauseBadge)
         }
         ToastAnchor.button = item.button       // 通知条定位锚点（spec 13 §3，主状态项图标）
         mainItem = item
@@ -128,6 +137,16 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
+
+    private func updatePauseBadge() {
+        pauseBadge.isHidden = !ClipboardManager.shared.isRecordingPaused
+        mainItem?.button?.toolTip = ClipboardManager.shared.isRecordingPaused ? "Kitnest · \(ClipboardManager.shared.pauseStatus)" : "Kitnest（右键查看更多）"
+    }
+
+    @objc func pauseRecordingAction(_ sender: NSMenuItem) {
+        if sender.tag == 0 { ClipboardManager.shared.resumeRecording() }
+        else { ClipboardManager.shared.pauseRecording(minutes: sender.tag < 0 ? nil : sender.tag) }
+    }
 
     @objc func openMonitorSettingsAction(_ sender: Any?) {
         ServiceLocator.settings?.open(pane: "monitor")

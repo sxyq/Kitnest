@@ -12,7 +12,7 @@ public struct ClipboardSettingsPane: View {
 
     /// v272：剪贴板拆成三个二级页（历史 / 捕获 / 浮动窗），侧边栏一项对一页。
     /// 「标签管理」「忽略应用」这两行原先重复摆在「常规 → 剪贴板」段，已并回这里并删掉重复。
-    public enum Section: Hashable { case history, capture, floating }
+    public enum Section: Hashable { case history, capture, floating, appearance }
     var section: Section = .history
 
     /// 标签管理 sheet 呈现
@@ -26,6 +26,7 @@ public struct ClipboardSettingsPane: View {
     @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
     @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
     @ObservedObject private var floatingStore = FloatingClipboardWindowController.shared.store
+    @ObservedObject private var deskStore = FloatingClipDeskStore.shared
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
     @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
@@ -57,6 +58,12 @@ public struct ClipboardSettingsPane: View {
             case .history:  historySection
             case .capture:  captureSection
             case .floating: floatingSection
+            case .appearance:
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .clipboardList)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .clipboardAppearance)
+                }
             }
         }
         .font(.system(size: 13))
@@ -182,6 +189,30 @@ public struct ClipboardSettingsPane: View {
     private var floatingSection: some View {
         SettingsSection("浮动窗") {
             SettingsGroupBox {
+                AppearancePreviewBlock(scope: .clipboard)
+                SettingsDivider()
+                SettingsRow(title: "布局") {
+                    Picker("", selection: $deskStore.layout) {
+                        ForEach(FloatingClipLayout.allCases, id: \.self) { layout in
+                            Text(layout.label).tag(layout)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+                SettingsDivider()
+                SettingsRow(title: "卡片档位") {
+                    Picker("", selection: $deskStore.cardSize) {
+                        ForEach(FloatingClipCardSize.allCases, id: \.self) { size in
+                            Text(size.label).tag(size)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+                SettingsDivider()
                 SettingsRow(title: "显示浮动窗") {
                     Toggle("", isOn: Binding(
                         get: { floatingStore.isVisible },
