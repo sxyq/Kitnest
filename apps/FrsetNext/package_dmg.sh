@@ -61,7 +61,7 @@ hdiutil create -volname "Kitnest 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$O
 rm -rf "$STAGE"
 
 # 挂载校验
-VOL=$(hdiutil attach "$OUT" -nobrowse -readonly | tail -1 | awk -F'\t' '{print $NF}')
+VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')
 codesign -v "$VOL/Kitnest.app" && echo "✓ 签名校验通过"
 hdiutil detach "$VOL" -quiet
 ls -lh "$OUT"
