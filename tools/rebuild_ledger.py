@@ -695,6 +695,47 @@ EVIDENCE.update({
 })
 
 
+# ── 2026-11-13：七页外观草稿实时预览、保存才应用 ───────────────────────
+EVIDENCE.update({
+    ("Core/Runtime/Personalization.swift", "makeDraft"):
+        "AppearanceSettingsDraft 初始化与 discard 调用：创建 persistsChanges=false 的 Personalization，再经 copyValues 复制当前外观；草稿属性变更只发布到预览，不写偏好",
+    ("Core/Runtime/Personalization.swift", "applyDraft"):
+        "保存按钮 → AppearanceSettingsDraft.save → shared.applyDraft：isLoading 期间复制草稿，结束后 flushPendingPersist 一次写入偏好并发 didChangeNotification，正式窗口读取保存值",
+    ("Core/Runtime/Personalization.swift", "copyValues"):
+        "makeDraft 与 applyDraft 共用的外观复制入口：同步强调色、字号、密度、圆角、动画、材质、徽章、缩略图、通知、分隔线、Midnight、背景图与玻璃四参数共 19 项",
+    ("Core/UI/AppearanceTheme.swift", "baseBackground"):
+        "AppearanceThemeModifier 与 Theme.windowSurface(for:midnight:) 调用：将指定 Personalization.midnightHueShift 传给 h，生成 Midnight 窗口基色；静态属性继续传 shared",
+    ("Core/UI/AppearanceTheme.swift", "cardBackground"):
+        "AppearanceThemeModifier 与 Theme.cardFill(for:midnight:) 调用：按指定草稿 glassCardLift/0.55 提升 RGB 基色，再经 h 应用 midnightHueShift，使卡片亮度和色相随预览更新",
+    ("Core/UI/AppearanceTheme.swift", "textColor"):
+        "AppearanceThemeModifier.body 调用并注入 midnightTextColorOverride：冷白蓝文本色经 h 应用指定草稿的 midnightHueShift，与预览背景使用同一色相设置",
+    ("Core/UI/LiquidGlass.swift", "applyPreviewStyle"):
+        "LiquidGlassBackground.makeNSView/updateNSView 的设置预览分支共用：按预览 colorScheme 设置 aqua/darkAqua，按草稿材质选择 hudWindow/windowBackground，并固定 withinWindow 混合",
+    ("Core/UI/Support.swift", "init"):
+        "ThemeAppearance.init 保存传入的 Personalization 与 isMidnight；AppearancePreviewBlock、PanelRootView、剪贴板、Toast、GlassSurface/GlassCard 共用其颜色和尺寸属性，预览传草稿、正式视图传应用值",
+    ("Core/UI/Support.swift", "windowSurface"):
+        "ThemeAppearance.windowSurface 与 Theme 静态属性调用：读取指定 Personalization.glassOpacity；Midnight 使用同对象基色，普通主题经 cachedSurface 按系统明暗生成窗口底色与透明度",
+    ("Core/UI/Support.swift", "glassFrost"):
+        "GlassSurface → ThemeAppearance.glassFrost → Theme.glassFrost(for:)：读取指定草稿 glassBlur，经 cachedSurface 生成白色霜感层，深浅色透明度分别为 0.11×blur 与 0.20×blur",
+    ("Core/UI/Support.swift", "cardFill"):
+        "GlassCard、剪贴板卡片与缩略图 → ThemeAppearance.cardFill：Midnight 传同对象给 cardBackground，普通主题读取 glassCardLift，深浅色透明度分别为 0.035+0.065×lift 与 0.55+0.43×lift",
+    ("Core/UI/Support.swift", "insetFill"):
+        "FloatingClipboardDeskView.previewPane → ThemeAppearance.insetFill：从指定草稿 glassOpacity 求 k=0.6+0.4×opacity，生成深浅色透明度为 0.22×k/0.045×k 的黑色内嵌区底色",
+    ("Core/UI/Support.swift", "cardStroke"):
+        "GlassCard、剪贴板行和 AppearancePreviewBlock 外框 → ThemeAppearance.cardStroke：读取指定草稿 glassStroke，深色白边/浅色黑边透明度分别为 0.02+0.16×stroke 与 0.02+0.14×stroke",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "init"):
+        "同文件三处初始化共用依据：七页调用 AppearanceSettingsEditor.init 保存内容闭包，其 StateObject 创建 AppearanceSettingsDraft.init 并订阅变化；PersonalizationSettingsView.init 接收 part/draft，观察同一 draft.personalization，让控件和预览共用草稿",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "observeChanges"):
+        "AppearanceSettingsDraft.init 及 personalization/floating 替换时调用：合并两对象的 objectWillChange，递增 previewRevision；AppearancePreviewBlock 的 .id(draft.previewRevision) 据此重建正式预览组件",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "save"):
+        "AppearanceSettingsEditor「保存并应用」与 ⌘S 调用：写面板宽度、动作条样式、四页显隐和顺序，applyDraft 应用个性化、AppearanceManager.apply 应用主题，再复制浮动窗布局/卡片档位/分隔比例并 persistSplitRatio",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "discard"):
+        "AppearanceSettingsEditor「取消」调用：从 shared.makeDraft、Preferences、PanelSegments、AppearanceManager 重新读取已保存设置，并重建 settingsPreview=true 的浮动窗 Store；替换对象时重新订阅并刷新预览",
+    ("Features/Settings/Shell/SettingsPanes.swift", "appearanceChoices"):
+        "GeneralSettingsPane.personalizationSection 的 AppearanceSettingsEditor 内容调用：系统/浅色/深色/Midnight 分段 Picker 双向绑定 draft.appearance，触发 previewRevision 与预览明暗更新；正式主题由 save 中 AppearanceManager.apply 应用",
+})
+
+
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。
 _PATH_ALIASES = {
