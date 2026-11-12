@@ -364,7 +364,7 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
 
     private let padding: CGFloat = 8
     private let footerH: CGFloat = 18
-    private let contentW: CGFloat = 240
+    private let contentW: CGFloat = 300
 
     /// 位置算下来无论如何都会压在选区上时（选区几乎占满整屏宽），宁可不显示——
     /// 这张卡的意义是「让你看见画布」，压住内容反而坏事。
@@ -444,7 +444,7 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         // 优先放大可读内容，屏幕边缘按实际槽位收窄。
         let maxDisplayH = max(24, slotMaxHeight(slot) - footerH - padding * 2)
         let scale = contentW / CGFloat(max(1, image.width))
-        let limit = min(420, maxDisplayH)
+        let limit = min(500, maxDisplayH)
         let visibleSrcH = max(1, min(CGFloat(image.height), (limit / max(scale, 0.0001)).rounded()))
         let cropRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: visibleSrcH)
         let cropped = image.cropping(to: cropRect) ?? image
