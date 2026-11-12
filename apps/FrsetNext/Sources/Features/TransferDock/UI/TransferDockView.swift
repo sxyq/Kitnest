@@ -42,6 +42,8 @@ struct TransferDockView: View {
     // LocalCardRowView 各自持有），父视图不再跟踪 hover，避免 hover 触发整表重算。
     /// 本地暂存勾选集合（勾选后可「扫码直传 / 加入云端 / 移出」批量操作）
     @Stored private var selectedIDs = Set<String>()
+    @Stored private var copyCompleted = false
+    @ObservedObject private var compression = BatchImageCompressionWindowController.shared
     /// 「扫码直传」选中文件的二维码链接（带 ?pick=ids，手机只看到这几个）
     @Stored private var pickShareURL: String?
     /// 直传服务是否由「传输」动作拉起（是则勾选清空时随停；手动启动的不代停）
@@ -886,15 +888,48 @@ struct TransferDockView: View {
                 .foregroundStyle(Theme.accent)
             Spacer(minLength: 2)
             smallAction("通用互传", icon: "qrcode") { showPickQR() }
-            if showsCloud {
-                smallAction("加入云端", icon: "icloud.and.arrow.up") { pushSelectedToCloud() }
+            Menu(copyCompleted ? "✓ 已复制" : "复制") {
+                Text("一行一个")
+                Button("复制文件名") { copySelectedMetadata(paths: false) }
+                Button("复制路径") { copySelectedMetadata(paths: true) }
+            }.menuStyle(.borderlessButton).frame(width: 76)
+            Menu("更多") {
+                if showsCloud { Button("加入云端") { pushSelectedToCloud() } }
+                if !selectedImages.isEmpty {
+                    Button(selectedImages.count == selectedIDs.count ? "压缩图片…" : "压缩其中 \(selectedImages.count) 张图片…") {
+                        let urls = selectedImages.map { sendableURL($0) }
+                        PanelController.shared.hide {
+                            Task { @MainActor in compression.show(urls: urls, omitted: selectedIDs.count - urls.count) }
+                        }
+                    }
+                }
+                Button("移出") { removeSelected() }
             }
-            smallAction("移出", icon: "xmark.circle") { removeSelected() }
+            .menuStyle(.borderlessButton).frame(width: 52)
             smallAction("取消", icon: "circle.slash") { selectedIDs.removeAll() }
         }
         .padding(.horizontal, 8)
-        .frame(height: 28)
+        .frame(height: 32)
         .background(Theme.accent.opacity(0.06))
+    }
+
+    private var selectedImages: [LocalTransferItem] {
+        local.items.filter { selectedIDs.contains($0.id) && (UTType(filenameExtension: ($0.name as NSString).pathExtension)?.conforms(to: .image) == true) }
+    }
+
+    private func copySelectedMetadata(paths: Bool) {
+        let selected = displayedLocalItems.filter { selectedIDs.contains($0.id) }
+        let available = selected.map { sendableURL($0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
+        let values = paths ? available.map(\.path) : selected.map(\.name)
+        guard !values.isEmpty else { Toast.show("所选文件均不可用", icon: "exclamationmark.triangle", isWarning: true); return }
+        let missing = selectedIDs.count - available.count
+        let message = paths ? (missing > 0 ? "已复制 \(available.count) 个路径，\(missing) 个文件不可用" : "已复制 \(available.count) 个路径") : "已复制 \(selected.count) 个文件名"
+        if let error = ClipboardManager.shared.copyText(values.joined(separator: "\n"), successMessage: message) {
+            Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+        } else {
+            copyCompleted = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copyCompleted = false }
+        }
     }
 
     private func toggleSelect(_ id: String) {
@@ -1026,16 +1061,38 @@ struct TransferDockView: View {
         .padding(6)
     }
 
+    private var displayedLocalItems: [LocalTransferItem] {
+        let paths = Set(compression.resultURLs.map(\.path))
+        return local.items.filter { paths.contains($0.originalPath) }
+            + local.items.filter { !paths.contains($0.originalPath) }
+    }
+
     private var localList: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        let paths = Set(compression.resultURLs.map(\.path))
+        let generated = displayedLocalItems.filter { paths.contains($0.originalPath) }
+        let originals = displayedLocalItems.filter { !paths.contains($0.originalPath) }
+        return ScrollView(.vertical, showsIndicators: false) {
             // v115：改双列彩色卡片（用户：「跟剪贴板一样，改为卡片，一行两个，
             // 图标 + 名字就够」）。列用 adaptive 而不是两个 .flexible()——
             // 面板预热会以 0 宽过一次布局，flexible 双列会算出负宽度触发
             // AppKit 布局异常（实测崩溃 2026-10-25）；adaptive 在窄宽自动退 1 列。
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: .infinity), spacing: 6)],
                       spacing: 6) {
-                ForEach(local.items) { item in
-                    localCard(item)
+                if !generated.isEmpty {
+                    Section {
+                        ForEach(generated) { localCard($0) }
+                    } header: {
+                        HStack {
+                            Text("压缩结果 · \(generated.count) 个文件")
+                            Spacer()
+                            Button("选中结果") { selectedIDs = Set(generated.map(\.id)) }
+                        }.font(.system(size: 12, weight: .medium)).padding(.vertical, 4)
+                    }
+                }
+                Section {
+                    ForEach(originals) { localCard($0) }
+                } header: {
+                    if !generated.isEmpty { Text("原文件").font(.system(size: 12, weight: .medium)).frame(maxWidth: .infinity, alignment: .leading) }
                 }
             }
             .padding(.horizontal, 8)
