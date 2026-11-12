@@ -1433,17 +1433,18 @@ Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolba
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,389,KEEP,NSResponder 覆写，Esc 兜底派发
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,393,KEEP,CaptureActionChain.swift:241 init 调用
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,418,KEEP,":233 onPick 闭包 + :351,358 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,iconCell,func,186,KEEP,"本类型 :112,:167 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,pillCell,func,219,KEEP,本类型 :122 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,submenu,func,255,KEEP,本类型 :45 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,activate,func,323,KEEP,"本类型 :183,:215 按钮闭包"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,toggle,func,331,KEEP,本类型 :294 activate 调用
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,handleHover,func,338,KEEP,"本类型 :157,:208,:242 onHover 回调"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryID,func,382,KEEP,"本类型 :291,:346 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryTool,func,386,KEEP,"本类型 :189,:220,:374 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,menuItems,func,391,KEEP,"本类型 :195,:249,:375 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,isDefault,func,407,KEEP,"本类型 :180,:212 调用"
-Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,helpText,func,414,KEEP,"本类型 :207,:241 .help 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureButtonAnchorKey,reduce,func,7,KEEP,合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,iconCell,func,201,KEEP,"本类型 :112,:167 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,pillCell,func,235,KEEP,本类型 :122 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,submenu,func,272,KEEP,本类型 :45 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,activate,func,349,KEEP,"本类型 :183,:215 按钮闭包"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,toggle,func,357,KEEP,本类型 :294 activate 调用
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,handleHover,func,363,KEEP,"本类型 :157,:208,:242 onHover 回调"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryID,func,403,KEEP,"本类型 :291,:346 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,primaryTool,func,407,KEEP,"本类型 :189,:220,:374 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,menuItems,func,412,KEEP,"本类型 :195,:249,:375 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,isDefault,func,427,KEEP,"本类型 :180,:212 调用"
+Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,helpText,func,434,KEEP,"本类型 :207,:241 .help 调用"
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureAspectRatio,init,init,23,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureAspectRatio,parse,func,49,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureAspectRatio,gcd,func,64,KEEP,待补证据：新增函数，尚未逐个读源码填写

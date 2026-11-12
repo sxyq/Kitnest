@@ -1,6 +1,14 @@
 import AppKit
 import SwiftUI
 
+private struct CaptureButtonAnchorKey: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] { [:] }
+
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
 // MARK: - 框选动作面板内容（v219 三样式）
 //
 // 上一版的问题（用户实拍指出）：
@@ -42,25 +50,29 @@ struct CaptureActionToolbarView: View {
                     .onTapGesture {
                         hovered = nil
                         hoveredItem = nil
-                        withAnimation(.easeOut(duration: 0.12)) { expanded = nil }
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
                     }
                 Divider().opacity(0.4)
                 bar.frame(height: barHeight)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 子项浮层：画在面板内部（向上盖住预览图下半），不超出窗口边界
-            if let group = expandedGroup {
-                submenu(group)
-                    .padding(.bottom, barHeight + 8)
-                    .padding(.trailing, 12)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .opacity))
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlayPreferenceValue(CaptureButtonAnchorKey.self) { anchors in
+            GeometryReader { geo in
+                if let group = expandedGroup, let anchor = anchors[group.id] {
+                    let button = geo[anchor]
+                    // 浮层正对触发按钮；仅靠近两端时向内让位，保留 12pt 边距。
+                    let left = min(max(button.midX - 84, 12), geo.size.width - 180)
+                    submenu(group)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .bottom)))
+                        .padding(.bottom, geo.size.height - button.minY + 8)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        .offset(x: left)
+                }
+            }
+        }
         .background(GlassSurface(cornerRadius: Theme.Radius.window))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
@@ -157,11 +169,14 @@ struct CaptureActionToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .focusable(false)
-                .help("回车执行：\(tool.title)")
+                .accessibilityHint("回车执行：\(tool.title)")
+                .anchorPreference(key: CaptureButtonAnchorKey.self, value: .bounds) { anchor in
+                    primaryGroup.map { [$0.id: anchor] } ?? [:]
+                }
                 // 大按钮也挂着它所在组的子项：默认动作被设成「保存」时，
                 // 「复制」就退到这里的悬停浮层里，不会丢入口
                 .onHover { inside in
-                    if let group = defaultGroup { handleHover(inside, group: group) }
+                    if let group = primaryGroup { handleHover(inside, group: group) }
                 }
             }
 
@@ -212,7 +227,8 @@ struct CaptureActionToolbarView: View {
         .buttonStyle(.plain)
         .focusable(false)
         .accessibilityLabel(primaryTool(group)?.title ?? group.title)
-        .help(helpText(group))
+        .accessibilityHint(helpText(group))
+        .anchorPreference(key: CaptureButtonAnchorKey.self, value: .bounds) { [group.id: $0] }
         .onHover { handleHover($0, group: group) }
     }
 
@@ -246,7 +262,8 @@ struct CaptureActionToolbarView: View {
         }
         .buttonStyle(.plain)
         .focusable(false)
-        .help(helpText(group))
+        .accessibilityHint(helpText(group))
+        .anchorPreference(key: CaptureButtonAnchorKey.self, value: .bounds) { [group.id: $0] }
         .onHover { handleHover($0, group: group) }
     }
 
@@ -266,6 +283,15 @@ struct CaptureActionToolbarView: View {
                 .padding(.horizontal, 9)
                 .padding(.top, 2)
                 .padding(.bottom, 4)
+            if menuItems(group).isEmpty {
+                Text(helpText(group))
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+            }
             ForEach(menuItems(group), id: \.self) { id in
                 if let tool = CaptureActionChain.tool(id: id) {
                     if id == "pinClassic" || id == "curtain" {
@@ -329,8 +355,7 @@ struct CaptureActionToolbarView: View {
     }
 
     private func toggle(_ group: CaptureActionGroup) {
-        guard !group.items.isEmpty else { return }
-        withAnimation(.spring(response: 0.26, dampingFraction: 0.85)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.85)) {
             expanded = (expanded == group.id) ? nil : group.id
         }
     }
@@ -340,21 +365,17 @@ struct CaptureActionToolbarView: View {
             hovered = nil
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
                 guard hovered == nil else { return }
-                withAnimation(.easeOut(duration: 0.12)) { expanded = nil }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
             }
             return
         }
         hovered = group.id
-        guard !group.items.isEmpty else {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
-            return
-        }
         guard expanded != group.id else { return }
         let id = group.id
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
             // 鼠标已移走 / 已经展开过就别再弹
             guard hovered == id, expanded != id else { return }
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.86)) {
                 expanded = id
             }
         }
@@ -394,14 +415,13 @@ struct CaptureActionToolbarView: View {
 
     /// 右侧次要图标：排除已经由左侧大按钮承担的那个组
     private var secondaryGroups: [CaptureActionGroup] {
-        let dg = defaultGroup?.id
+        let dg = primaryGroup?.id
         return CaptureActionChain.groups.filter { $0.id != dg }
     }
 
-    /// 默认动作所在的组（大按钮的子项从它取；右侧图标要避开它，免得重复）
-    private var defaultGroup: CaptureActionGroup? {
-        guard let d = model.defaultToolID else { return nil }
-        return CaptureActionChain.groups.first { $0.primary == d || $0.items.contains(d) }
+    /// 左侧按钮显示复制，其提示与右侧排除项均按这个实际按钮分组。
+    private var primaryGroup: CaptureActionGroup? {
+        CaptureActionChain.groups.first
     }
 
     private func isDefault(_ group: CaptureActionGroup) -> Bool {
@@ -413,6 +433,7 @@ struct CaptureActionToolbarView: View {
 
     private func helpText(_ group: CaptureActionGroup) -> String {
         if group.primary == "recentCopy" { return "选择近期记录，一次复制" }
+        if group.primary == "longShot" { return "在选区内滚动，连续拼接长截图" }
         let title = primaryTool(group)?.title ?? group.title
         return menuItems(group).isEmpty ? title : "\(title)（悬停看更多）"
     }

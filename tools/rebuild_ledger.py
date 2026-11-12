@@ -43,6 +43,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "reduce"):
+        "合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距",
     # ── v249–v258 ────────────────────────────────────────────────────────
     ("Features/Archive/UI/ArchiveBrowserWindow.swift", "stamp"):
         "v256 源包指纹（mtime+字节数）；init/confirmOverwriteIfSourceChanged/refreshSourceStamp 三处调用",
