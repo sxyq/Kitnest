@@ -315,6 +315,9 @@ public enum FloatingClipPrefs {
 // MARK: - 主视图
 
 public struct FloatingClipboardDeskView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewClipboardItems) private var previewItems
+    @Stored private var previewSessionID = UUID()
 
     @ObservedObject private var store = FloatingClipDeskStore.shared
     /// v203：玻璃四滑块（通透度/磨砂/卡片亮度/描边）要即拖即生效——
@@ -328,6 +331,15 @@ public struct FloatingClipboardDeskView: View {
     @Environment(\.midnightCardBackgroundOverride) private var midnightCardBackground
 
     public init() {}
+
+    private var displayedItems: [ClipboardItem] { isSettingsPreview ? previewItems : store.items }
+    private var displayedPreview: PreviewPopoverContentModel? {
+        if isSettingsPreview, let item = previewItems.first {
+            return PreviewPopoverContentModel(item: item, source: .floatingPreview,
+                                              sessionID: previewSessionID, inlineText: item.content ?? "")
+        }
+        return store.previewModel
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -352,12 +364,14 @@ public struct FloatingClipboardDeskView: View {
                 .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
         )
         .onAppear {
+            if isSettingsPreview { return }
             store.reload(debounce: false)
             // 打开即可打字：不等用户点搜索框
-            DispatchQueue.main.async { searchFocused = true }
+            if !isSettingsPreview { DispatchQueue.main.async { searchFocused = true } }
         }
         // 选中项变了 → 右侧预览跟着换
         .onChange(of: store.selectedIndex) { _ in
+            if isSettingsPreview { return }
             store.rebuildPreviewModel()
         }
     }
@@ -391,7 +405,7 @@ public struct FloatingClipboardDeskView: View {
 
             Spacer(minLength: 4)
 
-            Text("\(store.items.count)")
+            Text("\(displayedItems.count)")
                 .font(.scaledSystem(size: 10).monospacedDigit())
                 .foregroundStyle(.tertiary)
         }
@@ -528,7 +542,7 @@ public struct FloatingClipboardDeskView: View {
     /// 左栏：卡片网格 / 列表
     @ViewBuilder
     private var cardsPane: some View {
-        if store.items.isEmpty {
+        if displayedItems.isEmpty {
             emptyState
         } else if store.layout == .grid {
             gridContent
@@ -543,7 +557,7 @@ public struct FloatingClipboardDeskView: View {
         ZStack {
             // 内嵌区底色：比窗口底暗一档，把「预览面板」和「卡片面」分成两块
             Theme.insetFill
-            if let model = store.previewModel {
+            if let model = displayedPreview {
                 PreviewPopoverContentView(model: model)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(8)
@@ -612,7 +626,7 @@ public struct FloatingClipboardDeskView: View {
     /// 某一列要显示的条目（按下标取模分列，保证顺序稳定）
     private func columnItems(_ column: Int,
                              of columns: Int) -> [(offset: Int, element: ClipboardItem)] {
-        Array(store.items.enumerated()).filter { $0.offset % columns == column }
+        Array(displayedItems.enumerated()).filter { $0.offset % columns == column }
     }
 
     private func card(_ item: ClipboardItem, index: Int) -> some View {
@@ -634,7 +648,7 @@ public struct FloatingClipboardDeskView: View {
                     // Array(items.enumerated())（n 个元组 + 一堆 ARC 释放），
                     // 滚动时每帧一次。改成直接遍历 items、按稳定的 item.id 认行，
                     // 判选中用 selectedItemID，零临时分配。
-                    ForEach(store.items, id: \.id) { item in
+                    ForEach(displayedItems, id: \.id) { item in
                         FloatingClipListRow(item: item, isSelected: store.selectedItemID == item.id)
                             .onTapGesture(count: 2) { store.paste(item) }
                             .onTapGesture { store.select(item) }
@@ -712,6 +726,7 @@ public struct FloatingClipboardDeskView: View {
     }
 
     private var statusText: String {
+        if isSettingsPreview { return "示例内容 · \(previewItems.count) 条" }
         if store.isLoading { return "正在筛选…" }
         let kindText = store.kind == .all ? "全部" : store.kind.label
         let searchText = store.loadedSearch.isEmpty ? "" : " · 「\(store.loadedSearch)」"

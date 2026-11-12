@@ -18,7 +18,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
 
     private var item: ClipboardItem
     /// 一次性空格预览提示（hover 态首帧显示）
-    private let showsHint: Bool
+    private var showsHint: Bool
     /// 编辑态变化上报（协调器据此暂停 hover 自动关闭）
     var onEditingChanged: ((Bool) -> Void)?
     /// 窗口已关闭上报（协调器 handleWindowDidClose 统一清理）
@@ -40,7 +40,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                                         backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.level = .floating
-        window.minSize = NSSize(width: 420, height: 320)
+        window.minSize = NSSize(width: 420, height: 168)
         window.identifier = NSUserInterfaceItemIdentifier("frset.clipboardPreview")
         super.init(window: window)
         window.delegate = self
@@ -50,49 +50,61 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（预览窗走代码构建）") }
 
-    /// 按内容自适应初始尺寸（v192）
-    ///
-    /// 用户原话：「当前主页点开的那个剪贴板预览，它的框都一样，看有其他好的方法去解决吗」
-    /// —— 旧实现无论图片/文本/代码/文件，一律 720×620，短文本周围一圈空白，
-    /// 长文档又要立刻滚动。
-    ///
-    /// 现在的口径：
-    ///   · 图片：按原图像素等比装进 900×760，小图不放大（超过就缩），再留 56pt 给标题/工具条；
-    ///   · 文件：560×420（真正高度由后面的 fittingSize 收缩逻辑收口）；
-    ///   · 文本/代码/链接：按「最长行 × 每字宽」估宽（440–820），按行数估高（320–760）；
-    ///     上限之外一律进入内部滚动，不无限拉高窗口。
-    private static func initialSize(item: ClipboardItem) -> NSSize {
-        switch item.type {
+    /// 按实际渲染字号和折行测量；长图片保留可读宽度，正文在窗内滚动。
+    private static func initialSize(item: ClipboardItem,
+                                    visibleFrame: CGRect = NSScreen.main?.visibleFrame ?? .zero,
+                                    panelFrame: CGRect = .zero) -> NSSize {
+        let sideWidth = max(panelFrame.minX - visibleFrame.minX,
+                            visibleFrame.maxX - panelFrame.maxX) - 20
+        let maxWidth = min(760, visibleFrame.width - 16, max(420, sideWidth))
+        let maxHeight = min(640, visibleFrame.height - 16)
+        let model = ClipboardPreviewWindowView.makeModel(item: item, editedText: nil)
+        switch model.kind {
         case .image:
             if let path = item.imagePath ?? item.thumbnailPath,
                let image = NSImage(contentsOf: ClipboardFileStore.url(forRelativePath: path)),
                image.size.width > 1, image.size.height > 1 {
-                let maxW: CGFloat = 900, maxH: CGFloat = 760
-                let scale = min(1, min(maxW / image.size.width, maxH / image.size.height))
-                return NSSize(width: max(420, image.size.width * scale),
-                              height: max(320, image.size.height * scale + 56))
+                let ocrHeight: CGFloat = (PreviewPopoverDataBridge.shared.ocrText(for: item) ?? "").isEmpty ? 0 : 160
+                let chrome: CGFloat = 100 + ocrHeight
+                let tall = image.size.height > image.size.width * 1.6
+                let scale = min(1, min((min(720, maxWidth) - 24) / image.size.width,
+                                      tall ? 1 : (maxHeight - chrome) / image.size.height))
+                return NSSize(width: min(maxWidth, max(420, image.size.width * scale + 24)),
+                              height: min(maxHeight, max(200, image.size.height * scale + chrome)))
             }
-            return NSSize(width: 720, height: 620)
-
+            return NSSize(width: min(520, maxWidth), height: min(360, maxHeight))
         case .file:
-            return NSSize(width: 560, height: 420)
-
+            let paths = model.inlineText.split(separator: "\n")
+            let document = paths.count == 1 && DocumentInlinePreview.supportedExtensions.contains(
+                URL(fileURLWithPath: String(paths[0])).pathExtension.lowercased())
+            return NSSize(width: min(560, maxWidth),
+                          height: min(maxHeight, document ? 560 : paths.count == 1 ? 420 : max(240, CGFloat(paths.count) * 64 + 110)))
+        case .json:
+            return NSSize(width: min(640, maxWidth), height: min(440, maxHeight))
         default:
-            let text = item.content ?? item.title ?? ""
-            let lines = text.components(separatedBy: "\n")
-            let longest = lines.map(\.count).max() ?? 0
-            // 等宽 12pt ≈ 7.2pt/字；中文按 12pt 计，取 8.0 做保守估计
-            var width = min(820, max(440, CGFloat(min(longest, 96)) * 8.0))
-            // Markdown 表格：源行的 | 分隔符让"最长行"失真（表格正文其实很窄），
-            // 但真表格每列至少要有 ~130pt 才不把英文单词拆断。
-            // 这里按列数补足宽度，3 列表格 → 3×132 + 170（目录栏+内边距）≈ 570。
-            let tableLines = lines.filter { $0.trimmingCharacters(in: .whitespaces).hasPrefix("|") }
-            if let maxCols = tableLines.map({ $0.components(separatedBy: "|").count }).max(), maxCols > 3 {
-                let needed = CGFloat(maxCols) * 132 + 170
-                width = max(width, min(980, needed))
+            let text = model.inlineText
+            let kind = model.kind == .fileBackedText ? PreviewPopoverContentModel.classifyRawText(text) : model.kind
+            var sidebar: CGFloat = 0
+            let body: NSAttributedString
+            if kind == .markdown {
+                let rendered = PreviewMarkdownRenderer.renderBody(text)
+                body = rendered.body
+                sidebar = rendered.headings.isEmpty ? 0 : 181
+            } else if kind == .richText, let rich = model.richAttributed {
+                body = rich
+            } else {
+                let font = kind == .code
+                    ? NSFont.monospacedSystemFont(ofSize: CGFloat(CodePreviewPreferences.fontSize), weight: .regular)
+                    : NSFont.systemFont(ofSize: 19.5)
+                body = NSAttributedString(string: text, attributes: [.font: font])
             }
-            let height = min(760, max(320, CGFloat(min(lines.count, 42)) * 17.5 + 150))
-            return NSSize(width: width, height: height)
+            let limit: CGFloat = kind == .code || sidebar > 0 ? 760 : 640
+            let width = min(maxWidth, limit, max(440, body.size().width + sidebar + 36))
+            let measured = body.boundingRect(with: NSSize(width: width - sidebar - 36, height: .greatestFiniteMagnitude),
+                                              options: [.usesLineFragmentOrigin, .usesFontLeading])
+            let chrome: CGFloat = kind == .code ? 112 : 88
+            return NSSize(width: width, height: min(maxHeight, max(model.kind == .fileBackedText ? 440 : 168,
+                                                                  ceil(measured.height) + chrome)))
         }
     }
 
@@ -104,22 +116,11 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                                                   self?.onEditingChanged?(editing)
                                               })
         let host = NSHostingView(rootView: view)
+        host.wantsLayer = true
         let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(item: item))
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         window.contentView = host
-        // v121：文件态窗口高度贴合内容。窗口默认 720×620，而文件预览内容通常只有
-        // 250~420pt，不收缩就会在下面留一大片空白（用户形容"里面啥也没有"）。
-        if item.type == .file {
-            host.layoutSubtreeIfNeeded()
-            let fit = host.fittingSize
-            if fit.height > 40, fit.height < Self.initialSize(item: item).height {
-                var f = window.frame
-                f.size.height = max(window.minSize.height, fit.height)
-                window.setFrame(f, display: false)
-                Log.info("Preview", "文件态高度自适应：内容 \(Int(fit.height)) → 窗口 \(Int(f.size.height))")
-            }
-        }
     }
 
     /// hover 态外观：透明窗口 + 内容自裁圆角。
@@ -137,32 +138,32 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
 
     /// 打开/切换条目。同条目同模式重复呈现只前置窗口（persistent 保留缩放与编辑草稿）。
     func show(item newItem: ClipboardItem,
-              anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect) {
+              anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect, showsHint: Bool) {
         let sameItem = newItem.id == item.id
+        let wasVisible = window?.isVisible == true
+        let needsContent = !sameItem || self.showsHint != showsHint
+        self.showsHint = showsHint
         item = newItem
-        if !sameItem { installContent() }
+        if needsContent { installContent() }
         place(anchorRectInScreen: anchorRectInScreen,
-              panelFrame: panelFrame, visibleFrame: visibleFrame)
+              panelFrame: panelFrame, visibleFrame: visibleFrame, animated: wasVisible && !sameItem)
         isClosing = false
+        guard let w = window else { return }
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        if !wasVisible { w.contentView?.layer?.opacity = 0 }
         // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
-        window?.orderFront(nil)
-        // v197：只有换条目时播入场（同条目反复 hover 不重播，避免跟随鼠标一路「呼吸」）
-        if let w = window {
-            w.contentView?.layer?.removeAllAnimations()
-            if sameItem {
-                w.contentView?.layer?.transform = CATransform3DIdentity
-                w.contentView?.layer?.opacity = 1
-            } else {
-                WindowReveal.playIn(on: w, from: revealUnit, scale: 0.94,
-                                    duration: Personalization.shared.openAnimation.duration)
-            }
+        w.orderFront(nil)
+        // 首次打开也播放；重复悬停已打开的同一条目不重播。
+        if !wasVisible || !sameItem {
+            WindowReveal.playIn(on: w, from: revealUnit, scale: reduceMotion ? 1 : 0.97,
+                                duration: reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration)
         }
     }
 
     /// 位置：贴主面板左侧（顶边对齐锚条目），放不下则右侧，最后夹在可见区内
-    private func place(anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect) {
+    private func place(anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect, animated: Bool) {
         guard let window else { return }
-        let size = window.frame.size
+        let size = Self.initialSize(item: item, visibleFrame: visibleFrame, panelFrame: panelFrame)
         var origin: NSPoint
         if panelFrame != .zero {
             let leftX = panelFrame.minX - size.width - 12
@@ -176,7 +177,16 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         }
         origin.x = min(max(origin.x, visibleFrame.minX + 8), visibleFrame.maxX - size.width - 8)
         origin.y = min(max(origin.y, visibleFrame.minY + 8), visibleFrame.maxY - size.height - 8)
-        window.setFrameOrigin(origin)
+        let frame = NSRect(origin: origin, size: size)
+        if animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Personalization.shared.openAnimation.duration
+                context.timingFunction = Theme.Motion.caEaseOut
+                window.animator().setFrame(frame, display: true)
+            }
+        } else {
+            window.setFrame(frame, display: true)
+        }
         // v197：锚点 = 主面板那一行投影到预览窗的邻边。
         // 预览在面板左侧 → 锚点取预览窗右边缘（x=1）；在右侧 → 取左边缘（x=0）。
         if panelFrame != .zero, size.height > 0 {
@@ -195,14 +205,14 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         guard !isClosing else { return }
         guard let w = window, w.isVisible else { window?.close(); return }
         isClosing = true
-        let duration = Personalization.shared.openAnimation.duration
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let duration = reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration * 0.7
         let finish: () -> Void = { [weak w] in
             guard let w, w.isVisible else { return }
             w.close()
         }
-        WindowReveal.playOut(on: w, to: revealUnit, scale: 0.94,
+        WindowReveal.playOut(on: w, to: revealUnit, scale: reduceMotion ? 1 : 0.97,
                              duration: duration, completion: finish)
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.08, execute: finish)
     }
 
     // MARK: NSWindowDelegate
@@ -212,7 +222,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
             guard let self, let w = self.window, w.isVisible, !w.isKeyWindow else { return }
             if MainPanelPreviewPopoverCoordinator.shared.previewPinned { return }
-            w.performClose(nil)
+            MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .systemInterruption)
         }
     }
 
@@ -277,7 +287,7 @@ struct ClipboardPreviewWindowView: View {
         }
         // v106：hover 态根背景置空，让液态玻璃面透出来（persistent 保留原实底）
         .background(hoverStyle ? Color.clear : Color(nsColor: OfficialChrome.windowBackground))
-        .frame(minWidth: 420, minHeight: 320)
+        .frame(minWidth: 420, minHeight: 168)
         // v121：内容顶部对齐（原来默认垂直居中，文件态内容少时上下各留一大片空白）
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .modifier(HoverClipModifier(active: hoverStyle))

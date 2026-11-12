@@ -25,6 +25,7 @@ import UniformTypeIdentifiers
 /// （MonitorPopoutWindow，⌥P / ⌥M / 状态栏部件点击直达），避免两套实现打架。
 /// 本面板唯一新增：顶部「文件中转」分段受「设置 → 常规 → 功能」开关控制显隐。
 struct PanelRootView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     @ObservedObject var presentation: PanelPresentationState
     var onDismiss: () -> Void
     var onOpenSettings: () -> Void
@@ -66,7 +67,7 @@ struct PanelRootView: View {
     @Stored private var showsTransferLogin = false
     @Stored private var pendingCloudURLs: [URL] = []
 
-    private var page: PanelCenterPage { monitorPresenter.activePage }
+    private var page: PanelCenterPage { isSettingsPreview ? .home : monitorPresenter.activePage }
 
     /// 顶部实际出现的页面（顺序 = 设置里拖拽的顺序，过滤掉关掉的）
     private var enabledPages: [PanelCenterPage] {
@@ -94,6 +95,7 @@ struct PanelRootView: View {
 
     /// 关掉当前页后把 presenter 拉回到可用页（否则分段高亮会全灭）
     private func normalizeSegmentSelection() {
+        if isSettingsPreview { return }
         let pages = enabledPages
         if !pages.isEmpty, !pages.contains(page) {
             monitorPresenter.page = pages[0]
@@ -145,6 +147,7 @@ struct PanelRootView: View {
         // 切页：关预览——主页 hover 打开的预览不能跟到中转站页
         // （与 ClipboardTableView 的 tracking 禁用双保险）
         .onChange(of: page) { newPage in
+            if isSettingsPreview { return }
             Log.info("Panel", "切页: \(newPage)")
             RenderProbe.snapshotAll(reason: "pageChange")
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
@@ -236,6 +239,7 @@ struct PanelRootView: View {
         // 面板直接以中转页打开时（上次停留页）也不自动起直传服务：
         // 按需启动，勾选文件后点「扫码直传」才拉起（2026-10-20 用户需求）
         .onAppear {
+            if isSettingsPreview { return }
             if page == .transfer { Log.info("Panel", "中转页打开：直传服务保持按需启动") }
             // v177 排障：记录当前启用了哪些页面（关掉的不创建视图，日志里应看不到它们）
             let names = enabledPages.map { PanelSegments.title($0) }.joined(separator: ",")
@@ -244,6 +248,7 @@ struct PanelRootView: View {
         }
         // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
         .onReceive(NotificationCenter.default.publisher(for: .frsetTransferIntake)) { note in
+            if isSettingsPreview { return }
             guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
             intake = TransferIntakeRequest(urls: urls)
         }
@@ -274,6 +279,7 @@ struct PanelRootView: View {
                 onCancel: { intake = nil })
         }
         .onReceive(NotificationCenter.default.publisher(for: .frsetOpenTransferLogin)) { _ in
+            if isSettingsPreview { return }
             showsTransferLogin = true
         }
         .sheet(isPresented: $showsTransferLogin, onDismiss: { pendingCloudURLs = [] }) {
@@ -294,6 +300,7 @@ struct PanelRootView: View {
                 })
         }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
+            if isSettingsPreview { return }
             if page != .home { monitorPresenter.selectHome() }
         }
     }
@@ -381,18 +388,7 @@ struct PanelRootView: View {
                 // Menu 内自定义 Binding 的 Toggle 在 macOS 上点击偶发不触发 set
                 // （无效）且无任何反馈（无提示）。改 Button：点击必执行 + Toast
                 // 明示新状态，标题随暂停/恢复切换。
-                Button {
-                    let paused = !ClipboardManager.shared.isRecordingPaused
-                    ClipboardManager.shared.isRecordingPaused = paused
-                    Toast.show(paused ? "已暂停记录剪贴板" : "已恢复剪贴板记录",
-                               icon: paused ? "pause.fill" : "play.fill")
-                } label: {
-                    if ClipboardManager.shared.isRecordingPaused {
-                        Label("恢复剪贴板记录", systemImage: "play.fill")
-                    } else {
-                        Label("暂停记录剪贴板", systemImage: "pause.fill")
-                    }
-                }
+                ClipboardRecordingMenu()
                 Button("设置") { onOpenSettings() }
                     .keyboardShortcut(",", modifiers: .command)
                 Button("使用统计") {
