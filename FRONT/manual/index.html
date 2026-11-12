@@ -197,7 +197,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>自定义图标是彩蛋</strong>：连续点击主图标若干次解锁，解锁后才有「自定义菜单栏图标」子菜单和庆祝动效（<code>MenuBarIconEasterEggManager.unlock</code> / <code>presentUnlockCelebration</code>）；解锁后还能把该选项藏起来或放回来（<code>hideIconOption</code> / <code>restoreIconOption</code>）。</li></ul>
 <ul><li><strong>图标位置记忆</strong>：监控部件在菜单栏中的顺序会被保存，重启还原（<code>saveStatusItemPosition</code> / <code>restoreStatusItemPosition</code>）。</li></ul>
 <ul><li><strong>唯一实例保护</strong>：重复启动会自动退出旧实例；检测到官方原版 Frset 同时在跑会提示（<code>enforceSingleMenubarOwner</code>）。</li></ul>
-<ul><li><strong>拖文件到图标</strong>：把文件拖到菜单栏图标上可直接进「文件中转」暂存（<code>StatusItemDropProxy</code>——<code>NSStatusBarButton</code> 本身不是拖放目标，这里加了一层覆盖视图）。</li></ul>
+<ul><li><strong>拖文件到图标</strong>：把文件拖到菜单栏图标上可直接进「文件中转」暂存（<code>StatusItemDropProxy</code>：由于 <code>NSStatusBarButton</code> 本身不是拖放目标，此处通过覆盖视图支持拖放拦截）。</li></ul>
 <h3 id="注意事项">注意事项</h3>
 <ul><li>图标被系统折叠时，到「系统设置 → 控制中心 → 菜单栏」调整，或按住 <code>⌥</code> 点击菜单栏展开。</li><li>动态风扇持续旋转会增加少量菜单栏重绘；介意就换回应用图标。</li><li>菜单里「打开面板」显示的键位是历史遗留，实际生效的是 <code>⌥A</code>，以设置页「快捷键」里显示的为准。</li></ul>
 <h3 id="实现索引">实现索引</h3>
@@ -261,7 +261,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>工具产出回流</strong>（<code>ingestToolOutput</code>）：截图 OCR 结果、AI 总结、小工具输出会以「工具生成」类型进历史，和手动复制区分开。</li></ul>
 <ul><li><strong>清理策略</strong>（<code>ClipboardPruneSchedulers.prune</code>）：按条数 / 天数 / 体积三个维度自动清理，设置里可调。</li></ul>
 <ul><li><strong>文件落盘</strong>：图片和大文件存在 <code>~/Library/Application Support/FrsetNext/</code> 下，数据库里只存相对路径（<code>ClipboardFileStorages</code>）。所以备份数据目录 = 备份全部内容。</li></ul>
-<ul><li><strong>NSTableView 骨架</strong>（<code>ClipboardTableHostView</code>）：列表不是 SwiftUI <code>List</code>，是 <code>NSScrollView + NSTableView</code>——为了多选、拖拽、行内编辑和滚动性能。</li></ul>
+<ul><li><strong>NSTableView 骨架</strong>（<code>ClipboardTableHostView</code>）：列表采用 <code>NSScrollView + NSTableView</code> 而非 SwiftUI <code>List</code>，以保证多选、拖拽、行内编辑与长列表滚动性能。</li></ul>
 <h3 id="注意事项-3">注意事项</h3>
 <ul><li>密码管理器（1Password 等）的复制通常「几秒后清空剪贴板」，可能记录不到或被快速清理，属预期。</li><li>暂停记录期间复制的内容不进历史；恢复后从新内容开始。</li><li>大图历史会占磁盘空间：本机实测 89 张图约 440MB。需要节省空间时，在设置中调小上限。</li><li>数据库用 WAL 模式，<code>-wal</code> 文件超过 1MB 会 checkpoint 截断，不会无限涨。</li></ul>
 <h3 id="实现索引-3">实现索引</h3>
@@ -311,7 +311,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>v267 起移除了「自动识别窗口 / 手动框选」模式开关和设置里的默认值选项，截图方式由鼠标动作决定。 截完弹出动作条（19 个动作分 6 组），可以直接处理截图，不用先保存再打开。</p>
 <h3 id="用户怎么用-6">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>快捷键</th><th>截什么</th><th>说明</th></tr></thead><tbody><tr><td><code>⌥S</code></td><td>截图</td><td>自适应：悬停窗口单击截整窗 / 拖拽截自定义范围 / 点空白截全屏</td></tr><tr><td><code>⇧⌥W</code></td><td>窗口截图</td><td>与 <code>⌥S</code> 完全一致（自适应已包含窗口识别，保留此键只为习惯）</td></tr><tr><td><code>⇧⌥L</code></td><td>长截图</td><td>框选区域后自动滚动采集拼接（第十章）</td></tr><tr><td><code>⇧⌥C</code></td><td>截图并复制</td><td>截完直接进剪贴板，不弹动作条</td></tr><tr><td><code>⇧⌥S</code></td><td>截图提取文字</td><td>截完直接 OCR（第十四章）</td></tr><tr><td><code>⇧⌥T</code></td><td>截图翻译</td><td>截完 OCR + 翻译（第十四章）</td></tr><tr><td><code>⇧⌥P</code></td><td>截图并贴图</td><td>截完直接钉在屏幕上（第十一章）</td></tr></tbody></table></div>
-<p>悬停窗口 → 整窗高亮并标出窗口名，单击即截；<strong>按下后直接拖拽</strong>则拉出自定义矩形， 松手截这个框。两条路在同一次截图里随时可换，不用切模式。 <code>⌘</code> 单击可勾选多个窗口（带序号），回车一次性截完并纵向拼成一张图。 单击没有窗口的空白处 = 截整个屏幕（相当于「全屏截图」，但不用换入口）。</p>
+<p>悬停窗口时整窗高亮，单击即可完成捕获；直接按下拖拽则拉出自定义选区，松手截取对应区域。 按住 <code>⌘</code> 单击可勾选多个窗口并显示序号，按回车一次性截取并纵向拼接成图。 单击桌面空白区域则直接截取当前屏幕全屏。</p>
 <p>选择界面还开着时，再按一次当前配置的截图快捷键，会退出截图并打开「复制近期内容」。 第一次按键立即进入截图，没有双按等待。</p>
 <p>通用操作：<code>Esc</code> / <code>Delete</code> / 右键取消；拖框时 <code>⇧</code> 出正方形、<code>⌥</code> 临时关闭元素吸附 （吸附会把框边对齐到光标下的控件/文本块边缘 8pt 内，但不会吸成整窗）。 第一次点击就生效，不需要先点一下把窗口激活。</p>
 <blockquote>旧版本有「窗口模式 / 区域模式」两档和覆盖层顶部的切换开关，v267 起全部移除； 偏好键 <code>capture.defaultPickMode</code> 不再读取。</blockquote>
@@ -366,7 +366,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="关键能力点-8">关键能力点</h3>
 <ul><li><strong>背景美化</strong>（<code>BeautifyPanel</code>）</li><li>纯色 / 渐变背景，内置几套配色。</li><li>内边距可调（0~120pt），圆角可调，投影开关。</li><li>全部纯 CoreGraphics 绘制，零第三方依赖。</li></ul>
 <ul><li><strong>双引擎擦除</strong>（<code>ObjectRemovalEngine</code>）</li><li>主力：基于周围像素的内容感知填充（inpainting）。</li><li>兜底：纹理合成，处理大面积纯色区域更快。</li><li>两种引擎的区别：前者对复杂纹理好但慢，后者对纯色背景快但不适合复杂图。</li></ul>
-<ul><li><strong>水印</strong>（<code>Watermark</code>）</li><li>和「背景美化」不是一回事：水印是<strong>叠加</strong>在图上，美化是<strong>包边</strong>。</li><li>支持文字水印，位置四角/平铺，透明度可调。</li><li>「导出时加水印」是独立开关，不影响预览。</li></ul>
+<ul><li><strong>水印</strong>（<code>Watermark</code>）</li><li>水印与背景美化功能不同：水印直接<strong>叠加</strong>在图片上方，美化则是对外围进行<strong>包边</strong>修饰。</li><li>支持文字水印，位置四角/平铺，透明度可调。</li><li>「导出时加水印」是独立开关，不影响预览。</li></ul>
 <h3 id="注意事项-8">注意事项</h3>
 <ul><li>擦除是重计算：大图（4K 以上）涂抹后要等 1~3 秒，面板上有进度指示。</li><li>美化只影响导出，不改原图文件。</li><li>水印开关在「设置 → 截图 → 导出」里，默认关。</li></ul>
 <h3 id="实现索引-8">实现索引</h3>
@@ -469,7 +469,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="关键能力点-13">关键能力点</h3>
 <ul><li><strong>两级 OCR 引擎</strong>（<code>PPOCROCR</code>）</li><li><strong>Apple Vision 负责「文字在哪」</strong>：文本行检测，快且准。</li><li><strong>PP-OCR 负责「这是什么」</strong>：逐行识别，中文识别率更高。</li><li>组合起来比单用任一个都准：Vision 单独用对中文长句容易断，PP-OCR 单独用定位差。</li></ul>
 <ul><li><strong>PP-OCR 走子进程</strong>（<code>PPOCROCREmote</code> + <code>FrsetOCRHelper</code>）</li></ul>
-<p>为什么不在进程内：ONNX Runtime 加载模型要几百 MB 内存，常驻会一直占着。 子进程按需启动、识别完退出，内存立即归还。代价是首次识别多约 300ms。</p>
+<p>进程隔离设计：ONNX Runtime 加载模型需占用数百兆内存，若常驻进程会持续消耗系统资源。 将其放入独立子进程按需拉起并在识别完成后退出，可立即归还内存（代价仅为首次冷启动耗时约 300ms）。</p>
 <ul><li><strong>结果窗</strong>（<code>ScreenshotOCRWindow</code>）</li></ul>
 <p>原文视图可选中、默认不可编辑（防止误改）；译文区可编辑；有「复制全部」「对照视图」两个模式。</p>
 <ul><li><strong>翻译 Provider 链</strong>（<code>TranslationProvider</code>）</li><li>优先外部 API（<code>QNWTranslator</code>，需配置）。</li><li>其次 Apple 系统翻译（<code>AppleTranslationProvider</code>，离线可用，质量一般）。</li><li>最后 AI 服务商（第三十章）。</li><li>抽象成统一接口 + 注册表，加新引擎不用改调用方。</li></ul>
@@ -535,28 +535,28 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第十七章-内存维护">第十七章 内存维护</h2>
 <h3 id="功能是什么-16">功能是什么</h3>
-<p>内存详情页底部的「内存维护」区：<strong>一个按钮做两件事</strong>——清缓存 + 暂停闲置应用。做完给一份<strong>诚实的报告</strong>，分项写清楚释放了什么、什么没变。</p>
+<p>内存详情页底部的「内存维护」区：<strong>一个按钮执行两项操作</strong>——清理缓存与暂停闲置应用。执行完成后提供<strong>分项对比报告</strong>，如实列出各项内存变化与未变项目。</p>
 <blockquote>名字：「深度释放」。早期版本是「清缓存」和「冻结闲置」两个按钮，v259 按用户要求合并成一个。</blockquote>
 <h3 id="用户怎么用-16">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>点「深度释放」</td><td>跑一次完整流程（清缓存 + 暂停闲置），出报告</td></tr><tr><td>勾选「暂停闲置」</td><td>决定这次是否包含冻结（默认勾选）</td></tr><tr><td>「全部唤醒」</td><td>把所有被冻结的应用解冻</td></tr><tr><td>已暂停清单</td><td>显示当前冻结了哪些应用，可单个唤醒</td></tr></tbody></table></div>
 <h3 id="报告看什么">报告看什么</h3>
 <div class="table-wrap"><table><thead><tr><th>分项</th><th>含义</th></tr></thead><tbody><tr><td><strong>应用</strong></td><td>应用实际占用（<code>ri_phys_footprint</code>，不是 RSS）</td></tr><tr><td><strong>压缩</strong></td><td>内存压缩器占用</td></tr><tr><td><strong>缓存</strong></td><td>文件缓存</td></tr><tr><td><strong>空闲</strong></td><td>完全空闲的页</td></tr><tr><td><strong>已暂停</strong></td><td>这次冻结了几个应用</td></tr></tbody></table></div>
 <p>实测样本（本机）：应用 −306MB / 缓存 −1164MB / 压缩 +497MB / 空闲 +1022MB。</p>
-<blockquote>注意「压缩 +497MB」：purge 把内存页挤出去后，一部分进了压缩器。所以「释放量」不等于「空闲增加量」，报告分开列才不误导。</blockquote>
+<blockquote>注意「压缩 +497MB」：purge 将内存页挤出后，部分数据会转入压缩器。因此「释放量」并不等同于「空闲增加量」，报告将各分项单独列出，以便准确评估。</blockquote>
 <h3 id="演示-16">演示</h3>
 <figure><img src="gifs/ch17-memory.gif" alt="面板 → 监测 → 内存：环形图显示已用 / 可用，下面分项列出可释放的缓存，底部是「深度释放」。" loading="lazy" decoding="async"><figcaption>面板 → 监测 → 内存：环形图显示已用 / 可用，下面分项列出可释放的缓存，底部是「深度释放」。</figcaption></figure>
 <h3 id="关键能力点-16">关键能力点</h3>
 <ul><li><strong>两档动作</strong></li><li><strong>清缓存</strong>：<code>malloc_zone_pressure_relief</code> + 内存压力广播 + <code>purge</code>（需要 root helper）。</li><li><strong>暂停闲置</strong>：给符合条件的进程发 <code>SIGSTOP</code>，让它彻底不占 CPU；唤醒发 <code>SIGCONT</code>。</li></ul>
 <ul><li><strong>暂停白名单</strong>（<code>ProcessFreezer</code>）</li></ul>
-<p>终端、IDE、虚拟机、会议软件、输入法、宿主进程一律不冻——冻了会出事。</p>
+<p>终端、IDE、虚拟机、会议软件、输入法与宿主进程不纳入冻结候选。</p>
 <ul><li><strong>「屏幕有窗口」和「5 分钟内激活过」的不冻</strong>：判断依据是进程有没有可见窗口、最近有没有交互，避免冻掉你正在用的东西。</li></ul>
 <ul><li><strong>30 分钟自动解冻</strong>：暂停不是永久的，到点自己恢复。</li></ul>
 <ul><li><strong>watchdog 自愈</strong>：用 <code>posix_spawn</code> 起一个独立守护进程（不是 <code>Process.run()</code>，那个在 App 内会被吞错），App 崩了 5 秒内把冻结的进程全部 <code>SIGCONT</code>。</li></ul>
 <ul><li><strong>root helper</strong>：<code>FrsetNextHelper</code> 是一个 LaunchDaemon，装一次长期可用；没装时降级为「只清用户态缓存」。</li></ul>
-<ul><li><strong>诚实报告</strong>（<code>MemoryOptimizer</code>）</li></ul>
-<p>采样前 → 执行 → 采样后 → 分项对比。各项释放量单独报告，不把内存压缩写成「释放了 2GB！」。</p>
+<ul><li><strong>分项对比报告</strong>（<code>MemoryOptimizer</code>）</li></ul>
+<p>按「采样前 → 执行 → 采样后」分项对比。各项内存释放量单独统计呈现，不将转入压缩器的内存算作已完全释放。</p>
 <h3 id="注意事项-16">注意事项</h3>
-<ul><li>冻结的进程<strong>不是被杀</strong>，是暂停：内存还在、窗口还在，点它一下会自动解冻。</li><li>频繁点「深度释放」没有额外收益：第一次能吐出来的，第二次基本没有。</li><li>内存压力大时系统自己会回收，第三方工具的作用有限——这个功能的价值在「主动释放 + 报告清楚」，不在「神奇加速」。</li></ul>
+<ul><li>冻结的进程<strong>不是被杀</strong>，是暂停：内存还在、窗口还在，点它一下会自动解冻。</li><li>频繁点「深度释放」没有额外收益：第一次能吐出来的，第二次基本没有。</li><li>内存压力升高时系统内核会自动回收页面，第三方工具的作用相对有限；该功能的核心在于提供主动清理入口并清晰展示内存前后变化，而非承诺绝对加速。</li></ul>
 <h3 id="实现索引-16">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>MemoryOptimizer.swift:175</code></td><td><code>optimize</code></td><td>采样→执行→采样→报告</td></tr><tr><td><code>MemoryOptimizeCard.swift:199</code></td><td><code>body</code></td><td>按钮 + 复选框 + 已暂停清单</td></tr><tr><td><code>ProcessFreezer.swift:458</code></td><td><code>freezeIdle</code> / <code>thawAll</code> / <code>thawOrphans</code></td><td>冻结/解冻/孤儿清理</td></tr><tr><td><code>ProcessFreezer.swift</code></td><td><code>isProtected</code></td><td>白名单判定</td></tr><tr><td><code>ProcessFreezer.swift</code></td><td><code>startWatchdog</code></td><td>posix_spawn 守护</td></tr><tr><td><code>MemoryBreakdown.swift:89</code></td><td><code>breakdown</code></td><td>内存分类（活动监视器口径）</td></tr><tr><td><code>ProcessMemoryInspector.swift:102</code></td><td><code>topConsumers</code></td><td>按应用归并物理占用</td></tr><tr><td><code>MemoryHelperClient.swift:208</code></td><td><code>installHelper</code> / <code>run</code></td><td>root helper 通信</td></tr><tr><td><code>MemoryHelper/main.swift:185</code></td><td><code>main</code></td><td>helper 进程入口</td></tr></tbody></table></div>
 <hr>
@@ -569,16 +569,16 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="演示-17">演示</h3>
 <figure><img src="gifs/ch18-storage.gif" alt="左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。" loading="lazy" decoding="async"><figcaption>左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。</figcaption></figure>
 <h3 id="关键能力点-17">关键能力点</h3>
-<ul><li><strong>扫描口径</strong>（v264 重做）</li><li><strong>不限深度</strong>：<code>Xcode.app/Contents/Developer/Platforms/…</code> 这类深层内容全部计入。</li><li><strong>含隐藏目录</strong>：<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code> / <code>.cargo</code> 都进。</li><li><strong>含 <code>~/Library</code></strong> 与系统只读卷。</li><li>不跳 <code>/System</code>，只跳 <code>/System/Volumes</code>（那是 <code>/Users</code> 的另一张脸，算了两遍）。</li><li><strong>大小按磁盘实际块</strong>（<code>st_blocks</code>），与 <code>df</code>/<code>du</code> 同一口径——APFS 透明压缩下 <code>st_size</code> 会虚高（<code>/System</code> 逻辑 30GB / 物理 13GB）。</li></ul>
+<ul><li><strong>扫描口径</strong>（v264 重做）</li><li><strong>不限深度</strong>：<code>Xcode.app/Contents/Developer/Platforms/…</code> 这类深层内容全部计入。</li><li><strong>含隐藏目录</strong>：<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code> / <code>.cargo</code> 都进。</li><li><strong>含 <code>~/Library</code></strong> 与系统只读卷。</li><li>扫描遍历 <code>/System</code>，跳过 <code>/System/Volumes</code>（避免重复统计挂载的 <code>/Users</code> 等卷）。</li><li><strong>大小按磁盘实际块</strong>（<code>st_blocks</code>），与 <code>df</code>/<code>du</code> 同一口径——APFS 透明压缩下 <code>st_size</code> 会虚高（<code>/System</code> 逻辑 30GB / 物理 13GB）。</li></ul>
 <ul><li><strong>实测规模</strong>：248.7 万条目 / 185.6 GB / 52 秒 / 缓存 59MB（二进制 plist）。</li></ul>
 <ul><li><strong>覆盖率如实显示</strong>：状态行写「已索引 185.6 G / 整盘已用 273.4 G」。差额来自：</li><li><code>~/Library/Containers</code>（沙盒容器，本机 33GB）——没授权「完全磁盘访问」时系统不让读，界面有「去授权」按钮直达系统设置；</li><li>APFS 本地快照、交换文件、文件系统元数据——不在任何目录里，索引天然覆盖不到。</li></ul>
 <ul><li><strong>可清理候选</strong>（<code>DiskIndexStore.candidates</code>）</li></ul>
-<p>只认真正的缓存目录名（<code>Caches</code> / <code>node_modules</code> / <code>DerivedData</code> / <code>.npm</code> / <code>__pycache__</code> …）且体积 &gt;20MB 的。 <strong>故意排除了</strong> <code>Downloads</code>（用户数据）、<code>/tmp</code>（会打断运行中的进程）、<code>.rustup</code>/<code>.cargo</code>/<code>Xcode</code>（工具链，删了要重装）。</p>
+<p>只认真正的缓存目录名（<code>Caches</code> / <code>node_modules</code> / <code>DerivedData</code> / <code>.npm</code> / <code>__pycache__</code> …）且体积 &gt;20MB 的。 主动排除了 <code>Downloads</code>（用户个人数据）、<code>/tmp</code>（避免影响运行中进程）以及 <code>.rustup</code>/<code>.cargo</code>/<code>Xcode</code>（工具链组件，避免误删导致重新安装）。</p>
 <ul><li><strong>气泡堆块</strong>（<code>StorageTreemap</code> + <code>StorageVoronoi</code>）</li></ul>
 <p>按面积表示体积的 Voronoi 分割，颜色按目录层级，点击下钻。用户对照 Kanso 截图要求过颜色和色块，这一版是按反馈重做的。</p>
 <ul><li><strong>删除只到废纸篓</strong>（<code>FileManager.trashItem</code>）：可恢复，不做永久删除。</li><li><strong>工作记录</strong>：每次清理记一条（时间/路径/大小/是否全部成功），最多 50 条。</li><li><strong>让 Agent 清理</strong>：把本次扫描明细生成一段结构化提示词，复制给本地 Agent，由它判断哪些能清（应用本身不动手）。</li></ul>
 <h3 id="注意事项-17">注意事项</h3>
-<ul><li>首次建立索引约 50 秒（248 万条目），期间可以取消。</li><li>索引缓存有版本号：源结构一变（比如 v264 改了口径），旧缓存自动作废并提示重扫，不会拿错数据骗人。</li><li>没有「完全磁盘访问」时覆盖率会明显偏低，这不是漏扫，是系统不让读。</li><li>「可清理」清单只是建议，<strong>勾选后仍会弹确认框</strong>列明路径和总大小。</li></ul>
+<ul><li>首次建立索引约 50 秒（248 万条目），期间可以取消。</li><li>索引缓存自带版本号：扫描结构或口径更新时（如 v264 调整统计逻辑），旧版缓存自动失效并提示重新扫描，避免使用不匹配的旧索引。</li><li>没有「完全磁盘访问」时覆盖率会明显偏低，这不是漏扫，是系统不让读。</li><li>「可清理」清单只是建议，<strong>勾选后仍会弹确认框</strong>列明路径和总大小。</li></ul>
 <h3 id="实现索引-17">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>DiskIndex.swift:117</code></td><td><code>scan</code></td><td>扫描调度（后台队列 + 可取消）</td></tr><tr><td><code>DiskIndex.swift</code></td><td><code>walk</code></td><td>递归建树（d_type 判目录，文件取 st_blocks）</td></tr><tr><td><code>DiskIndex.swift</code></td><td><code>physicalSize</code></td><td>物理占用（st_blocks × 512）</td></tr><tr><td><code>DiskIndex.swift</code></td><td><code>hasFullDiskAccess</code></td><td>FDA 探测（读系统级 TCC.db）</td></tr><tr><td><code>DiskIndex.swift:273</code></td><td><code>DiskIndexStore.candidates</code></td><td>可清理候选筛选</td></tr><tr><td><code>DiskIndex.swift</code></td><td><code>trash</code></td><td>移到废纸篓 + 更新树</td></tr><tr><td><code>DiskIndex.swift</code></td><td><code>decodeSnapshot</code></td><td>缓存解码 + schema 校验</td></tr><tr><td><code>StorageManagerWindow.swift:1020</code></td><td><code>body</code> / <code>header</code></td><td>面板版式与状态行</td></tr><tr><td><code>StorageManagerWindow.swift</code></td><td><code>statusLine</code></td><td>「已索引 / 整盘已用」</td></tr><tr><td><code>StorageTreemap.swift:367</code></td><td><code>render</code></td><td>堆块绘制</td></tr><tr><td><code>StorageVoronoi.swift:321</code></td><td><code>compute</code></td><td>Voronoi 分割</td></tr></tbody></table></div>
 <hr>
@@ -599,7 +599,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>DNS 解析</strong>（<code>probeDNS</code>）</li></ul>
 <p>指定域名解析一遍，看返回的 IP 与耗时；解析失败会明确说是「无响应」还是「NXDOMAIN」。</p>
 <ul><li><strong>代理检测</strong>（<code>detectProxyProcess</code>）</li></ul>
-<p>读系统代理配置 + 扫本地常见代理端口（7890 / 1080 / 8080 等），告诉你「现在有没有代理在拦」。</p>
+<p>结合系统代理配置与本地常见代理端口（7890 / 1080 / 8080 等）探测本机代理服务状态。</p>
 <ul><li><strong>端口占用</strong>（<code>PortInspector.listeners</code>）</li></ul>
 <p>枚举正在监听的 TCP/UDP 端口、对应 pid 与进程名、绑定地址（<code>127.0.0.1</code> 仅本机 / <code>0.0.0.0</code> 对局域网开放）。排查「谁占了 8080」不用开终端。</p>
 <ul><li><strong>端口区块</strong>（<code>PortOccupancySection</code>）</li></ul>
@@ -632,7 +632,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>文件悬停预览</strong>（<code>FileHoverPreview</code>，511 行）</li></ul>
 <p>Word / PPT / Excel / PDF / 图片等格式，悬停即出缩略图或首页内容，不用打开文件。</p>
 <ul><li><strong>MCP Server</strong>（<code>MCPServer</code>）</li></ul>
-<p>把手机能力暴露成 HTTP + JSON-RPC 2.0，本机 AI 客户端（Claude / Cursor / 自家 AI）可以直接控制手机。这是给自动化场景留的口子。</p>
+<p>将手机操作能力封装为 HTTP + JSON-RPC 2.0 接口，供本地 AI 客户端（如 Claude、Cursor 或内置 AI）调度控制，以支持外部自动化工作流。</p>
 <ul><li><strong>拖文件到图标</strong>（<code>StatusItemDropProxy</code>）：菜单栏图标不是拖放目标，加了一层覆盖视图接住。</li></ul>
 <h3 id="注意事项-19">注意事项</h3>
 <ul><li>隔空投送只通苹果设备；安卓/Windows 用扫码直传或 ADB 补齐。</li><li>扫码直传要求两台设备在同一局域网，且 macOS 防火墙允许传入连接（首次会询问）。</li><li>ADB 直传需要手机开启 USB 调试；无线调试见下一章。</li><li>云端中转需要登录 OPPO 账号，登录走官方三段式签名，应用本身不存密码。</li></ul>
@@ -650,7 +650,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>一键无线</strong>（<code>ADBExtrasEngine</code>）</li></ul>
 <p>USB 连一次 → 自动执行 <code>adb tcpip 5555</code> → 连上手机的 Wi-Fi 地址。之后同一网络下直接检测，<strong>不用再开无线调试、不用配对码</strong>。</p>
 <ul><li><strong>扫码配对</strong>（<code>AdbQrPairing</code>，506 行）</li></ul>
-<p>按 Android 11+ 的无线调试协议生成配对二维码，手机扫一下完成配对。用户 2026-10-29 明确要求「最重要的是扫码直连，而不是基于某个局域网再 adb 连」——这一版就是按这个要求重做的。</p>
+<p>按 Android 11+ 的无线调试协议生成配对二维码，手机扫一下完成配对。基于用户明确提出的扫码直连需求，本实现支持直接扫码配对，脱离预先手动建立局域网 ADB 连接的前置步骤。</p>
 <ul><li><strong>Bonjour 发现</strong>（<code>AdbBonjour</code>）</li></ul>
 <p>用系统 <code>NetServiceBrowser</code> 发现 <code>_adb-tls-connect._tcp</code> 服务，自动列出同网段的可用设备。</p>
 <ul><li><strong>投屏记忆</strong>（<code>AdbCastMemory</code>）</li></ul>
@@ -682,7 +682,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <figure><img src="gifs/ch22-archive.gif" alt="打开一个 zip：共 2 项 · 可编辑 → 点条目在右侧预览 → 左上「解压到…」→ 右上更多菜单。" loading="lazy" decoding="async"><figcaption>打开一个 zip：共 2 项 · 可编辑 → 点条目在右侧预览 → 左上「解压到…」→ 右上更多菜单。</figcaption></figure>
 <h3 id="关键能力点-21">关键能力点</h3>
 <ul><li><strong>真实解压/压缩/回写</strong>（<code>ArchiveCore</code>，1134 行）</li></ul>
-<p>不是只读浏览器：文本类条目可以直接改，保存时用 <code>7zz a</code> 写回原包。 回写前会捕获可逆信息（<code>ArchiveUndoStack</code>），支持撤销。</p>
+<p>支持直接修改压缩包内的文本类条目，保存时调用 <code>7zz a</code> 增量写回原压缩包。 回写前会捕获可逆信息（<code>ArchiveUndoStack</code>），支持撤销。</p>
 <ul><li><strong>格式支持</strong>：7z / zip / rar / tar / gz / bz2 / xz / iso / dmg 等（取决于 <code>7zz</code> 编译进去的编解码器）。</li></ul>
 <ul><li><strong>压缩流程</strong>（<code>ArchiveCreateSheet</code>）</li></ul>
 <p>选格式、压缩级别、密码、是否分卷；源可以是文件、文件夹或当前选中的条目。</p>
@@ -693,7 +693,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>压缩完成问一次</strong>（<code>ArchiveSourceHandling</code>）</li></ul>
 <p>压缩成功后主动问「原文件保留还是收走」，对齐 ArcZip 的 completion 逻辑。</p>
 <ul><li><strong>Mini 小窗</strong>（<code>ArchiveMiniWindow</code>）</li></ul>
-<p>不打开大窗口，用一个小浮窗快速看包里有什么，适合「只想确认一下」。</p>
+<p>无需开启完整窗口，通过轻量浮窗快速浏览压缩包结构与条目，适合即时确认文件内容。</p>
 <ul><li><strong>暂存浮窗</strong>（<code>ArchiveFileBox</code>）</li></ul>
 <p>菜单栏附近的一个小盒子：把散落的文件拖进来集中，再一次「压缩全部」。</p>
 <ul><li><strong>条目拖出</strong>（<code>ArchiveEntryDrag</code>）</li></ul>
@@ -789,7 +789,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第二十七章-快捷键">第二十七章 快捷键</h2>
 <h3 id="功能是什么-26">功能是什么</h3>
-<p>19 条全局热键，全部可改绑；支持改成「双击修饰键」模式（连按两下 <code>⌘</code> / <code>⌥</code> / <code>⌃</code> / <code>⇧</code>）；冲突会明确告诉你为什么失败。</p>
+<p>19 条全局热键均支持自定义改绑，并可切换为「双击修饰键」模式（连按两下 <code>⌘</code> / <code>⌥</code> / <code>⌃</code> / <code>⇧</code>）；快捷键注册冲突时会明确提示具体失败原因。</p>
 <h3 id="默认热键">默认热键</h3>
 <p>见附录 A。这里是机制说明。</p>
 <h3 id="用户怎么用-26">用户怎么用</h3>
@@ -819,7 +819,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <figure><img src="gifs/ch28-codepreview.gif" alt="悬浮剪贴板里选中一条代码：右栏出带行号的高亮预览，顶部可切语言与主题（Cappuccin Mocha 等）。" loading="lazy" decoding="async"><figcaption>悬浮剪贴板里选中一条代码：右栏出带行号的高亮预览，顶部可切语言与主题（Cappuccin Mocha 等）。</figcaption></figure>
 <h3 id="关键能力点-27">关键能力点</h3>
 <ul><li><strong>自研词法器</strong>（<code>CodeLexer</code>，582 行）</li></ul>
-<p>为什么不引第三方：本项目用 <code>swiftc</code> 直编、无 SPM 依赖；且预览要能在 200ms 内出结果，大库反而慢。 支持 20+ 语言（<code>CodeLanguage</code>），语言 id 同时是高亮器的配置键。</p>
+<p>轻量自研架构：项目采用 <code>swiftc</code> 直接编译且无 SPM 外部依赖，同时预览需在 200ms 内快速完成渲染，因此选用自研轻量词法分析器。 支持 20+ 语言（<code>CodeLanguage</code>），语言 id 同时是高亮器的配置键。</p>
 <ul><li><strong>主题</strong>（<code>CodeTheme</code>，347 行）</li></ul>
 <p>每个主题是一整套<strong>显式十六进制色</strong>，不跟随系统语义色——代码块的观感不能随深浅色模式漂移。</p>
 <ul><li><strong>导出图片</strong>（<code>CodeCardImage</code>）</li></ul>
@@ -834,7 +834,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第二十九章-网盘链接解析">第二十九章 网盘链接解析</h2>
 <h3 id="功能是什么-28">功能是什么</h3>
-<p>复制一条网盘分享链接，Kitnest 认出来并提示「打开解析中心」——在里面可以直接拿到直链下载，不用开浏览器走一遍验证码。</p>
+<p>复制网盘分享链接后，Kitnest 会自动识别并提示「打开解析中心」，用户可直接在解析中心内获取下载直链，省去在浏览器中繁琐的人机验证流程。</p>
 <h3 id="用户怎么用-28">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>复制网盘分享链接</td><td>状态栏下方弹出小提示，点开进解析中心</td></tr><tr><td>面板首页「网盘链接」条</td><td>显示剪贴板里的网盘链接，点开解析</td></tr><tr><td>工具箱 →「网盘解析」</td><td>同上</td></tr><tr><td><code>kitnest://cloudlink</code></td><td>深链直达</td></tr></tbody></table></div>
 <h3 id="演示-28">演示</h3>
@@ -922,7 +922,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <figure><img src="gifs/ch32-onboarding.gif" alt="欢迎窗：能力卡（剪贴板 / 截图 / 图帘等）+ 权限状态 + 开始使用。" loading="lazy" decoding="async"><figcaption>欢迎窗：能力卡（剪贴板 / 截图 / 图帘等）+ 权限状态 + 开始使用。</figcaption></figure>
 <h3 id="关键能力点-31">关键能力点</h3>
 <ul><li><strong>权限状态是实测的</strong>（<code>PermissionCenter</code>）</li></ul>
-<p>不是读某个配置标记，而是实际探测（SCK 预检、<code>AXIsProcessTrusted</code>、日历授权状态、FDA 探针）。所以系统设置里改了权限，这里会跟着变。</p>
+<p>权限状态直接通过运行时 API 探测确认（SCK 预检、<code>AXIsProcessTrusted</code>、系统日历授权状态及 FDA 探针），而非读取静态配置缓存。在系统设置中调整权限后，此处状态会实时同步。</p>
 <ul><li><strong>四类权限集中管理</strong>：屏幕录制、辅助功能、麦克风、日历（+ 完全磁盘访问提示）。</li></ul>
 <ul><li><strong>一键授权</strong>：点「去授权」直接跳系统设置对应页，不用自己找。</li></ul>
 <ul><li><strong>更新说明</strong>（<code>WhatsNew</code>）</li></ul>
@@ -974,7 +974,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h1 id="附录">附录</h1>
 <h2 id="第三十五章-截图增强v264">第三十五章 截图增强（v264）</h2>
 <h3 id="功能是什么-34">功能是什么</h3>
-<p>这一版把 1Capture 的「微操」补齐了五件事，全部在 <strong>设置 → 截图与钉图 → 截图</strong> 里： 固定比例、文件命名模板、静默识别、仅文本马赛克，以及框选时的窗口多选。 （v267 起移除了曾在右下角自动弹出的截图预览角标，设置里也不再有对应开关。）</p>
+<p>本版本补充了 5 项针对截图的细节交互功能，均可在 <strong>设置 → 截图与钉图 → 截图</strong> 中进行配置： 固定比例、文件命名模板、静默识别、仅文本马赛克，以及框选时的窗口多选。 （v267 起移除了曾在右下角自动弹出的截图预览角标，设置里也不再有对应开关。）</p>
 <h3 id="用户怎么用-34">用户怎么用</h3>
 <p><strong>固定比例</strong>：在「固定比例」里选一组（1:1 / 4:3 / 3:2 / 16:9 / 3:4 / 9:16 或自定义）， 之后每次框选都锁死这个比例；选「自由框选」恢复手动。临时想要正方形，框选时按住 <code>⇧</code>。 自定义：填名称 + 比例（<code>5:4</code>、<code>1600×900</code> 都行，会自动约分去重）。</p>
 <p><strong>文件命名</strong>：在「文件命名」里改模板，占位符点一下追加，下面实时预览。默认模板与旧版输出一致： <code>Screenshot-2026-11-08-132707-775.png</code>。</p>
@@ -1058,31 +1058,31 @@ awk -F, &#x27;$2==&quot;Features/Capture/Curtain/CurtainWindow.swift&quot;&#x27;
 <blockquote>本手册由源码逐文件核对生成，覆盖 32 个功能域、280 个源文件、3,410 个函数。 发现描述与实现不一致时，<strong>以代码为准</strong>，并请反馈以便修正。</blockquote>
 <hr>
 <h2 id="附录-f-演示-gif-怎么来的">附录 F · 演示 GIF 怎么来的</h2>
-<p>不是示意图，也不是拼的帧，全部是本机真机录屏，<strong>37 章一章一段</strong>，每段都带自动镜头。</p>
-<h3 id="两遍处理抄-screenize-openscreen-的路子">两遍处理（抄 Screenize / OpenScreen 的路子）</h3>
+<p>演示素材全部来自本机真机录屏，包含 <strong>37 章一章一段</strong>，每段均配置了自动运镜算法，未采用静态示意图或手工拼帧。</p>
+<h3 id="两遍处理参考-screenize-openscreen-的实现思路">两遍处理（参考 Screenize / OpenScreen 的实现思路）</h3>
 <div class="table-wrap"><table><thead><tr><th>遍</th><th>做什么</th></tr></thead><tbody><tr><td>第一遍</td><td><code>screencapture -v -C</code> 录屏（带光标），同时把每一次 <code>move / click / drag / scroll / type</code> 连同时间戳写成 <code>*.json</code></td></tr><tr><td>第二遍</td><td>按事件生成镜头段落，逐帧裁切放大，再叠点击涟漪与光标环，最后量化成 GIF</td></tr></tbody></table></div>
 <p>参考的三个开源项目：<strong>Screenize</strong>（syi0808，Apache-2.0，连续/分段两种相机 + 多轨时间线）、 <strong>OpenScreen</strong>（siddharthvaddem，MIT，点击驱动自动缩放 + 光标高亮）、 <strong>Recordly</strong>（跨平台，自动缩放 + 平滑光标 + 点击效果）。</p>
-<p>我们与它们的差别：这里的鼠标是<strong>程序合成</strong>的，坐标与时刻完全已知，不需要 Vision 去猜 UI 元素， 所以不会出现「镜头跟丢光标」。</p>
+<p>与上述开源项目的区别在于：此处的鼠标光标完全由程序根据事件坐标合成，坐标与时间戳完全确定，无需借助 Vision 识别猜测 UI 元素，避免了镜头跟丢光标的情况。</p>
 <h3 id="镜头规则tools-gifdoc-camera-py">镜头规则（<code>tools/gifdoc/camera.py</code>）</h3>
 <div class="table-wrap"><table><thead><tr><th>事件</th><th>推近</th><th>说明</th></tr></thead><tbody><tr><td>点击</td><td>1.95×</td><td>镜头停在点击处，直到下一个动作</td></tr><tr><td>打字</td><td>1.75×</td><td>覆盖整段输入</td></tr><tr><td>拖拽</td><td>1.50×</td><td>起点、终点各一个镜头</td></tr><tr><td>滚动</td><td>1.45×</td><td>跟住滚轮位置</td></tr><tr><td>停顿 ≥0.75s</td><td>1.50×</td><td>先按「时间近 + 距离近」聚簇，一簇一个镜头，避免表单页每悬停一行就推拉一次</td></tr><tr><td>空闲 &gt;2.8s</td><td>回 1.0×</td><td>全景</td></tr></tbody></table></div>
 <p>细节：推近上限按窗口尺寸算 <code>min(w,h)/200</code> 夹在 1.45–2.0×（窄面板推狠了只会糊）； 进出用 smoothstep（0.20s / 0.28s），再叠一层 0.10–0.12s 的双向 EMA； 镜头几乎不动时<strong>钉住</strong>（比例 0.002、中心 0.35pt 死区），否则静止段帧帧不同，GIF 会翻十倍。</p>
 <p>叠加层：点击涟漪 0.52s 两圈扩散；放大状态下给真光标套一圈细白环（光标本身仍来自录屏）。</p>
 <h3 id="演示数据-录的时候就不碰真实数据">演示数据：录的时候就不碰真实数据</h3>
 <p>第一版录完后做了逐帧审查，发现剪贴板历史里有一条 VPN 订阅链接（带 token）、 若干服务器地址与工作待办，跟着浮层预览一起进了画面——37 段里有 8 段能看到。</p>
-<p>靠马赛克逐一遮不现实，改成<strong>录制时就用隔离的数据目录</strong>：</p>
+<p>逐一手工打码并不现实，因此在录制阶段直接使用隔离的数据目录：</p>
 <pre><code>python3 tools/make_demo_data.py                 # 生成纯虚构的演示数据到 /tmp/kitnest-demo
 defaults write com.sxyq.frsetnext KitnestDataDir /tmp/kitnest-demo
 python3 tools/gifdoc/run.py ch01 --record       # 录
 defaults delete com.sxyq.frsetnext KitnestDataDir</code></pre>
 <p><code>AppDirectories</code> 支持 <code>KITNEST_DATA_DIR</code> 环境变量与 <code>KitnestDataDir</code> 偏好项覆盖， 剪贴板库、截图历史、统计、暂存目录全部跟着走。演示数据里域名一律 <code>example.com</code>、 路径一律 <code>/Users/demo</code>、设备地址用文档保留网段 <code>192.0.2.0/24</code>。</p>
-<p><strong>换不掉的再打码</strong>。有三类内容来自运行环境而不是数据目录，换不了：</p>
+<p>无法通过数据目录隔离的运行环境内容，统一进行打码处理。包含以下三类：</p>
 <div class="table-wrap"><table><thead><tr><th>内容</th><th>出现位置</th><th>处理</th></tr></thead><tbody><tr><td><code>~/Movies</code>、<code>~/Downloads</code> 等绝对路径</td><td>录屏设置、网盘解析、工作流设置</td><td>打码</td></tr><tr><td>磁盘索引里的真实文件名</td><td>文件中转</td><td>打码</td></tr><tr><td>本机进程名</td><td>性能监测的「占用流量」</td><td>打码</td></tr></tbody></table></div>
-<p>打码用<strong>马赛克</strong>而不是高斯模糊：模糊会留下低频轮廓，缩到 1/12 再放大才真的读不出。 实现是 <code>h.redact(frames, boxes, pixel=12)</code>，每章在 <code>scenes.py</code> 里配一个区域。</p>
+<p>打码采用马赛克而非高斯模糊：高斯模糊仍会残留文字轮廓，马赛克缩至 1/12 再放大可彻底掩盖文字细节。 实现是 <code>h.redact(frames, boxes, pixel=12)</code>，每章在 <code>scenes.py</code> 里配一个区域。</p>
 <blockquote>录完自查：<code>tools/gifdoc/</code> 里有一套 OCR 探针（<code>ocrbox</code>），把每段 GIF 抽 5 帧跑一遍， 搜 <code>sunyiyang</code> / <code>/Users/</code> / <code>192.168.</code> / <code>sxyq27</code> / 邮箱与手机号，命中就重录。</blockquote>
 <h3 id="演示数据的完整性第-13-18-22-章">演示数据的完整性（第 13 / 18 / 22 章）</h3>
 <p>隔离目录最初只有剪贴板、截图历史和统计，三个窗口因此是空态：存储管理提示 「需要先建立索引」、归档浏览是空列表、截图历史只有一串 UUID。<code>make_demo_data.py</code> 现已补齐三份 App 能直接读取的数据：</p>
 <div class="table-wrap"><table><thead><tr><th>数据</th><th>位置</th><th>演示效果</th></tr></thead><tbody><tr><td>截图历史 6 条</td><td><code>capture-history.sqlite</code> + 样张 / 缩略图</td><td>按 <code>Screenshot-yyyy-MM-dd-HHmmss-….png</code> 真实命名，带模式、尺寸、OCR 摘要；敲 <code>2026-11</code> 能看到列表从 6 张过滤到 4 张</td></tr><tr><td>磁盘索引</td><td><code>disk-index/index-fullDisk.json</code>（schema 4）</td><td>虚构目录树 <code>/Users/demo/...</code>，存储窗出 45.3 G 可清理、气泡图与候选清单，可勾选</td></tr><tr><td>素材包</td><td><code>downloads/素材包.zip</code>（6 个 UTF-8 条目）</td><td>归档窗能列文件、点选预览、看详情</td></tr></tbody></table></div>
-<p>这三段重录后画面里全是虚构内容，<strong>没有新增任何遮罩或打码</strong>——空态是靠把数据造完整解决的， 不是靠糊住画面。</p>
+<p>这三段重录后画面全部使用虚构演示数据呈现，未新增额外遮罩或打码；通过补齐测试数据解决窗口空态，无需在画面上进行二次遮蔽。</p>
 <h3 id="录制画质的四项修正">录制画质的四项修正</h3>
 <div class="table-wrap"><table><thead><tr><th>问题</th><th>原因</th><th>处理</th></tr></thead><tbody><tr><td>玻璃面板透出别的 App 文字、桌面小组件</td><td>窗口是半透明材质</td><td>录制时铺一块纯色渐变背景板（<code>backdrop.swift</code>），录完关掉</td></tr><tr><td>首帧就放大、窗口边缘被切</td><td>镜头双向平滑把后面的推近值「回传」到了开头</td><td><code>camera.render(intro=0.35)</code>：开场锁全景，再用 3 帧软接回</td></tr><tr><td>缩略图上出现白色方块残影</td><td>增量帧只贴差异像素，列表重排后旧像素擦不掉</td><td>关键帧间隔 12 → 6 帧，并关掉抖动</td></tr><tr><td>搜索框打字全丢</td><td>键盘事件是全局 <code>CGEvent</code>，深链打开窗口并不保证 App 在前台</td><td>开镜前显式 <code>activate</code> Kitnest</td></tr></tbody></table></div>
 <p>另外把镜头目标减掉裁切原点再换算（<code>camera.py</code>），修掉了小窗口推近时焦点整体偏右下的问题； 并给三个小窗口单独压了放大上限（<code>zmax</code>），避免推到只剩三列卡片。</p>
