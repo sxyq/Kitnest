@@ -127,7 +127,8 @@ final class TransientWindowCenter {
 
     private func handleLocalClick(_ event: NSEvent) {
         guard !entries.isEmpty else { return }
-        let point = NSEvent.mouseLocation
+        // 点击处理期间光标可能已经移动；以该次事件的位置判断，避免窗内操作被当成点外。
+        let point = event.window?.convertPoint(toScreen: event.locationInWindow) ?? NSEvent.mouseLocation
 
         // 菜单栏区域（状态项 / 系统图标）：
         //   · 点**自家**状态项：交给各自 action（toggle / 切换模块），这里抢跑会导致

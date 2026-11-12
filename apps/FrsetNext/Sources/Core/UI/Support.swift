@@ -135,8 +135,11 @@ public enum Theme {
     public static var panelMaxHeight: CGFloat { 700 * Personalization.shared.fontScale }
     /// 通用行高（个性化密度联动）
     public static var rowHeight: CGFloat { Personalization.shared.density.rowHeight }
-    /// 原版主页剪贴板行高（缩略图 50 + 上下 8pt 留白；行距由 intercellSpacing 8 提供）
-    public static var statsRowHeight: CGFloat { Personalization.shared.density.statsRowHeight }
+    /// 剪贴板行高随实际缩略图调整，保留各密度的留白，避免大图挤入相邻行。
+    public static var statsRowHeight: CGFloat {
+        let p = Personalization.shared
+        return p.effectiveThumbSize + p.density.statsRowHeight - p.density.thumbSize
+    }
     /// 缩略图边长（密度联动 / 覆盖档位优先）
     public static var thumbSize: CGFloat { Personalization.shared.effectiveThumbSize }
 

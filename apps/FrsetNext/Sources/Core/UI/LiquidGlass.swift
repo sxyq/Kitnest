@@ -1,6 +1,25 @@
 import AppKit
 import SwiftUI
 
+private struct SettingsPreviewKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct SettingsPreviewClipboardKey: EnvironmentKey {
+    static let defaultValue: [ClipboardItem] = []
+}
+
+extension EnvironmentValues {
+    var isSettingsPreview: Bool {
+        get { self[SettingsPreviewKey.self] }
+        set { self[SettingsPreviewKey.self] = newValue }
+    }
+    var settingsPreviewClipboardItems: [ClipboardItem] {
+        get { self[SettingsPreviewClipboardKey.self] }
+        set { self[SettingsPreviewClipboardKey.self] = newValue }
+    }
+}
+
 // MARK: - Liquid Glass 基础设施
 //
 // 设计口径（Apple HIG / Liquid Glass）：
@@ -120,6 +139,7 @@ enum LiquidGlass {
 // MARK: - SwiftUI 侧玻璃背景（sheet / 自定义面板）
 
 struct LiquidGlassBackground: NSViewRepresentable {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     var cornerRadius: CGFloat = 16
     var tint: Color?
     /// false = 不接管窗口阴影（调用方自己画内容阴影，窗口带透明留白时避免系统矩形阴影）
@@ -130,10 +150,14 @@ struct LiquidGlassBackground: NSViewRepresentable {
                                         tint: tint.map { NSColor($0) })
         // SwiftUI 的 sheet 窗口默认不透明；不置透明的话玻璃只能采样到纯白底，
         // 看起来就是一块白板（2026-10-17 实测）。
-        DispatchQueue.main.async {
-            guard let w = view.window else { return }
-            w.applyOfficialBackground()
-            w.hasShadow = appliesWindowShadow
+        if isSettingsPreview {
+            (view as? NSVisualEffectView)?.blendingMode = .withinWindow
+        } else {
+            DispatchQueue.main.async {
+                guard let w = view.window else { return }
+                w.applyOfficialBackground()
+                w.hasShadow = appliesWindowShadow
+            }
         }
         return view
     }
@@ -143,6 +167,9 @@ struct LiquidGlassBackground: NSViewRepresentable {
         LiquidGlass.reapplyStyle(on: nsView,
                                  cornerRadius: cornerRadius,
                                  tint: tint.map { NSColor($0) })
+        if isSettingsPreview {
+            (nsView as? NSVisualEffectView)?.blendingMode = .withinWindow
+        }
     }
 }
 
