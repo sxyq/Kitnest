@@ -47,11 +47,16 @@ final class SettingsUIState: ObservableObject {
             selection = .generalPersonal
         case "menubar", "general.menubar", "menuBar":
             selection = .generalMenuBar
+        case "notifications", "general.notifications":
+            selection = .generalNotifications
+        case "capture.actions", "capture.toolbar":
+            selection = .captureActions
         case "audio":                            selection = .audio
         // 剪贴板
         case "clipboard", "clipboard.history":   selection = .clipboardHistory
         case "clipboard.capture":                selection = .clipboardCapture
         case "clipboard.floating", "floatingClipboard": selection = .clipboardFloating
+        case "clipboard.appearance": selection = .clipboardAppearance
         // 文件中转
         case "transfer", "transfer.display":     selection = .transferDisplay
         case "transfer.cast", "cast":            selection = .transferCast

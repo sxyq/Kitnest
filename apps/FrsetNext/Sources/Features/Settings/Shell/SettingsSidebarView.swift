@@ -276,15 +276,18 @@ struct SettingsSidebarView: View {
     private static let searchIndex: [SettingsSearchEntry] = [
         // 常规 · 启动与外观
         .init(title: "开机启动", area: "常规 › 启动与外观", keywords: "登录 自启 启动项", selection: .generalStart),
-        .init(title: "外观（浅色 / 深色 / Midnight）", area: "常规 › 启动与外观", keywords: "主题 配色 暗色 深色模式 午夜", selection: .generalStart),
+        .init(title: "外观（浅色 / 深色 / Midnight）", area: "常规 › 主题外观", keywords: "主题 配色 暗色 深色模式 午夜", selection: .generalPersonal),
         .init(title: "语言", area: "常规 › 启动与外观", keywords: "中文 英文 language", selection: .generalStart),
         // 常规 · 主面板
-        .init(title: "主面板（字号 / 圆角 / 宽度 / 材质）", area: "常规 › 主面板", keywords: "字号 行高 圆角 宽度 材质 面板页面 顺序", selection: .generalPanel),
+        .init(title: "主面板（字号 / 圆角 / 宽度 / 背景图）", area: "常规 › 主面板", keywords: "字号 行高 圆角 宽度 面板页面 顺序 打开动画 背景图", selection: .generalPanel),
         .init(title: "外观预览（主面板）", area: "常规 › 主面板", keywords: "预览 实时 缩略窗 所见即所得", selection: .generalPanel),
         // 常规 · 独立窗口与浮层
-        .init(title: "独立窗口与浮层（玻璃 / 密度 / 缩略图）", area: "常规 › 独立窗口与浮层", keywords: "玻璃 通透度 磨砂 描边 卡片亮度 密度 缩略图 徽章 通知条 浮层", selection: .generalWindows),
+        .init(title: "窗口材质（玻璃 / 通透度 / 磨砂）", area: "常规 › 窗口材质", keywords: "玻璃 通透度 磨砂 描边 卡片亮度 材质 浮层", selection: .generalWindows),
+        .init(title: "通知提示（时长 / 位置）", area: "常规 › 通知提示", keywords: "通知条 Toast 时长 位置 跟随主面板", selection: .generalNotifications),
+        .init(title: "列表外观（密度 / 缩略图 / 徽章）", area: "剪贴板 › 列表外观", keywords: "密度 缩略图 来源徽章 预览", selection: .clipboardAppearance),
+        .init(title: "截图动作条外观", area: "截图 › 动作条外观", keywords: "动作条 图标条 药丸条 主次分离 排布", selection: .captureActions),
         // 常规 · 个性化
-        .init(title: "个性化（强调色 / 动画 / 动作条 / 背景图）", area: "常规 › 个性化", keywords: "强调色 主题色 打开动画 截图动作条 背景图 功能入口 恢复默认", selection: .generalPersonal),
+        .init(title: "主题外观（强调色 / Midnight）", area: "常规 › 主题外观", keywords: "强调色 主题色 恢复默认", selection: .generalPersonal),
         // 常规 · 菜单栏
         .init(title: "菜单栏图标", area: "常规 › 菜单栏", keywords: "状态栏 图标 logo 风扇 日期 小猫", selection: .generalMenuBar),
         .init(title: "菜单栏功能开关", area: "常规 › 菜单栏", keywords: "系统监控 日历 截图检索 文件中转", selection: .generalMenuBar),

@@ -62,15 +62,16 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var pages: [SettingsPage] {
         switch self {
         case .general:
-            return [.generalStart, .generalPanel, .generalWindows, .generalPersonal, .generalMenuBar]
+            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .generalNotifications, .generalMenuBar]
         case .audio:
             return [.audio]
         case .clipboard:
-            return [.clipboardHistory, .clipboardCapture, .clipboardFloating]
+            return [.clipboardHistory, .clipboardCapture, .clipboardAppearance, .clipboardFloating]
         case .transfer:
             return [.transferDisplay, .transferCast, .transferScan, .transferCloud, .transferLocal]
         case .capture:
-            return CaptureSettingsBlock.allCases.map { .capture($0) }
+            return [.capture(.capture), .captureActions]
+                + CaptureSettingsBlock.allCases.dropFirst().map { .capture($0) }
         case .tools:
             return [.tools, .shortcuts]
         case .searchAI:
@@ -105,6 +106,8 @@ enum SettingsPage: Hashable {
     case generalPersonal
     /// 菜单栏：功能开关 / AI 服务商 / 图标样式 / 部件
     case generalMenuBar
+    case generalNotifications
+    case captureActions
 
     // 音频（1）
     case audio
@@ -113,6 +116,7 @@ enum SettingsPage: Hashable {
     case clipboardHistory
     case clipboardCapture
     case clipboardFloating
+    case clipboardAppearance
 
     // 文件中转（5）
     case transferDisplay
@@ -145,10 +149,12 @@ enum SettingsPage: Hashable {
     /// 页面标题（内容区大标题 + 侧边栏 tooltip）
     var title: String {
         switch self {
-        case .generalStart:      return "启动与外观"
+        case .generalStart:      return "启动与语言"
         case .generalPanel:      return "主面板"
-        case .generalWindows:    return "独立窗口与浮层"
-        case .generalPersonal:   return "个性化"
+        case .generalWindows:    return "窗口材质"
+        case .generalPersonal:   return "主题外观"
+        case .generalNotifications: return "通知提示"
+        case .captureActions: return "动作条外观"
         case .generalMenuBar:    return "菜单栏"
 
         case .audio:             return "音频混音器"
@@ -156,6 +162,7 @@ enum SettingsPage: Hashable {
         case .clipboardHistory:  return "历史"
         case .clipboardCapture:  return "捕获"
         case .clipboardFloating: return "浮动窗"
+        case .clipboardAppearance: return "列表外观"
 
         case .transferDisplay:   return "显示"
         case .transferCast:      return "投屏画质"
@@ -189,12 +196,15 @@ enum SettingsPage: Hashable {
         case .generalWindows:    return "macwindow.on.rectangle"
         case .generalPersonal:   return "paintpalette"
         case .generalMenuBar:    return "menubar.rectangle"
+        case .generalNotifications: return "bell"
+        case .captureActions: return "rectangle.bottomthird.inset.filled"
 
         case .audio:             return "speaker.wave.2"
 
         case .clipboardHistory:  return "clock.arrow.circlepath"
         case .clipboardCapture:  return "arrow.down.doc"
         case .clipboardFloating: return "rectangle.on.rectangle"
+        case .clipboardAppearance: return "list.bullet.rectangle"
 
         case .transferDisplay:   return "eye"
         case .transferCast:      return "airplayvideo"
@@ -236,9 +246,13 @@ enum SettingsPage: Hashable {
         case .generalPanel:
             return "⌥A 打开主面板；点面板外部自动收起"
         case .generalWindows:
-            return "各自独立呼出：悬浮剪贴板 ⇧⌘V · 图帘 ⇧⌥G · 钉图 ⇧⌥P"
+            return "统一调节主面板、悬浮剪贴板、设置与工具窗口的材质"
         case .generalPersonal:
-            return "强调色与背景图同时作用于主面板和所有独立窗口"
+            return "调节应用外观、强调色与 Midnight 色相"
+        case .generalNotifications:
+            return "复制、截图等操作完成后显示；可调整时长与位置"
+        case .captureActions:
+            return "完成截图后出现；切换样式不改变复制、保存等动作"
         case .generalMenuBar:
             return "菜单栏图标：左键开主面板，右键出菜单（设置… ⌘,）"
 
@@ -251,6 +265,8 @@ enum SettingsPage: Hashable {
             return "无需手动：复制后自动入库；⇧⌘V 可随时呼出悬浮窗"
         case .clipboardFloating:
             return "⇧⌘V 呼出 / 收起悬浮剪贴板"
+        case .clipboardAppearance:
+            return "主面板首页的剪贴板列表；调节密度、缩略图与来源徽章"
 
         case .transferDisplay:
             return "主面板 → 中转 分页（⌥A 打开主面板）"

@@ -116,6 +116,10 @@ struct SettingsRootView: View {
             panePage { GeneralSettingsPane(section: .personalization) }
         case .generalMenuBar:
             panePage { GeneralSettingsPane(section: .menuBar) }
+        case .generalNotifications:
+            panePage { GeneralSettingsPane(section: .notifications) }
+        case .captureActions:
+            panePage { GeneralSettingsPane(section: .captureToolbar) }
 
         case .audio:
             AudioMixerPane()
@@ -127,6 +131,8 @@ struct SettingsRootView: View {
             panePage { ClipboardSettingsPane(section: .capture) }
         case .clipboardFloating:
             panePage { ClipboardSettingsPane(section: .floating) }
+        case .clipboardAppearance:
+            panePage { ClipboardSettingsPane(section: .appearance) }
 
         // 文件中转（5）
         case .transferDisplay:

@@ -8,13 +8,15 @@ import SwiftUI
 // 视图侧（主面板/剪贴板表格/窗口尺寸）经 objectWillChange 与
 // Personalization.didChangeNotification 即时响应。恢复默认一键回滚。
 
-/// v270（用户：「这个预览也要拆开 不要放在一起 同时这部分设置也进行拆分」）：
-/// 个性化页按**生效对象**拆成三段，每段各带一张只画自己的预览——
-/// 一张图同时画两个窗口时，用户拿它验证设置永远对不上号。
+/// 用户要求「用真实组件，一个模块只能有一个预览」：按实际消费点归属设置。
 enum PersonalizationSettingsPart {
-    case mainPanel        // 主面板：字号 / 圆角 / 宽度 / 材质 / 页面顺序
-    case floatingWindow   // 独立窗口与浮层：玻璃四参数 / 密度 / 缩略图 / 徽章 / 通知条
-    case shared           // 两边都管：强调色 / 打开动画 / 动作条 / 背景图 / 入口 / 恢复默认
+    case mainPanel        // 主面板：字号 / 圆角 / 宽度 / 动画 / 背景 / 页面顺序
+    case floatingWindow   // 全局窗口材质与玻璃四参数
+    case clipboardAppearance
+    case notification
+    case captureToolbar
+    case menuBar
+    case shared           // 主题外观与恢复全部默认
 }
 
 struct PersonalizationSettingsView: View {
@@ -45,6 +47,11 @@ struct PersonalizationSettingsView: View {
             switch part {
             case .mainPanel:      mainPanelRows
             case .floatingWindow: floatingWindowRows
+            case .clipboardAppearance: clipboardRows
+            case .notification: toastRow
+            case .captureToolbar: toolbarStyleRow
+            case .menuBar:
+                VStack(spacing: 10) { dividerRow; globalEntriesRow }
             case .shared:         sharedRows
             }
         }
@@ -62,7 +69,8 @@ struct PersonalizationSettingsView: View {
             cornerRow
             widthRow
             Divider().opacity(0.5)
-            materialRow
+            animationRow
+            backgroundImageRow
             Divider().opacity(0.5)
             panelPagesRow
         }
@@ -73,11 +81,15 @@ struct PersonalizationSettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             glassRow
             Divider().opacity(0.5)
+            materialRow
+        }
+    }
+
+    private var clipboardRows: some View {
+        VStack(alignment: .leading, spacing: 10) {
             densityRow
             thumbRow
             badgeRow
-            Divider().opacity(0.5)
-            toastRow
         }
     }
 
@@ -86,14 +98,7 @@ struct PersonalizationSettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             accentRow
             Divider().opacity(0.5)
-            animationRow
-            toolbarStyleRow
-            Divider().opacity(0.5)
             midnightHueRow
-            backgroundImageRow
-            Divider().opacity(0.5)
-            dividerRow
-            globalEntriesRow
             Divider().opacity(0.5)
             resetRow
         }
@@ -314,11 +319,14 @@ struct PersonalizationSettingsView: View {
     private var toolbarStyleRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             settingRow("截图动作条") {
-                HStack(spacing: 8) {
-                    toolbarStyleCard("iconBar", title: "图标条", caption: "最紧凑，悬停显名")
-                    toolbarStyleCard("pillBar", title: "药丸条", caption: "图标加文字，一眼看懂")
-                    toolbarStyleCard("primarySplit", title: "主次分离", caption: "默认动作放大")
+                Picker("", selection: $toolbarStyle) {
+                    ForEach(CaptureToolbarStyle.allCases) { style in
+                        Text(style.title).tag(style.rawValue)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 300)
             }
             Text("框选完成后弹出的小面板。三种排布的功能完全一样，只是紧凑程度和子项展开方式不同；"
                  + "切换后下一次框选即生效，不用重启。")
@@ -328,71 +336,6 @@ struct PersonalizationSettingsView: View {
         }
     }
 
-    private func toolbarStyleCard(_ id: String, title: String, caption: String) -> some View {
-        let on = toolbarStyle == id
-        return Button {
-            toolbarStyle = id
-        } label: {
-            VStack(spacing: 6) {
-                miniToolbar(id)
-                    .frame(height: 12)
-                Text(title)
-                    .font(.system(size: 11, weight: on ? .medium : .regular))
-                    .foregroundStyle(on ? Theme.accent : Color.primary)
-                    .lineLimit(1)
-            }
-            .frame(width: 88, height: 54)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(on ? Theme.accent.opacity(0.08) : Theme.cardFill)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .strokeBorder(on ? Theme.accent.opacity(0.55) : Color.primary.opacity(0.10),
-                                  lineWidth: on ? 1 : 0.5)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help(caption)
-    }
-
-    /// 卡片里的迷你示意：用几何块表达三种排布，不用图标字体（避免和真实含义错位）
-    @ViewBuilder
-    private func miniToolbar(_ id: String) -> some View {
-        if id == "iconBar" {
-            HStack(spacing: 3) {
-                ForEach(0..<5, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(i == 0 ? Theme.accent : Color.primary.opacity(0.22))
-                        .frame(width: 9, height: 9)
-                }
-            }
-        } else if id == "pillBar" {
-            HStack(spacing: 2) {
-                ForEach(0..<5, id: \.self) { i in
-                    Capsule(style: .continuous)
-                        .fill(i == 0 ? Theme.accent : Color.primary.opacity(0.16))
-                        .frame(width: i == 2 ? 17 : 13, height: 9)
-                }
-            }
-        } else {
-            HStack(spacing: 4) {
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(Theme.accent)
-                    .frame(width: 24, height: 10)
-                Rectangle()
-                    .fill(Color.primary.opacity(0.20))
-                    .frame(width: 0.5, height: 8)
-                ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(Color.primary.opacity(0.22))
-                        .frame(width: 9, height: 9)
-                }
-            }
-        }
-    }
 
     /// 面板默认宽度（写 panelWidth 持久化键；已开面板即时 setFrame，保持顶边）
     private var widthRow: some View {
@@ -692,239 +635,207 @@ private struct SegmentDropDelegate: DropDelegate {
     }
 }
 
-// MARK: - 实时预览（v270：一张预览只画一个生效对象，跟着各自设置组走）
-//
-// v260 曾把「主面板」「独立窗口」并排画在同一张壁纸画布上，仍属「放在一起」：
-// 主面板那一组调字号，眼睛却会扫到右边那张剪贴板；两张图共享一块底，也让人
-// 以为它们是同一套生效项。v270 按用户要求彻底拆开：
-//   · 预览组件带 scope，只画一个 mock；
-//   · 两张预览分别放进「主面板」「独立窗口与浮层」两个设置组，预览在上面、
-//     对应设置紧随其下——所见即所调。
+// MARK: - 设置实时预览：复用正式界面，一页一个对象
+
 struct AppearancePreviewBlock: View {
-    enum Scope { case mainPanel, floatingWindow }
+    enum Scope { case mainPanel, floatingWindow, clipboard, clipboardList, captureToolbar, notification }
     var scope: Scope = .mainPanel
 
     @ObservedObject private var p = Personalization.shared
     @AppStorage(Preferences.Keys.panelWidth) private var panelWidth: Double = 400
+    @AppStorage(CaptureToolbarStyle.preferenceKey) private var toolbarStyle = "pillBar"
     @Stored private var wallpaper: NSImage?
-    /// AppKit 侧玻璃底靠 150ms 防抖通知刷新；这里收到后自增一次让 body 重算
-    @Stored private var revision = 0
+    @StateObject private var presentation = PanelPresentationState()
+    @StateObject private var toolbarModel = CaptureToolbarModel()
+    @StateObject private var toastState = MenuBarToastAnimationState()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Stored private var toastReplay = 0
+    @Stored private var revealed = false
+
+    private static let previewItems: [ClipboardItem] = [
+        ClipboardItem(id: "appearance-note", type: .text,
+                      content: "周五交付\n整理截图、核对文案，再发给同事。", title: "周五交付",
+                      sourceApp: "com.apple.Notes", dedupeKey: "appearance-note"),
+        ClipboardItem(id: "appearance-link", type: .url,
+                      content: "https://developer.apple.com/design/", title: "Apple 设计资源",
+                      timestamp: Date().addingTimeInterval(-120), sourceApp: "com.apple.Safari",
+                      dedupeKey: "appearance-link"),
+        ClipboardItem(id: "appearance-code", type: .text,
+                      content: "{\"title\": \"项目笔记\", \"ready\": true}", title: "项目笔记.json",
+                      timestamp: Date().addingTimeInterval(-300), sourceApp: "com.apple.TextEdit",
+                      dedupeKey: "appearance-code")
+    ]
 
     var body: some View {
-        let _ = revision
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(scope == .mainPanel ? "主面板预览" : "独立窗口预览")
-                    .font(.system(size: 12, weight: .semibold))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("效果预览").font(.system(size: 12, weight: .semibold))
                 Spacer()
-                Text("实时")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.14)))
+                if scope == .notification {
+                    Button("重播") { toastReplay &+= 1 }.buttonStyle(.link)
+                }
+                Text("示例内容 · 实时更新").font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            previewCanvas
-            Text(caption)
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            GeometryReader { geo in
+                let size = previewSize
+                let scale = min(1, min((geo.size.width - 32) / size.width,
+                                      (geo.size.height - 24) / size.height))
+                ZStack {
+                    wallpaperBackground
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                    previewContent
+                        .frame(width: size.width, height: size.height)
+                        .environment(\.isSettingsPreview, true)
+                        .environment(\.settingsPreviewClipboardItems, Self.previewItems)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .scaleEffect(scale)
+                        .frame(width: size.width * scale, height: size.height * scale)
+                        .offset(y: scope == .notification && !p.toastFollowPanel ? geo.size.height * 0.06 : 0)
+                        .opacity(revealed ? 1 : 0)
+                        .offset(y: reduceMotion || revealed ? 0 : 4)
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipped()
+            }
+            .frame(height: canvasHeight)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.window)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
+            Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
         }
-        .onAppear { reloadWallpaper() }
-        // v260：旧版 `if previewWallpaper == nil` 只加载一次，换背景图/换桌面壁纸
-        // 后预览底图永远停在首次那张 —— 改成路径变化即重载。
+        .onAppear {
+            reloadWallpaper()
+            toolbarModel.style = CaptureToolbarStyle.current
+            toastState.message = "操作完成"
+            toastState.icon = "checkmark"
+            toastState.isVisible = true
+            withAnimation(.easeOut(duration: 0.16)) { revealed = true }
+        }
         .onChange(of: p.backgroundImagePath) { _ in reloadWallpaper() }
-        .onReceive(NotificationCenter.default.publisher(for: Personalization.didChangeNotification)) { _ in
-            revision &+= 1
+        .onChange(of: toolbarStyle) { _ in toolbarModel.style = CaptureToolbarStyle.current }
+        .onChange(of: p.toastDuration) { _ in toastReplay &+= 1 }
+        .animation(reduceMotion ? nil : Theme.Motion.fast, value: panelWidth)
+        .animation(reduceMotion ? nil : Theme.Motion.fast, value: toolbarStyle)
+        .task(id: toastReplay) { @MainActor in
+            if scope != .notification { return }
+            toastState.isVisible = false
+            await Task.yield()
+            withAnimation(reduceMotion ? nil : Theme.Motion.springSnappy) { toastState.isVisible = true }
+            do { try await Task.sleep(nanoseconds: UInt64(p.toastDuration * 1_000_000_000)) }
+            catch { return }
+            withAnimation(reduceMotion ? nil : Theme.Motion.fast) { toastState.isVisible = false }
         }
     }
+
 
     private var caption: String {
         switch scope {
+        case .mainPanel: return "正式主面板组件；示例记录不会写入剪贴板。"
+        case .floatingWindow: return "窗口共用这套材质，使用性能监测界面展示效果。"
+        case .clipboard: return "显示当前浮动窗的布局、卡片和详情。"
+        case .clipboardList: return "主面板里的剪贴板列表；密度、缩略图和徽章在这里体现。"
+        case .captureToolbar: return "正式动作条组件；这里只演示外观，不执行截图操作。"
+        case .notification: return "显示 \(Int(p.toastDuration)) 秒 · \(p.toastFollowPanel ? "跟随主面板" : "屏幕中线偏下")"
+        }
+    }
+
+    private var canvasHeight: CGFloat {
+        switch scope {
+        case .mainPanel, .clipboard: return 260
+        case .floatingWindow: return 220
+        case .clipboardList: return 190
+        case .captureToolbar: return 140
+        case .notification: return p.toastFollowPanel ? 280 : 140
+        }
+    }
+
+    private var previewSize: CGSize {
+        switch scope {
+        case .mainPanel: return CGSize(width: CGFloat(panelWidth), height: 480)
+        case .floatingWindow: return CGSize(width: 520, height: 250)
+        case .clipboard: return CGSize(width: 640, height: 420)
+        case .clipboardList: return CGSize(width: CGFloat(panelWidth), height: Theme.statsRowHeight * 3 + 4)
+        case .captureToolbar:
+            return CaptureActionToolbarPanel.panelSize(
+                for: toolbarModel.preview?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                style: toolbarModel.style)
+        case .notification:
+            return CGSize(width: max(420, CGFloat(panelWidth)), height: p.toastFollowPanel ? 618 : 130)
+        }
+    }
+
+    @ViewBuilder private var previewContent: some View {
+        switch scope {
         case .mainPanel:
-            return "只反映主面板：界面字号 · 面板圆角 · 面板宽度 · 背景材质，以及下方「主面板页面」的取舍与顺序。"
-                 + "强调色和玻璃四参数不在这张图里体现。"
+            PanelRootView(presentation: presentation, onDismiss: {}, onOpenSettings: {})
+                .background(LiquidGlassBackground(cornerRadius: p.cornerRadius))
+                .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
         case .floatingWindow:
-            return "只反映独立窗口与浮层（悬浮剪贴板 / 性能独立窗 / 本设置窗的玻璃底）："
-                 + "强调色 · 通透度 · 磨砂 · 卡片亮度 · 描边，以及列表密度、缩略图、来源徽章。"
-        }
-    }
-
-    private var previewCanvas: some View {
-        ZStack {
-            wallpaperBackground
-            VStack(alignment: .leading, spacing: 6) {
-                if scope == .mainPanel {
-                    mainPanelMock
-                } else {
-                    floatingWindowMock
+            VStack(spacing: 0) {
+                PreviewWindowChrome().frame(height: 32)
+                MonitorNetworkThroughputCard(down: 1_800_000, up: 240_000,
+                    downHistory: [200_000, 700_000, 420_000, 1_300_000, 900_000, 1_800_000],
+                    upHistory: [100_000, 180_000, 120_000, 320_000, 160_000, 240_000],
+                    timeSpan: 60, slots: 6)
+                    .padding(10)
+            }
+            .background(GlassSurface())
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window))
+        case .clipboard:
+            FloatingClipboardDeskView()
+                .overlay(alignment: .topLeading) { PreviewWindowChrome().frame(height: 32) }
+        case .captureToolbar:
+            CaptureActionToolbarView(model: toolbarModel)
+        case .clipboardList:
+            ClipboardSectionView()
+                .background(GlassSurface(cornerRadius: p.cornerRadius))
+                .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
+        case .notification:
+            VStack(spacing: 8) {
+                if p.toastFollowPanel {
+                    PanelRootView(presentation: presentation, onDismiss: {}, onOpenSettings: {})
+                        .frame(width: CGFloat(panelWidth), height: 480)
+                        .background(LiquidGlassBackground(cornerRadius: p.cornerRadius))
+                        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
                 }
-                scopeLabel
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 200)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
-        )
-    }
-
-    private var scopeLabel: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(scope == .mainPanel ? "主面板" : "独立窗口")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white)
-            Text(scope == .mainPanel
-                 ? "字号 · 圆角 · 宽度 · 材质"
-                 : "强调色 · 通透度 · 磨砂 · 描边")
-                .font(.system(size: 9))
-                .foregroundStyle(.white.opacity(0.80))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(Capsule(style: .continuous).fill(Color.black.opacity(0.38)))
-    }
-
-    /// 生效对象 = 主面板：宽度 / 圆角 / 密度 / 字号 / 材质都在这里体现
-    private var mainPanelMock: some View {
-        VStack(spacing: 5) {
-            HStack(spacing: 4) {
-                trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
-                trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
-                trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
-                Spacer(minLength: 0)
-                Text("主页  监测  中转")
-                    .font(.system(size: 8 * p.fontScale))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            ForEach(0..<3, id: \.self) { _ in
-                HStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.primary.opacity(0.16))
-                        .frame(width: 26, height: 5)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.primary.opacity(0.10))
-                        .frame(width: 54, height: 4)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 7)
-                .frame(height: max(15, p.density.statsRowHeight * 0.40))
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(Theme.cardFill))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(8)
-        .frame(width: max(200, min(320, CGFloat(panelWidth) * 0.66)), height: 130)
-        .background {
-            ZStack {
-                if p.material == .solid {
-                    Rectangle().fill(Color(nsColor: .windowBackgroundColor))
-                } else {
-                    Rectangle().fill(.ultraThinMaterial)
-                }
-                Theme.windowSurface
-                Theme.glassFrost
+                MenuBarToastContentView(state: toastState)
+                    .frame(height: 130)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous)
-            .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 6)
-    }
-
-    /// 生效对象 = 独立窗口 / 悬浮剪贴板：强调色与玻璃四参数
-    private var floatingWindowMock: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 4) {
-                trafficLight(Color(red: 1.00, green: 0.37, blue: 0.34))
-                trafficLight(Color(red: 1.00, green: 0.74, blue: 0.18))
-                trafficLight(Color(red: 0.16, green: 0.78, blue: 0.25))
-                Spacer(minLength: 0)
-                Text("剪贴板")
-                    .font(.system(size: 8 * p.fontScale))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 4) {
-                Text("全部")
-                    .font(.system(size: 8 * p.fontScale, weight: .semibold))
-                    .foregroundStyle(Theme.accent)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule(style: .continuous).fill(Theme.accent.opacity(0.16)))
-                Text("文本")
-                    .font(.system(size: 8 * p.fontScale))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(0..<2, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 1.5).fill(Color.primary.opacity(0.16))
-                        .frame(width: 88, height: 4)
-                    RoundedRectangle(cornerRadius: 1.5).fill(Color.primary.opacity(0.10))
-                        .frame(width: 62, height: 4)
-                }
-            }
-            .padding(7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .fill(Theme.cardFill))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
-            Spacer(minLength: 0)
-        }
-        .padding(8)
-        .frame(width: 240, height: 130)
-        .background {
-            ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                Theme.windowSurface
-                Theme.glassFrost
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: p.cornerRadius, style: .continuous)
-            .strokeBorder(Theme.cardStroke, lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.28), radius: 12, x: 0, y: 6)
-    }
-
-    private func trafficLight(_ color: Color) -> some View {
-        Circle().fill(color).frame(width: 7, height: 7)
     }
 
     @ViewBuilder private var wallpaperBackground: some View {
         if let image = wallpaper {
             Image(nsImage: image).resizable().scaledToFill()
         } else {
-            LinearGradient(colors: [Color(red: 0.16, green: 0.24, blue: 0.45),
-                                    Color(red: 0.42, green: 0.28, blue: 0.55),
-                                    Color(red: 0.86, green: 0.52, blue: 0.30)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            Color(nsColor: .windowBackgroundColor)
         }
     }
 
     private func reloadWallpaper() {
-        let path = p.backgroundImagePath
-        if !path.isEmpty, let image = NSImage(contentsOfFile: path) {
-            wallpaper = image
-            return
-        }
-        guard let screen = NSScreen.main,
-              let url = NSWorkspace.shared.desktopImageURL(for: screen) else {
+        if let screen = NSScreen.main,
+                  let url = NSWorkspace.shared.desktopImageURL(for: screen) {
+            wallpaper = NSImage(contentsOf: url)
+        } else {
             wallpaper = nil
-            return
         }
-        wallpaper = NSImage(contentsOf: url)
     }
+}
+
+/// 使用 AppKit 的原生窗口按钮，不另画红绿灯。
+private struct PreviewWindowChrome: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        for (i, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
+            if let button = NSWindow.standardWindowButton(kind, for: [.titled, .closable, .miniaturizable, .resizable]) {
+                button.setFrameOrigin(NSPoint(x: CGFloat(14 + i * 20), y: 8))
+                view.addSubview(button)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }

@@ -18,6 +18,8 @@ struct GeneralSettingsPane: View {
         case floating         // 独立窗口与浮层
         case personalization  // 个性化（通用）
         case menuBar          // 菜单栏
+        case notifications
+        case captureToolbar
     }
     var section: Section = .startup
     /// v40 面板内嵌模式（主面板「主页 → 常规」）：左侧标题列收窄、宽行改分行布局——
@@ -67,6 +69,18 @@ struct GeneralSettingsPane: View {
             case .floating:        floatingSection
             case .personalization: personalizationSection
             case .menuBar:         menuBarSection
+            case .notifications:
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .notification)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .notification)
+                }
+            case .captureToolbar:
+                SettingsGroupBox {
+                    AppearancePreviewBlock(scope: .captureToolbar)
+                    SettingsDivider()
+                    PersonalizationSettingsView(part: .captureToolbar)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -88,10 +102,6 @@ struct GeneralSettingsPane: View {
                 formRow(L10n.t("Start"), height: 40) {
                     Toggle(L10n.t("Launch Kitnest at login"), isOn: launchAtLoginBinding)
                         .toggleStyle(.checkbox)
-                }
-                SettingsDivider()
-                formRow(L10n.t("Appearance"), height: 98) {
-                    appearanceChoices
                 }
                 SettingsDivider()
                 formRow(L10n.t("Language"), height: 48) {
@@ -138,6 +148,10 @@ struct GeneralSettingsPane: View {
     private var personalizationSection: some View {
         SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
             SettingsGroupBox {
+                AppearancePreviewBlock(scope: .mainPanel)
+                SettingsDivider()
+                formRow(L10n.t("Appearance"), height: 48) { appearanceChoices }
+                SettingsDivider()
                 PersonalizationSettingsView(part: .shared)
                     .padding(.vertical, 6)
             }
@@ -148,17 +162,14 @@ struct GeneralSettingsPane: View {
     /// v234：从「四个圆点」换成预览卡片——和钉图预设共用 VisualOptionCard，
     /// 用户不用试就知道深色/Midnight 长什么样。
     private var appearanceChoices: some View {
-        HStack(alignment: .top, spacing: 8) {
+        Picker("", selection: Binding(get: { appearance.mode }, set: { appearance.apply($0) })) {
             ForEach(AppearanceMode.allCases) { mode in
-                VisualOptionCard(title: appearanceTitle(mode),
-                                 previewSize: CGSize(width: 86, height: 54),
-                                 selected: appearance.mode == mode,
-                                 action: { appearance.apply(mode) }) {
-                    AppearanceThumb(mode: mode)
-                }
+                Text(appearanceTitle(mode)).tag(mode)
             }
-            Spacer(minLength: 0)
         }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(width: 300)
     }
 
     /// 「菜单栏」设置区（功能 / AI 服务商 / 菜单栏图标 / 菜单栏部件）
@@ -201,6 +212,8 @@ struct GeneralSettingsPane: View {
                             .minimumScaleFactor(0.8)
                     }
                 }
+                SettingsDivider()
+                PersonalizationSettingsView(part: .menuBar)
             }
         }
     }
@@ -762,64 +775,3 @@ struct IgnoredAppsEditor: View {
 }
 
 
-// MARK: - 外观预览缩略图（v234）
-
-/// 浅色 / 深色 / Midnight / 跟随系统 的小窗预览
-struct AppearanceThumb: View {
-    let mode: AppearanceMode
-
-    var body: some View {
-        ZStack {
-            background
-            VStack(alignment: .leading, spacing: 4) {
-                RoundedRectangle(cornerRadius: 1.5).fill(ink.opacity(0.45))
-                    .frame(width: 44, height: 4)
-                RoundedRectangle(cornerRadius: 1.5).fill(ink.opacity(0.18))
-                    .frame(width: 62, height: 4)
-                RoundedRectangle(cornerRadius: 1.5).fill(ink.opacity(0.18))
-                    .frame(width: 50, height: 4)
-                Spacer(minLength: 0)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-    }
-
-    @ViewBuilder private var background: some View {
-        switch mode {
-        case .system:
-            ZStack {
-                Color(white: 0.97)
-                LinearGradient(colors: [Color.clear, Color(white: 0.16)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .mask(DiagonalSplit())
-            }
-        case .light:
-            Color(white: 0.97)
-        case .dark:
-            Color(white: 0.17)
-        case .midnight:
-            Color(red: 0.07, green: 0.09, blue: 0.15)
-        }
-    }
-
-    private var ink: Color {
-        switch mode {
-        case .light: return Color(white: 0.15)
-        case .system: return Color(white: 0.3)
-        default: return Color.white
-        }
-    }
-}
-
-/// 左上到右下的斜切遮罩（「跟随系统」用一半深一半浅表达）
-private struct DiagonalSplit: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: rect.maxX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        p.closeSubpath()
-        return p
-    }
-}
