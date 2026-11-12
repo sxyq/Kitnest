@@ -172,7 +172,6 @@ struct StorageManagerRootView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var store = DiskIndexStore.shared
-    @Stored private var hoveredCandidatePath: String?
     /// 每次实际进入的目录路径；游标两侧分别是返回、前进记录。
     @Stored private var directoryHistory: [[DiskNode]] = [[]]
     @Stored private var historyIndex = 0
@@ -201,11 +200,8 @@ struct StorageManagerRootView: View {
     }
 
     @Stored private var diskFreeBytes: Int64?
-
-    private func refreshDiskSpace() {
-        let attrs = try? FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory())
-        diskFreeBytes = (attrs?[.systemFreeSize] as? NSNumber)?.int64Value
-    }
+    @Stored private var volumeUsedBytes: Int64?
+    @Stored private var hasFullDiskAccess = false
 
     private var candidates: [CleanupCandidate] { store.candidates() }
 
@@ -231,20 +227,26 @@ struct StorageManagerRootView: View {
     /// 1. `attributesOfFileSystem(forPath: "/")` 的 systemSize−systemFreeSize
     ///    用的是 `f_bavail`，会把 33GB 系统保留空间算成已用，导致覆盖率凭空少 14%；
     /// 2. `/` 是只读系统卷（13GB），用户文件全在 `/System/Volumes/Data`。
-    private var volumeUsedBytes: Int64? {
+    private func refreshDiskSpace() {
+        let attrs = try? FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory())
+        diskFreeBytes = (attrs?[.systemFreeSize] as? NSNumber)?.int64Value
+        hasFullDiskAccess = DiskScanScope.hasFullDiskAccess
         var s = statfs()
         guard statfs("/System/Volumes/Data", &s) == 0 else {
             // 老系统没有独立数据卷时退回 dome 口径
-            guard let a = try? FileManager.default.attributesOfFileSystem(forPath: "/"),
-                  let total = (a[.systemSize] as? NSNumber)?.int64Value,
-                  let free = (a[.systemFreeSize] as? NSNumber)?.int64Value,
-                  total > free else { return nil }
-            return total - free
+            if let a = try? FileManager.default.attributesOfFileSystem(forPath: "/"),
+               let total = (a[.systemSize] as? NSNumber)?.int64Value,
+               let free = (a[.systemFreeSize] as? NSNumber)?.int64Value,
+               total > free {
+                volumeUsedBytes = total - free
+            } else {
+                volumeUsedBytes = nil
+            }
+            return
         }
         let total = Int64(s.f_blocks) * Int64(s.f_bsize)
         let free = Int64(s.f_bfree) * Int64(s.f_bsize)
-        guard total > free else { return nil }
-        return total - free
+        volumeUsedBytes = total > free ? total - free : nil
     }
 
     private var volumeUsedText: String? {
@@ -279,7 +281,7 @@ struct StorageManagerRootView: View {
             "· 含系统只读卷；不含 /System/Volumes（那是 /Users 的另一张脸，算了会翻倍）",
             "· 大小按磁盘实际块计（st_blocks），与 df/du 同一口径",
         ]
-        if !DiskScanScope.hasFullDiskAccess {
+        if !hasFullDiskAccess {
             lines.append("· 缺口的最大一块是 ~/Library/Containers（沙盒容器，本机 du 实测 33G）、"
                          + "邮件/照片/信息——系统不让读，不是漏扫")
         }
@@ -291,14 +293,6 @@ struct StorageManagerRootView: View {
     private func openFullDiskAccessSettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")
         if let url { NSWorkspace.shared.open(url) }
-    }
-
-    /// 清单副行显示相对 home 的短路径：同名 Caches/cache 靠路径才能区分开
-    private func displayPath(_ path: String) -> String {
-        let home = NSHomeDirectory()
-        if path == home { return "~" }
-        if path.hasPrefix(home + "/") { return "~" + path.dropFirst(home.count) }
-        return path
     }
 
     var body: some View {
@@ -363,6 +357,9 @@ struct StorageManagerRootView: View {
             }
         }
         .animation(reduceMotion ? nil : Theme.Motion.fast, value: showSwipeHint)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshDiskSpace()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .storageDrillTo)) { note in
             guard let name = note.object as? String else { return }
             // v213 实测：深链在窗口刚建好时到达，onAppear 里的缓存读取是异步的，
@@ -447,7 +444,7 @@ struct StorageManagerRootView: View {
                             .foregroundStyle(Theme.tertiaryText)
                             .lineLimit(1)
                             .help(coverageHelp)
-                        if !DiskScanScope.hasFullDiskAccess {
+                        if !hasFullDiskAccess {
                             HStack(spacing: 6) {
                                 Text("未获完全磁盘访问权限：沙盒容器 / 邮件 / 照片 / 信息未计入")
                                     .font(.system(size: 11))
@@ -620,7 +617,11 @@ struct StorageManagerRootView: View {
                             GeometryReader { row in
                                 let frame = row.frame(in: .named("storageCanvas"))
                                 let width = max(0, candidateWidth(at: frame.midY, outline: outline) - frame.minX - 12)
-                                candidateRow(c, compact: width < 180)
+                                StorageCandidateRow(candidate: c, compact: width < 180,
+                                                    isSelected: selectedPaths.contains(c.id)) {
+                                    if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
+                                    else { selectedPaths.insert(c.id) }
+                                }
                                     .frame(width: width, alignment: .leading)
                                     .clipped()
                             }
@@ -635,81 +636,16 @@ struct StorageManagerRootView: View {
     }
 
     private func candidateWidth(at y: CGFloat, outline: [CGPoint]) -> CGFloat {
-        zip(outline, outline.dropFirst() + [outline[0]]).compactMap { a, b -> CGFloat? in
+        var minX: CGFloat?
+        for index in outline.indices {
+            let a = outline[index]
+            let b = outline[index + 1 == outline.count ? 0 : index + 1]
             if (a.y <= y && b.y > y) || (b.y <= y && a.y > y) {
-                return a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y)
-            }
-            return nil
-        }.min() ?? 0
-    }
-
-    private func candidateRow(_ c: CleanupCandidate, compact: Bool) -> some View {
-        Button {
-            if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
-            else { selectedPaths.insert(c.id) }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: selectedPaths.contains(c.id) ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 13))
-                    .foregroundStyle(selectedPaths.contains(c.id) ? Theme.accent : Theme.tertiaryText)
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 6) {
-                        Text(c.node.name)
-                            .font(.system(size: 11.5, weight: .medium))
-                            .lineLimit(1)
-                        if !compact {
-                            Text(c.safe ? "缓存" : "需确认")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .fixedSize()
-                        }
-                    }
-                    if compact {
-                        Text(StorageFormat.shortBytes(c.node.size))
-                            .font(.system(size: 11).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    } else {
-                        HStack(spacing: 4) {
-                        Circle()
-                            .fill(c.safe ? Theme.accent.opacity(0.7) : Color.orange)
-                            .frame(width: 4, height: 4)
-                        Text(displayPath(c.node.path))
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.tertiaryText)
-                            .lineLimit(1)
-                            .truncationMode(.head)
-                        }
-                    }
-                }
-                Spacer(minLength: 4)
-                if !compact {
-                    Text(StorageFormat.shortBytes(c.node.size))
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                    .fill(selectedPaths.contains(c.id) ? Theme.accent.opacity(0.09)
-                          : hoveredCandidatePath == c.id ? Color.primary.opacity(0.04) : Color.clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { inside in
-            if inside { hoveredCandidatePath = c.id }
-            else if hoveredCandidatePath == c.id { hoveredCandidatePath = nil }
-        }
-        .accessibilityValue(selectedPaths.contains(c.id) ? "已选择" : "未选择")
-        .animation(reduceMotion ? nil : Theme.Motion.tap, value: selectedPaths.contains(c.id))
-        .help("\(c.reason) · \(StorageFormat.bytes(c.node.size)) · \(c.node.path)")
-        .contextMenu {
-            Button("在 Finder 显示") {
-                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: c.node.path)])
+                let x = a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y)
+                minX = min(minX ?? x, x)
             }
         }
+        return minX ?? 0
     }
 
     // MARK: 全窗口画布（面包屑与详情浮在图形上）
@@ -1135,7 +1071,7 @@ struct StorageManagerRootView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            if !DiskScanScope.hasFullDiskAccess {
+            if !hasFullDiskAccess {
                 Button {
                     openFullDiskAccessSettings()
                 } label: {
@@ -1187,6 +1123,86 @@ struct StorageManagerRootView: View {
             } else {
                 Toast.show("已将 \(ok) 项移到废纸篓 · \(StorageFormat.bytes(bytes))",
                            icon: "trash")
+            }
+        }
+    }
+}
+
+private struct StorageCandidateRow: View {
+    let candidate: CleanupCandidate
+    let compact: Bool
+    let isSelected: Bool
+    let onToggle: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Stored private var isHovered = false
+
+    /// 清单副行显示相对 home 的短路径：同名 Caches/cache 靠路径才能区分开
+    private func displayPath(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path == home { return "~" }
+        if path.hasPrefix(home + "/") { return "~" + path.dropFirst(home.count) }
+        return path
+    }
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 8) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 13))
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.tertiaryText)
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text(candidate.node.name)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .lineLimit(1)
+                        if !compact {
+                            Text(candidate.safe ? "缓存" : "需确认")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .fixedSize()
+                        }
+                    }
+                    if compact {
+                        Text(StorageFormat.shortBytes(candidate.node.size))
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(candidate.safe ? Theme.accent.opacity(0.7) : Color.orange)
+                                .frame(width: 4, height: 4)
+                            Text(displayPath(candidate.node.path))
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.tertiaryText)
+                                .lineLimit(1)
+                                .truncationMode(.head)
+                        }
+                    }
+                }
+                Spacer(minLength: 4)
+                if !compact {
+                    Text(StorageFormat.shortBytes(candidate.node.size))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                    .fill(isSelected ? Theme.accent.opacity(0.09)
+                          : isHovered ? Color.primary.opacity(0.04) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .accessibilityValue(isSelected ? "已选择" : "未选择")
+        .animation(reduceMotion ? nil : Theme.Motion.tap, value: isSelected)
+        .help("\(candidate.reason) · \(StorageFormat.bytes(candidate.node.size)) · \(candidate.node.path)")
+        .contextMenu {
+            Button("在 Finder 显示") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: candidate.node.path)])
             }
         }
     }

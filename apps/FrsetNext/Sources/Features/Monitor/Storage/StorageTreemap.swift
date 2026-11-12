@@ -19,11 +19,15 @@ import SwiftUI
 
 struct DiskTile: Identifiable {
     let node: DiskNode
-    /// 容器坐标下的多边形
-    let polygon: [CGPoint]
-    /// 已内缩、圆角化的绘制轮廓；只在布局时采样。
+    /// 图块局部坐标下的圆角轮廓，布局时一次生成。
     let contour: [CGPoint]
-    let bbox: CGRect
+    let frame: CGRect
+    let hitPath: Path
+    let localHitPath: Path
+    let labelCenter: CGPoint
+    let labelBounds: CGRect
+    let labelRadius: CGFloat
+    let labelPointCount: Int
     /// 占本层比例（0...1），同时也是布局权重
     let ratio: Double
     /// v230：「可用空间」那块——不参与下钻/删除，画成带同心圆的底块
@@ -92,18 +96,41 @@ enum DiskVoronoiLayout {
             let poly = polys[i]
             guard poly.count >= 3 else { continue }
             let bbox = VoronoiTreemap.boundingBox(poly)
+            let frame = bbox.insetBy(dx: -18, dy: -18)
+            let hitPath = VoronoiTreemap.roundedPath(VoronoiTreemap.inset(poly, factor: 0.976),
+                                                     radius: min(bbox.width, bbox.height) * 0.30)
             let contour = VoronoiTreemap.sampledPoints(
-                VoronoiTreemap.roundedPath(VoronoiTreemap.inset(poly, factor: 0.976),
-                                          radius: min(bbox.width, bbox.height) * 0.30),
-                spacing: 18)
+                hitPath, spacing: 18)
+            let labelPolygon = VoronoiTreemap.clipHalfPlane(contour, a: 0, b: -1, c: -144)
+            let center = VoronoiTreemap.centroid(labelPolygon)
             tiles.append(DiskTile(node: n,
-                                  polygon: poly,
-                                  contour: contour,
-                                  bbox: bbox,
+                                  contour: contour.map { CGPoint(x: $0.x - frame.minX, y: $0.y - frame.minY) },
+                                  frame: frame,
+                                  hitPath: hitPath,
+                                  localHitPath: hitPath.offsetBy(dx: -frame.minX, dy: -frame.minY),
+                                  labelCenter: CGPoint(x: center.x - frame.minX, y: center.y - frame.minY),
+                                  labelBounds: VoronoiTreemap.boundingBox(labelPolygon),
+                                  labelRadius: inradius(labelPolygon, center: center),
+                                  labelPointCount: labelPolygon.count,
                                   ratio: sizeTotal > 0 ? Double(n.size) / Double(sizeTotal) : 0,
                                   isFreeSpace: n.path == "__free_space"))
         }
         return tiles
+    }
+
+    /// 标签度量只随布局更新，悬停时保持文字尺寸与层级稳定。
+    private static func inradius(_ poly: [CGPoint], center c: CGPoint) -> CGFloat {
+        guard poly.count >= 3 else { return 0 }
+        var best = CGFloat.greatestFiniteMagnitude
+        for i in 0..<poly.count {
+            let a = poly[i], b = poly[(i + 1) % poly.count]
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len = hypot(dx, dy)
+            guard len > 0.001 else { continue }
+            let dist = abs(dy * (c.x - a.x) - dx * (c.y - a.y)) / len
+            best = min(best, dist)
+        }
+        return best == .greatestFiniteMagnitude ? 0 : best
     }
 }
 
@@ -126,10 +153,15 @@ private final class DiskLayoutCache {
     }
 }
 
-/// 命中区域 = 多边形本身（相邻块的 bbox 会重叠，不能用矩形命中）
-private struct PolygonHitShape: Shape {
+/// 一次轮廓插值供填色、同心线、文字裁切和边框共用。
+private struct LiquidTileDrawing<Label: View>: View, Animatable {
     var points: [CGPoint]
-    let radius: CGFloat
+    let fill: Color
+    let outline: Color
+    let lineWidth: CGFloat
+    let isFreeSpace: Bool
+    let labelPosition: CGPoint
+    let label: Label
 
     var animatableData: PolygonAnimatableVector {
         get { PolygonAnimatableVector(values: points.flatMap { [$0.x, $0.y] }) }
@@ -141,8 +173,26 @@ private struct PolygonHitShape: Shape {
         }
     }
 
-    func path(in rect: CGRect) -> Path {
-        VoronoiTreemap.roundedPath(points, radius: radius)
+    var body: some View {
+        Canvas { context, _ in
+            let path = VoronoiTreemap.roundedPath(points, radius: 0)
+            var content = context
+            content.clip(to: path)
+            content.fill(path, with: .color(fill))
+            if isFreeSpace {
+                let center = VoronoiTreemap.centroid(points)
+                for i in 1..<6 {
+                    let f = 1 - CGFloat(i) * 0.14
+                    let transform = CGAffineTransform(a: f, b: 0, c: 0, d: f,
+                                                      tx: center.x * (1 - f), ty: center.y * (1 - f))
+                    content.stroke(path.applying(transform), with: .color(.primary.opacity(0.10)), lineWidth: 1)
+                }
+            }
+            if let symbol = context.resolveSymbol(id: 0) { content.draw(symbol, at: labelPosition) }
+            context.stroke(path, with: .color(outline), lineWidth: lineWidth)
+        } symbols: {
+            label.tag(0)
+        }
     }
 }
 
@@ -237,16 +287,13 @@ struct StorageTreemap: View {
                     case .active(let location):
                         let inside = StorageMapShape().path(in: CGRect(origin: .zero, size: geo.size))
                             .contains(location)
-                        hoverPoint = inside ? location : nil
-                        hoveredID = inside ? tiles.first { tile in
-                            VoronoiTreemap.roundedPath(
-                                VoronoiTreemap.inset(tile.polygon, factor: 0.976),
-                                radius: min(tile.bbox.width, tile.bbox.height) * 0.30)
-                                .contains(location)
-                        }?.id : nil
+                        let nextPoint = inside && !reduceMotion ? location : nil
+                        let nextID = inside ? tiles.first { $0.hitPath.contains(location) }?.id : nil
+                        if hoverPoint != nextPoint { hoverPoint = nextPoint }
+                        if hoveredID != nextID { hoveredID = nextID }
                     case .ended:
-                        hoveredID = nil
-                        hoverPoint = nil
+                        if hoveredID != nil { hoveredID = nil }
+                        if hoverPoint != nil { hoverPoint = nil }
                     }
                 }
                 .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
@@ -258,15 +305,9 @@ struct StorageTreemap: View {
     }
 
     private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
-        let tileFrame = t.bbox.insetBy(dx: -18, dy: -18)
-        let hitPolygon = VoronoiTreemap.inset(t.polygon, factor: 0.976)
-        let deformed = liquidPoints(t.contour, around: hoverPoint, in: size)
-        let hitLocal = hitPolygon.map { CGPoint(x: $0.x - tileFrame.minX, y: $0.y - tileFrame.minY) }
-        let local = deformed.map { CGPoint(x: $0.x - tileFrame.minX, y: $0.y - tileFrame.minY) }
-        let radius = min(t.bbox.width, t.bbox.height) * 0.30
-        // 顶部操作和导航占据 144pt；标签只排在导航下方的实际图块内。
-        let labelPolygon = VoronoiTreemap.clipHalfPlane(deformed, a: 0, b: -1, c: -144)
-        let center = VoronoiTreemap.centroid(labelPolygon)
+        let tileFrame = t.frame
+        let point = hoverPoint.map { CGPoint(x: $0.x - tileFrame.minX, y: $0.y - tileFrame.minY) }
+        let local = liquidPoints(t.contour, around: point, in: size)
         let isSelected = selectedID == t.id
         let isHovered = hoveredID == t.id
         let ink = contentColor(t.ratio)
@@ -277,33 +318,19 @@ struct StorageTreemap: View {
         } label: {
             // 只变形绘制层；热区保持静止，避免气泡推开指针后反复进出。
             ZStack {
-                ZStack {
-                    PolygonHitShape(points: local, radius: 0)
-                        .fill(t.isFreeSpace ? Color.primary.opacity(0.055) : fill(t.ratio))
-                    if t.isFreeSpace {
-                        ForEach(1..<6, id: \.self) { i in
-                            let f = 1 - CGFloat(i) * 0.14
-                            PolygonHitShape(points: VoronoiTreemap.inset(local, factor: f),
-                                            radius: 0)
-                                .stroke(Color.primary.opacity(0.10), lineWidth: 1)
-                        }
-                    }
-                    if labelPolygon.count >= 3 {
-                        label(t, polygon: labelPolygon, ink: t.isFreeSpace ? .primary : ink)
-                            .position(x: center.x - tileFrame.minX, y: center.y - tileFrame.minY)
-                    }
-                }
+                LiquidTileDrawing(points: local,
+                    fill: t.isFreeSpace ? Color.primary.opacity(0.055) : fill(t.ratio),
+                    outline: isSelected || isHovered ? Theme.accent : Color.primary.opacity(0.10),
+                    lineWidth: isSelected || isHovered ? 2 : 0.5,
+                    isFreeSpace: t.isFreeSpace, labelPosition: t.labelCenter,
+                    label: Group {
+                        if t.labelPointCount >= 3 { label(t, ink: t.isFreeSpace ? .primary : ink) }
+                    })
                 .frame(width: tileFrame.width, height: tileFrame.height)
-                .clipShape(PolygonHitShape(points: local, radius: 0))
-                .overlay {
-                    PolygonHitShape(points: local, radius: 0)
-                        .stroke(isSelected || isHovered ? Theme.accent : Color.primary.opacity(0.10),
-                                lineWidth: isSelected || isHovered ? 2 : 0.5)
-                }
                 .allowsHitTesting(false)
             }
             .frame(width: tileFrame.width, height: tileFrame.height)
-            .contentShape(PolygonHitShape(points: hitLocal, radius: radius))
+            .contentShape(t.localHitPath)
         }
         .buttonStyle(.plain)
         .position(x: tileFrame.midX, y: tileFrame.midY)
@@ -333,9 +360,9 @@ struct StorageTreemap: View {
     /// 不能用 bbox 判断：斜的多边形 bbox 可能很大，但实际是一条窄缝，
     /// 文字会从块里挤出去（实测底部 .rustup / 422.8M 两块叠字）。
     @ViewBuilder
-    private func label(_ t: DiskTile, polygon: [CGPoint], ink: Color) -> some View {
-        let inR = inradius(polygon)
-        let bounds = VoronoiTreemap.boundingBox(polygon)
+    private func label(_ t: DiskTile, ink: Color) -> some View {
+        let inR = t.labelRadius
+        let bounds = t.labelBounds
         let w = bounds.width
         let h = bounds.height
         if inR > 44, w > 90, h > 50 {
@@ -362,22 +389,6 @@ struct StorageTreemap: View {
                 .fill(ink.opacity(0.4))
                 .frame(width: 3, height: 3)
         }
-    }
-
-    /// 质心到各边的最小距离 ≈ 内切圆半径
-    private func inradius(_ poly: [CGPoint]) -> CGFloat {
-        guard poly.count >= 3 else { return 0 }
-        let c = VoronoiTreemap.centroid(poly)
-        var best = CGFloat.greatestFiniteMagnitude
-        for i in 0..<poly.count {
-            let a = poly[i], b = poly[(i + 1) % poly.count]
-            let dx = b.x - a.x, dy = b.y - a.y
-            let len = hypot(dx, dy)
-            guard len > 0.001 else { continue }
-            let dist = abs(dy * (c.x - a.x) - dx * (c.y - a.y)) / len
-            best = min(best, dist)
-        }
-        return best == .greatestFiniteMagnitude ? 0 : best
     }
 
     /// 七档深浅：按占本层比例跳变（不看排名）。

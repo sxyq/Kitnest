@@ -525,7 +525,7 @@ final class DiskIndexStore: ObservableObject {
     /// 从索引树里挑出可清理项（只取目录节点，按大小降序）
     func candidates() -> [CleanupCandidate] {
         guard let snap = snapshot else { return [] }
-        if candidateCacheStamp == snap.scannedAt, !candidateCache.isEmpty {
+        if candidateCacheStamp == snap.scannedAt {
             return candidateCache
         }
         let root = snap.root
