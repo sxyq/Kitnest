@@ -259,7 +259,7 @@ enum ScreenSnapshot {
     /// ScreenCaptureKit 窗口级抓取（v112 窗口截图用；desktopIndependentWindow
     /// 只含该窗口本身、自动排除遮挡在其上的其他窗口——区域裁剪做不到这点）
     @available(macOS 14.0, *)
-    static func sckCapture(windowID: CGWindowID) async throws -> CGImage {
+    static func sckCapture(windowID: CGWindowID, maximumDimension: Int? = nil) async throws -> CGImage {
         let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
         guard let window = content.windows.first(where: { $0.windowID == windowID }) else {
             throw CaptureError.captureFailed
@@ -267,8 +267,9 @@ enum ScreenSnapshot {
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let config = SCStreamConfiguration()
         // 同上：window.frame 是点，乘 scale 只是放大，保持 1:1
-        config.width = max(1, Int(window.frame.width))
-        config.height = max(1, Int(window.frame.height))
+        let scale: CGFloat = maximumDimension.map { min(CGFloat(1), CGFloat($0) / max(window.frame.width, window.frame.height)) } ?? 1
+        config.width = max(1, Int(window.frame.width * scale))
+        config.height = max(1, Int(window.frame.height * scale))
         config.pixelFormat = kCVPixelFormatType_32BGRA
         config.showsCursor = false
         return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)

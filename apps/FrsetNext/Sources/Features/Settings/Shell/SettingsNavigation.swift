@@ -62,7 +62,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var pages: [SettingsPage] {
         switch self {
         case .general:
-            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .generalNotifications, .generalMenuBar]
+            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .generalNotifications, .generalMenuBar, .dock]
         case .audio:
             return [.audio]
         case .clipboard:
@@ -107,6 +107,7 @@ enum SettingsPage: Hashable {
     /// 菜单栏：功能开关 / AI 服务商 / 图标样式 / 部件
     case generalMenuBar
     case generalNotifications
+    case dock
     case captureActions
 
     // 音频（1）
@@ -156,6 +157,7 @@ enum SettingsPage: Hashable {
         case .generalNotifications: return "通知提示"
         case .captureActions: return "动作条外观"
         case .generalMenuBar:    return "菜单栏"
+        case .dock:             return "Dock 控制台"
 
         case .audio:             return "音频混音器"
 
@@ -196,6 +198,7 @@ enum SettingsPage: Hashable {
         case .generalWindows:    return "macwindow.on.rectangle"
         case .generalPersonal:   return "paintpalette"
         case .generalMenuBar:    return "menubar.rectangle"
+        case .dock:             return "dock.rectangle"
         case .generalNotifications: return "bell"
         case .captureActions: return "rectangle.bottomthird.inset.filled"
 
@@ -255,9 +258,11 @@ enum SettingsPage: Hashable {
             return "完成截图后出现；切换样式不改变复制、保存等动作"
         case .generalMenuBar:
             return "菜单栏图标：左键开主面板，右键出菜单（设置… ⌘,）"
+        case .dock:
+            return "悬停 Dock 图标出快捷卡；点击 Kitnest 打开完整窗，⇧⌘D 切换形态"
 
         case .audio:
-            return "只在本页调节（系统输出音量 / 设备 / 有声 App 监视），没有独立窗口"
+            return "本页和 Dock 控制台共用系统音量、输出设备与静音"
 
         case .clipboardHistory:
             return "⌥V 直接打开剪贴板面板；⌥A 的主面板首页也是剪贴板"

@@ -34,8 +34,13 @@ public struct CalendarSectionView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+    private let windowProvider: (() -> NSWindow?)?
+    private let onSelectDay: ((Date) -> Void)?
 
-    public init() {}
+    public init(windowProvider: (() -> NSWindow?)? = nil, onSelectDay: ((Date) -> Void)? = nil) {
+        self.windowProvider = windowProvider
+        self.onSelectDay = onSelectDay
+    }
 
     public var body: some View {
         VStack(spacing: 6) {
@@ -62,6 +67,7 @@ public struct CalendarSectionView: View {
             if !hovering { scrollAccum = 0 }
         }
         .onAppear {
+            service.refreshAuthorization()
             reload()
             installScrollMonitor()
         }
@@ -189,7 +195,16 @@ public struct CalendarSectionView: View {
             return Calendar.current.isDate(date, inSameDayAs: selected)
         }()
 
-        return VStack(spacing: 0) {
+        return Button {
+            guard let date = day?.date else { return }
+            selectedDay = date
+            if let onSelectDay { onSelectDay(date) }
+            else {
+                NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
+                                                userInfo: ["date": date])
+            }
+        } label: {
+        VStack(spacing: 0) {
             Text(day.map { "\(Calendar.current.component(.day, from: $0.date))" } ?? "")
                 .font(.system(size: 14, weight: isToday ? .semibold : .regular))
                 .foregroundStyle(isToday ? Color.white : Color.primary)
@@ -218,13 +233,10 @@ public struct CalendarSectionView: View {
             }
         }
         .contentShape(Rectangle())
-        .pointingHandCursor()
-        .onTapGesture {
-            guard let date = day?.date else { return }
-            selectedDay = date
-            NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
-                                            userInfo: ["date": date])
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(day.map { $0.date.formatted(date: .complete, time: .omitted) } ?? "日期")
+        .pointingHandCursor()
     }
 
     // MARK: 两指左右滑动切周（trackpad 横向滚动）
@@ -256,7 +268,7 @@ public struct CalendarSectionView: View {
 
     /// 面板窗口（日历只在主面板里出现）
     private var activeWindow: NSWindow? {
-        PanelController.shared.panelWindowForProbe
+        windowProvider?() ?? PanelController.shared.panelWindowForProbe
     }
 
     // MARK: 数据

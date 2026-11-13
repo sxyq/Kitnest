@@ -104,6 +104,7 @@ enum AppBootstrap {
             systemImage: "speaker.wave.2",
             build: { AnyView(AudioMixerPane()) }
         ))
+        DockHubController.shared.start()
 
         // 5) 全局快捷键默认绑定表（specs/19）：须在 ModuleRegistry.startAll() 之后调用，
         //    handler 为懒分发，触发时才经 ServiceLocator / 各模块公开 API 执行
@@ -219,6 +220,7 @@ enum AppBootstrap {
     }
 
     static func stop() {
+        DockHubController.shared.stop()
         Log.info("Bootstrap", "应用退出")
     }
 

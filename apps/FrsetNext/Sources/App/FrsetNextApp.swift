@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-/// 应用入口（菜单栏常驻应用：LSUIElement=1，不显示 Dock 图标）
+/// 菜单栏常驻应用；Dock 控制台启用时同时显示 Dock 图标。
 @main
 struct FrsetNextApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
@@ -36,8 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 表现为菜单栏出现重复的 CPU/RAM/SSD 组件（用户 2026-10-18 反馈）。
         guard enforceSingleMenubarOwner() else { return }
 
-        // 不显示 Dock 图标（菜单栏应用）
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(DockHubController.savedEnabled ? .regular : .accessory)
         // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
         ProcessFreezer.shared.thawOrphans()
         AppBootstrap.start()
@@ -107,9 +106,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        ServiceLocator.panel?.show()
+        DockHubController.shared.open(expanded: true)
         return true
     }
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        for (title, selector) in [("打开 Dock 控制台", #selector(openDockHub)),
+                                  ("打开主面板", #selector(openDockPanel)),
+                                  ("悬浮剪贴板", #selector(openDockClipboard))] {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func openDockHub() { DockHubController.shared.open() }
+    @objc private func openDockPanel() { DockHubController.shared.run(.panel) }
+    @objc private func openDockClipboard() { DockHubController.shared.run(.clipboard) }
 
     /// 程序化唤起入口：等价原版 `StatusBarController.showSettingsWindow:` 的 @objc
     /// 可调用能力。用法：open "kitnest://settings?pane=general"
@@ -147,6 +162,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // （每次都重做 scheme/host/query 切分），纯重复计算。
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             switch url.host {
+            case "dock":
+                let selected = comps?.queryItems?.first(where: { $0.name == "section" })?.value.flatMap(DockHubSection.init(rawValue:))
+                let compact = comps?.queryItems?.first(where: { $0.name == "mode" })?.value == "compact"
+                DockHubController.shared.open(section: selected, expanded: !compact)
             case "settings":
                 let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value

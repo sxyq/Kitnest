@@ -54,6 +54,7 @@ final class SettingsUIState: ObservableObject {
         case "capture.actions", "capture.toolbar":
             selection = .captureActions
         case "audio":                            selection = .audio
+        case "dock":                             selection = .dock
         // 剪贴板
         case "clipboard", "clipboard.history":   selection = .clipboardHistory
         case "clipboard.capture":                selection = .clipboardCapture

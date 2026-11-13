@@ -138,6 +138,8 @@ public final class StatusBarController: NSObject {
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
 
+    @objc func openDockHubAction(_ sender: Any?) { DockHubController.shared.open() }
+
     private func updatePauseBadge() {
         pauseBadge.isHidden = !ClipboardManager.shared.isRecordingPaused
         mainItem?.button?.toolTip = ClipboardManager.shared.isRecordingPaused ? "Kitnest · \(ClipboardManager.shared.pauseStatus)" : "Kitnest（右键查看更多）"
