@@ -828,6 +828,13 @@ struct PreviewImageView: View {
             ocrText = raw
             tidiedOCR = OCRTextTidy.tidy(raw)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .clipboardOCRTextChanged)) { note in
+            guard !isSettingsPreview, note.object as? String == model.item.dedupeKey else { return }
+            let raw = PreviewPopoverDataBridge.shared.ocrText(for: model.item) ?? ""
+            ocrText = raw
+            tidiedOCR = OCRTextTidy.tidy(raw)
+            ocrError = nil
+        }
     }
 
     // MARK: 图片下方：识别 / 复制文本

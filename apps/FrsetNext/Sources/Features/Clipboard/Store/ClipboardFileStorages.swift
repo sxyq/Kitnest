@@ -100,6 +100,10 @@ public enum ClipboardRichTextStorage {
 
 // MARK: - OCR 文本落盘（图片条目的可搜索副产品，05 号规格 B11）
 
+public extension Notification.Name {
+    static let clipboardOCRTextChanged = Notification.Name("frset.clipboardOCRTextChanged")
+}
+
 public enum ClipboardOCRTextStorage {
     public static let directoryName = "ocr"
 
@@ -123,6 +127,10 @@ public enum ClipboardOCRTextStorage {
         indexLock.lock()
         textIndex?[keyName(forRelativePath: relative)] = text.lowercased()
         indexLock.unlock()
+        // 自动识别可能晚于预览打开；落盘后通知当前图片，不重建窗口或重复识别。
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .clipboardOCRTextChanged, object: dedupeKey)
+        }
     }
 
     public static func read(dedupeKey: String) -> String? {

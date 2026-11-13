@@ -1424,6 +1424,8 @@ EVIDENCE.update({
         "构造只读可选择的PreviewTextView及纵向NSScrollView，传入showsTableGrid、富文本和随视图宽度折行设置，再按网格开关建立单元格矩形缓存",
     ("Features/Clipboard/UI/LargeTextPreviewView.swift", "updateNSView"):
         "SwiftUI更新时传递showsTableGrid；仅富文本内容不同才替换textStorage并刷新表格矩形缓存，保持现有滚动宿主",
+    ("Features/Clipboard/Store/ClipboardFileStorages.swift", "write"):
+        "基础写盘原子写入Data并返回成功标记；长文本和RTF返回已写相对路径，长文本含字节数；OCR按dedupeKey写UTF-8，成功后更新已有小写索引并在主线程发clipboardOCRTextChanged，PreviewImageView仅接收当前键且非设置预览的通知，回读ocrText、重算tidiedOCR并清除ocrError",
 })
 
 

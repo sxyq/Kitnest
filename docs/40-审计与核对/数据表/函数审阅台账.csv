@@ -1797,19 +1797,19 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStor
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,remove,func,81,KEEP,Manager:599/:609
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardRichTextStorage,write,func,89,KEEP,Manager:330 富文本落盘
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardRichTextStorage,read,func,95,KEEP,Manager:504、AppBootstrap:62
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,relativePath,func,108,KEEP,:121/:136 内部调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,keyName,func,114,KEEP,:126/:140 内部调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,write,func,118,KEEP,Manager:719、AppBootstrap:55
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,read,func,128,KEEP,Manager:509 ocrText
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,remove,func,133,KEEP,Repository:278 删除时调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,151,KEEP,matchingDedupeKeys:183 调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,177,KEEP,Repository:118 搜索 OCR 命中
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,207,KEEP,Manager:320 图片入库
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,229,KEEP,store:220 调用 makeThumbnail(from:toRelativePath:)；此前的死判针对已删的 data: 重载，属误判
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,256,KEEP,SectionView:561 缩略图
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,268,KEEP,:210 store 内调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,pixelSize,func,278,KEEP,:226 store 内调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,311,KEEP,PruneSchedulers:163 循环条件
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,relativePath,func,112,KEEP,:121/:136 内部调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,keyName,func,118,KEEP,:126/:140 内部调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,write,func,122,KEEP,基础写盘原子写入Data并返回成功标记；长文本和RTF返回已写相对路径，长文本含字节数；OCR按dedupeKey写UTF-8，成功后更新已有小写索引并在主线程发clipboardOCRTextChanged，PreviewImageView仅接收当前键且非设置预览的通知，回读ocrText、重算tidiedOCR并清除ocrError
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,read,func,136,KEEP,Manager:509 ocrText
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,remove,func,141,KEEP,Repository:278 删除时调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,159,KEEP,matchingDedupeKeys:183 调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,185,KEEP,Repository:118 搜索 OCR 命中
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,215,KEEP,Manager:320 图片入库
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,237,KEEP,store:220 调用 makeThumbnail(from:toRelativePath:)；此前的死判针对已删的 data: 重载，属误判
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,264,KEEP,SectionView:561 缩略图
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,276,KEEP,:210 store 内调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,pixelSize,func,286,KEEP,:226 store 内调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,319,KEEP,PruneSchedulers:163 循环条件
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,79,KEEP,主剪贴板和悬浮窗的固定预览共用九类过滤：按条目类型、https 链接前缀、代码/JSON 分类、colorpicker 来源、工具生成标记及笔记标记匹配
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,167,KEEP,单例 :88 初始化
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,198,KEEP,设置可选恢复时限、刷新剩余分钟并发布暂停通知与提示
@@ -2807,31 +2807,31 @@ Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownText
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,519,KEEP,调用方 :501；跨文件 PreviewPopoverContentModel.swift:279
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewJSONTextView,init,init,645,KEEP,调用方 :45（.json 分支）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewJSONTextView,prepare,func,650,KEEP,PreviewJSONTextView.init:636 调用；displayText 后续未被读取属接线残留，非零调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,866,KEEP,调用方 :807、:808、:814
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,890,KEEP,按钮闭包 :807
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,900,KEEP,按钮闭包 :808、:814
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,editImage,func,950,KEEP,标注按钮 :763
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,loadImages,func,965,KEEP,调用方 :790（.task id: dedupeKey）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isDocumentPath,func,1018,KEEP,调用方 :1015
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,1025,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1078,KEEP,调用方 :995、:1036、:1044
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1103,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1179,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1192,KEEP,decode:1110 的 PDF 分支调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1215,KEEP,decode:1113 兜底返回
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1266,KEEP,onAppear :1219 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1291,KEEP,调用方 :992（快速查看按钮）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1302,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1304,KEEP,QLPreviewPanelDataSource 协议回调
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1308,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1310,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1315,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1343,KEEP,调用方 :793、:889
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1399,KEEP,调用方 :749（OCR 文本区块）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1411,KEEP,调用方 :1340（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1424,KEEP,调用方 :1341（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1432,KEEP,调用方 :1349（tidy 收尾）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1472,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,873,KEEP,调用方 :807、:808、:814
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,897,KEEP,按钮闭包 :807
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,907,KEEP,按钮闭包 :808、:814
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,editImage,func,957,KEEP,标注按钮 :763
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,loadImages,func,972,KEEP,调用方 :790（.task id: dedupeKey）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isDocumentPath,func,1025,KEEP,调用方 :1015
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,1032,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1085,KEEP,调用方 :995、:1036、:1044
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1110,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1186,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1199,KEEP,decode:1110 的 PDF 分支调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1222,KEEP,decode:1113 兜底返回
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1273,KEEP,onAppear :1219 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1298,KEEP,调用方 :992（快速查看按钮）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1309,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1311,KEEP,QLPreviewPanelDataSource 协议回调
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1315,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1317,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1322,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1350,KEEP,调用方 :793、:889
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1406,KEEP,调用方 :749（OCR 文本区块）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1418,KEEP,调用方 :1340（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1431,KEEP,调用方 :1341（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1439,KEEP,调用方 :1349（tidy 收尾）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1479,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
 Recording,Features/Recording/RecordingAppearanceDraft.swift,RecordingAppearanceDraft,init,init,30,KEEP,将当前帧率、音频来源、鼠标显示、摄像头设备/位置/大小、按键/点击及排除应用读取为 values 和 saved
 Recording,Features/Recording/RecordingAppearanceDraft.swift,RecordingAppearanceDraft,save,func,36,KEEP,统一保存将十项录屏 Values 写入 RecordingOptions，包括 excludedBundleIDs；写入后更新 saved 并以 nil 返回成功
 Recording,Features/Recording/RecordingAppearanceDraft.swift,RecordingAppearanceDraft,discard,func,51,KEEP,取消录屏编辑仅将 values 还原为 saved，正式录制参数保持保存值
