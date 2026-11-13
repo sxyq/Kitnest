@@ -1347,7 +1347,7 @@ EVIDENCE.update({
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "imageSize"):
         "图片和磁盘图片文件共用窗口尺寸计算：长图高宽比超过1.6时保留可读宽度并纵向滚动，其余图按可用宽高等比缩放，窗口包含调用方传入工具区高度",
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "initialSize"):
-        "按模型实际Markdown排版、代码字号或纯文本折行测量，宽度受源窗口左右空间和屏幕限制；磁盘图片使用imageSize，文件文本/JSON额外留100pt操作区，文档使用560pt高度上限",
+        "按真实Markdown、代码或文本折行测量并受面板侧空间与屏幕限制；目录和归档目标740×560pt，Word及其他支持文档680×560pt，普通单文件560×420pt；图片共用imageSize，文件文本及JSON留100pt操作区",
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "installContent"):
         "用当前完整model构造ClipboardPreviewWindowView，装入可随窗口伸缩的NSHostingView并转发编辑状态，文件与剪贴板共用同一外壳",
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "show"):
@@ -1357,15 +1357,73 @@ EVIDENCE.update({
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "closeAnimated"):
         "收回使用Personalization.openAnimation时长×0.7及减少动态口径；完成回调只在isClosing且model.sessionID仍为本次关闭会话时关窗，换项复用不被旧回调关掉",
     ("Features/Panel/Preview/PreviewPopoverContentModel.swift", "init"):
-        "分类基础条目并保留source/entry/sessionID；单文件且未覆盖kind时读取受支持文本完整正文到loaded/failed状态，Office内联文档保持idle，图片扩展名直接载入fileImage，文本子模型用kindOverride避免再次读取",
+        "内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形",
     ("Features/Panel/Preview/PreviewPopoverContentView.swift", "fileContent"):
-        "单文件正文已加载时按Markdown/JSON/代码/纯文本复用对应正式组件，读取失败显示具体原因；图片复用PreviewImageContent长图滚动，其他支持文档用DocumentInlinePreview",
+        "文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview",
     ("Features/Panel/Preview/PreviewPopoverContentView.swift", "decode"):
         "PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表",
     ("Features/Archive/Table/ArchiveHoverPreview.swift", "schedule"):
         "目录、空文件、超过sizeCap或不可渲染条目仍收起；有效条目取消共享hover关闭后按既有延迟解压/取缓存，文件准备完成才交共用文件预览，换项期间保留原窗口",
     ("Features/TransferDock/UI/TransferDockView.swift", "func"):
         "CloudRowView相等比较保留文件值判断；LocalCardRowView同时比较item、selected、isKeyboardPreviewTarget和showsCloud，使首个选择项变化时空格预览目标随行重绘",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "init"):
+        "WordDocumentRevision按标准化文件路径、修改时间和大小构成修订标识；WordDocumentStore.Entry保存该修订及导入正文，供缓存判断是否仍对应同一文档",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "cached"):
+        "按文档URL读取最多8项的NSCache，只有修订标识一致才返回富文本正文及页面背景，供WordInlineContent和load复用",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "load"):
+        "复用8项修订缓存及同修订在途Task；后台原生导入Word正文后，仅OOXML用ArchiveCore.run内存提取word/document.xml并交restoreOpenXMLFormatting恢复格式，再缓存正文与页面背景；读取或解析错误传递，完成后移除在途记录",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "makeNSView"):
+        "为非Word文档构造compact样式QLPreviewView，关闭自动播放和随窗口关闭设置，指定URL为previewItem；Word正文另由AttributedTextView显示",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "updateNSView"):
+        "SwiftUI更新QuickLook宿主时仅在URL不同才替换previewItem，由系统异步加载新文档，不再调用refreshPreviewItem",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "dismantleNSView"):
+        "SwiftUI拆除内联QuickLook宿主时调用QLPreviewView.close释放预览内容",
+    ("Features/Archive/UI/ArchivePeekView.swift", "init"):
+        "FileContainerPreview按传入路径创建持有浏览状态的StateObject；FileContainerPreviewBrowser初始化根URL，共用文件夹和归档导航、选择及内联预览",
+    ("Features/Archive/UI/ArchivePeekView.swift", "pathButton"):
+        "把当前目录路径显示为单行按钮，点击交ClipboardManager.copyText复制完整路径，失败原因写入浏览器errorText",
+    ("Features/Archive/UI/ArchivePeekView.swift", "load"):
+        "先close撤销旧目录和文件预览，再在串行队列确认路径、解析符号链接并读取修订；主线程仅接纳当前listingGeneration结果，文件夹读目录、归档读条目，失败显示路径及原因",
+    ("Features/Archive/UI/ArchivePeekView.swift", "readArchive"):
+        "按URL、修改时间和大小复用最近4个归档条目缓存；未命中交ArchiveCore.list读取含辅助条目列表，同一浏览器已有读取时仅保存下一修订，当前代结果进入目录导航，失败显示具体原因",
+    ("Features/Archive/UI/ArchivePeekView.swift", "readDirectory"):
+        "增加listingGeneration并清空选择及预览；后台按归档路径前缀生成直属条目和隐含目录，或读取真实目录元数据，目录优先再按自然文件名排序，主线程只发布当前代结果",
+    ("Features/Archive/UI/ArchivePeekView.swift", "enter"):
+        "仅进入目录条目，把当前目录压入history后切换entry.path并读取下一层",
+    ("Features/Archive/UI/ArchivePeekView.swift", "openSelectedDirectory"):
+        "把当前选中的目录交enter，供进入按钮、回车和向右导航共用",
+    ("Features/Archive/UI/ArchivePeekView.swift", "goUp"):
+        "取history最后一层返回父目录并重新读取；无历史时保留根目录",
+    ("Features/Archive/UI/ArchivePeekView.swift", "goRoot"):
+        "清空history并把directory置空，重新读取文件夹或归档根目录",
+    ("Features/Archive/UI/ArchivePeekView.swift", "select"):
+        "选择变化先撤销旧预览并清理临时文件；目录只选中，普通文件直接后台render，归档文件交单项解压，已有解压时只保留最新待处理选择",
+    ("Features/Archive/UI/ArchivePeekView.swift", "extract"):
+        "调用ArchiveCore.extractEntryToTemp解压选中文件，当前previewGeneration结果交render；离开或换项后的落地文件立即清理，失败显示归档和条目路径，结束后执行最新待解压选择",
+    ("Features/Archive/UI/ArchivePeekView.swift", "render"):
+        "后台解析文件符号链接并创建只在内存存在的ClipboardItem及完整预览模型；归档条目用displayPath显示原包内路径，主线程仅接纳当前previewGeneration；FileContainerPreview以usesWindowChrome:false复用内容并隐藏快速查看按钮",
+    ("Features/Archive/UI/ArchivePeekView.swift", "clearPreview"):
+        "增加previewGeneration、取消预览任务及待解压选择，清空预览、加载态、选择和错误，存在临时解压文件时清理其所属目录",
+    ("Features/Archive/UI/ArchivePeekView.swift", "removeTemporaryFile"):
+        "从落地文件逐级定位temporaryDirectory的直接子目录并删除整个解压目录，内部同名前缀目录不作为清理单元，删除失败显示具体原因",
+    ("Features/Archive/UI/ArchivePeekView.swift", "close"):
+        "将浏览器设为非活动并增加listingGeneration，取消目录任务和待归档读取，交clearPreview撤销文件结果并清理临时解压目录",
+    ("Features/Archive/Core/ArchiveCore.swift", "extractEntryToTemp"):
+        "拒绝硬不安全条目路径后，在独立临时目录用已存密码解压单项；成功按完整条目路径或递归同名定位文件，解压失败或找不到文件时删除临时目录，清理失败与原原因一起返回",
+    ("Features/Panel/Preview/PreviewPopoverContentView.swift", "fileInfo"):
+        "按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈",
+    ("Features/Clipboard/UI/LargeTextPreviewView.swift", "refreshGridCache"):
+        "记录当前textStorage及容器宽度，showsTableGrid为false时清空矩形并直接返回；开启时仅对含textBlocks的段落获取字形及单元格矩形，非表格段落跳过，不强制全文排版",
+    ("Features/Clipboard/UI/LargeTextPreviewView.swift", "layout"):
+        "AppKit布局后仅在同一textStorage且容器宽度变化时重算表格矩形并请求重绘，不在每轮布局强制排版",
+    ("Features/Panel/Preview/DocumentInlinePreview.swift", "restoreOpenXMLFormatting"):
+        "解析word/document.xml，按正文run顺序前向匹配导入文本，仅去掉原文w:b或w:i明确val=0的字体特性；按tblGrid及columnSpan恢复表格百分比列宽，结合gridSpan定位tcPr，把原文vAlign=top的单元格设为顶对齐",
+    ("Features/Clipboard/UI/LargeTextPreviewView.swift", "init"):
+        "保存传入富文本及showsTableGrid开关，默认true保留Markdown表格网格；WordInlineContent传false，使Word预览不额外绘制Markdown网格",
+    ("Features/Clipboard/UI/LargeTextPreviewView.swift", "makeNSView"):
+        "构造只读可选择的PreviewTextView及纵向NSScrollView，传入showsTableGrid、富文本和随视图宽度折行设置，再按网格开关建立单元格矩形缓存",
+    ("Features/Clipboard/UI/LargeTextPreviewView.swift", "updateNSView"):
+        "SwiftUI更新时传递showsTableGrid；仅富文本内容不同才替换textStorage并刷新表格矩形缓存，保持现有滚动宿主",
 })
 
 
