@@ -59,7 +59,7 @@ public struct LocalTransferItem: Identifiable, Codable, Equatable {
     public let relativePath: String
     public let originalPath: String
     public let size: Int64
-    public let addedAt: Double
+    public var addedAt: Double
     public let mode: Mode
 
     public var stagedURL: URL { LocalTransferPaths.root.appendingPathComponent(relativePath) }
@@ -103,6 +103,8 @@ public final class LocalTransferStore: ObservableObject {
 
     private let indexURL: URL
     private let queue = DispatchQueue(label: "frset.transfer.local", qos: .userInitiated)
+    private var retentionTimer: Timer?
+    private var pendingAutoStagePaths = Set<String>()
 
     private init() {
         stagingRoot = LocalTransferPaths.root
@@ -147,6 +149,8 @@ public final class LocalTransferStore: ObservableObject {
             let fm = FileManager.default
 
             for url in urls {
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 let normalized = url.standardizedFileURL
                 guard fm.fileExists(atPath: normalized.path) else {
                     failures.append("\(url.lastPathComponent)：文件不存在")
@@ -189,22 +193,35 @@ public final class LocalTransferStore: ObservableObject {
         }
     }
 
-    /// 剪贴板自动暂存（2026-10-20 用户需求）：复制「zip / Word / PPT / Excel 等」文件时
-    /// 自动进本地中转（硬链接暂存版——不复制数据）。只对文档/压缩包类扩展名生效，
-    /// 且同一原路径已在列表里就跳过（避免同一次复制反复入库）。
+    /// 与剪贴板保持相同的复制顺序；原路径和暂存路径都认作同一文件。
     /// 需要在主线程调用（改 @Published）。
     public func autoStage(urls: [URL], completion: @escaping (Int, String?) -> Void) {
-        let allowed = TransferDockPref.autoStageExtensions
         var candidates: [URL] = []
+        var seen = Set<String>()
+        var touched = false
         for url in urls {
             let normalized = url.standardizedFileURL
-            guard allowed.contains(normalized.pathExtension.lowercased()) else { continue }
-            // 已暂存过同一原文件 → 不重复
-            if items.contains(where: { $0.originalPath == normalized.path }) { continue }
+            guard seen.insert(normalized.path).inserted else { continue }
+            if pendingAutoStagePaths.contains(normalized.path) { continue }
+            if let index = items.firstIndex(where: {
+                $0.originalPath == normalized.path || $0.stagedURL.standardizedFileURL.path == normalized.path
+            }) {
+                items[index].addedAt = Date().timeIntervalSince1970
+                touched = true
+                continue
+            }
             candidates.append(normalized)
         }
+        if touched {
+            items.sort { $0.addedAt > $1.addedAt }
+            persist()
+            NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
+        }
         guard !candidates.isEmpty else { completion(0, nil); return }
+        let paths = Set(candidates.map(\.path))
+        pendingAutoStagePaths.formUnion(paths)
         add(urls: candidates) { count in
+            self.pendingAutoStagePaths.subtract(paths)
             if count > 0 {
                 Log.info("TransferDock", "剪贴板文件自动暂存 \(count) 个")
             }
@@ -297,24 +314,55 @@ public final class LocalTransferStore: ObservableObject {
 
     // MARK: 移除/打开
 
+    public func startRetentionCleanup() {
+        retentionTimer?.invalidate()
+        retentionTimer = nil
+        guard TransferDockPref.retentionDays > 0 else { return }
+        Log.info("TransferDock", "保留期清理已启动：\(TransferDockPref.retentionDays) 天，每小时执行")
+        retentionTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            self?.pruneExpired()
+        }
+        RunLoop.main.add(retentionTimer!, forMode: .common)
+        pruneExpired()
+    }
+
+    public func pruneExpired(completion: ((ClipboardPruneResult) -> Void)? = nil) {
+        let days = TransferDockPref.retentionDays
+        guard days > 0 else { completion?(.none); return }
+        let cutoff = Date().addingTimeInterval(-Double(days) * 86_400).timeIntervalSince1970
+        remove(items.filter { $0.addedAt < cutoff }, completion: completion)
+    }
+
+    public func remove(_ targets: [LocalTransferItem], completion: ((ClipboardPruneResult) -> Void)? = nil) {
+        queue.async {
+            var removed = Set<String>()
+            var failures: [String] = []
+            for item in targets {
+                do {
+                    try FileManager.default.trashItem(at: self.stagingRoot.appendingPathComponent(item.id), resultingItemURL: nil)
+                    removed.insert(item.id)
+                } catch { failures.append("\(item.name)：\(error.localizedDescription)") }
+            }
+            DispatchQueue.main.async {
+                self.lastError = failures.isEmpty ? nil : failures.joined(separator: "\n")
+                if !removed.isEmpty {
+                    self.items.removeAll { removed.contains($0.id) }
+                    self.persist()
+                    self.lastMessage = "已移出 \(removed.count) 项到废纸篓"
+                    Log.info("TransferDock", self.lastMessage)
+                    NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
+                }
+                completion?(ClipboardPruneResult(removed: removed.count, reclaimedBytes: 0))
+            }
+        }
+    }
+
     public func remove(_ item: LocalTransferItem) {
-        // 只删暂存目录里的链接/副本，绝不动原文件
-        let dir = stagingRoot.appendingPathComponent(item.id, isDirectory: true)
-        try? FileManager.default.removeItem(at: dir)
-        items.removeAll { $0.id == item.id }
-        persist()
-        lastMessage = "已移出 \(item.name)"
-        NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
+        remove([item])
     }
 
     public func clearAll() {
-        for item in items {
-            try? FileManager.default.removeItem(at: stagingRoot.appendingPathComponent(item.id, isDirectory: true))
-        }
-        items.removeAll()
-        persist()
-        lastMessage = "已清空本地中转（原文件未受影响）"
-        NotificationCenter.default.post(name: .localTransferDidChange, object: nil)
+        remove(items)
     }
 
     public func reveal(_ item: LocalTransferItem) {

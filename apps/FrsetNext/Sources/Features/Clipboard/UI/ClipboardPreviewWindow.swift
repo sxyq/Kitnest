@@ -16,7 +16,8 @@ import SwiftUI
 
 public final class ClipboardPreviewWindowController: NSWindowController, NSWindowDelegate {
 
-    private var item: ClipboardItem
+    private var model: PreviewPopoverContentModel
+    private var item: ClipboardItem { model.item }
     /// 一次性空格预览提示（hover 态首帧显示）
     private var showsHint: Bool
     /// 编辑态变化上报（协调器据此暂停 hover 自动关闭）
@@ -30,10 +31,10 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     /// 收回动画进行中（防止 closeSlot 重入时重复 close）
     private var isClosing = false
 
-    public init(item: ClipboardItem, showsHint: Bool = false) {
-        self.item = item
+    public init(model: PreviewPopoverContentModel, showsHint: Bool = false) {
+        self.model = model
         self.showsHint = showsHint
-        let initial = Self.initialSize(item: item)
+        let initial = Self.initialSize(model: model)
         // v206：只允许 hover 无边框预览窗；任何独立标题栏预览窗都不再创建
         let window = HoverPreviewWindow(contentRect: NSRect(origin: .zero, size: initial),
                                         styleMask: [.borderless],
@@ -51,14 +52,18 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     required init?(coder: NSCoder) { fatalError("init(coder:) 未实现（预览窗走代码构建）") }
 
     /// 按实际渲染字号和折行测量；长图片保留可读宽度，正文在窗内滚动。
-    private static func initialSize(item: ClipboardItem,
+    private static func initialSize(model fileModel: PreviewPopoverContentModel,
                                     visibleFrame: CGRect = NSScreen.main?.visibleFrame ?? .zero,
                                     panelFrame: CGRect = .zero) -> NSSize {
         let sideWidth = max(panelFrame.minX - visibleFrame.minX,
                             visibleFrame.maxX - panelFrame.maxX) - 20
         let maxWidth = min(760, visibleFrame.width - 16, max(420, sideWidth))
         let maxHeight = min(640, visibleFrame.height - 16)
-        let model = ClipboardPreviewWindowView.makeModel(item: item, editedText: nil)
+        let model = fileModel.fileTextModel ?? fileModel
+        let item = model.item
+        if let image = fileModel.fileImage {
+            return imageSize(image, maxWidth: maxWidth, maxHeight: maxHeight, chrome: 170)
+        }
         switch model.kind {
         case .image:
             if let path = item.imagePath ?? item.thumbnailPath,
@@ -66,21 +71,19 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                image.size.width > 1, image.size.height > 1 {
                 let ocrHeight: CGFloat = (PreviewPopoverDataBridge.shared.ocrText(for: item) ?? "").isEmpty ? 0 : 160
                 let chrome: CGFloat = 100 + ocrHeight
-                let tall = image.size.height > image.size.width * 1.6
-                let scale = min(1, min((min(720, maxWidth) - 24) / image.size.width,
-                                      tall ? 1 : (maxHeight - chrome) / image.size.height))
-                return NSSize(width: min(maxWidth, max(420, image.size.width * scale + 24)),
-                              height: min(maxHeight, max(200, image.size.height * scale + chrome)))
+                return imageSize(image, maxWidth: maxWidth, maxHeight: maxHeight, chrome: chrome)
             }
             return NSSize(width: min(520, maxWidth), height: min(360, maxHeight))
         case .file:
-            let paths = model.inlineText.split(separator: "\n")
-            let document = paths.count == 1 && DocumentInlinePreview.supportedExtensions.contains(
-                URL(fileURLWithPath: String(paths[0])).pathExtension.lowercased())
+            let paths = (item.content ?? "").split(separator: "\n")
+            let document = fileModel.fileURL.map {
+                DocumentInlinePreview.supportedExtensions.contains($0.pathExtension.lowercased())
+            } ?? false
             return NSSize(width: min(560, maxWidth),
                           height: min(maxHeight, document ? 560 : paths.count == 1 ? 420 : max(240, CGFloat(paths.count) * 64 + 110)))
         case .json:
-            return NSSize(width: min(640, maxWidth), height: min(440, maxHeight))
+            return NSSize(width: min(640, maxWidth),
+                          height: min(440 + (item.type == .file ? 100 : 0), maxHeight))
         default:
             let text = model.inlineText
             let kind = model.kind == .fileBackedText ? PreviewPopoverContentModel.classifyRawText(text) : model.kind
@@ -102,22 +105,31 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
             let width = min(maxWidth, limit, max(440, body.size().width + sidebar + 36))
             let measured = body.boundingRect(with: NSSize(width: width - sidebar - 36, height: .greatestFiniteMagnitude),
                                               options: [.usesLineFragmentOrigin, .usesFontLeading])
-            let chrome: CGFloat = kind == .code ? 112 : 88
+            let chrome: CGFloat = (kind == .code ? 112 : 88) + (item.type == .file ? 100 : 0)
             return NSSize(width: width, height: min(maxHeight, max(model.kind == .fileBackedText ? 440 : 168,
                                                                   ceil(measured.height) + chrome)))
         }
     }
 
+    private static func imageSize(_ image: NSImage, maxWidth: CGFloat, maxHeight: CGFloat,
+                                  chrome: CGFloat) -> NSSize {
+        let tall = image.size.height > image.size.width * 1.6
+        let scale = min(1, min((min(720, maxWidth) - 24) / image.size.width,
+                              tall ? 1 : (maxHeight - chrome) / image.size.height))
+        return NSSize(width: min(maxWidth, max(420, image.size.width * scale + 24)),
+                      height: min(maxHeight, max(200, image.size.height * scale + chrome)))
+    }
+
     private func installContent() {
         guard let window else { return }
-        let view = ClipboardPreviewWindowView(item: item, showsHint: showsHint,
+        let view = ClipboardPreviewWindowView(model: model, showsHint: showsHint,
                                               hoverStyle: true,
                                               onEditingChanged: { [weak self] editing in
                                                   self?.onEditingChanged?(editing)
                                               })
         let host = NSHostingView(rootView: view)
         host.wantsLayer = true
-        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(item: item))
+        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(model: model))
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         window.contentView = host
@@ -137,24 +149,27 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     // MARK: 呈现
 
     /// 打开/切换条目。同条目同模式重复呈现只前置窗口（persistent 保留缩放与编辑草稿）。
-    func show(item newItem: ClipboardItem,
+    func show(model newModel: PreviewPopoverContentModel,
               anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect, showsHint: Bool) {
+        let newItem = newModel.item
         let sameItem = newItem.id == item.id
         let wasVisible = window?.isVisible == true
+        let wasClosing = isClosing
+        isClosing = false
+        if wasClosing, let window { WindowReveal.reset(window) }
         let needsContent = !sameItem || self.showsHint != showsHint
         self.showsHint = showsHint
-        item = newItem
+        model = newModel
         if needsContent { installContent() }
         place(anchorRectInScreen: anchorRectInScreen,
               panelFrame: panelFrame, visibleFrame: visibleFrame, animated: wasVisible && !sameItem)
-        isClosing = false
         guard let w = window else { return }
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if !wasVisible { w.contentView?.layer?.opacity = 0 }
         // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
         w.orderFront(nil)
-        // 首次打开也播放；重复悬停已打开的同一条目不重播。
-        if !wasVisible || !sameItem {
+        // 只在开窗时展开；换项保留同窗，以尺寸动画连续过渡。
+        if !wasVisible {
             WindowReveal.playIn(on: w, from: revealUnit, scale: reduceMotion ? 1 : 0.97,
                                 duration: reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration)
         }
@@ -163,7 +178,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     /// 位置：贴主面板左侧（顶边对齐锚条目），放不下则右侧，最后夹在可见区内
     private func place(anchorRectInScreen: CGRect, panelFrame: CGRect, visibleFrame: CGRect, animated: Bool) {
         guard let window else { return }
-        let size = Self.initialSize(item: item, visibleFrame: visibleFrame, panelFrame: panelFrame)
+        let size = Self.initialSize(model: model, visibleFrame: visibleFrame, panelFrame: panelFrame)
         var origin: NSPoint
         if panelFrame != .zero {
             let leftX = panelFrame.minX - size.width - 12
@@ -172,8 +187,11 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
             let y = anchorRectInScreen.maxY - size.height
             origin = NSPoint(x: x, y: y)
         } else {
-            origin = NSPoint(x: visibleFrame.midX - size.width / 2,
-                             y: visibleFrame.midY - size.height / 2)
+            origin = NSPoint(x: anchorRectInScreen.maxX + 18,
+                             y: anchorRectInScreen.maxY - size.height)
+            if origin.x + size.width > visibleFrame.maxX - 8 {
+                origin.x = anchorRectInScreen.minX - size.width - 18
+            }
         }
         origin.x = min(max(origin.x, visibleFrame.minX + 8), visibleFrame.maxX - size.width - 8)
         origin.y = min(max(origin.y, visibleFrame.minY + 8), visibleFrame.maxY - size.height - 8)
@@ -189,8 +207,8 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         }
         // v197：锚点 = 主面板那一行投影到预览窗的邻边。
         // 预览在面板左侧 → 锚点取预览窗右边缘（x=1）；在右侧 → 取左边缘（x=0）。
-        if panelFrame != .zero, size.height > 0 {
-            let edgeX: CGFloat = origin.x >= panelFrame.maxX ? 0 : 1
+        if size.height > 0 {
+            let edgeX: CGFloat = origin.x >= anchorRectInScreen.maxX ? 0 : 1
             let uy = 1 - (anchorRectInScreen.midY - origin.y) / size.height   // 屏幕 y 向上 → 锚点 y 向下
             revealUnit = CGPoint(x: edgeX, y: min(max(uy, 0), 1))
         } else {
@@ -207,8 +225,10 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         isClosing = true
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let duration = reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration * 0.7
-        let finish: () -> Void = { [weak w] in
-            guard let w, w.isVisible else { return }
+        let closingSession = model.sessionID
+        let finish: () -> Void = { [weak self, weak w] in
+            guard let self, self.isClosing, self.model.sessionID == closingSession,
+                  let w, w.isVisible else { return }
             w.close()
         }
         WindowReveal.playOut(on: w, to: revealUnit, scale: reduceMotion ? 1 : 0.97,
@@ -262,13 +282,13 @@ struct ClipboardPreviewWindowView: View {
     /// 「按代码看」：把 Markdown / JSON / 纯文本强制切到代码视图（代码预览对所有文本可达）
     @Stored private var forceCode = false
 
-    init(item: ClipboardItem, showsHint: Bool = false, hoverStyle: Bool = false,
+    init(model: PreviewPopoverContentModel, showsHint: Bool = false, hoverStyle: Bool = false,
          onEditingChanged: ((Bool) -> Void)? = nil) {
-        self.item = item
+        self.item = model.item
         self.showsHint = showsHint
         self.hoverStyle = hoverStyle
         self.onEditingChanged = onEditingChanged
-        _model = Stored(wrappedValue: Self.makeModel(item: item, editedText: nil))
+        _model = Stored(wrappedValue: model)
     }
 
     var body: some View {
@@ -453,10 +473,11 @@ struct ClipboardPreviewWindowView: View {
     // MARK: 动作
 
     private func copyContent() {
-        let text = isEditing ? draft : PreviewPopoverDataBridge.shared.fullText(for: item)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        Toast.show("已复制", icon: "doc.on.doc")
+        if isEditing {
+            ClipboardManager.shared.copyText(draft, successMessage: "已复制")
+        } else {
+            ClipboardManager.shared.copy(item, autoPaste: false)
+        }
     }
 
     private func save() {

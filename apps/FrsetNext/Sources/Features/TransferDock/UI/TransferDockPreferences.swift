@@ -112,13 +112,11 @@ public enum TransferDockPref {
         public static let fpsOptions: [Int] = [30, 60, 90, 0]
     }
 
-    /// 剪贴板文件自动暂存（复制 Word / PPT / Excel / 压缩包等 → 自动进本地中转）
+    /// 剪贴板文件与文件夹自动暂存。
     public static let autoStageClipboard = "transferDock.autoStageClipboard"
-
-    /// 自动暂存只对这些扩展名生效（用户原话「类似 zip Word PPT 等文件」→ 文档 + 压缩包）
-    public static let autoStageExtensions: Set<String> = [
-        "doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf",
-        "pages", "numbers", "key",
-        "zip", "rar", "7z", "tar", "gz", "tgz"
-    ]
+    public static let retentionDaysKey = "transferDock.local.retentionDays"
+    public static let hoverPreviewKey = "transferDock.previewOnHover"
+    public static var hoverPreviewEnabled: Bool { isOn(hoverPreviewKey) }
+    /// 0 = 不自动清理，保留现有暂存；开启时默认选 30 天。
+    public static var retentionDays: Int { Preferences.shared.value(retentionDaysKey, default: 0) }
 }

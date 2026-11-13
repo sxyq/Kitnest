@@ -349,6 +349,7 @@ public final class ClipboardManager: ObservableObject {
                 repository.touch(dedupeKey: key)
                 Log.debug("clipboard", "去重置顶：\(key.prefix(24))")
                 scheduleReloadCoalesced()
+                if result.type == .file { Self.scheduleAutoStage(result.fileURLs) }
                 return
             }
 
@@ -603,6 +604,9 @@ public final class ClipboardManager: ObservableObject {
             Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
             return reason
         }
+        if item.type == .file && !asPlainText {
+            if let result = reader.read() { insert(result) }
+        }
         finishCopy(message: successMessage ?? (asPlainText ? "已复制纯文本" : "已复制"), event: .historyCopy)
         let shouldPaste = autoPaste ?? preferences.value(Preferences.Keys.clipboardAutoPaste, default: false)
         if shouldPaste {
@@ -652,6 +656,7 @@ public final class ClipboardManager: ObservableObject {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         guard pasteboard.writeObjects(urls as [NSURL]) else { return "复制失败：无法写入文件 URL" }
+        if let result = reader.read() { insert(result) }
         finishCopy(message: successMessage, event: .historyCopy)
         return nil
     }
@@ -845,7 +850,7 @@ public final class ClipboardManager: ObservableObject {
             + ClipboardFileStore.fileSize(item.richTextPath)
     }
 
-    /// 剪贴板文件自动暂存（2026-10-20）：复制 zip / Word / PPT / Excel 等 → 自动进「文件中转」。
+    /// 剪贴板文件自动暂存：文件与文件夹复制后同步到「文件中转」。
     /// 模块间不直接引用（契约 §1.3）：这里只发通知，由 AppBootstrap 接到 LocalTransferStore。
     private static func scheduleAutoStage(_ urls: [URL]) {
         DispatchQueue.main.async {

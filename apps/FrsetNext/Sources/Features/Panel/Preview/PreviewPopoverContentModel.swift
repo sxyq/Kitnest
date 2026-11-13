@@ -44,6 +44,21 @@ public struct PreviewPopoverContentModel: Identifiable {
     public let inlineText: String
     /// 是否显示键盘预览一次性提示（F6：clipboard_keyboard_preview_hint_consumed 未消费时）
     public let showsKeyboardHint: Bool
+    public let fileText: FilePreviewLoadState
+    public let fileImage: NSImage?
+
+    public var fileURL: URL? {
+        guard item.type == .file else { return nil }
+        let paths = (item.content ?? "").split(separator: "\n")
+        return paths.count == 1 ? URL(fileURLWithPath: String(paths[0])) : nil
+    }
+
+    var fileTextModel: PreviewPopoverContentModel? {
+        guard case .loaded(let text) = fileText else { return nil }
+        return PreviewPopoverContentModel(item: item, source: source, entry: entry,
+                                          sessionID: sessionID, inlineText: text,
+                                          kindOverride: Self.classifyRawText(text))
+    }
 
     public init(item: ClipboardItem,
                 source: Source,
@@ -62,6 +77,25 @@ public struct PreviewPopoverContentModel: Identifiable {
         // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
         // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
         self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
+        let paths = (item.content ?? "").split(separator: "\n")
+        if item.type == .file, kindOverride == nil, paths.count == 1 {
+            let url = URL(fileURLWithPath: String(paths[0]))
+            let ext = url.pathExtension.lowercased()
+            if !url.hasDirectoryPath, FilePreviewBuilder.textExtensions.contains(ext),
+               !DocumentInlinePreview.supportedExtensions.contains(ext) {
+                do {
+                    fileText = .loaded(try FilePreviewBuilder.readText(url: url))
+                } catch {
+                    fileText = .failed("无法读取正文：\(error.localizedDescription)")
+                }
+            } else {
+                fileText = .idle
+            }
+            fileImage = FilePreviewBuilder.imageExtensions.contains(ext) ? NSImage(contentsOf: url) : nil
+        } else {
+            fileText = .idle
+            fileImage = nil
+        }
     }
 
     /// v53：纯文本内容分态（不看条目的 textPath）——编辑保存后的即时预览用

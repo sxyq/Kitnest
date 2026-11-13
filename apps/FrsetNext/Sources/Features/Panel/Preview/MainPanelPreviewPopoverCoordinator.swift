@@ -44,7 +44,7 @@ public final class MainPanelPreviewPopoverSlot {
     init(contentModel: PreviewPopoverContentModel, showsHint: Bool) {
         self.contentModel = contentModel
         // v206：预览只剩 hover 无边框窗（独立标题栏预览窗已删除）
-        self.windowController = ClipboardPreviewWindowController(item: contentModel.item,
+        self.windowController = ClipboardPreviewWindowController(model: contentModel,
                                                                  showsHint: showsHint)
         windowController.onWindowClosed = { [weak self] in
             MainPanelPreviewPopoverCoordinator.shared.handlePreviewWindowDidClose(self)
@@ -158,60 +158,95 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                         anchorView: NSView? = nil,
                         source: PreviewPopoverContentModel.Source = .mainPreview,
                         entry: PreviewPopoverContentModel.Entry = .mainList,
-                        showsKeyboardHint: Bool = false) -> Bool {
+                        showsKeyboardHint: Bool = false,
+                        anchorRectInScreen: CGRect? = nil,
+                        sourceWindow: NSWindow? = nil) -> Bool {
         cancelHoverWorkItems()
         cancelKeyboardPreview()
         activeSource = source
 
-        // 同条目已呈现 → 前置即可（重复触发不闪烁）
-        if let slot, slot.state == .presenting || slot.state == .presented,
-           slot.contentModel?.item.id == item.id {
-            return true
-        }
-        guard let (anchorHostView, anchorRect) = resolveAnchor(preferredView: anchorView,
+        let panelFrame: CGRect
+        let visibleFrame: CGRect
+        let anchorInScreen: CGRect
+        if let anchorRectInScreen {
+            anchorInScreen = anchorRectInScreen
+            panelFrame = sourceWindow?.frame ?? .zero
+            visibleFrame = (sourceWindow?.screen
+                ?? NSScreen.screens.first { $0.frame.contains(anchorRectInScreen.origin) }
+                ?? NSScreen.main)?.visibleFrame ?? .zero
+        } else {
+            guard let (anchorHostView, anchorRect) = resolveAnchor(preferredView: anchorView,
                                                                rectInWindow: anchorRectInWindow) else {
-            return false
+                return false
+            }
+            panelFrame = anchorHostView.window?.frame ?? .zero
+            visibleFrame = (anchorHostView.window?.screen ?? NSScreen.main)?.visibleFrame ?? .zero
+            anchorInScreen = anchorHostView.window.map {
+                $0.convertToScreen(anchorHostView.convert(anchorRect, to: nil))
+            } ?? anchorRect
         }
-        let panelFrame = anchorHostView.window?.frame ?? .zero
-        let screen = anchorHostView.window?.screen ?? NSScreen.main
-        let visibleFrame = screen?.visibleFrame ?? .zero
-        let anchorInScreen = anchorHostView.window.map {
-            $0.convertToScreen(anchorHostView.convert(anchorRect, to: nil))
-        } ?? anchorRect
 
         sessionID = UUID()
+        let requestedSession = sessionID
         let text = PreviewPopoverDataBridge.shared.fullText(for: item)
-        let model = PreviewPopoverContentModel(item: item,
-                                               source: source,
-                                               entry: entry,
-                                               sessionID: sessionID,
-                                               inlineText: text,
-                                               showsKeyboardHint: showsKeyboardHint)
-
-        // 切换记录复用当前窗，让尺寸连续变化，避免旧窗收回时新窗同时跳出。
-        let slot: MainPanelPreviewPopoverSlot
-        if let current = self.slot, current.state != .closing {
-            current.contentModel = model
-            current.isEditing = false
-            slot = current
-        } else {
-            slot = MainPanelPreviewPopoverSlot(contentModel: model, showsHint: showsKeyboardHint)
+        let buildModel = {
+            PreviewPopoverContentModel(item: item,
+                                       source: source,
+                                       entry: entry,
+                                       sessionID: requestedSession,
+                                       inlineText: text,
+                                       showsKeyboardHint: showsKeyboardHint)
         }
-        self.slot = slot
-        slot.state = .presenting
-        slot.windowController.show(item: item,
-                                   anchorRectInScreen: anchorInScreen,
-                                   panelFrame: panelFrame,
-                                   visibleFrame: visibleFrame,
-                                   showsHint: showsKeyboardHint)
-        slot.state = .presented
+        let display: (PreviewPopoverContentModel) -> Void = { [weak self] model in
+            guard let self, self.sessionID == requestedSession else { return }
 
-        activeItemID = item.id
-        // v206：预览只剩 hover 态 → 始终安装点外关闭监听
-        installOutsideClickMonitor()
-        installEscapeMonitor()
-        track("main_panel_preview", "exposed", model)
+            // 切换记录复用当前窗，让尺寸连续变化，避免旧窗收回时新窗同时跳出。
+            let slot: MainPanelPreviewPopoverSlot
+            if let current = self.slot {
+                current.contentModel = model
+                current.isEditing = false
+                slot = current
+            } else {
+                slot = MainPanelPreviewPopoverSlot(contentModel: model, showsHint: showsKeyboardHint)
+            }
+            self.slot = slot
+            slot.state = .presenting
+            slot.windowController.show(model: model,
+                                       anchorRectInScreen: anchorInScreen,
+                                       panelFrame: panelFrame,
+                                       visibleFrame: visibleFrame,
+                                       showsHint: showsKeyboardHint)
+            slot.state = .presented
+
+            self.activeItemID = item.id
+            // v206：预览只剩 hover 态 → 始终安装点外关闭监听
+            self.installOutsideClickMonitor()
+            self.installEscapeMonitor()
+            self.track("main_panel_preview", "exposed", model)
+        }
+        if item.type == .file {
+            activeItemID = item.id
+            DispatchQueue.global(qos: .userInitiated).async {
+                let model = buildModel()
+                DispatchQueue.main.async { display(model) }
+            }
+        } else {
+            display(buildModel())
+        }
         return true
+    }
+
+    /// 任意磁盘文件只构造内存预览条目，不写入剪贴板存储。
+    @discardableResult
+    public func presentFile(url: URL, anchorRectInScreen: CGRect? = nil,
+                            sourceWindow: NSWindow? = nil) -> Bool {
+        let id = FileHoverPreviewController.itemID(for: url)
+        let item = ClipboardItem(id: id, type: .file, content: url.path,
+                                 title: url.lastPathComponent, dedupeKey: id)
+        return present(for: item,
+                       anchorRectInScreen: anchorRectInScreen
+                           ?? CGRect(origin: NSEvent.mouseLocation, size: .zero),
+                       sourceWindow: sourceWindow)
     }
 
     // v182（用户）：「点开后常驻、带两个叉」的持久预览窗已删除；
@@ -220,6 +255,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
                         completion: (() -> Void)? = nil) {
+        sessionID = UUID()
         removeOutsideClickMonitor()
         guard let slot, slot.state != .idle, slot.state != .closing else {
             completion?()
@@ -469,12 +505,16 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         hoverPreviewCloseWorkItem = nil
     }
 
-    private func scheduleHoverClose() {
+    func scheduleHoverClose(itemID: String? = nil) {
+        if let itemID, activeItemID != itemID { return }
         guard hoverPreviewCloseWorkItem == nil else { return }
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.hoverPreviewCloseWorkItem = nil
-            guard let slot = self.slot, slot.state == .presented else { return }
+            guard let slot = self.slot, slot.state == .presented else {
+                self.sessionID = UUID()
+                return
+            }
             if slot.isEditing { return }                 // 编辑中不自动关（防草稿丢失）
             if self.previewPinned { return }             // 📌 固定中不自动关
             if self.isPreviewPopoverHovered { return }   // F4：SwiftUI 探测鼠标在预览窗内

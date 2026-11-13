@@ -98,6 +98,9 @@ private struct TransferDockContent: View {
     // LocalCardRowView 各自持有），父视图不再跟踪 hover，避免 hover 触发整表重算。
     /// 本地暂存勾选集合（勾选后可「扫码直传 / 加入云端 / 移出」批量操作）
     @Stored private var selectedIDs = Set<String>()
+    @Stored private var selectionAnchorID: String?
+    @Stored private var selectionModifiers = NSEvent.ModifierFlags()
+    @Stored private var selectionMonitor: Any?
     @Stored private var copyCompleted = false
     /// 「扫码直传」选中文件的二维码链接（带 ?pick=ids，手机只看到这几个）
     @Stored private var pickShareURL: String?
@@ -169,6 +172,10 @@ private struct TransferDockContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
+            selectionMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+                selectionModifiers = event.modifierFlags
+                return event
+            }
             if isSettingsPreview { return }
             bridgeAvailable = TransferDockPath.isAvailable
             // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
@@ -185,6 +192,10 @@ private struct TransferDockContent: View {
             // v120：预热隔空投送服务（首次实例化会同步初始化 AWDL，1~3s）
             AirDropSendEngine.warmUp()
             runTransferProbe()
+        }
+        .onDisappear {
+            if let selectionMonitor { NSEvent.removeMonitor(selectionMonitor) }
+            selectionMonitor = nil
         }
         .onChange(of: cloudEnabled) { on in
             if isSettingsPreview { return }
@@ -207,6 +218,9 @@ private struct TransferDockContent: View {
                 pickShareURL = nil
                 stopServiceIfStartedForTransfer()
             }
+        }
+        .onChange(of: local.items) { items in
+            if !isSettingsPreview { selectedIDs.formIntersection(Set(items.map(\.id))) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .transferDockSettingsDidChange)) { _ in
             if isSettingsPreview { return }
@@ -906,9 +920,12 @@ private struct TransferDockContent: View {
                     .help("勾选全部条目（勾选后可批量扫码直传 / 加入云端）")
 
                     Button {
-                        if isSettingsPreview { previewItems = [] }
-                        else { local.clearAll() }
-                        selectedIDs.removeAll()
+                        if isSettingsPreview { previewItems = []; selectedIDs.removeAll() }
+                        else {
+                            local.remove(local.items) { _ in
+                                if let error = local.lastError { Toast.show(error, icon: "exclamationmark.triangle", isWarning: true) }
+                            }
+                        }
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 11))
@@ -966,6 +983,8 @@ private struct TransferDockContent: View {
             Spacer(minLength: 2)
             smallAction("通用互传", icon: "qrcode") { showPickQR() }
             Menu(copyCompleted ? "✓ 已复制" : "复制") {
+                Button("复制文件") { copySelectedFiles() }
+                Divider()
                 Text("一行一个")
                 Button("复制文件名") { copySelectedMetadata(paths: false) }
                 Button("复制路径") { copySelectedMetadata(paths: true) }
@@ -1011,11 +1030,38 @@ private struct TransferDockContent: View {
         }
     }
 
+    private func copySelectedFiles() {
+        if isSettingsPreview { previewFeedback = "复制文件演示 · 剪贴板保持原值"; return }
+        let urls = stagedSelection()
+        if let error = ClipboardManager.shared.copyFiles(urls, successMessage: "已复制 \(urls.count) 个文件") {
+            Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+        } else {
+            copyCompleted = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copyCompleted = false }
+        }
+    }
+
     private func toggleSelect(_ id: String) {
         if selectedIDs.contains(id) {
             selectedIDs.remove(id)
         } else {
             selectedIDs.insert(id)
+        }
+        selectionAnchorID = id
+    }
+
+    private func selectLocal(_ id: String) {
+        let flags = selectionModifiers
+        if flags.contains(.shift),
+           let anchor = displayedLocalItems.firstIndex(where: { $0.id == selectionAnchorID }),
+           let target = displayedLocalItems.firstIndex(where: { $0.id == id }) {
+            let range = Set(displayedLocalItems[min(anchor, target)...max(anchor, target)].map(\.id))
+            if flags.contains(.command) { selectedIDs.formUnion(range) }
+            else { selectedIDs = range }
+        } else {
+            if flags.contains(.command) { toggleSelect(id) }
+            else { selectedIDs = [id] }
+            selectionAnchorID = id
         }
     }
 
@@ -1070,8 +1116,10 @@ private struct TransferDockContent: View {
     private func removeSelected() {
         if isSettingsPreview { previewItems.removeAll { selectedIDs.contains($0.id) }; selectedIDs.removeAll(); return }
         let victims = localItems.filter { selectedIDs.contains($0.id) }
-        for item in victims { local.remove(item) }
-        selectedIDs.removeAll()
+        local.remove(victims) { _ in
+            selectedIDs.formIntersection(Set(local.items.map(\.id)))
+            if let error = local.lastError { Toast.show(error, icon: "exclamationmark.triangle", isWarning: true) }
+        }
     }
 
     /// 「扫码直传」二维码弹层
@@ -1194,16 +1242,22 @@ private struct TransferDockContent: View {
         LocalCardRowView(
             item: item,
             selected: selectedIDs.contains(item.id),
+            isKeyboardPreviewTarget: localItems.first(where: { selectedIDs.contains($0.id) })?.id == item.id,
             showsCloud: showsCloud,
             onToggleSelect: { toggleSelect($0) },
+            onSelect: { selectLocal($0) },
             onPickOnly: { id in
                 selectedIDs = [id]
                 showPickQR()
             },
             onRemove: { victim in
                 if isSettingsPreview { previewItems.removeAll { $0.id == victim.id } }
-                else { local.remove(victim) }
-                selectedIDs.remove(victim.id)
+                else {
+                    local.remove([victim]) { _ in
+                        if let error = local.lastError { Toast.show(error, icon: "exclamationmark.triangle", isWarning: true) }
+                        else { selectedIDs.remove(victim.id) }
+                    }
+                }
             })
         .equatable()
     }
@@ -1393,8 +1447,10 @@ private struct LocalCardRowView: View, Equatable {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: LocalTransferItem
     let selected: Bool
+    let isKeyboardPreviewTarget: Bool
     let showsCloud: Bool
     var onToggleSelect: (String) -> Void
+    var onSelect: (String) -> Void
     var onPickOnly: (String) -> Void
     var onRemove: (LocalTransferItem) -> Void
 
@@ -1405,6 +1461,7 @@ private struct LocalCardRowView: View, Equatable {
     static func == (lhs: LocalCardRowView, rhs: LocalCardRowView) -> Bool {
         lhs.item == rhs.item
             && lhs.selected == rhs.selected
+            && lhs.isKeyboardPreviewTarget == rhs.isKeyboardPreviewTarget
             && lhs.showsCloud == rhs.showsCloud
     }
 
@@ -1423,6 +1480,10 @@ private struct LocalCardRowView: View, Equatable {
                         .foregroundStyle(.white)
                 }
                 Spacer(minLength: 0)
+                Group {
+                    if isKeyboardPreviewTarget { previewButton.keyboardShortcut(.space, modifiers: []) }
+                    else { previewButton }
+                }
                 Button {
                     onToggleSelect(item.id)
                 } label: {
@@ -1478,12 +1539,14 @@ private struct LocalCardRowView: View, Equatable {
         .onHover { inside in
             hovered = inside
             if isSettingsPreview { return }
-            if inside {
-                FileHoverPreviewController.shared.scheduleShow(url: item.stagedURL)
+            if inside && TransferDockPref.hoverPreviewEnabled {
+                FileHoverPreviewController.shared.scheduleShow(url: item.stagedURL,
+                    sourceWindow: PanelController.shared.panelWindowForProbe)
             } else {
                 FileHoverPreviewController.shared.scheduleHide()
             }
         }
+        .onTapGesture { onSelect(item.id) }
         .onTapGesture(count: 2) {
             if isSettingsPreview { onToggleSelect(item.id); return }
             // v118：压缩包双击进归档浏览（ArcZip 能力），其他文件仍交给系统
@@ -1498,6 +1561,15 @@ private struct LocalCardRowView: View, Equatable {
             return NSItemProvider(contentsOf: item.stagedURL) ?? NSItemProvider()
         }
         .contextMenu {
+            Button("预览") { if !isSettingsPreview { FileHoverPreviewController.shared.showNow(url: item.stagedURL,
+                sourceWindow: PanelController.shared.panelWindowForProbe) } }
+            Button("复制文件") {
+                if !isSettingsPreview,
+                   let error = ClipboardManager.shared.copyFiles([item.stagedURL], successMessage: "已复制 \(item.name)") {
+                    Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
+                }
+            }
+            Divider()
             if !isSettingsPreview && ArchiveCore.isArchive(item.stagedURL) {
                 Button("浏览压缩包") { ArchiveBrowserWindowController.show(url: item.stagedURL) }
                 Button("解压到…") {
@@ -1525,7 +1597,16 @@ private struct LocalCardRowView: View, Equatable {
             Divider()
             Button("移出中转") { onRemove(item) }
         }
-        .help("悬停预览 · 双击打开 · 拖到 Finder 或其他 App 即可使用")
+        .help("单击选择 · 空格预览 · 双击打开 · 拖出使用")
+    }
+
+    private var previewButton: some View {
+        Button {
+            if !isSettingsPreview { FileHoverPreviewController.shared.showNow(url: item.stagedURL,
+                sourceWindow: PanelController.shared.panelWindowForProbe) }
+        } label: {
+            Image(systemName: "eye").font(.system(size: 11)).frame(width: 18, height: 18)
+        }.buttonStyle(.plain).help("预览文件 · 空格").accessibilityLabel("预览 \(item.name)")
     }
 }
 

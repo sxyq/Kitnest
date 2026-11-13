@@ -36,13 +36,14 @@ final class ArchiveHoverPreview {
         let gen = generation
         pending?.cancel()
         pending = nil
-        // 换行了：先把上一条的预览收掉，再等 1 秒
+        // 不能预览的条目仍收起；有效换项在内容就绪前保留同一个窗口。
         FileHoverPreviewController.shared.scheduleHide()
 
         guard !entry.isDirectory else { return }
         guard entry.size > 0, entry.size <= Self.sizeCap else { return }
         // 只解「有内容可看」的类型；未知二进制解出来也只有图标，白花一次 7zz
         guard ArchiveEntryThumbnail.canRender(entry.name) else { return }
+        MainPanelPreviewPopoverCoordinator.shared.cancelHoverClose()
 
         let key = Self.key(archive: archive, entry: entry)
         let work = DispatchWorkItem { [weak self] in

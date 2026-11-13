@@ -692,6 +692,31 @@ struct PreviewCodeTextView: View {
 
 // MARK: - 态 6：图片（F12 缩略→大图重建 / F13 QR 头尾高度分支）
 
+struct PreviewImageContent: View {
+    let image: NSImage
+
+    var body: some View {
+        GeometryReader { geo in
+            let tall = image.size.height > image.size.width * 1.6
+            let scale = min(1, min((geo.size.width - 24) / image.size.width,
+                                  tall ? 1 : geo.size.height / image.size.height))
+            let width = image.size.width * scale
+            let height = image.size.height * scale
+            if tall {
+                ScrollView(.vertical) {
+                    Image(nsImage: image).resizable()
+                        .frame(width: width, height: height)
+                        .frame(maxWidth: .infinity)
+                }
+            } else {
+                Image(nsImage: image).resizable()
+                    .frame(width: width, height: height)
+                    .frame(width: geo.size.width, height: geo.size.height)
+            }
+        }
+    }
+}
+
 struct PreviewImageView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.settingsPreviewImage) private var previewImage
@@ -722,24 +747,7 @@ struct PreviewImageView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let image = displayImage {
-                GeometryReader { geo in
-                    let tall = image.size.height > image.size.width * 1.6
-                    let scale = min(1, min((geo.size.width - 24) / image.size.width,
-                                          tall ? 1 : geo.size.height / image.size.height))
-                    let width = image.size.width * scale
-                    let height = image.size.height * scale
-                    if tall {
-                        ScrollView(.vertical) {
-                            Image(nsImage: image).resizable()
-                                .frame(width: width, height: height)
-                                .frame(maxWidth: .infinity)
-                        }
-                    } else {
-                        Image(nsImage: image).resizable()
-                            .frame(width: width, height: height)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                    }
-                }
+                PreviewImageContent(image: image)
             } else if didFailToLoad {
                 Rectangle()
                     .fill(Color.secondary.opacity(0.08))
@@ -1026,6 +1034,16 @@ struct PreviewFileView: View {
                         QuickLookPresenter.shared.show(URL(fileURLWithPath: path))
                     }
                     .controlSize(.mini)
+                    Button("打开") {
+                        if isSettingsPreview { previewFeedback = "打开入口演示"; return }
+                        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                    }
+                    .controlSize(.mini)
+                    Button("在 Finder 中显示") {
+                        if isSettingsPreview { previewFeedback = "Finder 入口演示"; return }
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                    }
+                    .controlSize(.mini)
                     if isArchivePath(path) {
                         Button("编辑归档") {
                             if isSettingsPreview { previewFeedback = "归档入口演示"; return }
@@ -1044,35 +1062,56 @@ struct PreviewFileView: View {
     }
 
     var body: some View {
+        if !isSettingsPreview, let url = model.fileURL,
+           model.fileText != .idle || model.fileImage != nil || isDocumentPath(url.path) {
+            VStack(alignment: .leading, spacing: 8) {
+                fileContent(url)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(alignment: .leading, spacing: 8) {
+                    fileInfo(url.path)
+                    fileActions
+                }
+                .padding(12)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            ScrollView {
+                fileList
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fileContent(_ url: URL) -> some View {
+        if let textModel = model.fileTextModel {
+            switch textModel.kind {
+            case .markdown: PreviewMarkdownTextView(model: textModel)
+            case .json: PreviewJSONTextView(model: textModel)
+            case .code: PreviewCodeTextView(model: textModel)
+            default: PreviewTextContentView(text: textModel.inlineText)
+            }
+        } else if case .failed(let message) = model.fileText {
+            Text(message).foregroundStyle(.secondary)
+        } else if let image = model.fileImage {
+            PreviewImageContent(image: image)
+        } else {
+            DocumentInlinePreview(url: url)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
+        }
+    }
+
+    private var fileList: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(paths, id: \.self) { path in
                 VStack(alignment: .leading, spacing: 6) {
-                    if !isSettingsPreview, paths.count == 1, isDocumentPath(path) {
-                        // v171（用户：「预览要有相关的内容」）：单文档改成**整宽大画面**。
-                        // 原来塞在 260×260 的方格里，QLPreviewView 是按 100% 排版渲染的，
-                        // 小方格里只能看到标题左上角一小块；铺满预览窗宽度后
-                        // 能看到正文排版本身。
-                        DocumentInlinePreview(url: URL(fileURLWithPath: path))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 430)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-                            )
+                    HStack(spacing: 8) {
+                        PreviewFileThumb(path: path,
+                                         size: isSettingsPreview || isArchivePath(path) ? 72
+                                              : (paths.count == 1 ? 260 : 44))
                         fileInfo(path)
-                    } else {
-                        HStack(spacing: 8) {
-                            // v111：QuickLook 分级解码缩略图；v118 单文件放大。
-                            // v121：压缩包**不再放大图**（ZIP 图标本身没信息量），
-                            //       把横向空间让给下面的内部条目网格。
-                            PreviewFileThumb(path: path,
-                                             size: isSettingsPreview || isArchivePath(path) ? 72
-                                                  : (paths.count == 1 ? 260 : 44))
-                            fileInfo(path)
-                            Spacer(minLength: 0)
-                        }
+                        Spacer(minLength: 0)
                     }
                     // v121（用户要求）：压缩包内条目 → **图标网格**，
                     // 每个文件用自己类型的系统图标（Word/PPT/图片/APK…）
@@ -1099,7 +1138,13 @@ struct PreviewFileView: View {
                     }
                 }
             }
-            // v124：所选文件可直接压成归档（ArcZip「创建归档」+ 用途预设 5 种）
+            fileActions
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private var fileActions: some View {
+        VStack(alignment: .leading, spacing: 8) {
             if !paths.isEmpty {
                 HStack(spacing: 6) {
                     Button(paths.count > 1 ? "压缩所选 \(paths.count) 项…" : "压缩…") {
@@ -1115,7 +1160,6 @@ struct PreviewFileView: View {
                 Text(previewFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
-        // v121：只吃满宽度、不吃满高度——让内容按自身高度参与窗口拟合
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
@@ -1138,12 +1182,10 @@ private enum PreviewFileThumbCache {
 
 private enum PreviewFileThumbnailLoader {
 
-    private static let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "heic", "webp", "bmp", "tiff", "tif", "ico"]
-
     static func decode(path: String) async -> NSImage? {
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
-        if imageExts.contains(ext), let img = NSImage(contentsOfFile: path) {
+        if FilePreviewBuilder.imageExtensions.contains(ext), let img = NSImage(contentsOfFile: path) {
             return img
         }
         if ext == "pdf", let img = renderPDF(url: url) {

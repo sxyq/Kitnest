@@ -71,8 +71,9 @@ public final class ClipboardPasteboardReader {
         // 来源应用：bundle id 优先（与实机 source_app 字段一致），取不到退化为应用名
         let source = Self.frontmostAppIdentifier()
 
-        if let r = readImage(types: types, source: source) { return r }
+        // Finder 复制文件同时携带 TIFF 图标，必须先读取文件 URL。
         if let r = readFiles(types: types, source: source) { return r }
+        if let r = readImage(types: types, source: source) { return r }
         // v202：URL 优先于纯文本——复制链接时粘贴板几乎同时带 .string，
         // 旧顺序（文本 > URL）会把链接全部存成 text，「链接」分类永远空。
         if let r = readURL(types: types, source: source) { return r }
@@ -81,7 +82,7 @@ public final class ClipboardPasteboardReader {
         return nil
     }
 
-    // MARK: 优先级 1：图片
+    // MARK: 优先级 2：图片
 
     private func readImage(types: [NSPasteboard.PasteboardType], source: String?) -> ClipboardReadResult? {
         var data: Data?
@@ -109,13 +110,13 @@ public final class ClipboardPasteboardReader {
                                    imageHash: Self.fingerprint(imageData))
     }
 
-    // MARK: 优先级 2：文件
+    // MARK: 优先级 1：文件
 
     private func readFiles(types: [NSPasteboard.PasteboardType], source: String?) -> ClipboardReadResult? {
         var urls: [URL] = []
         if types.contains(.fileURL) || types.contains(.init("NSFilenamesPboardType")) {
             if let objects = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
-                urls = objects.filter { $0.isFileURL }
+                urls = objects.filter { $0.isFileURL }.compactMap { ($0 as NSURL).filePathURL }
             }
             if urls.isEmpty,
                let legacy = pasteboard.propertyList(forType: .init("NSFilenamesPboardType")) as? [String] {

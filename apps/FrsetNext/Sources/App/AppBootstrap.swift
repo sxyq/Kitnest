@@ -69,16 +69,18 @@ enum AppBootstrap {
             forName: ClipboardManager.filesCapturedNotification,
             object: nil,
             queue: .main) { note in
-                guard TransferDockPref.isOn(TransferDockPref.autoStageClipboard),
+                guard TransferDockPref.isOn(TransferDockPref.featureEnabled),
+                      TransferDockPref.isOn(TransferDockPref.autoStageClipboard),
                       let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
                 LocalTransferStore.shared.autoStage(urls: urls) { count, error in
                     if let error {
                         Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
                     } else if count > 0 {
-                        Toast.show("已自动暂存 \(count) 个文件到中转", icon: "arrow.down.doc")
+                        Log.info("TransferDock", "剪贴板与中转同步 \(count) 个文件")
                     }
                 }
             }
+        LocalTransferStore.shared.startRetentionCleanup()
 
         // 3.7) 空投联动（v112 对标报告第一批 P1）：剪贴板右键 / 截图动作链发来的
         //      空投请求 → AirDropSendEngine（系统面板，iPhone 零安装）。

@@ -2,6 +2,33 @@ import AppKit
 import Combine
 import SwiftUI
 
+final class LocalTransferSettingsDraft: SettingsEditableDraft {
+    @Published var autoStage = TransferDockPref.isOn(TransferDockPref.autoStageClipboard)
+    @Published var hoverPreview = TransferDockPref.hoverPreviewEnabled
+    @Published var retentionDays = TransferDockPref.retentionDays
+    private var saved = [String]()
+    init() { saved = values }
+    private var values: [String] { [String(autoStage), String(hoverPreview), String(retentionDays)] }
+    var isDirty: Bool { values != saved }
+    func save() -> String? {
+        Preferences.shared.set(TransferDockPref.autoStageClipboard, autoStage)
+        Preferences.shared.set(TransferDockPref.hoverPreviewKey, hoverPreview)
+        Preferences.shared.set(TransferDockPref.retentionDaysKey, retentionDays)
+        guard UserDefaults.standard.synchronize() else { return "本地暂存设置写入失败，调整已保留" }
+        LocalTransferStore.shared.startRetentionCleanup()
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+    func discard() {
+        autoStage = TransferDockPref.isOn(TransferDockPref.autoStageClipboard)
+        hoverPreview = TransferDockPref.hoverPreviewEnabled
+        retentionDays = TransferDockPref.retentionDays
+        saved = values
+    }
+    func restoreDefaults() { autoStage = true; hoverPreview = true; retentionDays = 0 }
+}
+
 // MARK: - 设置 → 文件中转
 //
 // 用户 2026-10-20：文件中转要有**单独的设置页**，而不是塞在「常规 → 功能」里一个勾选框。
@@ -23,7 +50,6 @@ struct TransferDockSettingsPane: View {
     @AppStorage(TransferDockPref.panelVisible) private var panelVisible = true
     @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
     @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
-    @AppStorage(TransferDockPref.autoStageClipboard) private var autoStageClipboard = true
 
     @ObservedObject private var lan = LanTransferServer.shared
     @ObservedObject private var local = LocalTransferStore.shared
@@ -252,11 +278,33 @@ struct TransferDockSettingsPane: View {
 
     /// 二级页：本地暂存
     private var localSection: some View {
+        SettingsDraftEditor(id: "transferLocal", makeDraft: { LocalTransferSettingsDraft() }) { draft in
         SettingsSection("本地暂存") {
             SettingsGroupBox {
-                row("剪贴板文件自动暂存", subtitle: "复制 Word / PPT / Excel / PDF / 压缩包等文件时，自动进本地暂存") {
-                    Toggle("", isOn: $autoStageClipboard)
+                row("剪贴板文件自动暂存", subtitle: "文件与文件夹复制后同时出现在剪贴板和中转；重复复制只置顶") {
+                    Toggle("剪贴板文件自动暂存", isOn: Binding(get: { draft.autoStage }, set: { draft.autoStage = $0 }))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                SettingsDivider()
+                row("悬停预览", subtitle: "尺寸随内容自适应；动画跟随主面板。关闭后仍可点预览或按空格") {
+                    Toggle("悬停预览", isOn: Binding(get: { draft.hoverPreview }, set: { draft.hoverPreview = $0 }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                SettingsDivider()
+                row("自动清理", subtitle: "每小时清理超出保留期的暂存；原文件保留，移出的内容可从废纸篓找回") {
+                    Toggle("自动清理", isOn: Binding(get: { draft.retentionDays > 0 },
+                        set: { draft.retentionDays = $0 ? 30 : 0 }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                if draft.retentionDays > 0 {
+                    row("保留天数", subtitle: "以最近一次加入或复制为起点；保存后生效") {
+                        HStack {
+                            Slider(value: Binding(get: { Double(draft.retentionDays) },
+                                set: { draft.retentionDays = Int($0) }), in: 1...365, step: 1)
+                                .frame(width: 170).accessibilityLabel("本地暂存保留天数")
+                            Text("\(draft.retentionDays) 天").monospacedDigit().frame(width: 50)
+                        }
+                    }
                 }
                 SettingsDivider()
                 row("暂存目录", subtitle: "手机上传的文件落在同一处") {
@@ -273,15 +321,25 @@ struct TransferDockSettingsPane: View {
                     }
                 }
                 SettingsDivider()
-                row("清空暂存", subtitle: "共 \(local.items.count) 项；只删中转里的链接/副本，不动原文件") {
+                row("清理已过期", subtitle: "即时操作，按已保存的保留期清理；当前 \(local.items.count) 项") {
+                    Button("立即清理") {
+                        local.pruneExpired { result in
+                            Toast.show(local.lastError ?? "已清理 \(result.removed) 项暂存到废纸篓", icon: local.lastError == nil ? "trash" : "exclamationmark.triangle", isWarning: local.lastError != nil)
+                        }
+                    }.controlSize(.small).disabled(TransferDockPref.retentionDays == 0)
+                }
+                SettingsDivider()
+                row("清空暂存", subtitle: "即时操作；只移出中转里的链接/副本，不动原文件") {
                     Button("清空") {
-                        local.clearAll()
-                        Toast.show("已清空本地中转", icon: "trash")
+                        local.remove(local.items) { result in
+                            Toast.show(local.lastError ?? "已移出 \(result.removed) 项到废纸篓", icon: local.lastError == nil ? "trash" : "exclamationmark.triangle", isWarning: local.lastError != nil)
+                        }
                     }
                     .controlSize(.small)
                     .disabled(local.items.isEmpty)
                 }
             }
+        }
         }
     }
 
