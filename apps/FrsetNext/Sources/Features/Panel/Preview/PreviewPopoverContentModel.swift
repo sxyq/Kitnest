@@ -46,6 +46,8 @@ public struct PreviewPopoverContentModel: Identifiable {
     public let showsKeyboardHint: Bool
     public let fileText: FilePreviewLoadState
     public let fileImage: NSImage?
+    public let fileIsDirectory: Bool
+    public let displayPath: String?
 
     public var fileURL: URL? {
         guard item.type == .file else { return nil }
@@ -66,7 +68,8 @@ public struct PreviewPopoverContentModel: Identifiable {
                 sessionID: UUID,
                 inlineText: String,
                 showsKeyboardHint: Bool = false,
-                kindOverride: Kind? = nil) {
+                kindOverride: Kind? = nil,
+                displayPath: String? = nil) {
         self.id = item.id
         self.item = item
         self.source = source
@@ -74,14 +77,20 @@ public struct PreviewPopoverContentModel: Identifiable {
         self.sessionID = sessionID
         self.inlineText = inlineText
         self.showsKeyboardHint = showsKeyboardHint
+        self.displayPath = displayPath
         // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
         // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
         self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
         let paths = (item.content ?? "").split(separator: "\n")
+        var directory: ObjCBool = false
+        if item.type == .file, paths.count == 1 {
+            FileManager.default.fileExists(atPath: String(paths[0]), isDirectory: &directory)
+        }
+        fileIsDirectory = directory.boolValue
         if item.type == .file, kindOverride == nil, paths.count == 1 {
             let url = URL(fileURLWithPath: String(paths[0]))
             let ext = url.pathExtension.lowercased()
-            if !url.hasDirectoryPath, FilePreviewBuilder.textExtensions.contains(ext),
+            if !fileIsDirectory, FilePreviewBuilder.textExtensions.contains(ext),
                !DocumentInlinePreview.supportedExtensions.contains(ext) {
                 do {
                     fileText = .loaded(try FilePreviewBuilder.readText(url: url))
@@ -91,7 +100,7 @@ public struct PreviewPopoverContentModel: Identifiable {
             } else {
                 fileText = .idle
             }
-            fileImage = FilePreviewBuilder.imageExtensions.contains(ext) ? NSImage(contentsOf: url) : nil
+            fileImage = !fileIsDirectory && FilePreviewBuilder.imageExtensions.contains(ext) ? NSImage(contentsOf: url) : nil
         } else {
             fileText = .idle
             fileImage = nil

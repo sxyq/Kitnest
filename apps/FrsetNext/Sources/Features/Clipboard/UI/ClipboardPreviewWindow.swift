@@ -76,11 +76,12 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
             return NSSize(width: min(520, maxWidth), height: min(360, maxHeight))
         case .file:
             let paths = (item.content ?? "").split(separator: "\n")
+            let container = fileModel.fileIsDirectory || fileModel.fileURL.map(ArchiveCore.isArchive) == true
             let document = fileModel.fileURL.map {
                 DocumentInlinePreview.supportedExtensions.contains($0.pathExtension.lowercased())
             } ?? false
-            return NSSize(width: min(560, maxWidth),
-                          height: min(maxHeight, document ? 560 : paths.count == 1 ? 420 : max(240, CGFloat(paths.count) * 64 + 110)))
+            return NSSize(width: min(container ? 740 : document ? 680 : 560, maxWidth),
+                          height: min(maxHeight, container || document ? 560 : paths.count == 1 ? 420 : max(240, CGFloat(paths.count) * 64 + 110)))
         case .json:
             return NSSize(width: min(640, maxWidth),
                           height: min(440 + (item.type == .file ? 100 : 0), maxHeight))

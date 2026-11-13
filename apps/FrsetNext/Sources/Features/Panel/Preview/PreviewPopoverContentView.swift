@@ -16,8 +16,15 @@ public struct PreviewPopoverContentView: View {
     let model: PreviewPopoverContentModel
     /// 「按代码看」：用户手动把 Markdown / JSON / 纯文本强制切到代码视图
     var forceCode: Bool = false
+    var usesWindowChrome = true
 
+    @ViewBuilder
     public var body: some View {
+        if usesWindowChrome { contents.frsetThemeChrome() }
+        else { contents }
+    }
+
+    private var contents: some View {
         VStack(spacing: 0) {
             content
             // v74（用户需求）：文本内容命中网盘链接时，底部给出「复制/打开/解析下载」操作条
@@ -25,8 +32,6 @@ public struct PreviewPopoverContentView: View {
                 CloudLinkPreviewAction(link: link)
             }
         }
-        // 主题统一入口：强调色（个性化）+ Midnight——预览窗此前两者都没接
-        .frsetThemeChrome()
     }
 
     @ViewBuilder
@@ -48,7 +53,7 @@ public struct PreviewPopoverContentView: View {
             case .image:
                 PreviewImageView(model: model)
             case .file:
-                PreviewFileView(model: model)
+                PreviewFileView(model: model, showsQuickLook: usesWindowChrome)
             case .richText:
                 PreviewRichTextView(model: model)
             }
@@ -1000,6 +1005,7 @@ struct PreviewFileView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Stored private var previewFeedback = ""
     let model: PreviewPopoverContentModel
+    var showsQuickLook = true
 
     private var paths: [String] {
         (model.item.content ?? "")
@@ -1016,24 +1022,31 @@ struct PreviewFileView: View {
 
     /// 文件名 + 路径 + 操作按钮（大图/小图两种布局共用）
     @ViewBuilder
-    private func fileInfo(_ path: String) -> some View {
+    private func fileInfo(_ path: String, showsName: Bool = true, showsPath: Bool = true) -> some View {
+        let displayPath = model.displayPath ?? path
         VStack(alignment: .leading, spacing: 4) {
-            Text((path as NSString).lastPathComponent)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(1)
-            Text(path)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            if showsName {
+                Text((path as NSString).lastPathComponent)
+                    .font(.system(size: 12, weight: .medium)).lineLimit(1)
+            }
+            if showsPath { Button {
+                if isSettingsPreview { previewFeedback = "复制路径演示"; return }
+                ClipboardManager.shared.copyText(displayPath, successMessage: "已复制路径")
+            } label: {
+                Text(displayPath).font(.system(size: 11)).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain).help("点击复制完整路径")
+            .accessibilityLabel("复制路径 \(displayPath)") }
             if paths.count == 1 {
                 HStack(spacing: 6) {
                     // 快速查看：Word/PPT 可翻页看全文（系统 QuickLook）
-                    Button("快速查看") {
+                    if showsQuickLook { Button("快速查看") {
                         if isSettingsPreview { previewFeedback = "快速查看入口演示"; return }
                         QuickLookPresenter.shared.show(URL(fileURLWithPath: path))
                     }
-                    .controlSize(.mini)
+                    .controlSize(.mini) }
                     Button("打开") {
                         if isSettingsPreview { previewFeedback = "打开入口演示"; return }
                         NSWorkspace.shared.open(URL(fileURLWithPath: path))
@@ -1042,6 +1055,11 @@ struct PreviewFileView: View {
                     Button("在 Finder 中显示") {
                         if isSettingsPreview { previewFeedback = "Finder 入口演示"; return }
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                    }
+                    .controlSize(.mini)
+                    Button("压缩…") {
+                        if isSettingsPreview { previewFeedback = "压缩入口演示"; return }
+                        ArchiveCreateWindowController.show(files: [URL(fileURLWithPath: path)])
                     }
                     .controlSize(.mini)
                     if isArchivePath(path) {
@@ -1063,28 +1081,29 @@ struct PreviewFileView: View {
 
     var body: some View {
         if !isSettingsPreview, let url = model.fileURL,
-           model.fileText != .idle || model.fileImage != nil || isDocumentPath(url.path) {
-            VStack(alignment: .leading, spacing: 8) {
+           model.fileIsDirectory || isArchivePath(url.path) || model.fileText != .idle || model.fileImage != nil || isDocumentPath(url.path) {
+            VStack(alignment: .leading, spacing: 0) {
                 fileContent(url)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                VStack(alignment: .leading, spacing: 8) {
-                    fileInfo(url.path)
-                    fileActions
-                }
-                .padding(12)
+                Divider()
+                fileInfo(url.path, showsName: false,
+                         showsPath: !model.fileIsDirectory && !isArchivePath(url.path))
+                .padding(.horizontal, 12).padding(.vertical, 8)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             ScrollView {
                 fileList
-            }
+            }.padding(12)
         }
     }
 
     @ViewBuilder
     private func fileContent(_ url: URL) -> some View {
-        if let textModel = model.fileTextModel {
+        if model.fileIsDirectory || isArchivePath(url.path) {
+            FileContainerPreview(path: url.path)
+        } else if let textModel = model.fileTextModel {
             switch textModel.kind {
             case .markdown: PreviewMarkdownTextView(model: textModel)
             case .json: PreviewJSONTextView(model: textModel)
@@ -1097,8 +1116,6 @@ struct PreviewFileView: View {
             PreviewImageContent(image: image)
         } else {
             DocumentInlinePreview(url: url)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
         }
     }
 
@@ -1112,29 +1129,6 @@ struct PreviewFileView: View {
                                               : (paths.count == 1 ? 260 : 44))
                         fileInfo(path)
                         Spacer(minLength: 0)
-                    }
-                    // v121（用户要求）：压缩包内条目 → **图标网格**，
-                    // 每个文件用自己类型的系统图标（Word/PPT/图片/APK…）
-                    if !isSettingsPreview, isArchivePath(path) {
-                        ArchivePeekView(path: path)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        HStack(spacing: 6) {
-                            Button("解压到…") {
-                                let panel = NSOpenPanel()
-                                panel.canChooseDirectories = true
-                                panel.canChooseFiles = false
-                                panel.prompt = "解压到这里"
-                                if panel.runModal() == .OK, let dir = panel.url {
-                                    ArchiveCore.extract(url: URL(fileURLWithPath: path), to: dir) { ok, msg in
-                                        Toast.show(ok ? "已解压" : "解压失败：\(msg)",
-                                                   icon: ok ? "archivebox" : "exclamationmark.triangle",
-                                                   isWarning: !ok)
-                                    }
-                                }
-                            }
-                            .controlSize(.mini)
-                            Spacer(minLength: 0)
-                        }
                     }
                 }
             }
@@ -1228,39 +1222,6 @@ private enum PreviewFileThumbnailLoader {
             QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { rep, _ in
                 cont.resume(returning: rep?.nsImage)
             }
-        }
-    }
-}
-
-/// 文档内联预览（v167）：用系统 QLPreviewView 渲染真实排版内容。
-///
-/// 与 `PreviewFileThumbnailLoader.qlThumbnail` 的区别：
-/// 后者请求的是 **thumbnail representation**，Office 文件系统只给图标；
-/// `QLPreviewView` 走 **preview representation**（QLPreviewingController），
-/// 才能拿到 docx/pptx/xlsx 的正文渲染。
-struct DocumentInlinePreview: NSViewRepresentable {
-    let url: URL
-
-    /// 能内联渲染的文档类扩展名（含 iWork 与 PDF）
-    static let supportedExtensions: Set<String> = [
-        "doc", "docx", "docm", "dot", "dotx", "rtf", "rtfd", "odt", "webarchive",
-        "ppt", "pptx", "pptm", "pps", "ppsx", "key", "odp",
-        "xls", "xlsx", "xlsm", "numbers", "ods", "csv",
-        "pages", "pdf", "epub"
-    ]
-
-    func makeNSView(context: Context) -> QLPreviewView {
-        let view = QLPreviewView(frame: NSRect(x: 0, y: 0, width: 260, height: 260),
-                                 style: .normal)!
-        view.autostarts = true
-        view.previewItem = url as NSURL
-        return view
-    }
-
-    func updateNSView(_ nsView: QLPreviewView, context: Context) {
-        if (nsView.previewItem as? NSURL)?.path != url.path {
-            nsView.previewItem = url as NSURL
-            nsView.refreshPreviewItem()
         }
     }
 }

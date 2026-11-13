@@ -680,7 +680,8 @@ public enum ArchiveCore {
     /// v127：不入队（预览/缩略图不该进任务面板），同样做路径安全校验
     /// v127.1：只拦硬不安全（穿越/绝对路径），设备名类（CON.txt 等）放行——macOS 合法文件
     public static func extractEntryToTemp(url: URL, entry: ArchiveEntry,
-                                          completion: @escaping (URL?, String) -> Void) {        guard !isHardUnsafeEntryPath(entry.path) else {
+                                          completion: @escaping (URL?, String) -> Void) {
+        guard !isHardUnsafeEntryPath(entry.path) else {
             completion(nil, "已拦截不安全路径：\(entry.path)")
             return
         }
@@ -688,7 +689,12 @@ public enum ArchiveCore {
             .appendingPathComponent("frset-archive-\(UUID().uuidString)", isDirectory: true)
         performExtract(url: url, entry: entry.path, to: dir, password: ArchivePasswords.get(url),
                        includeAuxiliary: false, restrictTo: nil, taskID: nil) { ok, msg in
-            guard ok else { completion(nil, msg); return }
+            guard ok else {
+                do { if FileManager.default.fileExists(atPath: dir.path) { try FileManager.default.removeItem(at: dir) } }
+                catch { completion(nil, "\(msg)；无法删除临时目录：\(error.localizedDescription)"); return }
+                completion(nil, msg)
+                return
+            }
             // 7zz x 会保留目录结构；在 dir 下找同名文件
             let candidate = dir.appendingPathComponent(entry.path)
             if FileManager.default.fileExists(atPath: candidate.path) {
@@ -700,6 +706,8 @@ public enum ArchiveCore {
                 .first(where: { ($0 as NSString).lastPathComponent == entry.name }) {
                 completion(dir.appendingPathComponent(found), "")
             } else {
+                do { try FileManager.default.removeItem(at: dir) }
+                catch { completion(nil, "解压后未找到文件；无法删除临时目录：\(error.localizedDescription)"); return }
                 completion(nil, "解压后未找到文件")
             }
         }

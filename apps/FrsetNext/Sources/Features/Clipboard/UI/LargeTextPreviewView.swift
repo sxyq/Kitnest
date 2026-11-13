@@ -27,17 +27,25 @@ import SwiftUI
 public struct AttributedTextView: NSViewRepresentable {
 
     public let attributed: NSAttributedString
+    public var showsTableGrid: Bool
 
-    public init(_ attributed: NSAttributedString) {
+    public init(_ attributed: NSAttributedString, showsTableGrid: Bool = true) {
         self.attributed = attributed
+        self.showsTableGrid = showsTableGrid
     }
 
     public func makeNSView(context: Context) -> NSScrollView {
         let textView = PreviewTextView()
+        textView.showsTableGrid = showsTableGrid
         textView.isEditable = false
         textView.isSelectable = true
         textView.drawsBackground = false
         textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: CGFloat(0), height: CGFloat.greatestFiniteMagnitude)
         textView.isAutomaticLinkDetectionEnabled = false
         textView.textStorage?.setAttributedString(attributed)
         textView.refreshGridCache()
@@ -50,6 +58,7 @@ public struct AttributedTextView: NSViewRepresentable {
 
     public func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let textView = scroll.documentView as? PreviewTextView else { return }
+        textView.showsTableGrid = showsTableGrid
         if textView.attributedString() != attributed {
             textView.textStorage?.setAttributedString(attributed)
             textView.refreshGridCache()
@@ -63,10 +72,12 @@ public struct AttributedTextView: NSViewRepresentable {
 /// 本子类在 draw 里遍历段落携带的 textBlocks，用 layoutManager 取每个单元格的
 /// 精确矩形并描边——配合表头底纹即完整 Excel 观感。
 final class PreviewTextView: NSTextView {
+    var showsTableGrid = true
 
     /// 单元格矩形缓存（container 坐标，含 textContainerOrigin 偏移）
     private var gridRects: [NSRect] = []
     private var gridCacheSource: NSAttributedString?
+    private var gridCacheWidth: CGFloat = 0
 
     /// 重新收集全文 textBlocks 矩形（文本替换/宽度变化后调用）
     func refreshGridCache() {
@@ -76,11 +87,13 @@ final class PreviewTextView: NSTextView {
             return
         }
         gridCacheSource = storage
+        gridCacheWidth = container.size.width
+        guard showsTableGrid else { gridRects = []; return }
         var rects: [NSRect] = []
         let full = NSRange(location: 0, length: storage.length)
         // 单元格内容都带独立 paragraphStyle，run 级枚举对无样式大文本只命中少量 run
         storage.enumerateAttribute(.paragraphStyle, in: full, options: []) { value, charRange, _ in
-            guard let style = value as? NSParagraphStyle else { return }
+            guard let style = value as? NSParagraphStyle, !style.textBlocks.isEmpty else { return }
             let glyphRange = lm.glyphRange(forCharacterRange: charRange, actualCharacterRange: nil)
             for block in style.textBlocks {
                 let rect = lm.boundsRect(for: block, glyphRange: glyphRange)
@@ -106,7 +119,7 @@ final class PreviewTextView: NSTextView {
     override func layout() {
         super.layout()
         // 宽度变化 → 单元格矩形变化（只重算矩形，不重排文本）
-        if gridCacheSource === textStorage {
+        if gridCacheSource === textStorage, gridCacheWidth != textContainer?.size.width {
             refreshGridCache()
             needsDisplay = true
         }
