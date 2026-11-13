@@ -188,14 +188,15 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
 
         sessionID = UUID()
         let requestedSession = sessionID
-        let text = PreviewPopoverDataBridge.shared.fullText(for: item)
-        let buildModel = {
+        let text = item.type == .file ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
+        let buildModel: (Bool) -> PreviewPopoverContentModel = { loadFileContents in
             PreviewPopoverContentModel(item: item,
                                        source: source,
                                        entry: entry,
                                        sessionID: requestedSession,
                                        inlineText: text,
-                                       showsKeyboardHint: showsKeyboardHint)
+                                       showsKeyboardHint: showsKeyboardHint,
+                                       loadFileContents: loadFileContents)
         }
         let display: (PreviewPopoverContentModel) -> Void = { [weak self] model in
             guard let self, self.sessionID == requestedSession else { return }
@@ -222,16 +223,20 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             // v206：预览只剩 hover 态 → 始终安装点外关闭监听
             self.installOutsideClickMonitor()
             self.installEscapeMonitor()
-            self.track("main_panel_preview", "exposed", model)
+            if model.fileText != .loading { self.track("main_panel_preview", "exposed", model) }
         }
         if item.type == .file {
-            activeItemID = item.id
-            DispatchQueue.global(qos: .userInitiated).async {
-                let model = buildModel()
-                DispatchQueue.main.async { display(model) }
+            // 2026-11-14：文件读取不再挡住出窗；目录/文档沿用视图自身的异步加载。
+            let initial = buildModel(false)
+            display(initial)
+            if initial.fileText == .loading {
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let model = buildModel(true)
+                    DispatchQueue.main.async { display(model) }
+                }
             }
         } else {
-            display(buildModel())
+            display(buildModel(true))
         }
         return true
     }

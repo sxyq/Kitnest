@@ -42,8 +42,7 @@ public struct CodePreviewView: View {
     @Stored private var wraps: Bool
     @Stored private var copiedFlash = false
     @Stored private var cached: NSAttributedString
-    /// cached 对应的渲染键（v192.2）。用于在渲染入口做兜底校验：
-    /// onChange 万一没送达，也不会把上一个主题的配色继续画出来。
+    /// 已完成的渲染键，切换配置期间不呈现旧配色。
     @Stored private var cachedKey: String = ""
 
     public init(code: String, fileName: String? = nil) {
@@ -57,12 +56,7 @@ public struct CodePreviewView: View {
         _fontSize = Stored(wrappedValue: size)
         _showsLineNumbers = Stored(wrappedValue: CodePreviewPreferences.showsLineNumbers)
         _wraps = Stored(wrappedValue: CodePreviewPreferences.wraps)
-        // 首帧就把高亮算好（避免先闪一屏纯文本再上色）
-        let initialOptions = CodeRenderOptions(language: CodeLanguageCatalog.detect(code, fileName: fileName),
-                                               theme: initialTheme,
-                                               fontSize: CGFloat(size),
-                                               showsLineNumbers: CodePreviewPreferences.showsLineNumbers)
-        _cached = Stored(wrappedValue: CodeHighlighter.attributed(code, options: initialOptions))
+        _cached = Stored(wrappedValue: NSAttributedString())
     }
 
     // MARK: 派生状态
@@ -115,16 +109,8 @@ public struct CodePreviewView: View {
             WindowThemeSync(isDark: theme.isDark, background: theme.background)
                 .allowsHitTesting(false)
         }
-        .onAppear { rebuild() }
-        // v192.2（用户：「改变颜色之后，它的颜色没有跟着改变」）：
-        // 原来拆成 4 个 onChange（theme/font/language/lineNumbers），实测换主题时
-        // 背景跟着变了、语法颜色却还是旧主题的——说明 rebuild() 没被调用。
-        // 改成监听**一个渲染键**：任何影响高亮结果的输入变化都会命中，
-        // 不再依赖某个具体属性的事件是否送达。
-        .onChange(of: renderKey) { _ in
-            rebuild()
-            persist()
-        }
+        .task(id: renderKey) { await rebuild() }
+        .onChange(of: renderKey) { _ in persist() }
         .onChange(of: wraps) { _ in persist() }
     }
 
@@ -329,16 +315,6 @@ public struct CodePreviewView: View {
         }
     }
 
-    /// 渲染入口的兜底取值（v192.2）
-    ///
-    /// 正常路径：onChange(renderKey) → rebuild() → cached/cachedKey 同步更新，这里直接命中缓存。
-    /// 异常路径：若某次主题切换没触发 onChange，cachedKey 会对不上 renderKey，
-    /// 此时**现算一次**保证颜色正确（宁可多算一帧，也不能显示上一个主题的配色）。
-    private var currentAttributed: NSAttributedString {
-        guard cachedKey != renderKey else { return cached }
-        return CodeHighlighter.attributed(code, options: options)
-    }
-
     // MARK: 代码区
 
     private var codeArea: some View {
@@ -348,8 +324,10 @@ public struct CodePreviewView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(muted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if cachedKey != renderKey {
+                ProgressView("正在着色…").controlSize(.small)
             } else {
-                CodeTextViewRepresentable(attributed: currentAttributed,
+                CodeTextViewRepresentable(attributed: cached,
                                           theme: theme,
                                           fontSize: CGFloat(fontSize),
                                           showsLineNumbers: showsLineNumbers,
@@ -379,9 +357,16 @@ public struct CodePreviewView: View {
 
     // MARK: 动作
 
-    private func rebuild() {
-        cached = CodeHighlighter.attributed(code, options: options)
-        cachedKey = renderKey
+    private func rebuild() async {
+        let key = renderKey
+        let text = code
+        let renderOptions = options
+        let rendered = await Task.detached(priority: .userInitiated) {
+            CodeHighlighter.attributed(text, options: renderOptions)
+        }.value
+        guard !Task.isCancelled else { return }
+        cached = rendered
+        cachedKey = key
     }
 
     private func persist() {

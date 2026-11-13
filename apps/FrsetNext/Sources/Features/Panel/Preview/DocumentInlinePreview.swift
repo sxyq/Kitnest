@@ -26,14 +26,8 @@ struct DocumentInlinePreview: View {
     var body: some View {
         Group {
             if let type = wordType {
-                switch Result(catching: { try WordDocumentRevision(url: url) }) {
-                case .success(let revision):
-                    WordInlineContent(revision: revision, type: type)
-                        .id(revision)
-                case .failure(let error):
-                    Text("无法读取正文：\(error.localizedDescription)")
-                        .foregroundStyle(.secondary)
-                }
+                WordInlineContent(url: url, type: type)
+                    .id(url)
             } else {
                 InlineQuickLookView(url: url)
             }
@@ -62,14 +56,14 @@ private struct WordDocumentContent {
 
 @MainActor
 private struct WordInlineContent: View {
-    let revision: WordDocumentRevision
+    let url: URL
     let type: NSAttributedString.DocumentType
     @Stored private var document: WordDocumentContent?
     @Stored private var failure: String?
 
     var body: some View {
         Group {
-            if let content = WordDocumentStore.cached(revision) ?? document {
+            if let content = document {
                 if content.text.length == 0 {
                     Text("文档正文为空").foregroundStyle(.secondary)
                 } else {
@@ -82,8 +76,12 @@ private struct WordInlineContent: View {
                 ProgressView("正在读取正文…")
             }
         }
-        .task(id: revision) {
+        .task(id: url) {
             do {
+                let revision = try await Task.detached(priority: .userInitiated) {
+                    try WordDocumentRevision(url: url)
+                }.value
+                try Task.checkCancellation()
                 let content = try await WordDocumentStore.load(revision, type: type)
                 try Task.checkCancellation()
                 document = content

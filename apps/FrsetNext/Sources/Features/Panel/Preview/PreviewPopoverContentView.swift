@@ -501,7 +501,7 @@ struct PreviewFileBackedTextView: View {
 
 struct PreviewMarkdownTextView: View {
     let model: PreviewPopoverContentModel
-    @Stored private var rendered: NSAttributedString
+    @Stored private var rendered: NSAttributedString?
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
@@ -509,10 +509,6 @@ struct PreviewMarkdownTextView: View {
 
     init(model: PreviewPopoverContentModel) {
         self.model = model
-        let parsed = Self.render(model.inlineText)
-        self._rendered = Stored(wrappedValue: parsed.body)
-        self._headings = Stored(wrappedValue: parsed.headings)
-        self._sourceSegments = Stored(wrappedValue: parsed.segments)
     }
 
     /// 正文 + 标题锚点 + 渲染↔源映射（目录由左侧栏渲染；⌘C 复制回源用）
@@ -523,14 +519,28 @@ struct PreviewMarkdownTextView: View {
     }
 
     var body: some View {
-        MarkdownPreviewBody(
-            text: model.inlineText,
-            scrollRestoreKey: model.item.dedupeKey,
-            rendered: rendered,
-            headings: headings,
-            sourceSegments: sourceSegments,
-            scrollRequest: $scrollRequest,
-            activeHeading: $activeHeading)
+        Group {
+            if let rendered {
+                MarkdownPreviewBody(
+                    text: model.inlineText,
+                    scrollRestoreKey: model.item.dedupeKey,
+                    rendered: rendered,
+                    headings: headings,
+                    sourceSegments: sourceSegments,
+                    scrollRequest: $scrollRequest,
+                    activeHeading: $activeHeading)
+            } else {
+                ProgressView("正在排版…").controlSize(.small)
+            }
+        }
+        .task(id: model.sessionID) {
+            let text = model.inlineText
+            let parsed = await Task.detached(priority: .userInitiated) { Self.render(text) }.value
+            guard !Task.isCancelled else { return }
+            rendered = parsed.body
+            headings = parsed.headings
+            sourceSegments = parsed.segments
+        }
     }
 }
 
@@ -1110,6 +1120,8 @@ struct PreviewFileView: View {
     private func fileContent(_ url: URL) -> some View {
         if model.fileIsDirectory || isArchivePath(url.path) {
             FileContainerPreview(path: url.path)
+        } else if model.fileText == .loading {
+            ProgressView("正在读取预览…").controlSize(.small)
         } else if let textModel = model.fileTextModel {
             switch textModel.kind {
             case .markdown: PreviewMarkdownTextView(model: textModel)
@@ -1186,11 +1198,15 @@ private enum PreviewFileThumbnailLoader {
     static func decode(path: String) async -> NSImage? {
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()
-        if FilePreviewBuilder.imageExtensions.contains(ext), let img = NSImage(contentsOfFile: path) {
-            return img
+        if FilePreviewBuilder.imageExtensions.contains(ext) {
+            return await withCheckedContinuation { continuation in
+                PreviewImageLoader.shared.loadImage(at: url, needsFullRebuild: false) {
+                    continuation.resume(returning: $0)
+                }
+            }
         }
-        if ext == "pdf", let img = renderPDF(url: url) {
-            return img
+        if ext == "pdf" {
+            return await Task.detached(priority: .userInitiated) { renderPDF(url: url) }.value
         }
         return await qlThumbnail(url: url)
     }

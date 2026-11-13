@@ -739,18 +739,18 @@ Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,in
 Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,load,func,150,KEEP,先close撤销旧目录和文件预览，再在串行队列确认路径、解析符号链接并读取修订；主线程仅接纳当前listingGeneration结果，文件夹读目录、归档读条目，失败显示路径及原因
 Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,readArchive,func,190,KEEP,按URL、修改时间和大小复用最近4个归档条目缓存；未命中交ArchiveCore.list读取含辅助条目列表，同一浏览器已有读取时仅保存下一修订，当前代结果进入目录导航，失败显示具体原因
 Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,readDirectory,func,224,KEEP,增加listingGeneration并清空选择及预览；后台按归档路径前缀生成直属条目和隐含目录，或读取真实目录元数据，目录优先再按自然文件名排序，主线程只发布当前代结果
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,enter,func,287,KEEP,仅进入目录条目，把当前目录压入history后切换entry.path并读取下一层
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,openSelectedDirectory,func,294,KEEP,把当前选中的目录交enter，供进入按钮、回车和向右导航共用
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goUp,func,298,KEEP,取history最后一层返回父目录并重新读取；无历史时保留根目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goRoot,func,304,KEEP,清空history并把directory置空，重新读取文件夹或归档根目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,select,func,310,KEEP,选择变化先撤销旧预览并清理临时文件；目录只选中，普通文件直接后台render，归档文件交单项解压，已有解压时只保留最新待处理选择
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,extract,func,323,KEEP,调用ArchiveCore.extractEntryToTemp解压选中文件，当前previewGeneration结果交render；离开或换项后的落地文件立即清理，失败显示归档和条目路径，结束后执行最新待解压选择
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,render,func,343,KEEP,后台解析文件符号链接并创建只在内存存在的ClipboardItem及完整预览模型；归档条目用displayPath显示原包内路径，主线程仅接纳当前previewGeneration；FileContainerPreview以usesWindowChrome:false复用内容并隐藏快速查看按钮
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,clearPreview,func,365,KEEP,增加previewGeneration、取消预览任务及待解压选择，清空预览、加载态、选择和错误，存在临时解压文件时清理其所属目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,removeTemporaryFile,func,379,KEEP,从落地文件逐级定位temporaryDirectory的直接子目录并删除整个解压目录，内部同名前缀目录不作为清理单元，删除失败显示具体原因
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,close,func,388,KEEP,将浏览器设为非活动并增加listingGeneration，取消目录任务和待归档读取，交clearPreview撤销文件结果并清理临时解压目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveEntryTile,loadThumbnail,func,457,KEEP,tile body:154 onAppear 加载缩略图
-Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveFileIcon,icon,func,487,KEEP,PeekView:135、EntryTable:168、Drag:207
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,enter,func,285,KEEP,仅进入目录条目，把当前目录压入history后切换entry.path并读取下一层
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,openSelectedDirectory,func,292,KEEP,把当前选中的目录交enter，供进入按钮、回车和向右导航共用
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goUp,func,296,KEEP,取history最后一层返回父目录并重新读取；无历史时保留根目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goRoot,func,302,KEEP,清空history并把directory置空，重新读取文件夹或归档根目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,select,func,308,KEEP,选择变化先撤销旧预览并清理临时文件；目录只选中，普通文件直接后台render，归档文件交单项解压，已有解压时只保留最新待处理选择
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,extract,func,321,KEEP,调用ArchiveCore.extractEntryToTemp解压选中文件，当前previewGeneration结果交render；离开或换项后的落地文件立即清理，失败显示归档和条目路径，结束后执行最新待解压选择
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,render,func,341,KEEP,后台解析文件符号链接并创建只在内存存在的ClipboardItem及完整预览模型；归档条目用displayPath显示原包内路径，主线程仅接纳当前previewGeneration；FileContainerPreview以usesWindowChrome:false复用内容并隐藏快速查看按钮
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,clearPreview,func,363,KEEP,增加previewGeneration、取消预览任务及待解压选择，清空预览、加载态、选择和错误，存在临时解压文件时清理其所属目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,removeTemporaryFile,func,377,KEEP,从落地文件逐级定位temporaryDirectory的直接子目录并删除整个解压目录，内部同名前缀目录不作为清理单元，删除失败显示具体原因
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,close,func,386,KEEP,将浏览器设为非活动并增加listingGeneration，取消目录任务和待归档读取，交clearPreview撤销文件结果并清理临时解压目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveEntryTile,loadThumbnail,func,455,KEEP,tile body:154 onAppear 加载缩略图
+Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveFileIcon,icon,func,485,KEEP,PeekView:135、EntryTable:168、Drag:207
 Archive,Features/Archive/UI/ArchiveProgressPanel.swift,ArchiveProgressPanel,init,init,22,KEEP,CreateSheet:192、Progress:257 构造
 Archive,Features/Archive/UI/ArchiveProgressPanel.swift,ArchiveProgressWindowController,show,func,208,KEEP,StatusBar:170、FrsetNextApp:196、TaskHUD:193
 Archive,Features/Archive/UI/ArchiveProgressPanel.swift,ArchiveProgressWindowController,toggle,func,221,KEEP,BrowserWindow:1084/1104
@@ -1939,17 +1939,17 @@ Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWin
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,initialSize,func,55,KEEP,按真实Markdown、代码或文本折行测量并受面板侧空间与屏幕限制；目录和归档目标740×560pt，Word及其他支持文档680×560pt，普通单文件560×420pt；图片共用imageSize，文件文本及JSON留100pt操作区
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,imageSize,func,115,KEEP,图片和磁盘图片文件共用窗口尺寸计算：长图高宽比超过1.6时保留可读宽度并纵向滚动，其余图按可用宽高等比缩放，窗口包含调用方传入工具区高度
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,installContent,func,124,KEEP,用当前完整model构造ClipboardPreviewWindowView，装入可随窗口伸缩的NSHostingView并转发编辑状态，文件与剪贴板共用同一外壳
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,configureHoverChrome,func,143,KEEP,:47 调用
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,show,func,153,KEEP,同一控制器换model时复位正在收回的WindowReveal状态；仅不同条目或提示模式重装内容，已可见换项只动画调整尺寸位置，首次出现才播放主面板配置的展开动画
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,place,func,180,KEEP,有源窗口时贴其左右可用侧，无源窗口时从条目屏幕锚点右侧18pt尝试，放不下改左侧；8pt屏幕边距内定位并据相邻边设置共用展开/收回锚点
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,closeAnimated,func,223,KEEP,收回使用Personalization.openAnimation时长×0.7及减少动态口径；完成回调只在isClosing且model.sessionID仍为本次关闭会话时关窗，换项复用不被旧回调关掉
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,windowDidResignKey,func,242,KEEP,NSWindowDelegate（:46 delegate=self）
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,windowWillClose,func,250,KEEP,NSWindowDelegate（:46）
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,init,init,286,KEEP,窗口控制器和ClipboardPreviewWindowView都接收同一PreviewPopoverContentModel；控制器按完整模型测量无边框窗并装内容，视图保留传入文件正文/图片和会话id
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,copyContent,func,476,KEEP,"编辑态把draft交ClipboardManager.copyText；普通预览交ClipboardManager.copy(item,autoPaste:false)，文件保持原格式并由统一复制入口回读入历史及通知中转"
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,save,func,484,KEEP,:435 保存按钮
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,makeModel,func,495,KEEP,:261/:367/:454 调用
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,HoverClipModifier,body,func,569,KEEP,ViewModifier 协议；:283 挂载
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,configureHoverChrome,func,144,KEEP,:47 调用
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,show,func,154,KEEP,同一控制器换model时复位正在收回的WindowReveal状态；仅不同条目或提示模式重装内容，已可见换项只动画调整尺寸位置，首次出现才播放主面板配置的展开动画
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,place,func,182,KEEP,有源窗口时贴其左右可用侧，无源窗口时从条目屏幕锚点右侧18pt尝试，放不下改左侧；8pt屏幕边距内定位并据相邻边设置共用展开/收回锚点
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,closeAnimated,func,225,KEEP,收回使用Personalization.openAnimation时长×0.7及减少动态口径；完成回调只在isClosing且model.sessionID仍为本次关闭会话时关窗，换项复用不被旧回调关掉
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,windowDidResignKey,func,244,KEEP,NSWindowDelegate（:46 delegate=self）
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,windowWillClose,func,252,KEEP,NSWindowDelegate（:46）
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,init,init,288,KEEP,窗口控制器和ClipboardPreviewWindowView都接收同一PreviewPopoverContentModel；控制器按完整模型测量无边框窗并装内容，视图保留传入文件正文/图片和会话id
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,copyContent,func,478,KEEP,"编辑态把draft交ClipboardManager.copyText；普通预览交ClipboardManager.copy(item,autoPaste:false)，文件保持原格式并由统一复制入口回读入历史及通知中转"
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,save,func,486,KEEP,:435 保存按钮
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,makeModel,func,497,KEEP,:261/:367/:454 调用
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,HoverClipModifier,body,func,571,KEEP,ViewModifier 协议；:283 挂载
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,init,init,34,KEEP,ClipboardModule:26 build 闭包
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,selectPreview,func,43,KEEP,固定列表点击、悬停和方向键共用：更新本地 previewSelectedID，并写入可选 settingsPreviewClipboardSelection 绑定，不复制或打开内容
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,runSummary,func,170,KEEP,:93 onSummarize 闭包
@@ -2099,27 +2099,27 @@ CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isWordBody,func,353,K
 CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isDigit,func,357,KEEP,调用方 本文件:218（数字字面量起点）
 CodePreview,Features/CodePreview/CodeLexer.swift,Spec,forLanguage,func,379,KEEP,调用方 本文件:46（按语言 id 取着色配置）
 CodePreview,Features/CodePreview/CodeLexer.swift,Spec,set,func,574,KEEP,forLanguage 内全部关键字表构造，本文件:385 起 60+ 处
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,init,init,49,KEEP,调用方 PreviewPopoverContentView.swift:670（态5 代码预览）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,chipLabel,func,232,KEEP,本文件:168/202（语言与主题菜单 label 复用）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,toolbarToggle,func,243,KEEP,本文件:137/142（行号、自动换行两个开关）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,rebuild,func,382,KEEP,本文件:117 onAppear 与 :124 onChange(renderKey)
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,persist,func,387,KEEP,本文件:125/127 onChange 后落 Preferences
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyRichText,func,395,KEEP,本文件:288 主按钮与 :309 菜单项
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyAsImage,func,402,KEEP,本文件:310 复制菜单项；转调 CodeCardImage.render
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyPlainText,func,413,KEEP,本文件:312 复制菜单项
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyHTMLSource,func,419,KEEP,本文件:313 复制菜单项（makePayload.html 写剪贴板）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,flashCopied,func,427,KEEP,本文件:392/403/408/415 四处复制结果反馈
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,makeNSView,func,448,KEEP,NSViewRepresentable 协议要求；:348 构造后由 SwiftUI 派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,updateNSView,func,498,KEEP,NSViewRepresentable 协议要求；主题/字号/换行变化时 SwiftUI 派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,setFrameSize,func,561,KEEP,override AppKit 布局回调，内部转 syncWrapContainer
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,syncWrapContainer,func,567,KEEP,本文件:545 didSet、:550 setFrameSize、:522 兜底
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,copy,func,579,KEEP,override NSResponder copy:，⌘C 菜单 action 动态派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,608,KEEP,本文件:478 makeNSView 内构造（唯一构造点）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,618,KEEP,required init(coder:) 编译必需（已标 unavailable）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateThickness,func,632,KEEP,本文件:600 init 与 :642 drawHashMarks 调用
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,drawHashMarksAndLabels,func,643,KEEP,override NSRulerView，AppKit 滚动重绘时派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,makeNSView,func,711,KEEP,NSViewRepresentable 协议要求；:114 注入视图树
-CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,updateNSView,func,717,KEEP,NSViewRepresentable 协议要求；:114 主题变化时同步窗口外观
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,init,init,48,KEEP,调用方 PreviewPopoverContentView.swift:670（态5 代码预览）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,chipLabel,func,218,KEEP,本文件:168/202（语言与主题菜单 label 复用）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,toolbarToggle,func,229,KEEP,本文件:137/142（行号、自动换行两个开关）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,rebuild,func,360,KEEP,本文件:117 onAppear 与 :124 onChange(renderKey)
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,persist,func,372,KEEP,本文件:125/127 onChange 后落 Preferences
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyRichText,func,380,KEEP,本文件:288 主按钮与 :309 菜单项
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyAsImage,func,387,KEEP,本文件:310 复制菜单项；转调 CodeCardImage.render
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyPlainText,func,398,KEEP,本文件:312 复制菜单项
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyHTMLSource,func,404,KEEP,本文件:313 复制菜单项（makePayload.html 写剪贴板）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,flashCopied,func,412,KEEP,本文件:392/403/408/415 四处复制结果反馈
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,makeNSView,func,433,KEEP,NSViewRepresentable 协议要求；:348 构造后由 SwiftUI 派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,updateNSView,func,483,KEEP,NSViewRepresentable 协议要求；主题/字号/换行变化时 SwiftUI 派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,setFrameSize,func,546,KEEP,override AppKit 布局回调，内部转 syncWrapContainer
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,syncWrapContainer,func,552,KEEP,本文件:545 didSet、:550 setFrameSize、:522 兜底
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,copy,func,564,KEEP,override NSResponder copy:，⌘C 菜单 action 动态派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,593,KEEP,本文件:478 makeNSView 内构造（唯一构造点）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,603,KEEP,required init(coder:) 编译必需（已标 unavailable）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateThickness,func,617,KEEP,本文件:600 init 与 :642 drawHashMarks 调用
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,drawHashMarksAndLabels,func,628,KEEP,override NSRulerView，AppKit 滚动重绘时派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,makeNSView,func,696,KEEP,NSViewRepresentable 协议要求；:114 注入视图树
+CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,updateNSView,func,702,KEEP,NSViewRepresentable 协议要求；:114 主题变化时同步窗口外观
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyRichText,func,17,KEEP,调用方 CodePreviewView.swift:391
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyAttributed,func,24,KEEP,调用方 CodePreviewView.swift:575；:41-46 RTF 段与 makeRTF:94 同逻辑
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyPlainText,func,51,KEEP,调用方 CodePreviewView.swift:407
@@ -2758,44 +2758,44 @@ Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,decode,func,
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,encode,func,72,KEEP,order setter :86 写盘；PersonalizationSettingsPane:68
 Panel,Features/Panel/Presentation/PanelSegments.swift,GlobalEntries,isEnabled,func,101,KEEP,StatusBarMenuBuilder:53-55/91/105、StatsBarEngine:44/176
 Panel,Features/Panel/Presentation/PanelSegments.swift,GlobalEntries,setEnabled,func,105,KEEP,PersonalizationSettingsPane:110/115/120 Toggle 写入
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentRevision,init,init,50,KEEP,WordDocumentRevision按标准化文件路径、修改时间和大小构成修订标识；WordDocumentStore.Entry保存该修订及导入正文，供缓存判断是否仍对应同一文档
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,Entry,init,init,104,KEEP,WordDocumentRevision按标准化文件路径、修改时间和大小构成修订标识；WordDocumentStore.Entry保存该修订及导入正文，供缓存判断是否仍对应同一文档
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,cached,func,117,KEEP,按文档URL读取最多8项的NSCache，只有修订标识一致才返回富文本正文及页面背景，供WordInlineContent和load复用
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,load,func,123,KEEP,复用8项修订缓存及同修订在途Task；后台原生导入Word正文后，仅OOXML用ArchiveCore.run内存提取word/document.xml并交restoreOpenXMLFormatting恢复格式，再缓存正文与页面背景；读取或解析错误传递，完成后移除在途记录
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,restoreOpenXMLFormatting,func,153,KEEP,解析word/document.xml，按正文run顺序前向匹配导入文本，仅去掉原文w:b或w:i明确val=0的字体特性；按tblGrid及columnSpan恢复表格百分比列宽，结合gridSpan定位tcPr，把原文vAlign=top的单元格设为顶对齐
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,makeNSView,func,211,KEEP,为非Word文档构造compact样式QLPreviewView，关闭自动播放和随窗口关闭设置，指定URL为previewItem；Word正文另由AttributedTextView显示
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,updateNSView,func,219,KEEP,SwiftUI更新QuickLook宿主时仅在URL不同才替换previewItem，由系统异步加载新文档，不再调用refreshPreviewItem
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,dismantleNSView,func,226,KEEP,SwiftUI拆除内联QuickLook宿主时调用QLPreviewView.close释放预览内容
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentRevision,init,init,44,KEEP,WordDocumentRevision按标准化文件路径、修改时间和大小构成修订标识；WordDocumentStore.Entry保存该修订及导入正文，供缓存判断是否仍对应同一文档
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,Entry,init,init,102,KEEP,WordDocumentRevision按标准化文件路径、修改时间和大小构成修订标识；WordDocumentStore.Entry保存该修订及导入正文，供缓存判断是否仍对应同一文档
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,cached,func,115,KEEP,按文档URL读取最多8项的NSCache，只有修订标识一致才返回富文本正文及页面背景，供WordInlineContent和load复用
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,load,func,121,KEEP,复用8项修订缓存及同修订在途Task；后台原生导入Word正文后，仅OOXML用ArchiveCore.run内存提取word/document.xml并交restoreOpenXMLFormatting恢复格式，再缓存正文与页面背景；读取或解析错误传递，完成后移除在途记录
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,restoreOpenXMLFormatting,func,151,KEEP,解析word/document.xml，按正文run顺序前向匹配导入文本，仅去掉原文w:b或w:i明确val=0的字体特性；按tblGrid及columnSpan恢复表格百分比列宽，结合gridSpan定位tcPr，把原文vAlign=top的单元格设为顶对齐
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,makeNSView,func,209,KEEP,为非Word文档构造compact样式QLPreviewView，关闭自动播放和随窗口关闭设置，指定URL为previewItem；Word正文另由AttributedTextView显示
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,updateNSView,func,217,KEEP,SwiftUI更新QuickLook宿主时仅在URL不同才替换previewItem，由系统异步加载新文档，不再调用refreshPreviewItem
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,dismantleNSView,func,224,KEEP,SwiftUI拆除内联QuickLook宿主时调用QLPreviewView.close释放预览内容
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverSlot,init,init,44,KEEP,Coordinator.present :201 构造槽位
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,init,init,142,KEEP,static shared :70 单例（private override init）
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,func,156,KEEP,按源视图或屏幕锚点确定可见区并创建requestedSession；文件模型在userInitiated后台读取，主线程仅接纳sessionID仍匹配的结果，其他类型同步呈现；换项复用包括收回中的slot，统一窗口连续调整内容和尺寸
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,241,KEEP,把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,256,KEEP,先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,278,KEEP,adapter:37、ClipboardTableHostView:723/743
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,314,KEEP,PanelController:194、adapter:57
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,323,KEEP,adapter:46、ClipboardTableHostView:847
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,344,KEEP,adapter:52、present:170、ClipboardTableHostView:635
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,353,KEEP,ClipboardPreviewWindow:292 onHover 回调
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,378,KEEP,present :212 安装点外关闭监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,408,KEEP,dismiss :224 卸载监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,416,KEEP,present :213 安装 Esc 监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,428,KEEP,handlePreviewWindowDidClose :521 卸载
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,435,KEEP,adapter:62、ClipboardTableHostView:679
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,445,KEEP,adapter:67、ClipboardSectionView:96
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,454,KEEP,PreviewPopoverContentView:562 记录滚动
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,459,KEEP,PreviewPopoverContentView:559 恢复滚动
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,468,KEEP,present:214、requestKeyboardPreview:307、close :522
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,483,KEEP,present :181 解析锚点
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,495,KEEP,present:169、prepareForPanelAppear:286
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,503,KEEP,文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,508,KEEP,带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,537,KEEP,present:179、dismiss:233
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,553,KEEP,Slot.init :57 onWindowClosed 闭包
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,572,KEEP,handlePreviewWindowDidClose :520
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,582,KEEP,prepareForPanelAppear:285、鼠标监听 :535
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,615,KEEP,ClipboardPreviewWindow.swift:291 挂载修饰器
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,622,KEEP,:574 modifier(...) 构造
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,623,KEEP,ViewModifier 协议要求
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,246,KEEP,把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,261,KEEP,先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,283,KEEP,adapter:37、ClipboardTableHostView:723/743
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,319,KEEP,PanelController:194、adapter:57
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,328,KEEP,adapter:46、ClipboardTableHostView:847
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,349,KEEP,adapter:52、present:170、ClipboardTableHostView:635
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,358,KEEP,ClipboardPreviewWindow:292 onHover 回调
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,383,KEEP,present :212 安装点外关闭监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,413,KEEP,dismiss :224 卸载监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,421,KEEP,present :213 安装 Esc 监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,433,KEEP,handlePreviewWindowDidClose :521 卸载
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,440,KEEP,adapter:62、ClipboardTableHostView:679
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,450,KEEP,adapter:67、ClipboardSectionView:96
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,459,KEEP,PreviewPopoverContentView:562 记录滚动
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,464,KEEP,PreviewPopoverContentView:559 恢复滚动
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,473,KEEP,present:214、requestKeyboardPreview:307、close :522
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,488,KEEP,present :181 解析锚点
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,500,KEEP,present:169、prepareForPanelAppear:286
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,508,KEEP,文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,513,KEEP,带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,542,KEEP,present:179、dismiss:233
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,558,KEEP,Slot.init :57 onWindowClosed 闭包
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,577,KEEP,handlePreviewWindowDidClose :520
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,587,KEEP,prepareForPanelAppear:285、鼠标监听 :535
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,620,KEEP,ClipboardPreviewWindow.swift:291 挂载修饰器
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,627,KEEP,:574 modifier(...) 构造
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,628,KEEP,ViewModifier 协议要求
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,image,func,62,KEEP,PreviewMarkdownRenderer.swift:475 渲染 mermaid 代码块
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,parse,func,88,KEEP,image :68 调用
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,splitStatements,func,145,KEEP,parse :131 调用
@@ -2836,16 +2836,16 @@ Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRender
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,isTableSeparator,func,624,KEEP,parseSourced :233/240
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,632,KEEP,parseSourced :241
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,655,KEEP,render(block) :454 表格块
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,65,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,118,KEEP,PreviewPopoverContentView:433、ArchiveTextPreview:58
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,131,KEEP,classifyRawText :76 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,143,KEEP,classifyRawText :75/76/80 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,162,KEEP,codeStrength :112 调用（private）
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,188,KEEP,init :64 分态判定
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,215,KEEP,classifyRawText :74 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,264,KEEP,classifyRawText :79 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,297,KEEP,classifyRawText :81 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,335,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,131,KEEP,PreviewPopoverContentView:433、ArchiveTextPreview:58
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,144,KEEP,classifyRawText :76 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,156,KEEP,classifyRawText :75/76/80 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,175,KEEP,codeStrength :112 调用（private）
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,201,KEEP,init :64 分态判定
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,228,KEEP,classifyRawText :74 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,277,KEEP,classifyRawText :79 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,310,KEEP,classifyRawText :81 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,348,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,调用方 :53（.richText 分支构造）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
@@ -2862,34 +2862,34 @@ Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRu
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,MarkdownFilePreviewBody,init,init,396,KEEP,调用方 :435；ArchiveTextPreview.swift:170
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,474,KEEP,调用方 :459（.task id: dedupeKey）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,init,init,510,KEEP,调用方 :43（.markdown 分支）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,519,KEEP,调用方 :501；跨文件 PreviewPopoverContentModel.swift:279
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewJSONTextView,init,init,645,KEEP,调用方 :45（.json 分支）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewJSONTextView,prepare,func,650,KEEP,PreviewJSONTextView.init:636 调用；displayText 后续未被读取属接线残留，非零调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,873,KEEP,调用方 :807、:808、:814
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,897,KEEP,按钮闭包 :807
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,907,KEEP,按钮闭包 :808、:814
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,editImage,func,957,KEEP,标注按钮 :763
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,loadImages,func,972,KEEP,调用方 :790（.task id: dedupeKey）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isDocumentPath,func,1025,KEEP,调用方 :1015
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,1032,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1085,KEEP,调用方 :995、:1036、:1044
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1110,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1186,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1199,KEEP,decode:1110 的 PDF 分支调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1222,KEEP,decode:1113 兜底返回
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1273,KEEP,onAppear :1219 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1298,KEEP,调用方 :992（快速查看按钮）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1309,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1311,KEEP,QLPreviewPanelDataSource 协议回调
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1315,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1317,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1322,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1350,KEEP,调用方 :793、:889
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1406,KEEP,调用方 :749（OCR 文本区块）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1418,KEEP,调用方 :1340（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1431,KEEP,调用方 :1341（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1439,KEEP,调用方 :1349（tidy 收尾）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1479,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,515,KEEP,调用方 :501；跨文件 PreviewPopoverContentModel.swift:279
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewJSONTextView,init,init,655,KEEP,调用方 :45（.json 分支）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewJSONTextView,prepare,func,660,KEEP,PreviewJSONTextView.init:636 调用；displayText 后续未被读取属接线残留，非零调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,883,KEEP,调用方 :807、:808、:814
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,907,KEEP,按钮闭包 :807
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,917,KEEP,按钮闭包 :808、:814
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,editImage,func,967,KEEP,标注按钮 :763
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,loadImages,func,982,KEEP,调用方 :790（.task id: dedupeKey）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isDocumentPath,func,1035,KEEP,调用方 :1015
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,1042,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1095,KEEP,调用方 :995、:1036、:1044
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1120,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1198,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1215,KEEP,decode:1110 的 PDF 分支调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1238,KEEP,decode:1113 兜底返回
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1289,KEEP,onAppear :1219 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1314,KEEP,调用方 :992（快速查看按钮）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1325,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1327,KEEP,QLPreviewPanelDataSource 协议回调
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1331,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1333,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1338,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1366,KEEP,调用方 :793、:889
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1422,KEEP,调用方 :749（OCR 文本区块）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1434,KEEP,调用方 :1340（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1447,KEEP,调用方 :1341（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1455,KEEP,调用方 :1349（tidy 收尾）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1495,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
 Recording,Features/Recording/RecordingAppearanceDraft.swift,RecordingAppearanceDraft,init,init,30,KEEP,将当前帧率、音频来源、鼠标显示、摄像头设备/位置/大小、按键/点击及排除应用读取为 values 和 saved
 Recording,Features/Recording/RecordingAppearanceDraft.swift,RecordingAppearanceDraft,save,func,36,KEEP,统一保存将十项录屏 Values 写入 RecordingOptions，包括 excludedBundleIDs；写入后更新 saved 并以 nil 返回成功
 Recording,Features/Recording/RecordingAppearanceDraft.swift,RecordingAppearanceDraft,discard,func,51,KEEP,取消录屏编辑仅将 values 还原为 saved，正式录制参数保持保存值

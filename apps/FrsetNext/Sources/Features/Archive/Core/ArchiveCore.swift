@@ -477,18 +477,18 @@ public enum ArchiveCore {
                 completion([], msg.trimmingCharacters(in: .whitespacesAndNewlines))
                 return
             }
-            // 7zz 对 BZip2、XZ、LZMA、Zstd、SWFc 单文件流不输出 Path。
-            var unnamedPath = url.deletingPathExtension().lastPathComponent
-            if ["tgz", "tbz", "tbz2", "txz"].contains(url.pathExtension.lowercased()) {
-                unnamedPath += ".tar"
-            } else if url.pathExtension.lowercased() == "swf" {
-                unnamedPath += "~.swf"
+            DispatchQueue.global(qos: .userInitiated).async {
+                // 7zz 对 BZip2、XZ、LZMA、Zstd、SWFc 单文件流不输出 Path。
+                var unnamedPath = url.deletingPathExtension().lastPathComponent
+                if ["tgz", "tbz", "tbz2", "txz"].contains(url.pathExtension.lowercased()) {
+                    unnamedPath += ".tar"
+                } else if url.pathExtension.lowercased() == "swf" {
+                    unnamedPath += "~.swf"
+                }
+                let parsed = parseListOutput(String(data: data, encoding: .utf8) ?? "", unnamedPath: unnamedPath)
+                let entries = includeAuxiliary ? parsed : parsed.filter { !isAuxiliary($0.path) }
+                DispatchQueue.main.async { completion(entries, nil) }
             }
-            var entries = parseListOutput(String(data: data, encoding: .utf8) ?? "", unnamedPath: unnamedPath)
-            if !includeAuxiliary {
-                entries = entries.filter { !isAuxiliary($0.path) }
-            }
-            completion(entries, nil)
         }
     }
 

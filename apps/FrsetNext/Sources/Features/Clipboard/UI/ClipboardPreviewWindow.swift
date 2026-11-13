@@ -34,7 +34,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
     public init(model: PreviewPopoverContentModel, showsHint: Bool = false) {
         self.model = model
         self.showsHint = showsHint
-        let initial = Self.initialSize(model: model)
+        let initial = NSSize(width: 560, height: 420)
         // v206：只允许 hover 无边框预览窗；任何独立标题栏预览窗都不再创建
         let window = HoverPreviewWindow(contentRect: NSRect(origin: .zero, size: initial),
                                         styleMask: [.borderless],
@@ -86,17 +86,17 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
             return NSSize(width: min(640, maxWidth),
                           height: min(440 + (item.type == .file ? 100 : 0), maxHeight))
         default:
-            let text = model.inlineText
+            // 窗口最多显示 640pt；只测量可见段，完整正文仍交给正式内容视图。
+            let text = String(model.inlineText.prefix(8192))
             let kind = model.kind == .fileBackedText ? PreviewPopoverContentModel.classifyRawText(text) : model.kind
             var sidebar: CGFloat = 0
             let body: NSAttributedString
-            if kind == .markdown {
-                let rendered = PreviewMarkdownRenderer.renderBody(text)
-                body = rendered.body
-                sidebar = rendered.headings.isEmpty ? 0 : 181
-            } else if kind == .richText, let rich = model.richAttributed {
+            if kind == .richText, let rich = model.richAttributed {
                 body = rich
             } else {
+                if kind == .markdown && text.split(separator: "\n").contains(where: { $0.hasPrefix("#") }) {
+                    sidebar = 181
+                }
                 let font = kind == .code
                     ? NSFont.monospacedSystemFont(ofSize: CGFloat(CodePreviewPreferences.fontSize), weight: .regular)
                     : NSFont.systemFont(ofSize: 19.5)
@@ -129,8 +129,9 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                                                   self?.onEditingChanged?(editing)
                                               })
         let host = NSHostingView(rootView: view)
+        if #available(macOS 13.0, *) { host.sizingOptions = [] }
         host.wantsLayer = true
-        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: Self.initialSize(model: model))
+        let bounds = window.contentView?.bounds ?? NSRect(origin: .zero, size: NSSize(width: 560, height: 420))
         host.frame = bounds
         host.autoresizingMask = [.width, .height]
         window.contentView = host
@@ -158,12 +159,13 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         let wasClosing = isClosing
         isClosing = false
         if wasClosing, let window { WindowReveal.reset(window) }
-        let needsContent = !sameItem || self.showsHint != showsHint
+        let finishedLoading = sameItem && model.fileText == .loading && newModel.fileText != .loading
+        let needsContent = !sameItem || self.showsHint != showsHint || finishedLoading
         self.showsHint = showsHint
         model = newModel
         if needsContent { installContent() }
         place(anchorRectInScreen: anchorRectInScreen,
-              panelFrame: panelFrame, visibleFrame: visibleFrame, animated: wasVisible && !sameItem)
+              panelFrame: panelFrame, visibleFrame: visibleFrame, animated: wasVisible && (!sameItem || finishedLoading))
         guard let w = window else { return }
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if !wasVisible { w.contentView?.layer?.opacity = 0 }

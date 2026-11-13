@@ -45,6 +45,7 @@ public struct PreviewPopoverContentModel: Identifiable {
     /// 是否显示键盘预览一次性提示（F6：clipboard_keyboard_preview_hint_consumed 未消费时）
     public let showsKeyboardHint: Bool
     public let fileText: FilePreviewLoadState
+    private let fileTextKind: Kind?
     public let fileImage: NSImage?
     public let fileIsDirectory: Bool
     public let displayPath: String?
@@ -59,7 +60,7 @@ public struct PreviewPopoverContentModel: Identifiable {
         guard case .loaded(let text) = fileText else { return nil }
         return PreviewPopoverContentModel(item: item, source: source, entry: entry,
                                           sessionID: sessionID, inlineText: text,
-                                          kindOverride: Self.classifyRawText(text))
+                                          kindOverride: fileTextKind)
     }
 
     public init(item: ClipboardItem,
@@ -69,7 +70,8 @@ public struct PreviewPopoverContentModel: Identifiable {
                 inlineText: String,
                 showsKeyboardHint: Bool = false,
                 kindOverride: Kind? = nil,
-                displayPath: String? = nil) {
+                displayPath: String? = nil,
+                loadFileContents: Bool = true) {
         self.id = item.id
         self.item = item
         self.source = source
@@ -83,7 +85,7 @@ public struct PreviewPopoverContentModel: Identifiable {
         self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
         let paths = (item.content ?? "").split(separator: "\n")
         var directory: ObjCBool = false
-        if item.type == .file, paths.count == 1 {
+        if item.type == .file, kindOverride == nil, paths.count == 1 {
             FileManager.default.fileExists(atPath: String(paths[0]), isDirectory: &directory)
         }
         // RTFD、iWork 文档包显示正文，不展开包内资源目录。
@@ -94,18 +96,29 @@ public struct PreviewPopoverContentModel: Identifiable {
             let ext = url.pathExtension.lowercased()
             if !fileIsDirectory, FilePreviewBuilder.textExtensions.contains(ext),
                !DocumentInlinePreview.supportedExtensions.contains(ext) {
-                do {
-                    fileText = .loaded(try FilePreviewBuilder.readText(url: url))
-                } catch {
-                    fileText = .failed("无法读取正文：\(error.localizedDescription)")
+                if loadFileContents {
+                    do {
+                        fileText = .loaded(try FilePreviewBuilder.readText(url: url))
+                    } catch {
+                        fileText = .failed("无法读取正文：\(error.localizedDescription)")
+                    }
+                } else {
+                    fileText = .loading
                 }
             } else {
-                fileText = .idle
+                fileText = !loadFileContents && !fileIsDirectory
+                    && FilePreviewBuilder.imageExtensions.contains(ext) ? .loading : .idle
             }
-            fileImage = !fileIsDirectory && FilePreviewBuilder.imageExtensions.contains(ext) ? NSImage(contentsOf: url) : nil
+            fileImage = loadFileContents && !fileIsDirectory && FilePreviewBuilder.imageExtensions.contains(ext)
+                ? PreviewImageLoader.decode(url, maxPixel: 1600) : nil
         } else {
             fileText = .idle
             fileImage = nil
+        }
+        if case .loaded(let text) = fileText {
+            fileTextKind = Self.classifyRawText(text)
+        } else {
+            fileTextKind = nil
         }
     }
 

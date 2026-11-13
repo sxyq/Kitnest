@@ -251,14 +251,12 @@ private final class FileContainerPreviewBrowser: ObservableObject {
                     list = Array(rows.values)
                 } else {
                     list = try FileManager.default.contentsOfDirectory(at: url,
-                        includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]).map { child in
-                        var folder: ObjCBool = false
-                        FileManager.default.fileExists(atPath: child.path, isDirectory: &folder)
-                        let values = try child.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+                        includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey]).map { child in
+                        let values = try child.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey])
                         return ArchiveEntry(path: child.path, name: child.lastPathComponent,
                             size: Int64(values.fileSize ?? 0), packedSize: 0,
                             modified: values.contentModificationDate?.description ?? "", method: "",
-                            isDirectory: folder.boolValue && !DocumentInlinePreview.supportedExtensions.contains(child.pathExtension.lowercased()),
+                            isDirectory: values.isDirectory == true && !DocumentInlinePreview.supportedExtensions.contains(child.pathExtension.lowercased()),
                             parent: url.path)
                     }
                 }

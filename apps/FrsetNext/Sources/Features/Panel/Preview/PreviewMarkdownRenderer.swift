@@ -486,11 +486,11 @@ enum PreviewMarkdownRenderer {
     // v125（性能审计 F1077）：正则编译缓存。语法高亮对每行 × 每关键字都
     // NSRegularExpression(pattern:) 一次，一篇长代码块就是上千次编译。
     // 改为按 pattern 字符串缓存，命中后零成本。
-    private static var _reCache: [String: NSRegularExpression] = [:]
+    private static let _reCache = NSCache<NSString, NSRegularExpression>()
     private static func cachedRe(_ pattern: String) -> NSRegularExpression? {
-        if let hit = _reCache[pattern] { return hit }
+        if let hit = _reCache.object(forKey: pattern as NSString) { return hit }
         guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
-        _reCache[pattern] = re
+        _reCache.setObject(re, forKey: pattern as NSString)
         return re
     }
 

@@ -101,7 +101,7 @@ public final class PreviewImageLoader {
     }
 
     /// 用 ImageIO 按最大边长解码（下采样，避免整图常驻内存）
-    private static func decode(_ url: URL, maxPixel: CGFloat) -> NSImage? {
+    static func decode(_ url: URL, maxPixel: CGFloat) -> NSImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
