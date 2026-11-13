@@ -1424,6 +1424,12 @@ EVIDENCE.update({
         "把已有配置0.18/0.22/0.28秒按min(0.44,max(0.28,0.28+(configured-0.18)))映射为280/320/380ms，开合共用此播放时长，输出限制为280…440ms",
     ("Core/Motion/GenieWarp.swift", "play"):
         "playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒",
+    ("Core/Motion/GenieWarp.swift", "switchDirection"):
+        "读取当前播放位置并翻转legSpeed，复用同一帧序列从当前位置续播；移除位置不足20ms时直接finish的分支，连续反向后接近起点仍可向终点播放",
+    ("Features/Panel/Presentation/PanelController.swift", "show"):
+        "无锚点重载进入show(atAnchor:)；可见窗口重开保留现有origin、anchorRect及三角态，仅首次显示校准材质尺寸和排版；playIn实际完成后执行finishShow启用采样，同一腿反向不提前启动采样",
+    ("Features/Panel/Presentation/PanelController.swift", "toggle"):
+        "无锚点重载进入toggle(atAnchor:)；isHiding期间再次触发立即show使旧关闭回调失效，覆盖预览等待与神灯收起两阶段；其余按真实窗口可见性开合",
     ("Features/Clipboard/Store/ClipboardFileStorages.swift", "write"):
         "基础写盘原子写入Data并返回成功标记；长文本和RTF返回已写相对路径，长文本含字节数；OCR按dedupeKey写UTF-8，成功后更新已有小写索引并在主线程发clipboardOCRTextChanged，PreviewImageView仅接收当前键且非设置预览的通知，回读ocrText、重算tidiedOCR并清除ocrError",
 })

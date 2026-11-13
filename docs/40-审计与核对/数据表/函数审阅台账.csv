@@ -44,16 +44,16 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,267,KEEP,playIn与playOut�
 Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,472,KEEP,v244 反向播放：当前播放位置
 Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,480,KEEP,v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,528,KEEP,v244 新增：反向复用帧序列；play() 打断分支调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,555,KEEP,cancel:227 / finish:413
-Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,560,KEEP,watchdog Timer:399 回调
-Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,593,KEEP,cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,602,KEEP,v246 空白帧兜底
-Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,621,KEEP,v244 新增：缓动指数读取，帧采样循环外调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,628,KEEP,"play:291,300 帧内存预算"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,637,KEEP,play:293 快照降采样
-Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,651,KEEP,play:305 probe.genieHold 定格
-Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,657,KEEP,"play:246,251 抓窗口快照"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,683,KEEP,"play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,543,KEEP,cancel:227 / finish:413
+Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,548,KEEP,watchdog Timer:399 回调
+Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,581,KEEP,cancel:228 / finish:417
+Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,590,KEEP,v246 空白帧兜底
+Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,609,KEEP,v244 新增：缓动指数读取，帧采样循环外调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,616,KEEP,"play:291,300 帧内存预算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,625,KEEP,play:293 快照降采样
+Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,639,KEEP,play:305 probe.genieHold 定格
+Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,645,KEEP,"play:246,251 抓窗口快照"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,671,KEEP,"play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,private init；static shared:23 唯一构造
@@ -2656,19 +2656,19 @@ Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,f
 Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,173,KEEP,StatusBarController.swift:123 主图标点击
 Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,184,KEEP,协议方法；ToolShortcutStore:74、CommandPalette:122 等
 Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,194,KEEP,FrsetNextApp.swift:251、StatusBarController.swift:159
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,revealUnit,func,326,KEEP,show :215 计算动画锚点
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,351,KEEP,onDismiss 闭包 :50、toggle :164、TransientWindowCenter:246
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,356,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,performHide,func,400,KEEP,hide 完成回调 :322 与 0.6s 超时兜底 :328
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,parkOrigin,func,440,KEEP,v244 新增：show() 计算屏外停靠位，两处调用
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,defaultSlot,func,448,KEEP,show :269 与 performHide :358 神灯插槽
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,handleGlobalShortcut,func,455,KEEP,项目 tools/perf_audit/remove_dead.py KEEP 名单：预留热键接线公开接口
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,rightEdgeOrigin,func,462,KEEP,show :200 与 anchorOrigin :399
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,anchorOrigin,func,471,KEEP,show :197 锚点定位
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,persistSize,func,483,KEEP,hide :318 与 windowDidResize :485
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResignKey,func,519,KEEP,NSWindowDelegate 回调（prepare :56 设 delegate）
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResize,func,556,KEEP,NSWindowDelegate 协议回调
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowWillClose,func,561,KEEP,NSWindowDelegate 协议回调
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,revealUnit,func,334,KEEP,show :215 计算动画锚点
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,359,KEEP,onDismiss 闭包 :50、toggle :164、TransientWindowCenter:246
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,364,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,performHide,func,408,KEEP,hide 完成回调 :322 与 0.6s 超时兜底 :328
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,parkOrigin,func,448,KEEP,v244 新增：show() 计算屏外停靠位，两处调用
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,defaultSlot,func,456,KEEP,show :269 与 performHide :358 神灯插槽
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,handleGlobalShortcut,func,463,KEEP,项目 tools/perf_audit/remove_dead.py KEEP 名单：预留热键接线公开接口
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,rightEdgeOrigin,func,470,KEEP,show :200 与 anchorOrigin :399
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,anchorOrigin,func,479,KEEP,show :197 锚点定位
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,persistSize,func,491,KEEP,hide :318 与 windowDidResize :485
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResignKey,func,527,KEEP,NSWindowDelegate 回调（prepare :56 设 delegate）
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResize,func,564,KEEP,NSWindowDelegate 协议回调
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowWillClose,func,569,KEEP,NSWindowDelegate 协议回调
 Panel,Features/Panel/Presentation/PanelModule.swift,PanelModule,start,func,8,KEEP,AppBootstrap.swift:23 ModuleRegistry.register + startAll 派发
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,presentPreview,func,16,KEEP,PanelPreviewPresenting 协议；ClipboardTableHostView:817
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,dismissPreview,func,28,KEEP,协议方法；ClipboardTableHostView:809/826/904/909

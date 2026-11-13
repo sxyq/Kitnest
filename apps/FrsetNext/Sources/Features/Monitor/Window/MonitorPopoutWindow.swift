@@ -313,7 +313,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     private func playAppearAnimation(anchor: NSRect?) {
         guard let w = window else { return }
         let dest = appearDestination ?? w.frame.origin
-        let slot = anchor ?? defaultSlot(for: w)
+        let slot = anchor ?? defaultSlot(for: w, origin: dest)
         if GenieWarp.shared.playIn(window: w, slot: slot, duration: 0.42, destination: dest) {
             return
         }
@@ -330,8 +330,8 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     }
 
     /// 无锚点时的兜底插槽：窗口上沿右侧 22pt 方块
-    private func defaultSlot(for w: NSWindow) -> NSRect {
-        NSRect(x: w.frame.maxX - 46, y: w.frame.maxY - 1, width: 22, height: 22)
+    private func defaultSlot(for w: NSWindow, origin: NSPoint) -> NSRect {
+        NSRect(x: origin.x + w.frame.width - 46, y: origin.y + w.frame.height - 1, width: 22, height: 22)
     }
 
     /// 状态栏部件在窗口内的归一化锚点（x = 部件中心，y = 0 顶边）
@@ -362,7 +362,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         RenderProbe.snapshot(w, name: "monitorPopout", reason: "dismiss")
         // v197：整块内容层缩回状态栏部件位置（WindowReveal，只动 transform/opacity）
         // v247：优先走神灯——与展开同一套网格，可被打断、从哪来回哪去
-        let slot = lastAnchor ?? defaultSlot(for: w)
+        let slot = lastAnchor ?? defaultSlot(for: w, origin: w.frame.origin)
         let usedGenie = GenieWarp.shared.playOut(window: w, slot: slot, duration: 0.42) { [weak self] in
             self?.finishDismiss(token: token)
         }

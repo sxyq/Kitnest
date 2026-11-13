@@ -174,7 +174,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // v247：收起动画进行中再点 → 直接掉头重开。
         // 原来这里会走 hide()，而 hide() 被 isHiding 挡住直接 return，
         // 用户连点时第二下、第三下全被吞掉——这就是「连续点击鬼畜」的来源。
-        if isHiding, GenieWarp.isRunning, !GenieWarp.isOpening {
+        if isHiding {
             show(atAnchor: anchorRect)
             return
         }
@@ -200,12 +200,16 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 主面板与「性能监测独立窗」互斥：两个都开时不仅叠窗，还会出现
         // 「同一时刻两套数据/两套刷新节奏」的观感（用户多次反馈）。
         MonitorPopoutWindowController.shared.dismissPopout()
+        let wasVisible = p.isVisible
         // v71：打开时按当前个性化校准尺寸（防通知漏收/隐藏期间变更）
-        syncPanelFrameToPersonalization()
+        if !wasVisible { syncPanelFrameToPersonalization() }
         p.level = isPinned ? .statusBar : .floating   // 置顶状态应用到新建/复用窗口
-        MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear()
+        if !wasVisible { MainPanelPreviewPopoverCoordinator.shared.prepareForPanelAppear() }
         let origin: NSPoint
-        if let anchorRect {
+        if wasVisible {
+            // 反向播放沿用快照对应的窗口位置、锚点和三角态。
+            origin = p.frame.origin
+        } else if let anchorRect {
             origin = anchorOrigin(anchorRect, for: p.frame.size)
             presentation.anchored = true
         } else {
@@ -213,7 +217,6 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             presentation.anchored = false
         }
         let t0 = ProcessInfo.processInfo.systemUptime
-        let wasVisible = p.isVisible
         hideGeneration += 1                 // 重开使旧预览完成回调与收尾失效。
         isHiding = false
         // v244：不再在开面板前 cancel 在途动画——那会把真窗 alpha 拉回 1，
@@ -223,16 +226,19 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 用户看到的就是「先展开一次、再重放一遍漏斗」。实测窗口可以停在屏外
         // 不被 AppKit 拉回，抓图仍然有效，抓完再「先透明、后移回原位」。
         let parked = GenieWarp.isEnabled && !wasVisible
-        p.setFrameOrigin(parked ? parkOrigin(for: p, origin: origin) : origin)
+        if !wasVisible { p.setFrameOrigin(parked ? parkOrigin(for: p, origin: origin) : origin) }
         // v194/v197：入场动画等布局跑完再起，并且挪到**窗口内容层**（整块面板，
         // 含玻璃底）。旧实现只对 SwiftUI 内容做 scaleEffect，玻璃窗口始终原尺寸铺在
         // 屏上，看上去只是「内容缩放」，不是用户要的「从一个点扩散成一个面」。
         //
         // 顺序：① 先把内容层缩到菜单栏图标处并透明 → ② makeKey 在不可见状态完成首次
         // 布局（v173 关闭预热后首开仍要 ~100ms）→ ③ 布局结束后从锚点展开。
-        let anchorUnit = revealUnit(anchor: anchorRect, windowOrigin: origin, size: p.frame.size)
-        presentation.originUnit = anchorUnit
-        presentation.anchorRect = anchorRect
+        let anchorUnit = wasVisible ? presentation.originUnit
+            : revealUnit(anchor: anchorRect, windowOrigin: origin, size: p.frame.size)
+        if !wasVisible {
+            presentation.originUnit = anchorUnit
+            presentation.anchorRect = anchorRect
+        }
         if !wasVisible {
             presentation.visible = true            // 内容态（动画由窗口层负责）
             p.contentView?.layer?.removeAllAnimations()
@@ -245,8 +251,10 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.makeKeyAndOrderFront(nil)
         // makeKey 有可能把「key 窗口」约束回屏幕内，抓图前再钉一次停靠位
         if parked { p.setFrameOrigin(parkOrigin(for: p, origin: origin)) }
-        p.contentView?.layoutSubtreeIfNeeded()     // 首帧布局在窗口透明时完成
-        p.displayIfNeeded()
+        if !wasVisible {
+            p.contentView?.layoutSubtreeIfNeeded() // 首帧布局在窗口透明时完成
+            p.displayIfNeeded()
+        }
         // 统一「点外/失焦收起」：全工程唯一实现（Core/TransientWindows）
         TransientWindowCenter.shared.register(
             window: p,
@@ -270,22 +278,25 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let layoutMs = (ProcessInfo.processInfo.systemUptime - t0) * 1000
         Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y)) 布局=\(Int(layoutMs))ms")
         RenderProbe.snapshot(p, name: "panel", reason: "show")
+        let finishShow: () -> Void = { [weak self] in
+            guard let self, self.panel?.isVisible == true, !self.isHiding else { return }
+            MonitorSampler.shared.setHomePanelActive(true)
+        }
         guard !wasVisible else {
             // 面板已在屏上（含「收起动画没跑完又被重新打开」）：取消在途的收回动画，
             // 把内容层拉回可见态，别让上一轮淡出继续把它藏掉。
             p.contentView?.layer?.removeAllAnimations()
             p.contentView?.layer?.transform = CATransform3DIdentity
             p.contentView?.layer?.opacity = 1
-            MonitorSampler.shared.setHomePanelActive(true)
             presentation.visible = true
             // v244：漏斗正往回抽（或刚抽到一半）时又被打开 → 直接掉头，
             // 复用已有帧序列反向播，不重抓快照、不重渲染。
             if GenieWarp.isRunning {
                 let d = Personalization.shared.openAnimation.duration
                 _ = GenieWarp.shared.playIn(window: p,
-                                            slot: anchorRect ?? defaultSlot(for: p),
-                                            duration: d)
-            }
+                                            slot: presentation.anchorRect ?? defaultSlot(for: p, origin: origin),
+                                            duration: d, completion: finishShow)
+            } else { finishShow() }
             return
         }
         // 布局已完成：从菜单栏图标位置展开整块面板
@@ -297,26 +308,23 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 这里必须先还原，否则面板会以全透明状态出现。
         p.alphaValue = 1
         let duration = Personalization.shared.openAnimation.duration
-        let slot = anchorRect ?? defaultSlot(for: p)
+        let slot = anchorRect ?? defaultSlot(for: p, origin: origin)
         p.contentView?.layer?.removeAllAnimations()
         p.contentView?.layer?.transform = CATransform3DIdentity
         p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
         let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration,
-                                                destination: origin)
+                                                destination: origin, completion: finishShow)
         if !usedGenie {
             // 没走成神灯：先把窗口从屏外挪回原位再显示，否则会看不见面板
             if p.frame.origin != origin { p.setFrameOrigin(origin) }
             if PanelMotion.fallbackAnimationDisabled {
                 // v243：调神灯手感期不叠第二套缩放动画，直接落位（alpha 上面已还原）
                 p.alphaValue = 1
+                finishShow()
             } else {
-                WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration)
+                WindowReveal.playIn(on: p, from: anchorUnit, scale: 0.90, duration: duration,
+                                    completion: finishShow)
             }
-        }
-        // 采样放到过渡结束之后：动画期间只做合成，不夹带 SwiftUI 重排
-        DispatchQueue.main.asyncAfter(deadline: .now() + GenieWarp.duration(for: duration) + 0.02) { [weak self] in
-            guard let self, self.panel?.isVisible == true else { return }
-            MonitorSampler.shared.setHomePanelActive(true)
         }
     }
 
@@ -415,7 +423,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
         // v237：收起也走神灯——面板吸回同一个图标格子。
         // 与展开共用 presentation.anchorRect，保证「从哪来、回哪去」是同一个点。
-        let slot = presentation.anchorRect ?? defaultSlot(for: p)
+        let slot = presentation.anchorRect ?? defaultSlot(for: p, origin: p.frame.origin)
         p.contentView?.layer?.removeAllAnimations()
         p.contentView?.layer?.transform = CATransform3DIdentity
         p.contentView?.layer?.opacity = 1
@@ -445,8 +453,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     /// 无锚点路径（快捷键 / 深链打开）的兜底插槽：
     /// 面板上沿右侧的一个 22pt 方块，等价于「从状态栏那一带倒下来」。
-    private func defaultSlot(for window: NSWindow) -> NSRect {
-        let f = window.frame
+    private func defaultSlot(for window: NSWindow, origin: NSPoint) -> NSRect {
+        let f = NSRect(origin: origin, size: window.frame.size)
         return NSRect(x: f.maxX - 46, y: f.maxY - 1, width: 22, height: 22)
     }
 

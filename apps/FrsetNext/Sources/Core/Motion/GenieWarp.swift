@@ -277,7 +277,7 @@ final class GenieWarp {
         // 亮出来，用户看到的就是「先展开，再重新播一遍放出动画」。
         if running, targetWindow === window, frames.count > 1 {
             if opening != self.opening {
-                return switchDirection(to: opening, duration: duration, completion: completion)
+                return switchDirection(to: opening, completion: completion)
             }
             // 同向重复触发（连点两下都是「开」）：当成已经在做，不重播
             self.completion = completion ?? self.completion
@@ -525,23 +525,11 @@ final class GenieWarp {
     /// 掉头：同一个动画把 speed 取反，从当前位置原速倒回去。
     /// 不重排帧、不重算曲线——位置、速度、帧全部连续，只是时间反演。
     /// 这就是「随点随停」在物理上该有的样子：不是停住重来，而是当场往回走。
-    private func switchDirection(to newOpening: Bool, duration: TimeInterval,
-                                 completion: (() -> Void)?) -> Bool {
+    private func switchDirection(to newOpening: Bool, completion: (() -> Void)?) -> Bool {
         guard running, frames.count > 1, frameLayer != nil, legAnim != nil else { return running }
         let pos = currentPosition()
 
-        // v257：pos≈0 只出现在**这一腿刚起步**的时候。此刻反向的终点就是当前位置，
-        // 没有可倒的余量。原来这里 `return running` 假装掉头成功、实际什么都没做，
-        // 调用方以为动画在跑（于是不再 fallback），面板 alpha 停在 0、状态和画面脱节，
-        // 下一次点击就会「抽」一下。改为按新方向直接收尾。
-        if pos <= 0.02 {
-            opening = newOpening
-            self.completion = completion
-            Log.info("Motion", "genie 贴边掉头 → \(newOpening ? "展开" : "收起")：已在终点，直接收尾")
-            finish()
-            return true
-        }
-
+        // 连续反向后，靠近起点仍可能正要向终点播放；按实际方向续播，不提前露出整窗。
         stopWatchdog()
         opening = newOpening
         self.completion = completion
