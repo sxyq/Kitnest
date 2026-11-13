@@ -86,7 +86,9 @@ public struct PreviewPopoverContentModel: Identifiable {
         if item.type == .file, paths.count == 1 {
             FileManager.default.fileExists(atPath: String(paths[0]), isDirectory: &directory)
         }
-        fileIsDirectory = directory.boolValue
+        // RTFD、iWork 文档包显示正文，不展开包内资源目录。
+        fileIsDirectory = directory.boolValue && !DocumentInlinePreview.supportedExtensions.contains(
+            URL(fileURLWithPath: String(paths.first ?? "")).pathExtension.lowercased())
         if item.type == .file, kindOverride == nil, paths.count == 1 {
             let url = URL(fileURLWithPath: String(paths[0]))
             let ext = url.pathExtension.lowercased()

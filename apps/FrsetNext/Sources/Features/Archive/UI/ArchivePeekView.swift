@@ -258,7 +258,8 @@ private final class FileContainerPreviewBrowser: ObservableObject {
                         return ArchiveEntry(path: child.path, name: child.lastPathComponent,
                             size: Int64(values.fileSize ?? 0), packedSize: 0,
                             modified: values.contentModificationDate?.description ?? "", method: "",
-                            isDirectory: folder.boolValue, parent: url.path)
+                            isDirectory: folder.boolValue && !DocumentInlinePreview.supportedExtensions.contains(child.pathExtension.lowercased()),
+                            parent: url.path)
                     }
                 }
                 let sorted = list.sorted {

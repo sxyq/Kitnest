@@ -505,18 +505,18 @@ Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseProgress,func,4
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,progressCallback,func,446,KEEP,Core:663/799/891/1020/1113 任务进度回调
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,passwordArg,func,459,KEEP,Core:472/544/638 等 9 处拼 -p
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,list,func,468,KEEP,BrowserWindow:190、PeekView:95、Mini:114 等
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseListOutput,func,489,KEEP,Core:480 解析 7zz -slt 输出
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readEntry,func,536,KEEP,BrowserWindow:276/295 文本与图片预览
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extract,func,562,KEEP,BrowserWindow:567/592、Services:37/65、Drag:50
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,630,KEEP,Core:591/613/680/738/1088 实际解压
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,682,KEEP,拒绝硬不安全条目路径后，在独立临时目录用已存密码解压单项；成功按完整条目路径或递归同名定位文件，解压失败或找不到文件时删除临时目录，清理失败与原原因一起返回
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,728,KEEP,BrowserWindow:261 HTML 预览解同目录资源
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,776,KEEP,BrowserWindow:389、UndoStack:166/195 写回
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,827,KEEP,BrowserWindow:549、UndoStack:149 包内改名
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,864,KEEP,BrowserWindow:480 添加文件
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,924,KEEP,BrowserWindow:512、UndoStack:180 删除条目
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,create,func,959,KEEP,CreateSheet:134 创建压缩包
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,saveEncryptedCopy,func,1101,KEEP,BrowserWindow:646 另存加密归档
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseListOutput,func,496,KEEP,Core:480 解析 7zz -slt 输出
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readEntry,func,544,KEEP,BrowserWindow:276/295 文本与图片预览
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extract,func,570,KEEP,BrowserWindow:567/592、Services:37/65、Drag:50
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,638,KEEP,Core:591/613/680/738/1088 实际解压
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,690,KEEP,拒绝硬不安全条目路径后，在独立临时目录用已存密码解压单项；成功按完整条目路径或递归同名定位文件，解压失败或找不到文件时删除临时目录，清理失败与原原因一起返回
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,736,KEEP,BrowserWindow:261 HTML 预览解同目录资源
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,784,KEEP,BrowserWindow:389、UndoStack:166/195 写回
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,835,KEEP,BrowserWindow:549、UndoStack:149 包内改名
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,872,KEEP,BrowserWindow:480 添加文件
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,932,KEEP,BrowserWindow:512、UndoStack:180 删除条目
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,create,func,967,KEEP,CreateSheet:134 创建压缩包
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,saveEncryptedCopy,func,1109,KEEP,BrowserWindow:646 另存加密归档
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommendation,init,init,31,KEEP,同名重载错挂：该 init 带 priority，recommend 七处在用；无 priority 的那个此前已删
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,recommend,func,55,KEEP,同名重载错挂：此行为仍在使用的实现（values(into:)/recommend 3 参/events(from:to:)），非死代码
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,extractAll,func,163,KEEP,recommend:162 闭包捕获（解压到…）
@@ -735,18 +735,18 @@ Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,in
 Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,load,func,150,KEEP,先close撤销旧目录和文件预览，再在串行队列确认路径、解析符号链接并读取修订；主线程仅接纳当前listingGeneration结果，文件夹读目录、归档读条目，失败显示路径及原因
 Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,readArchive,func,190,KEEP,按URL、修改时间和大小复用最近4个归档条目缓存；未命中交ArchiveCore.list读取含辅助条目列表，同一浏览器已有读取时仅保存下一修订，当前代结果进入目录导航，失败显示具体原因
 Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,readDirectory,func,224,KEEP,增加listingGeneration并清空选择及预览；后台按归档路径前缀生成直属条目和隐含目录，或读取真实目录元数据，目录优先再按自然文件名排序，主线程只发布当前代结果
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,enter,func,286,KEEP,仅进入目录条目，把当前目录压入history后切换entry.path并读取下一层
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,openSelectedDirectory,func,293,KEEP,把当前选中的目录交enter，供进入按钮、回车和向右导航共用
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goUp,func,297,KEEP,取history最后一层返回父目录并重新读取；无历史时保留根目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goRoot,func,303,KEEP,清空history并把directory置空，重新读取文件夹或归档根目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,select,func,309,KEEP,选择变化先撤销旧预览并清理临时文件；目录只选中，普通文件直接后台render，归档文件交单项解压，已有解压时只保留最新待处理选择
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,extract,func,322,KEEP,调用ArchiveCore.extractEntryToTemp解压选中文件，当前previewGeneration结果交render；离开或换项后的落地文件立即清理，失败显示归档和条目路径，结束后执行最新待解压选择
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,render,func,342,KEEP,后台解析文件符号链接并创建只在内存存在的ClipboardItem及完整预览模型；归档条目用displayPath显示原包内路径，主线程仅接纳当前previewGeneration；FileContainerPreview以usesWindowChrome:false复用内容并隐藏快速查看按钮
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,clearPreview,func,364,KEEP,增加previewGeneration、取消预览任务及待解压选择，清空预览、加载态、选择和错误，存在临时解压文件时清理其所属目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,removeTemporaryFile,func,378,KEEP,从落地文件逐级定位temporaryDirectory的直接子目录并删除整个解压目录，内部同名前缀目录不作为清理单元，删除失败显示具体原因
-Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,close,func,387,KEEP,将浏览器设为非活动并增加listingGeneration，取消目录任务和待归档读取，交clearPreview撤销文件结果并清理临时解压目录
-Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveEntryTile,loadThumbnail,func,456,KEEP,tile body:154 onAppear 加载缩略图
-Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveFileIcon,icon,func,486,KEEP,PeekView:135、EntryTable:168、Drag:207
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,enter,func,287,KEEP,仅进入目录条目，把当前目录压入history后切换entry.path并读取下一层
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,openSelectedDirectory,func,294,KEEP,把当前选中的目录交enter，供进入按钮、回车和向右导航共用
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goUp,func,298,KEEP,取history最后一层返回父目录并重新读取；无历史时保留根目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,goRoot,func,304,KEEP,清空history并把directory置空，重新读取文件夹或归档根目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,select,func,310,KEEP,选择变化先撤销旧预览并清理临时文件；目录只选中，普通文件直接后台render，归档文件交单项解压，已有解压时只保留最新待处理选择
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,extract,func,323,KEEP,调用ArchiveCore.extractEntryToTemp解压选中文件，当前previewGeneration结果交render；离开或换项后的落地文件立即清理，失败显示归档和条目路径，结束后执行最新待解压选择
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,render,func,343,KEEP,后台解析文件符号链接并创建只在内存存在的ClipboardItem及完整预览模型；归档条目用displayPath显示原包内路径，主线程仅接纳当前previewGeneration；FileContainerPreview以usesWindowChrome:false复用内容并隐藏快速查看按钮
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,clearPreview,func,365,KEEP,增加previewGeneration、取消预览任务及待解压选择，清空预览、加载态、选择和错误，存在临时解压文件时清理其所属目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,removeTemporaryFile,func,379,KEEP,从落地文件逐级定位temporaryDirectory的直接子目录并删除整个解压目录，内部同名前缀目录不作为清理单元，删除失败显示具体原因
+Archive,Features/Archive/UI/ArchivePeekView.swift,FileContainerPreviewBrowser,close,func,388,KEEP,将浏览器设为非活动并增加listingGeneration，取消目录任务和待归档读取，交clearPreview撤销文件结果并清理临时解压目录
+Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveEntryTile,loadThumbnail,func,457,KEEP,tile body:154 onAppear 加载缩略图
+Archive,Features/Archive/UI/ArchivePeekView.swift,ArchiveFileIcon,icon,func,487,KEEP,PeekView:135、EntryTable:168、Drag:207
 Archive,Features/Archive/UI/ArchiveProgressPanel.swift,ArchiveProgressPanel,init,init,22,KEEP,CreateSheet:192、Progress:257 构造
 Archive,Features/Archive/UI/ArchiveProgressPanel.swift,ArchiveProgressWindowController,show,func,208,KEEP,StatusBar:170、FrsetNextApp:196、TaskHUD:193
 Archive,Features/Archive/UI/ArchiveProgressPanel.swift,ArchiveProgressWindowController,toggle,func,221,KEEP,BrowserWindow:1084/1104
@@ -2777,15 +2777,15 @@ Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRender
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,632,KEEP,parseSourced :241
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,655,KEEP,render(block) :454 表格块
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,65,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,116,KEEP,PreviewPopoverContentView:433、ArchiveTextPreview:58
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,129,KEEP,classifyRawText :76 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,141,KEEP,classifyRawText :75/76/80 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,160,KEEP,codeStrength :112 调用（private）
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,186,KEEP,init :64 分态判定
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,213,KEEP,classifyRawText :74 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,262,KEEP,classifyRawText :79 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,295,KEEP,classifyRawText :81 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,333,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,118,KEEP,PreviewPopoverContentView:433、ArchiveTextPreview:58
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,131,KEEP,classifyRawText :76 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,143,KEEP,classifyRawText :75/76/80 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,162,KEEP,codeStrength :112 调用（private）
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,188,KEEP,init :64 分态判定
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,215,KEEP,classifyRawText :74 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,264,KEEP,classifyRawText :79 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,297,KEEP,classifyRawText :81 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,335,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,调用方 :53（.richText 分支构造）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
