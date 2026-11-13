@@ -1,4 +1,5 @@
 import Combine
+import Darwin
 import Foundation
 
 // MARK: - 全盘文件名索引（v264）
@@ -19,8 +20,8 @@ import Foundation
 //
 // 做法（对标 locate(1)，但不依赖 root、不改系统设置）：
 //   1) 后台遍历上述盲区，把所有路径按 DFS 顺序写进**一个平坦字节池**（\0 分隔）；
-//   2) 查询时 mmap 映射这个池，用 Boyer-Moore-Horspool 扫大小写不敏感匹配，
-//      命中点向前后回溯到 \0 取完整路径；
+//   2) 查询时 mmap 映射这个池，直接按字节匹配 NUL 分隔路径的子序列，
+//      只解码命中项，按正式搜索的模糊得分取候选；
 //   3) 落盘缓存，只在首次（或用户点「重建索引」）生成。
 //
 // 为什么 mmap 而不是内存数组：本机盲区约 180 万条、路径平均 95 字节 ≈ 170MB。
@@ -112,87 +113,60 @@ final class FileNameIndex: ObservableObject {
         return size
     }
 
-    /// 在索引里找匹配路径。返回**最多 limit 条**，顺序即 DFS 顺序（浅层在前）。
-    ///
-    /// - Parameter query: 原始输入，内部做 ASCII 小写归一化
-    func search(_ query: String, limit: Int = 120) -> [String] {
-        let terms = Self.terms(of: query)
-        guard !terms.isEmpty else { return [] }
+    /// 扫完整池，先筛类型，再按正式搜索的模糊得分返回最多 limit 条。
+    func search(_ query: String, limit: Int = 120, kind: FileSearchSource.Kind = .all) -> [String] {
+        let key = Self.terms(of: query).joined()
+        guard !key.isEmpty else { return [] }
+        let needle = Array(key.utf8)
+        let literal = key.count > 32
         // 建索引/替换映射时 `map` 会被 munmap，搜索必须和它互斥
         // （否则可能读到已经释放的页 → EXC_BAD_ACCESS）。
         stateLock.lock()
         defer { stateLock.unlock() }
         guard let pool, poolLength > 0 else { return [] }
 
-        // 多词查询先按「用连字符拼起来」找（目录名习惯这么写），
-        // 找不到再退回单词模式，最后统一用 AND 过滤兜底：
-        // 「workbuddy skill」→ 路径必须同时含 workbuddy 和 skill。
-        var needles = Self.needles(for: terms)
-        if needles.isEmpty { needles = [Array(terms[0].utf8)] }
-        let termBytes = terms.map { Array($0.utf8) }
-
-        // 候选分两档，短路径优先计数：
-        //
-        // 池是 DFS 顺序，前面堆着 `.cc-switch` / `.gemini` / `.trae-cn` / `.lmstudio`
-        // 这些目录下几千条 `skills/research-router/records/…` 长路径。
-        // `~/.workbuddy/skills` 在**全部**合格项里排第 17947 位，但在**短路径**
-        // （≤120 字符）里只排第 1417 位——按长度分档才能把它捞进候选（v264 实测）。
-        let collectTarget = max(limit * 8, 2500)
-        var short: [String] = []      // ≤120 字符，优先
-        var long: [String] = []       // 超长路径，兜底
-        short.reserveCapacity(collectTarget)
-        long.reserveCapacity(500)
-        var seen = Set<String>()
-
-        for needle in needles {
-            var start = 0
-            // 时间预算 180ms：单字/超短 query 会命中几十万次，不能无限扫下去；
-            // 但也不能按「命中点数」截断——`workbuddy skill` 用 skill 去扫时，
-            // 前几千个命中全在 .gemini/.trae-cn 下，数到 1500 就停会一条都拿不到。
-            // 按时间截断既保证有界，又保证能扫遍整池（本机扫完约 75ms）。
-            let deadline = CFAbsoluteTimeGetCurrent() + 0.18
-            var examined = 0
-            while short.count < collectTarget,
-                  let hit = Self.bmh(pool, poolLength, needle, from: start) {
-                var s = hit
-                while s > 0 && pool[s - 1] != 0 { s -= 1 }
-                var e = hit + needle.count
-                while e < poolLength && pool[e] != 0 { e += 1 }
-                start = e + 1
-                examined += 1
-                if examined % 500 == 0, CFAbsoluteTimeGetCurrent() > deadline { break }
-
-                let path = String(decoding: UnsafeBufferPointer(start: pool + s, count: e - s),
-                                  as: UTF8.self)
-                guard !path.isEmpty, !seen.contains(path) else { continue }
-                // AND 过滤走字节级区域匹配，不要 `String.lowercased()`：
-                // `workbuddy skill` 会命中几万个 `skill` 路径，每条都造一个 String
-                // 光这一项就要多花 100ms+（v264 实测 356ms → 优化后 ~200ms）。
-                if terms.count > 1 {
-                    var all = true
-                    for t in termBytes where !Self.regionContains(pool, s, e, t) {
-                        all = false
-                        break
+        let paths = UnsafeRawPointer(pool).assumingMemoryBound(to: CChar.self)
+        var offset = 0
+        var candidates: [(path: String, score: Int, depth: Int)] = []
+        let before = { (a: (path: String, score: Int, depth: Int),
+                        b: (path: String, score: Int, depth: Int)) in
+            if a.score != b.score { return a.score > b.score }
+            if a.depth != b.depth { return a.depth < b.depth }
+            return a.path < b.path
+        }
+        key.withCString { literalKey in
+            while offset < poolLength {
+                let bytes = paths.advanced(by: offset)
+                let end = offset + strlen(bytes)
+                var matched = 0
+                if literal {
+                    matched = strcasestr(bytes, literalKey) == nil ? 0 : needle.count
+                } else {
+                    // 2026-11-13：逐路径正则实测 20.2s；字节预过滤只解码命中项。
+                    for cursor in offset..<end {
+                        let byte = pool[cursor]
+                        let folded = byte >= 65 && byte <= 90 ? byte + 32 : byte
+                        if folded == needle[matched] { matched += 1 }
+                        if matched == needle.count { break }
                     }
-                    if !all { continue }
                 }
-                seen.insert(path)
-                if path.utf8.count <= 120 {
-                    short.append(path)
-                } else if long.count < 500 {
-                    long.append(path)
-                }
+                offset = end + 1
+                guard matched == needle.count else { continue }
+                let path = String(cString: bytes)
+                let url = URL(fileURLWithPath: path)
+                guard kind.includes(url) else { continue }
+                let nameMatch = FuzzyMatcher.match(key, in: url.lastPathComponent)
+                let pathMatch = nameMatch == nil ? FuzzyMatcher.match(key, in: path) : nil
+                guard nameMatch != nil || pathMatch != nil else { continue }
+                let candidate = (path: path, score: (nameMatch?.score ?? 0) * 2 + (pathMatch?.score ?? 0),
+                                 depth: Self.depth(path))
+                if candidates.count == limit, let last = candidates.last, !before(candidate, last) { continue }
+                let index = candidates.firstIndex { before(candidate, $0) } ?? candidates.endIndex
+                candidates.insert(candidate, at: index)
+                if candidates.count > limit { candidates.removeLast() }
             }
-            if short.count >= collectTarget { break }
         }
-        var out = short
-        out.append(contentsOf: long)
-        out.sort { a, b in
-            let da = Self.depth(a), db = Self.depth(b)
-            if da != db { return da < db }
-            return a.count < b.count
-        }
-        return Array(out.prefix(limit))
+        return candidates.map(\.path)
     }
 
     /// 路径深度（`/` 的个数）
@@ -211,7 +185,7 @@ final class FileNameIndex: ObservableObject {
     //   [16..24) builtAt Double（timeIntervalSince1970）
     //   [24..)   pool：每条第 \0 结尾的 UTF-8 绝对路径
     //
-    // 只存一份原样路径。大小写不敏感靠搜索时的 ASCII 折叠表实现——
+    // 只存一份原样路径。大小写不敏感靠搜索时的 ASCII 折叠实现——
     // 再存一份小写副本会让 170MB 变 340MB，不值得。
 
     private static let headerSize = 24
@@ -412,108 +386,9 @@ final class FileNameIndex: ObservableObject {
 
     /// 查询分词（小写、去空白）
     private static func terms(of query: String) -> [String] {
-        asciiLower(query)
-            .split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" })
-            .map(String.init)
-            .filter { !$0.isEmpty }
-    }
-
-    /// 把查询词展开成候选写法（按「最可能先命中」排序）。
-    ///
-    /// 多词时先试连字符拼接（`image html deck` → `image-html-deck`，目录名几乎都这么写）；
-    /// 拼不上再退回**最后一个词**——用户是从左往右敲的，最后一个词最具体：
-    /// `workbuddy skill` 用 `skill` 去扫，命中密度远高于用 `workbuddy`
-    /// （后者在池里有 16 万个 `.workbuddy` 前缀命中，扫半天都是同一个目录）。
-    private static func needles(for terms: [String]) -> [[UInt8]] {
-        guard !terms.isEmpty else { return [] }
-        if terms.count == 1 {
-            return terms[0].count >= 2 ? [Array(terms[0].utf8)] : []
-        }
-        var out: [[UInt8]] = [Array(terms.joined(separator: "-").utf8)]
-        let tail = terms[terms.count - 1]
-        let pivot = tail.count >= 3 ? tail : (terms.max(by: { $0.count < $1.count }) ?? tail)
-        if pivot.count >= 2, Array(pivot.utf8) != out[0] {
-            out.append(Array(pivot.utf8))
-        }
-        return out
-    }
-
-    /// ASCII 小写（不动非 ASCII 字节）。
-    /// 必须自己写：`String.lowercased()` 对某些 Unicode 字符会改变字节长度，
-    /// 而我们依赖「折叠前后字节数一致」来保证池内偏移稳定。
-    private static func asciiLower(_ s: String) -> String {
-        var bytes = Array(s.utf8)
-        for i in bytes.indices where bytes[i] >= 65 && bytes[i] <= 90 {
-            bytes[i] &+= 32
-        }
-        return String(decoding: bytes, as: UTF8.self)
-    }
-
-    /// 256 项折叠表：A-Z → a-z，其余原样
-    private static let fold: [UInt8] = {
-        var t = [UInt8](0...255)
-        for i in 65...90 { t[i] = UInt8(i + 32) }
-        return t
-    }()
-
-    /// 在池的 `[start, end)` 区间里找 needle（大小写不敏感）。
-    /// 区间只有几十到几百字节，朴素扫描比再建一张 skip 表更快。
-    private static func regionContains(_ p: UnsafePointer<UInt8>, _ start: Int, _ end: Int,
-                                       _ needle: [UInt8]) -> Bool {
-        let m = needle.count
-        guard m > 0, end - start >= m else { return false }
-        let last = m - 1
-        let lastByte = fold[Int(needle[last])]
-        var i = start + last
-        while i < end {
-            if fold[Int(p[i])] == lastByte {
-                var j = 0
-                var ok = true
-                while j < last {
-                    if fold[Int(p[i - last + j])] != fold[Int(needle[j])] {
-                        ok = false
-                        break
-                    }
-                    j += 1
-                }
-                if ok { return true }
-            }
-            i += 1
-        }
-        return false
-    }
-
-    /// 大小写不敏感的 Boyer-Moore-Horspool。
-    /// 170MB 池、10 字节 query，实测几十毫秒；朴素逐字节比较要 1 秒以上。
-    private static func bmh(_ hay: UnsafePointer<UInt8>, _ hayLen: Int,
-                            _ needle: [UInt8], from: Int) -> Int? {
-        let m = needle.count
-        guard m > 0, hayLen >= m, from >= 0 else { return nil }
-        var skip = [Int](repeating: m, count: 256)
-        if m > 1 {
-            for i in 0..<(m - 1) {
-                skip[Int(fold[Int(needle[i])])] = m - 1 - i
-            }
-        }
-        let lastByte = fold[Int(needle[m - 1])]
-        var i = from + m - 1
-        while i < hayLen {
-            let c = fold[Int(hay[i])]
-            if c == lastByte {
-                var j = 0
-                var matched = true
-                while j < m - 1 {
-                    if fold[Int(hay[i - m + 1 + j])] != fold[Int(needle[j])] {
-                        matched = false
-                        break
-                    }
-                    j += 1
-                }
-                if matched { return i - m + 1 }
-            }
-            i += skip[Int(c)]
-        }
-        return nil
+        let key = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if key.hasPrefix("/") || key.hasPrefix("~/") { return [key] }
+        return key.split(whereSeparator: \.isWhitespace).map(String.init)
     }
 
     // MARK: - 小工具

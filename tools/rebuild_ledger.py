@@ -419,17 +419,9 @@ EVIDENCE.update({
     ("Features/Toolbox/Search/FileNameIndex.swift", "roots"):
         "只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local",
     ("Features/Toolbox/Search/FileNameIndex.swift", "search"):
-        "多针候选（连字符拼接 → 末词）→ BMH 扫池 → 字节级 AND 过滤 → 短路径优先排序",
-    ("Features/Toolbox/Search/FileNameIndex.swift", "needles"):
-        "多词先试 image-html-deck 这种拼接写法，拼不上退回最后一个词（最具体）",
+        "按字节子序列扫描完整 mmap 池，32 字符以上复用连续匹配口径；只解码命中项，先筛文件类型，再按正式 FuzzyMatcher 得分保留 limit 条，不因时间或前部命中数量漏掉后部目录",
     ("Features/Toolbox/Search/FileNameIndex.swift", "terms"):
-        "查询按空白分词并做 ASCII 小写折叠",
-    ("Features/Toolbox/Search/FileNameIndex.swift", "asciiLower"):
-        "只折叠 ASCII 大小写，保证折叠前后字节数一致（池内偏移才能不变）",
-    ("Features/Toolbox/Search/FileNameIndex.swift", "bmh"):
-        "大小写不敏感的 Boyer-Moore-Horspool；165MB 池单次扫描约 75ms",
-    ("Features/Toolbox/Search/FileNameIndex.swift", "regionContains"):
-        "命中点所在路径内的字节级子串检查，替代 String.lowercased()（省 100ms+）",
+        "普通关键词按全部空白分词并小写归一化，绝对路径保留内部空格",
     ("Features/Toolbox/Search/FileNameIndex.swift", "depth"):
         "路径深度（/ 的个数），用于「浅层优先」重排",
     ("Features/Toolbox/Search/FileNameIndex.swift", "u32"):
@@ -442,6 +434,10 @@ EVIDENCE.update({
         "索引头小端 Double 编码",
     ("Features/Toolbox/Search/SearchSectionView.swift", "ago"):
         "「22 分钟前建立」相对时间文案",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "includes"):
+        "FileNameIndex.search 在候选限额前按既有文稿、图片、影音、压缩、文件夹口径过滤隐藏目录记录；完整路径直达复用同一筛选",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "pathURL"):
+        "文件搜索统一展开 ~/ 并标准化绝对路径，去除目录末尾 /；首页复用同一入口识别本机路径，避免自动网页抓取",
 })
 
 # ── v265：在线手册动图的加载与播放（上次提交漏补的证据）────────────────────

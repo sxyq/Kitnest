@@ -3094,70 +3094,68 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSVie
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,620,KEEP,NSView override（框架回调）
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,633,KEEP,deinit 生命周期，移除本地 monitor
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,641,KEEP,CommandPalette.swift:507 items[safe:] 调用
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,72,KEEP,单例私有 init（零常驻：App 启动、面板打开都不会走到这里）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,83,KEEP,有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,95,KEEP,面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,101,KEEP,用户点「重建」：释放旧映射、删缓存文件、后台重扫
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,118,KEEP,多针候选（连字符拼接 → 末词）→ BMH 扫池 → 字节级 AND 过滤 → 短路径优先排序
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,199,KEEP,路径深度（/ 的个数），用于「浅层优先」重排
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,220,KEEP,校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,254,KEEP,重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,266,KEEP,后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,339,KEEP,只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,370,KEEP,POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,414,KEEP,查询按空白分词并做 ASCII 小写折叠
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,needles,func,427,KEEP,多词先试 image-html-deck 这种拼接写法，拼不上退回最后一个词（最具体）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,asciiLower,func,444,KEEP,只折叠 ASCII 大小写，保证折叠前后字节数一致（池内偏移才能不变）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,regionContains,func,461,KEEP,命中点所在路径内的字节级子串检查，替代 String.lowercased()（省 100ms+）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,bmh,func,488,KEEP,大小写不敏感的 Boyer-Moore-Horspool；165MB 池单次扫描约 75ms
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,521,KEEP,索引头小端 UInt32 解码
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,525,KEEP,索引头小端 Double 解码（建立时间）
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,531,KEEP,索引头小端 UInt32 编码
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,538,KEEP,索引头小端 Double 编码
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,73,KEEP,单例私有 init（零常驻：App 启动、面板打开都不会走到这里）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,84,KEEP,有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,96,KEEP,面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,102,KEEP,用户点「重建」：释放旧映射、删缓存文件、后台重扫
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,117,KEEP,按字节子序列扫描完整 mmap 池，32 字符以上复用连续匹配口径；只解码命中项，先筛文件类型，再按正式 FuzzyMatcher 得分保留 limit 条，不因时间或前部命中数量漏掉后部目录
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,173,KEEP,路径深度（/ 的个数），用于「浅层优先」重排
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,194,KEEP,校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,228,KEEP,重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,240,KEEP,后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,313,KEEP,只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,344,KEEP,POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,388,KEEP,普通关键词按全部空白分词并小写归一化，绝对路径保留内部空格
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,396,KEEP,索引头小端 UInt32 解码
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,400,KEEP,索引头小端 Double 解码（建立时间）
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,406,KEEP,索引头小端 UInt32 编码
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,413,KEEP,索引头小端 Double 编码
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,match:45/71 构造
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,CommandPalette:375/398、SearchSectionView:110/197/1132 调用
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,81,KEEP,SearchSectionView.swift:112/1131 调用
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,rate,func,95,KEEP,match:71 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchResultItem,init,init,47,KEEP,ToolboxSearchSource.item:119、本文件:99 构造
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,register,func,63,KEEP,ToolboxSearchSource.register:91 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,search,func,69,KEEP,scheduleSearch:1551 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ToolboxSearchSource,register,func,90,KEEP,ToolboxModule.swift:33 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ToolboxSearchSource,item,func,118,KEEP,register 闭包:113 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,search,func,192,KEEP,本文件:510/1554 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,fuzzySpotlightPattern,func,262,KEEP,search:191 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,runMdfind,func,270,KEEP,search:191 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,supportsResultList,func,328,KEEP,本文件:859/871/888/901/1565 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,searchURL,func,333,KEEP,fetchResults:313 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,ensureWebView,func,342,KEEP,fetchResults:314 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchResults,func,353,KEEP,本文件:1511/1519 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,414,KEEP,fetchResults:342 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,434,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchResultItem,init,init,48,KEEP,ToolboxSearchSource.item:119、本文件:99 构造
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,register,func,64,KEEP,ToolboxSearchSource.register:91 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,search,func,70,KEEP,scheduleSearch:1551 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ToolboxSearchSource,register,func,91,KEEP,ToolboxModule.swift:33 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ToolboxSearchSource,item,func,119,KEEP,register 闭包:113 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Kind,includes,func,181,KEEP,FileNameIndex.search 在候选限额前按既有文稿、图片、影音、压缩、文件夹口径过滤隐藏目录记录；完整路径直达复用同一筛选
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,pathURL,func,206,KEEP,文件搜索统一展开 ~/ 并标准化绝对路径，去除目录末尾 /；首页复用同一入口识别本机路径，避免自动网页抓取
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,search,func,212,KEEP,本文件:510/1554 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,fuzzySpotlightPattern,func,270,KEEP,search:191 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,runMdfind,func,278,KEEP,search:191 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,supportsResultList,func,336,KEEP,本文件:859/871/888/901/1565 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,searchURL,func,341,KEEP,fetchResults:313 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,ensureWebView,func,350,KEEP,fetchResults:314 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchResults,func,361,KEEP,本文件:1511/1519 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,422,KEEP,fetchResults:342 调用
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,442,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,539,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,750,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,839,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,902,KEEP,listContent:732/734 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,960,KEEP,webCategory:849 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1142,KEEP,filteredClipboardMatches:1127 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1204,KEEP,clipboardCategory:1176、filesCategory:1302 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1226,KEEP,listContent:731/736 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1310,KEEP,clipboardCategory:1195/1215 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1331,KEEP,filesCategory:1318/1340 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1409,KEEP,「22 分钟前建立」相对时间文案
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1417,KEEP,listContent:729/738 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1506,KEEP,listContent:730/747 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1569,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1604,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1618,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1632,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1662,KEEP,body onChange(query):502 调用
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1710,KEEP,WKNavigationDelegate 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1713,KEEP,WKNavigationDelegate 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1716,KEEP,WKNavigationDelegate 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1721,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1723,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1734,KEEP,NSViewRepresentable 协议实现
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1740,KEEP,NSViewRepresentable 静态协议方法
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,450,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,549,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,760,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,853,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,916,KEEP,listContent:732/734 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,974,KEEP,webCategory:849 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1156,KEEP,filteredClipboardMatches:1127 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1218,KEEP,clipboardCategory:1176、filesCategory:1302 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1240,KEEP,listContent:731/736 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1324,KEEP,clipboardCategory:1195/1215 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1345,KEEP,filesCategory:1318/1340 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1423,KEEP,「22 分钟前建立」相对时间文案
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1431,KEEP,listContent:729/738 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1520,KEEP,listContent:730/747 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1583,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1618,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1632,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1646,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1676,KEEP,body onChange(query):502 调用
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1725,KEEP,WKNavigationDelegate 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1728,KEEP,WKNavigationDelegate 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1731,KEEP,WKNavigationDelegate 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1736,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1738,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1749,KEEP,NSViewRepresentable 协议实现
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1755,KEEP,NSViewRepresentable 静态协议方法
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发

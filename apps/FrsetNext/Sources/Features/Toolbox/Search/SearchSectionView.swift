@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import Combine
 import WebKit
+import UniformTypeIdentifiers
 
 // MARK: - 全局搜索区段（id "search", priority 5，排在主面板最前）
 //
@@ -176,6 +177,20 @@ enum FileSearchSource {
             case .folder: return "kMDItemContentTypeTree == \"public.folder\"cd"
             }
         }
+
+        func includes(_ url: URL) -> Bool {
+            if self == .all { return true }
+            guard let values = try? url.resourceValues(forKeys: [.contentTypeKey, .isDirectoryKey]) else { return false }
+            if self == .folder { return values.isDirectory == true }
+            guard let type = values.contentType else { return false }
+            switch self {
+            case .document: return type.conforms(to: .content)
+            case .image: return type.conforms(to: .image)
+            case .media: return type.conforms(to: .movie) || type.conforms(to: .audio)
+            case .archive: return type.conforms(to: .archive) || type.conforms(to: .zip)
+            case .all, .folder: return true
+            }
+        }
     }
 
     /// 送入精排的候选上限（200 条足够覆盖 top 8 的精排精度）
@@ -188,43 +203,36 @@ enum FileSearchSource {
         ".DS_Store", ".localized", ".gitkeep", ".keep", "Icon\r",
     ]
 
+    static func pathURL(for query: String) -> URL? {
+        guard query.hasPrefix("/") || query.hasPrefix("~/") else { return nil }
+        return URL(fileURLWithPath: (query as NSString).expandingTildeInPath).standardizedFileURL
+    }
+
     /// FSearch 式模糊搜索（子序列模糊匹配 + 评分排序 + 命中区间）
     static func search(_ query: String, limit: Int = 8, kind: Kind = .all) -> [FuzzyFileResult] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
-        // v264：空格归一化。
-        // 用户敲「image html deck」，文件名叫 image-html-deck —— 子序列匹配要求
-        // query 的每个字符都出现在目标里，空格不在目标里，所以**必然不命中**。
-        // 实测：修之前「文件」分组永远显示"没有匹配的文件"，哪怕索引里明明有。
-        // 去掉空格后 "imagehtmldeck" 能跨过连字符命中（mdfind 的通配符版同理）。
-        let compact = trimmed.replacingOccurrences(of: " ", with: "")
-        let key = compact.isEmpty ? trimmed : compact
+        // 2026-11-13：目录末尾 / 不参与匹配；真实路径保留内部空格，关键词去除全部空白。
+        let pathURL = Self.pathURL(for: trimmed)
+        let key = pathURL?.path ?? trimmed.split(whereSeparator: { $0.isWhitespace }).joined()
 
         var candidates = runMdfind(fuzzySpotlightPattern(key), kind: kind)
+        var seen = Set(candidates.map { $0.standardizedFileURL.path })
+        if let pathURL, FileManager.default.fileExists(atPath: pathURL.path), kind.includes(pathURL),
+           seen.insert(pathURL.path).inserted {
+            candidates.append(pathURL)
+        }
 
         // v264（用户：「搜索的文件也不是全盘」）：
         // mdfind 走的是 Spotlight 库，而 Spotlight **不索引** ~/Library、隐藏目录
         // （.workbuddy / .cursor / .npm…）、.app 包内部、/usr/local。
         // 这几处恰好是开发者文件最密集的地方，所以补一层自建的全盘文件名索引。
         // 索引是 mmap 的，查询只是顺序扫一遍字节池，几十毫秒。
-        if kind == .all || kind == .folder {
-            let extra = FileNameIndex.shared.search(trimmed, limit: candidateLimit)
-            if !extra.isEmpty {
-                var seen = Set(candidates.map { $0.standardizedFileURL.path })
-                for p in extra {
-                    let url = URL(fileURLWithPath: p)
-                    guard seen.insert(url.standardizedFileURL.path).inserted else { continue }
-                    candidates.append(url)
-                }
-            }
-            if kind == .folder {
-                candidates = candidates.filter { url in
-                    var isDir: ObjCBool = false
-                    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-                        && isDir.boolValue
-                }
-            }
+        let extra = FileNameIndex.shared.search(key, limit: candidateLimit, kind: kind)
+        for p in extra {
+            let url = URL(fileURLWithPath: p)
+            if seen.insert(url.standardizedFileURL.path).inserted { candidates.append(url) }
         }
 
         guard !candidates.isEmpty else { return [] }
@@ -498,6 +506,8 @@ public struct SearchSectionView: View {
     private var isSlashMode: Bool {
         query.trimmingCharacters(in: .whitespaces).hasPrefix("/")
     }
+    private var isLocalPathQuery: Bool { FileSearchSource.pathURL(for: trimmedQuery) != nil }
+    private var showsWebResults: Bool { showWeb && !isLocalPathQuery }
     @Stored private var toolResults: [SearchResultItem] = []
     @Stored private var fileResults: [FuzzyFileResult] = []
     @Stored private var isSearching = false
@@ -787,12 +797,16 @@ public struct SearchSectionView: View {
                 // 全部视图（v63 分级/分类展示）：按匹配优先级排列——本地文件（模糊
                 // 引擎主场景）→ 工具 → 剪贴板 → 网页；每类更多条 + 类型色分级组头
                 //（点组头进入该分类完整列表）。上限内滚动浏览。
-                if showFiles { filesCategory(maxRows: 6, compact: true); if !toolResults.isEmpty || showClipboard || showWeb { categoryDivider } }
-                if !toolResults.isEmpty { toolCategory(maxRows: 4, compact: true); if showClipboard || showWeb { categoryDivider } }
-                if showClipboard { clipboardCategory(maxRows: 3, compact: true); if showWeb { categoryDivider } }
-                if showWeb { webCategory(maxRows: 3, compact: true) }
+                if showFiles { filesCategory(maxRows: 6, compact: true); if !toolResults.isEmpty || showClipboard || showsWebResults { categoryDivider } }
+                if !toolResults.isEmpty { toolCategory(maxRows: 4, compact: true); if showClipboard || showsWebResults { categoryDivider } }
+                if showClipboard { clipboardCategory(maxRows: 3, compact: true); if showsWebResults { categoryDivider } }
+                if showsWebResults { webCategory(maxRows: 3, compact: true) }
             case .web:
-                webCategory(maxRows: 10, compact: false)
+                if isLocalPathQuery {
+                    Text("文件路径仅在本机搜索").font(.system(size: 11)).foregroundStyle(.secondary)
+                } else {
+                    webCategory(maxRows: 10, compact: false)
+                }
             case .clipboard:
                 clipboardCategory(maxRows: 8, compact: false)
             case .files:
@@ -1630,7 +1644,7 @@ public struct SearchSectionView: View {
 
     /// v50 抓取当前引擎的结果列表（后台任务；generation 防串台）
     private func fetchWebResults() {
-        guard let engine = previewEngine, !previewQuery.isEmpty else { return }
+        guard !isLocalPathQuery, let engine = previewEngine, !previewQuery.isEmpty else { return }
         let engineID = engine.id
         let text = previewQuery
         let current = generation
@@ -1691,9 +1705,10 @@ public struct SearchSectionView: View {
                 previewQuery = trimmed          // 预览随防抖提交的词更新（不逐键刷网页）
                 hasSearched = true
                 isSearching = false
+                if isLocalPathQuery { webResults = []; fetchingEngineID = nil }
             }
             // v50：防抖提交后立即抓取当前引擎的结果列表（仅搜索型引擎）
-            if let engine = previewEngine, WebResultScraper.supportsResultList(engine) {
+            if !isLocalPathQuery, let engine = previewEngine, WebResultScraper.supportsResultList(engine) {
                 fetchingEngineID = engine.id
                 fetchWebResults()
             }
