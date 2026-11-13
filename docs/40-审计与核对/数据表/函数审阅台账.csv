@@ -36,24 +36,24 @@ Core,Core/Motion/GenieMesh.swift,-,genieMesh,func,275,KEEP,GenieWarp.swift:64 �
 Core,Core/Motion/GenieMesh.swift,-,geniePhases,func,336,KEEP,GenieWarp.swift:371 时序日志
 Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,render,func,29,KEEP,"play:307,318 逐帧预渲染"
 Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,drawTriangle,func,129,KEEP,"render:116,119 拆两三角形"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,218,KEEP,"play:269 / PanelController:278,370"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,237,KEEP,PanelController.swift:273 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,245,KEEP,PanelController.swift:362 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,250,KEEP,"PanelController:207,342 / play:258"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,269,KEEP,playIn:215 / playOut:221 唯一实现
-Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,474,KEEP,v244 反向播放：当前播放位置
-Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,482,KEEP,v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,530,KEEP,v244 新增：反向复用帧序列；play() 打断分支调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,557,KEEP,cancel:227 / finish:413
-Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,562,KEEP,watchdog Timer:399 回调
-Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,595,KEEP,cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,604,KEEP,v246 空白帧兜底
-Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,623,KEEP,v244 新增：缓动指数读取，帧采样循环外调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,630,KEEP,"play:291,300 帧内存预算"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,639,KEEP,play:293 快照降采样
-Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,653,KEEP,play:305 probe.genieHold 定格
-Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,659,KEEP,"play:246,251 抓窗口快照"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,685,KEEP,"play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,216,KEEP,"把已有配置0.18/0.22/0.28秒按min(0.44,max(0.28,0.28+(configured-0.18)))映射为280/320/380ms，开合共用此播放时长，输出限制为280…440ms"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,235,KEEP,PanelController.swift:273 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,243,KEEP,PanelController.swift:362 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,248,KEEP,"PanelController:207,342 / play:258"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,267,KEEP,playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒
+Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,472,KEEP,v244 反向播放：当前播放位置
+Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,480,KEEP,v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,528,KEEP,v244 新增：反向复用帧序列；play() 打断分支调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,555,KEEP,cancel:227 / finish:413
+Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,560,KEEP,watchdog Timer:399 回调
+Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,593,KEEP,cancel:228 / finish:417
+Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,602,KEEP,v246 空白帧兜底
+Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,621,KEEP,v244 新增：缓动指数读取，帧采样循环外调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,628,KEEP,"play:291,300 帧内存预算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,637,KEEP,play:293 快照降采样
+Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,651,KEEP,play:305 probe.genieHold 定格
+Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,657,KEEP,"play:246,251 抓窗口快照"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,683,KEEP,"play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,private init；static shared:23 唯一构造

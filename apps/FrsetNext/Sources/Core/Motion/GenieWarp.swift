@@ -212,11 +212,9 @@ final class GenieWarp {
     private var legSpeed: Float = 1
     private var legAnim: CAKeyframeAnimation?
 
-    /// 神灯需要的时长。设置里的三档（0.18 / 0.22 / 0.28）是给缩放动画的，
-    /// 漏斗在这个尺度下 0.2s 只会「闪一下」——Dock 自己是 500ms。
-    /// 这里把三档映射到 0.40 / 0.46 / 0.56，既不忽略用户偏好，也保证看得清两段。
+    /// 菜单栏点击后的展开更短促；三档映射为 280 / 320 / 380ms，开合共用同一时长。
     static func duration(for configured: TimeInterval) -> TimeInterval {
-        min(0.62, max(0.40, 0.40 + (configured - 0.18) * 1.6))
+        min(0.44, max(0.28, 0.28 + (configured - 0.18)))
     }
 
     static var isRunning: Bool { shared.running }
@@ -448,12 +446,12 @@ final class GenieWarp {
         window.alphaValue = 0
 
         let phases = geniePhases(progress: opening ? 1 : 0, window: viewWindow, icon: viewSlot, edge: .top)
-        Log.info("Motion", String(format: "genie %@：窗 %.0f×%.0f 图标 %.0f×%.0f 行程 %.0f 弯 %.0fms 滑 %.0fms 弯完于 %.0f%%",
+        Log.info("Motion", String(format: "genie %@：窗 %.0f×%.0f 图标 %.0f×%.0f 行程 %.0f 弯 %.0fms 滑 %.0fms 弯完于 %.0f%% 播放 %.0fms",
                                   opening ? "展开" : "收起",
                                   viewWindow.width, viewWindow.height,
                                   viewSlot.width, viewSlot.height,
                                   abs(viewWindow.maxY - viewSlot.midY),
-                                  phases.bendLength, phases.slideLength, phases.settled * 100))
+                                  phases.bendLength, phases.slideLength, phases.settled * 100, self.duration * 1000))
         Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
                                   frames.count, bbox.width, bbox.height, pixelScale, buildMs,
                                   refresh, Double(Self.easeExponent())))
