@@ -555,7 +555,7 @@ EVIDENCE.update({
     ("Features/Clipboard/Store/ClipboardManager.swift", "copyText"):
         "写入纯文本剪贴板，失败返回原因，成功统一调用 finishCopy",
     ("Features/Clipboard/Store/ClipboardManager.swift", "copyFiles"):
-        "将文件 URL 写入系统剪贴板并统一记录复制成功状态",
+        "写入非空文件URL列表成功后立即回读系统剪贴板并交insert入历史，再调用finishCopy记录成功；中转复制文件与单项文件菜单共用此路径",
     ("Features/Clipboard/Store/ClipboardManager.swift", "copyImageFile"):
         "确认图片持久文件可读后沿用 copyFiles 复制图片文件 URL",
     ("Features/Clipboard/Store/ClipboardManager.swift", "finishCopy"):
@@ -853,7 +853,7 @@ EVIDENCE.update({
     ("Features/Settings/Shell/SettingsEditingSession.swift", "restoreDefaults"):
         "SettingsEditableDraft 默认恢复接口由模块底栏和 restoreAllDefaults 调用，仅准备各模块默认草稿，最后保存才应用",
     ("Features/Settings/Shell/SettingsEditingSession.swift", "init"):
-        "SettingsEditingSession.init 注册七类外观和七个模块工厂；SettingsDraftEditor.init 保存 id、工厂与内容闭包，编辑器通过 session.draft 借用按页缓存实例",
+        "SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿",
     ("Features/Settings/Shell/SettingsEditingSession.swift", "register"):
         "将 id 和草稿工厂保存为惰性闭包，restoreAllDefaults 可以创建未访问页面的同一份缓存草稿",
     ("Features/Settings/Shell/SettingsEditingSession.swift", "draft"):
@@ -1227,7 +1227,7 @@ EVIDENCE.update({
     ("Features/TransferDock/UI/TransferDockView.swift", "refreshCloudLogin"):
         "预览仅反馈云登录入口；正式运行现有extract_edge_cookies.py并按退出状态提示，最后刷新云服务",
     ("Features/TransferDock/UI/TransferDockView.swift", "toggleSelect"):
-        "本地卡片点击按id切换selectedIDs，供预览和正式的全选、定向扫码及批量动作共用",
+        "切换selectedIDs中指定id并更新selectionAnchorID，供勾选按钮及Command单击共用",
     ("Features/TransferDock/UI/TransferDockView.swift", "showPickQR"):
         "预览只写固定kitnest-preview.invalid接收地址；正式按勾选id启动所需LAN服务并取得带pick参数的分享URL",
     ("Features/TransferDock/UI/TransferDockView.swift", "stopServiceIfStartedForTransfer"):
@@ -1235,11 +1235,11 @@ EVIDENCE.update({
     ("Features/TransferDock/UI/TransferDockView.swift", "pushSelectedToCloud"):
         "预览只反馈已选数量；正式检查已选文件与云登录状态后批量上传暂存URL",
     ("Features/TransferDock/UI/TransferDockView.swift", "removeSelected"):
-        "预览只删除场景数组中的勾选项；正式调用local.remove逐项移出暂存，完成后清空选择",
+        "预览仅改场景文件数组；正式把勾选项整批交local.remove，完成后仅保留仍在索引中的选择，失败项保持可见并显示具体原因",
     ("Features/TransferDock/UI/TransferDockView.swift", "pickOverlay"):
         "定向接收覆盖层展示二维码、地址及关闭操作；预览复制/浏览器按钮只反馈，真实路径复制或打开已生成的分享链接",
     ("Features/TransferDock/UI/TransferDockView.swift", "localCard"):
-        "LocalCardRowView复用选择、单项扫码和移除回调；预览移除只改previewItems，正式回调写本地暂存",
+        "复用LocalCardRowView的选择、扫码、预览和移除回调，首个被选项持有空格预览目标；行内悬停、菜单预览和预览按钮均传PanelController.shared.panelWindowForProbe供共享预览贴面板同侧定位，设置预览不打开真实窗口；移除成功后才清除正式选择",
     ("Features/TransferDock/UI/TransferDockView.swift", "sectionHeader"):
         "云端、本地暂存及文件发送区域共用图标、标题、条目数和右侧操作闭包，不参与服务状态变更",
     ("Features/TransferDock/UI/TransferDockView.swift", "dropHint"):
@@ -1282,6 +1282,90 @@ EVIDENCE.update({
         "辅助功能按下动作将PinPreviewScene设为宿主窗口第一响应者并返回聚焦结果；无宿主窗口返回false，键盘随后在本场景内移动、缩放和操作控制条",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "accessibilityPerformPress"):
         "辅助功能按下动作将CurtainPreviewScene设为窗口第一响应者并返回聚焦结果；无窗口返回false，回车、N、加减、删除和Escape交给场景键盘处理",
+    ("App/AppBootstrap.swift", "start"):
+        "启动接线在filesCapturedNotification到达时同时读取中转总开关和自动暂存开关，允许时交LocalTransferStore.autoStage；成功只记录同步数量，启动阶段按已保存保留期启动暂存清理",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "copy"):
+        "单条文件按原格式复制成功后立即reader.read并insert，纯文本复制不进入文件同步；多条文本继续合并，单条图片/文件转单条重载，媒体混选返回既有说明",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "writeToDatabase"):
+        "去重命中时touch并刷新剪贴板列表，文件结果仍发scheduleAutoStage通知，使重复复制同步刷新中转addedAt；新增结果沿用落盘、入库及文件通知路径",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "scheduleAutoStage"):
+        "把读取到的文件URL列表发到主线程filesCapturedNotification，由AppBootstrap按两个中转开关决定同步，不限定文档或压缩包扩展名",
+    ("Features/Clipboard/Store/ClipboardPasteboardReader.swift", "read"):
+        "读取粘贴板类型和来源应用后依次尝试文件、图片、URL、富文本和文本；文件URL先于TIFF图片读取，避免Finder复制文件附带的图标被识别为图片",
+    ("Features/Clipboard/Store/ClipboardPasteboardReader.swift", "readFiles"):
+        "从fileURL或NSFilenamesPboardType读取文件列表，将NSURL.filePathURL解析出的真实路径用于content、标题、目录副标题和fileURLs；未取得URL时沿用旧文件名列表路径，返回.file结果",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "autoStage"):
+        "文件与文件夹URL标准化并按路径去重，pendingAutoStagePaths在add开始前登记、完成后移除以避免首次暂存未完成时重复复制；原路径或暂存路径命中同项刷新addedAt并降序置顶持久化，其他项走add，不限定扩展名",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "add"):
+        "暂存队列逐项对原始URL调用startAccessingSecurityScopedResource，defer仅在scoped成功时调用stop，使授权覆盖该项文件IO；标准化路径后交stage并统计尺寸，主线程仅发布成功项、持久化及通知，回调实际成功数量并保留失败原因",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "startRetentionCleanup"):
+        "启动及本地设置保存后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "pruneExpired"):
+        "按已保存retentionDays和最近addedAt计算天数×86400秒截止点，过期条目交统一remove并传递实际移除结果；0表示不清理并回调.none",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "remove"):
+        "单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "clearAll"):
+        "清空暂存复用remove(items)异步送废纸篓，不再直接删除目录或提前清空索引，错误和成功数量由同一路径报告",
+    ("Features/TransferDock/UI/TransferDockSettingsPane.swift", "init"):
+        "LocalTransferSettingsDraft读取自动暂存、悬停预览和保留天数三个已保存值，以字符串序列saved比较是否有待保存编辑",
+    ("Features/TransferDock/UI/TransferDockSettingsPane.swift", "save"):
+        "把自动暂存、悬停和保留期写入transferDock.autoStageClipboard、transferDock.previewOnHover、transferDock.local.retentionDays后synchronize；失败保留编辑并返回写入说明，成功重设清理计时和saved",
+    ("Features/TransferDock/UI/TransferDockSettingsPane.swift", "discard"):
+        "重新读取中转自动暂存、悬停预览与retentionDays已保存值，刷新草稿和saved，取消未保存设置",
+    ("Features/TransferDock/UI/TransferDockSettingsPane.swift", "restoreDefaults"):
+        "仅把本地暂存草稿恢复自动同步true、悬停预览true、保留期0；统一保存前不启动或停止正式清理计时",
+    ("Features/TransferDock/UI/TransferDockView.swift", "copySelectedFiles"):
+        "设置预览仅显示复制文件演示反馈；正式用stagedSelection取得实际文件URL并调用ClipboardManager.copyFiles，失败显示原因，成功状态保留1.2秒",
+    ("Features/TransferDock/UI/TransferDockView.swift", "selectLocal"):
+        "使用鼠标按下时记录的selectionModifiers，避免SwiftUI点击回调延后到按键释放后丢失组合选择；单击选择当前id，Command切换单项；Shift按selectionAnchorID与当前项在displayedLocalItems形成连续范围，Command+Shift合并范围，保持锚点供后续多选；页面离开即移除本地事件监听",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "readText"):
+        "文件与剪贴板共用的正文读取：mappedIfSafe读取完整文件，依次解码UTF-8和Latin-1，无法解码抛出fileReadInapplicableStringEncoding，不再截前8KB",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "itemID"):
+        "按URL.path构造file-preview:前缀内存条目id，供任意文件呈现、取消悬停关闭及主动隐藏确认当前项",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "scheduleShow"):
+        "取消共用协调器的悬停关闭任务并替换showWork，按同一hoverPreviewOpenDelay延时调用showNow，传屏幕锚点和弱引用sourceWindow",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "showNow"):
+        "取消待显示任务、记录currentURL，再交MainPanelPreviewPopoverCoordinator.presentFile；不再创建独立文件预览Panel或保存另一套尺寸",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "scheduleHide"):
+        "取消待显示任务，仅按currentURL对应itemID安排共享协调器关闭，不会把别的当前预览项关闭",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "hide"):
+        "取消待显示任务；仅当前共享协调器activeItemID仍为本文件时执行programmatic关闭，最后清除currentURL",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "presentFile"):
+        "把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "present"):
+        "按源视图或屏幕锚点确定可见区并创建requestedSession；文件模型在userInitiated后台读取，主线程仅接纳sessionID仍匹配的结果，其他类型同步呈现；换项复用包括收回中的slot，统一窗口连续调整内容和尺寸",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "dismiss"):
+        "先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "cancelHoverClose"):
+        "文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "scheduleHoverClose"):
+        "带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "copyContent"):
+        "编辑态把draft交ClipboardManager.copyText；普通预览交ClipboardManager.copy(item,autoPaste:false)，文件保持原格式并由统一复制入口回读入历史及通知中转",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "init"):
+        "窗口控制器和ClipboardPreviewWindowView都接收同一PreviewPopoverContentModel；控制器按完整模型测量无边框窗并装内容，视图保留传入文件正文/图片和会话id",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "imageSize"):
+        "图片和磁盘图片文件共用窗口尺寸计算：长图高宽比超过1.6时保留可读宽度并纵向滚动，其余图按可用宽高等比缩放，窗口包含调用方传入工具区高度",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "initialSize"):
+        "按模型实际Markdown排版、代码字号或纯文本折行测量，宽度受源窗口左右空间和屏幕限制；磁盘图片使用imageSize，文件文本/JSON额外留100pt操作区，文档使用560pt高度上限",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "installContent"):
+        "用当前完整model构造ClipboardPreviewWindowView，装入可随窗口伸缩的NSHostingView并转发编辑状态，文件与剪贴板共用同一外壳",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "show"):
+        "同一控制器换model时复位正在收回的WindowReveal状态；仅不同条目或提示模式重装内容，已可见换项只动画调整尺寸位置，首次出现才播放主面板配置的展开动画",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "place"):
+        "有源窗口时贴其左右可用侧，无源窗口时从条目屏幕锚点右侧18pt尝试，放不下改左侧；8pt屏幕边距内定位并据相邻边设置共用展开/收回锚点",
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "closeAnimated"):
+        "收回使用Personalization.openAnimation时长×0.7及减少动态口径；完成回调只在isClosing且model.sessionID仍为本次关闭会话时关窗，换项复用不被旧回调关掉",
+    ("Features/Panel/Preview/PreviewPopoverContentModel.swift", "init"):
+        "分类基础条目并保留source/entry/sessionID；单文件且未覆盖kind时读取受支持文本完整正文到loaded/failed状态，Office内联文档保持idle，图片扩展名直接载入fileImage，文本子模型用kindOverride避免再次读取",
+    ("Features/Panel/Preview/PreviewPopoverContentView.swift", "fileContent"):
+        "单文件正文已加载时按Markdown/JSON/代码/纯文本复用对应正式组件，读取失败显示具体原因；图片复用PreviewImageContent长图滚动，其他支持文档用DocumentInlinePreview",
+    ("Features/Panel/Preview/PreviewPopoverContentView.swift", "decode"):
+        "PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表",
+    ("Features/Archive/Table/ArchiveHoverPreview.swift", "schedule"):
+        "目录、空文件、超过sizeCap或不可渲染条目仍收起；有效条目取消共享hover关闭后按既有延迟解压/取缓存，文件准备完成才交共用文件预览，换项期间保留原窗口",
+    ("Features/TransferDock/UI/TransferDockView.swift", "func"):
+        "CloudRowView相等比较保留文件值判断；LocalCardRowView同时比较item、selected、isKeyboardPreviewTarget和showsCloud，使首个选择项变化时空格预览目标随行重绘",
 })
 
 
