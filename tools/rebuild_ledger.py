@@ -142,12 +142,6 @@ EVIDENCE = {
         "悬浮剪贴板按 item 反查 selectedIndex：外部点卡片时键盘选中位跟着同步，避免两套高亮",
     ("Features/Monitor/Views/BatteryPanel.swift", "designHealthRatio"):
         "v260 健康度副口径：满充/设计容量（第三方工具算法），与主口径（满充/标称，系统设置口径）并列展示并注明差异",
-    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "previewItem"):
-        "v260 预览缩略窗统一外壳：内容 + 左下角黑色胶囊标注「生效对象」，把主面板与独立窗口两类设置分开看",
-    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reloadWallpaper"):
-        "v260 壁纸按 backgroundImagePath 重载（替换原来一次性 if-nil 缓存）；路径为空回退系统桌面图、再回退渐变，由 onChange 触发",
-    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "trafficLight"):
-        "预览缩略窗里的 7pt 装饰红绿灯（纯示意，不碰真实窗口按钮）；v260 从旧预览族迁到 AppearancePreviewBlock",
     ("Features/TransferDock/UI/TransferDockPreferences.swift", "migrateLegacyFeatureFlag"):
         "v260 拆键迁移：featureEnabled 缺失时从旧键 panelVisible 继承，老用户的「启用文件中转」状态不因换键丢失",
 
@@ -188,8 +182,6 @@ EVIDENCE.update({
         "上屏：重建 + orderFrontRegardless + 启动自动收起计时",
     ("Features/Capture/Curtain/CurtainController.swift", "ensurePanel"):
         "首次创建 Panel/Canvas，接移除/保存/钉图与 ⌘ 缩放回调",
-    ("Features/Capture/Curtain/CurtainController.swift", "railScale"):
-        "帘线缩放：卡片宽/140 夹 0.8…3；关掉「帘线缩放」恒 1",
     ("Features/Capture/Curtain/CurtainController.swift", "layoutMetrics"):
         "按屏幕宽反算能放下的卡片宽（张数多自动收窄）+ 卡片高度上限",
     ("Features/Capture/Curtain/CurtainController.swift", "contentSize"):
@@ -311,9 +303,9 @@ EVIDENCE.update({
     ("Features/Capture/Curtain/CurtainWindow.swift", "scrollWheel"):
         "⌘ + 滚轮缩放图帘；非 ⌘ 交给系统",
     ("Features/Capture/Curtain/CurtainWindow.swift", "copyToPasteboard"):
-        "复制：同时给 PNG 数据与文件 URL（粘聊天窗是图、粘 Finder 是文件）",
+        "卡片复制先交给宿主 onCopy 回调；正式图帘无回调时读取 PNG，同时写入图片数据及文件 URL",
     ("Features/Capture/Curtain/CurtainWindow.swift", "beginDrag"):
-        "拖出：NSDraggingItem 用文件 URL，拖到 Finder/聊天窗即得文件",
+        "卡片拖出先交给宿主 onDrag 回调；正式图帘无回调时以文件 URL 和卡片快照开始复制拖放",
     ("Features/Capture/Curtain/CurtainWindow.swift", "snapshot"):
         "拖拽缩略图：优先用已解码 CGImage，避免再读原图",
     ("Features/Capture/Curtain/CurtainWindow.swift", "menu"):
@@ -325,7 +317,7 @@ EVIDENCE.update({
     ("Features/Capture/Curtain/CurtainWindow.swift", "copyFromMenu"):
         "右键「复制图片」→ copyToPasteboard",
     ("Features/Capture/Curtain/CurtainWindow.swift", "revealInFinder"):
-        "在 Finder 中选中原暂存文件",
+        "有 onReveal 回调时只反馈预览定位动作；正式卡片使用 NSWorkspace 在 Finder 选中文件",
     ("Features/Capture/Curtain/CurtainWindow.swift", "draggingSession"):
         "拖出操作固定 .copy，不移动原文件",
     ("Features/Capture/Curtain/CurtainWindow.swift", "ropePath"):
@@ -349,7 +341,7 @@ EVIDENCE.update({
     ("Features/Capture/Curtain/CurtainWindow.swift", "updateLayout"):
         "⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图",
     ("Features/Capture/Curtain/CurtainWindow.swift", "layoutCards"):
-        "统一排版：总宽居中、逐张定位、设 ropeTilt/swayPhase、按需播落入动画",
+        "正式画布统一定位卡片、设置绳线倾角和摆动相位；传入宿主动作及辅助功能状态，减少动态时不播放新卡片落入动画",
     ("Features/Capture/Curtain/CurtainWindow.swift", "animateDrop"):
         "落入：位移 + 淡入 + 绕顶部衰减回弹，结束后接常驻微摆；只对新增卡片播",
     ("Features/Capture/Curtain/CurtainWindow.swift", "topPivot"):
@@ -357,7 +349,7 @@ EVIDENCE.update({
 
     # Pin appearance / action bar
     ("Features/Capture/Pin/PinWindow.swift", "init"):
-        "PinAppearance 值类型初始化（单张钉图的外观快照）",
+        "PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类",
     ("Features/Capture/Pin/PinWindow.swift", "preset"):
         "动作条四形态：经典/无边框/卡片/强调，数值与设置页预设一致，只影响这一张",
     ("Features/Capture/Screenshot/CaptureActionChain.swift", "pin"):
@@ -367,13 +359,9 @@ EVIDENCE.update({
 
     # Settings / status bar
     ("Features/Settings/Panes/CurtainSettingsPane.swift", "init"):
-        "从 CurtainPref 读初值（开关/样式/时长/张数/宽度/帘线缩放/自动上架）",
+        "CurtainSettingsPane公共init创建页面外壳；SettingsDraftEditor以curtain标识按需借用CurtainSettingsDraft，实际偏好初值由草稿Values.current读取",
     ("Features/Settings/Panes/CurtainSettingsPane.swift", "row"):
         "图帘设置页统一行（74pt 标题列 + 控件 + 说明）",
-    ("Features/Settings/Panes/CurtainSettingsPane.swift", "point"):
-        "设置页预览绳线按三次贝塞尔取点，与窗口绘制同参数",
-    ("Features/Settings/Panes/CurtainSettingsPane.swift", "path"):
-        "设置页预览绳线路径：三次贝塞尔控制点在 1/3、2/3",
     ("Features/Settings/Shell/SettingsWindowController.swift", "jumpCapture"):
         "截图与钉图页内跳转：同值时先归零再设回，重复深链也能重新定位",
     ("Features/StatusBar/StatusBarController.swift", "toggleCurtainAction"):
@@ -643,9 +631,9 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageTreemap.swift", "liquidPoints"):
         "tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeNSView"):
-        "在设置预览中挂载 AppKit 原生关闭、最小化和缩放按钮",
+        "PreviewWindowChrome 向内嵌 NSView 添加 macOS 标准关闭/最小化/缩放按钮，统一绑定 Coordinator.press，仅作用预览场景",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "updateNSView"):
-        "保留设置预览的原生窗口按钮视图，不重复创建装饰控件",
+        "更新 PreviewWindowChrome 的协调器 onPress 为最新场景闭包，保留三颗原生按钮实例",
     ("Features/StatusBar/StatisticsRootView.swift", "moveFocus"):
         "按左右每周七天、上下逐日移动活动矩阵键盘焦点",
     ("Features/StatusBar/StatisticsRootView.swift", "showKeyboardCell"):
@@ -691,7 +679,7 @@ EVIDENCE.update({
     ("Features/TransferDock/UI/BatchImageCompressionWindow.swift", "windowShouldClose"):
         "关闭窗口时先请求停止压缩并阻止任务运行中的窗口销毁",
     ("Features/TransferDock/UI/TransferDockView.swift", "copySelectedMetadata"):
-        "按当前选择复制文件名或可用路径，并提示不可用文件数量",
+        "预览仅设置copyCompleted和本地反馈；正式按选择复制文件名或仍可用路径，提示不可用文件数量",
 })
 
 
@@ -700,9 +688,9 @@ EVIDENCE.update({
     ("Core/Runtime/Personalization.swift", "makeDraft"):
         "AppearanceSettingsDraft 初始化与 discard 调用：创建 persistsChanges=false 的 Personalization，再经 copyValues 复制当前外观；草稿属性变更只发布到预览，不写偏好",
     ("Core/Runtime/Personalization.swift", "applyDraft"):
-        "保存按钮 → AppearanceSettingsDraft.save → shared.applyDraft：isLoading 期间复制草稿，结束后 flushPendingPersist 一次写入偏好并发 didChangeNotification，正式窗口读取保存值",
+        "模块保存传入明确的DraftField列表，在isLoading期间只复制该模块字段，随后flushPersist(keys:)只写这些偏好并发外观变化通知，避免覆盖其他页已保存值",
     ("Core/Runtime/Personalization.swift", "copyValues"):
-        "makeDraft 与 applyDraft 共用的外观复制入口：同步强调色、字号、密度、圆角、动画、材质、徽章、缩略图、通知、分隔线、Midnight、背景图与玻璃四参数共 19 项",
+        "makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项",
     ("Core/UI/AppearanceTheme.swift", "baseBackground"):
         "AppearanceThemeModifier 与 Theme.windowSurface(for:midnight:) 调用：将指定 Personalization.midnightHueShift 传给 h，生成 Midnight 窗口基色；静态属性继续传 shared",
     ("Core/UI/AppearanceTheme.swift", "cardBackground"):
@@ -724,15 +712,576 @@ EVIDENCE.update({
     ("Core/UI/Support.swift", "cardStroke"):
         "GlassCard、剪贴板行和 AppearancePreviewBlock 外框 → ThemeAppearance.cardStroke：读取指定草稿 glassStroke，深色白边/浅色黑边透明度分别为 0.02+0.16×stroke 与 0.02+0.14×stroke",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "init"):
-        "同文件三处初始化共用依据：七页调用 AppearanceSettingsEditor.init 保存内容闭包，其 StateObject 创建 AppearanceSettingsDraft.init 并订阅变化；PersonalizationSettingsView.init 接收 part/draft，观察同一 draft.personalization，让控件和预览共用草稿",
+        "AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "observeChanges"):
-        "AppearanceSettingsDraft.init 及 personalization/floating 替换时调用：合并两对象的 objectWillChange，递增 previewRevision；AppearancePreviewBlock 的 .id(draft.previewRevision) 据此重建正式预览组件",
+        "合并 personalization 与 floating 的 objectWillChange 并转发到外观草稿，使缓存编辑器和正式预览同步重绘，不再通过 previewRevision 重建内容",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "save"):
-        "AppearanceSettingsEditor「保存并应用」与 ⌘S 调用：写面板宽度、动作条样式、四页显隐和顺序，applyDraft 应用个性化、AppearanceManager.apply 应用主题，再复制浮动窗布局/卡片档位/分隔比例并 persistSplitRatio",
+        "按 scope 只应用该页面板、悬浮窗、动作条或主题字段，再经 Personalization.applyDraft 写该模块 DraftField；synchronize 失败保留草稿并返回原因，成功更新保存快照",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "discard"):
-        "AppearanceSettingsEditor「取消」调用：从 shared.makeDraft、Preferences、PanelSegments、AppearanceManager 重新读取已保存设置，并重建 settingsPreview=true 的浮动窗 Store；替换对象时重新订阅并刷新预览",
+        "调用 reloadSavedValues(preservingOwned:false) 重新读取应用保存值，再更新 savedPersonalization 和该模块 savedValues，取消当前页编辑",
     ("Features/Settings/Shell/SettingsPanes.swift", "appearanceChoices"):
-        "GeneralSettingsPane.personalizationSection 的 AppearanceSettingsEditor 内容调用：系统/浅色/深色/Midnight 分段 Picker 双向绑定 draft.appearance，触发 previewRevision 与预览明暗更新；正式主题由 save 中 AppearanceManager.apply 应用",
+        "通用外观四选 Picker 双向绑定当前 AppearanceSettingsDraft.appearance；正式主题只由 shared scope 的 save 调用 AppearanceManager.apply",
+})
+
+
+# ── 2026-11-13：中央草稿与正式组件的固定内容预览 ─────────────────────
+EVIDENCE.update({
+    ("Core/Runtime/Personalization.swift", "init"):
+        "Personalization.init 仅在 persistsChanges=true 时装载偏好；DraftField.init 将可写键路径与偏好键配成 copy/matches 闭包，供模块草稿只应用并比较自己拥有的字段",
+    ("Core/Runtime/Personalization.swift", "makeDefaultDraft"):
+        "AppearanceSettingsDraft.restoreDefaults 调用：创建不装载偏好、不会持久写入的 Personalization，按模块 DraftField 取其出厂值",
+    ("Core/Runtime/Personalization.swift", "flushPersist"):
+        "普通属性持久写入全部外观值；applyDraft 传 keys 时只写本模块字段，nil 缩略图值移除对应偏好，最后发外观变化通知",
+    ("Core/Runtime/Personalization.swift", "load"):
+        "装载个性化偏好时按键是否存在选默认值，保留已保存的字号、圆角、通知时长、描边透明度、背景压暗值 0 与 hoverPreviewEnabled=false",
+    ("Features/Capture/Annotation/Watermark.swift", "save"):
+        "CaptureAppearanceDraft.save 调用 Configuration.save，一次应用启用、文字、透明度、旋转角度、平铺及字号比例六个水印偏好",
+    ("Features/Capture/Annotation/Watermark.swift", "applied"):
+        "正式截图重载读取 Configuration.current，设置预览重载接收草稿配置；两者共用 CGContext 绘字，允许透明度 0，平铺和右下单枚均按配置角度旋转",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "refreshAccessibility"):
+        "CurtainCanvasView.layoutCards 给每张卡片同步辅助功能：降低透明度时三颗操作按钮用不透明黑底，减少动态时移除图层动画并复位变换",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "metrics"):
+        "正式 ImageCurtainController.layoutMetrics 与 CurtainPreviewScene.render 共用：两轮按可见宽度和卡片数反算卡宽，帘线缩放夹在 0.8…3，并扣除绳高与底边求卡片高度上限",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "stopAnimations"):
+        "CurtainPreviewScene 收起、关闭或停止演示时调用：为全部卡片设置 reduceMotion 并移除图层动画，保留卡片内容和视图",
+    ("Features/Capture/Pin/PinWindow.swift", "applyPreset"):
+        "PinAppearance.preset 与设置页共用四种外观赋值：经典 1.5pt/10pt、无边框 0/0、白色卡片 2pt/16pt、强调描边 2pt/12pt，保留吸附、不透明度和控制条时长",
+    ("Features/Capture/Pin/PinWindow.swift", "snapped"):
+        "正式钉图与内嵌 PinPreviewScene 共用纯坐标计算：距可见区域或其他钉图的边缘小于 8pt 时吸附，返回新的窗口原点",
+    ("Features/Capture/Pin/PinWindow.swift", "draw"):
+        "PinImageView 同时承载正式钉图和预览：按圆角裁剪、四分之一圈旋转、水平/垂直翻转及不透明度绘制图像，描边向内缩半线宽避免边缘裁掉",
+    ("Features/Capture/Screenshot/CaptureActionChain.swift", "pick"):
+        "动作条统一选中入口：设置预览按工具 id 找标题并发布 previewFeedback；正式路径只调用 onPick，预览不进入截图动作执行链",
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "makeBody"):
+        "三种动作条按钮共用按下外观：透明度降为 0.7，普通模式缩至 0.96 并用 0.1 秒动画，减少动态时保留透明反馈而取消缩放和动画",
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "thumbnail"):
+        "正式动作条与设置预览共用截图缩略图：按比例适配到 340×200pt，裁圆角并画发丝边；拖到外部应用仅由正式路径附加",
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "pick"):
+        "主动作及子动作按钮先 collapse 清理悬停和展开状态，再转给 CaptureToolbarModel.pick，由模型区分正式执行与预览反馈",
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "collapse"):
+        "点击背景、缩略图或执行动作时取消 hoverTask，清空两种悬停值并收起展开组；减少动态时即时收起",
+    ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "handleHover"):
+        "动作条悬停使用可取消 Task：进入组 300ms 后展开、离开 220ms 后收起，新悬停替换旧任务，视图消失时取消",
+    ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "chooseDirectory"):
+        "截图设置的目录选择器仅接受文件夹，选中后更新 savePath 并写 ScreenshotManager.saveDirectory；保存路径沿用独立设置，不进入外观草稿",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "setPreviewItems"):
+        "仅设置预览Store接收AppearancePreviewBlock按SettingsPreviewSamples原顺序传入的固定条目，不按代表场景重排；缓存每条内联预览模型并本地reload，真实剪贴板仓库不参与",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "reload"):
+        "预览 Store 同步按类型和搜索词过滤内存条目，保留选中 id 并重建右栏模型；正式 Store 沿用可取消防抖工作与 SQLite 读取",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "paste"):
+        "预览双击只选择条目；正式路径先收起面板和归还焦点，再调用 ClipboardManager.copy 自动粘贴",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "delete"):
+        "预览删除只移除 previewSource 并本地重筛；正式路径删除仓库条目并防抖重载",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "rebuildPreviewModel"):
+        "预览选中项直接从 previewContents 取内联模型；正式路径继续在后台读取长文本及富文本文件",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "dragProvider"):
+        "预览拖放返回空 NSItemProvider，不提供固定示例的文件或正文；正式路径按文本、富文本、图片和文件类型构造可拖内容",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "matches"):
+        "主剪贴板和悬浮窗的固定预览共用九类过滤：按条目类型、https 链接前缀、代码/JSON 分类、colorpicker 来源、工具生成标记及笔记标记匹配",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "selectPreview"):
+        "固定列表点击、悬停和方向键共用：更新本地 previewSelectedID，并写入可选 settingsPreviewClipboardSelection 绑定，不复制或打开内容",
+    ("Features/Recording/RecordingCompositor.swift", "composite"):
+        "ScreenRecorder 正式视频帧与 RecordingAppearancePreview 共用 CIImage 合成：按位置/比例叠摄像头、按区域原点及 pixelScale 定位点击环，最后把最多四键键帽条居中置于底部",
+    ("Features/Recording/RecordingCompositor.swift", "keyOverlay"):
+        "按传入 RecordedKey 绘制最多四个键帽并按时间淡出；预览可传 reduceTransparency=true 将键帽底从 0.82 改为不透明",
+    ("Features/Recording/RecordingCompositor.swift", "clickOverlay"):
+        "按传入 progress 和左右键在 160×160 画布绘制中心点及两圈扩散环；降低透明度时使用不透明填色和环线",
+    ("Features/Capture/Screenshot/CaptureAppearanceDraft.swift", "init"):
+        "读取声音、OCR 语言/自动识别/结果窗、默认动作、延迟、固定比例、文件名、OCR 提示、文字马赛克及水印为 Values 和 saved，供 isDirty 比较",
+    ("Features/Capture/Screenshot/CaptureAppearanceDraft.swift", "save"):
+        "统一保存先处理未完成的自定义比例并编码比例数组，失败返回具体原因；成功后应用截图/OCR/命名/通知/马赛克及水印偏好，再更新 saved",
+    ("Features/Capture/Screenshot/CaptureAppearanceDraft.swift", "discard"):
+        "取消截图外观编辑时还原 saved，清空未添加比例的名称和宽高输入，不写任何截图偏好",
+    ("Features/Capture/Screenshot/CaptureAppearanceDraft.swift", "restoreDefaults"):
+        "恢复本模块默认只用 Values() 替换草稿，并清空比例输入；保存后才应用默认声音、语言、动作及水印等值",
+    ("Features/Capture/Screenshot/CaptureAppearanceDraft.swift", "addRatio"):
+        "解析两个正整数宽高；命中内置或已有自定义比例时选中原项，否则向草稿追加新比例，完成后清空名称和宽高输入",
+    ("Features/Recording/RecordingAppearanceDraft.swift", "init"):
+        "将当前帧率、音频来源、鼠标显示、摄像头设备/位置/大小、按键/点击及排除应用读取为 values 和 saved",
+    ("Features/Recording/RecordingAppearanceDraft.swift", "save"):
+        "统一保存将十项录屏 Values 写入 RecordingOptions，包括 excludedBundleIDs；写入后更新 saved 并以 nil 返回成功",
+    ("Features/Recording/RecordingAppearanceDraft.swift", "discard"):
+        "取消录屏编辑仅将 values 还原为 saved，正式录制参数保持保存值",
+    ("Features/Recording/RecordingAppearanceDraft.swift", "restoreDefaults"):
+        "恢复录屏默认只替换为 Values()：30fps、无音频、显示鼠标、关闭摄像头/键鼠叠加并清空排除列表",
+    ("Features/Recording/RecordingSettingsPane.swift", "row"):
+        "RecordingSettingsContent 复用 92pt 单行标题列，右侧放实际控件和弹性留白，供帧率、音频、摄像头和键鼠叠加设置使用",
+    ("Features/Recording/RecordingSettingsPane.swift", "appName"):
+        "排除应用列表按 bundleID 查找安装的应用并读取显示名称，无法定位时直接显示 bundleID",
+    ("Features/Recording/RecordingSettingsPane.swift", "addExcludedApp"):
+        "应用选择器从 /Applications 多选 .app，把各 Bundle 的唯一标识去重追加到 draft.values.excluded，保存前不改 RecordingOptions",
+    ("Features/Recording/RecordingSettingsPane.swift", "removeExcluded"):
+        "从 draft.values.excluded 移除指定 bundleID，排除行为在统一保存后才应用",
+    ("Features/Recording/RecordingSettingsPane.swift", "chooseDirectory"):
+        "录屏目录选择器选文件夹后直接更新 savePath 和 RecordingOptions.saveDirectory；目录设置继续独立生效",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "save"):
+        "将 PinAppearance 草稿中的描边宽度/颜色、圆角、阴影、吸附、不透明度及控制条隐藏时长写到 PinStyle，随后记录 saved 并刷新未保存标记",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "discard"):
+        "取消钉图编辑仅将 appearance 恢复为 saved，实时场景读取恢复后的值",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "restoreDefaults"):
+        "把钉图 appearance 草稿改为 PinAppearance.defaults，统一保存前不改变 PinStyle",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "row"):
+        "钉图细项复用 74pt 标题列和控件行，供描边、圆角、阴影、不透明度、吸附和控制条时长使用",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "shortcut"):
+        "钉图快捷键说明以等宽键帽和操作标题显示，供拖动、缩放及复位提示复用",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "isActive"):
+        "四张钉图预设卡按草稿描边宽度、颜色、圆角及阴影判断选中，两个数值差在 0.01 内视为一致",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "apply"):
+        "预设卡动作只调用 draft.appearance.applyPreset，实时更新同一正式图像组件而不写全局 PinStyle",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "makeNSView"):
+        "PinLivePreview 为大场景及缩略预设创建 PinPreviewScene，interactive 参数决定是否挂控制条和交互",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "updateNSView"):
+        "将当前 PinAppearance 和系统减少动态/透明度传给既有 PinPreviewScene，复用图像及控制条视图",
+    ("Features/Settings/Panes/PinSettingsPane.swift", "dismantleNSView"):
+        "钉图设置场景移出 SwiftUI 树时调用 stop，取消自动隐藏和示范任务并移除图层动画及气泡",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "save"):
+        "图帘草稿先在快捷键变更时注册组合键，失败返回占用/系统原因；成功写完八项图帘偏好才发 curtainPreferencesChanged，再记录 saved",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "discard"):
+        "取消图帘编辑只将 values 恢复为 saved，正式控制器不接收偏好变化通知",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "restoreDefaults"):
+        "把图帘草稿置为关闭、经典样式、12秒、8张、140pt、帘线随卡缩放及自动上架，关闭悬停唤出并取 AppBootstrap 默认快捷键",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "makeNSView"):
+        "CurtainPreview 创建承载正式画布的 CurtainPreviewScene；CurtainRopeThumb 创建正式 CurtainRopeView 展示样式，两者不建立图帘窗口",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "updateNSView"):
+        "CurtainPreview 向场景传 Values 和辅助功能状态；CurtainRopeThumb 更新 rope style 并清除 geometry，使绳线按正式绘制路径刷新",
+    ("Features/Settings/Panes/CurtainSettingsPane.swift", "dismantleNSView"):
+        "图帘大场景卸载时调用 stop，取消自动收起、移开收起及示范任务，停止卡片摆动",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "save"):
+        "SettingsEditableDraft 要求保存返回 nil 或具体失败原因；统一底栏和 saveAll 通过此方法应用模块草稿，失败文案留在当前编辑器",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "discard"):
+        "SettingsEditableDraft 取消接口由统一底栏及 discardAll 调用，各模块负责恢复保存值而不把草稿写入正式设置",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "restoreDefaults"):
+        "SettingsEditableDraft 默认恢复接口由模块底栏和 restoreAllDefaults 调用，仅准备各模块默认草稿，最后保存才应用",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "init"):
+        "SettingsEditingSession.init 注册七类外观和七个模块工厂；SettingsDraftEditor.init 保存 id、工厂与内容闭包，编辑器通过 session.draft 借用按页缓存实例",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "register"):
+        "将 id 和草稿工厂保存为惰性闭包，restoreAllDefaults 可以创建未访问页面的同一份缓存草稿",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "draft"):
+        "按 id 返回既有草稿；首次创建时缓存 isDirty/save/discard/restoreDefaults 闭包及对象变化订阅，让切页共享同一编辑实例",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "isDirty"):
+        "将页面 editingDraftIDs 与会话 dirtyIDs 求交集，供页标题和侧边栏显示对应页面未保存状态",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "restoreAllDefaults"):
+        "先调用所有已注册工厂补齐页面草稿，再对每份草稿执行 restoreDefaults，并标记 allDefaultsPrepared",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "saveAll"):
+        "按 id 排序只保存脏草稿，遇到首个具体失败原因立即返回；全部成功后清除 allDefaultsPrepared 并返回 nil",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "discardAll"):
+        "对缓存草稿逐个调用 discard，取消全部默认准备标记，不关闭设置窗口",
+    ("Features/Settings/Shell/SettingsEditingSession.swift", "end"):
+        "设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期",
+    ("Features/Settings/Shell/SettingsRootView.swift", "init"):
+        "SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "windowWillClose"):
+        "原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidMiniaturize"):
+        "设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidDeminiaturize"):
+        "设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidChangeOcclusionState"):
+        "按窗口 occlusionState 的 visible 位更新 isVisible；完全遮挡时卸载内容，重新可见时恢复预览",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "init"):
+        "把正式 CurtainCanvasView 放入可横向滚动的 NSScrollView，挂模拟截图/展开按钮及键盘辅助说明；复制、定位、保存、钉图只反馈，移除及缩放只改变场景内容",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "update"):
+        "首次开启装入maxCards张固定内容；调参只在卡宽变化时清临时宽度、上限变化时补删卡片、时长变化且展开时续计时，保留收起态；禁用时停止任务、清空卡片并将按钮文案设为展开",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "sample"):
+        "按 index 生成固定 UUID、kitnest-preview://curtain 地址、零时间和 640×384 像素尺寸，图像引用内存 CapturePreviewImage，不读取文件",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "layout"):
+        "定位顶部模拟截图/展开按钮、底部状态行及中间横向滚动视口，场景尺寸变化时按原尺寸无动画重排正式画布",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "render"):
+        "用固定1440×900桌面及CurtainLayout.metrics求正式卡宽、帘线缩放和卡高，画布宽取视口与内容宽的较大值、坐标比例保持1:1，超出部分横向滚动；即时缩放复用updateLayout，其余reload",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "simulateCapture"):
+        "用户点模拟截图时取消自动示范任务，再调用 capture，避免自动演示与手动输入叠加",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "capture"):
+        "只在 enabled 且 attachOnCapture 时追加固定卡片，超过 maxCards 移除最旧项，展开并续收起计时；关闭自动上架时仅反馈",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "toggle"):
+        "手动展开/收起取消示范任务；展开安排自动收起，收起取消隐藏计时并停止摆动，保留场景卡片",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "scheduleHide"):
+        "替换已有 hideTask；duration>0 时等待指定秒数后收起场景，duration=0 不安排任务",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "hide"):
+        "隐藏正式画布、停止其卡片动画并把按钮改为展开，状态文字写明收起原因，卡片内容不删除",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "feedback"):
+        "把动作说明写到场景底部 NSTextField，供模拟复制、定位、保存、缩放和收起复用",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "updateTrackingAreas"):
+        "重建场景整体和顶部 30pt 两个悬停区域，用 userInfo.top 区分顶边唤出与离开场景",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "mouseEntered"):
+        "取消移开收起任务；仅 enabled/revealOnHover 且命中顶边时展开现有卡片并续自动收起计时",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "mouseExited"):
+        "离开整个场景且启用悬停唤出时安排 0.8 秒收起，离开顶边小区域不会触发",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "startDemo"):
+        "首次开启图帘后用可取消任务等待 0.8 秒模拟截图，再等 0.8 秒显示保存/钉图/移除和缩放提示",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "stop"):
+        "统一取消 hideTask、leaveTask、demoTask，并让正式画布停止卡片摆动，供关闭、禁用及卸载调用",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "viewDidMoveToWindow"):
+        "预览场景失去宿主 window 时调用 stop，使收起与示范任务不继续运行",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "init"):
+        "使用 CapturePreviewImage 创建正式 PinImageView；交互场景挂控制条/关闭按钮及键盘操作辅助说明，标注、复制、缩放、气泡和关闭只作用本地场景，缩略预设不挂控件",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "update"):
+        "把PinAppearance原值交给正式PinImageView绘制图像和阴影，降低透明度只改变控制条底色、不覆盖图像opacity；减少动态时取消示范，外观变化刷新控制条并请求排版",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "layout"):
+        "在场景内计算固定图像宽度和 0.6 高宽比，限制拖动原点并调用 PinMagnet 8pt 吸附，定位控制条/关闭按钮/气泡；首次可见交互场景启动示范",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "hitTest"):
+        "非交互预设缩略图不接鼠标；图像和状态行命中转给场景处理拖动，其余命中仍交给正式控制条",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "updateTrackingAreas"):
+        "交互场景建立跟随可见区域的进入、移动、离开追踪，非交互缩略图不建追踪区域",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseEntered"):
+        "移入场景重新显示被模拟关闭的图像，并显示控制条与关闭按钮",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseMoved"):
+        "鼠标在场景移动时复用 showChrome，保持控制条可见并刷新静止自动隐藏计时",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseExited"):
+        "离开场景取消隐藏任务，隐藏控制条及关闭按钮并移除当前气泡",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseDown"):
+        "点击先将本场景设为窗口第一响应者并取消自动示范；双击复位缩放为100%，单击保存鼠标原点及偏移以开始场景内拖动",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseDragged"):
+        "按鼠标与 dragOrigin 的差值更新 offset，触发局部排版并反馈吸附是否启用，不移动真实窗口",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "scrollWheel"):
+        "滚轮取消自动示范，把 scale 按 scrollingDeltaY/150 调整并夹在 0.55…1.15，再调用 setScale",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "magnify"):
+        "捏合取消自动示范，把 scale 加 magnification 并夹在 0.55…1.15，复用 setScale",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "setScale"):
+        "更新本地 scale、请求排版、显示百分比并唤出控制条，草稿 PinAppearance 不改变",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "feedback"):
+        "将拖动、复制、标注、缩放和自动隐藏说明写入场景状态行",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "showBubble"):
+        "移除旧气泡后按 PinBubbleModel 创建正式 PinBubbleView 并请求排版，nil 表示关闭气泡",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "showChrome"):
+        "显示正式控制条及关闭按钮并替换 hideTask；chromeAutoHide>0 时到期收起，工具条悬停时保留，0 表示永不自动隐藏",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "startDemo"):
+        "减少动态时只显示操作提示；其余情况每 0.5 秒示范拖动、80% 缩放、靠边吸附并刷新控制条隐藏计时",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "stop"):
+        "取消自动隐藏与示范任务，移除图像图层动画和当前气泡，供模拟关闭及 SwiftUI 卸载复用",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "viewDidMoveToWindow"):
+        "预览场景不再属于 window 时调用 stop，清理场景内计时及动画",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "init"):
+        "从 FSBarConfigurationSnapshot 读取部件配置并保存一份 saved，模块列表由 FSBarAllModules 提供，编辑时只改 configuration",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "bool"):
+        "部件草稿的布尔读取接受 NSNumber.boolValue，缺键才使用选项默认值，因此显式 false 保留",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "string"):
+        "部件草稿读取字符串或 NSNumber.stringValue，供保存为文字的更新间隔、形态列表和数值控件共用",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "forms"):
+        "从草稿 module_widget 的逗号序列读取启用形态，过滤到 FSBarFormsForModule 支持项并保留顺序",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "setForms"):
+        "把形态 id 按传入顺序以逗号连接写入草稿 module_widget，不调用正式引擎持久接口",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "move"):
+        "模块上/下移按钮交换 orderedModules 中相邻两项，结果只写草稿 Widgets_order",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "moveForm"):
+        "形态上/下移按钮交换对应模块已启用形态序列，复用 setForms 写入草稿",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "restoreModule"):
+        "清除指定 module_ 前缀的草稿项，再从 FSBarDefaultConfiguration 复制该模块出厂项",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "restoreDefaults"):
+        "对所有模块恢复出厂项，并重置合并、两种间距、分隔线/颜色及 Widgets_order，变化只留在草稿",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "discard"):
+        "从 FSBarConfigurationSnapshot 重新读取真实保存配置，同时替换 configuration 和 saved",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "importStats"):
+        "先把草稿恢复默认，再合并 FSBarImportedConfiguration 读取的 Stats 配置，统一保存前不写 widgets.plist",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "save"):
+        "按 NSObjectEqual 求出相对 saved 的变更值及移除键，交给 FSBarSaveConfiguration 原子写入；失败返回原因，成功更新 saved 并重载正式部件",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "NSObjectEqual"):
+        "保存时用 NSObject.isEqual 比较草稿值和原值；原键不存在则视为新值，供只写改动的配置差异使用",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "moduleCard"):
+        "按草稿顺序绘制模块卡、启用形态及各形态设置；显示、模块/形态排序、更新间隔、传感器选择和单模块默认都只更新 draft.configuration",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "optionRow"):
+        "部件细项复用 96pt 标题列及至少 26pt 控件行，供间隔、传感器和四类形态控件使用",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "boolBinding"):
+        "形态开关从 draft.bool 读取，赋值只写 configuration 的指定键，不调用 FSBarCfgSet",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "stringBinding"):
+        "形态菜单及颜色控件从 draft.string 读取，赋值只更新指定草稿字符串键",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "numberBinding"):
+        "数值滑条把草稿字符串转 Double，拖动后按零位小数写回同一草稿键，供配置序列化复用",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "optionControl"):
+        "按 OptionSpec 分发开关、菜单、颜色和滑条，统一拼 module_form_ 前缀并绑定草稿配置",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "makeNSView"):
+        "直接返回FSBarCreateConfiguredPreview创建的22pt正式部件画布，按草稿模块/形态顺序装入固定数值和图线历史，不增加空宿主容器或菜单栏状态项",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "updateNSView"):
+        "调用FSBarUpdateConfiguredPreview先将原生画布高度设为22pt，再按module/form复用部件并更新草稿配置、移除失效形态及重排；新增图线装入120个固定样本，其他形态取最后一个样本",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "sizeThatFits"):
+        "SwiftUI尺寸提案保留原生画布实际宽度并固定返回22pt高度，与FSBarUpdateConfiguredPreview设置的画布高度一致，避免被压至8pt而裁掉图线和双行网络",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "dismantleNSView"):
+        "部件预览卸载时移除容器全部子视图，释放正式绘制组件",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "optionGroups"):
+        "按模块和形态列出真实 FSBar 配置选项：文字/边框/值、颜色、图表样式、柱/扇区、传感器单位及网络读写显示，供 optionControl 使用",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "moduleSymbol"):
+        "模块标题按 CPU、GPU、RAM、磁盘、网络、电池和传感器名映射 SF Symbol，保持正式设置卡图标含义",
+    ("Features/Settings/Shell/SettingsPanes.swift", "init"):
+        "MenuBarSettingsDraft 读取当前图标样式/自定义符号、Bar_MainIconCat 与七项入口标记，保存值组合供 isDirty 比较",
+    ("Features/Settings/Shell/SettingsPanes.swift", "select"):
+        "菜单栏图标选择只改变 draft.iconStyle，正式状态项在统一保存后刷新",
+    ("Features/Settings/Shell/SettingsPanes.swift", "restoreDefaults"):
+        "菜单栏草稿恢复 logo、默认自定义符号、关闭小猫并启用七项入口，正式图标和入口不立即变化",
+    ("Features/Settings/Shell/SettingsPanes.swift", "discard"):
+        "重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved",
+    ("Features/Settings/Shell/SettingsPanes.swift", "save"):
+        "先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因",
+    ("Features/Settings/Shell/SettingsPanes.swift", "entryRow"):
+        "常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences",
+    ("Features/StatusBar/MenuBarIconStyle.swift", "configure"):
+        "正式图标应用器和预览共用按钮绘制：logo/custom 使用模板 SF Symbol，date 写日期标题，fan 挂居中的 18pt RotatingLayerView 并返回视图",
+    ("Features/StatusBar/MenuBarIconStyle.swift", "dateTitle"):
+        "使用 en_US_POSIX 的 M/d 日期格式，正式状态项传当前时间，菜单栏预览传固定日期",
+    ("Features/StatusBar/MenuBarIconStyle.swift", "makeNSView"):
+        "建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器",
+    ("Features/StatusBar/MenuBarIconStyle.swift", "updateNSView"):
+        "移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua",
+    ("Features/StatusBar/MenuBarIconStyle.swift", "dismantleNSView"):
+        "菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "refreshUnownedValues"):
+        "页面重新出现时调用 reloadSavedValues(preservingOwned:true)，读取其他页面已保存值，同时保留当前模块尚未保存的字段",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reloadSavedValues"):
+        "从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；仅刷新非本模块的面板、动作条、主题与悬浮窗设置",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "restoreDefaults"):
+        "只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reduce"):
+        "AppearancePreviewVisibilityKey 接受预览与 settingsPreviewViewport 是否相交的测量值，供离开可见区时卸载正式预览组件",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "image"):
+        "AppearancePreviewWallpaper 按当前桌面壁纸 URL 缓存图像，经 ImageIO 生成最大1024像素缩略图，供背景预览使用，不重复解码相同 URL",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "press"):
+        "原生红黄绿按钮 Coordinator.press 只调用场景 onPress，模拟收起并支持重播，不关闭真实设置窗口",
+    ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeCoordinator"):
+        "为 PreviewWindowChrome 创建保存 onPress 的协调器，三颗原生窗口按钮共用其 press 回调",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "init"):
+        "SearchDisplayDraft 用 shared.makeDraft 获取非持久引擎管理器并恢复分类值，订阅服务变化；SearchSettingsContent 观察同一草稿和服务，统一缓存标识为 searchDisplay",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "save"):
+        "统一保存先处理未完成的自定义引擎新增/编辑表单，返回具体格式或写入原因；成功 applyDraft 引擎后写三项分类开关并刷新脏状态",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "discard"):
+        "取消时清空未完成新增/编辑表单，从共享服务恢复引擎及行为值，再按偏好键是否存在读取三项分类，保留显式 false",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "restoreDefaults"):
+        "只清空草稿表单并恢复内置引擎/默认搜索栏，打开三项分类和搜索后清空输入，正式搜索在统一保存后才改变",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "validateEngineForm"):
+        "新增和行内编辑共用名称非空、仅字母数字、20字符上限及 {query} URL 格式判断，编辑查重排除自身 id，失败返回具体说明",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "saveCustomEngine"):
+        "校验并修剪新增名称和 URL，成功只调用草稿 service.addCustomEngine，清空表单并退出新增态",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "clearForm"):
+        "重置草稿新增名称为空、URL为 customEngineURLPlaceholder 并清除错误，供添加完成、取消及恢复默认共用",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "beginEditing"):
+        "把指定自定义引擎 id、名称和 URL 复制到缓存草稿表单，并清除旧编辑错误，切页保留当前输入",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "cancelEditing"):
+        "清空草稿编辑 id、名称、URL 和错误，仅退出行内表单，不改正式引擎",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "saveEngineEdit"):
+        "行内编辑校验后调用非持久服务 updateCustomEngine，保持引擎 id，完成后清空编辑表单，最后由模块保存应用",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "categoryValue"):
+        "用 UserDefaults.object 转 Bool 读取搜索分类，只有键缺失才默认 true，已保存 false 不被覆盖",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "searchBarRow"):
+        "搜索栏行显示草稿引擎名和移除按钮，整行拖放在草稿序列中交换位置，不再写一次性排序提示键",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "searchBarDropDelegate"):
+        "拖放代理通过闭包实时读取 draft.service.activeBarItems 和拖拽 id，悬停落位仅调用草稿 moveInSearchBar",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "removeFromSearchBar"):
+        "移除按钮只修改草稿激活集，最后一项沿用既有拒绝规则并把原因显示在本页 notice，不打开 Toast",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "engineRow"):
+        "全量引擎行按草稿 allEngines 显示名称/URL/搜索栏勾选；菜单的排序、增删和自定义编辑都指向同一草稿服务",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "addToSearchBar"):
+        "引擎菜单将指定 id 加入草稿搜索栏，正式 activeBarItems 在统一保存后更新",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "engineIcon"):
+        "引擎列表和拖拽预览共用 SearchEngine.systemImage 的单色 SF Symbol，不加载品牌位图",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "engineEditForm"):
+        "缓存草稿名称/URL/错误双向绑定行内表单，应用到草稿调用 saveEngineEdit，局部取消调用 cancelEditing",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "engineFormFields"):
+        "新增与编辑共用名称和搜索 URL 字段、{query} 说明及具体错误文字，输入值属于缓存草稿",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "performDeletePendingEngine"):
+        "确认删除先退出该引擎编辑态，再从草稿服务移除自定义项并清空待删对象，取消模块可恢复保存项",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "init"):
+        "正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "resultFileIcon"):
+        "设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "updatePreviewCategories"):
+        "仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "filterPreviewItems"):
+        "固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "previewSelectionFill"):
+        "按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "scheduleSearch"):
+        "设置预览非空词直接过滤固定内存项；正式路径保留250ms防抖、工具源汇总、文件索引准备/精排和支持引擎的网页抓取",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "fetchWebResults"):
+        "预览调用直接改走本地 scheduleSearch；正式路径保持当前引擎抓取、DuckDuckGo补充与 generation 匹配后发布结果",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "performWebSearch"):
+        "设置预览仅选择引擎并按草稿 clearSearchInputAfterWebAction 清输入；正式路径构造 URL、记录搜索事件并用默认浏览器打开",
+    ("Models/SearchEngine.swift", "makeDraft"):
+        "以同一 defaults 创建 persistsChanges=false 管理器再复制当前值，草稿复用正式引擎操作而不装载/写偏好",
+    ("Models/SearchEngine.swift", "copyValues"):
+        "makeDraft、草稿取消与正式 applyDraft 共用：复制 customEngines、allEngines、activeBarItems 和搜索后清空输入值",
+    ("Models/SearchEngine.swift", "applyDraft"):
+        "统一保存先 JSON 编码自定义引擎，失败返回具体原因；成功复制草稿到正式服务并写自定义项、全量顺序、搜索栏顺序及行为偏好",
+    ("Features/Monitor/Views/BatteryPanel.swift", "init"):
+        "BatteryStatsContent 接收 StatsSnapshot、可选电量和可选 LowPowerModeController；真实页注入控制器，固定预览传 nil，低电量开关只改本地状态",
+    ("Features/Monitor/Views/BatteryPanel.swift", "hero"):
+        "用传入电池百分比或 batteryLevel 绘制74pt电量环，按充电/接电状态显示标题、副标题及状态色",
+    ("Features/Monitor/Views/BatteryPanel.swift", "headline"):
+        "按传入电池的充电、充满和外接电源状态返回正在充电、已充满、接电未充或电池供电，缺值显示状态未知",
+    ("Features/Monitor/Views/BatteryPanel.swift", "subline"):
+        "结合充电状态和 batteryRemainSec 显示预计充满/可用时长、暂缓充电或未接电源说明",
+    ("Features/Monitor/Views/BatteryPanel.swift", "adapterRow"):
+        "接电状态下展示有效的适配器额定功率、充电电压及毫安转安培的电流，供传入真实或固定电池共用",
+    ("Features/Monitor/Views/BatteryPanel.swift", "spec"):
+        "适配器规格项以次级标题和等宽数值纵向展示，额定功率、电压与电流共用该组件",
+    ("Features/Monitor/Views/BatteryPanel.swift", "hint"):
+        "按是否充电及80%阈值显示涓流充电、温升、暂缓充电或电池供电建议，读取调用方电池值",
+    ("Features/Monitor/Views/BatteryPanel.swift", "healthRatio"):
+        "电池主健康度用满充容量除标称容量，标称缺失时用设计容量，有效比例上限1.2，供健康卡和剩余寿命条复用",
+    ("Features/Monitor/Views/BatteryPanel.swift", "healthColor"):
+        "健康比例低于80%显示红色、低于90%显示橙色，其余使用充电色，缺值显示次级色",
+    ("Features/Monitor/Views/BatteryPanel.swift", "healthCard"):
+        "同一健康卡展示主容量口径、循环数、健康/磨损条和设计容量副口径，使用调用方电池/Stats数据，预览无需采样器",
+    ("Features/Monitor/Views/BatteryPanel.swift", "electricalCard"):
+        "把调用方 StatsSnapshot 和电池数据交给 BatteryFlowModel，展示充电输入、系统供电与电池充放电能量流",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "init"):
+        "MonitorDetailView 保存选择/页模式/宽度；MonitorDetailContent 接收采样、历史、Stats、额外指标和卷列表及可选真实控制器，固定预览使用独立选择与静态数据",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "availableModules"):
+        "预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "chipStrip"):
+        "正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "uptimeText"):
+        "正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "loadCell"):
+        "CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "primaryTemperature"):
+        "先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "legendItem"):
+        "内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "networkFlowNodes"):
+        "按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "flowCoverageText"):
+        "网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "flowNode"):
+        "将 BatteryFlowNode 的瓦数、标题、图标、颜色和可用性转为通用 MonitorFlowNode，缺功率用破折号",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "powerExtraBranches"):
+        "从传入传感器的功率类别4筛选0.05…500W，匹配显示器和USB关键字，各分支取最大有效读数",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "connCellColor"):
+        "连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "externalVolumeCard"):
+        "传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "sensorCategorySection"):
+        "按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "temperatureDetailSection"):
+        "筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "sensorBarRow"):
+        "温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "sensorValueText"):
+        "将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案",
+    ("Features/TransferDock/Cast/CastView.swift", "init"):
+        "CastContent 接收可选二维码配对与面板选择服务；正式宿主注入服务并读取剪贴板同步偏好，固定预览不取得ADB配对单例",
+    ("Features/TransferDock/Cast/CastView.swift", "qrButton"):
+        "扫码连接入口只设置 showQrPair；正式页在hero锚点打开配对弹层，设置预览在当前场景内覆盖固定二维码",
+    ("Features/TransferDock/Cast/CastView.swift", "deviceCard"):
+        "按设备serial和连接state展示图标、状态及投屏/重新授权操作，所有开始投屏动作复用 startMirror",
+    ("Features/TransferDock/Cast/CastView.swift", "stateLabel"):
+        "将ADB device/unauthorized/offline状态转换为已连接、未授权和离线文字，供设备卡统一展示",
+    ("Features/TransferDock/Cast/CastView.swift", "startMirror"):
+        "固定预览只写投屏反馈，正式页调用 ScreenCastEngine.startMirror(serial:)，所有投屏按钮共用该入口",
+    ("Features/TransferDock/Cast/CastView.swift", "reauthorize"):
+        "预览只显示设备授权反馈；正式未授权设备沿用ADB重授权动作并在完成后刷新设备列表",
+    ("Features/TransferDock/Cast/CastView.swift", "appTile"):
+        "设备应用磁贴显示名称及可用图标，点击通过 openApp；固定应用无 iconPath，不触发真实设备启动",
+    ("Features/TransferDock/Cast/CastView.swift", "openApp"):
+        "固定预览仅显示已选示例应用名称；正式记录CastAppUsage并调用ADBExtrasEngine.startAppWindow打开对应手机应用窗口",
+    ("Features/TransferDock/Cast/CastView.swift", "serviceRow"):
+        "MCP/WebDAV服务行共用图标、地址、复制及启停控件；预览复制只反馈，真实复制地址并由调用方启停服务",
+    ("Features/TransferDock/Cast/CastView.swift", "disclosureRow"):
+        "设备辅助工具折叠标题显示图标、标题及展开箭头，点击转给提供的展开动作，减少动态时无展开动画",
+    ("Features/TransferDock/Cast/CastView.swift", "subHeader"):
+        "通知、存储、应用及互传服务段共用图标/标题/刷新按钮，刷新闭包由对应段落提供",
+    ("Features/TransferDock/Cast/CastView.swift", "hint"):
+        "设备辅助段落的无设备或空内容提示复用次级说明文字，不执行设备操作",
+    ("Features/TransferDock/Cast/CastView.swift", "iconAction"):
+        "设备刷新按钮复用指定SF Symbol、help和动作闭包，父层在预览时只发布示例已更新反馈",
+    ("Features/TransferDock/Cast/CastView.swift", "primaryButton"):
+        "设备卡主动作使用强调色的开始投屏按钮，闭包指向 startMirror，而非直接启动设备进程",
+    ("Features/TransferDock/Cast/CastView.swift", "secondaryButton"):
+        "设备授权/无线调试次级按钮共用边框和标签，父层区分预览反馈与真实ADB动作",
+    ("Features/TransferDock/Cast/CastView.swift", "refreshDevices"):
+        "设置预览仅反馈固定内容；正式路径调用 ScreenCastEngine.connectedDevices 更新devices，quiet=false时按数量显示发现结果",
+    ("Features/TransferDock/Cast/CastView.swift", "refreshNotifications"):
+        "设置预览不调用ADB；正式路径用 notifBusy 控制当前通知请求，ADBExtrasEngine.notifications 返回后替换列表并结束忙状态",
+    ("Features/TransferDock/Cast/CastView.swift", "loadStorage"):
+        "预览保留固定容量与条目，仅显示反馈；正式调用ADBExtrasEngine.storage获取手机总量及目录容量列表",
+    ("Features/TransferDock/Cast/CastView.swift", "loadApps"):
+        "预览保留固定应用，仅显示反馈；正式通过activeSerial调用DeviceAppCatalog.load并在返回后更新列表和appsBusy",
+    ("Features/TransferDock/Cast/CastView.swift", "notifTint"):
+        "按通知应用包名从蓝、绿、橙、粉、紫、青、红七色中选择识别色，通知行与应用标识共用",
+    ("Features/TransferDock/UI/TransferDockView.swift", "init"):
+        "TransferDockContent 接收可选云服务、本地暂存、LAN与压缩控制器；正式宿主注入共享服务，预览由场景内固定本地和云文件数组提供内容",
+    ("Features/TransferDock/UI/TransferDockView.swift", "segmentPill"):
+        "发送、接收和文件中转分段复用胶囊按钮，点击只改变当前内容分段，固定预览与正式页共用布局",
+    ("Features/TransferDock/UI/TransferDockView.swift", "sendChip"):
+        "发送方式按钮复用图标、标题及help，调用方分别接隔空投送、浏览器扫码和ADB发送入口",
+    ("Features/TransferDock/UI/TransferDockView.swift", "sendableURL"):
+        "正式文件发送优先使用仍存在的暂存硬链接/副本，暂存不存在时返回 originalPath，供已选发送与元信息复制复用",
+    ("Features/TransferDock/UI/TransferDockView.swift", "stagedSelection"):
+        "从 localItems 中按 selectedIDs 取勾选文件，映射 sendableURL 并过滤实际存在的文件，供正式AirDrop与ADB发送使用",
+    ("Features/TransferDock/UI/TransferDockView.swift", "addFilesToStaging"):
+        "预览把场景列表重置为固定示例并反馈；正式多选文件/目录后调用本地store.add加入暂存并显示实际结果",
+    ("Features/TransferDock/UI/TransferDockView.swift", "sendViaAirDrop"):
+        "预览只反馈已选数量；正式取得可发送暂存项后调用AirDropSendEngine.send，空选择显示既有提示",
+    ("Features/TransferDock/UI/TransferDockView.swift", "sendViaADB"):
+        "预览切换本地进度显示并设0.62固定进度；正式调用ADBFileBridge.push，更新文件数/字节/速度/剩余时长及完成状态",
+    ("Features/TransferDock/UI/TransferDockView.swift", "sendViaBrowser"):
+        "预览直接显示固定定向接收二维码；正式要求当前勾选项后复用showPickQR启动直传入口",
+    ("Features/TransferDock/UI/TransferDockView.swift", "receiveRow"):
+        "接收方式共用图标、名称、说明和右侧操作区，供隔空投送、手机拉取及扫码接收的三行使用",
+    ("Features/TransferDock/UI/TransferDockView.swift", "openUploadQR"):
+        "固定预览在当前覆盖层显示示例上传二维码；正式按既有LAN上传地址提供扫码入口并启动所需直传服务",
+    ("Features/TransferDock/UI/TransferDockView.swift", "openSettings"):
+        "预览只显示文件中转设置入口反馈；正式通过ServiceLocator.settings打开transfer页",
+    ("Features/TransferDock/UI/TransferDockView.swift", "runTransferProbe"):
+        "仅正式onAppear调用：probe.transfer指定preview/select后延时展示真实文件悬停或选前两项出码，再清空选择观察直传服务收起",
+    ("Features/TransferDock/UI/TransferDockView.swift", "smallAction"):
+        "文件添加、刷新、扫码、复制等紧凑操作复用11pt图标文字及圆角细边按钮，执行传入闭包",
+    ("Features/TransferDock/UI/TransferDockView.swift", "pullFromPhone"):
+        "预览只恢复三个固定本地示例并反馈接收数量；正式ADB拉取到暂存目录后经LocalTransferStore.add登记实际文件",
+    ("Features/TransferDock/UI/TransferDockView.swift", "refreshCloudLogin"):
+        "预览仅反馈云登录入口；正式运行现有extract_edge_cookies.py并按退出状态提示，最后刷新云服务",
+    ("Features/TransferDock/UI/TransferDockView.swift", "toggleSelect"):
+        "本地卡片点击按id切换selectedIDs，供预览和正式的全选、定向扫码及批量动作共用",
+    ("Features/TransferDock/UI/TransferDockView.swift", "showPickQR"):
+        "预览只写固定kitnest-preview.invalid接收地址；正式按勾选id启动所需LAN服务并取得带pick参数的分享URL",
+    ("Features/TransferDock/UI/TransferDockView.swift", "stopServiceIfStartedForTransfer"):
+        "预览直接返回；正式仅停止由本次传输拉起的LAN服务，保留用户手动启动的服务",
+    ("Features/TransferDock/UI/TransferDockView.swift", "pushSelectedToCloud"):
+        "预览只反馈已选数量；正式检查已选文件与云登录状态后批量上传暂存URL",
+    ("Features/TransferDock/UI/TransferDockView.swift", "removeSelected"):
+        "预览只删除场景数组中的勾选项；正式调用local.remove逐项移出暂存，完成后清空选择",
+    ("Features/TransferDock/UI/TransferDockView.swift", "pickOverlay"):
+        "定向接收覆盖层展示二维码、地址及关闭操作；预览复制/浏览器按钮只反馈，真实路径复制或打开已生成的分享链接",
+    ("Features/TransferDock/UI/TransferDockView.swift", "localCard"):
+        "LocalCardRowView复用选择、单项扫码和移除回调；预览移除只改previewItems，正式回调写本地暂存",
+    ("Features/TransferDock/UI/TransferDockView.swift", "sectionHeader"):
+        "云端、本地暂存及文件发送区域共用图标、标题、条目数和右侧操作闭包，不参与服务状态变更",
+    ("Features/TransferDock/UI/TransferDockView.swift", "dropHint"):
+        "拖放目标高亮用浅色圆角底、虚线边与提示文字，allowsHitTesting=false使文件拖放落到正式容器",
+    ("Features/TransferDock/UI/TransferDockView.swift", "urls"):
+        "正式拖放用DispatchGroup加载各NSItemProvider的public.file-url，接受Data或URL并用NSLock汇总，全部完成后在主队列返回",
+    ("Features/TransferDock/UI/TransferDockView.swift", "handleLocalDrop"):
+        "预览拒绝真实拖放；正式解析URL后调用本地store.add，按实际错误或新增数量显示反馈",
+    ("Features/TransferDock/UI/TransferDockView.swift", "handleCloudDrop"):
+        "预览拒绝真实拖放；正式解析URL后交云服务uploadBatch处理",
+    ("Features/TransferDock/UI/TransferDockView.swift", "downloadCloudFile"):
+        "预览把云文件元数据追加到场景暂存并反馈，不下载字节；正式调用service.download",
+    ("Features/TransferDock/UI/TransferDockView.swift", "deleteCloudFile"):
+        "预览只从previewCloudFiles移除指定id；正式调用service.delete删除云文件",
+    ("Features/TransferDock/UI/TransferDockView.swift", "pickAndUpload"):
+        "预览装入固定云文件列表并反馈；正式通过文件选择器多选后交service.uploadBatch上传",
+    ("Features/Settings/Shell/SettingsComponents.swift", "init"):
+        "SettingsRow、SettingsSection、SettingsGroupBox 初始化时立即执行 ViewBuilder 并保存实际 View，使父级草稿变化重建数字标签及控件；VisualOptionCard.init 保存卡片标题、尺寸、选中态、动作和预览闭包",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "becomeFirstResponder"):
+        "交互钉图场景取得原生键盘焦点时，在场景图层绘制 2pt 系统强调色描边并返回成功",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "resignFirstResponder"):
+        "钉图场景失去原生键盘焦点时将图层描边宽度归零，不改变图像外观草稿",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "keyDown"):
+        "取消自动示范后处理方向键每次移动8pt、加减每次缩放5%并限55%…115%、0复位位置及100%缩放、回车显示控制条、Escape隐藏控制条及气泡，其余键交给NSView",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "becomeFirstResponder"):
+        "图帘场景取得原生键盘焦点时绘制2pt系统强调色场景边框，返回成功以接收键盘动作",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "resignFirstResponder"):
+        "图帘场景失去原生键盘焦点时清除场景边框，不改变卡片、图帘样式或收起状态",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "mouseDown"):
+        "点击场景空白区域将本视图设为窗口第一响应者，让回车、N、加减、删除和Escape操作留在预览",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "keyDown"):
+        "回车切换展开/收起，N模拟截图，加减调用正式画布缩放回调每次8pt，删除键移除最后一张场景卡片，Escape只收起保留内容，其余键转给NSView",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "columnItems"):
+        "gridContent按实际栏宽以150pt计算可容纳列数，最多使用卡片档位列数、至少1列；columnItems按传入列数对原下标取模分列，保留固定条目顺序",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "card"):
+        "网格条目复用FloatingClipCard并连接选择、悬停、拖放及操作回调；图片在GeometryReader得到的本列宽高内scaledToFit，高度为minHeight-34，模拟文件用PDF类型图标，正式文件按真实路径取图标",
+    ("Features/Settings/Shell/SettingsRootView.swift", "panePage"):
+        "设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问",
+    ("Features/Capture/Pin/PinSettingsPreview.swift", "accessibilityPerformPress"):
+        "辅助功能按下动作将PinPreviewScene设为宿主窗口第一响应者并返回聚焦结果；无宿主窗口返回false，键盘随后在本场景内移动、缩放和操作控制条",
+    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "accessibilityPerformPress"):
+        "辅助功能按下动作将CurtainPreviewScene设为窗口第一响应者并返回聚焦结果；无窗口返回false，回车、N、加减、删除和Escape交给场景键盘处理",
 })
 
 
