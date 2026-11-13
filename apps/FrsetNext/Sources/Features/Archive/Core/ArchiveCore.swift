@@ -477,7 +477,14 @@ public enum ArchiveCore {
                 completion([], msg.trimmingCharacters(in: .whitespacesAndNewlines))
                 return
             }
-            var entries = parseListOutput(String(data: data, encoding: .utf8) ?? "")
+            // 7zz 对 BZip2、XZ、LZMA、Zstd、SWFc 单文件流不输出 Path。
+            var unnamedPath = url.deletingPathExtension().lastPathComponent
+            if ["tgz", "tbz", "tbz2", "txz"].contains(url.pathExtension.lowercased()) {
+                unnamedPath += ".tar"
+            } else if url.pathExtension.lowercased() == "swf" {
+                unnamedPath += "~.swf"
+            }
+            var entries = parseListOutput(String(data: data, encoding: .utf8) ?? "", unnamedPath: unnamedPath)
             if !includeAuxiliary {
                 entries = entries.filter { !isAuxiliary($0.path) }
             }
@@ -486,12 +493,13 @@ public enum ArchiveCore {
     }
 
     /// 解析 `7zz l -slt -ba`：空行分隔块，`Key = Value`
-    static func parseListOutput(_ text: String) -> [ArchiveEntry] {
+    static func parseListOutput(_ text: String, unnamedPath: String? = nil) -> [ArchiveEntry] {
         var entries: [ArchiveEntry] = []
         var fields: [String: String] = [:]
 
         func flush() {
-            guard let path = fields["Path"], !path.isEmpty else { fields = [:]; return }
+            let entryPath = fields["Path"] ?? (fields["Size"] != nil ? unnamedPath : nil)
+            guard let path = entryPath, !path.isEmpty else { fields = [:]; return }
             let isDir = (fields["Folder"] == "+") || path.hasSuffix("/")
             let name = isDir
                 ? String(path.split(separator: "/").last ?? "")
