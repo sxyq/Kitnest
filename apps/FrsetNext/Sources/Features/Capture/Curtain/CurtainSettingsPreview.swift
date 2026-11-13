@@ -14,7 +14,6 @@ final class CurtainPreviewScene: NSView {
     private var reduceMotion = false
     private var hideTask: Task<Void, Never>?
     private var leaveTask: Task<Void, Never>?
-    private var demoTask: Task<Void, Never>?
     private var sequence = 0
     private var previousSize = CGSize.zero
 
@@ -26,6 +25,7 @@ final class CurtainPreviewScene: NSView {
         setAccessibilityRole(.group)
         setAccessibilityLabel("图帘预览：回车展开或收起，N 模拟截图，加减缩放，删除键移除模拟卡片")
         canvas.isHidden = true
+        canvas.animatesIdleSway = false
         viewport.drawsBackground = false
         viewport.hasHorizontalScroller = true
         viewport.autohidesScrollers = true
@@ -58,7 +58,7 @@ final class CurtainPreviewScene: NSView {
             guard let self, let values = self.values else { return }
             self.localWidth = min(CurtainPref.maxCardWidth,
                 max(CurtainPref.minCardWidth, (self.localWidth ?? CGFloat(values.cardWidth)) + delta))
-            self.render(animate: false, live: true)
+            self.render(animate: false)
             self.feedback("⌘ 缩放演示 · \(Int(self.localWidth!)) pt · 不改草稿宽度")
         }
         canvas.onResizeEnd = { [weak self] in self?.render(animate: false) }
@@ -90,6 +90,8 @@ final class CurtainPreviewScene: NSView {
 
     func update(values: CurtainSettingsDraft.Values, reduceMotion: Bool, reduceTransparency: Bool) {
         let previous = self.values
+        let accessibilityChanged = canvas.reduceMotion != reduceMotion
+            || canvas.reduceTransparency != reduceTransparency
         self.values = values
         self.reduceMotion = reduceMotion
         canvas.reduceMotion = reduceMotion
@@ -97,7 +99,6 @@ final class CurtainPreviewScene: NSView {
         layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         captureButton.isEnabled = values.enabled
         toggleButton.isEnabled = values.enabled
-        if reduceMotion { demoTask?.cancel() }
         if !values.enabled {
             stop()
             entries.removeAll()
@@ -126,11 +127,16 @@ final class CurtainPreviewScene: NSView {
                 feedback(values.duration == 0 ? "永不自动收起 · 内容留在场景" : "展示 \(Int(values.duration)) 秒后收起")
             }
         }
-        render(animate: previous?.enabled != values.enabled)
-        needsLayout = true
-        if values.enabled, previous?.enabled != true, !reduceMotion {
-            startDemo()
+        // 帘线样式原地更新，保留卡片悬停、拖动与滚动位置。
+        if previous?.style != values.style {
+            canvas.subviews.compactMap { $0 as? CurtainRopeView }.first?.style = values.style
         }
+        if previous?.enabled != values.enabled || previous?.cardWidth != values.cardWidth
+            || previous?.maxCards != values.maxCards || previous?.railScales != values.railScales
+            || accessibilityChanged {
+            render(animate: previous != nil && previous?.enabled != values.enabled)
+        }
+        needsLayout = true
     }
 
     private func sample(index: Int) -> (CurtainItem, CGImage?) {
@@ -152,7 +158,7 @@ final class CurtainPreviewScene: NSView {
         }
     }
 
-    private func render(animate: Bool, live: Bool = false) {
+    private func render(animate: Bool) {
         guard let values, values.enabled else { return }
         canvas.isHidden = !shown
         toggleButton.title = shown ? "收起" : "展开"
@@ -165,27 +171,35 @@ final class CurtainPreviewScene: NSView {
                                            visible: desktop, railScales: values.railScales)
         let width = metrics.cardWidth
         let railScale = metrics.railScale
-        let total = CGFloat(entries.count) * width
+        let maxCardHeight = max(min(metrics.maxHeight,
+            viewport.contentSize.height - CurtainMetrics.clipHeight(railScale)
+            - CurtainMetrics.bottomInset(railScale)), 40)
+        let total = entries.reduce(CGFloat.zero) {
+            $0 + $1.0.cardSize(cardWidth: width, railScale: railScale,
+                             maxHeight: maxCardHeight).width
+        }
             + CGFloat(max(entries.count - 1, 0)) * CurtainMetrics.gap(railScale)
             + 2 * CurtainMetrics.padding(railScale)
-        let logicalSize = CGSize(width: max(viewport.contentSize.width, total), height: viewport.contentSize.height)
+        let scrollOrigin = viewport.contentView.bounds.origin
+        // 按正式卡片实际宽度分配画布，复用 Canvas 已有居中，超宽仍横向滚动。
+        let logicalSize = CGSize(width: max(viewport.contentSize.width, total),
+                                 height: viewport.contentSize.height)
         canvas.frame = NSRect(origin: .zero, size: logicalSize)
         canvas.setBoundsSize(logicalSize)
-        let maxHeight = min(metrics.maxHeight,
-                           logicalSize.height - CurtainMetrics.clipHeight(railScale)
-                           - CurtainMetrics.bottomInset(railScale))
-        if live {
-            canvas.updateLayout(items: entries, cardWidth: width, railScale: railScale,
-                                maxCardHeight: max(maxHeight, 40), size: logicalSize)
-        } else {
+        if animate && !reduceMotion {
             canvas.reload(items: entries, cardWidth: width, railScale: railScale,
-                          maxCardHeight: max(maxHeight, 40), style: values.style,
-                          size: logicalSize, animate: animate && !reduceMotion)
+                          maxCardHeight: maxCardHeight, style: values.style,
+                          size: logicalSize, animate: true)
+        } else {
+            canvas.updateLayout(items: entries, cardWidth: width, railScale: railScale,
+                                maxCardHeight: maxCardHeight, size: logicalSize)
         }
+        viewport.contentView.scroll(to: viewport.contentView.constrainBoundsRect(
+            NSRect(origin: scrollOrigin, size: viewport.contentView.bounds.size)).origin)
+        viewport.reflectScrolledClipView(viewport.contentView)
     }
 
     @objc private func simulateCapture() {
-        demoTask?.cancel()
         capture()
     }
     private func capture() {
@@ -204,7 +218,6 @@ final class CurtainPreviewScene: NSView {
         }
     }
     @objc private func toggle() {
-        demoTask?.cancel()
         guard values?.enabled == true else { return }
         shown.toggle()
         if shown { scheduleHide() } else { hideTask?.cancel(); canvas.stopAnimations() }
@@ -256,20 +269,9 @@ final class CurtainPreviewScene: NSView {
             self?.hide("移开 0.8 秒：已收起，内容仍在")
         }
     }
-    private func startDemo() {
-        demoTask?.cancel()
-        demoTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(nanoseconds: 800_000_000) } catch { return }
-            self?.capture()
-            do { try await Task.sleep(nanoseconds: 800_000_000) } catch { return }
-            guard let self, self.values?.enabled == true else { return }
-            self.feedback("悬停卡片显示保存 / 钉图 / 移除；⌘ 拖动缩放整条图帘")
-        }
-    }
     func stop() {
         hideTask?.cancel()
         leaveTask?.cancel()
-        demoTask?.cancel()
         canvas.stopAnimations()
     }
     override func viewDidMoveToWindow() {

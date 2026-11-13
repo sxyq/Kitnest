@@ -152,6 +152,7 @@ final class CurtainCardView: NSView {
     }
     /// 常驻微摆的相位（每张卡错开，避免整齐划一地一起动）
     var swayPhase: Double = 0
+    var animatesIdleSway = true
 
     private let closeButton = NSButton(frame: .zero)
     private let saveButton = NSButton(frame: .zero)
@@ -402,7 +403,7 @@ final class CurtainCardView: NSView {
     /// 摆动**不含** `ropeTilt`：静态倾斜已经由 `draw` 里的 ctx 旋转完成，
     /// 这里再加一次会变成双倍倾角。
     func startSway() {
-        guard !reduceMotion, let layer, !hovered, window != nil else { return }
+        guard animatesIdleSway, !reduceMotion, let layer, !hovered, window != nil else { return }
         // 已经在摆就别重挂：设置页拖滑块会频繁 rebuild，重挂会让整排卡片「跳」一下
         if layer.animation(forKey: Self.swayKey) != nil { return }
         layer.removeAnimation(forKey: Self.swayKey)
@@ -864,6 +865,7 @@ final class CurtainCanvasView: NSView {
 
     private let rope = CurtainRopeView()
     private var cardViews: [CurtainCardView] = []
+    var animatesIdleSway = true
 
     var onRemove: ((CurtainItem) -> Void)?
     var onSave: ((CurtainItem) -> Void)?
@@ -977,6 +979,7 @@ final class CurtainCanvasView: NSView {
                 card.onDrag = onDrag
                 card.onReveal = onReveal
                 card.swayPhase = Double(index) * 0.618
+                card.animatesIdleSway = animatesIdleSway
                 addSubview(card)
                 cardViews.append(card)
             } else {

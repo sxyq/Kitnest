@@ -273,7 +273,7 @@ EVIDENCE.update({
     ("Features/Capture/Curtain/CurtainWindow.swift", "mouseExited"):
         "移出：收起按钮、复位、恢复微摆",
     ("Features/Capture/Curtain/CurtainWindow.swift", "startSway"):
-        "常驻微摆用 CABasicAnimation 改 transform（不重绘、render server）；已在摆则不重挂",
+        "Card常驻摆动总入口仅在animatesIdleSway=true、未减少动态、未悬停且已有窗口时执行；正式默认true，预览false；沿用CABasicAnimation且已有摆动不重复挂载",
     ("Features/Capture/Curtain/CurtainWindow.swift", "stopSway"):
         "停止微摆（悬停/缩放/窗口收起时）",
     ("Features/Capture/Curtain/CurtainWindow.swift", "viewDidMoveToWindow"):
@@ -341,9 +341,9 @@ EVIDENCE.update({
     ("Features/Capture/Curtain/CurtainWindow.swift", "updateLayout"):
         "⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图",
     ("Features/Capture/Curtain/CurtainWindow.swift", "layoutCards"):
-        "正式画布统一定位卡片、设置绳线倾角和摆动相位；传入宿主动作及辅助功能状态，减少动态时不播放新卡片落入动画",
+        "按item.cardSize累计卡片真实宽度并居中定位，创建新卡时传播Canvas.animatesIdleSway，原卡仅更新尺寸和辅助功能；新卡显式落入受减少动态控制，其余摆动交startSway统一判断",
     ("Features/Capture/Curtain/CurtainWindow.swift", "animateDrop"):
-        "落入：位移 + 淡入 + 绕顶部衰减回弹，结束后接常驻微摆；只对新增卡片播",
+        "新增卡片播放位移、淡入及绕顶部衰减回弹；完成后调用startSway，由animatesIdleSway决定是否接常驻摆动，预览false仍保留显式落入效果",
     ("Features/Capture/Curtain/CurtainWindow.swift", "topPivot"):
         "把 CA 旋转中心从图层中心挪到顶部中心",
 
@@ -743,7 +743,7 @@ EVIDENCE.update({
     ("Features/Capture/Curtain/CurtainWindow.swift", "metrics"):
         "正式 ImageCurtainController.layoutMetrics 与 CurtainPreviewScene.render 共用：两轮按可见宽度和卡片数反算卡宽，帘线缩放夹在 0.8…3，并扣除绳高与底边求卡片高度上限",
     ("Features/Capture/Curtain/CurtainWindow.swift", "stopAnimations"):
-        "CurtainPreviewScene 收起、关闭或停止演示时调用：为全部卡片设置 reduceMotion 并移除图层动画，保留卡片内容和视图",
+        "为全部画布卡片设置reduceMotion并移除图层动画，供预览收起、禁用及卸载停止摆动，保留卡片内容和视图",
     ("Features/Capture/Pin/PinWindow.swift", "applyPreset"):
         "PinAppearance.preset 与设置页共用四种外观赋值：经典 1.5pt/10pt、无边框 0/0、白色卡片 2pt/16pt、强调描边 2pt/12pt，保留吸附、不透明度和控制条时长",
     ("Features/Capture/Pin/PinWindow.swift", "snapped"):
@@ -831,9 +831,9 @@ EVIDENCE.update({
     ("Features/Settings/Panes/PinSettingsPane.swift", "makeNSView"):
         "PinLivePreview 为大场景及缩略预设创建 PinPreviewScene，interactive 参数决定是否挂控制条和交互",
     ("Features/Settings/Panes/PinSettingsPane.swift", "updateNSView"):
-        "将当前 PinAppearance 和系统减少动态/透明度传给既有 PinPreviewScene，复用图像及控制条视图",
+        "将当前PinAppearance与系统降低透明度传给既有PinPreviewScene，复用图像和控制条，不再传无用reduceMotion参数",
     ("Features/Settings/Panes/PinSettingsPane.swift", "dismantleNSView"):
-        "钉图设置场景移出 SwiftUI 树时调用 stop，取消自动隐藏和示范任务并移除图层动画及气泡",
+        "SwiftUI移除钉图场景时调用stop，取消控制条隐藏任务并移除图层动画及气泡",
     ("Features/Settings/Panes/CurtainSettingsPane.swift", "save"):
         "图帘草稿先在快捷键变更时注册组合键，失败返回占用/系统原因；成功写完八项图帘偏好才发 curtainPreferencesChanged，再记录 saved",
     ("Features/Settings/Panes/CurtainSettingsPane.swift", "discard"):
@@ -877,23 +877,23 @@ EVIDENCE.update({
     ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidDeminiaturize"):
         "设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿",
     ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidChangeOcclusionState"):
-        "按窗口 occlusionState 的 visible 位更新 isVisible；完全遮挡时卸载内容，重新可见时恢复预览",
+        "用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "init"):
-        "把正式 CurtainCanvasView 放入可横向滚动的 NSScrollView，挂模拟截图/展开按钮及键盘辅助说明；复制、定位、保存、钉图只反馈，移除及缩放只改变场景内容",
+        "把正式CurtainCanvasView放入横向NSScrollView并设animatesIdleSway=false，挂模拟截图、展开按钮和键盘说明；复制、定位、保存、钉图仅反馈，移除和缩放只改变场景",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "update"):
-        "首次开启装入maxCards张固定内容；调参只在卡宽变化时清临时宽度、上限变化时补删卡片、时长变化且展开时续计时，保留收起态；禁用时停止任务、清空卡片并将按钮文案设为展开",
+        "首次启用装入maxCards张固定卡片并静态显示；调参保留收起态与卡片数量，卡宽变化清本地缩放，上限变化补删卡片，样式原地更新，时长变化续收起计时；禁用时停任务并清空场景",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "sample"):
         "按 index 生成固定 UUID、kitnest-preview://curtain 地址、零时间和 640×384 像素尺寸，图像引用内存 CapturePreviewImage，不读取文件",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "layout"):
         "定位顶部模拟截图/展开按钮、底部状态行及中间横向滚动视口，场景尺寸变化时按原尺寸无动画重排正式画布",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "render"):
-        "用固定1440×900桌面及CurtainLayout.metrics求正式卡宽、帘线缩放和卡高，画布宽取视口与内容宽的较大值、坐标比例保持1:1，超出部分横向滚动；即时缩放复用updateLayout，其余reload",
+        "按正式CurtainLayout.metrics与每项item.cardSize累加真实画布宽度，窄内容居中、超宽横向滚动并保留滚动原点；静态重排走updateLayout保留未变卡片状态，仅显式落入且未减少动态时reload播放新卡动画",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "simulateCapture"):
-        "用户点模拟截图时取消自动示范任务，再调用 capture，避免自动演示与手动输入叠加",
+        "模拟截图按钮和N键共用capture，只按当前自动上架开关追加场景卡片，不再调度自动截图任务",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "capture"):
         "只在 enabled 且 attachOnCapture 时追加固定卡片，超过 maxCards 移除最旧项，展开并续收起计时；关闭自动上架时仅反馈",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "toggle"):
-        "手动展开/收起取消示范任务；展开安排自动收起，收起取消隐藏计时并停止摆动，保留场景卡片",
+        "用户切换shown；展开续自动收起计时，收起取消隐藏任务并停止卡片动画，两向均静态重排并保留场景卡片",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "scheduleHide"):
         "替换已有 hideTask；duration>0 时等待指定秒数后收起场景，duration=0 不安排任务",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "hide"):
@@ -906,18 +906,16 @@ EVIDENCE.update({
         "取消移开收起任务；仅 enabled/revealOnHover 且命中顶边时展开现有卡片并续自动收起计时",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "mouseExited"):
         "离开整个场景且启用悬停唤出时安排 0.8 秒收起，离开顶边小区域不会触发",
-    ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "startDemo"):
-        "首次开启图帘后用可取消任务等待 0.8 秒模拟截图，再等 0.8 秒显示保存/钉图/移除和缩放提示",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "stop"):
-        "统一取消 hideTask、leaveTask、demoTask，并让正式画布停止卡片摆动，供关闭、禁用及卸载调用",
+        "统一取消hideTask与leaveTask并停止画布卡片动画，供关闭、禁用及卸载调用",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "viewDidMoveToWindow"):
-        "预览场景失去宿主 window 时调用 stop，使收起与示范任务不继续运行",
+        "失去宿主window时调用stop，停止收起计时和卡片动画",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "init"):
         "使用 CapturePreviewImage 创建正式 PinImageView；交互场景挂控制条/关闭按钮及键盘操作辅助说明，标注、复制、缩放、气泡和关闭只作用本地场景，缩略预设不挂控件",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "update"):
-        "把PinAppearance原值交给正式PinImageView绘制图像和阴影，降低透明度只改变控制条底色、不覆盖图像opacity；减少动态时取消示范，外观变化刷新控制条并请求排版",
+        "把PinAppearance原值交正式PinImageView绘制图像、阴影；降低透明度仅改变控制条底色，外观变化显示控制条并请求静态排版，更新接口不再接收reduceMotion",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "layout"):
-        "在场景内计算固定图像宽度和 0.6 高宽比，限制拖动原点并调用 PinMagnet 8pt 吸附，定位控制条/关闭按钮/气泡；首次可见交互场景启动示范",
+        "初始scale=1、offset=0时按场景中心定位图像，原点限制在对称8pt可见边界；仅offset非零且吸附开启时调用PinMagnet，图像和控制条直接同步设置frame，不启动自动位移或缩放",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "hitTest"):
         "非交互预设缩略图不接鼠标；图像和状态行命中转给场景处理拖动，其余命中仍交给正式控制条",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "updateTrackingAreas"):
@@ -929,13 +927,13 @@ EVIDENCE.update({
     ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseExited"):
         "离开场景取消隐藏任务，隐藏控制条及关闭按钮并移除当前气泡",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseDown"):
-        "点击先将本场景设为窗口第一响应者并取消自动示范；双击复位缩放为100%，单击保存鼠标原点及偏移以开始场景内拖动",
+        "点击将场景设为窗口第一响应者；双击复位为100%缩放，单击记录鼠标原点及当前offset供手动拖动，并显示控制条",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "mouseDragged"):
         "按鼠标与 dragOrigin 的差值更新 offset，触发局部排版并反馈吸附是否启用，不移动真实窗口",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "scrollWheel"):
-        "滚轮取消自动示范，把 scale 按 scrollingDeltaY/150 调整并夹在 0.55…1.15，再调用 setScale",
+        "滚轮按scrollingDeltaY/150调整本地scale并限制55%…115%，交setScale显示缩放反馈，不改变外观草稿",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "magnify"):
-        "捏合取消自动示范，把 scale 加 magnification 并夹在 0.55…1.15，复用 setScale",
+        "捏合把magnification加到本地scale并限制55%…115%，复用setScale更新场景缩放",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "setScale"):
         "更新本地 scale、请求排版、显示百分比并唤出控制条，草稿 PinAppearance 不改变",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "feedback"):
@@ -944,10 +942,8 @@ EVIDENCE.update({
         "移除旧气泡后按 PinBubbleModel 创建正式 PinBubbleView 并请求排版，nil 表示关闭气泡",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "showChrome"):
         "显示正式控制条及关闭按钮并替换 hideTask；chromeAutoHide>0 时到期收起，工具条悬停时保留，0 表示永不自动隐藏",
-    ("Features/Capture/Pin/PinSettingsPreview.swift", "startDemo"):
-        "减少动态时只显示操作提示；其余情况每 0.5 秒示范拖动、80% 缩放、靠边吸附并刷新控制条隐藏计时",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "stop"):
-        "取消自动隐藏与示范任务，移除图像图层动画和当前气泡，供模拟关闭及 SwiftUI 卸载复用",
+        "取消控制条自动隐藏任务，移除图像图层动画及气泡，供场景关闭和SwiftUI卸载调用",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "viewDidMoveToWindow"):
         "预览场景不再属于 window 时调用 stop，清理场景内计时及动画",
     ("Features/Settings/Panes/MonitorWidgetsPane.swift", "init"):
@@ -1029,11 +1025,11 @@ EVIDENCE.update({
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "restoreDefaults"):
         "只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reduce"):
-        "AppearancePreviewVisibilityKey 接受预览与 settingsPreviewViewport 是否相交的测量值，供离开可见区时卸载正式预览组件",
+        "保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏恢复revealed，开合任务标识不含isVisible，滚动重新进入不会触发重播",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "image"):
         "AppearancePreviewWallpaper 按当前桌面壁纸 URL 缓存图像，经 ImageIO 生成最大1024像素缩略图，供背景预览使用，不重复解码相同 URL",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "press"):
-        "原生红黄绿按钮 Coordinator.press 只调用场景 onPress，模拟收起并支持重播，不关闭真实设置窗口",
+        "原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动，无整块宽度或toolbarStyle隐式动画；openReplay=0初始静止，手动重播或开合设置变化触发播放",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeCoordinator"):
         "为 PreviewWindowChrome 创建保存 onPress 的协调器，三颗原生窗口按钮共用其 press 回调",
     ("Features/Settings/Panes/SearchSettingsPane.swift", "init"):
@@ -1263,7 +1259,7 @@ EVIDENCE.update({
     ("Features/Capture/Pin/PinSettingsPreview.swift", "resignFirstResponder"):
         "钉图场景失去原生键盘焦点时将图层描边宽度归零，不改变图像外观草稿",
     ("Features/Capture/Pin/PinSettingsPreview.swift", "keyDown"):
-        "取消自动示范后处理方向键每次移动8pt、加减每次缩放5%并限55%…115%、0复位位置及100%缩放、回车显示控制条、Escape隐藏控制条及气泡，其余键交给NSView",
+        "方向键每次移动8pt，加减每次缩放5%并限55%…115%，0复位中心偏移和100%缩放；回车显示控制条，Escape隐藏控制条及气泡，其余键交NSView",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "becomeFirstResponder"):
         "图帘场景取得原生键盘焦点时绘制2pt系统强调色场景边框，返回成功以接收键盘动作",
     ("Features/Capture/Curtain/CurtainSettingsPreview.swift", "resignFirstResponder"):

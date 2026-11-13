@@ -306,12 +306,11 @@ struct PinThumb: View {
 struct PinLivePreview: NSViewRepresentable {
     var appearance: PinAppearance
     var interactive = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func makeNSView(context: Context) -> PinPreviewScene { PinPreviewScene(interactive: interactive) }
     func updateNSView(_ view: PinPreviewScene, context: Context) {
-        view.update(appearance: appearance, reduceMotion: reduceMotion, reduceTransparency: reduceTransparency)
+        view.update(appearance: appearance, reduceTransparency: reduceTransparency)
     }
     static func dismantleNSView(_ view: PinPreviewScene, coordinator: ()) { view.stop() }
 }

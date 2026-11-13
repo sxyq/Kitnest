@@ -957,28 +957,31 @@ struct AppearancePreviewBlock: View {
                 }
                 .pickerStyle(.segmented).labelsHidden().frame(width: 300)
             }
-            ScrollView(.horizontal, showsIndicators: true) {
-                let size = previewSize
-                previewContent
-                    .frame(width: size.width, height: size.height)
-                    .environment(\.isSettingsPreview, true)
-                    .environment(\.settingsPreviewClipboardItems, previewItems)
-                    .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
-                    .environment(\.settingsPreviewClipboardSelection, $draft.previewSelectedItemID)
-                    .environment(\.settingsPreviewPersonalization, p)
-                    .environment(\.settingsPreviewIsMidnight, draft.appearance == .midnight)
-                    .environment(\.colorScheme, previewColorScheme)
-                    .tint(theme.accent)
-                    .opacity(revealed ? 1 : 0)
-                    .offset(y: revealed || reduceMotion ? 0 : -8)
-                    .padding(8)
-                    .background {
-                        if needsWallpaper {
-                            wallpaperBackground
-                                .frame(width: size.width + 16, height: size.height + 16)
-                                .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
+            GeometryReader { viewport in
+                ScrollView(.horizontal, showsIndicators: true) {
+                    let size = previewSize
+                    previewContent
+                        .frame(width: size.width, height: size.height)
+                        .environment(\.isSettingsPreview, true)
+                        .environment(\.settingsPreviewClipboardItems, previewItems)
+                        .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
+                        .environment(\.settingsPreviewClipboardSelection, $draft.previewSelectedItemID)
+                        .environment(\.settingsPreviewPersonalization, p)
+                        .environment(\.settingsPreviewIsMidnight, draft.appearance == .midnight)
+                        .environment(\.colorScheme, previewColorScheme)
+                        .tint(theme.accent)
+                        .opacity(revealed ? 1 : 0)
+                        .offset(y: revealed || reduceMotion ? 0 : -8)
+                        .padding(8)
+                        .background {
+                            if needsWallpaper {
+                                wallpaperBackground
+                                    .frame(width: size.width + 16, height: size.height + 16)
+                                    .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
+                            }
                         }
-                    }
+                        .frame(minWidth: viewport.size.width, alignment: .center)
+                }
             }
             .frame(height: previewSize.height + 16)
             .background(GeometryReader { geo in
@@ -992,7 +995,10 @@ struct AppearancePreviewBlock: View {
                 Text(toolbarFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
-        .onPreferenceChange(AppearancePreviewVisibilityKey.self) { isVisible = $0 }
+        .onPreferenceChange(AppearancePreviewVisibilityKey.self) {
+            isVisible = $0
+            if !$0 { revealed = true }
+        }
         .onAppear {
             if usesDesktopWallpaper { wallpaper = AppearancePreviewWallpaper.image() }
             if scope == .captureToolbar {
@@ -1022,16 +1028,15 @@ struct AppearancePreviewBlock: View {
         .onChange(of: p.toastFollowPanel) { _ in
             if scope == .notification { toastReplay &+= 1 }
         }
-        .animation(reduceMotion ? nil : Theme.Motion.fast, value: draft.panelWidth)
-        .animation(reduceMotion ? nil : Theme.Motion.fast, value: draft.toolbarStyle)
-        .task(id: "\(openReplay)-\(isVisible)-\(reduceMotion)") { @MainActor in
-            if scope == .notification || !isVisible { return }
+        .task(id: "\(openReplay)-\(reduceMotion)") { @MainActor in
+            if openReplay == 0 || scope == .notification || !isVisible { return }
             let duration = p.openAnimation.duration
             withAnimation(reduceMotion ? nil : .easeIn(duration: duration)) { revealed = false }
             if !reduceMotion {
                 do { try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000)) }
                 catch { return }
             }
+            if !isVisible { return }
             withAnimation(reduceMotion ? nil : .easeOut(duration: duration)) { revealed = true }
         }
         .task(id: "\(toastReplay)-\(isVisible)-\(reduceMotion)") { @MainActor in

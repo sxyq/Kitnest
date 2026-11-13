@@ -36,16 +36,12 @@ final class PinPreviewScene: NSView {
     private var bubble: PinBubbleView?
     private let interactive: Bool
     private var pinAppearance = PinAppearance.defaults
-    private var reduceMotion = false
     private var offset = NSPoint.zero
     private var scale: CGFloat = 1
     private var dragOrigin: NSPoint?
     private var dragOffset = NSPoint.zero
     private var hideTask: Task<Void, Never>?
-    private var demoTask: Task<Void, Never>?
     private var toolbarHovered = false
-    private var demoStarted = false
-    private var animatedLayout = false
 
     init(interactive: Bool) {
         self.interactive = interactive
@@ -63,6 +59,7 @@ final class PinPreviewScene: NSView {
         status.alignment = .center
         addSubview(status)
         if interactive {
+            feedback("拖动或方向键移动 · 滚轮或加减缩放 · 0 复位")
             addSubview(toolbar)
             addSubview(closeButton)
             toolbar.onAnnotate = { [weak self] in self?.feedback("标注演示：不打开编辑器") }
@@ -101,7 +98,6 @@ final class PinPreviewScene: NSView {
     }
     override func resignFirstResponder() -> Bool { layer?.borderWidth = 0; return true }
     override func keyDown(with event: NSEvent) {
-        demoTask?.cancel()
         switch event.keyCode {
         case 123: offset.x -= 8
         case 124: offset.x += 8
@@ -119,10 +115,9 @@ final class PinPreviewScene: NSView {
         feedback(pinAppearance.magnet ? "方向键移动 · 边缘自动吸附" : "方向键移动 · 吸附已关闭")
     }
 
-    func update(appearance: PinAppearance, reduceMotion: Bool, reduceTransparency: Bool) {
+    func update(appearance: PinAppearance, reduceTransparency: Bool) {
         let changed = self.pinAppearance != appearance
         self.pinAppearance = appearance
-        self.reduceMotion = reduceMotion
         toolbar.reduceTransparency = reduceTransparency
         toolbar.needsDisplay = true
         imageView.pinAppearance = appearance
@@ -134,7 +129,6 @@ final class PinPreviewScene: NSView {
         layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         // 只改变演示的合成透明度，不改草稿数值。
         imageView.alphaValue = 1
-        if reduceMotion { demoTask?.cancel() }
         if changed, interactive { showChrome() }
         needsLayout = true
     }
@@ -145,21 +139,15 @@ final class PinPreviewScene: NSView {
         let width = min(360, min(available.width, available.height / 0.6)) * scale
         let size = NSSize(width: width, height: width * 0.6)
         var origin = NSPoint(x: bounds.midX - size.width / 2 + offset.x,
-                             y: bounds.midY - size.height / 2 + offset.y + (interactive ? 8 : 0))
-        let visible = NSRect(x: 8, y: 27, width: bounds.width - 16, height: bounds.height - 35)
+                             y: bounds.midY - size.height / 2 + offset.y)
+        let visible = bounds.insetBy(dx: 8, dy: 8)
         origin.x = min(max(visible.minX, origin.x), visible.maxX - size.width)
         origin.y = min(max(visible.minY, origin.y), visible.maxY - size.height)
-        if pinAppearance.magnet { origin = PinMagnet.snapped(origin: origin, size: size, visible: visible, others: []) }
-        let imageFrame = NSRect(origin: origin, size: size)
-        if animatedLayout && !reduceMotion {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.25
-                imageView.animator().frame = imageFrame
-            }
-        } else {
-            imageView.frame = imageFrame
+        if pinAppearance.magnet, offset != .zero {
+            origin = PinMagnet.snapped(origin: origin, size: size, visible: visible, others: [])
         }
-        animatedLayout = false
+        let imageFrame = NSRect(origin: origin, size: size)
+        imageView.frame = imageFrame
         imageView.layer?.shadowPath = CGPath(roundedRect: imageView.bounds,
             cornerWidth: CGFloat(pinAppearance.cornerRadius), cornerHeight: CGFloat(pinAppearance.cornerRadius), transform: nil)
         toolbar.frame = NSRect(x: imageView.frame.midX - PinToolbarView.barWidth / 2,
@@ -169,10 +157,6 @@ final class PinPreviewScene: NSView {
         status.frame = NSRect(x: 8, y: 4, width: bounds.width - 16, height: 16)
         if let bubble {
             bubble.frame.origin = NSPoint(x: bounds.midX - bubble.frame.width / 2, y: toolbar.frame.maxY + 4)
-        }
-        if interactive, window != nil, !demoStarted {
-            demoStarted = true
-            startDemo()
         }
     }
 
@@ -204,7 +188,6 @@ final class PinPreviewScene: NSView {
     }
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        demoTask?.cancel()
         if event.clickCount == 2 { setScale(1); return }
         dragOrigin = convert(event.locationInWindow, from: nil)
         dragOffset = offset
@@ -218,11 +201,9 @@ final class PinPreviewScene: NSView {
         feedback(pinAppearance.magnet ? "拖动：距边缘 8 pt 自动吸附" : "拖动：自动吸附已关闭")
     }
     override func scrollWheel(with event: NSEvent) {
-        demoTask?.cancel()
         setScale(min(1.15, max(0.55, scale - event.scrollingDeltaY / 150)))
     }
     override func magnify(with event: NSEvent) {
-        demoTask?.cancel()
         setScale(min(1.15, max(0.55, scale + event.magnification)))
     }
     private func setScale(_ value: CGFloat) {
@@ -253,31 +234,8 @@ final class PinPreviewScene: NSView {
             self.feedback("静止 \(seconds) 秒：控制条已收起")
         }
     }
-    private func startDemo() {
-        showChrome()
-        feedback(reduceMotion ? "减少动态：拖动、缩放仍可操作" : "拖动 → 缩放 → 吸附 → 控制条自动收起")
-        guard !reduceMotion else { return }
-        demoTask = Task { @MainActor [weak self] in
-            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
-            self?.animatedLayout = true
-            self?.offset = NSPoint(x: 36, y: -6)
-            self?.needsLayout = true
-            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
-            self?.animatedLayout = true
-            self?.setScale(0.8)
-            do { try await Task.sleep(nanoseconds: 500_000_000) } catch { return }
-            if let self {
-                self.animatedLayout = true
-                self.offset = NSPoint(x: -(self.bounds.width - self.imageView.frame.width) / 2 + 12, y: 0)
-                self.feedback(self.pinAppearance.magnet ? "吸附已启用：靠近场景边缘自动对齐" : "吸附已关闭：靠近边缘仍保留距离")
-            }
-            self?.needsLayout = true
-            self?.showChrome()
-        }
-    }
     func stop() {
         hideTask?.cancel()
-        demoTask?.cancel()
         imageView.layer?.removeAllAnimations()
         showBubble(nil)
     }
