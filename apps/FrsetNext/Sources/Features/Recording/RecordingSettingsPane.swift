@@ -6,18 +6,17 @@ import UniformTypeIdentifiers
 // MARK: - 设置 · 录屏（v264 · C 档五件套的开关面）
 
 struct RecordingSettingsPane: View {
+    var body: some View {
+        SettingsDraftEditor(id: "recordingAppearance", makeDraft: { RecordingAppearanceDraft() }) { draft in
+            RecordingSettingsContent(draft: draft)
+        }
+    }
+}
+
+private struct RecordingSettingsContent: View {
+    @ObservedObject var draft: RecordingAppearanceDraft
     @ObservedObject private var recorder = ScreenRecorder.shared
-    @Stored private var fps = RecordingOptions.defaultFPS
-    @Stored private var audio: RecordingAudioSource = RecordingOptions.defaultAudio
-    @Stored private var showsCursor = RecordingOptions.defaultShowsCursor
-    @Stored private var cameraOn = RecordingOptions.cameraEnabled
-    @Stored private var cameraDevice = RecordingOptions.cameraDeviceID
-    @Stored private var cameraCorner: RecordingCorner = RecordingOptions.cameraCorner
-    @Stored private var cameraScale = RecordingOptions.cameraScale
-    @Stored private var showKeys = RecordingOptions.showKeys
-    @Stored private var showClicks = RecordingOptions.showClicks
-    @Stored private var excluded: [String] = RecordingOptions.excludedBundleIDs
-    @Stored private var savePath = ""
+    @Stored private var savePath = RecordingOptions.savePathRaw
 
     private var cameras: [(id: String, name: String)] {
         let session = AVCaptureDevice.DiscoverySession(
@@ -92,13 +91,12 @@ struct RecordingSettingsPane: View {
         SettingsSection("画面与声音") {
             SettingsGroupBox {
                 row("帧率") {
-                    Picker("", selection: $fps) {
+                    Picker("", selection: $draft.values.fps) {
                         Text("30 fps").tag(30)
                         Text("60 fps").tag(60)
                         Text("15 fps").tag(15)
                     }
                     .labelsHidden().frame(width: 110)
-                    .onChange(of: fps) { RecordingOptions.defaultFPS = $0 }
                     Text("60fps 更顺，但文件约大一倍")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -106,13 +104,12 @@ struct RecordingSettingsPane: View {
                 SettingsDivider()
 
                 row("声音") {
-                    Picker("", selection: $audio) {
+                    Picker("", selection: $draft.values.audio) {
                         ForEach(RecordingAudioSource.allCases) { item in
                             Text(item.title).tag(item)
                         }
                     }
                     .labelsHidden().frame(width: 130)
-                    .onChange(of: audio) { RecordingOptions.defaultAudio = $0 }
                     Text("系统声音与麦克风只能二选一（双音轨在多数播放器里只播第一条）")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -120,9 +117,8 @@ struct RecordingSettingsPane: View {
                 SettingsDivider()
 
                 row("鼠标指针") {
-                    Toggle("", isOn: $showsCursor)
+                    Toggle("", isOn: $draft.values.showsCursor)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: showsCursor) { RecordingOptions.defaultShowsCursor = $0 }
                     Text("关掉后画面更干净，但看不到操作位置")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -136,34 +132,30 @@ struct RecordingSettingsPane: View {
         SettingsSection("叠加") {
             SettingsGroupBox {
                 row("摄像头画中画") {
-                    Toggle("", isOn: $cameraOn)
+                    Toggle("", isOn: $draft.values.cameraOn)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: cameraOn) { RecordingOptions.cameraEnabled = $0 }
-                    Picker("", selection: $cameraDevice) {
+                    Picker("", selection: $draft.values.cameraDevice) {
                         Text("默认摄像头").tag("")
                         ForEach(cameras, id: \.id) { device in
                             Text(device.name).tag(device.id)
                         }
                     }
                     .labelsHidden().frame(width: 160)
-                    .disabled(!cameraOn)
-                    .onChange(of: cameraDevice) { RecordingOptions.cameraDeviceID = $0 }
+                    .disabled(!draft.values.cameraOn)
                 }
 
-                if cameraOn {
+                if draft.values.cameraOn {
                     SettingsDivider()
                     row("位置与大小") {
-                        Picker("", selection: $cameraCorner) {
+                        Picker("", selection: $draft.values.cameraCorner) {
                             ForEach(RecordingCorner.allCases) { corner in
                                 Text(corner.title).tag(corner)
                             }
                         }
                         .labelsHidden().frame(width: 90)
-                        .onChange(of: cameraCorner) { RecordingOptions.cameraCorner = $0 }
-                        Slider(value: $cameraScale, in: 0.10...0.35)
+                        Slider(value: $draft.values.cameraScale, in: 0.10...0.35)
                             .frame(width: 150)
-                            .onChange(of: cameraScale) { RecordingOptions.cameraScale = $0 }
-                        Text("\(Int(cameraScale * 100))% 画面宽")
+                        Text("\(Int(draft.values.cameraScale * 100))% 画面宽")
                             .font(.system(size: 11.5).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
@@ -172,9 +164,8 @@ struct RecordingSettingsPane: View {
                 SettingsDivider()
 
                 row("显示按键") {
-                    Toggle("", isOn: $showKeys)
+                    Toggle("", isOn: $draft.values.showKeys)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: showKeys) { RecordingOptions.showKeys = $0 }
                     Text("画面底部显示最近按下的键（需要辅助功能/输入监控权限）")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -182,12 +173,14 @@ struct RecordingSettingsPane: View {
                 SettingsDivider()
 
                 row("点击动画") {
-                    Toggle("", isOn: $showClicks)
+                    Toggle("", isOn: $draft.values.showClicks)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: showClicks) { RecordingOptions.showClicks = $0 }
                     Text("点击处扩散圆环（左键橙 / 右键蓝）")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
+
+                RecordingAppearancePreview(values: draft.values)
+                    .padding(.vertical, 10)
             }
         }
     }
@@ -203,7 +196,7 @@ struct RecordingSettingsPane: View {
                     .padding(.top, 8)
                     .padding(.bottom, 6)
 
-                ForEach(excluded, id: \.self) { bundleID in
+                ForEach(draft.values.excluded, id: \.self) { bundleID in
                     HStack(spacing: 8) {
                         Image(systemName: "app.dashed")
                             .foregroundStyle(.secondary)
@@ -250,7 +243,7 @@ struct RecordingSettingsPane: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11.5, design: .monospaced))
                         .frame(maxWidth: 340)
-                        .onChange(of: savePath) { RecordingOptions.saveDirectory = URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+                        .onChange(of: savePath) { Preferences.shared.set(RecordingOptions.keySavePath, $0) }
                     Button("选择…") { chooseDirectory() }
                         .controlSize(.small)
                     Button("在访达中打开") {
@@ -302,20 +295,16 @@ struct RecordingSettingsPane: View {
         panel.allowedContentTypes = [.application]
         panel.prompt = "排除"
         guard panel.runModal() == .OK else { return }
-        var list = excluded
+        var list = draft.values.excluded
         for url in panel.urls {
             guard let bundle = Bundle(url: url), let id = bundle.bundleIdentifier else { continue }
             if !list.contains(id) { list.append(id) }
         }
-        excluded = list
-        RecordingOptions.excludedBundleIDs = list
+        draft.values.excluded = list
     }
 
     private func removeExcluded(_ id: String) {
-        var list = excluded
-        list.removeAll { $0 == id }
-        excluded = list
-        RecordingOptions.excludedBundleIDs = list
+        draft.values.excluded.removeAll { $0 == id }
     }
 
     private func chooseDirectory() {

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 
 // MARK: - 搜索设置页（specs/18 §4 行集合，页签 id "search"）
@@ -7,7 +8,7 @@ import UniformTypeIdentifiers
 // 1. 搜索栏区：调整搜索栏（编辑模式入口）+ 搜索栏项目列表（**拖拽排序** / 移除，至少保留 1 项）
 // 2. 搜索引擎区：全量引擎逐行排序 + 添加到/从搜索栏移除 + 自定义引擎（三连校验 / 行内编辑 / 删除）
 // 3. 行为区：「搜索或打开链接后清空输入框」开关（clearSearchInputAfterWebAction）
-// 4. 底部：重置搜索设置（确认弹窗 → Reset Successfully Toast）
+// 4. 底部：统一草稿保存、取消与恢复默认（切页不应用）
 //
 // 交互对齐（缺口 SE-3 / SE-2 / SE-7）：
 // - SE-3：原作是**拖拽排序**（specs/18 §4 锚点 SearchBarOrderingTipCoordinateSpace + 'Search Bar Reorder Tip'），
@@ -16,8 +17,173 @@ import UniformTypeIdentifiers
 // - SE-7：引擎区可排序（SearchServiceManager.moveEngine 已有数据方法，此前零 UI 调用点）。
 
 struct SearchSettingsPane: View {
+    var body: some View {
+        SettingsDraftEditor(id: "searchDisplay", makeDraft: { SearchDisplayDraft() }) { draft in
+            SearchSettingsContent(draft: draft)
+        }
+    }
+}
+
+final class SearchDisplayDraft: SettingsEditableDraft {
+    let service = SearchServiceManager.shared.makeDraft()
+    @Published var showWeb = true
+    @Published var showClipboard = true
+    @Published var showFiles = true
+    @Published var isAddingCustomEngine = false
+    @Published var newEngineName = ""
+    @Published var newEngineURL = SearchServiceManager.customEngineURLPlaceholder
+    @Published var formErrorMessage: String?
+    @Published var editingEngineID: String?
+    @Published var editEngineName = ""
+    @Published var editEngineURL = ""
+    @Published var editErrorMessage: String?
+    private var observation: AnyCancellable?
+
+    init() {
+        discard()
+        observation = service.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+
+    var isDirty: Bool {
+        if isAddingCustomEngine && (!newEngineName.isEmpty || newEngineURL != SearchServiceManager.customEngineURLPlaceholder) { return true }
+        if let engine = service.customEngines.first(where: { $0.id == editingEngineID }),
+           editEngineName != engine.name || editEngineURL != engine.urlTemplate { return true }
+        let saved = SearchServiceManager.shared
+        return service.allEngines != saved.allEngines || service.activeBarItems != saved.activeBarItems
+            || service.clearSearchInputAfterWebAction != saved.clearSearchInputAfterWebAction
+            || showWeb != categoryValue(Preferences.Keys.searchCategoryWeb)
+            || showClipboard != categoryValue(Preferences.Keys.searchCategoryClipboard)
+            || showFiles != categoryValue(Preferences.Keys.searchCategoryFiles)
+    }
+
+    func save() -> String? {
+        if isAddingCustomEngine {
+            saveCustomEngine()
+            if let reason = formErrorMessage { return reason }
+        }
+        if let engine = service.customEngines.first(where: { $0.id == editingEngineID }) {
+            saveEngineEdit(engine)
+            if let reason = editErrorMessage { return reason }
+        }
+        if let reason = SearchServiceManager.shared.applyDraft(service) { return reason }
+        let defaults = UserDefaults.standard
+        defaults.set(showWeb, forKey: Preferences.Keys.searchCategoryWeb)
+        defaults.set(showClipboard, forKey: Preferences.Keys.searchCategoryClipboard)
+        defaults.set(showFiles, forKey: Preferences.Keys.searchCategoryFiles)
+        objectWillChange.send()
+        return nil
+    }
+
+    func discard() {
+        isAddingCustomEngine = false
+        clearForm()
+        cancelEditing()
+        service.copyValues(from: .shared)
+        showWeb = categoryValue(Preferences.Keys.searchCategoryWeb)
+        showClipboard = categoryValue(Preferences.Keys.searchCategoryClipboard)
+        showFiles = categoryValue(Preferences.Keys.searchCategoryFiles)
+    }
+
+    func restoreDefaults() {
+        isAddingCustomEngine = false
+        clearForm()
+        cancelEditing()
+        service.resetToDefaults()
+        service.clearSearchInputAfterWebAction = true
+        showWeb = true
+        showClipboard = true
+        showFiles = true
+    }
+
+    /// 三连校验：仅字母数字 / 名称长度上限 / URL 含 {query} 且可解析
+    /// - Parameter excludingID: URL 查重时排除的引擎 id（编辑态排除自身）
+    /// - Returns: 错误文案；nil = 通过
+    private func validateEngineForm(name: String, url: String, excludingID: String?) -> String? {
+        guard !name.isEmpty else { return "请输入搜索引擎名称" }
+        // ① 名称仅字母数字（原作 "Only letters and numbers allowed" @0x100508200）
+        guard name.allSatisfy({ $0.isLetter || $0.isNumber }) else {
+            return L10n.t("Only letters and numbers allowed")
+        }
+        // ② 名称长度上限（原作 "Name Too Long Limit" @0x100500ff0）
+        guard name.count <= SearchServiceManager.customEngineNameLimit else {
+            return L10n.t("Name Too Long Limit")
+        }
+        // ③ URL 含 {query} 占位符且格式合法（原作 "Invalid URL Format" @0x1005041e8）
+        guard url.contains("{query}"),
+              url.contains("://"),
+              URL(string: url.replacingOccurrences(of: "{query}", with: "test")) != nil else {
+            return L10n.t("Invalid URL Format")
+        }
+        guard !service.allEngines.contains(where: { $0.urlTemplate == url && $0.id != excludingID }) else {
+            return "已存在相同 URL 的搜索引擎"
+        }
+        return nil
+    }
+
+    func saveCustomEngine() {
+        let name = newEngineName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = newEngineURL.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let message = validateEngineForm(name: name, url: url, excludingID: nil) {
+            formErrorMessage = message
+            return
+        }
+        service.addCustomEngine(name: name, urlTemplate: url)
+        clearForm()
+        isAddingCustomEngine = false
+    }
+
+    func clearForm() {
+        newEngineName = ""
+        newEngineURL = SearchServiceManager.customEngineURLPlaceholder
+        formErrorMessage = nil
+    }
+
+    // MARK: 引擎行内编辑（原作 __editingEngine）
+
+    func beginEditing(_ engine: SearchEngine) {
+        editingEngineID = engine.id
+        editEngineName = engine.name
+        editEngineURL = engine.urlTemplate
+        editErrorMessage = nil
+    }
+
+    func cancelEditing() {
+        editingEngineID = nil
+        editEngineName = ""
+        editEngineURL = ""
+        editErrorMessage = nil
+    }
+
+    func saveEngineEdit(_ engine: SearchEngine) {
+        let name = editEngineName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = editEngineURL.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let message = validateEngineForm(name: name, url: url, excludingID: engine.id) {
+            editErrorMessage = message
+            return
+        }
+        service.updateCustomEngine(id: engine.id, name: name, urlTemplate: url)
+        cancelEditing()
+    }
+
+    private func categoryValue(_ key: String) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? true
+    }
+}
+
+private struct SearchSettingsContent: View {
+    @ObservedObject var draft: SearchDisplayDraft
     /// 引擎数据中心（原作 SearchServiceManager 等价，实现在 Models/SearchEngine.swift）
-    @ObservedObject private var service = SearchServiceManager.shared
+    @ObservedObject private var service: SearchServiceManager
+    @Stored private var showsPreview = true
+    @Stored private var notice: String?
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    init(draft: SearchDisplayDraft) {
+        self.draft = draft
+        self.service = draft.service
+    }
 
     // 编辑模式（搜索栏拖拽/增删）
     @Stored private var isEditingSearchBar = true
@@ -25,33 +191,8 @@ struct SearchSettingsPane: View {
     @Stored private var draggingSearchBarID: String? = nil
     /// 拖拽悬停的目标引擎 id（落点高亮）
     @Stored private var searchBarDropTargetID: String? = nil
-    // 自定义引擎表单（新增态）
-    @Stored private var isAddingCustomEngine = false
-    @Stored private var newEngineName = ""
-    @Stored private var newEngineURL = ""
-    @Stored private var formErrorMessage: String? = nil
-    // 自定义引擎行内编辑（原作 __editingEngine）
-    @Stored private var editingEngineID: String? = nil
-    @Stored private var editEngineName = ""
-    @Stored private var editEngineURL = ""
-    @Stored private var editErrorMessage: String? = nil
     // 删除自定义引擎（确认弹窗承接）
     @Stored private var enginePendingDelete: SearchEngine? = nil
-    // 重置确认
-    @Stored private var confirmReset = false
-    // v47 首页搜索分类开关（与首页分类行的眼睛按钮共用同一批键）
-    @AppStorage(Preferences.Keys.searchCategoryWeb) private var showWeb = true
-    @AppStorage(Preferences.Keys.searchCategoryClipboard) private var showClipboard = true
-    @AppStorage(Preferences.Keys.searchCategoryFiles) private var showFiles = true
-
-    /// 一次性拖拽提示键（原作 defaults 键 hasSeenSearchBarOrderingTip）
-    static let orderingTipKey = "hasSeenSearchBarOrderingTip"
-
-    /// 首次拖拽提示一次性标记
-    private var hasSeenOrderingTip: Bool {
-        UserDefaults.standard.bool(forKey: Self.orderingTipKey)
-    }
-
     /// v47：首页搜索分类开关（首页分类行的眼睛按钮与此处共用同一批键）。
     /// 网页分类含 WKWebView 内嵌预览；本地文件走系统 Spotlight（mdfind，Everything 的 macOS 对应物）。
     private var searchCategorySection: some View {
@@ -59,11 +200,11 @@ struct SearchSettingsPane: View {
             Text("首页搜索分类")
                 .font(.system(size: 13, weight: .semibold))
             HStack(spacing: 22) {
-                Toggle("网页搜索（引擎 + 内嵌预览）", isOn: $showWeb)
+                Toggle("网页搜索（引擎 + 内嵌预览）", isOn: $draft.showWeb)
                     .toggleStyle(.checkbox)
-                Toggle("剪贴板历史", isOn: $showClipboard)
+                Toggle("剪贴板历史", isOn: $draft.showClipboard)
                     .toggleStyle(.checkbox)
-                Toggle("本地文件（Spotlight）", isOn: $showFiles)
+                Toggle("本地文件（Spotlight）", isOn: $draft.showFiles)
                     .toggleStyle(.checkbox)
             }
             Text("关闭的分类不在首页搜索结果中出现；首页分类行右侧的眼睛按钮同样可快速隐藏/显示。")
@@ -80,6 +221,27 @@ struct SearchSettingsPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             searchCategorySection
+            Toggle(L10n.t("Clear input after searching or opening links"), isOn: $service.clearSearchInputAfterWebAction)
+                .toggleStyle(.checkbox)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("实时预览").font(.system(size: 13, weight: .semibold))
+                    Spacer()
+                    Toggle("显示预览", isOn: $showsPreview).toggleStyle(.checkbox)
+                }
+                if showsPreview {
+                    SearchSectionView(draft: draft)
+                        .environment(\.isSettingsPreview, true)
+                        .environment(\.settingsPreviewClipboardItems, SettingsPreviewSamples.clipboardItems)
+                        .environment(\.settingsPreviewClipboardQuery, "设计")
+                    Text("固定示例 · 可输入、筛选及点击，保存才应用到正式搜索。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .glassCard(radius: Theme.cornerRadius,
+                       fill: reduceTransparency ? Color(nsColor: .controlBackgroundColor) : nil)
+            if let notice { Text(notice).font(.system(size: 11)).foregroundStyle(.secondary) }
             HStack(alignment: .top, spacing: 20) {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
@@ -92,19 +254,16 @@ struct SearchSettingsPane: View {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(service.allEngines.enumerated()), id: \.element.id) { index, engine in
                         engineRow(engine, index: index)
-                        if editingEngineID == engine.id { engineEditForm(engine) }
+                        if draft.editingEngineID == engine.id { engineEditForm(engine) }
                         Divider()
                     }
-                    if isAddingCustomEngine { customEngineForm }
+                    if draft.isAddingCustomEngine { customEngineForm }
                 }
                 HStack(spacing: 36) {
                     Button {
-                        isAddingCustomEngine.toggle()
-                        if isAddingCustomEngine { clearForm() }
+                        draft.isAddingCustomEngine.toggle()
+                        if draft.isAddingCustomEngine { draft.clearForm() }
                     } label: { Label(L10n.t("Custom Search"), systemImage: "plus") }
-                    Button { confirmReset = true } label: {
-                        Label(L10n.t("Reset Search"), systemImage: "arrow.clockwise")
-                    }
                 }
                 .buttonStyle(.link)
                 .frame(height: 40)
@@ -137,13 +296,7 @@ struct SearchSettingsPane: View {
             Button(L10n.t("Delete"), role: .destructive) { performDeletePendingEngine() }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {
-            Text("将删除自定义搜索引擎「\(enginePendingDelete?.name ?? "")」，此操作不可恢复。")
-        }
-        .confirmationDialog(L10n.t("Reset Search Settings"), isPresented: $confirmReset, titleVisibility: .visible) {
-            Button(L10n.t("Reset"), role: .destructive) { performReset() }
-            Button(L10n.t("Cancel"), role: .cancel) {}
-        } message: {
-            Text(L10n.t("This will reset all search engine settings to default"))
+            Text("从草稿删除「\(enginePendingDelete?.name ?? "")」；保存后生效，取消可恢复。")
         }
     }
 
@@ -186,10 +339,9 @@ struct SearchSettingsPane: View {
                 .fill(isDropTarget ? Theme.accent.opacity(0.14) : Color.clear)
         )
         .contentShape(Rectangle())
-        // 拖拽源：整行可拖；拖起时记录拖拽中引擎并消费一次性排序提示
+        // 拖拽源：整行可拖，排序只作用于草稿
         .onDrag {
             draggingSearchBarID = engine.id
-            markOrderingTipShownIfNeeded()
             return NSItemProvider(object: engine.id as NSString)
         } preview: {
             HStack(spacing: 6) {
@@ -208,31 +360,19 @@ struct SearchSettingsPane: View {
     private func searchBarDropDelegate(targetID: String) -> SearchBarReorderDelegate {
         SearchBarReorderDelegate(
             targetID: targetID,
-            currentOrder: { SearchServiceManager.shared.activeBarItems },
+            currentOrder: { service.activeBarItems },
             currentDraggingID: { draggingSearchBarID },
             setDraggingID: { draggingSearchBarID = $0 },
             setDropTargetID: { searchBarDropTargetID = $0 },
             move: { fromOffsets, toOffset in
-                SearchServiceManager.shared.moveInSearchBar(fromOffsets: fromOffsets, toOffset: toOffset)
+                service.moveInSearchBar(fromOffsets: fromOffsets, toOffset: toOffset)
             }
         )
     }
 
-    /// 首次进入拖拽时显示一次性提示（对齐原作 'Search Bar Reorder Tip' → hasSeenSearchBarOrderingTip）
-    private func markOrderingTipShownIfNeeded() {
-        guard !hasSeenOrderingTip else { return }
-        UserDefaults.standard.set(true, forKey: Self.orderingTipKey)
-        Toast.show(L10n.t("Search Bar Reorder Tip"), icon: "hand.draw")
-    }
-
     /// 从搜索栏移除；最后 1 项时阻止并提示（原作 "Search Bar Minimum Alert"）
     private func removeFromSearchBar(_ engine: SearchEngine) {
-        if SearchServiceManager.shared.removeFromSearchBar(engineID: engine.id) {
-            // 「已从搜索栏移除」无独立键面，复用 'Remove from Search Bar' 译文（从搜索栏移除）
-            Toast.show(L10n.t("Remove from Search Bar"), icon: "checkmark.circle.fill")
-        } else {
-            Toast.show(L10n.t("Search Bar Minimum Alert"), icon: "exclamationmark.triangle.fill", isWarning: true)
-        }
+        notice = service.removeFromSearchBar(engineID: engine.id) ? nil : L10n.t("Search Bar Minimum Alert")
     }
 
     // MARK: - 2. 搜索引擎区
@@ -264,10 +404,9 @@ struct SearchSettingsPane: View {
                 Button("下移") { service.moveEngine(engineID: engine.id, up: false) }
                     .disabled(index == service.allEngines.count - 1)
                 if !engine.isBuiltIn {
-                    Button(L10n.t("Edit")) { beginEditing(engine) }
+                    Button(L10n.t("Edit")) { draft.beginEditing(engine) }
                     Button(L10n.t("Delete"), role: .destructive) { enginePendingDelete = engine }
                 }
-                Toggle(L10n.t("Clear input after searching or opening links"), isOn: clearInputBinding)
             } label: {
                 Image(systemName: "ellipsis")
             }
@@ -279,8 +418,7 @@ struct SearchSettingsPane: View {
     }
 
     private func addToSearchBar(_ engine: SearchEngine) {
-        SearchServiceManager.shared.addToSearchBar(engineID: engine.id)
-        Toast.show(L10n.t("Added to Search Bar"), icon: "checkmark.circle.fill")
+        service.addToSearchBar(engineID: engine.id)
     }
 
     /// 引擎图标：统一 SF Symbol。
@@ -296,15 +434,15 @@ struct SearchSettingsPane: View {
 
     private var customEngineForm: some View {
         VStack(alignment: .leading, spacing: 8) {
-            engineFormFields(name: $newEngineName,
-                             url: $newEngineURL,
-                             errorMessage: $formErrorMessage,
+            engineFormFields(name: $draft.newEngineName,
+                             url: $draft.newEngineURL,
+                             errorMessage: $draft.formErrorMessage,
                              placeholder: SearchServiceManager.customEngineURLPlaceholder)
             HStack {
                 Spacer()
-                Button(L10n.t("Save")) { saveCustomEngine() }
+                Button("添加到草稿") { draft.saveCustomEngine() }
                     .controlSize(.small)
-                    .disabled(newEngineName.isEmpty || newEngineURL.isEmpty)
+                    .disabled(draft.newEngineName.isEmpty || draft.newEngineURL.isEmpty)
             }
         }
         .padding(.vertical, 6)
@@ -313,17 +451,17 @@ struct SearchSettingsPane: View {
     /// 引擎编辑表单（行内展开；复用与新增完全相同的三连校验）
     private func engineEditForm(_ engine: SearchEngine) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            engineFormFields(name: $editEngineName,
-                             url: $editEngineURL,
-                             errorMessage: $editErrorMessage,
+            engineFormFields(name: $draft.editEngineName,
+                             url: $draft.editEngineURL,
+                             errorMessage: $draft.editErrorMessage,
                              placeholder: SearchServiceManager.customEngineURLPlaceholder)
             HStack(spacing: 8) {
                 Spacer()
-                Button(L10n.t("Cancel")) { cancelEditing() }
+                Button(L10n.t("Cancel")) { draft.cancelEditing() }
                     .controlSize(.small)
-                Button(L10n.t("Save")) { saveEngineEdit(engine) }
+                Button("应用到草稿") { draft.saveEngineEdit(engine) }
                     .controlSize(.small)
-                    .disabled(editEngineName.isEmpty || editEngineURL.isEmpty)
+                    .disabled(draft.editEngineName.isEmpty || draft.editEngineURL.isEmpty)
             }
         }
         .padding(.vertical, 6)
@@ -358,110 +496,13 @@ struct SearchSettingsPane: View {
         }
     }
 
-    /// 三连校验：仅字母数字 / 名称长度上限 / URL 含 {query} 且可解析
-    /// - Parameter excludingID: URL 查重时排除的引擎 id（编辑态排除自身）
-    /// - Returns: 错误文案；nil = 通过
-    private func validateEngineForm(name: String, url: String, excludingID: String?) -> String? {
-        // ① 名称仅字母数字（原作 "Only letters and numbers allowed" @0x100508200）
-        guard name.allSatisfy({ $0.isLetter || $0.isNumber }) else {
-            return L10n.t("Only letters and numbers allowed")
-        }
-        // ② 名称长度上限（原作 "Name Too Long Limit" @0x100500ff0）
-        guard name.count <= SearchServiceManager.customEngineNameLimit else {
-            return L10n.t("Name Too Long Limit")
-        }
-        // ③ URL 含 {query} 占位符且格式合法（原作 "Invalid URL Format" @0x1005041e8）
-        guard url.contains("{query}"),
-              url.contains("://"),
-              URL(string: url.replacingOccurrences(of: "{query}", with: "test")) != nil else {
-            return L10n.t("Invalid URL Format")
-        }
-        guard !service.allEngines.contains(where: { $0.urlTemplate == url && $0.id != excludingID }) else {
-            return "已存在相同 URL 的搜索引擎"
-        }
-        return nil
-    }
-
-    private func saveCustomEngine() {
-        let name = newEngineName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let url = newEngineURL.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if let message = validateEngineForm(name: name, url: url, excludingID: nil) {
-            formErrorMessage = message
-            return
-        }
-        SearchServiceManager.shared.addCustomEngine(name: name, urlTemplate: url)
-        clearForm()
-        isAddingCustomEngine = false
-        // 「已添加搜索引擎」无独立键面，保留直写
-        Toast.show("已添加搜索引擎", icon: "checkmark.circle.fill")
-    }
-
-    private func clearForm() {
-        newEngineName = ""
-        newEngineURL = SearchServiceManager.customEngineURLPlaceholder
-        formErrorMessage = nil
-    }
-
-    // MARK: 引擎行内编辑（原作 __editingEngine）
-
-    private func beginEditing(_ engine: SearchEngine) {
-        editingEngineID = engine.id
-        editEngineName = engine.name
-        editEngineURL = engine.urlTemplate
-        editErrorMessage = nil
-    }
-
-    private func cancelEditing() {
-        editingEngineID = nil
-        editEngineName = ""
-        editEngineURL = ""
-        editErrorMessage = nil
-    }
-
-    private func saveEngineEdit(_ engine: SearchEngine) {
-        let name = editEngineName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let url = editEngineURL.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if let message = validateEngineForm(name: name, url: url, excludingID: engine.id) {
-            editErrorMessage = message
-            return
-        }
-        SearchServiceManager.shared.updateCustomEngine(id: engine.id, name: name, urlTemplate: url)
-        cancelEditing()
-        Toast.show(L10n.t("Saved Successfully"), icon: "checkmark.circle.fill")
-    }
-
-    // MARK: - 3. 行为区
-
-    private var clearInputBinding: Binding<Bool> {
-        Binding(
-            get: { SearchServiceManager.shared.clearSearchInputAfterWebAction },
-            set: { SearchServiceManager.shared.clearSearchInputAfterWebAction = $0 }
-        )
-    }
-
-    // MARK: - 4. 重置区（原作 "Reset Search Settings" 行 @0x1004ea838）
-
-    private func performReset() {
-        SearchServiceManager.shared.resetToDefaults()
-        isEditingSearchBar = true
-        draggingSearchBarID = nil
-        searchBarDropTargetID = nil
-        cancelEditing()
-        clearForm()
-        isAddingCustomEngine = false
-        Toast.show(L10n.t("Reset Successfully"), icon: "checkmark.circle.fill")
-    }
-
     // MARK: 删除自定义引擎
 
     private func performDeletePendingEngine() {
         guard let engine = enginePendingDelete else { return }
-        if editingEngineID == engine.id { cancelEditing() }
-        SearchServiceManager.shared.deleteCustomEngine(engineID: engine.id)
+        if draft.editingEngineID == engine.id { draft.cancelEditing() }
+        service.deleteCustomEngine(engineID: engine.id)
         enginePendingDelete = nil
-        Toast.show(L10n.t("Deleted Successfully"), icon: "checkmark.circle.fill")
     }
 }
 

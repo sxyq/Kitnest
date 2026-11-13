@@ -98,6 +98,7 @@ public final class Personalization: ObservableObject {
     @Published public var density: PersonalizationDensity = .standard { didSet { persist() } }
     @Published public var cornerRadius: CGFloat = 10 { didSet { persist() } } // 6/10/14
     @Published public var openAnimation: PersonalizationOpenAnimation = .standard { didSet { persist() } }
+    @Published public var hoverPreviewEnabled: Bool = true { didSet { persist() } }
 
     // MARK: P1
 
@@ -156,11 +157,26 @@ public final class Personalization: ObservableObject {
         return draft
     }
 
-    public func applyDraft(_ draft: Personalization) {
+    /// 设置页明确列出本模块字段，避免旧草稿覆盖其他页刚保存的值。
+    struct DraftField {
+        let key: String
+        let copy: (Personalization, Personalization) -> Void
+        let matches: (Personalization, Personalization) -> Bool
+
+        init<T: Equatable>(_ path: ReferenceWritableKeyPath<Personalization, T>, key: String) {
+            self.key = key
+            copy = { target, source in target[keyPath: path] = source[keyPath: path] }
+            matches = { left, right in left[keyPath: path] == right[keyPath: path] }
+        }
+    }
+
+    static func makeDefaultDraft() -> Personalization { Personalization(persistsChanges: false) }
+
+    func applyDraft(_ draft: Personalization, fields: [DraftField]) {
         isLoading = true
-        copyValues(from: draft)
+        for field in fields { field.copy(self, draft) }
         isLoading = false
-        flushPendingPersist()
+        flushPersist(keys: Set(fields.map(\.key)))
     }
 
     private func copyValues(from source: Personalization) {
@@ -169,6 +185,7 @@ public final class Personalization: ObservableObject {
         density = source.density
         cornerRadius = source.cornerRadius
         openAnimation = source.openAnimation
+        hoverPreviewEnabled = source.hoverPreviewEnabled
         material = source.material
         showSourceBadge = source.showSourceBadge
         thumbOverride = source.thumbOverride
@@ -213,30 +230,38 @@ public final class Personalization: ObservableObject {
         flushPersist()
     }
 
-    private func flushPersist() {
+    private func flushPersist(keys: Set<String>? = nil) {
         Log.info("personalization", "persist: fontScale=\(fontScale) density=\(density.rawValue) corner=\(cornerRadius)")
         let d = UserDefaults.standard
-        d.set(accentColorHex, forKey: Preferences.Keys.uiAccentColor)
-        d.set(Double(fontScale), forKey: Preferences.Keys.uiFontScale)
-        d.set(density.rawValue, forKey: Preferences.Keys.uiListDensity)
-        d.set(Double(cornerRadius), forKey: Preferences.Keys.uiCornerRadius)
-        d.set(openAnimation.rawValue, forKey: Preferences.Keys.uiOpenAnimation)
-        d.set(material.rawValue, forKey: Preferences.Keys.uiPanelMaterial)
-        d.set(showSourceBadge, forKey: Preferences.Keys.uiSourceBadge)
-        if let thumbOverride { d.set(Double(thumbOverride), forKey: Preferences.Keys.uiThumbSize) }
-        else { d.removeObject(forKey: Preferences.Keys.uiThumbSize) }
-        d.set(toastDuration, forKey: Preferences.Keys.uiToastDuration)
-        d.set(toastFollowPanel, forKey: Preferences.Keys.uiToastPosition)
-        d.set(barDividerColorHex, forKey: Preferences.Keys.uiBarDividerColor)
-        d.set(barDividerAlpha, forKey: Preferences.Keys.uiBarDividerAlpha)
-        d.set(midnightHueShift, forKey: Preferences.Keys.uiMidnightHue)
-        d.set(backgroundImagePath, forKey: Preferences.Keys.uiBackgroundImage)
-        d.set(backgroundImageDim, forKey: Preferences.Keys.uiBackgroundDim)
-        d.set(glassOpacity, forKey: Preferences.Keys.uiGlassOpacity)
-        d.set(glassBlur, forKey: Preferences.Keys.uiGlassBlur)
-        d.set(glassCardLift, forKey: Preferences.Keys.uiGlassCardLift)
-        d.set(glassStroke, forKey: Preferences.Keys.uiGlassStroke)
-        d.set(Self.currentGlassLookVersion, forKey: Self.glassLookVersionKey)
+        let values: [String: Any?] = [
+            Preferences.Keys.uiAccentColor: accentColorHex,
+            Preferences.Keys.uiFontScale: Double(fontScale),
+            Preferences.Keys.uiListDensity: density.rawValue,
+            Preferences.Keys.uiCornerRadius: Double(cornerRadius),
+            Preferences.Keys.uiOpenAnimation: openAnimation.rawValue,
+            "ui.hoverPreviewEnabled": hoverPreviewEnabled,
+            Preferences.Keys.uiPanelMaterial: material.rawValue,
+            Preferences.Keys.uiSourceBadge: showSourceBadge,
+            Preferences.Keys.uiThumbSize: thumbOverride.map(Double.init),
+            Preferences.Keys.uiToastDuration: toastDuration,
+            Preferences.Keys.uiToastPosition: toastFollowPanel,
+            Preferences.Keys.uiBarDividerColor: barDividerColorHex,
+            Preferences.Keys.uiBarDividerAlpha: barDividerAlpha,
+            Preferences.Keys.uiMidnightHue: midnightHueShift,
+            Preferences.Keys.uiBackgroundImage: backgroundImagePath,
+            Preferences.Keys.uiBackgroundDim: backgroundImageDim,
+            Preferences.Keys.uiGlassOpacity: glassOpacity,
+            Preferences.Keys.uiGlassBlur: glassBlur,
+            Preferences.Keys.uiGlassCardLift: glassCardLift,
+            Preferences.Keys.uiGlassStroke: glassStroke,
+        ]
+        for (key, value) in values where keys == nil || keys!.contains(key) {
+            if let value { d.set(value, forKey: key) }
+            else { d.removeObject(forKey: key) }
+        }
+        if keys == nil || keys!.contains(Preferences.Keys.uiGlassOpacity) {
+            d.set(Self.currentGlassLookVersion, forKey: Self.glassLookVersionKey)
+        }
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
@@ -248,29 +273,30 @@ public final class Personalization: ObservableObject {
         let hex = d.string(forKey: Preferences.Keys.uiAccentColor) ?? ""
         accentColor = Self.color(fromHex: hex)
         accentColorHex = hex
-        let scale = d.double(forKey: Preferences.Keys.uiFontScale)
-        fontScale = scale > 0 ? CGFloat(scale) : 1.0
+        fontScale = d.object(forKey: Preferences.Keys.uiFontScale) == nil
+            ? 1.0 : CGFloat(d.double(forKey: Preferences.Keys.uiFontScale))
         density = PersonalizationDensity(rawValue: d.string(forKey: Preferences.Keys.uiListDensity) ?? "") ?? .standard
-        let corner = d.double(forKey: Preferences.Keys.uiCornerRadius)
-        cornerRadius = corner > 0 ? CGFloat(corner) : 10
+        cornerRadius = d.object(forKey: Preferences.Keys.uiCornerRadius) == nil
+            ? 10 : CGFloat(d.double(forKey: Preferences.Keys.uiCornerRadius))
         openAnimation = PersonalizationOpenAnimation(rawValue: d.string(forKey: Preferences.Keys.uiOpenAnimation) ?? "") ?? .standard
+        hoverPreviewEnabled = d.object(forKey: "ui.hoverPreviewEnabled") == nil
+            ? true : d.bool(forKey: "ui.hoverPreviewEnabled")
         material = PersonalizationMaterial(rawValue: d.string(forKey: Preferences.Keys.uiPanelMaterial) ?? "") ?? .solid
         showSourceBadge = d.object(forKey: Preferences.Keys.uiSourceBadge) == nil
             ? true : d.bool(forKey: Preferences.Keys.uiSourceBadge)
-        let thumb = d.double(forKey: Preferences.Keys.uiThumbSize)
-        thumbOverride = thumb > 0 ? CGFloat(thumb) : nil
-        let toast = d.double(forKey: Preferences.Keys.uiToastDuration)
-        toastDuration = toast > 0 ? toast : 3
+        thumbOverride = d.object(forKey: Preferences.Keys.uiThumbSize) == nil
+            ? nil : CGFloat(d.double(forKey: Preferences.Keys.uiThumbSize))
+        toastDuration = d.object(forKey: Preferences.Keys.uiToastDuration) == nil
+            ? 3 : d.double(forKey: Preferences.Keys.uiToastDuration)
         toastFollowPanel = d.object(forKey: Preferences.Keys.uiToastPosition) == nil
             ? false : d.bool(forKey: Preferences.Keys.uiToastPosition)
         barDividerColorHex = d.string(forKey: Preferences.Keys.uiBarDividerColor) ?? ""
-        let alpha = d.double(forKey: Preferences.Keys.uiBarDividerAlpha)
-        barDividerAlpha = alpha > 0 ? alpha : 0.35
-        let hue = d.double(forKey: Preferences.Keys.uiMidnightHue)
-        midnightHueShift = hue != 0 ? hue : 0
+        barDividerAlpha = d.object(forKey: Preferences.Keys.uiBarDividerAlpha) == nil
+            ? 0.35 : d.double(forKey: Preferences.Keys.uiBarDividerAlpha)
+        midnightHueShift = d.double(forKey: Preferences.Keys.uiMidnightHue)
         backgroundImagePath = d.string(forKey: Preferences.Keys.uiBackgroundImage) ?? ""
-        let dim = d.double(forKey: Preferences.Keys.uiBackgroundDim)
-        backgroundImageDim = dim > 0 ? dim : 0.35
+        backgroundImageDim = d.object(forKey: Preferences.Keys.uiBackgroundDim) == nil
+            ? 0.35 : d.double(forKey: Preferences.Keys.uiBackgroundDim)
         // 玻璃四参数：没有落盘值时用出厂口径（不覆盖默认值）
         if d.object(forKey: Preferences.Keys.uiGlassOpacity) != nil {
             glassOpacity = min(1, max(0.55, d.double(forKey: Preferences.Keys.uiGlassOpacity)))
@@ -351,6 +377,7 @@ public final class Personalization: ObservableObject {
         density = .standard
         cornerRadius = 10
         openAnimation = .standard
+        hoverPreviewEnabled = true
         material = .solid
         showSourceBadge = true
         thumbOverride = nil

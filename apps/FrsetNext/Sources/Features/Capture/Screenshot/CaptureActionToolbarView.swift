@@ -9,6 +9,17 @@ private struct CaptureButtonAnchorKey: PreferenceKey {
     }
 }
 
+private struct CaptureToolbarButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 // MARK: - 框选动作面板内容（v219 三样式）
 //
 // 上一版的问题（用户实拍指出）：
@@ -37,7 +48,9 @@ struct CaptureActionToolbarView: View {
     @Stored private var expanded: String? = nil
     /// 子项列表内悬停的项（与 hovered 分开：hovered 只表示「哪个组被悬停」）
     @Stored private var hoveredItem: String? = nil
+    @Stored private var hoverTask: Task<Void, Never>?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private let barHeight: CGFloat = 56
 
@@ -49,11 +62,7 @@ struct CaptureActionToolbarView: View {
                 previewSection
                     .frame(maxHeight: .infinity)
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        hovered = nil
-                        hoveredItem = nil
-                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
-                    }
+                    .onTapGesture { collapse() }
                 Divider().opacity(0.4)
                 bar.frame(height: barHeight)
             }
@@ -75,7 +84,18 @@ struct CaptureActionToolbarView: View {
                 }
             }
         }
-        .background(GlassSurface(cornerRadius: windowRadius))
+        .background {
+            Group {
+                if reduceTransparency {
+                    RoundedRectangle(cornerRadius: windowRadius, style: .continuous)
+                        .fill(Color(nsColor: .windowBackgroundColor))
+                } else {
+                    GlassSurface(cornerRadius: windowRadius)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { collapse() }
+        }
         .overlay(
             RoundedRectangle(cornerRadius: windowRadius, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
@@ -87,9 +107,21 @@ struct CaptureActionToolbarView: View {
         }
         // 面板是单例，上一次的悬停/展开会残留到下一次框选——每次 present 清一次
         .onChange(of: model.presentToken) { _ in
+            hoverTask?.cancel()
             hovered = nil
             hoveredItem = nil
             expanded = model.debugExpand
+        }
+        .onChange(of: model.style) { _ in
+            hoverTask?.cancel()
+            hovered = nil
+            hoveredItem = nil
+        }
+        .onDisappear {
+            hoverTask?.cancel()
+            hovered = nil
+            hoveredItem = nil
+            expanded = nil
         }
     }
 
@@ -98,21 +130,35 @@ struct CaptureActionToolbarView: View {
     private var previewSection: some View {
         Group {
             if let image = model.preview {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 340, maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-                    )
-                    .padding(10)
-                    // 预览图可直接拖到其他 App / AI 工具
-                    .onDrag { NSItemProvider(object: image) }
-                    .help("拖到其他 App 可直接使用这张图")
+                if model.isSettingsPreview {
+                    thumbnail(image)
+                } else {
+                    thumbnail(image)
+                        .onDrag { NSItemProvider(object: image) }
+                        .help("拖到其他 App 可直接使用这张图")
+                }
             }
         }
+        .overlay(alignment: .bottom) {
+            if model.isSettingsPreview && !model.previewFeedback.isEmpty {
+                Text(model.previewFeedback)
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+                    .padding(.bottom, 8)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func thumbnail(_ image: NSImage) -> some View {
+        Image(nsImage: image)
+            .resizable().aspectRatio(contentMode: .fit)
+            .frame(maxWidth: 340, maxHeight: 200)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
+            .padding(10)
     }
 
     // MARK: 工具条（按样式分支）
@@ -152,7 +198,7 @@ struct CaptureActionToolbarView: View {
         HStack(spacing: 10) {
             if let tool = primaryTool {
                 Button {
-                    model.onPick?(tool.id)
+                    pick(tool.id)
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: tool.systemImage)
@@ -169,9 +215,10 @@ struct CaptureActionToolbarView: View {
                     )
                     .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 }
-                .buttonStyle(.plain)
-                .focusable(false)
-                .accessibilityHint("回车执行：\(tool.title)")
+                .buttonStyle(CaptureToolbarButtonStyle())
+                .focusable(model.isSettingsPreview)
+                .accessibilityHint(primaryGroup.map(helpText) ?? tool.title)
+                .help(primaryGroup.map(helpText) ?? tool.title)
                 .anchorPreference(key: CaptureButtonAnchorKey.self, value: .bounds) { anchor in
                     primaryGroup.map { [$0.id: anchor] } ?? [:]
                 }
@@ -223,13 +270,14 @@ struct CaptureActionToolbarView: View {
                         .offset(x: -3, y: -3)
                 }
             }
-            .scaleEffect(active ? 1.05 : 1)
+            .scaleEffect(active && !reduceMotion ? 1.05 : 1)
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .focusable(false)
+        .buttonStyle(CaptureToolbarButtonStyle())
+        .focusable(model.isSettingsPreview)
         .accessibilityLabel(primaryTool(group)?.title ?? group.title)
         .accessibilityHint(helpText(group))
+        .help(helpText(group))
         .anchorPreference(key: CaptureButtonAnchorKey.self, value: .bounds) { [group.id: $0] }
         .onHover { handleHover($0, group: group) }
     }
@@ -241,7 +289,7 @@ struct CaptureActionToolbarView: View {
             activate(group)
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: group.systemImage)
+                Image(systemName: primaryTool(group)?.systemImage ?? group.systemImage)
                     .font(.system(size: 10.5, weight: .medium))
                 Text(primaryTool(group)?.title ?? group.title)
                     .font(.system(size: 11))
@@ -262,9 +310,11 @@ struct CaptureActionToolbarView: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .focusable(false)
+        .buttonStyle(CaptureToolbarButtonStyle())
+        .focusable(model.isSettingsPreview)
+        .accessibilityLabel(primaryTool(group)?.title ?? group.title)
         .accessibilityHint(helpText(group))
+        .help(helpText(group))
         .anchorPreference(key: CaptureButtonAnchorKey.self, value: .bounds) { [group.id: $0] }
         .onHover { handleHover($0, group: group) }
     }
@@ -303,7 +353,7 @@ struct CaptureActionToolbarView: View {
                             .padding(.vertical, 3)
                     }
                     Button {
-                        model.onPick?(id)
+                        pick(id)
                     } label: {
                         HStack(spacing: 7) {
                             Image(systemName: tool.systemImage)
@@ -323,8 +373,9 @@ struct CaptureActionToolbarView: View {
                         )
                         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
                     }
-                    .buttonStyle(.plain)
-                    .focusable(false)
+                    .buttonStyle(CaptureToolbarButtonStyle())
+                    .focusable(model.isSettingsPreview)
+                    .help(tool.title)
                     .onHover { inside in
                         hoveredItem = inside ? id : (hoveredItem == id ? nil : hoveredItem)
                     }
@@ -350,22 +401,38 @@ struct CaptureActionToolbarView: View {
     /// 点击一个组：有主执行动作就执行；没有（「更多」）只展开，绝不代用户选
     private func activate(_ group: CaptureActionGroup) {
         if let id = primaryID(group) {
-            model.onPick?(id)
+            pick(id)
         } else {
             toggle(group)
         }
     }
 
+    private func pick(_ id: String) {
+        collapse()
+        model.pick(id)
+    }
+
+    private func collapse() {
+        hoverTask?.cancel()
+        hovered = nil
+        hoveredItem = nil
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
+    }
+
     private func toggle(_ group: CaptureActionGroup) {
+        hoverTask?.cancel()
         withAnimation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.85)) {
             expanded = (expanded == group.id) ? nil : group.id
         }
     }
 
     private func handleHover(_ inside: Bool, group: CaptureActionGroup?) {
+        hoverTask?.cancel()
         guard inside, let group else {
             hovered = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            hoverTask = Task { @MainActor in
+                do { try await Task.sleep(nanoseconds: 220_000_000) }
+                catch { return }
                 guard hovered == nil else { return }
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) { expanded = nil }
             }
@@ -374,7 +441,9 @@ struct CaptureActionToolbarView: View {
         hovered = group.id
         guard expanded != group.id else { return }
         let id = group.id
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
+        hoverTask = Task { @MainActor in
+            do { try await Task.sleep(nanoseconds: 300_000_000) }
+            catch { return }
             // 鼠标已移走 / 已经展开过就别再弹
             guard hovered == id, expanded != id else { return }
             withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.86)) {

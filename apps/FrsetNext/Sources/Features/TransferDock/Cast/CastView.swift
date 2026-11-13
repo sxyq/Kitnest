@@ -38,14 +38,41 @@ extension Notification.Name {
 //   · 顶部加设备类型切换：安卓（扫码直连）/ iPhone（系统限制，需 AirPlay 接收端）。
 
 struct CastView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    var body: some View {
+        if isSettingsPreview { CastContent() }
+        else { LiveCastView() }
+    }
+}
 
+private struct LiveCastView: View {
+    @ObservedObject private var qrPair = AdbQrPairing.shared
+    @ObservedObject private var panelPage = MonitorCenterPresenter.shared
+    var body: some View { CastContent(qrPair: qrPair, panelPage: panelPage) }
+}
+
+private struct CastContent: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let liveQrPair: AdbQrPairing?
+    private let livePanelPage: MonitorCenterPresenter?
+    private var qrPair: AdbQrPairing { liveQrPair! }
+    private var panelPage: MonitorCenterPresenter { livePanelPage! }
+    private var pairPhase: AdbQrPairing.Phase { isSettingsPreview ? .waiting : qrPair.phase }
+    private var pairText: String { isSettingsPreview ? "https://kitnest-preview.invalid/pair" : qrPair.qrText }
+    @Stored private var previewFeedback: String?
+
+    init(qrPair: AdbQrPairing? = nil, panelPage: MonitorCenterPresenter? = nil) {
+        liveQrPair = qrPair; livePanelPage = panelPage
+        if qrPair != nil { clipboardSyncOn = TransferDockPref.CastQuality.clipboardAutoSync }
+    }
     // MARK: 状态
 
     @Stored private var devices: [(serial: String, state: String)] = []
     @Stored private var scrcpyReady = false
     @Stored private var scanned = false
     @Stored private var autoScanDone = false
-    @Stored private var clipboardSyncOn = TransferDockPref.CastQuality.clipboardAutoSync
+    @Stored private var clipboardSyncOn = false
     @Stored private var notifications: [ADBExtrasEngine.PhoneNotification] = []
     @Stored private var notifBusy = false
     @Stored private var storageSummary = ""
@@ -61,9 +88,7 @@ struct CastView: View {
     @Stored private var deviceKind: CastDeviceKind = .android
     // v157：扫码直连（Android 11+ 无线调试 QR 配对）
     // v166.4：共享实例 —— 弹层开关、面板收起重开都不能把连接流程带走
-    @ObservedObject private var qrPair = AdbQrPairing.shared
     @Stored private var showQrPair = false
-    @ObservedObject private var panelPage = MonitorCenterPresenter.shared
 
     // v128（流畅度）：轮询 timer 提为 static——原 `Timer.publish(...).autoconnect()` 写在
     // body 的 onReceive 里，每次 body 重算都新建一个 Timer publisher（autoconnect 随订阅
@@ -102,9 +127,28 @@ struct CastView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onReceive(NotificationCenter.default.publisher(for: .frsetOpenCastQR)) { _ in
+            if isSettingsPreview { return }
             showQrPair = true
         }
         .onAppear {
+            if isSettingsPreview {
+                devices = [("Pixel 9 · 示例设备", "device")]
+                scrcpyReady = true; scanned = true; clipboardSyncOn = false
+                notifications = [
+                    .init(id: "preview-message", pkg: "preview.messages", app: "消息",
+                          title: "文件已接收", text: "设计说明已保存到设备", time: "14:30"),
+                    .init(id: "preview-calendar", pkg: "preview.calendar", app: "日历",
+                          title: "项目讨论", text: "15:00 开始", time: "14:25")
+                ]
+                storageSummary = "已用 38 GB / 128 GB"
+                storageItems = [.init(id: "preview-photo", name: "照片", sizeText: "12 GB"),
+                                .init(id: "preview-download", name: "下载", sizeText: "2.4 GB")]
+                catalogApps = [.init(id: "preview.messages", label: "消息", iconPath: nil),
+                               .init(id: "preview.photo", label: "相册", iconPath: nil),
+                               .init(id: "preview.calendar", label: "日历", iconPath: nil),
+                               .init(id: "preview.browser", label: "浏览器", iconPath: nil)]
+                return
+            }
             // 页面重建时继续跟随已绑定的投屏进程。
             ScrcpyControlBarController.shared.attachIfScrcpyRunning()
             // v166.3：进页面就后台预热应用目录（真图标首次要跑一次设备端渲染，别等展开才转圈）
@@ -114,7 +158,7 @@ struct CastView: View {
             qrPair.onConnected = { serial in
                 showQrPair = false
                 Toast.show("已连接 \(serial)，开始投屏", icon: "display")
-                ScreenCastEngine.startMirror(serial: serial)
+                startMirror(serial: serial)
                 refreshDevices(quiet: true)
             }
             guard !autoScanDone else { return }
@@ -123,13 +167,14 @@ struct CastView: View {
             refreshDevices(quiet: true)
         }
         // v154：轮询条件再收紧一层——「更多工具」没展开就不拉通知（用户看不到也没必要跑 adb）
-        .onReceive(Self.notifTick) { _ in
+        .onReceive(isSettingsPreview ? Empty<Date, Never>().eraseToAnyPublisher() : Self.notifTick.eraseToAnyPublisher()) { _ in
             guard panelPage.page == .cast, toolsExpanded else { return }
             guard hasDevice else { return }
             autoreleasepool { refreshNotifications() }
         }
         // 部署目标 macOS 13：用单参数 onChange（双参数是 14+ API）
         .onChange(of: toolsExpanded) { expanded in
+            if isSettingsPreview { return }
             guard expanded else { return }
             if hasDevice {
                 refreshNotifications()
@@ -144,6 +189,9 @@ struct CastView: View {
     private var hero: some View {
         VStack(alignment: .leading, spacing: 10) {
             heroHeader
+            if let previewFeedback {
+                Text(previewFeedback).font(.system(size: 11.5)).foregroundStyle(.secondary)
+            }
 
             if devices.isEmpty {
                 emptyState
@@ -173,15 +221,33 @@ struct CastView: View {
         // v166.5：弹层锚点 = hero 容器本身（始终存在）。挂在按钮上会随空态消失。
         // `panelChildWindow()` 让 PanelController 把弹层窗口认作「面板子窗」，
         // 否则它会抢 key → 被判成「点了面板外面」→ 面板收起 → 弹层跟着没。
-        .popover(isPresented: $showQrPair, arrowEdge: .bottom) { qrPairPopover }
+        .popover(isPresented: Binding(get: { showQrPair && !isSettingsPreview },
+                                      set: { showQrPair = $0 }), arrowEdge: .bottom) { qrPairPopover }
+        .overlay {
+            if isSettingsPreview && showQrPair {
+                qrPairPopover
+                    .glassCard(radius: Theme.Radius.card)
+                    .overlay(alignment: .topTrailing) {
+                        Button { showQrPair = false } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).padding(6)
+                    }
+            }
+        }
     }
 
     /// 扫码 / 连接弹层（原地弹出，不另开窗口）
     private var qrPairPopover: some View {
+        Group {
+            if isSettingsPreview { qrPairContent }
+            else { qrPairContent.panelChildWindow().onAppear { qrPair.start() } }
+        }
+    }
+
+    private var qrPairContent: some View {
         VStack(spacing: 10) {
             // 先重连、后扫码：重连阶段不摆二维码，否则用户会以为必须扫
-            if qrPair.phase.showsQR {
-                QRCodeView(text: qrPair.qrText, size: 190)
+            if pairPhase.showsQR {
+                QRCodeView(text: pairText, size: 190)
             } else {
                 VStack(spacing: 8) {
                     ProgressView().controlSize(.small)
@@ -201,16 +267,16 @@ struct CastView: View {
                 Circle()
                     .fill(qrPhaseColor)
                     .frame(width: 6, height: 6)
-                Text(qrPair.phase.text)
+                Text(pairPhase.text)
                     .font(.system(size: 11.5))
-                    .foregroundStyle(qrPair.phase.isTerminal ? Theme.tertiaryText : .secondary)
+                    .foregroundStyle(pairPhase.isTerminal ? Theme.tertiaryText : .secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
 
-            if qrPair.phase.isTerminal {
+            if pairPhase.isTerminal {
                 Text("重新生成")
                     .font(.system(size: 11.5))
                     .foregroundStyle(Theme.accent)
@@ -221,14 +287,12 @@ struct CastView: View {
         }
         .padding(14)
         .frame(width: 226)
-        .panelChildWindow()
-        .onAppear { qrPair.start() }
         // 弹出层被系统收起时不 cancel：连接可能正在后台配对，
         // 取消掉等于「手一抖就把流程掐了」。真正的取消交给终态 / 显式重开。
     }
 
     private var qrPhaseColor: Color {
-        switch qrPair.phase {
+        switch pairPhase {
         case .connected, .launching: return .green
         case .failed, .expired:      return .orange
         case .idle:                  return .secondary
@@ -249,6 +313,7 @@ struct CastView: View {
                 .lineLimit(1)
             Spacer(minLength: 2)
             iconAction("arrow.clockwise", "重新检测设备") {
+                if isSettingsPreview { previewFeedback = "示例设备已更新"; return }
                 scrcpyReady = ScreenCastEngine.findScrcpy() != nil
                 refreshDevices(quiet: false)
             }
@@ -263,7 +328,7 @@ struct CastView: View {
 
     /// 空态：有历史设备时主按钮是「继续连接」（v159，对标 AndroMeld 的零交互重连）
     private var emptyState: some View {
-        let last = AdbCastMemory.shared.lastDevice
+        let last = isSettingsPreview ? nil : AdbCastMemory.shared.lastDevice
         return VStack(spacing: 10) {
             Image(systemName: last == nil ? "qrcode.viewfinder" : "arrow.triangle.2.circlepath")
                 .font(.system(size: 30))
@@ -295,7 +360,7 @@ struct CastView: View {
         HStack(spacing: 4) {
             ForEach(CastDeviceKind.allCases, id: \.self) { k in
                 Button {
-                    withAnimation(Theme.Motion.fast) { deviceKind = k }
+                    withAnimation(reduceMotion ? nil : Theme.Motion.fast) { deviceKind = k }
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: k.icon)
@@ -333,7 +398,8 @@ struct CastView: View {
             Text("iPhone")
                 .font(.system(size: 13, weight: .medium))
             Button {
-                MonitorCenterPresenter.shared.selectTransferDock()
+                if isSettingsPreview { previewFeedback = "隔空投送入口预览" }
+                else { MonitorCenterPresenter.shared.selectTransferDock() }
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "dot.radiowaves.left.and.right").font(.system(size: 12))
@@ -405,7 +471,7 @@ struct CastView: View {
             }
             if connected {
                 primaryButton("开始投屏", icon: "play.fill") {
-                    ScreenCastEngine.startMirror(serial: serial)
+                    startMirror(serial: serial)
                 }
             } else if state == "unauthorized" {
                 // v166.4：这台机器实测遇到的真实状态——设备在列表里，但状态是
@@ -424,10 +490,11 @@ struct CastView: View {
                     in: RoundedRectangle(cornerRadius: Theme.Radius.container, style: .continuous))
         .contextMenu {
             if connected {
-                Button("开始投屏") { ScreenCastEngine.startMirror(serial: serial) }
+                Button("开始投屏") { startMirror(serial: serial) }
                 Divider()
             }
             Button("打开手机无线调试页") {
+                if isSettingsPreview { previewFeedback = "无线调试入口预览"; return }
                 ADBExtrasEngine.openWirelessDebugging { msg in
                     Toast.show(msg, icon: "iphone.gen3")
                 }
@@ -449,7 +516,13 @@ struct CastView: View {
 
     /// 重新发起授权：adb 对「已记录但未授权」的传输不会自己重握手，
     /// 必须 disconnect → connect，手机才会重新弹出「允许 USB 调试」。
+    private func startMirror(serial: String) {
+        if isSettingsPreview { previewFeedback = "投屏画面预览 · 未连接设备" }
+        else { ScreenCastEngine.startMirror(serial: serial) }
+    }
+
     private func reauthorize(_ serial: String) {
+        if isSettingsPreview { previewFeedback = "设备授权预览"; return }
         let parts = serial.split(separator: ":", maxSplits: 1).map(String.init)
         guard parts.count == 2, Int(parts[1]) != nil else {
             // USB 设备（无端口）：直接刷新，手机上重新插拔/点允许即可
@@ -479,6 +552,7 @@ struct CastView: View {
                 Toggle("", isOn: Binding(
                     get: { clipboardSyncOn },
                     set: { v in
+                        if isSettingsPreview { clipboardSyncOn = v; return }
                         TransferDockPref.CastQuality.clipboardAutoSync = v
                         clipboardSyncOn = v
                         Toast.show("新投屏的双向剪贴板：\(v ? "开启" : "关闭")；当前窗口保持原设置", icon: "doc.on.doc")
@@ -500,7 +574,7 @@ struct CastView: View {
                           icon: "square.grid.2x2",
                           detail: "通知 · 存储 · 应用 · 服务",
                           expanded: toolsExpanded) {
-                withAnimation(Theme.Motion.fast) { toolsExpanded.toggle() }
+                withAnimation(reduceMotion ? nil : Theme.Motion.fast) { toolsExpanded.toggle() }
             }
 
             if toolsExpanded {
@@ -560,6 +634,7 @@ struct CastView: View {
                         .glassCard(radius: Theme.Radius.chip)
                         .contextMenu {
                             Button("复制正文") {
+                                if isSettingsPreview { previewFeedback = "通知复制预览 · 剪贴板保持原值"; return }
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(n.title + "\n" + n.text, forType: .string)
                                 Toast.show("已复制通知内容", icon: "doc.on.doc")
@@ -627,6 +702,7 @@ struct CastView: View {
                     }
                 }
                 Button {
+                    if isSettingsPreview { previewFeedback = "全部应用入口预览"; return }
                     CastAppLibraryWindowController.shared.show()
                 } label: {
                     HStack(spacing: 4) {
@@ -683,6 +759,7 @@ struct CastView: View {
     }
 
     private func openApp(_ app: DeviceAppCatalog.App) {
+        if isSettingsPreview { previewFeedback = "已选择示例应用：" + app.label; return }
         CastAppUsage.record(app.id)
         ADBExtrasEngine.startAppWindow(package: app.id, title: app.label)
     }
@@ -694,9 +771,10 @@ struct CastView: View {
 
             serviceRow(icon: "brain.head.profile",
                        title: "MCP 服务器",
-                       detail: MCPServer.shared.endpoint,
+                       detail: isSettingsPreview ? "https://kitnest-preview.invalid/mcp" : MCPServer.shared.endpoint,
                        help: "给 AI 客户端用的本机 MCP 接口；点右侧复制按钮取完整地址（含访问令牌），每次启动会换新",
                        on: $mcpOn) { on in
+                if isSettingsPreview { return }
                 if on {
                     if !MCPServer.shared.start() { mcpOn = false }
                 } else {
@@ -706,9 +784,10 @@ struct CastView: View {
 
             serviceRow(icon: "externaldrive.connected.to.line.below",
                        title: "手机文件 · WebDAV",
-                       detail: AndroidWebDAVServer.shared.baseURL,
+                       detail: isSettingsPreview ? "https://kitnest-preview.invalid/files" : AndroidWebDAVServer.shared.baseURL,
                        help: "Finder → 前往 → 连接服务器 → 粘贴地址，即可像网络盘一样浏览 /sdcard",
                        on: $webdavOn) { on in
+                if isSettingsPreview { return }
                 if on {
                     if !AndroidWebDAVServer.shared.start() { webdavOn = false }
                 } else {
@@ -734,6 +813,7 @@ struct CastView: View {
             }
             Spacer(minLength: 2)
             Button {
+                if isSettingsPreview { previewFeedback = "地址复制预览 · 剪贴板保持原值"; return }
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(detail, forType: .string)
                 Toast.show("已复制地址", icon: "doc.on.doc")
@@ -879,6 +959,7 @@ struct CastView: View {
     // MARK: - 数据
 
     private func refreshDevices(quiet: Bool) {
+        if isSettingsPreview { previewFeedback = "固定示例内容"; return }
         scanned = true
         ScreenCastEngine.connectedDevices { list in
             devices = list ?? []
@@ -892,6 +973,7 @@ struct CastView: View {
     }
 
     private func refreshNotifications() {
+        if isSettingsPreview { previewFeedback = "固定示例内容"; return }
         guard !notifBusy else { return }
         notifBusy = true
         ADBExtrasEngine.notifications { list in
@@ -901,6 +983,7 @@ struct CastView: View {
     }
 
     private func loadStorage() {
+        if isSettingsPreview { previewFeedback = "固定示例内容"; return }
         ADBExtrasEngine.storage { summary, items in
             storageSummary = summary
             storageItems = items
@@ -908,6 +991,7 @@ struct CastView: View {
     }
 
     private func loadApps() {
+        if isSettingsPreview { previewFeedback = "固定示例内容"; return }
         guard !appsBusy else { return }
         appsBusy = true
         DeviceAppCatalog.shared.load(serial: ADBExtrasEngine.activeSerial) { list in

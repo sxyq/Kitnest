@@ -15,6 +15,18 @@ private struct SettingsPreviewPersonalizationKey: EnvironmentKey {
 private struct SettingsPreviewMidnightKey: EnvironmentKey {
     static let defaultValue: Bool? = nil
 }
+private struct SettingsPreviewImageKey: EnvironmentKey {
+    static let defaultValue: NSImage? = nil
+}
+private struct SettingsPreviewSelectionKey: EnvironmentKey {
+    static let defaultValue: Binding<String?>? = nil
+}
+private struct SettingsPreviewFilterKey: EnvironmentKey {
+    static let defaultValue = ClipboardFilterKind.all
+}
+private struct SettingsPreviewQueryKey: EnvironmentKey {
+    static let defaultValue = ""
+}
 
 extension EnvironmentValues {
     var isSettingsPreview: Bool {
@@ -32,6 +44,22 @@ extension EnvironmentValues {
     var settingsPreviewIsMidnight: Bool? {
         get { self[SettingsPreviewMidnightKey.self] }
         set { self[SettingsPreviewMidnightKey.self] = newValue }
+    }
+    var settingsPreviewImage: NSImage? {
+        get { self[SettingsPreviewImageKey.self] }
+        set { self[SettingsPreviewImageKey.self] = newValue }
+    }
+    var settingsPreviewClipboardSelection: Binding<String?>? {
+        get { self[SettingsPreviewSelectionKey.self] }
+        set { self[SettingsPreviewSelectionKey.self] = newValue }
+    }
+    var settingsPreviewClipboardFilter: ClipboardFilterKind {
+        get { self[SettingsPreviewFilterKey.self] }
+        set { self[SettingsPreviewFilterKey.self] = newValue }
+    }
+    var settingsPreviewClipboardQuery: String {
+        get { self[SettingsPreviewQueryKey.self] }
+        set { self[SettingsPreviewQueryKey.self] = newValue }
     }
 }
 

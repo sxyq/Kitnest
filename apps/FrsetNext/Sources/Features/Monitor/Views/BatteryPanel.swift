@@ -25,15 +25,40 @@ import SwiftUI
 // 拔电时：左侧改「电池放电」，右侧只剩「系统供电」= 放电功率。
 
 struct BatteryStatsPanel: View {
-    @ObservedObject private var sampler = MonitorSampler.shared
-    @ObservedObject private var lowPower = LowPowerModeController.shared
+    var previewStats: StatsSnapshot? = nil
+    var previewSample: MonitorSample? = nil
 
     var body: some View {
-        let stats = StatsDataProvider.shared.current
+        if let previewStats, let previewSample {
+            BatteryStatsContent(stats: previewStats, batteryLevel: previewSample.batteryLevel, lowPower: nil)
+        } else {
+            LiveBatteryStatsPanel()
+        }
+    }
+}
+
+private struct LiveBatteryStatsPanel: View {
+    @ObservedObject private var sampler = MonitorSampler.shared
+    @ObservedObject private var lowPower = LowPowerModeController.shared
+    var body: some View {
+        BatteryStatsContent(stats: StatsDataProvider.shared.current,
+                            batteryLevel: sampler.sample.batteryLevel, lowPower: lowPower)
+    }
+}
+
+private struct BatteryStatsContent: View {
+    let stats: StatsSnapshot
+    let batteryLevel: Double?
+    let lowPower: LowPowerModeController?
+    @Stored private var previewLowPower = false
+    init(stats: StatsSnapshot, batteryLevel: Double?, lowPower: LowPowerModeController?) {
+        self.stats = stats; self.batteryLevel = batteryLevel; self.lowPower = lowPower
+    }
+    var body: some View {
         let battery = stats.battery
 
         return VStack(alignment: .leading, spacing: 12) {
-            if battery?.present != true && (sampler.sample.batteryLevel ?? -1) < 0 {
+            if battery?.present != true && (batteryLevel ?? -1) < 0 {
                 noBatteryNotice
             } else {
                 // v190（用户：「充电不需要单开这个界面，功能并到功耗和电池」）：
@@ -56,7 +81,7 @@ struct BatteryStatsPanel: View {
 
     private func hero(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
         let percent = battery?.percent
-            ?? Int(((sampler.sample.batteryLevel ?? 0) * 100).rounded())
+            ?? Int(((batteryLevel ?? 0) * 100).rounded())
         let charging = battery?.isCharging == true
         let connected = battery?.externalConnected == true
         let color = charging ? BatteryFlowPalette.charge
@@ -307,22 +332,22 @@ struct BatteryStatsPanel: View {
             HStack(spacing: 8) {
                 Text("低电量模式")
                     .font(.system(size: 11.5))
-                if lowPower.busy {
+                if (lowPower?.busy ?? false) {
                     ProgressView()
                         .controlSize(.mini)
                         .scaleEffect(0.7)
                 }
                 Spacer(minLength: 6)
                 Toggle("", isOn: Binding(
-                    get: { lowPower.enabled },
-                    set: { lowPower.set($0) }))
+                    get: { lowPower?.enabled ?? previewLowPower },
+                    set: { if let lowPower { lowPower.set($0) } else { previewLowPower = $0 } }))
                     .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.mini)
-                    .disabled(lowPower.busy)
+                    .disabled((lowPower?.busy ?? false))
                     .help("切换需要管理员授权（macOS 限制：修改电源策略必须提权）")
             }
-            if let hint = lowPower.hint {
+            if let hint = lowPower?.hint {
                 Text(hint)
                     .font(.system(size: 10))
                     .foregroundStyle(Color.orange)
@@ -336,7 +361,7 @@ struct BatteryStatsPanel: View {
     private var linksRow: some View {
         VStack(alignment: .leading, spacing: 5) {
             Button {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension") {
+                if lowPower != nil, let url = URL(string: "x-apple.systempreferences:com.apple.Battery-Settings.extension") {
                     NSWorkspace.shared.open(url)
                 }
             } label: {
@@ -346,7 +371,7 @@ struct BatteryStatsPanel: View {
             .buttonStyle(.link)
 
             Button {
-                SettingsWindowController.shared.open(pane: "monitor")
+                if lowPower != nil { SettingsWindowController.shared.open(pane: "monitor") }
             } label: {
                 Text("打开应用电池设置")
                     .font(.system(size: 11))

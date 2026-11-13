@@ -75,6 +75,22 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .note:      return (nil, true, false, nil, false)
         }
     }
+
+    func matches(_ item: ClipboardItem) -> Bool {
+        switch self {
+        case .all: return true
+        case .text: return item.type == .text || item.type == .richtext
+        case .image: return item.type == .image
+        case .link: return item.type == .url || (item.content ?? "").hasPrefix("https://")
+        case .file: return item.type == .file
+        case .code:
+            let kind = PreviewPopoverContentModel.classifyRawText(item.content ?? "")
+            return kind == .code || kind == .json
+        case .color: return item.sourceToolKeyword == "colorpicker"
+        case .generated: return item.isGeneratedByTool
+        case .note: return item.isNote
+        }
+    }
 }
 
 // MARK: - 核心协调器（05 号规格 1.1：ClipboardManager）

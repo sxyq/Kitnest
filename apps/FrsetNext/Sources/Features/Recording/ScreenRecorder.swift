@@ -267,53 +267,14 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         CVPixelBufferPoolCreatePixelBuffer(nil, pool, &dest)
         guard let dest else { return }
 
-        var image = CIImage(cvPixelBuffer: imageBuffer)
         let now = CACurrentMediaTime()
-
-        // 摄像头画中画
-        if options.cameraEnabled, let cam = currentCameraBuffer() {
-            let rect = RecordingCompositor.cameraRect(videoSize: videoSize,
-                                                       corner: options.cameraCorner,
-                                                       widthFraction: options.cameraScale)
-            var ci = CIImage(cvPixelBuffer: cam)
-            let sx = rect.width / max(ci.extent.width, 1)
-            let sy = rect.height / max(ci.extent.height, 1)
-            ci = ci.transformed(by: CGAffineTransform(scaleX: sx, y: sy))
-            // CIImage 左下原点：把「左上坐标」翻过来
-            ci = ci.transformed(by: CGAffineTransform(translationX: rect.minX,
-                                                      y: videoSize.height - rect.maxY))
-            image = ci.composited(over: image)
-        }
-
-        // 点击动画
-        if options.showClicks {
-            for click in RecordingInputMonitor.shared.currentClicks(now: now) {
-                let progress = CGFloat((now - click.time) / RecordingInputMonitor.clickTTL)
-                guard let ring = RecordingCompositor.clickOverlay(progress: progress,
-                                                                  isRight: click.isRight,
-                                                                  pixelScale: pixelScale) else { continue }
-                let side = CGFloat(ring.width)
-                let cx = (click.point.x - regionOrigin.x) * pixelScale
-                let cy = (click.point.y - regionOrigin.y) * pixelScale
-                guard cx > -side, cy > -side, cx < videoSize.width + side, cy < videoSize.height + side else { continue }
-                var ci = CIImage(cgImage: ring)
-                ci = ci.transformed(by: CGAffineTransform(translationX: cx - side / 2,
-                                                          y: videoSize.height - cy - side / 2))
-                image = ci.composited(over: image)
-            }
-        }
-
-        // 按键条
-        if options.showKeys {
-            let keys = RecordingInputMonitor.shared.currentKeys(now: now)
-            if let strip = RecordingCompositor.keyOverlay(keys: keys, now: now, pixelScale: pixelScale) {
-                let w = CGFloat(strip.width)
-                var ci = CIImage(cgImage: strip)
-                ci = ci.transformed(by: CGAffineTransform(translationX: (videoSize.width - w) / 2,
-                                                          y: 28 * pixelScale))
-                image = ci.composited(over: image)
-            }
-        }
+        let camera = options.cameraEnabled ? currentCameraBuffer().map { CIImage(cvPixelBuffer: $0) } : nil
+        let image = RecordingCompositor.composite(image: CIImage(cvPixelBuffer: imageBuffer),
+            camera: camera, options: options,
+            keys: options.showKeys ? RecordingInputMonitor.shared.currentKeys(now: now) : [],
+            clicks: options.showClicks ? RecordingInputMonitor.shared.currentClicks(now: now) : [],
+            now: now, pixelScale: pixelScale, regionOrigin: regionOrigin,
+            reduceTransparency: NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency)
 
         let bounds = CGRect(origin: .zero, size: videoSize)
         ciContext.render(image, to: dest, bounds: bounds, colorSpace: colorSpace)

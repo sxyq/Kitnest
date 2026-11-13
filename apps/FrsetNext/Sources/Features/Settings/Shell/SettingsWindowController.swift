@@ -12,6 +12,8 @@ import SwiftUI
 /// 旧 pane id 到侧边栏项的映射，外部模块（ServiceLocator.settings?.open(pane:)）
 /// 无需改动即可直达对应位置。
 final class SettingsUIState: ObservableObject {
+    let editingSession = SettingsEditingSession()
+    @Published var isVisible = false
     @Published var selectedPaneID: String
     @Published var detailPaneID: String?
     /// 侧边栏选中项 = 二级页（v272：常规/剪贴板/文件中转也各自拆成多页）
@@ -105,7 +107,7 @@ final class SettingsWindow: NSWindow {
     }
 }
 
-public final class SettingsWindowController: NSObject, SettingsWindowControlling {
+public final class SettingsWindowController: NSObject, SettingsWindowControlling, NSWindowDelegate {
     public static let shared = SettingsWindowController()
 
     /// 复用同一窗口实例（isReleasedWhenClosed 已关，关闭只是移出屏幕）
@@ -149,6 +151,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             WindowReveal.reset(w)
         }
         let wasVisible = window?.isVisible == true
+        uiState.isVisible = true
         window?.makeKeyAndOrderFront(nil)
         // v198：首次打开从触发点（齿轮/快捷键/菜单）展开整块设置窗
         if !wasVisible, let w = window { WindowReveal.playInFromMouse(on: w) }
@@ -165,6 +168,8 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
             guard let self, token == self.closeGeneration else { return }
             w?.orderOut(nil)
+            self.uiState.isVisible = false
+            self.uiState.editingSession.end()
             if let w { WindowReveal.reset(w) }
             self.isClosing = false
         }
@@ -172,6 +177,23 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
 
     /// 窗口是否正在显示（状态栏菜单勾选态可用）
     public var isVisible: Bool { window?.isVisible ?? false }
+
+    public func windowWillClose(_ notification: Notification) {
+        uiState.isVisible = false
+        uiState.editingSession.end()
+    }
+
+    public func windowDidMiniaturize(_ notification: Notification) {
+        uiState.isVisible = false
+    }
+
+    public func windowDidDeminiaturize(_ notification: Notification) {
+        uiState.isVisible = true
+    }
+
+    public func windowDidChangeOcclusionState(_ notification: Notification) {
+        uiState.isVisible = window?.occlusionState.contains(.visible) == true
+    }
 
     // MARK: - 窗口构建
 
@@ -202,6 +224,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         win.applyOfficialChrome()
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
+        win.delegate = self
         // 不使用 setFrameAutosaveName：原版设置窗固定 800×562（zoom/miniaturize 已隐藏），
         // 无尺寸记忆需求；且 autosave 会在 display cycle 内用旧帧（914pt）覆盖目标尺寸，
         // 与后续强制 562 构成约束更新循环，触发

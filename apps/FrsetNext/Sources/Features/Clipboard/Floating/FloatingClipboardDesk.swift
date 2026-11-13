@@ -134,6 +134,9 @@ public final class FloatingClipDeskStore: ObservableObject {
     /// 两栏分隔比例（左栏卡片区占整宽的比例，v193）
     /// 拖动过程中不落盘（每帧写偏好太吵），松手时才 persistSplitRatio()。
     @Published public var splitRatio: CGFloat = FloatingClipPrefs.splitRatio
+    @Published public var hoverPreviewEnabled = FloatingClipPrefs.hoverPreviewEnabled {
+        didSet { if !settingsPreview { FloatingClipPrefs.hoverPreviewEnabled = hoverPreviewEnabled } }
+    }
     /// 右侧预览栏的内容模型（选中项的完整预览）
     @Published public private(set) var previewModel: PreviewPopoverContentModel?
 
@@ -143,6 +146,18 @@ public final class FloatingClipDeskStore: ObservableObject {
     private var pending: DispatchWorkItem?
     private let queue = DispatchQueue(label: "frset.clipdesk.query", qos: .userInitiated)
     private var observer: NSObjectProtocol?
+    private var previewSource: [ClipboardItem] = []
+    private var previewContents: [String: PreviewPopoverContentModel] = [:]
+
+    public func setPreviewItems(_ source: [ClipboardItem]) {
+        guard settingsPreview, previewSource != source else { return }
+        previewSource = source
+        previewContents = Dictionary(uniqueKeysWithValues: source.map { item in
+            (item.id, PreviewPopoverContentModel(item: item, source: .floatingPreview,
+                sessionID: UUID(), inlineText: item.content ?? ""))
+        })
+        reload()
+    }
 
     public init(settingsPreview: Bool = false) {
         self.settingsPreview = settingsPreview
@@ -162,7 +177,17 @@ public final class FloatingClipDeskStore: ObservableObject {
 
     /// 重新查询（debounce = true 用于输入过程中，避免每个字符打一次 SQL）
     public func reload(debounce: Bool = false) {
-        if settingsPreview { return }
+        if settingsPreview {
+            let selectedID = selectedItemID
+            items = previewSource.filter {
+                kind.matches($0) && (search.isEmpty ||
+                    ($0.content ?? $0.displayTitle).localizedCaseInsensitiveContains(search))
+            }
+            totalInKind = items.count
+            selectedIndex = selectedID.flatMap { id in items.firstIndex { $0.id == id } } ?? 0
+            rebuildPreviewModel()
+            return
+        }
         pending?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.fetch() }
         pending = work
@@ -221,6 +246,7 @@ public final class FloatingClipDeskStore: ObservableObject {
 
     /// 先收起非激活面板、归还键盘焦点，再写剪贴板并粘贴。
     public func paste(_ item: ClipboardItem, asPlainText: Bool = false) {
+        if settingsPreview { select(item); return }
         onPaste? {
             ClipboardManager.shared.copy(item, autoPaste: true, asPlainText: asPlainText)
         }
@@ -233,6 +259,7 @@ public final class FloatingClipDeskStore: ObservableObject {
 
     /// 删除并保持光标位置合理
     public func delete(_ item: ClipboardItem) {
+        if settingsPreview { previewSource.removeAll { $0.id == item.id }; reload(); return }
         ClipboardManager.shared.delete(item)
         reload(debounce: true)
     }
@@ -249,7 +276,7 @@ public final class FloatingClipDeskStore: ObservableObject {
     /// 全文读取（落盘长文本 / RTF）会碰磁盘，因此放后台队列再回主线程发布；
     /// 否则选中一条长文本时主线程要同步读一次文件，滑动会顿。
     public func rebuildPreviewModel() {
-        if settingsPreview { return }
+        if settingsPreview { previewModel = selectedItemID.flatMap { previewContents[$0] }; return }
         guard let item = selectedItem else {
             previewModel = nil
             return
@@ -294,6 +321,11 @@ public final class FloatingClipDeskStore: ObservableObject {
 public enum FloatingClipPrefs {
     static let layoutKey = "floatingClip.layout"
     static let cardSizeKey = "floatingClip.cardSize"
+    static let hoverPreviewKey = "floatingClip.hoverPreview"
+    public static var hoverPreviewEnabled: Bool {
+        get { Preferences.shared.value(hoverPreviewKey, default: true) }
+        set { Preferences.shared.set(hoverPreviewKey, newValue) }
+    }
 
     public static var layout: FloatingClipLayout {
         get { FloatingClipLayout(rawValue: Preferences.shared.value(layoutKey, default: "grid")) ?? .grid }
@@ -322,7 +354,7 @@ public enum FloatingClipPrefs {
 public struct FloatingClipboardDeskView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.settingsPreviewClipboardItems) private var previewItems
-    @Stored private var previewSessionID = UUID()
+    @Environment(\.settingsPreviewClipboardSelection) private var previewSelection
 
     @ObservedObject private var store: FloatingClipDeskStore
     /// v203：玻璃四滑块（通透度/磨砂/卡片亮度/描边）要即拖即生效——
@@ -344,14 +376,8 @@ public struct FloatingClipboardDeskView: View {
                         isMidnight: previewIsMidnight ?? appearanceState.isMidnight)
     }
 
-    private var displayedItems: [ClipboardItem] { isSettingsPreview ? previewItems : store.items }
-    private var displayedPreview: PreviewPopoverContentModel? {
-        if isSettingsPreview, let item = previewItems.first {
-            return PreviewPopoverContentModel(item: item, source: .floatingPreview,
-                                              sessionID: previewSessionID, inlineText: item.content ?? "")
-        }
-        return store.previewModel
-    }
+    private var displayedItems: [ClipboardItem] { store.items }
+    private var displayedPreview: PreviewPopoverContentModel? { store.previewModel }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -378,15 +404,32 @@ public struct FloatingClipboardDeskView: View {
         .tint(appearance.accent)
         .environment(\.settingsPreviewPersonalization, personalization)
         .onAppear {
-            if isSettingsPreview { return }
+            if isSettingsPreview {
+                store.setPreviewItems(previewItems)
+                if let item = store.items.first(where: { $0.id == previewSelection?.wrappedValue }) { store.select(item) }
+                return
+            }
             store.reload(debounce: false)
             // 打开即可打字：不等用户点搜索框
             if !isSettingsPreview { DispatchQueue.main.async { searchFocused = true } }
         }
         // 选中项变了 → 右侧预览跟着换
         .onChange(of: store.selectedIndex) { _ in
-            if isSettingsPreview { return }
             store.rebuildPreviewModel()
+            if isSettingsPreview { previewSelection?.wrappedValue = store.selectedItemID }
+        }
+        .onChange(of: previewSelection?.wrappedValue) { id in
+            if isSettingsPreview, let item = store.items.first(where: { $0.id == id }) { store.select(item) }
+        }
+        .onChange(of: previewItems) { if isSettingsPreview { store.setPreviewItems($0) } }
+        .onMoveCommand { direction in
+            switch direction {
+            case .left: store.moveSelection(-1, 0, columns: store.cardSize.columns)
+            case .right: store.moveSelection(1, 0, columns: store.cardSize.columns)
+            case .up: store.moveSelection(0, -1, columns: store.layout == .grid ? store.cardSize.columns : 1)
+            case .down: store.moveSelection(0, 1, columns: store.layout == .grid ? store.cardSize.columns : 1)
+            @unknown default: break
+            }
         }
     }
 
@@ -430,6 +473,7 @@ public struct FloatingClipboardDeskView: View {
     // MARK: 分类
 
     private var categoryBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 12) {
             ForEach(ClipboardFilterKind.allCases) { kind in
                 Button {
@@ -445,6 +489,7 @@ public struct FloatingClipboardDeskView: View {
             }
             Spacer(minLength: 4)
             Button {
+                if isSettingsPreview { return }
                 showsTags.toggle()
                 if showsTags { TagStore.shared.refresh() }
             } label: {
@@ -460,6 +505,7 @@ public struct FloatingClipboardDeskView: View {
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 8)
+        }
     }
 
     // MARK: 标签浮层
@@ -537,7 +583,7 @@ public struct FloatingClipboardDeskView: View {
         GeometryReader { geo in
             HStack(spacing: 0) {
                 cardsPane
-                    .frame(width: max(220, geo.size.width * store.splitRatio))
+                    .frame(width: geo.size.width * store.splitRatio)
                 SplitDivider(ratio: $store.splitRatio,
                              totalWidth: geo.size.width,
                              onCommit: { store.persistSplitRatio() })
@@ -611,8 +657,10 @@ public struct FloatingClipboardDeskView: View {
     /// 双列瀑布：每列是一个独立的 LazyVStack，卡片高度按内容自然变化，
     /// 下一张不跟着上一张的行高走（LazyVGrid 会把整行等高，看起来像表格）。
     private var gridContent: some View {
-        let columns = store.cardSize.columns
-        return ScrollViewReader { proxy in
+        GeometryReader { geo in
+        let columns = min(store.cardSize.columns, max(1, Int((geo.size.width - 14) / 150)))
+        let columnWidth = (geo.size.width - 24 - CGFloat(columns - 1) * 10) / CGFloat(columns)
+        ScrollViewReader { proxy in
             ScrollView {
                 HStack(alignment: .top, spacing: 10) {
                     ForEach(Array(0..<columns), id: \.self) { column in
@@ -621,17 +669,18 @@ public struct FloatingClipboardDeskView: View {
                                 card(pair.element, index: pair.offset)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .top)
+                        .frame(width: columnWidth, alignment: .top)
                     }
                 }
                 .padding(12)
             }
             .onChange(of: store.selectedIndex) { newValue in
                 guard store.items.indices.contains(newValue) else { return }
-                withAnimation(.easeOut(duration: 0.12)) {
+                withAnimation(PanelMotion.animation(.easeOut(duration: 0.12))) {
                     proxy.scrollTo(store.items[newValue].id, anchor: .center)
                 }
             }
+        }
         }
     }
 
@@ -648,7 +697,11 @@ public struct FloatingClipboardDeskView: View {
                          personalization: personalization)
             .onTapGesture(count: 2) { store.paste(item) }
             .onTapGesture { store.selectedIndex = index }
-            .contextMenu { ClipboardRowMenuContent(item: item) }
+            .onHover { if $0 && store.hoverPreviewEnabled { store.selectedIndex = index } }
+            .contextMenu { if !isSettingsPreview { ClipboardRowMenuContent(item: item) } }
+            .focusable()
+            .accessibilityLabel(item.displayTitle)
+            .accessibilityAddTraits(index == store.selectedIndex ? .isSelected : [])
             .onDrag { dragProvider(for: item) }
             .id(item.id)
     }
@@ -666,7 +719,10 @@ public struct FloatingClipboardDeskView: View {
                                             personalization: personalization)
                             .onTapGesture(count: 2) { store.paste(item) }
                             .onTapGesture { store.select(item) }
-                            .contextMenu { ClipboardRowMenuContent(item: item) }
+                            .onHover { if $0 && store.hoverPreviewEnabled { store.select(item) } }
+                            .contextMenu { if !isSettingsPreview { ClipboardRowMenuContent(item: item) } }
+                            .focusable()
+                            .accessibilityLabel(item.displayTitle)
                             .onDrag { dragProvider(for: item) }
                             .id(item.id)
                     }
@@ -676,7 +732,7 @@ public struct FloatingClipboardDeskView: View {
             }
             .onChange(of: store.selectedIndex) { newValue in
                 guard store.items.indices.contains(newValue) else { return }
-                withAnimation(.easeOut(duration: 0.12)) {
+                withAnimation(PanelMotion.animation(.easeOut(duration: 0.12))) {
                     proxy.scrollTo(store.items[newValue].id, anchor: .center)
                 }
             }
@@ -768,6 +824,7 @@ public struct FloatingClipboardDeskView: View {
 
     /// 拖出去的内容：文本给纯文本 + RTF，图片给临时 PNG 的 file URL，文件给 file URL
     private func dragProvider(for item: ClipboardItem) -> NSItemProvider {
+        if isSettingsPreview { return NSItemProvider() }
         switch item.type {
         case .image:
             if let path = item.imagePath {
@@ -802,6 +859,8 @@ public struct FloatingClipboardDeskView: View {
 // MARK: - 网格卡片
 
 private struct FloatingClipCard: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewImage) private var previewImage
     let item: ClipboardItem
     let size: FloatingClipCardSize
     let isSelected: Bool
@@ -871,14 +930,13 @@ private struct FloatingClipCard: View {
 
     private var imageBody: some View {
         Group {
-            if let path = item.imagePath ?? item.thumbnailPath,
-               let image = ClipboardImageStorage.image(relativePath: path) {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity)
+            if let image = isSettingsPreview ? previewImage :
+                ClipboardImageStorage.image(relativePath: item.imagePath ?? item.thumbnailPath) {
+                GeometryReader { geo in
+                    Image(nsImage: image).resizable().scaledToFit()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
                     .frame(height: size.minHeight - 34)
-                    .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous))
             } else {
                 placeholder(symbol: "photo", text: "图片")
@@ -910,7 +968,7 @@ private struct FloatingClipCard: View {
     private var fileBody: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: firstFilePath))
+                Image(nsImage: isSettingsPreview ? NSWorkspace.shared.icon(for: .pdf) : NSWorkspace.shared.icon(forFile: firstFilePath))
                     .resizable()
                     .frame(width: 22, height: 22)
                 Text(firstFilePath.isEmpty ? item.displayTitle : (firstFilePath as NSString).lastPathComponent)

@@ -122,6 +122,10 @@ public struct PinAppearance: Equatable {
         self.chromeAutoHide = chromeAutoHide
     }
 
+    public static let defaults = PinAppearance(borderWidth: 1.5, borderColorToken: "auto",
+                                                cornerRadius: 10, shadow: true, magnet: true,
+                                                opacity: 1, chromeAutoHide: 2.5)
+
     /// 当前全局设置（普通「钉住」用这个）
     public static var current: PinAppearance {
         PinAppearance(borderWidth: PinStyle.borderWidth,
@@ -136,19 +140,25 @@ public struct PinAppearance: Equatable {
     /// 动作条里的四个形态。数值与设置页「外观预设」一致，两处不会各说各话。
     public static func preset(_ id: String) -> PinAppearance? {
         var p = current
+        guard p.applyPreset(id) else { return nil }
+        return p
+    }
+
+    @discardableResult
+    mutating func applyPreset(_ id: String) -> Bool {
         switch id {
         case "classic":
-            p.borderWidth = 1.5; p.borderColorToken = "auto"; p.cornerRadius = 10; p.shadow = true
+            borderWidth = 1.5; borderColorToken = "auto"; cornerRadius = 10; shadow = true
         case "borderless":
-            p.borderWidth = 0; p.borderColorToken = "auto"; p.cornerRadius = 0; p.shadow = false
+            borderWidth = 0; borderColorToken = "auto"; cornerRadius = 0; shadow = false
         case "card":
-            p.borderWidth = 2; p.borderColorToken = "white"; p.cornerRadius = 16; p.shadow = true
+            borderWidth = 2; borderColorToken = "white"; cornerRadius = 16; shadow = true
         case "accent":
-            p.borderWidth = 2; p.borderColorToken = "accent"; p.cornerRadius = 12; p.shadow = true
+            borderWidth = 2; borderColorToken = "accent"; cornerRadius = 12; shadow = true
         default:
-            return nil
+            return false
         }
-        return p
+        return true
     }
 
     public var presetTitle: String? {
@@ -259,6 +269,7 @@ final class PinIconButton: NSButton {
 
 /// 钉图控制条：胶囊底 + 拖拽柄 + 三个动作 + 缩放百分比
 final class PinToolbarView: NSView {
+    var reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
 
     enum Metrics {
         static let height: CGFloat = 38
@@ -418,7 +429,7 @@ final class PinToolbarView: NSView {
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
                                 xRadius: r - 0.5, yRadius: r - 0.5)
         // 浅色胶囊：深色截图上靠底色分辨，浅色截图上靠 1px 暗描边 + 投影分辨
-        NSColor(white: 1.0, alpha: 0.92).setFill()
+        NSColor(white: 1.0, alpha: reduceTransparency ? 1 : 0.92).setFill()
         path.fill()
         NSColor(white: 0, alpha: 0.10).setStroke()
         path.lineWidth = 1
@@ -609,7 +620,99 @@ final class PinnedScreenshotScaleHUD: NSView {
 /// - 主体拖动移动窗口（可吸附屏幕边缘 / 其它钉图），八向手柄调尺寸
 /// - 滚轮 / 捏合以光标为锚点缩放，双击复位 100%
 /// - 右键「更多」：缩放 / 不透明度 / 旋转与翻转 / 圆角 / 阴影 / 边框 / 隐藏全部
-final class PinnedScreenshotContentView: NSView {
+enum PinMagnet {
+    static func snapped(origin: NSPoint, size: NSSize, visible: NSRect?, others: [NSRect]) -> NSPoint {
+        let threshold: CGFloat = 8
+        var x = origin.x, y = origin.y
+        if let v = visible {
+            if abs(x - v.minX) < threshold { x = v.minX }
+            if abs((x + size.width) - v.maxX) < threshold { x = v.maxX - size.width }
+            if abs(y - v.minY) < threshold { y = v.minY }
+            if abs((y + size.height) - v.maxY) < threshold { y = v.maxY - size.height }
+        }
+        for other in others {
+            if abs(x - other.minX) < threshold { x = other.minX }
+            if abs((x + size.width) - other.maxX) < threshold { x = other.maxX - size.width }
+            if abs(y - other.minY) < threshold { y = other.minY }
+            if abs((y + size.height) - other.maxY) < threshold { y = other.maxY - size.height }
+            if abs((y + size.height) - other.minY) < threshold { y = other.minY - size.height }
+            if abs(y - other.maxY) < threshold { y = other.maxY }
+        }
+        return NSPoint(x: x, y: y)
+    }
+
+}
+
+/// 图像与描边的正式组件；设置场景只替换图像数据和交互回调。
+class PinImageView: NSView {
+    let image: CGImage
+    var pinAppearance: PinAppearance
+    var rotationQuarter = 0
+    var flipH = false
+    var flipV = false
+    private let autoBorderColor: NSColor
+
+    init(image: CGImage, frame: NSRect, appearance: PinAppearance) {
+        self.image = image
+        pinAppearance = appearance
+        autoBorderColor = PinStyle.sampledBorderColor(for: image)
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
+
+    private var borderColor: NSColor {
+        switch pinAppearance.borderColorToken {
+        case "white":  return NSColor(white: 1, alpha: 0.86)
+        case "black":  return NSColor(white: 0, alpha: 0.55)
+        case "accent": return NSColor.controlAccentColor.withAlphaComponent(0.95)
+        default:       return autoBorderColor
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.clear(bounds)
+
+        let radius = CGFloat(pinAppearance.cornerRadius)
+        let borderWidth = CGFloat(pinAppearance.borderWidth)
+        let outer = CGPath(roundedRect: bounds, cornerWidth: radius, cornerHeight: radius, transform: nil)
+
+        // 1. 图像（裁进圆角；按旋转/翻转绘制）
+        ctx.saveGState()
+        ctx.addPath(outer)
+        ctx.clip()
+        ctx.interpolationQuality = .high
+        ctx.translateBy(x: bounds.midX, y: bounds.midY)
+        if rotationQuarter != 0 { ctx.rotate(by: CGFloat(rotationQuarter) * .pi / 2) }
+        if flipH || flipV { ctx.scaleBy(x: flipH ? -1 : 1, y: flipV ? -1 : 1) }
+        let swapped = rotationQuarter % 2 == 1
+        let drawW = swapped ? bounds.height : bounds.width
+        let drawH = swapped ? bounds.width : bounds.height
+        ctx.setAlpha(CGFloat(pinAppearance.opacity))
+        ctx.draw(image, in: CGRect(x: -drawW / 2, y: -drawH / 2, width: drawW, height: drawH))
+        ctx.setAlpha(1)
+        ctx.restoreGState()
+
+        // 2. 描边（内缩半个线宽，否则外半边会被窗口边界裁掉）
+        if borderWidth > 0 {
+            let inset = borderWidth / 2
+            let rect = bounds.insetBy(dx: inset, dy: inset)
+            let inner = CGPath(roundedRect: rect,
+                               cornerWidth: max(0, radius - inset),
+                               cornerHeight: max(0, radius - inset),
+                               transform: nil)
+            ctx.addPath(inner)
+            ctx.setLineWidth(borderWidth)
+            ctx.setStrokeColor(borderColor.cgColor)
+            ctx.strokePath()
+        }
+    }
+
+
+}
+
+final class PinnedScreenshotContentView: PinImageView {
 
     private enum HitZone { case body, top, bottom, left, right, topLeft, topRight, bottomLeft, bottomRight }
 
@@ -622,20 +725,9 @@ final class PinnedScreenshotContentView: NSView {
     static let preciseScrollDivisor: CGFloat = 3.5
     static let regularScrollStep: CGFloat = 12.0
 
-    let image: CGImage
     /// 未旋转时的 100% 基准尺寸
     private let baseSize: NSSize
     private var currentScale: CGFloat = 1.0
-
-    /// 旋转 90° 的次数（0–3）与翻转标记
-    private var rotationQuarter = 0
-    private var flipH = false
-    private var flipV = false
-
-    /// auto 描边的取样结果（按图缓存一次）
-    private let autoBorderColor: NSColor
-    /// 这一张钉图自己的外观（v263，见 PinAppearance）
-    var pinAppearance: PinAppearance
 
     var onClose: (() -> Void)?
 
@@ -656,12 +748,9 @@ final class PinnedScreenshotContentView: NSView {
     private var chromeVisible = false
     private var toolbarHovered = false
 
-    init(image: CGImage, frame frameRect: NSRect, appearance: PinAppearance = .current) {
-        self.image = image
+    override init(image: CGImage, frame frameRect: NSRect, appearance: PinAppearance = .current) {
         self.baseSize = frameRect.size
-        self.pinAppearance = appearance
-        self.autoBorderColor = PinStyle.sampledBorderColor(for: image)
-        super.init(frame: frameRect)
+        super.init(image: image, frame: frameRect, appearance: appearance)
 
         let area = NSTrackingArea(rect: .zero,
                                   options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
@@ -723,54 +812,6 @@ final class PinnedScreenshotContentView: NSView {
     }
 
     // MARK: 绘制
-
-    private var borderColor: NSColor {
-        switch pinAppearance.borderColorToken {
-        case "white":  return NSColor(white: 1, alpha: 0.86)
-        case "black":  return NSColor(white: 0, alpha: 0.55)
-        case "accent": return NSColor.controlAccentColor.withAlphaComponent(0.95)
-        default:       return autoBorderColor
-        }
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        ctx.clear(bounds)
-
-        let radius = CGFloat(pinAppearance.cornerRadius)
-        let borderWidth = CGFloat(pinAppearance.borderWidth)
-        let outer = CGPath(roundedRect: bounds, cornerWidth: radius, cornerHeight: radius, transform: nil)
-
-        // 1. 图像（裁进圆角；按旋转/翻转绘制）
-        ctx.saveGState()
-        ctx.addPath(outer)
-        ctx.clip()
-        ctx.interpolationQuality = .high
-        ctx.translateBy(x: bounds.midX, y: bounds.midY)
-        if rotationQuarter != 0 { ctx.rotate(by: CGFloat(rotationQuarter) * .pi / 2) }
-        if flipH || flipV { ctx.scaleBy(x: flipH ? -1 : 1, y: flipV ? -1 : 1) }
-        let swapped = rotationQuarter % 2 == 1
-        let drawW = swapped ? bounds.height : bounds.width
-        let drawH = swapped ? bounds.width : bounds.height
-        ctx.setAlpha(CGFloat(pinAppearance.opacity))
-        ctx.draw(image, in: CGRect(x: -drawW / 2, y: -drawH / 2, width: drawW, height: drawH))
-        ctx.setAlpha(1)
-        ctx.restoreGState()
-
-        // 2. 描边（内缩半个线宽，否则外半边会被窗口边界裁掉）
-        if borderWidth > 0 {
-            let inset = borderWidth / 2
-            let rect = bounds.insetBy(dx: inset, dy: inset)
-            let inner = CGPath(roundedRect: rect,
-                               cornerWidth: max(0, radius - inset),
-                               cornerHeight: max(0, radius - inset),
-                               transform: nil)
-            ctx.addPath(inner)
-            ctx.setLineWidth(borderWidth)
-            ctx.setStrokeColor(borderColor.cgColor)
-            ctx.strokePath()
-        }
-    }
 
     override func layout() {
         super.layout()
@@ -1057,24 +1098,9 @@ final class PinnedScreenshotContentView: NSView {
 
     /// 吸附：屏幕四边 + 其它钉图的四边与中线对齐（阈值 8pt）
     private func magnetSnapped(origin: NSPoint, size: NSSize, window: NSWindow) -> NSPoint {
-        let threshold: CGFloat = 8
-        var x = origin.x, y = origin.y
-        if let screen = window.screen ?? NSScreen.main {
-            let v = screen.visibleFrame
-            if abs(x - v.minX) < threshold { x = v.minX }
-            if abs((x + size.width) - v.maxX) < threshold { x = v.maxX - size.width }
-            if abs(y - v.minY) < threshold { y = v.minY }
-            if abs((y + size.height) - v.maxY) < threshold { y = v.maxY - size.height }
-        }
-        for other in PinnedScreenshotManager.shared.otherFrames(excluding: window) {
-            if abs(x - other.minX) < threshold { x = other.minX }
-            if abs((x + size.width) - other.maxX) < threshold { x = other.maxX - size.width }
-            if abs(y - other.minY) < threshold { y = other.minY }
-            if abs((y + size.height) - other.maxY) < threshold { y = other.maxY - size.height }
-            if abs((y + size.height) - other.minY) < threshold { y = other.minY - size.height }
-            if abs(y - other.maxY) < threshold { y = other.maxY }
-        }
-        return NSPoint(x: x, y: y)
+        PinMagnet.snapped(origin: origin, size: size,
+                          visible: (window.screen ?? NSScreen.main)?.visibleFrame,
+                          others: PinnedScreenshotManager.shared.otherFrames(excluding: window))
     }
 
     // MARK: 缩放

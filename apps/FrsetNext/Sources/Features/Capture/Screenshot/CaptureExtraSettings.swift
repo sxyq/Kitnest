@@ -9,37 +9,31 @@ import AppKit
 //   ③ 静默识别 + 仅文本马赛克（v267 移除了同批加入的「拖拽角标」）。
 
 struct CaptureRatioSettingsView: View {
-    @Stored private var selectedID: String = CaptureRatioStore.selectedID
-    @Stored private var custom: [CaptureAspectRatio] = CaptureRatioStore.customItems
-    @Stored private var newName: String = ""
-    @Stored private var newRatio: String = ""
+    @ObservedObject var draft: CaptureAppearanceDraft
 
     var body: some View {
         SettingsSection("固定比例") {
             SettingsGroupBox {
                 SettingsRow(title: "框选锁定") {
-                    Picker("", selection: $selectedID) {
+                    Picker("", selection: $draft.values.selectedRatio) {
                         Text("自由框选").tag("")
                         ForEach(CaptureAspectRatio.builtins) { item in
                             Text("\(item.name)（\(item.label)）").tag(item.id)
                         }
-                        ForEach(custom) { item in
+                        ForEach(draft.values.customRatios) { item in
                             Text(item.name).tag(item.id)
                         }
                     }
                     .labelsHidden()
                     .frame(width: 190)
-                    .onChange(of: selectedID) { value in
-                        CaptureRatioStore.selectedID = value
-                    }
                     Text("选中后拖拽始终按该比例；⇧ 临时正方形")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
 
-                if !custom.isEmpty {
+                if !draft.values.customRatios.isEmpty {
                     SettingsDivider()
-                    ForEach(custom) { item in
+                    ForEach(draft.values.customRatios) { item in
                         HStack(spacing: 10) {
                             Text(item.name).font(.system(size: 12))
                             Text(item.label)
@@ -47,9 +41,8 @@ struct CaptureRatioSettingsView: View {
                                 .foregroundStyle(.secondary)
                             Spacer(minLength: 8)
                             Button {
-                                CaptureRatioStore.remove(id: item.id)
-                                custom = CaptureRatioStore.customItems
-                                selectedID = CaptureRatioStore.selectedID
+                                draft.values.customRatios.removeAll { $0.id == item.id }
+                                if draft.values.selectedRatio == item.id { draft.values.selectedRatio = "" }
                             } label: {
                                 Image(systemName: "trash")
                             }
@@ -64,15 +57,15 @@ struct CaptureRatioSettingsView: View {
                 SettingsDivider()
 
                 HStack(spacing: 8) {
-                    TextField("名称（可空）", text: $newName)
+                    TextField("名称（可空）", text: $draft.newRatioName)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 120)
-                    TextField("例如 5:4", text: $newRatio)
+                    TextField("例如 5:4", text: $draft.newRatioText)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 90)
-                    Button("添加") { addRatio() }
+                    Button("添加") { draft.addRatio() }
                         .controlSize(.small)
-                        .disabled(CaptureAspectRatio.parse(newRatio) == nil)
+                        .disabled(CaptureAspectRatio.parse(draft.newRatioText) == nil)
                     Text("比例会自动约分，并去重")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -82,24 +75,12 @@ struct CaptureRatioSettingsView: View {
             }
         }
     }
-
-    private func addRatio() {
-        guard let (w, h) = CaptureAspectRatio.parse(newRatio) else { return }
-        if let item = CaptureRatioStore.add(name: newName, width: w, height: h) {
-            newName = ""
-            newRatio = ""
-            custom = CaptureRatioStore.customItems
-            selectedID = item.id
-            CaptureRatioStore.selectedID = item.id
-        }
-    }
 }
 
 // MARK: - 文件命名
 
 struct CaptureNamingSettingsView: View {
-    @Stored private var template: String = CaptureFileName.template
-    @Stored private var preview: String = CaptureFileName.preview(template: CaptureFileName.template)
+    @ObservedObject var draft: CaptureAppearanceDraft
 
     private let tokens = ["{yyyy}", "{MM}", "{dd}", "{HH}", "{mm}", "{ss}",
                           "{seq}", "{seq:4}", "{random:3}", "{w}", "{h}", "{mode}", "{app}"]
@@ -111,18 +92,12 @@ struct CaptureNamingSettingsView: View {
                     Text("模板")
                         .font(.system(size: 12.5))
                         .frame(width: 92, alignment: .leading)
-                    TextField(CaptureFileName.defaultTemplate, text: $template)
+                    TextField(CaptureFileName.defaultTemplate, text: $draft.values.fileNameTemplate)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11.5, design: .monospaced))
                         .frame(maxWidth: 340)
-                        .onChange(of: template) { value in
-                            CaptureFileName.template = value
-                            preview = CaptureFileName.preview(template: value)
-                        }
                     Button("恢复默认") {
-                        template = CaptureFileName.defaultTemplate
-                        CaptureFileName.template = template
-                        preview = CaptureFileName.preview(template: template)
+                        draft.values.fileNameTemplate = CaptureFileName.defaultTemplate
                     }
                     .controlSize(.small)
                     Spacer(minLength: 0)
@@ -135,7 +110,7 @@ struct CaptureNamingSettingsView: View {
                     Text("预览")
                         .font(.system(size: 12.5))
                         .frame(width: 92, alignment: .leading)
-                    Text(preview)
+                    Text(CaptureFileName.preview(template: draft.values.fileNameTemplate))
                         .font(.system(size: 11.5, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -148,9 +123,7 @@ struct CaptureNamingSettingsView: View {
 
                 // 占位符：点一下插到模板末尾（比让用户背下来现实）
                 FlowTokens(tokens: tokens) { token in
-                    template += token
-                    CaptureFileName.template = template
-                    preview = CaptureFileName.preview(template: template)
+                    draft.values.fileNameTemplate += token
                 }
                 .padding(.vertical, 8)
             }
@@ -187,27 +160,19 @@ private struct FlowTokens: View {
 // 删除，设置里不再留一个能把它开回来的入口。
 
 struct CaptureExtraSettingsView: View {
-    @Stored private var silent = CaptureOCRNotify.isSilent
-    @Stored private var notifySeconds = CaptureOCRNotify.seconds
-    @Stored private var textOnlyMosaic = MosaicTextOnly.isEnabled
+    @ObservedObject var draft: CaptureAppearanceDraft
 
     var body: some View {
         SettingsSection("截完即用") {
             SettingsGroupBox {
                 ExtraSettingRow(title: "静默识别") {
-                    Toggle("", isOn: $silent)
+                    Toggle("", isOn: $draft.values.silent)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: silent) { value in
-                            CaptureOCRNotify.isSilent = value
-                        }
-                    Stepper(value: $notifySeconds, in: 2...12) {
-                        Text("\(notifySeconds) 秒")
+                    Stepper(value: $draft.values.notifySeconds, in: 2...12) {
+                        Text("\(draft.values.notifySeconds) 秒")
                             .font(.system(size: 11.5).monospacedDigit())
                     }
-                    .disabled(!silent)
-                    .onChange(of: notifySeconds) { value in
-                        CaptureOCRNotify.seconds = value
-                    }
+                    .disabled(!draft.values.silent)
                     Text("只提示不弹窗，文字自动进剪贴板")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -216,11 +181,8 @@ struct CaptureExtraSettingsView: View {
                 SettingsDivider()
 
                 ExtraSettingRow(title: "仅文本马赛克") {
-                    Toggle("", isOn: $textOnlyMosaic)
+                    Toggle("", isOn: $draft.values.textOnlyMosaic)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: textOnlyMosaic) { value in
-                            MosaicTextOnly.isEnabled = value
-                        }
                     Text("刷子只圈范围，实际只糊文本行（Vision 本机识别）")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)

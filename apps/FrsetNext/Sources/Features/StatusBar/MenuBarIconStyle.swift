@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 
 // MARK: - 菜单栏图标样式（spec 13 §6 / §7）
 //
@@ -245,6 +246,73 @@ final class RotatingLayerView: NSView {
     }
 }
 
+enum MenuBarIconDrawing {
+    static func configure(_ button: NSButton, style: MenuBarIconStyle, symbol: String, date: Date) -> RotatingLayerView? {
+        button.title = ""
+        button.imagePosition = .imageOnly
+        switch style {
+        case .logo, .custom:
+            button.image = NSImage(systemSymbolName: style == .logo ? MenuBarIconStyle.logo.systemImage : symbol,
+                                   accessibilityDescription: "Kitnest")
+            button.image?.isTemplate = true
+        case .date:
+            button.image = nil
+            button.title = dateTitle(date)
+        case .fan:
+            button.image = NSImage()
+            button.imagePosition = .noImage
+            let view = RotatingLayerView(frame: NSRect(x: 0, y: 0, width: 18, height: 18))
+            view.setSymbol(MenuBarIconStyle.fan.systemImage)
+            button.addSubview(view)
+            view.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                view.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+                view.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+                view.widthAnchor.constraint(equalToConstant: 18),
+                view.heightAnchor.constraint(equalToConstant: 18)
+            ])
+            return view
+        }
+        return nil
+    }
+
+    static func dateTitle(_ date: Date) -> String { dateFormatter.string(from: date) }
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "M/d"
+        return formatter
+    }()
+}
+
+/// 静态预览使用正式图标绘制；不安装状态项、采样器或动画。
+struct MenuBarIconPreview: NSViewRepresentable {
+    let style: MenuBarIconStyle
+    let customSymbol: String
+    let cat: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeNSView(context: Context) -> NSView { NSView(frame: NSRect(x: 0, y: 0, width: 40, height: 22)) }
+    func updateNSView(_ view: NSView, context: Context) {
+        view.subviews.forEach { $0.removeFromSuperview() }
+        if cat {
+            let content = FSRunCatCreatePreview(colorScheme == .dark)!
+            content.frame.origin.x = 3
+            view.addSubview(content)
+        } else {
+            let button = NSButton(frame: view.bounds)
+            button.isBordered = false
+            _ = MenuBarIconDrawing.configure(button, style: style, symbol: customSymbol,
+                                             date: Date(timeIntervalSince1970: 1_799_539_200))
+            view.addSubview(button)
+        }
+        view.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+    }
+    static func dismantleNSView(_ view: NSView, coordinator: ()) {
+        view.subviews.forEach { $0.removeFromSuperview() }
+    }
+}
+
 // MARK: - 菜单动作
 
 /// 主菜单里「自定义菜单栏图标…」的动作宿主。
@@ -414,41 +482,14 @@ final class MenuBarIconStyleApplier {
         stopRotating()
         Log.info("StatusBar", "iconStyle 应用：\(style.rawValue)")
 
-        switch style {
-        case .logo, .custom:
-            let symbol = style == .logo ? MenuBarIconStyle.logo.systemImage : customSymbol!
-            let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Kitnest")
-            image?.isTemplate = true
-            button.image = image
-            button.title = ""
-            button.toolTip = "Kitnest（右键查看更多）"
-            StatusBarController.shared.setMainItemLength(NSStatusItem.variableLength)
-        case .date:
-            button.image = nil
-            button.title = Self.dateFormatter.string(from: Date())
-            button.toolTip = "Kitnest（右键查看更多）"
-            StatusBarController.shared.setMainItemLength(NSStatusItem.variableLength)
-            startDateTimer()
-        case .fan:
-            // 空图占位：无图按钮不绘制子视图（STATS 实证，同双层项做法）；
-            // 2026-10-16 之前此处设 nil，导致旋转视图整个不渲染、主图标不可见
-            button.image = NSImage()
-            button.title = ""
-            button.toolTip = "Kitnest（动态风扇）"
-            // 固定宽度容纳 18pt 旋转视图（variableLength 会把按钮压到只剩几个点，
-            // 子视图被裁剪成「<<」状残影，2026-10-16 实证）
-            StatusBarController.shared.setMainItemLength(Self.fanItemLength)
-            startFan(on: button)
-            Log.info("StatusBar", "iconStyle fan：length=\(Self.fanItemLength) itemLength=\(StatusBarController.shared.mainItemLength.map { String(describing: $0) } ?? "nil") bounds=\(button.bounds)")
-        }
+        let view = MenuBarIconDrawing.configure(button, style: style,
+                                                 symbol: customSymbol ?? MenuBarIconStyleStore.defaultCustomSymbol,
+                                                 date: Date())
+        button.toolTip = "Kitnest（右键查看更多）"
+        StatusBarController.shared.setMainItemLength(style == .fan ? Self.fanItemLength : NSStatusItem.variableLength)
+        if style == .date { startDateTimer() }
+        if let view { startFan(view) }
     }
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "M/d"
-        return formatter
-    }()
 
     // MARK: date 定时器
 
@@ -457,7 +498,7 @@ final class MenuBarIconStyleApplier {
             // v128（流畅度）：回调体进 autoreleasepool（格式化临时对象随回调排空）
             autoreleasepool {
                 guard let button = ToastAnchor.button else { return }
-                button.title = Self.dateFormatter.string(from: Date())
+                button.title = MenuBarIconDrawing.dateTitle(Date())
             }
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -466,33 +507,9 @@ final class MenuBarIconStyleApplier {
 
     // MARK: fan 定时器 + 旋转视图
 
-    private func startFan(on button: NSStatusBarButton) {
-        let size = NSSize(width: Self.fanViewSize, height: Self.fanViewSize)
-        let view = RotatingLayerView(frame: NSRect(origin: .zero, size: size))
-        view.setSymbol(MenuBarIconStyle.fan.systemImage)
-        // 挂到状态项按钮内（imagePosition 需为 noImage，避免与内置 image 叠加）
-        button.imagePosition = .noImage
-        button.addSubview(view)
-        // 约束居中：不依赖 apply 瞬间的 button.bounds（那一刻按钮可能还没布局），
-        // 按钮随后被系统拉到 30pt 宽时视图仍保持居中（2026-10-16 修复：
-        // 此前按当时 bounds 手算 frame，布局后偏移/裁剪导致风扇不可见）
-        view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            view.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            view.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-            view.widthAnchor.constraint(equalToConstant: size.width),
-            view.heightAnchor.constraint(equalToConstant: size.height),
-        ])
+    private func startFan(_ view: RotatingLayerView) {
         rotatingView = view
-        view.spin()
-
-        // 布局后核验：按钮真实宽度 / 子视图是否就位 / 窗口是否可见
-        // （2026-10-16 主图标不可见排障：区分「按钮零宽」与「有位置不渲染」）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak button] in
-            guard let b = button else { return }
-            Log.info("StatusBar", "fan 布局核验：bounds=\(b.bounds) 子视图=\(b.subviews.count) 窗口=\(b.window?.frame ?? .zero) 可见=\(b.window?.isVisible ?? false)")
-        }
-
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { view.spin() }
         let timer = Timer(timeInterval: Self.cpuSampleInterval, repeats: true) { [weak self] _ in
             // v128（流畅度）：回调体进 autoreleasepool（CPU 采样的临时对象随回调排空）
             autoreleasepool { self?.updateFanSpeed() }

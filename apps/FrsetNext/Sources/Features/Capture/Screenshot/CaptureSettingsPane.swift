@@ -11,23 +11,19 @@ import AppKit
 // 五块改由 `CaptureBlockPage` 分别承载；本页只负责「截图」这一块，内部结构不变。
 
 public struct CaptureSettingsPane: View {
+    public init() {}
+
+    public var body: some View {
+        SettingsDraftEditor(id: "captureAppearance", makeDraft: { CaptureAppearanceDraft() }) { draft in
+            CaptureSettingsContent(draft: draft)
+        }
+    }
+}
+
+private struct CaptureSettingsContent: View {
+    @ObservedObject var draft: CaptureAppearanceDraft
     @ObservedObject private var manager = ScreenshotManager.shared
-    @Stored private var savePath: String
-    @Stored private var soundEnabled: Bool
-    @Stored private var languageIndex: Int
-    @Stored private var action: CaptureDefaultAction
-    @Stored private var showOCRWindow: Bool
-    /// Vision 自动检测语言（开启后忽略下方语言列表）
-    @Stored private var autoDetect: Bool
-    /// v130（SnowShot 对齐）④：延时截图秒数（3 / 5 / 10）
-    @Stored private var delaySeconds: Int
-    /// v220：水印（对齐 1Capture 的文字水印）
-    @Stored private var wmEnabled: Bool
-    @Stored private var wmText: String
-    @Stored private var wmTile: Bool
-    @Stored private var wmOpacity: Double
-    @Stored private var wmAngle: Double
-    /// v266：截图时默认拾取方式（"window" / "region"），与覆盖层上的开关共用同一个键
+    @Stored private var savePath = Preferences.shared.value(Preferences.Keys.captureSavePath, default: "")
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -35,31 +31,19 @@ public struct CaptureSettingsPane: View {
         ("仅英文", ["en-US"])
     ]
 
-    public init() {
-        let prefs = Preferences.shared
-        _savePath = Stored(wrappedValue: prefs.value(Preferences.Keys.captureSavePath, default: ""))
-        _soundEnabled = Stored(wrappedValue: prefs.value(Preferences.Keys.captureSound, default: true))
-        let langs: [String] = prefs.value(Preferences.Keys.ocrLanguages, default: ["zh-Hans", "en-US"])
-        _languageIndex = Stored(wrappedValue: Self.languageOptions.firstIndex { $0.codes == langs } ?? 0)
-        _action = Stored(wrappedValue: ScreenshotManager.shared.defaultAction)
-        _showOCRWindow = Stored(wrappedValue: ScreenshotManager.shared.ocrShowResultWindow)
-        _autoDetect = Stored(wrappedValue: OCRService.autoDetectLanguages)
-        _delaySeconds = Stored(wrappedValue: ScreenshotManager.shared.delaySeconds)
-        _wmEnabled = Stored(wrappedValue: Watermark.isEnabled)
-        _wmText = Stored(wrappedValue: Watermark.text)
-        _wmTile = Stored(wrappedValue: Watermark.tile)
-        _wmOpacity = Stored(wrappedValue: Watermark.opacity)
-        _wmAngle = Stored(wrappedValue: Watermark.angle)
+    private var languageIndex: Binding<Int> {
+        Binding(get: { Self.languageOptions.firstIndex { $0.codes == draft.values.languages } ?? 0 },
+                set: { draft.values.languages = Self.languageOptions[$0].codes })
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 18) {
             saveSection
             behaviorSection
             // v264（B 档）：固定比例 / 文件命名 / 截完即用（静默识别、仅文本马赛克）
-            CaptureRatioSettingsView()
-            CaptureNamingSettingsView()
-            CaptureExtraSettingsView()
+            CaptureRatioSettingsView(draft: draft)
+            CaptureNamingSettingsView(draft: draft)
+            CaptureExtraSettingsView(draft: draft)
             watermarkSection
             ocrSection
             permissionSection
@@ -138,11 +122,8 @@ public struct CaptureSettingsPane: View {
                 SettingsDivider()
 
                 row("提示音") {
-                    Toggle("", isOn: $soundEnabled)
+                    Toggle("", isOn: $draft.values.soundEnabled)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: soundEnabled) { newValue in
-                            Preferences.shared.set(Preferences.Keys.captureSound, newValue)
-                        }
                     Text("截图瞬间播放系统快门声")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -151,32 +132,26 @@ public struct CaptureSettingsPane: View {
                 SettingsDivider()
 
                 row("截图后") {
-                    Picker("", selection: $action) {
+                    Picker("", selection: $draft.values.action) {
                         ForEach(CaptureDefaultAction.allCases) { item in
                             Text(item.title).tag(item)
                         }
                     }
                     .labelsHidden()
                     .frame(width: 150)
-                    .onChange(of: action) { newValue in
-                        ScreenshotManager.shared.defaultAction = newValue
-                    }
                 }
 
                 SettingsDivider()
 
                 row("延时截图") {
-                    Picker("", selection: $delaySeconds) {
+                    Picker("", selection: $draft.values.delaySeconds) {
                         Text("3 秒").tag(3)
                         Text("5 秒").tag(5)
                         Text("10 秒").tag(10)
                     }
                     .labelsHidden()
                     .frame(width: 100)
-                    .onChange(of: delaySeconds) { newValue in
-                        ScreenshotManager.shared.delaySeconds = newValue
-                    }
-                    Text("倒计时 5→4→3→2→1，按 Esc 取消")
+                    Text("倒计时 \(draft.values.delaySeconds) 秒，按 Esc 取消")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -190,32 +165,28 @@ public struct CaptureSettingsPane: View {
         SettingsSection("水印") {
             SettingsGroupBox {
                 row("导出时加水印") {
-                    Toggle("", isOn: $wmEnabled)
+                    Toggle("", isOn: $draft.values.watermark.enabled)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: wmEnabled) { newValue in Watermark.isEnabled = newValue }
                 }
 
-                if wmEnabled {
+                if draft.values.watermark.enabled {
                     SettingsDivider()
 
                     row("水印文字") {
-                        TextField("例如：内部资料", text: $wmText)
+                        TextField("例如：内部资料", text: $draft.values.watermark.text)
                             .textFieldStyle(.roundedBorder)
                             .frame(maxWidth: 220)
-                            .onChange(of: wmText) { newValue in Watermark.text = newValue }
-                        Toggle("铺满画面", isOn: $wmTile)
+                        Toggle("铺满画面", isOn: $draft.values.watermark.tile)
                             .toggleStyle(.checkbox)
                             .controlSize(.small)
-                            .onChange(of: wmTile) { newValue in Watermark.tile = newValue }
                     }
 
                     SettingsDivider()
 
                     row("不透明度") {
-                        Slider(value: $wmOpacity, in: 0.03...0.5)
+                        Slider(value: $draft.values.watermark.opacity, in: 0...0.5)
                             .frame(width: 180)
-                            .onChange(of: wmOpacity) { newValue in Watermark.opacity = newValue }
-                        Text("\(Int(wmOpacity * 100))%")
+                        Text("\(Int(draft.values.watermark.opacity * 100))%")
                             .font(.system(size: 11.5).monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 44, alignment: .trailing)
@@ -224,10 +195,9 @@ public struct CaptureSettingsPane: View {
                     SettingsDivider()
 
                     row("倾斜角") {
-                        Slider(value: $wmAngle, in: -60...60)
+                        Slider(value: $draft.values.watermark.angle, in: -60...60)
                             .frame(width: 180)
-                            .onChange(of: wmAngle) { newValue in Watermark.angle = newValue }
-                        Text("\(Int(wmAngle))°")
+                        Text("\(Int(draft.values.watermark.angle))°")
                             .font(.system(size: 11.5).monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 44, alignment: .trailing)
@@ -238,6 +208,9 @@ public struct CaptureSettingsPane: View {
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 8)
                 }
+
+                CaptureWatermarkPreview(configuration: draft.values.watermark)
+                    .padding(.vertical, 10)
             }
         }
     }
@@ -256,33 +229,24 @@ public struct CaptureSettingsPane: View {
                 SettingsDivider()
 
                 row("识别语言") {
-                    Picker("", selection: $languageIndex) {
+                    Picker("", selection: languageIndex) {
                         ForEach(0..<Self.languageOptions.count, id: \.self) { index in
                             Text(Self.languageOptions[index].title).tag(index)
                         }
                     }
                     .labelsHidden()
                     .frame(width: 160)
-                    .disabled(autoDetect)
-                    .onChange(of: languageIndex) { newValue in
-                        OCRService.setLanguages(Self.languageOptions[newValue].codes)
-                    }
-                    Toggle("自动检测语言", isOn: $autoDetect)
+                    .disabled(draft.values.autoDetect)
+                    Toggle("自动检测语言", isOn: $draft.values.autoDetect)
                         .toggleStyle(.checkbox)
                         .controlSize(.small)
-                        .onChange(of: autoDetect) { newValue in
-                            OCRService.autoDetectLanguages = newValue
-                        }
                 }
 
                 SettingsDivider()
 
                 row("结果窗") {
-                    Toggle("", isOn: $showOCRWindow)
+                    Toggle("", isOn: $draft.values.showOCRWindow)
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: showOCRWindow) { newValue in
-                            ScreenshotManager.shared.ocrShowResultWindow = newValue
-                        }
                     Text("识别后弹出结果窗；关掉则只把文字放进剪贴板")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)

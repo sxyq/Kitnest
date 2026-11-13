@@ -432,9 +432,22 @@ final class CaptureToolbarModel: ObservableObject {
     @Published var style: CaptureToolbarStyle = .pillBar
     /// 每次 present 自增：视图靠它重置悬停/展开状态（单例面板，上次的状态会残留）
     @Published var presentToken = 0
+    @Published var isSettingsPreview = false
+    @Published var previewFeedback = ""
+    var onPreviewFeedback: ((String) -> Void)?
     /// 排障：本次直接展开的组 id（`kitnest://capturebar?expand=copyGroup`）
     var debugExpand: String?
     var onPick: ((String) -> Void)?
     var onDismiss: (() -> Void)?
+
+    func pick(_ id: String) {
+        if isSettingsPreview {
+            guard let tool = CaptureActionChain.tool(id: id) else { return }
+            previewFeedback = "预览 · \(tool.title)"
+            onPreviewFeedback?(previewFeedback)
+        } else {
+            onPick?(id)
+        }
+    }
 }
 

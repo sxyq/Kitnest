@@ -160,6 +160,12 @@ final class CurtainCardView: NSView {
     var onRemove: ((CurtainItem) -> Void)?
     var onSave: ((CurtainItem) -> Void)?
     var onPin: ((CurtainItem) -> Void)?
+    /// 有回调时由宿主消费动作；正式图帘沿用文件 / 剪贴板路径。
+    var onCopy: ((CurtainItem) -> Void)?
+    var onDrag: ((CurtainItem) -> Void)?
+    var onReveal: ((CurtainItem) -> Void)?
+    var reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    var reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     /// ⌘ 拖动缩放：每次鼠标事件回调「相对上一次的 x 位移」
     var onResizeStep: ((CGFloat) -> Void)?
     /// 缩放结束（鼠标抬起 / 滚轮停下）
@@ -373,7 +379,7 @@ final class CurtainCardView: NSView {
         stopSway()
         setButtonsHidden(false)
         needsDisplay = true
-        layer?.setAffineTransform(CGAffineTransform(translationX: 0, y: -2))
+        if !reduceMotion { layer?.setAffineTransform(CGAffineTransform(translationX: 0, y: -2)) }
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -396,7 +402,7 @@ final class CurtainCardView: NSView {
     /// 摆动**不含** `ropeTilt`：静态倾斜已经由 `draw` 里的 ctx 旋转完成，
     /// 这里再加一次会变成双倍倾角。
     func startSway() {
-        guard let layer, !hovered, window != nil else { return }
+        guard !reduceMotion, let layer, !hovered, window != nil else { return }
         // 已经在摆就别重挂：设置页拖滑块会频繁 rebuild，重挂会让整排卡片「跳」一下
         if layer.animation(forKey: Self.swayKey) != nil { return }
         layer.removeAnimation(forKey: Self.swayKey)
@@ -465,7 +471,7 @@ final class CurtainCardView: NSView {
         button.imagePosition = .imageOnly
         button.contentTintColor = .white
         button.wantsLayer = true
-        button.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
+        button.layer?.backgroundColor = NSColor.black.withAlphaComponent(reduceTransparency ? 1 : 0.55).cgColor
         button.layer?.cornerRadius = 8.5
         button.target = self
         button.action = action
@@ -479,6 +485,16 @@ final class CurtainCardView: NSView {
     @objc private func removeTapped() { onRemove?(item) }
     @objc private func saveTapped()   { onSave?(item) }
     @objc private func pinTapped()    { onPin?(item) }
+
+    func refreshAccessibility() {
+        for button in [closeButton, saveButton, pinButton] {
+            button.layer?.backgroundColor = NSColor.black.withAlphaComponent(reduceTransparency ? 1 : 0.55).cgColor
+        }
+        if reduceMotion {
+            layer?.removeAllAnimations()
+            layer?.setAffineTransform(.identity)
+        }
+    }
 
     // MARK: 点击 / 拖拽 / ⌘ 缩放
 
@@ -540,6 +556,7 @@ final class CurtainCardView: NSView {
 
     /// 复制 = 同时给 PNG 和文件 URL，粘贴到聊天窗口是图片，粘到 Finder 是文件
     private func copyToPasteboard() {
+        if let onCopy { onCopy(item); return }
         let data: Data
         do { data = try Data(contentsOf: item.fileURL) }
         catch {
@@ -559,6 +576,7 @@ final class CurtainCardView: NSView {
     }
 
     private func beginDrag(with event: NSEvent) {
+        if let onDrag { onDrag(item); return }
         let dragItem = NSDraggingItem(pasteboardWriter: item.fileURL as NSURL)
         dragItem.setDraggingFrame(NSRect(x: 0, y: 0, width: cardSize.width, height: cardSize.height),
                                   contents: snapshot())
@@ -605,6 +623,7 @@ final class CurtainCardView: NSView {
     @objc private func copyFromMenu() { copyToPasteboard() }
 
     @objc private func revealInFinder() {
+        if let onReveal { onReveal(item); return }
         NSWorkspace.shared.activateFileViewerSelecting([item.fileURL])
     }
 }
@@ -820,6 +839,27 @@ final class CurtainHostView: NSView {
 }
 
 /// 排版容器：绳子在上，卡片按顺序挂着，整体水平居中。
+/// 正式窗口和设置场景共用屏幕排版计算。
+enum CurtainLayout {
+    static func metrics(desired: CGFloat, count: Int, visible: NSRect, railScales: Bool)
+        -> (cardWidth: CGFloat, railScale: CGFloat, maxHeight: CGFloat) {
+        let n = CGFloat(max(count, 1))
+        let available = visible.width - 24
+        func scale(_ width: CGFloat) -> CGFloat {
+            railScales ? min(max(width / CurtainPref.baseCardWidth, 0.8), 3) : 1
+        }
+        var width = desired
+        for _ in 0..<2 {
+            let s = scale(width)
+            let fit = (available - CurtainMetrics.gap(s) * (n - 1) - CurtainMetrics.padding(s) * 2) / n
+            width = min(desired, max(CurtainPref.minCardWidth, fit))
+        }
+        let s = scale(width)
+        return (width, s, max(visible.height * 0.56
+                             - CurtainMetrics.ropeHeight(s) - CurtainMetrics.bottomInset(s), 60))
+    }
+}
+
 final class CurtainCanvasView: NSView {
 
     private let rope = CurtainRopeView()
@@ -828,6 +868,12 @@ final class CurtainCanvasView: NSView {
     var onRemove: ((CurtainItem) -> Void)?
     var onSave: ((CurtainItem) -> Void)?
     var onPin: ((CurtainItem) -> Void)?
+    /// 有回调时由宿主消费动作；正式图帘沿用文件 / 剪贴板路径。
+    var onCopy: ((CurtainItem) -> Void)?
+    var onDrag: ((CurtainItem) -> Void)?
+    var onReveal: ((CurtainItem) -> Void)?
+    var reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    var reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     /// ⌘ 拖动 / ⌘ 滚轮缩放（卡片把自己的事件转上来，帘线空白处也接）
     var onResizeStep: ((CGFloat) -> Void)?
     var onResizeEnd: (() -> Void)?
@@ -842,6 +888,13 @@ final class CurtainCanvasView: NSView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func stopAnimations() {
+        cardViews.forEach {
+            $0.reduceMotion = true
+            $0.layer?.removeAllAnimations()
+        }
+    }
 
     /// 重排。`size` 是宿主给画布分配的尺寸（窗口内区）。
     ///
@@ -920,6 +973,9 @@ final class CurtainCanvasView: NSView {
                 card.onPin = { [weak self] in self?.onPin?($0) }
                 card.onResizeStep = { [weak self] delta in self?.onResizeStep?(delta) }
                 card.onResizeEnd = { [weak self] in self?.onResizeEnd?() }
+                card.onCopy = onCopy
+                card.onDrag = onDrag
+                card.onReveal = onReveal
                 card.swayPhase = Double(index) * 0.618
                 addSubview(card)
                 cardViews.append(card)
@@ -927,6 +983,9 @@ final class CurtainCanvasView: NSView {
                 card = cardViews[index]
                 card.update(cardSize: cardSize, railScale: railScale, live: live)
             }
+            card.reduceMotion = reduceMotion
+            card.reduceTransparency = reduceTransparency
+            card.refreshAccessibility()
             card.frame = NSRect(x: x, y: 0,
                                 width: cardSize.width,
                                 height: clipH + cardSize.height)
@@ -934,7 +993,7 @@ final class CurtainCanvasView: NSView {
             card.ropeTilt = geometry.tilt(atX: card.frame.midX)
             centers.append(card.frame.midX)
             x += cardSize.width + gap
-            if animate && isNew {
+            if animate && isNew && !reduceMotion {
                 animateDrop(card, index: index, geometry: geometry)
             } else if live {
                 card.stopSway()

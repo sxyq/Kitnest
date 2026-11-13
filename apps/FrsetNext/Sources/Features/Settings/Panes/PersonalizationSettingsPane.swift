@@ -1,135 +1,230 @@
 import AppKit
 import Combine
+import ImageIO
 import SwiftUI
 
 // MARK: - 外观草稿：控件只更新预览，保存才应用到正式窗口。
 
-final class AppearanceSettingsDraft: ObservableObject {
+final class AppearanceSettingsDraft: SettingsEditableDraft {
+    let scope: PersonalizationSettingsPart
     @Published var personalization = Personalization.shared.makeDraft() {
-        didSet { observeChanges(); previewRevision &+= 1 }
+        didSet { observeChanges() }
     }
-    @Published var panelWidth = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0) {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var toolbarStyle = CaptureToolbarStyle.current.rawValue {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var appearance = AppearanceManager.shared.mode {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true) {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var segmentMonitor = Preferences.shared.value(PanelSegments.monitorKey, default: true) {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false) {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false) {
-        didSet { previewRevision &+= 1 }
-    }
-    @Published var pageOrder = PanelSegments.order {
-        didSet { previewRevision &+= 1 }
-    }
+    @Published var panelWidth = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0)
+    @Published var toolbarStyle = CaptureToolbarStyle.current.rawValue
+    @Published var appearance = AppearanceManager.shared.mode
+    @Published var segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true)
+    @Published var segmentMonitor = Preferences.shared.value(PanelSegments.monitorKey, default: true)
+    @Published var segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false)
+    @Published var segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false)
+    @Published var pageOrder = PanelSegments.order
+    @Published var previewScene = AppearancePreviewBlock.Scene.regular
+    @Published var previewSelectedItemID: String? = "appearance-note"
     @Published var floating = FloatingClipDeskStore(settingsPreview: true) {
-        didSet { observeChanges(); previewRevision &+= 1 }
+        didSet { observeChanges() }
     }
-    @Published private(set) var previewRevision = 0
+    private var savedPersonalization = Personalization.shared.makeDraft()
+    private var savedValues: [String] = []
     private var observation: AnyCancellable?
 
-    init() { observeChanges() }
+    init(scope: PersonalizationSettingsPart) {
+        self.scope = scope
+        savedValues = values
+        observeChanges()
+    }
+
+    var isDirty: Bool {
+        values != savedValues || !scope.personalizationFields.allSatisfy {
+            $0.matches(personalization, savedPersonalization)
+        }
+    }
+
+    private var values: [String] {
+        switch scope {
+        case .mainPanel:
+            return [String(panelWidth), String(segmentHome), String(segmentMonitor),
+                    String(segmentTransfer), String(segmentCast), PanelSegments.encode(pageOrder)]
+        case .floatingClipboard:
+            return [floating.layout.rawValue, floating.cardSize.rawValue, String(Double(floating.splitRatio)),
+                    String(floating.hoverPreviewEnabled)]
+        case .captureToolbar: return [toolbarStyle]
+        case .shared: return [appearance.rawValue]
+        default: return []
+        }
+    }
 
     private func observeChanges() {
         observation = personalization.objectWillChange.merge(with: floating.objectWillChange)
-            .sink { [weak self] _ in self?.previewRevision &+= 1 }
+            .sink { [weak self] _ in self?.objectWillChange.send() }
     }
 
     var previewPages: [PanelCenterPage] {
         pageOrder.filter {
             switch $0 {
             case .home: return segmentHome
-            case .performance: return segmentMonitor
-            case .transfer: return segmentTransfer
-            case .cast: return segmentCast
+            case .performance:
+                return segmentMonitor && Preferences.shared.value("showSystemStatus", default: true)
+            case .transfer, .cast:
+                let enabled = Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true)
+                    && Preferences.shared.value(Preferences.Keys.panelTransferDock, default: true)
+                return enabled && ($0 == .transfer ? segmentTransfer : segmentCast)
             }
         }
     }
 
-    func save() {
+    func save() -> String? {
         let preferences = Preferences.shared
-        preferences.set(Preferences.Keys.panelWidth, panelWidth)
-        preferences.set(CaptureToolbarStyle.preferenceKey, toolbarStyle)
-        preferences.set(PanelSegments.homeKey, segmentHome)
-        preferences.set(PanelSegments.monitorKey, segmentMonitor)
-        preferences.set(PanelSegments.transferKey, segmentTransfer)
-        preferences.set(PanelSegments.castKey, segmentCast)
-        PanelSegments.order = pageOrder
-        Personalization.shared.applyDraft(personalization)
-        AppearanceManager.shared.apply(appearance)
-        let applied = FloatingClipDeskStore.shared
-        applied.layout = floating.layout
-        applied.cardSize = floating.cardSize
-        applied.splitRatio = floating.splitRatio
-        applied.persistSplitRatio()
+        switch scope {
+        case .mainPanel:
+            preferences.set(Preferences.Keys.panelWidth, panelWidth)
+            preferences.set(PanelSegments.homeKey, segmentHome)
+            preferences.set(PanelSegments.monitorKey, segmentMonitor)
+            preferences.set(PanelSegments.transferKey, segmentTransfer)
+            preferences.set(PanelSegments.castKey, segmentCast)
+            PanelSegments.order = pageOrder
+        case .floatingClipboard:
+            let applied = FloatingClipDeskStore.shared
+            applied.layout = floating.layout
+            applied.cardSize = floating.cardSize
+            applied.splitRatio = floating.splitRatio
+            applied.persistSplitRatio()
+            applied.hoverPreviewEnabled = floating.hoverPreviewEnabled
+        case .captureToolbar: preferences.set(CaptureToolbarStyle.preferenceKey, toolbarStyle)
+        case .shared: AppearanceManager.shared.apply(appearance)
+        default: break
+        }
+        if !scope.personalizationFields.isEmpty {
+            Personalization.shared.applyDraft(personalization, fields: scope.personalizationFields)
+        }
+        guard UserDefaults.standard.synchronize() else {
+            return "外观设置写入磁盘失败，草稿已保留，请重新保存。"
+        }
+        savedPersonalization = personalization.makeDraft()
+        savedValues = values
+        objectWillChange.send()
+        return nil
     }
 
     func discard() {
-        personalization = Personalization.shared.makeDraft()
-        panelWidth = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0)
-        toolbarStyle = CaptureToolbarStyle.current.rawValue
-        appearance = AppearanceManager.shared.mode
-        segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true)
-        segmentMonitor = Preferences.shared.value(PanelSegments.monitorKey, default: true)
-        segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false)
-        segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false)
-        pageOrder = PanelSegments.order
-        floating = FloatingClipDeskStore(settingsPreview: true)
+        reloadSavedValues(preservingOwned: false)
+        savedPersonalization = personalization.makeDraft()
+        savedValues = values
+    }
+
+    func refreshUnownedValues() { reloadSavedValues(preservingOwned: true) }
+
+    private func reloadSavedValues(preservingOwned: Bool) {
+        let current = Personalization.shared.makeDraft()
+        if preservingOwned {
+            for field in scope.personalizationFields { field.copy(current, personalization) }
+        }
+        personalization = current
+        if !preservingOwned || scope != .mainPanel {
+            panelWidth = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0)
+            segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true)
+            segmentMonitor = Preferences.shared.value(PanelSegments.monitorKey, default: true)
+            segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false)
+            segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false)
+            pageOrder = PanelSegments.order
+        }
+        if !preservingOwned || scope != .captureToolbar { toolbarStyle = CaptureToolbarStyle.current.rawValue }
+        if !preservingOwned || scope != .shared { appearance = AppearanceManager.shared.mode }
+        if !preservingOwned || scope != .floatingClipboard {
+            floating.layout = FloatingClipPrefs.layout
+            floating.cardSize = FloatingClipPrefs.cardSize
+            floating.splitRatio = FloatingClipPrefs.splitRatio
+            floating.hoverPreviewEnabled = FloatingClipPrefs.hoverPreviewEnabled
+        }
+    }
+
+    func restoreDefaults() {
+        let defaults = Personalization.makeDefaultDraft()
+        for field in scope.personalizationFields { field.copy(personalization, defaults) }
+        switch scope {
+        case .mainPanel:
+            panelWidth = 400
+            segmentHome = true
+            segmentMonitor = true
+            segmentTransfer = false
+            segmentCast = false
+            pageOrder = PanelSegments.defaultOrder
+        case .floatingClipboard:
+            floating.layout = .grid
+            floating.cardSize = .medium
+            floating.splitRatio = 0.52
+            floating.hoverPreviewEnabled = true
+        case .captureToolbar: toolbarStyle = CaptureToolbarStyle.pillBar.rawValue
+        case .shared: appearance = .system
+        default: break
+        }
     }
 }
 
 struct AppearanceSettingsEditor<Content: View>: View {
-    @StateObject private var draft = AppearanceSettingsDraft()
+    let scope: PersonalizationSettingsPart
     let content: (AppearanceSettingsDraft) -> Content
 
-    init(@ViewBuilder content: @escaping (AppearanceSettingsDraft) -> Content) {
+    init(scope: PersonalizationSettingsPart, @ViewBuilder content: @escaping (AppearanceSettingsDraft) -> Content) {
+        self.scope = scope
         self.content = content
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            content(draft)
-            Divider()
-            HStack {
-                Text("预览实时更新 · 保存后生效")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                Spacer()
-                Button("取消") { draft.discard() }
-                Button("保存并应用") {
-                    draft.save()
-                    Toast.show("已保存外观", icon: "checkmark")
-                }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut("s", modifiers: .command)
-            }
+        SettingsDraftEditor(id: scope.draftID, makeDraft: { AppearanceSettingsDraft(scope: scope) }) { draft in
+            content(draft).onAppear { draft.refreshUnownedValues() }
         }
     }
 }
 
 /// 用户要求「用真实组件，一个模块只能有一个预览」：按实际消费点归属设置。
-enum PersonalizationSettingsPart {
+enum PersonalizationSettingsPart: String, CaseIterable {
     case mainPanel        // 主面板：字号 / 圆角 / 宽度 / 动画 / 背景 / 页面顺序
     case floatingWindow   // 全局窗口材质与玻璃四参数
+    case floatingClipboard
     case clipboardAppearance
     case notification
     case captureToolbar
     case shared           // 主题外观与恢复全部默认
+
+    var draftID: String { "appearance.\(rawValue)" }
+
+    var personalizationFields: [Personalization.DraftField] {
+        switch self {
+        case .mainPanel:
+            return [.init(\.fontScale, key: Preferences.Keys.uiFontScale),
+                    .init(\.cornerRadius, key: Preferences.Keys.uiCornerRadius),
+                    .init(\.openAnimation, key: Preferences.Keys.uiOpenAnimation),
+                    .init(\.hoverPreviewEnabled, key: "ui.hoverPreviewEnabled"),
+                    .init(\.backgroundImagePath, key: Preferences.Keys.uiBackgroundImage),
+                    .init(\.backgroundImageDim, key: Preferences.Keys.uiBackgroundDim)]
+        case .floatingWindow:
+            return [.init(\.material, key: Preferences.Keys.uiPanelMaterial),
+                    .init(\.glassOpacity, key: Preferences.Keys.uiGlassOpacity),
+                    .init(\.glassBlur, key: Preferences.Keys.uiGlassBlur),
+                    .init(\.glassCardLift, key: Preferences.Keys.uiGlassCardLift),
+                    .init(\.glassStroke, key: Preferences.Keys.uiGlassStroke)]
+        case .clipboardAppearance:
+            return [.init(\.density, key: Preferences.Keys.uiListDensity),
+                    .init(\.thumbOverride, key: Preferences.Keys.uiThumbSize),
+                    .init(\.showSourceBadge, key: Preferences.Keys.uiSourceBadge)]
+        case .notification:
+            return [.init(\.toastDuration, key: Preferences.Keys.uiToastDuration),
+                    .init(\.toastFollowPanel, key: Preferences.Keys.uiToastPosition)]
+        case .shared:
+            return [.init(\.accentColorHex, key: Preferences.Keys.uiAccentColor),
+                    .init(\.midnightHueShift, key: Preferences.Keys.uiMidnightHue),
+                    .init(\.barDividerColorHex, key: Preferences.Keys.uiBarDividerColor),
+                    .init(\.barDividerAlpha, key: Preferences.Keys.uiBarDividerAlpha)]
+        case .floatingClipboard, .captureToolbar: return []
+        }
+    }
 }
 
 struct PersonalizationSettingsView: View {
     let part: PersonalizationSettingsPart
     @ObservedObject var draft: AppearanceSettingsDraft
     @ObservedObject private var p: Personalization
+    @EnvironmentObject private var session: SettingsEditingSession
     /// 正在拖的分段（nil = 没在拖）
     @Stored private var draggingSegment: PanelCenterPage?
 
@@ -144,6 +239,7 @@ struct PersonalizationSettingsView: View {
             switch part {
             case .mainPanel:      mainPanelRows
             case .floatingWindow: floatingWindowRows
+            case .floatingClipboard: EmptyView()
             case .clipboardAppearance: clipboardRows
             case .notification: toastRow
             case .captureToolbar: toolbarStyleRow
@@ -161,6 +257,10 @@ struct PersonalizationSettingsView: View {
             widthRow
             Divider().opacity(0.5)
             animationRow
+            settingRow("悬停预览") {
+                Toggle("悬停剪贴板记录时显示详情", isOn: $p.hoverPreviewEnabled)
+                    .toggleStyle(.checkbox).font(.system(size: 12))
+            }
             backgroundImageRow
             Divider().opacity(0.5)
             panelPagesRow
@@ -556,15 +656,20 @@ struct PersonalizationSettingsView: View {
 
     /// Midnight 色相偏移
     private var midnightHueRow: some View {
-        settingRow("Midnight 色相") {
-            HStack(spacing: 8) {
-                Slider(value: $p.midnightHueShift, in: -30...30) { Text("色相") }
-                    .frame(width: 180)
-                Text(String(format: "%+.0f", p.midnightHueShift))
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, alignment: .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            settingRow("Midnight 色相") {
+                HStack(spacing: 8) {
+                    Slider(value: $p.midnightHueShift, in: -30...30) { Text("色相") }
+                        .frame(width: 180)
+                    Text(String(format: "%+.0f°", p.midnightHueShift))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 40, alignment: .leading)
+                }
             }
+            Text("仅在 Midnight 外观生效：背景、卡片和正文的冷蓝色调旋转 −30°～+30°，保持饱和度与亮度。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -591,7 +696,7 @@ struct PersonalizationSettingsView: View {
     /// 恢复默认
     private var resetRow: some View {
         settingRow("") {
-            Button("恢复全部默认") { p.resetAll() }
+            Button("恢复全部个性化默认") { session.restoreAllDefaults() }
             .buttonStyle(.link)
             .font(.system(size: 11))
         }
@@ -656,8 +761,150 @@ private struct SegmentDropDelegate: DropDelegate {
 
 // MARK: - 设置实时预览：复用正式界面，一页一个对象
 
+/// 固定内容供所有正式预览组件共用；图片只在内存绘制一次。
+enum SettingsPreviewSamples {
+    static let date = Date(timeIntervalSince1970: 1_793_491_200)
+    static let clipboardItems: [ClipboardItem] = [
+        ClipboardItem(id: "appearance-note", type: .text,
+                      content: "周五交付\n整理截图、核对文案，再发给同事。", title: "周五交付",
+                      timestamp: date, sourceApp: "com.apple.Notes", isNote: true, dedupeKey: "appearance-note"),
+        ClipboardItem(id: "appearance-link", type: .url,
+                      content: "https://developer.apple.com/design/", title: "Apple 设计资源",
+                      timestamp: date.addingTimeInterval(-120), sourceApp: "com.apple.Safari",
+                      dedupeKey: "appearance-link"),
+        ClipboardItem(id: "appearance-file", type: .file,
+                      content: "/SettingsPreview/设计说明.pdf", title: "设计说明.pdf", subtitle: "PDF 文档 · 240 KB",
+                      timestamp: date.addingTimeInterval(-240), sourceApp: "com.apple.finder",
+                      dedupeKey: "appearance-file"),
+        ClipboardItem(id: "appearance-image", type: .image,
+                      title: "山间日落", subtitle: "320 × 180",
+                      timestamp: date.addingTimeInterval(-360), sourceApp: "com.apple.Preview",
+                      dedupeKey: "appearance-image"),
+        ClipboardItem(id: "appearance-code", type: .text,
+                      content: """
+                      import SwiftUI
+
+                      struct ProjectNoteView: View {
+                          let title = "项目笔记"
+                          let tasks = ["整理截图", "完成文案", "交付设计"]
+
+                          var body: some View {
+                              VStack(alignment: .leading, spacing: 12) {
+                                  Text(title).font(.headline)
+                                  ForEach(tasks, id: \\.self) { task in
+                                      Label(task, systemImage: "checkmark.circle")
+                                  }
+                              }
+                              .padding(16)
+                          }
+                      }
+                      """, title: "项目笔记.swift",
+                      timestamp: date.addingTimeInterval(-480), sourceApp: "com.apple.TextEdit",
+                      dedupeKey: "appearance-code"),
+        ClipboardItem(id: "appearance-color", type: .text, content: "#7B5CFF", title: "#7B5CFF",
+                      timestamp: date.addingTimeInterval(-600), sourceApp: "com.apple.DigitalColorMeter",
+                      isGeneratedByTool: true, sourceToolAnalyticsId: "colorpicker", sourceToolKeyword: "colorpicker",
+                      dedupeKey: "appearance-color"),
+        ClipboardItem(id: "appearance-long", type: .text,
+                      content: """
+                      项目设计记录：从整理到交付
+
+                      本周的任务是整理一套可以反复阅读的项目资料。短标题用于快速定位，长正文保留背景、讨论过程和最终决定，让接手的人能够理解每一步为什么这样安排。
+
+                      一、信息整理
+                      收集已有笔记，按内容用途归类。界面上优先展示标题、来源与摘要；完整内容保持原有段落，不为了放进卡片而删去上下文。阅读时可以滚动，字号变化仍以真实尺寸呈现。
+
+                      二、设计细节
+                      同一个按钮在不同页面使用一致名称。颜色、圆角、卡片间距与列表密度分别调整，避免一项变化掩盖另一项。长标题需要自然换行，图片保持比例，代码保留缩进和换行。
+
+                      三、协作流程
+                      每个模块保留独立草稿，切换页面时继续上一次编辑。预览选择属于当前窗口，只影响阅读内容；保存后正式界面读取已保存值，取消则重新加载模块配置。
+
+                      四、交付说明
+                      文本应让第一次打开资料的人知道当前内容、可执行动作和下一步。结果展示在动作发生的位置，失败原因直接写明，用户可以保留草稿继续编辑。
+
+                      五、阅读体验
+                      在紧凑、标准和宽松密度下，正文都应能连续阅读。较小的视口通过真实滚动容纳内容，不能把整张界面缩小后当作字号或密度的效果。图片、笔记和代码也沿用同一组正式组件。
+
+                      交付清单
+                      • 项目笔记与设计说明
+                      • 图片素材与 Swift 示例
+                      • 长正文的完整段落
+                      • 保存结果与取消行为说明
+
+                      以上内容仅用于设置窗口中的固定展示，不连接网络、不启动采集，也不写入真实剪贴板或文件。
+                      """, title: "项目设计记录：从整理到交付",
+                      timestamp: date.addingTimeInterval(-720), sourceApp: "com.apple.TextEdit",
+                      dedupeKey: "appearance-long"),
+    ]
+
+    static let image: NSImage = {
+        let image = NSImage(size: NSSize(width: 320, height: 180))
+        image.lockFocus()
+        NSColor(srgbRed: 0.25, green: 0.30, blue: 0.58, alpha: 1).setFill()
+        NSBezierPath(rect: NSRect(x: 0, y: 0, width: 320, height: 180)).fill()
+        NSColor(srgbRed: 1, green: 0.73, blue: 0.47, alpha: 1).setFill()
+        NSBezierPath(ovalIn: NSRect(x: 222, y: 102, width: 48, height: 48)).fill()
+        for (color, points) in [
+            (NSColor(srgbRed: 0.35, green: 0.42, blue: 0.62, alpha: 1),
+             [NSPoint(x: 0, y: 0), NSPoint(x: 0, y: 74), NSPoint(x: 82, y: 128),
+              NSPoint(x: 183, y: 44), NSPoint(x: 254, y: 114), NSPoint(x: 320, y: 55), NSPoint(x: 320, y: 0)]),
+            (NSColor(srgbRed: 0.13, green: 0.21, blue: 0.38, alpha: 1),
+             [NSPoint(x: 0, y: 0), NSPoint(x: 0, y: 22), NSPoint(x: 130, y: 87),
+              NSPoint(x: 242, y: 26), NSPoint(x: 320, y: 62), NSPoint(x: 320, y: 0)]),
+        ] {
+            color.setFill()
+            let mountain = NSBezierPath()
+            mountain.move(to: points[0])
+            for point in points.dropFirst() { mountain.line(to: point) }
+            mountain.close()
+            mountain.fill()
+        }
+        image.unlockFocus()
+        return image
+    }()
+}
+
+private struct AppearancePreviewVisibilityKey: PreferenceKey {
+    static let defaultValue = true
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = nextValue() }
+}
+
+private enum AppearancePreviewWallpaper {
+    private static var cachedURL: URL?
+    private static var cachedImage: NSImage?
+
+    static func image() -> NSImage? {
+        guard let screen = NSScreen.main,
+              let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return nil }
+        if cachedURL == url { return cachedImage }
+        cachedURL = url
+        cachedImage = nil
+        if let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
+           let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: 1024,
+                kCGImageSourceShouldCacheImmediately: true,
+           ] as CFDictionary) {
+            cachedImage = NSImage(cgImage: thumbnail, size: .zero)
+        }
+        return cachedImage
+    }
+}
+
 struct AppearancePreviewBlock: View {
     enum Scope { case mainPanel, floatingWindow, clipboard, clipboardList, captureToolbar, notification }
+    enum Scene: String, CaseIterable {
+        case regular = "常规", longContent = "长内容", image = "图片", background = "背景"
+        var selectedItemID: String {
+            switch self {
+            case .regular, .background: return "appearance-note"
+            case .longContent: return "appearance-long"
+            case .image: return "appearance-image"
+            }
+        }
+    }
     let scope: Scope
     @ObservedObject var draft: AppearanceSettingsDraft
 
@@ -666,28 +913,32 @@ struct AppearancePreviewBlock: View {
         ThemeAppearance(personalization: p, isMidnight: draft.appearance == .midnight)
     }
     @Stored private var wallpaper: NSImage?
-    @Stored private var availableWidth: CGFloat = 520
     @StateObject private var presentation = PanelPresentationState()
     @StateObject private var toolbarModel = CaptureToolbarModel()
     @StateObject private var toastState = MenuBarToastAnimationState()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     @Stored private var toastReplay = 0
     @Stored private var openReplay = 0
-    @Stored private var revealed = false
+    @Stored private var revealed = true
+    @Stored private var isVisible = true
+    @Stored private var toolbarFeedback: String?
 
-    private static let previewItems: [ClipboardItem] = [
-        ClipboardItem(id: "appearance-note", type: .text,
-                      content: "周五交付\n整理截图、核对文案，再发给同事。", title: "周五交付",
-                      sourceApp: "com.apple.Notes", dedupeKey: "appearance-note"),
-        ClipboardItem(id: "appearance-link", type: .url,
-                      content: "https://developer.apple.com/design/", title: "Apple 设计资源",
-                      timestamp: Date().addingTimeInterval(-120), sourceApp: "com.apple.Safari",
-                      dedupeKey: "appearance-link"),
-        ClipboardItem(id: "appearance-code", type: .text,
-                      content: "{\"title\": \"项目笔记\", \"ready\": true}", title: "项目笔记.json",
-                      timestamp: Date().addingTimeInterval(-300), sourceApp: "com.apple.TextEdit",
-                      dedupeKey: "appearance-code")
-    ]
+    private var scenes: [Scene] {
+        switch scope {
+        case .mainPanel, .clipboard, .clipboardList: return Scene.allCases
+        case .floatingWindow: return [.regular, .background]
+        case .captureToolbar, .notification: return []
+        }
+    }
+    private var previewItems: [ClipboardItem] {
+        SettingsPreviewSamples.clipboardItems
+    }
+    private var needsWallpaper: Bool {
+        (p.material == .vibrancy || draft.previewScene == .background) && !reduceTransparency
+    }
+    private var usesDesktopWallpaper: Bool { needsWallpaper && draft.previewScene != .background }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -700,54 +951,81 @@ struct AppearancePreviewBlock: View {
                 }.buttonStyle(.link)
                 Text("模拟数据 · 外观实时更新").font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            GeometryReader { geo in
-                let size = previewSize
-                let scale = min(1, min((geo.size.width - 28) / size.width, 280 / size.height))
-                HStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    previewContent
-                        .id(draft.previewRevision)
-                        .frame(width: size.width, height: size.height)
-                        .environment(\.isSettingsPreview, true)
-                        .environment(\.settingsPreviewClipboardItems, Self.previewItems)
-                        .environment(\.settingsPreviewPersonalization, p)
-                        .environment(\.settingsPreviewIsMidnight, draft.appearance == .midnight)
-                        .environment(\.colorScheme, previewColorScheme)
-                        .tint(theme.accent)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                        .scaleEffect(scale)
-                        .frame(width: size.width * scale, height: size.height * scale)
-                        .opacity(revealed ? 1 : 0)
-                        .scaleEffect(revealed || reduceMotion ? 1 : 0.90, anchor: .top)
-                        .padding(14)
-                        .background { wallpaperBackground }
-                        .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: theme.cornerRadius)
-                            .strokeBorder(theme.cardStroke, lineWidth: Theme.Stroke.hairline))
-                    Spacer(minLength: 0)
+            if !scenes.isEmpty {
+                Picker("代表场景", selection: $draft.previewScene) {
+                    ForEach(scenes, id: \.self) { Text($0.rawValue).tag($0) }
                 }
-                .onAppear { availableWidth = geo.size.width }
-                .onChange(of: geo.size.width) { availableWidth = $0 }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 300)
             }
-            .frame(height: canvasHeight)
+            ScrollView(.horizontal, showsIndicators: true) {
+                let size = previewSize
+                previewContent
+                    .frame(width: size.width, height: size.height)
+                    .environment(\.isSettingsPreview, true)
+                    .environment(\.settingsPreviewClipboardItems, previewItems)
+                    .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
+                    .environment(\.settingsPreviewClipboardSelection, $draft.previewSelectedItemID)
+                    .environment(\.settingsPreviewPersonalization, p)
+                    .environment(\.settingsPreviewIsMidnight, draft.appearance == .midnight)
+                    .environment(\.colorScheme, previewColorScheme)
+                    .tint(theme.accent)
+                    .opacity(revealed ? 1 : 0)
+                    .offset(y: revealed || reduceMotion ? 0 : -8)
+                    .padding(8)
+                    .background {
+                        if needsWallpaper {
+                            wallpaperBackground
+                                .frame(width: size.width + 16, height: size.height + 16)
+                                .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
+                        }
+                    }
+            }
+            .frame(height: previewSize.height + 16)
+            .background(GeometryReader { geo in
+                Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
+                    value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
+                        CGRect(x: 0, y: 66, width: 940 - Theme.settingsSidebarWidth,
+                               height: SettingsRootView.probeHeight - 98)))
+            })
             Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
+            if scope == .captureToolbar, let toolbarFeedback {
+                Text(toolbarFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
         }
+        .onPreferenceChange(AppearancePreviewVisibilityKey.self) { isVisible = $0 }
         .onAppear {
-            reloadWallpaper()
-            toolbarModel.style = CaptureToolbarStyle(rawValue: draft.toolbarStyle)!
-            toastState.message = "操作完成"
-            toastState.icon = "checkmark"
+            if usesDesktopWallpaper { wallpaper = AppearancePreviewWallpaper.image() }
+            if scope == .captureToolbar {
+                toolbarModel.style = CaptureToolbarStyle(rawValue: draft.toolbarStyle)!
+                toolbarModel.preview = CaptureAppearanceSample.image
+                toolbarModel.isSettingsPreview = true
+                toolbarModel.onPreviewFeedback = { toolbarFeedback = $0 }
+            }
+            if scope == .notification {
+                toastState.message = "操作完成"
+                toastState.icon = "checkmark"
+            }
         }
+        .onChange(of: usesDesktopWallpaper) { needed in
+            wallpaper = needed ? AppearancePreviewWallpaper.image() : nil
+        }
+        .onChange(of: draft.previewScene) { draft.previewSelectedItemID = $0.selectedItemID }
         .onChange(of: draft.toolbarStyle) { style in
-            toolbarModel.style = CaptureToolbarStyle(rawValue: style)!
+            if scope == .captureToolbar { toolbarModel.style = CaptureToolbarStyle(rawValue: style)! }
         }
-        .onChange(of: p.openAnimation) { _ in openReplay &+= 1 }
-        .onChange(of: p.toastDuration) { _ in toastReplay &+= 1 }
-        .onChange(of: p.toastFollowPanel) { _ in toastReplay &+= 1 }
+        .onChange(of: p.openAnimation) { _ in
+            if scope != .notification { openReplay &+= 1 }
+        }
+        .onChange(of: p.toastDuration) { _ in
+            if scope == .notification { toastReplay &+= 1 }
+        }
+        .onChange(of: p.toastFollowPanel) { _ in
+            if scope == .notification { toastReplay &+= 1 }
+        }
         .animation(reduceMotion ? nil : Theme.Motion.fast, value: draft.panelWidth)
         .animation(reduceMotion ? nil : Theme.Motion.fast, value: draft.toolbarStyle)
-        .task(id: openReplay) { @MainActor in
+        .task(id: "\(openReplay)-\(isVisible)-\(reduceMotion)") { @MainActor in
+            if scope == .notification || !isVisible { return }
             let duration = p.openAnimation.duration
             withAnimation(reduceMotion ? nil : .easeIn(duration: duration)) { revealed = false }
             if !reduceMotion {
@@ -756,14 +1034,21 @@ struct AppearancePreviewBlock: View {
             }
             withAnimation(reduceMotion ? nil : .easeOut(duration: duration)) { revealed = true }
         }
-        .task(id: toastReplay) { @MainActor in
-            if scope != .notification { return }
+        .task(id: "\(toastReplay)-\(isVisible)-\(reduceMotion)") { @MainActor in
+            if scope != .notification || !isVisible { return }
             toastState.isVisible = false
             await Task.yield()
+            if Task.isCancelled { return }
             withAnimation(reduceMotion ? nil : Theme.Motion.springBouncy) { toastState.isVisible = true }
             do { try await Task.sleep(nanoseconds: UInt64(p.toastDuration * 1_000_000_000)) }
             catch { return }
             withAnimation(reduceMotion ? nil : Theme.Motion.springBouncy) { toastState.isVisible = false }
+        }
+        .onDisappear {
+            toastState.isVisible = false
+            revealed = true
+            toolbarModel.onPreviewFeedback = nil
+            toolbarFeedback = nil
         }
     }
 
@@ -778,22 +1063,16 @@ struct AppearancePreviewBlock: View {
         }
     }
 
-    private var canvasHeight: CGFloat {
-        previewSize.height * min(1, min((availableWidth - 28) / previewSize.width,
-                                       280 / previewSize.height)) + 28
-    }
-
     private var previewColorScheme: ColorScheme {
         switch draft.appearance {
         case .light: return .light
         case .dark, .midnight: return .dark
-        case .system:
-            return UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" ? .dark : .light
+        case .system: return colorScheme
         }
     }
 
     private var panelSize: CGSize {
-        CGSize(width: CGFloat(draft.panelWidth), height: 480 * p.fontScale)
+        CGSize(width: max(320, CGFloat(draft.panelWidth)), height: 420)
     }
 
     private var toastSize: CGSize {
@@ -808,20 +1087,17 @@ struct AppearancePreviewBlock: View {
         case .mainPanel: return panelSize
         case .floatingWindow: return CGSize(width: 520, height: 250)
         case .clipboard:
-            let store = draft.floating
-            let rows = ceil(CGFloat(Self.previewItems.count) / CGFloat(store.cardSize.columns))
-            let height = store.layout == .grid ? rows * store.cardSize.minHeight : theme.statsRowHeight * 3
-            return CGSize(width: 640, height: max(380, height + 148))
+            return CGSize(width: 640, height: draft.floating.layout == .grid ? 420 : 380)
         case .clipboardList:
-            return CGSize(width: CGFloat(draft.panelWidth), height: theme.statsRowHeight * 3 + 4)
+            return CGSize(width: max(320, CGFloat(draft.panelWidth)),
+                          height: 300)
         case .captureToolbar:
             let size = CaptureActionToolbarPanel.panelSize(
                 for: toolbarModel.preview?.cgImage(forProposedRect: nil, context: nil, hints: nil),
                 style: CaptureToolbarStyle(rawValue: draft.toolbarStyle)!)
             return CGSize(width: size.width, height: toolbarModel.preview == nil ? 56 : size.height)
         case .notification:
-            return CGSize(width: p.toastFollowPanel ? max(panelSize.width, toastSize.width) : toastSize.width,
-                          height: p.toastFollowPanel ? panelSize.height + 8 + toastSize.height : toastSize.height + 16)
+            return CGSize(width: max(panelSize.width, toastSize.width), height: toastSize.height + 72)
         }
     }
 
@@ -834,7 +1110,7 @@ struct AppearancePreviewBlock: View {
                 .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
         case .floatingWindow:
             VStack(spacing: 0) {
-                PreviewWindowChrome().frame(height: 32)
+                PreviewWindowChrome(onPress: { openReplay &+= 1 }).frame(height: 32)
                 MonitorNetworkThroughputCard(down: 1_800_000, up: 240_000,
                     downHistory: [200_000, 700_000, 420_000, 1_300_000, 900_000, 1_800_000],
                     upHistory: [100_000, 180_000, 120_000, 320_000, 160_000, 240_000],
@@ -845,7 +1121,9 @@ struct AppearancePreviewBlock: View {
             .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
         case .clipboard:
             FloatingClipboardDeskView(store: draft.floating, personalization: p)
-                .overlay(alignment: .topLeading) { PreviewWindowChrome().frame(height: 32) }
+                .overlay(alignment: .topLeading) {
+                    PreviewWindowChrome(onPress: { openReplay &+= 1 }).frame(height: 32)
+                }
         case .captureToolbar:
             CaptureActionToolbarView(model: toolbarModel)
         case .clipboardList:
@@ -853,45 +1131,51 @@ struct AppearancePreviewBlock: View {
                 .background(GlassSurface(cornerRadius: p.cornerRadius))
                 .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
         case .notification:
-            VStack(spacing: 8) {
-                if p.toastFollowPanel {
-                    PanelRootView(presentation: presentation, onDismiss: {}, onOpenSettings: {},
-                                  personalization: p, previewPages: draft.previewPages)
-                        .frame(width: panelSize.width, height: panelSize.height)
-                        .background(LiquidGlassBackground(cornerRadius: p.cornerRadius))
-                        .clipShape(RoundedRectangle(cornerRadius: p.cornerRadius))
+            ZStack(alignment: .top) {
+                VStack(spacing: 4) {
+                    Text(p.toastFollowPanel ? "主面板下缘" : "屏幕中线")
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                    Rectangle().fill(theme.cardStroke).frame(height: 1)
                 }
+                .padding(.horizontal, 12)
+                .padding(.top, p.toastFollowPanel ? 4 : 24)
                 MenuBarToastContentView(state: toastState)
                     .frame(width: toastSize.width, height: toastSize.height)
-                    .offset(y: p.toastFollowPanel ? 0 : 8)
+                    .offset(y: p.toastFollowPanel ? 32 : 64)
             }
         }
     }
 
     @ViewBuilder private var wallpaperBackground: some View {
-        if let image = wallpaper {
+        if draft.previewScene == .background {
+            Image(nsImage: SettingsPreviewSamples.image).resizable().scaledToFill()
+        } else if let image = wallpaper {
             Image(nsImage: image).resizable().scaledToFill()
         } else {
             Color(nsColor: .windowBackgroundColor)
         }
     }
 
-    private func reloadWallpaper() {
-        if let screen = NSScreen.main,
-                  let url = NSWorkspace.shared.desktopImageURL(for: screen) {
-            wallpaper = NSImage(contentsOf: url)
-        } else {
-            wallpaper = nil
-        }
-    }
 }
 
 /// 使用 AppKit 的原生窗口按钮，不另画红绿灯。
 private struct PreviewWindowChrome: NSViewRepresentable {
+    let onPress: () -> Void
+
+    final class Coordinator: NSObject {
+        var onPress: () -> Void
+        init(onPress: @escaping () -> Void) { self.onPress = onPress }
+        @objc func press(_ sender: NSButton) { onPress() }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPress: onPress) }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         for (i, kind) in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].enumerated() {
             if let button = NSWindow.standardWindowButton(kind, for: [.titled, .closable, .miniaturizable, .resizable]) {
+                button.target = context.coordinator
+                button.action = #selector(Coordinator.press(_:))
                 button.setFrameOrigin(NSPoint(x: CGFloat(14 + i * 20), y: 8))
                 view.addSubview(button)
             }
@@ -899,5 +1183,5 @@ private struct PreviewWindowChrome: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) { context.coordinator.onPress = onPress }
 }

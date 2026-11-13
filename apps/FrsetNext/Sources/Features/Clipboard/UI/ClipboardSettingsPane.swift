@@ -28,7 +28,7 @@ public struct ClipboardSettingsPane: View {
     @ObservedObject private var floatingStore = FloatingClipboardWindowController.shared.store
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
-    @Stored private var usageBytes: Int64 = ClipboardStorageUsageProvider.shared.totalBytes
+    @Stored private var usageBytes: Int64 = 0
     /// 快捷键录入后刷新显示（v263）
     @Stored private var shortcutRevision = 0
 
@@ -58,7 +58,7 @@ public struct ClipboardSettingsPane: View {
             case .capture:  captureSection
             case .floating: floatingSection
             case .appearance:
-                AppearanceSettingsEditor { draft in
+                AppearanceSettingsEditor(scope: .clipboardAppearance) { draft in
                     SettingsGroupBox {
                         AppearancePreviewBlock(scope: .clipboardList, draft: draft)
                         SettingsDivider()
@@ -69,7 +69,12 @@ public struct ClipboardSettingsPane: View {
         }
         .font(.system(size: 13))
         .sheet(isPresented: $isManagingTags) { TagManagementSheet() }
-        .onAppear { tagStore.refresh() }
+        .onAppear {
+            if section == .history {
+                tagStore.refresh()
+                usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
+            }
+        }
     }
 
     // MARK: - 历史
@@ -188,7 +193,7 @@ public struct ClipboardSettingsPane: View {
     // MARK: - 浮动窗
 
     private var floatingSection: some View {
-        AppearanceSettingsEditor { draft in
+        AppearanceSettingsEditor(scope: .floatingClipboard) { draft in
             SettingsSection("浮动窗") {
                 SettingsGroupBox {
                     AppearancePreviewBlock(scope: .clipboard, draft: draft)
@@ -219,7 +224,24 @@ public struct ClipboardSettingsPane: View {
                         .frame(width: 180)
                     }
                     SettingsDivider()
-                    SettingsRow(title: "显示浮动窗") {
+                    SettingsRow(title: "两栏比例", subtitle: "卡片区占比；也可拖动预览中间的分隔条") {
+                        HStack(spacing: 8) {
+                            Slider(value: Binding(get: { Double(draft.floating.splitRatio) },
+                                set: { draft.floating.splitRatio = CGFloat($0) }), in: 0.22...0.78)
+                                .frame(width: 180)
+                            Text("\(Int(draft.floating.splitRatio * 100))%")
+                                .monospacedDigit().frame(width: 38)
+                        }
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "悬停预览", subtitle: "关闭后仍可单击记录查看详情") {
+                        Toggle("鼠标移到记录时更新详情", isOn: Binding(
+                            get: { draft.floating.hoverPreviewEnabled },
+                            set: { draft.floating.hoverPreviewEnabled = $0 }))
+                            .toggleStyle(.checkbox)
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "立即显示浮动窗", subtitle: "即时操作，不随外观设置保存") {
                         Toggle("", isOn: Binding(
                             get: { floatingStore.isVisible },
                             set: { visible in

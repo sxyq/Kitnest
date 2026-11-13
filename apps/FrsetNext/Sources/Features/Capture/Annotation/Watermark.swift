@@ -12,6 +12,30 @@ import CoreGraphics
 
 public enum Watermark {
 
+    public struct Configuration: Equatable {
+        public var enabled = false
+        public var text = "Kitnest"
+        public var opacity = 0.16
+        public var angle = -20.0
+        public var tile = true
+        public var scale = 0.028
+
+        static var current: Configuration {
+            Configuration(enabled: Watermark.isEnabled, text: Watermark.text,
+                          opacity: Watermark.opacity, angle: Watermark.angle,
+                          tile: Watermark.tile, scale: Watermark.scale)
+        }
+
+        func save() {
+            Watermark.isEnabled = enabled
+            Watermark.text = text
+            Watermark.opacity = opacity
+            Watermark.angle = angle
+            Watermark.tile = tile
+            Watermark.scale = scale
+        }
+    }
+
     static let keyEnabled = "capture.watermark.enabled"
     static let keyText    = "capture.watermark.text"
     static let keyOpacity = "capture.watermark.opacity"
@@ -59,7 +83,13 @@ public enum Watermark {
 
     /// 把水印烧进成图。无底图/未启用时原样返回。
     public static func applied(to image: CGImage) -> CGImage {
-        guard active else { return image }
+        applied(to: image, configuration: .current)
+    }
+
+    public static func applied(to image: CGImage, configuration: Configuration) -> CGImage {
+        guard configuration.enabled,
+              !configuration.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return image }
+        let text = configuration.text
         let w = image.width, h = image.height
         guard w > 0, h > 0 else { return image }
         guard let ctx = CGContext(data: nil, width: w, height: h,
@@ -77,10 +107,10 @@ public enum Watermark {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
 
-        let fontSize = max(10, CGFloat(w) * CGFloat(scale))
+        let fontSize = max(10, CGFloat(w) * CGFloat(configuration.scale))
         let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
         let measured = (text as NSString).size(withAttributes: [.font: font])
-        let a = CGFloat(min(0.6, max(0.02, opacity)))
+        let a = CGFloat(min(0.6, max(0, configuration.opacity)))
 
         // 双色叠字：白字 + 深色描边偏移。浅色底靠深边、深色底靠白字，两种截图都读得出，
         // 又不像纯描边那样在缩略图上糊成一团。
@@ -98,12 +128,12 @@ public enum Watermark {
             (text as NSString).draw(at: p, withAttributes: light)
         }
 
-        if tile {
+        if configuration.tile {
             let stepX = measured.width + fontSize * 6
             let stepY = measured.height + fontSize * 5
             ctx.saveGState()
             ctx.translateBy(x: CGFloat(w) / 2, y: CGFloat(h) / 2)
-            ctx.rotate(by: CGFloat(angle) * .pi / 180)
+            ctx.rotate(by: CGFloat(configuration.angle) * .pi / 180)
             let reach = hypot(CGFloat(w), CGFloat(h))
             var y = -reach
             while y < reach {
@@ -117,8 +147,12 @@ public enum Watermark {
             ctx.restoreGState()
         } else {
             let pad = fontSize * 1.2
-            stamp(at: CGPoint(x: CGFloat(w) - measured.width - pad,
-                              y: CGFloat(h) - measured.height - pad))
+            ctx.saveGState()
+            ctx.translateBy(x: CGFloat(w) - measured.width / 2 - pad,
+                            y: CGFloat(h) - measured.height / 2 - pad)
+            ctx.rotate(by: CGFloat(configuration.angle) * .pi / 180)
+            stamp(at: CGPoint(x: -measured.width / 2, y: -measured.height / 2))
+            ctx.restoreGState()
         }
 
         NSGraphicsContext.restoreGraphicsState()

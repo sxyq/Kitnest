@@ -22,6 +22,8 @@ public struct SearchEngine: Identifiable, Codable, Equatable {
         self.systemImage = systemImage; self.isBuiltIn = isBuiltIn
     }
 
+    var supportsResultList: Bool { ["bing", "duckduckgo", "google"].contains(id) }
+
     /// 品牌 logo 资源名（官方 Assets.car 提取；Resources/BrandLogos/<name>.png）。
     /// 无对应资源（自定义源等）返回 nil，调用方回退 systemImage。
     public var logoAssetName: String? {
@@ -94,10 +96,36 @@ public final class SearchServiceManager: ObservableObject {
     @Published public private(set) var activeBarItems: [String] = []
 
     private let defaults: UserDefaults
+    private let persistsChanges: Bool
 
-    private init(defaults: UserDefaults = .standard) {
+    private init(defaults: UserDefaults = .standard, persistsChanges: Bool = true) {
         self.defaults = defaults
-        load()
+        self.persistsChanges = persistsChanges
+        if persistsChanges { load() }
+    }
+
+    func makeDraft() -> SearchServiceManager {
+        let draft = SearchServiceManager(defaults: defaults, persistsChanges: false)
+        draft.copyValues(from: self)
+        return draft
+    }
+
+    func copyValues(from source: SearchServiceManager) {
+        customEngines = source.customEngines
+        allEngines = source.allEngines
+        activeBarItems = source.activeBarItems
+        clearSearchInputAfterWebAction = source.clearSearchInputAfterWebAction
+    }
+
+    func applyDraft(_ draft: SearchServiceManager) -> String? {
+        let data: Data
+        do { data = try JSONEncoder().encode(draft.customEngines) }
+        catch { return "搜索引擎保存失败：\(error.localizedDescription)" }
+        copyValues(from: draft)
+        defaults.set(data, forKey: Keys.customEngines)
+        persistEngineOrder()
+        persistActiveBarItems()
+        return nil
     }
 
     // MARK: 派生数据
@@ -108,9 +136,13 @@ public final class SearchServiceManager: ObservableObject {
     }
 
     /// 「搜索或打开链接后清空输入框」行为开关（键 clearSearchInputAfterWebAction；原作默认值未探明，取 true）
+    @Published private var clearInputValue = true
     public var clearSearchInputAfterWebAction: Bool {
-        get { defaults.object(forKey: Keys.clearSearchInputAfterWebAction) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Keys.clearSearchInputAfterWebAction) }
+        get { persistsChanges ? defaults.object(forKey: Keys.clearSearchInputAfterWebAction) as? Bool ?? true : clearInputValue }
+        set {
+            clearInputValue = newValue
+            if persistsChanges { defaults.set(newValue, forKey: Keys.clearSearchInputAfterWebAction) }
+        }
     }
 
     // MARK: 搜索动作
@@ -223,14 +255,17 @@ public final class SearchServiceManager: ObservableObject {
         customEngines = []
         activeBarItems = Self.defaultActiveBarItems
         allEngines = Self.builtInEngines
-        defaults.removeObject(forKey: Keys.customEngines)
-        defaults.removeObject(forKey: Keys.engineOrder)
+        if persistsChanges {
+            defaults.removeObject(forKey: Keys.customEngines)
+            defaults.removeObject(forKey: Keys.engineOrder)
+        }
         persistActiveBarItems()
     }
 
     // MARK: 持久化
 
     private func load() {
+        customEngines = []
         if let data = defaults.data(forKey: Keys.customEngines),
            let decoded = try? JSONDecoder().decode([SearchEngine].self, from: data) {
             customEngines = decoded
@@ -248,7 +283,7 @@ public final class SearchServiceManager: ObservableObject {
         // 仅当用户从未改过（当前集 == 旧默认）时迁移，自定义过的保持原样
         if activeBarItems == Self.legacyDefaultActiveBarItems {
             activeBarItems = Self.defaultActiveBarItems
-            defaults.set(activeBarItems, forKey: Keys.activeBarItems)
+            persistActiveBarItems()
         }
         // 激活集清洗：只保留仍存在的引擎；空集回默认（保证"至少一项"不变式）
         activeBarItems.removeAll { id in !ordered.contains(where: { $0.id == id }) }
@@ -262,18 +297,21 @@ public final class SearchServiceManager: ObservableObject {
             ordered.append(engine)
         }
         allEngines = ordered
-        defaults.set(allEngines.map(\.id), forKey: Keys.engineOrder)
+        persistEngineOrder()
     }
 
     private func persistCustomEngines() {
+        guard persistsChanges else { return }
         defaults.set(try? JSONEncoder().encode(customEngines), forKey: Keys.customEngines)
     }
 
     private func persistActiveBarItems() {
+        guard persistsChanges else { return }
         defaults.set(activeBarItems, forKey: Keys.activeBarItems)
     }
 
     private func persistEngineOrder() {
+        guard persistsChanges else { return }
         defaults.set(allEngines.map(\.id), forKey: Keys.engineOrder)
     }
 }

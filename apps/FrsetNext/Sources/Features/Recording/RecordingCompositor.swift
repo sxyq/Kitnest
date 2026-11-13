@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import CoreText
+import CoreImage
 
 // MARK: - 录屏叠加层绘制（按键 / 点击）
 //
@@ -13,7 +14,7 @@ public enum RecordingCompositor {
     /// 按键条：最多显示 4 个键帽，右对齐贴着画面底部居中
     /// - Parameter pixelScale: 视频像素 / 点（Retina 录制时 2）
     public static func keyOverlay(keys: [RecordedKey], now: CFTimeInterval,
-                                  pixelScale: CGFloat) -> CGImage? {
+                                  pixelScale: CGFloat, reduceTransparency: Bool = false) -> CGImage? {
         let visible = keys.suffix(4)
         guard !visible.isEmpty else { return nil }
         let pad: CGFloat = 10 * pixelScale
@@ -36,7 +37,7 @@ public enum RecordingCompositor {
             return nil
         }
         ctx.clear(CGRect(x: 0, y: 0, width: totalW, height: height))
-        let bg = NSColor(calibratedWhite: 0.08, alpha: 0.82).cgColor
+        let bg = NSColor(calibratedWhite: 0.08, alpha: reduceTransparency ? 1 : 0.82).cgColor
         let stroke = NSColor(calibratedWhite: 1, alpha: 0.22).cgColor
 
         var x = pad
@@ -70,7 +71,7 @@ public enum RecordingCompositor {
 
     /// 点击环：160×160 画布，progress 0→1 时半径扩散、透明度衰减
     public static func clickOverlay(progress: CGFloat, isRight: Bool,
-                                    pixelScale: CGFloat) -> CGImage? {
+                                    pixelScale: CGFloat, reduceTransparency: Bool = false) -> CGImage? {
         let side = 160 * pixelScale
         guard let ctx = CGContext(data: nil, width: Int(side), height: Int(side),
                                   bitsPerComponent: 8, bytesPerRow: 0,
@@ -86,7 +87,7 @@ public enum RecordingCompositor {
             : CGColor(red: 1, green: 0.42, blue: 0.28, alpha: 1)
 
         // 中心点
-        ctx.setFillColor(color.copy(alpha: 0.95) ?? color)
+        ctx.setFillColor(color.copy(alpha: reduceTransparency ? 1 : 0.95) ?? color)
         ctx.fillEllipse(in: CGRect(x: center.x - 7 * pixelScale, y: center.y - 7 * pixelScale,
                                    width: 14 * pixelScale, height: 14 * pixelScale))
         // 扩散环（两圈：主环 + 稍慢的尾环）
@@ -94,12 +95,51 @@ public enum RecordingCompositor {
             let t = max(0, clamped - offset) / (1 - offset)
             guard t > 0 else { continue }
             let radius = (10 + 58 * t) * pixelScale
-            ctx.setStrokeColor(color.copy(alpha: alpha * (1 - t)) ?? color)
+            ctx.setStrokeColor(color.copy(alpha: reduceTransparency ? 1 : alpha * (1 - t)) ?? color)
             ctx.setLineWidth((5 - 3 * t) * pixelScale)
             ctx.strokeEllipse(in: CGRect(x: center.x - radius, y: center.y - radius,
                                          width: radius * 2, height: radius * 2))
         }
         return ctx.makeImage()
+    }
+
+    /// 正式录制和设置示意图共用同一合成；输入由调用方提供，这里不采集设备或键鼠。
+    static func composite(image: CIImage, camera: CIImage?, options: RecordingOptions,
+                          keys: [RecordedKey], clicks: [RecordedClick], now: CFTimeInterval,
+                          pixelScale: CGFloat, regionOrigin: CGPoint = .zero,
+                          reduceTransparency: Bool = false) -> CIImage {
+        var result = image
+        let size = image.extent.size
+        if options.cameraEnabled, let camera {
+            let rect = cameraRect(videoSize: size, corner: options.cameraCorner, widthFraction: options.cameraScale)
+            let transform = CGAffineTransform(scaleX: rect.width / max(camera.extent.width, 1),
+                                              y: rect.height / max(camera.extent.height, 1))
+            let overlay = camera.transformed(by: transform)
+                .transformed(by: CGAffineTransform(translationX: rect.minX, y: size.height - rect.maxY))
+            result = overlay.composited(over: result)
+        }
+        if options.showClicks {
+            for click in clicks {
+                let progress = CGFloat((now - click.time) / RecordingInputMonitor.clickTTL)
+                guard let ring = clickOverlay(progress: progress, isRight: click.isRight,
+                                              pixelScale: pixelScale, reduceTransparency: reduceTransparency) else { continue }
+                let side = CGFloat(ring.width)
+                let cx = (click.point.x - regionOrigin.x) * pixelScale
+                let cy = (click.point.y - regionOrigin.y) * pixelScale
+                guard cx > -side, cy > -side, cx < size.width + side, cy < size.height + side else { continue }
+                let overlay = CIImage(cgImage: ring)
+                    .transformed(by: CGAffineTransform(translationX: cx - side / 2, y: size.height - cy - side / 2))
+                result = overlay.composited(over: result)
+            }
+        }
+        if options.showKeys, let strip = keyOverlay(keys: keys, now: now, pixelScale: pixelScale,
+                                                    reduceTransparency: reduceTransparency) {
+            let overlay = CIImage(cgImage: strip)
+                .transformed(by: CGAffineTransform(translationX: (size.width - CGFloat(strip.width)) / 2,
+                                                  y: 28 * pixelScale))
+            result = overlay.composited(over: result)
+        }
+        return result
     }
 
     /// 摄像头画中画：按角与比例算矩形（**视频像素坐标，左上原点**）

@@ -332,11 +332,6 @@ final class WebResultScraper: NSObject, WKNavigationDelegate {
     private var navContinuation: CheckedContinuation<Void, Never>?
     private var navTimedOut = false
 
-    /// 内嵌结果列表支持的引擎（实测可稳定提取）；其余引擎直接回落浏览器打开
-    static func supportsResultList(_ engine: SearchEngine) -> Bool {
-        ["bing", "duckduckgo", "google"].contains(engine.id)
-    }
-
     /// 搜索页 URL（DDG 用无 JS 的 html 端点；其余按引擎模板）
     static func searchURL(for engine: SearchEngine, query: String) -> URL? {
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
@@ -496,6 +491,10 @@ enum SearchCategory: String, CaseIterable, Identifiable {
 public struct SearchSectionView: View {
     @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.settingsPreviewClipboardQuery) private var settingsPreviewClipboardQuery
+    @Environment(\.settingsPreviewClipboardSelection) private var settingsPreviewClipboardSelection
     private var theme: ThemeAppearance {
         ThemeAppearance(personalization: previewPersonalization ?? .shared,
                         isMidnight: previewIsMidnight ?? AppearanceState.shared.isMidnight)
@@ -506,7 +505,7 @@ public struct SearchSectionView: View {
     private var isSlashMode: Bool {
         query.trimmingCharacters(in: .whitespaces).hasPrefix("/")
     }
-    private var isLocalPathQuery: Bool { FileSearchSource.pathURL(for: trimmedQuery) != nil }
+    private var isLocalPathQuery: Bool { !isSettingsPreview && FileSearchSource.pathURL(for: trimmedQuery) != nil }
     private var showsWebResults: Bool { showWeb && !isLocalPathQuery }
     @Stored private var toolResults: [SearchResultItem] = []
     @Stored private var fileResults: [FuzzyFileResult] = []
@@ -539,14 +538,40 @@ public struct SearchSectionView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.settingsPreviewClipboardItems) private var settingsPreviewClipboardItems
     /// v264：自建的全盘文件名索引状态（补 Spotlight 盲区，见 FileNameIndex.swift）
-    @ObservedObject private var fileIndex = FileNameIndex.shared
+    @Stored private var fileIndexState: FileNameIndex.State = .absent
+    private var fileIndex: FileNameIndex { FileNameIndex.shared }
+    @ObservedObject private var service: SearchServiceManager
+    @Stored private var previewShowWeb = true
+    @Stored private var previewShowClipboard = true
+    @Stored private var previewShowFiles = true
+    @Stored private var previewSelectedResultID: String?
+    private let draftWeb: Binding<Bool>?
+    private let draftClipboard: Binding<Bool>?
+    private let draftFiles: Binding<Bool>?
 
     // 分类开关（分类头部眼睛按钮与设置页共用同一批键）
-    @AppStorage(Preferences.Keys.searchCategoryWeb) private var showWeb = true
-    @AppStorage(Preferences.Keys.searchCategoryClipboard) private var showClipboard = true
-    @AppStorage(Preferences.Keys.searchCategoryFiles) private var showFiles = true
+    @AppStorage(Preferences.Keys.searchCategoryWeb) private var savedShowWeb = true
+    @AppStorage(Preferences.Keys.searchCategoryClipboard) private var savedShowClipboard = true
+    @AppStorage(Preferences.Keys.searchCategoryFiles) private var savedShowFiles = true
 
-    public init() {}
+    private var webVisibility: Binding<Bool> { isSettingsPreview ? draftWeb ?? $previewShowWeb : $savedShowWeb }
+    private var clipboardVisibility: Binding<Bool> { isSettingsPreview ? draftClipboard ?? $previewShowClipboard : $savedShowClipboard }
+    private var filesVisibility: Binding<Bool> { isSettingsPreview ? draftFiles ?? $previewShowFiles : $savedShowFiles }
+    private var showWeb: Bool { webVisibility.wrappedValue }
+    private var showClipboard: Bool { clipboardVisibility.wrappedValue }
+    private var showFiles: Bool { filesVisibility.wrappedValue }
+
+    public init() {
+        service = .shared
+        draftWeb = nil; draftClipboard = nil; draftFiles = nil
+    }
+
+    init(draft: SearchDisplayDraft) {
+        service = draft.service
+        draftWeb = Binding(get: { draft.showWeb }, set: { draft.showWeb = $0 })
+        draftClipboard = Binding(get: { draft.showClipboard }, set: { draft.showClipboard = $0 })
+        draftFiles = Binding(get: { draft.showFiles }, set: { draft.showFiles = $0 })
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -557,6 +582,7 @@ public struct SearchSectionView: View {
             // 输入后结果区按内容高度动态向下展开，清空即收回。
             if !trimmedQuery.isEmpty {
                 categoryChips
+                if isSettingsPreview && showWeb { engineActionsRow }
                 resultList
             }
         }
@@ -565,6 +591,15 @@ public struct SearchSectionView: View {
         .onChange(of: fileKind) { _ in
             scheduleSearch()
         }
+        .onChange(of: showWeb) { _ in updatePreviewCategories() }
+        .onChange(of: showClipboard) { _ in updatePreviewCategories() }
+        .onChange(of: showFiles) { _ in updatePreviewCategories() }
+        .onChange(of: service.activeBarItems) { _ in
+            if isSettingsPreview { scheduleSearch() }
+        }
+        .onChange(of: settingsPreviewClipboardQuery) { value in
+            if isSettingsPreview { query = value }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
             if isSettingsPreview { return }
             // 面板可能刚被 show()，稍等一拍让 TextField 挂到窗口后再聚焦
@@ -572,7 +607,10 @@ public struct SearchSectionView: View {
                 searchFieldFocused = true
             }
         }
-        .onChange(of: fileIndex.state) { value in
+        .onReceive(FileNameIndex.shared.$state) { value in
+            if !isSettingsPreview { fileIndexState = value }
+        }
+        .onChange(of: fileIndexState) { value in
             // 索引第一次建完 → 自动重跑当前查询。
             // 否则用户搜「image html deck」时索引还在建、只看到"没有匹配的文件"就走了，
             // 下次再搜才有结果——他只会觉得"这功能坏了"。
@@ -582,7 +620,11 @@ public struct SearchSectionView: View {
             }
         }
         .onAppear {
-            if isSettingsPreview { return }
+            if isSettingsPreview {
+                query = settingsPreviewClipboardQuery
+                scheduleSearch()
+                return
+            }
             // v264：面板一出现就把已有索引 mmap 进来（毫秒级），这样状态行能直接
             // 显示「全盘索引 124 万项」而不是每次都问用户要不要建。
             // 只读缓存，不会在这里触发建索引。
@@ -644,6 +686,12 @@ public struct SearchSectionView: View {
                 }
             }
         }
+        .onDisappear {
+            if isSettingsPreview {
+                generation += 1
+                clearInput()
+            }
+        }
     }
 
     // MARK: 搜索框
@@ -658,7 +706,8 @@ public struct SearchSectionView: View {
             // v59：⌘K 面板内聚焦搜索（与 ⌥F 全局快捷键同一条通知链路）
             .background {
                 Button {
-                    NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+                    if isSettingsPreview { searchFieldFocused = true }
+                    else { NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil) }
                 } label: {
                     Color.clear.frame(width: 0, height: 0)
                 }
@@ -670,7 +719,7 @@ public struct SearchSectionView: View {
                 .focused($searchFieldFocused)
                 // 原版行为：回车 = 用搜索栏当前引擎打开网页搜索（引擎卡片上的 ↵ 标记）
                 .onSubmit {
-                    if let first = SearchServiceManager.shared.activeBarEngines.first {
+                    if let first = service.activeBarEngines.first {
                         performWebSearch(first)
                     }
                 }
@@ -706,7 +755,7 @@ public struct SearchSectionView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .glassCard(radius: 8)
+        .glassCard(radius: 8, fill: isSettingsPreview && reduceTransparency ? Color(nsColor: .controlBackgroundColor) : nil)
     }
 
     // MARK: 分类 chips（v50：用户自选聚焦类别）
@@ -724,7 +773,7 @@ public struct SearchSectionView: View {
                     Button {
                         selectedCategory = category
                         // 切回网页类时若列表为空且未抓取过，重新触发防抖抓取
-                        if category == .web, webResults.isEmpty, !previewQuery.isEmpty {
+                        if !isSettingsPreview, category == .web, webResults.isEmpty, !previewQuery.isEmpty {
                             fetchingEngineID = previewEngine?.id
                             Task { await fetchWebResults() }
                         }
@@ -764,7 +813,7 @@ public struct SearchSectionView: View {
 
     /// 展开上限：主面板固定 700pt，搜索结果区最多 420pt（分级展示条数更多，
     /// 超出在区内滚动；日历卡仍露出大半）
-    private let resultListMaxHeight: CGFloat = 420
+    private var resultListMaxHeight: CGFloat { isSettingsPreview ? 250 : 420 }
 
     private var resultList: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -777,7 +826,7 @@ public struct SearchSectionView: View {
                 )
         }
         .frame(height: min(max(listContentHeight, 1), resultListMaxHeight))
-        .animation(Theme.Motion.spring, value: listContentHeight)
+        .animation(reduceMotion ? nil : Theme.Motion.spring, value: listContentHeight)
         .onPreferenceChange(ContentHeightKey.self) { listContentHeight = $0 }
     }
 
@@ -797,7 +846,7 @@ public struct SearchSectionView: View {
                 // 全部视图（v63 分级/分类展示）：按匹配优先级排列——本地文件（模糊
                 // 引擎主场景）→ 工具 → 剪贴板 → 网页；每类更多条 + 类型色分级组头
                 //（点组头进入该分类完整列表）。上限内滚动浏览。
-                if showFiles { filesCategory(maxRows: 6, compact: true); if !toolResults.isEmpty || showClipboard || showsWebResults { categoryDivider } }
+                if showFiles { filesCategory(maxRows: isSettingsPreview ? 2 : 6, compact: true); if !toolResults.isEmpty || showClipboard || showsWebResults { categoryDivider } }
                 if !toolResults.isEmpty { toolCategory(maxRows: 4, compact: true); if showClipboard || showsWebResults { categoryDivider } }
                 if showClipboard { clipboardCategory(maxRows: 3, compact: true); if showsWebResults { categoryDivider } }
                 if showsWebResults { webCategory(maxRows: 3, compact: true) }
@@ -908,17 +957,18 @@ public struct SearchSectionView: View {
 
     private var previewEngine: SearchEngine? {
         guard let id = previewEngineID else {
-            return SearchServiceManager.shared.activeBarEngines.first
+            return service.activeBarEngines.first
         }
-        return SearchServiceManager.shared.activeBarEngines.first(where: { $0.id == id })
+        let selected = service.activeBarEngines.first(where: { $0.id == id })
+        return isSettingsPreview ? selected ?? service.activeBarEngines.first : selected
     }
 
     private func webCategory(maxRows: Int, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             if selectedCategory == .all {
-                categoryHeader(.web, isShown: $showWeb)
+                categoryHeader(.web, isShown: webVisibility)
             }
-            if !compact {
+            if !compact && !isSettingsPreview {
                 engineActionsRow
             }
             webResultArea(maxRows: maxRows, compact: compact)
@@ -929,13 +979,16 @@ public struct SearchSectionView: View {
     private var engineActionsRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 4) {
-                ForEach(SearchServiceManager.shared.activeBarEngines) { engine in
+                ForEach(service.activeBarEngines) { engine in
                     Button {
-                        if WebResultScraper.supportsResultList(engine) {
+                        if engine.supportsResultList {
                             previewEngineID = engine.id
                             previewArticleURL = nil
-                            fetchingEngineID = engine.id
-                            Task { await fetchWebResults() }
+                            if isSettingsPreview { scheduleSearch() }
+                            else {
+                                fetchingEngineID = engine.id
+                                Task { await fetchWebResults() }
+                            }
                         } else {
                             performWebSearch(engine)
                         }
@@ -943,7 +996,7 @@ public struct SearchSectionView: View {
                         HStack(spacing: 4) {
                             Image(systemName: engine.systemImage)
                                 .font(.system(size: 11))
-                            Text(WebResultScraper.supportsResultList(engine)
+                            Text(engine.supportsResultList
                                  ? engine.name
                                  : "\(engine.name) ↗")
                                 .font(.system(size: 11))
@@ -953,14 +1006,14 @@ public struct SearchSectionView: View {
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                                .fill(previewEngineID == engine.id
+                                .fill((isSettingsPreview ? previewEngine?.id : previewEngineID) == engine.id
                                       ? theme.accent.opacity(0.14)
                                       : theme.cardFill)
                         )
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(WebResultScraper.supportsResultList(engine)
+                    .help(isSettingsPreview ? "固定示例：切换结果引擎，↗ 演示搜索后清空输入" : engine.supportsResultList
                           ? "内嵌预览 \(engine.name) 搜索结果"
                           : "在浏览器中用 \(engine.name) 搜索（该引擎不支持内嵌结果列表）")
                 }
@@ -973,9 +1026,9 @@ public struct SearchSectionView: View {
     /// v60：条数限流；compact = 全部视图单行（标题 + 右侧域名），重点突出
     @ViewBuilder private func webResultArea(maxRows: Int, compact: Bool) -> some View {
         let engine = previewEngine
-        let supports = engine.map { WebResultScraper.supportsResultList($0) } ?? false
+        let supports = engine?.supportsResultList ?? false
 
-        if let articleURL = previewArticleURL {
+        if !isSettingsPreview, let articleURL = previewArticleURL {
             // 单条结果的内嵌预览（文章页在小窗中可读性远好于搜索页）
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -1015,7 +1068,7 @@ public struct SearchSectionView: View {
                 Button {
                     if let engine { performWebSearch(engine) }
                 } label: {
-                    Label("在浏览器中搜索", systemImage: "arrow.up.forward.app")
+                    Label(isSettingsPreview ? "演示搜索" : "在浏览器中搜索", systemImage: "arrow.up.forward.app")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
@@ -1034,13 +1087,13 @@ public struct SearchSectionView: View {
             .padding(.vertical, 10)
         } else if webFetchFailed || (webResults.isEmpty && !previewQuery.isEmpty) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("未能获取「\(engine?.name ?? "")」结果（可能被安全验证拦截）")
+                Text(isSettingsPreview ? "没有匹配的固定网页示例" : "未能获取「\(engine?.name ?? "")」结果（可能被安全验证拦截）")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Button {
                     if let engine { performWebSearch(engine) }
                 } label: {
-                    Label("在浏览器中搜索", systemImage: "arrow.up.forward.app")
+                    Label(isSettingsPreview ? "演示搜索" : "在浏览器中搜索", systemImage: "arrow.up.forward.app")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.plain)
@@ -1059,15 +1112,20 @@ public struct SearchSectionView: View {
                     Button {
                         if let engine { performWebSearch(engine) }
                     } label: {
-                        Label("浏览器打开", systemImage: "arrow.up.forward.app")
+                        Label(isSettingsPreview ? "演示搜索" : "浏览器打开", systemImage: "arrow.up.forward.app")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("在默认浏览器打开该搜索结果")
+                    .help(isSettingsPreview ? "演示搜索后清空输入开关" : "在默认浏览器打开该搜索结果")
                 }
                 ForEach(webResults.prefix(maxRows)) { result in
                     Button {
+                        if isSettingsPreview {
+                            previewSelectedResultID = result.id.uuidString
+                            if service.clearSearchInputAfterWebAction { clearInput() }
+                            return
+                        }
                         // v181（用户：「只要点击，就是直接默认浏览器打开」）：
                         // 主操作从「内嵌预览」改成「开浏览器」——点行内任何位置都走这里。
                         // 内嵌预览退到 ⌥ 点击（功能保留，不再挡在主动作前面）。
@@ -1130,9 +1188,10 @@ public struct SearchSectionView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .background(previewSelectionFill(result.id.uuidString))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .help("点击在默认浏览器打开（⌥ 点击：在此处预览）")
-                    .accessibilityLabel("在默认浏览器打开：\(result.title)")
+                    .help(isSettingsPreview ? "选择固定网页示例" : "点击在默认浏览器打开（⌥ 点击：在此处预览）")
+                    .accessibilityLabel(isSettingsPreview ? "选择示例：\(result.title)" : "在默认浏览器打开：\(result.title)")
                 }
             }
             .padding(.top, 2)
@@ -1185,7 +1244,14 @@ public struct SearchSectionView: View {
     private var filteredClipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] {
         let keyword = trimmedQuery
         guard !keyword.isEmpty else { return [] }
-        let items = isSettingsPreview ? settingsPreviewClipboardItems : ClipboardManager.shared.items
+        if isSettingsPreview {
+            return settingsPreviewClipboardItems.compactMap { item in
+                guard clipboardKind.matches(item.type),
+                      FuzzyMatcher.isMatch(keyword, in: [item.title, item.subtitle, item.content].compactMap { $0 }.joined(separator: " ")) else { return nil }
+                return (item, item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) })
+            }
+        }
+        let items = ClipboardManager.shared.items
         // 轻量失效签名：剪贴板条目只增删不改，count + 首末 id 即可识别变化
         var sig = Hasher()
         sig.combine(items.count)
@@ -1245,7 +1311,7 @@ public struct SearchSectionView: View {
         let matches = Array(all.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
             if selectedCategory == .all {
-                categoryHeader(.clipboard, isShown: $showClipboard,
+                categoryHeader(.clipboard, isShown: clipboardVisibility,
                                count: all.isEmpty ? nil : all.count)
             } else {
                 filterChips(ClipboardFilterKind.allCases, selection: $clipboardKind) { $0.title }
@@ -1261,6 +1327,11 @@ public struct SearchSectionView: View {
                     let item = matches[idx].item
                     let match = matches[idx].match
                     Button {
+                        if isSettingsPreview {
+                            previewSelectedResultID = item.id
+                            settingsPreviewClipboardSelection?.wrappedValue = item.id
+                            return
+                        }
                         ClipboardManager.shared.copy(item)
                         Toast.show("已复制剪贴板条目", icon: "checkmark.circle.fill")
                     } label: {
@@ -1315,7 +1386,8 @@ public struct SearchSectionView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("点击复制该条目")
+                    .background(previewSelectionFill(item.id))
+                    .help(isSettingsPreview ? "选择固定剪贴板示例" : "点击复制该条目")
                 }
             }
         }
@@ -1353,6 +1425,10 @@ public struct SearchSectionView: View {
         return icon
     }
 
+    private func resultFileIcon(for url: URL) -> Image {
+        isSettingsPreview ? Image(systemName: "doc") : Image(nsImage: Self.fileIcon(for: url))
+    }
+
     /// 「最佳匹配」徽标（该组评分第一名）
     private var bestBadge: some View {
         HStack(spacing: 2) {
@@ -1368,7 +1444,7 @@ public struct SearchSectionView: View {
     }
 
     private var isIndexBuilding: Bool {
-        if case .building = fileIndex.state { return true }
+        if case .building = fileIndexState { return true }
         return false
     }
 
@@ -1379,8 +1455,12 @@ public struct SearchSectionView: View {
     /// 建到哪一步、覆盖哪些目录、什么时候建的、要不要重建。
     @ViewBuilder
     private var fileIndexStatus: some View {
+        if isSettingsPreview {
+            Text("固定文件示例 · 不查询本机索引")
+                .font(.system(size: 10.5)).foregroundStyle(.secondary)
+        } else {
         HStack(spacing: 6) {
-            switch fileIndex.state {
+            switch fileIndexState {
             case .absent:
                 Text("Spotlight 不索引 ~/Library、隐藏目录（.workbuddy / .cursor…）与 .app 内部")
                     .font(.system(size: 10.5))
@@ -1418,6 +1498,7 @@ public struct SearchSectionView: View {
             }
         }
         .padding(.leading, 4)
+        }
     }
 
     private static func ago(_ date: Date) -> String {
@@ -1432,7 +1513,7 @@ public struct SearchSectionView: View {
         let rows = Array(fileResults.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
             if selectedCategory == .all {
-                categoryHeader(.files, isShown: $showFiles,
+                categoryHeader(.files, isShown: filesVisibility,
                                count: fileResults.isEmpty ? nil : fileResults.count)
             } else {
                 filterChips(FileSearchSource.Kind.allCases, selection: $fileKind) { $0.title }
@@ -1451,12 +1532,16 @@ public struct SearchSectionView: View {
             } else {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, result in
                     Button {
+                        if isSettingsPreview {
+                            previewSelectedResultID = result.id
+                            return
+                        }
                         NSWorkspace.shared.activateFileViewerSelecting([result.url])
                     } label: {
                         if compact {
                             // 全部视图：单行——文件名（命中高亮）+ 右侧父目录名
                             HStack(spacing: 8) {
-                                Image(nsImage: Self.fileIcon(for: result.url))
+                                resultFileIcon(for: result.url)
                                     .interpolation(.high)
                                     .frame(width: 16, height: 16)
                                 highlighted(result.url.lastPathComponent,
@@ -1478,7 +1563,7 @@ public struct SearchSectionView: View {
                         } else {
                             HStack(spacing: 8) {
                                 // 真实文件图标（26pt 容器统一节奏）
-                                Image(nsImage: Self.fileIcon(for: result.url))
+                                resultFileIcon(for: result.url)
                                     .interpolation(.high)
                                     .frame(width: 26, height: 26)
                                     .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
@@ -1509,7 +1594,8 @@ public struct SearchSectionView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .help("在 Finder 中显示")
+                    .background(previewSelectionFill(result.id))
+                    .help(isSettingsPreview ? "选择固定文件示例" : "在 Finder 中显示")
                 }
             }
         }
@@ -1522,8 +1608,13 @@ public struct SearchSectionView: View {
             categoryHeader(.tools, count: toolResults.isEmpty ? nil : toolResults.count)
             ForEach(toolResults.prefix(maxRows)) { item in
                 Button {
+                    if isSettingsPreview {
+                        previewSelectedResultID = item.id
+                        if service.clearSearchInputAfterWebAction { clearInput() }
+                        return
+                    }
                     item.action()
-                    if SearchServiceManager.shared.clearSearchInputAfterWebAction {
+                    if service.clearSearchInputAfterWebAction {
                         clearInput()
                     }
                 } label: {
@@ -1572,6 +1663,7 @@ public struct SearchSectionView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .background(previewSelectionFill(item.id))
             }
         }
     }
@@ -1609,6 +1701,61 @@ public struct SearchSectionView: View {
 
     // MARK: - 动作
 
+    private static let previewTools: [SearchResultItem] = [
+        SearchResultItem(id: "preview-tinyimg", title: "设计图压缩", subtitle: "/tinyimg · 图片工具", icon: "photo", action: {}),
+        SearchResultItem(id: "preview-uuid", title: "UUID 生成", subtitle: "/uuid · 开发工具", icon: "number", action: {}),
+        SearchResultItem(id: "preview-time", title: "时间转换", subtitle: "/time · 开发工具", icon: "clock", action: {}),
+    ]
+    private static let previewFiles: [(name: String, kind: FileSearchSource.Kind)] = [
+        ("设计说明.pdf", .document), ("设计封面.png", .image),
+        ("设计演示.mov", .media), ("设计素材.zip", .archive), ("设计项目", .folder),
+    ]
+    private static let previewWebItems: [WebSearchResult] = [
+        WebSearchResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, title: "Apple 设计资源",
+                        url: URL(string: "https://developer.apple.com/design/")!, snippet: "固定示例：界面设计与交互指南。"),
+        WebSearchResult(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!, title: "SwiftUI 界面设计",
+                        url: URL(string: "https://developer.apple.com/swiftui/")!, snippet: "固定示例：布局、状态和原生组件。"),
+    ]
+
+    private func updatePreviewCategories() {
+        guard isSettingsPreview else { return }
+        if (selectedCategory == .web && !showWeb)
+            || (selectedCategory == .clipboard && !showClipboard)
+            || (selectedCategory == .files && !showFiles) { selectedCategory = .all }
+        scheduleSearch()
+    }
+
+    private func filterPreviewItems(_ text: String) {
+        let toolQuery = isSlashMode ? String(text.dropFirst()) : text
+        toolResults = Self.previewTools.compactMap { item in
+            let match = FuzzyMatcher.match(toolQuery, in: item.title)
+            guard toolQuery.isEmpty || match != nil
+                || FuzzyMatcher.isMatch(toolQuery, in: item.subtitle ?? "") else { return nil }
+            return SearchResultItem(id: item.id, title: item.title, subtitle: item.subtitle,
+                                    icon: item.icon, match: match, action: item.action)
+        }
+        fileResults = isSlashMode ? [] : Self.previewFiles.compactMap { sample in
+            guard fileKind == .all || fileKind == sample.kind,
+                  let match = FuzzyMatcher.match(text, in: sample.name) else { return nil }
+            return FuzzyFileResult(url: URL(fileURLWithPath: "/SettingsPreview/\(sample.name)"),
+                                   score: match.score, nameMatch: match, pathMatch: nil)
+        }
+        webResults = isSlashMode ? [] : Self.previewWebItems.filter {
+            FuzzyMatcher.isMatch(text, in: $0.title + " " + $0.snippet)
+        }
+        previewQuery = text
+        hasSearched = true
+        isSearching = false
+        fetchingEngineID = nil
+        webFetchFailed = false
+        webFallbackName = nil
+    }
+
+    private func previewSelectionFill(_ id: String) -> some View {
+        RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+            .fill(isSettingsPreview && previewSelectedResultID == id ? theme.accent.opacity(0.12) : Color.clear)
+    }
+
     /// 去除首尾空白后的关键词（分类显隐、剪贴板匹配、预览 URL 构造共用）
     private var trimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1616,6 +1763,11 @@ public struct SearchSectionView: View {
 
     /// Web 打开引擎搜索 URL；行为开关 clearSearchInputAfterWebAction 决定是否清空输入框
     private func performWebSearch(_ engine: SearchEngine) {
+        if isSettingsPreview {
+            previewEngineID = engine.id
+            if service.clearSearchInputAfterWebAction { clearInput() }
+            return
+        }
         let text = trimmedQuery
         guard !text.isEmpty, let url = SearchServiceManager.searchURL(for: engine, query: text) else { return }
         Log.info("Search", "performWebSearch engine=\(engine.name) q='\(text)' url=\(url.absoluteString)")
@@ -1623,7 +1775,7 @@ public struct SearchSectionView: View {
         StatisticsManager.shared.record(.searchExecute)
         StatisticsManager.shared.record(.webSearchOpen)
         NSWorkspace.shared.open(url)
-        if SearchServiceManager.shared.clearSearchInputAfterWebAction {
+        if service.clearSearchInputAfterWebAction {
             clearInput()
         }
     }
@@ -1644,6 +1796,7 @@ public struct SearchSectionView: View {
 
     /// v50 抓取当前引擎的结果列表（后台任务；generation 防串台）
     private func fetchWebResults() {
+        if isSettingsPreview { scheduleSearch(); return }
         guard !isLocalPathQuery, let engine = previewEngine, !previewQuery.isEmpty else { return }
         let engineID = engine.id
         let text = previewQuery
@@ -1656,7 +1809,7 @@ public struct SearchSectionView: View {
             // Google 经常返回同意页/安全验证，WKWebView 里 JS 抓不到条目，
             // 用户看到的就是「没有搜索结果」。DuckDuckGo 的 html 端点无 JS、稳定。
             if results.isEmpty, engineID != "duckduckgo",
-               let ddg = SearchServiceManager.shared.allEngines.first(where: { $0.id == "duckduckgo" }) {
+               let ddg = service.allEngines.first(where: { $0.id == "duckduckgo" }) {
                 let backup = await WebResultScraper.shared.fetchResults(engine: ddg, query: text)
                 if !backup.isEmpty {
                     results = backup
@@ -1685,6 +1838,10 @@ public struct SearchSectionView: View {
             webFallbackName = nil
             return
         }
+        if isSettingsPreview {
+            filterPreviewItems(trimmed)
+            return
+        }
         isSearching = true
         Task {
             try? await Task.sleep(nanoseconds: 250_000_000)
@@ -1708,7 +1865,7 @@ public struct SearchSectionView: View {
                 if isLocalPathQuery { webResults = []; fetchingEngineID = nil }
             }
             // v50：防抖提交后立即抓取当前引擎的结果列表（仅搜索型引擎）
-            if !isLocalPathQuery, let engine = previewEngine, WebResultScraper.supportsResultList(engine) {
+            if !isLocalPathQuery, let engine = previewEngine, engine.supportsResultList {
                 fetchingEngineID = engine.id
                 fetchWebResults()
             }

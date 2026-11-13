@@ -37,7 +37,7 @@ final class SettingsBlockProbeWindowController {
         // 这两个区块用于单独验收：预览是否只画自己的对象、设置行是否跟在预览下面。
         case "personalization-main":
             content = AnyView(
-                AppearanceSettingsEditor { draft in
+                AppearanceSettingsEditor(scope: .mainPanel) { draft in
                     VStack(alignment: .leading, spacing: 12) {
                         AppearancePreviewBlock(scope: .mainPanel, draft: draft)
                         SettingsDivider()
@@ -48,7 +48,7 @@ final class SettingsBlockProbeWindowController {
             title = "设置区块预览 · 主面板"
         case "personalization-floating":
             content = AnyView(
-                AppearanceSettingsEditor { draft in
+                AppearanceSettingsEditor(scope: .floatingWindow) { draft in
                     VStack(alignment: .leading, spacing: 12) {
                         AppearancePreviewBlock(scope: .floatingWindow, draft: draft)
                         SettingsDivider()
@@ -58,7 +58,7 @@ final class SettingsBlockProbeWindowController {
             )
             title = "设置区块预览 · 独立窗口与浮层"
         case "personalization-shared":
-            content = AnyView(AppearanceSettingsEditor { draft in
+            content = AnyView(AppearanceSettingsEditor(scope: .shared) { draft in
                 PersonalizationSettingsView(part: .shared, draft: draft)
             })
             title = "设置区块预览 · 个性化（通用）"
@@ -67,7 +67,8 @@ final class SettingsBlockProbeWindowController {
             title = "设置区块预览"
         }
 
-        let host = NSHostingView(rootView: ScrollView { content.padding(24) })
+        let host = NSHostingView(rootView: ScrollView { content.padding(24) }
+            .environmentObject(SettingsEditingSession()))
         host.frame = NSRect(x: 0, y: 0, width: 760, height: 980)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 980),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],

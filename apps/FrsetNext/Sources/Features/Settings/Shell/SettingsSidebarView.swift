@@ -79,7 +79,9 @@ struct SettingsSearchEntry: Identifiable {
 /// 侧边栏视图（宽 186，整窗高）
 struct SettingsSidebarView: View {
     @ObservedObject var state: SettingsUIState
+    @EnvironmentObject private var editingSession: SettingsEditingSession
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var accent: Color { MonitorColors.user }
 
@@ -102,7 +104,7 @@ struct SettingsSidebarView: View {
                 .onReceive(state.$selection.combineLatest(state.$query)) { page, query in
                     guard query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                     DispatchQueue.main.async {
-                        withAnimation(.easeInOut(duration: 0.18)) {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
                             proxy.scrollTo(page, anchor: .center)
                         }
                     }
@@ -181,6 +183,10 @@ struct SettingsSidebarView: View {
                     .foregroundStyle(selected ? accent : Color.primary.opacity(0.86))
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                if editingSession.isDirty(page: page) {
+                    Circle().fill(Color.orange).frame(width: 5, height: 5)
+                        .accessibilityLabel("未保存")
+                }
             }
             .padding(.leading, 24)
             .padding(.trailing, 8)

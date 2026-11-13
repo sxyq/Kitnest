@@ -29,6 +29,7 @@ public enum CodePreviewPreferences {
 }
 
 public struct CodePreviewView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     public let code: String
     /// 已知文件名（用于按扩展名锁定语言）
@@ -130,6 +131,7 @@ public struct CodePreviewView: View {
     // MARK: 工具条
 
     private var toolbar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: Theme.Space.sm) {
             languageMenu
             themeMenu
@@ -151,6 +153,8 @@ public struct CodePreviewView: View {
         .padding(.horizontal, Theme.Space.md)
         .frame(height: 38)
         .background(gutterFill)
+        }
+        .frame(height: 38)
     }
 
     private var languageMenu: some View {
@@ -290,7 +294,7 @@ public struct CodePreviewView: View {
                 HStack(spacing: 4) {
                     Image(systemName: copiedFlash ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 10, weight: .semibold))
-                    Text(copiedFlash ? "已复制" : "复制")
+                    Text(copiedFlash ? (isSettingsPreview ? "复制演示" : "已复制") : "复制")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .foregroundStyle(bg)
@@ -381,6 +385,7 @@ public struct CodePreviewView: View {
     }
 
     private func persist() {
+        if isSettingsPreview { return }
         Preferences.shared.set(CodePreviewPreferences.themeKey, themeID)
         Preferences.shared.set(CodePreviewPreferences.fontSizeKey, fontSize)
         Preferences.shared.set(CodePreviewPreferences.lineNumbersKey, showsLineNumbers)
@@ -388,12 +393,14 @@ public struct CodePreviewView: View {
     }
 
     private func copyRichText() {
+        if isSettingsPreview { copiedFlash = true; return }
         let ok = CodeRichCopy.copyRichText(code, options: options)
         flashCopied(ok: ok, message: "已复制富文本，可直接粘到 Word")
     }
 
     /// 复制为图片（贴到聊天工具/文档里不会掉格式，等同 highlightcode 的导出图）
     private func copyAsImage() {
+        if isSettingsPreview { copiedFlash = true; return }
         guard let image = CodeCardImage.render(code: code, options: options, width: 760) else {
             Toast.show("图片生成失败", icon: "exclamationmark.triangle")
             return
@@ -404,11 +411,13 @@ public struct CodePreviewView: View {
     }
 
     private func copyPlainText() {
+        if isSettingsPreview { copiedFlash = true; return }
         let ok = CodeRichCopy.copyPlainText(CodeHighlighter.normalize(code, tabWidth: 4))
         flashCopied(ok: ok, message: "已复制纯文本")
     }
 
     private func copyHTMLSource() {
+        if isSettingsPreview { copiedFlash = true; return }
         let payload = CodeRichCopy.makePayload(code, options: options)
         NSPasteboard.general.clearContents()
         let ok = NSPasteboard.general.setString(payload.html, forType: .string)
@@ -429,6 +438,7 @@ public struct CodePreviewView: View {
 // MARK: - NSTextView 承载（主题底色 + 行号标尺 + 横向滚动）
 
 struct CodeTextViewRepresentable: NSViewRepresentable {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     let attributed: NSAttributedString
     let theme: CodeTheme
     let fontSize: CGFloat
@@ -437,6 +447,7 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = CodePreviewTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        textView.isSettingsPreview = isSettingsPreview
         textView.cardBackground = theme.background
         textView.cardBorder = theme.border
         textView.fontSize = fontSize
@@ -494,6 +505,7 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
         textView.isHorizontallyResizable = !wraps
         textView.autoresizingMask = wraps ? [.width] : []
         if let codeView = textView as? CodePreviewTextView {
+            codeView.isSettingsPreview = isSettingsPreview
             codeView.wrapsEnabled = wraps     // didSet 里会同步容器宽度
         }
         if let container = textView.textContainer {
@@ -531,6 +543,7 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
 // 颜色/斜体沿用屏幕上已经渲染好的那份，不再二次着色。
 
 final class CodePreviewTextView: NSTextView {
+    var isSettingsPreview = false
 
     var cardBackground: NSColor = .textBackgroundColor
     var cardBorder: NSColor = .separatorColor
@@ -564,6 +577,7 @@ final class CodePreviewTextView: NSTextView {
     }
 
     override func copy(_ sender: Any?) {
+        if isSettingsPreview { return }
         let selection = selectedRange()
         let full = NSRange(location: 0, length: textStorage?.length ?? 0)
         let range = selection.length > 0 ? selection : full

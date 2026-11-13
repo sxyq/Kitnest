@@ -9,7 +9,86 @@ import UniformTypeIdentifiers
 
 // MARK: - 通用页
 
+final class MenuBarSettingsDraft: SettingsEditableDraft {
+    @Published var iconStyle = MenuBarIconStyleStore.current
+    @Published var customSymbol = MenuBarIconStyleStore.customSymbol
+    @Published var cat: Bool
+    @Published var flags: [String: Bool]
+    private var saved: [String: Any]
+    private static let keys = [GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey,
+                        "showSystemStatus", "showCalendar", Preferences.Keys.panelTransferDock,
+                        "automaticScreenshotOCREnabled"]
+
+    init() {
+        cat = (FSBarConfigurationSnapshot()?["Bar_MainIconCat"] as? NSNumber)?.boolValue ?? false
+        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
+        saved = [:]
+        saved = values
+    }
+
+    private var values: [String: Any] {
+        var result: [String: Any] = flags
+        result["style"] = iconStyle.rawValue
+        result["symbol"] = customSymbol
+        result["cat"] = cat
+        return result
+    }
+    var isDirty: Bool { !NSDictionary(dictionary: values).isEqual(to: saved) }
+    var monitorPageAvailable: Bool {
+        flags["showSystemStatus"]! && Preferences.shared.value(PanelSegments.monitorKey, default: true)
+    }
+    var transferPagesAvailable: Bool {
+        flags[Preferences.Keys.panelTransferDock]! &&
+        Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true) &&
+        (Preferences.shared.value(PanelSegments.transferKey, default: false) ||
+         Preferences.shared.value(PanelSegments.castKey, default: false))
+    }
+    func select(_ style: MenuBarIconStyle) { iconStyle = style }
+    func restoreDefaults() {
+        iconStyle = .logo
+        customSymbol = MenuBarIconStyleStore.defaultCustomSymbol
+        cat = false
+        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, true) })
+    }
+    func discard() {
+        iconStyle = MenuBarIconStyleStore.current
+        customSymbol = MenuBarIconStyleStore.customSymbol
+        cat = (FSBarConfigurationSnapshot()?["Bar_MainIconCat"] as? NSNumber)?.boolValue ?? false
+        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
+        saved = values
+    }
+    func save() -> String? {
+        let symbol = customSymbol.trimmingCharacters(in: .whitespacesAndNewlines)
+        if iconStyle == .custom && NSImage(systemSymbolName: symbol, accessibilityDescription: nil) == nil {
+            return "自定义 SF Symbol 不存在：" + symbol
+        }
+        if cat != saved["cat"] as? Bool {
+            if let reason = FSBarSaveConfiguration(["Bar_MainIconCat": cat], []) { return reason }
+        }
+        if iconStyle.rawValue != saved["style"] as? String { MenuBarIconStyleStore.select(iconStyle) }
+        if customSymbol != saved["symbol"] as? String {
+            UserDefaults.standard.set(symbol, forKey: MenuBarIconStyleStore.customSymbolKey)
+            customSymbol = symbol
+        }
+        if iconStyle == .custom { MenuBarIconStyleStore.setRevealsCustomOption(true) }
+        for key in Self.keys where flags[key] != saved[key] as? Bool {
+            Preferences.shared.set(key, flags[key]!)
+        }
+        NotificationCenter.default.post(name: GlobalEntries.didChangeNotification, object: nil)
+        MenuBarIconStyleApplier.shared.refresh()
+        FSRunCatIconApplySavedConfiguration()
+        saved = values
+        return nil
+    }
+}
+
 struct GeneralSettingsPane: View {
+    // 数据页清理偏好时使用的既有名称；键定义仍归图标存储。
+    static let menuBarIconStyleLogoKey = MenuBarIconStyle.logo.preferenceKey
+    static let menuBarIconStyleFanKey = MenuBarIconStyle.fan.preferenceKey
+    static let menuBarIconStyleDateKey = MenuBarIconStyle.date.preferenceKey
+    static let menuBarIconStyleCustomKey = MenuBarIconStyle.custom.preferenceKey
+    static let menuBarIconCustomSymbolKey = MenuBarIconStyleStore.customSymbolKey
     /// v272（用户：「常规也需要拆分，个性化这些设置全都要拆」）：常规拆成五个二级页，
     /// 一个二级页只渲染自己那一段，侧边栏一项对一页，不再一页滚到底。
     enum Section: Hashable {
@@ -28,12 +107,6 @@ struct GeneralSettingsPane: View {
 
     // 直接用 AppStorage 读写 Preferences 约定的键，保证跨模块一致
     @AppStorage(Preferences.Keys.launchAtLogin) private var launchAtLogin = false
-    @AppStorage("showSystemStatus") private var showSystemStatus = true
-    @AppStorage("showCalendar") private var showCalendar = true
-    @AppStorage("automaticScreenshotOCREnabled") private var automaticScreenshotOCR = true
-    /// 主面板是否显示「文件中转」入口（v40 侧边栏一级项）
-    @AppStorage(Preferences.Keys.panelTransferDock) private var transferDockEnabled = true
-    @Stored private var monitorRevision = 0
     // 外观四选一 / 语言切换（specs/18 §5/§6）
     @ObservedObject private var language = LanguageManager.shared
     /// 语言版本号：languageDidChange 到达时自增，驱动本视图重绘（契约 §10.3；
@@ -43,20 +116,6 @@ struct GeneralSettingsPane: View {
     /// v272：标签/忽略应用两行已并入「剪贴板 → 历史 / 捕获」，这里保留状态仅为
     /// 兼容面板内嵌的 compact 版（若有引用）。
     @Stored private var ignoredAppsRevision = 0
-
-    // MARK: 菜单栏图标样式（spec 13 §6：logo / fan / date / custom）
-    //
-    // 跨模块纪律：本页属Settings 模块，不得引用 StatusBar 模块的具体类型，
-    // 因此这里只按 spec 13 §6.1 的实证 defaults 键名直接读写 UserDefaults；
-    // 状态栏侧（MenuBarIconStyleStore / MenuBarIconStyleApplier）消费同一批键。
-    @AppStorage(Self.menuBarIconStyleLogoKey) private var iconStyleLogo = false
-    @AppStorage(Self.menuBarIconStyleFanKey) private var iconStyleFan = false
-    @AppStorage(Self.menuBarIconStyleDateKey) private var iconStyleDate = false
-    @AppStorage(Self.menuBarIconStyleCustomKey) private var iconStyleCustom = false
-    @AppStorage(Self.menuBarIconCustomSymbolKey) private var iconCustomSymbol = Self.defaultCustomSymbol
-    /// 是否展示自定义图标选项（原作 revealCustomMenuBarIconOption；未落盘时默认展示）
-    /// v83：彩蛋解锁门控已移除——自定义图标为常规功能，直接可用。
-    @AppStorage(Self.revealCustomIconOptionKey) private var revealCustomIconOption = true
 
     var body: some View {
         // v71（用户：各设置界面版式不一致，需统一组件）：统一 SettingsSection + SettingsGroupBox。
@@ -69,7 +128,7 @@ struct GeneralSettingsPane: View {
             case .personalization: personalizationSection
             case .menuBar:         menuBarSection
             case .notifications:
-                AppearanceSettingsEditor { draft in
+                AppearanceSettingsEditor(scope: .notification) { draft in
                     SettingsGroupBox {
                         AppearancePreviewBlock(scope: .notification, draft: draft)
                         SettingsDivider()
@@ -77,7 +136,7 @@ struct GeneralSettingsPane: View {
                     }
                 }
             case .captureToolbar:
-                AppearanceSettingsEditor { draft in
+                AppearanceSettingsEditor(scope: .captureToolbar) { draft in
                     SettingsGroupBox {
                         AppearancePreviewBlock(scope: .captureToolbar, draft: draft)
                         SettingsDivider()
@@ -88,9 +147,6 @@ struct GeneralSettingsPane: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .font(.system(size: 12))
-        .onReceive(NotificationCenter.default.publisher(for: MonitorPreferences.didChangeNotification)) { _ in
-            monitorRevision += 1
-        }
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
         }
@@ -126,7 +182,7 @@ struct GeneralSettingsPane: View {
 
     /// 主面板：预览 + 只作用于主面板的字号/圆角/宽度/材质/页面顺序
     private var mainPanelSection: some View {
-        AppearanceSettingsEditor { draft in
+        AppearanceSettingsEditor(scope: .mainPanel) { draft in
             SettingsSection("") {
                 SettingsGroupBox {
                     AppearancePreviewBlock(scope: .mainPanel, draft: draft)
@@ -141,7 +197,7 @@ struct GeneralSettingsPane: View {
 
     /// 独立窗口与浮层：预览 + 玻璃四参数/密度/缩略图/徽章/通知条
     private var floatingSection: some View {
-        AppearanceSettingsEditor { draft in
+        AppearanceSettingsEditor(scope: .floatingWindow) { draft in
             SettingsSection("") {
                 SettingsGroupBox {
                     AppearancePreviewBlock(scope: .floatingWindow, draft: draft)
@@ -156,7 +212,7 @@ struct GeneralSettingsPane: View {
 
     /// 个性化（通用）：两边都生效的强调色/动画/动作条/背景图/入口
     private var personalizationSection: some View {
-        AppearanceSettingsEditor { draft in
+        AppearanceSettingsEditor(scope: .shared) { draft in
             SettingsSection("") {
                 SettingsGroupBox {
                     AppearancePreviewBlock(scope: .mainPanel, draft: draft)
@@ -184,151 +240,75 @@ struct GeneralSettingsPane: View {
         .frame(width: 300)
     }
 
-    /// 「菜单栏」设置区（功能 / AI 服务商 / 菜单栏图标 / 菜单栏部件）
     private var menuBarSection: some View {
-        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
-            SettingsGroupBox {
-                formRow(L10n.t("Features")) {
-                    Group {
-                        if compact {
-                            VStack(alignment: .leading, spacing: 7) {
-                                featuresChoices
+        VStack(spacing: 12) {
+            SettingsDraftEditor(id: "menuBar", makeDraft: { MenuBarSettingsDraft() }) { draft in
+                SettingsGroupBox {
+                    HStack(spacing: 12) {
+                        MenuBarIconPreview(style: draft.iconStyle, customSymbol: draft.customSymbol, cat: draft.cat)
+                            .frame(width: 40, height: 22)
+                            .allowsHitTesting(false)
+                            .accessibilityLabel("菜单栏图标固定预览")
+                        Text("菜单栏图标预览 · 固定日期与小猫帧")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    SettingsDivider()
+                    formRow("图标样式") {
+                        Picker("图标样式", selection: Binding(get: { draft.iconStyle }, set: { draft.select($0) })) {
+                            ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
+                                Text(style.title).tag(style)
                             }
-                        } else {
-                            HStack(spacing: 22) {
-                                featuresChoices
-                            }
+                        }.labelsHidden().pickerStyle(.segmented).frame(maxWidth: 350)
+                    }
+                    if draft.iconStyle == .custom {
+                        formRow("自定义 SF Symbol") {
+                            TextField("例如 sparkles", text: Binding(get: { draft.customSymbol }, set: { draft.customSymbol = $0 }))
+                                .textFieldStyle(.roundedBorder).frame(width: 200)
                         }
                     }
-                    .buttonStyle(.link)
+                    formRow("小猫覆盖图标") {
+                        Toggle("小猫覆盖图标", isOn: Binding(get: { draft.cat }, set: { draft.cat = $0 }))
+                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    }
+                    SettingsDivider()
+                    entryRow("菜单：打开面板", key: GlobalEntries.homeKey, draft: draft)
+                    entryRow("菜单：性能监测设置", key: GlobalEntries.monitorPopoutKey, draft: draft)
+                    entryRow("菜单栏：性能部件", key: GlobalEntries.statsBarKey, draft: draft)
+                    SettingsDivider()
+                    entryRow("主面板：性能监测", key: "showSystemStatus", draft: draft,
+                             detail: draft.monitorPageAvailable ? "页面入口可见" : "页面入口隐藏；页面排列使用已保存值")
+                    entryRow("主面板：首页日历", key: "showCalendar", draft: draft)
+                    entryRow("主面板：中转 / 投屏入口", key: Preferences.Keys.panelTransferDock, draft: draft,
+                             detail: draft.transferPagesAvailable ? "页面入口可见" : "页面入口隐藏；功能与页面排列使用已保存值")
+                    entryRow("截图文字识别", key: "automaticScreenshotOCREnabled", draft: draft,
+                             detail: "识别新截图文字供内容搜索；已识别的历史内容保留")
+                    SettingsDivider()
+                    formRow("部件布局与颜色") {
+                        Button("前往部件设置") { StatsBarEngine.openSettings() }.controlSize(.small)
+                    }
+                    Text("图标、入口与部件设置分别保存；部件显隐、排列、合并、间距、分隔线及颜色统一在部件设置调整。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
-                SettingsDivider()
-                formRow(L10n.t("AI Providers")) {
+            }
+            SettingsGroupBox {
+                formRow("AI 服务商 · 即时管理") {
                     HStack(spacing: 12) {
                         actionButton(L10n.t("Manage")) { openDetail("ai") }
-                        Text(providerCountText)
-                            .foregroundStyle(.secondary)
+                        Text(providerCountText).foregroundStyle(.secondary)
                     }
                 }
-                SettingsDivider()
-                formRow(L10n.t("Menu Bar Icon"), height: 76) {
-                    menuBarIconChoices
-                }
-                SettingsDivider()
-                formRow("菜单栏部件") {
-                    HStack(spacing: 12) {
-                        actionButton("设置") { StatsBarEngine.openSettings() }
-                        Text("合并条：CPU / 内存 / GPU / 磁盘 / 网络 / 传感器 / 电池")
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                }
-                SettingsDivider()
-                VStack(spacing: 10) { dividerRow; globalEntriesRow }
+                Text("打开独立 AI 管理页，不受外观草稿保存或取消控制。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
     }
 
-    /// 合并条分隔线（v66：显隐快捷开关写引擎既有键；颜色档位接引擎渲染链后开放）
-    private var dividerRow: some View {
-        formRow("合并条分隔线") {
-            HStack(spacing: 10) {
-                Toggle("模块间画 1pt 竖线", isOn: Binding(
-                    get: { FSBarMergedSeparator() },
-                    set: {
-                        FSBarGlobalSet("CombinedModules_separator", NSNumber(value: $0))
-                        FSBarReloadFromStore()
-                        monitorRevision += 1
-                    }
-                ))
-                .toggleStyle(.checkbox)
-                .font(.system(size: 12))
-                Text("颜色自定义将随引擎渲染链开放")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color(NSColor.tertiaryLabelColor))
-            }
+    private func entryRow(_ title: String, key: String, draft: MenuBarSettingsDraft, detail: String? = nil) -> some View {
+        SettingsRow(title: title, subtitle: detail) {
+            Toggle(title, isOn: Binding(get: { draft.flags[key]! }, set: { draft.flags[key] = $0 }))
+                .labelsHidden().toggleStyle(.switch).controlSize(.small)
         }
-    }
-
-    /// 全局入口（v192）：菜单栏（状态栏）里的入口项与两个独立窗口的开关。
-    /// 用户要求「跟中转和投屏一样」——所以放在同一页、同样的勾选交互；
-    /// 但它管的是**菜单栏入口**，不是主面板顶部的分段按钮（那是上面那一组）。
-    private var globalEntriesRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            formRow("功能入口") {
-                VStack(alignment: .trailing, spacing: 6) {
-                    Toggle("主页（打开面板）", isOn: Binding(
-                        get: { GlobalEntries.isEnabled(GlobalEntries.homeKey) },
-                        set: { GlobalEntries.setEnabled(GlobalEntries.homeKey, $0) }))
-                        .toggleStyle(.checkbox)
-                        .font(.system(size: 12))
-                    Toggle("性能监测独立窗", isOn: Binding(
-                        get: { GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) },
-                        set: { GlobalEntries.setEnabled(GlobalEntries.monitorPopoutKey, $0) }))
-                        .toggleStyle(.checkbox)
-                        .font(.system(size: 12))
-                    Toggle("菜单栏性能部件（STATS）", isOn: Binding(
-                        get: { GlobalEntries.isEnabled(GlobalEntries.statsBarKey) },
-                        set: { GlobalEntries.setEnabled(GlobalEntries.statsBarKey, $0) }))
-                        .toggleStyle(.checkbox)
-                        .font(.system(size: 12))
-                }
-                .frame(width: 210)
-            }
-            Text("控制菜单栏图标下拉菜单里的「打开面板 / 性能监测…」两项，以及菜单栏上的性能合并条。"
-                 + "关掉只是收起入口，数据和历史都还在，随时可以再打开；"
-                 + "全部关掉时主面板仍可用 ⌥A 打开，不会把界面锁死。")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// 菜单栏图标四选一 + 小猫覆盖
-    /// v86（2026-10-20 用户反馈「展现有截断、小猫没有图标」）：一律两行排布
-    /// （3 + 2），文字单行固定宽不折行；小猫补猫图标预览，与其它选项同视觉权重。
-    private var menuBarIconChoices: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 16) {
-                iconChoice(L10n.t("settings_menu_bar_icon_fan_label"), symbol: "fan.fill", value: Self.menuBarIconStyleFan,
-                           help: L10n.t("Fan icon speed changes with CPU usage"))
-                iconChoice(L10n.t("Menu Bar Icon Logo"), symbol: "line.3.horizontal.decrease.circle.fill", value: Self.menuBarIconStyleLogo)
-                iconChoice(L10n.t("Date"), symbol: "calendar", value: Self.menuBarIconStyleDate,
-                           dayBadge: Self.todayDayNumber)
-            }
-            HStack(spacing: 16) {
-                if revealsCustomMenuBarIcon {
-                    iconChoice("自定义图标", symbol: customMenuBarSymbolBinding.wrappedValue,
-                               value: Self.menuBarIconStyleCustom)
-                }
-                runCatChoice
-            }
-        }
-    }
-
-    /// 小猫：独立覆盖开关（勾选后盖住上方所选样式）。
-    /// v86：补猫图标预览（SF Symbol cat.fill）+ 选中态与其它选项一致的胶囊高亮。
-    private var runCatChoice: some View {
-        Toggle(isOn: runCatBinding) {
-            HStack(spacing: 6) {
-                Image(systemName: "cat.fill")
-                    .font(.system(size: 18))
-                Text("小猫")
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .foregroundStyle(runCatBinding.wrappedValue ? Color.white : Color.primary)
-                    .background {
-                        if runCatBinding.wrappedValue {
-                            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.accent)
-                        }
-                    }
-            }
-        }
-        .toggleStyle(.checkbox)
-        .help("菜单栏图标换成奔跑小猫（RunCat，速度随 CPU 变化）")
     }
 
     // MARK: 计数文案（原版 '%d Provider(s)' / '%d Tag(s)' 键面，复数按数量切换）
@@ -337,31 +317,6 @@ struct GeneralSettingsPane: View {
     private var providerCountText: String {
         let count = CredentialStore.shared.configuredProviders().count
         return String(format: L10n.t(count == 1 ? "%d Provider" : "%d Providers"), count)
-    }
-
-    /// 日期图标上的当日角标（原版日期按钮显示当天日期数）
-    static var todayDayNumber: String {
-        String(Calendar.current.component(.day, from: Date()))
-    }
-
-    /// 功能开关组（面板功能显隐）：系统监控 / 日历 / 截图检索 / 文件中转。
-    /// v40 新增「文件中转」——控制主面板侧边栏一级入口是否出现。
-    @ViewBuilder private var featuresChoices: some View {
-        // v260：这四个勾选框此前三个半没有读取方，用户勾掉也看不到变化。
-        // 现在 PanelRootView 用它们门控分段/日历卡；help 写清各自真正影响什么。
-        Toggle(L10n.t("System Monitor"), isOn: $showSystemStatus)
-            .toggleStyle(.checkbox)
-            .help("关掉后主面板顶部不再出现「性能监测」分段；与「个性化 → 主面板页面」的勾选同时生效")
-        Toggle(L10n.t("Calendar"), isOn: $showCalendar)
-            .toggleStyle(.checkbox)
-            .help("关掉后首页不再显示日历卡")
-        Toggle(L10n.t("Screenshot Search"), isOn: $automaticScreenshotOCR)
-            .toggleStyle(.checkbox)
-            .help("自动识别新截图里的文字，供内容搜索使用；已识别的历史记录不受影响")
-        Toggle("文件中转", isOn: $transferDockEnabled)
-            .toggleStyle(.checkbox)
-            .help("启用文件中转。关掉后顶部的「中转 / 投屏」分段一起隐藏；" 
-                  + "功能开启后是否显示分段，由「个性化 → 主面板页面」单独决定")
     }
 
     /// v272（用户：「所有页面一个一个统一」）：行样式统一成 SettingsRow 的
@@ -390,115 +345,8 @@ struct GeneralSettingsPane: View {
         .controlSize(.small)
     }
 
-    private func iconChoice(_ title: String, symbol: String, value: String,
-                            help: String? = nil, dayBadge: String? = nil) -> some View {
-        Button { menuBarIconStyleBinding.wrappedValue = value } label: {
-            HStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 18))
-                Text(title)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .foregroundStyle(currentMenuBarIconStyle == value ? Color.white : Color.primary)
-                    .background {
-                        if currentMenuBarIconStyle == value {
-                            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Theme.accent)
-                        }
-                    }
-                if let dayBadge {
-                    // 原版日期按钮：日历图标右上角当日数字（15 号截图实证）
-                    Text(dayBadge)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 3.5)
-                        .padding(.vertical, 1)
-                        .background(Capsule().fill(Theme.accent))
-                        .offset(x: 8, y: -8)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .help(help ?? "")
-    }
-
     private func openDetail(_ id: String) {
         ServiceLocator.settings?.open(pane: id)
-    }
-
-    // MARK: 菜单栏图标样式（spec 13 §6.1 偏好键 + §6 样式语义）
-
-    /// 图标样式四键（原作实证键名）
-    static let menuBarIconStyleLogoKey = "menu-bar-icon-logo"
-    static let menuBarIconStyleFanKey = "menu-bar-icon-fan"
-    static let menuBarIconStyleDateKey = "menu-bar-icon-date"
-    static let menuBarIconStyleCustomKey = "menu-bar-icon-custom"
-    /// 自定义 Symbol 名键（⬜ 原作键名未探明，重建侧自定）
-    static let menuBarIconCustomSymbolKey = "menu-bar-icon-custom-symbol"
-    /// 是否展示自定义图标选项（原作 revealCustomMenuBarIconOption）
-    static let revealCustomIconOptionKey = "revealCustomMenuBarIconOption"
-    static let defaultCustomSymbol = "sparkles"
-
-    // MARK: 样式**内部标识**（Picker tag / switch 匹配用，不是展示文案）
-    //
-    // 这三个常量同时充当 Picker 的 tag 与各处 switch 的匹配值，因此**不得**本地化——
-    // 一旦随语言变化，menuBarIconStyleBinding 的 switch 会失配、四布尔键写错档。
-    // 展示文案另走 `menuBarIconStyleDisplayName(_:)`。
-    static let menuBarIconStyleLogo = "Logo"
-    static let menuBarIconStyleFan = "动态风扇"
-    static let menuBarIconStyleDate = "日期"
-    static let menuBarIconStyleCustom = "自定义图标"
-
-    /// 是否展示自定义图标（仅受 hide/restore 开关控制；v83 起不再依赖彩蛋解锁）
-    private var revealsCustomMenuBarIcon: Bool {
-        revealCustomIconOption
-    }
-
-
-    /// 当前选中的样式**内部标识**（全false / 多 true 时取 Logo）
-    private var currentMenuBarIconStyle: String {
-        if iconStyleCustom { return Self.menuBarIconStyleCustom }
-        if iconStyleFan { return Self.menuBarIconStyleFan }
-        if iconStyleDate { return Self.menuBarIconStyleDate }
-        return Self.menuBarIconStyleLogo
-    }
-
-    /// 样式选择绑定：只置目标键、清其余三键（四布尔键语义，对齐原作 menu-bar-icon-*）
-    private var menuBarIconStyleBinding: Binding<String> {
-        Binding(
-            get: { currentMenuBarIconStyle },
-            set: { title in
-                iconStyleLogo = false
-                iconStyleFan = false
-                iconStyleDate = false
-                iconStyleCustom = false
-                switch title {
-                case Self.menuBarIconStyleFan:    iconStyleFan = true
-                case Self.menuBarIconStyleDate:   iconStyleDate = true
-                case Self.menuBarIconStyleCustom: iconStyleCustom = true
-                default:                           iconStyleLogo = true
-                }
-            }
-        )
-    }
-
-    /// v32/v34 移植（注入版）：奔跑小猫开关。
-    /// 状态存于引擎（widgets.plist 键 MainIconCat），Swift 侧经桥接头 C API 读写。
-    private var runCatBinding: Binding<Bool> {
-        Binding(
-            get: { FSRunCatIconEnabled() },
-            set: { FSRunCatIconSetEnabled($0) }
-        )
-    }
-
-    private var customMenuBarSymbolBinding: Binding<String> {
-        Binding(
-            get: {
-                let trimmed = iconCustomSymbol.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? Self.defaultCustomSymbol : trimmed
-            },
-            set: { iconCustomSymbol = $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        )
     }
 
     // MARK: 外观四选一 radio（specs/18 §5：系统/浅色/深色/Midnight，键 appearance）

@@ -23,10 +23,66 @@ import UniformTypeIdentifiers
 //   · 本地暂存始终存在（它是这套功能的底座）。
 
 struct TransferDockView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    var body: some View {
+        if isSettingsPreview { TransferDockContent() }
+        else { LiveTransferDockView() }
+    }
+}
+
+private struct LiveTransferDockView: View {
     @ObservedObject private var service = TransferDockService.shared
     @ObservedObject private var local = LocalTransferStore.shared
     @ObservedObject private var lan = LanTransferServer.shared
+    @ObservedObject private var compression = BatchImageCompressionWindowController.shared
+    var body: some View {
+        TransferDockContent(service: service, local: local, lan: lan, compression: compression)
+    }
+}
 
+private struct TransferDockContent: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let liveService: TransferDockService?
+    private let liveLocal: LocalTransferStore?
+    private let liveLan: LanTransferServer?
+    private let liveCompression: BatchImageCompressionWindowController?
+    private var service: TransferDockService { liveService! }
+    private var local: LocalTransferStore { liveLocal! }
+    private var lan: LanTransferServer { liveLan! }
+    private var compression: BatchImageCompressionWindowController { liveCompression! }
+    @Stored private var previewItems = Self.sampleItems
+    @Stored private var previewCloudFiles = Self.sampleCloudFiles
+    @Stored private var previewFeedback: String?
+    private var localItems: [LocalTransferItem] { isSettingsPreview ? previewItems : local.items }
+    private var cloudFiles: [TransferDockFile] { isSettingsPreview ? previewCloudFiles : service.files }
+    private var loggedIn: Bool { isSettingsPreview || service.loggedIn }
+    private var cloudLoading: Bool { !isSettingsPreview && service.isLoading }
+    private var cloudUploading: Bool { !isSettingsPreview && service.isUploading }
+    private var compressionResults: [URL] { isSettingsPreview ? [] : compression.resultURLs }
+    private var localError: String? { isSettingsPreview ? nil : local.lastError }
+    private var localMessage: String { isSettingsPreview ? "固定示例 · 操作仅改变预览" : local.lastMessage }
+    private var cloudSpaceText: String { isSettingsPreview ? "已用 1.2 GB / 10 GB" : service.spaceText }
+    private var cloudSpaceRatio: Double { isSettingsPreview ? 0.12 : service.spaceRatio }
+
+    init(service: TransferDockService? = nil, local: LocalTransferStore? = nil,
+         lan: LanTransferServer? = nil, compression: BatchImageCompressionWindowController? = nil) {
+        liveService = service; liveLocal = local; liveLan = lan; liveCompression = compression
+    }
+    private static let sampleItems: [LocalTransferItem] = [
+        .init(id: "preview-document", name: "项目说明.pdf", relativePath: "", originalPath: "",
+              size: 2_400_000, addedAt: 1_794_499_200, mode: .copy),
+        .init(id: "preview-image", name: "界面草图.png", relativePath: "", originalPath: "",
+              size: 860_000, addedAt: 1_794_499_200, mode: .copy),
+        .init(id: "preview-note", name: "会议记录.md", relativePath: "", originalPath: "",
+              size: 4_800, addedAt: 1_794_499_200, mode: .copy)
+    ]
+    private static let sampleCloudFiles: [TransferDockFile] = [
+        .init(id: "preview-cloud-document", name: "设计说明.pdf", size: 1_600_000,
+              createdAt: 1_794_499_200, type: "file"),
+        .init(id: "preview-cloud-image", name: "分享图片.png", size: 920_000,
+              createdAt: 1_794_499_200, type: "file")
+    ]
     @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
     @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
     /// v181/v260：「文件中转」功能总开关（设置 → 文件中转）。
@@ -35,7 +91,7 @@ struct TransferDockView: View {
     /// 而不是整页空白或消失。
     @AppStorage(TransferDockPref.featureEnabled) private var featureEnabled = true
 
-    @Stored private var bridgeAvailable = TransferDockPath.isAvailable
+    @Stored private var bridgeAvailable = false
     @Stored private var cloudDropTargeted = false
     @Stored private var localDropTargeted = false
     // v128（流畅度）：hoveredCloudID/hoveredLocalID 已下沉到行视图（CloudRowView /
@@ -43,7 +99,6 @@ struct TransferDockView: View {
     /// 本地暂存勾选集合（勾选后可「扫码直传 / 加入云端 / 移出」批量操作）
     @Stored private var selectedIDs = Set<String>()
     @Stored private var copyCompleted = false
-    @ObservedObject private var compression = BatchImageCompressionWindowController.shared
     /// 「扫码直传」选中文件的二维码链接（带 ?pick=ids，手机只看到这几个）
     @Stored private var pickShareURL: String?
     /// 直传服务是否由「传输」动作拉起（是则勾选清空时随停；手动启动的不代停）
@@ -52,7 +107,7 @@ struct TransferDockView: View {
     @Stored private var transferTab = 0
 
     /// 云端分区是否出现：开关 + 桥接工程都在才算
-    private var showsCloud: Bool { cloudEnabled && bridgeAvailable }
+    private var showsCloud: Bool { cloudEnabled && (isSettingsPreview || bridgeAvailable) }
 
     var body: some View {
         if featureEnabled {
@@ -75,7 +130,7 @@ struct TransferDockView: View {
                 .foregroundStyle(Theme.tertiaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("打开设置") { SettingsWindowController.shared.open(pane: "transfer") }
+            Button("打开设置") { openSettings() }
                 .controlSize(.small)
                 .padding(.top, 2)
         }
@@ -86,6 +141,9 @@ struct TransferDockView: View {
     private var dockContent: some View {
         VStack(spacing: 0) {
             header
+            if let previewFeedback {
+                Text(previewFeedback).font(.system(size: 11)).foregroundStyle(.secondary).padding(6)
+            }
             Divider().opacity(0.5)
 
             // v119（2026-10-25 用户：「一个文件传输一个隔空投送，太多了、意义不明」）：
@@ -111,6 +169,7 @@ struct TransferDockView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {
+            if isSettingsPreview { return }
             bridgeAvailable = TransferDockPath.isAvailable
             // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
             AirDropReceiveWatcher.shared.onFileReceived = { url in
@@ -128,6 +187,7 @@ struct TransferDockView: View {
             runTransferProbe()
         }
         .onChange(of: cloudEnabled) { on in
+            if isSettingsPreview { return }
             if on && bridgeAvailable {
                 service.refresh()
                 service.startLiveSync()
@@ -136,6 +196,7 @@ struct TransferDockView: View {
             }
         }
         .onChange(of: lanEnabled) { on in
+            if isSettingsPreview { return }
             // 只在关闭时停服务；开启**不**自动启动（2026-10-20 用户需求）：
             // 勾选文件后点「扫码直传」才拉起服务并生成二维码。
             if !on { lan.stop() }
@@ -148,6 +209,7 @@ struct TransferDockView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .transferDockSettingsDidChange)) { _ in
+            if isSettingsPreview { return }
             bridgeAvailable = TransferDockPath.isAvailable
             if showsCloud { service.refresh() }
         }
@@ -235,7 +297,7 @@ struct TransferDockView: View {
                             Capsule()
                                 .fill(Theme.accent.gradient)
                                 .frame(width: max(4, geo.size.width * pushFraction))
-                                .animation(Theme.Motion.progress, value: pushFraction)
+                                .animation(reduceMotion ? nil : Theme.Motion.progress, value: pushFraction)
                         }
                     }
                     .frame(height: 5)
@@ -300,20 +362,21 @@ struct TransferDockView: View {
 
     /// 暂存里勾选的文件（两类设备共用）
     private func stagedSelection() -> [URL] {
-        local.items
+        return localItems
             .filter { selectedIDs.contains($0.id) }
             .map { sendableURL($0) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
     private func addFilesToStaging() {
+        if isSettingsPreview { previewItems = Self.sampleItems; previewFeedback = "已添加固定示例文件"; return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = true
         panel.message = "添加到本地暂存"
         guard panel.runModal() == .OK else { return }
         local.add(urls: panel.urls) { n in
-            if let error = local.lastError {
+            if let error = localError {
                 Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
             } else {
                 Toast.show(n > 0 ? "已添加 \(n) 个文件到暂存" : "没有可添加的文件",
@@ -324,6 +387,7 @@ struct TransferDockView: View {
     }
 
     private func sendViaAirDrop() {
+        if isSettingsPreview { previewFeedback = "隔空投送预览 · 已选 \(selectedIDs.count) 项"; return }
         let urls = stagedSelection()
         guard !urls.isEmpty else {
             Toast.show("先在下方暂存里勾选要发送的文件", icon: "hand.point.up.left")
@@ -333,6 +397,7 @@ struct TransferDockView: View {
     }
 
     private func sendViaADB() {
+        if isSettingsPreview { pushActive.toggle(); pushFraction = 0.62; pushDetail = "620 KB / 1 MB · 固定示例"; return }
         guard !adbPushing else { return }
         let urls = stagedSelection()
         guard !urls.isEmpty else {
@@ -362,6 +427,7 @@ struct TransferDockView: View {
     }
 
     private func sendViaBrowser() {
+        if isSettingsPreview { showPickQR(); return }
         guard !selectedIDs.isEmpty else {
             Toast.show("先在下方暂存里勾选要发送的文件", icon: "hand.point.up.left")
             return
@@ -442,6 +508,7 @@ struct TransferDockView: View {
 
     /// 反向：不带 pick 的分享链接 → 对方打开网页可上传 + 下载全部暂存
     private func openUploadQR() {
+        if isSettingsPreview { pickShareURL = "https://kitnest-preview.invalid/receive"; return }
         if !lan.running {
             lan.startIfEnabled()
             lanStartedForTransfer = true
@@ -501,19 +568,23 @@ struct TransferDockView: View {
             // 收进一个「⋯」菜单，顶部只留一个可点目标。
             Menu {
                 Button {
-                    if showsCloud { service.refresh() }
-                    local.objectWillChange.send()
+                    if isSettingsPreview { previewItems = Self.sampleItems; previewFeedback = "固定内容已重置" }
+                    else {
+                        if showsCloud { service.refresh() }
+                        local.objectWillChange.send()
+                    }
                 } label: {
                     Label("刷新", systemImage: "arrow.clockwise")
                 }
-                .disabled(service.isLoading)
+                .disabled(cloudLoading)
 
                 if showsCloud {
                     Button {
-                        NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil)
+                        if isSettingsPreview { previewFeedback = "云端登录入口预览" }
+                        else { NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil) }
                     } label: {
-                        Label(service.loggedIn ? "重新登录云端" : "登录云端中转",
-                              systemImage: service.loggedIn ? "person.crop.circle" : "person.crop.circle.badge.plus")
+                        Label(loggedIn ? "重新登录云端" : "登录云端中转",
+                              systemImage: loggedIn ? "person.crop.circle" : "person.crop.circle.badge.plus")
                     }
                 }
 
@@ -539,6 +610,7 @@ struct TransferDockView: View {
     }
 
     private func openSettings() {
+        if isSettingsPreview { previewFeedback = "文件中转设置入口预览"; return }
         ServiceLocator.settings?.open(pane: "transfer")
     }
 
@@ -547,7 +619,7 @@ struct TransferDockView: View {
     private func runTransferProbe() {
         guard let mode = UserDefaults.standard.string(forKey: "probe.transfer"), mode != "0" else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-            guard let first = local.items.first else {
+            guard let first = localItems.first else {
                 Log.info("TransferDock", "探针：本地暂存为空")
                 return
             }
@@ -556,7 +628,7 @@ struct TransferDockView: View {
                 Log.info("TransferDock", "探针：悬停预览 \(first.name)")
                 FileHoverPreviewController.shared.scheduleShow(url: first.stagedURL)
             case "select":
-                let ids = local.items.prefix(2).map(\.id)
+                let ids = localItems.prefix(2).map(\.id)
                 selectedIDs = Set(ids)
                 Log.info("TransferDock", "探针：勾选 \(ids.count) 项并弹定向二维码")
                 showPickQR()
@@ -597,6 +669,7 @@ struct TransferDockView: View {
     @Stored private var pushDetail = ""
 
     private func pullFromPhone() {
+        if isSettingsPreview { previewItems = Self.sampleItems; adbFileStatus = "已接收 3 个固定示例文件"; return }
         guard !adbPushing else { return }
         adbPushing = true
         adbFileStatus = "拉取中…"
@@ -625,6 +698,7 @@ struct TransferDockView: View {
 
     /// v116：重跑 extract_edge_cookies.py（从 Edge 取 OPPO 中转站 cookie）
     private func refreshCloudLogin() {
+        if isSettingsPreview { previewFeedback = "云端登录预览"; return }
         let web = TransferDockPath.webRoot
         let script = web.appendingPathComponent("scripts/extract_edge_cookies.py")
         guard FileManager.default.fileExists(atPath: script.path) else {
@@ -665,13 +739,13 @@ struct TransferDockView: View {
     private var cloudSection: some View {
         VStack(spacing: 0) {
             sectionHeader(title: "云端 · OPPO 中转", symbol: "icloud",
-                          detail: service.loggedIn ? "已登录" : "未登录",
-                          tint: service.loggedIn ? Theme.accent : .secondary) {
-                if !service.loggedIn {
+                          detail: loggedIn ? "已登录" : "未登录",
+                          tint: loggedIn ? Theme.accent : .secondary) {
+                if !loggedIn {
                     // v116：登录态失效时一键从 Edge 重新提取 cookie
                     smallAction("刷新登录", icon: "arrow.clockwise.icloud") { refreshCloudLogin() }
                 }
-                if service.loggedIn {
+                if loggedIn {
                     // 云端是「云盘式」实时同步：绿点 = 自动刷新在跑，旁边是当前文件数
                     HStack(spacing: 4) {
                         Circle()
@@ -680,8 +754,8 @@ struct TransferDockView: View {
                         Text("实时")
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.tertiaryText)
-                        if !service.files.isEmpty {
-                            Text("\(service.files.count)")
+                        if !cloudFiles.isEmpty {
+                            Text("\(cloudFiles.count)")
                                 .font(.system(size: 11, weight: .medium).monospacedDigit())
                                 .foregroundStyle(Theme.tertiaryText)
                         }
@@ -689,8 +763,8 @@ struct TransferDockView: View {
                 }
             }
 
-            if service.loggedIn {
-                if !service.spaceText.isEmpty { spaceBar }
+            if loggedIn {
+                if !cloudSpaceText.isEmpty { spaceBar }
                 cloudList
             } else {
                 cloudEmpty
@@ -698,7 +772,7 @@ struct TransferDockView: View {
 
             Divider().opacity(0.4)
             HStack(spacing: 6) {
-                if service.isUploading { ProgressView().controlSize(.mini) }
+                if cloudUploading { ProgressView().controlSize(.mini) }
                 Text(cloudStatus)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -708,14 +782,14 @@ struct TransferDockView: View {
                 Button("上传") { pickAndUpload() }
                     .font(.system(size: 11, weight: .medium))
                     .buttonStyle(.borderless)
-                    .disabled(!service.loggedIn || service.isUploading)
+                    .disabled(!loggedIn || cloudUploading)
             }
             .padding(.horizontal, 8)
             .frame(height: 26)
         }
         .contentShape(Rectangle())
         .onDrop(of: [.fileURL], isTargeted: $cloudDropTargeted) { providers in
-            guard service.loggedIn else {
+            guard loggedIn else {
                 Toast.show("请先登录云端中转", icon: "person.crop.circle.badge.exclamationmark", isWarning: true)
                 return false
             }
@@ -729,20 +803,20 @@ struct TransferDockView: View {
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.primary.opacity(0.10))
                 Capsule().fill(Color.primary.opacity(0.42))
-                    .frame(width: max(2, geo.size.width * service.spaceRatio))
+                    .frame(width: max(2, geo.size.width * cloudSpaceRatio))
             }
         }
         .frame(height: 3)
         .padding(.horizontal, 10)
         .padding(.top, 2)
         .padding(.bottom, 4)
-        .help(service.spaceText)
+        .help(cloudSpaceText)
     }
 
     private var cloudList: some View {
         ScrollView(.vertical, showsIndicators: false) {
             LazyVStack(spacing: 1) {
-                if service.files.isEmpty && !service.isLoading {
+                if cloudFiles.isEmpty && !cloudLoading {
                     Text("空")
                         .font(.system(size: 11))
                         .foregroundStyle(Theme.tertiaryText)
@@ -753,8 +827,8 @@ struct TransferDockView: View {
                 // @Stored，鼠标扫过列表每换一行就重算整个 body（200 行 cloudRow 全重建，
                 // 含 sizeText/dateText 格式化 + 图标匹配）。现 hover 态行内自持，
                 // 父级状态未变时行 body 直接跳过。
-                ForEach(service.files) { file in
-                    CloudRowView(file: file).equatable()
+                ForEach(cloudFiles) { file in
+                    CloudRowView(file: file, onDownload: downloadCloudFile, onDelete: deleteCloudFile).equatable()
                 }
             }
             .padding(.horizontal, 5)
@@ -762,7 +836,7 @@ struct TransferDockView: View {
         }
         .frame(maxHeight: .infinity)
         .overlay {
-            if service.isLoading && service.files.isEmpty {
+            if cloudLoading && cloudFiles.isEmpty {
                 ProgressView().controlSize(.small)
             }
         }
@@ -778,7 +852,8 @@ struct TransferDockView: View {
             Text("登录后可跨设备取回")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Button("登录") { NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil) }
+            Button("登录") { if isSettingsPreview { previewFeedback = "云端登录入口预览" }
+                else { NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil) } }
                 .font(.system(size: 11, weight: .medium))
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
@@ -798,7 +873,8 @@ struct TransferDockView: View {
     private var cloudStatus: String {
         // 未登录时不要把桥接层的原始报错（如「[1003] 用户信息获取失败」）怼到脸上，
         // 那是没 cookie 时的必然结果，对用户没有信息量。
-        guard service.loggedIn else { return "未登录" }
+        if isSettingsPreview { return "固定云端示例 · 未连接网络" }
+        guard loggedIn else { return "未登录" }
         if let error = service.errorMessage { return error }
         if !service.statusMessage.isEmpty { return service.statusMessage }
         if let synced = service.lastSyncedAt {
@@ -812,25 +888,26 @@ struct TransferDockView: View {
     private var localSection: some View {
         VStack(spacing: 0) {
             sectionHeader(title: "本地暂存", symbol: "internaldrive",
-                          detail: local.items.isEmpty ? "空" : "\(local.items.count) 项",
+                          detail: localItems.isEmpty ? "空" : "\(localItems.count) 项",
                           tint: .secondary) {
-                if !local.items.isEmpty {
+                if !localItems.isEmpty {
                     Button {
                         // 全选 / 清选
-                        if selectedIDs.count == local.items.count {
+                        if selectedIDs.count == localItems.count {
                             selectedIDs.removeAll()
                         } else {
-                            selectedIDs = Set(local.items.map(\.id))
+                            selectedIDs = Set(localItems.map(\.id))
                         }
                     } label: {
-                        Text(selectedIDs.count == local.items.count ? "清选" : "全选")
+                        Text(selectedIDs.count == localItems.count ? "清选" : "全选")
                             .font(.system(size: 11, weight: .medium))
                     }
                     .buttonStyle(.borderless)
                     .help("勾选全部条目（勾选后可批量扫码直传 / 加入云端）")
 
                     Button {
-                        local.clearAll()
+                        if isSettingsPreview { previewItems = [] }
+                        else { local.clearAll() }
                         selectedIDs.removeAll()
                     } label: {
                         Image(systemName: "trash")
@@ -841,7 +918,7 @@ struct TransferDockView: View {
                 }
             }
 
-            if local.items.isEmpty {
+            if localItems.isEmpty {
                 localEmpty
             } else {
                 localList
@@ -850,19 +927,19 @@ struct TransferDockView: View {
             Divider().opacity(0.4)
             if selectedIDs.isEmpty {
                 HStack(spacing: 6) {
-                    if let error = local.lastError {
+                    if let error = localError {
                         Text(error)
                             .font(.system(size: 11))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                     } else {
-                        Text(local.lastMessage.isEmpty ? "拖入即存 · 拖出即用" : local.lastMessage)
+                        Text(localMessage.isEmpty ? "拖入即存 · 拖出即用" : localMessage)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 2)
-                    Button("打开目录") { local.openStagingFolder() }
+                    Button("打开目录") { if isSettingsPreview { previewFeedback = "暂存目录入口预览" } else { local.openStagingFolder() } }
                         .font(.system(size: 11, weight: .medium))
                         .buttonStyle(.borderless)
                 }
@@ -897,6 +974,7 @@ struct TransferDockView: View {
                 if showsCloud { Button("加入云端") { pushSelectedToCloud() } }
                 if !selectedImages.isEmpty {
                     Button(selectedImages.count == selectedIDs.count ? "压缩图片…" : "压缩其中 \(selectedImages.count) 张图片…") {
+                        if isSettingsPreview { previewFeedback = "图片压缩入口预览"; return }
                         let urls = selectedImages.map { sendableURL($0) }
                         PanelController.shared.hide {
                             Task { @MainActor in compression.show(urls: urls, omitted: selectedIDs.count - urls.count) }
@@ -914,10 +992,11 @@ struct TransferDockView: View {
     }
 
     private var selectedImages: [LocalTransferItem] {
-        local.items.filter { selectedIDs.contains($0.id) && (UTType(filenameExtension: ($0.name as NSString).pathExtension)?.conforms(to: .image) == true) }
+        localItems.filter { selectedIDs.contains($0.id) && (UTType(filenameExtension: ($0.name as NSString).pathExtension)?.conforms(to: .image) == true) }
     }
 
     private func copySelectedMetadata(paths: Bool) {
+        if isSettingsPreview { copyCompleted = true; previewFeedback = "复制操作预览 · 剪贴板保持原值"; return }
         let selected = displayedLocalItems.filter { selectedIDs.contains($0.id) }
         let available = selected.map { sendableURL($0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
         let values = paths ? available.map(\.path) : selected.map(\.name)
@@ -943,7 +1022,8 @@ struct TransferDockView: View {
     /// 勾选后「扫码直传」：**此时才**启动服务并生成 ?pick=ids 的定向接收二维码
     /// （2026-10-20 用户需求：没选中文件不起服务，点传输才拉起并出码）。
     private func showPickQR() {
-        let ids = local.items.filter { selectedIDs.contains($0.id) }.map(\.id)
+        if isSettingsPreview { pickShareURL = "https://kitnest-preview.invalid/receive"; return }
+        let ids = localItems.filter { selectedIDs.contains($0.id) }.map(\.id)
         guard !ids.isEmpty else { return }
         if !lan.running {
             lan.startIfEnabled()
@@ -966,6 +1046,7 @@ struct TransferDockView: View {
 
     /// 停掉由「传输」拉起的直传服务（手动启动的不动）
     private func stopServiceIfStartedForTransfer() {
+        if isSettingsPreview { return }
         guard lanStartedForTransfer else { return }
         lanStartedForTransfer = false
         lan.stop()
@@ -973,11 +1054,12 @@ struct TransferDockView: View {
 
     /// 勾选后「加入云端」：批量走 OPPO 中转桥接上传
     private func pushSelectedToCloud() {
-        let urls = local.items
+        if isSettingsPreview { previewFeedback = "云端上传预览 · 已选 \(selectedIDs.count) 项"; return }
+        let urls = localItems
             .filter { selectedIDs.contains($0.id) }
             .map(\.stagedURL)
         guard !urls.isEmpty else { return }
-        guard service.loggedIn else {
+        guard loggedIn else {
             Toast.show("请先登录云端中转", icon: "person.crop.circle.badge.exclamationmark", isWarning: true)
             return
         }
@@ -986,7 +1068,8 @@ struct TransferDockView: View {
     }
 
     private func removeSelected() {
-        let victims = local.items.filter { selectedIDs.contains($0.id) }
+        if isSettingsPreview { previewItems.removeAll { selectedIDs.contains($0.id) }; selectedIDs.removeAll(); return }
+        let victims = localItems.filter { selectedIDs.contains($0.id) }
         for item in victims { local.remove(item) }
         selectedIDs.removeAll()
     }
@@ -1025,12 +1108,14 @@ struct TransferDockView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
                     smallAction("复制链接", icon: "doc.on.doc") {
+                        if isSettingsPreview { previewFeedback = "复制链接预览"; return }
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(url, forType: .string)
                         Toast.show("定向接收链接已复制", icon: "doc.on.doc")
                     }
                     smallAction("用浏览器打开", icon: "safari") {
-                        if let u = URL(string: url) { NSWorkspace.shared.open(u) }
+                        if isSettingsPreview { previewFeedback = "浏览器入口预览" }
+                        else if let u = URL(string: url) { NSWorkspace.shared.open(u) }
                     }
                 }
             }
@@ -1062,13 +1147,13 @@ struct TransferDockView: View {
     }
 
     private var displayedLocalItems: [LocalTransferItem] {
-        let paths = Set(compression.resultURLs.map(\.path))
-        return local.items.filter { paths.contains($0.originalPath) }
-            + local.items.filter { !paths.contains($0.originalPath) }
+        let paths = Set(compressionResults.map(\.path))
+        return localItems.filter { paths.contains($0.originalPath) }
+            + localItems.filter { !paths.contains($0.originalPath) }
     }
 
     private var localList: some View {
-        let paths = Set(compression.resultURLs.map(\.path))
+        let paths = Set(compressionResults.map(\.path))
         let generated = displayedLocalItems.filter { paths.contains($0.originalPath) }
         let originals = displayedLocalItems.filter { !paths.contains($0.originalPath) }
         return ScrollView(.vertical, showsIndicators: false) {
@@ -1116,7 +1201,8 @@ struct TransferDockView: View {
                 showPickQR()
             },
             onRemove: { victim in
-                local.remove(victim)
+                if isSettingsPreview { previewItems.removeAll { $0.id == victim.id } }
+                else { local.remove(victim) }
                 selectedIDs.remove(victim.id)
             })
         .equatable()
@@ -1184,10 +1270,11 @@ struct TransferDockView: View {
     }
 
     private func handleLocalDrop(_ providers: [NSItemProvider]) -> Bool {
+        if isSettingsPreview { return false }
         urls(from: providers) { urls in
             guard !urls.isEmpty else { return }
             local.add(urls: urls) { n in
-                if let error = local.lastError {
+                if let error = localError {
                     Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
                 } else {
                     Toast.show("已暂存 \(n) 个文件", icon: "tray.and.arrow.down")
@@ -1198,6 +1285,7 @@ struct TransferDockView: View {
     }
 
     private func handleCloudDrop(_ providers: [NSItemProvider]) -> Bool {
+        if isSettingsPreview { return false }
         guard !providers.isEmpty else { return false }
         urls(from: providers) { urls in
             service.uploadBatch(urls)
@@ -1205,7 +1293,21 @@ struct TransferDockView: View {
         return true
     }
 
+    private func downloadCloudFile(_ file: TransferDockFile) {
+        if isSettingsPreview {
+            previewItems.removeAll { $0.id == file.id }
+            previewItems.append(.init(id: file.id, name: file.name, relativePath: "", originalPath: "",
+                                      size: file.size, addedAt: file.createdAt, mode: .copy))
+            previewFeedback = "已加入预览暂存"
+        } else { service.download(file) }
+    }
+    private func deleteCloudFile(_ file: TransferDockFile) {
+        if isSettingsPreview { previewCloudFiles.removeAll { $0.id == file.id } }
+        else { service.delete(file) }
+    }
+
     private func pickAndUpload() {
+        if isSettingsPreview { previewCloudFiles = Self.sampleCloudFiles; previewFeedback = "已添加固定云端示例"; return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -1231,6 +1333,8 @@ extension Notification.Name {
 /// 未变化的行直接跳过 body。闭包不参与比较（同 HeatmapGridView 的处理）。
 private struct CloudRowView: View, Equatable {
     let file: TransferDockFile
+    let onDownload: (TransferDockFile) -> Void
+    let onDelete: (TransferDockFile) -> Void
 
     @Stored private var hovered = false
 
@@ -1258,10 +1362,10 @@ private struct CloudRowView: View, Equatable {
             if hovered {
                 HStack(spacing: 5) {
                     TransferRowStyle.miniButton("arrow.down.circle", help: "下载") {
-                        TransferDockService.shared.download(file)
+                        onDownload(file)
                     }
                     TransferRowStyle.miniButton("trash", help: "删除") {
-                        TransferDockService.shared.delete(file)
+                        onDelete(file)
                     }
                 }
             }
@@ -1275,16 +1379,18 @@ private struct CloudRowView: View, Equatable {
         )
         .contentShape(Rectangle())
         .onHover { inside in hovered = inside }
-        .onTapGesture(count: 2) { TransferDockService.shared.download(file) }
+        .onTapGesture(count: 2) { onDownload(file) }
         .contextMenu {
-            Button("下载") { TransferDockService.shared.download(file) }
-            Button("删除", role: .destructive) { TransferDockService.shared.delete(file) }
+            Button("下载") { onDownload(file) }
+            Button("删除", role: .destructive) { onDelete(file) }
         }
     }
 }
 
 /// 本地暂存卡行（原 TransferDockView.localCard 的主体；动作经闭包回传父视图）
 private struct LocalCardRowView: View, Equatable {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: LocalTransferItem
     let selected: Bool
     let showsCloud: Bool
@@ -1340,7 +1446,7 @@ private struct LocalCardRowView: View, Equatable {
                 Spacer(minLength: 0)
                 if hovered {
                     TransferRowStyle.miniButton("folder", help: "在 Finder 中显示") {
-                        LocalTransferStore.shared.reveal(item)
+                        if !isSettingsPreview { LocalTransferStore.shared.reveal(item) }
                     }
                     TransferRowStyle.miniButton("xmark.circle", help: "移出中转") {
                         onRemove(item)
@@ -1366,11 +1472,12 @@ private struct LocalCardRowView: View, Equatable {
                                        : Color.primary.opacity(0.06),
                               lineWidth: 1)
         )
-        .scaleEffect(hovered ? 1.02 : 1.0)
-        .animation(Theme.Motion.springSnappy, value: hovered)
+        .scaleEffect(hovered && !reduceMotion ? 1.02 : 1.0)
+        .animation(reduceMotion ? nil : Theme.Motion.springSnappy, value: hovered)
         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .onHover { inside in
             hovered = inside
+            if isSettingsPreview { return }
             if inside {
                 FileHoverPreviewController.shared.scheduleShow(url: item.stagedURL)
             } else {
@@ -1378,6 +1485,7 @@ private struct LocalCardRowView: View, Equatable {
             }
         }
         .onTapGesture(count: 2) {
+            if isSettingsPreview { onToggleSelect(item.id); return }
             // v118：压缩包双击进归档浏览（ArcZip 能力），其他文件仍交给系统
             if ArchiveCore.isArchive(item.stagedURL) {
                 ArchiveBrowserWindowController.show(url: item.stagedURL)
@@ -1386,10 +1494,11 @@ private struct LocalCardRowView: View, Equatable {
             }
         }
         .onDrag {
-            NSItemProvider(contentsOf: item.stagedURL) ?? NSItemProvider()
+            if isSettingsPreview { return NSItemProvider() }
+            return NSItemProvider(contentsOf: item.stagedURL) ?? NSItemProvider()
         }
         .contextMenu {
-            if ArchiveCore.isArchive(item.stagedURL) {
+            if !isSettingsPreview && ArchiveCore.isArchive(item.stagedURL) {
                 Button("浏览压缩包") { ArchiveBrowserWindowController.show(url: item.stagedURL) }
                 Button("解压到…") {
                     let panel = NSOpenPanel()
@@ -1405,13 +1514,13 @@ private struct LocalCardRowView: View, Equatable {
                 }
                 Divider()
             }
-            Button("打开") { LocalTransferStore.shared.open(item) }
-            Button("在 Finder 中显示") { LocalTransferStore.shared.reveal(item) }
+            Button("打开") { if !isSettingsPreview { LocalTransferStore.shared.open(item) } }
+            Button("在 Finder 中显示") { if !isSettingsPreview { LocalTransferStore.shared.reveal(item) } }
             Divider()
             Button(selected ? "取消勾选" : "勾选") { onToggleSelect(item.id) }
             Button("通用互传这个") { onPickOnly(item.id) }
             if showsCloud {
-                Button("加入云端") { TransferDockService.shared.upload(url: item.stagedURL) }
+                Button("加入云端") { if !isSettingsPreview { TransferDockService.shared.upload(url: item.stagedURL) } }
             }
             Divider()
             Button("移出中转") { onRemove(item) }

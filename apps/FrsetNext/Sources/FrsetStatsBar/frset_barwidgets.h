@@ -90,6 +90,16 @@ NSArray<NSString *> *FSBarSensorKeysList(void);
 // ---- v15：设置界面支持 ----
 NSString *FSBarModuleSymbol(NSString *module);                          // 模块 SF Symbol 名
 NSImage *FSBarRenderFormPreview(NSString *module, NSString *form, BOOL dark);   // 部件预览图渲染
+NSDictionary *FSBarConfigurationSnapshot(void);
+NSDictionary *FSBarDefaultConfiguration(void);
+NSDictionary *FSBarImportedConfiguration(void);
+NSString *FSBarSaveConfiguration(NSDictionary *values, NSArray<NSString *> *removedKeys);
+NSArray<NSString *> *FSBarOrderedModules(NSDictionary *configuration);
+CGFloat FSBarConfigurationSpacing(NSDictionary *configuration);
+NSView *FSBarCreateConfiguredPreview(NSArray<NSString *> *modules, NSDictionary *configuration, BOOL dark);
+void FSBarUpdateConfiguredPreview(NSView *view, NSArray<NSString *> *modules, NSDictionary *configuration, BOOL dark);
+NSView *FSRunCatCreatePreview(BOOL dark);
+void FSRunCatIconApplySavedConfiguration(void);
 
 // ---- v14：点击链路诊断（FRSET_CLICKCHK=1 时由注入层触发一次；生产环境不触发）----
 BOOL FSBarDebugMergedReady(void);

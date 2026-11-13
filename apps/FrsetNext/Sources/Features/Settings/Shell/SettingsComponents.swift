@@ -8,12 +8,12 @@ struct SettingsRow<Trailing: View>: View {
     let icon: String?
     let title: String
     var subtitle: String? = nil
-    @ViewBuilder var trailing: () -> Trailing
+    let trailing: Trailing
 
     init(icon: String? = nil, title: String, subtitle: String? = nil,
-         @ViewBuilder trailing: @escaping () -> Trailing) {
+         @ViewBuilder trailing: () -> Trailing) {
         self.icon = icon; self.title = title; self.subtitle = subtitle
-        self.trailing = trailing
+        self.trailing = trailing()
     }
 
     var body: some View {
@@ -37,7 +37,7 @@ struct SettingsRow<Trailing: View>: View {
                 }
             }
             Spacer(minLength: 12)
-            trailing()
+            trailing
         }
         .padding(.vertical, 6)
     }
@@ -46,11 +46,11 @@ struct SettingsRow<Trailing: View>: View {
 /// 分组标题（分节头）
 struct SettingsSection<Content: View>: View {
     let title: String
-    @ViewBuilder var content: () -> Content
+    let content: Content
 
-    init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
+    init(_ title: String, @ViewBuilder content: () -> Content) {
         self.title = title
-        self.content = content
+        self.content = content()
     }
 
     var body: some View {
@@ -62,18 +62,22 @@ struct SettingsSection<Content: View>: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
-            content()
+            content
         }
     }
 }
 
 /// 圆角卡片容器（分组内容底板）
 struct SettingsGroupBox<Content: View>: View {
-    @ViewBuilder var content: () -> Content
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            content()
+            content
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

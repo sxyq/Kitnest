@@ -11,6 +11,10 @@ public struct ClipboardSectionView: View {
     @Environment(\.settingsPreviewClipboardItems) private var previewItems
     @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    @Environment(\.settingsPreviewClipboardSelection) private var previewSelection
+    @Environment(\.settingsPreviewClipboardFilter) private var previewFilter
+    @Environment(\.settingsPreviewClipboardQuery) private var previewQuery
+    @Stored private var previewSelectedID: String? = "appearance-note"
     @ObservedObject private var appearanceState = AppearanceState.shared
     @ObservedObject private var personalization: Personalization
 
@@ -32,6 +36,14 @@ public struct ClipboardSectionView: View {
     }
 
     private var effectivePersonalization: Personalization { previewPersonalization ?? personalization }
+    private var displayedPreviewItems: [ClipboardItem] {
+        previewItems.filter { previewFilter.matches($0) && (previewQuery.isEmpty ||
+            ($0.content ?? $0.displayTitle).localizedCaseInsensitiveContains(previewQuery)) }
+    }
+    private func selectPreview(_ item: ClipboardItem) {
+        previewSelectedID = item.id
+        previewSelection?.wrappedValue = item.id
+    }
 
     private var appearance: ThemeAppearance {
         ThemeAppearance(personalization: effectivePersonalization,
@@ -100,15 +112,28 @@ public struct ClipboardSectionView: View {
     private var list: some View {
         Group {
             if isSettingsPreview {
-                VStack(spacing: 2) {
-                    ForEach(previewItems) { item in
-                        ClipboardRow(item: item, isHighlighted: item.id == previewItems.first?.id,
-                                     onCopy: {}, onEdit: {}, onSummarize: {},
+                ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(displayedPreviewItems) { item in
+                        ClipboardRow(item: item, isHighlighted: item.id == (previewSelection?.wrappedValue ?? previewSelectedID),
+                                     onCopy: { selectPreview(item) }, onEdit: { selectPreview(item) }, onSummarize: { selectPreview(item) },
                                      personalization: effectivePersonalization)
                             .frame(height: appearance.statsRowHeight)
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectPreview(item) }
+                            .onHover { if $0 && effectivePersonalization.hoverPreviewEnabled { selectPreview(item) } }
+                            .focusable()
+                            .accessibilityLabel(item.displayTitle)
                     }
                 }
-                .clipped()
+                }
+                .onMoveCommand { direction in
+                    let items = displayedPreviewItems
+                    guard !items.isEmpty else { return }
+                    let index = items.firstIndex { $0.id == (previewSelection?.wrappedValue ?? previewSelectedID) } ?? 0
+                    let delta = direction == .up || direction == .left ? -1 : 1
+                    selectPreview(items[min(items.count - 1, max(0, index + delta))])
+                }
             } else if manager.items.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "clipboard")
@@ -620,6 +645,8 @@ public struct ClipboardThumbnailView: View {
     @ObservedObject private var personalization: Personalization
     @ObservedObject private var appearanceState = AppearanceState.shared
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewImage) private var previewImage
 
     public init(item: ClipboardItem, size: CGFloat = Theme.thumbSize, corner: CGFloat = 6,
                 personalization: Personalization = .shared) {
@@ -656,7 +683,8 @@ public struct ClipboardThumbnailView: View {
     }
 
     private var image: NSImage? {
-        ClipboardImageStorage.image(relativePath: item.thumbnailPath ?? item.imagePath)
+        if isSettingsPreview { return item.type == .image ? previewImage : nil }
+        return ClipboardImageStorage.image(relativePath: item.thumbnailPath ?? item.imagePath)
     }
 
     // v137（性能审计 #6）：行卡文件图标缓存——NSWorkspace.icon(forFile:) 每次 body
@@ -673,6 +701,10 @@ public struct ClipboardThumbnailView: View {
         let filePath = String(path)
         let key = filePath as NSString
         if let hit = Self.fileIconCache.object(forKey: key) { return hit }
+        if isSettingsPreview {
+            return UTType(filenameExtension: URL(fileURLWithPath: filePath).pathExtension)
+                .map { NSWorkspace.shared.icon(for: $0) }
+        }
 
         // v170（用户：「剪贴板里的压缩包预览图没有给出来」）：
         // 原来无条件调 `NSWorkspace.icon(forFile:)`。当原文件已不在（剪贴板里的

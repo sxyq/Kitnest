@@ -21,11 +21,17 @@ struct SettingsRootView: View {
         return min(max(CGFloat(value), 720), 1040)
     }()
     @ObservedObject var state: SettingsUIState
+    @ObservedObject private var editingSession: SettingsEditingSession
     @ObservedObject private var appearance = AppearanceState.shared
     /// v71：个性化强调色作用于设置窗子树（此前只在主面板生效——用户点强调色
     /// 「无效」的主观感受主要来自设置窗自身无反馈）
     @ObservedObject private var personalization = Personalization.shared
     @Environment(\.colorScheme) private var colorScheme
+
+    init(state: SettingsUIState) {
+        self.state = state
+        self.editingSession = state.editingSession
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,10 +55,15 @@ struct SettingsRootView: View {
                 Rectangle()
                     .fill(Color.primary.opacity(0.08))
                     .frame(height: 0.5)
-                content
+                if state.isVisible {
+                    content.id(editingSession.generation)
+                } else {
+                    Color.clear
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .frame(minWidth: 0)
+            .coordinateSpace(name: "settingsPreviewViewport")
             // v260：横向溢出裁在内容区内，不再回压兄弟视图
             .clipped()
             }
@@ -66,6 +77,7 @@ struct SettingsRootView: View {
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         // 强调色 + Midnight 统一主题入口（个性化改色即生效）
         .frsetThemeChrome()
+        .environmentObject(editingSession)
         // v84：侧边栏切换面包屑（卡死时日志可见「切到哪一页后卡住」）
         .onChange(of: state.selection) { newValue in
             Log.breadcrumb("Settings", "侧边栏 → \(newValue)")
@@ -82,8 +94,13 @@ struct SettingsRootView: View {
         // 叫出来，是这次反馈的核心；提示来自 `SettingsPage.openHint`，每个二级页必答，
         // 所以不会再漏页。没有入口的页（关于 / 使用手册）返回 nil，自动不占位。
         VStack(alignment: .leading, spacing: 3) {
-            Text(currentTitle)
-                .font(.system(size: 16, weight: .semibold))
+            HStack(spacing: 8) {
+                Text(currentTitle)
+                    .font(.system(size: 16, weight: .semibold))
+                if editingSession.isDirty(page: state.selection) {
+                    Text("未保存").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
             if let hint = state.selection.openHint {
                 HStack(spacing: 5) {
                     Image(systemName: "command")
@@ -175,7 +192,7 @@ struct SettingsRootView: View {
         case .monitorSettings:
             panePage { MonitorSettingsPane() }
         case .monitorWidgets:
-            MonitorWidgetsPane()
+            panePage { MonitorWidgetsPane() }
 
         // 页脚常驻
         case .statistics:

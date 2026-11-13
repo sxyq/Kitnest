@@ -56,7 +56,7 @@ public enum CaptureFileName {
     }
 
     /// 预览（设置页用）：不消耗序号
-    public static func preview(template: String, date: Date = Date()) -> String {
+    public static func preview(template: String, date: Date = Date(timeIntervalSince1970: 1794531600)) -> String {
         let expanded = expand(template: template, pixelSize: CGSize(width: 2560, height: 1664),
                               mode: "area", date: date, consumeSequence: false)
         let clean = sanitize(expanded)
@@ -87,7 +87,7 @@ public enum CaptureFileName {
             "{w}": "\(Int(pixelSize.width.rounded()))",
             "{h}": "\(Int(pixelSize.height.rounded()))",
             "{mode}": mode,
-            "{app}": NSWorkspaceFrontmost.name,
+            "{app}": consumeSequence ? NSWorkspaceFrontmost.name : "Kitnest",
         ]
         // 长的先替换，避免 {date} 被 {dd} 之类先吃掉（这里键互不为前缀，但保持惯例）
         for key in map.keys.sorted(by: { $0.count > $1.count }) {
@@ -95,13 +95,13 @@ public enum CaptureFileName {
         }
 
         out = replacePattern("{seq", in: out) { pad in
-            let value = nextSequence(date: date, consume: consumeSequence)
+            let value = consumeSequence ? nextSequence(date: date) : 1
             return pad > 0 ? String(format: "%0\(pad)d", value) : "\(value)"
         }
         out = replacePattern("{random", in: out) { digits in
             let n = digits > 0 ? digits : 3
             var s = ""
-            for _ in 0..<n { s.append(String(Int.random(in: 0...9))) }
+            for i in 0..<n { s.append(String(consumeSequence ? Int.random(in: 0...9) : (i + 1) % 10)) }
             return s
         }
         return out
@@ -149,20 +149,16 @@ public enum CaptureFileName {
 
     // MARK: 序号
 
-    private static func nextSequence(date: Date, consume: Bool) -> Int {
+    private static func nextSequence(date: Date) -> Int {
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
         fmt.dateFormat = "yyyyMMdd"
         let day = fmt.string(from: date)
         let storedDay: String = Preferences.shared.value(keyCounterDay, default: "")
         var value: Int = storedDay == day ? Preferences.shared.value(keyCounterValue, default: 0) : 0
-        if consume {
-            value += 1
-            Preferences.shared.set(keyCounterDay, day)
-            Preferences.shared.set(keyCounterValue, value)
-        } else {
-            value += 1
-        }
+        value += 1
+        Preferences.shared.set(keyCounterDay, day)
+        Preferences.shared.set(keyCounterValue, value)
         return value
     }
 

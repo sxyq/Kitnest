@@ -150,6 +150,10 @@ static NSArray<NSArray<NSString *> *> *FSBarImportableKeys(void) {
 }
 
 static void FSBarSeedDefaults(NSMutableDictionary *cfg) {
+    cfg[@"CombinedModules"] = @NO;
+    cfg[@"CombinedModules_separator"] = @YES;
+    cfg[@"Widgets_spacing"] = @"2";
+    cfg[@"CombinedModules_spacing"] = @"2";
     // 与用户当前 Stats 使用习惯一致的出厂默认（无 Stats 可导入时）
     cfg[@"CPU_widget"] = @"line_chart";
     cfg[@"CPU_line_chart_label"] = @1; cfg[@"CPU_line_chart_box"] = @1; cfg[@"CPU_line_chart_value"] = @1;
@@ -322,6 +326,53 @@ void FSBarGlobalSet(NSString *key, id value) {
     FSBarSaveStore();
 }
 
+NSDictionary *FSBarConfigurationSnapshot(void) {
+    if (g_cfg) return [g_cfg copy];
+    NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/FrsetStats/widgets.plist"];
+    return [NSDictionary dictionaryWithContentsOfFile:path] ?: FSBarDefaultConfiguration();
+}
+
+NSDictionary *FSBarDefaultConfiguration(void) {
+    NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
+    FSBarSeedDefaults(cfg);
+    return cfg;
+}
+
+NSDictionary *FSBarImportedConfiguration(void) {
+    NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
+    FSBarImportFromStats(cfg);
+    return cfg;
+}
+
+NSString *FSBarSaveConfiguration(NSDictionary *values, NSArray<NSString *> *removedKeys) {
+    NSMutableDictionary *next = [FSBarConfigurationSnapshot() mutableCopy];
+    [next addEntriesFromDictionary:values];
+    [next removeObjectsForKeys:removedKeys];
+    NSError *error = nil;
+    NSData *data = [NSPropertyListSerialization dataWithPropertyList:next
+                      format:NSPropertyListXMLFormat_v1_0 options:0 error:&error];
+    if (!data || ![data writeToFile:FSBarStorePath() options:NSDataWritingAtomic error:&error])
+        return error.localizedDescription;
+    g_cfg = next;
+    g_cfgGen++;
+    return nil;
+}
+
+static id FSBarViewCfgRaw(NSDictionary *cfg, NSString *module, NSString *form, NSString *key) {
+    return cfg ? cfg[FSBarCfgKey(module, form, key)] : FSBarCfgRaw(module, form, key);
+}
+static BOOL FSBarViewCfgBool(NSDictionary *cfg, NSString *module, NSString *form, NSString *key, BOOL def) {
+    return FSBarAsBool(FSBarViewCfgRaw(cfg, module, form, key), def);
+}
+static NSString *FSBarViewCfgStr(NSDictionary *cfg, NSString *module, NSString *form, NSString *key, NSString *def) {
+    id value = FSBarViewCfgRaw(cfg, module, form, key);
+    return [value isKindOfClass:NSString.class] ? value : def;
+}
+static int FSBarViewCfgInt(NSDictionary *cfg, NSString *module, NSString *form, NSString *key, int def) {
+    id value = FSBarViewCfgRaw(cfg, module, form, key);
+    return value ? [value intValue] : def;
+}
+
 static BOOL FSBarGlobalBool(NSString *key, BOOL def) { return FSBarAsBool(FSBarGlobalRaw(key), def); }
 static NSString *FSBarGlobalStr(NSString *key, NSString *def) {
     id v = FSBarGlobalRaw(key);
@@ -337,23 +388,29 @@ BOOL FSBarMergedSeparator(void) { return FSBarGlobalBool(@"CombinedModules_separ
 //   · 合并条内「部件与部件」的间距（原 CombinedModules_spacing）
 //   · 各部件内部「图标/标签/数值」的间隙（原硬编码 2/6/12）
 //   旧键 CombinedModules_spacing 仅作迁移兼容（新键未设时读旧值）。
-CGFloat FSBarWidgetSpacing(void) {
-    NSString *s = FSBarGlobalStr(@"Widgets_spacing", nil);
-    if (!s || s.length == 0) s = FSBarGlobalStr(@"CombinedModules_spacing", @"2");
-    if ([s isEqualToString:@"none"]) return 0;
-    double v = s.doubleValue;
-    if (v <= 0 && ![s isEqualToString:@"0"]) return 2;
-    // v134：上限 12→24（滑条 0–24pt、0.5 步进）
-    return (CGFloat)MAX(0, MIN(24, v));
+CGFloat FSBarConfigurationSpacing(NSDictionary *cfg) {
+    id value = cfg[@"Widgets_spacing"] ?: cfg[@"CombinedModules_spacing"];
+    if (!value) return 2;
+    if ([value isEqual:@"none"]) return 0;
+    if ([value isEqual:@"Widgets_uniform"]) return 2;
+    return MAX(0, MIN(24, [value doubleValue]));
 }
-
+CGFloat FSBarWidgetSpacing(void) {
+    FSBarLoadStore();
+    return FSBarConfigurationSpacing(g_cfg);
+}
 CGFloat FSBarMergedSpacing(void) {
-    NSString *s = FSBarGlobalStr(@"Widgets_spacing", nil);
-    if (!s || s.length == 0) s = FSBarGlobalStr(@"CombinedModules_spacing", @"none");
-    if ([s isEqualToString:@"none"]) return 0;
-    if ([s isEqualToString:@"Widgets_uniform"]) return FSBarWidgetSpacing();
-    // v134：intValue（截断小数）→ doubleValue；上限 8→24 与滑条一致
-    return (CGFloat)MIN(24, MAX(0, s.doubleValue));
+    FSBarLoadStore();
+    return FSBarConfigurationSpacing(g_cfg);
+}
+NSArray<NSString *> *FSBarOrderedModules(NSDictionary *cfg) {
+    NSArray *order = cfg[@"Widgets_order"] ?: FSBarAllModules();
+    NSMutableArray *result = [NSMutableArray array];
+    for (NSString *module in order)
+        if ([FSBarAllModules() containsObject:module] && ![result containsObject:module]) [result addObject:module];
+    for (NSString *module in FSBarAllModules())
+        if (![result containsObject:module]) [result addObject:module];
+    return result;
 }
 
 // ============ 颜色 / 数值辅助 ============
@@ -415,7 +472,7 @@ static NSColor *FSBarTextColor(BOOL dark) { return dark ? [NSColor whiteColor] :
 static NSColor *FSBarColorFromKey(NSString *key, BOOL dark, double value) {
     if (!key || key.length == 0) return [NSColor controlAccentColor];
     if ([key hasPrefix:@"custom:"]) {
-        NSString *hex = [key substringFromIndex:7];
+        NSString *hex = [[key substringFromIndex:7] stringByReplacingOccurrencesOfString:@"#" withString:@""];
         unsigned long long v = 0; unsigned int r = 0, g = 0, b = 0, a = 255;
         if ([[NSScanner scannerWithString:hex] scanHexLongLong:&v] && hex.length >= 6) {
             r = (unsigned)((v >> 16) & 0xff); g = (unsigned)((v >> 8) & 0xff); b = (unsigned)(v & 0xff);
@@ -626,11 +683,13 @@ static BOOL g_mainIconCatLastDark = YES;
 
 // v35：主图标小猫覆盖层（@implementation 在 FSBarWidgetView 实现之后）
 @interface FSRunCatIconView : NSView
+@property (nonatomic, strong) NSNumber *fixedFrame;
 @end
 
 @interface FSBarWidgetView : NSView
 @property (nonatomic, copy) NSString *module;
 @property (nonatomic, copy) NSString *form;
+@property (nonatomic, copy) NSDictionary *configuration; // nil = 正式保存配置；预览注入草稿
 @property (nonatomic) FSSnap snap;          // 最近一次刷新的数据
 @property (nonatomic) int histN;
 @property (nonatomic) CFAbsoluteTime lastUpdate;
@@ -642,6 +701,7 @@ static BOOL g_mainIconCatLastDark = YES;
 - (instancetype)initWithModule:(NSString *)m form:(NSString *)f;
 - (void)refreshWithSnap:(const FSSnap *)s;
 - (CGFloat)preferredWidth;
+- (CGFloat)widgetPadding;
 - (CGFloat)stabilizeWidth:(CGFloat)raw;     // v134：宽度迟滞
 - (double)primaryValue;                     // 当前主值（归一化 0..1 或原值）
 @end
@@ -665,6 +725,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     return self;
 }
 
+- (CGFloat)widgetPadding {
+    return MAX(0, (FSBarConfigurationSpacing(_configuration ?: g_cfg) - 1) * 0.75);
+}
 - (BOOL)isFlipped { return YES; }
 - (NSView *)hitTest:(NSPoint)p { return nil; }   // 点击穿透到状态栏按钮
 
@@ -740,7 +803,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         //   跨部件"内容-内容"间隙趋于均匀（统计口径见 drawMini；原 31/36 固定宽会让
         //   窄内容部件两侧留白 10~20pt，正是"有的间隔太小有的太大"的主因）
         // v134：套宽度迟滞——实测值位数变化使宽度 23↔27pt 每 7s 抖动、整条重排
-        BOOL label = FSBarCfgBool(_module, _form, @"label",
+        BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label",
                                   [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"]);
         NSDictionary *lattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight]};
         NSDictionary *vattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:12 weight:NSFontWeightRegular]};
@@ -759,7 +822,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         CGFloat cw = ceil(MAX(labelW, valueW) / 2.0) * 2.0;
         CGFloat raw = MAX(cw, 12);
         // 诊断（宽度变化时留痕）：v137 节流 ≥10s 一条——FSBarLog 同步写盘，不能频繁
-        if (fabs(raw - _stableWidth) > 0.5) {
+        if (!_configuration && fabs(raw - _stableWidth) > 0.5) {
             static CFAbsoluteTime lastDiagAt = 0;
             CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
             if (now - lastDiagAt >= 10.0) {
@@ -771,11 +834,11 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         return [self stabilizeWidth:raw];
     }
     if ([_form isEqualToString:@"speed"]) {
-        BOOL units = FSBarCfgBool(_module, _form, @"units", YES);
-        BOOL value = FSBarCfgBool(_module, _form, @"value", YES);
-        NSString *icon = FSBarCfgStr(_module, _form, @"icon", @"dots");
-        NSString *mode = FSBarCfgStr(_module, _form, @"mode", @"twoRows");
-        NSString *display = FSBarCfgStr(_module, _form, @"displayValue", @"oi");
+        BOOL units = FSBarViewCfgBool(_configuration, _module, _form, @"units", YES);
+        BOOL value = FSBarViewCfgBool(_configuration, _module, _form, @"value", YES);
+        NSString *icon = FSBarViewCfgStr(_configuration, _module, _form, @"icon", @"dots");
+        NSString *mode = FSBarViewCfgStr(_configuration, _module, _form, @"mode", @"twoRows");
+        NSString *display = FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi");
         BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
         if (![mode isEqualToString:@"oneRow"]) {
             // v98（2026-10-21）：双行宽度曾**定宽**（按最宽 "888.8 MB/s" 计 62pt），
@@ -809,42 +872,42 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         if (display.length > 1) row = row * 2 + 6;
         return row;
     }
-    CGFloat gap = FSBarWidgetSpacing();
+    CGFloat gap = FSBarConfigurationSpacing(_configuration ?: g_cfg);
     if ([_form isEqualToString:@"line_chart"] || [_form isEqualToString:@"wave"]) {
         // Stats LineChart.width：30→24 / 60→32 / 90→42 / 120→52；label 再 +（6 + spacing）
-        int hc = FSBarCfgInt(_module, _form, @"historyCount", 60);
+        int hc = FSBarViewCfgInt(_configuration, _module, _form, @"historyCount", 60);
         CGFloat w = (hc <= 30) ? 24 : (hc <= 60 ? 32 : (hc <= 90 ? 42 : 52));
-        return w + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return w + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"bar_chart"]) {
         // Stats BarChart.draw：单条（RAM 单柱）→ 10 + offset*2 ≈ 11
-        return 11 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return 11 + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"network_chart"]) {
         // Stats NetworkChart init：30 + label?(6 + spacing)
-        return 30 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return 30 + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"ring"]) {
         CGFloat size = MIN(self.bounds.size.height, 20);
-        return size + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return size + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"dots"]) {
-        return 20 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return 20 + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"bar"]) {
-        return 28 + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return 28 + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"memory"]) {
         // Stats Memory：width 50 + symbols?(letterWidth 8 + spacing*2 = 12)
-        return 50 + (FSBarCfgBool(_module, _form, @"symbols", YES) ? 12 : 0);
+        return 50 + (FSBarViewCfgBool(_configuration, _module, _form, @"symbols", YES) ? 12 : 0);
     }
     if ([_form isEqualToString:@"pie_chart"] || [_form isEqualToString:@"tachometer"]) {
         // Stats：size(=height) + label?(6 + spacing)；本实现 size = MIN(h, 20)
         CGFloat size = MIN(self.bounds.size.height, 20);
-        return size + (FSBarCfgBool(_module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
+        return size + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"battery"]) {
-        NSString *disp = FSBarCfgStr(_module, _form, @"display", @"percentage");
+        NSString *disp = FSBarViewCfgStr(_configuration, _module, _form, @"display", @"percentage");
         if ([disp isEqualToString:@"none"]) return 24 + 6;   // 仅图标
         return 24 + (([disp isEqualToString:@"time"]) ? 44 : ([disp containsString:@"And"] ? 84 : 34));
     }
@@ -888,10 +951,10 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 // 模块标签标题（mini / 传感器用）
 - (NSString *)moduleLabel {
     if ([_module isEqualToString:@"Sensors"]) {
-        return FSBarCfgStr(_module, @"mini", @"sensor", FSBarCfgStr(_module, nil, @"sensor", @"PPBR"));
+        return FSBarViewCfgStr(_configuration, _module, @"mini", @"sensor", FSBarViewCfgStr(_configuration, _module, nil, @"sensor", @"PPBR"));
     }
     if ([_module isEqualToString:@"Disk"]) {
-        return FSBarCfgStr(_module, @"mini", @"title", @"SSD");
+        return FSBarViewCfgStr(_configuration, _module, @"mini", @"title", @"SSD");
     }
     static NSDictionary *map = nil;
     static dispatch_once_t once;
@@ -910,7 +973,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 - (void)drawRect:(NSRect)dirty {
     // v18 探针（FRSET_APPEARCHK=1）：打印绘制上下文的外观信号，验证反相源是否可靠
     static int s_appearLogged = 0;
-    if (getenv("FRSET_APPEARCHK") && s_appearLogged < 8) {
+    if (!_configuration && getenv("FRSET_APPEARCHK") && s_appearLogged < 8) {
         s_appearLogged++;
         FSBarLog(@"[appear:draw %d] %@/%@ view.effective=%@ currentDrawing=%@ dark=%d",
                  s_appearLogged, _module, _form,
@@ -922,10 +985,10 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
     // v28：内容区 = 去掉左右内边距（布局层已把该宽度加回 frame）。
     //   用坐标系平移实现——所有形态绘制代码无需感知 pad。
-    NSRect cr = NSMakeRect(0, 0, MAX(1, W - 2 * FS_WIDGET_PAD), H);
+    NSRect cr = NSMakeRect(0, 0, MAX(1, W - 2 * [self widgetPadding]), H);
     [NSGraphicsContext saveGraphicsState];
     NSGraphicsContext *gctx = [NSGraphicsContext currentContext];
-    if (gctx.CGContext) CGContextTranslateCTM(gctx.CGContext, FS_WIDGET_PAD, 0);
+    if (gctx.CGContext) CGContextTranslateCTM(gctx.CGContext, [self widgetPadding], 0);
 
     if ([_form isEqualToString:@"mini"])       { [self drawMini:cr dark:dark]; }
     else if ([_form isEqualToString:@"speed"]) { [self drawSpeed:cr dark:dark]; }
@@ -950,14 +1013,14 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 1：mini（Stats Mini.swift） ========
 - (void)drawMini:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label",
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label",
                               [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"]);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"monochrome");
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"monochrome");
     // v28：默认对齐曾改居中（固定宽时代内容常偏一侧）；v135 起帧宽按内容紧贴
     //（2pt 量化 + 宽度迟滞），居中会在两侧各留 (槽宽-内容)/2 的内侧空白——
     // 实测使「网络↔传感器」内容间隙 9pt vs「内存↔网络」5pt（用户实证偏大）。
     // 改回左对齐（与 speed 等文本部件一致），传感器块左缘直贴帧边
-    NSString *align = FSBarCfgStr(_module, _form, @"alignment", @"left");
+    NSString *align = FSBarViewCfgStr(_configuration, _module, _form, @"alignment", @"left");
     NSString *val = FSBarModuleString(&_snap, _module);
     double v = [self primaryValue];
     NSColor *c = FSBarColorFromKey(colorKey, dark, v);
@@ -979,23 +1042,23 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 2：speed（Stats Speed.swift；输入=下载/读取，输出=上传/写入） ========
 - (void)drawSpeed:(NSRect)r dark:(BOOL)dark {
-    BOOL valueOn = FSBarCfgBool(_module, _form, @"value", YES);
-    BOOL units = FSBarCfgBool(_module, _form, @"units", YES);
-    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
-    NSString *icon = FSBarCfgStr(_module, _form, @"icon", @"dots");
-    NSString *align = FSBarCfgStr(_module, _form, @"valueAlignment", @"left");
-    NSString *mode = FSBarCfgStr(_module, _form, @"mode", @"twoRows");
-    NSString *display = FSBarCfgStr(_module, _form, @"displayValue", @"oi");
+    BOOL valueOn = FSBarViewCfgBool(_configuration, _module, _form, @"value", YES);
+    BOOL units = FSBarViewCfgBool(_configuration, _module, _form, @"units", YES);
+    BOOL mono = FSBarViewCfgBool(_configuration, _module, _form, @"monochrome", NO);
+    NSString *icon = FSBarViewCfgStr(_configuration, _module, _form, @"icon", @"dots");
+    NSString *align = FSBarViewCfgStr(_configuration, _module, _form, @"valueAlignment", @"left");
+    NSString *mode = FSBarViewCfgStr(_configuration, _module, _form, @"mode", @"twoRows");
+    NSString *display = FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi");
     // v15：对齐 Stats SpeedPictogramColor（none/default/transparent/constant）；
     //      兼容旧布尔配置（true→default / false→none）
-    NSString *valueColor = FSBarCfgStr(_module, _form, @"valueColor", @"default");
-    id vcRaw = FSBarCfgRaw(_module, _form, @"valueColor");
+    NSString *valueColor = FSBarViewCfgStr(_configuration, _module, _form, @"valueColor", @"default");
+    id vcRaw = FSBarViewCfgRaw(_configuration, _module, _form, @"valueColor");
     if ([vcRaw isKindOfClass:[NSNumber class]]) valueColor = [(NSNumber *)vcRaw boolValue] ? @"default" : @"none";
-    NSString *iconColor = FSBarCfgStr(_module, _form, @"iconColor", @"default");
-    id icRaw = FSBarCfgRaw(_module, _form, @"iconColor");
+    NSString *iconColor = FSBarViewCfgStr(_configuration, _module, _form, @"iconColor", @"default");
+    id icRaw = FSBarViewCfgRaw(_configuration, _module, _form, @"iconColor");
     if ([icRaw isKindOfClass:[NSNumber class]]) iconColor = [(NSNumber *)icRaw boolValue] ? @"default" : @"none";
-    NSString *inColorKey = FSBarCfgStr(_module, _form, @"downloadColor", @"secondBlue");
-    NSString *outColorKey = FSBarCfgStr(_module, _form, @"uploadColor", @"secondRed");
+    NSString *inColorKey = FSBarViewCfgStr(_configuration, _module, _form, @"downloadColor", @"secondBlue");
+    NSString *outColorKey = FSBarViewCfgStr(_configuration, _module, _form, @"uploadColor", @"secondRed");
     uint64_t inV = (uint64_t)[self netIn], outV = (uint64_t)[self netOut];
 
     NSColor *inBase = [inColorKey isEqualToString:@"secondBlue"] ? [NSColor systemBlueColor]
@@ -1030,7 +1093,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     BOOL io = [display isEqualToString:@"io"];
     BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
     // v15：图标对齐（left/right；Stats Speed iconAlignment）
-    BOOL iconRight = iconOn && [FSBarCfgStr(_module, _form, @"iconAlignment", @"left") isEqualToString:@"right"];
+    BOOL iconRight = iconOn && [FSBarViewCfgStr(_configuration, _module, _form, @"iconAlignment", @"left") isEqualToString:@"right"];
     CGFloat iconX = iconRight ? MAX(0, r.size.width - 7) : 0;
 
     if ([mode isEqualToString:@"oneRow"]) {
@@ -1073,7 +1136,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 - (void)drawSpeedIcon:(NSString *)icon at:(CGFloat)x rect:(NSRect)r inC:(NSColor *)inC outC:(NSColor *)outC twoRows:(BOOL)two {
     if (!icon || [icon isEqualToString:@"none"]) return;
     CGFloat H = r.size.height, half = H / 2;
-    BOOL io = [FSBarCfgStr(_module, _form, @"displayValue", @"oi") isEqualToString:@"io"];
+    BOOL io = [FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi") isEqualToString:@"io"];
     if ([icon isEqualToString:@"dots"]) {
         CGFloat size = two ? 6 : 8;
         if (two) {
@@ -1137,10 +1200,10 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 3：bar_chart（Stats BarChart.swift） ========
 - (void)drawBarChart:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL box = FSBarCfgBool(_module, _form, @"box", YES);
-    BOOL frame = FSBarCfgBool(_module, _form, @"frame", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL box = FSBarViewCfgBool(_configuration, _module, _form, @"box", YES);
+    BOOL frame = FSBarViewCfgBool(_configuration, _module, _form, @"frame", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     CGFloat offset = 0.5;
@@ -1187,8 +1250,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 }
 
 - (void)drawPie:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL mono = FSBarViewCfgBool(_configuration, _module, _form, @"monochrome", NO);
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     CGFloat size = MIN(r.size.height, 20);
@@ -1224,8 +1287,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 5：tachometer（Stats Tachometer：半圆仪表 + 值弧） ========
 - (void)drawTachometer:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL mono = FSBarViewCfgBool(_configuration, _module, _form, @"monochrome", NO);
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     CGFloat size = MIN(r.size.height, 20);
@@ -1256,9 +1319,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 13：ring（环形图——整圆环 + 中心值；对比 tachometer 半圆仪表） ========
 - (void)drawRing:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL mono = FSBarViewCfgBool(_configuration, _module, _form, @"monochrome", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     CGFloat size = MIN(r.size.height, 20);
@@ -1289,9 +1352,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 14：wave（波形图——平滑曲线 + 渐变填充，折线图的柔和版） ========
 - (void)drawWave:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
-    int hc = FSBarCfgInt(_module, _form, @"historyCount", 60);
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
+    int hc = FSBarViewCfgInt(_configuration, _module, _form, @"historyCount", 60);
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     CGFloat w = (hc <= 30 ? 24 : (hc <= 60 ? 32 : (hc <= 90 ? 42 : 52)));
@@ -1349,9 +1412,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 15：dots（点阵——2×4 活动点，按比例点亮） ========
 - (void)drawDots:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL mono = FSBarCfgBool(_module, _form, @"monochrome", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL mono = FSBarViewCfgBool(_configuration, _module, _form, @"monochrome", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     const int cols = 4, rows = 2;
@@ -1377,8 +1440,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 16：bar（进度条——横向圆角条 + 右侧数值） ========
 - (void)drawProgressBar:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
     double v = MIN(1.0, MAX(0.0, [self primaryValue]));
@@ -1401,14 +1464,14 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 6：line_chart（Stats LineChart.swift + LineChartView，右锚定 60 槽） ========
 - (void)drawLineChart:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL box = FSBarCfgBool(_module, _form, @"box", YES);
-    BOOL frame = FSBarCfgBool(_module, _form, @"frame", NO);
-    BOOL valueOn = FSBarCfgBool(_module, _form, @"value", NO);
-    BOOL valueColorOn = FSBarCfgBool(_module, _form, @"valueColor", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
-    int hc = FSBarCfgInt(_module, _form, @"historyCount", 60);
-    NSString *scale = FSBarCfgStr(_module, _form, @"scale", @"none");
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL box = FSBarViewCfgBool(_configuration, _module, _form, @"box", YES);
+    BOOL frame = FSBarViewCfgBool(_configuration, _module, _form, @"frame", NO);
+    BOOL valueOn = FSBarViewCfgBool(_configuration, _module, _form, @"value", NO);
+    BOOL valueColorOn = FSBarViewCfgBool(_configuration, _module, _form, @"valueColor", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
+    int hc = FSBarViewCfgInt(_configuration, _module, _form, @"historyCount", 60);
+    NSString *scale = FSBarViewCfgStr(_configuration, _module, _form, @"scale", @"none");
 
     CGFloat x = label ? 8 : 0;
     if (label) [self drawLabelColumn:_module at:0 dark:dark height:r.size.height];
@@ -1481,14 +1544,14 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 7：network_chart（Stats NetworkChart：中线上下双图） ========
 - (void)drawNetworkChart:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarCfgBool(_module, _form, @"label", NO);
-    BOOL box = FSBarCfgBool(_module, _form, @"box", NO);
-    BOOL frame = FSBarCfgBool(_module, _form, @"frame", NO);
-    BOOL reversed = FSBarCfgBool(_module, _form, @"reversedOrder", NO);
-    int hc = FSBarCfgInt(_module, _form, @"historyCount", 60);       // v15：对齐 Stats
-    NSString *scale = FSBarCfgStr(_module, _form, @"scale", @"none"); // v15：对齐 Stats
-    NSString *dKey = FSBarCfgStr(_module, _form, @"downloadColor", @"secondBlue");
-    NSString *uKey = FSBarCfgStr(_module, _form, @"uploadColor", @"secondRed");
+    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL box = FSBarViewCfgBool(_configuration, _module, _form, @"box", NO);
+    BOOL frame = FSBarViewCfgBool(_configuration, _module, _form, @"frame", NO);
+    BOOL reversed = FSBarViewCfgBool(_configuration, _module, _form, @"reversedOrder", NO);
+    int hc = FSBarViewCfgInt(_configuration, _module, _form, @"historyCount", 60);       // v15：对齐 Stats
+    NSString *scale = FSBarViewCfgStr(_configuration, _module, _form, @"scale", @"none"); // v15：对齐 Stats
+    NSString *dKey = FSBarViewCfgStr(_configuration, _module, _form, @"downloadColor", @"secondBlue");
+    NSString *uKey = FSBarViewCfgStr(_configuration, _module, _form, @"uploadColor", @"secondRed");
     NSColor *inC = [dKey isEqualToString:@"secondBlue"] ? [NSColor systemBlueColor] : FSBarColorFromKey(dKey, dark, 0);
     NSColor *outC = [uKey isEqualToString:@"secondRed"] ? [NSColor systemRedColor] : FSBarColorFromKey(uKey, dark, 0);
     if (reversed) { NSColor *t = inC; inC = outC; outC = t; }
@@ -1554,9 +1617,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 8：memory（Stats Memory.swift：F:/U: 双行） ========
 - (void)drawMemory:(NSRect)r dark:(BOOL)dark {
-    BOOL symbols = FSBarCfgBool(_module, _form, @"symbols", YES);
-    BOOL rev = FSBarCfgBool(_module, _form, @"orderReversed", NO);
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"monochrome");
+    BOOL symbols = FSBarViewCfgBool(_configuration, _module, _form, @"symbols", YES);
+    BOOL rev = FSBarViewCfgBool(_configuration, _module, _form, @"orderReversed", NO);
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"monochrome");
     NSColor *c = FSBarColorFromKey(colorKey, dark, _snap.ramRatio);
     double usedBytes = _snap.ramUsedBytes;
     double totalBytes = _snap.ramTotalBytes;
@@ -1604,8 +1667,8 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
 }
 
 - (void)drawBattery:(NSRect)r dark:(BOOL)dark {
-    NSString *disp = FSBarCfgStr(_module, _form, @"display", @"percentage");
-    NSString *colorKey = FSBarCfgStr(_module, _form, @"color", @"systemAccent");
+    NSString *disp = FSBarViewCfgStr(_configuration, _module, _form, @"display", @"percentage");
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
     double p = MIN(1.0, MAX(0.0, _snap.batteryPercent / 100.0));
     CGFloat W = 22, Hh = 12;
     CGFloat x = 0;
@@ -1680,7 +1743,7 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
     // 深浅色都清晰；预览图（FSBarRenderFormPreview）同源自动受益。
     // v129（内存）：符号图像走 FSBarSymbolImage 静态缓存（每 drawRect 重建
     // 是 CoreSVG 解码churn 的最大来源，见缓存实现处注释）。
-    NSString *sym = FSBarCfgStr(_module, _form, @"icon", [self defaultSymbol]);
+    NSString *sym = FSBarViewCfgStr(_configuration, _module, _form, @"icon", [self defaultSymbol]);
     NSImage *img = FSBarSymbolImage(sym, 15, NSFontWeightSemibold);
     img.template = YES;
     NSSize sz = img.size;
@@ -1729,7 +1792,7 @@ static FSRunCatIconView *g_mainIconCatView = nil;   // v35：主图标覆盖层�
 - (NSView *)hitTest:(NSPoint)p { (void)p; return nil; }   // 点击穿透到 button（保持原 action）
 - (void)drawRect:(NSRect)dirty {
     (void)dirty;
-    NSImage *img = FSRunCatImage(g_runCatFrame, FSBarDark(self));
+    NSImage *img = FSRunCatImage(self.fixedFrame ? self.fixedFrame.intValue : g_runCatFrame, FSBarDark(self));
     if (!img) return;
     NSRect r = self.bounds;
     // v82：按高度定尺寸（56:36），但**不得超过按钮可用宽度**——原实现固定 56:36，
@@ -1797,8 +1860,13 @@ static void FSRunCatEnsureMainIconOverlay(void) {
 // v85：运行时开关（设置窗「菜单栏图标 · 小猫」用）
 BOOL FSRunCatIconEnabled(void) { return g_mainIconCatEnabled; }
 void FSRunCatIconSetEnabled(BOOL on) {
+    FSBarCfgSet(@"Bar", nil, @"MainIconCat", @(on));
+    FSRunCatIconApplySavedConfiguration();
+}
+void FSRunCatIconApplySavedConfiguration(void) {
+    BOOL on = FSBarAsBool(g_cfg[@"Bar_MainIconCat"], NO);
     g_mainIconCatEnabled = on;
-    FSBarCfgSet(@"Bar", nil, @"MainIconCat", @(on));   // 持久化
+    g_mainIconCatInited = YES;
     if (!on) {
         [g_mainIconCatView removeFromSuperview];
         g_mainIconCatView = nil;
@@ -2160,13 +2228,15 @@ void FSBarSetDebugAnchorX(CGFloat x) { g_anchorScreen = NSMakeRect(x, 0, 1, 1); 
 @end
 
 // 1pt 分隔线（Stats SeparatorLineView；穿透点击）
-@interface FSBarSepView : NSView @end
+@interface FSBarSepView : NSView
+@property (nonatomic, copy) NSString *colorKey;
+@end
 @implementation FSBarSepView
 - (NSView *)hitTest:(NSPoint)p { return nil; }
 - (void)drawRect:(NSRect)dirty {
     // Stats SeparatorLineView：深色=白线 / 浅色=黑线
     BOOL dark = FSBarDark(self);
-    [(dark ? [NSColor whiteColor] : [NSColor blackColor]) setFill];
+    [FSBarColorFromKey(self.colorKey ?: @"monochrome", dark, 0) setFill];
     NSRectFill(self.bounds);
 }
 @end
@@ -2220,50 +2290,45 @@ static void FSBarKeepAdjacentToMain(void);
 // v30：完整位置校准（候选值扫描；保邻修正连续无效时升级调用）
 static void FSBarStartPositionCalibration(void);
 
+static CGFloat FSBarLayoutWidgets(NSView *container, NSArray<FSBarWidgetView *> *widgets,
+                                  CGFloat spacing, BOOL separator, NSString *color) {
+    for (NSView *view in [container.subviews copy])
+        if (![view isKindOfClass:FSBarWidgetView.class]) [view removeFromSuperview];
+    CGFloat x = 0, height = container.frame.size.height;
+    for (FSBarWidgetView *widget in widgets) {
+        if (x > 0) {
+            x += spacing;
+            if (separator) {
+                FSBarSepView *line = [[FSBarSepView alloc] initWithFrame:NSMakeRect(x, 3, 1, height - 6)];
+                line.colorKey = color;
+                [container addSubview:line];
+                x += 1 + spacing;
+            }
+        }
+        CGFloat width = MAX(1, [widget preferredWidth] + 2 * [widget widgetPadding]);
+        widget.frame = NSMakeRect(x, 0, width, height);
+        if (widget.superview != container) [container addSubview:widget];
+        x += width;
+    }
+    container.frame = NSMakeRect(0, 0, MAX(x, 1), height);
+    return MAX(x, 1);
+}
+
 // 合并布局（对齐 Stats CombinedView.recalculate）：
 //   模块间距 = spacing +（若有分隔线：1pt 线 + 3pt + spacing）
 static void FSBarMergedLayout(void) {
     if (!g_mergedItem || !g_mergedView) return;
     CGFloat spacing = FSBarMergedSpacing();
     BOOL sep = FSBarMergedSeparator();
-    CGFloat H = g_mergedView.frame.size.height;
-    if (H < 1) H = 22;
-
-    // 清理旧分隔线（部件视图复用，不动）
-    for (NSView *v in [g_mergedView.subviews copy]) {
-        if (![v isKindOfClass:[FSBarWidgetView class]]) [v removeFromSuperview];
-    }
-
-    CGFloat x = 0;
-    BOOL first = YES;
-    for (NSString *m in FSBarAllModules()) {
-        NSArray *forms = FSBarEnabledForms(m);
-        if (!forms.count) continue;
-        NSString *key = [NSString stringWithFormat:@"%@/%@", m, forms[0]];
-        FSBarWidgetView *w = g_views[key];
-        if (!w) continue;
-        if (!first) {
-            x += spacing;
-            if (sep) {
-                FSBarSepView *line = [[FSBarSepView alloc] initWithFrame:NSMakeRect(x, 3, 1, H - 6)];
-                [g_mergedView addSubview:line];
-                // v28：线右不再额外 +3 —— 每个部件已有 FS_WIDGET_PAD 内边距，
-                //   叠加会让线左空 3 / 线右空 6 不对称（视觉"间隔不均"的根源之一）。
-                //   现为：线左空 = 前部件 pad + spacing；线右空 = spacing + 后部件 pad → 对称。
-                x += 1 + spacing;
-            }
+    NSMutableArray *widgets = [NSMutableArray array];
+    for (NSString *module in FSBarOrderedModules(g_cfg))
+        for (NSString *form in FSBarEnabledForms(module)) {
+            FSBarWidgetView *widget = g_views[[NSString stringWithFormat:@"%@/%@", module, form]];
+            if (widget) [widgets addObject:widget];
         }
-        CGFloat ww = MAX(1, [w preferredWidth] + 2 * FS_WIDGET_PAD);   // v28：内容左右各留 FS_WIDGET_PAD
-        NSRect f = NSMakeRect(x, 0, ww, H);
-        if (!NSEqualRects(w.frame, f)) w.frame = f;
-        if (w.superview != g_mergedView) [g_mergedView addSubview:w];
-        else if (g_mergedView.subviews.lastObject != w) [g_mergedView addSubview:w positioned:NSWindowAbove relativeTo:nil];
-        x += ww;
-        first = NO;
-    }
-    NSRect vf = NSMakeRect(0, 0, MAX(x, 1), H);
-    if (!NSEqualRects(g_mergedView.frame, vf)) g_mergedView.frame = vf;
-    if (fabs(g_mergedItem.length - MAX(x, 1)) > 0.5) g_mergedItem.length = MAX(x, 1);
+    CGFloat x = FSBarLayoutWidgets(g_mergedView, widgets, spacing, sep,
+                                   FSBarGlobalStr(@"CombinedModules_separatorColor", @"monochrome"));
+    if (fabs(g_mergedItem.length - x) > 0.5) g_mergedItem.length = x;
 
     // 布局宽度变化时留痕（明细：模块/形态=宽度）
     // v137（性能审计）：FSBarLog 是**同步写盘**——流量数字每几秒变化一次宽度就
@@ -2340,6 +2405,7 @@ static void FSBarRemoveMergedItem(void) {
 // 旧 FSStatsTickStop 只停采样 timer，合并条状态项会留在菜单栏上显示旧值，
 // 用户以为「关了没生效 / 开了没显示」，只能重启 App——这里做完整回收。
 void FSBarTeardown(void) {
+    g_manager = nil;
     for (NSString *key in [g_ownItems allKeys]) {
         NSStatusItem *it = g_ownItems[key];
         FSBarPositionSave(it.autosaveName);
@@ -2740,9 +2806,11 @@ static void FSBarReconcile(void) {
         for (NSString *m in FSBarAllModules()) {
             NSArray *forms = FSBarEnabledForms(m);
             if (!forms.count) continue;
-            NSString *key = [NSString stringWithFormat:@"%@/%@", m, forms[0]];
-            [wanted addObject:key];
-            if (!g_views[key]) g_views[key] = [[FSBarWidgetView alloc] initWithModule:m form:forms[0]];
+            for (NSString *form in forms) {
+                NSString *key = [NSString stringWithFormat:@"%@/%@", m, form];
+                [wanted addObject:key];
+                if (!g_views[key]) g_views[key] = [[FSBarWidgetView alloc] initWithModule:m form:form];
+            }
         }
         for (NSString *key in [g_views allKeys]) {   // 孤儿视图清理
             if (![wanted containsObject:key]) {
@@ -2847,7 +2915,14 @@ static void FSBarRefreshValues(void) {
 void FSBarReloadFromStore(void) {
     FSBarLoadStore();
     g_cfgGen++;   // v126：配置重载 → FSBarEnabledForms 缓存失效
-    FSBarReconcile();
+    for (FSBarWidgetView *view in g_views.allValues) {
+        view.stableWidth = 0;
+        view.shrinkVotes = 0;
+        view.lastUpdate = 0;
+    }
+    if (g_manager) FSBarReconcile();
+    if (g_manager) FSBarRefreshValues();
+    FSBarRefreshAllWidgets();
 }
 
 void FSBarResetFromStats(void) {
@@ -3199,70 +3274,67 @@ static FSSnap FSBarPreviewSnap(int tick) {
     return s;
 }
 
-// 渲染某形态的部件预览图（部件选择条/部件设置标题用；dark 决定底色适配）
-NSImage *FSBarRenderFormPreview(NSString *module, NSString *form, BOOL dark) {
-    FSBarWidgetView *w = [[FSBarWidgetView alloc] initWithModule:module form:form];
-    CGFloat width = MAX(24, [w preferredWidth] + 2 * FS_WIDGET_PAD);   // v28：与真实布局一致（含 pad）
-    CGFloat height = 24;
-    w.frame = NSMakeRect(0, 0, width, height);
-    // v129：显式外观——此前绘制用的是视图 effectiveAppearance（离屏=NSApp 级），
-    // 入参 dark 只进了缓存键没进绘制，深浅色芯片可能拿到同一种配色
-    w.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua
-                                                      : NSAppearanceNameAqua];
-    for (int i = 0; i < 24; i++) {
-        FSSnap snap = FSBarPreviewSnap(i);
-        [w refreshWithSnap:&snap];
+void FSBarUpdateConfiguredPreview(NSView *container, NSArray<NSString *> *modules, NSDictionary *configuration, BOOL dark) {
+    [container setFrameSize:NSMakeSize(container.frame.size.width, 22)];
+    container.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+    NSMutableDictionary *existing = [NSMutableDictionary dictionary];
+    for (NSView *view in container.subviews) {
+        if ([view isKindOfClass:FSBarWidgetView.class]) {
+            FSBarWidgetView *widget = (FSBarWidgetView *)view;
+            existing[[NSString stringWithFormat:@"%@/%@", widget.module, widget.form]] = widget;
+        }
     }
-    [w setNeedsDisplay:YES];
-    // 2x 渲染——芯片缩显后细线糊没；2x 采样保细节
-    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc]
-              initWithBitmapDataPlanes:NULL
-                            pixelsWide:(NSUInteger)(width * 2)
-                            pixelsHigh:(NSUInteger)(height * 2)
-                         bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
-                 colorSpaceName:NSCalibratedRGBColorSpace
-                    bytesPerRow:0 bitsPerPixel:0];
-    rep.size = w.bounds.size;
-    [w cacheDisplayInRect:w.bounds toBitmapImageRep:rep];
-
-    // v132：紧裁到实际内容——整幅位图含左右 FS_WIDGET_PAD 与上下留白，
-    // 芯片按高度缩显时图形既小又偏离视觉中心（用户："主要是颜色问题 与位置"）。
-    // 扫描 alpha 包围盒，裁出图形本体（宽度溢出场景由芯片 scaledToFit 收口）。
-    NSUInteger pw = rep.pixelsWide, ph = rep.pixelsHigh;
-    NSUInteger minX = pw, minY = ph, maxX = 0, maxY = 0;
-    BOOL found = NO;
-    for (NSUInteger y = 0; y < ph; y++) {
-        for (NSUInteger x = 0; x < pw; x++) {
-            NSUInteger px[4] = {0, 0, 0, 0};
-            [rep getPixel:px atX:(NSInteger)x y:(NSInteger)y];
-            if (px[3] > 2) {                       // alpha > ~0.8%：纳入内容
-                found = YES;
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
+    NSMutableArray *widgets = [NSMutableArray array];
+    for (NSString *module in modules) {
+        NSString *list = configuration[[module stringByAppendingString:@"_widget"]] ?: @"";
+        for (NSString *form in [list componentsSeparatedByString:@","]) {
+            if (![FSBarFormsForModule(module) containsObject:form]) continue;
+            FSBarWidgetView *widget = existing[[NSString stringWithFormat:@"%@/%@", module, form]];
+            if (!widget) {
+                widget = [[FSBarWidgetView alloc] initWithModule:module form:form];
+                widget.configuration = configuration;
+                BOOL chart = [form isEqualToString:@"line_chart"] || [form isEqualToString:@"network_chart"];
+                for (int i = chart ? 0 : 119; i < 120; i++) {
+                    FSSnap snap = FSBarPreviewSnap(i);
+                    [widget refreshWithSnap:&snap];
+                }
+            } else {
+                widget.configuration = configuration;
+                widget.needsDisplay = YES;
             }
+            [widgets addObject:widget];
         }
     }
-    if (found) {
-        CGRect pxBox = CGRectMake((CGFloat)minX, (CGFloat)minY,
-                                  (CGFloat)(maxX - minX + 1), (CGFloat)(maxY - minY + 1));
-        CGImageRef full = rep.CGImage;
-        CGImageRef cropped = CGImageCreateWithImageInRect(full, pxBox);
-        if (cropped) {
-            CGSize logical = CGSizeMake(pxBox.size.width / 2.0, pxBox.size.height / 2.0);
-            NSBitmapImageRep *crep = [[NSBitmapImageRep alloc] initWithCGImage:cropped];
-            CFRelease(cropped);
-            crep.size = logical;
-            NSImage *img = [[NSImage alloc] initWithSize:logical];
-            [img addRepresentation:crep];
-            return img;
-        }
-    }
-    // 兜底（全透明/异常）：整幅原图
-    NSImage *img = [[NSImage alloc] initWithSize:w.bounds.size];
-    [img addRepresentation:rep];
-    return img;
+    for (FSBarWidgetView *widget in existing.allValues)
+        if (![widgets containsObject:widget]) [widget removeFromSuperview];
+    BOOL merged = FSBarAsBool(configuration[@"CombinedModules"], NO);
+    FSBarLayoutWidgets(container, widgets, merged ? FSBarConfigurationSpacing(configuration) : 16,
+                       merged && FSBarAsBool(configuration[@"CombinedModules_separator"], YES),
+                       configuration[@"CombinedModules_separatorColor"] ?: @"monochrome");
+}
+
+NSView *FSBarCreateConfiguredPreview(NSArray<NSString *> *modules, NSDictionary *configuration, BOOL dark) {
+    NSView *container = [[FSBarMergedView alloc] initWithFrame:NSMakeRect(0, 0, 1, 22)];
+    FSBarUpdateConfiguredPreview(container, modules, configuration, dark);
+    return container;
+}
+
+NSView *FSRunCatCreatePreview(BOOL dark) {
+    FSRunCatIconView *view = [[FSRunCatIconView alloc] initWithFrame:NSMakeRect(0, 0, 34, 22)];
+    view.fixedFrame = @3;
+    view.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
+    return view;
+}
+
+NSImage *FSBarRenderFormPreview(NSString *module, NSString *form, BOOL dark) {
+    NSMutableDictionary *cfg = [FSBarConfigurationSnapshot() mutableCopy];
+    cfg[[module stringByAppendingString:@"_widget"]] = form;
+    NSView *view = FSBarCreateConfiguredPreview(@[module], cfg, dark);
+    NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:view.bounds];
+    [view cacheDisplayInRect:view.bounds toBitmapImageRep:rep];
+    NSImage *image = [[NSImage alloc] initWithSize:view.bounds.size];
+    [image addRepresentation:rep];
+    return image;
 }
 
 // ============ v18：反相信号探针（FRSET_APPEARCHK=1） ============

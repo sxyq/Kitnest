@@ -173,34 +173,10 @@ public final class ImageCurtainController: NSObject {
     /// 拖动中的临时宽度；nil = 没有在拖，用用户偏好
     private var liveCardWidth: CGFloat?
 
-    private func railScale(for width: CGFloat) -> CGFloat {
-        guard CurtainPref.railScalesWithCards else { return 1 }
-        return min(max(width / CurtainPref.baseCardWidth, 0.8), 3)
-    }
-
-    /// 当前屏幕能放下的实际卡片宽度。
-    ///
-    /// 用户可以把宽度调到 420，但挂 4 张时 4×420 已经超过 1440 屏宽。
-    /// 这里按「不超屏」反算一个上限：优先保证整条帘子完整可见，
-    /// 放不下时自动收窄（用户偏好本身不改，等张数变少会自己放大回去）。
     private func layoutMetrics(visible: NSRect) -> (cardWidth: CGFloat, railScale: CGFloat, maxHeight: CGFloat) {
-        let desired = liveCardWidth ?? CurtainPref.cardWidth
-        let n = CGFloat(max(items.count, 1))
-        let available = visible.width - 24
-
-        var width = desired
-        for _ in 0..<2 {
-            let scale = railScale(for: width)
-            let gap = CurtainMetrics.gap(scale)
-            let pad = CurtainMetrics.padding(scale) * 2
-            let fit = (available - gap * (n - 1) - pad) / n
-            width = min(desired, max(CurtainPref.minCardWidth, fit))
-        }
-        let scale = railScale(for: width)
-        let maxHeight = max(visible.height * 0.56
-                            - CurtainMetrics.ropeHeight(scale)
-                            - CurtainMetrics.bottomInset(scale), 60)
-        return (width, scale, maxHeight)
+        CurtainLayout.metrics(desired: liveCardWidth ?? CurtainPref.cardWidth,
+                              count: items.count, visible: visible,
+                              railScales: CurtainPref.railScalesWithCards)
     }
 
     /// 内容需要的尺寸（未夹到屏幕）

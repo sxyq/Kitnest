@@ -1,518 +1,288 @@
 import AppKit
 import SwiftUI
 
-// MARK: - 设置 → 性能监测 → 部件设置（v55 重写）
-//
-// 用户要求：不要直接嵌入 STATS 的设置窗，而是用我们自己的设置体系重写，
-// 功能范围覆盖 STATS 的全部能力。版式沿用本 App 设置页的分级结构：
-//   一级标题：布局 / 模块 / 维护
-//   二级标题：模块名（CPU、内存…）
-//   三级标题：形态名 / 选项组（显示、外观、数据）
-//
-// 配置读写全部走引擎桥（键名与 Stats 一致，widgets.plist 互通）：
-//   FSBarCfgBool / FSBarCfgStr / FSBarCfgInt / FSBarCfgSet
-//   FSBarSetEnabledForms（每模块可多形态，与引擎一致）
-//   FSBarGlobalSet（合并模块 / 间距 / 分隔线）
+final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
+    @Published var configuration: [String: Any]
+    private var saved: [String: Any]
+    let modules = FSBarAllModules() as? [String] ?? []
+
+    init() {
+        let values = FSBarConfigurationSnapshot() as? [String: Any] ?? [:]
+        configuration = values
+        saved = values
+    }
+
+    var isDirty: Bool { !NSDictionary(dictionary: configuration).isEqual(to: saved) }
+    var orderedModules: [String] { FSBarOrderedModules(configuration) as? [String] ?? modules }
+    var merged: Bool {
+        get { bool("CombinedModules", default: false) }
+        set { configuration["CombinedModules"] = newValue }
+    }
+    var spacing: Double {
+        get { FSBarConfigurationSpacing(configuration) }
+        set {
+            configuration["Widgets_spacing"] = String(format: "%.1f", newValue)
+            configuration["CombinedModules_spacing"] = String(format: "%.1f", newValue)
+        }
+    }
+    func bool(_ key: String, default value: Bool) -> Bool {
+        (configuration[key] as? NSNumber)?.boolValue ?? value
+    }
+    func string(_ key: String, default value: String) -> String {
+        if let number = configuration[key] as? NSNumber { return number.stringValue }
+        return configuration[key] as? String ?? value
+    }
+    func forms(_ module: String) -> [String] {
+        let supported = FSBarFormsForModule(module) as? [String] ?? []
+        return string(module + "_widget", default: "").split(separator: ",").map(String.init).filter(supported.contains)
+    }
+    func setForms(_ module: String, _ forms: [String]) {
+        configuration[module + "_widget"] = forms.joined(separator: ",")
+    }
+    func move(_ module: String, by offset: Int) {
+        var order = orderedModules
+        let index = order.firstIndex(of: module)!
+        order.swapAt(index, index + offset)
+        configuration["Widgets_order"] = order
+    }
+    func moveForm(_ module: String, _ form: String, by offset: Int) {
+        var order = forms(module)
+        let index = order.firstIndex(of: form)!
+        order.swapAt(index, index + offset)
+        setForms(module, order)
+    }
+    func restoreModule(_ module: String) {
+        for key in Array(configuration.keys) where key.hasPrefix(module + "_") {
+            configuration.removeValue(forKey: key)
+        }
+        let defaults = FSBarDefaultConfiguration() as? [String: Any] ?? [:]
+        for (key, value) in defaults where key.hasPrefix(module + "_") { configuration[key] = value }
+    }
+    func restoreDefaults() {
+        for module in modules { restoreModule(module) }
+        for key in ["CombinedModules", "Widgets_spacing", "CombinedModules_spacing",
+                    "CombinedModules_separator", "CombinedModules_separatorColor", "Widgets_order"] {
+            configuration.removeValue(forKey: key)
+        }
+        let defaults = FSBarDefaultConfiguration() as? [String: Any] ?? [:]
+        for (key, value) in defaults where !modules.contains(where: { key.hasPrefix($0 + "_") }) {
+            configuration[key] = value
+        }
+    }
+    func discard() {
+        let values = FSBarConfigurationSnapshot() as? [String: Any] ?? [:]
+        configuration = values
+        saved = values
+    }
+    func importStats() {
+        restoreDefaults()
+        let imported = FSBarImportedConfiguration() as? [String: Any] ?? [:]
+        for (key, value) in imported { configuration[key] = value }
+    }
+    func save() -> String? {
+        let changed = configuration.filter { key, value in
+            !NSObjectEqual(value, saved[key])
+        }
+        let removed = saved.keys.filter { configuration[$0] == nil }
+        if let reason = FSBarSaveConfiguration(changed, removed) { return reason }
+        saved = configuration
+        FSBarReloadFromStore()
+        return nil
+    }
+
+    private func NSObjectEqual(_ value: Any, _ other: Any?) -> Bool {
+        guard let other else { return false }
+        return (value as! NSObject).isEqual(other)
+    }
+}
 
 struct MonitorWidgetsPane: View {
-
-    /// 配置写入后自增，驱动整页重绘（@Stored = 本项目无 macro 环境的 State）
-    @Stored private var revision = 0
-    @Stored private var confirmReset = false
-    @Stored private var confirmReimport = false
-
-    // v84（2026-10-20 用户反馈「设置页随便点两下就卡死」）：
-    // 原来 modules / 形态列表 / 显示名全部是 computed——每次 body 重算都同步调
-    // C 引擎（FSBarAllModules / FSBarEnabledForms / FSBarFormsForModule /
-    // FSBarModuleName / FSBarFormName），一页 ≈ 8 模块 × 数个形态 ≈ 50+ 次 C 调用；
-    // 任意开关触发 bump() 整页重绘即再来一轮，与 FSBarReloadFromStore 的
-    // 状态项重建叠加，主线程直接卡住。
-    // 现改为一次性缓存：onAppear / bump 后各读一遍，重绘期零 C 调用。
-    @Stored private var cachedModules: [String] = []
-    @Stored private var cachedEnabledForms: [String: [String]] = [:]
-    @Stored private var cachedAllForms: [String: [String]] = [:]
-    @Stored private var cachedModuleNames: [String: String] = [:]
-    @Stored private var cachedFormNames: [String: String] = [:]
-
-    private var modules: [String] { cachedModules }
-
-    /// 一次性读取全部引擎查询结果（模块 / 形态 / 显示名）
-    private func reloadCache() {
-        let mods = (FSBarAllModules() as? [String]) ?? []
-        var enabled: [String: [String]] = [:]
-        var all: [String: [String]] = [:]
-        var moduleNames: [String: String] = [:]
-        var formNames: [String: String] = [:]
-        for m in mods {
-            enabled[m] = (FSBarEnabledForms(m) as? [String]) ?? []
-            let forms = (FSBarFormsForModule(m) as? [String]) ?? []
-            all[m] = forms
-            moduleNames[m] = FSBarModuleName(m) ?? m
-            for f in forms { formNames[f] = FSBarFormName(f) ?? f }
+    var body: some View {
+        SettingsDraftEditor(id: "monitorWidgets", makeDraft: { MonitorWidgetsSettingsDraft() }) { draft in
+            MonitorWidgetsContent(draft: draft)
         }
-        cachedModules = mods
-        cachedEnabledForms = enabled
-        cachedAllForms = all
-        cachedModuleNames = moduleNames
-        cachedFormNames = formNames
-        Log.breadcrumb("WidgetsPane", "缓存重载：\(mods.count) 模块")
     }
+}
+
+private struct MonitorWidgetsContent: View {
+    @ObservedObject var draft: MonitorWidgetsSettingsDraft
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: true) {
-            VStack(alignment: .leading, spacing: 20) {
-                layoutSection
-                modulesSection
-                maintenanceSection
-            }
-            .padding(.horizontal, 34)
-            .padding(.vertical, 18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .onAppear {
-            if cachedModules.isEmpty { reloadCache() }
-            Log.breadcrumb("Settings", "进入部件设置")
-        }
-        .onDisappear {
-            Log.breadcrumb("Settings", "离开部件设置")
-        }
-        .alert("初始化所有设置？", isPresented: $confirmReset) {
-            Button("取消", role: .cancel) {}
-            Button("初始化", role: .destructive) {
-                FSBarResetToDefaults()
-                FSBarReloadFromStore()
-                bump()
-            }
-        } message: {
-            Text("将清空当前部件配置并恢复出厂默认（不影响剪贴板等内容数据）。")
-        }
-        .alert("重新导入 Stats 配置？", isPresented: $confirmReimport) {
-            Button("取消", role: .cancel) {}
-            Button("导入", role: .destructive) {
-                FSBarResetFromStats()
-                FSBarReloadFromStore()
-                bump()
-            }
-        } message: {
-            Text("会用 Stats（eu.exelban.Stats）的偏好覆盖当前部件配置。")
-        }
-    }
-
-    // MARK: - 一级：布局
-
-    private var layoutSection: some View {
-        SettingsSection("布局") {
+        VStack(alignment: .leading, spacing: 12) {
             SettingsGroupBox {
-                SettingsRow(title: "合并模块",
-                           subtitle: "拆分模式部件间隙由系统固定（每项 16pt）无法收紧；要更紧密的间距请开启合并") {
-                    Toggle("", isOn: mergedBinding)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .controlSize(.small)
+                Text("菜单栏预览 · 固定示例数值").font(.system(size: 11)).foregroundStyle(.secondary)
+                ScrollView(.horizontal) {
+                    MonitorWidgetsPreview(configuration: draft.configuration, modules: draft.orderedModules)
+                        .fixedSize()
+                        .padding(.vertical, 8)
+                }
+                .background(reduceTransparency ? Color(nsColor: .windowBackgroundColor) : Color.primary.opacity(0.04))
+                if draft.orderedModules.allSatisfy({ draft.forms($0).isEmpty }) {
+                    Text("所有部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 SettingsDivider()
-                // v89（2026-10-20 用户：「各个部件的间距用统一的一个设置」）：
-                // 一个间距设置统一作用于所有部件内部间隙 + 合并条部件间距（不再各处分散）
-                // v134：点击菜单 → 滑条（0–24pt、0.5 步进 = 49 档；原 0–12pt 13 档）
-                SettingsRow(title: "部件间距",
-                           subtitle: "合并模式下部件间实际间隙 = 左右内边距 + 该值（引擎同步作用于部件内部间隙）") {
+                SettingsRow(title: "合并模块", subtitle: "拆分模式由系统保留每项 16pt 间隙；排列顺序用于合并条") {
+                    Toggle("合并模块", isOn: $draft.merged).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                SettingsRow(title: "部件间距", subtitle: "同时作用于内部留白和合并条间距") {
                     HStack(spacing: 8) {
-                        Slider(value: spacingSliderBinding, in: 0...24, step: 0.5)
-                            .frame(width: 150)
-                        Text("\(spacingValueText) pt")
-                            .font(.system(size: 11).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 46, alignment: .trailing)
+                        Slider(value: $draft.spacing, in: 0...24, step: 0.5).frame(width: 150)
+                            .accessibilityLabel("部件间距")
+                        Text(String(format: "%.1f pt", draft.spacing)).monospacedDigit().frame(width: 50)
                     }
                 }
-                if FSBarMergedEnabled() {
-                    SettingsDivider()
-                    SettingsRow(title: "分隔线",
-                               subtitle: "模块之间画 1pt 竖线") {
-                        Toggle("", isOn: separatorBinding)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                            .controlSize(.small)
+                if draft.merged {
+                    SettingsRow(title: "分隔线") {
+                        Toggle("分隔线", isOn: boolBinding("CombinedModules_separator", true))
+                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    }
+                    if draft.bool("CombinedModules_separator", default: true) {
+                        SettingsRow(title: "分隔线颜色") {
+                            ColorKeyControl(value: stringBinding("CombinedModules_separatorColor", "monochrome"))
+                        }
                     }
                 }
             }
-        }
-    }
-
-    // MARK: - 一级：模块（二级 = 模块名，三级 = 形态/选项组）
-
-    private var modulesSection: some View {
-        SettingsSection("模块") {
-            VStack(spacing: 10) {
-                ForEach(modules, id: \.self) { module in
-                    moduleCard(module)
+            ForEach(draft.orderedModules, id: \.self) { module in moduleCard(module) }
+            SettingsGroupBox {
+                SettingsRow(title: "重新导入 Stats 配置", subtitle: "只替换当前草稿；保存后应用") {
+                    Button("重新导入") { draft.importStats() }.controlSize(.small)
                 }
             }
         }
     }
 
     private func moduleCard(_ module: String) -> some View {
-        let enabledForms = cachedEnabledForms[module] ?? []
-        let allForms = cachedAllForms[module] ?? []
-        let on = !enabledForms.isEmpty
-
-        return VStack(spacing: 0) {
-            // 二级标题：模块名 + 状态摘要 + 启用开关
+        let enabled = draft.forms(module)
+        let all = FSBarFormsForModule(module) as? [String] ?? []
+        let index = draft.orderedModules.firstIndex(of: module)!
+        return SettingsGroupBox {
             HStack(spacing: 8) {
-                Image(systemName: Self.moduleSymbol(module))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                Text(cachedModuleNames[module] ?? module)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(summary(module: module, forms: enabledForms))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Toggle("", isOn: enabledBinding(module: module, allForms: allForms, current: enabledForms))
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .controlSize(.small)
+                Label(FSBarModuleName(module) ?? module, systemImage: MonitorWidgetsPane.moduleSymbol(module))
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Button { draft.move(module, by: -1) } label: { Image(systemName: "arrow.up") }
+                    .disabled(index == 0).help("上移模块")
+                Button { draft.move(module, by: 1) } label: { Image(systemName: "arrow.down") }
+                    .disabled(index == draft.orderedModules.count - 1).help("下移模块")
+                Button("恢复默认") { draft.restoreModule(module) }.controlSize(.small)
+                Toggle("显示" + (FSBarModuleName(module) ?? module), isOn: Binding(
+                    get: { !draft.forms(module).isEmpty },
+                    set: { draft.setForms(module, $0 ? Array(all.prefix(1)) : []) }))
+                    .labelsHidden().toggleStyle(.switch).controlSize(.small)
             }
-            .padding(.horizontal, 14)
-            .frame(height: 42)
-
-            if on {
-                Divider().opacity(0.5)
-                VStack(alignment: .leading, spacing: 0) {
-                    // 形态多选（与引擎 FSBarEnabledForms 一致，可同时启用多个）
-                    optionRow("部件形态") {
-                        FlowHStack(spacing: 6, lineSpacing: 6) {
-                            ForEach(allForms, id: \.self) { form in
-                                formChip(module: module,
-                                         form: form,
-                                         active: enabledForms.contains(form),
-                                         allForms: allForms,
-                                         current: enabledForms)
+            if !enabled.isEmpty {
+                SettingsDivider()
+                FlowHStack(spacing: 6, lineSpacing: 6) {
+                    ForEach(all, id: \.self) { form in
+                        Toggle(FSBarFormName(form) ?? form, isOn: Binding(
+                            get: { draft.forms(module).contains(form) },
+                            set: { on in
+                                var next = draft.forms(module)
+                                if on { next.append(form) } else { next.removeAll { $0 == form } }
+                                draft.setForms(module, next)
+                            }))
+                            .toggleStyle(.checkbox).font(.system(size: 11))
+                    }
+                }
+                optionRow("更新间隔") {
+                    HStack {
+                        Slider(value: numberBinding(module + "_updateInterval", "1"), in: 1...60, step: 1)
+                            .frame(width: 130).accessibilityLabel("更新间隔")
+                        Text(draft.string(module + "_updateInterval", default: "1") + " 秒").monospacedDigit()
+                    }
+                }
+                if module == "Sensors" {
+                    optionRow("传感器") {
+                        Picker("传感器", selection: stringBinding("Sensors_sensor", "PPBR")) {
+                            ForEach(sensorKeys, id: \.self) { key in
+                                Text(StatsDataProvider.sensorDisplayName(key)).tag(key)
+                            }
+                        }.labelsHidden()
+                    }
+                }
+                ForEach(Array(enabled.enumerated()), id: \.element) { offset, form in
+                    HStack {
+                        Text(FSBarFormName(form) ?? form).font(.system(size: 11, weight: .semibold))
+                        Spacer()
+                        Button { draft.moveForm(module, form, by: -1) } label: { Image(systemName: "arrow.up") }
+                            .disabled(offset == 0).help("上移形态")
+                        Button { draft.moveForm(module, form, by: 1) } label: { Image(systemName: "arrow.down") }
+                            .disabled(offset == enabled.count - 1).help("下移形态")
+                    }.padding(.top, 6)
+                    ForEach(Array(MonitorWidgetsPane.optionGroups(module: module, form: form).enumerated()), id: \.offset) { _, group in
+                        ForEach(Array(group.options.enumerated()), id: \.offset) { _, spec in
+                            optionRow(spec.title) {
+                                optionControl(keyPrefix: module + "_" + form + "_", spec: spec)
+                                    .accessibilityLabel(spec.title)
                             }
                         }
                     }
-                    // v134：点击菜单 → 滑条（1–60 秒，60 档）
-                    optionRow("更新间隔") {
-                        HStack(spacing: 8) {
-                            Slider(value: intervalBinding(module), in: 1...60, step: 1)
-                                .frame(width: 130)
-                            Text("\(Int(intervalBinding(module).wrappedValue)) 秒")
-                                .font(.system(size: 11).monospacedDigit())
-                                .foregroundStyle(.secondary)
-                                .frame(width: 40, alignment: .trailing)
-                        }
-                    }
-                    if module == "Sensors" {
-                        optionRow("传感器") {
-                            // v129：选择器标签走中文名表（TPDA → 温度传感器（TPDA） 等），
-                            // tag 仍为原始键（配置持久化不变）
-                            Picker("", selection: sensorBinding(module)) {
-                                ForEach(sensorKeys(module), id: \.self) { key in
-                                    Text(StatsDataProvider.sensorDisplayName(key)).tag(key)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .labelsHidden()
-                            .fixedSize()
-                        }
-                    }
-
-                    // 每个启用形态的选项（三级标题 = 形态名）
-                    ForEach(enabledForms, id: \.self) { form in
-                        formOptionsBlock(module: module, form: form)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.top, 6)
-                .padding(.bottom, 12)
-            }
-        }
-        .glassCard(radius: Theme.cornerRadius)
-    }
-
-    private func formChip(module: String, form: String, active: Bool,
-                          allForms: [String], current: [String]) -> some View {
-        Button {
-            // 保持当前顺序（菜单栏顺序 = FSBarEnabledForms 顺序，与 Stats 拖拽排序语义一致），
-            // 新勾选的形态追加到末尾。
-            var next = current
-            if active { next.removeAll { $0 == form } }
-            else { next.append(form) }
-            FSBarSetEnabledForms(module, next)
-            FSBarReloadFromStore()
-            bump()
-        } label: {
-            HStack(spacing: 4) {
-                if let preview = FormPreviewCache.image(module: module, form: form) {
-                    Image(nsImage: preview)
-                        .resizable()
-                        .scaledToFit()
-                        // v132：11→14pt——配合引擎紧裁（去掉 pad 留白），
-                        // 有效图形面积约为原 11pt 全幅显示的 2 倍，且 2x 采样保清晰
-                        .frame(height: 14)
-                }
-                Text(cachedFormNames[form] ?? form)
-                    .font(.system(size: 11))
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule().fill(active ? Theme.accent.opacity(0.18)
-                                      : Color.primary.opacity(0.06))
-            )
-            .overlay(
-                Capsule().strokeBorder(active ? Theme.accent.opacity(0.55) : .clear,
-                                       lineWidth: 1)
-            )
-            .foregroundStyle(active ? Theme.accent : Color.primary)
-        }
-        .buttonStyle(.plain)
-        .help(cachedFormNames[form] ?? form)
-    }
-
-    @ViewBuilder
-    private func formOptionsBlock(module: String, form: String) -> some View {
-        let groups = Self.optionGroups(module: module, form: form)
-        if !groups.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(cachedFormNames[form] ?? form)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 8)
-                ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
-                    if !group.title.isEmpty {
-                        Text(group.title)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Theme.tertiaryText)
-                            .textCase(.uppercase)
-                            .padding(.top, 4)
-                    }
-                    ForEach(Array(group.options.enumerated()), id: \.offset) { _, spec in
-                        optionRow(spec.title) {
-                            optionControl(module: module, form: form, spec: spec)
-                        }
-                    }
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private func optionControl(module: String, form: String, spec: OptionSpec) -> some View {
-        switch spec.kind {
-        case .toggle(let key, let def):
-            Toggle("", isOn: boolBinding(module: module, form: form, key: key, def: def))
-                .toggleStyle(.checkbox)
-                .labelsHidden()
-        case .menu(let key, let items, let def):
-            Picker("", selection: stringBinding(module: module, form: form, key: key, def: def)) {
-                ForEach(items, id: \.0) { item in
-                    Text(item.1).tag(item.0)
-                }
-            }
-            .pickerStyle(.menu)
-            .labelsHidden()
-            .fixedSize()
-        case .slider(let key, let def, let min, let max, let step, let unit):
-            // v134：数值滑条（步进对齐后写回整数串；标签实时显示当前值）
-            HStack(spacing: 8) {
-                Slider(value: numericStringBinding(module: module, form: form, key: key, def: def, min: min, max: max, step: step),
-                       in: min...max, step: step)
-                    .frame(width: 130)
-                Text("\(numericValueText(module: module, form: form, key: key, def: def))\(unit)")
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, alignment: .trailing)
-            }
-        case .color(let key, let def):
-            ColorKeyControl(module: module, form: form, key: key, def: def) { bump() }
-        }
+    private var sensorKeys: [String] {
+        let selected = draft.string("Sensors_sensor", default: "PPBR")
+        return Array(Set((FSBarSensorKeysList() as? [String] ?? []) + [selected])).sorted()
     }
-
-    // MARK: - 一级：维护
-
-    private var maintenanceSection: some View {
-        SettingsSection("维护") {
-            SettingsGroupBox {
-                SettingsRow(title: "重新导入 Stats 配置",
-                           subtitle: "用 Stats 的偏好覆盖当前部件配置") {
-                    // 注意：这是从 eu.exelban.Stats 的偏好域直接读取，不是选文件
-                    Button("重新导入") { confirmReimport = true }
-                        .controlSize(.small)
-                }
-                SettingsDivider()
-                SettingsRow(title: "初始化所有设置",
-                           subtitle: "清空部件配置，恢复出厂默认") {
-                    Button("初始化") { confirmReset = true }
-                        .controlSize(.small)
-                }
-                SettingsDivider()
-                HStack {
-                    Text("配置与 Stats 共用 widgets.plist，两边改动互通。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(modules.count) 个模块")
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(Theme.tertiaryText)
-                }
-                .padding(.vertical, 6)
-            }
-        }
-    }
-
-    // MARK: - 行
-
-    private func optionRow<Control: View>(_ title: String,
-                                          @ViewBuilder control: () -> Control) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .frame(width: 96, alignment: .leading)
-            control()
+    private func optionRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 12) {
+            Text(title).font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 96, alignment: .leading)
+            content()
             Spacer(minLength: 0)
+        }.frame(minHeight: 26)
+    }
+    private func boolBinding(_ key: String, _ value: Bool) -> Binding<Bool> {
+        Binding(get: { draft.bool(key, default: value) }, set: { draft.configuration[key] = $0 })
+    }
+    private func stringBinding(_ key: String, _ value: String) -> Binding<String> {
+        Binding(get: { draft.string(key, default: value) }, set: { draft.configuration[key] = $0 })
+    }
+    private func numberBinding(_ key: String, _ value: String) -> Binding<Double> {
+        Binding(get: { Double(draft.string(key, default: value))! },
+                set: { draft.configuration[key] = String(format: "%.0f", $0) })
+    }
+    @ViewBuilder private func optionControl(keyPrefix: String, spec: OptionSpec) -> some View {
+        switch spec.kind {
+        case .toggle(let key, let value):
+            Toggle(spec.title, isOn: boolBinding(keyPrefix + key, value)).labelsHidden().toggleStyle(.checkbox)
+        case .menu(let key, let items, let value):
+            Picker(spec.title, selection: stringBinding(keyPrefix + key, value)) {
+                ForEach(items, id: \.0) { Text($0.1).tag($0.0) }
+            }.labelsHidden().fixedSize()
+        case .color(let key, let value):
+            ColorKeyControl(value: stringBinding(keyPrefix + key, value))
+        case .slider(let key, let value, let min, let max, let step, let unit):
+            HStack {
+                Slider(value: numberBinding(keyPrefix + key, value), in: min...max, step: step).frame(width: 130)
+                Text(draft.string(keyPrefix + key, default: value) + unit).monospacedDigit().frame(width: 50)
+            }
         }
-        .padding(.vertical, 3)
-        .frame(minHeight: 26)
-    }
-
-    // MARK: - 绑定
-
-    private var mergedBinding: Binding<Bool> {
-        Binding(get: { FSBarMergedEnabled() },
-                set: { on in
-                    FSBarGlobalSet("CombinedModules", NSNumber(value: on))
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    /// v134：部件间距滑条绑定（0–24pt、0.5 步进；存储仍为字符串，引擎 doubleValue 解析）
-    private var spacingSliderBinding: Binding<Double> {
-        Binding(get: { Self.spacingValueFromStore }, set: { value in
-            let s = String(format: "%.1f", value)
-            FSBarGlobalSet("Widgets_spacing", s)
-            FSBarGlobalSet("CombinedModules_spacing", s)   // 迁移兼容：旧读点同步
-            FSBarReloadFromStore()
-            bump()
-        })
-    }
-
-    private var spacingValueText: String {
-        let v = Self.spacingValueFromStore
-        return v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
-    }
-
-    private static var spacingValueFromStore: Double {
-        if let v = FSBarGlobalRaw("Widgets_spacing") as? String, !v.isEmpty, let d = Double(v) { return d }
-        if let v = FSBarGlobalRaw("CombinedModules_spacing") as? String, let d = Double(v) { return d }
-        return 2
-    }
-
-    private var separatorBinding: Binding<Bool> {
-        Binding(get: { FSBarMergedSeparator() },
-                set: { on in
-                    FSBarGlobalSet("CombinedModules_separator", NSNumber(value: on))
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    private func enabledBinding(module: String, allForms: [String], current: [String]) -> Binding<Bool> {
-        Binding(get: { !current.isEmpty },
-                set: { on in
-                    if on {
-                        let forms = current.isEmpty ? Array(allForms.prefix(1)) : current
-                        FSBarSetEnabledForms(module, forms)
-                    } else {
-                        FSBarSetEnabledForms(module, [])
-                    }
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    private func boolBinding(module: String, form: String, key: String, def: Bool) -> Binding<Bool> {
-        Binding(get: { FSBarCfgBool(module, form, key, def) },
-                set: { value in
-                    FSBarCfgSet(module, form, key, NSNumber(value: value))
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    private func stringBinding(module: String, form: String, key: String, def: String) -> Binding<String> {
-        Binding(get: { FSBarCfgStr(module, form, key, def) ?? def },
-                set: { value in
-                    FSBarCfgSet(module, form, key, value)
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    // MARK: v134：数值滑条绑定（存储为字符串的数值选项）
-
-    private func numericStringBinding(module: String, form: String, key: String, def: String,
-                                      min: Double, max: Double, step: Double) -> Binding<Double> {
-        Binding(get: {
-            let raw = FSBarCfgStr(module, form, key, def) ?? def
-            let v = Double(raw) ?? (Double(def) ?? min)
-            return Swift.min(max, Swift.max(min, v))
-        }, set: { value in
-            let aligned = (value / step).rounded() * step
-            FSBarCfgSet(module, form, key, String(format: "%.0f", aligned))
-            FSBarReloadFromStore()
-            bump()
-        })
-    }
-
-    private func numericValueText(module: String, form: String, key: String, def: String) -> String {
-        let raw = FSBarCfgStr(module, form, key, def) ?? def
-        let v = Double(raw) ?? (Double(def) ?? 0)
-        return v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
-    }
-
-    /// v134：更新间隔滑条绑定（1–60 秒；原 8 档菜单）
-    private func intervalBinding(_ module: String) -> Binding<Double> {
-        Binding(get: { Double(FSBarCfgInt(module, nil, "updateInterval", 1)) },
-                set: { value in
-                    FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: Int(value.rounded())))
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    private func sensorBinding(_ module: String) -> Binding<String> {
-        Binding(get: { FSBarCfgStr(module, nil, "sensor", "PPBR") ?? "PPBR" },
-                set: { value in
-                    FSBarCfgSet(module, nil, "sensor", value)
-                    FSBarReloadFromStore()
-                    bump()
-                })
-    }
-
-    private func sensorKeys(_ module: String) -> [String] {
-        let keys = FSBarSensorKeysList() ?? []
-        return keys.isEmpty ? ["PPBR"] : keys
-    }
-
-    private func summary(module: String, forms: [String]) -> String {
-        guard let first = forms.first else { return "未在菜单栏显示" }
-        let name = cachedFormNames[first] ?? first
-        let interval = FSBarCfgInt(module, nil, "updateInterval", 1)
-        let extra = forms.count > 1 ? " 等 \(forms.count) 种" : ""
-        return "\(name)\(extra) · 每 \(interval) 秒"
-    }
-
-    private func bump() {
-        reloadCache()
-        revision &+= 1
     }
 }
 
-// MARK: - 选项模型
+private struct MonitorWidgetsPreview: NSViewRepresentable {
+    let configuration: [String: Any]
+    let modules: [String]
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeNSView(context: Context) -> NSView {
+        FSBarCreateConfiguredPreview(modules, configuration, colorScheme == .dark)!
+    }
+    func updateNSView(_ view: NSView, context: Context) {
+        FSBarUpdateConfiguredPreview(view, modules, configuration, colorScheme == .dark)
+        view.invalidateIntrinsicContentSize()
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context: Context) -> CGSize? {
+        CGSize(width: nsView.frame.width, height: 22)
+    }
+    static func dismantleNSView(_ view: NSView, coordinator: ()) {
+        view.subviews.forEach { $0.removeFromSuperview() }
+    }
+}
 
 struct OptionSpec {
     enum Kind {
@@ -531,7 +301,7 @@ struct OptionSpec {
     static func menu(_ title: String, _ key: String, _ items: [(String, String)], _ def: String) -> OptionSpec {
         OptionSpec(title: title, kind: .menu(key: key, items: items, def: def))
     }
-    static func color(_ title: String, _ key: String, _ def: String = "system") -> OptionSpec {
+    static func color(_ title: String, _ key: String, _ def: String = "systemAccent") -> OptionSpec {
         OptionSpec(title: title, kind: .color(key: key, def: def))
     }
     /// v134：数值滑条（如 历史点数 10–120）
@@ -580,7 +350,7 @@ extension MonitorWidgetsPane {
         case "mini":
             return [OptionGroup(title: "外观", options: [
                 .toggle("标签", "label", module == "Sensors" || module == "Disk"),
-                .color("颜色", "color"),
+                .color("颜色", "color", "monochrome"),
                 .menu("对齐", "alignment", alignItems, "left")
             ])]
         case "line_chart":
@@ -621,8 +391,8 @@ extension MonitorWidgetsPane {
                     .toggle("反向顺序", "reversedOrder", false)
                 ]),
                 OptionGroup(title: "外观", options: [
-                    .color("下载颜色", "downloadColor"),
-                    .color("上传颜色", "uploadColor"),
+                    .color("下载颜色", "downloadColor", "secondBlue"),
+                    .color("上传颜色", "uploadColor", "secondRed"),
                     .menu("缩放", "scale", scaleItems, "none")
                 ]),
                 OptionGroup(title: "数据", options: [
@@ -649,8 +419,8 @@ extension MonitorWidgetsPane {
                 ]),
                 OptionGroup(title: "颜色", options: [
                     .toggle("单色强调", "monochrome", false),
-                    .color("下载颜色", "downloadColor"),
-                    .color("上传颜色", "uploadColor")
+                    .color("下载颜色", "downloadColor", "secondBlue"),
+                    .color("上传颜色", "uploadColor", "secondRed")
                 ])
             ]
         case "ring":
@@ -684,7 +454,7 @@ extension MonitorWidgetsPane {
             ])]
         case "memory":
             return [OptionGroup(title: "外观", options: [
-                .color("颜色", "color"),
+                .color("颜色", "color", "monochrome"),
                 .toggle("显示符号", "symbols", true),
                 .toggle("反向顺序", "orderReversed", false)
             ])]
@@ -695,7 +465,7 @@ extension MonitorWidgetsPane {
             ])]
         case "icon":
             return [OptionGroup(title: "图标", options: [
-                .menu("图标", "icon", iconSymbols, "cpu")
+                .menu("图标", "icon", iconSymbols, moduleSymbol(module))
             ])]
         default:
             return []   // label / state / run_cat 没有额外选项
@@ -719,13 +489,7 @@ extension MonitorWidgetsPane {
 // MARK: - 颜色选择（预设色键 + 自定义 hex）
 
 private struct ColorKeyControl: View {
-    let module: String
-    let form: String
-    let key: String
-    let def: String
-    let onChange: () -> Void
-
-    private var value: String { FSBarCfgStr(module, form, key, def) ?? def }
+    @Binding var value: String
 
     var body: some View {
         HStack(spacing: 6) {
@@ -734,7 +498,9 @@ private struct ColorKeyControl: View {
                     Button {
                         write(item.0)
                     } label: {
-                        if item.0 == value { Label(item.1, systemImage: "checkmark") }
+                        if item.0 == value || (item.0 == "system" && value == "systemAccent") {
+                            Label(item.1, systemImage: "checkmark")
+                        }
                         else { Text(item.1) }
                     }
                 }
@@ -756,7 +522,7 @@ private struct ColorKeyControl: View {
             .fixedSize()
 
             if value.hasPrefix("custom:") {
-                ColorPicker("", selection: customBinding)
+                ColorPicker("", selection: customBinding, supportsOpacity: false)
                     .labelsHidden()
                     .frame(width: 36)
             }
@@ -764,9 +530,7 @@ private struct ColorKeyControl: View {
     }
 
     private func write(_ newValue: String) {
-        FSBarCfgSet(module, form, key, newValue)
-        FSBarReloadFromStore()
-        onChange()
+        value = newValue
     }
 
     private var customBinding: Binding<Color> {
@@ -778,6 +542,7 @@ private struct ColorKeyControl: View {
     }
 
     private func displayName(_ v: String) -> String {
+        if v == "systemAccent" { return "强调色" }
         if v.hasPrefix("custom:") { return "自定义" }
         return Self.presets.first { $0.0 == v }?.1 ?? v
     }
@@ -787,7 +552,7 @@ private struct ColorKeyControl: View {
             return Self.color(hex: v.replacingOccurrences(of: "custom:", with: ""))
         }
         switch v {
-        case "system": return .accentColor
+        case "system", "systemAccent": return .accentColor
         case "monochrome": return .primary
         case "utilization", "pressure": return .gray
         case "clear": return .clear
@@ -843,24 +608,3 @@ private struct ColorKeyControl: View {
     ]
 }
 
-// MARK: - 形态预览缓存（引擎 FSBarRenderFormPreview 较贵，按 模块/形态/明暗 缓存）
-
-private enum FormPreviewCache {
-    // v128（内存）：无界字典改 NSCache——组合键是 模块/形态/明暗（7×~5×2 ≈ 70 量级），
-    // 单张预览是引擎渲染的位图，字典常驻不释放。上限 32 张足够覆盖可视区，
-    // 系统内存压力下自动淘汰。
-    private static let cache: NSCache<NSString, NSImage> = {
-        let cache = NSCache<NSString, NSImage>()
-        cache.countLimit = 32
-        return cache
-    }()
-
-    static func image(module: String, form: String) -> NSImage? {
-        let dark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let key = "\(module)/\(form)/\(dark ? "d" : "l")" as NSString
-        if let cached = cache.object(forKey: key) { return cached }
-        guard let image = FSBarRenderFormPreview(module, form, dark) else { return nil }
-        cache.setObject(image, forKey: key)
-        return image
-    }
-}

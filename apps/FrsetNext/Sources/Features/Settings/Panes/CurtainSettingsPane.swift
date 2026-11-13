@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 
 // MARK: - 图帘设置（对标 1Capture「拖放架 → 悬挂」）
 //
@@ -14,37 +15,89 @@ import AppKit
 
 public struct CurtainSettingsPane: View {
 
-    @Stored private var enabled: Bool
-    @Stored private var style: CurtainRopeStyle
-    @Stored private var duration: Double
-    @Stored private var maxCards: Double
-    @Stored private var cardWidth: Double
-    @Stored private var railScales: Bool
-    @Stored private var attachOnCapture: Bool
-    @Stored private var revealOnHover: Bool
-    @Stored private var showing: Bool
-    /// 快捷键录入后 self 不会自动刷新，用 revision 抖一下
-    @Stored private var revision = 0
+    public init() {}
 
-    public init() {
-        _enabled = Stored(wrappedValue: CurtainPref.enabled)
-        _style = Stored(wrappedValue: CurtainPref.ropeStyle)
-        _duration = Stored(wrappedValue: CurtainPref.displayDuration)
-        _maxCards = Stored(wrappedValue: Double(CurtainPref.maxCards))
-        _cardWidth = Stored(wrappedValue: Double(CurtainPref.cardWidth))
-        _railScales = Stored(wrappedValue: CurtainPref.railScalesWithCards)
-        _attachOnCapture = Stored(wrappedValue: CurtainPref.attachOnCapture)
-        _revealOnHover = Stored(wrappedValue: CurtainPref.revealOnHover)
-        // 不能在 View.init 里碰 @MainActor 单例，先给 false，onAppear 再同步真值
-        _showing = Stored(wrappedValue: false)
+    public var body: some View {
+        SettingsDraftEditor(id: "curtain", makeDraft: { CurtainSettingsDraft() }) { draft in
+            CurtainSettingsContent(draft: draft)
+        }
     }
+}
+
+final class CurtainSettingsDraft: SettingsEditableDraft {
+    struct Values: Equatable {
+        var enabled: Bool
+        var style: CurtainRopeStyle
+        var duration: Double
+        var maxCards: Double
+        var cardWidth: Double
+        var railScales: Bool
+        var attachOnCapture: Bool
+        var revealOnHover: Bool
+        var shortcutKey: UInt32?
+        var shortcutModifiers: UInt32
+
+        static var current: Values {
+            let binding = AppBootstrap.shortcutBinding(for: "curtainToggle")
+            return Values(enabled: CurtainPref.enabled, style: CurtainPref.ropeStyle,
+                duration: CurtainPref.displayDuration, maxCards: Double(CurtainPref.maxCards),
+                cardWidth: Double(CurtainPref.cardWidth), railScales: CurtainPref.railScalesWithCards,
+                attachOnCapture: CurtainPref.attachOnCapture, revealOnHover: CurtainPref.revealOnHover,
+                shortcutKey: binding?.keyCode, shortcutModifiers: binding?.modifiers ?? 0)
+        }
+    }
+
+    @Published var values = Values.current
+    private var saved = Values.current
+    var isDirty: Bool { values != saved }
+
+    func save() -> String? {
+        if values.shortcutKey != saved.shortcutKey || values.shortcutModifiers != saved.shortcutModifiers {
+            guard AppBootstrap.setShortcut("curtainToggle", keyCode: values.shortcutKey,
+                                           modifiers: values.shortcutModifiers) else {
+                return "图帘快捷键注册失败：组合键已被占用或系统拒绝注册"
+            }
+        }
+        let preferences = Preferences.shared
+        preferences.set(Preferences.Keys.curtainEnabled, values.enabled)
+        preferences.set(Preferences.Keys.curtainRopeStyle, values.style.rawValue)
+        preferences.set(Preferences.Keys.curtainDisplayDuration, values.duration)
+        preferences.set(Preferences.Keys.curtainMaxCards, Int(values.maxCards))
+        preferences.set(Preferences.Keys.curtainCardWidth, values.cardWidth)
+        preferences.set(Preferences.Keys.curtainRailScales, values.railScales)
+        preferences.set(Preferences.Keys.curtainAttachOnCapture, values.attachOnCapture)
+        preferences.set(Preferences.Keys.curtainRevealOnHover, values.revealOnHover)
+        // 所有字段写完才通知正式窗口与 Reveal，避免中途重排或唤出。
+        NotificationCenter.default.post(name: .curtainPreferencesChanged, object: nil)
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+
+    func discard() { values = saved }
+    func restoreDefaults() {
+        let shortcut = AppBootstrap.defaultHotkeys.first { $0.id == "curtainToggle" }!
+        values = Values(enabled: false, style: .classic, duration: 12, maxCards: 8, cardWidth: 140,
+                        railScales: true, attachOnCapture: true, revealOnHover: false,
+                        shortcutKey: shortcut.keyCode, shortcutModifiers: shortcut.modifiers)
+    }
+}
+
+private struct CurtainSettingsContent: View {
+    @ObservedObject var draft: CurtainSettingsDraft
+    private var enabled: Bool { draft.values.enabled }
+    private var style: CurtainRopeStyle {
+        get { draft.values.style }
+        nonmutating set { draft.values.style = newValue }
+    }
+    private var cardWidth: Double { draft.values.cardWidth }
 
     public var body: some View {
         VStack(spacing: 20) {
             masterSwitch
 
+            previewSection
             VStack(spacing: 20) {
-                previewSection
                 ropeSection
                 behaviorSection
             }
@@ -55,7 +108,6 @@ public struct CurtainSettingsPane: View {
         }
         .font(.system(size: 12))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear { showing = ImageCurtainController.shared.isShowing }
     }
 
     // MARK: 总开关
@@ -68,41 +120,21 @@ public struct CurtainSettingsPane: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("截图完成后，把图挂在屏幕顶边的帘线上暂存")
                             .font(.system(size: 12.5, weight: .medium))
-                        Text("关掉时不创建窗口、不占用任何内存；开着也要等第一张截图才会出现。")
+                        Text("开关与其他选项先在下方场景演示，保存后正式生效。")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 12)
-                    Toggle("", isOn: $enabled)
+                    Toggle("", isOn: $draft.values.enabled)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: enabled) { CurtainPref.enabled = $0 }
+
                 }
                 .padding(.vertical, 8)
 
-                if enabled {
-                    SettingsDivider()
-                    HStack(spacing: 10) {
-                        Text(attachOnCapture
-                             ? "下一张截图会自动挂上去"
-                             : "已关闭自动上架：截图不会自动出现，只能手动唤出")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 8)
-                        Button(showing ? "收起图帘" : "试一下") {
-                            ImageCurtainController.shared.toggle()
-                            showing = ImageCurtainController.shared.isShowing
-                        }
-                        .controlSize(.small)
-                        .disabled(ImageCurtainController.shared.items.isEmpty && !showing)
-                        .help(ImageCurtainController.shared.items.isEmpty
-                              ? "先截一张图，架子上有东西才能显示"
-                              : "显示或收起当前的图帘")
-                    }
-                    .padding(.vertical, 7)
-                }
+
             }
         }
     }
@@ -112,10 +144,10 @@ public struct CurtainSettingsPane: View {
     private var previewSection: some View {
         SettingsSection("预览") {
             SettingsGroupBox {
-                CurtainPreview(style: style, cardWidth: CGFloat(cardWidth))
-                    .frame(height: 168)
+                CurtainPreview(values: draft.values)
+                    .frame(height: 216)
                     .padding(.vertical, 4)
-                Text("卡片上方是夹子，踩着帘线；鼠标移上去会浮出保存 / 钉图 / 移除。按住 ⌘ 左右拖可以整条放大。")
+                Text("悬停展开正式卡片与按钮；场景内演示截图、唤出、收起和 ⌘ 缩放，按钮不写文件。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
@@ -136,7 +168,6 @@ public struct CurtainSettingsPane: View {
                                          selected: style == option,
                                          action: {
                                              style = option
-                                             CurtainPref.ropeStyle = option
                                          }) {
                             CurtainRopeThumb(style: option)
                         }
@@ -160,7 +191,7 @@ public struct CurtainSettingsPane: View {
         SettingsSection("行为") {
             SettingsGroupBox {
                 row("展示时长") {
-                    Picker("", selection: $duration) {
+                    Picker("", selection: $draft.values.duration) {
                         Text("5 秒").tag(5.0)
                         Text("8 秒").tag(8.0)
                         Text("12 秒").tag(12.0)
@@ -169,7 +200,6 @@ public struct CurtainSettingsPane: View {
                     }
                     .labelsHidden()
                     .frame(width: 130)
-                    .onChange(of: duration) { CurtainPref.displayDuration = $0 }
                     Text("到时只是收起，内容还在")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -177,14 +207,13 @@ public struct CurtainSettingsPane: View {
 
                 SettingsDivider()
                 row("最多挂") {
-                    Picker("", selection: $maxCards) {
-                        ForEach([4.0, 6.0, 8.0, 12.0], id: \.self) { value in
+                    Picker("", selection: $draft.values.maxCards) {
+                        ForEach((1...20).map { Double($0) }, id: \.self) { value in
                             Text("\(Int(value)) 张").tag(value)
                         }
                     }
                     .labelsHidden()
                     .frame(width: 110)
-                    .onChange(of: maxCards) { CurtainPref.maxCards = Int($0) }
                     Text("超出时从最旧的开始挤掉（不删文件）")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -192,9 +221,8 @@ public struct CurtainSettingsPane: View {
 
                 SettingsDivider()
                 row("卡片宽度") {
-                    Slider(value: $cardWidth, in: 72...420, step: 4)
+                    Slider(value: $draft.values.cardWidth, in: 72...420, step: 4)
                         .frame(width: 200)
-                        .onChange(of: cardWidth) { CurtainPref.cardWidth = CGFloat($0) }
                     Text("\(Int(cardWidth)) pt")
                         .font(.system(size: 11.5).monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -207,11 +235,10 @@ public struct CurtainSettingsPane: View {
 
                 SettingsDivider()
                 row("帘线缩放") {
-                    Toggle("", isOn: $railScales)
+                    Toggle("", isOn: $draft.values.railScales)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: railScales) { CurtainPref.railScalesWithCards = $0 }
                     Text("开着时卡片变大、帘线/夹子/绳结一起变粗；关掉只放大图片")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -220,16 +247,16 @@ public struct CurtainSettingsPane: View {
                 SettingsDivider()
                 row("快捷键") {
                     ShortcutRecorderButton(
-                        display: AppBootstrap.shortcutBinding(for: "curtainToggle").map {
-                            ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
+                        display: draft.values.shortcutKey.map {
+                            ShortcutManager.display(keyCode: $0, modifiers: draft.values.shortcutModifiers)
                         },
                         onCapture: { code, modifiers in
-                            _ = AppBootstrap.setShortcut("curtainToggle", keyCode: code, modifiers: modifiers)
-                            revision += 1
+                            draft.values.shortcutKey = code
+                            draft.values.shortcutModifiers = modifiers
                         },
                         onClear: {
-                            _ = AppBootstrap.setShortcut("curtainToggle", keyCode: nil)
-                            revision += 1
+                            draft.values.shortcutKey = nil
+                            draft.values.shortcutModifiers = 0
                         })
                         .frame(width: 160)
                     Text("随时展开 / 收起图帘")
@@ -239,11 +266,10 @@ public struct CurtainSettingsPane: View {
 
                 SettingsDivider()
                 row("自动上架") {
-                    Toggle("", isOn: $attachOnCapture)
+                    Toggle("", isOn: $draft.values.attachOnCapture)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: attachOnCapture) { CurtainPref.attachOnCapture = $0 }
                     Text("关掉后只能用菜单「显示图帘」或快捷键手动唤出")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -251,11 +277,10 @@ public struct CurtainSettingsPane: View {
 
                 SettingsDivider()
                 row("悬停唤出") {
-                    Toggle("", isOn: $revealOnHover)
+                    Toggle("", isOn: $draft.values.revealOnHover)
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .onChange(of: revealOnHover) { CurtainPref.revealOnHover = $0 }
                     Text("鼠标移到屏幕顶边（菜单栏下沿 5pt）自动展开，移开 0.8 秒后收起")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -291,195 +316,24 @@ public struct CurtainSettingsPane: View {
     }
 }
 
-// MARK: - 预览（绳子 + 两张卡）
+// 直接嵌入正式画布，不创建图帘窗口或 Reveal。
+private struct CurtainPreview: NSViewRepresentable {
+    var values: CurtainSettingsDraft.Values
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-private struct CurtainPreview: View {
+    func makeNSView(context: Context) -> CurtainPreviewScene { CurtainPreviewScene() }
+    func updateNSView(_ view: CurtainPreviewScene, context: Context) {
+        view.update(values: values, reduceMotion: reduceMotion, reduceTransparency: reduceTransparency)
+    }
+    static func dismantleNSView(_ view: CurtainPreviewScene, coordinator: ()) { view.stop() }
+}
+
+private struct CurtainRopeThumb: NSViewRepresentable {
     var style: CurtainRopeStyle
-    var cardWidth: CGFloat
-
-    var body: some View {
-        GeometryReader { geo in
-            let scale = min(1, (geo.size.width - 40) / (cardWidth * 2 + 16 + 32))
-            let cw = max(64, cardWidth * scale)
-            let ch = cw * 0.62
-
-            ZStack(alignment: .top) {
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(white: 0.30), Color(white: 0.18)],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    ZStack(alignment: .top) {
-                        CurtainRopeSample(style: style)
-                            .frame(width: cw * 2 + 16 + 44, height: 20)
-                            .offset(y: 6)
-                        HStack(spacing: 16) {
-                            CurtainCardMock(width: cw, height: ch)
-                            CurtainCardMock(width: cw, height: ch)
-                        }
-                        .padding(.top, 2)
-                    }
-                    .frame(height: ch + 26, alignment: .top)
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 12)
-            }
-        }
-    }
-}
-
-private struct CurtainCardMock: View {
-    var width: CGFloat
-    var height: CGFloat
-
-    /// 与 `CurtainMetrics.cornerRadius(for:)` 同一公式，预览才不会和真卡片长得不一样
-    private var mockRadius: CGFloat { min(max(width * 0.09, 8), 18) }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            CurtainClip()
-                .frame(width: 10, height: 13)
-            ZStack {
-                RoundedRectangle(cornerRadius: mockRadius, style: .continuous)
-                    .fill(Color(white: 0.97))
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(0..<4, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.black.opacity(0.10))
-                            .frame(width: width * CGFloat([0.56, 0.40, 0.48, 0.30][i]), height: 2.5)
-                    }
-                }
-                .padding(.horizontal, 7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(width: width, height: height)
-            .overlay(RoundedRectangle(cornerRadius: mockRadius, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.4), radius: 5, y: 2)
-        }
-    }
-}
-
-private struct CurtainClip: View {
-    var body: some View {
-        GeometryReader { geo in
-            Path { p in
-                let w = geo.size.width, h = geo.size.height
-                p.move(to: CGPoint(x: 1, y: 0))
-                p.addLine(to: CGPoint(x: w - 1, y: 0))
-                p.addLine(to: CGPoint(x: w, y: h))
-                p.addLine(to: CGPoint(x: 0, y: h))
-                p.closeSubpath()
-            }
-            .fill(Color(white: 0.66))
-        }
-    }
-}
-
-// MARK: - 单个绳子样式缩略
-
-private struct CurtainRopeThumb: View {
-    var style: CurtainRopeStyle
-
-    var body: some View {
-        ZStack {
-            Color(white: 0.22)
-            VStack(spacing: 0) {
-                CurtainRopeSample(style: style, sag: 7)
-                    .frame(height: 14)
-                    .padding(.horizontal, 10)
-                Spacer(minLength: 0)
-            }
-            .padding(.top, 10)
-        }
-    }
-}
-
-// MARK: - 绳子（设置页里的矢量预览，和窗口里的绘制同源同参数）
-
-private struct CurtainRopeSample: View {
-    var style: CurtainRopeStyle
-    var sag: CGFloat = 8
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                CurtainRopeShape(sag: sag)
-                    .stroke(strokeColor, style: strokeStyle)
-
-                if style == .candyCane {
-                    // 红白相间：白底上叠红色虚线，跟窗口里同一套画法
-                    CurtainRopeShape(sag: sag)
-                        .stroke(Color(red: 0.86, green: 0.03, blue: 0.16),
-                                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round,
-                                                   dash: [3.2, 3.2]))
-                }
-                if style == .lights {
-                    ForEach(0..<8, id: \.self) { i in
-                        let t = (CGFloat(i) + 0.5) / 8
-                        let p = point(at: t, size: geo.size)
-                        Circle()
-                            .fill(lampColors[i % lampColors.count])
-                            .frame(width: 4, height: 4)
-                            .position(p)
-                    }
-                }
-                if style == .snow {
-                    ForEach(0..<26, id: \.self) { i in
-                        let t = CGFloat(i) / 26
-                        let p = point(at: t, size: geo.size)
-                        Circle()
-                            .fill(Color.white.opacity(0.85))
-                            .frame(width: 2.4, height: 2.4)
-                            .position(x: p.x, y: p.y - 1.4)
-                    }
-                }
-            }
-        }
-    }
-
-    private var strokeColor: Color {
-        style == .snow ? Color.white.opacity(0.80) : Color.white.opacity(0.74)
-    }
-
-    private var lineWidth: CGFloat {
-        switch style {
-        case .classic:   return 2.0
-        case .candyCane: return 3.0
-        case .lights:    return 1.4
-        case .snow:      return 2.0
-        }
-    }
-
-    private var strokeStyle: StrokeStyle {
-        StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-    }
-
-    private var lampColors: [Color] {
-        [.yellow, .pink, .teal, .orange]
-    }
-
-    /// 三次贝塞尔取点：y = y0 + 3·sag·t·(1−t)
-    private func point(at t: CGFloat, size: CGSize) -> CGPoint {
-        let y0: CGFloat = 3
-        let y = y0 + 3 * sag * t * (1 - t)
-        return CGPoint(x: 2 + (size.width - 4) * t, y: y)
-    }
-}
-
-private struct CurtainRopeShape: Shape {
-    var sag: CGFloat
-
-    /// 与窗口里的绘制同源：三次贝塞尔、控制点在 1/3 与 2/3。
-    /// 用二次贝塞尔会在中间顶出一个尖，跟真绳差得远。
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let y0: CGFloat = 3
-        let w = rect.width - 4
-        path.move(to: CGPoint(x: 2, y: y0))
-        path.addCurve(to: CGPoint(x: 2 + w, y: y0),
-                      control1: CGPoint(x: 2 + w / 3, y: y0 + sag),
-                      control2: CGPoint(x: 2 + w * 2 / 3, y: y0 + sag))
-        return path
+    func makeNSView(context: Context) -> CurtainRopeView { CurtainRopeView(frame: .zero) }
+    func updateNSView(_ view: CurtainRopeView, context: Context) {
+        view.style = style
+        view.geometry = nil
     }
 }

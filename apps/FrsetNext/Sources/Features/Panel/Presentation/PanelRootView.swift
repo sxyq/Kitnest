@@ -45,6 +45,11 @@ struct PanelRootView: View {
     @Stored private var isShowingTagSheet = false
     /// 底部工具条的搜索框展开态（点击放大镜展开）
     @Stored private var isSearchExpanded = false
+    @Stored private var previewPage: PanelCenterPage = .home
+    @Stored private var previewFilter = ClipboardFilterKind.all
+    @Stored private var previewSearch = ""
+    @Stored private var previewFeedback = ""
+    @Stored private var previewPinned = false
     /// 「文件中转」分段作为放置目标（文件拖到分段上即存本地中转）
     @Stored private var transferTabTargeted = false
     /// 底部搜索框焦点
@@ -77,7 +82,7 @@ struct PanelRootView: View {
     @Stored private var showsTransferLogin = false
     @Stored private var pendingCloudURLs: [URL] = []
 
-    private var page: PanelCenterPage { isSettingsPreview ? .home : monitorPresenter.activePage }
+    private var page: PanelCenterPage { isSettingsPreview ? previewPage : monitorPresenter.activePage }
 
     /// 顶部实际出现的页面（顺序 = 设置里拖拽的顺序，过滤掉关掉的）
     private var enabledPages: [PanelCenterPage] {
@@ -139,7 +144,7 @@ struct PanelRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // 底部悬浮工具条（官方原版主页，2026-10-18 补齐）：仅主页显示
         .overlay(alignment: .bottom) {
-            if page == .home {
+            if activePage == .home {
                 bottomToolbar
                     .padding(.bottom, 14)
             }
@@ -148,6 +153,7 @@ struct PanelRootView: View {
             TagManagementSheet()
         }
         .onReceive(NotificationCenter.default.publisher(for: .clipboardSelectionChanged)) { note in
+            if isSettingsPreview { return }
             selectedClipboardItem = note.object as? ClipboardItem
         }
         // v197（用户「从一个点扩散成一个面，从哪来回哪去」）：开合动画整体挪到
@@ -179,6 +185,13 @@ struct PanelRootView: View {
         // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
         .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
+        .overlay(alignment: .bottom) {
+            if isSettingsPreview, !previewFeedback.isEmpty {
+                Text(previewFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
+                    .padding(6).background(theme.cardFill, in: Capsule())
+                    .padding(.bottom, 58).allowsHitTesting(false)
+            }
+        }
         // v206：JSON 检视器独立窗已删除 → 面板不再接收「拖 .json 开窗」的拖放
         .background {
             // 背景图保留原图；所有外观都继续叠同一通透度底衬与霜感。
@@ -225,6 +238,7 @@ struct PanelRootView: View {
         // 面板显示后自动弹预览，用于无鼠标环境验证 Markdown 目录侧栏 / 图片预览 / OCR 文本行。
         // 注意挂在「面板可见」上而不是 onAppear：popover 挂在面板窗口上，面板没显示时弹了也看不见。
         .onChange(of: presentation.visible) { visible in
+            if isSettingsPreview { return }
             guard visible else { return }
             let mode = ProcessInfo.processInfo.environment["FRSET_PREVIEW_PROBE"]
                 ?? (UserDefaults.standard.string(forKey: "probe.preview"))
@@ -362,6 +376,7 @@ struct PanelRootView: View {
                 captureAction
                 captureButton("eyedropper", title: "取色 ⌥C", mode: .color)
                 Button {
+                    if isSettingsPreview { previewFeedback = "浮动窗入口演示"; return }
                     onDismiss()
                     FloatingClipboardWindowController.shared.toggle()
                 } label: {
@@ -384,6 +399,11 @@ struct PanelRootView: View {
             // 设置 ⌘, / 使用统计 / ─ / 退出 ⌘Q
             // v85（2026-10-20 用户要求）：移除「功能建议」入口
             Menu {
+                if isSettingsPreview {
+                    Toggle("置顶窗口", isOn: $previewPinned)
+                    Button("悬浮剪贴板") { previewFeedback = "浮动窗入口演示" }
+                    Button("设置") { previewFeedback = "这里只调整模拟场景" }
+                } else {
                 Toggle("置顶窗口", isOn: Binding(
                     get: { PanelController.shared.isPinned },
                     set: { PanelController.shared.isPinned = $0 }
@@ -409,6 +429,7 @@ struct PanelRootView: View {
                 Divider()
                 Button("退出") { NSApp.terminate(nil) }
                     .keyboardShortcut("q", modifiers: .command)
+                }
             } label: {
                 Image(systemName: "gearshape")
                     .font(.scaledSystem(size: 14, scale: personalization.fontScale))
@@ -437,7 +458,7 @@ struct PanelRootView: View {
         HStack(spacing: 0) {
             ForEach(enabledPages, id: \.self) { item in
                 if item == .transfer {
-                    segmentItem(PanelSegments.title(item), selected: page == item) {
+                    segmentItem(PanelSegments.title(item), selected: activePage == item) {
                         selectPage(item)
                     }
                     // 拖文件到「文件中转」分段 = 存进本地中转（硬链接，不复制数据）
@@ -454,7 +475,7 @@ struct PanelRootView: View {
                     }
                     .help("文件中转：拖文件到这里存进本地中转（硬链接）")
                 } else {
-                    segmentItem(PanelSegments.title(item), selected: page == item) {
+                    segmentItem(PanelSegments.title(item), selected: activePage == item) {
                         selectPage(item)
                     }
                     .help(segmentHelp(item))
@@ -474,6 +495,7 @@ struct PanelRootView: View {
     }
 
     private func selectPage(_ page: PanelCenterPage) {
+        if isSettingsPreview { previewPage = page; return }
         switch page {
         case .home:        monitorPresenter.selectHome()
         case .performance: monitorPresenter.selectPerformance()
@@ -484,6 +506,7 @@ struct PanelRootView: View {
 
     /// 文件拖到「文件中转」分段：进本地中转 + 切到中转页 + 轻提示
     private func dropToLocalTransfer(_ providers: [NSItemProvider]) -> Bool {
+        if isSettingsPreview { return false }
         let group = DispatchGroup()
         var urls: [URL] = []
         let lock = NSLock()
@@ -585,6 +608,7 @@ struct PanelRootView: View {
 
     /// 统一「先收面板再执行」——截图/录屏类动作需要面板让位给选区覆盖层
     private func runCapture(_ action: @escaping () -> Void) {
+        if isSettingsPreview { previewFeedback = "截图入口演示"; return }
         PanelController.shared.hide(completion: action)
     }
 
@@ -604,7 +628,7 @@ struct PanelRootView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.scaledSystem(size: 11, scale: personalization.fontScale))
                         .foregroundStyle(.secondary)
-                    TextField("搜索剪贴板", text: $clipboard.searchText)
+                    TextField("搜索剪贴板", text: isSettingsPreview ? $previewSearch : $clipboard.searchText)
                         .textFieldStyle(.plain)
                         .font(.scaledSystem(size: 12, scale: personalization.fontScale))
                         .frame(width: 168)
@@ -625,7 +649,7 @@ struct PanelRootView: View {
                 .transition(.opacity.combined(with: .move(edge: .leading)))
             } else {
                 toolbarIcon("magnifyingglass", help: "搜索") {
-                    withAnimation(Theme.Motion.spring) {
+                    withAnimation(PanelMotion.animation(Theme.Motion.spring)) {
                         isSearchExpanded = true
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { bottomSearchFocused = true }
@@ -635,9 +659,10 @@ struct PanelRootView: View {
             Menu {
                 ForEach(ClipboardFilterKind.allCases) { kind in
                     Button {
-                        ClipboardManager.shared.filter = kind
+                        if isSettingsPreview { previewFilter = kind }
+                        else { ClipboardManager.shared.filter = kind }
                     } label: {
-                        if ClipboardManager.shared.filter == kind {
+                        if (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == kind {
                             Label(kind.label, systemImage: "checkmark")
                         } else {
                             Text(kind.label)
@@ -650,7 +675,7 @@ struct PanelRootView: View {
                     .frame(width: 26, height: 26)
                     // v153：只有「筛选生效」时才用强调色。旧版无条件染蓝，
                     // 让用户以为一直有个筛选在起作用（状态色被当成装饰色）。
-                    .foregroundStyle(ClipboardManager.shared.filter == .all
+                    .foregroundStyle((isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .all
                                      ? Color.secondary : theme.accent)
                     .contentShape(Rectangle())
             }
@@ -661,13 +686,15 @@ struct PanelRootView: View {
             .accessibilityLabel("分类筛选")
 
             toolbarIcon("tag", help: "标签") {
-                isShowingTagSheet = true
+                if isSettingsPreview { previewFeedback = "标签入口演示" }
+                else { isShowingTagSheet = true }
             }
             // v102（2026-10-21 用户：「向上箭头功能应该是回到顶部」）：
             // 按钮此前误做成「上传」占位（只弹提示，用户感知为点击无效）。
             // 改为回到顶部：平滑滚回剪贴板列表顶端（FilterBar_ScrollToTop 语义）。
             toolbarIcon("arrow.up", help: "回到顶部") {
-                NotificationCenter.default.post(name: .frsetClipboardScrollTop, object: nil)
+                if isSettingsPreview { previewSearch = ""; previewFilter = .all }
+                else { NotificationCenter.default.post(name: .frsetClipboardScrollTop, object: nil) }
             }
         }
         .padding(.horizontal, 12)
@@ -697,8 +724,11 @@ struct PanelRootView: View {
 
     private func closeBottomSearch(clear: Bool = true) {
         bottomSearchFocused = false
-        if clear { clipboard.searchText = "" }
-        withAnimation(Theme.Motion.spring) {
+        if clear {
+            if isSettingsPreview { previewSearch = "" }
+            else { clipboard.searchText = "" }
+        }
+        withAnimation(PanelMotion.animation(Theme.Motion.spring)) {
             isSearchExpanded = false
         }
     }
@@ -720,6 +750,7 @@ struct PanelRootView: View {
 
     private func captureButton(_ symbol: String, title: String, mode: CaptureMode) -> some View {
         Button {
+            if isSettingsPreview { previewFeedback = "\(title)入口演示"; return }
             onDismiss()
             CaptureModule.capture(mode)
         } label: {
@@ -761,7 +792,10 @@ struct PanelRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .onAppear { Log.info("Panel", "四个页面全部关闭：未创建任何页面视图") }
             } else if activePage == .home {
-                homePage.transition(PanelMotion.transition(.opacity))
+                homePage
+                    .environment(\.settingsPreviewClipboardFilter, previewFilter)
+                    .environment(\.settingsPreviewClipboardQuery, previewSearch)
+                    .transition(PanelMotion.transition(.opacity))
             } else if activePage == .performance {
                 // 第二页：性能监测——与独立窗**同一个容器**（MonitorPerformanceContent：
                 // 同一选中态、同一内外边距、同一滚动策略）。v82（2026-10-19）：外层

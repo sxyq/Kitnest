@@ -94,10 +94,12 @@ private struct PreviewRichTextView: View {
 /// 可回源复制的预览文本视图（v87）：⌘C 把选区按「渲染↔源」映射回 Markdown 源文本。
 /// 渲染后的正文丢了 `#`、表格竖线等标记，直接复制与纯文本预览「复制即源文」的口径不一致。
 final class PreviewSourceTextView: NSTextView {
+    var isSettingsPreview = false
     var sourceText: String?
     var sourceSegments: [(rendered: NSRange, source: NSRange)]?
 
     override func copy(_ sender: Any?) {
+        if isSettingsPreview { return }
         let sel = selectedRange()
         guard sel.length > 0,
               let source = sourceText as NSString?,
@@ -133,6 +135,7 @@ final class PreviewSourceTextView: NSTextView {
 }
 
 struct PreviewTextViewRepresentable: NSViewRepresentable {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     var attributedText: NSAttributedString
     var monospaced: Bool = false
     var showsLineNumbers: Bool = false
@@ -149,6 +152,7 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = PreviewSourceTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        textView.isSettingsPreview = isSettingsPreview
         textView.sourceText = sourceText
         textView.sourceSegments = sourceSegments
         textView.isEditable = false
@@ -214,6 +218,7 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
         context.coordinator.onScroll = onScrollOffsetChanged
         guard let textView = scrollView.documentView as? NSTextView else { return }
         if let sourceView = textView as? PreviewSourceTextView {
+            sourceView.isSettingsPreview = isSettingsPreview
             sourceView.sourceText = sourceText
             sourceView.sourceSegments = sourceSegments
         }
@@ -262,6 +267,7 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
                 return true
             }
             if url.scheme == "http" || url.scheme == "https" {
+                if (textView as? PreviewSourceTextView)?.isSettingsPreview == true { return true }
                 NSWorkspace.shared.open(url)
                 return true
             }
@@ -687,6 +693,8 @@ struct PreviewCodeTextView: View {
 // MARK: - 态 6：图片（F12 缩略→大图重建 / F13 QR 头尾高度分支）
 
 struct PreviewImageView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.settingsPreviewImage) private var previewImage
     let model: PreviewPopoverContentModel
     @Stored private var thumbnail: NSImage?
     @Stored private var fullImage: NSImage?
@@ -802,6 +810,7 @@ struct PreviewImageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: model.item.dedupeKey) {
             await loadImages()
+            if isSettingsPreview { return }
             let raw = PreviewPopoverDataBridge.shared.ocrText(for: model.item) ?? ""
             ocrText = raw
             tidiedOCR = OCRTextTidy.tidy(raw)
@@ -866,6 +875,7 @@ struct PreviewImageView: View {
     }
 
     private func copyOCR() {
+        if isSettingsPreview { ocrError = "复制效果演示，不写入剪贴板"; return }
         let text = ocrText
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents()
@@ -875,6 +885,11 @@ struct PreviewImageView: View {
 
     /// 现算/重算 OCR：走「设置 → 截图 → 文字识别」指定的引擎，结果回写缓存
     private func recognizeNow() {
+        if isSettingsPreview {
+            ocrText = "山间日落 · 固定图片"
+            tidiedOCR = ocrText
+            return
+        }
         guard let path = model.item.imagePath else {
             ocrError = "读不到图片文件"
             return
@@ -920,6 +935,7 @@ struct PreviewImageView: View {
     /// 当前图片交给标注编辑器。跨模块走通知（Panel 不直接引用 Capture 类型）：
     /// 关预览 → 发 frset.clipboard.editImage → Capture 模块用标注编辑器打开。
     private func editImage() {
+        if isSettingsPreview { ocrError = "标注入口演示，不打开正式窗口"; return }
         guard let image = displayImage else {
             Log.info("panel.preview", "标注：没有可编辑的图片")
             return
@@ -934,6 +950,7 @@ struct PreviewImageView: View {
 
     @MainActor
     private func loadImages() async {
+        if isSettingsPreview { fullImage = previewImage; needsFullRebuild = false; return }
         guard let fullPath = model.item.imagePath else {
             didFailToLoad = true
             return
@@ -972,6 +989,8 @@ struct PreviewImageView: View {
 // MARK: - 态 7：文件
 
 struct PreviewFileView: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Stored private var previewFeedback = ""
     let model: PreviewPopoverContentModel
 
     private var paths: [String] {
@@ -1003,11 +1022,13 @@ struct PreviewFileView: View {
                 HStack(spacing: 6) {
                     // 快速查看：Word/PPT 可翻页看全文（系统 QuickLook）
                     Button("快速查看") {
+                        if isSettingsPreview { previewFeedback = "快速查看入口演示"; return }
                         QuickLookPresenter.shared.show(URL(fileURLWithPath: path))
                     }
                     .controlSize(.mini)
                     if isArchivePath(path) {
                         Button("编辑归档") {
+                            if isSettingsPreview { previewFeedback = "归档入口演示"; return }
                             ArchiveBrowserWindowController.show(url: URL(fileURLWithPath: path))
                         }
                         .controlSize(.mini)
@@ -1026,7 +1047,7 @@ struct PreviewFileView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(paths, id: \.self) { path in
                 VStack(alignment: .leading, spacing: 6) {
-                    if paths.count == 1, isDocumentPath(path) {
+                    if !isSettingsPreview, paths.count == 1, isDocumentPath(path) {
                         // v171（用户：「预览要有相关的内容」）：单文档改成**整宽大画面**。
                         // 原来塞在 260×260 的方格里，QLPreviewView 是按 100% 排版渲染的，
                         // 小方格里只能看到标题左上角一小块；铺满预览窗宽度后
@@ -1047,7 +1068,7 @@ struct PreviewFileView: View {
                             // v121：压缩包**不再放大图**（ZIP 图标本身没信息量），
                             //       把横向空间让给下面的内部条目网格。
                             PreviewFileThumb(path: path,
-                                             size: isArchivePath(path) ? 72
+                                             size: isSettingsPreview || isArchivePath(path) ? 72
                                                   : (paths.count == 1 ? 260 : 44))
                             fileInfo(path)
                             Spacer(minLength: 0)
@@ -1055,7 +1076,7 @@ struct PreviewFileView: View {
                     }
                     // v121（用户要求）：压缩包内条目 → **图标网格**，
                     // 每个文件用自己类型的系统图标（Word/PPT/图片/APK…）
-                    if isArchivePath(path) {
+                    if !isSettingsPreview, isArchivePath(path) {
                         ArchivePeekView(path: path)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         HStack(spacing: 6) {
@@ -1082,12 +1103,16 @@ struct PreviewFileView: View {
             if !paths.isEmpty {
                 HStack(spacing: 6) {
                     Button(paths.count > 1 ? "压缩所选 \(paths.count) 项…" : "压缩…") {
+                        if isSettingsPreview { previewFeedback = "压缩入口演示，不操作文件"; return }
                         ArchiveCreateWindowController.show(
                             files: paths.map { URL(fileURLWithPath: $0) })
                     }
                     .controlSize(.mini)
                     Spacer(minLength: 0)
                 }
+            }
+            if !previewFeedback.isEmpty {
+                Text(previewFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
         // v121：只吃满宽度、不吃满高度——让内容按自身高度参与窗口拟合
@@ -1200,6 +1225,7 @@ struct DocumentInlinePreview: NSViewRepresentable {
 
 /// 缩略图视图：先图标、异步解码后替换（缓存命中即时）
 private struct PreviewFileThumb: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     let path: String
     let size: CGFloat
     @Stored private var image: NSImage?
@@ -1210,6 +1236,7 @@ private struct PreviewFileThumb: View {
     /// 于是预览框里永远是一张 Word 图标；QLPreviewView 走的是「预览」通道，
     /// 能把 docx/pptx/xlsx/pages/key 等真实排版渲染出来（实测 docx 封面/表格/目录完整）。
     private var inlineDocument: Bool {
+        if isSettingsPreview { return false }
         guard size >= 120 else { return false }       // 多选时的小格子仍用图标，避免起一堆渲染器
         return DocumentInlinePreview.supportedExtensions.contains(
             URL(fileURLWithPath: path).pathExtension.lowercased())
@@ -1230,7 +1257,7 @@ private struct PreviewFileThumb: View {
         }
         .frame(width: size, height: size)
         .glassCard(radius: 6)
-        .onAppear { if !inlineDocument { load() } }
+        .onAppear { if !isSettingsPreview && !inlineDocument { load() } }
     }
 
     private func load() {

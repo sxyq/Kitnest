@@ -791,6 +791,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             hoveredRowView = rowView(at: row)
             hoveredRowView?.setHovered(true)
             // 悬停预览调度（specs/12 F1：open/close WorkItem + hover-intent 由协调器仲裁）
+            guard owner.personalization.hoverPreviewEnabled else { return }
             ServiceLocator.panelPreview?.rowHover(
                 true, item: item,
                 anchorRectProvider: { [weak hoveredRowView] in
