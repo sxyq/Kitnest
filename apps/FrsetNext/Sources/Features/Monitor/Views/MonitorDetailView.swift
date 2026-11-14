@@ -230,34 +230,67 @@ private struct MonitorDetailContent: View {
     // MARK: - 功耗（整机与芯片分开，不重复累加上下级传感器）
 
     private var powerPanel: some View {
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                powerMetric("整机功耗", watts: sample.powerWatts, symbol: "bolt.fill", prominent: true)
-                if let input = sample.inputPowerWatts {
-                    powerMetric("适配器输入", watts: input, symbol: "powerplug.fill", prominent: true)
+        let sensors = stats.sensors.filter { $0.category == 4 }
+        return VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                        .frame(width: 48, height: 48)
+                        .background(Theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("整机当前功耗").font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text(sample.powerWatts.map(MonitorFormat.power) ?? "—")
+                            .font(.system(size: 30, weight: .semibold).monospacedDigit())
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .accessibilityElement(children: .combine)
+                Divider().opacity(0.5)
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Label("适配器输入", systemImage: "powerplug.fill")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    Spacer(minLength: 4)
+                    Text(sample.inputPowerWatts.map(MonitorFormat.power) ?? "—")
+                        .font(.system(size: 16, weight: .medium).monospacedDigit())
+                        .lineLimit(1)
+                }
+                if let battery = stats.battery {
+                    Label(battery.externalConnected ? "已接外部电源" : "电池供电",
+                          systemImage: battery.externalConnected ? "powerplug" : "battery.100")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
-            .padding(12).glassCard(radius: Theme.Radius.card)
+            .padding(14).glassCard(radius: Theme.Radius.card)
             MonitorSectionTitle("芯片功耗")
             ViewThatFits(in: .horizontal) {
                 powerGrid(columns: 3).frame(minWidth: 450)
                 powerGrid(columns: 2)
             }
-            .padding(12).glassCard(radius: Theme.Radius.card)
-            Text("整机读取 PSTR 系统负载；适配器输入含充电。芯片各项按能量差分计算，已包含在整机中。— 表示尚无有效读数。")
+            Text("芯片功耗已包含在整机中，无需再次相加。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            DisclosureGroup("其他功率传感器（独立读数）") {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
-                    ForEach(stats.sensors.filter { $0.category == 4 }, id: \.key) { sensor in
-                        powerMetric("\(sensor.name) · \(sensor.key)", watts: sensor.value, symbol: "waveform.path")
+            // 应用明细与电池、网络页使用同一层卡片，不与芯片瓦数混排。
+            if !isSettingsPreview {
+                CPUEnergyImpactSection(stats: stats)
+                    .padding(12).glassCard(radius: Theme.Radius.card)
+            }
+            DisclosureGroup("读数说明与传感器") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("整机读取 PSTR 系统负载；适配器输入含充电。芯片各项按能量差分计算。— 表示尚无有效读数。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(sensors, id: \.key) { sensor in
+                        MonitorRow(label: sensor.name, value: MonitorFormat.power(sensor.value))
+                            .help("\(sensor.name) · \(sensor.key) · 独立传感器读数")
                     }
                 }
                 .padding(.top, 8)
-            }.font(.system(size: 12))
-            // v183：应用级能耗（原来在电池页，属于「电被谁用了」→ 功耗页）
-            if !isSettingsPreview { CPUEnergyImpactSection(stats: stats) }
-
+            }
+            .font(.system(size: 12))
+            .padding(12).glassCard(radius: Theme.Radius.card)
         }
     }
 
@@ -267,9 +300,13 @@ private struct MonitorDetailContent: View {
             ("神经网络引擎", sample.anePowerWatts, "brain"), ("内存", sample.ramPowerWatts, "memorychip"),
             ("内存控制器", sample.dcsPowerWatts, "arrow.left.arrow.right"), ("芯片总计", sample.chipPowerWatts, "square.stack.3d.up")
         ]
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), alignment: .leading, spacing: 14) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), alignment: .leading, spacing: 10) {
             ForEach(metrics, id: \.0) { title, watts, symbol in
-                powerMetric(title, watts: watts, symbol: symbol)
+                powerMetric(title, watts: watts, symbol: symbol, prominent: title == "芯片总计")
+                    .frame(minHeight: 54, alignment: .leading)
+                    .padding(10)
+                    .glassCard(radius: Theme.Radius.control,
+                               fill: title == "芯片总计" ? Theme.accent.opacity(0.10) : nil)
             }
         }
     }
@@ -280,10 +317,11 @@ private struct MonitorDetailContent: View {
                 .font(.system(size: 11)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(watts.map(MonitorFormat.power) ?? "—")
-                .font(.system(size: prominent ? 22 : 18, weight: .semibold).monospacedDigit())
+                .font(.system(size: prominent ? 22 : 20, weight: .semibold).monospacedDigit())
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - CPU
