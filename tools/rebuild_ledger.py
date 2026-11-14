@@ -43,58 +43,58 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("App/FrsetNextApp.swift", "applicationDidFinishLaunching"):
+        "并行编译入口只启动刘海 Demo，沿用 accessory 应用形态，不运行 AppBootstrap。",
+    ("App/FrsetNextApp.swift", "applicationWillTerminate"):
+        "Demo 退出释放自身面板与监听。",
+    ("App/FrsetNextApp.swift", "applicationShouldHandleReopen"):
+        "重开 Demo 时复用单个刘海面板并进入展开态。",
+    ("App/FrsetNextApp.swift", "application"):
+        "Demo URL 唤起延后至下一主线程周期，复用原生面板。",
     ("Features/Island/IslandController.swift", "performKeyEquivalent"):
-        "原生窗口接收 Esc 并复用收起入口，搜索编辑器不会吞掉退出；其余按键交回 AppKit。",
+        "Esc 复用收回入口，其余按键交回 AppKit。",
     ("Features/Island/IslandController.swift", "start"):
-        "启动时按已保存的启用状态创建刘海窗口，未启用时不建立事件观察",
-    ("Features/Island/IslandController.swift", "apply"):
-        "设置保存后统一应用配置、启停窗口并调整被隐藏页面的选择",
+        "启动纯界面 Demo 并建立一个状态栏菜单，不加载用户记录或后台服务。",
     ("Features/Island/IslandController.swift", "open"):
-        "菜单栏入口复用单个刘海窗口并进入可键盘操作的展开态",
+        "状态栏和应用重开共用单一面板，主动展开时取得键盘焦点。",
     ("Features/Island/IslandController.swift", "show"):
-        "创建透明非激活面板、固定宿主尺寸并连接指针与屏幕事件",
+        "创建透明非激活面板，固定宿主尺寸并连接指针与屏幕变化。",
     ("Features/Island/IslandController.swift", "position"):
-        "读取屏幕刘海安全区和两侧区域，把同一个窗口对齐目标屏幕顶部",
+        "读取真实刘海的两侧安全区域与高度，收起尺寸完全复用硬件宽高。",
     ("Features/Island/IslandController.swift", "expand"):
-        "取消未完成悬停调度并转为展开；主动点击时才取得键盘焦点",
+        "取消尚未执行的悬停动作；主动打开与悬停展示共用展开状态。",
     ("Features/Island/IslandController.swift", "collapse"):
-        "收起刘海并撤去文件与剪贴板预览，指针离开前不重复展开",
+        "收回到原始刘海尺寸，指针离开前不重复展开。",
     ("Features/Island/IslandController.swift", "stop"):
-        "关闭功能时释放窗口、屏幕观察和指针监听，不影响主面板",
+        "释放 Demo 面板、状态栏入口和原生监听。",
     ("Features/Island/IslandController.swift", "installMonitors"):
-        "统一接入悬停、拖动和窗外点击，透明舞台外区域交还其他应用",
+        "悬停、离开与窗外点击作用于同一面板，透明区域不接收指针事件。",
     ("Features/Island/IslandController.swift", "updatePointer"):
-        "按当前显示尺寸计算命中区，调度悬停展开与离开后收起，并保留编辑和拖动",
-    ("Features/Island/IslandController.swift", "targetDrop"):
-        "文件进入时临时打开中转，未放下离开时恢复原页和开合状态",
-    ("Features/Island/IslandController.swift", "acceptDrop"):
-        "复用文件 URL 读取和本地暂存实现，按真实加入结果显示反馈",
-    ("Features/Island/IslandController.swift", "reorder"):
-        "拖拽排列保存为同一份刘海配置，并向用户呈现保存错误",
-    ("Features/Island/IslandController.swift", "openFullWindow"):
-        "从刘海切回现有剪贴板、中转、搜索、音频或主页入口",
-    ("Features/Island/IslandContent.swift", "selectFile"):
-        "紧凑中转沿用整行选择、Command 多选、Shift 范围选择及勾选语义",
-    ("Features/Island/IslandContent.swift", "copyFiles"):
-        "按本地中转列表顺序交给剪贴板正式文件复制实现，成功后收起",
-    ("Features/Island/IslandContent.swift", "mediaButton"):
-        "三个固定媒体动作发送系统媒体键，不创建播放器或新媒体服务",
-    ("Features/Island/IslandSettings.swift", "save"):
-        "草稿保存独立配置后应用；编码失败保留调整并返回具体原因",
-    ("Features/Island/IslandSettings.swift", "discard"):
-        "取消恢复本页已保存配置，不覆盖其他设置页",
-    ("Features/Island/IslandSettings.swift", "restoreDefaults"):
-        "恢复默认只修改刘海草稿，等待保存后才影响正式窗口",
-    ("Features/Island/IslandSettings.swift", "move"):
-        "设置页向前向后按钮提供无需拖拽的入口排序方式",
+        "按刘海或展示页尺寸决定指针区域，100ms 悬停展开、180ms 离开后收回。",
+    ("Features/Island/IslandContent.swift", "widget"):
+        "按主会话规划组合固定展示组件，标题只切换 Demo 页面。",
+    ("Features/Island/IslandContent.swift", "metricLine"):
+        "一行三列固定指标值与说明，不运行采样。",
+    ("Features/Island/IslandContent.swift", "miniRow"):
+        "紧凑展示固定近期记录的图标、标题与时间或大小。",
+    ("Features/Island/IslandContent.swift", "sampleRow"):
+        "模拟列表选中态只更新本视图状态，不读取或修改真实记录。",
+    ("Features/Island/IslandContent.swift", "heading"):
+        "同一行对齐展示页标题与补充说明。",
+    ("Features/Island/IslandContent.swift", "subheading"):
+        "Demo 详情页提供返回首页导航，与主导航共用页面状态。",
+    ("Features/Island/IslandContent.swift", "progress"):
+        "按固定比例绘制进度，不发送音量或播放控制。",
+    ("Features/Island/IslandContent.swift", "inertButton"):
+        "功能按钮只显示悬停与按下反馈，闭包无业务调用。",
+    ("Features/Island/IslandContent.swift", "inertIcon"):
+        "图标按钮只显示反馈与可访问性描述。",
+    ("Features/Island/IslandContent.swift", "path"):
+        "固定曲线形状展示静态趋势，不建立定时器。",
     ("Features/Island/IslandSurface.swift", "path"):
-        "同一外形绘制底部圆角及可选连接弧，用作背景与内容遮罩",
-    ("Features/Island/IslandSurface.swift", "inset"):
-        "外壳细描边使用内缩路径，不改变内容尺寸或命中区",
+        "同一路径由真实刘海底角连续伸展为黑色连接弧外壳。",
     ("Features/Island/IslandSurface.swift", "makeBody"):
-        "导航与操作共用固定命中区、按下反馈和减少动态效果处理",
-    ("Features/TransferDock/UI/TransferDockView.swift", "load"):
-        "主面板与顶部刘海共用同一文件拖放读取函数，主线程汇总已读 URL",
+        "统一功能与导航按钮的悬停、按下反馈，减少动态效果时不缩放。",
     ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "reduce"):
         "合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距",
     # ── v249–v258 ────────────────────────────────────────────────────────

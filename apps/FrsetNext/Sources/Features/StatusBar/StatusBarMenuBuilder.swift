@@ -138,9 +138,6 @@ public enum StatusBarMenuBuilder {
         // v206：代码预览独立窗已删除（代码预览改为 hover 预览内联渲染）
 
         // 悬浮剪贴板（v192）：给「怎么查看」一个可见入口，不用记快捷键
-        let island = NSMenuItem(title: "顶部刘海…", action: #selector(IslandController.open), keyEquivalent: "")
-        island.target = IslandController.shared
-        menu.addItem(island)
         menu.addItem(track(item("悬浮剪贴板…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openFloatingClipboardAction(_:)), target: target)))
 

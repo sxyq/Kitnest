@@ -506,12 +506,10 @@ public enum AppDirectories {
         }
         let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         #if DEBUG
-        let defaultName = "FrsetNext-Dev"
+        let dir = root.appendingPathComponent("FrsetNext-Dev", isDirectory: true)
         #else
-        let defaultName = "FrsetNext"
+        let dir = root.appendingPathComponent("FrsetNext", isDirectory: true)
         #endif
-        let name = Bundle.main.object(forInfoDictionaryKey: "KitnestDataDirectoryName") as? String ?? defaultName
-        let dir = root.appendingPathComponent(name, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }

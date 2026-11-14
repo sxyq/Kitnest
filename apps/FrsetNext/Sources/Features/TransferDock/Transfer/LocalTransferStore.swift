@@ -18,7 +18,12 @@ import Foundation
 /// 之前 `stagedURL` 走 `LocalTransferStore.shared.stagingRoot`，而单例 init 里
 /// `pruneMissing()` 又会读 `stagedURL` → dispatch_once 重入 → SIGTRAP（面板一开就崩）。
 public enum LocalTransferPaths {
-    public static let root = AppDirectories.sub("transfer-local")
+    public static let root: URL = {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("FrsetNext/transfer-local", isDirectory: true)
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }()
 }
 
 public struct LocalTransferItem: Identifiable, Codable, Equatable {

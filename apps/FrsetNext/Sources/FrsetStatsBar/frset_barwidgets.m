@@ -117,10 +117,7 @@ static NSMutableDictionary *g_cfg = nil;
 // 字符串分割 + 过滤（原先 0.5s tick 内被调 14+ 次，每次 ~3 次 NSArray 分配）。
 static int g_cfgGen = 0;
 static NSString *FSBarStorePath(void) {
-    NSString *name = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"KitnestDataDirectoryName"];
-    NSString *relative = name ? [NSString stringWithFormat:@"Library/Application Support/%@/stats", name]
-                              : @"Library/Application Support/FrsetStats";
-    NSString *dir = [NSHomeDirectory() stringByAppendingPathComponent:relative];
+    NSString *dir = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/FrsetStats"];
     [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
     return [dir stringByAppendingPathComponent:@"widgets.plist"];
 }
@@ -331,7 +328,8 @@ void FSBarGlobalSet(NSString *key, id value) {
 
 NSDictionary *FSBarConfigurationSnapshot(void) {
     if (g_cfg) return [g_cfg copy];
-    return [NSDictionary dictionaryWithContentsOfFile:FSBarStorePath()] ?: FSBarDefaultConfiguration();
+    NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/FrsetStats/widgets.plist"];
+    return [NSDictionary dictionaryWithContentsOfFile:path] ?: FSBarDefaultConfiguration();
 }
 
 NSDictionary *FSBarDefaultConfiguration(void) {

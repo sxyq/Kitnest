@@ -28,7 +28,7 @@ import Network
 public final class MCPServer {
 
     public static let shared = MCPServer()
-    public static let defaultPort = (Bundle.main.object(forInfoDictionaryKey: "KitnestMCPPort") as? NSNumber)?.uint16Value ?? 8767
+    public static let defaultPort: UInt16 = 8767   // 8765/8766 实测被系统内其它进程占用
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "frset.mcp", qos: .userInitiated)
@@ -56,7 +56,7 @@ public final class MCPServer {
             let port = Self.defaultPort + UInt16(offset)
             if bind(port: port) { return true }
         }
-        Log.error("MCP", "启动失败：\(Self.defaultPort)-\(Self.defaultPort + 7) 全被占用")
+        Log.error("MCP", "启动失败：8767-8774 全被占用")
         return false
     }
 

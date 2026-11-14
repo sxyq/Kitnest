@@ -42,20 +42,30 @@ if [ "${KITNEST_PARALLEL:-0}" = "1" ]; then
   /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes:0:CFBundleURLSchemes:1' "$PLIST"
   /usr/libexec/PlistBuddy -c 'Delete :NSServices' "$PLIST"
   /usr/libexec/PlistBuddy -c 'Delete :CFBundleDocumentTypes' "$PLIST"
-  /usr/libexec/PlistBuddy -c 'Add :KitnestDataDirectoryName string Kitnest-Island' "$PLIST"
-  /usr/libexec/PlistBuddy -c 'Add :KitnestMCPPort integer 18767' "$PLIST"
-  /usr/libexec/PlistBuddy -c 'Add :KitnestWebDAVPort integer 18777' "$PLIST"
 fi
 
 FILES=$(find "$SRC" -name '*.swift' \
   -not -name '._*' \
   -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
   | sort | tr '\n' ' ')
+COMPILE_ARGS=(-framework AppKit -framework SwiftUI -framework Combine)
+if [ "${KITNEST_PARALLEL:-0}" = "1" ]; then
+  FILES="$SRC/App/FrsetNextApp.swift $SRC/Core/Runtime/StateCompat.swift $(find "$SRC/Features/Island" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
+  COMPILE_ARGS+=(-D KITNEST_ISLAND_DEMO)
+else
+  COMPILE_ARGS+=(-import-objc-header "$SRC/FrsetStatsBar/FrsetStatsBar.h"
+    -lsqlite3 -framework CoreGraphics -framework CoreImage -framework ImageIO
+    -framework Vision -Xlinker -weak_framework -Xlinker Translation -framework ScreenCaptureKit -framework EventKit
+    -framework ServiceManagement -framework UniformTypeIdentifiers -framework IOKit -framework SystemConfiguration
+    -framework AVFoundation -framework CoreMedia -framework QuickLookThumbnailing -framework WebKit)
+fi
 
 echo "== 资源 =="
 # 本地化资源必须在**签名前**拷入 bundle：codesign --deep 会对 bundle 整体做签名封印，
 # 签完再添加文件会导致签名失效（资源被判定为篡改），故拷贝严格排在签名步骤之前（契约 §10.2）。
-if [ -d "$ROOT/Resources" ]; then
+if [ "${KITNEST_PARALLEL:-0}" = "1" ]; then
+  cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/"
+elif [ -d "$ROOT/Resources" ]; then
   cp -R "$ROOT/Resources/." "$APP/Contents/Resources/"
   find "$APP/Contents/Resources" -name 'Localizable.strings' | sort | sed 's/^/  打包: /'
 else
@@ -64,7 +74,7 @@ fi
 
 # ---- 本地 OCR 运行时（ONNX Runtime）----
 # 必须**在签名前**拷入 bundle：codesign 之后添加文件会破坏签名封印。
-if [ -f "$ROOT/Vendor/ocr/libonnxruntime.dylib" ]; then
+if [ "${KITNEST_PARALLEL:-0}" != "1" ] && [ -f "$ROOT/Vendor/ocr/libonnxruntime.dylib" ]; then
   mkdir -p "$APP/Contents/Frameworks"
   cp "$ROOT/Vendor/ocr/libonnxruntime.dylib" "$APP/Contents/Frameworks/libonnxruntime.dylib"
   echo "  打包 ONNX Runtime: $(du -h "$APP/Contents/Frameworks/libonnxruntime.dylib" | cut -f1)"
@@ -92,7 +102,7 @@ rm -rf "$OBJ_DIR"; mkdir -p "$OBJ_DIR"
 BUILD_LOG="$ROOT/build.noindex/build.log"
 : > "$BUILD_LOG"
 OBJ_FILES=""
-if [ -d "$OBJC_DIR" ]; then
+if [ "${KITNEST_PARALLEL:-0}" != "1" ] && [ -d "$OBJC_DIR" ]; then
   for f in "$OBJC_DIR"/*.c "$OBJC_DIR"/*.m; do
     [ -f "$f" ] || continue
     obj="$OBJ_DIR/$(basename "${f%.*}").o"
@@ -122,16 +132,7 @@ rm -f "$STAMP"; touch "$STAMP"
 swiftc $OPT_FLAGS -parse-as-library \
   -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
   -o "$APP/Contents/MacOS/Kitnest" $FILES $OBJ_FILES \
-  -import-objc-header "$BRIDGE" \
-  -lsqlite3 \
-  -framework AppKit -framework SwiftUI -framework Combine \
-  -framework CoreGraphics -framework CoreImage -framework ImageIO \
-  -framework Vision -Xlinker -weak_framework -Xlinker Translation -framework ScreenCaptureKit -framework EventKit \
-  -framework ServiceManagement -framework UniformTypeIdentifiers \
-  -framework IOKit -framework SystemConfiguration \
-  -framework AVFoundation -framework CoreMedia \
-  -framework QuickLookThumbnailing \
-  -framework WebKit 2>&1 | tee -a "$BUILD_LOG" | tail -40
+  "${COMPILE_ARGS[@]}" 2>&1 | tee -a "$BUILD_LOG" | tail -40
 BUILD_RC=${PIPESTATUS[0]}
 rm -f "$STAMP"   # 走到这里说明脚本活着，撤掉标记
 LOG_BYTES=$(wc -c < "$BUILD_LOG" | tr -d ' ')
@@ -172,7 +173,7 @@ fi
 HELPER_NAME="com.sxyq.frsetnext.memoryhelper"
 HELPER_SRC="$ROOT/Sources/MemoryHelper/main.swift"
 HELPER_OUT="$APP/Contents/Library/PrivilegedHelperTools/$HELPER_NAME"
-if [ -f "$HELPER_SRC" ]; then
+if [ "${KITNEST_PARALLEL:-0}" != "1" ] && [ -f "$HELPER_SRC" ]; then
   echo "== 内存服务 helper =="
   mkdir -p "$(dirname "$HELPER_OUT")"
   if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
@@ -211,7 +212,7 @@ fi
 # ============================================================================
 OCR_H_DIR="$SRC/OCRHelper"
 OCR_H_OUT="$APP/Contents/Helpers/FrsetOCRHelper"
-if [ -f "$OCR_H_DIR/main.swift" ]; then
+if [ "${KITNEST_PARALLEL:-0}" != "1" ] && [ -f "$OCR_H_DIR/main.swift" ]; then
   echo "== 本地 OCR helper =="
   mkdir -p "$(dirname "$OCR_H_OUT")"
   OCR_OBJ_DIR="$ROOT/build.noindex/ocr-helper"

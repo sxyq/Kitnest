@@ -2,25 +2,6 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum TransferFileDropReader {
-    static func load(from providers: [NSItemProvider], completion: @escaping ([URL]) -> Void) {
-        let group = DispatchGroup()
-        var result: [URL] = []
-        let lock = NSLock()
-        for provider in providers {
-            group.enter()
-            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-                defer { group.leave() }
-                let url: URL?
-                if let data = item as? Data { url = URL(dataRepresentation: data, relativeTo: nil) }
-                else { url = item as? URL }
-                if let url { lock.lock(); result.append(url); lock.unlock() }
-            }
-        }
-        group.notify(queue: .main) { completion(result) }
-    }
-}
-
 // MARK: - 文件中转（面板第三页）
 //
 // 2026-10-20 第二版：**上下分区**（用户明确否掉左右双栏）。
@@ -1320,9 +1301,31 @@ private struct TransferDockContent: View {
 
     // MARK: 拖放与选择
 
+    private func urls(from providers: [NSItemProvider], completion: @escaping ([URL]) -> Void) {
+        let group = DispatchGroup()
+        var result: [URL] = []
+        let lock = NSLock()
+        for provider in providers {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
+                defer { group.leave() }
+                var url: URL?
+                if let data = item as? Data {
+                    url = URL(dataRepresentation: data, relativeTo: nil)
+                } else if let direct = item as? URL {
+                    url = direct
+                }
+                if let url {
+                    lock.lock(); result.append(url); lock.unlock()
+                }
+            }
+        }
+        group.notify(queue: .main) { completion(result) }
+    }
+
     private func handleLocalDrop(_ providers: [NSItemProvider]) -> Bool {
         if isSettingsPreview { return false }
-        TransferFileDropReader.load(from: providers) { urls in
+        urls(from: providers) { urls in
             guard !urls.isEmpty else { return }
             local.add(urls: urls) { n in
                 if let error = localError {
@@ -1338,7 +1341,7 @@ private struct TransferDockContent: View {
     private func handleCloudDrop(_ providers: [NSItemProvider]) -> Bool {
         if isSettingsPreview { return false }
         guard !providers.isEmpty else { return false }
-        TransferFileDropReader.load(from: providers) { urls in
+        urls(from: providers) { urls in
             service.uploadBatch(urls)
         }
         return true
@@ -1439,7 +1442,7 @@ private struct CloudRowView: View, Equatable {
 }
 
 /// 本地暂存卡行（原 TransferDockView.localCard 的主体；动作经闭包回传父视图）
-struct LocalCardRowView: View, Equatable {
+private struct LocalCardRowView: View, Equatable {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: LocalTransferItem
@@ -1450,8 +1453,6 @@ struct LocalCardRowView: View, Equatable {
     var onSelect: (String) -> Void
     var onPickOnly: (String) -> Void
     var onRemove: (LocalTransferItem) -> Void
-    var sourceWindow: NSWindow? = nil
-    var compact = false
 
     @Stored private var hovered = false
 
@@ -1462,28 +1463,11 @@ struct LocalCardRowView: View, Equatable {
             && lhs.selected == rhs.selected
             && lhs.isKeyboardPreviewTarget == rhs.isKeyboardPreviewTarget
             && lhs.showsCloud == rhs.showsCloud
-            && lhs.compact == rhs.compact
     }
 
     var body: some View {
         let tint = TransferRowStyle.fileTint(for: item.name)
-        return Group {
-        if compact {
-            HStack(spacing: 8) {
-                Image(systemName: TransferRowStyle.iconName(for: item.name))
-                    .foregroundStyle(tint).font(.system(size: 18))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(item.name).font(.system(size: 11, weight: .medium)).lineLimit(1).truncationMode(.middle)
-                    Text(item.sizeText).font(.system(size: 10)).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(selected ? Theme.accent : .secondary)
-                if isKeyboardPreviewTarget { previewButton.keyboardShortcut(.space, modifiers: []) }
-                else { previewButton }
-            }.frame(height: 30)
-        } else {
-        VStack(alignment: .leading, spacing: 6) {
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 // 类型图标（按格式着色，渐变底）
                 ZStack {
@@ -1535,8 +1519,6 @@ struct LocalCardRowView: View, Equatable {
             }
             .foregroundStyle(Theme.tertiaryText)
         }
-        }
-        }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
@@ -1551,7 +1533,7 @@ struct LocalCardRowView: View, Equatable {
                                        : Color.primary.opacity(0.06),
                               lineWidth: 1)
         )
-        .scaleEffect(hovered && !reduceMotion && !compact ? 1.02 : 1.0)
+        .scaleEffect(hovered && !reduceMotion ? 1.02 : 1.0)
         .animation(reduceMotion ? nil : Theme.Motion.springSnappy, value: hovered)
         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .onHover { inside in
@@ -1559,7 +1541,7 @@ struct LocalCardRowView: View, Equatable {
             if isSettingsPreview { return }
             if inside && TransferDockPref.hoverPreviewEnabled {
                 FileHoverPreviewController.shared.scheduleShow(url: item.stagedURL,
-                    sourceWindow: sourceWindow ?? PanelController.shared.panelWindowForProbe)
+                    sourceWindow: PanelController.shared.panelWindowForProbe)
             } else {
                 FileHoverPreviewController.shared.scheduleHide()
             }
@@ -1580,7 +1562,7 @@ struct LocalCardRowView: View, Equatable {
         }
         .contextMenu {
             Button("预览") { if !isSettingsPreview { FileHoverPreviewController.shared.showNow(url: item.stagedURL,
-                sourceWindow: sourceWindow ?? PanelController.shared.panelWindowForProbe) } }
+                sourceWindow: PanelController.shared.panelWindowForProbe) } }
             Button("复制文件") {
                 if !isSettingsPreview,
                    let error = ClipboardManager.shared.copyFiles([item.stagedURL], successMessage: "已复制 \(item.name)") {
@@ -1621,7 +1603,7 @@ struct LocalCardRowView: View, Equatable {
     private var previewButton: some View {
         Button {
             if !isSettingsPreview { FileHoverPreviewController.shared.showNow(url: item.stagedURL,
-                sourceWindow: sourceWindow ?? PanelController.shared.panelWindowForProbe) }
+                sourceWindow: PanelController.shared.panelWindowForProbe) }
         } label: {
             Image(systemName: "eye").font(.system(size: 11)).frame(width: 18, height: 18)
         }.buttonStyle(.plain).help("预览文件 · 空格").accessibilityLabel("预览 \(item.name)")

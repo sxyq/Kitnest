@@ -1,134 +1,52 @@
-import AppKit
 import SwiftUI
 
-enum IslandPage: String, Codable, CaseIterable, Identifiable {
-    case clipboard, transfer, search, media, calendar
+/// Demo 只保留显示状态，不读写正式配置和用户内容。
+enum IslandPage: String, CaseIterable, Identifiable {
+    case home, clipboard, transfer, monitor, media, calendar, tools, settings
     var id: String { rawValue }
+    static let tabs: [Self] = [.home, .clipboard, .transfer]
     var title: String {
         switch self {
+        case .home: return "首页"
         case .clipboard: return "剪贴板"
         case .transfer: return "中转"
-        case .search: return "搜索"
-        case .media: return "媒体"
+        case .monitor: return "系统监测"
+        case .media: return "正在播放"
         case .calendar: return "日历"
-        }
-    }
-    var icon: String {
-        switch self {
-        case .clipboard: return "doc.on.clipboard"
-        case .transfer: return "tray"
-        case .search: return "magnifyingglass"
-        case .media: return "music.note"
-        case .calendar: return "calendar"
+        case .tools: return "快捷工具"
+        case .settings: return "刘海与组件"
         }
     }
 }
 
-struct IslandConfiguration: Codable, Equatable {
-    var enabled = false
-    var hoverOpens = true
-    var hoverDelay = 0.15
-    var collapseDelay = 0.3
-    var width = 560.0
-    var visibleRows = 4
-    var glass = false
-    var shoulders = true
-    var followPointerScreen = false
-    var pages = IslandPage.allCases
-    static let key = "island.configuration"
-    static var saved: Self {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let value = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
-        return value
-    }
+struct IslandConfiguration {
+    var width: CGFloat = 560
+    let hoverDelay = 0.10
+    let collapseDelay = 0.18
 }
 
-final class IslandSettingsDraft: SettingsEditableDraft {
-    @Published var value = IslandConfiguration.saved
-    private var saved = IslandConfiguration.saved
-    var isDirty: Bool { value != saved }
-    func save() -> String? {
-        do {
-            let data = try JSONEncoder().encode(value)
-            UserDefaults.standard.set(data, forKey: IslandConfiguration.key)
-            saved = value
-            IslandController.shared.apply(value)
-            return nil
-        } catch { return "保存顶部刘海设置失败：\(error.localizedDescription)" }
-    }
-    func discard() { value = saved }
-    func restoreDefaults() { value = IslandConfiguration() }
-    func move(_ page: IslandPage, by offset: Int) {
-        let index = value.pages.firstIndex(of: page)!
-        value.pages.swapAt(index, index + offset)
-    }
-}
-
-struct IslandSettingsPane: View {
-    var body: some View {
-        SettingsDraftEditor(id: "island", makeDraft: { IslandSettingsDraft() }) { draft in
-            IslandSettingsContent(draft: draft)
-        }
-    }
-}
-
-private struct IslandSettingsContent: View {
-    @ObservedObject var draft: IslandSettingsDraft
-    @Stored private var expanded = true
-    @Stored private var page = IslandPage.clipboard
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            IslandSurface(configuration: draft.value, expanded: expanded, page: $page,
-                          notchWidth: 0, notchHeight: 0, height: 210,
-                          onCollapse: { expanded.toggle() }, onOpen: { expanded = true },
-                          onSettings: {}, onFullWindow: {}, onReorder: { draft.value.pages = $0 },
-                          summary: "周五交付", detail: "3 个文件") {
-                ClipboardSectionView()
-                    .environment(\.isSettingsPreview, true)
-                    .environment(\.settingsPreviewClipboardItems, SettingsPreviewSamples.clipboardItems)
-            }
-            .frame(height: 220, alignment: .top)
-            Button(expanded ? "演示收起" : "演示展开") { expanded.toggle() }
-            Toggle("启用顶部刘海", isOn: $draft.value.enabled)
-            Toggle("悬停展开", isOn: $draft.value.hoverOpens)
-            if draft.value.hoverOpens {
-                HStack {
-                    Text("停留 \(Int(draft.value.hoverDelay * 1000)) 毫秒")
-                    Slider(value: $draft.value.hoverDelay, in: 0...1, step: 0.05)
-                }
-            }
-            HStack {
-                Text("移开后 \(Int(draft.value.collapseDelay * 1000)) 毫秒收起")
-                Slider(value: $draft.value.collapseDelay, in: 0...2, step: 0.05)
-            }
-            HStack {
-                Text("展开宽度 \(Int(draft.value.width))")
-                Slider(value: $draft.value.width, in: 480...640, step: 20)
-            }
-            Stepper("列表显示 \(draft.value.visibleRows) 行", value: $draft.value.visibleRows, in: 3...8)
-            Toggle("毛玻璃材质", isOn: $draft.value.glass)
-            Toggle("两侧连接弧", isOn: $draft.value.shoulders)
-            Toggle("打开时跟随鼠标所在屏幕", isOn: $draft.value.followPointerScreen)
-            Text("功能排列 · 拖动顶部入口，或用下面的按钮调整")
-                .font(.system(size: 12, weight: .medium))
-            ForEach(IslandPage.allCases) { item in
-                HStack {
-                    Toggle(item.title, isOn: Binding(get: { draft.value.pages.contains(item) }, set: { on in
-                        if on { draft.value.pages.append(item) }
-                        else { draft.value.pages.removeAll { $0 == item } }
-                    }))
-                    Spacer()
-                    if let index = draft.value.pages.firstIndex(of: item) {
-                        Button { draft.move(item, by: -1) } label: { Image(systemName: "chevron.up") }
-                            .disabled(index == 0).help("向前移动\(item.title)")
-                        Button { draft.move(item, by: 1) } label: { Image(systemName: "chevron.down") }
-                            .disabled(index == draft.value.pages.count - 1).help("向后移动\(item.title)")
-                    }
-                }
-            }
-            Text("这里只调整预览。保存后应用到顶部刘海；主面板与独立窗口保持原有样式。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-        }
-        .controlSize(.small)
-    }
+struct IslandSample: Identifiable {
+    let id: Int
+    let title: String
+    let icon: String
+    let detail: String
+    let body: String
+    var children: [String] = []
+    static let clipboard: [Self] = [
+        .init(id: 0, title: "周五交付清单", icon: "text.alignleft", detail: "文本 · 备忘录 · 刚刚",
+              body: "周五交付清单\n\n1. 完成首页和剪贴板的交互\n2. 统一预览窗口与动效\n3. 核对保存、取消与恢复默认\n4. 更新用户手册"),
+        .init(id: 1, title: "Apple 设计资源", icon: "link", detail: "链接 · Safari · 2 分钟前",
+              body: "https://developer.apple.com/design/\n\nApple 平台设计资源与界面指南。"),
+        .init(id: 2, title: "项目笔记.json", icon: "curlybraces", detail: "代码 · 编辑器 · 5 分钟前",
+              body: "{\n  \"project\": \"Kitnest\",\n  \"layout\": \"notch\",\n  \"preview\": \"live\",\n  \"apply\": \"onSave\"\n}")
+    ]
+    static let files: [Self] = [
+        .init(id: 0, title: "设计资料", icon: "folder", detail: "文件夹 · 3 项", body: "~/Documents/设计资料",
+              children: ["首页设计.fig", "交互说明.md", "图标素材/"]),
+        .init(id: 1, title: "设计说明.md", icon: "doc.text", detail: "文档 · 12 KB",
+              body: "刘海承载快捷操作和近期内容。\n\n文字、链接和代码放在剪贴板。\n文件、文件夹放在中转。"),
+        .init(id: 2, title: "长截图.png", icon: "photo", detail: "图片 · 364 KB", body: "首页交互说明"),
+        .init(id: 3, title: "项目素材.zip", icon: "archivebox", detail: "压缩包 · 1.2 MB", body: "~/Downloads/项目素材.zip",
+              children: ["封面.png", "图标素材/", "README.md"])
+    ]
 }

@@ -62,7 +62,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var pages: [SettingsPage] {
         switch self {
         case .general:
-            return [.generalStart, .generalPersonal, .generalPanel, .generalIsland, .generalWindows, .generalNotifications, .generalMenuBar]
+            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .generalNotifications, .generalMenuBar]
         case .audio:
             return [.audio]
         case .clipboard:
@@ -100,7 +100,6 @@ enum SettingsPage: Hashable {
     case generalStart
     /// 主面板：预览 + 字号 / 圆角 / 宽度 / 材质 / 页面顺序
     case generalPanel
-    case generalIsland
     /// 独立窗口与浮层：预览 + 玻璃四参数 / 密度 / 缩略图 / 徽章 / 通知条
     case generalWindows
     /// 个性化（通用）：强调色 / 打开动画 / 动作条 / 背景图 / 入口 / 恢复默认
@@ -152,7 +151,6 @@ enum SettingsPage: Hashable {
         switch self {
         case .generalStart:      return "启动与语言"
         case .generalPanel:      return "主面板"
-        case .generalIsland:     return "顶部刘海"
         case .generalWindows:    return "窗口材质"
         case .generalPersonal:   return "主题外观"
         case .generalNotifications: return "通知提示"
@@ -195,7 +193,6 @@ enum SettingsPage: Hashable {
         switch self {
         case .generalStart:      return "power"
         case .generalPanel:      return "rectangle.topthird.inset.filled"
-        case .generalIsland:     return "rectangle.tophalf.inset.filled"
         case .generalWindows:    return "macwindow.on.rectangle"
         case .generalPersonal:   return "paintpalette"
         case .generalMenuBar:    return "menubar.rectangle"
@@ -248,8 +245,6 @@ enum SettingsPage: Hashable {
             return "登录时自动启动；菜单栏图标常驻，⌥A 打开主面板"
         case .generalPanel:
             return "⌥A 打开主面板；点面板外部自动收起"
-        case .generalIsland:
-            return "菜单栏右键 → 顶部刘海；悬停展开，Esc 收起"
         case .generalWindows:
             return "统一调节主面板、悬浮剪贴板、设置与工具窗口的材质"
         case .generalPersonal:
