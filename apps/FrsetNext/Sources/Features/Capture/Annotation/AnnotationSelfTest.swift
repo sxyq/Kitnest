@@ -78,8 +78,8 @@ public enum AnnotationSelfTest {
                                                  colorHex: red, lineWidth: 4)],
                         expectsNoInk: false, note: "椭圆描边")
 
-        case .arrow:
-            return Spec(annotations: [Annotation(tool: .arrow,
+        case .arrow, .line:
+            return Spec(annotations: [Annotation(tool: tool,
                                                  points: [CGPoint(x: 30, y: 130), CGPoint(x: 150, y: 190)],
                                                  colorHex: red, lineWidth: 4)],
                         expectsNoInk: false, note: "箭头 + 箭头头部")

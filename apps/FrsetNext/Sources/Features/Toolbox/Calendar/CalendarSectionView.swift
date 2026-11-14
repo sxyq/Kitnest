@@ -16,9 +16,14 @@ import AppKit
 
 public struct CalendarSectionView: View {
     @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     private var accent: Color { (previewPersonalization ?? .shared).accentColor ?? .accentColor }
     @ObservedObject private var service = CalendarService.shared
-    /// 当前两周期间的锚点（渲染时归一化到所在周的周日）
+    @AppStorage(Preferences.Keys.calendarFirstWeekday) private var savedFirstWeekday = 1
+    private let previewFirstWeekday: Int?
+    private var firstWeekday: Int { previewFirstWeekday ?? savedFirstWeekday }
+    private var calendar: Calendar { CalendarService.calendar(firstWeekday: firstWeekday) }
+    /// 当前两周期间的锚点（渲染时归一化到所选周起始日）
     @Stored private var anchor: Date = Date()
     @Stored private var collapsed = false
     /// 缓存 42 天数据（含农历/节气/事件），避免每帧查 EventKit
@@ -35,7 +40,7 @@ public struct CalendarSectionView: View {
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
-    public init() {}
+    public init(firstWeekday: Int? = nil) { previewFirstWeekday = firstWeekday }
 
     public var body: some View {
         VStack(spacing: 6) {
@@ -63,8 +68,9 @@ public struct CalendarSectionView: View {
         }
         .onAppear {
             reload()
-            installScrollMonitor()
+            if !isSettingsPreview { installScrollMonitor() }
         }
+        .onChange(of: firstWeekday) { _ in reload() }
         .onDisappear { removeScrollMonitor() }
     }
 
@@ -154,7 +160,8 @@ public struct CalendarSectionView: View {
 
     private var weekdayHeader: some View {
         HStack(spacing: 0) {
-            ForEach(Self.weekdayTitles, id: \.self) { title in
+            ForEach(0..<7, id: \.self) { index in
+                let title = Self.weekdayTitles[(index + firstWeekday - 1) % 7]
                 Text(title)
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
@@ -222,8 +229,10 @@ public struct CalendarSectionView: View {
         .onTapGesture {
             guard let date = day?.date else { return }
             selectedDay = date
-            NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
-                                            userInfo: ["date": date])
+            if !isSettingsPreview {
+                NotificationCenter.default.post(name: .calendarDidSelectDay, object: nil,
+                                                userInfo: ["date": date])
+            }
         }
     }
 
@@ -263,9 +272,6 @@ public struct CalendarSectionView: View {
 
     /// 两周 14 天（按当前锚点所在周起算）
     private var twoWeekDays: [CalendarDay] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = Locale(identifier: "zh_CN")
-        calendar.firstWeekday = 1
         let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
         var map: [Date: CalendarDay] = [:]
         for day in cachedDays { map[calendar.startOfDay(for: day.date)] = day }
@@ -280,9 +286,6 @@ public struct CalendarSectionView: View {
     }
 
     private var monthTitle: String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = Locale(identifier: "zh_CN")
-        calendar.firstWeekday = 1
         let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
         return CalendarService.monthTitle(start)
     }
@@ -297,19 +300,20 @@ public struct CalendarSectionView: View {
     }
 
     private func shift(_ days: Int) {
-        guard let next = Calendar.current.date(byAdding: .day, value: days, to: anchor) else { return }
+        guard let next = calendar.date(byAdding: .day, value: days, to: anchor) else { return }
         anchor = next
         reload()
     }
 
     private func reload() {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = Locale(identifier: "zh_CN")
-        calendar.firstWeekday = 1
         let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
-        var days = service.monthDays(for: start)
-        if let next = calendar.date(byAdding: .day, value: 14, to: start) {
-            days.append(contentsOf: service.monthDays(for: next))
+        guard let end = calendar.date(byAdding: .day, value: 13, to: start) else { return }
+        // 周起始或导航变化仍复用已取的事件；只有显示范围超出缓存才读 EventKit。
+        if cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: start) }),
+           cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) { return }
+        var days = service.monthDays(for: start, firstWeekday: firstWeekday)
+        if !days.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) {
+            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday))
         }
         cachedDays = days
     }

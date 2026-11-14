@@ -10,7 +10,7 @@ import CoreImage
 /// 新增 备注、计数点、聚光灯、放大镜、模糊 五个工具。
 public enum AnnotationTool: String, CaseIterable, Identifiable {
     // 形状
-    case rectangle, ellipse, arrow
+    case rectangle, ellipse, arrow, line
     // 标注
     case text, remark, counter, highlighter
     // 强调
@@ -27,6 +27,7 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .rectangle:  return "矩形"
         case .ellipse:    return "椭圆"
         case .arrow:      return "箭头"
+        case .line:       return "直线"
         case .text:       return "文字"
         case .remark:     return "备注"
         case .counter:    return "计数点"
@@ -47,6 +48,7 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .rectangle: return "R"
         case .ellipse:   return "O"
         case .arrow:     return "A"
+        case .line:      return "L"
         case .text:      return "T"
         case .remark:    return "N"
         case .counter:   return "1"
@@ -66,6 +68,7 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
         case .rectangle: return "rectangle"
         case .ellipse:   return "circle"
         case .arrow:     return "arrow.up.right"
+        case .line:      return "line.diagonal"
         case .text:      return "text.cursor"        // textformat 在 mac SDK 不存在，会回退显示「格式」
         case .remark:    return "text.bubble"
         case .counter:   return "1.circle"
@@ -89,6 +92,12 @@ public enum AnnotationTool: String, CaseIterable, Identifiable {
     }
 }
 
+public enum AnnotationShapeStyle: String, CaseIterable, Codable {
+    case stroke, fill
+
+    public var title: String { self == .stroke ? "描边" : "实色填充" }
+}
+
 /// 一条标注。坐标一律使用**原图像素坐标、左上原点**，
 /// 这样合成器与画布可以共用同一套坐标，与缩放无关。
 public struct Annotation: Identifiable, Hashable {
@@ -99,6 +108,8 @@ public struct Annotation: Identifiable, Hashable {
     public var text: String?
     public var colorHex: String
     public var lineWidth: CGFloat
+    /// 矩形、椭圆的样式；其他工具不消费。
+    public var shapeStyle: AnnotationShapeStyle
     /// 马赛克块大小（图像像素；8–16 之间观感最好，越小越容易被还原）
     public var blockSize: CGFloat
     /// 文字字重（0 常规 / 1 中粗 / 2 加粗；仅 .text 用，字体配置弹层可改）
@@ -123,13 +134,15 @@ public struct Annotation: Identifiable, Hashable {
                 blockSize: CGFloat = 10,
                 weight: Int = 1,
                 wrapWidth: CGFloat = 0,
-                aux: CGFloat = 0) {
+                aux: CGFloat = 0,
+                shapeStyle: AnnotationShapeStyle = .stroke) {
         self.id = id
         self.tool = tool
         self.points = points
         self.text = text
         self.colorHex = colorHex
         self.lineWidth = lineWidth
+        self.shapeStyle = shapeStyle
         self.blockSize = blockSize
         self.weight = weight
         self.wrapWidth = wrapWidth
@@ -246,10 +259,18 @@ public enum AnnotationCompositor {
         case .rectangle:
             guard let r = rect(of: a) else { return }
             let path = NSBezierPath(rect: r)
-            apply(path, color: color, lineWidth: a.lineWidth)
+            if a.shapeStyle == .fill { color.setFill(); path.fill() }
+            else { apply(path, color: color, lineWidth: a.lineWidth) }
         case .ellipse:
             guard let r = rect(of: a) else { return }
             let path = NSBezierPath(ovalIn: r)
+            if a.shapeStyle == .fill { color.setFill(); path.fill() }
+            else { apply(path, color: color, lineWidth: a.lineWidth) }
+        case .line:
+            guard a.points.count == 2 else { return }
+            let path = NSBezierPath()
+            path.move(to: a.points[0])
+            path.line(to: a.points[1])
             apply(path, color: color, lineWidth: a.lineWidth)
         case .arrow:
             drawArrow(a, color: color)

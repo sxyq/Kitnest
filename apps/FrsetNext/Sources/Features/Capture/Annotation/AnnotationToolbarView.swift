@@ -49,17 +49,22 @@ final class EditorToolbarModel: ObservableObject {
     @Published var canRedo = false
     /// 画布上是否正选中一段已有文字（此时字号滑杆改的是「这段文字」，不是下一个文字的默认值）
     @Published var textSelectionActive = false
+    @Published var selectedShapeTool: AnnotationTool?
+    @Published var shapeStyle: AnnotationShapeStyle = .stroke
 
     var activeTool: AnnotationTool {
         let all = AnnotationTool.allCases
         return all[max(0, min(toolIndex, all.count - 1))]
     }
 
+    var styleTool: AnnotationTool { selectedShapeTool ?? activeTool }
+    var usesShapeStyle: Bool { styleTool == .rectangle || styleTool == .ellipse }
+
     /// 当前工具是否用笔刷直径（而不是线宽）
-    var isBrushTool: Bool { activeTool.isBrush }
+    var isBrushTool: Bool { styleTool.isBrush }
 
     /// 当前工具是否需要颜色
-    var usesColor: Bool { !activeTool.isBrush }
+    var usesColor: Bool { !styleTool.isBrush }
 
     /// 当前工具是否用线宽/字号（橡皮不需要）
     var usesSize: Bool {
@@ -128,8 +133,8 @@ enum ToolRailMetrics {
     /// 分割线长度
     static let separatorWidth: CGFloat = 18
     /// 分组断点（v220）：14 个工具按 形状 / 标注 / 强调 / 遮盖 / 画笔 分五段。
-    /// 断点是「在第几个工具之后画线」——2 形状、6 标注、8 强调、12 遮盖。
-    static let groupBreaks: Set<Int> = [2, 6, 8, 12]
+    /// 断点是「在第几个工具之后画线」——3 形状、7 标注、9 强调、13 遮盖。
+    static let groupBreaks: Set<Int> = [3, 7, 9, 13]
     /// 胶囊宽度
     static let width: CGFloat = button + hPadding * 2
     /// 胶囊高度（9 个按钮 + 2 条分割线 + 内边距）
@@ -238,6 +243,7 @@ struct AnnotationToolRailView: View {
         case .rectangle: return "拖动画矩形框"
         case .ellipse:   return "拖动画椭圆"
         case .arrow:     return "拖动画箭头"
+        case .line:      return "拖动画直线，选中后可拖端点"
         case .pen:       return "自由画线"
         case .text:      return "点画面输入文字"
         case .remark:    return "先点目标，再点空白处写说明"
@@ -318,6 +324,7 @@ struct AnnotationToolbarView: View {
     var onSize: (Double) -> Void
     var onBlock: (Int) -> Void
     var onCorner: (Double) -> Void
+    var onShapeStyle: (AnnotationShapeStyle) -> Void
     var onUndo: () -> Void
     var onRedo: () -> Void
     var onClear: () -> Void
@@ -356,6 +363,18 @@ struct AnnotationToolbarView: View {
         HStack(spacing: 7) {
             colorChip
             sizeControl
+            if model.usesShapeStyle {
+                Picker("形状样式", selection: Binding(
+                    get: { model.shapeStyle },
+                    set: { model.shapeStyle = $0; onShapeStyle($0) })) {
+                    ForEach(AnnotationShapeStyle.allCases, id: \.self) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 130)
+            }
             cornerControl
             blockSlot
         }

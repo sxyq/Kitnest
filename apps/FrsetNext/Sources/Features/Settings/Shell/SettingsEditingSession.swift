@@ -8,6 +8,23 @@ protocol SettingsEditableDraft: ObservableObject {
     func restoreDefaults()
 }
 
+final class CalendarSettingsDraft: SettingsEditableDraft {
+    @Published var firstWeekday = Preferences.shared.calendarFirstWeekday
+    private var savedFirstWeekday = Preferences.shared.calendarFirstWeekday
+
+    var isDirty: Bool { firstWeekday != savedFirstWeekday }
+    func save() -> String? {
+        Preferences.shared.calendarFirstWeekday = firstWeekday
+        savedFirstWeekday = firstWeekday
+        return nil
+    }
+    func discard() {
+        firstWeekday = Preferences.shared.calendarFirstWeekday
+        savedFirstWeekday = firstWeekday
+    }
+    func restoreDefaults() { firstWeekday = 1 }
+}
+
 /// 生命周期属于设置窗口；页面只借用草稿，切页不提交。
 final class SettingsEditingSession: ObservableObject {
     private struct Entry {
@@ -31,6 +48,7 @@ final class SettingsEditingSession: ObservableObject {
         register(id: "pin") { PinSettingsDraft() }
         register(id: "curtain") { CurtainSettingsDraft() }
         register(id: "menuBar") { MenuBarSettingsDraft() }
+        register(id: "calendar") { CalendarSettingsDraft() }
         register(id: "monitorWidgets") { MonitorWidgetsSettingsDraft() }
         register(id: "captureAppearance") { CaptureAppearanceDraft() }
         register(id: "recordingAppearance") { RecordingAppearanceDraft() }
@@ -96,7 +114,7 @@ extension SettingsPage {
         case .captureActions: return [PersonalizationSettingsPart.captureToolbar.draftID]
         case .clipboardAppearance: return [PersonalizationSettingsPart.clipboardAppearance.draftID]
         case .clipboardFloating: return [PersonalizationSettingsPart.floatingClipboard.draftID]
-        case .generalMenuBar: return ["menuBar"]
+        case .generalMenuBar: return ["menuBar", "calendar"]
         case .monitorWidgets: return ["monitorWidgets"]
         case .search: return ["searchDisplay"]
         case .transferLocal: return ["transferLocal"]

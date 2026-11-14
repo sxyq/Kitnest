@@ -18,6 +18,7 @@ final class AnnotationCanvasView: NSView {
         didSet {
             // 换工具即取消文字选中（选中框只属于文字工具）
             if tool != .text, selectedTextID != nil { selectText(nil) }
+            if tool != oldValue, selectedShapeID != nil { selectShape(nil) }
             // 备注的起点只属于备注工具：切走就作废，否则切回来点一下会直接弹输入框
             if tool != .remark { remarkAnchor = nil }
             updateCursor(nil)
@@ -26,6 +27,7 @@ final class AnnotationCanvasView: NSView {
     }
     var color: NSColor = .systemRed
     var lineWidth: CGFloat = 3 { didSet { needsDisplay = true } }
+    var shapeStyle: AnnotationShapeStyle = .stroke
     /// 马赛克笔刷直径（图像像素）与块大小（像素）
     var brushWidth: CGFloat = 120 { didSet { needsDisplay = true } }
     var mosaicBlock: CGFloat = 16
@@ -41,6 +43,7 @@ final class AnnotationCanvasView: NSView {
     /// 撤销栈：标注追加 / 标注改写（移动·改字号·改色）/ 抹除前的底图快照
     private enum EditOp {
         case annotation(Annotation)
+        case remove(Annotation, index: Int)
         /// 同一条标注的属性改写（文字移动/改字号/改色）
         case modify(old: Annotation, new: Annotation)
         /// 底图替换（抹除）：同时记录新旧图，撤销/重做都能还原
@@ -65,6 +68,10 @@ final class AnnotationCanvasView: NSView {
     private var isErasing = false
     private var draft: Annotation?
     private var dragStart: CGPoint?
+    private(set) var selectedShapeID: UUID?
+    var onShapeSelectionChange: ((Annotation?) -> Void)?
+    private var shapeDragOld: Annotation?
+    private var shapeEndpoint: Int?
     /// 备注工具：已点下的起点（等第二次点击放文本框）
     private var remarkAnchor: CGPoint?
     /// 备注工具：正在输入的这条备注的起点
@@ -287,6 +294,33 @@ final class AnnotationCanvasView: NSView {
         }
         ctx.restoreGState()
 
+        if let shape = selectedShape {
+            let points = shape.points.map {
+                CGPoint(x: f.minX + $0.x * scale, y: f.minY + $0.y * scale)
+            }
+            Theme.accentNS.setStroke()
+            if shape.tool != .line, let r = AnnotationCompositor.rect(of: shape) {
+                let path = NSBezierPath(rect: CGRect(x: f.minX + r.minX * scale - 4,
+                                                    y: f.minY + r.minY * scale - 4,
+                                                    width: r.width * scale + 8,
+                                                    height: r.height * scale + 8))
+                path.lineWidth = 1
+                path.setLineDash([4, 3], count: 2, phase: 0)
+                path.stroke()
+            }
+            if shape.tool == .line {
+                for point in points {
+                    let dot = NSBezierPath(ovalIn: CGRect(x: point.x - 5, y: point.y - 5,
+                                                         width: 10, height: 10))
+                    Theme.accentNS.setFill()
+                    dot.fill()
+                    NSColor.white.setStroke()
+                    dot.lineWidth = 1
+                    dot.stroke()
+                }
+            }
+        }
+
         // 选中文字的选择框：虚线胶囊 + 淡蓝底（提示「这段文字可以被拖动/改字号」），
         // 四角与边中点是控制点——拖动即按比例改字号
         if let a = selectedText, let r = AnnotationCompositor.textBounds(a) {
@@ -326,7 +360,17 @@ final class AnnotationCanvasView: NSView {
         switch a.tool {
         case .rectangle, .ellipse:
             guard let r = AnnotationCompositor.rect(of: a) else { return false }
-            return r.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+            let outer = r.insetBy(dx: -tolerance, dy: -tolerance)
+            let inner = r.insetBy(dx: tolerance, dy: tolerance)
+            if a.tool == .rectangle {
+                return a.shapeStyle == .fill ? r.contains(point)
+                    : outer.contains(point) && !inner.contains(point)
+            }
+            return a.shapeStyle == .fill ? NSBezierPath(ovalIn: r).contains(point)
+                : NSBezierPath(ovalIn: outer).contains(point)
+                    && !NSBezierPath(ovalIn: inner).contains(point)
+        case .line:
+            return distanceToPolyline(point, a.points) <= max(6 / imageScale, a.lineWidth / 2)
         case .mosaic, .blur:
             // 笔刷型：命中 = 落在笔触覆盖范围内（半径 = 笔刷直径/2 + 容差）
             return distanceToPolyline(point, a.points) <= max(4, a.lineWidth / 2) + 4
@@ -378,6 +422,28 @@ final class AnnotationCanvasView: NSView {
 
         // 换到别的工具时，未完成的备注起点作废
         if tool != .remark { remarkAnchor = nil }
+
+        if tool == .line || tool == .rectangle || tool == .ellipse {
+            if let selected = selectedShape, selected.tool == .line,
+               let endpoint = selected.points.indices.first(where: {
+                   hypot(selected.points[$0].x - ip.x, selected.points[$0].y - ip.y) <= 8 / imageScale
+               }) {
+                shapeDragOld = selected
+                shapeEndpoint = endpoint
+                dragStart = ip
+                return
+            }
+            if let hit = annotations.last(where: {
+                ($0.tool == .line || $0.tool == .rectangle || $0.tool == .ellipse) && hitTest($0, at: ip)
+            }) {
+                selectShape(hit)
+                shapeDragOld = hit
+                shapeEndpoint = nil
+                dragStart = ip
+                return
+            }
+            selectShape(nil)
+        }
 
         if tool == .counter {
             // 计数点：点一下落一个序号，连续点连续加（v220）
@@ -459,6 +525,19 @@ final class AnnotationCanvasView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         updateCursor(imagePoint(convert(event.locationInWindow, from: nil)))
+        if let old = shapeDragOld, let start = dragStart,
+           let index = annotations.firstIndex(where: { $0.id == old.id }) {
+            let ip = imagePoint(convert(event.locationInWindow, from: nil))
+            if let endpoint = shapeEndpoint {
+                annotations[index].points[endpoint] = ip
+            } else {
+                annotations[index].points = old.points.map {
+                    CGPoint(x: $0.x + ip.x - start.x, y: $0.y + ip.y - start.y)
+                }
+            }
+            needsDisplay = true
+            return
+        }
         if tool == .eraser, isErasing {
             // 滑动擦除：拖拽路径上每个命中的标注都删（同画笔滑动体验）
             eraseAt(imagePoint(convert(event.locationInWindow, from: nil)))
@@ -512,13 +591,21 @@ final class AnnotationCanvasView: NSView {
         } else {
             draft = Annotation(tool: tool, points: [start, ip],
                                colorHex: AnnotationCompositor.hex(of: color),
-                               lineWidth: strokeWidth(for: tool))
+                               lineWidth: strokeWidth(for: tool), shapeStyle: shapeStyle)
         }
         needsDisplay = true
     }
 
     override func mouseUp(with event: NSEvent) {
         updateCursor(imagePoint(convert(event.locationInWindow, from: nil)))
+        if let old = shapeDragOld {
+            defer { shapeDragOld = nil; shapeEndpoint = nil; dragStart = nil }
+            if let updated = selectedShape, updated != old {
+                record(.modify(old: old, new: updated), coalescing: false)
+                onShapeSelectionChange?(updated)
+            }
+            return
+        }
         if tool == .eraser {
             isErasing = false
             return
@@ -562,7 +649,7 @@ final class AnnotationCanvasView: NSView {
         } else {
             finished = Annotation(tool: tool, points: [start, ip],
                                   colorHex: AnnotationCompositor.hex(of: color),
-                                  lineWidth: strokeWidth(for: tool))
+                                  lineWidth: strokeWidth(for: tool), shapeStyle: shapeStyle)
         }
         // v264：仅文本马赛克 —— 笔触只用来指定范围，实际糊的是与之相交的文本行
         if let a = finished, a.tool == .mosaic, MosaicTextOnly.isEnabled {
@@ -590,6 +677,7 @@ final class AnnotationCanvasView: NSView {
         if let a = finished, isValid(a) {
             annotations.append(a)
             record(.annotation(a))
+            if a.tool == .line || a.tool == .rectangle || a.tool == .ellipse { selectShape(a) }
             onChange?()
             if a.tool == .mosaic {
                 Log.info("Capture", "马赛克笔触：\(a.points.count) 点，直径 \(Int(a.lineWidth))px，块 \(Int(a.blockSize))px")
@@ -708,6 +796,16 @@ final class AnnotationCanvasView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
+        if let id = selectedShapeID {
+            if event.keyCode == 51 || event.keyCode == 117,
+               let index = annotations.firstIndex(where: { $0.id == id }) {
+                let victim = annotations.remove(at: index)
+                record(.remove(victim, index: index))
+                selectShape(nil)
+                return
+            }
+            if event.keyCode == 53 { selectShape(nil); return }
+        }
         // 选中文字时：Delete/⌫ 删除、Esc 取消选中（都不再走工具快捷键）
         if selectedTextID != nil {
             if event.keyCode == 51 || event.keyCode == 117 {
@@ -728,7 +826,7 @@ final class AnnotationCanvasView: NSView {
     private func eraseAt(_ ip: CGPoint) {
         guard let index = annotations.lastIndex(where: { hitTest($0, at: ip) }) else { return }
         let victim = annotations.remove(at: index)
-        record(.annotation(victim))
+        record(.remove(victim, index: index))
         needsDisplay = true
         onChange?()
     }
@@ -799,7 +897,7 @@ final class AnnotationCanvasView: NSView {
         case .rectangle, .ellipse:
             guard a.points.count >= 2 else { return false }
             return abs(a.points[0].x - a.points[1].x) >= 2 || abs(a.points[0].y - a.points[1].y) >= 2
-        case .arrow:
+        case .arrow, .line:
             guard a.points.count >= 2 else { return false }
             let dx = a.points[0].x - a.points[1].x, dy = a.points[0].y - a.points[1].y
             return (dx * dx + dy * dy).squareRoot() >= 6
@@ -819,6 +917,38 @@ final class AnnotationCanvasView: NSView {
             return false
         case .text:
             return true
+        }
+    }
+
+    // MARK: 形状选中与属性编辑
+
+    private var selectedShape: Annotation? {
+        annotations.first { $0.id == selectedShapeID }
+    }
+
+    private func selectShape(_ annotation: Annotation?) {
+        selectedShapeID = annotation?.id
+        onShapeSelectionChange?(annotation)
+        needsDisplay = true
+    }
+
+    func applyShapeStyleToSelection(_ style: AnnotationShapeStyle) {
+        mutateSelectedShape { $0.shapeStyle = style }
+    }
+
+    func applyShapeSizeToSelection(_ width: CGFloat) {
+        mutateSelectedShape { $0.lineWidth = width }
+    }
+
+    private func mutateSelectedShape(_ body: (inout Annotation) -> Void) {
+        guard let id = selectedShapeID,
+              let index = annotations.firstIndex(where: { $0.id == id }) else { return }
+        let old = annotations[index]
+        body(&annotations[index])
+        let updated = annotations[index]
+        if updated != old {
+            record(.modify(old: old, new: updated), coalescing: false)
+            onShapeSelectionChange?(updated)
         }
     }
 
@@ -917,9 +1047,10 @@ final class AnnotationCanvasView: NSView {
         mutateSelectedText { $0.lineWidth = value }
     }
 
-    /// 改选中文字的颜色
+    /// 工具条共用的选中对象改色入口。
     func applyColorToSelection(_ hex: String) {
-        mutateSelectedText { $0.colorHex = hex }
+        if selectedShapeID != nil { mutateSelectedShape { $0.colorHex = hex } }
+        else { mutateSelectedText { $0.colorHex = hex } }
     }
 
     /// 改选中文字的字重（0 标准 / 1 中粗 / 2 加粗）
@@ -931,7 +1062,7 @@ final class AnnotationCanvasView: NSView {
     func deleteSelectedText() {
         guard let id = selectedTextID, let index = annotations.firstIndex(where: { $0.id == id }) else { return }
         let victim = annotations.remove(at: index)
-        record(.annotation(victim))
+        record(.remove(victim, index: index))
         closeFontPopover()
         selectText(nil)
         onChange?()
@@ -1177,8 +1308,8 @@ final class AnnotationCanvasView: NSView {
 
     /// 记录一次编辑：入撤销栈并清空重做栈。
     /// 连续改写同一条标注（拖字号滑杆 / 拖动文字）合并成一条，避免撤销栈被几十个中间态塞满。
-    private func record(_ op: EditOp) {
-        if case .modify(let old, let new) = op,
+    private func record(_ op: EditOp, coalescing: Bool = true) {
+        if coalescing, case .modify(let old, let new) = op,
            case .modify(let prevOld, let prevNew)? = ops.last,
            prevNew.id == new.id {
             ops[ops.count - 1] = .modify(old: prevOld, new: new)
@@ -1214,6 +1345,9 @@ final class AnnotationCanvasView: NSView {
         case .annotation(let a):
             if forward { annotations.append(a) }
             else { annotations.removeAll { $0.id == a.id } }
+        case .remove(let a, let index):
+            if forward { annotations.removeAll { $0.id == a.id } }
+            else { annotations.insert(a, at: index) }
         case .modify(let old, let new):
             if let index = annotations.firstIndex(where: { $0.id == new.id }) {
                 annotations[index] = forward ? new : old
@@ -1226,6 +1360,7 @@ final class AnnotationCanvasView: NSView {
             image = forward ? new : old
             mosaicPixelCache.removeAll(); mosaicCacheBase = nil
         }
+        if selectedShapeID != nil { selectShape(selectedShape) }
     }
 
     func clear() {
@@ -1234,6 +1369,7 @@ final class AnnotationCanvasView: NSView {
         ops.removeAll()
         redoOps.removeAll()
         if selectedTextID != nil { selectText(nil) }
+        if selectedShapeID != nil { selectShape(nil) }
         needsDisplay = true
         onChange?()
     }
@@ -1492,6 +1628,15 @@ final class AnnotationEditorWindow: NSWindow {
             self.toolbarModel.textSize = Double(annotation.lineWidth)
             self.toolbarModel.color = Color(nsColor: AnnotationCompositor.color(fromHex: annotation.colorHex))
         }
+        canvas.onShapeSelectionChange = { [weak self] annotation in
+            guard let self else { return }
+            self.toolbarModel.selectedShapeTool = annotation?.tool
+            self.toolbarModel.shapeStyle = annotation?.shapeStyle ?? self.canvas.shapeStyle
+            self.toolbarModel.lineWidth = Double(annotation?.lineWidth ?? self.canvas.lineWidth)
+            self.toolbarModel.color = Color(nsColor: annotation.map {
+                AnnotationCompositor.color(fromHex: $0.colorHex)
+            } ?? self.canvas.color)
+        }
         canvas.tool = AnnotationTool.allCases[toolbarModel.toolIndex]
         // 默认粗细随图幅走（3000px 级截图默认给粗，避免「细到看不见」）
         toolbarModel.applyImageDefaults(imageWidth: image.width)
@@ -1555,6 +1700,11 @@ final class AnnotationEditorWindow: NSWindow {
                 onSize: { [weak self] value in self?.toolbarDidChangeSize(CGFloat(value)) },
                 onBlock: { [weak self] value in self?.toolbarDidChangeBlock(value) },
                 onCorner: { [weak self] value in self?.canvas.cornerRadius = CGFloat(value) },
+                onShapeStyle: { [weak self] style in
+                    self?.canvas.shapeStyle = style
+                    self?.canvas.applyShapeStyleToSelection(style)
+                    self?.refocusCanvas()
+                },
                 onUndo: { [weak self] in self?.undoTapped(); self?.refocusCanvas() },
                 onRedo: { [weak self] in self?.redoTapped(); self?.refocusCanvas() },
                 onClear: { [weak self] in self?.clearTapped(); self?.refocusCanvas() },
@@ -1590,13 +1740,19 @@ final class AnnotationEditorWindow: NSWindow {
     func toolbarDidChangeColor(_ color: NSColor) {
         canvas.color = color
         // 有选中的文字时，改色直接落到这段文字上（不然用户会觉得「选了却改不动」）
-        if canvas.tool == .text, canvas.selectedTextID != nil {
+        if canvas.selectedShapeID != nil || (canvas.tool == .text && canvas.selectedTextID != nil) {
             canvas.applyColorToSelection(AnnotationCompositor.hex(of: color))
         }
         refocusCanvas()
     }
 
     func toolbarDidChangeSize(_ value: CGFloat) {
+        if canvas.selectedShapeID != nil {
+            canvas.lineWidth = value
+            canvas.applyShapeSizeToSelection(value)
+            refocusCanvas()
+            return
+        }
         switch toolbarModel.activeTool {
         case .text, .remark:
             canvas.textSize = value
@@ -1701,6 +1857,7 @@ final class AnnotationEditorWindow: NSWindow {
         case "r": selectTool(.rectangle); return true
         case "o": selectTool(.ellipse); return true
         case "a": selectTool(.arrow); return true
+        case "l": selectTool(.line); return true
         case "p": selectTool(.pen); return true
         case "h": selectTool(.highlighter); return true
         case "m": selectTool(.mosaic); return true

@@ -89,6 +89,7 @@ public final class Preferences: ObservableObject {
         // 工具箱（10）
         public static let toolboxEnabled = "toolbox.enabled"
         public static let calendarShowLunar = "calendar.showLunar"
+        public static let calendarFirstWeekday = "calendar.firstWeekday"
         // 个性化（v66：设置 → 常规 →「个性化」，全档即改即生效）
         public static let uiAccentColor = "ui.accent.color"            // hex 字符串，空 = 跟随系统
         public static let uiFontScale = "ui.font.scale"                // 0.9 / 1.0 / 1.1 / 1.25
@@ -125,6 +126,11 @@ public final class Preferences: ObservableObject {
     public var calendarShowLunar: Bool {
         get { value(Keys.calendarShowLunar, default: true) }
         set { set(Keys.calendarShowLunar, newValue) }
+    }
+    /// Foundation weekday：周日 1，周一 2。
+    public var calendarFirstWeekday: Int {
+        get { value(Keys.calendarFirstWeekday, default: 1) }
+        set { set(Keys.calendarFirstWeekday, newValue) }
     }
 }
 

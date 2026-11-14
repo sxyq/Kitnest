@@ -44,6 +44,7 @@ struct AnnotationStateSnapshot: Codable {
         var blockSize: Double
         var weight: Int
         var wrapWidth: Double
+        var shapeStyle: AnnotationShapeStyle?
     }
     var items: [Item]
     var updatedAt: Double
@@ -55,7 +56,7 @@ struct AnnotationStateSnapshot: Codable {
                      points: a.points.flatMap { [Double($0.x), Double($0.y)] },
                      text: a.text, colorHex: a.colorHex,
                      lineWidth: Double(a.lineWidth), blockSize: Double(a.blockSize),
-                     weight: a.weight, wrapWidth: Double(a.wrapWidth))
+                     weight: a.weight, wrapWidth: Double(a.wrapWidth), shapeStyle: a.shapeStyle)
             },
             updatedAt: Date().timeIntervalSince1970)
         guard let data = try? JSONEncoder().encode(snap) else { return "" }
@@ -78,7 +79,7 @@ struct AnnotationStateSnapshot: Codable {
                               lineWidth: CGFloat(item.lineWidth),
                               blockSize: CGFloat(item.blockSize),
                               weight: item.weight,
-                              wrapWidth: CGFloat(item.wrapWidth))
+                              wrapWidth: CGFloat(item.wrapWidth), shapeStyle: item.shapeStyle ?? .stroke)
         }
     }
 }

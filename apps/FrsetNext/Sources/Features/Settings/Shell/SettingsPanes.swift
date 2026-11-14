@@ -296,6 +296,20 @@ struct GeneralSettingsPane: View {
                         .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
+            SettingsDraftEditor(id: "calendar", makeDraft: { CalendarSettingsDraft() }) { draft in
+                SettingsGroupBox {
+                    formRow("日历周起始日") {
+                        Picker("日历周起始日", selection: Binding(
+                            get: { draft.firstWeekday }, set: { draft.firstWeekday = $0 })) {
+                            Text("周日").tag(1)
+                            Text("周一").tag(2)
+                        }
+                        .labelsHidden().pickerStyle(.segmented).frame(width: 150)
+                    }
+                    CalendarSectionView(firstWeekday: draft.firstWeekday)
+                        .environment(\.isSettingsPreview, true)
+                }
+            }
             SettingsGroupBox {
                 formRow("AI 服务商 · 即时管理") {
                     HStack(spacing: 12) {

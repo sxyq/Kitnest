@@ -78,21 +78,24 @@ public final class CalendarService: ObservableObject {
 
     // MARK: 月视图数据
 
-    /// 生成月视图网格（固定 6 行 × 7 列 = 42 天，周日起始）
-    /// - Parameter base: 目标月份内的任意日期
-    public func monthDays(for base: Date) -> [CalendarDay] {
+    public static func calendar(firstWeekday: Int) -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "zh_CN")
-        calendar.firstWeekday = 1          // 周日为一周起点
+        calendar.firstWeekday = firstWeekday
         calendar.timeZone = .current
+        return calendar
+    }
+
+    /// 生成月视图网格（固定 6 行 × 7 列 = 42 天）
+    /// - Parameter base: 目标月份内的任意日期
+    public func monthDays(for base: Date, firstWeekday: Int? = nil) -> [CalendarDay] {
+        let calendar = Self.calendar(firstWeekday: firstWeekday ?? Preferences.shared.calendarFirstWeekday)
 
         let comps = calendar.dateComponents([.year, .month], from: base)
-        guard let firstOfMonth = calendar.date(from: comps),
-              let range = calendar.range(of: .day, in: .month, for: base) else { return [] }
+        guard let firstOfMonth = calendar.date(from: comps) else { return [] }
 
-        // 网格起点：包含 1 号的那一周的周日
-        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
-        guard let gridStart = calendar.date(byAdding: .day, value: -(firstWeekday - 1), to: firstOfMonth) else { return [] }
+        let offset = (calendar.component(.weekday, from: firstOfMonth) - calendar.firstWeekday + 7) % 7
+        guard let gridStart = calendar.date(byAdding: .day, value: -offset, to: firstOfMonth) else { return [] }
 
         let showLunar = Preferences.shared.calendarShowLunar
         let today = Date()
@@ -108,9 +111,6 @@ public final class CalendarService: ObservableObject {
         for index in 0..<42 {
             guard let date = calendar.date(byAdding: .day, value: index, to: gridStart) else { continue }
             let weekday = calendar.component(.weekday, from: date)
-            let dayNumber = calendar.component(.day, from: date)
-            let isInMonth = range.contains(dayNumber) &&
-                calendar.component(.month, from: date) == (comps.month ?? 0)
 
             var lunarText: String?
             // v126（性能审计 F1354）：holiday(on:) 每格只算一次——原实现 lunarText 分支
@@ -139,7 +139,7 @@ public final class CalendarService: ObservableObject {
                                   isWeekend: weekday == 1 || weekday == 7,
                                   lunarText: lunarText,
                                   holidayText: holidayName,
-                                  events: isInMonth ? (eventsByDay[calendar.startOfDay(for: date)] ?? []) : [])
+                                  events: eventsByDay[calendar.startOfDay(for: date)] ?? [])
             days.append(day)
         }
         return days
