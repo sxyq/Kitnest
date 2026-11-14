@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - 剪贴板设置页（07 号设置模块通过 SettingsPaneRegistry 消费）
 //
@@ -31,6 +32,8 @@ public struct ClipboardSettingsPane: View {
     @Stored private var usageBytes: Int64 = 0
     /// 快捷键录入后刷新显示（v263）
     @Stored private var shortcutRevision = 0
+    @Stored private var clearingHistory = false
+    @Stored private var backupRequest: ClipboardBackupRequest?
 
     /// v200：当前生效的悬浮剪贴板呼出方式（组合键或双击修饰键），显示在「浮动窗」区。
     private var floatingShortcutSummary: String {
@@ -69,6 +72,12 @@ public struct ClipboardSettingsPane: View {
         }
         .font(.system(size: 13))
         .sheet(isPresented: $isManagingTags) { TagManagementSheet() }
+        .sheet(item: $backupRequest) { request in
+            ClipboardBackupSheet(request: request) {
+                backupRequest = nil
+                usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
+            }
+        }
         .onAppear {
             if section == .history {
                 tagStore.refresh()
@@ -107,7 +116,7 @@ public struct ClipboardSettingsPane: View {
                 }
                 SettingsDivider()
                 SettingsRow(title: "清理历史",
-                            subtitle: "按保留天数与容量上限删除超限条目；清空全部请用主面板底部工具条「清空」") {
+                            subtitle: "按保留天数与容量上限删除超限条目") {
                     Button("立即清理") {
                         // v115：无论删没删都给反馈——此前删 0 条时零提示，用户误判按钮失效
                         // v210：清理移到后台队列（批量删除 + 目录遍历不占主线程），
@@ -136,6 +145,39 @@ public struct ClipboardSettingsPane: View {
                         }
                     }
                     .controlSize(.small)
+                }
+                SettingsDivider()
+                SettingsRow(title: "清除历史，保留已存项目", subtitle: "删除全部未存历史；保留笔记、标签、文件中转及原文件。即时操作。") {
+                    Button(clearingHistory ? "正在清理…" : "清除历史…") {
+                        clearingHistory = true
+                        ClipboardManager.shared.clearUnsavedHistory {
+                            clearingHistory = false
+                            usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
+                        }
+                    }
+                    .controlSize(.small)
+                    .disabled(clearingHistory)
+                }
+                SettingsDivider()
+                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板、笔记、标签与完整附件；外部文件仅保存路径。密码不保存。") {
+                    HStack(spacing: 8) {
+                        Button("加密备份…") {
+                            let panel = NSSavePanel()
+                            panel.nameFieldStringValue = "Kitnest-剪贴板.7z"
+                            panel.allowedContentTypes = [UTType(filenameExtension: "7z")!]
+                            if panel.runModal() == .OK, let url = panel.url {
+                                backupRequest = ClipboardBackupRequest(url: url, importing: false)
+                            }
+                        }
+                        Button("恢复备份…") {
+                            let panel = NSOpenPanel()
+                            panel.allowedContentTypes = [UTType(filenameExtension: "7z")!]
+                            panel.allowsMultipleSelection = false
+                            if panel.runModal() == .OK, let url = panel.url {
+                                backupRequest = ClipboardBackupRequest(url: url, importing: true)
+                            }
+                        }
+                    }.controlSize(.small)
                 }
                 SettingsDivider()
                 // v272：从「常规 → 剪贴板」并回来的标签管理（原处已删，避免两处入口）
@@ -339,5 +381,104 @@ public struct ClipboardSettingsPane: View {
         let mb = Double(bytes) / 1024 / 1024
         if mb >= 1 { return String(format: "%.1f MB", mb) }
         return String(format: "%.0f KB", Double(bytes) / 1024)
+    }
+}
+
+private struct ClipboardBackupRequest: Identifiable {
+    let id = UUID()
+    let url: URL
+    let importing: Bool
+}
+
+/// 手动操作期间存在的设置页 sheet；密码与明文资料不进入偏好。
+private struct ClipboardBackupSheet: View {
+    let request: ClipboardBackupRequest
+    let close: () -> Void
+    @Stored private var password = ""
+    @Stored private var confirmation = ""
+    @Stored private var busy = false
+    @Stored private var message: String?
+    @Stored private var session: ClipboardBackup.RestoreSession?
+    @Stored private var operation: ClipboardBackup.Operation?
+    @Stored private var replace = false
+    @Stored private var useBackupConflicts = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(request.importing ? "恢复剪贴板备份" : "加密备份剪贴板")
+                .font(.system(size: 17, weight: .semibold))
+            Text(request.url.lastPathComponent).foregroundStyle(.secondary).lineLimit(1)
+            if let session {
+                ScrollView {
+                    Text(session.summary).font(.system(size: 13)).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 220)
+                Picker("恢复方式", selection: $replace) {
+                    Text("合并到本机").tag(false)
+                    Text("替换剪贴板资料").tag(true)
+                }.pickerStyle(.segmented)
+                if replace {
+                    Text("替换全部剪贴板历史、笔记和标签，保留 AI 对话及其他模块资料。")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    Picker("内容相同但标题、笔记或标签不同", selection: $useBackupConflicts) {
+                        Text("保留本机").tag(false)
+                        Text("使用备份").tag(true)
+                    }
+                }
+            } else {
+                SecureField("密码", text: $password)
+                if !request.importing { SecureField("再次输入密码", text: $confirmation) }
+                Text(request.importing ? "先解密并展示资料数量，确认后才恢复。" : "7z 同时加密正文、附件和文件名。请自行保管密码。")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            if let message { Text(message).foregroundStyle(.red).font(.system(size: 12)).textSelection(.enabled) }
+            HStack {
+                if busy { ProgressView().controlSize(.small); Text("正在处理…").foregroundStyle(.secondary) }
+                Spacer()
+                Button("取消") { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; close() }
+                    .keyboardShortcut(.cancelAction)
+                Button(session == nil ? (request.importing ? "读取备份" : "加密备份") : "确认恢复") { execute() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(busy || (session == nil && (password.isEmpty || (!request.importing && password != confirmation))))
+            }
+        }
+        .padding(24)
+        .frame(width: 430)
+        .frsetThemeChrome()
+        .onDisappear { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; confirmation = "" }
+    }
+
+    private func execute() {
+        busy = true
+        message = nil
+        if let session {
+            operation = ClipboardManager.shared.restoreBackup(session, replace: replace, useBackupConflicts: useBackupConflicts, completion: finish)
+        } else if request.importing {
+            operation = ClipboardManager.shared.prepareBackupRestore(from: request.url, password: password) { result in
+                busy = false
+                operation = nil
+                switch result {
+                case .success(let prepared): session = prepared; password = ""
+                case .failure(let error): message = error.localizedDescription
+                }
+            }
+        } else {
+            operation = ClipboardManager.shared.exportBackup(to: request.url, password: password, completion: finish)
+        }
+    }
+
+    private func finish(_ result: Result<String, Error>) {
+        busy = false
+        operation = nil
+        switch result {
+        case .success(let text):
+            session?.cleanup()
+            password = ""; confirmation = ""
+            Toast.show(text, icon: "checkmark.circle")
+            close()
+        case .failure(let error): message = error.localizedDescription
+        }
     }
 }

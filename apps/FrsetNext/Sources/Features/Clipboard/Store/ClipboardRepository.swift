@@ -17,6 +17,7 @@ public struct ClipboardQuery {
     /// （v202：复制链接时系统粘贴板同时带 .string，旧读取逻辑把它存成了 text，
     /// 「链接」分类因此漏掉绝大多数历史数据）
     public var urlLikeOnly: Bool = false
+    public var fileCategoryMask: Int = 0
     public var tagID: String? = nil
     public var limit: Int = ClipboardRepository.defaultPageSize
     public var offset: Int = 0
@@ -28,6 +29,7 @@ public struct ClipboardQuery {
                 generatedSourceKeyword: String? = nil,
                 codeLikeOnly: Bool = false,
                 urlLikeOnly: Bool = false,
+                fileCategoryMask: Int = 0,
                 tagID: String? = nil,
                 limit: Int = ClipboardRepository.defaultPageSize,
                 offset: Int = 0) {
@@ -38,6 +40,7 @@ public struct ClipboardQuery {
         self.generatedSourceKeyword = generatedSourceKeyword
         self.codeLikeOnly = codeLikeOnly
         self.urlLikeOnly = urlLikeOnly
+        self.fileCategoryMask = fileCategoryMask
         self.tagID = tagID
         self.limit = limit
         self.offset = offset
@@ -56,11 +59,11 @@ public final class ClipboardRepository: @unchecked Sendable {
 
     private let db: SQLiteDatabase = DatabaseManager.shared.clipboard
 
-    private static let columns = """
+    static let columns = """
         id, type, content, title, subtitle, timestamp, source_app, image_path, thumbnail_path,
         is_generated_by_tool, is_note, source_tool_analytics_id, source_tool_keyword, text_path,
         rich_text_path, full_text_char_count, full_text_line_count, source_input, file_icon_key,
-        image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title
+        image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title, file_categories
         """
 
     private static func appendClauses(_ query: ClipboardQuery, clauses: inout [String], values: inout [SQLiteValue]) {
@@ -69,6 +72,10 @@ public final class ClipboardRepository: @unchecked Sendable {
             values.append(.text(type.rawValue))
         }
         if query.noteOnly { clauses.append("is_note = 1") }
+        if query.fileCategoryMask != 0 {
+            clauses.append("(file_categories & ?) != 0")
+            values.append(.int(Int64(query.fileCategoryMask)))
+        }
         if query.toolGeneratedOnly { clauses.append("is_generated_by_tool = 1") }
         if let keyword = query.generatedSourceKeyword {
             clauses.append("source_tool_keyword = ?")
@@ -179,8 +186,8 @@ public final class ClipboardRepository: @unchecked Sendable {
                 id, type, content, title, subtitle, timestamp, source_app, image_path, thumbnail_path,
                 is_generated_by_tool, is_note, source_tool_analytics_id, source_tool_keyword, text_path,
                 rich_text_path, full_text_char_count, full_text_line_count, source_input, file_icon_key,
-                image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title, file_categories
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """
         do {
             try db.run(sql, Self.bindings(item))
@@ -270,25 +277,67 @@ public final class ClipboardRepository: @unchecked Sendable {
 
     /// 删除条目并回收其全部落盘文件
     @discardableResult
-    public func delete(dedupeKey: String) -> Bool {
-        guard let row = try? db.query(
-            "SELECT image_path, thumbnail_path, text_path, rich_text_path FROM clipboard_items WHERE dedupe_key = ? LIMIT 1",
-            [.text(dedupeKey)]).first else { return false }
+    public func delete(dedupeKey: String, onFailure: ((String) -> Void)? = nil,
+                       onReclaimedBytes: ((Int64) -> Void)? = nil) -> Bool {
+        db.accessLock.lock(); defer { db.accessLock.unlock() }
+        let fm = FileManager.default
+        var copies: [(original: URL, saved: URL)] = []
+        var reclaimed: Int64 = 0
+        var temporaryDirectory: URL?
+        defer {
+            if let temporaryDirectory {
+                do { try fm.removeItem(at: temporaryDirectory) }
+                catch { Log.warn("clipboard", "清理临时附件失败：\(error.localizedDescription)") }
+            }
+        }
         do {
+            guard let row = try db.query(
+                "SELECT image_path, thumbnail_path, text_path, rich_text_path FROM clipboard_items WHERE dedupe_key = ? LIMIT 1",
+                [.text(dedupeKey)]).first else { return false }
+            var paths = Set(["image_path", "thumbnail_path", "text_path", "rich_text_path"].compactMap { row.string($0) })
+            paths.insert(ClipboardOCRTextStorage.relativePath(dedupeKey: dedupeKey))
+            let stage = fm.temporaryDirectory.appendingPathComponent("kitnest-clipboard-delete-\(UUID().uuidString)", isDirectory: true)
+            try fm.createDirectory(at: stage, withIntermediateDirectories: true)
+            temporaryDirectory = stage
+            for path in paths {
+                let shared = try db.scalarInt("""
+                    SELECT COUNT(*) FROM clipboard_items WHERE dedupe_key != ?
+                    AND (image_path = ? OR thumbnail_path = ? OR text_path = ? OR rich_text_path = ?)
+                    """, [.text(dedupeKey)] + Array(repeating: .text(path), count: 4))
+                let original = ClipboardFileStore.url(forRelativePath: path)
+                if shared > 0 || !fm.fileExists(atPath: original.path) { continue }
+                let saved = stage.appendingPathComponent(UUID().uuidString)
+                try fm.copyItem(at: original, to: saved)
+                copies.append((original, saved))
+                reclaimed += (try fm.attributesOfItem(atPath: original.path)[.size] as? NSNumber)?.int64Value ?? 0
+            }
             try db.transaction { database in
+                for copy in copies { try fm.removeItem(at: copy.original) }
                 try database.run("DELETE FROM clipboard_items WHERE dedupe_key = ?", [.text(dedupeKey)])
                 try database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ?", [.text(dedupeKey)])
             }
         } catch {
+            var message = error.localizedDescription
+            for copy in copies where !fm.fileExists(atPath: copy.original.path) {
+                do { try fm.copyItem(at: copy.saved, to: copy.original) }
+                catch { message += "；附件恢复失败 \(copy.original.lastPathComponent)：\(error.localizedDescription)" }
+            }
+            onFailure?(message)
             Log.error("clipboard", "删除失败: \(error)")
             return false
         }
-        ClipboardFileStore.remove(row.string("image_path"))
-        ClipboardFileStore.remove(row.string("thumbnail_path"))
-        ClipboardFileStore.remove(row.string("text_path"))
-        ClipboardFileStore.remove(row.string("rich_text_path"))
+        // 移除 OCR 内存索引，附件已由同一删除流程回收。
         ClipboardOCRTextStorage.remove(dedupeKey: dedupeKey)
+        onReclaimedBytes?(reclaimed)
         return true
+    }
+
+    public func unsavedHistory() throws -> [ClipboardItem] {
+        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0").map(Self.makeItem)
+    }
+
+    public func savedCount() throws -> Int {
+        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1"))
     }
 
     // MARK: 清理辅助（双调度器共用）
@@ -343,7 +392,8 @@ public final class ClipboardRepository: @unchecked Sendable {
             storageBytes: Int(row.int("storage_bytes")),
             dedupeKey: row.string("dedupe_key") ?? "",
             aliasTitle: row.string("alias_title"),
-            tagIDs: []
+            tagIDs: [],
+            fileCategories: Int(row.int("file_categories"))
         )
     }
 
@@ -374,7 +424,8 @@ public final class ClipboardRepository: @unchecked Sendable {
             optionalText(item.payloadKey),
             .int(Int64(item.storageBytes)),
             .text(item.dedupeKey),
-            optionalText(item.aliasTitle)
+            optionalText(item.aliasTitle),
+            .int(Int64(item.fileCategories))
         ]
     }
 

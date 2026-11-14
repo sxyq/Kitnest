@@ -22,6 +22,8 @@ public struct DatabaseError: LocalizedError {
 public final class SQLiteDatabase {
     public let path: String
     private var handle: OpaquePointer?
+    // 同一连接还有标签与保留期写入；事务期间不能插入另一线程的 SQL。
+    let accessLock = NSRecursiveLock()
 
     public init(path: String) throws {
         self.path = path
@@ -60,6 +62,7 @@ public final class SQLiteDatabase {
     deinit { if let h = handle { sqlite3_close(h) } }
 
     public func exec(_ sql: String) throws {
+        accessLock.lock(); defer { accessLock.unlock() }
         guard let h = handle else { throw DatabaseError(message: "db closed") }
         var err: UnsafeMutablePointer<CChar>?
         if sqlite3_exec(h, sql, nil, nil, &err) != SQLITE_OK {
@@ -83,6 +86,7 @@ public final class SQLiteDatabase {
     }
 
     public func run(_ sql: String, _ values: [SQLiteValue] = []) throws {
+        accessLock.lock(); defer { accessLock.unlock() }
         guard let h = handle else { throw DatabaseError(message: "db closed") }
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(h, sql, -1, &stmt, nil) == SQLITE_OK, let s = stmt else {
@@ -97,6 +101,7 @@ public final class SQLiteDatabase {
 
 
     public func query(_ sql: String, _ values: [SQLiteValue] = []) throws -> [[String: SQLiteValue]] {
+        accessLock.lock(); defer { accessLock.unlock() }
         guard let h = handle else { throw DatabaseError(message: "db closed") }
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(h, sql, -1, &stmt, nil) == SQLITE_OK, let s = stmt else {
@@ -150,6 +155,7 @@ public final class SQLiteDatabase {
 
     /// 事务包装
     public func transaction<T>(_ body: (SQLiteDatabase) throws -> T) throws -> T {
+        accessLock.lock(); defer { accessLock.unlock() }
         try exec("BEGIN;")
         do {
             let r = try body(self)
@@ -232,7 +238,8 @@ public final class DatabaseManager {
             payload_key TEXT,
             storage_bytes INTEGER DEFAULT 0,
             dedupe_key TEXT NOT NULL UNIQUE,
-            alias_title TEXT
+            alias_title TEXT,
+            file_categories INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_items_timestamp ON clipboard_items(timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_items_type ON clipboard_items(type, timestamp DESC);
@@ -288,6 +295,18 @@ public final class DatabaseManager {
             created_at REAL NOT NULL
         );
         """)
+
+        if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "file_categories" }) {
+            try clipboard.transaction { db in
+                try db.exec("ALTER TABLE clipboard_items ADD COLUMN file_categories INTEGER NOT NULL DEFAULT 0")
+                for row in try db.query("SELECT id, content, text_path FROM clipboard_items WHERE type = 'file'") {
+                    let paths = row.string("text_path").flatMap { ClipboardTextStorage.read($0) } ?? row.string("content") ?? ""
+                    let categories = ClipboardFileCategories.classify(paths)
+                    try db.run("UPDATE clipboard_items SET file_categories = ? WHERE id = ?",
+                               [.int(Int64(categories)), .text(row.string("id")!)])
+                }
+            }
+        }
 
         // spec 17 §0/§1b D7：原作为事件名驱动的窄表（重建早期臆测的 daily_stats 宽表必改）
         try statistics.exec("""

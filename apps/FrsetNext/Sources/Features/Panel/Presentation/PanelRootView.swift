@@ -420,6 +420,7 @@ struct PanelRootView: View {
                 // （无效）且无任何反馈（无提示）。改 Button：点击必执行 + Toast
                 // 明示新状态，标题随暂停/恢复切换。
                 ClipboardRecordingMenu()
+                Button("清空当前剪贴板") { ClipboardManager.shared.clearCurrentPasteboard() }
                 Button("设置") { onOpenSettings() }
                     .keyboardShortcut(",", modifiers: .command)
                 Button("使用统计") {

@@ -19,7 +19,7 @@ public extension Preferences.Keys {
 /// 过滤枚举 case 序 = 原作反射串序（0xaed3c0）：all, text, image, link, file, code, color, generated, note。
 /// 与重建差异：删 .richtext（并入 text 检索）；.url 更名 .link；新增 .code / .color / .generated。
 public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
-    case all, text, image, link, file, code, color, generated, note
+    case all, text, image, link, file, pdf, media, code, color, generated, note
 
     public var id: String { rawValue }
 
@@ -32,6 +32,8 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .image: return "图片"
         case .link: return "链接"
         case .file: return "文件"
+        case .pdf: return "PDF"
+        case .media: return "媒体"
         case .code: return "代码"
         case .color: return "颜色"
         case .generated: return "工具生成"
@@ -46,6 +48,8 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .image: return "photo"
         case .link: return "link"
         case .file: return "doc"
+        case .pdf: return "doc.richtext"
+        case .media: return "play.rectangle"
         case .code: return "chevron.left.forwardslash.chevron.right"
         case .color: return "paintpalette"
         case .generated: return "wand.and.stars"
@@ -62,17 +66,20 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
                               noteOnly: Bool,
                               toolGeneratedOnly: Bool,
                               generatedSourceKeyword: String?,
-                              codeLikeOnly: Bool) {
+                              codeLikeOnly: Bool,
+                              fileCategoryMask: Int) {
         switch self {
-        case .all:       return (nil, false, false, nil, false)
-        case .text:      return (.text, false, false, nil, false)
-        case .image:     return (.image, false, false, nil, false)
-        case .link:      return (nil, false, false, nil, false)   // v202：type 不限定，由 urlLikeOnly 同时覆盖 url/text 链接
-        case .file:      return (.file, false, false, nil, false)
-        case .code:      return (.text, false, false, nil, true)
-        case .color:     return (nil, false, true, "colorpicker", false)
-        case .generated: return (nil, false, true, nil, false)
-        case .note:      return (nil, true, false, nil, false)
+        case .all:       return (nil, false, false, nil, false, 0)
+        case .text:      return (.text, false, false, nil, false, 0)
+        case .image:     return (.image, false, false, nil, false, 0)
+        case .link:      return (nil, false, false, nil, false, 0)
+        case .file:      return (.file, false, false, nil, false, 0)
+        case .pdf:       return (.file, false, false, nil, false, ClipboardFileCategories.pdf)
+        case .media:     return (.file, false, false, nil, false, ClipboardFileCategories.media)
+        case .code:      return (.text, false, false, nil, true, 0)
+        case .color:     return (nil, false, true, "colorpicker", false, 0)
+        case .generated: return (nil, false, true, nil, false, 0)
+        case .note:      return (nil, true, false, nil, false, 0)
         }
     }
 
@@ -83,6 +90,8 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .image: return item.type == .image
         case .link: return item.type == .url || (item.content ?? "").hasPrefix("https://")
         case .file: return item.type == .file
+        case .pdf: return item.type == .file && item.fileCategories & ClipboardFileCategories.pdf != 0
+        case .media: return item.type == .file && item.fileCategories & ClipboardFileCategories.media != 0
         case .code:
             let kind = PreviewPopoverContentModel.classifyRawText(item.content ?? "")
             return kind == .code || kind == .json
@@ -423,7 +432,8 @@ public final class ClipboardManager: ObservableObject {
                 fileIconKey: result.fileIconKey,
                 imageDimensionUnit: "px",
                 storageBytes: fileBytes,
-                dedupeKey: key
+                dedupeKey: key,
+                fileCategories: result.type == .file ? ClipboardFileCategories.classify(result.content ?? "") : 0
             )
 
             if repository.insert(item) {
@@ -484,6 +494,7 @@ public final class ClipboardManager: ObservableObject {
                               generatedSourceKeyword: mapping.generatedSourceKeyword,
                               codeLikeOnly: mapping.codeLikeOnly,
                               urlLikeOnly: filter == .link,
+                              fileCategoryMask: mapping.fileCategoryMask,
                               tagID: tagFilterID,
                               // v128（内存优化）：limit 钳到驻留上限，SQL 层就只出 800 行
                               limit: min(limit, Self.maxResidentItems),
@@ -567,6 +578,16 @@ public final class ClipboardManager: ObservableObject {
     }
 
     // MARK: 操作
+
+    public func clearCurrentPasteboard() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        lastChangeCount = pasteboard.changeCount
+        lastSelfWriteChangeCount = -1
+        lastSelfWriteToken = nil
+        lastSelfWriteExpiresAt = .distantPast
+        Toast.show("当前剪贴板已清空", icon: "clipboard")
+    }
 
     /// 写回系统粘贴板；可选自动粘贴（需辅助功能权限，默认关闭）
     @discardableResult
@@ -701,11 +722,94 @@ public final class ClipboardManager: ObservableObject {
     /// 删除条目（含文件回收）
     public func delete(_ item: ClipboardItem) {
         queue.async { [weak self] in
-            self?.repository.delete(dedupeKey: item.dedupeKey)
+            guard let self else { return }
+            var failure = "记录已不存在"
+            let deleted = self.repository.delete(dedupeKey: item.dedupeKey, onFailure: { failure = $0 })
             DispatchQueue.main.async {
-                self?.items.removeAll { $0.dedupeKey == item.dedupeKey }
+                guard deleted else {
+                    Toast.show("删除失败：\(failure)", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
+                self.items.removeAll { $0.dedupeKey == item.dedupeKey }
+                ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
                 NotificationCenter.default.post(name: ClipboardManager.itemsDidChangeNotification, object: nil)
             }
+        }
+    }
+
+    /// 清理的是全部未存历史，不读取当前页面的筛选或分页。
+    public func clearUnsavedHistory(completion: @escaping () -> Void) {
+        queue.async {
+            do {
+                let pending = try self.repository.unsavedHistory().count
+                let saved = try self.repository.savedCount()
+                DispatchQueue.main.async {
+                    let alert = NSAlert()
+                    alert.messageText = "清除历史，保留已存项目"
+                    alert.informativeText = "将删除 \(pending) 条历史，保留 \(saved) 条已存项目及全部标签。仅回收 Kitnest 私有附件，保留外部原文件。"
+                    alert.addButton(withTitle: "删除历史")
+                    alert.addButton(withTitle: "取消")
+                    alert.alertStyle = .warning
+                    guard alert.runModal() == .alertFirstButtonReturn else { completion(); return }
+                    self.queue.async {
+                        var removedIDs: [String] = []
+                        var bytes: Int64 = 0
+                        var failures: [String] = []
+                        do {
+                            for item in try self.repository.unsavedHistory() {
+                                var reason = "记录已不存在"
+                                if self.repository.delete(dedupeKey: item.dedupeKey,
+                                    onFailure: { reason = $0 }, onReclaimedBytes: { bytes += $0 }) {
+                                    removedIDs.append(item.id)
+                                } else { failures.append("\(item.aliasTitle ?? item.title ?? item.id)：\(reason)") }
+                            }
+                        } catch { failures.append(error.localizedDescription) }
+                        DispatchQueue.main.async {
+                            for id in removedIDs { ServiceLocator.panelPreview?.notifyItemRemoved(itemID: id) }
+                            TagStore.shared.refresh()
+                            self.reload(reset: true)
+                            let reclaimed = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+                            Toast.show("已删除 \(removedIDs.count) 条，回收 \(reclaimed)", icon: "trash")
+                            completion()
+                            if !failures.isEmpty {
+                                let result = NSAlert()
+                                result.messageText = "\(failures.count) 条未删除，已保留"
+                                result.informativeText = failures.joined(separator: "\n")
+                                result.runModal()
+                            }
+                        }
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    Toast.show("读取历史失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+                    completion()
+                }
+            }
+        }
+    }
+
+    func exportBackup(to url: URL, password: String,
+                             completion: @escaping (Result<String, Error>) -> Void) -> ClipboardBackup.Operation {
+        ClipboardBackup.export(to: url, password: password, queue: queue, completion: completion)
+    }
+
+    func prepareBackupRestore(from url: URL, password: String,
+                                     completion: @escaping (Result<ClipboardBackup.RestoreSession, Error>) -> Void) -> ClipboardBackup.Operation {
+        ClipboardBackup.prepareRestore(from: url, password: password, queue: queue, completion: completion)
+    }
+
+    func restoreBackup(_ session: ClipboardBackup.RestoreSession, replace: Bool, useBackupConflicts: Bool,
+                              completion: @escaping (Result<String, Error>) -> Void) -> ClipboardBackup.Operation {
+        ClipboardBackup.restore(session, replace: replace, useBackupConflicts: useBackupConflicts, queue: queue) { result in
+            if case .success = result {
+                ClipboardOCRTextStorage.invalidateIndex()
+                TagStore.shared.refresh()
+                MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
+                NotificationCenter.default.post(name: .clipboardSelectionChanged, object: nil)
+                self.reload(reset: true)
+            }
+            completion(result)
         }
     }
 
@@ -872,9 +976,13 @@ public final class ClipboardManager: ObservableObject {
                     Log.info("clipboard", "自动 OCR 无文字，保留图片")
                     return
                 }
-                ClipboardOCRTextStorage.write(text, dedupeKey: dedupeKey)
-                DatabaseManager.shared.bumpStat("ocr_count")
-                Log.info("clipboard", "OCR 完成：\(text.count) 字符")
+                self.queue.async {
+                    // 识别完成可能晚于用户删除；附件与备份沿用同一串行数据路径。
+                    guard self.repository.exists(dedupeKey: dedupeKey) else { return }
+                    ClipboardOCRTextStorage.write(text, dedupeKey: dedupeKey)
+                    DatabaseManager.shared.bumpStat("ocr_count")
+                    Log.info("clipboard", "OCR 完成：\(text.count) 字符")
+                }
             } catch {
                 Log.warn("clipboard", "OCR 失败: \(error)")
             }

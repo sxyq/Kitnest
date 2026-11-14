@@ -109,7 +109,7 @@ public enum ClipboardOCRTextStorage {
 
     /// 以去重键命名，天然保证一个条目一份 OCR 结果
     /// OCR 结果文件相对路径（去重键中的 `/` 替换为 `_`，与 write/read/remove 同口径）
-    private static func relativePath(dedupeKey: String) -> String {
+    public static func relativePath(dedupeKey: String) -> String {
         let safe = dedupeKey.replacingOccurrences(of: "/", with: "_")
         return "\(directoryName)/\(safe).txt"
     }
@@ -154,6 +154,11 @@ public enum ClipboardOCRTextStorage {
     // write/remove 增量维护，重启后首次检索重建一次。
     private static let indexLock = NSLock()
     private static var textIndex: [String: String]? = nil
+
+    static func invalidateIndex() {
+        indexLock.lock(); defer { indexLock.unlock() }
+        textIndex = nil
+    }
 
     /// 构建/取用索引（含 maxFiles 上限，语义与原扫描一致）
     private static func loadIndex(maxFiles: Int) -> [String: String] {

@@ -1,9 +1,29 @@
 import Foundation
+import UniformTypeIdentifiers
 
 // MARK: - 剪贴板（05 号规格，字段与 clipboard.sqlite 一一对应）
 
 public enum ClipboardItemType: String, Codable, CaseIterable, Sendable {
     case text, richtext, image, file, url
+}
+
+public enum ClipboardFileCategories {
+    public static let pdf = 1
+    public static let audio = 2
+    public static let video = 4
+    public static let media = audio | video
+
+    public static func classify(_ paths: String) -> Int {
+        paths.split(separator: "\n").reduce(0) { flags, path in
+            let ext = (String(path) as NSString).pathExtension.lowercased()
+            guard let type = UTType(filenameExtension: ext) else { return flags }
+            var result = flags
+            if type.conforms(to: .pdf) { result |= pdf }
+            if type.conforms(to: .audio) { result |= audio }
+            if type.conforms(to: .movie) || type.conforms(to: .video) { result |= video }
+            return result
+        }
+    }
 }
 
 public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
@@ -32,6 +52,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
     public let dedupeKey: String
     public var aliasTitle: String?
     public var tagIDs: [String]
+    public let fileCategories: Int
 
     public init(id: String = UUID().uuidString,
                 type: ClipboardItemType,
@@ -57,7 +78,8 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
                 storageBytes: Int = 0,
                 dedupeKey: String,
                 aliasTitle: String? = nil,
-                tagIDs: [String] = []) {
+                tagIDs: [String] = [],
+                fileCategories: Int? = nil) {
         self.id = id; self.type = type; self.content = content; self.title = title
         self.subtitle = subtitle; self.timestamp = timestamp; self.sourceApp = sourceApp
         self.imagePath = imagePath; self.thumbnailPath = thumbnailPath
@@ -69,6 +91,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
         self.imageDimensionUnit = imageDimensionUnit; self.payloadKey = payloadKey
         self.storageBytes = storageBytes; self.dedupeKey = dedupeKey
         self.aliasTitle = aliasTitle; self.tagIDs = tagIDs
+        self.fileCategories = fileCategories ?? (type == .file ? ClipboardFileCategories.classify(content ?? "") : 0)
     }
 
     /// 去重键：类型前缀 + 内容指纹（05 §5.2）
@@ -122,7 +145,7 @@ public struct Tag: Codable, Identifiable, Hashable, Sendable {
 public enum ToolKind: String, Codable, CaseIterable, Sendable {
     case timestampConverter, ipAddress, varNameConverter, base64, urlEncode
     case jsonFormat, codePreview, imageCompress, colorPicker, translation, hashGenerator
-    case uuid, summary, qrCode
+    case uuid, summary, polish, qrCode
 }
 
 public struct ToolInvocationRecord: Codable, Identifiable, Sendable {

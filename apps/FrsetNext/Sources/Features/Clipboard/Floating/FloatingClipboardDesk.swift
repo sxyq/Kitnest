@@ -93,6 +93,7 @@ public final class FloatingClipDeskStore: ObservableObject {
     @Published public private(set) var loadedKind: ClipboardFilterKind = .all
     @Published public private(set) var loadedSearch: String = ""
     private var loadedTagFilterID: String?
+    private var loadedLimit = 120
 
     /// 当前分类（切换后立刻重新查询）
     @Published public var kind: ClipboardFilterKind = .all {
@@ -208,15 +209,18 @@ public final class FloatingClipDeskStore: ObservableObject {
         query.toolGeneratedOnly = mapping.toolGeneratedOnly
         query.generatedSourceKeyword = mapping.generatedSourceKeyword
         query.codeLikeOnly = mapping.codeLikeOnly
+        query.fileCategoryMask = mapping.fileCategoryMask
         query.urlLikeOnly = (kind == .link)   // v202：链接分类兼容历史 text 条目
         query.search = search
         query.tagID = tagFilterID
-        query.limit = 120          // 屏幕一屏装不下这么多，够滚动两屏
+        if kind != loadedKind || search != loadedSearch || tagFilterID != loadedTagFilterID { loadedLimit = 120 }
+        query.limit = loadedLimit
         query.offset = 0
 
         isLoading = true
         queue.async { [weak self] in
             let fetched = autoreleasepool { ClipboardRepository.shared.fetch(query) }
+            let total = ClipboardRepository.shared.count(query)
             DispatchQueue.main.async {
                 guard let self else { return }
                 // 查询期间用户又改了条件：丢弃这次结果，避免列表和分类/搜索不一致
@@ -227,7 +231,7 @@ public final class FloatingClipDeskStore: ObservableObject {
                 let queryChanged = kind != self.loadedKind || search != self.loadedSearch
                     || query.tagID != self.loadedTagFilterID
                 self.items = fetched
-                self.totalInKind = fetched.count
+                self.totalInKind = total
                 self.loadedKind = kind
                 self.loadedSearch = search
                 self.loadedTagFilterID = query.tagID
@@ -243,6 +247,12 @@ public final class FloatingClipDeskStore: ObservableObject {
     }
 
     // MARK: 操作
+
+    public func loadMoreIfNeeded(_ item: ClipboardItem) {
+        guard !settingsPreview, !isLoading, item.id == items.last?.id, items.count < totalInKind else { return }
+        loadedLimit += 120
+        fetch()
+    }
 
     /// 先收起非激活面板、归还键盘焦点，再写剪贴板并粘贴。
     public func paste(_ item: ClipboardItem, asPlainText: Bool = false) {
@@ -488,6 +498,17 @@ public struct FloatingClipboardDeskView: View {
                 .buttonStyle(.plain)
             }
             Spacer(minLength: 4)
+            if !isSettingsPreview {
+                Menu {
+                    Button("清空当前剪贴板") { ClipboardManager.shared.clearCurrentPasteboard() }
+                    Button("剪贴板设置") { ServiceLocator.settings?.open(pane: "clipboard") }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .help("剪贴板操作")
+            }
             Button {
                 if isSettingsPreview { return }
                 showsTags.toggle()
@@ -703,6 +724,7 @@ public struct FloatingClipboardDeskView: View {
             .accessibilityLabel(item.displayTitle)
             .accessibilityAddTraits(index == store.selectedIndex ? .isSelected : [])
             .onDrag { dragProvider(for: item) }
+            .onAppear { store.loadMoreIfNeeded(item) }
             .id(item.id)
     }
 
@@ -724,6 +746,7 @@ public struct FloatingClipboardDeskView: View {
                             .focusable()
                             .accessibilityLabel(item.displayTitle)
                             .onDrag { dragProvider(for: item) }
+                            .onAppear { store.loadMoreIfNeeded(item) }
                             .id(item.id)
                     }
                 }
@@ -800,7 +823,7 @@ public struct FloatingClipboardDeskView: View {
         if store.isLoading { return "正在筛选…" }
         let kindText = store.kind == .all ? "全部" : store.kind.label
         let searchText = store.loadedSearch.isEmpty ? "" : " · 「\(store.loadedSearch)」"
-        return "\(kindText)\(searchText) · \(store.items.count) 条"
+        return "\(kindText)\(searchText) · \(store.totalInKind) 条"
     }
 
     // MARK: 背景
