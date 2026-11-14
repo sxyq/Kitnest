@@ -53,6 +53,7 @@ struct CaptureWatermarkPreview: View {
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(maxWidth: 480)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+                    .frame(maxWidth: .infinity)
                     .accessibilityLabel("水印预览，使用正式水印绘制和固定示意画面")
             }
         }

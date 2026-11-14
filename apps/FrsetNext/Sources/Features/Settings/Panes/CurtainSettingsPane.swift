@@ -145,7 +145,7 @@ private struct CurtainSettingsContent: View {
         SettingsSection("预览") {
             SettingsGroupBox {
                 CurtainPreview(values: draft.values)
-                    .frame(height: 216)
+                    .frame(height: enabled ? 216 : 72)
                     .padding(.vertical, 4)
                 Text("悬停展开正式卡片与按钮；场景内演示截图、唤出、收起和 ⌘ 缩放，按钮不写文件。")
                     .font(.system(size: 11))

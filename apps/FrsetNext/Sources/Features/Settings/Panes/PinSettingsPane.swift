@@ -68,7 +68,9 @@ private struct PinSettingsContent: View {
             SettingsSection("预览") {
                 SettingsGroupBox {
                     PinLivePreview(appearance: draft.appearance)
+                        .frame(maxWidth: 360)
                         .frame(height: 220)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 6)
                     Text("在场景内拖动、滚轮缩放；悬停显示正式控制条。按钮只演示反馈。")
                         .font(.system(size: 11))

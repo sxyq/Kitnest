@@ -165,26 +165,28 @@ final class CurtainPreviewScene: NSView {
         guard shown else { canvas.stopAnimations(); return }
         guard viewport.contentSize.width > 0 else { return }
         let desired = localWidth ?? CGFloat(values.cardWidth)
-        // 卡宽使用正式尺寸，超出视口横向滚动，不整体缩小组件。
+        // 先按正式尺寸排版，再按可用高度等比缩放画布。
         let desktop = NSRect(x: 0, y: 0, width: 1440, height: 900)
         let metrics = CurtainLayout.metrics(desired: desired, count: entries.count,
                                            visible: desktop, railScales: values.railScales)
         let width = metrics.cardWidth
         let railScale = metrics.railScale
-        let maxCardHeight = max(min(metrics.maxHeight,
-            viewport.contentSize.height - CurtainMetrics.clipHeight(railScale)
-            - CurtainMetrics.bottomInset(railScale)), 40)
-        let total = entries.reduce(CGFloat.zero) {
-            $0 + $1.0.cardSize(cardWidth: width, railScale: railScale,
-                             maxHeight: maxCardHeight).width
+        let maxCardHeight = metrics.maxHeight
+        let sizes = entries.map {
+            $0.0.cardSize(cardWidth: width, railScale: railScale, maxHeight: maxCardHeight)
         }
+        let total = sizes.reduce(CGFloat.zero) { $0 + $1.width }
             + CGFloat(max(entries.count - 1, 0)) * CurtainMetrics.gap(railScale)
             + 2 * CurtainMetrics.padding(railScale)
+        let height = sizes.reduce(CGFloat.zero) { max($0, $1.height) }
+            + CurtainMetrics.clipHeight(railScale) + CurtainMetrics.bottomInset(railScale)
+        let scale = min(1, viewport.contentSize.height / height)
         let scrollOrigin = viewport.contentView.bounds.origin
-        // 按正式卡片实际宽度分配画布，复用 Canvas 已有居中，超宽仍横向滚动。
-        let logicalSize = CGSize(width: max(viewport.contentSize.width, total),
-                                 height: viewport.contentSize.height)
-        canvas.frame = NSRect(origin: .zero, size: logicalSize)
+        // 正式卡片、夹子及帘线一起缩放，超宽仍横向滚动。
+        let logicalSize = CGSize(width: max(viewport.contentSize.width / scale, total),
+                                 height: viewport.contentSize.height / scale)
+        canvas.frame = NSRect(x: 0, y: 0, width: logicalSize.width * scale,
+                              height: viewport.contentSize.height)
         canvas.setBoundsSize(logicalSize)
         if animate && !reduceMotion {
             canvas.reload(items: entries, cardWidth: width, railScale: railScale,

@@ -1029,17 +1029,17 @@ Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScen
 Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,sample,func,142,KEEP,按 index 生成固定 UUID、kitnest-preview://curtain 地址、零时间和 640×384 像素尺寸，图像引用内存 CapturePreviewImage，不读取文件
 Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,layout,func,149,KEEP,定位顶部模拟截图/展开按钮、底部状态行及中间横向滚动视口，场景尺寸变化时按原尺寸无动画重排正式画布
 Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,render,func,161,KEEP,按正式CurtainLayout.metrics与每项item.cardSize累加真实画布宽度，窄内容居中、超宽横向滚动并保留滚动原点；静态重排走updateLayout保留未变卡片状态，仅显式落入且未减少动态时reload播放新卡动画
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,simulateCapture,func,202,KEEP,模拟截图按钮和N键共用capture，只按当前自动上架开关追加场景卡片，不再调度自动截图任务
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,capture,func,205,KEEP,只在 enabled 且 attachOnCapture 时追加固定卡片，超过 maxCards 移除最旧项，展开并续收起计时；关闭自动上架时仅反馈
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,toggle,func,220,KEEP,用户切换shown；展开续自动收起计时，收起取消隐藏任务并停止卡片动画，两向均静态重排并保留场景卡片
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,scheduleHide,func,227,KEEP,替换已有 hideTask；duration>0 时等待指定秒数后收起场景，duration=0 不安排任务
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,hide,func,236,KEEP,隐藏正式画布、停止其卡片动画并把按钮改为展开，状态文字写明收起原因，卡片内容不删除
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,feedback,func,243,KEEP,把动作说明写到场景底部 NSTextField，供模拟复制、定位、保存、缩放和收起复用
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,updateTrackingAreas,func,245,KEEP,重建场景整体和顶部 30pt 两个悬停区域，用 userInfo.top 区分顶边唤出与离开场景
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseEntered,func,254,KEEP,取消移开收起任务；仅 enabled/revealOnHover 且命中顶边时展开现有卡片并续自动收起计时
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseExited,func,263,KEEP,离开整个场景且启用悬停唤出时安排 0.8 秒收起，离开顶边小区域不会触发
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,stop,func,272,KEEP,统一取消hideTask与leaveTask并停止画布卡片动画，供关闭、禁用及卸载调用
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,viewDidMoveToWindow,func,277,KEEP,失去宿主window时调用stop，停止收起计时和卡片动画
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,simulateCapture,func,204,KEEP,模拟截图按钮和N键共用capture，只按当前自动上架开关追加场景卡片，不再调度自动截图任务
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,capture,func,207,KEEP,只在 enabled 且 attachOnCapture 时追加固定卡片，超过 maxCards 移除最旧项，展开并续收起计时；关闭自动上架时仅反馈
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,toggle,func,222,KEEP,用户切换shown；展开续自动收起计时，收起取消隐藏任务并停止卡片动画，两向均静态重排并保留场景卡片
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,scheduleHide,func,229,KEEP,替换已有 hideTask；duration>0 时等待指定秒数后收起场景，duration=0 不安排任务
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,hide,func,238,KEEP,隐藏正式画布、停止其卡片动画并把按钮改为展开，状态文字写明收起原因，卡片内容不删除
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,feedback,func,245,KEEP,把动作说明写到场景底部 NSTextField，供模拟复制、定位、保存、缩放和收起复用
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,updateTrackingAreas,func,247,KEEP,重建场景整体和顶部 30pt 两个悬停区域，用 userInfo.top 区分顶边唤出与离开场景
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseEntered,func,256,KEEP,取消移开收起任务；仅 enabled/revealOnHover 且命中顶边时展开现有卡片并续自动收起计时
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseExited,func,265,KEEP,离开整个场景且启用悬停唤出时安排 0.8 秒收起，离开顶边小区域不会触发
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,stop,func,274,KEEP,统一取消hideTask与leaveTask并停止画布卡片动画，供关闭、禁用及卸载调用
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,viewDidMoveToWindow,func,279,KEEP,失去宿主window时调用stop，停止收起计时和卡片动画
 Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeHeight,func,45,KEEP,帘线区域高度 × 缩放（28pt @1×）
 Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeInset,func,46,KEEP,线端距顶 12pt × 缩放（1Capture 反汇编 y = height - 12）
 Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,sagMax,func,47,KEEP,下垂上限 28pt × 缩放
@@ -3054,13 +3054,13 @@ Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsPane,init,init
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsDraft,save,func,31,KEEP,将 PinAppearance 草稿中的描边宽度/颜色、圆角、阴影、吸附、不透明度及控制条隐藏时长写到 PinStyle，随后记录 saved 并刷新未保存标记
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsDraft,discard,func,44,KEEP,取消钉图编辑仅将 appearance 恢复为 saved，实时场景读取恢复后的值
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsDraft,restoreDefaults,func,45,KEEP,把钉图 appearance 草稿改为 PinAppearance.defaults，统一保存前不改变 PinStyle
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,row,func,242,KEEP,钉图细项复用 74pt 标题列和控件行，供描边、圆角、阴影、不透明度、吸附和控制条时长使用
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,shortcut,func,254,KEEP,钉图快捷键说明以等宽键帽和操作标题显示，供拖动、缩放及复位提示复用
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,isActive,func,268,KEEP,四张钉图预设卡按草稿描边宽度、颜色、圆角及阴影判断选中，两个数值差在 0.01 内视为一致
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,apply,func,275,KEEP,预设卡动作只调用 draft.appearance.applyPreset，实时更新同一正式图像组件而不写全局 PinStyle
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,makeNSView,func,311,KEEP,PinLivePreview 为大场景及缩略预设创建 PinPreviewScene，interactive 参数决定是否挂控制条和交互
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,updateNSView,func,312,KEEP,将当前PinAppearance与系统降低透明度传给既有PinPreviewScene，复用图像和控制条，不再传无用reduceMotion参数
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,dismantleNSView,func,315,KEEP,SwiftUI移除钉图场景时调用stop，取消控制条隐藏任务并移除图层动画及气泡
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,row,func,244,KEEP,钉图细项复用 74pt 标题列和控件行，供描边、圆角、阴影、不透明度、吸附和控制条时长使用
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,shortcut,func,256,KEEP,钉图快捷键说明以等宽键帽和操作标题显示，供拖动、缩放及复位提示复用
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,isActive,func,270,KEEP,四张钉图预设卡按草稿描边宽度、颜色、圆角及阴影判断选中，两个数值差在 0.01 内视为一致
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,apply,func,277,KEEP,预设卡动作只调用 draft.appearance.applyPreset，实时更新同一正式图像组件而不写全局 PinStyle
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,makeNSView,func,313,KEEP,PinLivePreview 为大场景及缩略预设创建 PinPreviewScene，interactive 参数决定是否挂控制条和交互
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,updateNSView,func,314,KEEP,将当前PinAppearance与系统降低透明度传给既有PinPreviewScene，复用图像和控制条，不再传无用reduceMotion参数
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,dismantleNSView,func,317,KEEP,SwiftUI移除钉图场景时调用stop，取消控制条隐藏任务并移除图层动画及气泡
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchDisplayDraft,init,init,42,KEEP,SearchDisplayDraft 用 shared.makeDraft 获取非持久引擎管理器并恢复分类值，订阅服务变化；SearchSettingsContent 观察同一草稿和服务，统一缓存标识为 searchDisplay
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchDisplayDraft,save,func,59,KEEP,统一保存先处理未完成的自定义引擎新增/编辑表单，返回具体格式或写入原因；成功 applyDraft 引擎后写三项分类开关并刷新脏状态
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchDisplayDraft,discard,func,77,KEEP,取消时清空未完成新增/编辑表单，从共享服务恢复引擎及行为值，再按偏好键是否存在读取三项分类，保留显式 false

@@ -813,10 +813,10 @@ public struct SearchSectionView: View {
 
     /// 展开上限：主面板固定 700pt，搜索结果区最多 420pt（分级展示条数更多，
     /// 超出在区内滚动；日历卡仍露出大半）
-    private var resultListMaxHeight: CGFloat { isSettingsPreview ? 250 : 420 }
+    private var resultListMaxHeight: CGFloat { isSettingsPreview ? 180 : 420 }
 
     private var resultList: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        ScrollView(.vertical, showsIndicators: isSettingsPreview) {
             listContent
                 .background(
                     GeometryReader { geo in

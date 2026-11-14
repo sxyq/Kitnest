@@ -14,6 +14,7 @@ struct RecordingAppearancePreview: View {
     private var frame: NSImage? {
         guard let base = CaptureAppearanceSample.image.cgImage(forProposedRect: nil, context: nil, hints: nil),
               let camera = CaptureAppearanceSample.camera.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let pixelScale = CGFloat(base.width) / CaptureAppearanceSample.image.size.width
         var options = RecordingOptions()
         options.showsCursor = values.showsCursor
         options.cameraEnabled = values.cameraOn
@@ -25,15 +26,16 @@ struct RecordingAppearancePreview: View {
         if values.showsCursor,
            let cursor = NSCursor.arrow.image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
             image = CIImage(cgImage: cursor)
-                .transformed(by: CGAffineTransform(translationX: 202, y: 151))
+                .transformed(by: CGAffineTransform(translationX: 202 * pixelScale, y: 151 * pixelScale))
                 .composited(over: image)
         }
         let result = RecordingCompositor.composite(image: image, camera: CIImage(cgImage: camera),
             options: options, keys: [RecordedKey(text: "⌘", time: 0), RecordedKey(text: "C", time: 0)],
             clicks: [RecordedClick(point: CGPoint(x: 210, y: 383), time: -0.28, isRight: false),
                      RecordedClick(point: CGPoint(x: 700, y: 250), time: -0.28, isRight: true)],
-            now: 0, pixelScale: 1, reduceTransparency: reduceTransparency)
-        guard let cgImage = Self.context.createCGImage(result, from: CGRect(x: 0, y: 0, width: 960, height: 540)) else { return nil }
+            now: 0, pixelScale: pixelScale, reduceTransparency: reduceTransparency)
+        guard let cgImage = Self.context.createCGImage(result,
+            from: CGRect(x: 0, y: 0, width: base.width, height: base.height)) else { return nil }
         return NSImage(cgImage: cgImage, size: CaptureAppearanceSample.image.size)
     }
 
@@ -46,6 +48,7 @@ struct RecordingAppearancePreview: View {
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(maxWidth: 480)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+                    .frame(maxWidth: .infinity)
                     .accessibilityLabel("录屏预览，使用正式叠加绘制和固定摄像头、按键、点击示意")
             }
             Text("摄像头、按键与点击均为固定示意；这里不启动录制或输入采集。")

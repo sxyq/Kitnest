@@ -958,32 +958,32 @@ struct AppearancePreviewBlock: View {
                 .pickerStyle(.segmented).labelsHidden().frame(width: 300)
             }
             GeometryReader { viewport in
-                ScrollView(.horizontal, showsIndicators: true) {
-                    let size = previewSize
-                    previewContent
-                        .frame(width: size.width, height: size.height)
-                        .environment(\.isSettingsPreview, true)
-                        .environment(\.settingsPreviewClipboardItems, previewItems)
-                        .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
-                        .environment(\.settingsPreviewClipboardSelection, $draft.previewSelectedItemID)
-                        .environment(\.settingsPreviewPersonalization, p)
-                        .environment(\.settingsPreviewIsMidnight, draft.appearance == .midnight)
-                        .environment(\.colorScheme, previewColorScheme)
-                        .tint(theme.accent)
-                        .opacity(revealed ? 1 : 0)
-                        .offset(y: revealed || reduceMotion ? 0 : -8)
-                        .padding(8)
-                        .background {
-                            if needsWallpaper {
-                                wallpaperBackground
-                                    .frame(width: size.width + 16, height: size.height + 16)
-                                    .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
-                            }
+                let size = previewSize
+                let width = min(size.width, max(0, viewport.size.width - 12))
+                // 2026-11-14：正式组件按可用宽度排版，壁纸只沿边保留 6pt，不整窗缩放。
+                previewContent
+                    .frame(width: width, height: size.height)
+                    .environment(\.isSettingsPreview, true)
+                    .environment(\.settingsPreviewClipboardItems, previewItems)
+                    .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
+                    .environment(\.settingsPreviewClipboardSelection, $draft.previewSelectedItemID)
+                    .environment(\.settingsPreviewPersonalization, p)
+                    .environment(\.settingsPreviewIsMidnight, draft.appearance == .midnight)
+                    .environment(\.colorScheme, previewColorScheme)
+                    .tint(theme.accent)
+                    .opacity(revealed ? 1 : 0)
+                    .offset(y: revealed || reduceMotion ? 0 : -8)
+                    .padding(6)
+                    .background {
+                        if needsWallpaper {
+                            wallpaperBackground
+                                .frame(width: width + 12, height: size.height + 12)
+                                .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
                         }
-                        .frame(minWidth: viewport.size.width, alignment: .center)
-                }
+                    }
+                    .frame(width: viewport.size.width, height: size.height + 12, alignment: .center)
             }
-            .frame(height: previewSize.height + 16)
+            .frame(height: previewSize.height + 12)
             .background(GeometryReader { geo in
                 Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
                     value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
@@ -1077,7 +1077,7 @@ struct AppearancePreviewBlock: View {
     }
 
     private var panelSize: CGSize {
-        CGSize(width: max(320, CGFloat(draft.panelWidth)), height: 420)
+        CGSize(width: max(320, CGFloat(draft.panelWidth)), height: 360)
     }
 
     private var toastSize: CGSize {
@@ -1092,17 +1092,17 @@ struct AppearancePreviewBlock: View {
         case .mainPanel: return panelSize
         case .floatingWindow: return CGSize(width: 520, height: 250)
         case .clipboard:
-            return CGSize(width: 640, height: draft.floating.layout == .grid ? 420 : 380)
+            return CGSize(width: 620, height: 380)
         case .clipboardList:
             return CGSize(width: max(320, CGFloat(draft.panelWidth)),
-                          height: 300)
+                          height: 260)
         case .captureToolbar:
             let size = CaptureActionToolbarPanel.panelSize(
                 for: toolbarModel.preview?.cgImage(forProposedRect: nil, context: nil, hints: nil),
                 style: CaptureToolbarStyle(rawValue: draft.toolbarStyle)!)
             return CGSize(width: size.width, height: toolbarModel.preview == nil ? 56 : size.height)
         case .notification:
-            return CGSize(width: max(panelSize.width, toastSize.width), height: toastSize.height + 72)
+            return CGSize(width: max(panelSize.width, toastSize.width), height: toastSize.height + 36)
         }
     }
 
@@ -1143,10 +1143,10 @@ struct AppearancePreviewBlock: View {
                     Rectangle().fill(theme.cardStroke).frame(height: 1)
                 }
                 .padding(.horizontal, 12)
-                .padding(.top, p.toastFollowPanel ? 4 : 24)
+                .padding(.top, p.toastFollowPanel ? 0 : 14)
                 MenuBarToastContentView(state: toastState)
                     .frame(width: toastSize.width, height: toastSize.height)
-                    .offset(y: p.toastFollowPanel ? 32 : 64)
+                    .offset(y: p.toastFollowPanel ? 18 : 30)
             }
         }
     }
