@@ -246,7 +246,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="功能是什么-3">功能是什么</h3>
 <p>自动记录复制过的文本、富文本、图片、文件和链接。支持搜索、类型筛选、标签、编辑、批量操作和暂停记录。默认保留 30 天，上限 2GB；两个数都能改。</p>
 <h3 id="用户怎么用-3">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / <code>⌥V</code></td><td>打开面板首页</td><td>剪贴板历史列表</td></tr><tr><td><code>⇧⌘V</code></td><td>悬浮剪贴板</td><td>鼠标旁迷你列表（第五章）</td></tr><tr><td>双击一条 / 回车</td><td>回贴</td><td>写回系统剪贴板</td></tr><tr><td>右键</td><td>菜单</td><td>置顶、标签、编辑、隔空投送、删除</td></tr><tr><td><code>⇧⌥R</code></td><td>暂停/恢复记录</td><td>处理敏感内容时用</td></tr><tr><td>底部工具条</td><td>筛选 / 标签 / 编辑 / 上传</td><td>批量与整理</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / <code>⌥V</code></td><td>打开面板首页</td><td>剪贴板历史列表</td></tr><tr><td><code>⇧⌘V</code></td><td>悬浮剪贴板</td><td>鼠标旁迷你列表（第五章）</td></tr><tr><td>双击一条 / 回车</td><td>回贴</td><td>写回系统剪贴板</td></tr><tr><td>右键</td><td>菜单</td><td>置顶、标签、编辑、隔空投送、删除</td></tr><tr><td><code>⇧⌥R</code></td><td>暂停/恢复记录</td><td>处理敏感内容时用</td></tr><tr><td>底部工具条</td><td>筛选 / 标签 / 编辑 / 上传</td><td>批量与整理</td></tr><tr><td>主面板齿轮 / 悬浮窗「…」菜单</td><td>清空当前剪贴板</td><td>只清空系统当前内容，保留历史、笔记、标签和文件中转</td></tr><tr><td>设置 → 剪贴板 → 历史</td><td>清除历史，保留已存项目 → 清除历史…</td><td>确认后删除全部未存历史，保留笔记及标签定义</td></tr></tbody></table></div>
 <h3 id="演示-3">演示</h3>
 <figure><img src="gifs/ch04-clipboard.gif" alt="滚轮往下翻更早的条目 → 逐行悬停（右侧浮出粘贴 / 复制按钮）→ 点底部分类筛选，弹出类型菜单。" loading="lazy" decoding="async"><figcaption>滚轮往下翻更早的条目 → 逐行悬停（右侧浮出粘贴 / 复制按钮）→ 点底部分类筛选，弹出类型菜单。</figcaption></figure>
 <h3 id="关键能力点-3">关键能力点</h3>
@@ -254,14 +254,24 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>轮询系统剪贴板，按内容指纹去重。重复复制同一条只更新位置和计数，不新增一行（<code>ClipboardPasteboardReader.fingerprint</code>）。</p>
 <ul><li><strong>多类型识别</strong>（<code>ClipboardPasteboardReader</code>）</li><li>纯文本、富文本（RTF 保真存储）、图片（记尺寸）、文件（记路径）、URL、颜色值分别入库。</li><li>富文本粘贴时保留原始格式，不转换为纯文本。</li></ul>
 <ul><li><strong>来源应用</strong>：每条显示来源 App 图标（<code>ClipboardAppIconCache</code>）。隐私名单里的应用复制的内容不记录。</li></ul>
-<ul><li><strong>类型筛选</strong>（<code>ClipboardFilterKind</code>）：全部 / 文本 / 图片 / 链接 / 文件 / 代码 / 颜色 / 工具生成 / 笔记。</li></ul>
+<ul><li><strong>类型筛选</strong>（<code>ClipboardFilterKind</code>）：全部 / 文本 / 图片 / 链接 / 文件 / PDF / 媒体 / 代码 / 颜色 / 工具生成 / 笔记。</li></ul>
+<p>PDF 只筛 PDF；媒体包含音频、视频，图片仍归「图片」，「文件」包含全部文件子类。一条记录有多个路径时，任一路径命中就显示整条记录，复制仍保留全部路径。分类按全部路径的扩展名及系统文件类型计算，支持大写扩展名，旧记录随数据库迁移补齐；筛选与搜索、标签取交集，在 SQL 分页前执行，主面板、悬浮窗和设置预览共用规则。</p>
 <ul><li><strong>标签系统</strong>（<code>TagStore</code>）：建标签、改名、设颜色、给条目打标签；支持批量加/减标签（<code>historyBatchTagAdd</code>）。</li></ul>
 <ul><li><strong>条目编辑</strong>（<code>ClipboardItemEditWindowController</code>）：改正文、设别名标题、写备注。</li></ul>
 <ul><li><strong>图片自动 OCR</strong>：图片入库后自动调度识别，识别出的文字能被全局搜索命中（<code>scheduleOCR</code>）。所以「截图里的一句话」也能搜到。</li></ul>
 <ul><li><strong>工具产出回流</strong>（<code>ingestToolOutput</code>）：截图 OCR 结果、AI 总结、小工具输出会以「工具生成」类型进历史，和手动复制区分开。</li></ul>
 <ul><li><strong>清理策略</strong>（<code>ClipboardPruneSchedulers.prune</code>）：按条数 / 天数 / 体积三个维度自动清理，设置里可调。</li></ul>
-<ul><li><strong>文件落盘</strong>：图片和大文件存在 <code>~/Library/Application Support/FrsetNext/</code> 下，数据库里只存相对路径（<code>ClipboardFileStorages</code>）。所以备份数据目录 = 备份全部内容。</li></ul>
+<ul><li><strong>两种清空范围</strong>：菜单「清空当前剪贴板」清空系统粘贴板，完成提示「当前剪贴板已清空」。设置中的「清除历史，保留已存项目」删除全部 <code>is_note=0</code> 历史，不受筛选、搜索、分页或已加载数量影响；已存项目指笔记（<code>is_note=1</code>），普通历史即使带标签也会删除，标签定义保留。</li></ul>
+<p>清除前显示实际删除与保留数量；后台回收条目的原图、缩略图、长正文、富文本和 OCR 附件，外部原文件保留。结束后刷新列表、选择、预览及占用，显示删除数量和回收空间；失败项保留并列出原因。「立即清理」只按保留天数与容量上限处理超限条目，两个清理动作均为即时操作。</p>
+<ul><li><strong>私有附件</strong>：原图、缩略图、长正文、富文本和 OCR 存在应用数据目录内；文件记录中的外部路径只作引用。</li></ul>
 <ul><li><strong>NSTableView 骨架</strong>（<code>ClipboardTableHostView</code>）：列表采用 <code>NSScrollView + NSTableView</code> 而非 SwiftUI <code>List</code>，以保证多选、拖拽、行内编辑与长列表滚动性能。</li></ul>
+<h3 id="密码加密备份与恢复">密码加密备份与恢复</h3>
+<p>入口：「设置 → 剪贴板 → 历史 → 密码加密备份」。备份和恢复是即时操作，与设置保存按钮分开。</p>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>步骤</th></tr></thead><tbody><tr><td>加密备份…</td><td>选择 <code>.7z</code> 保存位置，输入并再次确认密码，点「加密备份」</td></tr><tr><td>恢复备份…</td><td>选择 <code>.7z</code> 文件，输入密码，点「读取备份」；先显示条目、其中笔记、附件、新增、重复、冲突及失效文件引用数量</td></tr><tr><td>合并到本机</td><td>默认方式；内容相同但标题、笔记或标签不同，可选「保留本机」或「使用备份」，默认保留本机</td></tr><tr><td>替换剪贴板资料</td><td>替换剪贴板历史、笔记和标签，保留 AI 对话及其他模块资料</td></tr><tr><td>确认恢复</td><td>阅读资料摘要、选择恢复方式后才写入本机</td></tr><tr><td>取消</td><td>取消当前操作，关闭临时操作面板</td></tr></tbody></table></div>
+<p>备份只取 <code>clipboard_items</code>（含笔记）、<code>tags</code>、<code>clipboard_item_tags</code> 三表，以及条目所属的原图、缩略图、长正文、富文本和 OCR 私有附件。外部原文件只保存路径引用；AI 对话、其他模块数据、凭据和 API Key 均留在本机。</p>
+<p>随包 <code>7zz</code> 使用 7z 密码加密正文、附件及包内文件名；包内 <code>manifest.json</code> 保存版本、条目、标签、关联和附件相对路径。资料在既有串行数据路径准备，压缩与解密在后台执行。密码只存于当前操作内存，不写日志、偏好或导出配置；关闭面板后清空，请自行保管密码。</p>
+<p>合并按现有 <code>dedupeKey</code> 去重，保留正文标识；同名标签复用，标签 ID 重新映射。替换仅作用于剪贴板三表；先暂存新附件，再通过数据库事务写入资料，提交成功后回收被替换的私有附件。</p>
+<p>读取阶段遇到密码错误、格式损坏或必要附件缺失时显示具体问题，现有资料保持原样；确认恢复前取消也保持原样。临时明文目录在成功、取消或关闭操作面板后清理。恢复完成后刷新列表、标签、选择、预览及占用，显示新增、重复、冲突、使用备份与保留本机数量、回收空间，以及附件回收失败数量和路径。</p>
 <h3 id="注意事项-3">注意事项</h3>
 <ul><li>密码管理器（1Password 等）的复制通常「几秒后清空剪贴板」，可能记录不到或被快速清理，属预期。</li><li>暂停记录期间复制的内容不进历史；恢复后从新内容开始。</li><li>大图历史会占磁盘空间：本机实测 89 张图约 440MB。需要节省空间时，在设置中调小上限。</li><li>数据库用 WAL 模式，<code>-wal</code> 文件超过 1MB 会 checkpoint 截断，不会无限涨。</li></ul>
 <h3 id="实现索引-3">实现索引</h3>
@@ -337,23 +347,24 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第八章-标注编辑器">第八章 标注编辑器</h2>
 <h3 id="功能是什么-7">功能是什么</h3>
-<p>截完点「编辑」进入标注窗口：12 种标注工具 + 撤销重做 + 导出。工具条竖排贴在右侧，颜色、线宽、字号都在里面调。</p>
+<p>截完点「编辑」进入标注窗口：15 种工具、撤销重做与导出。工具组在左侧竖栏；颜色、线宽、字号及形状样式在底部工具条调整。</p>
 <h3 id="用户怎么用-7">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>工具</th><th>用途</th></tr></thead><tbody><tr><td><strong>矩形</strong></td><td>框重点，可设描边/填充</td></tr><tr><td><strong>椭圆</strong></td><td>圈重点</td></tr><tr><td><strong>箭头</strong></td><td>指向说明</td></tr><tr><td><strong>画笔</strong></td><td>自由手绘，带压感宽度</td></tr><tr><td><strong>文字</strong></td><td>打字，可调字体/字号/颜色</td></tr><tr><td><strong>备注</strong></td><td>带引线的文字气泡</td></tr><tr><td><strong>序号</strong></td><td>自动递增的圆形编号（1、2、3…）</td></tr><tr><td><strong>荧光笔</strong></td><td>半透明高亮，模拟马克笔</td></tr><tr><td><strong>马赛克</strong></td><td>像素化遮挡</td></tr><tr><td><strong>模糊</strong></td><td>高斯模糊遮挡</td></tr><tr><td><strong>橡皮</strong></td><td>擦除单条标注</td></tr><tr><td><strong>智能擦除</strong></td><td>涂抹移除图中物体（第九章）</td></tr></tbody></table></div>
-<p>快捷键：<code>⌘Z</code> 撤销、<code>⇧⌘Z</code> 重做、<code>⌘S</code> 保存、<code>⌘C</code> 复制、<code>Esc</code> 关闭。</p>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>用途</th></tr></thead><tbody><tr><td><strong>矩形</strong></td><td>框重点，默认描边，可切实色填充</td></tr><tr><td><strong>椭圆</strong></td><td>圈重点，默认描边，可切实色填充</td></tr><tr><td><strong>箭头</strong></td><td>指向说明</td></tr><tr><td><strong>直线（L）</strong></td><td>拖出两个端点，选中后可移动整条线或调整端点</td></tr><tr><td><strong>画笔</strong></td><td>自由手绘</td></tr><tr><td><strong>文字</strong></td><td>打字，可调字体/字号/颜色</td></tr><tr><td><strong>备注</strong></td><td>带引线的文字气泡</td></tr><tr><td><strong>序号</strong></td><td>自动递增的圆形编号（1、2、3…）</td></tr><tr><td><strong>荧光笔</strong></td><td>半透明高亮，模拟马克笔</td></tr><tr><td><strong>聚光灯</strong></td><td>拖出区域，压暗其余画面</td></tr><tr><td><strong>放大镜</strong></td><td>拖出圆形放大区域</td></tr><tr><td><strong>马赛克</strong></td><td>像素化遮挡</td></tr><tr><td><strong>模糊</strong></td><td>高斯模糊遮挡</td></tr><tr><td><strong>橡皮</strong></td><td>擦除单条标注</td></tr><tr><td><strong>智能擦除</strong></td><td>涂抹移除图中物体（第九章）</td></tr></tbody></table></div>
+<p>快捷键：<code>L</code> 直线、<code>⌘Z</code> 撤销、<code>⇧⌘Z</code> 重做、<code>⌘S</code> 保存、<code>⌘C</code> 复制；选中直线或形状时 <code>Delete</code> 删除、<code>Esc</code> 取消选中，再按 <code>Esc</code> 关闭窗口。</p>
 <h3 id="演示-7">演示</h3>
 <figure><img src="gifs/ch08-annotate.gif" alt="画箭头 → 点竖排条里的「马赛克」→ 刷过金额那一列。标注是对象不是像素，所以随时能 `⌘Z` 撤掉。" loading="lazy" decoding="async"><figcaption>画箭头 → 点竖排条里的「马赛克」→ 刷过金额那一列。标注是对象不是像素，所以随时能 <code>⌘Z</code> 撤掉。</figcaption></figure>
 <h3 id="关键能力点-7">关键能力点</h3>
 <ul><li><strong>画布用中性灰而不是纯黑</strong>（<code>AnnotationEditorWindow</code>）：图片是主角，深色底会让人误判截图本身的明暗。</li></ul>
 <ul><li><strong>标注是可编辑对象，不是画上去的像素</strong>（<code>AnnotationCompositor</code>）：每条标注记位置/样式/内容，撤销重做是操作栈，导出时才合成。</li></ul>
-<ul><li><strong>绕夹子/锚点旋转</strong>：旋转矩形时围绕中心，箭头围绕起点，符合直觉。</li></ul>
+<ul><li><strong>直线编辑</strong>：独立直线工具使用两个端点。点击线段选中，拖线段整体移动，拖端点圆点调整位置；颜色、线宽、删除和端点编辑均支持撤销重做。</li></ul>
+<ul><li><strong>形状样式</strong>：底部「描边 / 实色填充」只在当前工具或选中对象为矩形、椭圆时显示。填充使用当前颜色；点击填充内部可选中已有对象，再切样式或改色，均可撤销重做。</li></ul>
 <ul><li><strong>文字工具条</strong>（<code>TextFontPopover</code>）：字体、字号、颜色、对齐，参考 Snipaste / CleanShot 的版式。</li></ul>
 <ul><li><strong>竖排工具条的气泡说明</strong>（<code>PinChrome</code>）：标题 11.5pt + 快捷键徽章 9.5pt + 一句用法 10pt，鼠标悬停才出现，不占地方。</li></ul>
-<ul><li><strong>导出合成</strong>（<code>AnnotationCompositor.render</code>）：按屏幕缩放因子输出，2x 屏不会糊。</li></ul>
+<ul><li><strong>预览与导出</strong>（<code>AnnotationCompositor</code>）：共用同一绘制逻辑。位置保存为原图像素、左上原点坐标，缩放画布只改变显示比例，直线端点和填充导出位置保持一致。</li></ul>
 <h3 id="注意事项-7">注意事项</h3>
 <ul><li>标注窗口是独立窗口，可以同时开多个（不同截图）。</li><li>马赛克/模糊是<strong>破坏性</strong>的：导出后就还原不了原图细节，敏感信息处理前先留一份原图。</li><li>文字标注的字体列表取系统已安装字体，装了什么就有什么。</li></ul>
 <h3 id="实现索引-7">实现索引</h3>
-<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>AnnotationEditorWindow.swift:1</code></td><td><code>body</code></td><td>画布 + 工具栏版式（1882 行）</td></tr><tr><td><code>AnnotationEditorWindow.swift</code></td><td><code>mouseDown</code> / <code>mouseDragged</code></td><td>绘制与拖拽</td></tr><tr><td><code>AnnotationCompositor.swift:13</code></td><td><code>enum Tool</code></td><td>12 种工具定义</td></tr><tr><td><code>AnnotationCompositor.swift</code></td><td><code>render</code></td><td>合成导出</td></tr><tr><td><code>AnnotationToolbarView.swift</code></td><td><code>body</code></td><td>竖排工具条</td></tr><tr><td><code>TextFontPopover.swift</code></td><td><code>body</code></td><td>文字样式面板</td></tr><tr><td><code>PinChrome.swift</code></td><td><code>bubble</code></td><td>悬停气泡说明</td></tr><tr><td><code>AnnotationSelfTest.swift</code></td><td><code>run</code></td><td>12 种工具的自检例程</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>AnnotationEditorWindow.swift:1</code></td><td><code>body</code></td><td>画布 + 工具栏版式（1882 行）</td></tr><tr><td><code>AnnotationEditorWindow.swift</code></td><td><code>mouseDown</code> / <code>mouseDragged</code></td><td>绘制与拖拽</td></tr><tr><td><code>AnnotationCompositor.swift</code></td><td><code>AnnotationTool</code> / <code>Annotation.shapeStyle</code></td><td>15 种工具与矩形、椭圆样式</td></tr><tr><td><code>AnnotationCompositor.swift</code></td><td><code>composite</code></td><td>合成导出</td></tr><tr><td><code>AnnotationToolbarView.swift</code></td><td><code>body</code></td><td>竖排工具条</td></tr><tr><td><code>TextFontPopover.swift</code></td><td><code>body</code></td><td>文字样式面板</td></tr><tr><td><code>PinChrome.swift</code></td><td><code>bubble</code></td><td>悬停气泡说明</td></tr><tr><td><code>AnnotationSelfTest.swift</code></td><td><code>run</code></td><td>标注工具的自检例程</td></tr></tbody></table></div>
 <hr>
 <h2 id="第九章-美化与物体擦除">第九章 美化与物体擦除</h2>
 <h3 id="功能是什么-8">功能是什么</h3>
@@ -565,20 +576,23 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>一块<strong>可视化</strong>的磁盘占用面板：全盘索引（不限深度）、气泡堆块、可清理候选清单、一键移到废纸篓。索引只在打开面板时加载，平时零常驻。</p>
 <h3 id="用户怎么用-17">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>状态栏监测 → 存储 →「存储管理」</td><td>打开面板</td></tr><tr><td>面板性能页 → 磁盘 →「管理存储」</td><td>同上</td></tr><tr><td><code>kitnest://storage</code></td><td>深链直达</td></tr><tr><td><code>kitnest://storage?scan=1</code></td><td>打开并立即扫描</td></tr></tbody></table></div>
-<p>存储图用当前磁盘数据绘制，画布覆盖整个窗口，包括头部背景。图形边界是一条从窗口上方中部延伸到最左下方的连续弧线。导航与目录详情浮在图形上，点击图块下钻，点面包屑返回。</p>
+<p>存储图用当前磁盘数据绘制，画布覆盖整个窗口，包括头部背景。图形边界是一条从窗口上方中部延伸到最左下方的连续弧线。导航与详情浮在图形上，点击目录图块下钻，点面包屑返回；点击文件在同窗详情区查看名称、占用和完整路径，可「在 Finder 显示」「加入所选」或「移到废纸篓」。聚合图块仅显示占用，不能定位或删除。</p>
 <p>左侧候选列表沿同一弧线延伸到左下方，列出全部真实可清理候选，可独立滚动；每行按弧线的可用宽度逐渐缩窄。已选项数、合计大小及「让 Agent 清理」「移到废纸篓」位于列表上方。</p>
 <p>在图形区域用触控板<strong>两指左滑</strong>，退回上一个目录；<strong>两指右滑</strong>，前进到历史中访问过的目录。图形保留现有目录配色，悬停时带液态形变动效；开启 macOS「系统设置 → 辅助功能 → 显示 → 减少动态效果」后取消形变。</p>
 <h3 id="演示-17">演示</h3>
 <figure><img src="gifs/ch18-storage.gif" alt="演示录于旧版左右分栏布局：左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。" loading="lazy" decoding="async"><figcaption>演示录于旧版左右分栏布局：左侧候选清单一项项勾选，底部「已选 N 项 / 合计」实时累加；右侧气泡堆块是同一份数据的体积视图。</figcaption></figure>
 <h3 id="关键能力点-17">关键能力点</h3>
-<ul><li><strong>扫描口径</strong>（v264 重做）</li><li><strong>不限深度</strong>：<code>Xcode.app/Contents/Developer/Platforms/…</code> 这类深层内容全部计入。</li><li><strong>含隐藏目录</strong>：<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code> / <code>.cargo</code> 都进。</li><li><strong>含 <code>~/Library</code></strong> 与系统只读卷。</li><li>扫描遍历 <code>/System</code>，跳过 <code>/System/Volumes</code>（避免重复统计挂载的 <code>/Users</code> 等卷）。</li><li><strong>大小按磁盘实际块</strong>（<code>st_blocks</code>），与 <code>df</code>/<code>du</code> 同一口径——APFS 透明压缩下 <code>st_size</code> 会虚高（<code>/System</code> 逻辑 30GB / 物理 13GB）。</li></ul>
-<ul><li><strong>实测规模</strong>：248.7 万条目 / 185.6 GB / 52 秒 / 缓存 59MB（二进制 plist）。</li></ul>
+<ul><li><strong>扫描口径</strong>（v264 重做）</li><li><strong>不限深度</strong>：<code>Xcode.app/Contents/Developer/Platforms/…</code> 这类深层内容全部计入。</li><li><strong>含隐藏目录</strong>：<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code> / <code>.cargo</code> 都进。</li><li><strong>含 <code>~/Library</code></strong> 与系统只读卷。</li><li>扫描遍历 <code>/System</code>，跳过 <code>/System/Volumes</code>（避免重复统计挂载的 <code>/Users</code> 等卷）。</li><li><strong>占用口径</strong>：使用磁盘块计数 <code>st_blocks × 512</code>；块计数为 0 时沿用文件大小 <code>st_size</code>。</li><li><strong>每目录保留最大 60 项</strong>：≥100MB 大文件与目录共用上限，普通文件不保留独立节点；其余目录聚合，未单独展示的直接文件计入目录自身占用。目录总量 = 未单独展示的直接文件占用 + 子节点总量，保留文件和聚合占用只计算一次。</li></ul>
+<ul><li><strong>历史实测规模（v264）</strong>：248.7 万条目 / 185.6 GB / 52 秒 / 缓存 59MB（二进制 plist）。</li></ul>
 <ul><li><strong>覆盖率如实显示</strong>：状态行写「已索引 185.6 G / 整盘已用 273.4 G」。差额来自：</li><li><code>~/Library/Containers</code>（沙盒容器，本机 33GB）——没授权「完全磁盘访问」时系统不让读，界面有「去授权」按钮直达系统设置；</li><li>APFS 本地快照、交换文件、文件系统元数据——不在任何目录里，索引天然覆盖不到。</li></ul>
+<ul><li><strong>系统数据分类</strong>：顶部「查看」选择「系统数据分类」，共用当前扫描结果，按实际路径分为五类：</li></ul>
+<div class="table-wrap"><table><thead><tr><th>分类</th><th>包含路径或目录名</th></tr></thead><tbody><tr><td>缓存</td><td><code>Caches</code>、<code>.cache</code>、<code>.npm</code>、<code>.pnpm-store</code>、<code>.uv</code>、<code>__pycache__</code> 等</td></tr><tr><td>应用支持</td><td><code>Library/Application Support</code>、<code>Library/Containers</code>、<code>Library/Group Containers</code></td></tr><tr><td>日志</td><td><code>Logs</code>、<code>logs</code>、<code>/private/var/log</code>、<code>/var/log</code></td></tr><tr><td>开发资料</td><td><code>Library/Developer</code>、<code>/Applications/Xcode.app</code>、<code>.cargo</code>、<code>.rustup</code>、<code>.gradle</code>、<code>.m2</code>、<code>.swiftpm</code>、<code>node_modules</code>、<code>Pods</code>、<code>DerivedData</code></td></tr><tr><td>其他已索引内容</td><td>本次索引的剩余占用</td></tr></tbody></table></div>
+<p>分类详情显示本次扫描根路径、包含目录、排除路径与跳过数量。范围由「个人目录」或「整块启动卷」决定，含隐藏目录，最多 64 层、400 万个扫描条目；只统计已读取且已索引的内容。五类互斥，合计等于本次已索引总量；子分类从父类扣除，折叠目录按保留父路径归类。分类汇总随索引变化更新，悬停与选择复用结果；分类用于查看，清理仍使用既有候选和用户选择。</p>
 <ul><li><strong>可清理候选</strong>（<code>DiskIndexStore.candidates</code>）</li></ul>
 <p>只认真正的缓存目录名（<code>Caches</code> / <code>node_modules</code> / <code>DerivedData</code> / <code>.npm</code> / <code>__pycache__</code> …）且体积 &gt;20MB 的。 主动排除了 <code>Downloads</code>（用户个人数据）、<code>/tmp</code>（避免影响运行中进程）以及 <code>.rustup</code>/<code>.cargo</code>/<code>Xcode</code>（工具链组件，避免误删导致重新安装）。</p>
 <ul><li><strong>气泡堆块</strong>（<code>StorageTreemap</code> + <code>StorageVoronoi</code>）</li></ul>
 <p>按面积表示体积的 Voronoi 分割，颜色按目录层级，点击下钻。用户对照 Kanso 截图要求过颜色和色块，这一版是按反馈重做的。</p>
-<ul><li><strong>删除只到废纸篓</strong>（<code>FileManager.trashItem</code>）：可恢复，不做永久删除。</li><li><strong>工作记录</strong>：每次清理记一条（时间/路径/大小/是否全部成功），最多 50 条。</li><li><strong>让 Agent 清理</strong>：把本次扫描明细生成一段结构化提示词，复制给本地 Agent，由它判断哪些能清（应用本身不动手）。</li></ul>
+<ul><li><strong>删除只到废纸篓</strong>（<code>FileManager.trashItem</code>）：可恢复。父目录和子文件同时选中时按父目录计数与计量一次；移动成功后更新父目录、总量、缓存、选择和图块，失败项保留并显示原因。</li><li><strong>工作记录</strong>：每次清理记一条（时间/路径/大小/是否全部成功），最多 50 条。</li><li><strong>让 Agent 清理</strong>：把本次扫描明细生成一段结构化提示词，复制给本地 Agent，由它判断哪些能清（应用本身不动手）。</li></ul>
 <h3 id="注意事项-17">注意事项</h3>
 <ul><li>首次建立索引约 50 秒（248 万条目），期间可以取消。</li><li>索引缓存自带版本号：扫描结构或口径更新时（如 v264 调整统计逻辑），旧版缓存自动失效并提示重新扫描，避免使用不匹配的旧索引。</li><li>没有「完全磁盘访问」时覆盖率会明显偏低，这不是漏扫，是系统不让读。</li><li>「可清理」清单只是建议，<strong>勾选后仍会弹确认框</strong>列明路径和总大小。</li></ul>
 <h3 id="实现索引-17">实现索引</h3>
@@ -677,8 +691,9 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-21">用户怎么用</h3>
 <p>想双击 ZIP 时先看包内文件，可在欢迎窗「30 秒上手」下方卡片，或「设置 → 常规 → 启动与语言」开启「用 Kitnest 默认打开 ZIP」。两处共用同一开关；安装、启动应用不会改动默认打开方式。</p>
 <p>关闭后恢复开启前的应用；若此前已手动把 ZIP 关联到 Kitnest，且没有记录可恢复的应用，则交回系统「归档实用工具」。开关下方显示系统当前的 ZIP 默认应用；更改失败时保留原状态，并显示原因。</p>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>欢迎窗上手步骤下方 / 设置 → 常规 → 启动与语言</td><td>切换 ZIP 默认打开方式</td></tr><tr><td>双击 ZIP（开关开启后）</td><td>打开归档浏览器，查看包内文件或点「解压到…」</td></tr><tr><td>访达选中压缩包 → 右键 → 服务 →「用 Kitnest 打开」</td><td>不改默认应用，直接打开归档浏览器</td></tr><tr><td>访达选中文件或文件夹 → 右键 → 服务 →「用 Kitnest 压缩」</td><td>打开压缩参数面板</td></tr><tr><td>面板 → 工具 →「打开压缩包」</td><td>打开归档浏览器</td></tr><tr><td>拖压缩包进面板</td><td>同上</td></tr><tr><td><code>kitnest://archive?path=…</code></td><td>深链直达</td></tr><tr><td><code>kitnest://archive?path=…&amp;action=mini</code></td><td>Mini 小窗浏览</td></tr><tr><td><code>kitnest://archive?action=compress&amp;path=…</code></td><td>直接进入压缩流程</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>欢迎窗上手步骤下方 / 设置 → 常规 → 启动与语言</td><td>切换 ZIP 默认打开方式</td></tr><tr><td>双击 ZIP（开关开启后）</td><td>打开归档浏览器，查看包内文件或点「解压到…」</td></tr><tr><td>访达选中压缩包 → 右键 → 服务 →「用 Kitnest 打开」</td><td>不改默认应用，直接打开归档浏览器</td></tr><tr><td>访达选中文件或文件夹 → 右键 → 服务 →「用 Kitnest 压缩」</td><td>打开压缩参数面板</td></tr><tr><td>Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」</td><td>按选择顺序复制全部绝对路径，一行一个；显示数量或失败原因</td></tr><tr><td>Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 在终端打开」</td><td>目录打开自身，文件打开父目录；同一目录只打开一次</td></tr><tr><td>面板 → 工具 →「打开压缩包」</td><td>打开归档浏览器</td></tr><tr><td>拖压缩包进面板</td><td>同上</td></tr><tr><td><code>kitnest://archive?path=…</code></td><td>深链直达</td></tr><tr><td><code>kitnest://archive?path=…&amp;action=mini</code></td><td>Mini 小窗浏览</td></tr><tr><td><code>kitnest://archive?action=compress&amp;path=…</code></td><td>直接进入压缩流程</td></tr></tbody></table></div>
 <p>压缩参数面板可选格式、压缩级别、密码和分卷。访达自带的「压缩」保持原样；macOS 没有全局默认压缩应用设置。</p>
+<p>复制路径与终端打开沿用原来的 Finder 右键「服务」子菜单，原有打开、压缩服务保留。请到「系统设置 → 键盘 → 键盘快捷键 → 服务」分别开启这两项；Kitnest 不代改系统启用配置。「设置 → 常规 → 启动与语言」提供操作说明和「打开系统键盘设置」入口。终端通过系统应用接口接收目录 URL，路径不拼入命令字符串；打开失败时显示具体目录及原因。</p>
 <h3 id="界面结构">界面结构</h3>
 <ul><li><strong>左列</strong>：包内条目树，按路径分组，显示大小与修改时间。</li><li><strong>右侧</strong>：选中条目的预览。</li><li><strong>底部</strong>：任务进度抽屉（可展开/收起）。</li><li><strong>拖出</strong>：把条目拖到 Finder，走文件承诺（<code>NSFilePromiseProvider</code>），落盘时才真正解压。</li></ul>
 <h3 id="预览支持">预览支持</h3>
@@ -710,9 +725,9 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第二十三章-工具箱">第二十三章 工具箱</h2>
 <h3 id="功能是什么-22">功能是什么</h3>
-<p>13 个内置小工具 + 自定义 AI 工具，统一入口：<strong>工具面板</strong>（分类网格）、<strong>搜索框输入 <code>/</code></strong>、<strong>命令面板 <code>⌥K</code></strong>。结果一键复制，并自动回流剪贴板历史。</p>
+<p>内置小工具与自定义 AI 工具，统一入口：<strong>工具面板</strong>（分类网格）、<strong>搜索框输入 <code>/</code></strong>、<strong>命令面板 <code>⌥K</code></strong>。结果一键复制，并自动回流剪贴板历史。</p>
 <h3 id="内置工具">内置工具</h3>
-<div class="table-wrap"><table><thead><tr><th>分类</th><th>工具</th><th>能力</th></tr></thead><tbody><tr><td>转换</td><td><strong>UUID</strong></td><td>批量生成，可选格式</td></tr><tr><td>转换</td><td><strong>时间戳转换</strong></td><td>自动识别 / 时间戳→日期 / 日期→时间戳</td></tr><tr><td>转换</td><td><strong>变量命名</strong></td><td>驼峰 / 下划线 / 短横线 / 帕斯卡 / 常量 互转</td></tr><tr><td>编码</td><td><strong>Base64</strong></td><td>编码 / 解码</td></tr><tr><td>编码</td><td><strong>URL Encode</strong></td><td>编码 / 解码，标准 / 严格两档</td></tr><tr><td>格式化</td><td><strong>JSON</strong></td><td>格式化 / 压缩 / 校验</td></tr><tr><td>格式化</td><td><strong>代码预览</strong></td><td>高亮预览 + 导出图片（第二十八章）</td></tr><tr><td>网络</td><td><strong>IP 地址</strong></td><td>公网 + 内网 / 仅内网</td></tr><tr><td>网络</td><td><strong>二维码</strong></td><td>文本/链接生成二维码，可调尺寸与纠错级别</td></tr><tr><td>图片</td><td><strong>图片压缩</strong></td><td>纯本地压缩，可调最大边长/质量/格式</td></tr><tr><td>加密</td><td><strong>哈希生成</strong></td><td>MD5 / SHA1 / SHA256</td></tr><tr><td>AI</td><td><strong>Translate</strong></td><td>调已配置的 AI 服务商</td></tr><tr><td>AI</td><td><strong>Summary</strong></td><td>同上</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>分类</th><th>工具</th><th>能力</th></tr></thead><tbody><tr><td>转换</td><td><strong>UUID</strong></td><td>批量生成，可选格式</td></tr><tr><td>转换</td><td><strong>时间戳转换</strong></td><td>自动识别 / 时间戳→日期 / 日期→时间戳</td></tr><tr><td>转换</td><td><strong>变量命名</strong></td><td>驼峰 / 下划线 / 短横线 / 帕斯卡 / 常量 互转</td></tr><tr><td>编码</td><td><strong>Base64</strong></td><td>编码 / 解码</td></tr><tr><td>编码</td><td><strong>URL Encode</strong></td><td>编码 / 解码，标准 / 严格两档</td></tr><tr><td>格式化</td><td><strong>JSON</strong></td><td>格式化 / 压缩 / 校验</td></tr><tr><td>格式化</td><td><strong>代码预览</strong></td><td>高亮预览 + 导出图片（第二十八章）</td></tr><tr><td>网络</td><td><strong>IP 地址</strong></td><td>公网 + 内网 / 仅内网</td></tr><tr><td>网络</td><td><strong>二维码</strong></td><td>文本/链接生成二维码，可调尺寸与纠错级别</td></tr><tr><td>图片</td><td><strong>图片压缩</strong></td><td>纯本地压缩，可调最大边长/质量/格式</td></tr><tr><td>加密</td><td><strong>哈希生成</strong></td><td>MD5 / SHA1 / SHA256</td></tr><tr><td>AI</td><td><strong>Translate</strong></td><td>调已配置的 AI 服务商</td></tr><tr><td>AI</td><td><strong>Summary</strong></td><td>使用已配置的 AI 服务生成摘要</td></tr><tr><td>AI</td><td><strong>润色</strong></td><td>使用同一 AI 服务，保留原意整理全文</td></tr></tbody></table></div>
 <blockquote>图片压缩是<strong>纯本地</strong>的（不调 TinyPNG 那种网络 API）：不需要 Key、没有配额、图片不出本机。代价是压缩率不如云端。</blockquote>
 <h3 id="用户怎么用-22">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 搜索框输入 <code>/</code></td><td>列出全部命令，输入即过滤</td></tr><tr><td><code>⌥K</code></td><td>命令面板（全功能目录）</td></tr><tr><td>面板 → 工具页</td><td>分类网格，点开即用</td></tr><tr><td>工具热键</td><td>每个工具可单独绑全局快捷键（<code>ToolShortcutStore</code>）</td></tr></tbody></table></div>
@@ -758,7 +773,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="功能是什么-24">功能是什么</h3>
 <p><code>⌥K</code> 唤出的 Spotlight 式浮窗：全功能统一目录，输入即模糊过滤，回车执行。不用记功能在哪个页。</p>
 <h3 id="用户怎么用-24">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥K</code></td><td>打开/关闭</td></tr><tr><td>输入</td><td>过滤（模糊匹配，乱序也能中）</td></tr><tr><td><code>↑</code> <code>↓</code></td><td>移动选择</td></tr><tr><td><code>↵</code></td><td>执行</td></tr><tr><td><code>Esc</code></td><td>关闭</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥K</code></td><td>打开/关闭</td></tr><tr><td>输入</td><td>过滤（模糊匹配，乱序也能中）</td></tr><tr><td><code>↑</code> <code>↓</code></td><td>移动选择</td></tr><tr><td><code>↵</code></td><td>执行</td></tr><tr><td><code>Esc</code></td><td>关闭</td></tr><tr><td>先在其他应用选中文字，再搜「摘要选中文字」或「润色选中文字」</td><td>使用打开命令面板前取得的选区，在现有工具窗执行</td></tr></tbody></table></div>
 <h3 id="演示-24">演示</h3>
 <figure><img src="gifs/ch25-command.gif" alt="`⌥K` 唤出，45 条命令一屏铺开；输入即过滤，`↑↓` 选中、`↵` 执行、`Esc` 关闭。" loading="lazy" decoding="async"><figcaption><code>⌥K</code> 唤出，45 条命令一屏铺开；输入即过滤，<code>↑↓</code> 选中、<code>↵</code> 执行、<code>Esc</code> 关闭。</figcaption></figure>
 <h3 id="关键能力点-24">关键能力点</h3>
@@ -774,18 +789,20 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第二十六章-日历与节假日">第二十六章 日历与节假日</h2>
 <h3 id="功能是什么-25">功能是什么</h3>
-<p>主面板里的日历卡：月历 + 农历 + 节气 + 节日 + 系统日程 + 调休标记。点日期打开系统日历查看当天详情。</p>
+<p>主面板日历卡显示两周日期、农历、节气及节假日；授权后读取系统日程。周起始日可选周日或周一，默认周日。</p>
 <h3 id="用户怎么用-25">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>面板首页看日历卡</td><td>当月月历，今天高亮</td></tr><tr><td>点 <code>‹</code> <code>›</code></td><td>切月</td></tr><tr><td>点某一天</td><td>打开系统日历到该日（<code>calendarDayOpen</code>）</td></tr><tr><td>点日期格</td><td>选中并显示当天日程（<code>calendarDateSelect</code>）</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>面板首页看日历卡</td><td>两周日期，今天高亮</td></tr><tr><td>点 <code>‹</code> <code>›</code> / 两指横滑</td><td>上一周 / 下一周</td></tr><tr><td>点月份标题</td><td>回到今天所在周</td></tr><tr><td>点日期格</td><td>选中日期；今天保留实心高亮，其他选中日期显示描边</td></tr><tr><td>设置 → 常规 → 菜单栏 → 日历周起始日</td><td>选择周日 / 周一，先更新本页预览</td></tr><tr><td>日历设置区「保存」/「取消」</td><td>保存后应用到正式日历；取消恢复保存值，切页保留草稿，重启保留保存结果</td></tr></tbody></table></div>
 <h3 id="演示-25">演示</h3>
-<figure><img src="gifs/ch26-calendar.gif" alt="面板日历：点 `›` 翻到下个月（农历与节气跟着换）→ 点 `‹` 翻回来 → 悬停某天看当日日程。" loading="lazy" decoding="async"><figcaption>面板日历：点 <code>›</code> 翻到下个月（农历与节气跟着换）→ 点 <code>‹</code> 翻回来 → 悬停某天看当日日程。</figcaption></figure>
+<figure><img src="gifs/ch26-calendar.gif" alt="旧版日历演示；当前日历卡用 `‹`、`›` 翻周，点月份标题回到今天。" loading="lazy" decoding="async"><figcaption>旧版日历演示；当前日历卡用 <code>‹</code>、<code>›</code> 翻周，点月份标题回到今天。</figcaption></figure>
 <h3 id="关键能力点-25">关键能力点</h3>
 <ul><li><strong>农历与节气</strong>（<code>LunarCalendar</code>）</li></ul>
 <p>公农历互转、二十四节气、农历节日（春节/端午/中秋…）。纯算法实现，不需要网络。</p>
 <ul><li><strong>节假日与调休</strong>（<code>HolidayManager</code>）</li></ul>
 <p>数据来源是国务院办公厅公布的年度放假安排，<strong>含调休后的实际放假区间</strong>。所以「周六要上班」这种也能标出来。</p>
 <ul><li><strong>系统日程</strong>（<code>CalendarService</code>）</li></ul>
-<p>授权后读系统日历事件，有安排的日期格上有小圆点；未授权时降级为只显示日期，并在 UI 里给「去授权」入口。</p>
+<p>授权后按日期范围一次读取事件，再按天分桶缓存；翻周或切换周起始日时复用范围内的缓存，超出范围才重新读取。未授权时仍显示日期与农历，卡片提供「去授权」入口。</p>
+<ul><li><strong>周起始一致</strong>：周日为 <code>1</code>，周一为 <code>2</code>。星期标题、两周归一化、翻周、月份标题及今天定位使用同一设置；月历缓存固定 42 天，起点按 <code>(当月首日 weekday - firstWeekday + 7) % 7</code> 的偏移计算。周末始终按日期实际为周六、周日判断。</li></ul>
+<ul><li><strong>本模块保存</strong>：日历草稿只保存 <code>calendar.firstWeekday</code>，预览的日期选择留在设置页内。</li></ul>
 <ul><li><strong>今日高亮</strong>：今天用实心圆角块标出，和选中态区分。</li></ul>
 <h3 id="注意事项-25">注意事项</h3>
 <ul><li>节假日数据是年度更新的：跨年前后如果发现新一年没数据，等应用更新。</li><li>日程需要「日历」权限；不授权不影响日期与农历显示。</li><li>日历卡高度约 112pt，是原版实测的版式。</li></ul>
@@ -794,11 +811,11 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第二十七章-快捷键">第二十七章 快捷键</h2>
 <h3 id="功能是什么-26">功能是什么</h3>
-<p>19 条全局热键均支持自定义改绑，并可切换为「双击修饰键」模式（连按两下 <code>⌘</code> / <code>⌥</code> / <code>⌃</code> / <code>⇧</code>）；快捷键注册冲突时会明确提示具体失败原因。</p>
+<p>全局热键支持自定义改绑，并可切换为「双击修饰键」模式（连按两下 <code>⌘</code> / <code>⌥</code> / <code>⌃</code> / <code>⇧</code>）；快捷键注册冲突时会明确提示具体失败原因。</p>
 <h3 id="默认热键">默认热键</h3>
 <p>见附录 A。这里是机制说明。</p>
 <h3 id="用户怎么用-26">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>设置 → 工具与快捷键 → 快捷键</td><td>全部热键列表</td></tr><tr><td>点某条 → 按下新组合</td><td>录制并保存</td></tr><tr><td>点「×」</td><td>清除该条绑定</td></tr><tr><td>切「2×」开关</td><td>改成双击修饰键模式</td></tr><tr><td>「恢复默认」</td><td>全部还原</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>设置 → 工具与快捷键 → 快捷键</td><td>全部热键列表</td></tr><tr><td>点某条 → 按下新组合</td><td>录制并保存</td></tr><tr><td>点「×」</td><td>清除该条绑定</td></tr><tr><td>切「2×」开关</td><td>改成双击修饰键模式</td></tr><tr><td>「恢复默认」</td><td>全部还原</td></tr><tr><td>「摘要选中文字」「润色选中文字」</td><td>默认未绑定；录制组合键后在目标应用直接处理选区</td></tr></tbody></table></div>
 <h3 id="演示-26">演示</h3>
 <figure><img src="gifs/ch27-shortcuts.gif" alt="设置 → 工具与快捷键：默认热键列表，点某行的快捷键进入录制态，按 Esc 退出。" loading="lazy" decoding="async"><figcaption>设置 → 工具与快捷键：默认热键列表，点某行的快捷键进入录制态，按 Esc 退出。</figcaption></figure>
 <h3 id="关键能力点-26">关键能力点</h3>
@@ -864,7 +881,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="功能是什么-29">功能是什么</h3>
 <p>内置多服务商大模型接入层：配一家或多家，就能在应用内聊天、总结、翻译。密钥本地加密，支持本地 Ollama。</p>
 <h3 id="用户怎么用-29">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>功能</th><th>入口</th><th>说明</th></tr></thead><tbody><tr><td>配置服务商</td><td>设置 → 搜索与 AI →「AI 服务商 → 管理」</td><td>选厂商、填 Base URL、存密钥、刷新模型、测试连接</td></tr><tr><td>AI 聊天</td><td>工具面板 / 命令面板搜「AI」</td><td>多轮对话、流式输出、会话管理</td></tr><tr><td>总结</td><td>剪贴板条目 →「总结」</td><td>对当前文本生成摘要，结果可回写</td></tr><tr><td>翻译</td><td><code>⇧⌥T</code> / <code>⇧⌥D</code></td><td>截图翻译、划词翻译（第十四章）</td></tr><tr><td>自定义工具</td><td>设置 → 搜索与 AI → 自定义工具</td><td>自己的提示词模板</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>功能</th><th>入口</th><th>说明</th></tr></thead><tbody><tr><td>配置服务商</td><td>设置 → 搜索与 AI →「AI 服务商 → 管理」</td><td>选厂商、填 Base URL、存密钥、刷新模型、测试连接</td></tr><tr><td>AI 聊天</td><td>工具面板 / 命令面板搜「AI」</td><td>多轮对话、流式输出、会话管理</td></tr><tr><td>总结</td><td>剪贴板条目 →「总结」</td><td>对当前文本生成摘要，结果可回写</td></tr><tr><td>摘要选中文字 / 润色选中文字</td><td>目标应用选中文字 → <code>⌥K</code> 搜同名命令；或绑定对应全局快捷键</td><td>打开现有工具窗并传入全文，默认不占用快捷键</td></tr><tr><td>翻译</td><td><code>⇧⌥T</code> / <code>⇧⌥D</code></td><td>截图翻译、划词翻译（第十四章）</td></tr><tr><td>自定义工具</td><td>设置 → 搜索与 AI → 自定义工具</td><td>自己的提示词模板</td></tr></tbody></table></div>
 <h3 id="四类服务商">四类服务商</h3>
 <div class="table-wrap"><table><thead><tr><th>类型</th><th>默认端点</th><th>鉴权</th></tr></thead><tbody><tr><td><strong>Anthropic</strong></td><td><code>https://api.anthropic.com</code></td><td><code>x-api-key</code></td></tr><tr><td><strong>Gemini</strong></td><td><code>https://generativelanguage.googleapis.com</code></td><td>Key 走 URL 参数</td></tr><tr><td><strong>OpenAI 兼容</strong></td><td>任意网关（DeepSeek / 月之暗面 / 智谱 / Groq…）</td><td><code>Authorization: Bearer</code></td></tr><tr><td><strong>Ollama</strong></td><td><code>http://localhost:11434</code></td><td>无（本地）</td></tr></tbody></table></div>
 <h3 id="演示-29">演示</h3>
@@ -880,6 +897,8 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>复用 SQLite 的 <code>llm_sessions</code> / <code>llm_messages</code> 两张表，支持新建/切换/重命名/删除/关键词搜索、自动生成标题。</p>
 <ul><li><strong>总结回写</strong>（<code>AISummaryView</code> + <code>ClipboardSummaryExecutionCoordinator</code>）</li></ul>
 <p>对剪贴板文本总结，结果可复制或写回剪贴板历史（标为「工具生成」）。</p>
+<ul><li><strong>真实划词</strong>：翻译、摘要、润色共用 AX（macOS 辅助功能）取文入口，在打开命令面板或工具窗前读取前台应用的选区，取文过程保留系统剪贴板。缺少权限、无选区、密码字段、应用不提供选区时分别显示原因；在 Kitnest 自己的窗口内调用会提示先返回目标应用选中文字。</li></ul>
+<ul><li><strong>同一工具窗</strong>：摘要和润色传入选区全文，复用 <code>AISummaryAction</code> 提示词、现有 AI 服务及工具窗。可切动作、停止、复制或保存结果；新请求取代旧请求，旧结果不会覆盖新选区。完成后按工具默认设置复制或保存到剪贴板历史，目标应用原文保持原样。</li></ul>
 <ul><li><strong>自定义工具</strong>（<code>CustomAIToolStore</code>）</li></ul>
 <p>名称 + 系统提示词 + <code>{input}</code> 模板，保存后与内置动作并列显示。</p>
 <ul><li><strong>密钥安全</strong>（<code>CredentialStore</code>，293 行）</li></ul>
@@ -899,7 +918,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-30">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td><code>⌘,</code></td><td>打开设置</td></tr><tr><td>菜单栏右键 →「设置…」</td><td>同上</td></tr><tr><td>面板齿轮菜单 →「设置」</td><td>同上</td></tr><tr><td><code>kitnest://settings?pane=general</code></td><td>直达某页</td></tr><tr><td>左侧搜索框</td><td>输入关键词，直接列出匹配项并跳转</td></tr></tbody></table></div>
 <h3 id="各页要点">各页要点</h3>
-<div class="table-wrap"><table><thead><tr><th>页面</th><th>关键项</th></tr></thead><tbody><tr><td><strong>常规 › 启动与语言</strong></td><td>登录时启动、语言、用 Kitnest 默认打开 ZIP（与欢迎窗共用开关，详见第二十二章）</td></tr><tr><td><strong>常规 › 主面板</strong></td><td>真实主面板预览；界面字号、面板圆角、面板宽度、打开动画、背景图、页面顺序</td></tr><tr><td><strong>常规 › 窗口材质</strong></td><td>使用真实性能监测界面展示玻璃四参数（通透度/磨砂/卡片亮度/描边）和背景材质</td></tr><tr><td><strong>常规 › 主题外观</strong></td><td>真实主面板预览；外观四选一（系统/浅色/深色/Midnight）、强调色、Midnight 色相、恢复全部个性化默认</td></tr><tr><td><strong>常规 › 通知提示</strong></td><td>使用真实通知组件预览时长与样式，可重播；位置由说明文字标明</td></tr><tr><td><strong>常规 › 菜单栏</strong></td><td>功能开关（系统监控/日历/截图内容搜索/文件中转）、AI 服务商、菜单栏图标样式与小猫、菜单栏部件</td></tr><tr><td><strong>剪贴板 › 历史</strong></td><td>保留天数、容量上限、当前占用、立即清理、标签管理</td></tr><tr><td><strong>剪贴板 › 捕获</strong></td><td>复制后自动粘贴（含辅助功能授权入口）、忽略应用（隐私名单）</td></tr><tr><td><strong>剪贴板 › 列表外观</strong></td><td>真实剪贴板列表预览；密度、缩略图大小、来源徽章</td></tr><tr><td><strong>剪贴板 › 浮动窗</strong></td><td>真实浮动窗预览；布局、卡片档位、显示开关、呼出快捷键、位置重置</td></tr><tr><td><strong>截图 › 动作条外观</strong></td><td>使用真实动作条展示图标条、药丸条、主次分离三种样式</td></tr><tr><td><strong>文件中转 › 各页</strong></td><td>显示（总开关）／投屏画质（分辨率/码率/帧率/双向剪贴板）／手机扫码直传（端口与访问地址）／云端中转（OPPO 桥接）／本地暂存（暂存目录与清空）</td></tr><tr><td><strong>搜索与 AI</strong></td><td>搜索页：搜索引擎管理、本地文件搜索开关；AI 页：服务商、自定义 AI 工具</td></tr><tr><td><strong>工具</strong></td><td>工具页：工具启停；快捷键页：19 条全局热键、工具热键、双击模式、恢复默认</td></tr><tr><td><strong>数据</strong></td><td>导出/导入偏好包（含统计与快捷键，不含密钥）、清除索引缓存</td></tr><tr><td><strong>关于</strong></td><td>版本、检查更新、导出诊断包、开源许可</td></tr><tr><td><strong>截图</strong>（侧边栏独立项）</td><td>保存目录、截图后动作、提示音、延时、固定比例、文件命名模板、静默识别、仅文本马赛克、水印、文字识别、权限状态</td></tr><tr><td><strong>钉图</strong>（侧边栏独立项）</td><td>四形态预览、边框/圆角/阴影/透明度/磁性、控制条超时</td></tr><tr><td><strong>图帘</strong>（侧边栏独立项）</td><td>总开关、帘线样式、展示时长、最多张数、卡片宽度、帘线缩放、自动上架、快捷键</td></tr><tr><td><strong>录屏</strong>（侧边栏独立项）</td><td>整屏/区域录制、摄像头画中画、按键与点击动画、忽略 App、保存位置</td></tr><tr><td><strong>工作流</strong>（侧边栏独立项）</td><td>截图后自动保存/识别/上传/建 GitHub、Linear issue</td></tr><tr><td><strong>监测各模块</strong></td><td>部件形态（12 种）、颜色、显示项</td></tr><tr><td><strong>监测设置</strong></td><td>采样间隔、合并模式、温度显示</td></tr><tr><td><strong>部件设置</strong></td><td>STATS 合并条形态/间距/分隔线</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>页面</th><th>关键项</th></tr></thead><tbody><tr><td><strong>常规 › 启动与语言</strong></td><td>登录时启动、语言、用 Kitnest 默认打开 ZIP（与欢迎窗共用开关，详见第二十二章）</td></tr><tr><td><strong>常规 › 主面板</strong></td><td>真实主面板预览；界面字号、面板圆角、面板宽度、打开动画、背景图、页面顺序</td></tr><tr><td><strong>常规 › 窗口材质</strong></td><td>使用真实性能监测界面展示玻璃四参数（通透度/磨砂/卡片亮度/描边）和背景材质</td></tr><tr><td><strong>常规 › 主题外观</strong></td><td>真实主面板预览；外观四选一（系统/浅色/深色/Midnight）、强调色、Midnight 色相、恢复全部个性化默认</td></tr><tr><td><strong>常规 › 通知提示</strong></td><td>使用真实通知组件预览时长与样式，可重播；位置由说明文字标明</td></tr><tr><td><strong>常规 › 菜单栏</strong></td><td>功能开关（系统监控/日历/截图内容搜索/文件中转）、日历周起始草稿与预览、AI 服务商、菜单栏图标样式与小猫、菜单栏部件</td></tr><tr><td><strong>剪贴板 › 历史</strong></td><td>保留天数、容量上限、当前占用、按保留期与容量清理、清除全部未存历史保留笔记、密码加密备份与恢复、标签管理</td></tr><tr><td><strong>剪贴板 › 捕获</strong></td><td>复制后自动粘贴（含辅助功能授权入口）、忽略应用（隐私名单）</td></tr><tr><td><strong>剪贴板 › 列表外观</strong></td><td>真实剪贴板列表预览；密度、缩略图大小、来源徽章</td></tr><tr><td><strong>剪贴板 › 浮动窗</strong></td><td>真实浮动窗预览；布局、卡片档位、显示开关、呼出快捷键、位置重置</td></tr><tr><td><strong>截图 › 动作条外观</strong></td><td>使用真实动作条展示图标条、药丸条、主次分离三种样式</td></tr><tr><td><strong>文件中转 › 各页</strong></td><td>显示（总开关）／投屏画质（分辨率/码率/帧率/双向剪贴板）／手机扫码直传（端口与访问地址）／云端中转（OPPO 桥接）／本地暂存（暂存目录与清空）</td></tr><tr><td><strong>搜索与 AI</strong></td><td>搜索页：搜索引擎管理、本地文件搜索开关；AI 页：服务商、自定义 AI 工具</td></tr><tr><td><strong>工具</strong></td><td>工具页：工具启停；快捷键页：全局与工具热键、摘要/润色选区（默认未绑定）、双击模式、恢复默认</td></tr><tr><td><strong>数据</strong></td><td>导出/导入偏好包（含统计与快捷键，不含密钥）、清除索引缓存</td></tr><tr><td><strong>关于</strong></td><td>版本、检查更新、导出诊断包、开源许可</td></tr><tr><td><strong>截图</strong>（侧边栏独立项）</td><td>保存目录、截图后动作、提示音、延时、固定比例、文件命名模板、静默识别、仅文本马赛克、水印、文字识别、权限状态</td></tr><tr><td><strong>钉图</strong>（侧边栏独立项）</td><td>四形态预览、边框/圆角/阴影/透明度/磁性、控制条超时</td></tr><tr><td><strong>图帘</strong>（侧边栏独立项）</td><td>总开关、帘线样式、展示时长、最多张数、卡片宽度、帘线缩放、自动上架、快捷键</td></tr><tr><td><strong>录屏</strong>（侧边栏独立项）</td><td>整屏/区域录制、摄像头画中画、按键与点击动画、忽略 App、保存位置</td></tr><tr><td><strong>工作流</strong>（侧边栏独立项）</td><td>截图后自动保存/识别/上传/建 GitHub、Linear issue</td></tr><tr><td><strong>监测各模块</strong></td><td>部件形态（12 种）、颜色、显示项</td></tr><tr><td><strong>监测设置</strong></td><td>采样间隔、合并模式、温度显示</td></tr><tr><td><strong>部件设置</strong></td><td>STATS 合并条形态/间距/分隔线</td></tr></tbody></table></div>
 <h3 id="演示-30">演示</h3>
 <figure><img src="gifs/ch31-settings.gif" alt="左侧导航从「通用」切到剪贴板、截图、工具，再回通用，右侧面板整块换。" loading="lazy" decoding="async"><figcaption>左侧导航从「通用」切到剪贴板、截图、工具，再回通用，右侧面板整块换。</figcaption></figure>
 <h3 id="关键能力点-30">关键能力点</h3>
@@ -1040,7 +1059,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="附录-a-默认快捷键">附录 A · 默认快捷键</h2>
 <blockquote>全部可在「设置 → 工具与快捷键」改绑；「2×」列表示可切换为双击修饰键模式。</blockquote>
-<div class="table-wrap"><table><thead><tr><th>功能</th><th>默认组合</th><th>可双击</th><th>说明</th></tr></thead><tbody><tr><td>打开 Kitnest</td><td><code>⌥A</code></td><td>是</td><td>主面板开关</td></tr><tr><td>截图</td><td><code>⌥S</code></td><td>是</td><td>悬停截整窗、拖拽截区域、点空白截全屏</td></tr><tr><td>窗口截图</td><td><code>⇧⌥W</code></td><td>是</td><td>与 <code>⌥S</code> 同一套自适应行为（窗口识别已内置），保留此键只为习惯</td></tr><tr><td>取色</td><td><code>⌥C</code></td><td>是</td><td>全屏取色 + HEX</td></tr><tr><td>打开并搜索</td><td><code>⌥F</code></td><td>是</td><td>面板打开且聚焦搜索框</td></tr><tr><td>悬浮剪贴板</td><td><code>⇧⌘V</code></td><td>是</td><td>鼠标旁迷你剪贴板</td></tr><tr><td>截图提取文字</td><td><code>⇧⌥S</code></td><td>是</td><td>OCR</td></tr><tr><td>截图翻译</td><td><code>⇧⌥T</code></td><td>是</td><td>OCR + 翻译</td></tr><tr><td>截图并复制</td><td><code>⇧⌥C</code></td><td>是</td><td>不弹动作条</td></tr><tr><td>截图并贴图</td><td><code>⇧⌥P</code></td><td>是</td><td>直接钉在屏幕上</td></tr><tr><td>图帘</td><td><code>⇧⌥G</code></td><td>是</td><td>展开 / 收起</td></tr><tr><td>剪贴板</td><td><code>⌥V</code></td><td>是</td><td>打开面板并切回首页</td></tr><tr><td>划词翻译</td><td><code>⇧⌥D</code></td><td>是</td><td>翻译当前选中文本</td></tr><tr><td>性能监测</td><td><code>⌥P</code></td><td>是</td><td>独立监测窗</td></tr><tr><td>长截图</td><td><code>⇧⌥L</code></td><td>是</td><td>自动滚动拼接</td></tr><tr><td>文件中转</td><td><code>⌥T</code></td><td>是</td><td>切到中转页</td></tr><tr><td>暂停/恢复剪贴板记录</td><td><code>⇧⌥R</code></td><td>是</td><td>处理敏感内容时用</td></tr><tr><td>监测独立窗口</td><td><code>⌥M</code></td><td>是</td><td>与 ⌥P 同一窗口</td></tr><tr><td>命令面板</td><td><code>⌥K</code></td><td>是</td><td>全功能目录</td></tr><tr><td>开始/停止录屏</td><td><code>⌃⌥R</code></td><td>是</td><td>整屏录制；录制中按下即停止</td></tr><tr><td>录制区域</td><td><code>⌃⌥E</code></td><td>是</td><td>先框选，再开始</td></tr><tr><td>重新钉住上一张</td><td><code>⌃⌥P</code></td><td>是</td><td>「全部隐藏」之后一键找回</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>功能</th><th>默认组合</th><th>可双击</th><th>说明</th></tr></thead><tbody><tr><td>打开 Kitnest</td><td><code>⌥A</code></td><td>是</td><td>主面板开关</td></tr><tr><td>截图</td><td><code>⌥S</code></td><td>是</td><td>悬停截整窗、拖拽截区域、点空白截全屏</td></tr><tr><td>窗口截图</td><td><code>⇧⌥W</code></td><td>是</td><td>与 <code>⌥S</code> 同一套自适应行为（窗口识别已内置），保留此键只为习惯</td></tr><tr><td>取色</td><td><code>⌥C</code></td><td>是</td><td>全屏取色 + HEX</td></tr><tr><td>打开并搜索</td><td><code>⌥F</code></td><td>是</td><td>面板打开且聚焦搜索框</td></tr><tr><td>悬浮剪贴板</td><td><code>⇧⌘V</code></td><td>是</td><td>鼠标旁迷你剪贴板</td></tr><tr><td>截图提取文字</td><td><code>⇧⌥S</code></td><td>是</td><td>OCR</td></tr><tr><td>截图翻译</td><td><code>⇧⌥T</code></td><td>是</td><td>OCR + 翻译</td></tr><tr><td>截图并复制</td><td><code>⇧⌥C</code></td><td>是</td><td>不弹动作条</td></tr><tr><td>截图并贴图</td><td><code>⇧⌥P</code></td><td>是</td><td>直接钉在屏幕上</td></tr><tr><td>图帘</td><td><code>⇧⌥G</code></td><td>是</td><td>展开 / 收起</td></tr><tr><td>剪贴板</td><td><code>⌥V</code></td><td>是</td><td>打开面板并切回首页</td></tr><tr><td>划词翻译</td><td><code>⇧⌥D</code></td><td>是</td><td>通过辅助功能读取当前选区并翻译</td></tr><tr><td>摘要选中文字</td><td>未绑定</td><td>是</td><td>可在快捷键设置绑定；打开工具窗处理选区全文</td></tr><tr><td>润色选中文字</td><td>未绑定</td><td>是</td><td>可在快捷键设置绑定；同一工具窗整理全文</td></tr><tr><td>性能监测</td><td><code>⌥P</code></td><td>是</td><td>独立监测窗</td></tr><tr><td>长截图</td><td><code>⇧⌥L</code></td><td>是</td><td>自动滚动拼接</td></tr><tr><td>文件中转</td><td><code>⌥T</code></td><td>是</td><td>切到中转页</td></tr><tr><td>暂停/恢复剪贴板记录</td><td><code>⇧⌥R</code></td><td>是</td><td>处理敏感内容时用</td></tr><tr><td>监测独立窗口</td><td><code>⌥M</code></td><td>是</td><td>与 ⌥P 同一窗口</td></tr><tr><td>命令面板</td><td><code>⌥K</code></td><td>是</td><td>全功能目录</td></tr><tr><td>开始/停止录屏</td><td><code>⌃⌥R</code></td><td>是</td><td>整屏录制；录制中按下即停止</td></tr><tr><td>录制区域</td><td><code>⌃⌥E</code></td><td>是</td><td>先框选，再开始</td></tr><tr><td>重新钉住上一张</td><td><code>⌃⌥P</code></td><td>是</td><td>「全部隐藏」之后一键找回</td></tr></tbody></table></div>
 <p>面板内：<code>⌘P</code> 置顶、<code>Esc</code> 关闭、<code>⌘,</code> 设置、<code>⌘Q</code> 退出。</p>
 <h2 id="附录-b-url-scheme">附录 B · URL Scheme</h2>
 <p>Scheme 为 <code>kitnest://</code>（旧 <code>frsetnext://</code> 仍然兼容）。42 个入口：</p>
