@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import AppKit
 import Carbon.HIToolbox
+import ApplicationServices
 
 /// 总控接线：注册全部模块 → 启动 → 连接跨模块事件总线
 enum AppBootstrap {
@@ -313,7 +314,7 @@ enum AppBootstrap {
     struct DefaultHotkeyEntry {
         let id: String
         let title: String
-        let keyCode: UInt32
+        let keyCode: UInt32?
         let modifiers: UInt32
         let action: () -> Void
     }
@@ -414,6 +415,12 @@ enum AppBootstrap {
         },
         DefaultHotkeyEntry(id: "translateSelection", title: "划词翻译",                           keyCode: 0x02, modifiers: UInt32(shiftKey | optionKey)) {
             runTranslateSelection()
+        },
+        DefaultHotkeyEntry(id: "summarizeSelection", title: "摘要选中文字", keyCode: nil, modifiers: 0) {
+            runSelectionAction(.summarize)
+        },
+        DefaultHotkeyEntry(id: "polishSelection", title: "润色选中文字", keyCode: nil, modifiers: 0) {
+            runSelectionAction(.polish)
         },
         // v59 新增（用户要求：补齐功能快捷键）；v60 ⌥P 改为直达监测独立窗口
         // （主面板性能页已删，只留独立窗一套实现）
@@ -552,7 +559,8 @@ enum AppBootstrap {
         if let pair = saved[id] {
             return pair.isEmpty ? nil : (pair[0], pair[1])
         }
-        return defaultHotkeys.first { $0.id == id }.map { ($0.keyCode, $0.modifiers) }
+        guard let entry = defaultHotkeys.first(where: { $0.id == id }), let keyCode = entry.keyCode else { return nil }
+        return (keyCode, entry.modifiers)
     }
 
     @discardableResult
@@ -618,33 +626,102 @@ enum AppBootstrap {
 
     // MARK: 划词翻译（translateSelection 热键）
 
+    private static var selectionTranslationTask: Task<Void, Never>?
+
     /// 翻译一段文本并把译文以工具产出回流剪贴板历史（is_generated_by_tool=1，与摘要回写同模式）
-    private static func translateAndIngest(_ text: String, successTip: String) {
+    @discardableResult
+    private static func translateAndIngest(_ text: String, successTip: String) -> Task<Void, Never> {
         Task { @MainActor in
             do {
                 let result = try await TranslationToolSession.shared.complete(text)
+                try Task.checkCancellation()
                 guard ClipboardManager.shared.ingestToolOutput(text: result, sourceToolKeyword: "AI翻译") != nil else {
                     Toast.show("翻译已完成，但写入剪贴板历史失败", icon: "exclamationmark.triangle", isWarning: true)
                     return
                 }
                 Toast.show(successTip, icon: "character.book.closed")
             } catch {
-                Toast.show(error.localizedDescription, icon: "exclamationmark.triangle", isWarning: true)
+                if !error.isLLMCancellation {
+                    Toast.show(error.localizedDescription, icon: "exclamationmark.triangle", isWarning: true)
+                }
             }
         }
     }
 
-    /// 划词翻译热键。重建侧暂无「抓取选中文本」的辅助功能链路
-    /// （原作经 CGEventTap 模拟取词，specs/19 未取得完整实现），
-    /// 降级为翻译剪贴板当前文本；译文以工具产出回流剪贴板历史。
     private static func runTranslateSelection() {
-        Task { @MainActor in
-            guard let text = NSPasteboard.general.string(forType: .string)?
-                .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-                Toast.show("没有可翻译的文本", icon: "character.book.closed", isWarning: true)
-                return
+        runSelectionAction(.translate)
+    }
+
+    struct SelectionFailure: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    typealias SelectionResult = Result<String, SelectionFailure>
+
+    /// 2026-11-14：在激活 Kitnest 窗口之前读取真实 AX 选区，绝不读取剪贴板。
+    static func readSelection() -> SelectionResult {
+        func failure(_ message: String) -> SelectionResult { .failure(SelectionFailure(message: message)) }
+        guard AXIsProcessTrusted() else {
+            return failure("缺少辅助功能权限：请在系统设置 → 隐私与安全性 → 辅助功能中允许 Kitnest")
+        }
+        guard let application = NSWorkspace.shared.frontmostApplication else {
+            return failure("没有可读取选区的前台应用")
+        }
+        guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+            return failure("当前前台是 Kitnest：请先在目标应用选中文字，再调用命令面板或划词快捷键")
+        }
+        let name = application.localizedName ?? "前台应用"
+        func axFailure(_ status: AXError) -> SelectionResult {
+            switch status {
+            case .apiDisabled: return failure("辅助功能访问被禁用：请在系统设置中允许 Kitnest")
+            case .attributeUnsupported, .notImplemented: return failure("\(name) 不提供可读取的选区")
+            case .noValue: return failure("\(name) 没有选中文字")
+            default: return failure("无法读取 \(name) 的选区（辅助功能错误 \(status.rawValue)）")
             }
-            translateAndIngest(text, successTip: "划词翻译完成，译文已写入剪贴板")
+        }
+        let app = AXUIElementCreateApplication(application.processIdentifier)
+        var value: CFTypeRef?
+        let focusStatus = AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &value)
+        guard focusStatus == .success else { return axFailure(focusStatus) }
+        guard let value, CFGetTypeID(value) == AXUIElementGetTypeID() else {
+            return failure("\(name) 不提供可读取的焦点元素")
+        }
+        let focused = value as! AXUIElement
+        var subrole: CFTypeRef?
+        let roleStatus = AXUIElementCopyAttributeValue(focused, kAXSubroleAttribute as CFString, &subrole)
+        if roleStatus == .success, subrole as? String == kAXSecureTextFieldSubrole {
+            return failure("密码字段不允许读取选中文字")
+        }
+        if roleStatus != .success && roleStatus != .attributeUnsupported && roleStatus != .noValue {
+            return axFailure(roleStatus)
+        }
+        var selection: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(focused, kAXSelectedTextAttribute as CFString, &selection)
+        guard status == .success else { return axFailure(status) }
+        guard let text = selection as? String else { return failure("\(name) 不提供文本选区") }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return failure("\(name) 没有选中文字")
+        }
+        return .success(text)
+    }
+
+    static func runSelectionAction(_ action: AISummaryAction, selection: SelectionResult? = nil) {
+        let selected = selection ?? readSelection()
+        Task { @MainActor in
+            switch selected {
+            case .failure(let error):
+                Toast.show(error.message, icon: action.systemImage, isWarning: true)
+            case .success(let text):
+                selectionTranslationTask?.cancel()
+                selectionTranslationTask = nil
+                if action == .translate {
+                    ToolRunnerWindowController.shared.stopAIRequest()
+                    selectionTranslationTask = translateAndIngest(text, successTip: "划词翻译完成，译文已写入剪贴板")
+                } else {
+                    ToolRunnerWindowController.shared.show(toolID: action.toolID, autoRun: true, input: text)
+                }
+            }
         }
     }
 }

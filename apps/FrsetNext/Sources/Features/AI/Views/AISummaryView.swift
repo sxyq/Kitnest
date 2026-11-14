@@ -13,6 +13,14 @@ public enum AISummaryAction: String, CaseIterable, Identifiable {
 
     public var id: String { rawValue }
 
+    var toolID: String {
+        switch self {
+        case .summarize: return "summary"
+        case .polish: return "polish"
+        case .translate: return "translate"
+        }
+    }
+
     public var title: String {
         switch self {
         case .summarize: return "摘要"
@@ -76,9 +84,13 @@ public final class AISummaryViewModel: ObservableObject {
     @Published public var customTools: [CustomAITool] = []
 
     private var task: Task<Void, Never>?
+    private var requestGeneration = 0
+    private let toolMode: Bool
+    private var outputToolKind: ToolKind?
 
-    public init(inputText: String = "") {
+    public init(inputText: String = "", toolMode: Bool = false) {
         self.inputText = inputText
+        self.toolMode = toolMode
         self.customTools = CustomAIToolStore.shared.all()
     }
 
@@ -97,7 +109,15 @@ public final class AISummaryViewModel: ObservableObject {
             LLMMessage(role: .system, content: action.systemPrompt),
             LLMMessage(role: .user, content: action.prompt(for: text))
         ]
-        start(messages: messages)
+        if toolMode {
+            guard let tool = ToolRegistry.tool(id: action.toolID) else {
+                errorMessage = "\(action.title)工具未注册"
+                return
+            }
+            start(messages: messages, tool: tool, input: text)
+        } else {
+            start(messages: messages)
+        }
     }
 
     // MARK: 自定义工具
@@ -114,6 +134,7 @@ public final class AISummaryViewModel: ObservableObject {
     }
 
     public func stop() {
+        requestGeneration += 1
         task?.cancel()
         task = nil
         isRunning = false
@@ -139,7 +160,10 @@ public final class AISummaryViewModel: ObservableObject {
     public func saveToClipboard() {
         let text = outputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        guard AIEventBus.emitResult(text) else {
+        let saved: Bool
+        if let kind = outputToolKind { saved = ToolboxEventBus.emitResult(text, kind: kind) }
+        else { saved = AIEventBus.emitResult(text) }
+        guard saved else {
             errorMessage = "保存失败：无法写入剪贴板历史"
             return
         }
@@ -156,33 +180,58 @@ public final class AISummaryViewModel: ObservableObject {
             errorMessage = "请先输入或粘贴要处理的文本。"
             return nil
         }
-        guard !isRunning else { return nil }
         return text
     }
 
-    private func start(messages: [LLMMessage]) {
+    private func start(messages: [LLMMessage], tool: ToolDescriptor? = nil, input: String = "") {
+        stop()
+        outputToolKind = tool?.kind
         errorMessage = nil
         didCopy = false
         outputText = ""
         isRunning = true
         let model = LLMService.shared.currentModel
+        let request = requestGeneration
         task = Task { [self] in
-            await perform(messages: messages, model: model)
+            if let tool {
+                let result = await ToolRegistry.run(tool, input: input, options: tool.defaultOptions())
+                await MainActor.run {
+                    guard request == self.requestGeneration else { return }
+                    self.isRunning = false
+                    self.outputText = result.isError ? "" : result.text
+                    self.errorMessage = result.isError ? result.text : nil
+                    guard !result.isError, !result.text.isEmpty else { return }
+                    switch BuiltinTools.defaultAction {
+                    case .copy: self.copyResult()
+                    case .save: self.saveToClipboard()
+                    }
+                }
+            } else {
+                await perform(messages: messages, model: model, request: request)
+            }
         }
     }
 
-    private func perform(messages: [LLMMessage], model: String) async {
+    private func perform(messages: [LLMMessage], model: String, request: Int) async {
         var accumulated = ""
         do {
             for try await piece in LLMService.shared.send(messages: messages, model: model, stream: true) {
+                try Task.checkCancellation()
                 accumulated += piece
                 let snapshot = accumulated
-                await MainActor.run { self.outputText = snapshot }
+                await MainActor.run {
+                    guard request == self.requestGeneration else { return }
+                    self.outputText = snapshot
+                }
             }
-            await MainActor.run { self.isRunning = false }
+            await MainActor.run {
+                guard request == self.requestGeneration else { return }
+                self.isRunning = false
+            }
         } catch {
             let partial = accumulated
             await MainActor.run {
+                guard request == self.requestGeneration else { return }
                 self.isRunning = false
                 // 主动停止不报错；真实失败（如未配置 Key）必须如实提示，否则用户会以为「没反应」
                 self.errorMessage = error.isLLMCancellation ? nil : error.localizedDescription
@@ -199,6 +248,10 @@ public struct AISummaryView: View {
 
     public init(inputText: String = "") {
         _model = StateObject(wrappedValue: AISummaryViewModel(inputText: inputText))
+    }
+
+    init(model: AISummaryViewModel) {
+        _model = StateObject(wrappedValue: model)
     }
 
     public var body: some View {
@@ -263,6 +316,7 @@ public struct AISummaryView: View {
         }
         .padding(12)
         .onAppear { model.reloadTools() }
+        .onDisappear { model.stop() }
     }
 
     private var activeLabel: String {
@@ -287,7 +341,6 @@ public struct AISummaryView: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .disabled(model.isRunning)
             }
             Spacer()
             if model.isRunning {
@@ -319,7 +372,6 @@ public struct AISummaryView: View {
                             }
                     }
                     .buttonStyle(.plain)
-                    .disabled(model.isRunning)
                     .help(tool.systemPrompt)
                 }
             }

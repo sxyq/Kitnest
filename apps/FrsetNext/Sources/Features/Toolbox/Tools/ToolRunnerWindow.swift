@@ -26,6 +26,7 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
     private var window: NSWindow?
     private var currentToolID: String?
     private var currentIntent: ToolInvocationIntent = .standard
+    private var summaryModel: AISummaryViewModel?
     private var keyMonitor: Any?
     /// 同一可见工具窗的重复自动执行请求；新会话仍由 onAppear 执行。
     @Published private(set) var autoRunSequence = 0
@@ -46,7 +47,10 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
             WindowReveal.reset(window)
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            if autoRun { autoRunSequence += 1 }
+            if autoRun {
+                if let model = summaryModel, let action = model.activeAction { model.run(action) }
+                else { autoRunSequence += 1 }
+            }
             return
         }
         currentToolID = toolID
@@ -90,8 +94,11 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
         Log.info("Toolbox", "工具窗已打开：\(tool.name)")
     }
 
+    func stopAIRequest() { summaryModel?.stop() }
+
     func close() {
         guard let w = window, w.isVisible else { return }
+        summaryModel?.stop()
         let token = closeGeneration
         if currentIntent == .preview {
             NSAnimationContext.runAnimationGroup { context in context.duration = 0.12; w.animator().alphaValue = 0 }
@@ -110,6 +117,8 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
 
     /// 关闭时复位共享状态（工具格/搜索高亮依赖它）
     func windowWillClose(_ notification: Notification) {
+        summaryModel?.stop()
+        summaryModel = nil
         currentToolID = nil
         if ToolboxUIState.shared.activeToolID != nil {
             ToolboxUIState.shared.activeToolID = nil
@@ -127,13 +136,26 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
 
     private func installContent(tool: ToolDescriptor, autoRun: Bool, input: String?,
                                 intent: ToolInvocationIntent, in window: NSWindow) {
-        let root = ToolRunnerView(tool: tool, onClose: { [weak self] in
-            self?.close()
-        }, autoRun: autoRun, initialInput: input ?? "", intent: intent)
-        .frsetThemeChrome()
-        let host = NSHostingView(rootView: AnyView(root))
+        summaryModel?.stop()
+        summaryModel = nil
+        let root: AnyView
+        if intent == .standard, let action = AISummaryAction.allCases.first(where: { $0.toolID == tool.identifier }) {
+            let model = AISummaryViewModel(inputText: input ?? "", toolMode: true)
+            model.activeAction = action
+            summaryModel = model
+            root = AnyView(AISummaryView(model: model)
+                .padding(.top, OfficialChrome.titlebarInset)
+                .frsetThemeChrome())
+        } else {
+            root = AnyView(ToolRunnerView(tool: tool, onClose: { [weak self] in
+                self?.close()
+            }, autoRun: autoRun, initialInput: input ?? "", intent: intent)
+            .frsetThemeChrome())
+        }
+        let host = NSHostingView(rootView: root)
         host.sizingOptions = []
         if #available(macOS 13.3, *) { host.safeAreaRegions = [] }
         window.setOfficialContent(host)
+        if autoRun, let model = summaryModel, let action = model.activeAction { model.run(action) }
     }
 }

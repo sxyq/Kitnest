@@ -69,9 +69,17 @@ public enum CommandCatalog {
     }
 
     @MainActor
-    public static func build() -> [CommandItem] {
+    static func build(selection: AppBootstrap.SelectionResult) -> [CommandItem] {
         var items: [CommandItem] = []
         items.reserveCapacity(48)
+
+        for action in AISummaryAction.allCases {
+            items.append(CommandItem(id: "ai.selection.\(action.rawValue)",
+                                     title: "\(action.title)选中文字",
+                                     subtitle: "前台应用选区", systemImage: action.systemImage, kind: .action) {
+                AppBootstrap.runSelectionAction(action, selection: selection)
+            })
+        }
 
         // ① 动作：截图全家桶
         // v267：`.window` 与 `.area` 现在是同一套自适应行为，只留一条。
@@ -245,6 +253,7 @@ public final class CommandPaletteController: NSObject, NSWindowDelegate {
     }
 
     public func show(slash: Bool = false) {
+        let selection = panel.flatMap { $0.isVisible ? $0.selection : nil } ?? AppBootstrap.readSelection()
         if let panel, panel.isVisible {
             // v202（审查 finding-5）：面板已可见且要求斜杠模式 → 按 slash 重建，
             // 保留旧行为；普通打开只前置，不打断正在输入的内容。
@@ -254,7 +263,7 @@ public final class CommandPaletteController: NSObject, NSWindowDelegate {
             isClosing = false
         }
         panel?.close()
-        let p = CommandPalettePanel(initialQuery: slash ? "/" : "")
+        let p = CommandPalettePanel(initialQuery: slash ? "/" : "", selection: selection)
         panel = p
         p.centerInScreen()
         p.makeKeyAndOrderFront(nil)
@@ -279,8 +288,10 @@ public final class CommandPaletteController: NSObject, NSWindowDelegate {
 final class CommandPalettePanel: NSPanel, NSWindowDelegate {
 
     private var onClose: (() -> Void)?
+    let selection: AppBootstrap.SelectionResult
 
-    init(initialQuery: String = "") {
+    init(initialQuery: String = "", selection: AppBootstrap.SelectionResult) {
+        self.selection = selection
         super.init(contentRect: NSRect(x: 0, y: 0, width: 660, height: 470),
                    styleMask: [.titled, .nonactivatingPanel, .utilityWindow, .fullSizeContentView],
                    backing: .buffered, defer: false)
@@ -296,7 +307,7 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
         // v272：瞬时命令面板不摆三颗假按钮（它们永远不是 key，会一直是空心灰圈）
         applyOfficialChrome(glassBacking: false, lights: .hidden)
 
-        let controller = CommandPaletteState(initialQuery: initialQuery)
+        let controller = CommandPaletteState(initialQuery: initialQuery, selection: selection)
         controller.onDismiss = { [weak self] in self?.close() }
         onClose = { [weak controller] in controller?.onDismiss = nil }
         let host = NSHostingView(rootView: CommandPaletteView(state: controller))
@@ -338,8 +349,8 @@ final class CommandPaletteState: ObservableObject {
         query.trimmingCharacters(in: .whitespaces).hasPrefix("/")
     }
 
-    init(initialQuery: String = "") {
-        all = CommandCatalog.build()
+    init(initialQuery: String = "", selection: AppBootstrap.SelectionResult) {
+        all = CommandCatalog.build(selection: selection)
         slashAll = CommandCatalog.buildSlash()
         if !initialQuery.isEmpty { query = initialQuery }
         items = initialQuery.hasPrefix("/") ? slashAll : all

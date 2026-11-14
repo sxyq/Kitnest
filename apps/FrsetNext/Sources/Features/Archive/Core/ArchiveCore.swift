@@ -24,13 +24,15 @@ public struct ArchiveEntry: Identifiable, Equatable {
     /// v127（ArcZip P2）：路径不安全（穿越/绝对路径/设备名段），UI 显示警告图标；
     /// 其中穿越/绝对路径类解压与写回会被拒绝或跳过（isHardUnsafeEntryPath），设备名类仅警告
     public let isUnsafe: Bool
+    public let isLink: Bool
 
     public init(path: String, name: String, size: Int64, packedSize: Int64,
                 modified: String, method: String, isDirectory: Bool, parent: String,
-                isEncrypted: Bool = false, isUnsafe: Bool = false) {
+                isEncrypted: Bool = false, isUnsafe: Bool = false, isLink: Bool = false) {
         self.path = path; self.name = name; self.size = size; self.packedSize = packedSize
         self.modified = modified; self.method = method; self.isDirectory = isDirectory
         self.parent = parent; self.isEncrypted = isEncrypted; self.isUnsafe = isUnsafe
+        self.isLink = isLink
     }
 
     public var id: String { path }
@@ -388,10 +390,13 @@ public enum ArchiveCore {
             if task.terminationStatus != 0 {
                 // v181：失败留一行可诊断日志（此前压缩报「Break signaled」时日志里什么都没有，
                 // 只能靠猜；这次就是靠它定位到裸 `-p` 让 7zz 去等密码）
-                Log.warn("Archive", "7zz \(fullArgs.joined(separator: " ")) "
+                let loggedArgs = fullArgs.map { $0.hasPrefix("-p") ? "-p[已隐藏]" : $0 }
+                let passwords = fullArgs.filter { $0.hasPrefix("-p") && $0.count > 2 }.map { String($0.dropFirst(2)) }
+                let loggedError = passwords.reduce(errText) { $0.replacingOccurrences(of: $1, with: "[已隐藏]") }
+                Log.warn("Archive", "7zz \(loggedArgs.joined(separator: " ")) "
                          + "exit=\(task.terminationStatus)"
                          + "（\(task.terminationReason == .uncaughtSignal ? "被信号终止" : "正常退出")）"
-                         + " cwd=\(cwd?.path ?? "-") err=\(errText.prefix(160))")
+                         + " cwd=\(cwd?.path ?? "-") err=\(loggedError.prefix(160))")
             }
             DispatchQueue.main.async {
                 completion(task.terminationStatus, outBox.data, errText)
@@ -467,11 +472,12 @@ public enum ArchiveCore {
     /// `__MACOSX` / `.DS_Store` 等辅助文件（v124）。
     public static func list(url: URL, password: String? = nil,
                             includeAuxiliary: Bool = false,
+                            taskID: UUID? = nil,
                             completion: @escaping ([ArchiveEntry], String?) -> Void) {
         var args = ["l", "-slt", "-ba"]
         args += passwordArg(password ?? ArchivePasswords.get(url))
         args += [url.path]
-        run(args, timeout: 60) { code, data, err in
+        run(args, timeout: 60, taskID: taskID) { code, data, err in
             guard code == 0 else {
                 let msg = err.isEmpty ? "无法读取归档（可能需要密码）" : err
                 completion([], msg.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -519,7 +525,10 @@ public enum ArchiveCore {
                 parent: parent,
                 isEncrypted: fields["Encrypted"] == "+",
                 // v127（ArcZip P2）：不安全路径打标（UI 警告 + 解压时跳过）
-                isUnsafe: isUnsafeEntryPath(path)))
+                isUnsafe: isUnsafeEntryPath(path),
+                isLink: fields["Symbolic Link"] != nil || fields["Hard Link"] != nil
+                    || (fields["Mode"] ?? "").hasPrefix("l")
+                    || (fields["Attributes"] ?? "").split(separator: " ").contains(where: { $0.hasPrefix("l") })))
             fields = [:]
         }
 
@@ -635,7 +644,7 @@ public enum ArchiveCore {
 
     /// 真正跑 7zz 解压（不入队，供队列体与临时解压共用）。
     /// `restrictTo` 非 nil 时只解压列出的条目路径（= 显式跳过不安全项）。
-    private static func performExtract(url: URL, entry: String?, to dir: URL,
+    static func performExtract(url: URL, entry: String?, to dir: URL,
                                        password: String?, includeAuxiliary: Bool,
                                        restrictTo: [String]?,
                                        skipExisting: Bool = false,
@@ -967,6 +976,7 @@ public enum ArchiveCore {
     public static func create(files: [URL], to archiveURL: URL, level: Int = 5,
                               password: String? = nil, volumeMB: Int = 0,
                               useWindowsSafeNames: Bool = false,
+                              encryptFileNames: Bool = false,
                               completion: @escaping (Bool, String) -> Void) -> UUID? {
         guard !files.isEmpty else {
             completion(false, "没有选中文件")
@@ -993,6 +1003,10 @@ public enum ArchiveCore {
             var names = files.map { $0.lastPathComponent }
             var staging: URL? = nil
             let name = archiveURL.lastPathComponent.lowercased()
+            if encryptFileNames && (archiveURL.pathExtension.lowercased() != "7z" || password?.isEmpty != false) {
+                both(false, "文件名加密需要 7z 格式与非空密码")
+                return
+            }
 
             // v164（2026-10-29 修 P0）：tar.gz 是「先 tar 再 gzip」两趟，gzip 是单流格式，
             // 7zz 的 `-v` 只会把 **tar** 切成 .tar.001/.002，gz 那一趟根本没跑；旧实现还报
@@ -1036,7 +1050,7 @@ public enum ArchiveCore {
             func finalize(_ code: Int32, _ err: String) {
                 if let staging { try? FileManager.default.removeItem(at: staging) }
                 if code == 0 {
-                    if let password, !password.isEmpty {
+                    if let password, !password.isEmpty, !encryptFileNames {
                         ArchivePasswords.set(password, for: archiveURL)
                     }
                     let vol = volumeMB > 0 ? "（分卷 \(volumeMB) MB）" : ""
@@ -1093,6 +1107,7 @@ public enum ArchiveCore {
             let ext = archiveURL.pathExtension.isEmpty ? "zip" : archiveURL.pathExtension
             var args = ["a", "-t\(ext)", "-mx=\(max(0, min(9, level)))", "-y"]
             args += passwordArg(password)
+            if encryptFileNames { args += ["-mhe=on", "-mmt=1"] }
             if volumeMB > 0 { args.append("-v\(max(1, volumeMB))m") }
             args += [archiveURL.path] + names
             runIn(args, cwd: base, taskID: taskID, onProgress: progress) { code, _, err in

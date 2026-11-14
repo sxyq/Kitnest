@@ -27,6 +27,7 @@ public struct ShortcutSettingsPane: View {
             pair("openTransferDock", "toggleClipboardRecording")
             Divider().padding(.vertical, 8)
             pair("screenshotTranslate", "translateSelection")
+            pair("summarizeSelection", "polishSelection")
             Divider().padding(.vertical, 8)
             // 面板内快捷键（官方原版第四组，静态展示不可改）：粘贴 ↩ / 搜索剪贴板 ⌘F
             // / 预览 ⎋ / 新建笔记 ⌘N（2026-10-18 逐项对照官方快捷键页补齐）

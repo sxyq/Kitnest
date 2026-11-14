@@ -30,6 +30,8 @@ public enum BuiltinTools {
                        kind: .translation)
         registerAITool(id: "summary", name: "Summary", description: "Summarize text with AI",
                        kind: .summary)
+        registerAITool(id: "polish", name: "润色", description: "保持原意，润色全文",
+                       kind: .polish)
         registerQRCodeTool()
         registerUUIDTool()
         registerTimestampTool()
@@ -49,7 +51,7 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: id, kind: kind, name: L10n.t(name),
             keyword: id, toolDescription: L10n.t(description),
-            systemImage: id == "translate" ? "character.bubble" : "text.alignleft",
+            systemImage: id == "translate" ? "character.bubble" : (id == "polish" ? "sparkles" : "text.alignleft"),
             category: .convert, placeholder: L10n.t(description)
         ) { input, _ in
             do {
@@ -59,7 +61,7 @@ public enum BuiltinTools {
                 guard let service = ServiceLocator.llmService else {
                     return .error("请先配置 AI 服务商")
                 }
-                let action = AISummaryAction.summarize
+                let action: AISummaryAction = id == "polish" ? .polish : .summarize
                 return ToolOutput(text: try await service.complete(
                     prompt: action.prompt(for: input), system: action.systemPrompt, model: nil))
             } catch {
