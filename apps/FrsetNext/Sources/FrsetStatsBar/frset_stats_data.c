@@ -21,6 +21,7 @@
 #include <sys/param.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/ps/IOPowerSources.h>
+#include <IOKit/ps/IOPSKeys.h>
 
 // ============ SMC ============
 
@@ -534,7 +535,25 @@ void frset_net_ip(char *buf, int buflen) {
 // ============ v4：续航估算（IOPS） ============
 
 double frset_battery_remaining_sec(void) {
-    return IOPSGetTimeRemainingEstimate();   // -1=计算中, -2=无限(接电源)
+    double seconds = IOPSGetTimeRemainingEstimate();
+    CFTypeRef info = IOPSCopyPowerSourcesInfo();
+    if (!info) return kIOPSTimeRemainingUnknown;
+    CFArrayRef sources = IOPSCopyPowerSourcesList(info);
+    if (sources) {
+        for (CFIndex i = 0; i < CFArrayGetCount(sources); i++) {
+            CFDictionaryRef source = IOPSGetPowerSourceDescription(info, CFArrayGetValueAtIndex(sources, i));
+            if (!source || !CFEqual(CFDictionaryGetValue(source, CFSTR(kIOPSTypeKey)), CFSTR(kIOPSInternalBatteryType))) continue;
+            if (CFDictionaryGetValue(source, CFSTR(kIOPSIsChargingKey)) != kCFBooleanTrue) continue;
+            CFNumberRef time = CFDictionaryGetValue(source, CFSTR(kIOPSTimeToFullChargeKey));
+            int minutes;
+            seconds = time && CFNumberGetValue(time, kCFNumberIntType, &minutes) && minutes >= 0
+                ? minutes * 60.0 : kIOPSTimeRemainingUnknown;
+            break;
+        }
+        CFRelease(sources);
+    }
+    CFRelease(info);
+    return seconds;
 }
 
 // ============ v17：进程排行 / 运行时间 / 内存压力 / GPU / 风扇 ============

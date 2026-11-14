@@ -124,7 +124,7 @@ private struct BatteryStatsContent: View {
     private func subline(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> String {
         let remain = StatsFormat.remaining(stats.batteryRemainSec)
         if battery?.isCharging == true {
-            return remain == "—" ? "系统正在供电并充电" : "预计 \(remain) 充满"
+            return remain == "—" ? "系统正在估算充满时间" : "预计 \(remain) 充满"
         }
         if battery?.fullyCharged == true, battery?.externalConnected == true { return "已充满，系统已停止充电" }
         if battery?.externalConnected == true { return "已接电源，系统暂缓充电或已到充电上限" }
@@ -168,6 +168,8 @@ private struct BatteryStatsContent: View {
             text = "电量已接近满，系统会自动降低充电功率（涓流充电）以保护电池寿命。"
         } else if battery?.isCharging == true {
             text = "充电过程中电池温度会略高于平时，属正常现象；温度过高时系统会暂缓充电。"
+        } else if battery?.fullyCharged == true, battery?.externalConnected == true {
+            text = "电量已满，当前电源为整机供电。"
         } else if battery?.externalConnected == true {
             text = "已接电源但当前没有充电：可能是电量已满，或系统为保护电池暂缓充电。"
         } else {
@@ -303,8 +305,6 @@ private struct BatteryStatsContent: View {
 
     private func electricalCard(_ battery: StatsBattery?, _ stats: StatsSnapshot) -> some View {
         let flow = BatteryFlowModel(battery: battery)
-        let batteryPower = flow.branches.first(where: { $0.id == "charge" })?.watts
-            ?? (battery?.externalConnected == false ? flow.input.watts : nil)
         return VStack(alignment: .leading, spacing: 8) {
             MonitorSectionTitle("电池状态")
             if let battery, battery.present {
@@ -312,9 +312,10 @@ private struct BatteryStatsContent: View {
                                  value: String(format: "%.2f V", battery.voltageMv / 1000))
                 BatteryDetailRow(label: "电流",
                                  value: String(format: "%.2f A", battery.amperageMa / 1000))
-                if let batteryPower, batteryPower > 0 {
-                    BatteryDetailRow(label: battery.externalConnected ? "充入功率" : "放电功率",
-                                     value: BatteryEnergySampler.wattsText(batteryPower))
+                if battery.voltageMv > 0 {
+                    let watts = flow.batteryFlowW
+                    BatteryDetailRow(label: watts > 0 ? "充入功率" : watts < 0 ? "放电功率" : "电池净功率",
+                                     value: BatteryEnergySampler.wattsText(abs(watts)))
                 }
                 if battery.temperature > 0 {
                     BatteryDetailRow(label: "电池温度",
@@ -408,9 +409,11 @@ struct BatteryFlowNode: Identifiable {
 struct BatteryFlowModel {
     let input: BatteryFlowNode
     let branches: [BatteryFlowNode]
+    let batteryFlowW: Double
 
     init(battery: StatsBattery?) {
         guard let battery, battery.present else {
+            batteryFlowW = 0
             input = BatteryFlowNode(id: "in", title: "充电器输入", watts: 0,
                                     systemImage: "powerplug.fill",
                                     color: BatteryFlowPalette.charge, available: false)
@@ -420,7 +423,7 @@ struct BatteryFlowModel {
 
         let volts = battery.voltageMv / 1000
         let amps = battery.amperageMa / 1000
-        let batteryFlowW = volts * amps      // >0 充入电池；<0 放电
+        batteryFlowW = volts * amps      // >0 充入电池；<0 放电
 
         if battery.externalConnected {
             var inputW = battery.adapterPowerW
