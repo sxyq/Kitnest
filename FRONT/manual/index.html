@@ -193,8 +193,9 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="演示">演示</h3>
 <figure><img src="gifs/ch01-menubar.gif" alt="点菜单栏图标，面板从图标正下方展开；光标随后掠过顶栏八个动作——截图、取色、悬浮剪贴板、主页、监测、中转、投屏、设置。" loading="lazy" decoding="async"><figcaption>点菜单栏图标，面板从图标正下方展开；光标随后掠过顶栏八个动作——截图、取色、悬浮剪贴板、主页、监测、中转、投屏、设置。</figcaption></figure>
 <h3 id="关键能力点">关键能力点</h3>
-<ul><li><strong>四种图标样式</strong>（<code>MenuBarIconStyle.selectIconStyle</code>）</li><li><strong>应用图标</strong>：默认 Logo。</li><li><strong>动态风扇</strong>：旋转小风扇，转速随 CPU 使用率实时变化（<code>updateFanSpeed</code>，20Hz 平滑动画、3 秒换档）。</li><li><strong>日期</strong>：菜单栏直接显示当天日期（<code>startDateTimer</code>）。</li><li><strong>自定义图标</strong>：任意 SF Symbol 名称（<code>setSymbol</code>）。</li></ul>
-<ul><li><strong>自定义图标是彩蛋</strong>：连续点击主图标若干次解锁，解锁后才有「自定义菜单栏图标」子菜单和庆祝动效（<code>MenuBarIconEasterEggManager.unlock</code> / <code>presentUnlockCelebration</code>）；解锁后还能把该选项藏起来或放回来（<code>hideIconOption</code> / <code>restoreIconOption</code>）。</li></ul>
+<ul><li><strong>五种图标样式，只选一种</strong>（<code>MenuBarIconStyle.selectIconStyle</code>）</li><li><strong>应用图标</strong>：默认 Logo。</li><li><strong>动态风扇</strong>：旋转小风扇，转速随 CPU 使用率变化。</li><li><strong>日期</strong>：菜单栏直接显示当天日期（<code>startDateTimer</code>）。</li><li><strong>自定义图标</strong>：任意 SF Symbol 名称（<code>setSymbol</code>）。</li><li><strong>动态小猫</strong>：播放跑步动画，速度随 CPU 使用率变化；选择后不再同时显示风扇。</li></ul>
+<p>在「常规 → 菜单栏」切换样式，浅色、深色两张预览同步更新。小猫和风扇按固定示例速度播放；修改其他开关不会重播图标动画。点「保存」才改变真实菜单栏，点「取消」恢复已保存的选择。</p>
+<ul><li><strong>自定义图标</strong>：在设置中填写 SF Symbol 名称；名称无效时保存会说明原因。右键菜单可以隐藏或恢复自定义图标选项。</li></ul>
 <ul><li><strong>图标位置记忆</strong>：监控部件在菜单栏中的顺序会被保存，重启还原（<code>saveStatusItemPosition</code> / <code>restoreStatusItemPosition</code>）。</li></ul>
 <ul><li><strong>唯一实例保护</strong>：重复启动会自动退出旧实例；检测到官方原版 Frset 同时在跑会提示（<code>enforceSingleMenubarOwner</code>）。</li></ul>
 <ul><li><strong>拖文件到图标</strong>：把文件拖到菜单栏图标上可直接进「文件中转」暂存（<code>StatusItemDropProxy</code>：由于 <code>NSStatusBarButton</code> 本身不是拖放目标，此处通过覆盖视图支持拖放拦截）。</li></ul>

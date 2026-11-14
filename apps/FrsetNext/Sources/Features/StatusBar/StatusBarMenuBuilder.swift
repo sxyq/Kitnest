@@ -216,7 +216,7 @@ public enum StatusBarMenuBuilder {
                          styleItems: styleItems)
     }
 
-    /// 自定义菜单栏图标子菜单：四样式单选 + 隐藏/恢复选项
+    /// 菜单栏图标子菜单：五样式单选 + 隐藏/恢复自定义选项
     /// （spec 13 §6：logo/fan/date/custom 四键；hide/restore 对应对话框的触发点）
     /// v128（流畅度）：同时返回样式项引用，供缓存命中时只刷单选态
     private static func customIconSubmenu(revealed: Bool)

@@ -17,9 +17,9 @@ import SwiftUI
 
 // MARK: - 样式枚举
 
-/// 菜单栏主图标样式（对应原作 menu-bar-icon-* 四键）
+/// 菜单栏主图标单选；四个旧样式键与已有小猫键继续沿用。
 enum MenuBarIconStyle: String, CaseIterable {
-    case logo, fan, date, custom
+    case logo, fan, date, custom, cat
 
     /// 偏好键（spec §6.1 实证键名）
     var preferenceKey: String {
@@ -28,6 +28,7 @@ enum MenuBarIconStyle: String, CaseIterable {
         case .fan:    return "menu-bar-icon-fan"
         case .date:   return "menu-bar-icon-date"
         case .custom: return "menu-bar-icon-custom"
+        case .cat:    return "Bar_MainIconCat"
         }
     }
 
@@ -37,6 +38,7 @@ enum MenuBarIconStyle: String, CaseIterable {
         case .fan:    return "动态风扇"
         case .date:   return "日期"
         case .custom: return "自定义图标"
+        case .cat:    return "动态小猫"
         }
     }
 
@@ -46,6 +48,7 @@ enum MenuBarIconStyle: String, CaseIterable {
         case .fan:    return "图标转速随 CPU 使用率动态调整"
         case .date:   return "在菜单栏显示当前日期"
         case .custom: return "使用自定义 SF Symbol 图标"
+        case .cat:    return "小猫跑步速度随 CPU 使用率调整"
         }
     }
 
@@ -55,6 +58,7 @@ enum MenuBarIconStyle: String, CaseIterable {
         case .fan:    return "fan"
         case .date:   return "calendar"
         case .custom: return "wand.and.stars"
+        case .cat:    return "cat"
         }
     }
 }
@@ -71,19 +75,22 @@ enum MenuBarIconStyleStore {
     /// custom 缺省 Symbol（未指定时的兜底）
     static let defaultCustomSymbol = "sparkles"
 
-    /// 当前选中的样式：四个布尔键中唯一置 true 者；全 false / 多 true 时按 CaseIterable 序取首个
+    /// 小猫与旧样式统一读成一个选择；已有覆盖配置打开时显示小猫。
     static var current: MenuBarIconStyle {
+        if (FSBarConfigurationSnapshot()?[MenuBarIconStyle.cat.preferenceKey] as? NSNumber)?.boolValue == true {
+            return .cat
+        }
         for style in MenuBarIconStyle.allCases
-        where UserDefaults.standard.bool(forKey: style.preferenceKey) {
+        where style != .cat && UserDefaults.standard.bool(forKey: style.preferenceKey) {
             return style
         }
         return .logo
     }
 
-    /// 选中某样式：清掉其余三键，只置目标键
+    /// 写入旧样式键；小猫键由现有部件配置保存，选择小猫时清空四个旧样式。
     static func select(_ style: MenuBarIconStyle) {
         let defaults = UserDefaults.standard
-        for candidate in MenuBarIconStyle.allCases {
+        for candidate in MenuBarIconStyle.allCases where candidate != .cat {
             defaults.set(candidate == style, forKey: candidate.preferenceKey)
         }
         Log.info("StatusBar", "菜单栏图标样式切换为 \(style.rawValue)")
@@ -272,6 +279,9 @@ enum MenuBarIconDrawing {
                 view.heightAnchor.constraint(equalToConstant: 18)
             ])
             return view
+        case .cat:
+            button.image = nil
+            button.imagePosition = .noImage
         }
         return nil
     }
@@ -285,31 +295,58 @@ enum MenuBarIconDrawing {
     }()
 }
 
-/// 静态预览使用正式图标绘制；不安装状态项、采样器或动画。
+/// 复用正式绘制，以固定转速演示动画；不安装状态项或真实采样器。
 struct MenuBarIconPreview: NSViewRepresentable {
     let style: MenuBarIconStyle
     let customSymbol: String
-    let cat: Bool
     var dark: Bool? = nil
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    final class Coordinator {
+        var style: MenuBarIconStyle?
+        var symbol: String?
+        var rotatingView: RotatingLayerView?
+    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> NSView { NSView(frame: NSRect(x: 0, y: 0, width: 40, height: 22)) }
     func updateNSView(_ view: NSView, context: Context) {
-        view.subviews.forEach { $0.removeFromSuperview() }
-        if cat {
-            let content = FSRunCatCreatePreview(dark ?? (colorScheme == .dark))!
-            content.frame.origin.x = 3
-            view.addSubview(content)
-        } else {
-            let button = NSButton(frame: view.bounds)
-            button.isBordered = false
-            _ = MenuBarIconDrawing.configure(button, style: style, symbol: customSymbol,
-                                             date: Date(timeIntervalSince1970: 1_799_539_200))
-            view.addSubview(button)
+        let current = style
+        let symbol = current == .custom ? customSymbol : nil
+        let coordinator = context.coordinator
+        if coordinator.style != current || coordinator.symbol != symbol {
+            coordinator.rotatingView?.stop()
+            coordinator.rotatingView = nil
+            view.subviews.forEach { $0.removeFromSuperview() }
+            if current == .cat {
+                let content = FSRunCatCreatePreview(dark ?? (colorScheme == .dark))!
+                content.translatesAutoresizingMaskIntoConstraints = false
+                view.addSubview(content)
+                NSLayoutConstraint.activate([
+                    content.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                    content.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                    content.widthAnchor.constraint(equalToConstant: 34),
+                    content.heightAnchor.constraint(equalToConstant: 22)
+                ])
+            } else {
+                let button = NSButton(frame: view.bounds)
+                button.autoresizingMask = [.width, .height]
+                button.isBordered = false
+                coordinator.rotatingView = MenuBarIconDrawing.configure(button, style: current, symbol: customSymbol,
+                                                 date: Date(timeIntervalSince1970: 1_799_539_200))
+                coordinator.rotatingView?.setRotationDuration(2.6)
+                view.addSubview(button)
+            }
+            coordinator.style = current
+            coordinator.symbol = symbol
         }
         view.appearance = NSAppearance(named: (dark ?? (colorScheme == .dark)) ? .darkAqua : .aqua)
+        if reduceMotion { coordinator.rotatingView?.stop() }
+        else { coordinator.rotatingView?.spin() }
     }
-    static func dismantleNSView(_ view: NSView, coordinator: ()) {
+    static func dismantleNSView(_ view: NSView, coordinator: Coordinator) {
+        coordinator.rotatingView?.stop()
         view.subviews.forEach { $0.removeFromSuperview() }
     }
 }
@@ -327,6 +364,7 @@ final class MenuBarIconStyleMenuActions: NSObject {
         guard let raw = sender.representedObject as? String,
               let style = MenuBarIconStyle(rawValue: raw) else { return }
         MenuBarIconStyleStore.select(style)
+        FSRunCatIconSetEnabled(style == .cat)
         MenuBarIconStyleApplier.shared.refresh()
     }
 
@@ -487,7 +525,8 @@ final class MenuBarIconStyleApplier {
                                                  symbol: customSymbol ?? MenuBarIconStyleStore.defaultCustomSymbol,
                                                  date: Date())
         button.toolTip = "Kitnest（右键查看更多）"
-        StatusBarController.shared.setMainItemLength(style == .fan ? Self.fanItemLength : NSStatusItem.variableLength)
+        StatusBarController.shared.setMainItemLength(style == .fan ? Self.fanItemLength
+                                                     : style == .cat ? 34 : NSStatusItem.variableLength)
         if style == .date { startDateTimer() }
         if let view { startFan(view) }
     }

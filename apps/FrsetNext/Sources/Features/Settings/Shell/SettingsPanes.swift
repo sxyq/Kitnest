@@ -12,7 +12,7 @@ import UniformTypeIdentifiers
 final class MenuBarSettingsDraft: SettingsEditableDraft {
     @Published var iconStyle = MenuBarIconStyleStore.current
     @Published var customSymbol = MenuBarIconStyleStore.customSymbol
-    @Published var cat: Bool
+    var cat: Bool { iconStyle == .cat }
     @Published var flags: [String: Bool]
     private var saved: [String: Any]
     private static let keys = [GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey,
@@ -20,7 +20,6 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
                         "automaticScreenshotOCREnabled"]
 
     init() {
-        cat = (FSBarConfigurationSnapshot()?["Bar_MainIconCat"] as? NSNumber)?.boolValue ?? false
         flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
         saved = [:]
         saved = values
@@ -47,13 +46,11 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
     func restoreDefaults() {
         iconStyle = .logo
         customSymbol = MenuBarIconStyleStore.defaultCustomSymbol
-        cat = false
         flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, true) })
     }
     func discard() {
         iconStyle = MenuBarIconStyleStore.current
         customSymbol = MenuBarIconStyleStore.customSymbol
-        cat = (FSBarConfigurationSnapshot()?["Bar_MainIconCat"] as? NSNumber)?.boolValue ?? false
         flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
         saved = values
     }
@@ -247,7 +244,7 @@ struct GeneralSettingsPane: View {
                     HStack(spacing: 12) {
                         ForEach([false, true], id: \.self) { dark in
                             VStack(spacing: 4) {
-                                MenuBarIconPreview(style: draft.iconStyle, customSymbol: draft.customSymbol, cat: draft.cat, dark: dark)
+                                MenuBarIconPreview(style: draft.iconStyle, customSymbol: draft.customSymbol, dark: dark)
                                     .frame(width: 56, height: 30)
                                     .background(dark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -264,7 +261,7 @@ struct GeneralSettingsPane: View {
                             ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
                                 Text(style.title).tag(style)
                             }
-                        }.labelsHidden().pickerStyle(.segmented).frame(maxWidth: 350)
+                        }.labelsHidden().pickerStyle(.segmented).frame(maxWidth: 430)
                     }
                     if draft.iconStyle == .custom {
                         formRow("自定义 SF Symbol") {
@@ -272,10 +269,8 @@ struct GeneralSettingsPane: View {
                                 .textFieldStyle(.roundedBorder).frame(width: 200)
                         }
                     }
-                    formRow("小猫覆盖图标") {
-                        Toggle("小猫覆盖图标", isOn: Binding(get: { draft.cat }, set: { draft.cat = $0 }))
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    }
+                    Text("五种图标只显示一种；预览实时变化，保存后应用到菜单栏。动态预览使用固定示例速度。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
                     SettingsDivider()
                     entryRow("菜单：打开面板", key: GlobalEntries.homeKey, draft: draft)
                     entryRow("菜单：性能监测设置", key: GlobalEntries.monitorPopoutKey, draft: draft)

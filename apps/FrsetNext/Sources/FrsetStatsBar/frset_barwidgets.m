@@ -704,6 +704,9 @@ static BOOL g_mainIconCatLastDark = YES;
 // v35：主图标小猫覆盖层（@implementation 在 FSBarWidgetView 实现之后）
 @interface FSRunCatIconView : NSView
 @property (nonatomic, strong) NSNumber *fixedFrame;
+@property (nonatomic, strong) NSTimer *previewTimer;
+- (void)stopPreview;
+- (void)updatePreviewAnimation:(NSNotification *)notification;
 @end
 
 @interface FSBarWidgetView : NSView
@@ -1814,8 +1817,56 @@ static FSRunCatIconView *g_mainIconCatView = nil;   // v35：主图标覆盖层�
 @implementation FSRunCatIconView
 - (BOOL)isOpaque { return NO; }
 - (NSView *)hitTest:(NSPoint)p { (void)p; return nil; }   // 点击穿透到 button（保持原 action）
+- (void)stopPreview {
+    [self.previewTimer invalidate];
+    self.previewTimer = nil;
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];
+}
+- (void)updatePreviewAnimation:(NSNotification *)notification {
+    if (!self.fixedFrame) return; // 正式猫仍由全局帧推进。
+    if ([notification.name isEqualToString:NSWindowWillCloseNotification]) {
+        // 关闭停止播放；观察在视图脱离窗口时统一移除。
+        [self.previewTimer invalidate];
+        self.previewTimer = nil;
+        return;
+    }
+    BOOL animate = self.window.isVisible && (self.window.occlusionState & NSWindowOcclusionStateVisible)
+        && !self.isHiddenOrHasHiddenAncestor && !NSIsEmptyRect(self.visibleRect)
+        && !NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+    if (!animate) {
+        [self.previewTimer invalidate];
+        self.previewTimer = nil;
+    } else if (!self.previewTimer) {
+        __weak FSRunCatIconView *weakSelf = self;
+        self.previewTimer = [NSTimer timerWithTimeInterval:1.0 / 8.0 repeats:YES block:^(NSTimer *timer) {
+            FSRunCatIconView *view = weakSelf;
+            [view updatePreviewAnimation:nil];
+            if (!view.previewTimer) return;
+            view.fixedFrame = @((view.fixedFrame.intValue + 1) % frset_runcat_frame_count());
+            view.needsDisplay = YES;
+        }];
+        [[NSRunLoop mainRunLoop] addTimer:self.previewTimer forMode:NSRunLoopCommonModes];
+    }
+}
+- (void)viewDidMoveToWindow {
+    [super viewDidMoveToWindow];
+    if (!self.fixedFrame) return;
+    [self stopPreview];
+    if (!self.window) return;
+    for (NSNotificationName name in @[NSWindowDidChangeOcclusionStateNotification, NSWindowWillCloseNotification])
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(updatePreviewAnimation:)
+            name:name object:self.window];
+    [NSWorkspace.sharedWorkspace.notificationCenter addObserver:self selector:@selector(updatePreviewAnimation:)
+        name:NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification object:nil];
+    [self updatePreviewAnimation:nil];
+}
+- (void)viewDidHide { [super viewDidHide]; [self updatePreviewAnimation:nil]; }
+- (void)viewDidUnhide { [super viewDidUnhide]; [self updatePreviewAnimation:nil]; }
+- (void)dealloc { [self stopPreview]; }
 - (void)drawRect:(NSRect)dirty {
     (void)dirty;
+    [self updatePreviewAnimation:nil];
     NSImage *img = FSRunCatImage(self.fixedFrame ? self.fixedFrame.intValue : g_runCatFrame, FSBarDark(self));
     if (!img) return;
     NSRect r = self.bounds;
@@ -3347,7 +3398,7 @@ NSView *FSBarCreateConfiguredPreview(NSArray<NSString *> *modules, NSDictionary 
 
 NSView *FSRunCatCreatePreview(BOOL dark) {
     FSRunCatIconView *view = [[FSRunCatIconView alloc] initWithFrame:NSMakeRect(0, 0, 34, 22)];
-    view.fixedFrame = @3;
+    view.fixedFrame = @3; // 非空标记预览；挂载可见后由实例定时器轮播。
     view.appearance = [NSAppearance appearanceNamed:dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua];
     return view;
 }

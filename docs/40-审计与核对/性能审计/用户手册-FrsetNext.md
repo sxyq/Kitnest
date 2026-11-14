@@ -116,13 +116,16 @@ Kitnest 只有四个常驻界面 + 若干弹窗：
 
 ### 关键能力点
 
-- **四种图标样式**（`MenuBarIconStyle.selectIconStyle`）
+- **五种图标样式，只选一种**（`MenuBarIconStyle.selectIconStyle`）
   - **应用图标**：默认 Logo。
-  - **动态风扇**：旋转小风扇，转速随 CPU 使用率实时变化（`updateFanSpeed`，20Hz 平滑动画、3 秒换档）。
+  - **动态风扇**：旋转小风扇，转速随 CPU 使用率变化。
   - **日期**：菜单栏直接显示当天日期（`startDateTimer`）。
   - **自定义图标**：任意 SF Symbol 名称（`setSymbol`）。
+  - **动态小猫**：播放跑步动画，速度随 CPU 使用率变化；选择后不再同时显示风扇。
 
-- **自定义图标是彩蛋**：连续点击主图标若干次解锁，解锁后才有「自定义菜单栏图标」子菜单和庆祝动效（`MenuBarIconEasterEggManager.unlock` / `presentUnlockCelebration`）；解锁后还能把该选项藏起来或放回来（`hideIconOption` / `restoreIconOption`）。
+在「常规 → 菜单栏」切换样式，浅色、深色两张预览同步更新。小猫和风扇按固定示例速度播放；修改其他开关不会重播图标动画。点「保存」才改变真实菜单栏，点「取消」恢复已保存的选择。
+
+- **自定义图标**：在设置中填写 SF Symbol 名称；名称无效时保存会说明原因。右键菜单可以隐藏或恢复自定义图标选项。
 
 - **图标位置记忆**：监控部件在菜单栏中的顺序会被保存，重启还原（`saveStatusItemPosition` / `restoreStatusItemPosition`）。
 
