@@ -21,6 +21,7 @@ struct DiskTile: Identifiable {
     let node: DiskNode
     /// 图块局部坐标下的圆角轮廓，布局时一次生成。
     let contour: [CGPoint]
+    let drawingPath: Path
     let frame: CGRect
     let hitPath: Path
     let localHitPath: Path
@@ -39,7 +40,8 @@ enum DiskVoronoiLayout {
 
     /// - Parameter freeSpace: 根层的磁盘可用空间（字节），同样按实际字节分配面积。
     static func make(nodes: [DiskNode], in size: CGSize,
-                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14) -> [DiskTile] {
+                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14,
+                     labelTop: CGFloat = 144) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.filter { $0.size > 0 }.sorted { $0.size > $1.size }
 
@@ -101,10 +103,12 @@ enum DiskVoronoiLayout {
                                                      radius: min(bbox.width, bbox.height) * 0.30)
             let contour = VoronoiTreemap.sampledPoints(
                 hitPath, spacing: 18)
-            let labelPolygon = VoronoiTreemap.clipHalfPlane(contour, a: 0, b: -1, c: -144)
+            let labelPolygon = VoronoiTreemap.clipHalfPlane(contour, a: 0, b: -1, c: -labelTop)
             let center = VoronoiTreemap.centroid(labelPolygon)
+            let localContour = contour.map { CGPoint(x: $0.x - frame.minX, y: $0.y - frame.minY) }
             tiles.append(DiskTile(node: n,
-                                  contour: contour.map { CGPoint(x: $0.x - frame.minX, y: $0.y - frame.minY) },
+                                  contour: localContour,
+                                  drawingPath: VoronoiTreemap.roundedPath(localContour, radius: 0),
                                   frame: frame,
                                   hitPath: hitPath,
                                   localHitPath: hitPath.offsetBy(dx: -frame.minX, dy: -frame.minY),
@@ -142,9 +146,9 @@ private final class DiskLayoutCache {
     private var tiles: [DiskTile] = []
 
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
-               indexRevision: Int) -> [DiskTile] {
+               indexRevision: Int, labelTop: CGFloat) -> [DiskTile] {
         let k = "\(node.id)|\(Int(size.width))×\(Int(size.height))|\(node.children.count)|\(node.size)"
-            + "|\(freeSpace ?? 0)|\(indexRevision)"
+            + "|\(freeSpace ?? 0)|\(indexRevision)|\(labelTop)"
         if k == key { return tiles }
         var nodes = node.children
         if node.isDirectory, node.ownSize > 0 {
@@ -153,7 +157,7 @@ private final class DiskLayoutCache {
                                   foldedCount: 0, children: [], isAggregate: true))
         }
         let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
-                                          parentPath: node.path, freeSpace: freeSpace)
+                                          parentPath: node.path, freeSpace: freeSpace, labelTop: labelTop)
         key = k
         tiles = made
         return made
@@ -162,15 +166,12 @@ private final class DiskLayoutCache {
 
 /// 一次轮廓插值供填色、同心线、文字裁切和边框共用。
 private struct LiquidTileDrawing<Label: View>: View, Animatable {
-    let points: [CGPoint]
+    let tiles: [DiskTile]
     var pressurePoint: CGPoint
     var pressure: CGFloat
     let reach: CGFloat
-    let fill: Color
-    let outline: Color
-    let lineWidth: CGFloat
-    let isFreeSpace: Bool
-    let labelPosition: CGPoint
+    let selectedID: String?
+    let hoveredID: String?
     let label: Label
 
     // 只插值压力场的三个数值，静态轮廓与文字不参与逐帧向量运算。
@@ -184,30 +185,38 @@ private struct LiquidTileDrawing<Label: View>: View, Animatable {
 
     var body: some View {
         Canvas { context, _ in
-            let contour = pressure == 0 ? points : points.map { vertex in
-                let dx = vertex.x - pressurePoint.x, dy = vertex.y - pressurePoint.y
-                // 相邻图块共用全局压力场，移动与离开时连续挤压、回弹。
-                let displacement = pressure * 44 / reach
-                    * exp(-(dx * dx + dy * dy) / (reach * reach) * 1.45)
-                return CGPoint(x: vertex.x + dx * displacement, y: vertex.y + dy * displacement)
-            }
-            let path = VoronoiTreemap.roundedPath(contour, radius: 0)
-            var content = context
-            content.clip(to: path)
-            content.fill(path, with: .color(fill))
-            if isFreeSpace {
-                let center = VoronoiTreemap.centroid(contour)
-                for i in 1..<6 {
-                    let f = 1 - CGFloat(i) * 0.14
-                    let transform = CGAffineTransform(a: f, b: 0, c: 0, d: f,
-                                                      tx: center.x * (1 - f), ty: center.y * (1 - f))
-                    content.stroke(path.applying(transform), with: .color(.primary.opacity(0.10)), lineWidth: 1)
+            let amplitude = pressure * 44 / reach
+            let falloff = 1.45 / (reach * reach)
+            for tile in tiles {
+                let point = CGPoint(x: pressurePoint.x - tile.frame.minX, y: pressurePoint.y - tile.frame.minY)
+                let contour = pressure == 0 ? tile.contour : tile.contour.map { vertex in
+                    let dx = vertex.x - point.x, dy = vertex.y - point.y
+                    // 相邻图块共用全局压力场，移动与离开时连续挤压、回弹。
+                    let displacement = amplitude * exp(-(dx * dx + dy * dy) * falloff)
+                    return CGPoint(x: vertex.x + dx * displacement, y: vertex.y + dy * displacement)
                 }
+                let path = pressure == 0 ? tile.drawingPath : VoronoiTreemap.roundedPath(contour, radius: 0)
+                var drawing = context
+                drawing.translateBy(x: tile.frame.minX, y: tile.frame.minY)
+                var content = drawing
+                content.clip(to: path)
+                content.fill(path, with: .color(tile.isFreeSpace ? Color.primary.opacity(0.055) : StorageTreemap.fill(tile.ratio)))
+                if tile.isFreeSpace {
+                    let center = VoronoiTreemap.centroid(contour)
+                    for i in 1..<6 {
+                        let f = 1 - CGFloat(i) * 0.14
+                        let transform = CGAffineTransform(a: f, b: 0, c: 0, d: f,
+                                                          tx: center.x * (1 - f), ty: center.y * (1 - f))
+                        content.stroke(path.applying(transform), with: .color(.primary.opacity(0.10)), lineWidth: 1)
+                    }
+                }
+                if let symbol = context.resolveSymbol(id: tile.id) { content.draw(symbol, at: tile.labelCenter) }
+                let emphasized = selectedID == tile.id || hoveredID == tile.id
+                drawing.stroke(path, with: .color(emphasized ? Theme.accent : Color.primary.opacity(0.10)),
+                               lineWidth: emphasized ? 2 : 0.5)
             }
-            if let symbol = context.resolveSymbol(id: 0) { content.draw(symbol, at: labelPosition) }
-            context.stroke(path, with: .color(outline), lineWidth: lineWidth)
         } symbols: {
-            label.tag(0)
+            label
         }
     }
 }
@@ -246,13 +255,15 @@ struct StorageTreemap: View {
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
+    var labelTop: CGFloat = 144
     @Stored private var selectedID: String?
     @Stored private var hover = (point: CGPoint.zero, id: Optional<String>.none, active: false)
 
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                     freeSpace: freeSpace, indexRevision: indexRevision)
+                                                     freeSpace: freeSpace, indexRevision: indexRevision,
+                                                     labelTop: labelTop)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -269,8 +280,19 @@ struct StorageTreemap: View {
                     Color.clear
                         .contentShape(Rectangle())
                         .onTapGesture { onBack?() }
+                    // 所有图块共用一块绘制层；压力场与曲线参数保持原样。
+                    LiquidTileDrawing(tiles: tiles, pressurePoint: hover.point,
+                        pressure: hover.active && !reduceMotion ? 1 : 0,
+                        reach: max(140, min(260, min(geo.size.width, geo.size.height) * 0.42)),
+                        selectedID: selectedID, hoveredID: hover.id,
+                        label: ForEach(tiles) { tile in
+                            if tile.labelPointCount >= 3 {
+                                label(tile, ink: tile.isFreeSpace ? .primary : contentColor(tile.ratio)).tag(tile.id)
+                            }
+                        })
+                        .allowsHitTesting(false)
                     ForEach(tiles) { tile in
-                        tileView(tile, in: geo.size)
+                        tileView(tile)
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -281,7 +303,7 @@ struct StorageTreemap: View {
                         let inside = StorageMapShape().path(in: CGRect(origin: .zero, size: geo.size))
                             .contains(location)
                         let nextPoint = inside && !reduceMotion ? location : hover.point
-                        let nextID = inside ? tiles.first { $0.hitPath.contains(location) }?.id : nil
+                        let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
                         let active = inside && !reduceMotion
                         if hover.point != nextPoint || hover.id != nextID || hover.active != active {
                             hover = (nextPoint, nextID, active)
@@ -301,34 +323,17 @@ struct StorageTreemap: View {
         .onChange(of: indexRevision) { _ in selectedID = nil; hover = (.zero, nil, false) }
     }
 
-    private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
+    private func tileView(_ t: DiskTile) -> some View {
         let tileFrame = t.frame
-        let point = CGPoint(x: hover.point.x - tileFrame.minX, y: hover.point.y - tileFrame.minY)
-        let isSelected = selectedID == t.id
-        let isHovered = hover.id == t.id
-        let ink = contentColor(t.ratio)
         return Button {
             if t.isFreeSpace { onBack?(); return }
             selectedID = t.id
             if t.node.canDrill { onDrill(t.node) } else { onSelect(t.node) }
         } label: {
-            // 只变形绘制层；热区保持静止，避免气泡推开指针后反复进出。
-            ZStack {
-                LiquidTileDrawing(points: t.contour, pressurePoint: point,
-                    pressure: hover.active && !reduceMotion ? 1 : 0,
-                    reach: max(140, min(260, min(size.width, size.height) * 0.42)),
-                    fill: t.isFreeSpace ? Color.primary.opacity(0.055) : fill(t.ratio),
-                    outline: isSelected || isHovered ? Theme.accent : Color.primary.opacity(0.10),
-                    lineWidth: isSelected || isHovered ? 2 : 0.5,
-                    isFreeSpace: t.isFreeSpace, labelPosition: t.labelCenter,
-                    label: Group {
-                        if t.labelPointCount >= 3 { label(t, ink: t.isFreeSpace ? .primary : ink) }
-                    })
+            // 命中区域独立于逐帧绘制，邻块挤压不改变按钮边界。
+            Color.clear
                 .frame(width: tileFrame.width, height: tileFrame.height)
-                .allowsHitTesting(false)
-            }
-            .frame(width: tileFrame.width, height: tileFrame.height)
-            .contentShape(t.localHitPath)
+                .contentShape(t.localHitPath)
         }
         .buttonStyle(.plain)
         .position(x: tileFrame.midX, y: tileFrame.midY)
@@ -352,7 +357,7 @@ struct StorageTreemap: View {
         let bounds = t.labelBounds
         let w = bounds.width
         let h = bounds.height
-        if inR > 44, w > 90, h > 50 {
+        if (t.isFreeSpace || inR > 44), w > 90, h > 50 {
             VStack(spacing: 2) {
                 Text(t.node.name)
                     .font(.system(size: 11.5, weight: .medium))
@@ -364,7 +369,7 @@ struct StorageTreemap: View {
                     .opacity(0.78)
             }
             .foregroundStyle(ink)
-            .frame(width: min(w * 0.78, inR * 1.7))
+            .frame(width: t.isFreeSpace ? min(w * 0.5, 160) : min(w * 0.78, inR * 1.7))
         } else if inR > 24 {
             Text(StorageFormat.shortBytes(t.node.size))
                 .font(.system(size: 11).monospacedDigit())
@@ -380,7 +385,7 @@ struct StorageTreemap: View {
 
     /// 七档深浅：按占本层比例跳变（不看排名）。
     /// 对照截图的层次——最大的块接近黑，最小的接近底色，中间有明确分档。
-    private func fill(_ ratio: Double) -> Color {
+    fileprivate static func fill(_ ratio: Double) -> Color {
         switch ratio {
         case 0.35...:       return Color.primary.opacity(0.74)
         case 0.18..<0.35:   return Color.primary.opacity(0.62)
