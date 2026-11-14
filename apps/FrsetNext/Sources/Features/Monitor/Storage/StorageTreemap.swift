@@ -39,7 +39,7 @@ enum DiskVoronoiLayout {
 
     /// - Parameter freeSpace: 根层的磁盘可用空间（字节），同样按实际字节分配面积。
     static func make(nodes: [DiskNode], in size: CGSize,
-                     freeSpace: Int64? = nil, maxTiles: Int = 14) -> [DiskTile] {
+                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.filter { $0.size > 0 }.sorted { $0.size > $1.size }
 
@@ -51,13 +51,13 @@ enum DiskVoronoiLayout {
             let tail = Array(list.dropFirst(maxTiles - 1))
             let rest = tail.reduce(Int64(0)) { $0 + $1.size }
             if rest > 0 {
-                let merged = DiskNode(path: (head.last?.path ?? "") + "/__rest",
+                let merged = DiskNode(path: "disk-group:" + parentPath,
                                       name: "其他 \(tail.count) 项",
                                       isDirectory: true,
                                       size: rest,
                                       ownSize: 0,
                                       foldedCount: tail.count,
-                                      children: tail)
+                                      children: tail, isAggregate: true)
                 list = head + [merged]
             }
         }
@@ -72,7 +72,7 @@ enum DiskVoronoiLayout {
                              size: free,
                              ownSize: free,
                              foldedCount: 0,
-                             children: [])
+                             children: [], isAggregate: true)
             freeNode = n
             list.insert(n, at: 0)
         }
@@ -141,12 +141,19 @@ private final class DiskLayoutCache {
     private var key = ""
     private var tiles: [DiskTile] = []
 
-    func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil) -> [DiskTile] {
+    func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
+               indexRevision: Int) -> [DiskTile] {
         let k = "\(node.id)|\(Int(size.width))×\(Int(size.height))|\(node.children.count)|\(node.size)"
-            + "|\(freeSpace ?? 0)"
+            + "|\(freeSpace ?? 0)|\(indexRevision)"
         if k == key { return tiles }
-        let made = DiskVoronoiLayout.make(nodes: node.children,
-                                          in: size, freeSpace: freeSpace)
+        var nodes = node.children
+        if node.isDirectory, node.ownSize > 0 {
+            nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
+                                  isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
+                                  foldedCount: 0, children: [], isAggregate: true))
+        }
+        let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
+                                          parentPath: node.path, freeSpace: freeSpace)
         key = k
         tiles = made
         return made
@@ -252,6 +259,7 @@ struct StorageTreemap: View {
     var onBack: (() -> Void)? = nil
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
+    var indexRevision: Int = 0
     @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
     @Stored private var hoverPoint: CGPoint?
@@ -259,7 +267,7 @@ struct StorageTreemap: View {
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                     freeSpace: freeSpace)
+                                                     freeSpace: freeSpace, indexRevision: indexRevision)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -302,6 +310,7 @@ struct StorageTreemap: View {
         }
         .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
         .clipShape(StorageMapShape())
+        .onChange(of: indexRevision) { _ in selectedID = nil; hoveredID = nil; hoverPoint = nil }
     }
 
     private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
@@ -339,7 +348,9 @@ struct StorageTreemap: View {
         .help(t.isFreeSpace ? "磁盘可用空间 · \(StorageFormat.bytes(t.node.size))"
               : "\(t.node.name) · \(StorageFormat.bytes(t.node.size))"
                 + String(format: " · 占当前图 %.1f%%", t.ratio * 100)
-                + (t.node.path.contains("/__rest") ? " · 点击查看全部子项" : " · \(t.node.path)"))
+                + (t.node.isAggregate
+                   ? (t.node.canDrill ? " · 点击查看全部子项" : " · 聚合占用，仅供查看")
+                   : " · \(t.node.path)"))
     }
 
     private func liquidPoints(_ polygon: [CGPoint], around point: CGPoint?, in size: CGSize) -> [CGPoint] {

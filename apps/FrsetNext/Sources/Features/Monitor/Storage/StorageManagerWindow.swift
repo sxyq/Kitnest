@@ -178,6 +178,7 @@ struct StorageManagerRootView: View {
     private var stack: [DiskNode] { directoryHistory[historyIndex] }
     @Stored private var selectedPaths: Set<String> = []
     @Stored private var detailNode: DiskNode?
+    @Stored private var showDataCategories = false
     @Stored private var showRecords = false
     @Stored private var showSettings = false
     @Stored private var confirmTrash = false
@@ -196,7 +197,12 @@ struct StorageManagerRootView: View {
     @AppStorage("storage.swipeHintVisible") private var showSwipeHint = false
 
     private var currentNode: DiskNode? {
-        stack.last ?? store.snapshot?.root
+        if showDataCategories, let snap = store.snapshot {
+            return DiskNode(path: "disk-categories", name: "系统数据分类", isDirectory: true,
+                            size: snap.totalBytes, ownSize: 0, foldedCount: 0,
+                            children: snap.dataCategories.map { $0.node }, isAggregate: true)
+        }
+        return stack.last ?? store.snapshot?.root
     }
 
     @Stored private var diskFreeBytes: Int64?
@@ -206,8 +212,9 @@ struct StorageManagerRootView: View {
     private var candidates: [CleanupCandidate] { store.candidates() }
 
     private var selectedBytes: Int64 {
-        candidates.filter { selectedPaths.contains($0.id) }
-            .reduce(Int64(0)) { $0 + $1.node.size }
+        DiskIndexStore.independentPaths(Array(selectedPaths)).reduce(Int64(0)) {
+            $0 + (DiskIndexStore.findNode(store.snapshot?.root, path: $1)?.size ?? 0)
+        }
     }
 
     /// 全部可清理项合计（大数字主指标——用户点开面板最想知道的就是「能腾出多少」）
@@ -259,7 +266,7 @@ struct StorageManagerRootView: View {
     /// 光写「跳过 N 处不可读路径」看不出差多少，所以这里直接把
     /// **索引量 / 整盘已用** 并排摊开——差多少一眼就知道。
     private func statusLine(_ snap: DiskIndexSnapshot) -> String {
-        var s = "\(store.scope.title) · \(StorageFormat.date(snap.scannedAt)) 扫描 · "
+        var s = "\(DiskScanScope(rawValue: snap.scope)?.title ?? snap.scope) · \(StorageFormat.date(snap.scannedAt)) 扫描 · "
         s += snap.nodeCount >= 10_000
             ? "\(snap.nodeCount / 10_000) 万节点"
             : "\(snap.nodeCount) 个节点"
@@ -274,19 +281,17 @@ struct StorageManagerRootView: View {
     }
 
     private var coverageHelp: String {
+        guard let snap = store.snapshot else { return "尚未建立索引" }
         var lines = [
-            "索引口径（v264 实测对照）：",
-            "· 不限深度。/Applications 索引 22.4G，du -sh 实测 22G —— 对上了",
-            "· 含隐藏目录（.workbuddy 17.2G、.cursor、.npm …）与全部 ~/Library",
-            "· 含系统只读卷；不含 /System/Volumes（那是 /Users 的另一张脸，算了会翻倍）",
-            "· 大小按磁盘实际块计（st_blocks），与 df/du 同一口径",
+            "扫描根路径：\(snap.rootPath)（含隐藏目录）",
+            "最多 \(DiskIndexScanner.maxDepth) 层、\(DiskIndexScanner.maxNodes) 个扫描条目；每目录保留最大 \(DiskIndexScanner.childrenPerDirectory) 项。",
+            "沿用磁盘块占用口径；未读取或未索引的内容不补算字节。",
+            "已跳过 \(snap.skippedCount) 处，含排除路径、符号链接和读取失败。",
+            "APFS 快照与文件系统元数据不计入目录索引。",
         ]
-        if !hasFullDiskAccess {
-            lines.append("· 缺口的最大一块是 ~/Library/Containers（沙盒容器，本机 du 实测 33G）、"
-                         + "邮件/照片/信息——系统不让读，不是漏扫")
+        if !snap.excludedPaths.isEmpty {
+            lines.append("本次排除目录及其后代：\n" + snap.excludedPaths.joined(separator: "\n"))
         }
-        lines.append("· 整盘已用还含 APFS 本地快照、交换文件与文件系统元数据，"
-                     + "它们不在任何目录里，索引天然覆盖不到")
         return lines.joined(separator: "\n")
     }
 
@@ -373,13 +378,18 @@ struct StorageManagerRootView: View {
                 pendingDrill = name
             }
         }
-        .onChange(of: store.snapshot?.scannedAt) { _ in
+        .onChange(of: store.indexRevision) { _ in
             refreshDiskSpace()
             directoryHistory = directoryHistory.map { path in
-                path.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
+                path.compactMap { refreshedNavigationNode($0) }
             }
-            selectedPaths.formIntersection(Set(candidates.map { $0.id }))
-            detailNode = nil
+            selectedPaths = Set(selectedPaths.filter {
+                DiskIndexStore.findNode(store.snapshot?.root, path: $0)?.isAggregate == false
+            })
+            if let d = detailNode {
+                detailNode = store.snapshot?.dataCategories.first(where: { $0.id == d.id })?.node
+                    ?? refreshedNavigationNode(d)
+            }
             if let name = pendingDrill,
                let root = store.snapshot?.root,
                let target = root.children.first(where: { $0.name == name }) {
@@ -399,11 +409,13 @@ struct StorageManagerRootView: View {
             store.reloadFromCache(autoScanIfMissing: false)
         }
         .onChange(of: currentNode?.id) { _ in detailNode = nil }
+        .onChange(of: showDataCategories) { _ in detailNode = nil }
         .onExitCommand {
             if store.isScanning { store.cancelScan() }
             else if showAgentSheet { showAgentSheet = false }
             else if showSettings { showSettings = false }
             else if showRecords { showRecords = false }
+            else if showDataCategories { showDataCategories = false }
             else if historyIndex > 0 { navigateHistory(by: -1) }
             else { StorageManagerWindowController.shared.close() }
         }
@@ -464,6 +476,14 @@ struct StorageManagerRootView: View {
             .frame(width: width * 0.44 - 20, alignment: .leading)
             Spacer(minLength: 8)
             HStack(spacing: 6) {
+                Picker("查看", selection: $showDataCategories) {
+                    Text("目录").tag(false)
+                    Text("系统数据分类").tag(true)
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                .frame(width: 120)
                 if store.snapshot == nil, !store.isScanning {
                     Button {
                         store.rescan()
@@ -528,9 +548,10 @@ struct StorageManagerRootView: View {
                 Spacer()
                 // 空清单不显示全选（否则一个 0 项也会显示「取消全选」，像是已选中了东西）
                 if !candidates.isEmpty {
-                    Button(selectedPaths.count == candidates.count ? "取消全选" : "全选") {
-                        if selectedPaths.count == candidates.count { selectedPaths.removeAll() }
-                        else { selectedPaths = Set(candidates.map { $0.id }) }
+                    let all = Set(candidates.map { $0.id })
+                    Button(all.isSubset(of: selectedPaths) ? "取消全选" : "全选") {
+                        if all.isSubset(of: selectedPaths) { selectedPaths.subtract(all) }
+                        else { selectedPaths.formUnion(all) }
                     }
                     .font(.system(size: 11))
                     .buttonStyle(.plain)
@@ -544,9 +565,10 @@ struct StorageManagerRootView: View {
             Divider().frame(width: canvas.width * 0.40 - 24)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
-                    Text("已选 \(selectedPaths.count) 项")
+                    Text("已选 \(DiskIndexStore.independentPaths(Array(selectedPaths)).count) 项")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                        .help("父目录包含的子项只计一次")
                     Spacer()
                     Text(StorageFormat.bytes(selectedBytes))
                         .font(.system(size: 13, weight: .semibold).monospacedDigit())
@@ -577,7 +599,7 @@ struct StorageManagerRootView: View {
                     .help("把本次扫描明细整理成提示词，复制后粘给你本地的 Agent（Codex / Claude Code 等），由它判断怎么清")
 
                     Button {
-                        pendingTrash = Array(selectedPaths)
+                        pendingTrash = DiskIndexStore.independentPaths(Array(selectedPaths))
                         confirmTrash = true
                     } label: {
                         Text("移到废纸篓")
@@ -657,11 +679,14 @@ struct StorageManagerRootView: View {
                     StorageTreemap(node: node,
                                    onDrill: { child in navigate(to: stack + drillChain(to: child)) },
                                    onSelect: { detailNode = $0 },
-                                   onBack: { navigateHistory(by: -1) },
-                                   freeSpace: stack.isEmpty ? diskFreeBytes : nil)
+                                   onBack: { if !showDataCategories { navigateHistory(by: -1) } },
+                                   freeSpace: !showDataCategories && stack.isEmpty ? diskFreeBytes : nil,
+                                   indexRevision: store.indexRevision)
                         .id(node.id)
                         .transition(.opacity)
-                        .background(StorageSwipeRegion(onNavigate: { navigateHistory(by: $0) }))
+                        .background(StorageSwipeRegion(onNavigate: {
+                            if !showDataCategories { navigateHistory(by: $0) }
+                        }))
                 } else {
                     VStack(spacing: 10) {
                         Image(systemName: "externaldrive")
@@ -683,6 +708,17 @@ struct StorageManagerRootView: View {
             VStack(spacing: 0) {
             // 目录按钮、快捷键、图形手势共用同一访问历史。
             HStack(spacing: 6) {
+                if showDataCategories {
+                    Text("系统数据分类").font(.system(size: 11, weight: .medium))
+                    Menu("分类") {
+                        ForEach(store.snapshot?.dataCategories ?? []) { category in
+                            Button("\(category.kind.title) · \(StorageFormat.bytes(category.bytes))") {
+                                detailNode = category.node
+                            }
+                        }
+                    }
+                    .controlSize(.small)
+                } else {
                 ForEach([-1, 1], id: \.self) { direction in
                     let enabled = directoryHistory.indices.contains(historyIndex + direction)
                     Button {
@@ -726,6 +762,7 @@ struct StorageManagerRootView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                }
                 Spacer(minLength: 4)
                 if let node = currentNode {
                     Text(StorageFormat.bytes(node.size))
@@ -743,9 +780,10 @@ struct StorageManagerRootView: View {
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: stack.count)
 
             HStack(spacing: 6) {
-                Text(stack.isEmpty ? "面积 = 已索引占用与磁盘可用空间" : "面积 = 本层各项占用")
+                Text(showDataCategories ? "面积 = 本次索引的互斥分类占用"
+                     : stack.isEmpty ? "面积 = 已索引占用与磁盘可用空间" : "面积 = 本层各项占用")
                 Spacer()
-                Text("左滑返回 · 右滑前进")
+                Text(showDataCategories ? "选择分类查看目录与范围" : "大文件 ≥100 MB · 左滑返回 · 右滑前进")
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
@@ -759,15 +797,25 @@ struct StorageManagerRootView: View {
             Spacer(minLength: 8)
 
             if let d = detailNode {
+                if let category = store.snapshot?.dataCategories.first(where: { $0.id == d.id }) {
+                    categoryDetail(category)
+                        .padding(.leading, pane.size.width * 0.32 + 12)
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 12)
+                } else {
+                VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(d.name).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
-                        Text(d.path).font(.system(size: 11))
-                            .foregroundStyle(Theme.tertiaryText).lineLimit(1)
-                    }
+                    Text(d.name).font(.system(size: 11.5, weight: .medium)).lineLimit(1)
+                        .help(d.name)
                     Spacer()
                     Text(StorageFormat.bytes(d.size))
                         .font(.system(size: 11).monospacedDigit())
+                    if !d.isAggregate {
+                    Button(selectedPaths.contains(d.path) ? "取消选择" : "加入所选") {
+                        if selectedPaths.contains(d.path) { selectedPaths.remove(d.path) }
+                        else { selectedPaths.insert(d.path) }
+                    }
+                    .controlSize(.small)
                     Button("在 Finder 显示") {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: d.path)])
                     }
@@ -779,6 +827,7 @@ struct StorageManagerRootView: View {
                     .font(.system(size: 11))
                     .buttonStyle(.plain)
                     .foregroundStyle(Theme.accent)
+                    }
                     Button { detailNode = nil } label: {
                         Image(systemName: "xmark")
                             .frame(width: 24, height: 24)
@@ -786,18 +835,83 @@ struct StorageManagerRootView: View {
                     .buttonStyle(.plain)
                     .help("关闭文件详情")
                 }
+                if d.isAggregate {
+                    Text("聚合占用，仅供查看").font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                } else {
+                    ScrollView {
+                        Text(d.path).font(.system(size: 11))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 32)
+                }
+                }
                 .padding(.horizontal, 14)
-                .frame(height: 46)
+                .padding(.vertical, 8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                 .padding(.leading, pane.size.width * 0.32 + 12)
                 .padding(.trailing, 12)
                 .padding(.bottom, 12)
+                }
             }
             }
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
             }
         }
+    }
+
+    private func categoryDetail(_ category: DiskDataCategory) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(category.kind.title).font(.system(size: 11.5, weight: .medium))
+                Spacer()
+                Text(StorageFormat.bytes(category.bytes)).font(.system(size: 11).monospacedDigit())
+                Button { detailNode = nil } label: { Image(systemName: "xmark") }
+                    .buttonStyle(.plain)
+            }
+            Text("扫描根路径：\(store.snapshot?.rootPath ?? "")；分类合计 = 已索引 \(StorageFormat.bytes(store.snapshot?.totalBytes ?? 0))")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("包含的已索引目录（子分类占用已扣除）：")
+                    if category.directories.isEmpty { Text("本次索引没有此类占用") }
+                    ForEach(category.directories, id: \.self) { Text($0).textSelection(.enabled) }
+                    Text("折叠子目录按保留父路径归类；其他类包含剩余已索引内容。分类用于查看，应用支持与系统资料不会自动加入清理推荐。")
+                    Text(coverageHelp)
+                }
+                .font(.system(size: 11))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(height: 130)
+        }
+        .padding(12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+    }
+
+    /// 展示层的「其他」分组不写入索引，沿现有成员更新导航记录。
+    private func refreshedNavigationNode(_ node: DiskNode) -> DiskNode? {
+        if let current = DiskIndexStore.findNode(store.snapshot?.root, path: node.path) { return current }
+        guard node.isAggregate else { return nil }
+        if node.path.hasPrefix("disk-files:") {
+            let path = String(node.path.dropFirst("disk-files:".count))
+            guard let parent = DiskIndexStore.findNode(store.snapshot?.root, path: path), parent.ownSize > 0 else { return nil }
+            var current = node
+            current.size = parent.ownSize
+            current.ownSize = parent.ownSize
+            return current
+        }
+        var current = node
+        current.children = node.children.compactMap { refreshedNavigationNode($0) }
+            .sorted { $0.size > $1.size }
+        current.size = current.ownSize + current.children.reduce(Int64(0)) { $0 + $1.size }
+        guard !current.children.isEmpty else { return nil }
+        current.foldedCount = current.children.count
+        current.name = "其他 \(current.children.count) 项"
+        return current
     }
 
     private func navigate(to path: [DiskNode]) {
@@ -1101,7 +1215,7 @@ struct StorageManagerRootView: View {
     // MARK: 动作
 
     private func selectedBytesForPending() -> Int64 {
-        pendingTrash.reduce(Int64(0)) { sum, p in
+        DiskIndexStore.independentPaths(pendingTrash).reduce(Int64(0)) { sum, p in
             sum + (DiskIndexStore.findNode(store.snapshot?.root, path: p)?.size ?? 0)
         }
     }
@@ -1111,12 +1225,6 @@ struct StorageManagerRootView: View {
         pendingTrash = []
         guard !paths.isEmpty else { return }
         store.trash(paths: paths) { ok, bytes in
-            refreshDiskSpace()
-            selectedPaths.formIntersection(Set(candidates.map { $0.id }))
-            if let d = detailNode { detailNode = DiskIndexStore.findNode(store.snapshot?.root, path: d.path) }
-            directoryHistory = directoryHistory.map { path in
-                path.compactMap { DiskIndexStore.findNode(store.snapshot?.root, path: $0.path) }
-            }
             if let error = store.lastError {
                 Toast.show("已移动 \(ok) 项；\(error)",
                            icon: "exclamationmark.triangle", isWarning: true)
