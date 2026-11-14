@@ -180,8 +180,13 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>权限</th><th>用途</th><th>不授予会怎样</th></tr></thead><tbody><tr><td><strong>屏幕录制</strong></td><td>截图、录屏、长截图、OCR、取色</td><td>截图全黑或直接失败；应用会弹一次统一引导，不会反复骚扰</td></tr><tr><td><strong>辅助功能</strong></td><td>全局快捷键、双击修饰键、划词工具条、复制后自动粘贴</td><td>快捷键无响应；首次自动粘贴时弹一次引导</td></tr><tr><td><strong>麦克风</strong></td><td>录屏时收麦克风声音（可选）</td><td>自动降级为只录系统声音</td></tr><tr><td><strong>日历</strong></td><td>主面板日历卡显示系统日程</td><td>日历卡只显示日期，UI 内有「去授权」入口</td></tr><tr><td><strong>完全磁盘访问</strong></td><td>存储管理索引 TCC 保护目录、文件搜索更全</td><td>存储索引少约 33GB（沙盒容器），搜索少一块；界面上会明确标出「未获授权」</td></tr></tbody></table></div>
 <blockquote>全部可在「系统设置 → 隐私与安全性」随时开关。</blockquote>
 <h3 id="界面总览">界面总览</h3>
-<p>Kitnest 只有四个常驻界面 + 若干弹窗：</p>
-<div class="table-wrap"><table><thead><tr><th>界面</th><th>怎么打开</th><th>是什么</th></tr></thead><tbody><tr><td><strong>菜单栏图标</strong></td><td>常驻</td><td>左键开主面板，右键开功能菜单</td></tr><tr><td><strong>主面板</strong></td><td><code>⌥A</code> / 左键图标</td><td>360~440pt 宽的浮窗，首页是剪贴板 + 搜索 + 日历</td></tr><tr><td><strong>性能监测窗</strong></td><td><code>⌥P</code> / <code>⌥M</code></td><td>可常驻的系统监测窗口，玻璃态</td></tr><tr><td><strong>悬浮剪贴板</strong></td><td><code>⇧⌘V</code></td><td>贴在鼠标旁的迷你剪贴板</td></tr><tr><td><strong>设置</strong></td><td><code>⌘,</code></td><td>左侧大侧边栏，27 个设置页</td></tr><tr><td><strong>命令面板</strong></td><td><code>⌥K</code></td><td>Spotlight 式全功能目录</td></tr></tbody></table></div>
+<p>常用界面与入口：</p>
+<div class="table-wrap"><table><thead><tr><th>界面</th><th>怎么打开</th><th>是什么</th></tr></thead><tbody><tr><td><strong>菜单栏图标</strong></td><td>常驻</td><td>左键开主面板，右键开功能菜单</td></tr><tr><td><strong>主面板</strong></td><td><code>⌥A</code> / 左键图标</td><td>360~440pt 宽的浮窗，首页是剪贴板 + 搜索 + 日历</td></tr><tr><td><strong>性能监测窗</strong></td><td><code>⌥P</code> / <code>⌥M</code></td><td>可常驻的系统监测窗口，玻璃态</td></tr><tr><td><strong>悬浮剪贴板</strong></td><td><code>⇧⌘V</code></td><td>贴在鼠标旁的迷你剪贴板</td></tr><tr><td><strong>设置</strong></td><td><code>⌘,</code></td><td>左侧大侧边栏，27 个设置页</td></tr><tr><td><strong>命令面板</strong></td><td><code>⌥K</code></td><td>Spotlight 式全功能目录</td></tr><tr><td><strong>刘海工作台</strong></td><td>悬停屏幕顶部刘海 / 菜单“刘海工作台”</td><td>黑色玻璃组件总览，剪贴板与中转共用近期内容页</td></tr></tbody></table></div>
+<h3 id="刘海工作台">刘海工作台</h3>
+<p>在“设置 → 常规 → 刘海工作台”调整开关、宽高、黑色玻璃、悬停时间，以及组件和监测指标的颜色、顺序。调整实时显示在模拟预览中；按“保存”应用，按“取消”恢复已保存值。</p>
+<p>首页组件共用固定 4×4 画布。拖动右上把手改变顺序，拖动右下角改变尺寸，或点右下角选择 1×1、1×2、1×4、2×2。放不下的组件进入下一页，画布不随组件大小伸长。</p>
+<p>“剪贴板与中转”按时间展示近期内容。点击记录查看完整正文或文件详情；同一文件同时存在于两个来源时显示一行。文件行和详情中的拖出区域可拖到 Finder 或其他应用，拖入文件则沿用本地中转。列表合并不删除两边原记录。</p>
+<p>左右滑动切换页面；键盘可用 <code>⌥←</code> / <code>⌥→</code>、<code>⌘1</code> 至 <code>⌘6</code>，<code>Esc</code> 收回。收起图标默认关闭，可在总设置中选择显示内容与快捷操作。媒体页展示现有有声应用和系统音量。</p>
 <hr>
 <h1 id="第一部分-常驻入口">第一部分 · 常驻入口</h1>
 <h2 id="第一章-菜单栏与图标">第一章 菜单栏与图标</h2>
