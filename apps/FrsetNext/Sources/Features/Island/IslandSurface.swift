@@ -1,132 +1,315 @@
+import AppKit
 import SwiftUI
 
-/// 顶部锚点固定；内容不缩放，黑色轮廓从硬件刘海尺寸连续伸展。
 struct IslandSurface<Content: View>: View {
+    @ObservedObject var controller: IslandController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let configuration: IslandConfiguration
-    let expanded: Bool
-    @Binding var page: IslandPage
-    let notchWidth: CGFloat
-    let notchHeight: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Namespace private var navigation
     let height: CGFloat
-    var onCollapse: () -> Void
-    var onOpen: () -> Void
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Color.black.contentShape(Rectangle()).onTapGesture(perform: onOpen)
-                .accessibilityLabel("展开 Kitnest Demo")
-            VStack(spacing: 0) {
-                header
-                tabs
-                content().padding(.horizontal, 16).padding(.top, 12)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                HStack {
-                    Text("界面与动效 Demo").foregroundStyle(.secondary)
-                    Spacer()
-                    Label("完整界面", systemImage: "arrow.up.right").foregroundStyle(.secondary)
-                }.font(.system(size: 11)).padding(.horizontal, 18)
-                    .padding(.top, 8).padding(.bottom, 14)
-            }
-            .padding(.top, notchHeight + 6)
-            .frame(width: configuration.width, height: height, alignment: .top)
-            .opacity(expanded ? 1 : 0)
-            .offset(y: expanded || reduceMotion ? 0 : -4)
-            .animation(.easeOut(duration: expanded ? 0.16 : 0.12).delay(expanded ? 0.04 : 0), value: expanded)
-            .allowsHitTesting(expanded).accessibilityHidden(!expanded)
+        let width = controller.configuration.width
+        let target = CGSize(width: controller.expanded ? width : controller.collapsedWidth,
+                            height: controller.expanded ? height : controller.notchHeight)
+        VStack(spacing: Theme.Space.md) {
+            header
+            tabs
+            content().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            pager
         }
-        .frame(width: expanded ? configuration.width : notchWidth,
-               height: expanded ? height : notchHeight, alignment: .top)
-        .clipShape(IslandOutline(radius: expanded ? 24 : 6, shoulders: expanded ? 8 : 0))
-        .shadow(color: .black.opacity(expanded ? 0.28 : 0), radius: 12, y: 8)
-        .animation(reduceMotion ? .easeOut(duration: 0.12) :
-            expanded ? .spring(response: 0.20, dampingFraction: 0.88) : .easeOut(duration: 0.16), value: expanded)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: height)
-        .foregroundStyle(.white).preferredColorScheme(.dark)
+        .padding(.horizontal, IslandLayout.inset)
+        .padding(.top, controller.notchHeight + Theme.Space.sm)
+        .padding(.bottom, IslandLayout.inset)
+        .frame(width: width)
+        .frame(width: width, height: height, alignment: .top)
+        .modifier(IslandMorph(controller: controller, size: target,
+                              progress: controller.expanded ? 1 : 0,
+                              reduceMotion: reduceMotion, reduceTransparency: reduceTransparency))
+        .animation(reduceMotion ? Theme.Motion.tap : controller.expanded ? Theme.Motion.springSoft : .spring(response: 0.28, dampingFraction: 1),
+                   value: [target.width, target.height, controller.expanded ? 1 : 0])
+        .foregroundStyle(.primary)
+        .tint(Theme.accent(for: nil))
+        .preferredColorScheme(.dark)
     }
 
     private var header: some View {
-        HStack(spacing: 7) {
-            Image(systemName: "square.3.layers.3d").foregroundStyle(Color.blue)
+        HStack(spacing: Theme.Space.md) {
+            Image(systemName: "square.3.layers.3d").foregroundStyle(.secondary)
             Text("Kitnest").fontWeight(.medium)
-            Text("工作台").font(.system(size: 11)).foregroundStyle(.secondary)
+            Text(controller.page.title).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+            if !IslandPage.tabs.contains(controller.page) {
+                Button { controller.page = .home } label: { Label("总览", systemImage: "chevron.left").padding(.horizontal, 6) }
+                    .buttonStyle(IslandButtonStyle()).font(.system(size: Theme.TextSize.caption))
+            }
             Spacer()
-            Button { page = .settings } label: { Image(systemName: "slider.horizontal.3") }
-                .help("布局展示").accessibilityLabel("布局展示")
-            Button {} label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
-                .help("完整界面 · 仅展示").accessibilityLabel("完整界面 · 仅展示")
-            Button(action: onCollapse) { Image(systemName: "chevron.up") }
-                .help("收回刘海").accessibilityLabel("收回刘海")
-        }.font(.system(size: 13)).buttonStyle(IslandButtonStyle())
-            .padding(.horizontal, 18).frame(height: 30)
+            Button { controller.page = .settings } label: {
+                Image(systemName: "slider.horizontal.3").frame(width: 28, height: 28)
+            }.buttonStyle(IslandButtonStyle(help: "刘海与组件")).accessibilityLabel("刘海与组件")
+            Button(action: controller.collapse) {
+                Image(systemName: "chevron.up").frame(width: 28, height: 28)
+            }.buttonStyle(IslandButtonStyle(help: "收回刘海 · Esc", tipAlignment: .bottomTrailing)).accessibilityLabel("收回刘海")
+        }.font(.system(size: Theme.TextSize.body))
+    }
+
+    private var pager: some View {
+        HStack(spacing: 8) {
+            Text(controller.feedback).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary).lineLimit(1)
+            Spacer(minLength: 0)
+            Button { controller.turnPage(-1) } label: { Image(systemName: "chevron.left").frame(width: 24, height: 22) }
+                .buttonStyle(IslandButtonStyle()).accessibilityLabel("上一页")
+            Text(IslandPage.tabs.firstIndex(of: controller.page).map { "\($0 + 1) / \(IslandPage.tabs.count)" } ?? "详情")
+                .font(.system(size: Theme.TextSize.caption)).monospacedDigit().foregroundStyle(.secondary)
+            Button { controller.turnPage(1) } label: { Image(systemName: "chevron.right").frame(width: 24, height: 22) }
+                .buttonStyle(IslandButtonStyle()).accessibilityLabel("下一页")
+        }.frame(height: 22)
     }
 
     private var tabs: some View {
-        HStack(spacing: 4) {
-            ForEach(IslandPage.tabs) { item in
-                Button { page = item } label: {
-                    Text(item.title).frame(maxWidth: .infinity).frame(height: 28)
-                        .foregroundStyle(page == item ? Color.blue : .white.opacity(0.6))
-                        .background(page == item ? Color.blue.opacity(0.16) : .clear,
-                                    in: RoundedRectangle(cornerRadius: 8))
-                }.accessibilityAddTraits(page == item ? .isSelected : [])
+        HStack(spacing: Theme.Space.xs) {
+            ForEach(IslandPage.tabs) { page in
+                Button { controller.page = page } label: {
+                    Text(page.title).frame(maxWidth: .infinity).frame(height: 30)
+                        .foregroundStyle(controller.page == page ? .primary : .secondary)
+                        .background {
+                            if controller.page == page {
+                                RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
+                                    .fill(Theme.rowHoverFill)
+                                    .matchedGeometryEffect(id: "selection", in: navigation)
+                            }
+                        }
+                }.buttonStyle(IslandButtonStyle(navigation: true))
+                    .accessibilityAddTraits(controller.page == page ? .isSelected : [])
             }
-        }.font(.system(size: 12)).buttonStyle(IslandButtonStyle())
-            .padding(.horizontal, 16).padding(.bottom, 10)
-            .overlay(alignment: .bottom) { Color.white.opacity(0.10).frame(height: 0.5) }
+        }.font(.system(size: Theme.TextSize.small, weight: .medium))
+            .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.page)
+    }
+}
+
+/// 同一补间驱动尺寸、曲率、材质与内容，反向操作接续正在显示的几何。
+private struct IslandMorph: AnimatableModifier {
+    let controller: IslandController
+    var size: CGSize
+    var progress: CGFloat
+    let reduceMotion: Bool
+    let reduceTransparency: Bool
+    var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
+        get { .init(size.width, .init(size.height, progress)) }
+        set { size = .init(width: newValue.first, height: newValue.second.first); progress = newValue.second.second }
+    }
+
+    func body(content: Content) -> some View {
+        let phase = min(1, max(0, progress))
+        let radius = Theme.Radius.chip + (IslandLayout.corner - Theme.Radius.chip) * phase
+        let outline = IslandOutline(radius: radius)
+        let reveal = min(1, max(0, (phase - 0.12) / 0.70))
+        content
+            .opacity(reveal)
+            .offset(y: reduceMotion ? 0 : -Theme.Space.sm * (1 - phase))
+            .allowsHitTesting(controller.expanded && reveal > 0.5)
+            .accessibilityHidden(!controller.expanded)
+            .frame(width: size.width, height: size.height, alignment: .top)
+            .background {
+                IslandMaterial(controller: controller, size: size, radius: radius,
+                               solid: !controller.usesGlass || reduceTransparency)
+                    .id(!controller.usesGlass || reduceTransparency)
+                    .overlay(Color.black.opacity(controller.usesGlass && !reduceTransparency ? 1 - phase * 0.68 : 1))
+                    .overlay(alignment: .top) {
+                        Color.black.frame(width: controller.notchWidth, height: controller.notchHeight)
+                    }
+                    .allowsHitTesting(false)
+            }
+            .clipShape(outline)
+            .overlay(alignment: .top) {
+                IslandCollapsedView(controller: controller)
+                    .opacity(1 - phase)
+                    .allowsHitTesting(!controller.expanded)
+                    .accessibilityHidden(controller.expanded)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12 * phase), lineWidth: Theme.Stroke.hairline)
+                    .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
+                                                .init(color: .clear, location: 0.12),
+                                                .init(color: .white, location: 0.3),
+                                                .init(color: .white, location: 1)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .allowsHitTesting(false)
+            }
+            .contentShape(outline)
     }
 }
 
 struct IslandOutline: Shape {
     var radius: CGFloat
-    var shoulders: CGFloat
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(radius, shoulders) }
-        set { radius = newValue.first; shoulders = newValue.second }
+    var animatableData: CGFloat {
+        get { radius }
+        set { radius = newValue }
     }
     func path(in rect: CGRect) -> Path {
-        let r = min(radius, rect.height / 2)
-        let s = min(shoulders, rect.height / 3)
-        return Path { p in
-            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-            p.addQuadCurve(to: CGPoint(x: rect.maxX - s, y: rect.minY + s),
-                           control: CGPoint(x: rect.maxX - s, y: rect.minY))
-            p.addLine(to: CGPoint(x: rect.maxX - s, y: rect.maxY - r))
-            p.addQuadCurve(to: CGPoint(x: rect.maxX - s - r, y: rect.maxY),
-                           control: CGPoint(x: rect.maxX - s, y: rect.maxY))
-            p.addLine(to: CGPoint(x: rect.minX + s + r, y: rect.maxY))
-            p.addQuadCurve(to: CGPoint(x: rect.minX + s, y: rect.maxY - r),
-                           control: CGPoint(x: rect.minX + s, y: rect.maxY))
-            p.addLine(to: CGPoint(x: rect.minX + s, y: rect.minY + s))
-            p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY),
-                           control: CGPoint(x: rect.minX + s, y: rect.minY))
-            p.closeSubpath()
-        }
+        var path = RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect)
+        path.addRect(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: min(radius, rect.height)))
+        return path
+    }
+}
+
+private struct IslandMaterial: NSViewRepresentable {
+    let controller: IslandController
+    let size: CGSize
+    let radius: CGFloat
+    let solid: Bool
+    func makeNSView(context: Context) -> IslandMaterialView {
+        IslandMaterialView(solid: solid)
+    }
+    func updateNSView(_ view: IslandMaterialView, context: Context) {
+        view.radius = radius
+        view.needsLayout = true
+        controller.surfaceDidChange(size: size, radius: radius)
+    }
+}
+
+private final class IslandMaterialView: NSView {
+    var radius: CGFloat = 0
+    private let mask = CAShapeLayer()
+    override var isFlipped: Bool { true }
+    init(solid: Bool) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.mask = mask
+        let glass = LiquidGlass.makeView(cornerRadius: 0, tint: IslandLayout.tint, solid: solid, followsWindowFocus: false)
+        glass.appearance = NSAppearance(named: .darkAqua)
+        glass.autoresizingMask = [.width, .height]
+        addSubview(glass)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        // 将玻璃上角移至屏幕外：可见上沿贴顶，下角保持原生折射曲率。
+        subviews[0].frame = CGRect(x: 0, y: -radius, width: bounds.width, height: bounds.height + radius)
+        LiquidGlass.setCornerRadius(radius, on: subviews[0])
+        mask.frame = bounds
+        mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
+        CATransaction.commit()
     }
 }
 
 struct IslandButtonStyle: ButtonStyle {
+    var help: String? = nil
+    var tipAlignment: Alignment = .bottom
+    var navigation = false
     func makeBody(configuration: Configuration) -> some View {
-        IslandButtonBody(label: configuration.label, pressed: configuration.isPressed)
+        IslandButtonBody(label: configuration.label, pressed: configuration.isPressed, help: help,
+                         tipAlignment: tipAlignment, navigation: navigation)
     }
 }
 
 private struct IslandButtonBody<Label: View>: View {
     let label: Label
     let pressed: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let help: String?
+    let tipAlignment: Alignment
+    let navigation: Bool
     @Stored private var hovered = false
+    @Environment(\.isFocused) private var focused
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        label.frame(minWidth: 26, minHeight: 26)
-            .background(Color.white.opacity(hovered ? 0.06 : 0), in: RoundedRectangle(cornerRadius: 8))
+        ZStack {
+        label
+            .background {
+                RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
+                    .fill(Theme.rowHoverFill.opacity(hovered || pressed || focused ? 1 : 0))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
+                    .strokeBorder(focused ? Theme.accent(for: nil) : .clear, lineWidth: Theme.Stroke.emphasis)
+            }
+            .scaleEffect(reduceMotion || !pressed ? 1 : 0.99)
+        }
             .contentShape(Rectangle())
-            .opacity(pressed ? 0.7 : 1)
-            .scaleEffect(pressed && !reduceMotion ? 0.96 : 1)
             .onHover { hovered = $0 }
-            .animation(.easeOut(duration: 0.12), value: pressed)
-            .animation(.easeOut(duration: 0.12), value: hovered)
+            .animation(Theme.Motion.tap, value: pressed)
+            .animation(Theme.Motion.fast, value: hovered)
+            .overlay(alignment: tipAlignment) {
+                if let help, hovered || focused {
+                    Text(help).font(.system(size: Theme.TextSize.caption))
+                        .fixedSize().padding(Theme.Space.sm)
+                        .background(.black, in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
+                        .offset(y: 30).allowsHitTesting(false)
+                }
+            }
     }
+}
+
+private struct IslandCollapsedView: View {
+    @ObservedObject var controller: IslandController
+    var body: some View {
+        let items = controller.peekOrder.filter { controller.visiblePeeks.contains($0) }
+        let leftCount = (items.count + 1) / 2
+        let sideWidth = CGFloat(leftCount) * (controller.peeksShowValues ? 72 : 38)
+        HStack(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(Array(items.prefix(leftCount))) { peek in button(peek) }
+            }.frame(width: sideWidth, alignment: .trailing)
+            Button { controller.expand(takeFocus: true) } label: {
+                Color.clear.frame(width: controller.notchWidth, height: controller.notchHeight).contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityLabel("展开刘海")
+            HStack(spacing: 0) {
+                ForEach(Array(items.dropFirst(leftCount))) { peek in button(peek) }
+            }.frame(width: sideWidth, alignment: .leading)
+        }.frame(height: controller.notchHeight).foregroundStyle(.white).preferredColorScheme(.dark)
+    }
+    private func button(_ peek: IslandPeek) -> some View {
+        Button { controller.activatePeek(peek) } label: {
+            HStack(spacing: 4) {
+                Image(systemName: peek == .media && controller.playing ? "pause.fill" : peek.icon)
+                if controller.peeksShowValues {
+                    Text(value(peek)).font(.system(size: 10)).monospacedDigit().lineLimit(1)
+                }
+            }.font(.system(size: 12)).frame(width: controller.peeksShowValues ? 72 : 38, height: controller.notchHeight)
+        }.buttonStyle(IslandButtonStyle())
+            .accessibilityLabel("\(peek.title) · \(controller.peeksQuickActions ? "快捷操作" : "打开页面")")
+    }
+    private func value(_ peek: IslandPeek) -> String {
+        switch peek {
+        case .clipboard: return "复制"
+        case .media: return controller.playing ? "播放中" : "暂停"
+        case .calendar: return Date.now.formatted(.dateTime.day())
+        case .monitor: return "8.6 W"
+        }
+    }
+}
+
+/// 辉光仅重绘鼠标所在的组件，不驱动整个页面或持续计时。
+private struct IslandGlow: ViewModifier {
+    let enabled: Bool
+    @Stored private var location: CGPoint? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func body(content: Content) -> some View {
+        content.background {
+            GeometryReader { geometry in
+                if let location, enabled {
+                    RadialGradient(colors: [.white.opacity(0.13), .white.opacity(0.025), .clear],
+                                   center: UnitPoint(x: location.x / geometry.size.width, y: location.y / geometry.size.height),
+                                   startRadius: 0, endRadius: max(geometry.size.width, geometry.size.height) * 0.65)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .animation(reduceMotion ? nil : Theme.Motion.tap, value: enabled && location != nil)
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let point): if enabled { location = point }
+            case .ended: location = nil
+            }
+        }
+    }
+}
+
+extension View {
+    func islandGlow(enabled: Bool) -> some View { modifier(IslandGlow(enabled: enabled)) }
 }
 

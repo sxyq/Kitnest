@@ -138,7 +138,7 @@ public struct ThemeAppearance {
     public var insetFill: Color { Theme.insetFill(for: personalization) }
 }
 
-public enum Theme {
+extension Theme {
     /// 面板圆角（个性化：6 / 10 / 14）
     public static var cornerRadius: CGFloat { Personalization.shared.cornerRadius }
     public static let smallRadius: CGFloat = 6
@@ -164,60 +164,7 @@ public enum Theme {
     /// 缩略图边长（密度联动 / 覆盖档位优先）
     public static var thumbSize: CGFloat { Personalization.shared.effectiveThumbSize }
 
-    // MARK: 设计令牌（v153）
-    //
-    // 审计基线（apple-ui-designer + taste-skill）：
-    //   · 345 个按钮/Menu 里只有 35% 有 help、3% 有 accessibilityLabel；
-    //   · 297 处字号 <11pt（HIG 文本下限 11pt）；
-    //   · 132 处 .tertiary 小字，实测 #808080 on #F2F2F4 ≈ 3.2:1，不达 AA 4.5:1；
-    //   · 圆角出现 2/4/5/6/7/8/10/12/14 九种，无规则。
-    // 这里先立规矩，后续新代码只许用这些令牌。
-    public enum TextSize {
-        /// 辅助信息下限（脚注、单位、"近 3 秒"这类）；正文一律 ≥ 11
-        public static let micro: CGFloat = 10
-        public static let caption: CGFloat = 11       // 最小可用正文字号（HIG 下限）
-        public static let small: CGFloat = 12
-        public static let body: CGFloat = 13
-        public static let title: CGFloat = 15
-        /// 指标数值（大号等宽数字）
-        public static let metric: CGFloat = 17
-    }
-
-    /// 圆角只有五档，**不许再写字面量**（v179 统一）：
-    ///   window 12 / card 10 / control 8 / chip 6 / micro 4
-    /// 审计前全工程有 1/1.5/2/3/4/5/6/7/8/9/10/11/12/14/16/19/24 共 17 种取值，
-    /// 其中 6 与 7、8 与 10 混用最严重（7 有 24 处、6 有 33 处，视觉上差 1pt 却
-    /// 让相邻卡片对不齐）。胶囊一律用 `Capsule()`，不写数值。
-    public enum Radius {
-        /// 窗口 / 悬浮面板
-        ///
-        /// v260：**跟随「个性化 → 面板圆角」**。原来这里写死 12，而外层玻璃面
-        /// 用的是 Personalization.cornerRadius（默认 10）——两层圆角不一致，
-        /// 深色下窗口边缘就会出现一圈与内容不同心的「双曲线」。
-        /// 统一成同一个来源后曲线只有一道，而且这个设置项终于真的生效了。
-        public static var window: CGFloat { Personalization.shared.cornerRadius }
-        /// 内容卡片（设置分组、统计卡、流向图卡）
-        public static let card: CGFloat = 10
-        /// HUD 级大圆角（存储 Treemap 的块；v260 从 26pt 字面量收编，
-        /// 不参与窗口/卡片分档，避免为了过 lint 把视觉半径改小）
-        public static let hud: CGFloat = 26
-        /// 控件（按钮底、输入框、缩略图容器）
-        public static let control: CGFloat = 8
-        /// 小标签 / 徽标底
-        public static let chip: CGFloat = 6
-        /// 进度条端点、极小色块
-        public static let micro: CGFloat = 4
-        /// 通知条胶囊半高（GlassSurface 需要数值，不能直接用 Capsule()）
-        public static let pill: CGFloat = 30
-        /// 旧名兼容（历史代码还在用 container）
-        public static var container: CGFloat { window }
-    }
-
-    /// 描边只有两档：发丝线 0.5pt（卡片/窗口边）与 1pt（选中态强调）
-    public enum Stroke {
-        public static let hairline: CGFloat = 0.5
-        public static let emphasis: CGFloat = 1
-    }
+    // 无服务依赖的排版与动效令牌见 ThemeTokens.swift。
 
     /// 发丝线颜色：跟随明暗的 10% 前景色（浅色=黑 10%，深色=白 10%）
     public static let hairlineColor = Color.primary.opacity(0.10)
@@ -315,9 +262,8 @@ public enum Theme {
         if midnight { return MidnightTheme.cardBackground(for: p) }
         let liftValue = p.glassCardLift
         return cachedSurface("card.\(liftValue)") { isDark in
-            let lift = CGFloat(liftValue)
             // 浅色 0.55（贴平）…0.98（近实白）；暗色 0.035…0.10 白
-            let alpha = isDark ? (0.035 + 0.065 * lift) : (0.55 + 0.43 * lift)
+            let alpha = cardFillAlpha(lift: liftValue, isDark: isDark)
             return (NSColor(white: 1, alpha: 1), alpha)
         }
     }
@@ -343,79 +289,14 @@ public enum Theme {
     public static func cardStroke(for p: Personalization) -> Color {
         let strokeValue = p.glassStroke
         return cachedSurface("stroke.\(strokeValue)") { isDark in
-            let s = CGFloat(strokeValue)
             let base = isDark ? NSColor(white: 1, alpha: 1) : NSColor(white: 0, alpha: 1)
-            let alpha = isDark ? (0.02 + 0.16 * s) : (0.02 + 0.14 * s)
+            let alpha = cardStrokeAlpha(strength: strokeValue, isDark: isDark)
             return (base, alpha)
         }
     }
 
-    /// 间距只有 4 的倍数档（外加 6/10 两个半档）
-    public enum Space {
-        public static let xxs: CGFloat = 2
-        public static let xs: CGFloat = 4
-        public static let sm: CGFloat = 6
-        public static let md: CGFloat = 8
-        public static let lg: CGFloat = 12
-        public static let xl: CGFloat = 16
-        public static let xxl: CGFloat = 20
-    }
-    /// 列表行 hover 底色（v156）：中性、极淡——强调色只留给「选中」，不用于悬停。
-    /// 之前用 accent 0.10 整行铺满，等于一条蓝砖（用户：「蓝色框会直接填满」）。
-    /// 用 primary 而不是 white：浅色下是「黑 5.5%」，深色下是「白 5.5%」，一套值两套主题。
-    public static var rowHoverFill: Color { Color.primary.opacity(0.055) }
-
-    /// 三级文字：主 / 次 / 弱。弱文字用 0.55 alpha（白底 ≈4.8:1，达 AA），
-    /// 不再用 .tertiary（系统 tertiaryLabel 在白底只有 ~2.6:1）。
-    public static let tertiaryText = Color.primary.opacity(0.55)
-
-    // MARK: 动效令牌（v155，2026-10-28）
-    //
-    // 审计结果：全 App 的动画曲线散成 9 种时长 × 6 类曲线，spring 有 14 组不同写法；
-    // 而且**唯一一个持续旋转**的动画（菜单栏风扇，RotatingLayerView）根本没设
-    // timingFunction，走的是 CA 默认曲线（≈CSS ease，0.25/0.1/0.25/1）——
-    // 每转一圈都「加速→减速」，接缝处速度从 0 直接跳回最大，看起来就是转一下顿一下。
-    //
-    // 统一规则（曲线只从这里取，不许再写字面量）：
-    //   · 连续循环（旋转 / 扫描 / 进度）→ **只能线性**。给循环套缓动等于每圈重新起步，
-    //     位置连续但速度不连续（连 G1 都不过），再漂亮的曲线也不如匀速。
-    //   · 单次交互（悬停 / 按压 / 展开 / 淡入）→ 统一 ease-out，三档时长。
-    //   · 有物理感的收放（卡片、面板）→ 统一弹簧，四档。
-    public enum Motion {
-        // 单次交互
-        public static let tap: Animation = .easeOut(duration: 0.12)
-        public static let fast: Animation = .easeOut(duration: 0.16)
-        public static let page: Animation = .easeOut(duration: 0.22)
-        public static let slow: Animation = .easeOut(duration: 0.45)
-
-        // 弹簧四档（跟手 / 标准 / 柔和 / 回弹）
-        public static let springSnappy: Animation = .spring(response: 0.22, dampingFraction: 0.85)
-        public static let spring: Animation = .spring(response: 0.28, dampingFraction: 0.86)
-        public static let springSoft: Animation = .spring(response: 0.34, dampingFraction: 0.86)
-        public static let springBouncy: Animation = .spring(response: 0.24, dampingFraction: 0.62)
-
-        // 连续循环
-        public static let loop: Animation = .linear(duration: 0.9)
-        public static let progress: Animation = .linear(duration: 0.2)
-
-        // AppKit / CoreAnimation 侧（时长单列，避免与 SwiftUI 混用）
-        public static let dTap: TimeInterval = 0.12
-        public static let dFast: TimeInterval = 0.16
-        public static let dPage: TimeInterval = 0.22
-        public static let caLinear = CAMediaTimingFunction(name: .linear)
-        public static let caEaseOut = CAMediaTimingFunction(controlPoints: 0.22, 0, 0, 1)
-        public static let caEaseIn = CAMediaTimingFunction(name: .easeIn)
-        public static let caEaseInEaseOut = CAMediaTimingFunction(name: .easeInEaseOut)
-        /// 入场「略冲过」曲线（监测独立窗）
-        public static let caBackOut = CAMediaTimingFunction(controlPoints: 0.22, 1.05, 0.36, 1)
-    }
-
-    public static let secondaryText = Color.secondary
-    public static let cardBackground = Color(NSColor.controlBackgroundColor).opacity(0.6)
-    public static let separator = Color(NSColor.separatorColor).opacity(0.5)
-
     /// 强调色（个性化自定义优先，nil 跟随系统）
-    public static var accent: Color { Personalization.shared.accentColor ?? Color.accentColor }
+    public static var accent: Color { accent(for: Personalization.shared.accentColor) }
 
     /// 强调色的 AppKit 形态（画布/图层描边等 NSColor 消费点，与 Theme.accent 同源）
     public static var accentNS: NSColor { NSColor(accent) }
@@ -426,6 +307,11 @@ public enum Theme {
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
     }
+}
+
+public extension Theme.Radius {
+    static var window: CGFloat { Personalization.shared.cornerRadius }
+    static var container: CGFloat { window }
 }
 
 // MARK: - 通用扩展

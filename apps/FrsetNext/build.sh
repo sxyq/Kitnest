@@ -50,7 +50,7 @@ FILES=$(find "$SRC" -name '*.swift' \
   | sort | tr '\n' ' ')
 COMPILE_ARGS=(-framework AppKit -framework SwiftUI -framework Combine)
 if [ "${KITNEST_PARALLEL:-0}" = "1" ]; then
-  FILES="$SRC/App/FrsetNextApp.swift $SRC/Core/Runtime/StateCompat.swift $(find "$SRC/Features/Island" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
+  FILES="$SRC/App/FrsetNextApp.swift $SRC/Core/Runtime/StateCompat.swift $SRC/Core/UI/ThemeTokens.swift $SRC/Core/UI/LiquidGlassMaterial.swift $SRC/Features/Monitor/Views/MonitorCharts.swift $(find "$SRC/Features/Island" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
   COMPILE_ARGS+=(-D KITNEST_ISLAND_DEMO)
 else
   COMPILE_ARGS+=(-import-objc-header "$SRC/FrsetStatsBar/FrsetStatsBar.h"

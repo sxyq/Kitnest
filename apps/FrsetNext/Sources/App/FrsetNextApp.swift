@@ -10,7 +10,7 @@ struct FrsetNextApp: App {
         Settings { EmptyView() }
             .commands {
                 CommandMenu("Demo") {
-                    Button("展开") { IslandController.shared.open() }.keyboardShortcut("o")
+                    Button("展开") { IslandController.shared.open() }
                     ForEach(IslandPage.allCases) { page in
                         Button(page.title) {
                             IslandController.shared.page = page
@@ -36,7 +36,14 @@ final class IslandAppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
     func application(_ application: NSApplication, open urls: [URL]) {
-        DispatchQueue.main.async { IslandController.shared.open() }
+        DispatchQueue.main.async {
+            if let url = urls.first,
+               let value = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "page" })?.value,
+               let page = IslandPage(rawValue: value) {
+                IslandController.shared.page = page
+            }
+            IslandController.shared.open()
+        }
     }
 }
 #else
