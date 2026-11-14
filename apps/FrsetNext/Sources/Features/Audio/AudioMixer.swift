@@ -55,23 +55,19 @@ public final class AudioMixerController: ObservableObject {
     public static let shared = AudioMixerController()
 
     /// 系统输出音量 0-1
-    @Published public var outputVolume: Double = 0 {
-        didSet {
-            if !readingOutput && oldValue != outputVolume { setSystemVolume(Float(outputVolume)) }
-        }
+    @Published public var outputVolume: Double = 0.5 {
+        didSet { setSystemVolume(Float(outputVolume)) }
     }
     /// 系统静音
     @Published public var outputMuted: Bool = false {
-        didSet {
-            if !readingOutput && oldValue != outputMuted { setSystemMuted(outputMuted) }
-        }
+        didSet { setSystemMuted(outputMuted) }
     }
     /// 输出设备列表
     @Published public var devices: [AudioDeviceInfo] = []
     /// 当前默认输出设备
     @Published public var selectedDevice: AudioObjectID? {
         didSet {
-            guard !readingOutput, oldValue != selectedDevice, let id = selectedDevice else { return }
+            guard oldValue != selectedDevice, let id = selectedDevice else { return }
             selectDefaultDevice(id)
         }
     }
@@ -83,15 +79,8 @@ public final class AudioMixerController: ObservableObject {
     }
     /// 每 App 音量能力（公开 API 实测不可用 → UI 显示说明）
     @Published public private(set) var perAppVolumeSupported = false
-    @Published public private(set) var volumeAvailable = false
-    @Published public private(set) var volumeAdjustable = false
-    @Published public private(set) var muteAvailable = false
-    @Published public private(set) var muteAdjustable = false
-    @Published public private(set) var outputError: String?
 
     private var refreshTimer: Timer?
-    private var visibleClients = 0
-    private var readingOutput = false
 
     // v128（流畅度）：进程图标缓存（pid → NSImage）——原来每 2s 对每个有声进程
     // 重取 NSRunningApplication.icon（AppKit 图标查找/解码），窗口开着半小时就是
@@ -99,175 +88,70 @@ public final class AudioMixerController: ObservableObject {
     private var iconCache: [Int32: NSImage] = [:]
 
     private init() {
+        outputVolume = getSystemVolume()
+        outputMuted = getSystemMuted()
         selfAudible = getSelfAudible()
-        refreshSystemOutput()
+        reloadDevices()
     }
 
     // MARK: 定时刷新（窗口可见期间）
 
     public func startRefreshing() {
-        visibleClients += 1
         guard refreshTimer == nil else { return }
-        refreshSystemOutput()
         refreshPlayingApps()
-        // 设置音频页与 Dock 共享计数，最后一个可见使用方退出才停止。
+        // v128（流畅度）：周期维持 2s——本 timer 仅在「设置 → 音频」页可见时跑
+        // （onAppear/onDisappear 成对启停），关闭页面即完全停止，不存在常驻成本；
+        // 「谁在出声」需要实时性，降频会让列表明显滞后。回调体补 autoreleasepool。
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            autoreleasepool {
-                self?.refreshSystemOutput()
-                self?.refreshPlayingApps()
+            DispatchQueue.main.async {
+                autoreleasepool { self?.refreshPlayingApps() }
             }
         }
     }
 
     public func stopRefreshing() {
-        visibleClients -= 1
-        guard visibleClients == 0 else { return }
         refreshTimer?.invalidate()
         refreshTimer = nil
     }
 
-    // MARK: 系统音量 / 静音（默认输出设备，主控或实际输出声道）
+    // MARK: 系统音量 / 静音（默认输出设备，scope output element main）
 
     private var defaultOutputID: AudioObjectID {
         var id = AudioObjectID(0)
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
-        var a = addr(kAudioHardwarePropertyDefaultOutputDevice)
-        let status = AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil, &size, &id)
-        if status != noErr { reportOutputError("读取默认输出设备", status) }
+        var a = addr(cc("dOut"))
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &a, 0, nil, &size, &id) == 0, id != 0 else {
+            return AudioObjectID(1)  // kAudioObjectUnknown 回退设备 1
+        }
         return id
     }
 
-    /// 读值不触发 didSet 写设备；设置页和 Dock 共用同一份真实状态。
-    public func refreshSystemOutput() {
-        readingOutput = true
-        defer { readingOutput = false }
-        reloadDevices()
-        outputVolume = getSystemVolume()
-        outputMuted = getSystemMuted()
-    }
-
-    private func reportOutputError(_ operation: String, _ status: OSStatus) {
-        let code = UInt32(bitPattern: status)
-        let bytes = [24, 16, 8, 0].map { UInt8((code >> $0) & 0xff) }
-        let fourCC = bytes.allSatisfy { (32...126).contains($0) }
-            ? " / '\(String(bytes: bytes, encoding: .ascii)!)'" : ""
-        outputError = "\(operation)失败：CoreAudio OSStatus \(status)\(fourCC)"
-    }
-
-    /// 主控或实际输出声道；HDMI 等没有该属性的硬件返回空列表。
-    private func outputControls(_ selector: UInt32, device: AudioObjectID) -> [AudioObjectPropertyAddress] {
-        guard device != kAudioObjectUnknown else { return [] }
-        var main = addr(selector, kAudioObjectPropertyScopeOutput)
-        if AudioObjectHasProperty(device, &main) { return [main] }
-        var streams = addr(kAudioDevicePropertyStreamConfiguration, kAudioObjectPropertyScopeOutput)
-        var size: UInt32 = 0
-        let sizeStatus = AudioObjectGetPropertyDataSize(device, &streams, 0, nil, &size)
-        guard sizeStatus == noErr else {
-            reportOutputError("读取输出声道", sizeStatus)
-            return []
-        }
-        let data = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: MemoryLayout<AudioBufferList>.alignment)
-        defer { data.deallocate() }
-        let status = AudioObjectGetPropertyData(device, &streams, 0, nil, &size, data)
-        guard status == noErr else {
-            reportOutputError("读取输出声道", status)
-            return []
-        }
-        let channels = UnsafeMutableAudioBufferListPointer(data.assumingMemoryBound(to: AudioBufferList.self))
-            .reduce(UInt32(0)) { $0 + $1.mNumberChannels }
-        return (0..<channels).compactMap { channel in
-            var a = addr(selector, kAudioObjectPropertyScopeOutput, channel + 1)
-            return AudioObjectHasProperty(device, &a) ? a : nil
-        }
-    }
-
-    private func outputControlSettable(_ address: AudioObjectPropertyAddress, device: AudioObjectID) -> Bool {
-        var a = address
-        var settable: DarwinBoolean = false
-        let status = AudioObjectIsPropertySettable(device, &a, &settable)
-        if status != noErr { reportOutputError("读取输出控件能力", status) }
-        return status == noErr && settable.boolValue
-    }
-
     public func getSystemVolume() -> Double {
-        let device = defaultOutputID
-        let controls = outputControls(kAudioDevicePropertyVolumeScalar, device: device)
-        volumeAvailable = false
-        volumeAdjustable = false
-        guard !controls.isEmpty else { return outputVolume }
-        var values: [Float32] = []
-        for var a in controls {
-            var vol: Float32 = 0
-            var size = UInt32(MemoryLayout<Float32>.size)
-            let status = AudioObjectGetPropertyData(device, &a, 0, nil, &size, &vol)
-            guard status == noErr else {
-                reportOutputError("读取系统音量", status)
-                return outputVolume
-            }
-            values.append(vol)
-        }
-        volumeAvailable = true
-        volumeAdjustable = controls.allSatisfy { outputControlSettable($0, device: device) }
-        return Double(values.max()!)
+        var a = addr(cc("voll"), kAudioObjectPropertyScopeOutput)
+        var vol: Float32 = 0.5
+        var size = UInt32(MemoryLayout<Float32>.size)
+        guard AudioObjectGetPropertyData(defaultOutputID, &a, 0, nil, &size, &vol) == 0 else { return 0.5 }
+        return Double(vol)
     }
 
     public func setSystemVolume(_ v: Float) {
-        outputError = nil
-        let device = defaultOutputID
-        let controls = outputControls(kAudioDevicePropertyVolumeScalar, device: device)
-        // 声道音量按最大值等比调整，保留系统原有左右平衡。
-        var values: [Float32] = []
-        for var a in controls {
-            var value: Float32 = 0
-            var size = UInt32(MemoryLayout<Float32>.size)
-            let status = AudioObjectGetPropertyData(device, &a, 0, nil, &size, &value)
-            guard status == noErr else {
-                reportOutputError("读取声道音量", status)
-                refreshSystemOutput()
-                return
-            }
-            values.append(value)
-        }
-        let maximum = values.max() ?? 0
-        for (index, var a) in controls.enumerated() {
-            var value = maximum > 0 ? values[index] / maximum * v : v
-            let status = AudioObjectSetPropertyData(device, &a, 0, nil, UInt32(MemoryLayout<Float32>.size), &value)
-            if status != noErr { reportOutputError("设置系统音量", status); break }
-        }
-        refreshSystemOutput()
+        var a = addr(cc("voll"), kAudioObjectPropertyScopeOutput)
+        var vol = min(1, max(0, v))
+        AudioObjectSetPropertyData(defaultOutputID, &a, 0, nil, UInt32(MemoryLayout<Float32>.size), &vol)
     }
 
     public func getSystemMuted() -> Bool {
-        let device = defaultOutputID
-        let controls = outputControls(kAudioDevicePropertyMute, device: device)
-        muteAvailable = false
-        muteAdjustable = false
-        guard !controls.isEmpty else { return outputMuted }
-        var muted = true
-        for var a in controls {
-            var m: UInt32 = 0
-            var size = UInt32(MemoryLayout<UInt32>.size)
-            let status = AudioObjectGetPropertyData(device, &a, 0, nil, &size, &m)
-            guard status == noErr else {
-                reportOutputError("读取系统静音", status)
-                return outputMuted
-            }
-            muted = muted && m != 0
-        }
-        muteAvailable = true
-        muteAdjustable = controls.allSatisfy { outputControlSettable($0, device: device) }
-        return muted
+        var a = addr(cc("mute"), kAudioObjectPropertyScopeOutput)
+        var m: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        guard AudioObjectGetPropertyData(defaultOutputID, &a, 0, nil, &size, &m) == 0 else { return false }
+        return m != 0
     }
 
     public func setSystemMuted(_ muted: Bool) {
-        outputError = nil
-        let device = defaultOutputID
-        for var a in outputControls(kAudioDevicePropertyMute, device: device) {
-            var m: UInt32 = muted ? 1 : 0
-            let status = AudioObjectSetPropertyData(device, &a, 0, nil, UInt32(MemoryLayout<UInt32>.size), &m)
-            if status != noErr { reportOutputError("设置系统静音", status); break }
-        }
-        refreshSystemOutput()
+        var a = addr(cc("mute"), kAudioObjectPropertyScopeOutput)
+        var m: UInt32 = muted ? 1 : 0
+        AudioObjectSetPropertyData(defaultOutputID, &a, 0, nil, UInt32(MemoryLayout<UInt32>.size), &m)
     }
 
     // MARK: 本 App bypass（kAudioHardwarePropertyProcessIsAudible 'pmut'，系统对象）
@@ -289,27 +173,12 @@ public final class AudioMixerController: ObservableObject {
     // MARK: 输出设备
 
     public func reloadDevices() {
-        let wasReading = readingOutput
-        readingOutput = true
-        defer { readingOutput = wasReading }
         let sys = AudioObjectID(kAudioObjectSystemObject)
         var listAddr = addr(cc("dev#"))
         var size: UInt32 = 0
-        let sizeStatus = AudioObjectGetPropertyDataSize(sys, &listAddr, 0, nil, &size)
-        guard sizeStatus == noErr else {
-            devices = []
-            selectedDevice = nil
-            reportOutputError("枚举输出设备", sizeStatus)
-            return
-        }
+        guard AudioObjectGetPropertyDataSize(sys, &listAddr, 0, nil, &size) == 0, size > 0 else { return }
         var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
-        let listStatus = AudioObjectGetPropertyData(sys, &listAddr, 0, nil, &size, &ids)
-        guard listStatus == noErr else {
-            devices = []
-            selectedDevice = nil
-            reportOutputError("枚举输出设备", listStatus)
-            return
-        }
+        guard AudioObjectGetPropertyData(sys, &listAddr, 0, nil, &size, &ids) == 0 else { return }
 
         let defaultID = defaultOutputID
         var out: [AudioDeviceInfo] = []
@@ -319,29 +188,24 @@ public final class AudioMixerController: ObservableObject {
                                                         mScope: kAudioObjectPropertyScopeOutput,
                                                         mElement: kAudioObjectPropertyElementMain)
             var sSize: UInt32 = 0
-            let streamStatus = AudioObjectGetPropertyDataSize(id, &streamAddr, 0, nil, &sSize)
-            if streamStatus != noErr { reportOutputError("读取设备 \(id) 输出流", streamStatus); continue }
-            guard sSize > 0 else { continue }
+            guard AudioObjectGetPropertyDataSize(id, &streamAddr, 0, nil, &sSize) == 0, sSize > 0 else { continue }
             // 'name' 返回 C 字符串；'lnam' 才返回供下方桥接的 CFString。
             var nameAddr = addr(kAudioObjectPropertyName)
             var name: CFString = "" as CFString
             var nSize = UInt32(MemoryLayout<CFString>.stride)
-            let nameStatus = AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nSize, &name)
-            if nameStatus != noErr { reportOutputError("读取设备 \(id) 名称", nameStatus); continue }
+            AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nSize, &name)
             out.append(AudioDeviceInfo(id: id, name: name as String, isDefault: id == defaultID))
         }
         devices = out
-        selectedDevice = defaultID == kAudioObjectUnknown ? nil : defaultID
+        selectedDevice = defaultID
     }
 
     public func selectDefaultDevice(_ id: AudioObjectID) {
-        outputError = nil
         let sys = AudioObjectID(kAudioObjectSystemObject)
         var a = addr(cc("dOut"))
         var dev = id
-        let status = AudioObjectSetPropertyData(sys, &a, 0, nil, UInt32(MemoryLayout<AudioObjectID>.size), &dev)
-        if status != noErr { reportOutputError("切换默认输出设备", status) }
-        refreshSystemOutput()
+        AudioObjectSetPropertyData(sys, &a, 0, nil, UInt32(MemoryLayout<AudioObjectID>.size), &dev)
+        reloadDevices()
     }
 
     // MARK: 实时有声 App（'prs#' + 'piro'）
@@ -409,20 +273,14 @@ public struct AudioMixerPane: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 22)
                     Slider(value: $mixer.outputVolume, in: 0...1)
-                        .disabled(!mixer.volumeAdjustable || (mixer.muteAvailable && mixer.outputMuted))
-                    Text(mixer.volumeAvailable ? "\(Int(mixer.outputVolume * 100))%" : "—")
+                        .disabled(mixer.outputMuted)
+                    Text("\(Int(mixer.outputVolume * 100))%")
                         .font(.system(size: 11).monospacedDigit())
                         .frame(width: 38, alignment: .trailing)
                     Toggle("静音", isOn: $mixer.outputMuted)
                         .toggleStyle(.switch)
                         .controlSize(.small)
-                        .disabled(!mixer.muteAdjustable)
                 }
-                if mixer.outputError == nil {
-                    if !mixer.volumeAdjustable { Text("此输出设备不支持软件调节音量").foregroundStyle(.secondary) }
-                    if !mixer.muteAdjustable { Text("此输出设备不支持软件静音").foregroundStyle(.secondary) }
-                }
-                if let error = mixer.outputError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             }
 
             Section("输出设备") {

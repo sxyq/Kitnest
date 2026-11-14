@@ -140,8 +140,6 @@ struct SettingsRootView: View {
 
         case .audio:
             AudioMixerPane()
-        case .dock:
-            panePage { DockHubSettingsPane() }
 
         // 剪贴板（3）
         case .clipboardHistory:

@@ -125,9 +125,6 @@ public enum StatusBarMenuBuilder {
                                 action: #selector(StatusBarController.openSettingsAction(_:)),
                                 target: target)))
 
-        menu.addItem(track(item("Dock 控制台…", key: "", modifiers: [],
-                                action: #selector(StatusBarController.openDockHubAction(_:)), target: target)))
-
         if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) {
             menu.addItem(track(item("性能监测…", key: "", modifiers: [],
                                     action: #selector(StatusBarController.openMonitorSettingsAction(_:)), target: target)))

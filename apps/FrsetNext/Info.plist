@@ -31,7 +31,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Kitnest 录屏时可把摄像头画面叠加成画中画。</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Kitnest 使用自动化读取 Music 或 Spotify 的当前曲目，并执行播放、暂停和切歌。</string>
+	<string>Kitnest 需要辅助功能权限以执行自动粘贴。</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Kitnest 需要日历权限以在面板中显示今日日程。</string>
 	<key>NSPrincipalClass</key>

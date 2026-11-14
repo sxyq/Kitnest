@@ -36,7 +36,6 @@ final class SettingsEditingSession: ObservableObject {
         register(id: "recordingAppearance") { RecordingAppearanceDraft() }
         register(id: "searchDisplay") { SearchDisplayDraft() }
         register(id: "transferLocal") { LocalTransferSettingsDraft() }
-        register(id: "dock") { DockHubSettingsDraft() }
     }
 
     func register<D: SettingsEditableDraft>(id: String, makeDraft: @escaping () -> D) {
@@ -98,7 +97,6 @@ extension SettingsPage {
         case .clipboardAppearance: return [PersonalizationSettingsPart.clipboardAppearance.draftID]
         case .clipboardFloating: return [PersonalizationSettingsPart.floatingClipboard.draftID]
         case .generalMenuBar: return ["menuBar"]
-        case .dock: return ["dock"]
         case .monitorWidgets: return ["monitorWidgets"]
         case .search: return ["searchDisplay"]
         case .transferLocal: return ["transferLocal"]
