@@ -298,6 +298,14 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         let target = max(200, min(maxH, height))
         guard abs(target - w.frame.height) > 1 else { return }
         var frame = w.frame
+        if let screen, let destination = appearDestination, frame.minY >= screen.frame.maxY {
+            // 首次测量发生在神灯抓图的屏外停靠期，尺寸变化必须沿用屏内目标顶边。
+            frame.origin = NSPoint(x: destination.x, y: destination.y + frame.height - target)
+            frame.size.height = target
+            appearDestination = frame.origin
+            w.setFrame(frame, display: true)
+            return
+        }
         frame.origin.y -= (target - frame.height)   // 顶边固定，向下增高
         frame.size.height = target
         NSAnimationContext.runAnimationGroup { ctx in
@@ -314,10 +322,14 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         guard let w = window else { return }
         let dest = appearDestination ?? w.frame.origin
         let slot = anchor ?? defaultSlot(for: w, origin: dest)
-        if GenieWarp.shared.playIn(window: w, slot: slot, duration: 0.42, destination: dest) {
+        if GenieWarp.shared.playIn(window: w, slot: slot, duration: 0.42, destination: dest,
+                                  completion: { [weak self, weak w] in
+                                      if let destination = self?.appearDestination { w?.setFrameOrigin(destination) }
+                                  }) {
             return
         }
-        if w.frame.origin != dest { w.setFrameOrigin(dest) }
+        let destination = appearDestination ?? dest
+        if w.frame.origin != destination { w.setFrameOrigin(destination) }
         w.alphaValue = 1
         WindowReveal.playIn(on: w, from: anchorUnit(anchor), scale: 0.90,
                             duration: 0.28, timing: Theme.Motion.caBackOut)

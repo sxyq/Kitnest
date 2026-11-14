@@ -30,6 +30,7 @@ public final class MonitorSampler: ObservableObject {
         public var diskRead: [Double] = []
         public var diskWrite: [Double] = []
         public var gpu: [Double] = []
+        public var power: [Double] = []
 
         public init() {}
     }
@@ -94,6 +95,7 @@ public final class MonitorSampler: ObservableObject {
         var diskRead = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var diskWrite = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var gpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var power = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
     }
 
     private init() {
@@ -259,6 +261,12 @@ public final class MonitorSampler: ObservableObject {
         buffers.diskWrite.append(Double(sample.diskWrite))
         let gpuUsage = StatsDataProvider.shared.current.gpuUsage
         buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : 0)
+        if let watts = sample.powerWatts {
+            buffers.power.append(watts)
+        } else if buffers.power.count > 0 {
+            // 失去读数时断开功耗曲线，不把缺失采样画成 0 W。
+            buffers.power = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        }
         // v129（内存）：History 快照双缓冲轮换——每 tick 7 个 values() 新数组
         //（480B×7 + History 结构拷贝）改为复用两个 scratch 的底座；
         // 交替发布后旧快照已释放（refcount 回 1），回填即原地写
@@ -274,6 +282,7 @@ public final class MonitorSampler: ObservableObject {
             buffers.diskRead.values(into: &scratchA.diskRead)
             buffers.diskWrite.values(into: &scratchA.diskWrite)
             buffers.gpu.values(into: &scratchA.gpu)
+            buffers.power.values(into: &scratchA.power)
             snapshot = scratchA
         } else {
             buffers.cpu.values(into: &scratchB.cpu)
@@ -283,6 +292,7 @@ public final class MonitorSampler: ObservableObject {
             buffers.diskRead.values(into: &scratchB.diskRead)
             buffers.diskWrite.values(into: &scratchB.diskWrite)
             buffers.gpu.values(into: &scratchB.gpu)
+            buffers.power.values(into: &scratchB.power)
             snapshot = scratchB
         }
         lock.unlock()

@@ -232,47 +232,20 @@ private struct MonitorDetailContent: View {
     private var powerPanel: some View {
         let sensors = stats.sensors.filter { $0.category == 4 }
         return VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                        .frame(width: 48, height: 48)
-                        .background(Theme.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("整机当前功耗").font(.system(size: 11)).foregroundStyle(.secondary)
-                        Text(sample.powerWatts.map(MonitorFormat.power) ?? "—")
-                            .font(.system(size: 30, weight: .semibold).monospacedDigit())
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .accessibilityElement(children: .combine)
-                Divider().opacity(0.5)
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Label("适配器输入", systemImage: "powerplug.fill")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                    Spacer(minLength: 4)
-                    Text(sample.inputPowerWatts.map(MonitorFormat.power) ?? "—")
-                        .font(.system(size: 16, weight: .medium).monospacedDigit())
-                        .lineLimit(1)
-                }
-                if let battery = stats.battery {
-                    Label(battery.externalConnected ? "已接外部电源" : "电池供电",
-                          systemImage: battery.externalConnected ? "powerplug" : "battery.100")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-            }
-            .padding(14).glassCard(radius: Theme.Radius.card)
+            powerOverview
+            MonitorSectionTitle("供电流向")
+            powerFlow
             MonitorSectionTitle("芯片功耗")
-            ViewThatFits(in: .horizontal) {
-                powerGrid(columns: 3).frame(minWidth: 450)
-                powerGrid(columns: 2)
+            VStack(alignment: .leading, spacing: 10) {
+                ViewThatFits(in: .horizontal) {
+                    powerGrid(columns: 3).frame(minWidth: 426)
+                    powerGrid(columns: 2)
+                }
+                Text("彩条表示占芯片合计的比例；芯片已计入整机。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text("芯片功耗已包含在整机中，无需再次相加。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            // 应用明细与电池、网络页使用同一层卡片，不与芯片瓦数混排。
+            .padding(12).glassCard(radius: Theme.Radius.card)
             if !isSettingsPreview {
                 CPUEnergyImpactSection(stats: stats)
                     .padding(12).glassCard(radius: Theme.Radius.card)
@@ -294,31 +267,122 @@ private struct MonitorDetailContent: View {
         }
     }
 
+    // 2026-11-15：主面板、状态栏展开页与设置预览共用曲线和流向，不再只是重排数字框。
+    private var powerUsesBattery: Bool { stats.battery?.present == true && !sample.externalPower }
+
+    private var powerOverview: some View {
+        let peak = ceil(max(history.power.max() ?? 0, sample.powerWatts ?? 0, 1) / 5) * 5
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("整机当前功耗", systemImage: "bolt.fill")
+                        .font(.system(size: 11, weight: .medium)).foregroundStyle(MonitorColors.temperature)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(sample.powerWatts.map { String(format: $0 >= 100 ? "%.0f" : "%.1f", $0) } ?? "—")
+                            .font(.system(size: 34, weight: .semibold).monospacedDigit())
+                        Text("W").font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 5) {
+                    Label(powerUsesBattery ? "电池供电" : "外部电源",
+                          systemImage: powerUsesBattery ? "battery.75percent" : "powerplug.fill")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text("输入 \(sample.inputPowerWatts.map(MonitorFormat.power) ?? "—")")
+                        .font(.system(size: 13, weight: .medium).monospacedDigit())
+                        .help("适配器实际输入，包含充电功率")
+                }
+                .padding(.top, 2)
+            }
+            ZStack {
+                GeometryReader { chart in
+                    Path { path in
+                        for row in 1...3 {
+                            let y = chart.size.height * CGFloat(row) / 4
+                            path.move(to: CGPoint(x: 0, y: y))
+                            path.addLine(to: CGPoint(x: chart.size.width, y: y))
+                        }
+                    }
+                    .stroke(Color.primary.opacity(0.08), style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+                }
+                if history.power.count > 1 {
+                    MonitorAreaSparkline(values: history.power, color: MonitorColors.temperature,
+                                         upperBound: peak, slots: MonitorSampler.historyCapacity, lineWidth: 2)
+                } else {
+                    Text(sample.powerWatts == nil ? "暂无整机功耗读数" : "等待下一次采样…")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
+            .frame(height: 76)
+            .padding(.vertical, 2)
+            .accessibilityLabel("整机功耗趋势，最近 \(history.power.count) 次采样")
+            HStack {
+                Text("最近 \(MonitorSampler.historyCapacity) 次采样")
+                Spacer()
+                Text("0 – \(MonitorFormat.power(peak))")
+            }
+            .font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiaryText)
+        }
+        .padding(14)
+        .glassCard(radius: Theme.Radius.card, fill: MonitorColors.temperature.opacity(0.055))
+    }
+
+    private var powerFlow: some View {
+        let battery = BatteryFlowModel(battery: stats.battery)
+        let hasBattery = stats.battery?.present == true
+        let source = powerUsesBattery ? (battery.input.available ? battery.input.watts : nil) : sample.inputPowerWatts
+        let input = MonitorFlowNode(id: "power-source", title: powerUsesBattery ? "电池放电" : "适配器输入",
+                                    value: source ?? 0, valueText: source.map(MonitorFormat.power) ?? "—",
+                                    systemImage: powerUsesBattery ? "battery.50percent" : "powerplug.fill",
+                                    color: MonitorColors.temperature, available: source != nil)
+        var branches = [MonitorFlowNode(id: "power-system", title: "整机负载",
+                            value: sample.powerWatts ?? 0, valueText: sample.powerWatts.map(MonitorFormat.power) ?? "—",
+                            systemImage: "desktopcomputer", color: MonitorColors.user, available: sample.powerWatts != nil)]
+        if !powerUsesBattery, hasBattery, let charge = battery.branches.first(where: { $0.id == "charge" }) {
+            branches.append(MonitorFlowNode(id: charge.id, title: charge.title, value: charge.watts,
+                                valueText: MonitorFormat.power(charge.watts), systemImage: charge.systemImage,
+                                color: MonitorColors.battery, available: charge.available))
+        }
+        return MonitorFlowCard(input: input, branches: branches, height: 88, plate: .gridded)
+            .transaction { if reduceMotion { $0.animation = nil } }
+            .help("适配器、整机与电池使用各自实测值；流带粗细按瓦数绘制")
+    }
+
     private func powerGrid(columns: Int) -> some View {
-        let metrics: [(String, Double?, String)] = [
-            ("CPU", sample.cpuPowerWatts, "cpu"), ("GPU", sample.gpuPowerWatts, "display"),
-            ("神经网络引擎", sample.anePowerWatts, "brain"), ("内存", sample.ramPowerWatts, "memorychip"),
-            ("内存控制器", sample.dcsPowerWatts, "arrow.left.arrow.right"), ("芯片总计", sample.chipPowerWatts, "square.stack.3d.up")
+        let metrics: [(String, Double?, String, Color)] = [
+            ("CPU", sample.cpuPowerWatts, "cpu", MonitorColors.user),
+            ("GPU", sample.gpuPowerWatts, "display", MonitorColors.download),
+            ("神经网络引擎", sample.anePowerWatts, "brain", MonitorColors.wired),
+            ("内存", sample.ramPowerWatts, "memorychip", MonitorColors.memory),
+            ("内存控制器", sample.dcsPowerWatts, "arrow.left.arrow.right", MonitorColors.compressed),
+            ("芯片合计", sample.chipPowerWatts, "square.stack.3d.up", MonitorColors.temperature)
         ]
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: columns), alignment: .leading, spacing: 10) {
-            ForEach(metrics, id: \.0) { title, watts, symbol in
-                powerMetric(title, watts: watts, symbol: symbol, prominent: title == "芯片总计")
-                    .frame(minHeight: 54, alignment: .leading)
-                    .padding(10)
-                    .glassCard(radius: Theme.Radius.control,
-                               fill: title == "芯片总计" ? Theme.accent.opacity(0.10) : nil)
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: columns), alignment: .leading, spacing: 16) {
+            ForEach(metrics, id: \.0) { title, watts, symbol, color in
+                powerMetric(title, watts: watts, symbol: symbol, color: color)
             }
         }
     }
 
-    private func powerMetric(_ title: String, watts: Double?, symbol: String, prominent: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func powerMetric(_ title: String, watts: Double?, symbol: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
             Label(title, systemImage: symbol)
                 .font(.system(size: 11)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(watts.map(MonitorFormat.power) ?? "—")
-                .font(.system(size: prominent ? 22 : 20, weight: .semibold).monospacedDigit())
                 .lineLimit(1)
+            Text(watts.map(MonitorFormat.power) ?? "—")
+                .font(.system(size: 20, weight: .semibold).monospacedDigit())
+                .foregroundStyle(color)
+                .lineLimit(1)
+            GeometryReader { meter in
+                Capsule().fill(Color.primary.opacity(0.07))
+                if let watts, let total = sample.chipPowerWatts, total > 0 {
+                    Capsule().fill(color.gradient)
+                        .frame(width: meter.size.width * min(1, max(0, watts / total)))
+                }
+            }
+            .frame(height: 3)
+            .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -1387,6 +1451,7 @@ private struct MonitorDetailPreviewValues {
         let wave = (0..<60).map { 0.35 + 0.1 * sin(Double($0) * 0.3) }
         value.history.cpu = wave; value.history.memory = wave.map { $0 + 0.18 }
         value.history.gpu = wave.map { $0 * 0.7 }
+        value.history.power = (0..<60).map { 24.6 + 5 * sin(Double($0 - 59) * 0.3) }
         value.history.netDownload = wave.map { $0 * 8_000_000 }
         value.history.netUpload = wave.map { $0 * 1_200_000 }
         value.history.diskRead = wave.map { $0 * 50_000_000 }
