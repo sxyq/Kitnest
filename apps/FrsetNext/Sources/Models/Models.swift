@@ -187,10 +187,17 @@ public struct MonitorSample: Sendable {
     public var netDownload: UInt64
     public var temperatures: [String: Double]
     public var batteryLevel: Double?
-    // MARK: 整机功耗（AppleSmartBattery PowerTelemetryData，2026-10-16）
+    // MARK: 整机与芯片功耗（SMC / IOReport，共用秒级采样）
     /// 功率绝对值（W）；nil = 读不到
     public var powerWatts: Double?
-    /// true = 输入（接电源/充电），false = 输出（电池放电）
+    public var cpuPowerWatts: Double?
+    public var gpuPowerWatts: Double?
+    public var anePowerWatts: Double?
+    public var ramPowerWatts: Double?
+    public var dcsPowerWatts: Double?
+    public var chipPowerWatts: Double?
+    public var inputPowerWatts: Double?
+    /// 整机负载为输出侧；输入功率独立存入 inputPowerWatts。
     public var powerIsInput: Bool
     /// 是否正在充电（接电且 BatteryPower > 0）
     public var isCharging: Bool

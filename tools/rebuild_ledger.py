@@ -43,6 +43,10 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Monitor/Views/MonitorDetailView.swift", "powerGrid"):
+        "功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "powerMetric"):
+        "功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态",
     ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "reduce"):
         "合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距",
     # ── v249–v258 ────────────────────────────────────────────────────────

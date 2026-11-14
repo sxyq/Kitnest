@@ -26,6 +26,7 @@ public enum StatsBarEngine {
         case 4: return .network
         case 5: return .sensors
         case 6: return .battery
+        case 7: return .power
         default: return .cpu
         }
     }

@@ -22,6 +22,131 @@
 #include <sys/mount.h>          // statfs：根卷文件系统类型（FSStatsRootFileSystem）
 #import "frset_barwidgets.h"
 #import "frset_stats_data.h"
+#include <pthread.h>
+#include <math.h>
+#include <sys/sysctl.h>
+
+extern CFDictionaryRef IOReportCopyAllChannels(uint64_t, uint64_t);
+extern CFTypeRef IOReportCreateSubscription(void *, CFMutableDictionaryRef, CFMutableDictionaryRef *, uint64_t, CFTypeRef);
+extern CFDictionaryRef IOReportCreateSamples(CFTypeRef, CFMutableDictionaryRef, CFTypeRef);
+extern CFDictionaryRef IOReportCreateSamplesDelta(CFDictionaryRef, CFDictionaryRef, CFTypeRef);
+extern CFStringRef IOReportChannelGetChannelName(CFDictionaryRef);
+extern CFStringRef IOReportChannelGetGroup(CFDictionaryRef);
+extern CFStringRef IOReportChannelGetUnitLabel(CFDictionaryRef);
+extern int64_t IOReportSimpleGetIntegerValue(CFDictionaryRef, int);
+
+// macmon src/clpc.rs（macOS 27.2）：聚合计数器包含各芯片全部核心/芯粒。
+// 旧 Energy Model 在 27 上停止更新；按实际 CLPC 驱动选择，绝不以利用率估算瓦数。
+static const struct { const char *bundle; uint32_t keys[6]; } powerDrivers[] = {
+    {"com.apple.driver.AppleT6000CLPCv3", {0x47479059,0x4519bf1e,0x9aaa17f8,0xd6ca0cfb,0x05cac729,0x3c7af4b5}},
+    {"com.apple.driver.AppleT6002CLPC", {0xb501816b,0x9e2c3e8b,0x14d5a574,0x76704b08,0x2d7b7fb2,0xe16c1380}},
+    {"com.apple.driver.AppleT6020CLPC", {0xe301cd75,0x8f34cc7a,0x7415fb0f,0x26244bb6,0x5f31a20f,0x9877104c}},
+    {"com.apple.driver.AppleT6022CLPC", {0x76f5fd21,0x90624499,0x3c097307,0xe8f2ddf9,0xfa865a91,0xef56ddf3}},
+    {"com.apple.driver.AppleT6030CLPC", {0xbe03a01a,0x472d6c9c,0xb8990c38,0x23809c0f,0xb5944c6a,0xd9ac8450}},
+    {"com.apple.driver.AppleT6031CLPC", {0xd81e0084,0x1085f98b,0x313a3be1,0x65ff699d,0x10cb1f6a,0xfc3fce99}},
+    {"com.apple.driver.AppleT6032CLPC", {0xf4a21308,0x85e80513,0x63dc8e25,0x63dcaae5,0x8cc13c13,0xfaa8ecc3}},
+    {"com.apple.driver.AppleT6041CLPC", {0x263cf1f0,0x22e4cf59,0x7849fb5c,0xfe932624,0x8fc8575c,0xf70848a3}},
+    {"com.apple.driver.AppleT6050CLPC", {0xd3ab60bb,0x27cd4ce5,0x8c0f1c59,0xf3c81737,0x3d89affa,0x958cfda5}},
+    {"com.apple.driver.AppleT6050dCLPC", {0x18b3010e,0xedeca11a,0x188bd883,0xa33196f9,0x0b3c717e,0x9ee79a95}},
+    {"com.apple.driver.AppleT8103CLPCv3", {0x2cdd31f2,0x21becf42,0x0667fb81,0xc0c20839,0x31d3e1e7,0xd6858d06}},
+    {"com.apple.driver.AppleT8112CLPC", {0xb5435137,0x638d9d52,0xea089c36,0x8b6e0faa,0x9a6e145a,0x824bcad4}},
+    {"com.apple.driver.AppleT8122CLPC", {0x54b51c99,0xce2dd9dc,0x960afe2f,0x0b9641d3,0x0d802b66,0x9709cb31}},
+    {"com.apple.driver.AppleT8132CLPC", {0x4a854d94,0x3b3e3b79,0x1ff4a9ec,0x9a44d225,0xe34048d2,0x6ab990d0}},
+    {"com.apple.driver.AppleT8140CLPC", {0x9bf54436,0xef70589c,0x569d941b,0x035f5005,0x53442391,0x7f14616c}},
+    {"com.apple.driver.AppleT8142CLPC", {0x43708744,0x6a010933,0xbc5efdf0,0xe13633aa,0x2b8d7fec,0xa65ab9a8}},
+    {"com.apple.driver.AppleT8152CLPC", {0x485d4bfc,0x11784654,0x9380c6bb,0xe17c13bf,0x4e80dc41,0xf6ed063b}}
+};
+static CFTypeRef powerSubscription;
+static CFMutableDictionaryRef powerChannels;
+static CFDictionaryRef powerPrevious;
+static double powerPreviousTime, powerSampleTime;
+static pthread_mutex_t powerLock = PTHREAD_MUTEX_INITIALIZER;
+static frset_power_t powerSnapshot;
+
+static int powerDomain(NSString *name) {
+    if ([name hasSuffix:@"CPU Energy"]) return 0;
+    NSUInteger index = [@[@"GPU Energy", @"ANE", @"DRAM", @"DCS", @"Package Energy"] indexOfObject:name];
+    return index == NSNotFound ? -1 : (int)index + 1;
+}
+
+static void startPowerReport(void) {
+    NSMutableArray *channels = [NSMutableArray array];
+    char version[32]; size_t len = sizeof(version);
+    sysctlbyname("kern.osproductversion", version, &len, NULL, 0);
+    if (atoi(version) == 27) {
+        io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleCLPC"));
+        if (service) {
+            uint64_t driver = 0; IORegistryEntryGetRegistryEntryID(service, &driver);
+            NSString *bundle = CFBridgingRelease(IORegistryEntryCreateCFProperty(service, CFSTR("CFBundleIdentifier"), kCFAllocatorDefault, 0));
+            IOObjectRelease(service);
+            for (int m = 0; m < sizeof(powerDrivers)/sizeof(powerDrivers[0]); m++) {
+                if (![bundle isEqualToString:@(powerDrivers[m].bundle)]) continue;
+                const uint32_t indices[] = {16,25,24,26,27,9};
+                NSArray *names = @[@"CPU Energy",@"GPU Energy",@"ANE",@"DRAM",@"DCS",@"Package Energy"];
+                for (int i = 0; i < 6; i++) {
+                    uint64_t id = ((uint64_t)indices[i] << 32) | powerDrivers[m].keys[i];
+                    [channels addObject:[@{@"DriverID":@(driver), @"DriverName":@"AppleCLPC",
+                        @"IOReportGroupName":@"CLPC", @"IOReportSubGroupName":@"Energy Counters",
+                        @"IOReportChannelInfo":@{@"IOReportChannelUnit":@((3ULL<<56)|(118ULL<<32))},
+                        @"LegendChannel":@[@(id),@((1ULL<<32)|(2ULL<<16)|1),names[i]]} mutableCopy]];
+                }
+                break;
+            }
+        }
+    } else {
+        NSDictionary *all = CFBridgingRelease(IOReportCopyAllChannels(0, 0));
+        NSArray *items = all[@"IOReportChannels"];
+        BOOL aggregateCPU = NO;
+        for (NSDictionary *item in items) {
+            CFDictionaryRef ref = (__bridge CFDictionaryRef)item;
+            if ([(__bridge NSString *)IOReportChannelGetGroup(ref) isEqualToString:@"Energy Model"] &&
+                [(__bridge NSString *)IOReportChannelGetChannelName(ref) isEqualToString:@"CPU Energy"]) aggregateCPU = YES;
+        }
+        for (NSDictionary *item in items) {
+            CFDictionaryRef ref = (__bridge CFDictionaryRef)item;
+            NSString *name = (__bridge NSString *)IOReportChannelGetChannelName(ref);
+            int domain = powerDomain(name);
+            if (![(__bridge NSString *)IOReportChannelGetGroup(ref) isEqualToString:@"Energy Model"] || domain < 0 || domain > 5) continue;
+            if (domain == 0 && aggregateCPU && ![name isEqualToString:@"CPU Energy"]) continue;
+            [channels addObject:[item mutableCopy]];
+        }
+    }
+    if (!channels.count) return;
+    NSMutableDictionary *selected = [@{@"IOReportChannels":channels} mutableCopy];
+    powerSubscription = IOReportCreateSubscription(NULL, (__bridge CFMutableDictionaryRef)selected, &powerChannels, 0, NULL);
+}
+
+void frset_power_sample(frset_power_t *out) {
+    pthread_mutex_lock(&powerLock);
+    double now = NSProcessInfo.processInfo.systemUptime;
+    if (powerSampleTime == 0 || now - powerSampleTime >= 1) {
+        double values[6] = {NAN,NAN,NAN,NAN,NAN,NAN};
+        if (powerSampleTime == 0) startPowerReport();
+        if (powerSubscription) {
+            CFDictionaryRef next = IOReportCreateSamples(powerSubscription, powerChannels, NULL);
+            if (next && powerPrevious) {
+                NSDictionary *delta = CFBridgingRelease(IOReportCreateSamplesDelta(powerPrevious, next, NULL));
+                for (NSDictionary *item in delta[@"IOReportChannels"]) {
+                    CFDictionaryRef ref = (__bridge CFDictionaryRef)item;
+                    int domain = powerDomain((__bridge NSString *)IOReportChannelGetChannelName(ref));
+                    NSString *unit = (__bridge NSString *)IOReportChannelGetUnitLabel(ref);
+                    double scale = [unit isEqualToString:@"nJ"] ? 1e9 : [unit isEqualToString:@"uJ"] ? 1e6 : [unit isEqualToString:@"mJ"] ? 1e3 : NAN;
+                    int64_t energy = IOReportSimpleGetIntegerValue(ref, 0);
+                    if (domain < 0 || domain > 5 || !isfinite(scale) || energy < 0) continue;
+                    double watts = energy / scale / (now - powerPreviousTime);
+                    values[domain] = isnan(values[domain]) ? watts : values[domain] + watts;
+                }
+            }
+            if (powerPrevious) CFRelease(powerPrevious);
+            powerPrevious = next; powerPreviousTime = now;
+        }
+        powerSnapshot = (frset_power_t){frset_smc_read_key("PSTR"), frset_smc_read_key("PDTR"),
+            values[0],values[1],values[2],values[3],values[4],values[5]};
+        powerSampleTime = now;
+    }
+    *out = powerSnapshot;
+    pthread_mutex_unlock(&powerLock);
+}
 
 // v30：保邻看守（frset_barwidgets.m 实现；桥接头 FrsetStatsBar.h 亦声明）
 void FSBarKeepAdjacentTick(void);
@@ -124,6 +249,7 @@ static void statsTick(void) {
         frset_net_sample(&s_net);
         frset_disk_sample(&s_disk);
         frset_battery_sample(&s_batt);   // 1s（省 IORegistry 开销）
+        frset_power_sample(&g_snap.power);
     }
     frset_loadavg(&g_snap.load1, &g_snap.load5, &g_snap.load15);
     /* v126（性能审计 F1723 配套）：statfs 磁盘容量改为 30s 缓存——原先每 0.5s

@@ -14,6 +14,7 @@
 #define FRSET_BARWIDGETS_H
 
 #import <Cocoa/Cocoa.h>
+#import "frset_stats_data.h"
 
 // ---- 面板采样快照（由 frset_stats_inject.m 的 FSStatsView.tick 持续填充）----
 typedef struct {
@@ -34,6 +35,7 @@ typedef struct {
     double sensorValue;         // 用户选定传感器（默认 PPBR）当前值
     char sensorKey[8];
     double load1, load5, load15;
+    frset_power_t power;
 } FSSnap;
 
 extern FSSnap g_snap;

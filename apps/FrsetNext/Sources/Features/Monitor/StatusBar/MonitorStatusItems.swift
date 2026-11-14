@@ -13,9 +13,6 @@ public enum MonitorStatusText {
         let sample = MonitorSampler.shared.sample
         guard let watts = sample.powerWatts else { return "无数据" }
         let value = MonitorFormat.power(watts)
-        if sample.powerIsInput {
-            return sample.isCharging ? "输入 \(value)（充电中）" : "输入 \(value)"
-        }
-        return "输出 \(value)"
+        return "整机 \(value)"
     }
 }

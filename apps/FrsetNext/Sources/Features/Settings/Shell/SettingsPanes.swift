@@ -245,12 +245,17 @@ struct GeneralSettingsPane: View {
             SettingsDraftEditor(id: "menuBar", makeDraft: { MenuBarSettingsDraft() }) { draft in
                 SettingsGroupBox {
                     HStack(spacing: 12) {
-                        MenuBarIconPreview(style: draft.iconStyle, customSymbol: draft.customSymbol, cat: draft.cat)
-                            .frame(width: 40, height: 22)
-                            .allowsHitTesting(false)
-                            .accessibilityLabel("菜单栏图标固定预览")
-                        Text("菜单栏图标预览 · 固定日期与小猫帧")
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                        ForEach([false, true], id: \.self) { dark in
+                            VStack(spacing: 4) {
+                                MenuBarIconPreview(style: draft.iconStyle, customSymbol: draft.customSymbol, cat: draft.cat, dark: dark)
+                                    .frame(width: 56, height: 30)
+                                    .background(dark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .allowsHitTesting(false)
+                                    .accessibilityLabel(dark ? "深色背景图标预览" : "浅色背景图标预览")
+                                Text(dark ? "深色背景" : "浅色背景").font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
+                        }
                         Spacer()
                     }
                     SettingsDivider()

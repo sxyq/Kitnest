@@ -106,18 +106,20 @@ struct MonitorWidgetsPane: View {
 
 private struct MonitorWidgetsContent: View {
     @ObservedObject var draft: MonitorWidgetsSettingsDraft
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SettingsGroupBox {
                 Text("菜单栏预览 · 固定示例数值").font(.system(size: 11)).foregroundStyle(.secondary)
-                ScrollView(.horizontal) {
-                    MonitorWidgetsPreview(configuration: draft.configuration, modules: draft.orderedModules)
-                        .fixedSize()
-                        .padding(.vertical, 8)
+                ForEach([false, true], id: \.self) { dark in
+                    Text(dark ? "深色背景" : "浅色背景").font(.system(size: 11)).foregroundStyle(.secondary)
+                    ScrollView(.horizontal) {
+                        MonitorWidgetsPreview(configuration: draft.configuration, modules: draft.orderedModules, dark: dark)
+                            .fixedSize().padding(8)
+                    }
+                    .background(dark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
-                .background(reduceTransparency ? Color(nsColor: .windowBackgroundColor) : Color.primary.opacity(0.04))
                 if draft.orderedModules.allSatisfy({ draft.forms($0).isEmpty }) {
                     Text("所有部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -171,6 +173,11 @@ private struct MonitorWidgetsContent: View {
                     get: { !draft.forms(module).isEmpty },
                     set: { draft.setForms(module, $0 ? Array(all.prefix(1)) : []) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
+            }
+            if module.hasSuffix("Power") {
+                Text(module == "Power" ? "整机系统负载，包含芯片、屏幕及其他硬件；适配器输入另列。" : "IOReport 能量差分，单位 W；与整机功耗同时显示，不重复相加。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if !enabled.isEmpty {
                 SettingsDivider()
@@ -267,13 +274,14 @@ private struct MonitorWidgetsContent: View {
 private struct MonitorWidgetsPreview: NSViewRepresentable {
     let configuration: [String: Any]
     let modules: [String]
+    var dark: Bool? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     func makeNSView(context: Context) -> NSView {
-        FSBarCreateConfiguredPreview(modules, configuration, colorScheme == .dark)!
+        FSBarCreateConfiguredPreview(modules, configuration, dark ?? (colorScheme == .dark))!
     }
     func updateNSView(_ view: NSView, context: Context) {
-        FSBarUpdateConfiguredPreview(view, modules, configuration, colorScheme == .dark)
+        FSBarUpdateConfiguredPreview(view, modules, configuration, dark ?? (colorScheme == .dark))
         view.invalidateIntrinsicContentSize()
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSView, context: Context) -> CGSize? {
@@ -349,7 +357,7 @@ extension MonitorWidgetsPane {
         switch form {
         case "mini":
             return [OptionGroup(title: "外观", options: [
-                .toggle("标签", "label", module == "Sensors" || module == "Disk"),
+                .toggle("标签", "label", module == "Sensors" || module == "Disk" || module.hasSuffix("Power")),
                 .color("颜色", "color", "monochrome"),
                 .menu("对齐", "alignment", alignItems, "left")
             ])]
@@ -481,6 +489,9 @@ extension MonitorWidgetsPane {
         case "Network": return "arrow.up.arrow.down"
         case "Sensors": return "thermometer.medium"
         case "Battery": return "battery.100"
+        case "Power": return "bolt.fill"
+        case "CPUPower": return "cpu"
+        case "GPUPower": return "display"
         default: return "menubar.rectangle"
         }
     }

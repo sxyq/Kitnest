@@ -152,7 +152,7 @@ final class RotatingLayerView: NSView {
 
     /// 设置旋转中的图标（模板图）
     func setSymbol(_ name: String) {
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
         guard let base = NSImage(systemSymbolName: name, accessibilityDescription: name)?
             .withSymbolConfiguration(config) else { return }
         // v56（用户：风车没有中心点）：SF Symbol 的轴心是**空心环**——合成一个
@@ -290,13 +290,14 @@ struct MenuBarIconPreview: NSViewRepresentable {
     let style: MenuBarIconStyle
     let customSymbol: String
     let cat: Bool
+    var dark: Bool? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     func makeNSView(context: Context) -> NSView { NSView(frame: NSRect(x: 0, y: 0, width: 40, height: 22)) }
     func updateNSView(_ view: NSView, context: Context) {
         view.subviews.forEach { $0.removeFromSuperview() }
         if cat {
-            let content = FSRunCatCreatePreview(colorScheme == .dark)!
+            let content = FSRunCatCreatePreview(dark ?? (colorScheme == .dark))!
             content.frame.origin.x = 3
             view.addSubview(content)
         } else {
@@ -306,7 +307,7 @@ struct MenuBarIconPreview: NSViewRepresentable {
                                              date: Date(timeIntervalSince1970: 1_799_539_200))
             view.addSubview(button)
         }
-        view.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+        view.appearance = NSAppearance(named: (dark ?? (colorScheme == .dark)) ? .darkAqua : .aqua)
     }
     static func dismantleNSView(_ view: NSView, coordinator: ()) {
         view.subviews.forEach { $0.removeFromSuperview() }

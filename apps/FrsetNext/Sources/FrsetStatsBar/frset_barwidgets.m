@@ -33,7 +33,7 @@ CGFloat FSBarWidgetSpacing(void);   // 前向声明（定义见合并间距处�
 NSArray<NSString *> *FSBarAllModules(void) {
     static NSArray<NSString *> *mods;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ mods = @[@"CPU", @"RAM", @"GPU", @"Disk", @"Network", @"Sensors", @"Battery"]; });
+    dispatch_once(&once, ^{ mods = @[@"CPU", @"RAM", @"GPU", @"Disk", @"Network", @"Sensors", @"Battery", @"Power", @"CPUPower", @"GPUPower"]; });
     return mods;
 }
 
@@ -46,6 +46,7 @@ static int FSBarModuleIndex(NSString *m) {
     if ([m isEqualToString:@"Network"]) return 4;
     if ([m isEqualToString:@"Sensors"]) return 5;
     if ([m isEqualToString:@"Battery"]) return 6;
+    if ([@[@"Power", @"CPUPower", @"GPUPower"] containsObject:m]) return 7;
     return 0;
 }
 
@@ -71,6 +72,9 @@ NSArray<NSString *> *FSBarFormsForModule(NSString *m) {
             @"Network": @[@"speed", @"network_chart", @"wave", @"dots", @"state", @"label", @"icon"],
             @"Sensors": @[@"mini", @"ring", @"bar", @"wave", @"dots", @"label", @"icon"],
             @"Battery": @[@"mini", @"battery", @"bar_chart", @"ring", @"wave", @"dots", @"bar", @"state", @"label", @"icon"],
+            @"Power": @[@"mini", @"line_chart", @"icon"],
+            @"CPUPower": @[@"mini", @"line_chart", @"icon"],
+            @"GPUPower": @[@"mini", @"line_chart", @"icon"],
         };
     });
     return map[m] ?: common;
@@ -98,6 +102,9 @@ NSString *FSBarModuleName(NSString *m) {
     if ([m isEqualToString:@"Network"]) return @"网络";
     if ([m isEqualToString:@"Sensors"]) return @"传感器";
     if ([m isEqualToString:@"Battery"]) return @"电池";
+    if ([m isEqualToString:@"Power"]) return @"整机功耗";
+    if ([m isEqualToString:@"CPUPower"]) return @"CPU 功耗";
+    if ([m isEqualToString:@"GPUPower"]) return @"GPU 功耗";
     return m;
 }
 
@@ -166,6 +173,12 @@ static void FSBarSeedDefaults(NSMutableDictionary *cfg) {
     cfg[@"Sensors_widget"] = @"mini";
     cfg[@"Sensors_mini_label"] = @1; cfg[@"Sensors_mini_color"] = @"monochrome"; cfg[@"Sensors_sensor"] = @"PPBR";
     cfg[@"Battery_widget"] = @"mini";
+    for (NSString *module in @[@"Power", @"CPUPower", @"GPUPower"]) {
+        cfg[[module stringByAppendingString:@"_widget"]] = @"";
+        cfg[[module stringByAppendingString:@"_mini_label"]] = @YES;
+        cfg[[module stringByAppendingString:@"_mini_color"]] = @"monochrome";
+        cfg[[module stringByAppendingString:@"_line_chart_value"]] = @YES;
+    }
 }
 
 // 从 Stats 导入（模块列表 + 支持的选项；不支持的形态丢弃）
@@ -571,6 +584,13 @@ static NSString *FSRemainStr(double minutes) {
 // 模块主值（返回显示串 + 归一化比例 value）
 static double FSBarModuleValue(const FSSnap *s, NSString *module, NSString **str, NSString **suffix) {
     if (suffix) *suffix = @"";
+    if ([@[@"Power", @"CPUPower", @"GPUPower"] containsObject:module]) {
+        double watts = [module isEqualToString:@"Power"] ? s->power.system_w :
+            [module isEqualToString:@"CPUPower"] ? s->power.cpu_w : s->power.gpu_w;
+        if (str) *str = isfinite(watts) && watts >= 0 ? [NSString stringWithFormat:@"%.1f W", watts] : @"—";
+        if (suffix) *suffix = @"W";
+        return isfinite(watts) && watts >= 0 ? watts : NAN;
+    }
     if ([module isEqualToString:@"CPU"]) {
         if (str) *str = [NSString stringWithFormat:@"%.0f%%", s->cpuUsage * 100];
         if (suffix) *suffix = @"%";
@@ -737,8 +757,10 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     _lastUpdate = CFAbsoluteTimeGetCurrent();
     if ([_form isEqualToString:@"line_chart"]) {
         double v = [self primaryValue];
-        if (_histN < 129) { _hist[_histN] = v; _histN++; }
-        else { memmove(_hist, _hist + 1, 129 * sizeof(double)); _hist[129] = v; }
+        if (isfinite(v)) {
+            if (_histN < 129) { _hist[_histN] = v; _histN++; }
+            else { memmove(_hist, _hist + 1, 129 * sizeof(double)); _hist[129] = v; }
+        }
     } else if ([_form isEqualToString:@"network_chart"]) {
         double in = [self netIn], out = [self netOut];
         if (_histN < 129) {
@@ -804,7 +826,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         //   窄内容部件两侧留白 10~20pt，正是"有的间隔太小有的太大"的主因）
         // v134：套宽度迟滞——实测值位数变化使宽度 23↔27pt 每 7s 抖动、整条重排
         BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label",
-                                  [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"]);
+                                  [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"] || [_module hasSuffix:@"Power"]);
         NSDictionary *lattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight]};
         NSDictionary *vattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:12 weight:NSFontWeightRegular]};
         CGFloat labelW = 0;
@@ -959,7 +981,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     static NSDictionary *map = nil;
     static dispatch_once_t once;
     dispatch_once(&once, ^{ map = @{@"CPU": @"CPU", @"RAM": @"RAM", @"GPU": @"GPU",
-                                    @"Network": @"NET", @"Battery": @"BAT"}; });
+                                    @"Network": @"NET", @"Battery": @"BAT",
+                                    @"Power": @"整机", @"CPUPower": @"CPU", @"GPUPower": @"GPU"}; });
     return map[_module] ?: _module;
 }
 
@@ -1014,7 +1037,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 // ======== 形态 1：mini（Stats Mini.swift） ========
 - (void)drawMini:(NSRect)r dark:(BOOL)dark {
     BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label",
-                              [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"]);
+                              [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"] || [_module hasSuffix:@"Power"]);
     NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"monochrome");
     // v28：默认对齐曾改居中（固定宽时代内容常偏一侧）；v135 起帧宽按内容紧贴
     //（2pt 量化 + 宽度迟滞），居中会在两侧各留 (槽宽-内容)/2 的内侧空白——
@@ -1759,7 +1782,8 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
     dispatch_once(&once, ^{
         map = @{@"CPU": @"cpu", @"RAM": @"memorychip", @"GPU": @"display",
                 @"Disk": @"internaldrive", @"Network": @"arrow.up.arrow.down",
-                @"Sensors": @"thermometer.medium", @"Battery": @"battery.100"};
+                @"Sensors": @"thermometer.medium", @"Battery": @"battery.100",
+                @"Power": @"bolt.fill", @"CPUPower": @"cpu", @"GPUPower": @"display"};
     });
     return map[_module] ?: @"gearshape";
 }
@@ -3247,7 +3271,8 @@ NSString *FSBarModuleSymbol(NSString *module) {
     dispatch_once(&once, ^{
         map = @{@"CPU": @"cpu", @"RAM": @"memorychip", @"GPU": @"cube.transparent",
                 @"Disk": @"internaldrive", @"Network": @"network",
-                @"Sensors": @"thermometer", @"Battery": @"battery.100"};
+                @"Sensors": @"thermometer", @"Battery": @"battery.100",
+                @"Power": @"bolt.fill", @"CPUPower": @"cpu", @"GPUPower": @"display"};
     });
     return map[module] ?: @"gear";
 }
@@ -3271,6 +3296,7 @@ static FSSnap FSBarPreviewSnap(int tick) {
     s.batteryPresent = 1; s.batteryCharging = 0; s.batteryPercent = 75; s.batteryRemainMin = 312;
     s.gpuTemp = 45; s.sensorValue = 38.5; strcpy(s.sensorKey, "PPBR");
     s.load1 = 3.2; s.load5 = 2.8; s.load15 = 2.4;
+    s.power = (frset_power_t){24.6 + wob * 10, 36, 8.4 + wob * 5, 4.2 + wob * 3, 0.4, 1.2, 0.6, 16.8 + wob * 8};
     return s;
 }
 

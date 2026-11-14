@@ -227,45 +227,63 @@ private struct MonitorDetailContent: View {
         }
     }
 
-    // MARK: - 功耗（2026-10-16：整机能量流，输入=充电 / 输出=放电功耗）
+    // MARK: - 功耗（整机与芯片分开，不重复累加上下级传感器）
 
     private var powerPanel: some View {
-        // v183：大数字与流向图**必须同源**。原来大数字取 MonitorReader 的 powerWatts、
-        // 流向图取电池适配器读数，同一时刻能显示 19.7W / 20.17W 两个值——
-        // 用户看到的就是「一个页面两个数」。现在以流向图的输入为准，读不到才回退。
-        let flow = BatteryFlowModel(battery: stats.battery)
-        let headlineWatts = flow.input.available ? flow.input.watts : sample.powerWatts
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                Image(systemName: sample.powerIsInput ? "bolt.fill" : "bolt.slash.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(sample.powerIsInput ? MonitorColors.battery : MonitorColors.user)
-                    .frame(width: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: sample.powerIsInput
-                         ? (sample.isCharging ? "输入（充电中）" : "输入（接电源）")
-                         : "输出（电池供电）")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text(headlineWatts.map { MonitorFormat.power($0) } ?? "—")
-                        .font(.system(size: 24, weight: .semibold).monospacedDigit())
+            HStack(alignment: .top, spacing: 12) {
+                powerMetric("整机功耗", watts: sample.powerWatts, symbol: "bolt.fill", prominent: true)
+                if let input = sample.inputPowerWatts {
+                    powerMetric("适配器输入", watts: input, symbol: "powerplug.fill", prominent: true)
                 }
             }
-
-            // v181：复用电池页那张流向图（来源 → 流带 → 分支），两个页面口径统一。
-            // 分支只画真拿到读数的：机型不给显示器/USB 功率就没有这两条，绝不补 0 W。
-            let powerBranches = flow.branches + powerExtraBranches(stats.sensors)
-            if !powerBranches.isEmpty {
-                MonitorSectionTitle("电源流向")
-                MonitorFlowCard(input: flowNode(flow.input),
-                                branches: powerBranches.map(flowNode))
-                // v216（用户：「其他界面的这种说明性文字全部都删掉」）：删掉流带口径说明。
+            .padding(12).glassCard(radius: Theme.Radius.card)
+            MonitorSectionTitle("芯片功耗")
+            ViewThatFits(in: .horizontal) {
+                powerGrid(columns: 3).frame(minWidth: 450)
+                powerGrid(columns: 2)
             }
+            .padding(12).glassCard(radius: Theme.Radius.card)
+            Text("整机读取 PSTR 系统负载；适配器输入含充电。芯片各项按能量差分计算，已包含在整机中。— 表示尚无有效读数。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            DisclosureGroup("其他功率传感器（独立读数）") {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
+                    ForEach(stats.sensors.filter { $0.category == 4 }, id: \.key) { sensor in
+                        powerMetric("\(sensor.name) · \(sensor.key)", watts: sensor.value, symbol: "waveform.path")
+                    }
+                }
+                .padding(.top, 8)
+            }.font(.system(size: 12))
             // v183：应用级能耗（原来在电池页，属于「电被谁用了」→ 功耗页）
             if !isSettingsPreview { CPUEnergyImpactSection(stats: stats) }
 
-            // v216：删掉「数据源：AppleSmartBattery PowerTelemetryData…」脚注。
         }
+    }
+
+    private func powerGrid(columns: Int) -> some View {
+        let metrics: [(String, Double?, String)] = [
+            ("CPU", sample.cpuPowerWatts, "cpu"), ("GPU", sample.gpuPowerWatts, "display"),
+            ("神经网络引擎", sample.anePowerWatts, "brain"), ("内存", sample.ramPowerWatts, "memorychip"),
+            ("内存控制器", sample.dcsPowerWatts, "arrow.left.arrow.right"), ("芯片总计", sample.chipPowerWatts, "square.stack.3d.up")
+        ]
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), alignment: .leading, spacing: 14) {
+            ForEach(metrics, id: \.0) { title, watts, symbol in
+                powerMetric(title, watts: watts, symbol: symbol)
+            }
+        }
+    }
+
+    private func powerMetric(_ title: String, watts: Double?, symbol: String, prominent: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(watts.map(MonitorFormat.power) ?? "—")
+                .font(.system(size: prominent ? 22 : 18, weight: .semibold).monospacedDigit())
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - CPU
@@ -630,39 +648,6 @@ private struct MonitorDetailContent: View {
         let minutes = Int(coverage / 60)
         if minutes >= 10 { return "最近 10 分钟" }
         return "最近 \(minutes) 分钟"
-    }
-
-    /// 电池流向节点 → 通用流向节点
-    private func flowNode(_ node: BatteryFlowNode) -> MonitorFlowNode {
-        MonitorFlowNode(id: node.id,
-                        title: node.title,
-                        value: node.watts,
-                        valueText: node.available ? BatteryEnergySampler.wattsText(node.watts) : "—",
-                        systemImage: node.systemImage,
-                        color: node.color,
-                        available: node.available)
-    }
-
-    /// 机型提供的额外功耗分支（显示器 / USB）。
-    /// 只在 SMC 真有对应功率传感器（category = 4 功率）时出现——没读数不补 0。
-    private func powerExtraBranches(_ sensors: [StatsSensorItem]) -> [BatteryFlowNode] {
-        let powerSensors = sensors.filter { $0.category == 4 && $0.value > 0.05 && $0.value < 500 }
-        let specs: [(id: String, title: String, icon: String,
-                     keys: [String], color: Color)] = [
-            ("display", "显示器", "display",
-             ["pdb", "display", "backlight", "panel"], MonitorColors.compressed),
-            ("usb", "USB", "cable.connector",
-             ["usb", "d1", "d2", "d3", "d4"], MonitorColors.wired),
-        ]
-        return specs.compactMap { spec in
-            let hits = powerSensors.filter { item in
-                let key = item.key.lowercased(), name = item.name.lowercased()
-                return spec.keys.contains { key.hasPrefix($0) || name.contains($0) }
-            }
-            guard let worst = hits.max(by: { $0.value < $1.value }) else { return nil }
-            return BatteryFlowNode(id: spec.id, title: spec.title, watts: worst.value,
-                                   systemImage: spec.icon, color: spec.color, available: true)
-        }
     }
 
     // MARK: - 网络
@@ -1356,8 +1341,11 @@ private struct MonitorDetailPreviewValues {
         value.sample.netDownload = 2_800_000; value.sample.netUpload = 400_000
         value.sample.diskRead = 18_000_000; value.sample.diskWrite = 7_000_000
         value.sample.temperatures = ["CPU 包温": 48, "GPU": 43, "电池": 31]
-        value.sample.batteryLevel = 0.75; value.sample.powerWatts = 36
-        value.sample.powerIsInput = true; value.sample.isCharging = true; value.sample.externalPower = true
+        value.sample.batteryLevel = 0.75; value.sample.powerWatts = 24.6
+        value.sample.inputPowerWatts = 36; value.sample.cpuPowerWatts = 8.4; value.sample.gpuPowerWatts = 4.2
+        value.sample.anePowerWatts = 0.4; value.sample.ramPowerWatts = 1.2
+        value.sample.dcsPowerWatts = 0.6; value.sample.chipPowerWatts = 16.8
+        value.sample.powerIsInput = false; value.sample.isCharging = true; value.sample.externalPower = true
         let wave = (0..<60).map { 0.35 + 0.1 * sin(Double($0) * 0.3) }
         value.history.cpu = wave; value.history.memory = wave.map { $0 + 0.18 }
         value.history.gpu = wave.map { $0 * 0.7 }

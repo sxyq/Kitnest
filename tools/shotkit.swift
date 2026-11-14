@@ -78,19 +78,24 @@ guard let win = target else {
 
 // 等内容渲染 / 动画收敛
 Thread.sleep(forTimeInterval: settle)
+// 神灯入场会先把原窗移到屏幕外；SCWindow 保存的是查询时的位置，抓取前重新取同一窗口。
+guard let live = await ownWindows().first(where: { $0.windowID == win.windowID }) else {
+    print("✗ 目标窗口已关闭")
+    exit(2)
+}
 
 do {
-    let filter = SCContentFilter(desktopIndependentWindow: win)
+    let filter = SCContentFilter(desktopIndependentWindow: live)
     let config = SCStreamConfiguration()
-    config.width = Int(win.frame.width * 2)
-    config.height = Int(win.frame.height * 2)
+    config.width = Int(live.frame.width)
+    config.height = Int(live.frame.height)
     config.showsCursor = false
     config.captureResolution = .best
     let cg: CGImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
     let rep = NSBitmapImageRep(cgImage: cg)
     let data = rep.representation(using: .png, properties: [:])!
     try data.write(to: URL(fileURLWithPath: outPath))
-    print("✓ 窗口 id=\(win.windowID) 标题=「\(win.title ?? "")」 逻辑尺寸=\(Int(win.frame.width))x\(Int(win.frame.height)) "
+    print("✓ 窗口 id=\(live.windowID) 标题=「\(live.title ?? "")」 逻辑尺寸=\(Int(live.frame.width))x\(Int(live.frame.height)) "
         + "像素=\(rep.pixelsWide)x\(rep.pixelsHigh) 文件=\(data.count) bytes")
 } catch {
     print("✗ 抓取失败：\(error)")

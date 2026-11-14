@@ -108,6 +108,7 @@ swiftc $OPT_FLAGS -parse-as-library \
   -o "$APP/Contents/MacOS/Kitnest" $FILES $OBJ_FILES \
   -import-objc-header "$BRIDGE" \
   -lsqlite3 \
+  -lIOReport \
   -framework AppKit -framework SwiftUI -framework Combine \
   -framework CoreGraphics -framework CoreImage -framework ImageIO \
   -framework Vision -Xlinker -weak_framework -Xlinker Translation -framework ScreenCaptureKit -framework EventKit \

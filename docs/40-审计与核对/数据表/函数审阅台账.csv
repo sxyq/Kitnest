@@ -2235,13 +2235,13 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readRawTempe
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readSMCTemperature,func,433,KEEP,readRawTemperatures:432
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,smcCall,func,468,KEEP,readSMCTemperature:446、453
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,487,KEEP,readResult:168
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,509,KEEP,readResult:178
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,551,KEEP,readCPU:233-235、readNetworkRate:340、readDiskRate:378
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,555,KEEP,readNetworkRate:340-341、readDiskRate:378-379
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,562,KEEP,readCPU:240/245-247、readMemory:278、readBatteryLevel:504
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,567,KEEP,readDiskRate:365-366
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharCode,func,573,KEEP,readSMCTemperature:441
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharString,func,577,KEEP,readSMCTemperature:458 判 dataType
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,505,KEEP,readResult:178
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,532,KEEP,readCPU:233-235、readNetworkRate:340、readDiskRate:378
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,536,KEEP,readNetworkRate:340-341、readDiskRate:378-379
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,543,KEEP,readCPU:240/245-247、readMemory:278、readBatteryLevel:504
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,548,KEEP,readDiskRate:365-366
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharCode,func,554,KEEP,readSMCTemperature:441
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharString,func,558,KEEP,readSMCTemperature:458 判 dataType
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,34,KEEP,MonitorSampler:16/48/49 构造；resetHistory:326
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,62,KEEP,MonitorPopoutWindow.swift:242/323/359
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,73,KEEP,PanelController.swift:259/280/353
@@ -2295,15 +2295,15 @@ Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,f
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,862,KEEP,BatteryPanel.swift:100 预计剩余时间
 Monitor,Features/Monitor/StatusBar/MonitorStatusItems.swift,MonitorStatusText,powerDetailText,func,12,KEEP,MonitorSettingsPane.swift:223 功耗行文案
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,38,KEEP,MonitorModule.swift:32；开关观察者:178 重启
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,156,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,observeGlobalEntryToggle,func,171,KEEP,start:42
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,startScreenGapProbe,func,199,KEEP,start:68
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,syncMainItem,func,251,KEEP,StatusBarController.swift:81、start:67
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openMonitor,func,265,KEEP,C 跳板:316 + 探针:138/144
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openSettings,func,294,KEEP,MonitorDetailView:1244、SettingsPanes:187
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openRecorder,func,303,KEEP,PanelRootView:485、CaptureSectionView:98
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,-,statsBarOpenMonitorTrampoline,func,314,KEEP,作为 C 函数指针交 FSStatsSetOpenMonitorHandler，StatsBarEngine:66
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,157,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,observeGlobalEntryToggle,func,172,KEEP,start:42
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,startScreenGapProbe,func,200,KEEP,start:68
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,syncMainItem,func,252,KEEP,StatusBarController.swift:81、start:67
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openMonitor,func,266,KEEP,C 跳板:316 + 探针:138/144
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openSettings,func,295,KEEP,MonitorDetailView:1244、SettingsPanes:187
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openRecorder,func,304,KEEP,PanelRootView:485、CaptureSectionView:98
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,-,statsBarOpenMonitorTrampoline,func,315,KEEP,作为 C 函数指针交 FSStatsSetOpenMonitorHandler，StatsBarEngine:66
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsModulePage,init,init,22,KEEP,SettingsRootView.swift:126
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsRing,init,init,51,KEEP,segments 版，StatsModulePanels:590、719
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsRing,init,init,57,KEEP,value 版，StatsModulePanels:581、842
@@ -2446,21 +2446,21 @@ Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorPerformanceContent
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailView,init,init,49,KEEP,同名重载错挂：init(selection:pageMode:fixedWidth:) 是 :25 在用；init(module:) 已删
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,init,init,105,KEEP,MonitorDetailView 保存选择/页模式/宽度；MonitorDetailContent 接收采样、历史、Stats、额外指标和卷列表及可选真实控制器，固定预览使用独立选择与静态数据
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,191,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,417,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,452,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,461,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,472,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,557,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,571,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,627,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowNode,func,636,KEEP,将 BatteryFlowNode 的瓦数、标题、图标、颜色和可用性转为通用 MonitorFlowNode，缺功率用破折号
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerExtraBranches,func,648,KEEP,从传入传感器的功率类别4筛选0.05…500W，匹配显示器和USB关键字，各分支取最大有效读数
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,821,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,965,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1116,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1153,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1181,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1223,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,264,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,277,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,435,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,470,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,479,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,490,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,575,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,589,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,645,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,806,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,950,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1101,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1138,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1166,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1208,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,thickness,func,59,KEEP,同文件:214 ribbonArea 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,nodeIcon,func,152,KEEP,同文件:132、170 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,branchTile,func,165,KEEP,同文件:92 body ForEach 调用
@@ -2943,27 +2943,27 @@ Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettings
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,importStats,func,77,KEEP,先把草稿恢复默认，再合并 FSBarImportedConfiguration 读取的 Stats 配置，统一保存前不写 widgets.plist
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,save,func,82,KEEP,按 NSObjectEqual 求出相对 saved 的变更值及移除键，交给 FSBarSaveConfiguration 原子写入；失败返回原因，成功更新 saved 并重载正式部件
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,NSObjectEqual,func,93,KEEP,保存时用 NSObject.isEqual 比较草稿值和原值；原键不存在则视为新值，供只写改动的配置差异使用
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,moduleCard,func,156,KEEP,按草稿顺序绘制模块卡、启用形态及各形态设置；显示、模块/形态排序、更新间隔、传感器选择和单模块默认都只更新 draft.configuration
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionRow,func,231,KEEP,部件细项复用 96pt 标题列及至少 26pt 控件行，供间隔、传感器和四类形态控件使用
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,boolBinding,func,238,KEEP,形态开关从 draft.bool 读取，赋值只写 configuration 的指定键，不调用 FSBarCfgSet
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,stringBinding,func,241,KEEP,形态菜单及颜色控件从 draft.string 读取，赋值只更新指定草稿字符串键
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,numberBinding,func,244,KEEP,数值滑条把草稿字符串转 Double，拖动后按零位小数写回同一草稿键，供配置序列化复用
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionControl,func,248,KEEP,按 OptionSpec 分发开关、菜单、颜色和滑条，统一拼 module_form_ 前缀并绑定草稿配置
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,makeNSView,func,272,KEEP,直接返回FSBarCreateConfiguredPreview创建的22pt正式部件画布，按草稿模块/形态顺序装入固定数值和图线历史，不增加空宿主容器或菜单栏状态项
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,updateNSView,func,275,KEEP,调用FSBarUpdateConfiguredPreview先将原生画布高度设为22pt，再按module/form复用部件并更新草稿配置、移除失效形态及重排；新增图线装入120个固定样本，其他形态取最后一个样本
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,sizeThatFits,func,279,KEEP,SwiftUI尺寸提案保留原生画布实际宽度并固定返回22pt高度，与FSBarUpdateConfiguredPreview设置的画布高度一致，避免被压至8pt而裁掉图线和双行网络
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,dismantleNSView,func,282,KEEP,部件预览卸载时移除容器全部子视图，释放正式绘制组件
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,toggle,func,298,KEEP,本文件:582 等 optionGroups 构造
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,menu,func,301,KEEP,本文件:584 等 optionGroups 构造
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,color,func,304,KEEP,本文件:583 等 optionGroups 构造
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,slider,func,308,KEEP,本文件:600/629/671 构造
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,optionGroups,func,348,KEEP,本文件:276；WidgetSettingsSelfTest.swift:141
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,moduleSymbol,func,475,KEEP,本文件:162 模块图标
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,write,func,532,KEEP,本文件:735/743/776 写配置
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,displayName,func,544,KEEP,本文件:751 菜单标题
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,swatch,func,550,KEEP,本文件:748 色块预览
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,color,func,580,KEEP,本文件:773/787 hex 转色
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,hex,func,590,KEEP,本文件:775 取色转 hex
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,moduleCard,func,158,KEEP,按草稿顺序绘制模块卡、启用形态及各形态设置；显示、模块/形态排序、更新间隔、传感器选择和单模块默认都只更新 draft.configuration
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionRow,func,238,KEEP,部件细项复用 96pt 标题列及至少 26pt 控件行，供间隔、传感器和四类形态控件使用
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,boolBinding,func,245,KEEP,形态开关从 draft.bool 读取，赋值只写 configuration 的指定键，不调用 FSBarCfgSet
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,stringBinding,func,248,KEEP,形态菜单及颜色控件从 draft.string 读取，赋值只更新指定草稿字符串键
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,numberBinding,func,251,KEEP,数值滑条把草稿字符串转 Double，拖动后按零位小数写回同一草稿键，供配置序列化复用
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionControl,func,255,KEEP,按 OptionSpec 分发开关、菜单、颜色和滑条，统一拼 module_form_ 前缀并绑定草稿配置
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,makeNSView,func,280,KEEP,直接返回FSBarCreateConfiguredPreview创建的22pt正式部件画布，按草稿模块/形态顺序装入固定数值和图线历史，不增加空宿主容器或菜单栏状态项
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,updateNSView,func,283,KEEP,调用FSBarUpdateConfiguredPreview先将原生画布高度设为22pt，再按module/form复用部件并更新草稿配置、移除失效形态及重排；新增图线装入120个固定样本，其他形态取最后一个样本
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,sizeThatFits,func,287,KEEP,SwiftUI尺寸提案保留原生画布实际宽度并固定返回22pt高度，与FSBarUpdateConfiguredPreview设置的画布高度一致，避免被压至8pt而裁掉图线和双行网络
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,dismantleNSView,func,290,KEEP,部件预览卸载时移除容器全部子视图，释放正式绘制组件
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,toggle,func,306,KEEP,本文件:582 等 optionGroups 构造
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,menu,func,309,KEEP,本文件:584 等 optionGroups 构造
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,color,func,312,KEEP,本文件:583 等 optionGroups 构造
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,slider,func,316,KEEP,本文件:600/629/671 构造
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,optionGroups,func,356,KEEP,本文件:276；WidgetSettingsSelfTest.swift:141
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,moduleSymbol,func,483,KEEP,本文件:162 模块图标
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,write,func,543,KEEP,本文件:735/743/776 写配置
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,displayName,func,555,KEEP,本文件:751 菜单标题
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,swatch,func,561,KEEP,本文件:748 色块预览
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,color,func,591,KEEP,本文件:773/787 hex 转色
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,hex,func,601,KEEP,本文件:775 取色转 hex
 Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,init,init,30,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调
 Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,observeChanges,func,56,KEEP,合并 personalization 与 floating 的 objectWillChange 并转发到外观草稿，使缓存编辑器和正式预览同步重绘，不再通过 previewRevision 重建内容
 Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,save,func,75,KEEP,按 scope 只应用该页面板、悬浮窗、动作条或主题字段，再经 Personalization.applyDraft 写该模块 DraftField；synchronize 失败保留草稿并返回原因，成功更新保存快照
@@ -3076,14 +3076,14 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,restor
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,discard,func,53,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,save,func,60,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因
 Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceChoices,func,232,KEEP,通用外观四选 Picker 双向绑定当前 AppearanceSettingsDraft.appearance；正式主题只由 shared scope 的 save 调用 AppearanceManager.apply
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,entryRow,func,307,KEEP,常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,325,KEEP,本文件:61/66/70 等行布局
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,actionButton,func,340,KEEP,本文件:105/175/187 按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,openDetail,func,348,KEEP,本文件:175 管理按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,357,KEEP,本文件:138 卡片标题
-Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,501,KEEP,本文件:498/500 双按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,588,KEEP,本文件:608 onSubmit/609 按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,611,KEEP,本文件:686/715 增删名单
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,entryRow,func,312,KEEP,常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,330,KEEP,本文件:61/66/70 等行布局
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,actionButton,func,345,KEEP,本文件:105/175/187 按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,openDetail,func,353,KEEP,本文件:175 管理按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,362,KEEP,本文件:138 卡片标题
+Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,506,KEEP,本文件:498/500 双按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,593,KEEP,本文件:608 onSubmit/609 按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,616,KEEP,本文件:686/715 增删名单
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,init,31,KEEP,SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,208,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位
@@ -3117,25 +3117,25 @@ StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,spin,func,
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,stop,func,239,KEEP,调用方 stopRotating:534
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,configure,func,250,KEEP,正式图标应用器和预览共用按钮绘制：logo/custom 使用模板 SF Symbol，date 写日期标题，fan 挂居中的 18pt RotatingLayerView 并返回视图
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,dateTitle,func,279,KEEP,使用 en_US_POSIX 的 M/d 日期格式，正式状态项传当前时间，菜单栏预览传固定日期
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeNSView,func,295,KEEP,建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,updateNSView,func,296,KEEP,移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,dismantleNSView,func,311,KEEP,菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,selectIconStyle,func,325,KEEP,@objc；#selector StatusBarMenuBuilder.swift:202，target shared
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,func,333,KEEP,@objc；#selector StatusBarMenuBuilder.swift:214
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,hideIconOption,func,339,KEEP,@objc；#selector StatusBarMenuBuilder.swift:223
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,toastHidden,func,344,KEEP,调用方 hideIconOption:273（同文件私有）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,restoreIconOption,func,349,KEEP,@objc；#selector StatusBarMenuBuilder.swift:224
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,func,368,KEEP,调用方 updateFanSpeed:508
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,func,383,KEEP,调用方 current:301（私有）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,init,init,436,KEEP,shared:348 初始化，经 StatusBarModule.swift:14 start() 触达
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,func,440,KEEP,调用方 StatusBarModule.swift:14
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,func,466,KEEP,调用方同文件 :261/:266/:283（菜单动作）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,func,470,KEEP,UserDefaults 观察者 :376/:387，start:389 亦调用
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,func,496,KEEP,调用方 apply:431（date 样式）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,func,510,KEEP,调用方 apply:441（fan 样式）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,func,524,KEEP,调用方 startFan:502 及 cpu 定时器回调:498
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,func,550,KEEP,调用方 apply:414
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,func,557,KEEP,调用方 apply:413
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeNSView,func,296,KEEP,建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,updateNSView,func,297,KEEP,移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,dismantleNSView,func,312,KEEP,菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,selectIconStyle,func,326,KEEP,@objc；#selector StatusBarMenuBuilder.swift:202，target shared
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,func,334,KEEP,@objc；#selector StatusBarMenuBuilder.swift:214
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,hideIconOption,func,340,KEEP,@objc；#selector StatusBarMenuBuilder.swift:223
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,toastHidden,func,345,KEEP,调用方 hideIconOption:273（同文件私有）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,restoreIconOption,func,350,KEEP,@objc；#selector StatusBarMenuBuilder.swift:224
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,func,369,KEEP,调用方 updateFanSpeed:508
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,func,384,KEEP,调用方 current:301（私有）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,init,init,437,KEEP,shared:348 初始化，经 StatusBarModule.swift:14 start() 触达
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,func,441,KEEP,调用方 StatusBarModule.swift:14
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,func,467,KEEP,调用方同文件 :261/:266/:283（菜单动作）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,func,471,KEEP,UserDefaults 观察者 :376/:387，start:389 亦调用
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,func,497,KEEP,调用方 apply:431（date 样式）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,func,511,KEEP,调用方 apply:441（fan 样式）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,func,525,KEEP,调用方 startFan:502 及 cpu 定时器回调:498
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,func,551,KEEP,调用方 apply:414
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,func,558,KEEP,调用方 apply:413
 StatusBar,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,cardValue,func,214,KEEP,调用方 overviewCards:217
 StatusBar,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,summaryRow,func,234,KEEP,调用方 overviewSummary:233/235/237
 StatusBar,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,loadData,func,252,KEEP,调用方 .onAppear(perform:):164（SwiftUI 派发）
@@ -3769,9 +3769,9 @@ Models,Models/Models.swift,Tag,init,init,113,KEEP,TagStore.swift:27/76 构造
 Models,Models/Models.swift,ToolInvocationRecord,init,init,134,KEEP,ToolRegistry.swift:192 构造
 Models,Models/Models.swift,LLMMessage,init,init,150,KEEP,LLMSessionStore:105/127、LLMService:93 构造
 Models,Models/Models.swift,LLMChatSession,init,init,163,KEEP,LLMSessionStore:23/51/67 构造
-Models,Models/Models.swift,MonitorSample,init,init,199,KEEP,MonitorSampler:14 与 MonitorReader:142 构造
-Models,Models/Models.swift,CalendarDay,init,init,227,KEEP,CalendarService:159、CalendarSectionView:274 构造
-Models,Models/Models.swift,CalendarEvent,init,init,241,KEEP,CalendarService.swift:93 构造
+Models,Models/Models.swift,MonitorSample,init,init,206,KEEP,MonitorSampler:14 与 MonitorReader:142 构造
+Models,Models/Models.swift,CalendarDay,init,init,234,KEEP,CalendarService:159、CalendarSectionView:274 构造
+Models,Models/Models.swift,CalendarEvent,init,init,248,KEEP,CalendarService.swift:93 构造
 Models,Models/SearchEngine.swift,SearchEngine,init,init,20,KEEP,builtInEngines:61-71 与 addCustomEngine:174 构造
 Models,Models/SearchEngine.swift,SearchServiceManager,init,init,101,KEEP,shared 单例 :48 调用（init 内 load:100）
 Models,Models/SearchEngine.swift,SearchServiceManager,makeDraft,func,107,KEEP,以同一 defaults 创建 persistsChanges=false 管理器再复制当前值，草稿复用正式引擎操作而不装载/写偏好

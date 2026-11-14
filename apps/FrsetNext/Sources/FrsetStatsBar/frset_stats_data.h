@@ -52,6 +52,13 @@ void frset_mem_sample(frset_mem_t *out);
 void frset_net_sample(frset_net_t *out);
 void frset_disk_sample(frset_disk_t *out);
 
+typedef struct {
+    double system_w, input_w;
+    double cpu_w, gpu_w, ane_w, ram_w, dcs_w, chip_w;
+} frset_power_t;
+/// PSTR/PDTR 与 IOReport 区间能量；NAN 表示无读数，整机不与子系统求和。
+void frset_power_sample(frset_power_t *out);
+
 // ---- 格式化工具 ----
 void frset_fmt_bytes(uint64_t v, char *buf, int buflen);
 void frset_fmt_rate(uint64_t v, char *buf, int buflen);
