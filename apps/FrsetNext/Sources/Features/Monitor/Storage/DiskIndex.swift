@@ -719,7 +719,11 @@ final class DiskIndexStore: ObservableObject {
     static func findNode(_ node: DiskNode?, path: String) -> DiskNode? {
         guard let node else { return nil }
         if node.path == path { return node }
-        for c in node.children { if let hit = findNode(c, path: path) { return hit } }
+        let directoryPath = path.hasPrefix("disk-folded:") ? String(path.dropFirst("disk-folded:".count)) : path
+        for c in node.children where c.path == path || c.path == directoryPath
+            || directoryPath.hasPrefix(c.path == "/" ? "/" : c.path + "/") {
+            if let hit = findNode(c, path: path) { return hit }
+        }
         return nil
     }
 

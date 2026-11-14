@@ -162,7 +162,10 @@ private final class DiskLayoutCache {
 
 /// 一次轮廓插值供填色、同心线、文字裁切和边框共用。
 private struct LiquidTileDrawing<Label: View>: View, Animatable {
-    var points: [CGPoint]
+    let points: [CGPoint]
+    var pressurePoint: CGPoint
+    var pressure: CGFloat
+    let reach: CGFloat
     let fill: Color
     let outline: Color
     let lineWidth: CGFloat
@@ -170,24 +173,30 @@ private struct LiquidTileDrawing<Label: View>: View, Animatable {
     let labelPosition: CGPoint
     let label: Label
 
-    var animatableData: PolygonAnimatableVector {
-        get { PolygonAnimatableVector(values: points.flatMap { [$0.x, $0.y] }) }
+    // 只插值压力场的三个数值，静态轮廓与文字不参与逐帧向量运算。
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat> {
+        get { AnimatablePair(AnimatablePair(pressurePoint.x, pressurePoint.y), pressure) }
         set {
-            guard newValue.values.count >= 6 else { return }
-            points = stride(from: 0, to: newValue.values.count, by: 2).map {
-                CGPoint(x: newValue.values[$0], y: newValue.values[$0 + 1])
-            }
+            pressurePoint = CGPoint(x: newValue.first.first, y: newValue.first.second)
+            pressure = newValue.second
         }
     }
 
     var body: some View {
         Canvas { context, _ in
-            let path = VoronoiTreemap.roundedPath(points, radius: 0)
+            let contour = pressure == 0 ? points : points.map { vertex in
+                let dx = vertex.x - pressurePoint.x, dy = vertex.y - pressurePoint.y
+                // 相邻图块共用全局压力场，移动与离开时连续挤压、回弹。
+                let displacement = pressure * 44 / reach
+                    * exp(-(dx * dx + dy * dy) / (reach * reach) * 1.45)
+                return CGPoint(x: vertex.x + dx * displacement, y: vertex.y + dy * displacement)
+            }
+            let path = VoronoiTreemap.roundedPath(contour, radius: 0)
             var content = context
             content.clip(to: path)
             content.fill(path, with: .color(fill))
             if isFreeSpace {
-                let center = VoronoiTreemap.centroid(points)
+                let center = VoronoiTreemap.centroid(contour)
                 for i in 1..<6 {
                     let f = 1 - CGFloat(i) * 0.14
                     let transform = CGAffineTransform(a: f, b: 0, c: 0, d: f,
@@ -200,29 +209,6 @@ private struct LiquidTileDrawing<Label: View>: View, Animatable {
         } symbols: {
             label.tag(0)
         }
-    }
-}
-
-private struct PolygonAnimatableVector: VectorArithmetic {
-    var values: [CGFloat]
-
-    static var zero: Self { Self(values: []) }
-    var magnitudeSquared: Double { values.reduce(0) { $0 + Double($1 * $1) } }
-
-    mutating func scale(by rhs: Double) {
-        values = values.map { $0 * CGFloat(rhs) }
-    }
-
-    static func + (lhs: Self, rhs: Self) -> Self {
-        if lhs.values.isEmpty { return rhs }
-        if rhs.values.isEmpty { return lhs }
-        return Self(values: zip(lhs.values, rhs.values).map { $0.0 + $0.1 })
-    }
-
-    static func - (lhs: Self, rhs: Self) -> Self {
-        if lhs.values.isEmpty { return Self(values: rhs.values.map { -$0 }) }
-        if rhs.values.isEmpty { return lhs }
-        return Self(values: zip(lhs.values, rhs.values).map { $0.0 - $0.1 })
     }
 }
 
@@ -260,9 +246,8 @@ struct StorageTreemap: View {
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
-    @Stored private var hoveredID: String?
     @Stored private var selectedID: String?
-    @Stored private var hoverPoint: CGPoint?
+    @Stored private var hover = (point: CGPoint.zero, id: Optional<String>.none, active: false)
 
     var body: some View {
         GeometryReader { geo in
@@ -295,30 +280,32 @@ struct StorageTreemap: View {
                     case .active(let location):
                         let inside = StorageMapShape().path(in: CGRect(origin: .zero, size: geo.size))
                             .contains(location)
-                        let nextPoint = inside && !reduceMotion ? location : nil
+                        let nextPoint = inside && !reduceMotion ? location : hover.point
                         let nextID = inside ? tiles.first { $0.hitPath.contains(location) }?.id : nil
-                        if hoverPoint != nextPoint { hoverPoint = nextPoint }
-                        if hoveredID != nextID { hoveredID = nextID }
+                        let active = inside && !reduceMotion
+                        if hover.point != nextPoint || hover.id != nextID || hover.active != active {
+                            hover = (nextPoint, nextID, active)
+                        }
                     case .ended:
-                        if hoveredID != nil { hoveredID = nil }
-                        if hoverPoint != nil { hoverPoint = nil }
+                        if hover.id != nil || hover.active { hover = (hover.point, nil, false) }
                     }
                 }
                 .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
-                           value: hoverPoint)
+                           value: hover.point)
+                .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
+                           value: hover.active)
             }
         }
         .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
         .clipShape(StorageMapShape())
-        .onChange(of: indexRevision) { _ in selectedID = nil; hoveredID = nil; hoverPoint = nil }
+        .onChange(of: indexRevision) { _ in selectedID = nil; hover = (.zero, nil, false) }
     }
 
     private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
         let tileFrame = t.frame
-        let point = hoverPoint.map { CGPoint(x: $0.x - tileFrame.minX, y: $0.y - tileFrame.minY) }
-        let local = liquidPoints(t.contour, around: point, in: size)
+        let point = CGPoint(x: hover.point.x - tileFrame.minX, y: hover.point.y - tileFrame.minY)
         let isSelected = selectedID == t.id
-        let isHovered = hoveredID == t.id
+        let isHovered = hover.id == t.id
         let ink = contentColor(t.ratio)
         return Button {
             if t.isFreeSpace { onBack?(); return }
@@ -327,7 +314,9 @@ struct StorageTreemap: View {
         } label: {
             // 只变形绘制层；热区保持静止，避免气泡推开指针后反复进出。
             ZStack {
-                LiquidTileDrawing(points: local,
+                LiquidTileDrawing(points: t.contour, pressurePoint: point,
+                    pressure: hover.active && !reduceMotion ? 1 : 0,
+                    reach: max(140, min(260, min(size.width, size.height) * 0.42)),
                     fill: t.isFreeSpace ? Color.primary.opacity(0.055) : fill(t.ratio),
                     outline: isSelected || isHovered ? Theme.accent : Color.primary.opacity(0.10),
                     lineWidth: isSelected || isHovered ? 2 : 0.5,
@@ -351,19 +340,6 @@ struct StorageTreemap: View {
                 + (t.node.isAggregate
                    ? (t.node.canDrill ? " · 点击查看全部子项" : " · 聚合占用，仅供查看")
                    : " · \(t.node.path)"))
-    }
-
-    private func liquidPoints(_ polygon: [CGPoint], around point: CGPoint?, in size: CGSize) -> [CGPoint] {
-        guard !reduceMotion, let point else { return polygon }
-        let reach = max(140, min(260, min(size.width, size.height) * 0.42))
-        return polygon.map { vertex in
-            let dx = vertex.x - point.x
-            let dy = vertex.y - point.y
-            // 同一全局压力场作用于所有轮廓，相邻边一起挤压；中心处连续归零。
-            let pressure = 44 / reach * exp(-(dx * dx + dy * dy) / (reach * reach) * 1.45)
-            return CGPoint(x: vertex.x + dx * pressure,
-                           y: vertex.y + dy * pressure)
-        }
     }
 
     /// 块内文字按**内切圆半径**分档（照截图：够圆够大才写字，窄条只留一个点）。

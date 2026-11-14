@@ -329,7 +329,9 @@ struct StorageManagerRootView: View {
             }
         }
         .coordinateSpace(name: "storageCanvas")
-        .frame(minWidth: 860, minHeight: 560)
+        // 最小尺寸由 NSWindow 管理；正文再次设下限会挤出标题栏净空并裁掉顶部。
+        .padding(.top, 12)
+        .clipped()
         .onAppear {
             refreshDiskSpace()
             store.loadIfNeeded()
