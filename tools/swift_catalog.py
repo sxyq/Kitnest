@@ -44,7 +44,7 @@ def module_of(rel_path: str) -> str:
 def walk_swift(root: str):
     for dirpath, _dirnames, filenames in os.walk(root):
         for fn in sorted(filenames):
-            if fn.endswith(".swift"):
+            if fn.endswith(".swift") and not fn.startswith("._"):
                 full = os.path.join(dirpath, fn)
                 yield full, os.path.relpath(full, root)
 

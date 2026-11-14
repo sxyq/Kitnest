@@ -275,7 +275,7 @@ def main() -> int:
     files = 0
     for base, _dirs, names in os.walk(SRC):
         for name in sorted(names):
-            if not name.endswith(".swift"):
+            if name.startswith("._") or not name.endswith(".swift"):
                 continue
             path = os.path.join(base, name)
             rel = os.path.relpath(path, SRC)

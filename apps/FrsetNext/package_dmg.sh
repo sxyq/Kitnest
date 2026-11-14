@@ -3,8 +3,8 @@
 # 用法：./package_dmg.sh
 # 前置：build.sh 已构建并部署到 /Applications/Kitnest.app
 set -e
-APP=/Applications/Kitnest.app
-OUT=~/Desktop/Kitnest-1.0.0.dmg
+APP="${KITNEST_PACKAGE_APP:-/Applications/Kitnest.app}"
+OUT="${KITNEST_DMG_OUTPUT:-$HOME/Desktop/Kitnest-1.0.0.dmg}"
 STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
 
 [ -d "$APP" ] || { echo "✗ 找不到 $APP（先跑 build.sh）"; exit 1; }

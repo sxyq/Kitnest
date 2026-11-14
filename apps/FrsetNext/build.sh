@@ -25,8 +25,8 @@ SDK="$(xcrun --show-sdk-path)"
 OPT_FLAGS="${FRSETNEXT_OPT:--O -no-whole-module-optimization}"
 
 echo "== 源码统计 =="
-find "$SRC" -name '*.swift' | wc -l | xargs echo "  Swift 文件:"
-find "$SRC" -name '*.swift' -exec cat {} + | wc -l | xargs echo "  总行数:"
+find "$SRC" -name '*.swift' ! -name '._*' | wc -l | xargs echo "  Swift 文件:"
+find "$SRC" -name '*.swift' ! -name '._*' -exec cat {} + | wc -l | xargs echo "  总行数:"
 
 echo "== 清理 =="
 rm -rf "$APP"
@@ -34,6 +34,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 
 FILES=$(find "$SRC" -name '*.swift' \
+  -not -name '._*' \
   -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
   | sort | tr '\n' ' ')
 
@@ -72,9 +73,10 @@ rm -f "$APP/Contents/MacOS/Kitnest"
 # 来源：stats-recon/inject/（注入版同款代码，原样移植；注入入口/hook 已由
 # frset_stats_tick.m 替代为普通启停 API）。编译参数与注入版 build-dylib.sh 一致。
 OBJC_DIR="$SRC/FrsetStatsBar"
-OBJ_DIR="/tmp/frsetnext_objc"
+OBJ_DIR="$ROOT/build.noindex/objc"
 rm -rf "$OBJ_DIR"; mkdir -p "$OBJ_DIR"
-: > /tmp/frsetnext_build.log   # 重建日志：clang 段追加写，swiftc 段随后追加
+BUILD_LOG="$ROOT/build.noindex/build.log"
+: > "$BUILD_LOG"
 OBJ_FILES=""
 if [ -d "$OBJC_DIR" ]; then
   for f in "$OBJC_DIR"/*.c "$OBJC_DIR"/*.m; do
@@ -83,7 +85,7 @@ if [ -d "$OBJC_DIR" ]; then
     clang -c "$f" -o "$obj" \
       -isysroot "$SDK" -target arm64-apple-macosx13.0 \
       -I "$ROOT/Vendor/ocr" \
-      -fobjc-arc -O1 2>&1 | tee -a /tmp/frsetnext_build.log | tail -5
+      -fobjc-arc -O1 2>&1 | tee -a "$BUILD_LOG" | tail -5
     CLANG_RC=${PIPESTATUS[0]}
     if [ "$CLANG_RC" -ne 0 ] || [ ! -f "$obj" ]; then
       echo "✗ ObjC 编译失败: $f（退出码 $CLANG_RC）"
@@ -100,7 +102,7 @@ BRIDGE="$OBJC_DIR/FrsetStatsBar.h"
 # 终端上只会停在「== 编译 ==」而无任何结论——此时本文件是否残留就成了唯一的判据：
 #   残留 + 无产物 → 死在编译阶段（进程组被杀），不是代码问题，别改代码
 #   已删除+ 无产物 → 编译阶段正常结束却没出产物（真编译失败），去读 build log
-STAMP=/tmp/frsetnext_build.stamp
+STAMP="$ROOT/build.noindex/build.stamp"
 rm -f "$STAMP"; touch "$STAMP"
 
 swiftc $OPT_FLAGS -parse-as-library \
@@ -115,10 +117,10 @@ swiftc $OPT_FLAGS -parse-as-library \
   -framework IOKit -framework SystemConfiguration \
   -framework AVFoundation -framework CoreMedia \
   -framework QuickLookThumbnailing \
-  -framework WebKit 2>&1 | tee -a /tmp/frsetnext_build.log | tail -40
+  -framework WebKit 2>&1 | tee -a "$BUILD_LOG" | tail -40
 BUILD_RC=${PIPESTATUS[0]}
 rm -f "$STAMP"   # 走到这里说明脚本活着，撤掉标记
-LOG_BYTES=$(wc -c < /tmp/frsetnext_build.log | tr -d ' ')
+LOG_BYTES=$(wc -c < "$BUILD_LOG" | tr -d ' ')
 
 # 三分法（实测判据，见 docs/l10n-original-reference/MANIFEST.md 同类「无输出≠通过」原则）：
 #   log 0 字节 + 产物空 → 被 SIGKILL（资源竞争域），**不是代码问题**，别去改代码
@@ -135,12 +137,12 @@ if [ "$BUILD_RC" -eq 137 ]; then
   echo "  处置：等空闲后重跑（串行更稳），**不要改代码**"
   exit 137
 elif [ "$BUILD_RC" -ne 0 ]; then
-  echo "✗ 编译失败（退出码 $BUILD_RC，日志 ${LOG_BYTES} 字节），详见 /tmp/frsetnext_build.log"
+  echo "✗ 编译失败（退出码 $BUILD_RC，日志 ${LOG_BYTES} 字节），详见 $BUILD_LOG"
   exit 1
 fi
 
 if [ ! -f "$APP/Contents/MacOS/Kitnest" ]; then
-  echo "✗ 编译返回 0 但产物缺失，日志 ${LOG_BYTES} 字节，详见 /tmp/frsetnext_build.log"
+  echo "✗ 编译返回 0 但产物缺失，日志 ${LOG_BYTES} 字节，详见 $BUILD_LOG"
   exit 1
 fi
 
@@ -198,7 +200,7 @@ OCR_H_OUT="$APP/Contents/Helpers/FrsetOCRHelper"
 if [ -f "$OCR_H_DIR/main.swift" ]; then
   echo "== 本地 OCR helper =="
   mkdir -p "$(dirname "$OCR_H_OUT")"
-  OCR_OBJ_DIR="/tmp/frsetnext_ocr_helper"
+  OCR_OBJ_DIR="$ROOT/build.noindex/ocr-helper"
   rm -rf "$OCR_OBJ_DIR"; mkdir -p "$OCR_OBJ_DIR"
   if ! clang -c "$OBJC_DIR/frset_ocr_onnx.m" -o "$OCR_OBJ_DIR/frset_ocr_onnx.o" \
        -isysroot "$SDK" -target arm64-apple-macosx13.0 -I "$ROOT/Vendor/ocr" \
@@ -246,6 +248,8 @@ if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
 fi
 
 echo "== 签名 =="
+# ExFAT 上的 AppleDouble 会令签名误判资源目录；签名前移除本次打包附属文件。
+dot_clean -m "$APP"
 # v30（2026-10-18）：屏幕录制授权失效根因修复——必须用固定证书签，不能用 ad-hoc（-s -）。
 #   ad-hoc 的 designated requirement = cdhash（二进制内容哈希）：每次重新编译内容必变
 #   → TCC 授权记录对不上 → 系统认为未授权 → app 内 CGPreflightScreenCaptureAccess()
@@ -314,6 +318,10 @@ if ! codesign -v --deep --strict "$APP" 2>/dev/null; then
   exit 1
 fi
 echo "应用包: $APP"
+if [ "${KITNEST_SKIP_DEPLOY:-0}" = "1" ]; then
+  echo "工作树构建完成: $APP"
+  exit 0
+fi
 
 # ============================================================================
 # 部署到固定路径 /Applications（2026-10-18 v31：原子部署）
