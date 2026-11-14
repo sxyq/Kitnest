@@ -110,6 +110,36 @@
 				<string>public.file-url</string>
 			</array>
 		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>用 Kitnest 复制路径</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>copyPaths</string>
+			<key>NSPortName</key>
+			<string>Kitnest</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>用 Kitnest 在终端打开</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>openInTerminal</string>
+			<key>NSPortName</key>
+			<string>Kitnest</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>

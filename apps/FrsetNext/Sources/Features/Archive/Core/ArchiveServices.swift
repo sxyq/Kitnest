@@ -78,6 +78,16 @@ struct ArchiveDefaultApplicationOption: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」或「用 Kitnest 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("打开系统键盘设置") {
+                if !NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!) {
+                    Toast.show("无法打开系统键盘设置，请从系统设置进入键盘 → 键盘快捷键 → 服务", isWarning: true)
+                }
+            }
+            .buttonStyle(.link)
             if let error = association.errorMessage {
                 Text(error)
                     .font(.system(size: 11))
@@ -188,6 +198,76 @@ public final class ArchiveServicesProvider: NSObject {
             return
         }
         ArchiveCreateWindowController.show(files: urls)
+    }
+
+    @objc public func copyPaths(_ pboard: NSPasteboard, userData: String,
+                                error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = Self.fileURLs(from: pboard)
+        guard !urls.isEmpty else {
+            let message = "复制路径失败：服务没有收到文件或目录 URL"
+            error.pointee = message as NSString
+            Toast.show(message, icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        let text = urls.map(\.path).joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        guard NSPasteboard.general.setString(text, forType: .string) else {
+            let message = "\(urls.count) 个路径复制失败：无法写入系统剪贴板"
+            error.pointee = message as NSString
+            Toast.show(message, icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        Toast.show("已复制 \(urls.count) 个绝对路径", icon: "doc.on.doc")
+    }
+
+    @objc public func openInTerminal(_ pboard: NSPasteboard, userData: String,
+                                     error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = Self.fileURLs(from: pboard)
+        guard !urls.isEmpty else {
+            let message = "终端打开失败：服务没有收到文件或目录 URL"
+            error.pointee = message as NSString
+            Toast.show(message, icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        var directories: [URL] = []
+        var seen = Set<URL>()
+        var failures: [String] = []
+        for url in urls {
+            do {
+                let isDirectory = try url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true
+                let directory = isDirectory ? url : url.deletingLastPathComponent()
+                if seen.insert(directory).inserted { directories.append(directory) }
+            } catch {
+                failures.append("\(url.path)：\(error.localizedDescription)")
+            }
+        }
+        if !failures.isEmpty {
+            let message = "终端打开失败：\n" + failures.joined(separator: "\n")
+            error.pointee = message as NSString
+            Toast.show(message, icon: "exclamationmark.triangle", isWarning: true)
+        }
+        guard !directories.isEmpty else { return }
+        guard let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
+            let message = "终端打开失败：找不到 Terminal；目录：" + directories.map(\.path).joined(separator: "\n")
+            error.pointee = message as NSString
+            Toast.show(message, icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        for directory in directories {
+            NSWorkspace.shared.open([directory], withApplicationAt: terminal,
+                                    configuration: NSWorkspace.OpenConfiguration()) { application, failure in
+                DispatchQueue.main.async {
+                    if let failure {
+                        Toast.show("\(directory.path) 终端打开失败：\(failure.localizedDescription)",
+                                   icon: "exclamationmark.triangle", isWarning: true)
+                    } else if application != nil {
+                        Toast.show("已在终端打开：\(directory.path)", icon: "terminal")
+                    } else {
+                        Toast.show("\(directory.path) 终端打开失败：系统未返回 Terminal 应用", isWarning: true)
+                    }
+                }
+            }
+        }
     }
 
     // MARK: 粘贴板解析
