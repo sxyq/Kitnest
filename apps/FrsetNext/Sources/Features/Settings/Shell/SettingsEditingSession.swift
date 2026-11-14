@@ -14,6 +14,7 @@ final class CalendarSettingsDraft: SettingsEditableDraft {
 
     var isDirty: Bool { firstWeekday != savedFirstWeekday }
     func save() -> String? {
+        objectWillChange.send()
         Preferences.shared.calendarFirstWeekday = firstWeekday
         savedFirstWeekday = firstWeekday
         return nil
