@@ -45,6 +45,8 @@ final class SettingsUIState: ObservableObject {
             selection = .generalPanel
         case "windows", "general.windows", "floating", "appearance.windows":
             selection = .generalWindows
+        case "island", "appearance.island":
+            selection = .island
         case "personalization", "general.personalization", "appearance":
             selection = .generalPersonal
         case "menubar", "general.menubar", "menuBar":

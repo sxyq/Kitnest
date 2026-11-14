@@ -234,21 +234,6 @@ public enum MonitorColors {
 
 // MARK: - 小组件
 
-/// 卡片容器（Liquid Glass 镀边：斜向高光 + 细亮边 + 内阴影；不叠第二层模糊）
-public struct MonitorCard<Content: View>: View {
-    private let content: Content
-
-    public init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    public var body: some View {
-        content
-            .padding(10)
-            .background(GlassCardBackground(cornerRadius: Theme.cornerRadius))
-    }
-}
-
 /// 「标签 + 等宽数值」行
 public struct MonitorRow: View {
     public let label: String

@@ -48,6 +48,7 @@ final class SettingsEditingSession: ObservableObject {
         }
         register(id: "pin") { PinSettingsDraft() }
         register(id: "curtain") { CurtainSettingsDraft() }
+        register(id: "island") { IslandSettingsDraft() }
         register(id: "menuBar") { MenuBarSettingsDraft() }
         register(id: "calendar") { CalendarSettingsDraft() }
         register(id: "monitorWidgets") { MonitorWidgetsSettingsDraft() }
@@ -111,6 +112,7 @@ extension SettingsPage {
         case .generalPersonal: return [PersonalizationSettingsPart.shared.draftID]
         case .generalPanel: return [PersonalizationSettingsPart.mainPanel.draftID]
         case .generalWindows: return [PersonalizationSettingsPart.floatingWindow.draftID]
+        case .island: return ["island"]
         case .generalNotifications: return [PersonalizationSettingsPart.notification.draftID]
         case .captureActions: return [PersonalizationSettingsPart.captureToolbar.draftID]
         case .clipboardAppearance: return [PersonalizationSettingsPart.clipboardAppearance.draftID]
