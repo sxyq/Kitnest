@@ -52,13 +52,17 @@ EVIDENCE = {
     ("Features/Dock/DockHubController.swift", "requestAccessibility"):
         "仅用户点击授权入口才请求系统辅助功能提示，不在悬停中自动请求",
     ("Features/Dock/DockHubController.swift", "pointerMoved"):
-        "80ms 合并指针读取，160ms 悬停展示，220ms 离开收起，命中仅走 Dock 的 AX 窗口",
-    ("Features/Dock/DockHubController.swift", "transitRect"):
-        "保留图标到卡片之间的窄通道，移入卡片不中断且不吞掉相邻图标悬停",
+        "只按刘海窗边界处理指针移动，100ms悬停展开、220ms移开收起，不扫描Dock AX",
     ("Features/Dock/DockHubController.swift", "cancelHover"):
-        "取消前一图标的待展示动作并清除目标 PID，避免延迟任务展示过时卡片",
-    ("Features/Dock/DockHubController.swift", "dockHit"):
-        "经 Dock AXApplicationDockItem URL 匹配真实运行 App，转换多屏左上坐标与图标边界",
+        "取消离开顶部后的待展开动作，避免过时悬停打开组件",
+    ("Features/Dock/DockHubController.swift", "screenChanged"):
+        "显示器配置变化时重新读取真实刘海区域并定位顶部组件，保留展开状态",
+    ("Features/Dock/DockHubController.swift", "captureFrontmostApplication"):
+        "展开前记录真实前台应用作为切窗目标，不把Kitnest自身列入目标",
+    ("Features/Dock/DockHubController.swift", "refreshApplications"):
+        "窗口页按应用名列出当前regular运行应用，代替Dock悬停选窗",
+    ("Features/Dock/DockHubController.swift", "selectApplication"):
+        "窗口页应用选择器更新唯一目标并刷新其真实AX窗口与缩略图",
     ("Features/Dock/DockHubController.swift", "attribute"):
         "读取 Dock 图标与应用窗口的公开 AX 属性，统一 CFTypeRef 取值入口",
     ("Features/Dock/DockHubController.swift", "open"):
@@ -68,9 +72,9 @@ EVIDENCE = {
     ("Features/Dock/DockHubController.swift", "collapse"):
         "同窗返回紧凑形态，不叠加第二个窗口，恢复瞬态收起行为",
     ("Features/Dock/DockHubController.swift", "present"):
-        "复用唯一宿主窗、官方材质与红绿灯；360×420/760×560pt 按 Dock 方向和屏幕可用区域定位",
+        "顶部184×30pt收纳条与440pt组件按NSScreen刘海区域定位；760×560pt完整窗独立保留原生标题栏，不切换styleMask",
     ("Features/Dock/DockHubController.swift", "dismiss"):
-        "取消缩略图并以代次忽略旧动画完成回调，收起后释放宿主内容停止刷新",
+        "收起组件或完整窗后取消缩略图与媒体宿主工作，恢复顶部入口；停用时隐藏窗口",
     ("Features/Dock/DockHubController.swift", "windowShouldClose"):
         "原生关闭按钮进入同一退场与内容释放链，不另走 NSWindow 的关闭路径",
     ("Features/Dock/DockHubController.swift", "windowDidResignKey"):
@@ -82,7 +86,9 @@ EVIDENCE = {
     ("Features/Dock/DockHubController.swift", "isAvailable"):
         "Dock 工具卡遵守主面板、文件中转与监测入口的用户现有开关",
     ("Features/Dock/DockHubController.swift", "run"):
-        "九个 Dock 动作先收起卡片，再调用既有剪贴板、截图、录屏、中转和工具入口",
+        "常用功能与设置、手册先收起组件，再调用现有正式控制器，不在预览中复制实现",
+    ("Features/Dock/DockHubView.swift", "path"):
+        "刘海黑色组件保持顶部贴合屏幕，底部用12/24pt弧角，摄像头区域不放控件",
     ("Features/Dock/DockHubView.swift", "sectionButton"):
         "紧凑分段与完整侧栏共用导航按钮，提供选中态、提示和⌘1–4键盘切页",
     ("Features/Dock/DockHubView.swift", "toolButton"):

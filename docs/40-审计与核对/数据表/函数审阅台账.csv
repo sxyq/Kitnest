@@ -2133,37 +2133,41 @@ CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,func,func,35,KEEP,Equ
 CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,color,func,37,KEEP,调用方 CodeHighlighter.swift:110（token→NSColor）
 CodePreview,Features/CodePreview/CodeTheme.swift,CodeThemeCatalog,theme,func,68,KEEP,调用方 CodePreviewView.swift:52/69 与 BuiltinTools.swift:267
 CodePreview,Features/CodePreview/CodeTheme.swift,NSColor,init,init,324,KEEP,被本文件全部 14 套主题构造调用（:83 起）
-Dock,Features/Dock/DockHubController.swift,DockHubController,start,func,52,KEEP,根据保存的 Dock 开关设置激活策略并注册鼠标移动观察，悬停不发送输入事件
-Dock,Features/Dock/DockHubController.swift,DockHubController,stop,func,65,KEEP,停用 Dock 时移除监听、取消待执行悬停与缩略图并释放可见界面
-Dock,Features/Dock/DockHubController.swift,DockHubController,setEnabled,func,76,KEEP,设置草稿保存后写入唯一 Dock 开关，切换 regular/accessory 和监听生命周期
-Dock,Features/Dock/DockHubController.swift,DockHubController,requestAccessibility,func,82,KEEP,仅用户点击授权入口才请求系统辅助功能提示，不在悬停中自动请求
-Dock,Features/Dock/DockHubController.swift,DockHubController,pointerMoved,func,88,KEEP,80ms 合并指针读取，160ms 悬停展示，220ms 离开收起，命中仅走 Dock 的 AX 窗口
-Dock,Features/Dock/DockHubController.swift,DockHubController,transitRect,func,141,KEEP,保留图标到卡片之间的窄通道，移入卡片不中断且不吞掉相邻图标悬停
-Dock,Features/Dock/DockHubController.swift,DockHubController,cancelHover,func,151,KEEP,取消前一图标的待展示动作并清除目标 PID，避免延迟任务展示过时卡片
-Dock,Features/Dock/DockHubController.swift,DockHubController,dockHit,func,158,KEEP,经 Dock AXApplicationDockItem URL 匹配真实运行 App，转换多屏左上坐标与图标边界
-Dock,Features/Dock/DockHubController.swift,DockHubController,attribute,func,182,KEEP,读取 Dock 图标与应用窗口的公开 AX 属性，统一 CFTypeRef 取值入口
-Dock,Features/Dock/DockHubController.swift,DockHubController,open,func,188,KEEP,Dock 点击、菜单栏与 kitnest://dock 共用入口，保留所选分区并关联原前台应用
-Dock,Features/Dock/DockHubController.swift,DockHubController,expand,func,202,KEEP,将同一功能卡切成完整窗并保留当前分区、媒体状态和日历视图
-Dock,Features/Dock/DockHubController.swift,DockHubController,collapse,func,203,KEEP,同窗返回紧凑形态，不叠加第二个窗口，恢复瞬态收起行为
-Dock,Features/Dock/DockHubController.swift,DockHubController,present,func,205,KEEP,复用唯一宿主窗、官方材质与红绿灯；360×420/760×560pt 按 Dock 方向和屏幕可用区域定位
-Dock,Features/Dock/DockHubController.swift,DockHubController,dismiss,func,274,KEEP,取消缩略图并以代次忽略旧动画完成回调，收起后释放宿主内容停止刷新
-Dock,Features/Dock/DockHubController.swift,DockHubController,windowShouldClose,func,297,KEEP,原生关闭按钮进入同一退场与内容释放链，不另走 NSWindow 的关闭路径
-Dock,Features/Dock/DockHubController.swift,DockHubController,windowDidResignKey,func,298,KEEP,紧凑卡失焦交给既有 TransientWindowCenter，完整窗保持普通窗口行为
-Dock,Features/Dock/DockHubController.swift,DockHubController,reloadWindows,func,302,KEEP,读取原应用的实际 AX 窗口与最小化状态；仅窗口页生成最长边640px的按需缩略图
-Dock,Features/Dock/DockHubController.swift,DockHubController,activateWindow,func,346,KEEP,恢复最小化窗口并用 AXRaise 前置指定窗口，失败显示系统状态码
-Dock,Features/Dock/DockHubController.swift,DockHubController,isAvailable,func,358,KEEP,Dock 工具卡遵守主面板、文件中转与监测入口的用户现有开关
-Dock,Features/Dock/DockHubController.swift,DockHubController,run,func,367,KEEP,九个 Dock 动作先收起卡片，再调用既有剪贴板、截图、录屏、中转和工具入口
+Dock,Features/Dock/DockHubController.swift,DockHubController,start,func,53,KEEP,根据保存的 Dock 开关设置激活策略并注册鼠标移动观察，悬停不发送输入事件
+Dock,Features/Dock/DockHubController.swift,DockHubController,stop,func,69,KEEP,停用 Dock 时移除监听、取消待执行悬停与缩略图并释放可见界面
+Dock,Features/Dock/DockHubController.swift,DockHubController,setEnabled,func,89,KEEP,设置草稿保存后写入唯一 Dock 开关，切换 regular/accessory 和监听生命周期
+Dock,Features/Dock/DockHubController.swift,DockHubController,requestAccessibility,func,95,KEEP,仅用户点击授权入口才请求系统辅助功能提示，不在悬停中自动请求
+Dock,Features/Dock/DockHubController.swift,DockHubController,pointerMoved,func,101,KEEP,80ms 合并指针读取，160ms 悬停展示，220ms 离开收起，命中仅走 Dock 的 AX 窗口
+Dock,Features/Dock/DockHubController.swift,DockHubController,cancelHover,func,126,KEEP,取消前一图标的待展示动作并清除目标 PID，避免延迟任务展示过时卡片
+Dock,Features/Dock/DockHubController.swift,DockHubController,screenChanged,func,131,KEEP,显示器配置变化时重新读取真实刘海区域并定位顶部组件，保留展开状态
+Dock,Features/Dock/DockHubController.swift,DockHubController,captureFrontmostApplication,func,136,KEEP,展开前记录真实前台应用作为切窗目标，不把Kitnest自身列入目标
+Dock,Features/Dock/DockHubController.swift,DockHubController,refreshApplications,func,143,KEEP,窗口页按应用名列出当前regular运行应用，代替Dock悬停选窗
+Dock,Features/Dock/DockHubController.swift,DockHubController,selectApplication,func,149,KEEP,窗口页应用选择器更新唯一目标并刷新其真实AX窗口与缩略图
+Dock,Features/Dock/DockHubController.swift,DockHubController,attribute,func,154,KEEP,读取 Dock 图标与应用窗口的公开 AX 属性，统一 CFTypeRef 取值入口
+Dock,Features/Dock/DockHubController.swift,DockHubController,open,func,160,KEEP,Dock 点击、菜单栏与 kitnest://dock 共用入口，保留所选分区并关联原前台应用
+Dock,Features/Dock/DockHubController.swift,DockHubController,expand,func,171,KEEP,将同一功能卡切成完整窗并保留当前分区、媒体状态和日历视图
+Dock,Features/Dock/DockHubController.swift,DockHubController,collapse,func,172,KEEP,同窗返回紧凑形态，不叠加第二个窗口，恢复瞬态收起行为
+Dock,Features/Dock/DockHubController.swift,DockHubController,present,func,174,KEEP,复用唯一宿主窗、官方材质与红绿灯；360×420/760×560pt 按 Dock 方向和屏幕可用区域定位
+Dock,Features/Dock/DockHubController.swift,DockHubController,present,func,183,KEEP,顶部184×30pt收纳条与440pt组件按NSScreen刘海区域定位；760×560pt完整窗独立保留原生标题栏，不切换styleMask
+Dock,Features/Dock/DockHubController.swift,DockHubController,dismiss,func,259,KEEP,取消缩略图并以代次忽略旧动画完成回调，收起后释放宿主内容停止刷新
+Dock,Features/Dock/DockHubController.swift,DockHubController,windowShouldClose,func,279,KEEP,原生关闭按钮进入同一退场与内容释放链，不另走 NSWindow 的关闭路径
+Dock,Features/Dock/DockHubController.swift,DockHubController,windowDidResignKey,func,280,KEEP,紧凑卡失焦交给既有 TransientWindowCenter，完整窗保持普通窗口行为
+Dock,Features/Dock/DockHubController.swift,DockHubController,reloadWindows,func,284,KEEP,读取原应用的实际 AX 窗口与最小化状态；仅窗口页生成最长边640px的按需缩略图
+Dock,Features/Dock/DockHubController.swift,DockHubController,activateWindow,func,328,KEEP,恢复最小化窗口并用 AXRaise 前置指定窗口，失败显示系统状态码
+Dock,Features/Dock/DockHubController.swift,DockHubController,isAvailable,func,340,KEEP,Dock 工具卡遵守主面板、文件中转与监测入口的用户现有开关
+Dock,Features/Dock/DockHubController.swift,DockHubController,run,func,349,KEEP,九个 Dock 动作先收起卡片，再调用既有剪贴板、截图、录屏、中转和工具入口
 Dock,Features/Dock/DockHubSettingsPane.swift,DockHubSettingsDraft,save,func,7,KEEP,现有 SettingsDraftEditor 保存 Dock 草稿并应用开关，其他页面配置保持不变
 Dock,Features/Dock/DockHubSettingsPane.swift,DockHubSettingsDraft,discard,func,12,KEEP,取消及关闭设置窗时恢复 Dock 已保存值，不提前切换正式入口
 Dock,Features/Dock/DockHubSettingsPane.swift,DockHubSettingsDraft,restoreDefaults,func,13,KEEP,仅将 Dock 草稿恢复默认启用，保存后才改变正式应用
-Dock,Features/Dock/DockHubView.swift,DockHubView,sectionButton,func,124,KEEP,紧凑分段与完整侧栏共用导航按钮，提供选中态、提示和⌘1–4键盘切页
-Dock,Features/Dock/DockHubView.swift,DockHubView,toolButton,func,163,KEEP,常用操作卡调用唯一正式动作路由，并显示用户关闭入口的禁用说明
-Dock,Features/Dock/DockHubView.swift,DockHubView,windowButton,func,210,KEEP,等比展示真实窗口缩略图、标题与最小化状态，点击切到指定窗口
-Dock,Features/Dock/DockHubView.swift,DockHubView,emptyState,func,239,KEEP,区分未授权、未选择应用与应用无窗口的真实空态，不显示模拟窗口
-Dock,Features/Dock/DockHubView.swift,DockHubView,sectionInfo,func,250,KEEP,统一四分区名称、系统图标与行为说明，供两种形态共用
-Dock,Features/Dock/DockHubView.swift,DockCalendarContent,selectDay,func,304,KEEP,按所选日期起止一次查询真实 CalendarService 事件并更新日程详情
-Dock,Features/Dock/DockHubView.swift,DockCalendarContent,eventRow,func,310,KEEP,展示 EventKit 事件正文标题及全天或起止时间，不创建或改写日程
-Dock,Features/Dock/DockHubView.swift,DockCalendarContent,openCalendar,func,336,KEEP,用户点击日历入口时打开 macOS 系统日历应用
+Dock,Features/Dock/DockHubView.swift,DockHubView,sectionButton,func,172,KEEP,紧凑分段与完整侧栏共用导航按钮，提供选中态、提示和⌘1–4键盘切页
+Dock,Features/Dock/DockHubView.swift,DockHubView,toolButton,func,217,KEEP,常用操作卡调用唯一正式动作路由，并显示用户关闭入口的禁用说明
+Dock,Features/Dock/DockHubView.swift,DockHubView,windowButton,func,264,KEEP,等比展示真实窗口缩略图、标题与最小化状态，点击切到指定窗口
+Dock,Features/Dock/DockHubView.swift,DockHubView,emptyState,func,293,KEEP,区分未授权、未选择应用与应用无窗口的真实空态，不显示模拟窗口
+Dock,Features/Dock/DockHubView.swift,DockHubView,sectionInfo,func,304,KEEP,统一四分区名称、系统图标与行为说明，供两种形态共用
+Dock,Features/Dock/DockHubView.swift,DockNotchShape,path,func,316,KEEP,刘海黑色组件保持顶部贴合屏幕，底部用12/24pt弧角，摄像头区域不放控件
+Dock,Features/Dock/DockHubView.swift,DockCalendarContent,selectDay,func,373,KEEP,按所选日期起止一次查询真实 CalendarService 事件并更新日程详情
+Dock,Features/Dock/DockHubView.swift,DockCalendarContent,eventRow,func,379,KEEP,展示 EventKit 事件正文标题及全天或起止时间，不创建或改写日程
+Dock,Features/Dock/DockHubView.swift,DockCalendarContent,openCalendar,func,405,KEEP,用户点击日历入口时打开 macOS 系统日历应用
 Dock,Features/Dock/DockMediaControls.swift,DockMediaController,selectHoveredPlayer,func,63,KEEP,媒体视图出现后选择悬停的 Music/Spotify，避免单例初始化互相依赖
 Dock,Features/Dock/DockMediaControls.swift,DockMediaController,startRefreshing,func,70,KEEP,实际可见媒体宿主启动唯一2秒播放器刷新，保留当前播放器选择和曲目状态
 Dock,Features/Dock/DockMediaControls.swift,DockMediaController,stopRefreshing,func,81,KEEP,最后一个媒体宿主隐藏或关闭时停止播放器轮询

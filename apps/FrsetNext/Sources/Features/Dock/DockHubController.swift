@@ -3,7 +3,7 @@ import SwiftUI
 import ApplicationServices
 
 enum DockHubSection: String, CaseIterable { case tools, calendar, media, windows }
-enum DockHubAction: CaseIterable { case panel, clipboard, transfer, screenshot, longshot, recording, tools, monitor, settings }
+enum DockHubAction: CaseIterable { case panel, clipboard, transfer, screenshot, longshot, recording, tools, monitor, settings, manual }
 
 struct DockWindowItem: Identifiable {
     let id: Int
@@ -18,7 +18,7 @@ private final class DockHubWindow: NSWindow {
     override var canBecomeMain: Bool { styleMask.contains(.titled) }
 }
 
-/// Dock 只负责定位，功能仍进入现有正式控制器；紧凑卡与完整窗复用一个窗口。
+/// 顶部刘海入口与完整控制窗共用内容和操作；原生窗不再切换 styleMask。
 final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
     static let shared = DockHubController()
     static let enabledKey = "dock.hub.enabled"
@@ -27,31 +27,32 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
     }
     @Published var section: DockHubSection = .tools {
         didSet {
-            if section == .windows { reloadWindows() }
+            if section == .windows { refreshApplications(); reloadWindows() }
             else { thumbnailTask?.cancel(); windowLoad += 1 }
         }
     }
     @Published private(set) var isExpanded = false
+    @Published private(set) var isCollapsed = true
+    @Published private(set) var notchWidth: CGFloat = 0
+    @Published private(set) var topInset: CGFloat = 30
     @Published private(set) var hoveredApplication: NSRunningApplication?
+    @Published private(set) var applications: [NSRunningApplication] = []
     @Published private(set) var windows: [DockWindowItem] = []
     @Published private(set) var accessibilityGranted = AXIsProcessTrusted()
-    private(set) var window: NSWindow?
+    var window: NSWindow? { isExpanded ? fullWindow : topWindow }
+    private var topWindow: NSWindow?
+    private var fullWindow: NSWindow?
+    private var topScreen: NSScreen?
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var hoverWork: DispatchWorkItem?
-    private var hitWork: DispatchWorkItem?
     private var leaveWork: DispatchWorkItem?
-    private var pendingPID: pid_t?
-    private var dockElement: AXUIElement?
-    private var anchor: NSRect?
-    private var lastHitTime: TimeInterval = 0
-    private var generation = 0
     private var windowLoad = 0
     private var thumbnailTask: Task<Void, Never>?
 
     func start() {
         NSApp.setActivationPolicy(Self.savedEnabled ? .regular : .accessory)
-        guard Self.savedEnabled, globalMonitor == nil else { return }
+        guard Self.savedEnabled, localMonitor == nil else { return }
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in
             self?.pointerMoved()
         }
@@ -59,7 +60,10 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
             self?.pointerMoved()
             return event
         }
-        Log.info("Dock", "Dock 悬停入口已启用；辅助功能=\(AXIsProcessTrusted())")
+        NotificationCenter.default.addObserver(self, selector: #selector(screenChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        present(expanded: false, activate: false, collapsed: true)
+        Log.info("Dock", "顶部刘海入口已启用；辅助功能=\(AXIsProcessTrusted())")
     }
 
     func stop() {
@@ -67,10 +71,19 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
         if let monitor = localMonitor { NSEvent.removeMonitor(monitor) }
         globalMonitor = nil
         localMonitor = nil
-        dockElement = nil
-        hitWork?.cancel()
+        NotificationCenter.default.removeObserver(self, name: NSApplication.didChangeScreenParametersNotification, object: nil)
         cancelHover()
-        dismiss(animated: false)
+        leaveWork?.cancel()
+        leaveWork = nil
+        thumbnailTask?.cancel()
+        windowLoad += 1
+        for window in [topWindow, fullWindow].compactMap({ $0 }) {
+            TransientWindowCenter.shared.unregister(window: window)
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        isExpanded = false
+        isCollapsed = true
     }
 
     func setEnabled(_ enabled: Bool) {
@@ -86,97 +99,56 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
     }
 
     private func pointerMoved() {
-        guard !isExpanded else { return }
+        guard !isExpanded, let window = topWindow else { return }
         let point = NSEvent.mouseLocation
-        if let window, window.isVisible,
-           (window.frame.contains(point) || anchor.map { transitRect(from: $0, to: window.frame).contains(point) } == true) {
+        if window.frame.contains(point) {
             leaveWork?.cancel()
             leaveWork = nil
-            return
-        }
-        let now = ProcessInfo.processInfo.systemUptime
-        hitWork?.cancel()
-        if now - lastHitTime < 0.08 {
-            let work = DispatchWorkItem { [weak self] in self?.pointerMoved() }
-            hitWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: work)
-            return
-        }
-        lastHitTime = now
-        let granted = AXIsProcessTrusted()
-        if accessibilityGranted != granted { accessibilityGranted = granted }
-        guard accessibilityGranted, let hit = dockHit(at: point) else {
-            cancelHover()
-            if window?.isVisible == true, leaveWork == nil {
-                let work = DispatchWorkItem { [weak self] in self?.dismiss() }
-                leaveWork = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
+            guard isCollapsed, hoverWork == nil else { return }
+            let work = DispatchWorkItem { [weak self] in
+                guard let self, self.topWindow?.frame.contains(NSEvent.mouseLocation) == true else { return }
+                self.cancelHover()
+                self.captureFrontmostApplication()
+                self.present(expanded: false, activate: false)
             }
+            hoverWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10, execute: work)
             return
         }
-        leaveWork?.cancel()
-        leaveWork = nil
-        if hoveredApplication?.processIdentifier == hit.app.processIdentifier, window?.isVisible == true { return }
-        guard pendingPID != hit.app.processIdentifier else { return }
         cancelHover()
-        pendingPID = hit.app.processIdentifier
-        let work = DispatchWorkItem { [weak self] in
-            guard let self, let current = self.dockHit(at: NSEvent.mouseLocation),
-                  current.app.processIdentifier == hit.app.processIdentifier else { return }
-            self.pendingPID = nil
-            self.hoveredApplication = current.app
-            self.anchor = current.frame
-            switch current.app.bundleIdentifier {
-            case Bundle.main.bundleIdentifier: self.section = .tools
-            case "com.apple.iCal": self.section = .calendar
-            case "com.apple.Music", "com.spotify.client": self.section = .media
-            default: self.section = .windows
-            }
-            self.present(expanded: false, activate: false)
+        if !isCollapsed, leaveWork == nil, !window.isKeyWindow {
+            let work = DispatchWorkItem { [weak self] in self?.dismiss() }
+            leaveWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.22, execute: work)
         }
-        hoverWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16, execute: work)
-    }
-
-    private func transitRect(from icon: NSRect, to panel: NSRect) -> NSRect {
-        if icon.maxX < panel.minX {
-            return NSRect(x: icon.minX, y: icon.minY - 8, width: panel.minX - icon.minX + 8, height: icon.height + 16)
-        }
-        if icon.minX > panel.maxX {
-            return NSRect(x: panel.maxX - 8, y: icon.minY - 8, width: icon.maxX - panel.maxX + 8, height: icon.height + 16)
-        }
-        return NSRect(x: icon.minX - 8, y: icon.minY, width: icon.width + 16, height: max(0, panel.minY - icon.minY) + 8)
     }
 
     private func cancelHover() {
         hoverWork?.cancel()
         hoverWork = nil
-        pendingPID = nil
     }
 
-    /// AX 坐标为主屏左上原点；不用固定 Dock 高度，支持左右侧、自动隐藏及多屏。
-    private func dockHit(at point: NSPoint) -> (app: NSRunningApplication, frame: NSRect)? {
-        let primaryTop = NSScreen.screens.first?.frame.maxY ?? 0
-        if dockElement == nil, let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first {
-            dockElement = AXUIElementCreateApplication(dock.processIdentifier)
-            AXUIElementSetMessagingTimeout(dockElement!, 0.05)
+    @objc private func screenChanged() {
+        topScreen = nil
+        if !isExpanded { present(expanded: false, activate: false, collapsed: isCollapsed) }
+    }
+
+    private func captureFrontmostApplication() {
+        if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != getpid() {
+            hoveredApplication = app
         }
-        guard let dockElement else { return nil }
-        guard let list = (attribute(dockElement, kAXChildrenAttribute) as? [AXUIElement])?.first else {
-            self.dockElement = nil
-            return nil
-        }
-        guard let item = (attribute(list, kAXSelectedChildrenAttribute) as? [AXUIElement])?.first,
-              attribute(item, kAXSubroleAttribute) as? String == "AXApplicationDockItem",
-              let url = attribute(item, kAXURLAttribute) as? URL,
-              let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleURL?.standardizedFileURL == url.standardizedFileURL }),
-              let p = attribute(item, kAXPositionAttribute), let s = attribute(item, kAXSizeAttribute) else { return nil }
-        var position = CGPoint.zero
-        var size = CGSize.zero
-        AXValueGetValue(p as! AXValue, .cgPoint, &position)
-        AXValueGetValue(s as! AXValue, .cgSize, &size)
-        let frame = NSRect(x: position.x, y: primaryTop - position.y - size.height, width: size.width, height: size.height)
-        return frame.contains(point) ? (app, frame) : nil
+        if section == .windows { refreshApplications(); reloadWindows() }
+    }
+
+    private func refreshApplications() {
+        applications = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.processIdentifier != getpid() && !$0.isTerminated }
+            .sorted { ($0.localizedName ?? "").localizedStandardCompare($1.localizedName ?? "") == .orderedAscending }
+    }
+
+    func selectApplication(_ pid: pid_t) {
+        hoveredApplication = applications.first { $0.processIdentifier == pid }
+        reloadWindows()
     }
 
     private func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
@@ -189,10 +161,7 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
         cancelHover()
         let granted = AXIsProcessTrusted()
         if accessibilityGranted != granted { accessibilityGranted = granted }
-        if window?.isVisible != true {
-            hoveredApplication = NSWorkspace.shared.frontmostApplication
-            if hoveredApplication?.processIdentifier == getpid() { hoveredApplication = nil }
-        }
+        if isCollapsed { captureFrontmostApplication() }
         if let selected { section = selected }
         else if section == .windows { reloadWindows() }
         present(expanded: expanded, activate: true)
@@ -203,50 +172,58 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
     func collapse() { DispatchQueue.main.async { self.present(expanded: false, activate: true) } }
 
     private func present(expanded: Bool, activate: Bool) {
-        if let window, window.isVisible, window.contentView?.layer?.opacity != 0, expanded == isExpanded, activate {
+        if let window, window.isVisible, !isCollapsed, window.contentView?.layer?.opacity != 0, expanded == isExpanded, activate {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
             return
         }
-        generation += 1
+        present(expanded: expanded, activate: activate, collapsed: false)
+    }
+
+    private func present(expanded: Bool, activate: Bool, collapsed: Bool) {
+        cancelHover()
         leaveWork?.cancel()
         leaveWork = nil
-        let changingMode = window?.isVisible == true && expanded != isExpanded
+        let previous = window
+        let resizeTop = !isExpanded && !expanded && previous?.isVisible == true
+        let changingMode = expanded != isExpanded
         isExpanded = expanded
+        isCollapsed = collapsed
+        if changingMode, let previous {
+            previous.makeFirstResponder(nil)
+            TransientWindowCenter.shared.unregister(window: previous)
+            previous.orderOut(nil)
+            previous.contentView = nil
+        }
         let window: NSWindow
         if let existing = self.window { window = existing }
         else {
-            window = DockHubWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+            let mask: NSWindow.StyleMask = expanded ? [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView] : .borderless
+            window = DockHubWindow(contentRect: .zero, styleMask: mask, backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.delegate = self
-            window.title = "Kitnest · Dock 控制台"
-            window.identifier = NSUserInterfaceItemIdentifier("kitnest.dock.hub")
-            window.contentView = nil
-            self.window = window
+            window.title = expanded ? "Kitnest · 控制台" : "Kitnest · 刘海组件"
+            window.titleVisibility = .hidden
+            window.identifier = NSUserInterfaceItemIdentifier(expanded ? "kitnest.dock.hub" : "kitnest.notch.hub")
+            window.acceptsMouseMovedEvents = true
+            if expanded { fullWindow = window } else { topWindow = window }
         }
-        if changingMode { window.makeFirstResponder(nil); window.orderOut(nil) }
         TransientWindowCenter.shared.unregister(window: window)
-        window.styleMask = expanded ? [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView] : .borderless
-        window.level = expanded ? .normal : .floating
+        if collapsed && window.isKeyWindow { window.orderOut(nil) }
+        window.level = expanded ? .normal : NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 1)
         window.collectionBehavior = expanded ? [.fullScreenAuxiliary] : [.canJoinAllSpaces, .fullScreenAuxiliary]
-        let screen = anchor.flatMap { a in NSScreen.screens.first { $0.frame.intersects(a) } } ?? NSScreen.main ?? NSScreen.screens.first!
+        let screen = topScreen ?? NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.main ?? NSScreen.screens.first!
+        topScreen = screen
+        notchWidth = screen.auxiliaryTopLeftArea.flatMap { left in screen.auxiliaryTopRightArea.map { $0.minX - left.maxX } } ?? 0
+        topInset = max(30, screen.safeAreaInsets.top)
         let available = screen.visibleFrame.insetBy(dx: 10, dy: 10)
-        let size = NSSize(width: min(expanded ? 760 : 360, available.width), height: min(expanded ? 560 : 420, available.height))
+        let size = NSSize(width: min(expanded ? 760 : (collapsed ? max(184, notchWidth + 100) : max(440, notchWidth + 100)), available.width),
+                          height: expanded ? min(560, available.height) : (collapsed ? topInset : min(440 + topInset, screen.frame.height - 20)))
         window.minSize = size
         window.maxSize = size
-        var frame = NSRect(origin: NSPoint(x: available.midX - size.width / 2, y: available.midY - size.height / 2), size: size)
-        if !expanded, let anchor {
-            let orientation = UserDefaults(suiteName: "com.apple.dock")?.string(forKey: "orientation") ?? "bottom"
-            if orientation == "left" {
-                frame.origin = NSPoint(x: anchor.maxX + 8, y: anchor.midY - size.height / 2)
-            } else if orientation == "right" {
-                frame.origin = NSPoint(x: anchor.minX - size.width - 8, y: anchor.midY - size.height / 2)
-            } else {
-                frame.origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.maxY + 8)
-            }
-        }
-        frame.origin.x = min(max(frame.minX, available.minX), available.maxX - size.width)
-        frame.origin.y = min(max(frame.minY, available.minY), available.maxY - size.height)
+        let frame = NSRect(x: screen.frame.midX - size.width / 2,
+                           y: expanded ? available.midY - size.height / 2 : screen.frame.maxY - size.height,
+                           width: size.width, height: size.height)
         let root = DockHubView(controller: self, size: size)
         if let hosting = window.contentView as? NSHostingView<DockHubView> {
             hosting.rootView = root
@@ -257,46 +234,51 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
             hosting.wantsLayer = true
             window.contentView = hosting
         }
-        window.applyOfficialChrome(glassBacking: false, lights: expanded ? .fixed : .hidden)
-        window.setFrame(frame, display: false)
+        window.applyOfficialChrome(glassBacking: expanded, lights: expanded ? .fixed : .hidden)
+        window.hasShadow = expanded || !collapsed
+        window.appearance = expanded ? nil : NSAppearance(named: .darkAqua)
         WindowReveal.reset(window)
-        if !expanded { TransientWindowCenter.shared.register(window: window) { [weak self] in self?.dismiss() } }
+        if resizeTop && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.16
+                context.timingFunction = Theme.Motion.caEaseOut
+                window.animator().setFrame(frame, display: true)
+            }
+        } else { window.setFrame(frame, display: false) }
+        if !expanded && !collapsed { TransientWindowCenter.shared.register(window: window) { [weak self] in self?.dismiss() } }
         if activate { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
         else { window.orderFrontRegardless() }
-        if changingMode || !window.isKeyWindow || activate {
-            WindowReveal.playIn(on: window, from: CGPoint(x: 0.5, y: expanded ? 0.5 : 1),
+        if !collapsed && !resizeTop {
+            WindowReveal.playIn(on: window, from: CGPoint(x: 0.5, y: expanded ? 0.5 : 0),
                                 scale: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 1 : 0.96,
                                 duration: 0.14)
         }
-        Log.info("Dock", "\(expanded ? "完整窗" : "紧凑卡") section=\(section.rawValue) size=\(size)")
+        Log.info("Dock", "\(expanded ? "完整窗" : (collapsed ? "刘海入口" : "刘海展开")) section=\(section.rawValue) size=\(size)")
     }
 
-    func dismiss(animated: Bool = true) {
+    func dismiss() {
         cancelHover()
         leaveWork?.cancel()
         leaveWork = nil
         thumbnailTask?.cancel()
         windowLoad += 1
-        guard let window else { return }
-        generation += 1
-        let current = generation
-        TransientWindowCenter.shared.unregister(window: window)
-        let finish = { [weak self] in
-            guard let self, self.generation == current else { return }
-            window.orderOut(nil)
-            window.contentView = nil
-            WindowReveal.reset(window)
-            self.isExpanded = false
-            self.windows = []
+        windows = []
+        applications = []
+        if Self.savedEnabled { present(expanded: false, activate: false, collapsed: true) }
+        else {
+            for window in [topWindow, fullWindow].compactMap({ $0 }) {
+                TransientWindowCenter.shared.unregister(window: window)
+                window.orderOut(nil)
+                window.contentView = nil
+            }
+            isExpanded = false
+            isCollapsed = true
         }
-        if animated, window.isVisible {
-            WindowReveal.playOutToLastAnchor(on: window, duration: 0.12, completion: finish)
-        } else { finish() }
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool { dismiss(); return false }
     func windowDidResignKey(_ notification: Notification) {
-        if !isExpanded, let window { TransientWindowCenter.shared.requestDismiss(window: window) }
+        if !isExpanded && !isCollapsed, let window { TransientWindowCenter.shared.requestDismiss(window: window) }
     }
 
     private func reloadWindows() {
@@ -352,7 +334,7 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
         app.activate(options: [.activateIgnoringOtherApps])
         let result = AXUIElementPerformAction(item.element, kAXRaiseAction as CFString)
         guard result == .success else { Toast.show("无法切换窗口：\(result.rawValue)", isWarning: true); return }
-        dismiss(animated: false)
+        dismiss()
     }
 
     func isAvailable(_ action: DockHubAction) -> Bool {
@@ -366,7 +348,7 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
 
     func run(_ action: DockHubAction) {
         guard isAvailable(action) else { return }
-        dismiss(animated: false)
+        dismiss()
         switch action {
         case .panel: ServiceLocator.panel?.show()
         case .clipboard: FloatingClipboardWindowController.shared.show()
@@ -376,7 +358,8 @@ final class DockHubController: NSObject, ObservableObject, NSWindowDelegate {
         case .recording: StatsBarEngine.openRecorder()
         case .tools: CommandPaletteController.shared.toggle()
         case .monitor: MonitorPopoutWindowController.shared.open(module: nil)
-        case .settings: ServiceLocator.settings?.open(pane: "dock")
+        case .settings: ServiceLocator.settings?.open(pane: nil)
+        case .manual: ServiceLocator.settings?.open(pane: "manual")
         }
     }
 }

@@ -302,7 +302,7 @@ struct SettingsSidebarView: View {
         .init(title: "菜单栏部件", area: "常规 › 菜单栏", keywords: "合并条 状态栏部件", selection: .generalMenuBar),
         // 音频
         .init(title: "音频混音器", area: "音频 › 音频混音器", keywords: "系统音量 静音 输出设备 有声 App 声音 audio mixer", selection: .audio),
-        .init(title: "Dock 控制台", area: "常规 › Dock 控制台", keywords: "dock 悬停 窗口 切换 音量 播放器 日历", selection: .dock),
+        .init(title: "刘海与控制台", area: "常规 › 刘海与控制台", keywords: "dock 刘海 notch 顶部 悬停 窗口 切换 音量 播放器 日历", selection: .dock),
         // 剪贴板
         .init(title: "剪贴板历史", area: "剪贴板 › 历史", keywords: "条数 保留 清理 上限 占用", selection: .clipboardHistory),
         .init(title: "标签管理", area: "剪贴板 › 历史", keywords: "标签 tag 分类", selection: .clipboardHistory),

@@ -112,7 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
-        for (title, selector) in [("打开 Dock 控制台", #selector(openDockHub)),
+        for (title, selector) in [("打开完整控制台", #selector(openDockHub)),
                                   ("打开主面板", #selector(openDockPanel)),
                                   ("悬浮剪贴板", #selector(openDockClipboard))] {
             let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
@@ -162,9 +162,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // （每次都重做 scheme/host/query 切分），纯重复计算。
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             switch url.host {
-            case "dock":
+            case "dock", "notch":
                 let selected = comps?.queryItems?.first(where: { $0.name == "section" })?.value.flatMap(DockHubSection.init(rawValue:))
-                let compact = comps?.queryItems?.first(where: { $0.name == "mode" })?.value == "compact"
+                let compact = url.host == "notch" || comps?.queryItems?.first(where: { $0.name == "mode" })?.value == "compact"
                 DockHubController.shared.open(section: selected, expanded: !compact)
             case "settings":
                 let pane = comps?

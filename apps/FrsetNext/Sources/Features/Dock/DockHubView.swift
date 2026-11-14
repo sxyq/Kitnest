@@ -18,6 +18,50 @@ struct DockHubView: View {
     ]
 
     var body: some View {
+        Group {
+            if controller.isExpanded {
+                hubContent.padding(.top, OfficialChrome.titlebarInset)
+                    .frame(width: size.width, height: size.height, alignment: .topLeading)
+            } else {
+                VStack(spacing: 0) {
+                    notchLip
+                    if !controller.isCollapsed { hubContent }
+                }
+                .frame(width: size.width, height: size.height, alignment: .topLeading)
+                .background(.black)
+                .clipShape(DockNotchShape(radius: controller.isCollapsed ? 12 : 24))
+                .environment(\.colorScheme, .dark)
+            }
+        }
+        .frsetThemeChrome()
+        .onExitCommand { controller.dismiss() }
+        .ignoresSafeArea()
+    }
+
+    private var notchLip: some View {
+        Button { controller.open(expanded: false) } label: {
+            HStack(spacing: 0) {
+                Image(systemName: "square.grid.2x2.fill")
+                    .frame(maxWidth: .infinity)
+                if controller.notchWidth > 0 {
+                    Color.clear.frame(width: controller.notchWidth)
+                } else {
+                    Text("Kitnest").font(.system(size: 12, weight: .semibold))
+                }
+                Image(systemName: controller.isCollapsed ? "chevron.down" : "chevron.up")
+                    .frame(maxWidth: .infinity)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.white.opacity(0.9))
+            .frame(height: controller.topInset)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("悬停展开工具、日历、媒体与窗口；点击后可用键盘操作")
+        .accessibilityLabel("展开 Kitnest 刘海组件")
+    }
+
+    private var hubContent: some View {
         VStack(spacing: 0) {
             header
             Divider()
@@ -52,18 +96,11 @@ struct DockHubView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.top, controller.isExpanded ? OfficialChrome.titlebarInset : 0)
-        .frame(width: size.width, height: size.height, alignment: .topLeading)
-        .glassPlate(radius: controller.isExpanded ? 0 : Theme.Radius.window,
-                    bordered: !controller.isExpanded)
-        .frsetThemeChrome()
-        .onExitCommand { controller.dismiss() }
-        .ignoresSafeArea()
     }
 
     private var header: some View {
         HStack(spacing: 10) {
-            if let icon = controller.hoveredApplication?.icon {
+            if controller.section == .windows, let icon = controller.hoveredApplication?.icon {
                 Image(nsImage: icon).resizable().scaledToFit()
                     .frame(width: 28, height: 28)
             } else {
@@ -73,7 +110,7 @@ struct DockHubView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("Kitnest").font(.system(size: Theme.TextSize.title, weight: .semibold))
-                Text(controller.hoveredApplication?.localizedName ?? "Dock 助手")
+                Text(controller.section == .windows ? (controller.hoveredApplication?.localizedName ?? "切换应用窗口") : "工具 · 日历 · 媒体 · 窗口")
                     .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -87,12 +124,23 @@ struct DockHubView: View {
                     .padding(.horizontal, 8).frame(height: 28)
             }
             .keyboardShortcut("d", modifiers: [.command, .shift])
-            .help(controller.isExpanded ? "收起为功能卡（⇧⌘D）" : "展开完整控制窗（⇧⌘D）")
-            DockHubButton(action: { controller.dismiss() }) {
-                Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
-                    .frame(width: 28, height: 28)
+            .help(controller.isExpanded ? "返回顶部刘海组件（⇧⌘D）" : "展开完整控制窗（⇧⌘D）")
+            DockHubButton(action: { controller.run(.settings) }) {
+                Image(systemName: "gearshape").frame(width: 28, height: 28)
             }
-            .help("关闭（Esc）").accessibilityLabel("关闭 Dock 控制窗")
+            .keyboardShortcut(",", modifiers: .command)
+            .help("设置（⌘,）").accessibilityLabel("打开 Kitnest 设置")
+            DockHubButton(action: { controller.run(.manual) }) {
+                Image(systemName: "book.closed").frame(width: 28, height: 28)
+            }
+            .help("使用手册").accessibilityLabel("打开使用手册")
+            if !controller.isExpanded {
+                DockHubButton(action: { controller.dismiss() }) {
+                    Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                }
+                .help("收起（Esc）").accessibilityLabel("收起刘海组件")
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 12)
     }
@@ -146,17 +194,23 @@ struct DockHubView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(Self.tools, id: \.title) { tool in toolButton(tool) }
             }
-                if !controller.accessibilityGranted {
-                    Button("启用悬停与切窗：授予辅助功能权限") { controller.requestAccessibility() }
-                        .buttonStyle(.borderless).font(.caption).foregroundStyle(Theme.accent)
-                }
             }
         case .calendar:
             DockCalendarContent(controller: controller)
         case .media:
             DockMediaControlsView()
         case .windows:
-            windowsContent
+            VStack(spacing: 12) {
+                Picker("应用", selection: Binding(get: { controller.hoveredApplication?.processIdentifier },
+                    set: { if let pid = $0 { controller.selectApplication(pid) } })) {
+                    if controller.hoveredApplication == nil { Text("选择应用").tag(Optional<pid_t>.none) }
+                    ForEach(controller.applications, id: \.processIdentifier) { app in
+                        Text(app.localizedName ?? "应用").tag(Optional(app.processIdentifier))
+                    }
+                }
+                .accessibilityLabel("选择需要切换窗口的应用")
+                windowsContent
+            }
         }
     }
 
@@ -196,9 +250,9 @@ struct DockHubView: View {
             }
         } else if controller.windows.isEmpty {
             emptyState(symbol: "macwindow",
-                       title: controller.hoveredApplication == nil ? "选择 Dock 中的应用" : "没有可切换的窗口",
+                       title: controller.hoveredApplication == nil ? "选择上方的应用" : "没有可切换的窗口",
                        detail: controller.hoveredApplication == nil
-                           ? "悬停应用图标后，在这里查看它的窗口。"
+                           ? "从应用列表选择，在这里查看并切换它的窗口。"
                            : "\(controller.hoveredApplication?.localizedName ?? "当前应用")当前没有可用窗口。")
         } else {
             LazyVStack(spacing: 8) {
@@ -254,6 +308,21 @@ struct DockHubView: View {
         case .media: return ("媒体", "play.rectangle", "正在播放与媒体控制。")
         case .windows: return ("窗口", "macwindow.on.rectangle", "点击窗口前置，最小化状态显示在窗口标题下。")
         }
+    }
+}
+
+private struct DockNotchShape: Shape {
+    let radius: CGFloat
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - radius, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - radius), control: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
