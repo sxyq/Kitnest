@@ -232,7 +232,7 @@
 **坑**：该函数在**调用线程**直接同步访问 `repository`（`exists`/`insert`），没有走 `queue`——与"所有 IO 在 queue"的约定冲突。当前调用方是 `ClipboardSummaryExecutionCoordinator`（async 上下文，可能在任意线程），属结构性隐患。
 
 **`scheduleOCR(...)`（707–726）**
-开关 `automaticScreenshotOCREnabled`（默认 true）+ `ServiceLocator.ocrService` 存在才跑；`Task.detached(.utility)` 识别 → 空结果 Toast「未读取到文字」→ 写 OCR + `bumpStat("ocr_count")`；异常 Toast + warn。
+开关 `automaticScreenshotOCREnabled`（默认 true）+ `ServiceLocator.ocrService` 存在才跑；`Task.detached(.utility)` 识别 → 有正文时写 OCR + `bumpStat("ocr_count")`；空结果和异常只记日志，保留图片，不显示 Toast。
 **坑**：`Toast.show` 在 detached 任务里直接调用（未回主线程）——依赖 `Toast` 自身线程安全；`ClipboardOCRTextStorage.write` 也在后台（其内部有锁）。
 
 ### 3.2 `ClipboardTableHostView.swift`

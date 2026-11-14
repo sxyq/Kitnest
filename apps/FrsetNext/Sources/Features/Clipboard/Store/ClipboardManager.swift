@@ -861,23 +861,21 @@ public final class ClipboardManager: ObservableObject {
         }
     }
 
-    /// 图片 OCR：遵循 IOC 约定，能力缺失时静默跳过
+    /// 图片自动 OCR 静默处理；空结果和失败保留图片，不打断用户操作。
     private func scheduleOCR(dedupeKey: String, imageData: Data) {
         if !Preferences.shared.value("automaticScreenshotOCREnabled", default: true) { return }
         guard let service = ServiceLocator.ocrService else { return }
         Task.detached(priority: .utility) {
             do {
                 let text = try await service.recognizeText(imageData: imageData)
-                // spec 13 §4：未读取到文字场景（0x10000d45c，空识别结果分支）
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+                    Log.info("clipboard", "自动 OCR 无文字，保留图片")
                     return
                 }
                 ClipboardOCRTextStorage.write(text, dedupeKey: dedupeKey)
                 DatabaseManager.shared.bumpStat("ocr_count")
                 Log.info("clipboard", "OCR 完成：\(text.count) 字符")
             } catch {
-                Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
                 Log.warn("clipboard", "OCR 失败: \(error)")
             }
         }

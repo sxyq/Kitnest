@@ -4249,11 +4249,11 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,insertText,839,3,1
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,auxiliaryBytes,847,5,1
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,scheduleAutoStage,855,8,1
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,scheduleOCR,865,20,5
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,pasteToFrontmostApplication,887,20,3
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,var,didShowAccessibilityGuideThisLaunch,910,0,1
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,presentAccessibilityGuide,914,23,4
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,String,var,lineCount,945,0,1
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,scheduleOCR,865,18,5
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,pasteToFrontmostApplication,885,20,3
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,var,didShowAccessibilityGuideThisLaunch,908,0,1
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,func,presentAccessibilityGuide,912,23,4
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,String,var,lineCount,943,0,1
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,let,type,10,0,1
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,let,content,11,0,1
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,let,title,12,0,1
