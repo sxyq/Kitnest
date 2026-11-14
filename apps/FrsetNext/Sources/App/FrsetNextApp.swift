@@ -134,8 +134,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // JSON 检视器独立窗已删除，访达双击 JSON 不再开窗；剪贴板里的
             // JSON 仍旧在 hover 预览里内联展示（JSONInspectorView）。
         }
-        guard let url = urls.first,
-              url.scheme == "kitnest" || url.scheme == "frsetnext" else { return }
+        let schemes = (Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]])?
+            .flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] } ?? []
+        guard let url = urls.first, let scheme = url.scheme, schemes.contains(scheme) else { return }
         Log.info("App", "URL 唤起: \(url.absoluteString)")
         // 窗口创建延后到下一 runloop：Apple Event 处理上下文内创建 NSWindow +
         // NSHostingView 会在 display cycle layout observer 中触发次级约束更新，
@@ -147,6 +148,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // （每次都重做 scheme/host/query 切分），纯重复计算。
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             switch url.host {
+            case "island":
+                IslandController.shared.open()
             case "settings":
                 let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value

@@ -15,7 +15,7 @@ import Network
 public final class AndroidWebDAVServer {
 
     public static let shared = AndroidWebDAVServer()
-    public static let defaultPort: UInt16 = 8768   // 8765/8766 实测被系统内其它进程占用
+    public static let defaultPort = (Bundle.main.object(forInfoDictionaryKey: "KitnestWebDAVPort") as? NSNumber)?.uint16Value ?? 8768
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "frset.webdav", qos: .userInitiated, attributes: .concurrent)

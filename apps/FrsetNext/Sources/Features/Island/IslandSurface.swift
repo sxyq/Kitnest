@@ -28,6 +28,9 @@ struct IslandSurface<Content: View>: View {
     private var width: CGFloat { CGFloat(configuration.width) }
     private var compactWidth: CGFloat { max(340, notchWidth + 180) }
     private var compactHeight: CGFloat { max(38, notchHeight + 8) }
+    private var compactSideWidth: CGFloat {
+        (compactWidth - notchWidth - 32 - (notchWidth > 0 ? 16 : 8)) / 2
+    }
     private var motion: Animation {
         reduceMotion ? .easeOut(duration: 0.12) :
             expanded ? .spring(response: 0.32, dampingFraction: 0.92) : .easeOut(duration: 0.22)
@@ -38,10 +41,10 @@ struct IslandSurface<Content: View>: View {
                 Button(action: onOpen) {
                     Label(summary, systemImage: "circle.hexagongrid.fill")
                         .lineLimit(1).truncationMode(.tail)
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).frame(width: compactSideWidth, alignment: .leading)
                 if notchWidth > 0 { Color.clear.frame(width: notchWidth) }
-                Spacer(minLength: 0)
                 Text(detail).foregroundStyle(.secondary).lineLimit(1)
+                    .frame(width: compactSideWidth, alignment: .trailing)
             }
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 16)

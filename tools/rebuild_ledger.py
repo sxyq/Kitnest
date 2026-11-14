@@ -43,6 +43,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Island/IslandController.swift", "performKeyEquivalent"):
+        "原生窗口接收 Esc 并复用收起入口，搜索编辑器不会吞掉退出；其余按键交回 AppKit。",
     ("Features/Island/IslandController.swift", "start"):
         "启动时按已保存的启用状态创建刘海窗口，未启用时不建立事件观察",
     ("Features/Island/IslandController.swift", "apply"):

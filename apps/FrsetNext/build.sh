@@ -32,6 +32,20 @@ echo "== 清理 =="
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
+if [ "${KITNEST_PARALLEL:-0}" = "1" ]; then
+  PLIST="$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.sxyq.frsetnext.island' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleName Kitnest Island' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Kitnest Island' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleURLTypes:0:CFBundleURLName com.sxyq.frsetnext.island' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Set :CFBundleURLTypes:0:CFBundleURLSchemes:0 kitnest-island' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes:0:CFBundleURLSchemes:1' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Delete :NSServices' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Delete :CFBundleDocumentTypes' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Add :KitnestDataDirectoryName string Kitnest-Island' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Add :KitnestMCPPort integer 18767' "$PLIST"
+  /usr/libexec/PlistBuddy -c 'Add :KitnestWebDAVPort integer 18777' "$PLIST"
+fi
 
 FILES=$(find "$SRC" -name '*.swift' \
   -not -name '._*' \
@@ -339,9 +353,11 @@ fi
 # 任一步失败都保留旧版不动，绝不把坏包放到用户双击的路径上。
 # app 正在运行时换位仍可完成（进程持旧 inode），下次启动即新版。
 # ============================================================================
-DEPLOY=/Applications/Kitnest.app
-DEPLOY_STAGE=/Applications/.Kitnest.app.staging.$$
-DEPLOY_OLD=/Applications/.Kitnest.app.old.$$
+DEPLOY_NAME=Kitnest
+if [ "${KITNEST_PARALLEL:-0}" = "1" ]; then DEPLOY_NAME='Kitnest Island'; fi
+DEPLOY="/Applications/$DEPLOY_NAME.app"
+DEPLOY_STAGE="/Applications/.$DEPLOY_NAME.app.staging.$$"
+DEPLOY_OLD="/Applications/.$DEPLOY_NAME.app.old.$$"
 LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
 if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/Kitnest" >/dev/null 2>&1; then

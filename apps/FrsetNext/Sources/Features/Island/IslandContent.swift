@@ -34,23 +34,27 @@ struct IslandRootView: View {
                                     .textFieldStyle(.roundedBorder)
                                 ClipboardSectionView(isActive: controller.expanded && controller.page == .clipboard)
                             }.opacity(controller.page == .clipboard ? 1 : 0)
+                                .disabled(!controller.expanded || controller.page != .clipboard)
                                 .allowsHitTesting(controller.page == .clipboard)
                                 .accessibilityHidden(controller.page != .clipboard)
                         }
                         if visited.contains(.transfer) {
                             transfer.opacity(controller.page == .transfer ? 1 : 0)
+                                .disabled(!controller.expanded || controller.page != .transfer)
                                 .allowsHitTesting(controller.page == .transfer)
                                 .accessibilityHidden(controller.page != .transfer)
                         }
                         if visited.contains(.search) {
                             ScrollView { SearchSectionView() }
                                 .opacity(controller.page == .search ? 1 : 0)
+                                .disabled(!controller.expanded || controller.page != .search)
                                 .allowsHitTesting(controller.page == .search)
                                 .accessibilityHidden(controller.page != .search)
                         }
                         if visited.contains(.calendar) {
                             CalendarSectionView(isActive: controller.expanded && controller.page == .calendar)
                                 .opacity(controller.page == .calendar ? 1 : 0)
+                                .disabled(!controller.expanded || controller.page != .calendar)
                                 .allowsHitTesting(controller.page == .calendar)
                                 .accessibilityHidden(controller.page != .calendar)
                         }
@@ -78,7 +82,6 @@ struct IslandRootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .onChange(of: controller.page) { visited.insert($0) }
-        .onExitCommand { controller.collapse() }
     }
 
     private var transfer: some View {

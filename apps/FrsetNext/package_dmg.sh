@@ -5,14 +5,17 @@
 set -e
 APP="${KITNEST_PACKAGE_APP:-/Applications/Kitnest.app}"
 OUT="${KITNEST_DMG_OUTPUT:-$HOME/Desktop/Kitnest-1.0.0.dmg}"
+APP_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Contents/Info.plist")
+APP_DATA_NAME=FrsetNext
+if [ "$APP_NAME" = 'Kitnest Island' ]; then APP_DATA_NAME=Kitnest-Island; fi
 STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
 
 [ -d "$APP" ] || { echo "✗ 找不到 $APP（先跑 build.sh）"; exit 1; }
 rm -rf "$STAGE" && mkdir -p "$STAGE"
-cp -R "$APP" "$STAGE/"
+cp -R "$APP" "$STAGE/$APP_NAME.app"
 
-cat > "$STAGE/安装说明.txt" <<'TXT'
-Kitnest 安装说明
+cat > "$STAGE/安装说明.txt" <<TXT
+$APP_NAME 安装说明
 =================
 
 【系统要求】
@@ -22,18 +25,18 @@ Kitnest 安装说明
 
 【安装步骤】
 1. 打开本镜像（双击 Kitnest-1.0.0.dmg）
-2. 把 Kitnest 图标拖进「应用程序」文件夹
-3. 从「应用程序」里启动 Kitnest
+2. 把 $APP_NAME 图标拖进「应用程序」文件夹
+3. 从「应用程序」里启动 $APP_NAME
 
 【首次打开（重要）】
 本应用未经过 Apple 公证（个人开发者签名），直接双击可能提示
 「无法验证开发者」/「已损坏」。两种打开方式任选其一：
 
-  方式 A（推荐）：在「应用程序」里**右键点击 Kitnest → 打开**，
+  方式 A（推荐）：在「应用程序」里**右键点击 $APP_NAME → 打开**，
                  在弹窗里再点「打开」，之后就能正常双击使用。
 
   方式 B（命令行）：打开「终端」执行
-                 xattr -cr /Applications/Kitnest.app
+                 xattr -cr "/Applications/$APP_NAME.app"
                  然后正常双击打开。
 
 【使用中可能请求的系统权限】（按需在 系统设置 → 隐私与安全性 开启）
@@ -50,19 +53,29 @@ Kitnest 安装说明
 访达原有的「压缩」菜单保持不变。
 
 【卸载】
-把「应用程序」里的 Kitnest 删除即可；历史数据在
-「~/Library/Application Support/FrsetNext」，不需要就一并删除。
+把「应用程序」里的 $APP_NAME 删除即可；历史数据在
+「~/Library/Application Support/$APP_DATA_NAME」，不需要就一并删除。
 
 —— 来自 Sun 的自用工具，有问题随时找我
 TXT
+if [ "$APP_NAME" = 'Kitnest Island' ]; then
+  cat >> "$STAGE/安装说明.txt" <<'TXT'
+
+【并行版】
+此版本与 Kitnest 主版分别运行。数据位于
+~/Library/Application Support/Kitnest-Island，配置与菜单栏部件独立。
+不注册主版的深链、文件打开方式与访达服务。
+顶部刘海设置：常规 → 顶部刘海，启用后保存。
+TXT
+fi
 
 rm -f "$OUT"
-hdiutil create -volname "Kitnest 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
+hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
 rm -rf "$STAGE"
 
 # 挂载校验
 VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')
-codesign -v "$VOL/Kitnest.app" && echo "✓ 签名校验通过"
+codesign -v "$VOL/$APP_NAME.app" && echo "✓ 签名校验通过"
 hdiutil detach "$VOL" -quiet
 ls -lh "$OUT"
 echo "✓ DMG 已打包：$OUT"

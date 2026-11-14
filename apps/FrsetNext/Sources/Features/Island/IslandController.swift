@@ -16,6 +16,7 @@ final class IslandController: NSObject, ObservableObject, NSWindowDelegate {
     private var hoverWork: DispatchWorkItem?
     private var inside = false
     private var hoverArmed = true
+    private var openedExplicitly = false
     private var previousDropState: (Bool, IslandPage)?
     private var acceptedDrop = false
     private var observation: AnyCancellable?
@@ -97,13 +98,19 @@ final class IslandController: NSObject, ObservableObject, NSWindowDelegate {
 
     func expand(takeFocus: Bool = false) {
         hoverWork?.cancel()
+        hoverWork = nil
+        openedExplicitly = openedExplicitly || takeFocus
         expanded = true
         hoverArmed = false
         if takeFocus { panel?.makeKeyAndOrderFront(nil) }
+        Log.info("Island", "展开：主动=\(openedExplicitly)")
     }
 
     func collapse() {
         hoverWork?.cancel()
+        hoverWork = nil
+        if expanded { Log.info("Island", "收起：指针在内=\(inside)") }
+        openedExplicitly = false
         expanded = false
         dropping = false
         hoverArmed = !inside
@@ -127,15 +134,12 @@ final class IslandController: NSObject, ObservableObject, NSWindowDelegate {
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp]) { [weak self] _ in
             self?.updatePointer()
         } { monitors.append(token) }
-        if let token = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+        if let token = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            self?.updatePointer(at: event.locationInWindow)
             if self?.inside == false { self?.collapse() }
         } { monitors.append(token) }
         if let token = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseDown, .rightMouseDown, .keyDown, .leftMouseUp]) { [weak self] event in
             guard let self else { return event }
-            if event.type == .keyDown, event.window === self.panel, event.keyCode == 53 {
-                // 内层预览和编辑器先处理 Esc；这里仅接收未被控件消费的退出命令。
-                return event
-            }
             self.updatePointer()
             if (event.type == .leftMouseDown || event.type == .rightMouseDown), event.window !== self.panel {
                 self.collapse()
@@ -144,12 +148,12 @@ final class IslandController: NSObject, ObservableObject, NSWindowDelegate {
         } { monitors.append(token) }
     }
 
-    private func updatePointer() {
+    private func updatePointer(at location: NSPoint? = nil) {
         guard let panel, panel.isVisible else { return }
         let width = expanded ? CGFloat(configuration.width) : max(340, notchWidth + 180)
         let h = expanded ? height : max(38, notchHeight + 8)
         let rect = NSRect(x: panel.frame.midX - width / 2, y: panel.frame.maxY - h, width: width, height: h)
-        let next = rect.contains(NSEvent.mouseLocation)
+        let next = rect.contains(location ?? NSEvent.mouseLocation)
         if panel.ignoresMouseEvents == next { panel.ignoresMouseEvents = !next }
         guard inside != next || (!next && expanded && hoverWork == nil) else { return }
         inside = next
@@ -159,11 +163,12 @@ final class IslandController: NSObject, ObservableObject, NSWindowDelegate {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
-        } else if !next, expanded {
+        } else if !next, expanded, !openedExplicitly {
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 self.hoverWork = nil
                 guard NSEvent.pressedMouseButtons == 0,
+                      self.panel?.isKeyWindow != true,
                       !(self.panel?.firstResponder is NSTextView), !self.dropping else { return }
                 self.collapse()
             }
@@ -226,4 +231,11 @@ final class IslandController: NSObject, ObservableObject, NSWindowDelegate {
 final class IslandPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.keyCode == 53, event.type == .keyDown {
+            IslandController.shared.collapse()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
