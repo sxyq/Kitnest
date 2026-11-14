@@ -121,6 +121,7 @@ enum AppBootstrap {
 
         // 复制网盘链接 → 状态栏小提示（点击进入解析中心）
         CloudLinkPromptController.shared.start()
+        IslandController.shared.start()
 
         // v126（性能审计 F0001）：探针判据集中取值——`ProcessInfo.processInfo.environment`
         // 每次访问都整表拷贝环境字典，`UserDefaults.bool(forKey:)` 也是逐次查偏好库；
@@ -219,6 +220,7 @@ enum AppBootstrap {
     }
 
     static func stop() {
+        IslandController.shared.stop()
         Log.info("Bootstrap", "应用退出")
     }
 

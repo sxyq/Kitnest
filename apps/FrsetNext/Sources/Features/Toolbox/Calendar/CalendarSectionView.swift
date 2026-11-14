@@ -15,6 +15,7 @@ import AppKit
 // 今天 = 蓝底白字圆角块；节气/节日 = 橙色文字。
 
 public struct CalendarSectionView: View {
+    private let isActive: Bool
     @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
     private var accent: Color { (previewPersonalization ?? .shared).accentColor ?? .accentColor }
     @ObservedObject private var service = CalendarService.shared
@@ -35,7 +36,7 @@ public struct CalendarSectionView: View {
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
-    public init() {}
+    public init(isActive: Bool = true) { self.isActive = isActive }
 
     public var body: some View {
         VStack(spacing: 6) {
@@ -58,14 +59,18 @@ public struct CalendarSectionView: View {
         // v111：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
         .whiteGlassCard(14)
         .onHover { hovering in
-            isHovered = hovering
+            isHovered = hovering && isActive
             if !hovering { scrollAccum = 0 }
         }
         .onAppear {
             reload()
-            installScrollMonitor()
+            if isActive { installScrollMonitor() }
         }
         .onDisappear { removeScrollMonitor() }
+        .onChange(of: isActive) { active in
+            if active { installScrollMonitor() }
+            else { isHovered = false; removeScrollMonitor() }
+        }
     }
 
     // v126（性能审计 死代码复审）：删除死计算属性 cardFill（零引用，非框架回调）

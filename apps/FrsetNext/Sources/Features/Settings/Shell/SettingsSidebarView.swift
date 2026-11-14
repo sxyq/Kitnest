@@ -280,6 +280,7 @@ struct SettingsSidebarView: View {
     /// 设置索引：标题 = 用户嘴里的说法，keywords = 同义词/部件名。
     /// v272：每条直接指向一个二级页（`SettingsPage`），不再带「页内第几段」。
     private static let searchIndex: [SettingsSearchEntry] = [
+        .init(title: "顶部刘海", area: "常规 › 顶部刘海", keywords: "灵动岛 顶部 悬停 排列 拖拽 island", selection: .generalIsland),
         // 常规 · 启动与外观
         .init(title: "开机启动", area: "常规 › 启动与外观", keywords: "登录 自启 启动项", selection: .generalStart),
         .init(title: "ZIP 默认打开方式", area: "常规 › 启动与语言", keywords: "ZIP 压缩 解压 默认应用 关联 访达 服务", selection: .generalStart),

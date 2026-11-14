@@ -29,10 +29,12 @@ public struct ClipboardSectionView: View {
     // 注意：裸 swiftc 自检无 SwiftUIMacros 插件，@State 不可用（CONTRACT §7.4）→ 用 @Stored
     @Stored private var scrollProxy = ClipboardTableScrollProxy()
 
-    private var isPageActive: Bool { pagePresenter.activePage == .home }
+    private let hostActive: Bool?
+    private var isPageActive: Bool { hostActive ?? (pagePresenter.activePage == .home) }
 
-    public init(personalization: Personalization = .shared) {
+    public init(personalization: Personalization = .shared, isActive: Bool? = nil) {
         self.personalization = personalization
+        self.hostActive = isActive
     }
 
     private var effectivePersonalization: Personalization { previewPersonalization ?? personalization }

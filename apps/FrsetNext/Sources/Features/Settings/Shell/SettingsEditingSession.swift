@@ -36,6 +36,7 @@ final class SettingsEditingSession: ObservableObject {
         register(id: "recordingAppearance") { RecordingAppearanceDraft() }
         register(id: "searchDisplay") { SearchDisplayDraft() }
         register(id: "transferLocal") { LocalTransferSettingsDraft() }
+        register(id: "island") { IslandSettingsDraft() }
     }
 
     func register<D: SettingsEditableDraft>(id: String, makeDraft: @escaping () -> D) {
@@ -91,6 +92,7 @@ extension SettingsPage {
         switch self {
         case .generalPersonal: return [PersonalizationSettingsPart.shared.draftID]
         case .generalPanel: return [PersonalizationSettingsPart.mainPanel.draftID]
+        case .generalIsland: return ["island"]
         case .generalWindows: return [PersonalizationSettingsPart.floatingWindow.draftID]
         case .generalNotifications: return [PersonalizationSettingsPart.notification.draftID]
         case .captureActions: return [PersonalizationSettingsPart.captureToolbar.draftID]

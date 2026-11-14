@@ -43,6 +43,56 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Island/IslandController.swift", "start"):
+        "启动时按已保存的启用状态创建刘海窗口，未启用时不建立事件观察",
+    ("Features/Island/IslandController.swift", "apply"):
+        "设置保存后统一应用配置、启停窗口并调整被隐藏页面的选择",
+    ("Features/Island/IslandController.swift", "open"):
+        "菜单栏入口复用单个刘海窗口并进入可键盘操作的展开态",
+    ("Features/Island/IslandController.swift", "show"):
+        "创建透明非激活面板、固定宿主尺寸并连接指针与屏幕事件",
+    ("Features/Island/IslandController.swift", "position"):
+        "读取屏幕刘海安全区和两侧区域，把同一个窗口对齐目标屏幕顶部",
+    ("Features/Island/IslandController.swift", "expand"):
+        "取消未完成悬停调度并转为展开；主动点击时才取得键盘焦点",
+    ("Features/Island/IslandController.swift", "collapse"):
+        "收起刘海并撤去文件与剪贴板预览，指针离开前不重复展开",
+    ("Features/Island/IslandController.swift", "stop"):
+        "关闭功能时释放窗口、屏幕观察和指针监听，不影响主面板",
+    ("Features/Island/IslandController.swift", "installMonitors"):
+        "统一接入悬停、拖动和窗外点击，透明舞台外区域交还其他应用",
+    ("Features/Island/IslandController.swift", "updatePointer"):
+        "按当前显示尺寸计算命中区，调度悬停展开与离开后收起，并保留编辑和拖动",
+    ("Features/Island/IslandController.swift", "targetDrop"):
+        "文件进入时临时打开中转，未放下离开时恢复原页和开合状态",
+    ("Features/Island/IslandController.swift", "acceptDrop"):
+        "复用文件 URL 读取和本地暂存实现，按真实加入结果显示反馈",
+    ("Features/Island/IslandController.swift", "reorder"):
+        "拖拽排列保存为同一份刘海配置，并向用户呈现保存错误",
+    ("Features/Island/IslandController.swift", "openFullWindow"):
+        "从刘海切回现有剪贴板、中转、搜索、音频或主页入口",
+    ("Features/Island/IslandContent.swift", "selectFile"):
+        "紧凑中转沿用整行选择、Command 多选、Shift 范围选择及勾选语义",
+    ("Features/Island/IslandContent.swift", "copyFiles"):
+        "按本地中转列表顺序交给剪贴板正式文件复制实现，成功后收起",
+    ("Features/Island/IslandContent.swift", "mediaButton"):
+        "三个固定媒体动作发送系统媒体键，不创建播放器或新媒体服务",
+    ("Features/Island/IslandSettings.swift", "save"):
+        "草稿保存独立配置后应用；编码失败保留调整并返回具体原因",
+    ("Features/Island/IslandSettings.swift", "discard"):
+        "取消恢复本页已保存配置，不覆盖其他设置页",
+    ("Features/Island/IslandSettings.swift", "restoreDefaults"):
+        "恢复默认只修改刘海草稿，等待保存后才影响正式窗口",
+    ("Features/Island/IslandSettings.swift", "move"):
+        "设置页向前向后按钮提供无需拖拽的入口排序方式",
+    ("Features/Island/IslandSurface.swift", "path"):
+        "同一外形绘制底部圆角及可选连接弧，用作背景与内容遮罩",
+    ("Features/Island/IslandSurface.swift", "inset"):
+        "外壳细描边使用内缩路径，不改变内容尺寸或命中区",
+    ("Features/Island/IslandSurface.swift", "makeBody"):
+        "导航与操作共用固定命中区、按下反馈和减少动态效果处理",
+    ("Features/TransferDock/UI/TransferDockView.swift", "load"):
+        "主面板与顶部刘海共用同一文件拖放读取函数，主线程汇总已读 URL",
     ("Features/Capture/Screenshot/CaptureActionToolbarView.swift", "reduce"):
         "合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距",
     # ── v249–v258 ────────────────────────────────────────────────────────

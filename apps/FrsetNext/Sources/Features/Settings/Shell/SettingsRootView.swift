@@ -127,6 +127,8 @@ struct SettingsRootView: View {
             panePage { GeneralSettingsPane(section: .startup) }
         case .generalPanel:
             panePage { GeneralSettingsPane(section: .mainPanel) }
+        case .generalIsland:
+            panePage { IslandSettingsPane() }
         case .generalWindows:
             panePage { GeneralSettingsPane(section: .floating) }
         case .generalPersonal:
