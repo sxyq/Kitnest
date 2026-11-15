@@ -40,8 +40,7 @@ enum DiskVoronoiLayout {
 
     /// - Parameter freeSpace: 根层的磁盘可用空间（字节），同样按实际字节分配面积。
     static func make(nodes: [DiskNode], in size: CGSize,
-                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14,
-                     labelTop: CGFloat = 144) -> [DiskTile] {
+                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.filter { $0.size > 0 }.sorted { $0.size > $1.size }
 
@@ -103,7 +102,7 @@ enum DiskVoronoiLayout {
                                                      radius: min(bbox.width, bbox.height) * 0.30)
             let contour = VoronoiTreemap.sampledPoints(
                 hitPath, spacing: 18)
-            let labelPolygon = VoronoiTreemap.clipHalfPlane(contour, a: 0, b: -1, c: -labelTop)
+            let labelPolygon = contour
             let center = VoronoiTreemap.centroid(labelPolygon)
             let localContour = contour.map { CGPoint(x: $0.x - frame.minX, y: $0.y - frame.minY) }
             tiles.append(DiskTile(node: n,
@@ -146,9 +145,9 @@ private final class DiskLayoutCache {
     private var tiles: [DiskTile] = []
 
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
-               indexRevision: Int, labelTop: CGFloat) -> [DiskTile] {
-        let k = "\(node.id)|\(Int(size.width))×\(Int(size.height))|\(node.children.count)|\(node.size)"
-            + "|\(freeSpace ?? 0)|\(indexRevision)|\(labelTop)"
+               indexRevision: Int) -> [DiskTile] {
+        let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
+            + "|\(freeSpace ?? 0)|\(indexRevision)"
         if k == key { return tiles }
         var nodes = node.children
         if node.isDirectory, node.ownSize > 0 {
@@ -157,7 +156,7 @@ private final class DiskLayoutCache {
                                   foldedCount: 0, children: [], isAggregate: true))
         }
         let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
-                                          parentPath: node.path, freeSpace: freeSpace, labelTop: labelTop)
+                                          parentPath: node.path, freeSpace: freeSpace)
         key = k
         tiles = made
         return made
@@ -255,15 +254,13 @@ struct StorageTreemap: View {
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
-    var labelTop: CGFloat = 144
     @Stored private var selectedID: String?
     @Stored private var hover = (point: CGPoint.zero, id: Optional<String>.none, active: false)
 
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                     freeSpace: freeSpace, indexRevision: indexRevision,
-                                                     labelTop: labelTop)
+                                                     freeSpace: freeSpace, indexRevision: indexRevision)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")

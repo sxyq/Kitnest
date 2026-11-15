@@ -619,11 +619,13 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageVoronoi.swift", "sampledPoints"):
         "按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigate"):
-        "进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录",
+        "实际进入新分支时以目录路径前缀生成逐层历史，点击祖先只移动深度游标并保留已知前进目标",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "header"):
         "按窗口宽度将统计说明放在弧线外的左上区域，保留右上方扫描、记录与设置操作",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "leftPane"):
-        "在连续弧线外展示全部真实清理记录，顶部保留选择与清理操作，列表独立滚动填满左侧区域",
+        "正文画布内独立滚动全部真实清理记录，行宽使用同一局部异形轮廓，选择与清理操作由candidateControls承载",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "candidateControls"):
+        "复用真实候选数量、全选、已选字节、Agent提示词及废纸篓入口，与右侧目录操作区按实际控件高度决定正文上界",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "candidateWidth"):
         "从同一存储图轮廓求记录所在高度的可用宽度，使行内容跟随弧线缩窄而不被曲边截断",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigateHistory"):
@@ -631,7 +633,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "makeNSView"):
         "创建只负责图形区域双指导航的 AppKit 视图，将方向传回现有根视图",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "updateNSView"):
-        "同步 SwiftUI 最新导航回调到现有手势视图，不重建事件监听器",
+        "同步目录模式启用态与最新导航回调到同一手势视图，不重建事件监听器",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "init"):
         "手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "hitTest"):
@@ -2149,8 +2151,6 @@ EVIDENCE.update({
         "扫描目录文件时只保留达到minimumFileBytes的条目，按字节数降序插入，超过childrenPerDirectory移除最小项，完整占用另计",
     ("Features/Monitor/Storage/DiskIndex.swift", "independentPaths"):
         "分类汇总及多路径操作将路径集合排序，已有父路径时移除被包含子路径，避免同一目录重复参与操作",
-    ("Features/Monitor/Storage/StorageManagerWindow.swift", "rightPane"):
-        "存储窗口右区复用StorageTreemap并接既有目录历史、钻取、选择及返回；根目录传实际空闲空间，顶部标签让出contentTop，分类详情只展示，真实路径删除仍交原确认流程",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "categoryDetail"):
         "右区系统数据分类详情显示本次扫描根、类别字节、独立目录与coverageHelp，说明折叠及子分类扣除范围，不自动加入清理推荐",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "refreshedNavigationNode"):
