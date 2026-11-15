@@ -159,8 +159,7 @@ enum MonitorChartScale {
         return all[index]
     }
 
-    static func niceCeiling(_ raw: Double) -> Double {
-        let floorValue = 1024.0          // 1 KB/s：空载时别把噪声放大成满屏尖峰
+    static func niceCeiling(_ raw: Double, floorValue: Double = 1024) -> Double {
         let value = max(raw.isFinite ? raw : 0, floorValue)
         let exponent = floor(log10(value))
         let base = pow(10, exponent)

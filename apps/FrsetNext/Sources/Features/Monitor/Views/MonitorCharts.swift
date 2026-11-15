@@ -1,4 +1,58 @@
 import SwiftUI
+import AppKit
+
+private struct MonitorChartInput: NSViewRepresentable {
+    enum Action {
+        case hover(CGFloat), exit, click(CGFloat), drag(CGFloat), dragEnd, move(Int), toggle, focus(Bool)
+    }
+    let action: (Action) -> Void
+    func makeNSView(context: Context) -> InputView { InputView() }
+    func updateNSView(_ view: InputView, context: Context) { view.action = action }
+
+    final class InputView: NSView {
+        var action: ((Action) -> Void)?
+        private var start = NSPoint.zero
+        private var dragging = false
+        override var acceptsFirstResponder: Bool { true }
+        override var mouseDownCanMoveWindow: Bool { false }
+        override func viewDidMoveToWindow() { window?.acceptsMouseMovedEvents = true }
+        override func updateTrackingAreas() {
+            for area in trackingAreas { removeTrackingArea(area) }
+            addTrackingArea(NSTrackingArea(rect: bounds,
+                options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect], owner: self))
+            super.updateTrackingAreas()
+        }
+        override func mouseEntered(with event: NSEvent) { mouseMoved(with: event) }
+        override func mouseMoved(with event: NSEvent) { action?(.hover(convert(event.locationInWindow, from: nil).x)) }
+        override func mouseExited(with event: NSEvent) { action?(.exit) }
+        override func mouseDown(with event: NSEvent) {
+            start = convert(event.locationInWindow, from: nil)
+            dragging = false
+            window?.makeFirstResponder(self)
+        }
+        override func mouseDragged(with event: NSEvent) {
+            let point = convert(event.locationInWindow, from: nil)
+            if !dragging && hypot(point.x - start.x, point.y - start.y) < 3 { return }
+            dragging = true
+            action?(.drag(point.x))
+        }
+        override func mouseUp(with event: NSEvent) {
+            if dragging { action?(.dragEnd) }
+            else { action?(.click(convert(event.locationInWindow, from: nil).x)) }
+            dragging = false
+        }
+        override func becomeFirstResponder() -> Bool { action?(.focus(true)); return true }
+        override func resignFirstResponder() -> Bool { action?(.focus(false)); return true }
+        override func keyDown(with event: NSEvent) {
+            switch event.keyCode {
+            case 123: action?(.move(-1))
+            case 124: action?(.move(1))
+            case 36, 76: action?(.toggle)
+            default: super.keyDown(with: event)
+            }
+        }
+    }
+}
 
 /// 图表的查看对象按采样时间保存，历史滚动后不会指向另一帧。
 struct MonitorTrendPoint: Equatable {
@@ -17,6 +71,7 @@ struct MonitorTrendData {
     let interval: Double
     let visiblePoints: [MonitorTrendPoint]
     let suggestedUpper: Double
+    var hasReadings: Bool { points.contains { $0.values.contains { $0 != nil } } }
     var start: Double { (points.last?.time ?? 0) - interval * Double(MonitorSampler.historyCapacity - 1) }
     var end: Double { points.last?.time ?? 0 }
 
@@ -58,7 +113,8 @@ struct MonitorTrendData {
         }
         let cutoff = (points.last?.time ?? 0) - interval * Double(MonitorSampler.historyCapacity - 1)
         visiblePoints = points.filter { $0.time >= cutoff }
-        suggestedUpper = fixedUpper ?? MonitorChartScale.niceCeiling(series.flatMap { $0.filter(\.isFinite) }.max() ?? 1)
+        suggestedUpper = fixedUpper ?? MonitorChartScale.niceCeiling(series.flatMap { $0.filter(\.isFinite) }.max() ?? 1,
+            floorValue: module == .network || module == .disk ? 1024 : 1)
     }
 
     func format(_ value: Double?) -> String {
@@ -67,7 +123,7 @@ struct MonitorTrendData {
         case .cpu, .gpu, .battery: return String(format: "%.1f%%", value)
         case .memory: return value >= 2 ? "严重" : value >= 1 ? "警告" : "正常"
         case .network, .disk: return MonitorFormat.rate(MonitorFormat.u64(value))
-        case .sensors: return MonitorFormat.temperature(value)
+        case .sensors: return MonitorFormat.temperature(value) + "C"
         case .power: return MonitorFormat.power(value)
         }
     }
@@ -86,8 +142,8 @@ struct MonitorTrendChart: View {
     @Stored private var scale: Double = 1
     @Stored private var dragging = false
     @Stored private var activeKey = ""
-    @FocusState private var focused: Bool
-    private var upper: Double { data.fixedUpper ?? max(scale, data.suggestedUpper) }
+    @Stored private var focused = false
+    private var upper: Double { data.fixedUpper ?? (activeKey == data.key ? max(scale, data.suggestedUpper) : data.suggestedUpper) }
     private var reading: MonitorTrendPoint? { activeKey == data.key ? fixed ?? hovered ?? data.points.last : data.points.last }
 
     var body: some View {
@@ -114,11 +170,11 @@ struct MonitorTrendChart: View {
             HStack(spacing: 8) {
                 if showAxes && !compact {
                     VStack(alignment: .trailing) {
-                        Text(data.format(upper))
+                        Text(data.hasReadings ? data.format(upper) : "—")
                         Spacer()
-                        Text(data.format(upper / 2))
+                        Text(data.hasReadings ? data.format(upper / 2) : "—")
                         Spacer()
-                        Text(data.format(0))
+                        Text(data.hasReadings ? data.format(0) : "—")
                     }.font(.system(size: Theme.TextSize.caption).monospacedDigit())
                         .foregroundStyle(.secondary).frame(width: 74)
                 }
@@ -183,48 +239,47 @@ struct MonitorTrendChart: View {
                         }
                     }
                 }.allowsHitTesting(false)
-                if data.points.isEmpty || data.points.allSatisfy({ $0.values.allSatisfy { $0 == nil } }) {
+                if !data.hasReadings {
                     Text("暂无\(data.names[0])读数")
                         .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
                 }
             }
-            .contentShape(Rectangle())
-            .onContinuousHover { phase in
-                guard fixed == nil else { return }
-                switch phase {
-                case .active(let point):
-                    let value = nearest(at: point.x, width: geometry.size.width)
-                    if hovered != value { hovered = value }
-                case .ended: hovered = nil
+            .overlay {
+                MonitorChartInput { action in
+                    switch action {
+                    case .hover(let x):
+                        if fixed == nil {
+                            let value = nearest(at: x, width: geometry.size.width)
+                            if hovered != value { hovered = value }
+                        }
+                    case .exit: hovered = nil
+                    case .click(let x):
+                        if fixed != nil { unpin() } else { pin(nearest(at: x, width: geometry.size.width)) }
+                    case .drag(let x):
+                        if !dragging { dragging = true; interaction?(true) }
+                        pin(nearest(at: x, width: geometry.size.width))
+                    case .dragEnd: dragging = false; interaction?(false)
+                    case .move(let step):
+                        let points = data.visiblePoints
+                        guard !points.isEmpty else { return }
+                        let current = reading?.time ?? data.end
+                        let index = points.indices.min(by: { abs(points[$0].time - current) < abs(points[$1].time - current) })!
+                        let point = points[min(max(index + step, 0), points.count - 1)]
+                        if fixed == nil { hovered = point } else { pin(point) }
+                    case .toggle:
+                        if fixed != nil { unpin() } else { pin(reading) }
+                    case .focus(let value): focused = value
+                    }
                 }
             }
-            .onTapGesture {
-                focused = true
-                if fixed != nil { unpin() } else { pin(hovered ?? data.points.last) }
-            }
-            .gesture(DragGesture(minimumDistance: 3).onChanged { value in
-                if !dragging { dragging = true; interaction?(true) }
-                focused = true
-                pin(nearest(at: value.location.x, width: geometry.size.width))
-            }.onEnded { _ in dragging = false; interaction?(false) })
         }
         .frame(minHeight: compact ? 24 : 130, maxHeight: compact ? .infinity : 160)
         .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(focused ? Theme.accent : .clear, lineWidth: 1))
-        .focusable().focused($focused)
-        .onMoveCommand { direction in
-            guard direction == .left || direction == .right else { return }
-            let points = data.visiblePoints
-            guard !points.isEmpty else { return }
-            let current = reading?.time ?? data.end
-            let index = points.indices.min(by: { abs(points[$0].time - current) < abs(points[$1].time - current) })!
-            let point = points[min(max(index + (direction == .left ? -1 : 1), 0), points.count - 1)]
-            if fixed == nil { hovered = point } else { pin(point) }
-        }
         .overlay(alignment: .topTrailing) {
             if focused {
                 Button(fixed == nil ? "固定采样" : "解除固定") {
                     if fixed != nil { unpin() } else { pin(reading) }
-                }.keyboardShortcut(.return, modifiers: []).focusable(false)
+                }.focusable(false)
                     .font(.system(size: Theme.TextSize.caption)).buttonStyle(.plain)
                     .padding(5).background(.regularMaterial, in: Capsule())
             }

@@ -43,6 +43,32 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Monitor/Views/MonitorCharts.swift", "makeNSView"):
+        "共用趋势图创建原生输入视图，图形仍由原Canvas绘制",
+    ("Features/Monitor/Views/MonitorCharts.swift", "updateNSView"):
+        "更新趋势图输入回调，不重新创建原生输入视图",
+    ("Features/Monitor/Views/MonitorCharts.swift", "viewDidMoveToWindow"):
+        "趋势图输入视图挂载后启用窗口鼠标移动事件",
+    ("Features/Monitor/Views/MonitorCharts.swift", "updateTrackingAreas"):
+        "按当前可见区域更新图表悬停跟踪区域",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseEntered"):
+        "进入趋势图时沿同一鼠标移动入口定位读数",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseMoved"):
+        "把图表内横坐标交给现有采样读数定位回调",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseExited"):
+        "离开趋势图时发送退出事件，清除临时读数",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseDown"):
+        "记录趋势图按下起点并取得键盘焦点，区分后续点击和拖动",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseDragged"):
+        "位移达到3pt后发送图表拖动定位，保留原固定读数交互",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseUp"):
+        "图表释放时按实际拖动状态发送结束或点击定位事件",
+    ("Features/Monitor/Views/MonitorCharts.swift", "becomeFirstResponder"):
+        "趋势图取得键盘焦点时更新可见焦点状态",
+    ("Features/Monitor/Views/MonitorCharts.swift", "resignFirstResponder"):
+        "趋势图失去键盘焦点时清除焦点状态",
+    ("Features/Monitor/Views/MonitorCharts.swift", "keyDown"):
+        "趋势图左右键逐点定位，回车切换固定，其他键沿用系统处理",
     ("Features/Settings/Panes/MonitorWidgetsPane.swift", "setPowerMetric"):
         "同一功耗草稿按固定指标顺序更新整机CPU和GPU选择；首次调整保留旧三模块的有效形态，预览与保存共用正式配置读取",
     ("Features/Island/IslandController.swift", "bindRecordScroll"):
