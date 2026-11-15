@@ -25,15 +25,15 @@ SDK="$(xcrun --show-sdk-path)"
 OPT_FLAGS="${FRSETNEXT_OPT:--O -no-whole-module-optimization}"
 
 echo "== 源码统计 =="
-find "$SRC" -name '*.swift' | wc -l | xargs echo "  Swift 文件:"
-find "$SRC" -name '*.swift' -exec cat {} + | wc -l | xargs echo "  总行数:"
+find "$SRC" -name '*.swift' -not -name '._*' | wc -l | xargs echo "  Swift 文件:"
+find "$SRC" -name '*.swift' -not -name '._*' -exec cat {} + | wc -l | xargs echo "  总行数:"
 
 echo "== 清理 =="
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 
-FILES=$(find "$SRC" -name '*.swift' \
+FILES=$(find "$SRC" -name '*.swift' -not -name '._*' \
   -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
   | sort | tr '\n' ' ')
 

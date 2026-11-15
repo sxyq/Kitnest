@@ -74,13 +74,6 @@ final class IslandController: NSObject, ObservableObject {
         return nil
     }
 
-    func resize(_ widget: IslandWidget, to size: IslandWidgetSize) {
-        var next = configuration
-        next.widgetSizes[widget.rawValue] = size
-        if let reason = apply(next) { feedback = reason }
-        else { layoutDidChange?(next) }
-    }
-
     func move(_ widget: IslandWidget, before target: IslandWidget) {
         guard widget != target else { return }
         var next = configuration

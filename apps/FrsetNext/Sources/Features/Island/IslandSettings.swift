@@ -31,13 +31,13 @@ struct IslandConfiguration: Codable, Equatable {
     static let key = "island.configuration"
     var enabled = true
     var width: CGFloat = 780
-    var height: CGFloat = 440
+    var height: CGFloat = 480
     var gridColumns: Int? = nil
     var gridRows: Int? = nil
     var columns: Int { gridColumns ?? 4 }
-    var rows: Int { gridRows ?? 4 }
-    var minimumWidth: CGFloat { CGFloat(columns) * 110 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
-    var minimumHeight: CGFloat { CGFloat(rows) * 48 + CGFloat(rows - 1) * 8 + 200 }
+    var rows: Int { gridRows ?? 2 }
+    var minimumWidth: CGFloat { CGFloat(columns) * 154 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
+    var minimumHeight: CGFloat { CGFloat(rows) * 126 + CGFloat(rows - 1) * 8 + 200 }
     var hoverEnabled = true
     var hoverDelay = 0.10
     var collapseDelay = 0.18
@@ -56,7 +56,7 @@ struct IslandConfiguration: Codable, Equatable {
     var metricColors: [String: String] = [:]
 
     func size(for widget: IslandWidget) -> IslandWidgetSize {
-        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .square : .wide)
+        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .wide : .small)
         if rows == 1 && size.rows == 2 { return size.columns == 1 ? .small : .wide }
         return size.columns > columns ? .wide : size
     }
@@ -81,10 +81,10 @@ struct IslandConfiguration: Codable, Equatable {
 }
 
 enum IslandWidgetSize: String, CaseIterable, Codable, Identifiable {
-    case small = "1×1", wide = "1×2", strip = "1×4", square = "2×2"
+    case small = "1×1", wide = "1×2", tall = "2×1", strip = "1×4", square = "2×2"
     var id: String { rawValue }
-    var columns: Int { self == .small ? 1 : self == .strip ? 4 : 2 }
-    var rows: Int { self == .square ? 2 : 1 }
+    var columns: Int { self == .small || self == .tall ? 1 : self == .strip ? 4 : 2 }
+    var rows: Int { self == .square || self == .tall ? 2 : 1 }
 }
 
 enum IslandPeek: String, CaseIterable, Codable, Identifiable {
