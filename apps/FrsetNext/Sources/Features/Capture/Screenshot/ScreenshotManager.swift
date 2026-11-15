@@ -1164,7 +1164,7 @@ public final class ScreenshotManager: ObservableObject {
         recognize(imageData: data, forceWindow: true)
     }
 
-    public func recognize(imageData: Data, autoTranslate: Bool = false, forceWindow: Bool = false) {
+    public func recognize(imageData: Data, autoTranslate: Bool = false, forceWindow: Bool = false, inline: Bool = false) {
         isRecognizing = true
         statusMessage = nil
         Task { @MainActor in
@@ -1186,12 +1186,12 @@ public final class ScreenshotManager: ObservableObject {
                     // 弹出「原文对照 + 识别文本」结果窗（B5）
                     // v264：静默模式 —— 只弹一条 N 秒的提示，不打断连续识别；
                     // 文本同时写进剪贴板，用户可以直接粘贴。
-                    if CaptureOCRNotify.isSilent, !forceWindow, !autoTranslate {
+                    if CaptureOCRNotify.isSilent, !forceWindow, !autoTranslate, !inline {
                         self.copyOCRText()
                         CaptureOCRNotify.show(text: text)
                         return
                     }
-                    if forceWindow || self.ocrShowResultWindow || autoTranslate,
+                    if !inline, forceWindow || self.ocrShowResultWindow || autoTranslate,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
                         ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData,
                                                                   text: text, autoTranslate: autoTranslate)

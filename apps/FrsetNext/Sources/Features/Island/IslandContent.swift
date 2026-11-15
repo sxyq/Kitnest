@@ -8,8 +8,13 @@ struct IslandRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Stored private var selectedRecord: String? = nil
+    @Stored private var detailRecord: String? = nil
+    @Stored private var recordsRevision = 0
+    @Stored private var recordDragging = false
+    @FocusState private var recordListFocused: Bool
     @Stored private var selectedMetric = IslandMetric.cpu
     @Stored private var selectedTool: String? = nil
+    @Stored private var fileDialogOpen = false
     @Stored private var selectedDate = Date.now
     @Stored private var records: [IslandRecentRow] = []
     @Stored private var homeMonitorVisible = false
@@ -21,7 +26,7 @@ struct IslandRootView: View {
 
     var body: some View {
         IslandSurface(controller: controller, height: controller.effectiveHeight) {
-            if controller.expanded || preview {
+            if controller.expanded || preview || fileDialogOpen {
                 pageContent(controller.page)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
@@ -33,8 +38,8 @@ struct IslandRootView: View {
             if controller.expanded || preview { reloadRecords() }
             updateMonitoring()
         }
-        .onChange(of: controller.expanded) { expanded in
-            if expanded { reloadRecords() }
+        .onChange(of: controller.expanded) { _ in
+            reloadRecords()
             updateMonitoring()
         }
         .onChange(of: controller.page) { _ in reloadRecords(); updateMonitoring() }
@@ -47,6 +52,7 @@ struct IslandRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .localTransferDidChange)) { _ in
             if !preview && controller.expanded { reloadRecords() }
         }
+        .task(id: recordsRevision) { await loadRecords() }
     }
 
     private func updateMonitoring() {
@@ -57,10 +63,14 @@ struct IslandRootView: View {
         switch page {
         case .home: home
         case .clipboard: recordsPage
-        case .monitor: IslandMonitorPage(controller: controller, selectedMetric: $selectedMetric, previewOnly: preview)
+        case .monitor: IslandMonitorFullContent(controller: controller, previewOnly: preview, selectedMetric: $selectedMetric)
         case .media: IslandMediaContent(controller: controller, previewOnly: preview)
         case .calendar: IslandCalendarContent(controller: controller, selectedDate: $selectedDate, previewOnly: preview)
-        case .tools: toolsPage
+        case .tools:
+            IslandToolboxContent(controller: controller, previewOnly: preview, selectedTool: $selectedTool,
+                                 onFileDialog: { fileDialogOpen = $0 })
+        case .search, .capture, .recording, .ocr, .transfer, .cast, .ai, .statistics, .archive, .downloads:
+            IslandFeatureContent(page: page, controller: controller, previewOnly: preview, size: nil)
         }
     }
 
@@ -79,7 +89,7 @@ struct IslandRootView: View {
                 .onDisappear { homeMonitorVisible = false }
         case .clipboard:
             if records.isEmpty {
-                Text("暂无近期内容").font(.system(size: 11)).foregroundStyle(.secondary)
+                recordEntrances
             } else if size.columns == 4 {
                 HStack(spacing: 10) {
                     ForEach(Array(records.prefix(4))) { record in compactRecord(record) }
@@ -121,6 +131,8 @@ struct IslandRootView: View {
                     }
                 }
             }
+        case .search, .capture, .recording, .ocr, .transfer, .cast, .ai, .statistics, .archive, .downloads:
+            IslandFeatureContent(page: item.page, controller: controller, previewOnly: preview, size: size)
         }
     }
 
@@ -140,6 +152,7 @@ struct IslandRootView: View {
             .tint(controller.configuration.color(for: item))
             .islandGlow(enabled: controller.glowEnabled && controller.expanded && controller.page == .home)
             .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
+            .dropDestination(for: URL.self) { urls, _ in item == .clipboard && receiveFiles(urls) }
     }
 
     private func compactRecord(_ record: IslandRecentRow) -> some View {
@@ -149,7 +162,8 @@ struct IslandRootView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay {
                         if !preview, let url = record.url {
-                            IslandFileDragSource(urls: [url], controller: controller) { select(record, openPage: true) }
+                            IslandFileDragSource(urls: [url], controller: controller,
+                                onDraggingChanged: draggingChanged, onCopy: { copy(record) }) { select(record, openPage: true) }
                         }
                     }
             }.buttonStyle(IslandButtonStyle()).accessibilityLabel(record.title)
@@ -167,6 +181,7 @@ struct IslandRootView: View {
                 Text(preview ? "设置预览" : "\(records.count) 项近期内容 · 可拖入文件")
                     .foregroundStyle(.secondary)
             }.font(.system(size: 11))
+            recordEntrances
             GeometryReader { geometry in
                 HStack(spacing: 12) {
                     ScrollViewReader { proxy in
@@ -179,26 +194,36 @@ struct IslandRootView: View {
                                                         in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius))
                                             .overlay {
                                                 if !preview, let url = record.url {
-                                                    IslandFileDragSource(urls: [url], controller: controller) { select(record) }
+                                                    IslandFileDragSource(urls: [url], controller: controller,
+                                                        onDraggingChanged: draggingChanged,
+                                                        onMove: { moveSelection($0, proxy: proxy) },
+                                                        onCopy: copySelectedRecord) { select(record) }
                                                 }
                                             }
                                     }.buttonStyle(IslandButtonStyle())
                                         .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
+                                        .onHover { inside in
+                                            if inside && !recordDragging { detailRecord = record.id }
+                                        }
                                         .id(record.id)
                                 }
                             }
                         }
+                        .focusable()
+                        .focused($recordListFocused)
                         .onMoveCommand { direction in
-                            guard let index = records.firstIndex(where: { $0.id == selectedRecord }),
-                                  direction == .up || direction == .down else { return }
-                            let next = min(max(index + (direction == .up ? -1 : 1), 0), records.count - 1)
-                            select(records[next])
-                            proxy.scrollTo(records[next].id, anchor: .center)
+                            if direction == .up || direction == .down {
+                                moveSelection(direction == .up ? -1 : 1, proxy: proxy)
+                            }
+                        }
+                        .onCommand(#selector(NSText.copy(_:))) {
+                            copySelectedRecord()
                         }
                     }.frame(width: geometry.size.width * 0.38)
                     Color.white.opacity(0.1).frame(width: Theme.Stroke.hairline)
-                    if let record = records.first(where: { $0.id == selectedRecord }) {
-                        IslandRecordDetail(record: record, controller: controller, previewOnly: preview) { copy(record) }
+                    if let record = records.first(where: { $0.id == (detailRecord ?? selectedRecord) }) {
+                        IslandRecordDetail(record: record, controller: controller, previewOnly: preview,
+                                           dragging: recordDragging, onDraggingChanged: draggingChanged)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         Text(records.isEmpty ? "暂无内容，可拖入文件或文件夹" : "选择记录查看完整内容")
@@ -209,27 +234,63 @@ struct IslandRootView: View {
             }
         }
         .contentShape(Rectangle())
-        .dropDestination(for: URL.self) { urls, _ in
-            let files = urls.filter(\.isFileURL)
-            guard !files.isEmpty else { return false }
-            if preview { controller.feedback = "预览接收 \(files.count) 个文件"; return true }
-            controller.beginInteraction()
-            LocalTransferStore.shared.add(urls: files) { count in
-                controller.endInteraction()
-                controller.feedback = LocalTransferStore.shared.lastError ?? "已暂存 \(count) 个文件"
-                reloadRecords()
-            }
-            return true
+        .dropDestination(for: URL.self) { urls, _ in receiveFiles(urls) }
+    }
+
+    private func receiveFiles(_ urls: [URL]) -> Bool {
+        let files = urls.filter(\.isFileURL)
+        guard !files.isEmpty else { return false }
+        if preview { controller.feedback = "预览接收 \(files.count) 个文件"; return true }
+        controller.beginInteraction()
+        LocalTransferStore.shared.add(urls: files) { count in
+            controller.endInteraction()
+            controller.feedback = LocalTransferStore.shared.lastError ?? "已暂存 \(count) 个文件"
+            reloadRecords()
         }
+        return true
     }
 
     private func select(_ record: IslandRecentRow, openPage: Bool = false) {
         selectedRecord = record.id
+        detailRecord = record.id
         if openPage { controller.page = .clipboard }
+        recordListFocused = true
+    }
+
+    private func moveSelection(_ step: Int, proxy: ScrollViewProxy) {
+        guard !records.isEmpty else { return }
+        let index = records.firstIndex(where: { $0.id == selectedRecord }) ?? (step > 0 ? -1 : records.count)
+        let next = min(max(index + step, 0), records.count - 1)
+        select(records[next])
+        proxy.scrollTo(records[next].id, anchor: .center)
+    }
+
+    private func copySelectedRecord() {
+        if let record = records.first(where: { $0.id == selectedRecord }) { copy(record) }
+    }
+
+    private var recordEntrances: some View {
+        HStack(spacing: 8) {
+            Button("完整历史") {
+                if preview { controller.feedback = "历史入口预览"; return }
+                controller.performOutside { FloatingClipboardWindowController.shared.show() }
+            }
+            Button("本地中转") { controller.page = .transfer }
+        }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
+    }
+
+    private func draggingChanged(_ dragging: Bool) {
+        recordDragging = dragging
+        if !dragging { reloadRecords() }
     }
 
     /// 独立近期查询，不改主剪贴板的搜索词、过滤条件或分页。
     private func reloadRecords() {
+        recordsRevision += 1
+    }
+
+    @MainActor private func loadRecords() async {
+        if recordDragging { return }
         if !preview && (!controller.expanded || (controller.page != .home && controller.page != .clipboard)) { return }
         if preview {
             var samples = IslandSample.clipboard
@@ -241,116 +302,79 @@ struct IslandRootView: View {
                                 date: Date(timeIntervalSince1970: 0), sample: sample)
             }
         } else {
-            let clipboard = ClipboardRepository.shared.fetch(ClipboardQuery())
             let transfers = LocalTransferStore.shared.items
-            var joined: [String: IslandRecentRow] = [:]
-            var aliases: [String: String] = [:]
-            for transfer in transfers {
-                let original = URL(fileURLWithPath: transfer.originalPath).standardizedFileURL.path
-                let staged = transfer.stagedURL.standardizedFileURL.path
-                let key = "file:" + original
-                aliases[original] = key
-                aliases[staged] = key
-                if joined[key] == nil {
-                    joined[key] = IslandRecentRow(id: key, title: transfer.name, icon: fileIcon(transfer.stagedURL),
-                        date: Date(timeIntervalSince1970: transfer.addedAt), transfer: transfer, url: transfer.stagedURL)
+            let work = Task.detached(priority: .userInitiated) { () -> [IslandRecentRow] in
+                if Task.isCancelled { return [] }
+                let clipboard = ClipboardRepository.shared.fetch(ClipboardQuery())
+                var joined: [String: IslandRecentRow] = [:]
+                var aliases: [String: String] = [:]
+                for transfer in transfers {
+                    if Task.isCancelled { return [] }
+                    let original = URL(fileURLWithPath: transfer.originalPath).standardizedFileURL.path
+                    let staged = transfer.stagedURL.standardizedFileURL.path
+                    let key = "file:" + original
+                    aliases[original] = key
+                    aliases[staged] = key
+                    if joined[key] == nil {
+                        joined[key] = IslandRecentRow(id: key, title: transfer.name, icon: Self.fileIcon(transfer.stagedURL),
+                            date: Date(timeIntervalSince1970: transfer.addedAt), transfer: transfer, url: transfer.stagedURL)
+                    }
                 }
-            }
-            for item in clipboard {
-                if item.type == .file {
-                    for path in (item.content ?? "").split(separator: "\n") {
-                        let url = URL(fileURLWithPath: String(path)).standardizedFileURL
-                        let key = aliases[url.path] ?? "file:" + url.path
-                        if var row = joined[key] {
-                            if row.clipboard == nil { row.clipboard = item }
-                            row.date = max(row.date, item.timestamp)
-                            joined[key] = row
-                        } else {
-                            joined[key] = IslandRecentRow(id: key, title: url.lastPathComponent, icon: fileIcon(url),
-                                                          date: item.timestamp, clipboard: item, url: url)
+                for item in clipboard {
+                    if Task.isCancelled { return [] }
+                    if item.type == .file {
+                        for path in (item.content ?? "").split(separator: "\n") {
+                            let url = URL(fileURLWithPath: String(path)).standardizedFileURL
+                            let key = aliases[url.path] ?? "file:" + url.path
+                            if var row = joined[key] {
+                                if row.clipboard == nil { row.clipboard = item }
+                                row.date = max(row.date, item.timestamp)
+                                joined[key] = row
+                            } else {
+                                joined[key] = IslandRecentRow(id: key, title: url.lastPathComponent, icon: Self.fileIcon(url),
+                                                              date: item.timestamp, clipboard: item, url: url)
+                            }
                         }
+                    } else {
+                        let icon: String
+                        switch item.type {
+                        case .image: icon = "photo"
+                        case .url: icon = "link"
+                        case .text, .richtext:
+                            let kind = PreviewPopoverContentModel.classifyRawText(item.content ?? "")
+                            icon = kind == .code || kind == .json ? "curlybraces" : "text.alignleft"
+                        case .file: icon = "doc"
+                        }
+                        let url = item.type == .image ? item.imagePath.map(ClipboardFileStore.url(forRelativePath:)) : nil
+                        joined["clipboard:" + item.id] = IslandRecentRow(id: "clipboard:" + item.id, title: item.displayTitle,
+                            icon: icon, date: item.timestamp, clipboard: item, url: url)
                     }
-                } else {
-                    let icon: String
-                    switch item.type {
-                    case .image: icon = "photo"
-                    case .url: icon = "link"
-                    case .text, .richtext:
-                        let kind = PreviewPopoverContentModel.classifyRawText(item.content ?? "")
-                        icon = kind == .code || kind == .json ? "curlybraces" : "text.alignleft"
-                    case .file: icon = "doc"
-                    }
-                    let url = item.type == .image ? item.imagePath.map(ClipboardFileStore.url(forRelativePath:)) : nil
-                    joined["clipboard:" + item.id] = IslandRecentRow(id: "clipboard:" + item.id, title: item.displayTitle,
-                        icon: icon, date: item.timestamp, clipboard: item, url: url)
                 }
+                return joined.values.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }
             }
-            records = joined.values.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }
+            let joined = await withTaskCancellationHandler(operation: { await work.value }, onCancel: { work.cancel() })
+            guard !Task.isCancelled, !recordDragging else { return }
+            records = joined
         }
         if !records.contains(where: { $0.id == selectedRecord }) { selectedRecord = records.first?.id }
+        if !records.contains(where: { $0.id == detailRecord }) { detailRecord = selectedRecord }
     }
 
-    private func fileIcon(_ url: URL) -> String {
+    nonisolated private static func fileIcon(_ url: URL) -> String {
         var directory: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &directory)
         if directory.boolValue { return "folder" }
-        return FilePreviewBuilder.imageExtensions.contains(url.pathExtension.lowercased()) ? "photo" : "doc"
+        if FilePreviewBuilder.imageExtensions.contains(url.pathExtension.lowercased()) { return "photo" }
+        if ArchiveCore.isArchive(url) { return "archivebox" }
+        if DocumentInlinePreview.supportedExtensions.contains(url.pathExtension.lowercased()) { return "doc.richtext" }
+        if let type = UTType(filenameExtension: url.pathExtension), type.conforms(to: .audiovisualContent) { return "play.rectangle" }
+        return FilePreviewBuilder.textExtensions.contains(url.pathExtension.lowercased()) ? "doc.text" : "doc"
     }
 
-    @discardableResult private func copy(_ record: IslandRecentRow) -> String? {
-        if preview { controller.feedback = "复制效果预览"; return nil }
-        let error: String?
-        if record.clipboard?.type == .image, let item = record.clipboard {
-            error = ClipboardManager.shared.copy(item, autoPaste: false)
-        } else if let url = record.url {
-            error = ClipboardManager.shared.copyFiles([url], successMessage: "已复制 " + record.title)
-        } else if let item = record.clipboard {
-            var failure: String?
-            _ = ClipboardManager.shared.fullText(for: item) { failure = $0 }
-            if let failure { controller.feedback = failure; return failure }
-            error = ClipboardManager.shared.copy(item, autoPaste: false)
-        } else { return "记录没有可复制的内容" }
-        controller.feedback = error ?? "已复制 " + record.title
-        return error
+    private func copy(_ record: IslandRecentRow) {
+        Task { controller.feedback = await record.copy(previewOnly: preview) ?? "已复制 " + record.title }
     }
 
-    private var toolsPage: some View {
-        let tools = preview ? [] : ToolRegistry.enabledTools
-        return HStack(spacing: 10) {
-            ScrollView {
-                VStack(spacing: 6) {
-                    if preview {
-                        Button("快捷工具") { controller.feedback = "工具选择预览" }.buttonStyle(IslandButtonStyle())
-                    }
-                    ForEach(tools) { tool in
-                        Button { selectedTool = tool.id } label: {
-                            Label(tool.name, systemImage: tool.systemImage).font(.system(size: 12))
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(8)
-                                .background(selectedTool == tool.id ? Theme.accent(for: nil).opacity(0.14) : .clear,
-                                            in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius))
-                        }.buttonStyle(IslandButtonStyle())
-                    }
-                }
-            }.frame(width: 180)
-            VStack(alignment: .leading, spacing: 12) {
-                if preview {
-                    Label("快捷工具", systemImage: "square.grid.2x2").font(.system(size: 16))
-                    Text("设置预览，不执行工具").font(.system(size: 12)).foregroundStyle(.secondary)
-                    Button("预览操作") { controller.feedback = "工具操作预览" }.buttonStyle(IslandButtonStyle())
-                } else if let tool = tools.first(where: { $0.id == selectedTool }) ?? tools.first {
-                    Label(tool.name, systemImage: tool.systemImage).font(.system(size: 16, weight: .medium))
-                    ScrollView { Text(tool.toolDescription).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading) }
-                    Button("打开工具") {
-                        controller.collapse()
-                        ToolboxUIState.shared.open(tool.id)
-                    }.buttonStyle(IslandButtonStyle())
-                } else {
-                    Text("暂无已启用工具").foregroundStyle(.secondary)
-                }
-            }.padding(14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
-        }
-    }
 }
 
 /// 刘海列表行只携带两个正式来源的引用，不修改、迁移或删除源记录。
@@ -364,10 +388,38 @@ private struct IslandRecentRow: View, Identifiable {
     var url: URL? = nil
     var sample: IslandSample? = nil
 
+    var previewKey: String {
+        [id, url?.path, clipboard?.id, clipboard?.dedupeKey, transfer?.id, title].compactMap { $0 }.joined(separator: "|")
+    }
+
+    /// 文件记录已按路径拆行，不能复制原剪贴板条目里未选中的其他文件。
+    @MainActor func copy(previewOnly: Bool) async -> String? {
+        if previewOnly { return "复制效果预览" }
+        if clipboard?.type == .image, let item = clipboard {
+            return ClipboardManager.shared.copy(item, autoPaste: false)
+        }
+        if let url { return ClipboardManager.shared.copyFiles([url], successMessage: "已复制 " + title) }
+        guard let item = clipboard else { return "记录没有可复制的内容" }
+        let result = await Task.detached(priority: .userInitiated) { () -> (String, String?) in
+            var failure: String?
+            let text = ClipboardManager.shared.fullText(for: item) { failure = $0 }
+            return (text, failure)
+        }.value
+        if let failure = result.1 { return failure }
+        if item.type == .richtext {
+            let fullItem = ClipboardItem(id: item.id, type: item.type, content: result.0,
+                richTextPath: item.richTextPath, dedupeKey: item.dedupeKey)
+            return ClipboardManager.shared.copy(fullItem, autoPaste: false)
+        }
+        return ClipboardManager.shared.copyText(result.0, successMessage: "已复制 " + title)
+    }
+
     var detail: String {
         if let sample { return sample.detail }
         let source = clipboard != nil && transfer != nil ? "剪贴板 · 中转" : transfer != nil ? "中转" : "剪贴板"
-        let type = icon == "folder" ? "文件夹" : icon == "photo" ? "图片" : icon == "link" ? "链接" : icon == "curlybraces" ? "代码" : url != nil ? "文件" : "文字"
+        let type = icon == "folder" ? "文件夹" : icon == "photo" ? "图片" : icon == "link" ? "链接"
+            : icon == "curlybraces" ? "代码" : icon == "archivebox" ? "压缩包"
+            : icon == "doc.richtext" ? "文档" : icon == "play.rectangle" ? "媒体" : url != nil ? "文件" : "文字"
         return [type, source, transfer?.sizeText, clipboard?.sourceApp,
                 date.formatted(.dateTime.month().day().hour().minute())].compactMap { $0 }.joined(separator: " · ")
     }
@@ -388,130 +440,159 @@ private struct IslandRecordDetail: View {
     let record: IslandRecentRow
     @ObservedObject var controller: IslandController
     let previewOnly: Bool
-    var copy: () -> String?
-    @Stored private var text = ""
-    @Stored private var image: NSImage? = nil
-    @Stored private var children: [URL] = []
-    @Stored private var error: String? = nil
-    @Stored private var loadedRecord: String? = nil
-    @Stored private var attributedText = NSAttributedString(string: "")
+    let dragging: Bool
+    var onDraggingChanged: (Bool) -> Void
+    @Stored private var displayed: (record: IslandRecentRow, model: PreviewPopoverContentModel,
+                                   richText: NSAttributedString?, failure: String?)? = nil
+    @Stored private var loading = false
+    @Stored private var forceCode = false
     @Stored private var copyFailure: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(record.detail).font(.system(size: 10)).foregroundStyle(.secondary).textSelection(.enabled)
-            HStack {
-                Text(record.title).font(.system(size: 15, weight: .medium)).lineLimit(2)
-                Spacer(minLength: 4)
-                Button { copyFailure = copy() } label: {
-                    Label("复制", systemImage: "doc.on.doc").font(.system(size: 11))
-                        .padding(.horizontal, 6).frame(height: 24)
+            if let displayed {
+                let current = displayed.record
+                Text(current.detail).font(.system(size: 10)).foregroundStyle(.secondary).textSelection(.enabled)
+                HStack {
+                    Text(current.title).font(.system(size: 15, weight: .medium)).lineLimit(2)
+                    Spacer(minLength: 4)
+                    if loading { ProgressView().controlSize(.mini) }
+                    if current.url == nil && displayed.model.kind != .image && displayed.model.kind != .richText {
+                        Button { forceCode.toggle() } label: { Image(systemName: "curlybraces") }
+                            .buttonStyle(IslandButtonStyle()).help(forceCode ? "自动识别格式" : "按代码查看")
+                    }
+                    Button {
+                        Task {
+                            let failure = await current.copy(previewOnly: previewOnly)
+                            if self.displayed?.record.previewKey == current.previewKey { copyFailure = failure }
+                            controller.feedback = failure ?? "已复制 " + current.title
+                        }
+                    } label: {
+                        Label("复制", systemImage: "doc.on.doc").font(.system(size: 11))
+                            .padding(.horizontal, 6).frame(height: 24)
+                    }.buttonStyle(IslandButtonStyle()).accessibilityLabel("复制所选内容")
                 }
-                    .buttonStyle(IslandButtonStyle()).accessibilityLabel("复制所选内容")
-            }
-            if !previewOnly, let url = record.url {
-                Label("拖出到 Finder 或其他 App", systemImage: "arrow.up.forward.app")
-                    .font(.system(size: 11)).padding(6).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(IslandLayout.cardFill, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay { IslandFileDragSource(urls: [url], controller: controller) {} }
-                    .accessibilityLabel("拖出 " + record.title)
-            }
-            if loadedRecord == record.id, let error = copyFailure ?? error {
-                Text(error).font(.system(size: 11)).foregroundStyle(.red).textSelection(.enabled)
-            }
-            if loadedRecord != record.id {
+                if let url = current.url {
+                    Button {
+                        if previewOnly { controller.feedback = "复制路径预览"; return }
+                        controller.feedback = ClipboardManager.shared.copyText(current.transfer?.originalPath ?? url.path,
+                            successMessage: "已复制路径") ?? "已复制路径"
+                    } label: {
+                        Text(current.transfer?.originalPath ?? url.path).font(.system(size: 10))
+                            .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }.buttonStyle(IslandButtonStyle()).help("点击复制完整路径")
+                    if !previewOnly {
+                        Label("拖出到 Finder 或其他 App", systemImage: "arrow.up.forward.app")
+                            .font(.system(size: 11)).padding(6).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(IslandLayout.cardFill, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay {
+                                IslandFileDragSource(urls: [url], controller: controller,
+                                                     onDraggingChanged: onDraggingChanged) {}
+                            }
+                            .accessibilityLabel("拖出 " + current.title)
+                    }
+                } else if current.icon == "link" {
+                    let text = displayed.model.inlineText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let url = URL(string: text.lowercased().hasPrefix("www.") ? "https://" + text : text) {
+                        Button("打开链接") {
+                            if previewOnly { controller.feedback = "打开链接预览"; return }
+                            NSWorkspace.shared.open(url)
+                        }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
+                    }
+                }
+                if let error = copyFailure ?? displayed.failure {
+                    Text(error).font(.system(size: 11)).foregroundStyle(.red).textSelection(.enabled)
+                }
+                previewContent(displayed.model, richText: displayed.richText)
+                    .environment(\.isSettingsPreview, previewOnly)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
                 ProgressView("正在读取").font(.system(size: 11))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if !previewOnly, error == nil, let url = record.url, DocumentInlinePreview.supportedExtensions.contains(url.pathExtension.lowercased()) {
-                DocumentInlinePreview(url: url)
-            } else if image == nil && children.isEmpty && record.icon != "photo" {
-                PreviewTextViewRepresentable(attributedText: attributedText, monospaced: record.icon == "curlybraces",
-                                             sourceText: text)
-                    .environment(\.isSettingsPreview, previewOnly)
+            }
+        }
+        .task(id: record.previewKey + String(previewOnly) + String(dragging)) {
+            if !dragging { await load() }
+        }
+    }
+
+    @ViewBuilder private func previewContent(_ model: PreviewPopoverContentModel,
+                                            richText: NSAttributedString?) -> some View {
+        if let richText {
+            AttributedTextView(richText)
+        } else if !previewOnly, let url = model.fileURL,
+                  let type = UTType(filenameExtension: url.pathExtension), type.conforms(to: .audiovisualContent) {
+            DocumentInlinePreview(url: url).id(model.id)
+        } else if !previewOnly, let url = model.fileURL, model.fileIsDirectory || ArchiveCore.isArchive(url) {
+            GeometryReader { geometry in
+                ScrollView([.horizontal, .vertical]) {
+                    PreviewFileView(model: model, showsQuickLook: false)
+                        .id(model.id)
+                        .frame(width: max(geometry.size.width, 520), height: max(geometry.size.height, 360))
+                }
+            }
+        } else {
+            PreviewPopoverContentView(model: model, forceCode: forceCode, usesWindowChrome: false)
+                .id(model.id)
+        }
+    }
+
+    @MainActor private func load() async {
+        if displayed?.record.previewKey == record.previewKey { loading = false; return }
+        loading = true
+        let current = record
+        let sample = previewOnly
+        let work = Task.detached(priority: .userInitiated) { () throws -> (PreviewPopoverContentModel, NSAttributedString?, String?) in
+            try Task.checkCancellation()
+            let item: ClipboardItem
+            if sample {
+                let type: ClipboardItemType = current.icon == "photo" ? .image
+                    : current.icon == "folder" || current.icon == "archivebox" ? .file : .text
+                item = ClipboardItem(id: current.id, type: type, content: current.sample?.body,
+                                     dedupeKey: current.id, fileCategories: 0)
+            } else if let url = current.url, current.clipboard?.type != .image {
+                item = ClipboardItem(id: current.id, type: .file, content: url.path, title: current.title,
+                                     timestamp: current.date, dedupeKey: current.previewKey)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 10) {
-                        if let image {
-                            Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: 520)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        } else if previewOnly && record.icon == "photo" {
-                            Image(systemName: "photo").font(.system(size: 50)).padding(30)
-                        }
-                        ForEach(children, id: \.self) { url in
-                            Label(url.lastPathComponent, systemImage: url.hasDirectoryPath ? "folder" : "doc")
-                                .font(.system(size: 12)).padding(.vertical, 2)
-                                .overlay {
-                                    if !previewOnly { IslandFileDragSource(urls: [url], controller: controller) {} }
-                                }
-                        }
-                        Text(text).font(record.icon == "curlybraces" ? .system(size: 12, design: .monospaced) : .system(size: 12))
-                            .lineSpacing(4).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }
+                item = current.clipboard!
             }
+            var failure: String?
+            let text = sample || item.type == .file || item.type == .image ? item.content ?? ""
+                : ClipboardManager.shared.fullText(for: item) { failure = $0 }
+            try Task.checkCancellation()
+            // 全文已就绪，不再让落盘长文视图读取第二遍。
+            let richText = item.type == .richtext ? PreviewPopoverDataBridge.shared.richTextAttributed(for: item) : nil
+            let kind: PreviewPopoverContentModel.Kind? = sample && item.type == .file ? .file
+                : richText != nil ? .richText
+                : item.type == .text || item.type == .url || item.type == .richtext
+                    ? PreviewPopoverContentModel.classifyRawText(text) : nil
+            let model = PreviewPopoverContentModel(item: item, source: .floatingPreview,
+                sessionID: UUID(), inlineText: text, kindOverride: kind,
+                displayPath: current.transfer?.originalPath, loadFileContents: !sample)
+            try Task.checkCancellation()
+            return (model, richText, failure)
         }
-        .task(id: record.id + (record.url?.path ?? "") + (record.clipboard?.dedupeKey ?? "")) { await load() }
-    }
-
-    private func load() async {
-        let id = record.id
-        let item = record.clipboard
-        let url = record.url
-        copyFailure = nil
-        if previewOnly {
-            text = record.sample?.body ?? ""
-            if let sample = record.sample, !sample.children.isEmpty {
-                text += "\n\n" + sample.children.joined(separator: "\n")
+        do {
+            let result = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
+            if !sample, result.0.kind == .image, let path = result.0.item.imagePath {
+                let url = ClipboardFileStore.url(forRelativePath: path)
+                let thumbnail = result.0.item.thumbnailPath.map(ClipboardFileStore.url(forRelativePath:))
+                // 正式图片视图命中同一加载器缓存，切换时不先露出空白占位。
+                for full in [false, true] {
+                    guard !Task.isCancelled else { return }
+                    _ = await withCheckedContinuation { continuation in
+                        PreviewImageLoader.shared.loadImage(at: url, thumbnailURL: thumbnail,
+                            needsFullRebuild: full) { continuation.resume(returning: $0) }
+                    }
+                }
             }
-            image = nil; children = []; error = nil
-            setAttributedText()
-            loadedRecord = id
-            return
+            guard !Task.isCancelled else { return }
+            displayed = (current, result.0, result.1, result.2)
+            forceCode = false; copyFailure = nil; loading = false
+        } catch {
+            if !Task.isCancelled { copyFailure = error.localizedDescription; loading = false }
         }
-        let result = await Task.detached(priority: .userInitiated) { () -> (String, [URL], URL?, String?) in
-            if let item, item.type != .file && item.type != .image {
-                var failure: String?
-                let fullText = ClipboardManager.shared.fullText(for: item) { failure = $0 }
-                return (failure == nil ? fullText : item.content ?? "", [], nil, failure)
-            }
-            guard let url else { return ("", [], nil, "记录没有可读取的文件路径") }
-            do {
-                let values = try url.resourceValues(forKeys: [.isDirectoryKey])
-                let ext = url.pathExtension.lowercased()
-                if values.isDirectory == true && !DocumentInlinePreview.supportedExtensions.contains(ext) {
-                    let children = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey])
-                        .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-                    return (url.path, children, nil, nil)
-                }
-                if FilePreviewBuilder.imageExtensions.contains(ext) { return (url.path, [], url, nil) }
-                if FilePreviewBuilder.textExtensions.contains(ext) && !DocumentInlinePreview.supportedExtensions.contains(ext) {
-                    return (try FilePreviewBuilder.readText(url: url), [], nil, nil)
-                }
-                return (url.path, [], nil, nil)
-            } catch { return (url.path, [], nil, "无法读取 \(url.path)：\(error.localizedDescription)") }
-        }.value
-        guard !Task.isCancelled else { return }
-        var loadedImage: NSImage?
-        var failure = result.3
-        if let imageURL = result.2 {
-            loadedImage = await withCheckedContinuation { continuation in
-                PreviewImageLoader.shared.loadImage(at: imageURL, needsFullRebuild: true) {
-                    continuation.resume(returning: $0)
-                }
-            }
-            if loadedImage == nil { failure = "无法读取图片：" + imageURL.path }
-        }
-        guard !Task.isCancelled else { return }
-        text = result.0; children = result.1; image = loadedImage; error = failure
-        setAttributedText()
-        loadedRecord = id
-    }
-
-    private func setAttributedText() {
-        let font = record.icon == "curlybraces" ? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-                                              : NSFont.systemFont(ofSize: 12)
-        attributedText = NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: NSColor.labelColor])
     }
 }
 
@@ -519,11 +600,16 @@ private struct IslandRecordDetail: View {
 private struct IslandFileDragSource: NSViewRepresentable {
     let urls: [URL]
     let controller: IslandController
+    var onDraggingChanged: (Bool) -> Void
+    var onMove: ((Int) -> Void)? = nil
+    var onCopy: (() -> Void)? = nil
     var select: () -> Void
 
     func makeNSView(context: Context) -> IslandFileDragView { IslandFileDragView() }
     func updateNSView(_ view: IslandFileDragView, context: Context) {
         view.urls = urls; view.controller = controller; view.select = select
+        view.onDraggingChanged = onDraggingChanged
+        view.onMove = onMove; view.onCopy = onCopy
     }
 }
 
@@ -531,11 +617,28 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
     var urls: [URL] = []
     weak var controller: IslandController?
     var select: (() -> Void)?
+    var onDraggingChanged: ((Bool) -> Void)?
+    var onMove: ((Int) -> Void)?
+    var onCopy: (() -> Void)?
     private var mouseStart: NSPoint? = nil
     private var dragging = false
 
+    override var acceptsFirstResponder: Bool { true }
+
     override func mouseDown(with event: NSEvent) {
         mouseStart = event.locationInWindow
+        window?.makeFirstResponder(self)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "c", let onCopy {
+            onCopy(); return
+        }
+        if (event.keyCode == 125 || event.keyCode == 126), let onMove {
+            onMove(event.keyCode == 125 ? 1 : -1); return
+        }
+        if event.keyCode == 36 || event.keyCode == 49 { select?(); return }
+        super.keyDown(with: event)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -553,6 +656,7 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
             return item
         }
         dragging = true
+        onDraggingChanged?(true)
         controller?.beginInteraction()
         beginDraggingSession(with: items, event: event, source: self)
     }
@@ -567,139 +671,11 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         dragging = false; mouseStart = nil
         controller?.endInteraction()
+        onDraggingChanged?(false)
         controller?.feedback = operation.isEmpty ? "拖出已取消" : "拖出已结束"
     }
 }
 
-private struct IslandMediaContent: View {
-    @ObservedObject var controller: IslandController
-    let previewOnly: Bool
-    var size: IslandWidgetSize? = nil
-
-    var body: some View {
-        Group {
-            if previewOnly {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(controller.tracks[controller.track].0).font(.system(size: size == nil ? 18 : 11)).lineLimit(1)
-                    if size == nil || size?.rows == 2 {
-                        Text(controller.tracks[controller.track].1).font(.system(size: 11)).foregroundStyle(.secondary)
-                    }
-                    if size == nil || size?.rows == 2 || size?.columns == 4 {
-                        HStack(spacing: 8) {
-                            Button { controller.changeTrack(-1) } label: { Image(systemName: "backward.end.fill") }
-                            Button { controller.playing.toggle() } label: { Image(systemName: controller.playing ? "pause.fill" : "play.fill") }
-                            Button { controller.changeTrack(1) } label: { Image(systemName: "forward.end.fill") }
-                        }.buttonStyle(IslandButtonStyle()).font(.system(size: 11))
-                    }
-                    if size == nil {
-                        Slider(value: $controller.seek, in: 0...240).accessibilityLabel("预览播放进度")
-                        IslandVolumeContent(controller: controller, previewOnly: true)
-                    }
-                }
-            } else {
-                IslandLiveMediaContent(controller: controller, size: size)
-            }
-        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-}
-
-private struct IslandLiveMediaContent: View {
-    @ObservedObject var controller: IslandController
-    var size: IslandWidgetSize?
-    @ObservedObject private var audio = AudioMixerController.shared
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if size?.columns == 4 {
-                HStack {
-                    apps
-                    unavailableControls
-                }
-            } else {
-                apps
-                if size == nil || size?.rows == 2 { unavailableControls }
-            }
-            if size == nil {
-                Text("现有服务提供有声应用；曲目、进度与播放控制不可用。")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                Button("刷新有声应用") { audio.refreshPlayingApps() }.buttonStyle(IslandButtonStyle())
-                IslandVolumeContent(controller: controller, previewOnly: false)
-            }
-        }.onAppear { audio.refreshPlayingApps() }
-    }
-
-    private var apps: some View {
-        Group {
-            if audio.playingApps.isEmpty {
-                Label("暂无有声应用", systemImage: "speaker.slash").font(.system(size: 11)).foregroundStyle(.secondary)
-            } else {
-                ForEach(Array(audio.playingApps.prefix(size == nil ? audio.playingApps.count : size?.rows == 2 ? 2 : 1))) { app in
-                    HStack(spacing: 6) {
-                        if let icon = app.icon { Image(nsImage: icon).resizable().frame(width: 18, height: 18) }
-                        Text(app.name).font(.system(size: 11)).lineLimit(1)
-                    }
-                }
-            }
-        }
-    }
-
-    private var unavailableControls: some View {
-        HStack(spacing: 10) {
-            ForEach(["backward.end.fill", "play.fill", "forward.end.fill"], id: \.self) { icon in
-                Button {} label: { Image(systemName: icon).font(.system(size: 11)) }
-                    .buttonStyle(IslandButtonStyle()).disabled(true)
-                    .help("现有媒体服务没有播放控制").accessibilityLabel("播放控制不可用")
-            }
-            Text("不可用").font(.system(size: 10)).foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct IslandVolumeContent: View {
-    @ObservedObject var controller: IslandController
-    let previewOnly: Bool
-    var size: IslandWidgetSize? = nil
-
-    var body: some View {
-        Group {
-            if previewOnly {
-                HStack(spacing: 4) {
-                    Slider(value: $controller.volume, in: 0...100).controlSize(.mini).accessibilityLabel("预览音量")
-                    Text("\(Int(controller.volume))%").font(.system(size: 10)).monospacedDigit()
-                }
-            } else {
-                IslandLiveVolumeContent(size: size)
-            }
-        }
-    }
-}
-
-private struct IslandLiveVolumeContent: View {
-    var size: IslandWidgetSize?
-    @ObservedObject private var audio = AudioMixerController.shared
-    @Stored private var volume = 0.0
-    @Stored private var feedback = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Slider(value: Binding(get: { volume }, set: { value in
-                    audio.setSystemVolume(Float(value))
-                    volume = audio.getSystemVolume()
-                    feedback = abs(volume - value) < 0.02 ? "" : "输出设备不支持设置音量"
-                }), in: 0...1).controlSize(.mini).accessibilityLabel("系统输出音量")
-                Text("\(Int(volume * 100))%").font(.system(size: 10)).monospacedDigit()
-            }
-            if !feedback.isEmpty { Text(feedback).font(.system(size: 10)).foregroundStyle(.red) }
-            if size == nil || size?.rows == 2 {
-                Text(audio.devices.first(where: { $0.isDefault })?.name ?? "系统默认输出")
-                    .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                Button("刷新音量") { volume = audio.getSystemVolume() }.buttonStyle(IslandButtonStyle())
-                    .font(.system(size: 11))
-            }
-        }.onAppear { volume = audio.getSystemVolume() }
-    }
-}
 
 private struct IslandCalendarContent: View {
     @ObservedObject var controller: IslandController
@@ -742,6 +718,7 @@ private struct IslandLiveCalendarContent: View {
     @Binding var selectedDate: Date
     var size: IslandWidgetSize?
     @ObservedObject private var calendar = CalendarService.shared
+    @AppStorage(Preferences.Keys.calendarFirstWeekday) private var firstWeekday = 1
     @Stored private var days: [CalendarDay] = []
     @Stored private var events: [CalendarEvent] = []
 
@@ -757,12 +734,28 @@ private struct IslandLiveCalendarContent: View {
                 }.buttonStyle(IslandButtonStyle())
                 HStack(alignment: .top, spacing: 12) {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 3) {
+                        ForEach(0..<7) { index in
+                            let weekday = (index + firstWeekday - 1) % 7
+                            Text(["日", "一", "二", "三", "四", "五", "六"][weekday])
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(weekday == 0 || weekday == 6 ? .secondary : .primary)
+                                .frame(maxWidth: .infinity)
+                        }
                         ForEach(days) { day in
-                            Button { selectedDate = day.date; reloadEvents() } label: {
-                                Text(day.date.formatted(.dateTime.day())).font(.system(size: 11))
-                                    .frame(maxWidth: .infinity).frame(height: 22)
+                            Button {
+                                let monthChanged = !Calendar.current.isDate(day.date, equalTo: selectedDate, toGranularity: .month)
+                                selectedDate = day.date
+                                if monthChanged { reload() } else { reloadEvents() }
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Text(day.date.formatted(.dateTime.day())).font(.system(size: 11, weight: day.isToday ? .bold : .regular))
+                                    Text(day.holidayText ?? day.lunarText ?? "")
+                                        .font(.system(size: 9)).lineLimit(1).foregroundStyle(.secondary)
+                                }
+                                    .foregroundStyle(day.isWeekend || !Calendar.current.isDate(day.date, equalTo: selectedDate, toGranularity: .month) ? .secondary : .primary)
+                                    .frame(maxWidth: .infinity).frame(height: 33)
                                     .background(Calendar.current.isDate(day.date, inSameDayAs: selectedDate)
-                                                ? Theme.accent(for: nil).opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                                                ? controller.configuration.color(for: .calendar).opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 6))
                             }.buttonStyle(IslandButtonStyle())
                         }
                     }.frame(maxWidth: .infinity)
@@ -783,6 +776,7 @@ private struct IslandLiveCalendarContent: View {
             }
         }
         .onAppear { reload() }
+        .onChange(of: firstWeekday) { _ in reload() }
         .onChange(of: calendar.isAuthorized) { _ in reload() }
         .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in reload() }
     }
@@ -818,11 +812,15 @@ private struct IslandLiveCalendarContent: View {
     }
 
     private func reload() {
-        if size == nil { days = calendar.monthDays(for: selectedDate) }
+        if size == nil { days = calendar.monthDays(for: selectedDate, firstWeekday: firstWeekday) }
         reloadEvents()
     }
 
     private func reloadEvents() {
+        if size == nil, let day = days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) {
+            events = day.events
+            return
+        }
         let start = Calendar.current.startOfDay(for: size == nil ? selectedDate : Date.now)
         if let end = Calendar.current.date(byAdding: .day, value: 1, to: start) {
             events = calendar.events(from: start, to: end)

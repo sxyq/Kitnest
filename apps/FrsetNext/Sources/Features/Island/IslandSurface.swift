@@ -46,13 +46,13 @@ struct IslandSurface<Content: View>: View {
             Spacer()
             Button {
                 if controller.previewOnly { controller.feedback = "完整主面板入口预览" }
-                else { controller.collapse(); ServiceLocator.panel?.show() }
+                else { controller.performOutside { ServiceLocator.panel?.show() } }
             } label: {
                 Image(systemName: "macwindow").frame(width: 28, height: 28)
             }.buttonStyle(IslandButtonStyle(help: "打开主面板")).accessibilityLabel("打开主面板")
             Button {
                 if controller.previewOnly { controller.feedback = "设置位于总设置 → 刘海工作台" }
-                else { controller.collapse(); ServiceLocator.settings?.open(pane: "island") }
+                else { controller.performOutside { ServiceLocator.settings?.open(pane: "island") } }
             } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 28, height: 28)
             }.buttonStyle(IslandButtonStyle(help: "刘海与组件")).accessibilityLabel("刘海与组件")

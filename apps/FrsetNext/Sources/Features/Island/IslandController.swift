@@ -32,6 +32,8 @@ final class IslandController: NSObject, ObservableObject {
     private var interacting = false
     private var horizontalScroll: CGFloat = 0
     private var didSwipe = false
+    private var afterCollapse: (() -> Void)?
+    private(set) var selection: AppBootstrap.SelectionResult?
 
     init(configuration: IslandConfiguration = .load(), previewOnly: Bool = false) {
         self.configuration = configuration
@@ -155,6 +157,17 @@ final class IslandController: NSObject, ObservableObject {
         visibleSize = size
         visibleRadius = radius
         updatePointer()
+        if !expanded, size == CGSize(width: collapsedWidth, height: notchHeight), let action = afterCollapse {
+            afterCollapse = nil
+            DispatchQueue.main.async(execute: action)
+        }
+    }
+
+    func performOutside(_ action: @escaping () -> Void) {
+        if previewOnly { feedback = "操作预览"; return }
+        guard expanded else { action(); return }
+        afterCollapse = action
+        collapse()
     }
 
     func start() {
@@ -217,6 +230,7 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = openedExplicitly || takeFocus
         if !expanded {
+            if !previewOnly { selection = AppBootstrap.readSelection() }
             refreshClipboard()
             expanded = true
         }
