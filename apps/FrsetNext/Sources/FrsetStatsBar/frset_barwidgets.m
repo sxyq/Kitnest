@@ -2449,25 +2449,38 @@ static void FSBarStartPositionCalibration(void);
 
 static CGFloat FSBarLayoutWidgets(NSView *container, NSArray<FSBarWidgetView *> *widgets,
                                   CGFloat spacing, BOOL separator, NSString *color) {
-    for (NSView *view in [container.subviews copy])
-        if (![view isKindOfClass:FSBarWidgetView.class]) [view removeFromSuperview];
+    NSMutableArray<FSBarSepView *> *lines = [NSMutableArray array];
+    for (NSView *view in [container.subviews copy]) {
+        if ([view isKindOfClass:FSBarSepView.class]) [lines addObject:(FSBarSepView *)view];
+        else if (![view isKindOfClass:FSBarWidgetView.class]) [view removeFromSuperview];
+    }
+    NSUInteger usedLines = 0;
     CGFloat x = 0, height = container.frame.size.height;
     for (FSBarWidgetView *widget in widgets) {
         if (x > 0) {
             x += spacing;
             if (separator) {
-                FSBarSepView *line = [[FSBarSepView alloc] initWithFrame:NSMakeRect(x, 3, 1, height - 6)];
-                line.colorKey = color;
-                [container addSubview:line];
+                NSRect frame = NSMakeRect(x, 3, 1, height - 6);
+                FSBarSepView *line = usedLines < lines.count ? lines[usedLines] : [[FSBarSepView alloc] initWithFrame:frame];
+                usedLines++;
+                if (!NSEqualRects(line.frame, frame)) line.frame = frame;
+                if (![line.colorKey isEqualToString:color]) {
+                    line.colorKey = color;
+                    line.needsDisplay = YES;
+                }
+                if (line.superview != container) [container addSubview:line];
                 x += 1 + spacing;
             }
         }
         CGFloat width = MAX(1, [widget preferredWidth] + 2 * [widget widgetPadding]);
-        widget.frame = NSMakeRect(x, 0, width, height);
+        NSRect frame = NSMakeRect(x, 0, width, height);
+        if (!NSEqualRects(widget.frame, frame)) widget.frame = frame;
         if (widget.superview != container) [container addSubview:widget];
         x += width;
     }
-    container.frame = NSMakeRect(0, 0, MAX(x, 1), height);
+    for (NSUInteger index = usedLines; index < lines.count; index++) [lines[index] removeFromSuperview];
+    NSRect frame = NSMakeRect(0, 0, MAX(x, 1), height);
+    if (!NSEqualRects(container.frame, frame)) container.frame = frame;
     return MAX(x, 1);
 }
 
