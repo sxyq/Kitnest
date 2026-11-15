@@ -2206,36 +2206,37 @@ Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,334,K
 Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,409,KEEP,loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标
 Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,420,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
 Island,Features/Island/IslandContent.swift,IslandRecentRow,copy,func,456,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,497,KEEP,IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,498,KEEP,SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图
-Island,Features/Island/IslandContent.swift,IslandFileDragView,viewDidMoveToWindow,func,529,KEEP,记录首行挂载时取得现有外层NSScrollView并交给控制器恢复位置，所有行仍复用原拖出视图
-Island,Features/Island/IslandContent.swift,IslandFileDragView,hitTest,func,538,KEEP,布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragView,cancelSelection,func,542,KEEP,进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件
-Island,Features/Island/IslandContent.swift,IslandFileDragView,updateTrackingAreas,func,550,KEEP,记录行原生拖出视图沿可见范围接收悬停进入离开事件，重建跟踪区域时先移除旧区域
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseEntered,func,558,KEEP,展开中的刘海记录行把正式剪贴板条目及来源窗口坐标交给共用 rowHover，不读取正文或创建第二套预览
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseExited,func,572,KEEP,记录行离开时由共用 rowHover 取消待呈现任务并安排关闭，沿用主面板悬停时序
-Island,Features/Island/IslandContent.swift,IslandFileDragView,showPreview,func,577,KEEP,刘海记录单击、回车与空格用同一个 present 入口，行边界经所属窗口换算为屏幕坐标；双击仍走原复制方法
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,583,KEEP,记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,589,KEEP,原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,601,KEEP,文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,621,KEEP,非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点
-Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,636,KEEP,原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,641,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,643,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
-Island,Features/Island/IslandContent.swift,IslandCalendarContent,movePreviewDate,func,734,KEEP,模拟日历的日期与月份导航只更新控制器选中日期，复用同一五档布局且不调用 EventKit
-Island,Features/Island/IslandContent.swift,IslandCalendarContent,copySelectedDate,func,740,KEEP,日历各尺寸共用所选日期复制；模拟只反馈，正式经 ClipboardManager 写入并反馈实际结果
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,calendarLayout,func,782,KEEP,正式和模拟日历共用五档内容布局及全页月历，数据和操作闭包分别从缓存服务与固定样本注入
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthGrid,func,909,KEEP,月历全页与2×2卡片共用42格与周标题，周末、跨月和选中态按实际日期及周起始日显示
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRows,func,947,KEEP,日程摘要、纵向事件和完整详情共用时间标题排版，区分空日程、授权提示与真实缓存事件
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthTitle,func,971,KEEP,日历完整页与月历卡片共用中文年月标题，沿用 Foundation 日期格式样式
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthDay,func,975,KEEP,日历紧凑、摘要及横向卡片共用中文月日文本，不改变所选日期
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,weekdayTitle,func,979,KEEP,日历卡片按所选日期显示中文实际星期，和周末判定使用同一日期
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,fullDate,func,983,KEEP,日历纵向卡片、月历底栏和全页共用完整中文日期标签
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventTime,func,987,KEEP,日历横向带与事件行共用全天或开始时刻标签，保留正式事件字段
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,selectDate,func,991,KEEP,正式日历选中跨月时读取月缓存，同月只从已加载42格选取事件，避免逐日重复查询
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveDate,func,997,KEEP,正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,1004,KEEP,出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,1009,KEEP,完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
+Island,Features/Island/IslandContent.swift,IslandRecordFocusAppearance,body,func,485,KEEP,IslandRecordFocusAppearance仅关闭macOS14及以上记录列表的系统焦点装饰，保留focusable、方向键和复制命令；macOS13沿用原生行focusRingType.none
+Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,508,KEEP,IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,513,KEEP,SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图
+Island,Features/Island/IslandContent.swift,IslandFileDragView,viewDidMoveToWindow,func,544,KEEP,记录首行挂载时取得现有外层NSScrollView并交给控制器恢复位置，所有行仍复用原拖出视图
+Island,Features/Island/IslandContent.swift,IslandFileDragView,hitTest,func,553,KEEP,布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragView,cancelSelection,func,557,KEEP,进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件
+Island,Features/Island/IslandContent.swift,IslandFileDragView,updateTrackingAreas,func,565,KEEP,记录行原生拖出视图沿可见范围接收悬停进入离开事件，重建跟踪区域时先移除旧区域
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseEntered,func,573,KEEP,展开中的刘海记录行把正式剪贴板条目及来源窗口坐标交给共用 rowHover，不读取正文或创建第二套预览
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseExited,func,587,KEEP,记录行离开时由共用 rowHover 取消待呈现任务并安排关闭，沿用主面板悬停时序
+Island,Features/Island/IslandContent.swift,IslandFileDragView,showPreview,func,592,KEEP,刘海记录单击、回车与空格用同一个 present 入口，行边界经所属窗口换算为屏幕坐标；双击仍走原复制方法
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,598,KEEP,记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,604,KEEP,原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,616,KEEP,文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,636,KEEP,非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点
+Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,651,KEEP,原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页
+Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,656,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
+Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,658,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
+Island,Features/Island/IslandContent.swift,IslandCalendarContent,movePreviewDate,func,749,KEEP,模拟日历的日期与月份导航只更新控制器选中日期，复用同一五档布局且不调用 EventKit
+Island,Features/Island/IslandContent.swift,IslandCalendarContent,copySelectedDate,func,755,KEEP,日历各尺寸共用所选日期复制；模拟只反馈，正式经 ClipboardManager 写入并反馈实际结果
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,calendarLayout,func,797,KEEP,正式和模拟日历共用五档内容布局及全页月历，数据和操作闭包分别从缓存服务与固定样本注入
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthGrid,func,924,KEEP,月历全页与2×2卡片共用42格与周标题，周末、跨月和选中态按实际日期及周起始日显示
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRows,func,962,KEEP,日程摘要、纵向事件和完整详情共用时间标题排版，区分空日程、授权提示与真实缓存事件
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthTitle,func,986,KEEP,日历完整页与月历卡片共用中文年月标题，沿用 Foundation 日期格式样式
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthDay,func,990,KEEP,日历紧凑、摘要及横向卡片共用中文月日文本，不改变所选日期
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,weekdayTitle,func,994,KEEP,日历卡片按所选日期显示中文实际星期，和周末判定使用同一日期
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,fullDate,func,998,KEEP,日历纵向卡片、月历底栏和全页共用完整中文日期标签
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventTime,func,1002,KEEP,日历横向带与事件行共用全天或开始时刻标签，保留正式事件字段
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,selectDate,func,1006,KEEP,正式日历选中跨月时读取月缓存，同月只从已加载42格选取事件，避免逐日重复查询
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveDate,func,1012,KEEP,正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,1019,KEEP,出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,1024,KEEP,完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
 Island,Features/Island/IslandController.swift,IslandController,init,init,66,KEEP,保存传入或.load的唯一配置和previewOnly；设置预览给180×28pt示例刘海，正式几何由position读屏幕
 Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,108,KEEP,Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
 Island,Features/Island/IslandController.swift,IslandController,apply,func,118,KEEP,设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
@@ -2296,11 +2297,11 @@ Island,Features/Island/IslandSurface.swift,IslandMaterialHost,updateNSView,func,
 Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,223,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
 Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,233,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
 Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,234,KEEP,仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
-Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,253,KEEP,IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,307,KEEP,收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,327,KEEP,收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
-Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,358,KEEP,收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
-Island,Features/Island/IslandSurface.swift,IslandGlow,init,init,379,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,254,KEEP,IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,311,KEEP,收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,331,KEEP,收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
+Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,362,KEEP,收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
+Island,Features/Island/IslandSurface.swift,IslandGlow,init,init,383,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxShortcuts,shortcut,func,38,KEEP,首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,66,KEEP,Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,111,KEEP,全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool
