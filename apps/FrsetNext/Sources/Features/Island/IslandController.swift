@@ -61,6 +61,10 @@ final class IslandController: NSObject, ObservableObject {
     var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), (panel?.screen?.frame.width ?? 2000) - 40) }
     var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), (panel?.screen?.frame.height ?? 1400) - 40) }
 
+    func surfaceAnimation(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeOut(duration: 0.12) : .spring(response: expanded ? 0.28 : 0.24, dampingFraction: 1)
+    }
+
     @discardableResult
     func apply(_ configuration: IslandConfiguration) -> String? {
         if !previewOnly {
@@ -202,10 +206,13 @@ final class IslandController: NSObject, ObservableObject {
     private func position() {
         guard let panel else { return }
         let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens[0]
+        let centerX: CGFloat
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+            centerX = (left.maxX + right.minX) / 2
             notchWidth = right.minX - left.maxX
             notchHeight = screen.safeAreaInsets.top
         } else {
+            centerX = screen.frame.midX
             // 无刘海屏幕仅展示一块小型黑色入口，不扩大有刘海屏幕的收起态。
             notchWidth = 180
             notchHeight = 28
@@ -214,7 +221,7 @@ final class IslandController: NSObject, ObservableObject {
         let size = NSSize(width: min(max(panel.frame.width, effectiveWidth + 32, collapsedWidth + 32), screen.frame.width),
                           height: min(max(panel.frame.height, effectiveHeight + 16), screen.frame.height))
         let scale = screen.backingScaleFactor
-        panel.setFrame(NSRect(x: ((screen.frame.midX - size.width / 2) * scale).rounded() / scale,
+        panel.setFrame(NSRect(x: ((centerX - size.width / 2) * scale).rounded() / scale,
                               y: screen.frame.maxY - size.height,
                               width: size.width, height: size.height), display: true)
     }

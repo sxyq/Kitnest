@@ -27,7 +27,7 @@ struct IslandSurface<Content: View>: View {
         .modifier(IslandMorph(controller: controller, size: target,
                               progress: controller.expanded ? 1 : 0,
                               reduceMotion: reduceMotion, reduceTransparency: reduceTransparency))
-        .animation(reduceMotion ? .easeOut(duration: 0.12) : controller.expanded ? .spring(response: 0.36, dampingFraction: 0.88) : .spring(response: 0.28, dampingFraction: 1),
+        .animation(controller.surfaceAnimation(reduceMotion: reduceMotion),
                    value: [target.width, target.height, controller.expanded ? 1 : 0])
         .foregroundStyle(.primary)
         .tint(Theme.accent(for: nil))
@@ -112,7 +112,7 @@ private struct IslandMorph: AnimatableModifier {
         let phase = min(1, max(0, progress))
         let radius = Theme.Radius.chip + (IslandLayout.corner - Theme.Radius.chip) * phase
         let outline = IslandOutline(radius: radius)
-        let reveal = min(1, max(0, (phase - 0.24) / 0.62))
+        let reveal = phase
         content
             .opacity(reveal)
             .offset(y: reduceMotion ? 0 : -Theme.Space.sm * (1 - phase))
@@ -125,7 +125,10 @@ private struct IslandMorph: AnimatableModifier {
                     .id(!controller.usesGlass || reduceTransparency)
                     .overlay(Color.black.opacity(controller.usesGlass && !reduceTransparency ? 1 - phase * (1 - controller.configuration.opacity) : 1))
                     .overlay(alignment: .top) {
-                        Color.black.frame(width: controller.notchWidth, height: controller.notchHeight)
+                        if controller.previewOnly || (controller.panel?.screen?.safeAreaInsets.top ?? 0) == 0 {
+                            Color.black.frame(width: controller.notchWidth, height: controller.notchHeight)
+                                .clipShape(IslandOutline(radius: Theme.Radius.chip))
+                        }
                     }
                     .allowsHitTesting(false)
             }

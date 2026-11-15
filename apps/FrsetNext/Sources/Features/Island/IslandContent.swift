@@ -32,7 +32,7 @@ struct IslandRootView: View {
                     .transition(.opacity)
             }
         }
-        .frame(maxWidth: controller.effectiveWidth, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.page)
         .onAppear {
             if controller.expanded || preview { reloadRecords() }
