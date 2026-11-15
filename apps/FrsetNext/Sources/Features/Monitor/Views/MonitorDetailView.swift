@@ -6,7 +6,27 @@ import SwiftUI
 /// 详情面板的选中模块状态（放在 ObservableObject 里，避免依赖 SwiftUI 的 @Stored 宏）
 public final class MonitorDetailSelection: ObservableObject {
     @Published public var module: MonitorModuleID
+    var chartPins: [String: MonitorTrendPoint] = [:]
     public init(_ module: MonitorModuleID = .cpu) { self.module = module }
+}
+
+struct MonitorPresentation {
+    var order: [MonitorModuleID]? = nil
+    var colors: [MonitorModuleID: Color] = [:]
+    var interaction: ((Bool) -> Void)? = nil
+    var previewInterval = 1.0
+    var previewEnabled = true
+    var previewTemperatures = true
+    var previewFlowTopN = 4
+}
+private struct MonitorPresentationKey: EnvironmentKey {
+    static let defaultValue = MonitorPresentation()
+}
+extension EnvironmentValues {
+    var monitorPresentation: MonitorPresentation {
+        get { self[MonitorPresentationKey.self] }
+        set { self[MonitorPresentationKey.self] = newValue }
+    }
 }
 
 /// 性能页正文容器：**主面板性能页与状态栏独立窗共用唯一实现**。
@@ -41,12 +61,13 @@ private struct LiveMonitorPerformanceContent: View {
 
 public struct MonitorDetailView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
+    @Environment(\.monitorPresentation) private var presentation
     @StateObject private var previewSelection = MonitorDetailSelection()
     private let selection: MonitorDetailSelection
     private let pageMode: Bool
     private let fixedWidth: CGFloat?
 
-    public init(selection: MonitorDetailSelection = MonitorDetailSelection(), pageMode: Bool = false, fixedWidth: CGFloat? = 292) {
+    public init(selection: MonitorDetailSelection = MonitorCenterPresenter.shared.monitorSelection, pageMode: Bool = false, fixedWidth: CGFloat? = 292) {
         self.selection = selection
         self.pageMode = pageMode
         self.fixedWidth = fixedWidth
@@ -54,12 +75,33 @@ public struct MonitorDetailView: View {
     public var body: some View {
         if isSettingsPreview {
             let values = MonitorDetailPreviewValues.fixed
-            MonitorDetailContent(selection: previewSelection, sample: values.sample, history: values.history,
-                                 stats: values.stats, extra: values.extra, volumes: values.volumes,
+            MonitorDetailContent(selection: previewSelection, sample: previewSample, history: previewHistory,
+                                 stats: previewStats, extra: values.extra, volumes: values.volumes,
                                  pageMode: pageMode, fixedWidth: fixedWidth)
         } else {
             LiveMonitorDetailView(selection: selection, pageMode: pageMode, fixedWidth: fixedWidth)
         }
+    }
+
+    private var previewSample: MonitorSample {
+        var sample = MonitorDetailPreviewValues.fixed.sample
+        if !presentation.previewTemperatures { sample.temperatures = [:] }
+        return sample
+    }
+    private var previewStats: StatsSnapshot {
+        var stats = MonitorDetailPreviewValues.fixed.stats
+        if !presentation.previewTemperatures { stats.sensors.removeAll { $0.category == 0 } }
+        return stats
+    }
+    private var previewHistory: MonitorSampler.History {
+        var history = MonitorDetailPreviewValues.fixed.history
+        if presentation.previewInterval != 1 {
+            let end = history.timestamps.last!
+            history.timestamps = history.timestamps.indices.map { end + Double($0 - 59) * presentation.previewInterval }
+            history.intervals = Array(repeating: presentation.previewInterval, count: 60)
+        }
+        if !presentation.previewTemperatures { history.temperatures = [:] }
+        return history
     }
 }
 
@@ -67,7 +109,6 @@ private struct LiveMonitorDetailView: View {
     @ObservedObject var selection: MonitorDetailSelection
     @ObservedObject private var sampler = MonitorSampler.shared
     @ObservedObject private var memoryOptimizer = MemoryOptimizer.shared
-    @ObservedObject private var netPulse = NetworkPulse.shared
     @ObservedObject private var volumeStore = DiskVolumeStore.shared
     let pageMode: Bool
     let fixedWidth: CGFloat?
@@ -76,7 +117,7 @@ private struct LiveMonitorDetailView: View {
         MonitorDetailContent(selection: selection, sample: sampler.sample, history: sampler.history,
                              stats: StatsDataProvider.shared.current, extra: MonitorExtra.current,
                              volumes: volumeStore.volumes, liveSampler: sampler,
-                             memoryOptimizer: memoryOptimizer, netPulse: netPulse,
+                             memoryOptimizer: memoryOptimizer,
                              pageMode: pageMode, fixedWidth: fixedWidth)
     }
 }
@@ -85,6 +126,7 @@ private struct MonitorDetailContent: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var selection: MonitorDetailSelection
+    @Environment(\.monitorPresentation) private var presentation
     let sample: MonitorSample
     let history: MonitorSampler.History
     let stats: StatsSnapshot
@@ -92,50 +134,107 @@ private struct MonitorDetailContent: View {
     let volumes: [DiskVolume]
     var liveSampler: MonitorSampler? = nil
     var memoryOptimizer: MemoryOptimizer? = nil
-    var netPulse: NetworkPulse? = nil
-    private var pulseDown: [Double] { netPulse?.down ?? [] }
-    private var pulseUp: [Double] { netPulse?.up ?? [] }
     /// 页面模式：只渲染模块内容，标签行与底栏由 StatsPageView 提供（宽度撑满、无固定 292 限宽）
     let pageMode: Bool
     /// 固定宽度（nil = 撑满容器；独立窗 v71 传 nil 消除两侧留白，菜单栏 popover 保留 292）
     let fixedWidth: CGFloat?
     /// 温度页：原始传感器列表默认折叠（v181 起主视图换成 4 条热区）
     @Stored private var showsAllTemperatures = false
+    @Stored private var hoveredModule: MonitorModuleID? = nil
+    @Stored private var thermalSensor = ""
+    @FocusState private var focusedModule: MonitorModuleID?
 
     init(selection: MonitorDetailSelection, sample: MonitorSample, history: MonitorSampler.History,
          stats: StatsSnapshot, extra: MonitorExtra.Snapshot, volumes: [DiskVolume],
          liveSampler: MonitorSampler? = nil, memoryOptimizer: MemoryOptimizer? = nil,
-         netPulse: NetworkPulse? = nil, pageMode: Bool, fixedWidth: CGFloat?) {
+         pageMode: Bool, fixedWidth: CGFloat?) {
         self.selection = selection; self.sample = sample; self.history = history
         self.stats = stats; self.extra = extra; self.volumes = volumes
-        self.liveSampler = liveSampler; self.memoryOptimizer = memoryOptimizer; self.netPulse = netPulse
+        self.liveSampler = liveSampler; self.memoryOptimizer = memoryOptimizer
         self.pageMode = pageMode; self.fixedWidth = fixedWidth
     }
 
     public var body: some View {
-        if pageMode {
-            content
-                .frame(maxWidth: .infinity, alignment: .leading)
+        Group {
+        if !pageMode && availableModules().isEmpty {
+            Text("尚未启用监测模块，可在监测设置中开启")
+                .font(.system(size: Theme.TextSize.body)).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if pageMode {
+            detailBody
         } else {
-            VStack(alignment: .leading, spacing: 10) {
-                modulePicker
-                Divider().opacity(0.5)
-                // v82（2026-10-19 修复「GPU/内存等按钮点不动」）：滚动区只包内容区，
-                // 切换条/底栏固定。此前整页（含 modulePicker）由外层 ScrollView 包裹，
-                // macOS SwiftUI 下 ScrollView 的手势/命中容器会拦截其直接子级按钮的
-                // 点击（页签在 toolbar 里可点、模块按钮在 ScrollView 里点不动即为实证）。
-                ScrollView(.vertical, showsIndicators: false) {
-                    content
-                        .id(selection.module)
-                        .transition(PanelMotion.transition(.opacity.combined(with: .offset(y: 8))))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            GeometryReader { geometry in
+                if geometry.size.width >= 600 {
+                    HStack(alignment: .top, spacing: 16) {
+                        ScrollView(.vertical) {
+                            VStack(spacing: 6) {
+                                ForEach(availableModules(), id: \.self) { moduleButton($0, wide: true) }
+                            }
+                        }.frame(width: 150)
+                        detailColumn
+                    }
+                } else {
+                    VStack(spacing: 10) { modulePicker; Divider().opacity(0.5); detailColumn }
                 }
-                Divider().opacity(0.5)
-                footer
             }
             .padding(12)
             .frame(width: fixedWidth, alignment: .leading)
         }
+        }
+        .onAppear { ensureSelection() }
+        .onChange(of: availableModules()) { _ in ensureSelection() }
+    }
+
+    private func ensureSelection() {
+        if pageMode { return }
+        let modules = availableModules()
+        if let first = modules.first, !modules.contains(selection.module) { selection.module = first }
+    }
+
+    private var detailColumn: some View {
+        VStack(spacing: 10) {
+            ScrollView(.vertical, showsIndicators: true) { detailBody }
+            Divider().opacity(0.5)
+            footer
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var detailBody: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label(selection.module.displayName, systemImage: selection.module.systemImage)
+                    .font(.system(size: Theme.TextSize.title, weight: .semibold))
+                Spacer()
+                if isSettingsPreview {
+                    Text(presentation.previewEnabled ? "模拟预览" : "监测已关闭")
+                        .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                } else if !MonitorPreferences.isModuleEnabled(selection.module) {
+                    Text("模块入口已关闭").font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                } else if liveSampler?.isRunning == false {
+                    Text("监测已关闭").font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                }
+            }
+            if selection.module == .sensors {
+                let sensors = Array(history.temperatures.keys).sorted()
+                if !sensors.isEmpty {
+                    Picker("温度传感器", selection: Binding(get: { sensorName }, set: { thermalSensor = $0 })) {
+                        ForEach(sensors, id: \.self) { Text($0).tag($0) }
+                    }
+                } else {
+                    Text((isSettingsPreview ? presentation.previewTemperatures : MonitorPreferences.showTemperatures) ? "尚未读取到温度传感器" : "温度采集已关闭")
+                        .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                }
+            }
+            MonitorTrendChart(data: MonitorTrendData(module: selection.module, history: history, sensor: sensorName,
+                                                    tint: presentation.colors[selection.module]),
+                              selection: selection, interaction: presentation.interaction)
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var sensorName: String {
+        selection.module == .sensors ? (thermalSensor.isEmpty ? history.temperatures.keys.sorted().first ?? "" : thermalSensor) : ""
     }
 
     // MARK: - 模块切换
@@ -151,36 +250,50 @@ private struct MonitorDetailContent: View {
     private var modulePicker: some View {
         FlowHStack(spacing: 6, lineSpacing: 6) {
             ForEach(availableModules(), id: \.self) { module in
-                Button {
-                    if !isSettingsPreview { Log.info("Monitor", "切换模块: \(module.displayName)（原 \(selection.module.displayName)）") }
-                    withAnimation(reduceMotion ? nil : PanelMotion.animation(Theme.Motion.springSoft)) {
-                        selection.module = module
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: module.systemImage)
-                            .font(.system(size: 11))
-                        Text(module.displayName)
-                            .font(.system(size: 11, weight: .medium))
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background {
-                        if selection.module == module {
-                            Capsule(style: .continuous)
-                                .fill(Theme.accent.opacity(0.18))
-                        }
-                    }
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .stroke(selection.module == module ? Theme.accent.opacity(0.5) : Color.clear, lineWidth: 0.5)
-                    )
-                    .contentShape(Capsule(style: .continuous))
-                }
-                .buttonStyle(.plain)
-                // v183：深链/键盘切换后第一个胶囊会吃焦点环，看着像「两个都选中」
-                .focusable(isSettingsPreview)
+                moduleButton(module, wide: false)
             }
+        }
+    }
+
+    private func moduleButton(_ module: MonitorModuleID, wide: Bool) -> some View {
+        let selected = selection.module == module
+        return Button { selection.module = module } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                Label(module.displayName, systemImage: module.systemImage)
+                    .font(.system(size: Theme.TextSize.small, weight: .medium))
+                if wide { Text(currentValue(module)).font(.system(size: Theme.TextSize.caption).monospacedDigit()).foregroundStyle(.secondary) }
+            }.frame(maxWidth: wide ? .infinity : nil, alignment: .leading)
+                .padding(.horizontal, 10).padding(.vertical, wide ? 10 : 7)
+                .background(selected ? Theme.accent.opacity(0.14) : hoveredModule == module ? Theme.rowHoverFill : .clear,
+                            in: RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(
+                    focusedModule == module ? Theme.accent : selected ? Theme.accent.opacity(0.4) : .clear,
+                    style: StrokeStyle(lineWidth: 1, dash: focusedModule == module ? [3, 2] : [])))
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).focusable().focused($focusedModule, equals: module)
+            .onHover { if $0 { hoveredModule = module } else if hoveredModule == module { hoveredModule = nil } }
+            .onMoveCommand { direction in
+                let modules = availableModules()
+                guard let index = modules.firstIndex(of: module) else { return }
+                let step = direction == .up || direction == .left ? -1 : 1
+                let next = modules[min(max(index + step, 0), modules.count - 1)]
+                focusedModule = next; selection.module = next
+            }
+            .accessibilityLabel(module.displayName + "，" + currentValue(module))
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func currentValue(_ module: MonitorModuleID) -> String {
+        if !isSettingsPreview && history.timestamps.isEmpty { return liveSampler?.isRunning == true ? "等待采样" : "监测已关闭" }
+        switch module {
+        case .cpu: return MonitorFormat.percent(sample.cpuUsage)
+        case .gpu: return stats.gpuUsage >= 0 ? MonitorFormat.percent(stats.gpuUsage) : "GPU 尚无读数"
+        case .memory: return MonitorFormat.bytes(sample.memoryUsed)
+        case .network: return "↓ " + MonitorFormat.rate(sample.netDownload)
+        case .disk: return "读 " + MonitorFormat.rate(sample.diskRead)
+        case .sensors: return sample.temperatures.values.max().map(MonitorFormat.temperature) ?? "尚无传感器读数"
+        case .power: return sample.powerWatts.map(MonitorFormat.power) ?? "整机传感器尚无读数"
+        case .battery: return sample.batteryLevel.map(MonitorFormat.percent) ?? "未检测到电池"
         }
     }
 
@@ -189,25 +302,23 @@ private struct MonitorDetailContent: View {
     /// 此前只影响状态栏项、不从监测中心过滤——补上开关过滤（当前选中项保留，
     /// 避免选中态突然消失）。
     private func availableModules() -> [MonitorModuleID] {
-        if isSettingsPreview { return MonitorModuleID.allCases }
+        if isSettingsPreview, let order = presentation.order { return order }
         var modules: [MonitorModuleID] = []
-        for module in MonitorModuleID.allCases {
-            if !MonitorPreferences.isModuleEnabled(module), selection.module != module {
+        for module in presentation.order ?? [.cpu, .gpu, .memory, .network, .disk, .sensors, .power, .battery] {
+            if !MonitorPreferences.isModuleEnabled(module) {
                 continue
             }
             switch module {
             case .sensors:
-                if MonitorPreferences.showTemperatures { modules.append(module) }
+                modules.append(module)
             case .battery:
-                if sample.batteryLevel != nil || selection.module == module { modules.append(module) }
+                modules.append(module)
             case .gpu:
-                // 有 GPU 数据（IOAccelerator 可读）才显示
-                if stats.gpuUsage >= 0 || selection.module == .gpu { modules.append(module) }
+                modules.append(module)
             default:
                 modules.append(module)
             }
         }
-        if !modules.contains(selection.module) { modules.append(selection.module) }
         return modules
     }
 
@@ -271,61 +382,15 @@ private struct MonitorDetailContent: View {
     private var powerUsesBattery: Bool { stats.battery?.present == true && !sample.externalPower }
 
     private var powerOverview: some View {
-        let peak = ceil(max(history.power.max() ?? 0, sample.powerWatts ?? 0, 1) / 5) * 5
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("整机当前功耗", systemImage: "bolt.fill")
-                        .font(.system(size: 11, weight: .medium)).foregroundStyle(MonitorColors.temperature)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(sample.powerWatts.map { String(format: $0 >= 100 ? "%.0f" : "%.1f", $0) } ?? "—")
-                            .font(.system(size: 34, weight: .semibold).monospacedDigit())
-                        Text("W").font(.system(size: 12)).foregroundStyle(.secondary)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-                Spacer(minLength: 0)
-                VStack(alignment: .trailing, spacing: 5) {
-                    Label(powerUsesBattery ? "电池供电" : "外部电源",
-                          systemImage: powerUsesBattery ? "battery.75percent" : "powerplug.fill")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                    Text("输入 \(sample.inputPowerWatts.map(MonitorFormat.power) ?? "—")")
-                        .font(.system(size: 13, weight: .medium).monospacedDigit())
-                        .help("适配器实际输入，包含充电功率")
-                }
-                .padding(.top, 2)
-            }
-            ZStack {
-                GeometryReader { chart in
-                    Path { path in
-                        for row in 1...3 {
-                            let y = chart.size.height * CGFloat(row) / 4
-                            path.move(to: CGPoint(x: 0, y: y))
-                            path.addLine(to: CGPoint(x: chart.size.width, y: y))
-                        }
-                    }
-                    .stroke(Color.primary.opacity(0.08), style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
-                }
-                if history.power.count > 1 {
-                    MonitorAreaSparkline(values: history.power, color: MonitorColors.temperature,
-                                         upperBound: peak, slots: MonitorSampler.historyCapacity, lineWidth: 2)
-                } else {
-                    Text(sample.powerWatts == nil ? "暂无整机功耗读数" : "等待下一次采样…")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-            }
-            .frame(height: 76)
-            .padding(.vertical, 2)
-            .accessibilityLabel("整机功耗趋势，最近 \(history.power.count) 次采样")
-            HStack {
-                Text("最近 \(MonitorSampler.historyCapacity) 次采样")
-                Spacer()
-                Text("0 – \(MonitorFormat.power(peak))")
-            }
-            .font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiaryText)
+        return VStack(alignment: .leading, spacing: 8) {
+            Label(powerUsesBattery ? "电池供电" : "外部电源",
+                  systemImage: powerUsesBattery ? "battery.75percent" : "powerplug.fill")
+                .font(.system(size: Theme.TextSize.small)).foregroundStyle(.secondary)
+            MonitorRow(label: "适配器输入（含充电）", value: sample.inputPowerWatts.map(MonitorFormat.power) ?? "尚无输入读数")
+            Text("整机负载来自 PSTR；芯片合计与组件明细已包含在整机中，不重复相加。")
+                .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
-        .glassCard(radius: Theme.Radius.card, fill: MonitorColors.temperature.opacity(0.055))
     }
 
     private var powerFlow: some View {
@@ -391,36 +456,10 @@ private struct MonitorDetailContent: View {
     // MARK: - CPU
 
     private var cpuPanel: some View {
-        let history = self.history.cpu
-        let average = history.isEmpty
-            ? sample.cpuUsage
-            : history.reduce(0, +) / Double(history.count)
-        let peak = history.max() ?? sample.cpuUsage
         let cores = isSettingsPreview ? 8 : Double(max(1, CPUHardware.logicalCores))
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
-                // 温度环（原版 v56 布局：橙色环 + "81°"，总占用环左侧）
-                if let temperature = primaryTemperature() {
-                    ZStack {
-                        MonitorRing(value: min(max(temperature / 100.0, 0), 1), lineWidth: 7,
-                                    color: MonitorColors.temperature)
-                            .frame(width: 66, height: 66)
-                        Text(MonitorFormat.temperature(temperature))
-                            .font(.system(size: 17, weight: .semibold).monospacedDigit())
-                    }
-                }
-                ZStack {
-                    MonitorRing(value: sample.cpuUsage, lineWidth: 7, color: MonitorColors.user)
-                        .frame(width: 66, height: 66)
-                    VStack(spacing: 0) {
-                        Text(MonitorFormat.percent(sample.cpuUsage))
-                            .font(.system(size: 17, weight: .semibold).monospacedDigit())
-                        Text("总占用")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                }
                 VStack(alignment: .leading, spacing: 4) {
                     MonitorRow(label: "系统", value: MonitorFormat.percent(sample.systemCPU), color: MonitorColors.system)
                     MonitorRow(label: "用户", value: MonitorFormat.percent(sample.userCPU), color: MonitorColors.user)
@@ -433,36 +472,9 @@ private struct MonitorDetailContent: View {
             // v183：芯片规格 + 热压力。原页面顶部只有两个环和四行数字，
             // 读不到温度传感器时还会空出半个环位——这里用一行把「这台机器是什么」补上。
             chipStrip(stats)
-
-            MonitorSectionTitle("使用历史")
-            HStack(spacing: 6) {
-                Text("当前 \(MonitorFormat.percent(sample.cpuUsage))")
-                    .foregroundStyle(MonitorColors.user)
-                Spacer(minLength: 4)
-                Text("均值 \(MonitorFormat.percent(average)) · 峰值 \(MonitorFormat.percent(peak))")
-                    .foregroundStyle(Theme.tertiaryText)
+            if let temperature = primaryTemperature() {
+                MonitorRow(label: "CPU 温度", value: MonitorFormat.temperature(temperature), color: MonitorColors.temperature)
             }
-            .font(.system(size: 9.5, weight: .medium).monospacedDigit())
-            ZStack(alignment: .bottomLeading) {
-                historyGrid
-                MonitorAreaSparkline(
-                    values: history,
-                    color: MonitorColors.user,
-                    upperBound: 1,
-                    slots: MonitorSampler.historyCapacity,
-                    lineWidth: 1.6
-                )
-                if history.count < 10 {
-                    // 刚启动时历史只有几个点，曲线是贴在右边的一小截——
-                    // 不说明的话看起来就像「图没画出来」
-                    Text("采样中 \(history.count)/\(MonitorSampler.historyCapacity) · 约 1 分钟后曲线完整")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .padding(.leading, 4)
-                        .padding(.bottom, 2)
-                }
-            }
-            .frame(height: 52)
 
             // v183：每核心从小蓝块换成带刻度的迷你柱（核编号 + 百分比），
             // 集群占用从三行文字改成胶囊——原来「M0」还会凭空多出一行 0%。
@@ -515,21 +527,6 @@ private struct MonitorDetailContent: View {
                                items: procs,
                                values: { [String(format: "%.0f%%", $0.cpu)] })
             }
-        }
-    }
-
-    /// 历史曲线的参考网格（25% / 50% / 75%），空图时也不至于是一块空白
-    private var historyGrid: some View {
-        GeometryReader { geo in
-            Path { path in
-                for index in 1...3 {
-                    let y = geo.size.height * CGFloat(index) / 4
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: geo.size.width, y: y))
-                }
-            }
-            .stroke(Color.primary.opacity(0.06),
-                    style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
         }
     }
 
@@ -612,24 +609,13 @@ private struct MonitorDetailContent: View {
         let freeMemory = Double(sample.memoryTotal > sample.memoryUsed
                                 ? sample.memoryTotal - sample.memoryUsed : 0)
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                ZStack {
-                    MonitorRing(value: sample.memoryPressure, lineWidth: 7, color: MonitorColors.memory)
-                        .frame(width: 66, height: 66)
-                    VStack(spacing: 0) {
-                        Text(MonitorFormat.percent(sample.memoryPressure))
-                            .font(.system(size: 17, weight: .semibold).monospacedDigit())
-                        Text("已用")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    MonitorRow(label: "已用", value: MonitorFormat.bytes(sample.memoryUsed))
-                    MonitorRow(label: "总量", value: MonitorFormat.bytes(sample.memoryTotal))
-                    MonitorRow(label: "Swap", value: MonitorFormat.bytes(sample.swapUsed))
-                    MonitorRow(label: "压缩", value: MonitorFormat.bytes(compressed), color: MonitorColors.compressed)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                MonitorRow(label: "已用", value: MonitorFormat.bytes(sample.memoryUsed))
+                MonitorRow(label: "总量", value: MonitorFormat.bytes(sample.memoryTotal))
+                MonitorRow(label: "交换", value: MonitorFormat.bytes(sample.swapUsed))
+                MonitorRow(label: "压缩", value: MonitorFormat.bytes(compressed), color: MonitorColors.compressed)
+                MonitorRow(label: "压力状态", value: stats.memPressureLevel == 4 ? "严重" : stats.memPressureLevel == 2 ? "警告" : stats.memPressureLevel == 1 ? "正常" : "尚无系统压力读数",
+                           color: stats.memPressureLevel == 4 ? MonitorColors.system : stats.memPressureLevel == 2 ? MonitorColors.compressed : MonitorColors.memory)
             }
 
             if let memoryOptimizer { MemoryOptimizeSection(optimizer: memoryOptimizer) }
@@ -655,12 +641,6 @@ private struct MonitorDetailContent: View {
             Text("可回收 ≈ \(MonitorFormat.bytes(MonitorFormat.u64(Double(compressed))))")
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.tertiaryText)
-
-            MonitorSectionTitle("使用历史")
-            MonitorAreaSparkline(values: history.memory, color: MonitorColors.memory, upperBound: 1)
-                .frame(height: 46)
-
-            MonitorRow(label: "内存压力", value: MonitorFormat.percentFine(sample.memoryPressure))
 
             // v84（用户需求「内存界面也要有进程占用排序」）：内存占用进程表——
             // 与 CPU 页同一组件（归类 + 图标 + 展开 + 右键退出），按 footprint 降序。
@@ -755,25 +735,10 @@ private struct MonitorDetailContent: View {
     // MARK: - 网络
 
     private var networkPanel: some View {
-        // v183：优先用 1 秒脉冲（C 引擎的 1s 网络速率），保证数字与曲线是「活的」；
-        // 脉冲还没起来（刚打开 / g_snap 无效）时退回通用采样，绝不显示空白。
-        let liveDown = pulseDown.isEmpty ? Double(sample.netDownload) : netPulse!.currentDown
-        let liveUp = pulseUp.isEmpty ? Double(sample.netUpload) : netPulse!.currentUp
-        let downHistory = pulseDown.isEmpty ? history.netDownload : pulseDown
-        let upHistory = pulseUp.isEmpty ? history.netUpload : pulseUp
-        let historySlots = pulseDown.isEmpty ? MonitorSampler.historyCapacity : NetworkPulse.capacity
-        let sampleInterval = pulseDown.isEmpty ? (isSettingsPreview ? 1.0 : MonitorPreferences.refreshInterval) : 1.0
         let flowSnapshot = isSettingsPreview ? MonitorDetailPreviewValues.flow : NetworkFlowTracker.shared.snapshot()
-        let netBranches = networkFlowNodes(flowSnapshot, limit: MonitorPreferences.flowTopN)
+        let netBranches = networkFlowNodes(flowSnapshot, limit: isSettingsPreview ? presentation.previewFlowTopN : MonitorPreferences.flowTopN)
 
         return VStack(alignment: .leading, spacing: 10) {
-            MonitorNetworkThroughputCard(down: liveDown, up: liveUp,
-                                         downHistory: downHistory, upHistory: upHistory,
-                                         timeSpan: Double(historySlots - 1) * sampleInterval,
-                                         slots: historySlots)
-                .onAppear { netPulse?.activate() }
-                .onDisappear { netPulse?.deactivate() }
-
             // v183「带宽去哪了」：与充电/电池页**同一张流向图**（用户明确要求：
             // 「要的是跟充电那边类似的分流图，不是条形状的」）。
             // 之前的溢出根因在流向卡本身（固定 116pt 高 + 四格硬塞），已在
@@ -919,48 +884,7 @@ private struct MonitorDetailContent: View {
         let used = stats.diskTotalBytes > stats.diskFreeBytes ? stats.diskTotalBytes - stats.diskFreeBytes : 0
         let purgeable: UInt64 = isSettingsPreview ? 24 * 1_073_741_824 : MonitorDiskSpace.purgeableBytes(freeBytes: stats.diskFreeBytes)
         return VStack(alignment: .leading, spacing: 10) {
-            // v211（用户：「最顶上的读取和写入两个数字要删掉，因为下面有，重复了」）：
-            // 原来页首两个大号实时读写速率与下面「峰值读取 / 峰值写入」及读写历史重复，
-            // 现在直接从「读写历史」开始；实时速率仍可在状态栏部件/STATS 里看。
-            MonitorSectionTitle("读写历史")
-            // v183：读写**共享同一 Y 轴量程**。原来两条线各自归一化，
-            // 写入量只有读取的 1/10 时也会画成一样高——图不可信。
-            let diskPeak = MonitorChartScale.niceCeiling(
-                max(history.diskRead.max() ?? 0, history.diskWrite.max() ?? 0))
-            ZStack(alignment: .topLeading) {
-                // 三层顺序（用户：「统计图的线条是可以覆盖在它上面的」）：
-                // ① 面积填充在最底 → ② 按钮压在填充上（文字不会被色块糊住）
-                // → ③ 折线画在最顶，从按钮上面穿过去。
-                ZStack {
-                    MonitorAreaSparkline(values: history.diskRead,
-                                         color: MonitorColors.read,
-                                         upperBound: diskPeak,
-                                         slots: MonitorSampler.historyCapacity)
-                    MonitorSparkline(values: history.diskWrite,
-                                     upperBound: diskPeak,
-                                     slots: MonitorSampler.historyCapacity)
-                        .stroke(MonitorColors.write, style: StrokeStyle(lineWidth: 1.5,
-                                                                        lineCap: .round, lineJoin: .round))
-                }
-                // 让点击穿透到上面的按钮（Shape 的填充区默认会吃掉 hitTest）
-                .allowsHitTesting(false)
-                .frame(height: 52)
-
-                storageEntryButton
-                    .padding(.top, 3)
-                    .padding(.leading, 2)
-
-                // 顶层再画一遍写入折线，盖在按钮上方
-                MonitorSparkline(values: history.diskWrite,
-                                 upperBound: diskPeak,
-                                 slots: MonitorSampler.historyCapacity)
-                    .stroke(MonitorColors.write, style: StrokeStyle(lineWidth: 1.5,
-                                                                    lineCap: .round, lineJoin: .round))
-                    .allowsHitTesting(false)
-                    .frame(height: 52)
-            }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .frame(height: 52)
+            storageEntryButton
 
             MonitorRow(label: "峰值读取", value: MonitorFormat.rate(extra.diskPeakRead), color: MonitorColors.read)
             MonitorRow(label: "峰值写入", value: MonitorFormat.rate(extra.diskPeakWrite), color: MonitorColors.write)
@@ -1273,7 +1197,7 @@ private struct MonitorDetailContent: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 168, alignment: .leading)
+                .frame(minWidth: 90, maxWidth: .infinity, alignment: .leading)
                 .help(name)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -1320,20 +1244,8 @@ private struct MonitorDetailContent: View {
     // MARK: - GPU（官方 GPU 页：Usage history + Details）
 
     private var gpuPanel: some View {
-        let usage = stats.gpuUsage >= 0 ? stats.gpuUsage : nil
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
-                ZStack {
-                    MonitorRing(value: usage ?? 0, lineWidth: 7, color: MonitorColors.user)
-                        .frame(width: 66, height: 66)
-                    VStack(spacing: 0) {
-                        Text(usage.map { MonitorFormat.percent($0) } ?? "—")
-                            .font(.system(size: 17, weight: .semibold).monospacedDigit())
-                        Text("GPU 占用")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                }
                 VStack(alignment: .leading, spacing: 4) {
                     if !stats.gpuModel.isEmpty {
                         MonitorRow(label: "型号", value: stats.gpuModel)
@@ -1351,10 +1263,6 @@ private struct MonitorDetailContent: View {
                 }
             }
 
-            MonitorSectionTitle("使用历史")
-            MonitorAreaSparkline(values: history.gpu, color: MonitorColors.user, upperBound: 1)
-                .frame(height: 46)
-
             // v216：删掉「数据来源：IOAccelerator PerformanceStatistics」脚注。
         }
     }
@@ -1363,7 +1271,7 @@ private struct MonitorDetailContent: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Text("刷新间隔 \(String(format: "%.1f", isSettingsPreview ? 1.0 : MonitorPreferences.refreshInterval))s")
+            Text("刷新间隔 \(String(format: "%.1f", isSettingsPreview ? presentation.previewInterval : MonitorPreferences.refreshInterval))s")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
             Spacer()
@@ -1376,6 +1284,7 @@ private struct MonitorDetailContent: View {
             .buttonStyle(.plain)
             .focusable(false)
             .help("立即刷新")
+            .disabled(isSettingsPreview)
             Button {
                 if !isSettingsPreview { StatsBarEngine.openSettings() }
             } label: {
@@ -1385,6 +1294,7 @@ private struct MonitorDetailContent: View {
             .buttonStyle(.plain)
             .focusable(false)
             .help("菜单栏部件设置（Stats 风格：形态 / 间距 / 分隔线）")
+            .disabled(isSettingsPreview)
             Button {
                 if !isSettingsPreview { ServiceLocator.settings?.open(pane: "monitor") }
             } label: {
@@ -1394,6 +1304,7 @@ private struct MonitorDetailContent: View {
             .buttonStyle(.plain)
             .focusable(false)
             .help("打开监测设置")
+            .disabled(isSettingsPreview)
         }
     }
 }
@@ -1417,7 +1328,7 @@ private struct StatsDualValue: View {
 }
 
 
-private struct MonitorDetailPreviewValues {
+struct MonitorDetailPreviewValues {
     var sample = MonitorSample()
     var history = MonitorSampler.History()
     var stats = StatsSnapshot()
@@ -1428,7 +1339,11 @@ private struct MonitorDetailPreviewValues {
         .init(key: "browser", name: "浏览器", iconPath: "", downBytes: 160_000_000, upBytes: 12_000_000,
               liveDown: 2_400_000, liveUp: 300_000),
         .init(key: "kitnest", name: "Kitnest", iconPath: "", downBytes: 20_000_000, upBytes: 8_000_000,
-              liveDown: 400_000, liveUp: 100_000)
+              liveDown: 400_000, liveUp: 100_000),
+        .init(key: "editor", name: "编辑器", iconPath: "", downBytes: 12_000_000, upBytes: 4_000_000, liveDown: 100_000, liveUp: 30_000),
+        .init(key: "download", name: "下载工具", iconPath: "", downBytes: 8_000_000, upBytes: 1_000_000, liveDown: 200_000, liveUp: 10_000),
+        .init(key: "sync", name: "同步", iconPath: "", downBytes: 4_000_000, upBytes: 8_000_000, liveDown: 30_000, liveUp: 100_000),
+        .init(key: "mail", name: "邮件", iconPath: "", downBytes: 2_000_000, upBytes: 1_000_000, liveDown: 10_000, liveUp: 10_000)
     ], nicTotalBytes: 200_000_000, nicDownBytes: 180_000_000, nicUpBytes: 20_000_000, coverage: 600)
 
     static let fixed: Self = {
@@ -1490,6 +1405,27 @@ private struct MonitorDetailPreviewValues {
         value.volumes = [.init(path: "/preview/Travel SSD", name: "Travel SSD", total: Int64(256 * gb),
                                free: Int64(96 * gb), isInternal: false, isRemovable: true,
                                isEjectable: true, isReadOnly: false, isLocal: true)]
+        value.history.timestamps = (0..<60).map { date.timeIntervalSince1970 + Double($0 - 59) }
+        value.history.intervals = Array(repeating: 1, count: 60)
+        value.history.memoryPressure = (0..<60).map { $0 >= 20 && $0 < 38 ? 2 : 1 }
+        value.history.battery = (0..<60).map { 0.75 - Double(59 - $0) * 0.0001 }
+        for (name, temperature) in value.sample.temperatures {
+            value.history.temperatures[name] = (0..<60).map { temperature + 2 * sin(Double($0 - 59) * 0.2) }
+        }
+        value.history.cpu[59] = value.sample.cpuUsage
+        value.history.gpu[59] = value.stats.gpuUsage
+        value.history.netDownload[59] = Double(value.sample.netDownload)
+        value.history.netUpload[59] = Double(value.sample.netUpload)
+        value.history.diskRead[59] = Double(value.sample.diskRead)
+        value.history.diskWrite[59] = Double(value.sample.diskWrite)
+        value.stats.procCPU = [
+            .init(pid: -101, name: "浏览器", cpu: 72, memBytes: 1_400_000_000, diskRead: 900_000, diskWrite: 120_000,
+                  children: [.init(pid: -102, name: "浏览器 Helper", cpu: 50, memBytes: 900_000_000, diskRead: 600_000, diskWrite: 80_000)]),
+            .init(pid: -103, name: "编辑器", cpu: 24, memBytes: 820_000_000, diskRead: 300_000, diskWrite: 150_000),
+            .init(pid: -104, name: "Kitnest", cpu: 4, memBytes: 180_000_000, diskRead: 20_000, diskWrite: 10_000)
+        ]
+        value.stats.procMem = value.stats.procCPU
+        value.stats.procDisk = value.stats.procCPU
         return value
     }()
 }

@@ -346,21 +346,22 @@ private struct IslandArchiveContent: View {
 struct IslandMonitorFullContent: View {
     @ObservedObject var controller: IslandController
     let previewOnly: Bool
-    @Binding var selectedMetric: IslandMetric
-    @StateObject private var selection = MonitorDetailSelection(.cpu)
-    @Stored private var trends = false
 
     var body: some View {
-        VStack(spacing: 6) {
-            Picker("监测显示", selection: $trends) {
-                Text("完整详情").tag(false)
-                Text("趋势对照").tag(true)
-            }.pickerStyle(.segmented).frame(width: 210)
-            if trends {
-                IslandMonitorPage(controller: controller, selectedMetric: $selectedMetric, previewOnly: previewOnly)
-            } else {
-                MonitorDetailView(selection: selection, fixedWidth: nil)
-            }
-        }.environment(\.isSettingsPreview, previewOnly)
+        MonitorPerformanceContent()
+            .environment(\.isSettingsPreview, previewOnly)
+            .environment(\.monitorPresentation, presentation)
+    }
+
+    private var presentation: MonitorPresentation {
+        var order = controller.metricOrder.compactMap { MonitorModuleID(rawValue: $0.rawValue) }
+        let index = order.firstIndex(of: .power) ?? order.count
+        order.insert(contentsOf: [.disk, .sensors], at: index)
+        let colors = Dictionary(uniqueKeysWithValues: controller.metricOrder.map {
+            (MonitorModuleID(rawValue: $0.rawValue)!, controller.configuration.color(for: $0))
+        })
+        return MonitorPresentation(order: order, colors: colors, interaction: {
+            if $0 { controller.beginInteraction() } else { controller.endInteraction() }
+        })
     }
 }

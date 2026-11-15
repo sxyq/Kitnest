@@ -31,6 +31,11 @@ public final class MonitorSampler: ObservableObject {
         public var diskWrite: [Double] = []
         public var gpu: [Double] = []
         public var power: [Double] = []
+        public var timestamps: [Double] = []
+        public var intervals: [Double] = []
+        public var memoryPressure: [Double] = []
+        public var battery: [Double] = []
+        public var temperatures: [String: [Double]] = [:]
 
         public init() {}
     }
@@ -104,6 +109,11 @@ public final class MonitorSampler: ObservableObject {
         var diskWrite = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var gpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var power = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var timestamps = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var intervals = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var memoryPressure = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var battery = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var temperatures: [String: MonitorHistoryBuffer] = [:]
     }
 
     private init() {
@@ -260,6 +270,22 @@ public final class MonitorSampler: ObservableObject {
         let loadAverages = reader.loadAverages()
 
         lock.lock()
+        let now = Date().timeIntervalSince1970
+        let interval = uiActive ? MonitorPreferences.refreshInterval : max(MonitorPreferences.refreshInterval, 5)
+        let previousCount = buffers.timestamps.count
+        buffers.timestamps.append(now)
+        buffers.intervals.append(interval)
+        let pressure = StatsDataProvider.shared.current.memPressureLevel
+        buffers.memoryPressure.append(pressure > 0 ? Double(pressure) : .nan)
+        buffers.battery.append(sample.batteryLevel ?? .nan)
+        for name in Set(buffers.temperatures.keys).union(sample.temperatures.keys) {
+            if buffers.temperatures[name] == nil {
+                var buffer = MonitorHistoryBuffer(capacity: Self.historyCapacity)
+                for _ in 0..<previousCount { buffer.append(.nan) }
+                buffers.temperatures[name] = buffer
+            }
+            buffers.temperatures[name]!.append(sample.temperatures[name] ?? .nan)
+        }
         buffers.cpu.append(sample.cpuUsage)
         let memoryRatio = sample.memoryTotal > 0 ? Double(sample.memoryUsed) / Double(sample.memoryTotal) : 0
         buffers.memory.append(memoryRatio)
@@ -268,13 +294,8 @@ public final class MonitorSampler: ObservableObject {
         buffers.diskRead.append(Double(sample.diskRead))
         buffers.diskWrite.append(Double(sample.diskWrite))
         let gpuUsage = StatsDataProvider.shared.current.gpuUsage
-        buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : 0)
-        if let watts = sample.powerWatts {
-            buffers.power.append(watts)
-        } else if buffers.power.count > 0 {
-            // 失去读数时断开功耗曲线，不把缺失采样画成 0 W。
-            buffers.power = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
-        }
+        buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : .nan)
+        buffers.power.append(sample.powerWatts ?? .nan)
         // v129（内存）：History 快照双缓冲轮换——每 tick 7 个 values() 新数组
         //（480B×7 + History 结构拷贝）改为复用两个 scratch 的底座；
         // 交替发布后旧快照已释放（refcount 回 1），回填即原地写
@@ -291,6 +312,11 @@ public final class MonitorSampler: ObservableObject {
             buffers.diskWrite.values(into: &scratchA.diskWrite)
             buffers.gpu.values(into: &scratchA.gpu)
             buffers.power.values(into: &scratchA.power)
+            buffers.timestamps.values(into: &scratchA.timestamps)
+            buffers.intervals.values(into: &scratchA.intervals)
+            buffers.memoryPressure.values(into: &scratchA.memoryPressure)
+            buffers.battery.values(into: &scratchA.battery)
+            for (name, buffer) in buffers.temperatures { buffer.values(into: &scratchA.temperatures[name, default: []]) }
             snapshot = scratchA
         } else {
             buffers.cpu.values(into: &scratchB.cpu)
@@ -301,6 +327,11 @@ public final class MonitorSampler: ObservableObject {
             buffers.diskWrite.values(into: &scratchB.diskWrite)
             buffers.gpu.values(into: &scratchB.gpu)
             buffers.power.values(into: &scratchB.power)
+            buffers.timestamps.values(into: &scratchB.timestamps)
+            buffers.intervals.values(into: &scratchB.intervals)
+            buffers.memoryPressure.values(into: &scratchB.memoryPressure)
+            buffers.battery.values(into: &scratchB.battery)
+            for (name, buffer) in buffers.temperatures { buffer.values(into: &scratchB.temperatures[name, default: []]) }
             snapshot = scratchB
         }
         lock.unlock()
@@ -338,6 +369,8 @@ public final class MonitorSampler: ObservableObject {
     public func resetHistory() {
         lock.lock()
         buffers = Buffers()
+        scratchA = History()
+        scratchB = History()
         lock.unlock()
         MonitorExtra.reset()
         DispatchQueue.main.async { [weak self] in

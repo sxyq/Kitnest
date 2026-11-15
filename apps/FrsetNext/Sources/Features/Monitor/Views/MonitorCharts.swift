@@ -1,5 +1,305 @@
 import SwiftUI
 
+/// 图表的查看对象按采样时间保存，历史滚动后不会指向另一帧。
+struct MonitorTrendPoint: Equatable {
+    let time: Double
+    let interval: Double
+    let values: [Double?]
+}
+
+struct MonitorTrendData {
+    let module: MonitorModuleID
+    let key: String
+    let names: [String]
+    let colors: [Color]
+    let points: [MonitorTrendPoint]
+    let fixedUpper: Double?
+    let interval: Double
+    let visiblePoints: [MonitorTrendPoint]
+    let suggestedUpper: Double
+    var start: Double { (points.last?.time ?? 0) - interval * Double(MonitorSampler.historyCapacity - 1) }
+    var end: Double { points.last?.time ?? 0 }
+
+    init(module: MonitorModuleID, history: MonitorSampler.History, sensor: String = "", tint: Color? = nil) {
+        self.module = module
+        key = module.rawValue + ":" + sensor
+        interval = history.intervals.last ?? 1
+        let series: [[Double]]
+        switch module {
+        case .cpu:
+            names = ["CPU 占用"]; colors = [tint ?? MonitorColors.user]
+            series = [history.cpu.map { $0 * 100 }]; fixedUpper = 100
+        case .gpu:
+            names = ["GPU 占用"]; colors = [tint ?? MonitorColors.wired]
+            series = [history.gpu.map { $0 * 100 }]; fixedUpper = 100
+        case .memory:
+            names = ["内存压力"]; colors = [tint ?? MonitorColors.memory]
+            series = [history.memoryPressure.map { $0 == 1 ? 0 : $0 == 2 ? 1 : $0 == 4 ? 2 : .nan }]; fixedUpper = 2
+        case .network:
+            names = ["下载", "上传"]; colors = [tint ?? MonitorColors.download, MonitorColors.upload]
+            series = [history.netDownload, history.netUpload]; fixedUpper = nil
+        case .disk:
+            names = ["读取", "写入"]; colors = [tint ?? MonitorColors.read, MonitorColors.write]
+            series = [history.diskRead, history.diskWrite]; fixedUpper = nil
+        case .sensors:
+            names = [sensor.isEmpty ? "温度" : sensor]; colors = [tint ?? MonitorColors.temperature]
+            series = [history.temperatures[sensor] ?? []]; fixedUpper = nil
+        case .power:
+            names = ["整机负载"]; colors = [tint ?? MonitorColors.temperature]
+            series = [history.power]; fixedUpper = nil
+        case .battery:
+            names = ["电量"]; colors = [tint ?? MonitorColors.battery]
+            series = [history.battery.map { $0 * 100 }]; fixedUpper = 100
+        }
+        points = history.timestamps.enumerated().map { index, time in
+            MonitorTrendPoint(time: time, interval: history.intervals[index], values: series.map {
+                index < $0.count && $0[index].isFinite ? $0[index] : nil
+            })
+        }
+        let cutoff = (points.last?.time ?? 0) - interval * Double(MonitorSampler.historyCapacity - 1)
+        visiblePoints = points.filter { $0.time >= cutoff }
+        suggestedUpper = fixedUpper ?? MonitorChartScale.niceCeiling(series.flatMap { $0.filter(\.isFinite) }.max() ?? 1)
+    }
+
+    func format(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        switch module {
+        case .cpu, .gpu, .battery: return String(format: "%.1f%%", value)
+        case .memory: return value >= 2 ? "严重" : value >= 1 ? "警告" : "正常"
+        case .network, .disk: return MonitorFormat.rate(MonitorFormat.u64(value))
+        case .sensors: return MonitorFormat.temperature(value)
+        case .power: return MonitorFormat.power(value)
+        }
+    }
+}
+
+/// 正式界面与设置预览共用；鼠标移动只更新本图的查看状态。
+struct MonitorTrendChart: View {
+    let data: MonitorTrendData
+    var selection: MonitorDetailSelection? = nil
+    var compact = false
+    var showAxes = true
+    var style = IslandChartStyle.area
+    var interaction: ((Bool) -> Void)? = nil
+    @Stored private var hovered: MonitorTrendPoint? = nil
+    @Stored private var fixed: MonitorTrendPoint? = nil
+    @Stored private var scale: Double = 1
+    @Stored private var dragging = false
+    @Stored private var activeKey = ""
+    @FocusState private var focused: Bool
+    private var upper: Double { data.fixedUpper ?? max(scale, data.suggestedUpper) }
+    private var reading: MonitorTrendPoint? { activeKey == data.key ? fixed ?? hovered ?? data.points.last : data.points.last }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: compact ? 4 : 8) {
+            if compact {
+                Text(data.format(reading?.values.first ?? nil))
+                    .font(.system(size: Theme.TextSize.metric, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(data.colors[0])
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) { legend }
+                    VStack(alignment: .leading, spacing: 5) { legend }
+                }
+                HStack {
+                    Text(reading.map { timeText($0.time) } ?? "等待采样")
+                    Spacer(minLength: 4)
+                    if fixed != nil {
+                        Button("返回最新") { unpin() }.buttonStyle(.plain).foregroundStyle(Theme.accent)
+                    } else {
+                        Text(hovered == nil ? "当前" : "查看采样").foregroundStyle(.secondary)
+                    }
+                }.font(.system(size: Theme.TextSize.caption).monospacedDigit())
+            }
+            HStack(spacing: 8) {
+                if showAxes && !compact {
+                    VStack(alignment: .trailing) {
+                        Text(data.format(upper))
+                        Spacer()
+                        Text(data.format(upper / 2))
+                        Spacer()
+                        Text(data.format(0))
+                    }.font(.system(size: Theme.TextSize.caption).monospacedDigit())
+                        .foregroundStyle(.secondary).frame(width: 74)
+                }
+                plot
+            }
+            if showAxes && !compact {
+                HStack {
+                    Text(data.points.isEmpty ? "等待首个采样" : timeText(data.start))
+                    Spacer()
+                    if !data.points.isEmpty { Text(timeText(data.end)) }
+                }.font(.system(size: Theme.TextSize.caption).monospacedDigit())
+                    .foregroundStyle(.secondary).padding(.leading, 82)
+                Text(fixed.map { point in
+                    point.time < data.start ? "已固定 · 采样已离开当前范围" : "已固定 · 采样继续更新"
+                } ?? "悬停查看 · 点击固定 · 拖动或方向键定位")
+                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+            }
+        }
+        .transaction { $0.animation = nil }
+        .onAppear { restoreSelection() }
+        .onChange(of: data.key) { _ in restoreSelection() }
+        .onChange(of: data.end) { _ in
+            if data.suggestedUpper > scale { scale = data.suggestedUpper }
+        }
+        .onDisappear { if dragging { interaction?(false); dragging = false } }
+    }
+
+    @ViewBuilder private var legend: some View {
+        ForEach(data.names.indices, id: \.self) { index in
+            HStack(spacing: 5) {
+                Circle().fill(data.colors[index]).frame(width: 6, height: 6)
+                Text(data.names[index]).foregroundStyle(.secondary)
+                Text(data.format(reading?.values[index])).monospacedDigit().foregroundStyle(data.colors[index])
+            }.font(.system(size: Theme.TextSize.small, weight: .medium))
+        }
+    }
+
+    private var plot: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Canvas { context, size in
+                    let rect = CGRect(origin: .zero, size: size).insetBy(dx: 3, dy: 3)
+                    var grid = Path()
+                    for row in 0...2 {
+                        let y = rect.minY + rect.height * CGFloat(row) / 2
+                        grid.move(to: CGPoint(x: rect.minX, y: y))
+                        grid.addLine(to: CGPoint(x: rect.maxX, y: y))
+                    }
+                    context.stroke(grid, with: .color(.primary.opacity(0.10)), style: StrokeStyle(lineWidth: 0.5, dash: [3, 4]))
+                    drawSeries(context: &context, rect: rect)
+                    if let reading, reading.time >= data.start, reading.time <= data.end {
+                        let x = xPosition(reading.time, rect: rect)
+                        var marker = Path()
+                        marker.move(to: CGPoint(x: x, y: rect.minY))
+                        marker.addLine(to: CGPoint(x: x, y: rect.maxY))
+                        context.stroke(marker, with: .color(.primary.opacity(0.5)), style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+                        for index in data.names.indices {
+                            if let value = reading.values[index] {
+                                let y = rect.maxY - CGFloat(min(upper, max(0, value)) / upper) * rect.height
+                                context.fill(Path(ellipseIn: CGRect(x: x - 3, y: y - 3, width: 6, height: 6)), with: .color(data.colors[index]))
+                            }
+                        }
+                    }
+                }.allowsHitTesting(false)
+                if data.points.isEmpty || data.points.allSatisfy({ $0.values.allSatisfy { $0 == nil } }) {
+                    Text("暂无\(data.names[0])读数")
+                        .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                }
+            }
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                guard fixed == nil else { return }
+                switch phase {
+                case .active(let point):
+                    let value = nearest(at: point.x, width: geometry.size.width)
+                    if hovered != value { hovered = value }
+                case .ended: hovered = nil
+                }
+            }
+            .onTapGesture {
+                focused = true
+                if fixed != nil { unpin() } else { pin(hovered ?? data.points.last) }
+            }
+            .gesture(DragGesture(minimumDistance: 3).onChanged { value in
+                if !dragging { dragging = true; interaction?(true) }
+                focused = true
+                pin(nearest(at: value.location.x, width: geometry.size.width))
+            }.onEnded { _ in dragging = false; interaction?(false) })
+        }
+        .frame(minHeight: compact ? 24 : 130, maxHeight: compact ? .infinity : 160)
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(focused ? Theme.accent : .clear, lineWidth: 1))
+        .focusable().focused($focused)
+        .onMoveCommand { direction in
+            guard direction == .left || direction == .right else { return }
+            let points = data.visiblePoints
+            guard !points.isEmpty else { return }
+            let current = reading?.time ?? data.end
+            let index = points.indices.min(by: { abs(points[$0].time - current) < abs(points[$1].time - current) })!
+            let point = points[min(max(index + (direction == .left ? -1 : 1), 0), points.count - 1)]
+            if fixed == nil { hovered = point } else { pin(point) }
+        }
+        .overlay(alignment: .topTrailing) {
+            if focused {
+                Button(fixed == nil ? "固定采样" : "解除固定") {
+                    if fixed != nil { unpin() } else { pin(reading) }
+                }.keyboardShortcut(.return, modifiers: []).focusable(false)
+                    .font(.system(size: Theme.TextSize.caption)).buttonStyle(.plain)
+                    .padding(5).background(.regularMaterial, in: Capsule())
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(data.module.displayName)趋势图，方向键定位，回车固定或解除固定")
+        .accessibilityValue(reading.map { timeText($0.time) + "，" + data.format($0.values[0]) } ?? "等待采样")
+    }
+
+    private func drawSeries(context: inout GraphicsContext, rect: CGRect) {
+        for series in data.names.indices {
+            var run: [CGPoint] = []
+            var previous: MonitorTrendPoint? = nil
+            for point in data.visiblePoints {
+                if let prior = previous, point.time - prior.time > max(prior.interval, point.interval) * 2.5 {
+                    drawRun(run, series: series, context: &context, rect: rect); run.removeAll(keepingCapacity: true)
+                }
+                if let value = point.values[series] {
+                    run.append(CGPoint(x: xPosition(point.time, rect: rect), y: rect.maxY - CGFloat(min(upper, max(0, value)) / upper) * rect.height))
+                } else {
+                    drawRun(run, series: series, context: &context, rect: rect); run.removeAll(keepingCapacity: true)
+                }
+                previous = point
+            }
+            drawRun(run, series: series, context: &context, rect: rect)
+        }
+    }
+
+    private func drawRun(_ points: [CGPoint], series: Int, context: inout GraphicsContext, rect: CGRect) {
+        guard let first = points.first, let last = points.last else { return }
+        let color = data.colors[series]
+        if style == .bars {
+            let width = max(1, rect.width / CGFloat(MonitorSampler.historyCapacity) - 2)
+            for point in points {
+                context.fill(Path(roundedRect: CGRect(x: point.x - width / 2, y: point.y, width: width, height: max(1, rect.maxY - point.y)), cornerSize: CGSize(width: 2, height: 2)), with: .color(color.opacity(0.75)))
+            }
+        } else if points.count == 1 {
+            context.fill(Path(ellipseIn: CGRect(x: first.x - 2, y: first.y - 2, width: 4, height: 4)), with: .color(color))
+        } else {
+            var line = Path()
+            if data.module == .memory {
+                line.move(to: first)
+                for index in 1..<points.count {
+                    line.addLine(to: CGPoint(x: points[index].x, y: points[index - 1].y))
+                    line.addLine(to: points[index])
+                }
+            } else { line = MonitorSparkline.smoothPath(points, in: rect) }
+            if style == .area && series == 0 {
+                var area = line
+                area.addLine(to: CGPoint(x: last.x, y: rect.maxY))
+                area.addLine(to: CGPoint(x: first.x, y: rect.maxY)); area.closeSubpath()
+                context.fill(area, with: .linearGradient(Gradient(colors: [color.opacity(0.20), color.opacity(0.02)]), startPoint: rect.origin, endPoint: CGPoint(x: rect.minX, y: rect.maxY)))
+            }
+            context.stroke(line, with: .color(color), style: StrokeStyle(lineWidth: compact ? 1.3 : 1.8, lineCap: .round, lineJoin: .round, dash: series == 0 ? [] : [5, 2]))
+        }
+    }
+
+    private func xPosition(_ time: Double, rect: CGRect) -> CGFloat {
+        rect.minX + CGFloat((time - data.start) / (data.interval * Double(MonitorSampler.historyCapacity - 1))) * rect.width
+    }
+    private func nearest(at x: CGFloat, width: CGFloat) -> MonitorTrendPoint? {
+        let time = data.start + min(max(Double((x - 3) / max(width - 6, 1)), 0), 1) * (data.end - data.start)
+        return data.visiblePoints.min(by: { abs($0.time - time) < abs($1.time - time) })
+    }
+    private func pin(_ point: MonitorTrendPoint?) {
+        if fixed != point { fixed = point }
+        selection?.chartPins[data.key] = point
+    }
+    private func unpin() { fixed = nil; hovered = nil; selection?.chartPins[data.key] = nil }
+    private func restoreSelection() { hovered = nil; fixed = selection?.chartPins[data.key]; scale = data.suggestedUpper; activeKey = data.key }
+    private func timeText(_ time: Double) -> String {
+        Date(timeIntervalSince1970: time).formatted(.dateTime.hour().minute().second().secondFraction(.fractional(2)))
+    }
+}
+
 // MARK: - 迷你折线（状态栏 / 卡片用）
 
 /// 由数值数组绘制的折线（自适应归一化，支持固定上限）
@@ -67,8 +367,12 @@ public struct MonitorSparkline: Shape {
             var c2 = CGPoint(x: p2.x - (p3.x - p1.x) / 6.0,
                              y: p2.y - (p3.y - p1.y) / 6.0)
             // 只钳制 Y：峰值/谷值处的三次曲线会向外冲，冲出色带就会「画出负数」
-            c1.y = min(max(c1.y, rect.minY), rect.maxY)
-            c2.y = min(max(c2.y, rect.minY), rect.maxY)
+            let lower = min(p1.y, p2.y)
+            let upper = max(p1.y, p2.y)
+            c1.x = min(max(c1.x, p1.x), p2.x)
+            c2.x = min(max(c2.x, p1.x), p2.x)
+            c1.y = min(max(c1.y, lower), upper)
+            c2.y = min(max(c2.y, lower), upper)
             path.addCurve(to: p2, control1: c1, control2: c2)
         }
         return path

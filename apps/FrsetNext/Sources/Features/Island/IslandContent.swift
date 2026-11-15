@@ -78,7 +78,7 @@ struct IslandRootView: View {
                     IslandFeatureContent(page: .transfer, controller: controller, previewOnly: preview)
                 } else { recordsPage }
             }
-        case .monitor: IslandMonitorFullContent(controller: controller, previewOnly: preview, selectedMetric: $selectedMetric)
+        case .monitor: IslandMonitorFullContent(controller: controller, previewOnly: preview)
         case .media: IslandMediaContent(controller: controller, previewOnly: preview)
         case .calendar: IslandCalendarContent(controller: controller, selectedDate: $selectedDate, previewOnly: preview)
         case .tools:
@@ -98,7 +98,7 @@ struct IslandRootView: View {
     @ViewBuilder private func widgetContent(_ item: IslandWidget, size: IslandWidgetSize) -> some View {
         switch item {
         case .monitor:
-            IslandMonitorChart(metric: selectedMetric, compact: true, previewOnly: preview,
+            IslandMonitorChart(metric: selectedMetric, previewOnly: preview,
                                tint: controller.configuration.color(for: item))
                 .onAppear { homeMonitorVisible = true }
                 .onDisappear { homeMonitorVisible = false }

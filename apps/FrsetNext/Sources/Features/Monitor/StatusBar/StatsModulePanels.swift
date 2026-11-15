@@ -18,25 +18,16 @@ import SwiftUI
 
 public struct StatsModulePage: View {
     public let module: MonitorModuleID
+    @ObservedObject private var selection = MonitorCenterPresenter.shared.monitorSelection
 
     public init(module: MonitorModuleID) {
         self.module = module
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            switch module {
-            case .cpu: CPUStatsPanel()
-            case .power: MonitorDetailView(selection: MonitorDetailSelection(.power), pageMode: true)
-            case .memory: MemoryStatsPanel()
-            case .gpu: GPUStatsPanel()
-            case .disk: DiskStatsPanel()
-            case .network: NetworkStatsPanel()
-            case .sensors: SensorsStatsPanel()
-            case .battery: BatteryStatsPanel()
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        MonitorDetailView(selection: selection, pageMode: true, fixedWidth: nil)
+            .onAppear { selection.module = module }
+            .onChange(of: module) { selection.module = $0 }
     }
 }
 
@@ -228,6 +219,7 @@ struct StatsHistoryDualChart: View {
 /// · 退出：右键（或长按）行 → 菜单「退出 xxx」，结束整组全部 pid；
 /// · 图标：StatsAppIcon 按 App 名解析真实 bundle 图标。
 struct StatsProcTable: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     struct Column {
         var title: String
         var color: Color?
@@ -351,12 +343,12 @@ struct StatsProcTable: View {
                     // v84：点击展开/收起（原 v71 是点开菜单；退出改走右键，避免误触）
                     .onTapGesture {
                         guard expandable else {
-                            ProcMenuPresenter.shared.present(for: item, values: rowValues, at: NSEvent.mouseLocation)
+                            if !isSettingsPreview { ProcMenuPresenter.shared.present(for: item, values: rowValues, at: NSEvent.mouseLocation) }
                             return
                         }
                         if expanded { expandedIDs.remove(item.groupKey) } else { expandedIDs.insert(item.groupKey) }
                     }
-                    .contextMenu { StatsProcContextMenu(item: item, values: rowValues) }
+                    .contextMenu { if !isSettingsPreview { StatsProcContextMenu(item: item, values: rowValues) } }
 
                     // 展开：组内子进程明细（缩进 + 小字号 + 同列对齐）
                     if expanded, expandable {
@@ -397,6 +389,7 @@ struct StatsProcTable: View {
 /// 现在：归类与图标同源——C 层给出的可执行路径截取 `.app`，NSWorkspace 直接取宿主图标，
 /// 不依赖任何名字猜测，也不存在「先落空后不刷新」。缓存键 = 路径，一次解析终身复用。
 struct StatsAppIcon: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     var name: String
     /// 宿主 `.app` 路径，或（无 bundle 的进程）可执行文件路径
     var path: String = ""
@@ -404,7 +397,9 @@ struct StatsAppIcon: View {
 
     var body: some View {
         Group {
-            if let icon = Self.cachedIcon(path: path, name: name) {
+            if isSettingsPreview {
+                Image(systemName: "app.fill").resizable().aspectRatio(contentMode: .fit).foregroundStyle(.secondary)
+            } else if let icon = Self.cachedIcon(path: path, name: name) {
                 Image(nsImage: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)

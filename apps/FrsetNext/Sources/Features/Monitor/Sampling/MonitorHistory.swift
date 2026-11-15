@@ -13,7 +13,7 @@ public struct MonitorHistoryBuffer {
     }
 
     public mutating func append(_ value: Double) {
-        storage[writeIndex] = value.isFinite ? value : 0
+        storage[writeIndex] = value
         writeIndex = (writeIndex + 1) % capacity
         filled = min(capacity, filled + 1)
     }
