@@ -169,7 +169,7 @@ struct IslandToolboxContent: View {
                             .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
                     }
                 }
-            }
+            }.islandGlowClip()
         }
     }
 

@@ -144,7 +144,7 @@ EVIDENCE = {
     ("Features/Island/IslandWidgetGrid.swift", "end"):
         "有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消",
     ("Features/Island/IslandWidgetGrid.swift", "body"):
-        "网格只在编辑态展示把手和移除入口并停用内部业务命中；子卡片局部状态驱动连续拖动和真实尺寸，其他卡片在有效排列变化时让位；正常态保留共享流光绘制",
+        "网格只在编辑态展示把手和移除入口并停用内部业务命中；子卡片局部状态驱动连续拖动和真实尺寸，其他卡片在有效排列变化时让位；正常态复用四页共享流光绘制",
     ("Features/Island/IslandWidgetGrid.swift", "distance"):
         "以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换",
     ("Features/Island/IslandWidgetGrid.swift", "settle"):
@@ -153,6 +153,14 @@ EVIDENCE = {
         "布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出",
     ("Features/Island/IslandContent.swift", "cancelSelection"):
         "进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件",
+    ("Features/Island/IslandGlow.swift", "reduce"):
+        "合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点",
+    ("Features/Island/IslandGlow.swift", "body"):
+        "卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置",
+    ("Features/Island/IslandGlow.swift", "islandGlowScene"):
+        "刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新",
+    ("Features/Island/IslandGlow.swift", "islandGlowClip"):
+        "滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "hasPreview"):
         "刘海控制器收起时按来源窗口关闭共用预览，指针进入该预览时保留展开；只读取现有窗口与会话状态",
     ("Features/Island/IslandContent.swift", "updateTrackingAreas"):

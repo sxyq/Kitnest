@@ -32,6 +32,7 @@ struct IslandRootView: View {
             if controller.contentVisible || fileDialogOpen {
                 pageContent(controller.page)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .islandGlowClip()
                     .transition(.opacity)
             }
         }
@@ -223,6 +224,7 @@ struct IslandRootView: View {
                         }
                     }
                 }
+                .islandGlowClip()
                 .focusable()
                 .focused($recordListFocused)
                 .onMoveCommand { direction in

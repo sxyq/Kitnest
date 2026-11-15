@@ -170,7 +170,7 @@ private struct MonitorDetailContent: View {
                             VStack(spacing: 6) {
                                 ForEach(availableModules(), id: \.self) { moduleButton($0, wide: true) }
                             }
-                        }.frame(width: 150)
+                        }.islandGlowClip().frame(width: 150)
                         detailColumn
                     }
                 } else {
@@ -193,7 +193,7 @@ private struct MonitorDetailContent: View {
 
     private var detailColumn: some View {
         VStack(spacing: 10) {
-            ScrollView(.vertical, showsIndicators: true) { detailBody }
+            ScrollView(.vertical, showsIndicators: true) { detailBody }.islandGlowClip()
             Divider().opacity(0.5)
             footer
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -271,6 +271,7 @@ private struct MonitorDetailContent: View {
                     style: StrokeStyle(lineWidth: 1, dash: focusedModule == module ? [3, 2] : [])))
                 .contentShape(Rectangle())
         }.buttonStyle(.plain).focusable().focused($focusedModule, equals: module)
+            .modifier(IslandGlowTarget(radius: Theme.Radius.control))
             .onHover { if $0 { hoveredModule = module } else if hoveredModule == module { hoveredModule = nil } }
             .onMoveCommand { direction in
                 let modules = availableModules()

@@ -19,6 +19,7 @@ struct IslandSurface<Content: View>: View {
             content().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             pager
         }
+        .islandGlowScene(enabled: controller.glowEnabled && controller.expanded && controller.previewVisible && !controller.editingLayout)
         .padding(.horizontal, IslandLayout.horizontalInset)
         .padding(.top, controller.notchHeight + 6)
         .padding(.bottom, IslandLayout.inset)
@@ -263,22 +264,18 @@ private struct IslandButtonBody<Label: View>: View {
     let tipAlignment: Alignment
     let navigation: Bool
     @Stored private var hovered = false
-    @Environment(\.isFocused) private var focused
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         ZStack {
         label
             .background {
                 RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
-                    .fill(Theme.rowHoverFill.opacity(hovered || pressed || focused ? 1 : 0))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
-                    .strokeBorder(focused ? Theme.accent(for: nil) : .clear, lineWidth: Theme.Stroke.emphasis)
+                    .fill(Theme.rowHoverFill.opacity(hovered ? 1 : 0))
             }
             .scaleEffect(reduceMotion || !pressed ? 1 : 0.99)
         }
             .contentShape(Rectangle())
+            .modifier(IslandGlowTarget(radius: IslandLayout.controlRadius))
             .onHover { hovered = $0 }
             .animation(Theme.Motion.tap, value: pressed)
             .animation(Theme.Motion.fast, value: hovered)
@@ -369,49 +366,4 @@ private struct IslandPeekPowerValue: View {
     }
 }
 
-/// 一个绘制层接收鼠标位置；卡片内容不订阅光源，鼠标移动不重建卡片路径。
-struct IslandGlow: View {
-    let enabled: Bool
-    @ObservedObject var pointer: StoredBox<(location: CGPoint, active: Bool)>
-    private let cards: [(frame: CGRect, path: Path)]
-    let radius: CGFloat
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    init(enabled: Bool, pointer: StoredBox<(location: CGPoint, active: Bool)>, frames: [CGRect], radius: CGFloat) {
-        self.enabled = enabled
-        self.pointer = pointer
-        self.radius = radius
-        cards = frames.map { frame in
-            (frame, RoundedRectangle(cornerRadius: IslandLayout.cardRadius, style: .continuous).path(in: frame))
-        }
-    }
-
-    var body: some View {
-        let point = pointer.value.location
-        let visible = enabled && pointer.value.active
-        let fade = reduceMotion ? Theme.Motion.tap : visible ? Theme.Motion.fast : Theme.Motion.page
-        Canvas { context, _ in
-            let light = GraphicsContext.Shading.radialGradient(
-                Gradient(stops: [.init(color: .white.opacity(0.9), location: 0),
-                                 .init(color: .white.opacity(0.45), location: 0.2),
-                                 .init(color: .white.opacity(0.07), location: 0.65),
-                                 .init(color: .clear, location: 1)]),
-                center: point, startRadius: 0, endRadius: radius)
-            for card in cards where card.frame.insetBy(dx: -radius, dy: -radius).contains(point) {
-                var layer = context
-                // 描边向内绘制，鼠标穿过间隙时只照亮相邻边缘。
-                layer.clip(to: card.path)
-                if card.frame.contains(point) {
-                    var fill = layer
-                    fill.opacity = 0.1
-                    fill.fill(card.path, with: light)
-                }
-                layer.stroke(card.path, with: light, lineWidth: 3)
-            }
-        }
-        .opacity(visible ? 1 : 0)
-        .animation(fade, value: visible)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
 

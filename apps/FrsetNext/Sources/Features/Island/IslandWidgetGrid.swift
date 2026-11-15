@@ -17,7 +17,6 @@ private struct IslandWidgetPlacement: Identifiable, Equatable {
 struct IslandWidgetGrid<Content: View>: View {
     @ObservedObject var controller: IslandController
     @ViewBuilder var content: (IslandWidget, IslandWidgetSize) -> Content
-    @Stored private var glow = StoredBox((location: CGPoint.zero, active: false))
     @Stored private var placements: [IslandWidgetPlacement] = []
     @Stored private var active: IslandWidget?
     @Stored private var original: IslandConfiguration?
@@ -66,20 +65,6 @@ struct IslandWidgetGrid<Content: View>: View {
                 }
                 .coordinateSpace(name: "islandLayout")
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
-                .overlay {
-                    IslandGlow(enabled: controller.glowEnabled && controller.expanded && !controller.editingLayout && controller.previewVisible,
-                               pointer: glow, frames: placements.filter { $0.position.page == controller.componentPage }.map { $0.frame(cell: cell) },
-                               radius: min(cell.width, cell.height) * 0.9)
-                }
-                .contentShape(Rectangle())
-                .onContinuousHover { phase in
-                    switch phase {
-                    case .active(let point):
-                        if controller.glowEnabled && controller.expanded && !controller.editingLayout { glow.value = (point, true) }
-                    case .ended: glow.value.active = false
-                    }
-                }
-                .onDisappear { glow.value.active = false }
                 .clipped()
                 .animation(reduceMotion ? nil : .interactiveSpring(response: 0.24, dampingFraction: 0.86, blendDuration: 0),
                            value: placements)

@@ -119,5 +119,7 @@ public extension View {
                     .strokeBorder(stroke, lineWidth: Theme.Stroke.hairline)
                     .allowsHitTesting(false)
             }
+            .modifier(IslandGlowTarget(radius: radius))
+            .islandGlowClip()
     }
 }
