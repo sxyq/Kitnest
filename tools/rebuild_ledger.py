@@ -2082,6 +2082,32 @@ for (_old_file, _old_name), _ev in list(EVIDENCE.items()):
         EVIDENCE.setdefault((_new_file, _new_name), _ev)
 
 
+EVIDENCE.update({
+    ("Features/Monitor/Views/MonitorCharts.swift", "init"): "监测趋势数据从原历史组装带时间、间隔和缺失值的序列；预先计算可见采样与量程，鼠标定位不再转换历史。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "format"): "按模块格式化百分比、系统内存压力等级、速率、摄氏度或瓦数，缺失读数显示破折号。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "drawSeries"): "按真实时间排列各曲线，遇到缺失值或超过采样间隔的空档分段绘制，同一时间共享定位线。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "drawRun"): "绘制连续采样段；内存压力采用等级阶梯，其余曲线的控制点限制在相邻读数之间，避免额外峰谷。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "xPosition"): "将真实采样时间映射到当前时间窗；历史未满时右对齐，不随采样数量拉伸。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "nearest"): "只在已计算的可见采样中查找最接近指针时间的位置，不触发系统读取。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "pin"): "固定完整采样时间和值，并保存到现有模块选择对象；新采样进入不会替换固定对象。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "unpin"): "清除本模块固定与临时查看读数，恢复最新采样。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "restoreSelection"): "按模块与传感器键恢复固定采样；切换数据对象时清除临时悬停位置并更新量程。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "timeText"): "以真实采样时间格式化图表刻度与查看读数时间。",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "moduleButton"): "整行切换统一模块，悬停不切换；分别绘制悬停、选中与键盘焦点，方向键定位相邻模块。",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "currentValue"): "模块列表读取正式当前采样，预览读取固定场景；无 GPU、电池或整机功耗时显示对应状态。",
+})
+
+
+EVIDENCE.update({
+    ("Features/Monitor/Views/MonitorDetailView.swift", "ensureSelection"): "模块显隐改变后在仍可见的模块中保留当前选择；设置侧栏指定的单模块详情不改成另一模块。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "saved"): "读取正式监测总开关、刷新间隔、模块显隐、温度、网络常驻和分流数量，作为设置草稿初值。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "save"): "仅应用本页相对已保存值发生变化的字段；刷新间隔沿用菜单栏同步入口，未改字段保留其他页面的配置。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "discard"): "重新读取已保存监测配置，取消只改变草稿和预览。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "restoreDefaults"): "默认值先进入监测草稿，保存前不影响正式采样与模块显隐。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "applyIntervalToBarWidgets"): "保存刷新间隔时复用各菜单栏模块 updateInterval 写入与重载，不在拖动滑块时写正式配置。",
+})
+
+
 def main() -> int:
     strict = "--strict" in sys.argv
 
@@ -2120,16 +2146,14 @@ def main() -> int:
             dropped += len(items)
             print("  -- 源码已无此函数，台账移除:", key[0], key[3])
             continue
-        for slot, (old_line, idx) in enumerate(items):
+        dropped += max(0, len(items) - len(cand))
+        for slot, (old_line, idx) in enumerate(items[:len(cand)]):
             r = dict(led[idx])
             name = r["name"]
             if (r["file"], r["owner"], name) in RENAMES:
                 name = RENAMES[(r["file"], r["owner"], name)]
                 renamed += 1
-            if slot < len(cand):
-                new_line = cand[slot]
-            else:                       # 台账条数多于清单（重载被删）→ 就近
-                new_line = min(cand, key=lambda x: abs(x - old_line))
+            new_line = cand[slot]
             if new_line != old_line:
                 reanchored += 1
             r["name"] = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
