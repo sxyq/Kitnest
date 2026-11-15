@@ -57,6 +57,8 @@ NSArray<NSString *> *FSBarFormsForModule(NSString *module);
 NSString *FSBarFormName(NSString *form);
 NSString *FSBarModuleName(NSString *module);
 NSArray<NSString *> *FSBarEnabledForms(NSString *module);
+NSArray<NSString *> *FSBarConfiguredForms(NSString *module, NSDictionary *configuration);
+NSArray<NSString *> *FSBarPowerMetrics(NSDictionary *configuration);
 void FSBarSetEnabledForms(NSString *module, NSArray<NSString *> *forms);
 id FSBarCfgRaw(NSString *module, NSString *form, NSString *key);
 void FSBarCfgSet(NSString *module, NSString *form, NSString *key, id value);

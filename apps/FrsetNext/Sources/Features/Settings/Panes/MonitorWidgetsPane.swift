@@ -33,11 +33,30 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
         return configuration[key] as? String ?? value
     }
     func forms(_ module: String) -> [String] {
-        let supported = FSBarFormsForModule(module) as? [String] ?? []
-        return string(module + "_widget", default: "").split(separator: ",").map(String.init).filter(supported.contains)
+        FSBarConfiguredForms(module, configuration) as? [String] ?? []
+    }
+    var powerMetrics: [String] {
+        FSBarPowerMetrics(configuration) as? [String] ?? []
     }
     func setForms(_ module: String, _ forms: [String]) {
+        if module == "Power" {
+            let metrics = powerMetrics
+            if configuration["Power_metrics"] == nil || (!forms.isEmpty && metrics.isEmpty) {
+                configuration["Power_metrics"] = (metrics.isEmpty ? MonitorWidgetsPane.powerMetricItems.map(\.0) : metrics)
+                    .joined(separator: ",")
+            }
+        }
         configuration[module + "_widget"] = forms.joined(separator: ",")
+    }
+    func setPowerMetric(_ metric: String, _ enabled: Bool) {
+        var selected = powerMetrics
+        if configuration["Power_metrics"] == nil {
+            configuration["Power_widget"] = forms("Power").joined(separator: ",")
+        }
+        if enabled { selected.append(metric) }
+        else { selected.removeAll { $0 == metric } }
+        configuration["Power_metrics"] = MonitorWidgetsPane.powerMetricItems.map(\.0)
+            .filter(selected.contains).joined(separator: ",")
     }
     func move(_ module: String, by offset: Int) {
         var order = orderedModules
@@ -52,11 +71,12 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
         setForms(module, order)
     }
     func restoreModule(_ module: String) {
-        for key in Array(configuration.keys) where key.hasPrefix(module + "_") {
+        let prefixes = module == "Power" ? ["Power_", "CPUPower_", "GPUPower_"] : [module + "_"]
+        for key in Array(configuration.keys) where prefixes.contains(where: { key.hasPrefix($0) }) {
             configuration.removeValue(forKey: key)
         }
         let defaults = FSBarDefaultConfiguration() as? [String: Any] ?? [:]
-        for (key, value) in defaults where key.hasPrefix(module + "_") { configuration[key] = value }
+        for (key, value) in defaults where prefixes.contains(where: { key.hasPrefix($0) }) { configuration[key] = value }
     }
     func restoreDefaults() {
         for module in modules { restoreModule(module) }
@@ -174,10 +194,23 @@ private struct MonitorWidgetsContent: View {
                     set: { draft.setForms(module, $0 ? Array(all.prefix(1)) : []) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
             }
-            if module.hasSuffix("Power") {
-                Text(module == "Power" ? "整机系统负载，包含芯片、屏幕及其他硬件；适配器输入另列。" : "IOReport 能量差分，单位 W；与整机功耗同时显示，不重复相加。")
+            if module == "Power" {
+                Text("第一排整机，第二排 CPU 与 GPU；关闭指标后紧凑重排。整机是系统负载，适配器输入另列；CPU/GPU 按能量差分计算。")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if module == "Power" {
+                SettingsDivider()
+                optionRow("监测指标") {
+                    HStack(spacing: 12) {
+                        ForEach(MonitorWidgetsPane.powerMetricItems, id: \.0) { item in
+                            Toggle(item.1, isOn: Binding(
+                                get: { draft.powerMetrics.contains(item.0) },
+                                set: { draft.setPowerMetric(item.0, $0) }))
+                                .toggleStyle(.checkbox).font(.system(size: 11))
+                        }
+                    }
+                }
             }
             if !enabled.isEmpty {
                 SettingsDivider()
@@ -351,9 +384,45 @@ extension MonitorWidgetsPane {
         ("arrow.up.arrow.down", "arrow.up.arrow.down"), ("thermometer.medium", "thermometer.medium"),
         ("battery.100", "battery.100"), ("display", "display"), ("bolt.fill", "bolt.fill"), ("fan", "fan")
     ]
+    static let powerMetricItems: [(String, String)] = [
+        ("Power", "整机"), ("CPUPower", "CPU"), ("GPUPower", "GPU")
+    ]
 
     /// 每个形态的选项组（标题 / 选项），与 frset_barsettings.m 的 FSFormSettingsView 一一对应
     static func optionGroups(module: String, form: String) -> [OptionGroup] {
+        if module == "Power" {
+            switch form {
+            case "mini":
+                return [OptionGroup(title: "外观", options: [
+                    .toggle("标签", "label", true), .color("颜色", "color", "monochrome")
+                ])]
+            case "line_chart":
+                return [
+                    OptionGroup(title: "显示", options: [
+                        .toggle("标签", "label", true),
+                        .toggle("边框", "box", true),
+                        .toggle("外框", "frame", false)
+                    ]),
+                    OptionGroup(title: "外观", options: [
+                        .color("颜色", "color", "monochrome")
+                    ]),
+                    OptionGroup(title: "数据", options: [
+                        .slider("历史点数", "historyCount", "60", 10, 120, 10, unit: " 点")
+                    ])
+                ]
+            case "icon":
+                return [
+                    OptionGroup(title: "显示", options: [
+                        .toggle("标签", "label", true), .color("颜色", "color", "monochrome")
+                    ]),
+                    OptionGroup(title: "图标", options: [
+                        .menu("图标", "icon", iconSymbols, moduleSymbol(module))
+                    ])
+                ]
+            default:
+                return []
+            }
+        }
         switch form {
         case "mini":
             return [OptionGroup(title: "外观", options: [

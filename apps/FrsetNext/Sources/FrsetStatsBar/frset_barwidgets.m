@@ -102,7 +102,7 @@ NSString *FSBarModuleName(NSString *m) {
     if ([m isEqualToString:@"Network"]) return @"网络";
     if ([m isEqualToString:@"Sensors"]) return @"传感器";
     if ([m isEqualToString:@"Battery"]) return @"电池";
-    if ([m isEqualToString:@"Power"]) return @"整机功耗";
+    if ([m isEqualToString:@"Power"]) return @"功耗";
     if ([m isEqualToString:@"CPUPower"]) return @"CPU 功耗";
     if ([m isEqualToString:@"GPUPower"]) return @"GPU 功耗";
     return m;
@@ -291,6 +291,7 @@ int FSBarCfgInt(NSString *module, NSString *form, NSString *key, int def) {
 
 // 该模块启用的形态列表（已过滤到支持的形态）
 NSArray<NSString *> *FSBarEnabledForms(NSString *module) {
+    FSBarLoadStore();
     // v126（性能审计 F1631/F1649）：按模块缓存结果 + 配置代数失效。原先 0.5s tick 内
     // FSBarReconcile + FSBarMergedLayout 合计调 14+ 次，每次做 dict 查找 + 逗号分割 +
     // N×containsObject 过滤（约 3 次 NSArray 分配）。缓存命中时直接返回。
@@ -305,18 +306,45 @@ NSArray<NSString *> *FSBarEnabledForms(NSString *module) {
     NSArray<NSString *> *cached = cache[module];
     if (cached) return cached;
 
-    NSString *list = FSBarCfgStr(module, nil, @"widget", @"");
-    NSArray *supported = FSBarFormsForModule(module);
-    NSMutableArray *out = [NSMutableArray array];
-    for (NSString *f in [list componentsSeparatedByString:@","]) {
-        if (f.length && [supported containsObject:f] && ![out containsObject:f]) [out addObject:f];
-    }
-    NSArray<NSString *> *result = [out copy];
+    NSArray<NSString *> *result = FSBarConfiguredForms(module, g_cfg);
     cache[module] = result;
     return result;
 }
 
+NSArray<NSString *> *FSBarPowerMetrics(NSDictionary *cfg) {
+    NSArray *metrics = @[@"Power", @"CPUPower", @"GPUPower"];
+    NSString *selected = cfg[@"Power_metrics"];
+    NSMutableArray *out = [NSMutableArray array];
+    for (NSString *metric in metrics) {
+        BOOL enabled = selected != nil ? [[selected componentsSeparatedByString:@","] containsObject:metric]
+                       : [cfg[[metric stringByAppendingString:@"_widget"]] length] > 0;
+        if (enabled) [out addObject:metric];
+    }
+    return out;
+}
+
+NSArray<NSString *> *FSBarConfiguredForms(NSString *module, NSDictionary *cfg) {
+    NSMutableArray *lists = [NSMutableArray arrayWithObject:cfg[[module stringByAppendingString:@"_widget"]] ?: @""];
+    if ([module isEqualToString:@"Power"]) {
+        if (!FSBarPowerMetrics(cfg).count) return @[];
+        if (!cfg[@"Power_metrics"]) {
+            for (NSString *metric in @[@"CPUPower", @"GPUPower"])
+                [lists addObject:cfg[[metric stringByAppendingString:@"_widget"]] ?: @""];
+        }
+    }
+    NSArray *supported = FSBarFormsForModule(module);
+    NSMutableArray *out = [NSMutableArray array];
+    for (NSString *list in lists)
+        for (NSString *f in [list componentsSeparatedByString:@","])
+            if (f.length && [supported containsObject:f] && ![out containsObject:f]) [out addObject:f];
+    return out;
+}
+
 void FSBarSetEnabledForms(NSString *module, NSArray<NSString *> *forms) {
+    if ([module isEqualToString:@"Power"] && !FSBarGlobalRaw(@"Power_metrics")) {
+        NSArray *metrics = FSBarPowerMetrics(g_cfg);
+        FSBarCfgSet(module, nil, @"metrics", [(metrics.count ? metrics : @[@"Power", @"CPUPower", @"GPUPower"]) componentsJoinedByString:@","]);
+    }
     FSBarCfgSet(module, nil, @"widget", [forms componentsJoinedByString:@","]);
 }
 
@@ -419,10 +447,10 @@ CGFloat FSBarMergedSpacing(void) {
 NSArray<NSString *> *FSBarOrderedModules(NSDictionary *cfg) {
     NSArray *order = cfg[@"Widgets_order"] ?: FSBarAllModules();
     NSMutableArray *result = [NSMutableArray array];
-    for (NSString *module in order)
+    for (NSString *candidate in [order arrayByAddingObjectsFromArray:FSBarAllModules()]) {
+        NSString *module = [candidate hasSuffix:@"Power"] ? @"Power" : candidate;
         if ([FSBarAllModules() containsObject:module] && ![result containsObject:module]) [result addObject:module];
-    for (NSString *module in FSBarAllModules())
-        if (![result containsObject:module]) [result addObject:module];
+    }
     return result;
 }
 
@@ -790,7 +818,32 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 - (double)primaryValue {
     NSString *str = nil, *suf = nil;
-    return FSBarModuleValue(&_snap, _module, &str, &suf);
+    NSString *metric = [_module isEqualToString:@"Power"] ? FSBarPowerMetrics(_configuration ?: g_cfg).firstObject : _module;
+    return FSBarModuleValue(&_snap, metric, &str, &suf);
+}
+
+// 一组功耗共用双排几何；整机独占上排，CPU/GPU 同处下排。
+- (NSArray<NSString *> *)powerRows {
+    NSMutableArray *rows = [NSMutableArray array];
+    NSMutableArray *chips = [NSMutableArray array];
+    BOOL labels = FSBarViewCfgBool(_configuration, @"Power", _form, @"label", YES);
+    for (NSString *metric in FSBarPowerMetrics(_configuration ?: g_cfg)) {
+        NSString *name = [metric isEqualToString:@"Power"] ? @"整机" : ([metric isEqualToString:@"CPUPower"] ? @"CPU" : @"GPU");
+        NSString *value = FSBarModuleString(&_snap, metric) ?: @"—";
+        NSString *text = labels ? [NSString stringWithFormat:@"%@ %@", name, value] : value;
+        if ([metric isEqualToString:@"Power"]) [rows addObject:text];
+        else [chips addObject:text];
+    }
+    if (rows.count && chips.count) [rows addObject:[chips componentsJoinedByString:@"  "]];
+    else [rows addObjectsFromArray:chips];
+    return rows;
+}
+
+- (CGFloat)powerVisualWidth {
+    if ([_form isEqualToString:@"icon"]) return 17;
+    if (![_form isEqualToString:@"line_chart"]) return 0;
+    int hc = FSBarViewCfgInt(_configuration, @"Power", _form, @"historyCount", 60);
+    return hc <= 30 ? 24 : (hc <= 60 ? 32 : (hc <= 90 ? 42 : 52));
 }
 
 // ---- 宽度（逐值对齐 Stats v3.0.21：Constants.Widget.margin.x = 0，无额外内边距） ----
@@ -823,6 +876,13 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 }
 
 - (CGFloat)preferredWidth {
+    if ([_module isEqualToString:@"Power"]) {
+        NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightRegular]};
+        CGFloat width = 0;
+        for (NSString *row in [self powerRows]) width = MAX(width, [row sizeWithAttributes:attrs].width);
+        CGFloat visual = [self powerVisualWidth];
+        return [self stabilizeWidth:ceil(width) + (visual ? visual + 4 : 0)];
+    }
     if ([_form isEqualToString:@"mini"]) {
         // v28：宽度 = 实际内容宽（label 与值文本取大，量化 4pt）——内容居中绘制后，
         //   跨部件"内容-内容"间隙趋于均匀（统计口径见 drawMini；原 31/36 固定宽会让
@@ -1016,7 +1076,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     NSGraphicsContext *gctx = [NSGraphicsContext currentContext];
     if (gctx.CGContext) CGContextTranslateCTM(gctx.CGContext, [self widgetPadding], 0);
 
-    if ([_form isEqualToString:@"mini"])       { [self drawMini:cr dark:dark]; }
+    if ([_module isEqualToString:@"Power"]) { [self drawPower:cr dark:dark]; }
+    else if ([_form isEqualToString:@"mini"])       { [self drawMini:cr dark:dark]; }
     else if ([_form isEqualToString:@"speed"]) { [self drawSpeed:cr dark:dark]; }
     else if ([_form isEqualToString:@"bar_chart"]) { [self drawBarChart:cr dark:dark]; }
     else if ([_form isEqualToString:@"pie_chart"]) { [self drawPie:cr dark:dark]; }
@@ -1035,6 +1096,22 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     else { [self drawMini:cr dark:dark]; }   // v71：未知/废弃 form（含存量 run_cat）fallback mini
 
     [NSGraphicsContext restoreGraphicsState];
+}
+
+- (void)drawPower:(NSRect)r dark:(BOOL)dark {
+    CGFloat visual = [self powerVisualWidth];
+    if ([_form isEqualToString:@"line_chart"]) [self drawLineChart:NSMakeRect(0, 0, visual, r.size.height) dark:dark];
+    else if ([_form isEqualToString:@"icon"]) [self drawIcon:NSMakeRect(0, 0, visual, r.size.height) dark:dark];
+    NSColor *color = FSBarColorFromKey(FSBarViewCfgStr(_configuration, @"Power", _form, @"color", @"monochrome"), dark, [self primaryValue]);
+    NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightRegular], NSForegroundColorAttributeName: color};
+    NSArray *rows = [self powerRows];
+    CGFloat x = visual ? visual + 4 : 0;
+    CGFloat rowHeight = r.size.height / rows.count;
+    CGFloat y = rowHeight / 2;
+    for (NSString *row in rows) {
+        FSBarTextCenter(row, attrs, x, y);
+        y += rowHeight;
+    }
 }
 
 // ======== 形态 1：mini（Stats Mini.swift） ========
@@ -1490,12 +1567,12 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 
 // ======== 形态 6：line_chart（Stats LineChart.swift + LineChartView，右锚定 60 槽） ========
 - (void)drawLineChart:(NSRect)r dark:(BOOL)dark {
-    BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
+    BOOL label = ![_module isEqualToString:@"Power"] && FSBarViewCfgBool(_configuration, _module, _form, @"label", NO);
     BOOL box = FSBarViewCfgBool(_configuration, _module, _form, @"box", YES);
     BOOL frame = FSBarViewCfgBool(_configuration, _module, _form, @"frame", NO);
-    BOOL valueOn = FSBarViewCfgBool(_configuration, _module, _form, @"value", NO);
+    BOOL valueOn = ![_module isEqualToString:@"Power"] && FSBarViewCfgBool(_configuration, _module, _form, @"value", NO);
     BOOL valueColorOn = FSBarViewCfgBool(_configuration, _module, _form, @"valueColor", NO);
-    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"systemAccent");
+    NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", [_module isEqualToString:@"Power"] ? @"monochrome" : @"systemAccent");
     int hc = FSBarViewCfgInt(_configuration, _module, _form, @"historyCount", 60);
     NSString *scale = FSBarViewCfgStr(_configuration, _module, _form, @"scale", @"none");
 
@@ -1772,6 +1849,11 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
     NSString *sym = FSBarViewCfgStr(_configuration, _module, _form, @"icon", [self defaultSymbol]);
     NSImage *img = FSBarSymbolImage(sym, 15, NSFontWeightSemibold);
     img.template = YES;
+    if ([_module isEqualToString:@"Power"]) {
+        NSColor *color = FSBarColorFromKey(FSBarViewCfgStr(_configuration, _module, _form, @"color", @"monochrome"), dark, [self primaryValue]);
+        img = [img imageWithSymbolConfiguration:[NSImageSymbolConfiguration configurationWithPaletteColors:@[color]]];
+        img.template = NO;
+    }
     NSSize sz = img.size;
     NSPoint p = NSMakePoint((r.size.width - sz.width) / 2, (r.size.height - sz.height) / 2);
     [FSBarTextColor(dark) set];
@@ -2878,7 +2960,7 @@ static void FSBarReconcile(void) {
             NSLog(@"[FrsetStats] 合并模式：独立项移除 %@", key);
         }
         NSMutableSet *wanted = [NSMutableSet set];
-        for (NSString *m in FSBarAllModules()) {
+        for (NSString *m in FSBarOrderedModules(g_cfg)) {
             NSArray *forms = FSBarEnabledForms(m);
             if (!forms.count) continue;
             for (NSString *form in forms) {
@@ -2903,7 +2985,7 @@ static void FSBarReconcile(void) {
     FSBarRemoveMergedItem();
     NSMutableDictionary *desired = [NSMutableDictionary dictionary];   // "module/form" → module
     NSMutableDictionary *nativeFirstForm = [NSMutableDictionary dictionary]; // module → first form
-    for (NSString *m in FSBarAllModules()) {
+    for (NSString *m in FSBarOrderedModules(g_cfg)) {
         NSArray *forms = FSBarEnabledForms(m);
         NSStatusItem *native = g_nativeItems[m];
         for (NSUInteger i = 0; i < forms.count; i++) {
@@ -3363,9 +3445,7 @@ void FSBarUpdateConfiguredPreview(NSView *container, NSArray<NSString *> *module
     }
     NSMutableArray *widgets = [NSMutableArray array];
     for (NSString *module in modules) {
-        NSString *list = configuration[[module stringByAppendingString:@"_widget"]] ?: @"";
-        for (NSString *form in [list componentsSeparatedByString:@","]) {
-            if (![FSBarFormsForModule(module) containsObject:form]) continue;
+        for (NSString *form in FSBarConfiguredForms(module, configuration)) {
             FSBarWidgetView *widget = existing[[NSString stringWithFormat:@"%@/%@", module, form]];
             if (!widget) {
                 widget = [[FSBarWidgetView alloc] initWithModule:module form:form];
