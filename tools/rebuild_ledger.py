@@ -643,7 +643,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "viewDidMoveToWindow"):
         "视图进入窗口后挂载滚动事件监听，离开原窗口时移除旧监听",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "installSwipeMonitor"):
-        "只在异形图区域累计真实触控板横向滚动，42pt 后按实际手指方向执行一次左退右进",
+        "以真实触控板手势起点锁定异形图区域，累计整次横纵位移；42pt后执行一次左退右进，结束取消及惯性不导航，左侧清单不截取",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "deinit"):
         "图形手势视图销毁时移除 AppKit 本地事件监听，释放该区域的滚动处理",
     ("Core/UI/LiquidGlass.swift", "setContent"):

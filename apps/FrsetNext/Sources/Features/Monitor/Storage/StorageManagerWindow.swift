@@ -117,7 +117,9 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         var onNavigate: (Int) -> Void
         private var swipeMonitor: Any?
         private var swipeAccum: CGFloat = 0
+        private var verticalAccum: CGFloat = 0
         private var swipeDidNavigate = false
+        private var swipeInside = false
         private var hitPath = Path()
         private var hitBounds = CGRect.zero
 
@@ -143,26 +145,33 @@ private struct StorageSwipeRegion: NSViewRepresentable {
             swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 guard let self, self.enabled, let window = self.window, window.isVisible,
                       event.window === window else { return event }
-                if event.phase.contains(.began) || event.phase.contains(.mayBegin) {
-                    self.swipeAccum = 0
-                    self.swipeDidNavigate = false
-                }
                 guard event.hasPreciseScrollingDeltas, !event.phase.isEmpty,
                       event.momentumPhase.isEmpty else { return event }
                 if self.bounds != self.hitBounds {
                     self.hitBounds = self.bounds
                     self.hitPath = StorageMapShape().path(in: self.bounds)
                 }
-                let location = self.convert(event.locationInWindow, from: nil)
-                guard self.hitPath.contains(location) else {
+                if event.phase.contains(.began) {
                     self.swipeAccum = 0
-                    return event
+                    self.verticalAccum = 0
+                    self.swipeDidNavigate = false
+                    let location = self.convert(event.locationInWindow, from: nil)
+                    // AppKit 将整次滚动送给起点所在视图，不能逐事件改换清单或图形归属。
+                    self.swipeInside = self.hitPath.contains(location)
                 }
+                if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                    let handled = self.swipeInside && self.swipeDidNavigate
+                    self.swipeInside = false
+                    return handled ? nil : event
+                }
+                guard self.swipeInside else { return event }
                 // 还原手指方向，系统自然滚动设置不改变「左退右进」。
                 let dx = event.scrollingDeltaX * (event.isDirectionInvertedFromDevice ? -1 : 1)
-                guard abs(dx) > abs(event.scrollingDeltaY) * 1.2 else { return event }
                 self.swipeAccum += dx
-                if abs(self.swipeAccum) >= 42, !self.swipeDidNavigate {
+                self.verticalAccum += event.scrollingDeltaY
+                if self.swipeDidNavigate { return nil }
+                guard abs(self.swipeAccum) > abs(self.verticalAccum) * 1.2 else { return event }
+                if abs(self.swipeAccum) >= 42 {
                     self.swipeDidNavigate = true
                     self.onNavigate(self.swipeAccum > 0 ? -1 : 1)
                 }
@@ -312,6 +321,7 @@ struct StorageManagerRootView: View {
         GeometryReader { viewport in
             VStack(alignment: .leading, spacing: 8) {
                 header(width: viewport.size.width)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack(alignment: .bottom, spacing: 12) {
                     candidateControls(width: viewport.size.width * 0.40 - 24)
                         .glassCard(radius: Theme.Radius.card)
@@ -323,18 +333,17 @@ struct StorageManagerRootView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 GeometryReader { region in
                     let listSize = CGSize(width: region.size.width * 0.48, height: region.size.height * 0.84)
-                    let listMask = Path { path in
-                        path.addRect(CGRect(origin: .zero, size: listSize))
-                        path.addPath(StorageMapShape().path(in: CGRect(origin: .zero, size: region.size))
-                            .offsetBy(dx: -12, dy: 0))
-                    }
+                    let listBounds = Path(CGRect(origin: .zero, size: listSize))
+                    let mapOutline = StorageMapShape().path(in: CGRect(origin: .zero, size: region.size))
+                        .offsetBy(dx: -12, dy: 0)
+                    let listMask = Path(listBounds.cgPath.subtracting(mapOutline.cgPath))
                     ZStack(alignment: .topLeading) {
                     rightPane
                     leftPane(canvas: region.size)
                         .frame(width: listSize.width, height: listSize.height)
                         .glassCard(radius: Theme.Radius.card)
-                        .mask(listMask.fill(style: FillStyle(eoFill: true)))
-                        .contentShape(listMask, eoFill: true)
+                        .mask(listMask)
+                        .contentShape(listMask)
                         .padding(.leading, 12)
                     }
                     .frame(width: region.size.width, height: region.size.height)
