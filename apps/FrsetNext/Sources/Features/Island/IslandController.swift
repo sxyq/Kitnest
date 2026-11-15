@@ -58,8 +58,8 @@ final class IslandController: NSObject, ObservableObject {
         }
     }
     var peekOrder: [IslandPeek] { configuration.peekOrder }
-    var effectiveWidth: CGFloat { min(configuration.width, (panel?.screen?.frame.width ?? configuration.width + 40) - 40) }
-    var effectiveHeight: CGFloat { min(configuration.height, (panel?.screen?.frame.height ?? configuration.height + 40) - 40) }
+    var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), (panel?.screen?.frame.width ?? 2000) - 40) }
+    var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), (panel?.screen?.frame.height ?? 1400) - 40) }
 
     @discardableResult
     func apply(_ configuration: IslandConfiguration) -> String? {
@@ -217,8 +217,9 @@ final class IslandController: NSObject, ObservableObject {
             notchWidth = 180
             notchHeight = 28
         }
-        let size = NSSize(width: min(configuration.width, screen.frame.width - 40) + 32,
-                          height: min(configuration.height, screen.frame.height - 40) + 16)
+        // 舞台保留当前动画所需范围，缩小时不提前裁掉正在收缩的外壳。
+        let size = NSSize(width: min(max(panel.frame.width, effectiveWidth + 32, collapsedWidth + 32), screen.frame.width),
+                          height: min(max(panel.frame.height, effectiveHeight + 16), screen.frame.height))
         let scale = screen.backingScaleFactor
         panel.setFrame(NSRect(x: ((screen.frame.midX - size.width / 2) * scale).rounded() / scale,
                               y: screen.frame.maxY - size.height,

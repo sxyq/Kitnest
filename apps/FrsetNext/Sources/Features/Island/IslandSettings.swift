@@ -32,6 +32,12 @@ struct IslandConfiguration: Codable, Equatable {
     var enabled = true
     var width: CGFloat = 780
     var height: CGFloat = 440
+    var gridColumns: Int? = nil
+    var gridRows: Int? = nil
+    var columns: Int { gridColumns ?? 4 }
+    var rows: Int { gridRows ?? 4 }
+    var minimumWidth: CGFloat { CGFloat(columns) * 110 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
+    var minimumHeight: CGFloat { CGFloat(rows) * 48 + CGFloat(rows - 1) * 8 + 200 }
     var hoverEnabled = true
     var hoverDelay = 0.10
     var collapseDelay = 0.18
@@ -50,7 +56,9 @@ struct IslandConfiguration: Codable, Equatable {
     var metricColors: [String: String] = [:]
 
     func size(for widget: IslandWidget) -> IslandWidgetSize {
-        widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .square : .wide)
+        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .square : .wide)
+        if rows == 1 && size.rows == 2 { return size.columns == 1 ? .small : .wide }
+        return size.columns > columns ? .wide : size
     }
     func color(for widget: IslandWidget) -> Color {
         widgetColors[widget.rawValue].flatMap(Personalization.color(fromHex:)) ?? widget.color
