@@ -43,6 +43,58 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "setPowerMetric"):
+        "同一功耗草稿按固定指标顺序更新整机CPU和GPU选择；首次调整保留旧三模块的有效形态，预览与保存共用正式配置读取",
+    ("Features/Island/IslandController.swift", "bindRecordScroll"):
+        "记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务",
+    ("Features/Island/IslandController.swift", "releaseRecordScroll"):
+        "切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复",
+    ("Features/Island/IslandContent.swift", "viewDidMoveToWindow"):
+        "记录首行挂载时取得现有外层NSScrollView并交给控制器恢复位置，所有行仍复用原拖出视图",
+    ("Features/Island/IslandContent.swift", "sampleDetail"):
+        "刘海设置预览将固定样本交给正式正文组件，固定会话保留调参滚动；图片和多路径文件不读取真实文件",
+    ("Features/Island/IslandContent.swift", "movePreviewDate"):
+        "模拟日历的日期与月份导航只更新控制器选中日期，复用同一五档布局且不调用 EventKit",
+    ("Features/Island/IslandContent.swift", "copySelectedDate"):
+        "日历各尺寸共用所选日期复制；模拟只反馈，正式经 ClipboardManager 写入并反馈实际结果",
+    ("Features/Island/IslandContent.swift", "calendarLayout"):
+        "正式和模拟日历共用五档内容布局及全页月历，数据和操作闭包分别从缓存服务与固定样本注入",
+    ("Features/Island/IslandContent.swift", "monthGrid"):
+        "月历全页与2×2卡片共用42格与周标题，周末、跨月和选中态按实际日期及周起始日显示",
+    ("Features/Island/IslandContent.swift", "eventRows"):
+        "日程摘要、纵向事件和完整详情共用时间标题排版，区分空日程、授权提示与真实缓存事件",
+    ("Features/Island/IslandContent.swift", "monthTitle"):
+        "日历完整页与月历卡片共用中文年月标题，沿用 Foundation 日期格式样式",
+    ("Features/Island/IslandContent.swift", "monthDay"):
+        "日历紧凑、摘要及横向卡片共用中文月日文本，不改变所选日期",
+    ("Features/Island/IslandContent.swift", "weekdayTitle"):
+        "日历卡片按所选日期显示中文实际星期，和周末判定使用同一日期",
+    ("Features/Island/IslandContent.swift", "fullDate"):
+        "日历纵向卡片、月历底栏和全页共用完整中文日期标签",
+    ("Features/Island/IslandContent.swift", "eventTime"):
+        "日历横向带与事件行共用全天或开始时刻标签，保留正式事件字段",
+    ("Features/Island/IslandContent.swift", "selectDate"):
+        "正式日历选中跨月时读取月缓存，同月只从已加载42格选取事件，避免逐日重复查询",
+    ("Features/Island/IslandContent.swift", "moveDate"):
+        "正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存",
+    ("Features/Island/IslandController.swift", "setComponentPageCount"):
+        "画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内",
+    ("Features/Island/IslandController.swift", "goBack"):
+        "刘海详情返回原四入口，组件页与各页选择保留在同一控制器",
+    ("Features/Island/IslandController.swift", "resumeAfterOutside"):
+        "外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入",
+    ("Features/Island/IslandController.swift", "updateNotchMetrics"):
+        "读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口",
+    ("Features/Island/IslandFeatureContent.swift", "submit"):
+        "AI设置预览发送固定场景消息与反馈，不初始化真实会话服务或请求网络",
+    ("Features/Island/IslandSettings.swift", "requestedSize"):
+        "读取用户原五档尺寸，画布临时适配不覆盖原选择；默认仅监测与近期内容占两列",
+    ("Features/Island/IslandSurface.swift", "updateVisibility"):
+        "收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集",
+    ("Features/Island/IslandToolboxContent.swift", "shortcut"):
+        "首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口",
+    ("Features/Island/IslandWidgetGrid.swift", "frame"):
+        "按共享画布单格及间隙计算异构卡片实际位置尺寸，排列、辉光和拖动落点使用同一几何",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "hasPreview"):
         "刘海控制器收起时按来源窗口关闭共用预览，指针进入该预览时保留展开；只读取现有窗口与会话状态",
     ("Features/Island/IslandContent.swift", "updateTrackingAreas"):

@@ -12,7 +12,15 @@ SRC="$ROOT/Sources"
 #   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
 APP_FINAL="$ROOT/build.noindex/Kitnest.app"          # 对外可见的构建产物（始终完整可启动）
-APP="$ROOT/build.noindex/.staging/Kitnest.app"       # 编译暂存（构建期间对外不可见）
+# 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
+mkdir -p "$ROOT/build.noindex/.staging"
+STAGE=$(mktemp -d "$ROOT/build.noindex/.staging/kitnest.XXXXXX")
+APP="$STAGE/Kitnest.app"
+BUILD_LOG="$STAGE/build.log"
+trap 'cp "$BUILD_LOG" /tmp/frsetnext_build.log; rm -rf "$STAGE"' EXIT
+# 同一工作区的并行编辑会使 Swift 读到中途变化的输入；本次编译只读这份暂存输入。
+ditto "$SRC" "$STAGE/Sources"
+SRC="$STAGE/Sources"
 SDK="$(xcrun --show-sdk-path)"
 
 # 优化档位：默认 `-O` + **关闭全模块优化（no-WMO）**。
@@ -29,7 +37,6 @@ find "$SRC" -name '*.swift' -not -name '._*' | wc -l | xargs echo "  Swift 文�
 find "$SRC" -name '*.swift' -not -name '._*' -exec cat {} + | wc -l | xargs echo "  总行数:"
 
 echo "== 清理 =="
-rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 
@@ -72,9 +79,9 @@ rm -f "$APP/Contents/MacOS/Kitnest"
 # 来源：stats-recon/inject/（注入版同款代码，原样移植；注入入口/hook 已由
 # frset_stats_tick.m 替代为普通启停 API）。编译参数与注入版 build-dylib.sh 一致。
 OBJC_DIR="$SRC/FrsetStatsBar"
-OBJ_DIR="/tmp/frsetnext_objc"
-rm -rf "$OBJ_DIR"; mkdir -p "$OBJ_DIR"
-: > /tmp/frsetnext_build.log   # 重建日志：clang 段追加写，swiftc 段随后追加
+OBJ_DIR="$STAGE/objc"
+mkdir -p "$OBJ_DIR"
+: > "$BUILD_LOG"   # clang 和 Swift 共用本次日志，结束后写入原日志位置
 OBJ_FILES=""
 if [ -d "$OBJC_DIR" ]; then
   for f in "$OBJC_DIR"/*.c "$OBJC_DIR"/*.m; do
@@ -83,7 +90,7 @@ if [ -d "$OBJC_DIR" ]; then
     clang -c "$f" -o "$obj" \
       -isysroot "$SDK" -target arm64-apple-macosx13.0 \
       -I "$ROOT/Vendor/ocr" \
-      -fobjc-arc -O1 2>&1 | tee -a /tmp/frsetnext_build.log | tail -5
+      -fobjc-arc -O1 2>&1 | tee -a "$BUILD_LOG" | tail -5
     CLANG_RC=${PIPESTATUS[0]}
     if [ "$CLANG_RC" -ne 0 ] || [ ! -f "$obj" ]; then
       echo "✗ ObjC 编译失败: $f（退出码 $CLANG_RC）"
@@ -100,7 +107,7 @@ BRIDGE="$OBJC_DIR/FrsetStatsBar.h"
 # 终端上只会停在「== 编译 ==」而无任何结论——此时本文件是否残留就成了唯一的判据：
 #   残留 + 无产物 → 死在编译阶段（进程组被杀），不是代码问题，别改代码
 #   已删除+ 无产物 → 编译阶段正常结束却没出产物（真编译失败），去读 build log
-STAMP=/tmp/frsetnext_build.stamp
+STAMP="$STAGE/build.stamp"
 rm -f "$STAMP"; touch "$STAMP"
 
 swiftc $OPT_FLAGS -parse-as-library \
@@ -116,10 +123,10 @@ swiftc $OPT_FLAGS -parse-as-library \
   -framework IOKit -framework SystemConfiguration \
   -framework AVFoundation -framework CoreMedia \
   -framework QuickLookThumbnailing \
-  -framework WebKit 2>&1 | tee -a /tmp/frsetnext_build.log | tail -40
+  -framework WebKit 2>&1 | tee -a "$BUILD_LOG" | tail -40
 BUILD_RC=${PIPESTATUS[0]}
 rm -f "$STAMP"   # 走到这里说明脚本活着，撤掉标记
-LOG_BYTES=$(wc -c < /tmp/frsetnext_build.log | tr -d ' ')
+LOG_BYTES=$(wc -c < "$BUILD_LOG" | tr -d ' ')
 
 # 三分法（实测判据，见 docs/l10n-original-reference/MANIFEST.md 同类「无输出≠通过」原则）：
 #   log 0 字节 + 产物空 → 被 SIGKILL（资源竞争域），**不是代码问题**，别去改代码

@@ -34,14 +34,20 @@ let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 
 if !deepLink.isEmpty {
-    NSWorkspace.shared.open(URL(string: deepLink)!)
+    NSWorkspace.shared.open([URL(string: deepLink)!],
+        withApplicationAt: URL(fileURLWithPath: "/Applications/Kitnest.app"),
+        configuration: NSWorkspace.OpenConfiguration())
 }
 
 func ownWindows() async -> [SCWindow] {
     guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true) else {
         return []
     }
-    return content.windows.filter { $0.owningApplication?.bundleIdentifier == bundleID }
+    return content.windows.filter { window in
+        window.owningApplication.flatMap {
+            NSRunningApplication(processIdentifier: $0.processID)?.bundleURL?.path
+        } == "/Applications/Kitnest.app"
+    }
 }
 
 var target: SCWindow?
