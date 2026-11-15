@@ -251,9 +251,10 @@ struct IslandButtonStyle: ButtonStyle {
     var help: String? = nil
     var tipAlignment: Alignment = .bottom
     var navigation = false
+    var showsFocus = true
     func makeBody(configuration: Configuration) -> some View {
         IslandButtonBody(label: configuration.label, pressed: configuration.isPressed, help: help,
-                         tipAlignment: tipAlignment, navigation: navigation)
+                         tipAlignment: tipAlignment, navigation: navigation, showsFocus: showsFocus)
     }
 }
 
@@ -263,7 +264,9 @@ private struct IslandButtonBody<Label: View>: View {
     let help: String?
     let tipAlignment: Alignment
     let navigation: Bool
+    let showsFocus: Bool
     @Stored private var hovered = false
+    @Environment(\.isFocused) private var focused
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         ZStack {
@@ -271,6 +274,12 @@ private struct IslandButtonBody<Label: View>: View {
             .background {
                 RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
                     .fill(Theme.rowHoverFill.opacity(hovered ? 1 : 0))
+            }
+            .overlay {
+                if showsFocus && focused {
+                    RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
+                        .strokeBorder(Theme.accent(for: nil), lineWidth: Theme.Stroke.emphasis)
+                }
             }
             .scaleEffect(reduceMotion || !pressed ? 1 : 0.99)
         }

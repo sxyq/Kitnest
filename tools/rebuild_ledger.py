@@ -1771,6 +1771,8 @@ EVIDENCE.update({
 })
 
 EVIDENCE.update({
+    ("Features/Island/IslandContent.swift", "body"):
+        "IslandRecordFocusAppearance仅关闭macOS14及以上记录列表的系统焦点装饰，保留focusable、方向键和复制命令；macOS13沿用原生行focusRingType.none",
     ("Features/Island/IslandContent.swift", "updateMonitoring"):
         "页面、展开及首页监测组件可见性变化时交MonitorSampler.setIslandActive，设置预览不启动真实采样",
     ("Features/Island/IslandContent.swift", "pageContent"):

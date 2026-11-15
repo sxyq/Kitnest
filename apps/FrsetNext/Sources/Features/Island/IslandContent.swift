@@ -183,7 +183,8 @@ struct IslandRootView: View {
                             previewItem: preview ? nil : record.previewItem,
                             selectedPreview: records.first(where: { $0.id == selectedRecord })?.previewItem) { select(record, openPage: true) }
                     }
-            }.buttonStyle(IslandButtonStyle()).accessibilityLabel(record.title).help("单击预览 · 双击复制")
+            }.buttonStyle(IslandButtonStyle(showsFocus: false)).accessibilityLabel(record.title).help("单击预览 · 双击复制")
+                .accessibilityAddTraits(record.id == selectedRecord ? .isSelected : [])
             if record.id == selectedRecord {
                 Image(systemName: "checkmark").font(.system(size: 9)).foregroundStyle(.secondary)
             }
@@ -206,8 +207,6 @@ struct IslandRootView: View {
                         ForEach(records) { record in
                             Button { select(record, showsPreview: true) } label: {
                                 record.frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(selectedRecord == record.id ? Theme.accent(for: nil).opacity(0.14) : .clear,
-                                                in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius))
                                     .overlay {
                                         IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
                                             onDraggingChanged: draggingChanged,
@@ -217,7 +216,7 @@ struct IslandRootView: View {
                                             selectedPreview: records.first(where: { $0.id == selectedRecord })?.previewItem,
                                             tracksScroll: record.id == records.first?.id) { select(record) }
                                     }
-                            }.buttonStyle(IslandButtonStyle())
+                            }.buttonStyle(IslandButtonStyle(showsFocus: false))
                                 .help("悬停或空格预览 · 双击复制 · 文件可拖出")
                                 .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
                                 .id(record.id)
@@ -227,6 +226,7 @@ struct IslandRootView: View {
                 .islandGlowClip()
                 .focusable()
                 .focused($recordListFocused)
+                .modifier(IslandRecordFocusAppearance())
                 .onMoveCommand { direction in
                     if direction == .up || direction == .down {
                         moveSelection(direction == .up ? -1 : 1, proxy: proxy)
@@ -482,6 +482,17 @@ private struct IslandRecentRow: View, Identifiable {
     }
 }
 
+/// 只取消记录列表的系统焦点装饰，保留方向键与复制命令。
+private struct IslandRecordFocusAppearance: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 14, *) {
+            content.focusEffectDisabled()
+        } else {
+            content
+        }
+    }
+}
+
 /// 记录单击、双击与文件拖出共用原生事件；拖动会话不触碰系统剪贴板。
 private struct IslandFileDragSource: NSViewRepresentable {
     let urls: [URL]
@@ -496,7 +507,11 @@ private struct IslandFileDragSource: NSViewRepresentable {
     var tracksScroll = false
     var select: () -> Void
 
-    func makeNSView(context: Context) -> IslandFileDragView { IslandFileDragView() }
+    func makeNSView(context: Context) -> IslandFileDragView {
+        let view = IslandFileDragView()
+        view.focusRingType = .none
+        return view
+    }
     func updateNSView(_ view: IslandFileDragView, context: Context) {
         view.urls = urls; view.controller = controller; view.select = select
         view.onDraggingChanged = onDraggingChanged
