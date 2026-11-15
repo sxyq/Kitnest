@@ -3,8 +3,9 @@
 # 用法：./package_dmg.sh
 # 前置：build.sh 已构建并部署到 /Applications/Kitnest.app
 set -e
-APP=/Applications/Kitnest.app
-OUT=~/Desktop/Kitnest-1.0.0.dmg
+APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
+APP="/Applications/$APP_NAME.app"
+OUT="${KITNEST_DMG_OUTPUT:-$HOME/Desktop/Kitnest-1.0.0.dmg}"
 STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
 
 [ -d "$APP" ] || { echo "✗ 找不到 $APP（先跑 build.sh）"; exit 1; }
@@ -57,12 +58,12 @@ Kitnest 安装说明
 TXT
 
 rm -f "$OUT"
-hdiutil create -volname "Kitnest 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
+hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
 rm -rf "$STAGE"
 
 # 挂载校验
 VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')
-codesign -v "$VOL/Kitnest.app" && echo "✓ 签名校验通过"
+codesign -v "$VOL/$APP_NAME.app" && echo "✓ 签名校验通过"
 hdiutil detach "$VOL" -quiet
 ls -lh "$OUT"
 echo "✓ DMG 已打包：$OUT"
