@@ -102,6 +102,8 @@ public struct ToolRunnerView: View {
     private let intent: ToolInvocationIntent
     private let compact: Bool
     private let onFileDialog: ((Bool) -> Void)?
+    private let presentFileDialog: ((@escaping () -> Void) -> Void)?
+    private let onInputChange: ((String) -> Void)?
     @ObservedObject private var windowController = ToolRunnerWindowController.shared
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
@@ -115,16 +117,21 @@ public struct ToolRunnerView: View {
     @Stored private var runTask: Task<Void, Never>? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil, autoRun: Bool = false,
                 initialInput: String = "", intent: ToolInvocationIntent = .standard, compact: Bool = false,
-                onFileDialog: ((Bool) -> Void)? = nil) {
+                onFileDialog: ((Bool) -> Void)? = nil,
+                presentFileDialog: ((@escaping () -> Void) -> Void)? = nil,
+                onInputChange: ((String) -> Void)? = nil) {
         self.tool = tool
         self.onClose = onClose
         self.autoRun = autoRun
         self.intent = intent
         self.compact = compact
         self.onFileDialog = onFileDialog
+        self.presentFileDialog = presentFileDialog
+        self.onInputChange = onInputChange
         self._input = Stored(wrappedValue: initialInput)
         self._outputDraft = Stored(wrappedValue: initialInput)
         self._showOriginal = Stored(wrappedValue: initialInput.isEmpty)
@@ -149,6 +156,7 @@ public struct ToolRunnerView: View {
             // 刘海只响应当前页用户操作，不消费独立工具窗的自动执行请求。
             if !compact { startRun() }
         }
+        .onChange(of: input) { onInputChange?($0) }
         .onDisappear {
             if compact { runTask?.cancel(); runTask = nil; isRunning = false }
         }
@@ -352,6 +360,7 @@ public struct ToolRunnerView: View {
     // MARK: 行为
 
     private func startRun() {
+        if isSettingsPreview { statusText = "执行预览：保留当前输入，不运行真实工具"; return }
         if compact {
             runTask?.cancel()
             isRunning = false
@@ -391,6 +400,7 @@ public struct ToolRunnerView: View {
     }
 
     private func copyText(_ text: String) {
+        if isSettingsPreview { statusText = "复制效果预览，不写入剪贴板"; return }
         guard !text.isEmpty else { return }
         if intent == .standard {
             let pasteboard = NSPasteboard.general
@@ -407,6 +417,7 @@ public struct ToolRunnerView: View {
     }
 
     private func copyImage(_ image: NSImage) {
+        if isSettingsPreview { statusText = "图片复制效果预览，不写入剪贴板"; return }
         guard let tiff = image.tiffRepresentation else {
             statusText = "复制失败：无法生成图片数据"
             return
@@ -425,22 +436,27 @@ public struct ToolRunnerView: View {
 
     /// 不直接引用剪贴板模块：通过 ToolboxEventBus 回调交给总控
     private func saveToClipboard(_ result: ToolOutput) {
+        if isSettingsPreview { statusText = "保存效果预览，不修改历史"; return }
         statusText = ToolboxEventBus.emitResult(result.text, kind: tool.kind)
             ? "已存为剪贴板条目" : "保存失败：无法写入剪贴板历史"
     }
 
     private func chooseFile() {
+        if isSettingsPreview { statusText = "文件选择效果预览，不操作文件"; return }
         // 原文件选择链保持不变；嵌入宿主在模态期间保留视图以接收路径。
         onFileDialog?(true)
-        defer { onFileDialog?(false) }
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.image]
-        panel.message = "选择要压缩的图片"
-        if panel.runModal() == .OK, let url = panel.url {
-            input = url.path
+        let present = {
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            panel.allowedContentTypes = [.image]
+            panel.message = "选择要压缩的图片"
+            panel.begin { result in
+                if result == .OK, let url = panel.url { input = url.path }
+                onFileDialog?(false)
+            }
         }
+        if let presentFileDialog { presentFileDialog(present) } else { present() }
     }
 }

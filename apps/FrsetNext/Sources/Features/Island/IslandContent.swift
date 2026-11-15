@@ -7,26 +7,23 @@ struct IslandRootView: View {
     @ObservedObject var controller: IslandController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isSettingsPreview) private var isSettingsPreview
-    @Stored private var selectedRecord: String? = nil
     @Stored private var transferToolsVisible = false
     @Stored private var recordsRevision = 0
     @Stored private var recordDragging = false
     @FocusState private var recordListFocused: Bool
-    @Stored private var selectedMetric = IslandMetric.cpu
-    @Stored private var selectedTool: String? = nil
     @Stored private var fileDialogOpen = false
-    @Stored private var selectedDate = Date.now
     @Stored private var records: [IslandRecentRow] = []
     @Stored private var homeMonitorVisible = false
 
     private var preview: Bool { controller.previewOnly || isSettingsPreview }
+    private var selectedRecord: String? { controller.selectedRecord }
     private var monitoringVisible: Bool {
-        controller.expanded && (controller.page == .monitor || (controller.page == .home && homeMonitorVisible))
+        controller.contentVisible && (controller.page == .monitor || (controller.page == .home && homeMonitorVisible))
     }
 
     var body: some View {
         IslandSurface(controller: controller, height: controller.effectiveHeight) {
-            if controller.expanded || controller.showingContent || preview || fileDialogOpen {
+            if controller.contentVisible || fileDialogOpen {
                 pageContent(controller.page)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
@@ -42,15 +39,23 @@ struct IslandRootView: View {
             reloadRecords()
             updateMonitoring()
         }
-        .onChange(of: controller.page) { _ in reloadRecords(); updateMonitoring() }
+        .onChange(of: controller.showingContent) { visible in
+            updateMonitoring()
+            if !visible { controller.releaseRecordScroll() }
+        }
+        .onChange(of: controller.page) { _ in controller.releaseRecordScroll(); reloadRecords(); updateMonitoring() }
         .onChange(of: transferToolsVisible) { _ in
+            controller.releaseRecordScroll()
             if let panel = controller.panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
                 MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
             }
         }
         .onChange(of: homeMonitorVisible) { _ in updateMonitoring() }
         .onChange(of: preview) { _ in reloadRecords(); updateMonitoring() }
-        .onDisappear { if !preview { MonitorSampler.shared.setIslandActive(false) } }
+        .onDisappear {
+            controller.releaseRecordScroll()
+            if !preview { MonitorSampler.shared.setIslandActive(false) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: ClipboardManager.itemsDidChangeNotification)) { _ in
             if !preview && controller.expanded { reloadRecords() }
         }
@@ -80,9 +85,9 @@ struct IslandRootView: View {
             }
         case .monitor: IslandMonitorFullContent(controller: controller, previewOnly: preview)
         case .media: IslandMediaContent(controller: controller, previewOnly: preview)
-        case .calendar: IslandCalendarContent(controller: controller, selectedDate: $selectedDate, previewOnly: preview)
+        case .calendar: IslandCalendarContent(controller: controller, selectedDate: $controller.selectedDate, previewOnly: preview)
         case .tools:
-            IslandToolboxContent(controller: controller, previewOnly: preview, selectedTool: $selectedTool,
+            IslandToolboxContent(controller: controller, previewOnly: preview, selectedTool: $controller.selectedTool,
                                  onFileDialog: { fileDialogOpen = $0 })
         case .search, .capture, .recording, .ocr, .cast, .ai, .statistics, .archive, .downloads:
             IslandFeatureContent(page: page, controller: controller, previewOnly: preview, size: nil)
@@ -93,13 +98,21 @@ struct IslandRootView: View {
         IslandWidgetGrid(controller: controller) { (item: IslandWidget, size: IslandWidgetSize) in
             widget(item, size: size) { widgetContent(item, size: size) }
         }
+        .overlay {
+            if controller.configuration.hiddenWidgets.count == IslandWidget.allCases.count {
+                VStack(spacing: 8) {
+                    Text("首页组件已全部隐藏").font(.system(size: 13))
+                    Button("查看全部功能") { controller.page = .tools }.buttonStyle(IslandButtonStyle())
+                }
+            }
+        }
     }
 
     @ViewBuilder private func widgetContent(_ item: IslandWidget, size: IslandWidgetSize) -> some View {
         switch item {
         case .monitor:
-            IslandMonitorChart(metric: selectedMetric, previewOnly: preview,
-                               tint: controller.configuration.color(for: item))
+            IslandMonitorChart(metric: controller.selectedMetric, previewOnly: preview,
+                               tint: controller.configuration.color(for: item), size: size, controller: controller)
                 .onAppear { homeMonitorVisible = true }
                 .onDisappear { homeMonitorVisible = false }
         case .clipboard:
@@ -125,25 +138,9 @@ struct IslandRootView: View {
         case .volume:
             IslandVolumeContent(controller: controller, previewOnly: preview, size: size)
         case .calendar:
-            IslandCalendarContent(controller: controller, selectedDate: $selectedDate, previewOnly: preview, size: size)
+            IslandCalendarContent(controller: controller, selectedDate: $controller.selectedDate, previewOnly: preview, size: size)
         case .tools:
-            let tools = preview ? [] : ToolRegistry.enabledTools
-            if preview {
-                Button { controller.page = .tools } label: { Label("快捷工具", systemImage: "square.grid.2x2") }
-                    .font(.system(size: 11)).buttonStyle(IslandButtonStyle())
-            } else if tools.isEmpty {
-                Text("暂无已启用工具").font(.system(size: 11)).foregroundStyle(.secondary)
-            } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4),
-                                        count: size.columns == 4 ? 4 : size.columns), spacing: 4) {
-                    ForEach(Array(tools.prefix(size.columns * size.rows))) { tool in
-                        Button { selectedTool = tool.id; controller.page = .tools } label: {
-                            Label(tool.name, systemImage: tool.systemImage).font(.system(size: 11)).lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }.buttonStyle(IslandButtonStyle())
-                    }
-                }
-            }
+            IslandToolboxShortcuts(controller: controller, previewOnly: preview, size: size, selectedTool: $controller.selectedTool)
         case .search, .capture, .recording, .ocr, .transfer, .cast, .ai, .statistics, .archive, .downloads:
             IslandFeatureContent(page: item.page, controller: controller, previewOnly: preview, size: size)
         }
@@ -163,7 +160,6 @@ struct IslandRootView: View {
         }.padding(size.rows == 2 ? 10 : 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .tint(controller.configuration.color(for: item))
-            .islandGlow(enabled: controller.glowEnabled && controller.expanded && controller.page == .home)
             .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
             .dropDestination(for: URL.self) { urls, _ in item == .clipboard && receiveFiles(urls) }
     }
@@ -177,7 +173,8 @@ struct IslandRootView: View {
                         IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
                             onDraggingChanged: draggingChanged, onCopy: { copy(record) },
                             onDoubleClick: { select(record); copy(record) }, defersSelection: true,
-                            previewItem: preview ? nil : record.previewItem) { select(record, openPage: true) }
+                            previewItem: preview ? nil : record.previewItem,
+                            selectedPreview: records.first(where: { $0.id == selectedRecord })?.previewItem) { select(record, openPage: true) }
                     }
             }.buttonStyle(IslandButtonStyle()).accessibilityLabel(record.title).help("单击预览 · 双击复制")
             if record.id == selectedRecord {
@@ -195,6 +192,7 @@ struct IslandRootView: View {
                     .foregroundStyle(.secondary)
             }.font(.system(size: 11))
             if controller.page != .transfer { recordEntrances }
+            HStack(spacing: 10) {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 4) {
@@ -208,7 +206,9 @@ struct IslandRootView: View {
                                             onDraggingChanged: draggingChanged,
                                             onMove: { moveSelection($0, proxy: proxy) }, onCopy: copySelectedRecord,
                                             onDoubleClick: { select(record); copy(record) },
-                                            previewItem: preview ? nil : record.previewItem) { select(record) }
+                                            previewItem: preview ? nil : record.previewItem,
+                                            selectedPreview: records.first(where: { $0.id == selectedRecord })?.previewItem,
+                                            tracksScroll: record.id == records.first?.id) { select(record) }
                                     }
                             }.buttonStyle(IslandButtonStyle())
                                 .help("悬停或空格预览 · 双击复制 · 文件可拖出")
@@ -227,6 +227,13 @@ struct IslandRootView: View {
                 .onCommand(#selector(NSText.copy(_:))) {
                     copySelectedRecord()
                 }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if preview, let record = records.first(where: { $0.id == selectedRecord }) {
+                sampleDetail(record)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
+            }
             }
             if records.isEmpty {
                 Text("暂无内容，可拖入文件或文件夹")
@@ -251,8 +258,29 @@ struct IslandRootView: View {
         return true
     }
 
+    private func sampleDetail(_ record: IslandRecentRow) -> some View {
+        let sample = record.sample!
+        let kind: PreviewPopoverContentModel.Kind = sample.icon == "photo" ? .image
+            : sample.children.isEmpty ? PreviewPopoverContentModel.classifyRawText(sample.body) : .file
+        let paths = sample.children.map { "/演示/\(sample.title)/\($0)" }.joined(separator: "\n")
+        let item = ClipboardItem(id: record.id, type: sample.children.isEmpty ? record.previewItem.type : .file,
+                                 content: sample.children.isEmpty ? sample.body : paths,
+                                 title: sample.title, timestamp: record.date, dedupeKey: record.id)
+        let model = PreviewPopoverContentModel(item: item, source: .mainPreview, sessionID: controller.previewSessionID,
+            inlineText: sample.body, kindOverride: kind, loadFileContents: false)
+        return VStack(spacing: 4) {
+            HStack {
+                Text(sample.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                Spacer()
+                Button("复制") { copy(record) }.buttonStyle(IslandButtonStyle())
+            }.padding(8)
+            PreviewPopoverContentView(model: model, usesWindowChrome: false)
+                .id(record.id)
+        }
+    }
+
     private func select(_ record: IslandRecentRow, openPage: Bool = false, showsPreview: Bool = false) {
-        selectedRecord = record.id
+        controller.selectedRecord = record.id
         if openPage { controller.page = .clipboard }
         recordListFocused = true
         if showsPreview && !preview, let panel = controller.panel {
@@ -270,7 +298,10 @@ struct IslandRootView: View {
     }
 
     private func copySelectedRecord() {
-        if let record = records.first(where: { $0.id == selectedRecord }) { copy(record) }
+        let coordinator = MainPanelPreviewPopoverCoordinator.shared
+        let active = controller.panel.flatMap { coordinator.hasPreview(from: $0) ? coordinator.activeItemID : nil }
+        if let record = records.first(where: { $0.previewItem.id == active })
+            ?? records.first(where: { $0.id == selectedRecord }) { copy(record) }
     }
 
     private var recordEntrances: some View {
@@ -303,7 +334,7 @@ struct IslandRootView: View {
             })
             records = samples.enumerated().map { index, sample in
                 IslandRecentRow(id: "sample:\(index)", title: sample.title, icon: sample.icon,
-                                date: Date(timeIntervalSince1970: 0), sample: sample)
+                                date: SettingsPreviewSamples.date.addingTimeInterval(Double(index) * -120), sample: sample)
             }
         } else {
             let transfers = LocalTransferStore.shared.items
@@ -360,7 +391,7 @@ struct IslandRootView: View {
             guard !Task.isCancelled, !recordDragging else { return }
             records = joined
         }
-        if !records.contains(where: { $0.id == selectedRecord }) { selectedRecord = records.first?.id }
+        if !records.contains(where: { $0.id == selectedRecord }) { controller.selectedRecord = records.first?.id }
     }
 
     nonisolated private static func fileIcon(_ url: URL) -> String {
@@ -447,6 +478,8 @@ private struct IslandFileDragSource: NSViewRepresentable {
     var onDoubleClick: (() -> Void)? = nil
     var defersSelection = false
     var previewItem: ClipboardItem? = nil
+    var selectedPreview: ClipboardItem? = nil
+    var tracksScroll = false
     var select: () -> Void
 
     func makeNSView(context: Context) -> IslandFileDragView { IslandFileDragView() }
@@ -456,6 +489,8 @@ private struct IslandFileDragSource: NSViewRepresentable {
         view.onMove = onMove; view.onCopy = onCopy
         view.onDoubleClick = onDoubleClick; view.defersSelection = defersSelection
         view.previewItem = previewItem
+        view.selectedPreview = selectedPreview
+        view.tracksScroll = tracksScroll
     }
 }
 
@@ -469,12 +504,23 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     var onDoubleClick: (() -> Void)?
     var defersSelection = false
     var previewItem: ClipboardItem?
+    var selectedPreview: ClipboardItem?
+    var tracksScroll = false
     private var tracking: NSTrackingArea?
     private var selectionWork: DispatchWorkItem?
     private var mouseStart: NSPoint? = nil
     private var dragging = false
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if tracksScroll, window != nil {
+            DispatchQueue.main.async { [weak self] in
+                if let self, let scrollView = self.enclosingScrollView { self.controller?.bindRecordScroll(scrollView) }
+            }
+        }
+    }
 
     override func updateTrackingAreas() {
         if let tracking { removeTrackingArea(tracking) }
@@ -490,7 +536,12 @@ final class IslandFileDragView: NSView, NSDraggingSource {
             anchorProvider: { [weak self] in
                 guard let self, self.controller?.expanded == true else { return nil }
                 return self.convert(self.bounds, to: nil)
-            }, sourceWindow: window)
+            }, sourceWindow: window, restoreSelection: { [weak self] in
+                guard let self, let selected = self.selectedPreview, selected.id != previewItem.id,
+                      self.controller?.expanded == true, let window = self.window else { return false }
+                return MainPanelPreviewPopoverCoordinator.shared.present(for: selected,
+                    anchorRectInScreen: window.convertToScreen(self.convert(self.bounds, to: nil)), sourceWindow: window)
+            })
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -544,6 +595,7 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     override func mouseUp(with event: NSEvent) {
         if !dragging, mouseStart != nil {
             if event.clickCount == 2, let onDoubleClick {
+                if let window, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: window) { showPreview() }
                 onDoubleClick()
             } else if defersSelection {
                 // 首页单击会换页；等待系统双击间隔，避免第一击提前移走目标。
@@ -576,34 +628,97 @@ private struct IslandCalendarContent: View {
     @Binding var selectedDate: Date
     let previewOnly: Bool
     var size: IslandWidgetSize? = nil
+    @AppStorage(Preferences.Keys.calendarFirstWeekday) private var firstWeekday = 1
+    @Stored private var sampleDays: [CalendarDay] = []
+
+    private var previewCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "zh_CN")
+        calendar.firstWeekday = firstWeekday
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    private var previewEvents: [CalendarEvent] {
+        let calendar = previewCalendar
+        let base = calendar.startOfDay(for: SettingsPreviewSamples.date)
+        func event(_ id: String, _ title: String, _ offset: Int, _ hour: Int, _ minute: Int) -> CalendarEvent {
+            let day = calendar.date(byAdding: .day, value: offset, to: base)!
+            let start = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
+            return CalendarEvent(id: id, title: title, startDate: start)
+        }
+        return [
+            event("island-preview-sync", "项目同步", 0, 14, 0),
+            event("island-preview-review", "设计评审", 0, 16, 30),
+            event("island-preview-plan", "交付计划", 3, 10, 0),
+            event("island-preview-review-two", "需求梳理", 8, 15, 0)
+        ]
+    }
+
+    private var previewDays: [CalendarDay] {
+        let calendar = previewCalendar
+        let components = calendar.dateComponents([.year, .month], from: selectedDate)
+        guard let firstOfMonth = calendar.date(from: components) else { return [] }
+        let weekday = calendar.component(.weekday, from: firstOfMonth)
+        let offset = (weekday - firstWeekday + 7) % 7
+        guard let start = calendar.date(byAdding: .day, value: -offset, to: firstOfMonth) else { return [] }
+        let eventsByDay = Dictionary(grouping: previewEvents) { calendar.startOfDay(for: $0.startDate) }
+        return (0..<42).compactMap { index in
+            guard let date = calendar.date(byAdding: .day, value: index, to: start) else { return nil }
+            let dayStart = calendar.startOfDay(for: date)
+            let weekday = calendar.component(.weekday, from: date)
+            return CalendarDay(date: date,
+                              isToday: calendar.isDate(date, inSameDayAs: SettingsPreviewSamples.date),
+                              isWeekend: weekday == 1 || weekday == 7,
+                              events: eventsByDay[dayStart] ?? [])
+        }
+    }
 
     var body: some View {
         Group {
             if previewOnly {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("2026 年 11 月 14 日").font(.system(size: size == nil ? 18 : 11)).lineLimit(1)
-                    previewEvent(0, title: "14:00 项目同步")
-                    if size == nil || size?.rows == 2 {
-                        previewEvent(1, title: "16:30 设计评审")
-                    }
-                    if size == nil {
-                        Button("复制日期") { controller.feedback = "日期复制预览" }.buttonStyle(IslandButtonStyle())
-                    }
-                }
+                let days = sampleDays
+                IslandLiveCalendarContent.calendarLayout(
+                    controller: controller, selectedDate: selectedDate, size: size,
+                    firstWeekday: firstWeekday, calendar: previewCalendar, days: days,
+                    events: days.first(where: { previewCalendar.isDate($0.date, inSameDayAs: selectedDate) })?.events ?? [],
+                    isAuthorized: true, authorizationHint: nil,
+                    onSelectDate: { selectedDate = $0 },
+                    onMoveDay: { movePreviewDate(.day, by: $0) },
+                    onMoveMonth: { movePreviewDate(.month, by: $0) },
+                    onToday: { selectedDate = SettingsPreviewSamples.date },
+                    onCopyDate: copySelectedDate
+                )
             } else {
-                IslandLiveCalendarContent(controller: controller, selectedDate: $selectedDate, size: size)
+                IslandLiveCalendarContent(controller: controller, selectedDate: $selectedDate,
+                                          size: size, firstWeekday: firstWeekday,
+                                          onCopyDate: copySelectedDate)
+            }
+        }
+        .onAppear { if previewOnly { sampleDays = previewDays } }
+        .onChange(of: firstWeekday) { _ in if previewOnly { sampleDays = previewDays } }
+        .onChange(of: selectedDate) { date in
+            if previewOnly, let anchor = sampleDays.dropFirst(14).first,
+               !previewCalendar.isDate(anchor.date, equalTo: date, toGranularity: .month) {
+                sampleDays = previewDays
             }
         }
     }
 
-    private func previewEvent(_ index: Int, title: String) -> some View {
-        Button {
-            if controller.completedEvents.contains(index) { controller.completedEvents.remove(index) }
-            else { controller.completedEvents.insert(index) }
-        } label: {
-            Label(title, systemImage: controller.completedEvents.contains(index) ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 11))
-        }.buttonStyle(IslandButtonStyle())
+    private func movePreviewDate(_ component: Calendar.Component, by value: Int) {
+        if let date = previewCalendar.date(byAdding: component, value: value, to: selectedDate) {
+            selectedDate = date
+        }
+    }
+
+    private func copySelectedDate() {
+        let value = selectedDate.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        if previewOnly {
+            controller.feedback = "日期复制预览"
+        } else {
+            controller.feedback = ClipboardManager.shared.copyText(value, successMessage: "已复制日期 " + value)
+                ?? "已复制日期 " + value
+        }
     }
 }
 
@@ -611,111 +726,266 @@ private struct IslandLiveCalendarContent: View {
     @ObservedObject var controller: IslandController
     @Binding var selectedDate: Date
     var size: IslandWidgetSize?
+    let firstWeekday: Int
+    let onCopyDate: () -> Void
     @ObservedObject private var calendar = CalendarService.shared
-    @AppStorage(Preferences.Keys.calendarFirstWeekday) private var firstWeekday = 1
     @Stored private var days: [CalendarDay] = []
     @Stored private var events: [CalendarEvent] = []
 
+    private var usesMonthGrid: Bool { size == nil || size == .square }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if size == nil {
-                HStack {
-                    Button { moveMonth(-1) } label: { Image(systemName: "chevron.left") }
-                    Text(CalendarService.monthTitle(selectedDate)).font(.system(size: 14, weight: .medium))
-                    Button { moveMonth(1) } label: { Image(systemName: "chevron.right") }
-                    Spacer()
-                    Button("今天") { selectedDate = Date.now; reload() }
-                }.buttonStyle(IslandButtonStyle())
-                HStack(alignment: .top, spacing: 12) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 7), spacing: 3) {
-                        ForEach(0..<7) { index in
-                            let weekday = (index + firstWeekday - 1) % 7
-                            Text(["日", "一", "二", "三", "四", "五", "六"][weekday])
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(weekday == 0 || weekday == 6 ? .secondary : .primary)
-                                .frame(maxWidth: .infinity)
-                        }
-                        ForEach(days) { day in
-                            Button {
-                                let monthChanged = !Calendar.current.isDate(day.date, equalTo: selectedDate, toGranularity: .month)
-                                selectedDate = day.date
-                                if monthChanged { reload() } else { reloadEvents() }
-                            } label: {
-                                VStack(spacing: 2) {
-                                    Text(day.date.formatted(.dateTime.day())).font(.system(size: 11, weight: day.isToday ? .bold : .regular))
-                                    Text(day.holidayText ?? day.lunarText ?? "")
-                                        .font(.system(size: 9)).lineLimit(1).foregroundStyle(.secondary)
-                                }
-                                    .foregroundStyle(day.isWeekend || !Calendar.current.isDate(day.date, equalTo: selectedDate, toGranularity: .month) ? .secondary : .primary)
-                                    .frame(maxWidth: .infinity).frame(height: 33)
-                                    .background(Calendar.current.isDate(day.date, inSameDayAs: selectedDate)
-                                                ? controller.configuration.color(for: .calendar).opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
-                            }.buttonStyle(IslandButtonStyle())
-                        }
-                    }.frame(maxWidth: .infinity)
-                    ScrollView { eventList }.frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                Button("复制所选日期") {
-                    let value = selectedDate.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-                    controller.feedback = ClipboardManager.shared.copyText(value, successMessage: "已复制日期 " + value) ?? "已复制日期 " + value
-                }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
-            } else if size?.columns == 4 {
-                HStack(spacing: 12) {
-                    Text(Date.now.formatted(.dateTime.month().day())).font(.system(size: 11))
-                    eventList
-                }
-            } else {
-                Text(Date.now.formatted(.dateTime.month().day())).font(.system(size: 11))
-                if size?.rows == 2 { eventList }
-            }
-        }
+        Self.calendarLayout(
+            controller: controller, selectedDate: selectedDate, size: size,
+            firstWeekday: firstWeekday, calendar: CalendarService.calendar(firstWeekday: firstWeekday),
+            days: days, events: events,
+            isAuthorized: calendar.isAuthorized, authorizationHint: calendar.authorizationHint,
+            onSelectDate: selectDate,
+            onMoveDay: { moveDate(.day, by: $0) },
+            onMoveMonth: { moveDate(.month, by: $0) },
+            onToday: { selectedDate = Date.now; reload() },
+            onCopyDate: onCopyDate
+        )
         .onAppear { reload() }
+        .onChange(of: size) { _ in reload() }
         .onChange(of: firstWeekday) { _ in reload() }
         .onChange(of: calendar.isAuthorized) { _ in reload() }
         .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in reload() }
     }
 
-    private var eventList: some View {
-        Group {
-            if let hint = calendar.authorizationHint {
-                Text(hint).font(.system(size: 10)).foregroundStyle(.secondary)
-            } else if events.isEmpty {
-                Text(calendar.isAuthorized ? "暂无日程" : "日历尚未授权").font(.system(size: 11)).foregroundStyle(.secondary)
-            } else if size?.columns == 4 {
+    fileprivate static func calendarLayout(
+        controller: IslandController, selectedDate: Date, size: IslandWidgetSize?,
+        firstWeekday: Int, calendar: Calendar, days: [CalendarDay], events: [CalendarEvent],
+        isAuthorized: Bool, authorizationHint: String?,
+        onSelectDate: @escaping (Date) -> Void,
+        onMoveDay: @escaping (Int) -> Void,
+        onMoveMonth: @escaping (Int) -> Void,
+        onToday: @escaping () -> Void,
+        onCopyDate: @escaping () -> Void
+    ) -> some View {
+        let accent = controller.configuration.color(for: .calendar)
+        return Group {
+            if size == nil {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Button { onMoveMonth(-1) } label: { Image(systemName: "chevron.left") }
+                        Text(monthTitle(selectedDate)).font(.system(size: 14, weight: .medium))
+                        Button { onMoveMonth(1) } label: { Image(systemName: "chevron.right") }
+                        Spacer()
+                        Button("今天", action: onToday)
+                    }.buttonStyle(IslandButtonStyle())
+                    HStack(alignment: .top, spacing: 12) {
+                        monthGrid(days: days, selectedDate: selectedDate, calendar: calendar,
+                                  firstWeekday: firstWeekday, accent: accent, compact: false,
+                                  onSelectDate: onSelectDate)
+                            .frame(maxWidth: .infinity)
+                        ScrollView {
+                            eventRows(events, isAuthorized: isAuthorized,
+                                      authorizationHint: authorizationHint, limit: nil, compact: false)
+                        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    HStack {
+                        Text(fullDate(selectedDate)).font(.system(size: 11)).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("复制所选日期", action: onCopyDate)
+                            .font(.system(size: 11)).buttonStyle(IslandButtonStyle())
+                    }
+                }
+            } else if size == .small {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(monthDay(selectedDate)).font(.system(size: 17, weight: .semibold))
+                        Text(weekdayTitle(selectedDate)).font(.system(size: 10)).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 2)
+                    HStack(spacing: 2) {
+                        Button { onMoveDay(-1) } label: { Image(systemName: "chevron.left") }
+                            .help("前一天")
+                        Button(action: onCopyDate) { Image(systemName: "doc.on.doc") }
+                            .help("复制日期")
+                        Button { onMoveDay(1) } label: { Image(systemName: "chevron.right") }
+                            .help("后一天")
+                    }.buttonStyle(IslandButtonStyle())
+                }
+            } else if size == .wide {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(monthDay(selectedDate)).font(.system(size: 14, weight: .medium))
+                        Text(weekdayTitle(selectedDate)).font(.system(size: 10)).foregroundStyle(.secondary)
+                    }
+                    Rectangle().fill(.white.opacity(0.12)).frame(width: 1).padding(.vertical, 10)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("日程摘要").font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                        eventRows(events, isAuthorized: isAuthorized,
+                                  authorizationHint: authorizationHint, limit: 2, compact: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+            } else if size == .tall {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack {
+                        Text(fullDate(selectedDate)).font(.system(size: 11, weight: .medium))
+                        Spacer()
+                        Button(action: onCopyDate) { Image(systemName: "doc.on.doc") }
+                            .help("复制日期")
+                    }.buttonStyle(IslandButtonStyle())
+                    eventRows(events, isAuthorized: isAuthorized,
+                              authorizationHint: authorizationHint, limit: 4, compact: true)
+                    Spacer(minLength: 0)
+                }
+            } else if size == .strip {
                 HStack(spacing: 12) {
-                    ForEach(Array(events.prefix(3))) { event in eventRow(event) }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(monthDay(selectedDate)).font(.system(size: 13, weight: .medium))
+                        Text(weekdayTitle(selectedDate)).font(.system(size: 10)).foregroundStyle(.secondary)
+                    }
+                    Rectangle().fill(.white.opacity(0.12)).frame(width: 1).padding(.vertical, 8)
+                    if events.isEmpty {
+                        eventRows(events, isAuthorized: isAuthorized,
+                                  authorizationHint: authorizationHint, limit: 0, compact: true)
+                    } else {
+                        HStack(alignment: .top, spacing: 14) {
+                            ForEach(Array(events.prefix(3))) { event in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(event.title).font(.system(size: 11)).lineLimit(1)
+                                    Text(eventTime(event)).font(.system(size: 10)).foregroundStyle(.secondary)
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
                 }
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(events.prefix(size == nil ? events.count : 2))) { event in eventRow(event) }
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Button { onMoveMonth(-1) } label: { Image(systemName: "chevron.left") }
+                        Text(monthTitle(selectedDate)).font(.system(size: 11, weight: .medium))
+                        Button { onMoveMonth(1) } label: { Image(systemName: "chevron.right") }
+                        Spacer(minLength: 0)
+                        Button(action: onCopyDate) { Image(systemName: "doc.on.doc") }
+                            .help("复制日期")
+                    }.buttonStyle(IslandButtonStyle())
+                    monthGrid(days: days, selectedDate: selectedDate, calendar: calendar,
+                              firstWeekday: firstWeekday, accent: accent, compact: true,
+                              onSelectDate: onSelectDate)
+                    HStack(spacing: 6) {
+                        Text(fullDate(selectedDate)).font(.system(size: 9)).foregroundStyle(.secondary)
+                        if let event = events.first {
+                            Text(event.title).font(.system(size: 9)).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                    }
                 }
             }
         }
     }
 
-    private func eventRow(_ event: CalendarEvent) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(event.title).font(.system(size: 11)).lineLimit(size == nil ? nil : 1)
-            Text(event.isAllDay ? "全天" : event.startDate.formatted(.dateTime.hour().minute()))
-                .font(.system(size: 10)).foregroundStyle(.secondary)
+    private static func monthGrid(
+        days: [CalendarDay], selectedDate: Date, calendar: Calendar,
+        firstWeekday: Int, accent: Color, compact: Bool,
+        onSelectDate: @escaping (Date) -> Void
+    ) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: compact ? 1 : 3), count: 7),
+                  spacing: compact ? 1 : 3) {
+            ForEach(0..<7, id: \.self) { index in
+                let weekday = (index + firstWeekday - 1) % 7
+                Text(["日", "一", "二", "三", "四", "五", "六"][weekday])
+                    .font(.system(size: compact ? 8 : 10, weight: .medium))
+                    .foregroundStyle(weekday == 0 || weekday == 6 ? .secondary : .primary)
+                    .frame(maxWidth: .infinity)
+            }
+            ForEach(days) { day in
+                let inMonth = calendar.isDate(day.date, equalTo: selectedDate, toGranularity: .month)
+                let selected = calendar.isDate(day.date, inSameDayAs: selectedDate)
+                Button { onSelectDate(day.date) } label: {
+                    VStack(spacing: compact ? 0 : 2) {
+                        Text(day.date.formatted(.dateTime.day()))
+                            .font(.system(size: compact ? 9 : 11, weight: day.isToday ? .bold : .regular))
+                        if compact {
+                            Circle().fill(day.events.isEmpty ? Color.clear : accent)
+                                .frame(width: 3, height: 3)
+                        } else {
+                            Text(day.holidayText ?? day.lunarText ?? "")
+                                .font(.system(size: 9)).lineLimit(1).foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundStyle(day.isWeekend || !inMonth ? .secondary : .primary)
+                    .frame(maxWidth: .infinity).frame(height: compact ? 18 : 31)
+                    .background(selected ? accent.opacity(0.2) : .clear,
+                                in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
+                }.buttonStyle(IslandButtonStyle())
+            }
         }
     }
 
-    private func moveMonth(_ step: Int) {
-        if let date = Calendar.current.date(byAdding: .month, value: step, to: selectedDate) { selectedDate = date; reload() }
+    private static func eventRows(
+        _ events: [CalendarEvent], isAuthorized: Bool, authorizationHint: String?,
+        limit: Int?, compact: Bool
+    ) -> some View {
+        Group {
+            if let authorizationHint {
+                Text(authorizationHint).font(.system(size: 10)).foregroundStyle(.secondary)
+            } else if events.isEmpty {
+                Text(isAuthorized ? "暂无日程" : "日历尚未授权")
+                    .font(.system(size: compact ? 10 : 11)).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: compact ? 4 : 8) {
+                    ForEach(Array(events.prefix(limit ?? events.count))) { event in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(eventTime(event)).font(.system(size: 10)).foregroundStyle(.secondary)
+                            Text(event.title).font(.system(size: compact ? 10 : 11))
+                                .lineLimit(compact ? 1 : nil)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func monthTitle(_ date: Date) -> String {
+        date.formatted(.dateTime.year().month().locale(Locale(identifier: "zh_CN")))
+    }
+
+    private static func monthDay(_ date: Date) -> String {
+        date.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_CN")))
+    }
+
+    private static func weekdayTitle(_ date: Date) -> String {
+        date.formatted(.dateTime.weekday(.wide).locale(Locale(identifier: "zh_CN")))
+    }
+
+    private static func fullDate(_ date: Date) -> String {
+        date.formatted(.dateTime.year().month().day().weekday(.wide).locale(Locale(identifier: "zh_CN")))
+    }
+
+    private static func eventTime(_ event: CalendarEvent) -> String {
+        event.isAllDay ? "全天" : event.startDate.formatted(.dateTime.hour().minute())
+    }
+
+    private func selectDate(_ date: Date) {
+        let monthChanged = !Calendar.current.isDate(date, equalTo: selectedDate, toGranularity: .month)
+        selectedDate = date
+        if monthChanged { reload() } else { reloadEvents() }
+    }
+
+    private func moveDate(_ component: Calendar.Component, by value: Int) {
+        if let date = Calendar.current.date(byAdding: component, value: value, to: selectedDate) {
+            selectedDate = date
+            reload()
+        }
     }
 
     private func reload() {
-        if size == nil { days = calendar.monthDays(for: selectedDate, firstWeekday: firstWeekday) }
+        if usesMonthGrid { days = calendar.monthDays(for: selectedDate, firstWeekday: firstWeekday) }
         reloadEvents()
     }
 
     private func reloadEvents() {
-        if size == nil, let day = days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) {
+        if usesMonthGrid, let day = days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }) {
             events = day.events
             return
         }
-        let start = Calendar.current.startOfDay(for: size == nil ? selectedDate : Date.now)
+        let start = Calendar.current.startOfDay(for: selectedDate)
         if let end = Calendar.current.date(byAdding: .day, value: 1, to: start) {
             events = calendar.events(from: start, to: end)
         }

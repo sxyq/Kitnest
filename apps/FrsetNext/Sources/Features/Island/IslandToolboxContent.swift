@@ -1,15 +1,62 @@
+import AppKit
 import SwiftUI
+
+/// 首页五档快捷目录只选择原工具，不执行工具或创建独立窗口。
+struct IslandToolboxShortcuts: View {
+    @ObservedObject var controller: IslandController
+    let previewOnly: Bool
+    let size: IslandWidgetSize
+    @Binding var selectedTool: String?
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+
+    private var tools: [ToolDescriptor] {
+        if previewOnly || controller.previewOnly || isSettingsPreview {
+            return IslandToolboxContent.previewTools
+        }
+        return ToolRegistry.enabledTools
+    }
+
+    var body: some View {
+        let limit = size == .small ? 1 : size == .wide ? 2 : size == .square ? 6 : 4
+        Group {
+            if tools.isEmpty {
+                Text("暂无已启用工具").font(.system(size: 11)).foregroundStyle(.secondary)
+            } else if size == .strip {
+                HStack(spacing: 8) { ForEach(Array(tools.prefix(limit))) { shortcut($0) } }
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6),
+                                             count: size == .square ? 2 : 1), alignment: .leading, spacing: 6) {
+                        ForEach(Array(tools.prefix(limit))) { shortcut($0) }
+                    }
+                }
+            }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// 进入选定工具详情，按尺寸展示名称或说明，不执行工具。
+    private func shortcut(_ tool: ToolDescriptor) -> some View {
+        Button { selectedTool = tool.id; controller.page = .tools } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Label(tool.name, systemImage: tool.systemImage).lineLimit(1)
+                if size == .square || size == .tall {
+                    Text(tool.toolDescription).foregroundStyle(.secondary).lineLimit(2)
+                }
+            }.font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
+        }.buttonStyle(IslandButtonStyle()).help("打开工具：" + tool.name)
+    }
+}
 
 /// 刘海的全部功能目录；工具内容直接嵌入正式运行面板。
 struct IslandToolboxContent: View {
+    static var previewTools: [ToolDescriptor] {
+        ["json", "uuid", "timestamp", "base64", "urlencode", "deduplicate"].compactMap { ToolRegistry.tool(id: $0) }
+    }
     @ObservedObject var controller: IslandController
     let previewOnly: Bool
     @Binding var selectedTool: String?
     /// Root 在文件面板显示期间保留本页挂载，避免收起刘海丢失输入。
     var onFileDialog: ((Bool) -> Void)? = nil
-    @Stored private var query = ""
-    @Stored private var category: ToolCategory? = nil
-    @Stored private var previewResultVisible = false
     @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     private var preview: Bool { previewOnly || controller.previewOnly || isSettingsPreview }
@@ -25,21 +72,22 @@ struct IslandToolboxContent: View {
     }
 
     var body: some View {
-        let tools = ToolRegistry.enabledTools
+        let tools = preview ? Self.previewTools : ToolRegistry.enabledTools
         let selected = tools.first { $0.id == selectedTool }
+        GeometryReader { geometry in
         HStack(spacing: Theme.Space.md) {
             directory(tools)
-                .frame(width: 200)
+                .frame(width: min(200, max(110, geometry.size.width * 0.32)))
             Group {
-                if preview {
-                    previewContent(selected)
-                } else if let selected {
+                if let selected {
                     ToolRunnerView(tool: selected,
+                                   initialInput: controller.toolInputs[selected.id] ?? (preview ? (selected.inputKind == .filePath ? "设计资料/首页说明.png" : IslandSample.clipboard[2].body) : ""),
                                    intent: selected.id == "deduplicate" ? .preview : .standard,
                                    compact: true, onFileDialog: { isOpen in
-                                       if !isOpen { controller.expand(takeFocus: true) }
+                                       if !isOpen { controller.resumeAfterOutside() }
                                        onFileDialog?(isOpen)
-                                   })
+                                   }, presentFileDialog: { controller.performOutside($0) },
+                                   onInputChange: { controller.toolInputs[selected.id] = $0 })
                         .id(selected.id)
                 } else {
                     VStack(spacing: Theme.Space.md) {
@@ -54,28 +102,28 @@ struct IslandToolboxContent: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
         }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .tint(tint)
         .environment(\.colorScheme, .dark)
-        .onChange(of: selectedTool) { _ in previewResultVisible = false }
     }
 
     private func directory(_ tools: [ToolDescriptor]) -> some View {
         let visible = tools.filter { tool in
-            (category == nil || tool.category == category) &&
-                (query.isEmpty || [tool.name, tool.keyword, tool.toolDescription]
-                    .contains { $0.localizedCaseInsensitiveContains(query) })
+            (controller.toolCategory == nil || tool.category == controller.toolCategory) &&
+                (controller.toolQuery.isEmpty || [tool.name, tool.keyword, tool.toolDescription]
+                    .contains { $0.localizedCaseInsensitiveContains(controller.toolQuery) })
         }
-        let visiblePages = pages.filter { query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) }
+        let visiblePages = pages.filter { controller.toolQuery.isEmpty || $0.title.localizedCaseInsensitiveContains(controller.toolQuery) }
         return VStack(alignment: .leading, spacing: Theme.Space.sm) {
-            TextField("搜索工具", text: $query)
+            TextField("搜索工具", text: $controller.toolQuery)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: Theme.TextSize.small))
                 .onSubmit {
                     if let tool = visible.first { selectedTool = tool.id }
                     else if let page = visiblePages.first { controller.page = page }
                 }
-            Picker("分类", selection: $category) {
+            Picker("分类", selection: $controller.toolCategory) {
                 Text("全部工具").tag(Optional<ToolCategory>.none)
                 ForEach(ToolCategory.allCases, id: \.self) { item in
                     Text(item.title).tag(Optional(item))
@@ -125,38 +173,5 @@ struct IslandToolboxContent: View {
         }
     }
 
-    // 设置预览复用现有固定示例，只演示布局；不创建运行面板和 ToolOutput。
-    private func previewContent(_ tool: ToolDescriptor?) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Space.md) {
-                Label(tool?.name ?? "工具布局预览", systemImage: tool?.systemImage ?? "curlybraces")
-                    .font(.system(size: Theme.TextSize.body, weight: .semibold))
-                Text("设置预览 · 固定演示内容")
-                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
-                Text(IslandSample.clipboard[2].body)
-                    .font(.system(size: Theme.TextSize.small, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Theme.Space.sm)
-                    .background(Theme.rowHoverFill, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-                if let tool {
-                    ForEach(tool.options) { option in
-                        HStack {
-                            Text(option.title)
-                            Spacer()
-                            Text(option.choices[option.defaultIndex]).foregroundStyle(.secondary)
-                        }.font(.system(size: Theme.TextSize.caption))
-                    }
-                }
-                Button("执行预览") { previewResultVisible = true }.buttonStyle(IslandButtonStyle())
-                if previewResultVisible {
-                    Text("结果区域 · " + IslandSample.clipboard[2].title)
-                        .font(.system(size: Theme.TextSize.small))
-                    HStack {
-                        Button("复制预览") { controller.feedback = "预览：复制结果" }
-                        Button("保存预览") { controller.feedback = "预览：存为剪贴板条目" }
-                    }.buttonStyle(IslandButtonStyle())
-                }
-            }.padding(Theme.Space.md)
-        }
-    }
 }
+

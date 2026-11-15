@@ -865,7 +865,7 @@ enum SettingsPreviewSamples {
     }()
 }
 
-private struct AppearancePreviewVisibilityKey: PreferenceKey {
+struct AppearancePreviewVisibilityKey: PreferenceKey {
     static let defaultValue = true
     static func reduce(value: inout Bool, nextValue: () -> Bool) { value = nextValue() }
 }

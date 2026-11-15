@@ -130,6 +130,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     private var trackedPreviewItemMinYByID: [String: CGFloat] = [:]
     private var pendingPreviewVisibilityValidationTargetID: String?
     public private(set) var activeItemID: String?
+    private var restoreAfterHover: (() -> Bool)?
     private var activeSource: PreviewPopoverContentModel.Source = .mainPreview
 
     /// 面板收起前是否等待预览关闭（P8 waitsForPreviewClose；PanelController.hide() 依赖）
@@ -170,6 +171,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                         sourceWindow: NSWindow? = nil) -> Bool {
         cancelHoverWorkItems()
         cancelKeyboardPreview()
+        restoreAfterHover = nil
         activeSource = source
 
         let panelFrame: CGRect
@@ -293,7 +295,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                          item: ClipboardItem,
                          source: PreviewPopoverContentModel.Source = .mainPreview,
                          anchorProvider: @escaping () -> CGRect?,
-                         sourceWindow: NSWindow? = nil) {
+                         sourceWindow: NSWindow? = nil,
+                         restoreSelection: (() -> Bool)? = nil) {
         // F2 总开关（默认开启：defaults 实测键无落盘值）
         let key = source == .mainPreview
             ? Preferences.Keys.hoverPreviewInMainWindowEnabled
@@ -318,6 +321,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                     self.present(for: item, source: source,
                                  anchorRectInScreen: sourceWindow.convertToScreen(rect), sourceWindow: sourceWindow)
                 } else { self.present(for: item, anchorRectInWindow: rect, source: source) }
+                self.restoreAfterHover = restoreSelection
             }
             hoverPreviewOpenWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + hoverPreviewOpenDelay, execute: work)
@@ -546,7 +550,9 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                 self.scheduleHoverClose()
                 return
             }
-            self.dismiss(reason: .hoverOut)
+            let restore = self.restoreAfterHover
+            self.restoreAfterHover = nil
+            if restore?() != true { self.dismiss(reason: .hoverOut) }
         }
         hoverPreviewCloseWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + hoverPreviewCloseDelay, execute: work)
@@ -574,6 +580,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         self.slot = nil
         presentingWindow = nil
         activeItemID = nil
+        restoreAfterHover = nil
         isPreviewPopoverHovered = false
         trackedPreviewItemMinYByID.removeAll()
         pendingPreviewVisibilityValidationTargetID = nil

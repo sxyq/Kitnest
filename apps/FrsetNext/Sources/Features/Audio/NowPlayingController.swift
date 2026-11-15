@@ -56,7 +56,7 @@ final class NowPlayingController: ObservableObject {
             timer?.invalidate(); timer = nil
             process?.terminate(); process = nil
             artworkTask?.cancel(); artworkTask = nil
-            snapshot = Snapshot(); artwork = nil
+            // 切页或收回只释放刷新工作，保留过渡正文使用的当前曲目与封面。
         }
     }
 
@@ -102,7 +102,8 @@ final class NowPlayingController: ObservableObject {
                     if action != "read" {
                         self.feedback = next.commandAccepted == true ? "" : "播放器未接受该操作"
                     }
-                    if changed { self.loadArtwork(next) }
+                    // 上次隐藏时若取消了尚未完成的封面读取，重新可见后继续读取同一封面。
+                    if changed || (self.artwork == nil && self.artworkTask == nil && next.artworkURL != nil) { self.loadArtwork(next) }
                 } catch {
                     self.artworkTask?.cancel()
                     self.snapshot = Snapshot()

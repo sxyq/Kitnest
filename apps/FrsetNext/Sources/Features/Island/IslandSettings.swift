@@ -27,21 +27,35 @@ enum IslandPage: String, CaseIterable, Identifiable {
     }
 }
 
+enum IslandMaterial: String, Codable, CaseIterable, Identifiable {
+    case liquidGlass, frosted, solid
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .liquidGlass: return "原生液态玻璃"
+        case .frosted: return "毛玻璃"
+        case .solid: return "纯色"
+        }
+    }
+}
+
 struct IslandConfiguration: Codable, Equatable {
     static let key = "island.configuration"
     var enabled = true
-    var width: CGFloat = 680
-    var height: CGFloat = 420
+    var width: CGFloat = 780
+    var height: CGFloat = 480
     var gridColumns: Int? = nil
     var gridRows: Int? = nil
     var columns: Int { gridColumns ?? 4 }
     var rows: Int { gridRows ?? 2 }
-    var minimumWidth: CGFloat { CGFloat(columns) * 144 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
+    var minimumWidth: CGFloat { CGFloat(columns) * 144 + CGFloat(columns - 1) * 8 + IslandLayout.horizontalInset * 2 }
     var minimumHeight: CGFloat { CGFloat(rows) * 112 + CGFloat(rows - 1) * 8 + 176 }
     var hoverEnabled = true
     var hoverDelay = 0.10
     var collapseDelay = 0.18
     var usesGlass = true
+    var material: IslandMaterial? = nil
+    var effectiveMaterial: IslandMaterial { material ?? (usesGlass ? .liquidGlass : .solid) }
     var opacity = 0.32
     var glowEnabled = true
     var visiblePeeks = Set<IslandPeek>()
@@ -49,14 +63,19 @@ struct IslandConfiguration: Codable, Equatable {
     var peeksQuickActions = true
     var peekOrder = IslandPeek.allCases
     var widgetOrder = IslandWidget.allCases
-    var hiddenWidgets = Set<IslandWidget>()
+    var hiddenWidgets = Set<IslandWidget>([.search, .capture, .recording, .ocr, .transfer,
+                                          .cast, .ai, .statistics, .archive, .downloads])
     var widgetSizes: [String: IslandWidgetSize] = [:]
     var widgetColors: [String: String] = [:]
     var metricOrder = IslandMetric.allCases
     var metricColors: [String: String] = [:]
 
+    /// 返回保存的行 × 列档位；画布适配只影响 size(for:) 的显示结果。
+    func requestedSize(for widget: IslandWidget) -> IslandWidgetSize {
+        widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .wide : .small)
+    }
     func size(for widget: IslandWidget) -> IslandWidgetSize {
-        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .wide : .small)
+        let size = requestedSize(for: widget)
         if rows == 1 && size.rows == 2 { return size.columns == 1 ? .small : .wide }
         return size.columns > columns ? .wide : size
     }
@@ -104,6 +123,14 @@ enum IslandPeek: String, CaseIterable, Codable, Identifiable {
         case .media: return "music.note"
         case .calendar: return "calendar"
         case .monitor: return "bolt"
+        }
+    }
+    var quickActionTitle: String {
+        switch self {
+        case .clipboard: return "复制最近一条"
+        case .media: return "播放／暂停"
+        case .calendar: return "复制今天日期"
+        case .monitor: return "打开功耗监测"
         }
     }
     var page: IslandPage {
@@ -246,9 +273,10 @@ extension Array where Element: Equatable {
 
 enum IslandLayout {
     static let inset: CGFloat = Theme.Space.lg
-    static let corner: CGFloat = 24
+    static let corner: CGFloat = 28
+    static let horizontalInset = inset + corner * 0.45
     static let collapsedRadius: CGFloat = Theme.Radius.chip
-    static let cardRadius: CGFloat = Theme.Radius.card
+    static let cardRadius: CGFloat = corner - inset
     static let controlRadius: CGFloat = Theme.Radius.control
     static let tint = NSColor.black.withAlphaComponent(0.32)
     static let cardFill = Color.white.opacity(0.035)

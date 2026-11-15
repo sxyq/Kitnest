@@ -28,7 +28,7 @@ public struct MarkdownText: View {
 
 // MARK: - 消息气泡
 
-private struct ChatBubble: View {
+struct ChatBubble: View {
     let role: LLMMessage.Role
     let content: String
     var isStreaming: Bool = false

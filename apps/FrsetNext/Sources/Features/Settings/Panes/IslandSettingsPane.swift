@@ -13,6 +13,7 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         didSet { updatePreview() }
     }
     private var saved: IslandConfiguration
+    private var restoringDefaults = false
     let previewController: IslandController
 
     init() {
@@ -20,7 +21,7 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         self.configuration = configuration
         saved = configuration
         previewController = IslandController(configuration: configuration, previewOnly: true)
-        previewController.expanded = true
+        previewController.expand()
         previewController.layoutDidChange = { [weak self] value in
             guard let self else { return }
             var configuration = self.configuration
@@ -31,17 +32,64 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         }
     }
 
-    var isDirty: Bool { configuration != saved }
+    var isDirty: Bool { restoringDefaults || configuration != saved }
 
     func save() -> String? {
-        if let reason = IslandController.shared.apply(configuration) { return reason }
-        saved = configuration
-        objectWillChange.send()
+        var next = IslandController.shared.configuration
+        if restoringDefaults {
+            next = configuration
+        } else {
+            // 草稿未改的字段保留正式现场；字典仅覆盖本次改变的键。
+            func merge<Value: Equatable>(_ field: WritableKeyPath<IslandConfiguration, Value>) {
+                if configuration[keyPath: field] != saved[keyPath: field] {
+                    next[keyPath: field] = configuration[keyPath: field]
+                }
+            }
+            func mergeKeys<Value: Equatable>(_ field: WritableKeyPath<IslandConfiguration, [String: Value]>) {
+                let values = configuration[keyPath: field], original = saved[keyPath: field]
+                for key in Set(values.keys).union(original.keys) where values[key] != original[key] {
+                    next[keyPath: field][key] = values[key]
+                }
+            }
+            merge(\.enabled)
+            merge(\.width)
+            merge(\.height)
+            merge(\.gridColumns)
+            merge(\.gridRows)
+            merge(\.hoverEnabled)
+            merge(\.hoverDelay)
+            merge(\.collapseDelay)
+            merge(\.usesGlass)
+            merge(\.material)
+            merge(\.opacity)
+            merge(\.glowEnabled)
+            merge(\.visiblePeeks)
+            merge(\.peeksShowValues)
+            merge(\.peeksQuickActions)
+            merge(\.peekOrder)
+            merge(\.widgetOrder)
+            merge(\.hiddenWidgets)
+            mergeKeys(\.widgetSizes)
+            mergeKeys(\.widgetColors)
+            merge(\.metricOrder)
+            mergeKeys(\.metricColors)
+        }
+        if let reason = IslandController.shared.apply(next) { return reason }
+        saved = next
+        restoringDefaults = false
+        configuration = next
         return nil
     }
 
-    func discard() { configuration = saved }
-    func restoreDefaults() { configuration = IslandConfiguration() }
+    func discard() {
+        saved = IslandController.shared.configuration
+        restoringDefaults = false
+        configuration = saved
+    }
+    func restoreDefaults() {
+        restoringDefaults = true
+        configuration = IslandConfiguration()
+    }
 
     func updatePreview() { _ = previewController.apply(configuration) }
 
@@ -49,8 +97,6 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         var next = configuration
         next.gridColumns = columns
         next.gridRows = rows
-        next.width = max(next.width, next.minimumWidth)
-        next.height = max(next.height, next.minimumHeight)
         configuration = next
     }
 }
@@ -69,9 +115,7 @@ private struct IslandSettingsContent: View {
             }
             canvas
             SettingsSection("实时预览") {
-                SettingsGroupBox {
-                    IslandSettingsPreview(draft: draft, controller: draft.previewController)
-                }
+                IslandSettingsPreview(draft: draft, controller: draft.previewController)
             }
             appearance
             peeks
@@ -98,14 +142,14 @@ private struct IslandSettingsContent: View {
                     }.labelsHidden().frame(width: 90)
                 }
                 SettingsDivider()
-                SettingsRow(title: "展开尺寸", subtitle: "单格至少 144 × 112pt，顶部导航预留 176pt；调整只更新预览") {
+                SettingsRow(title: "展开尺寸", subtitle: "保留输入值；显示时按单格至少 144 × 112pt、顶部预留 176pt及屏幕边缘适配") {
                     Text("宽")
-                    TextField("宽度", value: Binding(get: { Double(max(draft.configuration.width, draft.configuration.minimumWidth)) },
-                        set: { draft.configuration.width = max(CGFloat($0), draft.configuration.minimumWidth) }),
+                    TextField("宽度", value: Binding(get: { Double(draft.configuration.width) },
+                        set: { draft.configuration.width = CGFloat($0) }),
                         format: .number.precision(.fractionLength(0))).frame(width: 64)
                     Text("高")
-                    TextField("高度", value: Binding(get: { Double(max(draft.configuration.height, draft.configuration.minimumHeight)) },
-                        set: { draft.configuration.height = max(CGFloat($0), draft.configuration.minimumHeight) }),
+                    TextField("高度", value: Binding(get: { Double(draft.configuration.height) },
+                        set: { draft.configuration.height = CGFloat($0) }),
                         format: .number.precision(.fractionLength(0))).frame(width: 64)
                     Text("pt").foregroundStyle(.secondary)
                 }
@@ -116,10 +160,17 @@ private struct IslandSettingsContent: View {
     private var appearance: some View {
         SettingsSection("材质与悬停") {
             SettingsGroupBox {
-                SettingsRow(title: "黑色玻璃") {
-                    Toggle("黑色玻璃", isOn: $draft.configuration.usesGlass).labelsHidden()
+                SettingsRow(title: "外壳材质", subtitle: "原生液态玻璃需 macOS 26；旧系统使用毛玻璃，减少透明度时使用纯色") {
+                    Picker("外壳材质", selection: Binding(
+                        get: { draft.configuration.effectiveMaterial },
+                        set: { draft.configuration.material = $0 }
+                    )) {
+                        ForEach(IslandMaterial.allCases) { material in
+                            Text(material.title).tag(material)
+                        }
+                    }.labelsHidden().frame(width: 160)
                 }
-                SettingsRow(title: "黑色玻璃通透度") {
+                SettingsRow(title: "外壳通透度") {
                     Slider(value: Binding(
                         get: { 1 - draft.configuration.opacity },
                         set: { draft.configuration.opacity = 1 - $0 }
@@ -178,10 +229,13 @@ private struct IslandSettingsContent: View {
     }
 
     private var widgets: some View {
-        SettingsSection("组件 · 显示、颜色、尺寸与顺序") {
+        SettingsSection("组件 · 显示、颜色、尺寸与顺序（行 × 列）") {
             SettingsGroupBox {
                 ForEach(draft.configuration.widgetOrder) { widget in
-                    SettingsRow(icon: widget.icon, title: widget.title) {
+                    SettingsRow(icon: widget.icon, title: widget.title,
+                                subtitle: draft.configuration.requestedSize(for: widget) == draft.configuration.size(for: widget)
+                                    ? nil
+                                    : "保留 \(draft.configuration.requestedSize(for: widget).rawValue)；当前画布适配为 \(draft.configuration.size(for: widget).rawValue)，超出时分页") {
                         Toggle("显示\(widget.title)", isOn: Binding(
                             get: { !draft.configuration.hiddenWidgets.contains(widget) },
                             set: {
@@ -194,12 +248,10 @@ private struct IslandSettingsContent: View {
                             set: { draft.configuration.widgetColors[widget.rawValue] = Personalization.hex(fromColor: $0) }
                         ), supportsOpacity: false).labelsHidden()
                         Picker("\(widget.title)尺寸", selection: Binding(
-                            get: { draft.configuration.size(for: widget) },
+                            get: { draft.configuration.requestedSize(for: widget) },
                             set: { draft.configuration.widgetSizes[widget.rawValue] = $0 }
                         )) {
-                            ForEach(IslandWidgetSize.allCases.filter {
-                                $0.columns <= draft.configuration.columns && $0.rows <= draft.configuration.rows
-                            }) { size in
+                            ForEach(IslandWidgetSize.allCases) { size in
                                 Text(size.rawValue).tag(size)
                             }
                         }.labelsHidden().frame(width: 90)
@@ -207,6 +259,8 @@ private struct IslandSettingsContent: View {
                     }
                 }
             }
+            Text("尺寸按行 × 列；五档均可保存，画布不足时适配显示；组件溢出时分页，隐藏组件仍可从全部功能进入")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 
@@ -230,29 +284,58 @@ private struct IslandSettingsContent: View {
 private struct IslandSettingsPreview: View {
     @ObservedObject var draft: IslandSettingsDraft
     @ObservedObject var controller: IslandController
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Toggle("展开预览", isOn: $controller.expanded)
+                Toggle("展开预览", isOn: Binding(
+                    get: { controller.expanded },
+                    set: { if $0 { controller.expand() } else { controller.collapse() } }
+                ))
                 Spacer()
-                Text("\(draft.configuration.columns) × \(draft.configuration.rows) 格 · \(Int(controller.effectiveWidth)) × \(Int(controller.effectiveHeight))pt")
+                Text("\(draft.configuration.columns) 列 × \(draft.configuration.rows) 行 · 当前显示 \(Int(controller.effectiveWidth)) × \(Int(controller.effectiveHeight))pt")
                     .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
             }
-            ScrollView(.horizontal) {
-                IslandRootView(controller: controller)
-                    .environment(\.isSettingsPreview, true)
-                    .frame(width: max(controller.effectiveWidth, controller.collapsedWidth),
-                           height: controller.effectiveHeight, alignment: .top)
-                    .padding(.horizontal, 8)
-            }
-            .frame(height: controller.expanded ? controller.effectiveHeight : controller.notchHeight + 8)
-            .animation(controller.surfaceAnimation(reduceMotion: reduceMotion), value: controller.expanded)
-            .clipped()
+            IslandSettingsPreviewViewport(controller: controller)
             Text("固定演示内容 · 可切页、操作图表与拖动排序；横向滚动查看原尺寸，保存才应用")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
+    }
+}
+
+/// 仅预览容器接收正式形变尺寸；每帧高度变化不发布到草稿或设置整页。
+private struct IslandSettingsPreviewViewport: View {
+    @ObservedObject var controller: IslandController
+    @Stored private var height: CGFloat?
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            IslandRootView(controller: controller)
+                .transaction { if !controller.previewVisible { $0.disablesAnimations = true } }
+                .environment(\.isSettingsPreview, true)
+                .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
+                .frame(width: max(controller.effectiveWidth, controller.collapsedWidth),
+                       height: controller.effectiveHeight, alignment: .top)
+        }
+        .frame(height: height ?? (controller.contentVisible ? controller.effectiveHeight : controller.notchHeight))
+        .clipped()
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
+                value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
+                    CGRect(x: 0, y: 66, width: 940 - Theme.settingsSidebarWidth,
+                           height: SettingsRootView.probeHeight - 98)))
+        })
+        .onPreferenceChange(AppearancePreviewVisibilityKey.self) { controller.previewVisible = $0 }
+        .onAppear {
+            controller.previewVisible = true
+            height = controller.contentVisible ? controller.effectiveHeight : controller.notchHeight
+            controller.previewViewportChanged = { size in
+                DispatchQueue.main.async {
+                    withTransaction(Transaction(animation: nil)) { height = size.height }
+                }
+            }
+        }
+        .onDisappear { controller.previewViewportChanged = nil; controller.previewVisible = false }
     }
 }
 

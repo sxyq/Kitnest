@@ -6,18 +6,42 @@ import SwiftUI
 final class IslandController: NSObject, ObservableObject {
     static let shared = IslandController()
     let previewOnly: Bool
+    let previewSessionID = UUID()
     var layoutDidChange: ((IslandConfiguration) -> Void)?
+    var previewViewportChanged: ((CGSize) -> Void)?
     @Published private(set) var configuration: IslandConfiguration
-    @Published var expanded = false
+    @Published var expanded = false {
+        didSet { if expanded { showingContent = true } }
+    }
     @Published private(set) var showingContent = false
-    @Published var page = IslandPage.home
+    @Published var page = IslandPage.home {
+        didSet {
+            if IslandPage.tabs.contains(oldValue) { returnPage = oldValue }
+            if IslandPage.tabs.contains(page) { returnPage = page }
+        }
+    }
+    private(set) var returnPage = IslandPage.home
+    @Published var componentPage = 0
+    @Published private(set) var componentPageCount = 1
+    @Published var draggedWidget: IslandWidget?
+    @Published var selectedRecord: String?
+    @Published var selectedTool: String?
+    @Published var toolQuery = ""
+    @Published var toolCategory: ToolCategory?
+    @Published var previewVisible = true
+    @Published var selectedMetric = IslandMetric.cpu
+    @Published var selectedDate = Date.now
+    var toolInputs: [String: String] = [:]
+    private var recordScrollOffset = CGPoint.zero
+    private weak var recordScrollView: NSScrollView?
+    private var recordScrollObserver: NSObjectProtocol?
     @Published var playing = false
     @Published var volume = 56.0
     @Published var track = 0
     @Published var seek = 86.0
     @Published var completedEvents = Set<Int>()
     let tracks = [("Quiet Hours", "Lo-fi Session"), ("Blue Afternoon", "Studio Sessions"), ("Night Walk", "Ambient Notes")]
-    @Published var feedback = "左右滑动切页 · 拖动把手排列组件"
+    @Published var feedback = "左右滑动首页组件 · 拖动把手排序"
     @Published private(set) var clipboardSummary = "暂无内容"
     @Published private(set) var notchWidth: CGFloat = 0
     @Published private(set) var notchHeight: CGFloat = 0
@@ -28,6 +52,8 @@ final class IslandController: NSObject, ObservableObject {
     private var hoverArmed = true
     private var openedExplicitly = false
     private var screenObserver: NSObjectProtocol?
+    private var menuObservers: [NSObjectProtocol] = []
+    private var menuTracking = false
     private var visibleSize = CGSize.zero
     private var visibleRadius: CGFloat = 0
     private var visibleOutline = Path()
@@ -41,10 +67,12 @@ final class IslandController: NSObject, ObservableObject {
         self.configuration = configuration
         self.previewOnly = previewOnly
         super.init()
-        if previewOnly { notchWidth = 180; notchHeight = 28 }
+        updateNotchMetrics()
+        if previewOnly { selectedDate = SettingsPreviewSamples.date }
     }
 
-    var usesGlass: Bool { configuration.usesGlass }
+    var usesGlass: Bool { configuration.effectiveMaterial != .solid }
+    var contentVisible: Bool { expanded || showingContent }
     var visiblePeeks: Set<IslandPeek> { configuration.visiblePeeks }
     var peeksShowValues: Bool { configuration.peeksShowValues }
     var peeksQuickActions: Bool { configuration.peeksQuickActions }
@@ -60,11 +88,15 @@ final class IslandController: NSObject, ObservableObject {
         }
     }
     var peekOrder: [IslandPeek] { configuration.peekOrder }
-    var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), (panel?.screen?.frame.width ?? 2000) - 40) }
-    var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), (panel?.screen?.frame.height ?? 1400) - 40) }
+    var displayScreen: NSScreen { panel?.screen ?? NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens[0] }
+    var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), displayScreen.frame.width - 40) }
+    var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), displayScreen.frame.height - 40) }
+    var layoutColumns: Int { min(configuration.columns, max(1, Int((effectiveWidth - IslandLayout.horizontalInset * 2 + 8) / 152))) }
+    var layoutRows: Int { min(configuration.rows, max(1, Int((effectiveHeight - 176 + 8) / 120))) }
 
-    func surfaceAnimation(reduceMotion: Bool) -> Animation {
-        reduceMotion ? .easeOut(duration: 0.12) : .spring(response: expanded ? 0.28 : 0.24, dampingFraction: 1)
+    func surfaceAnimation(reduceMotion: Bool) -> Animation? {
+        if previewOnly && !previewVisible { return nil }
+        return reduceMotion ? .easeOut(duration: 0.12) : .interactiveSpring(response: expanded ? 0.32 : 0.26, dampingFraction: expanded ? 0.94 : 1, blendDuration: 0)
     }
 
     private var hidesCollapsedSurface: Bool {
@@ -96,6 +128,9 @@ final class IslandController: NSObject, ObservableObject {
     func beginInteraction() { interacting = true; hoverWork?.cancel(); hoverWork = nil }
     func endInteraction() {
         interacting = false
+        draggedWidget = nil
+        if previewOnly { return } // 模拟场景没有真实指针，不进入移开收回计时。
+        if menuTracking || editingText { return }
         updatePointer()
         if !inside, expanded, !openedExplicitly {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
@@ -109,9 +144,44 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func turnPage(_ step: Int) {
+        if page == .home, componentPageCount > 1 {
+            componentPage = min(max(componentPage + step, 0), componentPageCount - 1)
+            return
+        }
         let pages = IslandPage.tabs
-        let index = pages.firstIndex(of: page) ?? 0
+        let index = pages.firstIndex(of: page) ?? pages.firstIndex(of: returnPage)!
         page = pages[(index + step + pages.count) % pages.count]
+    }
+
+    func setComponentPageCount(_ count: Int) {
+        if componentPageCount != count { componentPageCount = count }
+        if componentPage >= count { componentPage = count - 1 }
+    }
+
+    func goBack() { page = returnPage }
+
+    func resumeAfterOutside() { open() }
+
+    func bindRecordScroll(_ scrollView: NSScrollView) {
+        if recordScrollView === scrollView { return }
+        releaseRecordScroll()
+        recordScrollView = scrollView
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        let offset = recordScrollOffset
+        DispatchQueue.main.async { [weak scrollView] in
+            scrollView?.contentView.setBoundsOrigin(offset)
+            if let scrollView { scrollView.reflectScrolledClipView(scrollView.contentView) }
+        }
+        recordScrollObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView, queue: .main) { [weak self, weak scrollView] _ in
+                if let scrollView { self?.recordScrollOffset = scrollView.contentView.bounds.origin }
+            }
+    }
+
+    func releaseRecordScroll() {
+        if let recordScrollObserver { NotificationCenter.default.removeObserver(recordScrollObserver) }
+        recordScrollObserver = nil
+        recordScrollView = nil
     }
 
     func changeTrack(_ step: Int) {
@@ -121,15 +191,16 @@ final class IslandController: NSObject, ObservableObject {
 
     private func refreshClipboard() {
         if previewOnly { clipboardSummary = IslandSample.clipboard[0].title; return }
-        clipboardSummary = ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first?.content.map {
-            String($0.prefix(24)).replacingOccurrences(of: "\n", with: " ")
-        } ?? "暂无内容"
+        let summary = String((ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first?.displayTitle ?? "暂无内容").prefix(24)).replacingOccurrences(of: "\n", with: " ")
+        if clipboardSummary != summary { clipboardSummary = summary }
     }
 
     func copyLatest() {
         if previewOnly { feedback = "预览：已复制近期内容"; return }
         guard let item = ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first else {
-            feedback = "暂无近期内容"; return
+            feedback = "暂无近期内容"
+            Toast.show(feedback, icon: "doc.on.clipboard", isWarning: true)
+            return
         }
         feedback = ClipboardManager.shared.copy(item, autoPaste: false) ?? "已复制近期内容"
     }
@@ -145,7 +216,16 @@ final class IslandController: NSObject, ObservableObject {
             case .clipboard: copyLatest()
             case .media:
                 if previewOnly { playing.toggle() }
-                else { page = .media; expand(takeFocus: true) }
+                else {
+                    Task { @MainActor in
+                        let player = NowPlayingController.shared
+                        if player.snapshot.available { player.send(player.snapshot.isPlaying ? 1 : 0) }
+                        else {
+                            feedback = "没有正在播放的媒体"
+                            Toast.show(feedback, icon: "music.note", isWarning: true)
+                        }
+                    }
+                }
             case .calendar: copyDate()
             case .monitor: page = .monitor; expand(takeFocus: true)
             }
@@ -160,6 +240,7 @@ final class IslandController: NSObject, ObservableObject {
         visibleSize = size
         visibleRadius = radius
         visibleOutline = IslandOutline(radius: radius).path(in: CGRect(origin: .zero, size: size))
+        previewViewportChanged?(size)
         updatePointer()
         if !expanded, size == CGSize(width: collapsedWidth, height: notchHeight) {
             let action = afterCollapse
@@ -209,6 +290,7 @@ final class IslandController: NSObject, ObservableObject {
             p.sharingType = .readOnly
             panel = p
             installMonitors()
+            refreshClipboard()
             screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                 object: nil, queue: .main) { [weak self] _ in
                     guard let self else { return }
@@ -226,17 +308,14 @@ final class IslandController: NSObject, ObservableObject {
 
     private func position(collapsed: Bool = false) {
         guard let panel else { return }
-        let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens[0]
+        let screen = displayScreen
+        updateNotchMetrics()
         let centerX: CGFloat
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             centerX = (left.maxX + right.minX) / 2
-            notchWidth = right.minX - left.maxX
-            notchHeight = screen.safeAreaInsets.top
         } else {
             centerX = screen.frame.midX
             // 无刘海屏幕仅展示一块小型黑色入口，不扩大有刘海屏幕的收起态。
-            notchWidth = 180
-            notchHeight = 28
         }
         // 舞台保留当前动画所需范围，缩小时不提前裁掉正在收缩的外壳。
         let size = collapsed ? CGSize(width: collapsedWidth, height: notchHeight) :
@@ -250,6 +329,17 @@ final class IslandController: NSObject, ObservableObject {
             visibleSize = size
             visibleRadius = IslandLayout.collapsedRadius
             visibleOutline = IslandOutline(radius: visibleRadius).path(in: CGRect(origin: .zero, size: size))
+        }
+    }
+
+    private func updateNotchMetrics() {
+        let screen = displayScreen
+        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+            notchWidth = right.minX - left.maxX
+            notchHeight = screen.safeAreaInsets.top
+        } else {
+            notchWidth = 180
+            notchHeight = 28
         }
     }
 
@@ -276,35 +366,62 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = false
         expanded = false
-        if !previewOnly { MonitorSampler.shared.setIslandActive(false) }
-        hoverArmed = !inside
+        hoverArmed = false
         panel?.makeFirstResponder(nil)
     }
 
     func stop() {
+        releaseRecordScroll()
         collapse()
         panel?.orderOut(nil)
         for token in monitors { NSEvent.removeMonitor(token) }
         monitors.removeAll()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
+        for observer in menuObservers { NotificationCenter.default.removeObserver(observer) }
+        menuObservers.removeAll()
         screenObserver = nil
         panel = nil
     }
 
     private func installMonitors() {
+        menuObservers = [
+            NotificationCenter.default.addObserver(forName: ClipboardManager.itemsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.refreshClipboard()
+            },
+            NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+                guard let self, self.expanded, self.inside || self.panel?.isKeyWindow == true else { return }
+                self.menuTracking = true
+                self.beginInteraction()
+            },
+            NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+                guard let self, self.menuTracking else { return }
+                self.menuTracking = false
+                self.endInteraction()
+            },
+            NotificationCenter.default.addObserver(forName: NSText.didBeginEditingNotification, object: nil, queue: .main) { [weak self] note in
+                guard let self, (note.object as? NSView)?.window === self.panel else { return }
+                self.beginInteraction()
+            },
+            NotificationCenter.default.addObserver(forName: NSText.didEndEditingNotification, object: nil, queue: .main) { [weak self] note in
+                guard let self, (note.object as? NSView)?.window === self.panel else { return }
+                DispatchQueue.main.async { self.endInteraction() }
+            }
+        ]
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
             if event.type == .leftMouseUp { self?.endInteraction() }
-            else { self?.updatePointer() }
+            else { self?.updatePointer(pointerMoved: true) }
         } { monitors.append(token) }
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.updatePointer(at: event.locationInWindow)
-            if self?.inside == false { self?.collapse() }
+            self?.updatePointer(at: event.locationInWindow, pointerMoved: true)
+            if self?.inside == false, self?.menuTracking == false { self?.collapse() }
         } { monitors.append(token) }
         if let token = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseDown, .rightMouseDown, .leftMouseUp, .scrollWheel]) { [weak self] event in
             guard let self else { return event }
             if event.type == .leftMouseUp { self.endInteraction() }
-            self.updatePointer(at: event.window?.convertPoint(toScreen: event.locationInWindow))
-            if event.type == .scrollWheel, event.window === self.panel, self.expanded {
+            self.updatePointer(at: event.window?.convertPoint(toScreen: event.locationInWindow), pointerMoved: true)
+            if event.type == .leftMouseDown, event.window === self.panel { self.beginInteraction() }
+            if event.type == .scrollWheel, event.window === self.panel, self.expanded,
+               self.page == .home, self.componentPageCount > 1, !self.interacting, event.hasPreciseScrollingDeltas {
                 if event.phase.contains(.began) { self.horizontalScroll = 0; self.didSwipe = false }
                 if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY), event.momentumPhase.isEmpty {
                     self.horizontalScroll += event.scrollingDeltaX
@@ -316,14 +433,14 @@ final class IslandController: NSObject, ObservableObject {
                     return nil
                 }
             }
-            if (event.type == .leftMouseDown || event.type == .rightMouseDown), event.window !== self.panel, !self.inside {
+            if (event.type == .leftMouseDown || event.type == .rightMouseDown), event.window !== self.panel, !self.inside, !self.menuTracking {
                 self.collapse()
             }
             return event
         } { monitors.append(token) }
     }
 
-    private func updatePointer(at location: NSPoint? = nil) {
+    private func updatePointer(at location: NSPoint? = nil, pointerMoved: Bool = false) {
         guard let panel else { return }
         let point = location ?? NSEvent.mouseLocation
         let local = CGPoint(x: point.x - panel.frame.midX + visibleSize.width / 2,
@@ -337,16 +454,21 @@ final class IslandController: NSObject, ObservableObject {
         inside = hoverInside
         hoverWork?.cancel()
         hoverWork = nil
-        if !hoverInside { hoverArmed = true }
-        if hoverInside, !expanded, hoverArmed, configuration.hoverEnabled {
+        if !hoverInside && pointerMoved { hoverArmed = true }
+        if hoverInside, !expanded, hoverArmed, configuration.hoverEnabled, pointerMoved {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
-        } else if !hoverInside, expanded, !openedExplicitly, !interacting {
+        } else if !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking,
+                  !editingText {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.collapseDelay, execute: work)
         }
+    }
+
+    private var editingText: Bool {
+        panel?.isKeyWindow == true && (panel?.firstResponder as? NSTextView)?.isEditable == true
     }
 }
 
