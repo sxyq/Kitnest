@@ -31,7 +31,7 @@ struct IslandSurface<Content: View>: View {
                    value: [target.width, target.height, controller.expanded ? 1 : 0])
         .foregroundStyle(.primary)
         .tint(Theme.accent(for: nil))
-        .preferredColorScheme(.dark)
+        .environment(\.colorScheme, .dark)
     }
 
     private var header: some View {
@@ -271,7 +271,7 @@ private struct IslandCollapsedView: View {
             HStack(spacing: 0) {
                 ForEach(Array(items.dropFirst(leftCount))) { peek in button(peek) }
             }.frame(width: sideWidth, alignment: .leading)
-        }.frame(height: controller.notchHeight).foregroundStyle(.white).preferredColorScheme(.dark)
+        }.frame(height: controller.notchHeight).foregroundStyle(.white).environment(\.colorScheme, .dark)
     }
     private func button(_ peek: IslandPeek) -> some View {
         Button { controller.activatePeek(peek) } label: {
