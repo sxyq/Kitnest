@@ -1,30 +1,30 @@
 ﻿module,file,owner,name,kind,line,status,evidence
 App,App/AppBootstrap.swift,AppBootstrap,start,func,11,KEEP,启动剪贴板、截图、监测、设置、工具等正式模块与在线更新轮询；精简版不注册文件暂存、局域网直传、MCP 或 WebDAV 启动入口
-App,App/AppBootstrap.swift,AppBootstrap,stop,func,183,KEEP,FrsetNextApp:101 applicationWillTerminate 调用
-App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,189,KEEP,start L45 调用；接线截图/OCR/取色/AI/工具箱产出到剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,252,KEEP,start L91 调用；注册取色器工具砖（跨模块）
-App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,415,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
-App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,448,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
-App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,453,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
-App,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,func,467,KEEP,ShortcutSettingsPane:130 切换 2× 模式；内部也会被 setShortcut L509 调用
-App,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,func,495,KEEP,ShortcutSettingsPane:90 更换双击修饰键
-App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,505,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
-App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,512,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
-App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,522,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
-App,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,func,542,KEEP,ShortcutSettingsPane:36「恢复默认快捷键」
-App,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,func,553,KEEP,registerDefaultHotkeys L406 判断是否有用户自定义通道
-App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,567,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
-App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,575,KEEP,onTextRecognized L246 一次性消费挂起标志
-App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,588,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,606,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
-App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,618,未审阅,
-App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,664,未审阅,
+App,App/AppBootstrap.swift,AppBootstrap,stop,func,173,KEEP,FrsetNextApp:101 applicationWillTerminate 调用
+App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,179,KEEP,start L45 调用；接线截图/OCR/取色/AI/工具箱产出到剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,242,KEEP,start L91 调用；注册取色器工具砖（跨模块）
+App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,405,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
+App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,438,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
+App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,443,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
+App,App/AppBootstrap.swift,AppBootstrap,setDoubleTap,func,457,KEEP,ShortcutSettingsPane:130 切换 2× 模式；内部也会被 setShortcut L509 调用
+App,App/AppBootstrap.swift,AppBootstrap,setDoubleTapModifier,func,485,KEEP,ShortcutSettingsPane:90 更换双击修饰键
+App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,495,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
+App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,502,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
+App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,512,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
+App,App/AppBootstrap.swift,AppBootstrap,restoreDefaultShortcuts,func,532,KEEP,ShortcutSettingsPane:36「恢复默认快捷键」
+App,App/AppBootstrap.swift,AppBootstrap,userCustomizableToolID,func,543,KEEP,registerDefaultHotkeys L406 判断是否有用户自定义通道
+App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,557,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
+App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,565,KEEP,onTextRecognized L246 一次性消费挂起标志
+App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,578,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,596,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
+App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,608,未审阅,
+App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,654,未审阅,
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
-App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,72,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,96,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,101,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,111,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
-App,App/FrsetNextApp.swift,AppDelegate,application,func,122,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
+App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,71,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,95,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,100,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,109,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,application,func,120,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,50,KEEP,"GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,52,KEEP,"GenieWarp.swift:70,83,84 调用"
@@ -149,7 +149,6 @@ Core,Core/Runtime/WindowReveal.swift,WindowReveal,unitAtMouse,func,149,KEEP,play
 Core,Core/Runtime/WindowReveal.swift,WindowReveal,playInFromMouse,func,160,KEEP,10+ 窗口控制器调用（SettingsWindowController:121）
 Core,Core/Runtime/WindowReveal.swift,WindowReveal,playOutToLastAnchor,func,169,KEEP,SettingsWindowController:132 等 6 处
 Core,Core/Runtime/WindowReveal.swift,WindowReveal,reset,func,180,KEEP,ToolRunnerWindow:41 / SettingsWindowController:116
-Core,Core/UI/AirDropSendEngine.swift,AirDropSendEngine,send,func,24,KEEP,从中转模块迁出原生隔空投送发送方法，AppBootstrap 接收截图和剪贴板的同一通知；只调用系统分享，不再依赖中转存储或投屏
 Core,Core/UI/AppearanceTheme.swift,MidnightTheme,h,func,56,KEEP,"本文件:77,79,81 三色均经 h() 派生"
 Core,Core/UI/AppearanceTheme.swift,MidnightTheme,baseBackground,func,77,KEEP,AppearanceThemeModifier 与 Theme.windowSurface(for:midnight:) 调用：将指定 Personalization.midnightHueShift 传给 h，生成 Midnight 窗口基色；静态属性继续传 shared
 Core,Core/UI/AppearanceTheme.swift,MidnightTheme,cardBackground,func,84,KEEP,AppearanceThemeModifier 与 Theme.cardFill(for:midnight:) 调用：按指定草稿 glassCardLift/0.55 提升 RGB 基色，再经 h 应用 midnightHueShift，使卡片亮度和色相随预览更新
@@ -789,30 +788,23 @@ Audio,Features/Audio/AudioMixer.swift,-,cc,func,19,KEEP,本文件 14 处调用�
 Audio,Features/Audio/AudioMixer.swift,-,addr,func,25,KEEP,本文件 13 处调用：122/130/138/177/187/204/214/226 等
 Audio,Features/Audio/AudioMixer.swift,AudioAppInfo,func,func,40,KEEP,Equatable 必需：icon 是 NSImage? 无法自动合成（:33 声明）
 Audio,Features/Audio/AudioMixer.swift,AudioDeviceInfo,func,func,49,KEEP,Equatable 协议实现（:44 声明 conformance）；无显式 == 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,init,init,103,KEEP,shared 单例 :55 调用；init 内 reloadDevices:94
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,startRefreshing,func,110,KEEP,AudioMixerPane:326 .onAppear 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,stopRefreshing,func,126,KEEP,AudioMixerPane:327 .onDisappear 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setIslandVisible,func,134,未审阅,
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,addOutputListeners,func,142,未审阅,
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,removeOutputListeners,func,159,未审阅,
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshOutputState,func,168,未审阅,
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,volumeProperties,func,191,未审阅,
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemVolume,func,208,KEEP,init:91 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemVolume,func,222,KEEP,outputVolume.didSet :59 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemMuted,func,234,KEEP,init:92 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemMuted,func,243,KEEP,outputMuted.didSet :63 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSelfAudible,func,253,KEEP,init:93 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,func,261,KEEP,selfAudible.didSet :78 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,269,KEEP,init:94 与 selectDefaultDevice:207 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,300,KEEP,selectedDevice.didSet :71 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,312,KEEP,startRefreshing:101 与 Timer 回调 :107 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,365,KEEP,AppBootstrap.swift:99 SettingsPaneRegistry.build 闭包构造
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,setVisible,func,44,未审阅,
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,refresh,func,63,未审阅,
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,send,func,67,未审阅,
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,seek,func,71,未审阅,
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,request,func,75,未审阅,
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,loadArtwork,func,116,未审阅,
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,init,init,102,KEEP,shared 单例 :55 调用；init 内 reloadDevices:94
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,startRefreshing,func,109,KEEP,AudioMixerPane:326 .onAppear 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,stopRefreshing,func,125,KEEP,AudioMixerPane:327 .onDisappear 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,addOutputListeners,func,132,未审阅,
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,removeOutputListeners,func,149,未审阅,
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshOutputState,func,158,未审阅,
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,volumeProperties,func,181,未审阅,
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemVolume,func,198,KEEP,init:91 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemVolume,func,212,KEEP,outputVolume.didSet :59 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemMuted,func,224,KEEP,init:92 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemMuted,func,233,KEEP,outputMuted.didSet :63 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSelfAudible,func,243,KEEP,init:93 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,func,251,KEEP,selfAudible.didSet :78 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,259,KEEP,init:94 与 selectDefaultDevice:207 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,290,KEEP,selectedDevice.didSet :71 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,302,KEEP,startRefreshing:101 与 Timer 回调 :107 调用
+Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,355,KEEP,AppBootstrap.swift:99 SettingsPaneRegistry.build 闭包构造
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,Annotation,init,init,128,KEEP,调用方 AnnotationEditorWindow.swift:383 等 20+ 处构造
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,composite,func,166,KEEP,调用方 AnnotationEditorWindow.swift:1208 导出合成
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,roundedCorners,func,218,KEEP,调用方 AnnotationEditorWindow.swift:1214 圆角成图
@@ -1527,23 +1519,23 @@ Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBe
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1605,KEEP,NotificationCenter selector :1431 注册
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionTool,init,init,30,KEEP,本文件 69-120 构造 14 个工具条目
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionGroup,init,init,47,KEEP,本文件 132-141 构造 5 个分组
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,183,KEEP,按形态钉住：PinAppearance.preset → show(appearance:) + Toast
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,190,KEEP,":164 perform 与视图 :250,:331 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,195,KEEP,"CaptureActionChain.swift:273,349 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,208,KEEP,CaptureActionChain.swift:379 execute 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,216,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,223,KEEP,CaptureActionChain.swift:173 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,236,KEEP,CaptureModule.swift:81 启动预热调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,259,KEEP,:183 present 与 :193 warmUp 构造
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,293,KEEP,CaptureActionChain.swift:281 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,314,KEEP,CaptureActionChain.swift:185 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,354,KEEP,CaptureActionChain.swift:283 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,367,KEEP,":234,338,346,368,372 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,386,KEEP,NSWindow 覆写，转发 dismiss
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,389,KEEP,NSResponder 覆写，Esc 兜底派发
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,393,KEEP,CaptureActionChain.swift:241 init 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,418,KEEP,":233 onPick 闭包 + :351,358 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureToolbarModel,pick,func,443,KEEP,动作条统一选中入口：设置预览按工具 id 找标题并发布 previewFeedback；正式路径只调用 onPick，预览不进入截图动作执行链
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,178,KEEP,按形态钉住：PinAppearance.preset → show(appearance:) + Toast
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,185,KEEP,":164 perform 与视图 :250,:331 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,190,KEEP,"CaptureActionChain.swift:273,349 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,203,KEEP,CaptureActionChain.swift:379 execute 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,211,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,218,KEEP,CaptureActionChain.swift:173 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,231,KEEP,CaptureModule.swift:81 启动预热调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,254,KEEP,:183 present 与 :193 warmUp 构造
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,288,KEEP,CaptureActionChain.swift:281 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,309,KEEP,CaptureActionChain.swift:185 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,349,KEEP,CaptureActionChain.swift:283 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,362,KEEP,":234,338,346,368,372 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,381,KEEP,NSWindow 覆写，转发 dismiss
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,384,KEEP,NSResponder 覆写，Esc 兜底派发
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,388,KEEP,CaptureActionChain.swift:241 init 调用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,413,KEEP,":233 onPick 闭包 + :351,358 调用"
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureToolbarModel,pick,func,438,KEEP,动作条统一选中入口：设置预览按工具 id 找标题并发布 previewFeedback；正式路径只调用 onPick，预览不进入截图动作执行链
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureButtonAnchorKey,reduce,func,7,KEEP,合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureToolbarButtonStyle,makeBody,func,15,KEEP,三种动作条按钮共用按下外观：透明度降为 0.7，普通模式缩至 0.96 并用 0.1 秒动画，减少动态时保留透明反馈而取消缩放和动画
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,thumbnail,func,154,KEEP,正式动作条与设置预览共用截图缩略图：按比例适配到 340×200pt，裁圆角并画发丝边；拖到外部应用仅由正式路径附加
@@ -2012,20 +2004,20 @@ Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,SummaryState,show,fun
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,SummaryState,reset,func,190,KEEP,:41 弹窗按钮
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagFilterMenu,init,init,205,KEEP,:53 头部标签菜单
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardMenuActionItem,init,init,238,KEEP,:308-329 菜单项构造
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,282,KEEP,Desk:602/:615 contextMenu
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,374,KEEP,TableHostView:573 行渲染
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,508,KEEP,:460 图片行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,514,KEEP,:467 文件行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,529,KEEP,:475/:479 调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,548,KEEP,:400/:401 悬停按钮
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,582,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,594,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,608,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,614,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,621,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,627,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,651,KEEP,:370、Desk:1021
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,740,KEEP,SettingsPanes:586 标签色
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,252,KEEP,Desk:602/:615 contextMenu
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,332,KEEP,TableHostView:573 行渲染
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,466,KEEP,:460 图片行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,472,KEEP,:467 文件行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,487,KEEP,:475/:479 调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,506,KEEP,:400/:401 悬停按钮
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,540,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,552,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,566,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,572,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,579,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,585,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,609,KEEP,:370、Desk:1021
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,698,KEEP,SettingsPanes:586 标签色
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,init,init,53,KEEP,ClipboardModule:31 build 闭包
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,sliderRow,func,351,KEEP,:42/:50 滑块行调用
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,tagCountText,func,376,KEEP,按标签数量选择本地化单复数格式，供剪贴板标签行显示计数
@@ -2096,9 +2088,9 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleR
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,953,KEEP,本文件:816 单击锚点 / 842/846 空格
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,976,KEEP,本文件:956 菜单图标 / 987 标签图标
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,984,KEEP,本文件:588 右键按下回调调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1062,KEEP,@objc #selector(本文件:951/981)，NSMenuItem.target 派发
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1070,KEEP,本文件:953/983 representedObject 构造
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1071,KEEP,本文件:1011 menuAction 取出执行
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1055,KEEP,@objc #selector(本文件:951/981)，NSMenuItem.target 派发
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1063,KEEP,本文件:953/983 representedObject 构造
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1064,KEEP,本文件:1011 menuAction 取出执行
 Clipboard,Features/Clipboard/UI/FileHoverPreview.swift,FilePreviewBuilder,readText,func,20,KEEP,文件与剪贴板共用的正文读取：mappedIfSafe读取完整文件，依次解码UTF-8和Latin-1，无法解码抛出fileReadInapplicableStringEncoding，不再截前8KB
 Clipboard,Features/Clipboard/UI/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,39,KEEP,取消共用协调器的悬停关闭任务并替换showWork，按同一hoverPreviewOpenDelay延时调用showNow，传屏幕锚点和弱引用sourceWindow
 Clipboard,Features/Clipboard/UI/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,53,KEEP,取消待显示任务、记录currentURL，再交MainPanelPreviewPopoverCoordinator.presentFile；不再创建独立文件预览Panel或保存另一套尺寸
@@ -2196,100 +2188,6 @@ CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,func,func,35,KEEP,Equ
 CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,color,func,37,KEEP,调用方 CodeHighlighter.swift:110（token→NSColor）
 CodePreview,Features/CodePreview/CodeTheme.swift,CodeThemeCatalog,theme,func,68,KEEP,调用方 CodePreviewView.swift:52/69 与 BuiltinTools.swift:267
 CodePreview,Features/CodePreview/CodeTheme.swift,NSColor,init,init,324,KEEP,被本文件全部 14 套主题构造调用（:83 起）
-Island,Features/Island/IslandContent.swift,IslandRootView,updateMonitoring,func,55,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,pageContent,func,59,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,widgetContent,func,80,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,widget,func,134,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,compactRecord,func,152,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,select,func,231,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,moveSelection,func,238,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,copySelectedRecord,func,246,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,draggingChanged,func,259,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,reloadRecords,func,265,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,269,KEEP,预览读取固定模拟记录；正式列表只查询 ClipboardRepository，文件按路径展示，按日期排序；不查询中转存储，不改变主列表查询条件
-Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,326,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,337,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRecentRow,copy,func,358,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRecordDetail,previewContent,func,482,未审阅,
-Island,Features/Island/IslandContent.swift,IslandRecordDetail,load,func,503,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,572,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,573,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,596,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,602,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,613,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,633,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,647,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,652,未审阅,
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,654,未审阅,
-Island,Features/Island/IslandContent.swift,IslandCalendarContent,previewEvent,func,688,未审阅,
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRow,func,785,未审阅,
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveMonth,func,793,未审阅,
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,797,未审阅,
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,802,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,init,init,40,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,66,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,apply,func,75,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,move,func,87,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,beginInteraction,func,96,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,endInteraction,func,97,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,turnPage,func,111,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,changeTrack,func,117,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,refreshClipboard,func,122,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,copyLatest,func,129,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,copyDate,func,137,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,activatePeek,func,142,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,surfaceDidChange,func,158,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,performOutside,func,180,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,start,func,187,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,open,func,192,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,show,func,200,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,position,func,227,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,expand,func,256,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,collapse,func,271,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,stop,func,281,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,installMonitors,func,291,未审阅,
-Island,Features/Island/IslandController.swift,IslandController,updatePointer,func,323,未审阅,
-Island,Features/Island/IslandController.swift,IslandPanel,performKeyEquivalent,func,352,未审阅,
-Island,Features/Island/IslandFeatureContent.swift,IslandFeatureContent,compact,func,62,未审阅,
-Island,Features/Island/IslandFeatureContent.swift,IslandDownloadContent,start,func,147,未审阅,
-Island,Features/Island/IslandFeatureContent.swift,IslandOCRContent,chooseImage,func,293,未审阅,
-Island,Features/Island/IslandFeatureContent.swift,IslandArchiveContent,choose,func,325,未审阅,
-Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,cover,func,125,未审阅,
-Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,metadata,func,136,未审阅,
-Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,transport,func,155,未审阅,
-Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,playButton,func,165,未审阅,
-Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,progress,func,172,未审阅,
-Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,time,func,193,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorChart,values,func,27,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorChart,upperBound,func,45,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorChart,positionLabel,func,138,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorChart,xPosition,func,145,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorChart,index,func,149,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorChart,plot,func,153,未审阅,
-Island,Features/Island/IslandMonitorChart.swift,IslandMonitorPage,statistic,func,243,未审阅,
-Island,Features/Island/IslandSettings.swift,IslandConfiguration,size,func,56,未审阅,
-Island,Features/Island/IslandSettings.swift,IslandConfiguration,color,func,61,未审阅,
-Island,Features/Island/IslandSettings.swift,IslandConfiguration,color,func,64,未审阅,
-Island,Features/Island/IslandSettings.swift,IslandConfiguration,load,func,67,未审阅,
-Island,Features/Island/IslandSettings.swift,IslandConfiguration,persist,func,77,未审阅,
-Island,Features/Island/IslandSettings.swift,IslandMetric,format,func,227,未审阅,
-Island,Features/Island/IslandSettings.swift,Array,islandMove,func,233,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,111,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,162,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandMaterial,makeNSView,func,174,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandMaterial,updateNSView,func,177,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,189,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,198,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,199,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,218,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,279,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,294,未审阅,
-Island,Features/Island/IslandSurface.swift,IslandGlow,body,func,321,未审阅,
-Island,Features/Island/IslandSurface.swift,View,islandGlow,func,351,未审阅,
-Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,19,未审阅,
-Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,63,未审阅,
-Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,previewContent,func,129,未审阅,
-Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,move,func,117,未审阅,
 Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,26,KEEP,parse 内 :111 兜底与 :153 正常构造
 Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,33,KEEP,parse 的 register 内 :174 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,102,KEEP,ManualView.swift:18 @Stored 属性初始化调用
@@ -2408,19 +2306,18 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharCode,func,554,KEEP,readSMCTemperature:441
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharString,func,558,KEEP,readSMCTemperature:458 判 dataType
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,35,KEEP,MonitorSampler:16/48/49 构造；resetHistory:326
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,64,未审阅,
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,71,KEEP,MonitorPopoutWindow.swift:242/323/359
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,82,KEEP,PanelController.swift:259/280/353
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,89,KEEP,StatusBarController:152/215、MonitorSettingsPane:39/42
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,109,KEEP,私有 init，shared:11
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,121,KEEP,移除 init:102 的通知观察者 + 取消 pendingWork
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,128,KEEP,MonitorModule.swift:10
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,136,KEEP,MonitorModule.swift:50、applyPreferences:155
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,150,KEEP,setPanelActive:66、setHomePanelActive:77、setSettingsActive:84
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,157,KEEP,init 观察者:107、start:122
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,177,KEEP,applyPreferences:164 + 自递归:183
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,202,KEEP,start:123、refresh:141、scheduleNext:176
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,338,KEEP,MonitorSettingsPane.swift:189 重置按钮
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,64,KEEP,MonitorPopoutWindow.swift:242/323/359
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,75,KEEP,PanelController.swift:259/280/353
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,82,KEEP,StatusBarController:152/215、MonitorSettingsPane:39/42
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,102,KEEP,私有 init，shared:11
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,114,KEEP,移除 init:102 的通知观察者 + 取消 pendingWork
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,121,KEEP,MonitorModule.swift:10
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,129,KEEP,MonitorModule.swift:50、applyPreferences:155
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,143,KEEP,setPanelActive:66、setHomePanelActive:77、setSettingsActive:84
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,150,KEEP,init 观察者:107、start:122
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,170,KEEP,applyPreferences:164 + 自递归:183
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,195,KEEP,start:123、refresh:141、scheduleNext:176
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,331,KEEP,MonitorSettingsPane.swift:189 重置按钮
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,74,KEEP,私有 init，shared:39
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,startBackgroundUpdates,func,90,KEEP,MonitorModule.swift:14 常驻启动
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,stopBackgroundUpdates,func,104,KEEP,applyKeepAlivePreference:114
@@ -3094,12 +2991,6 @@ Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,c
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,systemSnapshot,func,154,KEEP,本文件:82 写 system.txt
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,stamp,func,177,KEEP,本文件:19 保存面板文件名
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,AnalyticsEvent,recordNow,func,186,KEEP,本文件:32 导出成功埋点
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,init,init,18,未审阅,
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,save,func,36,未审阅,
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,discard,func,43,未审阅,
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,restoreDefaults,func,44,未审阅,
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,updatePreview,func,46,未审阅,
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,setGrid,func,48,未审阅,
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,init,init,9,KEEP,从 FSBarConfigurationSnapshot 读取部件配置并保存一份 saved，模块列表由 FSBarAllModules 提供，编辑时只改 configuration
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,bool,func,28,KEEP,部件草稿的布尔读取接受 NSNumber.boolValue，缺键才使用选项默认值，因此显式 false 保留
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,string,func,31,KEEP,部件草稿读取字符串或 NSNumber.stringValue，供保存为文字的更新间隔、形态列表和数值控件共用
@@ -3199,15 +3090,15 @@ Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchBarReorderDelega
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,init,init,61,KEEP,本文件:566 导出时构造值
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,init,init,92,KEEP,Codable 解码；本文件:442 JSONDecoder
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,encode,func,108,KEEP,Codable 编码；本文件:402 JSONEncoder
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,refresh,func,348,KEEP,本文件:153 onAppear/174/240/465
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performExport,func,381,KEEP,本文件:312 导出按钮
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,chooseImportFile,func,425,KEEP,本文件:319 导入按钮
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performImport,func,435,KEEP,本文件:155 确认弹窗按钮
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,628,KEEP,本文件:396 导出构造文件
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,647,KEEP,本文件:449 导入写回偏好
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,672,KEEP,本文件:383 保存面板默认名
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,693,KEEP,本文件:605 文件名日期
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,698,KEEP,本文件:395 exportedAt 字段
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,refresh,func,346,KEEP,本文件:153 onAppear/174/240/465
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performExport,func,379,KEEP,本文件:312 导出按钮
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,chooseImportFile,func,423,KEEP,本文件:319 导入按钮
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performImport,func,433,KEEP,本文件:155 确认弹窗按钮
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,626,KEEP,本文件:396 导出构造文件
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,645,KEEP,本文件:449 导入写回偏好
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,670,KEEP,本文件:383 保存面板默认名
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,691,KEEP,本文件:605 文件名日期
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,696,KEEP,本文件:395 exportedAt 字段
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,runIfRequested,func,46,KEEP,StatsBarEngine.swift:72 启动时调用
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,run,func,55,KEEP,本文件:49 延时 5s 进入
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,testLayout,func,75,KEEP,本文件:65 主流程调用
@@ -3233,16 +3124,16 @@ Settings,Features/Settings/Shell/SettingsEditingSession.swift,CalendarSettingsDr
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,CalendarSettingsDraft,discard,func,22,KEEP,SettingsEditableDraft 取消接口由统一底栏及 discardAll 调用，各模块负责恢复保存值而不把草稿写入正式设置
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,CalendarSettingsDraft,restoreDefaults,func,26,KEEP,SettingsEditableDraft 默认恢复接口由模块底栏和 restoreAllDefaults 调用，仅准备各模块默认草稿，最后保存才应用
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,init,init,45,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,register,func,60,KEEP,将 id 和草稿工厂保存为惰性闭包，restoreAllDefaults 可以创建未访问页面的同一份缓存草稿
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,draft,func,64,KEEP,按 id 返回既有草稿；首次创建时缓存 isDirty/save/discard/restoreDefaults 闭包及对象变化订阅，让切页共享同一编辑实例
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,isDirty,func,78,KEEP,将页面 editingDraftIDs 与会话 dirtyIDs 求交集，供页标题和侧边栏显示对应页面未保存状态
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,restoreAllDefaults,func,82,KEEP,先调用所有已注册工厂补齐页面草稿，再对每份草稿执行 restoreDefaults，并标记 allDefaultsPrepared
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,saveAll,func,88,KEEP,按 id 排序只保存脏草稿，遇到首个具体失败原因立即返回；全部成功后清除 allDefaultsPrepared 并返回 nil
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,discardAll,func,96,KEEP,对缓存草稿逐个调用 discard，取消全部默认准备标记，不关闭设置窗口
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,101,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,137,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,register,func,59,KEEP,将 id 和草稿工厂保存为惰性闭包，restoreAllDefaults 可以创建未访问页面的同一份缓存草稿
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,draft,func,63,KEEP,按 id 返回既有草稿；首次创建时缓存 isDirty/save/discard/restoreDefaults 闭包及对象变化订阅，让切页共享同一编辑实例
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,isDirty,func,77,KEEP,将页面 editingDraftIDs 与会话 dirtyIDs 求交集，供页标题和侧边栏显示对应页面未保存状态
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,restoreAllDefaults,func,81,KEEP,先调用所有已注册工厂补齐页面草稿，再对每份草稿执行 restoreDefaults，并标记 allDefaultsPrepared
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,saveAll,func,87,KEEP,按 id 排序只保存脏草稿，遇到首个具体失败原因立即返回；全部成功后清除 allDefaultsPrepared 并返回 nil
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,discardAll,func,95,KEEP,对缓存草稿逐个调用 discard，取消全部默认准备标记，不关闭设置窗口
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,100,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,135,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿
 Settings,Features/Settings/Shell/SettingsModule.swift,SettingsModule,start,func,14,KEEP,AppModule 协议；ModuleRegistry.startAll 派发
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,87,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,82,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,init,init,22,KEEP,MenuBarSettingsDraft 读取当前图标样式/自定义符号、Bar_MainIconCat 与七项入口标记，保存值组合供 isDirty 比较
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,select,func,39,KEEP,菜单栏图标选择只改变 draft.iconStyle，正式状态项在统一保存后刷新
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,restoreDefaults,func,40,KEEP,菜单栏草稿恢复 logo、默认自定义符号、关闭小猫并启用七项入口，正式图标和入口不立即变化
@@ -3258,26 +3149,26 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButt
 Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,594,KEEP,本文件:608 onSubmit/609 按钮
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,617,KEEP,本文件:686/715 增删名单
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,init,31,KEEP,SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览
-Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,198,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问
+Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,196,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSearchEntry,matches,func,73,KEEP,本文件:203 搜索过滤
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupHeader,func,149,KEEP,渲染一级目录并把点击映射到该组首个二级页
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,185,KEEP,本文件:127-136 分类行
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,185,KEEP,本文件:163 调用 + 140-155
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,288,KEEP,本文件:213 搜索结果点击
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,422,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupHeader,func,145,KEEP,渲染一级目录并把点击映射到该组首个二级页
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,170,KEEP,本文件:127-136 分类行
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,170,KEEP,本文件:163 调用 + 140-155
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,273,KEEP,本文件:213 搜索结果点击
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,406,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,init,init,24,KEEP,本文件:87 uiState 初始化
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,selectPane,func,30,KEEP,本文件:107 open(pane:) 调用
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,39,KEEP,本文件:28/37 私有映射
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,96,KEEP,NSWindow override；AppKit 派发 Esc
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,116,KEEP,本文件:80 shared 单例
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,127,KEEP,FrsetNextApp.swift:24/148 等 22 处
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,158,KEEP,SettingsWindowControlling 协议 Registry.swift:92
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowWillClose,func,177,KEEP,原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidMiniaturize,func,182,KEEP,设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidDeminiaturize,func,186,KEEP,设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeOcclusionState,func,190,KEEP,用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,202,KEEP,本文件:104 open 内调用
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,94,KEEP,NSWindow override；AppKit 派发 Esc
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,114,KEEP,本文件:80 shared 单例
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,125,KEEP,FrsetNextApp.swift:24/148 等 22 处
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,156,KEEP,SettingsWindowControlling 协议 Registry.swift:92
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowWillClose,func,175,KEEP,原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidMiniaturize,func,180,KEEP,设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidDeminiaturize,func,184,KEEP,设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeOcclusionState,func,188,KEEP,用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,200,KEEP,本文件:104 open 内调用
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,select,func,91,KEEP,调用方 MenuBarIconStyle.swift:260（@objc selectIconStyle）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,setRevealsCustomOption,func,107,KEEP,调用方同文件 :272/:282（@objc hide/restoreIconOption）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,init,init,141,KEEP,调用方 startFan:471 实例化旋转视图
@@ -3343,25 +3234,24 @@ StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statu
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,114,KEEP,@objc；#selector installMainItem:75（左/右键 action）
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,130,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,135,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openIslandAction,func,136,未审阅,
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,138,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,143,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,148,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,153,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,162,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,168,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,173,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,178,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,184,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,192,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,196,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,202,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,137,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,142,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,147,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,152,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,161,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,167,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,172,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,177,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,183,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,191,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,195,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,201,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,51,KEEP,调用方 mainMenu:61（私有）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,62,KEEP,调用方 StatusBarController.swift:117（右键点击）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,refreshPauseMenu,func,84,KEEP,刷新暂停菜单状态，提供立即恢复及 5、15、30 分钟和手动暂停选项
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,103,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconSubmenu,func,225,KEEP,调用方 buildMenu:167
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,268,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconSubmenu,func,223,KEEP,调用方 buildMenu:167
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,266,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
 StatusBar,Features/StatusBar/StatusBarModule.swift,StatusBarModule,start,func,10,KEEP,AppModule 协议；AppBootstrap.swift:25 注册，startAll:34 派发
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,init,init,43,KEEP,ToolboxModule.swift:22 经 PanelSectionRegistry.build 构造
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,188,KEEP,weeksGrid:170 ForEach 内调用
@@ -3486,17 +3376,17 @@ Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolboxUIState,init,init
 Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolboxUIState,open,func,16,KEEP,toolGrid:77、SearchSectionView:124 等 3 处调用
 Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolboxSectionView,init,init,30,KEEP,ToolboxModule.swift:19 经 PanelSectionRegistry.build 构造
 Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolboxSectionView,toolGrid,func,69,KEEP,body:62 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,init,init,119,KEEP,ToolRunnerWindow.swift:89 构造
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,outputArea,func,294,KEEP,body:204 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,outputContent,func,321,未审阅,
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,startRun,func,354,未审阅,
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,run,func,365,KEEP,执行按钮:186、onAppear autoRun:223 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,applyDefaultAction,func,383,KEEP,run:279 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyText,func,393,KEEP,复制结果按钮:262、applyDefaultAction:288 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyImage,func,409,KEEP,outputArea 右键菜单:239 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,completed,func,420,KEEP,更新工具结果提示并短暂显示复制完成状态
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,saveToClipboard,func,427,KEEP,存为剪贴板条目按钮:264 调用
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,chooseFile,func,432,KEEP,选择图片按钮:138 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,init,init,116,KEEP,ToolRunnerWindow.swift:89 构造
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,outputArea,func,271,KEEP,body:204 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,outputContent,func,291,未审阅,
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,startRun,func,324,未审阅,
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,run,func,329,KEEP,执行按钮:186、onAppear autoRun:223 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,applyDefaultAction,func,344,KEEP,run:279 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyText,func,354,KEEP,复制结果按钮:262、applyDefaultAction:288 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyImage,func,370,KEEP,outputArea 右键菜单:239 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,completed,func,381,KEEP,更新工具结果提示并短暂显示复制完成状态
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,saveToClipboard,func,388,KEEP,存为剪贴板条目按钮:264 调用
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,chooseFile,func,393,KEEP,选择图片按钮:138 调用
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,init,init,90,KEEP,单例 shared:74（private init）
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,setHandlers,func,95,KEEP,AppBootstrap.swift:440 调用
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,bind,func,100,KEEP,AppBootstrap.swift:446/460/484 调用
@@ -3672,17 +3562,17 @@ Storage,Storage/Database.swift,DatabaseManager,migrate,func,215,KEEP,init:203 �
 Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,332,KEEP,migrate:307 调用
 Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,361,KEEP,migrateLegacyDailyStats:328、bumpStat:363 调用
 Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,380,KEEP,ClipboardManager:381/720、AppBootstrap:225/242 等
-Storage,Storage/Database.swift,StatisticsManager,init,init,483,KEEP,shared 单例 :416 调用（init 内 ensureInstallDate:466）
-Storage,Storage/Database.swift,StatisticsManager,record,func,491,KEEP,bumpStat:364 与 record(AnalyticsEvent):489 调用
-Storage,Storage/Database.swift,StatisticsManager,record,func,508,KEEP,PanelController:186、FloatingClipboardWindow:289 等
-Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,514,KEEP,StatisticsRootView.swift:276 调用（Q1）
-Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,526,KEEP,StatisticsRootView.swift:277 调用（Q2）
-Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,541,KEEP,StatisticsRootView:278、StatisticsSettingsPane:358
-Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,553,KEEP,StatisticsRootView.swift:284 热力图调用
-Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,566,KEEP,StatisticsRootView.swift:288 柱图调用
-Storage,Storage/Database.swift,StatisticsManager,total,func,583,KEEP,StatisticsSettingsPane:352/356/357/364 调用
-Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,592,KEEP,StatisticsSettingsPane.swift:351 调用（Q7）
-Storage,Storage/Database.swift,StatisticsManager,exportAll,func,601,KEEP,StatisticsSettingsPane:391、DiagnosticsExporter:103
-Storage,Storage/Database.swift,StatisticsManager,importMerge,func,613,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,630,KEEP,init:466 调用
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,659,KEEP,bumpStat:363、record:476、StatisticsRootView:272
+Storage,Storage/Database.swift,StatisticsManager,init,init,481,KEEP,shared 单例 :416 调用（init 内 ensureInstallDate:466）
+Storage,Storage/Database.swift,StatisticsManager,record,func,489,KEEP,bumpStat:364 与 record(AnalyticsEvent):489 调用
+Storage,Storage/Database.swift,StatisticsManager,record,func,506,KEEP,PanelController:186、FloatingClipboardWindow:289 等
+Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,512,KEEP,StatisticsRootView.swift:276 调用（Q1）
+Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,524,KEEP,StatisticsRootView.swift:277 调用（Q2）
+Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,539,KEEP,StatisticsRootView:278、StatisticsSettingsPane:358
+Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,551,KEEP,StatisticsRootView.swift:284 热力图调用
+Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,564,KEEP,StatisticsRootView.swift:288 柱图调用
+Storage,Storage/Database.swift,StatisticsManager,total,func,581,KEEP,StatisticsSettingsPane:352/356/357/364 调用
+Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,590,KEEP,StatisticsSettingsPane.swift:351 调用（Q7）
+Storage,Storage/Database.swift,StatisticsManager,exportAll,func,599,KEEP,StatisticsSettingsPane:391、DiagnosticsExporter:103
+Storage,Storage/Database.swift,StatisticsManager,importMerge,func,611,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,628,KEEP,init:466 调用
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,657,KEEP,bumpStat:363、record:476、StatisticsRootView:272

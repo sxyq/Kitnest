@@ -2,7 +2,7 @@
 
 ## Kitnest Lite 精简发行分支
 
-`variant/without-transfer-cast` 不包含文件中转、手机投屏及其后台入口。剪贴板的文件记录、文件预览和拖出保持可用。
+`variant/without-transfer-cast` 不包含刘海工作台、文件中转、手机投屏及其后台服务与传输入口。剪贴板的文件记录、文件预览和拖出保持可用。
 
 - 工程：`apps/FrsetNext/`；构建：`bash apps/FrsetNext/build.sh`。
 - 外置 SSD 工作树：`/Volumes/Lexar/Project/frset-rebuild-lite`；与主线共享 Git 历史。
@@ -23,7 +23,7 @@
 ## 现状
 
 **Kitnest 已是日常主力**（`/Applications/Kitnest.app`，菜单栏常驻）：
-主面板（搜索/日历/剪贴板/中转站）、STATS 部件合并条（12 形态 × 8 模块）、
+主面板（搜索/日历/剪贴板）、STATS 部件合并条（12 形态 × 8 模块）、
 性能监测独立窗、截图/OCR/长截图/取色、工具箱、悬浮剪贴板、JSON 检视器等。
 构建/验收/打包链路齐备（见下）。版本演进与剩余工作见 `docs/90-历史归档/接手清单-剩余工作.md`。
 

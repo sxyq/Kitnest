@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<title>Kitnest 用户手册 · Kitnest</title>
-<meta name="description" content="Kitnest 用户手册在线版：46 章，每章一段真机录屏动图。">
+<title>Kitnest Lite 用户手册 · Kitnest</title>
+<meta name="description" content="Kitnest Lite 用户手册在线版：44 章，每章一段真机录屏动图。">
 <link rel="icon" type="image/svg+xml" href="../assets/kitnest-mark.svg">
 <style>
 :root {
@@ -97,7 +97,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="../"><img src="../assets/kitnest-mark.svg" alt="">Kitnest<small>用户手册</small></a>
+    <a class="brand" href="../"><img src="../assets/kitnest-mark.svg" alt="">Kitnest Lite<small>用户手册</small></a>
     <div class="spacer"></div>
     <label class="search">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -109,7 +109,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 
 <div class="layout">
   <aside>
-    <div class="toc-label">46 章 · 点标题跳转</div>
+    <div class="toc-label">44 章 · 点标题跳转</div>
     <div class="toc-list" id="toc">
       <a href="#怎么用这本手册" data-target="怎么用这本手册">怎么用这本手册</a>
       <a href="#产品简介" data-target="产品简介">产品简介</a>
@@ -133,8 +133,6 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
       <a href="#第十七章-内存维护" data-target="第十七章-内存维护">第十七章 内存维护</a>
       <a href="#第十八章-存储管理" data-target="第十八章-存储管理">第十八章 存储管理</a>
       <a href="#第十九章-网络诊断与端口" data-target="第十九章-网络诊断与端口">第十九章 网络诊断与端口</a>
-      <a href="#第二十章-文件中转" data-target="第二十章-文件中转">第二十章 文件中转</a>
-      <a href="#第二十一章-手机投屏" data-target="第二十一章-手机投屏">第二十一章 手机投屏</a>
       <a href="#第二十二章-归档压缩" data-target="第二十二章-归档压缩">第二十二章 归档压缩</a>
       <a href="#第二十三章-工具箱" data-target="第二十三章-工具箱">第二十三章 工具箱</a>
       <a href="#第二十四章-全局搜索" data-target="第二十四章-全局搜索">第二十四章 全局搜索</a>
@@ -160,20 +158,21 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
     </div>
   </aside>
   <main id="doc">
-<blockquote><strong>版本</strong>：v1.0.0（对应源码 v264，2026-11-08） <strong>覆盖范围</strong>：34 个功能域 / 298 个 Swift 源文件（v264 B/C 档新增 18 个 / 3,795 行） <strong>演示素材</strong>：37 段真机录屏 GIF，一章一段，都在 <code>gifs/</code> 目录，未做加速、未删帧、未拼接 <strong>怎么写出来的</strong>：逐文件读源码 + 对照 <code>FrsetNext-函数清单.csv</code>（8,693 条声明）+ CodeGraph 调用关系， 每一章末尾的「实现索引」列出该功能的关键函数与文件行号，作为排查问题时的定位入口。</blockquote>
+<p>本版保留剪贴板文件记录与预览，不包含刘海工作台、文件中转和手机投屏。应用与完整版分别安装、存储和在线更新。</p>
+<blockquote><strong>版本</strong>：Kitnest Lite v1.0.0（2026-11-15） <strong>演示素材</strong>：保留功能的既有录屏，位于 <code>gifs/</code> 目录；主面板与设置请查看当前应用。 <strong>实现索引</strong>：每章末尾列出关键函数与文件，便于定位源码。</blockquote>
 <hr>
 <h2 id="怎么用这本手册">怎么用这本手册</h2>
-<ul><li><strong>想知道某个功能怎么用</strong>：看目录，每章开头都有「功能是什么 / 用户怎么用」。</li><li><strong>想确认某个快捷键</strong>：直接翻附录 A，22 条默认热键全在表里，都能改绑。</li><li><strong>想看实际怎么操作</strong>：每章「演示」小节都是一段真机录屏 GIF（37 章全覆盖），光标、动画、耗时都是真的。</li><li><strong>想确认「这个功能到底有没有」</strong>：每章末尾的实现索引就是答案——有函数名、有文件、有行号。</li><li><strong>遇到问题</strong>：先看该章「注意事项」，再看附录 D「已知限制」。</li><li><strong>想看某个版本改了什么</strong>：附录 E。</li></ul>
+<ul><li><strong>想知道某个功能怎么用</strong>：看目录，每章开头都有「功能是什么 / 用户怎么用」。</li><li><strong>想确认某个快捷键</strong>：直接翻附录 A，22 条默认热键全在表里，都能改绑。</li><li><strong>想看实际怎么操作</strong>：查看各章保留的「演示」录屏。</li><li><strong>想确认「这个功能到底有没有」</strong>：每章末尾的实现索引就是答案——有函数名、有文件、有行号。</li><li><strong>遇到问题</strong>：先看该章「注意事项」，再看附录 D「已知限制」。</li><li><strong>想看某个版本改了什么</strong>：附录 E。</li></ul>
 <p>文中 <code>等宽字体</code> 是快捷键、菜单项或函数名；中文引号里的是界面上的原文。</p>
 <hr>
 <h2 id="产品简介">产品简介</h2>
 <p>Kitnest 是一款常驻 macOS 菜单栏的效率工具集。启动后它住在屏幕顶部的菜单栏里，不占 Dock 位、没有主窗口，随叫随到。</p>
 <p>一个应用装下这些能力：</p>
-<div class="table-wrap"><table><thead><tr><th>能力</th><th>一句话</th></tr></thead><tbody><tr><td><strong>剪贴板历史</strong></td><td>复制过的文字、图片、文件、链接全都记着，随时搜回来</td></tr><tr><td><strong>截图</strong></td><td>区域 / 窗口 / 长截图，截完直接标注、识字、翻译、钉在屏幕上</td></tr><tr><td><strong>图帘</strong></td><td>截图后不落地，先挂在屏幕顶边那条帘线上，需要时再拖走</td></tr><tr><td><strong>录屏</strong></td><td>整屏或选区录制，可选帧率、分辨率、声音来源</td></tr><tr><td><strong>工作流</strong></td><td>截图后自动保存、识别、上传图床、建 GitHub / Linear issue</td></tr><tr><td><strong>钉图</strong></td><td>把一张图钉在桌面最上层当参考，四种外观形态</td></tr><tr><td><strong>系统监测</strong></td><td>CPU、内存、GPU、磁盘、网络、温度、电池、功耗，菜单栏一眼可见</td></tr><tr><td><strong>内存维护</strong></td><td>「深度释放」一键清缓存 + 暂停闲置应用，报告分项写清楚释放了什么</td></tr><tr><td><strong>存储管理</strong></td><td>全盘索引（248 万条目）、可视化堆块、一键移到废纸篓</td></tr><tr><td><strong>文件中转</strong></td><td>隔空投送 / 扫码直传 / ADB 互传 / 本地暂存，对端零安装</td></tr><tr><td><strong>手机投屏</strong></td><td>Android 扫码直连、scrcpy 镜像、应用库、剪贴板双向同步</td></tr><tr><td><strong>归档压缩</strong></td><td>打开 40+ 种压缩包、预览、编辑回写、压缩、任务队列</td></tr><tr><td><strong>工具箱</strong></td><td>40+ 个小工具 + 代码预览 + 日历农历 + 全盘文件搜索</td></tr><tr><td><strong>AI 助手</strong></td><td>四类服务商接入，聊天、总结、翻译，密钥本地加密</td></tr><tr><td><strong>使用统计</strong></td><td>50+ 种行为事件，30 天柱图 + 跨年热力图，数据只存本机</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>能力</th><th>一句话</th></tr></thead><tbody><tr><td><strong>剪贴板历史</strong></td><td>复制过的文字、图片、文件、链接全都记着，随时搜回来</td></tr><tr><td><strong>截图</strong></td><td>区域 / 窗口 / 长截图，截完直接标注、识字、翻译、钉在屏幕上</td></tr><tr><td><strong>图帘</strong></td><td>截图后不落地，先挂在屏幕顶边那条帘线上，需要时再拖走</td></tr><tr><td><strong>录屏</strong></td><td>整屏或选区录制，可选帧率、分辨率、声音来源</td></tr><tr><td><strong>工作流</strong></td><td>截图后自动保存、识别、上传图床、建 GitHub / Linear issue</td></tr><tr><td><strong>钉图</strong></td><td>把一张图钉在桌面最上层当参考，四种外观形态</td></tr><tr><td><strong>系统监测</strong></td><td>CPU、内存、GPU、磁盘、网络、温度、电池、功耗，菜单栏一眼可见</td></tr><tr><td><strong>内存维护</strong></td><td>「深度释放」一键清缓存 + 暂停闲置应用，报告分项写清楚释放了什么</td></tr><tr><td><strong>存储管理</strong></td><td>全盘索引（248 万条目）、可视化堆块、一键移到废纸篓</td></tr><tr><td><strong>归档压缩</strong></td><td>打开 40+ 种压缩包、预览、编辑回写、压缩、任务队列</td></tr><tr><td><strong>工具箱</strong></td><td>40+ 个小工具 + 代码预览 + 日历农历 + 全盘文件搜索</td></tr><tr><td><strong>AI 助手</strong></td><td>四类服务商接入，聊天、总结、翻译，密钥本地加密</td></tr><tr><td><strong>使用统计</strong></td><td>50+ 种行为事件，30 天柱图 + 跨年热力图，数据只存本机</td></tr></tbody></table></div>
 <hr>
 <h2 id="快速上手">快速上手</h2>
 <h3 id="安装与启动">安装与启动</h3>
-<ol><li>把 <code>Kitnest.app</code> 拖进「应用程序」文件夹，首次双击打开。</li><li>它是菜单栏应用：启动后不会出现主窗口，也不会在 Dock 显示图标，只在屏幕顶部菜单栏出现一个图标。</li><li>若系统提示「无法验证开发者」，到「系统设置 → 隐私与安全性」里点「仍要打开」。</li><li>退出：点菜单栏图标 →「退出 Kitnest」，或 <code>⌘Q</code>。</li></ol>
+<ol><li>把 <code>KitnestLite.app</code> 拖进「应用程序」文件夹，首次双击打开。</li><li>它是菜单栏应用：启动后不会出现主窗口，也不会在 Dock 显示图标，只在屏幕顶部菜单栏出现一个图标。</li><li>若系统提示「无法验证开发者」，到「系统设置 → 隐私与安全性」里点「仍要打开」。</li><li>退出：点菜单栏图标 →「退出 Kitnest」，或 <code>⌘Q</code>。</li></ol>
 <h3 id="首次启动会看到什么">首次启动会看到什么</h3>
 <ol><li><strong>欢迎窗</strong>：30 秒上手 + 功能导览 + 快捷键速查（<code>WelcomeWindowController</code>）；上手步骤下方可选择用 Kitnest 默认打开 ZIP，详见第二十二章。</li><li><strong>权限引导窗</strong>：四类权限的状态、用途、一键授权（<code>PermissionGuideWindowController</code>）。权限状态来自实际检测，不读取配置。</li><li>之后菜单栏图标右键 →「欢迎与权限…」可随时回看。</li></ol>
 <h3 id="需要授权什么">需要授权什么</h3>
@@ -181,49 +180,38 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <blockquote>全部可在「系统设置 → 隐私与安全性」随时开关。</blockquote>
 <h3 id="界面总览">界面总览</h3>
 <p>常用界面与入口：</p>
-<div class="table-wrap"><table><thead><tr><th>界面</th><th>怎么打开</th><th>是什么</th></tr></thead><tbody><tr><td><strong>菜单栏图标</strong></td><td>常驻</td><td>左键开主面板，右键开功能菜单</td></tr><tr><td><strong>主面板</strong></td><td><code>⌥A</code> / 左键图标</td><td>360~440pt 宽的浮窗，首页是剪贴板 + 搜索 + 日历</td></tr><tr><td><strong>性能监测窗</strong></td><td><code>⌥P</code> / <code>⌥M</code></td><td>可常驻的系统监测窗口，玻璃态</td></tr><tr><td><strong>悬浮剪贴板</strong></td><td><code>⇧⌘V</code></td><td>贴在鼠标旁的迷你剪贴板</td></tr><tr><td><strong>设置</strong></td><td><code>⌘,</code></td><td>左侧大侧边栏，27 个设置页</td></tr><tr><td><strong>命令面板</strong></td><td><code>⌥K</code></td><td>Spotlight 式全功能目录</td></tr><tr><td><strong>刘海工作台</strong></td><td>悬停屏幕顶部刘海 / 菜单“刘海工作台”</td><td>黑色玻璃组件总览，剪贴板与中转共用近期内容页</td></tr></tbody></table></div>
-<h3 id="刘海工作台">刘海工作台</h3>
-<p>在“设置 → 常规 → 刘海工作台”调整开关、宽高、黑色玻璃、悬停时间，以及组件和监测指标的颜色、顺序。调整实时显示在模拟预览中；按“保存”应用，按“取消”恢复已保存值。</p>
-<p>首页默认使用 4 列 × 2 行画布，展开尺寸为 780×480pt。行列、宽高与各组件的 1×1、1×2、2×1、1×4、2×2 尺寸统一在总设置调整（组件尺寸按行 × 列标注）。单格至少 154×126pt，放不下的组件进入下一页；较小画布暂用能放下的尺寸，原尺寸选择保留。拖动右上把手改变顺序，点击前移，也可用方向键或右键菜单调整。预览可横向滚动查看原尺寸，保存后应用。</p>
-<p>“剪贴板与中转”按时间展示近期内容。点击记录查看完整正文或文件详情；同一文件同时存在于两个来源时显示一行。文件行和详情中的拖出区域可拖到 Finder 或其他应用，拖入文件则沿用本地中转。列表合并不删除两边原记录。</p>
-<p>左右滑动切换四个主入口；键盘可用 <code>⌥←</code> / <code>⌥→</code>、<code>⌘1</code> 至 <code>⌘9</code>，<code>Esc</code> 收回。“全部功能”列出各模块与已启用工具，输入名称后按回车打开。收起图标默认关闭，可在总设置中选择显示内容与快捷操作。</p>
-<p>媒体页读取系统“正在播放”，显示标题、作者、封面和进度，支持播放、暂停、切歌和跳转；播放器未提供的内容显示具体状态。音量、静音及输出设备使用系统当前值。关闭媒体页或收回工作台后停止曲目读取。</p>
-<p>监测页共用正式的功耗、电池、CPU、内存、网络、磁盘、温度和 GPU 详情，也可切到趋势对照。日历包含星期标题、农历、节日及所选日期的日程，周起始日沿用总设置。</p>
-<p>截图、标注、录屏、OCR、划词、文件传输、手机投屏、AI 对话、使用统计、压缩解压和网盘下载均可从功能目录进入。工具在岛内输入、执行、复制及保存；采集和归档编辑先收回工作台，再进入原操作界面。剪贴板和文件详情共用正式预览，文件路径可以点击复制。</p>
-<p>首页共有 16 类组件，均可在总设置调整颜色、尺寸、顺序及显隐。设置预览只使用固定示例，不采集屏幕、不播放媒体、不访问网络，也不操作真实剪贴板和文件。</p>
+<div class="table-wrap"><table><thead><tr><th>界面</th><th>怎么打开</th><th>是什么</th></tr></thead><tbody><tr><td><strong>菜单栏图标</strong></td><td>常驻</td><td>左键开主面板，右键开功能菜单</td></tr><tr><td><strong>主面板</strong></td><td><code>⌥A</code> / 左键图标</td><td>360~440pt 宽的浮窗，首页是剪贴板 + 搜索 + 日历</td></tr><tr><td><strong>性能监测窗</strong></td><td><code>⌥P</code> / <code>⌥M</code></td><td>可常驻的系统监测窗口，玻璃态</td></tr><tr><td><strong>悬浮剪贴板</strong></td><td><code>⇧⌘V</code></td><td>贴在鼠标旁的迷你剪贴板</td></tr><tr><td><strong>设置</strong></td><td><code>⌘,</code></td><td>左侧大侧边栏，27 个设置页</td></tr><tr><td><strong>命令面板</strong></td><td><code>⌥K</code></td><td>Spotlight 式全功能目录</td></tr></tbody></table></div>
 <hr>
 <h1 id="第一部分-常驻入口">第一部分 · 常驻入口</h1>
 <h2 id="第一章-菜单栏与图标">第一章 菜单栏与图标</h2>
 <h3 id="功能是什么">功能是什么</h3>
 <p>菜单栏是 Kitnest 的总指挥部。主图标负责呼出主面板和功能菜单；图标右侧可以挂一排监控部件，实时显示系统数据；图标本身有四种样式。</p>
 <h3 id="用户怎么用">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>操作</th><th>入口</th><th>效果</th></tr></thead><tbody><tr><td>打开主面板</td><td>左键点图标 / <code>⌥A</code> / <code>kitnest://panel</code></td><td>从图标下方「长出来」，再按一次收起</td></tr><tr><td>打开功能菜单</td><td>右键点图标</td><td>见下方菜单项</td></tr><tr><td>打开设置</td><td>菜单「设置…」/ <code>⌘,</code></td><td>设置窗口</td></tr><tr><td>打开使用统计</td><td>菜单「使用统计」</td><td>统计窗（第二章）</td></tr><tr><td>切换监控部件</td><td>菜单「显示状态项」/「显示项」</td><td>逐模块开关</td></tr><tr><td>退出</td><td>菜单「退出 Kitnest」/ <code>⌘Q</code></td><td>结束进程</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>入口</th><th>效果</th></tr></thead><tbody><tr><td>打开主面板</td><td>左键点图标 / <code>⌥A</code> / <code>kitnest-lite://panel</code></td><td>从图标下方「长出来」，再按一次收起</td></tr><tr><td>打开功能菜单</td><td>右键点图标</td><td>见下方菜单项</td></tr><tr><td>打开设置</td><td>菜单「设置…」/ <code>⌘,</code></td><td>设置窗口</td></tr><tr><td>打开使用统计</td><td>菜单「使用统计」</td><td>统计窗（第二章）</td></tr><tr><td>切换监控部件</td><td>菜单「显示状态项」/「显示项」</td><td>逐模块开关</td></tr><tr><td>退出</td><td>菜单「退出 Kitnest」/ <code>⌘Q</code></td><td>结束进程</td></tr></tbody></table></div>
 <p>主图标右键菜单包含：打开面板、设置…、性能监测…、使用统计、显示状态项（总开关）、显示项（CPU / 内存 / 网络 / 磁盘 / 温度 / 功耗逐项）、欢迎与权限…、检查更新…、退出（<code>StatusBarMenuBuilder.mainMenu</code>）。</p>
 <h3 id="演示">演示</h3>
-<figure><img src="gifs/ch01-menubar.gif" alt="点菜单栏图标，面板从图标正下方展开；光标随后掠过顶栏八个动作——截图、取色、悬浮剪贴板、主页、监测、中转、投屏、设置。" loading="lazy" decoding="async"><figcaption>点菜单栏图标，面板从图标正下方展开；光标随后掠过顶栏八个动作——截图、取色、悬浮剪贴板、主页、监测、中转、投屏、设置。</figcaption></figure>
 <h3 id="关键能力点">关键能力点</h3>
 <ul><li><strong>五种图标样式，只选一种</strong>（<code>MenuBarIconStyle.selectIconStyle</code>）</li><li><strong>应用图标</strong>：默认 Logo。</li><li><strong>动态风扇</strong>：旋转小风扇，转速随 CPU 使用率变化。</li><li><strong>日期</strong>：菜单栏直接显示当天日期（<code>startDateTimer</code>）。</li><li><strong>自定义图标</strong>：任意 SF Symbol 名称（<code>setSymbol</code>）。</li><li><strong>动态小猫</strong>：播放跑步动画，速度随 CPU 使用率变化；选择后不再同时显示风扇。</li></ul>
 <p>在「常规 → 菜单栏」切换样式，浅色、深色两张预览同步更新。小猫和风扇按固定示例速度播放；修改其他开关不会重播图标动画。点「保存」才改变真实菜单栏，点「取消」恢复已保存的选择。</p>
 <ul><li><strong>自定义图标</strong>：在设置中填写 SF Symbol 名称；名称无效时保存会说明原因。右键菜单可以隐藏或恢复自定义图标选项。</li></ul>
 <ul><li><strong>图标位置记忆</strong>：监控部件在菜单栏中的顺序会被保存，重启还原（<code>saveStatusItemPosition</code> / <code>restoreStatusItemPosition</code>）。</li></ul>
 <ul><li><strong>唯一实例保护</strong>：重复启动会自动退出旧实例；检测到官方原版 Frset 同时在跑会提示（<code>enforceSingleMenubarOwner</code>）。</li></ul>
-<ul><li><strong>拖文件到图标</strong>：把文件拖到菜单栏图标上可直接进「文件中转」暂存（<code>StatusItemDropProxy</code>：由于 <code>NSStatusBarButton</code> 本身不是拖放目标，此处通过覆盖视图支持拖放拦截）。</li></ul>
 <h3 id="注意事项">注意事项</h3>
 <ul><li>图标被系统折叠时，到「系统设置 → 控制中心 → 菜单栏」调整，或按住 <code>⌥</code> 点击菜单栏展开。</li><li>动态风扇持续旋转会增加少量菜单栏重绘；介意就换回应用图标。</li><li>菜单里「打开面板」显示的键位是历史遗留，实际生效的是 <code>⌥A</code>，以设置页「快捷键」里显示的为准。</li></ul>
 <h3 id="实现索引">实现索引</h3>
-<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>StatusBarController.swift:139</code></td><td><code>installMainItem</code></td><td>创建并安装主图标状态项</td></tr><tr><td><code>StatusBarController.swift:424</code></td><td><code>mainItemClicked</code></td><td>主图标点击分发（左键面板 / 右键菜单）</td></tr><tr><td><code>StatusBarController.swift:256</code></td><td><code>saveStatusItemPosition</code></td><td>保存状态项在菜单栏的位置</td></tr><tr><td><code>StatusBarController.swift:262</code></td><td><code>restoreStatusItemPosition</code></td><td>重启后还原位置</td></tr><tr><td><code>StatusBarController.swift:270</code></td><td><code>rebuild</code></td><td>偏好变化后重建全部状态项</td></tr><tr><td><code>StatusBarMenuBuilder.swift:11</code></td><td><code>mainMenu</code></td><td>组装主图标右键菜单</td></tr><tr><td><code>StatusBarMenuBuilder.swift:83</code></td><td><code>customIconSubmenu</code></td><td>自定义图标子菜单</td></tr><tr><td><code>MenuBarIconStyle.swift:257</code></td><td><code>selectIconStyle</code></td><td>切换图标样式</td></tr><tr><td><code>MenuBarIconStyle.swift:476</code></td><td><code>startFan</code></td><td>启动风扇动画</td></tr><tr><td><code>MenuBarIconStyle.swift:513</code></td><td><code>updateFanSpeed</code></td><td>按 CPU 使用率调整转速</td></tr><tr><td><code>MenuBarIconStyle.swift:465</code></td><td><code>startDateTimer</code></td><td>日期样式定时刷新</td></tr><tr><td><code>StatusItemDropProxy.swift</code></td><td><code>draggingEntered</code> / <code>performDragOperation</code></td><td>拖文件到图标进中转</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>StatusBarController.swift:139</code></td><td><code>installMainItem</code></td><td>创建并安装主图标状态项</td></tr><tr><td><code>StatusBarController.swift:424</code></td><td><code>mainItemClicked</code></td><td>主图标点击分发（左键面板 / 右键菜单）</td></tr><tr><td><code>StatusBarController.swift:256</code></td><td><code>saveStatusItemPosition</code></td><td>保存状态项在菜单栏的位置</td></tr><tr><td><code>StatusBarController.swift:262</code></td><td><code>restoreStatusItemPosition</code></td><td>重启后还原位置</td></tr><tr><td><code>StatusBarController.swift:270</code></td><td><code>rebuild</code></td><td>偏好变化后重建全部状态项</td></tr><tr><td><code>StatusBarMenuBuilder.swift:11</code></td><td><code>mainMenu</code></td><td>组装主图标右键菜单</td></tr><tr><td><code>StatusBarMenuBuilder.swift:83</code></td><td><code>customIconSubmenu</code></td><td>自定义图标子菜单</td></tr><tr><td><code>MenuBarIconStyle.swift:257</code></td><td><code>selectIconStyle</code></td><td>切换图标样式</td></tr><tr><td><code>MenuBarIconStyle.swift:476</code></td><td><code>startFan</code></td><td>启动风扇动画</td></tr><tr><td><code>MenuBarIconStyle.swift:513</code></td><td><code>updateFanSpeed</code></td><td>按 CPU 使用率调整转速</td></tr><tr><td><code>MenuBarIconStyle.swift:465</code></td><td><code>startDateTimer</code></td><td>日期样式定时刷新</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二章-使用统计">第二章 使用统计</h2>
 <h3 id="功能是什么-1">功能是什么</h3>
 <p>记录用过哪些功能、各用了多少次，并以三层版面呈现：五张指标卡 → 总览 + 最近 30 天柱状图 → 跨年活动热力图。数据只存本机 SQLite，不上传、不联网。</p>
 <h3 id="用户怎么用-1">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>菜单栏右键 →「使用统计」</td><td>打开统计窗</td></tr><tr><td><code>kitnest://statistics</code></td><td>同上</td></tr><tr><td>设置 → 数据 → 统计</td><td>配置统计开关、导出/导入</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>菜单栏右键 →「使用统计」</td><td>打开统计窗</td></tr><tr><td><code>kitnest-lite://statistics</code></td><td>同上</td></tr><tr><td>设置 → 数据 → 统计</td><td>配置统计开关、导出/导入</td></tr></tbody></table></div>
 <p>窗口结构（<code>StatisticsRootView</code>）：</p>
 <ol><li><strong>顶部</strong>：今天日期 + 今天的总事件数。</li><li><strong>五张指标卡</strong>（<code>MetricCardView</code>）：常用动作的今日计数。</li><li><strong>总览 + 30 天柱图</strong>：每天一根柱，看的是一段时间的趋势。</li><li><strong>跨年热力图</strong>：GitHub 贡献图那种格子，颜色深浅表示当天活跃度（<code>heatCellView</code>）。</li></ol>
 <h3 id="演示-1">演示</h3>
 <figure><img src="gifs/ch02-statistics.gif" alt="统计窗从上到下三段：五个计数（复制 / 截图 / 识别 / 工具 / 监测）、近 30 天柱图、按天着色的活动矩阵。" loading="lazy" decoding="async"><figcaption>统计窗从上到下三段：五个计数（复制 / 截图 / 识别 / 工具 / 监测）、近 30 天柱图、按天着色的活动矩阵。</figcaption></figure>
 <h3 id="关键能力点-1">关键能力点</h3>
-<ul><li><strong>50+ 种事件</strong>（<code>AnalyticsEvent</code>，<code>Storage/Database.swift:370</code>）</li><li>剪贴板：<code>panelOpen</code> / <code>historyCopy</code> / <code>historyBatchCopy</code> / <code>clipboardCapture</code> / <code>clipboardPaste</code>（粘贴计数）…</li><li>截图族：<code>screenshotCapture</code> / <code>longScreenshot</code> / <code>annotateEdit</code> / <code>pinImage</code> / <code>screenRecord</code> / <code>colorPickSuccess</code></li><li>搜索与工具：<code>searchExecute</code> / <code>toolExecuteSuccess</code> / <code>webSearchOpen</code> / <code>ocrUse</code> / <code>translationUse</code></li><li>传输：<code>fileDownload</code> / <code>fileTransferSend</code> / <code>fileTransferReceive</code> / <code>transferDockOpen</code> / <code>screenCastOpen</code></li><li>系统：<code>monitorPanelOpen</code> / <code>networkInfoClick</code> / <code>activityMonitorClick</code></li><li>设置：<code>settingsOpen</code> / <code>settingsExportSuccess</code> / <code>settingsImportSuccess</code> / <code>changelogClick</code></li><li>商业化（原版键位保留）：<code>proPageView</code> / <code>paywallView</code> / <code>proPurchaseSuccess</code> …</li></ul>
+<ul><li><strong>50+ 种事件</strong>（<code>AnalyticsEvent</code>，<code>Storage/Database.swift:370</code>）</li><li>剪贴板：<code>panelOpen</code> / <code>historyCopy</code> / <code>historyBatchCopy</code> / <code>clipboardCapture</code> / <code>clipboardPaste</code>（粘贴计数）…</li><li>截图族：<code>screenshotCapture</code> / <code>longScreenshot</code> / <code>annotateEdit</code> / <code>pinImage</code> / <code>screenRecord</code> / <code>colorPickSuccess</code></li><li>搜索与工具：<code>searchExecute</code> / <code>toolExecuteSuccess</code> / <code>webSearchOpen</code> / <code>ocrUse</code> / <code>translationUse</code></li><li>下载：<code>fileDownload</code></li><li>系统：<code>monitorPanelOpen</code> / <code>networkInfoClick</code> / <code>activityMonitorClick</code></li><li>设置：<code>settingsOpen</code> / <code>settingsExportSuccess</code> / <code>settingsImportSuccess</code> / <code>changelogClick</code></li><li>商业化（原版键位保留）：<code>proPageView</code> / <code>paywallView</code> / <code>proPurchaseSuccess</code> …</li></ul>
 <ul><li><strong>事件名自动派生</strong>：camelCase → snake_case（<code>historyCopy</code> → <code>history_copy</code>），所以数据库里的键名和代码里的枚举一一对应。</li></ul>
 <ul><li><strong>按天聚合</strong>：写入时按日期分桶，跨年热力图直接读年度表，不需要全表扫描。</li></ul>
 <ul><li><strong>导出/导入</strong>：「设置 → 数据」里导出的偏好包里<strong>包含统计</strong>（<code>StatisticsSettingsPane.performExport</code>），换机不丢历史。</li></ul>
@@ -234,21 +222,20 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <hr>
 <h2 id="第三章-主面板与首页">第三章 主面板与首页</h2>
 <h3 id="功能是什么-2">功能是什么</h3>
-<p>主面板是 Kitnest 的核心窗口，从菜单栏图标「长出来」。顶部胶囊切页：<strong>主页</strong>（搜索 + 网盘链接 + 日历 + 剪贴板历史）、<strong>性能监测</strong>、<strong>文件中转</strong>、<strong>投屏</strong>——后三页可在设置里关掉。</p>
+<p>主面板是 Kitnest 的核心窗口，从菜单栏图标「长出来」。顶部胶囊切页：<strong>主页</strong>（搜索 + 网盘链接 + 日历 + 剪贴板历史）、<strong>性能监测</strong>，显隐与顺序在主面板设置中调整。</p>
 <h3 id="用户怎么用-2">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / 左键图标</td><td>呼出/收起</td><td>从图标下方展开，带三角指示器</td></tr><tr><td><code>⌥F</code></td><td>打开并搜索</td><td>面板打开且搜索框获得焦点</td></tr><tr><td><code>⌥V</code></td><td>打开剪贴板</td><td>面板打开并切回首页</td></tr><tr><td><code>⌘P</code></td><td>置顶</td><td>面板常驻，失焦不收起</td></tr><tr><td><code>Esc</code></td><td>关闭</td><td>面板收起</td></tr><tr><td>顶部工具条</td><td>截图 / 取色 / 悬浮剪贴板 / 三段切换 / 齿轮菜单</td><td>快速动作与切页</td></tr><tr><td>拖文件进面板</td><td>任意位置</td><td><code>.json</code> / <code>.txt</code> 打开 JSON 检查器，其他进中转</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / 左键图标</td><td>呼出/收起</td><td>从图标下方展开，带三角指示器</td></tr><tr><td><code>⌥F</code></td><td>打开并搜索</td><td>面板打开且搜索框获得焦点</td></tr><tr><td><code>⌥V</code></td><td>打开剪贴板</td><td>面板打开并切回首页</td></tr><tr><td><code>⌘P</code></td><td>置顶</td><td>面板常驻，失焦不收起</td></tr><tr><td><code>Esc</code></td><td>关闭</td><td>面板收起</td></tr><tr><td>顶部工具条</td><td>截图 / 取色 / 悬浮剪贴板 / 三段切换 / 齿轮菜单</td><td>快速动作与切页</td></tr></tbody></table></div>
 <h3 id="演示-2">演示</h3>
-<figure><img src="gifs/ch03-panel.gif" alt="顶栏四个页签逐个切：监测（CPU 环形图）→ 中转（隔空投送 / 扫码直传 / ADB 互传）→ 投屏（设备连接）→ 回主页；最后在搜索框敲 `README` 看结果。" loading="lazy" decoding="async"><figcaption>顶栏四个页签逐个切：监测（CPU 环形图）→ 中转（隔空投送 / 扫码直传 / ADB 互传）→ 投屏（设备连接）→ 回主页；最后在搜索框敲 <code>README</code> 看结果。</figcaption></figure>
 <h3 id="关键能力点-2">关键能力点</h3>
 <ul><li><strong>首页从上到下</strong>：搜索区段 → 网盘链接条 → 日历卡 → 剪贴板历史列表（<code>PanelRootView.homePage</code>）。</li></ul>
-<ul><li><strong>页签可自定义</strong>（<code>PanelSegments</code>）：设置里能决定哪些页显不显示、顺序如何。关掉「文件中转」后，面板只剩主页和监测。</li></ul>
+<ul><li><strong>页签可自定义</strong>（<code>PanelSegments</code>）：设置里能决定哪些页显不显示、顺序如何。主面板保留主页和监测。</li></ul>
 <ul><li><strong>从图标长出来的动效</strong>（<code>PanelMotion</code> + <code>WindowReveal</code>）：<code>scaleEffect(anchor: .top) 0.93→1</code> + 上移 10pt + 弹簧，配合根视图顶部 9pt 让位和居中三角指示器（尖端朝上指向图标）。这是 1:1 复刻原版的行为。</li></ul>
 <ul><li><strong>失焦自动收起</strong>：面板是 transient 窗口，点别处就收（<code>TransientWindows</code>）。<code>⌘P</code> 置顶可改变这一行为。</li></ul>
 <ul><li><strong>宽度可调</strong>（<code>Personalization.panelWidth</code>）：360 / 400 / 440 三档，设置里改完立刻生效。窗口宽度等于选中值，不再叠加字号缩放（v73 修的三重缩放 bug）。</li></ul>
 <ul><li><strong>玻璃态</strong>：面板用 <code>NSVisualEffectMaterial.popover</code>，能透出桌面模糊（<code>LiquidGlass</code>）。</li></ul>
 <ul><li><strong>子窗口身份</strong>：面板里弹出的窗口打了一个可识别标记（<code>PanelChildWindow</code>），这样「点外收起」的逻辑不会误伤自己弹的窗。</li></ul>
 <h3 id="注意事项-2">注意事项</h3>
-<ul><li>面板是临时窗口，失焦时自动收起。需要长时间查看时，按 <code>⌘P</code> 置顶。</li><li>「文件中转」段可以关掉，关掉后底部只剩两页。</li><li>面板里点日期格会打开系统日历（<code>calendarDayOpen</code> 计数），不是应用内弹窗。</li></ul>
+<ul><li>面板是临时窗口，失焦时自动收起。需要长时间查看时，按 <code>⌘P</code> 置顶。</li><li>面板里点日期格会打开系统日历（<code>calendarDayOpen</code> 计数），不是应用内弹窗。</li></ul>
 <h3 id="实现索引-2">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>PanelRootView.swift</code></td><td><code>homePage</code> / <code>body</code></td><td>首页版式与页签切换</td></tr><tr><td><code>PanelController.swift:1</code></td><td><code>show</code> / <code>hide</code> / <code>toggle</code></td><td>面板可见性与锚点展开</td></tr><tr><td><code>PanelController.swift</code></td><td><code>syncPanelFrameToPersonalization</code></td><td>个性化改动同步窗口尺寸</td></tr><tr><td><code>PanelSegments.swift</code></td><td><code>PanelSegment</code> 枚举</td><td>页签定义与显隐</td></tr><tr><td><code>FloatingPanel.swift</code></td><td><code>canBecomeKey</code> / <code>canBecomeMain</code></td><td>浮窗行为（不抢主窗口）</td></tr><tr><td><code>PanelChildWindow.swift</code></td><td><code>isPanelChild</code></td><td>子窗口身份标记</td></tr><tr><td><code>PanelMotion.swift</code></td><td><code>present</code> / <code>dismiss</code></td><td>展开/收起动效参数</td></tr><tr><td><code>WindowReveal.swift:1</code></td><td><code>reveal</code></td><td>从点扩散到整窗的动画</td></tr><tr><td><code>TransientWindows.swift</code></td><td><code>installOutsideClickMonitor</code></td><td>点外收起（四路冗余监听）</td></tr><tr><td><code>JSONInspectorView.swift</code></td><td><code>handleFileDrop</code> / <code>parse</code></td><td>拖入 JSON 打开检视器</td></tr></tbody></table></div>
 <hr>
@@ -256,7 +243,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="功能是什么-3">功能是什么</h3>
 <p>自动记录复制过的文本、富文本、图片、文件和链接。支持搜索、类型筛选、标签、编辑、批量操作和暂停记录。默认保留 30 天，上限 2GB；两个数都能改。</p>
 <h3 id="用户怎么用-3">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / <code>⌥V</code></td><td>打开面板首页</td><td>剪贴板历史列表</td></tr><tr><td><code>⇧⌘V</code></td><td>悬浮剪贴板</td><td>鼠标旁迷你列表（第五章）</td></tr><tr><td>双击一条 / 回车</td><td>回贴</td><td>写回系统剪贴板</td></tr><tr><td>右键</td><td>菜单</td><td>置顶、标签、编辑、隔空投送、删除</td></tr><tr><td><code>⇧⌥R</code></td><td>暂停/恢复记录</td><td>处理敏感内容时用</td></tr><tr><td>底部工具条</td><td>筛选 / 标签 / 编辑 / 上传</td><td>批量与整理</td></tr><tr><td>主面板齿轮 / 悬浮窗「…」菜单</td><td>清空当前剪贴板</td><td>只清空系统当前内容，保留历史、笔记、标签和文件中转</td></tr><tr><td>设置 → 剪贴板 → 历史</td><td>清除历史，保留已存项目 → 清除历史…</td><td>确认后删除全部未存历史，保留笔记及标签定义</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / <code>⌥V</code></td><td>打开面板首页</td><td>剪贴板历史列表</td></tr><tr><td><code>⇧⌘V</code></td><td>悬浮剪贴板</td><td>鼠标旁迷你列表（第五章）</td></tr><tr><td>双击一条 / 回车</td><td>回贴</td><td>写回系统剪贴板</td></tr><tr><td>右键</td><td>菜单</td><td>置顶、标签、编辑、删除</td></tr><tr><td><code>⇧⌥R</code></td><td>暂停/恢复记录</td><td>处理敏感内容时用</td></tr><tr><td>底部工具条</td><td>筛选 / 标签 / 编辑 / 上传</td><td>批量与整理</td></tr><tr><td>设置 → 剪贴板 → 历史</td><td>清除历史，保留已存项目 → 清除历史…</td><td>确认后删除全部未存历史，保留笔记及标签定义</td></tr></tbody></table></div>
 <h3 id="演示-3">演示</h3>
 <figure><img src="gifs/ch04-clipboard.gif" alt="滚轮往下翻更早的条目 → 逐行悬停（右侧浮出粘贴 / 复制按钮）→ 点底部分类筛选，弹出类型菜单。" loading="lazy" decoding="async"><figcaption>滚轮往下翻更早的条目 → 逐行悬停（右侧浮出粘贴 / 复制按钮）→ 点底部分类筛选，弹出类型菜单。</figcaption></figure>
 <h3 id="关键能力点-3">关键能力点</h3>
@@ -336,7 +323,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>通用操作：<code>Esc</code> / <code>Delete</code> / 右键取消；拖框时 <code>⇧</code> 出正方形、<code>⌥</code> 临时关闭元素吸附 （吸附会把框边对齐到光标下的控件/文本块边缘 8pt 内，但不会吸成整窗）。 第一次点击就生效，不需要先点一下把窗口激活。</p>
 <blockquote>旧版本有「窗口模式 / 区域模式」两档和覆盖层顶部的切换开关，v267 起全部移除； 偏好键 <code>capture.defaultPickMode</code> 不再读取。</blockquote>
 <h3 id="动作条19-个动作-6-组">动作条（19 个动作 / 6 组）</h3>
-<div class="table-wrap"><table><thead><tr><th>组</th><th>图标</th><th>展开项</th></tr></thead><tbody><tr><td><strong>复制</strong></td><td>复制图标</td><td>复制 / 复制并识别 / 复制并翻译 / 保存</td></tr><tr><td><strong>识别</strong></td><td>文字框</td><td>识字 / 识码 / 翻译 / 屏幕翻译</td></tr><tr><td><strong>钉住</strong></td><td>图钉</td><td>钉住（当前外观）/ 经典 / 无边框 / 卡片 / 强调 / 挂到图帘</td></tr><tr><td><strong>长截图</strong></td><td>上下箭头</td><td>（独立成组，点即用）</td></tr><tr><td><strong>编辑</strong></td><td>铅笔</td><td>标注 / 美化</td></tr><tr><td><strong>更多</strong></td><td>省略号</td><td>空投 / 历史</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>组</th><th>图标</th><th>展开项</th></tr></thead><tbody><tr><td><strong>复制</strong></td><td>复制图标</td><td>复制 / 复制并识别 / 复制并翻译 / 保存</td></tr><tr><td><strong>识别</strong></td><td>文字框</td><td>识字 / 识码 / 翻译 / 屏幕翻译</td></tr><tr><td><strong>钉住</strong></td><td>图钉</td><td>钉住（当前外观）/ 经典 / 无边框 / 卡片 / 强调 / 挂到图帘</td></tr><tr><td><strong>长截图</strong></td><td>上下箭头</td><td>（独立成组，点即用）</td></tr><tr><td><strong>编辑</strong></td><td>铅笔</td><td>标注 / 美化</td></tr><tr><td><strong>更多</strong></td><td>省略号</td><td>历史</td></tr></tbody></table></div>
 <ul><li><strong>点图标</strong>执行该组的默认动作；<strong>悬停</strong>展开竖排子项列表（带组名标题，一个形态一行）。</li><li>「钉住」组里前五项是<strong>外观形态</strong>，只作用于这一张，不会改掉你以后钉图的默认外观。</li><li>键盘也能选：动作条上每个动作有字母键，例如 <code>p</code> = 钉住。</li></ul>
 <h3 id="演示-6">演示</h3>
 <figure><img src="gifs/ch07-capture.gif" alt="`⌥S` 起手 → 拖出选区（尺寸实时显示）→ 松手出动作条 → 光标停在「钉住」上，展开六种形态。真机录制、未加速。" loading="lazy" decoding="async"><figcaption><code>⌥S</code> 起手 → 拖出选区（尺寸实时显示）→ 松手出动作条 → 光标停在「钉住」上，展开六种形态。真机录制、未加速。</figcaption></figure>
@@ -414,7 +401,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>HUD 进度</strong>（<code>LongScreenshotHUD</code>）</li></ul>
 <p>旧实现框选确认后只显示 Toast，采集中没有反馈。现有 HUD 持续显示帧数、当前高度和耗时。</p>
 <ul><li><strong>离线自检</strong>（<code>LongScreenshotDiagnostics</code>）</li></ul>
-<p><code>kitnest://longshotcheck</code> 用「合成长图 + 已知位移切片」回灌拼接器，校验画布尺寸/接缝/重复帧/向上滚动——不碰鼠标也能验证算法。</p>
+<p><code>kitnest-lite://longshotcheck</code> 用「合成长图 + 已知位移切片」回灌拼接器，校验画布尺寸/接缝/重复帧/向上滚动——不碰鼠标也能验证算法。</p>
 <h3 id="注意事项-9">注意事项</h3>
 <ul><li>只框<strong>内容区</strong>：把滚动条框进去会导致每帧右侧差异，接缝处会看到条状残影。</li><li>页面里如果有固定悬浮元素（回到顶部按钮、客服气泡），它们会被动态裁切层识别；识别失败就手动裁掉。</li><li>采集帧率默认 30fps，滚动越快越容易掉帧；慢慢滚质量更好。</li><li>拼接结果先进预览窗，<strong>确认后才落盘</strong>，不会覆盖原截图。</li></ul>
 <h3 id="实现索引-9">实现索引</h3>
@@ -469,7 +456,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="功能是什么-12">功能是什么</h3>
 <p>所有<strong>落盘过</strong>的截图都在这里：缩略图网格、按时间分组、点击定位到文件。</p>
 <h3 id="用户怎么用-12">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 截图区段 →「历史」</td><td>打开历史网格</td></tr><tr><td>动作条 →「更多」→「历史」</td><td>同上</td></tr><tr><td><code>kitnest://capture?history=1</code></td><td>深链直达</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 截图区段 →「历史」</td><td>打开历史网格</td></tr><tr><td>动作条 →「更多」→「历史」</td><td>同上</td></tr><tr><td><code>kitnest-lite://capture?history=1</code></td><td>深链直达</td></tr></tbody></table></div>
 <h3 id="演示-12">演示</h3>
 <figure><img src="gifs/ch13-history.gif" alt="截图历史窗：缩略图网格按时间倒序，顶部有搜索框与筛选；光标掠过前几行看悬停操作。" loading="lazy" decoding="async"><figcaption>截图历史窗：缩略图网格按时间倒序，顶部有搜索框与筛选；光标掠过前几行看悬停操作。</figcaption></figure>
 <h3 id="关键能力点-12">关键能力点</h3>
@@ -503,14 +490,14 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="注意事项-13">注意事项</h3>
 <ul><li>PP-OCR 模型随包分发（约 30MB），首次识别会有一次加载；之后子进程复用。</li><li>屏幕翻译需要「屏幕录制」；划词翻译需要「辅助功能」。</li><li>翻译失败会保留原文，不会吞掉识别结果。</li><li>手写体、艺术字识别率明显低于印刷体，这是模型能力边界。</li></ul>
 <h3 id="实现索引-13">实现索引</h3>
-<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>OCRService.swift:614</code></td><td><code>recognize(image:)</code></td><td>OCR 总入口</td></tr><tr><td><code>PPOCROCR.swift:220</code></td><td><code>recognizeLines</code></td><td>Vision + PP-OCR 组合</td></tr><tr><td><code>PPOCROCREmote.swift:156</code></td><td><code>recognize</code></td><td>子进程调度</td></tr><tr><td><code>OCRRefiner.swift</code></td><td><code>refine</code></td><td>结果后处理</td></tr><tr><td><code>ScreenshotOCRWindow.swift:684</code></td><td><code>body</code></td><td>原文/译文结果窗</td></tr><tr><td><code>QRCodeRecognizer.swift</code></td><td><code>recognize</code></td><td>二维码/条码</td></tr><tr><td><code>ScreenTranslator.swift:297</code></td><td><code>translate(rect:)</code></td><td>屏幕翻译全链路</td></tr><tr><td><code>TranslationProvider.swift</code></td><td><code>translate</code></td><td>Provider 抽象</td></tr><tr><td><code>QNWTranslator.swift</code></td><td><code>translate</code></td><td>外部 API 翻译</td></tr><tr><td><code>AppleTranslationProvider.swift</code></td><td><code>translate</code></td><td>系统翻译兜底</td></tr><tr><td><code>TranslationToolSession.swift</code></td><td><code>translate</code></td><td>翻译会话（供截图/AI/划词共用）</td></tr><tr><td><code>OCRDiagnostics.swift</code></td><td><code>runPipelineCheck</code></td><td>无鼠标自检（<code>kitnest://ocr</code>）</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>OCRService.swift:614</code></td><td><code>recognize(image:)</code></td><td>OCR 总入口</td></tr><tr><td><code>PPOCROCR.swift:220</code></td><td><code>recognizeLines</code></td><td>Vision + PP-OCR 组合</td></tr><tr><td><code>PPOCROCREmote.swift:156</code></td><td><code>recognize</code></td><td>子进程调度</td></tr><tr><td><code>OCRRefiner.swift</code></td><td><code>refine</code></td><td>结果后处理</td></tr><tr><td><code>ScreenshotOCRWindow.swift:684</code></td><td><code>body</code></td><td>原文/译文结果窗</td></tr><tr><td><code>QRCodeRecognizer.swift</code></td><td><code>recognize</code></td><td>二维码/条码</td></tr><tr><td><code>ScreenTranslator.swift:297</code></td><td><code>translate(rect:)</code></td><td>屏幕翻译全链路</td></tr><tr><td><code>TranslationProvider.swift</code></td><td><code>translate</code></td><td>Provider 抽象</td></tr><tr><td><code>QNWTranslator.swift</code></td><td><code>translate</code></td><td>外部 API 翻译</td></tr><tr><td><code>AppleTranslationProvider.swift</code></td><td><code>translate</code></td><td>系统翻译兜底</td></tr><tr><td><code>TranslationToolSession.swift</code></td><td><code>translate</code></td><td>翻译会话（供截图/AI/划词共用）</td></tr><tr><td><code>OCRDiagnostics.swift</code></td><td><code>runPipelineCheck</code></td><td>无鼠标自检（<code>kitnest-lite://ocr</code>）</td></tr></tbody></table></div>
 <hr>
 <h2 id="第十五章-录屏">第十五章 录屏</h2>
 <h3 id="功能是什么-14">功能是什么</h3>
 <p>基于 ScreenCaptureKit + AVAssetWriter 的屏幕录制：整屏或选区，可选帧率、分辨率、声音来源、输出格式。录制时有毛玻璃计时窗显示时长。</p>
 <blockquote>实现是 ObjC（<code>FrsetStatsBar/frset_recorder.m</code>，1227 行），Swift 侧通过 <code>StatsBarEngine.openRecorder()</code> 调起——所以它不在 Swift 函数清单里。</blockquote>
 <h3 id="用户怎么用-14">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 截图区 →「录屏」</td><td>打开录屏设置小窗</td></tr><tr><td>菜单栏 STATS 部件</td><td>录屏入口</td></tr><tr><td><code>kitnest://record</code></td><td>深链直达</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 截图区 →「录屏」</td><td>打开录屏设置小窗</td></tr><tr><td>菜单栏 STATS 部件</td><td>录屏入口</td></tr><tr><td><code>kitnest-lite://record</code></td><td>深链直达</td></tr></tbody></table></div>
 <p>设置小窗里选参数 → 点「开始录制」→（选了「选择区域」就拖框、回车确认）→ 录制 → 点计时窗「停止」。</p>
 <h3 id="设置项">设置项</h3>
 <div class="table-wrap"><table><thead><tr><th>设置</th><th>可选值</th><th>说明</th></tr></thead><tbody><tr><td>帧率</td><td>15 / 24 / 30 / 60</td><td>越高越流畅，文件越大</td></tr><tr><td>分辨率</td><td>原始 / 75% / 50%</td><td>缩放录制，减小体积</td></tr><tr><td>区域</td><td>整个屏幕 / 选择区域</td><td>选区时 <code>Esc</code> 取消、回车确认</td></tr><tr><td>声音</td><td>无 / 系统音 / 麦克风 / 系统+麦克风</td><td>内录与麦克风混音</td></tr><tr><td>格式</td><td>MOV / MP4 / GIF</td><td>GIF 会自动压到 ≤720px、≤12fps</td></tr><tr><td>保存目录</td><td>默认「影片」，可改</td><td>—</td></tr></tbody></table></div>
@@ -531,12 +518,14 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-15">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥P</code></td><td>打开/关闭监测独立窗</td><td>可常驻的玻璃窗</td></tr><tr><td><code>⌥M</code></td><td>同上（另一条默认键）</td><td>—</td></tr><tr><td>主面板「性能监测」页</td><td>点分段切换</td><td>面板内嵌同一套内容</td></tr><tr><td>菜单栏部件</td><td>点击</td><td>弹出该模块详情浮层</td></tr><tr><td>菜单「显示项」</td><td>逐项勾选</td><td>控制各模块部件显隐</td></tr><tr><td>设置 → 性能监测</td><td>选模块</td><td>配采样间隔、模块开关、部件形态</td></tr></tbody></table></div>
 <h3 id="八个模块">八个模块</h3>
-<div class="table-wrap"><table><thead><tr><th>模块</th><th>看什么</th></tr></thead><tbody><tr><td><strong>CPU</strong></td><td>总占用、每核心、集群（性能核 / 能效核 / 中核）、平均负载、占用最高的进程</td></tr><tr><td><strong>内存</strong></td><td>已用 / 压缩 / 联动 / 可用、交换区、内存压力（活动监视器口径）</td></tr><tr><td><strong>GPU</strong></td><td>使用率、显存、渲染/分块引擎占用</td></tr><tr><td><strong>磁盘</strong></td><td>读写速度、容量、SMART 健康度、高占用进程、外接卷自动识别</td></tr><tr><td><strong>网络</strong></td><td>上下行速度、连接状态、延迟、高占用进程</td></tr><tr><td><strong>传感器</strong></td><td>温度、电压、电流、功率、风扇转速（无对应硬件则不显示）</td></tr><tr><td><strong>电池</strong></td><td>电量、健康度（设计容量/标称容量双口径）、循环次数、适配器功率、CPU 能耗影响</td></tr><tr><td><strong>功耗</strong></td><td>整机瓦数，区分「输入（充电中）」与「输出」</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>模块</th><th>看什么</th></tr></thead><tbody><tr><td><strong>CPU</strong></td><td>总占用、每核心、集群（性能核 / 能效核 / 中核）、平均负载、占用最高的进程</td></tr><tr><td><strong>内存</strong></td><td>已用 / 压缩 / 联动 / 可用、交换区、内存压力（活动监视器口径）</td></tr><tr><td><strong>GPU</strong></td><td>使用率、显存、渲染/分块引擎占用</td></tr><tr><td><strong>磁盘</strong></td><td>读写速度、容量、SMART 健康度、高占用进程、外接卷自动识别</td></tr><tr><td><strong>网络</strong></td><td>上下行速度、连接状态、延迟、高占用进程</td></tr><tr><td><strong>传感器</strong></td><td>温度、电压、电流、功率、风扇转速（无对应硬件则不显示）</td></tr><tr><td><strong>电池</strong></td><td>电量、健康度（设计容量/标称容量双口径）、循环次数、适配器功率、CPU 能耗影响</td></tr><tr><td><strong>功耗</strong></td><td>整机瓦数、适配器输入，以及 CPU、GPU、ANE、内存、内存控制器和芯片总计</td></tr></tbody></table></div>
 <h3 id="演示-15">演示</h3>
 <figure><img src="gifs/ch16-monitor.gif" alt="监测窗的八个模块芯片（功耗 / 电池 / CPU / 内存 / 网络 / 磁盘 / 温度 / GPU）逐个点过去，环形图与曲线跟着换。" loading="lazy" decoding="async"><figcaption>监测窗的八个模块芯片（功耗 / 电池 / CPU / 内存 / 网络 / 磁盘 / 温度 / GPU）逐个点过去，环形图与曲线跟着换。</figcaption></figure>
 <h3 id="关键能力点-15">关键能力点</h3>
 <ul><li><strong>十二种部件形态</strong>（<code>StatsBarEngine</code> + <code>frset_barwidgets.m</code>）</li></ul>
-<p>迷你数值、折线、柱状、饼图、速度、状态点、标签、图标……按模块分别设置，改完立即生效。配置与 Stats 引擎互通。</p>
+<p>迷你数值、折线、柱状、饼图、速度、状态点、标签、图标……按模块分别设置，保存后应用。配置与 Stats 引擎互通。</p>
+<ul><li><strong>三个独立功耗部件</strong></li></ul>
+<p>设置 → 性能监测 → 部件设置，可分别显示整机功耗、CPU 功耗、GPU 功耗，选择数值、折线或图标；调整顺序、颜色和更新间隔。浅色与深色背景同时预览。默认关闭新增部件，开启并保存后出现在菜单栏；点击打开功耗页。 整机读取 SMC 的 PSTR（系统负载），适配器输入读取 PDTR。CPU、GPU 等按 IOReport 累计能量差分计算：瓦数 = 能量变化（焦耳）÷ 时间（秒）。macOS 27 使用对应 AppleCLPC 驱动的聚合计数器。芯片总计、CPU、GPU 和电路传感器可能覆盖相同硬件，因此各自展示，不再次相加。首轮或系统未提供读数时显示“—”。 计数器映射参考 <a href="https://github.com/vladkens/macmon/blob/main/src/clpc.rs">macmon</a>，系统负载含义参考 <a href="https://github.com/exelban/stats/issues/3671">Stats 功率流讨论</a>。</p>
 <ul><li><strong>采样引擎</strong>（<code>MonitorSampler</code>）</li></ul>
 <p>按设定间隔（0.5~10 秒，默认 2 秒）采样；面板/窗口都不可见时自动降频到 5 秒，省电省 CPU。</p>
 <ul><li><strong>数据源同源</strong>（v76 起的硬约束）</li></ul>
@@ -550,7 +539,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>外接卷自动识别</strong>（<code>DiskVolumes</code>）：插上 U 盘 / 移动硬盘，磁盘模块里自动多一块。</li></ul>
 <ul><li><strong>独立窗的点外收起</strong>：四路冗余监听（全局监视器 + 本 app 内监视器 + 50ms 轮询 + app 失活通知），不依赖辅助功能授权。</li></ul>
 <h3 id="注意事项-15">注意事项</h3>
-<ul><li>温度依赖 SMC，Intel 与 Apple Silicon 的传感器列表不同；个别机型某些传感器无读数属正常。</li><li>功耗需要电池或电源适配器在位，部分台式机显示「无数据」。</li><li>同时运行官方原版 Frset 会画两套菜单栏组件，建议二选一（应用会提示）。</li><li>电池健康度给了两个口径：按「设计容量」算和按「标称容量」算，两个数都显示——不同工具算法不同，并排看才不困惑。</li><li>电池净功率按电压乘以带方向的电流计算：正值为充入，负值为放电，没有净充放电时显示 0 W；它与适配器输入功率分开。</li><li>充电时读取系统的预计充满时间，放电时读取续航估算；系统尚未给出时间时显示估算中。已充满或接电暂缓充电时显示实际状态，不用固定小时数代替。</li></ul>
+<ul><li>温度依赖 SMC，Intel 与 Apple Silicon 的传感器列表不同；个别机型某些传感器无读数属正常。</li><li>功耗读数取决于机型与系统提供的传感器；适配器输入包含充电，整机功耗不把充电功率算作系统负载。</li><li>同时运行官方原版 Frset 会画两套菜单栏组件，建议二选一（应用会提示）。</li><li>电池健康度给了两个口径：按「设计容量」算和按「标称容量」算，两个数都显示——不同工具算法不同，并排看才不困惑。</li><li>电池净功率按电压乘以带方向的电流计算：正值为充入，负值为放电，没有净充放电时显示 0 W；它与适配器输入功率分开。</li><li>充电时读取系统的预计充满时间，放电时读取续航估算；系统尚未给出时间时显示估算中。已充满或接电暂缓充电时显示实际状态，不用固定小时数代替。</li></ul>
 <h3 id="实现索引-15">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>MonitorSampler.swift:330</code></td><td><code>scheduleNext</code> / <code>sampleOnce</code></td><td>采样节拍与降频</td></tr><tr><td><code>MonitorReader.swift:628</code></td><td><code>readCPU</code> / <code>readMemory</code> / <code>readNetworkRate</code> / <code>readDiskRate</code> / <code>readPower</code> / <code>readBatteryLevel</code></td><td>主机层指标</td></tr><tr><td><code>MonitorReader.swift</code></td><td><code>readSMCTemperature</code></td><td>SMC 温度直读</td></tr><tr><td><code>StatsBarEngine.swift:318</code></td><td><code>openMonitor</code> / <code>openSettings</code></td><td>部件点击与设置入口</td></tr><tr><td><code>StatsModulePanels.swift:1342</code></td><td>模块面板</td><td>各模块浮层版式</td></tr><tr><td><code>MonitorDetailView.swift:1277</code></td><td><code>body</code></td><td>详情窗（模块切换条）</td></tr><tr><td><code>MonitorPopoutWindow.swift:479</code></td><td><code>open</code> / <code>dismissPopout</code></td><td>独立窗生命周期</td></tr><tr><td><code>MonitorCharts.swift:306</code></td><td><code>LineChart</code> / <code>BarChart</code></td><td>折线与柱状</td></tr><tr><td><code>BatteryPanel.swift:622</code></td><td><code>body</code></td><td>电池详情（双口径健康度）</td></tr><tr><td><code>BatteryEnergy.swift:261</code></td><td><code>energyImpact</code></td><td>CPU 能耗影响</td></tr><tr><td><code>DiskVolumes.swift:118</code></td><td><code>volumes</code></td><td>外接卷枚举</td></tr><tr><td><code>NetworkDiagnostics.swift:442</code></td><td><code>probePublicIP</code> / <code>probeLatencies</code> / <code>probeDNS</code> / <code>detectProxyProcess</code></td><td>网络诊断四件套</td></tr><tr><td><code>PortInspector.swift:252</code></td><td><code>listeners</code></td><td>端口占用枚举</td></tr><tr><td><code>MonitorHistory.swift:39</code></td><td><code>append</code></td><td>环形缓冲（迷你图数据）</td></tr></tbody></table></div>
 <hr>
@@ -585,7 +574,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="功能是什么-17">功能是什么</h3>
 <p>一块<strong>可视化</strong>的磁盘占用面板：全盘索引（不限深度）、气泡堆块、可清理候选清单、一键移到废纸篓。索引只在打开面板时加载，平时零常驻。</p>
 <h3 id="用户怎么用-17">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>状态栏监测 → 存储 →「存储管理」</td><td>打开面板</td></tr><tr><td>面板性能页 → 磁盘 →「管理存储」</td><td>同上</td></tr><tr><td><code>kitnest://storage</code></td><td>深链直达</td></tr><tr><td><code>kitnest://storage?scan=1</code></td><td>打开并立即扫描</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>状态栏监测 → 存储 →「存储管理」</td><td>打开面板</td></tr><tr><td>面板性能页 → 磁盘 →「管理存储」</td><td>同上</td></tr><tr><td><code>kitnest-lite://storage</code></td><td>深链直达</td></tr><tr><td><code>kitnest-lite://storage?scan=1</code></td><td>打开并立即扫描</td></tr></tbody></table></div>
 <p>存储图用当前磁盘数据绘制，画布覆盖整个窗口，包括头部背景。图形边界是一条从窗口上方中部延伸到最左下方的连续弧线。导航与详情浮在图形上，点击目录图块下钻，点面包屑返回；点击文件在同窗详情区查看名称、占用和完整路径，可「在 Finder 显示」「加入所选」或「移到废纸篓」。聚合图块仅显示占用，不能定位或删除。</p>
 <p>左侧候选列表沿同一弧线延伸到左下方，列出全部真实可清理候选，可独立滚动；每行按弧线的可用宽度逐渐缩窄。已选项数、合计大小及「让 Agent 清理」「移到废纸篓」位于列表上方。</p>
 <p>在图形区域用触控板<strong>两指左滑</strong>，退回上一个目录；<strong>两指右滑</strong>，前进到历史中访问过的目录。图形保留现有目录配色，悬停时带液态形变动效；开启 macOS「系统设置 → 辅助功能 → 显示 → 减少动态效果」后取消形变。</p>
@@ -635,82 +624,23 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="实现索引-18">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>NetworkDiagnostics.swift:442</code></td><td><code>probePublicIP</code></td><td>公网 IP 与归属地</td></tr><tr><td><code>NetworkDiagnostics.swift</code></td><td><code>probeLatencies</code></td><td>多目标延迟</td></tr><tr><td><code>NetworkDiagnostics.swift</code></td><td><code>probeDNS</code></td><td>DNS 解析</td></tr><tr><td><code>NetworkDiagnostics.swift</code></td><td><code>detectProxyProcess</code></td><td>系统代理与本地端口</td></tr><tr><td><code>PortInspector.swift:252</code></td><td><code>listeners</code></td><td>端口枚举</td></tr><tr><td><code>PortOccupancySection.swift:209</code></td><td><code>body</code></td><td>端口列表 UI</td></tr><tr><td><code>IPAddressService.swift:126</code></td><td><code>queryPublicIP</code> / <code>localIPAddress</code></td><td>IP 查询</td></tr><tr><td><code>NetworkFlowTracker.swift:313</code></td><td><code>track</code></td><td>高占用进程归因</td></tr></tbody></table></div>
 <hr>
-<h1 id="第四部分-传输">第四部分 · 传输</h1>
-<h2 id="第二十章-文件中转">第二十章 文件中转</h2>
-<h3 id="功能是什么-19">功能是什么</h3>
-<p>一个「池子」+ 多条出口：所有来路的文件都汇进<strong>本地暂存</strong>，勾选后按对方设备选出口——隔空投送、扫码直传、ADB 直传、云端。</p>
-<h3 id="用户怎么用-19">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td><code>⌥T</code></td><td>打开面板并切到「文件中转」</td></tr><tr><td>拖文件到菜单栏图标</td><td>直接进暂存</td></tr><tr><td>拖文件进面板</td><td>同上</td></tr><tr><td>截图动作条 →「空投」</td><td>截图直接发隔空投送</td></tr><tr><td>剪贴板条目右键 →「隔空投送」</td><td>同上</td></tr></tbody></table></div>
-<h3 id="四种出口">四种出口</h3>
-<div class="table-wrap"><table><thead><tr><th>出口</th><th>对方设备</th><th>说明</th></tr></thead><tbody><tr><td><strong>隔空投送</strong></td><td>iPhone / iPad / Mac</td><td>系统面板，对端零安装</td></tr><tr><td><strong>扫码直传</strong></td><td>任何有浏览器的设备</td><td>本机起一个小 HTTP 服务，二维码里带一次性 token；对方浏览器上传/下载</td></tr><tr><td><strong>ADB 直传</strong></td><td>Android</td><td>大文件或批量走 USB 3.0</td></tr><tr><td><strong>云端中转</strong></td><td>跨时间/跨设备</td><td>登录 OPPO 中转站后存云端</td></tr></tbody></table></div>
-<h3 id="演示-19">演示</h3>
-<figure><img src="gifs/ch20-transfer.gif" alt="面板 → 中转：三种方式（隔空投送 / 扫码直传 / ADB 互传）切换，下面是对端与文件列表。" loading="lazy" decoding="async"><figcaption>面板 → 中转：三种方式（隔空投送 / 扫码直传 / ADB 互传）切换，下面是对端与文件列表。</figcaption></figure>
-<h3 id="关键能力点-19">关键能力点</h3>
-<ul><li><strong>本地暂存</strong>（<code>LocalTransferStore</code>）</li></ul>
-<p>所有来路文件的统一落点：隔空投送接收、手机拉取、拖入、剪贴板。按时间倒序，可多选、可删除、可清空。</p>
-<ul><li><strong>隔空投送接收</strong>（<code>AirDropReceiveWatcher</code>）</li></ul>
-<p>监听 <code>~/Downloads</code>（<code>DispatchSource</code>），跳过 <code>.download</code> 未完成文件，落盘后自动入暂存。</p>
-<ul><li><strong>扫码直传</strong>（<code>LanTransferServer</code>，867 行）</li></ul>
-<p>起一个局域网 HTTP 服务，二维码内容为 <code>http://&lt;局域网IP&gt;:&lt;port&gt;/s/&lt;token&gt;/</code>。token 是一次性的，别人拿到链接也只能用一次。</p>
-<ul><li>支持对方上传（手机 → Mac）和下载（Mac → 手机）。</li><li>不需要装任何 App，浏览器打开就能用。</li></ul>
-<ul><li><strong>ADB 文件桥</strong>（<code>ADBFileBridge</code>）</li></ul>
-<p>推送：暂存项 → 手机 <code>Download/FrsetNext/</code>，逐文件精确报数。 拉取：清空暂存目录 → <code>adb pull</code> → <code>LocalTransferStore.add</code> 正式入索引。</p>
-<ul><li><strong>文件悬停预览</strong>（<code>FileHoverPreview</code>，511 行）</li></ul>
-<p>Word / PPT / Excel / PDF / 图片等格式，悬停即出缩略图或首页内容，不用打开文件。</p>
-<ul><li><strong>MCP Server</strong>（<code>MCPServer</code>）</li></ul>
-<p>将手机操作能力封装为 HTTP + JSON-RPC 2.0 接口，供本地 AI 客户端（如 Claude、Cursor 或内置 AI）调度控制，以支持外部自动化工作流。</p>
-<ul><li><strong>拖文件到图标</strong>（<code>StatusItemDropProxy</code>）：菜单栏图标不是拖放目标，加了一层覆盖视图接住。</li></ul>
-<h3 id="注意事项-19">注意事项</h3>
-<ul><li>隔空投送只通苹果设备；安卓/Windows 用扫码直传或 ADB 补齐。</li><li>扫码直传要求两台设备在同一局域网，且 macOS 防火墙允许传入连接（首次会询问）。</li><li>ADB 直传需要手机开启 USB 调试；无线调试见下一章。</li><li>云端中转需要登录 OPPO 账号，登录走官方三段式签名，应用本身不存密码。</li></ul>
-<h3 id="实现索引-19">实现索引</h3>
-<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>LocalTransferStore.swift:329</code></td><td><code>add</code> / <code>remove</code> / <code>all</code></td><td>暂存池</td></tr><tr><td><code>LanTransferServer.swift:867</code></td><td><code>start</code> / <code>handle</code></td><td>局域网 HTTP 服务</td></tr><tr><td><code>QRCodeView.swift</code></td><td><code>body</code></td><td>二维码渲染</td></tr><tr><td><code>TransferDockService.swift:437</code></td><td><code>upload</code> / <code>download</code></td><td>云端中转</td></tr><tr><td><code>TransferDockView.swift:1406</code></td><td><code>body</code></td><td>中转页（上下分区）</td></tr><tr><td><code>FileHoverPreview.swift:511</code></td><td><code>present</code></td><td>悬停预览</td></tr><tr><td><code>MCPServer.swift:318</code></td><td><code>start</code></td><td>AI 控制通道</td></tr><tr><td><code>TransferIntakeDialog.swift</code></td><td><code>present</code></td><td>接收确认</td></tr><tr><td><code>StatusItemDropProxy.swift</code></td><td><code>performDragOperation</code></td><td>拖到菜单栏图标</td></tr></tbody></table></div>
-<hr>
-<h2 id="第二十一章-手机投屏">第二十一章 手机投屏</h2>
-<h3 id="功能是什么-20">功能是什么</h3>
-<p>Android 设备中心：检测设备、无线配对、scrcpy 镜像、应用库、控制条、锁屏保持。<strong>对端零安装</strong>（scrcpy 在电脑侧跑）。</p>
-<h3 id="用户怎么用-20">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>步骤</th><th>操作</th></tr></thead><tbody><tr><td>1</td><td>USB 连上手机，打开「USB 调试」</td></tr><tr><td>2</td><td>点「检测设备」→ 选设备</td></tr><tr><td>3</td><td>点「开始投屏」</td></tr><tr><td>4</td><td>想摆脱线缆：点「一键无线」（自动 <code>adb tcpip 5555</code> + 连接 Wi-Fi 地址）</td></tr><tr><td>5</td><td>扫码直连：点「扫码配对」，手机扫电脑上的二维码（Android 11+ 无线调试）</td></tr></tbody></table></div>
-<h3 id="演示-20">演示</h3>
-<figure><img src="gifs/ch21-cast.gif" alt="面板 → 投屏：安卓 / iPhone 分栏，扫码连接与「继续连接上次设备」。" loading="lazy" decoding="async"><figcaption>面板 → 投屏：安卓 / iPhone 分栏，扫码连接与「继续连接上次设备」。</figcaption></figure>
-<h3 id="关键能力点-20">关键能力点</h3>
-<ul><li><strong>一键无线</strong>（<code>ADBExtrasEngine</code>）</li></ul>
-<p>USB 连一次 → 自动执行 <code>adb tcpip 5555</code> → 连上手机的 Wi-Fi 地址。之后同一网络下直接检测，<strong>不用再开无线调试、不用配对码</strong>。</p>
-<ul><li><strong>扫码配对</strong>（<code>AdbQrPairing</code>，506 行）</li></ul>
-<p>按 Android 11+ 的无线调试协议生成配对二维码，手机扫一下完成配对。基于用户明确提出的扫码直连需求，本实现支持直接扫码配对，脱离预先手动建立局域网 ADB 连接的前置步骤。</p>
-<ul><li><strong>Bonjour 发现</strong>（<code>AdbBonjour</code>）</li></ul>
-<p>用系统 <code>NetServiceBrowser</code> 发现 <code>_adb-tls-connect._tcp</code> 服务，自动列出同网段的可用设备。</p>
-<ul><li><strong>投屏记忆</strong>（<code>AdbCastMemory</code>）</li></ul>
-<p>配对一次，之后零交互——记住设备与端口，下次直接连。</p>
-<ul><li><strong>应用库</strong>（<code>DeviceAppCatalog</code> + <code>CastAppLibraryWindow</code>）</li></ul>
-<p>手机上已安装应用的<strong>真实图标 + 真实名称 + 使用频率</strong>，可在电脑上直接启动、卸载、搜索。</p>
-<ul><li><strong>控制条</strong>（<code>CastControlBar</code>）</li></ul>
-<p>贴在 scrcpy 窗口底部：返回 / 桌面 / 多任务 / 音量 / 电源。不用记快捷键。</p>
-<ul><li><strong>锁屏保持</strong>（<code>CastScreenKeeper</code>）</li></ul>
-<p>手机一旦休眠（黑屏），自动唤醒到<strong>锁屏界面</strong>，不是解锁——既保持投屏不断，也不绕过锁屏。</p>
-<ul><li><strong>WebDAV 挂载</strong>（<code>AndroidWebDAVServer</code>）</li></ul>
-<p>把 <code>/sdcard</code> 以 WebDAV 暴露在 <code>127.0.0.1:8766</code>，Finder「前往 → 连接服务器」即可当网络盘用。</p>
-<h3 id="注意事项-20">注意事项</h3>
-<ul><li>需要手机开启 USB 调试（Android 11+ 支持无线配对）。</li><li>scrcpy 未安装时会引导 <code>brew install scrcpy</code>。</li><li>首次配对需在手机「无线调试」页确认。</li><li>投屏期间剪贴板双向同步（<code>--clipboard-autosync</code>），在电脑复制能直接粘到手机。</li><li>部分国产 ROM 会杀后台导致连接断开，建议给 scrcpy 加电池白名单。</li></ul>
-<h3 id="实现索引-20">实现索引</h3>
-<div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>TransferCastEngines.swift:837</code></td><td><code>startCast</code> / <code>stopCast</code></td><td>scrcpy 会话</td></tr><tr><td><code>ADBExtrasEngine.swift:368</code></td><td><code>enableWireless</code></td><td>一键无线（tcpip 5555）</td></tr><tr><td><code>AdbQrPairing.swift:506</code></td><td><code>generatePairingQR</code></td><td>扫码配对</td></tr><tr><td><code>AdbBonjour.swift:124</code></td><td><code>startBrowse</code></td><td>Bonjour 发现</td></tr><tr><td><code>AdbCastMemory.swift:131</code></td><td><code>remember</code> / <code>recall</code></td><td>设备记忆</td></tr><tr><td><code>CastView.swift:924</code></td><td><code>body</code></td><td>投屏页</td></tr><tr><td><code>CastControlBar.swift:282</code></td><td><code>body</code></td><td>底部控制条</td></tr><tr><td><code>CastScreenKeeper.swift:100</code></td><td><code>keepAwake</code></td><td>锁屏保持</td></tr><tr><td><code>DeviceAppCatalog.swift:201</code></td><td><code>apps</code></td><td>应用库</td></tr><tr><td><code>AndroidWebDAVServer.swift:311</code></td><td><code>start</code></td><td>WebDAV 服务</td></tr></tbody></table></div>
-<hr>
 <h1 id="第五部分-文件与工具">第五部分 · 文件与工具</h1>
 <h2 id="第二十二章-归档压缩">第二十二章 归档压缩</h2>
-<h3 id="功能是什么-21">功能是什么</h3>
+<h3 id="功能是什么-19">功能是什么</h3>
 <p>一个<strong>能看能改</strong>的压缩包管理器：打开 40+ 种压缩包、预览里面每个文件、直接编辑文本并写回、压缩新包、队列化任务。底层用随包分发的 <code>7zz</code>（LGPL）。</p>
-<h3 id="用户怎么用-21">用户怎么用</h3>
+<h3 id="用户怎么用-19">用户怎么用</h3>
 <p>想双击 ZIP 时先看包内文件，可在欢迎窗「30 秒上手」下方卡片，或「设置 → 常规 → 启动与语言」开启「用 Kitnest 默认打开 ZIP」。两处共用同一开关；安装、启动应用不会改动默认打开方式。</p>
 <p>关闭后恢复开启前的应用；若此前已手动把 ZIP 关联到 Kitnest，且没有记录可恢复的应用，则交回系统「归档实用工具」。开关下方显示系统当前的 ZIP 默认应用；更改失败时保留原状态，并显示原因。</p>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>欢迎窗上手步骤下方 / 设置 → 常规 → 启动与语言</td><td>切换 ZIP 默认打开方式</td></tr><tr><td>双击 ZIP（开关开启后）</td><td>打开归档浏览器，查看包内文件或点「解压到…」</td></tr><tr><td>访达选中压缩包 → 右键 → 服务 →「用 Kitnest 打开」</td><td>不改默认应用，直接打开归档浏览器</td></tr><tr><td>访达选中文件或文件夹 → 右键 → 服务 →「用 Kitnest 压缩」</td><td>打开压缩参数面板</td></tr><tr><td>Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」</td><td>按选择顺序复制全部绝对路径，一行一个；显示数量或失败原因</td></tr><tr><td>Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 在终端打开」</td><td>目录打开自身，文件打开父目录；同一目录只打开一次</td></tr><tr><td>面板 → 工具 →「打开压缩包」</td><td>打开归档浏览器</td></tr><tr><td>拖压缩包进面板</td><td>同上</td></tr><tr><td><code>kitnest://archive?path=…</code></td><td>深链直达</td></tr><tr><td><code>kitnest://archive?path=…&amp;action=mini</code></td><td>Mini 小窗浏览</td></tr><tr><td><code>kitnest://archive?action=compress&amp;path=…</code></td><td>直接进入压缩流程</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>欢迎窗上手步骤下方 / 设置 → 常规 → 启动与语言</td><td>切换 ZIP 默认打开方式</td></tr><tr><td>双击 ZIP（开关开启后）</td><td>打开归档浏览器，查看包内文件或点「解压到…」</td></tr><tr><td>访达选中压缩包 → 右键 → 服务 →「用 Kitnest 打开」</td><td>不改默认应用，直接打开归档浏览器</td></tr><tr><td>访达选中文件或文件夹 → 右键 → 服务 →「用 Kitnest 压缩」</td><td>打开压缩参数面板</td></tr><tr><td>Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」</td><td>按选择顺序复制全部绝对路径，一行一个；显示数量或失败原因</td></tr><tr><td>Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 在终端打开」</td><td>目录打开自身，文件打开父目录；同一目录只打开一次</td></tr><tr><td>面板 → 工具 →「打开压缩包」</td><td>打开归档浏览器</td></tr><tr><td>拖压缩包进面板</td><td>同上</td></tr><tr><td><code>kitnest-lite://archive?path=…</code></td><td>深链直达</td></tr><tr><td><code>kitnest-lite://archive?path=…&amp;action=mini</code></td><td>Mini 小窗浏览</td></tr><tr><td><code>kitnest-lite://archive?action=compress&amp;path=…</code></td><td>直接进入压缩流程</td></tr></tbody></table></div>
 <p>压缩参数面板可选格式、压缩级别、密码和分卷。访达自带的「压缩」保持原样；macOS 没有全局默认压缩应用设置。</p>
 <p>复制路径与终端打开沿用原来的 Finder 右键「服务」子菜单，原有打开、压缩服务保留。请到「系统设置 → 键盘 → 键盘快捷键 → 服务」分别开启这两项；Kitnest 不代改系统启用配置。「设置 → 常规 → 启动与语言」提供操作说明和「打开系统键盘设置」入口。终端通过系统应用接口接收目录 URL，路径不拼入命令字符串；打开失败时显示具体目录及原因。</p>
 <h3 id="界面结构">界面结构</h3>
 <ul><li><strong>左列</strong>：包内条目树，按路径分组，显示大小与修改时间。</li><li><strong>右侧</strong>：选中条目的预览。</li><li><strong>底部</strong>：任务进度抽屉（可展开/收起）。</li><li><strong>拖出</strong>：把条目拖到 Finder，走文件承诺（<code>NSFilePromiseProvider</code>），落盘时才真正解压。</li></ul>
 <h3 id="预览支持">预览支持</h3>
 <div class="table-wrap"><table><thead><tr><th>类型</th><th>预览方式</th></tr></thead><tbody><tr><td>文本（txt / md / json / 代码）</td><td>带语法高亮的文本视图</td></tr><tr><td>图片</td><td>缩略图 + 尺寸</td></tr><tr><td>HTML</td><td><strong>直接渲染成网页</strong>（不是显示源码）</td></tr><tr><td>Office（doc/xls/ppt）</td><td>分级解码缩略图（不自己渲染，取系统已生成的预览）</td></tr><tr><td>PDF</td><td>首页缩略图</td></tr></tbody></table></div>
-<h3 id="演示-21">演示</h3>
+<h3 id="演示-19">演示</h3>
 <figure><img src="gifs/ch22-archive.gif" alt="打开一个 zip：共 2 项 · 可编辑 → 点条目在右侧预览 → 左上「解压到…」→ 右上更多菜单。" loading="lazy" decoding="async"><figcaption>打开一个 zip：共 2 项 · 可编辑 → 点条目在右侧预览 → 左上「解压到…」→ 右上更多菜单。</figcaption></figure>
-<h3 id="关键能力点-21">关键能力点</h3>
+<h3 id="关键能力点-19">关键能力点</h3>
 <ul><li><strong>真实解压/压缩/回写</strong>（<code>ArchiveCore</code>，1134 行）</li></ul>
 <p>支持直接修改压缩包内的文本类条目，保存时调用 <code>7zz a</code> 增量写回原压缩包。 回写前会捕获可逆信息（<code>ArchiveUndoStack</code>），支持撤销。</p>
 <ul><li><strong>格式支持</strong>：7z / zip / rar / tar / gz / bz2 / xz / iso / dmg 等（取决于 <code>7zz</code> 编译进去的编解码器）。</li></ul>
@@ -728,22 +658,22 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>菜单栏附近的一个小盒子：把散落的文件拖进来集中，再一次「压缩全部」。</p>
 <ul><li><strong>条目拖出</strong>（<code>ArchiveEntryDrag</code>）</li></ul>
 <p>拖动时只上屏「文件承诺」（名字 + UTI），真正落到 Finder 目标目录时才解压——避免拖一下就解压几百 MB。</p>
-<h3 id="注意事项-21">注意事项</h3>
+<h3 id="注意事项-19">注意事项</h3>
 <ul><li>RAR 只能解不能压（<code>7zz</code> 的 RAR 编码器有授权限制）。</li><li>加密包需要输密码，输错会明确提示而不是静默失败。</li><li>回写会<strong>重写整个压缩包</strong>：大包（几 GB）改一个小文件也要等，进度条会显示。</li><li>包内路径过深或文件名含特殊字符时，某些系统工具解压可能出错，这是 zip 规范的历史问题。</li></ul>
-<h3 id="实现索引-21">实现索引</h3>
+<h3 id="实现索引-19">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>ArchiveCore.swift:1134</code></td><td><code>extract</code> / <code>compress</code> / <code>writeBack</code></td><td>7zz 封装</td></tr><tr><td><code>ArchiveBrowserWindow.swift:1601</code></td><td><code>body</code></td><td>浏览器主界面</td></tr><tr><td><code>ArchiveEntryTable.swift:304</code></td><td><code>tableView</code></td><td>条目表（NSTableView）</td></tr><tr><td><code>ArchiveEntryDrag.swift:253</code></td><td><code>beginDrag</code></td><td>文件承诺拖出</td></tr><tr><td><code>ArchiveEntryThumbnail.swift:250</code></td><td><code>thumbnail</code></td><td>分级解码</td></tr><tr><td><code>ArchiveHoverPreview.swift:129</code></td><td><code>present</code></td><td>包内条目悬停预览</td></tr><tr><td><code>ArchiveHTMLPreview.swift:226</code></td><td><code>render</code></td><td>HTML 直接渲染</td></tr><tr><td><code>ArchiveCreateSheet.swift:474</code></td><td><code>body</code></td><td>压缩参数表单</td></tr><tr><td><code>ArchiveTaskQueue.swift:289</code></td><td><code>enqueue</code></td><td>任务队列</td></tr><tr><td><code>ArchiveProgressPanel.swift:362</code></td><td><code>body</code></td><td>底部进度抽屉</td></tr><tr><td><code>ArchiveTaskHUD.swift:339</code></td><td><code>present</code></td><td>任务 HUD</td></tr><tr><td><code>ArchiveFlowRecommender.swift:404</code></td><td><code>recommend</code></td><td>内容推荐操作</td></tr><tr><td><code>ArchiveUndoStack.swift:201</code></td><td><code>push</code> / <code>undo</code></td><td>回写撤销</td></tr><tr><td><code>ArchiveSourceHandling.swift:89</code></td><td><code>askKeepSource</code></td><td>压缩后问原文件</td></tr><tr><td><code>ArchiveMiniWindow.swift:290</code></td><td><code>present</code></td><td>Mini 小窗</td></tr><tr><td><code>ArchiveFileBox.swift:454</code></td><td><code>body</code></td><td>暂存浮窗</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十三章-工具箱">第二十三章 工具箱</h2>
-<h3 id="功能是什么-22">功能是什么</h3>
+<h3 id="功能是什么-20">功能是什么</h3>
 <p>内置小工具与自定义 AI 工具，统一入口：<strong>工具面板</strong>（分类网格）、<strong>搜索框输入 <code>/</code></strong>、<strong>命令面板 <code>⌥K</code></strong>。结果一键复制，并自动回流剪贴板历史。</p>
 <h3 id="内置工具">内置工具</h3>
 <div class="table-wrap"><table><thead><tr><th>分类</th><th>工具</th><th>能力</th></tr></thead><tbody><tr><td>转换</td><td><strong>UUID</strong></td><td>批量生成，可选格式</td></tr><tr><td>转换</td><td><strong>时间戳转换</strong></td><td>自动识别 / 时间戳→日期 / 日期→时间戳</td></tr><tr><td>转换</td><td><strong>变量命名</strong></td><td>驼峰 / 下划线 / 短横线 / 帕斯卡 / 常量 互转</td></tr><tr><td>编码</td><td><strong>Base64</strong></td><td>编码 / 解码</td></tr><tr><td>编码</td><td><strong>URL Encode</strong></td><td>编码 / 解码，标准 / 严格两档</td></tr><tr><td>格式化</td><td><strong>JSON</strong></td><td>格式化 / 压缩 / 校验</td></tr><tr><td>格式化</td><td><strong>代码预览</strong></td><td>高亮预览 + 导出图片（第二十八章）</td></tr><tr><td>网络</td><td><strong>IP 地址</strong></td><td>公网 + 内网 / 仅内网</td></tr><tr><td>网络</td><td><strong>二维码</strong></td><td>文本/链接生成二维码，可调尺寸与纠错级别</td></tr><tr><td>图片</td><td><strong>图片压缩</strong></td><td>纯本地压缩，可调最大边长/质量/格式</td></tr><tr><td>加密</td><td><strong>哈希生成</strong></td><td>MD5 / SHA1 / SHA256</td></tr><tr><td>AI</td><td><strong>Translate</strong></td><td>调已配置的 AI 服务商</td></tr><tr><td>AI</td><td><strong>Summary</strong></td><td>使用已配置的 AI 服务生成摘要</td></tr><tr><td>AI</td><td><strong>润色</strong></td><td>使用同一 AI 服务，保留原意整理全文</td></tr></tbody></table></div>
 <blockquote>图片压缩是<strong>纯本地</strong>的（不调 TinyPNG 那种网络 API）：不需要 Key、没有配额、图片不出本机。代价是压缩率不如云端。</blockquote>
-<h3 id="用户怎么用-22">用户怎么用</h3>
+<h3 id="用户怎么用-20">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 搜索框输入 <code>/</code></td><td>列出全部命令，输入即过滤</td></tr><tr><td><code>⌥K</code></td><td>命令面板（全功能目录）</td></tr><tr><td>面板 → 工具页</td><td>分类网格，点开即用</td></tr><tr><td>工具热键</td><td>每个工具可单独绑全局快捷键（<code>ToolShortcutStore</code>）</td></tr></tbody></table></div>
-<h3 id="演示-22">演示</h3>
+<h3 id="演示-20">演示</h3>
 <figure><img src="gifs/ch23-toolbox.gif" alt="面板搜索框输入 `/`：切成命令模式，按分组列出全部工具（命令 / 应用 / 文件 / 剪贴板）。" loading="lazy" decoding="async"><figcaption>面板搜索框输入 <code>/</code>：切成命令模式，按分组列出全部工具（命令 / 应用 / 文件 / 剪贴板）。</figcaption></figure>
-<h3 id="关键能力点-22">关键能力点</h3>
+<h3 id="关键能力点-20">关键能力点</h3>
 <ul><li><strong>工具描述符</strong>（<code>ToolRegistry</code>）</li></ul>
 <p>每个工具是 <code>id / 名称 / 图标 / 分类 / 选项 / 执行函数</code>。注册表统一管理，可启用/停用。</p>
 <ul><li><strong>选项驱动</strong>：工具的下拉选项（编码/解码、算法选择…）由 <code>ToolOption</code> 声明，UI 自动渲染，加选项不用改界面代码。</li></ul>
@@ -751,19 +681,19 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>工具快捷键</strong>（<code>ToolShortcutStore</code>）：任意工具可绑全局热键，触发时唤起面板并打开该工具。</li></ul>
 <ul><li><strong>窗口登记</strong>（<code>WindowManager</code>）：所有工具窗口统一登记，可一键全部关闭。</li></ul>
 <ul><li><strong>工具启停</strong>：设置里可停用某个工具，停用后不出现在面板与命令面板。</li></ul>
-<h3 id="注意事项-22">注意事项</h3>
+<h3 id="注意事项-20">注意事项</h3>
 <ul><li>AI 类工具需要先在「设置 → 搜索与 AI」配置服务商，未配置会引导去设置。</li><li>IP 查询的「公网」部分会发一次网络请求（<code>api.ipify.org</code>）。</li><li>图片压缩大图（&gt;20MP）会等几秒，进度在输出区。</li></ul>
-<h3 id="实现索引-22">实现索引</h3>
+<h3 id="实现索引-20">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>ToolRegistry.swift:207</code></td><td><code>register</code> / <code>setEnabled</code></td><td>工具注册表</td></tr><tr><td><code>BuiltinTools.swift:381</code></td><td>13 个 <code>ToolDescriptor</code> 注册</td><td>内置工具定义</td></tr><tr><td><code>ToolConverters.swift:402</code></td><td>转换类实现</td><td>时间戳/命名/编码/JSON</td></tr><tr><td><code>MediaTools.swift:148</code></td><td><code>compress</code></td><td>本地图片压缩</td></tr><tr><td><code>ToolRunnerWindow.swift:99</code></td><td><code>present</code></td><td>工具面板（输入/选项/输出）</td></tr><tr><td><code>ToolSettingsPane.swift:144</code></td><td><code>body</code></td><td>工具启停设置</td></tr><tr><td><code>WindowManager.swift:11</code></td><td><code>closeAll</code></td><td>工具窗口登记</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十四章-全局搜索">第二十四章 全局搜索</h2>
-<h3 id="功能是什么-23">功能是什么</h3>
+<h3 id="功能是什么-21">功能是什么</h3>
 <p>主面板顶部的搜索框，一个入口搜四类东西：<strong>网页</strong>（搜索引擎）、<strong>剪贴板历史</strong>、<strong>本地文件</strong>（全盘）、<strong>工具命令</strong>（<code>/</code> 开头）。</p>
-<h3 id="用户怎么用-23">用户怎么用</h3>
+<h3 id="用户怎么用-21">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>输入</th><th>结果</th></tr></thead><tbody><tr><td>普通关键词</td><td>四类结果分组展示：文件 / 剪贴板 / 网页 / 工具</td></tr><tr><td>网址（含 <code>.</code> 或 <code>http</code>）</td><td>直接显示「打开该网址」</td></tr><tr><td><code>/</code> 开头</td><td>切成命令模式，列出全部工具命令</td></tr><tr><td>点分类 chip</td><td>只看某一类，再点二级筛选（文件类型 / 剪贴板类型 / 搜索引擎）</td></tr></tbody></table></div>
-<h3 id="演示-23">演示</h3>
+<h3 id="演示-21">演示</h3>
 <figure><img src="gifs/ch24-search.gif" alt="面板搜索框输入 `image-html-deck`：文件分组里直接列出该 skill 的目录与 `SKILL.md`、`README.md`——这些都在 `~/.workbuddy/skills` 下，Spotlight 搜不到。" loading="lazy" decoding="async"><figcaption>面板搜索框输入 <code>image-html-deck</code>：文件分组里直接列出该 skill 的目录与 <code>SKILL.md</code>、<code>README.md</code>——这些都在 <code>~/.workbuddy/skills</code> 下，Spotlight 搜不到。</figcaption></figure>
-<h3 id="关键能力点-23">关键能力点</h3>
+<h3 id="关键能力点-21">关键能力点</h3>
 <ul><li><strong>文件搜索覆盖全盘</strong>（v264 重做，<code>FileNameIndex</code>）</li></ul>
 <p>Spotlight <strong>不索引</strong> <code>~/Library</code>、隐藏目录（<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code>…）、<code>.app</code> 包内部、<code>/usr/local</code>——而这几处恰好是开发者文件最密集的地方。 所以自建了一份<strong>全盘文件名索引</strong>：</p>
 <ul><li>本机 124 万条 / 164MB，首次建立 14 秒，之后 mmap 加载（不占堆内存）。</li><li>查询 30–220ms，按「路径越浅越前」排序。</li><li>索引状态显示在「文件」分组下方（多少条、什么时候建的、重建按钮）。</li></ul>
@@ -774,37 +704,37 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>搜索引擎可增删排序，自定义引擎用 <code>{query}</code> 占位的 URL 模板。结果列表在面板内嵌显示（离屏 WKWebView 抓取 + JS 提取），点某条才真正打开页面。</p>
 <ul><li><strong>剪贴板搜索</strong>：搜的是<strong>内容</strong>，包括图片 OCR 出来的文字。所以「截图里的一句话」也能命中。</li></ul>
 <ul><li><strong>结果最多 8 条/组</strong>，点「查看全部」进对应分类。</li></ul>
-<h3 id="注意事项-23">注意事项</h3>
+<h3 id="注意事项-21">注意事项</h3>
 <ul><li>首次搜索文件时若索引还没建，会显示「正在建立全盘索引」进度；建完自动重跑当前查询。</li><li>系统垃圾文件（<code>.DS_Store</code> / <code>.localized</code> 等）不参与结果。</li><li>文件索引不含 <code>/System</code>、外接卷、<code>/private/var/folders</code> 等无搜索价值的区域。</li><li>中文输入法组词未上屏时不会触发搜索（防抖 250ms）。</li></ul>
-<h3 id="实现索引-23">实现索引</h3>
+<h3 id="实现索引-21">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>SearchSectionView.swift:1742</code></td><td><code>scheduleSearch</code></td><td>防抖与四路检索调度</td></tr><tr><td><code>SearchSectionView.swift</code></td><td><code>filesCategory</code> / <code>clipboardCategory</code></td><td>分组渲染</td></tr><tr><td><code>FileNameIndex.swift:546</code></td><td><code>search</code> / <code>build</code></td><td>全盘索引查询与建立</td></tr><tr><td><code>FuzzyMatcher.swift:29</code></td><td><code>match</code> / <code>isMatch</code></td><td>模糊匹配与评分</td></tr><tr><td><code>SlashCommands.swift:133</code></td><td><code>match</code></td><td><code>/</code> 命令匹配</td></tr><tr><td><code>SearchEngine.swift:280</code></td><td><code>searchURL</code></td><td>搜索引擎模板</td></tr><tr><td><code>SearchSettingsPane.swift:507</code></td><td><code>saveCustomEngine</code></td><td>自定义引擎</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十五章-命令面板">第二十五章 命令面板</h2>
-<h3 id="功能是什么-24">功能是什么</h3>
+<h3 id="功能是什么-22">功能是什么</h3>
 <p><code>⌥K</code> 唤出的 Spotlight 式浮窗：全功能统一目录，输入即模糊过滤，回车执行。不用记功能在哪个页。</p>
-<h3 id="用户怎么用-24">用户怎么用</h3>
+<h3 id="用户怎么用-22">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥K</code></td><td>打开/关闭</td></tr><tr><td>输入</td><td>过滤（模糊匹配，乱序也能中）</td></tr><tr><td><code>↑</code> <code>↓</code></td><td>移动选择</td></tr><tr><td><code>↵</code></td><td>执行</td></tr><tr><td><code>Esc</code></td><td>关闭</td></tr><tr><td>先在其他应用选中文字，再搜「摘要选中文字」或「润色选中文字」</td><td>使用打开命令面板前取得的选区，在现有工具窗执行</td></tr></tbody></table></div>
-<h3 id="演示-24">演示</h3>
+<h3 id="演示-22">演示</h3>
 <figure><img src="gifs/ch25-command.gif" alt="`⌥K` 唤出，45 条命令一屏铺开；输入即过滤，`↑↓` 选中、`↵` 执行、`Esc` 关闭。" loading="lazy" decoding="async"><figcaption><code>⌥K</code> 唤出，45 条命令一屏铺开；输入即过滤，<code>↑↓</code> 选中、<code>↵</code> 执行、<code>Esc</code> 关闭。</figcaption></figure>
-<h3 id="关键能力点-24">关键能力点</h3>
+<h3 id="关键能力点-22">关键能力点</h3>
 <ul><li><strong>全功能目录</strong>（<code>CommandPalette</code>，644 行）</li></ul>
-<p>把「一堆功能」收敛成「一个工具箱」的统一入口：截图、OCR、长截图、图帘、剪贴板、监测、中转、投屏、工具、设置页……</p>
+<p>把「一堆功能」收敛成「一个工具箱」的统一入口：截图、OCR、长截图、图帘、剪贴板、监测、工具、设置页……</p>
 <ul><li><strong>动作可带参数</strong>：部分条目点开后是二级列表（比如「打开设置」展开成 27 个页）。</li></ul>
 <ul><li><strong>与工具面板共用召回</strong>：命令面板和工具列表用同一套模糊引擎，结果一致。</li></ul>
 <ul><li><strong>快捷键可改</strong>：默认 <code>⌥K</code>（<code>⌘K</code> 常被浏览器占用）。</li></ul>
-<h3 id="注意事项-24">注意事项</h3>
+<h3 id="注意事项-22">注意事项</h3>
 <ul><li>命令面板是独立窗口，不依赖主面板是否打开。</li><li>面板里显示的快捷键是<strong>当前生效</strong>的（改过绑定的会跟着变）。</li></ul>
-<h3 id="实现索引-24">实现索引</h3>
+<h3 id="实现索引-22">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>CommandPalette.swift:277</code></td><td><code>CommandPaletteController.toggle</code></td><td>窗口显隐</td></tr><tr><td><code>CommandPalette.swift</code></td><td><code>body</code></td><td>列表与过滤</td></tr><tr><td><code>SlashCommands.swift:133</code></td><td><code>SlashCommandCatalog.match</code></td><td>命令目录</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十六章-日历与节假日">第二十六章 日历与节假日</h2>
-<h3 id="功能是什么-25">功能是什么</h3>
+<h3 id="功能是什么-23">功能是什么</h3>
 <p>主面板日历卡显示两周日期、农历、节气及节假日；授权后读取系统日程。周起始日可选周日或周一，默认周日。</p>
-<h3 id="用户怎么用-25">用户怎么用</h3>
+<h3 id="用户怎么用-23">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>面板首页看日历卡</td><td>两周日期，今天高亮</td></tr><tr><td>点 <code>‹</code> <code>›</code> / 两指横滑</td><td>上一周 / 下一周</td></tr><tr><td>点月份标题</td><td>回到今天所在周</td></tr><tr><td>点日期格</td><td>选中日期；今天保留实心高亮，其他选中日期显示描边</td></tr><tr><td>设置 → 常规 → 菜单栏 → 日历周起始日</td><td>选择周日 / 周一，先更新本页预览</td></tr><tr><td>日历设置区「保存」/「取消」</td><td>保存后应用到正式日历；取消恢复保存值，切页保留草稿，重启保留保存结果</td></tr></tbody></table></div>
-<h3 id="演示-25">演示</h3>
+<h3 id="演示-23">演示</h3>
 <figure><img src="gifs/ch26-calendar.gif" alt="旧版日历演示；当前日历卡用 `‹`、`›` 翻周，点月份标题回到今天。" loading="lazy" decoding="async"><figcaption>旧版日历演示；当前日历卡用 <code>‹</code>、<code>›</code> 翻周，点月份标题回到今天。</figcaption></figure>
-<h3 id="关键能力点-25">关键能力点</h3>
+<h3 id="关键能力点-23">关键能力点</h3>
 <ul><li><strong>农历与节气</strong>（<code>LunarCalendar</code>）</li></ul>
 <p>公农历互转、二十四节气、农历节日（春节/端午/中秋…）。纯算法实现，不需要网络。</p>
 <ul><li><strong>节假日与调休</strong>（<code>HolidayManager</code>）</li></ul>
@@ -814,21 +744,21 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>周起始一致</strong>：周日为 <code>1</code>，周一为 <code>2</code>。星期标题、两周归一化、翻周、月份标题及今天定位使用同一设置；月历缓存固定 42 天，起点按 <code>(当月首日 weekday - firstWeekday + 7) % 7</code> 的偏移计算。周末始终按日期实际为周六、周日判断。</li></ul>
 <ul><li><strong>本模块保存</strong>：日历草稿只保存 <code>calendar.firstWeekday</code>，预览的日期选择留在设置页内。</li></ul>
 <ul><li><strong>今日高亮</strong>：今天用实心圆角块标出，和选中态区分。</li></ul>
-<h3 id="注意事项-25">注意事项</h3>
+<h3 id="注意事项-23">注意事项</h3>
 <ul><li>节假日数据是年度更新的：跨年前后如果发现新一年没数据，等应用更新。</li><li>日程需要「日历」权限；不授权不影响日期与农历显示。</li><li>日历卡高度约 112pt，是原版实测的版式。</li></ul>
-<h3 id="实现索引-25">实现索引</h3>
+<h3 id="实现索引-23">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>CalendarSectionView.swift:341</code></td><td><code>body</code></td><td>日历卡版式</td></tr><tr><td><code>CalendarService.swift:155</code></td><td><code>events</code></td><td>系统日程读取</td></tr><tr><td><code>LunarCalendar.swift:221</code></td><td><code>lunarDate</code> / <code>solarTerm</code> / <code>lunarFestival</code></td><td>农历算法</td></tr><tr><td><code>HolidayManager.swift:75</code></td><td><code>holiday</code> / <code>isOnLeave</code></td><td>节假日判定</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十七章-快捷键">第二十七章 快捷键</h2>
-<h3 id="功能是什么-26">功能是什么</h3>
+<h3 id="功能是什么-24">功能是什么</h3>
 <p>全局热键支持自定义改绑，并可切换为「双击修饰键」模式（连按两下 <code>⌘</code> / <code>⌥</code> / <code>⌃</code> / <code>⇧</code>）；快捷键注册冲突时会明确提示具体失败原因。</p>
 <h3 id="默认热键">默认热键</h3>
 <p>见附录 A。这里是机制说明。</p>
-<h3 id="用户怎么用-26">用户怎么用</h3>
+<h3 id="用户怎么用-24">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>设置 → 工具与快捷键 → 快捷键</td><td>全部热键列表</td></tr><tr><td>点某条 → 按下新组合</td><td>录制并保存</td></tr><tr><td>点「×」</td><td>清除该条绑定</td></tr><tr><td>切「2×」开关</td><td>改成双击修饰键模式</td></tr><tr><td>「恢复默认」</td><td>全部还原</td></tr><tr><td>「摘要选中文字」「润色选中文字」</td><td>默认未绑定；录制组合键后在目标应用直接处理选区</td></tr></tbody></table></div>
-<h3 id="演示-26">演示</h3>
+<h3 id="演示-24">演示</h3>
 <figure><img src="gifs/ch27-shortcuts.gif" alt="设置 → 工具与快捷键：默认热键列表，点某行的快捷键进入录制态，按 Esc 退出。" loading="lazy" decoding="async"><figcaption>设置 → 工具与快捷键：默认热键列表，点某行的快捷键进入录制态，按 Esc 退出。</figcaption></figure>
-<h3 id="关键能力点-26">关键能力点</h3>
+<h3 id="关键能力点-24">关键能力点</h3>
 <ul><li><strong>Carbon 全局热键</strong>（<code>ShortcutManager</code>）</li></ul>
 <p>用 <code>RegisterEventHotKey</code>，App 未激活时同样生效。不是 <code>NSEvent</code> 全局监听（那个需要辅助功能且不拦截）。</p>
 <ul><li><strong>冲突处理</strong>：注册失败时记下原因（<code>failureReason</code>），UI 直接显示「这个组合已被系统或其他应用占用」，不是静默失败。</li></ul>
@@ -837,19 +767,19 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>连按两下同一修饰键触发，适合不想占组合键的场景。首次开启有兼容性提示（某些输入法会抢）。</p>
 <ul><li><strong>按工具绑定</strong>（<code>ToolShortcutStore</code>）：任意工具可单独绑热键，触发时唤起面板并打开该工具。</li></ul>
 <ul><li><strong>录制控件</strong>（<code>ShortcutRecorder</code>）：按下即显示组合，<code>Esc</code> 取消，<code>⌫</code> 清除；只接受带修饰键的组合（防止单键误触发）。</li></ul>
-<h3 id="注意事项-26">注意事项</h3>
+<h3 id="注意事项-24">注意事项</h3>
 <ul><li>系统级组合（如 <code>⌘Space</code>）会被系统先拦，注册不成功是正常的。</li><li>双击修饰键与「连按 <code>⌘</code> 切换输入法」可能冲突，看个人习惯。</li><li>恢复默认会清除所有自定义绑定<strong>和</strong>双击模式。</li></ul>
-<h3 id="实现索引-26">实现索引</h3>
+<h3 id="实现索引-24">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>ShortcutManager.swift:324</code></td><td><code>register</code> / <code>unregister</code></td><td>Carbon 热键注册</td></tr><tr><td><code>ShortcutManager.swift</code></td><td><code>failureReason</code></td><td>冲突原因</td></tr><tr><td><code>AppBootstrap.swift:318</code></td><td><code>defaultHotkeys</code></td><td>19 条默认表</td></tr><tr><td><code>ShortcutRecorder.swift:85</code></td><td><code>start</code></td><td>录制控件</td></tr><tr><td><code>DoubleTapShortcut.swift:181</code></td><td><code>startMonitoringIfNeeded</code></td><td>双击修饰键</td></tr><tr><td><code>ToolShortcutStore.swift:103</code></td><td><code>bind</code></td><td>工具热键</td></tr><tr><td><code>ShortcutSettingsPane.swift:174</code></td><td><code>body</code></td><td>快捷键设置页</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十八章-代码预览">第二十八章 代码预览</h2>
-<h3 id="功能是什么-27">功能是什么</h3>
+<h3 id="功能是什么-25">功能是什么</h3>
 <p>把一段代码变成<strong>能看的卡片</strong>：语法高亮、主题切换、行号、导出图片、富文本复制。适合往聊天窗口、文档、PPT 里贴代码。</p>
-<h3 id="用户怎么用-27">用户怎么用</h3>
+<h3 id="用户怎么用-25">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>工具箱 →「代码预览」</td><td>粘贴代码，选语言与主题</td></tr><tr><td>剪贴板条目（识别为代码）→ 预览</td><td>直接进代码预览</td></tr><tr><td>工具热键</td><td>可单独绑定</td></tr></tbody></table></div>
-<h3 id="演示-27">演示</h3>
+<h3 id="演示-25">演示</h3>
 <figure><img src="gifs/ch28-codepreview.gif" alt="悬浮剪贴板里选中一条代码：右栏出带行号的高亮预览，顶部可切语言与主题（Cappuccin Mocha 等）。" loading="lazy" decoding="async"><figcaption>悬浮剪贴板里选中一条代码：右栏出带行号的高亮预览，顶部可切语言与主题（Cappuccin Mocha 等）。</figcaption></figure>
-<h3 id="关键能力点-27">关键能力点</h3>
+<h3 id="关键能力点-25">关键能力点</h3>
 <ul><li><strong>自研词法器</strong>（<code>CodeLexer</code>，582 行）</li></ul>
 <p>轻量自研架构：项目采用 <code>swiftc</code> 直接编译且无 SPM 外部依赖，同时预览需在 200ms 内快速完成渲染，因此选用自研轻量词法分析器。 支持 20+ 语言（<code>CodeLanguage</code>），语言 id 同时是高亮器的配置键。</p>
 <ul><li><strong>主题</strong>（<code>CodeTheme</code>，347 行）</li></ul>
@@ -859,19 +789,19 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>富文本复制</strong>（<code>CodeRichCopy</code>）</li></ul>
 <p>纯文本没有高亮，还需要手动重排。剪贴板同时写入三种类型：纯文本、带格式富文本和 HTML，粘到其他应用时尽量保住高亮。</p>
 <ul><li><strong>交互参照 highlightcode.com</strong>：所有开关都在同一个框的工具条里，不来回跳页。</li></ul>
-<h3 id="注意事项-27">注意事项</h3>
+<h3 id="注意事项-25">注意事项</h3>
 <ul><li>语言选错会导致高亮错乱，但不会崩；不确定就选「自动」。</li><li>超长代码（&gt;5000 行）会截断预览并提示，导出图片同样限制高度。</li><li>导出图片按 2x 输出，Retina 屏不糊。</li></ul>
-<h3 id="实现索引-27">实现索引</h3>
+<h3 id="实现索引-25">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>CodePreviewView.swift:719</code></td><td><code>body</code></td><td>预览界面与工具条</td></tr><tr><td><code>CodeHighlighter.swift:162</code></td><td><code>highlight</code></td><td>高亮入口（三处共用）</td></tr><tr><td><code>CodeLexer.swift:582</code></td><td><code>tokenize</code></td><td>词法分析</td></tr><tr><td><code>CodeLanguage.swift:142</code></td><td><code>all</code></td><td>语言表</td></tr><tr><td><code>CodeTheme.swift:347</code></td><td><code>theme</code></td><td>主题色板</td></tr><tr><td><code>CodeCardImage.swift:82</code></td><td><code>render</code></td><td>卡片图导出</td></tr><tr><td><code>CodeRichCopy.swift:173</code></td><td><code>copy</code></td><td>三格式富文本复制</td></tr></tbody></table></div>
 <hr>
 <h2 id="第二十九章-网盘链接解析">第二十九章 网盘链接解析</h2>
-<h3 id="功能是什么-28">功能是什么</h3>
+<h3 id="功能是什么-26">功能是什么</h3>
 <p>复制网盘分享链接后，Kitnest 会自动识别并提示「打开解析中心」，用户可直接在解析中心内获取下载直链，省去在浏览器中繁琐的人机验证流程。</p>
-<h3 id="用户怎么用-28">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>复制网盘分享链接</td><td>状态栏下方弹出小提示，点开进解析中心</td></tr><tr><td>面板首页「网盘链接」条</td><td>显示剪贴板里的网盘链接，点开解析</td></tr><tr><td>工具箱 →「网盘解析」</td><td>同上</td></tr><tr><td><code>kitnest://cloudlink</code></td><td>深链直达</td></tr></tbody></table></div>
-<h3 id="演示-28">演示</h3>
+<h3 id="用户怎么用-26">用户怎么用</h3>
+<div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>复制网盘分享链接</td><td>状态栏下方弹出小提示，点开进解析中心</td></tr><tr><td>面板首页「网盘链接」条</td><td>显示剪贴板里的网盘链接，点开解析</td></tr><tr><td>工具箱 →「网盘解析」</td><td>同上</td></tr><tr><td><code>kitnest-lite://cloudlink</code></td><td>深链直达</td></tr></tbody></table></div>
+<h3 id="演示-26">演示</h3>
 <figure><img src="gifs/ch29-cloudlink.gif" alt="网盘解析窗：链接与提取码 → 解析结果（文件名 / 大小 / 清晰度）→ 保存目录 → 开始解析下载。" loading="lazy" decoding="async"><figcaption>网盘解析窗：链接与提取码 → 解析结果（文件名 / 大小 / 清晰度）→ 保存目录 → 开始解析下载。</figcaption></figure>
-<h3 id="关键能力点-28">关键能力点</h3>
+<h3 id="关键能力点-26">关键能力点</h3>
 <ul><li><strong>域名识别表</strong>（<code>CloudDriveLink</code>）</li></ul>
 <p>覆盖主流网盘（百度 / 阿里 / 夸克 / 123 / 天翼 / 移动 / 迅雷 / UC / 115 等），规则提取自 LinkSwift（AGPL-3.0 上游项目）的 <code>@match</code> 声明。</p>
 <ul><li><strong>复制即提示</strong>（<code>CloudLinkPrompt</code>）</li></ul>
@@ -882,21 +812,21 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>内置下载器，可断点续传；也能把直链交给外部下载工具。</p>
 <ul><li><strong>面板内嵌条</strong>（<code>CloudLinkBar</code>）</li></ul>
 <p>位置在搜索框正下方，只有检测到网盘链接时才出现，不占常驻空间。</p>
-<h3 id="注意事项-28">注意事项</h3>
+<h3 id="注意事项-26">注意事项</h3>
 <ul><li>解析依赖各网盘当前的接口规则，网盘改版可能导致失败——失败会明确提示，不会卡住。</li><li>需要登录的网盘（如百度超大文件）仍需在浏览器里登录一次，应用不保存网盘账号。</li><li>只处理分享链接，不处理私有直链。</li></ul>
-<h3 id="实现索引-28">实现索引</h3>
+<h3 id="实现索引-26">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>CloudDriveLink.swift:201</code></td><td><code>match</code></td><td>域名与分享页规则</td></tr><tr><td><code>CloudLinkPrompt.swift:92</code></td><td><code>present</code></td><td>复制后提示</td></tr><tr><td><code>CloudLinkCenter.swift:794</code></td><td><code>body</code></td><td>解析中心</td></tr><tr><td><code>CloudLinkDownloader.swift:461</code></td><td><code>download</code></td><td>直链下载</td></tr><tr><td><code>CloudLinkBar.swift:193</code></td><td><code>body</code></td><td>面板内嵌条</td></tr></tbody></table></div>
 <hr>
 <h2 id="第三十章-ai-助手">第三十章 AI 助手</h2>
-<h3 id="功能是什么-29">功能是什么</h3>
+<h3 id="功能是什么-27">功能是什么</h3>
 <p>内置多服务商大模型接入层：配一家或多家，就能在应用内聊天、总结、翻译。密钥本地加密，支持本地 Ollama。</p>
-<h3 id="用户怎么用-29">用户怎么用</h3>
+<h3 id="用户怎么用-27">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>功能</th><th>入口</th><th>说明</th></tr></thead><tbody><tr><td>配置服务商</td><td>设置 → 搜索与 AI →「AI 服务商 → 管理」</td><td>选厂商、填 Base URL、存密钥、刷新模型、测试连接</td></tr><tr><td>AI 聊天</td><td>工具面板 / 命令面板搜「AI」</td><td>多轮对话、流式输出、会话管理</td></tr><tr><td>总结</td><td>剪贴板条目 →「总结」</td><td>对当前文本生成摘要，结果可回写</td></tr><tr><td>摘要选中文字 / 润色选中文字</td><td>目标应用选中文字 → <code>⌥K</code> 搜同名命令；或绑定对应全局快捷键</td><td>打开现有工具窗并传入全文，默认不占用快捷键</td></tr><tr><td>翻译</td><td><code>⇧⌥T</code> / <code>⇧⌥D</code></td><td>截图翻译、划词翻译（第十四章）</td></tr><tr><td>自定义工具</td><td>设置 → 搜索与 AI → 自定义工具</td><td>自己的提示词模板</td></tr></tbody></table></div>
 <h3 id="四类服务商">四类服务商</h3>
 <div class="table-wrap"><table><thead><tr><th>类型</th><th>默认端点</th><th>鉴权</th></tr></thead><tbody><tr><td><strong>Anthropic</strong></td><td><code>https://api.anthropic.com</code></td><td><code>x-api-key</code></td></tr><tr><td><strong>Gemini</strong></td><td><code>https://generativelanguage.googleapis.com</code></td><td>Key 走 URL 参数</td></tr><tr><td><strong>OpenAI 兼容</strong></td><td>任意网关（DeepSeek / 月之暗面 / 智谱 / Groq…）</td><td><code>Authorization: Bearer</code></td></tr><tr><td><strong>Ollama</strong></td><td><code>http://localhost:11434</code></td><td>无（本地）</td></tr></tbody></table></div>
-<h3 id="演示-29">演示</h3>
+<h3 id="演示-27">演示</h3>
 <figure><img src="gifs/ch30-ai.gif" alt="设置 → AI：服务商、模型、密钥（本地加密），下面是默认行为开关。" loading="lazy" decoding="async"><figcaption>设置 → AI：服务商、模型、密钥（本地加密），下面是默认行为开关。</figcaption></figure>
-<h3 id="关键能力点-29">关键能力点</h3>
+<h3 id="关键能力点-27">关键能力点</h3>
 <ul><li><strong>门面 + 适配器</strong>（<code>LLMService</code> / <code>LLMResolver</code>）</li></ul>
 <p>对外只有一个 <code>stream</code> 入口，内部按偏好路由到具体适配器。加一家新厂商只写一个 adapter。</p>
 <ul><li><strong>流式输出</strong>（<code>LLMTransport</code>，200 行）</li></ul>
@@ -913,25 +843,25 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>名称 + 系统提示词 + <code>{input}</code> 模板，保存后与内置动作并列显示。</p>
 <ul><li><strong>密钥安全</strong>（<code>CredentialStore</code>，293 行）</li></ul>
 <p>密钥以<strong>加密信封</strong>形式存本地，主密钥由系统钥匙串派生。旧版 Gemini 明文密钥会自动迁移（<code>LegacyGeminiMigrator</code>）。</p>
-<h3 id="注意事项-29">注意事项</h3>
+<h3 id="注意事项-27">注意事项</h3>
 <ul><li>API Key 只在本机；导出偏好数据时<strong>不含密钥</strong>。</li><li>OpenAI 兼容端点填到域名即可（不要在末尾加 <code>/v1/chat/completions</code>）。</li><li>本地 Ollama 需先启动服务并 <code>ollama pull</code> 模型。</li><li>网络不通或密钥错误时聊天区显示可读错误，不崩溃。</li><li>AI 请求失败不影响其他功能。</li></ul>
-<h3 id="实现索引-29">实现索引</h3>
+<h3 id="实现索引-27">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>LLMService.swift:106</code></td><td><code>stream</code></td><td>唯一门面</td></tr><tr><td><code>LLMResolver.swift:121</code></td><td><code>resolve</code></td><td>按偏好路由 + 模型缓存</td></tr><tr><td><code>LLMTransport.swift:200</code></td><td><code>streamBytes</code></td><td>可取消的 SSE 传输</td></tr><tr><td><code>AnthropicService.swift:127</code></td><td><code>stream</code></td><td>Anthropic 适配</td></tr><tr><td><code>GeminiService.swift:131</code></td><td><code>stream</code></td><td>Gemini 适配</td></tr><tr><td><code>OpenAICompatibleService.swift:138</code></td><td><code>stream</code></td><td>OpenAI 兼容适配</td></tr><tr><td><code>OllamaService.swift:127</code></td><td><code>stream</code></td><td>本地 Ollama</td></tr><tr><td><code>CredentialStore.swift:293</code></td><td><code>encryptEnvelope</code> / <code>masterSecret</code></td><td>密钥加密</td></tr><tr><td><code>LLMSessionStore.swift:152</code></td><td><code>createSession</code> / <code>autoTitle</code> / <code>searchSessions</code></td><td>会话管理</td></tr><tr><td><code>AISettingsPane.swift:432</code></td><td><code>body</code></td><td>服务商设置页</td></tr><tr><td><code>AIChatView.swift:438</code></td><td><code>body</code></td><td>聊天界面</td></tr><tr><td><code>AISummaryView.swift:341</code></td><td><code>run</code> / <code>saveToClipboard</code></td><td>总结与回写</td></tr><tr><td><code>CustomAIToolStore.swift:94</code></td><td><code>upsert</code></td><td>自定义工具</td></tr><tr><td><code>LLMProtocols.swift:303</code></td><td>协议定义</td><td>11 个自有协议</td></tr></tbody></table></div>
 <hr>
 <h1 id="第六部分-设置与其他">第六部分 · 设置与其他</h1>
 <h2 id="第三十一章-设置">第三十一章 设置</h2>
-<h3 id="功能是什么-30">功能是什么</h3>
-<p>左侧大侧边栏的设置窗采用一级目录 + 二级页的两级结构：一级目录常驻展开，下方直接列出对应的二级页； 点击某项时，右侧只显示那一页（v272 起，常规 / 剪贴板 / 文件中转也各自拆成多页，不用在一页里长距离滚动）。 侧边栏顶部有搜索框，输入关键词可直达对应的二级页。</p>
+<h3 id="功能是什么-28">功能是什么</h3>
+<p>左侧大侧边栏的设置窗采用一级目录 + 二级页的两级结构：一级目录常驻展开，下方直接列出对应的二级页； 点击某项时，右侧只显示那一页（v272 起，常规 / 剪贴板也各自拆成多页，不用在一页里长距离滚动）。 侧边栏顶部有搜索框，输入关键词可直达对应的二级页。</p>
 <h3 id="八个一级目录与二级页">八个一级目录与二级页</h3>
-<div class="table-wrap"><table><thead><tr><th>一级目录</th><th>二级页</th></tr></thead><tbody><tr><td><strong>常规</strong></td><td>启动与语言 ／ 主题外观 ／ 主面板 ／ 窗口材质 ／ 通知提示 ／ 菜单栏</td></tr><tr><td><strong>音频</strong></td><td>音频混音器</td></tr><tr><td><strong>剪贴板</strong></td><td>历史 ／ 捕获 ／ 列表外观 ／ 浮动窗</td></tr><tr><td><strong>文件中转</strong></td><td>显示 ／ 投屏画质 ／ 手机扫码直传 ／ 云端中转 ／ 本地暂存</td></tr><tr><td><strong>截图</strong></td><td>截图 ／ 动作条外观 ／ 钉图 ／ 图帘 ／ 录屏 ／ 工作流</td></tr><tr><td><strong>工具</strong></td><td>工具 ／ 快捷键</td></tr><tr><td><strong>搜索与 AI</strong></td><td>搜索 ／ AI</td></tr><tr><td><strong>性能监测</strong></td><td>CPU ／ 内存 ／ GPU ／ 磁盘 ／ 网络 ／ 传感器 ／ 功耗 ／ 电池 ／ 监测设置 ／ 部件设置</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>一级目录</th><th>二级页</th></tr></thead><tbody><tr><td><strong>常规</strong></td><td>启动与语言 ／ 主题外观 ／ 主面板 ／ 窗口材质 ／ 通知提示 ／ 菜单栏</td></tr><tr><td><strong>音频</strong></td><td>音频混音器</td></tr><tr><td><strong>剪贴板</strong></td><td>历史 ／ 捕获 ／ 列表外观 ／ 浮动窗</td></tr><tr><td><strong>截图</strong></td><td>截图 ／ 动作条外观 ／ 钉图 ／ 图帘 ／ 录屏 ／ 工作流</td></tr><tr><td><strong>工具</strong></td><td>工具 ／ 快捷键</td></tr><tr><td><strong>搜索与 AI</strong></td><td>搜索 ／ AI</td></tr><tr><td><strong>性能监测</strong></td><td>CPU ／ 内存 ／ GPU ／ 磁盘 ／ 网络 ／ 传感器 ／ 功耗 ／ 电池 ／ 监测设置 ／ 部件设置</td></tr></tbody></table></div>
 <p>页脚常驻「数据 / 关于 / 使用手册」三个入口。侧边栏内容比一屏高时可以滚动； 用深链或搜索跳页时，侧边栏会自动把选中的二级页滚进视野。</p>
-<h3 id="用户怎么用-30">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td><code>⌘,</code></td><td>打开设置</td></tr><tr><td>菜单栏右键 →「设置…」</td><td>同上</td></tr><tr><td>面板齿轮菜单 →「设置」</td><td>同上</td></tr><tr><td><code>kitnest://settings?pane=general</code></td><td>直达某页</td></tr><tr><td>左侧搜索框</td><td>输入关键词，直接列出匹配项并跳转</td></tr></tbody></table></div>
+<h3 id="用户怎么用-28">用户怎么用</h3>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td><code>⌘,</code></td><td>打开设置</td></tr><tr><td>菜单栏右键 →「设置…」</td><td>同上</td></tr><tr><td>面板齿轮菜单 →「设置」</td><td>同上</td></tr><tr><td><code>kitnest-lite://settings?pane=general</code></td><td>直达某页</td></tr><tr><td>左侧搜索框</td><td>输入关键词，直接列出匹配项并跳转</td></tr></tbody></table></div>
 <h3 id="各页要点">各页要点</h3>
-<div class="table-wrap"><table><thead><tr><th>页面</th><th>关键项</th></tr></thead><tbody><tr><td><strong>常规 › 启动与语言</strong></td><td>登录时启动、语言、用 Kitnest 默认打开 ZIP（与欢迎窗共用开关，详见第二十二章）</td></tr><tr><td><strong>常规 › 主面板</strong></td><td>真实主面板预览；界面字号、面板圆角、面板宽度、打开动画、背景图、页面顺序</td></tr><tr><td><strong>常规 › 窗口材质</strong></td><td>使用真实性能监测界面展示玻璃四参数（通透度/磨砂/卡片亮度/描边）和背景材质</td></tr><tr><td><strong>常规 › 主题外观</strong></td><td>真实主面板预览；外观四选一（系统/浅色/深色/Midnight）、强调色、Midnight 色相、恢复全部个性化默认</td></tr><tr><td><strong>常规 › 通知提示</strong></td><td>使用真实通知组件预览时长与样式，可重播；位置由说明文字标明</td></tr><tr><td><strong>常规 › 菜单栏</strong></td><td>功能开关（系统监控/日历/截图内容搜索/文件中转）、日历周起始草稿与预览、AI 服务商、菜单栏图标样式与小猫、菜单栏部件</td></tr><tr><td><strong>剪贴板 › 历史</strong></td><td>保留天数、容量上限、当前占用、按保留期与容量清理、清除全部未存历史保留笔记、密码加密备份与恢复、标签管理</td></tr><tr><td><strong>剪贴板 › 捕获</strong></td><td>复制后自动粘贴（含辅助功能授权入口）、忽略应用（隐私名单）</td></tr><tr><td><strong>剪贴板 › 列表外观</strong></td><td>真实剪贴板列表预览；密度、缩略图大小、来源徽章</td></tr><tr><td><strong>剪贴板 › 浮动窗</strong></td><td>真实浮动窗预览；布局、卡片档位、显示开关、呼出快捷键、位置重置</td></tr><tr><td><strong>截图 › 动作条外观</strong></td><td>使用真实动作条展示图标条、药丸条、主次分离三种样式</td></tr><tr><td><strong>文件中转 › 各页</strong></td><td>显示（总开关）／投屏画质（分辨率/码率/帧率/双向剪贴板）／手机扫码直传（端口与访问地址）／云端中转（OPPO 桥接）／本地暂存（暂存目录与清空）</td></tr><tr><td><strong>搜索与 AI</strong></td><td>搜索页：搜索引擎管理、本地文件搜索开关；AI 页：服务商、自定义 AI 工具</td></tr><tr><td><strong>工具</strong></td><td>工具页：工具启停；快捷键页：全局与工具热键、摘要/润色选区（默认未绑定）、双击模式、恢复默认</td></tr><tr><td><strong>数据</strong></td><td>导出/导入偏好包（含统计与快捷键，不含密钥）、清除索引缓存</td></tr><tr><td><strong>关于</strong></td><td>版本、检查更新、导出诊断包、开源许可</td></tr><tr><td><strong>截图</strong>（侧边栏独立项）</td><td>保存目录、截图后动作、提示音、延时、固定比例、文件命名模板、静默识别、仅文本马赛克、水印、文字识别、权限状态</td></tr><tr><td><strong>钉图</strong>（侧边栏独立项）</td><td>四形态预览、边框/圆角/阴影/透明度/磁性、控制条超时</td></tr><tr><td><strong>图帘</strong>（侧边栏独立项）</td><td>总开关、帘线样式、展示时长、最多张数、卡片宽度、帘线缩放、自动上架、快捷键</td></tr><tr><td><strong>录屏</strong>（侧边栏独立项）</td><td>整屏/区域录制、摄像头画中画、按键与点击动画、忽略 App、保存位置</td></tr><tr><td><strong>工作流</strong>（侧边栏独立项）</td><td>截图后自动保存/识别/上传/建 GitHub、Linear issue</td></tr><tr><td><strong>监测各模块</strong></td><td>部件形态（12 种）、颜色、显示项</td></tr><tr><td><strong>监测设置</strong></td><td>采样间隔、合并模式、温度显示</td></tr><tr><td><strong>部件设置</strong></td><td>STATS 合并条形态/间距/分隔线</td></tr></tbody></table></div>
-<h3 id="演示-30">演示</h3>
+<div class="table-wrap"><table><thead><tr><th>页面</th><th>关键项</th></tr></thead><tbody><tr><td><strong>常规 › 启动与语言</strong></td><td>登录时启动、语言、用 Kitnest 默认打开 ZIP（与欢迎窗共用开关，详见第二十二章）</td></tr><tr><td><strong>常规 › 主面板</strong></td><td>真实主面板预览；界面字号、面板圆角、面板宽度、打开动画、背景图、页面顺序</td></tr><tr><td><strong>常规 › 窗口材质</strong></td><td>使用真实性能监测界面展示玻璃四参数（通透度/磨砂/卡片亮度/描边）和背景材质</td></tr><tr><td><strong>常规 › 主题外观</strong></td><td>真实主面板预览；外观四选一（系统/浅色/深色/Midnight）、强调色、Midnight 色相、恢复全部个性化默认</td></tr><tr><td><strong>常规 › 通知提示</strong></td><td>使用真实通知组件预览时长与样式，可重播；位置由说明文字标明</td></tr><tr><td><strong>剪贴板 › 历史</strong></td><td>保留天数、容量上限、当前占用、按保留期与容量清理、清除全部未存历史保留笔记、密码加密备份与恢复、标签管理</td></tr><tr><td><strong>剪贴板 › 捕获</strong></td><td>复制后自动粘贴（含辅助功能授权入口）、忽略应用（隐私名单）</td></tr><tr><td><strong>剪贴板 › 列表外观</strong></td><td>真实剪贴板列表预览；密度、缩略图大小、来源徽章</td></tr><tr><td><strong>剪贴板 › 浮动窗</strong></td><td>真实浮动窗预览；布局、卡片档位、显示开关、呼出快捷键、位置重置</td></tr><tr><td><strong>截图 › 动作条外观</strong></td><td>使用真实动作条展示图标条、药丸条、主次分离三种样式</td></tr><tr><td><strong>搜索与 AI</strong></td><td>搜索页：搜索引擎管理、本地文件搜索开关；AI 页：服务商、自定义 AI 工具</td></tr><tr><td><strong>工具</strong></td><td>工具页：工具启停；快捷键页：全局与工具热键、摘要/润色选区（默认未绑定）、双击模式、恢复默认</td></tr><tr><td><strong>数据</strong></td><td>导出/导入偏好包（含统计与快捷键，不含密钥）、清除索引缓存</td></tr><tr><td><strong>关于</strong></td><td>版本、检查更新、导出诊断包、开源许可</td></tr><tr><td><strong>截图</strong>（侧边栏独立项）</td><td>保存目录、截图后动作、提示音、延时、固定比例、文件命名模板、静默识别、仅文本马赛克、水印、文字识别、权限状态</td></tr><tr><td><strong>钉图</strong>（侧边栏独立项）</td><td>四形态预览、边框/圆角/阴影/透明度/磁性、控制条超时</td></tr><tr><td><strong>图帘</strong>（侧边栏独立项）</td><td>总开关、帘线样式、展示时长、最多张数、卡片宽度、帘线缩放、自动上架、快捷键</td></tr><tr><td><strong>录屏</strong>（侧边栏独立项）</td><td>整屏/区域录制、摄像头画中画、按键与点击动画、忽略 App、保存位置</td></tr><tr><td><strong>工作流</strong>（侧边栏独立项）</td><td>截图后自动保存/识别/上传/建 GitHub、Linear issue</td></tr><tr><td><strong>监测各模块</strong></td><td>部件形态（12 种）、颜色、显示项</td></tr><tr><td><strong>监测设置</strong></td><td>采样间隔、合并模式、温度显示</td></tr><tr><td><strong>部件设置</strong></td><td>STATS 合并条形态/间距/分隔线</td></tr></tbody></table></div>
+<h3 id="演示-28">演示</h3>
 <figure><img src="gifs/ch31-settings.gif" alt="左侧导航从「通用」切到剪贴板、截图、工具，再回通用，右侧面板整块换。" loading="lazy" decoding="async"><figcaption>左侧导航从「通用」切到剪贴板、截图、工具，再回通用，右侧面板整块换。</figcaption></figure>
-<h3 id="关键能力点-30">关键能力点</h3>
+<h3 id="关键能力点-28">关键能力点</h3>
 <ul><li><strong>即改即生效</strong>：外观、个性化、监控参数改动即时应用，不用重启（<code>Personalization</code> 单例 + <code>@Published</code> 广播）。</li></ul>
 <ul><li><strong>预览与设置一对一</strong>（<code>AppearancePreviewBlock(scope:)</code>）</li></ul>
 <p>外观设置按主面板、窗口材质、主题、通知、剪贴板列表、浮动窗和截图动作条分开。每页一个预览，直接复用应用组件并叠加桌面背景；对应设置紧跟在预览下方。</p>
@@ -942,55 +872,55 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>部件设置自检</strong>（<code>WidgetSettingsSelfTest.runIfRequested</code>）</li></ul>
 <p>设置系统内置自检例程，验证配置读写链路。</p>
 <ul><li><strong>兼容层</strong>（<code>StateCompat</code>）：无完整 Xcode 时工具链缺少 SwiftUI 宏插件，这里做了降级兼容。</li></ul>
-<h3 id="注意事项-30">注意事项</h3>
+<h3 id="注意事项-28">注意事项</h3>
 <ul><li>恢复默认快捷键会清除所有自定义绑定与双击模式。</li><li>语言切「自动」时跟随系统。</li><li>导出的数据文件不含任何密钥，换机后需重填。</li></ul>
-<h3 id="实现索引-30">实现索引</h3>
+<h3 id="实现索引-28">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>SettingsWindowController.swift:224</code></td><td><code>show</code> / <code>open(pane:)</code></td><td>设置窗与深链跳转</td></tr><tr><td><code>SettingsRootView.swift:214</code></td><td><code>body</code></td><td>根视图（940×620）</td></tr><tr><td><code>SettingsSidebarView.swift:410</code></td><td><code>searchField</code></td><td>侧边栏搜索</td></tr><tr><td><code>SettingsPanes.swift:824</code></td><td>页面注册表</td><td>27 个页</td></tr><tr><td><code>PersonalizationSettingsPane.swift:888</code></td><td><code>body</code></td><td>个性化（即改即生效）</td></tr><tr><td><code>CaptureHubPane.swift</code></td><td><code>CaptureBlockPage.body</code></td><td>截图/钉图/图帘/录屏/工作流各自成页（v271 侧边栏五项）</td></tr><tr><td><code>CurtainSettingsPane.swift:472</code></td><td><code>body</code></td><td>图帘设置</td></tr><tr><td><code>PinSettingsPane.swift:427</code></td><td><code>body</code></td><td>钉图设置</td></tr><tr><td><code>MonitorWidgetsPane.swift:867</code></td><td><code>body</code></td><td>部件设置</td></tr><tr><td><code>DiagnosticsExporter.swift:190</code></td><td><code>export</code></td><td>诊断包导出</td></tr><tr><td><code>AppearanceManager.swift:78</code></td><td><code>apply</code></td><td>外观应用</td></tr></tbody></table></div>
 <hr>
 <h2 id="第三十二章-新手引导与权限">第三十二章 新手引导与权限</h2>
-<h3 id="功能是什么-31">功能是什么</h3>
+<h3 id="功能是什么-29">功能是什么</h3>
 <p>首次启动的三件套：<strong>欢迎窗</strong>（功能导览）、<strong>权限引导</strong>（四类权限实测状态 + 一键授权）、<strong>更新说明</strong>（版本变更）。</p>
-<h3 id="用户怎么用-31">用户怎么用</h3>
+<h3 id="用户怎么用-29">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>界面</th><th>何时出现</th><th>怎么回看</th></tr></thead><tbody><tr><td>欢迎窗（30 秒上手下方可切换 ZIP 默认打开方式）</td><td>首次启动</td><td>菜单栏右键 →「欢迎与权限…」</td></tr><tr><td>权限引导</td><td>欢迎窗里点「权限」；或权限不足时自动弹</td><td>同上</td></tr><tr><td>更新说明</td><td>版本升级后首次启动</td><td>「关于」页 →「更新说明」</td></tr></tbody></table></div>
-<h3 id="演示-31">演示</h3>
+<h3 id="演示-29">演示</h3>
 <figure><img src="gifs/ch32-onboarding.gif" alt="欢迎窗：能力卡（剪贴板 / 截图 / 图帘等）+ 权限状态 + 开始使用。" loading="lazy" decoding="async"><figcaption>欢迎窗：能力卡（剪贴板 / 截图 / 图帘等）+ 权限状态 + 开始使用。</figcaption></figure>
-<h3 id="关键能力点-31">关键能力点</h3>
+<h3 id="关键能力点-29">关键能力点</h3>
 <ul><li><strong>权限状态是实测的</strong>（<code>PermissionCenter</code>）</li></ul>
 <p>权限状态直接通过运行时 API 探测确认（SCK 预检、<code>AXIsProcessTrusted</code>、系统日历授权状态及 FDA 探针），而非读取静态配置缓存。在系统设置中调整权限后，此处状态会实时同步。</p>
 <ul><li><strong>四类权限集中管理</strong>：屏幕录制、辅助功能、麦克风、日历（+ 完全磁盘访问提示）。</li></ul>
 <ul><li><strong>一键授权</strong>：点「去授权」直接跳系统设置对应页，不用自己找。</li></ul>
 <ul><li><strong>更新说明</strong>（<code>WhatsNew</code>）</li></ul>
 <p>按版本组织条目，分「新增 / 改进 / 修复」三类；只在版本变化时弹一次。</p>
-<h3 id="注意事项-31">注意事项</h3>
+<h3 id="注意事项-29">注意事项</h3>
 <ul><li>权限引导不会反复骚扰：截图失败时每次启动最多提示一次，之后只 Toast。</li><li>从 Finder 打开应用授权比从终端 <code>open</code> 更可靠（TCC 会记录「responsible process」，终端启动可能记错）。</li></ul>
-<h3 id="实现索引-31">实现索引</h3>
+<h3 id="实现索引-29">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>WelcomeWindowController.swift:105</code></td><td><code>present</code></td><td>欢迎窗触发策略</td></tr><tr><td><code>WelcomeView.swift:301</code></td><td><code>body</code></td><td>功能导览版式</td></tr><tr><td><code>PermissionCenter.swift:293</code></td><td><code>status</code> / <code>request</code></td><td>四类权限实测</td></tr><tr><td><code>PermissionGuideWindowController.swift:89</code></td><td><code>present</code></td><td>权限引导窗</td></tr><tr><td><code>PermissionGuideView.swift:221</code></td><td><code>body</code></td><td>引导版式</td></tr><tr><td><code>WhatsNew.swift:324</code></td><td><code>presentIfNeeded</code></td><td>更新说明</td></tr></tbody></table></div>
 <hr>
 <h2 id="第三十三章-内置用户手册">第三十三章 内置用户手册</h2>
-<h3 id="功能是什么-32">功能是什么</h3>
+<h3 id="功能是什么-30">功能是什么</h3>
 <p>应用里自带这份手册：左侧目录树可展开/收起/搜索，右侧正文，图片可点击放大。</p>
-<h3 id="用户怎么用-32">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>设置 → 左侧栏底部「使用手册」</td><td>打开内置手册（与设置同窗）</td></tr><tr><td><code>kitnest://manual</code></td><td>深链直达（自动打开设置并跳到手册页）</td></tr><tr><td><code>kitnest://settings?pane=manual</code></td><td>同上</td></tr></tbody></table></div>
-<h3 id="演示-32">演示</h3>
+<h3 id="用户怎么用-30">用户怎么用</h3>
+<div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>设置 → 左侧栏底部「使用手册」</td><td>打开内置手册（与设置同窗）</td></tr><tr><td><code>kitnest-lite://manual</code></td><td>深链直达（自动打开设置并跳到手册页）</td></tr><tr><td><code>kitnest-lite://settings?pane=manual</code></td><td>同上</td></tr></tbody></table></div>
+<h3 id="演示-30">演示</h3>
 <figure><img src="gifs/ch33-manual.gif" alt="设置 → 使用手册：左侧章节目录，右侧正文，滚轮往下翻。" loading="lazy" decoding="async"><figcaption>设置 → 使用手册：左侧章节目录，右侧正文，滚轮往下翻。</figcaption></figure>
-<h3 id="关键能力点-32">关键能力点</h3>
+<h3 id="关键能力点-30">关键能力点</h3>
 <ul><li><strong>同源</strong>：内置手册读的就是仓库里的 <code>docs/40-审计与核对/性能审计/用户手册-FrsetNext.md</code>，打包时复制进 <code>Resources/Manual/</code>。所以文档更新 = 应用更新，不会出现「手册和版本对不上」。</li></ul>
 <ul><li><strong>目录树</strong>（<code>ManualView</code>）</li></ul>
 <p>按 <code>##</code> 一级标题建树，<code>###</code> 做二级；支持关键词过滤、小节跳转。</p>
 <ul><li><strong>图片放大</strong>：正文里的截图点开可看原尺寸。</li></ul>
-<h3 id="注意事项-32">注意事项</h3>
+<h3 id="注意事项-30">注意事项</h3>
 <ul><li>内置版本是打包时的快照；要看最新内容请查仓库里的 Markdown。</li><li>手册里的快捷键以「设置 → 快捷键」为准（如果你改过绑定）。</li></ul>
-<h3 id="实现索引-32">实现索引</h3>
+<h3 id="实现索引-30">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>ManualDocument.swift:365</code></td><td><code>load</code></td><td>读取并解析 Markdown</td></tr><tr><td><code>ManualView.swift:611</code></td><td><code>body</code></td><td>目录树 + 正文</td></tr></tbody></table></div>
 <hr>
 <h2 id="第三十四章-更新与诊断">第三十四章 更新与诊断</h2>
-<h3 id="功能是什么-33">功能是什么</h3>
+<h3 id="功能是什么-31">功能是什么</h3>
 <p>四件事：<strong>检查更新</strong>、<strong>导出诊断包</strong>、<strong>日志归档</strong>、<strong>白屏探针</strong>。</p>
-<h3 id="用户怎么用-33">用户怎么用</h3>
-<div class="table-wrap"><table><thead><tr><th>功能</th><th>入口</th></tr></thead><tbody><tr><td>检查更新</td><td>关于页「检查更新」/ 菜单栏「检查更新…」</td></tr><tr><td>导出诊断包</td><td>关于页「导出诊断」</td></tr><tr><td>查看日志</td><td><code>~/Library/Application Support/FrsetNext/logs/</code></td></tr></tbody></table></div>
-<h3 id="演示-33">演示</h3>
+<h3 id="用户怎么用-31">用户怎么用</h3>
+<div class="table-wrap"><table><thead><tr><th>功能</th><th>入口</th></tr></thead><tbody><tr><td>检查更新</td><td>关于页「检查更新」/ 菜单栏「检查更新…」</td></tr><tr><td>导出诊断包</td><td>关于页「导出诊断」</td></tr><tr><td>查看日志</td><td><code>~/Library/Application Support/KitnestLite/logs/</code></td></tr></tbody></table></div>
+<h3 id="演示-31">演示</h3>
 <figure><img src="gifs/ch34-update.gif" alt="设置 → 关于：版本号、检查更新按钮、诊断入口。" loading="lazy" decoding="async"><figcaption>设置 → 关于：版本号、检查更新按钮、诊断入口。</figcaption></figure>
-<h3 id="关键能力点-33">关键能力点</h3>
+<h3 id="关键能力点-31">关键能力点</h3>
 <ul><li><strong>更新检查</strong>（<code>AppUpdateChecker</code>）</li></ul>
 <p>手动触发；更新源可配置（默认空 = 关闭）。支持 GitHub <code>releases/latest</code> 或任意返回 <code>tag_name</code> 的 JSON。 分发通道：<code>calorieai.sxyq27.online/kitnest/</code>。</p>
 <ul><li><strong>诊断包</strong>（<code>DiagnosticsExporter</code>）</li></ul>
@@ -1000,16 +930,16 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>白屏探针</strong>（<code>RenderProbe</code>）</li></ul>
 <p>窗口白屏类问题的排查工具，默认关闭（<code>FRSET_RENDER_PROBE=1</code> 才开），避免日志刷屏。</p>
 <ul><li><strong>状态兼容层</strong>（<code>StateCompat</code>）：无完整 Xcode 时的 SwiftUI 宏降级。</li></ul>
-<h3 id="注意事项-33">注意事项</h3>
+<h3 id="注意事项-31">注意事项</h3>
 <ul><li>更新检查<strong>默认关闭</strong>，需要自己在设置里填更新源。</li><li>诊断包是给人看的，不自动上传。</li><li>日志里可能有窗口标题等片段，发出去前自己扫一眼。</li></ul>
-<h3 id="实现索引-33">实现索引</h3>
+<h3 id="实现索引-31">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>文件:行号</th><th>函数</th><th>职责</th></tr></thead><tbody><tr><td><code>AppUpdateChecker.swift:342</code></td><td><code>check</code></td><td>更新源拉取与比较</td></tr><tr><td><code>DiagnosticsExporter.swift:190</code></td><td><code>export</code></td><td>诊断包组装</td></tr><tr><td><code>LogArchive.swift:302</code></td><td><code>archive</code> / <code>prune</code></td><td>日志归档与清理</td></tr><tr><td><code>RenderProbe.swift:118</code></td><td><code>start</code></td><td>白屏探针（默认关）</td></tr><tr><td><code>StateCompat.swift:37</code></td><td>兼容声明</td><td>宏插件降级</td></tr></tbody></table></div>
 <hr>
 <h1 id="附录">附录</h1>
 <h2 id="第三十五章-截图增强v264">第三十五章 截图增强（v264）</h2>
-<h3 id="功能是什么-34">功能是什么</h3>
+<h3 id="功能是什么-32">功能是什么</h3>
 <p>本版本补充了 5 项针对截图的细节交互功能，均可在 <strong>设置 → 截图与钉图 → 截图</strong> 中进行配置： 固定比例、文件命名模板、静默识别、仅文本马赛克，以及框选时的窗口多选。 （v267 起移除了曾在右下角自动弹出的截图预览角标，设置里也不再有对应开关。）</p>
-<h3 id="用户怎么用-34">用户怎么用</h3>
+<h3 id="用户怎么用-32">用户怎么用</h3>
 <p><strong>固定比例</strong>：在「固定比例」里选一组（1:1 / 4:3 / 3:2 / 16:9 / 3:4 / 9:16 或自定义）， 之后每次框选都锁死这个比例；选「自由框选」恢复手动。临时想要正方形，框选时按住 <code>⇧</code>。 自定义：填名称 + 比例（<code>5:4</code>、<code>1600×900</code> 都行，会自动约分去重）。</p>
 <p><strong>文件命名</strong>：在「文件命名」里改模板，占位符点一下追加，下面实时预览。默认模板与旧版输出一致： <code>Screenshot-2026-11-08-132707-775.png</code>。</p>
 <p><strong>截完不弹浮窗</strong>：截图完成后右下角不会出现任何预览窗或缩略图卡片； 需要继续处理时，用屏幕下方居中的<strong>动作工具条</strong>（复制 / 识别 / 钉住 / 标注等 19 个动作）， 点外部或按 <code>Esc</code> 即收起。想直接把图拖进别的 App，可以用图帘或截图历史。</p>
@@ -1017,22 +947,22 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p><strong>仅文本马赛克</strong>：标注编辑器里打开后，马赛克刷子只负责<strong>圈范围</strong>， 实际被糊的是与笔触相交的文本行；没碰到文字时按普通马赛克处理。</p>
 <p><strong>自适应截图</strong>：悬停窗口后单击截整窗，直接拖拽截自定义范围，单击空白桌面截全屏。 模式开关及默认模式设置已移除。<code>⇧⌥W</code> 仍可打开同一截图入口。</p>
 <p><strong>窗口多选</strong>：窗口识别模式下按住 <code>⌘</code> 单击勾选多个窗口（带序号），回车一次性截完， 按勾选顺序纵向拼成一张图。</p>
-<h3 id="演示-34">演示</h3>
+<h3 id="演示-32">演示</h3>
 <figure><img src="gifs/ch35-capture-plus.gif" alt="设置区块「截图」：固定比例（自由 / 预设）、文件名模板（16 个占位符）、静默识别、仅文本马赛克。" loading="lazy" decoding="async"><figcaption>设置区块「截图」：固定比例（自由 / 预设）、文件名模板（16 个占位符）、静默识别、仅文本马赛克。</figcaption></figure>
 <blockquote>这段演示摄于 v264，画面里那一行「拖拽角标」已于 v267 删除；现版本的设置页只剩上面四项。</blockquote>
-<h3 id="关键能力点-34">关键能力点</h3>
+<h3 id="关键能力点-32">关键能力点</h3>
 <div class="table-wrap"><table><thead><tr><th>能力</th><th>说明</th></tr></thead><tbody><tr><td>比例约束</td><td>起点为锚点，四个方向都正确；超出屏幕时整体收缩、不破比例</td></tr><tr><td>比例提示</td><td>尺寸气泡显示 <code>2560 × 1440 · 16:9</code></td></tr><tr><td>模板占位符</td><td><code>{yyyy}</code> <code>{MM}</code> <code>{dd}</code> <code>{HH}</code> <code>{mm}</code> <code>{ss}</code> <code>{date}</code> <code>{time}</code> <code>{timestamp}</code> <code>{seq}</code> <code>{seq:4}</code> <code>{random:3}</code> <code>{w}</code> <code>{h}</code> <code>{mode}</code> <code>{app}</code></td></tr><tr><td>序号</td><td><code>{seq}</code> 每天从 1 重置；<code>{seq:4}</code> 补零</td></tr><tr><td>文件名清洗</td><td>`/ : \ ? *</td><td>" &lt; &gt;` 替换或删除，去掉开头的点，长度上限 180</td></tr><tr><td>静默提示</td><td>不抢焦点、不打断连续识别</td></tr><tr><td>文本行识别</td><td>Vision 本机；按底图缓存，同一次编辑只算一次</td></tr></tbody></table></div>
-<h3 id="注意事项-34">注意事项</h3>
+<h3 id="注意事项-32">注意事项</h3>
 <ul><li>比例锁定时，如果拖到屏幕边缘，矩形会整体缩小以保持比例——不会为了填满屏幕破比例。</li><li><code>{w}</code> <code>{h}</code> 在截图、标注保存、美化、长截图、屏幕翻译、暂存测试六条链路都有真实值；</li></ul>
 <p>其它模块保存图片时按 0 处理，所以模板里用了 <code>{w}{h}</code> 就尽量走这几条链路。</p>
 <ul><li>截图完成后右下角不留任何浮窗；动作工具条在屏幕下方居中，点外部或 <code>Esc</code> 收起。</li><li>仅文本马赛克首笔会有约 0.2 秒识别停顿；手写体、艺术字可能漏识别。</li><li>多选窗口若跨屏且系统窗口抓取失败，会退回快照裁剪，可能错位。</li></ul>
-<h3 id="实现索引-34">实现索引</h3>
+<h3 id="实现索引-32">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>函数 / 类型</th><th>文件</th></tr></thead><tbody><tr><td><code>CaptureAspectRatio</code> / <code>CaptureRatioStore.constrain</code></td><td><code>Capture/Screenshot/CaptureAspectRatio.swift</code></td></tr><tr><td><code>CaptureFileName.make</code> / <code>replacePattern</code> / <code>sanitize</code></td><td><code>Capture/Screenshot/CaptureFileName.swift</code></td></tr><tr><td><code>CaptureOCRNotify.show</code> / <code>OCRNotePanel</code></td><td><code>Capture/Screenshot/CaptureOCRNotify.swift</code></td></tr><tr><td><code>CaptureRatioSettingsView</code> / <code>CaptureNamingSettingsView</code> / <code>CaptureExtraSettingsView</code></td><td><code>Capture/Screenshot/CaptureExtraSettings.swift</code></td></tr><tr><td><code>ScreenshotOverlayView.mouseDragged</code>（比例）/ <code>commitMultiWindows</code></td><td><code>Capture/Screenshot/ScreenshotOverlay.swift</code></td></tr><tr><td><code>ScreenshotManager.commitWindows</code> / <code>composeVertically</code></td><td><code>Capture/Screenshot/ScreenshotManager.swift</code></td></tr><tr><td><code>MosaicTextOnly.textLineRects</code> / <code>stroke(_:hits:radius:)</code></td><td><code>Capture/Annotation/MosaicTextOnly.swift</code></td></tr></tbody></table></div>
 <hr>
 <h2 id="第三十六章-录屏">第三十六章 录屏</h2>
-<h3 id="功能是什么-35">功能是什么</h3>
+<h3 id="功能是什么-33">功能是什么</h3>
 <p>整屏或区域录制，输出 H.264 MP4。可选叠加摄像头画中画、按键显示、点击动画， 并可按 App 排除窗口；停止后自动打开裁剪窗口，剪头剪尾、静音、导出。</p>
-<h3 id="用户怎么用-35">用户怎么用</h3>
+<h3 id="用户怎么用-33">用户怎么用</h3>
 <ul><li><strong>开始</strong>：主面板「录屏」区段点「录整屏」/「录区域…」；或按 <code>⌃⌥R</code>（整屏开始/停止）、</li></ul>
 <p><code>⌃⌥E</code>（框选区域）。</p>
 <ul><li><strong>录制中</strong>：屏幕顶部一条控制条（红点 + 计时 + 暂停 + 停止）。控制条<strong>不会被录进画面</strong>。</li></ul>
@@ -1040,40 +970,40 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li><strong>停止</strong>：点停止 → 自动弹出「录屏编辑」窗口：预览、拖两条滑块选保留区间、</li></ul>
 <p>勾「导出时静音」、点「导出…」。</p>
 <ul><li><strong>设置</strong>（设置 → 截图与钉图 → 录屏）：</li><li>帧率 15 / 30 / 60；</li><li>声音：不录音 / 系统声音 / 麦克风（二选一）；</li><li>鼠标指针开关；</li><li>摄像头画中画：设备、四角位置、宽度 10–35%（4:3 竖版）；</li><li>显示按键、点击动画；</li><li>忽略的 App：选 <code>.app</code>，该 App 的所有窗口不进画面；</li><li>保存目录（默认下载目录）。</li></ul>
-<h3 id="演示-35">演示</h3>
+<h3 id="演示-33">演示</h3>
 <figure><img src="gifs/ch36-recording.gif" alt="设置区块「录屏」：录制源、摄像头画中画、键帽条与点击高亮、分辨率 / 帧率、保存位置。" loading="lazy" decoding="async"><figcaption>设置区块「录屏」：录制源、摄像头画中画、键帽条与点击高亮、分辨率 / 帧率、保存位置。</figcaption></figure>
-<h3 id="关键能力点-35">关键能力点</h3>
+<h3 id="关键能力点-33">关键能力点</h3>
 <div class="table-wrap"><table><thead><tr><th>能力</th><th>说明</th></tr></thead><tbody><tr><td>采集</td><td>ScreenCaptureKit <code>SCStream</code> → <code>AVAssetWriter</code>，H.264 MP4</td></tr><tr><td>码率</td><td>按分辨率自动：<code>w×h×0.12</code>，钳在 4–24 Mbps</td></tr><tr><td>区域</td><td><code>SCStreamConfiguration.sourceRect</code>（显示器本地坐标）</td></tr><tr><td>忽略 App</td><td><code>SCContentFilter(display:excludingApplications:)</code></td></tr><tr><td>画中画</td><td><code>AVCaptureVideoDataOutput</code> 取最新帧 → Core Image 合成</td></tr><tr><td>按键</td><td><code>CGEventTap</code> listenOnly，键帽条 4 个、1.6s TTL</td></tr><tr><td>点击</td><td>左键橙 / 右键蓝，0.65s 双环扩散</td></tr><tr><td>零开销直通</td><td>没开任何叠加时原始帧直接 append，不做合成</td></tr><tr><td>编辑器</td><td>AVPlayerLayer 预览 + 入出点 + 静音 + <code>AVAssetExportSession</code></td></tr></tbody></table></div>
-<h3 id="注意事项-35">注意事项</h3>
+<h3 id="注意事项-33">注意事项</h3>
 <ul><li>需要「屏幕录制」权限；按键显示还需要「辅助功能 / 输入监控」——没授权时<strong>只关闭按键与点击</strong>，</li></ul>
 <p>录制本身照常，不会弹窗打断。</p>
 <ul><li>摄像头、麦克风首次使用会弹系统授权；拒绝后该项静默跳过。</li><li>录制分辨率跟随系统给 SCK 的源（这台机器是 1710×1112）；写 2 倍只会插值放大，所以保持 1:1。</li><li>系统声音与麦克风<strong>只能二选一</strong>：两条音轨在多数播放器里只播第一条，混音没有做。</li><li>忽略是「按 App」，不是按窗口。</li><li>暂停 = 丢帧但时间轴继续，播放时表现为画面停住。</li></ul>
-<h3 id="实现索引-35">实现索引</h3>
+<h3 id="实现索引-33">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>函数 / 类型</th><th>文件</th></tr></thead><tbody><tr><td><code>ScreenRecorder.start(options:)</code> / <code>stop</code> / <code>pause</code></td><td><code>Recording/ScreenRecorder.swift</code></td></tr><tr><td><code>RecordingPipeline.handleVideo</code> / <code>prepareWriter</code></td><td>同上</td></tr><tr><td><code>RecordingInputMonitor.runTap</code> / <code>describe(event:)</code></td><td><code>Recording/RecordingInputMonitor.swift</code></td></tr><tr><td><code>RecordingCompositor.keyOverlay</code> / <code>clickOverlay</code> / <code>cameraRect</code></td><td><code>Recording/RecordingCompositor.swift</code></td></tr><tr><td><code>RecordingHUDController</code> / <code>RecordingRegionPicker</code></td><td><code>Recording/RecordingHUD.swift</code></td></tr><tr><td><code>RecordingEditorController.performExport</code></td><td><code>Recording/RecordingEditorWindow.swift</code></td></tr><tr><td><code>RecordingOptions</code> 偏好键</td><td><code>Recording/RecordingConfig.swift</code></td></tr><tr><td><code>RecordingSettingsPane</code></td><td><code>Recording/RecordingSettingsPane.swift</code></td></tr></tbody></table></div>
 <hr>
 <h2 id="第三十七章-工作流">第三十七章 工作流</h2>
-<h3 id="功能是什么-36">功能是什么</h3>
+<h3 id="功能是什么-34">功能是什么</h3>
 <p>截图落盘之后自动执行一串动作：保存到指定目录、复制、识别文字、钉住、上传图床、 新建 GitHub / Linear issue。步骤按顺序跑，后面的步骤能用到前面的产物。</p>
-<h3 id="用户怎么用-36">用户怎么用</h3>
+<h3 id="用户怎么用-34">用户怎么用</h3>
 <ol><li>设置 → 截图与钉图 → 工作流 → 「新建工作流」。</li><li>打开开关，改名字。</li><li>「添加步骤」，按需选类型并填参数：</li></ol>
 <ul><li>保存到文件夹：目标路径；</li><li>识别文字：无参数，结果进 <code>{text}</code>；</li><li>上传图片：上传地址 + 文件字段名（默认 <code>file</code>），响应里的 <code>url</code> 进 <code>{url}</code>；</li><li>GitHub Issue：<code>owner/repo</code> + Token；</li><li>Linear Issue：Team ID + API Key。</li></ul>
 <ol><li>截图后自动执行。默认只有一条<strong>禁用</strong>的示例（保存 + 识别 + 复制）。</li></ol>
-<h3 id="演示-36">演示</h3>
+<h3 id="演示-34">演示</h3>
 <figure><img src="gifs/ch37-workflow.gif" alt="设置区块「工作流」：三档预设（保存 / 复制 / 发通知…）、添加工作流、GitHub / Linear 凭据入口。" loading="lazy" decoding="async"><figcaption>设置区块「工作流」：三档预设（保存 / 复制 / 发通知…）、添加工作流、GitHub / Linear 凭据入口。</figcaption></figure>
-<h3 id="关键能力点-36">关键能力点</h3>
+<h3 id="关键能力点-34">关键能力点</h3>
 <div class="table-wrap"><table><thead><tr><th>能力</th><th>说明</th></tr></thead><tbody><tr><td>上下文</td><td><code>{name}</code> 文件名、<code>{text}</code> OCR 全文、<code>{url}</code> 图片链接、<code>{date}</code> 时间</td></tr><tr><td>容错</td><td>任一步失败只记日志并继续下一步</td></tr><tr><td>串行</td><td>上一轮没跑完时，新截图跳过（避免并发写同一图床）</td></tr><tr><td>存储</td><td><code>~/Library/Application Support/Kitnest/workflows/workflows.json</code>，权限 0600</td></tr><tr><td>GitHub</td><td><code>POST /repos/{owner}/{repo}/issues</code></td></tr><tr><td>Linear</td><td>GraphQL <code>issueCreate</code></td></tr></tbody></table></div>
-<h3 id="注意事项-36">注意事项</h3>
+<h3 id="注意事项-34">注意事项</h3>
 <ul><li>Token 存在本地 JSON 里（0600），不是钥匙串；共享这台机器账号的人能读到。</li><li>上传端点必须返回 JSON，且含 <code>url</code> / <code>data.url</code> / <code>data[0].url</code> 之一——否则 <code>{url}</code> 为空。</li><li>GitHub 的 issue 正文不能直接附图，需要先配图床拿到 URL，再在正文里引用。</li><li>工作流跑在后台队列；截图本身不等它，落盘成功即完成。</li></ul>
-<h3 id="实现索引-36">实现索引</h3>
+<h3 id="实现索引-34">实现索引</h3>
 <div class="table-wrap"><table><thead><tr><th>函数 / 类型</th><th>文件</th></tr></thead><tbody><tr><td><code>CaptureWorkflow</code> / <code>WorkflowStep</code></td><td><code>Capture/Workflow/CaptureWorkflow.swift</code></td></tr><tr><td><code>CaptureWorkflowRunner.imageCaptured</code> / <code>perform</code></td><td>同上</td></tr><tr><td><code>upload</code> / <code>createGitHubIssue</code> / <code>createLinearIssue</code></td><td>同上</td></tr><tr><td><code>WorkflowStore.load</code> / <code>save</code></td><td>同上</td></tr><tr><td><code>WorkflowSettingsPane</code></td><td><code>Capture/Workflow/WorkflowSettingsPane.swift</code></td></tr></tbody></table></div>
 <hr>
 <h2 id="附录-a-默认快捷键">附录 A · 默认快捷键</h2>
 <blockquote>全部可在「设置 → 工具与快捷键」改绑；「2×」列表示可切换为双击修饰键模式。</blockquote>
-<div class="table-wrap"><table><thead><tr><th>功能</th><th>默认组合</th><th>可双击</th><th>说明</th></tr></thead><tbody><tr><td>打开 Kitnest</td><td><code>⌥A</code></td><td>是</td><td>主面板开关</td></tr><tr><td>截图</td><td><code>⌥S</code></td><td>是</td><td>悬停截整窗、拖拽截区域、点空白截全屏</td></tr><tr><td>窗口截图</td><td><code>⇧⌥W</code></td><td>是</td><td>与 <code>⌥S</code> 同一套自适应行为（窗口识别已内置），保留此键只为习惯</td></tr><tr><td>取色</td><td><code>⌥C</code></td><td>是</td><td>全屏取色 + HEX</td></tr><tr><td>打开并搜索</td><td><code>⌥F</code></td><td>是</td><td>面板打开且聚焦搜索框</td></tr><tr><td>悬浮剪贴板</td><td><code>⇧⌘V</code></td><td>是</td><td>鼠标旁迷你剪贴板</td></tr><tr><td>截图提取文字</td><td><code>⇧⌥S</code></td><td>是</td><td>OCR</td></tr><tr><td>截图翻译</td><td><code>⇧⌥T</code></td><td>是</td><td>OCR + 翻译</td></tr><tr><td>截图并复制</td><td><code>⇧⌥C</code></td><td>是</td><td>不弹动作条</td></tr><tr><td>截图并贴图</td><td><code>⇧⌥P</code></td><td>是</td><td>直接钉在屏幕上</td></tr><tr><td>图帘</td><td><code>⇧⌥G</code></td><td>是</td><td>展开 / 收起</td></tr><tr><td>剪贴板</td><td><code>⌥V</code></td><td>是</td><td>打开面板并切回首页</td></tr><tr><td>划词翻译</td><td><code>⇧⌥D</code></td><td>是</td><td>通过辅助功能读取当前选区并翻译</td></tr><tr><td>摘要选中文字</td><td>未绑定</td><td>是</td><td>可在快捷键设置绑定；打开工具窗处理选区全文</td></tr><tr><td>润色选中文字</td><td>未绑定</td><td>是</td><td>可在快捷键设置绑定；同一工具窗整理全文</td></tr><tr><td>性能监测</td><td><code>⌥P</code></td><td>是</td><td>独立监测窗</td></tr><tr><td>长截图</td><td><code>⇧⌥L</code></td><td>是</td><td>自动滚动拼接</td></tr><tr><td>文件中转</td><td><code>⌥T</code></td><td>是</td><td>切到中转页</td></tr><tr><td>暂停/恢复剪贴板记录</td><td><code>⇧⌥R</code></td><td>是</td><td>处理敏感内容时用</td></tr><tr><td>监测独立窗口</td><td><code>⌥M</code></td><td>是</td><td>与 ⌥P 同一窗口</td></tr><tr><td>命令面板</td><td><code>⌥K</code></td><td>是</td><td>全功能目录</td></tr><tr><td>开始/停止录屏</td><td><code>⌃⌥R</code></td><td>是</td><td>整屏录制；录制中按下即停止</td></tr><tr><td>录制区域</td><td><code>⌃⌥E</code></td><td>是</td><td>先框选，再开始</td></tr><tr><td>重新钉住上一张</td><td><code>⌃⌥P</code></td><td>是</td><td>「全部隐藏」之后一键找回</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>功能</th><th>默认组合</th><th>可双击</th><th>说明</th></tr></thead><tbody><tr><td>打开 Kitnest</td><td><code>⌥A</code></td><td>是</td><td>主面板开关</td></tr><tr><td>截图</td><td><code>⌥S</code></td><td>是</td><td>悬停截整窗、拖拽截区域、点空白截全屏</td></tr><tr><td>窗口截图</td><td><code>⇧⌥W</code></td><td>是</td><td>与 <code>⌥S</code> 同一套自适应行为（窗口识别已内置），保留此键只为习惯</td></tr><tr><td>取色</td><td><code>⌥C</code></td><td>是</td><td>全屏取色 + HEX</td></tr><tr><td>打开并搜索</td><td><code>⌥F</code></td><td>是</td><td>面板打开且聚焦搜索框</td></tr><tr><td>悬浮剪贴板</td><td><code>⇧⌘V</code></td><td>是</td><td>鼠标旁迷你剪贴板</td></tr><tr><td>截图提取文字</td><td><code>⇧⌥S</code></td><td>是</td><td>OCR</td></tr><tr><td>截图翻译</td><td><code>⇧⌥T</code></td><td>是</td><td>OCR + 翻译</td></tr><tr><td>截图并复制</td><td><code>⇧⌥C</code></td><td>是</td><td>不弹动作条</td></tr><tr><td>截图并贴图</td><td><code>⇧⌥P</code></td><td>是</td><td>直接钉在屏幕上</td></tr><tr><td>图帘</td><td><code>⇧⌥G</code></td><td>是</td><td>展开 / 收起</td></tr><tr><td>剪贴板</td><td><code>⌥V</code></td><td>是</td><td>打开面板并切回首页</td></tr><tr><td>划词翻译</td><td><code>⇧⌥D</code></td><td>是</td><td>通过辅助功能读取当前选区并翻译</td></tr><tr><td>摘要选中文字</td><td>未绑定</td><td>是</td><td>可在快捷键设置绑定；打开工具窗处理选区全文</td></tr><tr><td>润色选中文字</td><td>未绑定</td><td>是</td><td>可在快捷键设置绑定；同一工具窗整理全文</td></tr><tr><td>性能监测</td><td><code>⌥P</code></td><td>是</td><td>独立监测窗</td></tr><tr><td>长截图</td><td><code>⇧⌥L</code></td><td>是</td><td>自动滚动拼接</td></tr><tr><td>暂停/恢复剪贴板记录</td><td><code>⇧⌥R</code></td><td>是</td><td>处理敏感内容时用</td></tr><tr><td>监测独立窗口</td><td><code>⌥M</code></td><td>是</td><td>与 ⌥P 同一窗口</td></tr><tr><td>命令面板</td><td><code>⌥K</code></td><td>是</td><td>全功能目录</td></tr><tr><td>开始/停止录屏</td><td><code>⌃⌥R</code></td><td>是</td><td>整屏录制；录制中按下即停止</td></tr><tr><td>录制区域</td><td><code>⌃⌥E</code></td><td>是</td><td>先框选，再开始</td></tr><tr><td>重新钉住上一张</td><td><code>⌃⌥P</code></td><td>是</td><td>「全部隐藏」之后一键找回</td></tr></tbody></table></div>
 <p>面板内：<code>⌘P</code> 置顶、<code>Esc</code> 关闭、<code>⌘,</code> 设置、<code>⌘Q</code> 退出。</p>
 <h2 id="附录-b-url-scheme">附录 B · URL Scheme</h2>
-<p>Scheme 为 <code>kitnest://</code>（旧 <code>frsetnext://</code> 仍然兼容）。42 个入口：</p>
-<div class="table-wrap"><table><thead><tr><th>分组</th><th>URL</th><th>效果</th></tr></thead><tbody><tr><td><strong>面板</strong></td><td><code>kitnest://panel</code></td><td>打开主面板</td></tr><tr><td></td><td><code>kitnest://panel?anchor=icon</code></td><td>从菜单栏图标位置展开</td></tr><tr><td></td><td><code>kitnest://panel?monitor=sensors</code></td><td>直达性能页指定模块</td></tr><tr><td><strong>设置</strong></td><td><code>kitnest://settings?pane=general</code></td><td>打开设置并跳页（general / clipboard / search / ai / tools / shortcuts / data / about / statistics / monitor / capture / pin / curtain）</td></tr><tr><td><strong>统计</strong></td><td><code>kitnest://statistics</code></td><td>使用统计窗</td></tr><tr><td><strong>监测</strong></td><td><code>kitnest://monitor</code> / <code>?module=cpu</code></td><td>监测独立窗</td></tr><tr><td></td><td><code>kitnest://performance</code></td><td>同上</td></tr><tr><td><strong>存储</strong></td><td><code>kitnest://storage</code> / <code>?scan=1</code> / <code>?drill=Users</code></td><td>存储管理（可自动扫描/下钻）</td></tr><tr><td><strong>截图</strong></td><td><code>kitnest://capture</code> / <code>?action=history</code></td><td>截图区段 / 历史</td></tr><tr><td></td><td><code>kitnest://capture?action=region</code> / <code>?action=window</code></td><td>打开自适应截图选择界面</td></tr><tr><td></td><td><code>kitnest://capturebar?expand=pinGroup</code></td><td>弹出动作条（排障用）</td></tr><tr><td></td><td><code>kitnest://copyocr</code></td><td>截图并复制文字</td></tr><tr><td><strong>长截图</strong></td><td><code>kitnest://longshot</code></td><td>进入长截图</td></tr><tr><td></td><td><code>?demo=1</code> / <code>?check=1</code> / <code>?preview=1</code></td><td>排障入口</td></tr><tr><td><strong>钉图</strong></td><td><code>kitnest://pin</code></td><td>钉图演示</td></tr><tr><td><strong>图帘</strong></td><td><code>kitnest://curtainprobe?count=3&amp;shot=1</code></td><td>合成 N 张挂图帘（排障）</td></tr><tr><td></td><td><code>kitnest://shelfprobe</code></td><td>旧名，兼容</td></tr><tr><td><strong>OCR</strong></td><td><code>kitnest://ocr</code> / <code>kitnest://ocrwin</code></td><td>识别链路自检 / 结果窗</td></tr><tr><td><strong>翻译</strong></td><td><code>kitnest://translate</code></td><td>翻译链路自检</td></tr><tr><td><strong>归档</strong></td><td><code>kitnest://archive?path=…</code> / <code>?action=mini</code> / <code>?action=compress</code></td><td>打开/小窗/压缩</td></tr><tr><td></td><td><code>kitnest://compress</code> / <code>kitnest://extract</code></td><td>压缩 / 解压</td></tr><tr><td><strong>中转</strong></td><td><code>kitnest://transfer</code></td><td>文件中转页</td></tr><tr><td></td><td><code>kitnest://tasks</code></td><td>任务队列</td></tr><tr><td><strong>投屏</strong></td><td><code>kitnest://cast</code> / <code>kitnest://castpair</code> / <code>kitnest://castapps</code></td><td>投屏 / 扫码配对 / 应用库</td></tr><tr><td><strong>搜索</strong></td><td><code>kitnest://fileindex?q=…</code></td><td>查询全盘索引（排障）</td></tr><tr><td><strong>网盘</strong></td><td><code>kitnest://cloudlink</code></td><td>解析中心</td></tr><tr><td><strong>剪贴板</strong></td><td><code>kitnest://clipdesk</code> / <code>?action=toggle</code></td><td>悬浮剪贴板</td></tr><tr><td><strong>内存</strong></td><td><code>kitnest://memcheck</code> / <code>kitnest://memthaw</code></td><td>深度释放 / 全部解冻</td></tr><tr><td><strong>手册</strong></td><td><code>kitnest://manual</code></td><td>内置用户手册</td></tr><tr><td><strong>设置区块</strong></td><td><code>kitnest://settingsprobe?block=recording</code></td><td>单独打开某块设置（recording / workflow / capture，排障用）</td></tr><tr><td><strong>诊断</strong></td><td><code>kitnest://annotest</code> / <code>kitnest://stagetest</code> / <code>kitnest://toast</code></td><td>各类自检</td></tr></tbody></table></div>
+<p>Scheme 为 <code>kitnest-lite://</code>（旧 <code>frsetnext://</code> 仍然兼容）。42 个入口：</p>
+<div class="table-wrap"><table><thead><tr><th>分组</th><th>URL</th><th>效果</th></tr></thead><tbody><tr><td><strong>面板</strong></td><td><code>kitnest-lite://panel</code></td><td>打开主面板</td></tr><tr><td></td><td><code>kitnest-lite://panel?anchor=icon</code></td><td>从菜单栏图标位置展开</td></tr><tr><td></td><td><code>kitnest-lite://panel?monitor=sensors</code></td><td>直达性能页指定模块</td></tr><tr><td><strong>设置</strong></td><td><code>kitnest-lite://settings?pane=general</code></td><td>打开设置并跳页（general / clipboard / search / ai / tools / shortcuts / data / about / statistics / monitor / capture / pin / curtain）</td></tr><tr><td><strong>统计</strong></td><td><code>kitnest-lite://statistics</code></td><td>使用统计窗</td></tr><tr><td><strong>监测</strong></td><td><code>kitnest-lite://monitor</code> / <code>?module=cpu</code></td><td>监测独立窗</td></tr><tr><td></td><td><code>kitnest-lite://performance</code></td><td>同上</td></tr><tr><td><strong>存储</strong></td><td><code>kitnest-lite://storage</code> / <code>?scan=1</code> / <code>?drill=Users</code></td><td>存储管理（可自动扫描/下钻）</td></tr><tr><td><strong>截图</strong></td><td><code>kitnest-lite://capture</code> / <code>?action=history</code></td><td>截图区段 / 历史</td></tr><tr><td></td><td><code>kitnest-lite://capture?action=region</code> / <code>?action=window</code></td><td>打开自适应截图选择界面</td></tr><tr><td></td><td><code>kitnest-lite://capturebar?expand=pinGroup</code></td><td>弹出动作条（排障用）</td></tr><tr><td></td><td><code>kitnest-lite://copyocr</code></td><td>截图并复制文字</td></tr><tr><td><strong>长截图</strong></td><td><code>kitnest-lite://longshot</code></td><td>进入长截图</td></tr><tr><td></td><td><code>?demo=1</code> / <code>?check=1</code> / <code>?preview=1</code></td><td>排障入口</td></tr><tr><td><strong>钉图</strong></td><td><code>kitnest-lite://pin</code></td><td>钉图演示</td></tr><tr><td><strong>图帘</strong></td><td><code>kitnest-lite://curtainprobe?count=3&amp;shot=1</code></td><td>合成 N 张挂图帘（排障）</td></tr><tr><td></td><td><code>kitnest-lite://shelfprobe</code></td><td>旧名，兼容</td></tr><tr><td><strong>OCR</strong></td><td><code>kitnest-lite://ocr</code> / <code>kitnest-lite://ocrwin</code></td><td>识别链路自检 / 结果窗</td></tr><tr><td><strong>翻译</strong></td><td><code>kitnest-lite://translate</code></td><td>翻译链路自检</td></tr><tr><td><strong>归档</strong></td><td><code>kitnest-lite://archive?path=…</code> / <code>?action=mini</code> / <code>?action=compress</code></td><td>打开/小窗/压缩</td></tr><tr><td></td><td><code>kitnest-lite://compress</code> / <code>kitnest-lite://extract</code></td><td>压缩 / 解压</td></tr><tr><td></td><td><code>kitnest-lite://tasks</code></td><td>任务队列</td></tr><tr><td><strong>搜索</strong></td><td><code>kitnest-lite://fileindex?q=…</code></td><td>查询全盘索引（排障）</td></tr><tr><td><strong>网盘</strong></td><td><code>kitnest-lite://cloudlink</code></td><td>解析中心</td></tr><tr><td><strong>剪贴板</strong></td><td><code>kitnest-lite://clipdesk</code> / <code>?action=toggle</code></td><td>悬浮剪贴板</td></tr><tr><td><strong>内存</strong></td><td><code>kitnest-lite://memcheck</code> / <code>kitnest-lite://memthaw</code></td><td>深度释放 / 全部解冻</td></tr><tr><td><strong>手册</strong></td><td><code>kitnest-lite://manual</code></td><td>内置用户手册</td></tr><tr><td><strong>设置区块</strong></td><td><code>kitnest-lite://settingsprobe?block=recording</code></td><td>单独打开某块设置（recording / workflow / capture，排障用）</td></tr><tr><td><strong>诊断</strong></td><td><code>kitnest-lite://annotest</code> / <code>kitnest-lite://stagetest</code> / <code>kitnest-lite://toast</code></td><td>各类自检</td></tr></tbody></table></div>
 <h2 id="附录-c-函数索引怎么查">附录 C · 函数索引怎么查</h2>
 <p>本手册每章末尾的「实现索引」是<strong>精选</strong>（每章 6-16 条关键函数）。要查全部函数：</p>
 <div class="table-wrap"><table><thead><tr><th>资源</th><th>路径</th><th>内容</th></tr></thead><tbody><tr><td>函数清单</td><td><code>docs/40-审计与核对/数据表/FrsetNext-函数清单.csv</code></td><td>8,693 条声明（module/file/owner/kind/name/line/lines/complexity）</td></tr><tr><td>函数审阅台账</td><td><code>docs/40-审计与核对/数据表/函数审阅台账.csv</code></td><td>3,410 条函数 + 证据链</td></tr><tr><td>符号索引</td><td><code>docs/00-总览/符号索引.md</code></td><td>8,693 条，按文件组织，可全文搜</td></tr><tr><td>模块依赖图</td><td><code>docs/00-总览/模块依赖图.md</code></td><td>106 条模块引用边</td></tr></tbody></table></div>
@@ -1085,7 +1015,7 @@ grep -i &quot;curtain&quot; docs/40-审计与核对/数据表/FrsetNext-函数�
 awk -F, &#x27;$2==&quot;Features/Capture/Curtain/CurtainWindow.swift&quot;&#x27; \
   docs/40-审计与核对/数据表/FrsetNext-函数清单.csv | sort -t, -k8 -rn | head</code></pre>
 <h2 id="附录-d-已知限制">附录 D · 已知限制</h2>
-<div class="table-wrap"><table><thead><tr><th>限制</th><th>影响</th><th>说明</th></tr></thead><tbody><tr><td>截图/录屏需「屏幕录制」权限</td><td>无权限时全黑</td><td>系统限制，无法绕过</td></tr><tr><td>全局快捷键需「辅助功能」</td><td>无权限时无响应</td><td>系统限制</td></tr><tr><td>存储索引不含 TCC 目录</td><td>少约 33GB（沙盒容器）</td><td>授予「完全磁盘访问」后补全</td></tr><tr><td>存储索引不含 APFS 快照/交换文件</td><td>索引量 &lt; 磁盘已用</td><td>这些不在任何目录里</td></tr><tr><td>RAR 只能解不能压</td><td>—</td><td>7zz 的 RAR 编码器授权限制</td></tr><tr><td>PP-OCR 首次识别多约 300ms</td><td>仅首次</td><td>子进程冷启动</td></tr><tr><td>图帘/钉图不参与截图</td><td>设计如此</td><td><code>sharingType = .none</code></td></tr><tr><td>隔空投送只通苹果设备</td><td>安卓用扫码/ADB</td><td>AWDL 是苹果私有协议</td></tr><tr><td>手写体 OCR 识别率低</td><td>—</td><td>模型能力边界</td></tr><tr><td>中文输入法组词未上屏不搜索</td><td>250ms 防抖</td><td>避免打一个字搜一次</td></tr><tr><td>录屏分辨率跟随系统 1x 源</td><td>本机 1710×1112</td><td>写 2 倍只是插值放大，宁小勿糊</td></tr><tr><td>录屏音频二选一</td><td>系统声音或麦克风</td><td>双音轨在多数播放器只播第一条</td></tr><tr><td>录屏按键需输入监控权限</td><td>无权限只关闭按键/点击</td><td>录制本身不受影响</td></tr><tr><td>工作流 Token 存本地 JSON</td><td>同机用户可读</td><td>未接钥匙串</td></tr><tr><td>钉图窗不参与屏幕录制</td><td>手册第 11 章演示拍的是设置页</td><td><code>sharingType = .none</code>，录制/截图都拍不到，设计如此</td></tr><tr><td>归档窗打开普通目录显示「共 0 项」</td><td>无法逐层浏览文件夹</td><td>v264 实测：直接打开 zip 正常，目录枚举返回空并给⚠️；原因待查（不影响解压/压缩本身）</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>限制</th><th>影响</th><th>说明</th></tr></thead><tbody><tr><td>截图/录屏需「屏幕录制」权限</td><td>无权限时全黑</td><td>系统限制，无法绕过</td></tr><tr><td>全局快捷键需「辅助功能」</td><td>无权限时无响应</td><td>系统限制</td></tr><tr><td>存储索引不含 TCC 目录</td><td>少约 33GB（沙盒容器）</td><td>授予「完全磁盘访问」后补全</td></tr><tr><td>存储索引不含 APFS 快照/交换文件</td><td>索引量 &lt; 磁盘已用</td><td>这些不在任何目录里</td></tr><tr><td>RAR 只能解不能压</td><td>—</td><td>7zz 的 RAR 编码器授权限制</td></tr><tr><td>PP-OCR 首次识别多约 300ms</td><td>仅首次</td><td>子进程冷启动</td></tr><tr><td>图帘/钉图不参与截图</td><td>设计如此</td><td><code>sharingType = .none</code></td></tr><tr><td>手写体 OCR 识别率低</td><td>—</td><td>模型能力边界</td></tr><tr><td>中文输入法组词未上屏不搜索</td><td>250ms 防抖</td><td>避免打一个字搜一次</td></tr><tr><td>录屏分辨率跟随系统 1x 源</td><td>本机 1710×1112</td><td>写 2 倍只是插值放大，宁小勿糊</td></tr><tr><td>录屏音频二选一</td><td>系统声音或麦克风</td><td>双音轨在多数播放器只播第一条</td></tr><tr><td>录屏按键需输入监控权限</td><td>无权限只关闭按键/点击</td><td>录制本身不受影响</td></tr><tr><td>工作流 Token 存本地 JSON</td><td>同机用户可读</td><td>未接钥匙串</td></tr><tr><td>钉图窗不参与屏幕录制</td><td>手册第 11 章演示拍的是设置页</td><td><code>sharingType = .none</code>，录制/截图都拍不到，设计如此</td></tr><tr><td>归档窗打开普通目录显示「共 0 项」</td><td>无法逐层浏览文件夹</td><td>v264 实测：直接打开 zip 正常，目录枚举返回空并给⚠️；原因待查（不影响解压/压缩本身）</td></tr></tbody></table></div>
 <h2 id="附录-e-版本演进关键节点">附录 E · 版本演进（关键节点）</h2>
 <div class="table-wrap"><table><thead><tr><th>版本</th><th>变更</th></tr></thead><tbody><tr><td>v211</td><td>存储管理：全盘索引雏形、气泡堆块、移到废纸篓</td></tr><tr><td>v213</td><td>存储「可清理」名单收紧：排除 Downloads / tmp / 工具链</td></tr><tr><td>v233</td><td>钉图统一叫法（原「贴图」）</td></tr><tr><td>v259</td><td>内存「清缓存 + 冻结闲置」合并为「深度释放」</td></tr><tr><td>v261</td><td>图帘落地（原名悬挂架），默认关闭、可开关</td></tr><tr><td>v262</td><td>图帘按 1Capture 反汇编重做几何；截图/钉图/图帘三页合并</td></tr><tr><td>v263</td><td>「悬挂架」改名<strong>图帘</strong>；⌘ 拖动缩放；图帘/剪贴板独立快捷键；钉住四形态</td></tr><tr><td>v264</td><td>存储索引真正扫全盘（248 万条目 / 185GB）；自建全盘文件名索引；搜索覆盖 <code>~/Library</code> / 隐藏目录</td></tr><tr><td>v264（B/C 档）</td><td>固定比例 / 文件命名模板 / 拖拽角标 / 静默识别 / 仅文本马赛克 / 窗口多选 / 图帘悬停唤出；录屏（画中画·按键·点击·忽略 App·裁剪导出）；自定义工作流 + GitHub/Linear</td></tr><tr><td>v266</td><td>截图默认窗口自动识别 + 同一次截图可直接拖拽拉自定义框；模式开关避开刘海</td></tr><tr><td>v267</td><td><strong>移除截图后右下角预览角标</strong>（组件、4 条弹出路径、设置开关与偏好键全部删除）；截完只剩动作工具条</td></tr></tbody></table></div>
 <hr>
@@ -1110,7 +1040,7 @@ python3 tools/gifdoc/run.py ch01 --record       # 录
 defaults delete com.sxyq.frsetnext KitnestDataDir</code></pre>
 <p><code>AppDirectories</code> 支持 <code>KITNEST_DATA_DIR</code> 环境变量与 <code>KitnestDataDir</code> 偏好项覆盖， 剪贴板库、截图历史、统计、暂存目录全部跟着走。演示数据里域名一律 <code>example.com</code>、 路径一律 <code>/Users/demo</code>、设备地址用文档保留网段 <code>192.0.2.0/24</code>。</p>
 <p>无法通过数据目录隔离的运行环境内容，统一进行打码处理。包含以下三类：</p>
-<div class="table-wrap"><table><thead><tr><th>内容</th><th>出现位置</th><th>处理</th></tr></thead><tbody><tr><td><code>~/Movies</code>、<code>~/Downloads</code> 等绝对路径</td><td>录屏设置、网盘解析、工作流设置</td><td>打码</td></tr><tr><td>磁盘索引里的真实文件名</td><td>文件中转</td><td>打码</td></tr><tr><td>本机进程名</td><td>性能监测的「占用流量」</td><td>打码</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>内容</th><th>出现位置</th><th>处理</th></tr></thead><tbody><tr><td><code>~/Movies</code>、<code>~/Downloads</code> 等绝对路径</td><td>录屏设置、网盘解析、工作流设置</td><td>打码</td></tr><tr><td>本机进程名</td><td>性能监测的「占用流量」</td><td>打码</td></tr></tbody></table></div>
 <p>打码采用马赛克而非高斯模糊：高斯模糊仍会残留文字轮廓，马赛克缩至 1/12 再放大可彻底掩盖文字细节。 实现是 <code>h.redact(frames, boxes, pixel=12)</code>，每章在 <code>scenes.py</code> 里配一个区域。</p>
 <blockquote>录完自查：<code>tools/gifdoc/</code> 里有一套 OCR 探针（<code>ocrbox</code>），把每段 GIF 抽 5 帧跑一遍， 搜 <code>sunyiyang</code> / <code>/Users/</code> / <code>192.168.</code> / <code>sxyq27</code> / 邮箱与手机号，命中就重录。</blockquote>
 <h3 id="演示数据的完整性第-13-18-22-章">演示数据的完整性（第 13 / 18 / 22 章）</h3>

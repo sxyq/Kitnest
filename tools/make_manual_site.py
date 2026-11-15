@@ -25,7 +25,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "docs/40-审计与核对/性能审计/用户手册-FrsetNext.md"
+SRC = ROOT / "apps/FrsetNext/Resources/Manual/用户手册.md"
 GIFS = ROOT / "docs/40-审计与核对/性能审计/gifs"
 OUT_DIR = ROOT / "FRONT/manual"
 
@@ -203,7 +203,7 @@ PAGE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <title>{title} · Kitnest</title>
-<meta name="description" content="Kitnest 用户手册在线版：{nchap} 章，每章一段真机录屏动图。">
+<meta name="description" content="Kitnest Lite 用户手册在线版：{nchap} 章，每章一段真机录屏动图。">
 <link rel="icon" type="image/svg+xml" href="../assets/kitnest-mark.svg">
 <style>
 :root {{
@@ -295,7 +295,7 @@ figcaption{{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}}
 
 <header class="top">
   <div class="top-in">
-    <a class="brand" href="../"><img src="../assets/kitnest-mark.svg" alt="">Kitnest<small>用户手册</small></a>
+    <a class="brand" href="../"><img src="../assets/kitnest-mark.svg" alt="">Kitnest Lite<small>用户手册</small></a>
     <div class="spacer"></div>
     <label class="search">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -396,12 +396,15 @@ def build(no_gifs: bool) -> None:
 
     if not no_gifs:
         dst = OUT_DIR / "gifs"
-        if dst.exists():
-            shutil.rmtree(dst)
-        dst.mkdir(parents=True)
+        names = set(re.findall(r"\]\(gifs/([^)\s]+)\)", md))
+        dst.mkdir(parents=True, exist_ok=True)
+        for g in dst.glob("*.gif"):
+            if not g.name.startswith("._") and g.name not in names:
+                g.unlink()
         n = 0
         total = 0
-        for g in sorted(GIFS.glob("*.gif")):
+        for name in sorted(names):
+            g = GIFS / name
             shutil.copy2(g, dst / g.name)
             n += 1
             total += g.stat().st_size

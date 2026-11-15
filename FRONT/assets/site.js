@@ -91,8 +91,8 @@
     });
 
     document.title = view === "home"
-      ? "Kitnest · 菜单栏里的效率工具集"
-      : titleFor(view) + " · Kitnest";
+      ? "Kitnest Lite · 菜单栏里的效率工具集"
+      : titleFor(view) + " · Kitnest Lite";
 
     window.scrollTo({ top: 0, behavior: "auto" });
 
@@ -331,7 +331,6 @@
     chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 19V9M10 19V5M15 19v-7M20 19v-4"/></svg>',
     quit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 5.5H6.5A1.5 1.5 0 0 0 5 7v10a1.5 1.5 0 0 0 1.5 1.5H10M14.5 8.5 18 12l-3.5 3.5M18 12h-9"/></svg>',
     doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V6.5A1.5 1.5 0 0 0 14.5 5h-8A1.5 1.5 0 0 0 5 6.5v8A1.5 1.5 0 0 0 6.5 16H8"/></svg>',
-    airdrop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5M12 8a4 4 0 0 1 4 4M12 11.5a1 1 0 0 1 1 1"/><path d="M12 16.5h.01"/></svg>',
     pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 19 1-3.5L16 5.5a1.8 1.8 0 0 1 2.5 2.5L8.5 18 5 19z"/></svg>',
     cursor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 4.5 17 11l-4.2 1.2L11 17z"/></svg>',
     note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="M8 9h8M8 13h5"/></svg>',
@@ -832,7 +831,7 @@
       "pause": "已暂停记录剪贴板",
       "settings": "打开设置",
       "stats": "打开使用统计",
-      "quit": "退出 Kitnest"
+      "quit": "退出 Kitnest Lite"
     };
     toast(map[act] || act);
     closeMenu();
@@ -842,7 +841,6 @@
 
   var CTX_ITEMS = [
     { icon: "doc", label: "复制", act: "copy" },
-    { icon: "airdrop", label: "隔空投送", act: "airdrop", dis: true },
     { icon: "pencil", label: "编辑", act: "edit" },
     { icon: "cursor", label: "重命名", act: "rename" },
     { icon: "note", label: "标记为笔记", act: "note" },
@@ -899,8 +897,6 @@
       toast("正在生成摘要");
     } else if (act === "tags") {
       toast("打开标签管理");
-    } else if (act === "airdrop") {
-      toast("隔空投送");
     } else {
       toast("打开编辑窗口");
     }
@@ -1819,8 +1815,6 @@
     "features:ch-clipboard": "看「剪贴板」的完整说明",
     "features:ch-capture": "看「截图与标注」的完整说明",
     "features:ch-monitor": "看「系统监控」的完整说明",
-    "features:ch-transfer": "看「文件中转」的完整说明",
-    "features:ch-cast": "看「安卓投屏」的完整说明",
     "features:ch-toolbox": "看「工具箱」的完整说明"
   };
 
@@ -1913,7 +1907,7 @@
      校验不通过就停用下载，绝不给出不可靠的链接。 */
 
   /* 相对路径：同一份站点既可以挂在 / 根目录，也可以挂在 /kitnest-site/ 子路径下 */
-  var MANIFEST_URL = "kitnest/stable/latest.json";
+  var MANIFEST_URL = "kitnest/lite/stable/latest.json";
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost") {
     try {
       var qs = new URLSearchParams(location.search).get("manifest");
@@ -1937,7 +1931,7 @@
   }
 
   function isReleaseZipPath(pathname) {
-    return pathname.indexOf("/kitnest/releases/") === 0 &&
+    return pathname.indexOf("/kitnest-site/kitnest/releases/lite/") === 0 &&
       /\.zip$/.test(pathname) &&
       pathname.indexOf("..") === -1;
   }

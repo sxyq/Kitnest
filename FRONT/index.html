@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>Kitnest · 菜单栏里的效率工具集</title>
-  <meta name="description" content="Kitnest 是一个常驻 macOS 菜单栏的效率工具集：剪贴板历史、截图与标注、系统监控、文件中转与安卓投屏。点一下图标或按 ⌥A，数据留在本机。">
+  <title>Kitnest Lite · 菜单栏里的效率工具集</title>
+  <meta name="description" content="Kitnest Lite 是一个常驻 macOS 菜单栏的效率工具集：剪贴板历史、截图与标注、系统监控与归档压缩。点一下图标或按 ⌥A，数据留在本机。">
   <link rel="icon" type="image/svg+xml" href="assets/kitnest-mark.svg">
   <link rel="stylesheet" href="assets/site.css">
 </head>
@@ -16,7 +16,7 @@
     <div class="nav-inner">
       <a class="brand" href="#home" data-nav>
         <img src="assets/kitnest-mark.svg" alt="">
-        Kitnest
+        Kitnest Lite
         <small>菜单栏效率工具</small>
       </a>
 
@@ -61,7 +61,7 @@
             <span class="hero-tag"><span class="dot"></span>macOS 13+ · 菜单栏常驻 · 本地优先</span>
             <h1>复制过的东西，<br>不该<em>再也找不回来</em>。</h1>
             <p class="hero-sub">
-              Kitnest 把剪贴板历史和截图标注放在最前面，系统监控、文件中转、安卓投屏、归档压缩与 AI 也收进菜单栏里的同一个图标。
+              Kitnest Lite 把剪贴板历史和截图标注放在最前面，系统监控、归档压缩与 AI 也收进菜单栏里的同一个图标。
               点一下，或者按 <kbd>⌥A</kbd>。
             </p>
             <div class="hero-actions">
@@ -104,8 +104,8 @@
                 <div class="pm-segs" id="pmSegs">
                   <button class="pm-seg on" type="button" data-page="home">主页</button>
                   <button class="pm-seg" type="button" data-page="monitor">监测</button>
-                  <button class="pm-seg" type="button" data-page="transfer">中转</button>
-                  <button class="pm-seg" type="button" data-page="cast">投屏</button>
+                  
+                  
                 </div>
 
                 <button class="pm-ico" type="button" data-pm-menu="gear" title="设置" aria-label="设置">
@@ -183,41 +183,9 @@
                   </div>
                 </div>
 
-                <!-- 文件中转 -->
-                <div class="pm-page" data-page="transfer" hidden>
-                  <div class="pm-sect-title">发送</div>
-                  <div class="pm-exits">
-                    <button class="pm-exit" type="button" data-jump="features:ch-transfer" data-toast="弹出系统隔空投送面板"><b>苹果设备</b><span>iPhone / iPad / Mac</span></button>
-                    <button class="pm-exit" type="button" data-jump="features:ch-transfer" data-toast="生成二维码，对方扫码即可接收"><b>安卓 / 其他</b><span>扫码直传</span></button>
-                    <button class="pm-exit" type="button" data-jump="features:ch-transfer" data-toast="USB 3.0 直连，实测可跑满 100 MB/s"><b>ADB 直传</b><span>需先连一次设备</span></button>
-                  </div>
-                  <div class="pm-sect-title">本地暂存</div>
-                  <div class="pm-files">
-                    <div class="pm-file"><span class="pm-file-ico">ZIP</span><div><b>发布包.zip</b><span>2.1 MB</span></div></div>
-                    <div class="pm-file"><span class="pm-file-ico">MD</span><div><b>发布流程.md</b><span>18 KB</span></div></div>
-                  </div>
-                </div>
+                
 
-                <!-- 投屏 -->
-                <div class="pm-page" data-page="cast" hidden>
-                  <div class="pm-device">
-                    <div class="pm-device-top">
-                      <span class="pm-dot"></span>
-                      <div><b>已连接的设备</b><span>USB · 1920p / 16 Mbps / 60 fps</span></div>
-                    </div>
-                    <div class="pm-navkeys">
-                      <button type="button" data-jump="features:ch-cast" data-toast="发送返回键">‹</button>
-                      <button type="button" data-jump="features:ch-cast" data-toast="回到桌面">⌂</button>
-                      <button type="button" data-jump="features:ch-cast" data-toast="打开多任务">▢</button>
-                      <button type="button" data-jump="features:ch-cast" data-toast="展开通知栏">▤</button>
-                    </div>
-                  </div>
-                  <div class="pm-sect-title">手机通知</div>
-                  <ul class="pm-notify">
-                    <li><b>手机通知</b><span>来自手机的一条通知</span></li>
-                    <li><b>另一条通知</b><span>手机上刚收到的内容</span></li>
-                  </ul>
-                </div>
+                
               </div>
 
               <!-- 底部悬浮工具条（真机：白胶囊浮在列表底部居中） -->
@@ -277,13 +245,10 @@
           </div>
           <a class="bridge-demo" href="#showcase" data-nav>
             <div class="bridge-demo-copy">
-              <span class="bridge-no">01 / 13</span>
+              <span class="bridge-no">CLIPBOARD</span>
               <h3>主面板 · 剪贴板历史</h3>
               <p>复制过的文字、图片、文件和链接，都留在这里。</p>
               <span class="bridge-go">看全部界面 →</span>
-            </div>
-            <div class="bridge-demo-shot">
-              <img src="assets/gifs/demo-view-panel.gif" alt="主面板 操作演示动图" loading="lazy">
             </div>
           </a>
         </div>
@@ -294,7 +259,7 @@
           <div class="section-head" data-reveal>
             <span class="kicker">One icon, six jobs</span>
             <h2>日常这些事，<br>共用一个菜单栏图标。</h2>
-            <p class="lede">剪贴板、截图与录屏、监控、传文件、投屏，外加归档、AI 与自动化，共用同一套搜索、快捷键和设置。</p>
+            <p class="lede">剪贴板、截图与录屏、监控，外加归档、AI 与自动化，共用同一套搜索、快捷键和设置。</p>
           </div>
 
           <div class="grid-3">
@@ -340,33 +305,9 @@
               <button type="button" class="fc-demo-link" data-demo-jump="monitor">看演示 →</button>
             </article>
 
-            <article class="feature-card" data-reveal>
-              <span class="fc-icon tint-orange">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11M4 7l4-4M4 7l4 4"/><path d="M20 17H9m11 0-4-4m4 4-4 4"/></svg>
-              </span>
-              <h3>文件中转</h3>
-              <p>文件先进一个暂存池，再按对面是什么设备，选一条出口发出去。</p>
-              <ul>
-                <li>苹果设备走隔空投送</li>
-                <li>安卓 / Windows 扫码直传</li>
-                <li>USB 直传可跑满 100 MB/s</li>
-              </ul>
-              <button type="button" class="fc-demo-link" data-demo-jump="transfer">看演示 →</button>
-            </article>
+            
 
-            <article class="feature-card" data-reveal>
-              <span class="fc-icon tint-pink">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 5.5h4M11 18.5h2"/></svg>
-              </span>
-              <h3>安卓投屏</h3>
-              <p>USB 或一键无线连上手机后，镜像、通知、存储和应用窗口都能在 Mac 上看。</p>
-              <ul>
-                <li>镜像期间剪贴板双向同步</li>
-                <li>手机通知每 6 秒同步</li>
-                <li>可选 MCP 与 WebDAV 接口</li>
-              </ul>
-              <button type="button" class="fc-demo-link" data-demo-jump="cast">看演示 →</button>
-            </article>
+            
 
             <article class="feature-card" data-reveal>
               <span class="fc-icon tint-gray">
@@ -398,19 +339,19 @@
                 <span class="pp-ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/><path d="M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>
                 </span>
-                <div><b>数据只落本机</b><span>剪贴板、标签和统计存在 ~/Library/Application Support/Kitnest。</span></div>
+                <div><b>数据只落本机</b><span>剪贴板、标签和统计存在 ~/Library/Application Support/Kitnest Lite。</span></div>
               </div>
               <div class="privacy-point">
                 <span class="pp-ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
                 </span>
-                <div><b>只在三处联网</b><span>检查更新、局域网传输，还有你主动触发的 AI 请求；其余时间完全离线。</span></div>
+                <div><b>按需联网</b><span>在线更新，以及你主动使用的 AI、网盘下载和工作流服务。</span></div>
               </div>
               <div class="privacy-point">
                 <span class="pp-ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
                 </span>
-                <div><b>本地端口不外露</b><span>MCP 与 WebDAV 仅绑 127.0.0.1，默认关闭，MCP 另带进程级 token。</span></div>
+                <div><b>内容留在本机</b><span>历史记录和私有附件保存在本地；使用 AI 时才发送所选内容。</span></div>
               </div>
             </div>
           </div>
@@ -462,7 +403,7 @@
             </div>
             <div class="chapter-body">
               <h3>三种截法，截完就能用</h3>
-              <p>区域截图 <kbd>⌥S</kbd>、窗口截图 <kbd>⇧⌥W</kbd>（悬停识别窗口，被遮挡的部分也能完整还原）、长截图 <kbd>⇧⌥L</kbd>（自动滚动拼接）。松手后弹出动作条：复制、保存、贴图、识字、翻译、编辑、美化、空投。</p>
+              <p>区域截图 <kbd>⌥S</kbd>、窗口截图 <kbd>⇧⌥W</kbd>（悬停识别窗口，被遮挡的部分也能完整还原）、长截图 <kbd>⇧⌥L</kbd>（自动滚动拼接）。松手后弹出动作条：复制、保存、贴图、识字、翻译、编辑、美化。</p>
 
               <div class="annotate-mock" aria-label="标注工具条">
                 <span class="am-tool on" title="矩形"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="14" rx="2"/></svg></span>
@@ -485,7 +426,7 @@
                 <span class="btn" style="padding:5px 12px;font-size:12px;background:#2F6BFF;border-color:#2F6BFF;color:#fff">复制</span>
               </div>
               <figure class="inline-gif">
-                <img src="assets/gifs/demo-capture.gif" alt="截图与标注操作演示动图" loading="lazy">
+                <img src="assets/gifs/demo-view-annotate.gif" alt="标注编辑器操作演示动图" loading="lazy">
                 <figcaption>⌥S 框选 → 动作条 → 标注 → 复制。</figcaption>
               </figure>
 
@@ -523,43 +464,9 @@
             </div>
           </article>
 
-          <article class="chapter" id="ch-transfer">
-            <div class="chapter-no">
-              <span class="ch-title">04 · 文件中转</span>
-              <span class="ch-sub">一个池子，三个出口</span>
-            </div>
-            <div class="chapter-body">
-              <h3>先收进暂存，再想发给谁</h3>
-              <p>所有来路的文件都汇进「本地暂存」，不管来自隔空投送、手机拉取、拖入还是剪贴板，都在里面。勾选文件后，只看对方是什么设备，选一条出口。</p>
-              <ul class="spec-list">
-                <li><span class="k">苹果设备</span><span class="v">弹出系统隔空投送面板，对端零安装；iPhone / iPad / Mac 都行</span></li>
-                <li><span class="k">安卓 / 其他</span><span class="v">弹出二维码，对方用浏览器扫码接收，也能反向传给你</span></li>
-                <li><span class="k">ADB 直传</span><span class="v">大文件或批量搬运走 USB 3.0，实测可跑满 100 MB/s</span></li>
-                <li><span class="k">接收</span><span class="v">隔空投送落盘后自动进暂存；也可把手机 Download/Kitnest 里的文件整批拉回</span></li>
-                <li><span class="k">云端</span><span class="v">登录 OPPO 中转站后，可把暂存里的文件存进云端，换设备、换时间再取</span></li>
-              </ul>
-              <div class="callout"><b>跨系统怎么办：</b>安卓没有隔空投送（AWDL 是苹果私有协议）。正确路径是「安卓扫码传到本机 → 在暂存里勾选 → 空投给 iPhone」。</div>
-            </div>
-          </article>
+          
 
-          <article class="chapter" id="ch-cast">
-            <div class="chapter-no">
-              <span class="ch-title">05 · 安卓投屏</span>
-              <span class="ch-sub">手机在 Mac 上，不只是画面</span>
-            </div>
-            <div class="chapter-body">
-              <h3>连一次，之后随连随用</h3>
-              <p>USB 连上手机、打开 USB 调试，点「检测设备」再点「开始投屏」即可。想摆脱线缆就点「一键无线」：它会自动执行 <code>adb tcpip 5555</code> 并连上手机的 Wi-Fi 地址，之后同一网络下直接检测，不用再开无线调试、不用配对码。</p>
-              <ul class="spec-list">
-                <li><span class="k">镜像</span><span class="v">默认 1920p / 16 Mbps / 60 fps，可在设置里改分辨率（含「原始」）、码率和帧率</span></li>
-                <li><span class="k">剪贴板</span><span class="v">镜像期间双向同步：电脑复制的手机能粘，手机那边复制的电脑也能粘</span></li>
-                <li><span class="k">通知</span><span class="v">零安装同步手机未清除的通知，标题、正文和时间，右键可复制正文</span></li>
-                <li><span class="k">应用窗口</span><span class="v">读取手机第三方应用，点一个就在 Mac 上开一个独立窗口（Android 14+）</span></li>
-                <li><span class="k">导航键</span><span class="v">返回 / 主页 / 多任务 / 通知栏，全面屏手势手机也能直接操作</span></li>
-              </ul>
-              <div class="callout safe"><b>两个可选接口，默认关闭：</b>MCP 服务器 <code>http://127.0.0.1:8767/mcp</code> 给 AI 客户端用；WebDAV <code>http://127.0.0.1:8768/</code> 让 Finder 把手机存储当网络盘。两者都只绑回环地址。</div>
-            </div>
-          </article>
+          
 
           <article class="chapter" id="ch-toolbox">
             <div class="chapter-no">
@@ -664,79 +571,9 @@
           <div class="section-head">
             <span class="kicker">Demos</span>
             <h2>它长这样。</h2>
-            <p class="lede">从主面板、监测页到设置窗口，界面按最新版整理。</p>
+            <p class="lede">主面板和监测页可在首页交互预览；下面展示标注与 CPU 详情窗口。</p>
           </div>
 
-          <div class="shot-tabs" data-stage="shotStage" role="tablist" aria-label="功能演示切换">
-            <button class="shot-tab on" data-shot="clipboard" role="tab">剪贴板</button>
-            <button class="shot-tab" data-shot="capture" role="tab">截图标注</button>
-            <button class="shot-tab" data-shot="monitor" role="tab">系统监控</button>
-            <button class="shot-tab" data-shot="transfer" role="tab">文件中转</button>
-            <button class="shot-tab" data-shot="cast" role="tab">安卓投屏</button>
-            <button class="shot-tab" data-shot="toolbox" role="tab">工具箱</button>
-          </div>
-
-          <div class="shot-stage" id="shotStage">
-            <div class="shot-copy">
-              <div data-shot-panel="clipboard">
-                <span class="shot-index">01 / DEMO</span>
-                <h3>复制过的东西，随手就能翻回来</h3>
-                <p>搜索框模糊匹配、JSON / Markdown / 代码 / 图片分态预览，识别文字和翻译都在浮层里。</p>
-                <ul class="shot-points"><li>模糊搜索，输入应用名也能筛</li><li>双击直接回贴</li><li>预览里能识字、翻译、复制</li></ul>
-              </div>
-              <div data-shot-panel="capture" hidden>
-                <span class="shot-index">02 / DEMO</span>
-                <h3>三种截法，截完就能改</h3>
-                <p>区域、窗口、长截图；动作条里复制、贴图、识字、翻译、编辑、空投一次到位。</p>
-                <ul class="shot-points"><li>⌥S 区域 / ⇧⌥W 窗口 / ⇧⌥L 长截图</li><li>矩形、箭头、马赛克、抹除</li><li>本地 OCR，图片不出本机</li></ul>
-              </div>
-              <div data-shot-panel="monitor" hidden>
-                <span class="shot-index">03 / DEMO</span>
-                <h3>八个模块，一屏看完</h3>
-                <p>功耗、CPU、内存、网络、磁盘、传感器、电池、GPU 用一排标签切换，数据来自同一套读取引擎。</p>
-                <ul class="shot-points"><li>核心占用 / 集群 / 平均负载</li><li>流量去哪了、逐进程占用</li><li>1.5 秒刷新一次</li></ul>
-              </div>
-              <div data-shot-panel="transfer" hidden>
-                <span class="shot-index">04 / DEMO</span>
-                <h3>先收进暂存，再选出口</h3>
-                <p>隔空投送、扫码直传、ADB 直传三条路，接收和云端各占一栏，文件统一进本地暂存。</p>
-                <ul class="shot-points"><li>苹果设备走系统隔空投送</li><li>安卓 / Windows 扫码就传</li><li>USB 直连批量倒文件</li></ul>
-              </div>
-              <div data-shot-panel="cast" hidden>
-                <span class="shot-index">05 / DEMO</span>
-                <h3>手机接上就投</h3>
-                <p>USB 调试或一键无线，镜像、通知、存储、应用窗口都能在 Mac 上看。</p>
-                <ul class="shot-points"><li>镜像期间剪贴板双向同步</li><li>通知每 6 秒同步</li><li>可选 MCP 与 WebDAV，只绑回环</li></ul>
-              </div>
-              <div data-shot-panel="toolbox" hidden>
-                <span class="shot-index">06 / DEMO</span>
-                <h3>一个 / 就是启动器</h3>
-                <p>搜索框输入 / 切成工具列表，哈希、二维码、日历这类小工具即用即走。</p>
-                <ul class="shot-points"><li>命令面板 ⌥K</li><li>日历、农历、节气同屏</li><li>AI 总结 / 翻译，Key 存钥匙串</li></ul>
-              </div>
-            </div>
-
-            <div class="shot-frame">
-              <div data-shot-slide="clipboard">
-                <img class="gif-slide" src="assets/gifs/demo-clipboard.gif" alt="剪贴板 操作演示动图" loading="lazy">
-              </div>
-              <div data-shot-slide="capture" hidden>
-                <img class="gif-slide" src="assets/gifs/demo-capture.gif" alt="截图标注 操作演示动图" loading="lazy">
-              </div>
-              <div data-shot-slide="monitor" hidden>
-                <img class="gif-slide" src="assets/gifs/demo-monitor.gif" alt="系统监控 操作演示动图" loading="lazy">
-              </div>
-              <div data-shot-slide="transfer" hidden>
-                <img class="gif-slide" src="assets/gifs/demo-transfer.gif" alt="文件中转 操作演示动图" loading="lazy">
-              </div>
-              <div data-shot-slide="cast" hidden>
-                <img class="gif-slide" src="assets/gifs/demo-cast.gif" alt="安卓投屏 操作演示动图" loading="lazy">
-              </div>
-              <div data-shot-slide="toolbox" hidden>
-                <img class="gif-slide" src="assets/gifs/demo-toolbox.gif" alt="工具箱 操作演示动图" loading="lazy">
-              </div>
-            </div>
-          </div>
           <p class="demo-actions">
             <a class="btn btn-primary" href="#home" data-nav data-home-demo>打开可交互预览 →</a>
           </p>
@@ -745,19 +582,14 @@
             <div class="gallery-head">
               <span class="kicker">Interface</span>
               <h3>界面一览</h3>
-              <p class="lede">主面板、监测页、文件中转、投屏、标注编辑器、CPU 详情窗与设置窗口。</p>
+              <p class="lede">标注编辑器与 CPU 详情窗。</p>
             </div>
             <div class="more-shots-grid">
-          <figure><img src="assets/gifs/demo-view-panel.gif" alt="主面板 操作演示动图" loading="lazy"><figcaption>主面板</figcaption></figure>          <figure><img src="assets/gifs/demo-view-monitor.gif" alt="监测页 操作演示动图" loading="lazy"><figcaption>监测页</figcaption></figure>          <figure><img src="assets/gifs/demo-view-transfer.gif" alt="文件中转 操作演示动图" loading="lazy"><figcaption>文件中转</figcaption></figure>          <figure><img src="assets/gifs/demo-view-cast.gif" alt="投屏 操作演示动图" loading="lazy"><figcaption>投屏</figcaption></figure>          <figure><img src="assets/gifs/demo-view-annotate.gif" alt="标注编辑器 操作演示动图" loading="lazy"><figcaption>标注编辑器</figcaption></figure>          <figure><img src="assets/gifs/demo-view-popout.gif" alt="CPU 详情窗 操作演示动图" loading="lazy"><figcaption>CPU 详情窗</figcaption></figure>
+              <figure><img src="assets/gifs/demo-view-annotate.gif" alt="标注编辑器 操作演示动图" loading="lazy"><figcaption>标注编辑器</figcaption></figure>
+              <figure><img src="assets/gifs/demo-view-popout.gif" alt="CPU 详情窗 操作演示动图" loading="lazy"><figcaption>CPU 详情窗</figcaption></figure>
             </div>
           </div>
 
-          <div style="margin-top:26px">
-            <figure class="shot-figure">
-              <img src="assets/gifs/demo-view-settings.gif" alt="Kitnest 设置窗口 操作演示动图" data-shot-file="assets/gifs/demo-view-settings.gif">
-              <figcaption>面板分段、剪贴板保留期、部件样式与更新源。</figcaption>
-            </figure>
-          </div>
         </div>
       </div>
 
@@ -769,7 +601,7 @@
         <div class="wrap">
           <div class="section-head">
             <span class="kicker">Download</span>
-            <h2>下载 Kitnest</h2>
+            <h2>下载 Kitnest Lite</h2>
             <p class="lede">版本、体积和校验值都来自官方发布清单，打开页面时实时读取。</p>
           </div>
 
@@ -820,7 +652,7 @@
               <h3>装之前，先看三行</h3>
               <p class="dl-sub">不需要账号，不需要额外运行库。</p>
               <ol class="steps">
-                <li><b>解压得到 Kitnest.app</b>下载的是 zip 整包，双击解压后把 Kitnest 拖进「应用程序」。</li>
+                <li><b>解压得到 Kitnest.app</b>下载的是 zip 整包，双击解压后把 Kitnest Lite 拖进「应用程序」。</li>
                 <li><b>第一次打开</b>首次启动会弹出欢迎窗，一页看完所有功能；顺手点开「权限引导」，把屏幕录制与辅助功能授了。</li>
                 <li><b>以后自动更新</b>内置官方更新源，启动时静默检查；有新版本会在应用内提示，一键替换并自动重启。</li>
               </ol>
@@ -871,10 +703,8 @@
                 <p>下面这组能力从第一个公开版本起就全部具备，后续版本只在此基础上迭代。</p>
                 <ul>
                   <li><b>剪贴板</b>文字 / 图片 / 文件历史，模糊搜索、置顶、标签、双击回贴</li>
-                  <li><b>截图</b>区域、窗口、长截图，标注、OCR、翻译、钉图、取色、空投</li>
+                  <li><b>截图</b>区域、窗口、长截图，标注、OCR、翻译、钉图、取色</li>
                   <li><b>监控</b>8 个模块、12 种菜单栏形态、独立详情窗</li>
-                  <li><b>中转</b>本地暂存 + 隔空投送 / 扫码 / ADB 三条出口</li>
-                  <li><b>投屏</b>USB 与一键无线、双向剪贴板、手机通知与存储</li>
                   <li><b>更新</b>内置更新源，整包校验、备份、失败自动回滚</li>
                 </ul>
               </div>
@@ -917,7 +747,7 @@
             </div>
             <div class="help-card">
               <h4>全局快捷键没反应？</h4>
-              <p>需要「辅助功能」权限。已勾选仍无效时，在系统设置里删掉 Kitnest 再重新添加一次。</p>
+              <p>需要「辅助功能」权限。已勾选仍无效时，在系统设置里删掉 Kitnest Lite 再重新添加一次。</p>
             </div>
           </div>
 
@@ -935,7 +765,6 @@
                 <tr><td>取色</td><td><kbd>⌥C</kbd></td></tr>
                 <tr><td>悬浮剪贴板</td><td><kbd>⇧⌘V</kbd></td></tr>
                 <tr><td>性能监测窗 / 部件窗</td><td><kbd>⌥P</kbd> / <kbd>⌥M</kbd></td></tr>
-                <tr><td>文件中转</td><td><kbd>⌥T</kbd></td></tr>
                 <tr><td>命令面板</td><td><kbd>⌥K</kbd></td></tr>
                 <tr><td>暂停 / 恢复剪贴板记录</td><td><kbd>⇧⌥R</kbd></td></tr>
                 <tr><td>开始 / 停止录屏</td><td><kbd>⌃⌥R</kbd></td></tr>
@@ -956,41 +785,30 @@
           </a>
 
           <div style="margin-top:40px">
-            <div class="faq-item">
-              <button class="faq-q" type="button">隔空投送发不出去怎么办<span class="faq-arrow">＋</span></button>
-              <div class="faq-a"><div class="faq-a-inner">
-                <p>先确认双方都开了 Wi-Fi 和蓝牙，隔空投送没有设成「仅限联系人」。安卓和 Windows 收不到空投是正常的，改走「扫码直传」（任何带浏览器的设备），或「ADB 直传」。</p>
-              </div></div>
-            </div>
+            
             <div class="faq-item">
               <button class="faq-q" type="button">监控部件不显示数据<span class="faq-arrow">＋</span></button>
               <div class="faq-a"><div class="faq-a-inner">
                 <p>确认「设置 → 性能监测 → 监测设置」的总开关是打开的。刚启动的前几秒数据为空是正常的；某些数值（如风扇转速）在没有对应硬件的机器上本来就不显示。</p>
               </div></div>
             </div>
-            <div class="faq-item">
-              <button class="faq-q" type="button">投屏连不上手机<span class="faq-arrow">＋</span></button>
-              <div class="faq-a"><div class="faq-a-inner">
-                <p>USB 连接需要手机开启「开发者选项 → USB 调试」。无线连接先用 USB 连一次并点「一键无线」；公司网络隔离组播时，直接手动填「IP:端口」。</p>
-                <p>没装 scrcpy 时，按应用内引导执行 <code>brew install scrcpy</code>。</p>
-              </div></div>
-            </div>
+            
             <div class="faq-item">
               <button class="faq-q" type="button">更新失败会不会打不开？<span class="faq-arrow">＋</span></button>
               <div class="faq-a"><div class="faq-a-inner">
-                <p>不会。安装包下载后会先做 SHA-256 校验，不匹配直接中止；替换前把旧版本备份为 <code>/Applications/Kitnest.app.bak</code>，替换失败会自动回滚。</p>
+                <p>不会。安装包下载后会先做 SHA-256 校验，不匹配直接中止；校验应用标识和签名后换入完整应用；换入失败时保留当前版本。</p>
               </div></div>
             </div>
             <div class="faq-item">
               <button class="faq-q" type="button">支持哪些 macOS 版本<span class="faq-arrow">＋</span></button>
               <div class="faq-a"><div class="faq-a-inner">
-                <p>macOS 13 Ventura 及以上，Apple Silicon 与 Intel 都能运行。部分功能依赖系统能力：应用窗口投屏需要 Android 14+，无线调试配对需要 Android 11+。</p>
+                <p>macOS 13 Ventura 及以上，支持 Apple Silicon。</p>
               </div></div>
             </div>
             <div class="faq-item">
               <button class="faq-q" type="button">怎么彻底卸载<span class="faq-arrow">＋</span></button>
               <div class="faq-a"><div class="faq-a-inner">
-                <p>退出应用后，把「应用程序」里的 Kitnest.app 删掉；需要连数据一起清理时，再删除 <code>~/Library/Application Support/Kitnest</code> 与登录项里的条目。</p>
+                <p>退出应用后，把「应用程序」里的 Kitnest.app 删掉；需要连数据一起清理时，再删除 <code>~/Library/Application Support/Kitnest Lite</code> 与登录项里的条目。</p>
               </div></div>
             </div>
           </div>
@@ -1012,7 +830,7 @@
             <div class="chapter-no"><span class="ch-title">01 · 存储</span><span class="ch-sub">数据在哪个文件里</span></div>
             <div class="chapter-body">
               <h3>本机 SQLite，没有云端账号</h3>
-              <p>剪贴板记录、标签和使用统计都写在 <code>~/Library/Application Support/Kitnest</code> 下的本地数据库。应用不要求登录，也没有服务器侧的账号体系；删除这个目录就等于清空全部记录。</p>
+              <p>剪贴板记录、标签和使用统计都写在 <code>~/Library/Application Support/Kitnest Lite</code> 下的本地数据库。应用不要求登录，也没有服务器侧的账号体系；删除这个目录就等于清空全部记录。</p>
               <ul class="spec-list">
                 <li><span class="k">剪贴板</span><span class="v">默认保留 30 天、上限 2GB，可在设置里改小或关闭记录</span></li>
                 <li><span class="k">截图</span><span class="v">只在你按下快捷键后产生，保存位置由你决定</span></li>
@@ -1027,7 +845,6 @@
               <h3>只有三件事会用到网络</h3>
               <ul class="spec-list">
                 <li><span class="k">检查更新</span><span class="v">请求官方清单（几百字节），下载安装包时走 HTTPS；可在「设置 → 关于」换成自己的源或关掉</span></li>
-                <li><span class="k">文件中转</span><span class="v">隔空投送走系统通道；扫码直传与 ADB 只在你主动点击后启动</span></li>
                 <li><span class="k">AI 请求</span><span class="v">只有你主动使用总结 / 翻译时才发给你配置的服务商，Key 存钥匙串</span></li>
               </ul>
               <p>没有埋点 SDK，不做崩溃上报，也没有「匿名使用数据」。官网本身也不加载第三方统计脚本。</p>
@@ -1051,19 +868,7 @@
             </div>
           </article>
 
-          <article class="chapter">
-            <div class="chapter-no"><span class="ch-title">04 · 端口</span><span class="ch-sub">本机服务的边界</span></div>
-            <div class="chapter-body">
-              <h3>只绑回环地址，默认关闭</h3>
-              <p>投屏页里的两个扩展服务都需要你手动打开，而且只监听 <code>127.0.0.1</code>：局域网里的其他设备连不上，公网更连不上。</p>
-              <ul class="spec-list">
-                <li><span class="k">MCP</span><span class="v"><code>http://127.0.0.1:8767/mcp</code>，需要进程级 token；拒绝跨站来源与预检请求</span></li>
-                <li><span class="k">WebDAV</span><span class="v"><code>http://127.0.0.1:8768/</code>，供 Finder 挂载手机存储</span></li>
-                <li><span class="k">局域网互传</span><span class="v">需要被手机访问，因此监听局域网地址；每次启动生成 8 位 token</span></li>
-                <li><span class="k">更新包</span><span class="v">下载后做 SHA-256 校验，替换前备份旧版，失败自动回滚</span></li>
-              </ul>
-            </div>
-          </article>
+          
         </div>
       </div>
     </section>
@@ -1077,9 +882,9 @@
         <div>
           <div class="footer-brand">
             <img src="assets/kitnest-mark.svg" alt="">
-            Kitnest
+            Kitnest Lite
           </div>
-          <p class="footer-desc">一个常驻 macOS 菜单栏的效率工具集。剪贴板、截图和监控，加上一份文件传输与投屏，都在这一个图标里。</p>
+          <p class="footer-desc">一个常驻 macOS 菜单栏的效率工具集。剪贴板、截图和监控，加上归档压缩与 AI，都在这一个图标里。</p>
         </div>
         <div class="footer-col">
           <h5>产品</h5>
@@ -1103,7 +908,7 @@
         <a class="btn btn-primary" href="#download" data-nav>下载 for macOS →</a>
       </div>
       <div class="footer-bottom">
-        <span>© 2026 Kitnest · 独立开发者作品 · 非 App Store 分发</span>
+        <span>© 2026 Kitnest Lite · 独立开发者作品 · 非 App Store 分发</span>
         <span>本站不加载第三方统计脚本，不收集访问数据</span>
       </div>
     </div>
@@ -1113,7 +918,7 @@
   <div class="modal-mask" id="dlModal" role="dialog" aria-modal="true" aria-labelledby="dlModalTitle" tabindex="-1">
     <div class="modal" tabindex="-1">
       <h3 id="dlModalTitle">下载前请确认</h3>
-      <p>你即将下载 Kitnest 的 macOS 整包（<span id="modalPkgSize">—</span>）。下载完成后建议先核对 SHA-256，再解压使用。</p>
+      <p>你即将下载 Kitnest Lite 的 macOS 整包（<span id="modalPkgSize">—</span>）。下载完成后建议先核对 SHA-256，再解压使用。</p>
       <ul>
         <li>安装包来自本站官方发布通道，不含第三方修改</li>
         <li>首次打开如被系统拦截，请到「隐私与安全性」点「仍要打开」</li>

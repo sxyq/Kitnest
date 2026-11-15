@@ -2,6 +2,7 @@
 
 ## 本工作树：Kitnest Lite
 
+本分支不包含刘海工作台、文件中转、手机投屏和相关传输服务。
 当前分支 `variant/without-transfer-cast`，外置 SSD 路径为 `/Volumes/Lexar/Project/frset-rebuild-lite`。
 所有源码、Git、构建和发布操作在此工作树执行；下文及项目 Skill 中的完整版绝对路径仅作背景，不用于本分支。
 构建部署到 `/Applications/KitnestLite.app`，DMG 输出到本树 `apps/FrsetNext/build.noindex/KitnestLite-1.0.0.dmg`；在线更新执行本树的 `tools/publish_update.sh`。
@@ -11,12 +12,12 @@
 ## 项目是什么
 
 Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+），对原版 Frset 的重建 +
-功能增强。模块：剪贴板、文件中转、搜索与 AI、工具箱、网盘下载助手、
+功能增强。模块：剪贴板、搜索与 AI、工具箱、网盘下载助手、
 性能监测（STATS 引擎）、标注、使用统计等。
 
 - 源码：`apps/FrsetNext/Sources/`（SwiftUI + AppKit 混合；FrsetStatsBar/ 为 C/ObjC 引擎）
-- 构建：`apps/FrsetNext/build.sh`（约 3 分钟，产物部署到 `/Applications/Kitnest.app`）
-- 打包：`apps/FrsetNext/package_dmg.sh` → `~/Desktop/Kitnest-1.0.0.dmg`
+- 构建：`apps/FrsetNext/build.sh`（产物部署到 `/Applications/KitnestLite.app`）
+- 打包：`apps/FrsetNext/package_dmg.sh` → 本树 `apps/FrsetNext/build.noindex/KitnestLite-1.0.0.dmg`
 - 详细工作流：`docs/00-总览/开发工作流.md`（Git 规范 / 打包 / 安装测试 / 排障速查）
 
 ## 铁律（每次改动必走）
@@ -35,7 +36,7 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 4. **每次改完必须重跑 CodeGraph 索引**：`codegraph sync .`
    （不 sync 时 `codegraph_explore` 会跳过「索引后已改动」的文件，拿不到源码）
 5. DMG 版本号**固定 1.0.0 不变**；每次改动后重打（用户分发用）
-6. 更新后**本地重启 App**（`pkill … ; open -a /Applications/Kitnest.app`），
+6. 更新后**本地重启 App**（只退出 Lite 进程，再打开 `/Applications/KitnestLite.app`），
    供用户随时查看效果
 
 ## 项目级 Skill（可复用操作，`.workbuddy/skills/`）
@@ -51,9 +52,9 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 - **代码修复/功能**：按模块改 Sources → build.sh → 验证 → 提交
 - **UI 观感**：间距/圆角/卡片/宽度——改后截图对比（screencapture -l<窗id>，
   玻璃窗发黑就全屏裁剪）
-- **行为验证**：深链 `kitnest://…` + defaults 探针（probe.preview /
-  probe.openTool，用完删）+ 日志（`~/Library/Application Support/FrsetNext/logs/`）
-- **网盘测试**：`kitnest://cloudlink?url=<URL>&action=download` 直驱解析下载，
+- **行为验证**：深链 `kitnest-lite://…` + defaults 探针（probe.preview /
+  probe.openTool，用完删）+ 日志（`~/Library/Application Support/KitnestLite/logs/`）
+- **网盘测试**：`kitnest-lite://cloudlink?url=<URL>&action=download` 直驱解析下载，
   测完删下载文件
 - **设置项生效**：改 Preferences 键后看消费点（采样器/过滤/联动），补「生效反馈」
 - **统计埋点**：`StatisticsManager.shared.record(.事件)`（AnalyticsEvent 枚举在
@@ -67,11 +68,10 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 - 主题色：涨=红 跌=绿（中式）；强调色 Theme.accent
 - 排障用注释写「为什么」（vNN + 日期 + 用户原话），方便回溯
 - 版本显示：About 页 displayVersion = 1.0.0；别再改回 1.3.12
-- 深链一律写 `kitnest://`（`frsetnext://` 仍在 Info.plist 注册，仅作旧链接兼容；历史归档里的原文不改写）
-- 安全基线（v200）：MCP 需 token 且拒绝浏览器 Origin；MCP / WebDAV 只绑 127.0.0.1；
-  `LanTransferServer` 刻意对 LAN 开放（手机扫码），**不要**给它加回环绑定；LAN token 为 8 位
+- Lite 深链一律写 `kitnest-lite://`；不要注册完整版协议或接入已移除的传输服务。
 - 在线更新（v201）：显示版本 1.0.0 固定，**更新比较只用 `CFBundleVersion` build 号**，每次发版 +1；
   发版一律走 `tools/publish_update.sh`，不要手改 124 上的 `latest.json`；
   App 自签无 APNs，「推送」= 轮询 + 本地通知，别去接推送证书
-- 124 上 `/kitnest/` 端点挂在 CalorieAI 官网的 Nginx conf 里：改前先备份，
-  `sudo nginx -t` 通过后用 **reload 而非 restart**，并回归验证官网与旧 `/android/stable/latest.json`
+- Lite 更新清单：`https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json`。
+  发布包目录：124 上 `/srv/calorieai-updates/public/kitnest/releases/lite/`。
+  复用现有 Nginx 静态路由；不要改写完整版清单或运行指向公共官网的 `tools/deploy_site.sh`。

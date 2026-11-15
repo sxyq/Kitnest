@@ -451,7 +451,6 @@ h1, h2, h3, h4 { font-weight: 620; letter-spacing: -0.02em; line-height: 1.25; }
 .pm-cal-nav,
 .pm-cal-title,
 .pm-cal-collapse,
-.pm-navkeys button,
 .pm-exit,
 .pm-memory-cta button,
 .pm-rowacts button,
@@ -470,7 +469,6 @@ button {
 .pm-dock button:active,
 .pm-cal-nav:active,
 .pm-cal-collapse:active,
-.pm-navkeys button:active,
 button:active {
   transform: scale(var(--m-pressed-scale));
   opacity: var(--m-pressed-opacity);
@@ -2138,7 +2136,7 @@ button:active {
 .pm-modfoot-ico button svg { width: 15px; height: 15px; }
 .pm-modfoot-ico button:hover { color: var(--ink); background: rgba(0, 0, 0, 0.05); }
 
-/* ---------- 监测 / 中转 / 投屏 页内元素 ---------- */
+/* ---------- 监测页内元素 ---------- */
 .pm-modbar {
   display: flex;
   gap: 6px;
@@ -2184,84 +2182,6 @@ button:active {
   color: var(--ink-3);
   margin: 14px 14px 8px;
 }
-.pm-exits { display: grid; gap: 6px; margin: 0 14px; }
-.pm-exit {
-  text-align: left;
-  border: 0.5px solid rgba(0, 0, 0, 0.062);
-  background: rgba(255, 255, 255, 0.787);
-  border-radius: 9px;
-  padding: 8px 10px;
-  cursor: pointer;
-  transition: border-color var(--m-tap) var(--m-ease-out), background var(--m-tap) var(--m-ease-out);
-}
-.pm-exit:hover { border-color: var(--accent); background: rgba(47, 107, 255, 0.06); }
-.pm-exit b { display: block; font-size: 12.5px; font-weight: 600; }
-.pm-exit span { font-size: 10.8px; color: var(--ink-3); }
-.pm-files { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 14px; }
-.pm-file {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0.5px solid rgba(0, 0, 0, 0.062);
-  border-radius: 9px;
-  padding: 7px 9px;
-  background: rgba(255, 255, 255, 0.787);
-}
-.pm-file b { display: block; font-size: 11.5px; font-weight: 550; }
-.pm-file span { font-size: 10px; color: var(--ink-3); }
-.pm-file-ico {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8.5px;
-  font-weight: 600;
-  color: var(--ink-3);
-}
-
-.pm-device {
-  margin: 12px 14px 0;
-  border: 0.5px solid rgba(0, 0, 0, 0.062);
-  border-radius: 10px;
-  padding: 11px 12px;
-  background: rgba(255, 255, 255, 0.787);
-}
-.pm-device-top { display: flex; gap: 9px; align-items: center; }
-.pm-device b { display: block; font-size: 12.5px; }
-.pm-device span { font-size: 10.5px; color: var(--ink-3); }
-.pm-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 3px rgba(31, 157, 99, 0.16);
-}
-.pm-navkeys { display: flex; gap: 6px; margin-top: 10px; }
-.pm-navkeys button {
-  flex: 1;
-  border: 0.5px solid rgba(0, 0, 0, 0.062);
-  background: rgba(0, 0, 0, 0.036);
-  border-radius: 8px;
-  padding: 6px 0;
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--ink-2);
-}
-.pm-navkeys button:hover { background: var(--ink); color: #FFFFFF; border-color: var(--ink); }
-.pm-notify { list-style: none; display: grid; gap: 6px; margin: 0 14px; }
-.pm-notify li {
-  border: 0.5px solid rgba(0, 0, 0, 0.062);
-  border-radius: 9px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.787);
-}
-.pm-notify b { display: block; font-size: 12px; }
-.pm-notify span { font-size: 10.8px; color: var(--ink-3); }
-
 /* ---------- 模拟界面（更新提示） ---------- */
 
 .mock-block {
@@ -3516,7 +3436,7 @@ kbd {
 }
 .bridge-demo {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  grid-template-columns: 1fr;
   gap: 32px;
   align-items: center;
   margin-top: 34px;
@@ -3547,19 +3467,6 @@ kbd {
   font-size: 13.5px;
   color: var(--accent);
   font-weight: 560;
-}
-.bridge-demo-shot {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: var(--bg-soft);
-}
-.bridge-demo-shot img {
-  width: 100%;
-  height: 240px;
-  object-fit: cover;
-  object-position: center top;
-  display: block;
 }
 
 /* 13 段界面动图常驻展示，不再折叠 */
@@ -3620,14 +3527,12 @@ kbd {
   .bridge-trust span + span::before { margin-right: 16px; }
   .bridge-demo { grid-template-columns: 1fr; gap: 20px; padding: 22px; }
   .bridge-demo h3 { font-size: 20px; }
-  .bridge-demo-shot img { height: 190px; }
   .onboard { padding: 22px; }
   .onboard-steps { grid-template-columns: 1fr; }
   .footer-cta { flex-direction: column; align-items: flex-start; padding: 22px; }
   .gallery-head h3 { font-size: 19px; }
 }
 @media (max-width: 430px) {
-  .bridge-demo-shot img { height: 150px; }
   .footer-cta .btn { width: 100%; justify-content: center; }
 }
 

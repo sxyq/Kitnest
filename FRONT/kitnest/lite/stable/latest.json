@@ -1,0 +1,19 @@
+{
+  "build": 4,
+  "versionName": "1.0.0",
+  "minBuild": 1,
+  "force": false,
+  "zipUrl": "https://calorieai.sxyq27.online/kitnest-site/kitnest/releases/lite/4/KitnestLite-4.zip",
+  "size": 37800557,
+  "sha256": "7deb76d405d0f570d4f2ded014b635da6f3967ddc58948326dc9e187bf2900de",
+  "releaseNotes": "移除刘海工作台、中转站、投屏和相关前后台入口；精简 Lite 手册与网页演示，清除隔空投送残留",
+  "whatsNew": {
+    "added": [],
+    "improved": [
+      "移除刘海工作台、中转站、投屏和相关前后台入口；精简 Lite 手册与网页演示，清除隔空投送残留"
+    ],
+    "fixed": []
+  },
+  "pageUrl": "https://calorieai.sxyq27.online/",
+  "publishedAt": "2026-11-15T23:52:24+08:00"
+}
