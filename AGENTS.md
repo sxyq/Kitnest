@@ -1,5 +1,11 @@
 # AGENTS.md — Kitnest 项目指南
 
+## 本工作树：Kitnest Lite
+
+当前分支 `variant/without-transfer-cast`，外置 SSD 路径为 `/Volumes/Lexar/Project/frset-rebuild-lite`。
+所有源码、Git、构建和发布操作在此工作树执行；下文及项目 Skill 中的完整版绝对路径仅作背景，不用于本分支。
+构建部署到 `/Applications/KitnestLite.app`，DMG 输出到本树 `apps/FrsetNext/build.noindex/KitnestLite-1.0.0.dmg`；在线更新执行本树的 `tools/publish_update.sh`。
+
 > 给在本仓库工作的 Agent / 开发者的操作手册。**先读本文再动手。**
 
 ## 项目是什么

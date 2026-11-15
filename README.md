@@ -5,8 +5,9 @@
 `variant/without-transfer-cast` 不包含文件中转、手机投屏及其后台入口。剪贴板的文件记录、文件预览和拖出保持可用。
 
 - 工程：`apps/FrsetNext/`；构建：`bash apps/FrsetNext/build.sh`。
+- 外置 SSD 工作树：`/Volumes/Lexar/Project/frset-rebuild-lite`；与主线共享 Git 历史。
 - 安装：`/Applications/KitnestLite.app`；数据：`~/Library/Application Support/KitnestLite`；应用标识：`com.sxyq.kitnestlite`。
-- DMG：`bash apps/FrsetNext/package_dmg.sh` → `~/Desktop/KitnestLite-1.0.0.dmg`。
+- DMG：`bash apps/FrsetNext/package_dmg.sh` → 本工作树的 `apps/FrsetNext/build.noindex/KitnestLite-1.0.0.dmg`。
 - 发布：`bash tools/publish_update.sh "更新说明"`；显示版本固定 1.0.0，内部 build 每次加 1。
 - 清单：`https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json`。
 - ZIP：`https://calorieai.sxyq27.online/kitnest-site/kitnest/releases/lite/<build>/KitnestLite-<build>.zip`。
