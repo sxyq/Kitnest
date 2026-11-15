@@ -133,10 +133,12 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
     public func open(pane: String?) {
         Log.info("settings", "open(pane:\(pane ?? "nil")) called, window=\(window == nil ? "nil" : "exists")")
         // v84：设置窗打开埋点（齿轮菜单 / ⌘, / 各处「设置」入口共用）
-        StatisticsManager.shared.record(.settingsOpen)
+        if !IslandController.shared.demoOnly { StatisticsManager.shared.record(.settingsOpen) }
         ensureWindow()
         Log.info("settings", "ensureWindow done, window=\(window != nil ? "exists" : "nil")")
-        if let pane {
+        if IslandController.shared.demoOnly {
+            uiState.selectPane("island")
+        } else if let pane {
             uiState.selectPane(pane)
         } else {
             // v272（2026-11-11）：复用窗口重开时显示选中行，保留页面和搜索输入。

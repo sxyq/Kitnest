@@ -27,7 +27,7 @@ struct IslandSurface<Content: View>: View {
         .modifier(IslandMorph(controller: controller, size: target,
                               progress: controller.expanded ? 1 : 0,
                               reduceMotion: reduceMotion, reduceTransparency: reduceTransparency))
-        .animation(reduceMotion ? Theme.Motion.tap : controller.expanded ? Theme.Motion.springSoft : .spring(response: 0.28, dampingFraction: 1),
+        .animation(reduceMotion ? .easeOut(duration: 0.12) : controller.expanded ? .spring(response: 0.36, dampingFraction: 0.88) : .spring(response: 0.28, dampingFraction: 1),
                    value: [target.width, target.height, controller.expanded ? 1 : 0])
         .foregroundStyle(.primary)
         .tint(Theme.accent(for: nil))
@@ -45,7 +45,7 @@ struct IslandSurface<Content: View>: View {
             }
             Spacer()
             Button {
-                if controller.previewOnly { controller.feedback = "完整主面板入口预览" }
+                if controller.simulated { controller.feedback = "完整主面板入口预览" }
                 else { controller.collapse(); ServiceLocator.panel?.show() }
             } label: {
                 Image(systemName: "macwindow").frame(width: 28, height: 28)
@@ -55,7 +55,7 @@ struct IslandSurface<Content: View>: View {
                 else { controller.collapse(); ServiceLocator.settings?.open(pane: "island") }
             } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 28, height: 28)
-            }.buttonStyle(IslandButtonStyle(help: "刘海与组件")).accessibilityLabel("刘海与组件")
+            }.buttonStyle(IslandButtonStyle(help: "总设置 · 刘海工作台")).accessibilityLabel("总设置 · 刘海工作台")
             Button(action: controller.collapse) {
                 Image(systemName: "chevron.up").frame(width: 28, height: 28)
             }.buttonStyle(IslandButtonStyle(help: "收回刘海 · Esc", tipAlignment: .bottomTrailing)).accessibilityLabel("收回刘海")
@@ -112,7 +112,7 @@ private struct IslandMorph: AnimatableModifier {
         let phase = min(1, max(0, progress))
         let radius = Theme.Radius.chip + (IslandLayout.corner - Theme.Radius.chip) * phase
         let outline = IslandOutline(radius: radius)
-        let reveal = min(1, max(0, (phase - 0.12) / 0.70))
+        let reveal = min(1, max(0, (phase - 0.24) / 0.62))
         content
             .opacity(reveal)
             .offset(y: reduceMotion ? 0 : -Theme.Space.sm * (1 - phase))
@@ -279,7 +279,7 @@ private struct IslandCollapsedView: View {
                 Image(systemName: peek == .media && controller.playing ? "pause.fill" : peek.icon)
                 if controller.peeksShowValues {
                     if peek == .monitor {
-                        IslandPeekPowerValue(previewOnly: controller.previewOnly)
+                        IslandPeekPowerValue(previewOnly: controller.simulated)
                     } else {
                         Text(value(peek)).font(.system(size: 10)).monospacedDigit().lineLimit(1)
                     }

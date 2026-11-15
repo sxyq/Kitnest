@@ -111,7 +111,7 @@ struct SettingsSidebarView: View {
                 }
             }
             Spacer(minLength: 0)
-            footer
+            if !IslandController.shared.demoOnly { footer }
         }
         .frame(width: Theme.settingsSidebarWidth)
         .background(
@@ -129,9 +129,9 @@ struct SettingsSidebarView: View {
         // v272：一级目录（SettingsGroup）+ 常驻展开的二级页（SettingsPage）。
         // 一级标题可点（跳到该组第一页），二级行才承载选中态。
         VStack(alignment: .leading, spacing: 1) {
-            ForEach(SettingsGroup.allCases) { group in
+            ForEach(SettingsGroup.allCases.filter { !IslandController.shared.demoOnly || $0.pages.contains(.island) }) { group in
                 groupHeader(group)
-                ForEach(group.pages, id: \.self) { page in
+                ForEach(group.pages.filter { !IslandController.shared.demoOnly || $0 == .island }, id: \.self) { page in
                     navRow(page)
                         .id(page)
                 }
@@ -146,7 +146,8 @@ struct SettingsSidebarView: View {
     private func groupHeader(_ group: SettingsGroup) -> some View {
         let on = SettingsGroup.group(of: state.selection) == group
         return Button {
-            if let first = group.pages.first { state.selection = first }
+            if IslandController.shared.demoOnly { state.selection = .island }
+            else if let first = group.pages.first { state.selection = first }
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: group.systemImage)
@@ -236,7 +237,7 @@ struct SettingsSidebarView: View {
 
     private var searchResults: some View {
         let needle = trimmedQuery
-        let hits = Self.searchIndex.filter { $0.matches(needle) }
+        let hits = Self.searchIndex.filter { $0.matches(needle) && (!IslandController.shared.demoOnly || $0.selection == .island) }
         return VStack(alignment: .leading, spacing: 1) {
             Text(hits.isEmpty ? "没有匹配的设置" : "找到 \(hits.count) 项")
                 .font(.system(size: 10.5, weight: .medium))
@@ -286,6 +287,7 @@ struct SettingsSidebarView: View {
         .init(title: "外观（浅色 / 深色 / Midnight）", area: "常规 › 主题外观", keywords: "主题 配色 暗色 深色模式 午夜", selection: .generalPersonal),
         .init(title: "语言", area: "常规 › 启动与外观", keywords: "中文 英文 language", selection: .generalStart),
         // 常规 · 主面板
+        .init(title: "刘海工作台（面积 / 模块 / 展开动画）", area: "常规 › 刘海工作台", keywords: "刘海 island 画布 行 列 宽 高 1×1 1×2 2×2 图标 辉光 悬停 预览", selection: .island),
         .init(title: "主面板（字号 / 圆角 / 宽度 / 背景图）", area: "常规 › 主面板", keywords: "字号 行高 圆角 宽度 面板页面 顺序 打开动画 背景图", selection: .generalPanel),
         .init(title: "外观预览（主面板）", area: "常规 › 主面板", keywords: "预览 实时 缩略窗 所见即所得", selection: .generalPanel),
         // 常规 · 独立窗口与浮层

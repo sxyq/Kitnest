@@ -14,7 +14,6 @@ final class IslandSettingsDraft: SettingsEditableDraft {
     }
     private var saved: IslandConfiguration
     let previewController: IslandController
-    private var previewWidth: CGFloat?
 
     init() {
         let configuration = IslandConfiguration.load()
@@ -44,11 +43,15 @@ final class IslandSettingsDraft: SettingsEditableDraft {
     func discard() { configuration = saved }
     func restoreDefaults() { configuration = IslandConfiguration() }
 
-    func updatePreview(availableWidth: CGFloat? = nil) {
-        if let availableWidth { previewWidth = availableWidth }
-        var preview = configuration
-        if let previewWidth { preview.width = min(preview.width, previewWidth) }
-        _ = previewController.apply(preview)
+    func updatePreview() { _ = previewController.apply(configuration) }
+
+    func setGrid(columns: Int, rows: Int) {
+        var next = configuration
+        next.gridColumns = columns
+        next.gridRows = rows
+        next.width = max(next.width, next.minimumWidth)
+        next.height = max(next.height, next.minimumHeight)
+        configuration = next
     }
 }
 
@@ -64,6 +67,7 @@ private struct IslandSettingsContent: View {
                     }
                 }
             }
+            canvas
             SettingsSection("实时预览") {
                 SettingsGroupBox {
                     IslandSettingsPreview(draft: draft, controller: draft.previewController)
@@ -79,25 +83,39 @@ private struct IslandSettingsContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var appearance: some View {
-        SettingsSection("尺寸、材质与悬停") {
+    private var canvas: some View {
+        SettingsSection("展开面积") {
             SettingsGroupBox {
-                SettingsRow(title: "展开尺寸") {
-                    Text("宽")
-                    TextField("宽度", value: Binding(
-                        get: { Double(draft.configuration.width) },
-                        set: { draft.configuration.width = CGFloat($0) }
-                    ), format: .number.precision(.fractionLength(0)))
-                        .frame(width: 64)
-                    Text("高")
-                    TextField("高度", value: Binding(
-                        get: { Double(draft.configuration.height) },
-                        set: { draft.configuration.height = CGFloat($0) }
-                    ), format: .number.precision(.fractionLength(0)))
-                        .frame(width: 64)
-                    Text("pt").foregroundStyle(.secondary)
+                SettingsRow(title: "组件画布", subtitle: "列 × 行；组件尺寸按行 × 列标注，超出当前画布时自动分页") {
+                    Picker("画布列数", selection: Binding(get: { draft.configuration.columns },
+                        set: { draft.setGrid(columns: $0, rows: draft.configuration.rows) })) {
+                        ForEach(2...6, id: \.self) { Text("\($0) 列").tag($0) }
+                    }.labelsHidden().frame(width: 90)
+                    Text("×")
+                    Picker("画布行数", selection: Binding(get: { draft.configuration.rows },
+                        set: { draft.setGrid(columns: draft.configuration.columns, rows: $0) })) {
+                        ForEach(1...4, id: \.self) { Text("\($0) 行").tag($0) }
+                    }.labelsHidden().frame(width: 90)
                 }
                 SettingsDivider()
+                SettingsRow(title: "展开尺寸", subtitle: "单格至少 154 × 126pt，调整只更新预览") {
+                    Text("宽")
+                    TextField("宽度", value: Binding(get: { Double(draft.configuration.width) },
+                        set: { draft.configuration.width = max(CGFloat($0), draft.configuration.minimumWidth) }),
+                        format: .number.precision(.fractionLength(0))).frame(width: 64)
+                    Text("高")
+                    TextField("高度", value: Binding(get: { Double(draft.configuration.height) },
+                        set: { draft.configuration.height = max(CGFloat($0), draft.configuration.minimumHeight) }),
+                        format: .number.precision(.fractionLength(0))).frame(width: 64)
+                    Text("pt").foregroundStyle(.secondary)
+                }
+            }.textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private var appearance: some View {
+        SettingsSection("材质与悬停") {
+            SettingsGroupBox {
                 SettingsRow(title: "黑色玻璃") {
                     Toggle("黑色玻璃", isOn: $draft.configuration.usesGlass).labelsHidden()
                 }
@@ -179,7 +197,9 @@ private struct IslandSettingsContent: View {
                             get: { draft.configuration.size(for: widget) },
                             set: { draft.configuration.widgetSizes[widget.rawValue] = $0 }
                         )) {
-                            ForEach(IslandWidgetSize.allCases) { size in
+                            ForEach(IslandWidgetSize.allCases.filter {
+                                $0.columns <= draft.configuration.columns && $0.rows <= draft.configuration.rows
+                            }) { size in
                                 Text(size.rawValue).tag(size)
                             }
                         }.labelsHidden().frame(width: 90)
@@ -210,20 +230,27 @@ private struct IslandSettingsContent: View {
 private struct IslandSettingsPreview: View {
     @ObservedObject var draft: IslandSettingsDraft
     @ObservedObject var controller: IslandController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Toggle("展开预览", isOn: $controller.expanded)
-            GeometryReader { geometry in
+            HStack {
+                Toggle("展开预览", isOn: $controller.expanded)
+                Spacer()
+                Text("\(draft.configuration.columns) × \(draft.configuration.rows) 格 · \(Int(controller.effectiveWidth)) × \(Int(controller.effectiveHeight))pt")
+                    .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
+            }
+            ScrollView(.horizontal) {
                 IslandRootView(controller: controller)
                     .environment(\.isSettingsPreview, true)
-                    .frame(width: geometry.size.width, height: draft.configuration.height, alignment: .top)
-                    .onAppear { draft.updatePreview(availableWidth: geometry.size.width) }
-                    .onChange(of: geometry.size.width) { draft.updatePreview(availableWidth: $0) }
+                    .frame(width: max(controller.effectiveWidth, controller.collapsedWidth),
+                           height: controller.effectiveHeight, alignment: .top)
+                    .padding(.horizontal, 8)
             }
-            .frame(height: draft.configuration.height)
+            .frame(height: controller.expanded ? controller.effectiveHeight : controller.notchHeight + 8)
+            .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.36), value: controller.expanded)
             .clipped()
-            Text("固定演示内容 · 预览宽度适配本页，文字与控件保持原尺寸")
+            Text("固定演示内容 · 可切页、操作图表与拖动排序；横向滚动查看原尺寸，保存才应用")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }

@@ -6,6 +6,8 @@ import SwiftUI
 final class IslandController: NSObject, ObservableObject {
     static let shared = IslandController()
     let previewOnly: Bool
+    var demoOnly: Bool { Bundle.main.bundleIdentifier == "com.sxyq.frsetnext.island" }
+    var simulated: Bool { previewOnly || demoOnly }
     var layoutDidChange: ((IslandConfiguration) -> Void)?
     @Published private(set) var configuration: IslandConfiguration
     @Published var expanded = false
@@ -56,8 +58,8 @@ final class IslandController: NSObject, ObservableObject {
         }
     }
     var peekOrder: [IslandPeek] { configuration.peekOrder }
-    var effectiveWidth: CGFloat { min(configuration.width, (panel?.screen?.frame.width ?? configuration.width + 40) - 40) }
-    var effectiveHeight: CGFloat { min(configuration.height, (panel?.screen?.frame.height ?? configuration.height + 40) - 40) }
+    var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), (panel?.screen?.frame.width ?? 2000) - 40) }
+    var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), (panel?.screen?.frame.height ?? 1400) - 40) }
 
     @discardableResult
     func apply(_ configuration: IslandConfiguration) -> String? {
@@ -70,13 +72,6 @@ final class IslandController: NSObject, ObservableObject {
             if configuration.enabled { start() } else { stop() }
         }
         return nil
-    }
-
-    func resize(_ widget: IslandWidget, to size: IslandWidgetSize) {
-        var next = configuration
-        next.widgetSizes[widget.rawValue] = size
-        if let reason = apply(next) { feedback = reason }
-        else { layoutDidChange?(next) }
     }
 
     func move(_ widget: IslandWidget, before target: IslandWidget) {
@@ -115,14 +110,14 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func refreshClipboard() {
-        if previewOnly { clipboardSummary = IslandSample.clipboard[0].title; return }
+        if simulated { clipboardSummary = IslandSample.clipboard[0].title; return }
         clipboardSummary = ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first?.content.map {
             String($0.prefix(24)).replacingOccurrences(of: "\n", with: " ")
         } ?? "暂无内容"
     }
 
     func copyLatest() {
-        if previewOnly { feedback = "预览：已复制近期内容"; return }
+        if simulated { feedback = "预览：已复制近期内容"; return }
         guard let item = ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first else {
             feedback = "暂无近期内容"; return
         }
@@ -131,7 +126,7 @@ final class IslandController: NSObject, ObservableObject {
 
     func copyDate() {
         let value = Date.now.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        feedback = previewOnly ? "预览：已复制日期" : ClipboardManager.shared.copyText(value, successMessage: "已复制日期 \(value)") ?? "已复制日期 \(value)"
+        feedback = simulated ? "预览：已复制日期" : ClipboardManager.shared.copyText(value, successMessage: "已复制日期 \(value)") ?? "已复制日期 \(value)"
     }
 
     func activatePeek(_ peek: IslandPeek) {
@@ -139,7 +134,7 @@ final class IslandController: NSObject, ObservableObject {
             switch peek {
             case .clipboard: copyLatest()
             case .media:
-                if previewOnly { playing.toggle() }
+                if simulated { playing.toggle() }
                 else { page = .media; expand(takeFocus: true) }
             case .calendar: copyDate()
             case .monitor: page = .monitor; expand(takeFocus: true)
@@ -204,8 +199,9 @@ final class IslandController: NSObject, ObservableObject {
             notchWidth = 180
             notchHeight = 28
         }
-        let size = NSSize(width: min(configuration.width, screen.frame.width - 40) + 32,
-                          height: min(configuration.height, screen.frame.height - 40) + 16)
+        // 舞台保留当前动画所需范围，缩小时不提前裁掉正在收缩的外壳。
+        let size = NSSize(width: min(max(panel.frame.width, effectiveWidth + 32, collapsedWidth + 32), screen.frame.width),
+                          height: min(max(panel.frame.height, effectiveHeight + 16), screen.frame.height))
         let scale = screen.backingScaleFactor
         panel.setFrame(NSRect(x: ((screen.frame.midX - size.width / 2) * scale).rounded() / scale,
                               y: screen.frame.maxY - size.height,
@@ -229,7 +225,7 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = false
         expanded = false
-        if !previewOnly { MonitorSampler.shared.setIslandActive(false) }
+        if !simulated { MonitorSampler.shared.setIslandActive(false) }
         hoverArmed = !inside
         panel?.makeFirstResponder(nil)
     }

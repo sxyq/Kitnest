@@ -14,7 +14,7 @@ struct IslandRootView: View {
     @Stored private var records: [IslandRecentRow] = []
     @Stored private var homeMonitorVisible = false
 
-    private var preview: Bool { controller.previewOnly || isSettingsPreview }
+    private var preview: Bool { controller.simulated || isSettingsPreview }
     private var monitoringVisible: Bool {
         controller.expanded && (controller.page == .monitor || (controller.page == .home && homeMonitorVisible))
     }
