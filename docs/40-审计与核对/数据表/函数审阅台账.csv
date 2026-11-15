@@ -2489,14 +2489,13 @@ Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,
 Monitor,Features/Monitor/StatusBar/MonitorStatusItems.swift,MonitorStatusText,powerDetailText,func,12,KEEP,MonitorSettingsPane.swift:223 功耗行文案
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,157,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,observeGlobalEntryToggle,func,172,KEEP,start:42
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,startScreenGapProbe,func,200,KEEP,start:68
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,syncMainItem,func,252,KEEP,StatusBarController.swift:81、start:67
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openMonitor,func,266,KEEP,C 跳板:316 + 探针:138/144
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openSettings,func,295,KEEP,MonitorDetailView:1244、SettingsPanes:187
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openRecorder,func,304,KEEP,PanelRootView:485、CaptureSectionView:98
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,-,statsBarOpenMonitorTrampoline,func,315,KEEP,作为 C 函数指针交 FSStatsSetOpenMonitorHandler，StatsBarEngine:66
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,156,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,observeGlobalEntryToggle,func,169,KEEP,start:42
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,syncMainItem,func,186,KEEP,StatusBarController.swift:81、start:67
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openMonitor,func,200,KEEP,C 跳板:316 + 探针:138/144
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openSettings,func,229,KEEP,MonitorDetailView:1244、SettingsPanes:187
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openRecorder,func,238,KEEP,PanelRootView:485、CaptureSectionView:98
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,-,statsBarOpenMonitorTrampoline,func,249,KEEP,作为 C 函数指针交 FSStatsSetOpenMonitorHandler，StatsBarEngine:66
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsModulePage,init,init,23,KEEP,SettingsRootView.swift:126
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsRing,init,init,42,KEEP,segments 版，StatsModulePanels:590、719
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsRing,init,init,48,KEEP,value 版，StatsModulePanels:581、842

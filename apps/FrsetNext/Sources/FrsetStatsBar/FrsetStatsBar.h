@@ -40,14 +40,8 @@ NSStatusBarButton *FSBarMergedButton(void);
 BOOL FSRunCatIconEnabled(void);
 void FSRunCatIconSetEnabled(BOOL on);
 
-// v30：宽度变化后的保邻看守（tick 每 2s 调；引擎内部 quiet 时不动作）
-void FSBarKeepAdjacentTick(void);
-
-// v30：注册重建版主图标项（位置校准/保邻的参照物；重建版无原生项，主项由 Swift 自建）
+// 注册重建版主图标项，供引擎复用；位置由系统管理。
 void FSBarSetMainItem(NSStatusItem *item);
-
-// v30：接收 Swift 下发的屏幕口径空隙（主图标内容左缘 - 合并条内容右缘，>0=有空隙；-1=无数据）
-void FSBarSetScreenGap(double gap);
 
 // v30 排障：合并条状态项访问器（坐标探针用；引擎未建项时为 nil）
 NSStatusItem *FSBarMergedItem(void);

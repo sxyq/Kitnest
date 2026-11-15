@@ -926,12 +926,14 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         NSString *display = FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi");
         BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
         if (![mode isEqualToString:@"oneRow"]) {
-            // v98（2026-10-21）：双行宽度曾**定宽**（按最宽 "888.8 MB/s" 计 62pt），
-            // 目的是数值位数变化不挤动布局。
-            // v134（用户：「当前传感器与流量的检测是间距过大的」）：定宽在轻流量下
-            // 右侧空出 15-20pt，该部件与相邻部件的视觉间距被撑大。
-            // 改为「实际文本宽 + 宽度迟滞」（stabilizeWidth：变宽即时、变窄迟钝），
-            // 既贴紧内容又保持 v98 的"不时刻抖动"目标。
+            // 2026-11-16：用户要求网速定宽；使用正式字体量宽，不随速率或单位重排。
+            if ([_module isEqualToString:@"Network"]) {
+                NSFont *font = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
+                NSString *widthText = units ? @"1000.0 GB/s" : @"1000.0";
+                CGFloat width = value ? ceil([widthText sizeWithAttributes:@{NSFontAttributeName: font}].width / 2) * 2 : 0;
+                return (iconOn ? 7 : 0) + width;
+            }
+            // 磁盘速率保留按实际文本量宽与迟滞。
             NSFont *vf = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
             CGFloat tw = 0;
             if (value) {
@@ -1224,8 +1226,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     CGFloat outY = io ? half : 0;
     CGFloat inY  = io ? 0 : half;
     CGFloat textX = iconOn ? (iconRight ? 0 : 7) : 0;   // Stats：icon 区 7pt
-    // v28：rect 用实际内容区剩余宽（宽度现按文本动态计算；固定 48 会在右对齐时溢出 pad 区）
-    CGFloat rowW = MAX(24, r.size.width - textX);
+    // 两侧图标配置都先预留图标槽，右对齐文字不会覆盖右侧图标。
+    CGFloat rowW = MAX(24, r.size.width - (iconOn ? 7 : 0));
     if (valueOn) {
         FSBarTextRect(outStr, outAttrs, NSMakeRect(textX, outY, rowW, half), ta);
         FSBarTextRect(inStr, inAttrs, NSMakeRect(textX, inY, rowW, half), ta);
@@ -2148,7 +2150,6 @@ static int g_tickN = 0;
 static NSString *FSBarGlobalStr(NSString *key, NSString *def);   // 前向声明（位置代码引用）
 static NSStatusItem *g_mergedItem = nil;   // v11：合并显示项（CombinedModules）
 static NSView *g_mergedView = nil;         // v11：合并容器（紧排所有模块部件）
-static BOOL g_posCalibrating = NO;         // v17：位置校准期间跳过 restore
 
 @interface FSBarManager : NSObject
 // v28：合并条右键菜单（部件样式切换 / 分隔线 / 间距 / 打开面板）
@@ -2442,11 +2443,6 @@ static void FSBarPositionSave(NSString *ident) {
     }
 }
 
-// v30：宽度变化后的保邻修正（定义在文件后部，此处前向声明——FSBarMergedLayout 调用）
-static void FSBarKeepAdjacentToMain(void);
-// v30：完整位置校准（候选值扫描；保邻修正连续无效时升级调用）
-static void FSBarStartPositionCalibration(void);
-
 static CGFloat FSBarLayoutWidgets(NSView *container, NSArray<FSBarWidgetView *> *widgets,
                                   CGFloat spacing, BOOL separator, NSString *color) {
     NSMutableArray<FSBarSepView *> *lines = [NSMutableArray array];
@@ -2520,23 +2516,14 @@ static void FSBarMergedLayout(void) {
             FSBarLog(@"合并布局 总宽=%.0fpt（spacing=%.0f sep=%d）: %@",
                      x, FSBarMergedSpacing(), FSBarMergedSeparator(), [parts componentsJoinedByString:@" "]);
         }
-        // v30：宽度变了 → position 锚定的相邻态失效，延迟到系统重排后保邻修正
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{ FSBarKeepAdjacentToMain(); });
     }
 }
 
 // 创建合并项（幂等；创建前恢复偏好位置）
 static void FSBarEnsureMergedItem(void) {
     if (g_mergedItem) return;
-    if (!g_posCalibrating) {
-        FSBarPositionRestore(@"frset.bar.merged");
-        // v17：首次创建无历史值时用实测默认 500（实证：该值使合并条紧贴主图标左侧）
-        // v71（实测：合并条被挤出屏幕右缘只剩残段）：不再钉 Preferred Position=500。
-        // 500 是旧屏/旧图标数下的锚位；图标增多后 500+宽度与主图标 322 把整组
-        // 挤到屏幕外。清掉钉位让系统自动排布。
-        [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"NSStatusItem Preferred Position frset.bar.merged"];
-    }
+    // 清掉旧校准留下的固定位置，长度变化交由系统菜单栏排布。
+    [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"NSStatusItem Preferred Position frset.bar.merged"];
     g_mergedItem = [[NSStatusBar systemStatusBar] statusItemWithLength:0];
     g_mergedItem.autosaveName = @"frset.bar.merged";
     g_mergedView = [[FSBarMergedView alloc] initWithFrame:NSMakeRect(0, 0, 1, 22)];
@@ -2625,138 +2612,9 @@ static CGFloat FSBarItemsGap(NSStatusItem *a, NSStatusItem *b) {
     if (ra.size.width < 1 || rb.size.width < 1) return 1e9;
     return MIN(fabs(NSMaxX(ra) - rb.origin.x), fabs(NSMaxX(rb) - ra.origin.x));
 }
-static void FSBarRecreateMerged(void) {
-    g_posCalibrating = YES;
-    FSBarRemoveMergedItem();
-    FSBarEnsureMergedItem();
-    FSBarMergedLayout();
-    g_posCalibrating = NO;
-}
-
-// v30：宽度变化后的「保邻修正」（2026-10-16 实测修复：38-44pt 漂移）
-//
-// 病灶：合并条位置锚 `NSStatusItem Preferred Position frset.bar.merged`
-// （从菜单栏右缘量）。启动 3s 校准时若读到"已相邻"即收工——但那一帧的 frame
-// 是旧宽度下的（如 w=196 时右缘正好贴主图标左缘 1350）。随后部件宽度随内容
-// 每秒动态变化（Network speed 49↔53pt…），系统按同一 position 重排：
-// 左缘基本不动、右缘收缩 → 与主图标裂开 38-44pt（截图实测）。
-// 注入版同样受此影响，stats-recon 文档记为"偶发漂移约 38pt"。
-//
-// 对策（两级）：
-//   ① frame 修正：宽度变化后延迟到系统重排完成，直接把合并条窗口右缘贴到
-//      主图标左缘（setFrameOrigin，免重建、无闪烁），并同步 position 记录。
-//      适用于 length 不变时系统不重排的场景（残余小 gap）。
-//   ② 升级校准：若 frame 修正连续被系统覆盖（length 每秒变 → 每秒重排），
-//      说明 position 槽位本身与主图标错开——触发完整校准（候选值扫描 +
-//      重建项），找出让系统把合并条放进相邻槽的 position。带 20s 冷却防抖。
-// ============================================================================
-static int s_adjFail = 0;                     // ① 连续无效次数
-static NSDate *s_lastCalibAt = nil;           // ② 上次升级校准时间（冷却）
-static CGFloat s_adjLastGap = 1e9;            // 日志节流：gap 变化才记录
-static BOOL s_calibrating = NO;               // 校准互斥（防启动校准与保邻升级并发）
-static NSDate *s_engineStartAt = nil;         // v30：引擎启动时间（宽限期判据）
-static NSRect s_lastRead = {{0, 0}, {0, 0}};  // v30：上次读取的合并条 frame（稳定性判据）
-static int s_stableHits = 0;                  // v30：连续相同帧次数
-static int s_upgradeCount = 0;                // v30：本次会话升级校准次数（上限 3）
-static double s_screenGap = -1;               // v30：屏幕口径空隙（Swift 下发；-1=无）
-static const CGFloat kScreenGapTarget = 16.0; // v30：屏幕口径相邻目标 = 双方按钮 padding 之和
-
-/// v30：接收 Swift 下发的屏幕口径空隙（主图标内容左缘 - 合并条内容右缘，>0=有空隙）。
-/// 主图标的 window.frame 读数对 fan 样式持续偏低 ~48pt（2026-10-17 实测），
-/// 而 convertToScreen 内容坐标与截图吻合——保邻修正以屏幕口径为准。
-void FSBarSetScreenGap(double gap) { s_screenGap = gap; }
-
-static void FSBarKeepAdjacentToMain(void) {
-    if (!g_mergedItem || !g_mergedItem.button || !g_mergedItem.button.window) return;
-    // v30：启动宽限期 5s——系统在启动初期还在布局，gap 读到的是暂放值
-    // （实测 176），此时判据不可信。
-    if (!s_engineStartAt) s_engineStartAt = [NSDate date];
-    if ([s_engineStartAt timeIntervalSinceNow] > -5.0) return;
-    @try {
-        NSStatusItem *main = FSBarMainItem();
-        if (!main) return;
-        NSRect rm = FSBarItemRect(g_mergedItem), rmain = FSBarItemRect(main);
-        if (rm.size.width < 1 || rmain.size.width < 1) return;
-        // 只处理"合并条在主图标左侧"的标准布局（反序说明用户手动拖过，不干预）
-        if (rm.origin.x > rmain.origin.x) return;
-        CGFloat gap = NSMaxX(rm) - rmain.origin.x;   // >0 = 重叠；<0 = 有空隙
-        // v30：屏幕口径优先（Swift 每 0.5s 下发真实 convertToScreen 空隙，
-        // 实时值无需稳定闸门）。主图标 fan 样式的 window.frame 读数持续偏低
-        // ~48pt（2026-10-17 实测：窗口口径 gap=0 而屏幕空隙 69pt），故有屏幕
-        // 数据时以它为准；目标空隙 = 双方按钮 padding 之和 16pt（注入版观感）。
-        if (s_screenGap >= 0) {
-            CGFloat delta = s_screenGap - kScreenGapTarget;
-            if (fabs(delta) <= 6) { s_adjFail = 0; return; }
-            rm.origin.x += delta;   // delta>0（空隙过大）→ 右移贴近
-            [g_mergedItem.button.window setFrameOrigin:rm.origin];
-            if (fabs(s_screenGap - s_adjLastGap) > 0.5) {
-                s_adjLastGap = s_screenGap;
-                FSBarLog(@"[pos] 屏幕保邻：空隙=%.0f → 目标16（frame x%+.0f）", s_screenGap, delta);
-            }
-            s_adjFail++;
-            if (s_adjFail >= 6) {
-                s_adjFail = 0;
-                BOOL cooling = s_lastCalibAt && [s_lastCalibAt timeIntervalSinceNow] > -60.0;
-                if (!cooling && s_upgradeCount < 3) {
-                    s_upgradeCount++;
-                    s_lastCalibAt = [NSDate date];
-                    FSBarLog(@"[pos] 屏幕保邻连续无效（空隙=%.0f，第 %d 次升级）→ 完整校准", s_screenGap, s_upgradeCount);
-                    FSBarStartPositionCalibration();
-                }
-            }
-            return;
-        }
-        // 帧稳定性闸门：连续两次调用（间隔约 0.5s）读到相同 frame 才继续，
-        // 排除系统重排中间态（w 已变、x 未提交）造成的假 gap（仅窗口口径需要）
-        if (NSEqualRects(rm, s_lastRead)) { s_stableHits++; } else { s_stableHits = 0; }
-        s_lastRead = rm;
-        if (s_stableHits < 1) return;
-        // 窗口口径（回退路径，无屏幕数据时）：容差 6pt
-        if (fabs(gap) <= 6) { s_adjFail = 0; return; }
-        // ① frame 修正（窗口口径回退）：把合并条窗口右缘贴到主图标左缘。
-        //   系统在 length 变化时按 position 重排会覆盖——故看守与 length
-        //   变化同频（每 0.5s），覆盖后半个周期内即贴回，视觉空隙最小化。
-        rm.origin.x -= gap;
-        [g_mergedItem.button.window setFrameOrigin:rm.origin];
-        if (fabs(gap - s_adjLastGap) > 0.5) {
-            s_adjLastGap = gap;
-            FSBarLog(@"[pos] 保邻修正：gap=%.0f → 0（frame x%+.0f）", gap, -gap);
-        }
-        // ② 修正是否生效由下一次观测判定：gap 依旧 → 计数；连续 6 次（3s）无效
-        //   才升级校准，避免长度抖动期误触发
-        s_adjFail++;
-        if (s_adjFail >= 6) {
-            s_adjFail = 0;
-            BOOL cooling = s_lastCalibAt && [s_lastCalibAt timeIntervalSinceNow] > -60.0;
-            if (!cooling && s_upgradeCount < 3) {
-                s_upgradeCount++;
-                s_lastCalibAt = [NSDate date];
-                FSBarLog(@"[pos] frame 修正连续无效（gap=%.0f，第 %d 次升级）→ 完整校准", gap, s_upgradeCount);
-                FSBarStartPositionCalibration();
-            }
-        }
-    } @catch (NSException *e) {
-        FSBarLog(@"[pos] 保邻修正异常：%@", e.reason);
-    }
-}
-
-/// 保邻看守入口（tick 每 0.5s 调；与 length 重排同频；quiet 时不动作）
-void FSBarKeepAdjacentTick(void) {
-    if (!g_mergedItem || g_posCalibrating) return;
-    // v125（性能审计 F1641）：空隙已达标时跳过主队列跳。
-    // 原来每 0.5s 无条件 dispatch_async → FSBarKeepAdjacentToMain 内部再判 fabs<=6 早退，
-    // 属「空跳」：白付一次主队列 hop + 函数调用。现把判据提到 dispatch 之前，
-    // 稳态（gap 16±6pt，绝大多数时间）零开销；只在真正需要修正时才进主线程。
-    if (s_screenGap >= 0 && fabs(s_screenGap - kScreenGapTarget) <= 6) return;
-    dispatch_async(dispatch_get_main_queue(), ^{ FSBarKeepAdjacentToMain(); });
-}
-
-/// v30：注册重建版主图标项（位置校准/保邻的参照物）。
-/// 重建版没有注入版的"原生监控项"，主项由 Swift 状态栏自建——
-/// 不注册的话 FSBarMainItem() 永远为 nil，上述机制全部静默跳过。
 void FSBarSetMainItem(NSStatusItem *item) {
     g_mainItemRef = item;
-    if (item) FSBarLog(@"[pos] 主图标项已注册（%@），位置校准/保邻就绪", item.autosaveName ?: @"?");
+    if (item) FSBarLog(@"主图标项已注册（%@）", item.autosaveName ?: @"?");
 }
 
 /// v30 排障：合并条状态项访问器（坐标探针用；引擎未建项时为 nil）
@@ -2815,106 +2673,6 @@ void FSBarDebugPosProbe(void) {
         FSBarLog(@"[pos] 实验2 克隆已移除（面板此前 visible=%d，未点击避免干扰）", (int)before);
     }
 }
-
-// ============================================================================
-// v30：布局稳定性闸门
-// recreate 后系统先给合并条一个「暂放位」（未按 position 布局的默认落点，
-// 实测 x=860 w=196）——立即读 frame 会读到这个假象帧（数字上恰好贴住主图标，
-// 导致"已相邻"误判、采用并未真正生效的 position，漂移依旧）。
-// 连续两次（间隔 0.3s）读取相同才算系统布局完成，最多等 1.5s。
-// ============================================================================
-static void FSBarWaitStableFrame(void (^completion)(void)) {
-    __block NSRect last = NSZeroRect;
-    __block int tries = 0;
-    __block void (^poll)(void);   // 前向（块自引用）
-    poll = ^{
-        NSRect cur = g_mergedItem.button ? g_mergedItem.button.window.frame : NSZeroRect;
-        tries++;
-        BOOL settled = (tries >= 2) && NSEqualRects(cur, last) && cur.size.width > 4;
-        last = cur;
-        if (settled || tries >= 5) { completion(); return; }
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), poll);
-    };
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), poll);
-}
-
-// ============================================================================
-// v30 重写：候选扫描校准（围绕实证锚点 500）
-//
-// 历程记录（2026-10-16，均实测）：
-//   · 原候选扫描： recreate 后 0.6s 读 frame 读到系统**暂放位**（x=860 w=196，
-//     未按 position 布局），数字上恰好贴住主图标 → "已相邻"误判。
-//   · 增量收敛： position→x 增益约 13:1（ΔP 501 ↔ Δx 38，2026-10-16 标定），
-//     按 gap 等量微调永远追不上；且 P 掉出有效区（<-1）后合并条掉到
-//     左边界 1060，与主图标恒定差 38pt。
-// 现机制：候选扫描 + 稳定性闸门（连续两帧相同）。锚点 500 是本机实证值
-// （主图标 1294 时 x=1098 恰好相邻）；主图标落点变化时 ±100/±500/±1000
-// 覆盖。8 轮上限，失败恢复 500（不污染）。
-// ============================================================================
-static void FSBarStartPositionCalibration(void) {
-    if (!g_mergedItem || g_posCalibrating || s_calibrating) return;
-    NSStatusItem *main = FSBarMainItem();
-    if (!main || !main.button || !g_mergedItem.button) return;
-    NSRect rmain = FSBarItemRect(main), rmer = FSBarItemRect(g_mergedItem);
-    if (FSBarItemsAdjacent(g_mergedItem, main, 6)) {
-        FSBarLog(@"[pos] 已相邻（主 x=%.0f w=%.0f | 合并 x=%.0f w=%.0f）", rmain.origin.x, rmain.size.width, rmer.origin.x, rmer.size.width);
-        return;
-    }
-    FSBarLog(@"[pos] 开始校准（主 x=%.0f w=%.0f | 合并 x=%.0f w=%.0f gap=%.0f）",
-             rmain.origin.x, rmain.size.width, rmer.origin.x, rmer.size.width, FSBarItemsGap(g_mergedItem, main));
-    NSString *pkey = @"NSStatusItem Preferred Position frset.bar.merged";
-    // 候选：本机实证锚点 500 居中，±100/±500/±1000 覆盖主图标落点变化
-    NSArray *cands = @[@(500), @(600), @(400), @(1000), @(0), @(1500), @(-500), @(2000)];
-    __block NSUInteger idx = 0;
-    __block BOOL done = NO;
-    s_calibrating = YES;
-
-    void (^measure)(void);   // 前向
-    __block void (^measureB)(void);
-    measure = ^{
-        if (done) return;
-        if (idx >= cands.count) {
-            // 全部失败：恢复锚点 500（不保存乱调的中间值污染下次启动）
-            [[NSUserDefaults standardUserDefaults] setDouble:500.0 forKey:pkey];
-            [[NSUserDefaults standardUserDefaults] synchronize];
-            FSBarRecreateMerged();
-            FSBarPositionSave(@"frset.bar.merged");
-            FSBarLog(@"[pos] 校准结束（无候选命中）已恢复锚点 500");
-            done = YES;
-            s_calibrating = NO;
-            return;
-        }
-        double v = [cands[idx] doubleValue];
-        [[NSUserDefaults standardUserDefaults] setDouble:v forKey:pkey];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-        FSBarRecreateMerged();
-        FSBarWaitStableFrame(^{
-            if (done) return;
-            NSStatusItem *m = FSBarMainItem();
-            if (!m) { done = YES; s_calibrating = NO; return; }
-            NSRect rm = FSBarItemRect(g_mergedItem);
-            if (rm.origin.x < 2 || rm.size.width < 4) { measureB(); return; }
-            CGFloat gap = FSBarItemsGap(g_mergedItem, m);
-            BOOL ok = fabs(gap) <= 6;
-            FSBarLog(@"[pos] 候选 %.0f → gap=%.0f 相邻=%d（合并 x=%.0f w=%.0f）", v, gap, (int)ok, rm.origin.x, rm.size.width);
-            if (ok) {
-                FSBarPositionSave(@"frset.bar.merged");
-                FSBarLog(@"[pos] 采用 %.0f（相邻 gap=%.0f）", v, gap);
-                s_adjFail = 0;
-                done = YES;
-                s_calibrating = NO;
-                return;
-            }
-            idx++;
-            measureB();
-        });
-    };
-    measureB = measure;   // 块内自引用（__block 引用，运行到调用时已赋值）
-    measure();
-}
-
 
 // 隐藏原生 SwiftUI 托管视图（自愈）
 static void FSBarHideNativeSubviews(NSButton *btn, NSView *keep) {
@@ -3170,7 +2928,6 @@ void FSBarSystemTick(void) {
 void FSBarSystemStart(NSMutableArray *statusItems) {
     FSBarLoadStore();
     g_statusItems = statusItems;
-    s_engineStartAt = [NSDate date];   // v30：保邻宽限期起点
     g_ownItems = [NSMutableDictionary dictionary];
     g_views = [NSMutableDictionary dictionary];
     g_nativeItems = [NSMutableDictionary dictionary];
@@ -3183,10 +2940,6 @@ void FSBarSystemStart(NSMutableArray *statusItems) {
     FSBarLog(@"部件系统启动 merged=%d spacing=%@ sep=%d screen=%ld",
              FSBarMergedEnabled(), FSBarGlobalStr(@"CombinedModules_spacing", @"none"),
              FSBarMergedSeparator(), (long)0);
-    // v17：3s 后做一次位置校准（等系统菜单栏布局稳定）
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        FSBarStartPositionCalibration();
-    });
     // v28：合并条探针（FRSET_BARCHAR=1）—— 打印位置/可见性并渲染内容快照
     if (getenv("FRSET_BARCHAR") && *getenv("FRSET_BARCHAR")) FSBarDebugCharProbe();
 }

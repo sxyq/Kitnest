@@ -149,7 +149,6 @@ void frset_power_sample(frset_power_t *out) {
 }
 
 // v30：保邻看守（frset_barwidgets.m 实现；桥接头 FrsetStatsBar.h 亦声明）
-void FSBarKeepAdjacentTick(void);
 
 #define kSampleInterval 0.5
 
@@ -347,7 +346,6 @@ void FSStatsTickStart(void) {
             FSBarSystemTick();
             // v30：保邻看守每 tick（0.5s）调——与 length 重排（网速数值变化）同频，
             // frame 修正后最多半个采样周期被覆盖，视觉空隙最小化
-            FSBarKeepAdjacentTick();
         }
     }];
     [[NSRunLoop mainRunLoop] addTimer:s_tickTimer forMode:NSRunLoopCommonModes];
