@@ -2417,27 +2417,22 @@ Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,no
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReadResult,init,init,11,KEEP,readResult:180 构造返回
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,update,func,47,KEEP,MonitorSampler.swift:296
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,reset,func,53,KEEP,MonitorSampler.swift:324 resetHistory
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,init,init,128,KEEP,MonitorSampler.swift:42 private let reader = MonitorReader()
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,141,KEEP,MonitorSampler.swift:212
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,184,KEEP,MonitorSampler.swift:250
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,190,KEEP,readResult:147
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,253,KEEP,readResult:154、171
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readLoadAverages,func,283,KEEP,loadAverages:185
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,294,KEEP,readNetworkRate:334
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,326,KEEP,readResult:160
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,340,KEEP,readResult:164
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,379,KEEP,readResult:177
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readRawTemperatures,func,411,KEEP,readTemperatures 的 sensorQueue 闭包:400
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readSMCTemperature,func,433,KEEP,readRawTemperatures:432
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,smcCall,func,468,KEEP,readSMCTemperature:446、453
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,487,KEEP,readResult:168
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,505,KEEP,readResult:178
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,532,KEEP,readCPU:233-235、readNetworkRate:340、readDiskRate:378
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,536,KEEP,readNetworkRate:340-341、readDiskRate:378-379
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,543,KEEP,readCPU:240/245-247、readMemory:278、readBatteryLevel:504
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,548,KEEP,readDiskRate:365-366
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharCode,func,554,KEEP,readSMCTemperature:441
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,fourCharString,func,558,KEEP,readSMCTemperature:458 判 dataType
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,init,init,115,KEEP,MonitorSampler.swift:42 private let reader = MonitorReader()
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,128,KEEP,MonitorSampler.swift:212
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,171,KEEP,MonitorSampler.swift:250
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,177,KEEP,readResult:147
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,240,KEEP,readResult:154、171
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readLoadAverages,func,270,KEEP,loadAverages:185
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,281,KEEP,readNetworkRate:334
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,313,KEEP,readResult:160
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,327,KEEP,readResult:164
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,365,KEEP,readResult:177
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,372,KEEP,readResult:168
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,390,KEEP,readResult:178
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,417,KEEP,readCPU:233-235、readNetworkRate:340、readDiskRate:378
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,421,KEEP,readNetworkRate:340-341、readDiskRate:378-379
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,428,KEEP,readCPU:240/245-247、readMemory:278、readBatteryLevel:504
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,433,KEEP,readDiskRate:365-366
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,40,KEEP,MonitorSampler:16/48/49 构造；resetHistory:326
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,69,KEEP,刘海监测实际可见时设置islandActive并applyPreferences重新安排现有采样，激活立即refresh，状态相同不重复安排
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,76,KEEP,MonitorPopoutWindow.swift:242/323/359
@@ -2677,24 +2672,24 @@ Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorPerformanceContent
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailView,init,init,70,KEEP,同名重载错挂：init(selection:pageMode:fixedWidth:) 是 :25 在用；init(module:) 已删
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,init,init,147,KEEP,MonitorDetailView 保存选择/页模式/宽度；MonitorDetailContent 接收采样、历史、Stats、额外指标和卷列表及可选真实控制器，固定预览使用独立选择与静态数据
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,ensureSelection,func,188,KEEP,模块显隐改变后在仍可见的模块中保留当前选择；设置侧栏指定的单模块详情不改成另一模块。
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,moduleButton,func,258,KEEP,整行切换统一模块，悬停不切换；分别绘制悬停、选中与键盘焦点，方向键定位相邻模块。
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,currentValue,func,287,KEEP,模块列表读取正式当前采样，预览读取固定场景；无 GPU、电池或整机功耗时显示对应状态。
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,305,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,418,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,434,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,535,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,570,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,579,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,590,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,658,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,672,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,728,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,874,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,977,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1128,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1165,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1193,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1235,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,moduleButton,func,261,KEEP,整行切换统一模块，悬停不切换；分别绘制悬停、选中与键盘焦点，方向键定位相邻模块。
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,currentValue,func,290,KEEP,模块列表读取正式当前采样，预览读取固定场景；无 GPU、电池或整机功耗时显示对应状态。
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,308,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,421,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,437,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,538,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,573,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,582,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,593,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,661,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,675,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,731,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,877,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,980,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1131,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1168,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1196,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1238,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,thickness,func,59,KEEP,同文件:214 ribbonArea 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,nodeIcon,func,152,KEEP,同文件:132、170 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,branchTile,func,165,KEEP,同文件:92 body ForEach 调用
