@@ -3,8 +3,6 @@
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SRC="$ROOT/Sources"
-APP_NAME=Kitnest
-if [ "${KITNEST_ISLAND_DEMO:-0}" = 1 ]; then APP_NAME="Kitnest Island"; fi
 # v31（2026-10-18）：构建产物与部署全程原子化。
 # 病灶：原先「rm -rf build/Kitnest.app → 原地编译」，且部署用 ditto 覆盖合并——
 #   构建/复制的几秒窗口期内，Finder 双击拿到的是半成品 bundle，Gatekeeper 直接报
@@ -13,11 +11,8 @@ if [ "${KITNEST_ISLAND_DEMO:-0}" = 1 ]; then APP_NAME="Kitnest Island"; fi
 # 方案：编译/签名/校验全在 build/.staging/ 的暂存 bundle 内完成，最后 rename 换位
 #   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
-APP_FINAL="$ROOT/build.noindex/$APP_NAME.app"
-APP="$ROOT/build.noindex/.staging/$APP_NAME.app"
-if [ "$APP_NAME" = "Kitnest Island" ]; then
-  APP="/Applications/.Kitnest Island.app.staging"
-fi
+APP_FINAL="$ROOT/build.noindex/Kitnest.app"          # 对外可见的构建产物（始终完整可启动）
+APP="$ROOT/build.noindex/.staging/Kitnest.app"       # 编译暂存（构建期间对外不可见）
 SDK="$(xcrun --show-sdk-path)"
 
 # 优化档位：默认 `-O` + **关闭全模块优化（no-WMO）**。
@@ -30,23 +25,15 @@ SDK="$(xcrun --show-sdk-path)"
 OPT_FLAGS="${FRSETNEXT_OPT:--O -no-whole-module-optimization}"
 
 echo "== 源码统计 =="
-find "$SRC" -name '*.swift' -not -name '._*' | wc -l | xargs echo "  Swift 文件:"
-find "$SRC" -name '*.swift' -not -name '._*' -exec cat {} + | wc -l | xargs echo "  总行数:"
+find "$SRC" -name '*.swift' | wc -l | xargs echo "  Swift 文件:"
+find "$SRC" -name '*.swift' -exec cat {} + | wc -l | xargs echo "  总行数:"
 
 echo "== 清理 =="
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
-if [ "$APP_NAME" = "Kitnest Island" ]; then
-  /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.sxyq.frsetnext.island' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Set :CFBundleName Kitnest Island' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Kitnest Island' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Delete :NSServices' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Delete :CFBundleDocumentTypes' "$APP/Contents/Info.plist"
-fi
 
-FILES=$(find "$SRC" -name '*.swift' -not -name '._*' \
+FILES=$(find "$SRC" -name '*.swift' \
   -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
   | sort | tr '\n' ' ')
 
@@ -85,10 +72,9 @@ rm -f "$APP/Contents/MacOS/Kitnest"
 # 来源：stats-recon/inject/（注入版同款代码，原样移植；注入入口/hook 已由
 # frset_stats_tick.m 替代为普通启停 API）。编译参数与注入版 build-dylib.sh 一致。
 OBJC_DIR="$SRC/FrsetStatsBar"
-OBJ_DIR="$ROOT/build.noindex/objc"
+OBJ_DIR="/tmp/frsetnext_objc"
 rm -rf "$OBJ_DIR"; mkdir -p "$OBJ_DIR"
-BUILD_LOG="$ROOT/build.noindex/build.log"
-: > "$BUILD_LOG"
+: > /tmp/frsetnext_build.log   # 重建日志：clang 段追加写，swiftc 段随后追加
 OBJ_FILES=""
 if [ -d "$OBJC_DIR" ]; then
   for f in "$OBJC_DIR"/*.c "$OBJC_DIR"/*.m; do
@@ -97,7 +83,7 @@ if [ -d "$OBJC_DIR" ]; then
     clang -c "$f" -o "$obj" \
       -isysroot "$SDK" -target arm64-apple-macosx13.0 \
       -I "$ROOT/Vendor/ocr" \
-      -fobjc-arc -O1 2>&1 | tee -a "$BUILD_LOG" | tail -5
+      -fobjc-arc -O1 2>&1 | tee -a /tmp/frsetnext_build.log | tail -5
     CLANG_RC=${PIPESTATUS[0]}
     if [ "$CLANG_RC" -ne 0 ] || [ ! -f "$obj" ]; then
       echo "✗ ObjC 编译失败: $f（退出码 $CLANG_RC）"
@@ -114,7 +100,7 @@ BRIDGE="$OBJC_DIR/FrsetStatsBar.h"
 # 终端上只会停在「== 编译 ==」而无任何结论——此时本文件是否残留就成了唯一的判据：
 #   残留 + 无产物 → 死在编译阶段（进程组被杀），不是代码问题，别改代码
 #   已删除+ 无产物 → 编译阶段正常结束却没出产物（真编译失败），去读 build log
-STAMP="$ROOT/build.noindex/build.stamp"
+STAMP=/tmp/frsetnext_build.stamp
 rm -f "$STAMP"; touch "$STAMP"
 
 swiftc $OPT_FLAGS -parse-as-library \
@@ -130,10 +116,10 @@ swiftc $OPT_FLAGS -parse-as-library \
   -framework IOKit -framework SystemConfiguration \
   -framework AVFoundation -framework CoreMedia \
   -framework QuickLookThumbnailing \
-  -framework WebKit 2>&1 | tee -a "$BUILD_LOG" | tail -40
+  -framework WebKit 2>&1 | tee -a /tmp/frsetnext_build.log | tail -40
 BUILD_RC=${PIPESTATUS[0]}
 rm -f "$STAMP"   # 走到这里说明脚本活着，撤掉标记
-LOG_BYTES=$(wc -c < "$BUILD_LOG" | tr -d ' ')
+LOG_BYTES=$(wc -c < /tmp/frsetnext_build.log | tr -d ' ')
 
 # 三分法（实测判据，见 docs/l10n-original-reference/MANIFEST.md 同类「无输出≠通过」原则）：
 #   log 0 字节 + 产物空 → 被 SIGKILL（资源竞争域），**不是代码问题**，别去改代码
@@ -150,7 +136,7 @@ if [ "$BUILD_RC" -eq 137 ]; then
   echo "  处置：等空闲后重跑（串行更稳），**不要改代码**"
   exit 137
 elif [ "$BUILD_RC" -ne 0 ]; then
-  echo "✗ 编译失败（退出码 $BUILD_RC，日志 ${LOG_BYTES} 字节），详见 $BUILD_LOG"
+  echo "✗ 编译失败（退出码 $BUILD_RC，日志 ${LOG_BYTES} 字节），详见 /tmp/frsetnext_build.log"
   exit 1
 fi
 
@@ -171,7 +157,7 @@ fi
 HELPER_NAME="com.sxyq.frsetnext.memoryhelper"
 HELPER_SRC="$ROOT/Sources/MemoryHelper/main.swift"
 HELPER_OUT="$APP/Contents/Library/PrivilegedHelperTools/$HELPER_NAME"
-if [ "$APP_NAME" = "Kitnest" ] && [ -f "$HELPER_SRC" ]; then
+if [ -f "$HELPER_SRC" ]; then
   echo "== 内存服务 helper =="
   mkdir -p "$(dirname "$HELPER_OUT")"
   if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
@@ -210,7 +196,7 @@ fi
 # ============================================================================
 OCR_H_DIR="$SRC/OCRHelper"
 OCR_H_OUT="$APP/Contents/Helpers/FrsetOCRHelper"
-if [ "$APP_NAME" = "Kitnest" ] && [ -f "$OCR_H_DIR/main.swift" ]; then
+if [ -f "$OCR_H_DIR/main.swift" ]; then
   echo "== 本地 OCR helper =="
   mkdir -p "$(dirname "$OCR_H_OUT")"
   OCR_OBJ_DIR="/tmp/frsetnext_ocr_helper"
@@ -260,8 +246,6 @@ if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
     && echo "  ONNX Runtime 签名 ✓" || echo "  ⚠ ONNX Runtime 签名失败"
 fi
 
-dot_clean -m "$APP"
-xattr -cr "$APP"
 echo "== 签名 =="
 # v30（2026-10-18）：屏幕录制授权失效根因修复——必须用固定证书签，不能用 ad-hoc（-s -）。
 #   ad-hoc 的 designated requirement = cdhash（二进制内容哈希）：每次重新编译内容必变
@@ -313,12 +297,6 @@ fi
 # 同上：rename 同卷原子，任何时刻 build/ 下的 app 都是完整可启动的；
 # 用户在构建期间双击也只会启动**上一个可用版本**，不会看到"已损坏"。
 # ============================================================================
-if [ "$APP_NAME" = "Kitnest Island" ]; then
-  rm -rf "/Applications/Kitnest Island.app"
-  mv "$APP" "/Applications/Kitnest Island.app"
-  echo "已部署：/Applications/Kitnest Island.app"
-  exit 0
-fi
 mkdir -p "$ROOT/build.noindex/.staging"
 rm -rf "$ROOT/build.noindex/.staging/old"
 if [ -d "$APP_FINAL" ]; then
@@ -354,9 +332,9 @@ echo "应用包: $APP"
 # 任一步失败都保留旧版不动，绝不把坏包放到用户双击的路径上。
 # app 正在运行时换位仍可完成（进程持旧 inode），下次启动即新版。
 # ============================================================================
-DEPLOY="/Applications/$APP_NAME.app"
-DEPLOY_STAGE="/Applications/.$APP_NAME.app.staging.$$"
-DEPLOY_OLD="/Applications/.$APP_NAME.app.old.$$"
+DEPLOY=/Applications/Kitnest.app
+DEPLOY_STAGE=/Applications/.Kitnest.app.staging.$$
+DEPLOY_OLD=/Applications/.Kitnest.app.old.$$
 LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
 if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/Kitnest" >/dev/null 2>&1; then

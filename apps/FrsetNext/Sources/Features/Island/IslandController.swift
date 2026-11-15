@@ -6,8 +6,6 @@ import SwiftUI
 final class IslandController: NSObject, ObservableObject {
     static let shared = IslandController()
     let previewOnly: Bool
-    var demoOnly: Bool { Bundle.main.bundleIdentifier == "com.sxyq.frsetnext.island" }
-    var simulated: Bool { previewOnly || demoOnly }
     var layoutDidChange: ((IslandConfiguration) -> Void)?
     @Published private(set) var configuration: IslandConfiguration
     @Published var expanded = false
@@ -34,6 +32,8 @@ final class IslandController: NSObject, ObservableObject {
     private var interacting = false
     private var horizontalScroll: CGFloat = 0
     private var didSwipe = false
+    private var afterCollapse: (() -> Void)?
+    private(set) var selection: AppBootstrap.SelectionResult?
 
     init(configuration: IslandConfiguration = .load(), previewOnly: Bool = false) {
         self.configuration = configuration
@@ -74,6 +74,13 @@ final class IslandController: NSObject, ObservableObject {
         return nil
     }
 
+    func resize(_ widget: IslandWidget, to size: IslandWidgetSize) {
+        var next = configuration
+        next.widgetSizes[widget.rawValue] = size
+        if let reason = apply(next) { feedback = reason }
+        else { layoutDidChange?(next) }
+    }
+
     func move(_ widget: IslandWidget, before target: IslandWidget) {
         guard widget != target else { return }
         var next = configuration
@@ -110,14 +117,14 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func refreshClipboard() {
-        if simulated { clipboardSummary = IslandSample.clipboard[0].title; return }
+        if previewOnly { clipboardSummary = IslandSample.clipboard[0].title; return }
         clipboardSummary = ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first?.content.map {
             String($0.prefix(24)).replacingOccurrences(of: "\n", with: " ")
         } ?? "暂无内容"
     }
 
     func copyLatest() {
-        if simulated { feedback = "预览：已复制近期内容"; return }
+        if previewOnly { feedback = "预览：已复制近期内容"; return }
         guard let item = ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first else {
             feedback = "暂无近期内容"; return
         }
@@ -126,7 +133,7 @@ final class IslandController: NSObject, ObservableObject {
 
     func copyDate() {
         let value = Date.now.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        feedback = simulated ? "预览：已复制日期" : ClipboardManager.shared.copyText(value, successMessage: "已复制日期 \(value)") ?? "已复制日期 \(value)"
+        feedback = previewOnly ? "预览：已复制日期" : ClipboardManager.shared.copyText(value, successMessage: "已复制日期 \(value)") ?? "已复制日期 \(value)"
     }
 
     func activatePeek(_ peek: IslandPeek) {
@@ -134,7 +141,7 @@ final class IslandController: NSObject, ObservableObject {
             switch peek {
             case .clipboard: copyLatest()
             case .media:
-                if simulated { playing.toggle() }
+                if previewOnly { playing.toggle() }
                 else { page = .media; expand(takeFocus: true) }
             case .calendar: copyDate()
             case .monitor: page = .monitor; expand(takeFocus: true)
@@ -150,6 +157,17 @@ final class IslandController: NSObject, ObservableObject {
         visibleSize = size
         visibleRadius = radius
         updatePointer()
+        if !expanded, size == CGSize(width: collapsedWidth, height: notchHeight), let action = afterCollapse {
+            afterCollapse = nil
+            DispatchQueue.main.async(execute: action)
+        }
+    }
+
+    func performOutside(_ action: @escaping () -> Void) {
+        if previewOnly { feedback = "操作预览"; return }
+        guard expanded else { action(); return }
+        afterCollapse = action
+        collapse()
     }
 
     func start() {
@@ -213,6 +231,7 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = openedExplicitly || takeFocus
         if !expanded {
+            if !previewOnly { selection = AppBootstrap.readSelection() }
             refreshClipboard()
             expanded = true
         }
@@ -225,7 +244,7 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = false
         expanded = false
-        if !simulated { MonitorSampler.shared.setIslandActive(false) }
+        if !previewOnly { MonitorSampler.shared.setIslandActive(false) }
         hoverArmed = !inside
         panel?.makeFirstResponder(nil)
     }

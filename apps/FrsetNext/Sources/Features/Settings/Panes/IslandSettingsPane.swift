@@ -98,7 +98,7 @@ private struct IslandSettingsContent: View {
                     }.labelsHidden().frame(width: 90)
                 }
                 SettingsDivider()
-                SettingsRow(title: "展开尺寸", subtitle: "单格至少 154 × 126pt，调整只更新预览") {
+                SettingsRow(title: "展开尺寸", subtitle: "小组件至少 110 × 48pt；大内容进入详情页，调整只更新预览") {
                     Text("宽")
                     TextField("宽度", value: Binding(get: { Double(draft.configuration.width) },
                         set: { draft.configuration.width = max(CGFloat($0), draft.configuration.minimumWidth) }),

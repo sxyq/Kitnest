@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// 总设置决定画布；异构组件超出时进入下一页，拖动只调整现有顺序。
+/// 默认 16 格画布；总设置调整行列，异构组件超出时进入下一页。
 struct IslandWidgetGrid<Content: View>: View {
     @ObservedObject var controller: IslandController
     @ViewBuilder var content: (IslandWidget, IslandWidgetSize) -> Content
     @Stored private var page = 0
     @Stored private var target: IslandWidget? = nil
+    @Stored private var resizing: IslandWidget? = nil
+    @Stored private var dragSize: IslandWidgetSize? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private struct Placement: Identifiable {
@@ -53,35 +55,64 @@ struct IslandWidgetGrid<Content: View>: View {
                 let gap: CGFloat = 8
                 let columns = CGFloat(controller.configuration.columns)
                 let rows = CGFloat(controller.configuration.rows)
+                let sizes = IslandWidgetSize.allCases.filter { $0.columns <= Int(columns) && $0.rows <= Int(rows) }
                 let cell = CGSize(width: (geometry.size.width - gap * (columns - 1)) / columns,
                                   height: (geometry.size.height - gap * (rows - 1)) / rows)
                 ZStack(alignment: .topLeading) {
                     ForEach(layouts[min(page, layouts.count - 1)]) { placement in
                         let item = placement.item
-                        let span = placement.size
+                        let span = resizing == item ? dragSize ?? placement.size : placement.size
                         content(item, span)
                             .overlay(alignment: .topTrailing) {
                                 Button { move(item, step: -1) } label: {
-                                    Image(systemName: "line.3.horizontal")
-                                        .font(.system(size: 10)).foregroundStyle(.secondary)
-                                }
-                                    .buttonStyle(IslandButtonStyle(help: "拖动排列 · 点击前移 · 右键选顺序", tipAlignment: .bottomTrailing))
+                                    Image(systemName: "line.3.horizontal").font(.system(size: 10)).foregroundStyle(.secondary)
+                                }.buttonStyle(IslandButtonStyle(help: "拖动排列 · 点击前移", tipAlignment: .bottomTrailing))
                                     .frame(width: 24, height: 24).contentShape(Rectangle())
                                     .onDrag {
                                         controller.beginInteraction()
                                         return NSItemProvider(object: "kitnest-widget:\(item.rawValue)" as NSString)
                                     }
-                                    .contextMenu {
-                                        Button("前移") { move(item, step: -1) }
-                                        Button("后移") { move(item, step: 1) }
-                                    }
-                                    .focusable()
-                                    .onMoveCommand { direction in
-                                        if direction == .up || direction == .left { move(item, step: -1) }
-                                        if direction == .down || direction == .right { move(item, step: 1) }
-                                    }
                                     .padding(6)
                                     .accessibilityLabel("拖动\(item.title)")
+                            }
+                            .overlay(alignment: .bottomTrailing) {
+                                Button {
+                                    controller.resize(item, to: sizes[(sizes.firstIndex(of: placement.size)! + 1) % sizes.count])
+                                } label: {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.system(size: 9)).frame(width: 20, height: 20)
+                                }
+                                .buttonStyle(IslandButtonStyle(help: "拖动调尺寸 · 点按切换 · 右键选择", tipAlignment: .bottomTrailing))
+                                .contextMenu {
+                                    ForEach(sizes) { size in
+                                        Button(size.rawValue) { controller.resize(item, to: size) }
+                                    }
+                                    Button("前移") { move(item, step: -1) }
+                                    Button("后移") { move(item, step: 1) }
+                                }
+                                .padding(5)
+                                .accessibilityLabel("\(item.title)尺寸与顺序")
+                                .focusable()
+                                .onMoveCommand { direction in
+                                    if direction == .up || direction == .down { move(item, step: direction == .up ? -1 : 1) }
+                                    else {
+                                        let index = sizes.firstIndex(of: placement.size)!
+                                        let step = direction == .left ? sizes.count - 1 : 1
+                                        let next = (index + step) % sizes.count
+                                        controller.resize(item, to: sizes[next])
+                                    }
+                                }
+                                .highPriorityGesture(DragGesture(minimumDistance: 5)
+                                    .onChanged { value in
+                                        if resizing == nil { resizing = item; controller.beginInteraction() }
+                                        let columns = CGFloat(placement.size.columns) + value.translation.width / (cell.width + gap)
+                                        let rows = CGFloat(placement.size.rows) + value.translation.height / (cell.height + gap)
+                                        dragSize = rows >= 1.5 && controller.configuration.rows > 1 ? .square : columns >= 3 && controller.configuration.columns >= 4 ? .strip : columns >= 1.5 ? .wide : .small
+                                    }
+                                    .onEnded { _ in
+                                        if let dragSize { controller.resize(item, to: dragSize) }
+                                        resizing = nil; dragSize = nil; controller.endInteraction()
+                                    })
                             }
                             .frame(width: cell.width * CGFloat(span.columns) + gap * CGFloat(span.columns - 1),
                                    height: cell.height * CGFloat(span.rows) + gap * CGFloat(span.rows - 1))

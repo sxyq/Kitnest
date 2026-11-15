@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 enum IslandPage: String, CaseIterable, Identifiable {
-    case home, clipboard, monitor, media, calendar, tools
+    case home, clipboard, monitor, media, calendar, tools, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
     var id: String { rawValue }
-    static let tabs: [Self] = [.home, .clipboard, .monitor]
+    static let tabs: [Self] = [.home, .clipboard, .monitor, .tools]
     var title: String {
         switch self {
         case .home: return "总览"
@@ -12,7 +12,17 @@ enum IslandPage: String, CaseIterable, Identifiable {
         case .monitor: return "监测"
         case .media: return "媒体"
         case .calendar: return "日历"
-        case .tools: return "工具"
+        case .tools: return "全部功能"
+        case .search: return "全局搜索"
+        case .capture: return "截图与标注"
+        case .recording: return "录屏"
+        case .ocr: return "识别与翻译"
+        case .transfer: return "文件传输"
+        case .cast: return "手机投屏"
+        case .ai: return "AI 对话"
+        case .statistics: return "使用统计"
+        case .archive: return "压缩与解压"
+        case .downloads: return "网盘与下载"
         }
     }
 }
@@ -21,13 +31,13 @@ struct IslandConfiguration: Codable, Equatable {
     static let key = "island.configuration"
     var enabled = true
     var width: CGFloat = 780
-    var height: CGFloat = 480
+    var height: CGFloat = 440
     var gridColumns: Int? = nil
     var gridRows: Int? = nil
     var columns: Int { gridColumns ?? 4 }
-    var rows: Int { gridRows ?? 2 }
-    var minimumWidth: CGFloat { CGFloat(columns) * 154 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
-    var minimumHeight: CGFloat { CGFloat(rows) * 126 + CGFloat(rows - 1) * 8 + 200 }
+    var rows: Int { gridRows ?? 4 }
+    var minimumWidth: CGFloat { CGFloat(columns) * 110 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
+    var minimumHeight: CGFloat { CGFloat(rows) * 48 + CGFloat(rows - 1) * 8 + 200 }
     var hoverEnabled = true
     var hoverDelay = 0.10
     var collapseDelay = 0.18
@@ -46,7 +56,7 @@ struct IslandConfiguration: Codable, Equatable {
     var metricColors: [String: String] = [:]
 
     func size(for widget: IslandWidget) -> IslandWidgetSize {
-        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .wide : .small)
+        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .square : .wide)
         if rows == 1 && size.rows == 2 { return size.columns == 1 ? .small : .wide }
         return size.columns > columns ? .wide : size
     }
@@ -58,7 +68,11 @@ struct IslandConfiguration: Codable, Equatable {
     }
     static func load() -> Self {
         guard let data = UserDefaults.standard.data(forKey: key) else { return Self() }
-        do { return try JSONDecoder().decode(Self.self, from: data) }
+        do {
+            var value = try JSONDecoder().decode(Self.self, from: data)
+            value.widgetOrder += IslandWidget.allCases.filter { !value.widgetOrder.contains($0) }
+            return value
+        }
         catch { Log.warn("Island", "配置读取失败：\(error.localizedDescription)"); return Self() }
     }
     func persist() throws {
@@ -67,10 +81,10 @@ struct IslandConfiguration: Codable, Equatable {
 }
 
 enum IslandWidgetSize: String, CaseIterable, Codable, Identifiable {
-    case small = "1×1", wide = "1×2", tall = "2×1", strip = "1×4", square = "2×2"
+    case small = "1×1", wide = "1×2", strip = "1×4", square = "2×2"
     var id: String { rawValue }
-    var columns: Int { self == .small || self == .tall ? 1 : self == .strip ? 4 : 2 }
-    var rows: Int { self == .square || self == .tall ? 2 : 1 }
+    var columns: Int { self == .small ? 1 : self == .strip ? 4 : 2 }
+    var rows: Int { self == .square ? 2 : 1 }
 }
 
 enum IslandPeek: String, CaseIterable, Codable, Identifiable {
@@ -103,7 +117,7 @@ enum IslandPeek: String, CaseIterable, Codable, Identifiable {
 }
 
 enum IslandWidget: String, CaseIterable, Codable, Identifiable {
-    case monitor, media, calendar, clipboard, tools, volume
+    case monitor, media, calendar, clipboard, tools, volume, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
     var id: String { rawValue }
     var page: IslandPage { self == .volume ? .media : IslandPage(rawValue: rawValue)! }
     var title: String {
@@ -114,6 +128,16 @@ enum IslandWidget: String, CaseIterable, Codable, Identifiable {
         case .calendar: return "日程与待办"
         case .tools: return "快捷工具"
         case .volume: return "系统音量"
+        case .search: return "全局搜索"
+        case .capture: return "截图与标注"
+        case .recording: return "录屏"
+        case .ocr: return "识别与翻译"
+        case .transfer: return "文件传输"
+        case .cast: return "手机投屏"
+        case .ai: return "AI 对话"
+        case .statistics: return "使用统计"
+        case .archive: return "压缩与解压"
+        case .downloads: return "网盘与下载"
         }
     }
     var icon: String {
@@ -124,6 +148,16 @@ enum IslandWidget: String, CaseIterable, Codable, Identifiable {
         case .calendar: return "calendar"
         case .tools: return "square.grid.2x2"
         case .volume: return "speaker.wave.2"
+        case .search: return "magnifyingglass"
+        case .capture: return "viewfinder"
+        case .recording: return "record.circle"
+        case .ocr: return "text.viewfinder"
+        case .transfer: return "arrow.up.arrow.down"
+        case .cast: return "iphone.and.arrow.forward"
+        case .ai: return "bubble.left.and.bubble.right"
+        case .statistics: return "chart.bar"
+        case .archive: return "archivebox"
+        case .downloads: return "arrow.down.circle"
         }
     }
     var color: Color {
@@ -134,6 +168,16 @@ enum IslandWidget: String, CaseIterable, Codable, Identifiable {
         case .clipboard: return MonitorColors.download
         case .tools: return MonitorColors.memory
         case .volume: return MonitorColors.battery
+        case .search: return MonitorColors.download
+        case .capture: return MonitorColors.user
+        case .recording: return MonitorColors.temperature
+        case .ocr: return MonitorColors.memory
+        case .transfer: return MonitorColors.download
+        case .cast: return MonitorColors.wired
+        case .ai: return MonitorColors.wired
+        case .statistics: return MonitorColors.memory
+        case .archive: return MonitorColors.temperature
+        case .downloads: return MonitorColors.download
         }
     }
 }

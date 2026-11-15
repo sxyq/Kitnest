@@ -687,8 +687,8 @@ public struct SearchSectionView: View {
             }
         }
         .onDisappear {
+            generation += 1
             if isSettingsPreview {
-                generation += 1
                 clearInput()
             }
         }

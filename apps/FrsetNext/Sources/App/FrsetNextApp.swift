@@ -31,12 +31,6 @@ struct FrsetNextApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if IslandController.shared.demoOnly {
-            NSApp.setActivationPolicy(.accessory)
-            ServiceLocator.settings = SettingsWindowController.shared
-            IslandController.shared.start()
-            return
-        }
         // v43：菜单栏监控「唯一一套」护栏——先于任何模块启动执行。
         // 菜单栏监控的唯一实现是 STATS 合并条；多开实例/官方原版同跑都会各画一套，
         // 表现为菜单栏出现重复的 CPU/RAM/SSD 组件（用户 2026-10-18 反馈）。
@@ -100,13 +94,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // v127（ArcZip P3）：退出前确认未完成归档任务（ArchiveTaskQueue 是 arch-engine 的
     // 公开类型，只读调用）——有未完成任务时弹确认框，「返回」则取消退出。
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if IslandController.shared.demoOnly { return .terminateNow }
         guard ArchiveTaskQueue.shared.confirmQuitIfNeeded() else { return .terminateCancel }
         return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if IslandController.shared.demoOnly { IslandController.shared.stop(); return }
         // v259：退出前必须唤醒所有被暂停的应用，否则它们会一直挂着
         ProcessFreezer.shared.thawAll(reason: "退出")
         // v84：退出前把个性化防抖窗口内的改动立即落盘（否则 150ms 内退出会丢设置）
@@ -117,7 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if IslandController.shared.demoOnly { IslandController.shared.open(); return true }
         ServiceLocator.panel?.show()
         return true
     }
@@ -129,11 +120,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Swift renamed import 为 application(_:open:)，参数 [URL]。
     /// 满足 NSApplicationDelegate 该 optional 要求即自动生成 ObjC 入口（有 To 符号）。
     func application(_ application: NSApplication, open urls: [URL]) {
-        if IslandController.shared.demoOnly {
-            if urls.first?.host == "settings" { ServiceLocator.settings?.open(pane: "island") }
-            else { IslandController.shared.open() }
-            return
-        }
         // v167：访达双击 / 右键「用 Kitnest 打开」送来的是**文件 URL**（无 scheme 或 file），
         // 原实现第一行就 `guard url.scheme == "frsetnext"` 把它们全丢了 —— 所以此前
         // 双击压缩包只会唤起面板、不会进归档窗。这里先分流文件，再走深链。
