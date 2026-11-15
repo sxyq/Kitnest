@@ -2228,6 +2228,28 @@ EVIDENCE.update({
 })
 
 
+EVIDENCE.update({
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "reviewExport"):
+        "在Manager既有串行队列锁定剪贴板库读取快照，集中列出缺失附件记录；支持取消，结果回主线程供同一备份sheet显示",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "missingRecords"):
+        "按记录原图、缩略图、长正文及富文本相对路径读取真实存在状态，保留记录去重键、标题和缺失路径，导出清单与附件准备共用",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "reviewBackupExport"):
+        "把备份缺失清单交给既有ClipboardBackup与Manager队列，返回同一取消操作对象，不增加数据库连接或执行链",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "reviewExport"):
+        "备份sheet打开及导出失败后读取当前缺失清单，更新busy和错误；完整记录按钮按清单显示，缺失记录不从本机删除",
+    ("Features/Monitor/Storage/DiskIndex.swift", "init"):
+        "DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计",
+    ("Features/Monitor/Storage/DiskIndex.swift", "recomputeDataCategories"):
+        "扫描完成、缓存载入及删除重算共用分类汇总；缺失折叠小计或总量不符时清除错误分类并显示具体重新扫描原因",
+    ("Features/Monitor/Storage/DiskIndex.swift", "add"):
+        "把真实直接字节累加到类别和分类边界路径，父目录只贡献未单列文件；零字节无需存储条目",
+    ("Features/Monitor/Storage/DiskIndex.swift", "merge"):
+        "扫描合并子目录累加器，折叠节点合并已有类别与来源字节小计；验证路径总量与类别总量一致，避免把折叠内部全归父类",
+    ("Features/Monitor/Storage/DiskIndex.swift", "categories"):
+        "从类别与边界路径字节生成五类汇总，逐路径按字节排序；复用independentPaths展示来源，保存精确路径字节而非折叠树副本",
+})
+
+
 def main() -> int:
     strict = "--strict" in sys.argv
 

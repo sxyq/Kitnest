@@ -1816,29 +1816,31 @@ Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,cancel,func,1
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,install,func,25,KEEP,export/prepareRestore登记异步归档taskID，登记前已取消的操作立即取消该任务
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,checkCancellation,func,33,KEEP,备份准备、读取、分析及恢复循环锁内读取cancelled，取消时抛已取消，沿原完成回调返回
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,finish,func,39,KEEP,导出发布、读取完成和恢复事务提交前锁内确认未取消并标记finished，后续cancel不改最终结果
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,init,init,71,KEEP,prepareRestore成功构造RestoreSession持有解密目录、已读Manifest和分析摘要，供用户选择后restore
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,cleanup,func,77,KEEP,RestoreSession被取消、完成或释放时在utility队列移除本次解密目录，复用removeTemporaryDirectory
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,deinit,deinit,82,KEEP,RestoreSession释放时调用cleanup回收其临时明文目录
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Analysis,summary,func,91,KEEP,prepareRestore把分析中的新增、重复、冲突原因和失效外部文件路径与条目/笔记/附件数量展示给sheet
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,export,func,109,KEEP,ClipboardManager串行队列读快照与私有附件，以密码及加密文件名创建7z；新包先复制到目标旁临时文件再发布，清理明文并在主线程返回结果
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepareRestore,func,157,KEEP,Manager读取入口确认7z签名，用归档任务列举并解密，验证Manifest和附件后与本机快照分析；只返回RestoreSession摘要，此阶段不写本机资料
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,restore,func,237,KEEP,sheet确认后在Manager串行队列按replace及useBackupConflicts调用apply，成功清理解密目录；错误交主线程完成回调
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepare,func,256,KEEP,export在数据库事务内读条目、标签和关联快照，复制四类私有附件及已有OCR并记字节数，最后原子写manifest.json
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readSnapshot,func,281,KEEP,导出和恢复分析共用正式ClipboardRepository列及makeItem，从SQLite读条目、标签和现存关联，再挂tagIDs构造version=1的Manifest
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validateEntries,func,300,KEEP,解压前要求唯一且加密的manifest.json与受支持attachments目录，拒绝链接、重名及未加密附件，附件相对路径交validatePath
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readManifest,func,323,KEEP,解密后和apply前读取version=1清单，核对条目/标签id及关联、必要与声明附件、实际普通文件及字节长度，异常抛具体资料路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,analyze,func,385,KEEP,按dedupeKey比本机与备份的笔记、标题、标签名、正文、附件字节及OCR，计新增/重复/冲突；文件型正文路径不存在则列失效引用
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,apply,func,437,KEEP,恢复时锁住数据库重新读取与分析，按合并/替换及冲突选择导入条目、标签和重映射私有附件；事务失败还原已移动附件，提交后仅回收不再引用附件并报告数量与失败路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentPaths,func,601,KEEP,prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,fullText,func,605,KEEP,analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validatePath,func,610,KEEP,备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentURL,func,619,KEEP,私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,byteCount,func,638,KEEP,prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,counts,func,643,KEEP,导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,temporaryDirectory,func,647,KEEP,export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,654,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,665,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,670,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,init,init,79,KEEP,prepareRestore成功构造RestoreSession持有解密目录、已读Manifest和分析摘要，供用户选择后restore
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,cleanup,func,85,KEEP,RestoreSession被取消、完成或释放时在utility队列移除本次解密目录，复用removeTemporaryDirectory
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,deinit,deinit,90,KEEP,RestoreSession释放时调用cleanup回收其临时明文目录
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Analysis,summary,func,99,KEEP,prepareRestore把分析中的新增、重复、冲突原因和失效外部文件路径与条目/笔记/附件数量展示给sheet
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,reviewExport,func,118,KEEP,在Manager既有串行队列锁定剪贴板库读取快照，集中列出缺失附件记录；支持取消，结果回主线程供同一备份sheet显示
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,export,func,133,KEEP,ClipboardManager串行队列读快照与私有附件，以密码及加密文件名创建7z；新包先复制到目标旁临时文件再发布，清理明文并在主线程返回结果
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepareRestore,func,184,KEEP,Manager读取入口确认7z签名，用归档任务列举并解密，验证Manifest和附件后与本机快照分析；只返回RestoreSession摘要，此阶段不写本机资料
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,restore,func,264,KEEP,sheet确认后在Manager串行队列按replace及useBackupConflicts调用apply，成功清理解密目录；错误交主线程完成回调
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,missingRecords,func,282,KEEP,按记录原图、缩略图、长正文及富文本相对路径读取真实存在状态，保留记录去重键、标题和缺失路径，导出清单与附件准备共用
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepare,func,294,KEEP,export在数据库事务内读条目、标签和关联快照，复制四类私有附件及已有OCR并记字节数，最后原子写manifest.json
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readSnapshot,func,330,KEEP,导出和恢复分析共用正式ClipboardRepository列及makeItem，从SQLite读条目、标签和现存关联，再挂tagIDs构造version=1的Manifest
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validateEntries,func,349,KEEP,解压前要求唯一且加密的manifest.json与受支持attachments目录，拒绝链接、重名及未加密附件，附件相对路径交validatePath
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readManifest,func,372,KEEP,解密后和apply前读取version=1清单，核对条目/标签id及关联、必要与声明附件、实际普通文件及字节长度，异常抛具体资料路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,analyze,func,437,KEEP,按dedupeKey比本机与备份的笔记、标题、标签名、正文、附件字节及OCR，计新增/重复/冲突；文件型正文路径不存在则列失效引用
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,apply,func,493,KEEP,恢复时锁住数据库重新读取与分析，按合并/替换及冲突选择导入条目、标签和重映射私有附件；事务失败还原已移动附件，提交后仅回收不再引用附件并报告数量与失败路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentPaths,func,657,KEEP,prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,fullText,func,661,KEEP,analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validatePath,func,666,KEEP,备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentURL,func,675,KEEP,私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,byteCount,func,694,KEEP,prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,counts,func,699,KEEP,导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,temporaryDirectory,func,703,KEEP,export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,710,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,721,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,726,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,url,func,14,KEEP,Desk:727、PreviewPopoverContentModel:323
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,write,func,20,KEEP,:72/:91/:123/:212 内部写盘
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,read,func,33,KEEP,Manager:521/:529、Desk:741
@@ -1894,21 +1896,22 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyI
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,finishCopy,func,693,KEEP,写入自有剪贴板标记与变更计数、登记统计事件并显示成功 Toast
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,delete,func,723,KEEP,Desk:203、SectionView:97/:329
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearUnsavedHistory,func,741,KEEP,设置清历史先统计全部is_note=0和已存数量，确认后串行逐条调用正式repository.delete回收私有附件，通知预览移除并刷新，失败条目逐项报告
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,exportBackup,func,792,KEEP,备份sheet导出入口把目标URL、密码、完成回调及Manager既有串行队列传给ClipboardBackup.export
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,prepareBackupRestore,func,797,KEEP,备份sheet读取入口把文件、密码和Manager串行队列交ClipboardBackup.prepareRestore，返回可取消Operation
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,restoreBackup,func,802,KEEP,确认恢复交ClipboardBackup.restore；成功才失效OCR索引、刷新标签、关闭共享预览、发选择变化并重载正式列表
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,rename,func,817,KEEP,EditWindowController:209
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,828,KEEP,EditWindowController:208、PreviewWindow:453
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,880,KEEP,SectionView:324、TableHostView:972
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,889,KEEP,AppBootstrap:259/:265/:572
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,931,KEEP,:678/:683 内部调用
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,937,KEEP,AppBootstrap:224 截图写入
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,943,KEEP,AppBootstrap:241/:252
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,auxiliaryBytes,func,951,KEEP,:595 saveContent 调用
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,959,KEEP,把读取到的文件URL列表发到主线程filesCapturedNotification，由AppBootstrap按两个中转开关决定同步，不限定文档或压缩包扩展名
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,969,KEEP,:384 图片条目调用
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,993,KEEP,:552 自动粘贴分支
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1020,KEEP,:733 权限缺失分支
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reviewBackupExport,func,792,KEEP,把备份缺失清单交给既有ClipboardBackup与Manager队列，返回同一取消操作对象，不增加数据库连接或执行链
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,exportBackup,func,796,KEEP,备份sheet导出入口把目标URL、密码、完成回调及Manager既有串行队列传给ClipboardBackup.export
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,prepareBackupRestore,func,801,KEEP,备份sheet读取入口把文件、密码和Manager串行队列交ClipboardBackup.prepareRestore，返回可取消Operation
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,restoreBackup,func,806,KEEP,确认恢复交ClipboardBackup.restore；成功才失效OCR索引、刷新标签、关闭共享预览、发选择变化并重载正式列表
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,rename,func,821,KEEP,EditWindowController:209
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,832,KEEP,EditWindowController:208、PreviewWindow:453
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,884,KEEP,SectionView:324、TableHostView:972
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,893,KEEP,AppBootstrap:259/:265/:572
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,935,KEEP,:678/:683 内部调用
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,941,KEEP,AppBootstrap:224 截图写入
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,947,KEEP,AppBootstrap:241/:252
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,auxiliaryBytes,func,955,KEEP,:595 saveContent 调用
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,963,KEEP,把读取到的文件URL列表发到主线程filesCapturedNotification，由AppBootstrap按两个中转开关决定同步，不限定文档或压缩包扩展名
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,973,KEEP,:384 图片条目调用
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,997,KEEP,:552 自动粘贴分支
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1024,KEEP,:733 权限缺失分支
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,21,KEEP,read* 内构造；Manager:678/:683
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,63,KEEP,Manager:133 构造持有
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,69,KEEP,读取粘贴板类型和来源应用后依次尝试文件、图片、URL、富文本和文本；文件URL先于TIFF图片读取，避免Finder复制文件附带的图标被识别为图片
@@ -2030,8 +2033,9 @@ Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPan
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,sliderRow,func,351,KEEP,:42/:50 滑块行调用
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,tagCountText,func,376,KEEP,按标签数量选择本地化单复数格式，供剪贴板标签行显示计数
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardSettingsPane,bytesText,func,380,KEEP,:61/:87 占用文案
-Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardBackupSheet,execute,func,453,KEEP,备份sheet按钮先置busy并清错误，按已有RestoreSession、导入或导出分派Manager正式入口；读取成功展示摘要并清密码
-Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardBackupSheet,finish,func,472,KEEP,导出/恢复完成复位busy及operation，成功清会话临时目录和密码、Toast后关闭sheet，失败显示localizedDescription
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardBackupSheet,execute,func,467,KEEP,备份sheet按钮先置busy并清错误，按已有RestoreSession、导入或导出分派Manager正式入口；读取成功展示摘要并清密码
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardBackupSheet,reviewExport,func,486,KEEP,备份sheet打开及导出失败后读取当前缺失清单，更新busy和错误；完整记录按钮按清单显示，缺失记录不从本机删除
+Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardBackupSheet,finish,func,498,KEEP,导出/恢复完成复位busy及operation，成功清会话临时目录和密码、Toast后关闭sheet，失败显示localizedDescription
 Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,init,init,32,KEEP,单例 :25 初始化
 Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,beginRun,func,38,KEEP,:59 调用
 Clipboard,Features/Clipboard/UI/ClipboardSummaryExecutionCoordinator.swift,ClipboardSummaryExecutionCoordinator,endRun,func,45,KEEP,:60 defer 调用
@@ -2519,32 +2523,43 @@ Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,NetworkStatsPanel,lat
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsConnGrid,color,func,1206,KEEP,StatsConnGrid.body:1204
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,SensorsStatsPanel,orderedTemperatures,func,1263,KEEP,1232 温度分组
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,SensorGroup,fraction,func,1330,KEEP,SensorGroup.body:1320
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataKind,match,func,81,KEEP,summarize按实际目录名与Library层级识别缓存、日志、开发与应用支持类别，/var/log及Xcode.app有明确分类，其他返回nil沿父类别
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataCategory,summarize,func,113,KEEP,扫描及缓存更新递归将目录ownSize、文件size各计一次，遇实际分类目录切类别和归属路径，最终各类别用independentPaths列包含目录
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,258,KEEP,DiskIndexStore.cancelScan:353
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,261,KEEP,DiskIndexStore.rescan:334
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,305,KEEP,文件物理占用 = st_blocks×512（APFS 透明压缩下 st_size 会虚高，/System 差 17GB）
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,321,KEEP,扫描目录文件时只保留达到minimumFileBytes的条目，按字节数降序插入，超过childrenPerDirectory移除最小项，完整占用另计
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,335,KEEP,scan:147 + 递归:228
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,484,KEEP,309、359、380
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,489,KEEP,私有 init，shared:275
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,495,KEEP,StorageManagerWindow.swift:216 onAppear
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,501,KEEP,loadIfNeeded:305、StorageManagerWindow:278
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,523,KEEP,缓存格式迁移：先按二进制 plist 解，失败回落旧 JSON，升级后老缓存仍能读
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,542,KEEP,StorageManagerWindow:326/340/601、show:117
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,568,KEEP,StorageManagerWindow.swift:828 取消按钮
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,574,KEEP,rescan:348、trash:475
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,585,KEEP,trash:482
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,595,KEEP,StorageManagerWindow.swift:897
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,628,KEEP,clearCache:379、trash:474
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,634,KEEP,StorageManagerWindow.swift:169
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,670,KEEP,StorageManagerWindow.swift:922 performTrash
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,719,KEEP,trash:454、StorageManagerWindow:914
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,731,KEEP,分类汇总及多路径操作将路径集合排序，已有父路径时移除被包含子路径，避免同一目录重复参与操作
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,745,KEEP,trash:471 + 递归:500
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,759,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,762,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,769,KEEP,StorageManagerWindow 311/708/855
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskNode,init,init,43,KEEP,DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskNode,init,init,61,KEEP,DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,init,init,101,KEEP,DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,init,init,132,KEEP,DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,recomputeDataCategories,func,148,KEEP,扫描完成、缓存载入及删除重算共用分类汇总；缺失折叠小计或总量不符时清除错误分类并显示具体重新扫描原因
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataKind,match,func,173,KEEP,summarize按实际目录名与Library层级识别缓存、日志、开发与应用支持类别，/var/log及Xcode.app有明确分类，其他返回nil沿父类别
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataKind,match,func,177,KEEP,summarize按实际目录名与Library层级识别缓存、日志、开发与应用支持类别，/var/log及Xcode.app有明确分类，其他返回nil沿父类别
+Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,init,init,234,KEEP,DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计
+Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,add,func,236,KEEP,把真实直接字节累加到类别和分类边界路径，父目录只贡献未单列文件；零字节无需存储条目
+Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,merge,func,241,KEEP,扫描合并子目录累加器，折叠节点合并已有类别与来源字节小计；验证路径总量与类别总量一致，避免把折叠内部全归父类
+Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,merge,func,247,KEEP,扫描合并子目录累加器，折叠节点合并已有类别与来源字节小计；验证路径总量与类别总量一致，避免把折叠内部全归父类
+Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,categories,func,262,KEEP,从类别与边界路径字节生成五类汇总，逐路径按字节排序；复用independentPaths展示来源，保存精确路径字节而非折叠树副本
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataCategory,summarize,func,287,KEEP,扫描及缓存更新递归将目录ownSize、文件size各计一次，遇实际分类目录切类别和归属路径，最终各类别用independentPaths列包含目录
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,441,KEEP,DiskIndexStore.cancelScan:353
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,444,KEEP,DiskIndexStore.rescan:334
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,491,KEEP,文件物理占用 = st_blocks×512（APFS 透明压缩下 st_size 会虚高，/System 差 17GB）
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,507,KEEP,扫描目录文件时只保留达到minimumFileBytes的条目，按字节数降序插入，超过childrenPerDirectory移除最小项，完整占用另计
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,521,KEEP,scan:147 + 递归:228
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,689,KEEP,309、359、380
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,694,KEEP,私有 init，shared:275
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,700,KEEP,StorageManagerWindow.swift:216 onAppear
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,706,KEEP,loadIfNeeded:305、StorageManagerWindow:278
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,728,KEEP,缓存格式迁移：先按二进制 plist 解，失败回落旧 JSON，升级后老缓存仍能读
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,750,KEEP,StorageManagerWindow:326/340/601、show:117
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,776,KEEP,StorageManagerWindow.swift:828 取消按钮
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,782,KEEP,rescan:348、trash:475
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,793,KEEP,trash:482
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,803,KEEP,StorageManagerWindow.swift:897
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,836,KEEP,clearCache:379、trash:474
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,842,KEEP,StorageManagerWindow.swift:169
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,878,KEEP,StorageManagerWindow.swift:922 performTrash
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,927,KEEP,trash:454、StorageManagerWindow:914
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,939,KEEP,分类汇总及多路径操作将路径集合排序，已有父路径时移除被包含子路径，避免同一目录重复参与操作
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,953,KEEP,trash:471 + 递归:500
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,967,KEEP,StorageManagerWindow 428/571/617、StorageTreemap:290
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,970,KEEP,StorageManagerWindow 300/509、StorageTreemap:313/320
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,977,KEEP,StorageManagerWindow 311/708/855
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,63,KEEP,私有 init，shared:63
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,78,KEEP,NSWindowController 的 NSCoding 必需构造器，编译期强制
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,80,KEEP,FrsetNextApp.swift:356 深链、MonitorDetailView:959
@@ -2564,16 +2579,16 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootVi
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateControls,func,543,KEEP,复用真实候选数量、全选、已选字节、Agent提示词及废纸篓入口，与右侧目录操作区按实际控件高度决定正文上界
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,628,KEEP,在连续弧线外展示全部真实清理记录，顶部保留选择与清理操作，列表独立滚动填满左侧区域
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,667,KEEP,从同一存储图轮廓求记录所在高度的可用宽度，使行内容跟随弧线缩窄而不被曲边截断
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,894,KEEP,右区系统数据分类详情显示本次扫描根、类别字节、独立目录与coverageHelp，说明折叠及子分类扣除范围，不自动加入清理推荐
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,923,KEEP,索引变化刷新访问历史与详情，真实路径取新snapshot节点，disk-files聚合按父ownSize更新，其余聚合递归保留现存孩子并重算大小与折叠数量
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,944,KEEP,进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,952,KEEP,按访问历史游标向前或向后一步，供按钮、快捷键及双指手势共用
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,961,KEEP,buildAgentPrompt:721
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,976,KEEP,copyAgentPrompt:745、agentSheet:773
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1028,KEEP,agentSheet 复制按钮:795
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1209,KEEP,确认框文案:284
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1215,KEEP,alert 确定按钮:282
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1240,KEEP,StorageCandidateRow 显示当前用户目录的短路径，唯一实现从根视图迁入候选行，悬停只更新当前行
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,914,KEEP,右区系统数据分类详情显示本次扫描根、类别字节、独立目录与coverageHelp，说明折叠及子分类扣除范围，不自动加入清理推荐
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,956,KEEP,索引变化刷新访问历史与详情，真实路径取新snapshot节点，disk-files聚合按父ownSize更新，其余聚合递归保留现存孩子并重算大小与折叠数量
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,977,KEEP,进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,985,KEEP,按访问历史游标向前或向后一步，供按钮、快捷键及双指手势共用
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,994,KEEP,buildAgentPrompt:721
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1009,KEEP,copyAgentPrompt:745、agentSheet:773
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1061,KEEP,agentSheet 复制按钮:795
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1242,KEEP,确认框文案:284
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1248,KEEP,alert 确定按钮:282
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1273,KEEP,StorageCandidateRow 显示当前用户目录的短路径，唯一实现从根视图迁入候选行，悬停只更新当前行
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,42,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,125,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,147,KEEP,StorageTreemap.body:171
@@ -3306,14 +3321,14 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,restor
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,discard,func,51,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,save,func,57,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因
 Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceChoices,func,229,KEEP,通用外观四选 Picker 双向绑定当前 AppearanceSettingsDraft.appearance；正式主题只由 shared scope 的 save 调用 AppearanceManager.apply
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,entryRow,func,321,KEEP,常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,339,KEEP,本文件:61/66/70 等行布局
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,actionButton,func,354,KEEP,本文件:105/175/187 按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,openDetail,func,362,KEEP,本文件:175 管理按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,371,KEEP,本文件:138 卡片标题
-Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,515,KEEP,本文件:498/500 双按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,602,KEEP,本文件:608 onSubmit/609 按钮
-Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,625,KEEP,本文件:686/715 增删名单
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,entryRow,func,338,KEEP,常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,356,KEEP,本文件:61/66/70 等行布局
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,actionButton,func,371,KEEP,本文件:105/175/187 按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,openDetail,func,379,KEEP,本文件:175 管理按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,388,KEEP,本文件:138 卡片标题
+Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,532,KEEP,本文件:498/500 双按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,619,KEEP,本文件:608 onSubmit/609 按钮
+Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,persist,func,642,KEEP,本文件:686/715 增删名单
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,init,31,KEEP,SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,215,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位
@@ -3429,14 +3444,14 @@ StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,dragg
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,performDragOperation,func,39,KEEP,先 ServiceLocator.panel?.show() 再发 .frsetTransferIntake（转入弹框挂在面板内容树）
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,hasFiles,func,53,KEEP,pasteboard 是否含文件 URL
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,setActive,func,59,KEEP,强调色底 22% alpha；仅状态变化时改 layer
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,init,init,43,KEEP,ToolboxModule.swift:22 经 PanelSectionRegistry.build 构造
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,188,KEEP,weeksGrid:170 ForEach 内调用
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,func,243,KEEP,body onAppear:62 调用
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,func,260,KEEP,body onDisappear:64 调用
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,func,294,KEEP,dayCell:181 调用
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,shift,func,302,KEEP,header 按钮:92/118 与滚动闭包:243 调用
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,reload,func,308,KEEP,onAppear:61、header:106、shift:301 调用
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,shortName,func,327,KEEP,扩展方法，lunarDisplay:328/331/332 调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,init,init,46,KEEP,ToolboxModule.swift:22 经 PanelSectionRegistry.build 构造
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,199,KEEP,weeksGrid:170 ForEach 内调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,func,257,KEEP,body onAppear:62 调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,func,274,KEEP,body onDisappear:64 调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,func,308,KEEP,dayCell:181 调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,shift,func,316,KEEP,header 按钮:92/118 与滚动闭包:243 调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,reload,func,322,KEEP,onAppear:61、header:106、shift:301 调用
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,shortName,func,345,KEEP,扩展方法，lunarDisplay:328/331/332 调用
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,init,init,17,KEEP,单例 shared:9（private init）
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,requestAccessIfNeeded,func,26,KEEP,ToolboxModule.swift:39 调用
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,refreshAuthorization,func,34,KEEP,读取 EventKit 完整日历访问状态并同步未授权说明

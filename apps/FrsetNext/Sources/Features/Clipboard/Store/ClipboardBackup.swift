@@ -54,6 +54,13 @@ enum ClipboardBackup {
         let bytes: Int64
     }
 
+    struct MissingRecord: Codable, Identifiable {
+        let dedupeKey: String
+        let title: String
+        let paths: [String]
+        var id: String { dedupeKey }
+    }
+
     struct Manifest: Codable {
         let version: Int
         let createdAt: Date
@@ -61,6 +68,7 @@ enum ClipboardBackup {
         let tags: [Tag]
         let links: [Link]
         var attachments: [Attachment]
+        var skippedRecords: [MissingRecord]?
     }
 
     final class RestoreSession {
@@ -94,6 +102,7 @@ enum ClipboardBackup {
                 return "\(item.aliasTitle ?? item.title ?? item.dedupeKey)：\(reasons.joined(separator: "、"))"
             }
             return ClipboardBackup.counts(manifest)
+                + (manifest.skippedRecords.map { "\n此包已备份 \(manifest.items.count) 条，跳过 \($0.count) 条；跳过记录保留在来源设备。" } ?? "")
                 + "\n新增 \(added) · 重复 \(duplicates) · 冲突 \(conflicts.count) · 失效文件引用 \(invalidFileReferences.count)"
                 + (details.isEmpty ? "" : "\n冲突：\n" + details.joined(separator: "\n"))
                 + (invalidFileReferences.isEmpty ? "" : "\n失效引用：\n" + invalidFileReferences.joined(separator: "\n"))
@@ -106,7 +115,22 @@ enum ClipboardBackup {
         ClipboardRepository.columns.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
     }
 
-    static func export(to url: URL, password: String, queue: DispatchQueue,
+    static func reviewExport(queue: DispatchQueue,
+                             completion: @escaping (Result<[MissingRecord], Error>) -> Void) -> Operation {
+        let operation = Operation()
+        queue.async {
+            do {
+                let database = DatabaseManager.shared.clipboard
+                database.accessLock.lock(); defer { database.accessLock.unlock() }
+                let missing = try missingRecords(readSnapshot(database), operation: operation)
+                try operation.finish()
+                deliver(.success(missing), completion)
+            } catch { deliver(.failure(error), completion) }
+        }
+        return operation
+    }
+
+    static func export(to url: URL, password: String, skipping: [MissingRecord], queue: DispatchQueue,
                        completion: @escaping (Result<String, Error>) -> Void) -> Operation {
         let operation = Operation()
         queue.async {
@@ -116,7 +140,8 @@ enum ClipboardBackup {
                 try operation.checkCancellation()
                 let root = try temporaryDirectory()
                 directory = root
-                let manifest = try prepare(in: root, database: DatabaseManager.shared.clipboard, operation: operation)
+                let manifest = try prepare(in: root, database: DatabaseManager.shared.clipboard,
+                                           skipping: Set(skipping.map(\.dedupeKey)), operation: operation)
                 let archive = root.appendingPathComponent("backup.7z")
                 let id = ArchiveCore.create(files: [root.appendingPathComponent("manifest.json"),
                                                    root.appendingPathComponent("attachments")],
@@ -137,7 +162,9 @@ enum ClipboardBackup {
                                 try FileManager.default.moveItem(at: destinationStage, to: url)
                             }
                             let cleanupFailure = removeTemporaryDirectory(root)
-                            deliver(.success("已加密备份：" + counts(manifest)
+                            let result = manifest.skippedRecords.map { "已备份 \(manifest.items.count) 条，跳过 \($0.count) 条；缺失记录保留在本机。" }
+                                ?? ("已加密备份：" + counts(manifest))
+                            deliver(.success(result
                                              + (cleanupFailure.map { "\n" + $0 } ?? "")), completion)
                         } catch {
                             removeTemporaryDirectory(root)
@@ -245,17 +272,39 @@ enum ClipboardBackup {
                 if let failure = removeTemporaryDirectory(session.directory) { message += "\n" + failure }
                 deliver(.success(message), completion)
             } catch {
-                do { try operation.checkCancellation() }
-                catch { removeTemporaryDirectory(session.directory) }
+                removeTemporaryDirectory(session.directory)
                 deliver(.failure(error), completion)
             }
         }
         return operation
     }
 
-    private static func prepare(in root: URL, database: SQLiteDatabase, operation: Operation) throws -> Manifest {
+    private static func missingRecords(_ manifest: Manifest, operation: Operation) throws -> [MissingRecord] {
+        try manifest.items.compactMap { item in
+            try operation.checkCancellation()
+            let missing = try attachmentPaths(item).filter {
+                let url = try attachmentURL($0, root: ClipboardFileStore.baseURL, mustExist: false)
+                return !FileManager.default.fileExists(atPath: url.path)
+            }
+            return missing.isEmpty ? nil : MissingRecord(dedupeKey: item.dedupeKey,
+                title: item.aliasTitle ?? item.title ?? item.dedupeKey, paths: missing)
+        }
+    }
+
+    private static func prepare(in root: URL, database: SQLiteDatabase, skipping: Set<String>, operation: Operation) throws -> Manifest {
         try database.transaction { database in
             var manifest = try readSnapshot(database)
+            let missing = try missingRecords(manifest, operation: operation)
+            let unreviewed = missing.filter { !skipping.contains($0.dedupeKey) }
+            guard unreviewed.isEmpty else {
+                throw Failure(message: "附件状态已变化，请重新读取缺失清单：\n" + unreviewed.flatMap(\.paths).joined(separator: "\n"))
+            }
+            if !missing.isEmpty {
+                let skipped = Set(missing.map(\.dedupeKey))
+                manifest = Manifest(version: manifest.version, createdAt: manifest.createdAt,
+                    items: manifest.items.filter { !skipped.contains($0.dedupeKey) }, tags: manifest.tags,
+                    links: manifest.links.filter { !skipped.contains($0.itemDedupeKey) }, attachments: [], skippedRecords: missing)
+            }
             try FileManager.default.createDirectory(at: root.appendingPathComponent("attachments"),
                                                     withIntermediateDirectories: true)
             var paths = Set(manifest.items.flatMap(attachmentPaths))
@@ -357,7 +406,10 @@ enum ClipboardBackup {
             throw Failure(message: "备份含无归属附件：" + declared.subtracting(possible).sorted().joined(separator: "、"))
         }
         for attachment in manifest.attachments {
-            let url = try attachmentURL(attachment.path, root: root.appendingPathComponent("attachments"))
+            let url = try attachmentURL(attachment.path, root: root.appendingPathComponent("attachments"), mustExist: false)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw Failure(message: "备份包缺少附件：\(attachment.path)")
+            }
             guard attachment.bytes >= 0, try byteCount(url) == attachment.bytes else {
                 throw Failure(message: "备份附件长度不符：\(attachment.path)")
             }
@@ -411,8 +463,12 @@ enum ClipboardBackup {
                 if (incoming == nil) != (existing == nil) { reasons.append("附件不同"); break }
                 if let incoming, let existing {
                     let source = try attachmentURL(incoming, root: root.appendingPathComponent("attachments"))
-                    let existingURL = try attachmentURL(existing, root: ClipboardFileStore.baseURL)
-                    if try Data(contentsOf: source) != Data(contentsOf: existingURL) { reasons.append("附件不同"); break }
+                    let existingURL = try attachmentURL(existing, root: ClipboardFileStore.baseURL, mustExist: false)
+                    if !FileManager.default.fileExists(atPath: existingURL.path) {
+                        reasons.append("本机附件缺失：\(existing)")
+                    } else if try Data(contentsOf: source) != Data(contentsOf: existingURL) {
+                        reasons.append("附件不同")
+                    }
                 }
             }
             let ocr = ClipboardOCRTextStorage.relativePath(dedupeKey: item.dedupeKey)

@@ -21,6 +21,9 @@ public struct CalendarSectionView: View {
     @ObservedObject private var service = CalendarService.shared
     @AppStorage(Preferences.Keys.calendarFirstWeekday) private var savedFirstWeekday = 1
     private let previewFirstWeekday: Int?
+    private let previewDate: Date?
+    private let previewEvents: [CalendarEvent]?
+    private let previewSelectedDate: Date?
     private var firstWeekday: Int { previewFirstWeekday ?? savedFirstWeekday }
     private var calendar: Calendar { CalendarService.calendar(firstWeekday: firstWeekday) }
     /// 当前两周期间的锚点（渲染时归一化到所选周起始日）
@@ -40,7 +43,15 @@ public struct CalendarSectionView: View {
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
-    public init(firstWeekday: Int? = nil) { previewFirstWeekday = firstWeekday }
+    public init(firstWeekday: Int? = nil, previewDate: Date? = nil,
+                previewEvents: [CalendarEvent]? = nil, previewSelectedDate: Date? = nil) {
+        previewFirstWeekday = firstWeekday
+        self.previewDate = previewDate
+        self.previewEvents = previewEvents
+        self.previewSelectedDate = previewSelectedDate
+        _anchor = Stored(wrappedValue: previewDate ?? Date())
+        _selectedDay = Stored(wrappedValue: previewSelectedDate)
+    }
 
     public var body: some View {
         VStack(spacing: 6) {
@@ -49,7 +60,7 @@ public struct CalendarSectionView: View {
                 weekdayHeader
                 weeksGrid
                 // v111：未授权时 surfaced 提示（CalendarService.authorizationHint 此前无 UI 消费）
-                if !service.isAuthorized {
+                if !isSettingsPreview && !service.isAuthorized {
                     calendarPermissionBanner
                 }
             }
@@ -112,7 +123,7 @@ public struct CalendarSectionView: View {
             .help("上一周")
 
             Button {
-                anchor = Date()
+                anchor = previewDate ?? Date()
                 reload()
             } label: {
                 Text(monthTitle)
@@ -208,6 +219,9 @@ public struct CalendarSectionView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .frame(height: 12)
+            Circle()
+                .fill(day?.events.isEmpty == false ? accent : .clear)
+                .frame(width: 3, height: 3)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 34)
@@ -311,9 +325,13 @@ public struct CalendarSectionView: View {
         // 周起始或导航变化仍复用已取的事件；只有显示范围超出缓存才读 EventKit。
         if cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: start) }),
            cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) { return }
-        var days = service.monthDays(for: start, firstWeekday: firstWeekday)
+        let sampleEvents = isSettingsPreview ? (previewEvents ?? []) : nil
+        let today = previewDate ?? Date()
+        var days = service.monthDays(for: start, firstWeekday: firstWeekday,
+                                     previewEvents: sampleEvents, today: today)
         if !days.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) {
-            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday))
+            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday,
+                                                       previewEvents: sampleEvents, today: today))
         }
         cachedDays = days
     }

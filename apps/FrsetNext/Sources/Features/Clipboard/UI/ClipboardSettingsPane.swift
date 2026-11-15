@@ -402,6 +402,7 @@ private struct ClipboardBackupSheet: View {
     @Stored private var operation: ClipboardBackup.Operation?
     @Stored private var replace = false
     @Stored private var useBackupConflicts = false
+    @Stored private var missingRecords: [ClipboardBackup.MissingRecord]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -421,12 +422,24 @@ private struct ClipboardBackupSheet: View {
                     Text("替换全部剪贴板历史、笔记和标签，保留 AI 对话及其他模块资料。")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 } else {
-                    Picker("内容相同但标题、笔记或标签不同", selection: $useBackupConflicts) {
+                    Picker("冲突记录（含本机缺失附件）", selection: $useBackupConflicts) {
                         Text("保留本机").tag(false)
                         Text("使用备份").tag(true)
                     }
                 }
             } else {
+                if let missingRecords, !missingRecords.isEmpty {
+                    Text("\(missingRecords.count) 条记录缺少附件。仅备份完整记录时，这些记录继续保留在本机；加密包包含跳过清单。")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(missingRecords) { record in
+                                Text(record.title + "\n" + record.paths.joined(separator: "\n"))
+                                    .font(.system(size: 12)).textSelection(.enabled)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.frame(maxHeight: 180)
+                }
                 SecureField("密码", text: $password)
                 if !request.importing { SecureField("再次输入密码", text: $confirmation) }
                 Text(request.importing ? "先解密并展示资料数量，确认后才恢复。" : "7z 同时加密正文、附件和文件名。请自行保管密码。")
@@ -438,15 +451,16 @@ private struct ClipboardBackupSheet: View {
                 Spacer()
                 Button("取消") { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; close() }
                     .keyboardShortcut(.cancelAction)
-                Button(session == nil ? (request.importing ? "读取备份" : "加密备份") : "确认恢复") { execute() }
+                Button(session == nil ? (request.importing ? "读取备份" : (missingRecords?.isEmpty == false ? "仅备份完整记录" : "加密备份")) : "确认恢复") { execute() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(busy || (session == nil && (password.isEmpty || (!request.importing && password != confirmation))))
+                    .disabled(busy || (!request.importing && missingRecords == nil) || (session == nil && (password.isEmpty || (!request.importing && password != confirmation))))
             }
         }
         .padding(24)
         .frame(width: 430)
         .frsetThemeChrome()
+        .onAppear { if !request.importing { reviewExport() } }
         .onDisappear { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; confirmation = "" }
     }
 
@@ -465,7 +479,19 @@ private struct ClipboardBackupSheet: View {
                 }
             }
         } else {
-            operation = ClipboardManager.shared.exportBackup(to: request.url, password: password, completion: finish)
+            operation = ClipboardManager.shared.exportBackup(to: request.url, password: password, skipping: missingRecords ?? [], completion: finish)
+        }
+    }
+
+    private func reviewExport() {
+        busy = true
+        operation = ClipboardManager.shared.reviewBackupExport { result in
+            busy = false
+            operation = nil
+            switch result {
+            case .success(let records): missingRecords = records
+            case .failure(let error): message = error.localizedDescription
+            }
         }
     }
 
@@ -478,7 +504,11 @@ private struct ClipboardBackupSheet: View {
             password = ""; confirmation = ""
             Toast.show(text, icon: "checkmark.circle")
             close()
-        case .failure(let error): message = error.localizedDescription
+        case .failure(let error):
+            session = nil
+            password = ""; confirmation = ""
+            message = error.localizedDescription
+            if !request.importing { reviewExport() }
         }
     }
 }

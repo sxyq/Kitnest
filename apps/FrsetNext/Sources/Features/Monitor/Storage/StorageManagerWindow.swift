@@ -789,7 +789,27 @@ struct StorageManagerRootView: View {
     private var rightPane: some View {
         GeometryReader { pane in
             ZStack(alignment: .topLeading) {
-                if let node = currentNode {
+                if showDataCategories, let issue = store.snapshot?.categorySummaryIssue {
+                    VStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.circle")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Theme.tertiaryText)
+                        Text("系统数据分类暂不可用")
+                            .font(.system(size: 12, weight: .medium))
+                        Text(issue)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Text("现有目录索引仍可在“目录”视图查看。")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Button("重新扫描") { store.rescan() }
+                            .controlSize(.small)
+                            .disabled(store.isScanning)
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let node = currentNode {
                     StorageTreemap(node: node,
                                    onDrill: { child in
                                        if showDataCategories { detailNode = child }
@@ -904,10 +924,23 @@ struct StorageManagerRootView: View {
                 .font(.system(size: 11)).foregroundStyle(.secondary)
             ScrollView {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("包含的已索引目录（子分类占用已扣除）：")
-                    if category.directories.isEmpty { Text("本次索引没有此类占用") }
-                    ForEach(category.directories, id: \.self) { Text($0).textSelection(.enabled) }
-                    Text("折叠子目录按保留父路径归类；其他类包含剩余已索引内容。分类用于查看，应用支持与系统资料不会自动加入清理推荐。")
+                    Text("各路径字节只计入本分类；嵌套分类已从上级路径中扣除。分类总量为各路径字节之和。")
+                    if let paths = category.pathBytes {
+                        if paths.isEmpty { Text("本次索引没有此类占用") }
+                        ForEach(paths) { item in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text(item.path)
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Spacer(minLength: 4)
+                                Text(StorageFormat.bytes(item.bytes))
+                                    .font(.system(size: 11).monospacedDigit())
+                            }
+                        }
+                    } else {
+                        Text("此缓存缺少逐路径字节，请重新扫描。")
+                    }
+                    Text("其他类包含剩余已索引内容。分类用于查看，应用支持与系统资料不会自动加入清理推荐。")
                     Text(coverageHelp)
                 }
                 .font(.system(size: 11))

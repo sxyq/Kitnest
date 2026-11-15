@@ -292,6 +292,20 @@ struct GeneralSettingsPane: View {
                 }
             }
             SettingsDraftEditor(id: "calendar", makeDraft: { CalendarSettingsDraft() }) { draft in
+                let previewCalendar = CalendarService.calendar(firstWeekday: draft.firstWeekday)
+                let previewDate = previewCalendar.startOfDay(for: SettingsPreviewSamples.date)
+                let event: (String, String, Int, Int, Int) -> CalendarEvent = { id, title, offset, hour, minute in
+                    let day = previewCalendar.date(byAdding: .day, value: offset, to: previewDate)!
+                    let start = previewCalendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
+                    return CalendarEvent(id: id, title: title, startDate: start)
+                }
+                let previewEvents = [
+                    event("island-preview-sync", "项目同步", 0, 14, 0),
+                    event("island-preview-review", "设计评审", 0, 16, 30),
+                    event("island-preview-plan", "交付计划", 3, 10, 0),
+                    event("island-preview-review-two", "需求梳理", 8, 15, 0)
+                ]
+                let previewSelectedDate = previewCalendar.date(byAdding: .day, value: 3, to: previewDate)!
                 SettingsGroupBox {
                     formRow("日历周起始日") {
                         Picker("日历周起始日", selection: Binding(
@@ -301,7 +315,10 @@ struct GeneralSettingsPane: View {
                         }
                         .labelsHidden().pickerStyle(.segmented).frame(width: 150)
                     }
-                    CalendarSectionView(firstWeekday: draft.firstWeekday)
+                    CalendarSectionView(firstWeekday: draft.firstWeekday,
+                                        previewDate: previewDate,
+                                        previewEvents: previewEvents,
+                                        previewSelectedDate: previewSelectedDate)
                         .environment(\.isSettingsPreview, true)
                 }
             }

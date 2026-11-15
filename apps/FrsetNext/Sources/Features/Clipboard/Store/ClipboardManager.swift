@@ -789,9 +789,13 @@ public final class ClipboardManager: ObservableObject {
         }
     }
 
-    func exportBackup(to url: URL, password: String,
+    func reviewBackupExport(completion: @escaping (Result<[ClipboardBackup.MissingRecord], Error>) -> Void) -> ClipboardBackup.Operation {
+        ClipboardBackup.reviewExport(queue: queue, completion: completion)
+    }
+
+    func exportBackup(to url: URL, password: String, skipping: [ClipboardBackup.MissingRecord],
                              completion: @escaping (Result<String, Error>) -> Void) -> ClipboardBackup.Operation {
-        ClipboardBackup.export(to: url, password: password, queue: queue, completion: completion)
+        ClipboardBackup.export(to: url, password: password, skipping: skipping, queue: queue, completion: completion)
     }
 
     func prepareBackupRestore(from url: URL, password: String,
