@@ -8,7 +8,7 @@ import Combine
 final class NowPlayingController: ObservableObject {
     static let shared = NowPlayingController()
 
-    struct Snapshot: Decodable {
+    struct Snapshot: Decodable, Equatable {
         var available = false
         var title = ""
         var artist = ""
@@ -49,7 +49,8 @@ final class NowPlayingController: ObservableObject {
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 Task { @MainActor in
                     guard let self, !self.consumers.isEmpty else { return }
-                    self.now = .now; self.refresh()
+                    if self.snapshot.isPlaying { self.now = .now }
+                    self.refresh()
                 }
             }
         } else {
@@ -94,11 +95,14 @@ final class NowPlayingController: ObservableObject {
                         throw NSError(domain: "MediaRemote", code: Int(task.terminationStatus),
                                       userInfo: [NSLocalizedDescriptionKey: String(decoding: data, as: UTF8.self)])
                     }
-                    let next = try JSONDecoder().decode(Snapshot.self, from: data)
+                    var next = try JSONDecoder().decode(Snapshot.self, from: data)
+                    // 暂停时不使用时间锚；系统每次读取生成的新时间不应重绘静止卡片。
+                    if !next.isPlaying { next.timestamp = self.snapshot.timestamp }
                     let changed = next.artworkData != self.snapshot.artworkData || next.artworkURL != self.snapshot.artworkURL ||
                         next.title != self.snapshot.title || next.bundleID != self.snapshot.bundleID
-                    self.snapshot = next
-                    self.now = .now
+                    let updated = next != self.snapshot
+                    if updated { self.snapshot = next }
+                    if updated || next.isPlaying { self.now = .now }
                     if action != "read" {
                         self.feedback = next.commandAccepted == true ? "" : "播放器未接受该操作"
                     }

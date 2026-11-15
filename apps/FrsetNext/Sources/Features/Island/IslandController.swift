@@ -322,9 +322,10 @@ final class IslandController: NSObject, ObservableObject {
             NSSize(width: min(max(panel.frame.width, effectiveWidth + 32, collapsedWidth + 32), screen.frame.width),
                    height: min(max(panel.frame.height, effectiveHeight + 16), screen.frame.height))
         let scale = screen.backingScaleFactor
-        panel.setFrame(NSRect(x: ((centerX - size.width / 2) * scale).rounded() / scale,
-                              y: screen.frame.maxY - size.height,
-                              width: size.width, height: size.height), display: true)
+        let frame = NSRect(x: ((centerX - size.width / 2) * scale).rounded() / scale,
+                           y: screen.frame.maxY - size.height,
+                           width: size.width, height: size.height)
+        if panel.frame != frame { panel.setFrame(frame, display: true) }
         if collapsed {
             visibleSize = size
             visibleRadius = IslandLayout.collapsedRadius
@@ -334,13 +335,16 @@ final class IslandController: NSObject, ObservableObject {
 
     private func updateNotchMetrics() {
         let screen = displayScreen
+        let width: CGFloat, height: CGFloat
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-            notchWidth = right.minX - left.maxX
-            notchHeight = screen.safeAreaInsets.top
+            width = right.minX - left.maxX
+            height = screen.safeAreaInsets.top
         } else {
-            notchWidth = 180
-            notchHeight = 28
+            width = 180
+            height = 28
         }
+        if notchWidth != width { notchWidth = width }
+        if notchHeight != height { notchHeight = height }
     }
 
     func expand(takeFocus: Bool = false) {

@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch url.host {
             case "island":
                 if let value = comps?.queryItems?.first(where: { $0.name == "page" })?.value,
-                   let page = IslandPage(rawValue: value) { IslandController.shared.page = page }
+                   let page = IslandPage(rawValue: value), IslandController.shared.page != page { IslandController.shared.page = page }
                 if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "collapse" {
                     IslandController.shared.collapse()
                 } else { IslandController.shared.open() }

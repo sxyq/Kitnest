@@ -9,6 +9,7 @@ struct IslandRootView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Stored private var transferToolsVisible = false
     @Stored private var recordsRevision = 0
+    @Stored private var recordsNeedReload = true
     @Stored private var recordDragging = false
     @FocusState private var recordListFocused: Bool
     @Stored private var fileDialogOpen = false
@@ -17,6 +18,11 @@ struct IslandRootView: View {
 
     private var preview: Bool { controller.previewOnly || isSettingsPreview }
     private var selectedRecord: String? { controller.selectedRecord }
+    private var recentRecordsVisible: Bool {
+        let pageShowsRecords = controller.page == .home || controller.page == .clipboard
+            || (controller.page == .transfer && !transferToolsVisible)
+        return pageShowsRecords && (preview || controller.expanded)
+    }
     private var monitoringVisible: Bool {
         controller.contentVisible && (controller.page == .monitor || (controller.page == .home && homeMonitorVisible))
     }
@@ -32,7 +38,6 @@ struct IslandRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.page)
         .onAppear {
-            if controller.expanded || preview { reloadRecords() }
             updateMonitoring()
         }
         .onChange(of: controller.expanded) { _ in
@@ -46,21 +51,22 @@ struct IslandRootView: View {
         .onChange(of: controller.page) { _ in controller.releaseRecordScroll(); reloadRecords(); updateMonitoring() }
         .onChange(of: transferToolsVisible) { _ in
             controller.releaseRecordScroll()
+            reloadRecords()
             if let panel = controller.panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
                 MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
             }
         }
         .onChange(of: homeMonitorVisible) { _ in updateMonitoring() }
-        .onChange(of: preview) { _ in reloadRecords(); updateMonitoring() }
+        .onChange(of: preview) { _ in reloadRecords(dataChanged: true); updateMonitoring() }
         .onDisappear {
             controller.releaseRecordScroll()
             if !preview { MonitorSampler.shared.setIslandActive(false) }
         }
         .onReceive(NotificationCenter.default.publisher(for: ClipboardManager.itemsDidChangeNotification)) { _ in
-            if !preview && controller.expanded { reloadRecords() }
+            if !preview { reloadRecords(dataChanged: true) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .localTransferDidChange)) { _ in
-            if !preview && controller.expanded { reloadRecords() }
+            if !preview { reloadRecords(dataChanged: true) }
         }
         .task(id: recordsRevision) { await loadRecords() }
     }
@@ -253,7 +259,6 @@ struct IslandRootView: View {
         LocalTransferStore.shared.add(urls: files) { count in
             controller.endInteraction()
             controller.feedback = LocalTransferStore.shared.lastError ?? "已暂存 \(count) 个文件"
-            reloadRecords()
         }
         return true
     }
@@ -320,19 +325,22 @@ struct IslandRootView: View {
     }
 
     /// 独立近期查询，不改主剪贴板的搜索词、过滤条件或分页。
-    private func reloadRecords() {
+    private func reloadRecords(dataChanged: Bool = false) {
+        if dataChanged { recordsNeedReload = true }
+        guard recordsNeedReload, !recordDragging, recentRecordsVisible else { return }
         recordsRevision += 1
     }
 
     @MainActor private func loadRecords() async {
-        if recordDragging { return }
-        if !preview && (!controller.expanded || (controller.page != .home && controller.page != .clipboard && controller.page != .transfer)) { return }
+        let revision = recordsRevision
+        guard recordsNeedReload, !recordDragging, recentRecordsVisible else { return }
+        let updatedRecords: [IslandRecentRow]
         if preview {
             var samples = IslandSample.clipboard
             samples.append(contentsOf: IslandSample.files.filter { file in
                 !samples.contains { $0.title == file.title && $0.icon == file.icon }
             })
-            records = samples.enumerated().map { index, sample in
+            updatedRecords = samples.enumerated().map { index, sample in
                 IslandRecentRow(id: "sample:\(index)", title: sample.title, icon: sample.icon,
                                 date: SettingsPreviewSamples.date.addingTimeInterval(Double(index) * -120), sample: sample)
             }
@@ -388,10 +396,14 @@ struct IslandRootView: View {
                 return joined.values.sorted { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }
             }
             let joined = await withTaskCancellationHandler(operation: { await work.value }, onCancel: { work.cancel() })
-            guard !Task.isCancelled, !recordDragging else { return }
-            records = joined
+            updatedRecords = joined
         }
-        if !records.contains(where: { $0.id == selectedRecord }) { controller.selectedRecord = records.first?.id }
+        guard !Task.isCancelled, recordsRevision == revision, !recordDragging else { return }
+        records = updatedRecords
+        recordsNeedReload = false
+        if !updatedRecords.contains(where: { $0.id == selectedRecord }) {
+            controller.selectedRecord = updatedRecords.first?.id
+        }
     }
 
     nonisolated private static func fileIcon(_ url: URL) -> String {

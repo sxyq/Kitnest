@@ -80,7 +80,7 @@ struct IslandSurface<Content: View>: View {
     private var tabs: some View {
         HStack(spacing: Theme.Space.xs) {
             ForEach(IslandPage.tabs) { page in
-                Button { controller.page = page } label: {
+                Button { if controller.page != page { controller.page = page } } label: {
                     Text(page.title).frame(maxWidth: .infinity).frame(height: 28)
                         .foregroundStyle((IslandPage.tabs.contains(controller.page) ? controller.page : controller.returnPage) == page ? .primary : .secondary)
                         .background {
