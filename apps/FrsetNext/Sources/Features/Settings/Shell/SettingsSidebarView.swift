@@ -130,10 +130,13 @@ struct SettingsSidebarView: View {
         // 一级标题可点（跳到该组第一页），二级行才承载选中态。
         VStack(alignment: .leading, spacing: 1) {
             ForEach(SettingsGroup.allCases) { group in
-                groupHeader(group)
-                ForEach(group.pages, id: \.self) { page in
-                    navRow(page)
-                        .id(page)
+                if group == .island {
+                    groupHeader(group).id(SettingsPage.island)
+                } else {
+                    groupHeader(group)
+                    ForEach(group.pages, id: \.self) { page in
+                        navRow(page).id(page)
+                    }
                 }
             }
         }
@@ -156,14 +159,25 @@ struct SettingsSidebarView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                if group == .island && editingSession.isDirty(page: .island) {
+                    Circle().fill(Color.orange).frame(width: 5, height: 5)
+                        .accessibilityLabel("未保存")
+                }
             }
             .foregroundStyle(on ? accent : Color.primary.opacity(0.72))
             .padding(.horizontal, 8)
             .frame(height: 28)
+            .background {
+                if group == .island && on {
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                        .fill(accent.opacity(0.15))
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(group.title)（点标题跳到「\(group.pages.first?.title ?? "")」）")
+        .help(group == .island ? group.title : "\(group.title)（点标题跳到「\(group.pages.first?.title ?? "")」）")
+        .accessibilityAddTraits(group == .island && on ? .isSelected : [])
         .padding(.top, 8)
     }
 
@@ -286,7 +300,7 @@ struct SettingsSidebarView: View {
         .init(title: "外观（浅色 / 深色 / Midnight）", area: "常规 › 主题外观", keywords: "主题 配色 暗色 深色模式 午夜", selection: .generalPersonal),
         .init(title: "语言", area: "常规 › 启动与外观", keywords: "中文 英文 language", selection: .generalStart),
         // 常规 · 主面板
-        .init(title: "刘海工作台（面积 / 模块 / 展开动画）", area: "常规 › 刘海工作台", keywords: "刘海 island 画布 行 列 宽 高 1×1 1×2 1×4 2×2 图标 辉光 悬停 预览", selection: .island),
+        .init(title: "刘海工作台（面积 / 模块 / 展开动画）", area: "刘海工作台", keywords: "刘海 island 画布 行 列 宽 高 1×1 1×2 1×4 2×2 图标 辉光 悬停 预览", selection: .island),
         .init(title: "主面板（字号 / 圆角 / 宽度 / 背景图）", area: "常规 › 主面板", keywords: "字号 行高 圆角 宽度 面板页面 顺序 打开动画 背景图", selection: .generalPanel),
         .init(title: "外观预览（主面板）", area: "常规 › 主面板", keywords: "预览 实时 缩略窗 所见即所得", selection: .generalPanel),
         // 常规 · 独立窗口与浮层

@@ -11,9 +11,9 @@ import SwiftUI
 // 「文件中转」各自仍是一整页长滚动——一级目录只是视觉分组，没有真正的二级页。
 //
 // 新模型：
-//   · `SettingsGroup`  = 一级目录（常规 / 音频 / 剪贴板 / 文件中转 / 截图 / 工具 / 搜索与 AI / 性能监测）
+//   · `SettingsGroup`  = 一级目录（常规 / 刘海工作台 / 音频 / 剪贴板 / 文件中转 / 截图 / 工具 / 搜索与 AI / 性能监测）
 //   · `SettingsPage`   = 二级页，侧边栏唯一可选中粒度，也是内容区唯一分发粒度
-//   · 一级目录永远常驻展开（不做手风琴），点一级标题 = 跳到它的第一个二级页
+//   · 一级目录常驻展开；刘海工作台直接使用一级入口，不重复列出同名二级页
 //
 // 这样「新建一个设置项该放哪」只需回答「属于哪个一级目录的哪个二级页」，
 // 深链、搜索索引、内容区分发三处共用同一份枚举，不会再各自漂移。
@@ -22,6 +22,7 @@ import SwiftUI
 
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     case general
+    case island
     case audio
     case clipboard
     case transfer
@@ -37,6 +38,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .general:  return "常规"
+        case .island:   return "刘海工作台"
         case .audio:    return "音频"
         case .clipboard: return "剪贴板"
         case .transfer: return "文件中转"
@@ -50,6 +52,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .general:  return "gearshape"
+        case .island:   return "rectangle.tophalf.inset.filled"
         case .audio:    return "speaker.wave.2"
         case .clipboard: return "doc.on.clipboard"
         case .transfer: return "arrow.left.arrow.right.square"
@@ -64,7 +67,9 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var pages: [SettingsPage] {
         switch self {
         case .general:
-            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .island, .generalNotifications, .generalMenuBar]
+            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .generalNotifications, .generalMenuBar]
+        case .island:
+            return [.island]
         case .audio:
             return [.audio]
         case .clipboard:
