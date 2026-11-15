@@ -177,6 +177,7 @@ private struct SearchSettingsContent: View {
     /// 引擎数据中心（原作 SearchServiceManager 等价，实现在 Models/SearchEngine.swift）
     @ObservedObject private var service: SearchServiceManager
     @Stored private var showsPreview = true
+    @Stored private var previewQuery = "设计"
     @Stored private var notice: String?
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
@@ -230,11 +231,18 @@ private struct SearchSettingsContent: View {
                     Toggle("显示预览", isOn: $showsPreview).toggleStyle(.checkbox)
                 }
                 if showsPreview {
-                    SearchSectionView(draft: draft)
+                    HStack(spacing: 6) {
+                        Text("场景").font(.system(size: 11)).foregroundStyle(.secondary)
+                        ForEach(["设计", "SwiftUI", "/uuid"], id: \.self) { query in
+                            Button(query) { previewQuery = query }
+                                .buttonStyle(.bordered).controlSize(.mini)
+                                .accessibilityLabel("预览场景：" + query)
+                        }
+                    }
+                    SearchSectionView(draft: draft, query: $previewQuery)
                         .environment(\.isSettingsPreview, true)
                         .environment(\.settingsPreviewClipboardItems, SettingsPreviewSamples.clipboardItems)
-                        .environment(\.settingsPreviewClipboardQuery, "设计")
-                    Text("固定示例 · 可输入、筛选及点击，保存才应用到正式搜索。")
+                    Text("固定示例 · 输入、分类和引擎即时更新；演示操作不打开网页或复制真实内容。保存后应用到正式搜索。")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
