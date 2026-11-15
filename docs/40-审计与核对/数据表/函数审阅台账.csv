@@ -2190,39 +2190,39 @@ CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,func,func,35,KEEP,Equ
 CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,color,func,37,KEEP,调用方 CodeHighlighter.swift:110（token→NSColor）
 CodePreview,Features/CodePreview/CodeTheme.swift,CodeThemeCatalog,theme,func,68,KEEP,调用方 CodePreviewView.swift:52/69 与 BuiltinTools.swift:267
 CodePreview,Features/CodePreview/CodeTheme.swift,NSColor,init,init,324,KEEP,被本文件全部 14 套主题构造调用（:83 起）
-Island,Features/Island/IslandContent.swift,IslandRootView,updateMonitoring,func,63,KEEP,页面、展开及首页监测组件可见性变化时交MonitorSampler.setIslandActive，设置预览不启动真实采样
-Island,Features/Island/IslandContent.swift,IslandRootView,pageContent,func,67,KEEP,IslandRootView按唯一controller.page分派正式内容；中转页在近期记录与utilitiesOnly传输内容间切换
-Island,Features/Island/IslandContent.swift,IslandRootView,widgetContent,func,98,KEEP,首页异构格按组件种类及尺寸装现有监测、近期记录、媒体、音量、日历和功能入口，预览用既有样例
-Island,Features/Island/IslandContent.swift,IslandRootView,widget,func,152,KEEP,首页共用组件标题、颜色与glassCard外壳，标题切对应page；仅剪贴板格接收URL拖入
-Island,Features/Island/IslandContent.swift,IslandRootView,compactRecord,func,170,KEEP,首页近期项显示单行及选中标记，原生IslandFileDragSource接单击预览、双击复制与文件拖出，延迟首页单击换页
-Island,Features/Island/IslandContent.swift,IslandRootView,receiveFiles,func,240,KEEP,组件与记录页拖入仅收fileURL，真实文件交LocalTransferStore.add；开始/结束交互保留刘海，完成反馈并重载，预览仅反馈数量
-Island,Features/Island/IslandContent.swift,IslandRootView,select,func,253,KEEP,设置selectedRecord与列表焦点，可切剪贴板页；显式预览且非设置预览时按来源panel交共用present
-Island,Features/Island/IslandContent.swift,IslandRootView,moveSelection,func,263,KEEP,列表方向键及原生行onMove把选中索引夹在记录范围，调用select并scrollTo居中定位
-Island,Features/Island/IslandContent.swift,IslandRootView,copySelectedRecord,func,271,KEEP,列表复制命令和原生行Cmd+C只按selectedRecord找到一行，交统一copy
-Island,Features/Island/IslandContent.swift,IslandRootView,draggingChanged,func,285,KEEP,原生文件拖出回调更新recordDragging，拖出结束再reloadRecords，拖动中保留当前行视图
-Island,Features/Island/IslandContent.swift,IslandRootView,reloadRecords,func,291,KEEP,展开、页面、剪贴板及中转通知只递增recordsRevision，触发现有.task(id:)的独立近期查询
-Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,295,KEEP,后台独立fetch剪贴板并合并中转项，原路径和暂存路径别名去重，文件按路径拆行、按最新日期排序；取消或拖出中不发布，预览仅用样例，主列表筛选分页保留
-Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,365,KEEP,loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标
-Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,376,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
-Island,Features/Island/IslandContent.swift,IslandRecentRow,copy,func,412,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,451,KEEP,IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,452,KEEP,SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图
-Island,Features/Island/IslandContent.swift,IslandFileDragView,updateTrackingAreas,func,478,KEEP,记录行原生拖出视图沿可见范围接收悬停进入离开事件，重建跟踪区域时先移除旧区域
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseEntered,func,486,KEEP,展开中的刘海记录行把正式剪贴板条目及来源窗口坐标交给共用 rowHover，不读取正文或创建第二套预览
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseExited,func,495,KEEP,记录行离开时由共用 rowHover 取消待呈现任务并安排关闭，沿用主面板悬停时序
-Island,Features/Island/IslandContent.swift,IslandFileDragView,showPreview,func,500,KEEP,刘海记录单击、回车与空格用同一个 present 入口，行边界经所属窗口换算为屏幕坐标；双击仍走原复制方法
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,506,KEEP,记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,512,KEEP,原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,523,KEEP,文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,543,KEEP,非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点
-Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,557,KEEP,原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,562,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
+Island,Features/Island/IslandContent.swift,IslandRootView,updateMonitoring,func,64,KEEP,页面、展开及首页监测组件可见性变化时交MonitorSampler.setIslandActive，设置预览不启动真实采样
+Island,Features/Island/IslandContent.swift,IslandRootView,pageContent,func,68,KEEP,IslandRootView按唯一controller.page分派正式内容；中转页在近期记录与utilitiesOnly传输内容间切换
+Island,Features/Island/IslandContent.swift,IslandRootView,widgetContent,func,99,KEEP,首页异构格按组件种类及尺寸装现有监测、近期记录、媒体、音量、日历和功能入口，预览用既有样例
+Island,Features/Island/IslandContent.swift,IslandRootView,widget,func,153,KEEP,首页共用组件标题、颜色与glassCard外壳，标题切对应page；仅剪贴板格接收URL拖入
+Island,Features/Island/IslandContent.swift,IslandRootView,compactRecord,func,171,KEEP,首页近期项显示单行及选中标记，原生IslandFileDragSource接单击预览、双击复制与文件拖出，延迟首页单击换页
+Island,Features/Island/IslandContent.swift,IslandRootView,receiveFiles,func,242,KEEP,组件与记录页拖入仅收fileURL，真实文件交LocalTransferStore.add；开始/结束交互保留刘海，完成反馈并重载，预览仅反馈数量
+Island,Features/Island/IslandContent.swift,IslandRootView,select,func,255,KEEP,设置selectedRecord与列表焦点，可切剪贴板页；显式预览且非设置预览时按来源panel交共用present
+Island,Features/Island/IslandContent.swift,IslandRootView,moveSelection,func,265,KEEP,列表方向键及原生行onMove把选中索引夹在记录范围，调用select并scrollTo居中定位
+Island,Features/Island/IslandContent.swift,IslandRootView,copySelectedRecord,func,273,KEEP,列表复制命令和原生行Cmd+C只按selectedRecord找到一行，交统一copy
+Island,Features/Island/IslandContent.swift,IslandRootView,draggingChanged,func,287,KEEP,原生文件拖出回调更新recordDragging，拖出结束再reloadRecords，拖动中保留当前行视图
+Island,Features/Island/IslandContent.swift,IslandRootView,reloadRecords,func,293,KEEP,展开、页面、剪贴板及中转通知只递增recordsRevision，触发现有.task(id:)的独立近期查询
+Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,297,KEEP,后台独立fetch剪贴板并合并中转项，原路径和暂存路径别名去重，文件按路径拆行、按最新日期排序；取消或拖出中不发布，预览仅用样例，主列表筛选分页保留
+Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,367,KEEP,loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标
+Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,378,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
+Island,Features/Island/IslandContent.swift,IslandRecentRow,copy,func,414,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
+Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,453,KEEP,IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,454,KEEP,SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图
+Island,Features/Island/IslandContent.swift,IslandFileDragView,updateTrackingAreas,func,480,KEEP,记录行原生拖出视图沿可见范围接收悬停进入离开事件，重建跟踪区域时先移除旧区域
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseEntered,func,488,KEEP,展开中的刘海记录行把正式剪贴板条目及来源窗口坐标交给共用 rowHover，不读取正文或创建第二套预览
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseExited,func,497,KEEP,记录行离开时由共用 rowHover 取消待呈现任务并安排关闭，沿用主面板悬停时序
+Island,Features/Island/IslandContent.swift,IslandFileDragView,showPreview,func,502,KEEP,刘海记录单击、回车与空格用同一个 present 入口，行边界经所属窗口换算为屏幕坐标；双击仍走原复制方法
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,508,KEEP,记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,514,KEEP,原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,525,KEEP,文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,545,KEEP,非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点
+Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,559,KEEP,原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页
 Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,564,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
-Island,Features/Island/IslandContent.swift,IslandCalendarContent,previewEvent,func,598,KEEP,设置日历样例按钮只切controller.completedEvents中的示例索引，演示完成勾选，不写EventKit
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRow,func,695,KEEP,正式日历eventList复用标题和全天/开始时间排版，完整页可多行，组件格限单行
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveMonth,func,703,KEEP,完整日历左右按钮以Calendar加减月份更新selectedDate后reload
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,707,KEEP,出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,712,KEEP,完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
+Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,566,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
+Island,Features/Island/IslandContent.swift,IslandCalendarContent,previewEvent,func,600,KEEP,设置日历样例按钮只切controller.completedEvents中的示例索引，演示完成勾选，不写EventKit
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRow,func,697,KEEP,正式日历eventList复用标题和全天/开始时间排版，完整页可多行，组件格限单行
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveMonth,func,705,KEEP,完整日历左右按钮以Calendar加减月份更新selectedDate后reload
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,709,KEEP,出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,714,KEEP,完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
 Island,Features/Island/IslandController.swift,IslandController,init,init,40,KEEP,保存传入或.load的唯一配置和previewOnly；设置预览给180×28pt示例刘海，正式几何由position读屏幕
 Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,66,KEEP,Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
 Island,Features/Island/IslandController.swift,IslandController,apply,func,75,KEEP,设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
@@ -2251,6 +2251,11 @@ Island,Features/Island/IslandFeatureContent.swift,IslandFeatureContent,compact,f
 Island,Features/Island/IslandFeatureContent.swift,IslandDownloadContent,start,func,156,KEEP,下载页按钮及回车先识别网盘分享交CloudLinkActions.resolve，否则完整http/https URL交现有直接下载器，预览只反馈
 Island,Features/Island/IslandFeatureContent.swift,IslandOCRContent,chooseImage,func,302,KEEP,OCR页图片入口收回后用NSOpenPanel选图，后台读取Data交现有manager.recognize(inline:true)，失败给路径读取原因，结束重开刘海
 Island,Features/Island/IslandFeatureContent.swift,IslandArchiveContent,choose,func,334,KEEP,归档页收回后选择文件，创建模式可多选目录并交ArchiveCreateWindowController，打开模式交ArchiveBrowserWindowController，取消重新open
+Island,Features/Island/IslandGlow.swift,IslandGlowRegions,reduce,func,22,KEEP,合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点
+Island,Features/Island/IslandGlow.swift,IslandGlowTarget,body,func,31,KEEP,卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
+Island,Features/Island/IslandGlow.swift,IslandGlowScene,body,func,41,KEEP,卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
+Island,Features/Island/IslandGlow.swift,View,islandGlowScene,func,106,KEEP,刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新
+Island,Features/Island/IslandGlow.swift,View,islandGlowClip,func,109,KEEP,滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制
 Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,cover,func,125,KEEP,媒体大小形态共用播放器真实artwork，没有封面显示音乐图标；按side裁连续圆角并注明封面来源状态
 Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,metadata,func,136,KEEP,媒体完整页与格共用标题、歌手、专辑和播放器来源，full控制字号及折行，小格省歌手
 Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,transport,func,155,KEEP,完整/紧凑播放器共用上一首5、下一首4及playButton，send闭包由正式或设置预览宿主提供
@@ -2271,22 +2276,20 @@ Island,Features/Island/IslandSettings.swift,IslandConfiguration,load,func,69,KEE
 Island,Features/Island/IslandSettings.swift,IslandConfiguration,persist,func,78,KEEP,正式IslandController.apply把当前Codable配置编码存入唯一island.configuration键，编码错误传回设置保存
 Island,Features/Island/IslandSettings.swift,IslandMetric,format,func,234,KEEP,图表、指标卡和统计共用单位格式，百分比/KB/s取0小数，GiB/W取1小数并带unit
 Island,Features/Island/IslandSettings.swift,Array,islandMove,func,240,KEEP,设置顺序按钮、键盘和指标拖放从既有数组移除item后插到目标索引，不创建第二份排序状态
-Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,111,KEEP,IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
-Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,162,KEEP,IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
-Island,Features/Island/IslandSurface.swift,IslandMaterial,makeNSView,func,174,KEEP,IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
-Island,Features/Island/IslandSurface.swift,IslandMaterial,updateNSView,func,177,KEEP,动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,189,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,198,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,199,KEEP,仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
-Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,218,KEEP,IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,279,KEEP,收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,294,KEEP,收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
-Island,Features/Island/IslandSurface.swift,IslandGlow,body,func,322,KEEP,IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
-Island,Features/Island/IslandSurface.swift,View,islandGlow,func,351,KEEP,WidgetGrid给每个卡片传共享pointer、局部frame、半径和enabled，修饰器只交IslandGlow绘制层消费位置
+Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,112,KEEP,IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
+Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,163,KEEP,IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
+Island,Features/Island/IslandSurface.swift,IslandMaterial,makeNSView,func,175,KEEP,IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
+Island,Features/Island/IslandSurface.swift,IslandMaterial,updateNSView,func,178,KEEP,动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,190,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,199,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,200,KEEP,仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
+Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,219,KEEP,IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,269,KEEP,收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,284,KEEP,收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,19,KEEP,Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,63,KEEP,全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,previewContent,func,129,KEEP,设置预览复用IslandSample文本及工具默认选项，仅切结果区域和复制/保存反馈，不创建ToolRunnerView或ToolOutput
-Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,move,func,133,KEEP,组件把手点击、菜单及方向键按现有widgetOrder前后索引交controller.move，末端不越界
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,move,func,117,KEEP,组件把手点击、菜单及方向键按现有widgetOrder前后索引交controller.move，末端不越界
 Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,26,KEEP,parse 内 :111 兜底与 :153 正常构造
 Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,33,KEEP,parse 的 register 内 :174 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,102,KEEP,ManualView.swift:18 @Stored 属性初始化调用
@@ -2609,22 +2612,22 @@ Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailSelection,in
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorPerformanceContent,init,init,20,KEEP,PanelRootView.swift:693、PopoutRootView:54 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailView,init,init,49,KEEP,同名重载错挂：init(selection:pageMode:fixedWidth:) 是 :25 在用；init(module:) 已删
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,init,init,105,KEEP,MonitorDetailView 保存选择/页模式/宽度；MonitorDetailContent 接收采样、历史、Stats、额外指标和卷列表及可选真实控制器，固定预览使用独立选择与静态数据
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,191,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,352,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,368,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,537,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,572,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,581,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,592,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,677,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,691,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,747,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,908,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,1052,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1203,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1240,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1268,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1310,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,193,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,354,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,370,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,539,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,574,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,583,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,594,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,679,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,693,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,749,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,910,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,1054,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1205,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1242,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1270,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1312,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,thickness,func,59,KEEP,同文件:214 ribbonArea 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,nodeIcon,func,152,KEEP,同文件:132、170 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,branchTile,func,165,KEEP,同文件:92 body ForEach 调用

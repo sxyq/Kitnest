@@ -43,6 +43,14 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Island/IslandGlow.swift", "reduce"):
+        "合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点",
+    ("Features/Island/IslandGlow.swift", "body"):
+        "卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置",
+    ("Features/Island/IslandGlow.swift", "islandGlowScene"):
+        "刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新",
+    ("Features/Island/IslandGlow.swift", "islandGlowClip"):
+        "滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "hasPreview"):
         "刘海控制器收起时按来源窗口关闭共用预览，指针进入该预览时保留展开；只读取现有窗口与会话状态",
     ("Features/Island/IslandContent.swift", "updateTrackingAreas"):

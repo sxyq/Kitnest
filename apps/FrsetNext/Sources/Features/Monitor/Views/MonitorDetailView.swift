@@ -130,6 +130,7 @@ private struct MonitorDetailContent: View {
                         .transition(PanelMotion.transition(.opacity.combined(with: .offset(y: 8))))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .islandGlowClip()
                 Divider().opacity(0.5)
                 footer
             }
@@ -178,6 +179,7 @@ private struct MonitorDetailContent: View {
                     .contentShape(Capsule(style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .modifier(IslandGlowTarget(radius: Theme.Radius.pill))
                 // v183：深链/键盘切换后第一个胶囊会吃焦点环，看着像「两个都选中」
                 .focusable(isSettingsPreview)
             }

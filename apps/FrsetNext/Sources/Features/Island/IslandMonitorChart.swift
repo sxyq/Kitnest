@@ -210,7 +210,7 @@ struct IslandMonitorPage: View {
                             }
                     }
                 }
-            }.frame(width: 220)
+            }.islandGlowClip().frame(width: 220)
             VStack(spacing: 10) {
                 HStack {
                     Text(selectedMetric.title + " · " + selectedMetric.unit).fontWeight(.medium)

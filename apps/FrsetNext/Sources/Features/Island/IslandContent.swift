@@ -29,6 +29,7 @@ struct IslandRootView: View {
             if controller.expanded || controller.showingContent || preview || fileDialogOpen {
                 pageContent(controller.page)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .islandGlowClip()
                     .transition(.opacity)
             }
         }
@@ -163,7 +164,6 @@ struct IslandRootView: View {
         }.padding(size.rows == 2 ? 10 : 6)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .tint(controller.configuration.color(for: item))
-            .islandGlow(enabled: controller.glowEnabled && controller.expanded && controller.page == .home)
             .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
             .dropDestination(for: URL.self) { urls, _ in item == .clipboard && receiveFiles(urls) }
     }
@@ -217,6 +217,7 @@ struct IslandRootView: View {
                         }
                     }
                 }
+                .islandGlowClip()
                 .focusable()
                 .focused($recordListFocused)
                 .onMoveCommand { direction in

@@ -19,6 +19,7 @@ struct IslandSurface<Content: View>: View {
             content().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             pager
         }
+        .islandGlowScene(enabled: controller.glowEnabled && controller.expanded)
         .padding(.horizontal, IslandLayout.inset)
         .padding(.top, controller.notchHeight + 6)
         .padding(.bottom, IslandLayout.inset)
@@ -228,33 +229,22 @@ private struct IslandButtonBody<Label: View>: View {
     let tipAlignment: Alignment
     let navigation: Bool
     @Stored private var hovered = false
-    @Environment(\.isFocused) private var focused
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         ZStack {
         label
             .background {
                 RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
-                    .fill(Theme.rowHoverFill.opacity(hovered || pressed || focused ? 1 : 0))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
-                    .strokeBorder(focused ? Theme.accent(for: nil) : .clear, lineWidth: Theme.Stroke.emphasis)
+                    .fill(Theme.rowHoverFill.opacity(hovered ? 1 : 0))
             }
             .scaleEffect(reduceMotion || !pressed ? 1 : 0.99)
         }
             .contentShape(Rectangle())
+            .modifier(IslandGlowTarget(radius: IslandLayout.controlRadius))
             .onHover { hovered = $0 }
             .animation(Theme.Motion.tap, value: pressed)
             .animation(Theme.Motion.fast, value: hovered)
-            .overlay(alignment: tipAlignment) {
-                if let help, hovered || focused {
-                    Text(help).font(.system(size: Theme.TextSize.caption))
-                        .fixedSize().padding(Theme.Space.sm)
-                        .background(.black, in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
-                        .offset(y: 30).allowsHitTesting(false)
-                }
-            }
+            .help(help ?? "")
     }
 }
 
@@ -312,42 +302,4 @@ private struct IslandPeekPowerValue: View {
     }
 }
 
-/// 微光保留最后光源位置淡出；扩散按卡片短边计算，避免宽卡整面泛白。
-private struct IslandGlow: ViewModifier {
-    let enabled: Bool
-    @Stored private var location = CGPoint.zero
-    @Stored private var hovered = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    func body(content: Content) -> some View {
-        content.background {
-            GeometryReader { geometry in
-                RadialGradient(stops: [.init(color: .white.opacity(0.15), location: 0),
-                                       .init(color: .white.opacity(0.065), location: 0.25),
-                                       .init(color: .white.opacity(0.02), location: 0.6),
-                                       .init(color: .clear, location: 1)],
-                               center: reduceMotion ? .center : UnitPoint(x: location.x / geometry.size.width,
-                                                                         y: location.y / geometry.size.height),
-                               startRadius: 0, endRadius: min(geometry.size.width, geometry.size.height) * 0.9)
-                    .opacity(enabled && hovered ? 1 : 0)
-                    .animation(reduceMotion ? Theme.Motion.tap : hovered ? Theme.Motion.fast : Theme.Motion.page,
-                               value: enabled && hovered)
-                    .allowsHitTesting(false)
-            }
-        }
-        .onContinuousHover { phase in
-            switch phase {
-            case .active(let point):
-                if enabled && !reduceMotion {
-                    withAnimation(hovered ? .linear(duration: 0.06) : nil) { location = point }
-                }
-                hovered = true
-            case .ended: hovered = false
-            }
-        }
-    }
-}
-
-extension View {
-    func islandGlow(enabled: Bool) -> some View { modifier(IslandGlow(enabled: enabled)) }
-}
 

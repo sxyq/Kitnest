@@ -232,6 +232,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         win.applyOfficialChrome()
         win.isMovableByWindowBackground = true
         win.isReleasedWhenClosed = false
+        win.acceptsMouseMovedEvents = true
         win.delegate = self
         // 不使用 setFrameAutosaveName：原版设置窗固定 800×562（zoom/miniaturize 已隐藏），
         // 无尺寸记忆需求；且 autosave 会在 display cycle 内用旧帧（914pt）覆盖目标尺寸，
