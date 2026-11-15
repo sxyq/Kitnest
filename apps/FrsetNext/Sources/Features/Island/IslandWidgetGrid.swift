@@ -175,8 +175,8 @@ struct IslandWidgetGrid<Content: View>: View {
 
     private func end(valid: Bool) {
         footprint = nil
-        rebuild()
         if valid {
+            rebuild()
             var next = controller.layoutConfiguration
             next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
             let visible = placements.sorted {
@@ -209,6 +209,8 @@ private struct IslandEditableWidget<Content: View>: View {
     @Stored private var translation = CGSize.zero
     @Stored private var resizing = false
     @Stored private var candidate: IslandWidgetSize?
+    @FocusState private var moveFocused: Bool
+    @FocusState private var resizeFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var liveSize: CGSize {
@@ -233,7 +235,8 @@ private struct IslandEditableWidget<Content: View>: View {
             .overlay {
                 if editing {
                     RoundedRectangle(cornerRadius: IslandLayout.cardRadius)
-                        .strokeBorder(configuration.color(for: item).opacity(origin == nil ? 0.4 : 1), lineWidth: origin == nil ? 1 : 2)
+                        .strokeBorder(configuration.color(for: item).opacity(origin == nil && !moveFocused && !resizeFocused ? 0.4 : 1),
+                                      lineWidth: origin == nil && !moveFocused && !resizeFocused ? 1 : 2)
                         .allowsHitTesting(false)
                     Color.clear.contentShape(Rectangle())
                         .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .named("islandLayout"))
@@ -248,6 +251,7 @@ private struct IslandEditableWidget<Content: View>: View {
                             })
                         .accessibilityLabel("移动\(item.title)")
                         .focusable()
+                        .focused($moveFocused)
                         .onMoveCommand { direction in
                             begin()
                             var point = frame.origin
@@ -270,7 +274,7 @@ private struct IslandEditableWidget<Content: View>: View {
                 if editing {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(resizing ? configuration.color(for: item) : .secondary)
+                        .foregroundStyle(resizing || resizeFocused ? configuration.color(for: item) : .secondary)
                         .frame(width: 28, height: 28).contentShape(Rectangle())
                         .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
                         .onHover { hover in
@@ -289,22 +293,25 @@ private struct IslandEditableWidget<Content: View>: View {
                                 }
                                 change(liveOrigin, candidate, liveSize)
                             }
-                            .onEnded { _ in
-                                let next = choices.min { distance($0) < distance($1) }!
-                                change(liveOrigin, next, liveSize)
-                                end(true); settle()
+                            .onEnded { value in
+                                let valid = CGRect(origin: .zero, size: bounds).contains(value.location)
+                                if valid {
+                                    let next = choices.min { distance($0) < distance($1) }!
+                                    change(liveOrigin, next, liveSize)
+                                }
+                                end(valid); settle()
                             })
                         .accessibilityLabel("调整\(item.title)尺寸")
                         .focusable()
+                        .focused($resizeFocused)
                         .accessibilityValue(candidate?.rawValue ?? size.rawValue)
-                        .accessibilityAdjustableAction { direction in
-                            let choices = IslandWidgetSize.allCases.filter {
-                                $0.columns <= configuration.columns && $0.rows <= configuration.rows
-                            }.sorted { $0.columns * $0.rows < $1.columns * $1.rows }
-                            let index = choices.firstIndex(of: size)!
-                            let next = min(max(0, index + (direction == .increment ? 1 : -1)), choices.count - 1)
-                            begin(); change(frame.origin, choices[next], nil); end(true)
+                        .onMoveCommand { direction in
+                            adjustSize(direction == .right || direction == .up ? 1 : -1)
                         }
+                        .accessibilityAdjustableAction { direction in
+                            adjustSize(direction == .increment ? 1 : -1)
+                        }
+                        .help("聚焦后按方向键调整尺寸")
                         .padding(4)
                 }
             }
@@ -320,6 +327,13 @@ private struct IslandEditableWidget<Content: View>: View {
         withAnimation(reduceMotion ? nil : .interactiveSpring(response: 0.24, dampingFraction: 0.86, blendDuration: 0)) {
             origin = nil; translation = .zero; resizing = false; candidate = nil
         }
+    }
+
+    private func adjustSize(_ step: Int) {
+        let sizes = choices.sorted { $0.columns * $0.rows < $1.columns * $1.rows }
+        let index = sizes.firstIndex(of: size)!
+        let next = min(max(0, index + step), sizes.count - 1)
+        begin(); change(frame.origin, sizes[next], nil); end(true)
     }
 
     private var choices: [IslandWidgetSize] {

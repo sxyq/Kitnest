@@ -64,6 +64,13 @@ final class IslandSettingsDraft: SettingsEditableDraft {
                     next[keyPath: field][key] = values[key]
                 }
             }
+            func mergeMembers<Value: Hashable>(_ field: WritableKeyPath<IslandConfiguration, Set<Value>>) {
+                let values = configuration[keyPath: field], original = saved[keyPath: field]
+                for value in values.symmetricDifference(original) {
+                    if values.contains(value) { next[keyPath: field].insert(value) }
+                    else { next[keyPath: field].remove(value) }
+                }
+            }
             merge(\.enabled)
             merge(\.width)
             merge(\.height)
@@ -76,13 +83,22 @@ final class IslandSettingsDraft: SettingsEditableDraft {
             merge(\.material)
             merge(\.opacity)
             merge(\.glowEnabled)
-            merge(\.visiblePeeks)
+            mergeMembers(\.visiblePeeks)
             merge(\.peeksShowValues)
             merge(\.peeksQuickActions)
             merge(\.peekOrder)
-            merge(\.widgetPositions)
+            if configuration.widgetPositions != saved.widgetPositions {
+                if let values = configuration.widgetPositions {
+                    let original = saved.widgetPositions ?? [:]
+                    var positions = next.widgetPositions ?? [:]
+                    for key in Set(values.keys).union(original.keys) where values[key] != original[key] {
+                        positions[key] = values[key]
+                    }
+                    next.widgetPositions = positions
+                } else { next.widgetPositions = nil }
+            }
             merge(\.widgetOrder)
-            merge(\.hiddenWidgets)
+            mergeMembers(\.hiddenWidgets)
             mergeKeys(\.widgetSizes)
             mergeKeys(\.widgetColors)
             merge(\.metricOrder)

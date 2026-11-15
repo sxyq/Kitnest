@@ -2245,36 +2245,36 @@ Island,Features/Island/IslandController.swift,IslandController,init,init,66,KEEP
 Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,108,KEEP,Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
 Island,Features/Island/IslandController.swift,IslandController,apply,func,118,KEEP,设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
 Island,Features/Island/IslandController.swift,IslandController,beginLayoutEditing,func,130,KEEP,以当前配置建立布局草稿并进入首页编辑，保持刘海展开；已保存配置在编辑过程中保持原样
-Island,Features/Island/IslandController.swift,IslandController,updateLayout,func,137,KEEP,接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块
-Island,Features/Island/IslandController.swift,IslandController,finishLayoutEditing,func,141,KEEP,从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑
-Island,Features/Island/IslandController.swift,IslandController,cancelLayoutEditing,func,150,KEEP,丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口
-Island,Features/Island/IslandController.swift,IslandController,setWidgetVisible,func,156,KEEP,通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口
-Island,Features/Island/IslandController.swift,IslandController,beginInteraction,func,163,KEEP,文件拖入拖出、格拖放及媒体滑杆操作置interacting，取消待收回工作
-Island,Features/Island/IslandController.swift,IslandController,endInteraction,func,164,KEEP,交互结束重新读取指针，仍在外且非显式展开时按配置collapseDelay安排收回
-Island,Features/Island/IslandController.swift,IslandController,turnPage,func,181,KEEP,底部翻页、Option方向键和横向滚动按IslandPage.tabs循环切换唯一page
-Island,Features/Island/IslandController.swift,IslandController,setComponentPageCount,func,192,KEEP,画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内
-Island,Features/Island/IslandController.swift,IslandController,goBack,func,197,KEEP,刘海详情返回原四入口，组件页与各页选择保留在同一控制器
-Island,Features/Island/IslandController.swift,IslandController,resumeAfterOutside,func,199,KEEP,外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入
-Island,Features/Island/IslandController.swift,IslandController,bindRecordScroll,func,201,KEEP,记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务
-Island,Features/Island/IslandController.swift,IslandController,releaseRecordScroll,func,217,KEEP,切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复
-Island,Features/Island/IslandController.swift,IslandController,changeTrack,func,223,KEEP,演示tracks按步长循环更新track并把seek归零；当前源码未找到调用，正式媒体send走NowPlayingController
-Island,Features/Island/IslandController.swift,IslandController,refreshClipboard,func,228,KEEP,expand前独立取最近一条正文前24字符压平为摘要；预览取IslandSample标题
-Island,Features/Island/IslandController.swift,IslandController,copyLatest,func,234,KEEP,收起态剪贴板快捷操作独立fetch最近一项交ClipboardManager.copy(autoPaste:false)，空列表给反馈，预览不写系统剪贴板
-Island,Features/Island/IslandController.swift,IslandController,copyDate,func,244,KEEP,收起态日历快捷操作把当天ISO年月日交copyText并反馈，预览只改feedback
-Island,Features/Island/IslandController.swift,IslandController,activatePeek,func,249,KEEP,收起态图标按peeksQuickActions执行复制或展开指定页，关闭快捷操作时统一打开peek.page
-Island,Features/Island/IslandController.swift,IslandController,surfaceDidChange,func,274,KEEP,材质更新回传动画中实际size/radius，重算命中轮廓；到收起目标才卸内容、缩panel、归还焦点及执行afterCollapse，真实刘海无图标时隐藏外壳
-Island,Features/Island/IslandController.swift,IslandController,performOutside,func,297,KEEP,截图、工具文件面板和正式外窗入口在展开时保存afterCollapse并收回，几何完成后执行；预览仅反馈
-Island,Features/Island/IslandController.swift,IslandController,start,func,304,KEEP,App启动和apply启用时仅正式且enabled实例show，不启动设置预览窗口
-Island,Features/Island/IslandController.swift,IslandController,open,func,309,KEEP,菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
-Island,Features/Island/IslandController.swift,IslandController,show,func,317,KEEP,首次创建唯一透明非激活IslandPanel、事件监听和屏幕通知，装IslandRootView；后续复用窗口定位，空图标的真实刘海收起态不留可见外壳
-Island,Features/Island/IslandController.swift,IslandController,position,func,345,KEEP,优先摄像头屏幕两侧auxiliaryTop区域求真实刘海中心宽高，无刘海用180×28入口；动画舞台不提前缩小，到收起态才按像素对齐缩到入口尺寸
-Island,Features/Island/IslandController.swift,IslandController,updateNotchMetrics,func,372,KEEP,读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口
-Island,Features/Island/IslandController.swift,IslandController,expand,func,386,KEEP,取消待收回，首次展开前保存AppBootstrap划词结果、刷新摘要并挂内容；正式舞台扩大后显示，takeFocus请求键盘焦点
-Island,Features/Island/IslandController.swift,IslandController,collapse,func,401,KEEP,收回先关闭来源panel的共用预览并取消悬停任务，清显式展开及采样、归还firstResponder，动画末由surfaceDidChange卸载内容
-Island,Features/Island/IslandController.swift,IslandController,stop,func,414,KEEP,apply禁用时collapse并隐藏panel，移除本实例事件和屏幕通知后释放唯一窗口
-Island,Features/Island/IslandController.swift,IslandController,installMonitors,func,428,KEEP,首次show挂全局/本地指针及按下事件，外部点击收回；窗内水平滚动累计超过36pt切页，交互结束统一endInteraction
-Island,Features/Island/IslandController.swift,IslandController,updatePointer,func,485,KEEP,按实际可见动画轮廓判断鼠标并设置ignoresMouseEvents；摄像头区域悬停按配置延时展开，进入共享预览仍算在内，非显式且非交互离开才延时收回
-Island,Features/Island/IslandController.swift,IslandPanel,performKeyEquivalent,func,520,KEEP,IslandPanel接Esc收回、Cmd+O展开、Option左右翻页及Cmd数字选所有页面并展开，其余交AppKit
+Island,Features/Island/IslandController.swift,IslandController,updateLayout,func,140,KEEP,接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块
+Island,Features/Island/IslandController.swift,IslandController,finishLayoutEditing,func,144,KEEP,从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑
+Island,Features/Island/IslandController.swift,IslandController,cancelLayoutEditing,func,153,KEEP,丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口
+Island,Features/Island/IslandController.swift,IslandController,setWidgetVisible,func,159,KEEP,通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口
+Island,Features/Island/IslandController.swift,IslandController,beginInteraction,func,166,KEEP,文件拖入拖出、格拖放及媒体滑杆操作置interacting，取消待收回工作
+Island,Features/Island/IslandController.swift,IslandController,endInteraction,func,167,KEEP,交互结束重新读取指针，仍在外且非显式展开时按配置collapseDelay安排收回
+Island,Features/Island/IslandController.swift,IslandController,turnPage,func,184,KEEP,底部翻页、Option方向键和横向滚动按IslandPage.tabs循环切换唯一page
+Island,Features/Island/IslandController.swift,IslandController,setComponentPageCount,func,195,KEEP,画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内
+Island,Features/Island/IslandController.swift,IslandController,goBack,func,200,KEEP,刘海详情返回原四入口，组件页与各页选择保留在同一控制器
+Island,Features/Island/IslandController.swift,IslandController,resumeAfterOutside,func,202,KEEP,外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入
+Island,Features/Island/IslandController.swift,IslandController,bindRecordScroll,func,204,KEEP,记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务
+Island,Features/Island/IslandController.swift,IslandController,releaseRecordScroll,func,220,KEEP,切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复
+Island,Features/Island/IslandController.swift,IslandController,changeTrack,func,226,KEEP,演示tracks按步长循环更新track并把seek归零；当前源码未找到调用，正式媒体send走NowPlayingController
+Island,Features/Island/IslandController.swift,IslandController,refreshClipboard,func,231,KEEP,expand前独立取最近一条正文前24字符压平为摘要；预览取IslandSample标题
+Island,Features/Island/IslandController.swift,IslandController,copyLatest,func,237,KEEP,收起态剪贴板快捷操作独立fetch最近一项交ClipboardManager.copy(autoPaste:false)，空列表给反馈，预览不写系统剪贴板
+Island,Features/Island/IslandController.swift,IslandController,copyDate,func,247,KEEP,收起态日历快捷操作把当天ISO年月日交copyText并反馈，预览只改feedback
+Island,Features/Island/IslandController.swift,IslandController,activatePeek,func,252,KEEP,收起态图标按peeksQuickActions执行复制或展开指定页，关闭快捷操作时统一打开peek.page
+Island,Features/Island/IslandController.swift,IslandController,surfaceDidChange,func,277,KEEP,材质更新回传动画中实际size/radius，重算命中轮廓；到收起目标才卸内容、缩panel、归还焦点及执行afterCollapse，真实刘海无图标时隐藏外壳
+Island,Features/Island/IslandController.swift,IslandController,performOutside,func,300,KEEP,截图、工具文件面板和正式外窗入口在展开时保存afterCollapse并收回，几何完成后执行；预览仅反馈
+Island,Features/Island/IslandController.swift,IslandController,start,func,307,KEEP,App启动和apply启用时仅正式且enabled实例show，不启动设置预览窗口
+Island,Features/Island/IslandController.swift,IslandController,open,func,312,KEEP,菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
+Island,Features/Island/IslandController.swift,IslandController,show,func,320,KEEP,首次创建唯一透明非激活IslandPanel、事件监听和屏幕通知，装IslandRootView；后续复用窗口定位，空图标的真实刘海收起态不留可见外壳
+Island,Features/Island/IslandController.swift,IslandController,position,func,348,KEEP,优先摄像头屏幕两侧auxiliaryTop区域求真实刘海中心宽高，无刘海用180×28入口；动画舞台不提前缩小，到收起态才按像素对齐缩到入口尺寸
+Island,Features/Island/IslandController.swift,IslandController,updateNotchMetrics,func,375,KEEP,读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口
+Island,Features/Island/IslandController.swift,IslandController,expand,func,389,KEEP,取消待收回，首次展开前保存AppBootstrap划词结果、刷新摘要并挂内容；正式舞台扩大后显示，takeFocus请求键盘焦点
+Island,Features/Island/IslandController.swift,IslandController,collapse,func,404,KEEP,收回先关闭来源panel的共用预览并取消悬停任务，清显式展开及采样、归还firstResponder，动画末由surfaceDidChange卸载内容
+Island,Features/Island/IslandController.swift,IslandController,stop,func,417,KEEP,apply禁用时collapse并隐藏panel，移除本实例事件和屏幕通知后释放唯一窗口
+Island,Features/Island/IslandController.swift,IslandController,installMonitors,func,431,KEEP,首次show挂全局/本地指针及按下事件，外部点击收回；窗内水平滚动累计超过36pt切页，交互结束统一endInteraction
+Island,Features/Island/IslandController.swift,IslandController,updatePointer,func,488,KEEP,按实际可见动画轮廓判断鼠标并设置ignoresMouseEvents；摄像头区域悬停按配置延时展开，进入共享预览仍算在内，非显式且非交互离开才延时收回
+Island,Features/Island/IslandController.swift,IslandPanel,performKeyEquivalent,func,523,KEEP,IslandPanel接Esc收回、Cmd+O展开、Option左右翻页及Cmd数字选所有页面并展开，其余交AppKit
 Island,Features/Island/IslandFeatureContent.swift,IslandFeatureContent,compact,func,58,KEEP,首页格尺寸决定录屏紧凑组件、截图/OCR正式CaptureModule按钮或详情页入口，较大格显示功能摘要
 Island,Features/Island/IslandFeatureContent.swift,IslandAIChatPreview,submit,func,129,KEEP,AI设置预览发送固定场景消息与反馈，不初始化真实会话服务或请求网络
 Island,Features/Island/IslandFeatureContent.swift,IslandDownloadContent,start,func,209,KEEP,下载页按钮及回车先识别网盘分享交CloudLinkActions.resolve，否则完整http/https URL交现有直接下载器，预览只反馈
@@ -2319,8 +2319,9 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,rebuild,func,133,
 Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,begin,func,144,KEEP,记录手势前配置及所有可见位置，提供无效落点恢复依据，不写入正式配置
 Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,change,func,153,KEEP,将拖动位置映射到合法格子，连续缩放跨占用格即让位；候选位置、尺寸或占用变化才重新排列
 Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,176,KEEP,有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消
-Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,319,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
-Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,332,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,326,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,332,KEEP,编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,346,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
 Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,26,KEEP,parse 内 :111 兜底与 :153 正常构造
 Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,33,KEEP,parse 的 register 内 :174 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,102,KEEP,ManualView.swift:18 @Stored 属性初始化调用
@@ -3162,10 +3163,10 @@ Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,s
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,AnalyticsEvent,recordNow,func,186,KEEP,本文件:32 导出成功埋点
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,init,init,26,KEEP,草稿加载唯一配置并建立previewOnly控制器，预览排序回调只同步widgetSizes/widgetOrder/metricOrder到草稿
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,save,func,49,KEEP,SettingsDraftEditor保存交正式IslandController.apply，失败返回原因，成功才更新saved与脏态通知
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,discard,func,98,KEEP,设置取消把configuration恢复saved，didSet同步内存预览
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,restoreDefaults,func,104,KEEP,设置恢复默认只替换草稿为IslandConfiguration，保存按钮才应用正式顶部组件
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,updatePreview,func,110,KEEP,草稿configuration.didSet交previewController.apply，仅更新previewOnly实例内存
-Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,setGrid,func,112,KEEP,画布列/行Picker更新草稿gridColumns/gridRows，宽高至少新minimumWidth/minimumHeight，didSet自动刷新预览
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,discard,func,114,KEEP,设置取消把configuration恢复saved，didSet同步内存预览
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,restoreDefaults,func,120,KEEP,设置恢复默认只替换草稿为IslandConfiguration，保存按钮才应用正式顶部组件
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,updatePreview,func,126,KEEP,草稿configuration.didSet交previewController.apply，仅更新previewOnly实例内存
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,setGrid,func,128,KEEP,画布列/行Picker更新草稿gridColumns/gridRows，宽高至少新minimumWidth/minimumHeight，didSet自动刷新预览
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,init,init,9,KEEP,从 FSBarConfigurationSnapshot 读取部件配置并保存一份 saved，模块列表由 FSBarAllModules 提供，编辑时只改 configuration
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,bool,func,28,KEEP,部件草稿的布尔读取接受 NSNumber.boolValue，缺键才使用选项默认值，因此显式 false 保留
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,string,func,31,KEEP,部件草稿读取字符串或 NSNumber.stringValue，供保存为文字的更新间隔、形态列表和数值控件共用
@@ -3882,23 +3883,23 @@ TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartPar
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,filename,func,856,KEEP,LanTransferServer.swift:797
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,sanitize,func,881,KEEP,"LanTransferServer.swift:819,821,828"
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,write,func,891,KEEP,LanTransferServer.swift:450
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,init,init,109,KEEP,LocalTransferStore.swift:95 shared
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,118,KEEP,LocalTransferStore.swift:110 init
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,127,KEEP,"LocalTransferStore.swift:135,179,251,298"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneMissing,func,133,KEEP,LocalTransferStore.swift:111 init
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,144,KEEP,暂存队列逐项对原始URL调用startAccessingSecurityScopedResource，defer仅在scoped成功时调用stop，使授权覆盖该项文件IO；标准化路径后交stage并统计尺寸，主线程仅发布成功项、持久化及通知，回调实际成功数量并保留失败原因
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,198,KEEP,文件与文件夹URL标准化并按路径去重，pendingAutoStagePaths在add开始前登记、完成后移除以避免首次暂存未完成时重复复制；原路径或暂存路径命中同项刷新addedAt并降序置顶持久化，其他项走add，不限定扩展名
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,234,KEEP,LanTransferServer.swift:460 手机上传入库
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,284,KEEP,LocalTransferStore.swift:161
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,309,KEEP,"LocalTransferStore.swift:162,235"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,317,KEEP,启动及本地设置保存后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,329,KEEP,按已保存retentionDays和最近addedAt计算天数×86400秒截止点，过期条目交统一remove并传递实际移除结果；0表示不清理并回调.none
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,336,KEEP,单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,360,KEEP,单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,364,KEEP,清空暂存复用remove(items)异步送废纸篓，不再直接删除目录或提前清空索引，错误和成功数量由同一路径报告
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,368,KEEP,"TransferDockView.swift:1477,1543"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,372,KEEP,"TransferDockView.swift:1519,1542"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,376,KEEP,TransferDockView.swift:1053；SettingsPane.swift:225
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,init,init,108,KEEP,LocalTransferStore.swift:95 shared
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,117,KEEP,LocalTransferStore.swift:110 init
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,126,KEEP,"LocalTransferStore.swift:135,179,251,298"
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneMissing,func,132,KEEP,LocalTransferStore.swift:111 init
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,143,KEEP,暂存队列逐项对原始URL调用startAccessingSecurityScopedResource，defer仅在scoped成功时调用stop，使授权覆盖该项文件IO；标准化路径后交stage并统计尺寸，主线程仅发布成功项、持久化及通知，回调实际成功数量并保留失败原因
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,197,KEEP,文件与文件夹URL标准化并按路径去重，pendingAutoStagePaths在add开始前登记、完成后移除以避免首次暂存未完成时重复复制；原路径或暂存路径命中同项刷新addedAt并降序置顶持久化，其他项走add，不限定扩展名
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,233,KEEP,LanTransferServer.swift:460 手机上传入库
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,283,KEEP,LocalTransferStore.swift:161
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,308,KEEP,"LocalTransferStore.swift:162,235"
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,316,KEEP,启动及本地设置保存后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,328,KEEP,按已保存retentionDays和最近addedAt计算天数×86400秒截止点，过期条目交统一remove并传递实际移除结果；0表示不清理并回调.none
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,335,KEEP,单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,359,KEEP,单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,363,KEEP,清空暂存复用remove(items)异步送废纸篓，不再直接删除目录或提前清空索引，错误和成功数量由同一路径报告
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,367,KEEP,"TransferDockView.swift:1477,1543"
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,371,KEEP,"TransferDockView.swift:1519,1542"
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,375,KEEP,TransferDockView.swift:1053；SettingsPane.swift:225
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,48,KEEP,MCPServer.swift:30 shared
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,52,KEEP,CastView.swift:700 服务开关
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,63,KEEP,MCPServer.swift:57 端口顺延

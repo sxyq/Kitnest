@@ -43,6 +43,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Island/IslandWidgetGrid.swift", "adjustSize"):
+        "编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口",
     ("Features/Monitor/Views/MonitorCharts.swift", "makeNSView"):
         "共用趋势图创建原生输入视图，图形仍由原Canvas绘制",
     ("Features/Monitor/Views/MonitorCharts.swift", "updateNSView"):

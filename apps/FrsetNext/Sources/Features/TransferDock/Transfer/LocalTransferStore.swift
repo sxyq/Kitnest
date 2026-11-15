@@ -19,8 +19,7 @@ import Foundation
 /// `pruneMissing()` 又会读 `stagedURL` → dispatch_once 重入 → SIGTRAP（面板一开就崩）。
 public enum LocalTransferPaths {
     public static let root: URL = {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("FrsetNext/transfer-local", isDirectory: true)
+        let base = AppDirectories.base.appendingPathComponent("transfer-local", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base
     }()

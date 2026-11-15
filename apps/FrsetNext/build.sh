@@ -11,11 +11,12 @@ SRC="$ROOT/Sources"
 # 方案：编译/签名/校验全在 build/.staging/ 的暂存 bundle 内完成，最后 rename 换位
 #   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
-APP_FINAL="$ROOT/build.noindex/Kitnest.app"          # 对外可见的构建产物（始终完整可启动）
+APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
+APP_FINAL="$ROOT/build.noindex/$APP_NAME.app"          # 对外可见的构建产物（始终完整可启动）
 # 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
 mkdir -p "$ROOT/build.noindex/.staging"
 STAGE=$(mktemp -d "$ROOT/build.noindex/.staging/kitnest.XXXXXX")
-APP="$STAGE/Kitnest.app"
+APP="$STAGE/$APP_NAME.app"
 BUILD_LOG="$STAGE/build.log"
 trap 'cp "$BUILD_LOG" /tmp/frsetnext_build.log; rm -rf "$STAGE"' EXIT
 # 同一工作区的并行编辑会使 Swift 读到中途变化的输入；本次编译只读这份暂存输入。
@@ -38,7 +39,8 @@ find "$SRC" -name '*.swift' -not -name '._*' -exec cat {} + | wc -l | xargs echo
 
 echo "== 清理 =="
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
+cp "${KITNEST_INFO_PLIST:-$ROOT/Info.plist}" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $APP_NAME" "$APP/Contents/Info.plist"
 
 FILES=$(find "$SRC" -name '*.swift' -not -name '._*' \
   -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
@@ -73,7 +75,7 @@ echo "  优化档位: $OPT_FLAGS"
 echo "== 编译 =="
 # 产物目录先清空：若 swiftc 被中途杀死（SIGKILL），可能留下上一次构建的半成品可执行文件，
 # 使"产物存在"被误读成"构建成功"。清空后产物在= 本次真编译出了二进制。
-rm -f "$APP/Contents/MacOS/Kitnest"
+rm -f "$APP/Contents/MacOS/$APP_NAME"
 
 # ---- ObjC/C 部件引擎（FrsetStatsBar）：clang 编译为 .o，供 swiftc 链接 ----
 # 来源：stats-recon/inject/（注入版同款代码，原样移植；注入入口/hook 已由
@@ -112,7 +114,7 @@ rm -f "$STAMP"; touch "$STAMP"
 
 swiftc $OPT_FLAGS -parse-as-library \
   -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
-  -o "$APP/Contents/MacOS/Kitnest" $FILES $OBJ_FILES \
+  -o "$APP/Contents/MacOS/$APP_NAME" $FILES $OBJ_FILES \
   -import-objc-header "$BRIDGE" \
   -lsqlite3 \
   -lIOReport \
@@ -139,7 +141,7 @@ LOG_BYTES=$(wc -c < "$BUILD_LOG" | tr -d ' ')
 # 该情形的判据见上方 $STAMP 标记残留 —— 别把「没输出」读成「不知道发生了什么」。
 if [ "$BUILD_RC" -eq 137 ]; then
   echo "⚠ swiftc 被系统终止（退出码 137 = SIGKILL）：资源竞争，非代码问题"
-  echo "  日志 ${LOG_BYTES} 字节 / 产物$( [ -f "$APP/Contents/MacOS/Kitnest" ] && echo存在 || echo缺失)"
+  echo "  日志 ${LOG_BYTES} 字节 / 产物$( [ -f "$APP/Contents/MacOS/$APP_NAME" ] && echo存在 || echo缺失)"
   echo "  处置：等空闲后重跑（串行更稳），**不要改代码**"
   exit 137
 elif [ "$BUILD_RC" -ne 0 ]; then
@@ -147,7 +149,7 @@ elif [ "$BUILD_RC" -ne 0 ]; then
   exit 1
 fi
 
-if [ ! -f "$APP/Contents/MacOS/Kitnest" ]; then
+if [ ! -f "$APP/Contents/MacOS/$APP_NAME" ]; then
   echo "✗ 编译返回 0 但产物缺失，日志 ${LOG_BYTES} 字节，详见 /tmp/frsetnext_build.log"
   exit 1
 fi
@@ -284,14 +286,14 @@ else
 fi
 
 echo "== 完成 =="
-ls -la "$APP/Contents/MacOS/Kitnest"
+ls -la "$APP/Contents/MacOS/$APP_NAME"
 echo "  签名: $SIGN_STATE"
 # 资源落地验证：确认 .lproj 进了 bundle
 if [ -d "$APP/Contents/Resources" ]; then
   echo "  bundle 内 lproj:"; find "$APP/Contents/Resources" -maxdepth 1 -name '*.lproj' | sort | sed 's/^/    /'
 fi
 # 收尾自检：把「存在 ≠ 通过」的判据显式化
-if [ ! -s "$APP/Contents/MacOS/Kitnest" ]; then
+if [ ! -s "$APP/Contents/MacOS/$APP_NAME" ]; then
   echo "  ⚠ 可执行文件缺失或为空 —— 本次构建未真正产出，**不要**把 build/ 目录存在当作成功"
   exit 1
 fi
@@ -339,12 +341,12 @@ echo "应用包: $APP"
 # 任一步失败都保留旧版不动，绝不把坏包放到用户双击的路径上。
 # app 正在运行时换位仍可完成（进程持旧 inode），下次启动即新版。
 # ============================================================================
-DEPLOY=/Applications/Kitnest.app
-DEPLOY_STAGE=/Applications/.Kitnest.app.staging.$$
-DEPLOY_OLD=/Applications/.Kitnest.app.old.$$
+DEPLOY="/Applications/$APP_NAME.app"
+DEPLOY_STAGE="/Applications/.$APP_NAME.app.staging.$$"
+DEPLOY_OLD="/Applications/.$APP_NAME.app.old.$$"
 LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
-if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/Kitnest" >/dev/null 2>&1; then
+if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/$APP_NAME" >/dev/null 2>&1; then
   echo "  ℹ️ 旧版本正在运行——部署完成后退出并重新打开即新版"
 fi
 
@@ -369,7 +371,7 @@ if ditto "$APP" "$DEPLOY_STAGE" 2>/dev/null; then
       rm -rf "$DEPLOY_OLD"
       [ -x "$LSREG" ] && "$LSREG" -f "$DEPLOY" >/dev/null 2>&1 || true
       if codesign -v --deep --strict "$DEPLOY" 2>/dev/null; then
-        echo "已部署(原子): $DEPLOY（日常从这里打开；build/ 下仅作构建产物）"
+        echo "已部署(原子): ${DEPLOY}（日常从这里打开；build/ 下仅作构建产物）"
       else
         echo "  ⚠ 部署后最终校验失败：$DEPLOY"
       fi

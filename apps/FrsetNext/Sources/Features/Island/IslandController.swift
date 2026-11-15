@@ -128,6 +128,9 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func beginLayoutEditing() {
+        if let panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
+            MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
+        }
         layoutDraft = configuration
         page = .home
         beginInteraction()
@@ -532,6 +535,7 @@ final class IslandPanel: NSPanel {
         }
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers,
            let index = Int(key), (1...IslandPage.allCases.count).contains(index) {
+            if IslandController.shared.editingLayout { return true }
             IslandController.shared.page = IslandPage.allCases[index - 1]
             IslandController.shared.expand(takeFocus: true)
             return true
