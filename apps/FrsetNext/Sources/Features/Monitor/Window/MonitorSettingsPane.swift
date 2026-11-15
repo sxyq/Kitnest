@@ -1,245 +1,131 @@
 import SwiftUI
 
-/// 设置 → 监测 页签（id "monitor"，图标 gauge）
-///
-/// 全部开关经 MonitorPreferences → Preferences（monitor.* 键）持久化。
-public final class MonitorSettingsState: ObservableObject {
-    /// 偏好变化后自增，用于驱动 SwiftUI 重绘
-    @Published public var version: Int = 0
+/// 监测设置沿用设置窗口的草稿生命周期，保存时只应用本页实际改动的字段。
+public final class MonitorSettingsState: SettingsEditableDraft {
+    struct Values: Equatable {
+        var enabled = true
+        var interval = 2.0
+        var modules = Dictionary(uniqueKeysWithValues: MonitorModuleID.allCases.map { ($0, $0.enabledByDefault) })
+        var temperatures = true
+        var keepAlive = true
+        var topN = 4
+
+        static func saved() -> Self {
+            var value = Self()
+            value.enabled = MonitorPreferences.isEnabled
+            value.interval = MonitorPreferences.refreshInterval
+            value.modules = Dictionary(uniqueKeysWithValues: MonitorModuleID.allCases.map { ($0, MonitorPreferences.isModuleEnabled($0)) })
+            value.temperatures = MonitorPreferences.showTemperatures
+            value.keepAlive = MonitorPreferences.networkKeepAlive
+            value.topN = MonitorPreferences.flowTopN
+            return value
+        }
+    }
+    @Published var values = Values.saved()
+    private var savedValues = Values.saved()
+    var isDirty: Bool { values != savedValues }
     public init() {}
+
+    func save() -> String? {
+        if values.enabled != savedValues.enabled { MonitorPreferences.isEnabled = values.enabled }
+        if values.interval != savedValues.interval {
+            MonitorPreferences.refreshInterval = values.interval
+            applyIntervalToBarWidgets(values.interval)
+        }
+        for module in MonitorModuleID.allCases where values.modules[module] != savedValues.modules[module] {
+            MonitorPreferences.setModuleEnabled(module, values.modules[module]!)
+        }
+        if values.temperatures != savedValues.temperatures { MonitorPreferences.showTemperatures = values.temperatures }
+        if values.keepAlive != savedValues.keepAlive {
+            MonitorPreferences.networkKeepAlive = values.keepAlive
+            NetworkFlowTracker.shared.applyKeepAlivePreference()
+        }
+        if values.topN != savedValues.topN { MonitorPreferences.flowTopN = values.topN }
+        values = Values.saved(); savedValues = values
+        return nil
+    }
+    func discard() { values = Values.saved(); savedValues = values }
+    func restoreDefaults() { values = Values() }
+
+    private func applyIntervalToBarWidgets(_ seconds: Double) {
+        let value = NSNumber(value: Int(max(1, min(60, seconds.rounded()))))
+        if let modules = FSBarAllModules() { for module in modules { FSBarCfgSet(module, nil, "updateInterval", value) } }
+        FSBarReloadFromStore()
+    }
 }
 
 public struct MonitorSettingsPane: View {
-    @ObservedObject private var state: MonitorSettingsState
-    @ObservedObject private var sampler = MonitorSampler.shared
-
-    public init(state: MonitorSettingsState = MonitorSettingsState()) {
-        self.state = state
-    }
-
+    public init() {}
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                generalSection
-                Divider()
-                modulesSection
-                Divider()
-                networkSection
-                Divider()
-                advancedSection
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: MonitorPreferences.didChangeNotification)) { _ in
-            bump()
-        }
-        // 设置页展示实时数值：出现时进入活跃采样，消失即退出（面板关闭时不再常驻全速采样）
-        .onAppear {
-            MonitorSampler.shared.setSettingsActive(true)
-        }
-        .onDisappear {
-            MonitorSampler.shared.setSettingsActive(false)
+        SettingsDraftEditor(id: "monitorSettings", makeDraft: { MonitorSettingsState() }) { state in
+            MonitorSettingsContent(state: state)
         }
     }
+}
 
-    // MARK: - 通用
+private struct MonitorSettingsContent: View {
+    @ObservedObject var state: MonitorSettingsState
+    @Stored private var operationResult: String? = nil
+    private var order: [MonitorModuleID] { [.cpu, .gpu, .memory, .network, .disk, .sensors, .power, .battery] }
+    private var visibleModules: [MonitorModuleID] { order.filter { state.values.modules[$0] == true } }
 
-    private var generalSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Theme.sectionHeader("通用")
-            Toggle("启用系统监测", isOn: Binding(
-                get: { MonitorPreferences.isEnabled },
-                set: { MonitorPreferences.isEnabled = $0; bump() }
-            ))
-            .font(.system(size: 13))
-
-            HStack(spacing: 10) {
-                Text("刷新间隔")
-                    .font(.system(size: 13))
-                Slider(
-                    value: Binding(
-                        get: { MonitorPreferences.refreshInterval },
-                        set: { v in
-                            MonitorPreferences.refreshInterval = v
-                            // v93（2026-10-21 用户再报「设置改变后没有生效」）：
-                            // 统一应用到菜单栏部件各模块的 updateInterval——此前
-                            // 这个滑杆只管监测采样器，菜单栏部件走自己每模块间隔，
-                            // 用户调完看菜单栏没变化就等于「没生效」。
-                            applyIntervalToBarWidgets(v)
-                            bump()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SettingsSection("监测预览") {
+                MonitorDetailView(fixedWidth: nil)
+                    .environment(\.isSettingsPreview, true)
+                    .environment(\.monitorPresentation, MonitorPresentation(order: visibleModules,
+                        previewInterval: state.values.interval, previewEnabled: state.values.enabled,
+                        previewTemperatures: state.values.temperatures, previewFlowTopN: state.values.topN))
+                    .frame(height: 360)
+                Text("固定模拟采样 · 可选择模块、定位与固定读数；保存才改变正式监测")
+                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+            }
+            SettingsSection("通用") {
+                Toggle("启用系统监测", isOn: $state.values.enabled)
+                SettingsRow(title: "刷新间隔") {
+                    Slider(value: $state.values.interval, in: 0.5...10, step: 0.5).frame(width: 180)
+                    Text(String(format: "%.1f 秒", state.values.interval)).monospacedDigit().frame(width: 60, alignment: .trailing)
+                }
+                Button("打开菜单栏部件设置") { SettingsWindowController.shared.open(pane: "monitor.widgets") }
+                    .buttonStyle(.plain).foregroundStyle(Theme.accent)
+            }
+            SettingsSection("模块显隐") {
+                Text("决定主面板、刘海和独立监测窗中的模块入口。菜单栏部件在“部件设置”中调整。")
+                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
+                    ForEach(order, id: \.self) { module in
+                        Toggle(isOn: Binding(get: { state.values.modules[module]! }, set: { state.values.modules[module] = $0 })) {
+                            Label(module.displayName, systemImage: module.systemImage)
                         }
-                    ),
-                    in: 0.5...10,
-                    step: 0.5
-                )
-                Text(String(format: "%.1fs", MonitorPreferences.refreshInterval))
-                    .font(.system(size: 12).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, alignment: .trailing)
-            }
-
-            Divider()
-
-            // 菜单栏部件（STATS 引擎）——v54：完整设置已内嵌到「性能监测 → 部件设置」页
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("菜单栏部件")
-                        .font(.system(size: 13))
-                    Text("形态 / 颜色 / 间距 / 每模块选项（功能对齐 Stats，全部内嵌在「部件设置」）")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("打开部件设置") {
-                    SettingsWindowController.shared.open(pane: "monitor.widgets")
-                }
-                .font(.system(size: 12))
-            }
-        }
-    }
-
-    // MARK: - 模块开关
-
-    private var modulesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Theme.sectionHeader("模块")
-            Text("控制面板监测中心显示哪些模块；关闭的模块不再采集。菜单栏部件的显隐在「菜单栏部件」设置里。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-
-            ForEach(MonitorModuleID.allCases, id: \.rawValue) { module in
-                HStack(spacing: 8) {
-                    Image(systemName: module.systemImage)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 18)
-                    Toggle(module.displayName, isOn: Binding(
-                        get: { MonitorPreferences.isModuleEnabled(module) },
-                        set: { MonitorPreferences.setModuleEnabled(module, $0); bump() }
-                    ))
-                    .font(.system(size: 13))
-                    Spacer()
-                    Text(statusLine(for: module))
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    // MARK: - 网络
-
-    private var networkSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Theme.sectionHeader("网络")
-            Toggle("后台持续统计（打开即有数据）", isOn: Binding(
-                get: { MonitorPreferences.networkKeepAlive },
-                set: {
-                    MonitorPreferences.networkKeepAlive = $0
-                    NetworkFlowTracker.shared.applyKeepAlivePreference()
-                    bump()
-                }
-            ))
-            .font(.system(size: 13))
-            Text("开启：不打开监测页也在后台累计最近 10 分钟的流量，随时打开都是现成结果（每 5 秒一轮采样）。关闭：只在本页可见时统计，更省电，但每次打开要从零开始累计。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 10) {
-                Text("分流显示条数")
-                    .font(.system(size: 13))
-                Spacer()
-                Picker("", selection: Binding(
-                    get: { MonitorPreferences.flowTopN },
-                    set: { MonitorPreferences.flowTopN = $0; bump() })) {
-                    ForEach([3, 4, 5, 6, 8], id: \.self) { n in
-                        Text("\(n) 个").tag(n)
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 250)
             }
-            Text("「流量去哪了」按最近 10 分钟的累计流量排序；这里决定列出多少个 App，其余归入「其他」。窗口内的数字是累计字节，不是瞬时速率。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    // MARK: - 高级
-
-    private var advancedSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Theme.sectionHeader("高级")
-            Toggle("采集温度（SMC）", isOn: Binding(
-                get: { MonitorPreferences.showTemperatures },
-                set: { MonitorPreferences.showTemperatures = $0; bump() }
-            ))
-            .font(.system(size: 13))
-            Text("温度读取受系统限制，读不到时会自动降级为空，不影响其他指标。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 10) {
-                Button("清空历史与峰值") {
-                    sampler.resetHistory()
-                    // 网络分流窗口也要一起清，否则「清空」后分流卡还是旧数据
+            SettingsSection("网络") {
+                Toggle("后台持续统计", isOn: $state.values.keepAlive)
+                Text("开启后后台累计最近 10 分钟的应用流量；关闭后仅在监测页面可见时统计。")
+                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                SettingsRow(title: "分流显示条数") {
+                    Picker("分流显示条数", selection: $state.values.topN) {
+                        ForEach([3, 4, 5, 6, 8], id: \.self) { Text("\($0) 个").tag($0) }
+                    }.pickerStyle(.segmented).labelsHidden().frame(width: 240)
+                }
+            }
+            SettingsSection("温度") {
+                Toggle("采集温度（SMC）", isOn: $state.values.temperatures)
+                Text("关闭后停止补充温度采样；读不到传感器时显示对应状态。")
+                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+            }
+            SettingsSection("即时操作") {
+                Button("清空正式历史与峰值") {
+                    MonitorSampler.shared.resetHistory()
                     NetworkFlowTracker.shared.reset()
+                    operationResult = "正式历史与峰值已清空；设置草稿保持不变"
                 }
-                Button("恢复默认设置") {
-                    MonitorPreferences.resetToDefaults()
-                    bump()
+                if let operationResult {
+                    Text(operationResult).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
                 }
-                Spacer()
-                Text("已采样 \(sampler.tick) 次")
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(.secondary)
             }
-            .font(.system(size: 12))
         }
     }
-
-    // MARK: - 辅助
-
-    /// 刷新间隔统一应用到菜单栏部件（每模块 updateInterval 键，整秒 1..60）
-    private func applyIntervalToBarWidgets(_ seconds: Double) {
-        let v = NSNumber(value: Int(max(1, min(60, seconds.rounded()))))
-        if let modules = FSBarAllModules() as? [String] {
-            for m in modules { FSBarCfgSet(m, nil, "updateInterval", v) }
-        }
-        FSBarReloadFromStore()
-    }
-
-    private func statusLine(for module: MonitorModuleID) -> String {
-        // v93：关闭的模块显示「已停用」——开关的**生效反馈**（此前照常刷数值，
-        // 用户看着像「勾了没用」）
-        guard MonitorPreferences.isModuleEnabled(module) else { return "已停用" }
-        let sample = sampler.sample
-        switch module {
-        case .power: return MonitorStatusText.powerDetailText()
-        case .cpu: return MonitorFormat.percent(sample.cpuUsage)
-        case .memory: return "\(MonitorFormat.bytes(sample.memoryUsed)) / \(MonitorFormat.bytes(sample.memoryTotal))"
-        case .network: return MonitorFormat.directionalRate(upload: sample.netUpload, download: sample.netDownload)
-        case .disk: return MonitorFormat.diskRate(read: sample.diskRead, write: sample.diskWrite)
-        case .sensors:
-            if let value = sample.temperatures.values.max() { return MonitorFormat.temperature(value) }
-            return "无数据"
-        case .battery:
-            // v190：电池页合并了充电状态——状态行直接说「在干什么 + 多少电」
-            let battery = StatsDataProvider.shared.current.battery
-            if let battery, battery.present, battery.isCharging { return "充电中" }
-            if let battery, battery.present, battery.fullyCharged, battery.externalConnected { return "已充满" }
-            if let level = sample.batteryLevel { return MonitorFormat.percent(level) }
-            return "无电池"
-        case .gpu:
-            let usage = StatsDataProvider.shared.current.gpuUsage
-            return usage >= 0 ? MonitorFormat.percent(usage) : "无数据"
-        }
-    }
-
-    private func bump() { state.version &+= 1 }
 }

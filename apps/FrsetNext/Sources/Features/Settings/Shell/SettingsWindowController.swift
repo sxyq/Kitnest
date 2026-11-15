@@ -197,7 +197,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         // 遮挡时保留内容与预览位置；卸载重建会让调参中的画面跳动、清空场景状态。
         uiState.isVisible = window?.isVisible == true && window?.isMiniaturized == false
         switch uiState.selection {
-        case .monitorModule, .monitorSettings:
+        case .monitorModule:
             MonitorSampler.shared.setSettingsActive(window?.occlusionState.contains(.visible) == true)
         default: break
         }

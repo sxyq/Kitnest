@@ -52,6 +52,7 @@ final class SettingsEditingSession: ObservableObject {
         register(id: "menuBar") { MenuBarSettingsDraft() }
         register(id: "calendar") { CalendarSettingsDraft() }
         register(id: "monitorWidgets") { MonitorWidgetsSettingsDraft() }
+        register(id: "monitorSettings") { MonitorSettingsState() }
         register(id: "captureAppearance") { CaptureAppearanceDraft() }
         register(id: "recordingAppearance") { RecordingAppearanceDraft() }
         register(id: "searchDisplay") { SearchDisplayDraft() }
@@ -119,6 +120,7 @@ extension SettingsPage {
         case .clipboardFloating: return [PersonalizationSettingsPart.floatingClipboard.draftID]
         case .generalMenuBar: return ["menuBar", "calendar"]
         case .monitorWidgets: return ["monitorWidgets"]
+        case .monitorSettings: return ["monitorSettings"]
         case .search: return ["searchDisplay"]
         case .transferLocal: return ["transferLocal"]
         case .capture(.pin): return ["pin"]

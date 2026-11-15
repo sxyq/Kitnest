@@ -82,6 +82,11 @@ struct SettingsRootView: View {
         .onChange(of: state.selection) { newValue in
             Log.breadcrumb("Settings", "侧边栏 → \(newValue)")
         }
+        .onReceive(MonitorCenterPresenter.shared.monitorSelection.$module) { module in
+            if case .monitorModule = state.selection, state.selection != .monitorModule(module) {
+                state.selection = .monitorModule(module)
+            }
+        }
         .ignoresSafeArea()
     }
 
