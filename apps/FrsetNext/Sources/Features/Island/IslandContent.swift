@@ -159,12 +159,11 @@ struct IslandRootView: View {
                 Label(record.title, systemImage: record.icon).font(.system(size: 11)).lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay {
-                        if !preview, let url = record.url {
-                            IslandFileDragSource(urls: [url], controller: controller,
-                                onDraggingChanged: draggingChanged, onCopy: { copy(record) }) { select(record, openPage: true) }
-                        }
+                        IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
+                            onDraggingChanged: draggingChanged, onCopy: { copy(record) },
+                            onDoubleClick: { select(record); copy(record) }, defersSelection: true) { select(record, openPage: true) }
                     }
-            }.buttonStyle(IslandButtonStyle()).accessibilityLabel(record.title)
+            }.buttonStyle(IslandButtonStyle()).accessibilityLabel(record.title).help("单击预览 · 双击复制")
             if record.id == selectedRecord {
                 Image(systemName: "checkmark").font(.system(size: 9)).foregroundStyle(.secondary)
             }
@@ -191,14 +190,13 @@ struct IslandRootView: View {
                                             .background(selectedRecord == record.id ? Theme.accent(for: nil).opacity(0.14) : .clear,
                                                         in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius))
                                             .overlay {
-                                                if !preview, let url = record.url {
-                                                    IslandFileDragSource(urls: [url], controller: controller,
-                                                        onDraggingChanged: draggingChanged,
-                                                        onMove: { moveSelection($0, proxy: proxy) },
-                                                        onCopy: copySelectedRecord) { select(record) }
-                                                }
+                                                IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
+                                                    onDraggingChanged: draggingChanged,
+                                                    onMove: { moveSelection($0, proxy: proxy) }, onCopy: copySelectedRecord,
+                                                    onDoubleClick: { select(record); copy(record) }) { select(record) }
                                             }
                                     }.buttonStyle(IslandButtonStyle())
+                                        .help("单击预览 · 双击复制")
                                         .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
                                         .onHover { inside in
                                             if inside && !recordDragging { detailRecord = record.id }
@@ -594,13 +592,15 @@ private struct IslandRecordDetail: View {
     }
 }
 
-/// NSURL 原生拖动会话不触碰系统剪贴板，也不创建文件副本。
+/// 记录单击、双击与文件拖出共用原生事件；拖动会话不触碰系统剪贴板。
 private struct IslandFileDragSource: NSViewRepresentable {
     let urls: [URL]
     let controller: IslandController
     var onDraggingChanged: (Bool) -> Void
     var onMove: ((Int) -> Void)? = nil
     var onCopy: (() -> Void)? = nil
+    var onDoubleClick: (() -> Void)? = nil
+    var defersSelection = false
     var select: () -> Void
 
     func makeNSView(context: Context) -> IslandFileDragView { IslandFileDragView() }
@@ -608,6 +608,7 @@ private struct IslandFileDragSource: NSViewRepresentable {
         view.urls = urls; view.controller = controller; view.select = select
         view.onDraggingChanged = onDraggingChanged
         view.onMove = onMove; view.onCopy = onCopy
+        view.onDoubleClick = onDoubleClick; view.defersSelection = defersSelection
     }
 }
 
@@ -618,12 +619,16 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
     var onDraggingChanged: ((Bool) -> Void)?
     var onMove: ((Int) -> Void)?
     var onCopy: (() -> Void)?
+    var onDoubleClick: (() -> Void)?
+    var defersSelection = false
+    private var selectionWork: DispatchWorkItem?
     private var mouseStart: NSPoint? = nil
     private var dragging = false
 
     override var acceptsFirstResponder: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
+        selectionWork?.cancel(); selectionWork = nil
         mouseStart = event.locationInWindow
         window?.makeFirstResponder(self)
     }
@@ -640,7 +645,7 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard !dragging, let start = mouseStart,
+        guard !urls.isEmpty, !dragging, let start = mouseStart,
               hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y) >= 3 else { return }
         for url in urls where !FileManager.default.isReadableFile(atPath: url.path) {
             controller?.feedback = "无法拖出文件：" + url.path
@@ -660,8 +665,22 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
     }
 
     override func mouseUp(with event: NSEvent) {
-        if !dragging, mouseStart != nil { select?() }
+        if !dragging, mouseStart != nil {
+            if event.clickCount == 2, let onDoubleClick {
+                onDoubleClick()
+            } else if defersSelection {
+                // 首页单击会换页；等待系统双击间隔，避免第一击提前移走目标。
+                let work = DispatchWorkItem { [weak self] in self?.select?() }
+                selectionWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
+            } else { select?() }
+        }
         mouseStart = nil
+    }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { selectionWork?.cancel(); selectionWork = nil }
+        super.viewWillMove(toWindow: newWindow)
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .copy }
