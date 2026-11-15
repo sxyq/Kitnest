@@ -129,7 +129,7 @@ private struct IslandMediaPlayerContent: View {
                 Image(systemName: "music.note").font(.system(size: side * 0.4)).foregroundStyle(tint)
                     .frame(maxWidth: .infinity, maxHeight: .infinity).background(tint.opacity(0.14))
             }
-        }.frame(width: side, height: side).clipShape(RoundedRectangle(cornerRadius: 6))
+        }.frame(width: side, height: side).clipShape(RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
             .accessibilityLabel(previewOnly ? "封面预览" : artwork == nil ? "播放器未提供封面" : "当前曲目封面")
     }
 

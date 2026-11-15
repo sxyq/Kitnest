@@ -98,7 +98,7 @@ private struct IslandSettingsContent: View {
                     }.labelsHidden().frame(width: 90)
                 }
                 SettingsDivider()
-                SettingsRow(title: "展开尺寸", subtitle: "单格至少 154 × 126pt，调整只更新预览") {
+                SettingsRow(title: "展开尺寸", subtitle: "单格至少 144 × 112pt，顶部导航预留 176pt；调整只更新预览") {
                     Text("宽")
                     TextField("宽度", value: Binding(get: { Double(max(draft.configuration.width, draft.configuration.minimumWidth)) },
                         set: { draft.configuration.width = max(CGFloat($0), draft.configuration.minimumWidth) }),
@@ -248,7 +248,7 @@ private struct IslandSettingsPreview: View {
                     .padding(.horizontal, 8)
             }
             .frame(height: controller.expanded ? controller.effectiveHeight : controller.notchHeight + 8)
-            .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.36), value: controller.expanded)
+            .animation(controller.surfaceAnimation(reduceMotion: reduceMotion), value: controller.expanded)
             .clipped()
             Text("固定演示内容 · 可切页、操作图表与拖动排序；横向滚动查看原尺寸，保存才应用")
                 .font(.system(size: 11)).foregroundStyle(.secondary)

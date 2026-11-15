@@ -201,7 +201,7 @@ struct IslandMonitorPage: View {
                                 .frame(height: 18).allowsHitTesting(false)
                         }.padding(10)
                             .background(selectedMetric == metric ? color.opacity(0.10) : IslandLayout.cardFill)
-                            .glassCard(radius: 16, fill: .clear, stroke: selectedMetric == metric ? color.opacity(0.55) : IslandLayout.cardStroke)
+                            .glassCard(radius: IslandLayout.cardRadius, fill: .clear, stroke: selectedMetric == metric ? color.opacity(0.55) : IslandLayout.cardStroke)
                             .dropDestination(for: String.self) { values, _ in
                                 guard let value = values.first, value.hasPrefix("metric:"),
                                       let source = IslandMetric(rawValue: String(value.dropFirst(7))) else { return false }

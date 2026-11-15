@@ -9,6 +9,7 @@ final class IslandController: NSObject, ObservableObject {
     var layoutDidChange: ((IslandConfiguration) -> Void)?
     @Published private(set) var configuration: IslandConfiguration
     @Published var expanded = false
+    @Published private(set) var showingContent = false
     @Published var page = IslandPage.home
     @Published var playing = false
     @Published var volume = 56.0
@@ -29,6 +30,7 @@ final class IslandController: NSObject, ObservableObject {
     private var screenObserver: NSObjectProtocol?
     private var visibleSize = CGSize.zero
     private var visibleRadius: CGFloat = 0
+    private var visibleOutline = Path()
     private var interacting = false
     private var horizontalScroll: CGFloat = 0
     private var didSwipe = false
@@ -63,6 +65,10 @@ final class IslandController: NSObject, ObservableObject {
 
     func surfaceAnimation(reduceMotion: Bool) -> Animation {
         reduceMotion ? .easeOut(duration: 0.12) : .spring(response: expanded ? 0.28 : 0.24, dampingFraction: 1)
+    }
+
+    private var hidesCollapsedSurface: Bool {
+        (panel?.screen?.safeAreaInsets.top ?? 0) > 0 && visiblePeeks.isEmpty
     }
 
     @discardableResult
@@ -153,10 +159,21 @@ final class IslandController: NSObject, ObservableObject {
         guard size != visibleSize || radius != visibleRadius else { return }
         visibleSize = size
         visibleRadius = radius
+        visibleOutline = IslandOutline(radius: radius).path(in: CGRect(origin: .zero, size: size))
         updatePointer()
-        if !expanded, size == CGSize(width: collapsedWidth, height: notchHeight), let action = afterCollapse {
+        if !expanded, size == CGSize(width: collapsedWidth, height: notchHeight) {
+            let action = afterCollapse
             afterCollapse = nil
-            DispatchQueue.main.async(execute: action)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.expanded, self.visibleSize == size else { return }
+                self.showingContent = false
+                if !self.previewOnly {
+                    self.position(collapsed: true)
+                    self.panel?.resignKey()
+                    if self.hidesCollapsedSurface { self.panel?.orderOut(nil) }
+                }
+                action?()
+            }
         }
     }
 
@@ -193,17 +210,21 @@ final class IslandController: NSObject, ObservableObject {
             panel = p
             installMonitors()
             screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
-                object: nil, queue: .main) { [weak self] _ in self?.position() }
-            position()
+                object: nil, queue: .main) { [weak self] _ in
+                    guard let self else { return }
+                    self.position(collapsed: !self.expanded && !self.showingContent)
+                }
+            position(collapsed: !expanded && !showingContent)
             let hosting = NSHostingView(rootView: IslandRootView(controller: self))
             hosting.sizingOptions = []
             p.contentView = hosting
-        } else { position() }
-        panel?.orderFrontRegardless()
+        } else { position(collapsed: !expanded && !showingContent) }
+        if expanded || showingContent || !hidesCollapsedSurface { panel?.orderFrontRegardless() }
+        else { panel?.orderOut(nil) }
         updatePointer()
     }
 
-    private func position() {
+    private func position(collapsed: Bool = false) {
         guard let panel else { return }
         let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens[0]
         let centerX: CGFloat
@@ -218,12 +239,18 @@ final class IslandController: NSObject, ObservableObject {
             notchHeight = 28
         }
         // 舞台保留当前动画所需范围，缩小时不提前裁掉正在收缩的外壳。
-        let size = NSSize(width: min(max(panel.frame.width, effectiveWidth + 32, collapsedWidth + 32), screen.frame.width),
-                          height: min(max(panel.frame.height, effectiveHeight + 16), screen.frame.height))
+        let size = collapsed ? CGSize(width: collapsedWidth, height: notchHeight) :
+            NSSize(width: min(max(panel.frame.width, effectiveWidth + 32, collapsedWidth + 32), screen.frame.width),
+                   height: min(max(panel.frame.height, effectiveHeight + 16), screen.frame.height))
         let scale = screen.backingScaleFactor
         panel.setFrame(NSRect(x: ((centerX - size.width / 2) * scale).rounded() / scale,
                               y: screen.frame.maxY - size.height,
                               width: size.width, height: size.height), display: true)
+        if collapsed {
+            visibleSize = size
+            visibleRadius = IslandLayout.collapsedRadius
+            visibleOutline = IslandOutline(radius: visibleRadius).path(in: CGRect(origin: .zero, size: size))
+        }
     }
 
     func expand(takeFocus: Bool = false) {
@@ -233,6 +260,8 @@ final class IslandController: NSObject, ObservableObject {
         if !expanded {
             if !previewOnly { selection = AppBootstrap.readSelection() }
             refreshClipboard()
+            showingContent = true
+            if !previewOnly { position(); panel?.orderFrontRegardless() }
             expanded = true
         }
         hoverArmed = false
@@ -292,14 +321,12 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func updatePointer(at location: NSPoint? = nil) {
-        guard let panel, panel.isVisible else { return }
+        guard let panel else { return }
         let point = location ?? NSEvent.mouseLocation
         let local = CGPoint(x: point.x - panel.frame.midX + visibleSize.width / 2,
                             y: panel.frame.maxY - point.y)
-        let next = CGRect(origin: .zero, size: visibleSize).contains(local) &&
-            (local.y < visibleRadius || IslandOutline(radius: visibleRadius)
-                .path(in: CGRect(origin: .zero, size: visibleSize)).contains(local))
-        panel.ignoresMouseEvents = !next
+        let next = CGRect(origin: .zero, size: visibleSize).contains(local) && visibleOutline.contains(local)
+        panel.ignoresMouseEvents = !next || !panel.isVisible
         let overCamera = abs(local.x - visibleSize.width / 2) < notchWidth / 2
         let hoverInside = next && (expanded || overCamera)
         guard inside != hoverInside else { return }

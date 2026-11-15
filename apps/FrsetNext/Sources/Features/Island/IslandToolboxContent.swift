@@ -52,7 +52,7 @@ struct IslandToolboxContent: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .glassCard(radius: Theme.Radius.card, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
+            .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .tint(tint)

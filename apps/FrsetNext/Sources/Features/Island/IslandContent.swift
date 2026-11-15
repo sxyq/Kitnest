@@ -26,7 +26,7 @@ struct IslandRootView: View {
 
     var body: some View {
         IslandSurface(controller: controller, height: controller.effectiveHeight) {
-            if controller.expanded || preview || fileDialogOpen {
+            if controller.expanded || controller.showingContent || preview || fileDialogOpen {
                 pageContent(controller.page)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .transition(.opacity)
@@ -483,7 +483,7 @@ private struct IslandRecordDetail: View {
                     if !previewOnly {
                         Label("拖出到 Finder 或其他 App", systemImage: "arrow.up.forward.app")
                             .font(.system(size: 11)).padding(6).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(IslandLayout.cardFill, in: RoundedRectangle(cornerRadius: 8))
+                            .background(IslandLayout.cardFill, in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
                             .overlay {
                                 IslandFileDragSource(urls: [url], controller: controller,
                                                      onDraggingChanged: onDraggingChanged) {}
@@ -753,7 +753,7 @@ private struct IslandLiveCalendarContent: View {
                                     .foregroundStyle(day.isWeekend || !Calendar.current.isDate(day.date, equalTo: selectedDate, toGranularity: .month) ? .secondary : .primary)
                                     .frame(maxWidth: .infinity).frame(height: 33)
                                     .background(Calendar.current.isDate(day.date, inSameDayAs: selectedDate)
-                                                ? controller.configuration.color(for: .calendar).opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                                                ? controller.configuration.color(for: .calendar).opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
                             }.buttonStyle(IslandButtonStyle())
                         }
                     }.frame(maxWidth: .infinity)

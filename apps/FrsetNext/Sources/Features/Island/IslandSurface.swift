@@ -13,14 +13,14 @@ struct IslandSurface<Content: View>: View {
         let width = controller.effectiveWidth
         let target = CGSize(width: controller.expanded ? width : controller.collapsedWidth,
                             height: controller.expanded ? height : controller.notchHeight)
-        VStack(spacing: Theme.Space.md) {
+        VStack(spacing: Theme.Space.sm) {
             header
             tabs
             content().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             pager
         }
         .padding(.horizontal, IslandLayout.inset)
-        .padding(.top, controller.notchHeight + Theme.Space.sm)
+        .padding(.top, controller.notchHeight + 6)
         .padding(.bottom, IslandLayout.inset)
         .frame(width: width)
         .frame(width: width, height: height, alignment: .top)
@@ -48,16 +48,16 @@ struct IslandSurface<Content: View>: View {
                 if controller.previewOnly { controller.feedback = "完整主面板入口预览" }
                 else { controller.performOutside { ServiceLocator.panel?.show() } }
             } label: {
-                Image(systemName: "macwindow").frame(width: 28, height: 28)
+                Image(systemName: "macwindow").frame(width: 26, height: 26)
             }.buttonStyle(IslandButtonStyle(help: "打开主面板")).accessibilityLabel("打开主面板")
             Button {
                 if controller.previewOnly { controller.feedback = "设置位于总设置 → 刘海工作台" }
                 else { controller.performOutside { ServiceLocator.settings?.open(pane: "island") } }
             } label: {
-                Image(systemName: "slider.horizontal.3").frame(width: 28, height: 28)
+                Image(systemName: "slider.horizontal.3").frame(width: 26, height: 26)
             }.buttonStyle(IslandButtonStyle(help: "总设置 · 刘海工作台")).accessibilityLabel("总设置 · 刘海工作台")
             Button(action: controller.collapse) {
-                Image(systemName: "chevron.up").frame(width: 28, height: 28)
+                Image(systemName: "chevron.up").frame(width: 26, height: 26)
             }.buttonStyle(IslandButtonStyle(help: "收回刘海 · Esc", tipAlignment: .bottomTrailing)).accessibilityLabel("收回刘海")
         }.font(.system(size: Theme.TextSize.body))
     }
@@ -72,14 +72,14 @@ struct IslandSurface<Content: View>: View {
                 .font(.system(size: Theme.TextSize.caption)).monospacedDigit().foregroundStyle(.secondary)
             Button { controller.turnPage(1) } label: { Image(systemName: "chevron.right").frame(width: 24, height: 22) }
                 .buttonStyle(IslandButtonStyle()).accessibilityLabel("下一页")
-        }.frame(height: 22)
+        }.frame(height: 20)
     }
 
     private var tabs: some View {
         HStack(spacing: Theme.Space.xs) {
             ForEach(IslandPage.tabs) { page in
                 Button { controller.page = page } label: {
-                    Text(page.title).frame(maxWidth: .infinity).frame(height: 30)
+                    Text(page.title).frame(maxWidth: .infinity).frame(height: 28)
                         .foregroundStyle(controller.page == page ? .primary : .secondary)
                         .background {
                             if controller.page == page {
@@ -110,7 +110,7 @@ private struct IslandMorph: AnimatableModifier {
 
     func body(content: Content) -> some View {
         let phase = min(1, max(0, progress))
-        let radius = Theme.Radius.chip + (IslandLayout.corner - Theme.Radius.chip) * phase
+        let radius = IslandLayout.collapsedRadius + (IslandLayout.corner - IslandLayout.collapsedRadius) * phase
         let outline = IslandOutline(radius: radius)
         let reveal = phase
         content
@@ -312,28 +312,36 @@ private struct IslandPeekPowerValue: View {
     }
 }
 
-/// 辉光仅重绘鼠标所在的组件，不驱动整个页面或持续计时。
+/// 微光保留最后光源位置淡出；扩散按卡片短边计算，避免宽卡整面泛白。
 private struct IslandGlow: ViewModifier {
     let enabled: Bool
-    @Stored private var location: CGPoint? = nil
+    @Stored private var location = CGPoint.zero
+    @Stored private var hovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func body(content: Content) -> some View {
         content.background {
             GeometryReader { geometry in
-                if let location, enabled {
-                    RadialGradient(colors: [.white.opacity(0.13), .white.opacity(0.025), .clear],
-                                   center: UnitPoint(x: location.x / geometry.size.width, y: location.y / geometry.size.height),
-                                   startRadius: 0, endRadius: max(geometry.size.width, geometry.size.height) * 0.65)
-                        .allowsHitTesting(false)
-                        .transition(.opacity)
-                }
+                RadialGradient(stops: [.init(color: .white.opacity(0.15), location: 0),
+                                       .init(color: .white.opacity(0.065), location: 0.25),
+                                       .init(color: .white.opacity(0.02), location: 0.6),
+                                       .init(color: .clear, location: 1)],
+                               center: reduceMotion ? .center : UnitPoint(x: location.x / geometry.size.width,
+                                                                         y: location.y / geometry.size.height),
+                               startRadius: 0, endRadius: min(geometry.size.width, geometry.size.height) * 0.9)
+                    .opacity(enabled && hovered ? 1 : 0)
+                    .animation(reduceMotion ? Theme.Motion.tap : hovered ? Theme.Motion.fast : Theme.Motion.page,
+                               value: enabled && hovered)
+                    .allowsHitTesting(false)
             }
         }
-        .animation(reduceMotion ? nil : Theme.Motion.tap, value: enabled && location != nil)
         .onContinuousHover { phase in
             switch phase {
-            case .active(let point): if enabled { location = point }
-            case .ended: location = nil
+            case .active(let point):
+                if enabled && !reduceMotion {
+                    withAnimation(hovered ? .linear(duration: 0.06) : nil) { location = point }
+                }
+                hovered = true
+            case .ended: hovered = false
             }
         }
     }

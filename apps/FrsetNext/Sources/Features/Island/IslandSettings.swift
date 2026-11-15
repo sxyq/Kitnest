@@ -30,14 +30,14 @@ enum IslandPage: String, CaseIterable, Identifiable {
 struct IslandConfiguration: Codable, Equatable {
     static let key = "island.configuration"
     var enabled = true
-    var width: CGFloat = 780
-    var height: CGFloat = 480
+    var width: CGFloat = 680
+    var height: CGFloat = 420
     var gridColumns: Int? = nil
     var gridRows: Int? = nil
     var columns: Int { gridColumns ?? 4 }
     var rows: Int { gridRows ?? 2 }
-    var minimumWidth: CGFloat { CGFloat(columns) * 154 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
-    var minimumHeight: CGFloat { CGFloat(rows) * 126 + CGFloat(rows - 1) * 8 + 200 }
+    var minimumWidth: CGFloat { CGFloat(columns) * 144 + CGFloat(columns - 1) * 8 + IslandLayout.inset * 2 }
+    var minimumHeight: CGFloat { CGFloat(rows) * 112 + CGFloat(rows - 1) * 8 + 176 }
     var hoverEnabled = true
     var hoverDelay = 0.10
     var collapseDelay = 0.18
@@ -245,10 +245,11 @@ extension Array where Element: Equatable {
 }
 
 enum IslandLayout {
-    static let inset: CGFloat = 14
-    static let corner: CGFloat = 38
-    static let cardRadius: CGFloat = 20
-    static let controlRadius: CGFloat = 12
+    static let inset: CGFloat = Theme.Space.lg
+    static let corner: CGFloat = 24
+    static let collapsedRadius: CGFloat = Theme.Radius.chip
+    static let cardRadius: CGFloat = Theme.Radius.card
+    static let controlRadius: CGFloat = Theme.Radius.control
     static let tint = NSColor.black.withAlphaComponent(0.32)
     static let cardFill = Color.white.opacity(0.035)
     static let cardStroke = Color.white.opacity(0.08)
