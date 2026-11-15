@@ -111,6 +111,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     // MARK: 运行状态
 
     private var slot: MainPanelPreviewPopoverSlot?
+    private weak var presentingWindow: NSWindow?
     private var hoverPreviewOpenWorkItem: DispatchWorkItem?
     private var hoverPreviewCloseWorkItem: DispatchWorkItem?
     private var keyboardPreviewPresentationWorkItem: DispatchWorkItem?
@@ -137,6 +138,12 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 是否有存活的预览窗
     public var hasActivePreview: Bool {
         slot?.state == .presenting || slot?.state == .presented || slot?.state == .closing
+    }
+
+    public func hasPreview(from window: NSWindow, at point: NSPoint? = nil) -> Bool {
+        guard presentingWindow === window, hasActivePreview else { return false }
+        if let point { return slot?.windowController.window?.frame.contains(point) == true }
+        return true
     }
 
     private override init() {
@@ -170,6 +177,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         let anchorInScreen: CGRect
         if let anchorRectInScreen {
             anchorInScreen = anchorRectInScreen
+            presentingWindow = sourceWindow
             panelFrame = sourceWindow?.frame ?? .zero
             visibleFrame = (sourceWindow?.screen
                 ?? NSScreen.screens.first { $0.frame.contains(anchorRectInScreen.origin) }
@@ -180,6 +188,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                 return false
             }
             panelFrame = anchorHostView.window?.frame ?? .zero
+            presentingWindow = anchorHostView.window
             visibleFrame = (anchorHostView.window?.screen ?? NSScreen.main)?.visibleFrame ?? .zero
             anchorInScreen = anchorHostView.window.map {
                 $0.convertToScreen(anchorHostView.convert(anchorRect, to: nil))
@@ -283,7 +292,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public func rowHover(_ hovering: Bool,
                          item: ClipboardItem,
                          source: PreviewPopoverContentModel.Source = .mainPreview,
-                         anchorProvider: @escaping () -> CGRect?) {
+                         anchorProvider: @escaping () -> CGRect?,
+                         sourceWindow: NSWindow? = nil) {
         // F2 总开关（默认开启：defaults 实测键无落盘值）
         let key = source == .mainPreview
             ? Preferences.Keys.hoverPreviewInMainWindowEnabled
@@ -297,14 +307,17 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             hoverPreviewCloseWorkItem = nil
             hoverStartedAt = Date()
             guard hoverPreviewOpenWorkItem == nil else { return }
-            let work = DispatchWorkItem { [weak self] in
+            let work = DispatchWorkItem { [weak self, weak sourceWindow] in
                 guard let self else { return }
                 self.hoverPreviewOpenWorkItem = nil
                 // hover-intent 阈值校验
                 if let start = self.hoverStartedAt,
                    Date().timeIntervalSince(start) < self.activeHoverIntentThreshold { return }
                 guard let rect = anchorProvider() else { return }
-                self.present(for: item, anchorRectInWindow: rect, source: source)
+                if let sourceWindow {
+                    self.present(for: item, source: source,
+                                 anchorRectInScreen: sourceWindow.convertToScreen(rect), sourceWindow: sourceWindow)
+                } else { self.present(for: item, anchorRectInWindow: rect, source: source) }
             }
             hoverPreviewOpenWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + hoverPreviewOpenDelay, execute: work)
@@ -401,7 +414,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             if event.type == .leftMouseDown, let content = event.window?.contentView {
                 var view = content.hitTest(content.convert(event.locationInWindow, from: nil))
                 while let candidate = view {
-                    if candidate is RowHostingView { return event }
+                    if candidate is RowHostingView || candidate is IslandFileDragView { return event }
                     view = candidate.superview
                 }
             }
@@ -559,6 +572,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         guard let slot, slot === closingSlot else { return }
         let reason = slot.pendingCloseReason
         self.slot = nil
+        presentingWindow = nil
         activeItemID = nil
         isPreviewPopoverHovered = false
         trackedPreviewItemMinYByID.removeAll()

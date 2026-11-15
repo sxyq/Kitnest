@@ -269,6 +269,9 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func collapse() {
+        if let panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
+            MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse)
+        }
         hoverWork?.cancel()
         hoverWork = nil
         openedExplicitly = false
@@ -313,7 +316,7 @@ final class IslandController: NSObject, ObservableObject {
                     return nil
                 }
             }
-            if (event.type == .leftMouseDown || event.type == .rightMouseDown), event.window !== self.panel {
+            if (event.type == .leftMouseDown || event.type == .rightMouseDown), event.window !== self.panel, !self.inside {
                 self.collapse()
             }
             return event
@@ -328,7 +331,8 @@ final class IslandController: NSObject, ObservableObject {
         let next = CGRect(origin: .zero, size: visibleSize).contains(local) && visibleOutline.contains(local)
         panel.ignoresMouseEvents = !next || !panel.isVisible
         let overCamera = abs(local.x - visibleSize.width / 2) < notchWidth / 2
-        let hoverInside = next && (expanded || overCamera)
+        let hoverInside = next && (expanded || overCamera) ||
+            (expanded && MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel, at: point))
         guard inside != hoverInside else { return }
         inside = hoverInside
         hoverWork?.cancel()

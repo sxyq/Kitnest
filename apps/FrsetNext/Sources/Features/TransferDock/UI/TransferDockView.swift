@@ -24,9 +24,10 @@ import UniformTypeIdentifiers
 
 struct TransferDockView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
+    var utilitiesOnly: Bool = false
     var body: some View {
-        if isSettingsPreview { TransferDockContent() }
-        else { LiveTransferDockView() }
+        if isSettingsPreview { TransferDockContent(utilitiesOnly: utilitiesOnly) }
+        else { LiveTransferDockView(utilitiesOnly: utilitiesOnly) }
     }
 }
 
@@ -35,8 +36,10 @@ private struct LiveTransferDockView: View {
     @ObservedObject private var local = LocalTransferStore.shared
     @ObservedObject private var lan = LanTransferServer.shared
     @ObservedObject private var compression = BatchImageCompressionWindowController.shared
+    let utilitiesOnly: Bool
     var body: some View {
-        TransferDockContent(service: service, local: local, lan: lan, compression: compression)
+        TransferDockContent(service: service, local: local, lan: lan, compression: compression,
+                            utilitiesOnly: utilitiesOnly)
     }
 }
 
@@ -47,6 +50,7 @@ private struct TransferDockContent: View {
     private let liveLocal: LocalTransferStore?
     private let liveLan: LanTransferServer?
     private let liveCompression: BatchImageCompressionWindowController?
+    private let utilitiesOnly: Bool
     private var service: TransferDockService { liveService! }
     private var local: LocalTransferStore { liveLocal! }
     private var lan: LanTransferServer { liveLan! }
@@ -66,8 +70,10 @@ private struct TransferDockContent: View {
     private var cloudSpaceRatio: Double { isSettingsPreview ? 0.12 : service.spaceRatio }
 
     init(service: TransferDockService? = nil, local: LocalTransferStore? = nil,
-         lan: LanTransferServer? = nil, compression: BatchImageCompressionWindowController? = nil) {
+         lan: LanTransferServer? = nil, compression: BatchImageCompressionWindowController? = nil,
+         utilitiesOnly: Bool = false) {
         liveService = service; liveLocal = local; liveLan = lan; liveCompression = compression
+        self.utilitiesOnly = utilitiesOnly
     }
     private static let sampleItems: [LocalTransferItem] = [
         .init(id: "preview-document", name: "项目说明.pdf", relativePath: "", originalPath: "",
@@ -165,10 +171,11 @@ private struct TransferDockContent: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Divider().opacity(0.5)
-
-            localSection
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if !utilitiesOnly {
+                Divider().opacity(0.5)
+                localSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear {

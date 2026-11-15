@@ -8,7 +8,7 @@ struct IslandRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Stored private var selectedRecord: String? = nil
-    @Stored private var detailRecord: String? = nil
+    @Stored private var transferToolsVisible = false
     @Stored private var recordsRevision = 0
     @Stored private var recordDragging = false
     @FocusState private var recordListFocused: Bool
@@ -43,6 +43,11 @@ struct IslandRootView: View {
             updateMonitoring()
         }
         .onChange(of: controller.page) { _ in reloadRecords(); updateMonitoring() }
+        .onChange(of: transferToolsVisible) { _ in
+            if let panel = controller.panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
+                MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
+            }
+        }
         .onChange(of: homeMonitorVisible) { _ in updateMonitoring() }
         .onChange(of: preview) { _ in reloadRecords(); updateMonitoring() }
         .onDisappear { if !preview { MonitorSampler.shared.setIslandActive(false) } }
@@ -63,13 +68,23 @@ struct IslandRootView: View {
         switch page {
         case .home: home
         case .clipboard: recordsPage
+        case .transfer:
+            VStack(spacing: 8) {
+                Picker("中转站与传输", selection: $transferToolsVisible) {
+                    Text("中转站").tag(false)
+                    Text("文件传输").tag(true)
+                }.pickerStyle(.segmented).labelsHidden()
+                if transferToolsVisible {
+                    IslandFeatureContent(page: .transfer, controller: controller, previewOnly: preview)
+                } else { recordsPage }
+            }
         case .monitor: IslandMonitorFullContent(controller: controller, previewOnly: preview, selectedMetric: $selectedMetric)
         case .media: IslandMediaContent(controller: controller, previewOnly: preview)
         case .calendar: IslandCalendarContent(controller: controller, selectedDate: $selectedDate, previewOnly: preview)
         case .tools:
             IslandToolboxContent(controller: controller, previewOnly: preview, selectedTool: $selectedTool,
                                  onFileDialog: { fileDialogOpen = $0 })
-        case .search, .capture, .recording, .ocr, .transfer, .cast, .ai, .statistics, .archive, .downloads:
+        case .search, .capture, .recording, .ocr, .cast, .ai, .statistics, .archive, .downloads:
             IslandFeatureContent(page: page, controller: controller, previewOnly: preview, size: nil)
         }
     }
@@ -161,7 +176,8 @@ struct IslandRootView: View {
                     .overlay {
                         IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
                             onDraggingChanged: draggingChanged, onCopy: { copy(record) },
-                            onDoubleClick: { select(record); copy(record) }, defersSelection: true) { select(record, openPage: true) }
+                            onDoubleClick: { select(record); copy(record) }, defersSelection: true,
+                            previewItem: preview ? nil : record.previewItem) { select(record, openPage: true) }
                     }
             }.buttonStyle(IslandButtonStyle()).accessibilityLabel(record.title).help("单击预览 · 双击复制")
             if record.id == selectedRecord {
@@ -173,60 +189,49 @@ struct IslandRootView: View {
     private var recordsPage: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("剪贴板与中转").fontWeight(.medium)
+                Text(controller.page == .transfer ? "中转站" : "剪贴板与中转").fontWeight(.medium)
                 Spacer()
                 Text(preview ? "设置预览" : "\(records.count) 项近期内容 · 可拖入文件")
                     .foregroundStyle(.secondary)
             }.font(.system(size: 11))
-            recordEntrances
-            GeometryReader { geometry in
-                HStack(spacing: 12) {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 4) {
-                                ForEach(records) { record in
-                                    Button { select(record) } label: {
-                                        record.padding(8).frame(maxWidth: .infinity, alignment: .leading)
-                                            .background(selectedRecord == record.id ? Theme.accent(for: nil).opacity(0.14) : .clear,
-                                                        in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius))
-                                            .overlay {
-                                                IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
-                                                    onDraggingChanged: draggingChanged,
-                                                    onMove: { moveSelection($0, proxy: proxy) }, onCopy: copySelectedRecord,
-                                                    onDoubleClick: { select(record); copy(record) }) { select(record) }
-                                            }
-                                    }.buttonStyle(IslandButtonStyle())
-                                        .help("单击预览 · 双击复制")
-                                        .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
-                                        .onHover { inside in
-                                            if inside && !recordDragging { detailRecord = record.id }
-                                        }
-                                        .id(record.id)
-                                }
-                            }
+            if controller.page != .transfer { recordEntrances }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 4) {
+                        ForEach(records) { record in
+                            Button { select(record, showsPreview: true) } label: {
+                                record.frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(selectedRecord == record.id ? Theme.accent(for: nil).opacity(0.14) : .clear,
+                                                in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius))
+                                    .overlay {
+                                        IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
+                                            onDraggingChanged: draggingChanged,
+                                            onMove: { moveSelection($0, proxy: proxy) }, onCopy: copySelectedRecord,
+                                            onDoubleClick: { select(record); copy(record) },
+                                            previewItem: preview ? nil : record.previewItem) { select(record) }
+                                    }
+                            }.buttonStyle(IslandButtonStyle())
+                                .help("悬停或空格预览 · 双击复制 · 文件可拖出")
+                                .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
+                                .id(record.id)
                         }
-                        .focusable()
-                        .focused($recordListFocused)
-                        .onMoveCommand { direction in
-                            if direction == .up || direction == .down {
-                                moveSelection(direction == .up ? -1 : 1, proxy: proxy)
-                            }
-                        }
-                        .onCommand(#selector(NSText.copy(_:))) {
-                            copySelectedRecord()
-                        }
-                    }.frame(width: geometry.size.width * 0.38)
-                    Color.white.opacity(0.1).frame(width: Theme.Stroke.hairline)
-                    if let record = records.first(where: { $0.id == (detailRecord ?? selectedRecord) }) {
-                        IslandRecordDetail(record: record, controller: controller, previewOnly: preview,
-                                           dragging: recordDragging, onDraggingChanged: draggingChanged)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        Text(records.isEmpty ? "暂无内容，可拖入文件或文件夹" : "选择记录查看完整内容")
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
+                .focusable()
+                .focused($recordListFocused)
+                .onMoveCommand { direction in
+                    if direction == .up || direction == .down {
+                        moveSelection(direction == .up ? -1 : 1, proxy: proxy)
+                    }
+                }
+                .onCommand(#selector(NSText.copy(_:))) {
+                    copySelectedRecord()
+                }
+            }
+            if records.isEmpty {
+                Text("暂无内容，可拖入文件或文件夹")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .contentShape(Rectangle())
@@ -246,11 +251,14 @@ struct IslandRootView: View {
         return true
     }
 
-    private func select(_ record: IslandRecentRow, openPage: Bool = false) {
+    private func select(_ record: IslandRecentRow, openPage: Bool = false, showsPreview: Bool = false) {
         selectedRecord = record.id
-        detailRecord = record.id
         if openPage { controller.page = .clipboard }
         recordListFocused = true
+        if showsPreview && !preview, let panel = controller.panel {
+            MainPanelPreviewPopoverCoordinator.shared.present(for: record.previewItem,
+                anchorRectInScreen: panel.frame, sourceWindow: panel)
+        }
     }
 
     private func moveSelection(_ step: Int, proxy: ScrollViewProxy) {
@@ -271,7 +279,7 @@ struct IslandRootView: View {
                 if preview { controller.feedback = "历史入口预览"; return }
                 controller.performOutside { FloatingClipboardWindowController.shared.show() }
             }
-            Button("本地中转") { controller.page = .transfer }
+            Button("中转站与传输") { controller.page = .transfer }
         }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
     }
 
@@ -287,7 +295,7 @@ struct IslandRootView: View {
 
     @MainActor private func loadRecords() async {
         if recordDragging { return }
-        if !preview && (!controller.expanded || (controller.page != .home && controller.page != .clipboard)) { return }
+        if !preview && (!controller.expanded || (controller.page != .home && controller.page != .clipboard && controller.page != .transfer)) { return }
         if preview {
             var samples = IslandSample.clipboard
             samples.append(contentsOf: IslandSample.files.filter { file in
@@ -353,7 +361,6 @@ struct IslandRootView: View {
             records = joined
         }
         if !records.contains(where: { $0.id == selectedRecord }) { selectedRecord = records.first?.id }
-        if !records.contains(where: { $0.id == detailRecord }) { detailRecord = selectedRecord }
     }
 
     nonisolated private static func fileIcon(_ url: URL) -> String {
@@ -388,6 +395,20 @@ private struct IslandRecentRow: View, Identifiable {
         [id, url?.path, clipboard?.id, clipboard?.dedupeKey, transfer?.id, title].compactMap { $0 }.joined(separator: "|")
     }
 
+    var previewItem: ClipboardItem {
+        if let url, clipboard?.type != .image {
+            return ClipboardItem(id: id, type: .file, content: url.path, title: title,
+                                 subtitle: transfer?.originalPath, timestamp: date,
+                                 sourceApp: transfer != nil ? "中转站" : clipboard?.sourceApp,
+                                 dedupeKey: previewKey, fileCategories: clipboard?.fileCategories ?? 0)
+        }
+        let type: ClipboardItemType = icon == "photo" ? .image : icon == "link" ? .url
+            : icon == "folder" || icon == "archivebox" || icon == "doc.text" ? .file : .text
+        return clipboard ?? ClipboardItem(id: id, type: type, content: type == .file ? title : sample?.body,
+                                          title: title, subtitle: sample?.detail, timestamp: date, dedupeKey: id,
+                                          fileCategories: 0)
+    }
+
     /// 文件记录已按路径拆行，不能复制原剪贴板条目里未选中的其他文件。
     @MainActor func copy(previewOnly: Bool) async -> String? {
         if previewOnly { return "复制效果预览" }
@@ -410,185 +431,9 @@ private struct IslandRecentRow: View, Identifiable {
         return ClipboardManager.shared.copyText(result.0, successMessage: "已复制 " + title)
     }
 
-    var detail: String {
-        if let sample { return sample.detail }
-        let source = clipboard != nil && transfer != nil ? "剪贴板 · 中转" : transfer != nil ? "中转" : "剪贴板"
-        let type = icon == "folder" ? "文件夹" : icon == "photo" ? "图片" : icon == "link" ? "链接"
-            : icon == "curlybraces" ? "代码" : icon == "archivebox" ? "压缩包"
-            : icon == "doc.richtext" ? "文档" : icon == "play.rectangle" ? "媒体" : url != nil ? "文件" : "文字"
-        return [type, source, transfer?.sizeText, clipboard?.sourceApp,
-                date.formatted(.dateTime.month().day().hour().minute())].compactMap { $0 }.joined(separator: " · ")
-    }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon).foregroundStyle(.secondary).frame(width: 18)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 12)).lineLimit(1)
-                Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-private struct IslandRecordDetail: View {
-    let record: IslandRecentRow
-    @ObservedObject var controller: IslandController
-    let previewOnly: Bool
-    let dragging: Bool
-    var onDraggingChanged: (Bool) -> Void
-    @Stored private var displayed: (record: IslandRecentRow, model: PreviewPopoverContentModel,
-                                   richText: NSAttributedString?, failure: String?)? = nil
-    @Stored private var loading = false
-    @Stored private var forceCode = false
-    @Stored private var copyFailure: String? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let displayed {
-                let current = displayed.record
-                Text(current.detail).font(.system(size: 10)).foregroundStyle(.secondary).textSelection(.enabled)
-                HStack {
-                    Text(current.title).font(.system(size: 15, weight: .medium)).lineLimit(2)
-                    Spacer(minLength: 4)
-                    if loading { ProgressView().controlSize(.mini) }
-                    if current.url == nil && displayed.model.kind != .image && displayed.model.kind != .richText {
-                        Button { forceCode.toggle() } label: { Image(systemName: "curlybraces") }
-                            .buttonStyle(IslandButtonStyle()).help(forceCode ? "自动识别格式" : "按代码查看")
-                    }
-                    Button {
-                        Task {
-                            let failure = await current.copy(previewOnly: previewOnly)
-                            if self.displayed?.record.previewKey == current.previewKey { copyFailure = failure }
-                            controller.feedback = failure ?? "已复制 " + current.title
-                        }
-                    } label: {
-                        Label("复制", systemImage: "doc.on.doc").font(.system(size: 11))
-                            .padding(.horizontal, 6).frame(height: 24)
-                    }.buttonStyle(IslandButtonStyle()).accessibilityLabel("复制所选内容")
-                }
-                if let url = current.url {
-                    Button {
-                        if previewOnly { controller.feedback = "复制路径预览"; return }
-                        controller.feedback = ClipboardManager.shared.copyText(current.transfer?.originalPath ?? url.path,
-                            successMessage: "已复制路径") ?? "已复制路径"
-                    } label: {
-                        Text(current.transfer?.originalPath ?? url.path).font(.system(size: 10))
-                            .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }.buttonStyle(IslandButtonStyle()).help("点击复制完整路径")
-                    if !previewOnly {
-                        Label("拖出到 Finder 或其他 App", systemImage: "arrow.up.forward.app")
-                            .font(.system(size: 11)).padding(6).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(IslandLayout.cardFill, in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
-                            .overlay {
-                                IslandFileDragSource(urls: [url], controller: controller,
-                                                     onDraggingChanged: onDraggingChanged) {}
-                            }
-                            .accessibilityLabel("拖出 " + current.title)
-                    }
-                } else if current.icon == "link" {
-                    let text = displayed.model.inlineText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if let url = URL(string: text.lowercased().hasPrefix("www.") ? "https://" + text : text) {
-                        Button("打开链接") {
-                            if previewOnly { controller.feedback = "打开链接预览"; return }
-                            NSWorkspace.shared.open(url)
-                        }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
-                    }
-                }
-                if let error = copyFailure ?? displayed.failure {
-                    Text(error).font(.system(size: 11)).foregroundStyle(.red).textSelection(.enabled)
-                }
-                previewContent(displayed.model, richText: displayed.richText)
-                    .environment(\.isSettingsPreview, previewOnly)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ProgressView("正在读取").font(.system(size: 11))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-        }
-        .task(id: record.previewKey + String(previewOnly) + String(dragging)) {
-            if !dragging { await load() }
-        }
-    }
-
-    @ViewBuilder private func previewContent(_ model: PreviewPopoverContentModel,
-                                            richText: NSAttributedString?) -> some View {
-        if let richText {
-            AttributedTextView(richText)
-        } else if !previewOnly, let url = model.fileURL,
-                  let type = UTType(filenameExtension: url.pathExtension), type.conforms(to: .audiovisualContent) {
-            DocumentInlinePreview(url: url).id(model.id)
-        } else if !previewOnly, let url = model.fileURL, model.fileIsDirectory || ArchiveCore.isArchive(url) {
-            GeometryReader { geometry in
-                ScrollView([.horizontal, .vertical]) {
-                    PreviewFileView(model: model, showsQuickLook: false)
-                        .id(model.id)
-                        .frame(width: max(geometry.size.width, 520), height: max(geometry.size.height, 360))
-                }
-            }
-        } else {
-            PreviewPopoverContentView(model: model, forceCode: forceCode, usesWindowChrome: false)
-                .id(model.id)
-        }
-    }
-
-    @MainActor private func load() async {
-        if displayed?.record.previewKey == record.previewKey { loading = false; return }
-        loading = true
-        let current = record
-        let sample = previewOnly
-        let work = Task.detached(priority: .userInitiated) { () throws -> (PreviewPopoverContentModel, NSAttributedString?, String?) in
-            try Task.checkCancellation()
-            let item: ClipboardItem
-            if sample {
-                let type: ClipboardItemType = current.icon == "photo" ? .image
-                    : current.icon == "folder" || current.icon == "archivebox" ? .file : .text
-                item = ClipboardItem(id: current.id, type: type, content: current.sample?.body,
-                                     dedupeKey: current.id, fileCategories: 0)
-            } else if let url = current.url, current.clipboard?.type != .image {
-                item = ClipboardItem(id: current.id, type: .file, content: url.path, title: current.title,
-                                     timestamp: current.date, dedupeKey: current.previewKey)
-            } else {
-                item = current.clipboard!
-            }
-            var failure: String?
-            let text = sample || item.type == .file || item.type == .image ? item.content ?? ""
-                : ClipboardManager.shared.fullText(for: item) { failure = $0 }
-            try Task.checkCancellation()
-            // 全文已就绪，不再让落盘长文视图读取第二遍。
-            let richText = item.type == .richtext ? PreviewPopoverDataBridge.shared.richTextAttributed(for: item) : nil
-            let kind: PreviewPopoverContentModel.Kind? = sample && item.type == .file ? .file
-                : richText != nil ? .richText
-                : item.type == .text || item.type == .url || item.type == .richtext
-                    ? PreviewPopoverContentModel.classifyRawText(text) : nil
-            let model = PreviewPopoverContentModel(item: item, source: .floatingPreview,
-                sessionID: UUID(), inlineText: text, kindOverride: kind,
-                displayPath: current.transfer?.originalPath, loadFileContents: !sample)
-            try Task.checkCancellation()
-            return (model, richText, failure)
-        }
-        do {
-            let result = try await withTaskCancellationHandler(operation: { try await work.value }, onCancel: { work.cancel() })
-            if !sample, result.0.kind == .image, let path = result.0.item.imagePath {
-                let url = ClipboardFileStore.url(forRelativePath: path)
-                let thumbnail = result.0.item.thumbnailPath.map(ClipboardFileStore.url(forRelativePath:))
-                // 正式图片视图命中同一加载器缓存，切换时不先露出空白占位。
-                for full in [false, true] {
-                    guard !Task.isCancelled else { return }
-                    _ = await withCheckedContinuation { continuation in
-                        PreviewImageLoader.shared.loadImage(at: url, thumbnailURL: thumbnail,
-                            needsFullRebuild: full) { continuation.resume(returning: $0) }
-                    }
-                }
-            }
-            guard !Task.isCancelled else { return }
-            displayed = (current, result.0, result.1, result.2)
-            forceCode = false; copyFailure = nil; loading = false
-        } catch {
-            if !Task.isCancelled { copyFailure = error.localizedDescription; loading = false }
-        }
+        ClipboardRow(item: previewItem, isHighlighted: false, onCopy: {}, onEdit: {}, onSummarize: {})
     }
 }
 
@@ -601,6 +446,7 @@ private struct IslandFileDragSource: NSViewRepresentable {
     var onCopy: (() -> Void)? = nil
     var onDoubleClick: (() -> Void)? = nil
     var defersSelection = false
+    var previewItem: ClipboardItem? = nil
     var select: () -> Void
 
     func makeNSView(context: Context) -> IslandFileDragView { IslandFileDragView() }
@@ -609,10 +455,11 @@ private struct IslandFileDragSource: NSViewRepresentable {
         view.onDraggingChanged = onDraggingChanged
         view.onMove = onMove; view.onCopy = onCopy
         view.onDoubleClick = onDoubleClick; view.defersSelection = defersSelection
+        view.previewItem = previewItem
     }
 }
 
-private final class IslandFileDragView: NSView, NSDraggingSource {
+final class IslandFileDragView: NSView, NSDraggingSource {
     var urls: [URL] = []
     weak var controller: IslandController?
     var select: (() -> Void)?
@@ -621,11 +468,41 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
     var onCopy: (() -> Void)?
     var onDoubleClick: (() -> Void)?
     var defersSelection = false
+    var previewItem: ClipboardItem?
+    private var tracking: NSTrackingArea?
     private var selectionWork: DispatchWorkItem?
     private var mouseStart: NSPoint? = nil
     private var dragging = false
 
     override var acceptsFirstResponder: Bool { true }
+
+    override func updateTrackingAreas() {
+        if let tracking { removeTrackingArea(tracking) }
+        tracking = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(tracking!)
+        super.updateTrackingAreas()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        guard let previewItem, controller?.expanded == true else { return }
+        MainPanelPreviewPopoverCoordinator.shared.rowHover(true, item: previewItem,
+            anchorProvider: { [weak self] in
+                guard let self, self.controller?.expanded == true else { return nil }
+                return self.convert(self.bounds, to: nil)
+            }, sourceWindow: window)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard let previewItem else { return }
+        MainPanelPreviewPopoverCoordinator.shared.rowHover(false, item: previewItem, anchorProvider: { nil })
+    }
+
+    private func showPreview() {
+        guard let previewItem, let window, controller?.expanded == true else { return }
+        MainPanelPreviewPopoverCoordinator.shared.present(for: previewItem,
+            anchorRectInScreen: window.convertToScreen(convert(bounds, to: nil)), sourceWindow: window)
+    }
 
     override func mouseDown(with event: NSEvent) {
         selectionWork?.cancel(); selectionWork = nil
@@ -640,7 +517,7 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
         if (event.keyCode == 125 || event.keyCode == 126), let onMove {
             onMove(event.keyCode == 125 ? 1 : -1); return
         }
-        if event.keyCode == 36 || event.keyCode == 49 { select?(); return }
+        if event.keyCode == 36 || event.keyCode == 49 { showPreview(); select?(); return }
         super.keyDown(with: event)
     }
 
@@ -670,10 +547,10 @@ private final class IslandFileDragView: NSView, NSDraggingSource {
                 onDoubleClick()
             } else if defersSelection {
                 // 首页单击会换页；等待系统双击间隔，避免第一击提前移走目标。
-                let work = DispatchWorkItem { [weak self] in self?.select?() }
+                let work = DispatchWorkItem { [weak self] in self?.showPreview(); self?.select?() }
                 selectionWork = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
-            } else { select?() }
+            } else { showPreview(); select?() }
         }
         mouseStart = nil
     }

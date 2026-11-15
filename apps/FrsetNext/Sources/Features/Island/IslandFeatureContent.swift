@@ -33,7 +33,10 @@ struct IslandFeatureContent: View {
         case .ocr:
             IslandOCRContent(controller: controller, previewOnly: previewOnly)
         case .transfer:
-            TransferDockView()
+            ScrollView(.vertical) {
+                TransferDockView(utilitiesOnly: true)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         case .cast:
             CastView()
         case .ai:
