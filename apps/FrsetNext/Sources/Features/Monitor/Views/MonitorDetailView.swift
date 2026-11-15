@@ -218,7 +218,9 @@ private struct MonitorDetailContent: View {
                 let sensors = Array(history.temperatures.keys).sorted()
                 if !sensors.isEmpty {
                     Picker("温度传感器", selection: Binding(get: { sensorName }, set: { thermalSensor = $0 })) {
-                        ForEach(sensors, id: \.self) { Text($0).tag($0) }
+                        ForEach(sensors, id: \.self) { key in
+                            Text(stats.sensors.first { $0.key == key }?.name ?? key).tag(key)
+                        }
                     }
                 } else {
                     Text((isSettingsPreview ? presentation.previewTemperatures : MonitorPreferences.showTemperatures) ? "尚未读取到温度传感器" : "温度采集已关闭")
@@ -226,6 +228,7 @@ private struct MonitorDetailContent: View {
                 }
             }
             MonitorTrendChart(data: MonitorTrendData(module: selection.module, history: history, sensor: sensorName,
+                                                    sensorLabel: stats.sensors.first { $0.key == sensorName }?.name,
                                                     tint: presentation.colors[selection.module]),
                               selection: selection, interaction: presentation.interaction)
             content

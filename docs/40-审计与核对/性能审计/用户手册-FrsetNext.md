@@ -1179,7 +1179,7 @@ v267 起移除了「自动识别窗口 / 手动框选」模式开关和设置里
 主面板、刘海工作台和监测独立窗使用同一页内容，并记住同一个已选模块。宽窗口左侧列出模块和当前值，右侧显示趋势与详情；窄窗口把模块入口放在上方。切换模块只更新内容，不重新展开刘海。
 
 - 默认显示最新读数。悬停图表可查看该次采样的时间、数值和单位；网络与磁盘同时显示两条曲线的读数。
-- 点击图表固定采样，后续数据继续更新。拖动可重新定位；图表获得焦点后，左右方向键查看采样，回车固定或解除固定。
+- 点击图表固定该位置的采样；已有固定点时，再点其他位置会更新固定点。位移达到 3pt 后进入拖动定位；图表获得焦点后，左右方向键查看采样，回车固定或解除固定。
 - 点“返回最新”恢复跟随。固定采样离开当前图表范围后，时间与读数仍保留，下面会说明它已不在图中。
 - 历史最多保留 60 次采样，时间轴使用真实时间。改变刷新间隔、后台降频或采样中断后，图表按实际间隔排列；缺失读数留空。
 - 内存压力显示系统返回的“正常／警告／严重”状态，已用容量单独标明。温度图可以选择传感器，单位为 °C。
@@ -1232,7 +1232,7 @@ v267 起移除了「自动识别窗口 / 手动框选」模式开关和设置里
 |---|---|---|
 | `MonitorSampler.swift:330` | `scheduleNext` / `sampleOnce` | 采样节拍与降频 |
 | `MonitorReader.swift:628` | `readCPU` / `readMemory` / `readNetworkRate` / `readDiskRate` / `readPower` / `readBatteryLevel` | 主机层指标 |
-| `MonitorReader.swift` | `readSMCTemperature` | SMC 温度直读 |
+| `MonitorReader.swift` | `readTemperatures` | 复用 StatsDataProvider 的 SMC 温度快照，按传感器键保留历史 |
 | `StatsBarEngine.swift:318` | `openMonitor` / `openSettings` | 部件点击与设置入口 |
 | `StatsModulePanels.swift:1342` | 模块面板 | 各模块浮层版式 |
 | `MonitorDetailView.swift:1277` | `body` | 详情窗（模块切换条） |

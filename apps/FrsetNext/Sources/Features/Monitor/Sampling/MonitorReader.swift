@@ -79,7 +79,7 @@ public extension MonitorSample {
 /// - 内存：`host_statistics64`（used/compressed/swap/压力）
 /// - 网络：`getifaddrs` 计数器差分算 bytes/s
 /// - 磁盘：IOKit `IOBlockStorageDriver` 统计差分（读不到降级为 0）
-/// - 温度：AppleSMC 用户客户端（读不到返回空字典，且有 150ms 超时保护）
+/// - 温度：复用 StatsDataProvider 已扫描的 SMC 快照
 /// - 电池：IOKit `IOPSCopyPowerSourcesInfo`
 public final class MonitorReader {
     /// CPU tick 快照（用于差分）
@@ -104,19 +104,6 @@ public final class MonitorReader {
         var timestamp: TimeInterval = 0
     }
 
-    private static let temperatureKeys: [(code: String, name: String)] = [
-        ("TC0P", "CPU 包温"),
-        ("TC0D", "CPU 二极管"),
-        ("TCXC", "CPU 邻近"),
-        ("TG0P", "GPU 包温"),
-        ("TB0T", "电池"),
-        ("TW0P", "无线网卡")
-    ]
-
-    private let sensorQueue = DispatchQueue(label: "com.frset.monitor.smc", qos: .utility)
-    private let sensorStateLock = NSLock()
-    private var sensorReadInFlight = false
-    private var cachedTemperatures: [String: Double] = [:]
 
     private var previousCPUTicks: [CPUTicks]?
     private var previousNetwork: IOCounters?
@@ -174,7 +161,7 @@ public final class MonitorReader {
         }
 
         // —— 以下 g_snap 不提供，恒采 ——
-        sample.temperatures = temperatureEnabled ? readTemperatures(timeout: .milliseconds(150)) : [:]
+        sample.temperatures = temperatureEnabled ? readTemperatures() : [:]
         readPower(into: &sample)
 
         return MonitorReadResult(sample: sample, compressedMemory: memory.compressed)
@@ -373,113 +360,11 @@ public final class MonitorReader {
         )
     }
 
-    // MARK: - 温度（AppleSMC，带超时与降级）
+    // MARK: - 温度（共用既有 SMC 全量扫描快照）
 
-    /// 读取温度；SMC 不可用时始终返回空字典，不会崩溃或阻塞。
-    private func readTemperatures(timeout: DispatchTimeInterval) -> [String: Double] {
-        sensorStateLock.lock()
-        if sensorReadInFlight {
-            let cached = cachedTemperatures
-            sensorStateLock.unlock()
-            return cached
-        }
-        sensorReadInFlight = true
-        sensorStateLock.unlock()
-
-        let semaphore = DispatchSemaphore(value: 0)
-        sensorQueue.async { [weak self] in
-            defer { semaphore.signal() }
-            guard let self else { return }
-            let temperatures = self.readRawTemperatures()
-            self.sensorStateLock.lock()
-            self.cachedTemperatures = temperatures
-            self.sensorReadInFlight = false
-            self.sensorStateLock.unlock()
-        }
-
-        if semaphore.wait(timeout: .now() + timeout) == .timedOut {
-            Log.debug("Monitor", "SMC 读取超时，本帧使用上次缓存温度")
-        }
-
-        sensorStateLock.lock()
-        let value = cachedTemperatures
-        sensorStateLock.unlock()
-        return value
-    }
-
-    /// 打开 AppleSMC 连接并读取关键温度 key；任一环节失败都返回空字典。
-    private func readRawTemperatures() -> [String: Double] {
-        let service = IOServiceGetMatchingService(
-            kIOMainPortDefault,
-            IOServiceMatching("AppleSMC")
-        )
-        guard service != 0 else { return [:] }
-        defer { IOObjectRelease(service) }
-
-        var connection: io_connect_t = 0
-        guard IOServiceOpen(service, mach_task_self_, 0, &connection) == KERN_SUCCESS else { return [:] }
-        defer { IOServiceClose(connection) }
-
-        var result: [String: Double] = [:]
-        for item in MonitorReader.temperatureKeys {
-            guard let value = readSMCTemperature(connection: connection, key: item.code),
-                  (-20...130).contains(value) else { continue }
-            result[item.name] = value
-        }
-        return result
-    }
-
-    /// 读取单个 SMC 温度 key（支持 sp78 / fpe2 / flt 三种编码）
-    private func readSMCTemperature(connection: io_connect_t, key: String) -> Double? {
-        let keyCode = fourCharCode(key)
-        var infoInput = SMCKeyData()
-        var infoOutput = SMCKeyData()
-        infoInput.key = keyCode
-        infoInput.data8 = 9 // kSMCGetKeyInfo
-        guard smcCall(connection: connection, input: &infoInput, output: &infoOutput) else { return nil }
-
-        var readInput = SMCKeyData()
-        readInput.key = keyCode
-        readInput.keyInfo = infoOutput.keyInfo
-        readInput.data8 = 5 // kSMCReadKey
-        var readOutput = SMCKeyData()
-        guard smcCall(connection: connection, input: &readInput, output: &readOutput) else { return nil }
-        guard readOutput.keyInfo.dataSize >= 2 else { return nil }
-
-        let bytes = withUnsafeBytes(of: readOutput.bytes) { Array($0) }
-        guard bytes.count >= 2 else { return nil }
-        switch fourCharString(readOutput.keyInfo.dataType) {
-        case "sp78":
-            let raw = Int16(bitPattern: (UInt16(bytes[0]) << 8) | UInt16(bytes[1]))
-            return Double(raw) / 256
-        case "fpe2":
-            let raw = (UInt16(bytes[0]) << 8) | UInt16(bytes[1])
-            return Double(raw) / 4
-        case "flt ":
-            guard bytes.count >= 4 else { return nil }
-            let bits = (UInt32(bytes[0]) << 24) | (UInt32(bytes[1]) << 16) |
-                       (UInt32(bytes[2]) << 8) | UInt32(bytes[3])
-            return Double(Float(bitPattern: bits))
-        default:
-            return nil
-        }
-    }
-
-    private func smcCall(connection: io_connect_t, input: inout SMCKeyData, output: inout SMCKeyData) -> Bool {
-        var outputSize = MemoryLayout<SMCKeyData>.stride
-        let status = withUnsafePointer(to: &input) { inputPointer in
-            withUnsafeMutablePointer(to: &output) { outputPointer in
-                IOConnectCallStructMethod(
-                    connection,
-                    2, // kSMCUserClientOpen 之后统一走 selector 2（读/取信息）
-                    inputPointer,
-                    MemoryLayout<SMCKeyData>.stride,
-                    outputPointer,
-                    &outputSize
-                )
-            }
-        }
-        return status == KERN_SUCCESS && output.result == 0
+    private func readTemperatures() -> [String: Double] {
+        Dictionary(uniqueKeysWithValues: StatsDataProvider.shared.current.sensors
+            .filter { $0.category == 0 }.map { ($0.key, $0.value) })
     }
 
     // MARK: - 电池
@@ -551,58 +436,4 @@ public final class MonitorReader {
         return 0
     }
 
-    private func fourCharCode(_ text: String) -> UInt32 {
-        text.utf8.prefix(4).reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
-    }
-
-    private func fourCharString(_ code: UInt32) -> String {
-        let bytes: [UInt8] = [
-            UInt8((code >> 24) & 0xff), UInt8((code >> 16) & 0xff),
-            UInt8((code >> 8) & 0xff), UInt8(code & 0xff)
-        ]
-        return String(bytes: bytes, encoding: .ascii) ?? ""
-    }
-}
-
-// MARK: - SMC 数据结构（镜像 AppleSMC.kext 的 kSMCKeyData 布局）
-
-private struct SMCVersion {
-    var major: UInt8 = 0
-    var minor: UInt8 = 0
-    var build: UInt8 = 0
-    var reserved: UInt8 = 0
-    var release: UInt16 = 0
-}
-
-private struct SMCPLimitData {
-    var version: UInt16 = 0
-    var length: UInt16 = 0
-    var cpuPLimit: UInt32 = 0
-    var gpuPLimit: UInt32 = 0
-    var memPLimit: UInt32 = 0
-}
-
-private struct SMCKeyInfoData {
-    var dataSize: UInt32 = 0
-    var dataType: UInt32 = 0
-    var dataAttributes: UInt8 = 0
-}
-
-private struct SMCKeyData {
-    var key: UInt32 = 0
-    var vers = SMCVersion()
-    var pLimitData = SMCPLimitData()
-    var keyInfo = SMCKeyInfoData()
-    var result: UInt8 = 0
-    var status: UInt8 = 0
-    var data8: UInt8 = 0
-    var data32: UInt32 = 0
-    var bytes: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-                UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-                UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-                UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
-        = (0, 0, 0, 0, 0, 0, 0, 0,
-           0, 0, 0, 0, 0, 0, 0, 0,
-           0, 0, 0, 0, 0, 0, 0, 0,
-           0, 0, 0, 0, 0, 0, 0, 0)
 }

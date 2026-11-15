@@ -75,7 +75,7 @@ struct MonitorTrendData {
     var start: Double { (points.last?.time ?? 0) - interval * Double(MonitorSampler.historyCapacity - 1) }
     var end: Double { points.last?.time ?? 0 }
 
-    init(module: MonitorModuleID, history: MonitorSampler.History, sensor: String = "", tint: Color? = nil) {
+    init(module: MonitorModuleID, history: MonitorSampler.History, sensor: String = "", sensorLabel: String? = nil, tint: Color? = nil) {
         self.module = module
         key = module.rawValue + ":" + sensor
         interval = history.intervals.last ?? 1
@@ -97,7 +97,7 @@ struct MonitorTrendData {
             names = ["读取", "写入"]; colors = [tint ?? MonitorColors.read, MonitorColors.write]
             series = [history.diskRead, history.diskWrite]; fixedUpper = nil
         case .sensors:
-            names = [sensor.isEmpty ? "温度" : sensor]; colors = [tint ?? MonitorColors.temperature]
+            names = [sensorLabel ?? (sensor.isEmpty ? "温度" : sensor)]; colors = [tint ?? MonitorColors.temperature]
             series = [history.temperatures[sensor] ?? []]; fixedUpper = nil
         case .power:
             names = ["整机负载"]; colors = [tint ?? MonitorColors.temperature]
@@ -254,7 +254,7 @@ struct MonitorTrendChart: View {
                         }
                     case .exit: hovered = nil
                     case .click(let x):
-                        if fixed != nil { unpin() } else { pin(nearest(at: x, width: geometry.size.width)) }
+                        pin(nearest(at: x, width: geometry.size.width))
                     case .drag(let x):
                         if !dragging { dragging = true; interaction?(true) }
                         pin(nearest(at: x, width: geometry.size.width))
