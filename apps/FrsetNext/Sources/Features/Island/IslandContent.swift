@@ -503,6 +503,7 @@ private struct IslandFileDragSource: NSViewRepresentable {
         view.previewItem = previewItem
         view.selectedPreview = selectedPreview
         view.tracksScroll = tracksScroll
+        if controller.editingLayout { view.cancelSelection() }
     }
 }
 
@@ -534,6 +535,18 @@ final class IslandFileDragView: NSView, NSDraggingSource {
         }
     }
 
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        controller?.editingLayout == true ? nil : super.hitTest(point)
+    }
+
+    func cancelSelection() {
+        selectionWork?.cancel(); selectionWork = nil
+        mouseStart = nil
+        if let previewItem {
+            MainPanelPreviewPopoverCoordinator.shared.rowHover(false, item: previewItem, anchorProvider: { nil })
+        }
+    }
+
     override func updateTrackingAreas() {
         if let tracking { removeTrackingArea(tracking) }
         tracking = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
@@ -543,7 +556,7 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        guard let previewItem, controller?.expanded == true else { return }
+        guard let previewItem, controller?.expanded == true, controller?.editingLayout == false else { return }
         MainPanelPreviewPopoverCoordinator.shared.rowHover(true, item: previewItem,
             anchorProvider: { [weak self] in
                 guard let self, self.controller?.expanded == true else { return nil }
@@ -562,7 +575,7 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     }
 
     private func showPreview() {
-        guard let previewItem, let window, controller?.expanded == true else { return }
+        guard let previewItem, let window, controller?.expanded == true, controller?.editingLayout == false else { return }
         MainPanelPreviewPopoverCoordinator.shared.present(for: previewItem,
             anchorRectInScreen: window.convertToScreen(convert(bounds, to: nil)), sourceWindow: window)
     }
@@ -574,6 +587,7 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     }
 
     override func keyDown(with event: NSEvent) {
+        if controller?.editingLayout == true { super.keyDown(with: event); return }
         if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "c", let onCopy {
             onCopy(); return
         }

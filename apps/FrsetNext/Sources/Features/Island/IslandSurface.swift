@@ -44,6 +44,22 @@ struct IslandSurface<Content: View>: View {
                     .buttonStyle(IslandButtonStyle()).font(.system(size: Theme.TextSize.caption))
             }
             Spacer()
+            if controller.editingLayout {
+                Menu {
+                    ForEach(controller.layoutConfiguration.widgetOrder.filter {
+                        controller.layoutConfiguration.hiddenWidgets.contains($0)
+                    }) { item in
+                        Button(item.title) { controller.setWidgetVisible(item, visible: true) }
+                    }
+                } label: { Label("添加组件", systemImage: "plus") }
+                    .disabled(controller.layoutConfiguration.hiddenWidgets.isEmpty)
+                Button("取消", action: controller.cancelLayoutEditing).buttonStyle(IslandButtonStyle())
+                Button("完成", action: controller.finishLayoutEditing).buttonStyle(IslandButtonStyle())
+            } else {
+                Button(action: controller.beginLayoutEditing) {
+                    Label("编辑布局", systemImage: "square.and.pencil")
+                }.buttonStyle(IslandButtonStyle())
+            }
             Button {
                 if controller.previewOnly { controller.feedback = "完整主面板入口预览" }
                 else { controller.performOutside { ServiceLocator.panel?.show() } }
@@ -94,6 +110,7 @@ struct IslandSurface<Content: View>: View {
                     .accessibilityAddTraits(controller.page == page ? .isSelected : [])
             }
         }.font(.system(size: Theme.TextSize.small, weight: .medium))
+            .disabled(controller.editingLayout)
             .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.page)
     }
 }

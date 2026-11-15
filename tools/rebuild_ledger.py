@@ -121,6 +121,38 @@ EVIDENCE = {
         "首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口",
     ("Features/Island/IslandWidgetGrid.swift", "frame"):
         "按共享画布单格及间隙计算异构卡片实际位置尺寸，排列、辉光和拖动落点使用同一几何",
+    ("Features/Island/IslandController.swift", "beginLayoutEditing"):
+        "以当前配置建立布局草稿并进入首页编辑，保持刘海展开；已保存配置在编辑过程中保持原样",
+    ("Features/Island/IslandController.swift", "updateLayout"):
+        "接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块",
+    ("Features/Island/IslandController.swift", "finishLayoutEditing"):
+        "从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑",
+    ("Features/Island/IslandController.swift", "cancelLayoutEditing"):
+        "丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口",
+    ("Features/Island/IslandController.swift", "setWidgetVisible"):
+        "通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口",
+    ("Features/Island/IslandWidgetGrid.swift", "layout"):
+        "先保留活动组件的候选位置，其他组件保留不冲突的旧位置；冲突项寻找就近空格并沿用分页",
+    ("Features/Island/IslandWidgetGrid.swift", "fits"):
+        "只接受画布内且未被占用的组件格子，避免拖动和缩放后组件相互覆盖",
+    ("Features/Island/IslandWidgetGrid.swift", "rebuild"):
+        "配置变化时缓存排列并收集实际受影响组件；连续指针位移由当前卡片的局部状态承担",
+    ("Features/Island/IslandWidgetGrid.swift", "begin"):
+        "记录手势前配置及所有可见位置，提供无效落点恢复依据，不写入正式配置",
+    ("Features/Island/IslandWidgetGrid.swift", "change"):
+        "将拖动位置映射到合法格子，连续缩放跨占用格即让位；候选位置、尺寸或占用变化才重新排列",
+    ("Features/Island/IslandWidgetGrid.swift", "end"):
+        "有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消",
+    ("Features/Island/IslandWidgetGrid.swift", "body"):
+        "网格只在编辑态展示把手和移除入口并停用内部业务命中；子卡片局部状态驱动连续拖动和真实尺寸，其他卡片在有效排列变化时让位；正常态保留共享流光绘制",
+    ("Features/Island/IslandWidgetGrid.swift", "distance"):
+        "以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换",
+    ("Features/Island/IslandWidgetGrid.swift", "settle"):
+        "释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定",
+    ("Features/Island/IslandContent.swift", "hitTest"):
+        "布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出",
+    ("Features/Island/IslandContent.swift", "cancelSelection"):
+        "进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "hasPreview"):
         "刘海控制器收起时按来源窗口关闭共用预览，指针进入该预览时保留展开；只读取现有窗口与会话状态",
     ("Features/Island/IslandContent.swift", "updateTrackingAreas"):

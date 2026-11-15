@@ -23,7 +23,6 @@ final class IslandController: NSObject, ObservableObject {
     private(set) var returnPage = IslandPage.home
     @Published var componentPage = 0
     @Published private(set) var componentPageCount = 1
-    @Published var draggedWidget: IslandWidget?
     @Published var selectedRecord: String?
     @Published var selectedTool: String?
     @Published var toolQuery = ""
@@ -35,13 +34,14 @@ final class IslandController: NSObject, ObservableObject {
     private var recordScrollOffset = CGPoint.zero
     private weak var recordScrollView: NSScrollView?
     private var recordScrollObserver: NSObjectProtocol?
+    @Published private(set) var layoutDraft: IslandConfiguration?
     @Published var playing = false
     @Published var volume = 56.0
     @Published var track = 0
     @Published var seek = 86.0
     @Published var completedEvents = Set<Int>()
     let tracks = [("Quiet Hours", "Lo-fi Session"), ("Blue Afternoon", "Studio Sessions"), ("Night Walk", "Ambient Notes")]
-    @Published var feedback = "左右滑动首页组件 · 拖动把手排序"
+    @Published var feedback = "左右滑动切页 · 编辑布局可调整组件"
     @Published private(set) var clipboardSummary = "暂无内容"
     @Published private(set) var notchWidth: CGFloat = 0
     @Published private(set) var notchHeight: CGFloat = 0
@@ -77,7 +77,18 @@ final class IslandController: NSObject, ObservableObject {
     var peeksShowValues: Bool { configuration.peeksShowValues }
     var peeksQuickActions: Bool { configuration.peeksQuickActions }
     var glowEnabled: Bool { configuration.glowEnabled }
-    var widgetOrder: [IslandWidget] { configuration.widgetOrder }
+    var widgetOrder: [IslandWidget] { layoutConfiguration.widgetOrder }
+    var editingLayout: Bool { layoutDraft != nil }
+    var layoutConfiguration: IslandConfiguration {
+        var value = configuration
+        if let draft = layoutDraft {
+            value.widgetSizes = draft.widgetSizes
+            value.widgetPositions = draft.widgetPositions
+            value.widgetOrder = draft.widgetOrder
+            value.hiddenWidgets = draft.hiddenWidgets
+        }
+        return value
+    }
     var metricOrder: [IslandMetric] {
         get { configuration.metricOrder }
         set {
@@ -116,19 +127,43 @@ final class IslandController: NSObject, ObservableObject {
         return nil
     }
 
-    func move(_ widget: IslandWidget, before target: IslandWidget) {
-        guard widget != target else { return }
-        var next = configuration
-        next.widgetOrder.removeAll { $0 == widget }
-        next.widgetOrder.insert(widget, at: next.widgetOrder.firstIndex(of: target)!)
-        if let reason = apply(next) { feedback = reason }
-        else { layoutDidChange?(next) }
+    func beginLayoutEditing() {
+        layoutDraft = configuration
+        page = .home
+        beginInteraction()
+        feedback = "拖动组件调整位置 · 右下角调整尺寸"
+    }
+
+    func updateLayout(_ value: IslandConfiguration) {
+        layoutDraft = value
+    }
+
+    func finishLayoutEditing() {
+        let next = layoutConfiguration
+        if let reason = apply(next) { feedback = reason; return }
+        layoutDraft = nil
+        layoutDidChange?(next)
+        feedback = previewOnly ? "布局已更新到设置草稿，保存后应用" : "布局已保存"
+        endInteraction()
+    }
+
+    func cancelLayoutEditing() {
+        layoutDraft = nil
+        feedback = "已取消布局调整"
+        endInteraction()
+    }
+
+    func setWidgetVisible(_ widget: IslandWidget, visible: Bool) {
+        var next = layoutConfiguration
+        if visible { next.hiddenWidgets.remove(widget) }
+        else { next.hiddenWidgets.insert(widget) }
+        updateLayout(next)
     }
 
     func beginInteraction() { interacting = true; hoverWork?.cancel(); hoverWork = nil }
     func endInteraction() {
+        if editingLayout { return }
         interacting = false
-        draggedWidget = nil
         if previewOnly { return } // 模拟场景没有真实指针，不进入移开收回计时。
         if menuTracking || editingText { return }
         updatePointer()
@@ -148,6 +183,7 @@ final class IslandController: NSObject, ObservableObject {
             componentPage = min(max(componentPage + step, 0), componentPageCount - 1)
             return
         }
+        if editingLayout { return }
         let pages = IslandPage.tabs
         let index = pages.firstIndex(of: page) ?? pages.firstIndex(of: returnPage)!
         page = pages[(index + step + pages.count) % pages.count]
@@ -363,6 +399,7 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func collapse() {
+        if editingLayout { cancelLayoutEditing() }
         if let panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse)
         }
@@ -376,6 +413,7 @@ final class IslandController: NSObject, ObservableObject {
 
     func stop() {
         releaseRecordScroll()
+        layoutDraft = nil
         collapse()
         panel?.orderOut(nil)
         for token in monitors { NSEvent.removeMonitor(token) }

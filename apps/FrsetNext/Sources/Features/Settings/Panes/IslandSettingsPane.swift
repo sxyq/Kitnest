@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct IslandSettingsPane: View {
     var body: some View {
@@ -10,10 +11,16 @@ struct IslandSettingsPane: View {
 
 final class IslandSettingsDraft: SettingsEditableDraft {
     @Published var configuration: IslandConfiguration {
-        didSet { updatePreview() }
+        didSet {
+            if configuration.widgetOrder != oldValue.widgetOrder && configuration.widgetPositions == oldValue.widgetPositions {
+                configuration.widgetPositions = nil
+            }
+            updatePreview()
+        }
     }
     private var saved: IslandConfiguration
     private var restoringDefaults = false
+    private var previewChanges: AnyCancellable?
     let previewController: IslandController
 
     init() {
@@ -26,15 +33,21 @@ final class IslandSettingsDraft: SettingsEditableDraft {
             guard let self else { return }
             var configuration = self.configuration
             configuration.widgetSizes = value.widgetSizes
+            configuration.widgetPositions = value.widgetPositions
+            configuration.hiddenWidgets = value.hiddenWidgets
             configuration.widgetOrder = value.widgetOrder
             configuration.metricOrder = value.metricOrder
             self.configuration = configuration
         }
+        previewChanges = previewController.$layoutDraft.dropFirst().sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
     }
 
-    var isDirty: Bool { restoringDefaults || configuration != saved }
+    var isDirty: Bool { restoringDefaults || configuration != saved || previewController.layoutConfiguration != configuration }
 
     func save() -> String? {
+        if previewController.editingLayout { previewController.finishLayoutEditing() }
         var next = IslandController.shared.configuration
         if restoringDefaults {
             next = configuration
@@ -67,6 +80,7 @@ final class IslandSettingsDraft: SettingsEditableDraft {
             merge(\.peeksShowValues)
             merge(\.peeksQuickActions)
             merge(\.peekOrder)
+            merge(\.widgetPositions)
             merge(\.widgetOrder)
             merge(\.hiddenWidgets)
             mergeKeys(\.widgetSizes)
@@ -82,11 +96,13 @@ final class IslandSettingsDraft: SettingsEditableDraft {
     }
 
     func discard() {
+        if previewController.editingLayout { previewController.cancelLayoutEditing() }
         saved = IslandController.shared.configuration
         restoringDefaults = false
         configuration = saved
     }
     func restoreDefaults() {
+        if previewController.editingLayout { previewController.cancelLayoutEditing() }
         restoringDefaults = true
         configuration = IslandConfiguration()
     }
@@ -297,7 +313,7 @@ private struct IslandSettingsPreview: View {
                     .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
             }
             IslandSettingsPreviewViewport(controller: controller)
-            Text("固定演示内容 · 可切页、操作图表与拖动排序；横向滚动查看原尺寸，保存才应用")
+            Text("固定演示内容 · 点击编辑布局调整位置与尺寸；完成只更新草稿，保存后应用")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }

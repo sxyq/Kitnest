@@ -66,6 +66,7 @@ struct IslandConfiguration: Codable, Equatable {
     var hiddenWidgets = Set<IslandWidget>([.search, .capture, .recording, .ocr, .transfer,
                                           .cast, .ai, .statistics, .archive, .downloads])
     var widgetSizes: [String: IslandWidgetSize] = [:]
+    var widgetPositions: [String: IslandWidgetPosition]? = nil
     var widgetColors: [String: String] = [:]
     var metricOrder = IslandMetric.allCases
     var metricColors: [String: String] = [:]
@@ -97,6 +98,12 @@ struct IslandConfiguration: Codable, Equatable {
     func persist() throws {
         UserDefaults.standard.set(try JSONEncoder().encode(self), forKey: Self.key)
     }
+}
+
+struct IslandWidgetPosition: Codable, Equatable {
+    var page: Int
+    var column: Int
+    var row: Int
 }
 
 enum IslandWidgetSize: String, CaseIterable, Codable, Identifiable {

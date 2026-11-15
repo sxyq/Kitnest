@@ -1,158 +1,352 @@
+import AppKit
 import SwiftUI
 
-/// 总设置决定画布；异构组件超出时进入下一页，拖动只调整现有顺序。
+private struct IslandWidgetPlacement: Identifiable, Equatable {
+    let item: IslandWidget
+    let size: IslandWidgetSize
+    let position: IslandWidgetPosition
+    var id: String { item.id }
+    func frame(cell: CGSize) -> CGRect {
+        CGRect(x: CGFloat(position.column) * (cell.width + 8), y: CGFloat(position.row) * (cell.height + 8),
+               width: CGFloat(size.columns) * (cell.width + 8) - 8,
+               height: CGFloat(size.rows) * (cell.height + 8) - 8)
+    }
+}
+
+/// 正常使用不安装重排手势；编辑只改变布局草稿，离散网格变化才重新排列。
 struct IslandWidgetGrid<Content: View>: View {
     @ObservedObject var controller: IslandController
     @ViewBuilder var content: (IslandWidget, IslandWidgetSize) -> Content
-    @Stored private var target: IslandWidget? = nil
-    @Stored private var previewOrder: [IslandWidget]?
-    // 指针只通知单个 Canvas 绘制层，不触发卡片内容与排列计算。
     @Stored private var glow = StoredBox((location: CGPoint.zero, active: false))
+    @Stored private var placements: [IslandWidgetPlacement] = []
+    @Stored private var active: IslandWidget?
+    @Stored private var original: IslandConfiguration?
+    @Stored private var footprint: CGSize?
+    @Stored private var pressured = Set<IslandWidget>()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private struct Placement: Identifiable {
-        var item: IslandWidget
-        var size: IslandWidgetSize
-        var column: Int
-        var row: Int
-        var id: String { item.id }
-
-        func frame(cell: CGSize, gap: CGFloat) -> CGRect {
-            CGRect(x: CGFloat(column) * (cell.width + gap),
-                   y: CGFloat(row) * (cell.height + gap),
-                   width: cell.width * CGFloat(size.columns) + gap * CGFloat(size.columns - 1),
-                   height: cell.height * CGFloat(size.rows) + gap * CGFloat(size.rows - 1))
-        }
-    }
-
-    private var pages: [[Placement]] {
-        let columns = controller.layoutColumns
-        let rows = controller.layoutRows
-        var result: [[Placement]] = [[]]
-        var occupancy = [Set<Int>()]
-        for item in previewOrder ?? controller.widgetOrder where !controller.configuration.hiddenWidgets.contains(item) {
-            let requested = controller.configuration.requestedSize(for: item)
-            let size = IslandWidgetSize.allCases.filter {
-                $0.columns <= columns && $0.rows <= rows && $0.columns <= requested.columns && $0.rows <= requested.rows
-            }.max { $0.columns * $0.rows < $1.columns * $1.rows }!
-            var placement: (page: Int, index: Int)?
-            for page in occupancy.indices {
-                if let index = (0..<(columns * rows)).first(where: { index in
-                    let x = index % columns, y = index / columns
-                    return x + size.columns <= columns && y + size.rows <= rows &&
-                        (y..<(y + size.rows)).allSatisfy { row in
-                            (x..<(x + size.columns)).allSatisfy { !occupancy[page].contains(row * columns + $0) }
-                        }
-                }) { placement = (page, index); break }
-            }
-            if placement == nil {
-                result.append([]); occupancy.append([])
-                placement = (result.count - 1, 0)
-            }
-            let (page, index) = placement!
-            for y in index / columns..<(index / columns + size.rows) {
-                for x in index % columns..<(index % columns + size.columns) { occupancy[page].insert(y * columns + x) }
-            }
-            result[page].append(Placement(item: item, size: size, column: index % columns, row: index / columns))
-        }
-        return result
-    }
-
     var body: some View {
-        let layouts = pages
         VStack(spacing: 6) {
             GeometryReader { geometry in
-                let gap: CGFloat = 8
-                let columns = CGFloat(controller.layoutColumns)
-                let rows = CGFloat(controller.layoutRows)
-                let cell = CGSize(width: (geometry.size.width - gap * (columns - 1)) / columns,
-                                  height: (geometry.size.height - gap * (rows - 1)) / rows)
-                let visible = layouts[min(controller.componentPage, layouts.count - 1)]
+                let cell = CGSize(width: (geometry.size.width - CGFloat(controller.layoutColumns - 1) * 8) / CGFloat(controller.layoutColumns),
+                                  height: (geometry.size.height - CGFloat(controller.layoutRows - 1) * 8) / CGFloat(controller.layoutRows))
                 ZStack(alignment: .topLeading) {
-                    ForEach(visible) { placement in
-                        let item = placement.item
-                        let span = placement.size
-                        let frame = placement.frame(cell: cell, gap: gap)
-                        content(item, span)
-                            .overlay(alignment: .topTrailing) {
-                                Button { move(item, step: -1) } label: {
-                                    Image(systemName: "line.3.horizontal")
-                                        .font(.system(size: 10)).foregroundStyle(.secondary)
-                                }
-                                    .buttonStyle(IslandButtonStyle(help: "拖动排列 · 点击前移 · 右键选顺序", tipAlignment: .bottomTrailing))
-                                    .frame(width: 24, height: 24).contentShape(Rectangle())
-                                    .onDrag {
-                                        controller.beginInteraction()
-                                        controller.draggedWidget = item
-                                        return NSItemProvider(object: "kitnest-widget:\(item.rawValue)" as NSString)
-                                    }
-                                    .contextMenu {
-                                        Button("前移") { move(item, step: -1) }
-                                        Button("后移") { move(item, step: 1) }
-                                    }
-                                    .focusable()
-                                    .onMoveCommand { direction in
-                                        if direction == .up || direction == .left { move(item, step: -1) }
-                                        if direction == .down || direction == .right { move(item, step: 1) }
-                                    }
-                                    .padding(6)
-                                    .accessibilityLabel("拖动\(item.title)")
-                            }
-                            .frame(width: frame.width, height: frame.height)
-                            .clipped()
-                            .overlay(RoundedRectangle(cornerRadius: IslandLayout.cardRadius)
-                                .strokeBorder(target == item ? controller.configuration.color(for: item) : .clear, lineWidth: 2))
-                            .offset(x: frame.minX, y: frame.minY)
-                            .dropDestination(for: String.self) { values, _ in
-                                guard let raw = values.first?.replacingOccurrences(of: "kitnest-widget:", with: ""),
-                                      let source = IslandWidget(rawValue: raw) else { return false }
-                                controller.move(source, before: item)
-                                previewOrder = nil
-                                controller.endInteraction()
-                                return true
-                            } isTargeted: { isTargeted in
-                                target = isTargeted ? item : nil
-                                if isTargeted, let source = controller.draggedWidget, source != item {
-                                    var order = controller.widgetOrder
-                                    order.removeAll { $0 == source }
-                                    order.insert(source, at: order.firstIndex(of: item)!)
-                                    previewOrder = order
+                    if controller.editingLayout {
+                        Canvas { context, _ in
+                            for row in 0..<controller.layoutRows {
+                                for column in 0..<controller.layoutColumns {
+                                    let rect = CGRect(x: CGFloat(column) * (cell.width + 8), y: CGFloat(row) * (cell.height + 8),
+                                                      width: cell.width, height: cell.height)
+                                    context.stroke(Path(roundedRect: rect, cornerRadius: IslandLayout.cardRadius),
+                                                   with: .color(.white.opacity(0.12)), style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
                                 }
                             }
+                        }.allowsHitTesting(false).accessibilityHidden(true)
+                        if let active, let original, let position = original.widgetPositions?[active.rawValue] {
+                            let old = IslandWidgetPlacement(item: active, size: original.size(for: active), position: position)
+                            RoundedRectangle(cornerRadius: IslandLayout.cardRadius)
+                                .strokeBorder(.white.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                                .frame(width: old.frame(cell: cell).width, height: old.frame(cell: cell).height)
+                                .offset(x: old.frame(cell: cell).minX, y: old.frame(cell: cell).minY)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    ForEach(placements.filter { $0.position.page == controller.componentPage || $0.item == active }) { placement in
+                        IslandEditableWidget(item: placement.item, size: placement.size, frame: placement.frame(cell: cell),
+                                             cell: cell, bounds: geometry.size, editing: controller.editingLayout,
+                                             pressured: pressured.contains(placement.item), configuration: controller.layoutConfiguration,
+                                             begin: { begin(placement.item) }, change: { point, size, liveSize in
+                                                 change(placement.item, point: point, size: size, liveSize: liveSize, cell: cell, bounds: geometry.size)
+                                             }, end: { valid in end(valid: valid) },
+                                             remove: { controller.setWidgetVisible(placement.item, visible: false) }) {
+                            content(placement.item, placement.size)
+                        }
+                        .zIndex(active == placement.item ? 2 : 0)
                     }
                 }
+                .coordinateSpace(name: "islandLayout")
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
                 .overlay {
-                    IslandGlow(enabled: controller.glowEnabled && controller.expanded, pointer: glow,
-                               frames: visible.map { $0.frame(cell: cell, gap: gap) },
+                    IslandGlow(enabled: controller.glowEnabled && controller.expanded && !controller.editingLayout && controller.previewVisible,
+                               pointer: glow, frames: placements.filter { $0.position.page == controller.componentPage }.map { $0.frame(cell: cell) },
                                radius: min(cell.width, cell.height) * 0.9)
                 }
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let point):
-                        if controller.glowEnabled && controller.expanded { glow.value = (point, true) }
+                        if controller.glowEnabled && controller.expanded && !controller.editingLayout { glow.value = (point, true) }
                     case .ended: glow.value.active = false
                     }
                 }
                 .onDisappear { glow.value.active = false }
                 .clipped()
-                .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.configuration.widgetSizes)
-                .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.widgetOrder)
-                .animation(reduceMotion ? nil : Theme.Motion.page, value: previewOrder)
-                .animation(reduceMotion ? nil : Theme.Motion.page, value: [controller.configuration.columns, controller.configuration.rows])
+                .animation(reduceMotion ? nil : .interactiveSpring(response: 0.24, dampingFraction: 0.86, blendDuration: 0),
+                           value: placements)
+                .animation(reduceMotion ? nil : .interactiveSpring(response: 0.24, dampingFraction: 0.86, blendDuration: 0),
+                           value: pressured)
             }
         }
-        .task(id: layouts.count) { controller.setComponentPageCount(layouts.count) }
-        .onChange(of: controller.draggedWidget) { if $0 == nil { previewOrder = nil; target = nil } }
+        .onAppear { rebuild() }
+        .onChange(of: [controller.layoutColumns, controller.layoutRows]) { _ in rebuild() }
+        .onChange(of: controller.layoutConfiguration) { _ in rebuild() }
+        .onChange(of: controller.editingLayout) { editing in
+            if !editing { active = nil; original = nil; footprint = nil; pressured = []; rebuild() }
+        }
     }
 
-    private func move(_ item: IslandWidget, step: Int) {
-        let order = controller.widgetOrder
-        let index = order.firstIndex(of: item)!
-        let next = index + step
-        guard order.indices.contains(next) else { return }
-        if step < 0 { controller.move(item, before: order[next]) }
-        else { controller.move(order[next], before: item) }
+    private func layout(_ configuration: IslandConfiguration) -> [IslandWidgetPlacement] {
+        let columns = controller.layoutColumns, rows = controller.layoutRows
+        var occupied: [Set<Int>] = [[]]
+        var result: [IslandWidgetPlacement] = []
+        let order = configuration.widgetOrder.filter { !configuration.hiddenWidgets.contains($0) }
+        for item in (active.map { [$0] } ?? []) + order.filter({ $0 != active }) {
+            let requested = configuration.requestedSize(for: item)
+            let size = IslandWidgetSize.allCases.filter { $0.columns <= columns && $0.rows <= rows &&
+                $0.columns <= requested.columns && $0.rows <= requested.rows
+            }.max { $0.columns * $0.rows < $1.columns * $1.rows }!
+            let wanted = configuration.widgetPositions?[item.rawValue]
+            let width = item == active ? Int(footprint?.width ?? CGFloat(size.columns)) : size.columns
+            let height = item == active ? Int(footprint?.height ?? CGFloat(size.rows)) : size.rows
+            while occupied.count <= (wanted?.page ?? 0) { occupied.append([]) }
+            func fits(_ page: Int, _ column: Int, _ row: Int) -> Bool {
+                column >= 0 && row >= 0 && column + width <= columns && row + height <= rows &&
+                (row..<(row + height)).allSatisfy { y in
+                    (column..<(column + width)).allSatisfy { !occupied[page].contains(y * columns + $0) }
+                }
+            }
+            var position: IslandWidgetPosition?
+            if let wanted, fits(wanted.page, wanted.column, wanted.row) { position = wanted }
+            if position == nil {
+                let pages = Array(occupied.indices).sorted {
+                    abs($0 - (wanted?.page ?? 0)) < abs($1 - (wanted?.page ?? 0))
+                }
+                for page in pages {
+                    let cells = (0..<(columns * rows)).sorted {
+                        let x = wanted?.column ?? 0, y = wanted?.row ?? 0
+                        return abs($0 % columns - x) + abs($0 / columns - y) <
+                               abs($1 % columns - x) + abs($1 / columns - y)
+                    }
+                    if let index = cells.first(where: { fits(page, $0 % columns, $0 / columns) }) {
+                        position = .init(page: page, column: index % columns, row: index / columns); break
+                    }
+                }
+            }
+            if position == nil {
+                occupied.append([])
+                position = .init(page: occupied.count - 1, column: 0, row: 0)
+            }
+            let place = position!
+            for y in place.row..<(place.row + height) {
+                for x in place.column..<(place.column + width) { occupied[place.page].insert(y * columns + x) }
+            }
+            result.append(.init(item: item, size: size, position: place))
+        }
+        return result
+    }
+
+    private func rebuild() {
+        let next = layout(controller.layoutConfiguration)
+        if active != nil {
+            pressured.formUnion(next.filter { item in
+                placements.contains { $0.item == item.item && $0.position != item.position }
+            }.map(\.item).filter { $0 != active })
+        }
+        placements = next
+        controller.setComponentPageCount((next.map { $0.position.page }.max() ?? 0) + 1)
+    }
+
+    private func begin(_ item: IslandWidget) {
+        active = item
+        var next = controller.layoutConfiguration
+        next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
+        original = next
+        controller.beginInteraction()
+        controller.updateLayout(next)
+    }
+
+    private func change(_ item: IslandWidget, point: CGPoint, size: IslandWidgetSize?, liveSize: CGSize?, cell: CGSize, bounds: CGSize) {
+        guard CGRect(origin: .zero, size: bounds).contains(point) else { return }
+        var next = controller.layoutConfiguration
+        let span = size ?? placements.first { $0.item == item }!.size
+        let occupied = liveSize.map {
+            CGSize(width: min(CGFloat(controller.layoutColumns), ceil(($0.width + 8) / (cell.width + 8))),
+                   height: min(CGFloat(controller.layoutRows), ceil(($0.height + 8) / (cell.height + 8))))
+        }
+        let previous = next.widgetPositions?[item.rawValue]
+        let x = point.x / (cell.width + 8), y = point.y / (cell.height + 8)
+        let column = previous.map { abs(x - CGFloat($0.column)) < 0.62 ? $0.column : Int(x.rounded()) } ?? Int(x.rounded())
+        let row = previous.map { abs(y - CGFloat($0.row)) < 0.62 ? $0.row : Int(y.rounded()) } ?? Int(y.rounded())
+        let place = IslandWidgetPosition(page: controller.componentPage,
+            column: min(max(0, column), controller.layoutColumns - Int(occupied?.width ?? CGFloat(span.columns))),
+            row: min(max(0, row), controller.layoutRows - Int(occupied?.height ?? CGFloat(span.rows))))
+        if let size { next.widgetSizes[item.rawValue] = size }
+        next.widgetPositions?[item.rawValue] = place
+        let crossedCell = occupied != footprint
+        footprint = occupied
+        if next != controller.layoutConfiguration { controller.updateLayout(next) }
+        else if crossedCell { rebuild() }
+    }
+
+    private func end(valid: Bool) {
+        footprint = nil
+        rebuild()
+        if valid {
+            var next = controller.layoutConfiguration
+            next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
+            let visible = placements.sorted {
+                ($0.position.page, $0.position.row, $0.position.column) < ($1.position.page, $1.position.row, $1.position.column)
+            }.map(\.item)
+            next.widgetOrder = visible + next.widgetOrder.filter { next.hiddenWidgets.contains($0) }
+            controller.updateLayout(next)
+        } else if let original { controller.updateLayout(original) }
+        active = nil; original = nil; pressured = []
+        rebuild()
+        // 编辑模式保持展开，直到完成或取消；不在每次放下后启动收回计时。
+    }
+}
+
+private struct IslandEditableWidget<Content: View>: View {
+    let item: IslandWidget
+    let size: IslandWidgetSize
+    let frame: CGRect
+    let cell: CGSize
+    let bounds: CGSize
+    let editing: Bool
+    let pressured: Bool
+    let configuration: IslandConfiguration
+    let begin: () -> Void
+    let change: (CGPoint, IslandWidgetSize?, CGSize?) -> Void
+    let end: (Bool) -> Void
+    let remove: () -> Void
+    @ViewBuilder var content: () -> Content
+    @Stored private var origin: CGRect?
+    @Stored private var translation = CGSize.zero
+    @Stored private var resizing = false
+    @Stored private var candidate: IslandWidgetSize?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var liveSize: CGSize {
+        if resizing, let origin {
+            return CGSize(width: min(max(cell.width, origin.width + translation.width), bounds.width),
+                          height: min(max(cell.height, origin.height + translation.height), bounds.height))
+        }
+        return frame.size
+    }
+    private var liveOrigin: CGPoint {
+        guard let origin else { return frame.origin }
+        return resizing ? CGPoint(x: min(origin.minX, bounds.width - liveSize.width), y: min(origin.minY, bounds.height - liveSize.height)) :
+            CGPoint(x: origin.minX + translation.width, y: origin.minY + translation.height)
+    }
+
+    var body: some View {
+        content()
+            .frame(width: liveSize.width - (pressured ? 4 : 0), height: liveSize.height - (pressured ? 2 : 0))
+            .disabled(editing)
+            .allowsHitTesting(!editing)
+            .frame(width: liveSize.width, height: liveSize.height)
+            .overlay {
+                if editing {
+                    RoundedRectangle(cornerRadius: IslandLayout.cardRadius)
+                        .strokeBorder(configuration.color(for: item).opacity(origin == nil ? 0.4 : 1), lineWidth: origin == nil ? 1 : 2)
+                        .allowsHitTesting(false)
+                    Color.clear.contentShape(Rectangle())
+                        .gesture(DragGesture(minimumDistance: 3, coordinateSpace: .named("islandLayout"))
+                            .onChanged { value in
+                                if origin == nil { origin = frame; resizing = false; begin() }
+                                translation = value.translation
+                                change(liveOrigin, nil, nil)
+                            }
+                            .onEnded { value in
+                                end(CGRect(origin: .zero, size: bounds).contains(value.location))
+                                settle()
+                            })
+                        .accessibilityLabel("移动\(item.title)")
+                        .focusable()
+                        .onMoveCommand { direction in
+                            begin()
+                            var point = frame.origin
+                            if direction == .left { point.x -= cell.width + 8 }
+                            if direction == .right { point.x += cell.width + 8 }
+                            if direction == .up { point.y -= cell.height + 8 }
+                            if direction == .down { point.y += cell.height + 8 }
+                            change(point, nil, nil); end(true)
+                        }
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if editing {
+                    Button(action: remove) { Image(systemName: "minus.circle.fill").font(.system(size: 18)) }
+                        .buttonStyle(IslandButtonStyle(help: "移出首页，功能仍在全部功能中"))
+                        .frame(width: 28, height: 28).accessibilityLabel("移出首页：\(item.title)")
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if editing {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(resizing ? configuration.color(for: item) : .secondary)
+                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                        .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                        .onHover { hover in
+                            if hover {
+                                if #available(macOS 15.0, *) { NSCursor.frameResize(position: .bottomRight, directions: .all).push() }
+                                else { NSCursor.crosshair.push() }
+                            } else { NSCursor.pop() }
+                        }
+                        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("islandLayout"))
+                            .onChanged { value in
+                                if origin == nil { origin = frame; resizing = true; candidate = size; begin() }
+                                translation = value.translation
+                                let next = choices.min { distance($0) < distance($1) }!
+                                if next != candidate && distance(next) + 0.12 < distance(candidate!) {
+                                    candidate = next
+                                }
+                                change(liveOrigin, candidate, liveSize)
+                            }
+                            .onEnded { _ in
+                                let next = choices.min { distance($0) < distance($1) }!
+                                change(liveOrigin, next, liveSize)
+                                end(true); settle()
+                            })
+                        .accessibilityLabel("调整\(item.title)尺寸")
+                        .focusable()
+                        .accessibilityValue(candidate?.rawValue ?? size.rawValue)
+                        .accessibilityAdjustableAction { direction in
+                            let choices = IslandWidgetSize.allCases.filter {
+                                $0.columns <= configuration.columns && $0.rows <= configuration.rows
+                            }.sorted { $0.columns * $0.rows < $1.columns * $1.rows }
+                            let index = choices.firstIndex(of: size)!
+                            let next = min(max(0, index + (direction == .increment ? 1 : -1)), choices.count - 1)
+                            begin(); change(frame.origin, choices[next], nil); end(true)
+                        }
+                        .padding(4)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if resizing { Text(candidate?.rawValue ?? size.rawValue).font(.system(size: 10)).padding(6).background(.black.opacity(0.7)) }
+            }
+            .offset(x: liveOrigin.x, y: liveOrigin.y)
+            .transaction { if origin != nil { $0.animation = nil } }
+            .onChange(of: editing) { if !$0 { origin = nil; translation = .zero; resizing = false; candidate = nil } }
+    }
+
+    private func settle() {
+        withAnimation(reduceMotion ? nil : .interactiveSpring(response: 0.24, dampingFraction: 0.86, blendDuration: 0)) {
+            origin = nil; translation = .zero; resizing = false; candidate = nil
+        }
+    }
+
+    private var choices: [IslandWidgetSize] {
+        IslandWidgetSize.allCases.filter {
+            CGFloat($0.columns) * (cell.width + 8) - 8 <= bounds.width + 1 &&
+            CGFloat($0.rows) * (cell.height + 8) - 8 <= bounds.height + 1
+        }
+    }
+
+    private func distance(_ size: IslandWidgetSize) -> CGFloat {
+        let dx = (liveSize.width + 8) / (cell.width + 8) - CGFloat(size.columns)
+        let dy = (liveSize.height + 8) / (cell.height + 8) - CGFloat(size.rows)
+        return dx * dx + dy * dy
     }
 }
