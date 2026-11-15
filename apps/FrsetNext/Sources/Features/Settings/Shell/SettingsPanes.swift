@@ -16,7 +16,7 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
     @Published var flags: [String: Bool]
     private var saved: [String: Any]
     private static let keys = [GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey,
-                        "showSystemStatus", "showCalendar", Preferences.Keys.panelTransferDock,
+                        "showSystemStatus", "showCalendar",
                         "automaticScreenshotOCREnabled"]
 
     init() {
@@ -35,12 +35,6 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
     var isDirty: Bool { !NSDictionary(dictionary: values).isEqual(to: saved) }
     var monitorPageAvailable: Bool {
         flags["showSystemStatus"]! && Preferences.shared.value(PanelSegments.monitorKey, default: true)
-    }
-    var transferPagesAvailable: Bool {
-        flags[Preferences.Keys.panelTransferDock]! &&
-        Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true) &&
-        (Preferences.shared.value(PanelSegments.transferKey, default: false) ||
-         Preferences.shared.value(PanelSegments.castKey, default: false))
     }
     func select(_ style: MenuBarIconStyle) { iconStyle = style }
     func restoreDefaults() {

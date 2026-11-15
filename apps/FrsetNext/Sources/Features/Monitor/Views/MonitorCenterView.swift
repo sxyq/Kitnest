@@ -9,7 +9,7 @@ import SwiftUI
 // v114（2026-10-25 用户需求）：投屏从「文件中转」拆成独立第四页——
 // 顶部四段：主页 │ 性能监测 │ 文件中转 │ 投屏（左右切换）。
 public enum PanelCenterPage: String, CaseIterable {
-    case home, performance, transfer, cast
+    case home, performance
 }
 
 public final class MonitorCenterPresenter: ObservableObject {
@@ -33,24 +33,6 @@ public final class MonitorCenterPresenter: ObservableObject {
         // v107（2026-10-21 用户：「活动监测也要计入使用统计」）：原版键
         // activityMonitorClick 从未落点——监测中心即「活动监测」功能入口，补记
         StatisticsManager.shared.record(.activityMonitorClick)
-    }
-
-    public func selectTransferDock() {
-        page = .transfer
-        // v84：文件中转页打开埋点
-        StatisticsManager.shared.record(.transferDockOpen)
-    }
-
-    /// v114：投屏页（从文件中转拆出）——Android 设备中心 + scrcpy 镜像
-    public func selectCast() {
-        page = .cast
-        StatisticsManager.shared.record(.screenCastOpen)
-    }
-
-    /// 「文件中转」入口是否启用（设置 → 常规 → 功能，v41 新增开关）。
-    /// 关闭时主面板顶部的第三段页签隐藏，设置窗口侧边栏也不显示该入口。
-    public static var isTransferDockEnabled: Bool {
-        Preferences.shared.value(Preferences.Keys.panelTransferDock, default: true)
     }
 
     public static let shared = MonitorCenterPresenter()

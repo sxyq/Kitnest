@@ -66,7 +66,7 @@ struct IslandRootView: View {
         case .tools:
             IslandToolboxContent(controller: controller, previewOnly: preview, selectedTool: $selectedTool,
                                  onFileDialog: { fileDialogOpen = $0 })
-        case .search, .capture, .recording, .ocr, .transfer, .cast, .ai, .statistics, .archive, .downloads:
+        case .search, .capture, .recording, .ocr, .ai, .statistics, .archive, .downloads:
             IslandFeatureContent(page: page, controller: controller, previewOnly: preview, size: nil)
         }
     }
@@ -126,7 +126,7 @@ struct IslandRootView: View {
                     }
                 }
             }
-        case .search, .capture, .recording, .ocr, .transfer, .cast, .ai, .statistics, .archive, .downloads:
+        case .search, .capture, .recording, .ocr, .ai, .statistics, .archive, .downloads:
             IslandFeatureContent(page: item.page, controller: controller, previewOnly: preview, size: size)
         }
     }
@@ -169,7 +169,7 @@ struct IslandRootView: View {
     private var recordsPage: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("剪贴板与中转").fontWeight(.medium)
+                Text("剪贴板").fontWeight(.medium)
                 Spacer()
                 Text(preview ? "设置预览" : "\(records.count) 项近期内容 · 可拖入文件")
                     .foregroundStyle(.secondary)
@@ -253,7 +253,6 @@ struct IslandRootView: View {
                 if preview { controller.feedback = "历史入口预览"; return }
                 controller.performOutside { FloatingClipboardWindowController.shared.show() }
             }
-            Button("本地中转") { controller.page = .transfer }
         }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
     }
 
@@ -348,12 +347,11 @@ private struct IslandRecentRow: View, Identifiable {
     let icon: String
     var date: Date
     var clipboard: ClipboardItem? = nil
-    var transfer: LocalTransferItem? = nil
     var url: URL? = nil
     var sample: IslandSample? = nil
 
     var previewKey: String {
-        [id, url?.path, clipboard?.id, clipboard?.dedupeKey, transfer?.id, title].compactMap { $0 }.joined(separator: "|")
+        [id, url?.path, clipboard?.id, clipboard?.dedupeKey, title].compactMap { $0 }.joined(separator: "|")
     }
 
     /// 文件记录已按路径拆行，不能复制原剪贴板条目里未选中的其他文件。
@@ -380,11 +378,11 @@ private struct IslandRecentRow: View, Identifiable {
 
     var detail: String {
         if let sample { return sample.detail }
-        let source = clipboard != nil && transfer != nil ? "剪贴板 · 中转" : transfer != nil ? "中转" : "剪贴板"
+        let source = "剪贴板"
         let type = icon == "folder" ? "文件夹" : icon == "photo" ? "图片" : icon == "link" ? "链接"
             : icon == "curlybraces" ? "代码" : icon == "archivebox" ? "压缩包"
             : icon == "doc.richtext" ? "文档" : icon == "play.rectangle" ? "媒体" : url != nil ? "文件" : "文字"
-        return [type, source, transfer?.sizeText, clipboard?.sourceApp,
+        return [type, source, clipboard?.sourceApp,
                 date.formatted(.dateTime.month().day().hour().minute())].compactMap { $0 }.joined(separator: " · ")
     }
 
@@ -439,10 +437,10 @@ private struct IslandRecordDetail: View {
                 if let url = current.url {
                     Button {
                         if previewOnly { controller.feedback = "复制路径预览"; return }
-                        controller.feedback = ClipboardManager.shared.copyText(current.transfer?.originalPath ?? url.path,
+                        controller.feedback = ClipboardManager.shared.copyText(url.path,
                             successMessage: "已复制路径") ?? "已复制路径"
                     } label: {
-                        Text(current.transfer?.originalPath ?? url.path).font(.system(size: 10))
+                        Text(url.path).font(.system(size: 10))
                             .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }.buttonStyle(IslandButtonStyle()).help("点击复制完整路径")
@@ -533,7 +531,7 @@ private struct IslandRecordDetail: View {
                     ? PreviewPopoverContentModel.classifyRawText(text) : nil
             let model = PreviewPopoverContentModel(item: item, source: .floatingPreview,
                 sessionID: UUID(), inlineText: text, kindOverride: kind,
-                displayPath: current.transfer?.originalPath, loadFileContents: !sample)
+                loadFileContents: !sample)
             try Task.checkCancellation()
             return (model, richText, failure)
         }

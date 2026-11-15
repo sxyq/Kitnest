@@ -6,15 +6,15 @@ import Foundation
 // 内存维护后台服务客户端
 //
 // 服务形态：root LaunchDaemon（/Library/PrivilegedHelperTools + /Library/LaunchDaemons）
-// 通信：/var/run/com.sxyq.frsetnext.memory.sock，只支持固定命令（version / optimize-memory）
+// 通信：/var/run/com.sxyq.kitnestlite.memory.sock，只支持固定命令（version / optimize-memory）
 // 授权：首次安装时弹一次系统管理员密码；之后点击即用，不再询问
 // ============================================================================
 
 public enum MemoryHelperClient {
     /// 与 Sources/MemoryHelper/main.swift 的 protocolVersion 保持一致
     public static let protocolVersion = "1"
-    public static let helperLabel = "com.sxyq.frsetnext.memoryhelper"
-    static let socketPath = "/var/run/com.sxyq.frsetnext.memory.sock"
+    public static let helperLabel = "com.sxyq.kitnestlite.memoryhelper"
+    static let socketPath = "/var/run/com.sxyq.kitnestlite.memory.sock"
     static let installedHelperPath = "/Library/PrivilegedHelperTools/\(helperLabel)"
     static let installedPlistPath = "/Library/LaunchDaemons/\(helperLabel).plist"
     static let clientAuthorizationPath = "/Library/PrivilegedHelperTools/\(helperLabel).client.json"

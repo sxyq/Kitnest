@@ -14,8 +14,8 @@ import Foundation
 // ============================================================================
 
 private let protocolVersion = "1"
-private let defaultSocketPath = "/var/run/com.sxyq.frsetnext.memory.sock"
-private let clientAuthorizationPath = "/Library/PrivilegedHelperTools/com.sxyq.frsetnext.memoryhelper.client.json"
+private let defaultSocketPath = "/var/run/com.sxyq.kitnestlite.memory.sock"
+private let clientAuthorizationPath = "/Library/PrivilegedHelperTools/com.sxyq.kitnestlite.memoryhelper.client.json"
 
 private struct ClientAuthorization: Codable {
     let uid: uid_t
@@ -181,4 +181,4 @@ if arguments.first == "optimize-memory" {
     print(optimizeMemory(), terminator: "")
     exit(0)
 }
-fail("usage: com.sxyq.frsetnext.memoryhelper --daemon [SOCKET] | version | optimize-memory", code: 64)
+fail("usage: com.sxyq.kitnestlite.memoryhelper --daemon [SOCKET] | version | optimize-memory", code: 64)

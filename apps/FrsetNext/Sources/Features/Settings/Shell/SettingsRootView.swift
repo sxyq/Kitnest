@@ -153,18 +153,6 @@ struct SettingsRootView: View {
         case .clipboardAppearance:
             panePage { ClipboardSettingsPane(section: .appearance) }
 
-        // 文件中转（5）
-        case .transferDisplay:
-            panePage { TransferDockSettingsPane(section: .display) }
-        case .transferCast:
-            panePage { TransferDockSettingsPane(section: .cast) }
-        case .transferScan:
-            panePage { TransferDockSettingsPane(section: .scan) }
-        case .transferCloud:
-            panePage { TransferDockSettingsPane(section: .cloud) }
-        case .transferLocal:
-            panePage { TransferDockSettingsPane(section: .local) }
-
         // 截图（5，v271 已拆）
         case .capture(let block):
             CaptureBlockPage(block: block)

@@ -51,7 +51,6 @@ struct PanelRootView: View {
     @Stored private var previewFeedback = ""
     @Stored private var previewPinned = false
     /// 「文件中转」分段作为放置目标（文件拖到分段上即存本地中转）
-    @Stored private var transferTabTargeted = false
     /// 底部搜索框焦点
     @FocusState private var bottomSearchFocused: Bool
     /// 剪贴板列表当前选中项（编辑/上传按钮按选中态启用，2026-10-18）
@@ -59,16 +58,12 @@ struct PanelRootView: View {
     // v177（用户：设置里自定义顶部页面的展现，关掉的不占内存）；v181 增加可拖拽顺序
     @AppStorage(PanelSegments.homeKey) private var segmentHome = true
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
-    @AppStorage(PanelSegments.transferKey) private var segmentTransfer = false
-    @AppStorage(PanelSegments.castKey) private var segmentCast = false
     /// v260：「常规 → 功能」里四个勾选框的门控状态。
     /// 之前 showSystemStatus / showCalendar / panel.transferDock 全仓没有读取方，
     /// 用户勾掉也看不到变化（「这个设置之后无效」）。这里作为分段/卡片显隐的前置条件，
     /// 与「个性化 → 主面板页面」的勾选是 AND 关系：两处都开才出现。
     @AppStorage("showSystemStatus") private var featureSystemMonitor = true
     @AppStorage("showCalendar") private var featureCalendar = true
-    @AppStorage(Preferences.Keys.panelTransferDock) private var transferEntryEnabled = true
-    @AppStorage(Preferences.Keys.transferFeatureEnabled) private var transferFeatureEnabled = true
     /// 顺序串（CSV）——单独观察它，设置里拖完顺序面板立刻重排
     @AppStorage(PanelSegments.orderKey) private var segmentOrderRaw = ""
     /// 首页网盘链接条数据源（v74：复制网盘链接 → 自动弹出 + 日历下移）
@@ -94,7 +89,6 @@ struct PanelRootView: View {
         // v260：关掉「启用文件中转」或「常规 → 功能 → 文件中转」时，
         // 顶部的中转/投屏按钮一起消失，不再留一个只能显示「已关闭」的空壳按钮。
         // 「个性化 → 主面板页面」仍决定功能开启后是否显示该分段（两者 AND）。
-        case .transfer, .cast: return false
         }
     }
 
@@ -172,12 +166,8 @@ struct PanelRootView: View {
         // v177：分段开关变化 → 若当前页被关掉，切到第一个还开着的页面
         .onChange(of: segmentHome) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentMonitor) { _ in normalizeSegmentSelection() }
-        .onChange(of: segmentTransfer) { _ in normalizeSegmentSelection() }
-        .onChange(of: segmentCast) { _ in normalizeSegmentSelection() }
         // v260：功能总开关 / 常规页勾选变化也要立刻收掉当前页，否则停留在已隐藏的分段上
         .onChange(of: featureSystemMonitor) { _ in normalizeSegmentSelection() }
-        .onChange(of: transferEntryEnabled) { _ in normalizeSegmentSelection() }
-        .onChange(of: transferFeatureEnabled) { _ in normalizeSegmentSelection() }
         // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
         .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
@@ -261,7 +251,6 @@ struct PanelRootView: View {
         // 按需启动，勾选文件后点「扫码直传」才拉起（2026-10-20 用户需求）
         .onAppear {
             if isSettingsPreview { return }
-            if page == .transfer { Log.info("Panel", "中转页打开：直传服务保持按需启动") }
             // v177 排障：记录当前启用了哪些页面（关掉的不创建视图，日志里应看不到它们）
             let names = enabledPages.map { PanelSegments.title($0) }.joined(separator: ",")
             Log.info("Panel", "分段启用：[\(names)]，当前页=\(PanelSegments.title(activePage))")
@@ -402,29 +391,10 @@ struct PanelRootView: View {
     private var pageSegments: some View {
         HStack(spacing: 0) {
             ForEach(enabledPages, id: \.self) { item in
-                if item == .transfer {
-                    segmentItem(PanelSegments.title(item), selected: activePage == item) {
-                        selectPage(item)
-                    }
-                    // 拖文件到「文件中转」分段 = 存进本地中转（硬链接，不复制数据）
-                    .onDrop(of: [.fileURL], isTargeted: $transferTabTargeted) { providers in
-                        dropToLocalTransfer(providers)
-                    }
-                    .overlay {
-                        if transferTabTargeted {
-                            Capsule(style: .continuous)
-                                .strokeBorder(theme.accent.opacity(0.7),
-                                              style: StrokeStyle(lineWidth: 1.2, dash: [3, 2]))
-                                .padding(-2)
-                        }
-                    }
-                    .help("文件中转：拖文件到这里存进本地中转（硬链接）")
-                } else {
-                    segmentItem(PanelSegments.title(item), selected: activePage == item) {
-                        selectPage(item)
-                    }
-                    .help(segmentHelp(item))
+                segmentItem(PanelSegments.title(item), selected: activePage == item) {
+                    selectPage(item)
                 }
+                .help(segmentHelp(item))
             }
         }
         .padding(2)
@@ -434,8 +404,6 @@ struct PanelRootView: View {
         switch page {
         case .home:        return "主页"
         case .performance: return "性能监测"
-        case .transfer:    return "文件中转"
-        case .cast:        return "投屏：Android 无线配对与镜像"
         }
     }
 
@@ -444,45 +412,7 @@ struct PanelRootView: View {
         switch page {
         case .home:        monitorPresenter.selectHome()
         case .performance: monitorPresenter.selectPerformance()
-        case .transfer:    monitorPresenter.selectTransferDock()
-        case .cast:        monitorPresenter.selectCast()
         }
-    }
-
-    /// 文件拖到「文件中转」分段：进本地中转 + 切到中转页 + 轻提示
-    private func dropToLocalTransfer(_ providers: [NSItemProvider]) -> Bool {
-        if isSettingsPreview { return false }
-        let group = DispatchGroup()
-        var urls: [URL] = []
-        let lock = NSLock()
-        for provider in providers {
-            group.enter()
-            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
-                defer { group.leave() }
-                var url: URL?
-                if let data = item as? Data {
-                    url = URL(dataRepresentation: data, relativeTo: nil)
-                } else if let direct = item as? URL {
-                    url = direct
-                }
-                if let url { lock.lock(); urls.append(url); lock.unlock() }
-            }
-        }
-        group.notify(queue: .main) {
-            guard !urls.isEmpty else { return }
-            LocalTransferStore.shared.add(urls: urls) { count in
-                if count > 0 {
-                    // 分段未启用时仅提示，不切换页面。
-                    if enabledPages.contains(.transfer) { monitorPresenter.selectTransferDock() }
-                }
-                if let error = LocalTransferStore.shared.lastError {
-                    Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
-                } else if count > 0 {
-                    Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
-                }
-            }
-        }
-        return true
     }
 
     private func segmentItem(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {

@@ -193,11 +193,9 @@ struct StatisticsChartsView: View {
                                   AnalyticsEvent.colorPickSuccess.eventName],
                      icon: "square.fill", iconSize: 13, iconYOffset: 0),
         MetricConfig(id: "statistics_monitor", title: "监测",
-                     tooltip: "今日性能监测、文件中转与投屏次数",
+                     tooltip: "今日性能监测次数",
                      eventNames: [AnalyticsEvent.monitorPanelOpen.eventName,
-                                  AnalyticsEvent.activityMonitorClick.eventName,
-                                  AnalyticsEvent.transferDockOpen.eventName,
-                                  AnalyticsEvent.screenCastOpen.eventName],
+                                  AnalyticsEvent.activityMonitorClick.eventName],
                      icon: "gauge.with.dots.needle.67percent", iconSize: 13, iconYOffset: 0),
     ]
 

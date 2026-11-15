@@ -31,7 +31,7 @@ final class ArchiveDefaultApplication: ObservableObject {
             }
             target = Bundle.main.bundleURL
         } else {
-            // 已手动关联 Kitnest 的用户没有历史记录，关闭时交回系统归档工具。
+            // 已手动关联 Kitnest Lite 的用户没有历史记录，关闭时交回系统归档工具。
             let identifier = defaults.string(forKey: key) ?? "com.apple.archiveutility"
             guard let previous = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) else {
                 errorMessage = "原来的 ZIP 应用已不在这台 Mac 上。请在访达的「显示简介 → 打开方式」中重新选择。"
@@ -50,7 +50,7 @@ final class ArchiveDefaultApplication: ObservableObject {
                     self.errorMessage = "ZIP 默认应用仍为\(self.applicationName)，请完成系统的更改确认。"
                 } else {
                     if !value { defaults.removeObject(forKey: key) }
-                    Toast.show(value ? "ZIP 将用 Kitnest 打开" : "已恢复 ZIP 打开方式", icon: "archivebox")
+                    Toast.show(value ? "ZIP 将用 Kitnest Lite 打开" : "已恢复 ZIP 打开方式", icon: "archivebox")
                 }
             }
         }
@@ -63,22 +63,22 @@ struct ArchiveDefaultApplicationOption: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Toggle("用 Kitnest 默认打开 ZIP", isOn: Binding(
+            Toggle("用 Kitnest Lite 默认打开 ZIP", isOn: Binding(
                 get: { association.enabled }, set: { association.setEnabled($0) }))
                 .toggleStyle(.switch)
                 .disabled(association.changing)
-            Text("开启后，双击 ZIP 在 Kitnest 中查看并解压；关闭后恢复此前的打开方式。")
+            Text("开启后，双击 ZIP 在 Kitnest Lite 中查看并解压；关闭后恢复此前的打开方式。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(association.changing ? "正在更改…" : "当前默认：\(association.applicationName)")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-            Text("压缩：访达选中文件 → 右键 → 服务 → 用 Kitnest 压缩。访达原有的「压缩」保持不变。")
+            Text("压缩：访达选中文件 → 右键 → 服务 → 用 Kitnest Lite 压缩。访达原有的「压缩」保持不变。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」或「用 Kitnest 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
+            Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest Lite 复制路径」或「用 Kitnest Lite 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -173,7 +173,7 @@ public final class ArchiveServicesProvider: NSObject {
         }
     }
 
-    /// 「用 Kitnest 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
+    /// 「用 Kitnest Lite 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
     ///
     /// 与「双击压缩包」「拖进面板」走同一个入口 `ArchiveBrowserWindowController.show`，
     /// 不另开一套窗口。多选时逐个打开（同包已开则系统侧前置，由 controller 去重）。

@@ -24,7 +24,7 @@ public struct ShortcutSettingsPane: View {
             Divider().padding(.vertical, 8)
             pair("recordingToggle", "recordingRegion")
             pair("openPerformance", "monitorPopout")
-            pair("openTransferDock", "toggleClipboardRecording")
+            pair("toggleClipboardRecording", nil)
             Divider().padding(.vertical, 8)
             pair("screenshotTranslate", "translateSelection")
             pair("summarizeSelection", "polishSelection")

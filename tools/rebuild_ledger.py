@@ -43,6 +43,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Core/UI/AirDropSendEngine.swift", "send"):
+        "从中转模块迁出原生隔空投送发送方法，AppBootstrap 接收截图和剪贴板的同一通知；只调用系统分享，不再依赖中转存储或投屏",
     ("Features/Monitor/Views/MonitorDetailView.swift", "powerGrid"):
         "功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样",
     ("Features/Monitor/Views/MonitorDetailView.swift", "powerMetric"):
@@ -1318,17 +1320,17 @@ EVIDENCE.update({
         "设置预览仅显示复制文件演示反馈；正式用stagedSelection取得实际文件URL并调用ClipboardManager.copyFiles，失败显示原因，成功状态保留1.2秒",
     ("Features/TransferDock/UI/TransferDockView.swift", "selectLocal"):
         "使用鼠标按下时记录的selectionModifiers，避免SwiftUI点击回调延后到按键释放后丢失组合选择；单击选择当前id，Command切换单项；Shift按selectionAnchorID与当前项在displayedLocalItems形成连续范围，Command+Shift合并范围，保持锚点供后续多选；页面离开即移除本地事件监听",
-    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "readText"):
+    ("Features/Clipboard/UI/FileHoverPreview.swift", "readText"):
         "文件与剪贴板共用的正文读取：mappedIfSafe读取完整文件，依次解码UTF-8和Latin-1，无法解码抛出fileReadInapplicableStringEncoding，不再截前8KB",
-    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "itemID"):
+    ("Features/Clipboard/UI/FileHoverPreview.swift", "itemID"):
         "按URL.path构造file-preview:前缀内存条目id，供任意文件呈现、取消悬停关闭及主动隐藏确认当前项",
-    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "scheduleShow"):
+    ("Features/Clipboard/UI/FileHoverPreview.swift", "scheduleShow"):
         "取消共用协调器的悬停关闭任务并替换showWork，按同一hoverPreviewOpenDelay延时调用showNow，传屏幕锚点和弱引用sourceWindow",
-    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "showNow"):
+    ("Features/Clipboard/UI/FileHoverPreview.swift", "showNow"):
         "取消待显示任务、记录currentURL，再交MainPanelPreviewPopoverCoordinator.presentFile；不再创建独立文件预览Panel或保存另一套尺寸",
-    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "scheduleHide"):
+    ("Features/Clipboard/UI/FileHoverPreview.swift", "scheduleHide"):
         "取消待显示任务，仅按currentURL对应itemID安排共享协调器关闭，不会把别的当前预览项关闭",
-    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "hide"):
+    ("Features/Clipboard/UI/FileHoverPreview.swift", "hide"):
         "取消待显示任务；仅当前共享协调器activeItemID仍为本文件时执行programmatic关闭，最后清除currentURL",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "presentFile"):
         "把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史",

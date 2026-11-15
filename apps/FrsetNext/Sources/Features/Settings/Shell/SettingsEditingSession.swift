@@ -55,7 +55,6 @@ final class SettingsEditingSession: ObservableObject {
         register(id: "captureAppearance") { CaptureAppearanceDraft() }
         register(id: "recordingAppearance") { RecordingAppearanceDraft() }
         register(id: "searchDisplay") { SearchDisplayDraft() }
-        register(id: "transferLocal") { LocalTransferSettingsDraft() }
     }
 
     func register<D: SettingsEditableDraft>(id: String, makeDraft: @escaping () -> D) {
@@ -120,7 +119,6 @@ extension SettingsPage {
         case .generalMenuBar: return ["menuBar", "calendar"]
         case .monitorWidgets: return ["monitorWidgets"]
         case .search: return ["searchDisplay"]
-        case .transferLocal: return ["transferLocal"]
         case .capture(.pin): return ["pin"]
         case .capture(.curtain): return ["curtain"]
         case .capture(.capture): return ["captureAppearance"]

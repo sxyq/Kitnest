@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.sxyq.frsetnext.memoryhelper</string>
+	<string>com.sxyq.kitnestlite.memoryhelper</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Library/PrivilegedHelperTools/com.sxyq.frsetnext.memoryhelper</string>
+		<string>/Library/PrivilegedHelperTools/com.sxyq.kitnestlite.memoryhelper</string>
 		<string>--daemon</string>
-		<string>/var/run/com.sxyq.frsetnext.memory.sock</string>
+		<string>/var/run/com.sxyq.kitnestlite.memory.sock</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
@@ -17,8 +17,8 @@
 	<key>ProcessType</key>
 	<string>Background</string>
 	<key>StandardOutPath</key>
-	<string>/var/log/com.sxyq.frsetnext.memoryhelper.log</string>
+	<string>/var/log/com.sxyq.kitnestlite.memoryhelper.log</string>
 	<key>StandardErrorPath</key>
-	<string>/var/log/com.sxyq.frsetnext.memoryhelper.log</string>
+	<string>/var/log/com.sxyq.kitnestlite.memoryhelper.log</string>
 </dict>
 </plist>

@@ -32,10 +32,6 @@ struct IslandFeatureContent: View {
             IslandRecordingContent(controller: controller, previewOnly: previewOnly)
         case .ocr:
             IslandOCRContent(controller: controller, previewOnly: previewOnly)
-        case .transfer:
-            TransferDockView()
-        case .cast:
-            CastView()
         case .ai:
             if previewOnly {
                 VStack(alignment: .leading, spacing: 14) {
@@ -87,8 +83,6 @@ struct IslandFeatureContent: View {
     private var summary: String {
         switch page {
         case .search: return "文件、剪贴板、网页与工具"
-        case .transfer: return "发送、接收、云端与本地暂存"
-        case .cast: return "扫码连接、投屏与手机工具"
         case .ai: return "沿用现有模型和对话记录"
         case .statistics: return "当天用量、趋势与活动记录"
         case .archive: return "打开、预览、压缩与解压"
@@ -324,7 +318,7 @@ private struct IslandArchiveContent: View {
                 Button("创建压缩包") { choose(create: true) }
                 Button("归档任务") { controller.performOutside { ArchiveProgressWindowController.show() } }
             }.buttonStyle(IslandButtonStyle()).font(.system(size: 12))
-            Text("解压、文件预览、密码、格式与编辑回写沿用原归档界面；近期压缩包也可在剪贴板与中转页预览和拖出。")
+            Text("解压、文件预览、密码、格式与编辑回写沿用原归档界面；近期压缩包也可在剪贴板预览和拖出。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }.padding(12)
     }

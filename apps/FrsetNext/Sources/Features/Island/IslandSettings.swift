@@ -2,14 +2,13 @@ import AppKit
 import SwiftUI
 
 enum IslandPage: String, CaseIterable, Identifiable {
-    case home, clipboard, monitor, media, calendar, tools, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
-    static let allCases: [Self] = [.home, .clipboard, .monitor, .media, .calendar, .tools, .search, .capture, .recording, .ocr, .ai, .statistics, .archive, .downloads]
+    case home, clipboard, monitor, media, calendar, tools, search, capture, recording, ocr, ai, statistics, archive, downloads
     var id: String { rawValue }
     static let tabs: [Self] = [.home, .clipboard, .monitor, .tools]
     var title: String {
         switch self {
         case .home: return "总览"
-        case .clipboard: return "剪贴板与中转"
+        case .clipboard: return "剪贴板"
         case .monitor: return "监测"
         case .media: return "媒体"
         case .calendar: return "日历"
@@ -18,8 +17,6 @@ enum IslandPage: String, CaseIterable, Identifiable {
         case .capture: return "截图与标注"
         case .recording: return "录屏"
         case .ocr: return "识别与翻译"
-        case .transfer: return "文件传输"
-        case .cast: return "手机投屏"
         case .ai: return "AI 对话"
         case .statistics: return "使用统计"
         case .archive: return "压缩与解压"
@@ -119,15 +116,14 @@ enum IslandPeek: String, CaseIterable, Codable, Identifiable {
 }
 
 enum IslandWidget: String, CaseIterable, Codable, Identifiable {
-    case monitor, media, calendar, clipboard, tools, volume, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
-    static let allCases: [Self] = [.monitor, .media, .calendar, .clipboard, .tools, .volume, .search, .capture, .recording, .ocr, .ai, .statistics, .archive, .downloads]
+    case monitor, media, calendar, clipboard, tools, volume, search, capture, recording, ocr, ai, statistics, archive, downloads
     var id: String { rawValue }
     var page: IslandPage { self == .volume ? .media : IslandPage(rawValue: rawValue)! }
     var title: String {
         switch self {
         case .media: return "正在播放"
         case .monitor: return "性能监测"
-        case .clipboard: return "剪贴板与中转"
+        case .clipboard: return "剪贴板"
         case .calendar: return "日程与待办"
         case .tools: return "快捷工具"
         case .volume: return "系统音量"
@@ -135,8 +131,6 @@ enum IslandWidget: String, CaseIterable, Codable, Identifiable {
         case .capture: return "截图与标注"
         case .recording: return "录屏"
         case .ocr: return "识别与翻译"
-        case .transfer: return "文件传输"
-        case .cast: return "手机投屏"
         case .ai: return "AI 对话"
         case .statistics: return "使用统计"
         case .archive: return "压缩与解压"
@@ -155,8 +149,6 @@ enum IslandWidget: String, CaseIterable, Codable, Identifiable {
         case .capture: return "viewfinder"
         case .recording: return "record.circle"
         case .ocr: return "text.viewfinder"
-        case .transfer: return "arrow.up.arrow.down"
-        case .cast: return "iphone.and.arrow.forward"
         case .ai: return "bubble.left.and.bubble.right"
         case .statistics: return "chart.bar"
         case .archive: return "archivebox"
@@ -175,8 +167,6 @@ enum IslandWidget: String, CaseIterable, Codable, Identifiable {
         case .capture: return MonitorColors.user
         case .recording: return MonitorColors.temperature
         case .ocr: return MonitorColors.memory
-        case .transfer: return MonitorColors.download
-        case .cast: return MonitorColors.wired
         case .ai: return MonitorColors.wired
         case .statistics: return MonitorColors.memory
         case .archive: return MonitorColors.temperature

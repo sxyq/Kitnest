@@ -22,8 +22,6 @@ public enum PanelSegments {
 
     public static let homeKey = "panel.segment.home"
     public static let monitorKey = "panel.segment.monitor"
-    public static let transferKey = "panel.segment.transfer"
-    public static let castKey = "panel.segment.cast"
     /// 顺序：逗号分隔的 `PanelCenterPage.rawValue`，如 "home,performance,transfer,cast"
     public static let orderKey = "panel.segment.order"
 
@@ -34,8 +32,6 @@ public enum PanelSegments {
         switch page {
         case .home:        return "主页"
         case .performance: return "监测"
-        case .transfer:    return "中转"
-        case .cast:        return "投屏"
         }
     }
 
@@ -44,8 +40,6 @@ public enum PanelSegments {
         switch page {
         case .home:        return "主页"
         case .performance: return "性能监测"
-        case .transfer:    return "文件中转"
-        case .cast:        return "投屏"
         }
     }
 

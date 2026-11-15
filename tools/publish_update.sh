@@ -1,5 +1,5 @@
 #!/bin/bash
-# Kitnest 在线更新发布（v201 / 2026-11-04）
+# KitnestLite 在线更新发布（v201 / 2026-11-04）
 #
 # 用法：
 #   bash tools/publish_update.sh "本次更新说明" [build号] [--skip-build]
@@ -19,11 +19,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/apps/FrsetNext"
 INFO="$APP/Info.plist"
-DEPLOYED="/Applications/Kitnest.app"
+DEPLOYED="/Applications/KitnestLite.app"
 REMOTE_HOST="sxyq27-124"
-REMOTE_BASE="/srv/calorieai-updates/public/kitnest"
-FEED_URL="https://calorieai.sxyq27.online/kitnest/stable/latest.json"
-FEED_HOST="https://calorieai.sxyq27.online/kitnest"
+REMOTE_BASE="/srv/calorieai-updates/public/kitnest/lite"
+REMOTE_RELEASES="/srv/calorieai-updates/public/kitnest/releases/lite"
+FEED_URL="https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json"
+FEED_HOST="https://calorieai.sxyq27.online/kitnest-site/kitnest"
 
 NOTES="${1:-功能更新与稳定性改进}"
 ARG2="${2:-}"
@@ -61,7 +62,7 @@ fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-ZIP_NAME="Kitnest-$BUILD.zip"
+ZIP_NAME="KitnestLite-$BUILD.zip"
 ZIP="$WORK/$ZIP_NAME"
 
 echo "== 打包 =="
@@ -94,7 +95,7 @@ data = {
     "versionName": "1.0.0",
     "minBuild": 1,
     "force": False,
-    "zipUrl": "https://calorieai.sxyq27.online/kitnest/releases/%d/%s" % (build, zip_name),
+    "zipUrl": "https://calorieai.sxyq27.online/kitnest-site/kitnest/releases/lite/%d/%s" % (build, zip_name),
     "size": int(os.environ["SIZE"]),
     "sha256": os.environ["SHA"],
     "releaseNotes": "；".join(clean_lines),
@@ -107,14 +108,14 @@ PY
 
 echo "== 上传到 124 =="
 scp -q "$ZIP" "$REMOTE_HOST:/tmp/$ZIP_NAME"
-scp -q "$WORK/latest.json" "$REMOTE_HOST:/tmp/kitnest-latest-$BUILD.json"
+scp -q "$WORK/latest.json" "$REMOTE_HOST:/tmp/kitnest-lite-latest-$BUILD.json"
 ssh "$REMOTE_HOST" "set -e; \
-  sudo -n install -d -m 0755 '$REMOTE_BASE/releases/$BUILD' '$REMOTE_BASE/stable'; \
-  sudo -n install -m 0644 /tmp/$ZIP_NAME '$REMOTE_BASE/releases/$BUILD/$ZIP_NAME'; \
-  sudo -n install -m 0644 /tmp/kitnest-latest-$BUILD.json '$REMOTE_BASE/stable/latest.json'; \
-  rm -f /tmp/$ZIP_NAME /tmp/kitnest-latest-$BUILD.json"
+  sudo -n install -d -m 0755 '$REMOTE_RELEASES/$BUILD' '$REMOTE_BASE/stable'; \
+  sudo -n install -m 0644 /tmp/$ZIP_NAME '$REMOTE_RELEASES/$BUILD/$ZIP_NAME'; \
+  sudo -n install -m 0644 /tmp/kitnest-lite-latest-$BUILD.json '$REMOTE_BASE/stable/latest.json'; \
+  rm -f /tmp/$ZIP_NAME /tmp/kitnest-lite-latest-$BUILD.json"
 
 echo "== 验证 =="
 curl -fsS "$FEED_URL" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("  feed build=%s zip=%s" % (d["build"], d["zipUrl"]))'
-curl -sS -o /dev/null -w '  zip HTTP %{http_code}\n' -r 0-0 "$FEED_HOST/releases/$BUILD/$ZIP_NAME"
+curl -sS -o /dev/null -w '  zip HTTP %{http_code}\n' -r 0-0 "$FEED_HOST/releases/lite/$BUILD/$ZIP_NAME"
 echo "✓ 发布完成：$FEED_URL"

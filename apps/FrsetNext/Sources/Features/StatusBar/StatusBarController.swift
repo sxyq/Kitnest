@@ -69,11 +69,7 @@ public final class StatusBarController: NSObject {
         item.button?.action = #selector(mainItemClicked(_:))
         // 左键开面板，右键弹菜单
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        // v250：拖文件到图标 → 转入（云端 / 本地二选一）
         if let b = item.button {
-            let proxy = StatusItemDropProxy(frame: b.bounds)
-            proxy.autoresizingMask = [.width, .height]
-            b.addSubview(proxy)
             pauseBadge.image = NSImage(systemSymbolName: "pause.fill", accessibilityDescription: "剪贴板记录已暂停")
             pauseBadge.frame = NSRect(x: b.bounds.maxX - 8, y: b.bounds.maxY - 8, width: 7, height: 7)
             pauseBadge.autoresizingMask = [.minXMargin, .minYMargin]

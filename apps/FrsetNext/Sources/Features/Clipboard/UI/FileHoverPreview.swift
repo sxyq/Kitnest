@@ -1,6 +1,6 @@
 import AppKit
 
-// 文件悬停入口复用剪贴板预览窗；正文读取与文件类型表供正式预览、归档共用。
+// 文件悬停与正文读取归剪贴板所有，归档复用同一入口。
 
 
 public enum FilePreviewBuilder {

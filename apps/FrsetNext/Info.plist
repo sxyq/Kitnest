@@ -2,160 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key>
-	<string>KitnestLite</string>
 	<key>CFBundleDisplayName</key>
 	<string>Kitnest Lite</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.sxyq.kitnestlite</string>
-	<key>CFBundleExecutable</key>
-	<string>KitnestLite</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>13.0</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSScreenCaptureUsageDescription</key>
-	<string>Kitnest 需要屏幕录制权限以执行截图与 OCR 文字识别。</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Kitnest 录屏时可选择录入麦克风声音。</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Kitnest 录屏时可把摄像头画面叠加成画中画。</string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Kitnest 需要辅助功能权限以执行自动粘贴。</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>Kitnest 需要日历权限以在面板中显示今日日程。</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>com.sxyq.kitnestlite</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>kitnest-lite</string>
-			</array>
-		</dict>
-	</array>
-	<key>NSServices</key>
-	<array>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>用 Kitnest 打开</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>openArchive</string>
-			<key>NSPortName</key>
-			<string>Kitnest</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.file-url</string>
-			</array>
-		</dict>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>解压到此处</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>extractHere</string>
-			<key>NSPortName</key>
-			<string>Kitnest</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.file-url</string>
-			</array>
-		</dict>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>解压到…</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>extractTo</string>
-			<key>NSPortName</key>
-			<string>Kitnest</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.file-url</string>
-			</array>
-		</dict>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>用 Kitnest 压缩</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>compress</string>
-			<key>NSPortName</key>
-			<string>Kitnest</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.file-url</string>
-			</array>
-		</dict>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>用 Kitnest 复制路径</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>copyPaths</string>
-			<key>NSPortName</key>
-			<string>Kitnest</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.file-url</string>
-			</array>
-		</dict>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
-				<string>用 Kitnest 在终端打开</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>openInTerminal</string>
-			<key>NSPortName</key>
-			<string>Kitnest</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.file-url</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
-			<key>CFBundleTypeName</key>
-			<string>压缩包</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<!-- v129（用户反馈：右键「打开方式」里看不到 Kitnest）：
-			     原来这里写了 LSItemContentTypes = public.archive / public.data，
-			     LaunchServices 会**优先用 UTI 并忽略下面的 CFBundleTypeExtensions**，
-			     结果只认了「任意 public.data」，.zip 的具体 UTI（public.zip-archive）
-			     反而匹配不上，右键打开方式里就没有本 App。
-			     去掉该键后实测 37 个扩展名全部绑定成功（lsregister -dump 可见 .zip/.7z/.rar…）。
-			     不绑 public.data 也顺带避免"任何文件都想用本 App 打开"的噪音。 -->
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>zip</string>
@@ -196,8 +47,149 @@
 				<string>001</string>
 				<string>zst</string>
 			</array>
+			<key>CFBundleTypeName</key>
+			<string>压缩包</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
 		</dict>
-		<!-- v206：JSON 检视器独立窗已删除；不再向访达注册 .json 打开方式 -->
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>KitnestLite</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.sxyq.kitnestlite</string>
+	<key>CFBundleName</key>
+	<string>KitnestLite</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.sxyq.kitnestlite</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kitnest-lite</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Kitnest Lite 需要辅助功能权限以执行自动粘贴。</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Kitnest Lite 需要日历权限以在面板中显示今日日程。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kitnest Lite 录屏时可把摄像头画面叠加成画中画。</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Kitnest Lite 录屏时可选择录入麦克风声音。</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Kitnest Lite 需要屏幕录制权限以执行截图与 OCR 文字识别。</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>用 Kitnest Lite 打开</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>openArchive</string>
+			<key>NSPortName</key>
+			<string>KitnestLite</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>解压到此处</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>extractHere</string>
+			<key>NSPortName</key>
+			<string>KitnestLite</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>解压到…</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>extractTo</string>
+			<key>NSPortName</key>
+			<string>KitnestLite</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>用 Kitnest Lite 压缩</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>compress</string>
+			<key>NSPortName</key>
+			<string>KitnestLite</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>用 Kitnest Lite 复制路径</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>copyPaths</string>
+			<key>NSPortName</key>
+			<string>KitnestLite</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>用 Kitnest Lite 在终端打开</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>openInTerminal</string>
+			<key>NSPortName</key>
+			<string>KitnestLite</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.file-url</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

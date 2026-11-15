@@ -261,6 +261,10 @@ public final class AppUpdateChecker {
                     .appendingPathComponent("frset-update-\(UUID().uuidString)", isDirectory: true)
                 try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
                 let zip = work.appendingPathComponent("update.zip")
+                var handedToInstaller = false
+                defer {
+                    if !handedToInstaller { try? FileManager.default.removeItem(at: work) }
+                }
                 try data.write(to: zip)
 
                 let unzip = Process()
@@ -285,26 +289,36 @@ public final class AppUpdateChecker {
                     DispatchQueue.main.async {
                         Toast.show("更新包不是 Kitnest Lite，请在关于页恢复精简版更新源", icon: "exclamationmark.triangle", isWarning: true)
                     }
-                    try FileManager.default.removeItem(at: work)
+                    return
+                }
+                let signature = Process()
+                signature.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+                signature.arguments = ["-v", "--deep", "--strict", newApp.path]
+                try signature.run()
+                signature.waitUntilExit()
+                guard signature.terminationStatus == 0 else {
+                    DispatchQueue.main.async {
+                        Toast.show("更新包签名无效，当前版本已保留", icon: "exclamationmark.triangle", isWarning: true)
+                    }
                     return
                 }
 
-                // 替换脚本：等本进程退出 → 备份 → 覆盖 → 去隔离 → 重开
+                // 验证精简版签名后等待旧进程退出；移动完整应用，不建立本地备份。
                 let script = """
                 #!/bin/sh
-                sleep 2
-                BACKUP="/Applications/\(appName).bak"
-                rm -rf "$BACKUP"
-                if [ -d "/Applications/\(appName)" ]; then
-                  mv "/Applications/\(appName)" "$BACKUP" || exit 1
+                set -e
+                trap 'rm -rf "\(work.path)"; rm -f "$0"' EXIT
+                while kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do sleep 0.2; done
+                PREVIOUS="/Applications/.KitnestLite.app.replacing.\(ProcessInfo.processInfo.processIdentifier)"
+                mv "/Applications/KitnestLite.app" "$PREVIOUS"
+                if ! mv "\(newApp.path)" "/Applications/KitnestLite.app"; then
+                    mv "$PREVIOUS" "/Applications/KitnestLite.app"
+                    exit 1
                 fi
-                /usr/bin/ditto "\(newApp.path)" "/Applications/\(appName)" || {
-                  rm -rf "/Applications/\(appName)"
-                  mv "$BACKUP" "/Applications/\(appName)"
-                  exit 1
-                }
-                /usr/bin/xattr -dr com.apple.quarantine "/Applications/\(appName)" 2>/dev/null
-                open "/Applications/\(appName)"
+                rm -rf "$PREVIOUS"
+                /usr/bin/xattr -dr com.apple.quarantine "/Applications/KitnestLite.app" 2>/dev/null || true
+                /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/KitnestLite.app"
+                open "/Applications/KitnestLite.app"
                 """
                 let scriptURL = URL(fileURLWithPath: NSTemporaryDirectory())
                     .appendingPathComponent("kitnest-lite-swap.sh")
@@ -315,6 +329,7 @@ public final class AppUpdateChecker {
                 runner.executableURL = URL(fileURLWithPath: "/bin/sh")
                 runner.arguments = [scriptURL.path]
                 try runner.run()
+                handedToInstaller = true
                 DispatchQueue.main.async {
                     Toast.show("更新就绪，正在重启完成替换…", icon: "arrow.triangle.2.circlepath")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {

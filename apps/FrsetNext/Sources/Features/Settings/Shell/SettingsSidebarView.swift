@@ -324,11 +324,6 @@ struct SettingsSidebarView: View {
         .init(title: "忽略应用（隐私名单）", area: "剪贴板 › 捕获", keywords: "隐私 排除 黑名单", selection: .clipboardCapture),
         .init(title: "浮动窗", area: "剪贴板 › 浮动窗", keywords: "悬浮 剪贴板 呼出 快捷键 位置", selection: .clipboardFloating),
         // 文件中转
-        .init(title: "文件中转入口", area: "文件中转 › 显示", keywords: "中转 面板 显示 暂存", selection: .transferDisplay),
-        .init(title: "投屏画质", area: "文件中转 › 投屏画质", keywords: "投屏 airplay 清晰度 码率", selection: .transferCast),
-        .init(title: "手机扫码直传", area: "文件中转 › 手机扫码直传", keywords: "二维码 扫码 手机 局域网 端口", selection: .transferScan),
-        .init(title: "云端中转（OPPO）", area: "文件中转 › 云端中转", keywords: "云端 云盘 上传 OPPO", selection: .transferCloud),
-        .init(title: "本地暂存", area: "文件中转 › 本地暂存", keywords: "暂存 目录 本地 清理", selection: .transferLocal),
         // 截图
         .init(title: "截图保存路径", area: "截图 › 截图", keywords: "下载 目录 文件夹 保存位置", selection: .capture(.capture)),
         .init(title: "截图后动作", area: "截图 › 截图", keywords: "复制 保存 贴图 默认动作", selection: .capture(.capture)),

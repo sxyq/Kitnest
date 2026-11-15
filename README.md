@@ -1,5 +1,20 @@
 # frset-rebuild — Frset 重建工程（Kitnest，原名 FrsetNext）
 
+## Kitnest Lite 精简发行分支
+
+`variant/without-transfer-cast` 不包含文件中转、手机投屏及其后台入口。剪贴板的文件记录、文件预览和拖出保持可用。
+
+- 工程：`apps/FrsetNext/`；构建：`bash apps/FrsetNext/build.sh`。
+- 安装：`/Applications/KitnestLite.app`；数据：`~/Library/Application Support/KitnestLite`；应用标识：`com.sxyq.kitnestlite`。
+- DMG：`bash apps/FrsetNext/package_dmg.sh` → `~/Desktop/KitnestLite-1.0.0.dmg`。
+- 发布：`bash tools/publish_update.sh "更新说明"`；显示版本固定 1.0.0，内部 build 每次加 1。
+- 清单：`https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json`。
+- ZIP：`https://calorieai.sxyq27.online/kitnest-site/kitnest/releases/lite/<build>/KitnestLite-<build>.zip`。
+- 复用 124 的现有 Nginx 路由、证书与下载限流：清单落在 `/srv/calorieai-updates/public/kitnest/lite/stable/`，安装包落在 `/srv/calorieai-updates/public/kitnest/releases/lite/`。
+- 深链：`kitnest-lite://`；完整版的应用、数据、更新清单各自保留。
+
+下方保留完整版项目背景；精简版发行位置以本节为准。
+
 > 2026-10-14 创建。目标：用**正向 Swift 工程**重建 Frset 的核心体验 + 原生集成 Stats 监测，
 > 终止"每个新功能都要逆向注入"的边际成本上升。
 > 规格来源：`~/Desktop/Project/frset/`（完整逆向档案——报告/UI 截图/偏好键/补丁点/行为记录）。

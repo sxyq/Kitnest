@@ -15,8 +15,6 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
     @Published var appearance = AppearanceManager.shared.mode
     @Published var segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true)
     @Published var segmentMonitor = Preferences.shared.value(PanelSegments.monitorKey, default: true)
-    @Published var segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false)
-    @Published var segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false)
     @Published var pageOrder = PanelSegments.order
     @Published var previewScene = AppearancePreviewBlock.Scene.regular
     @Published var previewSelectedItemID: String? = "appearance-note"
@@ -42,8 +40,7 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
     private var values: [String] {
         switch scope {
         case .mainPanel:
-            return [String(panelWidth), String(segmentHome), String(segmentMonitor),
-                    String(segmentTransfer), String(segmentCast), PanelSegments.encode(pageOrder)]
+            return [String(panelWidth), String(segmentHome), String(segmentMonitor), PanelSegments.encode(pageOrder)]
         case .floatingClipboard:
             return [floating.layout.rawValue, floating.cardSize.rawValue, String(Double(floating.splitRatio)),
                     String(floating.hoverPreviewEnabled)]
@@ -64,10 +61,6 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
             case .home: return segmentHome
             case .performance:
                 return segmentMonitor && Preferences.shared.value("showSystemStatus", default: true)
-            case .transfer, .cast:
-                let enabled = Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true)
-                    && Preferences.shared.value(Preferences.Keys.panelTransferDock, default: true)
-                return enabled && ($0 == .transfer ? segmentTransfer : segmentCast)
             }
         }
     }
@@ -79,8 +72,6 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
             preferences.set(Preferences.Keys.panelWidth, panelWidth)
             preferences.set(PanelSegments.homeKey, segmentHome)
             preferences.set(PanelSegments.monitorKey, segmentMonitor)
-            preferences.set(PanelSegments.transferKey, segmentTransfer)
-            preferences.set(PanelSegments.castKey, segmentCast)
             PanelSegments.order = pageOrder
         case .floatingClipboard:
             let applied = FloatingClipDeskStore.shared
@@ -123,8 +114,6 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
             panelWidth = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0)
             segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true)
             segmentMonitor = Preferences.shared.value(PanelSegments.monitorKey, default: true)
-            segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false)
-            segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false)
             pageOrder = PanelSegments.order
         }
         if !preservingOwned || scope != .captureToolbar { toolbarStyle = CaptureToolbarStyle.current.rawValue }
@@ -145,8 +134,6 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
             panelWidth = 400
             segmentHome = true
             segmentMonitor = true
-            segmentTransfer = false
-            segmentCast = false
             pageOrder = PanelSegments.defaultOrder
         case .floatingClipboard:
             floating.layout = .grid
@@ -316,8 +303,7 @@ struct PersonalizationSettingsView: View {
                 .frame(width: 210)
             }
             Text("拖动左侧「≡」调整顶部顺序；勾掉的分段不出现，也不会创建对应视图——不占内存。"
-                 + "全部关闭时面板只显示一句提示。中转/投屏还要「常规 → 功能 → 文件中转」"
-                 + "与「设置 → 文件中转 → 启用文件中转」都开启才会出现。")
+                 + "全部关闭时面板只显示一句提示。")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.tertiaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -363,8 +349,6 @@ struct PersonalizationSettingsView: View {
         switch page {
         case .home:        return $draft.segmentHome
         case .performance: return $draft.segmentMonitor
-        case .transfer:    return $draft.segmentTransfer
-        case .cast:        return $draft.segmentCast
         }
     }
 

@@ -25,13 +25,10 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     case island
     case audio
     case clipboard
-    case transfer
     case capture
     case tools
     case searchAI
     case monitor
-
-    static let allCases: [Self] = [.general, .audio, .clipboard, .capture, .tools, .searchAI, .monitor]
 
     var id: String { rawValue }
 
@@ -41,7 +38,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .island:   return "刘海工作台"
         case .audio:    return "音频"
         case .clipboard: return "剪贴板"
-        case .transfer: return "文件中转"
         case .capture:  return "截图"
         case .tools:    return "工具"
         case .searchAI: return "搜索与 AI"
@@ -55,7 +51,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .island:   return "rectangle.tophalf.inset.filled"
         case .audio:    return "speaker.wave.2"
         case .clipboard: return "doc.on.clipboard"
-        case .transfer: return "arrow.left.arrow.right.square"
         case .capture:  return "camera.viewfinder"
         case .tools:    return "hammer"
         case .searchAI: return "magnifyingglass"
@@ -74,8 +69,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
             return [.audio]
         case .clipboard:
             return [.clipboardHistory, .clipboardCapture, .clipboardAppearance, .clipboardFloating]
-        case .transfer:
-            return []
         case .capture:
             return [.capture(.capture), .captureActions]
                 + CaptureSettingsBlock.allCases.dropFirst().map { .capture($0) }
@@ -127,11 +120,6 @@ enum SettingsPage: Hashable {
     case clipboardAppearance
 
     // 文件中转（5）
-    case transferDisplay
-    case transferCast
-    case transferScan
-    case transferCloud
-    case transferLocal
 
     // 截图（5）
     case capture(CaptureSettingsBlock)
@@ -173,11 +161,6 @@ enum SettingsPage: Hashable {
         case .clipboardFloating: return "浮动窗"
         case .clipboardAppearance: return "列表外观"
 
-        case .transferDisplay:   return "显示"
-        case .transferCast:      return "投屏画质"
-        case .transferScan:      return "手机扫码直传"
-        case .transferCloud:     return "云端中转"
-        case .transferLocal:     return "本地暂存"
 
         case .capture(let block): return block.title
 
@@ -216,11 +199,6 @@ enum SettingsPage: Hashable {
         case .clipboardFloating: return "rectangle.on.rectangle"
         case .clipboardAppearance: return "list.bullet.rectangle"
 
-        case .transferDisplay:   return "eye"
-        case .transferCast:      return "airplayvideo"
-        case .transferScan:      return "qrcode.viewfinder"
-        case .transferCloud:     return "cloud"
-        case .transferLocal:     return "internaldrive"
 
         case .capture(let block): return block.icon
 
@@ -280,16 +258,6 @@ enum SettingsPage: Hashable {
         case .clipboardAppearance:
             return "主面板首页的剪贴板列表；调节密度、缩略图与来源徽章"
 
-        case .transferDisplay:
-            return "主面板 → 中转 分页（⌥A 打开主面板）"
-        case .transferCast:
-            return "主面板 → 投屏 分页，同一 Wi-Fi 下选择接收设备"
-        case .transferScan:
-            return "主面板 → 中转 → 手机扫码，扫二维码后直传"
-        case .transferCloud:
-            return "主面板 → 中转 → 云端，需先登录账号"
-        case .transferLocal:
-            return "把文件拖到中转区即暂存，到期自动清理"
 
         case .capture(.capture):
             return "⌥S 截图 · ⇧⌥W 窗口 · ⇧⌥S 提取文字 · ⇧⌥C 截图并复制"
