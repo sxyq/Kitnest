@@ -56,7 +56,7 @@ struct IslandToolboxContent: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .tint(tint)
-        .preferredColorScheme(.dark)
+        .environment(\.colorScheme, .dark)
         .onChange(of: selectedTool) { _ in previewResultVisible = false }
     }
 
