@@ -43,6 +43,7 @@ if [ "$APP_NAME" = "Kitnest Island" ]; then
   /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Kitnest Island' "$APP/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c 'Delete :NSServices' "$APP/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Delete :CFBundleDocumentTypes' "$APP/Contents/Info.plist"
 fi
 
 FILES=$(find "$SRC" -name '*.swift' -not -name '._*' \

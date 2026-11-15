@@ -3,8 +3,9 @@
 # 用法：./package_dmg.sh
 # 前置：build.sh 已构建并部署到 /Applications/Kitnest.app
 set -e
-APP=/Applications/Kitnest.app
-OUT=~/Desktop/Kitnest-1.0.0.dmg
+APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
+APP="/Applications/$APP_NAME.app"
+OUT="${KITNEST_DMG_OUTPUT:-$HOME/Desktop/Kitnest-1.0.0.dmg}"
 STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
 
 [ -d "$APP" ] || { echo "✗ 找不到 $APP（先跑 build.sh）"; exit 1; }
@@ -55,14 +56,24 @@ Kitnest 安装说明
 
 —— 来自 Sun 的自用工具，有问题随时找我
 TXT
+if [ "$APP_NAME" = "Kitnest Island" ]; then
+  cat > "$STAGE/安装说明.txt" <<'TXT'
+Kitnest Island 界面演示版
+
+将 Kitnest Island.app 放入「应用程序」，与 Kitnest 主应用并行安装。
+点击屏幕顶部刘海展开；按 ⌘, 打开总设置里的刘海工作台。
+设置即时更新预览，保存后应用；取消恢复已保存值。
+本演示版使用固定内容，不执行截图、文件操作或系统剪贴板复制。
+TXT
+fi
 
 rm -f "$OUT"
-hdiutil create -volname "Kitnest 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
+hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
 rm -rf "$STAGE"
 
 # 挂载校验
 VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')
-codesign -v "$VOL/Kitnest.app" && echo "✓ 签名校验通过"
+codesign -v "$VOL/$APP_NAME.app" && echo "✓ 签名校验通过"
 hdiutil detach "$VOL" -quiet
 ls -lh "$OUT"
 echo "✓ DMG 已打包：$OUT"

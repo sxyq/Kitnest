@@ -86,15 +86,13 @@ struct IslandRootView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(records.prefix(size.rows == 2 ? 3 : 1))) { record in
+                    ForEach(Array(records.prefix(size.rows == 2 ? 3 : size.columns == 2 ? 2 : 1))) { record in
                         compactRecord(record)
                     }
-                    if size.rows == 2 {
-                        Button {
-                            if let record = records.first { copy(record) }
-                        } label: { Label("复制最近内容", systemImage: "doc.on.doc") }
-                            .font(.system(size: 11)).buttonStyle(IslandButtonStyle())
-                    }
+                    Button {
+                        if let record = records.first { copy(record) }
+                    } label: { Label("复制最近内容", systemImage: "doc.on.doc") }
+                        .font(.system(size: 11)).buttonStyle(IslandButtonStyle())
                 }
             }
         case .media:
@@ -581,10 +579,8 @@ private struct IslandMediaContent: View {
             if previewOnly {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(controller.tracks[controller.track].0).font(.system(size: size == nil ? 18 : 11)).lineLimit(1)
-                    if size == nil || size?.rows == 2 {
-                        Text(controller.tracks[controller.track].1).font(.system(size: 11)).foregroundStyle(.secondary)
-                    }
-                    if size == nil || size?.rows == 2 || size?.columns == 4 {
+                    Text(controller.tracks[controller.track].1).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    Group {
                         HStack(spacing: 8) {
                             Button { controller.changeTrack(-1) } label: { Image(systemName: "backward.end.fill") }
                             Button { controller.playing.toggle() } label: { Image(systemName: controller.playing ? "pause.fill" : "play.fill") }
@@ -712,8 +708,8 @@ private struct IslandCalendarContent: View {
             if previewOnly {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("2026 年 11 月 14 日").font(.system(size: size == nil ? 18 : 11)).lineLimit(1)
+                    previewEvent(0, title: "14:00 项目同步")
                     if size == nil || size?.rows == 2 {
-                        previewEvent(0, title: "14:00 项目同步")
                         previewEvent(1, title: "16:30 设计评审")
                     }
                     if size == nil {

@@ -46,7 +46,7 @@ struct IslandConfiguration: Codable, Equatable {
     var metricColors: [String: String] = [:]
 
     func size(for widget: IslandWidget) -> IslandWidgetSize {
-        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .square : .wide)
+        let size = widgetSizes[widget.rawValue] ?? (widget == .monitor || widget == .clipboard ? .wide : .small)
         if rows == 1 && size.rows == 2 { return size.columns == 1 ? .small : .wide }
         return size.columns > columns ? .wide : size
     }
