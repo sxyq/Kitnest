@@ -246,6 +246,8 @@ if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
     && echo "  ONNX Runtime 签名 ✓" || echo "  ⚠ ONNX Runtime 签名失败"
 fi
 
+# ExFAT 的 AppleDouble 伴随文件会被当作未签名的嵌套程序。
+dot_clean -m "$APP"
 echo "== 签名 =="
 # v30（2026-10-18）：屏幕录制授权失效根因修复——必须用固定证书签，不能用 ad-hoc（-s -）。
 #   ad-hoc 的 designated requirement = cdhash（二进制内容哈希）：每次重新编译内容必变

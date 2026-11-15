@@ -11,9 +11,9 @@ import SwiftUI
 // 「文件中转」各自仍是一整页长滚动——一级目录只是视觉分组，没有真正的二级页。
 //
 // 新模型：
-//   · `SettingsGroup`  = 一级目录（常规 / 刘海工作台 / 音频 / 剪贴板 / 文件中转 / 截图 / 工具 / 搜索与 AI / 性能监测）
+//   · `SettingsGroup`  = 一级目录（常规 / 音频 / 剪贴板 / 文件中转 / 截图 / 工具 / 搜索与 AI / 性能监测）
 //   · `SettingsPage`   = 二级页，侧边栏唯一可选中粒度，也是内容区唯一分发粒度
-//   · 一级目录常驻展开；刘海工作台直接使用一级入口，不重复列出同名二级页
+//   · 一级目录常驻展开；二级页承载选中态
 //
 // 这样「新建一个设置项该放哪」只需回答「属于哪个一级目录的哪个二级页」，
 // 深链、搜索索引、内容区分发三处共用同一份枚举，不会再各自漂移。
@@ -22,7 +22,6 @@ import SwiftUI
 
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     case general
-    case island
     case audio
     case clipboard
     case capture
@@ -35,7 +34,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .general:  return "常规"
-        case .island:   return "刘海工作台"
         case .audio:    return "音频"
         case .clipboard: return "剪贴板"
         case .capture:  return "截图"
@@ -48,7 +46,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .general:  return "gearshape"
-        case .island:   return "rectangle.tophalf.inset.filled"
         case .audio:    return "speaker.wave.2"
         case .clipboard: return "doc.on.clipboard"
         case .capture:  return "camera.viewfinder"
@@ -63,8 +60,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .general:
             return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .generalNotifications, .generalMenuBar]
-        case .island:
-            return [.island]
         case .audio:
             return [.audio]
         case .clipboard:
@@ -102,7 +97,6 @@ enum SettingsPage: Hashable {
     case generalPanel
     /// 独立窗口与浮层：预览 + 玻璃四参数 / 密度 / 缩略图 / 徽章 / 通知条
     case generalWindows
-    case island
     /// 个性化（通用）：强调色 / 打开动画 / 动作条 / 背景图 / 入口 / 恢复默认
     case generalPersonal
     /// 菜单栏：功能开关 / AI 服务商 / 图标样式 / 部件
@@ -148,7 +142,6 @@ enum SettingsPage: Hashable {
         case .generalStart:      return "启动与语言"
         case .generalPanel:      return "主面板"
         case .generalWindows:    return "窗口材质"
-        case .island:            return "刘海工作台"
         case .generalPersonal:   return "主题外观"
         case .generalNotifications: return "通知提示"
         case .captureActions: return "动作条外观"
@@ -186,7 +179,6 @@ enum SettingsPage: Hashable {
         case .generalStart:      return "power"
         case .generalPanel:      return "rectangle.topthird.inset.filled"
         case .generalWindows:    return "macwindow.on.rectangle"
-        case .island:            return "rectangle.tophalf.inset.filled"
         case .generalPersonal:   return "paintpalette"
         case .generalMenuBar:    return "menubar.rectangle"
         case .generalNotifications: return "bell"
@@ -235,8 +227,6 @@ enum SettingsPage: Hashable {
             return "⌥A 打开主面板；点面板外部自动收起"
         case .generalWindows:
             return "统一调节主面板、悬浮剪贴板、设置与工具窗口的材质"
-        case .island:
-            return "屏幕顶部刘海入口；悬停或点击展开，所有配置在本页预览，保存后生效"
         case .generalPersonal:
             return "调节应用外观、强调色与 Midnight 色相"
         case .generalNotifications:

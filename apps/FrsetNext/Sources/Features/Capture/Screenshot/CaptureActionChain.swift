@@ -138,11 +138,6 @@ public enum CaptureActionChain {
             CaptureActionTool(id: "beautify", title: "美化", systemImage: "wand.and.stars", key: "b") { image, _ in
                 BeautifyController.shared.show(image: image)
             },
-            CaptureActionTool(id: "airDrop", title: "空投", systemImage: "dot.radiowaves.left.and.right", key: "d") { _, url in
-                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
-                                                userInfo: ["urls": [url]])
-                Toast.show("已发起隔空投送", icon: "dot.radiowaves.left.and.right")
-            },
             CaptureActionTool(id: "history", title: "历史", systemImage: "clock.arrow.circlepath", key: "h") { _, _ in
                 CaptureHistoryWindowController.shared.show()
             },
@@ -175,7 +170,7 @@ public enum CaptureActionChain {
             CaptureActionGroup(id: "editGroup", title: "编辑", systemImage: "pencil.and.outline",
                                primary: "annotate", items: ["beautify"]),
             CaptureActionGroup(id: "moreGroup", title: "更多", systemImage: "ellipsis",
-                               primary: nil, items: ["airDrop", "history"]),
+                               primary: nil, items: ["history"]),
         ]
     }
 

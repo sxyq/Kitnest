@@ -59,14 +59,7 @@ public final class MonitorSampler: ObservableObject {
     private var panelActive = false
     private var homePanelActive = false
     private var settingsActive = false
-    private var islandActive = false
 
-    public func setIslandActive(_ active: Bool) {
-        guard islandActive != active else { return }
-        islandActive = active
-        applyPreferences()
-        if active { refresh() }
-    }
 
     public func setPanelActive(_ active: Bool) {
         guard panelActive != active else { return }
@@ -93,7 +86,7 @@ public final class MonitorSampler: ObservableObject {
         if active { refresh() }
     }
 
-    private var uiActive: Bool { panelActive || homePanelActive || settingsActive || islandActive }
+    private var uiActive: Bool { panelActive || homePanelActive || settingsActive }
 
     private struct Buffers {
         var cpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)

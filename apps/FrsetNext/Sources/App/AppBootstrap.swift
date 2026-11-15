@@ -64,16 +64,6 @@ enum AppBootstrap {
             item.richTextPath.flatMap { ClipboardRichTextStorage.read($0) }
         }
 
-        // 3.7) 空投联动（v112 对标报告第一批 P1）：剪贴板右键 / 截图动作链发来的
-        //      空投请求 → AirDropSendEngine（系统面板，iPhone 零安装）。
-        NotificationCenter.default.addObserver(
-            forName: .frsetAirDropFiles,
-            object: nil,
-            queue: .main) { note in
-                guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
-                AirDropSendEngine.send(urls: urls)
-            }
-
         // 4) App 层工具注册（跨模块工具砖：如取色器需接 Capture 的取色会话）
         Log.breadcrumb("Bootstrap", "appTools begin")
         registerAppLevelTools()

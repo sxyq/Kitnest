@@ -407,11 +407,9 @@ public enum AnalyticsEvent: String, CaseIterable {
     // v84（2026-10-20 用户需求「统计要覆盖新增功能」）：重建版新增能力事件。
     // 原版 59 键里没有这些功能，故不占用原版键位，直接追加（snake_case 自动派生）。
     case pinImage, longScreenshot, annotateEdit, screenRecord
-    case monitorPanelOpen, transferDockOpen, clipboardPaste
-    // v114（2026-10-25 用户需求「投屏从文件中转拆出」）：投屏页打开事件
-    case screenCastOpen
+    case monitorPanelOpen, clipboardPaste
     // v95（2026-10-21 用户：「使用统计要接入下载等功能」）
-    case fileDownload, fileTransferSend, fileTransferReceive
+    case fileDownload
 
     /// DB 事件名：camelCase → snake_case（historyCopy → history_copy）
     public var eventName: String {

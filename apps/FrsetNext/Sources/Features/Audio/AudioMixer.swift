@@ -86,11 +86,10 @@ public final class AudioMixerController: ObservableObject {
     private var refreshTimer: Timer?
     private var readingOutput = false
     private var settingsVisible = false
-    private var islandConsumers = Set<UUID>()
     private var outputListeners: [(AudioObjectID, AudioObjectPropertyAddress)] = []
     private var listenedOutput: AudioObjectID = 0
     private lazy var outputListener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-        guard let self, self.settingsVisible || !self.islandConsumers.isEmpty else { return }
+        guard let self, self.settingsVisible else { return }
         if self.listenedOutput != self.defaultOutputID { self.removeOutputListeners(); self.addOutputListeners() }
         self.refreshOutputState()
     }
@@ -127,16 +126,7 @@ public final class AudioMixerController: ObservableObject {
         settingsVisible = false
         refreshTimer?.invalidate()
         refreshTimer = nil
-        if islandConsumers.isEmpty { removeOutputListeners() }
-    }
-
-    /// 刘海仅消费系统输出；设置页的进程采样由它自己持有。
-    public func setIslandVisible(_ visible: Bool, consumer: UUID) {
-        if visible { islandConsumers.insert(consumer) } else { islandConsumers.remove(consumer) }
-        if visible {
-            if outputListeners.isEmpty { addOutputListeners() }
-            refreshOutputState()
-        } else if islandConsumers.isEmpty && !settingsVisible { removeOutputListeners() }
+        removeOutputListeners()
     }
 
     private func addOutputListeners() {

@@ -119,8 +119,6 @@ public enum StatusBarMenuBuilder {
                                     target: target)))
         }
 
-        menu.addItem(track(item("刘海工作台", key: "", modifiers: [],
-                                action: #selector(StatusBarController.openIslandAction(_:)), target: target)))
 
         menu.addItem(track(item("设置…",
                                 key: ",",

@@ -1011,13 +1011,6 @@ public final class ClipboardNativeMenuPresenter: NSObject {
                 }
             }
         }
-        // v112 空投联动（与 ClipboardRowMenuContent 的 SwiftUI 菜单同款）
-        addItem("隔空投送", systemImage: "dot.radiowaves.left.and.right", enabled: item.airDropFileURL != nil) {
-            if let url = item.airDropFileURL {
-                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
-                                                userInfo: ["urls": [url]])
-            }
-        }
         addItem("编辑", systemImage: "pencil") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem("重命名", systemImage: "character.cursor.ibeam") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem(item.isNote ? "取消笔记标记" : "标记为笔记", systemImage: "note.text") {

@@ -41,7 +41,7 @@ struct WelcomeView: View {
                             "区域录制，系统音 + 麦克风混音，可导出 GIF",
                         ]),
                     ])
-                    featureSection("效率与互联", items: [
+                    featureSection("效率工具", items: [
                         FeatureItem(symbol: "sparkles", title: "AI 体系", tint: .purple, lines: [
                             "Anthropic / Gemini / OpenAI 兼容 / Ollama 多服务商",
                             "对话、摘要、划词翻译、截图翻译一站式",
@@ -93,7 +93,7 @@ struct WelcomeView: View {
                 .symbolRenderingMode(.hierarchical)
             Text("欢迎使用 Kitnest")
                 .font(.system(size: 22, weight: .semibold))
-            Text("菜单栏效率工具 · 剪贴板 / 截图 / 监测 / 传输 / 归档 一站合一")
+            Text("菜单栏效率工具 · 剪贴板 / 截图 / 监测 / 归档 一站合一")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }

@@ -264,8 +264,6 @@ struct StatisticsSettingsPane: View {
         ("pencil.tip.crop.circle", "标注编辑", AnalyticsEvent.annotateEdit.eventName, "截图标注保存"),
         ("record.circle", "屏幕录制", AnalyticsEvent.screenRecord.eventName, "录屏"),
         ("arrow.down.circle", "网盘下载", AnalyticsEvent.fileDownload.eventName, "网盘解析下载"),
-        ("paperplane", "文件发送", AnalyticsEvent.fileTransferSend.eventName, "传输与投屏·发送"),
-        ("tray.and.arrow.down", "文件接收", AnalyticsEvent.fileTransferReceive.eventName, "传输与投屏·接收"),
         ("macwindow", "悬浮剪贴板", AnalyticsEvent.floatingClipboardActivate.eventName, "悬浮窗激活"),
         ("rectangle.3.group", "面板打开", AnalyticsEvent.panelOpen.eventName, "主面板唤起"),
         ("gauge", "监测中心", AnalyticsEvent.monitorPanelOpen.eventName, "性能监测页打开"),
