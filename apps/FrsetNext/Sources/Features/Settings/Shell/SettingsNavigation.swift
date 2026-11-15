@@ -30,6 +30,8 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     case searchAI
     case monitor
 
+    static let allCases: [Self] = [.general, .audio, .clipboard, .capture, .tools, .searchAI, .monitor]
+
     var id: String { rawValue }
 
     var title: String {
@@ -68,7 +70,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .clipboard:
             return [.clipboardHistory, .clipboardCapture, .clipboardAppearance, .clipboardFloating]
         case .transfer:
-            return [.transferDisplay, .transferCast, .transferScan, .transferCloud, .transferLocal]
+            return []
         case .capture:
             return [.capture(.capture), .captureActions]
                 + CaptureSettingsBlock.allCases.dropFirst().map { .capture($0) }

@@ -279,8 +279,6 @@ struct GeneralSettingsPane: View {
                     entryRow("主面板：性能监测", key: "showSystemStatus", draft: draft,
                              detail: draft.monitorPageAvailable ? "页面入口可见" : "页面入口隐藏；页面排列使用已保存值")
                     entryRow("主面板：首页日历", key: "showCalendar", draft: draft)
-                    entryRow("主面板：中转 / 投屏入口", key: Preferences.Keys.panelTransferDock, draft: draft,
-                             detail: draft.transferPagesAvailable ? "页面入口可见" : "页面入口隐藏；功能与页面排列使用已保存值")
                     entryRow("截图文字识别", key: "automaticScreenshotOCREnabled", draft: draft,
                              detail: "识别新截图文字供内容搜索；已识别的历史内容保留")
                     SettingsDivider()

@@ -23,7 +23,7 @@ public final class AppUpdateChecker {
     public static let shared = AppUpdateChecker()
 
     /// 官方更新清单；用户仍可在 设置 → 关于 覆盖（清空即回到默认）
-    public static let defaultFeedURL = "https://calorieai.sxyq27.online/kitnest/stable/latest.json"
+    public static let defaultFeedURL = "https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json"
 
     /// 清单更新后广播（WhatsNew 与状态栏用）
     public static let feedDidUpdateNotification = Notification.Name("frset.update.feedDidUpdate")
@@ -281,6 +281,13 @@ public final class AppUpdateChecker {
                     return
                 }
                 let newApp = payload.appendingPathComponent(appName)
+                guard Bundle(url: newApp)?.bundleIdentifier == Bundle.main.bundleIdentifier else {
+                    DispatchQueue.main.async {
+                        Toast.show("更新包不是 Kitnest Lite，请在关于页恢复精简版更新源", icon: "exclamationmark.triangle", isWarning: true)
+                    }
+                    try FileManager.default.removeItem(at: work)
+                    return
+                }
 
                 // 替换脚本：等本进程退出 → 备份 → 覆盖 → 去隔离 → 重开
                 let script = """
@@ -300,7 +307,7 @@ public final class AppUpdateChecker {
                 open "/Applications/\(appName)"
                 """
                 let scriptURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("frset-swap.sh")
+                    .appendingPathComponent("kitnest-lite-swap.sh")
                 try script.write(to: scriptURL, atomically: true, encoding: .utf8)
                 try FileManager.default.setAttributes([.posixPermissions: 0o755],
                                                       ofItemAtPath: scriptURL.path)

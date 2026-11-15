@@ -137,7 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // JSON 仍旧在 hover 预览里内联展示（JSONInspectorView）。
         }
         guard let url = urls.first,
-              url.scheme == "kitnest" || url.scheme == "frsetnext" else { return }
+              url.scheme == "kitnest-lite" else { return }
         Log.info("App", "URL 唤起: \(url.absoluteString)")
         // 窗口创建延后到下一 runloop：Apple Event 处理上下文内创建 NSWindow +
         // NSHostingView 会在 display cycle layout observer 中触发次级约束更新，
@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch url.host {
             case "island":
                 if let value = comps?.queryItems?.first(where: { $0.name == "page" })?.value,
-                   let page = IslandPage(rawValue: value) { IslandController.shared.page = page }
+                   let page = IslandPage(rawValue: value), IslandPage.allCases.contains(page) { IslandController.shared.page = page }
                 if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "collapse" {
                     IslandController.shared.collapse()
                 } else { IslandController.shared.open() }
@@ -327,16 +327,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // 深链直达页面：kitnest://panel?page=transfer|cast|performance
                 switch comps?.queryItems?.first(where: { $0.name == "page" })?.value {
                 case "home":       MonitorCenterPresenter.shared.selectHome()
-                case "transfer":   MonitorCenterPresenter.shared.selectTransferDock()
-                case "cast":
-                    MonitorCenterPresenter.shared.selectCast()
-                    // v159 排障/自动化入口：kitnest://panel?page=cast&qr=1 —— 打开扫码弹层。
-                    // 用途：① 无鼠标环境下验证弹层与重连链路；② 快捷指令一键唤起扫码。
-                    if comps?.queryItems?.first(where: { $0.name == "qr" })?.value == "1" {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                            NotificationCenter.default.post(name: .frsetOpenCastQR, object: nil)
-                        }
-                    }
                 case "performance": MonitorCenterPresenter.shared.selectPerformance()
                 default: break
                 }
@@ -437,9 +427,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     Log.warn("App", "stagetest：需要 ?file= 指定图片")
                 }
-            case "castapps":
-                // v166.3 排障/直达：打开「全部应用」独立窗口
-                CastAppLibraryWindowController.shared.show()
             case "storage":
                 // v211 排障/直达：kitnest://storage —— 直接打开存储管理面板，
                 // 便于无 UI 自动化环境下核对气泡地图、扫描进度与缓存加载。
@@ -451,15 +438,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StorageManagerWindowController.shared.show(autoScan: autoScan,
                                                            drill: drill,
                                                            openAgent: openAgent)
-            case "castpair":
-                // v166.5 排障/直达：打开面板并弹出「连接手机」弹层。
-                // 等一个 runloop 再发通知——面板刚建好时 CastView 还没 onAppear，
-                // 立刻发会丢订阅。
-                NSApp.activate(ignoringOtherApps: true)
-                PanelController.shared.show()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    NotificationCenter.default.post(name: .frsetOpenCastQR, object: nil)
-                }
             case "capture":
                 // v130（SnowShot 对齐）：kitnest://capture?action=history|delayed[&seconds=N]
                 // 历史窗 / 延时截图深链入口（CaptureDeepLink.handle 内部分流）

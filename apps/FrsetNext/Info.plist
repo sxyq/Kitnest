@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Kitnest</string>
+	<string>KitnestLite</string>
 	<key>CFBundleDisplayName</key>
-	<string>Kitnest</string>
+	<string>Kitnest Lite</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.sxyq.frsetnext</string>
+	<string>com.sxyq.kitnestlite</string>
 	<key>CFBundleExecutable</key>
-	<string>Kitnest</string>
+	<string>KitnestLite</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleIconFile</key>
@@ -40,11 +40,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.sxyq.frsetnext</string>
+			<string>com.sxyq.kitnestlite</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>kitnest</string>
-				<string>frsetnext</string>
+				<string>kitnest-lite</string>
 			</array>
 		</dict>
 	</array>

@@ -89,7 +89,6 @@ public enum WhatsNewCatalog {
         // v267：截图只有一套自适应行为，不再分「区域 / 窗口」两档
         .init(category: .added, text: "截图自适应：悬停窗口单击截整窗、直接拖拽截自定义范围、点空白处截全屏"),
         .init(category: .added, text: "命令面板 ⌥K：全部功能统一检索直达"),
-        .init(category: .added, text: "传输与投屏：隔空投送收发、Android 无线配对、ADB 文件互传、扫码直传"),
         .init(category: .improved, text: "三级玻璃分层视觉，日历/剪贴板卡统一宽度"),
         .init(category: .improved, text: "启动性能收紧，预览窗高度自适应"),
         .init(category: .fixed, text: "剪贴板预览支持 Markdown 表格（Excel 风格完整网格）"),

@@ -49,9 +49,6 @@ struct IslandRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: ClipboardManager.itemsDidChangeNotification)) { _ in
             if !preview && controller.expanded { reloadRecords() }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .localTransferDidChange)) { _ in
-            if !preview && controller.expanded { reloadRecords() }
-        }
         .task(id: recordsRevision) { await loadRecords() }
     }
 
@@ -150,7 +147,6 @@ struct IslandRootView: View {
             .tint(controller.configuration.color(for: item))
             .islandGlow(enabled: controller.glowEnabled && controller.expanded && controller.page == .home)
             .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
-            .dropDestination(for: URL.self) { urls, _ in item == .clipboard && receiveFiles(urls) }
     }
 
     private func compactRecord(_ record: IslandRecentRow) -> some View {
@@ -232,20 +228,6 @@ struct IslandRootView: View {
             }
         }
         .contentShape(Rectangle())
-        .dropDestination(for: URL.self) { urls, _ in receiveFiles(urls) }
-    }
-
-    private func receiveFiles(_ urls: [URL]) -> Bool {
-        let files = urls.filter(\.isFileURL)
-        guard !files.isEmpty else { return false }
-        if preview { controller.feedback = "预览接收 \(files.count) 个文件"; return true }
-        controller.beginInteraction()
-        LocalTransferStore.shared.add(urls: files) { count in
-            controller.endInteraction()
-            controller.feedback = LocalTransferStore.shared.lastError ?? "已暂存 \(count) 个文件"
-            reloadRecords()
-        }
-        return true
     }
 
     private func select(_ record: IslandRecentRow, openPage: Bool = false) {
@@ -300,30 +282,16 @@ struct IslandRootView: View {
                                 date: Date(timeIntervalSince1970: 0), sample: sample)
             }
         } else {
-            let transfers = LocalTransferStore.shared.items
             let work = Task.detached(priority: .userInitiated) { () -> [IslandRecentRow] in
                 if Task.isCancelled { return [] }
                 let clipboard = ClipboardRepository.shared.fetch(ClipboardQuery())
                 var joined: [String: IslandRecentRow] = [:]
-                var aliases: [String: String] = [:]
-                for transfer in transfers {
-                    if Task.isCancelled { return [] }
-                    let original = URL(fileURLWithPath: transfer.originalPath).standardizedFileURL.path
-                    let staged = transfer.stagedURL.standardizedFileURL.path
-                    let key = "file:" + original
-                    aliases[original] = key
-                    aliases[staged] = key
-                    if joined[key] == nil {
-                        joined[key] = IslandRecentRow(id: key, title: transfer.name, icon: Self.fileIcon(transfer.stagedURL),
-                            date: Date(timeIntervalSince1970: transfer.addedAt), transfer: transfer, url: transfer.stagedURL)
-                    }
-                }
                 for item in clipboard {
                     if Task.isCancelled { return [] }
                     if item.type == .file {
                         for path in (item.content ?? "").split(separator: "\n") {
                             let url = URL(fileURLWithPath: String(path)).standardizedFileURL
-                            let key = aliases[url.path] ?? "file:" + url.path
+                            let key = "file:" + url.path
                             if var row = joined[key] {
                                 if row.clipboard == nil { row.clipboard = item }
                                 row.date = max(row.date, item.timestamp)

@@ -3,6 +3,7 @@ import SwiftUI
 
 enum IslandPage: String, CaseIterable, Identifiable {
     case home, clipboard, monitor, media, calendar, tools, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
+    static let allCases: [Self] = [.home, .clipboard, .monitor, .media, .calendar, .tools, .search, .capture, .recording, .ocr, .ai, .statistics, .archive, .downloads]
     var id: String { rawValue }
     static let tabs: [Self] = [.home, .clipboard, .monitor, .tools]
     var title: String {
@@ -70,6 +71,7 @@ struct IslandConfiguration: Codable, Equatable {
         guard let data = UserDefaults.standard.data(forKey: key) else { return Self() }
         do {
             var value = try JSONDecoder().decode(Self.self, from: data)
+            value.widgetOrder.removeAll { !IslandWidget.allCases.contains($0) }
             value.widgetOrder += IslandWidget.allCases.filter { !value.widgetOrder.contains($0) }
             return value
         }
@@ -118,6 +120,7 @@ enum IslandPeek: String, CaseIterable, Codable, Identifiable {
 
 enum IslandWidget: String, CaseIterable, Codable, Identifiable {
     case monitor, media, calendar, clipboard, tools, volume, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
+    static let allCases: [Self] = [.monitor, .media, .calendar, .clipboard, .tools, .volume, .search, .capture, .recording, .ocr, .ai, .statistics, .archive, .downloads]
     var id: String { rawValue }
     var page: IslandPage { self == .volume ? .media : IslandPage(rawValue: rawValue)! }
     var title: String {

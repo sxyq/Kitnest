@@ -64,25 +64,6 @@ enum AppBootstrap {
             item.richTextPath.flatMap { ClipboardRichTextStorage.read($0) }
         }
 
-        // 3.6) 剪贴板文件 → 文件中转自动暂存（2026-10-20）：模块间不互相引用，这里接线。
-        //      复制 zip / Word / PPT / Excel 等文件时自动进本地暂存（硬链接，不复制数据）。
-        NotificationCenter.default.addObserver(
-            forName: ClipboardManager.filesCapturedNotification,
-            object: nil,
-            queue: .main) { note in
-                guard TransferDockPref.isOn(TransferDockPref.featureEnabled),
-                      TransferDockPref.isOn(TransferDockPref.autoStageClipboard),
-                      let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
-                LocalTransferStore.shared.autoStage(urls: urls) { count, error in
-                    if let error {
-                        Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
-                    } else if count > 0 {
-                        Log.info("TransferDock", "剪贴板与中转同步 \(count) 个文件")
-                    }
-                }
-            }
-        LocalTransferStore.shared.startRetentionCleanup()
-
         // 3.7) 空投联动（v112 对标报告第一批 P1）：剪贴板右键 / 截图动作链发来的
         //      空投请求 → AirDropSendEngine（系统面板，iPhone 零安装）。
         NotificationCenter.default.addObserver(
@@ -127,9 +108,6 @@ enum AppBootstrap {
         // 每次访问都整表拷贝环境字典，`UserDefaults.bool(forKey:)` 也是逐次查偏好库；
         // 原来 5 个探针门各查各的。这里一次性取齐，之后只读局部量（探针本身仍是零开销路径）。
         let env = ProcessInfo.processInfo.environment
-        let probeLan = UserDefaults.standard.bool(forKey: "probe.lan")
-        let probeMCP = UserDefaults.standard.bool(forKey: "probe.mcp")
-        let probeWebDAV = UserDefaults.standard.bool(forKey: "probe.webdav")
 
         // 排障探针（2026-10-20）：FRSET_CLOUDLINK_TEST_URL=<直链> 时启动 3s 后直接走一次下载，
         // 用于无 UI 自动化环境下验证「解析下载」的下载落盘链路。
@@ -139,23 +117,6 @@ enum AppBootstrap {
                 Log.info("CloudLink", "探针：直链下载测试 \(raw)")
                 CloudLinkDownloader.shared.startDirectDownload(url: url)
             }
-        }
-
-        // 排障探针（2026-10-20）：FRSET_LAN_PROBE=1（或 defaults 键 probe.lan）直接拉起
-        // 局域网直传服务，用于无 UI 自动化环境下 curl 验证「直传页 / 列表 / 上传 / 下载」端点。
-        // 走 defaults 键是为了 `open -a` 启动（拿不到环境变量）时也能验。
-        if env["FRSET_LAN_PROBE"] == "1" || probeLan {
-            LanTransferServer.shared.start()
-            Log.info("TransferDock", "探针：局域网直传服务已拉起")
-        }
-        // v116 探针：MCP / WebDAV（无 UI 自动化环境下用 curl 验证端点）
-        if probeMCP {
-            _ = MCPServer.shared.start()
-            Log.info("MCP", "探针：MCP 服务器已拉起 \(MCPServer.shared.baseEndpoint)（token 不入日志）")
-        }
-        if probeWebDAV {
-            _ = AndroidWebDAVServer.shared.start()
-            Log.info("WebDAV", "探针：WebDAV 已拉起 \(AndroidWebDAVServer.shared.baseURL)")
         }
 
         // 6) 首启引导（onboarding）：欢迎窗自动弹出（首启或引导版本过旧）。
@@ -432,12 +393,6 @@ enum AppBootstrap {
         DefaultHotkeyEntry(id: "longScreenshot", title: "长截图",
                            keyCode: 0x25, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥L
             ScreenshotManager.shared.captureLongScreenshot()
-        },
-        DefaultHotkeyEntry(id: "openTransferDock", title: "文件中转",
-                           keyCode: 0x11, modifiers: UInt32(optionKey)) {   // ⌥T
-            NSApp.activate(ignoringOtherApps: true)
-            ServiceLocator.panel?.show()
-            MonitorCenterPresenter.shared.selectTransferDock()
         },
         DefaultHotkeyEntry(id: "toggleClipboardRecording", title: "暂停/恢复剪贴板记录",
                            keyCode: 0x0F, modifiers: UInt32(shiftKey | optionKey)) {   // ⇧⌥R（⇧⌥P 已被原版「截图并贴图」占用）

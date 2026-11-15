@@ -78,9 +78,6 @@ struct PanelRootView: View {
     }
 
     /// v250：拖文件到图标后的转入弹框（挂在面板根上，任意页面都能弹）
-    @Stored private var intake: TransferIntakeRequest?
-    @Stored private var showsTransferLogin = false
-    @Stored private var pendingCloudURLs: [URL] = []
 
     private var page: PanelCenterPage { isSettingsPreview ? previewPage : monitorPresenter.activePage }
 
@@ -97,8 +94,7 @@ struct PanelRootView: View {
         // v260：关掉「启用文件中转」或「常规 → 功能 → 文件中转」时，
         // 顶部的中转/投屏按钮一起消失，不再留一个只能显示「已关闭」的空壳按钮。
         // 「个性化 → 主面板页面」仍决定功能开启后是否显示该分段（两者 AND）。
-        case .transfer:    return segmentTransfer && transferEntryEnabled && transferFeatureEnabled
-        case .cast:        return segmentCast && transferEntryEnabled && transferFeatureEnabled
+        case .transfer, .cast: return false
         }
     }
 
@@ -272,58 +268,6 @@ struct PanelRootView: View {
             normalizeSegmentSelection()
         }
         // ⌥F「打开并搜索」：先回到主页（搜索框在主页顶部），聚焦由 SearchSectionView 处理
-        .onReceive(NotificationCenter.default.publisher(for: .frsetTransferIntake)) { note in
-            if isSettingsPreview { return }
-            guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
-            intake = TransferIntakeRequest(urls: urls)
-        }
-        .sheet(item: $intake, onDismiss: {
-            if !pendingCloudURLs.isEmpty { showsTransferLogin = true }
-        }) { req in
-            TransferIntakeDialog(
-                request: req,
-                onConfirm: { choice in
-                    intake = nil
-                    switch choice {
-                    case .cloud:
-                        guard TransferDockService.shared.loggedIn else {
-                            pendingCloudURLs = req.urls
-                            return
-                        }
-                        TransferDockService.shared.uploadBatch(req.urls)
-                    case .local:
-                        LocalTransferStore.shared.add(urls: req.urls) { count in
-                            if let error = LocalTransferStore.shared.lastError {
-                                Toast.show(error, icon: "exclamationmark.triangle", isWarning: true)
-                            } else {
-                                Toast.show("已暂存 \(count) 个文件到本地中转", icon: "internaldrive")
-                            }
-                        }
-                    }
-                },
-                onCancel: { intake = nil })
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .frsetOpenTransferLogin)) { _ in
-            if isSettingsPreview { return }
-            showsTransferLogin = true
-        }
-        .sheet(isPresented: $showsTransferLogin, onDismiss: { pendingCloudURLs = [] }) {
-            TransferDockLoginView(
-                onCancel: {
-                    pendingCloudURLs = []
-                    showsTransferLogin = false
-                },
-                onLoggedIn: {
-                    let urls = pendingCloudURLs
-                    pendingCloudURLs = []
-                    showsTransferLogin = false
-                    if urls.isEmpty {
-                        TransferDockService.shared.refresh()
-                    } else {
-                        TransferDockService.shared.uploadBatch(urls)
-                    }
-                })
-        }
         .onReceive(NotificationCenter.default.publisher(for: .frsetFocusPanelSearch)) { _ in
             if isSettingsPreview { return }
             if page != .home { monitorPresenter.selectHome() }
@@ -802,12 +746,6 @@ struct PanelRootView: View {
                 // 同一选中态、同一内外边距、同一滚动策略）。v82（2026-10-19）：外层
                 // ScrollView 移除——双层嵌套曾导致模块切换按钮点击被吞。
                 MonitorPerformanceContent().transition(PanelMotion.transition(.opacity))
-            } else if activePage == .transfer {
-                // 第三页：文件中转（隔空投送 / 扫码直传 / ADB 文件互传 / 本地暂存）
-                TransferDockView().transition(PanelMotion.transition(.opacity))
-            } else {
-                // 第四页：投屏（v114 从文件中转拆出；v136 起不再常驻合成）
-                CastView().transition(PanelMotion.transition(.opacity))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

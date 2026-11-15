@@ -61,12 +61,6 @@ final class SettingsUIState: ObservableObject {
         case "clipboard.capture":                selection = .clipboardCapture
         case "clipboard.floating", "floatingClipboard": selection = .clipboardFloating
         case "clipboard.appearance": selection = .clipboardAppearance
-        // 文件中转
-        case "transfer", "transfer.display":     selection = .transferDisplay
-        case "transfer.cast", "cast":            selection = .transferCast
-        case "transfer.scan", "scan":            selection = .transferScan
-        case "transfer.cloud", "cloud":          selection = .transferCloud
-        case "transfer.local", "local":          selection = .transferLocal
         // 搜索与 AI
         case "search":                           selection = .search
         case "ai":                               selection = .ai

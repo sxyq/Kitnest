@@ -54,8 +54,7 @@ public enum TransferDockPref {
     /// 三个开关的默认值都是「开」：不写默认值时 UserDefaults.bool 返回 false，
     /// 会导致老用户升级后功能突然消失，这里统一按「未设置 = 开」解释。
     public static func isOn(_ key: String, default fallback: Bool = true) -> Bool {
-        guard let value = UserDefaults.standard.object(forKey: key) as? Bool else { return fallback }
-        return value
+        false
     }
 
     /// 云端通道当前是否可用（开关开 **且** 桥接脚本/登录态存在）

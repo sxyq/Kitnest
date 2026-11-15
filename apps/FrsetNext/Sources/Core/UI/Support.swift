@@ -392,9 +392,9 @@ public enum AppDirectories {
         }
         let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         #if DEBUG
-        let dir = root.appendingPathComponent("FrsetNext-Dev", isDirectory: true)
+        let dir = root.appendingPathComponent("KitnestLite-Dev", isDirectory: true)
         #else
-        let dir = root.appendingPathComponent("FrsetNext", isDirectory: true)
+        let dir = root.appendingPathComponent("KitnestLite", isDirectory: true)
         #endif
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir

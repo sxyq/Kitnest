@@ -27,7 +27,7 @@ struct WelcomeView: View {
                     featureSection("核心工作区", items: [
                         FeatureItem(symbol: "square.stack.3d.up", title: "主面板", tint: .blue, lines: [
                             "搜索框：网页 / 剪贴板历史 / 本地文件三合一",
-                            "日历、剪贴板、文件中转同屏；顶部页面可自定义增删与排序",
+                            "日历、剪贴板同屏；顶部页面可自定义增删与排序",
                         ]),
                         FeatureItem(symbol: "camera.viewfinder", title: "截图工具箱", tint: .indigo, lines: [
                             "区域 / 窗口 / 长截图，9 种标注工具，可直接美化导出",
@@ -49,10 +49,6 @@ struct WelcomeView: View {
                         FeatureItem(symbol: "wrench.and.screwdriver", title: "工具箱", tint: .orange, lines: [
                             "时间戳、IP、二维码、图片压缩、单位换算等",
                             "命令面板（⌥K）统一检索全部功能",
-                        ]),
-                        FeatureItem(symbol: "arrow.left.arrow.right", title: "文件传输 · 投屏", tint: .teal, lines: [
-                            "隔空投送收发、扫码直传、ADB 文件互传",
-                            "Android 无线配对 + 镜像投屏（零安装）",
                         ]),
                         FeatureItem(symbol: "clipboard", title: "剪贴板增强", tint: .cyan, lines: [
                             "历史记录、悬浮窗、标签、复制后自动粘贴",
@@ -230,7 +226,6 @@ struct WelcomeView: View {
                 hotkeyRow("⇧⌥R", "暂停 / 恢复剪贴板")
                 hotkeyRow("⌥P", "性能监测")
                 hotkeyRow("⌥M", "监测独立窗口")
-                hotkeyRow("⌥T", "文件中转")
                 hotkeyRow("⌥K", "命令面板")
             }
             Text("全部可在 设置 → 快捷键 中自定义。")

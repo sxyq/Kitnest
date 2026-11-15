@@ -28,7 +28,7 @@ public enum PanelSegments {
     public static let orderKey = "panel.segment.order"
 
     /// 出厂顺序（也是「恢复默认」用的顺序）
-    public static let defaultOrder: [PanelCenterPage] = [.home, .performance, .transfer, .cast]
+    public static let defaultOrder: [PanelCenterPage] = [.home, .performance]
 
     public static func title(_ page: PanelCenterPage) -> String {
         switch page {
@@ -62,7 +62,7 @@ public enum PanelSegments {
         var pages: [PanelCenterPage] = []
         for token in raw.split(separator: ",") {
             let trimmed = token.trimmingCharacters(in: .whitespaces)
-            guard let page = PanelCenterPage(rawValue: trimmed), !pages.contains(page) else { continue }
+            guard let page = PanelCenterPage(rawValue: trimmed), defaultOrder.contains(page), !pages.contains(page) else { continue }
             pages.append(page)
         }
         for page in defaultOrder where !pages.contains(page) { pages.append(page) }
@@ -74,7 +74,7 @@ public enum PanelSegments {
         var normalized = pages
         for page in defaultOrder where !normalized.contains(page) { normalized.append(page) }
         var seen = Set<PanelCenterPage>()
-        return normalized.filter { seen.insert($0).inserted }.map(\.rawValue).joined(separator: ",")
+        return normalized.filter { defaultOrder.contains($0) && seen.insert($0).inserted }.map(\.rawValue).joined(separator: ",")
     }
 }
 
