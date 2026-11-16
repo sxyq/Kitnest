@@ -3415,18 +3415,18 @@ StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,applyRotat
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,spin,func,239,KEEP,调用方 startFan:487
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,stop,func,246,KEEP,调用方 stopRotating:534
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,configure,func,257,KEEP,正式图标应用器和预览共用按钮绘制：logo/custom 使用模板 SF Symbol，date 写日期标题，fan 挂居中的 18pt RotatingLayerView 并返回视图
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,dateTitle,func,289,KEEP,使用 en_US_POSIX 的 M/d 日期格式，正式状态项传当前时间，菜单栏预览传固定日期
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeCoordinator,func,311,KEEP,菜单栏图标设置预览创建Coordinator保存style/symbol及rotatingView，update只在样式变化重建，拆除时停止旋转
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeNSView,func,313,KEEP,建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,updateNSView,func,314,KEEP,移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,dismantleNSView,func,348,KEEP,菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,func,362,KEEP,@objc；#selector StatusBarMenuBuilder.swift:214
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,func,379,KEEP,调用方 updateFanSpeed:508
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,func,394,KEEP,调用方 current:301（私有）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,init,init,447,KEEP,shared:348 初始化，经 StatusBarModule.swift:14 start() 触达
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,func,451,KEEP,调用方 StatusBarModule.swift:14
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,func,477,KEEP,调用方同文件 :261/:266/:283（菜单动作）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,func,481,KEEP,UserDefaults 观察者 :376/:387，start:389 亦调用
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,dateTitle,func,288,KEEP,使用 en_US_POSIX 的 M/d 日期格式，正式状态项传当前时间，菜单栏预览传固定日期
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeCoordinator,func,310,KEEP,菜单栏图标设置预览创建Coordinator保存style/symbol及rotatingView，update只在样式变化重建，拆除时停止旋转
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeNSView,func,312,KEEP,建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,updateNSView,func,313,KEEP,移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,dismantleNSView,func,347,KEEP,菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,func,361,KEEP,@objc；#selector StatusBarMenuBuilder.swift:214
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,func,378,KEEP,调用方 updateFanSpeed:508
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,func,393,KEEP,调用方 current:301（私有）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,init,init,446,KEEP,shared:348 初始化，经 StatusBarModule.swift:14 start() 触达
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,func,450,KEEP,调用方 StatusBarModule.swift:14
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,func,476,KEEP,调用方同文件 :261/:266/:283（菜单动作）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,func,480,KEEP,UserDefaults 观察者 :376/:387，start:389 亦调用
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,func,508,KEEP,调用方 apply:431（date 样式）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,func,522,KEEP,调用方 apply:441（fan 样式）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,func,536,KEEP,调用方 startFan:502 及 cpu 定时器回调:498

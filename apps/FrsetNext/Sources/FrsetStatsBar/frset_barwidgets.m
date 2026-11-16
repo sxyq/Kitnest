@@ -717,16 +717,15 @@ static BOOL g_runCatTimerStarted = NO;
 // v32/v34 前向声明（实现见 FSBarWidgetView @end 之后的 run_cat static 区）
 static NSImage *FSRunCatImage(int idx, BOOL white);
 static void FSRunCatStartTimer(void);
-// v34：主图标换猫状态（v35：image 直改已被覆盖层方案取代）
+// 主图标使用原生按钮图像；预览视图沿用相同帧资源。
 // v43（2026-10-18 用户指示）：**默认关闭**——状态栏主图标回到之前版本
 // （动态风扇 / Logo / 日期，由通用页「菜单栏图标」选择）。奔跑小猫只是注入版
 // 的额外玩法，不再默认覆盖官方图标；想要的用户可在设置里勾选「小猫」。
 static BOOL g_mainIconCatEnabled = NO;
 static BOOL g_mainIconCatInited = NO;
 static int g_mainIconCatLastFrame = -1;
-static BOOL g_mainIconCatLastDark = YES;
 
-// v35：主图标小猫覆盖层（@implementation 在 FSBarWidgetView 实现之后）
+// 设置预览中的小猫动画视图。
 @interface FSRunCatIconView : NSView
 @property (nonatomic, strong) NSNumber *fixedFrame;
 @property (nonatomic, strong) NSTimer *previewTimer;
@@ -1844,9 +1843,6 @@ static NSImage *FSRunCatImage(int idx, BOOL white) {
     return img;
 }
 
-// v35：主图标小猫覆盖层实现（@interface 在 FSBarWidgetView 声明前）
-static FSRunCatIconView *g_mainIconCatView = nil;   // v35：主图标覆盖层（存在=已接管）
-
 @implementation FSRunCatIconView
 - (BOOL)isOpaque { return NO; }
 - (NSView *)hitTest:(NSPoint)p { (void)p; return nil; }   // 点击穿透到 button（保持原 action）
@@ -1918,51 +1914,20 @@ static FSRunCatIconView *g_mainIconCatView = nil;   // v35：主图标覆盖层�
 }
 @end
 
-// v35：确保覆盖层存在、在最上、尺寸同步（幂等；App 重排子视图时自动恢复置顶）
-static void FSRunCatEnsureMainIconOverlay(void) {
+// 2026-11-16：用户反复反馈小猫旁的可点击空白；主按钮直接显示真实帧，取消空图覆盖层。
+static void FSRunCatUpdateMainIcon(void) {
     NSStatusItem *main = FSFindMainBarItem();
     if (!main || !main.button) return;
     NSButton *b = main.button;
-    if (!g_mainIconCatView || g_mainIconCatView.superview != b) {
-        g_mainIconCatView = [[FSRunCatIconView alloc] initWithFrame:b.bounds];
-        g_mainIconCatView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        // v35.1：强制置顶 —— 原图标渲染（图层/背景）可能压在普通子视图之上；
-        //   独立图层 + 超高 zPosition 可压过同级/后加的图层。
-        g_mainIconCatView.wantsLayer = YES;
-        g_mainIconCatView.layer.zPosition = 1000;
-        [b addSubview:g_mainIconCatView];
-        FSBarLog(@"[mainicon] 小猫覆盖层已挂载（bounds=%@）", NSStringFromRect(b.bounds));
-    } else if (b.subviews.lastObject != g_mainIconCatView) {
-        [g_mainIconCatView removeFromSuperview];   // App 又加/重排子视图 → 重新置顶
-        [b addSubview:g_mainIconCatView];
-    }
-    // v35.3：隐藏原图标子视图（"白色方块"的渲染源），我们完全接管显示；
-    //   每帧复检（若被重设 hidden 会被立即收回）。
-    for (NSView *sv2 in b.subviews) {
-        if (sv2 == g_mainIconCatView) continue;
-        if (!sv2.hidden) sv2.hidden = YES;
-    }
-    g_mainIconCatView.hidden = NO;
-    g_mainIconCatView.layer.zPosition = 1000;      // 每次同步（防御改动）
-    if (!NSEqualRects(g_mainIconCatView.frame, b.bounds)) {
-        g_mainIconCatView.frame = b.bounds;
-    }
-    // v82（用户：菜单栏像有两只猫、且一只被裁）：底层 button.image 仍会被 NSButton
-    // 自己绘制（隐藏子视图挡不住），custom 猫符号会从覆盖层透明区透出来，形成
-    // “静态猫 + 动画猫”两套观感。接管期间清空 button 自带图/标题。
-    if (b.image && b.image.size.width > 1) {
-        b.image = [NSImage new];   // 空图占位（同 fan 做法：无图则不绘制子视图）
-        b.title = @"";
-    }
-    // v82：主项宽度按猫的 56:36 固定，避免 variableLength 把猫裁掉
-    //（按钮尚未布局时高度为 0，跳过，等下一拍再定宽）
-    CGFloat bh = b.bounds.size.height;
-    if (bh > 8) {
-        CGFloat wantW = ceil((bh - 2) * 56.0 / 36.0) + 2;
-        if (main.length < wantW - 0.5) {
-            main.length = wantW;
-        }
-    }
+    NSImage *image = [FSRunCatImage(g_runCatFrame, NO) copy];
+    image.size = NSMakeSize(20 * 56.0 / 36.0, 20);
+    image.template = YES; // 状态按钮按菜单栏背景着色，不依赖覆盖层外观。
+    b.title = @"";
+    b.imagePosition = NSImageOnly;
+    b.imageScaling = NSImageScaleProportionallyDown;
+    b.image = image;
+    if (main.length != 34) main.length = 34;
+    g_mainIconCatLastFrame = g_runCatFrame;
 }
 
 // v85：运行时开关（设置窗「菜单栏图标 · 小猫」用）
@@ -1976,16 +1941,14 @@ void FSRunCatIconApplySavedConfiguration(void) {
     g_mainIconCatEnabled = on;
     g_mainIconCatInited = YES;
     if (!on) {
-        [g_mainIconCatView removeFromSuperview];
-        g_mainIconCatView = nil;
         NSStatusItem *main = FSFindMainBarItem();
-        for (NSView *sv in main.button.subviews) sv.hidden = NO;   // 恢复官方图标
         main.length = NSVariableStatusItemLength;                  // v82：恢复原宽度
         [[NSNotificationCenter defaultCenter] postNotificationName:@"FrsetRunCatIconChanged" object:nil];
         FSBarLog(@"[mainicon] 小猫关 → 恢复官方图标");
     } else {
-        FSRunCatEnsureMainIconOverlay();
-        FSBarLog(@"[mainicon] 小猫开 → 覆盖官方图标");
+        FSRunCatStartTimer();
+        FSRunCatUpdateMainIcon();
+        FSBarLog(@"[mainicon] 小猫开 → 原生主按钮图像（34pt）");
     }
 }
 
@@ -2048,19 +2011,9 @@ static void FSRunCatTick(void) {
     }
     // v71：合并条 run_cat 已移除，帧推进仅服务主图标覆盖层
 
-    // v35：主图标换猫（用户需求"完全替换"）——覆盖层方案：帧/明暗变化时重绘覆盖层；
-    //   原 button.image 不动（被覆盖层盖住），点击穿透 → 打开主页行为不变。
-    if (g_mainIconCatEnabled) {
-        NSStatusItem *main = FSFindMainBarItem();
-        if (main && main.button) {
-            FSRunCatEnsureMainIconOverlay();
-            BOOL dark = FSBarDark(g_mainIconCatView);
-            if (g_runCatFrame != g_mainIconCatLastFrame || dark != g_mainIconCatLastDark) {
-                g_mainIconCatLastFrame = g_runCatFrame;
-                g_mainIconCatLastDark = dark;
-                [g_mainIconCatView setNeedsDisplay:YES];
-            }
-        }
+    NSStatusItem *main = FSFindMainBarItem();
+    if (main && (g_runCatFrame != g_mainIconCatLastFrame || !main.button.image)) {
+        FSRunCatUpdateMainIcon();
     }
 }
 

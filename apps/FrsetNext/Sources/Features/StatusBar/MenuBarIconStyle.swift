@@ -280,8 +280,7 @@ enum MenuBarIconDrawing {
             ])
             return view
         case .cat:
-            button.image = nil
-            button.imagePosition = .noImage
+            button.imagePosition = .imageOnly
         }
         return nil
     }
@@ -499,6 +498,7 @@ final class MenuBarIconStyleApplier {
         button.toolTip = "Kitnest（右键查看更多）"
         StatusBarController.shared.setMainItemLength(style == .fan ? Self.fanItemLength
                                                      : style == .cat ? 34 : NSStatusItem.variableLength)
+        if style == .cat { FSRunCatIconApplySavedConfiguration() }
         if style == .date { startDateTimer() }
         if let view { startFan(view) }
     }
