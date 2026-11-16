@@ -2003,11 +2003,9 @@ static void FSRunCatTick(void) {
     g_runCatProgress += dt * m;
     double step = 1.0 / 8.0;               // 基础 8fps
     if (g_runCatProgress > step * 2) g_runCatProgress = step * 2;   // 每 tick 最多 2 帧（防跳帧）
-    BOOL advanced = NO;
     while (g_runCatProgress >= step) {
         g_runCatProgress -= step;
         g_runCatFrame = (g_runCatFrame + 1) % frset_runcat_frame_count();
-        advanced = YES;
     }
     // v71：合并条 run_cat 已移除，帧推进仅服务主图标覆盖层
 

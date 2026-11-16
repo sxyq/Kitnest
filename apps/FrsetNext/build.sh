@@ -2,7 +2,7 @@
 # Kitnest 一键构建：编译全部 Swift 源码 → 打包 .app → ad-hoc 签名
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-SRC="$ROOT/Sources"
+SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
 # v31（2026-10-18）：构建产物与部署全程原子化。
 # 病灶：原先「rm -rf build/Kitnest.app → 原地编译」，且部署用 ditto 覆盖合并——
 #   构建/复制的几秒窗口期内，Finder 双击拿到的是半成品 bundle，Gatekeeper 直接报
