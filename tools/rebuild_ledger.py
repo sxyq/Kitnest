@@ -252,8 +252,8 @@ EVIDENCE = {
         "编辑保存：回写 content/text_path/字行数/占用，title 同步为 content.firstLineBrief",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "updateAliasTitle"):
         "重命名：写 alias_title；空串按清除处理（写 NULL）",
-    ("Features/Clipboard/Store/ClipboardRepository.swift", "updateFields"):
-        "工具回流与 OCR 回填：rich_text_path/image_path/thumbnail_path/storage_bytes/is_note 各自按需单条 UPDATE",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "updateNote"):
+        "2026-11-17：Manager笔记切换唯一调用；仅绑定is_note及dedupeKey更新；四个附件通用更新参数无调用已删除",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "delete"):
         "删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "rowsOlderThan"):

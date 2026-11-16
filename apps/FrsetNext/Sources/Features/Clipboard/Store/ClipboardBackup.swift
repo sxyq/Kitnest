@@ -73,12 +73,10 @@ enum ClipboardBackup {
 
     final class RestoreSession {
         fileprivate let directory: URL
-        fileprivate let manifest: Manifest
         let summary: String
 
-        fileprivate init(directory: URL, manifest: Manifest, summary: String) {
+        fileprivate init(directory: URL, summary: String) {
             self.directory = directory
-            self.manifest = manifest
             self.summary = summary
         }
 
@@ -232,7 +230,7 @@ enum ClipboardBackup {
                                                 database.accessLock.unlock()
                                                 throw error
                                             }
-                                            let session = RestoreSession(directory: root, manifest: manifest,
+                                            let session = RestoreSession(directory: root,
                                                                          summary: analysis.summary(manifest))
                                             DispatchQueue.main.async {
                                                 do {

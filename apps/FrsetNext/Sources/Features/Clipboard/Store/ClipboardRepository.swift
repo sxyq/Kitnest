@@ -247,29 +247,10 @@ public final class ClipboardRepository: @unchecked Sendable {
         }
     }
 
-    /// 更新富文本 / 图片 / 通用字段（工具回流与 OCR 后回填用）
-    public func updateFields(dedupeKey: String, richTextPath: String? = nil, imagePath: String? = nil,
-                             thumbnailPath: String? = nil, storageBytes: Int? = nil, note: Bool? = nil) {
-        if let richTextPath {
-            try? db.run("UPDATE clipboard_items SET rich_text_path = ? WHERE dedupe_key = ?",
-                        [.text(richTextPath), .text(dedupeKey)])
-        }
-        if let imagePath {
-            try? db.run("UPDATE clipboard_items SET image_path = ? WHERE dedupe_key = ?",
-                        [.text(imagePath), .text(dedupeKey)])
-        }
-        if let thumbnailPath {
-            try? db.run("UPDATE clipboard_items SET thumbnail_path = ? WHERE dedupe_key = ?",
-                        [.text(thumbnailPath), .text(dedupeKey)])
-        }
-        if let storageBytes {
-            try? db.run("UPDATE clipboard_items SET storage_bytes = ? WHERE dedupe_key = ?",
-                        [.int(Int64(storageBytes)), .text(dedupeKey)])
-        }
-        if let note {
-            try? db.run("UPDATE clipboard_items SET is_note = ? WHERE dedupe_key = ?",
-                        [.int(note ? 1 : 0), .text(dedupeKey)])
-        }
+    /// 切换条目的笔记标记。
+    public func updateNote(dedupeKey: String, isNote: Bool) {
+        try? db.run("UPDATE clipboard_items SET is_note = ? WHERE dedupe_key = ?",
+                    [.int(isNote ? 1 : 0), .text(dedupeKey)])
     }
 
     // MARK: 删

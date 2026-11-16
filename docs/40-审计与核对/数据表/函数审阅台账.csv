@@ -1820,31 +1820,31 @@ Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,cancel,func,1
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,install,func,25,KEEP,export/prepareRestore登记异步归档taskID，登记前已取消的操作立即取消该任务
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,checkCancellation,func,33,KEEP,备份准备、读取、分析及恢复循环锁内读取cancelled，取消时抛已取消，沿原完成回调返回
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Operation,finish,func,39,KEEP,导出发布、读取完成和恢复事务提交前锁内确认未取消并标记finished，后续cancel不改最终结果
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,init,init,79,KEEP,prepareRestore成功构造RestoreSession持有解密目录、已读Manifest和分析摘要，供用户选择后restore
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,cleanup,func,85,KEEP,RestoreSession被取消、完成或释放时在utility队列移除本次解密目录，复用removeTemporaryDirectory
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,deinit,deinit,90,KEEP,RestoreSession释放时调用cleanup回收其临时明文目录
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Analysis,summary,func,99,KEEP,prepareRestore把分析中的新增、重复、冲突原因和失效外部文件路径与条目/笔记/附件数量展示给sheet
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,reviewExport,func,118,KEEP,在Manager既有串行队列锁定剪贴板库读取快照，集中列出缺失附件记录；支持取消，结果回主线程供同一备份sheet显示
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,export,func,133,KEEP,ClipboardManager串行队列读快照与私有附件，以密码及加密文件名创建7z；新包先复制到目标旁临时文件再发布，清理明文并在主线程返回结果
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepareRestore,func,184,KEEP,Manager读取入口确认7z签名，用归档任务列举并解密，验证Manifest和附件后与本机快照分析；只返回RestoreSession摘要，此阶段不写本机资料
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,restore,func,264,KEEP,sheet确认后在Manager串行队列按replace及useBackupConflicts调用apply，成功清理解密目录；错误交主线程完成回调
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,missingRecords,func,282,KEEP,按记录原图、缩略图、长正文及富文本相对路径读取真实存在状态，保留记录去重键、标题和缺失路径，导出清单与附件准备共用
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepare,func,294,KEEP,export在数据库事务内读条目、标签和关联快照，复制四类私有附件及已有OCR并记字节数，最后原子写manifest.json
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readSnapshot,func,330,KEEP,导出和恢复分析共用正式ClipboardRepository列及makeItem，从SQLite读条目、标签和现存关联，再挂tagIDs构造version=1的Manifest
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validateEntries,func,349,KEEP,解压前要求唯一且加密的manifest.json与受支持attachments目录，拒绝链接、重名及未加密附件，附件相对路径交validatePath
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readManifest,func,372,KEEP,解密后和apply前读取version=1清单，核对条目/标签id及关联、必要与声明附件、实际普通文件及字节长度，异常抛具体资料路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,analyze,func,437,KEEP,按dedupeKey比本机与备份的笔记、标题、标签名、正文、附件字节及OCR，计新增/重复/冲突；文件型正文路径不存在则列失效引用
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,apply,func,493,KEEP,恢复时锁住数据库重新读取与分析，按合并/替换及冲突选择导入条目、标签和重映射私有附件；事务失败还原已移动附件，提交后仅回收不再引用附件并报告数量与失败路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentPaths,func,657,KEEP,prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,fullText,func,661,KEEP,analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validatePath,func,666,KEEP,备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentURL,func,675,KEEP,私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,byteCount,func,694,KEEP,prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,counts,func,699,KEEP,导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,temporaryDirectory,func,703,KEEP,export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,710,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,721,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,726,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,init,init,78,KEEP,2026-11-17：prepareRestore会话仅保留解密目录与摘要；apply重新读取文件清单；已删除从未读取的manifest属性及初始化参数
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,cleanup,func,83,KEEP,RestoreSession被取消、完成或释放时在utility队列移除本次解密目录，复用removeTemporaryDirectory
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,RestoreSession,deinit,deinit,88,KEEP,RestoreSession释放时调用cleanup回收其临时明文目录
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,Analysis,summary,func,97,KEEP,prepareRestore把分析中的新增、重复、冲突原因和失效外部文件路径与条目/笔记/附件数量展示给sheet
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,reviewExport,func,116,KEEP,在Manager既有串行队列锁定剪贴板库读取快照，集中列出缺失附件记录；支持取消，结果回主线程供同一备份sheet显示
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,export,func,131,KEEP,ClipboardManager串行队列读快照与私有附件，以密码及加密文件名创建7z；新包先复制到目标旁临时文件再发布，清理明文并在主线程返回结果
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepareRestore,func,182,KEEP,Manager读取入口确认7z签名，用归档任务列举并解密，验证Manifest和附件后与本机快照分析；只返回RestoreSession摘要，此阶段不写本机资料
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,restore,func,262,KEEP,sheet确认后在Manager串行队列按replace及useBackupConflicts调用apply，成功清理解密目录；错误交主线程完成回调
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,missingRecords,func,280,KEEP,按记录原图、缩略图、长正文及富文本相对路径读取真实存在状态，保留记录去重键、标题和缺失路径，导出清单与附件准备共用
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,prepare,func,292,KEEP,export在数据库事务内读条目、标签和关联快照，复制四类私有附件及已有OCR并记字节数，最后原子写manifest.json
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readSnapshot,func,328,KEEP,导出和恢复分析共用正式ClipboardRepository列及makeItem，从SQLite读条目、标签和现存关联，再挂tagIDs构造version=1的Manifest
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validateEntries,func,347,KEEP,解压前要求唯一且加密的manifest.json与受支持attachments目录，拒绝链接、重名及未加密附件，附件相对路径交validatePath
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readManifest,func,370,KEEP,解密后和apply前读取version=1清单，核对条目/标签id及关联、必要与声明附件、实际普通文件及字节长度，异常抛具体资料路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,analyze,func,435,KEEP,按dedupeKey比本机与备份的笔记、标题、标签名、正文、附件字节及OCR，计新增/重复/冲突；文件型正文路径不存在则列失效引用
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,apply,func,491,KEEP,恢复时锁住数据库重新读取与分析，按合并/替换及冲突选择导入条目、标签和重映射私有附件；事务失败还原已移动附件，提交后仅回收不再引用附件并报告数量与失败路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentPaths,func,655,KEEP,prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,fullText,func,659,KEEP,analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validatePath,func,664,KEEP,备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentURL,func,673,KEEP,私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,byteCount,func,692,KEEP,prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,counts,func,697,KEEP,导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,temporaryDirectory,func,701,KEEP,export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,708,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,719,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,724,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,url,func,14,KEEP,2026-11-17：私有文件读写与Repository.delete共用AppDirectories.base相对路径拼接；备份导入另由attachmentURL限定目录与文件类型
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,write,func,20,KEEP,2026-11-17：文本RTF和图片写盘共用；创建父目录后原子写Data并返回成功标记；写失败记录具体相对路径
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,read,func,33,KEEP,2026-11-17：文本解码与图片缓存读取共用；仅返回所选相对路径的Data；读取失败由各消费者处理
@@ -1864,12 +1864,11 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextS
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,invalidateIndex,func,158,KEEP,恢复备份成功后锁内将OCR内存索引设nil，下次正式检索重新读取恢复后的OCR文件
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,164,KEEP,2026-11-17：matchingDedupeKeys惰性取用；首次最多读取2000份txt为小写全文；已有索引直接返回且写删增量更新；冷读在锁内执行
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,190,KEEP,2026-11-17：Repository.appendClauses搜索调用；至少两字符才检索；逐项contains后仅返回命中键集合；浮窗fetch与count会重复本次检索待后续按请求复用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,220,KEEP,2026-11-17：Manager.writeToDatabase唯一调用；原图写盘后共享ImageIO source生成200px缩略图；返回pixelSize无人读取待删除
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,242,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,269,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,281,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,pixelSize,func,291,DEAD_CANDIDATE,2026-11-17：仅store读取ImageIO属性并写入StoredImage.pixelSize；唯一消费StoredImage的Manager仅读取路径与字节数；待同批移除未消费字段和计算
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,324,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,219,KEEP,2026-11-17：Manager.writeToDatabase唯一调用；原图写盘并生成200px缩略图；只返回消费方读取的两类路径与字节数；未消费的pixelSize和专用读取函数已删
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,236,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,263,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,275,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,311,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,86,KEEP,主剪贴板和悬浮窗的固定预览共用九类过滤：按条目类型、https 链接前缀、代码/JSON 分类、colorpicker 来源、工具生成标记及笔记标记匹配
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,176,KEEP,单例 :88 初始化
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,207,KEEP,设置可选恢复时限、刷新剩余分钟并发布暂停通知与提示
@@ -1949,16 +1948,16 @@ Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,touch,func,202,KEEP,去重置顶：UPDATE timestamp
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateContent,func,208,KEEP,编辑保存：回写 content/text_path/字行数/占用，title 同步为 content.firstLineBrief
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateAliasTitle,func,235,KEEP,重命名：写 alias_title；空串按清除处理（写 NULL）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateFields,func,251,KEEP,工具回流与 OCR 回填：rich_text_path/image_path/thumbnail_path/storage_bytes/is_note 各自按需单条 UPDATE
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,delete,func,279,KEEP,删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,unsavedHistory,func,334,KEEP,2026-11-17：clearUnsavedHistory确认与删除调用；SELECT is_note=0仍覆盖完整未保存历史；逐行映射条目以减少SQL字典中间数组
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,savedCount,func,338,KEEP,clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1说明保留的已存项目数
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,rowsOlderThan,func,345,KEEP,2026-11-17：保留期调度器prune调用；按timestamp升序及cutoff选取200条；原查询循环内直接生成条目
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,oldestRows,func,352,KEEP,2026-11-17：容量调度器prune调用；保留最旧优先与每批200条；原查询循环内直接生成条目
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,totalStorageBytes,func,358,KEEP,SUM(storage_bytes)：存储占用统计（设置页配额）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,makeItem,func,365,KEEP,SQL 行 → ClipboardItem（24 列；tagIDs 留空由 TagStore 回填）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,bindings,func,397,KEEP,ClipboardItem → 24 个 SQLiteValue 绑定值（insert 唯一消费者）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,escapeLike,func,431,KEEP,LIKE 转义 \ % _；v126 改 Array+join，避免字符串拼接 O(n²)
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateNote,func,251,KEEP,2026-11-17：Manager笔记切换唯一调用；仅绑定is_note及dedupeKey更新；四个附件通用更新参数无调用已删除
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,delete,func,260,KEEP,删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,unsavedHistory,func,315,KEEP,2026-11-17：clearUnsavedHistory确认与删除调用；SELECT is_note=0仍覆盖完整未保存历史；逐行映射条目以减少SQL字典中间数组
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,savedCount,func,319,KEEP,clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1说明保留的已存项目数
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,rowsOlderThan,func,326,KEEP,2026-11-17：保留期调度器prune调用；按timestamp升序及cutoff选取200条；原查询循环内直接生成条目
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,oldestRows,func,333,KEEP,2026-11-17：容量调度器prune调用；保留最旧优先与每批200条；原查询循环内直接生成条目
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,totalStorageBytes,func,339,KEEP,SUM(storage_bytes)：存储占用统计（设置页配额）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,makeItem,func,346,KEEP,SQL 行 → ClipboardItem（24 列；tagIDs 留空由 TagStore 回填）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,bindings,func,378,KEEP,ClipboardItem → 24 个 SQLiteValue 绑定值（insert 唯一消费者）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,escapeLike,func,412,KEEP,LIKE 转义 \ % _；v126 改 Array+join，避免字符串拼接 O(n²)
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,combine,func,10,KEEP,按选定格式将多段原文以换行或缩进编号合并
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,deduplicate,func,18,KEEP,按行去重，可选忽略大小写或首尾空白，并返回移除数量
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,cleanLink,func,31,KEEP,移除常见跟踪参数，签名链接保持原样并回报移除项数

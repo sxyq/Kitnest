@@ -883,7 +883,7 @@ public final class ClipboardManager: ObservableObject {
     /// 笔记标记（笔记 = 特殊剪贴板条目，走同一张表）
     public func setNote(_ item: ClipboardItem, isNote: Bool) {
         queue.async { [weak self] in
-            self?.repository.updateFields(dedupeKey: item.dedupeKey, note: isNote)
+            self?.repository.updateNote(dedupeKey: item.dedupeKey, isNote: isNote)
             DispatchQueue.main.async { self?.reload(reset: false) }
         }
     }
