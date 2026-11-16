@@ -1937,7 +1937,7 @@ void FSRunCatIconSetEnabled(BOOL on) {
     FSRunCatIconApplySavedConfiguration();
 }
 void FSRunCatIconApplySavedConfiguration(void) {
-    BOOL on = FSBarAsBool(g_cfg[@"Bar_MainIconCat"], NO);
+    BOOL on = FSBarAsBool(FSBarCfgRaw(@"Bar", nil, @"MainIconCat"), NO);
     g_mainIconCatEnabled = on;
     g_mainIconCatInited = YES;
     if (!on) {
