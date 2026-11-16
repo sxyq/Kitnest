@@ -224,7 +224,7 @@ enum IslandMetric: String, CaseIterable, Codable, Identifiable {
         case .cpu: return "CPU"
         case .gpu: return "GPU"
         case .memory: return "内存"
-        case .network: return "网络下载"
+        case .network: return "网络"
         case .power: return "整机功耗"
         case .battery: return "电池"
         }

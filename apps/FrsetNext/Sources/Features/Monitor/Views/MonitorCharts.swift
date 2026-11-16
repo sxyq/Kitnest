@@ -149,9 +149,13 @@ struct MonitorTrendChart: View {
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? 4 : 8) {
             if compact {
-                Text(data.format(reading?.values.first ?? nil))
-                    .font(.system(size: Theme.TextSize.metric, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(data.colors[0])
+                if data.names.count > 1 {
+                    VStack(alignment: .leading, spacing: 2) { legend }
+                } else {
+                    Text(data.format(reading?.values.first ?? nil))
+                        .font(.system(size: Theme.TextSize.metric, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(data.colors[0])
+                }
             } else {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 14) { legend }
