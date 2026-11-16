@@ -3811,23 +3811,23 @@ TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,pollC
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,split,func,489,KEEP,"AdbQrPairing.swift:331,429,469"
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomToken,func,496,KEEP,"AdbQrPairing.swift:135,144"
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomDigits,func,502,KEEP,"AdbQrPairing.swift:139,145"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,init,init,29,KEEP,AndroidWebDAVServer.swift:17 shared
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,func,31,KEEP,CastView.swift:712；AppBootstrap.swift:150
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,func,40,KEEP,AndroidWebDAVServer.swift:35 端口顺延
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,72,KEEP,CastView.swift:714 开关关闭
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,79,KEEP,NWListener.newConnectionHandler 闭包 :58
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,84,KEEP,"AndroidWebDAVServer.swift:81,91"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,106,KEEP,"AndroidWebDAVServer.swift:99,116"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,121,KEEP,"AndroidWebDAVServer.swift:95,135"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,128,KEEP,"AndroidWebDAVServer.swift:102,112"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,164,KEEP,AndroidWebDAVServer.swift:134 路径解码
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,179,KEEP,AndroidWebDAVServer.swift:144 PROPFIND
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,202,KEEP,"AndroidWebDAVServer.swift:188,192"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,214,KEEP,"AndroidWebDAVServer.swift:188,192"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,232,KEEP,AndroidWebDAVServer.swift:180
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,255,KEEP,AndroidWebDAVServer.swift:146 GET/HEAD
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,287,KEEP,AndroidWebDAVServer.swift:148 PUT
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,304,KEEP,AndroidWebDAVServer.swift:139 起各分支
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,init,init,29,KEEP,2026-11-17：shared单例唯一创建；监听器默认未启动；CastView开关控制生命周期
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,func,31,KEEP,2026-11-17：CastView开关调用；已运行直接返回并从8768顺延8端口；同步bind等待可能占主线程待性能处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,func,40,KEEP,2026-11-17：start调用；NWListener明确绑定127.0.0.1并注册接入回调；最长2秒信号等待和回调ok变量的线程同步需后续处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,72,KEEP,2026-11-17：CastView关闭开关调用；取消既有listener并锁内更新running；不创建额外任务
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,79,KEEP,2026-11-17：NWListener.newConnectionHandler动态调用；在既有服务队列启动连接后进入唯一readRequest
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,84,KEEP,2026-11-17：accept和未完整请求头回调调用；定长body必须为非负整数否则回400；缺失长度为0；移除负数传给Data.prefix的崩溃入口
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,109,KEEP,2026-11-17：readRequest的PUT续读入口；追加至已解析的非负长度后dispatch；提前结束或网络错误取消连接；上传仍全量内存持有待性能处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,124,KEEP,2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,131,KEEP,2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,167,KEEP,2026-11-17：dispatch调用；去query后百分号解码并统一sdcard前缀；移除点点路径段保持现有共享根；文件名特殊字符由命令入口引用
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,182,KEEP,2026-11-17：PROPFIND路由调用；listRemote回调生成自身与Depth1子项XML；文件元信息复用同一列表；XML特殊字符未编码待质量处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,205,KEEP,2026-11-17：PROPFIND自身及子项调用；移除sdcard前缀并逐路径段百分号编码；XML输出仍需结合entryXML处理保留字符
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,217,KEEP,2026-11-17：propfind共用单条DAV响应模板；名称直接进入XML导致含与号和尖括号文件名解析失败待处理；目前保留全部业务字段
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,235,KEEP,2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,258,KEEP,2026-11-17：GET及HEAD调用；后台adb exec-out cat路径引用并转义单引号；输出管道先读取再等待进程；HEAD仍读取完整内容待减少工作量
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,290,KEEP,2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,307,KEEP,2026-11-17：全部HTTP响应共用；尊重HEAD提供的Content-Length且否则按Data长度填入；发送完成取消连接
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,show,func,16,KEEP,CastView.swift:629；FrsetNextApp.swift:347 菜单
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,112,KEEP,CastAppLibraryWindow.swift:98 tile(app)
@@ -3974,18 +3974,18 @@ TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransf
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,367,KEEP,"TransferDockView.swift:1477,1543"
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,371,KEEP,"TransferDockView.swift:1519,1542"
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,375,KEEP,TransferDockView.swift:1053；SettingsPane.swift:225
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,48,KEEP,MCPServer.swift:30 shared
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,52,KEEP,CastView.swift:700 服务开关
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,63,KEEP,MCPServer.swift:57 端口顺延
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,stop,func,97,KEEP,CastView.swift:702
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,handle,func,106,KEEP,newConnectionHandler 闭包 :83
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,receive,func,111,KEEP,"MCPServer.swift:108,130"
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,contentLength,func,134,KEEP,MCPServer.swift:119
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,send,func,141,KEEP,"MCPServer.swift:177,182,201 等分支"
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized,func,149,KEEP,MCPServer.swift:185 token 校验
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,170,KEEP,MCPServer.swift:122 请求处理
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,258,KEEP,toolDefinitions :237-254
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,267,KEEP,MCPServer.swift:220 tools/call 派发
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,48,KEEP,2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,52,KEEP,2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,63,KEEP,2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,stop,func,97,KEEP,2026-11-17：CastView关闭开关调用；取消listener并锁内设置running为false；不改变进程令牌
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,handle,func,106,KEEP,2026-11-17：NWListener接入回调动态调用；连接在既有MCP串行队列启动后进入receive
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,receive,func,111,KEEP,2026-11-17：handle及网络续读回调调用；完整头后先解析非负长度；无效长度沿send回400并结束连接；不再对负长度截取Data
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,contentLength,func,137,KEEP,2026-11-17：receive唯一调用；直接读取固定字段名之后内容替代split下标；空非法及负整数返回nil；缺少字段仍按0处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,send,func,146,KEEP,2026-11-17：HTTP与JSON-RPC所有响应共用；JSON序列化后设置实际长度nosniff及close；发送完成取消连接
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized,func,154,KEEP,2026-11-17：respond在执行JSON-RPC前调用；支持query Bearer及x-kitnest-token三种既有令牌入口；无令牌返回401
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,175,KEEP,2026-11-17：receive收完整请求后调用；拒绝Origin和OPTIONS；GET只返回无令牌健康信息；授权后解析JSON并派发工具；无新增命令执行入口
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,263,KEEP,2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,272,KEEP,2026-11-17：respond的tools/call唯一派发；复用ADBExtrasEngine后台执行及App窗口入口；部分命令未依据返回状态反馈错误待质量处理
 TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,19,KEEP,QRCodeView.swift:41；CastView.swift:184
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,TransferDockService.swift:72 shared 单例
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,TransferDockView.swift:127 中转页 onAppear
@@ -4127,37 +4127,37 @@ OCRHelper,OCRHelper/LogStub.swift,Log,info,func,6,KEEP,PPOCROCR.swift:106 调用
 OCRHelper,OCRHelper/LogStub.swift,Log,warn,func,7,KEEP,PPOCROCR.swift:94 调用
 OCRHelper,OCRHelper/main.swift,-,fail,func,20,KEEP,独立可执行入口；:27/42/45/54/59/70/110 调用
 OCRHelper,OCRHelper/main.swift,-,u32,func,47,KEEP,顶层 :51/:52 解析宽高调用
-Storage,Storage/Database.swift,SQLiteDatabase,init,init,28,KEEP,DatabaseManager:187/194、CaptureHistoryStore:104 构造
-Storage,Storage/Database.swift,SQLiteDatabase,fallback,func,53,KEEP,DatabaseManager:190/197、CaptureHistoryStore:109 降级
-Storage,Storage/Database.swift,SQLiteDatabase,init,init,57,KEEP,fallback:52 兜底构造
-Storage,Storage/Database.swift,SQLiteDatabase,deinit,deinit,62,KEEP,ARC 生命周期回调，关闭 sqlite3 句柄
-Storage,Storage/Database.swift,SQLiteDatabase,exec,func,64,KEEP,init:36-44、migrate:210/293、transaction:153 调用
-Storage,Storage/Database.swift,SQLiteDatabase,bindValues,func,75,KEEP,run:92 与 query:106 调用
-Storage,Storage/Database.swift,SQLiteDatabase,run,func,88,KEEP,ClipboardRepository:186 等；本文件 330/482/599
+Storage,Storage/Database.swift,SQLiteDatabase,init,init,28,KEEP,2026-11-17：DatabaseManager与CaptureHistoryStore构造；FULLMUTEX打开并启用WAL外键；失败关闭句柄后抛出；保留既有journal大小配置
+Storage,Storage/Database.swift,SQLiteDatabase,fallback,func,53,KEEP,2026-11-17：数据库打开失败的既有调用路径；先尝试内存库再创建不可用实例；保持错误日志和应用现有降级语义
+Storage,Storage/Database.swift,SQLiteDatabase,init,init,57,KEEP,2026-11-17：fallback唯一调用；不可用实例明确保存nil句柄；后续exec/run/query沿原DatabaseError处理
+Storage,Storage/Database.swift,SQLiteDatabase,deinit,deinit,62,KEEP,2026-11-17：ARC销毁回调关闭已打开sqlite3句柄；无外部直接调用；不能凭静态零引用删除
+Storage,Storage/Database.swift,SQLiteDatabase,exec,func,64,KEEP,2026-11-17：初始化schema和事务命令共用；递归锁串行访问；sqlite3_exec错误释放错误缓冲并抛原DatabaseError
+Storage,Storage/Database.swift,SQLiteDatabase,bindValues,func,75,KEEP,2026-11-17：run和query唯一共用；按SQLiteValue绑定整数实数文本blob或null；文本与blob使用SQLITE_TRANSIENT复制生命周期
+Storage,Storage/Database.swift,SQLiteDatabase,run,func,88,KEEP,2026-11-17：各仓库写入与统计调用；prepare后defer finalize；绑定后仅以SQLITE_DONE完成；保持同连接事务锁
 Storage,Storage/Database.swift,SQLiteDatabase,query,func,103,KEEP,2026-11-17：保留TagStore及统计等字典结果调用；委托同名泛型重载；SQL prepare绑定遍历finalize仅由原循环承担
 Storage,Storage/Database.swift,SQLiteDatabase,query,func,107,KEEP,2026-11-17：剪贴板四类查询逐行构造条目；只将SQLITE_DONE视为正常结束；step执行失败抛DatabaseError而不返回部分行；statement与锁退出释放
-Storage,Storage/Database.swift,SQLiteDatabase,scalarInt,func,160,KEEP,ClipboardRepository:156/170/301、StatisticsRootView:289
-Storage,Storage/Database.swift,SQLiteDatabase,transaction,func,167,KEEP,ClipboardRepository:266、LLMSessionStore:92、importMerge:597
-Storage,Storage/Database.swift,Dictionary,string,func,184,KEEP,本文件 327/501/516/542；全仓 20+ 处
-Storage,Storage/Database.swift,Dictionary,int,func,185,KEEP,本文件 329/501/516；全仓多处
-Storage,Storage/Database.swift,Dictionary,real,func,186,KEEP,ClipboardRepository:315、TagStore:30、LLMSessionStore:49
-Storage,Storage/Database.swift,Dictionary,bool,func,187,KEEP,ClipboardRepository.swift:319/320 调用
-Storage,Storage/Database.swift,DatabaseManager,init,init,198,KEEP,shared 单例 :177 调用（init 内 migrate:203）
-Storage,Storage/Database.swift,DatabaseManager,migrate,func,225,KEEP,init:203 调用
+Storage,Storage/Database.swift,SQLiteDatabase,scalarInt,func,160,KEEP,2026-11-17：剪贴板计数存储量及统计聚合调用；当前消费者SQL只返回单个整数列；沿query处理执行失败；未来可去除单行字典分配
+Storage,Storage/Database.swift,SQLiteDatabase,transaction,func,167,KEEP,2026-11-17：条目删除备份与统计导入迁移共用；同递归锁覆盖BEGIN正文及COMMIT；失败执行原ROLLBACK并抛出
+Storage,Storage/Database.swift,Dictionary,string,func,184,KEEP,2026-11-17：仓库模型映射与统计解析共用；仅提取SQLiteValue.text；类型不符返回nil供现有可选字段语义使用
+Storage,Storage/Database.swift,Dictionary,int,func,185,KEEP,2026-11-17：模型数值与统计读取共用；仅提取int否则0；SQL聚合及显式整数schema为实际输入
+Storage,Storage/Database.swift,Dictionary,real,func,186,KEEP,2026-11-17：条目标签及会话时间戳映射使用；仅提取real否则0；不进行新类型转换
+Storage,Storage/Database.swift,Dictionary,bool,func,187,KEEP,2026-11-17：ClipboardRepository.makeItem的is_note及工具标记使用；复用int取值后判断非0
+Storage,Storage/Database.swift,DatabaseManager,init,init,198,KEEP,2026-11-17：shared唯一构造；剪贴板与统计数据库独立打开与既有降级；统一migrate错误记录；不新建数据库副本
+Storage,Storage/Database.swift,DatabaseManager,migrate,func,225,KEEP,2026-11-17：初始化调用；幂等创建既有表索引并按需增加file_categories；已读完整事务迁移与旧统计合并入口
 Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,342,KEEP,2026-11-17：migrate调用；旧表读取计数合并与DROP在同一原SQLite事务内；查询或写入失败回滚并向原迁移错误日志抛出；旧表保留避免数据丢失
-Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,371,KEEP,migrateLegacyDailyStats:328、bumpStat:363 调用
-Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,390,KEEP,ClipboardManager:381/720、AppBootstrap:225/242 等
-Storage,Storage/Database.swift,StatisticsManager,init,init,493,KEEP,shared 单例 :416 调用（init 内 ensureInstallDate:466）
-Storage,Storage/Database.swift,StatisticsManager,record,func,501,KEEP,bumpStat:364 与 record(AnalyticsEvent):489 调用
-Storage,Storage/Database.swift,StatisticsManager,record,func,518,KEEP,PanelController:186、FloatingClipboardWindow:289 等
-Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,524,KEEP,StatisticsRootView.swift:276 调用（Q1）
-Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,536,KEEP,StatisticsRootView.swift:277 调用（Q2）
-Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,551,KEEP,StatisticsRootView:278、StatisticsSettingsPane:358
-Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,563,KEEP,StatisticsRootView.swift:284 热力图调用
-Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,576,KEEP,StatisticsRootView.swift:288 柱图调用
-Storage,Storage/Database.swift,StatisticsManager,total,func,593,KEEP,StatisticsSettingsPane:352/356/357/364 调用
-Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,602,KEEP,StatisticsSettingsPane.swift:351 调用（Q7）
-Storage,Storage/Database.swift,StatisticsManager,exportAll,func,611,KEEP,StatisticsSettingsPane:391、DiagnosticsExporter:103
-Storage,Storage/Database.swift,StatisticsManager,importMerge,func,623,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,640,KEEP,init:466 调用
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,669,KEEP,bumpStat:363、record:476、StatisticsRootView:272
+Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,371,KEEP,2026-11-17：旧统计迁移与bumpStat日期入口共用；仅将8位日期数值改成yyyy-MM-dd其余原样；保留既有历史日期兼容
+Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,390,KEEP,2026-11-17：ClipboardManager与AppBootstrap历史事件入口；旧列名映射5种事件后交StatisticsManager；未引入第二统计写入链
+Storage,Storage/Database.swift,StatisticsManager,init,init,493,KEEP,2026-11-17：shared唯一创建；取得既有statistics连接并异步ensureInstallDate；不在初始化读取全量统计
+Storage,Storage/Database.swift,StatisticsManager,record,func,501,KEEP,2026-11-17：字符串入口及枚举转发调用；按用户开关和现有1秒操作去重窗口在串行队列写窄表；计数不低于0后加1
+Storage,Storage/Database.swift,StatisticsManager,record,func,518,KEEP,2026-11-17：模块埋点使用枚举入口；eventName转字符串后复用同一record；无重复持久化
+Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,524,KEEP,2026-11-17：StatisticsRootView后台refresh调用；SQL按事件聚合非负值；只物化聚合行而不读取逐日明细
+Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,536,KEEP,2026-11-17：StatisticsRootView日卡调用；日期和事件全用绑定；空事件集早退；只读取当天指定事件
+Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,551,KEEP,2026-11-17：统计主面板与设置刷新调用；SQL COUNT DISTINCT day且count为正；返回整数不创建日期记录模型
+Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,563,KEEP,2026-11-17：StatisticsRootView活动矩阵调用；SQL按指定起日及事件聚合再排序；仅返回日总量
+Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,576,KEEP,2026-11-17：StatisticsRootView最近30日柱图调用；沿SQL日期与事件条件读取窄表；不重复按事件查询每一天
+Storage,Storage/Database.swift,StatisticsManager,total,func,593,KEEP,2026-11-17：StatisticsSettingsPane各功能累计调用；单事件SQL SUM；设置refresh逐指标调用存在批量复用空间待性能批次
+Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,602,KEEP,2026-11-17：StatisticsSettingsPane.refresh读取历史复制与截图次数；固定两事件SQL聚合；沿用原评分口径
+Storage,Storage/Database.swift,StatisticsManager,exportAll,func,611,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
+Storage,Storage/Database.swift,StatisticsManager,importMerge,func,623,UNSURE,2026-11-17：全函数阅读为串行队列事务MAX合并；StatisticsSettingsPane已改成仅配置导入而不再调用；需核对其余配置/诊断入口后决定删除
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,640,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,669,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理

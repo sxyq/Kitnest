@@ -92,8 +92,11 @@ public final class AndroidWebDAVServer {
                 return
             }
             let header = String(data: buf[..<headerEnd.lowerBound], encoding: .utf8) ?? ""
-            let bodyLen = Self.headerValue(header, "content-length").flatMap(Int.init) ?? 0
-            var body = Data(buf[headerEnd.upperBound...])
+            guard let bodyLen = Int(Self.headerValue(header, "content-length") ?? "0"), bodyLen >= 0 else {
+                self.send(conn, status: "400 Bad Request", headers: [:], body: Data())
+                return
+            }
+            let body = Data(buf[headerEnd.upperBound...])
             if body.count < bodyLen {
                 // 继续读 body（PUT 上传）
                 self.readBody(conn, header: header, body: body, need: bodyLen)
@@ -230,7 +233,7 @@ public final class AndroidWebDAVServer {
     }
 
     private func listRemote(_ path: String, completion: @escaping ([Entry]?) -> Void) {
-        ADBExtrasEngine.run(["shell", "ls", "-l", "'" + path + "'"], timeout: 20) { out, _ in
+        ADBExtrasEngine.run(["shell", "ls", "-l", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"], timeout: 20) { out, _ in
             guard let out, !out.lowercased().contains("no such file") else { completion(nil); return }
             var list: [Entry] = []
             for line in out.components(separatedBy: .newlines) {
@@ -259,7 +262,7 @@ public final class AndroidWebDAVServer {
             task.executableURL = URL(fileURLWithPath: adb)
             var catArgs: [String] = []
             if let serial = ADBExtrasEngine.activeSerial { catArgs += ["-s", serial] }
-            catArgs += ["exec-out", "cat", path]
+            catArgs += ["exec-out", "cat", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]
             task.arguments = catArgs
             let pipe = Pipe()
             task.standardOutput = pipe

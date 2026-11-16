@@ -116,7 +116,10 @@ public final class MCPServer {
             if let headerEnd = buf.range(of: Data("\r\n\r\n".utf8)) {
                 let headerText = String(data: buf[..<headerEnd.lowerBound], encoding: .utf8) ?? ""
                 let bodyStart = headerEnd.upperBound
-                let contentLength = Self.contentLength(in: headerText)
+                guard let contentLength = Self.contentLength(in: headerText) else {
+                    self.send(conn, status: "400 Bad Request", json: ["error": "invalid content-length"])
+                    return
+                }
                 let body = buf[bodyStart...]
                 if body.count >= contentLength {
                     self.respond(conn, request: headerText, body: Data(body.prefix(contentLength)))
@@ -131,9 +134,11 @@ public final class MCPServer {
         }
     }
 
-    private static func contentLength(in headers: String) -> Int {
+    private static func contentLength(in headers: String) -> Int? {
         for line in headers.components(separatedBy: "\r\n") where line.lowercased().hasPrefix("content-length:") {
-            return Int(line.split(separator: ":")[1].trimmingCharacters(in: .whitespaces)) ?? 0
+            let value = line.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)
+            guard let length = Int(value), length >= 0 else { return nil }
+            return length
         }
         return 0
     }
