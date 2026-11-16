@@ -2,6 +2,7 @@ import AppKit
 import CoreGraphics
 import Foundation
 import ImageIO
+import UniformTypeIdentifiers
 
 // MARK: - 读取结果
 
@@ -55,7 +56,7 @@ public struct ClipboardReadResult {
 
 // MARK: - 读取器
 
-/// NSPasteboard 读取：多类型优先级 图片 > 文件 > 富文本 > 文本 > URL（05 号规格 B1）
+/// NSPasteboard 读取：文件 > 图片 > URL > 富文本 > 文本；QQ 容器图片优先读取图片数据。
 public final class ClipboardPasteboardReader {
 
     private let pasteboard: NSPasteboard
@@ -72,7 +73,15 @@ public final class ClipboardPasteboardReader {
         let source = Self.frontmostAppIdentifier()
 
         // Finder 复制文件同时携带 TIFF 图标，必须先读取文件 URL。
-        if let r = readFiles(types: types, source: source) { return r }
+        if let r = readFiles(types: types, source: source) {
+            // 2026-11-16「复制 QQ 图片会报错」：容器路径仅是图片附带引用，自动暂存会触发权限错误。
+            if r.fileURLs.count == 1,
+               let url = r.fileURLs.first,
+               url.path.hasPrefix(NSHomeDirectory() + "/Library/Containers/com.tencent.qq/"),
+               UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true,
+               let image = readImage(types: types, source: source) { return image }
+            return r
+        }
         if let r = readImage(types: types, source: source) { return r }
         // v202：URL 优先于纯文本——复制链接时粘贴板几乎同时带 .string，
         // 旧顺序（文本 > URL）会把链接全部存成 text，「链接」分类永远空。
