@@ -2659,26 +2659,26 @@ Monitor,Features/Monitor/Views/MonitorCharts.swift,InputView,resignFirstResponde
 Monitor,Features/Monitor/Views/MonitorCharts.swift,InputView,keyDown,func,46,KEEP,趋势图左右键逐点定位，回车切换固定，其他键沿用系统处理
 Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendData,init,init,78,KEEP,监测趋势数据从原历史组装带时间、间隔和缺失值的序列；预先计算可见采样与量程，鼠标定位不再转换历史。
 Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendData,format,func,120,KEEP,按模块格式化百分比、系统内存压力等级、速率、摄氏度或瓦数，缺失读数显示破折号。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawSeries,func,292,KEEP,按真实时间排列各曲线，遇到缺失值或超过采样间隔的空档分段绘制，同一时间共享定位线。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawRun,func,311,KEEP,绘制连续采样段；内存压力采用等级阶梯，其余曲线的控制点限制在相邻读数之间，避免额外峰谷。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,xPosition,func,340,KEEP,将真实采样时间映射到当前时间窗；历史未满时右对齐，不随采样数量拉伸。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,nearest,func,343,KEEP,只在已计算的可见采样中查找最接近指针时间的位置，不触发系统读取。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,pin,func,347,KEEP,固定完整采样时间和值，并保存到现有模块选择对象；新采样进入不会替换固定对象。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,unpin,func,351,KEEP,清除本模块固定与临时查看读数，恢复最新采样。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,restoreSelection,func,352,KEEP,按模块与传感器键恢复固定采样；切换数据对象时清除临时悬停位置并更新量程。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,timeText,func,353,KEEP,以真实采样时间格式化图表刻度与查看读数时间。
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,init,init,374,KEEP,MonitorCharts:131、212 构造
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,path,func,380,KEEP,Shape 协议要求，渲染时由 SwiftUI 调用
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,points,func,388,KEEP,path:26、MonitorAreaShape.path:91
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,smoothPath,func,407,KEEP,path:29、MonitorAreaShape.path:96
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,init,init,443,KEEP,MonitorAreaSparkline.body:122
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,path,func,449,KEEP,Shape 协议要求
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaSparkline,init,init,471,KEEP,MonitorDetailView 277/491/798/1219、StatsModulePanels 193/211
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRing,init,init,515,KEEP,BatteryPanel:67、MonitorDetailView:235/243/448/1191
-Monitor,Features/Monitor/Views/MonitorCharts.swift,Segment,init,init,544,KEEP,BatteryPanel:213-214、MonitorDetailView:472/838/931
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorStackedBar,init,init,554,KEEP,BatteryPanel:212、MonitorDetailView:472/838/931
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRow,init,init,602,KEEP,MonitorDetailView 20+ 处（254 起）、StatsModulePanels
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSectionTitle,init,init,628,KEEP,MonitorDetailView/StatsModulePanels 共 20+ 处
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawSeries,func,296,KEEP,按真实时间排列各曲线，遇到缺失值或超过采样间隔的空档分段绘制，同一时间共享定位线。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawRun,func,315,KEEP,绘制连续采样段；内存压力采用等级阶梯，其余曲线的控制点限制在相邻读数之间，避免额外峰谷。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,xPosition,func,344,KEEP,将真实采样时间映射到当前时间窗；历史未满时右对齐，不随采样数量拉伸。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,nearest,func,347,KEEP,只在已计算的可见采样中查找最接近指针时间的位置，不触发系统读取。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,pin,func,351,KEEP,固定完整采样时间和值，并保存到现有模块选择对象；新采样进入不会替换固定对象。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,unpin,func,355,KEEP,清除本模块固定与临时查看读数，恢复最新采样。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,restoreSelection,func,356,KEEP,按模块与传感器键恢复固定采样；切换数据对象时清除临时悬停位置并更新量程。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,timeText,func,357,KEEP,以真实采样时间格式化图表刻度与查看读数时间。
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,init,init,378,KEEP,MonitorCharts:131、212 构造
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,path,func,384,KEEP,Shape 协议要求，渲染时由 SwiftUI 调用
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,points,func,392,KEEP,path:26、MonitorAreaShape.path:91
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,smoothPath,func,411,KEEP,path:29、MonitorAreaShape.path:96
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,init,init,447,KEEP,MonitorAreaSparkline.body:122
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,path,func,453,KEEP,Shape 协议要求
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaSparkline,init,init,475,KEEP,MonitorDetailView 277/491/798/1219、StatsModulePanels 193/211
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRing,init,init,519,KEEP,BatteryPanel:67、MonitorDetailView:235/243/448/1191
+Monitor,Features/Monitor/Views/MonitorCharts.swift,Segment,init,init,548,KEEP,BatteryPanel:213-214、MonitorDetailView:472/838/931
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorStackedBar,init,init,558,KEEP,BatteryPanel:212、MonitorDetailView:472/838/931
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRow,init,init,606,KEEP,MonitorDetailView 20+ 处（254 起）、StatsModulePanels
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSectionTitle,init,init,632,KEEP,MonitorDetailView/StatsModulePanels 共 20+ 处
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailSelection,init,init,10,KEEP,MonitorCenterView.swift:19 与 DetailView:49 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorPerformanceContent,init,init,40,KEEP,PanelRootView.swift:693、PopoutRootView:54 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailView,init,init,71,KEEP,同名重载错挂：init(selection:pageMode:fixedWidth:) 是 :25 在用；init(module:) 已删
