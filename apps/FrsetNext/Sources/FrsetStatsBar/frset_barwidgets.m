@@ -207,7 +207,7 @@ static void FSBarImportFromStats(NSMutableDictionary *cfg) {
     id cm = FSBarStatsValue(@"CombinedModules");
     if (cm) cfg[@"CombinedModules"] = cm;
     id cmSpacing = FSBarStatsValue(@"CombinedModules_spacing");
-    if ([cmSpacing isKindOfClass:[NSString class]]) cfg[@"CombinedModules_spacing"] = cmSpacing;
+    if ([cmSpacing isKindOfClass:[NSString class]]) cfg[@"Widgets_spacing"] = cmSpacing;
     id cmSep = FSBarStatsValue(@"CombinedModules_separator");
     if (cmSep) cfg[@"CombinedModules_separator"] = cmSep;
     // 特殊键
@@ -703,6 +703,12 @@ static void FSBarTextRect(NSString *s, NSDictionary *attrs, NSRect r, NSTextAlig
     [s drawInRect:r withAttributes:a];
 }
 
+// 数值槽按格式与正式字体定宽，读数、单位切换和首帧缺值不参与布局。
+static CGFloat FSBarNumberWidth(NSString *format, CGFloat size, NSFontWeight weight) {
+    NSFont *font = [NSFont monospacedDigitSystemFontOfSize:size weight:weight];
+    return ceil([format sizeWithAttributes:@{NSFontAttributeName: font}].width / 2) * 2;
+}
+
 // ============ 部件视图（12 形态） ============
 
 // ======== v32/v34/v35 移植（注入版）：奔跑小猫 RunCat ========
@@ -744,16 +750,11 @@ static BOOL g_mainIconCatLastDark = YES;
 @property (nonatomic) FSSnap snap;          // 最近一次刷新的数据
 @property (nonatomic) int histN;
 @property (nonatomic) CFAbsoluteTime lastUpdate;
-/// v134：宽度迟滞状态——文本类部件按实时值算宽，数值位数一变整条重排
-///（实测：Sensors/mini 在 23↔27pt 间每 7s 抖动）。迟滞：变宽立即生效、
-/// 变窄需连续 6 次刷新且差超 8pt 才收缩，消除高频抖动。
-@property (nonatomic, assign) CGFloat stableWidth;
-@property (nonatomic, assign) NSInteger shrinkVotes;
 - (instancetype)initWithModule:(NSString *)m form:(NSString *)f;
 - (void)refreshWithSnap:(const FSSnap *)s;
 - (CGFloat)preferredWidth;
 - (CGFloat)widgetPadding;
-- (CGFloat)stabilizeWidth:(CGFloat)raw;     // v134：宽度迟滞
+- (CGFloat)speedValueWidth;
 - (double)primaryValue;                     // 当前主值（归一化 0..1 或原值）
 @end
 
@@ -823,20 +824,22 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 }
 
 // 一组功耗共用双排几何；整机独占上排，CPU/GPU 同处下排。
-- (NSArray<NSString *> *)powerRows {
+- (NSArray<NSArray<NSString *> *> *)powerRows {
     NSMutableArray *rows = [NSMutableArray array];
     NSMutableArray *chips = [NSMutableArray array];
-    BOOL labels = FSBarViewCfgBool(_configuration, @"Power", _form, @"label", YES);
     for (NSString *metric in FSBarPowerMetrics(_configuration ?: g_cfg)) {
-        NSString *name = [metric isEqualToString:@"Power"] ? @"整机" : ([metric isEqualToString:@"CPUPower"] ? @"CPU" : @"GPU");
-        NSString *value = FSBarModuleString(&_snap, metric) ?: @"—";
-        NSString *text = labels ? [NSString stringWithFormat:@"%@ %@", name, value] : value;
-        if ([metric isEqualToString:@"Power"]) [rows addObject:text];
-        else [chips addObject:text];
+        if ([metric isEqualToString:@"Power"]) [rows addObject:@[metric]];
+        else [chips addObject:metric];
     }
-    if (rows.count && chips.count) [rows addObject:[chips componentsJoinedByString:@"  "]];
-    else [rows addObjectsFromArray:chips];
+    if (rows.count && chips.count) [rows addObject:chips];
+    else for (NSString *metric in chips) [rows addObject:@[metric]];
     return rows;
+}
+
+- (NSString *)powerText:(NSString *)metric value:(NSString *)value {
+    BOOL labels = FSBarViewCfgBool(_configuration, @"Power", _form, @"label", YES);
+    NSString *name = [metric isEqualToString:@"Power"] ? @"整机" : ([metric isEqualToString:@"CPUPower"] ? @"CPU" : @"GPU");
+    return labels ? [NSString stringWithFormat:@"%@ %@", name, value] : value;
 }
 
 - (CGFloat)powerVisualWidth {
@@ -853,111 +856,45 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     return [[self moduleLabel] sizeWithAttributes:@{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight]}].width + 1;
 }
 
-- (CGFloat)stabilizeWidth:(CGFloat)raw {
-    if (_stableWidth <= 0 || raw > _stableWidth) {
-        // 变宽立即生效（防内容截断）；首帧直接采纳
-        _stableWidth = raw;
-        _shrinkVotes = 0;
-        return raw;
-    }
-    if (raw < _stableWidth - 4) {
-        // 比稳定宽窄超 4pt 才计票；连续 4 次刷新才收缩。
-        // 带宽必须 < 单个数字字符步进（9pt 等宽数字≈5.4pt、12pt≈6.7pt）——
-        // v135 实测：带 6pt 时 "305 KB/s"→"29 KB/s"（差 5.5pt）落在带内永不收缩，
-        // 网络块锁在历史峰值宽度、右侧留 12pt 死空白，正是"间距不均"残留来源。
-        if (++_shrinkVotes >= 4) {
-            _stableWidth = raw;
-            _shrinkVotes = 0;
-        }
-    } else {
-        _shrinkVotes = 0;
-    }
-    return _stableWidth;
+- (CGFloat)speedValueWidth {
+    BOOL units = FSBarViewCfgBool(_configuration, _module, _form, @"units", YES);
+    BOOL oneRow = [FSBarViewCfgStr(_configuration, _module, _form, @"mode", @"twoRows") isEqualToString:@"oneRow"];
+    return FSBarNumberWidth(units ? @"1000.0 GB/s" : @"1000.0", oneRow ? 11 : 9,
+                            oneRow ? NSFontWeightRegular : NSFontWeightLight);
 }
 
 - (CGFloat)preferredWidth {
     if ([_module isEqualToString:@"Power"]) {
-        NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightRegular]};
         CGFloat width = 0;
-        for (NSString *row in [self powerRows]) width = MAX(width, [row sizeWithAttributes:attrs].width);
+        CGFloat gap = FSBarConfigurationSpacing(_configuration ?: g_cfg);
+        for (NSArray *row in [self powerRows]) {
+            CGFloat rowWidth = 0;
+            for (NSString *metric in row) rowWidth += FSBarNumberWidth([self powerText:metric value:@"100.0 W"], 9, NSFontWeightRegular);
+            width = MAX(width, rowWidth + (row.count - 1) * gap);
+        }
         CGFloat visual = [self powerVisualWidth];
-        return [self stabilizeWidth:ceil(width) + (visual ? visual + 4 : 0)];
+        return width + (visual ? visual + 4 : 0);
     }
     if ([_form isEqualToString:@"mini"]) {
-        // v28：宽度 = 实际内容宽（label 与值文本取大，量化 4pt）——内容居中绘制后，
-        //   跨部件"内容-内容"间隙趋于均匀（统计口径见 drawMini；原 31/36 固定宽会让
-        //   窄内容部件两侧留白 10~20pt，正是"有的间隔太小有的太大"的主因）
-        // v134：套宽度迟滞——实测值位数变化使宽度 23↔27pt 每 7s 抖动、整条重排
         BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label",
                                   [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"] || [_module hasSuffix:@"Power"]);
         NSDictionary *lattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight]};
-        NSDictionary *vattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:12 weight:NSFontWeightRegular]};
-        CGFloat labelW = 0;
-        if (label) labelW = [[self moduleLabel] sizeWithAttributes:lattrs].width;
-        NSString *val = FSBarModuleString(&_snap, _module);
-        if (val.length == 0) {
-            // v135：首帧无值——不参与迟滞判定。原先的 24pt 占位宽会污染 stableWidth，
-            // 之后真实值（如 "57°"≈15pt）与稳定宽差 4pt 落在迟滞带内永远缩不回来，
-            // 表现为传感器块右侧多出一截死空白（网络↔传感器间距比内存↔网络大 6pt）
-            return _stableWidth > 0 ? _stableWidth : 12;
-        }
-        CGFloat valueW = [val sizeWithAttributes:vattrs].width;
-        // v135：量化 4pt → 2pt——标签/数值比槽宽窄时两侧各留 (槽宽-内容)/2，
-        // 4pt 量化让传感器块每侧多留 ~1.5pt，叠加后视觉间隙比内存↔网络大 4pt
-        CGFloat cw = ceil(MAX(labelW, valueW) / 2.0) * 2.0;
-        CGFloat raw = MAX(cw, 12);
-        // 诊断（宽度变化时留痕）：v137 节流 ≥10s 一条——FSBarLog 同步写盘，不能频繁
-        if (!_configuration && fabs(raw - _stableWidth) > 0.5) {
-            static CFAbsoluteTime lastDiagAt = 0;
-            CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-            if (now - lastDiagAt >= 10.0) {
-                lastDiagAt = now;
-                FSBarLog(@"[宽度诊断] %@/%@ label=\"%@\"(%.1f) value=\"%@\"(%.1f) raw=%.0f stable=%.0f",
-                         _module, _form, [self moduleLabel], labelW, val, valueW, raw, _stableWidth);
-            }
-        }
-        return [self stabilizeWidth:raw];
+        CGFloat labelW = label ? [[self moduleLabel] sizeWithAttributes:lattrs].width : 0;
+        NSString *format = FSBarModuleIsRatio(_module) ? @"100%" : ([_module isEqualToString:@"Network"] ? @"1000.0" : @"100°");
+        return MAX(ceil(labelW / 2) * 2, FSBarNumberWidth(format, label ? 12 : 14, NSFontWeightRegular));
     }
     if ([_form isEqualToString:@"speed"]) {
-        BOOL units = FSBarViewCfgBool(_configuration, _module, _form, @"units", YES);
         BOOL value = FSBarViewCfgBool(_configuration, _module, _form, @"value", YES);
         NSString *icon = FSBarViewCfgStr(_configuration, _module, _form, @"icon", @"dots");
         NSString *mode = FSBarViewCfgStr(_configuration, _module, _form, @"mode", @"twoRows");
         NSString *display = FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi");
         BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
         if (![mode isEqualToString:@"oneRow"]) {
-            // 2026-11-16：用户要求网速定宽；使用正式字体量宽，不随速率或单位重排。
-            if ([_module isEqualToString:@"Network"]) {
-                NSFont *font = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
-                NSString *widthText = units ? @"1000.0 GB/s" : @"1000.0";
-                CGFloat width = value ? ceil([widthText sizeWithAttributes:@{NSFontAttributeName: font}].width / 2) * 2 : 0;
-                return (iconOn ? 7 : 0) + width;
-            }
-            // 磁盘速率保留按实际文本量宽与迟滞。
-            NSFont *vf = [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight];
-            CGFloat tw = 0;
-            if (value) {
-                NSString *inStr = units ? FSSpeedStr((uint64_t)[self netIn])
-                                        : FSSpeedStrShort((uint64_t)[self netIn]);
-                NSString *outStr = units ? FSSpeedStr((uint64_t)[self netOut])
-                                         : FSSpeedStrShort((uint64_t)[self netOut]);
-                CGFloat w1 = [inStr sizeWithAttributes:@{NSFontAttributeName: vf}].width;
-                CGFloat w2 = [outStr sizeWithAttributes:@{NSFontAttributeName: vf}].width;
-                tw = MAX(w1, w2);
-            }
-            CGFloat cw = value ? MAX(24, ceil(tw / 2.0) * 2.0) : 0;
-            return [self stabilizeWidth:(iconOn ? 7 : 0) + cw];
+            return (iconOn ? 7 : 0) + (value ? [self speedValueWidth] : 0);
         }
-        // oneRow（Stats drawOneRow/drawRowItem）：icon + 2 + rowWidth(58/32)，双值再 + spacing*3
-        CGFloat iconW = 0;
-        if (iconOn) {
-            if ([icon isEqualToString:@"dots"])       iconW = 8;
-            else if ([icon isEqualToString:@"chars"]) iconW = 10;
-            else iconW = 3.0 + (self.window.backingScaleFactor ?: 2.0) / 2.0;   // arrows
-        }
-        CGFloat row = iconW + ((value && iconOn) ? 2 : 0) + (value ? (units ? 58 : 32) : 0);
-        if (display.length > 1) row = row * 2 + 6;
-        return row;
+        NSUInteger count = value ? (display.length > 1 ? 2 : 1) : 0;
+        return (iconOn ? 10 : 0) + count * [self speedValueWidth]
+            + (count > 1 ? FSBarConfigurationSpacing(_configuration ?: g_cfg) : 0);
     }
     CGFloat gap = FSBarConfigurationSpacing(_configuration ?: g_cfg);
     if ([_form isEqualToString:@"line_chart"] || [_form isEqualToString:@"wave"]) {
@@ -985,8 +922,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         return 28 + (FSBarViewCfgBool(_configuration, _module, _form, @"label", NO) ? ([self labelWidth] + gap) : 0);
     }
     if ([_form isEqualToString:@"memory"]) {
-        // Stats Memory：width 50 + symbols?(letterWidth 8 + spacing*2 = 12)
-        return 50 + (FSBarViewCfgBool(_configuration, _module, _form, @"symbols", YES) ? 12 : 0);
+        return FSBarNumberWidth(@"1023.9 MB", 9, NSFontWeightLight)
+            + (FSBarViewCfgBool(_configuration, _module, _form, @"symbols", YES) ? 12 : 0);
     }
     if ([_form isEqualToString:@"pie_chart"] || [_form isEqualToString:@"tachometer"]) {
         // Stats：size(=height) + label?(6 + spacing)；本实现 size = MIN(h, 20)
@@ -996,7 +933,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     if ([_form isEqualToString:@"battery"]) {
         NSString *disp = FSBarViewCfgStr(_configuration, _module, _form, @"display", @"percentage");
         if ([disp isEqualToString:@"none"]) return 24 + 6;   // 仅图标
-        return 24 + (([disp isEqualToString:@"time"]) ? 44 : ([disp containsString:@"And"] ? 84 : 34));
+        CGFloat percentage = FSBarNumberWidth(@"100%", 9, NSFontWeightLight);
+        CGFloat time = FSBarNumberWidth(@"99:59", 9, NSFontWeightLight);
+        return 28 + ([disp isEqualToString:@"time"] ? time : ([disp containsString:@"And"] ? MAX(time, percentage) : percentage));
     }
     if ([_form isEqualToString:@"label"]) return 6;    // Stats Label：letterWidth 6
     if ([_form isEqualToString:@"state"]) return 8;    // Stats Dot：8x8
@@ -1107,11 +1046,18 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     NSColor *color = FSBarColorFromKey(FSBarViewCfgStr(_configuration, @"Power", _form, @"color", @"monochrome"), dark, [self primaryValue]);
     NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightRegular], NSForegroundColorAttributeName: color};
     NSArray *rows = [self powerRows];
-    CGFloat x = visual ? visual + 4 : 0;
+    CGFloat startX = visual ? visual + 4 : 0;
+    CGFloat gap = FSBarConfigurationSpacing(_configuration ?: g_cfg);
     CGFloat rowHeight = r.size.height / rows.count;
-    CGFloat y = rowHeight / 2;
-    for (NSString *row in rows) {
-        FSBarTextCenter(row, attrs, x, y);
+    CGFloat y = 0;
+    for (NSArray *row in rows) {
+        CGFloat x = startX;
+        for (NSString *metric in row) {
+            CGFloat width = FSBarNumberWidth([self powerText:metric value:@"100.0 W"], 9, NSFontWeightRegular);
+            FSBarTextRect([self powerText:metric value:FSBarModuleString(&_snap, metric)], attrs,
+                          NSMakeRect(x, y, width, rowHeight), NSTextAlignmentLeft);
+            x += width + gap;
+        }
         y += rowHeight;
     }
 }
@@ -1121,10 +1067,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     BOOL label = FSBarViewCfgBool(_configuration, _module, _form, @"label",
                               [_module isEqualToString:@"Sensors"] || [_module isEqualToString:@"Disk"] || [_module hasSuffix:@"Power"]);
     NSString *colorKey = FSBarViewCfgStr(_configuration, _module, _form, @"color", @"monochrome");
-    // v28：默认对齐曾改居中（固定宽时代内容常偏一侧）；v135 起帧宽按内容紧贴
-    //（2pt 量化 + 宽度迟滞），居中会在两侧各留 (槽宽-内容)/2 的内侧空白——
-    // 实测使「网络↔传感器」内容间隙 9pt vs「内存↔网络」5pt（用户实证偏大）。
-    // 改回左对齐（与 speed 等文本部件一致），传感器块左缘直贴帧边
+    // 既有对齐选择只改变槽内文字，不改变数值槽宽。
     NSString *align = FSBarViewCfgStr(_configuration, _module, _form, @"alignment", @"left");
     NSString *val = FSBarModuleString(&_snap, _module);
     double v = [self primaryValue];
@@ -1135,11 +1078,11 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         NSDictionary *lattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightLight],
                                  NSForegroundColorAttributeName: FSBarTextColor(dark)};
         FSBarTextRect([self moduleLabel], lattrs, NSMakeRect(0, 1, r.size.width, 8), ta);
-        NSDictionary *vattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:12 weight:NSFontWeightRegular],
+        NSDictionary *vattrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:12 weight:NSFontWeightRegular],
                                  NSForegroundColorAttributeName: c};
         FSBarTextRect(val, vattrs, NSMakeRect(0, 8, r.size.width, 14), ta);   // v28：8.5→8（半像素发虚）
     } else {
-        NSDictionary *vattrs = @{NSFontAttributeName: [NSFont systemFontOfSize:14 weight:NSFontWeightRegular],
+        NSDictionary *vattrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:14 weight:NSFontWeightRegular],
                                  NSForegroundColorAttributeName: c};
         FSBarTextRect(val, vattrs, NSMakeRect(0, 3, r.size.width, 17), ta);
     }
@@ -1199,24 +1142,26 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     BOOL iconOn = (icon && ![icon isEqualToString:@"none"]);
     // v15：图标对齐（left/right；Stats Speed iconAlignment）
     BOOL iconRight = iconOn && [FSBarViewCfgStr(_configuration, _module, _form, @"iconAlignment", @"left") isEqualToString:@"right"];
-    CGFloat iconX = iconRight ? MAX(0, r.size.width - 7) : 0;
+    CGFloat iconSlot = iconOn ? ([mode isEqualToString:@"oneRow"] ? 10 : 7) : 0;
+    CGFloat iconX = iconRight ? MAX(0, r.size.width - iconSlot) : 0;
 
     if ([mode isEqualToString:@"oneRow"]) {
-        // Stats drawOneRow/drawValue：值文字 rect 固定 58/32 宽、11pt regular；顺序 = displayValue 从左到右
-        BOOL outFirst = !io;   // "oi" → output 在左
-        CGFloat rowW = units ? 58 : 32;
-        CGFloat x = iconOn ? (iconRight ? 0 : 10) : 0;   // icon(8) + 2
+        // 单行与双行共用格式槽；顺序沿用 displayValue，隐藏数值只保留图元。
+        BOOL outFirst = [display hasPrefix:@"o"];
+        CGFloat rowW = [self speedValueWidth];
+        CGFloat x = iconRight ? 0 : iconSlot;
+        CGFloat gap = FSBarConfigurationSpacing(_configuration ?: g_cfg);
         NSFont *vf = [NSFont monospacedDigitSystemFontOfSize:11 weight:NSFontWeightRegular];
         NSDictionary *iA = @{NSFontAttributeName: vf, NSForegroundColorAttributeName: valInC};
         NSDictionary *oA = @{NSFontAttributeName: vf, NSForegroundColorAttributeName: valOutC};
-        if (outFirst) {
+        if (valueOn && outFirst) {
             FSBarTextRect(outStr, oA, NSMakeRect(x, 0, rowW, r.size.height), ta);
             x += rowW;
-            if (display.length > 1) { x += 6; FSBarTextRect(inStr, iA, NSMakeRect(x, 0, rowW, r.size.height), ta); }
-        } else {
+            if (display.length > 1) { x += gap; FSBarTextRect(inStr, iA, NSMakeRect(x, 0, rowW, r.size.height), ta); }
+        } else if (valueOn) {
             FSBarTextRect(inStr, iA, NSMakeRect(x, 0, rowW, r.size.height), ta);
             x += rowW;
-            if (display.length > 1) { x += 6; FSBarTextRect(outStr, oA, NSMakeRect(x, 0, rowW, r.size.height), ta); }
+            if (display.length > 1) { x += gap; FSBarTextRect(outStr, oA, NSMakeRect(x, 0, rowW, r.size.height), ta); }
         }
         [self drawSpeedIcon:icon at:iconX rect:r inC:iconInC outC:iconOutC twoRows:NO];
         return;
@@ -1227,10 +1172,16 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     CGFloat inY  = io ? 0 : half;
     CGFloat textX = iconOn ? (iconRight ? 0 : 7) : 0;   // Stats：icon 区 7pt
     // 两侧图标配置都先预留图标槽，右对齐文字不会覆盖右侧图标。
-    CGFloat rowW = MAX(24, r.size.width - (iconOn ? 7 : 0));
+    CGFloat rowW = [self speedValueWidth];
     if (valueOn) {
-        FSBarTextRect(outStr, outAttrs, NSMakeRect(textX, outY, rowW, half), ta);
-        FSBarTextRect(inStr, inAttrs, NSMakeRect(textX, inY, rowW, half), ta);
+        if (display.length == 1) {
+            BOOL input = [display isEqualToString:@"i"];
+            FSBarTextRect(input ? inStr : outStr, input ? inAttrs : outAttrs,
+                          NSMakeRect(textX, half / 2, rowW, half), ta);
+        } else {
+            FSBarTextRect(outStr, outAttrs, NSMakeRect(textX, outY, rowW, half), ta);
+            FSBarTextRect(inStr, inAttrs, NSMakeRect(textX, inY, rowW, half), ta);
+        }
     }
     [self drawSpeedIcon:icon at:iconX rect:r inC:iconInC outC:iconOutC twoRows:YES];
 }
@@ -1241,10 +1192,15 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 - (void)drawSpeedIcon:(NSString *)icon at:(CGFloat)x rect:(NSRect)r inC:(NSColor *)inC outC:(NSColor *)outC twoRows:(BOOL)two {
     if (!icon || [icon isEqualToString:@"none"]) return;
     CGFloat H = r.size.height, half = H / 2;
-    BOOL io = [FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi") isEqualToString:@"io"];
+    NSString *display = FSBarViewCfgStr(_configuration, _module, _form, @"displayValue", @"oi");
+    BOOL io = [display isEqualToString:@"io"];
+    BOOL single = display.length == 1, input = [display isEqualToString:@"i"];
     if ([icon isEqualToString:@"dots"]) {
         CGFloat size = two ? 6 : 8;
-        if (two) {
+        if (single) {
+            [(input ? inC : outC) setFill];
+            [[NSBezierPath bezierPathWithOvalInRect:NSMakeRect(x, (H - size) / 2, size, size)] fill];
+        } else if (two) {
             // Stats drawDots 换算：上圆点中心 ≈ H*0.386、下圆点中心 ≈ H*0.759（贴行底倾向）
             CGFloat topSlotY = half * 0.5;            // 5.5 @H22
             CGFloat botSlotY = half + half * 0.25;    // 13.75 @H22
@@ -1273,7 +1229,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
                              NSForegroundColorAttributeName: inC};
         NSDictionary *oa = @{NSFontAttributeName: [NSFont systemFontOfSize:9 weight:NSFontWeightRegular],
                              NSForegroundColorAttributeName: outC};
-        if (two) {
+        if (single) {
+            FSBarTextCenter(input ? inSym : outSym, input ? ia : oa, x, half);
+        } else if (two) {
             FSBarTextCenter(io ? inSym : outSym, io ? ia : oa, x, half * 0.5);
             FSBarTextCenter(io ? outSym : inSym, io ? oa : ia, x, half + half * 0.5);
         } else {
@@ -1284,8 +1242,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     }
     // arrows：细箭头（Stats drawArrow 同款：竖线+箭头帽）；上=第一个显示的流向
     void (^arrow)(CGFloat, BOOL, NSColor *) = ^(CGFloat cx, BOOL up, NSColor *c) {
-        CGFloat top = two ? (up ? 1 : half + 1) : 2;
         CGFloat h = two ? half - 2 : H - 4;
+        CGFloat top = single ? (H - h) / 2 : (two ? (up ? 1 : half + 1) : 2);
         NSBezierPath *p = [NSBezierPath bezierPath];
         CGFloat y0 = up ? top + h : top, y1 = up ? top : top + h;
         [p moveToPoint:NSMakePoint(cx, y0)];
@@ -1299,8 +1257,11 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         [c setStroke];
         [p stroke];
     };
-    arrow(x + 3, YES, io ? inC : outC);
-    arrow(x + 3, NO, io ? outC : inC);
+    if (single) arrow(x + 3, input, input ? inC : outC);
+    else {
+        arrow(x + 3, YES, io ? inC : outC);
+        arrow(x + 3, NO, io ? outC : inC);
+    }
 }
 
 // ======== 形态 3：bar_chart（Stats BarChart.swift） ========
@@ -1417,7 +1378,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     }
     NSString *str = nil, *suf = nil;
     FSBarModuleValue(&_snap, _module, &str, &suf);
-    NSDictionary *attrs = @{NSFontAttributeName: [NSFont systemFontOfSize:9 weight:NSFontWeightRegular],
+    NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightRegular],
                             NSForegroundColorAttributeName: FSBarTextColor(dark)};
     FSBarTextCenter(str, attrs, x + size / 2, r.size.height - 6);
 }
@@ -1450,7 +1411,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     }
     NSString *str = nil, *suf = nil;
     FSBarModuleValue(&_snap, _module, &str, &suf);
-    NSDictionary *attrs = @{NSFontAttributeName: [NSFont systemFontOfSize:7 weight:NSFontWeightMedium],
+    NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:7 weight:NSFontWeightMedium],
                             NSForegroundColorAttributeName: FSBarTextColor(dark)};
     FSBarTextCenter(str, attrs, center.x, center.y + 3);
 }
@@ -1594,7 +1555,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     if (valueOn) {
         NSString *str = nil, *suf = nil;
         FSBarModuleValue(&_snap, _module, &str, &suf);
-        NSDictionary *attrs = @{NSFontAttributeName: [NSFont systemFontOfSize:8 weight:NSFontWeightRegular],
+        NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:8 weight:NSFontWeightRegular],
                                 NSForegroundColorAttributeName: valueColorOn ? lineC :
                                     (dark ? [NSColor whiteColor] : [NSColor blackColor])};
         FSBarTextRect(str, attrs, NSMakeRect(x + 1, 0, w - 2, 8), NSTextAlignmentRight);
@@ -1746,7 +1707,7 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         FSBarTextRect(@"U:", attrs, NSMakeRect(0, usedY, 8, half), NSTextAlignmentLeft);
         x = 12;
     }
-    NSDictionary *vat = @{NSFontAttributeName: [NSFont systemFontOfSize:9 weight:NSFontWeightLight],
+    NSDictionary *vat = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight],
                           NSForegroundColorAttributeName: c};
     FSBarTextRect(free, vat, NSMakeRect(x, freeY, r.size.width - x, half), NSTextAlignmentRight);
     FSBarTextRect(used, vat, NSMakeRect(x, usedY, r.size.width - x, half), NSTextAlignmentRight);
@@ -1778,12 +1739,6 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
     CGFloat W = 22, Hh = 12;
     CGFloat x = 0;
     CGFloat y = (r.size.height - Hh) / 2;
-    if (_snap.batteryPresent && _snap.batteryCharging) {
-        NSImage *bolt = FSBarSymbolImage(@"bolt.fill", 8, NSFontWeightSemibold);
-        [FSBarTextColor(dark) set];
-        [bolt drawInRect:NSMakeRect(0, y, 8, Hh) fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:0.8 respectFlipped:YES hints:nil];
-        x += 10;
-    }
     // 电池壳
     NSBezierPath *shell = [NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x + 0.5, y + 0.5, W, Hh) xRadius:2 yRadius:2];
     [[FSBarTextColor(dark) colorWithAlphaComponent:0.5] setStroke];
@@ -1801,9 +1756,14 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
     NSBezierPath *inner = [NSBezierPath bezierPathWithRoundedRect:NSMakeRect(x + 2, y + 2, innerW, Hh - 4) xRadius:1 yRadius:1];
     [fill setFill];
     [inner fill];
+    if (_snap.batteryPresent && _snap.batteryCharging) {
+        NSImage *bolt = FSBarSymbolImage(@"bolt.fill", 8, NSFontWeightSemibold);
+        [FSBarTextColor(dark) set];
+        [bolt drawInRect:NSMakeRect(x + 8, y, 8, Hh) fromRect:NSZeroRect operation:NSCompositingOperationSourceOver fraction:0.8 respectFlipped:YES hints:nil];
+    }
     x += W + 4;
     // 文本行
-    NSDictionary *attrs = @{NSFontAttributeName: [NSFont systemFontOfSize:9 weight:NSFontWeightLight],
+    NSDictionary *attrs = @{NSFontAttributeName: [NSFont monospacedDigitSystemFontOfSize:9 weight:NSFontWeightLight],
                             NSForegroundColorAttributeName: FSBarTextColor(dark)};
     if (!_snap.batteryPresent) {
         FSBarTextCenter(@"—", attrs, x + 8, r.size.height / 2);
@@ -2213,7 +2173,7 @@ static void FSBarShowMergedMenu(NSString *hitModule, NSPoint at) {
         NSMenuItem *spHead = [[NSMenuItem alloc] initWithTitle:@"间距" action:nil keyEquivalent:@""];
         NSMenu *spMenu = [[NSMenu alloc] init];
         spMenu.autoenablesItems = NO;
-        NSString *curSp = FSBarGlobalStr(@"CombinedModules_spacing", @"none");
+        CGFloat curSp = FSBarWidgetSpacing();
         NSArray<NSArray<NSString *> *> *spOpts = @[
             @[@"none", @"无"], @[@"2", @"小（2）"], @[@"4", @"中（4）"], @[@"6", @"大（6）"]
         ];
@@ -2223,7 +2183,7 @@ static void FSBarShowMergedMenu(NSString *hitModule, NSPoint at) {
                                                  keyEquivalent:@""];
             it.target = g_manager;
             it.representedObject = o[0];
-            it.state = [o[0] isEqualToString:curSp] ? NSControlStateValueOn : NSControlStateValueOff;
+            it.state = fabs([o[0] doubleValue] - curSp) < 0.01 ? NSControlStateValueOn : NSControlStateValueOff;
             [spMenu addItem:it];
         }
         spHead.submenu = spMenu;
@@ -2366,7 +2326,7 @@ void FSBarSetDebugAnchorX(CGFloat x) { g_anchorScreen = NSMakeRect(x, 0, 1, 1); 
 - (void)mergedMenuSetSpacing:(NSMenuItem *)item {
     NSString *v = item.representedObject;
     if (![v isKindOfClass:[NSString class]]) return;
-    FSBarGlobalSet(@"CombinedModules_spacing", v);
+    FSBarGlobalSet(@"Widgets_spacing", v);
     FSBarReconcile();
     FSBarLog(@"[barmenu] 间距 → %@", v);
 }
@@ -2844,8 +2804,6 @@ void FSBarReloadFromStore(void) {
     FSBarLoadStore();
     g_cfgGen++;   // v126：配置重载 → FSBarEnabledForms 缓存失效
     for (FSBarWidgetView *view in g_views.allValues) {
-        view.stableWidth = 0;
-        view.shrinkVotes = 0;
         view.lastUpdate = 0;
     }
     if (g_manager) FSBarReconcile();

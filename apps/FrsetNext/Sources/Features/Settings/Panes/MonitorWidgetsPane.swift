@@ -22,7 +22,6 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
         get { FSBarConfigurationSpacing(configuration) }
         set {
             configuration["Widgets_spacing"] = String(format: "%.1f", newValue)
-            configuration["CombinedModules_spacing"] = String(format: "%.1f", newValue)
         }
     }
     func bool(_ key: String, default value: Bool) -> Bool {
@@ -131,6 +130,8 @@ private struct MonitorWidgetsContent: View {
         VStack(alignment: .leading, spacing: 12) {
             SettingsGroupBox {
                 Text("菜单栏预览 · 固定示例数值").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("数值槽按格式定宽；读数、单位变化与充电状态不会移动相邻部件。标签、单位及排列调整先预览，保存后应用。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
                 ForEach([false, true], id: \.self) { dark in
                     Text(dark ? "深色背景" : "浅色背景").font(.system(size: 11)).foregroundStyle(.secondary)
                     ScrollView(.horizontal) {
