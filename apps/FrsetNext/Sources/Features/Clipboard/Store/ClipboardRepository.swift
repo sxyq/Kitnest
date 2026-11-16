@@ -430,7 +430,7 @@ public final class ClipboardRepository: @unchecked Sendable {
 extension String {
     /// 首行摘要作为 title
     var firstLineBrief: String {
-        let line = split(separator: "\n").first.map(String.init) ?? self
+        let line = split(separator: "\n", maxSplits: 1).first.map(String.init) ?? self
         let s = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.count > 80 { return String(s.prefix(80)) + "…" }
         return s.isEmpty ? (self.isEmpty ? "" : String(self.prefix(80))) : s

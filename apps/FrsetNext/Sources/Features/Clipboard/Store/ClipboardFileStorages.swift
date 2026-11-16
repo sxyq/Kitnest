@@ -134,8 +134,7 @@ public enum ClipboardOCRTextStorage {
     }
 
     public static func read(dedupeKey: String) -> String? {
-        let safe = dedupeKey.replacingOccurrences(of: "/", with: "_")
-        return ClipboardTextStorage.read("\(directoryName)/\(safe).txt")
+        ClipboardTextStorage.read(relativePath(dedupeKey: dedupeKey))
     }
 
     public static func remove(dedupeKey: String) {

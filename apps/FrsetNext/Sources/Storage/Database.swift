@@ -343,23 +343,15 @@ public final class DatabaseManager {
         let legacyRows = try statistics.query(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_stats'")
         guard !legacyRows.isEmpty else { return }
-        let legacyMap: [(column: String, event: String)] = [
-            ("capture_count", "clipboard_capture"),
-            ("screenshot_count", "screenshot_capture"),
-            ("ocr_count", "ocr_use"),
-            ("tool_count", "tool_execute_success"),
-            // 原作 59 键中无 AI 请求事件；保留为重建扩展事件名（不影响窄表结构）
-            ("ai_request_count", "ai_request_count"),
-        ]
         try statistics.transaction { db in
             for r in try db.query("SELECT * FROM daily_stats") {
                 guard let rawDay = r.string("day") else { continue }
                 let day = Self.normalizedDay(rawDay)
-                for m in legacyMap where r.int(m.column) > 0 {
+                for (column, event) in Self.legacyColumnEventMap where r.int(column) > 0 {
                     try db.run(
                         "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
                         "ON CONFLICT(day, event_name) DO UPDATE SET count = usage_daily_metrics.count + excluded.count",
-                        [.text(day), .text(m.event), .int(r.int(m.column))])
+                        [.text(day), .text(event), .int(r.int(column))])
                 }
             }
             try db.exec("DROP TABLE daily_stats;")

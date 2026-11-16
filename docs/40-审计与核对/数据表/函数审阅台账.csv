@@ -1860,15 +1860,15 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextS
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,keyName,func,118,KEEP,2026-11-17：OCR.write与remove调用；去扩展名和父目录得到与loadIndex一致的键；不保存第二份正文
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,write,func,122,KEEP,基础写盘原子写入Data并返回成功标记；长文本和RTF返回已写相对路径，长文本含字节数；OCR按dedupeKey写UTF-8，成功后更新已有小写索引并在主线程发clipboardOCRTextChanged，PreviewImageView仅接收当前键且非设置预览的通知，回读ocrText、重算tidiedOCR并清除ocrError
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,read,func,136,KEEP,2026-11-17：Manager.ocrText调用；读取ocr文本不触发识别；路径规则与relativePath重复待复用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,remove,func,141,KEEP,2026-11-17：Repository.delete成功后调用；删除本条OCR并锁内移除同名索引；不重建全索引
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,invalidateIndex,func,158,KEEP,恢复备份成功后锁内将OCR内存索引设nil，下次正式检索重新读取恢复后的OCR文件
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,164,KEEP,2026-11-17：matchingDedupeKeys惰性取用；首次最多读取2000份txt为小写全文；已有索引直接返回且写删增量更新；冷读在锁内执行
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,190,KEEP,2026-11-17：Repository.appendClauses搜索调用；至少两字符才检索；逐项contains后仅返回命中键集合；浮窗fetch与count会重复本次检索待后续按请求复用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,219,KEEP,2026-11-17：Manager.writeToDatabase唯一调用；原图写盘并生成200px缩略图；只返回消费方读取的两类路径与字节数；未消费的pixelSize和专用读取函数已删
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,236,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,263,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,275,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,311,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,remove,func,140,KEEP,2026-11-17：Repository.delete成功后调用；删除本条OCR并锁内移除同名索引；不重建全索引
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,invalidateIndex,func,157,KEEP,恢复备份成功后锁内将OCR内存索引设nil，下次正式检索重新读取恢复后的OCR文件
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,163,KEEP,2026-11-17：matchingDedupeKeys惰性取用；首次最多读取2000份txt为小写全文；已有索引直接返回且写删增量更新；冷读在锁内执行
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,189,KEEP,2026-11-17：Repository.appendClauses搜索调用；至少两字符才检索；逐项contains后仅返回命中键集合；浮窗fetch与count会重复本次检索待后续按请求复用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,218,KEEP,2026-11-17：Manager.writeToDatabase唯一调用；原图写盘并生成200px缩略图；只返回消费方读取的两类路径与字节数；未消费的pixelSize和专用读取函数已删
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,235,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,262,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,274,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,310,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,86,KEEP,主剪贴板和悬浮窗的固定预览共用九类过滤：按条目类型、https 链接前缀、代码/JSON 分类、colorpicker 来源、工具生成标记及笔记标记匹配
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,176,KEEP,单例 :88 初始化
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,207,KEEP,设置可选恢复时限、刷新剩余分钟并发布暂停通知与提示
@@ -4145,19 +4145,19 @@ Storage,Storage/Database.swift,Dictionary,bool,func,187,KEEP,2026-11-17：Clipbo
 Storage,Storage/Database.swift,DatabaseManager,init,init,198,KEEP,2026-11-17：shared唯一构造；剪贴板与统计数据库独立打开与既有降级；统一migrate错误记录；不新建数据库副本
 Storage,Storage/Database.swift,DatabaseManager,migrate,func,225,KEEP,2026-11-17：初始化调用；幂等创建既有表索引并按需增加file_categories；已读完整事务迁移与旧统计合并入口
 Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,342,KEEP,2026-11-17：migrate调用；旧表读取计数合并与DROP在同一原SQLite事务内；查询或写入失败回滚并向原迁移错误日志抛出；旧表保留避免数据丢失
-Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,371,KEEP,2026-11-17：旧统计迁移与bumpStat日期入口共用；仅将8位日期数值改成yyyy-MM-dd其余原样；保留既有历史日期兼容
-Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,390,KEEP,2026-11-17：ClipboardManager与AppBootstrap历史事件入口；旧列名映射5种事件后交StatisticsManager；未引入第二统计写入链
-Storage,Storage/Database.swift,StatisticsManager,init,init,493,KEEP,2026-11-17：shared唯一创建；取得既有statistics连接并异步ensureInstallDate；不在初始化读取全量统计
-Storage,Storage/Database.swift,StatisticsManager,record,func,501,KEEP,2026-11-17：字符串入口及枚举转发调用；按用户开关和现有1秒操作去重窗口在串行队列写窄表；计数不低于0后加1
-Storage,Storage/Database.swift,StatisticsManager,record,func,518,KEEP,2026-11-17：模块埋点使用枚举入口；eventName转字符串后复用同一record；无重复持久化
-Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,524,KEEP,2026-11-17：StatisticsRootView后台refresh调用；SQL按事件聚合非负值；只物化聚合行而不读取逐日明细
-Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,536,KEEP,2026-11-17：StatisticsRootView日卡调用；日期和事件全用绑定；空事件集早退；只读取当天指定事件
-Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,551,KEEP,2026-11-17：统计主面板与设置刷新调用；SQL COUNT DISTINCT day且count为正；返回整数不创建日期记录模型
-Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,563,KEEP,2026-11-17：StatisticsRootView活动矩阵调用；SQL按指定起日及事件聚合再排序；仅返回日总量
-Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,576,KEEP,2026-11-17：StatisticsRootView最近30日柱图调用；沿SQL日期与事件条件读取窄表；不重复按事件查询每一天
-Storage,Storage/Database.swift,StatisticsManager,total,func,593,KEEP,2026-11-17：StatisticsSettingsPane各功能累计调用；单事件SQL SUM；设置refresh逐指标调用存在批量复用空间待性能批次
-Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,602,KEEP,2026-11-17：StatisticsSettingsPane.refresh读取历史复制与截图次数；固定两事件SQL聚合；沿用原评分口径
-Storage,Storage/Database.swift,StatisticsManager,exportAll,func,611,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
-Storage,Storage/Database.swift,StatisticsManager,importMerge,func,623,UNSURE,2026-11-17：全函数阅读为串行队列事务MAX合并；StatisticsSettingsPane已改成仅配置导入而不再调用；需核对其余配置/诊断入口后决定删除
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,640,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,669,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理
+Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,363,KEEP,2026-11-17：旧统计迁移与bumpStat日期入口共用；仅将8位日期数值改成yyyy-MM-dd其余原样；保留既有历史日期兼容
+Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,382,KEEP,2026-11-17：ClipboardManager与AppBootstrap历史事件入口；旧列名映射5种事件后交StatisticsManager；未引入第二统计写入链
+Storage,Storage/Database.swift,StatisticsManager,init,init,485,KEEP,2026-11-17：shared唯一创建；取得既有statistics连接并异步ensureInstallDate；不在初始化读取全量统计
+Storage,Storage/Database.swift,StatisticsManager,record,func,493,KEEP,2026-11-17：字符串入口及枚举转发调用；按用户开关和现有1秒操作去重窗口在串行队列写窄表；计数不低于0后加1
+Storage,Storage/Database.swift,StatisticsManager,record,func,510,KEEP,2026-11-17：模块埋点使用枚举入口；eventName转字符串后复用同一record；无重复持久化
+Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,516,KEEP,2026-11-17：StatisticsRootView后台refresh调用；SQL按事件聚合非负值；只物化聚合行而不读取逐日明细
+Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,528,KEEP,2026-11-17：StatisticsRootView日卡调用；日期和事件全用绑定；空事件集早退；只读取当天指定事件
+Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,543,KEEP,2026-11-17：统计主面板与设置刷新调用；SQL COUNT DISTINCT day且count为正；返回整数不创建日期记录模型
+Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,555,KEEP,2026-11-17：StatisticsRootView活动矩阵调用；SQL按指定起日及事件聚合再排序；仅返回日总量
+Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,568,KEEP,2026-11-17：StatisticsRootView最近30日柱图调用；沿SQL日期与事件条件读取窄表；不重复按事件查询每一天
+Storage,Storage/Database.swift,StatisticsManager,total,func,585,KEEP,2026-11-17：StatisticsSettingsPane各功能累计调用；单事件SQL SUM；设置refresh逐指标调用存在批量复用空间待性能批次
+Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,594,KEEP,2026-11-17：StatisticsSettingsPane.refresh读取历史复制与截图次数；固定两事件SQL聚合；沿用原评分口径
+Storage,Storage/Database.swift,StatisticsManager,exportAll,func,603,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
+Storage,Storage/Database.swift,StatisticsManager,importMerge,func,615,UNSURE,2026-11-17：全函数阅读为串行队列事务MAX合并；StatisticsSettingsPane已改成仅配置导入而不再调用；需核对其余配置/诊断入口后决定删除
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,632,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,661,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理
