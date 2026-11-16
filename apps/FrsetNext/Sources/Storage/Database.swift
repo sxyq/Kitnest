@@ -101,6 +101,11 @@ public final class SQLiteDatabase {
 
 
     public func query(_ sql: String, _ values: [SQLiteValue] = []) throws -> [[String: SQLiteValue]] {
+        try query(sql, values, transform: { $0 })
+    }
+
+    public func query<Result>(_ sql: String, _ values: [SQLiteValue] = [],
+                              transform: ([String: SQLiteValue]) -> Result) throws -> [Result] {
         accessLock.lock(); defer { accessLock.unlock() }
         guard let h = handle else { throw DatabaseError(message: "db closed") }
         var stmt: OpaquePointer?
@@ -123,7 +128,7 @@ public final class SQLiteDatabase {
                 names.append("c\(i)")
             }
         }
-        var rows: [[String: SQLiteValue]] = []
+        var rows: [Result] = []
         while sqlite3_step(s) == SQLITE_ROW {
             var row: [String: SQLiteValue] = [:]
             row.reserveCapacity(countInt)
@@ -142,7 +147,7 @@ public final class SQLiteDatabase {
                 default: row[name] = .null
                 }
             }
-            rows.append(row)
+            rows.append(transform(row))
         }
         return rows
     }

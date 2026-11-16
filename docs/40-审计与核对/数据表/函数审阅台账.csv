@@ -1845,31 +1845,31 @@ Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,tempora
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,710,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,721,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,726,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,url,func,14,KEEP,Desk:727、PreviewPopoverContentModel:323
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,write,func,20,KEEP,:72/:91/:123/:212 内部写盘
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,read,func,33,KEEP,Manager:521/:529、Desk:741
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,remove,func,37,KEEP,Repository:274-277 删除回收
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,fileSize,func,42,KEEP,Manager:324/:691-693
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,directorySize,func,49,KEEP,:305-309 diskBytes 累加
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,write,func,69,KEEP,Manager:337/:350/:598/:642
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,read,func,76,KEEP,Manager:503 fullText
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,remove,func,81,KEEP,Manager:599/:609
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardRichTextStorage,write,func,89,KEEP,Manager:330 富文本落盘
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardRichTextStorage,read,func,95,KEEP,Manager:504、AppBootstrap:62
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,relativePath,func,112,KEEP,:121/:136 内部调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,keyName,func,118,KEEP,:126/:140 内部调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,url,func,14,KEEP,2026-11-17：私有文件读写与Repository.delete共用AppDirectories.base相对路径拼接；备份导入另由attachmentURL限定目录与文件类型
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,write,func,20,KEEP,2026-11-17：文本RTF和图片写盘共用；创建父目录后原子写Data并返回成功标记；写失败记录具体相对路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,read,func,33,KEEP,2026-11-17：文本解码与图片缓存读取共用；仅返回所选相对路径的Data；读取失败由各消费者处理
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,remove,func,37,KEEP,2026-11-17：文本和OCR清理复用；空路径不执行删除；Repository事务负责数据库附件回收而非此函数
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,fileSize,func,42,KEEP,2026-11-17：ClipboardManager入库与正文编辑计算已有附件字节使用；只读取单文件属性而不载入正文
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,directorySize,func,49,KEEP,2026-11-17：存储用量diskBytes对五个现有目录调用；枚举器预取fileSizeKey并跳过隐藏文件；容量超限判断先用SQL短路以减少目录遍历
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,write,func,69,KEEP,2026-11-17：Manager入库和编辑长文本调用；以UUID保存UTF-8文件并返回实际字节数；写失败不返回路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,read,func,76,KEEP,2026-11-17：Manager.fullText及OCR.read调用；复用FileStore读取后按UTF-8解码；未额外缓存整份长正文
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardTextStorage,remove,func,81,KEEP,2026-11-17：Manager正文写入失败与替换清理调用；复用FileStore.remove处理既有相对路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardRichTextStorage,write,func,89,KEEP,2026-11-17：Manager.writeToDatabase保存richTextData；原始Data写入rich_texts目录；需继续处理Reader可接收HTML而read仅解RTF的格式不一致
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardRichTextStorage,read,func,95,KEEP,2026-11-17：Manager.fullText与AppBootstrap富文本预览桥调用；当前只解RTF；Reader的HTML数据同样写入此目录导致格式丢失问题待处理
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,relativePath,func,112,KEEP,2026-11-17：OCR写删与备份附件定位共用；替换dedupeKey内斜杠后生成ocr下单文件路径；read仍重复同一规则待合并
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,keyName,func,118,KEEP,2026-11-17：OCR.write与remove调用；去扩展名和父目录得到与loadIndex一致的键；不保存第二份正文
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,write,func,122,KEEP,基础写盘原子写入Data并返回成功标记；长文本和RTF返回已写相对路径，长文本含字节数；OCR按dedupeKey写UTF-8，成功后更新已有小写索引并在主线程发clipboardOCRTextChanged，PreviewImageView仅接收当前键且非设置预览的通知，回读ocrText、重算tidiedOCR并清除ocrError
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,read,func,136,KEEP,Manager:509 ocrText
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,remove,func,141,KEEP,Repository:278 删除时调用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,read,func,136,KEEP,2026-11-17：Manager.ocrText调用；读取ocr文本不触发识别；路径规则与relativePath重复待复用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,remove,func,141,KEEP,2026-11-17：Repository.delete成功后调用；删除本条OCR并锁内移除同名索引；不重建全索引
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,invalidateIndex,func,158,KEEP,恢复备份成功后锁内将OCR内存索引设nil，下次正式检索重新读取恢复后的OCR文件
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,164,KEEP,matchingDedupeKeys:183 调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,190,KEEP,Repository:118 搜索 OCR 命中
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,220,KEEP,Manager:320 图片入库
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,242,KEEP,store:220 调用 makeThumbnail(from:toRelativePath:)；此前的死判针对已删的 data: 重载，属误判
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,269,KEEP,SectionView:561 缩略图
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,281,KEEP,:210 store 内调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,pixelSize,func,291,KEEP,:226 store 内调用
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,324,KEEP,PruneSchedulers:163 循环条件
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,164,KEEP,2026-11-17：matchingDedupeKeys惰性取用；首次最多读取2000份txt为小写全文；已有索引直接返回且写删增量更新；冷读在锁内执行
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,190,KEEP,2026-11-17：Repository.appendClauses搜索调用；至少两字符才检索；逐项contains后仅返回命中键集合；浮窗fetch与count会重复本次检索待后续按请求复用
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,220,KEEP,2026-11-17：Manager.writeToDatabase唯一调用；原图写盘后共享ImageIO source生成200px缩略图；返回pixelSize无人读取待删除
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,242,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,269,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,281,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,pixelSize,func,291,DEAD_CANDIDATE,2026-11-17：仅store读取ImageIO属性并写入StoredImage.pixelSize；唯一消费StoredImage的Manager仅读取路径与字节数；待同批移除未消费字段和计算
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,324,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,86,KEEP,主剪贴板和悬浮窗的固定预览共用九类过滤：按条目类型、https 链接前缀、代码/JSON 分类、colorpicker 来源、工具生成标记及笔记标记匹配
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,176,KEEP,单例 :88 初始化
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,207,KEEP,设置可选恢复时限、刷新剩余分钟并发布暂停通知与提示
@@ -1916,21 +1916,21 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,sched
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,973,KEEP,:384 图片条目调用
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,997,KEEP,:552 自动粘贴分支
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1024,KEEP,:733 权限缺失分支
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,21,KEEP,read* 内构造；Manager:678/:683
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,63,KEEP,Manager:133 构造持有
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,69,KEEP,读取粘贴板类型和来源应用后依次尝试文件、图片、URL、富文本和文本；文件URL先于TIFF图片读取，避免Finder复制文件附带的图标被识别为图片
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readImage,func,87,KEEP,read:74 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readFiles,func,115,KEEP,从fileURL或NSFilenamesPboardType读取文件列表，将NSURL.filePathURL解析出的真实路径用于content、标题、目录副标题和fileURLs；未取得URL时沿用旧文件名列表路径，返回.file结果
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readRichText,func,144,KEEP,read:79 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readText,func,165,KEEP,read:80 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,singleURL,func,186,KEEP,readText:170 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readURL,func,199,KEEP,read:78 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,frontmostAppIdentifier,func,211,KEEP,read:72 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,plainText,func,216,KEEP,readRichText:151 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageSize,func,225,KEEP,readImage:96、imageResult:254
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,fingerprint,func,239,KEEP,readImage:109、imageResult:264
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageResult,func,251,KEEP,Manager:678 insertImage
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,textResult,func,269,KEEP,Manager:683 insertText
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,22,KEEP,read* 内构造；Manager:678/:683
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,64,KEEP,Manager:133 构造持有
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,70,KEEP,读取粘贴板类型和来源应用后依次尝试文件、图片、URL、富文本和文本；文件URL先于TIFF图片读取，避免Finder复制文件附带的图标被识别为图片
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readImage,func,96,KEEP,read:74 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readFiles,func,124,KEEP,从fileURL或NSFilenamesPboardType读取文件列表，将NSURL.filePathURL解析出的真实路径用于content、标题、目录副标题和fileURLs；未取得URL时沿用旧文件名列表路径，返回.file结果
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readRichText,func,153,KEEP,read:79 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readText,func,174,KEEP,read:80 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,singleURL,func,195,KEEP,readText:170 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readURL,func,208,KEEP,read:78 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,frontmostAppIdentifier,func,220,KEEP,read:72 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,plainText,func,225,KEEP,readRichText:151 调用
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageSize,func,234,KEEP,readImage:96、imageResult:254
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,fingerprint,func,248,KEEP,readImage:109、imageResult:264
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageResult,func,260,KEEP,Manager:678 insertImage
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,textResult,func,278,KEEP,Manager:683 insertText
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardHistoryRetentionPruneScheduler,init,init,31,KEEP,单例 :19 初始化
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardHistoryRetentionPruneScheduler,start,func,38,KEEP,ClipboardModule:17、Manager:179
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardHistoryRetentionPruneScheduler,pruneAsync,func,49,KEEP,SettingsPane:76 立即清理
@@ -1941,36 +1941,36 @@ Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStora
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStoragePruneScheduler,prune,func,143,KEEP,pruneAsync:144 调用
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardQuery,init,init,25,KEEP,Desk:155、Manager:431/:491
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,appendClauses,func,69,KEEP,fetch:134、count:154 调用
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,fetch,func,137,KEEP,读：拼 WHERE（appendClauses）+ ORDER BY timestamp DESC LIMIT/OFFSET，查完挂标签；ClipboardManager.reload 调用
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,count,func,157,KEEP,计数：同一套 appendClauses 条件，分页总数用
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,item,func,167,KEEP,按 dedupe_key 取单条（去重命中 / 编辑前刷新），取完挂标签
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,exists,func,176,KEEP,去重判定：COUNT>0；ClipboardManager.writeToDatabase 入库前唯一调用点
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,insert,func,183,KEEP,写：24 列 INSERT；UNIQUE(dedupe_key) 冲突按「已存在」返回 false，上层退化为置顶
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,touch,func,203,KEEP,去重置顶：UPDATE timestamp
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateContent,func,209,KEEP,编辑保存：回写 content/text_path/字行数/占用，title 同步为 content.firstLineBrief
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateAliasTitle,func,236,KEEP,重命名：写 alias_title；空串按清除处理（写 NULL）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateFields,func,252,KEEP,工具回流与 OCR 回填：rich_text_path/image_path/thumbnail_path/storage_bytes/is_note 各自按需单条 UPDATE
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,delete,func,280,KEEP,删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,unsavedHistory,func,335,KEEP,clearUnsavedHistory统计与删除共用SELECT is_note=0，读取全部历史，不受当前列表筛选或分页影响
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,savedCount,func,339,KEEP,clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1说明保留的已存项目数
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,rowsOlderThan,func,346,KEEP,时间保留期清理：早于 cutoff 的条目（ClipboardPruneSchedulers 调用）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,oldestRows,func,354,KEEP,容量超限清理：最旧 N 条
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,totalStorageBytes,func,361,KEEP,SUM(storage_bytes)：存储占用统计（设置页配额）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,makeItem,func,368,KEEP,SQL 行 → ClipboardItem（24 列；tagIDs 留空由 TagStore 回填）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,bindings,func,400,KEEP,ClipboardItem → 24 个 SQLiteValue 绑定值（insert 唯一消费者）
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,escapeLike,func,434,KEEP,LIKE 转义 \ % _；v126 改 Array+join，避免字符串拼接 O(n²)
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,fetch,func,137,KEEP,2026-11-17：ClipboardManager.reload与浮窗fetch调用；保留SQL筛选排序分页与批量标签挂载；借助query transform逐行构造ClipboardItem而不再同时保留整批SQL字典
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,count,func,156,KEEP,计数：同一套 appendClauses 条件，分页总数用
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,item,func,166,KEEP,按 dedupe_key 取单条（去重命中 / 编辑前刷新），取完挂标签
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,exists,func,175,KEEP,去重判定：COUNT>0；ClipboardManager.writeToDatabase 入库前唯一调用点
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,insert,func,182,KEEP,写：24 列 INSERT；UNIQUE(dedupe_key) 冲突按「已存在」返回 false，上层退化为置顶
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,touch,func,202,KEEP,去重置顶：UPDATE timestamp
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateContent,func,208,KEEP,编辑保存：回写 content/text_path/字行数/占用，title 同步为 content.firstLineBrief
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateAliasTitle,func,235,KEEP,重命名：写 alias_title；空串按清除处理（写 NULL）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,updateFields,func,251,KEEP,工具回流与 OCR 回填：rich_text_path/image_path/thumbnail_path/storage_bytes/is_note 各自按需单条 UPDATE
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,delete,func,279,KEEP,删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,unsavedHistory,func,334,KEEP,2026-11-17：clearUnsavedHistory确认与删除调用；SELECT is_note=0仍覆盖完整未保存历史；逐行映射条目以减少SQL字典中间数组
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,savedCount,func,338,KEEP,clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1说明保留的已存项目数
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,rowsOlderThan,func,345,KEEP,2026-11-17：保留期调度器prune调用；按timestamp升序及cutoff选取200条；原查询循环内直接生成条目
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,oldestRows,func,352,KEEP,2026-11-17：容量调度器prune调用；保留最旧优先与每批200条；原查询循环内直接生成条目
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,totalStorageBytes,func,358,KEEP,SUM(storage_bytes)：存储占用统计（设置页配额）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,makeItem,func,365,KEEP,SQL 行 → ClipboardItem（24 列；tagIDs 留空由 TagStore 回填）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,bindings,func,397,KEEP,ClipboardItem → 24 个 SQLiteValue 绑定值（insert 唯一消费者）
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,escapeLike,func,431,KEEP,LIKE 转义 \ % _；v126 改 Array+join，避免字符串拼接 O(n²)
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,combine,func,10,KEEP,按选定格式将多段原文以换行或缩进编号合并
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,deduplicate,func,18,KEEP,按行去重，可选忽略大小写或首尾空白，并返回移除数量
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,cleanLink,func,31,KEEP,移除常见跟踪参数，签名链接保持原样并回报移除项数
 Clipboard,Features/Clipboard/Store/ClipboardTextTransforms.swift,ClipboardTextTransforms,organizeOCR,func,53,KEEP,合并符合中英文续行条件的 OCR 断行，保留列表、缩进和结构行
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,init,init,19,KEEP,单例 :10 初始化
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,refresh,func,23,KEEP,SectionView:38、Manager:177、Desk:397
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,attachTags,func,49,KEEP,Repository:142/:165 调用
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,create,func,65,KEEP,SectionView:287、SettingsPanes:638
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,delete,func,84,KEEP,SettingsPanes:591 删除按钮
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,assign,func,92,KEEP,SectionView:288、toggle:148
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,unassign,func,110,KEEP,toggle:147 调用
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,toggle,func,126,KEEP,SectionView:279、TableHostView:984
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,init,init,19,KEEP,2026-11-17：shared唯一创建；复用DatabaseManager的clipboard连接和本类锁；不另开数据库或定时器
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,refresh,func,23,KEEP,2026-11-17：Manager启动与备份恢复及标签设置调用；读取标签和关联两表后锁内替换mapping并在主线程发布tags；全表重载仅用于这些明确操作
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,attachTags,func,49,KEEP,2026-11-17：Repository.fetch及item调用；持锁对当前结果做字典查找而不逐条查询；发现Repository.delete成功后未清理mapping的独立一致性问题待处理
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,create,func,65,KEEP,2026-11-17：标签菜单与设置调用；非空名称经SQLite绑定插入并refresh；NOCASE重名沿既有标签复用；未发现重复创建入口
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,delete,func,84,KEEP,2026-11-17：标签设置删除按钮调用；删除tags后由已启用外键清理关联并refresh；没有删除剪贴板条目或附件
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,assign,func,92,KEEP,2026-11-17：标签创建后的分配与toggle调用；INSERT OR IGNORE后锁内增量维护当前key的tag列表；不重读两张表
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,unassign,func,110,KEEP,2026-11-17：toggle的已选标签路径调用；绑定key及tagID删除关联并同步移除内存条目；空标签列表释放key
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,toggle,func,126,KEEP,2026-11-17：剪贴板行菜单与原生表菜单共用；锁内只读取已选状态；解锁后调用assign或unassign以避免锁重入
 Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,init,init,18,KEEP,:101 构造会话
 Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,setContent,func,25,KEEP,:230 textDidChange 调用
 Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,setAliasTitle,func,26,KEEP,:201 aliasDidChange 调用
@@ -4134,29 +4134,30 @@ Storage,Storage/Database.swift,SQLiteDatabase,deinit,deinit,62,KEEP,ARC 生命�
 Storage,Storage/Database.swift,SQLiteDatabase,exec,func,64,KEEP,init:36-44、migrate:210/293、transaction:153 调用
 Storage,Storage/Database.swift,SQLiteDatabase,bindValues,func,75,KEEP,run:92 与 query:106 调用
 Storage,Storage/Database.swift,SQLiteDatabase,run,func,88,KEEP,ClipboardRepository:186 等；本文件 330/482/599
-Storage,Storage/Database.swift,SQLiteDatabase,query,func,103,KEEP,ClipboardRepository:140、TagStore:25 等 20+ 处
-Storage,Storage/Database.swift,SQLiteDatabase,scalarInt,func,150,KEEP,ClipboardRepository:156/170/301、StatisticsRootView:289
-Storage,Storage/Database.swift,SQLiteDatabase,transaction,func,157,KEEP,ClipboardRepository:266、LLMSessionStore:92、importMerge:597
-Storage,Storage/Database.swift,Dictionary,string,func,174,KEEP,本文件 327/501/516/542；全仓 20+ 处
-Storage,Storage/Database.swift,Dictionary,int,func,175,KEEP,本文件 329/501/516；全仓多处
-Storage,Storage/Database.swift,Dictionary,real,func,176,KEEP,ClipboardRepository:315、TagStore:30、LLMSessionStore:49
-Storage,Storage/Database.swift,Dictionary,bool,func,177,KEEP,ClipboardRepository.swift:319/320 调用
-Storage,Storage/Database.swift,DatabaseManager,init,init,188,KEEP,shared 单例 :177 调用（init 内 migrate:203）
-Storage,Storage/Database.swift,DatabaseManager,migrate,func,215,KEEP,init:203 调用
-Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,332,KEEP,migrate:307 调用
-Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,361,KEEP,migrateLegacyDailyStats:328、bumpStat:363 调用
-Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,380,KEEP,ClipboardManager:381/720、AppBootstrap:225/242 等
-Storage,Storage/Database.swift,StatisticsManager,init,init,483,KEEP,shared 单例 :416 调用（init 内 ensureInstallDate:466）
-Storage,Storage/Database.swift,StatisticsManager,record,func,491,KEEP,bumpStat:364 与 record(AnalyticsEvent):489 调用
-Storage,Storage/Database.swift,StatisticsManager,record,func,508,KEEP,PanelController:186、FloatingClipboardWindow:289 等
-Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,514,KEEP,StatisticsRootView.swift:276 调用（Q1）
-Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,526,KEEP,StatisticsRootView.swift:277 调用（Q2）
-Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,541,KEEP,StatisticsRootView:278、StatisticsSettingsPane:358
-Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,553,KEEP,StatisticsRootView.swift:284 热力图调用
-Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,566,KEEP,StatisticsRootView.swift:288 柱图调用
-Storage,Storage/Database.swift,StatisticsManager,total,func,583,KEEP,StatisticsSettingsPane:352/356/357/364 调用
-Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,592,KEEP,StatisticsSettingsPane.swift:351 调用（Q7）
-Storage,Storage/Database.swift,StatisticsManager,exportAll,func,601,KEEP,StatisticsSettingsPane:391、DiagnosticsExporter:103
-Storage,Storage/Database.swift,StatisticsManager,importMerge,func,613,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,630,KEEP,init:466 调用
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,659,KEEP,bumpStat:363、record:476、StatisticsRootView:272
+Storage,Storage/Database.swift,SQLiteDatabase,query,func,103,KEEP,2026-11-17：保留TagStore及统计等字典结果调用；委托同名泛型重载；SQL prepare绑定遍历finalize仅由原循环承担
+Storage,Storage/Database.swift,SQLiteDatabase,query,func,107,KEEP,2026-11-17：剪贴板列表与清理四个查询使用transform逐行构造条目；每行复制SQLite列值后即转换；锁与statement仍覆盖完整查询并在退出时释放
+Storage,Storage/Database.swift,SQLiteDatabase,scalarInt,func,155,KEEP,ClipboardRepository:156/170/301、StatisticsRootView:289
+Storage,Storage/Database.swift,SQLiteDatabase,transaction,func,162,KEEP,ClipboardRepository:266、LLMSessionStore:92、importMerge:597
+Storage,Storage/Database.swift,Dictionary,string,func,179,KEEP,本文件 327/501/516/542；全仓 20+ 处
+Storage,Storage/Database.swift,Dictionary,int,func,180,KEEP,本文件 329/501/516；全仓多处
+Storage,Storage/Database.swift,Dictionary,real,func,181,KEEP,ClipboardRepository:315、TagStore:30、LLMSessionStore:49
+Storage,Storage/Database.swift,Dictionary,bool,func,182,KEEP,ClipboardRepository.swift:319/320 调用
+Storage,Storage/Database.swift,DatabaseManager,init,init,193,KEEP,shared 单例 :177 调用（init 内 migrate:203）
+Storage,Storage/Database.swift,DatabaseManager,migrate,func,220,KEEP,init:203 调用
+Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,337,KEEP,migrate:307 调用
+Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,366,KEEP,migrateLegacyDailyStats:328、bumpStat:363 调用
+Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,385,KEEP,ClipboardManager:381/720、AppBootstrap:225/242 等
+Storage,Storage/Database.swift,StatisticsManager,init,init,488,KEEP,shared 单例 :416 调用（init 内 ensureInstallDate:466）
+Storage,Storage/Database.swift,StatisticsManager,record,func,496,KEEP,bumpStat:364 与 record(AnalyticsEvent):489 调用
+Storage,Storage/Database.swift,StatisticsManager,record,func,513,KEEP,PanelController:186、FloatingClipboardWindow:289 等
+Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,519,KEEP,StatisticsRootView.swift:276 调用（Q1）
+Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,531,KEEP,StatisticsRootView.swift:277 调用（Q2）
+Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,546,KEEP,StatisticsRootView:278、StatisticsSettingsPane:358
+Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,558,KEEP,StatisticsRootView.swift:284 热力图调用
+Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,571,KEEP,StatisticsRootView.swift:288 柱图调用
+Storage,Storage/Database.swift,StatisticsManager,total,func,588,KEEP,StatisticsSettingsPane:352/356/357/364 调用
+Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,597,KEEP,StatisticsSettingsPane.swift:351 调用（Q7）
+Storage,Storage/Database.swift,StatisticsManager,exportAll,func,606,KEEP,StatisticsSettingsPane:391、DiagnosticsExporter:103
+Storage,Storage/Database.swift,StatisticsManager,importMerge,func,618,KEEP,StatisticsSettingsPane.swift:451 导入合并调用
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,635,KEEP,init:466 调用
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,664,KEEP,bumpStat:363、record:476、StatisticsRootView:272

@@ -144,8 +144,7 @@ public final class ClipboardRepository: @unchecked Sendable {
         values.append(contentsOf: [.int(Int64(query.limit)), .int(Int64(query.offset))])
 
         do {
-            let rows = try db.query(sql, values)
-            var items = rows.map(Self.makeItem)
+            var items = try db.query(sql, values, transform: Self.makeItem)
             TagStore.shared.attachTags(to: &items)
             return items
         } catch {
@@ -333,7 +332,7 @@ public final class ClipboardRepository: @unchecked Sendable {
     }
 
     public func unsavedHistory() throws -> [ClipboardItem] {
-        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0").map(Self.makeItem)
+        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0", transform: Self.makeItem)
     }
 
     public func savedCount() throws -> Int {
@@ -344,18 +343,16 @@ public final class ClipboardRepository: @unchecked Sendable {
 
     /// 早于 cutoff 的条目（时间保留期用）
     public func rowsOlderThan(_ cutoff: Date, limit: Int = 200) -> [ClipboardItem] {
-        let rows = (try? db.query(
+        (try? db.query(
             "SELECT \(Self.columns) FROM clipboard_items WHERE timestamp < ? ORDER BY timestamp ASC LIMIT ?",
-            [.real(cutoff.timeIntervalSince1970), .int(Int64(limit))])) ?? []
-        return rows.map(Self.makeItem)
+            [.real(cutoff.timeIntervalSince1970), .int(Int64(limit))], transform: Self.makeItem)) ?? []
     }
 
     /// 最旧的若干条（容量超限用）
     public func oldestRows(limit: Int = 200) -> [ClipboardItem] {
-        let rows = (try? db.query(
+        (try? db.query(
             "SELECT \(Self.columns) FROM clipboard_items ORDER BY timestamp ASC LIMIT ?",
-            [.int(Int64(limit))])) ?? []
-        return rows.map(Self.makeItem)
+            [.int(Int64(limit))], transform: Self.makeItem)) ?? []
     }
 
     public func totalStorageBytes() -> Int64 {
