@@ -333,7 +333,7 @@ private struct MenuBarArrangementContent: View {
             SettingsRow(title: "合并模块", subtitle: "拆分模式由系统保留每项 16pt 间隙；排列顺序用于合并条") {
                 Toggle("合并模块", isOn: $draft.merged).labelsHidden().toggleStyle(.switch).controlSize(.small)
             }
-            SettingsRow(title: "部件间距", subtitle: "同时作用于内部留白和合并条间距") {
+            SettingsRow(title: "部件间距", subtitle: "相邻部件、图标与文字共用此间距；不叠加左右留白") {
                 Slider(value: $draft.spacing, in: 0...24, step: 0.5).frame(width: 150)
                 Text(String(format: "%.1f pt", draft.spacing)).monospacedDigit().frame(width: 50)
             }

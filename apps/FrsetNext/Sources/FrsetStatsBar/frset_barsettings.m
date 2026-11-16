@@ -941,12 +941,12 @@ static NSView *FSBuildSettingsPage(void) {
         FSSelectPage(@"Settings");
     }))];
     if (merged) {
-        NSString *curSpacing = FSBarGlobalRaw(@"CombinedModules_spacing");
+        NSString *curSpacing = FSBarGlobalRaw(@"Widgets_spacing") ?: FSBarGlobalRaw(@"CombinedModules_spacing");
         if (![curSpacing isKindOfClass:[NSString class]]) curSpacing = @"none";
         NSArray *spacingItems = @[@[@"none", @"None"], @[@"1", @"1"], @[@"2", @"2"], @[@"3", @"3"],
                                   @[@"4", @"4"], @[@"5", @"5"], @[@"6", @"6"], @[@"7", @"7"], @[@"8", @"8"]];
         [layoutRows addObject:FSRow(@"Spacing", FSNewSelect(spacingItems, curSpacing, ^(NSString *k) {
-            FSBarGlobalSet(@"CombinedModules_spacing", k);
+            FSBarGlobalSet(@"Widgets_spacing", k);
             FSBarReloadFromStore();
         }))];
         [layoutRows addObject:FSRow(@"Separator", FSNewSwitch(FSBarMergedSeparator(), ^(id s) {
