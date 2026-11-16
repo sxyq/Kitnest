@@ -1,329 +1,176 @@
 import SwiftUI
 
-// MARK: - 设置导航：一级目录 + 二级页（v272）
-//
-// 用户（2026-11-09）：「第一页的常规也需要进行拆分，剪贴板、文件中转，这些全部都是
-// 作为一个一级目录存在，然后下面放一些二级目录的菜单，包括常规这一栏的这些个性化，
-// 这些设置全都要进行拆分。」
-//
-// 旧模型：`SettingsSidebarSelection` 有 6 个互不相干的 case（分类 / 截图块 / 监测模块 /
-// 监测设置 / 部件设置 / 手动），侧边栏靠「分组标题 + 特判」拼出来，「常规」「剪贴板」
-// 「文件中转」各自仍是一整页长滚动——一级目录只是视觉分组，没有真正的二级页。
-//
-// 新模型：
-//   · `SettingsGroup`  = 一级目录（常规 / 音频 / 剪贴板 / 文件中转 / 截图 / 工具 / 搜索与 AI / 性能监测）
-//   · `SettingsPage`   = 二级页，侧边栏唯一可选中粒度，也是内容区唯一分发粒度
-//   · 一级目录常驻展开；刘海工作台位于常规分组
-//
-// 这样「新建一个设置项该放哪」只需回答「属于哪个一级目录的哪个二级页」，
-// 深链、搜索索引、内容区分发三处共用同一份枚举，不会再各自漂移。
-
-// MARK: - 一级目录
-
+/// 一级目录只控制展开；页面、搜索及旧链接共用二级归属。
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
-    case general
-    case audio
-    case clipboard
-    case transfer
-    case capture
-    case tools
-    case searchAI
-    case monitor
-
+    case general, appearance, shortcuts, panel, island, menuBar, clipboard, transfer, capture, searchAI, tools, monitor, data
     var id: String { rawValue }
-
     var title: String {
         switch self {
-        case .general:  return "常规"
-        case .audio:    return "音频"
+        case .general: return "常规"
+        case .appearance: return "主题外观"
+        case .shortcuts: return "快捷键"
+        case .panel: return "主面板"
+        case .island: return "刘海工作台"
+        case .menuBar: return "菜单栏"
         case .clipboard: return "剪贴板"
-        case .transfer: return "文件中转"
-        case .capture:  return "截图"
-        case .tools:    return "工具"
+        case .transfer: return "文件与传输"
+        case .capture: return "截图与录屏"
         case .searchAI: return "搜索与 AI"
-        case .monitor:  return "性能监测"
+        case .tools: return "工具"
+        case .monitor: return "性能监测"
+        case .data: return "数据与帮助"
         }
     }
-
     var systemImage: String {
         switch self {
-        case .general:  return "gearshape"
-        case .audio:    return "speaker.wave.2"
+        case .general: return "gearshape"
+        case .appearance: return "paintpalette"
+        case .shortcuts: return "command"
+        case .panel: return "macwindow"
+        case .island: return "rectangle.tophalf.inset.filled"
+        case .menuBar: return "menubar.rectangle"
         case .clipboard: return "doc.on.clipboard"
         case .transfer: return "arrow.left.arrow.right.square"
-        case .capture:  return "camera.viewfinder"
-        case .tools:    return "hammer"
+        case .capture: return "camera.viewfinder"
         case .searchAI: return "magnifyingglass"
-        case .monitor:  return "waveform.path.ecg"
+        case .tools: return "hammer"
+        case .monitor: return "waveform.path.ecg"
+        case .data: return "info.circle"
         }
     }
-
-    /// 二级页顺序（侧边栏渲染、⌘↑/⌘↓ 跳转、搜索兜底都读这一份）
     var pages: [SettingsPage] {
         switch self {
-        case .general:
-            return [.generalStart, .generalPersonal, .generalPanel, .generalWindows, .island, .generalNotifications, .generalMenuBar]
-        case .audio:
-            return [.audio]
-        case .clipboard:
-            return [.clipboardHistory, .clipboardCapture, .clipboardAppearance, .clipboardFloating]
-        case .transfer:
-            return [.transferDisplay, .transferCast, .transferScan, .transferCloud, .transferLocal]
-        case .capture:
-            return [.capture(.capture), .captureActions]
-                + CaptureSettingsBlock.allCases.dropFirst().map { .capture($0) }
-        case .tools:
-            return [.tools, .shortcuts]
-        case .searchAI:
-            return [.search, .ai]
-        case .monitor:
-            return [.monitorModule(.cpu), .monitorModule(.memory), .monitorModule(.gpu),
-                    .monitorModule(.disk), .monitorModule(.network), .monitorModule(.sensors),
-                    .monitorModule(.power), .monitorModule(.battery), .monitorSettings, .monitorWidgets]
+        case .general: return [.generalStart, .generalNotifications, .permissions]
+        case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
+        case .shortcuts: return [.shortcuts]
+        case .panel: return [.generalPanel, .panelBackground]
+        case .island: return [.island, .islandPeeks, .islandCanvas, .islandMaterial]
+        case .menuBar: return [.generalMenuBar, .menuBarArrangement, .monitorWidgets]
+        case .clipboard: return [.clipboardCapture, .clipboardHistory, .clipboardAppearance, .clipboardFloating]
+        case .transfer: return [.transferLocal, .transferScan, .transferCloud, .transferCast, .archive]
+        case .capture: return [.capture(.capture), .ocr, .watermark, .captureActions, .capture(.pin), .capture(.curtain), .capture(.recording), .capture(.workflow)]
+        case .searchAI: return [.search, .ai]
+        case .tools: return [.tools, .aiText, .calendar]
+        case .monitor: return [.monitorSettings]
+        case .data: return [.configTransfer, .diagnostics, .about]
         }
     }
-
-    /// 某个二级页属于哪个一级目录（找不到时按常规兜底）
     static func group(of page: SettingsPage) -> SettingsGroup {
-        for group in SettingsGroup.allCases where group.pages.contains(page) {
-            return group
-        }
-        return .general
+        allCases.first { $0.pages.contains(page.canonical) } ?? .general
     }
 }
 
-// MARK: - 二级页
-
 enum SettingsPage: Hashable {
-    // 常规（5）
-    /// 启动与外观：登录启动 / 外观四选一 / 语言
-    case generalStart
-    /// 主面板：预览 + 字号 / 圆角 / 宽度 / 材质 / 页面顺序
-    case generalPanel
-    /// 独立窗口与浮层：预览 + 玻璃四参数 / 密度 / 缩略图 / 徽章 / 通知条
-    case generalWindows
-    case island
-    /// 个性化（通用）：强调色 / 打开动画 / 动作条 / 背景图 / 入口 / 恢复默认
-    case generalPersonal
-    /// 菜单栏：功能开关 / AI 服务商 / 图标样式 / 部件
-    case generalMenuBar
-    case generalNotifications
-    case captureActions
-
-    // 音频（1）
-    case audio
-
-    // 剪贴板（3）
-    case clipboardHistory
-    case clipboardCapture
-    case clipboardFloating
-    case clipboardAppearance
-
-    // 文件中转（5）
-    case transferDisplay
-    case transferCast
-    case transferScan
-    case transferCloud
-    case transferLocal
-
-    // 截图（5）
-    case capture(CaptureSettingsBlock)
-
-    // 工具（2）
-    case tools
-    case shortcuts
-
-    // 搜索与 AI（2）
-    case search
-    case ai
-
-    // 性能监测（10）
-    case monitorModule(MonitorModuleID)
-    case monitorSettings
-    case monitorWidgets
-
-    // 页脚常驻（3）
-    case statistics
-    case about
-    case manual
-
-    /// 页面标题（内容区大标题 + 侧边栏 tooltip）
+    case generalStart, generalNotifications, permissions, generalPersonal, appearanceText, generalWindows, generalPanel, panelBackground, island, islandPeeks, islandCanvas, islandMaterial, generalMenuBar, menuBarArrangement, monitorWidgets, clipboardCapture, clipboardHistory, clipboardAppearance, clipboardFloating, transferLocal, transferScan, transferCloud, transferCast, archive, ocr, watermark, captureActions, search, ai, tools, aiText, calendar, shortcuts, monitorSettings, configTransfer, diagnostics, about, manual, audio, transferDisplay, statistics
+    case capture(CaptureSettingsBlock), monitorModule(MonitorModuleID)
+    /// 旧业务入口仍可解析，设置侧栏不展示实时正文。
+    var canonical: SettingsPage {
+        switch self {
+        case .audio: return .tools
+        case .transferDisplay: return .transferLocal
+        case .monitorModule: return .monitorSettings
+        case .statistics: return .diagnostics
+        default: return self
+        }
+    }
     var title: String {
         switch self {
-        case .generalStart:      return "启动与语言"
-        case .generalPanel:      return "主面板"
-        case .generalWindows:    return "窗口材质"
-        case .island:            return "刘海工作台"
-        case .generalPersonal:   return "主题外观"
+        case .generalStart: return "启动与语言"
         case .generalNotifications: return "通知提示"
-        case .captureActions: return "动作条外观"
-        case .generalMenuBar:    return "菜单栏"
-
-        case .audio:             return "音频混音器"
-
-        case .clipboardHistory:  return "历史"
-        case .clipboardCapture:  return "捕获"
-        case .clipboardFloating: return "浮动窗"
+        case .permissions: return "权限"
+        case .generalPersonal: return "主题与颜色"
+        case .appearanceText: return "文字与圆角"
+        case .generalWindows: return "窗口材质与动效"
+        case .generalPanel: return "布局与页面"
+        case .panelBackground: return "背景图片"
+        case .island: return "唤出与收回"
+        case .islandPeeks: return "收起态"
+        case .islandCanvas: return "画布与组件"
+        case .islandMaterial: return "材质与颜色"
+        case .generalMenuBar: return "图标与入口"
+        case .menuBarArrangement: return "排列与间距"
+        case .monitorWidgets: return "部件与颜色"
+        case .clipboardCapture: return "捕获与隐私"
+        case .clipboardHistory: return "历史与备份"
         case .clipboardAppearance: return "列表外观"
-
-        case .transferDisplay:   return "显示"
-        case .transferCast:      return "投屏画质"
-        case .transferScan:      return "手机扫码直传"
-        case .transferCloud:     return "云端中转"
-        case .transferLocal:     return "本地暂存"
-
-        case .capture(let block): return block.title
-
-        case .tools:             return "工具"
-        case .shortcuts:         return "快捷键"
-
-        case .search:            return "搜索"
-        case .ai:                return "AI"
-
-        case .monitorModule(let module): return module == .sensors ? "传感器" : module.displayName
-        case .monitorSettings:   return "监测设置"
-        case .monitorWidgets:    return "部件设置"
-
-        case .statistics:        return "数据"
-        case .about:             return "关于"
-        case .manual:            return "使用手册"
+        case .clipboardFloating: return "浮动窗"
+        case .transferLocal: return "本地中转"
+        case .transferScan: return "手机直传"
+        case .transferCloud: return "云端中转"
+        case .transferCast: return "投屏"
+        case .archive: return "压缩与 Finder"
+        case .capture(.capture): return "截图与保存"
+        case .ocr: return "文字识别"
+        case .watermark: return "水印效果"
+        case .captureActions: return "动作条"
+        case .capture(.pin): return "钉图"
+        case .capture(.curtain): return "图帘"
+        case .capture(.recording): return "录屏"
+        case .capture(.workflow): return "截图工作流"
+        case .search: return "搜索与引擎"
+        case .ai: return "AI 服务"
+        case .tools: return "工具集合"
+        case .aiText: return "AI 文本工具"
+        case .calendar: return "日历"
+        case .shortcuts: return "全部功能绑定"
+        case .monitorSettings: return "采样与显示"
+        case .configTransfer: return "配置导出与导入"
+        case .diagnostics: return "诊断"
+        case .about: return "关于与更新"
+        case .manual: return "使用手册"
+        case .audio: return "音频混音器"
+        case .transferDisplay: return "本地中转"
+        case .statistics: return "使用统计"
+        case .monitorModule(let module): return module.displayName
         }
     }
-
-    /// 二级行左侧的小图标（与一级目录区分开，避免每行都是同一个大图标）
-    var systemImage: String {
-        switch self {
-        case .generalStart:      return "power"
-        case .generalPanel:      return "rectangle.topthird.inset.filled"
-        case .generalWindows:    return "macwindow.on.rectangle"
-        case .island:            return "rectangle.tophalf.inset.filled"
-        case .generalPersonal:   return "paintpalette"
-        case .generalMenuBar:    return "menubar.rectangle"
-        case .generalNotifications: return "bell"
-        case .captureActions: return "rectangle.bottomthird.inset.filled"
-
-        case .audio:             return "speaker.wave.2"
-
-        case .clipboardHistory:  return "clock.arrow.circlepath"
-        case .clipboardCapture:  return "arrow.down.doc"
-        case .clipboardFloating: return "rectangle.on.rectangle"
-        case .clipboardAppearance: return "list.bullet.rectangle"
-
-        case .transferDisplay:   return "eye"
-        case .transferCast:      return "airplayvideo"
-        case .transferScan:      return "qrcode.viewfinder"
-        case .transferCloud:     return "cloud"
-        case .transferLocal:     return "internaldrive"
-
-        case .capture(let block): return block.icon
-
-        case .tools:             return "wrench.and.screwdriver"
-        case .shortcuts:         return "command"
-
-        case .search:            return "magnifyingglass"
-        case .ai:                return "sparkles"
-
-        case .monitorModule(let module): return module.systemImage
-        case .monitorSettings:   return "slider.horizontal.3"
-        case .monitorWidgets:    return "menubar.rectangle"
-
-        case .statistics:        return "chart.bar.xaxis"
-        case .about:             return "info.circle"
-        case .manual:            return "book.closed"
-        }
-    }
-
-    /// 这一页对应的功能「怎么打开」——内容区标题下方那行灰字（v273）。
-    ///
-    /// 用户（2026-11-11）：「探查是否所有页面都有打开方式，正确的在设置中有提示给用户」。
-    /// 此前全库 0 处「打开方式」提示：用户改完保存路径/水印/图帘样式，却不知道
-    /// 该按哪个键把功能叫出来——设置项和入口是两套心智模型。
-    /// 这里把入口写进导航模型本身：新增一个二级页时，`openHint` 是必答题，
-    /// 内容区头部统一渲染，不会再出现「有的页写了、有的页忘了」。
-    /// 依据：`AppBootstrap.defaultHotkeys`（keyCode/Carbon 掩码）与
-    /// `StatusBarMenuBuilder` 的菜单项，全部为当前代码里的真实绑定。
+    var systemImage: String { self == .manual ? "book.closed" : SettingsGroup.group(of: self).systemImage }
+    var group: SettingsGroup? { self == .manual ? nil : SettingsGroup.group(of: self) }
     var openHint: String? {
-        switch self {
-        case .generalStart:
-            return "登录时自动启动；菜单栏图标常驻，⌥A 打开主面板"
-        case .generalPanel:
-            return "⌥A 打开主面板；点面板外部自动收起"
-        case .generalWindows:
-            return "统一调节主面板、悬浮剪贴板、设置与工具窗口的材质"
-        case .island:
-            return "屏幕顶部刘海入口；悬停或点击展开，所有配置在本页预览，保存后生效"
-        case .generalPersonal:
-            return "调节应用外观、强调色与 Midnight 色相"
-        case .generalNotifications:
-            return "复制、截图等操作完成后显示；可调整时长与位置"
-        case .captureActions:
-            return "完成截图后出现；切换样式不改变复制、保存等动作"
-        case .generalMenuBar:
-            return "菜单栏图标：左键开主面板，右键出菜单（设置… ⌘,）"
-
-        case .audio:
-            return "只在本页调节（系统输出音量 / 设备 / 有声 App 监视），没有独立窗口"
-
-        case .clipboardHistory:
-            return "⌥V 直接打开剪贴板面板；⌥A 的主面板首页也是剪贴板"
-        case .clipboardCapture:
-            return "无需手动：复制后自动入库；⇧⌘V 可随时呼出悬浮窗"
-        case .clipboardFloating:
-            return "⇧⌘V 呼出 / 收起悬浮剪贴板"
-        case .clipboardAppearance:
-            return "主面板首页的剪贴板列表；调节密度、缩略图与来源徽章"
-
-        case .transferDisplay:
-            return "主面板 → 中转 分页（⌥A 打开主面板）"
-        case .transferCast:
-            return "主面板 → 投屏 分页，同一 Wi-Fi 下选择接收设备"
-        case .transferScan:
-            return "主面板 → 中转 → 手机扫码，扫二维码后直传"
-        case .transferCloud:
-            return "主面板 → 中转 → 云端，需先登录账号"
-        case .transferLocal:
-            return "把文件拖到中转区即暂存，到期自动清理"
-
-        case .capture(.capture):
-            return "⌥S 截图 · ⇧⌥W 窗口 · ⇧⌥S 提取文字 · ⇧⌥C 截图并复制"
-        case .capture(.pin):
-            return "⇧⌥P 截图并贴图 · ⌃⌥P 重新钉住上一张"
-        case .capture(.curtain):
-            return "⇧⌥G 呼出图帘；菜单栏右键也有「图帘」"
-        case .capture(.recording):
-            return "⌃⌥R 开始 / 停止录屏 · ⌃⌥E 录制区域"
-        case .capture(.workflow):
-            return "截图完成后自动执行，无需手动触发"
-
-        case .tools:
-            return "主面板 → 工具；菜单栏右键 → 设置 → 工具"
-        case .shortcuts:
-            return "改完立即生效；组合键冲突时后注册的那条不生效"
-
-        case .search:
-            return "⌥F 打开搜索框；主面板内 ⌘K 也能搜"
-        case .ai:
-            return "在搜索框、截图动作条、划词翻译（⇧⌥D）里调用"
-
-        case .monitorModule:
-            return "菜单栏部件显示实时数值；主面板「监测」页看详情"
-        case .monitorSettings:
-            return "影响菜单栏与主面板的采样频率和显示项"
-        case .monitorWidgets:
-            return "决定菜单栏部件的形态、颜色与间距"
-
-        case .statistics:
-            return "菜单栏图标右键 → 使用统计"
-        case .about, .manual:
-            return nil
-        }
-    }
-
-    /// 一级目录归属（页脚三项返回 nil）
-    var group: SettingsGroup? {
-        switch self {
-        case .statistics, .about, .manual: return nil
-        default: return SettingsGroup.group(of: self)
+        switch canonical {
+        case .generalStart: return "启动与语言保存后生效；系统关联与授权单独操作"
+        case .generalNotifications: return "复制、截图完成后显示；重播只作用于模拟通知"
+        case .permissions: return "查看真实授权状态；系统授权为即时操作"
+        case .generalPersonal: return "全局主题与强调色；色相只作用于 Midnight"
+        case .appearanceText: return "共用字号与窗口圆角；模块独有样式在所属模块"
+        case .generalWindows: return "共用材质与开合动效；底衬不透明度越大，底衬越不透明"
+        case .generalPanel: return "页面显隐只改变展示，不关闭底层功能"
+        case .panelBackground: return "背景图和遮罩只作用于主面板"
+        case .island: return "悬停、展开与自动收回使用正式组件的模拟演示"
+        case .islandPeeks: return "收起图标、数值、顺序及快捷操作"
+        case .islandCanvas: return "预览中完成布局只更新草稿；本页保存后应用"
+        case .islandMaterial: return "刘海材质、组件与指标颜色；不改变其他窗口"
+        case .generalMenuBar: return "图标及入口；日历、OCR 与 AI 设置在各自模块"
+        case .menuBarArrangement: return "合并、间距与分隔线；刷新间隔位于性能监测"
+        case .monitorWidgets: return "页内选择部件与形态；复用正式绘制"
+        case .clipboardCapture: return "复制后自动捕获；自动图片 OCR 在此设置"
+        case .clipboardHistory: return "保留期和容量保存后生效；清理、标签及备份为即时操作"
+        case .clipboardAppearance: return "主面板列表；密度、缩略图及来源徽章"
+        case .clipboardFloating: return "独立浮动窗样式；呼出绑定统一在快捷键页"
+        case .transferLocal: return "主面板中转页；自动暂存、悬停及保留期"
+        case .transferScan: return "主面板中转页的手机直传；服务启停为即时操作"
+        case .transferCloud: return "主面板中转页的云端传输；登录和账号操作单独呈现"
+        case .transferCast: return "主面板投屏页；画质参数保存后应用"
+        case .archive: return "压缩和解压使用既有工具；Finder 服务在系统中分别启用"
+        case .capture(.capture): return "截图目录、命名与保存行为；各截图动作独立绑定"
+        case .ocr: return "共用识别语言与结果展示；预览不启动真实识别"
+        case .watermark: return "文字、透明度、平铺及角度使用固定模拟画面"
+        case .captureActions: return "截图后出现；预览不执行真实复制或保存"
+        case .capture(.pin): return "模块默认保留单个钉图窗口的独立样式"
+        case .capture(.curtain): return "截图挂到屏幕顶边；悬停与收回使用短演示"
+        case .capture(.recording): return "效果使用模拟画面；开始录制为即时操作"
+        case .capture(.workflow): return "保存后改变后续截图工作流"
+        case .search: return "搜索分类与引擎；显示开关不停止对应功能"
+        case .ai: return "服务商、地址、模型及凭证；文本动作在 AI 文本工具"
+        case .tools: return "启用保存后应用；音量、设备及统计打开正式功能窗"
+        case .aiText: return "默认文本动作与自定义提示词；服务配置在搜索与 AI"
+        case .calendar: return "周起始日统一月历和两周视图；预览不读真实日程"
+        case .shortcuts: return "组合键或现有双按模式；保存成功后才注册"
+        case .monitorSettings: return "八项指标在正式监测页；此处调节采样与显示"
+        case .configTransfer: return "导入导出为即时操作；不含内容、凭证或预览状态"
+        case .diagnostics: return "运行状态及诊断导出；不自动清理资料"
+        case .about: return "更新源保存后应用；查找更新为即时操作"
+        case .manual, .audio, .transferDisplay, .monitorModule, .statistics: return nil
         }
     }
 }

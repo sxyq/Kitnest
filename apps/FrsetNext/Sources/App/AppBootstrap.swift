@@ -98,14 +98,6 @@ enum AppBootstrap {
         registerAppLevelTools()
         Log.breadcrumb("Bootstrap", "appTools done")
 
-        // 4.5) 音频混音器设置页（v68；公开 CoreAudio 边界见 AudioMixer.swift 头注）
-        SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "audio",
-            title: "音频",
-            systemImage: "speaker.wave.2",
-            build: { AnyView(AudioMixerPane()) }
-        ))
-
         // 5) 全局快捷键默认绑定表（specs/19）：须在 ModuleRegistry.startAll() 之后调用，
         //    handler 为懒分发，触发时才经 ServiceLocator / 各模块公开 API 执行
         Log.breadcrumb("Bootstrap", "hotkeys begin")
@@ -305,18 +297,61 @@ enum AppBootstrap {
                 }
                 return ToolOutput(text: hex, note: "取色结果（HEX）")
             }))
-        Log.info("Bootstrap", "App 层工具已注册：colorpicker")
+        ToolRegistry.register(ToolDescriptor(
+            identifier: "audioMixer",
+            name: "音频混音器",
+            systemImage: "speaker.wave.2",
+            category: .media,
+            build: { AnyView(AudioMixerPane()) }))
+        Log.info("Bootstrap", "App 层工具已注册：colorpicker、audioMixer")
     }
 
     // MARK: - 全局快捷键默认绑定表（specs/19）
 
     /// 默认热键表条目（组合键依据原作注册函数 0x1005c1094 还原，Carbon 掩码）
-    struct DefaultHotkeyEntry {
+    struct DefaultHotkeyEntry: Identifiable {
         let id: String
         let title: String
         let keyCode: UInt32?
         let modifiers: UInt32
         let action: () -> Void
+    }
+
+    struct ShortcutBinding: Equatable {
+        enum Trigger: String { case combination, doubleTap, unbound }
+        var trigger: Trigger
+        var keyCode: UInt32?
+        var modifiers: UInt32
+        var doubleTap: DoubleTapModifier = .command
+    }
+
+    /// 工具与全局动作共用快捷键页；取色只保留 colorpicker 一项。
+    static var shortcutSettingsEntries: [DefaultHotkeyEntry] {
+        defaultHotkeys + ToolRegistry.all.filter { $0.identifier != "colorpicker" }.map { tool in
+            DefaultHotkeyEntry(id: ToolShortcutStore.registrationID(tool.identifier), title: tool.name,
+                               keyCode: nil, modifiers: 0) {
+                ToolboxUIState.shared.open(tool.identifier)
+                ServiceLocator.panel?.show()
+            }
+        }
+    }
+
+    static func supportsDoubleTap(for id: String) -> Bool {
+        defaultHotkeys.contains { $0.id == id }
+    }
+
+    static func defaultShortcutValue(for id: String) -> ShortcutBinding {
+        let entry = shortcutSettingsEntries.first { $0.id == id }!
+        return ShortcutBinding(trigger: entry.keyCode == nil ? .unbound : .combination,
+                               keyCode: entry.keyCode, modifiers: entry.modifiers)
+    }
+
+    static func shortcutSettingsValue(for id: String) -> ShortcutBinding {
+        let binding = shortcutBinding(for: id)
+        let doubleTap = doubleTapModifier(for: id)
+        return ShortcutBinding(trigger: doubleTap != nil ? .doubleTap : binding != nil ? .combination : .unbound,
+                               keyCode: binding?.keyCode, modifiers: binding?.modifiers ?? 0,
+                               doubleTap: doubleTap ?? .command)
     }
 
     /// 出厂默认表（specs/19 §4 原版 10 条 + v59 自研 5 条）。
@@ -338,7 +373,7 @@ enum AppBootstrap {
                            keyCode: 0x0D, modifiers: UInt32(shiftKey | optionKey)) {
             ScreenshotManager.shared.captureWindow()
         },
-        DefaultHotkeyEntry(id: "colorPicker", title: "取色",
+        DefaultHotkeyEntry(id: "colorpicker", title: "取色",
                            keyCode: 0x08, modifiers: UInt32(optionKey)) {
             Eyedropper.shared.start()
         },
@@ -463,20 +498,18 @@ enum AppBootstrap {
         installDoubleTapBindings()
 
         for entry in defaultHotkeys {
-            // 用户自定义优先：该工具已有用户录入的绑定 → 跳过默认注册（原作「已自定义清单命中即跳过」）
-            if let toolID = userCustomizableToolID(for: entry.id),
-               ToolShortcutStore.binding(for: toolID) != nil {
-                Log.info("Shortcut", "跳过默认绑定 \(entry.id)：已有用户自定义绑定")
-                continue
-            }
             if DoubleTapShortcutCenter.shared.modifier(for: entry.id) != nil {
                 Log.info("Shortcut", "跳过默认绑定 \(entry.id)：该动作已切换为双击快捷键")
                 continue
             }
             guard let binding = shortcutBinding(for: entry.id) else { continue }
-            ShortcutRegistry.register(id: entry.id, title: entry.title,
-                                      keyCode: binding.keyCode, modifiers: binding.modifiers,
-                                      handler: entry.action)
+            let definition = ShortcutDefinition(id: entry.id, title: entry.title,
+                                                keyCode: binding.keyCode, modifiers: binding.modifiers,
+                                                handler: entry.action)
+            let ids: Set<String> = entry.id == "colorpicker" ? [entry.id, "colorPicker", "tool.colorpicker"] : [entry.id]
+            if let reason = ShortcutManager.shared.replaceBindings([definition], removing: ids) {
+                Log.warn("Shortcut", reason)
+            }
         }
         Log.info("Bootstrap", "默认热键表注册完成（共 \(defaultHotkeys.count) 条）")
     }
@@ -492,7 +525,9 @@ enum AppBootstrap {
 
     static func doubleTapModifier(for id: String) -> DoubleTapModifier? {
         let saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
-        return saved[id].flatMap(DoubleTapModifier.init(rawValue:))
+        let id = id == "colorPicker" ? "colorpicker" : id
+        return (saved[id] ?? (id == "colorpicker" ? saved["colorPicker"] : nil))
+            .flatMap(DoubleTapModifier.init(rawValue:))
     }
 
     private static func installDoubleTapBindings() {
@@ -501,49 +536,78 @@ enum AppBootstrap {
         DoubleTapShortcutCenter.shared.setHandlers(handlers)
 
         // 按默认表顺序恢复绑定，保证同修饰键冲突时“先者优先”的行为稳定
-        let saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
         for entry in defaultHotkeys {
-            guard let raw = saved[entry.id], let modifier = DoubleTapModifier(rawValue: raw) else { continue }
-            DoubleTapShortcutCenter.shared.bind(actionID: entry.id, modifier: modifier)
-        }
-    }
-
-    /// 切换某动作的「2×」模式。enabled=true 时默认双击 ⌘（原版菜单默认项）。
-    static func setDoubleTap(_ id: String, enabled: Bool) {
-        guard let entry = defaultHotkeys.first(where: { $0.id == id }) else { return }
-        var saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
-
-        if enabled {
-            let modifier = saved[id].flatMap(DoubleTapModifier.init(rawValue:)) ?? .command
-            saved[id] = modifier.rawValue
-            // 双击模式接管：注销该动作的组合键（原版 UI 同时把组合键位置换成双击选择器）
-            ShortcutRegistry.unregister(id: id)
-            DoubleTapShortcutCenter.shared.bind(actionID: id, modifier: modifier)
-            Preferences.shared.set(doubleTapBindingsKey, saved)
-            Log.info("Shortcut", "\(id) 切换为双击快捷键：双击 \(modifier.symbol)")
-            presentDoubleTapCompatibilityTipIfNeeded()
-        } else {
-            saved.removeValue(forKey: id)
-            DoubleTapShortcutCenter.shared.unbind(actionID: id)
-            Preferences.shared.set(doubleTapBindingsKey, saved)
-            // 切回组合键：按用户覆盖值（无覆盖则默认表）重新注册
-            if let binding = shortcutBinding(for: id) {
-                ShortcutRegistry.register(id: id, title: entry.title,
-                                          keyCode: binding.keyCode, modifiers: binding.modifiers,
-                                          handler: entry.action)
+            guard let modifier = doubleTapModifier(for: entry.id) else { continue }
+            if !DoubleTapShortcutCenter.shared.bind(actionID: entry.id, modifier: modifier) {
+                Log.warn("Shortcut", "\(entry.title)：双按监听注册失败")
             }
-            Log.info("Shortcut", "\(id) 切回组合快捷键")
         }
     }
 
-    /// 双击模式下更换修饰键（原版下拉菜单：⌘ ⌘ / ⌥ ⌥ / ⌃ ⌃ / ⇧ ⇧）
-    static func setDoubleTapModifier(_ id: String, _ modifier: DoubleTapModifier) {
-        var saved = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
-        guard saved[id] != nil else { return }
-        saved[id] = modifier.rawValue
-        Preferences.shared.set(doubleTapBindingsKey, saved)
-        DoubleTapShortcutCenter.shared.bind(actionID: id, modifier: modifier)
-        Log.info("Shortcut", "\(id) 双击修饰键改为 \(modifier.symbol)")
+    /// 保存是唯一应用入口；任何注册失败都保留原绑定与持久值。
+    static func applyShortcuts(_ values: [String: ShortcutBinding]) -> String? {
+        let entries = shortcutSettingsEntries
+        let selected = entries.filter { values[$0.id] != nil }
+        let center = DoubleTapShortcutCenter.shared
+        var doubleBindings = center.bindings
+        var definitions: [ShortcutDefinition] = []
+        var affected = Set(selected.map(\.id))
+        for entry in selected {
+            let value = values[entry.id]!
+            if value.trigger == .combination && value.keyCode == nil { return "\(entry.title)：请录制组合键或选择未绑定" }
+            if entry.id == "colorpicker" {
+                affected.formUnion(["colorPicker", "tool.colorpicker"])
+                doubleBindings.removeValue(forKey: "colorPicker")
+            }
+            doubleBindings[entry.id] = value.trigger == .doubleTap ? value.doubleTap : nil
+            if value.trigger == .combination, let keyCode = value.keyCode {
+                definitions.append(ShortcutDefinition(id: entry.id, title: entry.title,
+                                                       keyCode: keyCode, modifiers: value.modifiers,
+                                                       handler: entry.action))
+            }
+        }
+        var modifierOwners: [String: String] = [:]
+        for entry in entries {
+            guard let modifier = doubleBindings[entry.id] else { continue }
+            if let owner = modifierOwners[modifier.rawValue] {
+                return "\(entry.title)：双按 \(modifier.display) 与「\(owner)」冲突"
+            }
+            modifierOwners[modifier.rawValue] = entry.title
+        }
+        if let entry = entries.first(where: { doubleBindings[$0.id] != nil }), !center.prepareMonitoring() {
+            return "\(entry.title)：双按监听注册失败"
+        }
+        if let reason = ShortcutManager.shared.replaceBindings(definitions, removing: affected) {
+            center.cancelPreparedMonitoring()
+            return reason
+        }
+        let enabledDoubleTap = selected.contains {
+            doubleBindings[$0.id] != nil && center.bindings[$0.id] == nil
+        }
+        center.replaceBindings(doubleBindings, orderedIDs: defaultHotkeys.map(\.id))
+        var combinations = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
+        var doubles = Preferences.shared.value(doubleTapBindingsKey, default: [String: String]())
+        var tools = Preferences.shared.value("toolbox.toolShortcuts", default: [String: [Int]]())
+        for entry in selected {
+            let value = values[entry.id]!
+            if entry.id.hasPrefix("tool.") {
+                let toolID = String(entry.id.dropFirst(5))
+                tools[toolID] = value.keyCode.map { [Int($0), Int(value.modifiers)] }
+            } else {
+                combinations[entry.id] = value.keyCode.map { [$0, value.modifiers] } ?? []
+                doubles[entry.id] = value.trigger == .doubleTap ? value.doubleTap.rawValue : nil
+            }
+            if entry.id == "colorpicker" {
+                combinations.removeValue(forKey: "colorPicker")
+                doubles.removeValue(forKey: "colorPicker")
+                tools.removeValue(forKey: "colorpicker")
+            }
+        }
+        Preferences.shared.set("shortcuts.bindings", combinations)
+        Preferences.shared.set(doubleTapBindingsKey, doubles)
+        Preferences.shared.set("toolbox.toolShortcuts", tools)
+        if enabledDoubleTap { presentDoubleTapCompatibilityTipIfNeeded() }
+        return nil
     }
 
     /// 原版兼容性提示（Double-tap shortcut compatibility warning），仅在缺少辅助功能权限且首次开启时出现
@@ -555,9 +619,15 @@ enum AppBootstrap {
     }
 
     static func shortcutBinding(for id: String) -> (keyCode: UInt32, modifiers: UInt32)? {
+        let id = id == "colorPicker" ? "colorpicker" : id
+        if id.hasPrefix("tool.") { return ToolShortcutStore.binding(for: String(id.dropFirst(5))) }
         let saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
         if let pair = saved[id] {
             return pair.isEmpty ? nil : (pair[0], pair[1])
+        }
+        if id == "colorpicker" {
+            if let binding = ToolShortcutStore.binding(for: id) { return binding }
+            if let pair = saved["colorPicker"] { return pair.isEmpty ? nil : (pair[0], pair[1]) }
         }
         guard let entry = defaultHotkeys.first(where: { $0.id == id }), let keyCode = entry.keyCode else { return nil }
         return (keyCode, entry.modifiers)
@@ -565,41 +635,11 @@ enum AppBootstrap {
 
     @discardableResult
     static func setShortcut(_ id: String, keyCode: UInt32?, modifiers: UInt32 = 0) -> Bool {
-        guard let entry = defaultHotkeys.first(where: { $0.id == id }) else { return false }
-        // 双击模式下用户重新录入组合键 → 视为切回组合键模式（与 UI 的互斥语义一致）
-        if DoubleTapShortcutCenter.shared.modifier(for: id) != nil {
-            setDoubleTap(id, enabled: false)
-        }
-        var saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
-        if let keyCode {
-            let definition = ShortcutDefinition(id: id, title: entry.title, keyCode: keyCode,
-                                                modifiers: modifiers, handler: entry.action)
-            guard ShortcutManager.shared.bind(definition) else { return false }
-            saved[id] = [keyCode, modifiers]
-        } else {
-            ShortcutRegistry.unregister(id: id)
-            saved[id] = []
-        }
-        Preferences.shared.set("shortcuts.bindings", saved)
-        return true
-    }
-
-    static func restoreDefaultShortcuts() {
-        for entry in defaultHotkeys { ShortcutRegistry.unregister(id: entry.id) }
-        // 原版「恢复默认快捷键」同时清掉 2× 双击模式（否则恢复后仍有动作处于双击态）
-        DoubleTapShortcutCenter.shared.unbindAll()
-        Preferences.shared.set("shortcuts.bindings", nil)
-        Preferences.shared.set(doubleTapBindingsKey, nil)
-        registerDefaultHotkeys()
-    }
-
-    /// 默认表 id → ToolShortcutStore 工具 id 映射。
-    /// 默认表 10 项中只有工具箱域内的工具存在用户自定义通道（其余 8 项为全局功能，无录入入口）。
-    private static func userCustomizableToolID(for defaultID: String) -> String? {
-        switch defaultID {
-        case "colorPicker": return "colorpicker"
-        default:            return nil
-        }
+        let id = id == "colorPicker" ? "colorpicker" : id
+        guard defaultHotkeys.contains(where: { $0.id == id }) else { return false }
+        let value = ShortcutBinding(trigger: keyCode == nil ? .unbound : .combination,
+                                    keyCode: keyCode, modifiers: modifiers)
+        return applyShortcuts([id: value]) == nil
     }
 
     // MARK: 截图翻译会话（screenshotTranslate 热键 → 截图 OCR → TranslationToolSession）

@@ -51,6 +51,10 @@ public enum StatsBarEngine {
             return
         }
         isStarted = true
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("FrsetStatsBarOpenSettings"),
+            object: nil, queue: .main) { note in
+                ServiceLocator.settings?.open(pane: note.object as? String ?? "menubar.widgets")
+            }
         // v109：录屏保存完成 Toast（引擎广播 FrsetScreenRecDidSave → 与截图同款提示）
         // v126（性能审计 F0929）：observer 注册移到 isStarted 守卫之后——原先在守卫
         // 之前注册，重复 start() 会叠加观察者（每次录屏保存弹 N 个 Toast）。

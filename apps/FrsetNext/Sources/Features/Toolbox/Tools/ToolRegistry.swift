@@ -71,7 +71,7 @@ public struct ToolOption: Identifiable, Hashable, Sendable {
 public struct ToolDescriptor: Identifiable {
     public let identifier: String
     /// 统计归属（写入 tool_invocations.kind 与 daily_stats.tool_count）
-    public let kind: ToolKind
+    public var kind: ToolKind { execution!.kind }
     public let name: String
     public let keyword: String
     public let toolDescription: String
@@ -81,7 +81,10 @@ public struct ToolDescriptor: Identifiable {
     public let placeholder: String
     public let options: [ToolOption]
     /// 执行函数：(输入, 选项) -> 结果
-    public let execute: (String, [String: String]) async -> ToolOutput
+    public var execute: (String, [String: String]) async -> ToolOutput { execution!.run }
+    private let execution: (kind: ToolKind, run: (String, [String: String]) async -> ToolOutput)?
+    /// 自带操作界面的工具直接挂载到现有工具窗。
+    public let build: (() -> AnyView)?
 
     public var id: String { identifier }
 
@@ -96,12 +99,22 @@ public struct ToolDescriptor: Identifiable {
                 placeholder: String = "",
                 options: [ToolOption] = [],
                 execute: @escaping (String, [String: String]) async -> ToolOutput) {
-        self.identifier = identifier; self.kind = kind; self.name = name
+        self.identifier = identifier; self.name = name
         self.keyword = keyword ?? identifier
         self.toolDescription = toolDescription
         self.systemImage = systemImage; self.category = category
         self.inputKind = inputKind; self.placeholder = placeholder
-        self.options = options; self.execute = execute
+        self.options = options; self.execution = (kind, execute); self.build = nil
+    }
+
+    public init(identifier: String, name: String, keyword: String? = nil,
+                toolDescription: String = "", systemImage: String, category: ToolCategory,
+                build: @escaping () -> AnyView) {
+        self.identifier = identifier; self.name = name
+        self.keyword = keyword ?? identifier; self.toolDescription = toolDescription
+        self.systemImage = systemImage; self.category = category
+        self.inputKind = .text; self.placeholder = ""; self.options = []
+        self.execution = nil; self.build = build
     }
 
     /// 默认选项值（UI 初始化分段控件用）

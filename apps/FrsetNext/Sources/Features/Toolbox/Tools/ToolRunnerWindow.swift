@@ -139,7 +139,9 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
         summaryModel?.stop()
         summaryModel = nil
         let root: AnyView
-        if intent == .standard, let action = AISummaryAction.allCases.first(where: { $0.toolID == tool.identifier }) {
+        if let build = tool.build {
+            root = AnyView(build().padding(.top, OfficialChrome.titlebarInset).frsetThemeChrome())
+        } else if intent == .standard, let action = AISummaryAction.allCases.first(where: { $0.toolID == tool.identifier }) {
             let model = AISummaryViewModel(inputText: input ?? "", toolMode: true)
             model.activeAction = action
             summaryModel = model

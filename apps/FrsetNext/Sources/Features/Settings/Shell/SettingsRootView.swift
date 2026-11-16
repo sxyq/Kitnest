@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - 设置窗口根视图（v41：左侧大侧边栏 + 内容区）
@@ -78,14 +79,10 @@ struct SettingsRootView: View {
         // 强调色 + Midnight 统一主题入口（个性化改色即生效）
         .frsetThemeChrome()
         .environmentObject(editingSession)
+        .environment(\.settingsTargetField, state.detailPaneID)
         // v84：侧边栏切换面包屑（卡死时日志可见「切到哪一页后卡住」）
         .onChange(of: state.selection) { newValue in
             Log.breadcrumb("Settings", "侧边栏 → \(newValue)")
-        }
-        .onReceive(MonitorCenterPresenter.shared.monitorSelection.$module) { module in
-            if case .monitorModule = state.selection, state.selection != .monitorModule(module) {
-                state.selection = .monitorModule(module)
-            }
         }
         .ignoresSafeArea()
     }
@@ -99,6 +96,9 @@ struct SettingsRootView: View {
         // 叫出来，是这次反馈的核心；提示来自 `SettingsPage.openHint`，每个二级页必答，
         // 所以不会再漏页。没有入口的页（关于 / 使用手册）返回 nil，自动不占位。
         VStack(alignment: .leading, spacing: 3) {
+            if let group = state.selection.group {
+                Text(group.title).font(.system(size: 10.5)).foregroundStyle(.secondary)
+            }
             HStack(spacing: 8) {
                 Text(currentTitle)
                     .font(.system(size: 16, weight: .semibold))
@@ -134,19 +134,33 @@ struct SettingsRootView: View {
             panePage { GeneralSettingsPane(section: .mainPanel) }
         case .generalWindows:
             panePage { GeneralSettingsPane(section: .floating) }
+        case .appearanceText:
+            panePage { GeneralSettingsPane(section: .appearanceText) }
+        case .panelBackground:
+            panePage { GeneralSettingsPane(section: .background) }
+        case .permissions:
+            panePage { GeneralSettingsPane(section: .permissions) }
         case .island:
-            panePage { IslandSettingsPane() }
+            panePage { IslandSettingsPane(part: .activation) }
+        case .islandPeeks:
+            panePage { IslandSettingsPane(part: .peeks) }
+        case .islandCanvas:
+            panePage { IslandSettingsPane(part: .canvas) }
+        case .islandMaterial:
+            panePage { IslandSettingsPane(part: .appearance) }
         case .generalPersonal:
             panePage { GeneralSettingsPane(section: .personalization) }
         case .generalMenuBar:
             panePage { GeneralSettingsPane(section: .menuBar) }
+        case .menuBarArrangement:
+            panePage { GeneralSettingsPane(section: .menuBarArrangement) }
         case .generalNotifications:
             panePage { GeneralSettingsPane(section: .notifications) }
         case .captureActions:
             panePage { GeneralSettingsPane(section: .captureToolbar) }
 
         case .audio:
-            AudioMixerPane()
+            panePage { ToolSettingsPane(part: .collection) }
 
         // 剪贴板（3）
         case .clipboardHistory:
@@ -160,7 +174,7 @@ struct SettingsRootView: View {
 
         // 文件中转（5）
         case .transferDisplay:
-            panePage { TransferDockSettingsPane(section: .display) }
+            panePage { TransferDockSettingsPane(section: .local) }
         case .transferCast:
             panePage { TransferDockSettingsPane(section: .cast) }
         case .transferScan:
@@ -169,16 +183,30 @@ struct SettingsRootView: View {
             panePage { TransferDockSettingsPane(section: .cloud) }
         case .transferLocal:
             panePage { TransferDockSettingsPane(section: .local) }
+        case .archive:
+            panePage {
+                SettingsSection("系统关联与 Finder 服务 · 即时操作") {
+                    SettingsGroupBox { ArchiveDefaultApplicationOption() }
+                }
+            }
 
         // 截图（5，v271 已拆）
         case .capture(let block):
-            CaptureBlockPage(block: block)
+            panePage { CaptureBlockPage(block: block) }
+        case .ocr:
+            panePage { CaptureSettingsPane(section: .ocr) }
+        case .watermark:
+            panePage { CaptureSettingsPane(section: .watermark) }
 
         // 工具（2）
         case .tools:
-            panePage { ToolSettingsPane() }
+            panePage { ToolSettingsPane(part: .collection) }
+        case .aiText:
+            panePage { ToolSettingsPane(part: .aiText) }
+        case .calendar:
+            panePage { ToolSettingsPane(part: .calendar) }
         case .shortcuts:
-            panePage { ShortcutSettingsPane() }
+            panePage { ShortcutSettingsPane(targetID: state.detailPaneID) }
 
         // 搜索与 AI（2）
         case .search:
@@ -187,15 +215,8 @@ struct SettingsRootView: View {
             panePage { AISettingsPane() }
 
         // 性能监测（9）
-        case .monitorModule(let module):
-            ScrollView(.vertical, showsIndicators: true) {
-                StatsModulePage(module: module)
-                    .padding(.horizontal, 34)
-                    .padding(.vertical, 18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .onAppear { MonitorSampler.shared.setSettingsActive(true) }
-            .onDisappear { MonitorSampler.shared.setSettingsActive(false) }
+        case .monitorModule:
+            panePage { MonitorSettingsPane() }
         case .monitorSettings:
             panePage { MonitorSettingsPane() }
         case .monitorWidgets:
@@ -203,21 +224,52 @@ struct SettingsRootView: View {
 
         // 页脚常驻
         case .statistics:
-            panePage { StatisticsSettingsPane() }
+            panePage { diagnostics }
+        case .configTransfer:
+            panePage { StatisticsSettingsPane(section: .configuration) }
+        case .diagnostics:
+            panePage { diagnostics }
         case .about:
-            AboutSettingsPane()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            panePage { AboutSettingsPane() }
         case .manual:
             ManualPaneView()
         }
     }
 
-    private func panePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        ScrollView(.vertical, showsIndicators: true) {
-            content()
-                .padding(.horizontal, 34)
-                .padding(.vertical, 18)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private func panePage<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                content()
+                    .padding(.horizontal, 34)
+                    .padding(.vertical, 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(SettingsScrollPosition(state: state, page: state.selection))
+            }
+            .onAppear {
+                if let field = state.detailPaneID {
+                    DispatchQueue.main.async { proxy.scrollTo(field, anchor: .top) }
+                }
+            }
+            .onChange(of: state.navigationRevision) { _ in
+                if let field = state.detailPaneID {
+                    DispatchQueue.main.async { proxy.scrollTo(field, anchor: .top) }
+                }
+            }
+        }
+    }
+
+    private var diagnostics: some View {
+        SettingsSection("运行诊断 · 即时操作") {
+            SettingsGroupBox {
+                SettingsRow(title: "诊断资料", subtitle: "导出运行日志与使用记录；不改变当前设置") {
+                    Button("导出诊断…") { DiagnosticsExporter.export() }
+                }
+                SettingsRow(title: "日志目录") {
+                    Button("在 Finder 中查看") {
+                        NSWorkspace.shared.open(LogArchive.shared.directory)
+                    }
+                }
+            }
         }
     }
 

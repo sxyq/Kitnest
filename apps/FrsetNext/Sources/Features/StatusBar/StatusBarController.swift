@@ -150,7 +150,7 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func openMonitorSettingsAction(_ sender: Any?) {
-        ServiceLocator.settings?.open(pane: "monitor")
+        MonitorPopoutWindowController.shared.open()
     }
 
     /// v180：归档任务详情（压缩/解压队列）
@@ -188,8 +188,7 @@ public final class StatusBarController: NSObject {
     @objc func toggleMonitorModuleAction(_ sender: NSMenuItem) {
         guard let rawValue = sender.representedObject as? String,
               let module = MonitorModuleID(rawValue: rawValue) else { return }
-        MonitorPreferences.setModuleEnabled(module, !MonitorPreferences.isModuleEnabled(module))
-        MonitorSampler.shared.refresh()
+        ServiceLocator.settings?.open(pane: "monitor#\(module.displayName)")
     }
 
     /// 打开统计窗（spec 17 S1/S2：打开即埋点 statistics_open）

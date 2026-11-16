@@ -3,109 +3,162 @@ import Combine
 import SwiftUI
 
 final class LocalTransferSettingsDraft: SettingsEditableDraft {
+    @Published var featureEnabled = TransferDockPref.isOn(TransferDockPref.featureEnabled)
     @Published var autoStage = TransferDockPref.isOn(TransferDockPref.autoStageClipboard)
     @Published var hoverPreview = TransferDockPref.hoverPreviewEnabled
     @Published var retentionDays = TransferDockPref.retentionDays
     private var saved = [String]()
     init() { saved = values }
-    private var values: [String] { [String(autoStage), String(hoverPreview), String(retentionDays)] }
+    private var values: [String] { [String(featureEnabled), String(autoStage), String(hoverPreview), String(retentionDays)] }
     var isDirty: Bool { values != saved }
     func save() -> String? {
-        Preferences.shared.set(TransferDockPref.autoStageClipboard, autoStage)
-        Preferences.shared.set(TransferDockPref.hoverPreviewKey, hoverPreview)
-        Preferences.shared.set(TransferDockPref.retentionDaysKey, retentionDays)
-        guard UserDefaults.standard.synchronize() else { return "本地暂存设置写入失败，调整已保留" }
+        if values[0] != saved[0] { Preferences.shared.set(TransferDockPref.featureEnabled, featureEnabled) }
+        if values[1] != saved[1] { Preferences.shared.set(TransferDockPref.autoStageClipboard, autoStage) }
+        if values[2] != saved[2] { Preferences.shared.set(TransferDockPref.hoverPreviewKey, hoverPreview) }
+        if values[3] != saved[3] { Preferences.shared.set(TransferDockPref.retentionDaysKey, retentionDays) }
+        guard UserDefaults.standard.synchronize() else { return "本地中转设置写入磁盘失败，调整已保留" }
         LocalTransferStore.shared.startRetentionCleanup()
+        NotificationCenter.default.post(name: .transferDockSettingsDidChange, object: nil)
         saved = values
         objectWillChange.send()
         return nil
     }
     func discard() {
+        featureEnabled = TransferDockPref.isOn(TransferDockPref.featureEnabled)
         autoStage = TransferDockPref.isOn(TransferDockPref.autoStageClipboard)
         hoverPreview = TransferDockPref.hoverPreviewEnabled
         retentionDays = TransferDockPref.retentionDays
         saved = values
     }
-    func restoreDefaults() { autoStage = true; hoverPreview = true; retentionDays = 0 }
+    func restoreDefaults() { featureEnabled = true; autoStage = true; hoverPreview = true; retentionDays = 0 }
 }
 
-// MARK: - 设置 → 文件中转
-//
-// 用户 2026-10-20：文件中转要有**单独的设置页**，而不是塞在「常规 → 功能」里一个勾选框。
-// 这里集中三件事：
-//   ① 面板入口显隐（沿用 panel.transferDock，与常规页同键）；
-//   ② 手机扫码直传（内置 HTTP 服务的开关 / 端口 / 二维码 / 地址）；
-//   ③ OPPO 云端通道（开关 + 桥接工程目录）——关掉后主面板**完全不渲染**云端分区。
-//
-// 就地生效：所有开关都不需要重启 App，改完立刻广播 transferDockSettingsDidChange，
-// 面板中转页据此重新判可见性并重启/停止直传服务。
+final class ScanTransferSettingsDraft: SettingsEditableDraft {
+    @Published var enabled = TransferDockPref.isOn(TransferDockPref.lanEnabled)
+    @Published var portText = String(TransferDockPref.lanPort)
+    private var saved: [String] = []
+    init() { saved = values }
+    private var values: [String] { [String(enabled), portText] }
+    var isDirty: Bool { values != saved }
+    func save() -> String? {
+        guard let port = UInt16(portText.trimmingCharacters(in: .whitespaces)), port >= 1024 else {
+            return "端口需在 1024–65535 之间"
+        }
+        if values[0] != saved[0] { Preferences.shared.set(TransferDockPref.lanEnabled, enabled) }
+        if portText != saved[1] { TransferDockPref.lanPort = port }
+        guard UserDefaults.standard.synchronize() else { return "手机直传设置写入磁盘失败，调整已保留" }
+        portText = String(port)
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+    func discard() {
+        enabled = TransferDockPref.isOn(TransferDockPref.lanEnabled)
+        portText = String(TransferDockPref.lanPort)
+        saved = values
+    }
+    func restoreDefaults() { enabled = true; portText = String(TransferDockPref.defaultLanPort) }
+}
+
+final class CloudTransferSettingsDraft: SettingsEditableDraft {
+    @Published var enabled = TransferDockPref.isOn(TransferDockPref.cloudEnabled)
+    @Published var bridgePath = TransferDockPath.root.path
+    private var saved: [String] = []
+    init() { saved = values }
+    private var values: [String] { [String(enabled), bridgePath] }
+    var isDirty: Bool { values != saved }
+    var bridgeAvailable: Bool {
+        let root = URL(fileURLWithPath: bridgePath)
+        return FileManager.default.fileExists(atPath: root.appendingPathComponent("网页/scripts/frset_bridge.py").path)
+            || FileManager.default.fileExists(atPath: root.appendingPathComponent("credentials/cookies.json").path)
+    }
+    func save() -> String? {
+        if values[0] != saved[0] { Preferences.shared.set(TransferDockPref.cloudEnabled, enabled) }
+        if bridgePath != saved[1] { TransferDockPath.root = URL(fileURLWithPath: bridgePath) }
+        guard UserDefaults.standard.synchronize() else { return "云端中转设置写入磁盘失败，调整已保留" }
+        NotificationCenter.default.post(name: .transferDockSettingsDidChange, object: nil)
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+    func discard() {
+        enabled = TransferDockPref.isOn(TransferDockPref.cloudEnabled)
+        bridgePath = TransferDockPath.root.path
+        saved = values
+    }
+    func restoreDefaults() {
+        enabled = true
+        bridgePath = "/Users/sunyiyang/Desktop/Project/temp/OPPO 中转站"
+    }
+}
+
+final class CastTransferSettingsDraft: SettingsEditableDraft {
+    struct Values: Equatable {
+        var maxSize = 1920
+        var bitrate = 16
+        var fps = 60
+        var clipboardAutoSync = true
+        static var current: Self {
+            Self(maxSize: TransferDockPref.CastQuality.maxSize, bitrate: TransferDockPref.CastQuality.bitrate,
+                 fps: TransferDockPref.CastQuality.fps, clipboardAutoSync: TransferDockPref.CastQuality.clipboardAutoSync)
+        }
+        var summary: String {
+            let size = maxSize == 0 ? "原始分辨率" : "\(maxSize)p"
+            let frames = fps == 0 ? "默认帧率" : "\(fps)fps"
+            return "\(size) · \(bitrate)Mbps · \(frames)"
+        }
+    }
+    @Published var values = Values.current
+    private var saved = Values.current
+    var isDirty: Bool { values != saved }
+    func save() -> String? {
+        if values.maxSize != saved.maxSize { TransferDockPref.CastQuality.maxSize = values.maxSize }
+        if values.bitrate != saved.bitrate { TransferDockPref.CastQuality.bitrate = values.bitrate }
+        if values.fps != saved.fps { TransferDockPref.CastQuality.fps = values.fps }
+        if values.clipboardAutoSync != saved.clipboardAutoSync { TransferDockPref.CastQuality.clipboardAutoSync = values.clipboardAutoSync }
+        guard UserDefaults.standard.synchronize() else { return "投屏设置写入磁盘失败，调整已保留" }
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+    func discard() { values = .current; saved = values }
+    func restoreDefaults() { values = Values() }
+}
+
+// 偏好只写草稿；服务启停与账号登录是即时操作。
 
 struct TransferDockSettingsPane: View {
-    /// v272：文件中转拆成五个二级页（显示 / 投屏画质 / 手机扫码直传 / 云端中转 / 本地暂存），
-    /// 侧边栏一项对一页；状态仍由本视图持有，一页只渲染一段。
-    enum Section: Hashable { case display, cast, scan, cloud, local }
-    var section: Section = .display
-
-    @AppStorage(TransferDockPref.featureEnabled) private var featureEnabled = true
-    @AppStorage(TransferDockPref.panelVisible) private var panelVisible = true
-    @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
-    @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
+    enum Section: Hashable { case cast, scan, cloud, local }
+    var section: Section = .local
 
     @ObservedObject private var lan = LanTransferServer.shared
     @ObservedObject private var local = LocalTransferStore.shared
-
-    @Stored private var portText = String(TransferDockPref.lanPort)
-    @Stored private var bridgePath = TransferDockPath.root.path
-    @Stored private var bridgeAvailable = TransferDockPath.isAvailable
-    @Stored private var revision = 0
+    @ObservedObject private var cloud = TransferDockService.shared
 
     var body: some View {
         VStack(spacing: 20) {
             switch section {
-            case .display: displaySection
+            case .local:   localSection
             case .cast:    castSection
             case .scan:    scanSection
             case .cloud:   cloudSection
-            case .local:   localSection
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .font(.system(size: 12))
-        .onAppear {
-            portText = String(TransferDockPref.lanPort)
-            bridgePath = TransferDockPath.root.path
-            bridgeAvailable = TransferDockPath.isAvailable
-            // 不自动拉起直传服务（2026-10-20 用户需求）：按需启动——
-            // 中转页勾选文件点「扫码直传」，或本页「访问地址」行手动启动。
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .localTransferDidChange)) { _ in
-            revision += 1
-        }
     }
 
     // MARK: - 二级页内容
 
-    /// 二级页：显示
-    private var displaySection: some View {
-        SettingsSection("显示") {
-            SettingsGroupBox {
-                row("启用文件中转", subtitle: "关掉后中转功能整体下线，面板顶部的「中转 / 投屏」分段一起隐藏；功能开启后是否显示分段，由「个性化 → 主面板页面」决定") {
-                    Toggle("", isOn: $featureEnabled)
-                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: featureEnabled) { _ in notifyChange() }
-                }
-            }
-        }
-    }
-
     /// 二级页：投屏画质
     private var castSection: some View {
+        SettingsDraftEditor(id: "transferCast", makeDraft: { CastTransferSettingsDraft() }) { draft in
         SettingsSection("投屏画质") {
             SettingsGroupBox {
                 row("分辨率", subtitle: "短边上限；「原始」= 设备原生分辨率（更清晰、更吃带宽）") {
                     Picker("", selection: Binding(
-                        get: { TransferDockPref.CastQuality.maxSize },
-                        set: { TransferDockPref.CastQuality.maxSize = $0; notifyChange() })) {
+                        get: { draft.values.maxSize },
+                        set: { draft.values.maxSize = $0 })) {
                         ForEach(TransferDockPref.CastQuality.sizeOptions, id: \.1) { opt in
                             Text(opt.1 == 0 ? "原始" : "\(opt.0)p").tag(opt.1)
                         }
@@ -117,8 +170,8 @@ struct TransferDockSettingsPane: View {
                 SettingsDivider()
                 row("码率", subtitle: "越高越清晰；Wi-Fi 不稳时降到 8-16") {
                     Picker("", selection: Binding(
-                        get: { TransferDockPref.CastQuality.bitrate },
-                        set: { TransferDockPref.CastQuality.bitrate = $0; notifyChange() })) {
+                        get: { draft.values.bitrate },
+                        set: { draft.values.bitrate = $0 })) {
                         ForEach(TransferDockPref.CastQuality.bitrateOptions, id: \.self) { b in
                             Text("\(b) Mbps").tag(b)
                         }
@@ -130,8 +183,8 @@ struct TransferDockSettingsPane: View {
                 SettingsDivider()
                 row("帧率", subtitle: "30 省电；60 顺滑；90 高刷屏") {
                     Picker("", selection: Binding(
-                        get: { TransferDockPref.CastQuality.fps },
-                        set: { TransferDockPref.CastQuality.fps = $0; notifyChange() })) {
+                        get: { draft.values.fps },
+                        set: { draft.values.fps = $0 })) {
                         ForEach(TransferDockPref.CastQuality.fpsOptions, id: \.self) { f in
                             Text(f == 0 ? "默认" : "\(f) fps").tag(f)
                         }
@@ -144,55 +197,46 @@ struct TransferDockSettingsPane: View {
                 // v130（AndroMeld/AgentHUD）：双向剪贴板显式开关（AndroMeld P0-2）
                 row("双向剪贴板", subtitle: "Mac↔手机剪贴板自动同步；关闭后投屏/Meld 窗口不再同步剪贴板") {
                     Toggle("", isOn: Binding(
-                        get: { TransferDockPref.CastQuality.clipboardAutoSync },
-                        set: { TransferDockPref.CastQuality.clipboardAutoSync = $0; notifyChange() }))
+                        get: { draft.values.clipboardAutoSync },
+                        set: { draft.values.clipboardAutoSync = $0 }))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
                 SettingsDivider()
-                row("当前参数", subtitle: TransferDockPref.CastQuality.summary + "（下次启动投屏时生效）") {
+                row("草稿参数", subtitle: draft.values.summary + "（保存后，下次启动投屏时生效）") {
                     Button("恢复推荐") {
-                        TransferDockPref.CastQuality.maxSize = 1920
-                        TransferDockPref.CastQuality.bitrate = 16
-                        TransferDockPref.CastQuality.fps = 60
-                        notifyChange()
+                        draft.values.maxSize = 1920
+                        draft.values.bitrate = 16
+                        draft.values.fps = 60
                     }
                     .controlSize(.small)
-                }.id(revision)   // v260：无发布者 Binding 改完不刷新「当前参数」摘要
+                }
             }
+        }
         }
     }
 
     /// 二级页：手机扫码直传
     private var scanSection: some View {
+        SettingsDraftEditor(id: "transferScan", makeDraft: { ScanTransferSettingsDraft() }) { draft in
         SettingsSection("手机扫码直传") {
             SettingsGroupBox {
-                row("启用", subtitle: "手机与本机在同一 Wi-Fi，扫码即可在浏览器里上传/下载") {
-                    Toggle("", isOn: $lanEnabled)
+                row("允许手机直传", subtitle: "保存配置后可手动启动；修改配置不启停正在运行的服务") {
+                    Toggle("", isOn: Binding(get: { draft.enabled }, set: { draft.enabled = $0 }))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: lanEnabled) { on in
-                            // 只在关闭时停服务；开启不自动启动（2026-10-20 用户需求）：
-                            // 服务按需启动——中转页勾选文件点「扫码直传」，或点下方「启动」。
-                            if !on { lan.stop() }
-                            notifyChange()
-                        }
                 }
                 SettingsDivider()
-                row("端口", subtitle: portSubtitle) {
-                    HStack(spacing: 10) {
-                        TextField("8787", text: $portText)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 76)
-                            .disabled(!lanEnabled)
-                            .onSubmit { applyPort() }
-                        Button("应用") { applyPort() }
-                            .controlSize(.small)
-                            .disabled(!lanEnabled)
-                    }
+                row("端口", subtitle: "保存后供下次启动使用；默认 8787，被占用时自动顺延") {
+                    TextField("8787", text: Binding(get: { draft.portText }, set: { draft.portText = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 76)
                 }
-                SettingsDivider()
+            }
+        }
+        SettingsSection("服务即时操作") {
+            SettingsGroupBox {
                 row("访问地址", subtitle: lan.running
-                    ? "手机浏览器打开即可上传/下载"
-                    : "服务未启动 · 勾选文件后点「扫码直传」，或手动启动") {
+                    ? "正在监听 \(lan.port)；停止后重新启动才使用已保存端口"
+                    : "服务未启动 · 启动使用已保存配置，不应用当前草稿") {
                     HStack(spacing: 10) {
                         Text(lan.shareURL ?? "—")
                             .font(.system(size: 11.5, design: .monospaced))
@@ -206,16 +250,15 @@ struct TransferDockSettingsPane: View {
                                 if let u = URL(string: url) { NSWorkspace.shared.open(u) }
                             }
                             .controlSize(.small)
-                            Button("停止") { lan.stop(); revision += 1 }
-                                .controlSize(.small)
                         } else {
-                            Button("启动") {
-                                lan.startIfEnabled()
-                                revision += 1
-                            }
-                            .controlSize(.small)
-                            .disabled(!lanEnabled)
+                            Text("配置端口 \(TransferDockPref.lanPort)").font(.system(size: 11)).foregroundStyle(.secondary)
                         }
+                        Button(lan.running ? "停止" : "启动") {
+                            if lan.running { lan.stop() }
+                            else { lan.startIfEnabled() }
+                        }
+                        .controlSize(.small)
+                        .disabled(!lan.running && !TransferDockPref.isOn(TransferDockPref.lanEnabled))
                         Spacer(minLength: 0)
                     }
                 }
@@ -226,9 +269,9 @@ struct TransferDockSettingsPane: View {
                             QRCodeView(text: url, size: 84)
                         }
                         VStack(alignment: .leading, spacing: 8) {
-                            Button("重新生成") { lan.rotateToken(); revision += 1 }
+                            Button("重新生成") { lan.rotateToken() }
                                 .controlSize(.small)
-                                .disabled(!lanEnabled)
+                                .disabled(!lan.running)
                             Text("手机相机 / 微信扫一扫 → 打开直传页")
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
@@ -238,41 +281,59 @@ struct TransferDockSettingsPane: View {
                 }
             }
         }
+        }
     }
 
     /// 二级页：云端中转
     private var cloudSection: some View {
+        SettingsDraftEditor(id: "transferCloud", makeDraft: { CloudTransferSettingsDraft() }) { draft in
         SettingsSection("云端中转（OPPO）") {
             SettingsGroupBox {
                 row("启用云端通道", subtitle: "关闭后主面板不再显示云端分区，只剩本地暂存") {
-                    Toggle("", isOn: $cloudEnabled)
+                    Toggle("", isOn: Binding(get: { draft.enabled }, set: { draft.enabled = $0 }))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                        .onChange(of: cloudEnabled) { _ in
-                            bridgeAvailable = TransferDockPath.isAvailable
-                            notifyChange()
-                        }
                 }
                 SettingsDivider()
-                row("桥接工程", subtitle: bridgeAvailable
-                    ? "已找到 frset_bridge.py／登录态文件"
-                    : "未找到工程：云端分区会自动隐藏") {
+                row("桥接工程", subtitle: draft.bridgeAvailable
+                    ? "草稿目录已找到桥接脚本／登录态文件，保存后使用"
+                    : "草稿目录未找到工程；保存后云端分区隐藏") {
                     HStack(spacing: 10) {
-                        Text(bridgePath)
+                        Text(draft.bridgePath)
                             .font(.system(size: 11.5, design: .monospaced))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .frame(maxWidth: 300, alignment: .leading)
-                        Button("选择…") { chooseBridgeFolder() }
+                        Button("选择…") { chooseBridgeFolder(draft) }
                             .controlSize(.small)
                         Button("在 Finder 中显示") {
-                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: bridgePath)])
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: draft.bridgePath)])
                         }
                         .controlSize(.small)
                         Spacer(minLength: 0)
                     }
                 }
             }
+        }
+        SettingsSection("云端即时操作") {
+            SettingsGroupBox {
+                row("云端同步", subtitle: "启停即时生效，使用已保存的桥接工程，不应用草稿") {
+                    HStack(spacing: 10) {
+                        Button("开始同步") { cloud.refresh(); cloud.startLiveSync() }
+                        Button("停止同步") { cloud.stopLiveSync() }
+                    }.controlSize(.small)
+                }
+                SettingsDivider()
+                row("云端账号", subtitle: "登录与凭据写入即时生效，使用已保存的桥接工程，不应用草稿") {
+                    HStack(spacing: 10) {
+                        Text(cloud.loggedIn ? "已登录" : "未登录").foregroundStyle(.secondary)
+                        Button(cloud.loggedIn ? "重新登录…" : "登录…") {
+                            NotificationCenter.default.post(name: .frsetOpenTransferLogin, object: nil)
+                        }.controlSize(.small)
+                    }
+                }
+            }
+        }
         }
     }
 
@@ -281,6 +342,11 @@ struct TransferDockSettingsPane: View {
         SettingsDraftEditor(id: "transferLocal", makeDraft: { LocalTransferSettingsDraft() }) { draft in
         SettingsSection("本地暂存") {
             SettingsGroupBox {
+                row("启用文件中转", subtitle: "运行开关，保存后生效；主面板页面显隐在主面板设置调整") {
+                    Toggle("", isOn: Binding(get: { draft.featureEnabled }, set: { draft.featureEnabled = $0 }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                SettingsDivider()
                 row("剪贴板文件自动暂存", subtitle: "文件与文件夹复制后同时出现在剪贴板和中转；重复复制只置顶") {
                     Toggle("剪贴板文件自动暂存", isOn: Binding(get: { draft.autoStage }, set: { draft.autoStage = $0 }))
                         .labelsHidden().toggleStyle(.switch).controlSize(.small)
@@ -368,41 +434,17 @@ struct TransferDockSettingsPane: View {
         .frame(minHeight: 44)
     }
 
-    private var portSubtitle: String {
-        if lan.running { return "正在监听 \(lan.port)" }
-        return "默认 8787，被占用时自动顺延"
-    }
-
     // MARK: - 动作
 
-    private func applyPort() {
-        let trimmed = portText.trimmingCharacters(in: .whitespaces)
-        guard let value = UInt16(trimmed), value >= 1024 else {
-            Toast.show("端口需在 1024–65535 之间", icon: "exclamationmark.triangle", isWarning: true)
-            portText = String(TransferDockPref.lanPort)
-            return
-        }
-        TransferDockPref.lanPort = value
-        lan.restart()
-        Toast.show("直传端口已改为 \(value)", icon: "network")
-        notifyChange()
-    }
-
-    private func chooseBridgeFolder() {
+    private func chooseBridgeFolder(_ draft: CloudTransferSettingsDraft) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.prompt = "选择工程目录"
-        panel.directoryURL = URL(fileURLWithPath: bridgePath)
+        panel.directoryURL = URL(fileURLWithPath: draft.bridgePath)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        TransferDockPath.root = url
-        bridgePath = url.path
-        bridgeAvailable = TransferDockPath.isAvailable
-        Toast.show(bridgeAvailable ? "已切换云端中转工程" : "该目录下没找到桥接脚本",
-                   icon: bridgeAvailable ? "checkmark.circle" : "exclamationmark.triangle",
-                   isWarning: !bridgeAvailable)
-        notifyChange()
+        draft.bridgePath = url.path
     }
 
     private func copy(_ text: String) {
@@ -411,9 +453,4 @@ struct TransferDockSettingsPane: View {
         Toast.show("已复制直传链接", icon: "doc.on.doc")
     }
 
-    private func notifyChange() {
-        // v260：本页自己也要重绘，否则「当前参数」摘要停在旧值
-        revision += 1
-        NotificationCenter.default.post(name: .transferDockSettingsDidChange, object: nil)
-    }
 }

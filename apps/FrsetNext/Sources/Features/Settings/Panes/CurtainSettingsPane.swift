@@ -34,16 +34,12 @@ final class CurtainSettingsDraft: SettingsEditableDraft {
         var railScales: Bool
         var attachOnCapture: Bool
         var revealOnHover: Bool
-        var shortcutKey: UInt32?
-        var shortcutModifiers: UInt32
 
         static var current: Values {
-            let binding = AppBootstrap.shortcutBinding(for: "curtainToggle")
             return Values(enabled: CurtainPref.enabled, style: CurtainPref.ropeStyle,
                 duration: CurtainPref.displayDuration, maxCards: Double(CurtainPref.maxCards),
                 cardWidth: Double(CurtainPref.cardWidth), railScales: CurtainPref.railScalesWithCards,
-                attachOnCapture: CurtainPref.attachOnCapture, revealOnHover: CurtainPref.revealOnHover,
-                shortcutKey: binding?.keyCode, shortcutModifiers: binding?.modifiers ?? 0)
+                attachOnCapture: CurtainPref.attachOnCapture, revealOnHover: CurtainPref.revealOnHover)
         }
     }
 
@@ -52,38 +48,33 @@ final class CurtainSettingsDraft: SettingsEditableDraft {
     var isDirty: Bool { values != saved }
 
     func save() -> String? {
-        if values.shortcutKey != saved.shortcutKey || values.shortcutModifiers != saved.shortcutModifiers {
-            guard AppBootstrap.setShortcut("curtainToggle", keyCode: values.shortcutKey,
-                                           modifiers: values.shortcutModifiers) else {
-                return "图帘快捷键注册失败：组合键已被占用或系统拒绝注册"
-            }
-        }
+        let changed = isDirty
         let preferences = Preferences.shared
-        preferences.set(Preferences.Keys.curtainEnabled, values.enabled)
-        preferences.set(Preferences.Keys.curtainRopeStyle, values.style.rawValue)
-        preferences.set(Preferences.Keys.curtainDisplayDuration, values.duration)
-        preferences.set(Preferences.Keys.curtainMaxCards, Int(values.maxCards))
-        preferences.set(Preferences.Keys.curtainCardWidth, values.cardWidth)
-        preferences.set(Preferences.Keys.curtainRailScales, values.railScales)
-        preferences.set(Preferences.Keys.curtainAttachOnCapture, values.attachOnCapture)
-        preferences.set(Preferences.Keys.curtainRevealOnHover, values.revealOnHover)
+        if values.enabled != saved.enabled { preferences.set(Preferences.Keys.curtainEnabled, values.enabled) }
+        if values.style != saved.style { preferences.set(Preferences.Keys.curtainRopeStyle, values.style.rawValue) }
+        if values.duration != saved.duration { preferences.set(Preferences.Keys.curtainDisplayDuration, values.duration) }
+        if values.maxCards != saved.maxCards { preferences.set(Preferences.Keys.curtainMaxCards, Int(values.maxCards)) }
+        if values.cardWidth != saved.cardWidth { preferences.set(Preferences.Keys.curtainCardWidth, values.cardWidth) }
+        if values.railScales != saved.railScales { preferences.set(Preferences.Keys.curtainRailScales, values.railScales) }
+        if values.attachOnCapture != saved.attachOnCapture { preferences.set(Preferences.Keys.curtainAttachOnCapture, values.attachOnCapture) }
+        if values.revealOnHover != saved.revealOnHover { preferences.set(Preferences.Keys.curtainRevealOnHover, values.revealOnHover) }
+        guard UserDefaults.standard.synchronize() else { return "图帘设置写入磁盘失败，调整已保留" }
         // 所有字段写完才通知正式窗口与 Reveal，避免中途重排或唤出。
-        NotificationCenter.default.post(name: .curtainPreferencesChanged, object: nil)
+        if changed { NotificationCenter.default.post(name: .curtainPreferencesChanged, object: nil) }
         saved = values
         objectWillChange.send()
         return nil
     }
 
-    func discard() { values = saved }
+    func discard() { values = .current; saved = values }
     func restoreDefaults() {
-        let shortcut = AppBootstrap.defaultHotkeys.first { $0.id == "curtainToggle" }!
         values = Values(enabled: false, style: .classic, duration: 12, maxCards: 8, cardWidth: 140,
-                        railScales: true, attachOnCapture: true, revealOnHover: false,
-                        shortcutKey: shortcut.keyCode, shortcutModifiers: shortcut.modifiers)
+                        railScales: true, attachOnCapture: true, revealOnHover: false)
     }
 }
 
 private struct CurtainSettingsContent: View {
+    @Environment(\.settingsTargetField) private var targetField
     @ObservedObject var draft: CurtainSettingsDraft
     private var enabled: Bool { draft.values.enabled }
     private var style: CurtainRopeStyle {
@@ -246,19 +237,13 @@ private struct CurtainSettingsContent: View {
 
                 SettingsDivider()
                 row("快捷键") {
-                    ShortcutRecorderButton(
-                        display: draft.values.shortcutKey.map {
-                            ShortcutManager.display(keyCode: $0, modifiers: draft.values.shortcutModifiers)
-                        },
-                        onCapture: { code, modifiers in
-                            draft.values.shortcutKey = code
-                            draft.values.shortcutModifiers = modifiers
-                        },
-                        onClear: {
-                            draft.values.shortcutKey = nil
-                            draft.values.shortcutModifiers = 0
-                        })
-                        .frame(width: 160)
+                    Text(AppBootstrap.shortcutBinding(for: "curtainToggle").map {
+                        ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
+                    } ?? "未设置")
+                    Button("前往快捷键设置") {
+                        ServiceLocator.settings?.open(pane: "shortcuts#curtainToggle")
+                    }
+                    .buttonStyle(.link)
                     Text("随时展开 / 收起图帘")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -313,6 +298,8 @@ private struct CurtainSettingsContent: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 7)
+        .background(targetField == title ? Theme.accent.opacity(0.08) : Color.clear)
+        .id(title)
     }
 }
 

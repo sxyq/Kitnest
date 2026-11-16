@@ -40,6 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
         ProcessFreezer.shared.thawOrphans()
+        TransferDockPref.migrateLegacyFeatureFlag()
+        PanelSegments.migrateLegacyVisibility()
         AppBootstrap.start()
         IslandController.shared.start()
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
@@ -158,7 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "settings":
                 let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value
-                ServiceLocator.settings?.open(pane: pane)
+                let field = comps?.queryItems?.first(where: { $0.name == "field" })?.value ?? url.fragment
+                ServiceLocator.settings?.open(pane: field.map { (pane ?? "general") + "#" + $0 } ?? pane)
             case "settingsprobe":
                 // v264 排障：单独打开某个设置区块（?block=recording|workflow|capture）
                 let block = comps?

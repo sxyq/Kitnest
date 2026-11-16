@@ -1,10 +1,22 @@
+import AppKit
 import SwiftUI
+
+private struct SettingsTargetFieldKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+extension EnvironmentValues {
+    var settingsTargetField: String? {
+        get { self[SettingsTargetFieldKey.self] }
+        set { self[SettingsTargetFieldKey.self] = newValue }
+    }
+}
 
 // MARK: - 设置窗口通用 UI 组件
 // 对齐 Frset 视觉：左侧图标 + 标题/副标题 + 右侧控件；圆角卡片分组。
 
 /// 通用设置行：左侧可选图标 + 标题/副标题，右侧任意控件
 struct SettingsRow<Trailing: View>: View {
+    @Environment(\.settingsTargetField) private var targetField
     let icon: String?
     let title: String
     var subtitle: String? = nil
@@ -40,6 +52,8 @@ struct SettingsRow<Trailing: View>: View {
             trailing
         }
         .padding(.vertical, 6)
+        .background(targetField == title ? Theme.accent.opacity(0.08) : Color.clear)
+        .id(title)
     }
 }
 
@@ -64,6 +78,47 @@ struct SettingsSection<Content: View>: View {
             }
             content
         }
+        .id(title)
+    }
+}
+
+/// 只记正文滚动位置；切页不创建第二个滚动视图。
+struct SettingsScrollPosition: NSViewRepresentable {
+    let state: SettingsUIState
+    let page: SettingsPage
+    func makeNSView(context: Context) -> PositionView { PositionView() }
+    func updateNSView(_ view: PositionView, context: Context) {
+        if view.page != page { view.detach() }
+        view.state = state; view.page = page
+        DispatchQueue.main.async { view.attach() }
+    }
+    static func dismantleNSView(_ view: PositionView, coordinator: ()) { view.detach() }
+    final class PositionView: NSView {
+        var state: SettingsUIState?
+        var page: SettingsPage?
+        private weak var scroll: NSScrollView?
+        private var observation: NSObjectProtocol?
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        func attach() {
+            guard scroll == nil, let owner = enclosingScrollView, let state, let page else { return }
+            scroll = owner
+            if state.detailPaneID == nil, let y = state.pageScrollOffsets[page] {
+                owner.contentView.scroll(to: NSPoint(x: 0, y: y))
+                owner.reflectScrolledClipView(owner.contentView)
+            }
+            owner.contentView.postsBoundsChangedNotifications = true
+            observation = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification,
+                object: owner.contentView, queue: .main) { [weak self] _ in self?.remember() }
+        }
+        private func remember() {
+            if let page, let scroll { state?.pageScrollOffsets[page] = scroll.contentView.bounds.origin.y }
+        }
+        func detach() {
+            remember()
+            if let observation { NotificationCenter.default.removeObserver(observation) }
+            observation = nil; scroll = nil
+        }
+        deinit { if let observation { NotificationCenter.default.removeObserver(observation) } }
     }
 }
 

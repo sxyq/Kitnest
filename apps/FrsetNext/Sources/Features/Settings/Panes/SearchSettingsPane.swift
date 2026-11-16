@@ -38,6 +38,8 @@ final class SearchDisplayDraft: SettingsEditableDraft {
     @Published var editEngineURL = ""
     @Published var editErrorMessage: String?
     private var observation: AnyCancellable?
+    private var savedDisplay: [Bool] = []
+    private var displayValues: [Bool] { [showWeb, showClipboard, showFiles, service.clearSearchInputAfterWebAction] }
 
     init() {
         discard()
@@ -51,9 +53,7 @@ final class SearchDisplayDraft: SettingsEditableDraft {
         let saved = SearchServiceManager.shared
         return service.allEngines != saved.allEngines || service.activeBarItems != saved.activeBarItems
             || service.clearSearchInputAfterWebAction != saved.clearSearchInputAfterWebAction
-            || showWeb != categoryValue(Preferences.Keys.searchCategoryWeb)
-            || showClipboard != categoryValue(Preferences.Keys.searchCategoryClipboard)
-            || showFiles != categoryValue(Preferences.Keys.searchCategoryFiles)
+            || displayValues != savedDisplay
     }
 
     func save() -> String? {
@@ -67,9 +67,11 @@ final class SearchDisplayDraft: SettingsEditableDraft {
         }
         if let reason = SearchServiceManager.shared.applyDraft(service) { return reason }
         let defaults = UserDefaults.standard
-        defaults.set(showWeb, forKey: Preferences.Keys.searchCategoryWeb)
-        defaults.set(showClipboard, forKey: Preferences.Keys.searchCategoryClipboard)
-        defaults.set(showFiles, forKey: Preferences.Keys.searchCategoryFiles)
+        if showWeb != savedDisplay[0] { defaults.set(showWeb, forKey: Preferences.Keys.searchCategoryWeb) }
+        if showClipboard != savedDisplay[1] { defaults.set(showClipboard, forKey: Preferences.Keys.searchCategoryClipboard) }
+        if showFiles != savedDisplay[2] { defaults.set(showFiles, forKey: Preferences.Keys.searchCategoryFiles) }
+        guard defaults.synchronize() else { return "搜索设置写入磁盘失败，调整已保留" }
+        savedDisplay = displayValues
         objectWillChange.send()
         return nil
     }
@@ -82,6 +84,7 @@ final class SearchDisplayDraft: SettingsEditableDraft {
         showWeb = categoryValue(Preferences.Keys.searchCategoryWeb)
         showClipboard = categoryValue(Preferences.Keys.searchCategoryClipboard)
         showFiles = categoryValue(Preferences.Keys.searchCategoryFiles)
+        savedDisplay = displayValues
     }
 
     func restoreDefaults() {
@@ -93,6 +96,32 @@ final class SearchDisplayDraft: SettingsEditableDraft {
         showWeb = true
         showClipboard = true
         showFiles = true
+    }
+
+    func isDirty(in scope: String) -> Bool { displayValues != savedDisplay }
+    func restoreDefaults(in scope: String) {
+        showWeb = true; showClipboard = true; showFiles = true
+        service.clearSearchInputAfterWebAction = true
+    }
+    func discard(in scope: String) {
+        showWeb = categoryValue(Preferences.Keys.searchCategoryWeb)
+        showClipboard = categoryValue(Preferences.Keys.searchCategoryClipboard)
+        showFiles = categoryValue(Preferences.Keys.searchCategoryFiles)
+        service.clearSearchInputAfterWebAction = SearchServiceManager.shared.clearSearchInputAfterWebAction
+        savedDisplay = displayValues
+    }
+    func save(in scope: String) -> String? {
+        let defaults = UserDefaults.standard
+        if showWeb != savedDisplay[0] { defaults.set(showWeb, forKey: Preferences.Keys.searchCategoryWeb) }
+        if showClipboard != savedDisplay[1] { defaults.set(showClipboard, forKey: Preferences.Keys.searchCategoryClipboard) }
+        if showFiles != savedDisplay[2] { defaults.set(showFiles, forKey: Preferences.Keys.searchCategoryFiles) }
+        if service.clearSearchInputAfterWebAction != savedDisplay[3] {
+            SearchServiceManager.shared.clearSearchInputAfterWebAction = service.clearSearchInputAfterWebAction
+        }
+        guard defaults.synchronize() else { return "搜索展示设置写入磁盘失败，调整已保留" }
+        savedDisplay = displayValues
+        objectWillChange.send()
+        return nil
     }
 
     /// 三连校验：仅字母数字 / 名称长度上限 / URL 含 {query} 且可解析

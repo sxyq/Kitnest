@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 
 // MARK: - 设置「截图」
 //
@@ -11,19 +12,115 @@ import AppKit
 // 五块改由 `CaptureBlockPage` 分别承载；本页只负责「截图」这一块，内部结构不变。
 
 public struct CaptureSettingsPane: View {
-    public init() {}
+    public enum Section: String, CaseIterable {
+        case capture, ocr, watermark
+        var draftID: String { "capture.\(rawValue)" }
+    }
+    private let section: Section
+    public init(section: Section = .capture) { self.section = section }
 
     public var body: some View {
-        SettingsDraftEditor(id: "captureAppearance", makeDraft: { CaptureAppearanceDraft() }) { draft in
-            CaptureSettingsContent(draft: draft)
+        SettingsDraftEditor(id: section.draftID, makeDraft: { CaptureSettingsDraft(section: section) }) { draft in
+            CaptureSettingsContent(settings: draft, draft: draft.appearance, section: section)
         }
     }
 }
 
+// 复用比例与命名编辑模型；三个页面各自提交所属参数。
+final class CaptureSettingsDraft: SettingsEditableDraft {
+    let section: CaptureSettingsPane.Section
+    let appearance = CaptureAppearanceDraft()
+    @Published var savePath = Preferences.shared.value(Preferences.Keys.captureSavePath, default: "")
+    private var saved = CaptureAppearanceDraft.Values.current
+    private var savedPath = Preferences.shared.value(Preferences.Keys.captureSavePath, default: "")
+    private var observation: AnyCancellable?
+
+    init(section: CaptureSettingsPane.Section) {
+        self.section = section
+        observation = appearance.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+    var isDirty: Bool {
+        let values = appearance.values
+        switch section {
+        case .capture:
+            return values.soundEnabled != saved.soundEnabled || values.action != saved.action ||
+                values.delaySeconds != saved.delaySeconds || values.selectedRatio != saved.selectedRatio ||
+                values.customRatios != saved.customRatios || values.fileNameTemplate != saved.fileNameTemplate ||
+                values.textOnlyMosaic != saved.textOnlyMosaic || savePath != savedPath ||
+                !appearance.newRatioName.isEmpty || !appearance.newRatioText.isEmpty
+        case .ocr:
+            return values.languages != saved.languages || values.autoDetect != saved.autoDetect ||
+                values.showOCRWindow != saved.showOCRWindow || values.silent != saved.silent ||
+                values.notifySeconds != saved.notifySeconds
+        case .watermark: return values.watermark != saved.watermark
+        }
+    }
+    func save() -> String? {
+        switch section {
+        case .capture:
+            if !appearance.newRatioText.isEmpty {
+                guard appearance.addRatio() else { return "比例请输入两个正整数，例如 5:4。" }
+            } else if !appearance.newRatioName.isEmpty { return "请填写比例宽高，例如 5:4。" }
+            let values = appearance.values
+            var ratioData: Data?
+            if values.customRatios != saved.customRatios {
+                do { ratioData = try JSONEncoder().encode(values.customRatios) }
+                catch { return "保存固定比例失败：\(error.localizedDescription)" }
+            }
+            if values.soundEnabled != saved.soundEnabled { Preferences.shared.set(Preferences.Keys.captureSound, values.soundEnabled) }
+            if savePath != savedPath {
+                Preferences.shared.set(Preferences.Keys.captureSavePath, savePath)
+                ScreenshotManager.shared.reloadRecent()
+            }
+            if values.action != saved.action { ScreenshotManager.shared.defaultAction = values.action }
+            if values.delaySeconds != saved.delaySeconds { ScreenshotManager.shared.delaySeconds = values.delaySeconds }
+            if let ratioData { Preferences.shared.set(CaptureRatioStore.keyItems, ratioData) }
+            if values.selectedRatio != saved.selectedRatio { CaptureRatioStore.selectedID = values.selectedRatio }
+            if values.fileNameTemplate != saved.fileNameTemplate { CaptureFileName.template = values.fileNameTemplate }
+            if values.textOnlyMosaic != saved.textOnlyMosaic { MosaicTextOnly.isEnabled = values.textOnlyMosaic }
+        case .ocr:
+            let values = appearance.values
+            if values.languages != saved.languages { OCRService.setLanguages(values.languages) }
+            if values.autoDetect != saved.autoDetect { OCRService.autoDetectLanguages = values.autoDetect }
+            if values.showOCRWindow != saved.showOCRWindow { ScreenshotManager.shared.ocrShowResultWindow = values.showOCRWindow }
+            if values.silent != saved.silent { CaptureOCRNotify.isSilent = values.silent }
+            if values.notifySeconds != saved.notifySeconds { CaptureOCRNotify.seconds = values.notifySeconds }
+        case .watermark:
+            let values = appearance.values.watermark
+            let old = saved.watermark
+            if values.enabled != old.enabled { Watermark.isEnabled = values.enabled }
+            if values.text != old.text { Watermark.text = values.text }
+            if values.opacity != old.opacity { Watermark.opacity = values.opacity }
+            if values.angle != old.angle { Watermark.angle = values.angle }
+            if values.tile != old.tile { Watermark.tile = values.tile }
+            if values.scale != old.scale { Watermark.scale = values.scale }
+        }
+        guard UserDefaults.standard.synchronize() else { return "截图设置写入磁盘失败，调整已保留" }
+        objectWillChange.send()
+        saved = appearance.values
+        savedPath = savePath
+        return nil
+    }
+    func discard() {
+        appearance.values = .current
+        appearance.newRatioName = ""
+        appearance.newRatioText = ""
+        savePath = Preferences.shared.value(Preferences.Keys.captureSavePath, default: "")
+        saved = appearance.values
+        savedPath = savePath
+    }
+    func restoreDefaults() {
+        appearance.restoreDefaults()
+        savePath = ""
+    }
+}
+
 private struct CaptureSettingsContent: View {
+    @Environment(\.settingsTargetField) private var targetField
+    @ObservedObject var settings: CaptureSettingsDraft
     @ObservedObject var draft: CaptureAppearanceDraft
+    let section: CaptureSettingsPane.Section
     @ObservedObject private var manager = ScreenshotManager.shared
-    @Stored private var savePath = Preferences.shared.value(Preferences.Keys.captureSavePath, default: "")
 
     private static let languageOptions: [(title: String, codes: [String])] = [
         ("简体中文 + 英文", ["zh-Hans", "en-US"]),
@@ -38,24 +135,19 @@ private struct CaptureSettingsContent: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            saveSection
-            behaviorSection
-            // v264（B 档）：固定比例 / 文件命名 / 截完即用（静默识别、仅文本马赛克）
-            CaptureRatioSettingsView(draft: draft)
-            CaptureNamingSettingsView(draft: draft)
-            CaptureExtraSettingsView(draft: draft)
-            watermarkSection
-            ocrSection
-            permissionSection
+            switch section {
+            case .capture:
+                saveSection
+                behaviorSection
+                CaptureRatioSettingsView(draft: draft)
+                CaptureNamingSettingsView(draft: draft)
+                permissionSection
+            case .ocr: ocrSection
+            case .watermark: watermarkSection
+            }
         }
         .font(.system(size: 12))
         .frame(maxWidth: .infinity, alignment: .leading)
-        // v274：「保存到」此前只写 @Stored（等价 @State，进程内临时值），
-        // 而 ScreenshotManager 读的是 Preferences → 改完仍存到下载目录。
-        // 输入 / 「选择…」/「恢复默认」三条路径统一在这里落盘。
-        .onChange(of: savePath) { value in
-            Preferences.shared.set(Preferences.Keys.captureSavePath, value)
-        }
     }
 
     // MARK: 保存
@@ -67,26 +159,26 @@ private struct CaptureSettingsContent: View {
                     Text("保存到")
                         .font(.system(size: 12.5))
                         .frame(width: 92, alignment: .leading)
-                    TextField(ScreenshotManager.shared.saveDirectory.path, text: $savePath)
+                    TextField("下载目录", text: $settings.savePath)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11.5, design: .monospaced))
                         .frame(maxWidth: 340)
                     Button("选择…") { chooseDirectory() }
                         .controlSize(.small)
                     Button("恢复默认") {
-                        savePath = ""
-                        Preferences.shared.set(Preferences.Keys.captureSavePath, "")
-                        ScreenshotManager.shared.reloadRecent()
+                        settings.savePath = ""
                     }
                     .controlSize(.small)
                     Spacer(minLength: 0)
                 }
                 .padding(.vertical, 7)
+                .background(targetField == "保存到" ? Theme.accent.opacity(0.08) : Color.clear)
+                .id("保存到")
 
                 SettingsDivider()
 
                 HStack(spacing: 10) {
-                    Text("留空则保存到 \(ScreenshotManager.shared.saveDirectory.path)")
+                    Text("留空则保存到下载目录；保存设置后生效")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -155,6 +247,13 @@ private struct CaptureSettingsContent: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
+                SettingsDivider()
+                row("仅文本马赛克") {
+                    Toggle("", isOn: $draft.values.textOnlyMosaic)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    Text("只遮盖范围内的文字行（本机识别）")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -201,6 +300,14 @@ private struct CaptureSettingsContent: View {
                             .font(.system(size: 11.5).monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 44, alignment: .trailing)
+                    }
+
+                    SettingsDivider()
+                    row("字号比例") {
+                        Slider(value: $draft.values.watermark.scale, in: 0.012...0.06)
+                            .frame(width: 180)
+                        Text(String(format: "%.1f%% 画面宽", draft.values.watermark.scale * 100))
+                            .font(.system(size: 11.5)).foregroundStyle(.secondary)
                     }
 
                     Text("只加在复制/保存的成品上，编辑时预览不叠加——不会被水印挡住看不清标注。")
@@ -252,6 +359,18 @@ private struct CaptureSettingsContent: View {
                         .foregroundStyle(.secondary)
                 }
 
+                SettingsDivider()
+                row("静默结果提示") {
+                    Toggle("", isOn: $draft.values.silent)
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                    Stepper(value: $draft.values.notifySeconds, in: 2...12) {
+                        Text("\(draft.values.notifySeconds) 秒")
+                    }
+                    .disabled(!draft.values.silent)
+                    Text("只提示不弹窗，文字自动进剪贴板")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+
                 Text("识别在本机完成（Apple Vision），不联网、不上传图片。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -272,7 +391,7 @@ private struct CaptureSettingsContent: View {
                     Text(manager.hasPermission ? "已获得屏幕录制权限" : "尚未获得屏幕录制权限")
                         .font(.system(size: 12.5))
                     Spacer(minLength: 8)
-                    Button("检查 / 申请") {
+                    Button("申请屏幕录制权限 · 即时") {
                         Task { _ = await ScreenshotManager.shared.ensureScreenRecordingPermission() }
                     }
                     .controlSize(.small)
@@ -297,6 +416,8 @@ private struct CaptureSettingsContent: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 7)
+        .background(targetField == title ? Theme.accent.opacity(0.08) : Color.clear)
+        .id(title)
     }
 
     private func chooseDirectory() {
@@ -306,7 +427,6 @@ private struct CaptureSettingsContent: View {
         panel.canCreateDirectories = true
         panel.prompt = "选择"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        savePath = url.path
-        ScreenshotManager.shared.reloadRecent()
+        settings.savePath = url.path
     }
 }

@@ -204,21 +204,6 @@ private struct TransferDockContent: View {
             if let selectionMonitor { NSEvent.removeMonitor(selectionMonitor) }
             selectionMonitor = nil
         }
-        .onChange(of: cloudEnabled) { on in
-            if isSettingsPreview { return }
-            if on && bridgeAvailable {
-                service.refresh()
-                service.startLiveSync()
-            } else {
-                service.stopLiveSync()
-            }
-        }
-        .onChange(of: lanEnabled) { on in
-            if isSettingsPreview { return }
-            // 只在关闭时停服务；开启**不**自动启动（2026-10-20 用户需求）：
-            // 勾选文件后点「扫码直传」才拉起服务并生成二维码。
-            if !on { lan.stop() }
-        }
         .onChange(of: selectedIDs) { ids in
             // 没有选中文件 → 关二维码；若服务是「传输」拉起的则一并停掉
             if ids.isEmpty {

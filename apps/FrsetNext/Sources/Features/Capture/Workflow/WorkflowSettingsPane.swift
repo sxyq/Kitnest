@@ -7,7 +7,34 @@ import AppKit
 // 不做拖拽排序：步骤顺序就是列表顺序，加/删/改即可——排序需求远小于「先能跑通」。
 
 struct WorkflowSettingsPane: View {
-    @Stored private var workflows: [CaptureWorkflow] = WorkflowStore.load()
+    var body: some View {
+        SettingsDraftEditor(id: "captureWorkflow", makeDraft: { WorkflowSettingsDraft() }) { draft in
+            WorkflowSettingsContent(draft: draft)
+        }
+    }
+}
+
+final class WorkflowSettingsDraft: SettingsEditableDraft {
+    @Published var workflows = WorkflowStore.load()
+    private var saved = WorkflowStore.load()
+    var isDirty: Bool { workflows != saved }
+    func save() -> String? {
+        if let reason = WorkflowStore.save(workflows) { return reason }
+        objectWillChange.send()
+        saved = workflows
+        return nil
+    }
+    func discard() { workflows = WorkflowStore.load(); saved = workflows }
+    func restoreDefaults() { workflows = [] }
+}
+
+private struct WorkflowSettingsContent: View {
+    @ObservedObject var draft: WorkflowSettingsDraft
+    @Environment(\.settingsTargetField) private var targetField
+    private var workflows: [CaptureWorkflow] {
+        get { draft.workflows }
+        nonmutating set { draft.workflows = newValue }
+    }
 
     var body: some View {
         SettingsSection("工作流") {
@@ -30,7 +57,6 @@ struct WorkflowSettingsPane: View {
                 HStack(spacing: 8) {
                     Button("新建工作流") {
                         workflows.append(CaptureWorkflow(name: "工作流 \(workflows.count + 1)"))
-                        persist()
                     }
                     .controlSize(.small)
                     Text("Token 存在 ~/Library/Application Support/Kitnest/workflows/workflows.json（权限 600）")
@@ -57,7 +83,6 @@ struct WorkflowSettingsPane: View {
                 Spacer(minLength: 8)
                 Button {
                     workflows.remove(at: index)
-                    persist()
                 } label: {
                     Image(systemName: "trash")
                 }
@@ -73,7 +98,6 @@ struct WorkflowSettingsPane: View {
                 ForEach(WorkflowStep.Kind.allCases) { kind in
                     Button(kind.title) {
                         workflows[index].steps.append(WorkflowStep(kind: kind, a: defaultArgument(for: kind)))
-                        persist()
                     }
                 }
             } label: {
@@ -84,6 +108,8 @@ struct WorkflowSettingsPane: View {
             .frame(width: 110)
         }
         .padding(.vertical, 8)
+        .background(targetField == workflows[index].name ? Theme.accent.opacity(0.08) : Color.clear)
+        .id(workflows[index].name)
         .opacity(workflows[index].enabled ? 1 : 0.72)
     }
 
@@ -113,7 +139,6 @@ struct WorkflowSettingsPane: View {
             Spacer(minLength: 4)
             Button {
                 workflows[workflow].steps.remove(at: step)
-                persist()
             } label: {
                 Image(systemName: "minus.circle")
             }
@@ -145,16 +170,12 @@ struct WorkflowSettingsPane: View {
 
     private func binding<T>(_ index: Int, _ keyPath: WritableKeyPath<CaptureWorkflow, T>) -> Binding<T> {
         Binding(get: { workflows[index][keyPath: keyPath] },
-                set: { workflows[index][keyPath: keyPath] = $0; persist() })
+                set: { workflows[index][keyPath: keyPath] = $0 })
     }
 
     private func stepBinding<T>(_ workflow: Int, _ step: Int,
                                 _ keyPath: WritableKeyPath<WorkflowStep, T>) -> Binding<T> {
         Binding(get: { workflows[workflow].steps[step][keyPath: keyPath] },
-                set: { workflows[workflow].steps[step][keyPath: keyPath] = $0; persist() })
-    }
-
-    private func persist() {
-        WorkflowStore.save(workflows)
+                set: { workflows[workflow].steps[step][keyPath: keyPath] = $0 })
     }
 }

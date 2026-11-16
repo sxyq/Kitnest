@@ -82,7 +82,8 @@ public enum WorkflowStore {
         return list
     }
 
-    public static func save(_ list: [CaptureWorkflow]) {
+    @discardableResult
+    public static func save(_ list: [CaptureWorkflow]) -> String? {
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
                                                     withIntermediateDirectories: true)
@@ -90,8 +91,10 @@ public enum WorkflowStore {
             try data.write(to: fileURL, options: [.atomic])
             // 含 Token：只给当前用户读写
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
+            return nil
         } catch {
             Log.error("Workflow", "保存工作流失败：\(error.localizedDescription)")
+            return "保存工作流失败：\(error.localizedDescription)"
         }
     }
 

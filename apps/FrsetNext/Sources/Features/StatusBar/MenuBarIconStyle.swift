@@ -359,36 +359,8 @@ final class MenuBarIconStyleMenuActions: NSObject {
 
     static let shared = MenuBarIconStyleMenuActions()
 
-    /// 选中某种图标样式（子菜单单选）
-    @objc func selectIconStyle(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let style = MenuBarIconStyle(rawValue: raw) else { return }
-        MenuBarIconStyleStore.select(style)
-        FSRunCatIconSetEnabled(style == .cat)
-        MenuBarIconStyleApplier.shared.refresh()
-    }
-
-    /// 打开设置页的「通用」页签（图标样式区在菜单栏分节内）
     @objc func openCustomIconSettings(_ sender: Any?) {
-        MenuBarIconStyleApplier.shared.refresh()
-        ServiceLocator.settings?.open(pane: "menubar")
-    }
-
-    /// 隐藏自定义图标选项（v83：原彩蛋 hide 对话框随彩蛋机制一并移除，直接执行）
-    @objc func hideIconOption(_ sender: Any?) {
-        MenuBarIconStyleStore.setRevealsCustomOption(false)
-        toastHidden()
-    }
-
-    private func toastHidden() {
-        Toast.show("已隐藏自定义菜单栏图标", icon: "eye.slash")
-    }
-
-    /// 恢复自定义图标选项（v83：原彩蛋 restore 对话框随彩蛋机制一并移除，直接执行）
-    @objc func restoreIconOption(_ sender: Any?) {
-        MenuBarIconStyleStore.setRevealsCustomOption(true)
-        MenuBarIconStyleApplier.shared.refresh()
-        Toast.show("已恢复自定义菜单栏图标选项", icon: "checkmark.circle.fill")
+        ServiceLocator.settings?.open(pane: "menubar#菜单栏图标")
     }
 }
 

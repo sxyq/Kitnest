@@ -68,7 +68,7 @@ struct IslandSurface<Content: View>: View {
                 Image(systemName: "macwindow").frame(width: 26, height: 26)
             }.buttonStyle(IslandButtonStyle(help: "打开主面板")).accessibilityLabel("打开主面板")
             Button {
-                if controller.previewOnly { controller.feedback = "设置位于总设置 → 常规 → 刘海工作台" }
+                if controller.previewOnly { controller.feedback = "设置位于总设置 → 刘海工作台" }
                 else { controller.performOutside { ServiceLocator.settings?.open(pane: "island") } }
             } label: {
                 Image(systemName: "slider.horizontal.3").frame(width: 26, height: 26)

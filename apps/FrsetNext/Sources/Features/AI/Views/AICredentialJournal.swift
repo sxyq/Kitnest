@@ -143,20 +143,24 @@ public final class AICredentialCommitCoordinator {
     }
 
     /// 提交凭证：空值等价于删除；成功后记录审计日志
-    public func commit(_ value: String?, for provider: LLMProviderKind) {
+    @discardableResult
+    public func commit(_ value: String?, for provider: LLMProviderKind) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if trimmed.isEmpty {
             store.setCredential(nil, for: provider)
+            if let reason = store.lastWriteError { return reason }
             journal.record(action: .remove, provider: provider)
         } else {
             store.setCredential(trimmed, for: provider)
+            if let reason = store.lastWriteError { return reason }
             journal.record(action: .save, provider: provider, secret: trimmed)
         }
+        return nil
     }
 
-    public func remove(for provider: LLMProviderKind) {
-        store.removeCredential(for: provider)
-        journal.record(action: .remove, provider: provider)
+    @discardableResult
+    public func remove(for provider: LLMProviderKind) -> String? {
+        commit(nil, for: provider)
     }
 
 }

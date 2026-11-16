@@ -50,7 +50,7 @@ public final class MonitorCenterPresenter: ObservableObject {
     /// 「文件中转」入口是否启用（设置 → 常规 → 功能，v41 新增开关）。
     /// 关闭时主面板顶部的第三段页签隐藏，设置窗口侧边栏也不显示该入口。
     public static var isTransferDockEnabled: Bool {
-        Preferences.shared.value(Preferences.Keys.panelTransferDock, default: true)
+        Preferences.shared.value(PanelSegments.transferKey, default: false)
     }
 
     public static let shared = MonitorCenterPresenter()

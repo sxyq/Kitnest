@@ -93,34 +93,70 @@ public final class ShortcutManager {
     /// 注册全局快捷键。返回是否成功（冲突或系统占用时返回 false 并记录原因）
     @discardableResult
     public func register(_ definition: ShortcutDefinition) -> Bool {
+        replaceBindings([definition], removing: [definition.id]) == nil
+    }
+
+    /// 整批新键注册成功才替换；互换组合键复用旧注册，失败只撤销本批新注册。
+    public func replaceBindings(_ replacements: [ShortcutDefinition], removing ids: Set<String>) -> String? {
         lock.lock(); defer { lock.unlock() }
-        unregisterLocked(id: definition.id)
+        let affected = ids.union(replacements.map(\.id))
+        var staged: [String: (ref: EventHotKeyRef, hotID: UInt32)] = [:]
+        var reused = Set<String>()
+        var newRefs: [EventHotKeyRef] = []
 
-        if let conflict = conflictsLocked(keyCode: definition.keyCode, modifiers: definition.modifiers).first {
-            let reason = "与已注册快捷键「\(conflict.title)」冲突"
-            failures[definition.id] = reason
-            Log.warn("Shortcut", "register failed [\(definition.id)]：\(reason)")
-            return false
+        for (index, definition) in replacements.enumerated() {
+            let conflict = replacements.prefix(index).first {
+                $0.keyCode == definition.keyCode && $0.modifiers == definition.modifiers
+            } ?? definitions.values.first {
+                !affected.contains($0.id) && $0.keyCode == definition.keyCode && $0.modifiers == definition.modifiers
+            }
+            if let conflict {
+                for ref in newRefs { UnregisterEventHotKey(ref) }
+                let reason = "与「\(conflict.title)」组合键冲突"
+                failures[definition.id] = reason
+                return "\(definition.title)：\(reason)"
+            }
+            if let existing = definitions.values.first(where: {
+                affected.contains($0.id) && $0.keyCode == definition.keyCode && $0.modifiers == definition.modifiers
+            }) {
+                staged[definition.id] = (hotKeyRefs[existing.id]!,
+                                         hotKeyIDToDefinitionID.first { $0.value == existing.id }!.key)
+                reused.insert(existing.id)
+                continue
+            }
+            let hotKeyID = EventHotKeyID(signature: Self.signature, id: nextHotKeyID)
+            nextHotKeyID += 1
+            var ref: EventHotKeyRef?
+            let status = RegisterEventHotKey(definition.keyCode, definition.modifiers, hotKeyID,
+                                             GetEventDispatcherTarget(), 0, &ref)
+            guard status == noErr, let ref else {
+                for ref in newRefs { UnregisterEventHotKey(ref) }
+                let reason = "系统注册失败，状态码 \(status)"
+                failures[definition.id] = reason
+                return "\(definition.title)：\(reason)"
+            }
+            newRefs.append(ref)
+            staged[definition.id] = (ref, hotKeyID.id)
         }
 
-        let hotKeyID = EventHotKeyID(signature: ShortcutManager.signature, id: nextHotKeyID)
-        var ref: EventHotKeyRef?
-        let status = RegisterEventHotKey(definition.keyCode, definition.modifiers, hotKeyID,
-                                         GetEventDispatcherTarget(), 0, &ref)
-        guard status == noErr, let ref else {
-            let reason = "系统注册失败（可能已被系统或其他应用占用），状态码 \(status)"
-            failures[definition.id] = reason
-            Log.error("Shortcut", "register failed [\(definition.id)]：\(reason)")
-            return false
+        for id in affected {
+            if let ref = hotKeyRefs.removeValue(forKey: id), !reused.contains(id) {
+                UnregisterEventHotKey(ref)
+            }
+            definitions.removeValue(forKey: id)
+            failures.removeValue(forKey: id)
         }
-
-        definitions[definition.id] = definition
-        hotKeyRefs[definition.id] = ref
-        hotKeyIDToDefinitionID[hotKeyID.id] = definition.id
-        failures.removeValue(forKey: definition.id)
-        nextHotKeyID += 1
-        Log.info("Shortcut", "registered \(definition.id) \(definition.display)")
-        return true
+        for (hotID, id) in Array(hotKeyIDToDefinitionID) where affected.contains(id) {
+            hotKeyIDToDefinitionID.removeValue(forKey: hotID)
+            if staged[id]?.hotID != hotID { pressedHotKeys.remove(hotID) }
+        }
+        for definition in replacements {
+            let registration = staged[definition.id]!
+            definitions[definition.id] = definition
+            hotKeyRefs[definition.id] = registration.ref
+            hotKeyIDToDefinitionID[registration.hotID] = definition.id
+        }
+        return nil
     }
 
     public func unregister(id: String) {
@@ -146,44 +182,15 @@ public final class ShortcutManager {
     /// 因此冲突 / 被系统占用时**不会破坏原有可用绑定**。
     @discardableResult
     public func reconfigure(id: String, keyCode: UInt32, modifiers: UInt32) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        guard let existing = definitions[id], let oldRef = hotKeyRefs[id] else {
+        lock.lock()
+        guard let existing = definitions[id] else {
             failures[id] = "该快捷键尚未注册，无法重绑"
+            lock.unlock()
             return false
         }
-        if let conflict = conflictsLocked(keyCode: keyCode, modifiers: modifiers).first(where: { $0.id != id }) {
-            let reason = "与已注册快捷键「\(conflict.title)」冲突"
-            failures[id] = reason
-            Log.warn("Shortcut", "reconfigure failed [\(id)]：\(reason)")
-            return false
-        }
-
-        let hotKeyID = EventHotKeyID(signature: ShortcutManager.signature, id: nextHotKeyID)
-        var ref: EventHotKeyRef?
-        let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID,
-                                         GetEventDispatcherTarget(), 0, &ref)
-        guard status == noErr, let ref else {
-            let reason = "系统注册失败（可能已被系统或其他应用占用），状态码 \(status)"
-            failures[id] = reason
-            Log.error("Shortcut", "reconfigure failed [\(id)]：\(reason)")
-            return false
-        }
-
-        // 新组合注册成功，才撤销旧热键
-        UnregisterEventHotKey(oldRef)
-        hotKeyRefs.removeValue(forKey: id)
-        for (hotID, definitionID) in hotKeyIDToDefinitionID where definitionID == id {
-            hotKeyIDToDefinitionID.removeValue(forKey: hotID)
-        }
-        definitions[id] = ShortcutDefinition(id: id, title: existing.title,
-                                             keyCode: keyCode, modifiers: modifiers,
-                                             handler: existing.handler)
-        hotKeyRefs[id] = ref
-        hotKeyIDToDefinitionID[hotKeyID.id] = id
-        failures.removeValue(forKey: id)
-        nextHotKeyID += 1
-        Log.info("Shortcut", "reconfigured \(id) \(ShortcutManager.display(keyCode: keyCode, modifiers: modifiers))")
-        return true
+        lock.unlock()
+        return register(ShortcutDefinition(id: id, title: existing.title, keyCode: keyCode,
+                                            modifiers: modifiers, handler: existing.handler))
     }
 
     /// 调用方必须已持锁
@@ -212,10 +219,6 @@ public final class ShortcutManager {
         return failures[id]
     }
 
-
-    private func conflictsLocked(keyCode: UInt32, modifiers: UInt32) -> [ShortcutDefinition] {
-        definitions.values.filter { $0.keyCode == keyCode && $0.modifiers == modifiers }
-    }
 
     // MARK: 展示辅助
 

@@ -2113,9 +2113,7 @@ static NSView *g_mergedView = nil;         // v11：合并容器（紧排所有�
 
 @interface FSBarManager : NSObject
 // v28：合并条右键菜单（部件样式切换 / 分隔线 / 间距 / 打开面板）
-- (void)mergedMenuToggleForm:(NSMenuItem *)item;
-- (void)mergedMenuToggleSeparator:(NSMenuItem *)item;
-- (void)mergedMenuSetSpacing:(NSMenuItem *)item;
+- (void)mergedMenuOpenSettings:(NSMenuItem *)item;
 - (void)mergedMenuOpenPanel:(NSMenuItem *)item;
 @end
 static FSBarManager *g_manager = nil;
@@ -2124,71 +2122,21 @@ static FSBarManager *g_manager = nil;
 static void FSBarReconcile(void);
 void FSBarDebugCharProbe(void);   // v28：合并条位置/内容探针（FRSET_BARCHAR=1）
 
-// v28：移除某模块的全部部件视图（形态切换后立即重建用）
-static void FSBarRebuildModuleViews(NSString *module) {
-    NSString *prefix = [module stringByAppendingString:@"/"];
-    for (NSString *key in [g_views allKeys]) {
-        if ([key hasPrefix:prefix]) {
-            [g_views[key] removeFromSuperview];
-            [g_views removeObjectForKey:key];
-        }
-    }
-}
-
-// v28：合并条右键菜单（Stats 式样式快切）。hitModule 可为 nil（空白区点击）。
+// 右键中的持久参数定位到总设置，不再直接写部件配置。
 static void FSBarShowMergedMenu(NSString *hitModule, NSPoint at) {
     NSMenu *menu = [[NSMenu alloc] init];
     menu.autoenablesItems = NO;
-
-    if (hitModule) {
-        NSMenuItem *head = [[NSMenuItem alloc]
-            initWithTitle:[NSString stringWithFormat:@"%@ · 样式", FSBarModuleName(hitModule)]
-                   action:nil keyEquivalent:@""];
-        head.enabled = NO;
-        [menu addItem:head];
-        NSArray<NSString *> *forms = FSBarFormsForModule(hitModule);
-        NSArray<NSString *> *cur = FSBarEnabledForms(hitModule);
-        NSString *curForm = cur.count ? cur[0] : @"";
-        for (NSString *f in forms) {
-            NSMenuItem *it = [[NSMenuItem alloc] initWithTitle:FSBarFormName(f)
-                                                        action:@selector(mergedMenuToggleForm:)
-                                                 keyEquivalent:@""];
-            it.target = g_manager;
-            it.representedObject = [NSString stringWithFormat:@"%@|%@", hitModule, f];
-            it.state = [f isEqualToString:curForm] ? NSControlStateValueOn : NSControlStateValueOff;
-            it.indentationLevel = 1;
-            [menu addItem:it];
-        }
-        [menu addItem:[NSMenuItem separatorItem]];
-    }
-
-    {
-        NSMenuItem *sep = [[NSMenuItem alloc] initWithTitle:@"分隔线"
-                                                     action:@selector(mergedMenuToggleSeparator:)
-                                              keyEquivalent:@""];
-        sep.target = g_manager;
-        sep.state = FSBarMergedSeparator() ? NSControlStateValueOn : NSControlStateValueOff;
-        [menu addItem:sep];
-
-        NSMenuItem *spHead = [[NSMenuItem alloc] initWithTitle:@"间距" action:nil keyEquivalent:@""];
-        NSMenu *spMenu = [[NSMenu alloc] init];
-        spMenu.autoenablesItems = NO;
-        CGFloat curSp = FSBarWidgetSpacing();
-        NSArray<NSArray<NSString *> *> *spOpts = @[
-            @[@"none", @"无"], @[@"2", @"小（2）"], @[@"4", @"中（4）"], @[@"6", @"大（6）"]
-        ];
-        for (NSArray<NSString *> *o in spOpts) {
-            NSMenuItem *it = [[NSMenuItem alloc] initWithTitle:o[1]
-                                                        action:@selector(mergedMenuSetSpacing:)
-                                                 keyEquivalent:@""];
-            it.target = g_manager;
-            it.representedObject = o[0];
-            it.state = fabs([o[0] doubleValue] - curSp) < 0.01 ? NSControlStateValueOn : NSControlStateValueOff;
-            [spMenu addItem:it];
-        }
-        spHead.submenu = spMenu;
-        [menu addItem:spHead];
-    }
+    NSMenuItem *configuration = [[NSMenuItem alloc]
+        initWithTitle:hitModule ? [NSString stringWithFormat:@"配置 %@ 部件…", FSBarModuleName(hitModule)] : @"部件与颜色…"
+        action:@selector(mergedMenuOpenSettings:) keyEquivalent:@""];
+    configuration.target = g_manager;
+    configuration.representedObject = hitModule ? [@"menubar.widgets#" stringByAppendingString:hitModule] : @"menubar.widgets";
+    [menu addItem:configuration];
+    NSMenuItem *arrangement = [[NSMenuItem alloc] initWithTitle:@"排列与间距…"
+        action:@selector(mergedMenuOpenSettings:) keyEquivalent:@""];
+    arrangement.target = g_manager;
+    arrangement.representedObject = @"menubar.arrangement";
+    [menu addItem:arrangement];
 
     [menu addItem:[NSMenuItem separatorItem]];
     {
@@ -2305,30 +2253,8 @@ void FSBarSetDebugAnchorX(CGFloat x) { g_anchorScreen = NSMakeRect(x, 0, 1, 1); 
     if (target) FSBarOpenMonitor(FSBarModuleIndex(target));
 }
 
-// v28：菜单动作 —— 切换某部件的显示形态（立即生效：删旧视图 → Reconcile 重建 → 重布局）
-- (void)mergedMenuToggleForm:(NSMenuItem *)item {
-    NSArray *parts = [item.representedObject componentsSeparatedByString:@"|"];
-    if (parts.count != 2) return;
-    NSString *m = parts[0], *f = parts[1];
-    FSBarSetEnabledForms(m, @[f]);
-    FSBarRebuildModuleViews(m);
-    FSBarReconcile();
-    FSBarLog(@"[barmenu] 形态切换 %@ → %@", m, f);
-}
-
-- (void)mergedMenuToggleSeparator:(NSMenuItem *)item {
-    BOOL cur = FSBarMergedSeparator();
-    FSBarGlobalSet(@"CombinedModules_separator", @(!cur));
-    FSBarReconcile();
-    FSBarLog(@"[barmenu] 分隔线 → %d", (int)!cur);
-}
-
-- (void)mergedMenuSetSpacing:(NSMenuItem *)item {
-    NSString *v = item.representedObject;
-    if (![v isKindOfClass:[NSString class]]) return;
-    FSBarGlobalSet(@"Widgets_spacing", v);
-    FSBarReconcile();
-    FSBarLog(@"[barmenu] 间距 → %@", v);
+- (void)mergedMenuOpenSettings:(NSMenuItem *)item {
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"FrsetStatsBarOpenSettings" object:item.representedObject];
 }
 
 - (void)mergedMenuOpenPanel:(NSMenuItem *)item {

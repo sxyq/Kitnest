@@ -27,6 +27,21 @@ public enum PanelSegments {
     /// 顺序：逗号分隔的 `PanelCenterPage.rawValue`，如 "home,performance,transfer,cast"
     public static let orderKey = "panel.segment.order"
 
+    /// 合并已有两个展示开关的有效值；迁移后每个页面只读取自己的显隐键。
+    public static func migrateLegacyVisibility() {
+        let defaults = UserDefaults.standard
+        if let enabled = defaults.object(forKey: "showSystemStatus") as? Bool {
+            defaults.set(enabled && Preferences.shared.value(monitorKey, default: true), forKey: monitorKey)
+            defaults.removeObject(forKey: "showSystemStatus")
+        }
+        if let enabled = defaults.object(forKey: Preferences.Keys.panelTransferDock) as? Bool {
+            let active = enabled && Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true)
+            defaults.set(active && Preferences.shared.value(transferKey, default: false), forKey: transferKey)
+            defaults.set(active && Preferences.shared.value(castKey, default: false), forKey: castKey)
+            defaults.removeObject(forKey: Preferences.Keys.panelTransferDock)
+        }
+    }
+
     /// 出厂顺序（也是「恢复默认」用的顺序）
     public static let defaultOrder: [PanelCenterPage] = [.home, .performance, .transfer, .cast]
 

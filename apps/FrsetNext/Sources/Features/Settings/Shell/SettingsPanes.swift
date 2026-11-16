@@ -9,15 +9,57 @@ import UniformTypeIdentifiers
 
 // MARK: - 通用页
 
+final class StartupSettingsDraft: SettingsEditableDraft {
+    @Published var launchAtLogin = Preferences.shared.launchAtLogin
+    @Published var language = LanguageManager.shared.overrideDisplayLanguage
+    private var savedLaunchAtLogin = Preferences.shared.launchAtLogin
+    private var savedLanguage = LanguageManager.shared.overrideDisplayLanguage
+    var isDirty: Bool { launchAtLogin != savedLaunchAtLogin || language != savedLanguage }
+    func save() -> String? {
+        if launchAtLogin != savedLaunchAtLogin {
+            do {
+                if launchAtLogin { try SMAppService.mainApp.register() }
+                else { try SMAppService.mainApp.unregister() }
+            } catch { return "开机启动未应用：\(error.localizedDescription)" }
+            Preferences.shared.launchAtLogin = launchAtLogin
+        }
+        if language != savedLanguage { LanguageManager.shared.apply(language) }
+        guard UserDefaults.standard.synchronize() else { return "启动与语言设置写入磁盘失败，调整已保留" }
+        savedLaunchAtLogin = launchAtLogin; savedLanguage = language
+        objectWillChange.send()
+        return nil
+    }
+    func discard() {
+        launchAtLogin = Preferences.shared.launchAtLogin
+        language = LanguageManager.shared.overrideDisplayLanguage
+        savedLaunchAtLogin = launchAtLogin
+        savedLanguage = language
+    }
+    func restoreDefaults() { discard(); launchAtLogin = false; language = "auto" }
+}
+
+final class AboutSettingsDraft: SettingsEditableDraft {
+    @Published var feedURL = AppUpdateChecker.shared.feedURL
+    private var savedFeedURL = AppUpdateChecker.shared.feedURL
+    var isDirty: Bool { feedURL != savedFeedURL }
+    func save() -> String? {
+        if isDirty { AppUpdateChecker.shared.feedURL = feedURL }
+        guard UserDefaults.standard.synchronize() else { return "更新设置写入磁盘失败，调整已保留" }
+        savedFeedURL = feedURL
+        objectWillChange.send()
+        return nil
+    }
+    func discard() { feedURL = AppUpdateChecker.shared.feedURL; savedFeedURL = feedURL }
+    func restoreDefaults() { discard(); feedURL = "" }
+}
+
 final class MenuBarSettingsDraft: SettingsEditableDraft {
     @Published var iconStyle = MenuBarIconStyleStore.current
     @Published var customSymbol = MenuBarIconStyleStore.customSymbol
     var cat: Bool { iconStyle == .cat }
     @Published var flags: [String: Bool]
     private var saved: [String: Any]
-    private static let keys = [GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey,
-                        "showSystemStatus", "showCalendar", Preferences.Keys.panelTransferDock,
-                        "automaticScreenshotOCREnabled"]
+    private static let keys = [GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey]
 
     init() {
         flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
@@ -33,17 +75,9 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
         return result
     }
     var isDirty: Bool { !NSDictionary(dictionary: values).isEqual(to: saved) }
-    var monitorPageAvailable: Bool {
-        flags["showSystemStatus"]! && Preferences.shared.value(PanelSegments.monitorKey, default: true)
-    }
-    var transferPagesAvailable: Bool {
-        flags[Preferences.Keys.panelTransferDock]! &&
-        Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true) &&
-        (Preferences.shared.value(PanelSegments.transferKey, default: false) ||
-         Preferences.shared.value(PanelSegments.castKey, default: false))
-    }
     func select(_ style: MenuBarIconStyle) { iconStyle = style }
     func restoreDefaults() {
+        discard()
         iconStyle = .logo
         customSymbol = MenuBarIconStyleStore.defaultCustomSymbol
         flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, true) })
@@ -71,6 +105,7 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
         for key in Self.keys where flags[key] != saved[key] as? Bool {
             Preferences.shared.set(key, flags[key]!)
         }
+        guard UserDefaults.standard.synchronize() else { return "菜单栏设置写入磁盘失败，调整已保留" }
         NotificationCenter.default.post(name: GlobalEntries.didChangeNotification, object: nil)
         MenuBarIconStyleApplier.shared.refresh()
         FSRunCatIconApplySavedConfiguration()
@@ -93,7 +128,11 @@ struct GeneralSettingsPane: View {
         case mainPanel        // 主面板
         case floating         // 独立窗口与浮层
         case personalization  // 个性化（通用）
+        case appearanceText
+        case background
+        case permissions
         case menuBar          // 菜单栏
+        case menuBarArrangement
         case notifications
         case captureToolbar
     }
@@ -102,17 +141,10 @@ struct GeneralSettingsPane: View {
     /// 面板内容区约 576pt，原 800pt 窗口版式（190pt 标题列 + 4 图标横排）放不下。
     var compact: Bool = false
 
-    // 直接用 AppStorage 读写 Preferences 约定的键，保证跨模块一致
-    @AppStorage(Preferences.Keys.launchAtLogin) private var launchAtLogin = false
-    // 外观四选一 / 语言切换（specs/18 §5/§6）
-    @ObservedObject private var language = LanguageManager.shared
+    @ObservedObject private var permissions = PermissionCenter.shared
     /// 语言版本号：languageDidChange 到达时自增，驱动本视图重绘（契约 §10.3；
     /// 用 @Stored 而非 @State，见 CONTRACT §7.4）
     @Stored private var l10nVersion: Int = 0
-    /// 忽略应用（隐私名单）修订号：Preferences 无观察者，用自增驱动重绘。
-    /// v272：标签/忽略应用两行已并入「剪贴板 → 历史 / 捕获」，这里保留状态仅为
-    /// 兼容面板内嵌的 compact 版（若有引用）。
-    @Stored private var ignoredAppsRevision = 0
 
     var body: some View {
         // v71（用户：各设置界面版式不一致，需统一组件）：统一 SettingsSection + SettingsGroupBox。
@@ -123,7 +155,11 @@ struct GeneralSettingsPane: View {
             case .mainPanel:       mainPanelSection
             case .floating:        floatingSection
             case .personalization: personalizationSection
+            case .appearanceText: appearanceSection(.textAndRadius)
+            case .background: appearanceSection(.panelBackground)
+            case .permissions: permissionsSection
             case .menuBar:         menuBarSection
+            case .menuBarArrangement: MenuBarArrangementPane()
             case .notifications:
                 AppearanceSettingsEditor(scope: .notification) { draft in
                     SettingsGroupBox {
@@ -153,15 +189,16 @@ struct GeneralSettingsPane: View {
 
     /// 启动与外观：登录启动 / 外观四选一 / 语言
     private var startupSection: some View {
-        SettingsSection("") {   // v273：页头已有同名标题，段内不再重复
+        SettingsDraftEditor(id: "startup", makeDraft: { StartupSettingsDraft() }) { draft in
             SettingsGroupBox {
                 formRow(L10n.t("Start"), height: 40) {
-                    Toggle(L10n.t("Launch Kitnest at login"), isOn: launchAtLoginBinding)
+                    Toggle(L10n.t("Launch Kitnest at login"), isOn: Binding(
+                        get: { draft.launchAtLogin }, set: { draft.launchAtLogin = $0 }))
                         .toggleStyle(.checkbox)
                 }
                 SettingsDivider()
                 formRow(L10n.t("Language"), height: 48) {
-                    Picker("", selection: languageBinding) {
+                    Picker("", selection: Binding(get: { draft.language }, set: { draft.language = $0 })) {
                         Text(L10n.t("Auto")).tag("auto")
                         ForEach(LanguageManager.availableLanguages, id: \.self) { code in
                             Text(LanguageManager.displayNames[code] ?? code).tag(code)
@@ -170,10 +207,38 @@ struct GeneralSettingsPane: View {
                     .labelsHidden()
                     .frame(width: 157)
                 }
-                SettingsDivider()
-                ArchiveDefaultApplicationOption()
-                    .padding(.vertical, 10)
             }
+        }
+    }
+
+    private func appearanceSection(_ part: PersonalizationSettingsPart) -> some View {
+        AppearanceSettingsEditor(scope: part) { draft in
+            SettingsGroupBox {
+                AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                SettingsDivider()
+                PersonalizationSettingsView(part: part, draft: draft)
+            }
+        }
+    }
+
+    private var permissionsSection: some View {
+        VStack(spacing: 12) {
+            SettingsGroupBox {
+                Text("系统权限即时操作，独立于偏好草稿保存与取消。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                ForEach(PermissionKind.allCases) { kind in
+                    SettingsRow(icon: kind.symbol, title: kind.title, subtitle: kind.purpose) {
+                        Text(permissions.status(kind).label).foregroundStyle(permissions.status(kind).tint)
+                        Button("授权") { permissions.request(kind) }.controlSize(.small)
+                        Button("系统设置") { permissions.openSystemSettings(kind) }.controlSize(.small)
+                    }
+                }
+            }
+            SettingsGroupBox { ArchiveDefaultApplicationOption() }
+        }
+        .onAppear { permissions.refreshAll() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            permissions.refreshAll()
         }
     }
 
@@ -276,61 +341,12 @@ struct GeneralSettingsPane: View {
                     entryRow("菜单：性能监测设置", key: GlobalEntries.monitorPopoutKey, draft: draft)
                     entryRow("菜单栏：性能部件", key: GlobalEntries.statsBarKey, draft: draft)
                     SettingsDivider()
-                    entryRow("主面板：性能监测", key: "showSystemStatus", draft: draft,
-                             detail: draft.monitorPageAvailable ? "页面入口可见" : "页面入口隐藏；页面排列使用已保存值")
-                    entryRow("主面板：首页日历", key: "showCalendar", draft: draft)
-                    entryRow("主面板：中转 / 投屏入口", key: Preferences.Keys.panelTransferDock, draft: draft,
-                             detail: draft.transferPagesAvailable ? "页面入口可见" : "页面入口隐藏；功能与页面排列使用已保存值")
-                    entryRow("截图文字识别", key: "automaticScreenshotOCREnabled", draft: draft,
-                             detail: "识别新截图文字供内容搜索；已识别的历史内容保留")
-                    SettingsDivider()
                     formRow("部件布局与颜色") {
                         Button("前往部件设置") { StatsBarEngine.openSettings() }.controlSize(.small)
                     }
-                    Text("图标、入口与部件设置分别保存；部件显隐、排列、合并、间距、分隔线及颜色统一在部件设置调整。")
+                    Text("图标与入口在本页保存；部件与颜色、排列与间距分别在对应页面保存。")
                         .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            SettingsDraftEditor(id: "calendar", makeDraft: { CalendarSettingsDraft() }) { draft in
-                let previewCalendar = CalendarService.calendar(firstWeekday: draft.firstWeekday)
-                let previewDate = previewCalendar.startOfDay(for: SettingsPreviewSamples.date)
-                let event: (String, String, Int, Int, Int) -> CalendarEvent = { id, title, offset, hour, minute in
-                    let day = previewCalendar.date(byAdding: .day, value: offset, to: previewDate)!
-                    let start = previewCalendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
-                    return CalendarEvent(id: id, title: title, startDate: start)
-                }
-                let previewEvents = [
-                    event("island-preview-sync", "项目同步", 0, 14, 0),
-                    event("island-preview-review", "设计评审", 0, 16, 30),
-                    event("island-preview-plan", "交付计划", 3, 10, 0),
-                    event("island-preview-review-two", "需求梳理", 8, 15, 0)
-                ]
-                let previewSelectedDate = previewCalendar.date(byAdding: .day, value: 3, to: previewDate)!
-                SettingsGroupBox {
-                    formRow("日历周起始日") {
-                        Picker("日历周起始日", selection: Binding(
-                            get: { draft.firstWeekday }, set: { draft.firstWeekday = $0 })) {
-                            Text("周日").tag(1)
-                            Text("周一").tag(2)
-                        }
-                        .labelsHidden().pickerStyle(.segmented).frame(width: 150)
-                    }
-                    CalendarSectionView(firstWeekday: draft.firstWeekday,
-                                        previewDate: previewDate,
-                                        previewEvents: previewEvents,
-                                        previewSelectedDate: previewSelectedDate)
-                        .environment(\.isSettingsPreview, true)
-                }
-            }
-            SettingsGroupBox {
-                formRow("AI 服务商 · 即时管理") {
-                    HStack(spacing: 12) {
-                        actionButton(L10n.t("Manage")) { openDetail("ai") }
-                        Text(providerCountText).foregroundStyle(.secondary)
-                    }
-                }
-                Text("打开独立 AI 管理页，不受外观草稿保存或取消控制。")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
     }
@@ -342,13 +358,6 @@ struct GeneralSettingsPane: View {
         }
     }
 
-    // MARK: 计数文案（原版 '%d Provider(s)' / '%d Tag(s)' 键面，复数按数量切换）
-
-    /// AI 服务商计数（复用现有 CredentialStore.configuredProviders，不新建链路）
-    private var providerCountText: String {
-        let count = CredentialStore.shared.configuredProviders().count
-        return String(format: L10n.t(count == 1 ? "%d Provider" : "%d Providers"), count)
-    }
 
     /// v272（用户：「所有页面一个一个统一」）：行样式统一成 SettingsRow 的
     /// 「左标题 + 右控件」。此前这里是「右对齐 190pt 标题列」，与剪贴板/数据页的
@@ -368,17 +377,6 @@ struct GeneralSettingsPane: View {
     }
 
 
-    private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title).fontWeight(.semibold).frame(width: 56, height: 24)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-    }
-
-    private func openDetail(_ id: String) {
-        ServiceLocator.settings?.open(pane: id)
-    }
 
     // MARK: 外观四选一 radio（specs/18 §5：系统/浅色/深色/Midnight，键 appearance）
 
@@ -392,40 +390,6 @@ struct GeneralSettingsPane: View {
         case .dark:     return L10n.t("Dark")
         case .midnight: return L10n.t("Midnight")
         }
-    }
-
-    // MARK: 语言切换绑定（LanguageManager.apply 写 defaults "language" 并广播 languageDidChange）
-
-    private var languageBinding: Binding<String> {
-        Binding(
-            get: { language.overrideDisplayLanguage },
-            set: { LanguageManager.shared.apply($0) }
-        )
-    }
-
-    // MARK: 开机启动（SMAppService，macOS 13+；注册失败时回滚开关状态）
-
-    private var launchAtLoginBinding: Binding<Bool> {
-        Binding(
-            get: { launchAtLogin },
-            set: { enabled in
-                guard #available(macOS 13.0, *) else {
-                    Log.warn("Settings", "SMAppService 需 macOS 13+，开机启动不可用")
-                    return
-                }
-                do {
-                    if enabled {
-                        try SMAppService.mainApp.register()
-                    } else {
-                        try SMAppService.mainApp.unregister()
-                    }
-                    launchAtLogin = enabled
-                } catch {
-                    // 非 App Bundle 运行（如裸可执行文件调试）时会抛错，保持开关不动
-                    Log.warn("Settings", "开机启动设置失败: \(error.localizedDescription)")
-                }
-            }
-        )
     }
 
 }
@@ -446,6 +410,12 @@ struct AboutSettingsPane: View {
     @Stored private var l10nVersion: Int = 0
 
     var body: some View {
+        SettingsDraftEditor(id: "about", makeDraft: { AboutSettingsDraft() }) { draft in
+            aboutContent(draft)
+        }
+    }
+
+    private func aboutContent(_ draft: AboutSettingsDraft) -> some View {
         VStack(spacing: 0) {
             Spacer(minLength: 24)
 
@@ -484,8 +454,8 @@ struct AboutSettingsPane: View {
                         .foregroundStyle(.secondary)
                     TextField(AppUpdateChecker.defaultFeedURL,
                               text: Binding(
-                                get: { AppUpdateChecker.shared.feedURL },
-                                set: { AppUpdateChecker.shared.feedURL = $0 }))
+                                get: { draft.feedURL },
+                                set: { draft.feedURL = $0 }))
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
                         .frame(maxWidth: 300)
@@ -631,18 +601,10 @@ struct TagManagementSheet: View {
 /// 名单内的来源 App 不写入剪贴板历史；名单存 Preferences（bundle id 数组）。
 /// UI 沿用设置页风格：formRow 行 + 12pt 字号 + 细边框胶囊按钮。
 struct IgnoredAppsEditor: View {
-    @Binding var revision: Int
+    @Binding var apps: [String]
     @Stored private var expanded = false
 
-    private var apps: [String] {
-        _ = revision
-        return Preferences.shared.value(Preferences.Keys.clipboardIgnoredApps, default: [String]())
-    }
-
-    private func persist(_ list: [String]) {
-        Preferences.shared.set(Preferences.Keys.clipboardIgnoredApps, list.isEmpty ? nil : list)
-        revision += 1
-    }
+    init(apps: Binding<[String]>) { _apps = apps }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -674,7 +636,7 @@ struct IgnoredAppsEditor: View {
                         guard let bundle = Bundle(url: url)?.bundleIdentifier else { continue }
                         if !list.contains(bundle) { list.append(bundle) }
                     }
-                    persist(list)
+                    apps = list
                 } label: {
                     Text("+ 添加应用…")
                         .font(.system(size: 11.5, weight: .medium))
@@ -703,7 +665,7 @@ struct IgnoredAppsEditor: View {
                                 .truncationMode(.middle)
                             Spacer(minLength: 8)
                             Button {
-                                persist(apps.filter { $0 != bundle })
+                                apps.removeAll { $0 == bundle }
                             } label: {
                                 Image(systemName: "minus.circle")
                                     .font(.system(size: 12))

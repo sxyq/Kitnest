@@ -90,6 +90,7 @@ public final class CalendarService: ObservableObject {
     /// - Parameter base: 目标月份内的任意日期
     public func monthDays(for base: Date, firstWeekday: Int? = nil,
                           previewEvents: [CalendarEvent]? = nil,
+                          showLunar: Bool? = nil,
                           today: Date = Date()) -> [CalendarDay] {
         let calendar = Self.calendar(firstWeekday: firstWeekday ?? Preferences.shared.calendarFirstWeekday)
 
@@ -99,7 +100,7 @@ public final class CalendarService: ObservableObject {
         let offset = (calendar.component(.weekday, from: firstOfMonth) - calendar.firstWeekday + 7) % 7
         guard let gridStart = calendar.date(byAdding: .day, value: -offset, to: firstOfMonth) else { return [] }
 
-        let showLunar = Preferences.shared.calendarShowLunar
+        let showLunar = showLunar ?? Preferences.shared.calendarShowLunar
         // 一次性查询整块网格（42 天）的事件并按天分桶，避免逐日最多 31 次 EventKit 查询
         let gridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart) ?? gridStart
         var eventsByDay: [Date: [CalendarEvent]] = [:]

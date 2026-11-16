@@ -23,6 +23,7 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
     @Published var floating = FloatingClipDeskStore(settingsPreview: true) {
         didSet { observeChanges() }
     }
+    @Published var floatingFrame: NSRect?
     private var savedPersonalization = Personalization.shared.makeDraft()
     private var savedValues: [String] = []
     private var observation: AnyCancellable?
@@ -34,7 +35,7 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
     }
 
     var isDirty: Bool {
-        values != savedValues || !scope.personalizationFields.allSatisfy {
+        (scope == .floatingClipboard && floatingFrame != nil) || values != savedValues || !scope.personalizationFields.allSatisfy {
             $0.matches(personalization, savedPersonalization)
         }
     }
@@ -63,11 +64,9 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
             switch $0 {
             case .home: return segmentHome
             case .performance:
-                return segmentMonitor && Preferences.shared.value("showSystemStatus", default: true)
+                return segmentMonitor
             case .transfer, .cast:
-                let enabled = Preferences.shared.value(Preferences.Keys.transferFeatureEnabled, default: true)
-                    && Preferences.shared.value(Preferences.Keys.panelTransferDock, default: true)
-                return enabled && ($0 == .transfer ? segmentTransfer : segmentCast)
+                return $0 == .transfer ? segmentTransfer : segmentCast
             }
         }
     }
@@ -76,36 +75,44 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
         let preferences = Preferences.shared
         switch scope {
         case .mainPanel:
-            preferences.set(Preferences.Keys.panelWidth, panelWidth)
-            preferences.set(PanelSegments.homeKey, segmentHome)
-            preferences.set(PanelSegments.monitorKey, segmentMonitor)
-            preferences.set(PanelSegments.transferKey, segmentTransfer)
-            preferences.set(PanelSegments.castKey, segmentCast)
-            PanelSegments.order = pageOrder
+            if values[0] != savedValues[0] { preferences.set(Preferences.Keys.panelWidth, panelWidth) }
+            if values[1] != savedValues[1] { preferences.set(PanelSegments.homeKey, segmentHome) }
+            if values[2] != savedValues[2] { preferences.set(PanelSegments.monitorKey, segmentMonitor) }
+            if values[3] != savedValues[3] { preferences.set(PanelSegments.transferKey, segmentTransfer) }
+            if values[4] != savedValues[4] { preferences.set(PanelSegments.castKey, segmentCast) }
+            if values[5] != savedValues[5] { PanelSegments.order = pageOrder }
         case .floatingClipboard:
             let applied = FloatingClipDeskStore.shared
-            applied.layout = floating.layout
-            applied.cardSize = floating.cardSize
-            applied.splitRatio = floating.splitRatio
-            applied.persistSplitRatio()
-            applied.hoverPreviewEnabled = floating.hoverPreviewEnabled
-        case .captureToolbar: preferences.set(CaptureToolbarStyle.preferenceKey, toolbarStyle)
-        case .shared: AppearanceManager.shared.apply(appearance)
+            if values[0] != savedValues[0] { applied.layout = floating.layout }
+            if values[1] != savedValues[1] { applied.cardSize = floating.cardSize }
+            if values[2] != savedValues[2] { applied.splitRatio = floating.splitRatio; applied.persistSplitRatio() }
+            if values[3] != savedValues[3] { applied.hoverPreviewEnabled = floating.hoverPreviewEnabled }
+            if let frame = floatingFrame {
+                FloatingClipboardWindowController.shared.window?.setFrame(frame, display: true)
+                FloatingClipboardPinState.shared.save(frame: frame)
+            }
+        case .captureToolbar:
+            if values != savedValues { preferences.set(CaptureToolbarStyle.preferenceKey, toolbarStyle) }
+        case .shared:
+            if values != savedValues { AppearanceManager.shared.apply(appearance) }
         default: break
         }
-        if !scope.personalizationFields.isEmpty {
-            Personalization.shared.applyDraft(personalization, fields: scope.personalizationFields)
+        let fields = scope.personalizationFields.filter { !$0.matches(personalization, savedPersonalization) }
+        if !fields.isEmpty {
+            Personalization.shared.applyDraft(personalization, fields: fields)
         }
         guard UserDefaults.standard.synchronize() else {
             return "外观设置写入磁盘失败，草稿已保留，请重新保存。"
         }
         savedPersonalization = personalization.makeDraft()
         savedValues = values
+        floatingFrame = nil
         objectWillChange.send()
         return nil
     }
 
     func discard() {
+        floatingFrame = nil
         reloadSavedValues(preservingOwned: false)
         savedPersonalization = personalization.makeDraft()
         savedValues = values
@@ -138,6 +145,7 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
     }
 
     func restoreDefaults() {
+        discard()
         let defaults = Personalization.makeDefaultDraft()
         for field in scope.personalizationFields { field.copy(personalization, defaults) }
         switch scope {
@@ -153,6 +161,11 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
             floating.cardSize = .medium
             floating.splitRatio = 0.52
             floating.hoverPreviewEnabled = true
+            if let visible = FloatingClipboardWindowController.shared.window?.screen?.visibleFrame ?? NSScreen.main?.visibleFrame {
+                var frame = FloatingClipboardPinState.shared.clampedFrame()
+                frame.origin = NSPoint(x: visible.midX - frame.width / 2, y: visible.midY - frame.height / 2)
+                floatingFrame = frame
+            }
         case .captureToolbar: toolbarStyle = CaptureToolbarStyle.pillBar.rawValue
         case .shared: appearance = .system
         default: break
@@ -178,8 +191,10 @@ struct AppearanceSettingsEditor<Content: View>: View {
 
 /// 用户要求「用真实组件，一个模块只能有一个预览」：按实际消费点归属设置。
 enum PersonalizationSettingsPart: String, CaseIterable {
-    case mainPanel        // 主面板：字号 / 圆角 / 宽度 / 动画 / 背景 / 页面顺序
-    case floatingWindow   // 全局窗口材质与玻璃四参数
+    case mainPanel        // 主面板：宽度 / 悬停 / 页面顺序
+    case textAndRadius
+    case panelBackground
+    case floatingWindow   // 全局窗口材质、玻璃四参数与动效
     case floatingClipboard
     case clipboardAppearance
     case notification
@@ -191,14 +206,16 @@ enum PersonalizationSettingsPart: String, CaseIterable {
     var personalizationFields: [Personalization.DraftField] {
         switch self {
         case .mainPanel:
+            return [.init(\.hoverPreviewEnabled, key: "ui.hoverPreviewEnabled")]
+        case .textAndRadius:
             return [.init(\.fontScale, key: Preferences.Keys.uiFontScale),
-                    .init(\.cornerRadius, key: Preferences.Keys.uiCornerRadius),
-                    .init(\.openAnimation, key: Preferences.Keys.uiOpenAnimation),
-                    .init(\.hoverPreviewEnabled, key: "ui.hoverPreviewEnabled"),
-                    .init(\.backgroundImagePath, key: Preferences.Keys.uiBackgroundImage),
+                    .init(\.cornerRadius, key: Preferences.Keys.uiCornerRadius)]
+        case .panelBackground:
+            return [.init(\.backgroundImagePath, key: Preferences.Keys.uiBackgroundImage),
                     .init(\.backgroundImageDim, key: Preferences.Keys.uiBackgroundDim)]
         case .floatingWindow:
             return [.init(\.material, key: Preferences.Keys.uiPanelMaterial),
+                    .init(\.openAnimation, key: Preferences.Keys.uiOpenAnimation),
                     .init(\.glassOpacity, key: Preferences.Keys.uiGlassOpacity),
                     .init(\.glassBlur, key: Preferences.Keys.uiGlassBlur),
                     .init(\.glassCardLift, key: Preferences.Keys.uiGlassCardLift),
@@ -212,9 +229,7 @@ enum PersonalizationSettingsPart: String, CaseIterable {
                     .init(\.toastFollowPanel, key: Preferences.Keys.uiToastPosition)]
         case .shared:
             return [.init(\.accentColorHex, key: Preferences.Keys.uiAccentColor),
-                    .init(\.midnightHueShift, key: Preferences.Keys.uiMidnightHue),
-                    .init(\.barDividerColorHex, key: Preferences.Keys.uiBarDividerColor),
-                    .init(\.barDividerAlpha, key: Preferences.Keys.uiBarDividerAlpha)]
+                    .init(\.midnightHueShift, key: Preferences.Keys.uiMidnightHue)]
         case .floatingClipboard, .captureToolbar: return []
         }
     }
@@ -238,6 +253,9 @@ struct PersonalizationSettingsView: View {
         Group {
             switch part {
             case .mainPanel:      mainPanelRows
+            case .textAndRadius:
+                VStack(alignment: .leading, spacing: 10) { fontScaleRow; cornerRow }
+            case .panelBackground: backgroundImageRow
             case .floatingWindow: floatingWindowRows
             case .floatingClipboard: EmptyView()
             case .clipboardAppearance: clipboardRows
@@ -249,19 +267,15 @@ struct PersonalizationSettingsView: View {
         .padding(.vertical, 4)
     }
 
-    /// 主面板：字号 / 圆角 / 宽度 / 材质 / 页面顺序
+    /// 主面板布局与页面。
     private var mainPanelRows: some View {
         VStack(alignment: .leading, spacing: 10) {
-            fontScaleRow
-            cornerRow
             widthRow
             Divider().opacity(0.5)
-            animationRow
             settingRow("悬停预览") {
                 Toggle("悬停剪贴板记录时显示详情", isOn: $p.hoverPreviewEnabled)
                     .toggleStyle(.checkbox).font(.system(size: 12))
             }
-            backgroundImageRow
             Divider().opacity(0.5)
             panelPagesRow
         }
@@ -273,6 +287,7 @@ struct PersonalizationSettingsView: View {
             glassRow
             Divider().opacity(0.5)
             materialRow
+            animationRow
         }
     }
 
@@ -603,7 +618,7 @@ struct PersonalizationSettingsView: View {
                     .font(.system(size: 11))
             }
 
-            glassSlider("通透度", value: $p.glassOpacity, range: 0.55...1.0) {
+            glassSlider("底衬不透明度", value: $p.glassOpacity, range: 0.55...1.0) {
                 String(format: "%.0f%%", $0 * 100)
             }
             glassSlider("磨砂", value: $p.glassBlur, range: 0...1) {
@@ -616,7 +631,7 @@ struct PersonalizationSettingsView: View {
                 String(format: "%.0f%%", $0 * 100)
             }
 
-            Text("通透度决定玻璃面底衬的不透明度（越小越透出桌面）；磨砂是底衬之上的霜感；"
+            Text("底衬不透明度越大，底衬越不透明；磨砂是底衬之上的霜感；"
                  + "卡片亮度是卡片与窗口底之间的明度台阶（层与层的距离）；"
                  + "描边是玻璃边缘那圈发丝亮边。")
                 .font(.system(size: 11))

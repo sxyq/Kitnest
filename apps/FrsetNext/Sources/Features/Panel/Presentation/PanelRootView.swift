@@ -65,9 +65,7 @@ struct PanelRootView: View {
     /// 之前 showSystemStatus / showCalendar / panel.transferDock 全仓没有读取方，
     /// 用户勾掉也看不到变化（「这个设置之后无效」）。这里作为分段/卡片显隐的前置条件，
     /// 与「个性化 → 主面板页面」的勾选是 AND 关系：两处都开才出现。
-    @AppStorage("showSystemStatus") private var featureSystemMonitor = true
     @AppStorage("showCalendar") private var featureCalendar = true
-    @AppStorage(Preferences.Keys.panelTransferDock) private var transferEntryEnabled = true
     @AppStorage(Preferences.Keys.transferFeatureEnabled) private var transferFeatureEnabled = true
     /// 顺序串（CSV）——单独观察它，设置里拖完顺序面板立刻重排
     @AppStorage(PanelSegments.orderKey) private var segmentOrderRaw = ""
@@ -93,12 +91,12 @@ struct PanelRootView: View {
     private func isSegmentOn(_ page: PanelCenterPage) -> Bool {
         switch page {
         case .home:        return segmentHome
-        case .performance: return segmentMonitor && featureSystemMonitor
+        case .performance: return segmentMonitor
         // v260：关掉「启用文件中转」或「常规 → 功能 → 文件中转」时，
         // 顶部的中转/投屏按钮一起消失，不再留一个只能显示「已关闭」的空壳按钮。
         // 「个性化 → 主面板页面」仍决定功能开启后是否显示该分段（两者 AND）。
-        case .transfer:    return segmentTransfer && transferEntryEnabled && transferFeatureEnabled
-        case .cast:        return segmentCast && transferEntryEnabled && transferFeatureEnabled
+        case .transfer:    return segmentTransfer
+        case .cast:        return segmentCast
         }
     }
 
@@ -179,9 +177,6 @@ struct PanelRootView: View {
         .onChange(of: segmentTransfer) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentCast) { _ in normalizeSegmentSelection() }
         // v260：功能总开关 / 常规页勾选变化也要立刻收掉当前页，否则停留在已隐藏的分段上
-        .onChange(of: featureSystemMonitor) { _ in normalizeSegmentSelection() }
-        .onChange(of: transferEntryEnabled) { _ in normalizeSegmentSelection() }
-        .onChange(of: transferFeatureEnabled) { _ in normalizeSegmentSelection() }
         // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
         .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板

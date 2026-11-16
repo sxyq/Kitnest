@@ -67,6 +67,7 @@ struct SettingsSearchEntry: Identifiable {
     let keywords: String
     /// 目标二级页（v272：一个条目直接落到一页，不再有「页内第几段」）
     let selection: SettingsPage
+    var field: String? = nil
 
     /// 只匹配标题与关键词：区域名（"截图与钉图"）会把整组条目都带出来，
     /// 实测搜"钉图"命中 12 条、真正的钉图设置只有 5 条。
@@ -101,8 +102,8 @@ struct SettingsSidebarView: View {
                 .clipped()
                 // v272（2026-11-11，用户：「选中 general 但侧栏停在中部」）：
                 // 同页深链也要定位；接收每次赋值，等导航内容更新后再滚动。
-                .onReceive(state.$selection.combineLatest(state.$query)) { page, query in
-                    guard query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                .onChange(of: state.navigationRevision) { _ in
+                    let page = state.selection
                     DispatchQueue.main.async {
                         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
                             proxy.scrollTo(page, anchor: .center)
@@ -126,13 +127,15 @@ struct SettingsSidebarView: View {
     // MARK: - 分组导航
 
     private var navigation: some View {
-        // v272：一级目录（SettingsGroup）+ 常驻展开的二级页（SettingsPage）。
+        // 一级目录独立展开，二级页面保持当前选中内容。
         // 一级标题可点（跳到该组第一页），二级行才承载选中态。
         VStack(alignment: .leading, spacing: 1) {
             ForEach(SettingsGroup.allCases) { group in
                 groupHeader(group)
-                ForEach(group.pages, id: \.self) { page in
-                    navRow(page).id(page)
+                if state.expandedGroups.contains(group) {
+                    ForEach(group.pages, id: \.self) { page in
+                        navRow(page).id(page)
+                    }
                 }
             }
         }
@@ -141,11 +144,12 @@ struct SettingsSidebarView: View {
         .padding(.bottom, 12)
     }
 
-    /// 一级目录行：图标 + 名称，点一下跳到该组第一页
+    /// 一级目录只展开或收起，不改变右侧选中页。
     private func groupHeader(_ group: SettingsGroup) -> some View {
-        let on = SettingsGroup.group(of: state.selection) == group
+        let expanded = state.expandedGroups.contains(group)
         return Button {
-            if let first = group.pages.first { state.selection = first }
+            if expanded { state.expandedGroups.remove(group) }
+            else { state.expandedGroups.insert(group) }
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: group.systemImage)
@@ -155,28 +159,28 @@ struct SettingsSidebarView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
             }
-            .foregroundStyle(on ? accent : Color.primary.opacity(0.72))
+            .foregroundStyle(Color.primary.opacity(0.8))
             .padding(.horizontal, 8)
             .frame(height: 28)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("\(group.title)（点标题跳到「\(group.pages.first?.title ?? "")」）")
+        .help(expanded ? "收起\(group.title)" : "展开\(group.title)")
+        .accessibilityValue(expanded ? "已展开" : "已收起")
         .padding(.top, 8)
     }
 
-    /// 二级页行：缩进 + 小图标，选中态用强调色胶囊
+    /// 二级页轻量缩进行，保留单行选中反馈。
     private func navRow(_ page: SettingsPage) -> some View {
         let selected = state.selection == page
         return Button {
+            state.detailPaneID = nil
             state.selection = page
         } label: {
             HStack(spacing: 7) {
-                Image(systemName: page.systemImage)
-                    .font(.system(size: 11.5, weight: .medium))
-                    .frame(width: 16)
-                    .foregroundStyle(selected ? accent : Color.secondary.opacity(0.9))
                 Text(page.title)
                     .font(.system(size: 12.5, weight: selected ? .semibold : .regular))
                     .foregroundStyle(selected ? accent : Color.primary.opacity(0.86))
@@ -271,89 +275,41 @@ struct SettingsSidebarView: View {
     }
 
     private func navigate(_ entry: SettingsSearchEntry) {
-        // v272：每条搜索直接落到一个二级页
-        state.selection = entry.selection
-        state.query = ""
+        state.reveal(entry.selection, field: entry.field)
     }
 
     /// 设置索引：标题 = 用户嘴里的说法，keywords = 同义词/部件名。
     /// v272：每条直接指向一个二级页（`SettingsPage`），不再带「页内第几段」。
-    private static let searchIndex: [SettingsSearchEntry] = [
-        // 常规 · 启动与外观
-        .init(title: "开机启动", area: "常规 › 启动与外观", keywords: "登录 自启 启动项", selection: .generalStart),
-        .init(title: "ZIP 默认打开方式", area: "常规 › 启动与语言", keywords: "ZIP 压缩 解压 默认应用 关联 访达 服务", selection: .generalStart),
-        .init(title: "外观（浅色 / 深色 / Midnight）", area: "常规 › 主题外观", keywords: "主题 配色 暗色 深色模式 午夜", selection: .generalPersonal),
-        .init(title: "语言", area: "常规 › 启动与外观", keywords: "中文 英文 language", selection: .generalStart),
-        // 常规 · 主面板
-        .init(title: "刘海工作台（面积 / 材质 / 模块 / 悬停）", area: "常规 › 刘海工作台", keywords: "刘海 island 画布 行 列 宽 高 1×1 1×2 2×1 1×4 2×2 图标 辉光 悬停 预览 原生液态玻璃 毛玻璃 纯色 通透度 组件 排序 保存 恢复默认", selection: .island),
-        .init(title: "主面板（字号 / 圆角 / 宽度 / 背景图）", area: "常规 › 主面板", keywords: "字号 行高 圆角 宽度 面板页面 顺序 打开动画 背景图", selection: .generalPanel),
-        .init(title: "外观预览（主面板）", area: "常规 › 主面板", keywords: "预览 实时 缩略窗 所见即所得", selection: .generalPanel),
-        // 常规 · 独立窗口与浮层
-        .init(title: "窗口材质（玻璃 / 通透度 / 磨砂）", area: "常规 › 窗口材质", keywords: "玻璃 通透度 磨砂 描边 卡片亮度 材质 浮层", selection: .generalWindows),
-        .init(title: "通知提示（时长 / 位置）", area: "常规 › 通知提示", keywords: "通知条 Toast 时长 位置 跟随主面板", selection: .generalNotifications),
-        .init(title: "列表外观（密度 / 缩略图 / 徽章）", area: "剪贴板 › 列表外观", keywords: "密度 缩略图 来源徽章 预览", selection: .clipboardAppearance),
-        .init(title: "截图动作条外观", area: "截图 › 动作条外观", keywords: "动作条 图标条 药丸条 主次分离 排布", selection: .captureActions),
-        // 常规 · 个性化
-        .init(title: "主题外观（强调色 / Midnight）", area: "常规 › 主题外观", keywords: "强调色 主题色 恢复默认", selection: .generalPersonal),
-        // 常规 · 菜单栏
-        .init(title: "菜单栏图标", area: "常规 › 菜单栏", keywords: "状态栏 图标 logo 风扇 日期 小猫", selection: .generalMenuBar),
-        .init(title: "菜单栏功能开关", area: "常规 › 菜单栏", keywords: "系统监控 日历 截图检索 文件中转", selection: .generalMenuBar),
-        .init(title: "AI 服务商", area: "常规 › 菜单栏", keywords: "provider key 模型", selection: .generalMenuBar),
-        .init(title: "菜单栏部件", area: "常规 › 菜单栏", keywords: "合并条 状态栏部件", selection: .generalMenuBar),
-        // 音频
-        .init(title: "音频混音器", area: "音频 › 音频混音器", keywords: "系统音量 静音 输出设备 有声 App 声音 audio mixer", selection: .audio),
-        // 剪贴板
-        .init(title: "剪贴板历史", area: "剪贴板 › 历史", keywords: "条数 保留 清理 上限 占用", selection: .clipboardHistory),
-        .init(title: "标签管理", area: "剪贴板 › 历史", keywords: "标签 tag 分类", selection: .clipboardHistory),
-        .init(title: "自动粘贴", area: "剪贴板 › 捕获", keywords: "回车 粘贴 自动 辅助功能", selection: .clipboardCapture),
-        .init(title: "忽略应用（隐私名单）", area: "剪贴板 › 捕获", keywords: "隐私 排除 黑名单", selection: .clipboardCapture),
-        .init(title: "浮动窗", area: "剪贴板 › 浮动窗", keywords: "悬浮 剪贴板 呼出 快捷键 位置", selection: .clipboardFloating),
-        // 文件中转
-        .init(title: "文件中转入口", area: "文件中转 › 显示", keywords: "中转 面板 显示 暂存", selection: .transferDisplay),
-        .init(title: "投屏画质", area: "文件中转 › 投屏画质", keywords: "投屏 airplay 清晰度 码率", selection: .transferCast),
-        .init(title: "手机扫码直传", area: "文件中转 › 手机扫码直传", keywords: "二维码 扫码 手机 局域网 端口", selection: .transferScan),
-        .init(title: "云端中转（OPPO）", area: "文件中转 › 云端中转", keywords: "云端 云盘 上传 OPPO", selection: .transferCloud),
-        .init(title: "本地暂存", area: "文件中转 › 本地暂存", keywords: "暂存 目录 本地 清理", selection: .transferLocal),
-        // 截图
-        .init(title: "截图保存路径", area: "截图 › 截图", keywords: "下载 目录 文件夹 保存位置", selection: .capture(.capture)),
-        .init(title: "截图后动作", area: "截图 › 截图", keywords: "复制 保存 贴图 默认动作", selection: .capture(.capture)),
-        .init(title: "延时截图", area: "截图 › 截图", keywords: "倒计时 3 秒 5 秒 10 秒", selection: .capture(.capture)),
-        .init(title: "提示音", area: "截图 › 截图", keywords: "声音 快门 音效", selection: .capture(.capture)),
-        .init(title: "水印", area: "截图 › 截图", keywords: "文字 平铺 倾斜 透明度", selection: .capture(.capture)),
-        .init(title: "文字识别语言", area: "截图 › 截图", keywords: "OCR 识别 语言 自动检测", selection: .capture(.capture)),
-        .init(title: "截图权限（屏幕录制）", area: "截图 › 截图", keywords: "权限 授权 录屏 辅助功能", selection: .capture(.capture)),
-        .init(title: "固定比例", area: "截图 › 截图", keywords: "16:9 4:3 方形 竖版 比例锁 自定义", selection: .capture(.capture)),
-        .init(title: "文件命名模板", area: "截图 › 截图", keywords: "文件名 时间戳 序号 随机 占位符", selection: .capture(.capture)),
-        .init(title: "静默识别", area: "截图 › 截图", keywords: "OCR 不弹窗 通知 时长", selection: .capture(.capture)),
-        .init(title: "仅文本马赛克", area: "截图 › 截图", keywords: "标注 打码 文本 隐私", selection: .capture(.capture)),
-        .init(title: "钉图外观（描边 / 圆角 / 阴影）", area: "截图 › 钉图", keywords: "钉住 贴图 悬浮 边框 投影 预设", selection: .capture(.pin)),
-        .init(title: "钉图不透明度", area: "截图 › 钉图", keywords: "透明 alpha 半透明", selection: .capture(.pin)),
-        .init(title: "钉图自动吸附", area: "截图 › 钉图", keywords: "对齐 边缘 磁吸 magnet", selection: .capture(.pin)),
-        .init(title: "钉图控制条自动收起", area: "截图 › 钉图", keywords: "工具条 悬停 收起 隐藏", selection: .capture(.pin)),
-        .init(title: "钉图快捷键", area: "截图 › 钉图", keywords: "标注 拷贝 关闭 Esc A C M", selection: .capture(.pin)),
-        .init(title: "图帘", area: "截图 › 图帘", keywords: "悬挂架 帘线 悬停 唤出 快捷键 缩放", selection: .capture(.curtain)),
-        .init(title: "录屏", area: "截图 › 录屏", keywords: "录制 摄像头 画中画 按键 点击 忽略 App", selection: .capture(.recording)),
-        .init(title: "录屏保存位置", area: "截图 › 录屏", keywords: "mp4 视频 目录", selection: .capture(.recording)),
-        .init(title: "工作流", area: "截图 › 工作流", keywords: "自动化 GitHub Linear 图床 上传 issue", selection: .capture(.workflow)),
-        // 工具
-        .init(title: "工具开关", area: "工具 › 工具", keywords: "归档 解压 二维码 取色", selection: .tools),
-        .init(title: "快捷键", area: "工具 › 快捷键", keywords: "热键 组合键 冲突", selection: .shortcuts),
-        // 搜索与 AI
-        .init(title: "搜索", area: "搜索与 AI › 搜索", keywords: "全局搜索 命令 面板", selection: .search),
-        .init(title: "AI 服务", area: "搜索与 AI › AI", keywords: "模型 key 接口 翻译", selection: .ai),
-        // 性能监测
-    ] + [MonitorModuleID.cpu, .memory, .gpu, .disk, .network, .sensors, .power, .battery].map { module in
-        let page = SettingsPage.monitorModule(module)
-        return SettingsSearchEntry(title: page.title, area: "性能监测 › \(page.title)",
-                                   keywords: "性能监测", selection: page)
-    } + [
-        .init(title: "监测设置", area: "性能监测 › 监测设置", keywords: "刷新 频率 采样", selection: .monitorSettings),
-        .init(title: "部件设置", area: "性能监测 › 部件设置", keywords: "状态栏 部件 形态 颜色", selection: .monitorWidgets),
-        // 数据 / 关于
-        .init(title: "使用统计", area: "数据", keywords: "统计 事件 报表", selection: .statistics),
-        .init(title: "版本与更新", area: "关于", keywords: "版本 更新 检查", selection: .about),
-        .init(title: "使用手册", area: "使用手册", keywords: "帮助 文档 教程", selection: .manual),
-    ]
+    private static let searchIndex: [SettingsSearchEntry] =
+        SettingsGroup.allCases.flatMap { group in
+            group.pages.map { page in
+                SettingsSearchEntry(title: page.title, area: group.title + " › " + page.title,
+                    keywords: page.openHint ?? "", selection: page)
+            }
+        } + [
+            .init(title: "开机启动", area: "常规 › 启动与语言", keywords: "登录 自启", selection: .generalStart, field: "开机启动"),
+            .init(title: "共享字号与圆角", area: "主题外观 › 文字与圆角", keywords: "字体 行高", selection: .appearanceText),
+            .init(title: "强调色", area: "主题外观 › 主题与颜色", keywords: "accent 主题色", selection: .generalPersonal, field: "强调色"),
+            .init(title: "底衬不透明度", area: "主题外观 › 窗口材质与动效", keywords: "透明 毛玻璃 磨砂 描边", selection: .generalWindows, field: "底衬不透明度"),
+            .init(title: "悬停展开", area: "刘海工作台 › 唤出与收回", keywords: "悬停延时 自动收回", selection: .island, field: "悬停展开"),
+            .init(title: "组件尺寸与顺序", area: "刘海工作台 › 画布与组件", keywords: "1×1 1×2 1×4 2×2 画布 布局", selection: .islandCanvas),
+            .init(title: "鼠标流光", area: "刘海工作台 › 材质与颜色", keywords: "辉光 光晕 glow", selection: .islandMaterial, field: "鼠标辉光"),
+            .init(title: "间距与分隔线", area: "菜单栏 › 排列与间距", keywords: "状态栏 合并 spacing", selection: .menuBarArrangement),
+            .init(title: "自动图片 OCR", area: "剪贴板 › 捕获与隐私", keywords: "图片识别 自动识别", selection: .clipboardCapture),
+            .init(title: "忽略应用（隐私名单）", area: "剪贴板 › 捕获与隐私", keywords: "黑名单 隐私 排除", selection: .clipboardCapture, field: "忽略应用（隐私名单）"),
+            .init(title: "保留天数", area: "剪贴板 › 历史与备份", keywords: "历史 到期 清理 容量", selection: .clipboardHistory, field: "保留天数"),
+            .init(title: "标签管理", area: "剪贴板 › 历史与备份", keywords: "分类 tag", selection: .clipboardHistory, field: "标签管理"),
+            .init(title: "浮动剪贴板快捷键", area: "快捷键 › 全部功能绑定", keywords: "悬浮 呼出 双按", selection: .shortcuts, field: "floatingClipboard"),
+            .init(title: "取色快捷键", area: "快捷键 › 全部功能绑定", keywords: "colorPicker colorpicker", selection: .shortcuts, field: "colorpicker"),
+            .init(title: "图帘快捷键", area: "快捷键 › 全部功能绑定", keywords: "悬挂 截图", selection: .shortcuts, field: "curtainToggle"),
+            .init(title: "截图保存路径", area: "截图与录屏 › 截图与保存", keywords: "目录 文件名", selection: .capture(.capture)),
+            .init(title: "文字识别语言", area: "截图与录屏 › 文字识别", keywords: "OCR 中文 英文 静默", selection: .ocr),
+            .init(title: "ZIP 关联与 Finder 服务", area: "文件与传输 › 压缩与 Finder", keywords: "压缩 解压 复制路径 终端 访达", selection: .archive),
+            .init(title: "日历周起始日", area: "工具 › 日历", keywords: "周日 周一 农历 日程", selection: .calendar),
+            .init(title: "监测模块与独立刷新间隔", area: "性能监测 › 采样与显示", keywords: "CPU GPU 内存 网络 磁盘 温度 功耗 电池 采样", selection: .monitorSettings),
+            .init(title: "使用统计与音量", area: "工具 › 工具集合", keywords: "设备 混音器 统计 音频", selection: .tools),
+            .init(title: "使用手册", area: "页脚", keywords: "帮助 文档 教程", selection: .manual)
+        ]
 
     // MARK: - 品牌区
 
@@ -386,8 +342,6 @@ struct SettingsSidebarView: View {
             // 「性能监测」整组挤到折叠线以下。这三项改成一行紧凑入口（图标 + 小字），
             // 高度从 ~120 降到 ~58，常驻可见且不抢纵向空间。
             HStack(spacing: 2) {
-                footerChip("数据", icon: "chart.bar.xaxis", selection: .statistics)
-                footerChip("关于", icon: "info.circle", selection: .about)
                 footerChip("使用手册", icon: "book.closed", selection: .manual)
             }
             .padding(.horizontal, 8)

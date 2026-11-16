@@ -44,6 +44,7 @@ public final class CredentialStore: LLMCredentialStoring {
     private let fileURL: URL
     private let keyFileURL: URL
     private var cache: [String: String]?
+    public private(set) var lastWriteError: String?
 
     public init(fileURL: URL? = nil, keyFileURL: URL? = nil) {
         let dir = AppDirectories.base
@@ -65,10 +66,12 @@ public final class CredentialStore: LLMCredentialStoring {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if trimmed.isEmpty { dict.removeValue(forKey: provider.rawValue) }
         else { dict[provider.rawValue] = trimmed }
-        cache = dict
+        lastWriteError = nil
         do {
             try persist(dict)
+            cache = dict
         } catch {
+            lastWriteError = error.localizedDescription
             Log.error("Credential", "写入凭证失败：\(error.localizedDescription)")
         }
         lock.unlock()

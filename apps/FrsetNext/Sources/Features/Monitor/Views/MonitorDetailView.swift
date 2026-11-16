@@ -64,18 +64,21 @@ public struct MonitorDetailView: View {
     @Environment(\.monitorPresentation) private var presentation
     @StateObject private var previewSelection = MonitorDetailSelection()
     private let selection: MonitorDetailSelection
+    private let settingsSelection: MonitorDetailSelection?
     private let pageMode: Bool
     private let fixedWidth: CGFloat?
 
-    public init(selection: MonitorDetailSelection = MonitorCenterPresenter.shared.monitorSelection, pageMode: Bool = false, fixedWidth: CGFloat? = 292) {
+    public init(selection: MonitorDetailSelection = MonitorCenterPresenter.shared.monitorSelection,
+                settingsSelection: MonitorDetailSelection? = nil, pageMode: Bool = false, fixedWidth: CGFloat? = 292) {
         self.selection = selection
+        self.settingsSelection = settingsSelection
         self.pageMode = pageMode
         self.fixedWidth = fixedWidth
     }
     public var body: some View {
         if isSettingsPreview {
             let values = MonitorDetailPreviewValues.fixed
-            MonitorDetailContent(selection: previewSelection, sample: previewSample, history: previewHistory,
+            MonitorDetailContent(selection: settingsSelection ?? previewSelection, sample: previewSample, history: previewHistory,
                                  stats: previewStats, extra: values.extra, volumes: values.volumes,
                                  pageMode: pageMode, fixedWidth: fixedWidth)
         } else {

@@ -1,14 +1,20 @@
 import SwiftUI
 import Combine
 
+enum IslandSettingsPart: String, CaseIterable {
+    case activation, peeks, canvas, appearance
+}
+
 struct IslandSettingsPane: View {
+    var part = IslandSettingsPart.activation
     var body: some View {
-        SettingsDraftEditor(id: "island", makeDraft: { IslandSettingsDraft() }) { draft in
-            IslandSettingsContent(draft: draft)
+        SettingsDraftEditor(id: "island", scope: part.rawValue, makeDraft: { IslandSettingsDraft() }) { draft in
+            IslandSettingsContent(draft: draft, part: part)
         }
     }
 }
 
+/// 四页使用同一草稿和正式预览；保存只合并当前页实际改变的字段。
 final class IslandSettingsDraft: SettingsEditableDraft {
     @Published var configuration: IslandConfiguration {
         didSet {
@@ -19,7 +25,7 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         }
     }
     private var saved: IslandConfiguration
-    private var restoringDefaults = false
+    private var defaultParts: Set<IslandSettingsPart> = []
     private var previewChanges: AnyCancellable?
     let previewController: IslandController
 
@@ -31,132 +37,147 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         previewController.expand()
         previewController.layoutDidChange = { [weak self] value in
             guard let self else { return }
-            var configuration = self.configuration
-            configuration.widgetSizes = value.widgetSizes
-            configuration.widgetPositions = value.widgetPositions
-            configuration.hiddenWidgets = value.hiddenWidgets
-            configuration.widgetOrder = value.widgetOrder
-            configuration.metricOrder = value.metricOrder
-            self.configuration = configuration
+            var next = self.configuration
+            next.widgetSizes = value.widgetSizes
+            next.widgetPositions = value.widgetPositions
+            next.hiddenWidgets = value.hiddenWidgets
+            next.widgetOrder = value.widgetOrder
+            next.metricOrder = value.metricOrder
+            self.configuration = next
         }
         previewChanges = previewController.$layoutDraft.dropFirst().sink { [weak self] _ in
             self?.objectWillChange.send()
         }
     }
 
-    var isDirty: Bool { restoringDefaults || configuration != saved || previewController.layoutConfiguration != configuration }
-
+    var isDirty: Bool { IslandSettingsPart.allCases.contains { isDirty(in: $0.rawValue) } }
+    func isDirty(in scope: String) -> Bool {
+        let part = IslandSettingsPart(rawValue: scope)!
+        return defaultParts.contains(part) || merged(part, from: configuration, comparedTo: saved, into: saved) != saved
+            || (part == .canvas && previewController.layoutConfiguration != configuration)
+    }
     func save() -> String? {
-        if previewController.editingLayout { previewController.finishLayoutEditing() }
-        var next = IslandController.shared.configuration
-        if restoringDefaults {
-            next = configuration
-        } else {
-            // 草稿未改的字段保留正式现场；字典仅覆盖本次改变的键。
-            func merge<Value: Equatable>(_ field: WritableKeyPath<IslandConfiguration, Value>) {
-                if configuration[keyPath: field] != saved[keyPath: field] {
-                    next[keyPath: field] = configuration[keyPath: field]
-                }
+        for part in IslandSettingsPart.allCases where isDirty(in: part.rawValue) {
+            if let reason = save(in: part.rawValue) { return reason }
+        }
+        return nil
+    }
+    func save(in scope: String) -> String? {
+        let part = IslandSettingsPart(rawValue: scope)!
+        if part == .canvas && previewController.editingLayout { previewController.finishLayoutEditing() }
+        let current = IslandController.shared.configuration
+        let next = merged(part, from: configuration, comparedTo: defaultParts.contains(part) ? current : saved, into: current)
+        if let reason = IslandController.shared.apply(next) { return reason }
+        saved = merged(part, from: next, comparedTo: saved, into: saved)
+        defaultParts.remove(part)
+        configuration = merged(part, from: next, comparedTo: configuration, into: configuration)
+        return nil
+    }
+    func discard() {
+        for part in IslandSettingsPart.allCases { discard(in: part.rawValue) }
+    }
+    func discard(in scope: String) {
+        let part = IslandSettingsPart(rawValue: scope)!
+        if part == .canvas && previewController.editingLayout { previewController.cancelLayoutEditing() }
+        let current = IslandController.shared.configuration
+        saved = merged(part, from: current, comparedTo: saved, into: saved)
+        defaultParts.remove(part)
+        configuration = merged(part, from: current, comparedTo: configuration, into: configuration)
+    }
+    func restoreDefaults() {
+        for part in IslandSettingsPart.allCases { restoreDefaults(in: part.rawValue) }
+    }
+    func restoreDefaults(in scope: String) {
+        let part = IslandSettingsPart(rawValue: scope)!
+        if part == .canvas && previewController.editingLayout { previewController.cancelLayoutEditing() }
+        defaultParts.insert(part)
+        configuration = merged(part, from: IslandConfiguration(), comparedTo: configuration, into: configuration)
+    }
+
+    private func merged(_ part: IslandSettingsPart, from value: IslandConfiguration,
+                        comparedTo original: IslandConfiguration, into current: IslandConfiguration) -> IslandConfiguration {
+        var next = current
+        func field<Value: Equatable>(_ key: WritableKeyPath<IslandConfiguration, Value>) {
+            if value[keyPath: key] != original[keyPath: key] { next[keyPath: key] = value[keyPath: key] }
+        }
+        func keys<Value: Equatable>(_ key: WritableKeyPath<IslandConfiguration, [String: Value]>) {
+            let values = value[keyPath: key], old = original[keyPath: key]
+            for member in Set(values.keys).union(old.keys) where values[member] != old[member] {
+                next[keyPath: key][member] = values[member]
             }
-            func mergeKeys<Value: Equatable>(_ field: WritableKeyPath<IslandConfiguration, [String: Value]>) {
-                let values = configuration[keyPath: field], original = saved[keyPath: field]
-                for key in Set(values.keys).union(original.keys) where values[key] != original[key] {
-                    next[keyPath: field][key] = values[key]
-                }
+        }
+        func members<Value: Hashable>(_ key: WritableKeyPath<IslandConfiguration, Set<Value>>) {
+            let values = value[keyPath: key], old = original[keyPath: key]
+            for member in values.symmetricDifference(old) {
+                if values.contains(member) { next[keyPath: key].insert(member) }
+                else { next[keyPath: key].remove(member) }
             }
-            func mergeMembers<Value: Hashable>(_ field: WritableKeyPath<IslandConfiguration, Set<Value>>) {
-                let values = configuration[keyPath: field], original = saved[keyPath: field]
-                for value in values.symmetricDifference(original) {
-                    if values.contains(value) { next[keyPath: field].insert(value) }
-                    else { next[keyPath: field].remove(value) }
-                }
-            }
-            merge(\.enabled)
-            merge(\.width)
-            merge(\.height)
-            merge(\.gridColumns)
-            merge(\.gridRows)
-            merge(\.hoverEnabled)
-            merge(\.hoverDelay)
-            merge(\.collapseDelay)
-            merge(\.usesGlass)
-            merge(\.material)
-            merge(\.opacity)
-            merge(\.glowEnabled)
-            mergeMembers(\.visiblePeeks)
-            merge(\.peeksShowValues)
-            merge(\.peeksQuickActions)
-            merge(\.peekOrder)
-            if configuration.widgetPositions != saved.widgetPositions {
-                if let values = configuration.widgetPositions {
-                    let original = saved.widgetPositions ?? [:]
+        }
+        switch part {
+        case .activation:
+            field(\.enabled); field(\.hoverEnabled); field(\.hoverDelay); field(\.collapseDelay)
+        case .peeks:
+            members(\.visiblePeeks); field(\.peekOrder); field(\.peeksShowValues); field(\.peeksQuickActions)
+        case .canvas:
+            field(\.width); field(\.height); field(\.gridColumns); field(\.gridRows)
+            field(\.widgetOrder); members(\.hiddenWidgets); keys(\.widgetSizes); field(\.metricOrder)
+            if value.widgetPositions != original.widgetPositions {
+                if let values = value.widgetPositions {
+                    let old = original.widgetPositions ?? [:]
                     var positions = next.widgetPositions ?? [:]
-                    for key in Set(values.keys).union(original.keys) where values[key] != original[key] {
-                        positions[key] = values[key]
+                    for member in Set(values.keys).union(old.keys) where values[member] != old[member] {
+                        positions[member] = values[member]
                     }
                     next.widgetPositions = positions
                 } else { next.widgetPositions = nil }
             }
-            merge(\.widgetOrder)
-            mergeMembers(\.hiddenWidgets)
-            mergeKeys(\.widgetSizes)
-            mergeKeys(\.widgetColors)
-            merge(\.metricOrder)
-            mergeKeys(\.metricColors)
+        case .appearance:
+            field(\.usesGlass); field(\.material); field(\.opacity); field(\.glowEnabled)
+            keys(\.widgetColors); keys(\.metricColors)
         }
-        if let reason = IslandController.shared.apply(next) { return reason }
-        saved = next
-        restoringDefaults = false
-        configuration = next
-        return nil
-    }
-
-    func discard() {
-        if previewController.editingLayout { previewController.cancelLayoutEditing() }
-        saved = IslandController.shared.configuration
-        restoringDefaults = false
-        configuration = saved
-    }
-    func restoreDefaults() {
-        if previewController.editingLayout { previewController.cancelLayoutEditing() }
-        restoringDefaults = true
-        configuration = IslandConfiguration()
+        return next
     }
 
     func updatePreview() { _ = previewController.apply(configuration) }
-
     func setGrid(columns: Int, rows: Int) {
-        var next = configuration
-        next.gridColumns = columns
-        next.gridRows = rows
+        var next = configuration; next.gridColumns = columns; next.gridRows = rows
         configuration = next
     }
 }
 
 private struct IslandSettingsContent: View {
     @ObservedObject var draft: IslandSettingsDraft
+    let part: IslandSettingsPart
+    @Stored private var demonstration: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 20) {
-            SettingsSection("启用") {
+            if part == .activation { SettingsSection("启用") {
                 SettingsGroupBox {
                     SettingsRow(title: "启用刘海工作台", subtitle: "调整只更新预览；保存后应用到屏幕顶部") {
                         Toggle("启用刘海工作台", isOn: $draft.configuration.enabled).labelsHidden()
                     }
                 }
-            }
-            canvas
+            } }
+            if part == .canvas { canvas }
             SettingsSection("实时预览") {
                 IslandSettingsPreview(draft: draft, controller: draft.previewController)
             }
-            appearance
-            peeks
-            widgets
-            metrics
+            switch part {
+            case .activation: behavior
+            case .peeks: peeks
+            case .canvas: widgets; metrics
+            case .appearance: appearance; colors
+            }
         }
         .toggleStyle(.switch)
         .controlSize(.small)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            if part == .peeks { draft.previewController.collapse() }
+            else { draft.previewController.expand() }
+        }
+        .onDisappear { demonstration?.cancel(); demonstration = nil }
     }
 
     private var canvas: some View {
@@ -190,7 +211,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var appearance: some View {
-        SettingsSection("材质与悬停") {
+        SettingsSection("材质") {
             SettingsGroupBox {
                 SettingsRow(title: "外壳材质", subtitle: "原生液态玻璃需 macOS 26；旧系统使用毛玻璃，减少透明度时使用纯色") {
                     Picker("外壳材质", selection: Binding(
@@ -213,15 +234,24 @@ private struct IslandSettingsContent: View {
                 SettingsRow(title: "鼠标辉光") {
                     Toggle("鼠标辉光", isOn: $draft.configuration.glowEnabled).labelsHidden()
                 }
+            }
+        }
+    }
+
+    private var behavior: some View {
+        SettingsSection("悬停与收回") {
+            SettingsGroupBox {
                 SettingsDivider()
                 SettingsRow(title: "悬停展开") {
                     Toggle("悬停展开", isOn: $draft.configuration.hoverEnabled).labelsHidden()
                 }
+                if draft.configuration.hoverEnabled {
                 SettingsRow(title: "悬停展开时间") {
                     TextField("悬停展开时间", value: $draft.configuration.hoverDelay,
                               format: .number.precision(.fractionLength(2)))
                         .frame(width: 64)
                     Text("秒").foregroundStyle(.secondary)
+                }
                 }
                 SettingsRow(title: "移开收回时间") {
                     TextField("移开收回时间", value: $draft.configuration.collapseDelay,
@@ -229,6 +259,22 @@ private struct IslandSettingsContent: View {
                         .frame(width: 64)
                     Text("秒").foregroundStyle(.secondary)
                 }
+                Button("演示悬停与自动收回") {
+                    demonstration?.cancel()
+                    let controller = draft.previewController
+                    controller.collapse()
+                    let hover = draft.configuration.hoverEnabled ? draft.configuration.hoverDelay : 0
+                    let collapse = draft.configuration.collapseDelay
+                    demonstration = Task { @MainActor in
+                        do {
+                            try await Task.sleep(nanoseconds: UInt64(max(0, hover) * 1_000_000_000))
+                            controller.expand()
+                            try await Task.sleep(nanoseconds: UInt64(max(0, collapse) * 1_000_000_000))
+                            controller.collapse()
+                        } catch { }
+                    }
+                }
+                .buttonStyle(.bordered)
             }
             .textFieldStyle(.roundedBorder)
         }
@@ -261,7 +307,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var widgets: some View {
-        SettingsSection("组件 · 显示、颜色、尺寸与顺序（行 × 列）") {
+        SettingsSection("组件 · 显示、尺寸与顺序（行 × 列）") {
             SettingsGroupBox {
                 ForEach(draft.configuration.widgetOrder) { widget in
                     SettingsRow(icon: widget.icon, title: widget.title,
@@ -275,10 +321,6 @@ private struct IslandSettingsContent: View {
                                 else { draft.configuration.hiddenWidgets.insert(widget) }
                             }
                         )).labelsHidden()
-                        ColorPicker("\(widget.title)颜色", selection: Binding(
-                            get: { draft.configuration.color(for: widget) },
-                            set: { draft.configuration.widgetColors[widget.rawValue] = Personalization.hex(fromColor: $0) }
-                        ), supportsOpacity: false).labelsHidden()
                         Picker("\(widget.title)尺寸", selection: Binding(
                             get: { draft.configuration.requestedSize(for: widget) },
                             set: { draft.configuration.widgetSizes[widget.rawValue] = $0 }
@@ -297,15 +339,35 @@ private struct IslandSettingsContent: View {
     }
 
     private var metrics: some View {
-        SettingsSection("监测指标 · 颜色与顺序") {
+        SettingsSection("监测指标顺序") {
             SettingsGroupBox {
+                ForEach(draft.configuration.metricOrder) { metric in
+                    SettingsRow(title: metric.title) {
+                        IslandSettingsOrderControls(order: $draft.configuration.metricOrder, item: metric, title: metric.title)
+                    }
+                }
+            }
+        }
+    }
+
+    private var colors: some View {
+        SettingsSection("组件与指标颜色") {
+            SettingsGroupBox {
+                ForEach(draft.configuration.widgetOrder) { widget in
+                    SettingsRow(title: widget.title) {
+                        ColorPicker("\(widget.title)颜色", selection: Binding(
+                            get: { draft.configuration.color(for: widget) },
+                            set: { draft.configuration.widgetColors[widget.rawValue] = Personalization.hex(fromColor: $0) }
+                        ), supportsOpacity: false).labelsHidden()
+                    }
+                }
+                SettingsDivider()
                 ForEach(draft.configuration.metricOrder) { metric in
                     SettingsRow(title: metric.title) {
                         ColorPicker("\(metric.title)颜色", selection: Binding(
                             get: { draft.configuration.color(for: metric) },
                             set: { draft.configuration.metricColors[metric.rawValue] = Personalization.hex(fromColor: $0) }
                         ), supportsOpacity: false).labelsHidden()
-                        IslandSettingsOrderControls(order: $draft.configuration.metricOrder, item: metric, title: metric.title)
                     }
                 }
             }

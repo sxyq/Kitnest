@@ -18,6 +18,9 @@ final class SettingsUIState: ObservableObject {
     @Published var detailPaneID: String?
     /// 侧边栏选中项 = 二级页（v272：常规/剪贴板/文件中转也各自拆成多页）
     @Published var selection: SettingsPage = .generalStart
+    @Published var expandedGroups: Set<SettingsGroup> = []
+    @Published var navigationRevision = 0
+    var pageScrollOffsets: [SettingsPage: CGFloat] = [:]
     /// 搜索框与外部切页共用；保留已有搜索探针初值。
     @Published var query: String = UserDefaults.standard.string(forKey: "probe.settingsSearch") ?? ""
 
@@ -31,9 +34,19 @@ final class SettingsUIState: ObservableObject {
         Log.info("settings", "selectPane: \(pane)")
         Log.breadcrumb("Settings", "切页 \(pane)")   // v84：卡死定位面包屑
         selectedPaneID = pane
-        detailPaneID = nil
+        let target = pane.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+        detailPaneID = target.count == 2 ? String(target[1]) : nil
         query = ""
-        applyPaneMapping(pane)
+        applyPaneMapping(String(target[0]))
+        reveal(selection, field: detailPaneID)
+    }
+
+    func reveal(_ page: SettingsPage, field: String? = nil) {
+        selection = page.canonical
+        detailPaneID = field
+        query = ""
+        if let group = selection.group { expandedGroups.insert(group) }
+        navigationRevision += 1
     }
 
     private func applyPaneMapping(_ pane: String) {
@@ -45,24 +58,32 @@ final class SettingsUIState: ObservableObject {
             selection = .generalPanel
         case "windows", "general.windows", "floating", "appearance.windows":
             selection = .generalWindows
+        case "appearance.text", "appearance.radius": selection = .appearanceText
+        case "panel.background", "appearance.background": selection = .panelBackground
+        case "permissions", "general.permissions": selection = .permissions
         case "island", "appearance.island":
             selection = .island
+        case "island.peeks": selection = .islandPeeks
+        case "island.canvas", "island.widgets": selection = .islandCanvas
+        case "island.material", "island.colors": selection = .islandMaterial
         case "personalization", "general.personalization", "appearance":
             selection = .generalPersonal
         case "menubar", "general.menubar", "menuBar":
             selection = .generalMenuBar
+        case "menubar.arrangement", "menuBar.arrangement": selection = .menuBarArrangement
+        case "menubar.widgets", "menubar.colors": selection = .monitorWidgets
         case "notifications", "general.notifications":
             selection = .generalNotifications
         case "capture.actions", "capture.toolbar":
             selection = .captureActions
-        case "audio":                            selection = .audio
+        case "audio": selection = .tools
         // 剪贴板
         case "clipboard", "clipboard.history":   selection = .clipboardHistory
         case "clipboard.capture":                selection = .clipboardCapture
         case "clipboard.floating", "floatingClipboard": selection = .clipboardFloating
         case "clipboard.appearance": selection = .clipboardAppearance
         // 文件中转
-        case "transfer", "transfer.display":     selection = .transferDisplay
+        case "transfer", "transfer.display":     selection = .transferLocal
         case "transfer.cast", "cast":            selection = .transferCast
         case "transfer.scan", "scan":            selection = .transferScan
         case "transfer.cloud", "cloud":          selection = .transferCloud
@@ -72,16 +93,22 @@ final class SettingsUIState: ObservableObject {
         case "ai":                               selection = .ai
         // 工具与快捷键
         case "tools":                            selection = .tools
+        case "tools.ai", "ai.text": selection = .aiText
+        case "calendar", "tools.calendar": selection = .calendar
+        case "archive", "finder", "archive.finder": selection = .archive
         case "shortcuts":                        selection = .shortcuts
         // 截图（v234 独立成一级；v271 拆成五块，深链各自直达）
         case "capture":                          selection = .capture(.capture)
+        case "ocr", "capture.ocr": selection = .ocr
+        case "watermark", "capture.watermark": selection = .watermark
         case "pin", "pinSettings":               selection = .capture(.pin)
         case "shelf", "shelfSettings", "curtain", "curtainSettings":
             selection = .capture(.curtain)
         case "recording", "record":              selection = .capture(.recording)
         case "workflow":                         selection = .capture(.workflow)
         // 页脚常驻
-        case "statistics":                       selection = .statistics
+        case "statistics", "diagnostics", "data.diagnostics": selection = .diagnostics
+        case "config", "data.config", "configuration": selection = .configTransfer
         case "about":                            selection = .about
         case "manual", "help":                   selection = .manual
         // 性能监测
@@ -91,7 +118,8 @@ final class SettingsUIState: ObservableObject {
             // 排障/直达：pane = "monitor.cpu" / "monitor.memory" … → 性能监测模块页
             if pane.hasPrefix("monitor."),
                let module = MonitorModuleID(rawValue: String(pane.dropFirst("monitor.".count))) {
-                selection = .monitorModule(module)
+                selection = .monitorSettings
+                detailPaneID = module.displayName
             }
         }
     }
@@ -139,9 +167,9 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
         if let pane {
             uiState.selectPane(pane)
         } else {
-            // v272（2026-11-11）：复用窗口重开时显示选中行，保留页面和搜索输入。
-            let currentPage = uiState.selection
-            uiState.selection = currentPage
+            uiState.expandedGroups = []
+            uiState.detailPaneID = nil
+            uiState.query = ""
         }
         NSApp.activate(ignoringOtherApps: true)
         // v202：取消在途 close——复位动画/图层与 isClosing，

@@ -7,22 +7,95 @@ import UniformTypeIdentifiers
 
 struct RecordingSettingsPane: View {
     var body: some View {
-        SettingsDraftEditor(id: "recordingAppearance", makeDraft: { RecordingAppearanceDraft() }) { draft in
+        SettingsDraftEditor(id: "recording", makeDraft: { RecordingSettingsDraft() }) { draft in
             RecordingSettingsContent(draft: draft)
         }
     }
 }
 
-private struct RecordingSettingsContent: View {
-    @ObservedObject var draft: RecordingAppearanceDraft
-    @ObservedObject private var recorder = ScreenRecorder.shared
-    @Stored private var savePath = RecordingOptions.savePathRaw
+final class RecordingSettingsDraft: SettingsEditableDraft {
+    typealias Values = RecordingAppearanceDraft.Values
+    @Published var values = Values.current
+    @Published var savePath = RecordingOptions.savePathRaw
+    private var saved = Values.current
+    private var savedPath = RecordingOptions.savePathRaw
+    var isDirty: Bool { values != saved || savePath != savedPath }
 
-    private var cameras: [(id: String, name: String)] {
+    func save() -> String? {
+        applyEffects()
+        if values.fps != saved.fps { RecordingOptions.defaultFPS = values.fps }
+        if values.audio != saved.audio { RecordingOptions.defaultAudio = values.audio }
+        if values.cameraDevice != saved.cameraDevice { RecordingOptions.cameraDeviceID = values.cameraDevice }
+        if values.excluded != saved.excluded { RecordingOptions.excludedBundleIDs = values.excluded }
+        if savePath != savedPath { Preferences.shared.set(RecordingOptions.keySavePath, savePath) }
+        guard UserDefaults.standard.synchronize() else { return "录屏设置写入磁盘失败，调整已保留" }
+        objectWillChange.send()
+        saved = values
+        savedPath = savePath
+        return nil
+    }
+    func discard() {
+        values = .current
+        savePath = RecordingOptions.savePathRaw
+        saved = values
+        savedPath = savePath
+    }
+    func restoreDefaults() { values = Values(); savePath = "" }
+
+    func isDirty(in scope: String) -> Bool {
+        guard scope == "effects" else { return isDirty }
+        return values.showsCursor != saved.showsCursor || values.cameraOn != saved.cameraOn ||
+            values.cameraCorner != saved.cameraCorner || values.cameraScale != saved.cameraScale ||
+            values.showKeys != saved.showKeys || values.showClicks != saved.showClicks
+    }
+    func save(in scope: String) -> String? {
+        guard scope == "effects" else { return save() }
+        applyEffects()
+        guard UserDefaults.standard.synchronize() else { return "录屏效果写入磁盘失败，调整已保留" }
+        objectWillChange.send()
+        copyEffects(from: values, to: &saved)
+        return nil
+    }
+    func discard(in scope: String) {
+        guard scope == "effects" else { discard(); return }
+        let current = Values.current
+        copyEffects(from: current, to: &values)
+        copyEffects(from: current, to: &saved)
+    }
+    func restoreDefaults(in scope: String) {
+        guard scope == "effects" else { restoreDefaults(); return }
+        copyEffects(from: Values(), to: &values)
+    }
+    private func applyEffects() {
+        if values.showsCursor != saved.showsCursor { RecordingOptions.defaultShowsCursor = values.showsCursor }
+        if values.cameraOn != saved.cameraOn { RecordingOptions.cameraEnabled = values.cameraOn }
+        if values.cameraCorner != saved.cameraCorner { RecordingOptions.cameraCorner = values.cameraCorner }
+        if values.cameraScale != saved.cameraScale { RecordingOptions.cameraScale = values.cameraScale }
+        if values.showKeys != saved.showKeys { RecordingOptions.showKeys = values.showKeys }
+        if values.showClicks != saved.showClicks { RecordingOptions.showClicks = values.showClicks }
+    }
+    private func copyEffects(from source: Values, to target: inout Values) {
+        target.showsCursor = source.showsCursor
+        target.cameraOn = source.cameraOn
+        target.cameraCorner = source.cameraCorner
+        target.cameraScale = source.cameraScale
+        target.showKeys = source.showKeys
+        target.showClicks = source.showClicks
+    }
+}
+
+private struct RecordingSettingsContent: View {
+    @Environment(\.settingsTargetField) private var targetField
+    @ObservedObject var draft: RecordingSettingsDraft
+    @ObservedObject private var recorder = ScreenRecorder.shared
+
+    @Stored private var cameras: [(id: String, name: String)] = []
+
+    private func refreshCameras() {
         let session = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInWideAngleCamera, .externalUnknown],
             mediaType: .video, position: .unspecified)
-        return session.devices.map { ($0.uniqueID, $0.localizedName) }
+        cameras = session.devices.map { ($0.uniqueID, $0.localizedName) }
     }
 
     var body: some View {
@@ -35,6 +108,7 @@ private struct RecordingSettingsContent: View {
         }
         .font(.system(size: 12))
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { refreshCameras() }
     }
 
     // MARK: 开始
@@ -67,7 +141,7 @@ private struct RecordingSettingsContent: View {
                 }
                 .padding(.vertical, 9)
 
-                Text("录制时顶部会出现控制条（暂停 / 停止）；控制条本身不会录进画面。停止后自动打开裁剪导出窗口。")
+                Text("开始、暂停与停止立即执行，使用已保存参数。下方参数仅写草稿；预览不采集屏幕或摄像头。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 8)
@@ -239,12 +313,13 @@ private struct RecordingSettingsContent: View {
                     Text("保存到")
                         .font(.system(size: 12.5))
                         .frame(width: 92, alignment: .leading)
-                    TextField(RecordingOptions.saveDirectory.path, text: $savePath)
+                    TextField("下载目录", text: $draft.savePath)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11.5, design: .monospaced))
                         .frame(maxWidth: 340)
-                        .onChange(of: savePath) { Preferences.shared.set(RecordingOptions.keySavePath, $0) }
                     Button("选择…") { chooseDirectory() }
+                        .controlSize(.small)
+                    Button("恢复默认目录") { draft.savePath = "" }
                         .controlSize(.small)
                     Button("在访达中打开") {
                         NSWorkspace.shared.open(RecordingOptions.saveDirectory)
@@ -253,6 +328,8 @@ private struct RecordingSettingsContent: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.vertical, 9)
+                .background(targetField == "保存到" ? Theme.accent.opacity(0.08) : Color.clear)
+                .id("保存到")
 
                 SettingsDivider()
 
@@ -277,6 +354,8 @@ private struct RecordingSettingsContent: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 7)
+        .background(targetField == title ? Theme.accent.opacity(0.08) : Color.clear)
+        .id(title)
     }
 
     private func appName(for bundleID: String) -> String {
@@ -314,7 +393,6 @@ private struct RecordingSettingsContent: View {
         panel.canCreateDirectories = true
         panel.prompt = "选择"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        savePath = url.path
-        RecordingOptions.saveDirectory = url
+        draft.savePath = url.path
     }
 }

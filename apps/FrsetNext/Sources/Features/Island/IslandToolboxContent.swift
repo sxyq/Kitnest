@@ -80,6 +80,9 @@ struct IslandToolboxContent: View {
                 .frame(width: min(200, max(110, geometry.size.width * 0.32)))
             Group {
                 if let selected {
+                    if let build = selected.build {
+                        build()
+                    } else {
                     ToolRunnerView(tool: selected,
                                    initialInput: controller.toolInputs[selected.id] ?? (preview ? (selected.inputKind == .filePath ? "设计资料/首页说明.png" : IslandSample.clipboard[2].body) : ""),
                                    intent: selected.id == "deduplicate" ? .preview : .standard,
@@ -89,6 +92,7 @@ struct IslandToolboxContent: View {
                                    }, presentFileDialog: { controller.performOutside($0) },
                                    onInputChange: { controller.toolInputs[selected.id] = $0 })
                         .id(selected.id)
+                    }
                 } else {
                     VStack(spacing: Theme.Space.md) {
                         Image(systemName: "square.grid.2x2").font(.system(size: 24)).foregroundStyle(tint)

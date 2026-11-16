@@ -173,10 +173,16 @@ public final class Personalization: ObservableObject {
     static func makeDefaultDraft() -> Personalization { Personalization(persistsChanges: false) }
 
     func applyDraft(_ draft: Personalization, fields: [DraftField]) {
+        let changed = fields.filter { !$0.matches(self, draft) }
         isLoading = true
-        for field in fields { field.copy(self, draft) }
+        for field in changed { field.copy(self, draft) }
         isLoading = false
-        flushPersist(keys: Set(fields.map(\.key)))
+        flushPersist(keys: Set(changed.map(\.key)))
+    }
+
+    func reloadFromDefaults() {
+        load()
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
     private func copyValues(from source: Personalization) {
@@ -230,10 +236,8 @@ public final class Personalization: ObservableObject {
         flushPersist()
     }
 
-    private func flushPersist(keys: Set<String>? = nil) {
-        Log.info("personalization", "persist: fontScale=\(fontScale) density=\(density.rawValue) corner=\(cornerRadius)")
-        let d = UserDefaults.standard
-        let values: [String: Any?] = [
+    var preferenceValues: [String: Any?] {
+        [
             Preferences.Keys.uiAccentColor: accentColorHex,
             Preferences.Keys.uiFontScale: Double(fontScale),
             Preferences.Keys.uiListDensity: density.rawValue,
@@ -255,7 +259,12 @@ public final class Personalization: ObservableObject {
             Preferences.Keys.uiGlassCardLift: glassCardLift,
             Preferences.Keys.uiGlassStroke: glassStroke,
         ]
-        for (key, value) in values where keys == nil || keys!.contains(key) {
+    }
+
+    private func flushPersist(keys: Set<String>? = nil) {
+        Log.info("personalization", "persist: fontScale=\(fontScale) density=\(density.rawValue) corner=\(cornerRadius)")
+        let d = UserDefaults.standard
+        for (key, value) in preferenceValues where keys == nil || keys!.contains(key) {
             if let value { d.set(value, forKey: key) }
             else { d.removeObject(forKey: key) }
         }

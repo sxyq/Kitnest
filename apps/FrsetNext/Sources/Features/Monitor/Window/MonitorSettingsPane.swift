@@ -9,6 +9,7 @@ public final class MonitorSettingsState: SettingsEditableDraft {
         var temperatures = true
         var keepAlive = true
         var topN = 4
+        var widgetIntervals = Dictionary(uniqueKeysWithValues: (FSBarAllModules() as? [String] ?? []).map { ($0, 1.0) })
 
         static func saved() -> Self {
             var value = Self()
@@ -18,19 +19,33 @@ public final class MonitorSettingsState: SettingsEditableDraft {
             value.temperatures = MonitorPreferences.showTemperatures
             value.keepAlive = MonitorPreferences.networkKeepAlive
             value.topN = MonitorPreferences.flowTopN
+            let configuration = FSBarConfigurationSnapshot() as? [String: Any] ?? [:]
+            for module in value.widgetIntervals.keys {
+                let raw = configuration[module + "_updateInterval"]
+                value.widgetIntervals[module] = (raw as? NSNumber)?.doubleValue ?? (raw as? String).flatMap(Double.init) ?? 1
+            }
             return value
         }
     }
     @Published var values = Values.saved()
     private var savedValues = Values.saved()
     var isDirty: Bool { values != savedValues }
+    let barModules = FSBarAllModules() as? [String] ?? []
+    let previewSelection = MonitorDetailSelection()
     public init() {}
 
     func save() -> String? {
+        var intervals: [String: Any] = [:]
+        for module in barModules where values.widgetIntervals[module] != savedValues.widgetIntervals[module] {
+            intervals[module + "_updateInterval"] = String(format: "%.0f", values.widgetIntervals[module]!)
+        }
+        if !intervals.isEmpty {
+            if let reason = FSBarSaveConfiguration(intervals, []) { return reason }
+            FSBarReloadFromStore()
+        }
         if values.enabled != savedValues.enabled { MonitorPreferences.isEnabled = values.enabled }
         if values.interval != savedValues.interval {
             MonitorPreferences.refreshInterval = values.interval
-            applyIntervalToBarWidgets(values.interval)
         }
         for module in MonitorModuleID.allCases where values.modules[module] != savedValues.modules[module] {
             MonitorPreferences.setModuleEnabled(module, values.modules[module]!)
@@ -41,17 +56,13 @@ public final class MonitorSettingsState: SettingsEditableDraft {
             NetworkFlowTracker.shared.applyKeepAlivePreference()
         }
         if values.topN != savedValues.topN { MonitorPreferences.flowTopN = values.topN }
+        guard UserDefaults.standard.synchronize() else { return "监测设置写入磁盘失败，调整已保留" }
         values = Values.saved(); savedValues = values
         return nil
     }
     func discard() { values = Values.saved(); savedValues = values }
-    func restoreDefaults() { values = Values() }
+    func restoreDefaults() { discard(); values = Values() }
 
-    private func applyIntervalToBarWidgets(_ seconds: Double) {
-        let value = NSNumber(value: Int(max(1, min(60, seconds.rounded()))))
-        if let modules = FSBarAllModules() { for module in modules { FSBarCfgSet(module, nil, "updateInterval", value) } }
-        FSBarReloadFromStore()
-    }
 }
 
 public struct MonitorSettingsPane: View {
@@ -72,7 +83,7 @@ private struct MonitorSettingsContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SettingsSection("监测预览") {
-                MonitorDetailView(fixedWidth: nil)
+                MonitorDetailView(settingsSelection: state.previewSelection, fixedWidth: nil)
                     .environment(\.isSettingsPreview, true)
                     .environment(\.monitorPresentation, MonitorPresentation(order: visibleModules,
                         previewInterval: state.values.interval, previewEnabled: state.values.enabled,
@@ -98,6 +109,19 @@ private struct MonitorSettingsContent: View {
                         Toggle(isOn: Binding(get: { state.values.modules[module]! }, set: { state.values.modules[module] = $0 })) {
                             Label(module.displayName, systemImage: module.systemImage)
                         }
+                        .id(module.displayName)
+                    }
+                }
+            }
+            SettingsSection("菜单栏部件独立采样") {
+                Text("每个部件单独保存间隔；主监测刷新间隔不覆盖这些数值。")
+                    .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+                ForEach(state.barModules, id: \.self) { module in
+                    SettingsRow(title: FSBarModuleName(module) ?? module) {
+                        Slider(value: Binding(get: { state.values.widgetIntervals[module]! },
+                            set: { state.values.widgetIntervals[module] = $0 }), in: 1...60, step: 1).frame(width: 180)
+                        Text(String(format: "%.0f 秒", state.values.widgetIntervals[module]!))
+                            .monospacedDigit().frame(width: 60, alignment: .trailing)
                     }
                 }
             }
