@@ -308,6 +308,7 @@ public final class ClipboardRepository: @unchecked Sendable {
         }
         // 移除 OCR 内存索引，附件已由同一删除流程回收。
         ClipboardOCRTextStorage.remove(dedupeKey: dedupeKey)
+        TagStore.shared.removeMapping(for: dedupeKey)
         onReclaimedBytes?(reclaimed)
         return true
     }

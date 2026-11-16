@@ -129,7 +129,8 @@ public final class SQLiteDatabase {
             }
         }
         var rows: [Result] = []
-        while sqlite3_step(s) == SQLITE_ROW {
+        var result = sqlite3_step(s)
+        while result == SQLITE_ROW {
             var row: [String: SQLiteValue] = [:]
             row.reserveCapacity(countInt)
             for i in 0..<countInt {
@@ -148,6 +149,10 @@ public final class SQLiteDatabase {
                 }
             }
             rows.append(transform(row))
+            result = sqlite3_step(s)
+        }
+        guard result == SQLITE_DONE else {
+            throw DatabaseError(message: "step failed: \(String(cString: sqlite3_errmsg(h)))")
         }
         return rows
     }
@@ -328,15 +333,15 @@ public final class DatabaseManager {
         );
         """)
 
-        migrateLegacyDailyStats()
+        try migrateLegacyDailyStats()
     }
 
     /// 旧臆测宽表 daily_stats(day, capture_count, …) → 原作窄表 usage_daily_metrics 的一次性迁移：
     /// ① 列名映射为 spec 17 §4 事件名；② day 由 yyyyMMdd 规范为 yyyy-MM-dd（D7 实证格式）；
     /// ③ 迁移完 DROP 旧表。幂等：daily_stats 不存在时直接返回。
-    private func migrateLegacyDailyStats() {
-        let legacyRows = (try? statistics.query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_stats'")) ?? []
+    private func migrateLegacyDailyStats() throws {
+        let legacyRows = try statistics.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_stats'")
         guard !legacyRows.isEmpty else { return }
         let legacyMap: [(column: String, event: String)] = [
             ("capture_count", "clipboard_capture"),
@@ -346,19 +351,19 @@ public final class DatabaseManager {
             // 原作 59 键中无 AI 请求事件；保留为重建扩展事件名（不影响窄表结构）
             ("ai_request_count", "ai_request_count"),
         ]
-        if let rows = try? statistics.query("SELECT * FROM daily_stats") {
-            for r in rows {
+        try statistics.transaction { db in
+            for r in try db.query("SELECT * FROM daily_stats") {
                 guard let rawDay = r.string("day") else { continue }
                 let day = Self.normalizedDay(rawDay)
                 for m in legacyMap where r.int(m.column) > 0 {
-                    try? statistics.run(
+                    try db.run(
                         "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
                         "ON CONFLICT(day, event_name) DO UPDATE SET count = usage_daily_metrics.count + excluded.count",
                         [.text(day), .text(m.event), .int(r.int(m.column))])
                 }
             }
+            try db.exec("DROP TABLE daily_stats;")
         }
-        try? statistics.exec("DROP TABLE IF EXISTS daily_stats;")
         Log.info("Database", "migrated legacy daily_stats → usage_daily_metrics")
     }
 

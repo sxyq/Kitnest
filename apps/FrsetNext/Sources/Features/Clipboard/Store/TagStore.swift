@@ -21,6 +21,7 @@ public final class TagStore: ObservableObject {
     // MARK: 加载
 
     public func refresh() {
+        db.accessLock.lock(); defer { db.accessLock.unlock() }
         do {
             let rows = try db.query("SELECT id, name, color_hex, created_at, updated_at FROM tags ORDER BY updated_at DESC")
             let loadedTags = rows.map { row -> Tag in
@@ -120,6 +121,13 @@ public final class TagStore: ObservableObject {
         } catch {
             Log.warn("clipboard", "标签取消失败: \(error)")
         }
+    }
+
+    /// 成功删除条目后同步移除内存标签关联。
+    func removeMapping(for key: String) {
+        lock.lock()
+        mapping.removeValue(forKey: key)
+        lock.unlock()
     }
 
     /// 菜单勾选用：已分配则取消，否则分配
