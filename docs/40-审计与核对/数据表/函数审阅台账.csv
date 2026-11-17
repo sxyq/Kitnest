@@ -943,11 +943,11 @@ Capture,Features/Capture/Annotation/AnnotationSelfTest.swift,AnnotationSelfTest,
 Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,EditorToolbarModel,applyImageDefaults,func,41,KEEP,调用方 AnnotationEditorWindow.swift:1462
 Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,EditorToolbarModel,setSize,func,104,KEEP,本文件 :110 nudgeSize、:574 commitSize
 Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,EditorToolbarModel,nudgeSize,func,113,KEEP,调用方 AnnotationEditorWindow.swift:1584
-Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolRailView,hoverBubble,func,191,KEEP,本文件 :170 body 内 overlay 构造
-Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolRailView,usageTip,func,241,KEEP,本文件 :199 气泡、:220 顶部提示
-Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,RailButtonFrameKey,reduce,func,309,KEEP,PreferenceKey 协议要求，SwiftUI 派发
-Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolbarView,commitSize,func,592,KEEP,本文件 :536 Slider set 回调
-Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolbarView,isSameColor,func,720,KEEP,本文件 :486 选中色圈判定
+Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolRailView,hoverBubble,func,194,KEEP,本文件 :170 body 内 overlay 构造
+Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolRailView,usageTip,func,244,KEEP,本文件 :199 气泡、:220 顶部提示
+Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,RailButtonFrameKey,reduce,func,312,KEEP,PreferenceKey 协议要求，SwiftUI 派发
+Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolbarView,commitSize,func,595,KEEP,本文件 :536 Slider set 回调
+Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolbarView,isSameColor,func,723,KEEP,本文件 :486 选中色圈判定
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyOptions,init,init,29,KEEP,本文件 :159/:204 默认参数构造
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyRenderer,render,func,35,KEEP,本文件 :229 rerender 调用
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyController,init,init,106,KEEP,本文件 :101 shared 单例构造
