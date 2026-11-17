@@ -647,12 +647,12 @@ Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,show,fu
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,init,init,345,KEEP,show:341 单例构造
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,buildContent,func,366,KEEP,init:366 建内容视图
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,restartIdleTimer,func,392,KEEP,FileBox:337/367/377/422/427/437 重置计时
-Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingEntered,func,403,KEEP,NSDraggingDestination 协议回调
-Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingUpdated,func,411,KEEP,NSDraggingDestination 协议回调
-Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingExited,func,413,KEEP,NSDraggingDestination 协议回调
-Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingEnded,func,418,KEEP,NSDraggingDestination 协议回调
-Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,prepareForDragOperation,func,423,KEEP,NSDraggingDestination 协议回调
-Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,performDragOperation,func,425,KEEP,NSDraggingDestination 协议回调，收取文件
+Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingEntered,func,403,KEEP,NSDraggingDestination回调；init注册.fileURL；置dragInProgress并暂停闲置计时，按粘贴板可读性决定.copy
+Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingUpdated,func,411,KEEP,NSDraggingDestination拖动更新回调；持续返回.copy维持文件目标状态
+Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingExited,func,413,KEEP,NSDraggingDestination离开回调；清除拖动状态并恢复闲置计时
+Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,draggingEnded,func,418,KEEP,NSDraggingDestination结束回调；清除拖动状态并恢复闲置计时
+Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,prepareForDragOperation,func,423,KEEP,NSDraggingDestination接收前置回调；允许已注册文件拖放继续
+Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,performDragOperation,func,425,KEEP,NSDraggingDestination接收回调；读取.fileURL加入ArchiveFileBoxModel，空结果失败，成功后恢复闲置计时
 Archive,Features/Archive/Table/ArchiveFileBox.swift,ArchiveFileBoxWindow,close,func,436,KEEP,NSWindow 覆写；FileBox:194 关窗调用
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,schedule,func,34,KEEP,目录、空文件、超过sizeCap或不可渲染条目仍收起；有效条目取消共享hover关闭后按既有延迟解压/取缓存，文件准备完成才交共用文件预览，换项期间保留原窗口
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cancel,func,74,KEEP,鼠标离开/换行/滚动
