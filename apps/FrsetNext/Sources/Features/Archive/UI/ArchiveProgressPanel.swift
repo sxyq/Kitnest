@@ -44,9 +44,12 @@ public struct ArchiveProgressPanel: View {
                     .padding(.vertical, 2)
                 } else if compact {
                     // 内嵌在创建面板里：只显示最近几条，不滚动（面板本身高度由 sheet 决定）
-                    ForEach(queue.tasks) { task in
-                        ArchiveTaskRow(task: task)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        ForEach(queue.tasks.suffix(3)) { task in
+                            ArchiveTaskRow(task: task)
+                        }
                     }
+                    .frame(maxHeight: 112)
                 } else {
                     // v182：独立窗里任务会越攒越多，之前没有滚动容器 —— 超出的行直接被窗口裁掉。
                     ScrollView(.vertical, showsIndicators: true) {
@@ -209,6 +212,7 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         if let current {
             current.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            ArchiveTaskCenter.shared.refresh()
             return
         }
         let controller = ArchiveProgressWindowController()
@@ -216,11 +220,13 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         controller.probeCloseIfNeeded()
+        ArchiveTaskCenter.shared.refresh()
     }
 
     public static func toggle() {
         if let win = current?.window, win.isVisible {
             win.orderOut(nil)
+            ArchiveTaskCenter.shared.refresh()
             return
         }
         show()

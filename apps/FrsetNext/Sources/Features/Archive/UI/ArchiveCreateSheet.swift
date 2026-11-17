@@ -28,6 +28,7 @@ public final class ArchiveCreateModel: ObservableObject {
     private var currentTaskID: UUID?
 
     public let files: [URL]
+    public let windowsNameIssues: [(name: String, reason: String, suggested: String)]
     /// 输出目录（默认取第一个文件所在目录）
     public let outputDir: URL
 
@@ -39,6 +40,7 @@ public final class ArchiveCreateModel: ObservableObject {
 
     public init(files: [URL]) {
         self.files = files
+        self.windowsNameIssues = ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
         self.outputDir = files.first?.deletingLastPathComponent()
             ?? FileManager.default.homeDirectoryForCurrentUser
         let stem = files.count == 1
@@ -60,9 +62,9 @@ public final class ArchiveCreateModel: ObservableObject {
 
     /// 格式变了就跟着改扩展名，避免「名字.zip 内容是 7z」
     public func syncOutputExtension() {
-        let base = (outputName as NSString).deletingPathExtension
-        let ext = format == "tar.gz" ? "tar.gz" : format
-        outputName = base + "." + ext
+        let suffix = ["tar.gz", "7z", "zip"].first { outputName.lowercased().hasSuffix("." + $0) }
+        let base = suffix.map { String(outputName.dropLast($0.count + 1)) } ?? outputName
+        outputName = base + "." + format
         // v164：tar.gz 走「tar → gzip」两趟，gzip 是单流、没有分卷；切到该格式就顺手关掉分卷，
         // 免得点了「创建」才被核心层拒绝
         if !supportsVolumes { volumeEnabled = false }
@@ -82,11 +84,6 @@ public final class ArchiveCreateModel: ObservableObject {
             return "ZIP 密码仅支持 ASCII；中文密码请把格式改为 7z"
         }
         return nil
-    }
-
-    /// v127（ArcZip P2）：Windows 文件名问题摘要（面板黄条 + 弹窗列表）
-    public var windowsNameIssues: [(name: String, reason: String, suggested: String)] {
-        ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
     }
 
     public var windowsNameWarning: String? {
@@ -111,6 +108,7 @@ public final class ArchiveCreateModel: ObservableObject {
         if usePassword {
             guard !password.isEmpty else { errorText = "请填写密码，或关闭密码保护"; return }
         }
+        syncOutputExtension()
         // v127（ArcZip P2）：Windows 文件名修正——有问题就弹窗列出，
         // 「用建议名继续 / 保持原名」二选一只改包内名，磁盘原名不动
         if !nameCheckConfirmed {

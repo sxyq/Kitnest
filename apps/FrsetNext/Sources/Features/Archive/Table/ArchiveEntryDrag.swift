@@ -48,25 +48,27 @@ final class ArchiveFilePromiseDelegate: NSObject, NSFilePromiseProviderDelegate 
             .appendingPathComponent("frset-promise-\(UUID().uuidString)", isDirectory: true)
         // 7zz x 对目录路径是子树级提取（实测）；产出在 tempDir/<entry.path>
         ArchiveCore.extract(url: archiveURL, entry: entry.path, to: tempDir) { ok, msg in
-            guard ok else {
-                completionHandler(NSError(domain: "FrsetArchive", code: 1,
-                                          userInfo: [NSLocalizedDescriptionKey: msg]))
-                return
-            }
-            let produced = tempDir.appendingPathComponent(self.entry.path)
-            let fm = FileManager.default
-            do {
-                try fm.createDirectory(at: url.deletingLastPathComponent(),
-                                       withIntermediateDirectories: true)
-                if fm.fileExists(atPath: url.path) {
-                    _ = try fm.replaceItemAt(url, withItemAt: produced)
-                } else {
-                    try fm.moveItem(at: produced, to: url)
+            self.workQueue.addOperation {
+                defer { try? FileManager.default.removeItem(at: tempDir) }
+                guard ok else {
+                    completionHandler(NSError(domain: "FrsetArchive", code: 1,
+                                              userInfo: [NSLocalizedDescriptionKey: msg]))
+                    return
                 }
-                try? fm.removeItem(at: tempDir)
-                completionHandler(nil)
-            } catch {
-                completionHandler(error)
+                let produced = tempDir.appendingPathComponent(self.entry.path)
+                let fm = FileManager.default
+                do {
+                    try fm.createDirectory(at: url.deletingLastPathComponent(),
+                                           withIntermediateDirectories: true)
+                    if fm.fileExists(atPath: url.path) {
+                        _ = try fm.replaceItemAt(url, withItemAt: produced)
+                    } else {
+                        try fm.moveItem(at: produced, to: url)
+                    }
+                    completionHandler(nil)
+                } catch {
+                    completionHandler(error)
+                }
             }
         }
     }
@@ -205,7 +207,8 @@ final class ArchiveTileInteractionView: NSView {
         let items: [NSDraggingItem] = targets.map { e in
             let provider = ArchiveFilePromiseDelegate.makeProvider(archiveURL: model.url, entry: e)
             let item = NSDraggingItem(pasteboardWriter: provider)
-            item.setDraggingFrame(bounds, contents: ArchiveFileIcon.icon(for: e))
+            item.setDraggingFrame(bounds, contents: ArchiveFileIcon.icon(for: e.name,
+                                                                          isDirectory: e.isDirectory))
             return item
         }
         dragging = true

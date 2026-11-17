@@ -43,6 +43,10 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Archive/Table/ArchiveEntryTable.swift", "update"):
+        "2026-11-18：归档表格viewFor复用行和行初始化共用；更新图标锁路径标记名称大小与压缩率，保留既有控件和约束",
+    ("Features/Archive/Table/ArchiveHoverPreview.swift", "windowClosed"):
+        "2026-11-18：归档浏览控制器关窗后调用；仅取消本归档待显示预览，全部归档窗口关闭才清共享缓存；切换表格和网格不清他窗缓存",
     ("Features/Archive/Core/ArchiveCore.swift", "extractionDirectory"):
         "2026-11-17：extractEntryToTemp返回的嵌套文件路径，按临时根组件数定位本次唯一的首层提取目录；缩略图、悬停缓存与撤销快照共用精确删除单位",
     ("Features/Archive/Core/ArchiveUndoStack.swift", "deinit"):

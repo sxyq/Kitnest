@@ -26,6 +26,7 @@ final class ArchiveHoverPreview {
     }
 
     private var pending: DispatchWorkItem?
+    private var pendingArchive: URL?
     private var generation = 0
     private var cache: [Item] = []
 
@@ -46,6 +47,7 @@ final class ArchiveHoverPreview {
         MainPanelPreviewPopoverCoordinator.shared.cancelHoverClose()
 
         let key = Self.key(archive: archive, entry: entry)
+        pendingArchive = archive
         let work = DispatchWorkItem { [weak self] in
             guard let self, gen == self.generation else { return }
             // 按住鼠标（拖动 / 多选）时不弹
@@ -75,7 +77,13 @@ final class ArchiveHoverPreview {
         generation += 1
         pending?.cancel()
         pending = nil
+        pendingArchive = nil
         FileHoverPreviewController.shared.scheduleHide()
+    }
+
+    func windowClosed(archive: URL, lastWindow: Bool) {
+        if pendingArchive?.standardizedFileURL == archive.standardizedFileURL { cancel() }
+        if lastWindow { cleanup() }
     }
 
     /// 归档窗关闭：把所有临时解压目录删掉
@@ -88,12 +96,12 @@ final class ArchiveHoverPreview {
     // MARK: 缓存
 
     private static func key(archive: URL, entry: ArchiveEntry) -> String {
-        var stamp = 0
+        var stamp = 0.0
         if let attrs = try? FileManager.default.attributesOfItem(atPath: archive.path),
            let date = attrs[.modificationDate] as? Date {
-            stamp = Int(date.timeIntervalSince1970)
+            stamp = date.timeIntervalSince1970
         }
-        return "\(archive.path)|\(entry.path)|\(entry.size)|\(stamp)"
+        return "\(archive.path)|\(entry.path)|\(entry.size)|\(String(format: "%.6f", stamp))"
     }
 
     private func cached(_ key: String) -> URL? {

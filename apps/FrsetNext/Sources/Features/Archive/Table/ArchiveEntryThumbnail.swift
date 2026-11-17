@@ -71,15 +71,17 @@ enum ArchiveEntryThumbnail {
                     completion(nil)
                     return
                 }
-                render(url: tmp, size: size) { image in
-                    try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp))
-                    limiter.signal()
-                    // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
-                    if let image {
-                        cache.setObject(image, forKey: key,
-                                        cost: Int(image.size.width * image.size.height * 4))
+                DispatchQueue.global(qos: .utility).async {
+                    render(url: tmp, size: size) { image in
+                        try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp))
+                        limiter.signal()
+                        // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
+                        if let image {
+                            cache.setObject(image, forKey: key,
+                                            cost: Int(image.size.width * image.size.height * 4))
+                        }
+                        DispatchQueue.main.async { completion(image) }
                     }
-                    DispatchQueue.main.async { completion(image) }
                 }
             }
         }
@@ -185,7 +187,10 @@ enum ArchiveEntryThumbnail {
 
     /// 文本首屏：白底黑字、等宽字体，按容器截断（等价于 ArcZip 的 CoreText 自渲染，但不做分页）
     private static func textPreview(url: URL, pixels: CGFloat) -> NSImage? {
-        guard let raw = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        guard let file = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? file.close() }
+        guard let data = try? file.read(upToCount: 8192) else { return nil }
+        let raw = String(decoding: data, as: UTF8.self)
         let head = String(raw.prefix(1200))
         let w = pixels, h = pixels
         let image = NSImage(size: NSSize(width: w, height: h))
@@ -244,6 +249,6 @@ enum ArchiveEntryThumbnail {
     private static func cacheKey(archive: URL, entry: ArchiveEntry, size: CGFloat) -> NSString {
         let attrs = try? FileManager.default.attributesOfItem(atPath: archive.path)
         let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        return "\(archive.path)|\(Int(mtime))|\(entry.path)|\(Int(size))" as NSString
+        return "\(archive.path)|\(String(format: "%.6f", mtime))|\(entry.path)|\(entry.size)|\(Int(size))" as NSString
     }
 }

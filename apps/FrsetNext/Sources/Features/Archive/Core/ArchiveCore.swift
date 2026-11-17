@@ -602,7 +602,7 @@ public enum ArchiveCore {
             let pw = password ?? ArchivePasswords.get(url)
             ArchiveTaskQueue.shared.updateProgress(taskID: taskID, -1, message: "核对路径…")
             // 校验用的 list 要看全量条目（含辅助文件），不放过任何一条路径
-            list(url: url, password: pw, includeAuxiliary: true) { entries, _ in
+            list(url: url, password: pw, includeAuxiliary: true, taskID: taskID) { entries, _ in
                 if ArchiveTaskQueue.shared.isCancelled(taskID) {
                     both(false, "已取消")
                     return

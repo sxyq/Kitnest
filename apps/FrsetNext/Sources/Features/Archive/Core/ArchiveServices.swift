@@ -114,7 +114,7 @@ struct ArchiveDefaultApplicationOption: View {
 //   · 压缩（交给既有创建压缩包面板 ArchiveCreateWindowController.show）
 //
 // 挂载点：AppDelegate.applicationDidFinishLaunching 里 `NSApp.servicesProvider = ...`。
-// 三个 selector 名与 Info.plist 的 NSMessage 一一对应：
+// 服务 selector 名与 Info.plist 的 NSMessage 一一对应：
 //   extractHere:userData:error: / extractTo:userData:error: / compress:userData:error:
 
 public final class ArchiveServicesProvider: NSObject {

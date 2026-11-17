@@ -392,15 +392,8 @@ public final class ArchiveBrowserModel: ObservableObject {
     private var webPreviewTemps: [URL] = []
 
     private func rememberWebPreviewTemp(_ dir: URL) {
-        var top = dir
-        while !top.lastPathComponent.hasPrefix("frset-webpreview-") {
-            let parent = top.deletingLastPathComponent()
-            if parent.path == top.path { break }
-            top = parent
-        }
-        guard top.lastPathComponent.hasPrefix("frset-webpreview-"),
-              !webPreviewTemps.contains(top) else { return }
-        webPreviewTemps.append(top)
+        let top = ArchiveCore.extractionDirectory(containing: dir)
+        if !webPreviewTemps.contains(top) { webPreviewTemps.append(top) }
     }
 
     /// 窗口关闭时调用：删掉本次预览解出来的网页目录
@@ -488,7 +481,8 @@ public final class ArchiveBrowserModel: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            performAddFiles(withSuggestedNames(files))
+            let renamed = withSuggestedNames(files)
+            performAddFiles(renamed.files, temporaryDirectories: renamed.directories)
         case .alertSecondButtonReturn:
             performAddFiles(files)
         default:
@@ -498,7 +492,7 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     /// 用建议名继续：问题文件复制到临时目录换名（原磁盘文件不动）；全量名单去重防撞名
     ///（`a:b` 与 `a?b` 都会变成 `a_b`，撞名加序号——用 arch-engine 的 uniqueWindowsNames）
-    private func withSuggestedNames(_ files: [URL]) -> [URL] {
+    private func withSuggestedNames(_ files: [URL]) -> (files: [URL], directories: [URL]) {
         var suggestions: [String: String] = [:]
         for issue in ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent }) {
             suggestions[issue.name] = issue.suggested
@@ -506,6 +500,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         let finalNames = ArchiveCore.uniqueWindowsNames(
             files.map { suggestions[$0.lastPathComponent] ?? $0.lastPathComponent })
         var out: [URL] = []
+        var directories: [URL] = []
         for (i, f) in files.enumerated() {
             let newName = finalNames[i]
             guard newName != f.lastPathComponent else {
@@ -520,15 +515,16 @@ public final class ArchiveBrowserModel: ObservableObject {
                                                         withIntermediateDirectories: true)
                 try FileManager.default.copyItem(at: f, to: tmp)
                 out.append(tmp)
+                directories.append(tmp.deletingLastPathComponent())
             } catch {
                 try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent())
                 out.append(f)       // 换名失败 → 保持原名
             }
         }
-        return out
+        return (out, directories)
     }
 
-    private func performAddFiles(_ files: [URL]) {
+    private func performAddFiles(_ files: [URL], temporaryDirectories: [URL] = []) {
         let dir: String
         if let entry = selectedEntries.first, entry.isDirectory {
             dir = entry.path
@@ -536,6 +532,9 @@ public final class ArchiveBrowserModel: ObservableObject {
             dir = currentPath
         }
         ArchiveCore.addFiles(url: url, files: files, intoDirectory: dir) { [weak self] ok, msg in
+            defer {
+                for directory in temporaryDirectories { try? FileManager.default.removeItem(at: directory) }
+            }
             guard let self else { return }
             if ok {
                 // v127（ArcZip P0）：新增内容备份 → 可撤销（undo=removeEntries）
@@ -963,6 +962,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
     public func windowWillClose(_ notification: Notification) {
         model.cleanupWebPreviewTemps()
         Self.open.removeValue(forKey: model.url.standardizedFileURL.path)
+        ArchiveHoverPreview.shared.windowClosed(archive: model.url, lastWindow: Self.open.isEmpty)
     }
 
     // v127（ArcZip P0）：菜单路径的 undo:/redo:（Edit 菜单发到本控制器时走撤销栈）
