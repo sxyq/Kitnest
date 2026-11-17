@@ -1946,7 +1946,7 @@ Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStora
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardQuery,init,init,25,KEEP,Desk:155、Manager:431/:491
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,appendClauses,func,69,KEEP,fetch:134、count:154 调用
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,fetch,func,137,KEEP,2026-11-17：ClipboardManager.reload与浮窗fetch调用；保留SQL筛选排序分页与批量标签挂载；借助query transform逐行构造ClipboardItem而不再同时保留整批SQL字典
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,count,func,156,KEEP,计数：同一套 appendClauses 条件，分页总数用
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,count,func,156,KEEP,FloatingClipboardDesk.fetch:223调用count(query)并将结果写入totalInKind供分页状态使用；COUNT复用fetch的appendClauses条件
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,item,func,166,KEEP,按 dedupe_key 取单条（去重命中 / 编辑前刷新），取完挂标签
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,exists,func,175,KEEP,去重判定：COUNT>0；ClipboardManager.writeToDatabase 入库前唯一调用点
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,insert,func,182,KEEP,写：24 列 INSERT；UNIQUE(dedupe_key) 冲突按「已存在」返回 false，上层退化为置顶
