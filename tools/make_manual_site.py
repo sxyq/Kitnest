@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 """把用户手册 Markdown 生成官网在线版（FRONT/manual/index.html）。
 
-为什么要有这个页面：手册里的演示 GIF 只在文档目录里，装了 DMG 的人看不到，
-没装 App 的人更看不到。在线版是「别人怎么读」的答案——一个链接就能看全 37 章。
+为什么要有这个页面：手册正文与交互演示只在仓库里，装了 DMG 的人看不到，
+没装 App 的人更看不到。在线版是「别人怎么读」的答案。
 
 用法：
-    python3 tools/make_manual_site.py            # 生成 + 把 gifs 链进 FRONT/manual/gifs
-    python3 tools/make_manual_site.py --no-gifs  # 只生成 html（gifs 已就位时）
+    python3 tools/make_manual_site.py            # 生成 HTML（演示资源在 FRONT/manual/demos/）
+    python3 tools/make_manual_site.py --no-gifs  # 兼容旧参数（当前已不再复制 GIF）
+
+演示块语法（写在「### 演示」段内）：
+    :::demo clipboard
+    :::                     ← 结束标记
+
+    id 对应 FRONT/manual/demos/scenes.js 里的 KDEMOS.<id>；渲染成可交互的
+    预设动画（迷你界面 + 自动时间轴 + 重播），不再使用真机录屏 GIF。
 
 设计约束：
-  · 单文件 HTML，不依赖构建工具与 CDN；
-  · 图片走 loading="lazy"，37 段 GIF 合计 38 MB，首屏只加载看得见的那几张；
+  · HTML 不依赖构建工具与 CDN；演示运行时是本地 demos/demo.js + demo.css；
+  · 图片走 loading="lazy"（手册仍保留少量静态截图）；
   · 侧栏目录 + 滚动高亮 + 正文搜索，键盘 / 手机都能用；
   · 配色与官网 assets/site.css 同一套变量，视觉不割裂。
 """
@@ -19,15 +26,13 @@ from __future__ import annotations
 
 import argparse
 import html
-import os
 import re
-import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "docs/40-审计与核对/性能审计/用户手册-FrsetNext.md"
-GIFS = ROOT / "docs/40-审计与核对/性能审计/gifs"
 OUT_DIR = ROOT / "FRONT/manual"
+DEMOS = OUT_DIR / "demos"
 
 
 # ---------------------------------------------------------------- 行内标记
@@ -91,6 +96,27 @@ def parse(md: str) -> tuple[str, list[dict], list[dict]]:
                 i += 1
             i += 1
             body.append("<pre><code>" + html.escape("\n".join(buf)) + "</code></pre>")
+            continue
+
+        # 交互演示块：:::demo <id> … :::
+        m = re.match(r"^:::demo\s+([A-Za-z0-9_-]+)\s*$", stripped)
+        if m:
+            demo_id = m.group(1)
+            i += 1
+            # 跳过块内可选说明（当前版本不渲染，只作源码可读性注释）
+            while i < n and lines[i].strip() != ":::":
+                i += 1
+            i += 1
+            body.append(
+                f'<div class="kdemo" data-demo="{demo_id}">'
+                f'<div class="kdemo-bar"><span class="kdemo-title">交互演示</span>'
+                f'<span class="kdemo-sub">预设动画 · 可点按体验</span>'
+                f'<button class="kdemo-replay" type="button">重播</button></div>'
+                f'<div class="kdemo-stage"></div>'
+                f'<div class="kdemo-cap"></div>'
+                f'<div class="kdemo-ctrl"><div class="kdemo-dots"></div></div>'
+                f"</div>"
+            )
             continue
 
         # 分隔线
@@ -203,8 +229,9 @@ PAGE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <title>{title} · Kitnest</title>
-<meta name="description" content="Kitnest 用户手册在线版：{nchap} 章，每章一段真机录屏动图。">
+<meta name="description" content="Kitnest 用户手册在线版：{nchap} 个功能域，每节配可交互的预设动画演示。">
 <link rel="icon" type="image/svg+xml" href="../assets/kitnest-mark.svg">
+<link rel="stylesheet" href="demos/demo.css">
 <style>
 :root {{
   --bg:#FFFFFF; --bg-soft:#FAFAFB; --bg-mute:#F4F4F6;
@@ -319,6 +346,8 @@ figcaption{{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}}
 
 <div class="lightbox" id="lb"><img alt=""></div>
 
+<script src="demos/scenes.js"></script>
+<script src="demos/demo.js"></script>
 <script>
 (function () {{
   var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
@@ -392,22 +421,16 @@ def build(no_gifs: bool) -> None:
     out.write_text(page, encoding="utf-8")
 
     size_kb = out.stat().st_size / 1024
-    print(f"  HTML: {out.relative_to(ROOT)}  {size_kb:.0f} KB  {len(chapters)} 章")
+    print(f"  HTML: {out.relative_to(ROOT)}  {size_kb:.0f} KB  {len(chapters)} 节")
 
-    if not no_gifs:
-        dst = OUT_DIR / "gifs"
-        if dst.exists():
-            shutil.rmtree(dst)
-        dst.mkdir(parents=True)
-        n = 0
-        total = 0
-        for g in sorted(GIFS.glob("*.gif")):
-            shutil.copy2(g, dst / g.name)
-            n += 1
-            total += g.stat().st_size
-        print(f"  GIF:  {n} 段 → {dst.relative_to(ROOT)}  ({total / 1048576:.1f} MB)")
+    # 演示资源就位检查（源文件在 FRONT/manual/demos/，随站点一起部署）
+    demos = ["demo.css", "demo.js", "scenes.js"]
+    missing_demo = [d for d in demos if not (DEMOS / d).exists()]
+    ndemo = page.count('class="kdemo"')
+    print(f"  演示: {ndemo} 处 · 运行时 {len(demos) - len(missing_demo)}/3"
+          + (f"（缺 {missing_demo}）" if missing_demo else ""))
 
-    # 自检：正文引用的图是否都在
+    # 自检：正文引用的图是否都在（演示之外仍可能有静态截图）
     refs = re.findall(r'<img src="([^"]+)"', page)
     missing = [r for r in refs if not (OUT_DIR / r).exists()]
     print(f"  图片引用 {len(refs)} 处，缺失 {len(missing)} 处" + (f"：{missing[:3]}" if missing else ""))
