@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 private struct IslandGlowEnabledKey: EnvironmentKey {
@@ -64,38 +65,54 @@ private struct IslandGlowScene: ViewModifier {
                 }
             }
             .onChange(of: enabled) { if !$0 { pointer.value.active = false } }
+            .onReceive(NotificationCenter.default.publisher(for: NSScrollView.willStartLiveScrollNotification)
+                .merge(with: NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification),
+                       NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification))) { _ in
+                pointer.value.active = false
+            }
             .onDisappear { pointer.value.active = false }
     }
 }
 
-/// 流光只照亮边缘，不叠加整张卡片的白色填充或改变玻璃透明度。
+/// 复用博客黑色模式：180pt 暖白表面柔光与 1pt 内侧边缘光。
 private struct IslandGlow: View {
     @ObservedObject var pointer: StoredBox<(location: CGPoint, active: Bool)>
     let cards: [(frame: CGRect, clip: CGRect, path: Path)]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         let point = pointer.value.location
-        let visible = pointer.value.active
+        let visible = pointer.value.active && !reduceMotion && cards.contains {
+            $0.clip.contains(point) && $0.path.contains(point)
+        }
+        let color = Color(red: 1, green: 244.0 / 255, blue: 227.0 / 255)
+        let radius: CGFloat = 180
         Canvas { context, _ in
             for card in cards where card.frame.intersects(card.clip) {
-                let radius = min(card.frame.width, card.frame.height) * 0.9
-                if card.frame.insetBy(dx: -radius, dy: -radius).contains(point) {
-                    let center = reduceMotion ? CGPoint(x: card.frame.midX, y: card.frame.midY) : point
-                    let light = GraphicsContext.Shading.radialGradient(
-                        Gradient(stops: [.init(color: .white.opacity(0.9), location: 0),
-                                         .init(color: .white.opacity(0.45), location: 0.2),
-                                         .init(color: .white.opacity(0.07), location: 0.65),
+                let frame = card.frame.intersection(card.clip)
+                let dx = max(frame.minX - point.x, 0, point.x - frame.maxX)
+                let dy = max(frame.minY - point.y, 0, point.y - frame.maxY)
+                if dx * dx + dy * dy < radius * radius {
+                    let surface = GraphicsContext.Shading.radialGradient(
+                        Gradient(stops: [.init(color: color.opacity(0.16), location: 0),
+                                         .init(color: color.opacity(0.06), location: 0.35),
+                                         .init(color: color.opacity(0.012), location: 0.65),
                                          .init(color: .clear, location: 1)]),
-                        center: center, startRadius: 0, endRadius: radius)
+                        center: point, startRadius: 0, endRadius: radius)
+                    let rim = GraphicsContext.Shading.radialGradient(
+                        Gradient(stops: [.init(color: color.opacity(0.45), location: 0),
+                                         .init(color: color.opacity(0.18), location: 0.55),
+                                         .init(color: .clear, location: 1)]),
+                        center: point, startRadius: 0, endRadius: radius)
                     var layer = context
                     layer.clip(to: Path(card.clip))
                     layer.clip(to: card.path)
-                    layer.stroke(card.path, with: light, lineWidth: 3)
+                    layer.fill(card.path, with: surface)
+                    layer.stroke(card.path, with: rim, lineWidth: 2)
                 }
             }
         }
         .opacity(visible ? 1 : 0)
-        .animation(reduceMotion ? Theme.Motion.tap : visible ? Theme.Motion.fast : Theme.Motion.page, value: visible)
+        .animation(.easeOut(duration: reduceMotion ? 0 : 0.18), value: visible)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .onChange(of: cards.count) { Log.info("Island", "流光目标 \($0)") }

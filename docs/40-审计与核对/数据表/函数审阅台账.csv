@@ -2309,11 +2309,11 @@ Island,Features/Island/IslandFeatureContent.swift,IslandAIChatPreview,submit,fun
 Island,Features/Island/IslandFeatureContent.swift,IslandDownloadContent,start,func,209,KEEP,下载页按钮及回车先识别网盘分享交CloudLinkActions.resolve，否则完整http/https URL交现有直接下载器，预览只反馈
 Island,Features/Island/IslandFeatureContent.swift,IslandOCRControls,chooseImage,func,428,KEEP,OCR页图片入口收回后用NSOpenPanel选图，后台读取Data交现有manager.recognize(inline:true)，失败给路径读取原因，结束重开刘海
 Island,Features/Island/IslandFeatureContent.swift,IslandArchiveContent,choose,func,464,KEEP,归档页收回后选择文件，创建模式可多选目录并交ArchiveCreateWindowController，打开模式交ArchiveBrowserWindowController，取消重新open
-Island,Features/Island/IslandGlow.swift,IslandGlowRegions,reduce,func,22,KEEP,合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点
-Island,Features/Island/IslandGlow.swift,IslandGlowTarget,body,func,31,KEEP,卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
-Island,Features/Island/IslandGlow.swift,IslandGlowScene,body,func,41,KEEP,卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
-Island,Features/Island/IslandGlow.swift,View,islandGlowScene,func,106,KEEP,刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新
-Island,Features/Island/IslandGlow.swift,View,islandGlowClip,func,109,KEEP,滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制
+Island,Features/Island/IslandGlow.swift,IslandGlowRegions,reduce,func,23,KEEP,合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点
+Island,Features/Island/IslandGlow.swift,IslandGlowTarget,body,func,32,KEEP,卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
+Island,Features/Island/IslandGlow.swift,IslandGlowScene,body,func,42,KEEP,卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
+Island,Features/Island/IslandGlow.swift,View,islandGlowScene,func,123,KEEP,刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新
+Island,Features/Island/IslandGlow.swift,View,islandGlowClip,func,126,KEEP,滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制
 Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,cover,func,153,KEEP,媒体大小形态共用播放器真实artwork，没有封面显示音乐图标；按side裁连续圆角并注明封面来源状态
 Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,metadata,func,164,KEEP,媒体完整页与格共用标题、歌手、专辑和播放器来源，full控制字号及折行，小格省歌手
 Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,transport,func,186,KEEP,完整/紧凑播放器共用上一首5、下一首4及playButton，send闭包由正式或设置预览宿主提供
