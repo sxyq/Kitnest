@@ -43,6 +43,14 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "makeColumns"):
+        "2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "makeAllRows"):
+        "2026-11-17：JSONTableView.body每轮调用一次；沿原三种表型和50000行上限构造显示行；未筛选结果同时供处理链和列筛选选项使用",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "makeRowValues"):
+        "2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "header"):
+        "2026-11-17：JSONTableView.body把本轮列与未筛选行传入表头；排序与筛选仍写同一JSONTableState；弹层沿参数取得选项而不重建整表",
     ("Features/Island/IslandController.swift", "hitTest"):
         "菜单栏搜索短条的图标和文字共用入口点击区域，事件交回同一控制器迁移原工作台",
     ("Features/Island/IslandController.swift", "accessibilityPerformPress"):

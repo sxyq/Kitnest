@@ -336,9 +336,7 @@ struct JSONInspectorView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            // 132 装不下「树形/表格/卡片/原始」四个分段：控件内部内容居中溢出，
-            // 首个分段会被窗口左边缘裁掉（实测「树形」只剩「形」）
-            .frame(width: compact ? 152 : 180)
+            .frame(width: compact ? 176 : 180)
 
             Spacer(minLength: 4)
 
@@ -696,6 +694,8 @@ private final class JSONTableState: ObservableObject {
 }
 
 private struct JSONTableView: View {
+    private typealias Row = (index: Int, cells: [String])
+
     let document: JSONDocument
     let fontSize: CGFloat
     let query: String
@@ -728,7 +728,7 @@ private struct JSONTableView: View {
         }
     }
 
-    private var columns: [Column] {
+    private func makeColumns(shape: Shape) -> [Column] {
         switch shape {
         case .keyValue:
             return [Column(key: "键", width: fontSize * 9),
@@ -760,21 +760,6 @@ private struct JSONTableView: View {
         }
     }
 
-    /// 表格实际宽度：列宽 + 每列左右 8pt 内边距 + 行号列
-    private var tableWidth: CGFloat {
-        34 + columns.reduce(0) { $0 + $1.width + 8 }
-    }
-
-    /// 真实行数（未被 500 行上限截断的那个数）
-    private var totalRowCount: Int {
-        switch shape {
-        case .unsupported: return 0
-        default:
-            if document.root.children.isEmpty { document.root.ensureChildren() }
-            return document.root.children.count
-        }
-    }
-
     /// 每页行数（v191：对齐 jlens 的真分页；旧实现只渲染前 500 行 + 一句"仅显示前 500 行"）
     private static let pageSize = 500
     /// 表格处理行数上限：超大 JSON（十万级）全量字符串化会把窗口卡住，
@@ -784,7 +769,7 @@ private struct JSONTableView: View {
     private static let tableTopID = "jsonTableTop"
 
     /// 未过滤、未排序的全部行（列筛选的去重值从这里取，避免"筛完只剩一个选项"）
-    private var allRows: [(index: Int, cells: [String])] {
+    private func makeAllRows(shape: Shape, columns: [Column]) -> [Row] {
         switch shape {
         case .keyValue:
             if document.root.children.isEmpty { document.root.ensureChildren() }
@@ -809,8 +794,8 @@ private struct JSONTableView: View {
         }
     }
 
-    private var rowValues: [(index: Int, cells: [String])] {
-        var rows = allRows
+    private func makeRowValues(rows: [Row], columns: [Column]) -> [Row] {
+        var rows = rows
 
         // ① 全局搜索：任意列包含查询词
         if !query.isEmpty {
@@ -848,27 +833,12 @@ private struct JSONTableView: View {
         return rows
     }
 
-    // MARK: 分页（v191：对齐 jlens）
-
-    /// 过滤后的总行数
-    private var filteredRowCount: Int { rowValues.count }
-    /// 总页数（至少 1 页，空结果也显示「第 1 / 1 页」）
-    private var pageCount: Int { max(1, (filteredRowCount + Self.pageSize - 1) / Self.pageSize) }
-    /// 当前页（越界自动夹到有效范围——搜索/筛选后行数变少时不会停在空页）
-    private var safePage: Int { min(max(0, state.page), pageCount - 1) }
-    /// 当前页要渲染的行
-    private var pagedRows: [(index: Int, cells: [String])] {
-        let start = safePage * Self.pageSize
-        guard start < filteredRowCount else { return [] }
-        return Array(rowValues.dropFirst(start).prefix(Self.pageSize))
-    }
-
-    /// 某列的去重值（最多 60 个，按出现顺序前 500 行统计）
-    private func distinctValues(for column: String) -> [String] {
+    /// 某列的去重值（最多60个，使用本轮未筛选行）
+    private func distinctValues(for column: String, columns: [Column], rows: [Row]) -> [String] {
         guard let colIndex = columns.firstIndex(where: { $0.key == column }) else { return [] }
         var seen: Set<String> = []
         var order: [String] = []
-        for row in allRows where row.cells.count > colIndex {
+        for row in rows where row.cells.count > colIndex {
             let value = row.cells[colIndex]
             if seen.insert(value).inserted {
                 order.append(value)
@@ -899,6 +869,8 @@ private struct JSONTableView: View {
     }
 
     var body: some View {
+        let shape = self.shape
+        let columns = makeColumns(shape: shape)
         if columns.isEmpty {
             VStack(spacing: 8) {
                 Text("当前 JSON 是单个值，没有可展开的表格")
@@ -909,10 +881,18 @@ private struct JSONTableView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
+            let allRows = makeAllRows(shape: shape, columns: columns)
+            let rowValues = makeRowValues(rows: allRows, columns: columns)
+            let totalRowCount = document.root.children.count
+            let filteredRowCount = rowValues.count
+            let pageCount = max(1, (filteredRowCount + Self.pageSize - 1) / Self.pageSize)
+            let safePage = min(max(0, state.page), pageCount - 1)
+            let pagedRows = Array(rowValues.dropFirst(safePage * Self.pageSize).prefix(Self.pageSize))
+            let tableWidth = 34 + columns.reduce(0) { $0 + $1.width + 8 }
             VStack(spacing: 0) {
                 if hasActiveFilter {
                     HStack(spacing: 6) {
-                        Text("显示 \(rowValues.count) / \(allRows.count) 行")
+                        Text("显示 \(filteredRowCount) / \(allRows.count) 行")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                         if !query.isEmpty { Text("· 搜索「\(query)」").font(.system(size: 10)).foregroundStyle(.secondary) }
@@ -931,7 +911,7 @@ private struct JSONTableView: View {
                 ScrollViewReader { tableProxy in
                 ScrollView([.vertical, .horizontal], showsIndicators: true) {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        header.id(Self.tableTopID)
+                        header(columns: columns, rows: allRows).id(Self.tableTopID)
                         if rowValues.isEmpty, !query.isEmpty {
                             HStack(spacing: 6) {
                                 Image(systemName: "magnifyingglass")
@@ -1040,7 +1020,7 @@ private struct JSONTableView: View {
         !query.isEmpty || state.columnFilters.contains { !$0.value.isEmpty }
     }
 
-    private var header: some View {
+    private func header(columns: [Column], rows: [Row]) -> some View {
         HStack(spacing: 0) {
             Text("#")
                 .font(.system(size: fontSize - 2, weight: .semibold))
@@ -1081,7 +1061,7 @@ private struct JSONTableView: View {
                     .popover(isPresented: Binding(
                         get: { state.filterPopoverColumn == column.key },
                         set: { if !$0 { state.filterPopoverColumn = nil } })) {
-                        filterPopover(for: column.key)
+                        filterPopover(for: column.key, columns: columns, rows: rows)
                     }
                 }
                 .frame(width: column.width, alignment: .leading)
@@ -1097,8 +1077,8 @@ private struct JSONTableView: View {
         !(state.columnFilters[column]?.isEmpty ?? true)
     }
 
-    private func filterPopover(for column: String) -> some View {
-        let values = distinctValues(for: column)
+    private func filterPopover(for column: String, columns: [Column], rows: [Row]) -> some View {
+        let values = distinctValues(for: column, columns: columns, rows: rows)
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(column)
