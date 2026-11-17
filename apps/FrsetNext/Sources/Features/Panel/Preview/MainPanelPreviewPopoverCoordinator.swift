@@ -88,8 +88,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public var imagePreviewHeaderFooterHeightForRegularImage: CGFloat = 12
     /// 图片预览纵向内边距（F13；⬜ 原作值未探明）
     public var imagePreviewVerticalPaddingHeight: CGFloat = 8
-    /// JSON 预览字符截断上限（F16 jsonPreviewCharCap；⬜ 原作值未探明）
-    public var jsonPreviewCharCap: Int = 20_000
     /// 内容宽度（v71：统一窗口后保留该参数，宽度估算/目录布局仍引用）
     /// 2026-10-19（用户：文本宽度再扩一点）：480 → 560
     public var popoverWidth: CGFloat = 560

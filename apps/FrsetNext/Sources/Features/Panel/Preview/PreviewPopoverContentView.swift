@@ -646,32 +646,10 @@ struct PreviewTOCSidebar: View {
     }
 }
 
-// MARK: - 态 4：JSON（F16：资格判定 + jsonPreviewCharCap 截断）
+// MARK: - 态 4：JSON（树形 / 表格）
 
 struct PreviewJSONTextView: View {
     let model: PreviewPopoverContentModel
-    @Stored private var displayText: String
-
-    init(model: PreviewPopoverContentModel) {
-        self.model = model
-        self._displayText = Stored(wrappedValue: Self.prepare(model.inlineText))
-    }
-
-    static func prepare(_ raw: String) -> String {
-        let cap = MainPanelPreviewPopoverCoordinator.shared.jsonPreviewCharCap
-        // 先截断再尝试美化：超长 JSON 美化代价过高，失败则原样截断展示
-        let truncated = raw.count > cap
-            ? String(raw.prefix(cap)) + "\n…（已截断，共 \(raw.count) 字符）"
-            : raw
-        if let data = truncated.data(using: .utf8),
-           let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
-           let prettyData = try? JSONSerialization.data(withJSONObject: object,
-                                                        options: [.prettyPrinted, .sortedKeys]),
-           let pretty = String(data: prettyData, encoding: .utf8) {
-            return pretty
-        }
-        return truncated
-    }
 
     var body: some View {
         // JSON 不再是「一屏 pretty-print 文本」：树形 / 表格双视图（见 JSONInspectorView）。
