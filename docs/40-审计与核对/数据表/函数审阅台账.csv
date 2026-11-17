@@ -2348,11 +2348,11 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetPlacement,frame,func,9
 Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,layout,func,83,KEEP,先保留活动组件的候选位置，其他组件保留不冲突的旧位置；冲突项寻找就近空格并沿用分页
 Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,rebuild,func,133,KEEP,配置变化时缓存排列并收集实际受影响组件；连续指针位移由当前卡片的局部状态承担
 Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,begin,func,144,KEEP,记录手势前配置及所有可见位置，提供无效落点恢复依据，不写入正式配置
-Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,change,func,155,KEEP,将拖动位置映射到合法格子，连续缩放跨占用格即让位；候选位置、尺寸或占用变化才重新排列
-Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,185,KEEP,有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消
-Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,341,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
-Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,347,KEEP,编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
-Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,361,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,change,func,157,KEEP,将拖动位置映射到合法格子，连续缩放跨占用格即让位；候选位置、尺寸或占用变化才重新排列
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,187,KEEP,有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,343,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,349,KEEP,编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,363,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
 Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,26,KEEP,parse 内 :111 兜底与 :153 正常构造
 Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,33,KEEP,parse 的 register 内 :174 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,102,KEEP,ManualView.swift:18 @Stored 属性初始化调用

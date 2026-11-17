@@ -613,7 +613,7 @@ final class IslandController: NSObject, ObservableObject {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
-        } else if !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking, entryHoverWork == nil,
+        } else if pointerMoved, !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking, entryHoverWork == nil,
                   !editingText {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
             hoverWork = work

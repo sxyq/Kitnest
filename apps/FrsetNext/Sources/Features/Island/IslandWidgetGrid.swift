@@ -144,7 +144,9 @@ struct IslandWidgetGrid<Content: View>: View {
     private func begin(_ item: IslandWidget) {
         active = item
         var next = controller.layoutConfiguration
-        if !temporaryLayout || next.widgetPositions == nil {
+        if temporaryLayout {
+            if next.widgetPositions == nil { next.widgetPositions = [:] }
+        } else {
             next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
         }
         original = next
