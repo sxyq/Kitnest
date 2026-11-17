@@ -12,8 +12,9 @@
     :::demo clipboard
     :::                     ← 结束标记
 
-    id 对应 FRONT/manual/demos/scenes.js 里的 KDEMOS.<id>；渲染成可交互的
+    id 对应 FRONT/manual/demos/scenes-<域>.js 里的 KDEMOS.<id>；渲染成可交互的
     预设动画（迷你界面 + 自动时间轴 + 重播），不再使用真机录屏 GIF。
+    场景数据按功能域拆成 7 个 chunk，由 demo.js 在演示进入视口时按需加载。
 
 设计约束：
   · HTML 不依赖构建工具与 CDN；演示运行时是本地 demos/demo.js + demo.css；
@@ -346,7 +347,6 @@ figcaption{{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}}
 
 <div class="lightbox" id="lb"><img alt=""></div>
 
-<script src="demos/scenes.js"></script>
 <script src="demos/demo.js"></script>
 <script>
 (function () {{
@@ -423,11 +423,14 @@ def build(no_gifs: bool) -> None:
     size_kb = out.stat().st_size / 1024
     print(f"  HTML: {out.relative_to(ROOT)}  {size_kb:.0f} KB  {len(chapters)} 节")
 
-    # 演示资源就位检查（源文件在 FRONT/manual/demos/，随站点一起部署）
-    demos = ["demo.css", "demo.js", "scenes.js"]
+    # 演示资源就位检查（运行时 + 7 个按需 chunk，源文件在 FRONT/manual/demos/）
+    demos = ["demo.css", "demo.js"] + [
+        "scenes-%s.js" % g for g in
+        ("entry", "clipboard", "capture", "monitor", "transfer", "tools", "app")
+    ]
     missing_demo = [d for d in demos if not (DEMOS / d).exists()]
     ndemo = page.count('class="kdemo"')
-    print(f"  演示: {ndemo} 处 · 运行时 {len(demos) - len(missing_demo)}/3"
+    print(f"  演示: {ndemo} 处 · 运行时 {len(demos) - len(missing_demo)}/{len(demos)}"
           + (f"（缺 {missing_demo}）" if missing_demo else ""))
 
     # 自检：正文引用的图是否都在（演示之外仍可能有静态截图）

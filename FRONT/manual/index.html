@@ -1087,12 +1087,17 @@ awk -F, &#x27;$2==&quot;Features/Capture/Curtain/CurtainWindow.swift&quot;&#x27;
 <hr>
 <h2 id="附录-f-交互演示怎么做出来的">附录 F · 交互演示怎么做出来的</h2>
 <p>手册里的演示不再是录屏视频，而是<strong>用代码画出来的迷你界面 + 预设时间轴</strong>： 和「设置 → 个性化 → 效果预览」是同一种做法——真实组件样式、模拟数据、 自动播放一遍，随时可以重播，也可以自己点着试。</p>
-<h3 id="三个文件">三个文件</h3>
-<div class="table-wrap"><table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody><tr><td><code>FRONT/manual/demos/scenes.js</code></td><td><strong>场景数据</strong>：每个演示一段迷你界面 HTML + 一条时间轴</td></tr><tr><td><code>FRONT/manual/demos/demo.js</code></td><td><strong>运行时</strong>：渲染界面、驱动光标与时间轴、处理重播与手动交互</td></tr><tr><td><code>FRONT/manual/demos/demo.css</code></td><td><strong>样式</strong>：迷你面板 / 窗口 / 菜单 / 图表等原语，配色与官网同源</td></tr></tbody></table></div>
+<h3 id="运行时与场景按需加载">运行时与场景（按需加载）</h3>
+<div class="table-wrap"><table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody><tr><td><code>FRONT/manual/demos/demo.js</code></td><td><strong>运行时</strong>：渲染界面、驱动光标与时间轴、处理重播与手动交互</td></tr><tr><td><code>FRONT/manual/demos/demo.css</code></td><td><strong>样式</strong>：迷你面板 / 窗口 / 菜单 / 图表等原语，配色与官网同源</td></tr><tr><td><code>FRONT/manual/demos/scenes-&lt;域&gt;.js</code></td><td><strong>场景数据</strong>（7 个 chunk）：每个演示一段迷你界面 HTML + 一条时间轴</td></tr></tbody></table></div>
+<h3 id="加载策略不用的不加载">加载策略（不用的不加载）</h3>
+<div class="table-wrap"><table><thead><tr><th>时机</th><th>行为</th></tr></thead><tbody><tr><td>打开页面</td><td>只加载 <code>demo.js</code> + <code>demo.css</code>（约 28 KB），<strong>不加载任何场景数据</strong></td></tr><tr><td>演示块进入视口前 320px</td><td>才 fetch 所属功能域的 <code>scenes-&lt;域&gt;.js</code>（7–32 KB），只构建这一个迷你界面</td></tr><tr><td>滚出视口 600px</td><td>卸载该演示的 DOM、停止时间轴</td></tr><tr><td>滚回视口</td><td>重新加载/构建并播放（chunk 已在内存缓存，不重复下载）</td></tr></tbody></table></div>
+<p>全页 36 段演示，任意时刻驻留的只有视口附近的 6–7 段，不再是首屏一次性构建 36 个界面。</p>
 <h3 id="为什么不用-gif">为什么不用 GIF</h3>
-<div class="table-wrap"><table><thead><tr><th>维度</th><th>录屏 GIF</th><th>交互演示</th></tr></thead><tbody><tr><td>体积</td><td>37 段合计 44 MB，首屏要懒加载</td><td>三个文本文件合计 &lt; 100 KB</td></tr><tr><td>可读性</td><td>只能看，看不清的字还是看不清</td><td>想停就停，想点就点，说明文字与界面同步出现</td></tr><tr><td>隐私</td><td>录屏会带进真实剪贴板、路径、进程名，要逐段打码</td><td>全程模拟数据，不接触真实环境</td></tr><tr><td>维护</td><td>界面一改就要重录、重新运镜、重新压体积</td><td>改一行场景数据即可</td></tr><tr><td>精度</td><td>只有像素，没有可检索文字</td><td>界面文字就是 DOM，搜索与无障碍都能读</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>录屏 GIF</th><th>交互演示</th></tr></thead><tbody><tr><td>体积</td><td>37 段合计 44 MB，首屏要懒加载</td><td>运行时 + 7 个按需 chunk 合计约 130 KB；首屏只加载 28 KB</td></tr><tr><td>可读性</td><td>只能看，看不清的字还是看不清</td><td>想停就停，想点就点，说明文字与界面同步出现</td></tr><tr><td>隐私</td><td>录屏会带进真实剪贴板、路径、进程名，要逐段打码</td><td>全程模拟数据，不接触真实环境</td></tr><tr><td>维护</td><td>界面一改就要重录、重新运镜、重新压体积</td><td>改一行场景数据即可</td></tr><tr><td>精度</td><td>只有像素，没有可检索文字</td><td>界面文字就是 DOM，搜索与无障碍都能读</td></tr></tbody></table></div>
 <h3 id="新增一个演示三步">新增一个演示（三步）</h3>
-<ol><li>在 <code>scenes.js</code> 里加一个 <code>KDEMOS.&lt;id&gt;</code>：写 <code>body</code>（迷你界面 HTML）与 <code>steps</code>（时间轴）；</li><li>手册对应章节写：</li></ol>
+<ol><li>在所属功能域的 <code>scenes-&lt;域&gt;.js</code> 里加一个 <code>KDEMOS.&lt;id&gt;</code>：写 <code>body</code>（迷你界面 HTML）与 <code>steps</code>（时间轴），</li></ol>
+<p>并在 <code>demo.js</code> 的 <code>GROUP</code> 映射里登记该 id 属于哪个域；</p>
+<ol><li>手册对应章节写：</li></ol>
 <pre><code>   ### 演示
 
    :::demo &lt;id&gt;
@@ -1107,7 +1112,6 @@ awk -F, &#x27;$2==&quot;Features/Capture/Curtain/CurtainWindow.swift&quot;&#x27;
 
 <div class="lightbox" id="lb"><img alt=""></div>
 
-<script src="demos/scenes.js"></script>
 <script src="demos/demo.js"></script>
 <script>
 (function () {
