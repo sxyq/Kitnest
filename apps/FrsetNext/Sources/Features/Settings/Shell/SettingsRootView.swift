@@ -228,7 +228,7 @@ struct SettingsRootView: View {
         case .statistics:
             panePage { diagnostics }
         case .configTransfer:
-            panePage { StatisticsSettingsPane(section: .configuration) }
+            panePage { StatisticsSettingsPane() }
         case .diagnostics:
             panePage { diagnostics }
         case .about:

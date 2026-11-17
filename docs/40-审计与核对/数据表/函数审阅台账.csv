@@ -107,10 +107,10 @@ Core,Core/Runtime/Preferences.swift,Preferences,init,init,10,KEEP,static shared:
 Core,Core/Runtime/Preferences.swift,Preferences,value,func,16,KEEP,binding:107 / 计算属性:91
 Core,Core/Runtime/Preferences.swift,Preferences,set,func,20,KEEP,binding:108 / 计算属性 setter:92
 Core,Core/Runtime/Preferences.swift,Preferences,binding,func,139,KEEP,SettingsPanes.swift:97 Toggle 绑定
-Core,Core/Runtime/Registry.swift,PanelSectionDescriptor,init,init,16,KEEP,ClipboardModule:24 / AIModule:22 / CaptureModule:85
-Core,Core/Runtime/Registry.swift,PanelSectionRegistry,register,func,24,KEEP,"同上 + ToolboxModule:14,17,20 注册"
-Core,Core/Runtime/Registry.swift,SettingsPaneDescriptor,init,init,43,KEEP,AppBootstrap:95 等 12 处注册
-Core,Core/Runtime/Registry.swift,SettingsPaneRegistry,register,func,51,KEEP,SettingsModule:16 等 12 处注册
+Core,Core/Runtime/Registry.swift,PanelSectionDescriptor,init,init,16,KEEP,2026-11-17：各模块构造区段ID标题优先级及视图闭包；PanelRootView.searchSection和calendarCard及clipboardSection实际调用build呈现正文
+Core,Core/Runtime/Registry.swift,PanelSectionRegistry,register,func,24,KEEP,2026-11-17：各模块start注册主面板区段；锁内按ID替换并按优先级排序；all由PanelRootView取正式正文；注册表无重复区段
+Core,Core/Runtime/Registry.swift,SettingsPaneDescriptor,init,init,43,KEEP,2026-11-17：各模块构造设置ID标题及图标供CommandPalette直达；build闭包当前未被窗口分发消费；SettingsRootView直接构造实际页；旧统计正文分支已据此删除
+Core,Core/Runtime/Registry.swift,SettingsPaneRegistry,register,func,51,KEEP,2026-11-17：Settings及功能模块start注册元数据；锁内同ID替换；all按旧页序供CommandPalette生成直达命令；命令交SettingsWindowController映射实际页
 Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,75,KEEP,协议要求；AppBootstrap:316 调用
 Core,Core/Runtime/Registry.swift,PanelControlling,show,func,76,KEEP,"协议要求；AppBootstrap:336,377 调用"
 Core,Core/Runtime/Registry.swift,PanelControlling,hide,func,77,KEEP,"协议要求；PanelController:50,164,169 调用"
@@ -494,42 +494,42 @@ AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,start,func,188,KEEP,
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,perform,func,219,KEEP,start L162 起的 Task 调用，流式产出与错误保留
 AI,Features/AI/Views/AISummaryView.swift,AISummaryView,init,init,255,KEEP,View init；AISectionView:415 无参构造（inputText 默认值路径）
 AI,Features/AI/Views/AISummaryView.swift,AISummaryView,init,init,259,KEEP,029de12台账已有StateObject构造说明；现有inputText构造创建ViewModel，ToolRunnerWindow传model重载持有同一运行模型，使停止请求作用当前摘要
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveEntry,init,init,29,KEEP,parseListOutput 构造 Core:503；BrowserWindow:92 也用
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isArchive,func,93,KEEP,调用方 FrsetNextApp:121、Services:112、TransferDock:1516
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isEditable,func,101,KEEP,BrowserWindow:47 editable 计算属性
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isAuxiliary,func,109,KEEP,Core:482/728 过滤；BrowserWindow:71、EntryTable:186
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,auxExcludeArgs,func,120,KEEP,Core:639 生成 7zz -x! 排除参数
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,windowsReservedBase,func,135,KEEP,Core:154/173/239 内部判 Windows 保留名
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,windowsUnsafeName,func,144,KEEP,Core:181 供 windowsNameIssues 汇总原因
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,sanitizeWindowsName,func,163,KEEP,Core:182/978 生成建议名与包内改名
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,windowsNameIssues,func,180,KEEP,BrowserWindow:414/446、CreateSheet:89
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,uniqueWindowsNames,func,189,KEEP,Core:978、BrowserWindow:449 撞名去重
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isHardUnsafeEntryPath,func,216,KEEP,Core:587/597/610/772/860 解压与写回硬闸
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isUnsafeEntryPath,func,237,KEEP,Core:514 给条目打 isUnsafe 标记
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchivePasswords,get,func,252,KEEP,Core:472/544/577 取会话缓存密码
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchivePasswords,set,func,257,KEEP,BrowserWindow:237 弹框后写入；Core:1011/1116
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchivePasswords,looksLikePasswordError,func,264,KEEP,BrowserWindow:196 判缺密码并弹输入框
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,run,func,313,KEEP,Core:474/546/663/836/923 执行 7zz
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,runIn,func,322,KEEP,Core:798/890/1033/1047/1062 带 cwd 变体
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,execute,func,331,KEEP,run:315 与 runIn:324 唯一实现
-Archive,Features/Archive/Core/ArchiveCore.swift,StreamBox,append,func,412,KEEP,Core:421 读线程写入 StreamBox
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readStream,func,421,KEEP,Core:356/361 双管道读线程
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseProgress,func,436,KEEP,Core:423 解析 -bsp1 百分比
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,progressCallback,func,451,KEEP,Core:663/799/891/1020/1113 任务进度回调
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,passwordArg,func,464,KEEP,Core:472/544/638 等 9 处拼 -p
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,list,func,473,KEEP,BrowserWindow:190、PeekView:95、Mini:114 等
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseListOutput,func,502,KEEP,Core:480 解析 7zz -slt 输出
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveEntry,init,init,29,KEEP,2026-11-17：parseListOutput和浏览器及Peek目录映射构造真实条目或中间目录；保存完整路径大小格式加密及链接标记供列表和预览消费
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isArchive,func,93,KEEP,2026-11-17：App打开文件和Finder服务及文件中转入口识别归档；按现有扩展名集合及tar复合后缀返回；未执行IO
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isEditable,func,101,KEEP,2026-11-17：ArchiveBrowserModel.editable供编辑和保存操作显示；仅zip及7z可写；其余格式仍可浏览解压
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isAuxiliary,func,109,KEEP,2026-11-17：list与网页资源过滤及浏览器显隐共用；识别系统辅助文件和__MACOSX及AppleDouble路径；不改用户原包
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,auxExcludeArgs,func,120,KEEP,2026-11-17：performExtract按includeAuxiliary选择空参数或原五项7zz排除模式；与浏览器显示开关分工不同
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,windowsReservedBase,func,135,KEEP,2026-11-17：Windows警告与建议改名及路径标记共用；只取首个点前基名并大写匹配设备名集合；CON.txt等仍能识别
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,windowsUnsafeName,func,144,KEEP,2026-11-17：windowsNameIssues逐文件调用；按空名控制字符非法字符结尾空格点及设备名返回具体原因；用于跨系统改名提示
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,sanitizeWindowsName,func,163,KEEP,2026-11-17：问题清单及create安全命名调用；替换非法字符并去结尾空格点；空名和设备名前补下划线；仅改暂存文件名
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,windowsNameIssues,func,180,KEEP,2026-11-17：归档添加与创建表单调用；仅为有问题名称生成原因及sanitizeWindowsName建议；返回原名供表单列出
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,uniqueWindowsNames,func,189,KEEP,2026-11-17：create跨目录暂存及浏览器建议改名共用；Set按小写名称去重并保留扩展名追加从2开始的序号；每个输出重新登记避免二次冲突
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isHardUnsafeEntryPath,func,216,KEEP,2026-11-17：解压预览及更新添加调用；拒绝空值NUL和绝对路径及Windows盘符；反斜线归一后识别任一上级路径段；设备名由另一函数仅警告
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isUnsafeEntryPath,func,237,KEEP,2026-11-17：parseListOutput给条目标记UI警告；先识别真正越界路径再逐段识别Windows设备名；macOS合法设备名称不因此禁止解压
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchivePasswords,get,func,252,KEEP,2026-11-17：读写解压和加密等入口取当前归档密码；按标准化绝对路径取会话字典；锁保护多线程访问；不写持久配置
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchivePasswords,set,func,257,KEEP,2026-11-17：浏览器输入密码及创建和加密成功后调用；同一标准化路径保存或移除会话值；锁与get共用
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchivePasswords,looksLikePasswordError,func,264,KEEP,2026-11-17：浏览器reload失败时调用；按7zz已知中英文密码提示决定是否显示既有密码输入框；实际错误正文仍由调用方持有
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,run,func,313,KEEP,2026-11-17：列表读取解压及改名删除等入口调用；把nil工作目录及原任务进度和超时传给唯一execute实现
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,runIn,func,322,KEEP,2026-11-17：写回添加创建和加密打包使用暂存工作目录；其余参数原样传给execute；保留相对包内路径语义
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,execute,func,331,KEEP,2026-11-17：run和runIn唯一实现；后台启动7zz且双管道并行读避免互等；注册进程支持取消并按超时结束；失败日志遮盖密码参数及stderr中密码；结果回主线程
+Archive,Features/Archive/Core/ArchiveCore.swift,StreamBox,append,func,412,KEEP,2026-11-17：readStream每个输出块追加；NSLock保护buffer供进程完成读取；stdout与stderr各持独立StreamBox
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readStream,func,421,KEEP,2026-11-17：execute的两条utility队列调用；读取availableData直至EOF；收集输出且仅stdout有回调时解析进度；退出后DispatchGroup完成
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseProgress,func,436,KEEP,2026-11-17：readStream解析stdout；复用正则并取块内最后一个0至100百分比；与该流lastPercent相同则不发布；跨输出块百分比文本会漏识别待评估
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,progressCallback,func,451,KEEP,2026-11-17：队列内写回解压添加压缩加密构造进度闭包；无任务ID返回nil以免预览stdout混入进度；有ID调用原队列updateProgress
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,passwordArg,func,464,KEEP,2026-11-17：各7zz入口拼参数共用；nil或空密码不添加-p；非空才返回单一密码参数；沿用防止裸-p等待终端输入的既有行为
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,list,func,473,KEEP,2026-11-17：归档模型和Peek及Mini与解压路径审核调用；7zz l输出在后台解析；单文件流按源名补Path；按辅助文件开关过滤后回主线程
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseListOutput,func,502,KEEP,2026-11-17：list唯一调用；按空行分块取Key = Value字段构造ArchiveEntry；补单流路径并识别加密软硬链接；最后按路径本地排序
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readEntry,func,553,KEEP,2026-11-17：loadPreview文本与图片分支调用；按条目大小限制8MB或128MB后通过现有7zz e -so读取内存数据；返回执行错误及正文供UTF8或图片解码
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extract,func,579,KEEP,BrowserWindow:567/592、Services:37/65、Drag:50
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,647,KEEP,Core:591/613/680/738/1088 实际解压
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,699,KEEP,拒绝硬不安全条目路径后，在独立临时目录用已存密码解压单项；成功按完整条目路径或递归同名定位文件，解压失败或找不到文件时删除临时目录，清理失败与原原因一起返回
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,745,KEEP,BrowserWindow:261 HTML 预览解同目录资源
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extract,func,579,KEEP,2026-11-17：App深链和浏览器Finder及拖出等解压入口；入唯一任务队列后list全条目；单项拒绝越界路径；整包只提取安全清单并报告跳过数量；取消回调沿原结果返回
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,647,KEEP,2026-11-17：extract和临时预览及加密共用7zz x实现；支持跳过已存在和辅助文件模式；安全路径清单写临时include文件后在进程结束删除；路径不安全时不退回整包
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,699,KEEP,2026-11-17：归档正文缩略图悬停外部打开及撤销快照调用；拒绝越界路径后独立建立frset-archive目录；成功返回包内落地URL；失败及未找到文件清理目录并传递清理错误
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,745,KEEP,2026-11-17：loadPreview网页分支唯一调用；安全同目录资源总量不超512MB时用清单解压；超量复用单项提取；独立frset-webpreview目录；失败及文件缺失分支未清理待改
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,793,KEEP,2026-11-17：saveDraft和撤销栈写回调用；现有任务队列校验包内路径并复制到暂存目录后7zz a原位更新；取消及执行后清理目录；准备复制失败的catch遗漏目录清理待改
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,844,KEEP,BrowserWindow:549、UndoStack:149 包内改名
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,881,KEEP,BrowserWindow:480 添加文件
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,941,KEEP,BrowserWindow:512、UndoStack:180 删除条目
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,create,func,976,KEEP,CreateSheet:134 创建压缩包
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,saveEncryptedCopy,func,1124,KEEP,BrowserWindow:646 另存加密归档
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,844,KEEP,2026-11-17：浏览器重命名和撤销栈调用；队列内验证新名并复用原父路径；同名直接成功否则7zz rn；结果回主线程并按取消状态传递
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,881,KEEP,2026-11-17：浏览器performAddFiles调用；后台队列复制各源文件到包内目录对应的暂存路径；7zz a完成和取消均删暂存；复制失败catch缺清理待改
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,941,KEEP,2026-11-17：浏览器删除和撤销栈调用；空选返回原失败；其他入队执行7zz d并共享密码缓存及取消语义；不移除用户原包
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,create,func,976,KEEP,2026-11-17：ArchiveCreateModel.create调用；跨目录或同名文件借原staging复制改名；zip或7z及tar后gzip两步执行；取消和最终结果清理目录；tar分卷已拒绝后仍有不可达-v条件待删
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,saveEncryptedCopy,func,1124,KEEP,2026-11-17：浏览器另存加密按钮调用；队列内直接performExtract避免嵌套排队；解后7zz a带密码打包并保存新包密码；失败取消和完成清理暂存；解压此处未沿extract的条目清单过滤待处理
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommendation,init,init,31,KEEP,同名重载错挂：该 init 带 priority，recommend 七处在用；无 priority 的那个此前已删
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,recommend,func,55,KEEP,同名重载错挂：此行为仍在使用的实现（values(into:)/recommend 3 参/events(from:to:)），非死代码
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,extractAll,func,163,KEEP,recommend:162 闭包捕获（解压到…）
@@ -554,22 +554,22 @@ Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,ask,func,47,KEEP,压缩完成后询问
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,recycle,func,68,KEEP,NSWorkspace.recycle
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,isDirectory,func,84,KEEP,输出是否落在源目录内
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,init,init,103,KEEP,ArchiveTaskQueue:19 shared 单例构造
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,enqueue,func,110,KEEP,Core:567/762/812/848/910/946/1075 入队
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,finish,func,125,KEEP,pump:264 回调收尾
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,cancel,func,148,KEEP,CreateSheet:102、ProgressPanel:170、cancelAll:171
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,cancelAll,func,170,KEEP,ProgressPanel:91「全部取消」
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,isCancelled,func,178,KEEP,Core:572/581/790/882/1001 等取消检查点
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,registerProcess,func,187,KEEP,Core:374 注册 7zz Process
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,unregisterProcess,func,195,KEEP,Core:383 进程退出后注销
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,updateProgress,func,205,KEEP,Core:449/578、TaskHUD:329 进度回写
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,clearFinished,func,226,KEEP,ProgressPanel:97「清除已完成」
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,confirmQuitIfNeeded,func,235,KEEP,FrsetNextApp:93、BrowserWindow:804 退出保护
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,pump,func,254,KEEP,enqueue:118 与 finish:141 后调用
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,mutate,func,272,KEEP,TQ:130/153/161/206/256 改任务状态
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,onMain,func,277,KEEP,TQ:113/125/148/169/187/205 主线程派发
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,setCancelFlag,func,281,KEEP,cancel:160 置取消标记
-Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,takeCancelFlag,func,286,KEEP,finish:129、cancel:152 取标记并清
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,init,init,103,KEEP,2026-11-17：shared唯一构造空任务队列；所有归档写入及解压复用该实例；界面通过Published任务列表消费状态
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,enqueue,func,110,KEEP,2026-11-17：ArchiveCore六类修改解压任务调用；立即返回UUID；主线程添加waiting记录及工作闭包后pump；后台执行实际工作
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,finish,func,125,KEEP,2026-11-17：pump提供done闭包调用；只处理仍running的任务；移除进程及运行ID后更新成功失败取消状态；成功进度设1并继续pump
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,cancel,func,148,KEEP,2026-11-17：创建表单取消和任务行及cancelAll调用；待运行项直接移出并onCancel；运行项设标记并terminate已注册进程；未注册者稍后注册时消费取消状态
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,cancelAll,func,170,KEEP,2026-11-17：进度窗全部取消及退出确认调用；主线程取得pending与runningID列表后逐项复用cancel；不另外操作归档文件
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,isCancelled,func,178,KEEP,2026-11-17：ArchiveCore各阶段和注册进程调用；nil任务ID用于预览返回false；锁内查询取消Set使后台可读且无需主线程同步
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,registerProcess,func,187,KEEP,2026-11-17：execute启动7zz后调用；有ID则主线程登记Process并立即消费已有取消标记；nil预览进程不加入任务列表
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,unregisterProcess,func,195,KEEP,2026-11-17：execute确认进程退出后调用；主线程仅在当前登记的Process为同一实例时移除；避免删除后续阶段进程
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,updateProgress,func,205,KEEP,2026-11-17：ArchiveCore进度回调和解压准备阶段调用；nil不更新；主线程按ID改任务进度及可选消息；负值只更新消息
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,clearFinished,func,226,KEEP,2026-11-17：进度面板清除已完成按钮调用；主线程只删done和failed及cancelled记录；pending与running工作继续保留
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,confirmQuitIfNeeded,func,235,KEEP,2026-11-17：AppDelegate.applicationShouldTerminate调用；有未完成任务时显示退出或返回；选退出调用cancelAll；无任务直接允许退出
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,pump,func,254,KEEP,2026-11-17：enqueue及finish主线程调用；按maxConcurrent默认1从pending取首项并记running；实际work交userInitiated全局队列；done交finish回主线程
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,mutate,func,272,KEEP,2026-11-17：finish取消进度及pump等调用；按UUID定位tasks唯一条目后以inout修改；状态变更仍在各调用方的主线程路径
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,onMain,func,277,KEEP,2026-11-17：所有Published及pending和Process字典更新共用；已在主线程直接执行否则异步排入主队列；未引入main.sync互等
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,setCancelFlag,func,281,KEEP,2026-11-17：cancel运行项调用；锁内将UUID加入Set供后台各阶段及registerProcess读取；不直接修改Published
+Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,takeCancelFlag,func,286,KEEP,2026-11-17：finish及取消排队项调用；锁内移除UUID并返回原标记是否存在；避免完成任务保留取消标记
 Archive,Features/Archive/Core/ArchiveUndoStack.swift,Snapshot,init,init,24,KEEP,2026-11-17：模型captureSnapshots和captureAddeds构造包内路径与临时文件URL；restore消费这两个字段；快照文件随撤销栈释放的清理缺失待处理
 Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,init,init,75,KEEP,2026-11-17：ArchiveBrowserModel初始化时为当前归档构造唯一撤销栈；URL由后续修改和恢复操作使用；未重复创建业务模型
 Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,push,func,80,KEEP,2026-11-17：saveDraft及添加删除重命名成功后登记双向变更；清空redo并刷新按钮；丢弃redo的临时快照文件未清理待处理
@@ -660,39 +660,39 @@ Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cle
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,key,func,90,KEEP,缓存 key = 归档 mtime + 条目
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,cached,func,99,KEEP,LRU 命中
 Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,store,func,112,KEEP,LRU 写入/淘汰删目录
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,stamp,func,60,KEEP,v256 源包指纹（mtime+字节数）；init/confirmOverwriteIfSourceChanged/refreshSourceStamp 三处调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,confirmOverwriteIfSourceChanged,func,69,KEEP,v256 写回前三选确认（仍然保存/重新载入/取消）；addFiles/updateEntry/renameEntry/removeEntries 写操作前调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,refreshSourceStamp,func,97,KEEP,v256 写入成功后刷新指纹基线，避免自写内容被判成外部修改
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,stamp,func,60,KEEP,2026-11-17：init及写前比较和写后刷新调用；读取mtime整数秒与大小形成既有源包变化标识；读取失败返回nil；未读取归档正文
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,confirmOverwriteIfSourceChanged,func,69,KEEP,2026-11-17：保存添加删除重命名前调用；源包标识变更时选择仍然保存或重新载入或取消；重新载入清草稿及预览并刷新原标识
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,refreshSourceStamp,func,97,KEEP,2026-11-17：修改成功和撤销完成及重新载入路径调用；通过同一stamp更新源包时间大小记录；避免自身写入触发外部变化提示
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,init,init,101,KEEP,2026-11-17：窗口控制器为归档URL构造唯一模型与撤销栈；onApplied弱引用模型后更新源包时间大小记录并重载；无未保存草稿时重新读取当前预览
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,children,func,131,KEEP,visibleEntries:75 按层级过滤
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,navigateTo,func,166,KEEP,enter:126、goBack:132、面包屑:1176
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,enter,func,175,KEEP,activate:138、Drag.swift:110 menuEnter
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,goBack,func,181,KEEP,工具栏:1158、空态:1239
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,activate,func,187,KEEP,Drag.swift:185 双击、EntryTable:85
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clickSelect,func,206,KEEP,Drag.swift:191 mouseUp 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,contextualSelect,func,228,KEEP,Drag.swift:217 rightMouseDown 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,reload,func,237,KEEP,init:794、saveDraft:401、delete:524 后刷新
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clearPreview,func,266,KEEP,navigateTo:120、reload:210、body:879
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,promptPassword,func,277,KEEP,reload:197 判定缺密码时
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,children,func,131,KEEP,2026-11-17：visibleEntries无搜索时调用；取直接子项并从深层文件补无显式条目的中间目录；目录优先且本地名称排序；现有Set去重复
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,navigateTo,func,166,KEEP,2026-11-17：enter及goBack和面包屑按钮调用；更新当前层级后清搜索和选择锚点；clearPreview仍保留未保存草稿
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,enter,func,175,KEEP,2026-11-17：activate双击目录及右键进入调用；仅目录交navigateTo；文件由activate加载预览
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,goBack,func,181,KEEP,2026-11-17：工具栏返回及空态返回上一层按钮调用；根目录不动；其他取父路径交同一navigateTo
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,activate,func,187,KEEP,2026-11-17：图标和表格双击调用；目录进层级；文件更新单选及锚点后loadPreview；同条目不重复读取由loadPreview处理
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clickSelect,func,206,KEEP,2026-11-17：图标mouseUp调用；command切换单项及shift按可见序连续选择；普通点击单选；当前shift路径重复求visibleEntries可复用待性能批次
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,contextualSelect,func,228,KEEP,2026-11-17：图标rightMouseDown调用；右键点未选项时改为该单选并更新锚点；右键已选项保留多选以便批量操作
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,reload,func,237,KEEP,2026-11-17：窗口初始化和各修改完成后调用；list加载全量含辅助文件；错误按密码类分流；仅保留仍存在的选择及合成目录；缺失预览条目交clearPreview
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clearPreview,func,266,KEEP,2026-11-17：导航重载和选择变化调用；dirty时保留草稿；其他递增generation并清预览正文条目及加载标记；使旧异步结果过期
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,promptPassword,func,277,KEEP,2026-11-17：reload遇密码类错误调用；现有NSSecureTextField弹窗；确认非空密码写会话缓存后reload；取消返回不改原归档
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,loadPreview,func,296,KEEP,2026-11-17：列表选中与activate和深链选条目调用；保留dirty草稿且同路径不重复读；generation排除过期异步结果；HTML先解资源后文本UTF8及图片降采样；其余PDF或Office预览
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,rememberWebPreviewTemp,func,394,KEEP,2026-11-17：loadPreview网页完成后沿父级定位frset-webpreview目录并去重登记；只保存预览产生的临时根目录供关窗清理
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,cleanupWebPreviewTemps,func,407,KEEP,2026-11-17：windowWillClose调用；递增generation使已发出的预览结果过期并删除本模型记录的网页临时目录；列表随后清空
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveDraft,func,422,KEEP,2026-11-17：保存按钮和关闭保存动作调用；先写UTF8临时草稿再updateEntry；成功记录旧新文本以支持撤销；仅同generation更新预览且保留保存期间新输入的dirty；完成删除临时文本
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,addFiles,func,468,KEEP,pickAndAddFiles:502 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,withSuggestedNames,func,501,KEEP,addFiles:434「用建议名继续」
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,performAddFiles,func,530,KEEP,addFiles:416/434/436 三条路径
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickAndAddFiles,func,556,KEEP,moreMenu:1074、Drag.swift:127 menuAddHere
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,deleteSelected,func,564,KEEP,moreMenu:1077、Drag.swift:131 menuDelete
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,renameSelected,func,597,KEEP,moreMenu:1075、Drag.swift:114 menuRename
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,decideExtractConflicts,func,635,KEEP,v256 解压前扫目标顶层同名项，返回 覆盖/跳过已存在/取消；extractAll 与 extractSelected 调用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractAll,func,689,KEEP,extractButton:1037/1063
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSelected,func,701,KEEP,extractButton:1039/1063、Drag.swift:118
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSequential,func,711,KEEP,extractSelected:578，递归 595
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickExtractDirectory,func,735,KEEP,extractAll:566、extractSelected:577
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,openExternally,func,746,KEEP,previewPane:1340、Drag.swift:123
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveEncryptedCopy,func,757,KEEP,extractButton:1045「另存加密…」
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureSnapshots,func,791,KEEP,deleteSelected:510 删除前备份
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureAddeds,func,823,KEEP,performAddFiles:484 添加后备份
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,addFiles,func,468,KEEP,2026-11-17：文件选择器调用；源包变更比较后按Windows名称问题显示建议名或原名或取消；共用performAddFiles实际添加
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,withSuggestedNames,func,501,KEEP,2026-11-17：addFiles选择建议名时调用；统一去重全量名称并只复制更名项；原磁盘文件保留；复制失败保留原名且已建frset-addname目录无清理待处理
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,performAddFiles,func,530,KEEP,2026-11-17：addFiles三条添加路径调用；选中目录优先否则当前层级；成功捕获新增快照入撤销栈并刷新源包标识及列表；失败显示原错误
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickAndAddFiles,func,556,KEEP,2026-11-17：更多菜单及右键添加调用；NSOpenPanel允许多文件和目录；确认后交同一addFiles；取消不执行
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,deleteSelected,func,564,KEEP,2026-11-17：更多菜单和右键删除调用；源包比较后捕获快照再removeEntries；成功登记可恢复内容并清对应预览及选择后重载；超过48MB或快照失败的项仍会删除待处理
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,renameSelected,func,597,KEEP,2026-11-17：更多菜单和右键重命名调用；按首个选中项弹原名输入；成功记录旧新包内路径供撤销并刷新源包及列表；失败保留原错误
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,decideExtractConflicts,func,635,KEEP,2026-11-17：extractAll及extractSelected解压前调用；去重顶层路径并识别已有文件或目录；仅目录提供合并；同名文件提供跳过或覆盖或取消
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractAll,func,689,KEEP,2026-11-17：工具栏及解压菜单调用；选择目录并处理冲突后交ArchiveCore.extract；skipExisting沿用户选择传递；结果通过原Toast显示
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSelected,func,701,KEEP,2026-11-17：工具栏菜单及右键解压调用；捕获当前选项并选输出目录；一次处理冲突后交extractSequential逐项执行
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,extractSequential,func,711,KEEP,2026-11-17：extractSelected调用并递归；每项交ArchiveCore.extract；取消立即结束；其他错误收集后继续并最终显示数量与首项原因
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,pickExtractDirectory,func,735,KEEP,2026-11-17：全部和所选解压共用NSOpenPanel；仅允许目录且可创建目录；确认返回URL取消返回nil
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,openExternally,func,746,KEEP,2026-11-17：预览不支持分支按钮及右键打开调用；extractEntryToTemp取得落地URL后NSWorkspace.open；失败Toast显示原原因；外部程序文件读取期不可立即删
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveEncryptedCopy,func,757,KEEP,2026-11-17：解压菜单另存加密调用；现有弹窗读取目标名及非空密码；同目录目标交ArchiveCore.saveEncryptedCopy并显示结果；输入目标名的路径及格式约束待继续处理
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureSnapshots,func,791,KEEP,2026-11-17：deleteSelected删除前唯一调用；展开选中目录下文件并按路径去重；只提取不超48MB项到独立临时目录；解压失败跳过；快照用于恢复原包内路径
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureAddeds,func,823,KEEP,2026-11-17：performAddFiles成功后调用；各原始源文件复制到独立frset-addsnap目录并保存目标相对路径；复制失败跳过；原失败目录及失去历史用途的快照目录缺清理待改
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,show,func,850,KEEP,FrsetNextApp:124/406、Services:86、TransferDock:1517
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectEntry,func,869,KEEP,show:719/727 深链 selectPath
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectFirstEntry,func,889,KEEP,show:720/728 selectFirst 排障深链
@@ -3320,21 +3320,20 @@ Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchBarReorderDelega
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchBarReorderDelegate,dropUpdated,func,571,KEEP,DropDelegate 协议；本文件:203 注册
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchBarReorderDelegate,performDrop,func,575,KEEP,DropDelegate 协议；本文件:203 注册
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchBarReorderDelegate,dropExited,func,581,KEEP,DropDelegate 可选协议；SwiftUI 运行时回调
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,init,init,47,KEEP,本文件:566 导出时构造值
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,init,init,90,KEEP,Codable 解码；本文件:442 JSONDecoder
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,encode,func,109,KEEP,Codable 编码；本文件:402 JSONEncoder
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,refresh,func,358,KEEP,2026-11-17：统计页onAppear与两个刷新按钮调用；实际查询在global后台队列执行，完成回主线程更新字段；逐项total聚合可复用现有totalCounts结果而减少查询，待性能批次处理
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performExport,func,391,KEEP,本文件:312 导出按钮
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,chooseImportFile,func,418,KEEP,本文件:319 导入按钮
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performImport,func,442,KEEP,本文件:155 确认弹窗按钮
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyImportedPreferences,func,465,KEEP,配置导入复用正式消费入口与热键注册，迁移旧显隐键，保留独立部件间隔并返回应用错误
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,isMenuBarConfigurationKey,func,671,KEEP,配置导出导入只接受正式排列及部件配置键，排除无关存储内容
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportableMenuBarConfiguration,func,678,KEEP,导出菜单部件有效配置含各独立间隔与默认值，不含运行采样或预览状态
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,691,KEEP,本文件:396 导出构造文件
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,807,KEEP,本文件:449 导入写回偏好
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,831,KEEP,本文件:383 保存面板默认名
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,852,KEEP,本文件:605 文件名日期
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,857,KEEP,本文件:395 exportedAt 字段
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,init,init,47,KEEP,2026-11-17：配置导出按NSNumber.objCType区分Bool和整数浮点；字符串数组及字典递归转换；不支持的原生类型返回nil；Data保存base64文本
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,init,init,90,KEEP,2026-11-17：chooseImportFile的JSONDecoder递归读取type与value；支持原标量及数组字典；未知type抛dataCorrupted使现有导入失败提示显示
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,PreferenceValue,encode,func,109,KEEP,2026-11-17：performExport的JSONEncoder将偏好逐项写为type及原值；null无value；数组字典沿同一编码器递归；对应defaultsValue由导入链消费
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performExport,func,197,KEEP,2026-11-17：配置页导出按钮打开NSSavePanel；收集有效偏好及菜单部件并原子写JSON；记录成功事件或显示实际写入错误
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,chooseImportFile,func,224,KEEP,2026-11-17：配置页导入按钮打开NSOpenPanel；后台读文件解码并验证格式及支持版本；主线程写pendingImport或错误；确认按钮随后调用performImport
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performImport,func,248,KEEP,2026-11-17：确认弹窗调用；过滤菜单部件键且只写变化值再重载引擎；偏好交applyImportedPreferences；任一原入口失败显示原因；成功计数并提示忽略键
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyImportedPreferences,func,271,KEEP,2026-11-17：performImport唯一调用；过滤白名单及相同值；启动设置和热键复用各自保存入口；其余偏好落盘并通知现有外观刘海浮窗AI监测传输等消费点；失败返回原原因
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,isMenuBarConfigurationKey,func,477,KEEP,2026-11-17：菜单部件导入过滤与导出过滤共用；接受正式排列键和各FSBar模块前缀及Power拆分键；避免导入运行采样字段
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportableMenuBarConfiguration,func,484,KEEP,2026-11-17：performExport调用；合并默认配置和实际快照；填独立采样间隔并派生Widgets_order及跑猫开关；仅导出正式配置键并编码为PreferenceValue
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,497,KEEP,2026-11-17：performExport调用；读取白名单落盘值并覆盖现有服务的有效设置；快捷键和刘海及截图比例按正式结构编码；凭据和剪贴板历史未加入白名单
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,613,KEEP,2026-11-17：applyImportedPreferences调用；只写白名单键；null删除该键；返回排序后的忽略键；同一白名单集合由静态值复用
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,637,KEEP,2026-11-17：performExport保存面板默认名；传入日期经dayStamp生成Kitnest配置文件名及frsetconfig扩展名
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,658,KEEP,2026-11-17：defaultExportFileName调用；复用静态DateFormatter生成yyyyMMdd-HHmmss本地时间；仅用于配置导出文件名
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,663,KEEP,2026-11-17：performExport生成exportedAt；复用静态DateFormatter按yyyy-MM-dd及带时区时间输出；未用于统计查询
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,runIfRequested,func,46,KEEP,StatsBarEngine.swift:72 启动时调用
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,run,func,55,KEEP,本文件:49 延时 5s 进入
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,testLayout,func,75,KEEP,本文件:65 主流程调用
@@ -4181,8 +4180,6 @@ Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,528,KEEP,2026-
 Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,543,KEEP,2026-11-17：统计主面板与设置刷新调用；SQL COUNT DISTINCT day且count为正；返回整数不创建日期记录模型
 Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,555,KEEP,2026-11-17：StatisticsRootView活动矩阵调用；SQL按指定起日及事件聚合再排序；仅返回日总量
 Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,568,KEEP,2026-11-17：StatisticsRootView最近30日柱图调用；沿SQL日期与事件条件读取窄表；不重复按事件查询每一天
-Storage,Storage/Database.swift,StatisticsManager,total,func,585,KEEP,2026-11-17：StatisticsSettingsPane各功能累计调用；单事件SQL SUM；设置refresh逐指标调用存在批量复用空间待性能批次
-Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,594,KEEP,2026-11-17：StatisticsSettingsPane.refresh读取历史复制与截图次数；固定两事件SQL聚合；沿用原评分口径
-Storage,Storage/Database.swift,StatisticsManager,exportAll,func,603,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,616,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,645,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理
+Storage,Storage/Database.swift,StatisticsManager,exportAll,func,585,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,598,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,627,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理

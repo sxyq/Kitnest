@@ -581,24 +581,6 @@ public final class StatisticsManager {
         }
     }
 
-    /// Q6 单事件总计（metricConfigs 单卡/tooltip）
-    public func total(event: String) -> Int {
-        queue.sync {
-            Int((try? db.scalarInt(
-                "SELECT COALESCE(SUM(CASE WHEN count > 0 THEN count ELSE 0 END), 0) " +
-                "FROM usage_daily_metrics WHERE event_name = ?", [.text(event)])) ?? 0)
-        }
-    }
-
-    /// Q7 评分请求口径：history_copy + screenshot_capture 之和（D8）
-    public func reviewRequestUsage() -> Int {
-        queue.sync {
-            Int((try? db.scalarInt(
-                "SELECT COALESCE(SUM(CASE WHEN count > 0 THEN count ELSE 0 END), 0) " +
-                "FROM usage_daily_metrics WHERE event_name IN ('history_copy','screenshot_capture')")) ?? 0)
-        }
-    }
-
     /// Q8 导出全量（诊断导出使用）
     public func exportAll() -> [(String, String, Int)] {
         queue.sync {

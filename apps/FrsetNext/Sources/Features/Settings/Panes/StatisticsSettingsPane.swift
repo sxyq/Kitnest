@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - 使用统计与独立配置页
+// MARK: - 独立配置导入导出页
 // 配置导入即时应用，仅包含偏好；旧文件的统计内容由解码器忽略。
 
 // MARK: - 导出文件结构（.frsetconfig / JSON）
@@ -122,46 +122,23 @@ enum PreferenceValue: Codable {
     }
 }
 
-// MARK: - 统计与数据页
+// MARK: - 配置页
 
 
 struct StatisticsSettingsPane: View {
-    enum Section { case statistics, configuration }
-    var section: Section = .statistics
-    // 评分请求口径（Q7）
-    @Stored private var reviewUsage: Int = 0
-    // 关键指标（Q6：逐事件累计）
-    @Stored private var clipboardCaptureTotal: Int = 0
-    @Stored private var screenshotTotal: Int = 0
-    @Stored private var toolTotal: Int = 0
-    @Stored private var activeDays: Int = 0
-    @Stored private var storedItems: Int = 0
-    /// v107：各大功能累计（event → count）
-    @Stored private var featureCounts: [String: Int] = [:]
     // 上次导入/导出结果提示
     @Stored private var lastActionResult: String? = nil
     @Stored private var lastActionFailed = false
     @Stored private var isBusy = false
-    /// v115：图表刷新纪元——「刷新统计」时 +1 强制 StatisticsChartsView 重建重拉
-    @Stored private var chartsEpoch = 0
 
     /// 导入前的确认弹窗（spec 18 F8：Import Settings Confirm Title/Message）
     @Stored private var pendingImport: FrsetConfigFile? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            // v115：与用量统计窗同源的三层图表（指标卡 / 总览+30 天柱状 / 活动热力图）
-            if section == .statistics {
-                chartsSection
-                metricsSection
-                featureSection
-                reviewSection
-            } else {
-                transferSection
-                infoSection
-            }
+            transferSection
+            infoSection
         }
-        .onAppear { if section == .statistics { refresh() } }
         .confirmationDialog("导入配置？", isPresented: importConfirmBinding, titleVisibility: .visible) {
             Button("导入", role: .destructive) { performImport(pendingImport) }
             Button("取消", role: .cancel) {}
@@ -170,147 +147,9 @@ struct StatisticsSettingsPane: View {
         }
     }
 
-    // MARK: 用量图表（v115：复用统计窗 StatisticsChartsView，同源数据装载）
-
-    private var chartsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Text("用量图表")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("与「使用统计」窗同源 · 数据仅存储在本机")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                Spacer()
-                Button("刷新") {
-                    refresh()
-                    chartsEpoch += 1
-                }
-                .controlSize(.small)
-                .disabled(isBusy)
-            }
-            StatisticsChartsView()
-                .id(chartsEpoch)
-                .padding(12)
-                .background(Color(NSColor.textBackgroundColor).opacity(0.5),
-                            in: RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-                )
-        }
-    }
-
     private var importConfirmBinding: Binding<Bool> {
         Binding(get: { pendingImport != nil },
                 set: { if !$0 { pendingImport = nil } })
-    }
-
-    // MARK: 关键指标（Q6 total(event:) 出口）
-
-    private var metricsSection: some View {
-        SettingsSection("使用统计") {
-            SettingsGroupBox {
-                SettingsRow(icon: "doc.on.clipboard", title: "剪贴板捕获",
-                            subtitle: "累计捕获次数（clipboard_capture）") {
-                    Text("\(clipboardCaptureTotal)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "camera.viewfinder", title: "屏幕截图",
-                            subtitle: "累计截图次数（screenshot_capture）") {
-                    Text("\(screenshotTotal)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "square.and.pencil", title: "划词工具",
-                            subtitle: "累计工具执行成功次数（tool_execute_success）") {
-                    Text("\(toolTotal)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "calendar", title: "活跃天数",
-                            subtitle: "有过任意埋点事件的天数") {
-                    Text("\(activeDays)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "square.stack.3d.up", title: "本地存储条目",
-                            subtitle: "剪贴板库中的条目总数") {
-                    Text("\(storedItems)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "arrow.clockwise", title: "刷新统计",
-                            subtitle: "重新读取统计库与剪贴板库（含上方图表）") {
-                    Button("刷新") {
-                        refresh()
-                        chartsEpoch += 1
-                    }
-                    .controlSize(.small)
-                    .disabled(isBusy)
-                }
-            }
-        }
-    }
-
-    // MARK: 功能明细（v107：各大功能累计，含活动监测）
-
-    /// 大功能计数表（icon / 标题 / 事件键 / 说明）
-    private static let featureMetrics: [(icon: String, title: String, event: String, note: String)] = [
-        ("doc.on.doc", "历史复制", AnalyticsEvent.historyCopy.eventName, "从历史列表复制"),
-        ("doc.on.clipboard.fill", "剪贴板粘贴", AnalyticsEvent.clipboardPaste.eventName, "粘贴回目标应用"),
-        ("magnifyingglass", "搜索执行", AnalyticsEvent.searchExecute.eventName, "面板搜索"),
-        ("safari", "网页搜索", AnalyticsEvent.webSearchOpen.eventName, "搜索引擎跳转"),
-        ("sparkles", "AI 请求", "ai_request_count", "AI 对话/摘要"),
-        ("character.bubble", "翻译", AnalyticsEvent.translationUse.eventName, "划词翻译"),
-        ("text.viewfinder", "OCR 识别", AnalyticsEvent.ocrUse.eventName, "图片文字提取"),
-        ("camera.on.rectangle", "长截图", AnalyticsEvent.longScreenshot.eventName, "滚动长截图"),
-        ("pin", "贴图", AnalyticsEvent.pinImage.eventName, "图片置顶贴到桌面"),
-        ("pencil.tip.crop.circle", "标注编辑", AnalyticsEvent.annotateEdit.eventName, "截图标注保存"),
-        ("record.circle", "屏幕录制", AnalyticsEvent.screenRecord.eventName, "录屏"),
-        ("arrow.down.circle", "网盘下载", AnalyticsEvent.fileDownload.eventName, "网盘解析下载"),
-        ("paperplane", "文件发送", AnalyticsEvent.fileTransferSend.eventName, "传输与投屏·发送"),
-        ("tray.and.arrow.down", "文件接收", AnalyticsEvent.fileTransferReceive.eventName, "传输与投屏·接收"),
-        ("macwindow", "悬浮剪贴板", AnalyticsEvent.floatingClipboardActivate.eventName, "悬浮窗激活"),
-        ("rectangle.3.group", "面板打开", AnalyticsEvent.panelOpen.eventName, "主面板唤起"),
-        ("gauge", "监测中心", AnalyticsEvent.monitorPanelOpen.eventName, "性能监测页打开"),
-        ("waveform.path.ecg", "活动监测", AnalyticsEvent.activityMonitorClick.eventName, "活动监测入口"),
-        ("gearshape", "设置打开", AnalyticsEvent.settingsOpen.eventName, "设置窗口"),
-    ]
-
-    private var featureSection: some View {
-        SettingsSection("功能明细") {
-            SettingsGroupBox {
-                ForEach(Array(Self.featureMetrics.enumerated()), id: \.offset) { idx, m in
-                    if idx > 0 { SettingsDivider() }
-                    SettingsRow(icon: m.icon, title: m.title, subtitle: "\(m.note)（\(m.event)）") {
-                        Text("\(featureCounts[m.event] ?? 0)")
-                            .font(.system(size: 13, weight: .medium))
-                            .monospacedDigit()
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: 评分请求口径（Q7 reviewRequestUsage 出口）
-
-    private var reviewSection: some View {
-        SettingsSection("评分") {
-            SettingsGroupBox {
-                SettingsRow(icon: "star", title: "评分请求口径",
-                            subtitle: "history_copy + screenshot_capture 累计次数，原作据此决定何时请求评分") {
-                    Text("\(reviewUsage)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-            }
-        }
     }
 
     // MARK: 独立配置导入与导出
@@ -349,39 +188,6 @@ struct StatisticsSettingsPane: View {
                 SettingsDivider()
                 SettingsRow(icon: "clock", title: "独立采样间隔",
                             subtitle: "各菜单部件间隔单独恢复；主监测间隔不覆盖部件间隔") {}
-            }
-        }
-    }
-
-    // MARK: 数据装载
-
-    private func refresh() {
-        let mgr = StatisticsManager.shared
-        let events = Array(mgr.trackedEventNames)
-        DispatchQueue.global(qos: .userInitiated).async {
-            let review = mgr.reviewRequestUsage()                       // Q7
-            let capture = mgr.total(event: AnalyticsEvent.clipboardCapture.eventName)          // Q6
-            // v84：截图总数合并截图族全部事件（截图 / 长截图 / 贴图 / 标注）
-            let screenshot = [AnalyticsEvent.screenshotCapture,
-                              .longScreenshot, .pinImage, .annotateEdit]
-                .reduce(0) { $0 + mgr.total(event: $1.eventName) }                             // Q6
-            let tool = mgr.total(event: AnalyticsEvent.toolExecuteSuccess.eventName)          // Q6
-            let days = mgr.activeDaysCount(events: events)                                    // Q3
-            let stored = Int((try? DatabaseManager.shared.clipboard.scalarInt(
-                "SELECT COUNT(*) FROM clipboard_items")) ?? 0)
-            // v107：各大功能累计
-            var feats: [String: Int] = [:]
-            for m in Self.featureMetrics {
-                feats[m.event] = mgr.total(event: m.event)
-            }
-            DispatchQueue.main.async {
-                self.reviewUsage = review
-                self.clipboardCaptureTotal = capture
-                self.screenshotTotal = screenshot
-                self.toolTotal = tool
-                self.activeDays = days
-                self.storedItems = stored
-                self.featureCounts = feats
             }
         }
     }
