@@ -1,32 +1,67 @@
 /* ============================================================
-   Kitnest 手册 · 交互演示引擎（demo-kit）
+   Kitnest 手册 · 交互演示引擎（demo-kit · 按需加载版）
    ------------------------------------------------------------
-   设计目标与「设置 → 个性化 → 效果预览」一致：
-   · 迷你窗口 / 面板用真实组件样式渲染，数据全部是模拟数据；
-   · 每段演示 = 一条预设时间轴（光标移动 → 点击 → 界面响应）；
-   · 自动播放，也可以随时点界面里的元素自己试，随时重播。
+   性能约定（2026-11-18 用户要求）：
+   · 首屏只加载本文件（~11 KB），不加载任何场景数据；
+   · 演示块进入视口（提前 320px）才 fetch 对应功能域的
+     scenes-<group>.js，并且只构建这一个迷你界面；
+   · 滚出视口 600px 就卸载 DOM、停止时间轴，回到视口重新加载；
+   · 全页 36 段演示，任意时刻内存里只有视口附近的几段（实测 6–7 段），
+     不再是首屏一次性构建 36 个迷你界面。
 
-   场景数据在 scenes.js，本文件只负责渲染与播放：
-     KDEMOS.<id> = {
-       title: "…",            // 演示标题
-       stage: 460,            // 舞台高度（px，可省略）
-       body: `<div>…</div>`,  // 舞台 HTML（.kui-* 原语）
-       steps: [ … ],          // 时间轴
-       hit:   { … }           // 可选：读者手动点按的交互
-     }
+   场景数据（7 个 chunk，按需加载）：
+     scenes-entry.js     界面与入口
+     scenes-clipboard.js 剪贴板
+     scenes-capture.js   截图与录屏
+     scenes-monitor.js   系统监测
+     scenes-transfer.js  传输
+     scenes-tools.js     文件与工具
+     scenes-app.js       应用与维护
 
-   时间轴动作（按顺序执行）：
-     move(sel|{x,y}, ms)  click(sel)  rclick(sel)  dblclick(sel)
-     type(sel, text)      scroll(sel, dy)          wait(ms)
-     cap(text)            add(sel, cls)  remove(sel, cls)  toggle(sel, cls)
-     set(sel, text)       html(sel, html)  show(sel)  hide(sel)
-     run(fn)              end()
+   每个场景 = { title, stage, body, steps[], hit{} }，
+   时间轴动作见下（act 方法）。
    ============================================================ */
 (function () {
   "use strict";
 
   var reduced = window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* 演示 id → 场景 chunk（保持与 tools/split_manual_scenes.py 一致） */
+  var GROUP = {
+    menubar: "entry", panel: "entry", statistics: "entry",
+    clipboard: "clipboard", floatdesk: "clipboard", preview: "clipboard",
+    capture: "capture", annotate: "capture", beautify: "capture",
+    longshot: "capture", pin: "capture", curtain: "capture",
+    history: "capture", ocr: "capture", captureplus: "capture",
+    recording: "capture",
+    monitor: "monitor", memory: "monitor", storage: "monitor",
+    network: "monitor",
+    transfer: "transfer", cast: "transfer",
+    archive: "tools", toolbox: "tools", search: "tools", command: "tools",
+    calendar: "tools", shortcuts: "tools", codepreview: "tools",
+    cloudlink: "tools", ai: "tools",
+    settings: "app", onboarding: "app", manual: "app", update: "app",
+    workflow: "app"
+  };
+
+  var chunks = {};   // group → Promise
+
+  function loadChunk(group) {
+    if (chunks[group]) return chunks[group];
+    chunks[group] = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "demos/scenes-" + group + ".js";
+      s.async = true;
+      s.onload = function () { resolve(group); };
+      s.onerror = function () {
+        delete chunks[group];
+        reject(new Error("场景加载失败：" + group));
+      };
+      document.head.appendChild(s);
+    });
+    return chunks[group];
+  }
 
   function sleep(ms) {
     return new Promise(function (r) { setTimeout(r, ms); });
@@ -44,85 +79,139 @@
     return { x: a.left - b.left + a.width / 2, y: a.top - b.top + a.height / 2 };
   }
 
+  var CURSOR_SVG =
+    '<svg width="18" height="24" viewBox="0 0 18 24" aria-hidden="true">' +
+    '<path d="M2 1.6 15.4 12.2l-5.9.5 3.4 7.1-3.1 1.5-3.4-7.1-4.4 4z" ' +
+    'fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+
   /* ---------------------------------------------------------- 单个演示 */
 
   function Demo(host) {
     this.host = host;
     this.id = host.getAttribute("data-demo");
-    this.def = (window.KDEMOS || {})[this.id];
     this.stage = el(".kdemo-stage", host);
     this.cap = el(".kdemo-cap", host);
-    this.ctrl = el(".kdemo-ctrl", host);
+    this.def = null;
+    this.loading = null;
+    this.built = false;
+    this.playing = false;
+    this.seen = false;
     this.token = 0;
     this.cursor = null;
-    this.pos = { x: 40, y: 40 };
-    this.playing = false;
-    this.build();
+
+    var self = this;
+    var replay = el(".kdemo-replay", host);
+    if (replay) {
+      replay.addEventListener("click", function () {
+        self.ensure().then(function (ok) { if (ok) self.play(); });
+      });
+    }
+    this.observe();
   }
 
-  Demo.prototype.build = function () {
-    if (!this.def) {
-      this.stage.innerHTML =
-        '<div class="kdemo-missing">缺少演示定义：' + (this.id || "?") + "</div>";
+  Demo.prototype.observe = function () {
+    var self = this;
+    if (!("IntersectionObserver" in window)) {   // 兜底：老浏览器直接加载
+      this.ensure().then(function (ok) { if (ok) self.play(); });
       return;
     }
-    this.stage.style.minHeight = (this.def.stage || 420) + "px";
-    this.stage.innerHTML = this.def.body;
+    // 进入视口（提前 320px）：加载场景 + 构建 + 播放
+    this.enterIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        self.ensure().then(function (ok) {
+          if (!ok || self.playing) return;
+          self.play();
+        });
+      });
+    }, { rootMargin: "320px 0px", threshold: 0.01 });
+    this.enterIO.observe(this.host);
 
-    // 合成光标（指向左上）
+    // 离开视口 600px：卸载 DOM、停时间轴（不使用的就不占内存）
+    this.exitIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) return;
+        self.teardown();
+      });
+    }, { rootMargin: "600px 0px", threshold: 0 });
+    this.exitIO.observe(this.host);
+  };
+
+  /* 加载所属 chunk + 构建（同一块只构建一次） */
+  Demo.prototype.ensure = function () {
+    var self = this;
+    if (this.built) return Promise.resolve(true);
+    if (this.loading) return this.loading;
+    var group = GROUP[this.id] || "app";
+    this.loading = loadChunk(group).then(function () {
+      self.loading = null;
+      var def = (window.KDEMOS || {})[self.id];
+      if (!def) {
+        self.stage.innerHTML =
+          '<div class="kdemo-missing">缺少演示定义：' + (self.id || "?") + "</div>";
+        self.built = true;
+        return false;
+      }
+      self.def = def;
+      self.build();
+      return true;
+    }).catch(function (err) {
+      self.loading = null;
+      self.stage.innerHTML = '<div class="kdemo-missing">' + err.message + "</div>";
+      return false;
+    });
+    return this.loading;
+  };
+
+  /* 卸载：清 DOM、清说明、中断时间轴 */
+  Demo.prototype.teardown = function () {
+    if (!this.built) return;
+    this.token++;
+    this.playing = false;
+    this.built = false;
+    this.seen = false;
+    this.def = null;
+    this.cursor = null;
+    this.stage.innerHTML = "";
+    this.say("");
+    var dots = el(".kdemo-dots", this.host);
+    if (dots) dots.innerHTML = "";
+  };
+
+  Demo.prototype.build = function () {
+    var def = this.def;
+    this.stage.style.minHeight = (def.stage || 420) + "px";
+    this.stage.innerHTML = def.body;
+
     var c = document.createElement("div");
     c.className = "kui-cursor";
-    c.innerHTML =
-      '<svg width="18" height="24" viewBox="0 0 18 24" aria-hidden="true">' +
-      '<path d="M2 1.6 15.4 12.2l-5.9.5 3.4 7.1-3.1 1.5-3.4-7.1-4.4 4z" ' +
-      'fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+    c.innerHTML = CURSOR_SVG;
     this.stage.appendChild(c);
     this.cursor = c;
     this.place(46, this.stage.clientHeight * 0.32);
 
-    // 重播按钮
-    var replay = el(".kdemo-replay", this.host);
-    if (replay) {
-      var self = this;
-      replay.addEventListener("click", function () { self.play(); });
-    }
+    this.bindHit();
+    this.built = true;
+  };
 
-    // 读者手动点按：带 .kui-hit 的元素可直接操作
-    var hit = this.def.hit;
-    if (hit) {
-      var self2 = this;
-      Object.keys(hit).forEach(function (sel) {
-        Array.prototype.forEach.call(
-          self2.stage.querySelectorAll(sel),
-          function (node) {
-            node.classList.add("kui-hit");
-            node.addEventListener("click", function (ev) {
-              if (self2.playing) return;
-              ev.stopPropagation();
-              try { hit[sel].call(self2, node, self2); } catch (e) { /* 忽略 */ }
-            });
-          }
-        );
-      });
-    }
-
-    // 视口内才自动播放
-    var io = new IntersectionObserver(
-      function (entries) {
-        entries.forEach(function (e) {
-          if (e.isIntersecting && !self.played) {
-            self.played = true;
-            self.play();
-          }
+  Demo.prototype.bindHit = function () {
+    var hit = this.def && this.def.hit;
+    if (!hit) return;
+    var self = this;
+    Object.keys(hit).forEach(function (sel) {
+      Array.prototype.forEach.call(self.stage.querySelectorAll(sel), function (node) {
+        node.classList.add("kui-hit");
+        node.addEventListener("click", function (ev) {
+          if (self.playing) return;
+          ev.stopPropagation();
+          try { hit[sel].call(self, node, self); } catch (e) { /* 忽略 */ }
         });
-      },
-      { threshold: 0.35 }
-    );
-    io.observe(this.host);
+      });
+    });
   };
 
   Demo.prototype.place = function (x, y) {
-    this.pos = { x: x, y: y };
+    if (!this.cursor) return;
     this.cursor.style.transform = "translate(" + x + "px," + y + "px)";
   };
 
@@ -151,27 +240,12 @@
     this.stage.innerHTML = this.def.body;
     var c = document.createElement("div");
     c.className = "kui-cursor";
-    c.innerHTML =
-      '<svg width="18" height="24" viewBox="0 0 18 24" aria-hidden="true">' +
-      '<path d="M2 1.6 15.4 12.2l-5.9.5 3.4 7.1-3.1 1.5-3.4-7.1-4.4 4z" ' +
-      'fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+    c.innerHTML = CURSOR_SVG;
     this.stage.appendChild(c);
     this.cursor = c;
     this.place(46, this.stage.clientHeight * 0.32);
     this.say("");
-    var self = this, hit = this.def.hit;
-    if (hit) {
-      Object.keys(hit).forEach(function (sel) {
-        Array.prototype.forEach.call(self.stage.querySelectorAll(sel), function (node) {
-          node.classList.add("kui-hit");
-          node.addEventListener("click", function (ev) {
-            if (self.playing) return;
-            ev.stopPropagation();
-            try { hit[sel].call(self, node, self); } catch (e) { /* 忽略 */ }
-          });
-        });
-      });
-    }
+    this.bindHit();
   };
 
   Demo.prototype.glow = function (sel, ms) {
@@ -205,6 +279,7 @@
       var p = typeof s.move === "string" ? center(s.move, stage) : s.move;
       if (!p) return Promise.resolve();
       var ms = reduced ? 0 : (s.ms || 620);
+      if (!this.cursor) return Promise.resolve();
       this.cursor.style.transitionDuration = ms + "ms";
       return new Promise(function (res) {
         requestAnimationFrame(function () {
@@ -291,42 +366,38 @@
 
     if (s.glow) return this.glow(s.glow, s.hold || 700);
     if (s.run) { s.run.call(this); return sleep(s.hold === undefined ? 500 : s.hold); }
-    if (s.end) { this.playing = false; this.cursor && this.cursor.classList.add("kui-rest"); }
+    if (s.end) { this.playing = false; }
     return Promise.resolve();
   };
 
   Demo.prototype.play = function () {
     var self = this;
-    if (!this.def || !this.def.steps) return;
+    if (!this.def || !this.def.steps || !this.built) return;
     this.token++;
     var me = this.token;
     this.playing = true;
 
-    var run = function () {
-      self.reset();
-      self.playing = true;
-      var steps = self.def.steps;
-      var i = 0;
-      var next = function () {
-        if (me !== self.token) return;
-        if (i >= steps.length) {
-          self.playing = false;
-          self.tick(-1, steps.length);
-          if (self.cursor) self.cursor.classList.add("kui-rest");
-          return;
-        }
-        var s = steps[i];
-        self.tick(i, steps.length);
-        i++;
-        Promise.resolve(self.act(s)).then(function () {
-          setTimeout(next, s.gap === undefined ? 60 : s.gap);
-        });
-      };
-      setTimeout(next, 420);
-    };
+    this.reset();
+    this.playing = true;
 
-    // 从视口外进入时，等布局稳定再播
-    setTimeout(run, 60);
+    var steps = this.def.steps;
+    var i = 0;
+    var next = function () {
+      if (me !== self.token || !self.built) { self.playing = false; return; }
+      if (i >= steps.length) {
+        self.playing = false;
+        self.tick(-1, steps.length);
+        return;
+      }
+      var s = steps[i];
+      self.tick(i, steps.length);
+      i++;
+      Promise.resolve(self.act(s)).then(function () {
+        if (me !== self.token) { self.playing = false; return; }
+        setTimeout(next, s.gap === undefined ? 60 : s.gap);
+      });
+    };
+    setTimeout(next, 420);
   };
 
   /* ---------------------------------------------------------- 启动 */
