@@ -599,7 +599,7 @@ public final class StatisticsManager {
         }
     }
 
-    /// Q8 导出全量（设置导出携带统计数据）
+    /// Q8 导出全量（诊断导出使用）
     public func exportAll() -> [(String, String, Int)] {
         queue.sync {
             guard let rows = try? db.query(
@@ -607,22 +607,6 @@ public final class StatisticsManager {
             return rows.compactMap { r in
                 guard let d = r.string("day"), let e = r.string("event_name") else { return nil }
                 return (d, e, Int(r.int("count")))
-            }
-        }
-    }
-
-    /// Q8 导入合并：事务内 MAX(旧, 新, 0)，不覆盖削减（S12）
-    public func importMerge(_ rows: [(String, String, Int)]) {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            _ = try? self.db.transaction { db in
-                for (day, event, count) in rows {
-                    try db.run(
-                        "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
-                        "ON CONFLICT(day, event_name) DO UPDATE SET " +
-                        "count = MAX(usage_daily_metrics.count, excluded.count, 0)",
-                        [.text(day), .text(event), .int(Int64(max(count, 0)))])
-                }
             }
         }
     }

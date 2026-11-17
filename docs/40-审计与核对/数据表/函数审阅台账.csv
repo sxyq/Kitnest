@@ -1920,21 +1920,21 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,sched
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,974,KEEP,:384 图片条目调用
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,998,KEEP,:552 自动粘贴分支
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1025,KEEP,:733 权限缺失分支
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,22,KEEP,read* 内构造；Manager:678/:683
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,64,KEEP,Manager:133 构造持有
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,70,KEEP,读取粘贴板类型和来源应用后依次尝试文件、图片、URL、富文本和文本；文件URL先于TIFF图片读取，避免Finder复制文件附带的图标被识别为图片
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readImage,func,96,KEEP,read:74 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readFiles,func,124,KEEP,从fileURL或NSFilenamesPboardType读取文件列表，将NSURL.filePathURL解析出的真实路径用于content、标题、目录副标题和fileURLs；未取得URL时沿用旧文件名列表路径，返回.file结果
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readRichText,func,153,KEEP,read:79 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readText,func,174,KEEP,read:80 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,singleURL,func,195,KEEP,readText:170 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readURL,func,208,KEEP,read:78 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,frontmostAppIdentifier,func,220,KEEP,read:72 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,plainText,func,225,KEEP,readRichText:151 调用
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageSize,func,234,KEEP,readImage:96、imageResult:254
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,fingerprint,func,248,KEEP,readImage:109、imageResult:264
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageResult,func,260,KEEP,Manager:678 insertImage
-Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,textResult,func,278,KEEP,Manager:683 insertText
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,22,KEEP,2026-11-17：各读取分支及imageResult和textResult构造；统一携带正文图片RTF文件URL来源和去重输入；isEmpty由ingest与insert消费
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,64,KEEP,2026-11-17：ClipboardManager持有唯一默认general读取器；可注入的NSPasteboard为原有构造参数；本轮未新建读取器或轮询服务
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,70,KEEP,2026-11-17：Manager.ingest及文件复制回读调用；文件优先避免Finder图标误判；单张QQ容器图片已有数据优先规则防止自动文件暂存；其后依次图片URL富文本和文本
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readImage,func,96,KEEP,2026-11-17：read的普通图片及QQ图片分支调用；TIFF优先而无数据再读PNG；复用ImageIO尺寸读取和fingerprint生成同一图片结果
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readFiles,func,124,KEEP,2026-11-17：read调用；从现代或旧式文件列表读取URL并通过filePathURL解析引用；解析结果统一用于正文标题目录和自动暂存URL
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readRichText,func,153,KEEP,2026-11-17：read在URL后调用；正文优先string否则plainText解析；已核实HTML字节原样进入仅接受RTF的存储与复制链路，待质量批次归一格式
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readText,func,174,KEEP,2026-11-17：read最后一支；仅用trimmed判空和整段链接；普通正文保留原始空白；URL结果保留源输入用于历史复制
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,singleURL,func,195,KEEP,2026-11-17：readText调用；拒绝含换行并识别http/https/www前缀；www只为解析补协议；最终仍需URL具有host
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,readURL,func,208,KEEP,2026-11-17：read在富文本前调用；只消费粘贴板URL类型且要求可解析host；生成url条目供链接分类消费
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,frontmostAppIdentifier,func,220,KEEP,2026-11-17：read取得一次来源；优先bundleIdentifier否则应用名；Manager.ingest用同一值执行忽略应用名单
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,plainText,func,225,KEEP,2026-11-17：readRichText仅在缺string时调用；先RTF后HTML导入提取正文；格式转换应在HTML分支完成，避免让正常RTF多解析一次
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageSize,func,234,KEEP,2026-11-17：readImage与外部imageResult调用；ImageIO只取像素宽高元数据而不解码整图；取不到元数据沿原零尺寸描述
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,fingerprint,func,248,KEEP,2026-11-17：readImage与imageResult共用；长度加首尾采样生成图片去重输入；8193至16384字节仅包含前8192字节会遗漏尾部差异，待质量批次处理
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,imageResult,func,260,KEEP,2026-11-17：Manager.insertImage调用；截图产出经同一insert持久化；补尺寸副标题文件名及去重输入，不新开写库路径
+Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,textResult,func,278,KEEP,2026-11-17：Manager.insertText调用；OCR与取色事件复用同一insert；保留原正文并从trimmed生成标题和来源副标题
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardHistoryRetentionPruneScheduler,init,init,31,KEEP,单例 :19 初始化
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardHistoryRetentionPruneScheduler,start,func,38,KEEP,ClipboardModule:17、Manager:179
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardHistoryRetentionPruneScheduler,pruneAsync,func,49,KEEP,SettingsPane:76 立即清理
@@ -1976,30 +1976,21 @@ Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,assign,func,93,KEEP,2
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,unassign,func,111,KEEP,2026-11-17：toggle的已选标签路径调用；绑定key及tagID删除关联并同步移除内存条目；空标签列表释放key
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,removeMapping,func,127,KEEP,2026-11-17：Repository.delete事务成功后调用；在既有索引锁内移除被删除去重键；不重读标签与关联全表
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,toggle,func,134,KEEP,2026-11-17：剪贴板行菜单与原生表菜单共用；锁内只读取已选状态；解锁后调用assign或unassign以避免锁重入
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,init,init,18,KEEP,:101 构造会话
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,setContent,func,25,KEEP,:230 textDidChange 调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,setAliasTitle,func,26,KEEP,:201 aliasDidChange 调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,snapshot,func,29,KEEP,:205 saveTapped 调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditSession,markSaved,func,37,KEEP,:210 saveTapped 调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,47,UNSURE,:91 用继承的无参 init；两 frame 覆盖零调用，删会断继承链
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,52,UNSURE,:91 用继承的无参 init；两 frame 覆盖零调用，删会断继承链
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,57,KEEP,required init?(coder:)，NSCoding 要求
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,configure,func,62,KEEP,:49/:54/:59 三个覆盖内调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowDelegate,editWindow,func,79,UNSURE,协议要求；:217 派发但 Record.open 恒不传 delegate
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowDelegate,editWindowDidCancel,func,80,UNSURE,同 :79，:222 恒为 nil 空派发
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,init,init,98,KEEP,:261 Record.open 构造
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,init,init,118,KEEP,required init?(coder:)，NSCoding 要求
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,buildLayout,func,120,KEEP,:115 构造时调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,statText,func,178,KEEP,:149 统计行调用
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,show,func,189,KEEP,:258/:265 置前显示
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,aliasDidChange,func,200,KEEP,@objc #selector:133
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,saveTapped,func,204,KEEP,@objc #selector:166
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,cancelTapped,func,224,KEEP,@objc #selector:158
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,textDidChange,func,232,KEEP,NSTextViewDelegate（:146 delegate=self）
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,windowWillClose,func,238,KEEP,NSWindowDelegate（:114 delegate=self）
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowRecord,init,init,254,KEEP,单例 :246 初始化
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowRecord,open,func,256,KEEP,SectionView:91/:318/:321、TableHostView:969
-Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowRecord,remove,func,271,KEEP,:237 windowWillClose 调用
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,9,UNSURE,2026-11-17：控制器用无参构造；两个frame覆盖都调用configure；已完整读实现，尚待确认NSTextView默认初始化实际落入哪一个覆盖
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,14,UNSURE,2026-11-17：frame覆盖转调super后设置纯文本编辑属性；当前无参构造依赖继承初始化链，暂保留并区分实际落点
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,19,KEEP,2026-11-17：NSTextView的required coder初始化要求；super解码后复用configure；正常编辑窗仍从代码构建
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,configure,func,24,KEEP,2026-11-17：三个初始化器共用；关闭富文本自动链接引号与破折号替换；启用系统撤销并配置滚动文本布局
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,init,init,50,KEEP,2026-11-17：Record.open唯一构造；读取已有全文并创建560x420编辑窗口；设置NSWindowDelegate并复用正式窗口样式
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,init,init,66,KEEP,2026-11-17：NSWindowController的required coder要求；现有窗口只走代码初始化，沿原fatalError语义
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,buildLayout,func,68,KEEP,2026-11-17：init调用；名称字段正文滚动框与保存取消按钮从当前条目构造；已删除只写重复会话的字段action和正文delegate
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,statText,func,123,KEEP,2026-11-17：buildLayout统计说明调用；从已有条目取类型字符行数和来源，不额外读取文件或数据库
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,show,func,134,KEEP,2026-11-17：Record.open的新建与复用路径调用；原窗口居中激活并成为key，沿用WindowReveal动画
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,saveTapped,func,145,KEEP,2026-11-17：保存按钮selector调用；直接读取实际正文和标题交原Manager.saveContent；失败留窗，成功且输入未继续变化才关闭，空白标题沿原清空规则
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,cancelTapped,func,161,KEEP,2026-11-17：取消按钮selector调用；直接关闭当前编辑窗，已删除恒nil的可选代理派发
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowController,windowWillClose,func,167,KEEP,2026-11-17：NSWindowDelegate回调；按dedupeKey移除Record持有的控制器，关闭后允许同一记录再次创建窗口
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowRecord,init,init,182,KEEP,2026-11-17：shared单例创建登记表；只保留现有锁和打开中的控制器字典
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowRecord,open,func,184,KEEP,2026-11-17：SectionView与TableHostView五个编辑/重命名入口调用；同键复用旧窗否则创建并持有；调用方均无需传代理
+Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditWindowRecord,remove,func,198,KEEP,2026-11-17：windowWillClose唯一调用；锁内删除当前条目控制器，结束窗口持有生命周期
 Clipboard,Features/Clipboard/UI/ClipboardModule.swift,ClipboardModule,start,func,10,KEEP,AppModule.start，经 ModuleRegistry.startAll 派发
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,init,init,34,KEEP,窗口控制器和ClipboardPreviewWindowView都接收同一PreviewPopoverContentModel；控制器按完整模型测量无边框窗并装内容，视图保留传入文件正文/图片和会话id
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowController,init,init,52,KEEP,窗口控制器和ClipboardPreviewWindowView都接收同一PreviewPopoverContentModel；控制器按完整模型测量无边框窗并装内容，视图保留传入文件正文/图片和会话id
@@ -4166,7 +4157,7 @@ Storage,Storage/Database.swift,SQLiteDatabase,run,func,88,KEEP,2026-11-17：各�
 Storage,Storage/Database.swift,SQLiteDatabase,query,func,103,KEEP,2026-11-17：保留TagStore及统计等字典结果调用；委托同名泛型重载；SQL prepare绑定遍历finalize仅由原循环承担
 Storage,Storage/Database.swift,SQLiteDatabase,query,func,107,KEEP,2026-11-17：剪贴板四类查询逐行构造条目；只将SQLITE_DONE视为正常结束；step执行失败抛DatabaseError而不返回部分行；statement与锁退出释放
 Storage,Storage/Database.swift,SQLiteDatabase,scalarInt,func,160,KEEP,2026-11-17：剪贴板计数存储量及统计聚合调用；当前消费者SQL只返回单个整数列；沿query处理执行失败；未来可去除单行字典分配
-Storage,Storage/Database.swift,SQLiteDatabase,transaction,func,167,KEEP,2026-11-17：条目删除备份与统计导入迁移共用；同递归锁覆盖BEGIN正文及COMMIT；失败执行原ROLLBACK并抛出
+Storage,Storage/Database.swift,SQLiteDatabase,transaction,func,167,KEEP,2026-11-17：条目删除备份与统计迁移共用；同递归锁覆盖BEGIN正文及COMMIT；失败执行原ROLLBACK并抛出
 Storage,Storage/Database.swift,Dictionary,string,func,184,KEEP,2026-11-17：仓库模型映射与统计解析共用；仅提取SQLiteValue.text；类型不符返回nil供现有可选字段语义使用
 Storage,Storage/Database.swift,Dictionary,int,func,185,KEEP,2026-11-17：模型数值与统计读取共用；仅提取int否则0；SQL聚合及显式整数schema为实际输入
 Storage,Storage/Database.swift,Dictionary,real,func,186,KEEP,2026-11-17：条目标签及会话时间戳映射使用；仅提取real否则0；不进行新类型转换
@@ -4187,6 +4178,5 @@ Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,568,KEEP,2
 Storage,Storage/Database.swift,StatisticsManager,total,func,585,KEEP,2026-11-17：StatisticsSettingsPane各功能累计调用；单事件SQL SUM；设置refresh逐指标调用存在批量复用空间待性能批次
 Storage,Storage/Database.swift,StatisticsManager,reviewRequestUsage,func,594,KEEP,2026-11-17：StatisticsSettingsPane.refresh读取历史复制与截图次数；固定两事件SQL聚合；沿用原评分口径
 Storage,Storage/Database.swift,StatisticsManager,exportAll,func,603,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
-Storage,Storage/Database.swift,StatisticsManager,importMerge,func,615,UNSURE,2026-11-17：全函数阅读为串行队列事务MAX合并；StatisticsSettingsPane已改成仅配置导入而不再调用；需核对其余配置/诊断入口后决定删除
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,632,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,661,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,616,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,645,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理

@@ -99,7 +99,7 @@ public enum DiagnosticsExporter {
     // MARK: ① 使用统计
 
     private static func usageRows() -> [(String, String, Int)] {
-        // 复用统计窄表的全量导出（Q8：设置导出携带统计数据的同一接口）
+        // 复用统计窄表的全量导出。
         StatisticsManager.shared.exportAll()
     }
 
