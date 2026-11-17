@@ -582,7 +582,7 @@ Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,remove,fun
 Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,writeText,func,186,KEEP,apply:154（editText 撤销/重做）
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,init,init,28,KEEP,Drag:85 makeProvider 内构造 delegate
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,filePromiseProvider,func,34,KEEP,NSFilePromiseProviderDelegate 协议回调
-Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,operationQueue,func,39,KEEP,NSFilePromiseProviderDelegate 协议要求
+Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,operationQueue,func,39,KEEP,NSFilePromiseProviderDelegate回调；makeProvider:85将delegate交给provider；返回唯一workQueue供写Promise任务串行解压和移动
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,filePromiseProvider,func,44,KEEP,NSFilePromiseProviderDelegate；Finder 落点才解压
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,fileType,func,75,KEEP,Drag:86 makeProvider 传入承诺 UTI
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,makeProvider,func,85,KEEP,EntryTable:138、Drag:205 造拖出承诺
