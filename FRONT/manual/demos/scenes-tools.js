@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   archive: {
     title: "归档：浏览、预览、解压",
-    stage: 450,
+    stage: 240,
     body: `
       <div class="kui-win" style="width:460px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">素材包.zip · 共 2 项</span></div>
@@ -22,7 +22,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
             </div>
           </div>
           <div style="flex:1.1">
-            <div class="kui-preview" style="font-size:10.4px;line-height:1.7;color:#44444C;border:1px solid #F0F0F3;border-radius:8px;padding:9px;min-height:150px">
+            <div class="kui-preview" style="font-size:10.4px;line-height:1.7;color:#44444C;border:0;border-radius:8px;padding:9px;min-height:150px;background:#F7F8FA">
               # 素材包说明<br><br>1. cover.png 用作封面<br>2. 本文件为示例内容<br>3. 支持 40+ 种压缩格式
             </div>
           </div>
@@ -48,7 +48,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   toolbox: {
     title: "工具箱：输入 / 切命令模式",
-    stage: 440,
+    stage: 341,
     body: `
       <div class="kui-panel" style="width:390px">
         <div class="kui-search"><span>⌕</span><span class="kui-q">/</span><span class="kui-spacer"></span><span style="font-size:9.6px;color:#8A8A94">命令模式</span></div>
@@ -80,7 +80,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   search: {
     title: "全局搜索：文件与应用一起搜",
-    stage: 440,
+    stage: 331,
     body: `
       <div class="kui-panel" style="width:390px">
         <div class="kui-search"><span>⌕</span><span class="kui-q">image-html</span></div>
@@ -110,25 +110,25 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   command: {
     title: "命令面板：45 条命令一屏",
-    stage: 450,
+    stage: 294,
     body: `
       <div class="kui-win" style="width:470px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">命令面板 · ⌥K</span></div>
         <div class="kui-wbody" style="padding:10px 12px">
           <div class="kui-search" style="margin:0 0 9px"><span>⌕</span><span class="kui-q" style="color:#8A8A94">输入命令名…</span></div>
           <div class="kui-cmds" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:10.6px">
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">开始录屏</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">区域截图</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">打开剪贴板</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">开始录屏</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">区域截图</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">打开剪贴板</div>
             <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px;background:#EEF3FF;border-color:#B9CDF7;color:#1E52D6">取色器</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">存储管理</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">网络诊断</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">内存释放</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">截图历史</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">打开设置</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">悬浮剪贴板</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">录屏设置</div>
-            <div style="padding:7px 8px;border:1px solid #EDEDF1;border-radius:7px">检查更新</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">存储管理</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">网络诊断</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">内存释放</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">截图历史</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">打开设置</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">悬浮剪贴板</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">录屏设置</div>
+            <div style="padding:7px 8px;border:0;border-radius:7px;background:#F6F7F9">检查更新</div>
           </div>
           <div style="display:flex;gap:10px;margin-top:10px;font-size:9.8px;color:#8A8A94">
             <span><span class="kui-kbd">↑↓</span> 选择</span><span><span class="kui-kbd">↵</span> 执行</span><span><span class="kui-kbd">Esc</span> 关闭</span>
@@ -153,7 +153,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   calendar: {
     title: "日历：翻周与回到今天",
-    stage: 430,
+    stage: 200,
     body: `
       <div class="kui-panel" style="width:372px">
         <div class="kui-sect" style="padding:12px 14px">
@@ -208,7 +208,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   shortcuts: {
     title: "快捷键：点一下就能改绑",
-    stage: 440,
+    stage: 323,
     body: `
       <div class="kui-win" style="width:450px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置 · 快捷键</span></div>
@@ -245,7 +245,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   codepreview: {
     title: "代码预览：高亮与语言切换",
-    stage: 440,
+    stage: 342,
     body: `
       <div class="kui-win" style="width:460px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">Preview · main.swift</span></div>
@@ -253,7 +253,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
           <div style="display:flex;gap:6px;margin-bottom:9px">
             <span class="kui-chip on">Swift</span><span class="kui-chip">Python</span><span class="kui-chip">JavaScript</span><span class="kui-spacer"></span><span class="kui-chip kui-theme">深色主题</span>
           </div>
-          <pre class="kui-code" style="margin:0;background:#FBFBFD;border:1px solid #EDEDF1;border-radius:9px;padding:10px;font-size:10.2px;line-height:1.7;overflow:auto;max-height:200px"><code><span style="color:#8A8A94">1</span>  <span style="color:#8A2BE2">import</span> SwiftUI
+          <pre class="kui-code" style="margin:0;background:#FBFBFD;border:0;border-radius:9px;padding:10px;font-size:10.2px;line-height:1.7;overflow:auto;max-height:200px"><code><span style="color:#8A8A94">1</span>  <span style="color:#8A2BE2">import</span> SwiftUI
 <span style="color:#8A8A94">2</span>
 <span style="color:#8A8A94">3</span>  <span style="color:#8A2BE2">struct</span> <span style="color:#1E52D6">PanelView</span>: View {
 <span style="color:#8A8A94">4</span>      <span style="color:#8A2BE2">var</span> body: <span style="color:#8A2BE2">some</span> View {
@@ -295,7 +295,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   cloudlink: {
     title: "网盘解析：链接与提取码",
-    stage: 450,
+    stage: 355,
     body: `
       <div class="kui-win" style="width:440px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">解析下载</span></div>
@@ -333,7 +333,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   ai: {
     title: "AI 助手：服务商、模型与密钥",
-    stage: 450,
+    stage: 353,
     body: `
       <div class="kui-win" style="width:450px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置 · AI</span></div>

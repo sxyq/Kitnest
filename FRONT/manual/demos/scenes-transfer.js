@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   transfer: {
     title: "文件中转：三种方式发文件",
-    stage: 460,
+    stage: 486,
     body: `
       <div class="kui-panel" style="width:390px">
         <div class="kui-panelbar">
@@ -51,7 +51,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   cast: {
     title: "投屏：安卓与 iPhone 分栏",
-    stage: 450,
+    stage: 400,
     body: `
       <div class="kui-panel" style="width:390px">
         <div class="kui-panelbar">
@@ -59,7 +59,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
           <span class="kui-spacer"></span><span class="kui-ico">⚙</span>
         </div>
         <div class="kui-split" style="padding:10px 12px;gap:10px">
-          <div style="flex:1;border:1px solid #EDEDF1;border-radius:10px;padding:10px">
+          <div style="flex:1;background:#F7F8FA;border-radius:10px;padding:10px">
             <div style="font-size:11px;font-weight:620;margin-bottom:6px">安卓</div>
             <div style="height:86px;border-radius:8px;background:linear-gradient(135deg,#E8EEF9,#F5F8FC);display:flex;align-items:center;justify-content:center;font-size:10px;color:#7A7A84">未连接</div>
             <div style="display:flex;gap:5px;margin-top:7px">
@@ -67,7 +67,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
               <span class="kui-btn primary kui-conn" style="flex:1;justify-content:center;padding:3px 6px;font-size:10px">扫码连接</span>
             </div>
           </div>
-          <div style="flex:1;border:1px solid #EDEDF1;border-radius:10px;padding:10px">
+          <div style="flex:1;background:#F7F8FA;border-radius:10px;padding:10px">
             <div style="font-size:11px;font-weight:620;margin-bottom:6px">iPhone</div>
             <div style="height:86px;border-radius:8px;background:linear-gradient(135deg,#F3EEFB,#F9F6FD);display:flex;align-items:center;justify-content:center;font-size:10px;color:#7A7A84">未连接</div>
             <div style="display:flex;gap:5px;margin-top:7px">

@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   settings: {
     title: "设置：13 类 42 页",
-    stage: 470,
+    stage: 391,
     body: `
       <div class="kui-win" style="width:470px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置</span></div>
@@ -65,7 +65,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   onboarding: {
     title: "首次启动：权限与能力卡",
-    stage: 450,
+    stage: 409,
     body: `
       <div class="kui-win" style="width:450px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">欢迎使用 Kitnest</span></div>
@@ -105,7 +105,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   manual: {
     title: "内置手册：树形目录与搜索",
-    stage: 450,
+    stage: 337,
     body: `
       <div class="kui-win" style="width:460px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">使用手册</span></div>
@@ -131,10 +131,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
             <div style="font-size:10.6px;color:#8A8A94;margin-bottom:8px">功能是什么</div>
             <div style="font-size:10.4px;line-height:1.75;color:#44444C">面板是 Kitnest 的主入口：四个页签、搜索框、剪贴板列表和底部工具条。按 ⌥A 随时呼出，Esc 收起。</div>
             <div style="font-size:10.6px;color:#8A8A94;margin:10px 0 6px">演示</div>
-            <div class="kui-mini" style="border:1px solid #EDEDF1;border-radius:8px;padding:8px;background:#FAFBFC">
-              <div style="height:64px;border-radius:6px;background:linear-gradient(135deg,#E8EEF9,#F6F8FC)"></div>
-              <div style="font-size:9px;color:#8A8A94;margin-top:5px">预设动画 · 可点按体验</div>
-            </div>
+            <div style="height:72px;border-radius:8px;background:linear-gradient(135deg,#E8EEF9,#F6F8FC)"></div>
           </div>
         </div>
       </div>`,
@@ -160,7 +157,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   update: {
     title: "关于：版本、更新与诊断",
-    stage: 440,
+    stage: 325,
     body: `
       <div class="kui-win" style="width:430px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">关于 Kitnest</span></div>
@@ -196,7 +193,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   workflow: {
     title: "工作流：截图后自动做事",
-    stage: 460,
+    stage: 429,
     body: `
       <div class="kui-win" style="width:450px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置 · 工作流</span></div>

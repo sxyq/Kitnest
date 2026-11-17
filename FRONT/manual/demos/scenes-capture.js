@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   capture: {
     title: "截图：选区 → 动作条 → 钉住",
-    stage: 430,
+    stage: 258,
     body: `
       <div class="kui-screen">
         <div style="position:absolute;left:22px;top:18px;font-size:11px;color:#98A0AD">桌面</div>
@@ -44,11 +44,11 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   annotate: {
     title: "标注：对象化箭头与马赛克",
-    stage: 440,
+    stage: 278,
     body: `
       <div style="position:relative;width:100%;max-width:470px">
         <div class="kui-screen" style="height:270px">
-          <div style="position:absolute;left:26px;top:26px;width:200px;padding:14px;border-radius:9px;background:#fff;border:1px solid #E7EAF0;box-shadow:0 8px 20px rgba(11,11,13,.06)">
+          <div style="position:absolute;left:26px;top:26px;width:200px;padding:14px;border-radius:9px;background:#fff;border:0">
             <div style="font-size:10px;color:#8A8A94;margin-bottom:7px">转账详情</div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin:5px 0"><span>收款方</span><b>示例商户</b></div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin:5px 0"><span>金额</span><b class="kui-amount" style="color:#C0392B">¥ 1,280.00</b></div>
@@ -58,7 +58,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
             <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#2F6BFF"/></marker></defs>
             <path d="M6 66 C 40 12, 80 12, 112 34" fill="none" stroke="#2F6BFF" stroke-width="2.4" marker-end="url(#ah)"/>
           </svg>
-          <div class="kui-annot-bar" style="position:absolute;left:14px;top:88px;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:10px;background:#fff;border:1px solid #E7EAF0;box-shadow:0 10px 24px rgba(11,11,13,.10);font-size:11px;opacity:0;transition:opacity .25s ease">
+          <div class="kui-annot-bar" style="position:absolute;left:14px;top:88px;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:10px;background:rgba(255,255,255,.88);font-size:11px;opacity:0;transition:opacity .25s ease">
             <span style="padding:3px 5px;border-radius:5px">▭</span><span style="padding:3px 5px;border-radius:5px">◯</span><span style="padding:3px 5px;border-radius:5px;background:#EEF3FF;color:#1E52D6">▦</span><span style="padding:3px 5px;border-radius:5px">T</span><span style="padding:3px 5px;border-radius:5px">✎</span>
           </div>
         </div>
@@ -88,7 +88,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   beautify: {
     title: "美化：背景、圆角、投影",
-    stage: 460,
+    stage: 316,
     body: `
       <div class="kui-win" style="width:450px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">美化截图</span></div>
@@ -149,7 +149,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   longshot: {
     title: "长截图：滚动合成，接缝无重影",
-    stage: 440,
+    stage: 373,
     body: `
       <div class="kui-win" style="width:250px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">长截图预览</span></div>
@@ -185,7 +185,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   pin: {
     title: "钉图：四种形态与不透明度",
-    stage: 440,
+    stage: 327,
     body: `
       <div class="kui-win" style="width:440px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置 · 钉图</span></div>
@@ -232,18 +232,18 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   curtain: {
     title: "图帘：截图先挂在顶边",
-    stage: 400,
+    stage: 289,
     body: `
       <div style="width:100%;max-width:470px">
         <div class="kui-menubar" style="margin-bottom:0">
           <span class="kui-glyph"></span><span class="kui-mi">Kitnest</span><span class="kui-spacer"></span><span class="kui-mi">9:41</span>
         </div>
         <div style="background:linear-gradient(160deg,#EAF0FA 0%,#F6F8FC 55%,#EEF2F8 100%);height:250px;border-radius:0 0 10px 10px;position:relative;border:1px solid #E7EAF0;border-top:0">
-          <div class="kui-ladder" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);padding:7px 10px;box-shadow:0 8px 20px rgba(11,11,13,.08)">
+          <div class="kui-ladder" style="position:absolute;left:50%;top:8px;transform:translateX(-50%);padding:7px 10px;background:rgba(255,255,255,.72);border:0">
             <div class="kui-shot"></div><div class="kui-shot"></div><div class="kui-shot"></div>
           </div>
-          <div style="position:absolute;left:24px;bottom:26px;width:150px;height:88px;border-radius:9px;background:#fff;border:1px solid #E7EAF0;box-shadow:0 10px 24px rgba(11,11,13,.08);padding:10px;font-size:10px;color:#8A8A94">桌面文件</div>
-          <div style="position:absolute;right:24px;bottom:26px;width:150px;height:88px;border-radius:9px;background:#fff;border:1px solid #E7EAF0;box-shadow:0 10px 24px rgba(11,11,13,.08);padding:10px;font-size:10px;color:#8A8A94">项目目录</div>
+          <div style="position:absolute;left:24px;bottom:26px;width:150px;height:88px;border-radius:9px;background:#fff;padding:10px;font-size:10px;color:#8A8A94">桌面文件</div>
+          <div style="position:absolute;right:24px;bottom:26px;width:150px;height:88px;border-radius:9px;background:#fff;padding:10px;font-size:10px;color:#8A8A94">项目目录</div>
         </div>
       </div>`,
     steps: [
@@ -261,7 +261,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   history: {
     title: "截图历史：网格与搜索",
-    stage: 450,
+    stage: 336,
     body: `
       <div class="kui-win" style="width:440px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">截图历史</span></div>
@@ -298,13 +298,13 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   ocr: {
     title: "文字识别：左图右文，可翻译",
-    stage: 450,
+    stage: 294,
     body: `
       <div class="kui-win" style="width:470px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">识别结果</span></div>
         <div class="kui-wbody" style="display:flex;gap:12px;padding:12px">
           <div style="flex:1">
-            <div style="height:190px;border-radius:8px;border:1px solid #E7EAF0;background:linear-gradient(135deg,#E9EFF9,#F6F8FC);position:relative;overflow:hidden">
+            <div style="height:190px;border-radius:8px;background:linear-gradient(135deg,#E9EFF9,#F6F8FC);position:relative;overflow:hidden">
               <div style="position:absolute;left:14px;top:16px;font-size:10px;line-height:1.7;color:#5A6473">
                 出行提示<br>11 月 18 日 09:40<br>登机口 B12<br>请提前 30 分钟到达
               </div>
@@ -314,7 +314,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
             </div>
           </div>
           <div style="flex:1;display:flex;flex-direction:column">
-            <div class="kui-ocrtext" style="flex:1;font-size:10.8px;line-height:1.8;color:#33333B;border:1px solid #F0F0F3;border-radius:8px;padding:9px">
+            <div class="kui-ocrtext" style="flex:1;font-size:10.8px;line-height:1.8;color:#33333B;border:0;border-radius:8px;padding:9px;background:#F7F8FA">
               出行提示<br>11 月 18 日 09:40<br>登机口 B12<br>请提前 30 分钟到达
             </div>
             <div style="display:flex;gap:6px;margin-top:8px">
@@ -352,7 +352,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   captureplus: {
     title: "截图设置：比例、命名、静默识别",
-    stage: 440,
+    stage: 319,
     body: `
       <div class="kui-win" style="width:450px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置 · 截图</span></div>
@@ -392,19 +392,20 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   recording: {
     title: "录屏：控制条、画中画、剪辑",
-    stage: 470,
+    stage: 404,
     body: `
-      <div style="width:100%;max-width:470px">
-        <div style="height:230px;border-radius:10px;background:linear-gradient(135deg,#E8EEF9,#F6F8FC);border:1px solid #E3E6EC;position:relative;overflow:hidden">
-          <div style="position:absolute;left:26px;top:24px;width:170px;height:100px;border-radius:8px;background:#fff;border:1px solid #E7EAF0;box-shadow:0 8px 20px rgba(11,11,13,.06);padding:10px;font-size:10px;color:#5A6473">演示窗口</div>
-          <div class="kui-cam" style="position:absolute;right:18px;bottom:16px;width:78px;height:102px;border-radius:8px;background:linear-gradient(145deg,#C9D6EA,#E7EDF7);border:1px solid #DDE3ED;opacity:0;transition:opacity .3s ease"></div>
+      <div class="kui-win" style="width:440px">
+        <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">录屏</span></div>
+        <div style="height:196px;background:linear-gradient(135deg,#E8EEF9,#F6F8FC);position:relative;overflow:hidden">
+          <div style="position:absolute;left:24px;top:22px;width:158px;height:92px;border-radius:8px;background:#fff;padding:10px;font-size:10px;color:#5A6473">演示窗口</div>
+          <div class="kui-cam" style="position:absolute;right:16px;bottom:14px;width:70px;height:92px;border-radius:8px;background:linear-gradient(145deg,#C9D6EA,#E7EDF7);opacity:0;transition:opacity .3s ease"></div>
           <div class="kui-recbar" style="position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:20px;background:rgba(24,24,28,.86);color:#fff;font-size:11px;backdrop-filter:blur(10px);opacity:0;transition:opacity .3s ease">
             <span class="kui-reddot" style="width:8px;height:8px;border-radius:50%;background:#FF5F57;display:inline-block"></span>
             <span class="kui-timer">00:12</span><span style="opacity:.6">|</span><span>⏸</span><span>⏹</span>
           </div>
         </div>
-        <div class="kui-panel" style="width:100%;margin-top:10px">
-          <div class="kui-sect" style="padding:10px 12px">
+        <div class="kui-wbody" style="padding:2px 14px 12px">
+          <div class="kui-sect" style="padding:0">
             <div class="kui-field"><span class="kui-fl">录制源</span><span class="kui-fv">
               <span class="kui-chip on">整屏</span> <span class="kui-chip">区域</span> <span class="kui-chip">窗口</span>
             </span></div>

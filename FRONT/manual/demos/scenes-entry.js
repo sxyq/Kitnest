@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   menubar: {
     title: "菜单栏图标：面板从图标下展开",
-    stage: 420,
+    stage: 353,
     body: `
       <div style="width:100%;max-width:470px">
         <div class="kui-menubar">
@@ -17,7 +17,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
           <span class="kui-spacer"></span>
           <span class="kui-mi">􀊫</span><span class="kui-mi">􀉉</span><span class="kui-mi">9:41</span>
         </div>
-        <div class="kui-panel kui-hidden" style="margin-top:8px;width:340px;margin-left:8px">
+        <div class="kui-panel" style="margin-top:8px;width:340px;margin-left:8px">
           <div class="kui-panelbar">
             <span class="kui-ico">✂</span><span class="kui-ico">◎</span><span class="kui-ico">▤</span>
             <span class="kui-spacer"></span>
@@ -34,8 +34,10 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
         </div>
       </div>`,
     steps: [
-      { cap: "Kitnest 常驻菜单栏，不占 Dock、不抢焦点，点图标就下来。", hold: 1100 },
+      { cap: "Kitnest 常驻菜单栏，不占 Dock、不抢焦点；点图标展开或收起面板。", hold: 1200 },
       { move: ".kui-glyph", ms: 700 },
+      { click: ".kui-glyph" },
+      { run: function () { this.stage.querySelector(".kui-panel").classList.add("kui-hidden"); }, hold: 700 },
       { click: ".kui-glyph" },
       { run: function () { this.stage.querySelector(".kui-panel").classList.remove("kui-hidden"); }, hold: 900 },
       { cap: "面板从图标正下方展开，顶部一排动作：截图、取色、悬浮剪贴板、设置。", hold: 1200 },
@@ -51,7 +53,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   panel: {
     title: "主面板：四个页签与搜索",
-    stage: 460,
+    stage: 369,
     body: `
       <div class="kui-panel">
         <div class="kui-panelbar">
@@ -113,7 +115,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   statistics: {
     title: "使用统计：计数、柱图、热力矩阵",
-    stage: 460,
+    stage: 342,
     body: `
       <div class="kui-win" style="width:430px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">使用统计</span></div>

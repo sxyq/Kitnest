@@ -1087,7 +1087,7 @@ awk -F, &#x27;$2==&quot;Features/Capture/Curtain/CurtainWindow.swift&quot;&#x27;
 <hr>
 <h2 id="附录-f-交互演示怎么做出来的">附录 F · 交互演示怎么做出来的</h2>
 <p>手册里的演示不再是录屏视频，而是<strong>用代码画出来的迷你界面 + 预设时间轴</strong>： 和「设置 → 个性化 → 效果预览」是同一种做法——真实组件样式、模拟数据、 自动播放一遍，随时可以重播，也可以自己点着试。</p>
-<p>演示块<strong>直接嵌在正文里</strong>：不套卡片外壳、不占独立一行，右侧浮起、左侧文字环绕； 说明文字浮在演示内部（字幕式），不额外占一行；右上角 <code>↻</code> 随时重播。</p>
+<p>演示块<strong>直接嵌在正文里</strong>：只有唯一一个交互界面，不套卡片外壳、不叠内层白框， 右侧浮起、左侧文字环绕；说明文字落在演示下沿的图注区（不占独立段落）；右上角 <code>↻</code> 随时重播。</p>
 <h3 id="运行时与场景按需加载">运行时与场景（按需加载）</h3>
 <div class="table-wrap"><table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody><tr><td><code>FRONT/manual/demos/demo.js</code></td><td><strong>运行时</strong>：渲染界面、驱动光标与时间轴、处理重播与手动交互</td></tr><tr><td><code>FRONT/manual/demos/demo.css</code></td><td><strong>样式</strong>：迷你面板 / 窗口 / 菜单 / 图表等原语，配色与官网同源</td></tr><tr><td><code>FRONT/manual/demos/scenes-&lt;域&gt;.js</code></td><td><strong>场景数据</strong>（7 个 chunk）：每个演示一段迷你界面 HTML + 一条时间轴</td></tr></tbody></table></div>
 <h3 id="加载策略不用的不加载">加载策略（不用的不加载）</h3>

@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   monitor: {
     title: "系统监测：环形图、曲线与温度",
-    stage: 470,
+    stage: 308,
     body: `
       <div class="kui-win" style="width:430px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">性能监测</span></div>
@@ -73,7 +73,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   memory: {
     title: "内存维护：环形图与深度释放",
-    stage: 450,
+    stage: 349,
     body: `
       <div class="kui-panel" style="width:380px">
         <div class="kui-panelbar"><span class="kui-seg on">内存</span><span class="kui-spacer"></span><span class="kui-ico">↻</span></div>
@@ -127,7 +127,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   storage: {
     title: "存储管理：气泡堆块与清单",
-    stage: 460,
+    stage: 269,
     body: `
       <div class="kui-win" style="width:460px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">存储管理</span></div>
@@ -179,7 +179,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   network: {
     title: "网络：实时曲线与进程排行",
-    stage: 450,
+    stage: 343,
     body: `
       <div class="kui-win" style="width:440px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">网络</span></div>
