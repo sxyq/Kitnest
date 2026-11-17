@@ -8,7 +8,7 @@
 Object.assign(window.KDEMOS = window.KDEMOS || {}, {
   clipboard: {
     title: "剪贴板历史：滚动、悬停、筛选",
-    stage: 450,
+    stage: 397,
     body: `
       <div class="kui-panel">
         <div class="kui-search"><span>⌕</span><span class="kui-q">按内容搜索…</span></div>
@@ -47,7 +47,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   floatdesk: {
     title: "悬浮剪贴板：卡片网格 + 预览",
-    stage: 460,
+    stage: 311,
     body: `
       <div class="kui-win" style="width:470px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">剪贴板工作台</span></div>
@@ -100,7 +100,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
 
   preview: {
     title: "悬停预览：内容随类型变",
-    stage: 430,
+    stage: 237,
     body: `
       <div style="position:relative;width:100%;max-width:460px">
         <div class="kui-panel" style="width:340px">
