@@ -137,11 +137,14 @@ enum ToolRailMetrics {
     static let groupBreaks: Set<Int> = [3, 7, 9, 13]
     /// 胶囊宽度
     static let width: CGFloat = button + hPadding * 2
-    /// 胶囊高度（9 个按钮 + 2 条分割线 + 内边距）
+    /// 顶部提示容纳工具名和两行用法；与 AppKit 宿主共用尺寸，避免末尾按钮溢出命中区域。
+    static let hintHeight: CGFloat = 44
+    static let hintGap: CGFloat = 6
+    /// 完整竖栏高度（提示 + 间距 + 按钮胶囊）
     static var height: CGFloat {
         let n = CGFloat(AnnotationTool.allCases.count)
         let seps = CGFloat(groupBreaks.count)
-        return n * button + seps * (groupGap * 2 + 1) + vPadding * 2
+        return hintHeight + hintGap + n * button + seps * (groupGap * 2 + 1) + vPadding * 2
     }
 }
 
@@ -160,7 +163,7 @@ struct AnnotationToolRailView: View {
     }()
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: ToolRailMetrics.hintGap) {
             toolHint
             railCapsule
         }
@@ -230,7 +233,7 @@ struct AnnotationToolRailView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .frame(width: ToolRailMetrics.width + 28)
+        .frame(width: ToolRailMetrics.width + 28, height: ToolRailMetrics.hintHeight)
         .background(
             // v207：标注工具提示浮在画布上，需要自己带玻璃底——统一用 GlassSurface
             GlassSurface(cornerRadius: Theme.Radius.chip)
