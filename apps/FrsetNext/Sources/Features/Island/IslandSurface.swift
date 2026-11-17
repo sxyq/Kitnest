@@ -146,7 +146,7 @@ private struct IslandMorph: AnimatableModifier {
                     .id(reduceTransparency ? IslandMaterial.solid : controller.configuration.effectiveMaterial)
                     .overlay(Color.black.opacity(controller.usesGlass && !reduceTransparency ? 1 - phase * (1 - controller.configuration.opacity) : 1))
                     .overlay(alignment: .top) {
-                        if controller.previewOnly || controller.displayScreen.safeAreaInsets.top == 0 {
+                        if controller.previewOnly && controller.displayScreen.safeAreaInsets.top > 0 {
                             Color.black.frame(width: controller.notchWidth, height: controller.notchHeight)
                                 .clipShape(IslandOutline(radius: Theme.Radius.chip))
                         }

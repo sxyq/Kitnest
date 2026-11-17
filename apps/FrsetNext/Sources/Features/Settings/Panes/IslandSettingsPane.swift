@@ -150,7 +150,6 @@ final class IslandSettingsDraft: SettingsEditableDraft {
 private struct IslandSettingsContent: View {
     @ObservedObject var draft: IslandSettingsDraft
     let part: IslandSettingsPart
-    @Stored private var demonstration: Task<Void, Never>?
     @Stored private var displays = IslandDisplay.available
 
     var body: some View {
@@ -181,7 +180,6 @@ private struct IslandSettingsContent: View {
             if part == .peeks { draft.previewController.collapse() }
             else { draft.previewController.expand() }
         }
-        .onDisappear { demonstration?.cancel(); demonstration = nil }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
             displays = IslandDisplay.available
         }
@@ -191,7 +189,7 @@ private struct IslandSettingsContent: View {
         let enabledIDs = Set(IslandDisplay.enabled(for: draft.configuration).map(\.id))
         return SettingsSection("显示屏幕") {
             SettingsGroupBox {
-                SettingsRow(title: "显示范围", subtitle: "自动优先使用真实刘海屏；没有刘海屏时使用主屏") {
+                SettingsRow(title: "显示范围", subtitle: "每屏保留轻量入口；完整工作台优先真实刘海屏，其次主屏") {
                     Picker("显示范围", selection: $draft.configuration.displayScope) {
                         ForEach(IslandDisplayScope.allCases) { scope in Text(scope.title).tag(scope) }
                     }.labelsHidden().frame(width: 190)
@@ -202,7 +200,7 @@ private struct IslandSettingsContent: View {
                                 subtitle: "\(Int(display.frame.width)) × \(Int(display.frame.height)) pt · "
                                     + (display.hasNotch
                                        ? "刘海 \(Int(display.entrySize.width)) × \(Int(display.entrySize.height)) pt"
-                                       : "普通屏入口 180 × 28 pt")) {
+                                       : "菜单栏中央透明热区 180 × 28 pt")) {
                         Text(enabledIDs.contains(display.id) ? "已启用" : "已停用")
                             .font(.system(size: 11))
                             .foregroundStyle(enabledIDs.contains(display.id) ? Theme.accent : Color.secondary)
@@ -218,14 +216,14 @@ private struct IslandSettingsContent: View {
                     }
                 }
             }
-            Text("状态按当前草稿显示，保存后应用；指定屏幕离线时临时使用主屏，重新连接后恢复；镜像屏共用一个入口。")
+            Text("状态按当前草稿显示，保存后应用；指定屏幕离线时临时使用主屏，重新连接后恢复；镜像屏共用一个入口，所有屏幕共用单一工作台。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 
     private var entryPreviews: some View {
         SettingsSection("入口预览") {
-            HStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 IslandEntryPreview(hasNotch: true, size: displays.first(where: \.hasNotch)?.entrySize)
                 IslandEntryPreview(hasNotch: false, size: CGSize(width: 180, height: 28))
             }
@@ -291,15 +289,14 @@ private struct IslandSettingsContent: View {
     }
 
     private var behavior: some View {
-        SettingsSection("悬停与收回") {
+        SettingsSection("唤出与收回") {
             SettingsGroupBox {
-                SettingsDivider()
-                SettingsRow(title: "悬停展开") {
-                    Toggle("悬停展开", isOn: $draft.configuration.hoverEnabled).labelsHidden()
+                SettingsRow(title: "悬停唤出", subtitle: "真实刘海屏悬停展开；普通屏悬停只显示搜索短条，点击后展开工作台") {
+                    Toggle("悬停唤出", isOn: $draft.configuration.hoverEnabled).labelsHidden()
                 }
                 if draft.configuration.hoverEnabled {
-                SettingsRow(title: "悬停展开时间") {
-                    TextField("悬停展开时间", value: $draft.configuration.hoverDelay,
+                SettingsRow(title: "悬停停留时间", subtitle: "普通屏在菜单栏中央 180 × 28 pt 透明热区内停留后，显示同尺寸搜索短条") {
+                    TextField("悬停停留时间", value: $draft.configuration.hoverDelay,
                               format: .number.precision(.fractionLength(2)))
                         .frame(width: 64)
                     Text("秒").foregroundStyle(.secondary)
@@ -311,29 +308,17 @@ private struct IslandSettingsContent: View {
                         .frame(width: 64)
                     Text("秒").foregroundStyle(.secondary)
                 }
-                Button("演示悬停与自动收回") {
-                    demonstration?.cancel()
-                    let controller = draft.previewController
-                    controller.collapse()
-                    let hover = draft.configuration.hoverEnabled ? draft.configuration.hoverDelay : 0
-                    let collapse = draft.configuration.collapseDelay
-                    demonstration = Task { @MainActor in
-                        do {
-                            try await Task.sleep(nanoseconds: UInt64(max(0, hover) * 1_000_000_000))
-                            controller.expand()
-                            try await Task.sleep(nanoseconds: UInt64(max(0, collapse) * 1_000_000_000))
-                            controller.collapse()
-                        } catch { }
-                    }
-                }
-                .buttonStyle(.bordered)
             }
             .textFieldStyle(.roundedBorder)
+            Text("普通屏平时完全隐藏黑块；搜索短条仅含搜索图标与“搜索…”，不显示功能按钮。收回后恢复隐藏；真实刘海屏沿用原有行为。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 
     private var peeks: some View {
         SettingsSection("收起态图标") {
+            Text("以下图标用于真实刘海屏；普通屏的悬停短条仅显示搜索入口。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
             SettingsGroupBox {
                 SettingsRow(title: "附带信息") {
                     Toggle("附带信息", isOn: $draft.configuration.peeksShowValues).labelsHidden()
@@ -432,20 +417,46 @@ private struct IslandEntryPreview: View {
     let size: CGSize?
 
     var body: some View {
-        VStack(spacing: 6) {
-            ZStack(alignment: .top) {
-                RoundedRectangle(cornerRadius: 7)
-                    .fill(Color.primary.opacity(0.035))
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.black)
-                    .frame(width: hasNotch ? 78 : 90, height: hasNotch ? 16 : 14)
-                    .offset(y: -3)
+        VStack(spacing: 8) {
+            Text(hasNotch ? "真实刘海屏" : "普通屏").font(.system(size: 12))
+            ForEach(0..<(hasNotch ? 1 : 3), id: \.self) { step in
+                ZStack(alignment: .top) {
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(Color.primary.opacity(0.035))
+                    if hasNotch {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.black)
+                            .frame(width: 78, height: 16)
+                            .offset(y: -3)
+                    } else if step == 1 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass")
+                            Text("搜索…")
+                            Spacer(minLength: 0)
+                        }
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .frame(width: 180, height: 28)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    } else if step == 2 {
+                        Text("单一工作台")
+                            .font(.system(size: 11))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .padding(.horizontal, 16)
+                    }
+                }
+                .frame(height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.12)))
+                Text(hasNotch ? "沿用刘海入口 · 悬停展开" : ["① 平时隐藏 · 中央透明热区", "② 悬停停留 → 搜索短条", "③ 点击短条 → 工作台"][step])
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            .frame(height: 72)
-            .clipShape(RoundedRectangle(cornerRadius: 7))
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.12)))
-            Text(hasNotch ? "真实刘海入口" : "普通屏入口").font(.system(size: 12))
-            Text(size.map { "\(Int($0.width)) × \(Int($0.height)) pt" } ?? "按系统刘海尺寸")
+            Text(hasNotch
+                 ? (size.map { "\(Int($0.width)) × \(Int($0.height)) pt" } ?? "按系统刘海尺寸")
+                 : "热区与搜索短条均为 180 × 28 pt")
                 .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)

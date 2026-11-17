@@ -142,7 +142,7 @@ enum SettingsPage: Hashable {
         case .generalWindows: return "共用材质与开合动效；底衬不透明度越大，底衬越不透明"
         case .generalPanel: return "页面显隐只改变展示，不关闭底层功能"
         case .panelBackground: return "背景图和遮罩只作用于主面板"
-        case .island: return "悬停、展开与自动收回使用正式组件的模拟演示"
+        case .island: return "设置显示屏幕、菜单栏入口、悬停停留与自动收回"
         case .islandPeeks: return "收起图标、数值、顺序及快捷操作"
         case .islandCanvas: return "预览中完成布局只更新草稿；本页保存后应用"
         case .islandMaterial: return "刘海材质、组件与指标颜色；不改变其他窗口"

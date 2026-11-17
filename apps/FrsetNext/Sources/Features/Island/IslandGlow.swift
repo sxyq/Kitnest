@@ -12,6 +12,10 @@ extension EnvironmentValues {
     }
 }
 
+extension Notification.Name {
+    static let islandGlowShouldHide = Notification.Name("kitnest.islandGlowShouldHide")
+}
+
 private struct IslandGlowRegion {
     let bounds: Anchor<CGRect>
     let radius: CGFloat
@@ -66,6 +70,7 @@ private struct IslandGlowScene: ViewModifier {
             }
             .onChange(of: enabled) { if !$0 { pointer.value.active = false } }
             .onReceive(NotificationCenter.default.publisher(for: NSScrollView.willStartLiveScrollNotification)
+                .merge(with: NotificationCenter.default.publisher(for: .islandGlowShouldHide))
                 .merge(with: NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification),
                        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification))) { _ in
                 pointer.value.active = false

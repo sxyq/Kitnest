@@ -43,6 +43,10 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Island/IslandController.swift", "hitTest"):
+        "菜单栏搜索短条的图标和文字共用入口点击区域，事件交回同一控制器迁移原工作台",
+    ("Features/Island/IslandController.swift", "accessibilityPerformPress"):
+        "菜单栏轻量入口通过辅助功能按下动作调用同一activate回调",
     ("Features/Island/IslandWidgetGrid.swift", "adjustSize"):
         "编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口",
     ("Features/Monitor/Views/MonitorCharts.swift", "makeNSView"):

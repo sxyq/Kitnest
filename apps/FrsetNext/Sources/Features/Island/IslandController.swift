@@ -50,6 +50,7 @@ final class IslandController: NSObject, ObservableObject {
     private var entries: [String: NSPanel] = [:]
     private var displays: [IslandDisplay] = []
     private var entryHoverID: String?
+    private var revealedEntryID: String?
     private var entryHoverWork: DispatchWorkItem?
     private var spaceObserver: NSObjectProtocol?
     private var monitors: [Any] = []
@@ -120,7 +121,7 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private var hidesCollapsedSurface: Bool {
-        (panel?.screen?.safeAreaInsets.top ?? 0) > 0 && visiblePeeks.isEmpty
+        displayScreen.safeAreaInsets.top == 0 || visiblePeeks.isEmpty
     }
 
     @discardableResult
@@ -301,6 +302,9 @@ final class IslandController: NSObject, ObservableObject {
                     self.position(collapsed: true)
                     self.panel?.resignKey()
                     if self.hidesCollapsedSurface { self.panel?.orderOut(nil) }
+                    self.refreshEntries()
+                    self.entryHoverID = nil
+                    self.updatePointer(pointerMoved: true)
                 }
                 action?()
             }
@@ -393,27 +397,39 @@ final class IslandController: NSObject, ObservableObject {
                 entry.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
                 entry.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
                 entry.isReleasedWhenClosed = false
-                entry.contentView = IslandEntryView { [weak self] in self?.activateDisplay(display.id) }
+                entry.contentView = IslandEntryView(hasNotch: display.hasNotch) { [weak self] in self?.activateDisplay(display.id) }
                 entries[display.id] = entry
             }
             entries[display.id]?.setFrame(display.entryFrame, display: true)
-            if display.id == activeDisplayID { entries[display.id]?.orderOut(nil) }
-            else { entries[display.id]?.orderFrontRegardless() }
+            let revealed = display.hasNotch || revealedEntryID == display.id
+            entries[display.id]?.contentView?.isHidden = !revealed
+            entries[display.id]?.ignoresMouseEvents = !revealed
+            let visible = display.hasNotch ? display.id != activeDisplayID
+                : !(display.id == activeDisplayID && contentVisible)
+            if visible { entries[display.id]?.orderFrontRegardless() }
+            else { entries[display.id]?.orderOut(nil) }
         }
     }
 
     private func activateDisplay(_ id: String) {
         guard let display = displays.first(where: { $0.id == id }) else { return }
         let hasPreview = panel.map { MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: $0) } ?? false
+        if !contentVisible && !display.hasNotch { page = .search }
         move(to: display)
         openedExplicitly = true
         expand(takeFocus: !hasPreview)
+        if page == .search, !hasPreview {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .frsetFocusPanelSearch, object: nil)
+            }
+        }
     }
 
     /// 移动原窗口及预览会话，不经过会取消草稿的 collapse，也不替换 hosting view。
     private func move(to display: IslandDisplay) {
         hoverWork?.cancel(); hoverWork = nil
         entryHoverWork?.cancel(); entryHoverWork = nil
+        entryHoverID = nil
         let oldFrame = panel?.frame ?? .zero
         activeDisplayID = display.id
         position(collapsed: !expanded && !showingContent)
@@ -437,7 +453,6 @@ final class IslandController: NSObject, ObservableObject {
             centerX = (left.maxX + right.minX) / 2
         } else {
             centerX = screen.frame.midX
-            // 无刘海屏幕仅展示一块小型黑色入口，不扩大有刘海屏幕的收起态。
         }
         // 舞台保留当前动画所需范围，缩小时不提前裁掉正在收缩的外壳。
         let size = collapsed ? CGSize(width: collapsedWidth, height: notchHeight) :
@@ -473,6 +488,8 @@ final class IslandController: NSObject, ObservableObject {
             showingContent = true
             if !previewOnly { position(); panel?.orderFrontRegardless() }
             expanded = true
+            revealedEntryID = nil
+            if !previewOnly { refreshEntries() }
         }
         hoverArmed = false
         if takeFocus { panel?.makeKeyAndOrderFront(nil) }
@@ -487,12 +504,16 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = false
         expanded = false
+        entryHoverID = nil
+        entryHoverWork?.cancel(); entryHoverWork = nil
+        revealedEntryID = nil
+        if !previewOnly { refreshEntries() }
         hoverArmed = false
         panel?.makeFirstResponder(nil)
     }
 
     func stop() {
-        entryHoverWork?.cancel(); entryHoverWork = nil; entryHoverID = nil
+        entryHoverWork?.cancel(); entryHoverWork = nil; entryHoverID = nil; revealedEntryID = nil
         for entry in entries.values { entry.orderOut(nil) }
         entries.removeAll()
         displays.removeAll()
@@ -540,7 +561,8 @@ final class IslandController: NSObject, ObservableObject {
             else { self?.updatePointer(pointerMoved: true) }
         } { monitors.append(token) }
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if let self, let target = self.entry(at: NSEvent.mouseLocation) {
+            if let self, let target = self.entry(at: NSEvent.mouseLocation),
+               target.hasNotch || self.revealedEntryID == target.id {
                 self.activateDisplay(target.id); return
             }
             self?.updatePointer(at: event.locationInWindow, pointerMoved: true)
@@ -548,7 +570,8 @@ final class IslandController: NSObject, ObservableObject {
         } { monitors.append(token) }
         if let token = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseDown, .rightMouseDown, .leftMouseUp, .scrollWheel]) { [weak self] event in
             guard let self else { return event }
-            if event.type == .leftMouseDown, let target = self.entry(at: NSEvent.mouseLocation) {
+            if event.type == .leftMouseDown, let target = self.entry(at: NSEvent.mouseLocation),
+               target.hasNotch || self.revealedEntryID == target.id {
                 self.activateDisplay(target.id); return nil
             }
             if event.type == .leftMouseUp { self.endInteraction() }
@@ -556,6 +579,9 @@ final class IslandController: NSObject, ObservableObject {
             if event.type == .leftMouseDown, event.window === self.panel {
                 self.openedExplicitly = true
                 self.beginInteraction()
+            }
+            if event.type == .scrollWheel {
+                NotificationCenter.default.post(name: .islandGlowShouldHide, object: event.window)
             }
             if event.type == .scrollWheel, event.window === self.panel, self.expanded,
                self.page == .home, self.componentPageCount > 1, !self.interacting, event.hasPreciseScrollingDeltas {
@@ -585,7 +611,26 @@ final class IslandController: NSObject, ObservableObject {
         if entryHoverID != hoverID {
             entryHoverWork?.cancel(); entryHoverWork = nil
             entryHoverID = hoverID
-            if let target, target.id != activeDisplayID, configuration.hoverEnabled,
+            if let target, !target.hasNotch, configuration.hoverEnabled,
+               !(target.id == activeDisplayID && contentVisible) {
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self, self.entryHoverID == target.id else { return }
+                    self.entryHoverWork = nil
+                    self.revealedEntryID = target.id
+                    self.refreshEntries()
+                    self.updatePointer(pointerMoved: true)
+                }
+                entryHoverWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
+            } else if target == nil, revealedEntryID != nil {
+                let work = DispatchWorkItem { [weak self] in
+                    self?.entryHoverWork = nil
+                    self?.revealedEntryID = nil
+                    self?.refreshEntries()
+                }
+                entryHoverWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + configuration.collapseDelay, execute: work)
+            } else if let target, target.hasNotch, target.id != activeDisplayID, configuration.hoverEnabled,
                !openedExplicitly, !interacting, !menuTracking, !editingText {
                 let work = DispatchWorkItem { [weak self] in
                     guard let self, self.entryHoverID == target.id, !self.openedExplicitly,
@@ -604,16 +649,17 @@ final class IslandController: NSObject, ObservableObject {
         let overCamera = abs(local.x - visibleSize.width / 2) < notchWidth / 2
         let hoverInside = next && (expanded || overCamera) ||
             (expanded && MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel, at: point))
-        guard inside != hoverInside else { return }
+        guard inside != hoverInside || (!hoverInside && expanded && hoverWork == nil) else { return }
         inside = hoverInside
         hoverWork?.cancel()
         hoverWork = nil
         if !hoverInside && pointerMoved { hoverArmed = true }
-        if hoverInside, !expanded, hoverArmed, configuration.hoverEnabled, pointerMoved {
+        if hoverInside, displayScreen.safeAreaInsets.top > 0, !expanded, hoverArmed, configuration.hoverEnabled, pointerMoved {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
-        } else if pointerMoved, !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking, entryHoverWork == nil,
+        } else if pointerMoved, !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking,
+                  entryHoverWork == nil || target?.hasNotch == false,
                   !editingText {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
             hoverWork = work
@@ -634,11 +680,41 @@ final class IslandController: NSObject, ObservableObject {
 
 /// 其他屏幕只绘制入口；没有 SwiftUI 正文、数据库订阅或采样器。
 private final class IslandEntryView: NSView {
+    let hasNotch: Bool
     let activate: () -> Void
-    init(activate: @escaping () -> Void) { self.activate = activate; super.init(frame: .zero) }
+    init(hasNotch: Bool, activate: @escaping () -> Void) {
+        self.hasNotch = hasNotch
+        self.activate = activate
+        super.init(frame: .zero)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(hasNotch ? "打开刘海工作台" : "搜索并打开工作台")
+        if !hasNotch {
+            let material = NSVisualEffectView(frame: bounds)
+            material.material = .menu
+            material.state = .active
+            material.autoresizingMask = [.width, .height]
+            material.wantsLayer = true
+            material.layer?.cornerRadius = 8
+            material.layer?.masksToBounds = true
+            addSubview(material)
+            let icon = NSImageView(frame: NSRect(x: 10, y: 7, width: 14, height: 14))
+            icon.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)
+            icon.contentTintColor = .secondaryLabelColor
+            addSubview(icon)
+            let label = NSTextField(labelWithString: "搜索…")
+            label.font = .systemFont(ofSize: 12)
+            label.textColor = .secondaryLabelColor
+            label.frame = NSRect(x: 30, y: 6, width: 138, height: 16)
+            addSubview(label)
+        }
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func mouseDown(with event: NSEvent) { activate() }
+    override func hitTest(_ point: NSPoint) -> NSView? { bounds.contains(convert(point, from: superview)) ? self : nil }
+    override func accessibilityPerformPress() -> Bool { activate(); return true }
     override func draw(_ dirtyRect: NSRect) {
+        guard hasNotch else { return }
         NSColor.black.setFill()
         NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
         let mark = NSRect(x: bounds.midX - 12, y: 4, width: 24, height: 3)

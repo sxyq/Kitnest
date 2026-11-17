@@ -55,8 +55,10 @@ struct IslandDisplay: Identifiable {
         let displays = available
         switch configuration.displayScope {
         case .auto:
-            let notched = displays.filter(\.hasNotch)
-            return notched.isEmpty ? displays.filter(\.isMain) : notched
+            return displays.sorted {
+                if $0.hasNotch != $1.hasNotch { return $0.hasNotch }
+                return $0.isMain && !$1.isMain
+            }
         case .all: return displays
         case .main: return displays.filter(\.isMain)
         case .selected:
