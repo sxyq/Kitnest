@@ -39,6 +39,16 @@ public enum AirDropSendEngine {
     private static var _service: NSSharingService?
     private static var _stamp: TimeInterval = 0
     private static let lock = NSLock()
+    private static let feedbackDelegate = FeedbackDelegate()
+
+    private final class FeedbackDelegate: NSObject, NSSharingServiceDelegate {
+        func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
+            HapticFeedback.perform(.transferCompleted)
+        }
+        func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) {
+            if (error as NSError).code != NSUserCancelledError { HapticFeedback.perform(.transferFailed) }
+        }
+    }
 
     private static var cachedService: NSSharingService? {
         lock.lock(); defer { lock.unlock() }
@@ -67,6 +77,7 @@ public enum AirDropSendEngine {
             return false
         }
         guard let service = cachedService else {
+            HapticFeedback.perform(.transferFailed)
             Toast.show("本机隔空投送不可用（检查系统设置）", icon: "exclamationmark.triangle", isWarning: true)
             return false
         }
@@ -75,6 +86,7 @@ public enum AirDropSendEngine {
         NSApp.activate(ignoringOtherApps: true)
         // ② 异步 perform：让按钮的按压态先画出来，避免"点下去像卡死"
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            service.delegate = feedbackDelegate
             service.perform(withItems: urls)
             Log.info("Transfer", "隔空投送发起：\(urls.count) 个文件")
         }
@@ -191,6 +203,17 @@ public enum ScreenCastEngine {
         return nil
     }
 
+    private static var knownDevices: Set<String>?
+
+    /// 只在真实设备集合变化时反馈；初次读取不把已有连接当成新连接。
+    static func deviceConnectionChanged(_ serial: String, connected: Bool) {
+        if let knownDevices, knownDevices.contains(serial) == connected { return }
+        if knownDevices != nil {
+            if connected { knownDevices?.insert(serial) } else { knownDevices?.remove(serial) }
+        }
+        HapticFeedback.perform(connected ? .deviceConnected : .deviceDisconnected)
+    }
+
     /// 已连接设备列表（后台执行——adb 挂起不得卡主线程，v105 卡死教训）
     public static func connectedDevices(completion: @escaping ([(serial: String, state: String)]?) -> Void) {
         guard let adb = findADB() else { completion(nil); return }
@@ -201,8 +224,13 @@ public enum ScreenCastEngine {
             let pipe = Pipe()
             task.standardOutput = pipe
             task.standardError = FileHandle.nullDevice
-            try? task.run()
+            do { try task.run() }
+            catch { DispatchQueue.main.async { completion(nil) }; return }
             task.waitUntilExit()
+            guard task.terminationStatus == 0 else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
             let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
                              encoding: .utf8) ?? ""
             var result: [(String, String)] = []
@@ -215,7 +243,15 @@ public enum ScreenCastEngine {
                     result.append((String(parts[0]), state))
                 }
             }
-            DispatchQueue.main.async { completion(result) }
+            DispatchQueue.main.async {
+                let current = Set(result.filter { $0.1 == "device" }.map { $0.0 })
+                if let previous = knownDevices {
+                    if !current.subtracting(previous).isEmpty { HapticFeedback.perform(.deviceConnected) }
+                    if !previous.subtracting(current).isEmpty { HapticFeedback.perform(.deviceDisconnected) }
+                }
+                knownDevices = current
+                completion(result)
+            }
         }
     }
 
@@ -444,7 +480,7 @@ public enum ADBWirelessEngine {
 
     /// 兜底：解析 `adb mdns services`（旧版 adb / Bonjour 被防火墙拦时）
     private static func discoverViaADB(completion: @escaping ([DiscoveredService]?) -> Void) {
-        runADB(["mdns", "services"]) { out in
+        runADB(["mdns", "services"]) { out, _ in
             guard let out, !out.isEmpty else { emit([], completion: completion); return }
             var result: [DiscoveredService] = []
             var seen = Set<String>()
@@ -502,7 +538,7 @@ public enum ADBWirelessEngine {
     /// `adb pair ip:port code`（后台执行；输出如 "Successfully paired to ..."）
     public static func pair(host: String, port: String, code: String,
                             completion: @escaping (String) -> Void) {
-        runADB(["pair", "\(host):\(port)", code]) { out in
+        runADB(["pair", "\(host):\(port)", code]) { out, _ in
             DispatchQueue.main.async { completion(out ?? "adb 不可用") }
         }
     }
@@ -514,7 +550,10 @@ public enum ADBWirelessEngine {
     public static func connect(host: String, port: String,
                                timeout: TimeInterval? = nil,
                                completion: @escaping (String) -> Void) {
-        runADB(["connect", "\(host):\(port)"], timeout: timeout) { out in
+        runADB(["connect", "\(host):\(port)"], timeout: timeout) { out, succeeded in
+            if succeeded, out?.lowercased().hasPrefix("connected to ") == true {
+                ScreenCastEngine.deviceConnectionChanged("\(host):\(port)", connected: true)
+            }
             DispatchQueue.main.async { completion(out ?? "adb 不可用") }
         }
     }
@@ -525,16 +564,19 @@ public enum ADBWirelessEngine {
     /// 自己重新握手，只有 disconnect 之后再 connect 才会重新向手机发起授权请求，
     /// 手机上才会重新弹出「允许 USB 调试吗」。
     public static func disconnect(_ serial: String, completion: (() -> Void)? = nil) {
-        runADB(["disconnect", serial], timeout: 5) { _ in
+        runADB(["disconnect", serial], timeout: 5) { out, succeeded in
+            if succeeded, out?.lowercased().hasPrefix("disconnected ") == true {
+                ScreenCastEngine.deviceConnectionChanged(serial, connected: false)
+            }
             DispatchQueue.main.async { completion?() }
         }
     }
 
     /// adb 子进程统一封装（全后台；v105 教训：adb 挂起不得碰主线程）
     private static func runADB(_ args: [String], timeout: TimeInterval? = nil,
-                               completion: @escaping (String?) -> Void) {
+                               completion: @escaping (String?, Bool) -> Void) {
         guard let adb = ScreenCastEngine.findADB() else {
-            DispatchQueue.main.async { completion(nil) }
+            DispatchQueue.main.async { completion(nil, false) }
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -555,7 +597,7 @@ public enum ADBWirelessEngine {
             task.standardOutput = out
             task.standardError = err
             do { try task.run() } catch {
-                DispatchQueue.main.async { completion(nil) }
+                DispatchQueue.main.async { completion(nil, false) }
                 return
             }
             // v159：可选超时。到点 terminate，让调用方立刻拿到当前输出（通常为空），
@@ -573,7 +615,8 @@ public enum ADBWirelessEngine {
             var text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
-            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let succeeded = task.terminationStatus == 0
+            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), succeeded) }
         }
     }
 }
@@ -591,8 +634,14 @@ public enum ADBFileBridge {
             DispatchQueue.main.async { completion(0, "没有要推送的文件") }
             return
         }
-        runADB(["shell", "mkdir", "-p", remoteDir]) { _ in
+        runADB(["shell", "mkdir", "-p", remoteDir]) { output, succeeded in
+            guard succeeded else {
+                HapticFeedback.perform(.transferFailed)
+                completion(0, output ?? "adb 不可用")
+                return
+            }
             runADBPush(urls: urls, remoteDir: remoteDir, index: 0, sent: 0, log: "") { sent, log in
+                HapticFeedback.perform(sent == urls.count ? .transferCompleted : .transferFailed)
                 completion(sent, log)
             }
         }
@@ -656,9 +705,17 @@ public enum ADBFileBridge {
         tracker.bytesTotal = sizes.reduce(0, +)
         tracker.start = Date()
 
-        runADB(["shell", "mkdir", "-p", remoteDir]) { _ in
+        runADB(["shell", "mkdir", "-p", remoteDir]) { output, succeeded in
+            guard succeeded else {
+                HapticFeedback.perform(.transferFailed)
+                completion(0, output ?? "adb 不可用")
+                return
+            }
             pushOne(urls: urls, sizes: sizes, remoteDir: remoteDir, index: 0,
-                    sent: 0, tracker: tracker, progress: progress, completion: completion)
+                    sent: 0, tracker: tracker, progress: progress) { sent, log in
+                HapticFeedback.perform(sent == urls.count ? .transferCompleted : .transferFailed)
+                completion(sent, log)
+            }
         }
     }
 
@@ -770,10 +827,10 @@ public enum ADBFileBridge {
             return
         }
         let url = urls[index]
-        runADB(["push", url.path, remoteDir + "/"]) { out in
+        runADB(["push", url.path, remoteDir + "/"]) { out, succeeded in
             // 成功输出形如 "1 file pushed, 0 skipped."；失败含 "adb: error"
             let text = out ?? ""
-            let ok = !text.isEmpty && !text.lowercased().contains("error")
+            let ok = succeeded && text.contains("pushed") && !text.lowercased().contains("error")
             var log = log
             log += "\(url.lastPathComponent)：\(ok ? "✓" : "✗ \(text)")\n"
             runADBPush(urls: urls, remoteDir: remoteDir, index: index + 1,
@@ -789,13 +846,21 @@ public enum ADBFileBridge {
         let fm = FileManager.default
         try? fm.removeItem(at: stagingDir)
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-        runADB(["pull", remoteDir + "/.", stagingDir.path]) { out in
+        runADB(["pull", remoteDir + "/.", stagingDir.path]) { out, succeeded in
             guard let out else {
+                HapticFeedback.perform(.transferFailed)
                 DispatchQueue.main.async { completion(0, "adb 不可用") }
                 return
             }
+            guard succeeded else {
+                HapticFeedback.perform(.transferFailed)
+                completion(0, out)
+                return
+            }
             // 输出形如 "N files pulled, 0 skipped."
-            let count = Int(out.split(separator: " ").first ?? "") ?? (out.contains("pulled") ? 1 : 0)
+            let count = out.range(of: #"\d+(?= files? pulled)"#, options: .regularExpression)
+                .flatMap { Int(out[$0]) } ?? 0
+            if count > 0 { HapticFeedback.perform(.transferCompleted) }
             DispatchQueue.main.async { completion(count, out) }
         }
     }
@@ -808,9 +873,9 @@ public enum ADBFileBridge {
         return dir
     }
 
-    private static func runADB(_ args: [String], completion: @escaping (String?) -> Void) {
+    private static func runADB(_ args: [String], completion: @escaping (String?, Bool) -> Void) {
         guard let adb = ScreenCastEngine.findADB() else {
-            DispatchQueue.main.async { completion(nil) }
+            DispatchQueue.main.async { completion(nil, false) }
             return
         }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -826,14 +891,15 @@ public enum ADBFileBridge {
             task.standardOutput = out
             task.standardError = err
             do { try task.run() } catch {
-                DispatchQueue.main.async { completion(nil) }
+                DispatchQueue.main.async { completion(nil, false) }
                 return
             }
             task.waitUntilExit()
             var text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
-            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let succeeded = task.terminationStatus == 0
+            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), succeeded) }
         }
     }
 }

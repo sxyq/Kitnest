@@ -46,6 +46,12 @@ final class IslandController: NSObject, ObservableObject {
     @Published private(set) var notchWidth: CGFloat = 0
     @Published private(set) var notchHeight: CGFloat = 0
     private(set) var panel: IslandPanel?
+    @Published private(set) var activeDisplayID: String?
+    private var entries: [String: NSPanel] = [:]
+    private var displays: [IslandDisplay] = []
+    private var entryHoverID: String?
+    private var entryHoverWork: DispatchWorkItem?
+    private var spaceObserver: NSObjectProtocol?
     private var monitors: [Any] = []
     private var hoverWork: DispatchWorkItem?
     private var inside = false
@@ -66,6 +72,7 @@ final class IslandController: NSObject, ObservableObject {
     init(configuration: IslandConfiguration = .load(), previewOnly: Bool = false) {
         self.configuration = configuration
         self.previewOnly = previewOnly
+        self.displays = IslandDisplay.enabled(for: configuration)
         super.init()
         updateNotchMetrics()
         if previewOnly { selectedDate = SettingsPreviewSamples.date }
@@ -99,7 +106,9 @@ final class IslandController: NSObject, ObservableObject {
         }
     }
     var peekOrder: [IslandPeek] { configuration.peekOrder }
-    var displayScreen: NSScreen { panel?.screen ?? NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens[0] }
+    var displayScreen: NSScreen {
+        displays.first { $0.id == activeDisplayID }?.screen ?? displays.first?.screen ?? NSScreen.screens[0]
+    }
     var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), displayScreen.frame.width - 40) }
     var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), displayScreen.frame.height - 40) }
     var layoutColumns: Int { min(configuration.columns, max(1, Int((effectiveWidth - IslandLayout.horizontalInset * 2 + 8) / 152))) }
@@ -143,10 +152,11 @@ final class IslandController: NSObject, ObservableObject {
 
     func finishLayoutEditing() {
         let next = layoutConfiguration
-        if let reason = apply(next) { feedback = reason; return }
+        if let reason = apply(next) { feedback = reason; HapticFeedback.perform(.operationFailed); return }
         layoutDraft = nil
         layoutDidChange?(next)
         feedback = previewOnly ? "布局已更新到设置草稿，保存后应用" : "布局已保存"
+        if !previewOnly { HapticFeedback.perform(.layoutSaved) }
         endInteraction()
     }
 
@@ -170,7 +180,7 @@ final class IslandController: NSObject, ObservableObject {
         if previewOnly { return } // 模拟场景没有真实指针，不进入移开收回计时。
         if menuTracking || editingText { return }
         updatePointer()
-        if !inside, expanded, !openedExplicitly {
+        if !inside, expanded, !openedExplicitly, entryHoverWork == nil {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.collapseDelay, execute: work)
@@ -313,11 +323,27 @@ final class IslandController: NSObject, ObservableObject {
         if !previewOnly {
             guard configuration.enabled else { ServiceLocator.settings?.open(pane: "island"); return }
             show()
+            if let target = displays.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) {
+                move(to: target)
+            }
         }
         expand(takeFocus: true)
     }
 
     private func show() {
+        if screenObserver == nil {
+            screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                object: nil, queue: .main) { [weak self] _ in self?.refreshDisplays() }
+            spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification,
+                object: nil, queue: .main) { [weak self] _ in self?.refreshDisplays() }
+        }
+        displays = IslandDisplay.enabled(for: configuration)
+        if !displays.contains(where: { $0.id == activeDisplayID }) { activeDisplayID = displays.first?.id }
+        guard activeDisplayID != nil else {
+            panel?.orderOut(nil)
+            for entry in entries.values { entry.orderOut(nil) }
+            return
+        }
         if panel == nil {
             let p = IslandPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
                                 backing: .buffered, defer: false)
@@ -330,11 +356,6 @@ final class IslandController: NSObject, ObservableObject {
             panel = p
             installMonitors()
             refreshClipboard()
-            screenObserver = NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
-                object: nil, queue: .main) { [weak self] _ in
-                    guard let self else { return }
-                    self.position(collapsed: !self.expanded && !self.showingContent)
-                }
             position(collapsed: !expanded && !showingContent)
             let hosting = NSHostingView(rootView: IslandRootView(controller: self))
             hosting.sizingOptions = []
@@ -342,6 +363,68 @@ final class IslandController: NSObject, ObservableObject {
         } else { position(collapsed: !expanded && !showingContent) }
         if expanded || showingContent || !hidesCollapsedSurface { panel?.orderFrontRegardless() }
         else { panel?.orderOut(nil) }
+        refreshEntries()
+        updatePointer()
+    }
+
+    private func refreshDisplays() {
+        if panel == nil { show(); return }
+        displays = IslandDisplay.enabled(for: configuration)
+        if let target = displays.first(where: { $0.id == activeDisplayID }) ?? displays.first {
+            move(to: target)
+        } else {
+            hoverWork?.cancel(); hoverWork = nil
+            entryHoverWork?.cancel(); entryHoverWork = nil
+            panel?.orderOut(nil)
+        }
+        refreshEntries()
+    }
+
+    private func refreshEntries() {
+        let ids = Set(displays.map(\.id))
+        for id in Array(entries.keys) where !ids.contains(id) {
+            entries.removeValue(forKey: id)?.orderOut(nil)
+        }
+        for display in displays {
+            if entries[display.id] == nil {
+                let entry = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+                entry.title = "Kitnest · \(display.name) · 收起入口"
+                entry.isOpaque = false; entry.backgroundColor = .clear; entry.hasShadow = false
+                entry.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)
+                entry.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+                entry.isReleasedWhenClosed = false
+                entry.contentView = IslandEntryView { [weak self] in self?.activateDisplay(display.id) }
+                entries[display.id] = entry
+            }
+            entries[display.id]?.setFrame(display.entryFrame, display: true)
+            if display.id == activeDisplayID { entries[display.id]?.orderOut(nil) }
+            else { entries[display.id]?.orderFrontRegardless() }
+        }
+    }
+
+    private func activateDisplay(_ id: String) {
+        guard let display = displays.first(where: { $0.id == id }) else { return }
+        let hasPreview = panel.map { MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: $0) } ?? false
+        move(to: display)
+        openedExplicitly = true
+        expand(takeFocus: !hasPreview)
+    }
+
+    /// 移动原窗口及预览会话，不经过会取消草稿的 collapse，也不替换 hosting view。
+    private func move(to display: IslandDisplay) {
+        hoverWork?.cancel(); hoverWork = nil
+        entryHoverWork?.cancel(); entryHoverWork = nil
+        let oldFrame = panel?.frame ?? .zero
+        activeDisplayID = display.id
+        position(collapsed: !expanded && !showingContent)
+        if let panel {
+            MainPanelPreviewPopoverCoordinator.shared.movePreview(from: panel,
+                by: CGSize(width: panel.frame.minX - oldFrame.minX, height: panel.frame.maxY - oldFrame.maxY),
+                within: display.screen.visibleFrame)
+            if expanded || showingContent || !hidesCollapsedSurface { panel.orderFrontRegardless() }
+            else { panel.orderOut(nil) }
+        }
+        refreshEntries()
         updatePointer()
     }
 
@@ -374,14 +457,8 @@ final class IslandController: NSObject, ObservableObject {
 
     private func updateNotchMetrics() {
         let screen = displayScreen
-        let width: CGFloat, height: CGFloat
-        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-            width = right.minX - left.maxX
-            height = screen.safeAreaInsets.top
-        } else {
-            width = 180
-            height = 28
-        }
+        let size = IslandDisplay(screen: screen)?.entrySize ?? CGSize(width: 180, height: 28)
+        let width = size.width, height = size.height
         if notchWidth != width { notchWidth = width }
         if notchHeight != height { notchHeight = height }
     }
@@ -415,6 +492,12 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func stop() {
+        entryHoverWork?.cancel(); entryHoverWork = nil; entryHoverID = nil
+        for entry in entries.values { entry.orderOut(nil) }
+        entries.removeAll()
+        displays.removeAll()
+        if let spaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver) }
+        spaceObserver = nil
         releaseRecordScroll()
         layoutDraft = nil
         collapse()
@@ -457,14 +540,23 @@ final class IslandController: NSObject, ObservableObject {
             else { self?.updatePointer(pointerMoved: true) }
         } { monitors.append(token) }
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            if let self, let target = self.entry(at: NSEvent.mouseLocation) {
+                self.activateDisplay(target.id); return
+            }
             self?.updatePointer(at: event.locationInWindow, pointerMoved: true)
             if self?.inside == false, self?.menuTracking == false { self?.collapse() }
         } { monitors.append(token) }
         if let token = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseDown, .rightMouseDown, .leftMouseUp, .scrollWheel]) { [weak self] event in
             guard let self else { return event }
+            if event.type == .leftMouseDown, let target = self.entry(at: NSEvent.mouseLocation) {
+                self.activateDisplay(target.id); return nil
+            }
             if event.type == .leftMouseUp { self.endInteraction() }
             self.updatePointer(at: event.window?.convertPoint(toScreen: event.locationInWindow), pointerMoved: true)
-            if event.type == .leftMouseDown, event.window === self.panel { self.beginInteraction() }
+            if event.type == .leftMouseDown, event.window === self.panel {
+                self.openedExplicitly = true
+                self.beginInteraction()
+            }
             if event.type == .scrollWheel, event.window === self.panel, self.expanded,
                self.page == .home, self.componentPageCount > 1, !self.interacting, event.hasPreciseScrollingDeltas {
                 if event.phase.contains(.began) { self.horizontalScroll = 0; self.didSwipe = false }
@@ -488,6 +580,23 @@ final class IslandController: NSObject, ObservableObject {
     private func updatePointer(at location: NSPoint? = nil, pointerMoved: Bool = false) {
         guard let panel else { return }
         let point = location ?? NSEvent.mouseLocation
+        let target = entry(at: point)
+        let hoverID = target?.id
+        if entryHoverID != hoverID {
+            entryHoverWork?.cancel(); entryHoverWork = nil
+            entryHoverID = hoverID
+            if let target, target.id != activeDisplayID, configuration.hoverEnabled,
+               !openedExplicitly, !interacting, !menuTracking, !editingText {
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self, self.entryHoverID == target.id, !self.openedExplicitly,
+                          !self.interacting, !self.menuTracking, !self.editingText else { return }
+                    self.move(to: target)
+                    self.expand()
+                }
+                entryHoverWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
+            }
+        }
         let local = CGPoint(x: point.x - panel.frame.midX + visibleSize.width / 2,
                             y: panel.frame.maxY - point.y)
         let next = CGRect(origin: .zero, size: visibleSize).contains(local) && visibleOutline.contains(local)
@@ -504,7 +613,7 @@ final class IslandController: NSObject, ObservableObject {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
-        } else if !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking,
+        } else if !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking, entryHoverWork == nil,
                   !editingText {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
             hoverWork = work
@@ -514,6 +623,27 @@ final class IslandController: NSObject, ObservableObject {
 
     private var editingText: Bool {
         panel?.isKeyWindow == true && (panel?.firstResponder as? NSTextView)?.isEditable == true
+    }
+
+    private func entry(at point: NSPoint) -> IslandDisplay? {
+        displays.first { $0.entryFrame.contains(point) }
+    }
+
+    func containsEntry(at point: NSPoint) -> Bool { entry(at: point) != nil }
+}
+
+/// 其他屏幕只绘制入口；没有 SwiftUI 正文、数据库订阅或采样器。
+private final class IslandEntryView: NSView {
+    let activate: () -> Void
+    init(activate: @escaping () -> Void) { self.activate = activate; super.init(frame: .zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    override func mouseDown(with event: NSEvent) { activate() }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.black.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
+        let mark = NSRect(x: bounds.midX - 12, y: 4, width: 24, height: 3)
+        NSColor.white.withAlphaComponent(0.6).setFill()
+        NSBezierPath(roundedRect: mark, xRadius: 1.5, yRadius: 1.5).fill()
     }
 }
 

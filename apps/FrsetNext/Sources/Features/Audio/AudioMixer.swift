@@ -56,7 +56,13 @@ public final class AudioMixerController: ObservableObject {
 
     /// 系统输出音量 0-1
     @Published public var outputVolume: Double = 0.5 {
-        didSet { if !readingOutput { setSystemVolume(Float(outputVolume)) } }
+        didSet {
+            guard !readingOutput else { return }
+            if setSystemVolume(Float(outputVolume)), oldValue != outputVolume,
+               outputVolume == 0 || outputVolume == 1 {
+                HapticFeedback.perform(.volumeBoundary)
+            }
+        }
     }
     /// 系统静音
     @Published public var outputMuted: Bool = false {
@@ -219,16 +225,19 @@ public final class AudioMixerController: ObservableObject {
         return total / Double(properties.count)
     }
 
-    public func setSystemVolume(_ v: Float) {
+    @discardableResult
+    public func setSystemVolume(_ v: Float) -> Bool {
         let properties = volumeProperties()
-        guard !properties.isEmpty else { outputError = "输出设备不提供系统音量，请使用设备音量旋钮"; return }
+        guard !properties.isEmpty else { outputError = "输出设备不提供系统音量，请使用设备音量旋钮"; return false }
         outputError = ""
         var vol = min(1, max(0, v))
+        var succeeded = true
         for var property in properties {
             let status = AudioObjectSetPropertyData(defaultOutputID, &property, 0, nil, UInt32(MemoryLayout<Float32>.size), &vol)
-            if status != noErr { outputError = "设置系统音量失败：\(status)"; break }
+            if status != noErr { outputError = "设置系统音量失败：\(status)"; succeeded = false; break }
         }
         refreshOutputState()
+        return succeeded
     }
 
     public func getSystemMuted() -> Bool {

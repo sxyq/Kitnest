@@ -144,7 +144,9 @@ struct IslandWidgetGrid<Content: View>: View {
     private func begin(_ item: IslandWidget) {
         active = item
         var next = controller.layoutConfiguration
-        next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
+        if !temporaryLayout || next.widgetPositions == nil {
+            next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
+        }
         original = next
         controller.beginInteraction()
         controller.updateLayout(next)
@@ -159,6 +161,7 @@ struct IslandWidgetGrid<Content: View>: View {
                    height: min(CGFloat(controller.layoutRows), ceil(($0.height + 8) / (cell.height + 8))))
         }
         let previous = next.widgetPositions?[item.rawValue]
+        let previousSize = next.size(for: item)
         let x = point.x / (cell.width + 8), y = point.y / (cell.height + 8)
         let column = previous.map { abs(x - CGFloat($0.column)) < 0.62 ? $0.column : Int(x.rounded()) } ?? Int(x.rounded())
         let row = previous.map { abs(y - CGFloat($0.row)) < 0.62 ? $0.row : Int(y.rounded()) } ?? Int(y.rounded())
@@ -169,7 +172,13 @@ struct IslandWidgetGrid<Content: View>: View {
         next.widgetPositions?[item.rawValue] = place
         let crossedCell = occupied != footprint
         footprint = occupied
-        if next != controller.layoutConfiguration { controller.updateLayout(next) }
+        if next != controller.layoutConfiguration {
+            controller.updateLayout(next)
+            if !controller.previewOnly {
+                if let size, size != previousSize { HapticFeedback.perform(.gridResize) }
+                else if size == nil, previous != place { HapticFeedback.perform(.gridMove) }
+            }
+        }
         else if crossedCell { rebuild() }
     }
 
@@ -178,16 +187,22 @@ struct IslandWidgetGrid<Content: View>: View {
         if valid {
             rebuild()
             var next = controller.layoutConfiguration
-            next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
+            if !temporaryLayout {
+                next.widgetPositions = Dictionary(uniqueKeysWithValues: placements.map { ($0.item.rawValue, $0.position) })
+            }
             let visible = placements.sorted {
                 ($0.position.page, $0.position.row, $0.position.column) < ($1.position.page, $1.position.row, $1.position.column)
             }.map(\.item)
-            next.widgetOrder = visible + next.widgetOrder.filter { next.hiddenWidgets.contains($0) }
+            if !temporaryLayout { next.widgetOrder = visible + next.widgetOrder.filter { next.hiddenWidgets.contains($0) } }
             controller.updateLayout(next)
         } else if let original { controller.updateLayout(original) }
         active = nil; original = nil; pressured = []
         rebuild()
         // 编辑模式保持展开，直到完成或取消；不在每次放下后启动收回计时。
+    }
+
+    private var temporaryLayout: Bool {
+        controller.layoutColumns < controller.layoutConfiguration.columns || controller.layoutRows < controller.layoutConfiguration.rows
     }
 }
 

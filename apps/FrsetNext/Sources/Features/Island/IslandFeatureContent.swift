@@ -343,7 +343,10 @@ private struct IslandRecordingContent: View {
                 } else {
                     Button(compact ? "开始" : "录整屏") {
                         if previewOnly { previewActive = true }
-                        else { controller.performOutside { recorder.startDisplayRecording() } }
+                        else {
+                            let displayID = ScreenSnapshot.displayID(of: controller.displayScreen)
+                            controller.performOutside { recorder.startDisplayRecording(displayID: displayID) }
+                        }
                     }
                     if !compact {
                         Button("录区域") {

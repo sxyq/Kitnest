@@ -173,18 +173,26 @@ public final class AIChatViewModel: ObservableObject {
         var reply = ""
         do {
             for try await piece in LLMService.shared.send(messages: history, model: model, stream: true) {
+                try Task.checkCancellation()
                 reply += piece
                 let snapshot = reply
                 await MainActor.run { self.streamingText = snapshot }
             }
             let finished = reply
-            await MainActor.run { self.commit(reply: finished, sessionID: sessionID) }
+            await MainActor.run {
+                if Task.isCancelled {
+                    self.finishPartial(reply: finished, sessionID: sessionID)
+                    return
+                }
+                self.commit(reply: finished, sessionID: sessionID)
+            }
         } catch {
             let partial = reply
             await MainActor.run {
                 // 用户主动停止：不弹错误；其余错误如实提示（保留已产出的内容）
                 self.errorMessage = error.isLLMCancellation ? nil : error.localizedDescription
                 self.finishPartial(reply: partial, sessionID: sessionID)
+                if !Task.isCancelled, !error.isLLMCancellation { HapticFeedback.perform(.operationFailed) }
             }
         }
     }
@@ -199,6 +207,7 @@ public final class AIChatViewModel: ObservableObject {
         messages.append(message)
         streamingText = ""
         isStreaming = false
+        HapticFeedback.perform(.aiCompleted)
     }
 
     private func finishPartial(reply: String, sessionID: String) {

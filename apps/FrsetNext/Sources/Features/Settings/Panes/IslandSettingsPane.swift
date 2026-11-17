@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import Combine
 
@@ -116,6 +117,7 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         switch part {
         case .activation:
             field(\.enabled); field(\.hoverEnabled); field(\.hoverDelay); field(\.collapseDelay)
+            field(\.displayScope); members(\.selectedDisplayIDs)
         case .peeks:
             members(\.visiblePeeks); field(\.peekOrder); field(\.peeksShowValues); field(\.peeksQuickActions)
         case .canvas:
@@ -149,6 +151,7 @@ private struct IslandSettingsContent: View {
     @ObservedObject var draft: IslandSettingsDraft
     let part: IslandSettingsPart
     @Stored private var demonstration: Task<Void, Never>?
+    @Stored private var displays = IslandDisplay.available
 
     var body: some View {
         VStack(spacing: 20) {
@@ -159,6 +162,7 @@ private struct IslandSettingsContent: View {
                     }
                 }
             } }
+            if part == .activation { displaySettings; entryPreviews }
             if part == .canvas { canvas }
             SettingsSection("实时预览") {
                 IslandSettingsPreview(draft: draft, controller: draft.previewController)
@@ -178,6 +182,54 @@ private struct IslandSettingsContent: View {
             else { draft.previewController.expand() }
         }
         .onDisappear { demonstration?.cancel(); demonstration = nil }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
+            displays = IslandDisplay.available
+        }
+    }
+
+    private var displaySettings: some View {
+        let enabledIDs = Set(IslandDisplay.enabled(for: draft.configuration).map(\.id))
+        return SettingsSection("显示屏幕") {
+            SettingsGroupBox {
+                SettingsRow(title: "显示范围", subtitle: "自动优先使用真实刘海屏；没有刘海屏时使用主屏") {
+                    Picker("显示范围", selection: $draft.configuration.displayScope) {
+                        ForEach(IslandDisplayScope.allCases) { scope in Text(scope.title).tag(scope) }
+                    }.labelsHidden().frame(width: 190)
+                }
+                SettingsDivider()
+                ForEach(displays) { display in
+                    SettingsRow(icon: display.isMain ? "display.2" : "display", title: display.name,
+                                subtitle: "\(Int(display.frame.width)) × \(Int(display.frame.height)) pt · "
+                                    + (display.hasNotch
+                                       ? "刘海 \(Int(display.entrySize.width)) × \(Int(display.entrySize.height)) pt"
+                                       : "普通屏入口 180 × 28 pt")) {
+                        Text(enabledIDs.contains(display.id) ? "已启用" : "已停用")
+                            .font(.system(size: 11))
+                            .foregroundStyle(enabledIDs.contains(display.id) ? Theme.accent : Color.secondary)
+                        if draft.configuration.displayScope == .selected {
+                            Toggle("在\(display.name)显示", isOn: Binding(
+                                get: { draft.configuration.selectedDisplayIDs.contains(display.id) },
+                                set: {
+                                    if $0 { draft.configuration.selectedDisplayIDs.insert(display.id) }
+                                    else { draft.configuration.selectedDisplayIDs.remove(display.id) }
+                                }
+                            )).labelsHidden()
+                        }
+                    }
+                }
+            }
+            Text("状态按当前草稿显示，保存后应用；指定屏幕离线时临时使用主屏，重新连接后恢复；镜像屏共用一个入口。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+
+    private var entryPreviews: some View {
+        SettingsSection("入口预览") {
+            HStack(spacing: 12) {
+                IslandEntryPreview(hasNotch: true, size: displays.first(where: \.hasNotch)?.entrySize)
+                IslandEntryPreview(hasNotch: false, size: CGSize(width: 180, height: 28))
+            }
+        }
     }
 
     private var canvas: some View {
@@ -372,6 +424,32 @@ private struct IslandSettingsContent: View {
                 }
             }
         }
+    }
+}
+
+private struct IslandEntryPreview: View {
+    let hasNotch: Bool
+    let size: CGSize?
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack(alignment: .top) {
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color.primary.opacity(0.035))
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black)
+                    .frame(width: hasNotch ? 78 : 90, height: hasNotch ? 16 : 14)
+                    .offset(y: -3)
+            }
+            .frame(height: 72)
+            .clipShape(RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.12)))
+            Text(hasNotch ? "真实刘海入口" : "普通屏入口").font(.system(size: 12))
+            Text(size.map { "\(Int($0.width)) × \(Int($0.height)) pt" } ?? "按系统刘海尺寸")
+                .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 

@@ -519,6 +519,8 @@ public struct SearchSectionView: View {
     @Stored private var fileResults: [FuzzyFileResult] = []
     @Stored private var isSearching = false
     @Stored private var generation = 0
+    @Stored private var webGeneration = 0
+    @Stored private var feedbackGeneration: Int?
     @Stored private var hasSearched = false
     /// v60 结果列表内容实测高度（PreferenceKey 测量 → 动态展开动画）
     @Stored private var listContentHeight: CGFloat = 0
@@ -1881,6 +1883,8 @@ public struct SearchSectionView: View {
         let engineID = engine.id
         let text = previewQuery
         let current = generation
+        webGeneration += 1
+        let webRequest = webGeneration
         Task {
             var results = await WebResultScraper.shared.fetchResults(engine: engine, query: text)
             var fallbackName: String?
@@ -1897,11 +1901,17 @@ public struct SearchSectionView: View {
                 }
             }
 
-            guard current == generation, engineID == previewEngine?.id else { return }
+            guard !Task.isCancelled, current == generation, webRequest == webGeneration,
+                  engineID == previewEngine?.id else { return }
             webResults = results
             webFetchFailed = results.isEmpty
             webFallbackName = fallbackName
             fetchingEngineID = nil
+            if !isSearching, !(isIndexBuilding && (showFiles || selectedCategory == .files)),
+               feedbackGeneration != current {
+                feedbackGeneration = current
+                HapticFeedback.perform(.searchCompleted)
+            }
         }
     }
 
@@ -1925,7 +1935,7 @@ public struct SearchSectionView: View {
         isSearching = true
         Task {
             try? await Task.sleep(nanoseconds: 250_000_000)
-            guard current == generation else { return }
+            guard !Task.isCancelled, current == generation else { return }
             let items = await SearchHookRegistry.search(text)
             let kind = fileKind
             let wantsFiles = showFiles || selectedCategory == .files
@@ -1935,19 +1945,23 @@ public struct SearchSectionView: View {
             let files: [FuzzyFileResult] = wantsFiles
                 ? await Task.detached(priority: .utility) { FileSearchSource.search(trimmed, kind: kind) }.value
                 : []
-            guard current == generation else { return }
+            guard !Task.isCancelled, current == generation else { return }
             await MainActor.run {
+                guard !Task.isCancelled, current == generation else { return }
                 toolResults = items
                 fileResults = files
                 previewQuery = trimmed          // 预览随防抖提交的词更新（不逐键刷网页）
                 hasSearched = true
                 isSearching = false
                 if isLocalPathQuery { webResults = []; fetchingEngineID = nil }
-            }
-            // v50：防抖提交后立即抓取当前引擎的结果列表（仅搜索型引擎）
-            if showsWebResults, let engine = previewEngine, engine.supportsResultList {
-                fetchingEngineID = engine.id
-                fetchWebResults()
+                // 网页启用时等该查询的网页结果收尾，其余查询在全部本地来源汇总后反馈。
+                if showsWebResults, let engine = previewEngine, engine.supportsResultList {
+                    fetchingEngineID = engine.id
+                    fetchWebResults()
+                } else if !(isIndexBuilding && wantsFiles), feedbackGeneration != current {
+                    feedbackGeneration = current
+                    HapticFeedback.perform(.searchCompleted)
+                }
             }
         }
     }

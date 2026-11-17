@@ -2323,6 +2323,35 @@ EVIDENCE.update({
     ("Features/Toolbox/Tools/ToolSettingsPane.swift", "clearNewTool"): "提示词加入草稿或取消时清空页内输入，不影响正式工具列表",
 })
 
+EVIDENCE.update({
+    ("Core/Haptics/HapticFeedback.swift", "isEnabled"): "统一事件入口按独立场景开关取值，总强度由perform后续处理",
+    ("Core/Haptics/HapticFeedback.swift", "load"): "从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用",
+    ("Core/Haptics/HapticFeedback.swift", "persist"): "设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置",
+    ("Core/Haptics/HapticFeedback.swift", "perform"): "所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式",
+    ("Core/Haptics/HapticFeedback.swift", "preview"): "设置试听和正式事件共用系统调用，关闭不调用，其余每次仅请求一次离散反馈",
+    ("Features/Island/IslandController.swift", "refreshDisplays"): "显示参数或Space变化时更新目标及入口，只移动已有业务窗口，指定离线沿原选择临时主屏",
+    ("Features/Island/IslandController.swift", "refreshEntries"): "每个启用逻辑显示目标仅持有绘制入口的NSPanel，当前屏沿用原舞台，不创建正文订阅或采样",
+    ("Features/Island/IslandController.swift", "activateDisplay"): "点击屏幕入口明确迁移并保持展开，已有预览时保留其键盘焦点和会话",
+    ("Features/Island/IslandController.swift", "move"): "迁移原面板及原预览窗口，保持hosting view和业务输入，绕开取消布局草稿的collapse",
+    ("Features/Island/IslandController.swift", "entry"): "鼠标事件只在缓存逻辑屏幕入口矩形命中，不在每次移动重新读取UUID或创建视图",
+    ("Features/Island/IslandController.swift", "containsEntry"): "预览点外处理识别刘海入口点击，跨屏迁移时不提前关闭预览",
+    ("Features/Island/IslandController.swift", "init"): "正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复",
+    ("Features/Island/IslandController.swift", "mouseDown"): "轻量入口的本地点击转交唯一controller选择显示目标，不持有业务状态",
+    ("Features/Island/IslandController.swift", "draw"): "其他屏幕仅绘制黑色入口和短标记，不挂载完整SwiftUI正文",
+    ("Features/Island/IslandDisplay.swift", "init"): "由NSScreen读取显示ID并转换系统UUID，镜像屏统一采用源屏的稳定身份和几何",
+    ("Features/Island/IslandDisplay.swift", "sourceID"): "用CGDisplayMirrorsDisplay归一镜像源，独立屏保留自身系统显示ID",
+    ("Features/Island/IslandDisplay.swift", "enabled"): "按自动刘海优先、全部、主屏或指定UUID筛选；指定目标全离线临时主屏而不覆写偏好",
+    ("Features/Island/IslandSettings.swift", "init"): "默认构造保留原全部字段；JSON逐字段decodeIfPresent新增屏幕范围不丢旧主题布局组件",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "movePreview"): "刘海跨屏时取消旧悬停关闭计时，移动同一预览窗口并限制在目标逻辑可见区域，保留内容模型",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "init"): "独立触觉设置草稿读取正式配置为当前值和保存快照，复用原设置编辑会话",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "save"): "编码成功后更新触觉保存快照，失败返回具体原因并保留草稿",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "discard"): "取消仅将本页草稿恢复已保存强度和场景开关",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "restoreDefaults"): "本页恢复默认只更新草稿，经既有保存按钮应用",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "eventSection"): "按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "sharingService"): "既有隔空投送服务的完成回调才反馈成功，真实失败反馈失败，用户取消跳过；不把发起分享当完成",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "deviceConnectionChanged"): "无线连接命令与已有设备扫描共用已知连接集合，实际连接或断开才反馈，后续相同扫描不重复",
+})
+
 def main() -> int:
     strict = "--strict" in sys.argv
 

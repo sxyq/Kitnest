@@ -51,6 +51,7 @@ final class SettingsUIState: ObservableObject {
 
     private func applyPaneMapping(_ pane: String) {
         switch pane {
+        case "haptics": selection = .haptics
         // 常规（v272 拆成五页；旧 id "general" 落到第一页）
         case "general", "startup", "general.startup":
             selection = .generalStart

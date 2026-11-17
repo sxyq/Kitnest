@@ -344,8 +344,9 @@ public final class ScreenRecorder: ObservableObject {
     // MARK: 开始
 
     /// 整屏录制（鼠标所在屏幕）
-    public func startDisplayRecording() {
-        Task { await start(options: .current(displayID: currentDisplayID())) }
+    public func startDisplayRecording(displayID: CGDirectDisplayID? = nil) {
+        let target = displayID ?? currentDisplayID()
+        Task { await start(options: .current(displayID: target)) }
     }
 
     /// 区域录制：先框选，再开始
@@ -369,6 +370,7 @@ public final class ScreenRecorder: ObservableObject {
 
         guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
             state = .idle
+            HapticFeedback.perform(.operationFailed)
             return
         }
         guard state == .preparing else { state = .idle; return }
@@ -451,6 +453,7 @@ public final class ScreenRecorder: ObservableObject {
             accumulated = 0
             elapsed = 0
             state = .recording
+            HapticFeedback.perform(.recordingStarted)
             startTimer()
             RecordingHUDController.shared.show()
             if !unavailableFeatures.isEmpty {
@@ -476,6 +479,7 @@ public final class ScreenRecorder: ObservableObject {
             errorText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             Log.error("Recording", "启动失败：\(error.localizedDescription)")
             Toast.show(errorText ?? "录屏启动失败", icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
         }
     }
 
@@ -530,13 +534,16 @@ public final class ScreenRecorder: ObservableObject {
         guard let file else {
             errorText = errorText ?? "录制文件写入失败"
             Toast.show(errorText!, icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
             return nil
         }
         outputURL = file
         let seconds = max(1, Int(elapsed.rounded()))
         if let errorText {
             Toast.show("\(errorText)；已保存中断前视频", icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
         } else {
+            HapticFeedback.perform(.recordingSaved)
             Toast.show("录制完成 · \(seconds / 60):\(String(format: "%02d", seconds % 60))", icon: "checkmark.circle.fill")
         }
         // 录制完成 → 打开编辑器（用户可直接裁剪 / 导出）

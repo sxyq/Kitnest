@@ -39,9 +39,24 @@ enum IslandMaterial: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum IslandDisplayScope: String, Codable, CaseIterable, Identifiable {
+    case auto, all, main, selected
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .auto: return "自动 · 刘海屏优先"
+        case .all: return "全部屏幕"
+        case .main: return "仅主屏"
+        case .selected: return "指定屏幕"
+        }
+    }
+}
+
 struct IslandConfiguration: Codable, Equatable {
     static let key = "island.configuration"
     var enabled = true
+    var displayScope: IslandDisplayScope = .auto
+    var selectedDisplayIDs = Set<String>()
     var width: CGFloat = 780
     var height: CGFloat = 480
     var gridColumns: Int? = nil
@@ -70,6 +85,46 @@ struct IslandConfiguration: Codable, Equatable {
     var widgetColors: [String: String] = [:]
     var metricOrder = IslandMetric.allCases
     var metricColors: [String: String] = [:]
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, displayScope, selectedDisplayIDs, width, height, gridColumns, gridRows
+        case hoverEnabled, hoverDelay, collapseDelay, usesGlass, material, opacity, glowEnabled
+        case visiblePeeks, peeksShowValues, peeksQuickActions, peekOrder, widgetOrder, hiddenWidgets
+        case widgetSizes, widgetPositions, widgetColors, metricOrder, metricColors
+    }
+
+    init() {}
+
+    // 旧配置逐字段保留；新增屏幕选项缺失时只采用该字段的默认值。
+    init(from decoder: Decoder) throws {
+        self.init()
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? enabled
+        displayScope = try values.decodeIfPresent(IslandDisplayScope.self, forKey: .displayScope) ?? displayScope
+        selectedDisplayIDs = try values.decodeIfPresent(Set<String>.self, forKey: .selectedDisplayIDs) ?? selectedDisplayIDs
+        width = try values.decodeIfPresent(CGFloat.self, forKey: .width) ?? width
+        height = try values.decodeIfPresent(CGFloat.self, forKey: .height) ?? height
+        gridColumns = try values.decodeIfPresent(Int.self, forKey: .gridColumns)
+        gridRows = try values.decodeIfPresent(Int.self, forKey: .gridRows)
+        hoverEnabled = try values.decodeIfPresent(Bool.self, forKey: .hoverEnabled) ?? hoverEnabled
+        hoverDelay = try values.decodeIfPresent(Double.self, forKey: .hoverDelay) ?? hoverDelay
+        collapseDelay = try values.decodeIfPresent(Double.self, forKey: .collapseDelay) ?? collapseDelay
+        usesGlass = try values.decodeIfPresent(Bool.self, forKey: .usesGlass) ?? usesGlass
+        material = try values.decodeIfPresent(IslandMaterial.self, forKey: .material)
+        opacity = try values.decodeIfPresent(Double.self, forKey: .opacity) ?? opacity
+        glowEnabled = try values.decodeIfPresent(Bool.self, forKey: .glowEnabled) ?? glowEnabled
+        visiblePeeks = try values.decodeIfPresent(Set<IslandPeek>.self, forKey: .visiblePeeks) ?? visiblePeeks
+        peeksShowValues = try values.decodeIfPresent(Bool.self, forKey: .peeksShowValues) ?? peeksShowValues
+        peeksQuickActions = try values.decodeIfPresent(Bool.self, forKey: .peeksQuickActions) ?? peeksQuickActions
+        peekOrder = try values.decodeIfPresent([IslandPeek].self, forKey: .peekOrder) ?? peekOrder
+        widgetOrder = try values.decodeIfPresent([IslandWidget].self, forKey: .widgetOrder) ?? widgetOrder
+        hiddenWidgets = try values.decodeIfPresent(Set<IslandWidget>.self, forKey: .hiddenWidgets) ?? hiddenWidgets
+        widgetSizes = try values.decodeIfPresent([String: IslandWidgetSize].self, forKey: .widgetSizes) ?? widgetSizes
+        widgetPositions = try values.decodeIfPresent([String: IslandWidgetPosition].self, forKey: .widgetPositions)
+        widgetColors = try values.decodeIfPresent([String: String].self, forKey: .widgetColors) ?? widgetColors
+        metricOrder = try values.decodeIfPresent([IslandMetric].self, forKey: .metricOrder) ?? metricOrder
+        metricColors = try values.decodeIfPresent([String: String].self, forKey: .metricColors) ?? metricColors
+    }
 
     /// 返回保存的行 × 列档位；画布适配只影响 size(for:) 的显示结果。
     func requestedSize(for widget: IslandWidget) -> IslandWidgetSize {

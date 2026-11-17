@@ -2,11 +2,12 @@ import SwiftUI
 
 /// 一级目录只控制展开；页面、搜索及旧链接共用二级归属。
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
-    case general, appearance, shortcuts, panel, island, menuBar, clipboard, transfer, capture, searchAI, tools, monitor, data
+    case general, haptics, appearance, shortcuts, panel, island, menuBar, clipboard, transfer, capture, searchAI, tools, monitor, data
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: return "常规"
+        case .haptics: return "触觉反馈"
         case .appearance: return "主题外观"
         case .shortcuts: return "快捷键"
         case .panel: return "主面板"
@@ -24,6 +25,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .general: return "gearshape"
+        case .haptics: return "hand.tap"
         case .appearance: return "paintpalette"
         case .shortcuts: return "command"
         case .panel: return "macwindow"
@@ -41,6 +43,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var pages: [SettingsPage] {
         switch self {
         case .general: return [.generalStart, .generalNotifications, .permissions]
+        case .haptics: return [.haptics]
         case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
         case .shortcuts: return [.shortcuts]
         case .panel: return [.generalPanel, .panelBackground]
@@ -61,6 +64,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
 }
 
 enum SettingsPage: Hashable {
+    case haptics
     case generalStart, generalNotifications, permissions, generalPersonal, appearanceText, generalWindows, generalPanel, panelBackground, island, islandPeeks, islandCanvas, islandMaterial, generalMenuBar, menuBarArrangement, monitorWidgets, clipboardCapture, clipboardHistory, clipboardAppearance, clipboardFloating, transferLocal, transferScan, transferCloud, transferCast, archive, ocr, watermark, captureActions, search, ai, tools, aiText, calendar, shortcuts, monitorSettings, configTransfer, diagnostics, about, manual, audio, transferDisplay, statistics
     case capture(CaptureSettingsBlock), monitorModule(MonitorModuleID)
     /// 旧业务入口仍可解析，设置侧栏不展示实时正文。
@@ -75,6 +79,7 @@ enum SettingsPage: Hashable {
     }
     var title: String {
         switch self {
+        case .haptics: return "触觉反馈"
         case .generalStart: return "启动与语言"
         case .generalNotifications: return "通知提示"
         case .permissions: return "权限"
@@ -128,6 +133,7 @@ enum SettingsPage: Hashable {
     var group: SettingsGroup? { self == .manual ? nil : SettingsGroup.group(of: self) }
     var openHint: String? {
         switch canonical {
+        case .haptics: return "全局强度与独立场景开关；试听当前草稿，保存后应用"
         case .generalStart: return "启动与语言保存后生效；系统关联与授权单独操作"
         case .generalNotifications: return "复制、截图完成后显示；重播只作用于模拟通知"
         case .permissions: return "查看真实授权状态；系统授权为即时操作"

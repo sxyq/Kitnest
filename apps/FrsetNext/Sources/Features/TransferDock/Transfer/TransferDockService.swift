@@ -210,9 +210,11 @@ final class TransferDockService: ObservableObject {
                    let data = result["data"] as? [String: Any] {
                     let seconds = (data["seconds"] as? NSNumber)?.doubleValue ?? 0
                     self.statusMessage = "已上传 \(url.lastPathComponent)（\(String(format: "%.1f", seconds))s）"
+                    HapticFeedback.perform(.transferCompleted)
                 } else {
                     self.statusMessage = ""
                     self.errorMessage = (result["error"] as? String) ?? "上传失败"
+                    HapticFeedback.perform(.transferFailed)
                 }
                 self.refresh(clearError: false)
             }
@@ -240,10 +242,12 @@ final class TransferDockService: ObservableObject {
             DispatchQueue.main.async {
                 self.isUploading = false
                 if failed.isEmpty {
+                    HapticFeedback.perform(.transferCompleted)
                     self.statusMessage = "已上传 \(ok) 个文件"
                     self.errorMessage = nil
                 } else {
                     self.statusMessage = ok > 0 ? "已上传 \(ok) 个，失败 \(failed.count) 个" : ""
+                    HapticFeedback.perform(.transferFailed)
                     self.errorMessage = "上传失败：" + failed.joined(separator: "、")
                 }
                 self.refresh(clearError: false)
@@ -264,10 +268,12 @@ final class TransferDockService: ObservableObject {
                    let data = result["data"] as? [String: Any],
                    let path = data["path"] as? String {
                     self.statusMessage = "已下载到 \(path)"
+                    HapticFeedback.perform(.downloadCompleted)
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
                 } else {
                     self.statusMessage = ""
                     self.errorMessage = (result["error"] as? String) ?? "下载失败"
+                    HapticFeedback.perform(.transferFailed)
                 }
             }
         }

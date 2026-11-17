@@ -270,6 +270,12 @@ public final class LanTransferServer: ObservableObject {
         var bodyHandle: FileHandle?
         var bodyReceived = 0
         var done = false
+        var transferFailed = false
+        var isFileTransfer: Bool {
+            let route = path.split(separator: "?", maxSplits: 1).first ?? ""
+            return (method == "POST" && route.hasSuffix("/api/upload"))
+                || (method == "GET" && route.contains("/dl/"))
+        }
 
         init(_ connection: NWConnection) { self.connection = connection }
     }
@@ -279,15 +285,21 @@ public final class LanTransferServer: ObservableObject {
         connection.start(queue: queue)
         let context = ConnectionContext(connection)
         queue.asyncAfter(deadline: .now() + 300) {
-            if !context.done { connection.cancel() }
+            if !context.done {
+                context.done = true
+                if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                connection.cancel()
+            }
         }
         receive(context)
     }
 
     private func receive(_ context: ConnectionContext) {
         context.connection.receive(minimumIncompleteLength: 1, maximumLength: 1 << 16) { [weak self] data, _, isComplete, error in
-            guard let self else { return }
+            guard let self, !context.done else { return }
             if error != nil {
+                context.done = true
+                if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
                 context.connection.cancel()
                 return
             }
@@ -296,6 +308,8 @@ public final class LanTransferServer: ObservableObject {
                 if context.done { return }
             }
             if isComplete {
+                context.done = true
+                if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
                 context.connection.cancel()
                 return
             }
@@ -324,6 +338,7 @@ public final class LanTransferServer: ObservableObject {
                 FileManager.default.createFile(atPath: tmp.path, contents: nil)
                 context.bodyFile = tmp
                 context.bodyHandle = try? FileHandle(forWritingTo: tmp)
+                if context.bodyHandle == nil { context.transferFailed = true }
             }
             if !remainder.isEmpty { writeBody(context, remainder) }
             if context.bodyReceived >= context.contentLength { finish(context) }
@@ -356,14 +371,16 @@ public final class LanTransferServer: ObservableObject {
         let remaining = context.contentLength - context.bodyReceived
         guard remaining > 0 else { return }
         let slice = data.count > remaining ? Data(data.prefix(remaining)) : data
-        try? context.bodyHandle?.write(contentsOf: slice)
+        do { try context.bodyHandle?.write(contentsOf: slice) }
+        catch { context.transferFailed = true }
         context.bodyReceived += slice.count
     }
 
     private func finish(_ context: ConnectionContext) {
         guard !context.done else { return }
         context.done = true
-        try? context.bodyHandle?.close()
+        do { try context.bodyHandle?.close() }
+        catch { context.transferFailed = true }
         context.bodyHandle = nil
         route(context)
     }
@@ -459,6 +476,10 @@ public final class LanTransferServer: ObservableObject {
 
     private func handleUpload(_ context: ConnectionContext) {
         defer { cleanupBody(context) }
+        guard !context.transferFailed else {
+            respond(context, status: 500, json: ["error": "写入请求体失败"])
+            return
+        }
         guard let bodyFile = context.bodyFile else {
             respond(context, status: 400, json: ["error": "没有收到请求体"])
             return
@@ -502,6 +523,7 @@ public final class LanTransferServer: ObservableObject {
                 }
                 Log.info("TransferDock", "手机上传 \(count) 个文件")
                 self.queue.async {
+                    context.transferFailed = count != files.count || error != nil
                     for entry in staged {
                         try? FileManager.default.removeItem(at: entry.tempURL.deletingLastPathComponent())
                     }
@@ -533,10 +555,7 @@ public final class LanTransferServer: ObservableObject {
         var payload = Data(head.utf8)
         payload.append(data)
 
-        DispatchQueue.main.async {
-            self.sentCount += 1
-        }
-        send(context, payload)
+        send(context, payload, transferSucceeded: true)
     }
 
     private func handleDelete(_ context: ConnectionContext, id: String?) {
@@ -592,11 +611,20 @@ public final class LanTransferServer: ObservableObject {
         head += "Connection: close\r\n\r\n"
         var payload = Data(head.utf8)
         payload.append(data)
-        send(context, payload)
+        send(context, payload, transferSucceeded: context.isFileTransfer
+             ? (200..<300).contains(status) && !context.transferFailed : nil)
     }
 
-    private func send(_ context: ConnectionContext, _ payload: Data) {
-        context.connection.send(content: payload, completion: .contentProcessed { _ in
+    private func send(_ context: ConnectionContext, _ payload: Data, transferSucceeded: Bool? = nil) {
+        context.done = true
+        context.connection.send(content: payload, completion: .contentProcessed { error in
+            if let transferSucceeded {
+                let succeeded = transferSucceeded && error == nil
+                HapticFeedback.perform(succeeded ? .transferCompleted : .transferFailed)
+                if succeeded && context.method == "GET" {
+                    DispatchQueue.main.async { self.sentCount += 1 }
+                }
+            }
             context.connection.cancel()
         })
     }

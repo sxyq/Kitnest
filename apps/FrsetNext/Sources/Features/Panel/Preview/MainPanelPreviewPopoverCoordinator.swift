@@ -147,6 +147,17 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         return true
     }
 
+    func movePreview(from window: NSWindow, by delta: CGSize, within screen: CGRect) {
+        guard hasPreview(from: window), let preview = slot?.windowController.window else { return }
+        cancelHoverClose()
+        var frame = preview.frame.offsetBy(dx: delta.width, dy: delta.height)
+        frame.size.width = min(frame.width, screen.width)
+        frame.size.height = min(frame.height, screen.height)
+        frame.origin.x = min(max(frame.minX, screen.minX), screen.maxX - frame.width)
+        frame.origin.y = min(max(frame.minY, screen.minY), screen.maxY - frame.height)
+        preview.setFrame(frame, display: true)
+    }
+
     private override init() {
         super.init()
     }
@@ -403,12 +414,16 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         outsideGlobalMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self, let slot = self.slot, slot.state == .presented, !self.previewPinned else { return }
+            if self.presentingWindow === IslandController.shared.panel,
+               IslandController.shared.containsEntry(at: NSEvent.mouseLocation) { return }
             self.dismiss(reason: .programmatic)
         }
         // 点本 App（面板本体等）；点击预览窗不算「外部」
         outsideLocalMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             guard let self, let slot = self.slot, slot.state == .presented else { return event }
+            if self.presentingWindow === IslandController.shared.panel,
+               IslandController.shared.containsEntry(at: NSEvent.mouseLocation) { return event }
             if self.previewPinned { return event }
             if let previewWindow = slot.windowController.window,
                event.window === previewWindow {

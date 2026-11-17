@@ -88,6 +88,7 @@ final class SettingsEditingSession: ObservableObject {
         register(id: "transferCast") { CastTransferSettingsDraft() }
         register(id: "shortcuts") { ShortcutSettingsDraft() }
         register(id: "startup") { StartupSettingsDraft() }
+        register(id: "haptics") { HapticSettingsDraft() }
         register(id: "about") { AboutSettingsDraft() }
         register(id: "menuBarArrangement") { MonitorWidgetsSettingsDraft(scope: .arrangement) }
         for section in CaptureSettingsPane.Section.allCases {
@@ -171,6 +172,7 @@ final class SettingsEditingSession: ObservableObject {
 extension SettingsPage {
     var editingDraftIDs: Set<String> {
         switch self {
+        case .haptics: return ["haptics"]
         case .generalStart: return ["startup"]
         case .generalPersonal: return [PersonalizationSettingsPart.shared.draftID]
         case .appearanceText: return [PersonalizationSettingsPart.textAndRadius.draftID]

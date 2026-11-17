@@ -127,6 +127,8 @@ struct SettingsRootView: View {
 
     @ViewBuilder private var content: some View {
         switch state.selection {
+        case .haptics:
+            panePage { HapticSettingsPane() }
         // 常规（5 个二级页）
         case .generalStart:
             panePage { GeneralSettingsPane(section: .startup) }
