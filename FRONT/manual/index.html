@@ -203,7 +203,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>入口</th><th>效果</th></tr></thead><tbody><tr><td>打开主面板</td><td>左键点图标 / <code>⌥A</code> / <code>kitnest://panel</code></td><td>从图标下方「长出来」，再按一次收起</td></tr><tr><td>打开功能菜单</td><td>右键点图标</td><td>见下方菜单项</td></tr><tr><td>打开设置</td><td>菜单「设置…」/ <code>⌘,</code></td><td>设置窗口</td></tr><tr><td>打开使用统计</td><td>菜单「使用统计」</td><td>统计窗（第二章）</td></tr><tr><td>切换监控部件</td><td>菜单「显示状态项」/「显示项」</td><td>逐模块开关</td></tr><tr><td>退出</td><td>菜单「退出 Kitnest」/ <code>⌘Q</code></td><td>结束进程</td></tr></tbody></table></div>
 <p>主图标右键菜单保留打开面板、性能监测、使用统计、捕获暂停、欢迎权限、更新与退出；图标配置及监测显示项定位总设置的唯一编辑页（<code>StatusBarMenuBuilder.mainMenu</code>）。</p>
 <h3 id="演示">演示</h3>
-<div class="kdemo" data-demo="menubar"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="menubar"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点">关键能力点</h3>
 <ul><li><strong>五种图标样式，只选一种</strong>（<code>MenuBarIconStyle.selectIconStyle</code>）</li><li><strong>应用图标</strong>：默认 Logo。</li><li><strong>动态风扇</strong>：旋转小风扇，转速随 CPU 使用率变化。</li><li><strong>日期</strong>：菜单栏直接显示当天日期（<code>startDateTimer</code>）。</li><li><strong>自定义图标</strong>：任意 SF Symbol 名称（<code>setSymbol</code>）。</li><li><strong>动态小猫</strong>：播放跑步动画，速度随 CPU 使用率变化；选择后不再同时显示风扇。</li></ul>
 <p>在「菜单栏 → 图标与入口」切换样式，页内选择浅色或深色背景，预览同步更新。小猫和风扇按固定示例速度播放；修改其他开关不会重播图标动画。点「保存」才改变真实菜单栏，点「取消」恢复已保存的选择。</p>
@@ -222,7 +222,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-1">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / 左键图标</td><td>呼出/收起</td><td>从图标下方展开，带三角指示器</td></tr><tr><td><code>⌥F</code></td><td>打开并搜索</td><td>面板打开且搜索框获得焦点</td></tr><tr><td><code>⌥V</code></td><td>打开剪贴板</td><td>面板打开并切回首页</td></tr><tr><td><code>⌘P</code></td><td>置顶</td><td>面板常驻，失焦不收起</td></tr><tr><td><code>Esc</code></td><td>关闭</td><td>面板收起</td></tr><tr><td>顶部工具条</td><td>截图 / 取色 / 悬浮剪贴板 / 三段切换 / 齿轮菜单</td><td>快速动作与切页</td></tr><tr><td>拖文件进面板</td><td>任意位置</td><td><code>.json</code> / <code>.txt</code> 打开 JSON 检查器，其他进中转</td></tr></tbody></table></div>
 <h3 id="演示-1">演示</h3>
-<div class="kdemo" data-demo="panel"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="panel"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-1">关键能力点</h3>
 <ul><li><strong>首页从上到下</strong>：搜索区段 → 网盘链接条 → 日历卡 → 剪贴板历史列表（<code>PanelRootView.homePage</code>）。</li></ul>
 <ul><li><strong>页签可自定义</strong>（<code>PanelSegments</code>）：设置里能决定哪些页显不显示、顺序如何。关掉「文件中转」后，面板只剩主页和监测。</li></ul>
@@ -244,7 +244,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>窗口结构（<code>StatisticsRootView</code>）：</p>
 <ol><li><strong>顶部</strong>：今天日期 + 今天的总事件数。</li><li><strong>五张指标卡</strong>（<code>MetricCardView</code>）：常用动作的今日计数。</li><li><strong>总览 + 30 天柱图</strong>：每天一根柱，看的是一段时间的趋势。</li><li><strong>跨年热力图</strong>：GitHub 贡献图那种格子，颜色深浅表示当天活跃度（<code>heatCellView</code>）。</li></ol>
 <h3 id="演示-2">演示</h3>
-<div class="kdemo" data-demo="statistics"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="statistics"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-2">关键能力点</h3>
 <ul><li><strong>50+ 种事件</strong>（<code>AnalyticsEvent</code>，<code>Storage/Database.swift:370</code>）</li><li>剪贴板：<code>panelOpen</code> / <code>historyCopy</code> / <code>historyBatchCopy</code> / <code>clipboardCapture</code> / <code>clipboardPaste</code>（粘贴计数）…</li><li>截图族：<code>screenshotCapture</code> / <code>longScreenshot</code> / <code>annotateEdit</code> / <code>pinImage</code> / <code>screenRecord</code> / <code>colorPickSuccess</code></li><li>搜索与工具：<code>searchExecute</code> / <code>toolExecuteSuccess</code> / <code>webSearchOpen</code> / <code>ocrUse</code> / <code>translationUse</code></li><li>传输：<code>fileDownload</code> / <code>fileTransferSend</code> / <code>fileTransferReceive</code> / <code>transferDockOpen</code> / <code>screenCastOpen</code></li><li>系统：<code>monitorPanelOpen</code> / <code>networkInfoClick</code> / <code>activityMonitorClick</code></li><li>设置：<code>settingsOpen</code> / <code>settingsExportSuccess</code> / <code>settingsImportSuccess</code> / <code>changelogClick</code></li><li>商业化（原版键位保留）：<code>proPageView</code> / <code>paywallView</code> / <code>proPurchaseSuccess</code> …</li></ul>
 <ul><li><strong>事件名自动派生</strong>：camelCase → snake_case（<code>historyCopy</code> → <code>history_copy</code>），所以数据库里的键名和代码里的枚举一一对应。</li></ul>
@@ -262,7 +262,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-3">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥A</code> / <code>⌥V</code></td><td>打开面板首页</td><td>剪贴板历史列表</td></tr><tr><td><code>⇧⌘V</code></td><td>悬浮剪贴板</td><td>鼠标旁迷你列表（第五章）</td></tr><tr><td>双击一条 / 回车</td><td>回贴</td><td>写回系统剪贴板</td></tr><tr><td>右键</td><td>菜单</td><td>置顶、标签、编辑、隔空投送、删除</td></tr><tr><td><code>⇧⌥R</code></td><td>暂停/恢复记录</td><td>处理敏感内容时用</td></tr><tr><td>底部工具条</td><td>筛选 / 标签 / 编辑 / 上传</td><td>批量与整理</td></tr><tr><td>主面板齿轮 / 悬浮窗「…」菜单</td><td>清空当前剪贴板</td><td>只清空系统当前内容，保留历史、笔记、标签和文件中转</td></tr><tr><td>设置 → 剪贴板 → 历史</td><td>清除历史，保留已存项目 → 清除历史…</td><td>确认后删除全部未存历史，保留笔记及标签定义</td></tr></tbody></table></div>
 <h3 id="演示-3">演示</h3>
-<div class="kdemo" data-demo="clipboard"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="clipboard"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-3">关键能力点</h3>
 <ul><li><strong>自动记录 + 去重</strong>（<code>ClipboardManager.pollTick</code> / <code>ingest</code>）</li></ul>
 <p>轮询系统剪贴板，按内容指纹去重。重复复制同一条只更新位置和计数，不新增一行（<code>ClipboardPasteboardReader.fingerprint</code>）。</p>
@@ -298,7 +298,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-4">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⇧⌘V</code></td><td>在鼠标位置弹出 / 收起</td></tr><tr><td>点击条目</td><td>复制到剪贴板并关闭</td></tr><tr><td>拖条目</td><td>拖成文件或文本到目标 App</td></tr><tr><td>顶部图钉</td><td>钉住不自动收起</td></tr><tr><td>拖动标题区</td><td>移动位置，位置会被记住</td></tr><tr><td>底部搜索框</td><td>就地过滤</td></tr></tbody></table></div>
 <h3 id="演示-4">演示</h3>
-<div class="kdemo" data-demo="floatdesk"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="floatdesk"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-4">关键能力点</h3>
 <ul><li><strong>跟随鼠标</strong>（<code>FloatingClipboardWindow.showNearMouse</code>）：唤出时以鼠标为锚点，自动避让屏幕边缘。</li><li><strong>几何持久化</strong>（<code>FloatingClipboardWindow</code>）：位置、尺寸、是否钉住全部落到 <code>floatingClipboard.*</code> 偏好键，重启还原。</li><li><strong>工作台形态</strong>（<code>FloatingClipboardDesk</code>，1095 行）：比迷你列表更强的一档——支持分组、批量、拖出，是 2026-11-03 按用户指定「一模一样」重做的版式。</li><li><strong>不抢焦点</strong>：唤出时不激活 App，当前正在编辑的文档不会失焦。</li><li><strong>快捷键可改</strong>：<code>floatingClipboard</code> 是 19 条默认热键之一，支持改绑或改成「双击修饰键」模式（连按两下 <code>⌘</code>）。</li></ul>
 <h3 id="注意事项-4">注意事项</h3>
@@ -312,7 +312,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-5">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>悬停条目</td><td>弹出预览气泡</td></tr><tr><td>预览里点图片</td><td>放大查看</td></tr><tr><td>拖 <code>.json</code> / <code>.txt</code> 进面板</td><td>打开 JSON 检视器，可折叠节点</td></tr><tr><td>右键条目 →「编辑」</td><td>打开编辑窗（改正文/别名/备注）</td></tr></tbody></table></div>
 <h3 id="演示-5">演示</h3>
-<div class="kdemo" data-demo="preview"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="preview"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-5">关键能力点</h3>
 <ul><li><strong>内容分态</strong>（<code>PreviewPopoverContentModel</code>）：文本 / 落盘长文 / Markdown / JSON / 代码 / 图片 / 文件，七种状态各有渲染器。</li></ul>
 <ul><li><strong>Markdown 渲染</strong>（<code>PreviewMarkdownRenderer</code>）：标题、列表、表格、引用、代码块、目录（<code>renderTOC</code>）、行内样式。够读 AI 回帖和 README，不追求完整 CommonMark。</li></ul>
@@ -344,7 +344,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>组</th><th>图标</th><th>展开项</th></tr></thead><tbody><tr><td><strong>复制</strong></td><td>复制图标</td><td>复制 / 复制并识别 / 复制并翻译 / 保存</td></tr><tr><td><strong>识别</strong></td><td>文字框</td><td>识字 / 识码 / 翻译 / 屏幕翻译</td></tr><tr><td><strong>钉住</strong></td><td>图钉</td><td>钉住（当前外观）/ 经典 / 无边框 / 卡片 / 强调 / 挂到图帘</td></tr><tr><td><strong>长截图</strong></td><td>上下箭头</td><td>（独立成组，点即用）</td></tr><tr><td><strong>编辑</strong></td><td>铅笔</td><td>标注 / 美化</td></tr><tr><td><strong>更多</strong></td><td>省略号</td><td>空投 / 历史</td></tr></tbody></table></div>
 <ul><li><strong>点图标</strong>执行该组的默认动作；<strong>悬停</strong>展开竖排子项列表（带组名标题，一个形态一行）。</li><li>「钉住」组里前五项是<strong>外观形态</strong>，只作用于这一张，不会改掉你以后钉图的默认外观。</li><li>键盘也能选：动作条上每个动作有字母键，例如 <code>p</code> = 钉住。</li></ul>
 <h3 id="演示-6">演示</h3>
-<div class="kdemo" data-demo="capture"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="capture"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-6">关键能力点</h3>
 <ul><li><strong>窗口自动识别</strong>（<code>CGWindowList</code> 快照 + 悬停命中）：进入截图即缓存所有在屏窗口矩形，</li></ul>
 <p>鼠标进窗整窗高亮、单击截取；优先用 ScreenCaptureKit 做窗口级抓取，被遮挡的部分也能完整还原。 截图目标由光标指向的窗口决定，不限于最前台窗口。</p>
@@ -367,7 +367,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>工具</th><th>用途</th></tr></thead><tbody><tr><td><strong>矩形</strong></td><td>框重点，默认描边，可切实色填充</td></tr><tr><td><strong>椭圆</strong></td><td>圈重点，默认描边，可切实色填充</td></tr><tr><td><strong>箭头</strong></td><td>指向说明</td></tr><tr><td><strong>直线（L）</strong></td><td>拖出两个端点，选中后可移动整条线或调整端点</td></tr><tr><td><strong>画笔</strong></td><td>自由手绘</td></tr><tr><td><strong>文字</strong></td><td>打字，可调字体/字号/颜色</td></tr><tr><td><strong>备注</strong></td><td>带引线的文字气泡</td></tr><tr><td><strong>序号</strong></td><td>自动递增的圆形编号（1、2、3…）</td></tr><tr><td><strong>荧光笔</strong></td><td>半透明高亮，模拟马克笔</td></tr><tr><td><strong>聚光灯</strong></td><td>拖出区域，压暗其余画面</td></tr><tr><td><strong>放大镜</strong></td><td>拖出圆形放大区域</td></tr><tr><td><strong>马赛克</strong></td><td>像素化遮挡</td></tr><tr><td><strong>模糊</strong></td><td>高斯模糊遮挡</td></tr><tr><td><strong>橡皮</strong></td><td>擦除单条标注</td></tr><tr><td><strong>智能擦除</strong></td><td>涂抹移除图中物体（第九章）</td></tr></tbody></table></div>
 <p>快捷键：<code>L</code> 直线、<code>⌘Z</code> 撤销、<code>⇧⌘Z</code> 重做、<code>⌘S</code> 保存、<code>⌘C</code> 复制；选中直线或形状时 <code>Delete</code> 删除、<code>Esc</code> 取消选中，再按 <code>Esc</code> 关闭窗口。</p>
 <h3 id="演示-7">演示</h3>
-<div class="kdemo" data-demo="annotate"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="annotate"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-7">关键能力点</h3>
 <ul><li><strong>画布用中性灰而不是纯黑</strong>（<code>AnnotationEditorWindow</code>）：图片是主角，深色底会让人误判截图本身的明暗。</li></ul>
 <ul><li><strong>标注是可编辑对象，不是画上去的像素</strong>（<code>AnnotationCompositor</code>）：每条标注记位置/样式/内容，撤销重做是操作栈，导出时才合成。</li></ul>
@@ -388,7 +388,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-8">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>动作条 →「编辑」→「美化」</td><td>打开美化面板，实时预览</td></tr><tr><td>标注工具栏 →「智能擦除」</td><td>涂抹要移除的区域，松手自动填补</td></tr><tr><td>设置 → 截图 → 水印</td><td>给导出图加水印（第九章末）</td></tr></tbody></table></div>
 <h3 id="演示-8">演示</h3>
-<div class="kdemo" data-demo="beautify"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="beautify"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-8">关键能力点</h3>
 <ul><li><strong>背景美化</strong>（<code>BeautifyPanel</code>）</li><li>纯色 / 渐变背景，内置几套配色。</li><li>内边距可调（0~120pt），圆角可调，投影开关。</li><li>全部纯 CoreGraphics 绘制，零第三方依赖。</li></ul>
 <ul><li><strong>双引擎擦除</strong>（<code>ObjectRemovalEngine</code>）</li><li>主力：基于周围像素的内容感知填充（inpainting）。</li><li>兜底：纹理合成，处理大面积纯色区域更快。</li><li>两种引擎的区别：前者对复杂纹理好但慢，后者对纯色背景快但不适合复杂图。</li></ul>
@@ -404,7 +404,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-9">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>步骤</th><th>操作</th></tr></thead><tbody><tr><td>1</td><td><code>⇧⌥L</code> 进入长截图</td></tr><tr><td>2</td><td>框选要截的区域（只框内容区，别框滚动条）</td></tr><tr><td>3</td><td>按提示滚动（有的页面要手动滚，有的自动滚）</td></tr><tr><td>4</td><td>采集中 HUD 显示已采集帧数与高度</td></tr><tr><td>5</td><td>点「完成」进入拼接预览，可裁剪、导出</td></tr></tbody></table></div>
 <h3 id="演示-9">演示</h3>
-<div class="kdemo" data-demo="longshot"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="longshot"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-9">关键能力点</h3>
 <ul><li><strong>会话状态机</strong>（<code>LongScreenshotSession</code>）</li></ul>
 <p><code>IDLE → RUNNING → CAPTURING → PROCESSING → FINISHED / CANCELLED</code>，每步都能取消，不会卡死。</p>
@@ -434,7 +434,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>形态</th><th>边框</th><th>圆角</th><th>阴影</th><th>适合</th></tr></thead><tbody><tr><td><strong>经典</strong></td><td>1.5pt 自动取色</td><td>10pt</td><td>有</td><td>默认，任何背景都不违和</td></tr><tr><td><strong>无边框</strong></td><td>无</td><td>0</td><td>无</td><td>贴图当壁纸、无缝拼</td></tr><tr><td><strong>卡片</strong></td><td>2pt 白</td><td>16pt</td><td>有</td><td>放在深色桌面，像一张卡片</td></tr><tr><td><strong>强调</strong></td><td>2pt 主题色</td><td>12pt</td><td>有</td><td>演示时突出</td></tr></tbody></table></div>
 <blockquote>形态<strong>只作用于这一张</strong>（<code>PinAppearance</code>）。在右键菜单里改外观会同时写回全局，保持「新钉图沿用上次设置」的老行为。</blockquote>
 <h3 id="演示-10">演示</h3>
-<div class="kdemo" data-demo="pin"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="pin"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-10">关键能力点</h3>
 <ul><li><strong>自动取边框色</strong>（<code>PinStyle.sampledBorderColor</code>）：按图片平均亮度决定描边是深还是浅，深色图用白边、浅色图用深边。取样结果按图缓存一次。</li></ul>
 <ul><li><strong>磁性吸附</strong>（<code>PinStyle.magnet</code>）：拖到屏幕边缘或别的钉图旁边会吸过去对齐。</li></ul>
@@ -454,7 +454,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-11">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⇧⌥G</code></td><td>展开 / 收起图帘</td></tr><tr><td>截图后（开启「自动上架」时）</td><td>自动挂上去</td></tr><tr><td>动作条 → 钉住组 →「挂到图帘」</td><td>手动挂一张</td></tr><tr><td>单击卡片</td><td>复制图片</td></tr><tr><td>拖卡片</td><td>拖出成文件（Finder / 聊天窗 / 编辑器都行）</td></tr><tr><td>悬停卡片</td><td>浮出保存 / 钉图 / 移除三个按钮</td></tr><tr><td>右键卡片</td><td>菜单：复制、保存到…、在 Finder 中显示、钉住、放大/缩小图帘、移除</td></tr><tr><td><strong>按住 <code>⌘</code> 左右拖</strong></td><td>整条图帘等比放大（72~420pt）</td></tr><tr><td><code>⌘</code> + 滚轮</td><td>同上</td></tr></tbody></table></div>
 <h3 id="演示-11">演示</h3>
-<div class="kdemo" data-demo="curtain"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="curtain"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-11">关键能力点</h3>
 <ul><li><strong>四种帘线</strong>（<code>CurtainRopeStyle</code>）</li><li><strong>原版</strong>：一根半透明的线，任何桌面都不抢眼。</li><li><strong>拐杖糖</strong>：白线缠红条纹，最像晾衣绳。</li><li><strong>圣诞彩灯</strong>：线上等距小灯，四色循环，深色桌面最好看。</li><li><strong>积雪</strong>：线上积雪，冬天用。</li><li>四种全部用 CoreGraphics 画，<strong>不引入粒子层</strong>——常驻粒子在滚动/缩放时掉帧。</li></ul>
 <ul><li><strong>几何是从二进制还原的</strong>（<code>CurtainRopeGeometry</code>）</li><li>三次贝塞尔，控制点在 1/3 和 2/3（不是二次贝塞尔的单控制点）。</li><li>下垂量按宽度算：<code>min(width × 0.018, 28)</code>，和挂了几张无关。</li><li>线端距视图顶 12pt；每道描边带 <code>shadow(黑 28%, offset(0,1), blur 2)</code>，通过阴影勾勒轮廓而非双色描边。</li></ul>
@@ -476,7 +476,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-12">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 截图区段 →「历史」</td><td>打开历史网格</td></tr><tr><td>动作条 →「更多」→「历史」</td><td>同上</td></tr><tr><td><code>kitnest://capture?history=1</code></td><td>深链直达</td></tr></tbody></table></div>
 <h3 id="演示-12">演示</h3>
-<div class="kdemo" data-demo="history"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="history"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-12">关键能力点</h3>
 <ul><li><strong>只记落盘文件</strong>（<code>CaptureHistoryStore</code>）：内存里截完就丢的不进历史。所以历史条目都能在 Finder 里找到。</li><li><strong>缩略图分级解码</strong>（<code>ArchiveEntryThumbnail</code> 同款策略）：先出小图，滚动停止后再补大图，避免一次解码几十张 6K 截图。</li><li><strong>按时间分组</strong>：今天 / 昨天 / 更早，每组一个标题。</li><li><strong>点击定位</strong>：单击选中，双击用系统预览打开，右键「在 Finder 中显示」。</li></ul>
 <h3 id="注意事项-12">注意事项</h3>
@@ -491,7 +491,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-13">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>快捷键 / 入口</th><th>效果</th></tr></thead><tbody><tr><td><code>⇧⌥S</code></td><td>截图并识字，结果窗可选中复制</td></tr><tr><td><code>⇧⌥T</code></td><td>截图并翻译，译文弹提示并进剪贴板</td></tr><tr><td><code>⇧⌥D</code></td><td>划词翻译（翻译当前选中的文本）</td></tr><tr><td>动作条「识别」组</td><td>识字 / 识码 / 翻译 / 屏幕翻译</td></tr><tr><td>图片预览</td><td>自动识别二维码，旁边显示内容</td></tr><tr><td>截图历史 → 右键</td><td>对历史截图识字</td></tr></tbody></table></div>
 <h3 id="演示-13">演示</h3>
-<div class="kdemo" data-demo="ocr"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="ocr"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-13">关键能力点</h3>
 <ul><li><strong>两级 OCR 引擎</strong>（<code>PPOCROCR</code>）</li><li><strong>Apple Vision 负责「文字在哪」</strong>：文本行检测，快且准。</li><li><strong>PP-OCR 负责「这是什么」</strong>：逐行识别，中文识别率更高。</li><li>组合起来比单用任一个都准：Vision 单独用对中文长句容易断，PP-OCR 单独用定位差。</li></ul>
 <ul><li><strong>PP-OCR 走子进程</strong>（<code>PPOCROCREmote</code> + <code>FrsetOCRHelper</code>）</li></ul>
@@ -522,7 +522,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p><strong>自适应截图</strong>：悬停窗口后单击截整窗，直接拖拽截自定义范围，单击空白桌面截全屏。 模式开关及默认模式设置已移除。<code>⇧⌥W</code> 仍可打开同一截图入口。</p>
 <p><strong>窗口多选</strong>：窗口识别模式下按住 <code>⌘</code> 单击勾选多个窗口（带序号），回车一次性截完， 按勾选顺序纵向拼成一张图。</p>
 <h3 id="演示-14">演示</h3>
-<div class="kdemo" data-demo="captureplus"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="captureplus"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-14">关键能力点</h3>
 <div class="table-wrap"><table><thead><tr><th>能力</th><th>说明</th></tr></thead><tbody><tr><td>比例约束</td><td>起点为锚点，四个方向都正确；超出屏幕时整体收缩、不破比例</td></tr><tr><td>比例提示</td><td>尺寸气泡显示 <code>2560 × 1440 · 16:9</code></td></tr><tr><td>模板占位符</td><td><code>{yyyy}</code> <code>{MM}</code> <code>{dd}</code> <code>{HH}</code> <code>{mm}</code> <code>{ss}</code> <code>{date}</code> <code>{time}</code> <code>{timestamp}</code> <code>{seq}</code> <code>{seq:4}</code> <code>{random:3}</code> <code>{w}</code> <code>{h}</code> <code>{mode}</code> <code>{app}</code></td></tr><tr><td>序号</td><td><code>{seq}</code> 每天从 1 重置；<code>{seq:4}</code> 补零</td></tr><tr><td>文件名清洗</td><td>`/ : \ ? *</td><td>" &lt; &gt;` 替换或删除，去掉开头的点，长度上限 180</td></tr><tr><td>静默提示</td><td>不抢焦点、不打断连续识别</td></tr><tr><td>文本行识别</td><td>Vision 本机；按底图缓存，同一次编辑只算一次</td></tr></tbody></table></div>
 <h3 id="注意事项-14">注意事项</h3>
@@ -544,7 +544,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>勾「导出时静音」、点「导出…」。</p>
 <ul><li><strong>设置</strong>（设置 → 截图与钉图 → 录屏）：</li><li>帧率 15 / 30 / 60；</li><li>声音：不录音 / 系统声音 / 麦克风（二选一）；</li><li>鼠标指针开关；</li><li>摄像头画中画：设备、四角位置、宽度 10–35%（4:3 竖版）；</li><li>显示按键、点击动画；</li><li>忽略的 App：选 <code>.app</code>，该 App 的所有窗口不进画面；</li><li>保存目录（默认下载目录）。</li></ul>
 <h3 id="演示-15">演示</h3>
-<div class="kdemo" data-demo="recording"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="recording"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <ul><li><strong>管线</strong>：<code>SCStream</code>（display filter + sourceRect）→ <code>CMSampleBuffer</code> → <code>AVAssetWriter</code>（H.264 + AAC）。</li><li><strong>计时窗</strong>：毛玻璃浮层显示时长 + 停止按钮，跟着录制区域走，不进画面。</li><li><strong>区域框选</strong>（<code>FSRegionOverlayIsActive</code>）：录制选区时浮动层主动让路，不挡住框选。</li><li><strong>麦克风降级</strong>：没授权麦克风时自动只录系统音，不报错。</li></ul>
 <h3 id="关键能力点-15">关键能力点</h3>
 <div class="table-wrap"><table><thead><tr><th>能力</th><th>说明</th></tr></thead><tbody><tr><td>采集</td><td>ScreenCaptureKit <code>SCStream</code> → <code>AVAssetWriter</code>，H.264 MP4</td></tr><tr><td>码率</td><td>按分辨率自动：<code>w×h×0.12</code>，钳在 4–24 Mbps</td></tr><tr><td>区域</td><td><code>SCStreamConfiguration.sourceRect</code>（显示器本地坐标）</td></tr><tr><td>忽略 App</td><td><code>SCContentFilter(display:excludingApplications:)</code></td></tr><tr><td>画中画</td><td><code>AVCaptureVideoDataOutput</code> 取最新帧 → Core Image 合成</td></tr><tr><td>按键</td><td><code>CGEventTap</code> listenOnly，键帽条 4 个、1.6s TTL</td></tr><tr><td>点击</td><td>左键橙 / 右键蓝，0.65s 双环扩散</td></tr><tr><td>零开销直通</td><td>没开任何叠加时原始帧直接 append，不做合成</td></tr><tr><td>编辑器</td><td>AVPlayerLayer 预览 + 入出点 + 静音 + <code>AVAssetExportSession</code></td></tr></tbody></table></div>
@@ -567,7 +567,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>主面板、刘海工作台和监测独立窗使用同一页内容，并记住同一个已选模块。宽窗口左侧列出模块和当前值，右侧显示趋势与详情；窄窗口把模块入口放在上方。切换模块只更新内容，不重新展开刘海。</p>
 <ul><li>默认显示最新读数。悬停图表可查看该次采样的时间、数值和单位；网络与磁盘同时显示两条曲线的读数。</li><li>点击图表固定该位置的采样；已有固定点时，再点其他位置会更新固定点。位移达到 3pt 后进入拖动定位；图表获得焦点后，左右方向键查看采样，回车固定或解除固定。</li><li>点“返回最新”恢复跟随。固定采样离开当前图表范围后，时间与读数仍保留，下面会说明它已不在图中。</li><li>历史最多保留 60 次采样，时间轴使用真实时间。改变刷新间隔、后台降频或采样中断后，图表按实际间隔排列；缺失读数留空。</li><li>内存压力显示系统返回的“正常／警告／严重”状态，已用容量单独标明。温度图可以选择传感器，单位为 °C。</li><li>功耗图显示 PSTR 整机负载；适配器输入包含充电，芯片合计与组件明细不重复相加。</li><li>设置预览使用固定模拟采样和进程，可以切换模块、定位和固定采样；操作不会影响系统监测或真实进程。刘海颜色与顺序先在预览中变化，保存后应用，取消保留已保存配置。</li></ul>
 <h3 id="演示-16">演示</h3>
-<div class="kdemo" data-demo="monitor"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="monitor"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-16">关键能力点</h3>
 <ul><li><strong>十二种部件形态</strong>（<code>StatsBarEngine</code> + <code>frset_barwidgets.m</code>）</li></ul>
 <p>迷你数值、折线、柱状、饼图、速度、状态点、标签、图标……按模块分别设置，保存后应用。配置与 Stats 引擎互通。</p>
@@ -603,7 +603,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>实测样本（本机）：应用 −306MB / 缓存 −1164MB / 压缩 +497MB / 空闲 +1022MB。</p>
 <blockquote>注意「压缩 +497MB」：purge 将内存页挤出后，部分数据会转入压缩器。因此「释放量」并不等同于「空闲增加量」，报告将各分项单独列出，以便准确评估。</blockquote>
 <h3 id="演示-17">演示</h3>
-<div class="kdemo" data-demo="memory"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="memory"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-17">关键能力点</h3>
 <ul><li><strong>两档动作</strong></li><li><strong>清缓存</strong>：<code>malloc_zone_pressure_relief</code> + 内存压力广播 + <code>purge</code>（需要 root helper）。</li><li><strong>暂停闲置</strong>：给符合条件的进程发 <code>SIGSTOP</code>，让它彻底不占 CPU；唤醒发 <code>SIGCONT</code>。</li></ul>
 <ul><li><strong>暂停白名单</strong>（<code>ProcessFreezer</code>）</li></ul>
@@ -629,7 +629,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <p>在图形区域用触控板<strong>两指左滑</strong>，退回当前目录的上一级；<strong>两指右滑</strong>，重新进入刚返回前的下一级目录。前后按钮、快捷键与手势共用同一目录历史；根目录不能继续返回，没有前进目标时保持当前目录。手势按起点锁定图形区域，累计横向位移达到42pt后最多切换一级，结束、取消及惯性事件不继续导航；左侧清理清单仍独立纵向滚动。系统“自然滚动”开关不改变左退右进的方向，分类模式不执行目录手势。</p>
 <p>标题、左右操作按钮、目录导航与说明区按真实控件高度排在正文画布上方。异形弧线、可用空间块、清单遮罩、文字及命中区域共用正文局部坐标；清单遮罩取清单矩形减去弧形区域，命中范围不覆盖图块。缩放窗口不会把液态图移入顶部操作区。图形保留现有目录配色，悬停时带液态形变动效；开启 macOS「系统设置 → 辅助功能 → 显示 → 减少动态效果」后取消形变。</p>
 <h3 id="演示-18">演示</h3>
-<div class="kdemo" data-demo="storage"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="storage"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-18">关键能力点</h3>
 <ul><li><strong>扫描口径</strong>（v264 重做）</li><li><strong>不限深度</strong>：<code>Xcode.app/Contents/Developer/Platforms/…</code> 这类深层内容全部计入。</li><li><strong>含隐藏目录</strong>：<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code> / <code>.cargo</code> 都进。</li><li><strong>含 <code>~/Library</code></strong> 与系统只读卷。</li><li>扫描遍历 <code>/System</code>，跳过 <code>/System/Volumes</code>（避免重复统计挂载的 <code>/Users</code> 等卷）。</li><li><strong>占用口径</strong>：使用磁盘块计数 <code>st_blocks × 512</code>；块计数为 0 时沿用文件大小 <code>st_size</code>。</li><li><strong>每目录保留最大 60 项</strong>：≥100MB 大文件与目录共用上限，普通文件不保留独立节点；其余目录聚合，未单独展示的直接文件计入目录自身占用。目录总量 = 未单独展示的直接文件占用 + 子节点总量，保留文件和聚合占用只计算一次。</li></ul>
 <ul><li><strong>历史实测规模（v264）</strong>：248.7 万条目 / 185.6 GB / 52 秒 / 缓存 59MB（二进制 plist）。</li></ul>
@@ -655,7 +655,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>监测窗 → 网络模块</td><td>下方「诊断」区</td></tr><tr><td>状态栏网络部件 → 点击</td><td>详情浮层里同样有</td></tr><tr><td>面板 → 性能监测 → 网络</td><td>同上</td></tr></tbody></table></div>
 <p>点「开始诊断」逐项跑，每项独立超时，不会因为一项失败卡住全部。</p>
 <h3 id="演示-19">演示</h3>
-<div class="kdemo" data-demo="network"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="network"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-19">关键能力点</h3>
 <ul><li><strong>公网 IP + 归属地</strong>（<code>IPAddressService.queryPublicIP</code>）</li></ul>
 <p>调 <code>api.ipify.org</code>（免 Key 公共服务），带超时；归属地另走一次查询。</p>
@@ -683,7 +683,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="四种出口">四种出口</h3>
 <div class="table-wrap"><table><thead><tr><th>出口</th><th>对方设备</th><th>说明</th></tr></thead><tbody><tr><td><strong>隔空投送</strong></td><td>iPhone / iPad / Mac</td><td>系统面板，对端零安装</td></tr><tr><td><strong>扫码直传</strong></td><td>任何有浏览器的设备</td><td>本机起一个小 HTTP 服务，二维码里带一次性 token；对方浏览器上传/下载</td></tr><tr><td><strong>ADB 直传</strong></td><td>Android</td><td>大文件或批量走 USB 3.0</td></tr><tr><td><strong>云端中转</strong></td><td>跨时间/跨设备</td><td>登录 OPPO 中转站后存云端</td></tr></tbody></table></div>
 <h3 id="演示-20">演示</h3>
-<div class="kdemo" data-demo="transfer"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="transfer"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-20">关键能力点</h3>
 <ul><li><strong>本地暂存</strong>（<code>LocalTransferStore</code>）</li></ul>
 <p>所有来路文件的统一落点：隔空投送接收、手机拉取、拖入、剪贴板。按时间倒序，可多选、可删除、可清空。</p>
@@ -710,7 +710,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-21">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>步骤</th><th>操作</th></tr></thead><tbody><tr><td>1</td><td>USB 连上手机，打开「USB 调试」</td></tr><tr><td>2</td><td>点「检测设备」→ 选设备</td></tr><tr><td>3</td><td>点「开始投屏」</td></tr><tr><td>4</td><td>想摆脱线缆：点「一键无线」（自动 <code>adb tcpip 5555</code> + 连接 Wi-Fi 地址）</td></tr><tr><td>5</td><td>扫码直连：点「扫码配对」，手机扫电脑上的二维码（Android 11+ 无线调试）</td></tr></tbody></table></div>
 <h3 id="演示-21">演示</h3>
-<div class="kdemo" data-demo="cast"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="cast"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-21">关键能力点</h3>
 <ul><li><strong>一键无线</strong>（<code>ADBExtrasEngine</code>）</li></ul>
 <p>USB 连一次 → 自动执行 <code>adb tcpip 5555</code> → 连上手机的 Wi-Fi 地址。之后同一网络下直接检测，<strong>不用再开无线调试、不用配对码</strong>。</p>
@@ -748,7 +748,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="预览支持">预览支持</h3>
 <div class="table-wrap"><table><thead><tr><th>类型</th><th>预览方式</th></tr></thead><tbody><tr><td>文本（txt / md / json / 代码）</td><td>带语法高亮的文本视图</td></tr><tr><td>图片</td><td>缩略图 + 尺寸</td></tr><tr><td>HTML</td><td><strong>直接渲染成网页</strong>（不是显示源码）</td></tr><tr><td>Office（doc/xls/ppt）</td><td>分级解码缩略图（不自己渲染，取系统已生成的预览）</td></tr><tr><td>PDF</td><td>首页缩略图</td></tr></tbody></table></div>
 <h3 id="演示-22">演示</h3>
-<div class="kdemo" data-demo="archive"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="archive"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-22">关键能力点</h3>
 <ul><li><strong>真实解压/压缩/回写</strong>（<code>ArchiveCore</code>，1134 行）</li></ul>
 <p>支持直接修改压缩包内的文本类条目，保存时调用 <code>7zz a</code> 增量写回原压缩包。 回写前会捕获可逆信息（<code>ArchiveUndoStack</code>），支持撤销。</p>
@@ -781,7 +781,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-23">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>面板首页 → 搜索框输入 <code>/</code></td><td>列出全部命令，输入即过滤</td></tr><tr><td><code>⌥K</code></td><td>命令面板（全功能目录）</td></tr><tr><td>面板 → 工具页</td><td>分类网格，点开即用</td></tr><tr><td>工具热键</td><td>每个工具可单独绑全局快捷键（<code>ToolShortcutStore</code>）</td></tr></tbody></table></div>
 <h3 id="演示-23">演示</h3>
-<div class="kdemo" data-demo="toolbox"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="toolbox"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-23">关键能力点</h3>
 <ul><li><strong>工具描述符</strong>（<code>ToolRegistry</code>）</li></ul>
 <p>每个工具是 <code>id / 名称 / 图标 / 分类 / 选项 / 执行函数</code>。注册表统一管理，可启用/停用。</p>
@@ -801,7 +801,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-24">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>输入</th><th>结果</th></tr></thead><tbody><tr><td>普通关键词</td><td>四类结果分组展示：文件 / 剪贴板 / 网页 / 工具</td></tr><tr><td>网址（含 <code>.</code> 或 <code>http</code>）</td><td>直接显示「打开该网址」</td></tr><tr><td><code>/</code> 开头</td><td>切成命令模式，列出全部工具命令</td></tr><tr><td>点分类 chip</td><td>只看某一类，再点二级筛选（文件类型 / 剪贴板类型 / 搜索引擎）</td></tr></tbody></table></div>
 <h3 id="演示-24">演示</h3>
-<div class="kdemo" data-demo="search"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="search"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-24">关键能力点</h3>
 <ul><li><strong>文件搜索覆盖全盘</strong>（v264 重做，<code>FileNameIndex</code>）</li></ul>
 <p>Spotlight <strong>不索引</strong> <code>~/Library</code>、隐藏目录（<code>.workbuddy</code> / <code>.cursor</code> / <code>.npm</code>…）、<code>.app</code> 包内部、<code>/usr/local</code>——而这几处恰好是开发者文件最密集的地方。 所以自建了一份<strong>全盘文件名索引</strong>：</p>
@@ -824,7 +824,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-25">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td><code>⌥K</code></td><td>打开/关闭</td></tr><tr><td>输入</td><td>过滤（模糊匹配，乱序也能中）</td></tr><tr><td><code>↑</code> <code>↓</code></td><td>移动选择</td></tr><tr><td><code>↵</code></td><td>执行</td></tr><tr><td><code>Esc</code></td><td>关闭</td></tr><tr><td>先在其他应用选中文字，再搜「摘要选中文字」或「润色选中文字」</td><td>使用打开命令面板前取得的选区，在现有工具窗执行</td></tr></tbody></table></div>
 <h3 id="演示-25">演示</h3>
-<div class="kdemo" data-demo="command"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="command"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-25">关键能力点</h3>
 <ul><li><strong>全功能目录</strong>（<code>CommandPalette</code>，644 行）</li></ul>
 <p>把「一堆功能」收敛成「一个工具箱」的统一入口：截图、OCR、长截图、图帘、剪贴板、监测、中转、投屏、工具、设置页……</p>
@@ -842,7 +842,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-26">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>面板首页看日历卡</td><td>两周日期，今天高亮</td></tr><tr><td>点 <code>‹</code> <code>›</code> / 两指横滑</td><td>上一周 / 下一周</td></tr><tr><td>点月份标题</td><td>回到今天所在周</td></tr><tr><td>点日期格</td><td>选中日期；今天保留实心高亮，其他选中日期显示描边</td></tr><tr><td>设置 → 工具 → 日历 → 一周起始日</td><td>选择周日 / 周一，先更新本页预览</td></tr><tr><td>日历设置区「保存」/「取消」</td><td>保存后应用到正式日历；取消恢复保存值，切页保留草稿，重启保留保存结果</td></tr></tbody></table></div>
 <h3 id="演示-26">演示</h3>
-<div class="kdemo" data-demo="calendar"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="calendar"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-26">关键能力点</h3>
 <ul><li><strong>农历与节气</strong>（<code>LunarCalendar</code>）</li></ul>
 <p>公农历互转、二十四节气、农历节日（春节/端午/中秋…）。纯算法实现，不需要网络。</p>
@@ -867,7 +867,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-27">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>设置 → 快捷键 → 全部功能绑定</td><td>全部热键列表</td></tr><tr><td>点某条 → 按下新组合</td><td>录制并保存</td></tr><tr><td>点「×」</td><td>清除该条绑定</td></tr><tr><td>切「2×」开关</td><td>改成双击修饰键模式</td></tr><tr><td>「恢复默认」</td><td>全部还原</td></tr><tr><td>「摘要选中文字」「润色选中文字」</td><td>默认未绑定；录制组合键后在目标应用直接处理选区</td></tr></tbody></table></div>
 <h3 id="演示-27">演示</h3>
-<div class="kdemo" data-demo="shortcuts"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="shortcuts"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-27">关键能力点</h3>
 <ul><li><strong>Carbon 全局热键</strong>（<code>ShortcutManager</code>）</li></ul>
 <p>用 <code>RegisterEventHotKey</code>，App 未激活时同样生效。不是 <code>NSEvent</code> 全局监听（那个需要辅助功能且不拦截）。</p>
@@ -888,7 +888,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-28">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>工具箱 →「代码预览」</td><td>粘贴代码，选语言与主题</td></tr><tr><td>剪贴板条目（识别为代码）→ 预览</td><td>直接进代码预览</td></tr><tr><td>工具热键</td><td>可单独绑定</td></tr></tbody></table></div>
 <h3 id="演示-28">演示</h3>
-<div class="kdemo" data-demo="codepreview"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="codepreview"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-28">关键能力点</h3>
 <ul><li><strong>自研词法器</strong>（<code>CodeLexer</code>，582 行）</li></ul>
 <p>轻量自研架构：项目采用 <code>swiftc</code> 直接编译且无 SPM 外部依赖，同时预览需在 200ms 内快速完成渲染，因此选用自研轻量词法分析器。 支持 20+ 语言（<code>CodeLanguage</code>），语言 id 同时是高亮器的配置键。</p>
@@ -910,7 +910,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-29">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>操作</th><th>效果</th></tr></thead><tbody><tr><td>复制网盘分享链接</td><td>状态栏下方弹出小提示，点开进解析中心</td></tr><tr><td>面板首页「网盘链接」条</td><td>显示剪贴板里的网盘链接，点开解析</td></tr><tr><td>工具箱 →「网盘解析」</td><td>同上</td></tr><tr><td><code>kitnest://cloudlink</code></td><td>深链直达</td></tr></tbody></table></div>
 <h3 id="演示-29">演示</h3>
-<div class="kdemo" data-demo="cloudlink"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="cloudlink"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-29">关键能力点</h3>
 <ul><li><strong>域名识别表</strong>（<code>CloudDriveLink</code>）</li></ul>
 <p>覆盖主流网盘（百度 / 阿里 / 夸克 / 123 / 天翼 / 移动 / 迅雷 / UC / 115 等），规则提取自 LinkSwift（AGPL-3.0 上游项目）的 <code>@match</code> 声明。</p>
@@ -935,7 +935,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="四类服务商">四类服务商</h3>
 <div class="table-wrap"><table><thead><tr><th>类型</th><th>默认端点</th><th>鉴权</th></tr></thead><tbody><tr><td><strong>Anthropic</strong></td><td><code>https://api.anthropic.com</code></td><td><code>x-api-key</code></td></tr><tr><td><strong>Gemini</strong></td><td><code>https://generativelanguage.googleapis.com</code></td><td>Key 走 URL 参数</td></tr><tr><td><strong>OpenAI 兼容</strong></td><td>任意网关（DeepSeek / 月之暗面 / 智谱 / Groq…）</td><td><code>Authorization: Bearer</code></td></tr><tr><td><strong>Ollama</strong></td><td><code>http://localhost:11434</code></td><td>无（本地）</td></tr></tbody></table></div>
 <h3 id="演示-30">演示</h3>
-<div class="kdemo" data-demo="ai"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="ai"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-30">关键能力点</h3>
 <ul><li><strong>门面 + 适配器</strong>（<code>LLMService</code> / <code>LLMResolver</code>）</li></ul>
 <p>对外只有一个 <code>stream</code> 入口，内部按偏好路由到具体适配器。加一家新厂商只写一个 adapter。</p>
@@ -985,14 +985,14 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <div class="table-wrap"><table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody><tr><td><code>SettingsNavigation.swift</code></td><td>13 类、42 页与作用范围</td></tr><tr><td><code>SettingsSidebarView.swift</code></td><td>独立折叠、搜索及页脚</td></tr><tr><td><code>SettingsWindowController.swift</code></td><td>原生窗口、旧链接及控件定位</td></tr><tr><td><code>SettingsRootView.swift</code></td><td>页面分发、导航引导及滚动位置</td></tr><tr><td><code>SettingsEditingSession.swift</code></td><td>共用草稿与逐页保存栏</td></tr><tr><td><code>IslandSettingsPane.swift</code></td><td>四页字段范围与正式预览</td></tr><tr><td><code>ShortcutSettingsPane.swift</code></td><td>唯一快捷键编辑位置</td></tr><tr><td><code>StatisticsSettingsPane.swift</code></td><td>配置导出导入</td></tr></tbody></table></div>
 <hr>
 <h3 id="演示-31">演示</h3>
-<div class="kdemo" data-demo="settings"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="settings"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h2 id="7-2-新手引导与权限">7.2 新手引导与权限</h2>
 <h3 id="功能是什么-31">功能是什么</h3>
 <p>首次启动的三件套：<strong>欢迎窗</strong>（功能导览）、<strong>权限引导</strong>（四类权限实测状态 + 一键授权）、<strong>更新说明</strong>（版本变更）。</p>
 <h3 id="用户怎么用-31">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>界面</th><th>何时出现</th><th>怎么回看</th></tr></thead><tbody><tr><td>欢迎窗（30 秒上手下方可切换 ZIP 默认打开方式）</td><td>首次启动</td><td>菜单栏右键 →「欢迎与权限…」</td></tr><tr><td>权限引导</td><td>欢迎窗里点「权限」；或权限不足时自动弹</td><td>同上</td></tr><tr><td>更新说明</td><td>版本升级后首次启动</td><td>「关于」页 →「更新说明」</td></tr></tbody></table></div>
 <h3 id="演示-32">演示</h3>
-<div class="kdemo" data-demo="onboarding"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="onboarding"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-31">关键能力点</h3>
 <ul><li><strong>权限状态是实测的</strong>（<code>PermissionCenter</code>）</li></ul>
 <p>权限状态直接通过运行时 API 探测确认（SCK 预检、<code>AXIsProcessTrusted</code>、系统日历授权状态及 FDA 探针），而非读取静态配置缓存。在系统设置中调整权限后，此处状态会实时同步。</p>
@@ -1011,7 +1011,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-32">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>入口</th><th>操作</th></tr></thead><tbody><tr><td>设置 → 左侧栏底部「使用手册」</td><td>打开内置手册（与设置同窗）</td></tr><tr><td><code>kitnest://manual</code></td><td>深链直达（自动打开设置并跳到手册页）</td></tr><tr><td><code>kitnest://settings?pane=manual</code></td><td>同上</td></tr></tbody></table></div>
 <h3 id="演示-33">演示</h3>
-<div class="kdemo" data-demo="manual"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="manual"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-32">关键能力点</h3>
 <ul><li><strong>同源</strong>：内置手册读的就是仓库里的 <code>docs/40-审计与核对/性能审计/用户手册-FrsetNext.md</code>，打包时复制进 <code>Resources/Manual/</code>。所以文档更新 = 应用更新，不会出现「手册和版本对不上」。</li></ul>
 <ul><li><strong>目录树</strong>（<code>ManualView</code>）</li></ul>
@@ -1028,7 +1028,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <h3 id="用户怎么用-33">用户怎么用</h3>
 <div class="table-wrap"><table><thead><tr><th>功能</th><th>入口</th></tr></thead><tbody><tr><td>检查更新</td><td>关于页「检查更新」/ 菜单栏「检查更新…」</td></tr><tr><td>导出诊断包</td><td>关于页「导出诊断」</td></tr><tr><td>查看日志</td><td><code>~/Library/Application Support/FrsetNext/logs/</code></td></tr></tbody></table></div>
 <h3 id="演示-34">演示</h3>
-<div class="kdemo" data-demo="update"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="update"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-33">关键能力点</h3>
 <ul><li><strong>更新检查</strong>（<code>AppUpdateChecker</code>）</li></ul>
 <p>手动触发；更新源可配置（默认空 = 关闭）。支持 GitHub <code>releases/latest</code> 或任意返回 <code>tag_name</code> 的 JSON。 分发通道：<code>calorieai.sxyq27.online/kitnest/</code>。</p>
@@ -1052,7 +1052,7 @@ figcaption{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}
 <ul><li>保存到文件夹：目标路径；</li><li>识别文字：无参数，结果进 <code>{text}</code>；</li><li>上传图片：上传地址 + 文件字段名（默认 <code>file</code>），响应里的 <code>url</code> 进 <code>{url}</code>；</li><li>GitHub Issue：<code>owner/repo</code> + Token；</li><li>Linear Issue：Team ID + API Key。</li></ul>
 <ol><li>截图后自动执行。默认只有一条<strong>禁用</strong>的示例（保存 + 识别 + 复制）。</li></ol>
 <h3 id="演示-35">演示</h3>
-<div class="kdemo" data-demo="workflow"><div class="kdemo-bar"><span class="kdemo-title">交互演示</span><span class="kdemo-sub">预设动画 · 可点按体验</span><button class="kdemo-replay" type="button">重播</button></div><div class="kdemo-stage"></div><div class="kdemo-cap"></div><div class="kdemo-ctrl"><div class="kdemo-dots"></div></div></div>
+<div class="kdemo" data-demo="workflow"><button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button><div class="kdemo-stage"></div><div class="kdemo-cap"></div></div>
 <h3 id="关键能力点-34">关键能力点</h3>
 <div class="table-wrap"><table><thead><tr><th>能力</th><th>说明</th></tr></thead><tbody><tr><td>上下文</td><td><code>{name}</code> 文件名、<code>{text}</code> OCR 全文、<code>{url}</code> 图片链接、<code>{date}</code> 时间</td></tr><tr><td>容错</td><td>任一步失败只记日志并继续下一步</td></tr><tr><td>串行</td><td>上一轮没跑完时，新截图跳过（避免并发写同一图床）</td></tr><tr><td>存储</td><td><code>~/Library/Application Support/Kitnest/workflows/workflows.json</code>，权限 0600</td></tr><tr><td>GitHub</td><td><code>POST /repos/{owner}/{repo}/issues</code></td></tr><tr><td>Linear</td><td>GraphQL <code>issueCreate</code></td></tr></tbody></table></div>
 <h3 id="注意事项-34">注意事项</h3>
@@ -1087,6 +1087,7 @@ awk -F, &#x27;$2==&quot;Features/Capture/Curtain/CurtainWindow.swift&quot;&#x27;
 <hr>
 <h2 id="附录-f-交互演示怎么做出来的">附录 F · 交互演示怎么做出来的</h2>
 <p>手册里的演示不再是录屏视频，而是<strong>用代码画出来的迷你界面 + 预设时间轴</strong>： 和「设置 → 个性化 → 效果预览」是同一种做法——真实组件样式、模拟数据、 自动播放一遍，随时可以重播，也可以自己点着试。</p>
+<p>演示块<strong>直接嵌在正文里</strong>：不套卡片外壳、不占独立一行，右侧浮起、左侧文字环绕； 说明文字浮在演示内部（字幕式），不额外占一行；右上角 <code>↻</code> 随时重播。</p>
 <h3 id="运行时与场景按需加载">运行时与场景（按需加载）</h3>
 <div class="table-wrap"><table><thead><tr><th>文件</th><th>职责</th></tr></thead><tbody><tr><td><code>FRONT/manual/demos/demo.js</code></td><td><strong>运行时</strong>：渲染界面、驱动光标与时间轴、处理重播与手动交互</td></tr><tr><td><code>FRONT/manual/demos/demo.css</code></td><td><strong>样式</strong>：迷你面板 / 窗口 / 菜单 / 图表等原语，配色与官网同源</td></tr><tr><td><code>FRONT/manual/demos/scenes-&lt;域&gt;.js</code></td><td><strong>场景数据</strong>（7 个 chunk）：每个演示一段迷你界面 HTML + 一条时间轴</td></tr></tbody></table></div>
 <h3 id="加载策略不用的不加载">加载策略（不用的不加载）</h3>
