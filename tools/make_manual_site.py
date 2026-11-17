@@ -110,12 +110,9 @@ def parse(md: str) -> tuple[str, list[dict], list[dict]]:
             i += 1
             body.append(
                 f'<div class="kdemo" data-demo="{demo_id}">'
-                f'<div class="kdemo-bar"><span class="kdemo-title">交互演示</span>'
-                f'<span class="kdemo-sub">预设动画 · 可点按体验</span>'
-                f'<button class="kdemo-replay" type="button">重播</button></div>'
+                f'<button class="kdemo-replay" type="button" title="重播" aria-label="重播">↻</button>'
                 f'<div class="kdemo-stage"></div>'
                 f'<div class="kdemo-cap"></div>'
-                f'<div class="kdemo-ctrl"><div class="kdemo-dots"></div></div>'
                 f"</div>"
             )
             continue

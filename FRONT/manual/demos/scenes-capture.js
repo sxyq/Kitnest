@@ -15,7 +15,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
         <div class="kui-select kui-hidden" style="left:120px;top:64px;width:210px;height:118px">
           <span class="kui-size">210 × 118</span>
         </div>
-        <div class="kui-toolbar kui-hidden" style="position:absolute;left:120px;top:192px">
+        <div class="kui-toolbar kui-hidden" style="position:absolute;left:96px;top:200px">
           <span>✎</span><span>▢</span><span>◯</span><span>→</span><span>▦</span><span style="background:#EEF3FF;color:#1E52D6">📌 钉住</span><span>↗</span><span>⤓</span>
           <span class="kui-spacer"></span><span>⎘</span><span>✓</span>
         </div>

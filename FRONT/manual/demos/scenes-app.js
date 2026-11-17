@@ -13,7 +13,7 @@ Object.assign(window.KDEMOS = window.KDEMOS || {}, {
       <div class="kui-win" style="width:470px">
         <div class="kui-titlebar"><div class="kui-lights"><i></i><i></i><i></i></div><span class="kui-wtitle">设置</span></div>
         <div class="kui-wbody" style="padding:0;display:flex;height:300px">
-          <div class="kui-setnav" style="width:132px;border-right:1px solid #F0F0F3;padding:9px 7px;font-size:10.6px;overflow:auto">
+          <div class="kui-setnav" style="width:104px;flex:none;border-right:1px solid #F0F0F3;padding:8px 6px;font-size:10px;overflow:auto">
             <div style="padding:5px 8px;border-radius:6px;background:#EEF3FF;color:#1E52D6;font-weight:600">常规</div>
             <div style="padding:5px 8px;color:#5A5A64">外观</div>
             <div style="padding:5px 8px;color:#5A5A64">菜单栏</div>
