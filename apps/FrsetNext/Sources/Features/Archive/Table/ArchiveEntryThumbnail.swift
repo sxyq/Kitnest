@@ -72,7 +72,7 @@ enum ArchiveEntryThumbnail {
                     return
                 }
                 render(url: tmp, size: size) { image in
-                    try? FileManager.default.removeItem(at: tmp)
+                    try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp))
                     limiter.signal()
                     // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
                     if let image {

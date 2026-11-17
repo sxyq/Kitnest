@@ -43,6 +43,10 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Archive/Core/ArchiveCore.swift", "extractionDirectory"):
+        "2026-11-17：extractEntryToTemp返回的嵌套文件路径，按临时根组件数定位本次唯一的首层提取目录；缩略图、悬停缓存与撤销快照共用精确删除单位",
+    ("Features/Archive/Core/ArchiveUndoStack.swift", "deinit"):
+        "2026-11-17：Snapshot仅由删除前提取和添加后复制两处构造，持有独立临时根目录；撤销重做及异步回调共享同一引用，最后引用释放才删目录，失败沿原Log提示",
     ("Features/Archive/UI/ArchiveTextPreview.swift", "header"):
         "2026-11-17：body传入本轮唯一分类结果，图标和名称不重复触发内容识别；dirty与编辑按钮沿原Binding和闭包消费",
     ("Features/Archive/UI/ArchiveTextPreview.swift", "rendered"):

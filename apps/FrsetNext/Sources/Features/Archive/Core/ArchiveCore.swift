@@ -49,6 +49,12 @@ public struct ArchiveEntry: Identifiable, Equatable {
 
 public enum ArchiveCore {
 
+    static func extractionDirectory(containing file: URL) -> URL {
+        let temporary = FileManager.default.temporaryDirectory.standardizedFileURL
+        return temporary.appendingPathComponent(file.standardizedFileURL.pathComponents[temporary.pathComponents.count],
+                                                isDirectory: true)
+    }
+
     // MARK: 7zz 定位
 
     /// 随包 7zz（Resources/bin/7zz）→ 工程目录 → PATH
@@ -773,11 +779,16 @@ public enum ArchiveCore {
                            includeAuxiliary: false,
                            restrictTo: candidates.map { $0.path },
                            taskID: nil) { ok, msg in
-                guard ok else { completion(nil, msg); return }
+                guard ok else {
+                    try? FileManager.default.removeItem(at: dir)
+                    completion(nil, msg)
+                    return
+                }
                 let landed = dir.appendingPathComponent(entry.path)
                 if FileManager.default.fileExists(atPath: landed.path) {
                     completion(landed, "")
                 } else {
+                    try? FileManager.default.removeItem(at: dir)
                     completion(nil, "解压后未找到网页文件")
                 }
             }
@@ -819,6 +830,7 @@ public enum ArchiveCore {
                 }
                 try FileManager.default.copyItem(at: localFile, to: dest)
             } catch {
+                try? FileManager.default.removeItem(at: staging)
                 both(false, "准备写入失败：\(error.localizedDescription)")
                 return
             }
@@ -930,6 +942,7 @@ public enum ArchiveCore {
                     both(code == 0, code == 0 ? "已添加 \(files.count) 个文件" : err)
                 }
             } catch {
+                try? FileManager.default.removeItem(at: staging)
                 both(false, "准备添加失败：\(error.localizedDescription)")
             }
         }

@@ -18,12 +18,19 @@ import Foundation
 public enum ArchiveChange {
 
     /// 可写回的内容快照（path = 归档内路径；tempURL = 本地备份）
-    public struct Snapshot {
+    public final class Snapshot {
         public let path: String
         public let tempURL: URL
+        private let directory: URL
         public init(path: String, tempURL: URL) {
             self.path = path
             self.tempURL = tempURL
+            // 两处创建方均将快照放在临时根目录下的独立 UUID 目录，文件可位于其嵌套子目录。
+            directory = ArchiveCore.extractionDirectory(containing: tempURL)
+        }
+        deinit {
+            do { try FileManager.default.removeItem(at: directory) }
+            catch { Log.warn("Archive", "清理撤销快照失败：\(directory.lastPathComponent) \(error.localizedDescription)") }
         }
     }
 

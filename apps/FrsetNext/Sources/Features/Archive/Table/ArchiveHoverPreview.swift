@@ -58,7 +58,7 @@ final class ArchiveHoverPreview {
                 guard let self else { return }
                 guard gen == self.generation else {
                     // 期间已经换行 / 鼠标离开：这次解出来的直接扔掉
-                    if let tmp { try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent()) }
+                    if let tmp { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp)) }
                     return
                 }
                 guard let tmp else { return }
@@ -112,12 +112,7 @@ final class ArchiveHoverPreview {
     private func store(key: String, file: URL) {
         // extractEntryToTemp 每次建一个 frset-archive-<UUID> 目录；
         // 文件在包里可能有子目录，删除单位要回到这一层，否则删不干净
-        var unit = file.deletingLastPathComponent()
-        while !unit.lastPathComponent.hasPrefix("frset-archive-") {
-            let parent = unit.deletingLastPathComponent()
-            if parent.path == unit.path { break }
-            unit = parent
-        }
+        let unit = ArchiveCore.extractionDirectory(containing: file)
         cache.append(Item(key: key, file: file, dir: unit))
         if cache.count > Self.cacheLimit {
             let evicted = cache.removeFirst()

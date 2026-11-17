@@ -521,6 +521,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                 try FileManager.default.copyItem(at: f, to: tmp)
                 out.append(tmp)
             } catch {
+                try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent())
                 out.append(f)       // 换名失败 → 保持原名
             }
         }
@@ -825,9 +826,9 @@ public final class ArchiveBrowserModel: ObservableObject {
         var snaps: [ArchiveChange.Snapshot] = []
         for f in files {
             let rel = dir.isEmpty ? f.lastPathComponent : dir + "/" + f.lastPathComponent
-            let tmp = FileManager.default.temporaryDirectory
+            let directory = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-addsnap-\(UUID().uuidString)", isDirectory: true)
-                .appendingPathComponent(f.lastPathComponent)
+            let tmp = directory.appendingPathComponent(f.lastPathComponent)
             do {
                 try FileManager.default.createDirectory(at: tmp.deletingLastPathComponent(),
                                                         withIntermediateDirectories: true)
@@ -835,6 +836,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                 snaps.append(.init(path: rel, tempURL: tmp))
             } catch {
                 // 备份失败 → 该项不可撤销，跳过
+                try? FileManager.default.removeItem(at: directory)
             }
         }
         completion(snaps)
