@@ -56,7 +56,7 @@ public struct ClipboardReadResult {
 
 // MARK: - 读取器
 
-/// NSPasteboard 读取：文件 > 图片 > URL > 富文本 > 文本；QQ 容器图片优先读取图片数据。
+/// NSPasteboard读取：文件 > 图片 > URL > 富文本 > 文本；QQ和微信容器图片优先读取图片数据。
 public final class ClipboardPasteboardReader {
 
     private let pasteboard: NSPasteboard
@@ -74,10 +74,11 @@ public final class ClipboardPasteboardReader {
 
         // Finder 复制文件同时携带 TIFF 图标，必须先读取文件 URL。
         if let r = readFiles(types: types, source: source) {
-            // 2026-11-16「复制 QQ 图片会报错」：容器路径仅是图片附带引用，自动暂存会触发权限错误。
+            // QQ和微信复制图片附带容器路径，自动暂存会触发实际文件许可错误。
             if r.fileURLs.count == 1,
                let url = r.fileURLs.first,
-               url.path.hasPrefix(NSHomeDirectory() + "/Library/Containers/com.tencent.qq/"),
+               (url.path.hasPrefix(NSHomeDirectory() + "/Library/Containers/com.tencent.qq/")
+                || url.path.hasPrefix(NSHomeDirectory() + "/Library/Containers/com.tencent.xinWeChat/")),
                UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true,
                let image = readImage(types: types, source: source) { return image }
             return r
@@ -152,13 +153,23 @@ public final class ClipboardPasteboardReader {
 
     private func readRichText(types: [NSPasteboard.PasteboardType], source: String?) -> ClipboardReadResult? {
         var richData = types.contains(.rtf) ? pasteboard.data(forType: .rtf) : nil
+        var htmlPlain: String?
         if richData == nil, types.contains(.html) {
-            if let htmlData = pasteboard.data(forType: .html) { richData = htmlData }
+            if let htmlData = pasteboard.data(forType: .html) {
+                guard let attributed = try? NSAttributedString(
+                    data: htmlData,
+                    options: [.documentType: NSAttributedString.DocumentType.html],
+                    documentAttributes: nil),
+                      let rtf = attributed.rtf(from: NSRange(location: 0, length: attributed.length),
+                                               documentAttributes: [:]) else { return nil }
+                richData = rtf
+                htmlPlain = attributed.string
+            }
         }
         guard let data = richData, !data.isEmpty else { return nil }
 
         // 富文本同时带一份纯文本副本，作为 content / 搜索源
-        let plain = pasteboard.string(forType: .string) ?? Self.plainText(from: data) ?? ""
+        let plain = pasteboard.string(forType: .string) ?? htmlPlain ?? Self.plainText(from: data) ?? ""
         guard !plain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         return ClipboardReadResult(type: .richtext,
@@ -239,7 +250,7 @@ public final class ClipboardPasteboardReader {
         return CGSize(width: w, height: h)
     }
 
-    /// 图片/大数据指纹：用于去重键。对超长数据采样（长度 + 首 8KB + 尾 8KB 字节）后做 SHA-256。
+    /// 图片去重：16KB以内使用全部字节；更大数据采样长度、首8KB与尾8KB后做SHA-256。
     ///
     /// 实现说明：原实现先把头尾各 8KB 转成十六进制字符串再哈希，输入膨胀到约 32KB，
     /// 且当时走的是有缺陷的手写 SHA-256 —— 双开实测时于轮询热路径崩溃
@@ -249,7 +260,7 @@ public final class ClipboardPasteboardReader {
         var payload = Data()
         payload.reserveCapacity(16_400)
         withUnsafeBytes(of: UInt64(data.count).littleEndian) { payload.append(contentsOf: $0) }
-        payload.append(data.prefix(8192))
+        payload.append(data.prefix(data.count <= 16_384 ? data.count : 8192))
         if data.count > 16_384 { payload.append(data.suffix(8192)) }
         return payload.sha256Hex
     }

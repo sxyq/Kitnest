@@ -1,3 +1,4 @@
+import CoreFoundation
 import SwiftUI
 
 // MARK: - JSON 可视化（树形 + 表格，像数据库表那样看层级）
@@ -8,7 +9,7 @@ import SwiftUI
 //   · 表格：根是对象数组时，把键并集变成列（像数据库表），行号列固定
 //
 // 性能策略：
-//   · 解析一次（JSONSerialization），节点数上限 20000，超过即标记 isTruncated（只保留前段）
+//   · 解析后计数至20001即标记超量，原值保留，子级按需展开
 //   · 子级**懒构建**：折叠时不建子节点模型，首次展开才生成（深/宽 JSON 展开单层成本可控）
 //   · 渲染用 LazyVStack + 递归子列表，不一次性铺开
 //   · 表格列只扫前 500 个元素推导键并集，避免为几 MB 文件扫全量
@@ -31,7 +32,7 @@ enum JSONNodeKind {
 
 /// 树节点（引用语义：展开状态与子级缓存要能被多处视图共享）
 final class JSONNodeModel: ObservableObject, Identifiable {
-    let id: String                 // 稳定路径，如 $.users[3].name
+    let id: String                 // 稳定路径，如 $["users"][3]["name"]
     let key: String?               // 对象成员名；数组元素为 nil
     let index: Int?                // 数组元素下标（树形左侧显示真实下标）
     let kind: JSONNodeKind
@@ -40,6 +41,7 @@ final class JSONNodeModel: ObservableObject, Identifiable {
     private(set) var childCount: Int
 
     private let raw: Any
+    private let depth: Int
     private var builtChildren: [JSONNodeModel]?
 
     @Published private(set) var children: [JSONNodeModel] = []
@@ -49,10 +51,11 @@ final class JSONNodeModel: ObservableObject, Identifiable {
         self.key = key
         self.index = index
         self.raw = raw
+        self.depth = depth
         self.path = path
         self.id = path
 
-        // 深度保护：超过 64 层不再建子级（防御性 JSON 深递归）
+        // 最多显示64层子级。
         let canDescend = depth < 64
 
         switch raw {
@@ -69,13 +72,10 @@ final class JSONNodeModel: ObservableObject, Identifiable {
             childCount = 0
             preview = string.count > 80 ? "\"" + String(string.prefix(80)) + "…\"" : "\"\(string)\""
         case let number as NSNumber:
-            kind = .number
+            let isBoolean = CFGetTypeID(number) == CFBooleanGetTypeID()
+            kind = isBoolean ? .bool : .number
             childCount = 0
-            preview = number.stringValue
-        case let bool as Bool:
-            kind = .bool
-            childCount = 0
-            preview = bool ? "true" : "false"
+            preview = isBoolean ? (number.boolValue ? "true" : "false") : number.stringValue
         default:
             kind = .null
             childCount = 0
@@ -85,21 +85,26 @@ final class JSONNodeModel: ObservableObject, Identifiable {
 
     var isExpandable: Bool { childCount > 0 }
 
+    var fullValue: String {
+        if let string = raw as? String { return string }
+        // raw只来自JSON解析；完整序列化在打开详情时执行。
+        let data = try! JSONSerialization.data(withJSONObject: raw,
+                                               options: [.fragmentsAllowed, .prettyPrinted, .sortedKeys])
+        return String(decoding: data, as: UTF8.self)
+    }
+
     /// 只构建子级、不改展开态：表格视图每次求值都要读子级，
     /// 用 toggle() 会一次展开一次收起（旧实现表格行会闪）。
     func ensureChildren() {
         if builtChildren == nil {
-            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: 0)
+            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: depth)
             children = builtChildren ?? []
         }
     }
 
     /// 首次展开时才生成子节点模型（懒构建）
     func toggle() {
-        if !isExpanded && builtChildren == nil {
-            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: 0)
-            children = builtChildren ?? []
-        }
+        ensureChildren()
         isExpanded.toggle()
     }
 
@@ -111,7 +116,7 @@ final class JSONNodeModel: ObservableObject, Identifiable {
             // 键按首次出现顺序（JSONSerialization 的字典无序，这里按本地化排序保持稳定）
             let keys = dict.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
             for key in keys {
-                let childPath = "\(parentPath).\(key)"
+                let childPath = "\(parentPath)[\(String(reflecting: key))]"
                 result.append(JSONNodeModel(key: key, raw: dict[key]!,
                                             path: childPath, depth: depth + 1))
             }
@@ -131,7 +136,6 @@ final class JSONNodeModel: ObservableObject, Identifiable {
 /// 文档：一次解析 + 节点计数（截断保护）
 final class JSONDocument: ObservableObject {
     let root: JSONNodeModel
-    let totalNodeCount: Int
     let isTruncated: Bool
 
     static let maxNodes = 20000
@@ -144,17 +148,19 @@ final class JSONDocument: ObservableObject {
     /// JSONL 行统计（对齐 jlens：有效行 / 错误行可见，坏行不再整份报废）
     let sourceLineCount: Int
     let validLineCount: Int
+    let errorLineCount: Int
     /// 解析失败的行号（1 起，最多记 50 条，避免坏文件撑爆 UI）
     let errorLines: [Int]
 
     init?(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let allLines = trimmed.components(separatedBy: "\n")
+        let allLines = text.components(separatedBy: "\n")
         var object: Any?
         var isJSONL = false
         var validLines = 0
         var errors: [Int] = []
+        var errorCount = 0
 
         if let data = trimmed.data(using: .utf8),
            let parsed = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
@@ -172,21 +178,23 @@ final class JSONDocument: ObservableObject {
                    o is [String: Any] || o is [Any] {
                     records.append(o)
                     validLines += 1
-                } else if errors.count < 50 {
-                    errors.append(index + 1)
+                } else {
+                    errorCount += 1
+                    if errors.count < 50 { errors.append(index + 1) }
                 }
             }
             // 有效行太少就不认（普通文本每行都会失败，避免把散文当 JSON）
-            guard !records.isEmpty, records.count >= errors.count else { return nil }
+            guard !records.isEmpty, records.count >= errorCount else { return nil }
             object = records
             isJSONL = true
         }
         guard let object else { return nil }
         self.isJSONL = isJSONL
-        self.sourceText = trimmed
+        self.sourceText = text
         self.sourceLineCount = allLines.count
         self.validLineCount = validLines
         self.errorLines = errors
+        self.errorLineCount = errorCount
         root = JSONNodeModel(key: nil, raw: object, path: "$", depth: 0)
         // 计数单独走一遍（不建模型，成本低；上限到了就停）
         var count = 0
@@ -205,7 +213,6 @@ final class JSONDocument: ObservableObject {
             }
         }
         walk(object)
-        totalNodeCount = count
         isTruncated = truncated
     }
 }
@@ -272,7 +279,7 @@ struct JSONInspectorView: View {
             VStack(spacing: 0) {
                 toolbar
                 if document.isTruncated {
-                    banner("文件过大，仅解析前 \(Self.maxNodesText) 个节点")
+                    banner("节点数超过\(Self.maxNodesText)，树形按需展开")
                 }
                 if document.isJSONL {
                     jsonlBanner
@@ -314,7 +321,7 @@ struct JSONInspectorView: View {
                 .foregroundStyle(bad.isEmpty ? Color.secondary : Color.orange)
             Text("JSONL · 共 \(total) 行 · 有效 \(valid) 行")
             if !bad.isEmpty {
-                Text("· 错误 \(bad.count) 行")
+                Text("· 错误 \(document.errorLineCount) 行")
                     .foregroundStyle(Color.orange)
                 Text("（第 \(bad.prefix(6).map(String.init).joined(separator: "、"))\(bad.count > 6 ? "…" : "") 行）")
             }
@@ -935,9 +942,18 @@ private struct JSONTableView: View {
                                     let isLast = colIndex == row.cells.count - 1
                                     let width = columns[min(colIndex, columns.count - 1)].width
                                     Button {
-                                        state.detail = JSONCellDetail(column: columns[min(colIndex, columns.count - 1)].key,
-                                                                value: value,
-                                                                rowNumber: row.index + 1)
+                                        let column = columns[min(colIndex, columns.count - 1)].key
+                                        let node = document.root.children[row.index]
+                                        let fullValue: String
+                                        if shape == .keyValue {
+                                            fullValue = colIndex == 0 ? (node.key ?? "") : node.fullValue
+                                        } else if shape == .objectRows {
+                                            fullValue = node.children.first { $0.key == column }?.fullValue ?? "—"
+                                        } else {
+                                            fullValue = node.fullValue
+                                        }
+                                        state.detail = JSONCellDetail(column: column, value: fullValue,
+                                                                     rowNumber: row.index + 1)
                                     } label: {
                                         Text(value)
                                             .font(.system(size: fontSize - 1, design: .monospaced))
