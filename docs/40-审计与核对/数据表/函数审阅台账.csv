@@ -519,12 +519,12 @@ Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,progressCallback,fun
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,passwordArg,func,464,KEEP,Core:472/544/638 等 9 处拼 -p
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,list,func,473,KEEP,BrowserWindow:190、PeekView:95、Mini:114 等
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,parseListOutput,func,502,KEEP,Core:480 解析 7zz -slt 输出
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readEntry,func,553,KEEP,BrowserWindow:276/295 文本与图片预览
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,readEntry,func,553,KEEP,2026-11-17：loadPreview文本与图片分支调用；按条目大小限制8MB或128MB后通过现有7zz e -so读取内存数据；返回执行错误及正文供UTF8或图片解码
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extract,func,579,KEEP,BrowserWindow:567/592、Services:37/65、Drag:50
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,performExtract,func,647,KEEP,Core:591/613/680/738/1088 实际解压
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractEntryToTemp,func,699,KEEP,拒绝硬不安全条目路径后，在独立临时目录用已存密码解压单项；成功按完整条目路径或递归同名定位文件，解压失败或找不到文件时删除临时目录，清理失败与原原因一起返回
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractWebPreviewToTemp,func,745,KEEP,BrowserWindow:261 HTML 预览解同目录资源
-Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,793,KEEP,BrowserWindow:389、UndoStack:166/195 写回
+Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,updateEntry,func,793,KEEP,2026-11-17：saveDraft和撤销栈写回调用；现有任务队列校验包内路径并复制到暂存目录后7zz a原位更新；取消及执行后清理目录；准备复制失败的catch遗漏目录清理待改
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,renameEntry,func,844,KEEP,BrowserWindow:549、UndoStack:149 包内改名
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,addFiles,func,881,KEEP,BrowserWindow:480 添加文件
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,removeEntries,func,941,KEEP,BrowserWindow:512、UndoStack:180 删除条目
@@ -570,16 +570,16 @@ Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,mutate,fun
 Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,onMain,func,277,KEEP,TQ:113/125/148/169/187/205 主线程派发
 Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,setCancelFlag,func,281,KEEP,cancel:160 置取消标记
 Archive,Features/Archive/Core/ArchiveTaskQueue.swift,ArchiveTaskQueue,takeCancelFlag,func,286,KEEP,finish:129、cancel:152 取标记并清
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,Snapshot,init,init,24,KEEP,BrowserWindow:678/699 构造快照
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,init,init,75,KEEP,BrowserWindow:55 构造撤销栈
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,push,func,80,KEEP,BrowserWindow:396/486/515/555 记录变更
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,undo,func,86,KEEP,BrowserWindow:833 @objc、:1002 撤销按钮
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,redo,func,104,KEEP,BrowserWindow:834 @objc、:1006 重做按钮
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,refresh,func,122,KEEP,push:83、undo:95、redo:113 内部刷新
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,apply,func,131,KEEP,undo:89、redo:107 施加变更
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,restore,func,159,KEEP,apply:135/143，递归于 168
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,remove,func,175,KEEP,apply:137/141（add 撤销、delete 重做）
-Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,writeText,func,186,KEEP,apply:154（editText 撤销/重做）
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,Snapshot,init,init,24,KEEP,2026-11-17：模型captureSnapshots和captureAddeds构造包内路径与临时文件URL；restore消费这两个字段；快照文件随撤销栈释放的清理缺失待处理
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,init,init,75,KEEP,2026-11-17：ArchiveBrowserModel初始化时为当前归档构造唯一撤销栈；URL由后续修改和恢复操作使用；未重复创建业务模型
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,push,func,80,KEEP,2026-11-17：saveDraft及添加删除重命名成功后登记双向变更；清空redo并刷新按钮；丢弃redo的临时快照文件未清理待处理
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,undo,func,86,KEEP,2026-11-17：归档工具栏及控制器undo系统动作调用；busy串行施加逆操作；成功移动同一变更至redo并刷新列表；失败保留原记录并提示
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,redo,func,104,KEEP,2026-11-17：归档工具栏及控制器redo系统动作调用；busy串行施加正操作；成功移动同一变更至undo并通知模型重载；失败保留redo记录
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,refresh,func,122,KEEP,2026-11-17：push及undo和redo成功分支调用；由两栈末项派生可用状态及菜单标题；四项Published由原工具栏消费
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,apply,func,131,KEEP,2026-11-17：undo和redo唯一派发；删除与添加按方向选择restore或remove；重命名交换路径；文本修改按方向取旧值或新值交writeText
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,restore,func,159,KEEP,2026-11-17：apply恢复添加或删除快照；按原包内路径逐项updateEntry；仅成功时递归下一项并在首个失败返回；完成所有条目后报告数量
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,remove,func,175,KEEP,2026-11-17：apply处理添加撤销与删除重做；空列表直接成功；其余一次交原ArchiveCore.removeEntries执行并原样传递结果
+Archive,Features/Archive/Core/ArchiveUndoStack.swift,ArchiveUndoStack,writeText,func,186,KEEP,2026-11-17：apply文本撤销和重做调用；UTF8原子写临时文件后沿updateEntry原位写包；完成即删除临时文本并传递原执行结果
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,init,init,28,KEEP,Drag:85 makeProvider 内构造 delegate
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,filePromiseProvider,func,34,KEEP,NSFilePromiseProviderDelegate 协议回调
 Archive,Features/Archive/Table/ArchiveEntryDrag.swift,ArchiveFilePromiseDelegate,operationQueue,func,39,KEEP,2026-11-17：NSFilePromiseProviderDelegate回调；makeProvider:85将delegate交给provider；返回唯一workQueue供写Promise任务串行解压和移动
@@ -663,7 +663,7 @@ Archive,Features/Archive/Table/ArchiveHoverPreview.swift,ArchiveHoverPreview,sto
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,stamp,func,60,KEEP,v256 源包指纹（mtime+字节数）；init/confirmOverwriteIfSourceChanged/refreshSourceStamp 三处调用
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,confirmOverwriteIfSourceChanged,func,69,KEEP,v256 写回前三选确认（仍然保存/重新载入/取消）；addFiles/updateEntry/renameEntry/removeEntries 写操作前调用
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,refreshSourceStamp,func,97,KEEP,v256 写入成功后刷新指纹基线，避免自写内容被判成外部修改
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,init,init,101,KEEP,BrowserWindow:772 构造模型
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,init,init,101,KEEP,2026-11-17：窗口控制器为归档URL构造唯一模型与撤销栈；onApplied弱引用模型后更新源包时间大小记录并重载；无未保存草稿时重新读取当前预览
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,children,func,131,KEEP,visibleEntries:75 按层级过滤
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,navigateTo,func,166,KEEP,enter:126、goBack:132、面包屑:1176
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,enter,func,175,KEEP,activate:138、Drag.swift:110 menuEnter
@@ -674,10 +674,10 @@ Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,conte
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,reload,func,237,KEEP,init:794、saveDraft:401、delete:524 后刷新
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,clearPreview,func,266,KEEP,navigateTo:120、reload:210、body:879
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,promptPassword,func,277,KEEP,reload:197 判定缺密码时
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,loadPreview,func,296,KEEP,activate:145、selectEntry:741、body:877
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,rememberWebPreviewTemp,func,394,KEEP,loadPreview:269 记录网页预览临时目录
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,cleanupWebPreviewTemps,func,407,KEEP,windowWillClose:828 关窗清理
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveDraft,func,422,KEEP,windowShouldClose:816、工具栏:1014/1042
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,loadPreview,func,296,KEEP,2026-11-17：列表选中与activate和深链选条目调用；保留dirty草稿且同路径不重复读；generation排除过期异步结果；HTML先解资源后文本UTF8及图片降采样；其余PDF或Office预览
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,rememberWebPreviewTemp,func,394,KEEP,2026-11-17：loadPreview网页完成后沿父级定位frset-webpreview目录并去重登记；只保存预览产生的临时根目录供关窗清理
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,cleanupWebPreviewTemps,func,407,KEEP,2026-11-17：windowWillClose调用；递增generation使已发出的预览结果过期并删除本模型记录的网页临时目录；列表随后清空
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveDraft,func,422,KEEP,2026-11-17：保存按钮和关闭保存动作调用；先写UTF8临时草稿再updateEntry；成功记录旧新文本以支持撤销；仅同generation更新预览且保留保存期间新输入的dirty；完成删除临时文本
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,addFiles,func,468,KEEP,pickAndAddFiles:502 调用
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,withSuggestedNames,func,501,KEEP,addFiles:434「用建议名继续」
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,performAddFiles,func,530,KEEP,addFiles:416/434/436 三条路径
@@ -702,12 +702,12 @@ Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowContr
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowWillClose,func,961,KEEP,NSWindowDelegate 协议回调
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,undo,func,967,KEEP,@objc，Edit 菜单 undo: 动作派发
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,redo,func,968,KEEP,@objc，Edit 菜单 redo: 动作派发
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,makeNSView,func,1505,KEEP,body:1213 构造 ArchiveEntryTableRepresentable
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,updateNSView,func,1511,KEEP,NSViewRepresentable 更新，调 syncFromModel:1365
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,makeNSView,func,1522,KEEP,previewPane:1313 构造 PDFViewRepresentable
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,updateNSView,func,1529,KEEP,NSViewRepresentable 协议回调
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,sizeText,func,1553,KEEP,body:1460/1463 详情行文本
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,row,func,1557,KEEP,body:1456-1469 六条详情行
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,makeNSView,func,1504,KEEP,body:1213 构造 ArchiveEntryTableRepresentable
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,updateNSView,func,1510,KEEP,NSViewRepresentable 更新，调 syncFromModel:1365
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,makeNSView,func,1521,KEEP,previewPane:1313 构造 PDFViewRepresentable
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,updateNSView,func,1528,KEEP,NSViewRepresentable 协议回调
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,sizeText,func,1552,KEEP,body:1460/1463 详情行文本
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,row,func,1556,KEEP,body:1456-1469 六条详情行
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,init,init,40,KEEP,CreateSheet:389 构造模型
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,applyPreset,func,52,KEEP,init:48 默认预设、presetPicker:218
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,syncOutputExtension,func,62,KEEP,applyPreset:58、格式 onChange:263
@@ -784,9 +784,11 @@ Archive,Features/Archive/UI/ArchiveTaskHUD.swift,ArchiveTaskHUDController,presen
 Archive,Features/Archive/UI/ArchiveTaskHUD.swift,ArchiveTaskHUDController,ensurePanel,func,193,KEEP,present:174 首次建面板
 Archive,Features/Archive/UI/ArchiveTaskHUD.swift,ArchiveTaskHUDController,position,func,227,KEEP,present:175 右下角定位
 Archive,Features/Archive/UI/ArchiveTaskHUD.swift,ArchiveTaskDemo,startIfRequested,func,323,KEEP,start:49 调用（probe.archiveTask 门控）
-Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextKind,detect,func,43,KEEP,2026-11-17：kind调用；扩展名分流JSON/Markdown/代码，其余复用classifyRawText；header两次与rendered一次读取导致重复分类，待同轮复用
-Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,modeItem,func,145,KEEP,2026-11-17：modeSwitch预览和编辑按钮注册闭包；只改editing，正文Binding与onEdit仍交父模型负责脏状态和保存
-Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,plainAttributed,func,193,KEEP,2026-11-17：rendered纯文本分支调用；按13号字体3点行距构造现有NSTextView正文；父模型保存草稿，text入参无消费者待删除
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextKind,detect,func,43,KEEP,2026-11-17：body每轮调用一次并把结果传给header与rendered；扩展名分流JSON/Markdown/代码，其余复用classifyRawText；替代原同轮三次内容分类
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,header,func,100,KEEP,2026-11-17：body传入本轮唯一分类结果，图标和名称不重复触发内容识别；dirty与编辑按钮沿原Binding和闭包消费
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,modeItem,func,142,KEEP,2026-11-17：modeSwitch预览和编辑按钮注册闭包；只改editing，正文Binding与onEdit仍交父模型负责脏状态和保存
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,rendered,func,162,KEEP,2026-11-17：body传入同轮分类结果，复用原Markdown/JSON/代码/文本组件；正文仍来自draft，不再保留未读取text入参
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,plainAttributed,func,190,KEEP,2026-11-17：rendered纯文本分支调用；按13号字体3点行距构造现有NSTextView正文；草稿由原Binding持有，未读取text入参及调用传值已删
 Audio,Features/Audio/AudioMixer.swift,-,cc,func,19,KEEP,本文件 14 处调用：122/130/138/144/177/214/226/231 等
 Audio,Features/Audio/AudioMixer.swift,-,addr,func,25,KEEP,本文件 13 处调用：122/130/138/177/187/204/214/226 等
 Audio,Features/Audio/AudioMixer.swift,AudioAppInfo,func,func,40,KEEP,Equatable 必需：icon 是 NSImage? 无法自动合成（:33 声明）

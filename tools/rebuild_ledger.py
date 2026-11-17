@@ -43,6 +43,10 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Archive/UI/ArchiveTextPreview.swift", "header"):
+        "2026-11-17：body传入本轮唯一分类结果，图标和名称不重复触发内容识别；dirty与编辑按钮沿原Binding和闭包消费",
+    ("Features/Archive/UI/ArchiveTextPreview.swift", "rendered"):
+        "2026-11-17：body传入同轮分类结果，复用原Markdown/JSON/代码/文本组件；正文仍来自draft，不再保留未读取text入参",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeColumns"):
         "2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeAllRows"):

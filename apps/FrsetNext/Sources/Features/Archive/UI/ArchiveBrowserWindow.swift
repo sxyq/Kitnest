@@ -1440,12 +1440,11 @@ struct ArchiveBrowserView: View {
                 // v181：文本预览与剪贴板预览同口径（Markdown 排版 / JSON 检视器 / 代码行号 / 纯文本）；
                 // 可编辑的归档额外提供「预览 ↔ 编辑」开关，编辑态沿用原来的纯文本编辑器。
                 ArchiveTextPreview(
-                    text: text,
                     entryName: model.previewEntry?.name ?? "",
                     editable: model.editable,
                     draft: $model.draftText,
                     dirty: model.dirty,
-                    restoreKey: model.previewEntry?.path ?? model.url.lastPathComponent,
+                    restoreKey: model.url.standardizedFileURL.absoluteString + "#" + (model.previewEntry?.path ?? ""),
                     onEdit: { new in model.dirty = (new != text) })
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .image(let img):

@@ -67,8 +67,6 @@ enum ArchiveTextKind {
 // MARK: 预览面板
 
 struct ArchiveTextPreview: View {
-    /// 归档里的原始文本（用于判断「有没有改过」）
-    let text: String
     let entryName: String
     /// 归档可写时才给「编辑」开关
     let editable: Bool
@@ -82,16 +80,15 @@ struct ArchiveTextPreview: View {
 
     @Stored private var editing = false
 
-    private var kind: ArchiveTextKind { .detect(name: entryName, text: draft) }
-
     var body: some View {
+        let kind = ArchiveTextKind.detect(name: entryName, text: draft)
         VStack(spacing: 0) {
-            header
+            header(kind: kind)
             Divider()
             if editing, editable {
                 editor
             } else {
-                rendered
+                rendered(kind: kind)
             }
         }
         // 换条目时回到预览态（否则下一条还是编辑框，容易误改）
@@ -100,7 +97,7 @@ struct ArchiveTextPreview: View {
 
     // MARK: 顶栏（类型 + 预览/编辑 + 保存状态）
 
-    private var header: some View {
+    private func header(kind: ArchiveTextKind) -> some View {
         HStack(spacing: 8) {
             Image(systemName: kind.symbol)
                 .font(.system(size: 11, weight: .medium))
@@ -162,7 +159,7 @@ struct ArchiveTextPreview: View {
 
     // MARK: 三种正文
 
-    @ViewBuilder private var rendered: some View {
+    @ViewBuilder private func rendered(kind: ArchiveTextKind) -> some View {
         switch kind {
         case .markdown:
             // 右栏被挤窄时（目录 180pt 会把正文压成细缝）自动收掉目录
