@@ -244,17 +244,17 @@ Core,Core/UI/Support.swift,AppDirectories,sub,func,402,KEEP,LogArchive:54 / Scre
 Core,Core/UI/ThemeTokens.swift,Theme,accent,func,87,KEEP,刘海正式与设置预览等明确颜色入口返回传入Color，无指定时用系统accentColor，不读取服务状态
 Core,Core/UI/ThemeTokens.swift,Theme,cardFillAlpha,func,89,KEEP,Support.swift的Theme.cardFill消费卡片亮度，按深浅色计算透明度：深色0.035+0.065×lift、浅色0.55+0.43×lift，正式与设置预览共用数值公式
 Core,Core/UI/ThemeTokens.swift,Theme,cardStrokeAlpha,func,93,KEEP,Support.swift的Theme.cardStroke消费描边强度，深色透明度0.02+0.16×strength、浅色0.02+0.14×strength，供正式卡片与设置预览使用
-Core,Core/UI/Toast.swift,MenuBarToastManager,init,init,140,KEEP,static shared:109 构造
-Core,Core/UI/Toast.swift,MenuBarToastManager,show,func,145,KEEP,Toast.show:306 转调
-Core,Core/UI/Toast.swift,MenuBarToastManager,present,func,153,KEEP,"show:136,138 调用"
-Core,Core/UI/Toast.swift,MenuBarToastManager,hideAnimated,func,198,KEEP,自动隐藏 WorkItem:179 调用
-Core,Core/UI/Toast.swift,MenuBarToastManager,ensureWindow,func,212,KEEP,present:150 调用
-Core,Core/UI/Toast.swift,MenuBarToastManager,makeContentView,func,237,KEEP,ensureWindow:223 调用
-Core,Core/UI/Toast.swift,MenuBarToastManager,syncAppearance,func,247,KEEP,ensureWindow:225 调用
-Core,Core/UI/Toast.swift,MenuBarToastManager,layoutContent,func,253,KEEP,present:159 调用
-Core,Core/UI/Toast.swift,MenuBarToastManager,resolveTargetScreen,func,265,KEEP,positionOnTargetScreen:272 调用
-Core,Core/UI/Toast.swift,MenuBarToastManager,positionOnTargetScreen,func,280,KEEP,present:160 调用
-Core,Core/UI/Toast.swift,Toast,show,func,314,KEEP,全仓 60+ 文件调用（ScreenshotManager:19 处）
+Core,Core/UI/Toast.swift,MenuBarToastManager,init,init,144,KEEP,static shared:109 构造
+Core,Core/UI/Toast.swift,MenuBarToastManager,show,func,149,KEEP,Toast.show:306 转调
+Core,Core/UI/Toast.swift,MenuBarToastManager,present,func,157,KEEP,"show:136,138 调用"
+Core,Core/UI/Toast.swift,MenuBarToastManager,hideAnimated,func,202,KEEP,自动隐藏 WorkItem:179 调用
+Core,Core/UI/Toast.swift,MenuBarToastManager,ensureWindow,func,216,KEEP,present:150 调用
+Core,Core/UI/Toast.swift,MenuBarToastManager,makeContentView,func,241,KEEP,ensureWindow:223 调用
+Core,Core/UI/Toast.swift,MenuBarToastManager,syncAppearance,func,251,KEEP,ensureWindow:225 调用
+Core,Core/UI/Toast.swift,MenuBarToastManager,layoutContent,func,257,KEEP,present:159 调用
+Core,Core/UI/Toast.swift,MenuBarToastManager,resolveTargetScreen,func,269,KEEP,positionOnTargetScreen:272 调用
+Core,Core/UI/Toast.swift,MenuBarToastManager,positionOnTargetScreen,func,284,KEEP,present:160 调用
+Core,Core/UI/Toast.swift,Toast,show,func,318,KEEP,全仓 60+ 文件调用（ScreenshotManager:19 处）
 AI,Features/AI/Services/AIConnectionService.swift,AIConnectionTestResult,init,init,15,KEEP,AIConnectionTestResult.init；test() 三处 return 构造
 AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,init,init,23,KEEP,服务单例 init；AISettingsPane:30 默认参数注入 .shared
 AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,AISettingsPane:160 设置页『测试连接』调用；临时凭证+临时地址，defer 还原
@@ -1178,24 +1178,24 @@ Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScre
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,beginSelection,func,115,KEEP,调用方 AnnotationEditorWindow:1628、CaptureActionChain:122
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,beginSelectionUI,func,136,KEEP,本文件 :131 主线程后建覆盖层
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,commitSelection,func,173,KEEP,本文件 :149 overlay onCommit 闭包
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,beginFromLastSelection,func,192,KEEP,调用方 CaptureActionChain.swift:121
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,startSession,func,206,KEEP,本文件 :186/:200/:309/:347
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,cancelSelection,func,250,KEEP,本文件 :152 overlay onCancel 闭包
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,closeSelectionOverlays,func,254,KEEP,本文件 :140/:180/:251
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,handleSessionFinished,func,263,KEEP,本文件 :217 session.onFinish 闭包
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,beginDemoSession,func,306,KEEP,调用方 FrsetNextApp.swift:185 深链
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,finishCurrentSession,func,316,KEEP,调用方 FrsetNextApp.swift:187 深链
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,cancelCurrentSession,func,321,KEEP,本文件 :359、FrsetNextApp.swift:189
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,runLiveCardCheck,func,331,KEEP,调用方 FrsetNextApp.swift:193 longshotcard
-Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,makeLiveCardSource,func,395,KEEP,本文件 :349 合成验收长图
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,beginFromLastSelection,func,195,KEEP,调用方 CaptureActionChain.swift:121
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,startSession,func,209,KEEP,本文件 :186/:200/:309/:347
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,cancelSelection,func,253,KEEP,本文件 :152 overlay onCancel 闭包
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,closeSelectionOverlays,func,257,KEEP,本文件 :140/:180/:251
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,handleSessionFinished,func,266,KEEP,本文件 :217 session.onFinish 闭包
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,beginDemoSession,func,309,KEEP,调用方 FrsetNextApp.swift:185 深链
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,finishCurrentSession,func,319,KEEP,调用方 FrsetNextApp.swift:187 深链
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,cancelCurrentSession,func,324,KEEP,本文件 :359、FrsetNextApp.swift:189
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,runLiveCardCheck,func,334,KEEP,调用方 FrsetNextApp.swift:193 longshotcard
+Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCoordinator,makeLiveCardSource,func,398,KEEP,本文件 :349 合成验收长图
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,runStitcherCheck,func,17,KEEP,调用方 FrsetNextApp.swift:211 longshotcheck
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,showPreviewDemo,func,99,KEEP,调用方 FrsetNextApp.swift:207
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,describe,func,109,KEEP,本文件 :41/:46/:53 结果转文本
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,makeSource,func,118,KEEP,本文件 :20/:101 合成源图
 Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,start,func,33,KEEP,调用方 LongScreenshotSession.swift:169
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stop,func,92,KEEP,调用方 LongScreenshotSession.swift:252
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,latestFrame,func,103,KEEP,调用方 LongScreenshotSession.swift:184/:297/:432
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stream,func,123,KEEP,SCStreamOutput 协议要求，SCStream 回调派发
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stop,func,94,KEEP,调用方 LongScreenshotSession.swift:252
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,latestFrame,func,105,KEEP,调用方 LongScreenshotSession.swift:184/:297/:432
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stream,func,125,KEEP,SCStreamOutput 协议要求，SCStream 回调派发
 Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,LongScreenshotSelectionBorderWindow,init,init,17,KEEP,调用方 LongScreenshotCoordinator.swift:234
 Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,BorderView,draw,func,40,KEEP,NSView.draw 覆写，系统重绘派发
 Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,LongScreenshotHUDController,show,func,79,KEEP,调用方 LongScreenshotCoordinator.swift:242
@@ -1532,25 +1532,25 @@ Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,probeLast,f
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeActive,func,1593,KEEP,PinWindow.swift:1407 Delete 监视器调用
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBecomeKey,func,1600,KEEP,PinWindow.swift:1377 becomeKey 调用
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1605,KEEP,NotificationCenter selector :1431 注册
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionTool,init,init,30,KEEP,本文件 69-120 构造 14 个工具条目
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionGroup,init,init,47,KEEP,本文件 132-141 构造 5 个分组
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,183,KEEP,按形态钉住：PinAppearance.preset → show(appearance:) + Toast
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,190,KEEP,":164 perform 与视图 :250,:331 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,195,KEEP,"CaptureActionChain.swift:273,349 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,208,KEEP,CaptureActionChain.swift:379 execute 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,216,KEEP,"ScreenshotManager:626,763 / FrsetNextApp:179"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,223,KEEP,CaptureActionChain.swift:173 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,236,KEEP,CaptureModule.swift:81 启动预热调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,259,KEEP,:183 present 与 :193 warmUp 构造
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,293,KEEP,CaptureActionChain.swift:281 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,314,KEEP,CaptureActionChain.swift:185 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,354,KEEP,CaptureActionChain.swift:283 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,367,KEEP,":234,338,346,368,372 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,386,KEEP,NSWindow 覆写，转发 dismiss
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,389,KEEP,NSResponder 覆写，Esc 兜底派发
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,393,KEEP,CaptureActionChain.swift:241 init 调用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,418,KEEP,":233 onPick 闭包 + :351,358 调用"
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureToolbarModel,pick,func,443,KEEP,动作条统一选中入口：设置预览按工具 id 找标题并发布 previewFeedback；正式路径只调用 onPick，预览不进入截图动作执行链
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionTool,init,init,30,KEEP,2026-11-19：tools注册表构造每个动作项；保存id、标题、图标、可选⌘键及同步image/URL handler
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionGroup,init,init,47,KEEP,2026-11-19：groups定义构造六个主入口分组；保存primary动作ID与有序子项ID供工具条同源渲染
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,183,KEEP,2026-11-19：四个preset工具闭包调用；无效preset沿PinAppearance.preset回退current，打开钉图后提示实际外观名
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,tool,func,190,KEEP,2026-11-19：工具条与自身perform调用；每次从tools正式列表按稳定id取动作，不依赖静态引用数
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,toolID,func,195,KEEP,2026-11-19：动作面板默认项和默认直接执行调用；七种CaptureDefaultAction映射对应正式工具ID
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,perform,func,208,KEEP,2026-11-19：命令面板、工具条和默认动作共用；未知id无操作，有效项同步调用闭包并传原图与暂存URL
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,present,func,216,KEEP,2026-11-19：ScreenshotManager截图成功及FrsetNextApp深链调用；把UI建面板操作异步投到主队列，selectionAppKit参数当前未消费
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,presentOnMain,func,223,KEEP,2026-11-19：present主队列闭包调用；关闭工具条偏好时直接执行默认动作，否则复用单例NSPanel呈现
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,warmUp,func,236,KEEP,2026-11-19：CaptureModule启动调用；主Actor仅创建一次并保留未显示动作面板
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,init,init,259,KEEP,2026-11-19：present首次使用或warmUp唯一构造；建非激活浮窗、SwiftUI host与本地键监听，并接模型选取/关闭回调
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,panelSize,func,293,KEEP,2026-11-19：present按当前style与图像调用；定各样式最小宽及预览缩放，上限340×200并保底预览高度210
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,314,KEEP,2026-11-19：presentOnMain共用实例调用；替换当前图像/URL/默认动作/样式/一次性debug展开值，递增token后定位并淡入
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,354,KEEP,2026-11-19：present设置窗口原点调用；在主显示器visibleFrame水平居中并定位到底部向上四分之一附近，边缘留12pt
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,367,KEEP,2026-11-19：按钮、Esc及外点登记回调共用；token守护淡出完成，随后orderOut、注销瞬态窗并释放图像/URL引用
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,386,KEEP,2026-11-19：NSWindow close覆写；统一转入异步淡出dismiss，不直接销毁预热单例面板
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,389,KEEP,2026-11-19：AppKit响应链取消操作调用；作为local key monitor无法接Esc时的关闭回退
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,393,KEEP,2026-11-19：init唯一调用；注册限定本窗口的local keyDown处理Esc、Return默认动作及⌘单字符工具键
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,418,KEEP,2026-11-19：模型onPick与键盘分支调用；先捕获当前图像/URL，淡出完成后经CaptureActionChain.perform执行工具
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureToolbarModel,pick,func,443,KEEP,2026-11-19：CaptureActionToolbarView统一按钮回调；设置预览只发布工具标题反馈，正式状态交onPick执行
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureButtonAnchorKey,reduce,func,7,KEEP,合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureToolbarButtonStyle,makeBody,func,15,KEEP,三种动作条按钮共用按下外观：透明度降为 0.7，普通模式缩至 0.96 并用 0.1 秒动画，减少动态时保留透明反馈而取消缩放和动画
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,thumbnail,func,154,KEEP,正式动作条与设置预览共用截图缩略图：按比例适配到 340×200pt，裁圆角并画发丝边；拖到外部应用仅由正式路径附加
@@ -1582,7 +1582,7 @@ Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,g
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,constrain,func,143,KEEP,ScreenshotOverlay锁比例拖框以起点为锚，保持拖拽象限并按ratio推算另一边，超屏幕边界时等比缩小
 Capture,Features/Capture/Screenshot/CaptureAspectRatio.swift,CaptureRatioStore,square,func,169,KEEP,ScreenshotOverlay自由框选按住Shift时，以较大的横纵距离构造保留象限的正方形终点
 Capture,Features/Capture/Screenshot/CaptureEventBus.swift,CapturedImage,init,init,97,KEEP,"ScreenshotManager:792,880,936 构造"
-Capture,Features/Capture/Screenshot/CaptureExtraSettings.swift,ExtraSettingRow,init,init,202,KEEP,ExtraSettingRow保存标题与ViewBuilder内容，截图扩展设置共用92pt标签及7pt纵向间距
+Capture,Features/Capture/Screenshot/CaptureExtraSettings.swift,ExtraSettingRow,init,init,202,KEEP,2026-11-19：CaptureExtraSettingsView两组设置行构造；保存标题和escaping ViewBuilder闭包供HStack一次呈现
 Capture,Features/Capture/Screenshot/CaptureFileName.swift,CaptureFileName,make,func,47,KEEP,ScreenshotManager正式落盘文件名入口，展开模板并sanitize，空名用时间戳且只补一次.png
 Capture,Features/Capture/Screenshot/CaptureFileName.swift,CaptureFileName,preview,func,59,KEEP,截图设置以2560×1664和固定日期展示模板效果，consumeSequence=false不消耗当日序号
 Capture,Features/Capture/Screenshot/CaptureFileName.swift,CaptureFileName,expand,func,68,KEEP,make/preview共用日期、尺寸、模式、应用名替换，seq和random由replacePattern处理；预览序号固定1并用确定数字串
@@ -1663,69 +1663,81 @@ Capture,Features/Capture/Screenshot/Eyedropper.swift,Eyedropper,pushRecentColor,
 Capture,Features/Capture/Screenshot/Eyedropper.swift,Eyedropper,copyHexToPasteboard,func,363,KEEP,Eyedropper.swift:310 调用
 Capture,Features/Capture/Screenshot/EyedropperBridge.swift,EyedropperPickBridge,pickColor,func,24,KEEP,AppBootstrap:289 ToolRegistry 闭包 await
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,captureScreen,func,31,KEEP,"ScreenshotManager.swift:46,652 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,capture,func,49,KEEP,ScreenshotManager.swift:590 原生像素抓取
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,run,func,58,KEEP,"ScreenshotManager.swift:37,39 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCapture,func,111,KEEP,"ScreenshotManager.swift:115,196 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,120,KEEP,FrsetNextApp:172 / ScreenshotManager:130
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgRect,func,126,KEEP,CaptureModule:118 / FrsetNextApp:168
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,135,KEEP,"ScreenshotManager.swift:181,183 兜底通道"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,displayID,func,140,KEEP,CaptureModule:138 / ScreenshotManager:178
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenAdaptive,func,174,KEEP,":569,655 / Eyedropper:297 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCaptureProbed,func,198,KEEP,LongScreenshotSession.swift:453 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureSync,func,219,KEEP,"LongScreenshotSession.swift:450,460 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,235,KEEP,":179,217 / CaptureModule:143 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,262,KEEP,ScreenshotManager.swift:741 窗口截图调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,init,init,327,KEEP,ScreenshotManager.swift:267 shared 单例构造
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,refreshPermission,func,407,KEEP,CaptureSectionView.swift:38 onAppear 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,probePermission,func,429,KEEP,ScreenshotManager.swift:454 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,ensureScreenRecordingPermission,func,470,KEEP,CaptureSectionView:56 等 6 处调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,showPermissionAlert,func,489,KEEP,ScreenshotManager.swift:462 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureRegion,func,517,KEEP,CaptureModule:182 / AppBootstrap:320
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handleScreenshotShortcut,func,520,KEEP,快捷键在选择窗前重复时保持窗口；截图进行中再次触发则取消并打开近期选择窗
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,openRecentClipboard,func,532,KEEP,通过共享 RecentClipboardWindowController 打开选择窗并记录返回应用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndOCR,func,547,KEEP,"AppBootstrap:345,554 / CaptureModule:185"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndPin,func,550,KEEP,AppBootstrap:357 / CaptureModule:186
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndCopy,func,553,KEEP,AppBootstrap:353 / CaptureModule:213
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndScreenTranslate,func,556,KEEP,CommandPalette.swift:91 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,startCapture,func,558,KEEP,v266 统一截图入口：先异步校验屏幕录制权限，再带 flow 与初始拾取方式建覆盖层；区域/窗口/直接 OCR/钉图/复制/翻译六条链路共用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,beginCapture,func,573,KEEP,v266 合并 beginRegionCapture/beginWindowCapture：按 initialMode 建窗，区域/单窗/多窗/模式切换四类回调一次接齐，历史模式标签随实际模式走
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,acquireScreenSnapshots,func,643,KEEP,"ScreenshotManager.swift:538,707 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitRegion,func,652,KEEP,ScreenshotManager.swift:548 onCommit 闭包
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,finishRegion,func,692,KEEP,ScreenshotManager.swift:607 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,cancelCapture,func,714,KEEP,":550,716 onCancel 闭包"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,closeOverlays,func,720,KEEP,":521,578,631,699,732 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureFullScreen,func,728,KEEP,CaptureModule:183 / DelayedCaptureHUD:69
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureDelayed,func,764,KEEP,CaptureModule:190 / CaptureSectionView:79
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,currentScreen,func,768,KEEP,ScreenshotManager.swift:646 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitFullScreen,func,779,KEEP,自适应覆盖层单击空白桌面：原生像素抓整屏（失败回退 SCK/legacy）→ finishRegion 统一收尾，历史标签 full
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureWindow,func,821,KEEP,AppBootstrap:325 / CaptureModule:184
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindow,func,826,KEEP,ScreenshotManager.swift:714 闭包
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindows,func,878,KEEP,逐窗调用 ScreenSnapshot，失败时从覆盖层快照裁切，再按 pendingFlow 交付合成图
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,composeVertically,func,931,KEEP,按 16pt 间隔、24pt 留白纵向拼图，并把输出控制在 120MP 内
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handle,func,974,KEEP,"ScreenshotManager.swift:616,662,754 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,registerCaptured,func,999,KEEP,":624,761,783 / 标注保存 :1852 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1011,KEEP,"ScreenshotManager.swift:785,835 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1041,KEEP,CaptureSectionView.swift:195-198 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,savePNG,func,1050,KEEP,"ScreenshotManager.swift:778,1056 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,stagePNG,func,1056,KEEP,":620,758 / FrsetNextApp:335 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,writePNG,func,1060,KEEP,"ScreenshotManager.swift:843,849 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitToSaveDirectory,func,1076,KEEP,CaptureActionChain:86 保存工具闭包
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,newFileName,func,1103,KEEP,"ScreenshotManager.swift:855,877 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1107,KEEP,:813 / CaptureActionChain:70 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,playShutterSound,func,1120,KEEP,ScreenshotManager.swift:794 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1130,KEEP,:310 init / CaptureSectionView:39
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1152,KEEP,CaptureSectionView.swift:176 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1169,KEEP,:817 apply(.ocr) / CaptureActionChain:94
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1175,KEEP,"CaptureActionChain.swift:82,100 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1187,KEEP,CaptureActionChain.swift:79 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1192,KEEP,"ScreenshotManager.swift:962,968,980 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1239,KEEP,CaptureSectionView.swift:141 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1259,KEEP,"ScreenshotManager.swift:625,762,784 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1276,KEEP,CaptureSectionView.swift:231 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1299,KEEP,"CaptureSectionView.swift:242,244 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1307,KEEP,AppBootstrap:372 / CaptureModule:187
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1314,KEEP,"CaptureSectionView.swift:197,251 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1320,KEEP,CaptureModule:188 / CaptureSectionView:250
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,captureScreenOnDisplay,func,37,KEEP,2026-11-19：按已映射的显示器 -D 序号抓取独立原生帧，后台任务不再捕获 NSScreen 对象
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,capture,func,46,KEEP,ScreenshotManager.swift:590 原生像素抓取
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,run,func,55,KEEP,"ScreenshotManager.swift:37,39 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,SynchronousImageResult,store,func,98,KEEP,2026-11-19：把窗口与整屏 SCK 异步结果交给有超时的同步入口，锁保护等待与迟到完成间的读写
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,SynchronousImageResult,load,func,104,KEEP,2026-11-19：与 store 共用同一结果锁，超时后调用方返回 nil，不让 SCK 永久卡住截图流程
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCapture,func,129,KEEP,"ScreenshotManager.swift:115,196 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,138,KEEP,FrsetNextApp:172 / ScreenshotManager:130
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgRect,func,144,KEEP,CaptureModule:118 / FrsetNextApp:168
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,153,KEEP,"ScreenshotManager.swift:181,183 兜底通道"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,isUsableImage,func,157,KEEP,2026-11-19：过滤小图、比例错屏与透明空帧；源自安装版 00:04:46 原生抓图失败后仍将 848×77 单色裁图复制成功
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,windowImageMatchesFrozen,func,175,KEEP,2026-11-19：窗口 SCK 重抓仅在点击位置与触发冻结帧一致时采用，否则保留冻结裁片
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,monochromeColor,func,214,KEEP,2026-11-19：以整屏抽样识别异常平面帧并和另一通道对照；同色候选仍可保存
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sameColor,func,238,KEEP,2026-11-19：允许 3 级像素量化差，用于比较两个通道中的合法纯色屏幕
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,averageDifference,func,242,KEEP,2026-11-19：同尺寸抽样原生与 SCK 的同屏像素，平均色差超过 18 时取消保存
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,pixelColor,func,265,KEEP,2026-11-19：只抽取点击点颜色，用于窗口 SCK 图与触发时屏幕快照的对应校验
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenForScreenshot,func,280,KEEP,2026-11-19：覆盖层显示前并行获取 SCK 与 screencapture，校验尺寸透明度和采样内容后冻结供裁切
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,displayID,func,354,KEEP,CaptureModule:138 / ScreenshotManager:178
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,screencaptureDisplayIndex,func,359,KEEP,2026-11-19：将 NSScreen 的 CGDirectDisplayID 映射到 screencapture -D 主屏序号，避免抓错屏再套用原坐标
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenAdaptive,func,400,KEEP,":569,655 / Eyedropper:297 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCaptureProbed,func,427,KEEP,LongScreenshotSession.swift:453 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureSync,func,448,KEEP,"LongScreenshotSession.swift:450,460 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureWindowSync,func,464,KEEP,2026-11-19：窗口 SCK 等待设 4 秒上限，超时回退触发时冻结图而不阻塞交付
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,484,KEEP,":179,217 / CaptureModule:143 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,511,KEEP,ScreenshotManager.swift:741 窗口截图调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,init,init,576,KEEP,ScreenshotManager.swift:267 shared 单例构造
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,refreshPermission,func,656,KEEP,CaptureSectionView.swift:38 onAppear 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,probePermission,func,678,KEEP,ScreenshotManager.swift:454 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,ensureScreenRecordingPermission,func,719,KEEP,CaptureSectionView:56 等 6 处调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,showPermissionAlert,func,738,KEEP,ScreenshotManager.swift:462 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureRegion,func,766,KEEP,CaptureModule:182 / AppBootstrap:320
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handleScreenshotShortcut,func,769,KEEP,快捷键在选择窗前重复时保持窗口；截图进行中再次触发则取消并打开近期选择窗
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,openRecentClipboard,func,781,KEEP,通过共享 RecentClipboardWindowController 打开选择窗并记录返回应用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndOCR,func,796,KEEP,"AppBootstrap:345,554 / CaptureModule:185"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndPin,func,799,KEEP,AppBootstrap:357 / CaptureModule:186
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndCopy,func,802,KEEP,AppBootstrap:353 / CaptureModule:213
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndScreenTranslate,func,805,KEEP,CommandPalette.swift:91 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,startCapture,func,807,KEEP,v266 统一截图入口：先异步校验屏幕录制权限，再带 flow 与初始拾取方式建覆盖层；区域/窗口/直接 OCR/钉图/复制/翻译六条链路共用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,beginCapture,func,822,KEEP,v266 合并 beginRegionCapture/beginWindowCapture：按 initialMode 建窗，区域/单窗/多窗/模式切换四类回调一次接齐，历史模式标签随实际模式走
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,acquireScreenSnapshots,func,892,KEEP,"ScreenshotManager.swift:538,707 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitRegion,func,901,KEEP,ScreenshotManager.swift:548 onCommit 闭包
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,finishRegion,func,927,KEEP,ScreenshotManager.swift:607 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,cancelCapture,func,949,KEEP,":550,716 onCancel 闭包"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,closeOverlays,func,955,KEEP,":521,578,631,699,732 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureFullScreen,func,963,KEEP,CaptureModule:183 / DelayedCaptureHUD:69
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureDelayed,func,994,KEEP,CaptureModule:190 / CaptureSectionView:79
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,currentScreen,func,998,KEEP,ScreenshotManager.swift:646 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitFullScreen,func,1009,KEEP,自适应覆盖层单击空白桌面：原生像素抓整屏（失败回退 SCK/legacy）→ finishRegion 统一收尾，历史标签 full
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureWindow,func,1044,KEEP,AppBootstrap:325 / CaptureModule:184
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindow,func,1049,KEEP,ScreenshotManager.swift:714 闭包
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindows,func,1119,KEEP,逐窗调用 ScreenSnapshot，失败时从覆盖层快照裁切，再按 pendingFlow 交付合成图
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,composeVertically,func,1185,KEEP,按 16pt 间隔、24pt 留白纵向拼图，并把输出控制在 120MP 内
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handle,func,1228,KEEP,"ScreenshotManager.swift:616,662,754 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,registerCaptured,func,1253,KEEP,":624,761,783 / 标注保存 :1852 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1265,KEEP,"ScreenshotManager.swift:785,835 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1295,KEEP,CaptureSectionView.swift:195-198 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,savePNG,func,1304,KEEP,"ScreenshotManager.swift:778,1056 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,stagePNG,func,1310,KEEP,":620,758 / FrsetNextApp:335 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,writePNG,func,1314,KEEP,"ScreenshotManager.swift:843,849 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitToSaveDirectory,func,1330,KEEP,CaptureActionChain:86 保存工具闭包
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,newFileName,func,1357,KEEP,"ScreenshotManager.swift:855,877 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1361,KEEP,:813 / CaptureActionChain:70 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,playShutterSound,func,1374,KEEP,ScreenshotManager.swift:794 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1384,KEEP,:310 init / CaptureSectionView:39
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1406,KEEP,CaptureSectionView.swift:176 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1423,KEEP,:817 apply(.ocr) / CaptureActionChain:94
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1429,KEEP,"CaptureActionChain.swift:82,100 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1441,KEEP,CaptureActionChain.swift:79 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1446,KEEP,"ScreenshotManager.swift:962,968,980 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1493,KEEP,CaptureSectionView.swift:141 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1513,KEEP,"ScreenshotManager.swift:625,762,784 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1530,KEEP,CaptureSectionView.swift:231 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1553,KEEP,"CaptureSectionView.swift:242,244 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1561,KEEP,AppBootstrap:372 / CaptureModule:187
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1568,KEEP,"CaptureSectionView.swift:197,251 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1574,KEEP,CaptureModule:188 / CaptureSectionView:250
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,init,init,14,KEEP,ScreenshotOverlay.swift:217、DelayedCaptureHUD.swift:32 构造
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,deinit,deinit,22,KEEP,ARC 释放即执行；L23 removeMonitor，缺它监视器泄漏
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierView,draw,func,39,KEEP,NSView 绘制覆写；L87 addSubview(magnifierView) 由 AppKit 调
@@ -1733,34 +1745,35 @@ Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierC
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,init,init,90,KEEP,NSView 必需 required init(coder:)，删则编译失败；无 nib 不调
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,layout,func,92,KEEP,NSView 布局回调；wantsLayer L78 触发，L94 摆放子视图
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,follow,func,98,KEEP,ScreenshotOverlay.swift:271 拖拽 / L295 移动时定位放大镜
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snapshotWindowHits,func,214,KEEP,init L216 调用，填充 windowHits（窗口模式命中表）
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,viewRect,func,238,KEEP,L280/310/317/376/497 五处复用：全局矩形转视图坐标
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,242,KEEP,ScreenshotOverlayWindow L587 唯一构造点；建监视器与窗口表
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,commitMultiWindows,func,262,KEEP,按用户勾选顺序生成窗口矩形列表并提交给 ScreenshotManager
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,269,KEEP,NSView 必需 required init(coder:)，删则编译失败；无 nib 不调
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,acceptsFirstMouse,func,278,KEEP,首击即生效：App 未激活时 AppKit 会吞掉激活点击，覆盖层必须返回 true，否则要点第二次
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDown,func,289,KEEP,NSView 事件覆写；L597 ignoresMouseEvents=false 由 AppKit 派发
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,toggleMultiSelection,func,307,KEEP,按 windowID 添加或移除窗口，并重绘已选状态
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDragged,func,316,KEEP,NSView 事件覆写；拖拽由窗口 L598 命中派发到本视图
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,constrained,func,345,KEEP,优先应用已设定比例，否则按住 Shift 生成正方形选区
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseMoved,func,357,KEEP,L598 acceptsMouseMovedEvents=true → 移动事件真实到达
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,flagsChanged,func,375,KEEP,NSResponder 覆写；L238 acceptsFirstResponder 使其成为第一响应者
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseUp,func,380,KEEP,NSView 事件覆写；提交走 onCommit（ScreenshotManager:546）
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,windowRect,func,442,KEEP,光标所在窗口的视图矩形，供拖框吸附丢弃「整窗大小」的 AX 命中（否则一拉就吸回整窗）
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,refreshSnap,func,453,KEEP,L266 拖拽 / L293 悬停调用，90ms 节流查 ElementSnapEngine
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snappedPoint,func,470,KEEP,L267 拖拽时对 currentPoint 做 8pt 边缘吸附
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,elementHit,func,482,KEEP,L285 窗口模式 / L356 吸附共用，转调 ElementSnapEngine.snap
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,draw,func,491,KEEP,NSView 绘制覆写；needsDisplay 见 L229/258/269/287/302
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSnapHighlight,func,546,KEEP,draw L427（region+snapActive+snapHighlight）调用
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawElementHighlight,func,570,KEEP,draw L415 窗口模式命中 AX 元素时调用
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowMultiHint,func,594,KEEP,展示已选窗口数、回车提交、Command 点选增删与 Escape 取消提示
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHint,func,599,KEEP,顶部居中绘制截图说明，并附当前截图快捷键对应的近期复制提示
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowSelection,func,619,KEEP,给已选窗口绘制强调色蒙层、描边和顺序编号
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowHighlight,func,643,KEEP,draw L412 窗口模式 hover 命中窗口时调用
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHandles,func,675,KEEP,draw L404 存在选区时绘制四角把手
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSizeLabel,func,686,KEEP,draw L405 存在选区时绘制 W×H 像素标签
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawCrosshair,func,720,KEEP,draw L424 currentPoint 非空时绘制十字准星
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayWindow,init,init,740,KEEP,ScreenshotManager:545/711、LongScreenshotCoordinator:146 构造
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snapshotWindowHits,func,215,KEEP,init L216 调用，填充 windowHits（窗口模式命中表）
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,viewRect,func,239,KEEP,L280/310/317/376/497 五处复用：全局矩形转视图坐标
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,243,KEEP,ScreenshotOverlayWindow L587 唯一构造点；建监视器与窗口表
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,commitMultiWindows,func,263,KEEP,按用户勾选顺序生成窗口矩形列表并提交给 ScreenshotManager
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,273,KEEP,NSView 必需 required init(coder:)，删则编译失败；无 nib 不调
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,acceptsFirstMouse,func,282,KEEP,首击即生效：App 未激活时 AppKit 会吞掉激活点击，覆盖层必须返回 true，否则要点第二次
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDown,func,293,KEEP,NSView 事件覆写；L597 ignoresMouseEvents=false 由 AppKit 派发
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,toggleMultiSelection,func,311,KEEP,按 windowID 添加或移除窗口，并重绘已选状态
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,globalPoint,func,321,KEEP,2026-11-19：把覆盖层中的真实点击点转为屏幕全局坐标，窗口候选只和同一画面位置比较
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDragged,func,326,KEEP,NSView 事件覆写；拖拽由窗口 L598 命中派发到本视图
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,constrained,func,355,KEEP,优先应用已设定比例，否则按住 Shift 生成正方形选区
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseMoved,func,367,KEEP,L598 acceptsMouseMovedEvents=true → 移动事件真实到达
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,flagsChanged,func,385,KEEP,NSResponder 覆写；L238 acceptsFirstResponder 使其成为第一响应者
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseUp,func,390,KEEP,NSView 事件覆写；提交走 onCommit（ScreenshotManager:546）
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,windowRect,func,452,KEEP,光标所在窗口的视图矩形，供拖框吸附丢弃「整窗大小」的 AX 命中（否则一拉就吸回整窗）
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,refreshSnap,func,463,KEEP,L266 拖拽 / L293 悬停调用，90ms 节流查 ElementSnapEngine
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snappedPoint,func,480,KEEP,L267 拖拽时对 currentPoint 做 8pt 边缘吸附
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,elementHit,func,492,KEEP,L285 窗口模式 / L356 吸附共用，转调 ElementSnapEngine.snap
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,draw,func,501,KEEP,NSView 绘制覆写；needsDisplay 见 L229/258/269/287/302
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSnapHighlight,func,556,KEEP,draw L427（region+snapActive+snapHighlight）调用
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawElementHighlight,func,580,KEEP,draw L415 窗口模式命中 AX 元素时调用
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowMultiHint,func,604,KEEP,展示已选窗口数、回车提交、Command 点选增删与 Escape 取消提示
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHint,func,609,KEEP,顶部居中绘制截图说明，并附当前截图快捷键对应的近期复制提示
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowSelection,func,629,KEEP,给已选窗口绘制强调色蒙层、描边和顺序编号
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowHighlight,func,653,KEEP,draw L412 窗口模式 hover 命中窗口时调用
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHandles,func,685,KEEP,draw L404 存在选区时绘制四角把手
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSizeLabel,func,696,KEEP,draw L405 存在选区时绘制 W×H 像素标签
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawCrosshair,func,730,KEEP,draw L424 currentPoint 非空时绘制十字准星
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayWindow,init,init,750,KEEP,ScreenshotManager:545/711、LongScreenshotCoordinator:146 构造
 Capture,Features/Capture/Workflow/CaptureWorkflow.swift,WorkflowStep,init,init,49,KEEP,WorkflowStep保存kind及两个参数；CaptureWorkflow保存名称、启用态和步骤，默认禁用；Runner私有构造供shared执行截图回调
 Capture,Features/Capture/Workflow/CaptureWorkflow.swift,CaptureWorkflow,init,init,62,KEEP,WorkflowStep保存kind及两个参数；CaptureWorkflow保存名称、启用态和步骤，默认禁用；Runner私有构造供shared执行截图回调
 Capture,Features/Capture/Workflow/CaptureWorkflow.swift,WorkflowStore,load,func,77,KEEP,设置页和截图回调从workflows/workflows.json解码数组，无可读配置时返回禁用的保存/识别/复制示例

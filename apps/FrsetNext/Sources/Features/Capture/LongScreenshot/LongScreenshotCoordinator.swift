@@ -174,8 +174,11 @@ final class LongScreenshotCoordinator: NSObject {
         let screenFrame = window.frame
         // 视图内矩形 → AppKit 全局坐标（左下原点）
         let appKit = rect.offsetBy(dx: screenFrame.minX, dy: screenFrame.minY)
-        let screen = window.screen ?? NSScreen.main
-        let displayID = screen.flatMap { ScreenSnapshot.displayID(of: $0) } ?? CGMainDisplayID()
+        guard let screen = window.screen,
+              let displayID = ScreenSnapshot.displayID(of: screen) else {
+            Log.error("Capture", "长截图选区无法映射到目标显示器")
+            return
+        }
 
         closeSelectionOverlays()
 
@@ -193,8 +196,8 @@ final class LongScreenshotCoordinator: NSObject {
         let appKit = ScreenshotManager.shared.lastSelectionAppKit
         guard !appKit.isNull, appKit.width >= 8, appKit.height >= 8 else { return false }
         guard session == nil else { return true }   // 已有会话
-        let screen = NSScreen.screens.first { $0.frame.intersects(appKit) } ?? NSScreen.main
-        let displayID = screen.flatMap { ScreenSnapshot.displayID(of: $0) } ?? CGMainDisplayID()
+        guard let screen = NSScreen.screens.first(where: { $0.frame.contains(appKit) }),
+              let displayID = ScreenSnapshot.displayID(of: screen) else { return false }
         Task { @MainActor in
             guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else { return }
             self.startSession(appKit: appKit, displayID: displayID)
