@@ -80,6 +80,7 @@ public final class ImageCurtainController: NSObject {
     }
 
     private func insert(url: URL, size: CGSize, image: CGImage?) {
+        guard forceEnabled || CurtainPref.enabled else { return }
         let item = CurtainItem(fileURL: url, pixelSize: size)
         items.insert(item, at: 0)
         if let image { thumbnails[item.id] = image }
