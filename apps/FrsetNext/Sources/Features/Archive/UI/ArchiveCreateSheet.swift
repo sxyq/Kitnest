@@ -146,6 +146,7 @@ public final class ArchiveCreateModel: ObservableObject {
 // MARK: 视图
 
 public struct ArchiveCreateView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ObservedObject public var model: ArchiveCreateModel
     /// 创建成功后回调（关闭窗口/刷新）
@@ -162,7 +163,7 @@ public struct ArchiveCreateView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
             header
             Divider()
             presetPicker
@@ -170,6 +171,8 @@ public struct ArchiveCreateView: View {
             Divider()
             options
                 .disabled(model.busy)
+            Button("默认应用与 Finder 压缩服务设置") { ServiceLocator.settings?.open(pane: "archive") }
+                .buttonStyle(.link).font(.system(size: 11))
             if let warn = model.windowsNameWarning {
                 Label(warn, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
@@ -192,13 +195,16 @@ public struct ArchiveCreateView: View {
                 ArchiveProgressPanel(compact: true)
             }
         }
-        .padding(14)
+        .padding(12)
         .frame(width: 460)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.presetIndex)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.usePassword)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.volumeEnabled)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("创建压缩包")
+            Label("创建压缩包", systemImage: "archivebox.fill")
                 .font(.system(size: 13, weight: .semibold))
             Text("将 \(model.files.count) 个项目压缩为一个归档")
                 .font(.system(size: 11))
@@ -209,7 +215,7 @@ public struct ArchiveCreateView: View {
     // MARK: 用途预设
 
     private var presetPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 3) {
             Text("用途预设")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -218,8 +224,7 @@ public struct ArchiveCreateView: View {
                     model.applyPreset(idx)
                 } label: {
                     HStack(spacing: 8) {
-                        Image(systemName: model.presetIndex == idx
-                              ? "checkmark.circle.fill" : "circle")
+                        Image(systemName: ["square.and.arrow.up", "laptopcomputer", "desktopcomputer", "server.rack", "arrow.down.right.and.arrow.up.left"][idx])
                             .foregroundStyle(model.presetIndex == idx ? Theme.accent : .secondary)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(preset.title)
@@ -232,11 +237,13 @@ public struct ArchiveCreateView: View {
                         Text(preset.format.uppercased())
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(Theme.tertiaryText)
+                        Image(systemName: model.presetIndex == idx ? "checkmark.circle.fill" : "circle")
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .padding(.vertical, 1)
+                .padding(2)
+                .background(RoundedRectangle(cornerRadius: 8).fill(model.presetIndex == idx ? Theme.accent.opacity(0.12) : Color.clear))
             }
         }
     }
@@ -244,7 +251,8 @@ public struct ArchiveCreateView: View {
     // MARK: 选项
 
     private var options: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("输出设置", systemImage: "doc.badge.gearshape").font(.system(size: 11, weight: .semibold))
             HStack {
                 Text("文件名").frame(width: 56, alignment: .leading)
                 TextField("", text: $model.outputName)
@@ -271,6 +279,8 @@ public struct ArchiveCreateView: View {
                 .labelsHidden()
                 .frame(width: 110)
             }
+            Divider()
+            Label("安全与分卷", systemImage: "lock.shield").font(.system(size: 11, weight: .semibold))
             HStack {
                 Toggle("密码保护", isOn: $model.usePassword)
                     .toggleStyle(.checkbox)

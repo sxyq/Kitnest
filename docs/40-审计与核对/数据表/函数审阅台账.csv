@@ -20,11 +20,12 @@ App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,691,KEEP,划�
 App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,703,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
 App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,749,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
-App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,74,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,98,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,103,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,113,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
-App,App/FrsetNextApp.swift,AppDelegate,application,func,124,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
+App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,79,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,103,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,108,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,118,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,128,KEEP,应用启动后订阅窗口成为/失去主窗口、最小化、恢复和关闭通知；存在可见标题窗时切换为 Dock 应用，无窗口时恢复菜单栏应用
+App,App/FrsetNextApp.swift,AppDelegate,application,func,145,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,49,KEEP,统一事件入口按独立场景开关取值，总强度由perform后续处理
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,51,KEEP,从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,60,KEEP,设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
@@ -715,12 +716,12 @@ Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,applyPre
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,syncOutputExtension,func,64,KEEP,2026-11-18：预设和格式变化及创建前调用；只替换zip或7z或完整tar.gz后缀；保留普通点号且重复同步不叠加tar；TAR.GZ关闭不支持的分卷
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,cancelCreate,func,97,KEEP,2026-11-18：取消按钮与关闭对话框第三项调用；有currentTaskID时交ArchiveTaskQueue.cancel终止同一任务；未开始不产生任务
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,create,func,103,KEEP,2026-11-18：开始按钮和probe.archiveCreate动态入口；沿现有文件名密码错误显示；提交前同步格式后传Core.create；busy及taskID按真实结果清除；Windows名称本会话只问一次
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateView,init,init,156,KEEP,2026-11-18：控制器构造唯一SwiftUI内容；观察同一模型并保存成功及后台闭包；按钮共用现有create与cancelCreate
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,show,func,371,KEEP,2026-11-18：Finder及文件盒及Island与预览和压缩深链调用；标准化排序源路径组成窗口键；同组只前置原窗并复用输入
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,388,KEEP,2026-11-18：show构造模型和460x520固定窗；统一外观注册delegate；成功关窗后交SourceHandling；转后台仅关窗；defaults自动创建入口仍在用
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,444,KEEP,2026-11-18：NSWindowController要求coder初始化；项目仅用files及key程序化构造无对应nib；保留required签名
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowShouldClose,func,449,KEEP,2026-11-18：init注册NSWindowDelegate；闲置直接关闭；busy按三按钮转后台或等待或取消；关闭不默认中断压缩
-Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowWillClose,func,470,KEEP,2026-11-18：AppKit关闭通知；移除open中同组控制器并异步刷新TaskCenter；后台完成闭包仍持有模型与源输出路径
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateView,init,init,157,KEEP,2026-11-18：控制器构造唯一SwiftUI内容；观察同一模型并保存成功及后台闭包；按钮共用现有create与cancelCreate
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,show,func,381,KEEP,2026-11-18：Finder及文件盒及Island与预览和压缩深链调用；标准化排序源路径组成窗口键；同组只前置原窗并复用输入
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,398,KEEP,2026-11-18：show构造模型和460x520固定窗；统一外观注册delegate；成功关窗后交SourceHandling；转后台仅关窗；defaults自动创建入口仍在用
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,init,init,454,KEEP,2026-11-18：NSWindowController要求coder初始化；项目仅用files及key程序化构造无对应nib；保留required签名
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowShouldClose,func,459,KEEP,2026-11-18：init注册NSWindowDelegate；闲置直接关闭；busy按三按钮转后台或等待或取消；关闭不默认中断压缩
+Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowWillClose,func,480,KEEP,2026-11-18：AppKit关闭通知；移除open中同组控制器并异步刷新TaskCenter；后台完成闭包仍持有模型与源输出路径
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,init,init,31,KEEP,HTMLPreview:169 StateObject 构造
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,load,func,73,KEEP,init:70 加载首页
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,goBack,func,77,KEEP,bar:203 后退按钮
@@ -2210,48 +2211,44 @@ Island,Features/Island/IslandContent.swift,IslandRootView,pageContent,func,79,KE
 Island,Features/Island/IslandContent.swift,IslandRootView,widgetContent,func,118,KEEP,首页异构格按组件种类及尺寸装现有监测、近期记录、媒体、音量、日历和功能入口，预览用既有样例
 Island,Features/Island/IslandContent.swift,IslandRootView,widget,func,156,KEEP,首页共用组件标题、颜色与glassCard外壳，标题切对应page；仅剪贴板格接收URL拖入
 Island,Features/Island/IslandContent.swift,IslandRootView,compactRecord,func,174,KEEP,首页近期项显示单行及选中标记，原生IslandFileDragSource接单击预览、双击复制与文件拖出，延迟首页单击换页
-Island,Features/Island/IslandContent.swift,IslandRootView,receiveFiles,func,256,KEEP,组件与记录页拖入仅收fileURL，真实文件交LocalTransferStore.add；开始/结束交互保留刘海，完成反馈并重载，预览仅反馈数量
-Island,Features/Island/IslandContent.swift,IslandRootView,sampleDetail,func,268,KEEP,刘海设置预览将固定样本交给正式正文组件，固定会话保留调参滚动；图片和多路径文件不读取真实文件
-Island,Features/Island/IslandContent.swift,IslandRootView,select,func,289,KEEP,设置selectedRecord与列表焦点，可切剪贴板页；显式预览且非设置预览时按来源panel交共用present
-Island,Features/Island/IslandContent.swift,IslandRootView,moveSelection,func,299,KEEP,列表方向键及原生行onMove把选中索引夹在记录范围，调用select并scrollTo居中定位
-Island,Features/Island/IslandContent.swift,IslandRootView,copySelectedRecord,func,307,KEEP,列表复制命令和原生行Cmd+C只按selectedRecord找到一行，交统一copy
-Island,Features/Island/IslandContent.swift,IslandRootView,draggingChanged,func,324,KEEP,原生文件拖出回调更新recordDragging，拖出结束再reloadRecords，拖动中保留当前行视图
-Island,Features/Island/IslandContent.swift,IslandRootView,reloadRecords,func,330,KEEP,展开、页面、剪贴板及中转通知只递增recordsRevision，触发现有.task(id:)的独立近期查询
-Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,336,KEEP,后台独立fetch剪贴板并合并中转项，原路径和暂存路径别名去重，文件按路径拆行、按最新日期排序；取消或拖出中不发布，预览仅用样例，主列表筛选分页保留
-Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,411,KEEP,loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标
-Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,422,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
-Island,Features/Island/IslandContent.swift,IslandRecentRow,copy,func,458,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
-Island,Features/Island/IslandContent.swift,IslandRecordFocusAppearance,body,func,487,KEEP,IslandRecordFocusAppearance仅关闭macOS14及以上记录列表的系统焦点装饰，保留focusable、方向键和复制命令；macOS13沿用原生行focusRingType.none
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,510,KEEP,IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,515,KEEP,SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图
-Island,Features/Island/IslandContent.swift,IslandFileDragView,viewDidMoveToWindow,func,546,KEEP,记录首行挂载时取得现有外层NSScrollView并交给控制器恢复位置，所有行仍复用原拖出视图
-Island,Features/Island/IslandContent.swift,IslandFileDragView,hitTest,func,555,KEEP,布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragView,cancelSelection,func,559,KEEP,进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件
-Island,Features/Island/IslandContent.swift,IslandFileDragView,updateTrackingAreas,func,567,KEEP,记录行原生拖出视图沿可见范围接收悬停进入离开事件，重建跟踪区域时先移除旧区域
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseEntered,func,575,KEEP,展开中的刘海记录行把正式剪贴板条目及来源窗口坐标交给共用 rowHover，不读取正文或创建第二套预览
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseExited,func,589,KEEP,记录行离开时由共用 rowHover 取消待呈现任务并安排关闭，沿用主面板悬停时序
-Island,Features/Island/IslandContent.swift,IslandFileDragView,showPreview,func,594,KEEP,刘海记录单击、回车与空格用同一个 present 入口，行边界经所属窗口换算为屏幕坐标；双击仍走原复制方法
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,600,KEEP,记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出
-Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,606,KEEP,原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,618,KEEP,文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互
-Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,638,KEEP,非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点
-Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,653,KEEP,原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,658,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
-Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,660,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
-Island,Features/Island/IslandContent.swift,IslandCalendarContent,movePreviewDate,func,751,KEEP,模拟日历的日期与月份导航只更新控制器选中日期，复用同一五档布局且不调用 EventKit
-Island,Features/Island/IslandContent.swift,IslandCalendarContent,copySelectedDate,func,757,KEEP,日历各尺寸共用所选日期复制；模拟只反馈，正式经 ClipboardManager 写入并反馈实际结果
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,calendarLayout,func,799,KEEP,正式和模拟日历共用五档内容布局及全页月历，数据和操作闭包分别从缓存服务与固定样本注入
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthGrid,func,926,KEEP,月历全页与2×2卡片共用42格与周标题，周末、跨月和选中态按实际日期及周起始日显示
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRows,func,964,KEEP,日程摘要、纵向事件和完整详情共用时间标题排版，区分空日程、授权提示与真实缓存事件
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthTitle,func,988,KEEP,日历完整页与月历卡片共用中文年月标题，沿用 Foundation 日期格式样式
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthDay,func,992,KEEP,日历紧凑、摘要及横向卡片共用中文月日文本，不改变所选日期
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,weekdayTitle,func,996,KEEP,日历卡片按所选日期显示中文实际星期，和周末判定使用同一日期
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,fullDate,func,1000,KEEP,日历纵向卡片、月历底栏和全页共用完整中文日期标签
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventTime,func,1004,KEEP,日历横向带与事件行共用全天或开始时刻标签，保留正式事件字段
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,selectDate,func,1008,KEEP,正式日历选中跨月时读取月缓存，同月只从已加载42格选取事件，避免逐日重复查询
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveDate,func,1014,KEEP,正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,1021,KEEP,出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
-Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,1026,KEEP,完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
+Island,Features/Island/IslandContent.swift,IslandRootView,receiveFiles,func,268,KEEP,组件与记录页拖入仅收fileURL，真实文件交LocalTransferStore.add；开始/结束交互保留刘海，完成反馈并重载，预览仅反馈数量
+Island,Features/Island/IslandContent.swift,IslandRootView,sampleDetail,func,280,KEEP,刘海设置预览将固定样本交给正式正文组件，固定会话保留调参滚动；图片和多路径文件不读取真实文件
+Island,Features/Island/IslandContent.swift,IslandRootView,select,func,301,KEEP,设置selectedRecord与列表焦点，可切剪贴板页；显式预览且非设置预览时按来源panel交共用present
+Island,Features/Island/IslandContent.swift,IslandRootView,moveSelection,func,307,KEEP,列表方向键及原生行onMove把选中索引夹在记录范围，调用select并scrollTo居中定位
+Island,Features/Island/IslandContent.swift,IslandRootView,copySelectedRecord,func,315,KEEP,列表复制命令和原生行Cmd+C只按selectedRecord找到一行，交统一copy
+Island,Features/Island/IslandContent.swift,IslandRootView,draggingChanged,func,332,KEEP,原生文件拖出回调更新recordDragging，拖出结束再reloadRecords，拖动中保留当前行视图
+Island,Features/Island/IslandContent.swift,IslandRootView,reloadRecords,func,338,KEEP,展开、页面、剪贴板及中转通知只递增recordsRevision，触发现有.task(id:)的独立近期查询
+Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,344,KEEP,后台独立fetch剪贴板并合并中转项，原路径和暂存路径别名去重，文件按路径拆行、按最新日期排序；取消或拖出中不发布，预览仅用样例，主列表筛选分页保留
+Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,419,KEEP,loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标
+Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,430,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
+Island,Features/Island/IslandContent.swift,IslandRecentRow,copy,func,466,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
+Island,Features/Island/IslandContent.swift,IslandRecordFocusAppearance,body,func,495,KEEP,IslandRecordFocusAppearance仅关闭macOS14及以上记录列表的系统焦点装饰，保留focusable、方向键和复制命令；macOS13沿用原生行focusRingType.none
+Island,Features/Island/IslandContent.swift,IslandFileDragSource,makeNSView,func,516,KEEP,IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragSource,updateNSView,func,521,KEEP,SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图
+Island,Features/Island/IslandContent.swift,IslandFileDragView,viewDidMoveToWindow,func,547,KEEP,记录首行挂载时取得现有外层NSScrollView并交给控制器恢复位置，所有行仍复用原拖出视图
+Island,Features/Island/IslandContent.swift,IslandFileDragView,hitTest,func,556,KEEP,布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragView,cancelSelection,func,560,KEEP,进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDown,func,565,KEEP,记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出
+Island,Features/Island/IslandContent.swift,IslandFileDragView,keyDown,func,571,KEEP,原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseDragged,func,583,KEEP,文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互
+Island,Features/Island/IslandContent.swift,IslandFileDragView,mouseUp,func,603,KEEP,非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点
+Island,Features/Island/IslandContent.swift,IslandFileDragView,viewWillMove,func,617,KEEP,原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页
+Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,622,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
+Island,Features/Island/IslandContent.swift,IslandFileDragView,draggingSession,func,624,KEEP,NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消
+Island,Features/Island/IslandContent.swift,IslandCalendarContent,movePreviewDate,func,715,KEEP,模拟日历的日期与月份导航只更新控制器选中日期，复用同一五档布局且不调用 EventKit
+Island,Features/Island/IslandContent.swift,IslandCalendarContent,copySelectedDate,func,721,KEEP,日历各尺寸共用所选日期复制；模拟只反馈，正式经 ClipboardManager 写入并反馈实际结果
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,calendarLayout,func,763,KEEP,正式和模拟日历共用五档内容布局及全页月历，数据和操作闭包分别从缓存服务与固定样本注入
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthGrid,func,890,KEEP,月历全页与2×2卡片共用42格与周标题，周末、跨月和选中态按实际日期及周起始日显示
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventRows,func,928,KEEP,日程摘要、纵向事件和完整详情共用时间标题排版，区分空日程、授权提示与真实缓存事件
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthTitle,func,952,KEEP,日历完整页与月历卡片共用中文年月标题，沿用 Foundation 日期格式样式
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,monthDay,func,956,KEEP,日历紧凑、摘要及横向卡片共用中文月日文本，不改变所选日期
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,weekdayTitle,func,960,KEEP,日历卡片按所选日期显示中文实际星期，和周末判定使用同一日期
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,fullDate,func,964,KEEP,日历纵向卡片、月历底栏和全页共用完整中文日期标签
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,eventTime,func,968,KEEP,日历横向带与事件行共用全天或开始时刻标签，保留正式事件字段
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,selectDate,func,972,KEEP,正式日历选中跨月时读取月缓存，同月只从已加载42格选取事件，避免逐日重复查询
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveDate,func,978,KEEP,正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,985,KEEP,出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
+Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,990,KEEP,完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
 Island,Features/Island/IslandController.swift,IslandController,init,init,73,KEEP,保存传入或.load的唯一配置和previewOnly；设置预览给180×28pt示例刘海，正式几何由position读屏幕
 Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,118,KEEP,Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
 Island,Features/Island/IslandController.swift,IslandController,apply,func,128,KEEP,设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
@@ -2973,33 +2970,33 @@ Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelP
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,movePreview,func,148,KEEP,刘海跨屏时取消旧悬停关闭计时，移动同一预览窗口并限制在目标逻辑可见区域，保留内容模型
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,init,init,159,KEEP,static shared :70 单例（private override init）
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,func,173,KEEP,按源视图或屏幕锚点确定可见区并创建requestedSession；文件模型在userInitiated后台读取，主线程仅接纳sessionID仍匹配的结果，其他类型同步呈现；换项复用包括收回中的slot，统一窗口连续调整内容和尺寸
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,266,KEEP,把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,281,KEEP,先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,303,KEEP,adapter:37、ClipboardTableHostView:723/743
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,345,KEEP,PanelController:194、adapter:57
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,354,KEEP,adapter:46、ClipboardTableHostView:847
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,375,KEEP,adapter:52、present:170、ClipboardTableHostView:635
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,384,KEEP,ClipboardPreviewWindow:292 onHover 回调
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,409,KEEP,present :212 安装点外关闭监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,443,KEEP,dismiss :224 卸载监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,451,KEEP,present :213 安装 Esc 监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,463,KEEP,handlePreviewWindowDidClose :521 卸载
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,470,KEEP,adapter:62、ClipboardTableHostView:679
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,480,KEEP,adapter:67、ClipboardSectionView:96
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,489,KEEP,PreviewPopoverContentView:562 记录滚动
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,494,KEEP,PreviewPopoverContentView:559 恢复滚动
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,503,KEEP,present:214、requestKeyboardPreview:307、close :522
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,518,KEEP,present :181 解析锚点
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,530,KEEP,present:169、prepareForPanelAppear:286
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,538,KEEP,文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,543,KEEP,带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,574,KEEP,present:179、dismiss:233
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,590,KEEP,Slot.init :57 onWindowClosed 闭包
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,611,KEEP,handlePreviewWindowDidClose :520
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,621,KEEP,prepareForPanelAppear:285、鼠标监听 :535
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,654,KEEP,ClipboardPreviewWindow.swift:291 挂载修饰器
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,661,KEEP,:574 modifier(...) 构造
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,662,KEEP,ViewModifier 协议要求
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,267,KEEP,把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,282,KEEP,先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,309,KEEP,adapter:37、ClipboardTableHostView:723/743
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,352,KEEP,PanelController:194、adapter:57
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,361,KEEP,adapter:46、ClipboardTableHostView:847
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,382,KEEP,adapter:52、present:170、ClipboardTableHostView:635
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,391,KEEP,ClipboardPreviewWindow:292 onHover 回调
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,416,KEEP,present :212 安装点外关闭监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,450,KEEP,dismiss :224 卸载监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,458,KEEP,present :213 安装 Esc 监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,471,KEEP,handlePreviewWindowDidClose :521 卸载
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,478,KEEP,adapter:62、ClipboardTableHostView:679
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,488,KEEP,adapter:67、ClipboardSectionView:96
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,497,KEEP,PreviewPopoverContentView:562 记录滚动
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,502,KEEP,PreviewPopoverContentView:559 恢复滚动
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,511,KEEP,present:214、requestKeyboardPreview:307、close :522
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,526,KEEP,present :181 解析锚点
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,538,KEEP,present:169、prepareForPanelAppear:286
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,546,KEEP,文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,551,KEEP,带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,582,KEEP,present:179、dismiss:233
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,598,KEEP,Slot.init :57 onWindowClosed 闭包
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,619,KEEP,handlePreviewWindowDidClose :520
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,629,KEEP,prepareForPanelAppear:285、鼠标监听 :535
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,662,KEEP,ClipboardPreviewWindow.swift:291 挂载修饰器
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,669,KEEP,:574 modifier(...) 构造
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,670,KEEP,ViewModifier 协议要求
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,image,func,62,KEEP,PreviewMarkdownRenderer.swift:475 渲染 mermaid 代码块
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,parse,func,88,KEEP,image :68 调用
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,splitStatements,func,145,KEEP,parse :131 调用

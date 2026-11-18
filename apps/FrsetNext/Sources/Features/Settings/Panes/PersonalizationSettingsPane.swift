@@ -969,7 +969,7 @@ struct AppearancePreviewBlock: View {
     private var usesDesktopWallpaper: Bool { needsWallpaper && draft.previewScene != .background }
 
     var body: some View {
-        SettingsSection("效果预览", collapsible: true,
+        SettingsSection("效果预览", collapsible: true, expanded: scope == .clipboardList,
                         summary: "模拟效果") {
             VStack(alignment: .leading, spacing: 10) {
             HStack {
