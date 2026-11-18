@@ -611,7 +611,7 @@ final class IslandController: NSObject, ObservableObject {
         if entryHoverID != hoverID {
             entryHoverWork?.cancel(); entryHoverWork = nil
             entryHoverID = hoverID
-            if let target, !target.hasNotch, configuration.hoverEnabled,
+            if let target, !target.hasNotch,
                !(target.id == activeDisplayID && contentVisible) {
                 let work = DispatchWorkItem { [weak self] in
                     guard let self, self.entryHoverID == target.id else { return }

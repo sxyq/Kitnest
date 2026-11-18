@@ -146,7 +146,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     }
 
     func movePreview(from window: NSWindow, by delta: CGSize, within screen: CGRect) {
-        guard hasPreview(from: window), let preview = slot?.windowController.window else { return }
+        guard !previewPinned, hasPreview(from: window), let preview = slot?.windowController.window else { return }
         cancelHoverClose()
         var frame = preview.frame.offsetBy(dx: delta.width, dy: delta.height)
         frame.size.width = min(frame.width, screen.width)
@@ -280,6 +280,11 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
                         completion: (() -> Void)? = nil) {
+        if previewPinned && reason == .panelCollapse {
+            cancelHoverWorkItems()
+            completion?()
+            return
+        }
         sessionID = UUID()
         removeOutsideClickMonitor()
         guard let slot, slot.state != .idle, slot.state != .closing else {
@@ -306,6 +311,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                          anchorProvider: @escaping () -> CGRect?,
                          sourceWindow: NSWindow? = nil,
                          restoreSelection: (() -> Bool)? = nil) {
+        guard !previewPinned else { return }
         // F2 总开关（默认开启：defaults 实测键无落盘值）
         let key = source == .mainPreview
             ? Preferences.Keys.hoverPreviewInMainWindowEnabled
@@ -454,7 +460,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             guard event.keyCode == 53, // Esc
                   let self, let slot = self.slot, slot.state == .presented,
                   !slot.isEditing,
-                  let w = slot.windowController.window, w.isVisible else { return event }
+                  let w = slot.windowController.window, w.isVisible,
+                  !self.previewPinned || event.window === w else { return event }
             self.dismiss(reason: .escape)
             return nil
         }

@@ -179,9 +179,9 @@ struct IslandRootView: View {
                     .overlay {
                         IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
                             onDraggingChanged: draggingChanged, onCopy: { copy(record) },
-                            onDoubleClick: { select(record); copy(record) }, defersSelection: true,
-                            previewItem: preview ? nil : record.previewItem,
-                            selectedPreview: records.first(where: { $0.id == selectedRecord })?.previewItem) { select(record, openPage: true) }
+                            onDoubleClick: { select(record); copy(record) }, defersSelection: true) {
+                                select(record, openPage: true)
+                            }
                     }
             }.buttonStyle(IslandButtonStyle(showsFocus: false)).accessibilityLabel(record.title).help("单击预览 · 双击复制")
                 .accessibilityAddTraits(record.id == selectedRecord ? .isSelected : [])
@@ -205,19 +205,22 @@ struct IslandRootView: View {
                 ScrollView {
                     LazyVStack(spacing: 4) {
                         ForEach(records) { record in
-                            Button { select(record, showsPreview: true) } label: {
+                            Button { select(record) } label: {
                                 record.frame(maxWidth: .infinity, alignment: .leading)
+                                    .background {
+                                        RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous)
+                                            .fill(record.id == selectedRecord
+                                                  ? Theme.accent(for: nil).opacity(0.12) : Color.clear)
+                                    }
                                     .overlay {
                                         IslandFileDragSource(urls: preview ? [] : record.url.map { [$0] } ?? [], controller: controller,
                                             onDraggingChanged: draggingChanged,
                                             onMove: { moveSelection($0, proxy: proxy) }, onCopy: copySelectedRecord,
                                             onDoubleClick: { select(record); copy(record) },
-                                            previewItem: preview ? nil : record.previewItem,
-                                            selectedPreview: records.first(where: { $0.id == selectedRecord })?.previewItem,
                                             tracksScroll: record.id == records.first?.id) { select(record) }
                                     }
                             }.buttonStyle(IslandButtonStyle(showsFocus: false))
-                                .help("悬停或空格预览 · 双击复制 · 文件可拖出")
+                                .help("点击或空格预览 · 双击复制 · 文件可拖出")
                                 .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
                                 .id(record.id)
                         }
@@ -237,8 +240,14 @@ struct IslandRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if preview, let record = records.first(where: { $0.id == selectedRecord }) {
-                sampleDetail(record)
+            if let record = records.first(where: { $0.id == selectedRecord }) {
+                Group {
+                    if preview { sampleDetail(record) }
+                    else {
+                        IslandRecordPreview(item: record.previewItem, sessionID: controller.previewSessionID)
+                            .id(record.previewKey)
+                    }
+                }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
             }
@@ -286,14 +295,10 @@ struct IslandRootView: View {
         }
     }
 
-    private func select(_ record: IslandRecentRow, openPage: Bool = false, showsPreview: Bool = false) {
+    private func select(_ record: IslandRecentRow, openPage: Bool = false) {
         controller.selectedRecord = record.id
         if openPage { controller.page = .clipboard }
         recordListFocused = true
-        if showsPreview && !preview, let panel = controller.panel {
-            MainPanelPreviewPopoverCoordinator.shared.present(for: record.previewItem,
-                anchorRectInScreen: panel.frame, sourceWindow: panel)
-        }
     }
 
     private func moveSelection(_ step: Int, proxy: ScrollViewProxy) {
@@ -425,6 +430,27 @@ struct IslandRootView: View {
 
 }
 
+private struct IslandRecordPreview: View {
+    let item: ClipboardItem
+    let sessionID: UUID
+    @Stored private var model: PreviewPopoverContentModel?
+
+    var body: some View {
+        ZStack {
+            if let model { PreviewPopoverContentView(model: model, usesWindowChrome: false) }
+            else { ProgressView().controlSize(.small) }
+        }
+        .task {
+            let loaded = await Task.detached(priority: .userInitiated) { [item, sessionID] in
+                PreviewPopoverContentModel(item: item, source: .mainPreview, sessionID: sessionID,
+                    inlineText: PreviewPopoverDataBridge.shared.fullText(for: item))
+            }.value
+            guard !Task.isCancelled else { return }
+            model = loaded
+        }
+    }
+}
+
 /// 刘海列表行只携带两个正式来源的引用，不修改、迁移或删除源记录。
 private struct IslandRecentRow: View, Identifiable {
     let id: String
@@ -502,8 +528,6 @@ private struct IslandFileDragSource: NSViewRepresentable {
     var onCopy: (() -> Void)? = nil
     var onDoubleClick: (() -> Void)? = nil
     var defersSelection = false
-    var previewItem: ClipboardItem? = nil
-    var selectedPreview: ClipboardItem? = nil
     var tracksScroll = false
     var select: () -> Void
 
@@ -517,8 +541,6 @@ private struct IslandFileDragSource: NSViewRepresentable {
         view.onDraggingChanged = onDraggingChanged
         view.onMove = onMove; view.onCopy = onCopy
         view.onDoubleClick = onDoubleClick; view.defersSelection = defersSelection
-        view.previewItem = previewItem
-        view.selectedPreview = selectedPreview
         view.tracksScroll = tracksScroll
         if controller.editingLayout { view.cancelSelection() }
     }
@@ -533,10 +555,7 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     var onCopy: (() -> Void)?
     var onDoubleClick: (() -> Void)?
     var defersSelection = false
-    var previewItem: ClipboardItem?
-    var selectedPreview: ClipboardItem?
     var tracksScroll = false
-    private var tracking: NSTrackingArea?
     private var selectionWork: DispatchWorkItem?
     private var mouseStart: NSPoint? = nil
     private var dragging = false
@@ -559,42 +578,6 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     func cancelSelection() {
         selectionWork?.cancel(); selectionWork = nil
         mouseStart = nil
-        if let previewItem {
-            MainPanelPreviewPopoverCoordinator.shared.rowHover(false, item: previewItem, anchorProvider: { nil })
-        }
-    }
-
-    override func updateTrackingAreas() {
-        if let tracking { removeTrackingArea(tracking) }
-        tracking = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                                  owner: self)
-        addTrackingArea(tracking!)
-        super.updateTrackingAreas()
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        guard let previewItem, controller?.expanded == true, controller?.editingLayout == false else { return }
-        MainPanelPreviewPopoverCoordinator.shared.rowHover(true, item: previewItem,
-            anchorProvider: { [weak self] in
-                guard let self, self.controller?.expanded == true else { return nil }
-                return self.convert(self.bounds, to: nil)
-            }, sourceWindow: window, restoreSelection: { [weak self] in
-                guard let self, let selected = self.selectedPreview, selected.id != previewItem.id,
-                      self.controller?.expanded == true, let window = self.window else { return false }
-                return MainPanelPreviewPopoverCoordinator.shared.present(for: selected,
-                    anchorRectInScreen: window.convertToScreen(self.convert(self.bounds, to: nil)), sourceWindow: window)
-            })
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        guard let previewItem else { return }
-        MainPanelPreviewPopoverCoordinator.shared.rowHover(false, item: previewItem, anchorProvider: { nil })
-    }
-
-    private func showPreview() {
-        guard let previewItem, let window, controller?.expanded == true, controller?.editingLayout == false else { return }
-        MainPanelPreviewPopoverCoordinator.shared.present(for: previewItem,
-            anchorRectInScreen: window.convertToScreen(convert(bounds, to: nil)), sourceWindow: window)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -611,7 +594,7 @@ final class IslandFileDragView: NSView, NSDraggingSource {
         if (event.keyCode == 125 || event.keyCode == 126), let onMove {
             onMove(event.keyCode == 125 ? 1 : -1); return
         }
-        if event.keyCode == 36 || event.keyCode == 49 { showPreview(); select?(); return }
+        if event.keyCode == 36 || event.keyCode == 49 { select?(); return }
         super.keyDown(with: event)
     }
 
@@ -638,14 +621,13 @@ final class IslandFileDragView: NSView, NSDraggingSource {
     override func mouseUp(with event: NSEvent) {
         if !dragging, mouseStart != nil {
             if event.clickCount == 2, let onDoubleClick {
-                if let window, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: window) { showPreview() }
                 onDoubleClick()
             } else if defersSelection {
                 // 首页单击会换页；等待系统双击间隔，避免第一击提前移走目标。
-                let work = DispatchWorkItem { [weak self] in self?.showPreview(); self?.select?() }
+                let work = DispatchWorkItem { [weak self] in self?.select?() }
                 selectionWork = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: work)
-            } else { showPreview(); select?() }
+            } else { select?() }
         }
         mouseStart = nil
     }

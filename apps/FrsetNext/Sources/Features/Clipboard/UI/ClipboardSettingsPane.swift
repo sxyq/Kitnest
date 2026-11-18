@@ -106,9 +106,17 @@ public struct ClipboardSettingsPane: View {
             case .appearance:
                 AppearanceSettingsEditor(scope: .clipboardAppearance) { draft in
                     SettingsGroupBox {
-                        AppearancePreviewBlock(scope: .clipboardList, draft: draft)
-                        SettingsDivider()
-                        PersonalizationSettingsView(part: .clipboardAppearance, draft: draft)
+                        HStack(alignment: .top, spacing: 14) {
+                            AppearancePreviewBlock(scope: .clipboardList, draft: draft)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                            Rectangle()
+                                .fill(Color.primary.opacity(0.08))
+                                .frame(width: 0.5)
+                                .padding(.vertical, 4)
+                            PersonalizationSettingsView(part: .clipboardAppearance,
+                                                        draft: draft, compact: true)
+                                .frame(width: 270, alignment: .topLeading)
+                        }
                     }
                 }
             }

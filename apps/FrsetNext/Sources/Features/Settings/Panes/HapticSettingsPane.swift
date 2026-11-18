@@ -101,7 +101,7 @@ private struct HapticSettingsContent: View {
     }
 
     private var usage: some View {
-        SettingsSection("使用说明") {
+        SettingsSection("使用说明", collapsible: true) {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Force Touch 触控板", systemImage: "hand.tap")
                     .font(.system(size: 12, weight: .medium))
@@ -117,7 +117,7 @@ private struct HapticSettingsContent: View {
     }
 
     private func eventSection(_ title: String, description: String, events: [HapticEvent]) -> some View {
-        SettingsSection(title) {
+        SettingsSection(title, collapsible: true, expanded: true, summary: "\(events.count) 个场景") {
             VStack(alignment: .leading, spacing: 8) {
                 Text(description).font(.system(size: 11)).foregroundStyle(.secondary)
                 SettingsGroupBox {

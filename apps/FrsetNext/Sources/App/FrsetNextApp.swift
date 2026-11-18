@@ -38,6 +38,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 不显示 Dock 图标（菜单栏应用）
         NSApp.setActivationPolicy(.accessory)
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
+                     NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
+                     NSWindow.didChangeOcclusionStateNotification,
+                     NSWindow.willCloseNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(updateDockPresence(_:)), name: name, object: nil)
+        }
         // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
         ProcessFreezer.shared.thawOrphans()
         TransferDockPref.migrateLegacyFeatureFlag()
@@ -111,8 +117,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let window = sender.windows.first(where: { $0.styleMask.contains([.titled, .closable]) && !($0 is NSPanel && $0.hidesOnDeactivate) && ($0.isVisible || $0.isMiniaturized) }) {
+            window.deminiaturize(nil)
+            window.makeKeyAndOrderFront(nil)
+            return true
+        }
         ServiceLocator.panel?.show()
         return true
+    }
+
+    @objc private func updateDockPresence(_ notification: Notification) {
+        let closing = notification.name == NSWindow.willCloseNotification ? notification.object as? NSWindow : nil
+        DispatchQueue.main.async {
+            let hasDocument = NSApp.windows.contains {
+                $0 !== closing && !($0 is NSPanel && $0.hidesOnDeactivate) && $0.styleMask.contains([.titled, .closable]) && ($0.isVisible || $0.isMiniaturized)
+            }
+            let policy: NSApplication.ActivationPolicy = hasDocument ? .regular : .accessory
+            if NSApp.activationPolicy() != policy { NSApp.setActivationPolicy(policy) }
+        }
     }
 
     /// 程序化唤起入口：等价原版 `StatusBarController.showSettingsWindow:` 的 @objc

@@ -133,7 +133,7 @@ private struct CurtainSettingsContent: View {
     // MARK: 预览
 
     private var previewSection: some View {
-        SettingsSection("预览") {
+        SettingsSection("预览", collapsible: true, summary: "模拟效果") {
             SettingsGroupBox {
                 CurtainPreview(values: draft.values)
                     .frame(height: enabled ? 216 : 72)

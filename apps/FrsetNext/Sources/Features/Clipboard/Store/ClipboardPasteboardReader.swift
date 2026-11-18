@@ -74,8 +74,8 @@ public final class ClipboardPasteboardReader {
 
         // Finder 复制文件同时携带 TIFF 图标，必须先读取文件 URL。
         if let r = readFiles(types: types, source: source) {
-            // QQ和微信复制图片附带容器路径，自动暂存会触发实际文件许可错误。
-            if r.fileURLs.count == 1,
+            // QQ和微信复制图片附带容器路径；Finder 复制这些文件时仍保留文件语义。
+            if source != "com.apple.finder", r.fileURLs.count == 1,
                let url = r.fileURLs.first,
                (url.path.hasPrefix(NSHomeDirectory() + "/Library/Containers/com.tencent.qq/")
                 || url.path.hasPrefix(NSHomeDirectory() + "/Library/Containers/com.tencent.xinWeChat/")),
