@@ -14,7 +14,7 @@ struct RecordingSettingsPane: View {
 }
 
 final class RecordingSettingsDraft: SettingsEditableDraft {
-    typealias Values = RecordingAppearanceDraft.Values
+    typealias Values = RecordingSettingsValues
     @Published var values = Values.current
     @Published var savePath = RecordingOptions.savePathRaw
     private var saved = Values.current

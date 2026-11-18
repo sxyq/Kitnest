@@ -3,7 +3,7 @@ import CoreImage
 import SwiftUI
 
 struct RecordingAppearancePreview: View {
-    let values: RecordingAppearanceDraft.Values
+    let values: RecordingSettingsValues
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     private static let context = CIContext(options: [.cacheIntermediates: false])
     @Stored private var cachedFrame: NSImage?
