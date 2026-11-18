@@ -37,7 +37,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
 
     @Published private(set) var items: [Item] = []
 
-    private var resolver: LinkPageResolver?
+    private var resolvers: [UUID: LinkPageResolver] = [:]
 
     /// 可直接下载的扩展名（用于「直链」判定与页面抓取过滤）
     private static let fileExtensions: Set<String> = [
@@ -74,11 +74,12 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         }
 
         Toast.show("正在解析\(link.provider.displayName)页面…", icon: "arrow.down.circle")
+        let resolverID = UUID()
         let resolver = LinkPageResolver()
-        self.resolver = resolver
+        resolvers[resolverID] = resolver
         resolver.resolve(pageURL: link.url) { [weak self] result in
             guard let self else { return }
-            self.resolver = nil
+            self.resolvers.removeValue(forKey: resolverID)
             switch result {
             case .success(let fileURL):
                 Toast.show("已解析到直链，开始下载", icon: "checkmark.circle.fill")
