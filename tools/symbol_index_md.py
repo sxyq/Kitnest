@@ -27,7 +27,7 @@ def main():
     files = OrderedDict()
     for dirpath, _, names in os.walk(src):
         for n in sorted(names):
-            if n.endswith('.swift'):
+            if not n.startswith('._') and n.endswith('.swift'):
                 rel = os.path.relpath(os.path.join(dirpath, n), src)
                 files[rel] = sum(1 for _ in open(os.path.join(dirpath, n), encoding='utf-8', errors='replace'))
 

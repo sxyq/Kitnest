@@ -45,7 +45,7 @@ def scan_source():
     files = 0
     for base, _dirs, names in os.walk(func_table.SRC):
         for name in sorted(names):
-            if not name.endswith(".swift"):
+            if name.startswith("._") or not name.endswith(".swift"):
                 continue
             full = os.path.join(base, name)
             rel = os.path.relpath(full, func_table.SRC)
@@ -121,7 +121,7 @@ def main() -> int:
     lines_total = 0
     for base, _dirs, names in os.walk(func_table.SRC):
         for name in names:
-            if name.endswith(".swift"):
+            if not name.startswith("._") and name.endswith(".swift"):
                 with open(os.path.join(base, name), encoding="utf-8", errors="replace") as fh:
                     lines_total += len(fh.read().splitlines())
     if os.path.isfile(SYMBOL_MD):

@@ -12,10 +12,12 @@ SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
 #   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
 APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
-APP_FINAL="$ROOT/build.noindex/$APP_NAME.app"          # 对外可见的构建产物（始终完整可启动）
+# 外置 exFAT 工作树需把 bundle 留在 APFS，避免代码签名被 AppleDouble 边车文件破坏。
+BUILD_ROOT="${KITNEST_BUILD_ROOT:-$ROOT/build.noindex}"
+APP_FINAL="$BUILD_ROOT/$APP_NAME.app"                  # 对外可见的构建产物（始终完整可启动）
 # 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
-mkdir -p "$ROOT/build.noindex/.staging"
-STAGE=$(mktemp -d "$ROOT/build.noindex/.staging/kitnest.XXXXXX")
+mkdir -p "$BUILD_ROOT/.staging"
+STAGE=$(mktemp -d "$BUILD_ROOT/.staging/kitnest.XXXXXX")
 APP="$STAGE/$APP_NAME.app"
 BUILD_LOG="$STAGE/build.log"
 trap 'cp "$BUILD_LOG" /tmp/frsetnext_build.log; rm -rf "$STAGE"' EXIT
@@ -51,6 +53,8 @@ echo "== 资源 =="
 # 签完再添加文件会导致签名失效（资源被判定为篡改），故拷贝严格排在签名步骤之前（契约 §10.2）。
 if [ -d "$ROOT/Resources" ]; then
   cp -R "$ROOT/Resources/." "$APP/Contents/Resources/"
+  # exFAT may materialize macOS resource metadata as AppleDouble files; they are not app resources and break bundle signing.
+  find "$APP/Contents/Resources" -name '._*' -delete
   find "$APP/Contents/Resources" -name 'Localizable.strings' | sort | sed 's/^/  打包: /'
 else
   echo "  （无 Resources/ 目录，跳过本地化资源打包）"

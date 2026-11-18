@@ -2347,35 +2347,25 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,187,KEEP
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,343,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,349,KEEP,编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,363,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
-Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,26,KEEP,parse 内 :111 兜底与 :153 正常构造
-Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,33,KEEP,parse 的 register 内 :174 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,102,KEEP,ManualView.swift:18 @Stored 属性初始化调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,114,KEEP,load:117 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,heading,func,178,KEEP,parse:145 逐行判标题调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,193,KEEP,parse 内 flush:130 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,splitTableRow,func,307,KEEP,parseBlocks:238 表格行切分调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,isSeparatorRow,func,316,KEEP,parseBlocks:243 过滤分隔行调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,matches,func,329,KEEP,parseBlocks:221 分隔线、:323 分隔单元调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,335,KEEP,parseBlocks:286/290 有序列表调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstMatch,func,346,KEEP,parseBlocks:226 图片行解析调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,24,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
-Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,150,KEEP,detail 视图 :119 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,169,KEEP,detail 视图 :125 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,186,KEEP,detail 视图 :136 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,allGroupIDs,func,213,KEEP,「展开全部」按钮 :79 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,218,KEEP,breadcrumb:151 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,228,KEEP,ancestorPath:221 调用
-Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,343,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
-Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,470,KEEP,ManualBlockView.body :403/413/430/442 调用
-Manual,Features/Manual/ManualView.swift,ManualImageLoader,cachedFile,func,497,KEEP,v265 把 gifs/xxx.gif 映射到 ~/Library/Caches/Kitnest/manual-gifs/xxx.gif；load/fetch 共用同一路径，下载落盘与下次读缓存必须一致
-Manual,Features/Manual/ManualView.swift,ManualImageLoader,load,func,502,KEEP,detail:130 与 ManualImageView:501 调用
-Manual,Features/Manual/ManualView.swift,ManualImageLoader,fetch,func,524,KEEP,v265 从官网 remoteBase 拉单段 GIF，仅 HTTP 200 且能解码成 NSImage 才原子落盘并入内存缓存，回调回主线程；失败返回 nil，由视图给出在线手册入口
-Manual,Features/Manual/ManualView.swift,ManualAnimatedImage,makeNSView,func,555,KEEP,v265 SwiftUI Image(nsImage:) 只画 GIF 首帧，改用 NSImageView 并开 animates=true 才能真正播放动图；缩放用 scaleProportionallyUpOrDown
-Manual,Features/Manual/ManualView.swift,ManualAnimatedImage,updateNSView,func,563,KEEP,v265 复用视图时按对象身份比对换图，重设 image 与 animates，避免翻章后停在上一章的静帧
-Manual,Features/Manual/ManualView.swift,ManualAnimatedImage,sizeThatFits,func,572,KEEP,v265 NSViewRepresentable 无固有尺寸，按图片宽高比回报（上限 520pt），否则会撑满正文区把 4:3 录屏拉成竖条并裁掉右侧
-Manual,Features/Manual/ManualView.swift,ManualImageView,start,func,638,KEEP,v265 onAppear 触发三级取图（内存→随包→磁盘缓存），都没有才联网补；失败计数置位后显示在线手册按钮，不伪装成有内容
-Manual,Features/Manual/ManualView.swift,ManualTableView,row,func,706,KEEP,ManualTableView.body :574/:577 调用
-Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,729,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
+Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,58,KEEP,按功能标题选取固定示例输入与结果，供手册演示复用，不运行工具或读取用户资料
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,90,KEEP,手动选择或播放演示时更新当前步和剪贴板预览选中项，沿用减少动态效果设置
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,173,KEEP,将预设输入、过程或结果排成手册演示面板，仅呈现示例文字
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,displayPreview,func,240,KEEP,绘制普通屏搜索短条与真实刘海的两屏演示画面，不创建额外窗口或控制器
+Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,25,KEEP,parse 内 :111 兜底与 :153 正常构造
+Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,34,KEEP,parse 的 register 内 :174 调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,90,KEEP,ManualView.swift:18 @Stored 属性初始化调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,123,KEEP,load:117 调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,148,KEEP,parse 内 flush:130 调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,227,KEEP,parseBlocks:286/290 有序列表调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,12,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
+Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,143,KEEP,detail 视图 :119 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,162,KEEP,detail 视图 :125 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,174,KEEP,detail 视图 :136 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,201,KEEP,breadcrumb:151 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,211,KEEP,ancestorPath:221 调用
+Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,322,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
+Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,438,KEEP,ManualBlockView.body :403/413/430/442 调用
+Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,442,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,72,KEEP,onAppear :240；CPUEnergyImpactSection 在 MonitorDetailView:212

@@ -2478,5 +2478,16 @@ def main() -> int:
     return 0
 
 
+EVIDENCE.update({
+    ("Features/Manual/ManualDemoSamples.swift", "example"):
+        "按功能标题选取固定示例输入与结果，供手册演示复用，不运行工具或读取用户资料",
+    ("Features/Manual/ManualDemoView.swift", "advance"):
+        "手动选择或播放演示时更新当前步和剪贴板预览选中项，沿用减少动态效果设置",
+    ("Features/Manual/ManualDemoView.swift", "samplePanel"):
+        "将预设输入、过程或结果排成手册演示面板，仅呈现示例文字",
+    ("Features/Manual/ManualDemoView.swift", "displayPreview"):
+        "绘制普通屏搜索短条与真实刘海的两屏演示画面，不创建额外窗口或控制器",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

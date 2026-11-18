@@ -31,12 +31,9 @@ SKIP_NGINX=0
 
 [ -f "$SITE_DIR/index.html" ] || { echo "✗ 找不到站点文件：$SITE_DIR/index.html"; exit 1; }
 
-# 在线手册：Markdown 是源，HTML 是产物，演示运行时在 manual/demos/。
-# 缺任何一件就先生成，避免线上出现半套页面（手册页 36 处交互演示都靠 demos/demo.js）。
-if [ ! -f "$SITE_DIR/manual/index.html" ] || [ ! -f "$SITE_DIR/manual/demos/demo.js" ]; then
-  echo "== 0/4 生成在线手册 =="
-  python3 "$ROOT/tools/make_manual_site.py" | sed 's/^/  /'
-fi
+# 应用与网页版共用每功能文档，发布站点时生成最新正文。
+echo "== 0/4 生成在线手册 =="
+python3 "$ROOT/tools/make_manual_site.py" | sed 's/^/  /'
 
 echo "== 1/4 刷新版本清单快照 =="
 WORK="$(mktemp -d)"
@@ -94,7 +91,7 @@ ssh "$REMOTE_HOST" "curl -s -o /dev/null -w '  本机(443)首页 HTTP %{http_cod
 curl -s -o /dev/null -w "  公网首页 HTTP %{http_code}\n" "$SITE_URL"
 curl -s -o /dev/null -w "  站点 CSS  HTTP %{http_code}\n" "${SITE_URL}assets/site.css"
 curl -s -o /dev/null -w "  站点清单  HTTP %{http_code}\n" "${SITE_URL}kitnest/stable/latest.json"
-# 13 段动图逐段验 200；顺便确认真机原图目录没有上线
+# 官网首页仍使用的动图逐段验证；确认真机原图目录没有上线。
 BAD=0
 for n in clipboard capture monitor transfer cast toolbox view-panel view-monitor \
          view-transfer view-cast view-annotate view-popout view-settings; do
@@ -105,8 +102,6 @@ if [ "$BAD" -eq 0 ]; then echo "  13 段动图  HTTP 200（全部）"; else exit
 shot_code=$(curl -s -o /dev/null -w '%{http_code}' "${SITE_URL}assets/shots/panel.png")
 echo "  真机原图目录  HTTP ${shot_code} (应为 404)"
 man_code=$(curl -s -o /dev/null -w '%{http_code}' "${SITE_URL}manual/")
-man_demo=$(curl -s -o /dev/null -w '%{http_code} %{size_download}' "${SITE_URL}manual/demos/demo.js")
 echo "  在线手册      HTTP ${man_code}"
-echo "  演示运行时    HTTP ${man_demo} bytes"
 [ "$man_code" = "200" ] || { echo "  ✗ 在线手册没上去"; exit 1; }
 echo "✓ 部署完成：$SITE_URL"
