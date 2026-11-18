@@ -102,6 +102,7 @@ public final class LocalTransferStore: ObservableObject {
 
     private let indexURL: URL
     private let queue = DispatchQueue(label: "frset.transfer.local", qos: .userInitiated)
+    private var pendingPersist: DispatchWorkItem?
     private var retentionTimer: Timer?
     private var pendingAutoStagePaths = Set<String>()
 
@@ -124,16 +125,31 @@ public final class LocalTransferStore: ObservableObject {
     }
 
     private func persist() {
-        guard let data = try? JSONEncoder().encode(items) else { return }
-        try? data.write(to: indexURL, options: .atomic)
+        pendingPersist?.cancel()
+        let snapshot = items
+        let destination = indexURL
+        let work = DispatchWorkItem {
+            do {
+                let data = try JSONEncoder().encode(snapshot)
+                try data.write(to: destination, options: .atomic)
+            } catch {
+                Log.error("TransferDock", "保存中转索引失败：\(error.localizedDescription)")
+            }
+        }
+        pendingPersist = work
+        queue.async(execute: work)
     }
 
     /// 暂存文件被用户从 Finder 删掉后，索引里不再保留幽灵条目
     private func pruneMissing() {
-        let alive = items.filter { FileManager.default.fileExists(atPath: $0.stagedURL.path) }
-        if alive.count != items.count {
-            items = alive
-            persist()
+        let snapshot = items
+        queue.async {
+            let missing = Set(snapshot.filter { !FileManager.default.fileExists(atPath: $0.stagedURL.path) }.map(\.id))
+            guard !missing.isEmpty else { return }
+            DispatchQueue.main.async {
+                self.items.removeAll { missing.contains($0.id) }
+                self.persist()
+            }
         }
     }
 

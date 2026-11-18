@@ -203,7 +203,10 @@ public enum ArchiveFlowRecommender {
     static func openFile(url: URL, entry: ArchiveEntry) {
         ArchiveCore.extractEntryToTemp(url: url, entry: entry) { tempURL, err in
             if let tempURL {
-                NSWorkspace.shared.open(tempURL)
+                if !NSWorkspace.shared.open(tempURL) {
+                    try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL))
+                    Toast.show("无法打开 \(entry.name)", icon: "exclamationmark.triangle", isWarning: true)
+                }
             } else {
                 Toast.show(err, icon: "exclamationmark.triangle", isWarning: true)
             }
@@ -216,6 +219,7 @@ public enum ArchiveFlowRecommender {
         let staging = FileManager.default.temporaryDirectory
             .appendingPathComponent("frset-flow-app-\(UUID().uuidString)", isDirectory: true)
         ArchiveCore.extract(url: archiveURL, to: staging) { ok, msg in
+            defer { try? FileManager.default.removeItem(at: staging) }
             guard ok else {
                 Toast.show("解出应用失败：\(msg)", icon: "exclamationmark.triangle", isWarning: true)
                 return
@@ -262,6 +266,7 @@ public enum ArchiveFlowRecommender {
             ArchiveCore.extractEntryToTemp(url: archiveURL, entry: entry) { tempURL, _ in
                 defer { group.leave() }
                 guard let tempURL else { return }
+                defer { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL)) }
                 let dest = fontsDir.appendingPathComponent(tempURL.lastPathComponent)
                 do {
                     if FileManager.default.fileExists(atPath: dest.path) {
@@ -310,12 +315,14 @@ public enum ArchiveFlowRecommender {
                             NSWorkspace.shared.open(URL(fileURLWithPath: "/Volumes"))
                             Toast.show("已挂载 \(tempURL.lastPathComponent)", icon: "externaldrive.badge.plus")
                         } else {
+                            try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL))
                             Toast.show("挂载失败：\(errText.trimmingCharacters(in: .whitespacesAndNewlines))",
                                        icon: "exclamationmark.triangle", isWarning: true)
                         }
                     }
                 }
             } catch {
+                try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL))
                 Toast.show("无法启动 hdiutil：\(error.localizedDescription)",
                            icon: "exclamationmark.triangle", isWarning: true)
             }
