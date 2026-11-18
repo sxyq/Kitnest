@@ -25,8 +25,7 @@ public enum AIModule: AppModule {
 
         // 3) 设置窗口页签（供 07 设置模块渲染）
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "ai", title: "AI", systemImage: "sparkles",
-            build: { AnyView(AISettingsPane()) }))
+            id: "ai", title: "AI", systemImage: "sparkles"))
 
         // 4) 登记到模块表（重复注册会被去重，便于总控统一 startAll）
         ModuleRegistry.register(AIModule.self)

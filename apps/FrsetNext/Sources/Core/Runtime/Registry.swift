@@ -39,9 +39,8 @@ public struct SettingsPaneDescriptor {
     public let id: String
     public let title: String
     public let systemImage: String
-    public let build: () -> AnyView
-    public init(id: String, title: String, systemImage: String, build: @escaping () -> AnyView) {
-        self.id = id; self.title = title; self.systemImage = systemImage; self.build = build
+    public init(id: String, title: String, systemImage: String) {
+        self.id = id; self.title = title; self.systemImage = systemImage
     }
 }
 

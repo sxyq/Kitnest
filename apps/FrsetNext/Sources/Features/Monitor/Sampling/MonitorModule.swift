@@ -17,8 +17,7 @@ public enum MonitorModule: AppModule {
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "monitor",
             title: "监测",
-            systemImage: "gauge",
-            build: { AnyView(MonitorSettingsPane()) }
+            systemImage: "gauge"
         ))
 
         // 3) 官方原版菜单栏 4 个独立监控项（网速/CPU/RAM/SSD）——**不再注册**。

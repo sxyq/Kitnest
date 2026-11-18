@@ -27,8 +27,7 @@ public enum ClipboardModule: AppModule {
 
         // ④ 设置页签
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "clipboard", title: "剪贴板", systemImage: "clipboard",
-            build: { AnyView(ClipboardSettingsPane()) }))
+            id: "clipboard", title: "剪贴板", systemImage: "clipboard"))
 
         ModuleRegistry.register(self)
         Log.info("clipboard", "模块已启动")
