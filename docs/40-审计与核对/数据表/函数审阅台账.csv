@@ -3828,23 +3828,23 @@ TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,pollC
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,split,func,489,KEEP,"AdbQrPairing.swift:331,429,469"
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomToken,func,496,KEEP,"AdbQrPairing.swift:135,144"
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomDigits,func,502,KEEP,"AdbQrPairing.swift:139,145"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,init,init,29,KEEP,2026-11-17：shared单例唯一创建；监听器默认未启动；CastView开关控制生命周期
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,func,31,KEEP,2026-11-17：CastView开关调用；已运行直接返回并从8768顺延8端口；同步bind等待可能占主线程待性能处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,func,40,KEEP,2026-11-17：start调用；NWListener明确绑定127.0.0.1并注册接入回调；最长2秒信号等待和回调ok变量的线程同步需后续处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,72,KEEP,2026-11-17：CastView关闭开关调用；取消既有listener并锁内更新running；不创建额外任务
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,79,KEEP,2026-11-17：NWListener.newConnectionHandler动态调用；在既有服务队列启动连接后进入唯一readRequest
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,84,KEEP,2026-11-17：accept和未完整请求头回调调用；定长body必须为非负整数否则回400；缺失长度为0；移除负数传给Data.prefix的崩溃入口
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,109,KEEP,2026-11-17：readRequest的PUT续读入口；追加至已解析的非负长度后dispatch；提前结束或网络错误取消连接；上传仍全量内存持有待性能处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,124,KEEP,2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,131,KEEP,2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,167,KEEP,2026-11-17：dispatch调用；去query后百分号解码并统一sdcard前缀；移除点点路径段保持现有共享根；文件名特殊字符由命令入口引用
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,182,KEEP,2026-11-17：PROPFIND路由调用；listRemote回调生成自身与Depth1子项XML；文件元信息复用同一列表；XML特殊字符未编码待质量处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,205,KEEP,2026-11-17：PROPFIND自身及子项调用；移除sdcard前缀并逐路径段百分号编码；XML输出仍需结合entryXML处理保留字符
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,217,KEEP,2026-11-17：propfind共用单条DAV响应模板；名称直接进入XML导致含与号和尖括号文件名解析失败待处理；目前保留全部业务字段
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,235,KEEP,2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,258,KEEP,2026-11-17：GET及HEAD调用；后台adb exec-out cat路径引用并转义单引号；输出管道先读取再等待进程；HEAD仍读取完整内容待减少工作量
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,290,KEEP,2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,307,KEEP,2026-11-17：全部HTTP响应共用；尊重HEAD提供的Content-Length且否则按Data长度填入；发送完成取消连接
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,init,init,29,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例唯一创建；监听器默认未启动；CastView开关控制生命周期
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,func,31,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；已运行直接返回并从8768顺延8端口；同步bind等待可能占主线程待性能处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,func,40,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；NWListener明确绑定127.0.0.1并注册接入回调；最长2秒信号等待和回调ok变量的线程同步需后续处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,72,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView关闭开关调用；取消既有listener并锁内更新running；不创建额外任务
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,79,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：NWListener.newConnectionHandler动态调用；在既有服务队列启动连接后进入唯一readRequest
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,84,KEEP,2026-11-19 安全复审：接收定长请求并由dispatch分发；负数及非整数回400，缺失长度按0；请求头和body无总长上限，PUT可占用全量内存；只绑定127.0.0.1
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,109,KEEP,2026-11-19 安全复审：按Content-Length续读PUT并在完整后dispatch；网络提前结束取消连接；全量body留内存且未设大小上限
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,124,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,131,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,167,KEEP,2026-11-19安全复审：百分号解码并剔除..段，路径固定在/sdcard；命令参数已引用转义；adb仍会跟随存储内软链接
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,182,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PROPFIND路由调用；listRemote回调生成自身与Depth1子项XML；文件元信息复用同一列表；XML特殊字符未编码待质量处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,205,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PROPFIND自身及子项调用；移除sdcard前缀并逐路径段百分号编码；XML输出仍需结合entryXML处理保留字符
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,217,KEEP,2026-11-19安全复审：PROPFIND displayname未经XML实体编码；含尖括号或与号的合法文件名可破坏207 XML
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,235,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,258,KEEP,2026-11-19 安全复审：GET/HEAD经adb读取/sdcard路径且shell单引号已转义；HEAD仍读取完整文件，响应前全量驻留内存
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,290,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,307,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：全部HTTP响应共用；尊重HEAD提供的Content-Length且否则按Data长度填入；发送完成取消连接
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,show,func,16,KEEP,CastView.swift:629；FrsetNextApp.swift:347 菜单
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,112,KEEP,CastAppLibraryWindow.swift:98 tile(app)
@@ -3939,44 +3939,45 @@ Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewC
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleHide,func,61,KEEP,2026-11-17：文件卡片离开及归档悬停取消调用；取消待显示任务后按currentURL生成itemID交共享协调器延迟关闭；不关闭其他来源当前预览
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,hide,func,68,UNSURE,2026-11-17：完整实现取消showWork且仅activeItemID匹配当前文件才关闭共享预览后清currentURL；全源码未定位调用；NSResponder子类有公开入口需继续核对外部使用
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,itemID,func,78,KEEP,2026-11-17：共享协调器presentFile及本控制器关闭路径调用；URL.path前加file-preview形成同一内存记录ID；用于确认预览归属
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,init,init,50,KEEP,LanTransferServer.swift:32 shared
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,start,func,57,KEEP,TransferDockView.swift:632；AppBootstrap.swift:141
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startIfEnabled,func,63,KEEP,"TransferDockView.swift:443,1104"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,stop,func,69,KEEP,"TransferDockView.swift:135,1126；SettingsPane.swift:110"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,restart,func,87,KEEP,TransferDockSettingsPane.swift:295 端口变更
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,rotateToken,func,105,KEEP,TransferDockSettingsPane.swift:164
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,selectionURL,func,116,KEEP,为选中文件生成独立令牌和带 pick 参数的局域网分享链接
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startLocked,func,127,KEEP,"LanTransferServer.swift:57,98,108"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,attemptBind,func,133,KEEP,"LanTransferServer.swift:116,132,161"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,loadToken,func,212,KEEP,LanTransferServer.swift:187
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,regenerateToken,func,220,KEEP,"LanTransferServer.swift:106,201"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,lanIPv4,func,231,KEEP,LanTransferServer.swift:143 二维码地址
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,ConnectionContext,init,init,280,KEEP,LanTransferServer.swift:266
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handle,func,283,KEEP,newConnectionHandler 闭包 :137
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,receive,func,297,KEEP,"LanTransferServer.swift:270,288"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,consume,func,320,KEEP,LanTransferServer.swift:281
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,parseHead,func,351,KEEP,LanTransferServer.swift:302
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,writeBody,func,370,KEEP,"LanTransferServer.swift:314,317"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,finish,func,379,KEEP,"LanTransferServer.swift:315,318"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,route,func,390,KEEP,LanTransferServer.swift:354
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,onMain,func,458,KEEP,"LanTransferServer.swift:414,471,498"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,listPayload,func,463,KEEP,LanTransferServer.swift:387 api/list
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleUpload,func,477,KEEP,LanTransferServer.swift:390 上传接口
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDownload,func,538,KEEP,LanTransferServer.swift:397 dl/<id>
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDelete,func,561,KEEP,LanTransferServer.swift:392 api/delete
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,cleanupBody,func,575,KEEP,LanTransferServer.swift:428 defer
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,582,KEEP,"LanTransferServer.swift:430,435,440,455"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,587,KEEP,"LanTransferServer.swift:376,385"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,591,KEEP,"LanTransferServer.swift:297,394,399"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,595,KEEP,"LanTransferServer.swift:519,523,527 汇聚"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,send,func,618,KEEP,"LanTransferServer.swift:493,549"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,errorPage,func,634,KEEP,LanTransferServer.swift:376 失效页
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,boundary,func,832,KEEP,LanTransferServer.swift:434
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,844,KEEP,LanTransferServer.swift:438 上传解析
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,849,KEEP,LanTransferServer.swift:771 重载
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,filename,func,884,KEEP,LanTransferServer.swift:797
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,sanitize,func,909,KEEP,"LanTransferServer.swift:819,821,828"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,write,func,919,KEEP,LanTransferServer.swift:450
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,init,init,50,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:32 shared
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,start,func,57,KEEP,2026-11-19安全复审：复核源码与动态入口；TransferDockView.swift:632；AppBootstrap.swift:141
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startIfEnabled,func,63,KEEP,"2026-11-19安全复审：复核源码与动态入口；TransferDockView.swift:443,1104"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,stop,func,69,KEEP,"2026-11-19安全复审：复核源码与动态入口；TransferDockView.swift:135,1126；SettingsPane.swift:110"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,restart,func,87,KEEP,2026-11-19安全复审：复核源码与动态入口；TransferDockSettingsPane.swift:295 端口变更
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,rotateToken,func,105,KEEP,2026-11-19安全复审：复核源码与动态入口；TransferDockSettingsPane.swift:164
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,selectionURL,func,116,KEEP,2026-11-19安全复审：复核源码与动态入口；为选中文件生成独立令牌和带 pick 参数的局域网分享链接
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startLocked,func,127,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:57,98,108"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,attemptBind,func,133,KEEP,"2026-11-19安全复审：NWListener监听全部接口供同网段手机访问；ready生成含token URL并写Log.info；LogArchive按天保存3天，DiagnosticsExporter整目录拷贝日志"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,loadToken,func,212,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:187
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,regenerateToken,func,220,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:106,201"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,lanIPv4,func,231,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:143 二维码地址
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,ConnectionContext,init,init,280,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:266
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handle,func,283,KEEP,2026-11-19安全复审：复核源码与动态入口；newConnectionHandler 闭包 :137
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,receive,func,298,KEEP,2026-11-19安全复审：接收HTTP并受300秒连接超时限制；EOF、网络错误和超时均关闭body文件并删除临时文件
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,consume,func,323,KEEP,2026-11-19安全复审：请求头完整后先验主/选中分享token再创建body文件；无效token先回403；请求头限64KiB
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,parseHead,func,360,KEEP,2026-11-19安全复审：解析请求行与小写header；Content-Length非法转0、负数不写入；声明body无大小上限
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,hasValidToken,func,379,KEEP,2026-11-19安全复审：consume落盘前校验/s/<token>/；支持主令牌及选中文件分享令牌，query不参与认证
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,writeBody,func,387,KEEP,2026-11-19安全复审：只写Content-Length声明范围至唯一临时文件；授权请求可声明任意长度，连接最长300秒
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,finish,func,396,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:315,318"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,route,func,407,KEEP,2026-11-19安全复审：主令牌可列举、上传、删除和下载；选择令牌仅GET且限选中ID；defer覆盖各路由body清理
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,onMain,func,476,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:414,471,498"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,listPayload,func,481,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:387 api/list
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleUpload,func,495,KEEP,2026-11-19 安全复审：multipart仅从已落盘body解析，文件名取末路径段并清理分隔符；暂存成功后交LocalTransferStore；请求body由route统一清理
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDownload,func,555,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:397 dl/<id>
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDelete,func,578,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:392 api/delete
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,cleanupBody,func,592,KEEP,2026-11-19安全复审：关闭文件句柄并删除临时body；route完成与连接EOF、错误、超时共用
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,601,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:430,435,440,455"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,606,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:376,385"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,610,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:297,394,399"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,614,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:519,523,527 汇聚"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,send,func,637,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:493,549"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,errorPage,func,653,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:376 失效页
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,boundary,func,851,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:434
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,863,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:438 上传解析
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,868,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:771 重载
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,filename,func,903,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:797
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,sanitize,func,928,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:819,821,828"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,write,func,938,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:450
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,init,init,109,KEEP,LocalTransferStore.swift:95 shared
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,118,KEEP,LocalTransferStore.swift:110 init
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,127,KEEP,"LocalTransferStore.swift:135,179,251,298"
@@ -3994,18 +3995,18 @@ TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransf
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,383,KEEP,"TransferDockView.swift:1477,1543"
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,387,KEEP,"TransferDockView.swift:1519,1542"
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,391,KEEP,TransferDockView.swift:1053；SettingsPane.swift:225
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,48,KEEP,2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,52,KEEP,2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,63,KEEP,2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,stop,func,97,KEEP,2026-11-17：CastView关闭开关调用；取消listener并锁内设置running为false；不改变进程令牌
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,handle,func,106,KEEP,2026-11-17：NWListener接入回调动态调用；连接在既有MCP串行队列启动后进入receive
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,receive,func,111,KEEP,2026-11-17：handle及网络续读回调调用；完整头后先解析非负长度；无效长度沿send回400并结束连接；不再对负长度截取Data
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,contentLength,func,137,KEEP,2026-11-17：receive唯一调用；直接读取固定字段名之后内容替代split下标；空非法及负整数返回nil；缺少字段仍按0处理
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,send,func,146,KEEP,2026-11-17：HTTP与JSON-RPC所有响应共用；JSON序列化后设置实际长度nosniff及close；发送完成取消连接
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized,func,154,KEEP,2026-11-17：respond在执行JSON-RPC前调用；支持query Bearer及x-kitnest-token三种既有令牌入口；无令牌返回401
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,175,KEEP,2026-11-17：receive收完整请求后调用；拒绝Origin和OPTIONS；GET只返回无令牌健康信息；授权后解析JSON并派发工具；无新增命令执行入口
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,263,KEEP,2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,272,KEEP,2026-11-17：respond的tools/call唯一派发；复用ADBExtrasEngine后台执行及App窗口入口；部分命令未依据返回状态反馈错误待质量处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,48,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,52,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,63,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,stop,func,97,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView关闭开关调用；取消listener并锁内设置running为false；不改变进程令牌
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,handle,func,106,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：NWListener接入回调动态调用；连接在既有MCP串行队列启动后进入receive
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,receive,func,111,KEEP,2026-11-19安全复审：回环连接读取完整Content-Length后才验令牌；请求头和body累计无大小上限
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,contentLength,func,137,KEEP,2026-11-19安全复审：拒绝非法及负数，缺失字段按0；正数无上限，重复字段取首个值
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,send,func,146,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：HTTP与JSON-RPC所有响应共用；JSON序列化后设置实际长度nosniff及close；发送完成取消连接
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized,func,154,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：respond在执行JSON-RPC前调用；支持query Bearer及x-kitnest-token三种既有令牌入口；无令牌返回401
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,175,KEEP,2026-11-19安全复审：拒绝Origin和OPTIONS；GET健康信息无令牌；其他方法先验令牌再解JSON并派发固定工具
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,263,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,272,KEEP,2026-11-19安全复审：令牌持有者可调用固定8项ADB/App工具；adb_shell接受任意命令，属授权功能范围
 TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,19,KEEP,QRCodeView.swift:41；CastView.swift:184
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,TransferDockService.swift:72 shared 单例
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,TransferDockView.swift:127 中转页 onAppear
