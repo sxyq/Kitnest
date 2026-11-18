@@ -29,7 +29,7 @@ struct IslandLiveMediaContent: View {
     @Stored private var consumer = UUID()
 
     private var visible: Bool {
-        !previewOnly && controller.contentVisible && (controller.page == .home || controller.page == .media)
+        controller.contentVisible && (controller.page == .home || controller.page == .media)
     }
 
     var body: some View {
@@ -256,7 +256,7 @@ struct IslandLiveVolumeContent: View {
     @Stored private var consumer = UUID()
 
     private var visible: Bool {
-        !previewOnly && controller.contentVisible && (controller.page == .home || controller.page == .media)
+        controller.contentVisible && (controller.page == .home || controller.page == .media)
     }
 
     var body: some View {
