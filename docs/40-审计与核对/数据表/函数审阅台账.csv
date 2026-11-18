@@ -112,23 +112,23 @@ Core,Core/Runtime/Registry.swift,PanelSectionDescriptor,init,init,16,KEEP,2026-1
 Core,Core/Runtime/Registry.swift,PanelSectionRegistry,register,func,24,KEEP,2026-11-17：各模块start注册主面板区段；锁内按ID替换并按优先级排序；all由PanelRootView取正式正文；注册表无重复区段
 Core,Core/Runtime/Registry.swift,SettingsPaneDescriptor,init,init,43,KEEP,2026-11-17：各模块构造设置ID标题及图标供CommandPalette直达；build闭包当前未被窗口分发消费；SettingsRootView直接构造实际页；旧统计正文分支已据此删除
 Core,Core/Runtime/Registry.swift,SettingsPaneRegistry,register,func,51,KEEP,2026-11-17：Settings及功能模块start注册元数据；锁内同ID替换；all按旧页序供CommandPalette生成直达命令；命令交SettingsWindowController映射实际页
-Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,75,KEEP,协议要求；AppBootstrap:316 调用
-Core,Core/Runtime/Registry.swift,PanelControlling,show,func,76,KEEP,"协议要求；AppBootstrap:336,377 调用"
-Core,Core/Runtime/Registry.swift,PanelControlling,hide,func,77,KEEP,"协议要求；PanelController:50,164,169 调用"
-Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,80,KEEP,协议默认实现；StatusBarController:123 派发
-Core,Core/Runtime/Registry.swift,PanelControlling,show,func,81,KEEP,协议默认实现；FrsetNextApp:251 派发
-Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,86,KEEP,协议扩展默认实现，兜底 toggle()
-Core,Core/Runtime/Registry.swift,PanelControlling,show,func,87,KEEP,协议扩展默认实现，兜底 show()
-Core,Core/Runtime/Registry.swift,SettingsWindowControlling,open,func,91,KEEP,协议要求；20+ 处 settings?.open 调用
-Core,Core/Runtime/Registry.swift,SettingsWindowControlling,close,func,92,KEEP,协议要求；SettingsWindowController:72 调用
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,presentPreview,func,115,KEEP,ClipboardTableHostView:817 / FloatingClipboardWindow:412
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,dismissPreview,func,120,KEEP,"ClipboardTableHostView:809,826,904"
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,rowHover,func,122,KEEP,"ClipboardTableHostView:723,743 行悬停"
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,requestKeyboardPreview,func,127,KEEP,ClipboardTableHostView:847 空格预览
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,cancelKeyboardPreview,func,130,KEEP,ClipboardTableHostView:635 取消预览
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,prepareForPanelAppear,func,132,KEEP,ClipboardSectionView.swift:36
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,setPreviewOrder,func,134,KEEP,ClipboardTableHostView.swift:679
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,136,KEEP,ClipboardTableHostView:1002 / ClipboardSectionView:96
+Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,74,KEEP,协议要求；AppBootstrap:316 调用
+Core,Core/Runtime/Registry.swift,PanelControlling,show,func,75,KEEP,"协议要求；AppBootstrap:336,377 调用"
+Core,Core/Runtime/Registry.swift,PanelControlling,hide,func,76,KEEP,"协议要求；PanelController:50,164,169 调用"
+Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,79,KEEP,协议默认实现；StatusBarController:123 派发
+Core,Core/Runtime/Registry.swift,PanelControlling,show,func,80,KEEP,协议默认实现；FrsetNextApp:251 派发
+Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,85,KEEP,协议扩展默认实现，兜底 toggle()
+Core,Core/Runtime/Registry.swift,PanelControlling,show,func,86,KEEP,协议扩展默认实现，兜底 show()
+Core,Core/Runtime/Registry.swift,SettingsWindowControlling,open,func,90,KEEP,协议要求；20+ 处 settings?.open 调用
+Core,Core/Runtime/Registry.swift,SettingsWindowControlling,close,func,91,KEEP,协议要求；SettingsWindowController:72 调用
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,presentPreview,func,114,KEEP,ClipboardTableHostView:817 / FloatingClipboardWindow:412
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,dismissPreview,func,119,KEEP,"ClipboardTableHostView:809,826,904"
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,rowHover,func,121,KEEP,"ClipboardTableHostView:723,743 行悬停"
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,requestKeyboardPreview,func,126,KEEP,ClipboardTableHostView:847 空格预览
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,cancelKeyboardPreview,func,129,KEEP,ClipboardTableHostView:635 取消预览
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,prepareForPanelAppear,func,131,KEEP,ClipboardSectionView.swift:36
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,setPreviewOrder,func,133,KEEP,ClipboardTableHostView.swift:679
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,135,KEEP,ClipboardTableHostView:1002 / ClipboardSectionView:96
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,install,func,34,KEEP,AppBootstrap.swift:40 调用
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshotAll,func,45,KEEP,install timer:37 / PanelRootView:136
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshot,func,54,KEEP,PanelController:252 等 12 处事件入口
@@ -2507,7 +2507,6 @@ Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,8
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,852,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,857,KEEP,BatteryPanel.swift:221、224
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,862,KEEP,BatteryPanel.swift:100 预计剩余时间
-Monitor,Features/Monitor/StatusBar/MonitorStatusItems.swift,MonitorStatusText,powerDetailText,func,12,KEEP,MonitorSettingsPane.swift:223 功耗行文案
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,160,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
@@ -3473,28 +3472,28 @@ StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowCo
 StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,installContent,func,43,KEEP,调用方 init:41 与 openStatistics:64
 StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,openStatistics,func,63,KEEP,FrsetNextApp:150、PanelRootView:336、StatusBarController:203
 StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,windowWillClose,func,82,KEEP,NSWindowDelegate 回调（delegate=self :40），AppKit 派发
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,init,init,30,KEEP,shared:22 初始化，经 StatusBarModule.swift:11 install() 触达
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,install,func,35,KEEP,调用方 StatusBarModule.swift:11
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,performInstall,func,43,KEEP,调用方 install:36/38
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,installMainItem,func,55,KEEP,调用方 performInstall:45
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,setMainItemLength,func,101,KEEP,调用方 MenuBarIconStyle.swift:425/430/440
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statusItemName,func,114,KEEP,调用方 installMainItem:66/68
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,118,KEEP,@objc；#selector installMainItem:75（左/右键 action）
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,134,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,139,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openIslandAction,func,140,KEEP,菜单栏刘海工作台Selector只交唯一IslandController.shared.open，不另建展示窗口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,142,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,147,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,152,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,157,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,166,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,172,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,177,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,182,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,188,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,195,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,199,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,205,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,init,init,28,KEEP,shared:22 初始化，经 StatusBarModule.swift:11 install() 触达
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,install,func,33,KEEP,调用方 StatusBarModule.swift:11
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,performInstall,func,41,KEEP,调用方 install:36/38
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,installMainItem,func,53,KEEP,调用方 performInstall:45
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,setMainItemLength,func,99,KEEP,调用方 MenuBarIconStyle.swift:425/430/440
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statusItemName,func,112,KEEP,调用方 installMainItem:66/68
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,116,KEEP,@objc；#selector installMainItem:75（左/右键 action）
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,132,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,137,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openIslandAction,func,138,KEEP,菜单栏刘海工作台Selector只交唯一IslandController.shared.open，不另建展示窗口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,140,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,145,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,150,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,155,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,164,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,170,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,175,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,180,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,186,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,193,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,197,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,203,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,51,KEEP,调用方 mainMenu:61（私有）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,62,KEEP,调用方 StatusBarController.swift:117（右键点击）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,refreshPauseMenu,func,84,KEEP,刷新暂停菜单状态，提供立即恢复及 5、15、30 分钟和手动暂停选项
