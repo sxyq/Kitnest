@@ -3935,8 +3935,7 @@ TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBu
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,39,KEEP,2026-11-17：文件中转卡片悬停调用；取消共享协调器悬停关闭并替换旧showWork；复用现有开窗延迟和锚点及弱窗口引用；work到点交showNow
 Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,53,KEEP,2026-11-17：文件中转主动预览及归档悬停提取完成调用；取消待显示任务并保存currentURL后交现有共享协调器presentFile；窗口锚点和sourceWindow沿参数传递
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleHide,func,61,KEEP,2026-11-17：文件卡片离开及归档悬停取消调用；取消待显示任务后按currentURL生成itemID交共享协调器延迟关闭；不关闭其他来源当前预览
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,hide,func,68,UNSURE,2026-11-17：完整实现取消showWork且仅activeItemID匹配当前文件才关闭共享预览后清currentURL；全源码未定位调用；NSResponder子类有公开入口需继续核对外部使用
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,itemID,func,78,KEEP,2026-11-17：共享协调器presentFile及本控制器关闭路径调用；URL.path前加file-preview形成同一内存记录ID；用于确认预览归属
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,itemID,func,68,KEEP,2026-11-17：共享协调器presentFile及本控制器关闭路径调用；URL.path前加file-preview形成同一内存记录ID；用于确认预览归属
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,init,init,50,KEEP,LanTransferServer.swift:32 shared
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,start,func,57,KEEP,TransferDockView.swift:632；AppBootstrap.swift:141
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startIfEnabled,func,63,KEEP,"TransferDockView.swift:443,1104"

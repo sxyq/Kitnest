@@ -10467,8 +10467,7 @@ TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPrev
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,func,scheduleShow,39,13,1
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,func,showNow,53,7,1
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,func,scheduleHide,61,6,2
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,func,hide,68,9,2
-TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,func,itemID,78,1,2
+TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,func,itemID,68,1,2
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,let,shared,32,0,1
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,var,listener,46,0,1
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,let,queue,47,0,1
