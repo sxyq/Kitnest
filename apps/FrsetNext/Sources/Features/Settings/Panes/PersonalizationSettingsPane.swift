@@ -1013,12 +1013,14 @@ struct AppearancePreviewBlock: View {
                     .frame(width: viewport.size.width, height: size.height + 12, alignment: .center)
             }
             .frame(height: previewSize.height + 12)
-            .background(GeometryReader { geo in
-                Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
-                    value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
-                        CGRect(x: 0, y: 66, width: 940 - Theme.settingsSidebarWidth,
-                               height: SettingsRootView.probeHeight - 98)))
-            })
+            .background(alignment: .center) {
+                GeometryReader { geo in
+                    Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
+                        value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
+                            CGRect(x: 0, y: 66, width: 940 - Theme.settingsSidebarWidth,
+                                   height: SettingsRootView.probeHeight - 98)))
+                }
+            }
             Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
             if scope == .captureToolbar, let toolbarFeedback {
                 Text(toolbarFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
