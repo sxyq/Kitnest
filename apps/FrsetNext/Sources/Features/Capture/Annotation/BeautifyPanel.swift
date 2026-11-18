@@ -101,7 +101,6 @@ public final class BeautifyController: NSObject, NSWindowDelegate {
     public static let shared = BeautifyController()
 
     private var window: BeautifyWindow?
-    private var sourceImage: CGImage?
 
     private override init() { super.init() }
 
@@ -117,7 +116,6 @@ public final class BeautifyController: NSObject, NSWindowDelegate {
     }
 
     private func showOnMain(image: CGImage) {
-        sourceImage = image
         if let window {
             window.update(image: image)
             window.makeKeyAndOrderFront(nil)
