@@ -22,7 +22,7 @@ struct ManualDemoView: View {
                 Label("跟着做一遍", systemImage: "play.rectangle")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("使用示例内容").font(.caption).foregroundStyle(.secondary)
+                Text("示例演示").font(.caption).foregroundStyle(.secondary)
                 Button {
                     if playing { playing = false }
                     else { if finished { advance(to: 0) }; playing = true }
@@ -33,7 +33,7 @@ struct ManualDemoView: View {
                     .buttonStyle(.borderless)
             }
             presetPicker
-            Text("演示只使用示例内容，不读取你的剪贴板和文件。")
+            Text("画面只展示示例内容，不会读取或修改你的剪贴板和文件。")
                 .font(.caption).foregroundStyle(.secondary)
             stage
                 .frame(maxWidth: .infinity)
@@ -101,7 +101,7 @@ struct ManualDemoView: View {
 
     private var presetPicker: some View {
         HStack(spacing: 6) {
-            preset("看懂用途", icon: "sparkles", index: 0) { advance(to: 0) }
+            preset("了解用途", icon: "sparkles", index: 0) { advance(to: 0) }
             preset("跟着操作", icon: "hand.tap", index: 1) { advance(to: min(1, max(0, steps.count - 1))) }
             preset("查看结果", icon: "checkmark.circle", index: 2) { advance(to: max(0, steps.count - 1)) }
         }
@@ -253,9 +253,9 @@ struct ManualDemoView: View {
             }
             .font(.system(size: 11, weight: .medium))
             HStack(spacing: 8) {
-                displayPreview(name: "F27G32Q Pro", hasNotch: false,
+            displayPreview(name: "普通外接屏", hasNotch: false,
                                searchVisible: step == 2, expanded: step == 4)
-                displayPreview(name: "内置 Retina Display", hasNotch: true,
+            displayPreview(name: "内置刘海屏", hasNotch: true,
                                searchVisible: false, expanded: step == 3)
             }
             Text(["选择自动显示范围", "保存后按屏幕情况显示入口", "停留后只出现短搜索条",
@@ -459,7 +459,7 @@ struct ManualDemoView: View {
             HStack {
                 Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("设置页固定预设值").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text("示例数据").font(.system(size: 10)).foregroundStyle(.secondary)
             }
             if title.contains("内存维护") {
                 Text(step == 0 ? "保存文稿 → 打开内存维护" : finished ? "维护报告：缓存已释放\n全部唤醒：恢复暂停应用" : "深度释放 → 管理员授权\n等待维护结束")
@@ -470,14 +470,14 @@ struct ManualDemoView: View {
                 Text("扫描范围：下载文件夹\n设计资料 1.2 GB\n旧安装包 800 MB").font(.system(size: 13))
                 Label(finished ? "确认所选项目后移到废纸篓" : "扫描用量 → 在 Finder 显示 → 勾选项目", systemImage: "externaldrive")
                     .font(.caption).foregroundStyle(.secondary)
-            } else if title.contains("诊断") || title.contains("端口") {
+            } else if title.contains("网络连接") || title.contains("诊断") || title.contains("端口") {
                 Text("Wi-Fi · 已连接\n局域网地址 192.168.1.8\n8080 · 示例应用 · 127.0.0.1\n8081 · 示例服务 · 0.0.0.0").font(.system(size: 12, design: .monospaced))
                 Text(step > 1 ? "对外筛选 → 显示 8081 · 局域网可访问" : "查看监听地址与所属应用").font(.caption).foregroundStyle(.secondary)
             } else if title.contains("温度") || title.contains("传感器") || title.contains("风扇") {
                 ForEach([("CPU 包温", "48°C"), ("GPU", "43°C"), ("电池", "31°C"), ("风扇", "1800 RPM")], id: \.0) { name, value in
                     HStack { Text(name); Spacer(); Text(value).monospacedDigit() }.font(.system(size: 12))
                 }
-            } else if title.localizedCaseInsensitiveContains("CPU") || title.contains("处理器") {
+            } else if title.localizedCaseInsensitiveContains("CPU") || title == "处理器使用情况" {
                 Text("总占用 38% · 用户 26% · 系统 12%").font(.caption)
                 MonitorCoreGrid(values: values.sample.perCore, columns: 4)
                 MonitorAreaSparkline(values: values.history.cpu, color: .blue, upperBound: 1)
@@ -505,11 +505,11 @@ struct ManualDemoView: View {
             } else if title.contains("功耗") || title.contains("电源") {
                 Text("整机功耗 24.6 W\nCPU 8.4 W · GPU 4.2 W").font(.system(size: 14))
                 MonitorAreaSparkline(values: values.history.power, color: .orange).frame(height: 65)
-            } else if title.localizedCaseInsensitiveContains("GPU") || title.contains("显卡") {
+            } else if title.localizedCaseInsensitiveContains("GPU") || title.contains("显卡") || title.contains("图形处理器") {
                 HStack {
                     MonitorRing(value: 0.24).frame(width: 70, height: 70)
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Apple M3 · GPU 24% · 43°C").font(.caption)
+                        Text("图形处理 · 24% · 43°C").font(.caption)
                         MonitorAreaSparkline(values: values.history.gpu, color: .purple, upperBound: 1)
                             .frame(height: 48)
                     }
