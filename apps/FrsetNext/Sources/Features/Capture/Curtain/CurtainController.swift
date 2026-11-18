@@ -33,6 +33,7 @@ public final class ImageCurtainController: NSObject {
     private var hideTask: Task<Void, Never>?
     private var wasEnabled = CurtainPref.enabled
     private var thumbsLoading: Set<UUID> = []
+    private var lifecycleGeneration = 0
     /// 排障自检用：临时绕过「总开关」而不动用户偏好（见 runProbe）
     private var forceEnabled = false
 
@@ -62,6 +63,7 @@ public final class ImageCurtainController: NSObject {
         // 缩略图按当前卡片宽度解码：420pt 宽的卡片配 640px 缩略图会糊，
         // 这里让解码尺寸跟着走；正常宽度仍是 320（×2 = 640px），不多占内存。
         let maxPixel = max(320, CurtainPref.cardWidth)
+        let generation = lifecycleGeneration
         Task { [weak self] in
             let prepared = await Task.detached(priority: .utility) { () -> Prepared in
                 let size = CurtainThumbnail.pixelSize(of: url)
@@ -69,7 +71,8 @@ public final class ImageCurtainController: NSObject {
                 return Prepared(size: size, image: image)
             }.value
             guard let self else { return }
-            self.insert(url: url, size: prepared.size, image: prepared.image)
+            self.insert(url: url, size: prepared.size, image: prepared.image,
+                        generation: generation)
         }
         return true
     }
@@ -79,8 +82,8 @@ public final class ImageCurtainController: NSObject {
         let image: CGImage?
     }
 
-    private func insert(url: URL, size: CGSize, image: CGImage?) {
-        guard forceEnabled || CurtainPref.enabled else { return }
+    private func insert(url: URL, size: CGSize, image: CGImage?, generation: Int) {
+        guard generation == lifecycleGeneration, forceEnabled || CurtainPref.enabled else { return }
         let item = CurtainItem(fileURL: url, pixelSize: size)
         items.insert(item, at: 0)
         if let image { thumbnails[item.id] = image }
@@ -114,6 +117,7 @@ public final class ImageCurtainController: NSObject {
 
     /// 关闭功能时调用：窗口销毁 + 内容清空。
     public func dismissAll() {
+        lifecycleGeneration += 1
         hideTask?.cancel()
         hideTask = nil
         panel?.orderOut(nil)
