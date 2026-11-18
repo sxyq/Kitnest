@@ -104,6 +104,7 @@ public final class CurtainRevealController {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 200_000_000)
+                guard !Task.isCancelled else { return }
                 guard let self else { return }
                 self.tick()
             }
