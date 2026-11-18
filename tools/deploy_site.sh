@@ -31,9 +31,11 @@ SKIP_NGINX=0
 
 [ -f "$SITE_DIR/index.html" ] || { echo "✗ 找不到站点文件：$SITE_DIR/index.html"; exit 1; }
 
-# 应用与网页版共用每功能文档，发布站点时生成最新正文。
-echo "== 0/4 生成在线手册 =="
-python3 "$ROOT/tools/make_manual_site.py" | sed 's/^/  /'
+# 在线手册：Markdown 是源，HTML 是产物。缺了就先生成。
+if [ ! -f "$SITE_DIR/manual/index.html" ]; then
+  echo "== 0/4 生成在线手册 =="
+  python3 "$ROOT/tools/make_manual_site.py" | sed 's/^/  /'
+fi
 
 echo "== 1/4 刷新版本清单快照 =="
 WORK="$(mktemp -d)"
@@ -91,7 +93,7 @@ ssh "$REMOTE_HOST" "curl -s -o /dev/null -w '  本机(443)首页 HTTP %{http_cod
 curl -s -o /dev/null -w "  公网首页 HTTP %{http_code}\n" "$SITE_URL"
 curl -s -o /dev/null -w "  站点 CSS  HTTP %{http_code}\n" "${SITE_URL}assets/site.css"
 curl -s -o /dev/null -w "  站点清单  HTTP %{http_code}\n" "${SITE_URL}kitnest/stable/latest.json"
-# 官网首页仍使用的动图逐段验证；确认真机原图目录没有上线。
+# 13 段动图逐段验 200；顺便确认真机原图目录没有上线
 BAD=0
 for n in clipboard capture monitor transfer cast toolbox view-panel view-monitor \
          view-transfer view-cast view-annotate view-popout view-settings; do

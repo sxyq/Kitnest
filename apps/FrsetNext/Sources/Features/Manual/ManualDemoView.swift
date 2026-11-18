@@ -9,6 +9,7 @@ struct ManualDemoView: View {
     @Stored private var step = 0
     @Stored private var playing = false
     @Stored private var selected: String? = "appearance-note"
+    @Stored private var selectedPreset = 0
     @StateObject private var toolbar = CaptureToolbarModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -21,16 +22,19 @@ struct ManualDemoView: View {
                 Label("跟着做一遍", systemImage: "play.rectangle")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("预设演示").font(.caption).foregroundStyle(.secondary)
+                Text("使用示例内容").font(.caption).foregroundStyle(.secondary)
                 Button {
                     if playing { playing = false }
                     else { if finished { advance(to: 0) }; playing = true }
                 } label: {
                     Label(playing ? "暂停" : "播放", systemImage: playing ? "pause.fill" : "play.fill")
                 }.buttonStyle(.bordered)
-                Button("重来") { playing = false; step = 0 }
+                Button("重来") { playing = false; advance(to: 0) }
                     .buttonStyle(.borderless)
             }
+            presetPicker
+            Text("演示只使用示例内容，不读取你的剪贴板和文件。")
+                .font(.caption).foregroundStyle(.secondary)
             stage
                 .frame(maxWidth: .infinity)
                 .frame(height: 240)
@@ -90,8 +94,34 @@ struct ManualDemoView: View {
     private func advance(to index: Int) {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
             step = index
+            selectedPreset = index == 0 ? 0 : index == steps.count - 1 ? 2 : 1
             selected = "appearance-note"
         }
+    }
+
+    private var presetPicker: some View {
+        HStack(spacing: 6) {
+            preset("看懂用途", icon: "sparkles", index: 0) { advance(to: 0) }
+            preset("跟着操作", icon: "hand.tap", index: 1) { advance(to: min(1, max(0, steps.count - 1))) }
+            preset("查看结果", icon: "checkmark.circle", index: 2) { advance(to: max(0, steps.count - 1)) }
+        }
+    }
+
+    private func preset(_ title: String, icon: String, index: Int, action: @escaping () -> Void) -> some View {
+        Button {
+            playing = false
+            selectedPreset = index
+            action()
+        } label: {
+            Label(title, systemImage: icon)
+                .font(.system(size: 11, weight: .medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .background(selectedPreset == index ? Theme.accent.opacity(0.14) : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 7))
+                .overlay(RoundedRectangle(cornerRadius: 7).stroke(selectedPreset == index ? Theme.accent.opacity(0.45) : .clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(selectedPreset == index ? Theme.accent : .secondary)
     }
 
     @ViewBuilder private var stage: some View {
@@ -278,7 +308,16 @@ struct ManualDemoView: View {
     }
 
     private var picture: some View {
-        Image(nsImage: SettingsPreviewSamples.image).resizable().scaledToFit()
+        ZStack {
+            RoundedRectangle(cornerRadius: 10).fill(
+                LinearGradient(colors: [Color.indigo.opacity(0.75), Color.orange.opacity(0.55)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            VStack(spacing: 4) {
+                Image(systemName: "photo").font(.system(size: 28, weight: .medium))
+                Text("预设图片").font(.system(size: 10, weight: .medium))
+            }.foregroundStyle(.white.opacity(0.9))
+        }
+        .frame(width: 150, height: 96)
     }
 
     @ViewBuilder private var capture: some View {
@@ -330,7 +369,7 @@ struct ManualDemoView: View {
                 if title.contains("钉图"), finished {
                     Label("钉图已关闭", systemImage: "xmark.circle").font(.headline).frame(height: 150)
                 } else {
-                    Image(nsImage: CaptureAppearanceSample.image).resizable().scaledToFit()
+                    picture
                         .padding(title.contains("美化") && step > 0 ? 14 : 0)
                         .background(title.contains("美化") ? Theme.accent.opacity(0.18) : .clear,
                                     in: RoundedRectangle(cornerRadius: 12))

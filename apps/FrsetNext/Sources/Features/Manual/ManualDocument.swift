@@ -98,10 +98,10 @@ enum ManualDocument {
             for url in urls {
                 let (category, node) = parse(try String(contentsOf: url, encoding: .utf8),
                                              id: url.deletingPathExtension().lastPathComponent)
-                let categoryID = "category:" + category
+                let groupTitle = displayCategory(category)
+                let categoryID = "category:" + groupTitle
                 if index[categoryID] == nil {
-                    let title = category.split(separator: " ", maxSplits: 1).dropFirst().joined(separator: " ")
-                    let group = ManualNode(id: categoryID, title: title, level: 1)
+                    let group = ManualNode(id: categoryID, title: groupTitle, level: 1)
                     group.finalizeSearchText()
                     roots.append(group)
                     index[categoryID] = group
@@ -114,9 +114,25 @@ enum ManualDocument {
             return Doc(roots: [], index: [:], title: "使用手册", parentIndex: [:], flatNodes: [],
                        loadError: "无法读取手册：\(error.localizedDescription)")
         }
-        roots.sort { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
+        let order = ["开始使用", "剪贴板", "截图与录屏", "文件与传输", "搜索与 AI", "工具箱", "电脑状态", "日常与设置"]
+        roots.sort { (order.firstIndex(of: $0.title) ?? order.count) < (order.firstIndex(of: $1.title) ?? order.count) }
         return Doc(roots: roots, index: index, title: "使用手册", parentIndex: parentIndex,
                    flatNodes: roots.flatMap(\.children), loadError: nil)
+    }
+
+    /// 把内部编号合并成用户找得到的功能分类；文章仍保持独立。
+    private static func displayCategory(_ raw: String) -> String {
+        switch raw.prefix(2) {
+        case "01": return "开始使用"
+        case "02": return "剪贴板"
+        case "03", "04": return "截图与录屏"
+        case "05": return "电脑状态"
+        case "06": return "文件与传输"
+        case "07": return "搜索与 AI"
+        case "08": return "工具箱"
+        case "09": return "日常与设置"
+        default: return raw.split(separator: " ", maxSplits: 1).last.map(String.init) ?? "其他功能"
+        }
     }
 
     /// 一篇功能文档的标题、分类和演示元数据；正文标题不进入导航树。

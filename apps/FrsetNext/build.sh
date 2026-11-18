@@ -12,7 +12,7 @@ SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
 #   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
 APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
-# 外置 exFAT 工作树需把 bundle 留在 APFS，避免代码签名被 AppleDouble 边车文件破坏。
+# 外置 exFAT 工作树需把 bundle 留在 APFS，避免 AppleDouble 边车文件破坏签名。
 BUILD_ROOT="${KITNEST_BUILD_ROOT:-$ROOT/build.noindex}"
 APP_FINAL="$BUILD_ROOT/$APP_NAME.app"                  # 对外可见的构建产物（始终完整可启动）
 # 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
@@ -53,7 +53,6 @@ echo "== 资源 =="
 # 签完再添加文件会导致签名失效（资源被判定为篡改），故拷贝严格排在签名步骤之前（契约 §10.2）。
 if [ -d "$ROOT/Resources" ]; then
   cp -R "$ROOT/Resources/." "$APP/Contents/Resources/"
-  # exFAT may materialize macOS resource metadata as AppleDouble files; they are not app resources and break bundle signing.
   find "$APP/Contents/Resources" -name '._*' -delete
   find "$APP/Contents/Resources" -name 'Localizable.strings' | sort | sed 's/^/  打包: /'
 else
@@ -310,16 +309,16 @@ fi
 # 同上：rename 同卷原子，任何时刻 build/ 下的 app 都是完整可启动的；
 # 用户在构建期间双击也只会启动**上一个可用版本**，不会看到"已损坏"。
 # ============================================================================
-mkdir -p "$ROOT/build.noindex/.staging"
-rm -rf "$ROOT/build.noindex/.staging/old"
+mkdir -p "$BUILD_ROOT/.staging"
+rm -rf "$BUILD_ROOT/.staging/old"
 if [ -d "$APP_FINAL" ]; then
-  mv "$APP_FINAL" "$ROOT/build.noindex/.staging/old" 2>/dev/null || true
+  mv "$APP_FINAL" "$BUILD_ROOT/.staging/old" 2>/dev/null || true
 fi
 if mv "$APP" "$APP_FINAL" 2>/dev/null; then
-  rm -rf "$ROOT/build.noindex/.staging/old"
+  rm -rf "$BUILD_ROOT/.staging/old"
 else
   echo "  ⚠ 产物换位失败，回滚旧版"
-  [ -d "$ROOT/build.noindex/.staging/old" ] && mv "$ROOT/build.noindex/.staging/old" "$APP_FINAL"
+  [ -d "$BUILD_ROOT/.staging/old" ] && mv "$BUILD_ROOT/.staging/old" "$APP_FINAL"
   exit 1
 fi
 APP="$APP_FINAL"

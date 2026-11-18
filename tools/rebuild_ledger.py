@@ -586,22 +586,20 @@ EVIDENCE.update({
         "文件搜索统一展开 ~/ 并标准化绝对路径，去除目录末尾 /；首页复用同一入口识别本机路径，避免自动网页抓取",
 })
 
-# ── v265：在线手册动图的加载与播放（上次提交漏补的证据）────────────────────
-# 37 段 GIF 不入 App 包（DMG 会从 43 MB 涨到 81 MB），改成按需下载 + 落盘缓存；
-# SwiftUI Image 只画首帧，必须落 NSImageView 才会动。
+# ── 使用手册：文章分类与预设演示 ───────────────────────────────
 EVIDENCE.update({
-    ("Features/Manual/ManualView.swift", "cachedFile"):
-        "v265 把 gifs/xxx.gif 映射到 ~/Library/Caches/Kitnest/manual-gifs/xxx.gif；load/fetch 共用同一路径，下载落盘与下次读缓存必须一致",
-    ("Features/Manual/ManualView.swift", "fetch"):
-        "v265 从官网 remoteBase 拉单段 GIF，仅 HTTP 200 且能解码成 NSImage 才原子落盘并入内存缓存，回调回主线程；失败返回 nil，由视图给出在线手册入口",
-    ("Features/Manual/ManualView.swift", "makeNSView"):
-        "v265 SwiftUI Image(nsImage:) 只画 GIF 首帧，改用 NSImageView 并开 animates=true 才能真正播放动图；缩放用 scaleProportionallyUpOrDown",
-    ("Features/Manual/ManualView.swift", "updateNSView"):
-        "v265 复用视图时按对象身份比对换图，重设 image 与 animates，避免翻章后停在上一章的静帧",
-    ("Features/Manual/ManualView.swift", "sizeThatFits"):
-        "v265 NSViewRepresentable 无固有尺寸，按图片宽高比回报（上限 520pt），否则会撑满正文区把 4:3 录屏拉成竖条并裁掉右侧",
-    ("Features/Manual/ManualView.swift", "start"):
-        "v265 onAppear 触发三级取图（内存→随包→磁盘缓存），都没有才联网补；失败计数置位后显示在线手册按钮，不伪装成有内容",
+    ("Features/Manual/ManualDemoSamples.swift", "example"):
+        "按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料",
+    ("Features/Manual/ManualDemoView.swift", "advance"):
+        "切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画",
+    ("Features/Manual/ManualDemoView.swift", "preset"):
+        "呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤",
+    ("Features/Manual/ManualDemoView.swift", "samplePanel"):
+        "在演示舞台中显示固定的输入或结果示例，供用户对照实际操作",
+    ("Features/Manual/ManualDemoView.swift", "displayPreview"):
+        "按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化",
+    ("Features/Manual/ManualDocument.swift", "displayCategory"):
+        "把文章文件编号映射成用户分类；截图与录屏归在同一类，导航不显示文件序号",
 })
 
 # ── v266：截图默认窗口自动识别 + 同一次截图里可直接拖拽拉自定义框 ──────────

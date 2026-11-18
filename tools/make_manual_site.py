@@ -20,6 +20,16 @@ def inline(text: str) -> str:
     return re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<a href="\2">\1</a>', text)
 
 
+def category_title(raw: str) -> str:
+    """把文件编号合并成普通用户能理解的功能分类。"""
+    groups = {
+        "01": "开始使用", "02": "剪贴板", "03": "截图与录屏", "04": "截图与录屏",
+        "05": "电脑状态", "06": "文件与传输", "07": "搜索与 AI", "08": "工具箱",
+        "09": "日常与设置",
+    }
+    return groups.get(raw[:2], raw.split(" ", 1)[-1])
+
+
 def article(path: Path) -> dict:
     """读取与原生手册相同的文章元数据、段落与操作步骤。"""
     text = path.read_text(encoding="utf-8")
@@ -52,7 +62,7 @@ def article(path: Path) -> dict:
             blocks.append(f"<p>{inline(line)}</p>")
     if listing:
         blocks.append(f"</{listing}>")
-    return dict(id=path.stem, title=title, category=metadata["category"],
+    return dict(id=path.stem, title=title, category=category_title(metadata["category"]),
                 demo=metadata["demo"], steps=steps, body="\n".join(blocks), text=text)
 
 
@@ -84,7 +94,7 @@ function sample(g,index){
  const t=g.title,done=index===g.steps.length-1,started=index>0;
  const rows=items=>'<div class="example">'+items.map((s,i)=>'<div class="'+(i===Math.min(index,items.length-1)?'chosen':'')+'">'+escape(s)+'</div>').join('')+'</div>';
  let pair=null;
- const examples=[['UUID','点击生成','A1B2C3D4-1234-4ABC-8DEF-0123456789AB'],['时间戳','1700000000','2023-11-14 22:13:20 UTC'],['Base64','Hello','SGVsbG8='],['URL','hello world','hello%20world'],['JSON','{"name":"小林"}','{\n  "name": "小林"\n}'],['去重','苹果\n香蕉\n苹果','苹果\n香蕉'],['变量','user name','userName'],['IP 地址','选择内网','192.168.1.8 · 演示地址'],['文本翻译','Good morning','早上好'],['文本总结','今天整理照片，明天发送给同事。','整理照片，随后发送。'],['文本润色','资料发你了看看','资料已发送，请查收。'],['文本摘要值','hello','5d41402abc4b2a76b9719d911017c592'],['压缩图片','照片.png · 2 MB','照片.jpg · 420 KB'],['代码预览','print("你好")','带颜色的代码预览']];
+ const examples=[['随机编号','点击生成','A1B2C3D4-1234-4ABC-8DEF-0123456789AB'],['时间戳','1700000000','2023-11-14 22:13:20 UTC'],['Base64','Hello','SGVsbG8='],['网址文字','hello world','hello%20world'],['JSON','{"name":"小林"}','{\n  "name": "小林"\n}'],['去重','苹果\n香蕉\n苹果','苹果\n香蕉'],['变量','user name','userName'],['网络地址','查看本机地址','本机地址 192.168.1.8 · 示例内容'],['文本翻译','Good morning','早上好'],['文本总结','今天整理照片，明天发送给同事。','整理照片，随后发送。'],['文本润色','资料发你了看看','资料已发送，请查收。'],['文本摘要值','hello','5d41402abc4b2a76b9719d911017c592'],['压缩图片','照片.png · 2 MB','照片.jpg · 420 KB'],['代码预览','print("你好")','带颜色的代码预览']];
  for(const [key,input,output] of examples)if(t.includes(key)){pair=[input,output];break}
  if(pair)return '<div class="sample-pair">'+rows(['输入',pair[0]])+rows(['结果',started?pair[1]:'等待操作'])+'</div>';
  if(g.demo==='monitor'){
@@ -148,12 +158,14 @@ window.addEventListener('hashchange',show);show();
 def build() -> None:
     """生成分类导航与每次仅显示一篇的手册页面。"""
     guides = [article(path) for path in sorted(SOURCE.glob("*.md")) if not path.name.startswith("._")]
+    order = ["开始使用", "剪贴板", "截图与录屏", "文件与传输", "搜索与 AI", "工具箱", "电脑状态", "日常与设置"]
+    guides.sort(key=lambda guide: (order.index(guide["category"]) if guide["category"] in order else len(order), guide["id"]))
     categories = dict.fromkeys(guide["category"] for guide in guides)
     navigation = []
     for category in categories:
         links = [f'<a href="#{guide["id"]}" data-id="{guide["id"]}">{html.escape(guide["title"])}</a>'
                  for guide in guides if guide["category"] == category]
-        navigation.append(f'<details><summary>{html.escape(category.split(" ", 1)[1])}</summary>{"".join(links)}</details>')
+        navigation.append(f'<details><summary>{html.escape(category)}</summary>{"".join(links)}</details>')
     data = json.dumps(guides, ensure_ascii=False).replace("<", "\\u003c")
     OUTPUT.write_text(PAGE.replace("__NAV__", "\n".join(navigation)).replace("__DATA__", data), encoding="utf-8")
     print(f"手册：{len(categories)} 类，{len(guides)} 篇；{OUTPUT}")

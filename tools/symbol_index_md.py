@@ -29,7 +29,8 @@ def main():
         for n in sorted(names):
             if not n.startswith('._') and n.endswith('.swift'):
                 rel = os.path.relpath(os.path.join(dirpath, n), src)
-                files[rel] = sum(1 for _ in open(os.path.join(dirpath, n), encoding='utf-8', errors='replace'))
+                with open(os.path.join(dirpath, n), encoding='utf-8', errors='replace') as fh:
+                    files[rel] = len(fh.read().splitlines())
 
     by_file = defaultdict(list)
     for r in rows:
