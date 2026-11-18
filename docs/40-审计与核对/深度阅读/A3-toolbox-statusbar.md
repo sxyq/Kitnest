@@ -460,7 +460,7 @@
 | `set(toolID:keyCode:modifiers:)` | 61 | 强修饰键校验 → 注册成功才落盘 → 失败分类返回 |
 | `clear(toolID:)` | 88 | 注销 + 删键 |
 | `restoreAll` | 97 | 启动恢复（工具已被删则跳过） |
-| `DoubleTapShortcutCenter.setHandlers/bind/unbind/unbindAll/modifier` | 95–119 | 绑定表 + 监听生命周期 |
+| `DoubleTapShortcutCenter.setHandlers/bind/replaceBindings/modifier` | 当前实现：监听由组合键设置保存路径批量替换；移除旧的逐项解绑入口 |
 | `startMonitoringIfNeeded/stopMonitoringIfNeeded` | 128/142 | global + local `flagsChanged` 双监听 |
 | `handleFlags(_:)` | 153 | 只取"按下沿"；0.3s 内同键二次按下触发 |
 

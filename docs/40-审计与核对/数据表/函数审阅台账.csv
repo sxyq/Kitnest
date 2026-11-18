@@ -3651,13 +3651,11 @@ Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCent
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,bind,func,101,KEEP,AppBootstrap.swift:446/460/484 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,replaceBindings,func,109,KEEP,组合键批量保存成功后替换同一双按中心的绑定和顺序，保留原0.30秒手势；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,cancelPreparedMonitoring,func,115,KEEP,组合键注册失败时移除本次临时双按监听，保留已有有效双按监听；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,unbind,func,119,DEAD_CANDIDATE,源码无内部调用；AppBootstrap.applyShortcuts统一以replaceBindings整批更新并在空集合时停止监听，覆盖当前逐项解绑路径。public方法且历史规格记录过，外部接入契约未确认，列为候选暂留。；2026-11-19人工复核：静态零引用，保留候选
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,unbindAll,func,125,DEAD_CANDIDATE,源码无内部调用；AppBootstrap.applyShortcuts以replaceBindings整批更新，空集合会停止监听，恢复流程不调用unbindAll。public方法且历史规格记录过，外部接入契约未确认，列为候选暂留。；2026-11-19人工复核：静态零引用，保留候选
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,modifier,func,132,KEEP,AppBootstrap.swift:411/508 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,prepareMonitoring,func,141,KEEP,复用原flagsChanged监听并返回真实安装结果，失败释放本次已装监听；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,stopMonitoringIfNeeded,func,163,KEEP,unbind:109、unbindAll:115 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,handleFlags,func,174,KEEP,global/local monitor 闭包:131/135 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,fire,func,195,KEEP,handleFlags:165 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,modifier,func,120,KEEP,AppBootstrap.swift:411/508 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,prepareMonitoring,func,129,KEEP,复用原flagsChanged监听并返回真实安装结果，失败释放本次已装监听；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,stopMonitoringIfNeeded,func,151,KEEP,unbind:109、unbindAll:115 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,handleFlags,func,162,KEEP,global/local monitor 闭包:131/135 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,fire,func,183,KEEP,handleFlags:165 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapTipWindow.swift,DoubleTapTipWindowController,show,func,20,KEEP,AppBootstrap.swift:493 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapTipWindow.swift,DoubleTapTipWindowController,dismiss,func,83,KEEP,@objc + #selector(dismiss)，按钮 target/action:67；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapTipWindow.swift,DoubleTapTipWindowController,position,func,88,KEEP,show:22/77 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
