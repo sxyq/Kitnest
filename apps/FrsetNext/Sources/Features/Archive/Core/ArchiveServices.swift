@@ -60,9 +60,12 @@ final class ArchiveDefaultApplication: ObservableObject {
 /// 教程与设置复用同一开关，显示系统关联而非本地布尔值。
 struct ArchiveDefaultApplicationOption: View {
     @ObservedObject private var association = ArchiveDefaultApplication.shared
+    @AppStorage(ArchiveCreationPreferences.passwordEnabled) private var passwordEnabled = false
+    @AppStorage(ArchiveCreationPreferences.encryptFileNames) private var encryptFileNames = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Text("默认解压应用 · ZIP").font(.headline)
             Toggle("用 Kitnest 默认打开 ZIP", isOn: Binding(
                 get: { association.enabled }, set: { association.setEnabled($0) }))
                 .toggleStyle(.switch)
@@ -74,6 +77,23 @@ struct ArchiveDefaultApplicationOption: View {
             Text(association.changing ? "正在更改…" : "当前默认：\(association.applicationName)")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+            HStack {
+                Button("定位当前 ZIP 应用") {
+                    if let application = NSWorkspace.shared.urlForApplication(toOpen: .zip) {
+                        NSWorkspace.shared.activateFileViewerSelecting([application])
+                    }
+                }
+                Button("定位系统归档工具") {
+                    if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.archiveutility") {
+                        NSWorkspace.shared.activateFileViewerSelecting([application])
+                    }
+                }
+            }
+            .buttonStyle(.link)
+            Text("其他格式：访达选中压缩包 → 显示简介 → 打开方式 → 全部更改。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+            Divider()
+            Text("Finder 压缩与解压服务").font(.headline)
             Text("压缩：访达选中文件 → 右键 → 服务 → 用 Kitnest 压缩。访达原有的「压缩」保持不变。")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -88,6 +108,15 @@ struct ArchiveDefaultApplicationOption: View {
                 }
             }
             .buttonStyle(.link)
+            Divider()
+            Text("加密压缩 · 新建窗口默认值").font(.headline)
+            Toggle("默认启用密码保护", isOn: $passwordEnabled)
+                .toggleStyle(.checkbox)
+            Toggle("7z 默认加密文件名", isOn: $encryptFileNames)
+                .toggleStyle(.checkbox)
+            Text("即时保存，下次新建时生效；密码每次输入。ZIP 仅加密内容，7z 可同时隐藏文件名，TAR.GZ 不支持加密。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             if let error = association.errorMessage {
                 Text(error)
                     .font(.system(size: 11))

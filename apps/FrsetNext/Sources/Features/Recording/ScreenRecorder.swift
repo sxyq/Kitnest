@@ -353,8 +353,12 @@ public final class ScreenRecorder: ObservableObject {
     public func startRegionRecording() {
         RecordingRegionPicker.shared.pick { [weak self] rect in
             guard let self else { return }
+            // 框选结果是 AppKit 全局坐标，与 NSScreen.frame 一致。
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let displayID = NSScreen.screens.first { $0.frame.contains(center) }
+                .flatMap { ScreenSnapshot.displayID(of: $0) }
             Task { await self.start(options: .current(region: rect,
-                                                      displayID: self.currentDisplayID())) }
+                                                      displayID: displayID)) }
         }
     }
 
@@ -582,8 +586,9 @@ public final class ScreenRecorder: ObservableObject {
 
     private func makeStream(options: RecordingOptions) async throws -> StreamSetup {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let display = content.displays.first(where: { $0.displayID == options.displayID })
-                ?? content.displays.first else {
+        guard let display = content.displays.first(where: {
+            options.displayID == nil || $0.displayID == options.displayID
+        }) else {
             throw RecordingError.noDisplay
         }
         let excluded = content.applications.filter {

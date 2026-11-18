@@ -178,7 +178,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                         showsKeyboardHint: Bool = false,
                         anchorRectInScreen: CGRect? = nil,
                         sourceWindow: NSWindow? = nil) -> Bool {
-        if previewPinned && hasActivePreview { return false }
         cancelHoverWorkItems()
         cancelKeyboardPreview()
         restoreAfterHover = nil
@@ -312,7 +311,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                          anchorProvider: @escaping () -> CGRect?,
                          sourceWindow: NSWindow? = nil,
                          restoreSelection: (() -> Bool)? = nil) {
-        guard !previewPinned, source != .floatingPreview else { return }
+        guard !previewPinned else { return }
         // F2 总开关（默认开启：defaults 实测键无落盘值）
         let key = source == .mainPreview
             ? Preferences.Keys.hoverPreviewInMainWindowEnabled

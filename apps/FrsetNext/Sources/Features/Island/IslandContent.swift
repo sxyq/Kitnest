@@ -244,11 +244,8 @@ struct IslandRootView: View {
                 Group {
                     if preview { sampleDetail(record) }
                     else {
-                        PreviewPopoverContentView(model: PreviewPopoverContentModel(item: record.previewItem,
-                            source: .mainPreview, sessionID: controller.previewSessionID,
-                            inlineText: PreviewPopoverDataBridge.shared.fullText(for: record.previewItem)),
-                            usesWindowChrome: false)
-                            .id(record.id)
+                        IslandRecordPreview(item: record.previewItem, sessionID: controller.previewSessionID)
+                            .id(record.previewKey)
                     }
                 }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -431,6 +428,27 @@ struct IslandRootView: View {
         Task { controller.feedback = await record.copy(previewOnly: preview) ?? "已复制 " + record.title }
     }
 
+}
+
+private struct IslandRecordPreview: View {
+    let item: ClipboardItem
+    let sessionID: UUID
+    @Stored private var model: PreviewPopoverContentModel?
+
+    var body: some View {
+        ZStack {
+            if let model { PreviewPopoverContentView(model: model, usesWindowChrome: false) }
+            else { ProgressView().controlSize(.small) }
+        }
+        .task {
+            let loaded = await Task.detached(priority: .userInitiated) { [item, sessionID] in
+                PreviewPopoverContentModel(item: item, source: .mainPreview, sessionID: sessionID,
+                    inlineText: PreviewPopoverDataBridge.shared.fullText(for: item))
+            }.value
+            guard !Task.isCancelled else { return }
+            model = loaded
+        }
+    }
 }
 
 /// 刘海列表行只携带两个正式来源的引用，不修改、迁移或删除源记录。
