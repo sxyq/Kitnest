@@ -316,14 +316,17 @@ public final class ArchiveBrowserModel: ObservableObject {
         // 连同同目录资源一起解到临时目录，交给 WKWebView（CSS/JS/图片/子页面都能生效）。
         if ["html", "htm", "xhtml", "svg"].contains(ext) {
             ArchiveCore.extractWebPreviewToTemp(url: url, entry: entry) { [weak self] fileURL, err in
-                guard let self, self.previewGeneration == generation else { return }
+                guard let self, self.previewGeneration == generation else {
+                    if let fileURL { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: fileURL)) }
+                    return
+                }
                 self.previewLoading = false
                 guard let fileURL else {
                     self.previewKind = .unsupported(err.isEmpty ? "网页解压失败" : err)
                     return
                 }
                 let root = fileURL.deletingLastPathComponent()
-                self.rememberWebPreviewTemp(root)
+                self.rememberPreviewTemp(fileURL)
                 self.previewKind = .html(fileURL, root: root)
             }
             return
@@ -364,12 +367,16 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
         // 其余（PDF / Office / 任意）：解压到临时目录再渲染
         ArchiveCore.extractEntryToTemp(url: url, entry: entry) { [weak self] tempURL, err in
-            guard let self, self.previewGeneration == generation else { return }
+            guard let self, self.previewGeneration == generation else {
+                if let tempURL { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL)) }
+                return
+            }
             guard let tempURL else {
                 self.previewLoading = false
                 self.previewKind = .unsupported(err)
                 return
             }
+            self.rememberPreviewTemp(tempURL)
             if ext == "pdf", let doc = PDFDocument(url: tempURL) {
                 self.previewLoading = false
                 self.previewKind = .pdf(doc)
@@ -384,26 +391,23 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
-    // MARK: 网页预览的临时解压目录（v210）
-    //
-    // 网页预览要把同目录资源一起解出来才能正确渲染；这些目录不主动回收会
-    // 一直堆在 /tmp（与「extractEntryToTemp 临时目录不清理」同类问题）。
-    // 记在模型上，窗口关闭时统一删。
-    private var webPreviewTemps: [URL] = []
+    // 网页、PDF 与 Office 共用窗口持有的临时目录，保留到预览窗口关闭。
+    private var previewTemps: [URL] = []
 
-    private func rememberWebPreviewTemp(_ dir: URL) {
+    private func rememberPreviewTemp(_ dir: URL) {
         let top = ArchiveCore.extractionDirectory(containing: dir)
-        if !webPreviewTemps.contains(top) { webPreviewTemps.append(top) }
+        if !previewTemps.contains(top) { previewTemps.append(top) }
     }
 
-    /// 窗口关闭时调用：删掉本次预览解出来的网页目录
-    public func cleanupWebPreviewTemps() {
+    /// 窗口关闭时释放预览，再删除这次窗口持有的解压目录。
+    public func cleanupPreviewTemps() {
         previewGeneration += 1
-        for dir in webPreviewTemps {
+        previewKind = .none
+        for dir in previewTemps {
             try? FileManager.default.removeItem(at: dir)
-            Log.info("Archive", "清理网页预览临时目录 \(dir.lastPathComponent)")
+            Log.info("Archive", "清理预览临时目录 \(dir.lastPathComponent)")
         }
-        webPreviewTemps.removeAll()
+        previewTemps.removeAll()
     }
 
     // MARK: 编辑 / 回写
@@ -749,7 +753,10 @@ public final class ArchiveBrowserModel: ObservableObject {
                 Toast.show(err, icon: "exclamationmark.triangle", isWarning: true)
                 return
             }
-            NSWorkspace.shared.open(tempURL)
+            if !NSWorkspace.shared.open(tempURL) {
+                try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL))
+                Toast.show("无法打开 \(entry.name)", icon: "exclamationmark.triangle", isWarning: true)
+            }
         }
     }
 
@@ -960,7 +967,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
     }
 
     public func windowWillClose(_ notification: Notification) {
-        model.cleanupWebPreviewTemps()
+        model.cleanupPreviewTemps()
         Self.open.removeValue(forKey: model.url.standardizedFileURL.path)
         ArchiveHoverPreview.shared.windowClosed(archive: model.url, lastWindow: Self.open.isEmpty)
     }
@@ -1474,7 +1481,9 @@ struct ArchiveBrowserView: View {
                         Text("Office 不做框内编辑（与原版一致）· 可翻页查看全文")
                             .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                         Spacer(minLength: 6)
-                        Button("用默认应用打开") { NSWorkspace.shared.open(tempURL) }
+                        Button("用默认应用打开") {
+                            if let entry = model.previewEntry { model.openExternally(entry) }
+                        }
                             .controlSize(.small)
                     }
                     .padding(.horizontal, 12)
