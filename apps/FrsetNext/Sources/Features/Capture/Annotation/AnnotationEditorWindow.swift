@@ -64,6 +64,7 @@ final class AnnotationCanvasView: NSView {
     private var textLineCache: [CGRect]?
     /// 抹除工具：正在涂抹的轨迹（图像像素坐标、左上原点）
     private var removalStroke: [CGPoint]?
+    private var removalInProgress = false
     /// 橡皮正在滑动擦除（v71：拖拽路径连续删除命中标注，与画笔滑动一致）
     private var isErasing = false
     private var draft: Annotation?
@@ -833,6 +834,10 @@ final class AnnotationCanvasView: NSView {
 
     /// 对涂抹轨迹执行修复：轨迹 → 灰度 mask → ObjectRemovalEngine → 替换底图
     private func applyRemoval(stroke: [CGPoint]) {
+        guard !removalInProgress else {
+            Toast.show("抹除仍在进行，请完成后再试", icon: "hourglass")
+            return
+        }
         let w = image.width, h = image.height
         guard w > 0, h > 0, stroke.count >= 1 else { return }
 
@@ -869,11 +874,13 @@ final class AnnotationCanvasView: NSView {
         // 修复是秒级 CPU 活，原实现同步跑在主线程且失败只写日志——
         // 表现就是「涂了没反应」。现在后台算 + 全程给反馈。
         let base = image
+        removalInProgress = true
         Toast.show("正在抹除…", icon: "wand.and.rays.inverse")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let cleaned = ObjectRemovalEngine.inpaint(image: base, mask: mask)
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.removalInProgress = false
                 guard let cleaned else {
                     Log.warn("Capture", "抹除：修复引擎返回空")
                     Toast.show("抹除失败：修复引擎返回空", icon: "exclamationmark.triangle")
