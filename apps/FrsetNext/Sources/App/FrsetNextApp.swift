@@ -40,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
                      NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
+                     NSWindow.didChangeOcclusionStateNotification,
                      NSWindow.willCloseNotification] {
             NotificationCenter.default.addObserver(self, selector: #selector(updateDockPresence(_:)), name: name, object: nil)
         }
@@ -116,7 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if let window = sender.windows.first(where: { $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized) }) {
+        if let window = sender.windows.first(where: { $0.styleMask.contains([.titled, .closable]) && !($0 is NSPanel && $0.hidesOnDeactivate) && ($0.isVisible || $0.isMiniaturized) }) {
             window.deminiaturize(nil)
             window.makeKeyAndOrderFront(nil)
             return true
@@ -129,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let closing = notification.name == NSWindow.willCloseNotification ? notification.object as? NSWindow : nil
         DispatchQueue.main.async {
             let hasDocument = NSApp.windows.contains {
-                $0 !== closing && !($0 is NSPanel) && $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized)
+                $0 !== closing && !($0 is NSPanel && $0.hidesOnDeactivate) && $0.styleMask.contains([.titled, .closable]) && ($0.isVisible || $0.isMiniaturized)
             }
             let policy: NSApplication.ActivationPolicy = hasDocument ? .regular : .accessory
             if NSApp.activationPolicy() != policy { NSApp.setActivationPolicy(policy) }
