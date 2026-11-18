@@ -256,7 +256,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         revealGeneration += 1          // 让上一轮收起的 completion/计时器失效
         isHiding = false
         store.setVisible(true)
-        store.refresh()
+        FloatingClipDeskStore.shared.reload()
         // v201：只在尺寸真的变化时才 setFrame——启动恢复时窗口已按同一 frame 创建，
         // 重复 setFrame 会在首帧 placement 里同步重排 hosting（崩溃诱因）。
         let target = state.clampedFrame()
@@ -270,6 +270,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public func hide(completion: (() -> Void)? = nil) {
         Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
+        FloatingClipDeskStore.shared.suspendPreview()
         guard let w = window, w.isVisible else { return }
         let token = revealGeneration
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
@@ -326,6 +327,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     public func windowWillClose(_ notification: Notification) {
         store.setVisible(false)
+        FloatingClipDeskStore.shared.suspendPreview()
     }
 
     // MARK: - 键盘闭环（v191）
@@ -338,9 +340,23 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     //       ⌘⌫ 删除 · Esc 两级（先清搜索词，再收起）
 
     private var keyMonitor: Any?
+    private var scrollMonitor: Any?
+    private var mouseMonitor: Any?
 
     private func installKeyMonitor() {
         guard keyMonitor == nil else { return }
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            FloatingClipDeskStore.shared.hoverSuppression.suppressUntilMouseMove()
+            return event
+        }
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            if event.deltaX != 0 || event.deltaY != 0 {
+                FloatingClipDeskStore.shared.hoverSuppression.mouseMoved()
+            }
+            return event
+        }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let panel = self.window, panel.isKeyWindow else { return event }
             // 中文输入法正在组字：一律放行，别把候选词吃成快捷键
@@ -415,6 +431,8 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     deinit {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        if let scrollMonitor { NSEvent.removeMonitor(scrollMonitor) }
+        if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
     }
 }
 

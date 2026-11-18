@@ -57,18 +57,17 @@ enum ArchiveEntryThumbnail {
             completion(nil)
             return
         }
-        let key = cacheKey(archive: archive, entry: entry, size: size)
-        if let hit = cache.object(forKey: key) {
-            completion(hit)
-            return
-        }
-
         DispatchQueue.global(qos: .utility).async {
+            let key = cacheKey(archive: archive, entry: entry, size: size)
+            if let hit = cache.object(forKey: key) {
+                DispatchQueue.main.async { completion(hit) }
+                return
+            }
             limiter.wait()
             ArchiveCore.extractEntryToTemp(url: archive, entry: entry) { tmp, _ in
                 guard let tmp else {
                     limiter.signal()
-                    completion(nil)
+                    DispatchQueue.main.async { completion(nil) }
                     return
                 }
                 DispatchQueue.global(qos: .utility).async {
@@ -227,11 +226,12 @@ enum ArchiveEntryThumbnail {
         var finished = false
         let lock = NSLock()
 
-        func finish(_ image: NSImage?) {
+        func finish(_ image: NSImage?, cancel: Bool = false) {
             lock.lock()
             if finished { lock.unlock(); return }
             finished = true
             lock.unlock()
+            if cancel { QLThumbnailGenerator.shared.cancel(request) }
             completion(image)
         }
 
@@ -240,7 +240,7 @@ enum ArchiveEntryThumbnail {
         }
         // 超时保护（Office 首次生成可能卡住，不能拖死整个网格）
         DispatchQueue.global().asyncAfter(deadline: .now() + 6) {
-            finish(nil)
+            finish(nil, cancel: true)
         }
     }
 

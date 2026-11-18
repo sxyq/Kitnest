@@ -140,7 +140,7 @@ public final class ClipboardRepository: @unchecked Sendable {
         var clauses: [String] = []
         Self.appendClauses(query, clauses: &clauses, values: &values)
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
-        sql += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        sql += " ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?"
         values.append(contentsOf: [.int(Int64(query.limit)), .int(Int64(query.offset))])
 
         do {
