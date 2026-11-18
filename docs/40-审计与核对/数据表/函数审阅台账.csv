@@ -3947,7 +3947,7 @@ TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferS
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,rotateToken,func,105,KEEP,2026-11-19安全复审：复核源码与动态入口；TransferDockSettingsPane.swift:164
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,selectionURL,func,116,KEEP,2026-11-19安全复审：复核源码与动态入口；为选中文件生成独立令牌和带 pick 参数的局域网分享链接
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,startLocked,func,127,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:57,98,108"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,attemptBind,func,133,KEEP,"2026-11-19安全复审：NWListener监听全部接口供同网段手机访问；ready生成含token URL并写Log.info；LogArchive按天保存3天，DiagnosticsExporter整目录拷贝日志"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,attemptBind,func,133,KEEP,2026-11-19安全复审：NWListener监听全部接口供同网段手机访问；shareURL含扫码令牌；本次改为Log.info仅记录端口，旧实现曾将完整令牌写入按天保存并随诊断包导出的日志
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,loadToken,func,212,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:187
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,regenerateToken,func,220,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:106,201"
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,lanIPv4,func,231,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:143 二维码地址
