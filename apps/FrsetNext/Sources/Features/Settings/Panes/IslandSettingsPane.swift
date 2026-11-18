@@ -161,16 +161,17 @@ private struct IslandSettingsContent: View {
                     }
                 }
             } }
-            if part == .activation { displaySettings; entryPreviews }
-            if part == .canvas { canvas }
-            SettingsSection("实时预览") {
-                IslandSettingsPreview(draft: draft, controller: draft.previewController)
-            }
             switch part {
-            case .activation: behavior
-            case .peeks: peeks
-            case .canvas: widgets; metrics
-            case .appearance: appearance; colors
+            case .activation:
+                if draft.configuration.enabled {
+                    behavior
+                    displaySettings
+                    entryPreviews
+                    preview
+                }
+            case .peeks: peeks; preview
+            case .canvas: canvas; preview; widgets; metrics
+            case .appearance: appearance; preview; colors
             }
         }
         .toggleStyle(.switch)
@@ -185,22 +186,34 @@ private struct IslandSettingsContent: View {
         }
     }
 
+    private var preview: some View {
+        SettingsSection("实时预览", collapsible: true, expanded: part != .activation,
+                        summary: "交互演示") {
+            IslandSettingsPreview(draft: draft, controller: draft.previewController)
+        }
+        .id(part)
+    }
+
     private var displaySettings: some View {
         let enabledIDs = Set(IslandDisplay.enabled(for: draft.configuration).map(\.id))
         return SettingsSection("显示屏幕") {
             SettingsGroupBox {
-                SettingsRow(title: "显示范围", subtitle: "每屏保留轻量入口；完整工作台优先真实刘海屏，其次主屏") {
+                SettingsRow(title: "显示范围", subtitle: "所有屏幕共用一个工作台") {
                     Picker("显示范围", selection: $draft.configuration.displayScope) {
                         ForEach(IslandDisplayScope.allCases) { scope in Text(scope.title).tag(scope) }
                     }.labelsHidden().frame(width: 190)
                 }
-                SettingsDivider()
+            }
+            SettingsSection("显示器详情", collapsible: true,
+                            expanded: draft.configuration.displayScope == .selected,
+                            summary: "\(displays.count) 块屏幕 · \(enabledIDs.count) 已启用") {
+              SettingsGroupBox {
                 ForEach(displays) { display in
                     SettingsRow(icon: display.isMain ? "display.2" : "display", title: display.name,
                                 subtitle: "\(Int(display.frame.width)) × \(Int(display.frame.height)) pt · "
                                     + (display.hasNotch
                                        ? "刘海 \(Int(display.entrySize.width)) × \(Int(display.entrySize.height)) pt"
-                                       : "菜单栏中央透明热区 180 × 28 pt")) {
+                                       : "普通屏 · 菜单栏入口")) {
                         Text(enabledIDs.contains(display.id) ? "已启用" : "已停用")
                             .font(.system(size: 11))
                             .foregroundStyle(enabledIDs.contains(display.id) ? Theme.accent : Color.secondary)
@@ -215,14 +228,16 @@ private struct IslandSettingsContent: View {
                         }
                     }
                 }
-            }
+              }
             Text("状态按当前草稿显示，保存后应用；指定屏幕离线时临时使用主屏，重新连接后恢复；镜像屏共用一个入口，所有屏幕共用单一工作台。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .id(draft.configuration.displayScope)
         }
     }
 
     private var entryPreviews: some View {
-        SettingsSection("入口预览") {
+        SettingsSection("入口预览", collapsible: true, summary: "刘海屏与普通屏") {
             HStack(alignment: .top, spacing: 12) {
                 IslandEntryPreview(hasNotch: true, size: displays.first(where: \.hasNotch)?.entrySize)
                 IslandEntryPreview(hasNotch: false, size: CGSize(width: 180, height: 28))
@@ -310,13 +325,11 @@ private struct IslandSettingsContent: View {
                 }
             }
             .textFieldStyle(.roundedBorder)
-            Text("普通屏平时完全隐藏黑块；搜索短条仅含搜索图标与“搜索…”，不显示功能按钮。收回后恢复隐藏；真实刘海屏沿用原有行为。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 
     private var peeks: some View {
-        SettingsSection("收起态图标") {
+        SettingsSection("收起态图标", collapsible: true, expanded: true) {
             Text("以下图标用于真实刘海屏；普通屏的悬停短条仅显示搜索入口。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
             SettingsGroupBox {
@@ -344,7 +357,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var widgets: some View {
-        SettingsSection("组件 · 显示、尺寸与顺序（行 × 列）") {
+        SettingsSection("组件 · 显示、尺寸与顺序（行 × 列）", collapsible: true, expanded: true) {
             SettingsGroupBox {
                 ForEach(draft.configuration.widgetOrder) { widget in
                     SettingsRow(icon: widget.icon, title: widget.title,
@@ -376,7 +389,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var metrics: some View {
-        SettingsSection("监测指标顺序") {
+        SettingsSection("监测指标顺序", collapsible: true, summary: "\(draft.configuration.metricOrder.count) 项") {
             SettingsGroupBox {
                 ForEach(draft.configuration.metricOrder) { metric in
                     SettingsRow(title: metric.title) {
@@ -388,7 +401,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var colors: some View {
-        SettingsSection("组件与指标颜色") {
+        SettingsSection("组件与指标颜色", collapsible: true, summary: "自定义配色") {
             SettingsGroupBox {
                 ForEach(draft.configuration.widgetOrder) { widget in
                     SettingsRow(title: widget.title) {
@@ -415,11 +428,23 @@ private struct IslandSettingsContent: View {
 private struct IslandEntryPreview: View {
     let hasNotch: Bool
     let size: CGSize?
+    @Stored private var step = 0
 
     var body: some View {
         VStack(spacing: 8) {
-            Text(hasNotch ? "真实刘海屏" : "普通屏").font(.system(size: 12))
-            ForEach(0..<(hasNotch ? 1 : 3), id: \.self) { step in
+            HStack {
+                Text(hasNotch ? "真实刘海屏" : "普通屏").font(.system(size: 12))
+                Spacer(minLength: 4)
+                if !hasNotch {
+                    Picker("普通屏入口状态", selection: $step) {
+                        Text("隐藏").tag(0)
+                        Text("短条").tag(1)
+                        Text("展开").tag(2)
+                    }
+                    .labelsHidden().pickerStyle(.segmented).frame(width: 150)
+                }
+            }
+            .frame(height: 28)
                 ZStack(alignment: .top) {
                     RoundedRectangle(cornerRadius: 7)
                         .fill(Color.primary.opacity(0.035))
@@ -448,19 +473,17 @@ private struct IslandEntryPreview: View {
                             .padding(.horizontal, 16)
                     }
                 }
-                .frame(height: 64)
+                .frame(height: 78)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.12)))
                 Text(hasNotch ? "沿用刘海入口 · 悬停展开" : ["① 平时隐藏 · 中央透明热区", "② 悬停停留 → 搜索短条", "③ 点击短条 → 工作台"][step])
                     .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
             Text(hasNotch
                  ? (size.map { "\(Int($0.width)) × \(Int($0.height)) pt" } ?? "按系统刘海尺寸")
                  : "热区与搜索短条均为 180 × 28 pt")
                 .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
     }
 }
 

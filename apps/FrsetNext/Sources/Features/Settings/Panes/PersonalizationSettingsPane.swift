@@ -238,14 +238,16 @@ enum PersonalizationSettingsPart: String, CaseIterable {
 struct PersonalizationSettingsView: View {
     let part: PersonalizationSettingsPart
     @ObservedObject var draft: AppearanceSettingsDraft
+    var compact = false
     @ObservedObject private var p: Personalization
     @EnvironmentObject private var session: SettingsEditingSession
     /// 正在拖的分段（nil = 没在拖）
     @Stored private var draggingSegment: PanelCenterPage?
 
-    init(part: PersonalizationSettingsPart, draft: AppearanceSettingsDraft) {
+    init(part: PersonalizationSettingsPart, draft: AppearanceSettingsDraft, compact: Bool = false) {
         self.part = part
         self.draft = draft
+        self.compact = compact
         self.p = draft.personalization
     }
 
@@ -294,7 +296,9 @@ struct PersonalizationSettingsView: View {
     private var clipboardRows: some View {
         VStack(alignment: .leading, spacing: 10) {
             densityRow
+            Divider().opacity(0.5)
             thumbRow
+            Divider().opacity(0.5)
             badgeRow
         }
     }
@@ -444,7 +448,7 @@ struct PersonalizationSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .frame(width: 250)
+            .frame(width: compact ? 230 : 250)
             .labelsHidden()
         }
     }
@@ -565,7 +569,7 @@ struct PersonalizationSettingsView: View {
                 Text("72").tag(CGFloat(72))
             }
             .pickerStyle(.segmented)
-            .frame(width: 250)
+            .frame(width: compact ? 230 : 250)
             .labelsHidden()
         }
     }
@@ -719,14 +723,23 @@ struct PersonalizationSettingsView: View {
 
     // MARK: 骨架
 
-    private func settingRow(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .frame(width: 96, alignment: .leading)
-            content()
-            Spacer(minLength: 0)
+    @ViewBuilder private func settingRow(_ title: String, @ViewBuilder content: () -> some View) -> some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                content()
+            }
+        } else {
+            HStack(alignment: .center, spacing: 12) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 96, alignment: .leading)
+                content()
+                Spacer(minLength: 0)
+            }
         }
     }
 
@@ -956,10 +969,11 @@ struct AppearancePreviewBlock: View {
     private var usesDesktopWallpaper: Bool { needsWallpaper && draft.previewScene != .background }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        SettingsSection("效果预览", collapsible: true,
+                        summary: "模拟效果") {
+            VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("效果预览").font(.system(size: 12, weight: .semibold))
-                Spacer()
+                Spacer(minLength: 0)
                 Button("重播") {
                     if scope == .notification { toastReplay &+= 1 }
                     else { openReplay &+= 1 }
@@ -1069,7 +1083,9 @@ struct AppearancePreviewBlock: View {
             revealed = true
             toolbarModel.onPreviewFeedback = nil
             toolbarFeedback = nil
+            }
         }
+        .id(scope)
     }
 
     private var caption: String {
