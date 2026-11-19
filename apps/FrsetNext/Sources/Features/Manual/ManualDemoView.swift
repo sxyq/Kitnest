@@ -22,7 +22,7 @@ struct ManualDemoView: View {
                 Label("跟着做一遍", systemImage: "play.rectangle")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("使用示例内容").font(.caption).foregroundStyle(.secondary)
+                Text("内置示例").font(.caption).foregroundStyle(.secondary)
                 Button {
                     if playing { playing = false }
                     else { if finished { advance(to: 0) }; playing = true }
@@ -33,7 +33,7 @@ struct ManualDemoView: View {
                     .buttonStyle(.borderless)
             }
             presetPicker
-            Text("演示只使用示例内容，不读取你的剪贴板和文件。")
+            Text("仅展示预设内容，不读取剪贴板、文件或设备信息。")
                 .font(.caption).foregroundStyle(.secondary)
             stage
                 .frame(maxWidth: .infinity)

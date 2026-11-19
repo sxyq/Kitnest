@@ -589,7 +589,13 @@ EVIDENCE.update({
 # ── 使用手册：文章分类与预设演示 ───────────────────────────────
 EVIDENCE.update({
     ("Features/Manual/ManualDemoSamples.swift", "example"):
-        "按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料",
+        "按功能标题为每篇现有功能指南提供固定示例输入与结果，不运行工具或读取用户资料",
+    ("Features/Manual/ManualView.swift", "quickStartCard"):
+        "把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南",
+    ("Features/Manual/ManualDemoView.swift", "searchPreview"):
+        "用预设搜索结果、网盘文件和 AI 回复逐步展示搜索类指南的入口与结果",
+    ("Features/Manual/ManualDemoView.swift", "settingsPreview"):
+        "展示设置页选项预览、保存状态和当前操作步骤，不修改用户设置",
     ("Features/Manual/ManualDemoView.swift", "advance"):
         "切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画",
     ("Features/Manual/ManualDemoView.swift", "preset"):
