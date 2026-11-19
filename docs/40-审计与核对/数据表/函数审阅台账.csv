@@ -2376,16 +2376,16 @@ Manual,Features/Manual/ManualDocument.swift,ManualDocument,displayCategory,func,
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,139,KEEP,load:117 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,164,KEEP,parse 内 flush:130 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,243,KEEP,parseBlocks:286/290 有序列表调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,17,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
-Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,183,KEEP,把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南
-Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,198,KEEP,detail 视图 :119 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,217,KEEP,detail 视图 :125 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,229,KEEP,detail 视图 :136 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,256,KEEP,breadcrumb:151 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,266,KEEP,ancestorPath:221 调用
-Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,377,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
-Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,493,KEEP,ManualBlockView.body :403/413/430/442 调用
-Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,497,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,13,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
+Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,172,KEEP,把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南
+Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,187,KEEP,detail 视图 :119 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,206,KEEP,detail 视图 :125 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,218,KEEP,detail 视图 :136 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,245,KEEP,breadcrumb:151 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,255,KEEP,ancestorPath:221 调用
+Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,366,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
+Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,482,KEEP,ManualBlockView.body :403/413/430/442 调用
+Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,486,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,72,KEEP,onAppear :240；CPUEnergyImpactSection 在 MonitorDetailView:212

@@ -1,9 +1,5 @@
 import SwiftUI
 
-extension Notification.Name {
-    static let manualQuickStartRequested = Notification.Name("Kitnest.manual.quickStartRequested")
-}
-
 // MARK: - 使用手册 · 分类与功能导航、原生演示和完整功能正文。
 
 public struct ManualPaneView: View {
@@ -32,10 +28,6 @@ public struct ManualPaneView: View {
             selection = quickStartID
             query = ""
             expanded = Set(doc.roots.prefix(1).map(\.id))
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .manualQuickStartRequested)) { _ in
-            selection = quickStartID
-            query = ""
         }
     }
 
@@ -66,11 +58,11 @@ public struct ManualPaneView: View {
             .padding(.bottom, 6)
 
             Button { selection = quickStartID } label: {
-                Label("快速入门", systemImage: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
+                Label("从这里开始", systemImage: "sparkles")
+                    .font(.system(size: 12, weight: .medium))
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 9).padding(.vertical, 7)
-                    .background(selection == quickStartID ? Theme.accent.opacity(0.14) : Color.clear,
+                    .padding(.horizontal, 8).padding(.vertical, 7)
+                    .background(selection == quickStartID ? Theme.accent.opacity(0.14) : .clear,
                                 in: RoundedRectangle(cornerRadius: 7))
             }
             .buttonStyle(.plain)
@@ -79,14 +71,11 @@ public struct ManualPaneView: View {
             .padding(.bottom, 5)
 
             HStack(spacing: 10) {
-                Button("展开全部") { expanded = Set(doc.roots.map(\.id)) }
-                    .buttonStyle(.plain).font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Button("收起全部") { expanded = [] }
-                    .buttonStyle(.plain).font(.system(size: 11))
+                Text("按功能分类")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text("\(doc.flatNodes.count) 个功能")
+                Text("\(doc.roots.count) 类")
                     .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 12)
