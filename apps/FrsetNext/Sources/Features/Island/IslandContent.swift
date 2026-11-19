@@ -443,7 +443,7 @@ private struct IslandRecordPreview: View {
         .task {
             let loaded = await Task.detached(priority: .userInitiated) { [item, sessionID] in
                 PreviewPopoverContentModel(item: item, source: .mainPreview, sessionID: sessionID,
-                    inlineText: PreviewPopoverDataBridge.shared.fullText(for: item))
+                    inlineText: PreviewPopoverDataBridge.shared.fullText(for: item), fullTextLoaded: true)
             }.value
             guard !Task.isCancelled else { return }
             model = loaded
