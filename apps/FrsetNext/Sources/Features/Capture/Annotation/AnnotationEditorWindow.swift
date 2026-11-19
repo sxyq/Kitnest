@@ -881,15 +881,15 @@ final class AnnotationCanvasView: NSView {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.removalInProgress = false
+                guard self.image === base else { return }
                 guard let cleaned else {
                     Log.warn("Capture", "抹除：修复引擎返回空")
                     Toast.show("抹除失败：修复引擎返回空", icon: "exclamationmark.triangle")
                     return
                 }
-                let old = self.image
                 self.image = cleaned
                 self.mosaicPixelCache.removeAll(); self.mosaicCacheBase = nil
-                self.record(.imageSnapshot(old: old, new: cleaned))
+                self.record(.imageSnapshot(old: base, new: cleaned))
                 self.onChange?()
                 self.needsDisplay = true
                 Toast.show("已抹除", icon: "wand.and.rays.inverse")
