@@ -249,6 +249,9 @@ public struct PreviewPopoverContentModel: Identifiable {
         "(?m)^\\s*([-*_])(\\s*\\1){2,}\\s*$"   // 分隔线
     ].compactMap { try? NSRegularExpression(pattern: $0) }
 
+    private static let markdownBoldUnderscore = try? NSRegularExpression(
+        pattern: "__[^_\\n]*[ \\t\\u4e00-\\u9fff][^_\\n]*__")
+
     /// Markdown 启发式：标题/围栏/链接/强调/列表 等特征
     ///
     /// 2026-10-18 放宽（用户反馈"有些文本能渲染 Markdown 有些不能"）：
@@ -265,9 +268,8 @@ public struct PreviewPopoverContentModel: Identifiable {
         //    这些模式在普通文本里几乎不会出现，误判成本也只是「排版更好看」，内容不会丢。
         // v126（性能审计 F1094）：原 range(of:options:.regularExpression) 每次调用把 10 个
         // 模式各隐式编译一遍（Swift 不缓存正则），改为静态预编译一次、逐条匹配即用。
-        let strongPatterns = Self.markdownStrongRegexes
-        for re in strongPatterns {
-            let range = NSRange(trimmed.startIndex..., in: trimmed)
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        for re in markdownStrongRegexes {
             if re.firstMatch(in: trimmed, options: [], range: range) != nil { return true }
         }
 
@@ -276,10 +278,9 @@ public struct PreviewPopoverContentModel: Identifiable {
         // v182：`__` 只有在**内容含空格/CJK**时才算加粗（`__强调文本__`）。
         // 原来是 `contains("__")` —— Python 的 `__init__` / `__future__` 每行都算一分，
         // 两行就够阈值，于是 .py 文件被判成 Markdown。
-        let boldUnderscore = try? NSRegularExpression(pattern: "__[^_\\n]*[ \\t\\u4e00-\\u9fff][^_\\n]*__")
         for line in trimmed.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(40) {
             let t = String(line.drop(while: { $0 == " " || $0 == "\t" }))
-            if let re = boldUnderscore {
+            if let re = markdownBoldUnderscore {
                 let r = NSRange(t.startIndex..., in: t)
                 if re.firstMatch(in: t, options: [], range: r) != nil { score += 1 }
             }

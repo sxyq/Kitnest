@@ -416,84 +416,84 @@ struct MarkdownFilePreviewBody: View {
     }
 }
 
-// MARK: - 态 2：落盘长文本（F17：LoadTask + LoadGeneration 代际防串）
+// MARK: - 态 2：落盘长文本
 
 struct PreviewFileBackedTextView: View {
+    private enum LoadState {
+        case loading
+        case markdown(PreviewPopoverContentModel)
+        case json(JSONDocument)
+        case code(NSAttributedString)
+        case text(String)
+        case empty
+    }
+
     let model: PreviewPopoverContentModel
-    @Stored private var loadState: FilePreviewLoadState = .idle
-    @Stored private var showIndicator = false
-    @Stored private var loadGeneration = 0
+    @Stored private var loadState: LoadState = .loading
 
     var body: some View {
         Group {
             switch loadState {
-            case .idle, .loading:
-                // loading 占位：textPreviewLoadingMinHeight + 指示器延时显示（F13 previewLoadingIndicatorDelay）
-                ZStack {
-                    Color.clear
-                    if showIndicator {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-                .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
-            case .loaded(let text):
-                // 2026-10-18：长文档（Markdown/TXT 落盘）加载后按内容分态。
-                // v87（2026-10-20 用户反馈「预览不统一」）：与内联条目同一条
-                // classifyRawText 链（JSON → Markdown → 代码 → 纯文本），
-                // 此前只判 Markdown、其余一律纯文本，长 JSON/代码没有结构化预览。
-                switch PreviewPopoverContentModel.classifyRawText(text) {
-                case .markdown:
-                    MarkdownFilePreviewBody(text: text, restoreKey: model.item.dedupeKey)
-                case .json:
-                    JSONInspectorView(text: text, compact: true)
-                case .code:
-                    let lang = PreviewMarkdownRenderer.detectLanguage(text)
-                    PreviewTextViewRepresentable(
-                        attributedText: PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: text),
-                        monospaced: true,
-                        showsLineNumbers: true)
-                default:
-                    PreviewTextViewRepresentable(
-                        attributedText: NSAttributedString(
-                            string: text,
-                            attributes: [.font: NSFont.systemFont(ofSize: 19.5),   // 13 × 1.5（整体文本放大）
-                                         .foregroundColor: NSColor.labelColor]))
-                }
-            case .failed(let message):
-                Text(message)
+            case .loading:
+                PreviewLoadingIndicator(delay: MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay)
+                    .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
+            case .markdown(let markdown):
+                PreviewMarkdownTextView(model: markdown)
+            case .json(let document):
+                JSONInspectorView(document: document, compact: true)
+            case .code(let attributed):
+                PreviewTextViewRepresentable(attributedText: attributed, monospaced: true, showsLineNumbers: true)
+            case .text(let text):
+                PreviewTextContentView(text: text)
+            case .empty:
+                Text("内容为空")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .task(id: model.item.dedupeKey) {
+        .task(id: model.sessionID) {
             await loadFullText()
         }
     }
 
     private func loadFullText() async {
-        let generation = loadGeneration + 1
-        loadGeneration = generation
         loadState = .loading
-        showIndicator = false
 
-        // 指示器延时：期间完成则不闪指示器
-        let delay = MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay
-        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-        guard loadGeneration == generation, !Task.isCancelled else { return }
-        showIndicator = true
-
-        // 全文 IO 移出主线程（读落盘文件）
-        let item = model.item
-        let text = await Task.detached(priority: .userInitiated) {
-            PreviewPopoverDataBridge.shared.fullText(for: item)
-        }.value
-        guard loadGeneration == generation, !Task.isCancelled else { return }   // 代际防串
-        if text.isEmpty {
-            loadState = .failed("内容为空")
-        } else {
-            loadState = .loaded(text)
+        let work = Task.detached(priority: .userInitiated) { [model] () -> LoadState in
+            let text = PreviewPopoverDataBridge.shared.fullText(for: model.item)
+            guard !Task.isCancelled, !text.isEmpty else { return .empty }
+            switch PreviewPopoverContentModel.classifyRawText(text) {
+            case .markdown:
+                return .markdown(PreviewPopoverContentModel(item: model.item, source: model.source,
+                    entry: model.entry, sessionID: model.sessionID, inlineText: text, kindOverride: .markdown))
+            case .json:
+                if let document = JSONDocument(text: text) { return .json(document) }
+                return .text(text)
+            case .code:
+                let lang = PreviewMarkdownRenderer.detectLanguage(text)
+                return .code(PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: text))
+            default:
+                return .text(text)
+            }
         }
+        let result = await withTaskCancellationHandler(operation: { await work.value }, onCancel: { work.cancel() })
+        guard !Task.isCancelled else { return }
+        loadState = result
+    }
+}
+
+private struct PreviewLoadingIndicator: View {
+    let delay: TimeInterval
+    @Stored private var isVisible = false
+
+    var body: some View {
+        Color.clear
+            .overlay { if isVisible { ProgressView().controlSize(.small) } }
+            .task {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                if !Task.isCancelled { isVisible = true }
+            }
     }
 }
 

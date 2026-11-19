@@ -243,7 +243,7 @@ struct JSONInspectorView: View {
         self.compact = compact
         _searchText = Stored(wrappedValue: initialQuery)
         // 首层自动展开：折叠的根节点只有一行，看不出结构（原版 JSON 预览打开即可见第一层）
-        if document.root.isExpandable, !document.root.isExpanded { document.root.toggle() }
+        if document.root.isExpandable, document.root.children.isEmpty { document.root.toggle() }
         _document = ObservedObject(wrappedValue: document)
         // 记录型（对象数组 / JSONL）默认进「表格」——像数据库表一样直接看数据
         var mode = initialMode
