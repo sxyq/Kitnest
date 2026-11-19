@@ -178,15 +178,19 @@ final class ScrcpyControlBarController {
     /// 不做「浮在画面底部」：实测会正好压住手机输入框/键盘区（截图为证），
     /// 用户要的是「首页下面的添加」——放到窗口下沿外面，什么都不遮，且仍跟着窗口走。
     private static func barFrame(for cg: CGRect) -> CGRect {
-        // 主屏高度足够：scrcpy 在本机总是开在主屏；多屏时按窗口中心点反查屏幕
-        let mainH = NSScreen.screens.first?.frame.height ?? 0
-        let cocoaBottom = mainH - (cg.origin.y + cg.height)
+        let screens = NSScreen.screens
+        let top = screens.first!.frame.maxY
+        let window = CGRect(x: cg.minX, y: top - cg.maxY, width: cg.width, height: cg.height)
+        let screen = screens.max {
+            let a = $0.frame.intersection(window), b = $1.frame.intersection(window)
+            return a.width * a.height < b.width * b.height
+        }!
+        let visible = screen.visibleFrame
         let width = min(max(160, cg.width - 24), 176)
         let height: CGFloat = 38
-        // 离窗口下沿 6pt；窗口贴着屏幕底时钳到 4pt，宁可轻微压住也不掉出屏幕
-        let y = max(cocoaBottom - height - 6, 4)
-        return CGRect(x: cg.origin.x + (cg.width - width) / 2, y: y,
-                      width: width, height: height)
+        let x = min(max(window.midX - width / 2, visible.minX + 4), visible.maxX - width - 4)
+        let y = min(max(window.minY - height - 6, visible.minY + 4), visible.maxY - height - 4)
+        return CGRect(x: x, y: y, width: width, height: height)
     }
 
     // MARK: - 面板与按钮
@@ -213,25 +217,14 @@ final class ScrcpyControlBarController {
     }
 
     private func sendKey(_ keycode: Int32) {
-        guard let adb = ScreenCastEngine.findADB() else {
+        guard ScreenCastEngine.findADB() != nil else {
             Toast.show("未找到 adb", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
-        let serial = self.serial
-        DispatchQueue.global(qos: .userInitiated).async {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: adb)
-            p.arguments = (serial.map { ["-s", $0] } ?? []) + ["shell", "input", "keyevent", "\(keycode)"]
-            p.standardOutput = Pipe()
-            p.standardError = Pipe()
-            do {
-                try p.run()
-                p.waitUntilExit()
-                if p.terminationStatus != 0 {
-                    Log.warn("Transfer", "控制条：keyevent \(keycode) 失败（status \(p.terminationStatus)）")
-                }
-            } catch {
-                Log.warn("Transfer", "控制条：keyevent \(keycode) 启动失败 \(error.localizedDescription)")
+        let args = (serial.map { ["-s", $0] } ?? []) + ["shell", "input", "keyevent", "\(keycode)"]
+        ADBExtrasEngine.run(args) { out, status in
+            if status != 0 {
+                Log.warn("Transfer", "控制条：keyevent \(keycode) 失败：\(out ?? "adb 不可用或启动失败")")
             }
         }
     }
