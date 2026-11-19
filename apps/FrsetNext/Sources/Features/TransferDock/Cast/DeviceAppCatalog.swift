@@ -50,8 +50,9 @@ final class DeviceAppCatalog {
 
         queue.async { [weak self] in
             guard let self else { return }
-            let packages = self.listPackages(serial: serial)
-            self.fetchMissingIcons(packages: packages, serial: serial)
+            let target = serial ?? ScreenCastEngine.findADB().flatMap { ADBExtrasEngine.resolveSerialSync($0) }
+            let packages = self.listPackages(serial: target)
+            self.fetchMissingIcons(packages: packages, serial: target)
             let apps = packages.map { pkg -> App in
                 let icon = self.cacheDir.appendingPathComponent("\(pkg).png").path
                 let hasIcon = FileManager.default.fileExists(atPath: icon)
@@ -77,8 +78,8 @@ final class DeviceAppCatalog {
     // MARK: - 设备交互
 
     private func listPackages(serial: String?) -> [String] {
-        guard let adb = ScreenCastEngine.findADB() else { return [] }
-        let out = Self.runADB(adb, serial: serial, args: ["shell", "pm", "list", "packages", "-3"])
+        let args = (serial.map { ["-s", $0] } ?? []) + ["shell", "pm", "list", "packages", "-3"]
+        let out = ADBExtrasEngine.runSync(args, timeout: 20).0 ?? ""
         return out.components(separatedBy: .newlines).compactMap { line in
             guard line.hasPrefix("package:") else { return nil }
             let pkg = String(line.dropFirst("package:".count)).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -88,7 +89,7 @@ final class DeviceAppCatalog {
 
     /// 只为「还没有图标」的包跑助手，批量 60 个一次
     private func fetchMissingIcons(packages: [String], serial: String?) {
-        guard let adb = ScreenCastEngine.findADB() else { return }
+        let target = serial.map { ["-s", $0] } ?? []
         let missing = packages.filter {
             !FileManager.default.fileExists(atPath: cacheDir.appendingPathComponent("\($0).png").path)
         }
@@ -101,16 +102,15 @@ final class DeviceAppCatalog {
         let remoteOut = "/data/local/tmp/frset-appicons"
         // 推送（大小不同才推）
         let localSize = (try? FileManager.default.attributesOfItem(atPath: dex.path)[.size] as? Int) ?? 0
-        let remoteSize = Int(Self.runADB(adb, serial: serial,
-                                         args: ["shell", "stat", "-c", "%s", remoteDex])
+        let remoteSize = Int((ADBExtrasEngine.runSync(target + ["shell", "stat", "-c", "%s", remoteDex], timeout: 20).0 ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)) ?? -1
         if localSize != remoteSize {
-            _ = Self.runADB(adb, serial: serial, args: ["push", dex.path, remoteDex])
+            _ = ADBExtrasEngine.runSync(target + ["push", dex.path, remoteDex], timeout: 20)
         }
 
         for batch in stride(from: 0, to: missing.count, by: 60).map({ Array(missing[$0..<min($0 + 60, missing.count)]) }) {
             let cmd = "rm -rf \(remoteOut); CLASSPATH=\(remoteDex) app_process /system/bin IconDump \(remoteOut) \(batch.joined(separator: " "))"
-            let out = Self.runADB(adb, serial: serial, args: ["shell", cmd], timeout: 40)
+            let out = ADBExtrasEngine.runSync(target + ["shell", cmd], timeout: 40).0 ?? ""
             // 解析 "pkg\tlabel"
             for line in out.components(separatedBy: .newlines) {
                 let parts = line.components(separatedBy: "\t")
@@ -120,7 +120,7 @@ final class DeviceAppCatalog {
             // 拉回这批图标
             let tmp = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-appicons-\(UUID().uuidString)")
-            _ = Self.runADB(adb, serial: serial, args: ["pull", remoteOut, tmp.path], timeout: 60)
+            _ = ADBExtrasEngine.runSync(target + ["pull", remoteOut, tmp.path], timeout: 60)
             if let files = try? FileManager.default.contentsOfDirectory(at: tmp,
                                                                        includingPropertiesForKeys: nil) {
                 for f in files where f.pathExtension.lowercased() == "png" {
@@ -145,23 +145,6 @@ final class DeviceAppCatalog {
         if let u = Bundle.main.url(forResource: "icons", withExtension: "dex", subdirectory: "bin"),
            FileManager.default.fileExists(atPath: u.path) { return u }
         return nil
-    }
-
-    @discardableResult
-    private static func runADB(_ adb: String, serial: String?, args: [String],
-                               timeout: TimeInterval = 20) -> String {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: adb)
-        p.arguments = (serial.map { ["-s", $0] } ?? []) + args
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = Pipe()
-        do { try p.run() } catch { return "" }
-        let deadline = Date().addingTimeInterval(timeout)
-        while p.isRunning && Date() < deadline { usleep(50_000) }
-        if p.isRunning { p.terminate() }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8) ?? ""
     }
 
     /// 包名兜底可读名：com.tencent.mm → Mm

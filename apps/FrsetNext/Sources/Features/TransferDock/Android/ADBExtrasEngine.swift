@@ -91,49 +91,47 @@ public enum ADBExtrasEngine {
     /// 运行 adb（后台；自动 -s 目标设备；优先返回 stdout，空时返回 stderr）。
     static func run(_ args: [String], timeout: TimeInterval? = 25,
                     completion: @escaping (String?, Int32?) -> Void) {
-        guard let adb = ScreenCastEngine.findADB() else {
-            DispatchQueue.main.async { completion(nil, nil) }
-            return
-        }
         DispatchQueue.global(qos: .userInitiated).async {
-            var fullArgs = args
-            if needsSerialPin(args), !args.contains("-s") {
-                if let serial = resolveSerialSync(adb) {
-                    fullArgs = ["-s", serial] + args
-                }
-            }
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: adb)
-            task.arguments = fullArgs
-            let out = Pipe(); let err = Pipe()
-            task.standardOutput = out; task.standardError = err
-            do { try task.run() } catch {
-                DispatchQueue.main.async { completion(nil, nil) }
-                return
-            }
-            let killer = DispatchWorkItem { [weak task] in
-                if let task, task.isRunning { task.terminate() }
-            }
-            if let timeout {
-                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
-            }
-            // 两条管道同时读取，避免输出塞满后进程无法退出。
-            let errors = NSMutableData()
-            let reading = DispatchGroup()
-            reading.enter()
-            DispatchQueue.global(qos: .utility).async {
-                errors.append(err.fileHandleForReading.readDataToEndOfFile())
-                reading.leave()
-            }
-            let data = out.fileHandleForReading.readDataToEndOfFile()
-            task.waitUntilExit()
-            killer.cancel()
-            reading.wait()
-            var text = String(data: data, encoding: .utf8) ?? ""
-            let e = String(data: errors as Data, encoding: .utf8) ?? ""
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
-            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), task.terminationStatus) }
+            let (text, status) = runSync(args, timeout: timeout)
+            DispatchQueue.main.async { completion(text, status) }
         }
+    }
+
+    /// 已在后台队列的目录读取直接调用，与异步入口共用唯一执行实现。
+    static func runSync(_ args: [String], timeout: TimeInterval? = 25) -> (String?, Int32?) {
+        guard let adb = ScreenCastEngine.findADB() else { return (nil, nil) }
+        var fullArgs = args
+        if needsSerialPin(args), !args.contains("-s"), let serial = resolveSerialSync(adb) {
+            fullArgs = ["-s", serial] + args
+        }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: adb)
+        task.arguments = fullArgs
+        let out = Pipe(); let err = Pipe()
+        task.standardOutput = out; task.standardError = err
+        do { try task.run() } catch { return (nil, nil) }
+        let killer = DispatchWorkItem { [weak task] in
+            if let task, task.isRunning { task.terminate() }
+        }
+        if let timeout {
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
+        }
+        // 两条管道同时读取，避免输出塞满后进程无法退出。
+        let errors = NSMutableData()
+        let reading = DispatchGroup()
+        reading.enter()
+        DispatchQueue.global(qos: .utility).async {
+            errors.append(err.fileHandleForReading.readDataToEndOfFile())
+            reading.leave()
+        }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+        killer.cancel()
+        reading.wait()
+        var text = String(data: data, encoding: .utf8) ?? ""
+        let e = String(data: errors as Data, encoding: .utf8) ?? ""
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
+        return (text.trimmingCharacters(in: .whitespacesAndNewlines), task.terminationStatus)
     }
 
     // MARK: ② 打开手机无线调试页
