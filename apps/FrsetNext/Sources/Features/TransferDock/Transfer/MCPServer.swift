@@ -344,8 +344,9 @@ public final class MCPServer {
         case "launch_app_window":
             let pkg = arg("package")
             guard !pkg.isEmpty else { completion("缺少 package 参数", true); return }
-            let ok = ADBExtrasEngine.startAppWindow(package: pkg)
-            completion(ok ? "已为 \(pkg) 打开独立窗口" : "启动失败（需 Android 14+）", !ok)
+            ADBExtrasEngine.startAppWindow(package: pkg) { ok, message in
+                completion(message, !ok)
+            }
         default:
             completion("未知工具：\(name)", true)
         }

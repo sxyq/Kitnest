@@ -335,48 +335,50 @@ public enum ADBExtrasEngine {
     /// scrcpy 4.x `--new-display`（Android 14+）：给单个 App 开一块虚拟屏，
     /// 对应 AndroMeld 的 Meld Mode「每个 App 独立 Mac 窗口」。
     /// - Parameter title: 窗口标题（传真实应用名；不传则用包名）
-    @discardableResult
     public static func startAppWindow(package: String, title: String? = nil,
-                                      width: Int = 1280, height: Int = 800) -> Bool {
-        guard ScreenCastEngine.findScrcpy() != nil else {
-            Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
-            return false
+                                      width: Int = 1280, height: Int = 800,
+                                      completion: @escaping (Bool, String) -> Void) {
+        let finish: (Bool, String) -> Void = { ok, message in
+            DispatchQueue.main.async {
+                Toast.show(message, icon: ok ? "macwindow.on.rectangle" : "exclamationmark.triangle",
+                           isWarning: !ok)
+                completion(ok, message)
+            }
         }
-        // v166.3：与镜像同样用「我们自己的名字」启动，避免菜单栏出现第三方名称
-        let launcher = ScreenCastEngine.brandedLauncher()
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: launcher.exe)
-        var args: [String] = []
-        if let serial = ADBExtrasEngine.activeSerial { args += ["--serial", serial] }
-        args += ["--new-display=\(width)x\(height)/160",
-                    "--start-app=\(package)",
-                    "--window-title=\(title ?? shortAppName(package))",
-                    "--stay-awake", "--no-power-on"]
-        // v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2），与镜像同一开关
-        args += ScreenCastEngine.clipboardArguments()
-        // v117：与镜像共用画质设置（分辨率上限交给 scrcpy，虚拟屏尺寸按设备能力）
-        args += ["--video-bit-rate", "\(TransferDockPref.CastQuality.bitrate)M"]
-        if TransferDockPref.CastQuality.fps > 0 {
-            args += ["--max-fps", "\(TransferDockPref.CastQuality.fps)"]
-        }
-        task.arguments = args
-        var env = ProcessInfo.processInfo.environment
-        if let adb = ScreenCastEngine.findADB() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard ScreenCastEngine.findScrcpy() != nil else {
+                finish(false, "未找到投屏组件")
+                return
+            }
+            guard let adb = ScreenCastEngine.findADB(), let serial = resolveSerialSync(adb) else {
+                finish(false, "未连接可用手机")
+                return
+            }
+            // 设备缓存过期时在后台重查；组件复制也不占用界面线程。
+            let launcher = ScreenCastEngine.brandedLauncher()
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: launcher.exe)
+            var args = ["--serial", serial, "--new-display=\(width)x\(height)/160",
+                        "--start-app=\(package)", "--window-title=\(title ?? shortAppName(package))",
+                        "--stay-awake", "--no-power-on"]
+            args += ScreenCastEngine.clipboardArguments()
+            args += ["--video-bit-rate", "\(TransferDockPref.CastQuality.bitrate)M"]
+            if TransferDockPref.CastQuality.fps > 0 {
+                args += ["--max-fps", "\(TransferDockPref.CastQuality.fps)"]
+            }
+            task.arguments = args
+            var env = ProcessInfo.processInfo.environment
             env["ADB"] = adb
             env["PATH"] = (adb as NSString).deletingLastPathComponent + ":" + (env["PATH"] ?? "/usr/bin:/bin")
-        }
-        if let server = launcher.server { env["SCRCPY_SERVER_PATH"] = server }
-        task.environment = env
-        do {
-            try task.run()
-            Log.info("Transfer", "应用窗口启动：\(package)（\(title ?? "-")）")
-            Toast.show("已为 \(title ?? shortAppName(package)) 打开独立窗口",
-                       icon: "macwindow.on.rectangle")
-            return true
-        } catch {
-            Toast.show("启动失败：\(error.localizedDescription)",
-                       icon: "exclamationmark.triangle", isWarning: true)
-            return false
+            if let server = launcher.server { env["SCRCPY_SERVER_PATH"] = server }
+            task.environment = env
+            do {
+                try task.run()
+                Log.info("Transfer", "应用窗口启动：\(package)（\(title ?? "-")）")
+                finish(true, "已为 \(title ?? shortAppName(package)) 打开独立窗口")
+            } catch {
+                finish(false, "启动失败：\(error.localizedDescription)")
+            }
         }
     }
 }

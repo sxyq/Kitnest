@@ -138,8 +138,9 @@ private struct CastAppLibraryView: View {
     }
 
     private func open(_ app: DeviceAppCatalog.App) {
-        CastAppUsage.record(app.id)
-        ADBExtrasEngine.startAppWindow(package: app.id, title: app.label)
+        ADBExtrasEngine.startAppWindow(package: app.id, title: app.label) { ok, _ in
+            if ok { CastAppUsage.record(app.id) }
+        }
     }
 
     private func reload() {

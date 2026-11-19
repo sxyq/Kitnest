@@ -760,8 +760,9 @@ private struct CastContent: View {
 
     private func openApp(_ app: DeviceAppCatalog.App) {
         if isSettingsPreview { previewFeedback = "已选择示例应用：" + app.label; return }
-        CastAppUsage.record(app.id)
-        ADBExtrasEngine.startAppWindow(package: app.id, title: app.label)
+        ADBExtrasEngine.startAppWindow(package: app.id, title: app.label) { ok, _ in
+            if ok { CastAppUsage.record(app.id) }
+        }
     }
 
     // 扩展服务
