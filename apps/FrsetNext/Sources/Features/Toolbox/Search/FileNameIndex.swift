@@ -321,12 +321,12 @@ final class FileNameIndex: ObservableObject {
 
     /// 索引里一律不进的路径：Spotlight 自己的索引库（几 GB 二进制，没有搜索价值）
     /// 与我们的索引文件自身（否则重建时会把旧索引也扫进去）。
-    private static var skipPrefixes: [String] {
+    private static let skipPrefixes: [String] = {
         let h = NSHomeDirectory()
         return [h + "/Library/Metadata/CoreSpotlight",
                 h + "/Library/Caches/com.apple.Spotlight",
                 h + "/Library/Application Support/FrsetNext/file-index"]
-    }
+    }()
 
     /// 递归收集路径（DFS，先自己再子目录）。
     private static func walk(_ path: String, pool: inout [UInt8], count: inout Int,
