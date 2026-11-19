@@ -33,7 +33,7 @@ struct ManualDemoView: View {
                     .buttonStyle(.borderless)
             }
             presetPicker
-            Text("画面只展示预设示例，不会读取或修改你的剪贴板、文件或电脑数据。")
+            Text("画面只展示示例内容，不会读取或修改你的剪贴板和文件。")
                 .font(.caption).foregroundStyle(.secondary)
             stage
                 .frame(maxWidth: .infinity)
@@ -353,10 +353,7 @@ struct ManualDemoView: View {
                             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(index == step % 3 ? Theme.accent : .clear, lineWidth: 2))
                     }
                 }
-                Text(title.contains("图帘")
-                     ? (step > 1 ? "选择图片 → 复制、保存或钉图" : "展开后选择一张截图")
-                     : (step > 1 ? "双击继续标注 · 右键复制、显示位置或删除" : "搜索或按截图方式筛选"))
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(step > 1 ? "选择图片 → 复制、保存或钉图" : "展开后选择一张截图").font(.caption).foregroundStyle(.secondary)
             }.padding(16)
         } else if title.contains("长截图") {
             HStack(spacing: 20) {
