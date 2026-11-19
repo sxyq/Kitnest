@@ -163,13 +163,17 @@ public enum ADBExtrasEngine {
 
     /// `dumpsys notification --noredact` → 解析 NotificationRecord 块
     public static func notifications(completion: @escaping ([PhoneNotification]) -> Void) {
-        run(["shell", "dumpsys", "notification", "--noredact"], timeout: 20) { out, _ in
-            completion(parseNotifications(out ?? ""))
+        DispatchQueue.global(qos: .utility).async {
+            let (out, _) = runSync(["shell", "dumpsys", "notification", "--noredact"], timeout: 20)
+            let notifications = parseNotifications(out ?? "")
+            DispatchQueue.main.async { completion(notifications) }
         }
     }
 
     static func parseNotifications(_ text: String) -> [PhoneNotification] {
         var result: [PhoneNotification] = []
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm"
         var currentPkg: String?
         var currentTitle = ""
         var currentText = ""
@@ -187,7 +191,7 @@ public enum ADBExtrasEngine {
                                             app: shortAppName(pkg),
                                             title: currentTitle,
                                             text: currentText,
-                                            time: shortTime(currentWhen)))
+                                            time: shortTime(currentWhen, using: timeFormatter)))
             currentTitle = ""; currentText = ""; currentWhen = ""; currentPkg = nil
         }
 
@@ -241,12 +245,10 @@ public enum ADBExtrasEngine {
         return parts.last ?? pkg
     }
 
-    private static func shortTime(_ raw: String) -> String {
+    private static func shortTime(_ raw: String, using formatter: DateFormatter) -> String {
         guard let ms = Double(raw), ms > 0 else { return "" }
         let date = Date(timeIntervalSince1970: ms > 1_000_000_000_000 ? ms / 1000 : ms)
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f.string(from: date)
+        return formatter.string(from: date)
     }
 
     // MARK: ④ 存储视图
