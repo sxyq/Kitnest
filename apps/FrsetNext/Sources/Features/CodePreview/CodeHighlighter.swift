@@ -75,13 +75,12 @@ public enum CodeHighlighter {
         return text
     }
 
-    public static func paragraphStyle(fontSize: CGFloat, headIndent: CGFloat = 0) -> NSParagraphStyle {
+    private static func paragraphStyle(fontSize: CGFloat) -> NSParagraphStyle {
         let p = NSMutableParagraphStyle()
         p.lineSpacing = (fontSize * 0.34).rounded()
         p.paragraphSpacing = 0
         // 不设 lineBreakMode：默认按词换行，容器宽度决定是否真的换行。
         // （早先设 .byClipping 会让「自动换行」开关彻底失效——容器再窄也裁掉不折行）
-        p.headIndent = headIndent
         p.tabStops = []
         return p
     }

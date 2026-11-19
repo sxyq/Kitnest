@@ -107,7 +107,7 @@ public enum CodeLanguageCatalog {
         if sample.contains("<?xml") { return "xml" }
         if sample.contains("<!DOCTYPE html") || sample.contains("<!doctype html") { return "html" }
         if lower.contains("#include") || lower.contains("std::") || lower.contains("using namespace") {
-            return lower.contains("class ") && lower.contains("::") ? "cpp" : "cpp"
+            return "cpp"
         }
         if sample.contains("import SwiftUI") || sample.contains("import Foundation") || sample.contains("@objc")
             || sample.contains("@State") || sample.contains("@Published") { return "swift" }
@@ -122,11 +122,11 @@ public enum CodeLanguageCatalog {
             || lower.contains("function ") || lower.contains("export default") {
             return sample.contains(": string") || sample.contains("interface ") ? "typescript" : "javascript"
         }
-        if sample.contains("$") && (lower.contains("function ") || sample.contains("->")) && !lower.contains("<?php") { return "php" }
+        if sample.contains("$") && sample.contains("->") && !lower.contains("<?php") { return "php" }
         if sample.contains("<?php") { return "php" }
         if lower.contains("select ") && lower.contains(" from ") { return "sql" }
         if sample.contains("#!/bin/") || sample.contains("#!/usr/bin/env") { return "shell" }
-        if sample.contains("$(") && (lower.contains("param(") || lower.contains("function ")) { return "powershell" }
+        if sample.contains("$(") && lower.contains("param(") { return "powershell" }
         if sample.contains("---\n") && sample.contains(": ") { return "yaml" }
         if sample.contains("@media") || sample.contains("{") && sample.contains(": ") && sample.contains(";")
             && !sample.contains("//") && (sample.contains("px") || sample.contains("#")) { return "css" }
