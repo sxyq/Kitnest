@@ -45,12 +45,7 @@ final class FileNameIndex: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var state: State = .absent {
-        didSet { if state != oldValue { onStateChange?(state) } }
-    }
-
-    /// 给非 SwiftUI 调用方（例如日志、探针）用
-    var onStateChange: ((State) -> Void)?
+    @Published private(set) var state: State = .absent
 
     // MARK: mmap 视图
 
@@ -58,7 +53,6 @@ final class FileNameIndex: ObservableObject {
     private var mapLength = 0
     private var poolOffset = 0
     private var poolLength = 0
-    private var entryCount = 0
     private var builtAt: Date?
     /// 只读指针，搜索时零拷贝
     private var pool: UnsafePointer<UInt8>? {
@@ -217,7 +211,6 @@ final class FileNameIndex: ObservableObject {
         mapLength = total
         poolOffset = Self.headerSize
         poolLength = len
-        entryCount = count
         builtAt = Date(timeIntervalSince1970: stamp)
         stateLock.unlock()
 
@@ -231,7 +224,6 @@ final class FileNameIndex: ObservableObject {
         map = nil
         mapLength = 0
         poolLength = 0
-        entryCount = 0
         stateLock.unlock()
     }
 
