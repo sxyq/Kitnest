@@ -43,6 +43,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/TransferDock/Android/ADBExtrasEngine.swift", "runSync"):
+        "2026-11-20：异步run及后台目录枚举、图标助手和通知读取共用唯一执行体；自动解析或保留显式设备；并发消费两条pipe且等待汇合，完成取消原超时任务并返回输出及退出状态；只由后台调用",
     ("Features/TransferDock/Cast/DeviceAppCatalog.swift", "scores"):
         "2026-11-20：load每轮排序前调用一次；一次读取使用记录和当前时间，按次数乘14天半衰期计算各应用分数；排序比较只查本轮字典，缺记录仍为0",
     ("Features/TransferDock/Transfer/MCPServer.swift", "close"):

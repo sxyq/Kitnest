@@ -3792,13 +3792,14 @@ Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,clearN
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,setActiveSerial,func,50,KEEP,2026-11-20：resolveSerialSync成功或无设备时写同一5秒缓存；serial及时间戳共用serialLock，activeSerial读也持该锁
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,resolveSerialSync,func,58,KEEP,2026-11-19：run和WebDAV后台下载共用5秒设备缓存；先读devices输出再等待退出；优先无线其次首个device并写入同一缓存
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,needsSerialPin,func,83,KEEP,2026-11-20：run构造参数前调用；devices/connect/disconnect/pair/mdns及服务器级命令不自动补设备；首参数已为-s仍由args.contains保持显式绑定
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,run,func,92,KEEP,2026-11-19：MCP与WebDAV及无线连接和文件桥共用唯一无进度命令入口；后台同时读取stdout与stderr并等待汇合；原超时任务结束后取消；完成回主线程且返回退出状态
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,openWirelessDebugging,func,141,KEEP,2026-11-20：设备卡右键菜单调用；沿3个厂商Activity逐个尝试；仅文本含error才换下一项且忽略退出状态，缺adb无输出会误报成功待后续处理
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,notifications,func,167,KEEP,2026-11-20：CastContent.refreshNotifications调用且页面notifBusy防重复；dumpsys超时20秒；run主线程完成后立即解析全文及日期，失败与空通知混同待后续处理
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,parseNotifications,func,173,KEEP,2026-11-20：notifications唯一调用；按NotificationRecord分块取pkg与title/text/bigText及when，flush构造序号ID；过滤系统包与空标题后最多30条；当前先解析全文再截取
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,extractValue,func,224,KEEP,2026-11-20：通知title/text/bigText共用；去字段前缀后取首左括号至末右括号内容并去空白；没有括号则保留剩余文本
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortAppName,func,234,KEEP,2026-11-20：通知和第三方包列表及应用启动标题共用；去com和android等无信息段后取最后有效段，均无则取最后包名段
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortTime,func,246,KEEP,2026-11-20：parseNotifications每条flush调用；大于1e12按毫秒转秒，以HH:mm显示；每条创建DateFormatter且当前在主线程待性能处理
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,run,func,92,KEEP,2026-11-20：MCP及WebDAV和无线文件操作与锁屏保持共用异步入口；后台调唯一runSync后只把输出及退出状态回主线程；自身不再复制Process执行体
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,runSync,func,101,KEEP,2026-11-20：异步run及后台目录枚举、图标助手和通知读取共用唯一执行体；自动解析或保留显式设备；并发消费两条pipe且等待汇合，完成取消原超时任务并返回输出及退出状态；只由后台调用
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,openWirelessDebugging,func,139,KEEP,2026-11-20：设备卡右键菜单调用；沿原3个厂商Activity顺序；退出状态非0或文本含error继续原候选；不再把缺ADB或失败无输出当打开成功
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,notifications,func,165,KEEP,2026-11-20：CastContent.refreshNotifications调用且notifBusy防重复；utility直接runSync读取20秒dumpsys并后台解析；仅完成数组回主线程；失败与空通知的原语义仍待质量处理
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,parseNotifications,func,173,KEEP,2026-11-20：notifications后台唯一调用；按NotificationRecord分块取pkg与title/text/bigText及when并构造序号ID；每轮1个HH:mm格式器传给shortTime，过滤系统包及空标题后取30条
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,extractValue,func,226,KEEP,2026-11-20：通知title/text/bigText共用；去字段前缀后取首左括号至末右括号内容并去空白；没有括号则保留剩余文本
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortAppName,func,236,KEEP,2026-11-20：通知和第三方包列表及应用启动标题共用；去com和android等无信息段后取最后有效段，均无则取最后包名段
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortTime,func,248,KEEP,2026-11-20：parseNotifications每条flush调用；沿原大于1e12按毫秒转秒规则；使用本轮传入的同一DateFormatter显示HH:mm，不重复创建
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,storage,func,257,KEEP,2026-11-20：CastContent.loadStorage调用；先df超时15秒再du超时40秒，按tab拆大小和目录并按byteValue降序取8项；忽略两次退出状态，错误文本可进入总览待处理
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,byteValue,func,279,KEEP,2026-11-20：storage目录排序共用；去空白转大写后按K/M/G/T十进制倍率换算，未知单位沿原Double解析与0默认，未增加新单位
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,installAPK,func,296,KEEP,2026-11-19：TransferDockView和MCP安装工具共用；仅退出码为0且含Success返回成功；缺失adb或启动失败沿回调传出
@@ -3854,19 +3855,19 @@ TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebD
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,escapeXML,func,241,KEEP,2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,247,KEEP,2026-11-19：PROPFIND每项XML输出；href和displayname均交escapeXML转义与号及左右尖括号；目录类型和文件长度沿原结构
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,265,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,288,KEEP,2026-11-19：GET和HEAD后台复用resolveSerialSync解析当前目标并转义shell路径；读取pipe后等待退出；HEAD仍读完整文件且GET响应前全量驻内存待后续优化
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,320,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,337,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,288,KEEP,2026-11-20：HEAD用统一run读取stat字节长度并发空body，状态0且可解析UInt64才200否则404，缺ADB503；GET仍后台cat全量读取，两个路径沿原shell引用；GET流式仍待优化
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,327,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,344,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,show,func,16,KEEP,CastView.swift:629；FrsetNextApp.swift:347 菜单
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,112,KEEP,CastAppLibraryWindow.swift:98 tile(app)
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,open,func,140,KEEP,2026-11-20：应用磁贴Button动作；调用唯一后台startAppWindow，主线程成功回调才记录使用次数；失败不记使用
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,reload,func,146,KEEP,CastAppLibraryWindow.swift:109 onAppear
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,init,init,34,KEEP,2026-11-20：shared唯一构造；panel和timer及serial和PID按挂载会话持有
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attach,func,39,KEEP,2026-11-20：ScreenCastEngine启动进程后调用；回主线程写目标serial和PID并开始跟踪及立即定位；异步attach与快速进程退出的次序仍待真机
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attachIfScrcpyRunning,func,51,KEEP,2026-11-20：投屏页onAppear调用；现有PID存活则恢复跟踪；否则后台ps读取实际窗口进程的--serial再挂载；旧PID死亡但尚非nil可能影响补挂待后续
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isAttached,func,78,KEEP,2026-11-20：ScreenCastEngine进程结束回调使用；只让当前挂载进程结束时停止锁屏保持和控制条，其他进程退出不误拆
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,detach,func,81,KEEP,2026-11-20：当前投屏进程退出或tick发现已死亡调用；停表隐藏释放panel并清serial和PID
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attach,func,39,KEEP,2026-11-20：两处调用均在主线程；立即写serial及PID并startTracking，去除异步包装和即时tick以保持快速退出时的绑定，首个0.35秒tick定位
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attachIfScrcpyRunning,func,47,KEEP,2026-11-20：页面onAppear调用；当前PID存活恢复跟踪；已死亡先detach结束旧绑定再后台ps读取实际投屏窗口--serial；回主线程只在仍无新绑定时挂载
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isAttached,func,77,KEEP,2026-11-20：ScreenCastEngine进程结束回调使用；只让当前挂载进程结束时停止锁屏保持和控制条，其他进程退出不误拆
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,detach,func,80,KEEP,2026-11-20：进程退出及tick死亡和补挂旧清理共用；统一先stop锁屏保持以作废查询或尚未执行的初始化，再停表释放panel并清serial和PID
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,startTracking,func,92,KEEP,2026-11-20：attach及页面补挂调用；复用已有timer且每0.35秒在common模式调用tick并包autoreleasepool
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,tick,func,101,KEEP,2026-11-20：只找已挂载PID的投屏窗；无窗隐藏但进程存活继续跟踪；定位后按外窗编号置于其上；鼠标附近透明度1否则0.62且变化才动画
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isCastOwner,func,138,KEEP,2026-11-20：scrcpyWindow筛选共用；识别当前Kitnest投屏名及实际旧scrcpy进程名
@@ -3903,15 +3904,14 @@ TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,loadStorage,f
 TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,loadApps,func,994,KEEP,预览保留固定应用，仅显示反馈；正式通过activeSerial调用DeviceAppCatalog.load并在返回后更新列表和appsBusy
 TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,notifTint,func,1004,KEEP,按通知应用包名从蓝、绿、橙、粉、紫、青、红七色中选择识别色，通知行与应用标识共用
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,init,init,32,KEEP,2026-11-20：shared单例构造缓存目录和labels.json；只在已有字典可解码时读取名称缓存，未读取手机
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,load,func,44,KEEP,2026-11-20：CastContent.loadApps与应用库reload调用；锁内按传入serial合并回调，原串行队列各设备分别枚举及补图；每轮scores一次；主线程只交付本设备等待者
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,listPackages,func,79,KEEP,2026-11-20：load后台调用；运行pm list packages -3并仅解析package前缀；serial参数直接传给原runADB；命令失败与真实空列表仍混同待处理
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,fetchMissingIcons,func,90,KEEP,2026-11-20：load后台调用；仅补缺失PNG；比较本地与远端dex尺寸后按60包批处理；解析包名标签并pull到UUID临时目录，逐文件移入缓存后删本批临时目录
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,load,func,44,KEEP,2026-11-20：两个目录入口共用；按传入serial合并等待者，后台nil时解析当前设备并固定用于整批列表与补图；scores每轮一次；主线程只交付本组等待者
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,listPackages,func,80,KEEP,2026-11-20：load后台调用；显式设备前缀加pm list packages -3交共享runSync，超时20秒；只解析package前缀；原失败与空列表混同仍待处理
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,fetchMissingIcons,func,91,KEEP,2026-11-20：load后台调用；仅补缺失PNG；比较本地与远端dex尺寸后按60包批处理；解析包名标签并pull到UUID临时目录，逐文件移入缓存后删本批临时目录
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,saveLabels,func,137,KEEP,2026-11-20：每批图标读取完成调用；将当前名称字典编码后原子写回labels.json；沿原可选缓存写入语义
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,bundledDex,func,144,KEEP,2026-11-20：fetchMissingIcons调用；只从主bundle的bin/icons.dex取已有打包助手；缺失由调用方记录原日志
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,runADB,func,151,KEEP,2026-11-20：枚举及图标助手与pull共用；在目录串行队列执行并可传-s；先50ms轮询进程再读stdout且不读stderr仍可能塞满待后续处理
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,shortName,func,168,KEEP,2026-11-20：load构造无真实标签的应用时调用；取包名最后一段并首字母大写；不改已有缓存名称
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,CastAppUsage,record,func,179,KEEP,2026-11-20：投屏磁贴与独立库仅在启动进程成功回调调用；读取偏好按包名增加次数并写当前时间，不预记失败点击
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,CastAppUsage,scores,func,189,KEEP,2026-11-20：load每轮排序前调用一次；一次读取使用记录和当前时间，按次数乘14天半衰期计算各应用分数；排序比较只查本轮字典，缺记录仍为0
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,shortName,func,151,KEEP,2026-11-20：load构造无真实标签的应用时调用；取包名最后一段并首字母大写；不改已有缓存名称
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,CastAppUsage,record,func,162,KEEP,2026-11-20：投屏磁贴与独立库仅在启动进程成功回调调用；读取偏好按包名增加次数并写当前时间，不预记失败点击
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,CastAppUsage,scores,func,172,KEEP,2026-11-20：load每轮排序前调用一次；一次读取使用记录和当前时间，按次数乘14天半衰期计算各应用分数；排序比较只查本轮字典，缺记录仍为0
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,FeedbackDelegate,sharingService,func,45,KEEP,既有隔空投送服务的完成回调才反馈成功，真实失败反馈失败，用户取消跳过；不把发起分享当完成
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,FeedbackDelegate,sharingService,func,48,KEEP,既有隔空投送服务的完成回调才反馈成功，真实失败反馈失败，用户取消跳过；不把发起分享当完成
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,AirDropSendEngine,warmUp,func,64,KEEP,TransferDockView.swift:121 onAppear 预热
@@ -3923,21 +3923,21 @@ TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngi
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,deviceConnectionChanged,func,209,KEEP,无线连接命令与已有设备扫描共用已知连接集合，实际连接或断开才反馈，后续相同扫描不重复
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,connectedDevices,func,218,KEEP,AdbQrPairing.swift:281；CastControlBar.swift:71
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,brandedLauncher,func,267,KEEP,TransferCastEngines.swift:292；ADBExtrasEngine.swift:391
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,startMirror,func,315,KEEP,"CastView.swift:117,408,427"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardArguments,func,402,KEEP,TransferCastEngines.swift:298；ADBExtrasEngine.swift:401
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardExplicitOnSupported,func,414,KEEP,TransferCastEngines.swift:372
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverServices,func,465,KEEP,"AdbQrPairing.swift:307,425,463"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverViaADB,func,482,KEEP,TransferCastEngines.swift:443 Bonjour 兜底
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,emit,func,522,KEEP,"TransferCastEngines.swift:440,450,483"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,pair,func,539,KEEP,AdbQrPairing.swift:440
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,connect,func,550,KEEP,"AdbQrPairing.swift:335,367,470"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,disconnect,func,566,KEEP,CastView.swift:461 重新发起授权
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,PushProgress,init,init,592,KEEP,TransferCastEngines.swift:715 进度快照
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,622,KEEP,TransferDockView.swift:785 推送
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pushOne,func,653,KEEP,"TransferCastEngines.swift:662,736"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,remoteFileSize,func,729,KEEP,TransferCastEngines.swift:713 轮询大小
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,747,KEEP,TransferCastEngines.swift:734 日志速率
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,754,KEEP,2026-11-19：TransferDockView.pullFromPhone调用；接收目标改为TransferStaging下本批UUID目录且不再删除共享根；addUploads移入正式存储后仅成功批次清空本批接收目录
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,startMirror,func,315,KEEP,2026-11-20：CastContent投屏入口调用；沿原参数和改名组件启动；stdout无消费者送nullDevice，utility持续读stderr4096字节并只留末6行，退出等EOF再写日志；主线程卸载当前PID，detach共用结束keeper；启动失败关闭pipe
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardArguments,func,425,KEEP,TransferCastEngines.swift:298；ADBExtrasEngine.swift:401
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardExplicitOnSupported,func,437,KEEP,TransferCastEngines.swift:372
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverServices,func,488,KEEP,"AdbQrPairing.swift:307,425,463"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverViaADB,func,505,KEEP,TransferCastEngines.swift:443 Bonjour 兜底
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,emit,func,545,KEEP,"TransferCastEngines.swift:440,450,483"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,pair,func,562,KEEP,AdbQrPairing.swift:440
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,connect,func,573,KEEP,"AdbQrPairing.swift:335,367,470"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,disconnect,func,589,KEEP,CastView.swift:461 重新发起授权
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,PushProgress,init,init,615,KEEP,TransferCastEngines.swift:715 进度快照
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,645,KEEP,TransferDockView.swift:785 推送
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pushOne,func,676,KEEP,"TransferCastEngines.swift:662,736"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,remoteFileSize,func,752,KEEP,TransferCastEngines.swift:713 轮询大小
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,770,KEEP,TransferCastEngines.swift:734 日志速率
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,777,KEEP,2026-11-19：TransferDockView.pullFromPhone调用；接收目标改为TransferStaging下本批UUID目录且不再删除共享根；addUploads移入正式存储后仅成功批次清空本批接收目录
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,readText,func,20,KEEP,2026-11-17：PreviewPopoverContentModel文件正文构造调用；mappedIfSafe读取完整文件后依次解码UTF8及Latin1；失败抛原编码错误由正文显示；扩展名表由归档正文共用
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,39,KEEP,2026-11-17：文件中转卡片悬停调用；取消共享协调器悬停关闭并替换旧showWork；复用现有开窗延迟和锚点及弱窗口引用；work到点交showNow
 Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,53,KEEP,2026-11-17：文件中转主动预览及归档悬停提取完成调用；取消待显示任务并保存currentURL后交现有共享协调器presentFile；窗口锚点和sourceWindow沿参数传递
