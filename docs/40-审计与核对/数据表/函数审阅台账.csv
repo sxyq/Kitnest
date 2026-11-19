@@ -789,7 +789,7 @@ Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextKind,detect,func
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,header,func,100,KEEP,2026-11-17：body传入本轮唯一分类结果，图标和名称不重复触发内容识别；dirty与编辑按钮沿原Binding和闭包消费
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,modeItem,func,142,KEEP,2026-11-17：modeSwitch预览和编辑按钮注册闭包；只改editing，正文Binding与onEdit仍交父模型负责脏状态和保存
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,rendered,func,162,KEEP,2026-11-17：body传入同轮分类结果，复用原Markdown/JSON/代码/文本组件；正文仍来自draft，不再保留未读取text入参
-Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,plainAttributed,func,190,KEEP,2026-11-17：rendered纯文本分支调用；按13号字体3点行距构造现有NSTextView正文；草稿由原Binding持有，未读取text入参及调用传值已删
+Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,plainAttributed,func,189,KEEP,2026-11-17：rendered纯文本分支调用；按13号字体3点行距构造现有NSTextView正文；草稿由原Binding持有，未读取text入参及调用传值已删
 Audio,Features/Audio/AudioMixer.swift,-,cc,func,19,KEEP,本文件 14 处调用：122/130/138/144/177/214/226/231 等
 Audio,Features/Audio/AudioMixer.swift,-,addr,func,25,KEEP,本文件 13 处调用：122/130/138/177/187/204/214/226 等
 Audio,Features/Audio/AudioMixer.swift,AudioAppInfo,func,func,40,KEEP,Equatable 必需：icon 是 NSImage? 无法自动合成（:33 声明）
@@ -2159,71 +2159,72 @@ Clipboard,Features/Clipboard/UI/RecentClipboardWindow.swift,-,windowWillClose,fu
 Clipboard,Features/Clipboard/UI/RecentClipboardWindow.swift,RecentClipboardCell,draw,func,284,KEEP,仅为键盘当前行绘制强调色焦点描边
 Clipboard,Features/Clipboard/UI/RecentClipboardWindow.swift,RecentClipboardCell,init,init,303,KEEP,创建 380pt 紧凑选择窗；列表行由复选框、类型图标、摘要和相对时间构成，底栏提供计数、取消和复制
 Clipboard,Features/Clipboard/UI/RecentClipboardWindow.swift,RecentClipboardCell,init,init,331,KEEP,创建 380pt 紧凑选择窗；列表行由复选框、类型图标、摘要和相对时间构成，底栏提供计数、取消和复制
-CodePreview,Features/CodePreview/CodeCardImage.swift,CodeCardImage,render,func,10,KEEP,调用方 BuiltinTools.swift:273（codepreview 工具 execute 闭包）
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeRenderOptions,init,init,20,KEEP,调用方 CodePreviewView.swift:60/91 与 BuiltinTools.swift:269
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,font,func,38,KEEP,调用方 CodeCardImage.swift:60、CodePreviewView.swift:611、本文件:94
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,italic,func,45,KEEP,调用方 本文件:104（注释斜体），仅此一处
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,normalize,func,52,KEEP,调用方 本文件:93、CodeCardImage.swift:13、CodePreviewView.swift:407
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,paragraphStyle,func,78,KEEP,调用方 本文件:95（attributed 内建段落样式）
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,attributed,func,92,KEEP,调用方 CodePreviewView.swift:64/335/379（首帧与 rebuild 兜底）
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,exportAttributed,func,121,KEEP,调用方 CodeCardImage.swift:19 与 CodeRichCopy.swift:76
-CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,statistics,func,155,KEEP,调用方 CodeCardImage.swift:58、CodePreviewView.swift:98
-CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguage,func,func,16,KEEP,Equatable 一致性要求（:8 声明），显式按 id 比较
-CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,normalize,func,63,KEEP,调用方 CodeLexer.swift:45（语言标记归一后查 Spec）
-CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,displayName,func,74,KEEP,调用方 CodePreviewView.swift:173/364、CodeCardImage.swift:57
-CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,id,func,78,KEEP,调用方 本文件:93（detect 按扩展名）；名称实际为 id(forExtension:)
-CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,detect,func,90,KEEP,调用方 CodePreviewView.swift:60/80 与 BuiltinTools.swift:263
-CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,detectFromContent,func,102,KEEP,调用方 本文件:98（扩展名未命中时内容打分）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,tokens,func,44,KEEP,唯一入口：CodeHighlighter.swift:103
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markCommentsAndStrings,func,63,KEEP,调用方 本文件:54（tokens 第一遍）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markWordsAndNumbers,func,139,KEEP,调用方 本文件:56（tokens 第二遍）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markDiff,func,239,KEEP,调用方 本文件:52；diff 语言在 CodeLanguage.swift:55 可被选中
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markMarkdownLines,func,267,KEEP,调用方 本文件:57；markdown 语言 lineBasedMarkdown=true(:555)
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,compress,func,293,KEEP,调用方 本文件:58（同色区间合并为 CodeToken）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,fill,func,308,KEEP,调用方 本文件:77/90/102/130/174/212/227/257
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,matches,func,314,KEEP,调用方 本文件:322 与 259/279/282（UInt16 数组重载）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,matches,func,321,KEEP,仅本文件:72/75/85；与 :314 签名不同（String 转 UTF-16 适配）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isFirstNonSpaceOnLine,func,325,KEEP,调用方 本文件:99（# 前置指令行首判定）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,nextMeaningful,func,335,KEEP,调用方 本文件:193/198/200/202（判 = : ( 前瞻）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isWordStart,func,349,KEEP,调用方 本文件:170/179 与 :354
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isWordBody,func,353,KEEP,调用方 本文件:173/182（标识符续字）
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isDigit,func,357,KEEP,调用方 本文件:218（数字字面量起点）
-CodePreview,Features/CodePreview/CodeLexer.swift,Spec,forLanguage,func,379,KEEP,调用方 本文件:46（按语言 id 取着色配置）
-CodePreview,Features/CodePreview/CodeLexer.swift,Spec,set,func,574,KEEP,forLanguage 内全部关键字表构造，本文件:385 起 60+ 处
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,init,init,48,KEEP,调用方 PreviewPopoverContentView.swift:670（态5 代码预览）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,chipLabel,func,220,KEEP,本文件:168/202（语言与主题菜单 label 复用）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,toolbarToggle,func,231,KEEP,本文件:137/142（行号、自动换行两个开关）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,rebuild,func,362,KEEP,本文件:117 onAppear 与 :124 onChange(renderKey)
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,persist,func,374,KEEP,本文件:125/127 onChange 后落 Preferences
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyRichText,func,382,KEEP,本文件:288 主按钮与 :309 菜单项
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyAsImage,func,389,KEEP,本文件:310 复制菜单项；转调 CodeCardImage.render
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyPlainText,func,400,KEEP,本文件:312 复制菜单项
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyHTMLSource,func,406,KEEP,本文件:313 复制菜单项（makePayload.html 写剪贴板）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,flashCopied,func,414,KEEP,本文件:392/403/408/415 四处复制结果反馈
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,makeNSView,func,435,KEEP,NSViewRepresentable 协议要求；:348 构造后由 SwiftUI 派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,updateNSView,func,485,KEEP,NSViewRepresentable 协议要求；主题/字号/换行变化时 SwiftUI 派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,setFrameSize,func,548,KEEP,override AppKit 布局回调，内部转 syncWrapContainer
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,syncWrapContainer,func,554,KEEP,本文件:545 didSet、:550 setFrameSize、:522 兜底
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,copy,func,566,KEEP,override NSResponder copy:，⌘C 菜单 action 动态派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,595,KEEP,本文件:478 makeNSView 内构造（唯一构造点）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,605,KEEP,required init(coder:) 编译必需（已标 unavailable）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateThickness,func,619,KEEP,本文件:600 init 与 :642 drawHashMarks 调用
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,drawHashMarksAndLabels,func,630,KEEP,override NSRulerView，AppKit 滚动重绘时派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,makeNSView,func,698,KEEP,NSViewRepresentable 协议要求；:114 注入视图树
-CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,updateNSView,func,704,KEEP,NSViewRepresentable 协议要求；:114 主题变化时同步窗口外观
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyRichText,func,17,KEEP,调用方 CodePreviewView.swift:391
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyAttributed,func,24,KEEP,调用方 CodePreviewView.swift:575；:41-46 RTF 段与 makeRTF:94 同逻辑
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyPlainText,func,51,KEEP,调用方 CodePreviewView.swift:407
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,write,func,57,KEEP,本文件:19 与 :46（html+rtf+plain 三格式落剪贴板）
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makePayload,func,75,KEEP,本文件:18 与 CodePreviewView.swift:412
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makeRTF,func,94,KEEP,本文件:87 makePayload
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,spansHTML,func,107,KEEP,本文件:32 与 :78
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makeHTML,func,129,KEEP,本文件:32 与 :78
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,escapeHTML,func,166,KEEP,本文件:111 与 :146
-CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,func,func,35,KEEP,Equatable 一致性要求（:11 声明），显式按 id 比较
-CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,color,func,37,KEEP,调用方 CodeHighlighter.swift:110（token→NSColor）
-CodePreview,Features/CodePreview/CodeTheme.swift,CodeThemeCatalog,theme,func,68,KEEP,调用方 CodePreviewView.swift:52/69 与 BuiltinTools.swift:267
-CodePreview,Features/CodePreview/CodeTheme.swift,NSColor,init,init,324,KEEP,被本文件全部 14 套主题构造调用（:83 起）
+CodePreview,Features/CodePreview/CodeCardImage.swift,CodeCardImage,render,func,10,KEEP,2026-11-20：工具箱出图和预览复制图片共用；交唯一着色导出并按同一宽度测量，绘制标题和正文；原始三种换行均计入标题
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeRenderOptions,init,init,20,KEEP,2026-11-20：工具箱与代码预览组装已定语言、主题、字号、行号和制表位，屏幕绘制及富文本导出共用
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,font,func,38,KEEP,2026-11-20：屏幕正文、主题行号与导出文字共用；首选Menlo，失败用系统等宽，标题需要时转换粗体
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,italic,func,45,KEEP,2026-11-20：attributed取得同一正文字体的斜体变体，只给注释命中区间设置字体属性
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,normalize,func,52,KEEP,2026-11-20：正文着色与复制纯文本共用，统一CRLF和CR并按列展开制表符
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,paragraphStyle,func,78,KEEP,2026-11-20：仅attributed使用，保留按字号段距及可折行，删从未传入的缩进参数
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,attributed,func,91,KEEP,2026-11-20：后台屏幕重建与导出共用，规范化一次后按CodeLexer提供的UTF-16区间设置主题颜色和注释斜体
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,exportAttributed,func,120,KEEP,2026-11-20：代码卡片与富文本载荷入口；关闭行号直接交正文，开启时数LF确定宽度再逐行写号，保留尾部空行
+CodePreview,Features/CodePreview/CodeHighlighter.swift,CodeHighlighter,statistics,func,154,KEEP,2026-11-20：预览状态栏、工具箱结果和富文本标题共用；一次走字符计数，CRLF算一个换行及一个字符，保留原行数口径
+CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguage,func,func,16,KEEP,2026-11-20：语言目录类型满足Equatable，明确以稳定ID而非别名或扩展列表比较
+CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,normalize,func,66,KEEP,2026-11-20：CodeLexer选择规则前归一，精确ID优先，静态最长名称表兼容别名和附版本标记
+CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,displayName,func,74,KEEP,2026-11-20：语言菜单、代码卡片、富文本标题和工具箱输出用同一名称表，无登记按传入值显示
+CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,id,func,78,KEEP,2026-11-20：detect从文件名拆扩展后调用，按当前目录次序返回首个语言ID
+CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,detect,func,90,KEEP,2026-11-20：代码预览自动菜单和工具箱共用，已知扩展优先；h及m转内容判定
+CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,detectFromContent,func,102,KEEP,2026-11-20：扩展缺失或有歧义才读前8000字符，按实际强特征顺序返回语言；已删同结果分支及不可达条件
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,tokens,func,44,KEEP,2026-11-20：CodeHighlighter唯一调用；归一语言并生成词法规则，将最多300000 UTF-16单元交注释词法和行级规则，压成区间
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markCommentsAndStrings,func,63,KEEP,2026-11-20：tokens首遍调用，依语言处理块和行注释、前置指令及单行或三引号字符串，以相同下标写标记
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markWordsAndNumbers,func,139,KEEP,2026-11-20：tokens第二遍只处理未标记区间，按词表、标签、前后字符识别类型与数字
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markDiff,func,239,KEEP,2026-11-20：diffMode替代首遍；按行首加减号、@或diff分别标出新增删除区间和元信息
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markMarkdownLines,func,267,KEEP,2026-11-20：Markdown完成常规词标记后覆盖标题、围栏、分隔和引用行
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,compress,func,293,KEEP,2026-11-20：tokens最后把同类连续标记合为UTF-16范围，跳过没有配色的区间
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,fill,func,308,KEEP,2026-11-20：各词法步骤共用，限制到本次标记数组并写入同类颜色标记
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,matches,func,314,KEEP,2026-11-20：词法和行级规则比较UTF-16标记，先限定剩余长度后逐单元匹配
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,matches,func,321,KEEP,2026-11-20：块开闭和行注释的字符串标记逐位置转UTF-16数组后交另一重载；本轮识别出重复分配
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isFirstNonSpaceOnLine,func,325,KEEP,2026-11-20：仅前置指令分支查井号之前是否只有空格或制表位，遇换行结束
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,nextMeaningful,func,335,KEEP,2026-11-20：词法分类用于查看冒号、等号、括号，最多向前12单元且不跨换行
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isWordStart,func,349,KEEP,2026-11-20：标识符与@标记入口共用，允许ASCII字母、下划线、美元和非ASCII单元
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isWordBody,func,353,KEEP,2026-11-20：已识别起始字符后用于读取完整标识符，另外允许数字和连字符
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isDigit,func,357,KEEP,2026-11-20：数字分支用ASCII区间确认起点，后续按十六进制及小数规则扩展
+CodePreview,Features/CodePreview/CodeLexer.swift,Spec,forLanguage,func,379,KEEP,2026-11-20：tokens完整准备语言关键词、类型、注释、引号和专用模式；当前每次着色重建同一规则，列后续复用
+CodePreview,Features/CodePreview/CodeLexer.swift,Spec,set,func,574,KEEP,2026-11-20：forLanguage拆空格表生成关键字和类型集合；空字符串给空集合
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,init,init,48,KEEP,2026-11-20：手册代码演示和正式代码预览复用，读既有主题字号行号和折行，着色由任务执行
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,chipLabel,func,220,KEEP,2026-11-20：语言和主题菜单同用，提供文字颜色、边距和圆角底
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,toolbarToggle,func,231,KEEP,2026-11-20：行号及自动换行按钮共用，按启用状态更换颜色与底色
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,rebuild,func,362,KEEP,2026-11-20：task按渲染设置启动后台着色，取消旧任务时不发布结果；主题行号切换目前也会重新着色
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,persist,func,374,KEEP,2026-11-20：渲染设置和换行改变时保存四项偏好，手册与设置示例直接返回
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyRichText,func,382,KEEP,2026-11-20：主按钮和菜单共用整段配色及现有行号配置，真实复制后统一显示结果
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyAsImage,func,389,KEEP,2026-11-20：复制菜单生成760点宽卡片，成功写系统剪贴板，失败提示并保持原内容
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyPlainText,func,400,KEEP,2026-11-20：复制菜单先统一换行和制表符，走纯文本出口，示例只更新显示
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyHTMLSource,func,406,KEEP,2026-11-20：复制菜单读取完整载荷中的HTML并写纯文本类型，当前同时生成未使用的RTF
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,flashCopied,func,414,KEEP,2026-11-20：四种复制方式共用结果反馈，成功短时显示状态，失败单独提示
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,makeNSView,func,435,KEEP,2026-11-20：SwiftUI从着色结果构造只读可选中正文和带主题行号栏；首次装载正文前准备行首表
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,updateNSView,func,486,KEEP,2026-11-20：更新颜色、折行、字体与行号可见性；正文替换才更新行首，保留当前滚动点
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,setFrameSize,func,552,KEEP,2026-11-20：AppKit改变正文尺寸后沿共用容器宽度同步，使自动换行重排
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,syncWrapContainer,func,558,KEEP,2026-11-20：折行使用视图内容宽且至少160点，不折行给无限宽；原宿主、尺寸和属性回调共用
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,copy,func,570,KEEP,2026-11-20：AppKit复制动作取选区或全文，将已有配色交富文本复制，演示不写剪贴板
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,600,KEEP,2026-11-20：代码主视图与落盘或归档的透明代码视图共用；注册AppKit文字视图及对应宽度
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,610,KEEP,2026-11-20：AppKit所需的归档初始化器；实际均由两个NSTextView宿主直接构造
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateText,func,617,KEEP,2026-11-20：两个NSTextView宿主装入或更换正文时调用，记录UTF-16行首、更新宽度及请求一次重绘；滚动只读取偏移表
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateThickness,func,634,KEEP,2026-11-20：构造、正文更新或字号变化按行数位宽计算；无主题沿原28点固定宽
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,drawHashMarksAndLabels,func,639,KEEP,2026-11-20：AppKit滚动回调，在UTF-16行首表中二分找到可见首行，只绘制视区行号并保留两种外观
+CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,makeNSView,func,707,KEEP,2026-11-20：正式预览挂载透明AppKit宿主以取得同一窗口，设置与手册示例不执行
+CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,updateNSView,func,713,KEEP,2026-11-20：主题变化经主队列把正式窗口改为同明暗外观和实底
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyRichText,func,17,KEEP,2026-11-20：工具条复制整段的入口，按现有选项生成HTML、RTF、纯文本三种格式
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyAttributed,func,24,KEEP,2026-11-20：正文⌘C使用现成选区配色，将字符底纹转RTF并同时提供HTML和纯文本
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyPlainText,func,51,KEEP,2026-11-20：纯文本菜单使用唯一系统剪贴板写入，返回AppKit真实结果
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,write,func,57,KEEP,2026-11-20：复制整段和选区共用，HTML及原文字必带，有RTF时一并写入同一条目
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makePayload,func,75,KEEP,2026-11-20：整段富文本和复制HTML源码共用，生成主题与行号正文及三个剪贴板表示
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makeRTF,func,94,KEEP,2026-11-20：整段复制给着色范围附加主题底色并由AppKit编码为RTF
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,spansHTML,func,107,KEEP,2026-11-20：整段和选区对着色区间逐一转义原文并生成对应颜色与斜体标记
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makeHTML,func,129,KEEP,2026-11-20：用表格容器保存主题底色，按可选标题和字体组出复制所用HTML片段
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,escapeHTML,func,166,KEEP,2026-11-20：正文片段和标题共用，先转义与号再转义尖括号，不把用户代码当成标签
+CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,func,func,35,KEEP,2026-11-20：主题类型的Equatable实现按ID比较，保持与选择器使用同一身份
+CodePreview,Features/CodePreview/CodeTheme.swift,CodeTheme,color,func,37,KEEP,2026-11-20：着色时将词法类别映射为当前主题的明确颜色
+CodePreview,Features/CodePreview/CodeTheme.swift,CodeThemeCatalog,theme,func,68,KEEP,2026-11-20：预览与工具箱按保存ID取得主题，缺项沿原oneDark
+CodePreview,Features/CodePreview/CodeTheme.swift,NSColor,init,init,324,KEEP,2026-11-20：十四套静态主题的短或完整十六进制设定经此构造sRGB颜色
 Island,Features/Island/IslandContent.swift,IslandRootView,updateMonitoring,func,75,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；页面、展开及首页监测组件可见性变化时交MonitorSampler.setIslandActive，设置预览不启动真实采样
 Island,Features/Island/IslandContent.swift,IslandRootView,pageContent,func,79,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandRootView按唯一controller.page分派正式内容；中转页在近期记录与utilitiesOnly传输内容间切换
 Island,Features/Island/IslandContent.swift,IslandRootView,widgetContent,func,118,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首页异构格按组件种类及尺寸装现有监测、近期记录、媒体、音量、日历和功能入口，预览用既有样例
@@ -3031,22 +3032,21 @@ Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,s,func,53,KEEP,内部字号缩放辅助，全文 20+ 处调用
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderBody,func,60,KEEP,PreviewPopoverContentView:389/511
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,parseSourced,func,88,KEEP,renderBody :93 与 parse :118
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,looksLikeNakedCode,func,241,KEEP,parseSourced :144 裸代码识别
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,guessLanguage,func,258,KEEP,parseSourced:145、detectLanguage:462
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,paragraphStyle,func,284,KEEP,render(block) 各分支与 renderCode/renderTable
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,inlineAttributed,func,303,KEEP,render(block) 各分支、renderTable:750
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,render,func,360,KEEP,render(_ block:) 被 renderBody:71 调用；死的是已删的 render(_ text:) 重载
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,detectLanguage,func,427,KEEP,PreviewPopoverContentView:439、ArchiveTextPreview:178
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCodeBody,func,432,KEEP,PreviewPopoverContentView:441、ArchiveTextPreview:177
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCode,func,436,KEEP,render(block):451 与 renderCodeBody:467
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderDiagram,func,471,KEEP,renderCode :476 嵌入流程图附件
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,cachedRe,func,490,KEEP,firstMatchRange:535、highlight:605/625/638
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,firstMatchRange,func,500,KEEP,parseSourced :196/207/250
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,normalizedLang,func,528,KEEP,highlight :636 调用
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,highlight,func,544,KEEP,renderCode :495 逐行高亮
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,isTableSeparator,func,624,KEEP,parseSourced :233/240
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,632,KEEP,parseSourced :241
-Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,655,KEEP,render(block) :454 表格块
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,looksLikeNakedCode,func,240,KEEP,2026-11-20：parseSourced在无围栏时调用，以至少两条非空行和六成代码特征决定整份按代码排版
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,detectLanguage,func,257,KEEP,2026-11-20：裸代码与renderCodeBody共用，直接匹配全文特征，删除先拆后拼
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,paragraphStyle,func,282,KEEP,render(block) 各分支与 renderCode/renderTable
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,inlineAttributed,func,301,KEEP,render(block) 各分支、renderTable:750
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,render,func,358,KEEP,render(_ block:) 被 renderBody:71 调用；死的是已删的 render(_ text:) 重载
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCodeBody,func,425,KEEP,2026-11-20：落盘长文和归档预览的代码分支共用，直接传正文识别语言，不加额外标题行
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderCode,func,429,KEEP,2026-11-20：Markdown围栏和裸代码正文共用，将字体、属性和关键字一次准备，保留标题、附件及原换行
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderDiagram,func,468,KEEP,2026-11-20：renderCode成功取得流程图时构造最大宽420点的附件，并设置原段距，不再传未读源码
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,cachedRe,func,487,KEEP,firstMatchRange:535、highlight:605/625/638
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,firstMatchRange,func,497,KEEP,parseSourced :196/207/250
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,normalizedLang,func,525,KEEP,2026-11-20：renderCode每个块归一一次标签供关键字表选择，不在行内重复
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,highlight,func,541,KEEP,2026-11-20：renderCode逐行传入同一基样式与词表，行尾注释按UTF-16位置着色，保留颜色覆盖次序
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,isTableSeparator,func,616,KEEP,parseSourced :233/240
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,624,KEEP,parseSourced :241
+Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,647,KEEP,render(block) :454 表格块
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,2026-11-20：唯一条目判型，富文本仅初始化解析一次保存NSAttributedString供正文测量共用；无有效RTF按正文分类，textPath且全文未加载仍异步，浮动已读全文直接分类；编辑kindOverride不读旧RTF，文件加载保留
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,144,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,157,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
@@ -3059,45 +3059,42 @@ Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollStat
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,2026-11-20：richText分支构造，直接持有model.richAttributed既有解析对象，缺格式时以inlineText构造普通正文，不再自身读盘或解析RTF
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,updateNSView,func,222,KEEP,NSViewRepresentable 协议要求；:227 转调 scrollToCharacter
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,dismantleNSView,func,241,KEEP,NSViewRepresentable 协议；拆装时移除 :197 通知观察
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeCoordinator,func,245,KEEP,NSViewRepresentable 协议；coordinator 于 :166/:199 使用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,boundsDidChange,func,253,KEEP,#selector 注册于 :197-201 boundsDidChangeNotification
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,textView,func,259,KEEP,NSTextViewDelegate 回调；:166 设 delegate；处理 frset-toc 链接
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,scrollToCharacter,func,282,KEEP,调用方 :227（updateNSView）、:260（目录链接点击）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,deinit,deinit,297,KEEP,对象释放时自动执行；:232 dismantle 亦移除观察
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,init,init,308,KEEP,调用方 :187（showsLineNumbers 分支）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,init,init,316,KEEP,NSView required init?(coder:) 覆写；unavailable 占位
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,drawHashMarksAndLabels,func,322,KEEP,覆写 NSRulerView 绘制钩子；AppKit 滚动时回调
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,MarkdownFilePreviewBody,init,init,396,KEEP,2026-11-20：落盘长文和归档文本正文调用，init同步renderBody得到富文标题与源映射后初始化Stored；父视图重建仍先执行排版，归档窄栏沿showsTOC关闭目录
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,460,KEEP,2026-11-20：按预览会话立即后台读取并分类；JSON文档和代码着色只准备一次，Markdown交内联预览共用的异步排版，空内容显示原提示；取消旧会话时取消对应任务并丢弃结果，0.40秒仅供转圈显示
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,init,init,510,KEEP,2026-11-20：普通markdown内容路由只保存传入模型；body按sessionID启动后台render并在取消后不发布，持有正文排版、标题和映射供共享MarkdownPreviewBody使用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,515,KEEP,2026-11-20：session任务把模型正文交Task.detached后调用本方法，直接返回同一PreviewMarkdownRenderer.renderBody的正文标题与源映射三元组，不另行判型
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,861,KEEP,调用方 :807、:808、:814
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,885,KEEP,按钮闭包 :807
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,895,KEEP,按钮闭包 :808、:814
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,editImage,func,945,KEEP,标注按钮 :763
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,loadImages,func,960,KEEP,调用方 :790（.task id: dedupeKey）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isDocumentPath,func,1013,KEEP,调用方 :1015
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,1020,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1073,KEEP,调用方 :995、:1036、:1044
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1098,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1176,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1193,KEEP,decode:1110 的 PDF 分支调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1216,KEEP,decode:1113 兜底返回
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1267,KEEP,onAppear :1219 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1292,KEEP,调用方 :992（快速查看按钮）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1303,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1305,KEEP,QLPreviewPanelDataSource 协议回调
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1309,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1311,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1316,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1344,KEEP,调用方 :793、:889
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1400,KEEP,调用方 :749（OCR 文本区块）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1412,KEEP,调用方 :1340（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1425,KEEP,调用方 :1341（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1433,KEEP,调用方 :1349（tidy 收尾）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1473,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,updateNSView,func,225,KEEP,NSViewRepresentable 协议要求；:227 转调 scrollToCharacter
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,dismantleNSView,func,246,KEEP,NSViewRepresentable 协议；拆装时移除 :197 通知观察
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeCoordinator,func,250,KEEP,NSViewRepresentable 协议；coordinator 于 :166/:199 使用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,boundsDidChange,func,258,KEEP,#selector 注册于 :197-201 boundsDidChangeNotification
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,textView,func,264,KEEP,NSTextViewDelegate 回调；:166 设 delegate；处理 frset-toc 链接
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,scrollToCharacter,func,287,KEEP,调用方 :227（updateNSView）、:260（目录链接点击）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,deinit,deinit,302,KEEP,对象释放时自动执行；:232 dismantle 亦移除观察
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,MarkdownFilePreviewBody,init,init,340,KEEP,2026-11-20：落盘长文和归档文本正文调用，init同步renderBody得到富文标题与源映射后初始化Stored；父视图重建仍先执行排版，归档窄栏沿showsTOC关闭目录
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,404,KEEP,2026-11-20：按预览会话立即后台读取并分类；JSON文档和代码着色只准备一次，Markdown交内联预览共用的异步排版，空内容显示原提示；取消旧会话时取消对应任务并丢弃结果，0.40秒仅供转圈显示
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,init,init,453,KEEP,2026-11-20：普通markdown内容路由只保存传入模型；body按sessionID启动后台render并在取消后不发布，持有正文排版、标题和映射供共享MarkdownPreviewBody使用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,458,KEEP,2026-11-20：session任务把模型正文交Task.detached后调用本方法，直接返回同一PreviewMarkdownRenderer.renderBody的正文标题与源映射三元组，不另行判型
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,804,KEEP,调用方 :807、:808、:814
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,828,KEEP,按钮闭包 :807
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,838,KEEP,按钮闭包 :808、:814
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,editImage,func,888,KEEP,标注按钮 :763
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,loadImages,func,903,KEEP,调用方 :790（.task id: dedupeKey）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isDocumentPath,func,956,KEEP,调用方 :1015
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,963,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1016,KEEP,调用方 :995、:1036、:1044
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1041,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1119,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1136,KEEP,decode:1110 的 PDF 分支调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1159,KEEP,decode:1113 兜底返回
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1210,KEEP,onAppear :1219 调用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1235,KEEP,调用方 :992（快速查看按钮）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1246,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1248,KEEP,QLPreviewPanelDataSource 协议回调
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1252,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1254,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1259,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1287,KEEP,调用方 :793、:889
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1343,KEEP,调用方 :749（OCR 文本区块）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1355,KEEP,调用方 :1340（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1368,KEEP,调用方 :1341（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1376,KEEP,调用方 :1349（tidy 收尾）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1416,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
 Recording,Features/Recording/RecordingCompositor.swift,RecordingCompositor,keyOverlay,func,16,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；按传入 RecordedKey 绘制最多四个键帽并按时间淡出；预览可传 reduceTransparency=true 将键帽底从 0.82 改为不透明
 Recording,Features/Recording/RecordingCompositor.swift,RecordingCompositor,clickOverlay,func,73,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；按传入 progress 和左右键在 160×160 画布绘制中心点及两圈扩散环；降低透明度时使用不透明填色和环线
 Recording,Features/Recording/RecordingCompositor.swift,RecordingCompositor,composite,func,107,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；ScreenRecorder 正式视频帧与 RecordingAppearancePreview 共用 CIImage 合成：按位置/比例叠摄像头、按区域原点及 pixelScale 定位点击环，最后把最多四键键帽条居中置于底部
