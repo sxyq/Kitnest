@@ -551,6 +551,7 @@ public struct SearchSectionView: View {
     @Stored private var fileIndexState: FileNameIndex.State = .absent
     private var fileIndex: FileNameIndex { FileNameIndex.shared }
     @ObservedObject private var service: SearchServiceManager
+    @ObservedObject private var clipboard = ClipboardManager.shared
     @Stored private var previewShowWeb = true
     @Stored private var previewShowClipboard = true
     @Stored private var previewShowFiles = true
@@ -1292,20 +1293,6 @@ public struct SearchSectionView: View {
         }
     }
 
-    /// v60 模糊匹配 + 标题命中区间（match 用于行内高亮；title 未命中但正文命中时 match = nil）
-    // v128（流畅度）：过滤结果记忆化——query 是 @Stored，输入框每敲一键 body 就重算，
-    // 而 filteredClipboardMatches 是全量模糊过滤（每条 joined 三个字段 + FuzzyMatcher），
-    // 且 clipboardCategory 与 nothingFound 在同帧各求值一次 = 每键两遍全量扫描。
-    // 改为按「关键词 + 类型筛选 + 条目签名」缓存：同帧重复求值零开销，剪贴板增删才失效。
-    private struct FilterCache {
-        var keyword = ""
-        var kind = ClipboardFilterKind.all
-        var itemsSignature = 0
-        var result: [(item: ClipboardItem, match: FuzzyMatch?)] = []
-    }
-
-    private static var filterCache = FilterCache()
-
     /// 正文参与匹配的上限（v128：超长条目（整篇文档/日志）每键都要全量 lowercased +
     /// 贪心扫描，是输入卡顿的大头；搜索列表本就只展示标题/副标题，截到前 4096 字符
     /// 对常规条目零差异，超长条目只损失尾部命中）。
@@ -1321,20 +1308,8 @@ public struct SearchSectionView: View {
                 return (item, item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) })
             }
         }
-        let items = ClipboardManager.shared.items
-        // 轻量失效签名：剪贴板条目只增删不改，count + 首末 id 即可识别变化
-        var sig = Hasher()
-        sig.combine(items.count)
-        sig.combine(items.first?.id)
-        sig.combine(items.last?.id)
-        let signature = sig.finalize()
-        if Self.filterCache.keyword == keyword,
-           Self.filterCache.kind == clipboardKind,
-           Self.filterCache.itemsSignature == signature {
-            return Self.filterCache.result
-        }
         let limit = Self.matchContentLimit
-        let result: [(item: ClipboardItem, match: FuzzyMatch?)] = items.compactMap { item in
+        return clipboard.items.compactMap { item in
             guard clipboardKind.matches(item.type) else { return nil }
             let content = item.content.map { $0.count > limit ? String($0.prefix(limit)) : $0 }
             let haystack = [item.title, item.subtitle, content]
@@ -1343,9 +1318,6 @@ public struct SearchSectionView: View {
             let titleMatch = item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) }
             return (item, titleMatch)
         }
-        Self.filterCache = FilterCache(keyword: keyword, kind: clipboardKind,
-                                       itemsSignature: signature, result: result)
-        return result
     }
 
     private var clipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] { filteredClipboardMatches }
