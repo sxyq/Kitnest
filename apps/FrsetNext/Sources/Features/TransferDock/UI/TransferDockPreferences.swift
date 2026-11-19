@@ -71,7 +71,7 @@ public enum TransferDockPref {
         private static let bitrateKey = "cast.bitrate"    // Mbps
         private static let fpsKey = "cast.fps"            // 0 = scrcpy 默认
 
-        /// 分辨率上限（短边像素；0 = 原始）
+        /// 分辨率上限（长边像素；0 = 原始）
         public static var maxSize: Int {
             get { UserDefaults.standard.object(forKey: sizeKey) as? Int ?? 1920 }
             set { UserDefaults.standard.set(newValue, forKey: sizeKey) }
@@ -100,7 +100,7 @@ public enum TransferDockPref {
 
         /// 人类可读摘要（设置页/投屏页展示）
         public static var summary: String {
-            let size = maxSize == 0 ? "原始分辨率" : "\(maxSize)p"
+            let size = maxSize == 0 ? "原始分辨率" : "长边 ≤\(maxSize) px"
             let fpsText = fps == 0 ? "默认帧率" : "\(fps)fps"
             return "\(size) · \(bitrate)Mbps · \(fpsText)"
         }

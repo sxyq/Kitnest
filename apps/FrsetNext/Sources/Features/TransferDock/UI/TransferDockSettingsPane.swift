@@ -103,7 +103,7 @@ final class CastTransferSettingsDraft: SettingsEditableDraft {
                  fps: TransferDockPref.CastQuality.fps, clipboardAutoSync: TransferDockPref.CastQuality.clipboardAutoSync)
         }
         var summary: String {
-            let size = maxSize == 0 ? "原始分辨率" : "\(maxSize)p"
+            let size = maxSize == 0 ? "原始分辨率" : "长边 ≤\(maxSize) px"
             let frames = fps == 0 ? "默认帧率" : "\(fps)fps"
             return "\(size) · \(bitrate)Mbps · \(frames)"
         }
@@ -155,12 +155,12 @@ struct TransferDockSettingsPane: View {
         SettingsDraftEditor(id: "transferCast", makeDraft: { CastTransferSettingsDraft() }) { draft in
         SettingsSection("投屏画质") {
             SettingsGroupBox {
-                row("分辨率", subtitle: "短边上限；「原始」= 设备原生分辨率（更清晰、更吃带宽）") {
+                row("分辨率", subtitle: "长边像素上限；「原始」= 设备原生分辨率（更清晰、更吃带宽）") {
                     Picker("", selection: Binding(
                         get: { draft.values.maxSize },
                         set: { draft.values.maxSize = $0 })) {
                         ForEach(TransferDockPref.CastQuality.sizeOptions, id: \.1) { opt in
-                            Text(opt.1 == 0 ? "原始" : "\(opt.0)p").tag(opt.1)
+                            Text(opt.1 == 0 ? "原始" : "≤\(opt.0) px").tag(opt.1)
                         }
                     }
                     .labelsHidden()
