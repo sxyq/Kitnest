@@ -122,20 +122,22 @@ public final class LLMLineBuffer {
 
     @discardableResult
     public func ingest(_ data: Data) -> [String] {
+        let searchStart = remainder.endIndex
         remainder.append(data)
-        return drain(force: false)
+        return drain(force: false, from: searchStart)
     }
 
     public func flush() -> [String] {
-        drain(force: true)
+        drain(force: true, from: remainder.endIndex)
     }
 
-    private func drain(force: Bool) -> [String] {
+    private func drain(force: Bool, from searchStart: Int) -> [String] {
         var lines: [String] = []
         // v126（性能审计 F0224）：单趟扫描收集行边界，末尾一次性裁剪。
         // 原实现每行都 range(of: Data([0x0A])) 从头搜索 + removeSubrange 整段前移
         //（每行一次 O(n) 拷贝，一个 chunk 攒出几十行就是 O(n²)）——SSE 流式回包是 AI 热路径。
-        var cursor = remainder.startIndex
+        // 上批残行已搜过换行，只扫描本批新字节，解码仍从完整行起点开始。
+        var cursor = searchStart
         var lineStart = remainder.startIndex
         while let nl = remainder[cursor...].firstIndex(of: 0x0A) {
             if let line = String(data: remainder[lineStart..<nl], encoding: .utf8) {
