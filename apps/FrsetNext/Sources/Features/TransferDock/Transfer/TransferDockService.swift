@@ -301,14 +301,18 @@ final class TransferDockService: ObservableObject {
 
     // MARK: 登录态写回（WKWebView 抓到的 cookie → credentials/cookies.json）
 
+    static func isLoginDomain(_ domain: String) -> Bool {
+        let domain = domain.lowercased()
+        return ["heytap.com", "oppo.com"].contains {
+            domain == $0 || domain.hasSuffix("." + $0)
+        }
+    }
+
     /// 把浏览器 cookie 写成中转站工程认识的格式（数组，含 domain/expires/httpOnly/name/path/secure/value）
     /// - Parameter completion: v255 起必传的逻辑：登录页要等**服务端回验通过**才关窗。
     ///   `ok == false` 时 `reason` 是服务端原话（例如 1003 用户信息获取失败）。
     func saveCookies(_ cookies: [HTTPCookie], completion: ((Bool, String?) -> Void)? = nil) {
-        let keepDomains = ["heytap.com", "oppo.com"]
-        let relevant = cookies.filter { cookie in
-            keepDomains.contains { cookie.domain.hasSuffix($0) }
-        }
+        let relevant = cookies.filter { Self.isLoginDomain($0.domain) }
         guard !relevant.isEmpty else {
             errorMessage = "登录页没有产生有效 cookie，请确认已登录成功"
             completion?(false, "登录页没有产生有效 cookie")
