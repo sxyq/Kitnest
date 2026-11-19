@@ -2759,13 +2759,12 @@ Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,detec
 Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,detectListeningProxyPort,func,227,KEEP,同文件:132 probeProxy 调用
 Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,isLocalPortOpen,func,232,KEEP,同文件:228 端口探测调用
 Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,reloadInterfaces,func,256,KEEP,同文件:93 refresh 调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,primaryInterfaceName,func,293,KEEP,同文件:262 reloadInterfaces 调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probePublicIP,func,313,KEEP,同文件:95 refresh 调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probePublicIPFallback,func,336,KEEP,同文件:322、330 失败回退调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,extractIP,func,372,KEEP,同文件:325、343 解析调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,extractLocation,func,380,KEEP,同文件:326 解析调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probeLatencies,func,391,KEEP,同文件:105 refresh 调用
-Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probeDNS,func,418,KEEP,同文件:106 refresh 调用
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probePublicIP,func,296,KEEP,同文件:95 refresh 调用
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probePublicIPFallback,func,319,KEEP,同文件:322、330 失败回退调用
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,extractIP,func,355,KEEP,同文件:325、343 解析调用
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,extractLocation,func,363,KEEP,同文件:326 解析调用
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probeLatencies,func,374,KEEP,同文件:105 refresh 调用
+Monitor,Features/Monitor/Views/NetworkDiagnostics.swift,NetworkDiagnostics,probeDNS,func,401,KEEP,同文件:106 refresh 调用
 Monitor,Features/Monitor/Views/PortInspector.swift,PortInspector,init,init,81,KEEP,单例 shared:54；PortOccupancySection:14 使用
 Monitor,Features/Monitor/Views/PortInspector.swift,PortInspector,start,func,86,KEEP,PortOccupancySection.swift:57 onAppear 调用
 Monitor,Features/Monitor/Views/PortInspector.swift,PortInspector,stop,func,100,KEEP,PortOccupancySection.swift:58 onDisappear 调用

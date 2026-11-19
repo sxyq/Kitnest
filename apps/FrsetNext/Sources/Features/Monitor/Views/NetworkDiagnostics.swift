@@ -259,7 +259,8 @@ final class NetworkDiagnostics: ObservableObject {
         guard getifaddrs(&pointer) == 0, let first = pointer else { return }
         defer { freeifaddrs(pointer) }
 
-        let primaryName = Self.primaryInterfaceName()
+        let interfaceName = StatsDataProvider.primaryInterfaceName()
+        let primaryName = interfaceName.isEmpty ? "en0" : interfaceName
         var seen = Set<String>()
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let current = cursor {
@@ -287,24 +288,6 @@ final class NetworkDiagnostics: ObservableObject {
                     ?? result.first?.name ?? ""
             }
         }
-    }
-
-    /// 默认路由所在网卡（en0 / en1 …）
-    private static func primaryInterfaceName() -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/sbin/route")
-        process.arguments = ["-n", "get", "default"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        try? process.run()
-        process.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let text = String(data: data, encoding: .utf8) ?? ""
-        for line in text.split(separator: "\n") where line.contains("interface:") {
-            return line.replacingOccurrences(of: "interface:", with: "")
-                .trimmingCharacters(in: .whitespaces)
-        }
-        return "en0"
     }
 
     // MARK: 公网
