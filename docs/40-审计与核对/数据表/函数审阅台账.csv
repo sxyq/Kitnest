@@ -3918,14 +3918,14 @@ TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,AirDropSendEng
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,AirDropSendEngine,send,func,74,KEEP,"TransferDockView.swift:329,686,695"
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,AirDropReceiveWatcher,start,func,115,KEEP,TransferDockView.swift:119
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,AirDropReceiveWatcher,scan,func,141,KEEP,DispatchSource eventHandler 闭包 :120
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,findScrcpy,func,167,KEEP,"CastView.swift:122,252；ADBExtrasEngine.swift:386"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,findADB,func,193,KEEP,ADBExtrasEngine.swift:94 等 20+ 处调用
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,deviceConnectionChanged,func,209,KEEP,无线连接命令与已有设备扫描共用已知连接集合，实际连接或断开才反馈，后续相同扫描不重复
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,connectedDevices,func,218,KEEP,AdbQrPairing.swift:281；CastControlBar.swift:71
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,findScrcpy,func,167,KEEP,2026-11-20：投屏页就绪状态、镜像及后台应用窗口启动共用；优先四个固定可执行路径，未命中才env which；后者当前同步等退出后才读输出
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,findADB,func,193,KEEP,2026-11-20：统一ADB执行体、设备目录和WebDAV及投屏启动共用；按四个用户安装及Homebrew或SDK路径只读可执行位，未找到返回nil，不另启子进程
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,deviceConnectionChanged,func,209,KEEP,2026-11-20：无线connect与disconnect成功回调调用；已有集合包含状态相同则返回，否则更新集合并反馈；尚无扫描集合时显式连接动作仍反馈
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,connectedDevices,func,218,KEEP,2026-11-20：投屏刷新及二维码配对扫描共用；后台执行adb devices，解析状态首词，主线程比较有效连接集合反馈并交回列表；首次扫描只建立集合；输出仍先等退出再读取
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,brandedLauncher,func,267,KEEP,TransferCastEngines.swift:292；ADBExtrasEngine.swift:391
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,startMirror,func,315,KEEP,2026-11-20：CastContent投屏入口调用；沿原参数和改名组件启动；stdout无消费者送nullDevice，utility持续读stderr4096字节并只留末6行，退出等EOF再写日志；主线程卸载当前PID，detach共用结束keeper；启动失败关闭pipe
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardArguments,func,425,KEEP,TransferCastEngines.swift:298；ADBExtrasEngine.swift:401
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardExplicitOnSupported,func,437,KEEP,TransferCastEngines.swift:372
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardArguments,func,425,KEEP,2026-11-20：镜像启动与后台应用窗口启动共用；关闭同步直接返回no参数，开启时按帮助探测决定显式开参数或沿组件默认值；当前两个调用线程不同
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardExplicitOnSupported,func,437,KEEP,2026-11-20：clipboardArguments唯一调用；缓存600秒，执行scrcpy帮助并精确找显式开启字符串；当前先等退出后读pipe且共享缓存无锁，镜像主线程调用和后台应用窗口调用需后续处理
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverServices,func,488,KEEP,"AdbQrPairing.swift:307,425,463"
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverViaADB,func,505,KEEP,TransferCastEngines.swift:443 Bonjour 兜底
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,emit,func,545,KEEP,"TransferCastEngines.swift:440,450,483"
