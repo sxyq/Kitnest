@@ -3855,7 +3855,7 @@ TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebD
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,escapeXML,func,241,KEEP,2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,247,KEEP,2026-11-19：PROPFIND每项XML输出；href和displayname均交escapeXML转义与号及左右尖括号；目录类型和文件长度沿原结构
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,265,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,288,KEEP,2026-11-20：HEAD用统一run读取stat字节长度并发空body，状态0且可解析UInt64才200否则404，缺ADB503；GET仍后台cat全量读取，两个路径沿原shell引用；GET流式仍待优化
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,288,KEEP,2026-11-20：HEAD用统一run读取stat -L字节长度且shell文件谓词排除目录；跟随文件链接与GET的cat一致，状态0且UInt64才200否则404，缺ADB503；GET仍全量读取待优化
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,327,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,344,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
