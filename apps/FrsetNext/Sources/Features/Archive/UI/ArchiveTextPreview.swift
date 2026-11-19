@@ -171,8 +171,7 @@ struct ArchiveTextPreview: View {
             JSONInspectorView(text: draft)
         case .code:
             PreviewTextViewRepresentable(
-                attributedText: PreviewMarkdownRenderer.renderCodeBody(
-                    lang: PreviewMarkdownRenderer.detectLanguage(draft), code: draft),
+                attributedText: PreviewMarkdownRenderer.renderCodeBody(draft),
                 monospaced: true,
                 showsLineNumbers: true)
         case .plain:

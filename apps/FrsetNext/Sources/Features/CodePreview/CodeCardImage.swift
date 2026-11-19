@@ -10,13 +10,12 @@ public enum CodeCardImage {
     public static func render(code: String,
                               options: CodeRenderOptions,
                               width: CGFloat = 720) -> NSImage? {
-        let normalized = CodeHighlighter.normalize(code, tabWidth: options.tabWidth)
-        guard !normalized.isEmpty else { return nil }
+        guard !code.isEmpty else { return nil }
 
         let padding: CGFloat = 16
         let headerHeight: CGFloat = 32
         let textWidth = max(120, width - padding * 2)
-        let attributed = CodeHighlighter.exportAttributed(normalized, options: options)
+        let attributed = CodeHighlighter.exportAttributed(code, options: options)
 
         // 量高：与绘制使用同一个容器宽度，保证不截断
         let storage = NSTextStorage(attributedString: attributed)
@@ -55,7 +54,9 @@ public enum CodeCardImage {
         NSRect(x: 0, y: headerHeight - 1, width: width, height: 1).fill()
 
         let languageName = CodeLanguageCatalog.displayName(options.language)
-        let lineCount = CodeHighlighter.statistics(normalized).lines
+        let lineCount = code.reduce(1) { count, character in
+            character == "\n" || character == "\r" || character == "\r\n" ? count + 1 : count
+        }
         let headerText = NSAttributedString(string: "\(languageName.uppercased())   ·   \(lineCount) 行", attributes: [
             .font: CodeHighlighter.font(size: 10, bold: true),
             .foregroundColor: theme.lineNumber,

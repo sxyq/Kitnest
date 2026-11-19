@@ -123,7 +123,7 @@ public enum CodeHighlighter {
         guard options.showsLineNumbers else { return body }
 
         let text = body.string as NSString
-        let lineCount = max(1, text.components(separatedBy: "\n").count)
+        let lineCount = body.string.utf8.reduce(1) { $1 == 10 ? $0 + 1 : $0 }
         let digits = String(lineCount).count
         let bodyFont = font(size: options.fontSize)
         let gutterFont = font(size: options.fontSize * 0.82)
@@ -153,9 +153,13 @@ public enum CodeHighlighter {
     // MARK: 统计
 
     public static func statistics(_ code: String) -> (lines: Int, characters: Int) {
-        let normalized = code.replacingOccurrences(of: "\r\n", with: "\n")
-        let lines = normalized.isEmpty ? 1 : normalized.components(separatedBy: "\n").count
-        return (lines, normalized.count)
+        var lines = 1
+        var characters = 0
+        for ch in code {
+            if ch == "\n" || ch == "\r\n" { lines += 1 }
+            characters += 1
+        }
+        return (lines, characters)
     }
 
 }
