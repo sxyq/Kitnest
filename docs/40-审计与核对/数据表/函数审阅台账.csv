@@ -269,26 +269,26 @@ AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseModelIDs,fu
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,readableError,func,103,KEEP,2026-11-20：公共HTTP错误处理和字节流代理调用；尝试JSON字典后交LLMJSON.errorMessage，解析不成返回nil由已有原文提示处理
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,isTerminalLine,func,111,KEEP,2026-11-20：默认send在parseStreamLine前判定；按JSON type等于message_stop结束，不依赖空格风格，正常结束时公共流任务取消连接
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,normalizedBase,func,122,KEEP,2026-11-20：请求及模型发现共用；剥地址两端斜杠及尾部v1，之后调用方各拼唯一v1/messages或v1/models
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,init,init,49,KEEP,2026-11-20：shared正式存储构造；默认应用数据目录的凭据与主密钥两个URL，可传独立URL；立即load解密已有凭据入内存，不输出值
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,58,KEEP,2026-11-20：公共requireCredential、门面状态及候选连接读取；锁内按厂商rawValue查cache，不在每次请求重新读盘或派生密钥
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,2026-11-20：协调器调用，锁内复制缓存并剥空白，空值删除；persist两步都成功才替换cache；原子写成功而权限设置失败时磁盘已新但cache仍旧，lastWriteError返回界面且目录缓存尚未失效，列后续处理
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,removeCredential,func,80,KEEP,2026-11-20：LLMCredentialStoring删除实现复用setCredential(nil)；保留统一持久化及lastWriteError语义，当前正式协调器删除同样直接提交nil
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,84,KEEP,2026-11-20：协议要求实现，当前无生产清空消费者；先清cache再try持久化空字典，写盘前失败导致内存空而磁盘旧，权限阶段失败两者已空；两种错误均被吞且不更新lastWriteError，真实设置删除走协调器setCredential而非此处
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,93,KEEP,2026-11-20：初始化唯一调用；缺文件置空cache，存在则读完整信封并decryptEnvelope，失败只记错误及空内存而不覆盖磁盘原件
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,110,KEEP,2026-11-20：setCredential及clear共用，先加密并原子写唯一凭据文件，再设置0600；权限步骤失败时前次写入已完成；前者报告错误而clear仍吞错
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,116,KEEP,2026-11-20：仅persist在写盘之后调用FileManager设0600，权限错误向上抛出，此时文件内容已更新；后续须沿原写入路径处理该阶段与cache发布的一致性
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,130,KEEP,2026-11-20：derivedKey共用；按密钥文件路径查加锁进程缓存，未命中在锁外loadMasterSecret再写缓存；当前双首次并发可重复读建同一路径待评估
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,144,KEEP,2026-11-20：masterSecret未命中调用；已存在则剥FRSTKEY1头或保留旧随机串；缺失才系统随机32字节、原子写并设0600，不擅自重建已有密钥
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,163,KEEP,2026-11-20：加解密共用；主密钥加既有应用常量作材料，PBKDF2-SHA256用随机盐及100000轮派生32字节；非成功状态抛原错误
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,encryptEnvelope,func,187,KEEP,2026-11-20：persist调用；凭据字典JSON序列化，独立16字节salt和IV，AES256CBC配PKCS7，输出FRSTCRE1头及salt/IV/实际密文字节，保留既有存储格式
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,decryptEnvelope,func,219,KEEP,2026-11-20：load调用；确认信封头及基本长度，按既有偏移分salt/IV/cipher，派生密钥后CommonCrypto解密；结果必须字符串字典，否则抛decryptionFailed
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomBytes,func,254,KEEP,2026-11-20：加密各调用一次生成salt及IV；分配指定字节数组交randomFill再转Data，签名虽throws但实际系统随机函数不返回错误
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomFill,func,261,KEEP,2026-11-20：首次主密钥创建与salt/IV生成共用；直接调用Darwin arc4random_buf填指定缓冲，不另建随机生成器
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,init,init,272,KEEP,2026-11-20：AIConnectionService真实候选连接构造；把候选厂商Key按rawValue放入本对象字典，候选请求结束释放，不写正式凭据文件
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,credential,func,276,KEEP,2026-11-20：候选适配器requireCredential动态读取；锁内查独立字典，真实设置连接探测依赖，不能按旧仅测试注释删除
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,setCredential,func,280,KEEP,2026-11-20：满足同一存储协议；锁内非空写入而nil或空串删除，只改候选字典，正式凭据保存沿CredentialStore
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,removeCredential,func,286,KEEP,2026-11-20：内存存储协议删除实现复用setCredential(nil)，保持与候选读取同一加锁字典，不执行落盘
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,clear,func,287,KEEP,2026-11-20：内存存储协议清空实现锁内替换为空字典；不清其他实例及正式凭据，保留候选请求依赖的完整存储协议
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,init,init,50,KEEP,2026-11-20：shared正式存储构造；默认应用数据目录的凭据与主密钥两个URL，可传独立URL；立即load解密已有凭据入内存，不输出值
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,59,KEEP,2026-11-20：公共requireCredential、门面状态及候选连接读取；锁内按厂商rawValue查cache，不在每次请求重新读盘或派生密钥
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,64,KEEP,2026-11-20：协调器调用，锁内复制缓存并剥空白，空值删除，调用共用persist更新磁盘及缓存
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,removeCredential,func,73,KEEP,2026-11-20：LLMCredentialStoring删除实现复用setCredential(nil)；保留统一持久化及lastWriteError语义，当前正式协调器删除同样直接提交nil
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,77,KEEP,2026-11-20：存储协议的清空实现在锁内提交空字典，写入失败沿同一错误出口保留原缓存，真实设置按厂商删除走setCredential
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,84,KEEP,2026-11-20：初始化唯一调用；缺文件置空cache，存在则读完整信封并decryptEnvelope，失败只记错误及空内存而不覆盖磁盘原件
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,101,KEEP,2026-11-20：setCredential及clear共用，沿原格式加密并提交writeProtected，成功后替换缓存并清旧错误，失败时保留缓存且发布实际原因
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,writeProtected,func,113,KEEP,2026-11-20：密钥文件和凭据共用，在同卷系统临时目录写入并设0600后rename替换，始终释放本次临时目录，权限或替换错误向上返回
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,136,KEEP,2026-11-20：derivedKey调用，按路径在同一锁内查询和初始化进程缓存，同路径的首次读或生成只发生一次
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,144,KEEP,2026-11-20：缓存未命中才调用，已存在则剥FRSTKEY1头或保留旧随机串，缺失才随机生成32字节并经writeProtected原子提交
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,162,KEEP,2026-11-20：加解密共用；主密钥加既有应用常量作材料，PBKDF2-SHA256用随机盐及100000轮派生32字节；非成功状态抛原错误
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,encryptEnvelope,func,186,KEEP,2026-11-20：persist调用；凭据字典JSON序列化，独立16字节salt和IV，AES256CBC配PKCS7，输出FRSTCRE1头及salt/IV/实际密文字节，保留既有存储格式
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,decryptEnvelope,func,218,KEEP,2026-11-20：load调用；确认信封头及基本长度，按既有偏移分salt/IV/cipher，派生密钥后CommonCrypto解密；结果必须字符串字典，否则抛decryptionFailed
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomBytes,func,253,KEEP,2026-11-20：加密各调用一次生成salt及IV；分配指定字节数组交randomFill再转Data，签名虽throws但实际系统随机函数不返回错误
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomFill,func,260,KEEP,2026-11-20：首次主密钥创建与salt/IV生成共用；直接调用Darwin arc4random_buf填指定缓冲，不另建随机生成器
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,init,init,271,KEEP,2026-11-20：AIConnectionService真实候选连接构造；把候选厂商Key按rawValue放入本对象字典，候选请求结束释放，不写正式凭据文件
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,credential,func,275,KEEP,2026-11-20：候选适配器requireCredential动态读取；锁内查独立字典，真实设置连接探测依赖，不能按旧仅测试注释删除
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,setCredential,func,279,KEEP,2026-11-20：满足同一存储协议；锁内非空写入而nil或空串删除，只改候选字典，正式凭据保存沿CredentialStore
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,removeCredential,func,285,KEEP,2026-11-20：内存存储协议删除实现复用setCredential(nil)，保持与候选读取同一加锁字典，不执行落盘
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,clear,func,286,KEEP,2026-11-20：内存存储协议清空实现锁内替换为空字典；不清其他实例及正式凭据，保留候选请求依赖的完整存储协议
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAITool,init,init,21,KEEP,CustomAITool.init；AISettingsPane:99 新建工具
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAITool,render,func,34,KEEP,AISummaryView:111 把用户文本套进自定义模板
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,init,init,51,KEEP,Store 单例 init，prefs 可注入
@@ -2890,7 +2890,7 @@ Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONNodeModel,toggle,func
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONNodeModel,makeChildren,func,112,KEEP,2026-11-17：ensureChildren唯一调用；对象排序而数组保留序号；转义括号路径避免含点键与嵌套路径重名，真实depth逐级递增
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONDocument,init,init,155,KEEP,2026-11-17：文本入口调用；JSONL错误总数独立累计，行号仍最多50项；保留原文首尾空白与真实行号；无消费者totalNodeCount字段已删除
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,233,KEEP,2026-11-17：正式预览与归档文本入口调用；解析文本后委托文档初始化器；当前仍会在父视图重新构造时解析，文档生命周期待性能处理
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,241,KEEP,2026-11-17：文本初始化器委托；接入已有文档并展开根，前20个数组元素全为对象时默认表格；交互仍由原Stored与JSONTableState持有
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,241,KEEP,2026-11-20：文本初始化器与落盘长文的已解析文档共用；只在根子节点未建立时展开，已折叠的根保持原状态；前20个数组元素全为对象时默认表格
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,banner,func,302,KEEP,2026-11-17：body按超量标志提示节点数超过2万，原值仍保留并按需展开，移除仅解析前2万的错误文案
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,refreshMatches,func,412,KEEP,2026-11-17：onAppear搜索变化及切回树形调用；空查询清空命中，否则递归收集最多6000节点；搜索变化在非树形仍递归，待删除无消费者工作
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,collectMatches,func,428,KEEP,2026-11-17：refreshMatches启动并递归调用；按key和preview匹配，命中集合保留祖先使树形展开到结果；共享budget用尽即停止访问下一分支
@@ -3053,9 +3053,9 @@ Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverCont
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,169,KEEP,2026-11-20：classifyRawText调用；maxSplits80后仅取前80条非空行，不分配样本外每行；以去空白文本排除Markdown结构且允许井叹/include/import，代码标点前缀及原行4空格或Tab参与代码比例
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,189,KEEP,2026-11-20：codeStrength唯一调用；接收去空白行按语言前缀尾标点和操作符判代码，编译指令已能到达本方法；原始缩进由调用方判断，删除本方法不可达缩进分支
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,211,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,260,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,293,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,317,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,263,KEEP,2026-11-20：classifyRawText调用；强信号共用一次区间且任一命中即返回，弱信号复用静态下划线正则并扫描最多40条，累计两分即通过
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,294,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,318,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,2026-11-20：richText分支构造，直接持有model.richAttributed既有解析对象，缺格式时以inlineText构造普通正文，不再自身读盘或解析RTF
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
@@ -3070,7 +3070,7 @@ Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRu
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,init,init,316,KEEP,NSView required init?(coder:) 覆写；unavailable 占位
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,drawHashMarksAndLabels,func,322,KEEP,覆写 NSRulerView 绘制钩子；AppKit 滚动时回调
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,MarkdownFilePreviewBody,init,init,396,KEEP,2026-11-20：落盘长文和归档文本正文调用，init同步renderBody得到富文标题与源映射后初始化Stored；父视图重建仍先执行排版，归档窄栏沿showsTOC关闭目录
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,474,KEEP,2026-11-20：dedupeKey任务递增加载代次并先等待0.40秒，再后台调用原fullText桥接读盘；返回前确认代次和取消状态，空内容发布failed；loaded的body仍重新判型及部分同步渲染，后续应沿既有完整模型路由减少重复
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,460,KEEP,2026-11-20：按预览会话立即后台读取并分类；JSON文档和代码着色只准备一次，Markdown交内联预览共用的异步排版，空内容显示原提示；取消旧会话时取消对应任务并丢弃结果，0.40秒仅供转圈显示
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,init,init,510,KEEP,2026-11-20：普通markdown内容路由只保存传入模型；body按sessionID启动后台render并在取消后不发布，持有正文排版、标题和映射供共享MarkdownPreviewBody使用
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,515,KEEP,2026-11-20：session任务把模型正文交Task.detached后调用本方法，直接返回同一PreviewMarkdownRenderer.renderBody的正文标题与源映射三元组，不另行判型
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,861,KEEP,调用方 :807、:808、:814
@@ -3919,22 +3919,23 @@ TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngi
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,findADB,func,193,KEEP,2026-11-20：统一ADB执行体、设备目录和WebDAV及投屏启动共用；按四个用户安装及Homebrew或SDK路径只读可执行位，未找到返回nil，不另启子进程
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,deviceConnectionChanged,func,209,KEEP,2026-11-20：无线connect与disconnect成功回调调用；已有集合包含状态相同则返回，否则更新集合并反馈；尚无扫描集合时显式连接动作仍反馈
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,connectedDevices,func,218,KEEP,2026-11-20：投屏刷新及二维码配对扫描共用；后台执行adb devices，解析状态首词，主线程比较有效连接集合反馈并交回列表；首次扫描只建立集合；输出仍先等退出再读取
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,brandedLauncher,func,267,KEEP,TransferCastEngines.swift:292；ADBExtrasEngine.swift:391
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,startMirror,func,315,KEEP,2026-11-20：CastContent投屏入口调用；沿原参数和改名组件启动；stdout无消费者送nullDevice，utility持续读stderr4096字节并只留末6行，退出等EOF再写日志；主线程卸载当前PID，detach共用结束keeper；启动失败关闭pipe
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardArguments,func,425,KEEP,2026-11-20：镜像启动与后台应用窗口启动共用；关闭同步直接返回no参数，开启时按帮助探测决定显式开参数或沿组件默认值；当前两个调用线程不同
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardExplicitOnSupported,func,437,KEEP,2026-11-20：clipboardArguments唯一调用；缓存600秒，执行scrcpy帮助并精确找显式开启字符串；当前先等退出后读pipe且共享缓存无锁，镜像主线程调用和后台应用窗口调用需后续处理
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverServices,func,488,KEEP,"AdbQrPairing.swift:307,425,463"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverViaADB,func,505,KEEP,TransferCastEngines.swift:443 Bonjour 兜底
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,emit,func,545,KEEP,"TransferCastEngines.swift:440,450,483"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,pair,func,562,KEEP,AdbQrPairing.swift:440
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,connect,func,573,KEEP,"AdbQrPairing.swift:335,367,470"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,disconnect,func,589,KEEP,CastView.swift:461 重新发起授权
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,PushProgress,init,init,615,KEEP,TransferCastEngines.swift:715 进度快照
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,645,KEEP,TransferDockView.swift:785 推送
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pushOne,func,676,KEEP,"TransferCastEngines.swift:662,736"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,remoteFileSize,func,752,KEEP,TransferCastEngines.swift:713 轮询大小
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,770,KEEP,TransferCastEngines.swift:734 日志速率
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,777,KEEP,2026-11-19：TransferDockView.pullFromPhone调用；接收目标改为TransferStaging下本批UUID目录且不再删除共享根；addUploads移入正式存储后仅成功批次清空本批接收目录
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,brandedLauncher,func,267,KEEP,2026-11-20：prepareLaunch在唯一准备队列调用，按已找到的组件路径复用或更新品牌执行文件并准备同目录资源，复制失败沿原可执行文件启动
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,startMirror,func,313,KEEP,2026-11-20：CastContent入口在后台定位组件和ADB并准备参数，缺组件通知主线程，有结果回主线程按原窗口生命周期启动
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,runMirror,func,331,KEEP,2026-11-20：startMirror准备完毕回主线程调用；沿原启动、控制条挂载和保持设备唤醒顺序，stderr后台保留末6行，退出按当前PID卸载
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,prepareLaunch,func,435,KEEP,2026-11-20：镜像和独立应用窗口在后台调用；同一串行队列准备改名文件和剪贴板参数，能力缓存只在该队列访问
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ScreenCastEngine,clipboardExplicitOnSupported,func,452,KEEP,2026-11-20：prepareLaunch串行调用，按运行组件路径与修改时间复用600秒缓存，先读帮助再等退出，成功才保存显式开启选项结果
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverServices,func,505,KEEP,"AdbQrPairing.swift:307,425,463"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,discoverViaADB,func,522,KEEP,TransferCastEngines.swift:443 Bonjour 兜底
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,emit,func,562,KEEP,"TransferCastEngines.swift:440,450,483"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,pair,func,579,KEEP,AdbQrPairing.swift:440
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,connect,func,590,KEEP,"AdbQrPairing.swift:335,367,470"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,disconnect,func,606,KEEP,CastView.swift:461 重新发起授权
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,PushProgress,init,init,632,KEEP,TransferCastEngines.swift:715 进度快照
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,662,KEEP,TransferDockView.swift:785 推送
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pushOne,func,693,KEEP,"TransferCastEngines.swift:662,736"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,remoteFileSize,func,769,KEEP,TransferCastEngines.swift:713 轮询大小
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,787,KEEP,TransferCastEngines.swift:734 日志速率
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,794,KEEP,2026-11-19：TransferDockView.pullFromPhone调用；接收目标改为TransferStaging下本批UUID目录且不再删除共享根；addUploads移入正式存储后仅成功批次清空本批接收目录
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,readText,func,20,KEEP,2026-11-17：PreviewPopoverContentModel文件正文构造调用；mappedIfSafe读取完整文件后依次解码UTF8及Latin1；失败抛原编码错误由正文显示；扩展名表由归档正文共用
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,39,KEEP,2026-11-17：文件中转卡片悬停调用；取消共享协调器悬停关闭并替换旧showWork；复用现有开窗延迟和锚点及弱窗口引用；work到点交showNow
 Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,53,KEEP,2026-11-17：文件中转主动预览及归档悬停提取完成调用；取消待显示任务并保存currentURL后交现有共享协调器presentFile；窗口锚点和sourceWindow沿参数传递
