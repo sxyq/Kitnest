@@ -328,24 +328,24 @@ AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,176,KEE
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,230,KEEP,协议扩展默认实现；AIConnectionService:81 对话探测调用
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,checkResponse,func,239,KEEP,协议扩展默认实现；availableModels L159 / send L190 校验 HTTP 状态
 AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,247,KEEP,协议扩展默认兜底 false；Anthropic 覆写为非空实现
-AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,key,func,21,KEEP,models/store/invalidate 内生成 Preferences 键
-AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,timeKey,func,22,KEEP,同上层，记录 updatedAt 用于 TTL 判定
-AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,models,func,25,KEEP,LLMResolver L104/L111/L118 读取；过期返回 nil
-AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,store,func,40,KEEP,LLMResolver L107 写入；AIConnectionService:62 测试成功回填
-AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,invalidate,func,52,KEEP,AISettingsPane:61 换密钥/地址后清缓存
-AI,Features/AI/Services/LLMResolver.swift,LLMResolver,init,init,73,KEEP,Cache 单例；TTL 30 分钟，内存+Preferences 双层
-AI,Features/AI/Services/LLMResolver.swift,LLMResolver,provider,func,80,KEEP,LLMService.reload L24 与 availableModels L102 构造适配器
-AI,Features/AI/Services/LLMResolver.swift,LLMResolver,effectiveModel,func,93,KEEP,LLMService.currentModel L36；用户选择优先于厂商默认
-AI,Features/AI/Services/LLMResolver.swift,LLMResolver,availableModels,func,100,KEEP,AISettingsPane:126 / AIChatView:114 经 LLMResolver 调用
-AI,Features/AI/Services/LLMResolver.swift,LLMResolver,cachedModels,func,117,KEEP,AISettingsPane:44 / AIChatView:85 首屏读缓存
-AI,Features/AI/Services/LLMService.swift,LLMService,init,init,16,KEEP,单例；init 内建 resolver.currentProvider
-AI,Features/AI/Services/LLMService.swift,LLMService,reload,func,22,KEEP,AIModule.start:18 与 AISettingsPane:55/62/79/86/142 调用
-AI,Features/AI/Services/LLMService.swift,LLMService,send,func,45,KEEP,AIChatView:175 / AISummaryView:169 / 本类 stream L86
-AI,Features/AI/Services/LLMService.swift,LLMService,complete,func,69,KEEP,本类 complete(prompt:) L81 复用，统计 ai_request_count
-AI,Features/AI/Services/LLMService.swift,LLMService,complete,func,79,KEEP,LLMServiceProtocol；BuiltinTools:60 摘要工具调用
-AI,Features/AI/Services/LLMService.swift,LLMService,stream,func,84,KEEP,LLMServiceProtocol；TranslationProvider:108 流式翻译调用
-AI,Features/AI/Services/LLMService.swift,LLMService,buildMessages,func,90,KEEP,complete(prompt:)/stream(prompt:) L80/L85 包装消息数组
-AI,Features/AI/Services/LLMService.swift,LLMService,withSystemIfNeeded,func,99,KEEP,send L54 补默认 system，已有则跳过
+AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,key,func,21,KEEP,2026-11-20：models/store/invalidate共用；按厂商rawValue生成ai.models偏好键，内存与持久记录使用同一键
+AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,timeKey,func,22,KEEP,2026-11-20：读取与写入及失效操作共用厂商时间键；和目录正文键一起表达30分钟有效期
+AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,models,func,25,KEEP,2026-11-20：resolver及聊天和设置首屏使用；锁内先查30分钟内存项，再解码仍有效的偏好JSON并补内存；过期返回nil，故availableModels异常分支同样无法取过期数据
+AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,store,func,40,KEEP,2026-11-20：resolver拉模型成功后写；锁内更新厂商内存项，锁外编码目录及写偏好和时间；当前AIConnectionService只返回模型结果不直接写此缓存
+AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,invalidate,func,52,KEEP,2026-11-20：AI设置草稿apply在地址或密钥变化时调用；移除对应厂商内存及目录和时间偏好，取消旧地址目录复用
+AI,Features/AI/Services/LLMResolver.swift,LLMResolver,init,init,73,KEEP,2026-11-20：shared使用正式CredentialStore及模型缓存；初始化仅保存两依赖，currentProvider按已保存偏好构造适配器
+AI,Features/AI/Services/LLMResolver.swift,LLMResolver,provider,func,80,KEEP,2026-11-20：currentProvider和模型发现共用四路厂商分发；每次创建适配器以消费当前地址与凭据依赖，不复制请求解析实现
+AI,Features/AI/Services/LLMResolver.swift,LLMResolver,effectiveModel,func,93,KEEP,2026-11-20：LLMService.currentModel调用；非空已选模型直接返回，否则构造指定或当前厂商适配器读取defaultModel；选定模型目前为全局偏好
+AI,Features/AI/Services/LLMResolver.swift,LLMResolver,availableModels,func,100,KEEP,2026-11-20：聊天刷新模型调用；先按实际适配器厂商查有效缓存，force跳过首次读取，网络成功更新目录；异常再读同一有效期缓存否则抛错，注释所称过期数据实际不可取
+AI,Features/AI/Services/LLMResolver.swift,LLMResolver,cachedModels,func,117,KEEP,2026-11-20：聊天首屏及设置草稿初始化和切厂商调用；仅查询现有缓存，不启动网络；过期或未配置缓存返回nil供界面空数组显示
+AI,Features/AI/Services/LLMService.swift,LLMService,init,init,16,KEEP,2026-11-20：shared默认使用LLMResolver.shared，保存resolver和当前适配器；AIModule启动将同一对象接入ServiceLocator供跨模块使用
+AI,Features/AI/Services/LLMService.swift,LLMService,reload,func,22,KEEP,2026-11-20：AIModule启动和AI设置apply变更后调用；锁内重建provider，日志仅厂商与模型；正在发送请求持有先前target不被替换
+AI,Features/AI/Services/LLMService.swift,LLMService,send,func,45,KEEP,2026-11-20：聊天及总结和协议stream共用；捕获当前provider与模型，任务内加一次请求统计、补system并转发增量；结束或错误完成continuation，外部终止取消任务
+AI,Features/AI/Services/LLMService.swift,LLMService,complete,func,69,KEEP,2026-11-20：prompt重载调用；沿同一send且stream为false逐片拼接结果，不重复统计或建立独立传输链
+AI,Features/AI/Services/LLMService.swift,LLMService,complete,func,79,KEEP,2026-11-20：跨模块LLMServiceProtocol实现；工具箱总结润色与AI翻译调用，先buildMessages再复用消息级complete
+AI,Features/AI/Services/LLMService.swift,LLMService,stream,func,84,KEEP,2026-11-20：跨模块协议实现由LLMTranslationProvider.stream调用；buildMessages后复用send的可取消增量路径
+AI,Features/AI/Services/LLMService.swift,LLMService,buildMessages,func,90,KEEP,2026-11-20：两个prompt入口共用；显式非空system优先，否则读取默认提示；非空system在前且用户prompt在后，不添加多余轮次
+AI,Features/AI/Services/LLMService.swift,LLMService,withSystemIfNeeded,func,99,KEEP,2026-11-20：send唯一调用；消息已含system直接沿用，否则仅在默认提示非空时前插一条，避免prompt入口重复补system
 AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionStore,init,init,13,KEEP,单例 init；db 走 DatabaseManager.clipboard 已建表
 AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionStore,createSession,func,19,KEEP,AIChatView:154/167 新建会话
 AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionStore,listSessions,func,42,KEEP,AIChatView:99 取最近一条恢复上次会话
@@ -355,20 +355,20 @@ AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionStore,appendMessage,func
 AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionStore,messages,func,107,KEEP,loadSession L74 读取消息体
 AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionStore,autoTitle,func,120,KEEP,AIChatView:137 首条发言自动命名
 AI,Features/AI/Services/LLMSessionStore.swift,LLMSessionSearchHit,init,init,142,KEEP,单例 init；db 走 DatabaseManager.clipboard 已建表
-AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,init,init,18,KEEP,streamBytes L73 构造委托；持有 onData/onFinish/refineError
-AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSession,func,27,KEEP,URLSessionDataDelegate 回调，记录 HTTP 状态码
-AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSession,func,35,KEEP,URLSessionDataDelegate 回调，正常流转发/错误体攒包
-AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSession,func,41,KEEP,URLSessionDataDelegate 回调，收尾并翻译 HTTP 错误
-AI,Features/AI/Services/LLMTransport.swift,LLMTransport,streamBytes,func,63,KEEP,LLMProtocols.send L198 流式字节源；onTermination 取消底层 task
-AI,Features/AI/Services/LLMTransport.swift,SessionBox,invalidate,func,100,KEEP,SessionBox 清理连接池；L78/L91/L105 调用
-AI,Features/AI/Services/LLMTransport.swift,LLMTransport,truncate,func,109,KEEP,LLMProtocols L239、AIConnectionService:87、LLMJSON L169 截断错误文案
-AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,ingest,func,124,KEEP,LLMProtocols.send L200 跨 chunk 攒行
-AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,flush,func,129,KEEP,LLMProtocols.send L211 冲刷末尾残行
-AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,drain,func,133,KEEP,ingest/flush 内单趟扫描切行（v126 去掉 O(n²) 拷贝）
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,object,func,165,KEEP,四家 parseComplete/parseModelIDs 与 readableError 通用入口
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,errorMessage,func,175,KEEP,各适配器解析 error 字段；readableError 统一返回
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,ssePayload,func,185,KEEP,Anthropic/OpenAI parseStreamLine 剥离 data: 前缀
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,streamPayload,func,193,KEEP,Gemini/Ollama 兼容裸 JSON 行（NDJSON）
+AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,init,init,18,KEEP,2026-11-20：streamBytes为每请求构造；保存字节与完成回调及厂商错误解析器，statusCode和errorBody属于当前请求
+AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSession,func,27,KEEP,2026-11-20：URLSession响应回调记录HTTP状态并允许接收；随后字节回调按该状态分流正文或错误体
+AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSession,func,35,KEEP,2026-11-20：URLSession串行代理队列派发；状态小于400立即转发数据，错误状态累积同一errorBody交最终厂商错误解析
+AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSession,func,41,KEEP,2026-11-20：网络任务完成回调；网络错误优先，HTTP错误交厂商refineError或前300字符说明，正常以nil完成；回调同时触发session清理
+AI,Features/AI/Services/LLMTransport.swift,LLMTransport,streamBytes,func,63,KEEP,2026-11-20：LLMProviderAdapting.send的流式分支调用；每请求ephemeral session设60秒请求及600秒资源期限，字节送AsyncThrowingStream；终止取消dataTask且释放连接会话，完成沿同一box清理
+AI,Features/AI/Services/LLMTransport.swift,SessionBox,invalidate,func,100,KEEP,2026-11-20：字节流完成与消费者终止共用；锁内取出并置空session，锁外invalidateAndCancel；重复调用不会持有第二份会话
+AI,Features/AI/Services/LLMTransport.swift,LLMTransport,truncate,func,109,KEEP,2026-11-20：HTTP错误、JSON解析失败及连接结果提示共用；先替换换行为空格，再仅超limit时保留前缀加省略号，仍会扫描整个输入
+AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,ingest,func,124,KEEP,2026-11-20：每请求唯一buffer由适配器send持有；追加当前Data片并drain非强制模式，跨块未完行继续保存在remainder
+AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,flush,func,129,KEEP,2026-11-20：流正常EOF后send调用；强制消费无换行尾部，供最后JSON或结束事件解析，不在每片重复处理残行
+AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,drain,func,133,KEEP,2026-11-20：ingest及flush共用；按LF索引单趟消费可解码行、去空白并略空行，已消费前缀一次移除；force清剩余尾部；超长未完行会在各chunk重复搜索待后续评估
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,object,func,165,KEEP,2026-11-20：四家一次性及模型目录解析共用；必须为JSON字典否则抛decoding，错误正文只取前300字节再压成200字符说明
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,errorMessage,func,175,KEEP,2026-11-20：四家响应和readableError消费；支持error字典的message或type、error字符串及success为false时message，其他正常返回nil
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,ssePayload,func,185,KEEP,2026-11-20：OpenAI兼容及Anthropic流行解析和结束判定共用；仅处理data前缀，剥空白后空值及DONE返回nil，终止实际由各适配器isTerminalLine判定
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,streamPayload,func,193,KEEP,2026-11-20：Ollama与Gemini流行解析共用；优先SSE有效载荷，否则仅接受去空白后以左花括号或左中括号起始的裸JSON行，忽略注释及其他事件行
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,legacyString,func,16,KEEP,协议要求；UserDefaultsLegacyGeminiStore 实现，firstValue L124 调用
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,removeLegacy,func,18,KEEP,协议要求；migrateIfNeeded L116 迁移后清旧键
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,init,init,25,KEEP,UserDefaults 实现，prefs 可注入
