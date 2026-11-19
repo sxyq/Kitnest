@@ -405,9 +405,8 @@ public struct CodePreviewView: View {
 
     private func copyHTMLSource() {
         if isSettingsPreview { copiedFlash = true; return }
-        let payload = CodeRichCopy.makePayload(code, options: options)
-        NSPasteboard.general.clearContents()
-        let ok = NSPasteboard.general.setString(payload.html, forType: .string)
+        let payload = CodeRichCopy.makePayload(code, options: options, includeRTF: false)
+        let ok = CodeRichCopy.copyPlainText(payload.html)
         flashCopied(ok: ok, message: "已复制 HTML 源码")
     }
 
