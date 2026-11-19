@@ -192,14 +192,17 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
         } else {
             scrollView.drawsBackground = false
         }
+        let text = attributedText.string
         if showsLineNumbers {
-            let ruler = PreviewLineNumberRulerView(textView: textView)
+            let ruler = CodeLineNumberRuler(textView: textView)
+            ruler.updateText(text)
             scrollView.verticalRulerView = ruler
             scrollView.hasVerticalRuler = true
             scrollView.rulersVisible = true
         }
 
         textView.textStorage?.setAttributedString(attributedText)
+        context.coordinator.lastText = text
 
         context.coordinator.onScroll = onScrollOffsetChanged
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -227,8 +230,10 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
             sourceView.sourceText = sourceText
             sourceView.sourceSegments = sourceSegments
         }
-        if context.coordinator.lastText != attributedText.string {
-            context.coordinator.lastText = attributedText.string
+        let text = attributedText.string
+        if context.coordinator.lastText != text {
+            context.coordinator.lastText = text
+            (scrollView.verticalRulerView as? CodeLineNumberRuler)?.updateText(text)
             textView.textStorage?.setAttributedString(attributedText)
         }
         // 左侧目录点击 → 滚动到对应标题（同一请求只执行一次）
@@ -296,67 +301,6 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
 
         deinit {
             NotificationCenter.default.removeObserver(self)
-        }
-    }
-}
-
-// MARK: - 行号标尺（代码预览；与 05 号 CodeLineNumberRulerView 职责相邻，本类为面板侧私有实现）
-
-final class PreviewLineNumberRulerView: NSRulerView {
-    private weak var attachedTextView: NSTextView?
-
-    init(textView: NSTextView) {
-        self.attachedTextView = textView
-        super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
-        clientView = textView
-        ruleThickness = 28
-    }
-
-    @available(*, unavailable)
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var isFlipped: Bool { true }
-
-    override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView = attachedTextView,
-              let layoutManager = textView.layoutManager,
-              let textStorage = textView.textStorage,
-              let container = textView.textContainer else { return }
-
-        let content = textStorage.string as NSString
-        let visible = textView.visibleRect
-        let glyphRange = layoutManager.glyphRange(forBoundingRect: visible, in: container)
-        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        // v126（性能审计 F1106）：起始行号改为数前缀换行符——原实现把可见区前的
-        // 全部文本 substring + components(separatedBy:) 出一个大数组，每次滚动重绘
-        // 都 O(前缀长) 分配；现在只查 "\n" 位置，零大数组分配，结果一致（行号=换行数+1）。
-        var lineNumber = 1
-        var search = NSRange(location: 0, length: charRange.location)
-        while true {
-            let hit = content.range(of: "\n", options: [], range: search)
-            if hit.location == NSNotFound { break }
-            lineNumber += 1
-            search = NSRange(location: NSMaxRange(hit),
-                             length: charRange.location - NSMaxRange(hit))
-        }
-        var charIndex = charRange.location
-
-        while charIndex < NSMaxRange(charRange) {
-            let lineRange = content.lineRange(for: NSRange(location: charIndex, length: 0))
-            let lineGlyph = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
-            let fragment = layoutManager.lineFragmentRect(forGlyphAt: lineGlyph.location, effectiveRange: nil)
-            let y = fragment.minY - visible.minY + textView.textContainerInset.height
-            let label = NSAttributedString(string: "\(lineNumber)", attributes: attributes)
-            label.draw(in: NSRect(x: 2, y: y, width: ruleThickness - 4, height: fragment.height))
-            lineNumber += 1
-            charIndex = NSMaxRange(lineRange)
         }
     }
 }

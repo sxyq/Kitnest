@@ -474,6 +474,7 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
         scrollView.borderType = .noBorder
 
         let ruler = CodeLineNumberRuler(textView: textView, theme: theme, fontSize: fontSize)
+        ruler.updateText(attributed.string)
         scrollView.verticalRulerView = ruler
         scrollView.hasVerticalRuler = showsLineNumbers
         scrollView.rulersVisible = showsLineNumbers
@@ -502,15 +503,18 @@ struct CodeTextViewRepresentable: NSViewRepresentable {
                                                  height: CGFloat.greatestFiniteMagnitude)
             }
         }
+        let ruler = scrollView.verticalRulerView as? CodeLineNumberRuler
         if textView.attributedString() != attributed {
             let offset = scrollView.contentView.bounds.origin
+            let text = attributed.string
+            if textView.string != text { ruler?.updateText(text) }
             textView.textStorage?.setAttributedString(attributed)
             scrollView.contentView.scroll(to: offset)
             scrollView.reflectScrolledClipView(scrollView.contentView)
         }
-        if let ruler = scrollView.verticalRulerView as? CodeLineNumberRuler {
+        if let ruler {
             ruler.theme = theme
-            ruler.fontSize = fontSize
+            if ruler.fontSize != fontSize { ruler.fontSize = fontSize }
             ruler.needsDisplay = true
         }
         if let codeView = textView as? CodePreviewTextView {
@@ -588,11 +592,12 @@ final class CodePreviewTextView: NSTextView {
 
 final class CodeLineNumberRuler: NSRulerView {
 
-    var theme: CodeTheme
-    var fontSize: CGFloat
+    var theme: CodeTheme?
+    var fontSize: CGFloat { didSet { updateThickness() } }
     private weak var attachedTextView: NSTextView?
+    private var lineStarts = [0]
 
-    init(textView: NSTextView, theme: CodeTheme, fontSize: CGFloat) {
+    init(textView: NSTextView, theme: CodeTheme? = nil, fontSize: CGFloat = 12) {
         self.attachedTextView = textView
         self.theme = theme
         self.fontSize = fontSize
@@ -608,74 +613,78 @@ final class CodeLineNumberRuler: NSRulerView {
 
     override var isFlipped: Bool { true }
 
-    private var lineNumberFont: NSFont {
-        CodeHighlighter.font(size: max(8, fontSize * 0.78))
+    // 使用与 NSTextView 字符区间一致的 UTF-16 偏移。
+    func updateText(_ text: String) {
+        let content = text as NSString
+        let length = content.length
+        lineStarts = [0]
+        var start = 0
+        while start < length {
+            var end = 0
+            var contentsEnd = 0
+            content.getLineStart(nil, end: &end, contentsEnd: &contentsEnd,
+                                 for: NSRange(location: start, length: 0))
+            if contentsEnd < end { lineStarts.append(end) }
+            start = end
+        }
+        updateThickness()
+        needsDisplay = true
     }
 
-    /// 行数缓存：标尺每次滚动都会重绘，不能每次都 components(separatedBy:) 一遍全文
-    private var cachedLineCount = 1
-    private var cachedLength = -1
-
     private func updateThickness() {
-        guard let textView = attachedTextView else { return }
-        let length = (textView.string as NSString).length
-        if length != cachedLength {
-            cachedLength = length
-            cachedLineCount = max(1, textView.string.components(separatedBy: "\n").count)
-        }
-        let digits = max(2, String(cachedLineCount).count)
-        ruleThickness = CGFloat(digits) * (fontSize * 0.62) + 18
+        let thickness = theme == nil ? 28 : CGFloat(max(2, String(lineStarts.count).count)) * (fontSize * 0.62) + 18
+        if ruleThickness != thickness { ruleThickness = thickness }
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        theme.gutter.setFill()
-        bounds.fill()
-
-        // 右侧分隔线
-        theme.border.setFill()
-        NSRect(x: bounds.maxX - 1, y: 0, width: 1, height: bounds.height).fill()
+        if let theme {
+            theme.gutter.setFill()
+            bounds.fill()
+            theme.border.setFill()
+            NSRect(x: bounds.maxX - 1, y: 0, width: 1, height: bounds.height).fill()
+        }
 
         guard let textView = attachedTextView,
               let layoutManager = textView.layoutManager,
               let textStorage = textView.textStorage,
               let container = textView.textContainer else { return }
 
-        updateThickness()
-
-        let content = textStorage.string as NSString
         let visible = textView.visibleRect
         let glyphRange = layoutManager.glyphRange(forBoundingRect: visible, in: container)
         let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+        guard charRange.length > 0 else { return }
 
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .right
-        paragraph.lineBreakMode = .byClipping
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: lineNumberFont,
-            .foregroundColor: theme.lineNumber,
-            .paragraphStyle: paragraph,
-        ]
-
-        // 起始行号：数前缀换行符（不 slice 大字符串）
-        var lineNumber = 1
-        var search = NSRange(location: 0, length: charRange.location)
-        while true {
-            let hit = content.range(of: "\n", options: [], range: search)
-            if hit.location == NSNotFound { break }
-            lineNumber += 1
-            search = NSRange(location: NSMaxRange(hit), length: charRange.location - NSMaxRange(hit))
+        let attributes: [NSAttributedString.Key: Any]
+        if let theme {
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .right
+            paragraph.lineBreakMode = .byClipping
+            attributes = [.font: CodeHighlighter.font(size: max(8, fontSize * 0.78)),
+                          .foregroundColor: theme.lineNumber, .paragraphStyle: paragraph]
+        } else {
+            attributes = [.font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
+                          .foregroundColor: NSColor.secondaryLabelColor]
         }
 
-        var charIndex = charRange.location
-        while charIndex < NSMaxRange(charRange) {
-            let lineRange = content.lineRange(for: NSRange(location: charIndex, length: 0))
+        var low = 0
+        var high = lineStarts.count
+        while low + 1 < high {
+            let middle = (low + high) / 2
+            if lineStarts[middle] <= charRange.location { low = middle }
+            else { high = middle }
+        }
+        let inset: CGFloat = theme == nil ? 2 : 6
+        let labelWidth = ruleThickness - (theme == nil ? 4 : 14)
+        for i in low..<lineStarts.count {
+            let start = lineStarts[i]
+            if start >= NSMaxRange(charRange) { break }
+            let end = i + 1 < lineStarts.count ? lineStarts[i + 1] : textStorage.length
+            let lineRange = NSRange(location: start, length: end - start)
             let lineGlyph = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
             let fragment = layoutManager.lineFragmentRect(forGlyphAt: lineGlyph.location, effectiveRange: nil)
             let y = fragment.minY - visible.minY + textView.textContainerInset.height
-            let label = NSAttributedString(string: "\(lineNumber)", attributes: attributes)
-            label.draw(in: NSRect(x: 6, y: y, width: ruleThickness - 14, height: fragment.height))
-            lineNumber += 1
-            charIndex = NSMaxRange(lineRange)
+            ("\(i + 1)" as NSString).draw(in: NSRect(x: inset, y: y, width: labelWidth, height: fragment.height),
+                                        withAttributes: attributes)
         }
     }
 }

@@ -44,6 +44,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/CodePreview/CodePreviewView.swift", "updateText"):
+        "2026-11-20：两个NSTextView宿主装入或更换正文时调用，记录UTF-16行首、更新宽度及请求一次重绘；滚动只读取偏移表",
     ("Features/TransferDock/Cast/TransferCastEngines.swift", "prepareLaunch"):
         "2026-11-20：镜像和独立应用窗口在后台调用；同一串行队列准备改名文件和剪贴板参数，能力缓存只在该队列访问",
     ("Features/TransferDock/Cast/TransferCastEngines.swift", "runMirror"):
