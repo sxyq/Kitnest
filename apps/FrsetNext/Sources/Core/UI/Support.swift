@@ -370,7 +370,7 @@ public extension Data {
 public enum AppDirectories {
     /// 数据根目录。
     ///
-    /// 支持 `KITNEST_DATA_DIR` 覆盖：手册演示 GIF 不能带真实剪贴板内容（里面有
+    /// 支持 `KITNEST_DATA_DIR` 覆盖：手册演示不能带真实剪贴板内容（里面有
     /// VPN 订阅 token、服务器地址之类），录制时用隔离目录跑，录完删掉即可，
     /// 个人数据一条都不用动。
     public static var base: URL {

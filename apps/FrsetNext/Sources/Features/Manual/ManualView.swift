@@ -8,6 +8,7 @@ public struct ManualPaneView: View {
     @Stored private var selection: String?
     @Stored private var expanded: Set<String> = []
     @Stored private var query: String = ""
+    private let quickStartID = "manual:quick-start"
 
     public init() {}
 
@@ -24,10 +25,9 @@ public struct ManualPaneView: View {
             detail
         }
         .onAppear {
-            if current == nil {
-                selection = doc.roots.first?.children.first?.id ?? doc.roots.first?.id
-                expanded = Set(doc.roots.prefix(1).map(\.id))
-            }
+            selection = quickStartID
+            query = ""
+            expanded = Set(doc.roots.prefix(1).map(\.id))
         }
     }
 
@@ -57,15 +57,25 @@ public struct ManualPaneView: View {
             .padding(.top, 12)
             .padding(.bottom, 6)
 
+            Button { selection = quickStartID } label: {
+                Label("从这里开始", systemImage: "sparkles")
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8).padding(.vertical, 7)
+                    .background(selection == quickStartID ? Theme.accent.opacity(0.14) : .clear,
+                                in: RoundedRectangle(cornerRadius: 7))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(selection == quickStartID ? Theme.accent : Color.primary)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 5)
+
             HStack(spacing: 10) {
-                Button("展开全部") { expanded = Set(doc.roots.map(\.id)) }
-                    .buttonStyle(.plain).font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Button("收起全部") { expanded = [] }
-                    .buttonStyle(.plain).font(.system(size: 11))
+                Text("按功能分类")
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text("\(doc.flatNodes.count) 个功能")
+                Text("\(doc.roots.count) 类")
                     .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 12)
@@ -105,6 +115,8 @@ public struct ManualPaneView: View {
                     if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, visibleRoots.isEmpty {
                         Text("未找到相关功能，请换个关键词。")
                             .foregroundStyle(.secondary)
+                    } else if selection == quickStartID {
+                        quickStart
                     } else if let node = current {
                         breadcrumb(for: node)
                         Text(node.title)
@@ -137,6 +149,38 @@ public struct ManualPaneView: View {
             }
             .onChange(of: query) { _ in proxy.scrollTo("manual-top", anchor: .top) }
         }
+    }
+
+    private var quickStart: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("你想做什么？").font(.system(size: 22, weight: .semibold))
+            Text("选一个常见任务，查看操作步骤和示例演示；全部功能按左侧类别整理。")
+                .font(.system(size: 13)).foregroundStyle(.secondary)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                quickStartCard("找回复制过的内容", detail: "查看历史记录，再次复制或粘贴。",
+                               symbol: "doc.on.clipboard", guide: "02-01-剪贴板历史")
+                quickStartCard("截屏并提取文字", detail: "框选画面，识别文字并复制。",
+                               symbol: "viewfinder", guide: "03-11-文字识别")
+                quickStartCard("把文件发到手机", detail: "选择传输方式，查看发送结果。",
+                               symbol: "iphone.and.arrow.right.inward", guide: "06-02-手机直传")
+                quickStartCard("设置刘海与多屏", detail: "选择显示屏幕，了解另一块屏幕的入口。",
+                               symbol: "display.2", guide: "01-03-刘海工作台与多屏")
+            }
+        }
+    }
+
+    private func quickStartCard(_ title: String, detail: String, symbol: String, guide: String) -> some View {
+        Button { selection = guide } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
+                Text(detail).font(.system(size: 11.5)).foregroundStyle(.secondary)
+                Label("查看步骤与演示", systemImage: "arrow.right")
+                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accent)
+            }
+            .padding(13).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+            .glassCard(radius: Theme.Radius.card)
+        }
+        .buttonStyle(.plain)
     }
 
     /// 面包屑：祖先路径（点击可回跳）

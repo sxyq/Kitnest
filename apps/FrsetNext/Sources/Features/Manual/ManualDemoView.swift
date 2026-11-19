@@ -33,7 +33,7 @@ struct ManualDemoView: View {
                     .buttonStyle(.borderless)
             }
             presetPicker
-            Text("演示只使用示例内容，不读取你的剪贴板和文件。")
+            Text("这里只播放预先准备的示例，不读取或修改你的剪贴板、文件或电脑设置。")
                 .font(.caption).foregroundStyle(.secondary)
             stage
                 .frame(maxWidth: .infinity)
@@ -72,6 +72,9 @@ struct ManualDemoView: View {
         .padding(14)
         .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 14))
         .onAppear {
+            step = 0
+            playing = false
+            selectedPreset = 0
             toolbar.isSettingsPreview = true
             toolbar.preview = SettingsPreviewSamples.image
             toolbar.onPreviewFeedback = { _ in
@@ -154,8 +157,12 @@ struct ManualDemoView: View {
             recording
         case "settings" where title.contains("Dock"):
             dockPreview
+        case "settings":
+            settingsPreview
         case "entry" where title.contains("刘海") || title.contains("多屏"):
             multiDisplayPreview
+        case "search":
+            searchPreview
         case "tools" where title.contains("代码"):
             CodePreviewView(code: "let count = 3\nprint(count)", fileName: "example.swift")
                 .environment(\.isSettingsPreview, true).padding(10)
@@ -241,6 +248,80 @@ struct ManualDemoView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: step)
+    }
+
+    private var searchPreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                Text(title.contains("网盘") ? "网盘分享链接" : title.contains("AI") ? "帮我整理这段文字" : "会议")
+                    .font(.system(size: 13))
+                Spacer()
+                Text(title.contains("AI") ? "AI" : "搜索")
+                    .font(.system(size: 10, weight: .medium)).foregroundStyle(Theme.accent)
+            }
+            .padding(10)
+            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+            if title.contains("AI") {
+                samplePanel("回答", text: step > 1 ? "• 周四完成评审\n• 周五交付设计稿" : "根据输入整理成清单")
+            } else if title.contains("网盘") {
+                samplePanel("文件", text: step > 1 ? "旅行照片.zip · 下载完成" : "旅行照片.zip · 选择后下载")
+            } else {
+                VStack(spacing: 4) {
+                    ForEach(["会议记录 · 周五交付安排", "项目计划 · 会议记录", "工具：会议纪要"].prefix(step > 1 ? 3 : 1), id: \.self) { result in
+                        HStack {
+                            Image(systemName: "doc.text").foregroundStyle(Theme.accent)
+                            Text(result).font(.system(size: 11))
+                            Spacer()
+                            if step > 1 { Image(systemName: "arrow.up.left").font(.caption).foregroundStyle(.secondary) }
+                        }
+                        .padding(8)
+                        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 7))
+                    }
+                }
+            }
+            Text(steps.indices.contains(step) ? steps[step] : "使用预设示例")
+                .font(.system(size: 10)).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: step)
+    }
+
+    private var settingsPreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
+            HStack {
+                Text(steps.first ?? "调整设置")
+                Spacer()
+                Image(systemName: step > 0 ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(step > 0 ? Color.green : Color.secondary)
+            }
+            .font(.system(size: 11))
+            .padding(10)
+            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+            if step > 1 {
+                Label("已保存", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 11, weight: .medium)).foregroundStyle(.green)
+                    .transition(.opacity)
+            } else {
+                HStack {
+                    Text("预览变化")
+                    Spacer()
+                    Text("保存")
+                        .font(.system(size: 10, weight: .semibold))
+                        .padding(.horizontal, 12).padding(.vertical, 5)
+                        .background(Theme.accent.opacity(0.14), in: Capsule())
+                }
+                .font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            Text(steps.indices.contains(step) ? steps[step] : "仅使用示例内容")
+                .font(.system(size: 10)).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .frame(maxWidth: 440, maxHeight: .infinity)
+        .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 12))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: step)
     }
 
@@ -417,16 +498,16 @@ struct ManualDemoView: View {
         let extracting = title.contains("解压")
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(title.contains("分卷") ? example.input : extracting ? "旅行照片.zip" : "设计说明.pdf\n会议记录.txt", systemImage: extracting ? "doc.zipper" : "doc.on.doc")
+                Label(title.contains("拆分") ? example.input : extracting ? "旅行照片.zip" : "设计说明.pdf\n会议记录.txt", systemImage: extracting ? "doc.zipper" : "doc.on.doc")
                     .font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "arrow.right").foregroundStyle(Theme.accent)
                 if step > 0 {
-                    Label(title.contains("分卷") ? example.result : extracting ? "旅行照片/\n日落.jpg · 行程.txt" : "项目资料.zip\n包含 2 个文件",
+                    Label(title.contains("拆分") ? example.result : extracting ? "旅行照片/\n日落.jpg · 行程.txt" : "项目资料.zip\n包含 2 个文件",
                           systemImage: extracting ? "folder" : "doc.zipper")
                         .font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            Text(title.contains("分卷") ? "7z · 密码保护 · 加密文件名 · 分卷 100 MB" : extracting ? "选择目标文件夹 → 解压" : "选择 ZIP 格式 → 创建归档")
+            Text(title.contains("拆分") ? "已设置密码 · 隐藏文件名 · 每个小包 100 MB" : extracting ? "选择目标文件夹 → 解压" : "选择 ZIP 格式 → 创建归档")
                 .font(.caption).foregroundStyle(.secondary)
             ProgressView(value: Double(step + 1), total: Double(steps.count))
         }.padding(20)
@@ -440,7 +521,7 @@ struct ManualDemoView: View {
                     .foregroundStyle(finished ? Theme.accent : .red)
                 Text(title.contains("剪辑") ? "保留 00:03 — 00:12" : finished ? "00:08 · 已停止" : step == 0 ? "选择录制范围" : "00:08 · 录制中")
                 Spacer()
-                Text(finished ? "已导出 录屏.mp4" : "30 FPS · 麦克风关闭")
+                Text(finished ? "视频已导出" : "麦克风已关闭")
             }.font(.system(size: 11))
             if title.contains("剪辑") {
                 HStack(spacing: 0) {
@@ -459,7 +540,7 @@ struct ManualDemoView: View {
             HStack {
                 Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("设置页固定预设值").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text("预设示例，不读取本机状态").font(.system(size: 9)).foregroundStyle(.secondary)
             }
             if title.contains("内存维护") {
                 Text(step == 0 ? "保存文稿 → 打开内存维护" : finished ? "维护报告：缓存已释放\n全部唤醒：恢复暂停应用" : "深度释放 → 管理员授权\n等待维护结束")
@@ -470,12 +551,21 @@ struct ManualDemoView: View {
                 Text("扫描范围：下载文件夹\n设计资料 1.2 GB\n旧安装包 800 MB").font(.system(size: 13))
                 Label(finished ? "确认所选项目后移到废纸篓" : "扫描用量 → 在 Finder 显示 → 勾选项目", systemImage: "externaldrive")
                     .font(.caption).foregroundStyle(.secondary)
-            } else if title.contains("诊断") || title.contains("端口") {
-                Text("Wi-Fi · 已连接\n局域网地址 192.168.1.8\n8080 · 示例应用 · 127.0.0.1\n8081 · 示例服务 · 0.0.0.0").font(.system(size: 12, design: .monospaced))
-                Text(step > 1 ? "对外筛选 → 显示 8081 · 局域网可访问" : "查看监听地址与所属应用").font(.caption).foregroundStyle(.secondary)
+            } else if title.contains("诊断") || title.contains("端口") || title.contains("网络连接") {
+                Text("Wi-Fi 已连接\n本机地址 192.168.1.8\n示例应用 · 8080\n可供其他设备连接 · 8081").font(.system(size: 12, design: .monospaced))
+                Text(step > 1 ? "已显示可供其他设备连接的应用" : "查看应用和连接编号").font(.caption).foregroundStyle(.secondary)
             } else if title.contains("温度") || title.contains("传感器") || title.contains("风扇") {
-                ForEach([("CPU 包温", "48°C"), ("GPU", "43°C"), ("电池", "31°C"), ("风扇", "1800 RPM")], id: \.0) { name, value in
+                ForEach([("处理器", "48°C"), ("图形芯片", "43°C"), ("电池", "31°C"), ("风扇", "1800 转/分")], id: \.0) { name, value in
                     HStack { Text(name); Spacer(); Text(value).monospacedDigit() }.font(.system(size: 12))
+                }
+            } else if title.localizedCaseInsensitiveContains("GPU") || title.contains("显卡") || title.contains("图形处理器") {
+                HStack {
+                    MonitorRing(value: 0.24).frame(width: 70, height: 70)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("图形芯片使用率 24% · 43°C").font(.caption)
+                        MonitorAreaSparkline(values: values.history.gpu, color: .purple, upperBound: 1)
+                            .frame(height: 48)
+                    }
                 }
             } else if title.localizedCaseInsensitiveContains("CPU") || title.contains("处理器") {
                 Text("总占用 38% · 用户 26% · 系统 12%").font(.caption)
@@ -499,23 +589,14 @@ struct ManualDemoView: View {
                 MonitorNetworkThroughputCard(down: 2_800_000, up: 400_000,
                     downHistory: values.history.netDownload, upHistory: values.history.netUpload, timeSpan: 60, slots: 60)
             } else if title.contains("磁盘") {
-                Text("示例 SSD · APFS\n已用 332 GB / 512 GB").font(.system(size: 14))
+                Text("电脑硬盘\n已用 332 GB / 512 GB").font(.system(size: 14))
                 ProgressView(value: 332, total: 512)
                 Text("读取 18 MB/s · 写入 7 MB/s").font(.caption)
-            } else if title.contains("功耗") || title.contains("电源") {
-                Text("整机功耗 24.6 W\nCPU 8.4 W · GPU 4.2 W").font(.system(size: 14))
+            } else if title.contains("功耗") || title.contains("电源") || title.contains("用电") {
+                Text("整机功耗 24.6 W\n处理器 8.4 W · 图形处理器 4.2 W").font(.system(size: 14))
                 MonitorAreaSparkline(values: values.history.power, color: .orange).frame(height: 65)
-            } else if title.localizedCaseInsensitiveContains("GPU") || title.contains("显卡") {
-                HStack {
-                    MonitorRing(value: 0.24).frame(width: 70, height: 70)
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Apple M3 · GPU 24% · 43°C").font(.caption)
-                        MonitorAreaSparkline(values: values.history.gpu, color: .purple, upperBound: 1)
-                            .frame(height: 48)
-                    }
-                }
             } else {
-                Text("CPU 38% · 内存 10 GB / 16 GB\n电池 75% · CPU 温度 48°C").font(.system(size: 14))
+                Text("处理器 38% · 内存 10 GB / 16 GB\n电池 75% · 处理器温度 48°C").font(.system(size: 14))
                 MonitorAreaSparkline(values: values.history.cpu, color: .blue, upperBound: 1).frame(height: 65)
             }
             if steps.indices.contains(step) { Text(steps[step]).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(2) }
