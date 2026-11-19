@@ -81,10 +81,11 @@ public final class AIProviderConnectionService {
                                           elapsed: elapsed)
         } catch {
             // 4) 目录端点常被网关屏蔽 → 退化为一次性极小对话探测
-            Log.info("AI", "模型探测失败，改用对话探测：\(error.localizedDescription)")
+            Log.info("AI", "模型探测失败：\(error.localizedDescription)")
         }
 
         do {
+            try Task.checkCancellation()
             let reply = try await adapter.complete(
                 messages: [LLMMessage(role: .user, content: "回复 OK 两个字")],
                 model: chosenModel)
