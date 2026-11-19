@@ -116,18 +116,6 @@ public final class DoubleTapShortcutCenter {
         if bindings.isEmpty { stopMonitoringIfNeeded() }
     }
 
-    public func unbind(actionID: String) {
-        bindings.removeValue(forKey: actionID)
-        order.removeAll { $0 == actionID }
-        if bindings.isEmpty { stopMonitoringIfNeeded() }
-    }
-
-    public func unbindAll() {
-        bindings.removeAll()
-        order.removeAll()
-        stopMonitoringIfNeeded()
-    }
-
     /// 当前动作的修饰键（nil = 组合键模式）
     public func modifier(for actionID: String) -> DoubleTapModifier? { bindings[actionID] }
 

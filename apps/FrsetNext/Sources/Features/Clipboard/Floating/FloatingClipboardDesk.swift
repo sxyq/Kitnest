@@ -88,20 +88,23 @@ public final class FloatingClipDeskStore: ObservableObject {
     public let settingsPreview: Bool
 
     @Published public private(set) var items: [ClipboardItem] = []
+    @Published private(set) var scrollRequest = 0
+    let hoverSuppression = ClipboardRowHoverSuppressionController()
     @Published public private(set) var totalInKind: Int = 0
     @Published public private(set) var isLoading = false
     @Published public private(set) var loadedKind: ClipboardFilterKind = .all
     @Published public private(set) var loadedSearch: String = ""
     private var loadedTagFilterID: String?
-    private var loadedLimit = 120
+    private let queryStateLock = NSLock()
+    private var queryGeneration = 0
 
     /// 当前分类（切换后立刻重新查询）
     @Published public var kind: ClipboardFilterKind = .all {
-        didSet { selectedIndex = 0; reload(debounce: false) }
+        didSet { if oldValue != kind { reload(debounce: false) } }
     }
     /// 搜索词（输入即筛，内部 60ms 防抖）
     @Published public var search: String = "" {
-        didSet { selectedIndex = 0; reload(debounce: true) }
+        didSet { if oldValue != search { reload(debounce: true) } }
     }
     /// 键盘光标（网格里的序号）
     @Published public var selectedIndex: Int = 0
@@ -114,9 +117,17 @@ public final class FloatingClipDeskStore: ObservableObject {
 
     /// v260：按条目选中（列表按 id 遍历后不再有 index 可用）。
     /// 查找是 O(n)，但只在点击时走一次，不在滚动热路径上。
-    public func select(_ item: ClipboardItem) {
+    public func select(_ item: ClipboardItem, hovering: Bool = false) {
+        if hovering && hoverSuppression.isHoverSuppressed { return }
+        if hovering && selectedItemID == item.id { return }
         if let index = items.firstIndex(where: { $0.id == item.id }) {
-            selectedIndex = index
+            if selectedIndex != index {
+                selectedIndex = index
+                rebuildPreviewModel(debounce: hovering)
+                if !hovering { scrollRequest += 1 }
+            } else if !hovering, previewRequestedItem == item {
+                rebuildPreviewModel()
+            }
         }
     }
 
@@ -126,7 +137,7 @@ public final class FloatingClipDeskStore: ObservableObject {
     }
     /// 标签筛选（nil = 不筛）
     @Published public var tagFilterID: String? = nil {
-        didSet { selectedIndex = 0; reload(debounce: false) }
+        didSet { if oldValue != tagFilterID { reload(debounce: false) } }
     }
     /// 卡片档位（决定网格列数，键盘上下移动按列数跳）
     @Published public var cardSize: FloatingClipCardSize = FloatingClipPrefs.cardSize {
@@ -145,6 +156,19 @@ public final class FloatingClipDeskStore: ObservableObject {
     public var onPaste: ((@escaping () -> Void) -> Void)?
 
     private var pending: DispatchWorkItem?
+    private var queryWork: DispatchWorkItem?
+    private var previewTask: Task<Void, Never>?
+    private var previewRequestedItem: ClipboardItem?
+    private final class CachedPreview: NSObject {
+        let model: PreviewPopoverContentModel
+        init(_ model: PreviewPopoverContentModel) { self.model = model }
+    }
+    private let previewCache: NSCache<NSString, CachedPreview> = {
+        let cache = NSCache<NSString, CachedPreview>()
+        cache.countLimit = 8
+        cache.totalCostLimit = 8 * 1024 * 1024
+        return cache
+    }()
     private let queue = DispatchQueue(label: "frset.clipdesk.query", qos: .userInitiated)
     private var observer: NSObjectProtocol?
     private var previewSource: [ClipboardItem] = []
@@ -166,11 +190,15 @@ public final class FloatingClipDeskStore: ObservableObject {
         observer = NotificationCenter.default.addObserver(
             forName: ClipboardManager.itemsDidChangeNotification,
             object: nil, queue: .main) { [weak self] _ in
+                guard FloatingClipboardPinState.shared.isVisible else { return }
                 self?.reload(debounce: true)
             }
     }
 
     deinit {
+        pending?.cancel()
+        queryWork?.cancel()
+        previewTask?.cancel()
         if let observer { NotificationCenter.default.removeObserver(observer) }
     }
 
@@ -189,8 +217,16 @@ public final class FloatingClipDeskStore: ObservableObject {
             rebuildPreviewModel()
             return
         }
+        queryStateLock.lock()
+        queryGeneration += 1
+        queryStateLock.unlock()
         pending?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.fetch() }
+        queryWork?.cancel()
+        isLoading = true
+        let work = DispatchWorkItem { [weak self] in
+            self?.pending = nil
+            self?.fetch()
+        }
         pending = work
         if debounce {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.06, execute: work)
@@ -199,7 +235,7 @@ public final class FloatingClipDeskStore: ObservableObject {
         }
     }
 
-    private func fetch() {
+    private func fetch(append: Bool = false) {
         let kind = self.kind
         let search = self.search.trimmingCharacters(in: .whitespacesAndNewlines)
         let mapping = kind.queryMapping
@@ -213,45 +249,60 @@ public final class FloatingClipDeskStore: ObservableObject {
         query.urlLikeOnly = (kind == .link)   // v202：链接分类兼容历史 text 条目
         query.search = search
         query.tagID = tagFilterID
-        if kind != loadedKind || search != loadedSearch || tagFilterID != loadedTagFilterID { loadedLimit = 120 }
-        query.limit = loadedLimit
-        query.offset = 0
+        let queryChanged = kind != loadedKind || search != loadedSearch || tagFilterID != loadedTagFilterID
+        query.limit = append || queryChanged ? 120 : max(120, items.count)
+        query.offset = append ? items.count : 0
+        queryStateLock.lock()
+        let generation = queryGeneration
+        queryStateLock.unlock()
+        let currentTotal = totalInKind
 
         isLoading = true
-        queue.async { [weak self] in
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.isCurrentQuery(generation) else { return }
             let fetched = autoreleasepool { ClipboardRepository.shared.fetch(query) }
-            let total = ClipboardRepository.shared.count(query)
+            let total = append ? currentTotal : ClipboardRepository.shared.count(query)
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard self.isCurrentQuery(generation) else { return }
                 // 查询期间用户又改了条件：丢弃这次结果，避免列表和分类/搜索不一致
                 guard kind == self.kind,
                       search == self.search.trimmingCharacters(in: .whitespacesAndNewlines),
                       query.tagID == self.tagFilterID else { return }
+                self.queryWork = nil
                 let selectedID = self.selectedItemID
                 let queryChanged = kind != self.loadedKind || search != self.loadedSearch
                     || query.tagID != self.loadedTagFilterID
-                self.items = fetched
-                self.totalInKind = total
+                let existingIDs = Set(self.items.map(\.id))
+                let updated = append ? self.items + fetched.filter { !existingIDs.contains($0.id) } : fetched
+                if self.items != updated { self.items = updated }
+                if self.totalInKind != total { self.totalInKind = total }
                 self.loadedKind = kind
                 self.loadedSearch = search
                 self.loadedTagFilterID = query.tagID
                 self.isLoading = false
-                if !queryChanged, let selectedID, let index = fetched.firstIndex(where: { $0.id == selectedID }) {
-                    self.selectedIndex = index
-                } else if self.selectedIndex >= fetched.count {
-                    self.selectedIndex = max(0, fetched.count - 1)
-                }
+                let index = !queryChanged ? selectedID.flatMap { id in updated.firstIndex { $0.id == id } } : nil
+                let selection = index ?? min(self.selectedIndex, max(0, updated.count - 1))
+                let restored = queryChanged ? 0 : selection
+                if self.selectedIndex != restored { self.selectedIndex = restored }
+                if queryChanged { self.scrollRequest += 1 }
                 self.rebuildPreviewModel()
             }
         }
+        queryWork = work
+        queue.async(execute: work)
+    }
+
+    private func isCurrentQuery(_ generation: Int) -> Bool {
+        queryStateLock.lock()
+        defer { queryStateLock.unlock() }
+        return generation == queryGeneration
     }
 
     // MARK: 操作
 
     public func loadMoreIfNeeded(_ item: ClipboardItem) {
         guard !settingsPreview, !isLoading, item.id == items.last?.id, items.count < totalInKind else { return }
-        loadedLimit += 120
-        fetch()
+        fetch(append: true)
     }
 
     /// 先收起非激活面板、归还键盘焦点，再写剪贴板并粘贴。
@@ -285,25 +336,67 @@ public final class FloatingClipDeskStore: ObservableObject {
     ///
     /// 全文读取（落盘长文本 / RTF）会碰磁盘，因此放后台队列再回主线程发布；
     /// 否则选中一条长文本时主线程要同步读一次文件，滑动会顿。
-    public func rebuildPreviewModel() {
+    public func rebuildPreviewModel(debounce: Bool = false) {
         if settingsPreview { previewModel = selectedItemID.flatMap { previewContents[$0] }; return }
+        if let item = selectedItem, previewModel?.item == item {
+            previewTask?.cancel()
+            previewRequestedItem = nil
+            return
+        }
+        if let item = selectedItem, let cached = previewCache.object(forKey: item.id as NSString),
+           cached.model.item == item {
+            previewTask?.cancel()
+            previewRequestedItem = nil
+            previewModel = cached.model
+            return
+        }
+        if debounce, previewRequestedItem == selectedItem { return }
+        previewTask?.cancel()
+        previewRequestedItem = selectedItem
         guard let item = selectedItem else {
             previewModel = nil
             return
         }
-        let session = UUID()
-        queue.async { [weak self] in
-            let text = PreviewPopoverDataBridge.shared.fullText(for: item)
-            let model = PreviewPopoverContentModel(item: item,
-                                                  source: .floatingPreview,
-                                                  entry: .mainList,
-                                                  sessionID: session,
-                                                  inlineText: text)
-            DispatchQueue.main.async {
-                guard let self, self.selectedItem?.id == item.id else { return }
-                self.previewModel = model
+        // 2026-11-19：悬停仅合并最终选择，取消的任务在读盘前退出。
+        previewTask = Task { @MainActor [weak self] in
+            if debounce { try? await Task.sleep(nanoseconds: 60_000_000) }
+            guard !Task.isCancelled else { return }
+            let loader = Task.detached(priority: .userInitiated) { () -> PreviewPopoverContentModel? in
+                guard !Task.isCancelled else { return nil }
+                let text = PreviewPopoverDataBridge.shared.fullText(for: item)
+                guard !Task.isCancelled else { return nil }
+                let classified = PreviewPopoverContentModel.classify(item: item, fullText: text)
+                let kind = classified == .fileBackedText
+                    ? PreviewPopoverContentModel.classifyRawText(text) : classified
+                return PreviewPopoverContentModel(item: item, source: .floatingPreview,
+                    sessionID: UUID(), inlineText: text, kindOverride: item.type == .file ? nil : kind)
+            }
+            let model = await withTaskCancellationHandler(operation: { await loader.value },
+                                                          onCancel: { loader.cancel() })
+            guard !Task.isCancelled, let self, self.selectedItem == item else { return }
+            self.previewRequestedItem = nil
+            self.previewTask = nil
+            self.previewModel = model
+            if let model, model.inlineText.utf8.count <= 1_048_576,
+               [.text, .fileBackedText, .markdown, .json, .code].contains(model.kind) {
+                self.previewCache.setObject(CachedPreview(model), forKey: item.id as NSString,
+                                            cost: model.inlineText.utf8.count)
             }
         }
+    }
+
+    func suspendPreview() {
+        queryStateLock.lock()
+        queryGeneration += 1
+        queryStateLock.unlock()
+        pending?.cancel()
+        queryWork?.cancel()
+        pending = nil
+        isLoading = false
+        previewTask?.cancel()
+        previewRequestedItem = nil
+        previewModel = nil
+        previewCache.removeAllObjects()
     }
 
     /// 分隔比例落盘（拖动结束时调用一次）
@@ -321,7 +414,12 @@ public final class FloatingClipDeskStore: ObservableObject {
         } else if dx != 0 {
             index += dx
         }
-        selectedIndex = min(max(0, index), items.count - 1)
+        index = min(max(0, index), items.count - 1)
+        guard selectedIndex != index else { return }
+        hoverSuppression.suppressUntilMouseMove()
+        selectedIndex = index
+        rebuildPreviewModel()
+        scrollRequest += 1
     }
 }
 
@@ -419,13 +517,11 @@ public struct FloatingClipboardDeskView: View {
                 if let item = store.items.first(where: { $0.id == previewSelection?.wrappedValue }) { store.select(item) }
                 return
             }
-            store.reload(debounce: false)
             // 打开即可打字：不等用户点搜索框
             if !isSettingsPreview { DispatchQueue.main.async { searchFocused = true } }
         }
         // 选中项变了 → 右侧预览跟着换
-        .onChange(of: store.selectedIndex) { _ in
-            store.rebuildPreviewModel()
+        .onChange(of: store.selectedItemID) { _ in
             if isSettingsPreview { previewSelection?.wrappedValue = store.selectedItemID }
         }
         .onChange(of: previewSelection?.wrappedValue) { id in
@@ -637,7 +733,7 @@ public struct FloatingClipboardDeskView: View {
             // 内嵌区底色：比窗口底暗一档，把「预览面板」和「卡片面」分成两块
             appearance.insetFill
             if let model = displayedPreview {
-                PreviewPopoverContentView(model: model)
+                FloatingClipPreview(model: model).equatable()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(8)
                     // v193：内嵌预览栏比原来的弹层窄，代码/OCR 操作条可能比栏宽；
@@ -695,20 +791,25 @@ public struct FloatingClipboardDeskView: View {
                 }
                 .padding(12)
             }
-            .onChange(of: store.selectedIndex) { newValue in
-                guard store.items.indices.contains(newValue) else { return }
-                withAnimation(PanelMotion.animation(.easeOut(duration: 0.12))) {
-                    proxy.scrollTo(store.items[newValue].id, anchor: .center)
+            .onChange(of: store.scrollRequest) { _ in
+                guard let id = store.selectedItemID else { return }
+                DispatchQueue.main.async {
+                    withAnimation(PanelMotion.animation(.easeOut(duration: 0.12))) {
+                        proxy.scrollTo(id, anchor: .center)
+                    }
                 }
             }
         }
         }
     }
 
-    /// 某一列要显示的条目（按下标取模分列，保证顺序稳定）
+    /// 某一列要显示的条目（按下标取模分列，保持原有卡片瀑布顺序）
     private func columnItems(_ column: Int,
                              of columns: Int) -> [(offset: Int, element: ClipboardItem)] {
-        Array(displayedItems.enumerated()).filter { $0.offset % columns == column }
+        let items = displayedItems
+        return stride(from: column, to: items.count, by: columns).map { index in
+            (offset: index, element: items[index])
+        }
     }
 
     private func card(_ item: ClipboardItem, index: Int) -> some View {
@@ -717,8 +818,8 @@ public struct FloatingClipboardDeskView: View {
                          isSelected: index == store.selectedIndex,
                          personalization: personalization)
             .onTapGesture(count: 2) { store.paste(item) }
-            .onTapGesture { store.selectedIndex = index }
-            .onHover { if $0 && store.hoverPreviewEnabled { store.selectedIndex = index } }
+            .onTapGesture { store.select(item) }
+            .onHover { if $0 && store.hoverPreviewEnabled { store.select(item, hovering: true) } }
             .contextMenu { if !isSettingsPreview { ClipboardRowMenuContent(item: item) } }
             .focusable()
             .accessibilityLabel(item.displayTitle)
@@ -741,7 +842,7 @@ public struct FloatingClipboardDeskView: View {
                                             personalization: personalization)
                             .onTapGesture(count: 2) { store.paste(item) }
                             .onTapGesture { store.select(item) }
-                            .onHover { if $0 && store.hoverPreviewEnabled { store.select(item) } }
+                            .onHover { if $0 && store.hoverPreviewEnabled { store.select(item, hovering: true) } }
                             .contextMenu { if !isSettingsPreview { ClipboardRowMenuContent(item: item) } }
                             .focusable()
                             .accessibilityLabel(item.displayTitle)
@@ -753,10 +854,12 @@ public struct FloatingClipboardDeskView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
             }
-            .onChange(of: store.selectedIndex) { newValue in
-                guard store.items.indices.contains(newValue) else { return }
-                withAnimation(PanelMotion.animation(.easeOut(duration: 0.12))) {
-                    proxy.scrollTo(store.items[newValue].id, anchor: .center)
+            .onChange(of: store.scrollRequest) { _ in
+                guard let id = store.selectedItemID else { return }
+                DispatchQueue.main.async {
+                    withAnimation(PanelMotion.animation(.easeOut(duration: 0.12))) {
+                        proxy.scrollTo(id, anchor: .center)
+                    }
                 }
             }
         }
@@ -877,6 +980,17 @@ public struct FloatingClipboardDeskView: View {
             return NSItemProvider(object: ClipboardManager.shared.fullText(for: item) as NSString)
         }
     }
+}
+
+/// 选择尚未完成时保留当前渲染结果；相同会话不重复解析正文或解码图片。
+private struct FloatingClipPreview: View, Equatable {
+    let model: PreviewPopoverContentModel
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.model.sessionID == rhs.model.sessionID
+    }
+
+    var body: some View { PreviewPopoverContentView(model: model) }
 }
 
 // MARK: - 网格卡片
