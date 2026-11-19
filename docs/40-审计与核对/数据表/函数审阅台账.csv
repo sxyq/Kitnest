@@ -261,7 +261,7 @@ AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,te
 AI,Features/AI/Services/AIEventBus.swift,AIEventBus,emitResult,func,17,KEEP,AISummaryView:137 调用；AppBootstrap:258 接线到剪贴板 is_generated_by_tool
 AI,Features/AI/Services/AIModule.swift,AIModule,start,func,12,KEEP,ModuleRegistry.startAll() 经 AppModule 协议派发；AppBootstrap:29 注册
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,init,init,25,KEEP,2026-11-20：resolver及连接探测构造；保存凭据依赖与可选候选地址，未传地址时每次读取已保存偏好；候选地址不写配置
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeRequest,func,32,KEEP,2026-11-20：默认send调用；POST规范地址v1/messages，x-api-key及固定2023-06-01头；system单列且conversation排除system；maxTokens和stream入体，temperature仅大于0写入故0被省略待处理
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeRequest,func,32,KEEP,2026-11-20：默认send调用；POST规范地址v1/messages，x-api-key及固定2023-06-01头；system单列且conversation排除system；maxTokens和stream入体，temperature直接写入并保留AISettings和配置导入支持的0值
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeModelsRequest,func,57,KEEP,2026-11-20：默认availableModels调用；GET规范地址v1/models且limit1000，复用x-api-key和版本头及60秒请求期；当前只读取一页
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseStreamLine,func,71,KEEP,2026-11-20：默认send逐行消费；SSE剥data后解JSON，服务端error抛provider；只取content_block_delta的delta.text，忽略start/ping及非文本事件
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseComplete,func,86,KEEP,2026-11-20：默认send非流式消费；统一JSON及error解析，content不存在抛decoding，存在时拼全部text字段，其他内容块略过
@@ -274,22 +274,21 @@ AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,58
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,2026-11-20：凭据提交协调器调用；锁内复制缓存并剥空白，空值删除；persist成功才替换cache，失败保留旧cache并写lastWriteError和错误日志
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,removeCredential,func,80,KEEP,2026-11-20：LLMCredentialStoring删除实现复用setCredential(nil)；保留统一持久化及lastWriteError语义，当前正式协调器删除同样直接提交nil
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,84,KEEP,2026-11-20：满足存储协议清空要求；锁内先清cache再尝试persist空字典，当前吞持久化错误且不更新lastWriteError；旧设置清空按钮消费者已不存在，不据声明零引用删除协议实现
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,configuredProviders,func,92,DEAD_CANDIDATE,2026-11-20：锁内仅从缓存键集合筛厂商；源码与工具仅此定义，旧SettingsPanes统计调用已不存在；非协议要求且无objc动态入口，列入下一批删除
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,100,KEEP,2026-11-20：初始化唯一调用；缺文件置空cache，存在则读完整信封并decryptEnvelope，失败只记错误及空内存而不覆盖磁盘原件
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,117,KEEP,2026-11-20：setCredential和clear共用；encryptEnvelope后原子写唯一凭据文件，再设0600权限；错误由正式写入入口处理
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,123,KEEP,2026-11-20：persist调用；用FileManager设目标文件posixPermissions为0600，权限错误直接抛出，不吞掉必要文件访问失败
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,137,KEEP,2026-11-20：derivedKey共用；按密钥文件路径查加锁进程缓存，未命中在锁外loadMasterSecret再写缓存；当前双首次并发可重复读建同一路径待评估
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,151,KEEP,2026-11-20：masterSecret未命中调用；已存在则剥FRSTKEY1头或保留旧随机串；缺失才系统随机32字节、原子写并设0600，不擅自重建已有密钥
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,170,KEEP,2026-11-20：加解密共用；主密钥加既有应用常量作材料，PBKDF2-SHA256用随机盐及100000轮派生32字节；非成功状态抛原错误
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,encryptEnvelope,func,194,KEEP,2026-11-20：persist调用；凭据字典JSON序列化，独立16字节salt和IV，AES256CBC配PKCS7，输出FRSTCRE1头及salt/IV/实际密文字节，保留既有存储格式
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,decryptEnvelope,func,226,KEEP,2026-11-20：load调用；确认信封头及基本长度，按既有偏移分salt/IV/cipher，派生密钥后CommonCrypto解密；结果必须字符串字典，否则抛decryptionFailed
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomBytes,func,261,KEEP,2026-11-20：加密各调用一次生成salt及IV；分配指定字节数组交randomFill再转Data，签名虽throws但实际系统随机函数不返回错误
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomFill,func,268,KEEP,2026-11-20：首次主密钥创建与salt/IV生成共用；直接调用Darwin arc4random_buf填指定缓冲，不另建随机生成器
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,init,init,279,KEEP,2026-11-20：AIConnectionService真实候选连接构造；把候选厂商Key按rawValue放入本对象字典，候选请求结束释放，不写正式凭据文件
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,credential,func,283,KEEP,2026-11-20：候选适配器requireCredential动态读取；锁内查独立字典，真实设置连接探测依赖，不能按旧仅测试注释删除
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,setCredential,func,287,KEEP,2026-11-20：满足同一存储协议；锁内非空写入而nil或空串删除，只改候选字典，正式凭据保存沿CredentialStore
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,removeCredential,func,293,KEEP,2026-11-20：内存存储协议删除实现复用setCredential(nil)，保持与候选读取同一加锁字典，不执行落盘
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,clear,func,294,KEEP,2026-11-20：内存存储协议清空实现锁内替换为空字典；不清其他实例及正式凭据，保留候选请求依赖的完整存储协议
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,93,KEEP,2026-11-20：初始化唯一调用；缺文件置空cache，存在则读完整信封并decryptEnvelope，失败只记错误及空内存而不覆盖磁盘原件
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,110,KEEP,2026-11-20：setCredential和clear共用；encryptEnvelope后原子写唯一凭据文件，再设0600权限；错误由正式写入入口处理
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,116,KEEP,2026-11-20：persist调用；用FileManager设目标文件posixPermissions为0600，权限错误直接抛出，不吞掉必要文件访问失败
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,130,KEEP,2026-11-20：derivedKey共用；按密钥文件路径查加锁进程缓存，未命中在锁外loadMasterSecret再写缓存；当前双首次并发可重复读建同一路径待评估
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,144,KEEP,2026-11-20：masterSecret未命中调用；已存在则剥FRSTKEY1头或保留旧随机串；缺失才系统随机32字节、原子写并设0600，不擅自重建已有密钥
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,163,KEEP,2026-11-20：加解密共用；主密钥加既有应用常量作材料，PBKDF2-SHA256用随机盐及100000轮派生32字节；非成功状态抛原错误
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,encryptEnvelope,func,187,KEEP,2026-11-20：persist调用；凭据字典JSON序列化，独立16字节salt和IV，AES256CBC配PKCS7，输出FRSTCRE1头及salt/IV/实际密文字节，保留既有存储格式
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,decryptEnvelope,func,219,KEEP,2026-11-20：load调用；确认信封头及基本长度，按既有偏移分salt/IV/cipher，派生密钥后CommonCrypto解密；结果必须字符串字典，否则抛decryptionFailed
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomBytes,func,254,KEEP,2026-11-20：加密各调用一次生成salt及IV；分配指定字节数组交randomFill再转Data，签名虽throws但实际系统随机函数不返回错误
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomFill,func,261,KEEP,2026-11-20：首次主密钥创建与salt/IV生成共用；直接调用Darwin arc4random_buf填指定缓冲，不另建随机生成器
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,init,init,272,KEEP,2026-11-20：AIConnectionService真实候选连接构造；把候选厂商Key按rawValue放入本对象字典，候选请求结束释放，不写正式凭据文件
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,credential,func,276,KEEP,2026-11-20：候选适配器requireCredential动态读取；锁内查独立字典，真实设置连接探测依赖，不能按旧仅测试注释删除
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,setCredential,func,280,KEEP,2026-11-20：满足同一存储协议；锁内非空写入而nil或空串删除，只改候选字典，正式凭据保存沿CredentialStore
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,removeCredential,func,286,KEEP,2026-11-20：内存存储协议删除实现复用setCredential(nil)，保持与候选读取同一加锁字典，不执行落盘
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,clear,func,287,KEEP,2026-11-20：内存存储协议清空实现锁内替换为空字典；不清其他实例及正式凭据，保留候选请求依赖的完整存储协议
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAITool,init,init,21,KEEP,CustomAITool.init；AISettingsPane:99 新建工具
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAITool,render,func,34,KEEP,AISummaryView:111 把用户文本套进自定义模板
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,init,init,51,KEEP,Store 单例 init，prefs 可注入
@@ -467,20 +466,20 @@ AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,encodeLi
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,loadAll,func,113,KEEP,entries L69 / record 裁剪 L102 读取全部条目，坏行跳过
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,fingerprint,func,123,KEEP,record L85 计算 SHA-256 前 6 字节指纹
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,init,init,139,KEEP,Coordinator 单例，store/journal 可注入；AISettingsPane:31 默认注入
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,commit,func,147,KEEP,AISettingsPane:75 保存密钥：空值删除，非空写入并记审计
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,remove,func,162,KEEP,AISettingsPane:83 删除密钥并记审计
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,commit,func,147,KEEP,2026-11-20：设置保存和remove共用凭证写入；空值删除非空保存，失败返回store.lastWriteError；成功记录动作后调用现有invalidate清除该厂商内存目录和偏好目录及时间，不记录密钥内容
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,remove,func,163,KEEP,2026-11-20：设置删除凭据调用commit(nil)复用实际写入、错误返回及模型缓存失效，不另建删除流程
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURLKey,func,19,KEEP,AIConnectionService:101 备份原地址；本文件 baseURL/setBaseURL 读写
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURL,func,35,KEEP,四家适配器 baseURL 计算属性、AISettingsPane 首屏、迁移判定均调用
 AI,Features/AI/Views/AISettings.swift,AISettings,setBaseURL,func,46,KEEP,设置页 commitBaseURL、测试连接临时写入、旧配置迁移调用
 AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,init,init,48,KEEP,ViewModel init；SwiftUI @StateObject 创建，依赖可注入
 AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,selectProvider,func,60,KEEP,Picker 绑定 set 闭包 L190
 AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,removeKey,func,62,KEEP,「删除」按钮 L241
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,save,func,69,KEEP,AI服务草稿只提交变动地址模型与凭证，凭证失败返回服务商及原因并保留候选密钥
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,discard,func,98,KEEP,取消当前AI服务页时重读保存值并丢弃本页候选密钥，不应用其他页草稿
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,restoreDefaults,func,113,KEEP,AI服务默认只更新本页候选配置，不删除已保存凭证或立即请求服务
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,configurationChanged,func,125,KEEP,候选服务变化递增请求代际，旧连接结果不覆盖新服务配置
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,testConnection,func,132,KEEP,「测试连接」按钮 L301
-AI,Features/AI/Views/AISettingsPane.swift,AISettingsPane,init,init,158,KEEP,View init；AIModule.start 注册面板时 AnyView(AISettingsPane())
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,save,func,69,KEEP,2026-11-20：仅提交变化凭据地址与模型；凭据写入失败返回厂商原因并保留候选，成功经commit清旧目录；当前厂商凭据或地址成功改变即清草稿models，偏好同步成功更新saved并reload服务
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,discard,func,101,KEEP,取消当前AI服务页时重读保存值并丢弃本页候选密钥，不应用其他页草稿
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,restoreDefaults,func,116,KEEP,AI服务默认只更新本页候选配置，不删除已保存凭证或立即请求服务
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,configurationChanged,func,128,KEEP,候选服务变化递增请求代际，旧连接结果不覆盖新服务配置
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,testConnection,func,135,KEEP,「测试连接」按钮 L301
+AI,Features/AI/Views/AISettingsPane.swift,AISettingsPane,init,init,161,KEEP,View init；AIModule.start 注册面板时 AnyView(AISettingsPane())
 AI,Features/AI/Views/AISummaryView.swift,AISummaryAction,prompt,func,53,KEEP,VM.run L98 与 BuiltinTools:63 构造 user 提示
 AI,Features/AI/Views/AISummaryView.swift,AISummaryAction,saveAsDefault,func,67,KEEP,AISettingsPane:345 默认动作选择器 set 闭包
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,init,init,91,KEEP,VM init；@StateObject 构造，读自定义工具
@@ -2031,7 +2030,7 @@ Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWin
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,init,init,288,KEEP,窗口控制器和ClipboardPreviewWindowView都接收同一PreviewPopoverContentModel；控制器按完整模型测量无边框窗并装内容，视图保留传入文件正文/图片和会话id
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,copyContent,func,478,KEEP,"编辑态把draft交ClipboardManager.copyText；普通预览交ClipboardManager.copy(item,autoPaste:false)，文件保持原格式并由统一复制入口回读入历史及通知中转"
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,save,func,486,KEEP,:435 保存按钮
-Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,makeModel,func,497,KEEP,:261/:367/:454 调用
+Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWindowView,makeModel,func,497,KEEP,2026-11-20：窗口换项和编辑保存重建模型；未编辑且有textPath只带content前缀让正式视图后台读全文，编辑后直接分类新全文并传kindOverride；提示由窗口showsHint承载
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,HoverClipModifier,body,func,571,KEEP,ViewModifier 协议；:283 挂载
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,init,init,34,KEEP,ClipboardModule:26 build 闭包
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,selectPreview,func,43,KEEP,固定列表点击、悬停和方向键共用：更新本地 previewSelectedID，并写入可选 settingsPreviewClipboardSelection 绑定，不复制或打开内容
@@ -2981,34 +2980,34 @@ Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelP
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,hasPreview,func,142,KEEP,刘海控制器收起时按来源窗口关闭共用预览，指针进入该预览时保留展开；只读取现有窗口与会话状态
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,movePreview,func,148,KEEP,刘海跨屏时取消旧悬停关闭计时，移动同一预览窗口并限制在目标逻辑可见区域，保留内容模型
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,init,init,159,KEEP,static shared :70 单例（private override init）
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,func,173,KEEP,按源视图或屏幕锚点确定可见区并创建requestedSession；文件模型在userInitiated后台读取，主线程仅接纳sessionID仍匹配的结果，其他类型同步呈现；换项复用包括收回中的slot，统一窗口连续调整内容和尺寸
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,266,KEEP,把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,281,KEEP,先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,308,KEEP,adapter:37、ClipboardTableHostView:723/743
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,351,KEEP,PanelController:194、adapter:57
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,360,KEEP,adapter:46、ClipboardTableHostView:847
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,381,KEEP,adapter:52、present:170、ClipboardTableHostView:635
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,390,KEEP,ClipboardPreviewWindow:292 onHover 回调
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,415,KEEP,present :212 安装点外关闭监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,449,KEEP,dismiss :224 卸载监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,457,KEEP,present :213 安装 Esc 监听
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,470,KEEP,handlePreviewWindowDidClose :521 卸载
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,477,KEEP,adapter:62、ClipboardTableHostView:679
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,487,KEEP,adapter:67、ClipboardSectionView:96
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,496,KEEP,PreviewPopoverContentView:562 记录滚动
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,501,KEEP,PreviewPopoverContentView:559 恢复滚动
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,510,KEEP,present:214、requestKeyboardPreview:307、close :522
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,525,KEEP,present :181 解析锚点
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,537,KEEP,present:169、prepareForPanelAppear:286
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,545,KEEP,文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,550,KEEP,带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,581,KEEP,present:179、dismiss:233
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,597,KEEP,Slot.init :57 onWindowClosed 闭包
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,618,KEEP,handlePreviewWindowDidClose :520
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,628,KEEP,prepareForPanelAppear:285、鼠标监听 :535
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,661,KEEP,ClipboardPreviewWindow.swift:291 挂载修饰器
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,668,KEEP,:574 modifier(...) 构造
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,669,KEEP,ViewModifier 协议要求
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,func,173,KEEP,2026-11-20：源视图或屏幕锚点决定可见区并创建requestedSession；落盘长文先携content前缀出窗，全文交内容视图后台读；文件模型后台读取且仅当前会话结果呈现；换项复用slot；键盘提示仅交showsHint
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,267,KEEP,把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,282,KEEP,先更换sessionID撤销尚未完成的文件模型呈现，再移除点外监听；无活动窗口直接完成回调，活动窗口合并完成回调并交closeSlot播放收回动画
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,309,KEEP,adapter:37、ClipboardTableHostView:723/743
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,352,KEEP,PanelController:194、adapter:57
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,361,KEEP,adapter:46、ClipboardTableHostView:847
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,382,KEEP,adapter:52、present:170、ClipboardTableHostView:635
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,391,KEEP,ClipboardPreviewWindow:292 onHover 回调
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,416,KEEP,present :212 安装点外关闭监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,450,KEEP,dismiss :224 卸载监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,458,KEEP,present :213 安装 Esc 监听
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,471,KEEP,handlePreviewWindowDidClose :521 卸载
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,478,KEEP,adapter:62、ClipboardTableHostView:679
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,488,KEEP,adapter:67、ClipboardSectionView:96
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,497,KEEP,PreviewPopoverContentView:562 记录滚动
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,502,KEEP,PreviewPopoverContentView:559 恢复滚动
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,511,KEEP,present:214、requestKeyboardPreview:307、close :522
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,526,KEEP,present :181 解析锚点
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,538,KEEP,present:169、prepareForPanelAppear:286
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,546,KEEP,文件悬停进入、归档有效条目切换及开始编辑时取消共享预览的待关闭任务，使内容准备期间保留同一窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,551,KEEP,带itemID时仅匹配当前项安排关闭；到期无已呈现slot则更换sessionID撤销后台读取结果，已呈现时编辑、固定或鼠标仍在窗内保留，真正离开后按hoverPreviewCloseDelay收回
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,582,KEEP,present:179、dismiss:233
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,598,KEEP,Slot.init :57 onWindowClosed 闭包
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,619,KEEP,handlePreviewWindowDidClose :520
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,629,KEEP,prepareForPanelAppear:285、鼠标监听 :535
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,662,KEEP,ClipboardPreviewWindow.swift:291 挂载修饰器
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,669,KEEP,:574 modifier(...) 构造
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,670,KEEP,ViewModifier 协议要求
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,image,func,62,KEEP,PreviewMarkdownRenderer.swift:475 渲染 mermaid 代码块
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,parse,func,88,KEEP,image :68 调用
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,splitStatements,func,145,KEEP,parse :131 调用
@@ -3049,16 +3048,16 @@ Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRender
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,isTableSeparator,func,624,KEEP,parseSourced :233/240
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,632,KEEP,parseSourced :241
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,655,KEEP,render(block) :454 表格块
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,2026-11-20：共享协调器、浮动剪贴板、刘海及归档消费；保存条目及会话后同步判型，单文件按loadFileContents决定完整读文本或解码1600像素图；目录和文档包分流；kindOverride重建正文时不再读文件
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,131,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,144,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,156,KEEP,2026-11-20：classifyRawText调用；当前先拆全部非空行再取80并剥缩进，跳过Markdown结构行后交isCodeLine；样本外仍全量拆分待性能处理
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,175,KEEP,2026-11-20：codeStrength唯一调用；按语言前缀、尾标点及操作符判定；调用前剥空白令缩进判断不可达，跳过非井叹开头井号行令include/import前缀不可达，需结合分类语义处理
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,201,KEEP,2026-11-20：模型初始化及浮动预览加载调用；图片文件按类型，富文本先读解析RTF判存在；textPath存在即fileBackedText，故共享协调器先取全文后视图仍二次加载
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,228,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,277,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,310,KEEP,2026-11-20：classifyRawText最后代码判定；先拆全文含空行，少于4行返回false；前30行按尾标点和前缀计分，至少3行缩进再加1分，合计3分判断代码
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,348,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有；实际只传和恢复scrollOffset，anchorBlockID和blockFrames一直默认且无消费者，待清理多余存储
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,64,KEEP,2026-11-20：共享协调器及浮动剪贴板刘海归档消费；只对文件拆路径，保存条目会话并判型；单文件按loadFileContents决定完整读文或解码1600像素图，目录文档包分流；kindOverride避免读旧路径；移除无人读取的提示副本
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,127,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,140,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,152,KEEP,2026-11-20：classifyRawText调用；maxSplits80后仅取前80条非空行，不分配样本外每行；以去空白文本排除Markdown结构且允许井叹/include/import，代码标点前缀及原行4空格或Tab参与代码比例
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,172,KEEP,2026-11-20：codeStrength唯一调用；接收去空白行按语言前缀尾标点和操作符判代码，编译指令已能到达本方法；原始缩进由调用方判断，删除本方法不可达缩进分支
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,197,KEEP,2026-11-20：模型初始化及浮动预览加载调用；图片文件按类型，富文本先读解析RTF判存在；textPath存在即fileBackedText，故共享协调器先取全文后视图仍二次加载
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,224,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,273,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,306,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,330,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,调用方 :53（.richText 分支构造）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
@@ -4055,7 +4054,7 @@ TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,we
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,migrateLegacyFeatureFlag,func,25,KEEP,v260 拆键迁移：featureEnabled 缺失时从旧键 panelVisible 继承，老用户的「启用文件中转」状态不因换键丢失
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,isOn,func,56,KEEP,AppBootstrap.swift:71 与 LanTransferServer.swift:63 调用
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,init,init,11,KEEP,2026-11-20：本地页SettingsDraftEditor构造；四项featureEnabled/autoStage/hoverPreview/retentionDays读取已保存值，以values字符串数组保存快照供isDirty比较
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,save,func,14,KEEP,2026-11-20：设置会话保存调用；逐项只写变化字段并同步偏好，失败返回说明且保留草稿；当前无条件重启保留期计时且立即pruneExpired，悬停等无关修改也触发清理待处理
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,save,func,14,KEEP,2026-11-20：设置会话保存调用；逐项只写变化字段并同步偏好，失败返回说明且保留草稿；成功且保留期与saved不同才重设清理，悬停自动暂存等修改不触发pruneExpired，0仍停止旧计时器
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,discard,func,26,KEEP,2026-11-20：设置取消调用；重读功能、自动暂存、悬停和保留期四项正式偏好再更新saved，丢弃本页未保存编辑
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,restoreDefaults,func,33,KEEP,2026-11-20：设置恢复默认调用；仅改草稿为功能与自动暂存及悬停开启、保留期0，不立即写偏好或清理数据
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,init,init,40,KEEP,2026-11-20：扫码直传页草稿构造；读取lan启用和端口，保存布尔串与端口串快照，不启动网络监听

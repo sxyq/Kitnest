@@ -1477,7 +1477,7 @@ EVIDENCE.update({
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "add"):
         "暂存队列逐项对原始URL调用startAccessingSecurityScopedResource，defer仅在scoped成功时调用stop，使授权覆盖该项文件IO；标准化路径后交stage并统计尺寸，主线程仅发布成功项、持久化及通知，回调实际成功数量并保留失败原因",
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "startRetentionCleanup"):
-        "启动及本地设置保存后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式",
+        "启动、保留期变化或导入相应配置后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式",
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "pruneExpired"):
         "按已保存retentionDays和最近addedAt计算天数×86400秒截止点，过期条目交统一remove并传递实际移除结果；0表示不清理并回调.none",
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "remove"):
@@ -1535,7 +1535,7 @@ EVIDENCE.update({
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "closeAnimated"):
         "收回使用Personalization.openAnimation时长×0.7及减少动态口径；完成回调只在isClosing且model.sessionID仍为本次关闭会话时关窗，换项复用不被旧回调关掉",
     ("Features/Panel/Preview/PreviewPopoverContentModel.swift", "init"):
-        "内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形",
+        "内容模型保留source、entry、sessionID及displayPath，仅文件条目拆路径并识别目录；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState仅保存实际使用的scrollOffset",
     ("Features/Panel/Preview/PreviewPopoverContentView.swift", "fileContent"):
         "文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview",
     ("Features/Panel/Preview/PreviewPopoverContentView.swift", "decode"):
