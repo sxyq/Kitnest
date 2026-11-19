@@ -341,18 +341,15 @@ public final class MonitorSampler: ObservableObject {
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）
-        // v129（内存）：两次 MonitorExtra.update 合并为一次（原来峰值段/累计段
-        // 各拿一次锁、各包一个闭包，每 tick 双份）。
-        let previousPeaks = MonitorExtra.current
         let netIn = MonitorFormat.u64(Double(sample.netDownload) * MonitorPreferences.refreshInterval)
         let netOut = MonitorFormat.u64(Double(sample.netUpload) * MonitorPreferences.refreshInterval)
         MonitorExtra.update { extra in
             extra.compressedMemory = result.compressedMemory
             extra.loadAverages = loadAverages
-            extra.netPeakDownload = max(previousPeaks.netPeakDownload, sample.netDownload)
-            extra.netPeakUpload = max(previousPeaks.netPeakUpload, sample.netUpload)
-            extra.diskPeakRead = max(previousPeaks.diskPeakRead, sample.diskRead)
-            extra.diskPeakWrite = max(previousPeaks.diskPeakWrite, sample.diskWrite)
+            extra.netPeakDownload = max(extra.netPeakDownload, sample.netDownload)
+            extra.netPeakUpload = max(extra.netPeakUpload, sample.netUpload)
+            extra.diskPeakRead = max(extra.diskPeakRead, sample.diskRead)
+            extra.diskPeakWrite = max(extra.diskPeakWrite, sample.diskWrite)
             extra.updatedAt = Date()
             // 累计流量（自本进程启动起累加，重启清零）
             // v168：用回绕加法 `&+=`。netIn/netOut 已经饱和到 UInt64.max，
