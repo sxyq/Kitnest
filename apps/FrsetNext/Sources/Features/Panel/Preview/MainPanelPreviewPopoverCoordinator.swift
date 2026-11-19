@@ -208,7 +208,9 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
 
         sessionID = UUID()
         let requestedSession = sessionID
-        let text = item.type == .file ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
+        // 落盘长文由内容视图异步读取，出窗时仅携带已存前缀。
+        let text = item.type == .file || item.textPath != nil
+            ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
         let buildModel: (Bool) -> PreviewPopoverContentModel = { loadFileContents in
             PreviewPopoverContentModel(item: item,
                                        source: source,

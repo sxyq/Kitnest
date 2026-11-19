@@ -495,7 +495,8 @@ struct ClipboardPreviewWindowView: View {
     /// editedText == nil → 按条目分类（长文走异步落盘加载）；
     /// 编辑保存后 → 直接按内存里的新文本分类，避免读到旧文件。
     static func makeModel(item: ClipboardItem, editedText: String?) -> PreviewPopoverContentModel {
-        let full = editedText ?? PreviewPopoverDataBridge.shared.fullText(for: item)
+        let full = editedText ?? (item.textPath != nil
+            ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item))
         var kind: PreviewPopoverContentModel.Kind?
         if editedText != nil {
             switch item.type {

@@ -79,7 +79,7 @@ public struct PreviewPopoverContentModel: Identifiable {
         // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
         // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
         self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
-        let paths = (item.content ?? "").split(separator: "\n")
+        let paths = item.type == .file ? (item.content ?? "").split(separator: "\n") : []
         var directory: ObjCBool = false
         if item.type == .file, kindOverride == nil, paths.count == 1 {
             FileManager.default.fileExists(atPath: String(paths[0]), isDirectory: &directory)
@@ -151,7 +151,7 @@ public struct PreviewPopoverContentModel: Identifiable {
     /// 代码强度：前 80 行非空行里「像代码」的比例（0…1）与样本行数
     public static func codeStrength(_ text: String) -> (ratio: Double, lines: Int) {
         let sample = text
-            .split(separator: "\n", omittingEmptySubsequences: true)
+            .split(separator: "\n", maxSplits: 80, omittingEmptySubsequences: true)
             .prefix(80)
             .map { $0.trimmingCharacters(in: .whitespaces) }
         guard !sample.isEmpty else { return (0, 0) }
@@ -304,7 +304,7 @@ public struct PreviewPopoverContentModel: Identifiable {
 
     /// 代码启发式：多行 + 括号/分号/常见语言关键字/稳定缩进
     public static func looksLikeCode(_ text: String) -> Bool {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let lines = text.split(separator: "\n", maxSplits: 30, omittingEmptySubsequences: false)
         guard lines.count >= 4 else { return false }
         var hits = 0
         for line in lines.prefix(30) {
