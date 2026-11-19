@@ -27,8 +27,7 @@ final class DeviceAppCatalog {
     private let queue = DispatchQueue(label: "frset.cast.appcatalog", qos: .utility)
     private let lock = NSLock()
     private var labels: [String: String] = [:]
-    private var inFlight = false
-    private var waiting: [([App]) -> Void] = []
+    private var waiting: [String?: [([App]) -> Void]] = [:]
 
     private init() {
         cacheDir = AppDirectories.sub("cast-apps")
@@ -44,10 +43,10 @@ final class DeviceAppCatalog {
     /// 读取第三方应用（带图标与真实名）；结果按「使用频率 + 最近使用」排序
     func load(serial: String?, completion: @escaping ([App]) -> Void) {
         lock.lock()
-        waiting.append(completion)
-        if inFlight { lock.unlock(); return }
-        inFlight = true
+        let isLoading = waiting[serial] != nil
+        waiting[serial, default: []].append(completion)
         lock.unlock()
+        if isLoading { return }
 
         queue.async { [weak self] in
             guard let self else { return }
@@ -60,16 +59,15 @@ final class DeviceAppCatalog {
                            label: self.labels[pkg] ?? Self.shortName(pkg),
                            iconPath: hasIcon ? icon : nil)
             }
+            let scores = CastAppUsage.scores()
             let sorted = apps.sorted { a, b in
-                let sa = CastAppUsage.score(a.id), sb = CastAppUsage.score(b.id)
+                let sa = scores[a.id] ?? 0, sb = scores[b.id] ?? 0
                 if sa != sb { return sa > sb }
                 return a.label.localizedCaseInsensitiveCompare(b.label) == .orderedAscending
             }
             DispatchQueue.main.async {
                 self.lock.lock()
-                let callbacks = self.waiting
-                self.waiting.removeAll()
-                self.inFlight = false
+                let callbacks = self.waiting.removeValue(forKey: serial)!
                 self.lock.unlock()
                 callbacks.forEach { $0(sorted) }
             }
@@ -188,13 +186,15 @@ enum CastAppUsage {
     }
 
     /// 分数 = 次数 × 时间衰减（半衰期 14 天）；没记录过 = 0
-    static func score(_ package: String) -> Double {
+    static func scores() -> [String: Double] {
         let dict = Preferences.shared.value(key, default: [String: [String: Double]]())
-        guard let item = dict[package] else { return 0 }
-        let n = item["n"] ?? 0
-        let t = item["t"] ?? 0
-        guard n > 0, t > 0 else { return 0 }
-        let days = max(0, (Date().timeIntervalSince1970 - t) / 86_400)
-        return n * pow(0.5, days / 14.0)
+        let now = Date().timeIntervalSince1970
+        return dict.mapValues { item in
+            let n = item["n"] ?? 0
+            let t = item["t"] ?? 0
+            guard n > 0, t > 0 else { return 0 }
+            let days = max(0, (now - t) / 86_400)
+            return n * pow(0.5, days / 14.0)
+        }
     }
 }
