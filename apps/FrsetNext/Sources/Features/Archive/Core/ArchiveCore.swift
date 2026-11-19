@@ -681,7 +681,7 @@ public enum ArchiveCore {
                 try restrictTo.joined(separator: "\n").appending("\n")
                     .write(to: f, atomically: true, encoding: .utf8)
                 listFile = f
-                args.append("-i@\(f.path)")
+                args += ["-spd", "-i@\(f.path)"]
             } catch {
                 // 清单写不出来就不解压（fail closed）——绝不退回「整包解压」
                 DispatchQueue.main.async {
@@ -754,6 +754,10 @@ public enum ArchiveCore {
             completion(nil, "已拦截不安全路径：\(entry.path)")
             return
         }
+        guard !entry.isLink else {
+            completion(nil, "链接条目不能作为网页预览")
+            return
+        }
         let cap: Int64 = 512 * 1024 * 1024
         let parent = entry.parent
         list(url: url, password: nil, includeAuxiliary: false) { entries, _ in
@@ -765,19 +769,15 @@ public enum ArchiveCore {
                 siblings = entries.filter { $0.path.hasPrefix(prefix) }
             }
             let candidates = siblings.filter {
-                !$0.isDirectory && !isHardUnsafeEntryPath($0.path) && !isAuxiliary($0.path)
+                !$0.isDirectory && !$0.isLink && !isHardUnsafeEntryPath($0.path) && !isAuxiliary($0.path)
             }
             let total = candidates.reduce(Int64(0)) { $0 + max(0, $1.size) }
-            guard !candidates.isEmpty, total <= cap else {
-                // 超限 / 空目录：只解 HTML 本体
-                extractEntryToTemp(url: url, entry: entry, completion: completion)
-                return
-            }
+            let paths = !candidates.isEmpty && total <= cap ? candidates.map(\.path) : [entry.path]
             let dir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-webpreview-\(UUID().uuidString)", isDirectory: true)
             performExtract(url: url, entry: nil, to: dir, password: ArchivePasswords.get(url),
                            includeAuxiliary: false,
-                           restrictTo: candidates.map { $0.path },
+                           restrictTo: paths,
                            taskID: nil) { ok, msg in
                 guard ok else {
                     try? FileManager.default.removeItem(at: dir)
@@ -785,11 +785,14 @@ public enum ArchiveCore {
                     return
                 }
                 let landed = dir.appendingPathComponent(entry.path)
-                if FileManager.default.fileExists(atPath: landed.path) {
+                let realRoot = dir.resolvingSymlinksInPath().standardizedFileURL
+                let realFile = landed.resolvingSymlinksInPath().standardizedFileURL
+                if realFile.path.hasPrefix(realRoot.path + "/"),
+                   (try? realFile.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
                     completion(landed, "")
                 } else {
                     try? FileManager.default.removeItem(at: dir)
-                    completion(nil, "解压后未找到网页文件")
+                    completion(nil, "解压后未找到可预览的网页文件")
                 }
             }
         }

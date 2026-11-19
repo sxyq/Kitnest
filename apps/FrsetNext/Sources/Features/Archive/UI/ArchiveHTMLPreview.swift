@@ -70,7 +70,8 @@ final class WebPreviewController: NSObject, ObservableObject {
         load(fileURL)
     }
 
-    func load(_ url: URL) {
+    private func load(_ url: URL) {
+        guard isInsideRoot(url) else { return }
         webView.loadFileURL(url.resolvingSymlinksInPath(), allowingReadAccessTo: rootDirectory)
     }
 
@@ -80,7 +81,7 @@ final class WebPreviewController: NSObject, ObservableObject {
 
     /// 用系统默认浏览器打开当前页（解决「我要真浏览器能力」的场景）
     func openInBrowser() {
-        if let current = webView.url, current.isFileURL {
+        if let current = webView.url, isInsideRoot(current) {
             NSWorkspace.shared.open(current)
         }
     }
@@ -92,6 +93,13 @@ final class WebPreviewController: NSObject, ObservableObject {
         let path = url.resolvingSymlinksInPath().standardizedFileURL.path
         let root = rootDirectory.path
         return path == root || path.hasPrefix(root + "/")
+    }
+
+    private func openExternalLink(_ url: URL, action: WKNavigationAction) {
+        guard action.navigationType == .linkActivated, action.sourceFrame.isMainFrame,
+              action.targetFrame?.isMainFrame != false,
+              let scheme = url.scheme?.lowercased(), ["http", "https", "mailto"].contains(scheme) else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 
@@ -108,12 +116,9 @@ extension WebPreviewController: WKNavigationDelegate {
         case "file":
             // 只放行本次解压目录内的文件；越界（例如指向用户文稿）一律拦
             decisionHandler(isInsideRoot(url) ? .allow : .cancel)
-        case "http", "https", "mailto":
-            // 外链不在预览窗里打开：交给系统浏览器，避免把归档窗变成半个浏览器
-            NSWorkspace.shared.open(url)
-            decisionHandler(.cancel)
         default:
             decisionHandler(.cancel)
+            openExternalLink(url, action: navigationAction)
         }
     }
 
@@ -134,10 +139,10 @@ extension WebPreviewController: WKUIDelegate {
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = navigationAction.request.url {
-            if url.isFileURL, isInsideRoot(url) {
-                webView.loadFileURL(url, allowingReadAccessTo: rootDirectory)
-            } else if let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) {
-                NSWorkspace.shared.open(url)
+            if url.isFileURL {
+                load(url)
+            } else {
+                openExternalLink(url, action: navigationAction)
             }
         }
         return nil
