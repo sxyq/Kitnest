@@ -219,22 +219,22 @@ struct ManualDemoView: View {
     }
 
     private var dockPreview: some View {
-        let closed = step == 2 || step == 4
+        let closed = step == 4
         return VStack(spacing: 12) {
-            if !closed {
+            if !closed && step != 2 {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Circle().fill(.red).frame(width: 8, height: 8); Text("设置").font(.caption); Spacer() }
                     Divider()
                     Label("常规　　刘海工作台　　搜索", systemImage: "gearshape")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
-                    Label(step == 3 ? "最小化后点击 Dock 图标恢复" : "窗口正在独立显示", systemImage: "macwindow")
+                    Label(step == 3 ? "设置窗口已恢复" : "窗口正在独立显示", systemImage: "macwindow")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(12).frame(maxWidth: 360, alignment: .leading)
                 .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
                 .transition(.opacity)
             } else {
-                Text(step == 4 ? "最后一个独立窗口已关闭" : "设置窗口已关闭").font(.caption).foregroundStyle(.secondary)
+                Text(closed ? "最后一个独立窗口已关闭" : "窗口已最小化，图标仍在 Dock").font(.caption).foregroundStyle(.secondary)
                     .frame(height: 78).transition(.opacity)
             }
             HStack(spacing: 12) {
