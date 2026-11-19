@@ -148,8 +148,8 @@ public enum ADBExtrasEngine {
                 completion?("未找到无线调试页，请手动打开「开发者选项 → 无线调试」")
                 return
             }
-            run(["shell", "am", "start", "-n", candidates[i]]) { out, _ in
-                if (out ?? "").lowercased().contains("error") {
+            run(["shell", "am", "start", "-n", candidates[i]]) { out, status in
+                if status != 0 || (out ?? "").lowercased().contains("error") {
                     attempt(i + 1)
                 } else {
                     completion?("已在手机上打开无线调试页")
