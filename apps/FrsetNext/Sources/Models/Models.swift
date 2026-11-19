@@ -37,7 +37,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
     public let imagePath: String?
     public let thumbnailPath: String?
     public let isGeneratedByTool: Bool
-    public let isNote: Bool
+    public var isNote: Bool
     public let sourceToolAnalyticsId: String?
     public let sourceToolKeyword: String?
     public let textPath: String?
