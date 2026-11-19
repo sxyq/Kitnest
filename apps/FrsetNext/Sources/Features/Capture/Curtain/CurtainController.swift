@@ -259,6 +259,7 @@ public final class ImageCurtainController: NSObject {
         let stale = items.filter { (thumbnails[$0.id]?.width ?? 0) < needed }
         guard !stale.isEmpty else { return }
         let urls = stale.map { ($0.id, $0.fileURL) }
+        let generation = lifecycleGeneration
         Task { [weak self] in
             let decoded = await Task.detached(priority: .utility) { () -> [UUID: CGImage] in
                 var result: [UUID: CGImage] = [:]
@@ -269,8 +270,10 @@ public final class ImageCurtainController: NSObject {
                 }
                 return result
             }.value
-            guard let self, !decoded.isEmpty else { return }
-            for (id, image) in decoded { self.thumbnails[id] = image }
+            guard let self, generation == self.lifecycleGeneration, !decoded.isEmpty else { return }
+            for (id, image) in decoded where self.items.contains(where: { $0.id == id }) {
+                self.thumbnails[id] = image
+            }
             if self.isShowing { self.rebuild(animate: false) }
         }
     }
