@@ -3049,16 +3049,16 @@ Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRender
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,isTableSeparator,func,624,KEEP,parseSourced :233/240
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,632,KEEP,parseSourced :241
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,655,KEEP,render(block) :454 表格块
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,131,KEEP,PreviewPopoverContentView:433、ArchiveTextPreview:58
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,144,KEEP,classifyRawText :76 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,156,KEEP,classifyRawText :75/76/80 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,175,KEEP,codeStrength :112 调用（private）
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,201,KEEP,init :64 分态判定
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,228,KEEP,classifyRawText :74 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,277,KEEP,classifyRawText :79 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,310,KEEP,classifyRawText :81 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,348,KEEP,内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,2026-11-20：共享协调器、浮动剪贴板、刘海及归档消费；保存条目及会话后同步判型，单文件按loadFileContents决定完整读文本或解码1600像素图；目录和文档包分流；kindOverride重建正文时不再读文件
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,131,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,144,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,156,KEEP,2026-11-20：classifyRawText调用；当前先拆全部非空行再取80并剥缩进，跳过Markdown结构行后交isCodeLine；样本外仍全量拆分待性能处理
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,175,KEEP,2026-11-20：codeStrength唯一调用；按语言前缀、尾标点及操作符判定；调用前剥空白令缩进判断不可达，跳过非井叹开头井号行令include/import前缀不可达，需结合分类语义处理
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,201,KEEP,2026-11-20：模型初始化及浮动预览加载调用；图片文件按类型，富文本先读解析RTF判存在；textPath存在即fileBackedText，故共享协调器先取全文后视图仍二次加载
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,228,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,277,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,310,KEEP,2026-11-20：classifyRawText最后代码判定；先拆全文含空行，少于4行返回false；前30行按尾标点和前缀计分，至少3行缩进再加1分，合计3分判断代码
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,348,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有；实际只传和恢复scrollOffset，anchorBlockID和blockFrames一直默认且无消费者，待清理多余存储
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,调用方 :53（.richText 分支构造）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
@@ -4054,24 +4054,24 @@ TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,we
 TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,302,KEEP,2026-11-20：WKNavigationDelegate didFailProvisionalNavigation失败回调；沿相同进度闭包传错误，不修改云端登录状态或凭据
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,migrateLegacyFeatureFlag,func,25,KEEP,v260 拆键迁移：featureEnabled 缺失时从旧键 panelVisible 继承，老用户的「启用文件中转」状态不因换键丢失
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,isOn,func,56,KEEP,AppBootstrap.swift:71 与 LanTransferServer.swift:63 调用
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,init,init,11,KEEP,LocalTransferSettingsDraft读取自动暂存、悬停预览和保留天数三个已保存值，以字符串序列saved比较是否有待保存编辑
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,save,func,14,KEEP,把自动暂存、悬停和保留期写入transferDock.autoStageClipboard、transferDock.previewOnHover、transferDock.local.retentionDays后synchronize；失败保留编辑并返回写入说明，成功重设清理计时和saved
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,discard,func,26,KEEP,重新读取中转自动暂存、悬停预览与retentionDays已保存值，刷新草稿和saved，取消未保存设置
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,restoreDefaults,func,33,KEEP,仅把本地暂存草稿恢复自动同步true、悬停预览true、保留期0；统一保存前不启动或停止正式清理计时
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,init,init,40,KEEP,LocalTransferSettingsDraft读取自动暂存、悬停预览和保留天数三个已保存值，以字符串序列saved比较是否有待保存编辑
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,save,func,43,KEEP,把自动暂存、悬停和保留期写入transferDock.autoStageClipboard、transferDock.previewOnHover、transferDock.local.retentionDays后synchronize；失败保留编辑并返回写入说明，成功重设清理计时和saved
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,discard,func,55,KEEP,重新读取中转自动暂存、悬停预览与retentionDays已保存值，刷新草稿和saved，取消未保存设置
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,restoreDefaults,func,60,KEEP,仅把本地暂存草稿恢复自动同步true、悬停预览true、保留期0；统一保存前不启动或停止正式清理计时
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,init,init,67,KEEP,LocalTransferSettingsDraft读取自动暂存、悬停预览和保留天数三个已保存值，以字符串序列saved比较是否有待保存编辑
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,save,func,75,KEEP,把自动暂存、悬停和保留期写入transferDock.autoStageClipboard、transferDock.previewOnHover、transferDock.local.retentionDays后synchronize；失败保留编辑并返回写入说明，成功重设清理计时和saved
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,discard,func,84,KEEP,重新读取中转自动暂存、悬停预览与retentionDays已保存值，刷新草稿和saved，取消未保存设置
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,restoreDefaults,func,89,KEEP,仅把本地暂存草稿恢复自动同步true、悬停预览true、保留期0；统一保存前不启动或停止正式清理计时
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CastTransferSettingsDraft,save,func,114,KEEP,把自动暂存、悬停和保留期写入transferDock.autoStageClipboard、transferDock.previewOnHover、transferDock.local.retentionDays后synchronize；失败保留编辑并返回写入说明，成功重设清理计时和saved
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CastTransferSettingsDraft,discard,func,124,KEEP,重新读取中转自动暂存、悬停预览与retentionDays已保存值，刷新草稿和saved，取消未保存设置
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CastTransferSettingsDraft,restoreDefaults,func,125,KEEP,仅把本地暂存草稿恢复自动同步true、悬停预览true、保留期0；统一保存前不启动或停止正式清理计时
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,row,func,414,KEEP,body 内 12 处调用（34/43/56/69/83/90/104/115/128/158/179/188）
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,chooseBridgeFolder,func,439,KEEP,「选择…」按钮 :198 调用
-TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,copy,func,450,KEEP,「复制」按钮 :139 调用
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,init,init,11,KEEP,2026-11-20：本地页SettingsDraftEditor构造；四项featureEnabled/autoStage/hoverPreview/retentionDays读取已保存值，以values字符串数组保存快照供isDirty比较
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,save,func,14,KEEP,2026-11-20：设置会话保存调用；逐项只写变化字段并同步偏好，失败返回说明且保留草稿；当前无条件重启保留期计时且立即pruneExpired，悬停等无关修改也触发清理待处理
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,discard,func,26,KEEP,2026-11-20：设置取消调用；重读功能、自动暂存、悬停和保留期四项正式偏好再更新saved，丢弃本页未保存编辑
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,restoreDefaults,func,33,KEEP,2026-11-20：设置恢复默认调用；仅改草稿为功能与自动暂存及悬停开启、保留期0，不立即写偏好或清理数据
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,init,init,40,KEEP,2026-11-20：扫码直传页草稿构造；读取lan启用和端口，保存布尔串与端口串快照，不启动网络监听
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,save,func,43,KEEP,2026-11-20：设置保存调用；端口按UInt16及最低1024解析，变化才写lan开关与端口；同步成功规范显示端口及saved，现有服务保持原监听，下次启动消费新端口
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,discard,func,55,KEEP,2026-11-20：设置取消调用；只重读已保存lan开关与端口并更新快照，不影响已启动服务或令牌
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,ScanTransferSettingsDraft,restoreDefaults,func,60,KEEP,2026-11-20：默认操作只将扫码草稿改为enabled真及默认端口8787；统一保存前不改服务配置
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,init,init,67,KEEP,2026-11-20：云端页草稿构造；读取cloudEnabled及TransferDockPath.root并存二项快照，bridgeAvailable仅查询草稿目录文件存在
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,save,func,75,KEEP,2026-11-20：云端配置保存变化的通道开关及工程URL，偏好同步成功后发transferDockSettingsDidChange并更新saved；登录和同步按钮直接使用正式路径不消费草稿
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,discard,func,84,KEEP,2026-11-20：设置取消重读正式通道开关和桥接root再更新saved；不改登录凭据或停止既有同步
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CloudTransferSettingsDraft,restoreDefaults,func,89,KEEP,2026-11-20：仅把云端草稿改为开启及既有OPPO中转站默认目录；不立即调用桥脚本或持久化
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CastTransferSettingsDraft,save,func,114,KEEP,2026-11-20：设置保存逐项写变化的maxSize/bitrate/fps/clipboardAutoSync，成功更新快照；镜像及应用窗口下次启动取正式参数，运行中进程不重建
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CastTransferSettingsDraft,discard,func,124,KEEP,2026-11-20：设置取消将values重读Values.current且saved同步，恢复四项已保存投屏参数
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,CastTransferSettingsDraft,restoreDefaults,func,125,KEEP,2026-11-20：设置默认操作仅values=Values，恢复1920/16Mbps/60fps/同步开启；不修改既有投屏会话
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,row,func,414,KEEP,2026-11-20：四页统一行布局消费；左侧标题及最多2行说明，右侧控件，间距14及最小高44pt；不持有另一份设置状态
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,chooseBridgeFolder,func,439,KEEP,2026-11-20：云端草稿选择按钮调用；NSOpenPanel仅选单一目录，以草稿路径为初始位置，确认后只改draft.bridgePath，保存时才写正式路径
+TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,TransferDockSettingsPane,copy,func,450,KEEP,2026-11-20：扫码服务复制地址按钮调用；清系统剪贴板后写字符串并提示；二维码及复制均消费同一lan.shareURL
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,init,init,72,KEEP,TransferDockContent 接收可选云服务、本地暂存、LAN与压缩控制器；正式宿主注入共享服务，预览由场景内固定本地和云文件数组提供内容
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,segmentPill,func,242,KEEP,发送、接收和文件中转分段复用胶囊按钮，点击只改变当前内容分段，固定预览与正式页共用布局
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,sendChip,func,338,KEEP,发送方式按钮复用图标、标题及help，调用方分别接隔空投送、浏览器扫码和ADB发送入口
