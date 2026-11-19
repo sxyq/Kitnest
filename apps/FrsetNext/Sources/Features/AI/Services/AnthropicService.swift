@@ -46,10 +46,10 @@ public final class AnthropicService: LLMProviderAdapting {
             "model": request.model,
             "messages": request.conversation.map { ["role": $0.role.rawValue, "content": $0.content] },
             "max_tokens": request.maxTokens,
-            "stream": request.stream
+            "stream": request.stream,
+            "temperature": request.temperature
         ]
         if let system = request.systemPrompt, !system.isEmpty { body["system"] = system }
-        if request.temperature > 0 { body["temperature"] = request.temperature }
         req.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         return req
     }
