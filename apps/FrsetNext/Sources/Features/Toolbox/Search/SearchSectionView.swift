@@ -1304,18 +1304,18 @@ public struct SearchSectionView: View {
         if isSettingsPreview {
             return settingsPreviewClipboardItems.compactMap { item in
                 guard clipboardKind.matches(item.type),
-                      FuzzyMatcher.isMatch(keyword, in: [item.title, item.subtitle, item.content].compactMap { $0 }.joined(separator: " ")) else { return nil }
-                return (item, item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) })
+                      FuzzyMatcher.isMatch(keyword, in: [item.displayTitle, item.subtitle, item.content].compactMap { $0 }.joined(separator: " ")) else { return nil }
+                return (item, FuzzyMatcher.match(keyword, in: item.displayTitle))
             }
         }
         let limit = Self.matchContentLimit
         return clipboard.items.compactMap { item in
             guard clipboardKind.matches(item.type) else { return nil }
             let content = item.content.map { $0.count > limit ? String($0.prefix(limit)) : $0 }
-            let haystack = [item.title, item.subtitle, content]
+            let haystack = [item.displayTitle, item.title, item.subtitle, content]
                 .compactMap { $0 }.joined(separator: " ")
             guard FuzzyMatcher.isMatch(keyword, in: haystack) else { return nil }
-            let titleMatch = item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) }
+            let titleMatch = FuzzyMatcher.match(keyword, in: item.displayTitle)
             return (item, titleMatch)
         }
     }
@@ -1385,7 +1385,7 @@ public struct SearchSectionView: View {
                                     .font(.system(size: 11))
                                     .foregroundStyle(Theme.tertiaryText)
                                     .frame(width: 14)
-                                highlighted(item.title ?? item.content ?? "(空)",
+                                highlighted(item.displayTitle,
                                             match: match, size: 12)
                                     .lineLimit(1)
                                     .layoutPriority(1)
@@ -1407,7 +1407,7 @@ public struct SearchSectionView: View {
                                     .foregroundStyle(.secondary)
                                 VStack(alignment: .leading, spacing: 1) {
                                     // 标题命中字符 accent 高亮
-                                    highlighted(item.title ?? item.content ?? "(空)",
+                                    highlighted(item.displayTitle,
                                                 match: match, size: 12)
                                         .lineLimit(1)
                                     if let subtitle = item.subtitle, !subtitle.isEmpty {
