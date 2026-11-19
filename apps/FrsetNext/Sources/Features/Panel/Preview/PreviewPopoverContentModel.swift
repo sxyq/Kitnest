@@ -42,6 +42,8 @@ public struct PreviewPopoverContentModel: Identifiable {
     public let kind: Kind
     /// 已就绪的全文（短文本直接带上；fileBackedText 这里只放内联前缀，全文由视图异步加载）
     public let inlineText: String
+    /// 本次模型共用的富文本正文，分类、排版与尺寸测量不重复读盘。
+    public let richAttributed: NSAttributedString?
     public let fileText: FilePreviewLoadState
     private let fileTextKind: Kind?
     public let fileImage: NSImage?
@@ -68,7 +70,8 @@ public struct PreviewPopoverContentModel: Identifiable {
                 inlineText: String,
                 kindOverride: Kind? = nil,
                 displayPath: String? = nil,
-                loadFileContents: Bool = true) {
+                loadFileContents: Bool = true,
+                fullTextLoaded: Bool = false) {
         self.id = item.id
         self.item = item
         self.source = source
@@ -78,7 +81,21 @@ public struct PreviewPopoverContentModel: Identifiable {
         self.displayPath = displayPath
         // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
         // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
-        self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
+        let rich = item.type == .richtext && kindOverride == nil
+            ? PreviewPopoverDataBridge.shared.richTextAttributed(for: item) : nil
+        self.richAttributed = rich
+        if let kindOverride {
+            self.kind = kindOverride
+        } else {
+            switch item.type {
+            case .image: self.kind = .image
+            case .file: self.kind = .file
+            case .richtext, .text, .url:
+                if rich != nil { self.kind = .richText }
+                else if item.textPath != nil && !fullTextLoaded { self.kind = .fileBackedText }
+                else { self.kind = Self.classifyRawText(inlineText) }
+            }
+        }
         let paths = item.type == .file ? (item.content ?? "").split(separator: "\n") : []
         var directory: ObjCBool = false
         if item.type == .file, kindOverride == nil, paths.count == 1 {
@@ -185,36 +202,6 @@ public struct PreviewPopoverContentModel: Identifiable {
             || t.hasSuffix(",") || t.hasSuffix(")") || t.hasSuffix("*/") { return true }
         if t.contains(" = ") || t.contains("==") || t.contains("->") || t.contains("=>") { return true }
         return false
-    }
-
-    // MARK: 分态判定
-
-    /// 内容分态判定：图片/文件按条目类型；文本类按启发式细分（Markdown/JSON/代码/纯文本）
-    ///
-    /// v87（2026-10-20 用户反馈「预览不统一：有些没用 Markdown 展现、目录不是都有」）：
-    /// 文本类**全部**走同一条启发式链（classifyRawText：JSON → Markdown → 代码 → 纯文本），
-    /// 不再因「富文本无 RTF 数据」等路径短路成纯文本。
-    public static func classify(item: ClipboardItem, fullText: String) -> Kind {
-        switch item.type {
-        case .image:
-            return .image
-        case .file:
-            return .file
-        case .richtext:
-            // v65：有 RTF 数据 → 富文本保真渲染（此前一律降级纯文本，用户反馈渲染错误）；
-            // 无 RTF 数据（历史条目）与纯文本同一条启发式链，避免渲染口径分叉
-            if PreviewPopoverDataBridge.shared.richTextAttributed(for: item) != nil { return .richText }
-            return item.textPath != nil ? .fileBackedText : classifyRawText(fullText)
-        case .text, .url:
-            // 落盘长文本统一进 fileBackedText（加载全文后同样走 classifyRawText 链）
-            if item.textPath != nil { return .fileBackedText }
-            return classifyRawText(fullText)
-        }
-    }
-
-    /// v65 富文本保真渲染数据（RTF → NSAttributedString；经数据桥，App 总控接线）
-    public var richAttributed: NSAttributedString? {
-        PreviewPopoverDataBridge.shared.richTextAttributed(for: item)
     }
 
     /// JSON 预览资格（F16 __isJSONPreviewEligible）：单根 JSON 或 **JSONL**

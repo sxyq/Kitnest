@@ -365,11 +365,8 @@ public final class FloatingClipDeskStore: ObservableObject {
                 guard !Task.isCancelled else { return nil }
                 let text = PreviewPopoverDataBridge.shared.fullText(for: item)
                 guard !Task.isCancelled else { return nil }
-                let classified = PreviewPopoverContentModel.classify(item: item, fullText: text)
-                let kind = classified == .fileBackedText
-                    ? PreviewPopoverContentModel.classifyRawText(text) : classified
                 return PreviewPopoverContentModel(item: item, source: .floatingPreview,
-                    sessionID: UUID(), inlineText: text, kindOverride: item.type == .file ? nil : kind)
+                    sessionID: UUID(), inlineText: text, fullTextLoaded: true)
             }
             let model = await withTaskCancellationHandler(operation: { await loader.value },
                                                           onCancel: { loader.cancel() })

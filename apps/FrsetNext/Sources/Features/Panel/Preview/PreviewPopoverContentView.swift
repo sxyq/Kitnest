@@ -76,7 +76,7 @@ public struct PreviewPopoverContentView: View {
 /// 正文字号在深色系统外观下也不至于隐形（深色下的双向反色留待后续按需增强）。
 private struct PreviewRichTextView: View {
     let model: PreviewPopoverContentModel
-    /// init 时同步加载（RTF 为落盘小文件，几十 KB 级；渲染量高已在高度估算时做过一次）
+    /// 直接复用模型中已解析的正文。
     private let attributed: NSAttributedString
 
     init(model: PreviewPopoverContentModel) {
