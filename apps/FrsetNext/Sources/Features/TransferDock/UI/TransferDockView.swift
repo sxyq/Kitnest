@@ -682,11 +682,12 @@ private struct TransferDockContent: View {
         let staging = ADBFileBridge.stagingDirectory
         ADBFileBridge.pull(into: staging) { count, log in
             adbFileStatus = log
-            // 拉取落盘的文件 → 走 add() 正式入暂存索引（硬链接语义，不重复占空间）
+            // 手机接收内容移入正式暂存，目录也取得独立归属。
             let pulled = (try? FileManager.default.contentsOfDirectory(
                 at: staging, includingPropertiesForKeys: nil))?
                 .filter { $0.lastPathComponent != ".DS_Store" } ?? []
-            LocalTransferStore.shared.add(urls: pulled) { n in
+            LocalTransferStore.shared.addUploads(pulled.map { (name: $0.lastPathComponent, tempURL: $0) }, source: "安卓") { n in
+                if n == pulled.count { try? FileManager.default.removeItem(at: staging) }
                 adbPushing = false
                 if let error = LocalTransferStore.shared.lastError {
                     adbFileStatus = error

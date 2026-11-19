@@ -749,13 +749,12 @@ public enum ADBFileBridge {
         return String(text[r])
     }
 
-    /// 拉取手机目录下全部文件到本地暂存目录（先清空暂存目录，避免重复堆积）
+    /// 拉取手机目录下全部文件到本次接收目录。
     /// - completion: (成功数, 输出文本)
     public static func pull(remoteDir: String = "/sdcard/Download/Kitnest",
                             into stagingDir: URL,
                             completion: @escaping (Int, String) -> Void) -> Void {
         let fm = FileManager.default
-        try? fm.removeItem(at: stagingDir)
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         ADBExtrasEngine.run(["pull", remoteDir + "/.", stagingDir.path], timeout: nil) { out, status in
             guard let out else {
@@ -776,12 +775,11 @@ public enum ADBFileBridge {
         }
     }
 
-    /// 暂存目录（与 LocalTransferStore 的本地暂存同源——拉取文件直接入暂存索引）
+    /// 每批接收使用独立目录，旧版暂存链接指向的内容继续保留。
     public static var stagingDirectory: URL {
-        let dir = AppDirectories.base
+        AppDirectories.base
             .appendingPathComponent("TransferStaging", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
     }
 
 }
