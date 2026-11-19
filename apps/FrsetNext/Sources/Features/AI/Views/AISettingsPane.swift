@@ -23,6 +23,7 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
     private let connectionService: AIProviderConnectionService
     private let credentialCoordinator: AICredentialCommitCoordinator
     private var configurationGeneration = 0
+    private var testTask: Task<Void, Never>?
 
     public var baseURLText: String {
         get { baseURLs[provider]! }
@@ -57,6 +58,8 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
         models = LLMResolver.shared.cachedModels(for: provider) ?? []
     }
 
+    deinit { testTask?.cancel() }
+
     public func selectProvider(_ kind: LLMProviderKind) { provider = kind }
 
     public func removeKey() {
@@ -72,6 +75,7 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
                 return "请输入非空 API Key 后再保存。"
             }
         }
+        if testTask != nil { configurationChanged() }
         let changed = isDirty
         for (kind, key) in candidateKeys where key.trimmingCharacters(in: .whitespacesAndNewlines) != credentialCoordinator.store.credential(for: kind) {
             if let reason = credentialCoordinator.commit(key, for: kind) { return "\(kind.displayName)：\(reason)" }
@@ -126,6 +130,8 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
     }
 
     private func configurationChanged() {
+        testTask?.cancel()
+        testTask = nil
         configurationGeneration += 1
         isTesting = false
         testResult = nil
@@ -144,11 +150,12 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
         let candidateModel = modelText
         let kind = provider
         let generation = configurationGeneration
-        Task { [self] in
+        testTask = Task { [weak self, connectionService] in
             let result = await connectionService.test(provider: kind, baseURL: candidateURL,
                                                       model: candidateModel, apiKey: candidateKey)
             await MainActor.run {
-                guard generation == self.configurationGeneration else { return }
+                guard let self, generation == self.configurationGeneration else { return }
+                self.testTask = nil
                 self.testResult = result
                 self.isTesting = false
                 if result.ok { self.models = result.models }
