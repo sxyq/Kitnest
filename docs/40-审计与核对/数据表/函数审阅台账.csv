@@ -4014,18 +4014,19 @@ TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,294,KEEP,2026-11-20：认证后的8项工具唯一分发；设备和命令及文件按退出码返回；截图成功才pull；安装和清单复用引擎；应用启动改异步并把后台解析失败原文交给isError响应
 TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,19,KEEP,QRCodeView.swift:41；CastView.swift:184
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,2026-11-20：shared唯一构造；串行bridge队列及云端状态独立于本地暂存；初始化不启动同步或保活
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,2026-11-20：实际消费者为云端设置开始同步按钮；每30秒且已登录且无加载或上传才refresh；现有timer时不重建；源码旧注释声称页面onAppear启动与当前调用不符
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,2026-11-20：云端设置开始同步按钮调用；每30秒且已登录且无上传才交refresh按isLoading合并；已有timer时不重建；停止按钮取消同一timer
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,stopLiveSync,func,104,KEEP,2026-11-20：云端设置停止同步按钮调用；停止并释放30秒liveSyncTimer；当前中转页onDisappear只移除鼠标监听不调此方法
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startKeepAlive,func,111,KEEP,2026-11-20：saveCookies服务端回验成功后调用；主线程建立300秒timer，仅loggedIn时将keepalive交原bridge队列；重复调用复用同表
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,refresh,func,139,KEEP,2026-11-20：中转页刷新与配置即时动作及上传删除完成调用；串行status后loggedIn才list前200项；状态和数组更新回主线程；lastSyncedAt在列表结果校验前写入且重复调用可排队待质量处理
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,upload,func,200,KEEP,2026-11-20：本地文件右键加入云端调用；bridge队列上传单文件，主线程依据ok及data反馈并发一次触觉，结束再refresh；失败保留桥原错误
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,uploadBatch,func,225,KEEP,2026-11-20：中转勾选及转入sheet和登录后待传文件共用；原串行队列逐文件上传，汇总成功及失败名称后主线程反馈并只refresh一次
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,download,func,260,KEEP,2026-11-20：云端条目下载入口调用；bridge按file.id下载，ok且含真实返回path才回主线程通知与Finder定位，失败沿桥错误并发失败触觉
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,delete,func,284,KEEP,2026-11-20：云端条目删除入口调用；后台bridge以id删除，主线程按ok显示结果再refresh；不在Swift复制云端协议
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,saveCookies,func,307,KEEP,2026-11-20：登录页候选cookie回调调用；筛heytap.com与oppo.com后序列化原字段，保留用户既有凭据存档语义并原子写cookieFile；verifySession通过才loggedIn及启动保活；域名直接hasSuffix未限制点边界待安全处理
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,verifySession,func,368,KEEP,2026-11-20：saveCookies写入后调用；utility直接runBridge status并读data.loggedIn及reason，完成由调用方回主线程；不以cookie数量当服务端登录状态
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,archiveCookieEvidence,func,380,KEEP,2026-11-20：覆盖cookie前按既有用户历史要求调用；文件已存在才复制至credentials/evidence带时间名称，按名称保留20份；不读取或输出cookie值
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,runBridge,func,400,KEEP,2026-11-20：云端status/list/上传下载删除及保活共用唯一Python桥；串行读stdout再stderr可能互等；600秒asyncAfter强持有Process且不取消；倒序取最后合法JSON并原样返回，均待性能处理
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,refresh,func,139,KEEP,2026-11-20：中转页及配置即时动作和上传删除完成共用；isLoading合并同轮请求，串行status确认登录后才list前200项；状态和数组回主线程，列表解析及映射成功才更新lastSyncedAt
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,upload,func,201,KEEP,2026-11-20：本地文件右键加入云端调用；bridge队列上传单文件，主线程依据ok及data反馈并发一次触觉，结束再refresh；失败保留桥原错误
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,uploadBatch,func,226,KEEP,2026-11-20：中转勾选及转入sheet和登录后待传文件共用；原串行队列逐文件上传，汇总成功及失败名称后主线程反馈并只refresh一次
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,download,func,261,KEEP,2026-11-20：云端条目下载入口调用；bridge按file.id下载，ok且含真实返回path才回主线程通知与Finder定位，失败沿桥错误并发失败触觉
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,delete,func,285,KEEP,2026-11-20：云端条目删除入口调用；后台bridge以id删除，主线程按ok显示结果再refresh；不在Swift复制云端协议
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,isLoginDomain,func,305,KEEP,2026-11-20：登录页候选cookie与saveCookies写入共用；域名转小写，仅接受heytap.com/oppo.com本身及点分子域，保留前导点的域Cookie，拒绝同字尾的其他根域
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,saveCookies,func,315,KEEP,2026-11-20：登录页候选回调调用；和候选筛选共用isLoginDomain限制根域及点分子域；序列化原字段并按既有用户要求存档和原子写cookieFile；服务端verifySession通过才设置登录和启保活
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,verifySession,func,373,KEEP,2026-11-20：saveCookies写入后调用；utility直接runBridge status并读data.loggedIn及reason，完成由调用方回主线程；不以cookie数量当服务端登录状态
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,archiveCookieEvidence,func,385,KEEP,2026-11-20：覆盖cookie前按既有用户历史要求调用；文件已存在才复制至credentials/evidence带时间名称，按名称保留20份；不读取或输出cookie值
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,runBridge,func,405,KEEP,2026-11-20：云端status/list/上传下载删除及保活共用唯一Python桥；两条pipe并行读至EOF后汇合，600秒弱引用任务在正常退出即取消；倒序取最后合法JSON，失败保留原错误末400字符
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,init,init,38,KEEP,建立共享压缩窗口、绑定原生内容和 Return/Escape 键行为
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,init,init,65,KEEP,建立共享压缩窗口、绑定原生内容和 Return/Escape 键行为
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,show,func,67,KEEP,复用可见窗口；重置图片队列、压缩选项和状态后淡入显示
@@ -4034,23 +4035,23 @@ TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchIma
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,viewInTransferDock,func,133,KEEP,关闭压缩窗并打开文件中转面板中的中转页
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,cancelOrClose,func,138,KEEP,压缩期间请求停止；空闲时关闭窗口
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,windowShouldClose,func,142,KEEP,关闭窗口时先请求停止压缩并阻止任务运行中的窗口销毁
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeNSView,func,104,KEEP,NSViewRepresentable 协议要求；body:40 构造由 SwiftUI 派发
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,updateNSView,func,127,KEEP,NSViewRepresentable 协议要求；空实现也须提供
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,func,131,KEEP,NSViewRepresentable 协议回调；调 stopPolling:77
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeCoordinator,func,135,KEEP,NSViewRepresentable 协议回调；SwiftUI 建 coordinator 时调
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,userContentController,func,145,KEEP,探针消息回调：记 path/cookie 长度/localStorage 键（同签名去重）
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,installProbe,func,159,KEEP,每次页面落地重注入 setInterval 探针（跨页导航会清掉上一页）
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,detach,func,177,KEEP,摘 frsetProbe handler + 清 interval + 停轮询
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,185,KEEP,WKNavigationDelegate 回调；navigationDelegate 于 :64 设置
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,init,init,208,KEEP,makeCoordinator:81 调用
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,startPolling,func,214,KEEP,makeNSView:70 调用；内部起 Timer:104
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,dumpCookieNames,func,228,KEEP,排障：打印全部 cookie 的 domain/name
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,stopPolling,func,236,KEEP,dismantleNSView:77 与 checkCookies:123 调用
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,applyForceTick,func,242,KEEP,「重新检测」按钮：tick 变化才执行，走 check(force: true)
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,check,func,250,KEEP,Timer 闭包唯一入口 TransferDockLoginView.swift:105
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,295,KEEP,WKNavigationDelegate 回调；经 :64 的 delegate 派发
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,302,KEEP,WKNavigationDelegate：didFinish 落页面 → 重装探针 + 立刻 check；didFail / didFailProvisional 只回进度文案
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,306,KEEP,WKNavigationDelegate：didFinish 落页面 → 重装探针 + 立刻 check；didFail / didFailProvisional 只回进度文案
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeNSView,func,104,KEEP,2026-11-20：登录sheet的body构造后由SwiftUI派发；默认WebKit存储及桌面UA，创建前挂探针handler，再设导航和弹窗代理、加载官方业务页并启动轮询
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,updateNSView,func,127,KEEP,2026-11-20：SwiftUI更新时交forceTick给原Coordinator；不是空实现，重新检测按钮增tick后沿同一check强制候选回调
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,func,131,KEEP,2026-11-20：登录sheet退出后的框架回调；调用detach结束候选、停1秒timer、移除脚本handler并清网页探针interval
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeCoordinator,func,135,KEEP,2026-11-20：NSViewRepresentable构造协调对象，传登录候选及进度两个闭包；同一对象负责导航、弹窗、脚本消息和cookie轮询
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,userContentController,func,145,KEEP,2026-11-20：创建WebView前注册frsetProbe消息回调；只读path与cookie长度及localStorage键名，按签名去重；键名日志截前24项，不记录值
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,installProbe,func,159,KEEP,2026-11-20：didFinish导航回调注入原2.5秒探针；同页已存在则复用，跨页重新注入；只向原消息handler送路径和长度及存储键名
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,detach,func,177,KEEP,2026-11-20：dismantleNSView唯一调用；将既有finished设true使在途cookie回调停止，取消timer和消息handler，并清网页interval
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,186,KEEP,2026-11-20：WKUIDelegate弹窗回调；targetFrame为空时原WebView加载request并返回nil，复用一个登录窗口而非新建业务视图
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,init,init,209,KEEP,2026-11-20：makeCoordinator唯一构造；持有候选及进度闭包，弱持有WebView；timer及抓取状态属于此登录会话
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,startPolling,func,215,KEEP,2026-11-20：makeNSView调用；记录弱WebView，0.8秒后只记cookie名称，建立1秒common模式timer交check；结束沿detach停表
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,dumpCookieNames,func,229,KEEP,2026-11-20：startPolling延迟调用；从同一WebKit store读取所有cookie的域和名称用于既有登录诊断，不记录值；当前日志范围包含该store其他站点名称
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,stopPolling,func,237,KEEP,2026-11-20：detach调用；invalidate并释放原1秒timer，旧台账声称checkCookies调用已失效
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,applyForceTick,func,243,KEEP,2026-11-20：updateNSView每轮传tick；值改变才保存并check(force:true)，按钮在验证或成功阶段禁用
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,check,func,251,KEEP,2026-11-20：timer、手动检测及导航完成共用；结束态提前返回；候选和写入共享域名边界，按会话类名称或授权后回精确业务主机判定；原3秒同名签名节流保留，最终仍由服务端回验
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,293,KEEP,2026-11-20：WKNavigationDelegate didFinish完成后显示进度、重新安装网页探针并立即check；view仅waiting阶段消费进度，不覆盖验证结果
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,300,KEEP,2026-11-20：WKNavigationDelegate didFail完成加载失败回调；沿onProgress传系统错误，view仅waiting阶段更新说明
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,304,KEEP,2026-11-20：WKNavigationDelegate didFailProvisionalNavigation失败回调；沿相同进度闭包传错误，不修改云端登录状态或凭据
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,migrateLegacyFeatureFlag,func,25,KEEP,v260 拆键迁移：featureEnabled 缺失时从旧键 panelVisible 继承，老用户的「启用文件中转」状态不因换键丢失
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,isOn,func,56,KEEP,AppBootstrap.swift:71 与 LanTransferServer.swift:63 调用
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,init,init,11,KEEP,LocalTransferSettingsDraft读取自动暂存、悬停预览和保留天数三个已保存值，以字符串序列saved比较是否有待保存编辑

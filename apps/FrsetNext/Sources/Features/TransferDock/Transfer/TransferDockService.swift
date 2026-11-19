@@ -401,7 +401,7 @@ final class TransferDockService: ObservableObject {
 
     // MARK: 调桥接脚本
 
-    /// 在后台队列同步执行 `python3 frset_bridge.py <args>`，解析首行 JSON
+    /// 在后台队列同步执行 `python3 frset_bridge.py <args>`，取最后一行有效 JSON。
     private static func runBridge(_ args: [String]) -> [String: Any] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
