@@ -121,7 +121,7 @@ public enum CodeLexer {
                     i += 1
                     while i < n {
                         let u = units[i]
-                        if spec.escapeEnabled, u == 92 { i = min(n, i + 2); continue }  // 反斜杠转义
+                        if u == 92 { i = min(n, i + 2); continue }  // 反斜杠转义
                         if u == quote { i += 1; break }
                         if u == 10 { break }     // 单行字符串不跨行（未闭合时到此为止）
                         i += 1
@@ -365,7 +365,6 @@ public enum CodeLexer {
         var blockComments: [(open: String, close: String)] = []
         var quoteUnits: [UInt16] = []
         var supportsTripleQuote = false
-        var escapeEnabled = true
         var caseInsensitive = false
         var autoTypes = true
         var markup = false
@@ -467,7 +466,6 @@ public enum CodeLexer {
                 s.lineComments = ["//"]
                 s.blockComments = [("/*", "*/")]
                 q("\"\'`")
-                s.supportsTripleQuote = false
             case "dart":
                 s.keywords = set("void class abstract extends implements mixin with import library part export if else for while do switch case default break continue return new const final var late static async await yield try catch finally throw this super null true false get set required")
                 s.types = set("int double num String bool List Map Set Future Stream Object dynamic var")
@@ -482,7 +480,6 @@ public enum CodeLexer {
                 q("\"\'")
             case "perl":
                 s.keywords = set("sub my our local if elsif else unless while until for foreach do return use require package last next redo undef true false and or not")
-                s.types = set("")
                 s.lineComments = ["#"]
                 q("\"\'")
             case "r":
@@ -517,8 +514,6 @@ public enum CodeLexer {
                 q("\"\'")
                 s.caseInsensitive = true
             case "html", "xml":
-                s.keywords = set("")
-                s.types = set("")
                 s.blockComments = [("<!--", "-->")]
                 q("\"\'")
                 s.markup = true
@@ -575,7 +570,5 @@ public enum CodeLexer {
             Set(text.split(separator: " ").map(String.init))
         }
 
-        /// 空集合（给上面 cpp 那种「先赋值再覆盖」的写法兜底）
-        static var blank: Set<String> { [] }
     }
 }
