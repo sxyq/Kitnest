@@ -31,6 +31,7 @@ public final class MCPServer {
     public static let defaultPort: UInt16 = 8767   // 8765/8766 实测被系统内其它进程占用
 
     private var listener: NWListener?
+    private var connections: [ObjectIdentifier: NWConnection] = [:]
     private let queue = DispatchQueue(label: "frset.mcp", qos: .userInitiated)
     private let lock = NSLock()
     private var _running = false
@@ -97,20 +98,42 @@ public final class MCPServer {
     public func stop() {
         listener?.cancel()
         listener = nil
-        lock.lock(); _running = false; lock.unlock()
+        queue.sync {
+            lock.lock(); _running = false; lock.unlock()
+            for conn in connections.values {
+                conn.stateUpdateHandler = nil
+                conn.cancel()
+            }
+            connections.removeAll()
+        }
         Log.info("MCP", "已停止")
     }
 
     // MARK: HTTP
 
     private func handle(_ conn: NWConnection) {
+        guard isRunning else { conn.cancel(); return }
+        connections[ObjectIdentifier(conn)] = conn
+        conn.stateUpdateHandler = { [weak self, weak conn] state in
+            guard let self, let conn else { return }
+            switch state {
+            case .failed, .cancelled: self.close(conn)
+            default: break
+            }
+        }
         conn.start(queue: queue)
         receive(conn, buffer: Data())
     }
 
+    private func close(_ conn: NWConnection) {
+        connections.removeValue(forKey: ObjectIdentifier(conn))
+        conn.stateUpdateHandler = nil
+        conn.cancel()
+    }
+
     private func receive(_ conn: NWConnection, buffer: Data) {
         conn.receive(minimumIncompleteLength: 1, maximumLength: 1 << 20) { [weak self] data, _, isComplete, error in
-            guard let self else { return }
+            guard let self, self.connections[ObjectIdentifier(conn)] != nil else { return }
             var buf = buffer
             if let data { buf.append(data) }
             if let headerEnd = buf.range(of: Data("\r\n\r\n".utf8)) {
@@ -120,14 +143,31 @@ public final class MCPServer {
                     self.send(conn, status: "400 Bad Request", json: ["error": "invalid content-length"])
                     return
                 }
+                let lines = headerText.components(separatedBy: "\r\n")
+                let firstLine = lines.first ?? ""
+                if firstLine.hasPrefix("OPTIONS ") || lines.contains(where: { $0.lowercased().hasPrefix("origin:") }) {
+                    self.send(conn, status: "403 Forbidden", json: ["error": "browser origin is not allowed"])
+                    return
+                }
+                if firstLine.hasPrefix("GET ") {
+                    self.send(conn, status: "200 OK", json: ["ok": true, "server": "Kitnest MCP", "endpoint": self.baseEndpoint])
+                    return
+                }
+                guard Self.authorized(firstLine: firstLine, headers: lines, token: self.accessToken) else {
+                    self.send(conn, status: "401 Unauthorized", json: [
+                        "jsonrpc": "2.0",
+                        "error": ["code": -32001, "message": "missing or invalid token; copy the full URL from Kitnest's Cast page"]
+                    ])
+                    return
+                }
                 let body = buf[bodyStart...]
                 if body.count >= contentLength {
-                    self.respond(conn, request: headerText, body: Data(body.prefix(contentLength)))
+                    self.respond(conn, body: Data(body.prefix(contentLength)))
                     return
                 }
             }
             if isComplete || error != nil {
-                conn.cancel()
+                self.close(conn)
                 return
             }
             self.receive(conn, buffer: buf)
@@ -147,7 +187,10 @@ public final class MCPServer {
         let data = (try? JSONSerialization.data(withJSONObject: json)) ?? Data("{}".utf8)
         let head = "HTTP/1.1 \(status)\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: \(data.count)\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n"
         var out = Data(head.utf8); out.append(data)
-        conn.send(content: out, completion: .contentProcessed { _ in conn.cancel() })
+        queue.async { [out] in
+            guard self.connections[ObjectIdentifier(conn)] != nil else { return }
+            conn.send(content: out, completion: .contentProcessed { _ in self.close(conn) })
+        }
     }
 
     /// token 可来自 URL query（投屏页复制的完整地址）或两种请求头，三者取一即可
@@ -172,28 +215,7 @@ public final class MCPServer {
         return false
     }
 
-    private func respond(_ conn: NWConnection, request: String, body: Data) {
-        let lines = request.components(separatedBy: "\r\n")
-        let firstLine = lines.first ?? ""
-
-        // 浏览器发起的请求一律拒绝（含 CORS 预检）：绑回环只能挡外部主机，
-        // 本机任意网页仍能对本机端口发请求，所以必须在服务端再挡一层。
-        if firstLine.hasPrefix("OPTIONS ") || lines.contains(where: { $0.lowercased().hasPrefix("origin:") }) {
-            send(conn, status: "403 Forbidden", json: ["error": "browser origin is not allowed"])
-            return
-        }
-        // GET /health 只探活，不回显 token
-        if firstLine.hasPrefix("GET ") {
-            send(conn, status: "200 OK", json: ["ok": true, "server": "Kitnest MCP", "endpoint": baseEndpoint])
-            return
-        }
-        guard Self.authorized(firstLine: firstLine, headers: lines, token: accessToken) else {
-            send(conn, status: "401 Unauthorized", json: [
-                "jsonrpc": "2.0",
-                "error": ["code": -32001, "message": "missing or invalid token; copy the full URL from Kitnest's Cast page"]
-            ])
-            return
-        }
+    private func respond(_ conn: NWConnection, body: Data) {
         guard let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
             send(conn, status: "400 Bad Request", json: ["jsonrpc": "2.0", "error": ["code": -32700, "message": "parse error"]])
             return
@@ -274,25 +296,22 @@ public final class MCPServer {
         func arg(_ k: String) -> String { args[k] as? String ?? "" }
         switch name {
         case "adb_devices":
-            ADBExtrasEngine.run(["devices", "-l"]) { out, _ in
-                completion(out ?? "adb 不可用（未安装 android-platform-tools）", out == nil)
+            ADBExtrasEngine.run(["devices", "-l"]) { out, status in
+                completion(out ?? "adb 不可用（未安装 android-platform-tools）", status != 0)
             }
         case "adb_shell":
             let cmd = arg("command")
             guard !cmd.isEmpty else { completion("缺少 command 参数", true); return }
-            // shell 命令按空格拆参数（避免注入引号问题：整体交给 shell -c）
-            ADBExtrasEngine.run(["shell", cmd]) { out, _ in
-                completion(out ?? "无输出", false)
+            ADBExtrasEngine.run(["shell", cmd]) { out, status in
+                completion(out ?? "adb 不可用或启动失败", status != 0)
             }
         case "adb_push":
-            ADBExtrasEngine.run(["push", arg("local"), arg("remote")]) { out, _ in
-                let t = out ?? "无输出"
-                completion(t, t.lowercased().contains("error"))
+            ADBExtrasEngine.run(["push", arg("local"), arg("remote")]) { out, status in
+                completion(out ?? "adb 不可用或启动失败", status != 0)
             }
         case "adb_pull":
-            ADBExtrasEngine.run(["pull", arg("remote"), arg("local")], timeout: 120) { out, _ in
-                let t = out ?? "无输出"
-                completion(t, t.lowercased().contains("error"))
+            ADBExtrasEngine.run(["pull", arg("remote"), arg("local")], timeout: 120) { out, status in
+                completion(out ?? "adb 不可用或启动失败", status != 0)
             }
         case "adb_install":
             ADBExtrasEngine.installAPK(url: URL(fileURLWithPath: arg("path"))) { ok, out in
@@ -301,13 +320,25 @@ public final class MCPServer {
         case "adb_screencap":
             let remote = "/sdcard/Download/Kitnest/screencap.png"
             let local = NSTemporaryDirectory() + "frset-screencap-\(Int(Date().timeIntervalSince1970)).png"
-            ADBExtrasEngine.run(["shell", "screencap", "-p", remote]) { _, _ in
-                ADBExtrasEngine.run(["pull", remote, local], timeout: 60) { out, _ in
+            ADBExtrasEngine.run(["shell", "screencap", "-p", remote]) { out, status in
+                guard status == 0 else {
+                    completion(out ?? "adb 不可用或启动失败", true)
+                    return
+                }
+                ADBExtrasEngine.run(["pull", remote, local], timeout: 60) { out, status in
+                    guard status == 0 else {
+                        completion(out ?? "adb 不可用或启动失败", true)
+                        return
+                    }
                     completion("已保存：\(local)\n\(out ?? "")", false)
                 }
             }
         case "list_apps":
-            ADBExtrasEngine.thirdPartyApps { apps in
+            ADBExtrasEngine.thirdPartyApps { apps, error in
+                if let error {
+                    completion(error, true)
+                    return
+                }
                 completion(apps.map { "\($0.label)\t\($0.id)" }.joined(separator: "\n"), false)
             }
         case "launch_app_window":

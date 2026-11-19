@@ -18,7 +18,8 @@ public final class AndroidWebDAVServer {
     public static let defaultPort: UInt16 = 8768   // 8765/8766 实测被系统内其它进程占用
 
     private var listener: NWListener?
-    private let queue = DispatchQueue(label: "frset.webdav", qos: .userInitiated, attributes: .concurrent)
+    private var connections: [ObjectIdentifier: NWConnection] = [:]
+    private let queue = DispatchQueue(label: "frset.webdav", qos: .userInitiated)
     private let stateLock = NSLock()
     private var _running = false
     private var _port: UInt16 = AndroidWebDAVServer.defaultPort
@@ -71,23 +72,45 @@ public final class AndroidWebDAVServer {
 
     public func stop() {
         listener?.cancel(); listener = nil
-        stateLock.lock(); _running = false; stateLock.unlock()
+        queue.sync {
+            stateLock.lock(); _running = false; stateLock.unlock()
+            for conn in connections.values {
+                conn.stateUpdateHandler = nil
+                conn.cancel()
+            }
+            connections.removeAll()
+        }
     }
 
     // MARK: HTTP 会话
 
     private func accept(_ conn: NWConnection) {
+        guard isRunning else { conn.cancel(); return }
+        connections[ObjectIdentifier(conn)] = conn
+        conn.stateUpdateHandler = { [weak self, weak conn] state in
+            guard let self, let conn else { return }
+            switch state {
+            case .failed, .cancelled: self.close(conn)
+            default: break
+            }
+        }
         conn.start(queue: queue)
         readRequest(conn, buffer: Data())
     }
 
+    private func close(_ conn: NWConnection) {
+        connections.removeValue(forKey: ObjectIdentifier(conn))
+        conn.stateUpdateHandler = nil
+        conn.cancel()
+    }
+
     private func readRequest(_ conn: NWConnection, buffer: Data) {
         conn.receive(minimumIncompleteLength: 1, maximumLength: 4 << 20) { [weak self] data, _, isComplete, err in
-            guard let self else { return }
+            guard let self, self.connections[ObjectIdentifier(conn)] != nil else { return }
             var buf = buffer
             if let data { buf.append(data) }
             guard let headerEnd = buf.range(of: Data("\r\n\r\n".utf8)) else {
-                if isComplete || err != nil { conn.cancel(); return }
+                if isComplete || err != nil { self.close(conn); return }
                 self.readRequest(conn, buffer: buf)
                 return
             }
@@ -108,13 +131,13 @@ public final class AndroidWebDAVServer {
 
     private func readBody(_ conn: NWConnection, header: String, body: Data, need: Int) {
         conn.receive(minimumIncompleteLength: 1, maximumLength: 4 << 20) { [weak self] data, _, isComplete, err in
-            guard let self else { return }
+            guard let self, self.connections[ObjectIdentifier(conn)] != nil else { return }
             var buf = body
             if let data { buf.append(data) }
             if buf.count >= need {
                 self.dispatch(conn, header: header, body: Data(buf.prefix(need)))
             } else if isComplete || err != nil {
-                conn.cancel()
+                self.close(conn)
             } else {
                 self.readBody(conn, header: header, body: buf, need: need)
             }
@@ -131,7 +154,7 @@ public final class AndroidWebDAVServer {
     private func dispatch(_ conn: NWConnection, header: String, body: Data) {
         let lines = header.components(separatedBy: "\r\n")
         let parts = (lines.first ?? "").components(separatedBy: " ")
-        guard parts.count >= 2 else { conn.cancel(); return }
+        guard parts.count >= 2 else { close(conn); return }
         let method = parts[0].uppercased()
         let rawPath = parts[1]
         let path = Self.remotePath(from: rawPath)
@@ -206,21 +229,28 @@ public final class AndroidWebDAVServer {
         var p = remote
         if p.hasPrefix("/sdcard") { p = String(p.dropFirst("/sdcard".count)) }
         if p.isEmpty { p = "/" }
+        let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/%?#"))
         let encoded = p.split(separator: "/", omittingEmptySubsequences: false)
-            .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
+            .map { $0.addingPercentEncoding(withAllowedCharacters: allowed) ?? String($0) }
             .joined(separator: "/")
         return encoded.hasPrefix("/") ? encoded : "/" + encoded
     }
 
     private struct Entry { let name: String; let isDir: Bool; let size: Int64 }
 
+    private static func escapeXML(_ text: String) -> String {
+        text.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+    }
+
     private static func entryXML(href: String, isDir: Bool, size: Int64, name: String) -> String {
         """
           <D:response>
-            <D:href>\(href)</D:href>
+            <D:href>\(escapeXML(href))</D:href>
             <D:propstat>
               <D:prop>
-                <D:displayname>\(name)</D:displayname>
+                <D:displayname>\(escapeXML(name))</D:displayname>
                 <D:resourcetype>\(isDir ? "<D:collection/>" : "")</D:resourcetype>
                 <D:getcontentlength>\(size)</D:getcontentlength>
                 <D:getcontenttype>\(isDir ? "httpd/unix-directory" : "application/octet-stream")</D:getcontenttype>
@@ -261,7 +291,7 @@ public final class AndroidWebDAVServer {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: adb)
             var catArgs: [String] = []
-            if let serial = ADBExtrasEngine.activeSerial { catArgs += ["-s", serial] }
+            if let serial = ADBExtrasEngine.resolveSerialSync(adb) { catArgs += ["-s", serial] }
             catArgs += ["exec-out", "cat", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]
             task.arguments = catArgs
             let pipe = Pipe()
@@ -313,6 +343,9 @@ public final class AndroidWebDAVServer {
         head += "\r\n"
         var out = Data(head.utf8)
         out.append(body)
-        conn.send(content: out, completion: .contentProcessed { _ in conn.cancel() })
+        queue.async { [out] in
+            guard self.connections[ObjectIdentifier(conn)] != nil else { return }
+            conn.send(content: out, completion: .contentProcessed { _ in self.close(conn) })
+        }
     }
 }
