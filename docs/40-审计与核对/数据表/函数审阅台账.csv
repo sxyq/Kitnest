@@ -260,15 +260,15 @@ AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,in
 AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,AISettingsPane:160 设置页『测试连接』调用；临时凭证+临时地址，defer 还原
 AI,Features/AI/Services/AIEventBus.swift,AIEventBus,emitResult,func,17,KEEP,AISummaryView:137 调用；AppBootstrap:258 接线到剪贴板 is_generated_by_tool
 AI,Features/AI/Services/AIModule.swift,AIModule,start,func,12,KEEP,ModuleRegistry.startAll() 经 AppModule 协议派发；AppBootstrap:29 注册
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,init,init,25,KEEP,LLMResolver:82 按厂商构造；AIConnectionService:44 临时凭证实例
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeRequest,func,32,KEEP,LLMProviderAdapting 要求；send() 默认实现 L179 调用
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeModelsRequest,func,57,KEEP,协议要求；availableModels 默认实现 L157 调用
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseStreamLine,func,71,KEEP,协议要求；send() L205/L213 逐行取增量
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseComplete,func,86,KEEP,协议要求；send() L191 非流式解析
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseModelIDs,func,96,KEEP,协议要求；availableModels L160
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,readableError,func,103,KEEP,协议要求；checkResponse L240 与流式错误细化 L196
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,isTerminalLine,func,111,KEEP,协议要求；send() L201/L212 识别 message_stop 提前收流
-AI,Features/AI/Services/AnthropicService.swift,AnthropicService,normalizedBase,func,122,KEEP,makeRequest L31 与 makeModelsRequest L56 复用；剥 /v1 尾缀
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,init,init,25,KEEP,2026-11-20：resolver及连接探测构造；保存凭据依赖与可选候选地址，未传地址时每次读取已保存偏好；候选地址不写配置
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeRequest,func,32,KEEP,2026-11-20：默认send调用；POST规范地址v1/messages，x-api-key及固定2023-06-01头；system单列且conversation排除system；maxTokens和stream入体，temperature仅大于0写入故0被省略待处理
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeModelsRequest,func,57,KEEP,2026-11-20：默认availableModels调用；GET规范地址v1/models且limit1000，复用x-api-key和版本头及60秒请求期；当前只读取一页
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseStreamLine,func,71,KEEP,2026-11-20：默认send逐行消费；SSE剥data后解JSON，服务端error抛provider；只取content_block_delta的delta.text，忽略start/ping及非文本事件
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseComplete,func,86,KEEP,2026-11-20：默认send非流式消费；统一JSON及error解析，content不存在抛decoding，存在时拼全部text字段，其他内容块略过
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseModelIDs,func,96,KEEP,2026-11-20：默认模型发现消费；统一JSON和error判定后读取data数组内id，缺目录返回空由公共availableModels沿现有默认模型处理
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,readableError,func,103,KEEP,2026-11-20：公共HTTP错误处理和字节流代理调用；尝试JSON字典后交LLMJSON.errorMessage，解析不成返回nil由已有原文提示处理
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,isTerminalLine,func,111,KEEP,2026-11-20：默认send在parseStreamLine前判定；按JSON type等于message_stop结束，不依赖空格风格，正常结束时公共流任务取消连接
+AI,Features/AI/Services/AnthropicService.swift,AnthropicService,normalizedBase,func,122,KEEP,2026-11-20：请求及模型发现共用；剥地址两端斜杠及尾部v1，之后调用方各拼唯一v1/messages或v1/models
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,init,init,49,KEEP,单例 L34；init 内 load() 解密既有文件
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,58,KEEP,LLMCredentialStoring 实现；requireCredential 协议扩展读取
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,协议实现；设置页保存密钥入口
@@ -298,14 +298,14 @@ AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,upsert,func,62
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,delete,func,71,KEEP,AISettingsPane 删除自定义工具（upsert/delete 同组调用）
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,persist,func,82,KEEP,upsert/delete 内写 Preferences JSON
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,decode,func,88,KEEP,all/upsert/delete 内解析并按 createdAt 排序
-AI,Features/AI/Services/GeminiService.swift,GeminiService,init,init,25,KEEP,LLMResolver:83 按厂商构造
-AI,Features/AI/Services/GeminiService.swift,GeminiService,makeRequest,func,32,KEEP,协议要求；send() 默认实现构造 :streamGenerateContent / :generateContent，Key 走 query
-AI,Features/AI/Services/GeminiService.swift,GeminiService,makeModelsRequest,func,67,KEEP,协议要求；availableModels 拉 /v1beta/models
-AI,Features/AI/Services/GeminiService.swift,GeminiService,parseStreamLine,func,81,KEEP,协议要求；candidates[0].content.parts[].text 拼接增量
-AI,Features/AI/Services/GeminiService.swift,GeminiService,parseComplete,func,94,KEEP,协议要求；一次性响应缺 candidates.content.parts 时抛 decoding
-AI,Features/AI/Services/GeminiService.swift,GeminiService,parseModelIDs,func,105,KEEP,协议要求；过滤掉不支持 generateContent 的模型并去掉 models/ 前缀
-AI,Features/AI/Services/GeminiService.swift,GeminiService,readableError,func,118,KEEP,协议要求；通用 errorMessage
-AI,Features/AI/Services/GeminiService.swift,GeminiService,normalizedBase,func,125,KEEP,makeRequest/makeModelsRequest 复用；剥 /v1beta 与 /v1 尾缀
+AI,Features/AI/Services/GeminiService.swift,GeminiService,init,init,25,KEEP,2026-11-20：resolver及候选连接构造；保存凭据依赖和可选地址，未覆盖时读Gemini已保存地址；默认模型为gemini-2.0-flash
+AI,Features/AI/Services/GeminiService.swift,GeminiService,makeRequest,func,32,KEEP,2026-11-20：公共send调用；模型为空取默认，流式和非流式分别拼streamGenerateContent与generateContent；URLComponents编码key及alt参数，assistant映为model，system独立且temperature/maxTokens入generationConfig
+AI,Features/AI/Services/GeminiService.swift,GeminiService,makeModelsRequest,func,67,KEEP,2026-11-20：公共模型发现调用；规范地址v1beta/models加key查询参数，GET且60秒期限；当前只处理服务端一页目录
+AI,Features/AI/Services/GeminiService.swift,GeminiService,parseStreamLine,func,81,KEEP,2026-11-20：默认send逐行调用；兼容SSE及裸JSON，服务端错误抛provider；取首个candidate下全部parts.text拼接，当前不按finishReason主动终止
+AI,Features/AI/Services/GeminiService.swift,GeminiService,parseComplete,func,94,KEEP,2026-11-20：非流式send调用；JSON及provider错误沿公共入口，缺首个candidate/content/parts时抛decoding；存在则拼全部text
+AI,Features/AI/Services/GeminiService.swift,GeminiService,parseModelIDs,func,105,KEEP,2026-11-20：模型发现调用；models中已有methods但不含generateContent则排除，其余去models前缀；名称缺失略过，保留返回原序
+AI,Features/AI/Services/GeminiService.swift,GeminiService,readableError,func,118,KEEP,2026-11-20：公共HTTP失败及流式代理调用；尝试LLMJSON.object并取errorMessage，无可读字段则返回nil沿原错误提示
+AI,Features/AI/Services/GeminiService.swift,GeminiService,normalizedBase,func,125,KEEP,2026-11-20：两个请求构造入口共用；剥外层斜杠及v1beta或v1尾缀，调用方统一拼v1beta路径
 AI,Features/AI/Services/LLMProtocols.swift,LLMCompletionRequest,init,init,59,KEEP,LLMCompletionRequest.init；默认 stream/温度/上限，供 send/complete 构造
 AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,credential,func,89,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
 AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,setCredential,func,91,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
@@ -379,25 +379,25 @@ AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,m
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,init,init,71,KEEP,Migrator 单例，store/ledger/credentials 可注入（可测）
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,migrateIfNeeded,func,81,KEEP,AIModule.start:15 模块启动时一次性迁移；幂等（hasMigrated 先判）
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,firstValue,func,122,KEEP,migrateIfNeeded L88/96/104 按候选键名探测旧配置
-AI,Features/AI/Services/OllamaService.swift,OllamaService,init,init,22,KEEP,LLMResolver:85 按厂商构造
-AI,Features/AI/Services/OllamaService.swift,OllamaService,requireCredential,func,28,KEEP,覆写协议默认实现：本地服务恒返回空凭证
-AI,Features/AI/Services/OllamaService.swift,OllamaService,makeRequest,func,32,KEEP,协议要求；send() 默认实现构造 /api/chat 请求
-AI,Features/AI/Services/OllamaService.swift,OllamaService,makeModelsRequest,func,61,KEEP,协议要求；availableModels 构造 /api/tags
-AI,Features/AI/Services/OllamaService.swift,OllamaService,parseStreamLine,func,74,KEEP,协议要求；NDJSON 逐行取 message.content
-AI,Features/AI/Services/OllamaService.swift,OllamaService,parseComplete,func,85,KEEP,协议要求；一次性响应兼容 message/response 两种字段
-AI,Features/AI/Services/OllamaService.swift,OllamaService,parseModelIDs,func,95,KEEP,协议要求；解析 models[].name
-AI,Features/AI/Services/OllamaService.swift,OllamaService,readableError,func,101,KEEP,协议要求；先取平铺 error 再走通用 errorMessage
-AI,Features/AI/Services/OllamaService.swift,OllamaService,isTerminalLine,func,109,KEEP,"协议要求；识别 {""done"":true} 且无增量时收流"
-AI,Features/AI/Services/OllamaService.swift,OllamaService,normalizedBase,func,121,KEEP,makeRequest/makeModelsRequest 复用，剥 /api /v1 尾缀
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,init,init,23,KEEP,LLMResolver:84 按厂商构造
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,makeRequest,func,30,KEEP,协议要求；Bearer 鉴权 + /chat/completions
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,makeModelsRequest,func,54,KEEP,协议要求；/models 列表
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,parseStreamLine,func,68,KEEP,协议要求；choices[0].delta.content 增量
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,parseComplete,func,80,KEEP,协议要求；choices[0].message.content
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,parseModelIDs,func,92,KEEP,协议要求；过滤 embedding/tts 等非对话模型后排序
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,readableError,func,107,KEEP,协议要求；通用 errorMessage
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,isTerminalLine,func,114,KEEP,协议要求；识别 data: [DONE] 提前收流
-AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,normalizedBase,func,123,KEEP,收敛到 /v1 前缀，兼容 /chat/completions 误填
+AI,Features/AI/Services/OllamaService.swift,OllamaService,init,init,22,KEEP,2026-11-20：resolver及连接探测构造；保存可选候选地址和凭据依赖，默认模型llama3.2；实际请求无需凭据
+AI,Features/AI/Services/OllamaService.swift,OllamaService,requireCredential,func,28,KEEP,2026-11-20：覆盖公共凭据读取，模型发现及send动态派发至此直接返回空串；不会触发缺Key失败
+AI,Features/AI/Services/OllamaService.swift,OllamaService,makeRequest,func,32,KEEP,2026-11-20：公共send构造POST api/chat，原消息角色内容和stream入体，temperature及num_predict写options；首条非system且请求有system时再前插system，现有原消息仍保留
+AI,Features/AI/Services/OllamaService.swift,OllamaService,makeModelsRequest,func,61,KEEP,2026-11-20：公共目录发现构造GET api/tags，60秒期限且无鉴权头；地址沿同一normalizedBase
+AI,Features/AI/Services/OllamaService.swift,OllamaService,parseStreamLine,func,74,KEEP,2026-11-20：公共send逐行消费NDJSON或SSE；显式error串及公共错误抛provider，只取message.content，缺正文事件返回nil
+AI,Features/AI/Services/OllamaService.swift,OllamaService,parseComplete,func,85,KEEP,2026-11-20：非流式send消费；JSON必须字典，error串抛provider；message存在取content否则读旧response字段，两者缺失返回空串
+AI,Features/AI/Services/OllamaService.swift,OllamaService,parseModelIDs,func,95,KEEP,2026-11-20：公共目录发现消费；models数组内优先name其次model并排序，缺数组返回空；当前不单独抛服务端字典错误
+AI,Features/AI/Services/OllamaService.swift,OllamaService,readableError,func,101,KEEP,2026-11-20：公共HTTP错误及字节代理调用；JSON字典先读error字符串再读通用errorMessage，不能解码返回nil沿原文案
+AI,Features/AI/Services/OllamaService.swift,OllamaService,isTerminalLine,func,109,KEEP,2026-11-20：公共send先于正文解析判定；仅done为true且message.content为空才主动结束；done同时带正文时保留正文解析且仍待EOF
+AI,Features/AI/Services/OllamaService.swift,OllamaService,normalizedBase,func,121,KEEP,2026-11-20：聊天及目录请求共用；去外部斜杠及api或v1尾缀，调用方分别加api/chat与api/tags
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,init,init,23,KEEP,2026-11-20：resolver及候选连接构造；保留凭据依赖与可选地址覆盖，未覆盖时读取保存地址；默认gpt-4o-mini
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,makeRequest,func,30,KEEP,2026-11-20：公共send调用；POST规范地址chat/completions，Bearer和JSON头，stream时设置SSE Accept；模型消息温度max_tokens及stream沿原字段序列化
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,makeModelsRequest,func,54,KEEP,2026-11-20：公共availableModels调用；GET规范地址models，Bearer及60秒期限；不复用聊天正文
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,parseStreamLine,func,68,KEEP,2026-11-20：公共send逐行解析SSE，provider错误沿统一字段抛出；仅取首个choice的delta.content，reasoning_content当前未读取
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,parseComplete,func,80,KEEP,2026-11-20：非流式send消费；缺首个choice/message抛decoding，message存在仅取content或空串；当前注释所称reasoning_content未消费
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,parseModelIDs,func,92,KEEP,2026-11-20：目录发现消费data数组；id小写后按8项非对话片段过滤，保留原id并排序；过滤词单轮创建，不在每模型重建
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,readableError,func,107,KEEP,2026-11-20：公共HTTP失败及流代理调用；JSON字典交统一errorMessage，解析失败返回nil沿原错误文本
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,isTerminalLine,func,114,KEEP,2026-11-20：公共send在正文解析前判定；去行首尾空白后接受带空格或不带空格的data DONE及裸DONE，完成公共流取消，避免等待网关EOF
+AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,normalizedBase,func,123,KEEP,2026-11-20：两个请求构造共用；保留scheme分隔，剥chat/completions及models后缀，识别六类版本尾缀后决定是否补v1，实际保留用户代理路径
 AI,Features/AI/Translation/AppleTranslationProvider.swift,AppleTranslationProvider,init,init,43,KEEP,注册表 L150 默认列表构造
 AI,Features/AI/Translation/AppleTranslationProvider.swift,AppleTranslationProvider,translate,func,50,KEEP,协议要求；Apple 实现（校验语言包已安装，不弹下载框）
 AI,Features/AI/Translation/AppleTranslationProvider.swift,AppleTranslationProvider,translateLines,func,62,KEEP,协议要求；空行不送译、原样回填保证行数对齐
