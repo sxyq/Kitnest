@@ -153,17 +153,18 @@ public struct PreviewPopoverContentModel: Identifiable {
         let sample = text
             .split(separator: "\n", maxSplits: 80, omittingEmptySubsequences: true)
             .prefix(80)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
         guard !sample.isEmpty else { return (0, 0) }
         var codey = 0
-        for t in sample {
-            // Markdown 结构行不算代码（`# 注释` 除外：`#!` / `#include` 走代码）
+        for line in sample {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            // Markdown 结构行不算代码；脚本首行和编译指令按代码判断。
             if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ")
                 || t.hasPrefix("> ") || t.hasPrefix("|")
-                || (t.hasPrefix("#") && !t.hasPrefix("#!")) {
+                || (t.hasPrefix("#") && !t.hasPrefix("#!")
+                    && !t.hasPrefix("#include") && !t.hasPrefix("#import")) {
                 continue
             }
-            if isCodeLine(t) { codey += 1 }
+            if isCodeLine(t) || line.hasPrefix("    ") || line.hasPrefix("\t") { codey += 1 }
         }
         return (Double(codey) / Double(sample.count), sample.count)
     }
@@ -182,7 +183,6 @@ public struct PreviewPopoverContentModel: Identifiable {
         for p in prefixes where t.hasPrefix(p) { return true }
         if t.hasSuffix(":") || t.hasSuffix("{") || t.hasSuffix("}") || t.hasSuffix(";")
             || t.hasSuffix(",") || t.hasSuffix(")") || t.hasSuffix("*/") { return true }
-        if t.hasPrefix("    ") || t.hasPrefix("\t") { return true }
         if t.contains(" = ") || t.contains("==") || t.contains("->") || t.contains("=>") { return true }
         return false
     }
