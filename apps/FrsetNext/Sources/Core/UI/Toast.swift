@@ -129,6 +129,10 @@ final class MenuBarToastManager: NSObject {
         guard let window = toastWindow, window.isVisible else { return nil }
         return CGWindowID(window.windowNumber)
     }
+    @MainActor var captureExcludedWindowFrame: CGRect? {
+        guard let window = toastWindow, window.isVisible else { return nil }
+        return window.frame
+    }
     private var hosting: NSHostingController<MenuBarToastContentView>?
     /// 自动隐藏任务（连续 show 时取消旧的）
     private var hideWorkItem: DispatchWorkItem?

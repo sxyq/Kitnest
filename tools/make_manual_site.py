@@ -144,7 +144,7 @@ function show(){
  const g=guides[current];
  links.forEach(a=>{const on=a.dataset.id===g.id;if(on){a.setAttribute('aria-current','page');a.parentElement.open=true}else a.removeAttribute('aria-current')});
  main.innerHTML='<div class="crumb">'+escape(g.category.replace(/^\d+ /,''))+'</div><h1>'+escape(g.title)+'</h1>'+
- '<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍</b><button id="play">播放</button><button id="restart">重来</button></div><p class="demo-note">示例演示：不会读取你的剪贴板、文件或电脑状态。</p>'+
+ '<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍</b><button id="play">播放</button><button id="restart">重来</button></div><p class="demo-note">示例演示：只使用预设内容，不会读取或修改你的剪贴板、文件或电脑数据。</p>'+
  '<div class="stage"><div class="scene"><div class="scene-title">'+escape(g.title)+' · 操作示范</div><div class="scene-body" aria-live="polite"></div><small></small><div class="progress"><i></i></div><div class="cursor" aria-hidden="true">➤</div></div></div>'+
  '<div class="presets" role="group" aria-label="演示阶段"><button data-preset aria-pressed="true">了解用途</button><button data-preset aria-pressed="false">跟着操作</button><button data-preset aria-pressed="false">查看结果</button></div>'+
  '<div class="steps">'+g.steps.map((s,i)=>'<button data-step="'+i+'"><span>'+(i+1)+'</span>'+escape(s)+'</button>').join('')+'</div></section>'+g.body+
