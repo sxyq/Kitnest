@@ -361,23 +361,23 @@ AI,Features/AI/Services/LLMTransport.swift,AIProviderURLSessionDelegate,urlSessi
 AI,Features/AI/Services/LLMTransport.swift,LLMTransport,streamBytes,func,63,KEEP,2026-11-20：LLMProviderAdapting.send的流式分支调用；每请求ephemeral session设60秒请求及600秒资源期限，字节送AsyncThrowingStream；终止取消dataTask且释放连接会话，完成沿同一box清理
 AI,Features/AI/Services/LLMTransport.swift,SessionBox,invalidate,func,100,KEEP,2026-11-20：字节流完成与消费者终止共用；锁内取出并置空session，锁外invalidateAndCancel；重复调用不会持有第二份会话
 AI,Features/AI/Services/LLMTransport.swift,LLMTransport,truncate,func,109,KEEP,2026-11-20：HTTP错误、JSON解析失败及连接结果提示共用；先替换换行为空格，再仅超limit时保留前缀加省略号，仍会扫描整个输入
-AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,ingest,func,124,KEEP,2026-11-20：每请求唯一buffer由适配器send持有；追加当前Data片并drain非强制模式，跨块未完行继续保存在remainder
-AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,flush,func,129,KEEP,2026-11-20：流正常EOF后send调用；强制消费无换行尾部，供最后JSON或结束事件解析，不在每片重复处理残行
-AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,drain,func,133,KEEP,2026-11-20：ingest及flush共用；按LF索引单趟消费可解码行、去空白并略空行，已消费前缀一次移除；force清剩余尾部；超长未完行会在各chunk重复搜索待后续评估
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,object,func,165,KEEP,2026-11-20：四家一次性及模型目录解析共用；必须为JSON字典否则抛decoding，错误正文只取前300字节再压成200字符说明
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,errorMessage,func,175,KEEP,2026-11-20：四家响应和readableError消费；支持error字典的message或type、error字符串及success为false时message，其他正常返回nil
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,ssePayload,func,185,KEEP,2026-11-20：OpenAI兼容及Anthropic流行解析和结束判定共用；仅处理data前缀，剥空白后空值及DONE返回nil，终止实际由各适配器isTerminalLine判定
-AI,Features/AI/Services/LLMTransport.swift,LLMJSON,streamPayload,func,193,KEEP,2026-11-20：Ollama与Gemini流行解析共用；优先SSE有效载荷，否则仅接受去空白后以左花括号或左中括号起始的裸JSON行，忽略注释及其他事件行
+AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,ingest,func,124,KEEP,2026-11-20：适配器send为每请求持有一个buffer；追加前记原endIndex，追加后drain只从新字节开始搜索LF，旧残段继续作为完整行前缀保留，不新增持久游标
+AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,flush,func,130,KEEP,2026-11-20：send正常EOF调用，将remainder.endIndex作为搜索起点，不再扫描已确认无LF的尾部，force直接按原UTF8和去空白口径交付尾行
+AI,Features/AI/Services/LLMTransport.swift,LLMLineBuffer,drain,func,134,KEEP,2026-11-20：ingest及flush共用，搜索从调用方传入的新字节起点开始，解码从remainder完整行起点开始；多行仍按LF逐个交付，最后一次移除已消费前缀；force清尾，避免各chunk重复扫描旧残行
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,object,func,167,KEEP,2026-11-20：四家一次性及模型目录解析共用；必须为JSON字典否则抛decoding，错误正文只取前300字节再压成200字符说明
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,errorMessage,func,177,KEEP,2026-11-20：四家响应和readableError消费；支持error字典的message或type、error字符串及success为false时message，其他正常返回nil
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,ssePayload,func,187,KEEP,2026-11-20：OpenAI兼容及Anthropic流行解析和结束判定共用；仅处理data前缀，剥空白后空值及DONE返回nil，终止实际由各适配器isTerminalLine判定
+AI,Features/AI/Services/LLMTransport.swift,LLMJSON,streamPayload,func,195,KEEP,2026-11-20：Ollama与Gemini流行解析共用；优先SSE有效载荷，否则仅接受去空白后以左花括号或左中括号起始的裸JSON行，忽略注释及其他事件行
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,legacyString,func,16,KEEP,2026-11-20：旧配置读取协议声明，由UserDefaultsLegacyGeminiStore实现，firstValue按候选键请求；无执行体
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,removeLegacy,func,18,KEEP,2026-11-20：旧键删除协议声明，正式实现写Preferences为nil，由迁移结束枚举调用，属于旧用户数据迁移能力
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,init,init,25,KEEP,2026-11-20：默认迁移器注入shared偏好，只保存Preferences引用，不在初始化读取或删除旧键
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,legacyString,func,29,KEEP,2026-11-20：firstValue经协议读取指定偏好字符串，trim后空内容返回nil，不枚举其他配置或输出密钥
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,removeLegacy,func,35,KEEP,2026-11-20：迁移清理逐个写偏好键为nil，当前先前凭据写入失败仍会到此，列迁移写入结果处理
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,removeLegacy,func,35,KEEP,2026-11-20：迁移完成阶段逐个写原偏好键为nil；凭据写入失败现在提前返回，不再调用来源清理，成功后沿原流程删除旧明文
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,init,init,48,KEEP,2026-11-20：默认迁移器保存注入偏好，version读取版本键且hasMigrated以当前版本1判断完成
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,markMigrated,func,55,KEEP,2026-11-20：迁移末尾将原版本键写1，后续启动跳过；当前凭据持久化失败仍会到此，需消费前阶段结果
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,markMigrated,func,55,KEEP,2026-11-20：成功迁移末尾将原版本键写1供后续启动跳过；凭据lastWriteError分支提前返回，失败不再写完成标记
 AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,init,init,71,KEEP,2026-11-20：shared注入旧偏好实现、版本台账和正式凭据存储，不在初始化迁移；AIModule.start在reload服务前调用
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,migrateIfNeeded,func,81,KEEP,2026-11-20：启动按版本跳过或搬凭据地址模型，再设置默认厂商、清旧键并写版本；未读setCredential后的lastWriteError，失败仍删除唯一旧密钥来源，列后续必要处理
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,firstValue,func,122,KEEP,2026-11-20：凭据地址模型分别传固定候选键列表，逐个经协议读取并返回首个非空值，不合并或清来源
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,migrateIfNeeded,func,81,KEEP,2026-11-20：AIModule启动按版本跳过或搬凭据地址模型；setCredential后消费lastWriteError，失败记录原因并返回false保留全部旧键及未完成标记；成功才设默认厂商、清旧键并写版本
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,firstValue,func,126,KEEP,2026-11-20：凭据地址模型分别传固定候选键列表，逐个经协议读取并返回首个非空值，不合并或清来源
 AI,Features/AI/Services/OllamaService.swift,OllamaService,init,init,22,KEEP,2026-11-20：resolver及连接探测构造；保存可选候选地址和凭据依赖，默认模型llama3.2；实际请求无需凭据
 AI,Features/AI/Services/OllamaService.swift,OllamaService,requireCredential,func,28,KEEP,2026-11-20：覆盖公共凭据读取，模型发现及send动态派发至此直接返回空串；不会触发缺Key失败
 AI,Features/AI/Services/OllamaService.swift,OllamaService,makeRequest,func,32,KEEP,2026-11-20：公共send构造POST api/chat，原消息角色内容和stream入体，temperature及num_predict写options；首条非system且请求有system时再前插system，现有原消息仍保留
@@ -477,8 +477,8 @@ AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,save,func,
 AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,discard,func,105,KEEP,2026-11-20：本页取消重读正式厂商模型和地址，清候选与移除集合，最后经configurationChanged取消测试和清结果；不应用其他页草稿
 AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,restoreDefaults,func,120,KEEP,2026-11-20：恢复Anthropic和各默认地址，仅改本页草稿，取消当前测试；不删除保存凭据或主动发请求
 AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,configurationChanged,func,132,KEEP,2026-11-20：地址模型密钥厂商变化、取消及恢复默认共用，先cancel并清testTask，再递增代次、复位isTesting和结果，旧回调沿代次判断丢弃
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,testConnection,func,141,KEEP,2026-11-20：按钮快照候选厂商地址模型与密钥，唯一testTask独立捕获连接服务且弱持有草稿；主线程代次匹配后清任务并发布结果和目录，避免强持有草稿到网络结束
-AI,Features/AI/Views/AISettingsPane.swift,AISettingsPane,init,init,168,KEEP,2026-11-20：设置页面分发创建AISettingsPane，SettingsDraftEditor按aiProvider向窗口会话借用同一草稿，不因正文重绘另建连接服务
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,testConnection,func,141,KEEP,2026-11-20：按钮快照候选厂商地址模型与密钥，唯一MainActor任务独立捕获服务并弱持有草稿；异步服务完成后直接在主线程按代次发布结果并清任务，删除嵌套MainActor.run，避免强持有草稿到网络结束
+AI,Features/AI/Views/AISettingsPane.swift,AISettingsPane,init,init,166,KEEP,2026-11-20：设置页面分发创建AISettingsPane，SettingsDraftEditor按aiProvider向窗口会话借用同一草稿，不因正文重绘另建连接服务
 AI,Features/AI/Views/AISummaryView.swift,AISummaryAction,prompt,func,53,KEEP,VM.run L98 与 BuiltinTools:63 构造 user 提示
 AI,Features/AI/Views/AISummaryView.swift,AISummaryAction,saveAsDefault,func,67,KEEP,AISettingsPane:345 默认动作选择器 set 闭包
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,init,init,91,KEEP,VM init；@StateObject 构造，读自定义工具
