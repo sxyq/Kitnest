@@ -179,9 +179,9 @@ final class ScreenshotOverlayView: NSView {
     var onDesktopCommit: (() -> Void)?
 
     /// 窗口模式单击提交（rect=视图坐标，windowID=CG 窗口号）
-    var onWindowCommit: ((CGRect, CGWindowID) -> Void)?
+    var onWindowCommit: ((CGRect, CGWindowID, CGPoint) -> Void)?
     /// 窗口模式多选提交（v264：⌘ 点选多个窗口 → 回车一次截完）
-    var onWindowsCommit: (([(rect: CGRect, windowID: CGWindowID)]) -> Void)?
+    var onWindowsCommit: (([(rect: CGRect, windowID: CGWindowID, clickPoint: CGPoint)]) -> Void)?
 
     /// 固定比例（v264）：nil = 自由框选。单位是「宽:高」的原始比例值。
     var lockedRatio: CGSize?
@@ -197,6 +197,7 @@ final class ScreenshotOverlayView: NSView {
         let globalRect: CGRect   // cocoa 全局坐标（左下原点）
         let windowID: CGWindowID
         let label: String
+        var clickPoint: CGPoint? = nil
     }
 
     private var windowHits: [WindowHit] = []
@@ -261,7 +262,10 @@ final class ScreenshotOverlayView: NSView {
     /// 窗口模式多选提交（回车 / 单击已选窗口）
     private func commitMultiWindows() {
         guard !multiSelected.isEmpty else { return }
-        let items = multiSelected.map { (rect: viewRect(of: $0.globalRect), windowID: $0.windowID) }
+        let items = multiSelected.map {
+            (rect: viewRect(of: $0.globalRect), windowID: $0.windowID,
+             clickPoint: $0.clickPoint ?? CGPoint(x: $0.globalRect.midX, y: $0.globalRect.midY))
+        }
         multiSelected.removeAll()
         onWindowsCommit?(items)
     }
@@ -290,7 +294,7 @@ final class ScreenshotOverlayView: NSView {
         let p = convert(event.locationInWindow, from: nil)
         // ⌘ 单击 = 勾选/取消勾选一个窗口（多选），不立即截
         if event.modifierFlags.contains(.command), let hit = highlightedWindow {
-            toggleMultiSelection(hit)
+            toggleMultiSelection(hit, at: p)
             suppressWindowCommit = true
             return
         }
@@ -304,13 +308,19 @@ final class ScreenshotOverlayView: NSView {
     }
 
     /// ⌘ 点选：同一窗口再次点击即取消
-    private func toggleMultiSelection(_ hit: WindowHit) {
+    private func toggleMultiSelection(_ hit: WindowHit, at point: NSPoint) {
         if let index = multiSelected.firstIndex(where: { $0.windowID == hit.windowID }) {
             multiSelected.remove(at: index)
         } else {
-            multiSelected.append(hit)
+            multiSelected.append(WindowHit(globalRect: hit.globalRect, windowID: hit.windowID,
+                                           label: hit.label, clickPoint: globalPoint(from: point)))
         }
         needsDisplay = true
+    }
+
+    private func globalPoint(from point: NSPoint) -> CGPoint {
+        let origin = window?.frame.origin ?? .zero
+        return CGPoint(x: point.x + origin.x, y: point.y + origin.y)
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -421,9 +431,9 @@ final class ScreenshotOverlayView: NSView {
             let windowViewRect = viewRect(of: hit.globalRect)
             if let el = highlightedElement, el.rect.contains(p),
                el.rect.width < windowViewRect.width - 8 {
-                onWindowCommit?(el.rect, 0)
+                onWindowCommit?(el.rect, 0, globalPoint(from: p))
             } else {
-                onWindowCommit?(windowViewRect, hit.windowID)
+                onWindowCommit?(windowViewRect, hit.windowID, globalPoint(from: p))
             }
             return
         }

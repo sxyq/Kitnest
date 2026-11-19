@@ -69,7 +69,6 @@ def article(path: Path) -> dict:
 PAGE = r'''<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="data:,">
 <title>Kitnest 使用手册</title>
 <style>
 :root{color-scheme:light;--bg:#fff;--soft:#f5f6f8;--line:#e5e7ec;--ink:#20232a;--muted:#686e7a;--accent:#315ee8}
@@ -81,7 +80,6 @@ header{height:64px;display:flex;align-items:center;gap:20px;padding:0 28px;borde
 .dock-demo{display:grid;gap:18px;justify-items:center;width:100%}.dock-window{width:min(100%,360px);padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);box-shadow:0 8px 22px #00000012;font-size:12px}.dock-window header{position:static;height:auto;padding:0 0 8px;border:0;border-bottom:1px solid var(--line)}.dock-window p{margin:8px 0 0}.dock-bar{display:flex;align-items:center;gap:12px;min-height:42px;padding:6px 16px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.dock-app{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--accent);color:#fff;font-size:17px}.dock-empty{color:var(--muted);font-size:11px}
 @media(max-width:760px){header{padding:0 14px;gap:12px}header span{display:none}.layout{grid-template-columns:1fr;gap:0;padding:0 16px}header label{width:170px}aside{position:static;height:auto;max-height:260px;border-bottom:1px solid var(--line)}main{padding-top:22px}h1{font-size:25px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-.presets{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.presets button{flex:1;min-width:120px;font-size:12px}.presets button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:var(--bg)}.demo-note{font-size:12px;color:var(--muted);margin:8px 0}
 </style></head><body>
 <header><a href="../">Kitnest</a><span>使用手册</span><label><input id="q" type="search" placeholder="搜索功能或操作" aria-label="搜索使用手册"></label></header>
 <div class="layout"><aside aria-label="功能分类" id="nav">__NAV__<p id="empty" hidden>没有找到相关功能，换个词试试。</p></aside><main id="main"></main></div>
@@ -100,8 +98,8 @@ function sample(g,index){
  for(const [key,input,output] of examples)if(t.includes(key)){pair=[input,output];break}
  if(pair)return '<div class="sample-pair">'+rows(['输入',pair[0]])+rows(['结果',started?pair[1]:'等待操作'])+'</div>';
  if(g.demo==='monitor'){
-  const metrics=g.id.startsWith('05-02-')?['处理器使用率','24%']:g.id.startsWith('05-03-')?['图形处理使用率','18%']:t.includes('温度')?['温度','48 ℃']:t.includes('电池')?['电量','82%']:t.includes('功耗')?['整机用电','12 W']:t.includes('内存')?['内存用量','8.2 GB']:t.includes('磁盘')||t.includes('存储')?['已用空间','180 GB']:['网络速度','1.8 MB/s'];
-  if(t.includes('网络连接'))return rows(['Wi‑Fi · 已连接','8080 · 本机应用','9000 · 同一网络可访问']);
+  const metrics=t.includes('CPU')?['CPU 使用率','24%']:t.includes('GPU')?['GPU 使用率','18%']:t.includes('温度')?['温度','48 ℃']:t.includes('电池')?['电量','82%']:t.includes('功耗')?['整机功耗','12 W']:t.includes('内存')?['内存用量','8.2 GB']:t.includes('磁盘')||t.includes('存储')?['已用空间','180 GB']:['下载速度','1.8 MB/s'];
+  if(t.includes('端口'))return rows(['端口 8080 · 本机','端口 9000 · 对外','点击行复制信息']);
   return '<b>'+metrics[0]+' · '+(started?metrics[1]:'查看概况')+'</b><div class="chart">'+[24,41,32,56,43,64].map((h,i)=>'<i style="height:'+(started?h:20+i*3)+'px"></i>').join('')+'</div>';
  }
  if(g.demo==='capture'){
@@ -115,7 +113,6 @@ function sample(g,index){
  }
  if(g.demo==='recording')return rows(t.includes('剪辑')?['00:00 ━━━ 00:20',started?'拖动两端保留片段':'选择一段视频',done?'已导出新视频':'预览片段']:['选择录制范围',started?'● 00:08 · 录制中':'等待开始',done?'视频已保存':'可暂停或停止']);
  if(g.demo==='transfer'){
-  if(t.includes('云端'))return rows(['登录 OPPO 中转账号',started?'设计说明.pdf · 正在上传':'选择本地文件',done?'云端文件 · 下载到 Mac':'登录并选择文件']);
   if(t.includes('默认'))return rows(['ZIP 当前默认应用',started?'选择 Kitnest':'归档实用工具','在访达使用压缩与解压服务']);
   if(t.includes('压缩包')||t.includes('解压'))return rows(t.includes('创建')?['选择照片与文档',started?'7z · 密码保护 · 可选分卷':'选择格式',done?'资料.7z 已保存':'开始压缩']:['打开资料.zip','查看其中的照片与文档',done?'文件已解压到所选位置':'选择解压位置']);
   if(t.includes('投屏'))return rows(['连接手机',started?'手机画面出现在电脑上':'等待设备',done?'点击断开结束投屏':'可调整画面']);
@@ -135,8 +132,6 @@ function selectStep(index){
  document.querySelector('.scene small').textContent=index===guide.steps.length-1?'完成这一步，即可查看结果':'第 '+(index+1)+' 步 / 共 '+guide.steps.length+' 步';
  document.querySelector('.progress i').style.width=((index+1)/guide.steps.length*100)+'%';
  document.querySelectorAll('.steps button').forEach((b,i)=>{if(i===index)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current')});
- const last=guide.steps.length-1,preset=index===0?0:index===last?2:1;
- document.querySelectorAll('[data-preset]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===preset)));
  requestAnimationFrame(()=>scene.classList.add('active'));
 }
 function show(){
@@ -144,15 +139,13 @@ function show(){
  const g=guides[current];
  links.forEach(a=>{const on=a.dataset.id===g.id;if(on){a.setAttribute('aria-current','page');a.parentElement.open=true}else a.removeAttribute('aria-current')});
  main.innerHTML='<div class="crumb">'+escape(g.category.replace(/^\d+ /,''))+'</div><h1>'+escape(g.title)+'</h1>'+
- '<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍</b><button id="play">播放</button><button id="restart">重来</button></div><p class="demo-note">示例演示：不会读取你的剪贴板、文件或电脑状态。</p>'+
+ '<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍</b><button id="play">播放</button><button id="restart">重来</button></div>'+
  '<div class="stage"><div class="scene"><div class="scene-title">'+escape(g.title)+' · 操作示范</div><div class="scene-body" aria-live="polite"></div><small></small><div class="progress"><i></i></div><div class="cursor" aria-hidden="true">➤</div></div></div>'+
- '<div class="presets" role="group" aria-label="演示阶段"><button data-preset aria-pressed="true">了解用途</button><button data-preset aria-pressed="false">跟着操作</button><button data-preset aria-pressed="false">查看结果</button></div>'+
  '<div class="steps">'+g.steps.map((s,i)=>'<button data-step="'+i+'"><span>'+(i+1)+'</span>'+escape(s)+'</button>').join('')+'</div></section>'+g.body+
  '<nav class="foot">'+(current?'<a href="#'+guides[current-1].id+'">← '+escape(guides[current-1].title)+'</a>':'<span></span>')+(current+1<guides.length?'<a href="#'+guides[current+1].id+'">'+escape(guides[current+1].title)+' →</a>':'')+'</nav>';
  selectStep(0);
  document.getElementById('play').onclick=()=>{if(timer){stop();return}selectStep(0);document.getElementById('play').textContent='暂停';timer=setInterval(()=>{if(active+1<g.steps.length)selectStep(active+1);else stop()},2400)};
  document.getElementById('restart').onclick=()=>{stop();selectStep(0)};
- document.querySelectorAll('[data-preset]').forEach((b,i)=>b.onclick=()=>{stop();selectStep([0,Math.min(1,g.steps.length-1),g.steps.length-1][i])});
  document.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{stop();selectStep(Number(b.dataset.step))});
  window.scrollTo(0,0);
 }
@@ -165,7 +158,7 @@ window.addEventListener('hashchange',show);show();
 def build() -> None:
     """生成分类导航与每次仅显示一篇的手册页面。"""
     guides = [article(path) for path in sorted(SOURCE.glob("*.md")) if not path.name.startswith("._")]
-    order = ["开始使用", "剪贴板", "截图与录屏", "电脑状态", "文件与传输", "搜索与 AI", "工具箱", "日常与设置"]
+    order = ["开始使用", "剪贴板", "截图与录屏", "文件与传输", "搜索与 AI", "工具箱", "电脑状态", "日常与设置"]
     guides.sort(key=lambda guide: (order.index(guide["category"]) if guide["category"] in order else len(order), guide["id"]))
     categories = dict.fromkeys(guide["category"] for guide in guides)
     navigation = []

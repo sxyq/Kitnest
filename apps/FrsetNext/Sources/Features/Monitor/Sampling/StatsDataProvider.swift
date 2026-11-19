@@ -762,7 +762,7 @@ public final class StatsDataProvider {
     }
 
     /// 主网络接口 BSD 名（SCDynamicStore，官方 Net 模块同源）
-    private static func primaryInterfaceName() -> String {
+    static func primaryInterfaceName() -> String {
         guard let store = SCDynamicStoreCreate(nil, "FrsetNext" as CFString, nil, nil),
               let value = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
               let name = value["PrimaryInterface"] as? String else { return "" }

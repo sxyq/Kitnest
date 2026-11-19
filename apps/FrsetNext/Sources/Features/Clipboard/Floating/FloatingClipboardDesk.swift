@@ -806,7 +806,10 @@ public struct FloatingClipboardDeskView: View {
     /// 某一列要显示的条目（按下标取模分列，保持原有卡片瀑布顺序）
     private func columnItems(_ column: Int,
                              of columns: Int) -> [(offset: Int, element: ClipboardItem)] {
-        Array(displayedItems.enumerated()).filter { $0.offset % columns == column }
+        let items = displayedItems
+        return stride(from: column, to: items.count, by: columns).map { index in
+            (offset: index, element: items[index])
+        }
     }
 
     private func card(_ item: ClipboardItem, index: Int) -> some View {

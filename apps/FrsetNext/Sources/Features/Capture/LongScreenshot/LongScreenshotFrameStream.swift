@@ -36,8 +36,10 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
             do {
                 let content = try await SCShareableContent
                     .excludingDesktopWindows(false, onScreenWindowsOnly: true)
-                guard let display = content.displays.first(where: { $0.displayID == displayID })
-                        ?? content.displays.first else { return }
+                guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
+                    Log.warn("Capture", "长截图帧流未找到目标显示器 \(displayID)")
+                    return
+                }
 
                 // 排除本 App 的全部窗口（HUD、选区边框、Toast 都不能进帧）
                 let myPID = ProcessInfo.processInfo.processIdentifier
