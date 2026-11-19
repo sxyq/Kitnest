@@ -351,22 +351,41 @@ public enum ScreenCastEngine {
         // 只能看到「投屏已启动」然后窗口没了（本次排障就卡在这）。
         let errPipe = Pipe()
         task.standardError = errPipe
-        task.standardOutput = Pipe()
+        task.standardOutput = FileHandle.nullDevice
+        let reading = DispatchGroup()
+        let errorTail = NSMutableData()
+        reading.enter()
         // v165：scrcpy 退出 → 摘掉贴在它窗口上的控制条
         task.terminationHandler = { proc in
-            let data = errPipe.fileHandleForReading.readDataToEndOfFile()
-            let text = String(data: data, encoding: .utf8) ?? ""
+            reading.wait()
+            let text = String(decoding: errorTail as Data, as: UTF8.self)
             let tail = text.split(separator: "\n").suffix(6).joined(separator: " | ")
             Log.info("Transfer", "scrcpy 退出 status=\(proc.terminationStatus) err=\(tail)")
             DispatchQueue.main.async {
                 if ScrcpyControlBarController.shared.isAttached(to: proc.processIdentifier) {
-                    CastScreenKeeper.shared.stop()
                     ScrcpyControlBarController.shared.detach()
                 }
             }
         }
         do {
             try task.run()
+            DispatchQueue.global(qos: .utility).async {
+                defer {
+                    errPipe.fileHandleForReading.closeFile()
+                    reading.leave()
+                }
+                var tail = Data()
+                while true {
+                    let data = errPipe.fileHandleForReading.readData(ofLength: 4096)
+                    guard !data.isEmpty else { break }
+                    tail.append(data)
+                    // 按原始字节保留末六行，跨读取块的 UTF-8 和未结束行继续拼接。
+                    let endedLine = tail.last == 10
+                    tail = Data(tail.split(separator: 10).suffix(6).joined(separator: [UInt8(10)]))
+                    if endedLine, !tail.isEmpty { tail.append(10) }
+                }
+                errorTail.append(tail)
+            }
             // v166.1：把镜像窗带到前台。我们是 LSUIElement（无 Dock），系统不会自动激活
             // 子进程的窗口；不激活就会出现「点了投屏，画面在别的窗口后面」。
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -383,6 +402,10 @@ public enum ScreenCastEngine {
                        : "投屏已启动（双向剪贴板：已关闭）", icon: "display")
             return true
         } catch {
+            task.terminationHandler = nil
+            errPipe.fileHandleForReading.closeFile()
+            errPipe.fileHandleForWriting.closeFile()
+            reading.leave()
             Toast.show("投屏启动失败：\(error.localizedDescription)",
                        icon: "exclamationmark.triangle", isWarning: true)
             return false

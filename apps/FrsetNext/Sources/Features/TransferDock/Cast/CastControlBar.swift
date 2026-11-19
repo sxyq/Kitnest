@@ -37,22 +37,21 @@ final class ScrcpyControlBarController {
 
     /// 控制条只跟随实际启动的进程及目标设备。
     func attach(serial: String?, processID: pid_t) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.serial = serial
-            self.scrcpyPID = processID
-            self.startTracking()
-            self.tick()
-            Log.info("Transfer", "投屏控制条：已挂载（serial=\(serial ?? "自动")）")
-        }
+        self.serial = serial
+        scrcpyPID = processID
+        startTracking()
+        Log.info("Transfer", "投屏控制条：已挂载（serial=\(serial ?? "自动")）")
     }
 
     /// 页面重建或 App 重启后，按运行进程的实际 --serial 恢复设备绑定。
     func attachIfScrcpyRunning() {
-        if let pid = scrcpyPID, kill(pid, 0) == 0 {
-            startTracking()
-            tick()
-            return
+        if let pid = scrcpyPID {
+            if kill(pid, 0) == 0 {
+                startTracking()
+                tick()
+                return
+            }
+            detach()
         }
         guard let window = Self.scrcpyWindow() else { return }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -79,6 +78,7 @@ final class ScrcpyControlBarController {
 
     /// scrcpy 退出时调用
     func detach() {
+        CastScreenKeeper.shared.stop()
         timer?.invalidate()
         timer = nil
         panel?.orderOut(nil)
