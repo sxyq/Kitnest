@@ -257,7 +257,7 @@ Core,Core/UI/Toast.swift,MenuBarToastManager,positionOnTargetScreen,func,284,KEE
 Core,Core/UI/Toast.swift,Toast,show,func,318,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；全仓 60+ 文件调用（ScreenshotManager:19 处）
 AI,Features/AI/Services/AIConnectionService.swift,AIConnectionTestResult,init,init,15,KEEP,2026-11-20：候选连接成功和失败返回构造，保存ok、用户文案、目录及耗时，不持有凭据
 AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,init,init,23,KEEP,2026-11-20：共享候选连接服务构造，无状态初始化，由AIProviderSettingsViewModel默认注入
-AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,2026-11-20：设置测试按钮调用，用InMemoryCredentialStore和候选URL构造独立厂商适配器，不修改正式偏好；先实际请求目录，失败沿原对话探测，返回模型和耗时；配置变化当前只丢旧结果而不取消请求
+AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,2026-11-20：设置测试按钮用内存凭据和候选URL构造厂商适配器；先请求目录，普通失败沿原对话探测；补全阶段前checkCancellation让已取消目录任务返回失败，不再发起生成请求；URLSession和异步流沿原取消链
 AI,Features/AI/Services/AIEventBus.swift,AIEventBus,emitResult,func,17,KEEP,AISummaryView:137 调用；AppBootstrap:258 接线到剪贴板 is_generated_by_tool
 AI,Features/AI/Services/AIModule.swift,AIModule,start,func,12,KEEP,ModuleRegistry.startAll() 经 AppModule 协议派发；AppBootstrap:29 注册
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,init,init,25,KEEP,2026-11-20：resolver及连接探测构造；保存凭据依赖与可选候选地址，未传地址时每次读取已保存偏好；候选地址不写配置
@@ -271,12 +271,12 @@ AI,Features/AI/Services/AnthropicService.swift,AnthropicService,isTerminalLine,f
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,normalizedBase,func,122,KEEP,2026-11-20：请求及模型发现共用；剥地址两端斜杠及尾部v1，之后调用方各拼唯一v1/messages或v1/models
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,init,init,49,KEEP,2026-11-20：shared正式存储构造；默认应用数据目录的凭据与主密钥两个URL，可传独立URL；立即load解密已有凭据入内存，不输出值
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,58,KEEP,2026-11-20：公共requireCredential、门面状态及候选连接读取；锁内按厂商rawValue查cache，不在每次请求重新读盘或派生密钥
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,2026-11-20：凭据提交协调器调用；锁内复制缓存并剥空白，空值删除；persist成功才替换cache，失败保留旧cache并写lastWriteError和错误日志
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,2026-11-20：协调器调用，锁内复制缓存并剥空白，空值删除；persist两步都成功才替换cache；原子写成功而权限设置失败时磁盘已新但cache仍旧，lastWriteError返回界面且目录缓存尚未失效，列后续处理
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,removeCredential,func,80,KEEP,2026-11-20：LLMCredentialStoring删除实现复用setCredential(nil)；保留统一持久化及lastWriteError语义，当前正式协调器删除同样直接提交nil
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,84,KEEP,2026-11-20：满足存储协议清空要求；锁内先清cache再尝试persist空字典，当前吞持久化错误且不更新lastWriteError；旧设置清空按钮消费者已不存在，不据声明零引用删除协议实现
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,84,KEEP,2026-11-20：协议要求实现，当前无生产清空消费者；先清cache再try持久化空字典，写盘前失败导致内存空而磁盘旧，权限阶段失败两者已空；两种错误均被吞且不更新lastWriteError，真实设置删除走协调器setCredential而非此处
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,93,KEEP,2026-11-20：初始化唯一调用；缺文件置空cache，存在则读完整信封并decryptEnvelope，失败只记错误及空内存而不覆盖磁盘原件
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,110,KEEP,2026-11-20：setCredential和clear共用；encryptEnvelope后原子写唯一凭据文件，再设0600权限；错误由正式写入入口处理
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,116,KEEP,2026-11-20：persist调用；用FileManager设目标文件posixPermissions为0600，权限错误直接抛出，不吞掉必要文件访问失败
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,110,KEEP,2026-11-20：setCredential及clear共用，先加密并原子写唯一凭据文件，再设置0600；权限步骤失败时前次写入已完成；前者报告错误而clear仍吞错
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,116,KEEP,2026-11-20：仅persist在写盘之后调用FileManager设0600，权限错误向上抛出，此时文件内容已更新；后续须沿原写入路径处理该阶段与cache发布的一致性
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,130,KEEP,2026-11-20：derivedKey共用；按密钥文件路径查加锁进程缓存，未命中在锁外loadMasterSecret再写缓存；当前双首次并发可重复读建同一路径待评估
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,144,KEEP,2026-11-20：masterSecret未命中调用；已存在则剥FRSTKEY1头或保留旧随机串；缺失才系统随机32字节、原子写并设0600，不擅自重建已有密钥
 AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,163,KEEP,2026-11-20：加解密共用；主密钥加既有应用常量作材料，PBKDF2-SHA256用随机盐及100000轮派生32字节；非成功状态抛原错误
@@ -368,16 +368,16 @@ AI,Features/AI/Services/LLMTransport.swift,LLMJSON,object,func,165,KEEP,2026-11-
 AI,Features/AI/Services/LLMTransport.swift,LLMJSON,errorMessage,func,175,KEEP,2026-11-20：四家响应和readableError消费；支持error字典的message或type、error字符串及success为false时message，其他正常返回nil
 AI,Features/AI/Services/LLMTransport.swift,LLMJSON,ssePayload,func,185,KEEP,2026-11-20：OpenAI兼容及Anthropic流行解析和结束判定共用；仅处理data前缀，剥空白后空值及DONE返回nil，终止实际由各适配器isTerminalLine判定
 AI,Features/AI/Services/LLMTransport.swift,LLMJSON,streamPayload,func,193,KEEP,2026-11-20：Ollama与Gemini流行解析共用；优先SSE有效载荷，否则仅接受去空白后以左花括号或左中括号起始的裸JSON行，忽略注释及其他事件行
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,legacyString,func,16,KEEP,协议要求；UserDefaultsLegacyGeminiStore 实现，firstValue L124 调用
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,removeLegacy,func,18,KEEP,协议要求；migrateIfNeeded L116 迁移后清旧键
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,init,init,25,KEEP,UserDefaults 实现，prefs 可注入
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,legacyString,func,29,KEEP,读旧键并 trim；空串归一为 nil
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,removeLegacy,func,35,KEEP,"Preferences.set(key, nil) 实现"
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,init,init,48,KEEP,台账 init，prefs 可注入
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,markMigrated,func,55,KEEP,migrateIfNeeded L118 收尾写入台账版本
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,init,init,71,KEEP,Migrator 单例，store/ledger/credentials 可注入（可测）
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,migrateIfNeeded,func,81,KEEP,AIModule.start:15 模块启动时一次性迁移；幂等（hasMigrated 先判）
-AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,firstValue,func,122,KEEP,migrateIfNeeded L88/96/104 按候选键名探测旧配置
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,legacyString,func,16,KEEP,2026-11-20：旧配置读取协议声明，由UserDefaultsLegacyGeminiStore实现，firstValue按候选键请求；无执行体
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiSettingsStoring,removeLegacy,func,18,KEEP,2026-11-20：旧键删除协议声明，正式实现写Preferences为nil，由迁移结束枚举调用，属于旧用户数据迁移能力
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,init,init,25,KEEP,2026-11-20：默认迁移器注入shared偏好，只保存Preferences引用，不在初始化读取或删除旧键
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,legacyString,func,29,KEEP,2026-11-20：firstValue经协议读取指定偏好字符串，trim后空内容返回nil，不枚举其他配置或输出密钥
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,UserDefaultsLegacyGeminiStore,removeLegacy,func,35,KEEP,2026-11-20：迁移清理逐个写偏好键为nil，当前先前凭据写入失败仍会到此，列迁移写入结果处理
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,init,init,48,KEEP,2026-11-20：默认迁移器保存注入偏好，version读取版本键且hasMigrated以当前版本1判断完成
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrationLedger,markMigrated,func,55,KEEP,2026-11-20：迁移末尾将原版本键写1，后续启动跳过；当前凭据持久化失败仍会到此，需消费前阶段结果
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,init,init,71,KEEP,2026-11-20：shared注入旧偏好实现、版本台账和正式凭据存储，不在初始化迁移；AIModule.start在reload服务前调用
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,migrateIfNeeded,func,81,KEEP,2026-11-20：启动按版本跳过或搬凭据地址模型，再设置默认厂商、清旧键并写版本；未读setCredential后的lastWriteError，失败仍删除唯一旧密钥来源，列后续必要处理
+AI,Features/AI/Services/LegacyGeminiMigrator.swift,LegacyGeminiMigrator,firstValue,func,122,KEEP,2026-11-20：凭据地址模型分别传固定候选键列表，逐个经协议读取并返回首个非空值，不合并或清来源
 AI,Features/AI/Services/OllamaService.swift,OllamaService,init,init,22,KEEP,2026-11-20：resolver及连接探测构造；保存可选候选地址和凭据依赖，默认模型llama3.2；实际请求无需凭据
 AI,Features/AI/Services/OllamaService.swift,OllamaService,requireCredential,func,28,KEEP,2026-11-20：覆盖公共凭据读取，模型发现及send动态派发至此直接返回空串；不会触发缺Key失败
 AI,Features/AI/Services/OllamaService.swift,OllamaService,makeRequest,func,32,KEEP,2026-11-20：公共send构造POST api/chat，原消息角色内容和stream入体，temperature及num_predict写options；首条非system且请求有system时再前插system，现有原消息仍保留
@@ -469,15 +469,16 @@ AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,rem
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURLKey,func,19,KEEP,AIConnectionService:101 备份原地址；本文件 baseURL/setBaseURL 读写
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURL,func,35,KEEP,四家适配器 baseURL 计算属性、AISettingsPane 首屏、迁移判定均调用
 AI,Features/AI/Views/AISettings.swift,AISettings,setBaseURL,func,46,KEEP,设置页 commitBaseURL、测试连接临时写入、旧配置迁移调用
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,init,init,48,KEEP,ViewModel init；SwiftUI @StateObject 创建，依赖可注入
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,selectProvider,func,60,KEEP,Picker 绑定 set 闭包 L190
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,removeKey,func,62,KEEP,「删除」按钮 L241
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,save,func,69,KEEP,2026-11-20：仅提交变化凭据地址与模型；凭据写入失败返回厂商原因并保留候选，成功经commit清旧目录；当前厂商凭据或地址成功改变即清草稿models，偏好同步成功更新saved并reload服务
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,discard,func,101,KEEP,取消当前AI服务页时重读保存值并丢弃本页候选密钥，不应用其他页草稿
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,restoreDefaults,func,116,KEEP,AI服务默认只更新本页候选配置，不删除已保存凭证或立即请求服务
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,configurationChanged,func,128,KEEP,候选服务变化递增请求代际，旧连接结果不覆盖新服务配置
-AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,testConnection,func,135,KEEP,「测试连接」按钮 L301
-AI,Features/AI/Views/AISettingsPane.swift,AISettingsPane,init,init,161,KEEP,View init；AIModule.start 注册面板时 AnyView(AISettingsPane())
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,init,init,49,KEEP,2026-11-20：SettingsDraftEditor经设置会话按aiProvider创建并保留草稿；读各厂商地址及模型缓存，不请求网络；连接服务和凭据协调器沿原注入
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,deinit,deinit,61,KEEP,设置会话end释放草稿时取消唯一连接任务；测试闭包弱持有草稿，不再把设置模型保留到网络完成
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,selectProvider,func,63,KEEP,2026-11-20：服务商Picker赋值provider，didSet经configurationChanged取消旧测试并读取该厂商已存模型目录
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,removeKey,func,65,KEEP,2026-11-20：移除按钮只改本页候选和待移除集合，configurationChanged取消旧请求并提示保存后生效；不在此写正式密钥
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,save,func,72,KEEP,2026-11-20：存在进行中测试时先沿configurationChanged取消，避免旧目录覆盖保存后models；仅提交变化凭据地址模型，失败保留候选；偏好同步成功后更新saved并reload服务
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,discard,func,105,KEEP,2026-11-20：本页取消重读正式厂商模型和地址，清候选与移除集合，最后经configurationChanged取消测试和清结果；不应用其他页草稿
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,restoreDefaults,func,120,KEEP,2026-11-20：恢复Anthropic和各默认地址，仅改本页草稿，取消当前测试；不删除保存凭据或主动发请求
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,configurationChanged,func,132,KEEP,2026-11-20：地址模型密钥厂商变化、取消及恢复默认共用，先cancel并清testTask，再递增代次、复位isTesting和结果，旧回调沿代次判断丢弃
+AI,Features/AI/Views/AISettingsPane.swift,AIProviderSettingsViewModel,testConnection,func,141,KEEP,2026-11-20：按钮快照候选厂商地址模型与密钥，唯一testTask独立捕获连接服务且弱持有草稿；主线程代次匹配后清任务并发布结果和目录，避免强持有草稿到网络结束
+AI,Features/AI/Views/AISettingsPane.swift,AISettingsPane,init,init,168,KEEP,2026-11-20：设置页面分发创建AISettingsPane，SettingsDraftEditor按aiProvider向窗口会话借用同一草稿，不因正文重绘另建连接服务
 AI,Features/AI/Views/AISummaryView.swift,AISummaryAction,prompt,func,53,KEEP,VM.run L98 与 BuiltinTools:63 构造 user 提示
 AI,Features/AI/Views/AISummaryView.swift,AISummaryAction,saveAsDefault,func,67,KEEP,AISettingsPane:345 默认动作选择器 set 闭包
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,init,init,91,KEEP,VM init；@StateObject 构造，读自定义工具
@@ -3068,10 +3069,10 @@ Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,ScrollCoordinator,d
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,init,init,308,KEEP,调用方 :187（showsLineNumbers 分支）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,init,init,316,KEEP,NSView required init?(coder:) 覆写；unavailable 占位
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewLineNumberRulerView,drawHashMarksAndLabels,func,322,KEEP,覆写 NSRulerView 绘制钩子；AppKit 滚动时回调
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,MarkdownFilePreviewBody,init,init,396,KEEP,调用方 :435；ArchiveTextPreview.swift:170
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,474,KEEP,调用方 :459（.task id: dedupeKey）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,init,init,510,KEEP,调用方 :43（.markdown 分支）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,515,KEEP,调用方 :501；跨文件 PreviewPopoverContentModel.swift:279
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,MarkdownFilePreviewBody,init,init,396,KEEP,2026-11-20：落盘长文和归档文本正文调用，init同步renderBody得到富文标题与源映射后初始化Stored；父视图重建仍先执行排版，归档窄栏沿showsTOC关闭目录
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileBackedTextView,loadFullText,func,474,KEEP,2026-11-20：dedupeKey任务递增加载代次并先等待0.40秒，再后台调用原fullText桥接读盘；返回前确认代次和取消状态，空内容发布failed；loaded的body仍重新判型及部分同步渲染，后续应沿既有完整模型路由减少重复
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,init,init,510,KEEP,2026-11-20：普通markdown内容路由只保存传入模型；body按sessionID启动后台render并在取消后不发布，持有正文排版、标题和映射供共享MarkdownPreviewBody使用
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewMarkdownTextView,render,func,515,KEEP,2026-11-20：session任务把模型正文交Task.detached后调用本方法，直接返回同一PreviewMarkdownRenderer.renderBody的正文标题与源映射三元组，不另行判型
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,smallAction,func,861,KEEP,调用方 :807、:808、:814
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,copyOCR,func,885,KEEP,按钮闭包 :807
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewImageView,recognizeNow,func,895,KEEP,按钮闭包 :808、:814
@@ -3569,22 +3570,22 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSVie
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,631,KEEP,NSView override（框架回调）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,644,KEEP,deinit 生命周期，移除本地 monitor；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,652,KEEP,CommandPalette.swift:507 items[safe:] 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,73,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,84,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,96,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,102,KEEP,2026-11-20：重建重试按钮及深链build=1调用，已有构建则返回，unmap后删除该索引文件并异步build；业务状态由原state发布
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,117,KEEP,2026-11-20：FileSearchSource及诊断深链消费，锁覆盖整池扫描避免映射替换；短查询ASCII折叠子序列，长查询strcasestr，命中后才解码路径和筛类型；用FuzzyMatcher得分、深度和路径字典序插入排序保留limit条
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,173,KEEP,2026-11-20：search构造候选时遍历路径UTF8计斜线数，同分时浅路径先排；未调用文件系统获取层级
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,194,KEEP,2026-11-20：preload和ensureReady及构建完成调用，读取24字节头，实际验证magic及count/length正数而未读取版本字段；按头长度mmap，锁内替换指针并发布ready，builtAt存储仅用于此处发布
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,228,KEEP,2026-11-20：rebuild调用，锁内munmap并清映射长度、池长度和entryCount；搜索在同一锁下读取，后续重新build才恢复
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,240,KEEP,2026-11-20：ensureReady和rebuild调用，原building合并任务，utility队列递归构建pool并每20000项发布；创建out复制完整pool后Data写盘，现有实际文件179660825字节，存在整池重复对象；完成主线程loadFromDisk，日志计时从写盘前开始
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,313,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,344,KEEP,2026-11-20：build及自身递归调用，POSIX opendir/readdir，目录延后递归避免重复写；文件直接追加UTF8和NUL，跳过超过4000字节路径，池沿原900MiB上限；每次递归重新计算skipPrefixes，普通文件分支未调用该过滤
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,388,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,396,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,400,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,406,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,413,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,65,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,76,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,88,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,94,KEEP,2026-11-20：重建重试按钮及深链build=1调用，已有构建则返回，unmap后删除该索引文件并异步build；业务状态由原state发布
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,109,KEEP,2026-11-20：FileSearchSource及诊断深链消费，锁覆盖整池扫描避免映射替换；短查询ASCII折叠子序列，长查询strcasestr，命中后才解码路径和筛类型；用FuzzyMatcher得分、深度和路径字典序插入排序保留limit条
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,165,KEEP,2026-11-20：search构造候选时遍历路径UTF8计斜线数，同分时浅路径先排；未调用文件系统获取层级
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,186,KEEP,2026-11-20：preload和ensureReady及构建完成调用，读24字节头并验证magic及count/length正数，未读版本字段；锁内替换mmap和长度，pool直接偏移headerSize，磁盘时间局部构造后发布ready，不另存条数和日期副本
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,217,KEEP,2026-11-20：rebuild锁内munmap并清映射和池长；删除无消费者entryCount赋值，搜索继续使用同一锁，后续build才恢复映射
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,228,KEEP,2026-11-20：ensureReady及rebuild用原building合并任务；Data预留24字节头和200MiB容量，walk直接追加原池，每20000项发布；只替换24字节头后原子写盘，路径上限900MiB，删除完整out及Data转换副本；完成主线程mmap，日志从扫描开始计时
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,299,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,330,KEEP,2026-11-20：build及自身递归使用同一inout Data，POSIX枚举目录延后递归避免重复写，直接追加UTF8和NUL；长度和900MiB路径上限沿原口径，3条排除路径改为静态初始化一次，普通文件分支仍沿原规则
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,374,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,382,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,386,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,392,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,399,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,2026-11-20：match短查询和超过32字符连续查询两处分支构造，保存score及升序命中位置，供命令文件排序和文本高亮
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,2026-11-20：命令面板斜杠工具文件索引和搜索标题调用；小写贪心取最早位置直接交rate，删除同下界反向firstIndex无效遍历；超过32字符仍连续匹配
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,69,KEEP,2026-11-20：工具综合字段和剪贴板正文调用；lowercase后迭代子序列，不创建得分和位置；超过32字符仍子序列而match要求连续，保留既有差异

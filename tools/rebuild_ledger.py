@@ -560,7 +560,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "openFullDiskAccessSettings"):
         "跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录",
     ("Features/Toolbox/Search/FileNameIndex.swift", "init"):
-        "单例私有 init（零常驻：App 启动、面板打开都不会走到这里）",
+        "shared私有构造，搜索面板state订阅及计算属性会取得单例，初始化本身不扫描目录",
     ("Features/Toolbox/Search/FileNameIndex.swift", "preloadIfCached"):
         "面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引",
     ("Features/Toolbox/Search/FileNameIndex.swift", "rebuild"):
@@ -568,13 +568,13 @@ EVIDENCE.update({
     ("Features/Toolbox/Search/FileNameIndex.swift", "ensureReady"):
         "有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）",
     ("Features/Toolbox/Search/FileNameIndex.swift", "loadFromDisk"):
-        "校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页",
+        "读取24字节头并确认magic及正count/length，未读版本字段；锁内替换mmap和长度，磁盘时间直接发布ready，池偏移使用headerSize常量",
     ("Features/Toolbox/Search/FileNameIndex.swift", "unmap"):
         "重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）",
     ("Features/Toolbox/Search/FileNameIndex.swift", "build"):
-        "后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度",
+        "后台用预留24字节头的Data池扫描并原子写盘，删除整池out与Data转换副本；900MiB路径上限及每20000项发布保持，计时从扫描开始，主线程再映射",
     ("Features/Toolbox/Search/FileNameIndex.swift", "walk"):
-        "POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池",
+        "POSIX递归用同一inout Data追加UTF8及NUL，目录留到递归层写；排除路径静态初始化一次，原长度与池上限保持",
     ("Features/Toolbox/Search/FileNameIndex.swift", "roots"):
         "只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local",
     ("Features/Toolbox/Search/FileNameIndex.swift", "search"):
@@ -2308,7 +2308,8 @@ EVIDENCE.update({
     ("Features/AI/Views/AISettingsPane.swift", "save"): "AI服务草稿只提交变动地址模型与凭证，凭证失败返回服务商及原因并保留候选密钥",
     ("Features/AI/Views/AISettingsPane.swift", "discard"): "取消当前AI服务页时重读保存值并丢弃本页候选密钥，不应用其他页草稿",
     ("Features/AI/Views/AISettingsPane.swift", "restoreDefaults"): "AI服务默认只更新本页候选配置，不删除已保存凭证或立即请求服务",
-    ("Features/AI/Views/AISettingsPane.swift", "configurationChanged"): "候选服务变化递增请求代际，旧连接结果不覆盖新服务配置",
+    ("Features/AI/Views/AISettingsPane.swift", "configurationChanged"): "候选服务变化先取消并释放连接任务，再递增代次及清结果，URLSession沿原任务取消链结束",
+    ("Features/AI/Views/AISettingsPane.swift", "deinit"): "设置会话end释放草稿时取消唯一连接任务；测试闭包弱持有草稿，不再把设置模型保留到网络完成",
     ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "init"): "截图OCR水印三页复用既有截图预览模型，将其变化转发给窗口草稿会话",
     ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "save"): "按截图OCR或水印所属字段差量提交，固定比例编码及偏好失败保留当前页调整",
     ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "discard"): "取消当前截图子页重读正式值并清理未添加的比例草稿",
